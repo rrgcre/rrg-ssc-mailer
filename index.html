@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Broker's Opinion of Value</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#e9edf3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+
+.toolbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);}
+.tb-inner{max-width:920px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.tt{font-weight:800;color:var(--navy);font-size:14px;} .tt span{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px;}
+.actions{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:8px;cursor:pointer;}
+.btn:hover{border-color:#9fb0cc;} .btn.print{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+.wrap{max-width:920px;margin:22px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(10,20,50,.08);}
+
+.band{color:#fff;padding:38px 46px 30px;position:relative;overflow:hidden;
+  background:radial-gradient(96% 130% at 27% 12%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.band > *{position:relative;z-index:2;}
+.band::after{content:"";position:absolute;z-index:0;width:1300px;height:1300px;right:-380px;top:120px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%, #0b1430 0%, #08112a 48%, #050c22 82%);border:1px solid rgba(120,150,220,.10);pointer-events:none;}
+.confline{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#8fa0c2;font-weight:700;margin-bottom:22px;}
+.rrg{display:inline-flex;align-items:center;}
+.rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:44px;height:44px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.rrg .bar{background:#fff;width:3px;height:32px;margin:0 12px;} .rrg .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:26px 0 6px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+.band h1 input{font-size:29px;font-weight:800;letter-spacing:-.01em;margin:0;color:#fff;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.22);width:100%;font-family:inherit;padding:0 0 3px;}
+.band h1 input:focus{outline:none;border-bottom-color:var(--red);}
+.subin{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.16);color:#c3ccdf;font-size:14px;font-weight:600;font-family:inherit;padding:6px 0 2px;width:100%;margin-top:8px;}
+.subin.tag{color:#9fb0cc;font-size:12px;font-style:italic;}
+.subin:focus{outline:none;border-bottom-color:var(--red);color:#fff;}
+.accent{width:58px;height:5px;background:var(--red);border-radius:3px;margin:16px 0 14px;}
+.prep{display:flex;flex-direction:column;gap:9px;margin-top:6px;max-width:560px;}
+.pf{display:flex;flex-direction:column;gap:2px;} .pf label{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#8093b6;font-weight:700;}
+.pf input{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.18);color:#dce3f0;font-size:12px;font-weight:600;font-family:inherit;padding:2px 0;width:100%;}
+.pf input:focus{outline:none;border-bottom-color:var(--red);color:#fff;}
+
+/* headline stat strip */
+.strip{display:grid;grid-template-columns:repeat(4,1fr);margin-top:22px;border:1px solid rgba(255,255,255,.14);border-radius:12px;overflow:hidden;position:relative;z-index:2;}
+.strip .c{padding:13px 16px;border-right:1px solid rgba(255,255,255,.12);}
+.strip .c:last-child{border-right:none;}
+.strip .k{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#8fa0c2;font-weight:700;}
+.strip .v{font-family:inherit;font-weight:800;font-size:18px;color:#fff;margin-top:4px;line-height:1.05;}
+.strip .v.red{color:#ff7a5c;}
+
+.inner{padding:6px 46px 34px;}
+.kl{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:800;margin:30px 0 3px;}
+.sec{display:flex;align-items:center;gap:12px;margin:2px 0 12px;}
+.sec h2{font-size:17px;color:var(--navy);margin:0;font-weight:800;letter-spacing:-.01em;}
+.sec .flex{flex:1;height:1px;background:var(--line);}
+.lead{font-size:12.5px;line-height:1.6;color:var(--ink);}
+.narr{width:100%;border:1px solid var(--inp);border-radius:9px;padding:11px 13px;font-family:inherit;font-size:12.5px;color:var(--ink);min-height:80px;resize:vertical;line-height:1.55;margin-top:8px;}
+.narr:focus{outline:none;border-color:var(--red);} .narr.sm{min-height:56px;} .narr{overflow:hidden;}
+.sublabel{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:14px 0 5px;}
+
+.callout{border-left:4px solid var(--red);background:var(--wash);border-radius:0 10px 10px 0;padding:13px 16px;margin-top:14px;}
+.callout .ct{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:800;margin-bottom:5px;}
+.callout textarea{width:100%;border:none;background:transparent;font-family:inherit;font-size:12px;color:var(--ink);line-height:1.55;resize:vertical;min-height:52px;}
+.callout textarea:focus{outline:none;} .callout textarea{overflow:hidden;}
+
+table{width:100%;border-collapse:collapse;font-size:12px;margin-top:8px;}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;}
+th:first-child,td:first-child{text-align:left;}
+th{font-size:8.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);}
+td input{width:100%;border:1px solid transparent;border-radius:6px;padding:5px 6px;font-size:12px;font-family:inherit;color:var(--ink);background:#fff;text-align:right;font-weight:500;}
+td.l input{text-align:left;} td input:hover{border-color:var(--line);} td input:focus{outline:none;border-color:var(--red);background:#fffdfd;}
+td.calc{font-weight:700;color:var(--navy);}
+tr.tot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);}
+tr.tot td.calc{color:var(--red);}
+tr.baserow td{background:#fdeceb;font-weight:700;}
+.matrix td.calc,.matrix th{white-space:nowrap;}
+
+.foot{margin-top:30px;border-top:1px solid var(--line);padding-top:12px;display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);flex-wrap:wrap;gap:6px;}
+.foot b{color:var(--navy);}
+
+@media(max-width:720px){ .strip{grid-template-columns:1fr 1fr;} .inner{padding:6px 22px 28px;} .band{padding:26px 22px;} }
+@media print{
+  @page{size:Letter;margin:0.55in 0.6in;} @page cover{margin:0;}
+  body{background:#fff;}
+  .toolbar,.rrg-noprint{display:none!important;}
+  .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .band{page:cover;border-radius:0;height:11in;overflow:hidden;break-after:page;}
+  input,textarea{border:none!important;background:none!important;resize:none;}
+  .band h1 input,.subin,.pf input{border-bottom:none!important;}
+  .band input,.band h1 input,.subin,.pf input{color:#e9edf6!important;-webkit-text-fill-color:#e9edf6!important;}
+  .band h1 input{color:#fff!important;-webkit-text-fill-color:#fff!important;}
+  .strip .v{color:#fff!important;-webkit-text-fill-color:#fff!important;}
+  .strip .v.red{color:#ff7a5c!important;-webkit-text-fill-color:#ff7a5c!important;}
+  .narr,.callout textarea{min-height:0!important;overflow:visible!important;}
+  .kl-block,table,.callout,.strip,.sec{break-inside:avoid;}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar"><div class="tb-inner">
+  <div class="tt">RRG Broker's Opinion of Value <span>Fill in, then Print / Save PDF</span></div>
+  <div class="actions">
+    <button class="btn" onclick="loadSample()">Load sample</button>
+    <button class="btn" onclick="clearAll()">Clear</button>
+    <button class="btn print" onclick="window.print()">Print / Save PDF</button>
+  </div>
+</div></div>
+
+<div class="wrap" id="sheet">
+  <div class="band">
+    <div class="confline">Confidential &nbsp;·&nbsp; Prepared for Ownership &nbsp;·&nbsp; Not for Distribution</div>
+    <span class="rrg"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <div class="kicker">Broker's Opinion of Value</div>
+    <h1><input data-k="subject" placeholder="Business Name"></h1>
+    <input class="subin" data-k="descriptor" placeholder="Descriptor — e.g. Three-Restaurant Go-Forward Platform · Operating Business">
+    <input class="subin tag" data-k="tagline" placeholder="Tagline — e.g. A San Antonio Institution Since 2000">
+    <div class="accent"></div>
+    <div class="prep">
+      <div class="pf"><label>Prepared For</label><input data-k="preparedFor" placeholder="Ownership of ..."></div>
+      <div class="pf wide"><label>Prepared By</label><input data-k="preparedBy" value="Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com"></div>
+      <div class="pf wide"><label>&nbsp;</label><input data-k="preparedBy2" value="Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com"></div>
+      <div class="pf"><label>Date</label><input data-k="date" placeholder="Month Year"></div>
+    </div>
+    <div class="strip">
+      <div class="c"><div class="k">Concluded Value Range</div><div class="v red" id="hRange">—</div></div>
+      <div class="c"><div class="k">Recommended Target</div><div class="v" id="hTarget">—</div></div>
+      <div class="c"><div class="k">Adj. EBITDA Multiple</div><div class="v" id="hMult">—</div></div>
+      <div class="c"><div class="k">Adj. TTM EBITDA</div><div class="v" id="hEbitda">—</div></div>
+    </div>
+  </div>
+
+  <div class="inner">
+    <!-- 1 ENGAGEMENT -->
+    <div class="kl-block"><div class="kl">Engagement</div>
+    <div class="sec"><h2>Purpose &amp; Scope of This Opinion</h2><div class="flex"></div></div>
+    <textarea class="narr" data-k="purpose" placeholder="At ownership's request, RRG has prepared this Broker's Opinion of Value for [subject], presented as [asset/equity sale]. The purpose is to establish a supportable value range and pricing strategy…"></textarea>
+    <div class="sublabel">Subject of the opinion</div><textarea class="narr sm" data-k="subjectOf"></textarea>
+    <div class="sublabel">Excluded from value</div><textarea class="narr sm" data-k="excluded"></textarea>
+    <div class="sublabel">Basis of the opinion</div><textarea class="narr sm" data-k="basisOf"></textarea>
+    <div class="callout"><div class="ct">This is a broker's opinion — not an appraisal</div><textarea data-k="coNote">RRG is a licensed real estate and business brokerage engaged to market the Company; this BOV is a pricing opinion, not a certified appraisal, USPAP report, or fairness opinion. It should be read together with the Assumptions & Limiting Conditions on the final page.</textarea></div>
+    </div>
+
+    <!-- 2 THE NUMBER -->
+    <div class="kl-block"><div class="kl">The Number</div>
+    <div class="sec"><h2>Executive Conclusion of Value</h2><div class="flex"></div></div>
+    <p class="lead" id="execLead">Enter the earnings and multiple below to generate the conclusion.</p>
+    <textarea class="narr" data-k="execNarr" placeholder="Add colour: what the conclusion is derived from, the base-case multiple, and the cross-checks."></textarea>
+    <div class="callout"><div class="ct">Why the range holds</div><textarea data-k="whyHolds"></textarea></div>
+    </div>
+
+    <!-- 3 EARNINGS -->
+    <div class="kl-block"><div class="kl">Earnings</div>
+    <div class="sec"><h2>Basis of Value — Adjusted EBITDA</h2><div class="flex"></div></div>
+    <table>
+      <thead><tr><th>Trailing Twelve Months</th><th>$</th></tr></thead>
+      <tbody id="bridgeBody"></tbody>
+      <tfoot><tr class="tot"><td>Adjusted EBITDA <span id="marginTxt" style="color:var(--muted);font-weight:600"></span></td><td class="calc" id="adjEbitda">$0</td></tr></tfoot>
+    </table>
+    <textarea class="narr" data-k="earnNarr" placeholder="Occupancy note and earnings-quality commentary — what's normalized and why."></textarea>
+    </div>
+
+    <!-- 4 APPROACH -->
+    <div class="kl-block"><div class="kl">Approach</div>
+    <div class="sec"><h2>Valuation Methodology &amp; Multiple Selection</h2><div class="flex"></div></div>
+    <div class="sublabel">Selected adjusted-EBITDA multiple range</div>
+    <table style="max-width:420px">
+      <thead><tr><th>Low</th><th>Base Case</th><th>High</th></tr></thead>
+      <tbody><tr>
+        <td><input data-k="multLow" inputmode="decimal" value="4.0" oninput="compute()" style="text-align:center"></td>
+        <td><input data-k="multBase" inputmode="decimal" value="4.5" oninput="compute()" style="text-align:center"></td>
+        <td><input data-k="multHigh" inputmode="decimal" value="5.0" oninput="compute()" style="text-align:center"></td>
+      </tr></tbody>
+    </table>
+    <textarea class="narr" data-k="methodNarr" placeholder="Market approach (primary), the subject's positioning within the band, income cross-check (implied earnings yield), and revenue cross-check."></textarea>
+    </div>
+
+    <!-- 5 MARKET -->
+    <div class="kl-block"><div class="kl">Market</div>
+    <div class="sec"><h2>Comparable Multiple Benchmarks</h2><div class="flex"></div></div>
+    <table>
+      <thead><tr><th>Business Profile</th><th>Typical Multiple</th></tr></thead>
+      <tbody id="benchBody"></tbody>
+    </table>
+    <div class="sublabel" style="margin-top:16px">Supports a premium &nbsp;/&nbsp; Tempers the multiple</div>
+    <table><tbody><tr>
+      <td class="l" style="width:50%;vertical-align:top"><textarea class="narr sm" data-k="premium" style="margin:0" placeholder="Factors toward the high end (one per line)"></textarea></td>
+      <td class="l" style="vertical-align:top"><textarea class="narr sm" data-k="tempers" style="margin:0" placeholder="Factors toward the low end (one per line)"></textarea></td>
+    </tr></tbody></table>
+    </div>
+
+    <!-- 6 CONCLUSION -->
+    <div class="kl-block"><div class="kl">Conclusion</div>
+    <div class="sec"><h2>Valuation Matrix &amp; Concluded Range</h2><div class="flex"></div></div>
+    <table class="matrix">
+      <thead><tr><th>Adjusted EBITDA Scenario</th><th id="mcLo">4.0×</th><th id="mcBase">4.5×</th><th id="mcHi">5.0×</th></tr></thead>
+      <tbody>
+        <tr><td class="l">Conservative &nbsp; <input data-k="ebLow" inputmode="numeric" value="" placeholder="$" oninput="grpme(this);compute()" style="width:110px;display:inline-block"></td><td class="calc" id="m00">—</td><td class="calc" id="m01">—</td><td class="calc" id="m02">—</td></tr>
+        <tr class="baserow"><td class="l">Base (as normalized) &nbsp; <b id="ebBaseTxt">$0</b></td><td class="calc" id="m10">—</td><td class="calc" id="m11">—</td><td class="calc" id="m12">—</td></tr>
+        <tr><td class="l">Upside (confirmed) &nbsp; <input data-k="ebUp" inputmode="numeric" value="" placeholder="$" oninput="grpme(this);compute()" style="width:110px;display:inline-block"></td><td class="calc" id="m20">—</td><td class="calc" id="m21">—</td><td class="calc" id="m22">—</td></tr>
+      </tbody>
+    </table>
+    <div class="sublabel" style="margin-top:12px">Revenue cross-check &nbsp;·&nbsp; <input data-k="revLo" value="0.50" style="width:44px;border:1px solid var(--inp);border-radius:5px;padding:2px 4px;text-align:center;font-family:inherit" oninput="compute()">× – <input data-k="revHi" value="0.60" style="width:44px;border:1px solid var(--inp);border-radius:5px;padding:2px 4px;text-align:center;font-family:inherit" oninput="compute()">× of trailing revenue → <b id="revCheck" style="color:var(--navy)">—</b></div>
+    <div class="callout"><div class="ct">Concluded value — RRG opinion</div><textarea data-k="concNarr"></textarea></div>
+    </div>
+
+    <!-- 7 GO-TO-MARKET -->
+    <div class="kl-block"><div class="kl">Go-To-Market</div>
+    <div class="sec"><h2>Recommended Pricing Strategy</h2><div class="flex"></div></div>
+    <textarea class="narr" data-k="gtmNarr" placeholder="Anchor / target / ceiling and process (confidential, invitation-based, guided not posted)."></textarea>
+    <div class="sublabel" style="margin-top:14px">Buyer-type expectations</div>
+    <table>
+      <thead><tr><th>Buyer Type</th><th>Likely Multiple</th><th>What Moves Them</th></tr></thead>
+      <tbody id="buyerBody"></tbody>
+    </table>
+    </div>
+
+    <!-- 8 DISCLOSURES -->
+    <div class="kl-block"><div class="kl">Disclosures</div>
+    <div class="sec"><h2>Assumptions &amp; Limiting Conditions</h2><div class="flex"></div></div>
+    <textarea class="narr" data-k="assume" style="min-height:160px"></textarea>
+    </div>
+
+    <div class="foot">
+      <span>Restaurant Realty Group, LLC &nbsp;·&nbsp; Strictly Confidential &nbsp;·&nbsp; <b>Serving Austin · Dallas · Houston · San Antonio</b></span>
+      <span>Broker's Opinion of Value</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var KEY='rrgdraft:'+(document.title||location.pathname);
+  var state={fields:{}, bridge:[], bench:[], buyers:[]};
+  function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.\-]/g,''))||0; }
+  function money(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
+  function moneyM(n){ n=n/1e6; return '$'+(n>=10?n.toFixed(1):n.toFixed(2))+'M'; }
+  function grp(s){ s=String(s).replace(/[^0-9\-]/g,''); return s?Number(s).toLocaleString('en-US'):''; }
+  window.grpme=function(el){ el.value=grp(el.value); };
+  function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+  function q(k){ return document.querySelector('[data-k='+k+']'); }
+  function val(k){ var e=q(k); return e?e.value:''; }
+  function grow(t){ if(!t||t.tagName!=='TEXTAREA') return; t.style.height='auto'; t.style.height=(t.scrollHeight+2)+'px'; }
+  function growAll(){ document.querySelectorAll('textarea').forEach(grow); }
+  document.addEventListener('input', function(e){ if(e.target.tagName==='TEXTAREA') grow(e.target); });
+  window.addEventListener('load', function(){ setTimeout(growAll,30); });
+
+  var BRIDGE=[['Go-forward platform revenue','revenue',false],['Net income (as reported)','netIncome',false],
+    ['Add back: depreciation','addDep',false],['Add back: interest','addInt',false],
+    ['Add back: non-recurring','addNonRec',false],['Add back: discretionary (T&E)','addTE',false],
+    ['Rent normalization to executed leases','addRent',false]];
+  var BENCH=[['Single-unit, owner-operated','1.5–3.0× SDE'],['Profitable independent, single unit','3.0–5.0× SDE'],
+    ['Independent group, $1–5M earnings','3.0–5.0× EBITDA'],['Multi-unit / manager-run groups','4.0–7.0× adj. EBITDA'],
+    ['This platform (selected)','4.0–5.0× adj. EBITDA'],['Scaled platforms / franchisors','7.0–12×+ EBITDA']];
+  var BUYERS=[['Strategic operator','4.75–5.0×+','Daypart diversification, purchasing & G&A synergy'],
+    ['PE / family office','4.0–4.5×','Clean EBITDA, lease confirmation, growth runway'],
+    ['Experienced owner-operator','4.0–4.75×','Lifestyle + brand; tempered by financing']];
+  var ASSUME="1.  This BOV is an opinion of value prepared by RRG for the ownership of the Company for internal planning and marketing purposes. It is not a certified appraisal, a USPAP-compliant report, a fairness opinion, or a guarantee of the price at which the business will sell.\n\n2.  The opinion relies on financial and operating information supplied by ownership and management, which RRG has not audited or independently verified. Adjusted-earnings figures reflect normalizing adjustments and remain subject to a buyer's quality-of-earnings review.\n\n3.  Value is expressed for the going-concern operating business, with real estate treated as noted and any leases assumed and assigned. A change in lease terms, rent, or their market-supportability would change the conclusion.\n\n4.  The opinion is stated as of the date shown and reflects market conditions, transaction multiples, capital availability, and industry sentiment as of that date; these change over time. Actual value realized depends on buyer perception of earnings durability, growth, deal structure, financing, and negotiation.\n\n5.  RRG represents the seller and is compensated on a completed sale. This opinion should not be relied upon by any buyer or third party as investment, legal, tax, or accounting advice.";
+
+  // ---- bridge ----
+  function buildBridge(){
+    var tb=document.getElementById('bridgeBody'); tb.innerHTML='';
+    state.bridge.forEach(function(r,i){
+      var tr=document.createElement('tr');
+      tr.innerHTML='<td class="l"><input data-bi="'+i+'" data-bf="label" value="'+esc(r.label)+'"></td>'+
+        '<td><input data-bi="'+i+'" data-bf="amt" inputmode="numeric" value="'+esc(r.amt)+'" placeholder="0"></td>';
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll('[data-bi]').forEach(function(el){ el.addEventListener('input',function(){
+      var i=+el.getAttribute('data-bi'),f=el.getAttribute('data-bf'); if(f==='amt') el.value=grp(el.value); state.bridge[i][f]=el.value; compute(); save(); }); });
+  }
+  function adjEbitda(){
+    // revenue (row0) and net income (row1) + all add-backs (rows 2+); revenue excluded from the sum
+    var e=0; state.bridge.forEach(function(r,i){ if(i===0) return; e+=num(r.amt); });
+    return e;
+  }
+
+  function simpleTable(bodyId, arr, cols, akey){
+    var tb=document.getElementById(bodyId); tb.innerHTML='';
+    arr.forEach(function(r,i){
+      var tds=cols.map(function(ci){ return '<td class="'+(ci===0?'l':'')+'"><input data-ai="'+i+'" data-ac="'+ci+'" value="'+esc(r[ci]||'')+'"'+(ci>0?' style="text-align:left"':'')+'></td>'; }).join('');
+      var tr=document.createElement('tr'); if(akey==='bench'&&i===4) tr.className='baserow'; tr.innerHTML=tds; tb.appendChild(tr);
+    });
+    tb.querySelectorAll('[data-ai]').forEach(function(el){ el.addEventListener('input',function(){
+      var i=+el.getAttribute('data-ai'),ci=+el.getAttribute('data-ac'); arr[i][ci]=el.value; save(); }); });
+  }
+
+  window.compute=function(){
+    var e=adjEbitda(), rev=num(state.bridge[0]?state.bridge[0].amt:0);
+    var lo=num(val('multLow')),ba=num(val('multBase')),hi=num(val('multHigh'));
+    document.getElementById('adjEbitda').textContent=money(e);
+    document.getElementById('marginTxt').textContent=rev>0?('('+(e/rev*100).toFixed(1)+'% of revenue)'):'';
+    var vLo=e*lo, vBa=e*ba, vHi=e*hi;
+    document.getElementById('hRange').textContent=e>0?(moneyM(vLo)+' – '+moneyM(vHi)):'—';
+    document.getElementById('hTarget').textContent=e>0?('~'+moneyM(vBa)):'—';
+    document.getElementById('hMult').textContent=(lo&&hi)?(lo.toFixed(1)+'–'+hi.toFixed(1)+'×'):'—';
+    document.getElementById('hEbitda').textContent=e>0?('~'+moneyM(e)):'—';
+    document.getElementById('execLead').innerHTML = e>0
+      ? ('It is RRG’s opinion that the fair market value falls within a range of approximately <b>'+moneyM(vLo)+' to '+moneyM(vHi)+'</b>, with a most-likely clearing value near <b>'+moneyM(vBa)+'</b>, derived from a market approach applied to adjusted EBITDA of <b>'+money(e)+'</b> at <b>'+lo.toFixed(1)+'× to '+hi.toFixed(1)+'×</b> (base case '+ba.toFixed(1)+'×).')
+      : 'Enter the earnings and multiple below to generate the conclusion.';
+    // multiple headers
+    document.getElementById('mcLo').textContent=lo.toFixed(1)+'×'; document.getElementById('mcBase').textContent=ba.toFixed(1)+'×'; document.getElementById('mcHi').textContent=hi.toFixed(1)+'×';
+    // matrix
+    var ebLow=num(val('ebLow'))||e, ebUp=num(val('ebUp'))||e;
+    document.getElementById('ebBaseTxt').textContent=money(e);
+    var mults=[lo,ba,hi], ebs=[ebLow,e,ebUp];
+    for(var r=0;r<3;r++) for(var col=0;col<3;col++){ var cell=document.getElementById('m'+r+col); if(cell) cell.textContent=(ebs[r]>0&&mults[col]>0)?money(ebs[r]*mults[col]):'—'; }
+    // revenue check
+    var rlo=num(val('revLo')),rhi=num(val('revHi'));
+    document.getElementById('revCheck').textContent=(rev>0&&rlo&&rhi)?(moneyM(rev*rlo)+' – '+moneyM(rev*rhi)):'—';
+    // publish a compact summary for the CIM builder to read (shared, format-stable)
+    try{ if(e>0){ localStorage.setItem('rrg_bov_summary', JSON.stringify({
+      subject: val('subject')||'', date: val('date')||'',
+      rangeLow: vLo, rangeHigh: vHi, target: vBa, ebitda: e,
+      multLow: lo, multBase: ba, multHigh: hi,
+      rangeText: moneyM(vLo)+' – '+moneyM(vHi), targetText: '~'+moneyM(vBa),
+      multText: lo.toFixed(1)+'–'+hi.toFixed(1)+'×', ebitdaText: money(e),
+      stamp: Date.now()
+    })); } }catch(e2){}
+  };
+
+  // save/restore
+  function collect(){ var o={}; document.querySelectorAll('[data-k]').forEach(function(el){ o[el.getAttribute('data-k')]=el.value; }); return o; }
+  function apply(o){ document.querySelectorAll('[data-k]').forEach(function(el){ var k=el.getAttribute('data-k'); if(o[k]!=null) el.value=o[k]; }); }
+  var st=null; function save(){ if(st)clearTimeout(st); st=setTimeout(function(){ state.fields=collect(); try{localStorage.setItem(KEY,JSON.stringify(state));chip();}catch(e){} },350); }
+  var c=document.createElement('div'); c.className='rrg-noprint';
+  c.style.cssText='position:fixed;right:14px;bottom:14px;z-index:9998;background:#0b1a3a;color:#fff;font:600 12px/1 -apple-system,Segoe UI,Roboto,sans-serif;padding:8px 12px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.22);opacity:0;transition:opacity .3s;pointer-events:none;';
+  c.textContent='Draft saved ✓'; document.body.appendChild(c);
+  var cT=null; function chip(){ c.style.opacity='1'; if(cT)clearTimeout(cT); cT=setTimeout(function(){c.style.opacity='0';},1300); }
+  var _ns=document.createElement('style'); _ns.textContent='@media print{.rrg-noprint{display:none!important}}'; document.head.appendChild(_ns);
+  document.addEventListener('input',function(e){ if(e.target.hasAttribute&&e.target.hasAttribute('data-k')) save(); });
+
+  function renderAll(){ buildBridge(); simpleTable('benchBody',state.bench,[0,1],'bench'); simpleTable('buyerBody',state.buyers,[0,1,2],'buyer'); compute(); growAll(); }
+
+  window.clearAll=function(){
+    if(!confirm('Clear this BOV?')) return;
+    state={fields:{}, bridge:BRIDGE.map(function(r){return {label:r[0],amt:''};}), bench:BENCH.map(function(r){return r.slice();}), buyers:BUYERS.map(function(r){return r.slice();})};
+    document.querySelectorAll('[data-k]').forEach(function(el){ if(el.getAttribute('data-k')==='assume') el.value=ASSUME; else if(['multLow','multBase','multHigh'].indexOf(el.getAttribute('data-k'))>=0){} else if(el.getAttribute('data-k')==='revLo')el.value='0.50'; else if(el.getAttribute('data-k')==='revHi')el.value='0.60'; else if(el.getAttribute('data-k')==='preparedBy')el.value='Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com'; else if(el.getAttribute('data-k')==='preparedBy2')el.value='Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com'; else el.value=''; });
+    q('multLow').value='4.0'; q('multBase').value='4.5'; q('multHigh').value='5.0';
+    renderAll(); try{localStorage.removeItem(KEY);}catch(e){}
+  };
+
+  window.loadSample=function(){
+    state.bridge=[{label:'Go-forward platform revenue',amt:'9,195,755'},{label:'Net income (as reported)',amt:'553,161'},
+      {label:'Add back: depreciation',amt:'133,561'},{label:'Add back: interest',amt:'965'},
+      {label:'Add back: non-recurring (project & other)',amt:'56,408'},{label:'Add back: travel & entertainment (discretionary)',amt:'24,782'},
+      {label:'Rent normalization to executed 2024 leases',amt:'352,962'}];
+    state.bench=BENCH.map(function(r){return r.slice();}); state.buyers=BUYERS.map(function(r){return r.slice();});
+    var f={subject:'The Magnolia Pancake Haus',descriptor:'Three-Restaurant Go-Forward Platform · Operating Business',tagline:'A San Antonio Institution Since 2000',
+      preparedFor:'Ownership of The Magnolia Pancake Haus',preparedBy:'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com',preparedBy2:'Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com',date:'July 2026',
+      multLow:'4.0',multBase:'4.5',multHigh:'5.0',revLo:'0.50',revHi:'0.60',ebLow:'1,020,000',ebUp:'1,250,000',
+      purpose:'At ownership’s request, RRG has prepared this Broker’s Opinion of Value for the three-restaurant go-forward platform of The Magnolia Pancake Haus (the “Company”), presented as a sale of the operating business. The purpose is to establish a supportable value range and recommended pricing strategy to guide the confidential, invitation-based marketing process described in the Company’s CIM.',
+      subjectOf:'The going-concern operating business of the three continuing restaurants — Huebner Rd., Northwoods, and Cibolo — sold as an asset or equity transaction with a defined transition, and with the executed leases assumed by the buyer.',
+      excluded:'The underlying real estate is not part of the sale — the premises are leased from an ownership-affiliated landlord and the executed NNN leases are assumed and assigned rather than sold. The separate catering operation (being wound down) is likewise excluded. This is an OpCo-only opinion.',
+      basisOf:'Management-prepared, unaudited financials (QuickBooks class-level P&Ls FY2022–FY2024; Restaurant365 for the TTM ended Feb 28, 2026) and the executed 2024 leases at $22,500/month per location. Figures are consistent with the CIM.',
+      execNarr:'This conclusion is derived principally from a market (multiple-of-earnings) approach applied to adjusted TTM EBITDA of $1,121,839 at 4.0×–5.0× (base 4.5×), cross-checked against revenue and comparable-transaction benchmarks.',
+      whyHolds:'A 26-year iconic brand, top-decile ~$3.1M average unit volumes, and pristine long-dated NNN leases support the upper end. Sub-$5M EBITDA scale, the related-party landlord, founder/brand transition, and catering wind-down noise anchor the floor. A tight, defensible band — not a wide guess.',
+      earnNarr:'Reported trailing earnings are adjusted for non-cash items, non-recurring and discretionary costs, and occupancy normalized to the executed 2024 leases ($22,500/month per location; ~$937,575 including NNN, ~10% of revenue), arriving at adjusted EBITDA of $1,121,839 (12.2% of revenue). If a QoE review confirms higher sustainable EBITDA, value scales accordingly.',
+      methodNarr:'Market approach (primary): manager-run, multi-unit restaurant groups generally clear at 4.0×–7.0× adjusted EBITDA, with size the biggest determinant. At ~$1.12M EBITDA across three units, Magnolia sits at the entry of the multi-unit band — scale argues for low-4×; brand equity, top-decile AUVs, and 20+ years of lease control support a premium toward 5×. Income cross-check: ~$1.12M against ~$5.0M implies a ~22% unlevered pre-tax yield. Revenue cross-check: 0.50×–0.60× of $9.2M ≈ $4.6M–$5.5M.',
+      premium:'26-year iconic brand; national media (DDD ×2)\nTop-decile ~$3.1M average unit volumes\nLong-dated, uniform NNN leases; 20+ yrs control\nDaytime-only simplicity; transferable systems (R365)\nUndeployed marketing & off-premise upside',
+      tempers:'Sub-$5M EBITDA — size caps the multiple\nRelated-party landlord — leases must confirm as market\nFounder / brand transition risk\nFull-service labor & food-cost sensitivity\nCatering wind-down noise in trailing results',
+      concNarr:'Approximately $4.5M to $5.6M for the go-forward operating business (leases assumed), with a most-likely clearing value near $5.0M at a 4.5× base-case multiple. A QoE-confirmed EBITDA above $1.12M, or a strategic buyer, supports the upper end and beyond.',
+      gtmNarr:'Run a confidential, invitation-based process without a published price, inviting IOIs. Anchor: guide qualified buyers toward $5.25M–$5.5M in conversation, target a clearing value near $5.0M (≈4.5×), and hold $5.6M (5.0×) as the defensible ceiling for a strategic buyer. Protect the number in diligence: confirm the executed leases, deliver a QoE-ready add-back schedule, and isolate the catering wind-down.',
+      assume:ASSUME};
+    apply(f); q('multLow').value='4.0';q('multBase').value='4.5';q('multHigh').value='5.0';
+    renderAll(); save();
+  };
+
+  // init
+  function restore(){ try{ var raw=localStorage.getItem(KEY); if(!raw)return false; var s=JSON.parse(raw); if(!s||!s.fields)return false;
+    state=s; if(!state.bridge||!state.bridge.length) state.bridge=BRIDGE.map(function(r){return {label:r[0],amt:''};});
+    if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();});
+    apply(state.fields); renderAll(); return true; }catch(e){ return false; } }
+  if(!restore()){ state.bridge=BRIDGE.map(function(r){return {label:r[0],amt:''};}); state.bench=BENCH.map(function(r){return r.slice();}); state.buyers=BUYERS.map(function(r){return r.slice();}); q('assume').value=ASSUME; loadSample(); }
+})();
+</script>
+</body>
+</html>

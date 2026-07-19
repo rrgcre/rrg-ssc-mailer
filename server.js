@@ -1,0 +1,22 @@
+{
+  "name": "rrg-ssc-mailer",
+  "version": "1.0.0",
+  "description": "Receives RRG Site Selection Criteria form submissions, renders a branded PDF, and emails it to the tenant rep (CC van@rrgcre.com).",
+  "main": "server.js",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.js",
+    "test:local": "node test-local.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "nodemailer": "^6.9.13",
+    "puppeteer": "^22.12.1"
+  },
+  "devDependencies": {
+    "mailparser": "^3.9.14",
+    "smtp-server": "^3.19.2"
+  }
+}

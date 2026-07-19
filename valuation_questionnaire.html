@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Lease Commission Calculator</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#e9edf3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+
+.toolbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);}
+.tb-inner{max-width:940px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.toolbar .tt{font-weight:800;color:var(--navy);font-size:14px;}
+.toolbar .tt span{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px;}
+.actions{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:8px;cursor:pointer;}
+.btn:hover{border-color:#9fb0cc;}
+.btn.print{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+.wrap{max-width:940px;margin:22px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(10,20,50,.08);}
+
+.band{color:#fff;padding:38px 44px 34px;position:relative;overflow:hidden;
+  background:radial-gradient(96% 130% at 27% 12%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.band > *{position:relative;z-index:2;}
+.band::after{content:"";position:absolute;z-index:0;width:1200px;height:1200px;right:-360px;top:110px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%, #0b1430 0%, #08112a 48%, #050c22 82%);border:1px solid rgba(120,150,220,.10);pointer-events:none;}
+.rrg{display:inline-flex;align-items:center;}
+.rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:46px;height:46px;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;}
+.rrg .bar{background:#fff;width:3px;height:34px;margin:0 12px;}
+.rrg .wm{font-weight:800;font-size:15px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:30px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+.band h1{font-size:31px;font-weight:800;letter-spacing:-.01em;margin:0;}
+.accent{width:60px;height:5px;background:var(--red);border-radius:3px;margin:16px 0 0;}
+.band .sub{color:#aeb8cf;font-size:13px;margin-top:10px;}
+
+.inner{padding:26px 40px 34px;}
+.seclabel{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);font-weight:700;margin:26px 0 12px;display:flex;align-items:center;gap:10px;}
+.seclabel:first-child{margin-top:6px;}
+.seclabel::after{content:"";flex:1;height:1px;background:var(--line);}
+.seclabel small{font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted);font-size:11px;}
+
+.inputs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.inputs.four{grid-template-columns:repeat(4,1fr);}
+.field.wide{grid-column:span 1;}
+.field label{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:5px;}
+.field input{width:100%;border:1.5px solid var(--red);border-radius:9px;padding:11px 12px;font-size:15px;font-weight:600;color:var(--navy);font-family:inherit;background:#fffdfd;}
+.field.opt input{border-color:var(--inp);background:#fff;}
+.field .adorn{position:relative;}
+.field .adorn .pre{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;}
+.field .adorn.pre input{padding-left:22px;}
+.field .adorn .suf{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;}
+.field .adorn.suf input{padding-right:26px;}
+.field .hint{font-size:10.5px;color:var(--muted);margin-top:5px;font-weight:500;}
+
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.scard{border:1px solid var(--line);border-radius:12px;padding:15px 16px;background:var(--wash);}
+.scard.hero{background:var(--navy);border-color:var(--navy);}
+.scard .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.scard.hero .k{color:#9fb0cc;}
+.scard .v{font-weight:800;font-size:22px;color:var(--navy);margin-top:7px;letter-spacing:-.01em;line-height:1;}
+.scard.hero .v{color:#fff;}
+.scard.agent{background:#fdeceb;border-color:#f6cfcb;}
+.scard.agent .v{color:var(--red);}
+.scard .s{font-size:10.5px;color:var(--muted);margin-top:5px;}
+.scard.hero .s{color:#8b98b8;}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--line);}
+th{font-size:9.6px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);}
+th:first-child,td:first-child{text-align:left;}
+tbody td.comm{font-weight:700;color:var(--red);}
+tbody tr.step td.rate{color:var(--red);font-weight:700;}
+tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);border-bottom:none;padding-top:10px;font-size:13px;}
+.yr-badge{display:inline-flex;min-width:20px;height:20px;padding:0 5px;border-radius:6px;background:var(--wash);color:var(--muted);font-size:10.5px;font-weight:800;align-items:center;justify-content:center;}
+
+.note{margin-top:22px;font-size:11px;line-height:1.6;color:var(--muted);border-left:3px solid var(--line);padding:2px 0 2px 14px;}
+.foot{margin-top:26px;border-top:1px solid var(--line);padding-top:12px;display:flex;justify-content:space-between;font-size:10px;color:var(--muted);flex-wrap:wrap;gap:6px;}
+.foot b{color:var(--navy);}
+
+@media(max-width:720px){ .inputs,.inputs.four{grid-template-columns:1fr 1fr;} .summary{grid-template-columns:1fr 1fr;} .inner{padding:22px;} .band{padding:28px 24px;} }
+
+@media print{
+  @page{size:Letter;margin:0.5in 0.55in;}
+  body{background:#fff;}
+  .toolbar,.rrg-noprint{display:none!important;}
+  .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .band{border-radius:0;}
+  .scard,.summary{break-inside:avoid;}
+  thead{display:table-header-group;}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar"><div class="tb-inner">
+  <div class="tt">RRG Lease Commission Calculator <span>Enter the lease, see the commission</span></div>
+  <div class="actions">
+    <button class="btn" onclick="loadSample()">Load sample</button>
+    <button class="btn" onclick="resetAll()">Reset</button>
+    <button class="btn print" onclick="window.print()">Print / Save PDF</button>
+  </div>
+</div></div>
+
+<div class="wrap" id="sheet">
+  <div class="band">
+    <span class="rrg"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <div class="kicker">Lease Commission Calculator</div>
+    <h1 id="hdrName">Restaurant Lease Commission</h1>
+    <div class="accent"></div>
+    <div class="sub" id="hdrSub">Commission on total lease consideration across the term.</div>
+  </div>
+
+  <div class="inner">
+    <div class="seclabel">Deal Inputs</div>
+    <div class="inputs">
+      <div class="field"><label>Property / Deal</label><input type="text" id="deal" placeholder="Deal name"></div>
+      <div class="field"><label>Square Feet</label><input type="text" id="sf" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label>Base Rent ($/SF/Yr)</label><span class="adorn pre"><span class="pre">$</span><input type="text" id="rent" inputmode="decimal" placeholder="0"></span></div>
+      <div class="field"><label>Annual Escalation</label><span class="adorn suf"><input type="text" id="esc" inputmode="decimal" placeholder="0"><span class="suf">%</span></span></div>
+      <div class="field"><label>Lease Term (Years)</label><input type="text" id="term" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label>Commission Rate</label><span class="adorn suf"><input type="text" id="comm" inputmode="decimal" placeholder="0"><span class="suf">%</span></span></div>
+    </div>
+
+    <div class="seclabel">Structure &amp; Split <small>&nbsp;— optional</small></div>
+    <div class="inputs four">
+      <div class="field opt"><label>Step-Down After Year</label><input type="text" id="stepYr" inputmode="numeric" placeholder="none"><div class="hint">Declining schedule</div></div>
+      <div class="field opt"><label>Reduced Rate</label><span class="adorn suf"><input type="text" id="stepRate" inputmode="decimal" placeholder="—"><span class="suf">%</span></span><div class="hint">Rate after that year</div></div>
+      <div class="field opt"><label>Side Share</label><span class="adorn suf"><input type="text" id="side" inputmode="decimal" placeholder="100"><span class="suf">%</span></span><div class="hint">100% sole · 50% co-broke</div></div>
+      <div class="field opt"><label>Agent Split</label><span class="adorn suf"><input type="text" id="split" inputmode="decimal" placeholder="50"><span class="suf">%</span></span><div class="hint">Agent vs. house</div></div>
+    </div>
+
+    <div class="seclabel">Commission Summary</div>
+    <div class="summary">
+      <div class="scard hero"><div class="k">Gross Commission</div><div class="v" id="sGross">$0</div><div class="s">Across the full term</div></div>
+      <div class="scard"><div class="k">Lease Consideration</div><div class="v" id="sCons">$0</div><div class="s">Total base rent</div></div>
+      <div class="scard"><div class="k">Effective Rate</div><div class="v" id="sEff">—</div><div class="s">Commission ÷ consideration</div></div>
+      <div class="scard"><div class="k">Commission / SF</div><div class="v" id="sPsf">$0</div><div class="s">Gross ÷ square feet</div></div>
+    </div>
+
+    <div class="seclabel">Split</div>
+    <div class="summary" style="grid-template-columns:repeat(3,1fr)">
+      <div class="scard"><div class="k">Gross to Firm</div><div class="v" id="sFirm">$0</div><div class="s">Gross × side share</div></div>
+      <div class="scard agent"><div class="k">Agent Net</div><div class="v" id="sAgent">$0</div><div class="s">Firm gross × agent split</div></div>
+      <div class="scard"><div class="k">House Net</div><div class="v" id="sHouse">$0</div><div class="s">Remainder to the house</div></div>
+    </div>
+
+    <div class="seclabel">Rent &amp; Commission Schedule</div>
+    <table>
+      <thead><tr><th>Year</th><th>Rent $/SF</th><th>Annual Base Rent</th><th>Comm %</th><th>Commission</th></tr></thead>
+      <tbody id="schedBody"></tbody>
+      <tfoot><tr><td colspan="2">Total</td><td id="tRent">$0</td><td id="tAvgRate">—</td><td id="tComm">$0</td></tr></tfoot>
+    </table>
+
+    <div class="note" id="noteText"></div>
+
+    <div class="foot">
+      <span>Restaurant Realty Group, LLC &nbsp;·&nbsp; <b>Restaurant Transactions. Done Right.</b></span>
+      <span>Proprietary &amp; Confidential · Internal RRG Use Only</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var MAXYEARS=40;
+  function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.]/g,''))||0; }
+  function money(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
+  function money2(n){ return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function pct(n){ return String(+(n*100).toFixed(2))+'%'; }
+  function grp(s){ s=String(s).replace(/[^0-9]/g,''); return s?Number(s).toLocaleString('en-US'):''; }
+
+  var el={};
+  ['deal','sf','rent','esc','term','comm','stepYr','stepRate','side','split'].forEach(function(id){ el[id]=document.getElementById(id); });
+
+  function recompute(){
+    var sf=num(el.sf.value), rent0=num(el.rent.value), esc=num(el.esc.value)/100;
+    var term=Math.min(MAXYEARS, Math.round(num(el.term.value))), commR=num(el.comm.value)/100;
+    var stepYr=Math.round(num(el.stepYr.value));
+    var stepRate=el.stepRate.value.trim()===''?null:num(el.stepRate.value)/100;
+    var side=el.side.value.trim()===''?1:Math.max(0,Math.min(100,num(el.side.value)))/100;
+    var split=el.split.value.trim()===''?0.5:Math.max(0,Math.min(100,num(el.split.value)))/100;
+
+    var rows=[], consideration=0, gross=0, rentSF=rent0;
+    for(var y=1;y<=term;y++){
+      if(y>1) rentSF=rentSF*(1+esc);
+      var annual=sf*rentSF;
+      var rate=(stepYr>0 && stepRate!=null && y>stepYr) ? stepRate : commR;
+      var comm=annual*rate;
+      consideration+=annual; gross+=comm;
+      rows.push({y:y,rentSF:rentSF,annual:annual,rate:rate,comm:comm,stepped:(stepYr>0&&stepRate!=null&&y>stepYr)});
+    }
+    var eff=consideration>0?gross/consideration:0;
+    var psf=sf>0?gross/sf:0;
+    var firm=gross*side, agent=firm*split, house=firm-agent;
+
+    document.getElementById('sGross').textContent=money(gross);
+    document.getElementById('sCons').textContent=money(consideration);
+    document.getElementById('sEff').textContent=consideration>0?pct(eff):'—';
+    document.getElementById('sPsf').textContent=money2(psf);
+    document.getElementById('sFirm').textContent=money(firm);
+    document.getElementById('sAgent').textContent=money(agent);
+    document.getElementById('sHouse').textContent=money(house);
+
+    var tb=document.getElementById('schedBody'); tb.innerHTML='';
+    rows.forEach(function(r){
+      var tr=document.createElement('tr');
+      if(r.stepped) tr.className='step';
+      tr.innerHTML='<td><span class="yr-badge">'+r.y+'</span></td>'+
+        '<td>'+money2(r.rentSF)+'</td>'+
+        '<td>'+money(r.annual)+'</td>'+
+        '<td class="rate">'+pct(r.rate)+'</td>'+
+        '<td class="comm">'+money(r.comm)+'</td>';
+      tb.appendChild(tr);
+    });
+    document.getElementById('tRent').textContent=money(consideration);
+    document.getElementById('tAvgRate').textContent=consideration>0?pct(eff):'—';
+    document.getElementById('tComm').textContent=money(gross);
+
+    var nm=(el.deal.value||'').trim();
+    document.getElementById('hdrName').textContent=nm||'Restaurant Lease Commission';
+    document.getElementById('hdrSub').textContent = (sf>0&&term>0)
+      ? (sf.toLocaleString()+' SF  ·  '+term+'-yr term  ·  Lease consideration '+money(consideration)+'  ·  Gross commission '+money(gross))
+      : 'Commission on total lease consideration across the term.';
+    var avgAnnual=term>0?consideration/term:0;
+    document.getElementById('noteText').innerHTML='<b>How it works.</b> Commission is charged on total lease consideration — every year of base rent, with the $/SF compounding by the escalation rate. Effective rate '+ (consideration>0?pct(eff):'—') +', commission per SF '+money2(psf)+', average annual rent '+money(avgAnnual)+'.'+(stepYr>0&&stepRate!=null?(' Reduced to '+pct(stepRate)+' after year '+stepYr+'.'):'')+' Percentage rent, free rent, and TI are not included.';
+  }
+
+  el.sf.addEventListener('input', function(){ el.sf.value=grp(el.sf.value); recompute(); });
+  ['rent','esc','term','comm','stepYr','stepRate','side','split'].forEach(function(id){
+    el[id].addEventListener('input', function(){ el[id].value=el[id].value.replace(/[^0-9.]/g,''); recompute(); });
+  });
+  el.deal.addEventListener('input', recompute);
+
+  window.loadSample=function(){
+    el.deal.value='Sample — 2,500 SF endcap restaurant';
+    el.sf.value='2,500'; el.rent.value='36'; el.esc.value='3'; el.term.value='10'; el.comm.value='5';
+    el.stepYr.value=''; el.stepRate.value=''; el.side.value='100'; el.split.value='50';
+    recompute();
+  };
+  window.resetAll=function(){
+    ['deal','sf','rent','esc','term','comm','stepYr','stepRate','side','split'].forEach(function(id){ el[id].value=''; });
+    recompute();
+  };
+
+  loadSample();
+})();
+</script>
+</body>
+</html>

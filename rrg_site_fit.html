@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Tour Tracker</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#e9edf3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+
+.toolbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);}
+.tb-inner{max-width:1160px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.toolbar .tt{font-weight:800;color:var(--navy);font-size:14px;}
+.toolbar .tt span{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px;}
+.actions{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:8px;cursor:pointer;}
+.btn:hover{border-color:#9fb0cc;}
+.btn.add{border-color:var(--red);color:var(--red);}
+.btn.print{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+/* ---- client picker (the "database" switcher) ---- */
+.clientbar{max-width:1160px;margin:16px auto 0;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;box-shadow:0 4px 14px rgba(10,20,50,.05);}
+.cb-left{display:flex;align-items:center;gap:11px;flex-wrap:wrap;}
+.cb-label{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+#clientSel{border:1.5px solid var(--inp);border-radius:8px;padding:8px 12px;font-size:14px;font-weight:700;color:var(--navy);font-family:inherit;background:#fffdfd;min-width:240px;}
+#clientSel:focus{outline:none;border-color:var(--red);}
+.cb-count{font-size:11.5px;color:var(--muted);}
+.cb-right{display:flex;gap:8px;}
+.btn2{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:600;font-size:12px;padding:7px 11px;border-radius:8px;cursor:pointer;}
+.btn2.new{border-color:var(--red);color:var(--red);}
+.btn2:hover{border-color:#9fb0cc;}
+.btn2.new:hover{border-color:var(--red);background:#fff6f5;}
+
+.wrap{max-width:1160px;margin:16px auto 22px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(10,20,50,.08);}
+
+.band{color:#fff;padding:36px 44px 32px;position:relative;overflow:hidden;
+  background:radial-gradient(96% 130% at 27% 12%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.band > *{position:relative;z-index:2;}
+.band::after{content:"";position:absolute;z-index:0;width:1200px;height:1200px;right:-360px;top:110px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%, #0b1430 0%, #08112a 48%, #050c22 82%);border:1px solid rgba(120,150,220,.10);pointer-events:none;}
+.rrg{display:inline-flex;align-items:center;}
+.rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:44px;height:44px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.rrg .bar{background:#fff;width:3px;height:32px;margin:0 12px;}
+.rrg .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:26px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+.band h1{font-size:30px;font-weight:800;letter-spacing:-.01em;margin:0;}
+.accent{width:58px;height:5px;background:var(--red);border-radius:3px;margin:14px 0 0;}
+.band .sub{color:#aeb8cf;font-size:13px;margin-top:9px;}
+
+.inner{padding:24px 40px 32px;}
+.seclabel{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);font-weight:700;margin:24px 0 12px;display:flex;align-items:center;gap:10px;}
+.seclabel:first-child{margin-top:4px;}
+.seclabel::after{content:"";flex:1;height:1px;background:var(--line);}
+
+.hdrgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.field label{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:5px;}
+.field input{width:100%;border:1.5px solid var(--red);border-radius:9px;padding:10px 12px;font-size:14px;font-weight:600;color:var(--navy);font-family:inherit;background:#fffdfd;}
+
+.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.scard{border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:var(--wash);}
+.scard.hero{background:var(--navy);border-color:var(--navy);}
+.scard .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.scard.hero .k{color:#9fb0cc;}
+.scard .v{font-weight:800;font-size:21px;color:var(--navy);margin-top:6px;line-height:1.05;}
+.scard.hero .v{color:#fff;}
+.scard .s{font-size:10.5px;color:var(--muted);margin-top:4px;}
+.scard.hero .s{color:#8b98b8;}
+
+.tablescroll{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:11.5px;min-width:940px;}
+th,td{padding:7px 7px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;}
+th{font-size:9px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);white-space:nowrap;}
+td input,td select{width:100%;border:1px solid transparent;border-radius:6px;padding:5px 5px;font-size:11.5px;font-family:inherit;color:var(--ink);background:#fff;font-weight:500;}
+td input:hover,td select:hover{border-color:var(--line);}
+td input:focus,td select:focus{outline:none;border-color:var(--red);background:#fffdfd;}
+td.num input{text-align:right;}
+td.gross{text-align:right;font-weight:700;color:var(--navy);white-space:nowrap;}
+.rownum{color:var(--muted);font-weight:800;font-size:11px;text-align:center;width:24px;}
+.stars{color:var(--red);font-size:12px;letter-spacing:.5px;white-space:nowrap;}
+.stars .off{color:#d9dfea;}
+.del{border:0;background:none;color:#b9c2d4;cursor:pointer;font-size:15px;line-height:1;padding:2px 5px;}
+.del:hover{color:var(--red);}
+.colw-addr{min-width:150px;} .colw-suite{width:64px;} .colw-type{width:104px;} .colw-date{width:60px;} .colw-sf{width:64px;} .colw-base{width:60px;} .colw-nnn{width:58px;} .colw-gross{width:64px;} .colw-react{width:92px;} .colw-rate{width:92px;} .colw-notes{min-width:150px;} .colw-del{width:30px;}
+
+.rank-badge{display:inline-flex;width:20px;height:20px;border-radius:50%;background:var(--wash);color:var(--muted);font-size:10px;font-weight:800;align-items:center;justify-content:center;}
+tr.top .rank-badge{background:var(--red);color:#fff;}
+
+.note{margin-top:20px;font-size:11px;line-height:1.6;color:var(--muted);border-left:3px solid var(--line);padding:2px 0 2px 14px;}
+.foot{margin-top:24px;border-top:1px solid var(--line);padding-top:12px;display:flex;justify-content:space-between;font-size:10px;color:var(--muted);flex-wrap:wrap;gap:6px;}
+.foot b{color:var(--navy);}
+.overallnotes{width:100%;border:1.5px solid var(--inp);border-radius:9px;padding:10px 12px;font-family:inherit;font-size:13px;color:var(--navy);min-height:64px;resize:vertical;}
+
+@media print{
+  @page{size:Letter landscape;margin:0.35in 0.4in;}
+  body{background:#fff;}
+  .toolbar,.clientbar,.rrg-noprint,.del,.colw-del{display:none!important;}
+  .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;}
+  .tablescroll{overflow:visible;}
+  table{min-width:0;font-size:10px;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .band{border-radius:0;}
+  td input,td select{border:none;background:none;padding:2px;}
+  thead{display:table-header-group;}
+  tr{break-inside:avoid;}
+  .scard,.summary{break-inside:avoid;}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar"><div class="tb-inner">
+  <div class="tt">RRG Tour Tracker <span>What you showed, and what they thought</span></div>
+  <div class="actions">
+    <button class="btn add" onclick="addRow()">+ Add location</button>
+    <button class="btn" onclick="rankRows()">Rank by rating</button>
+    <button class="btn" onclick="clearActive()">Clear this client</button>
+    <button class="btn print" onclick="window.print()">Print / Save PDF</button>
+  </div>
+</div></div>
+
+<div class="clientbar rrg-noprint">
+  <div class="cb-left">
+    <span class="cb-label">Client</span>
+    <select id="clientSel" onchange="switchClient(this.value)"></select>
+    <span class="cb-count" id="clientCount"></span>
+  </div>
+  <div class="cb-right">
+    <button class="btn2 new" onclick="newClient()">+ New client</button>
+    <button class="btn2" onclick="loadSampleClient()">Add sample</button>
+    <button class="btn2" onclick="deleteClient()">Delete client</button>
+  </div>
+</div>
+
+<div class="wrap" id="sheet">
+  <div class="band">
+    <span class="rrg"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <div class="kicker">Tour Tracker</div>
+    <h1 id="hdrName">Locations Shown</h1>
+    <div class="accent"></div>
+    <div class="sub" id="hdrSub">A running log of every space toured, with the tenant’s read on each.</div>
+  </div>
+
+  <div class="inner">
+    <div class="seclabel">Tenant &amp; Search</div>
+    <div class="hdrgrid">
+      <div class="field"><label>Tenant / Concept</label><input type="text" id="tenant" placeholder="Concept name"></div>
+      <div class="field"><label>RRG Advisor</label><input type="text" id="rep" placeholder="Advisor"></div>
+      <div class="field"><label>Market / Trade Area</label><input type="text" id="market" placeholder="e.g. San Antonio — 1604 corridor"></div>
+    </div>
+
+    <div class="seclabel">Tour Summary</div>
+    <div class="summary">
+      <div class="scard hero"><div class="k">Locations Shown</div><div class="v" id="sShown">0</div><div class="s">Total spaces toured</div></div>
+      <div class="scard"><div class="k">Liked or Better</div><div class="v" id="sLiked">0</div><div class="s">Loved + Liked reactions</div></div>
+      <div class="scard"><div class="k">Top Pick</div><div class="v" id="sTop" style="font-size:15px">—</div><div class="s">Highest-rated space</div></div>
+    </div>
+
+    <div class="seclabel">Showings Log</div>
+    <div class="tablescroll">
+    <table>
+      <thead><tr>
+        <th class="rownum">#</th>
+        <th class="colw-addr">Property / Address</th>
+        <th class="colw-suite">Suite #</th>
+        <th class="colw-type">Type</th>
+        <th class="colw-date">Date</th>
+        <th class="colw-sf">Size (SF)</th>
+        <th class="colw-base">Base $/SF</th>
+        <th class="colw-nnn">NNN $/SF</th>
+        <th class="colw-gross">Gross $/SF</th>
+        <th class="colw-react">Reaction</th>
+        <th class="colw-rate">Rating</th>
+        <th class="colw-notes">Tenant’s Thoughts</th>
+        <th class="colw-del"></th>
+      </tr></thead>
+      <tbody id="rowsBody"></tbody>
+    </table>
+    </div>
+
+    <div class="seclabel">Overall Notes &amp; Next Steps</div>
+    <textarea class="overallnotes" id="overall" placeholder="Where the search stands, what to line up next, LOIs in play, etc."></textarea>
+
+    <div class="note">Each client keeps its own tour log — switch between them with the <b>Client</b> picker above. Base + NNN roll up to a <b>Gross $/SF</b> for true occupancy-cost comparison; “Rank by rating” sorts the shortlist and flags the front-runner.</div>
+
+    <div class="foot">
+      <span>Restaurant Realty Group, LLC &nbsp;·&nbsp; <b>Restaurant Transactions. Done Right.</b></span>
+      <span>Proprietary &amp; Confidential · Internal RRG Use Only</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var REACTIONS=['—','Loved','Liked','Maybe','Passed'];
+  var TYPES=['—','Inline','End Cap','Freestanding','Pad','2nd Gen','Land','Other'];
+  var DBKEY='rrg_tourdb_v1';
+  var DB={active:null,clients:[]};
+
+  function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+  function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.]/g,''))||0; }
+  function stars(n){ n=Number(n)||0; var h=''; for(var i=1;i<=5;i++) h+='<span class="'+(i<=n?'':'off')+'">★</span>'; return h; }
+  function grossOf(r){ var g=num(r.psf)+num(r.nnn); return g>0?('$'+g.toFixed(2)):'—'; }
+  function uid(){ return 'c'+Date.now().toString(36)+Math.floor(Math.random()*1e4).toString(36); }
+  function blankRow(){ return {addr:'',suite:'',type:'—',date:'',sf:'',psf:'',nnn:'',reaction:'—',rating:'0',notes:''}; }
+  function AC(){ for(var i=0;i<DB.clients.length;i++){ if(DB.clients[i].id===DB.active) return DB.clients[i]; } return null; }
+
+  function blankClient(name){ return {id:uid(),name:name||'New Tenant',rep:'',market:'',rows:[blankRow()],overall:''}; }
+  function sampleClient(){
+    return {id:uid(),name:'Whiskey River Dance Hall',rep:'Van Rinn',market:'San Antonio — 1604 corridor',
+      rows:[
+        {addr:'The Rim',suite:'Ste 120',type:'End Cap',date:'07/09',sf:'12,400',psf:'$38',nnn:'$14',reaction:'Liked',rating:'4',notes:'Great visibility, patio possible; rent a touch high.'},
+        {addr:'Alamo Ranch Marketplace',suite:'Pad 3',type:'Freestanding',date:'07/09',sf:'11,800',psf:'$34',nnn:'$12',reaction:'Loved',rating:'5',notes:'Perfect size, strong parking, LL open to TI. Front-runner.'},
+        {addr:'1604 & Bandera Center',suite:'Ste 200',type:'Inline',date:'07/11',sf:'15,000',psf:'$30',nnn:'$10',reaction:'Maybe',rating:'3',notes:'Big box, cheaper, but dated and needs full build-out.'},
+        {addr:'Far West Plaza',suite:'Ste 5',type:'Inline',date:'07/11',sf:'9,600',psf:'$32',nnn:'$11',reaction:'Passed',rating:'2',notes:'Too small for the dance floor; no late-hours use.'}
+      ],
+      overall:'Alamo Ranch Pad 3 is the front-runner — drafting an LOI. Keeping The Rim as backup pending a rent counter.'};
+  }
+
+  /* ---- autosave (whole client database) ---- */
+  var saveTimer=null;
+  function save(){ if(saveTimer)clearTimeout(saveTimer); saveTimer=setTimeout(function(){ try{ localStorage.setItem(DBKEY, JSON.stringify(DB)); chip(); }catch(e){} },300); }
+  var c=document.createElement('div'); c.className='rrg-noprint';
+  c.style.cssText='position:fixed;right:14px;bottom:14px;z-index:9998;background:#0b1a3a;color:#fff;font:600 12px/1 -apple-system,Segoe UI,Roboto,sans-serif;padding:8px 12px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.22);opacity:0;transition:opacity .3s;pointer-events:none;';
+  c.textContent='Saved ✓'; document.body.appendChild(c);
+  var cT=null; function chip(){ c.style.opacity='1'; if(cT)clearTimeout(cT); cT=setTimeout(function(){c.style.opacity='0';},1300); }
+  var _ns=document.createElement('style'); _ns.textContent='@media print{.rrg-noprint{display:none!important}}'; document.head.appendChild(_ns);
+
+  /* ---- client switcher ---- */
+  function renderClientSel(){
+    var sel=document.getElementById('clientSel'); sel.innerHTML='';
+    DB.clients.forEach(function(cl){
+      var o=document.createElement('option'); o.value=cl.id; o.textContent=(cl.name&&cl.name.trim())?cl.name:'(unnamed)';
+      var n=cl.rows?cl.rows.filter(function(r){return (r.addr||'').trim();}).length:0;
+      if(n) o.textContent+='  ('+n+')';
+      if(cl.id===DB.active) o.selected=true; sel.appendChild(o);
+    });
+    document.getElementById('clientCount').textContent=DB.clients.length+' client'+(DB.clients.length!==1?'s':'');
+  }
+  function loadActiveIntoUI(){
+    var cl=AC(); if(!cl) return;
+    document.getElementById('tenant').value=cl.name||'';
+    document.getElementById('rep').value=cl.rep||'';
+    document.getElementById('market').value=cl.market||'';
+    document.getElementById('overall').value=cl.overall||'';
+    renderRows();
+  }
+  window.switchClient=function(id){ DB.active=id; var sel=document.getElementById('clientSel'); if(sel) sel.value=id; loadActiveIntoUI(); save(); };
+  window.newClient=function(){ var cl=blankClient(''); DB.clients.push(cl); DB.active=cl.id; renderClientSel(); loadActiveIntoUI(); var t=document.getElementById('tenant'); t.focus(); t.select(); save(); };
+  window.loadSampleClient=function(){ var cl=sampleClient(); DB.clients.push(cl); DB.active=cl.id; renderClientSel(); loadActiveIntoUI(); save(); };
+  window.deleteClient=function(){
+    if(DB.clients.length<=1){ alert('This is your only client — use “Clear this client” to empty it instead.'); return; }
+    var cl=AC(); if(!confirm('Delete client “'+((cl&&cl.name)||'')+'” and its entire tour log?')) return;
+    DB.clients=DB.clients.filter(function(x){return x.id!==DB.active;});
+    DB.active=DB.clients[0].id; renderClientSel(); loadActiveIntoUI(); save();
+  };
+  window.clearActive=function(){
+    var cl=AC(); if(!cl) return;
+    if((cl.rows&&cl.rows.length>1) && !confirm('Clear this client’s tour log?')) return;
+    cl.rows=[blankRow()]; cl.overall=''; document.getElementById('overall').value=''; renderRows(); renderClientSel(); save();
+  };
+
+  /* ---- rows ---- */
+  function renderRows(){
+    var cl=AC(); var rows=cl?cl.rows:[];
+    var tb=document.getElementById('rowsBody'); tb.innerHTML='';
+    var topIdx=-1, topR=0;
+    rows.forEach(function(r,i){ var rr=Number(r.rating)||0; if(rr>topR){topR=rr;topIdx=i;} });
+    rows.forEach(function(r,i){
+      var tr=document.createElement('tr'); if(i===topIdx && topR>0) tr.className='top';
+      var reactOpts=REACTIONS.map(function(o){return '<option'+(o===r.reaction?' selected':'')+'>'+o+'</option>';}).join('');
+      var typeOpts=TYPES.map(function(o){return '<option'+(o===(r.type||'—')?' selected':'')+'>'+o+'</option>';}).join('');
+      var rateOpts=['0','1','2','3','4','5'].map(function(o){return '<option value="'+o+'"'+(o===String(r.rating)?' selected':'')+'>'+(o==='0'?'—':o)+'</option>';}).join('');
+      tr.innerHTML=
+        '<td class="rownum"><span class="rank-badge">'+(i+1)+'</span></td>'+
+        '<td><input data-i="'+i+'" data-f="addr" value="'+esc(r.addr)+'" placeholder="Address / center"></td>'+
+        '<td><input data-i="'+i+'" data-f="suite" value="'+esc(r.suite)+'" placeholder="Ste"></td>'+
+        '<td><select data-i="'+i+'" data-f="type">'+typeOpts+'</select></td>'+
+        '<td><input data-i="'+i+'" data-f="date" value="'+esc(r.date)+'" placeholder="MM/DD"></td>'+
+        '<td class="num"><input data-i="'+i+'" data-f="sf" value="'+esc(r.sf)+'" inputmode="numeric" placeholder="0"></td>'+
+        '<td class="num"><input data-i="'+i+'" data-f="psf" value="'+esc(r.psf)+'" inputmode="decimal" placeholder="$0"></td>'+
+        '<td class="num"><input data-i="'+i+'" data-f="nnn" value="'+esc(r.nnn)+'" inputmode="decimal" placeholder="$0"></td>'+
+        '<td class="gross" id="gr'+i+'">'+grossOf(r)+'</td>'+
+        '<td><select data-i="'+i+'" data-f="reaction">'+reactOpts+'</select></td>'+
+        '<td><select data-i="'+i+'" data-f="rating" style="width:48px;display:inline-block">'+rateOpts+'</select> <span class="stars">'+stars(r.rating)+'</span></td>'+
+        '<td><input data-i="'+i+'" data-f="notes" value="'+esc(r.notes)+'" placeholder="What they said"></td>'+
+        '<td><button class="del" title="Remove" onclick="removeRow('+i+')">×</button></td>';
+      tb.appendChild(tr);
+    });
+    if(!rows.length){
+      tb.innerHTML='<tr><td colspan="13" style="text-align:center;color:var(--muted);padding:18px;font-size:12.5px">No showings yet — click <b>+ Add location</b> to log the first one.</td></tr>';
+    }
+    bindRowInputs();
+    recompute();
+  }
+  function bindRowInputs(){
+    document.querySelectorAll('#rowsBody [data-i]').forEach(function(el){
+      var ev=(el.tagName==='SELECT')?'change':'input';
+      el.addEventListener(ev, function(){
+        var cl=AC(); if(!cl) return;
+        var i=+el.getAttribute('data-i'), f=el.getAttribute('data-f');
+        cl.rows[i][f]=el.value;
+        if(f==='rating'){ renderRows(); renderClientSel(); save(); return; }
+        if(f==='psf'||f==='nnn'){ var g=document.getElementById('gr'+i); if(g) g.textContent=grossOf(cl.rows[i]); }
+        if(f==='addr') renderClientSel();
+        recompute(); save();
+      });
+    });
+  }
+  function recompute(){
+    var cl=AC(); var rows=cl?cl.rows:[];
+    document.getElementById('sShown').textContent=rows.length;
+    var liked=rows.filter(function(r){return r.reaction==='Loved'||r.reaction==='Liked';}).length;
+    document.getElementById('sLiked').textContent=liked;
+    var top=null; rows.forEach(function(r){ var rr=Number(r.rating)||0; if(rr>0 && (!top || rr>top.r)) top={r:rr,addr:r.addr}; });
+    document.getElementById('sTop').textContent=(top && top.addr)?top.addr:(top?('★ '+top.r):'—');
+    var nm=(cl&&cl.name||'').trim();
+    document.getElementById('hdrName').textContent=nm?(nm+' — Tour Tracker'):'Locations Shown';
+    document.getElementById('hdrSub').textContent=rows.length
+      ? (rows.length+' location'+(rows.length>1?'s':'')+' shown'+((cl&&cl.market)?('  ·  '+cl.market):''))
+      : 'A running log of every space toured, with the tenant’s read on each.';
+  }
+
+  window.addRow=function(){ var cl=AC(); if(!cl) return; cl.rows.push(blankRow()); renderRows(); renderClientSel(); save(); };
+  window.removeRow=function(i){ var cl=AC(); if(!cl) return; cl.rows.splice(i,1); renderRows(); renderClientSel(); save(); };
+  window.rankRows=function(){ var cl=AC(); if(!cl) return; cl.rows.sort(function(a,b){ return (Number(b.rating)||0)-(Number(a.rating)||0); }); renderRows(); save(); };
+
+  // header field bindings -> active client
+  document.getElementById('tenant').addEventListener('input', function(e){ var cl=AC(); if(!cl) return; cl.name=e.target.value; var sel=document.getElementById('clientSel'); if(sel.selectedIndex>=0){ var n=cl.rows.filter(function(r){return (r.addr||'').trim();}).length; sel.options[sel.selectedIndex].textContent=((cl.name&&cl.name.trim())?cl.name:'(unnamed)')+(n?('  ('+n+')'):''); } recompute(); save(); });
+  document.getElementById('rep').addEventListener('input', function(e){ var cl=AC(); if(cl){ cl.rep=e.target.value; save(); } });
+  document.getElementById('market').addEventListener('input', function(e){ var cl=AC(); if(cl){ cl.market=e.target.value; recompute(); save(); } });
+  document.getElementById('overall').addEventListener('input', function(e){ var cl=AC(); if(cl){ cl.overall=e.target.value; save(); } });
+
+  /* ---- init: load DB or seed ---- */
+  function loadDB(){
+    try{ var raw=localStorage.getItem(DBKEY); if(raw){ var d=JSON.parse(raw); if(d&&d.clients&&d.clients.length){ DB=d; if(!AC()) DB.active=DB.clients[0].id; return true; } } }catch(e){}
+    return false;
+  }
+  if(!loadDB()){ var s=sampleClient(); DB={active:s.id,clients:[s]}; }
+  renderClientSel();
+  loadActiveIntoUI();
+})();
+</script>
+</body>
+</html>

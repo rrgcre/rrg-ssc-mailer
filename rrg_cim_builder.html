@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Commission Calculator</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#e9edf3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+
+.toolbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);}
+.tb-inner{max-width:940px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.toolbar .tt{font-weight:800;color:var(--navy);font-size:14px;}
+.toolbar .tt span{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px;}
+.actions{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:8px;cursor:pointer;}
+.btn:hover{border-color:#9fb0cc;}
+.btn.print{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+.wrap{max-width:940px;margin:22px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(10,20,50,.08);}
+
+.band{color:#fff;padding:38px 44px 34px;position:relative;overflow:hidden;
+  background:radial-gradient(96% 130% at 27% 12%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.band > *{position:relative;z-index:2;}
+.band::after{content:"";position:absolute;z-index:0;width:1200px;height:1200px;right:-360px;top:110px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%, #0b1430 0%, #08112a 48%, #050c22 82%);border:1px solid rgba(120,150,220,.10);pointer-events:none;}
+.rrg{display:inline-flex;align-items:center;}
+.rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:46px;height:46px;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;}
+.rrg .bar{background:#fff;width:3px;height:34px;margin:0 12px;}
+.rrg .wm{font-weight:800;font-size:15px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:30px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+.band h1{font-size:32px;font-weight:800;letter-spacing:-.01em;margin:0;}
+.accent{width:60px;height:5px;background:var(--red);border-radius:3px;margin:16px 0 0;}
+.band .sub{color:#aeb8cf;font-size:13px;margin-top:10px;}
+
+.inner{padding:26px 40px 34px;}
+.seclabel{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);font-weight:700;margin:26px 0 12px;display:flex;align-items:center;gap:10px;}
+.seclabel:first-child{margin-top:6px;}
+.seclabel::after{content:"";flex:1;height:1px;background:var(--line);}
+.reset-link{border:0;background:none;color:var(--red);font-weight:700;font-size:11px;cursor:pointer;letter-spacing:0;text-transform:none;padding:0;}
+.reset-link:hover{text-decoration:underline;}
+.editnote{font-size:10.5px;color:var(--muted);text-align:right;margin:-8px 0 6px;}
+
+.inputs{display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:14px;}
+.field label{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:5px;}
+.field input{width:100%;border:1.5px solid var(--red);border-radius:9px;padding:11px 12px;font-size:15px;font-weight:600;color:var(--navy);font-family:inherit;background:#fffdfd;}
+.field .adorn{position:relative;}
+.field .adorn .pre{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;}
+.field .adorn.pre input{padding-left:22px;}
+.field .adorn .suf{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;}
+.field .adorn.suf input{padding-right:26px;}
+.field .hint{font-size:10.5px;color:var(--muted);margin-top:5px;font-weight:500;letter-spacing:0;text-transform:none;}
+
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.scard{border:1px solid var(--line);border-radius:12px;padding:15px 16px;background:var(--wash);}
+.scard.hero{background:var(--navy);border-color:var(--navy);}
+.scard .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.scard.hero .k{color:#9fb0cc;}
+.scard .v{font-weight:800;font-size:23px;color:var(--navy);margin-top:7px;letter-spacing:-.01em;line-height:1;}
+.scard.hero .v{color:#fff;}
+.scard.agent{background:#fdeceb;border-color:#f6cfcb;}
+.scard.agent .v{color:var(--red);}
+.scard .s{font-size:10.5px;color:var(--muted);margin-top:5px;}
+.scard.hero .s{color:#8b98b8;}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--line);}
+th{font-size:9.6px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);}
+th:first-child,td:first-child,th:nth-child(2),td:nth-child(2){text-align:left;}
+tbody tr.dim td{color:#aab2c4;}
+tbody tr.active td.comm{font-weight:800;color:var(--red);}
+tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);border-bottom:none;padding-top:11px;font-size:13px;}
+.tier-badge{display:inline-flex;width:20px;height:20px;border-radius:6px;background:var(--wash);color:var(--muted);font-size:10.5px;font-weight:800;align-items:center;justify-content:center;margin-right:2px;}
+tr.active .tier-badge{background:var(--red);color:#fff;}
+.tin{width:86px;border:1px solid var(--inp);border-radius:6px;padding:5px 7px;font-size:12px;font-weight:600;color:var(--navy);font-family:inherit;text-align:right;background:#fffdfd;}
+.tin.rate{width:52px;}
+.tin:focus{outline:none;border-color:var(--red);}
+
+.scen td:first-child,.scen th:first-child{text-align:left;}
+.scen tr.cur td{background:#fdeceb;font-weight:700;color:var(--navy);}
+
+.note{margin-top:22px;font-size:11px;line-height:1.6;color:var(--muted);border-left:3px solid var(--line);padding:2px 0 2px 14px;}
+.foot{margin-top:26px;border-top:1px solid var(--line);padding-top:12px;display:flex;justify-content:space-between;font-size:10px;color:var(--muted);flex-wrap:wrap;gap:6px;}
+.foot b{color:var(--navy);}
+
+@media(max-width:720px){ .inputs{grid-template-columns:1fr;} .summary{grid-template-columns:1fr 1fr;} .inner{padding:22px;} .band{padding:28px 24px;} }
+
+@media print{
+  @page{size:Letter;margin:0.5in 0.55in;}
+  body{background:#fff;}
+  .toolbar,.rrg-noprint,.reset-link,.editnote{display:none!important;}
+  .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .band{border-radius:0;}
+  .tin{border:none;background:none;padding:0;width:auto;text-align:right;}
+  .scard,table,.summary{break-inside:avoid;}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar"><div class="tb-inner">
+  <div class="tt">RRG Commission Calculator <span>Enter the deal, see the split</span></div>
+  <div class="actions">
+    <button class="btn" onclick="loadSample()">Load sample</button>
+    <button class="btn" onclick="resetAll()">Reset</button>
+    <button class="btn print" onclick="window.print()">Print / Save PDF</button>
+  </div>
+</div></div>
+
+<div class="wrap" id="sheet">
+  <div class="band">
+    <span class="rrg"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <div class="kicker">Commission Calculator</div>
+    <h1 id="hdrName">Business Sale Commission</h1>
+    <div class="accent"></div>
+    <div class="sub" id="hdrSub">Tiered, marginal commission on the sale price.</div>
+  </div>
+
+  <div class="inner">
+    <div class="seclabel">Deal Inputs</div>
+    <div class="inputs">
+      <div class="field"><label>Deal / Business</label><input type="text" id="dealName" placeholder="Deal name"></div>
+      <div class="field"><label>Sale Price</label><span class="adorn pre"><span class="pre">$</span><input type="text" id="price" inputmode="numeric" placeholder="0"></span></div>
+      <div class="field"><label>Agent Share</label><span class="adorn suf"><input type="text" id="share" inputmode="decimal" placeholder="50"><span class="suf">%</span></span><div class="hint">House keeps the remainder</div></div>
+    </div>
+
+    <div class="seclabel">Commission Summary</div>
+    <div class="summary">
+      <div class="scard hero"><div class="k">Gross Commission</div><div class="v" id="sGross">$0</div><div class="s">Sum of all tiers</div></div>
+      <div class="scard"><div class="k">Blended Rate</div><div class="v" id="sBlend">—</div><div class="s">Gross ÷ sale price</div></div>
+      <div class="scard agent"><div class="k">Agent Net</div><div class="v" id="sAgent">$0</div><div class="s">Gross × agent share</div></div>
+      <div class="scard"><div class="k">House Net</div><div class="v" id="sHouse">$0</div><div class="s">Gross − agent share</div></div>
+    </div>
+
+    <div class="seclabel">Tiered Rate Schedule &amp; Commission <button class="reset-link" onclick="resetRateCard()">↺ Reset rate card</button></div>
+    <div class="editnote">Rates and thresholds are editable per deal — type in any cell to override the RRG rate card.</div>
+    <table>
+      <thead><tr><th>Tier</th><th>Deal Value Range</th><th>Rate</th><th>Commissionable</th><th>Commission</th></tr></thead>
+      <tbody id="tierBody"></tbody>
+      <tfoot><tr><td colspan="3">Total</td><td id="tCommable">$0</td><td id="tComm">$0</td></tr></tfoot>
+    </table>
+
+    <div class="seclabel">Quick Scenarios</div>
+    <table class="scen">
+      <thead><tr><th>Deal Value</th><th>Gross Commission</th><th>Blended Rate</th></tr></thead>
+      <tbody id="scenBody"></tbody>
+    </table>
+
+    <div class="note" id="noteText"></div>
+
+    <div class="foot">
+      <span>Restaurant Realty Group, LLC &nbsp;·&nbsp; <b>Restaurant Transactions. Done Right.</b></span>
+      <span>Proprietary &amp; Confidential · Internal RRG Use Only</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // RRG default commission rate card — marginal / tiered (editable per deal)
+  var DEFAULT_TIERS = [
+    {to:1000000,  rate:0.10},
+    {to:2000000,  rate:0.08},
+    {to:3000000,  rate:0.05},
+    {to:4000000,  rate:0.04},
+    {to:10000000, rate:0.03},
+    {to:30000000, rate:0.01},
+    {to:Infinity, rate:0.005}
+  ];
+  var SCEN = [1000000, 2500000, 5000000, 15000000, 40000000];
+
+  function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.]/g,''))||0; }
+  function money(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
+  function pct(n){ return String(+(n*100).toFixed(2))+'%'; }
+  function grp(s){ s=String(s).replace(/[^0-9]/g,''); return s?Number(s).toLocaleString('en-US'):''; }
+  function ratefmt(r){ return String(+(r*100).toFixed(3)); }
+
+  var elPrice=document.getElementById('price'), elShare=document.getElementById('share'), elName=document.getElementById('dealName');
+
+  // ---- build the editable tier table once ----
+  function buildTierRows(){
+    var tb=document.getElementById('tierBody'); tb.innerHTML='';
+    DEFAULT_TIERS.forEach(function(t,i){
+      var last=i===DEFAULT_TIERS.length-1;
+      var range = last
+        ? 'Over <span id="from'+i+'"></span>'
+        : '<span id="from'+i+'"></span> – $<input class="tin thr" data-i="'+i+'" inputmode="numeric" value="'+grp(String(t.to))+'">';
+      var tr=document.createElement('tr'); tr.id='trow'+i;
+      tr.innerHTML='<td><span class="tier-badge">'+(i+1)+'</span></td>'+
+        '<td>'+range+'</td>'+
+        '<td><input class="tin rate" data-i="'+i+'" inputmode="decimal" value="'+ratefmt(t.rate)+'">%</td>'+
+        '<td id="cma'+i+'">$0</td>'+
+        '<td class="comm" id="cmx'+i+'">$0</td>';
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll('.tin').forEach(function(inp){
+      inp.addEventListener('input', function(){
+        if(inp.classList.contains('thr')) inp.value=grp(inp.value);
+        else inp.value=inp.value.replace(/[^0-9.]/g,'');
+        recompute();
+      });
+    });
+  }
+  function readTiers(){
+    var tiers=[];
+    for(var i=0;i<DEFAULT_TIERS.length;i++){
+      var last=i===DEFAULT_TIERS.length-1;
+      var rateInp=document.querySelector('.tin.rate[data-i="'+i+'"]');
+      var rate=rateInp?num(rateInp.value)/100:DEFAULT_TIERS[i].rate;
+      var to;
+      if(last){ to=Infinity; }
+      else { var thr=document.querySelector('.tin.thr[data-i="'+i+'"]'); to=thr?num(thr.value):DEFAULT_TIERS[i].to; }
+      tiers.push({to:to,rate:rate});
+    }
+    return tiers;
+  }
+  window.resetRateCard=function(){
+    DEFAULT_TIERS.forEach(function(t,i){
+      var last=i===DEFAULT_TIERS.length-1;
+      if(!last){ var thr=document.querySelector('.tin.thr[data-i="'+i+'"]'); if(thr) thr.value=grp(String(t.to)); }
+      var rate=document.querySelector('.tin.rate[data-i="'+i+'"]'); if(rate) rate.value=ratefmt(t.rate);
+    });
+    recompute();
+  };
+
+  function commissionFor(price, tiers){
+    var total=0, rows=[], prev=0;
+    tiers.forEach(function(t){
+      var from=prev, c=Math.max(0, Math.min(price, t.to)-from), comm=c*t.rate;
+      total+=comm; rows.push({from:from,to:t.to,commable:c,comm:comm,rate:t.rate}); prev=t.to;
+    });
+    return {total:total, rows:rows};
+  }
+
+  function recompute(){
+    var price=num(elPrice.value);
+    var share=Math.max(0,Math.min(100,num(elShare.value)))/100;
+    var tiers=readTiers();
+    var r=commissionFor(price,tiers);
+    var gross=r.total, agent=gross*share, house=gross-agent, blend=price>0?gross/price:0;
+    document.getElementById('sGross').textContent=money(gross);
+    document.getElementById('sBlend').textContent=price>0?pct(blend):'—';
+    document.getElementById('sAgent').textContent=money(agent);
+    document.getElementById('sHouse').textContent=money(house);
+    var sumCommable=0;
+    r.rows.forEach(function(row,i){
+      var fs=document.getElementById('from'+i); if(fs) fs.textContent=money(row.from);
+      document.getElementById('cma'+i).textContent=money(row.commable);
+      document.getElementById('cmx'+i).textContent=money(row.comm);
+      var tr=document.getElementById('trow'+i); if(tr) tr.className=row.commable>0?'active':'dim';
+      sumCommable+=row.commable;
+    });
+    document.getElementById('tCommable').textContent=money(sumCommable);
+    document.getElementById('tComm').textContent=money(gross);
+    var sb=document.getElementById('scenBody'); sb.innerHTML='';
+    SCEN.forEach(function(v){
+      var sc=commissionFor(v,tiers);
+      var tr=document.createElement('tr'); if(Math.abs(v-price)<1) tr.className='cur';
+      tr.innerHTML='<td>'+money(v)+'</td><td>'+money(sc.total)+'</td><td>'+pct(sc.total/v)+'</td>';
+      sb.appendChild(tr);
+    });
+    var nm=(elName.value||'').trim();
+    document.getElementById('hdrName').textContent = nm || 'Business Sale Commission';
+    document.getElementById('hdrSub').textContent = price>0
+      ? ('Sale price '+money(price)+'  ·  Gross commission '+money(gross)+'  ·  Agent net '+money(agent))
+      : 'Tiered, marginal commission on the sale price.';
+    document.getElementById('noteText').innerHTML='<b>Marginal / tiered method.</b> Each tranche of the sale price earns its own tier’s rate, then all tiers are summed. Rates and thresholds default to the RRG commission schedule and can be overridden per deal in the table above; agent / house split follows firm policy.';
+  }
+
+  elPrice.addEventListener('input', function(){ elPrice.value=grp(elPrice.value); recompute(); });
+  elShare.addEventListener('input', function(){ elShare.value=elShare.value.replace(/[^0-9.]/g,''); recompute(); });
+  elName.addEventListener('input', recompute);
+
+  window.loadSample=function(){
+    elName.value='Sample business sale'; elPrice.value='2,500,000'; elShare.value='50';
+    resetRateCard();
+  };
+  window.resetAll=function(){
+    elName.value=''; elPrice.value=''; elShare.value='';
+    resetRateCard();
+  };
+
+  buildTierRows();
+  loadSample();
+})();
+</script>
+</body>
+</html>

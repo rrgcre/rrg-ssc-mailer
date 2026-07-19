@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Site &amp; Concept Fit</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;
+  --green:#1f8a5b;--amber:#b5791f;--gwash:#e7f5ee;--awash:#fdf1df;--rwash:#fdeceb;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#e9edf3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+
+.toolbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);}
+.tb-inner{max-width:920px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.tt{font-weight:800;color:var(--navy);font-size:14px;} .tt span{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px;}
+.actions{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:8px;cursor:pointer;}
+.btn:hover{border-color:#9fb0cc;} .btn.print{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+.wrap{max-width:920px;margin:22px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(10,20,50,.08);}
+
+.band{color:#fff;padding:38px 46px 30px;position:relative;overflow:hidden;
+  background:radial-gradient(96% 130% at 27% 12%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.band > *{position:relative;z-index:2;}
+.band::after{content:"";position:absolute;z-index:0;width:1300px;height:1300px;right:-380px;top:120px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%, #0b1430 0%, #08112a 48%, #050c22 82%);border:1px solid rgba(120,150,220,.10);pointer-events:none;}
+.confline{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#8fa0c2;font-weight:700;margin-bottom:22px;}
+.rrg{display:inline-flex;align-items:center;}
+.rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:44px;height:44px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.rrg .bar{background:#fff;width:3px;height:32px;margin:0 12px;} .rrg .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:26px 0 6px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+.band h1 input{font-size:29px;font-weight:800;letter-spacing:-.01em;margin:0;color:#fff;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.22);width:100%;font-family:inherit;padding:0 0 3px;}
+.band h1 input:focus{outline:none;border-bottom-color:var(--red);}
+.subin{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.16);color:#c3ccdf;font-size:14px;font-weight:600;font-family:inherit;padding:6px 0 2px;width:100%;margin-top:8px;}
+.subin.tag{color:#9fb0cc;font-size:12px;font-style:italic;}
+.subin:focus{outline:none;border-bottom-color:var(--red);color:#fff;}
+.accent{width:58px;height:5px;background:var(--red);border-radius:3px;margin:16px 0 14px;}
+.prep{display:flex;flex-direction:column;gap:9px;margin-top:6px;max-width:560px;}
+.pf{display:flex;flex-direction:column;gap:2px;} .pf label{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#8093b6;font-weight:700;}
+.pf input{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.18);color:#dce3f0;font-size:12px;font-weight:600;font-family:inherit;padding:2px 0;width:100%;}
+.pf input:focus{outline:none;border-bottom-color:var(--red);color:#fff;}
+
+/* verdict / score strip */
+.strip{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;margin-top:22px;border:1px solid rgba(255,255,255,.14);border-radius:12px;overflow:hidden;position:relative;z-index:2;}
+.strip .c{padding:13px 16px;border-right:1px solid rgba(255,255,255,.12);}
+.strip .c:last-child{border-right:none;}
+.strip .k{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#8fa0c2;font-weight:700;}
+.strip .v{font-family:inherit;font-weight:800;font-size:18px;color:#fff;margin-top:4px;line-height:1.05;}
+.strip .v.big{font-size:30px;}
+.strip .v.g{color:#5fe0a0;} .strip .v.a{color:#ffc861;} .strip .v.r{color:#ff7a5c;}
+.pill{display:inline-block;font-size:12px;font-weight:800;padding:4px 12px;border-radius:20px;margin-top:4px;letter-spacing:.02em;}
+.pill.g{background:rgba(63,190,120,.18);color:#5fe0a0;} .pill.a{background:rgba(200,150,40,.2);color:#ffc861;} .pill.r{background:rgba(220,60,50,.2);color:#ff7a5c;} .pill.n{background:rgba(150,165,200,.16);color:#c3ccdf;}
+
+.inner{padding:6px 46px 34px;}
+.kl{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:800;margin:30px 0 3px;}
+.sec{display:flex;align-items:center;gap:12px;margin:2px 0 12px;}
+.sec h2{font-size:17px;color:var(--navy);margin:0;font-weight:800;letter-spacing:-.01em;}
+.sec .flex{flex:1;height:1px;background:var(--line);}
+.hint{font-size:11px;color:var(--muted);line-height:1.5;margin:2px 0 10px;}
+.lead{font-size:12.5px;line-height:1.6;color:var(--ink);}
+
+/* field grid */
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;margin-top:6px;}
+.fg.three{grid-template-columns:1fr 1fr 1fr;}
+.f{display:flex;flex-direction:column;gap:3px;}
+.f.full{grid-column:1/-1;}
+.f label{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.f input,.f select{border:1px solid var(--inp);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:12.5px;color:var(--ink);background:#fff;}
+.f input:focus,.f select:focus{outline:none;border-color:var(--red);}
+.f .u{position:relative;} .f .u input{width:100%;} .f .u .sfx{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:10px;color:var(--muted);font-weight:600;pointer-events:none;}
+
+.narr{width:100%;border:1px solid var(--inp);border-radius:9px;padding:11px 13px;font-family:inherit;font-size:12.5px;color:var(--ink);min-height:70px;resize:vertical;line-height:1.55;margin-top:10px;overflow:hidden;}
+.narr:focus{outline:none;border-color:var(--red);}
+
+.callout{border-left:4px solid var(--red);background:var(--wash);border-radius:0 10px 10px 0;padding:13px 16px;margin-top:14px;}
+.callout .ct{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:800;margin-bottom:5px;}
+.callout textarea{width:100%;border:none;background:transparent;font-family:inherit;font-size:12px;color:var(--ink);line-height:1.55;resize:vertical;min-height:46px;overflow:hidden;}
+.callout textarea:focus{outline:none;}
+
+/* occupancy test */
+.occ{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:12px;}
+.occ .oc{padding:14px 16px;border-right:1px solid var(--line);}
+.occ .oc:last-child{border-right:none;}
+.occ .ok{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.occ .ov{font-weight:800;font-size:20px;color:var(--navy);margin-top:4px;}
+.occ .oc.hl{background:var(--wash);} .occ .ov.g{color:var(--green);} .occ .ov.a{color:var(--amber);} .occ .ov.r{color:var(--red);}
+.occnote{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;}
+
+/* scorecard */
+table.score{width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;}
+table.score th,table.score td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:middle;}
+table.score th{font-size:8.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);}
+table.score td.w,table.score th.w{text-align:center;width:56px;}
+table.score .fname{font-weight:700;color:var(--navy);}
+table.score .fdesc{font-size:10.5px;color:var(--muted);margin-top:1px;line-height:1.35;}
+.rate{display:inline-flex;gap:3px;}
+.rate button{width:22px;height:22px;border:1px solid var(--inp);background:#fff;border-radius:6px;font-size:11px;font-weight:700;color:var(--muted);cursor:pointer;padding:0;}
+.rate button.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.rate button.auto{background:var(--wash);color:#9aa4bd;cursor:default;}
+td.auto-tag{font-size:8.5px;color:var(--amber);font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+tr.tot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);border-bottom:none;font-size:13px;}
+tr.tot td.scoreval{color:var(--red);text-align:right;}
+
+.matrix2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:12px;}
+.mbox{border:1px solid var(--line);border-radius:11px;padding:14px 16px;}
+.mbox .mh{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;font-weight:800;margin-bottom:8px;}
+.mbox.pro .mh{color:var(--green);} .mbox.con .mh{color:var(--red);}
+.mbox textarea{width:100%;border:none;background:transparent;font-family:inherit;font-size:12px;color:var(--ink);line-height:1.6;resize:vertical;min-height:70px;overflow:hidden;}
+.mbox textarea:focus{outline:none;}
+
+.verdictbox{border-radius:12px;padding:18px 20px;margin-top:14px;border:1px solid var(--line);}
+.verdictbox.g{background:var(--gwash);border-color:#bfe6d1;} .verdictbox.a{background:var(--awash);border-color:#eddab0;} .verdictbox.r{background:var(--rwash);border-color:#f2c9c6;}
+.verdictbox .vh{font-size:9px;letter-spacing:.16em;text-transform:uppercase;font-weight:800;color:var(--muted);}
+.verdictbox .vv{font-size:22px;font-weight:800;margin:3px 0 2px;}
+.verdictbox.g .vv{color:var(--green);} .verdictbox.a .vv{color:var(--amber);} .verdictbox.r .vv{color:var(--red);}
+.verdictbox .vs{font-size:12px;color:var(--ink);line-height:1.55;}
+
+.foot{margin-top:30px;border-top:1px solid var(--line);padding-top:12px;display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);flex-wrap:wrap;gap:6px;}
+.foot b{color:var(--navy);}
+.savechip{font-size:11px;color:var(--green);font-weight:700;opacity:0;transition:opacity .3s;}
+.savechip.show{opacity:1;}
+
+@media(max-width:720px){ .strip{grid-template-columns:1fr 1fr;} .inner{padding:6px 22px 28px;} .band{padding:26px 22px;} .fg,.fg.three,.occ,.matrix2{grid-template-columns:1fr;} }
+@media print{
+  @page{size:Letter;margin:0.55in 0.6in;} @page cover{margin:0;}
+  body{background:#fff;}
+  .toolbar,.rrg-noprint{display:none!important;}
+  .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .band{page:cover;border-radius:0;height:11in;overflow:hidden;break-after:page;}
+  input,textarea,select{border:none!important;background:none!important;resize:none;-webkit-appearance:none;appearance:none;}
+  .f input,.f select{border:1px solid #d7dde8!important;}
+  .band h1 input,.subin,.pf input{border-bottom:none!important;}
+  .band input,.band h1 input,.subin,.pf input{color:#e9edf6!important;-webkit-text-fill-color:#e9edf6!important;}
+  .band h1 input{color:#fff!important;-webkit-text-fill-color:#fff!important;}
+  .strip .v{color:#fff!important;-webkit-text-fill-color:#fff!important;}
+  .strip .v.g,.strip .pill.g{-webkit-text-fill-color:#5fe0a0!important;}
+  .strip .v.a,.strip .pill.a{-webkit-text-fill-color:#ffc861!important;}
+  .strip .v.r,.strip .pill.r{-webkit-text-fill-color:#ff7a5c!important;}
+  .rate button{ -webkit-text-fill-color:#6b7488;}
+  .rate button.on{ -webkit-text-fill-color:#fff!important;background:var(--navy)!important;}
+  .narr,.callout textarea,.mbox textarea{min-height:0!important;overflow:visible!important;}
+  .kl-block,table,.callout,.strip,.occ,.verdictbox,.matrix2,.sec{break-inside:avoid;}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar"><div class="tb-inner">
+  <div class="tt">RRG Site &amp; Concept Fit <span>Score a space for a concept — then Print / Save PDF</span></div>
+  <div class="actions">
+    <span class="savechip" id="savechip">Draft saved ✓</span>
+    <button class="btn" onclick="loadSample()">Load sample</button>
+    <button class="btn" onclick="clearAll()">Clear</button>
+    <button class="btn print" onclick="growAll();window.print()">Print / Save PDF</button>
+  </div>
+</div></div>
+
+<div class="wrap" id="sheet">
+  <div class="band">
+    <div class="confline">Internal Broker Analysis &nbsp;·&nbsp; Restaurant Realty Group &nbsp;·&nbsp; Not a Guarantee of Performance</div>
+    <span class="rrg"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <div class="kicker">Site &amp; Concept Fit Analysis</div>
+    <h1><input data-k="concept" placeholder="Concept / Client Name"></h1>
+    <input class="subin" data-k="address" placeholder="Candidate location — address, city, state">
+    <input class="subin tag" data-k="tagline" placeholder="Center / positioning — e.g. Suburban grocery-anchored end cap · fast-casual">
+    <div class="accent"></div>
+    <div class="prep">
+      <div class="pf"><label>Prepared For</label><input data-k="preparedFor" placeholder="Client / Tenant"></div>
+      <div class="pf"><label>Prepared By</label><input data-k="preparedBy" value="Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com"></div>
+      <div class="pf"><label>Date</label><input data-k="date" placeholder="Month DD, YYYY"></div>
+    </div>
+    <div class="strip">
+      <div class="c"><div class="k">Overall Fit</div><div class="v big" id="hScore">—</div></div>
+      <div class="c"><div class="k">Verdict</div><div><span class="pill n" id="hVerdict">—</span></div></div>
+      <div class="c"><div class="k">Occupancy Cost</div><div class="v" id="hOcc">—</div></div>
+      <div class="c"><div class="k">Est. Annual Sales</div><div class="v" id="hSales">—</div></div>
+    </div>
+  </div>
+
+  <div class="inner">
+
+    <!-- A. THE CONCEPT -->
+    <div class="kl-block"><div class="kl">The Concept</div>
+    <div class="sec"><h2>Who We're Placing</h2><div class="flex"></div></div>
+    <div class="hint">Define the customer's model. These inputs drive the projected-sales and occupancy-cost math below — the numbers that decide the deal.</div>
+    <div class="fg">
+      <div class="f"><label>F&amp;B Type</label>
+        <select data-k="fbType">
+          <option value="">—</option>
+          <option>QSR / Fast Food</option>
+          <option>Fast Casual</option>
+          <option>Full-Service / Casual Dining</option>
+          <option>Upscale / Fine Dining</option>
+          <option>Bar / Tavern / Sports Bar</option>
+          <option>Brewery / Taproom</option>
+          <option>Nightclub / Lounge</option>
+          <option>Coffee / Café</option>
+          <option>Bakery / Dessert</option>
+          <option>Pizza / Delivery-forward</option>
+          <option>Ghost / Virtual Kitchen</option>
+          <option>Food Hall Stall</option>
+        </select>
+      </div>
+      <div class="f"><label>Price Point</label>
+        <select data-k="pricePoint">
+          <option value="">—</option>
+          <option>$ — Value</option>
+          <option>$$ — Moderate</option>
+          <option>$$$ — Upscale</option>
+          <option>$$$$ — Premium</option>
+        </select>
+      </div>
+      <div class="f"><label>Primary Daypart</label>
+        <select data-k="daypart">
+          <option value="">—</option>
+          <option>Breakfast</option>
+          <option>Lunch-driven</option>
+          <option>Dinner-driven</option>
+          <option>Late-night / Bar</option>
+          <option>All-day</option>
+        </select>
+      </div>
+      <div class="f"><label>Service Model</label>
+        <select data-k="model">
+          <option value="">—</option>
+          <option>Dine-in heavy</option>
+          <option>Counter / grab-and-go</option>
+          <option>Takeout &amp; delivery heavy</option>
+          <option>Drive-thru forward</option>
+          <option>Bar / beverage-driven</option>
+        </select>
+      </div>
+      <div class="f"><label>Average Check</label><div class="u"><input data-k="avgCheck" inputmode="decimal" placeholder="18.50" oninput="compute()"><span class="sfx">$ / guest</span></div></div>
+      <div class="f"><label>Est. Guests / Day (at maturity)</label><div class="u"><input data-k="coversDay" inputmode="numeric" placeholder="320" oninput="compute()"><span class="sfx">covers</span></div></div>
+      <div class="f"><label>Days Open / Year</label><div class="u"><input data-k="daysYr" inputmode="numeric" value="358" oninput="compute()"><span class="sfx">days</span></div></div>
+      <div class="f"><label>Target Segment</label><input data-k="segment" placeholder="e.g. families + daytime office workers"></div>
+      <div class="f"><label>Space Needed</label><div class="u"><input data-k="sfNeeded" inputmode="numeric" placeholder="2,400" oninput="compute()"><span class="sfx">SF target</span></div></div>
+      <div class="f"><label>Must-Haves</label><input data-k="mustHaves" placeholder="patio · hood/venting · drive-thru · 200A power · liquor"></div>
+    </div>
+    </div>
+
+    <!-- B. THE LOCATION -->
+    <div class="kl-block"><div class="kl">The Location</div>
+    <div class="sec"><h2>Site &amp; Trade-Area Facts</h2><div class="flex"></div></div>
+    <div class="hint">Pull from the offering, CoStar/Placer, and a site visit. Where you don't have a number, note the assumption — don't guess into the score.</div>
+    <div class="fg three">
+      <div class="f"><label>Center / Site Type</label>
+        <select data-k="centerType">
+          <option value="">—</option>
+          <option>Grocery-anchored</option>
+          <option>Power / big-box center</option>
+          <option>Lifestyle / mixed-use</option>
+          <option>Strip / unanchored</option>
+          <option>Freestanding pad</option>
+          <option>End cap</option>
+          <option>Downtown / street retail</option>
+          <option>Mall / food court</option>
+          <option>Entertainment / hospitality node</option>
+        </select>
+      </div>
+      <div class="f"><label>Suite / Space Type</label>
+        <select data-k="spaceType">
+          <option value="">—</option>
+          <option>End Cap</option>
+          <option>Inline</option>
+          <option>Freestanding</option>
+          <option>Pad w/ drive-thru</option>
+          <option>2nd-gen restaurant</option>
+          <option>Gray / vanilla shell</option>
+        </select>
+      </div>
+      <div class="f"><label>Suite #</label><input data-k="suite" placeholder="#120"></div>
+      <div class="f"><label>Available SF</label><div class="u"><input data-k="sfAvail" inputmode="numeric" placeholder="2,600" oninput="compute()"><span class="sfx">SF</span></div></div>
+      <div class="f"><label>Base Rent</label><div class="u"><input data-k="baseRent" inputmode="decimal" placeholder="32.00" oninput="compute()"><span class="sfx">$/SF/yr</span></div></div>
+      <div class="f"><label>NNN / CAM</label><div class="u"><input data-k="nnn" inputmode="decimal" placeholder="9.50" oninput="compute()"><span class="sfx">$/SF/yr</span></div></div>
+      <div class="f"><label>Traffic Count</label><div class="u"><input data-k="vpd" inputmode="numeric" placeholder="38,000" oninput="compute()"><span class="sfx">VPD</span></div></div>
+      <div class="f"><label>Pop. — 3 mile</label><div class="u"><input data-k="pop3" inputmode="numeric" placeholder="72,000" oninput="compute()"><span class="sfx">people</span></div></div>
+      <div class="f"><label>Median HH Income — 3 mi</label><div class="u"><input data-k="income" inputmode="numeric" placeholder="86,000" oninput="compute()"><span class="sfx">$</span></div></div>
+      <div class="f"><label>Daytime Pop. — 1 mile</label><div class="u"><input data-k="daytime" inputmode="numeric" placeholder="21,000" oninput="compute()"><span class="sfx">people</span></div></div>
+      <div class="f"><label>Parking Ratio</label><div class="u"><input data-k="parking" placeholder="8 / 1,000"><span class="sfx"></span></div></div>
+      <div class="f"><label>Term / TI Offered</label><input data-k="term" placeholder="10 yr · $40/SF TI · 2×5 options"></div>
+      <div class="f full"><label>Co-Tenancy &amp; Traffic Drivers</label><input data-k="cotenancy" placeholder="Anchor + complementary tenants + demand generators (schools, offices, hospital, gym, hotel)"></div>
+      <div class="f full"><label>Nearby Competition</label><input data-k="competition" placeholder="Direct concepts within ~1.5 mi and how saturated the daypart already is"></div>
+    </div>
+    </div>
+
+    <!-- C. OCCUPANCY-COST TEST -->
+    <div class="kl-block"><div class="kl">The Money Test</div>
+    <div class="sec"><h2>Occupancy Cost vs. Projected Sales</h2><div class="flex"></div></div>
+    <div class="hint">The single number that kills more restaurant deals than any other. Best practice: total occupancy (base + NNN) should land under ~8% of sales for full-service, ~6–10% overall. Past ~12% the model gets fragile; past ~15% it usually doesn't pencil.</div>
+    <div class="occ">
+      <div class="oc"><div class="ok">Projected Annual Sales</div><div class="ov" id="oSales">—</div></div>
+      <div class="oc"><div class="ok">Total Annual Occupancy</div><div class="ov" id="oRent">—</div></div>
+      <div class="oc hl"><div class="ok">Occupancy Cost Ratio</div><div class="ov" id="oRatio">—</div></div>
+    </div>
+    <div class="occnote" id="occNote">Enter average check, guests/day, available SF, base rent and NNN to run the test. Sales = check × guests × days open; occupancy = (base + NNN) × available SF.</div>
+    <div class="callout"><div class="ct">Broker read on the economics</div><textarea data-k="econNote" placeholder="Is the rent defensible against realistic sales? What sales volume does the space need to hit to keep occupancy under ~10%? What's the break-even?"></textarea></div>
+    </div>
+
+    <!-- D. FIT SCORECARD -->
+    <div class="kl-block"><div class="kl">The Scorecard</div>
+    <div class="sec"><h2>Weighted Fit Assessment</h2><div class="flex"></div></div>
+    <div class="hint">Rate each factor 1 (poor) to 5 (excellent) for this concept in this space. Economics is scored automatically from the occupancy test above. Weights reflect what actually makes or breaks F&amp;B sites.</div>
+    <table class="score">
+      <thead><tr><th>Factor</th><th class="w">Weight</th><th class="w">Rating</th></tr></thead>
+      <tbody id="scoreBody"></tbody>
+      <tfoot><tr class="tot"><td>Overall Weighted Fit Score</td><td class="w"></td><td class="scoreval" id="scoreTotal">—</td></tr></tfoot>
+    </table>
+    </div>
+
+    <!-- E. VERDICT -->
+    <div class="kl-block"><div class="kl">The Call</div>
+    <div class="sec"><h2>Verdict &amp; Recommendation</h2><div class="flex"></div></div>
+    <div class="verdictbox n" id="verdictBox">
+      <div class="vh">RRG Recommendation</div>
+      <div class="vv" id="verdictText">Complete the concept, location, and scorecard to generate a call.</div>
+      <div class="vs" id="verdictSub"></div>
+    </div>
+    <div class="matrix2">
+      <div class="mbox pro"><div class="mh">Why this site works</div><textarea data-k="pros" placeholder="The strongest reasons to pursue (one per line)"></textarea></div>
+      <div class="mbox con"><div class="mh">Risks &amp; what to negotiate</div><textarea data-k="cons" placeholder="Deal-breakers, or terms to fix before signing (one per line)"></textarea></div>
+    </div>
+    <div class="callout"><div class="ct">Next steps</div><textarea data-k="nextSteps" placeholder="LOI at what number, TI ask, exclusive use, contingencies, what to verify before committing."></textarea></div>
+    </div>
+
+    <div class="foot">
+      <span>Restaurant Realty Group, LLC &nbsp;·&nbsp; <b>Restaurant Transactions. Done Right.</b></span>
+      <span>Broker's fit analysis for planning — market data should be independently verified. Not a guarantee of sales or performance.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- factor model: what actually makes/breaks an F&B site ---------- */
+var FACTORS = [
+  {k:'econ',  name:'Occupancy-Cost Economics', desc:'Rent as a share of realistic sales — scored automatically from the money test above.', w:3, auto:true},
+  {k:'demo',  name:'Trade-Area Demographics',  desc:'Population density and household income matched to the concept’s price point.', w:3},
+  {k:'daypart',name:'Daypart Demand Match',    desc:'Does the surrounding demand (daytime office vs. residential vs. nightlife) feed the concept’s peak?', w:2},
+  {k:'coten', name:'Co-Tenancy & Traffic Drivers', desc:'Anchors, complementary tenants, and demand generators that pull the right customer.', w:2},
+  {k:'vis',   name:'Visibility & Signage',     desc:'Frontage, ingress/egress read, monument/building signage, and first-glance legibility.', w:2},
+  {k:'access',name:'Access, Parking & Drive-Thru Fit', desc:'Parking depth and circulation for the model — drive-thru where the concept needs one.', w:2},
+  {k:'comp',  name:'Competition / Market Gap', desc:'An underserved gap the concept fills vs. an already-saturated daypart.', w:2},
+  {k:'space', name:'Space & Buildout Fit',     desc:'SF, layout, 2nd-gen vs. shell, venting/grease, power, patio — buildout cost and timeline.', w:2},
+  {k:'seg',   name:'Customer-Segment Alignment', desc:'The people who live, work, and pass by match the target guest.', w:1},
+  {k:'deal',  name:'Deal & Term Flexibility',  desc:'TI, free rent, options, exclusive use, and assignment terms that protect the tenant.', w:1}
+];
+
+var K = 'rrg_sitefit_v1';
+var state = {vals:{}, ratings:{}};
+
+/* ---------- build scorecard rows ---------- */
+(function(){
+  var tb=document.getElementById('scoreBody');
+  FACTORS.forEach(function(f){
+    var tr=document.createElement('tr');
+    var rate='';
+    if(f.auto){
+      rate='<td class="w"><span class="auto-tag" id="rate_'+f.k+'">auto</span></td>';
+    }else{
+      var btns='';
+      for(var i=1;i<=5;i++) btns+='<button data-f="'+f.k+'" data-v="'+i+'" onclick="setRate(\''+f.k+'\','+i+')">'+i+'</button>';
+      rate='<td class="w"><span class="rate" id="rate_'+f.k+'">'+btns+'</span></td>';
+    }
+    tr.innerHTML='<td><span class="fname">'+f.name+'</span><div class="fdesc">'+f.desc+'</div></td>'+
+                 '<td class="w">'+f.w+'</td>'+rate;
+    tb.appendChild(tr);
+  });
+})();
+
+function setRate(k,v){ state.ratings[k]=v; paintRates(); compute(); save(); }
+function paintRates(){
+  FACTORS.forEach(function(f){
+    if(f.auto) return;
+    var wrap=document.getElementById('rate_'+f.k); if(!wrap) return;
+    Array.prototype.forEach.call(wrap.querySelectorAll('button'),function(b){
+      b.classList.toggle('on', parseInt(b.getAttribute('data-v'),10)===state.ratings[f.k]);
+    });
+  });
+}
+
+/* ---------- helpers ---------- */
+function num(k){ var v=(state.vals[k]||'').toString().replace(/[^0-9.\-]/g,''); v=parseFloat(v); return isNaN(v)?0:v; }
+function money(n){ if(!isFinite(n)) return '—'; return '$'+Math.round(n).toLocaleString('en-US'); }
+function grow(t){ t.style.height='auto'; t.style.height=(t.scrollHeight+2)+'px'; }
+function growAll(){ document.querySelectorAll('textarea').forEach(grow); }
+
+/* auto-score economics from occupancy ratio */
+function econScore(ratio){
+  if(!ratio||!isFinite(ratio)) return 0;
+  if(ratio<8) return 5;
+  if(ratio<10) return 4;
+  if(ratio<12) return 3;
+  if(ratio<15) return 2;
+  return 1;
+}
+
+function compute(){
+  // pull vals
+  var check=num('avgCheck'), covers=num('coversDay'), days=num('daysYr')||358;
+  var sfAvail=num('sfAvail'), base=num('baseRent'), nnn=num('nnn');
+  var sales = check*covers*days;
+  var occ = (base+nnn)*sfAvail;
+  var ratio = sales>0 ? (occ/sales*100) : 0;
+
+  // occupancy panel
+  document.getElementById('oSales').textContent = sales>0?money(sales):'—';
+  document.getElementById('oRent').textContent = occ>0?money(occ):'—';
+  var rEl=document.getElementById('oRatio');
+  if(ratio>0){ rEl.textContent=ratio.toFixed(1)+'%'; rEl.className='ov '+(ratio<10?'g':ratio<12?'a':'r'); }
+  else { rEl.textContent='—'; rEl.className='ov'; }
+
+  var note=document.getElementById('occNote');
+  if(sales>0 && occ>0){
+    var need10 = occ/0.10; // sales needed to hit 10%
+    var perday = need10/days/(check||1);
+    var msg='At these terms the space carries '+money(occ)+' of occupancy a year. ';
+    if(ratio<10) msg+='Against projected sales of '+money(sales)+', occupancy runs '+ratio.toFixed(1)+'% — inside the healthy band.';
+    else if(ratio<12) msg+='Occupancy runs '+ratio.toFixed(1)+'% — workable but tight; the concept needs to hit its sales plan.';
+    else msg+='Occupancy runs '+ratio.toFixed(1)+'% — rich. To hold 10% the space must do about '+money(need10)+' in sales ('+Math.round(perday)+' guests/day).';
+    note.textContent=msg;
+  } else {
+    note.textContent='Enter average check, guests/day, available SF, base rent and NNN to run the test. Sales = check × guests × days open; occupancy = (base + NNN) × available SF.';
+  }
+
+  // economics auto rating
+  var es=econScore(ratio);
+  state.ratings.econ=es;
+  var eTag=document.getElementById('rate_econ');
+  if(eTag) eTag.textContent = es? es+' / 5':'auto';
+
+  // weighted score
+  var got=0, max=0, rated=0;
+  FACTORS.forEach(function(f){
+    max += f.w*5;
+    var r=state.ratings[f.k]||0;
+    if(r>0){ got += f.w*r; rated++; }
+  });
+  var pct = max>0 ? Math.round(got/max*100) : 0;
+  var anyRated = rated>0;
+  document.getElementById('scoreTotal').textContent = anyRated ? pct+' / 100' : '—';
+
+  // verdict
+  var vb=document.getElementById('verdictBox'), vt=document.getElementById('verdictText'), vsu=document.getElementById('verdictSub');
+  var hS=document.getElementById('hScore'), hV=document.getElementById('hVerdict');
+  hS.textContent = anyRated ? pct : '—';
+  var cls='n', label='—', head='', sub='';
+  if(anyRated){
+    if(pct>=78){ cls='g'; label='Strong Fit'; head='Pursue — this site fits the concept.'; }
+    else if(pct>=62){ cls='a'; label='Workable'; head='Workable with the right terms.'; }
+    else if(pct>=45){ cls='a'; label='Marginal'; head='Marginal — only with real concessions.'; }
+    else { cls='r'; label='Pass'; head='Pass — the fit isn’t there.'; }
+    // let a broken economics test override an otherwise-decent score
+    if(ratio>=15 && pct>=45){ cls='r'; label='Pass'; head='Pass on economics — occupancy is too rich to carry.'; }
+    else if(ratio>=12 && cls==='g'){ cls='a'; label='Workable'; head='Strong site, but the rent needs work before it’s a yes.'; }
+    sub='Weighted fit '+pct+'/100 across '+rated+' rated factor'+(rated===1?'':'s')+
+        (ratio>0?(' · occupancy cost '+ratio.toFixed(1)+'%'):'')+'. This is a broker’s judgment tool, not a guarantee — verify the market data and the tenant’s sales assumptions before you commit capital.';
+  } else {
+    head='Complete the concept, location, and scorecard to generate a call.';
+  }
+  vb.className='verdictbox '+cls; vt.textContent=head; vsu.textContent=sub;
+  hV.className='pill '+cls; hV.textContent=label;
+
+  var hOcc=document.getElementById('hOcc'), hSales=document.getElementById('hSales');
+  if(ratio>0){ hOcc.textContent=ratio.toFixed(1)+'%'; hOcc.className='v '+(ratio<10?'g':ratio<12?'a':'r'); } else { hOcc.textContent='—'; hOcc.className='v'; }
+  hSales.textContent = sales>0?money(sales):'—';
+
+  paintRates();
+}
+
+/* ---------- binding + autosave ---------- */
+function bind(){
+  document.querySelectorAll('[data-k]').forEach(function(el){
+    el.addEventListener('input',function(){ state.vals[el.getAttribute('data-k')]=el.value; if(el.tagName==='TEXTAREA')grow(el); compute(); save(); });
+    if(el.tagName==='SELECT') el.addEventListener('change',function(){ state.vals[el.getAttribute('data-k')]=el.value; compute(); save(); });
+  });
+}
+function paintVals(){
+  document.querySelectorAll('[data-k]').forEach(function(el){
+    var k=el.getAttribute('data-k'); if(state.vals[k]!=null) el.value=state.vals[k];
+  });
+}
+var t;
+function save(){
+  try{ localStorage.setItem(K, JSON.stringify(state)); }catch(e){}
+  var chip=document.getElementById('savechip'); chip.classList.add('show');
+  clearTimeout(t); t=setTimeout(function(){chip.classList.remove('show');},1200);
+}
+function load(){
+  try{ var s=localStorage.getItem(K); if(s){ var o=JSON.parse(s); state.vals=o.vals||{}; state.ratings=o.ratings||{}; } }catch(e){}
+}
+function clearAll(){
+  if(!confirm('Clear this analysis?')) return;
+  state={vals:{}, ratings:{}};
+  document.querySelectorAll('[data-k]').forEach(function(el){ if(el.tagName==='SELECT')el.selectedIndex=0; else el.value=(el.getAttribute('data-k')==='preparedBy')?el.value:''; });
+  // keep prepared-by default
+  var pb=document.querySelector('[data-k=preparedBy]'); if(pb) state.vals.preparedBy=pb.value;
+  var dy=document.querySelector('[data-k=daysYr]'); if(dy){ dy.value='358'; state.vals.daysYr='358'; }
+  paintRates(); compute(); growAll(); save();
+}
+
+/* ---------- sample ---------- */
+function loadSample(){
+  state.vals={
+    concept:'Taco Libre — Fast-Casual', address:'1604 & Bulverde Rd, San Antonio, TX 78247',
+    tagline:'Grocery-anchored end cap · fast-casual, lunch + dinner', preparedFor:'Taco Libre Holdings, LLC',
+    preparedBy:'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com', date:'July 17, 2026',
+    fbType:'Fast Casual', pricePoint:'$$ — Moderate', daypart:'All-day', model:'Counter / grab-and-go',
+    avgCheck:'14.50', coversDay:'190', daysYr:'358', segment:'Families + daytime office + H-E-B crossover',
+    sfNeeded:'2,400', mustHaves:'patio · hood/venting · 200A · monument signage',
+    centerType:'Grocery-anchored', spaceType:'End Cap', suite:'#120', sfAvail:'2,600',
+    baseRent:'32.00', nnn:'9.50', vpd:'41,000', pop3:'118,000', income:'92,000', daytime:'19,500',
+    parking:'6.5 / 1,000', term:'10 yr · $45/SF TI · 2×5 options',
+    cotenancy:'H-E-B anchor, Starbucks, orthodontist, F45, Great Clips; middle school + two office parks within a mile',
+    competition:'Chipotle 1.2 mi, a local taqueria 0.8 mi; no fast-casual Mex in this specific node',
+    econNote:'At $14.50 check and 340 covers/day the space runs ~10.6% occupancy — workable but the concept has to hit plan. Push base to $30 or win $50/SF TI to bring it under 10%.',
+    pros:'Real daytime + residential demand for an all-day taco concept\nH-E-B crossover traffic and strong signage on an end cap\nNo direct fast-casual Mexican in this specific node',
+    cons:'Base rent is a dollar or two high for the projected volume\nPatio and grease interceptor add buildout cost — verify 2nd-gen infrastructure\nParking tightens at H-E-B peak; confirm shared-parking terms',
+    nextSteps:'LOI at $30 base / $45 TI, 10 yr with 2×5. Exclusive on Mexican fast-casual. Verify existing hood/grease and 200A before removing contingency.'
+  };
+  state.ratings={demo:4, daypart:4, coten:5, vis:4, access:3, comp:5, space:3, seg:4, deal:4};
+  paintVals(); paintRates(); compute(); growAll(); save();
+}
+
+/* ---------- init ---------- */
+load(); bind(); paintVals(); paintRates(); compute();
+window.addEventListener('load', growAll);
+</script>
+</body>
+</html>

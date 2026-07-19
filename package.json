@@ -1,0 +1,44 @@
+# ---- RRG SSC Mailer configuration ----
+# Copy this file to ".env" and fill in your values.
+
+# Port the service listens on (most hosts set PORT automatically)
+PORT=8787
+
+# Who always gets CC'd on every SSC (the firm's file copy)
+CC_ALWAYS=van@rrgcre.com
+
+# The "From" address shown on the email
+MAIL_FROM=van@rrgcre.com
+
+# Restrict which website may call this API (your form's URL). Use * to allow any.
+ALLOW_ORIGIN=*
+
+# ---- Password gate (keeps the form internal to RRG) ----
+# Set both to require a login before anyone can open the form or use the API.
+# Share these with your reps only. Leave blank to turn the gate off.
+APP_USER=rrg
+APP_PASS=change-this-to-a-strong-shared-password
+
+# ---- SMTP (outgoing email) ----
+# Google Workspace example (recommended for @rrgcre.com):
+#   SMTP_HOST=smtp.gmail.com
+#   SMTP_PORT=587
+#   SMTP_SECURE=false
+#   SMTP_USER=van@rrgcre.com
+#   SMTP_PASS=your-16-char-app-password     <-- create at https://myaccount.google.com/apppasswords
+#
+# SendGrid example:
+#   SMTP_HOST=smtp.sendgrid.net
+#   SMTP_PORT=587
+#   SMTP_USER=apikey
+#   SMTP_PASS=SG.xxxxxxxx
+#
+# Postmark / Resend / Mailgun all provide SMTP host/user/pass too.
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=
+SMTP_PASS=
+
+# Optional: path to a Chromium binary (only needed if not using the bundled one)
+# PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium

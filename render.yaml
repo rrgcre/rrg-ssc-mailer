@@ -1,0 +1,17 @@
+# Puppeteer's official image ships Chromium + all system libs — the reliable way to deploy.
+FROM ghcr.io/puppeteer/puppeteer:22.12.1
+
+ENV PUPPETEER_SKIP_DOWNLOAD=false \
+    NODE_ENV=production
+
+WORKDIR /app
+
+# Install deps first (better layer caching)
+COPY --chown=pptruser:pptruser package*.json ./
+RUN npm install --omit=dev --no-audit --no-fund
+
+# App source
+COPY --chown=pptruser:pptruser . .
+
+EXPOSE 8787
+CMD ["node", "server.js"]
