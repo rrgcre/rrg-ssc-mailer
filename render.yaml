@@ -34,7 +34,10 @@ services:
         value: van@rrgcre.com
       - key: SMTP_PASS
         sync: false               # Render will prompt you (your 16-char app password)
-      - key: APP_USER
-        value: rrg
-      - key: APP_PASS
-        sync: false               # Render will prompt you (the shared login password)
+      # ---- Multi-user login ----
+      - key: ADMIN_USER
+        value: van                # your admin username for the login + admin console
+      - key: ADMIN_PASS
+        sync: false               # Render will prompt you — the FIRST admin password (change it later in the admin console)
+      - key: SESSION_SECRET
+        generateValue: true       # Render generates a strong secret to sign login sessions
