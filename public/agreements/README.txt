@@ -1,0 +1,17 @@
+RRG AGREEMENTS FOLDER
+=====================
+Drop the current agreement files here. The Associate Dashboard auto-lists
+whatever is in this folder (name from the filename, "Updated" date from the
+file's timestamp), so:
+
+  • To UPDATE an agreement  -> replace the file (keep the name).
+  • To ADD an agreement     -> drop a new PDF/DOCX in; it appears automatically.
+
+Suggested filenames for the current set (rename yours to match, or just drop
+yours in — the dashboard reads whatever's here):
+
+  exclusive-tenant-rep.pdf     -> Exclusive Tenant Representation Agreement
+  exclusive-seller-rep.pdf     -> Exclusive Business Seller Representation Agreement
+  mutual-nda.pdf               -> Mutual NDA
+
+Supported types: .pdf .doc .docx .png .jpg

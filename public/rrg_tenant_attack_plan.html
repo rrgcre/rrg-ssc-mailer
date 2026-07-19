@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Tenant Market Attack Plan</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8894a8;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;--green:#1f8a5b;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#e9edf3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+
+.toolbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);}
+.tb-inner{max-width:920px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.tt{font-weight:800;color:var(--navy);font-size:14px;} .tt span{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px;}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:8px;cursor:pointer;}
+.btn:hover{border-color:#9fb0cc;} .btn.print{background:var(--navy);color:#fff;border-color:var(--navy);}
+.savechip{font-size:11px;color:var(--green);font-weight:700;opacity:0;transition:opacity .3s;} .savechip.show{opacity:1;}
+
+.wrap{max-width:920px;margin:22px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(10,20,50,.08);}
+
+.band{color:#fff;padding:38px 46px 30px;position:relative;overflow:hidden;
+  background:radial-gradient(96% 130% at 27% 12%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.band > *{position:relative;z-index:2;}
+.band::after{content:"";position:absolute;z-index:0;width:1300px;height:1300px;right:-380px;top:120px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%, #0b1430 0%, #08112a 48%, #050c22 82%);border:1px solid rgba(120,150,220,.10);pointer-events:none;}
+.confline{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#8fa0c2;font-weight:700;margin-bottom:22px;}
+.rrg{display:inline-flex;align-items:center;}
+.rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:44px;height:44px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.rrg .bar{background:#fff;width:3px;height:32px;margin:0 12px;} .rrg .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:26px 0 6px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+.band h1 input{font-size:29px;font-weight:800;letter-spacing:-.01em;margin:0;color:#fff;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.22);width:100%;font-family:inherit;padding:0 0 3px;}
+.band h1 input:focus{outline:none;border-bottom-color:var(--red);}
+.subin{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.16);color:#c3ccdf;font-size:14px;font-weight:600;font-family:inherit;padding:6px 0 2px;width:100%;margin-top:8px;}
+.subin.tag{color:#9fb0cc;font-size:12px;font-style:italic;}
+.subin:focus{outline:none;border-bottom-color:var(--red);color:#fff;}
+.accent{width:58px;height:5px;background:var(--red);border-radius:3px;margin:16px 0 14px;}
+.prep{display:flex;flex-direction:column;gap:9px;margin-top:6px;max-width:560px;}
+.pf{display:flex;flex-direction:column;gap:2px;} .pf label{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#8093b6;font-weight:700;}
+.pf input{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.18);color:#dce3f0;font-size:12px;font-weight:600;font-family:inherit;padding:2px 0;width:100%;}
+.pf input:focus{outline:none;border-bottom-color:var(--red);color:#fff;}
+
+.strip{display:grid;grid-template-columns:repeat(4,1fr);margin-top:22px;border:1px solid rgba(255,255,255,.14);border-radius:12px;overflow:hidden;position:relative;z-index:2;}
+.strip .c{padding:13px 16px;border-right:1px solid rgba(255,255,255,.12);}
+.strip .c:last-child{border-right:none;}
+.strip .k{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#8fa0c2;font-weight:700;}
+.strip .v{font-family:inherit;font-weight:800;font-size:18px;color:#fff;margin-top:4px;line-height:1.05;}
+.strip .v input{width:100%;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.18);color:#fff;font:800 18px inherit;font-family:inherit;padding:0;}
+.strip .v input:focus{outline:none;border-bottom-color:var(--red);}
+.strip .v.red{color:#ff7a5c;}
+
+.inner{padding:6px 46px 34px;}
+.kl{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:800;margin:30px 0 3px;}
+.sec{display:flex;align-items:center;gap:12px;margin:2px 0 12px;}
+.sec h2{font-size:17px;color:var(--navy);margin:0;font-weight:800;letter-spacing:-.01em;}
+.sec .flex{flex:1;height:1px;background:var(--line);}
+.hint{font-size:11px;color:var(--muted);line-height:1.5;margin:2px 0 10px;}
+
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;margin-top:6px;}
+.fg.three{grid-template-columns:1fr 1fr 1fr;}
+.f{display:flex;flex-direction:column;gap:3px;}
+.f.full{grid-column:1/-1;}
+.f label{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.f input,.f select{border:1px solid var(--inp);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:12.5px;color:var(--ink);background:#fff;}
+.f input:focus,.f select:focus{outline:none;border-color:var(--red);}
+
+.narr{width:100%;border:1px solid var(--inp);border-radius:9px;padding:11px 13px;font-family:inherit;font-size:12.5px;color:var(--ink);min-height:70px;resize:vertical;line-height:1.55;margin-top:10px;overflow:hidden;}
+.narr:focus{outline:none;border-color:var(--red);}
+
+.callout{border-left:4px solid var(--red);background:var(--wash);border-radius:0 10px 10px 0;padding:13px 16px;margin-top:14px;}
+.callout .ct{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:800;margin-bottom:5px;}
+.callout textarea{width:100%;border:none;background:transparent;font-family:inherit;font-size:12px;color:var(--ink);line-height:1.55;resize:vertical;min-height:46px;overflow:hidden;}
+.callout textarea:focus{outline:none;}
+
+table{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:10px;}
+th{font-size:8.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);padding:7px 8px;text-align:left;border-bottom:1px solid var(--line);}
+td{padding:2px 4px;border-bottom:1px solid var(--line);vertical-align:top;}
+td [contenteditable]{min-height:20px;padding:5px 6px;border-radius:5px;font-size:11.5px;line-height:1.4;outline:none;}
+td [contenteditable]:focus{background:#fffdfd;box-shadow:inset 0 0 0 1px var(--red);}
+td [contenteditable]:empty:before{content:attr(data-ph);color:#b6bfce;}
+.pri{font-weight:800;text-align:center;}
+.pri.p1{color:var(--red);} .pri.p2{color:var(--amber,#b5791f);} .pri.p3{color:var(--muted);}
+.trdel{cursor:pointer;color:#c9d0dd;font-weight:800;text-align:center;width:24px;user-select:none;}
+.trdel:hover{color:var(--red);}
+.rowctl{margin:8px 0 4px;}
+.rowctl button{font-size:10.5px;border:1px solid var(--inp);background:#fff;color:#42506a;border-radius:6px;padding:5px 10px;cursor:pointer;font-weight:600;}
+.rowctl button:hover{border-color:#9fb0cc;}
+
+/* channel checklist */
+.chk{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin-top:10px;}
+.chk label{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:var(--ink);line-height:1.4;cursor:pointer;}
+.chk input{margin-top:2px;width:15px;height:15px;accent-color:var(--red);flex:none;}
+
+.sublabel{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:16px 0 5px;}
+
+.foot{margin-top:30px;border-top:1px solid var(--line);padding-top:12px;display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);flex-wrap:wrap;gap:6px;}
+.foot b{color:var(--navy);}
+
+@media(max-width:720px){ .strip{grid-template-columns:1fr 1fr;} .inner{padding:6px 22px 28px;} .band{padding:26px 22px;} .fg,.fg.three,.chk{grid-template-columns:1fr;} }
+@media print{
+  @page{size:Letter;margin:0.55in 0.6in;} @page cover{margin:0;}
+  body{background:#fff;}
+  .toolbar,.rrg-noprint,.rowctl,.trdel{display:none!important;}
+  .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .band{page:cover;border-radius:0;height:11in;overflow:hidden;break-after:page;}
+  input,textarea,select{border:none!important;background:none!important;resize:none;-webkit-appearance:none;appearance:none;}
+  .f input,.f select{border:1px solid #d7dde8!important;}
+  .band h1 input,.subin,.pf input,.strip .v input{border-bottom:none!important;}
+  .band input,.band h1 input,.subin,.pf input,.strip .v input{color:#e9edf6!important;-webkit-text-fill-color:#e9edf6!important;}
+  .band h1 input,.strip .v input{color:#fff!important;-webkit-text-fill-color:#fff!important;}
+  td [contenteditable]:focus{box-shadow:none;}
+  .narr,.callout textarea{min-height:0!important;overflow:visible!important;}
+  table,.callout,.strip,.sec,.chk,.kl-block{break-inside:avoid;}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar"><div class="tb-inner">
+  <div class="tt">RRG Tenant Market Attack Plan <span>The site-acquisition campaign — Print / Save PDF</span></div>
+  <div class="actions">
+    <span class="savechip" id="savechip">Draft saved ✓</span>
+    <button class="btn" onclick="loadSample()">Load sample</button>
+    <button class="btn" onclick="clearAll()">Clear</button>
+    <button class="btn print" onclick="growAll();window.print()">Print / Save PDF</button>
+  </div>
+</div></div>
+
+<div class="wrap" id="sheet">
+  <div class="band">
+    <div class="confline">Prepared for the Client &nbsp;·&nbsp; Restaurant Realty Group &nbsp;·&nbsp; Confidential Representation Strategy</div>
+    <span class="rrg"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <div class="kicker">Market Attack Plan · Tenant Representation</div>
+    <h1><input data-k="client" placeholder="Concept / Client Name"></h1>
+    <input class="subin" data-k="mission" placeholder="The assignment — e.g. Secure the next San Antonio location for a fast-casual concept">
+    <input class="subin tag" data-k="markets" placeholder="Target markets — e.g. North & Northeast San Antonio · 1604 corridor · Stone Oak">
+    <div class="accent"></div>
+    <div class="prep">
+      <div class="pf"><label>Prepared For</label><input data-k="preparedFor" placeholder="Client / Tenant"></div>
+      <div class="pf"><label>Prepared By</label><input data-k="preparedBy" value="Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com"></div>
+      <div class="pf"><label>Date</label><input data-k="date" placeholder="Month DD, YYYY"></div>
+    </div>
+    <div class="strip">
+      <div class="c"><div class="k">Target Submarkets</div><div class="v" id="hSub">—</div></div>
+      <div class="c"><div class="k">Target Sites</div><div class="v" id="hSites">—</div></div>
+      <div class="c"><div class="k">Timeline to LOI</div><div class="v"><input data-k="timeline" placeholder="60 days"></div></div>
+      <div class="c"><div class="k">Exclusive Term</div><div class="v"><input data-k="exclusive" placeholder="12 months"></div></div>
+    </div>
+  </div>
+
+  <div class="inner">
+
+    <!-- 1. THE ASSIGNMENT -->
+    <div class="kl-block"><div class="kl">The Assignment</div>
+    <div class="sec"><h2>What We're Securing</h2><div class="flex"></div></div>
+    <div class="hint">Pull straight from the tenant's Site Selection Criteria. This is the mandate the whole campaign is built to fill.</div>
+    <div class="fg three">
+      <div class="f"><label>Use / Format</label><input data-k="format" placeholder="Fast-casual Mexican · dine-in + drive-thru optional"></div>
+      <div class="f"><label>Size Range</label><input data-k="size" placeholder="2,200–2,800 SF"></div>
+      <div class="f"><label>Site Types</label><input data-k="siteTypes" placeholder="End cap · pad w/ DT · 2nd-gen restaurant"></div>
+      <div class="f"><label>Occupancy Ceiling</label><input data-k="occCeil" placeholder="≤ $38/SF total · ≤ 10% of sales"></div>
+      <div class="f"><label>Target Open</label><input data-k="targetOpen" placeholder="Q1 2027"></div>
+      <div class="f"><label>Units This Campaign</label><input data-k="units" placeholder="1 (of a 3-unit plan)"></div>
+      <div class="f full"><label>Must-Haves &amp; Deal-Breakers</label><input data-k="musts" placeholder="Patio · hood/venting or 2nd-gen · monument signage · 6/1,000 parking · no direct Mexican co-tenant"></div>
+    </div>
+    <textarea class="narr" data-k="assignNarr" placeholder="One paragraph: who the tenant is, why they win in this market, and what a home-run site looks like."></textarea>
+    </div>
+
+    <!-- 2. MARKET STRATEGY -->
+    <div class="kl-block"><div class="kl">Market Strategy</div>
+    <div class="sec"><h2>Target Trade Areas, Ranked</h2><div class="flex"></div></div>
+    <div class="hint">Where the customer is — ranked by priority, with the demand rationale that justifies each. Priority 1 gets worked first and hardest.</div>
+    <table><thead><tr><th style="width:22%">Submarket</th><th>Why It Wins (demand drivers)</th><th style="width:14%">Rooftops / Daytime</th><th style="width:10%">Priority</th><th></th></tr></thead>
+      <tbody data-rows="sub"></tbody></table>
+    <div class="rowctl"><button onclick="addRow('sub')">+ Add submarket</button></div>
+    </div>
+
+    <!-- 3. TARGET LIST -->
+    <div class="kl-block"><div class="kl">The Hit List</div>
+    <div class="sec"><h2>Target Properties &amp; Landlords</h2><div class="flex"></div></div>
+    <div class="hint">The named sites we go after — on-market and off-market. The off-market inquiries are where RRG earns its fee; we don't wait for listings to appear.</div>
+    <table><thead><tr><th style="width:24%">Property / Address</th><th style="width:12%">Type · SF</th><th style="width:14%">Asking (Base+NNN)</th><th style="width:18%">Landlord / Contact</th><th style="width:12%">On / Off-Mkt</th><th style="width:12%">Status</th><th></th></tr></thead>
+      <tbody data-rows="tgt"></tbody></table>
+    <div class="rowctl"><button onclick="addRow('tgt')">+ Add target</button></div>
+    </div>
+
+    <!-- 4. THE CANVASS -->
+    <div class="kl-block"><div class="kl">The Canvass</div>
+    <div class="sec"><h2>How We Work the Market</h2><div class="flex"></div></div>
+    <div class="hint">Every channel gets worked in parallel. Check the ones in play for this assignment.</div>
+    <div class="chk">
+      <label><input type="checkbox" data-c="c1">Pull all on-market space — CoStar, Crexi, LoopNet, broker inventory</label>
+      <label><input type="checkbox" data-c="c2">Off-market outreach — direct to landlords &amp; owners of target sites</label>
+      <label><input type="checkbox" data-c="c3">Drive the corridors — physically canvass for signage, dark space, tenants ready to move</label>
+      <label><input type="checkbox" data-c="c4">Work the RRG landlord &amp; developer network</label>
+      <label><input type="checkbox" data-c="c5">Second-generation restaurant space — assignments, subleases, closures</label>
+      <label><input type="checkbox" data-c="c6">Broker cooperation — put the requirement in front of the listing community</label>
+      <label><input type="checkbox" data-c="c7">Pad &amp; ground-lease opportunities with developers on new projects</label>
+      <label><input type="checkbox" data-c="c8">Off-market co-tenancy leads from adjacent RRG deals</label>
+    </div>
+    <textarea class="narr" data-k="canvassNarr" placeholder="The narrative: our approach, cadence of outreach, and how we surface space that isn't listed."></textarea>
+    </div>
+
+    <!-- 5. TOUR & EVALUATION -->
+    <div class="kl-block"><div class="kl">Tour &amp; Evaluate</div>
+    <div class="sec"><h2>See It, Score It, Shortlist It</h2><div class="flex"></div></div>
+    <div class="hint">Every space we show gets logged in the RRG Tour Tracker and scored in Site &amp; Concept Fit — occupancy-cost test included — so the decision is evidence-based, not a gut call.</div>
+    <textarea class="narr" data-k="tourNarr" placeholder="How tours are run and coordinated, what we evaluate on each site (visibility, access, parking, co-tenancy, buildout, economics), and how we narrow to a shortlist."></textarea>
+    </div>
+
+    <!-- 6. LEVERAGE -->
+    <div class="kl-block"><div class="kl">Leverage</div>
+    <div class="sec"><h2>Negotiation Strategy — Make Them Compete</h2><div class="flex"></div></div>
+    <div class="hint">The whole game: never negotiate one deal in isolation. We run the top options in parallel so landlords compete for the tenant — that's how the economics move our way.</div>
+    <div class="sublabel">LOI economics targets</div>
+    <div class="fg three">
+      <div class="f"><label>Base Rent Target</label><input data-k="tBase" placeholder="≤ $30/SF"></div>
+      <div class="f"><label>TI Allowance</label><input data-k="tTI" placeholder="≥ $50/SF"></div>
+      <div class="f"><label>Free Rent</label><input data-k="tFree" placeholder="3–4 months"></div>
+      <div class="f"><label>Term / Options</label><input data-k="tTerm" placeholder="10 yr · 2×5 options"></div>
+      <div class="f"><label>Exclusive Use</label><input data-k="tExcl" placeholder="Mexican fast-casual"></div>
+      <div class="f"><label>Co-Tenancy / Outs</label><input data-k="tCoten" placeholder="Anchor co-tenancy + kick-out"></div>
+    </div>
+    <textarea class="narr" data-k="leverageNarr" placeholder="The play: how many options we run at once, where we push (base vs. TI vs. free rent), the ask vs. the walk-away, and the tension we create to win terms."></textarea>
+    </div>
+
+    <!-- 7. TIMELINE -->
+    <div class="kl-block"><div class="kl">Timeline</div>
+    <div class="sec"><h2>Campaign Milestones</h2><div class="flex"></div></div>
+    <table><thead><tr><th style="width:18%">Phase</th><th style="width:16%">Window</th><th>Actions &amp; Deliverables</th><th></th></tr></thead>
+      <tbody data-rows="tl"></tbody></table>
+    <div class="rowctl"><button onclick="addRow('tl')">+ Add phase</button></div>
+    </div>
+
+    <!-- 8. REPORTING -->
+    <div class="kl-block"><div class="kl">Reporting &amp; Next Steps</div>
+    <div class="sec"><h2>How We Keep You In Front Of It</h2><div class="flex"></div></div>
+    <textarea class="narr" data-k="reportNarr" placeholder="Reporting cadence (weekly update, shared Tour Tracker access), what RRG commits to deliver, and the immediate next steps to launch the campaign."></textarea>
+    <div class="callout"><div class="ct">The RRG commitment</div><textarea data-k="commit">RRG represents the tenant's interest exclusively. We work every channel — on-market and off — run multiple options in parallel to create leverage, and drive the process to the best economics available in the market. No direct landlord contact runs around us; every negotiation routes through RRG to protect the tenant's position.</textarea></div>
+    </div>
+
+    <div class="foot">
+      <span>Restaurant Realty Group, LLC &nbsp;·&nbsp; <b>Restaurant Transactions. Done Right.</b></span>
+      <span>Confidential representation strategy — prepared for the named client. Market data to be independently verified.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+var K='rrg_tenantplan_v1';
+var COLS = {
+  sub:[ {k:'name',ph:'Submarket'}, {k:'why',ph:'Demand drivers — daytime pop, rooftops, generators, gap in market'}, {k:'roof',ph:'e.g. 72k / 19k'}, {k:'pri',ph:'P1',cls:'pri'} ],
+  tgt:[ {k:'prop',ph:'Property / address'}, {k:'type',ph:'End cap · 2,600 SF'}, {k:'ask',ph:'$32 + $9.50'}, {k:'ll',ph:'Landlord · broker · contact'}, {k:'mkt',ph:'On / Off'}, {k:'status',ph:'Available'} ],
+  tl:[ {k:'phase',ph:'Phase'}, {k:'win',ph:'Weeks 1–2'}, {k:'act',ph:'Actions & deliverables'} ]
+};
+var state={vals:{}, checks:{}, rows:{sub:[],tgt:[],tl:[]}};
+
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function grow(t){ if(t&&t.tagName==='TEXTAREA'){ t.style.height='auto'; t.style.height=(t.scrollHeight+2)+'px'; } }
+function growAll(){ document.querySelectorAll('textarea').forEach(grow); }
+
+function priClass(v){ v=(v||'').toString().toUpperCase(); if(v.indexOf('1')>=0) return 'p1'; if(v.indexOf('2')>=0) return 'p2'; return 'p3'; }
+
+function renderRows(which){
+  var tb=document.querySelector('[data-rows="'+which+'"]'); tb.innerHTML='';
+  var cols=COLS[which];
+  state.rows[which].forEach(function(row,i){
+    var tr=document.createElement('tr');
+    var cells=cols.map(function(c){
+      var extra=c.cls==='pri'?(' pri '+priClass(row[c.k])):'';
+      return '<td><div contenteditable="true" data-w="'+which+'" data-i="'+i+'" data-f="'+c.k+'" data-ph="'+esc(c.ph)+'" class="'+(c.cls||'')+extra+'">'+esc(row[c.k]||'')+'</div></td>';
+    }).join('');
+    tr.innerHTML=cells+'<td class="trdel" onclick="delRow(\''+which+'\','+i+')" title="Remove">×</td>';
+    tb.appendChild(tr);
+  });
+  bindCells(which);
+  countStrip();
+}
+function bindCells(which){
+  document.querySelectorAll('[data-rows="'+which+'"] [contenteditable]').forEach(function(el){
+    el.addEventListener('input',function(){
+      var i=+el.getAttribute('data-i'), f=el.getAttribute('data-f');
+      state.rows[which][i][f]=el.textContent;
+      if(el.classList.contains('pri')){ el.className='pri '+priClass(el.textContent); }
+      save();
+    });
+  });
+}
+function addRow(which){ state.rows[which].push({}); renderRows(which); save(); }
+function delRow(which,i){ state.rows[which].splice(i,1); renderRows(which); save(); }
+
+function countStrip(){
+  document.getElementById('hSub').textContent = state.rows.sub.length||'—';
+  document.getElementById('hSites').textContent = state.rows.tgt.length||'—';
+}
+
+/* fields */
+function bind(){
+  document.querySelectorAll('[data-k]').forEach(function(el){
+    el.addEventListener('input',function(){ state.vals[el.getAttribute('data-k')]=el.value; grow(el); save(); });
+  });
+  document.querySelectorAll('[data-c]').forEach(function(el){
+    el.addEventListener('change',function(){ state.checks[el.getAttribute('data-c')]=el.checked; save(); });
+  });
+}
+function paint(){
+  document.querySelectorAll('[data-k]').forEach(function(el){ var k=el.getAttribute('data-k'); if(state.vals[k]!=null) el.value=state.vals[k]; });
+  document.querySelectorAll('[data-c]').forEach(function(el){ el.checked=!!state.checks[el.getAttribute('data-c')]; });
+}
+
+var t;
+function save(){ try{ localStorage.setItem(K, JSON.stringify(state)); }catch(e){} var c=document.getElementById('savechip'); c.classList.add('show'); clearTimeout(t); t=setTimeout(function(){c.classList.remove('show');},1200); }
+function load(){ try{ var s=localStorage.getItem(K); if(s){ var o=JSON.parse(s); state.vals=o.vals||{}; state.checks=o.checks||{}; state.rows=o.rows||{sub:[],tgt:[],tl:[]}; } }catch(e){} }
+
+function clearAll(){
+  if(!confirm('Clear this attack plan?')) return;
+  var pb=state.vals.preparedBy;
+  state={vals:{preparedBy:pb||'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com'}, checks:{}, rows:{sub:[{}],tgt:[{}],tl:[{}]}};
+  document.querySelectorAll('[data-k]').forEach(function(el){ el.value=(el.getAttribute('data-k')==='preparedBy')?state.vals.preparedBy:''; });
+  document.querySelectorAll('[data-c]').forEach(function(el){ el.checked=false; });
+  ['sub','tgt','tl'].forEach(renderRows); growAll(); save();
+}
+
+function loadSample(){
+  state.vals={
+    client:'Whiskey River Dance Hall', mission:'Secure a San Antonio home — a 12,000 SF endcap on the 1604 or Loop 410 nightlife corridor',
+    markets:'San Antonio · 1604 (US-281 / IH-35 / Bandera) · Alamo Ranch · Loop 410',
+    preparedFor:'Whiskey River Dance Hall · Todd De La Garza', preparedBy:'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com',
+    date:'July 17, 2026', timeline:'90 days', exclusive:'12 months',
+    format:'Bar / dance hall · destination nightlife · full bar', size:'10,500–15,000 SF (ideal 12,000)', siteTypes:'Endcap · freestanding · 2nd-gen preferred, shell OK',
+    occCeil:'$30–40K/mo incl. NNN · 6–8% of $6.0M sales', targetOpen:'Q2 2027', units:'San Antonio entry — unit 4 (multi-unit growth)',
+    musts:'Bar (tenant demo & rebuild) · 2,000+ SF patio · walk-in cooler · 14ft ceilings · ~350 parking (overflow/after-hours OK) · noise-tolerant, buffered from residential',
+    assignNarr:'Whiskey River is a proven 17-year, 3-unit beverage-forward operator out of the Houston metro taking its destination dance-hall concept into San Antonio. The home-run site is a 10,500–15,000 SF endcap or freestanding box on the high-growth 1604 or Loop 410 nightlife corridor — noise-tolerant, room for a 2,000+ SF patio and a built-to-spec bar, with parking that carries a night-use crowd. Cash-funded on a $3M build-out over a shell or second-generation delivery; ideal space over speed, targeting a Q2 2027 open.',
+    canvassNarr:'Large-format nightlife space rarely sits on the open market, so the campaign is off-market first. We pull every 10,500–15,000 SF endcap and freestanding box in the target corridors, then go direct to owners of dark big-box, former entertainment, and second-generation bar/club space — the noise-tolerant, high-parking sites this concept needs. We drive the 1604 and Loop 410 corridors physically, work the RRG landlord and developer network for pad and shell opportunities, and put the requirement in front of the listing community. Cadence: full market pulled week one, off-market owner outreach weekly, tours scheduled as boxes clear.',
+    tourNarr:'Every candidate is logged in the RRG Tour Tracker with asking rent, size, and reaction, and scored in Site & Concept Fit — including the occupancy-cost test against Whiskey River’s $6.0M projected volume and the 6–8% target. On each tour we verify the deal-makers for this concept specifically: bar demo/rebuild feasibility, a 2,000+ SF patio, 14ft clear height, walk-in cooler, ~350 parking with after-hours overflow, and a noise buffer from residential. We tour a batched shortlist so sites compare side by side, then narrow to the top two or three for LOIs.',
+    tBase:'≤ $24–26/SF base · hold all-in ≤ $30K/mo', tTI:'LL TI helpful — pursue on 2nd-gen', tFree:'Rent abated through buildout', tTerm:'10 yr + options', tExcl:'Live-music / dance-hall use protection', tCoten:'Noise-tolerant; buffered from residential',
+    leverageNarr:'We take LOIs to the top two or three boxes at once and let the landlords know they’re competing. On a $3M tenant build over a shell, the push is rent abatement through construction and TI on any second-generation option, with all-in rent held at or under the $30K/month viability line to keep occupancy inside 6–8% of $6.0M. Walk-away is any site that can’t deliver the bar/patio buildout, the parking, or the noise tolerance at a supportable rent. The parallel process is the leverage — a single-track negotiation on a specialty box hands the landlord all the power.',
+    reportNarr:'Weekly written update plus live access to the shared Tour Tracker so Todd sees every option in real time. RRG delivers the target list within week one, first tours by week three, and LOIs out by roughly week nine given the specialty-box search. Immediate next step: countersign the exclusive so we can open off-market conversations with box owners under representation.'
+  };
+  state.checks={c1:true,c2:true,c3:true,c4:true,c5:true,c6:true,c7:true,c8:false};
+  state.rows={
+    sub:[
+      {name:'1604 / US-281', why:'Affluent nightlife draw; Stone Oak/281 rooftops + daytime office; established entertainment node', roof:'High income / strong daytime', pri:'P1'},
+      {name:'1604 / IH-35', why:'North-corridor growth, visibility and access; young social-drinker base (21–40)', roof:'Growing / high traffic', pri:'P1'},
+      {name:'1604 / Bandera · Far West', why:'Country/Western lifestyle base; large endcap and box supply', roof:'Blue-collar + young adult', pri:'P2'},
+      {name:'Alamo Ranch', why:'High-growth family + young-adult submarket; large-format retail with parking', roof:'High growth', pri:'P2'},
+      {name:'Loop 410 / 281 · Culebra', why:'Established nightlife corridor; value rents; noise-tolerant, second-gen sites', roof:'Dense / working-class', pri:'P3'}
+    ],
+    tgt:[
+      {prop:'Former big-box endcap — 1604 & 281', type:'Endcap · 13,500 SF', ask:'$26 + $8', ll:'Listing broker (REIT owner)', mkt:'On-market', status:'Available now'},
+      {prop:'Vacant entertainment box — IH-35', type:'Freestanding · 12,000 SF', ask:'~$22 GL', ll:'Owner direct (LLC)', mkt:'Off-market', status:'Owner outreach'},
+      {prop:'Bandera Pointe endcap', type:'Endcap · 11,000 SF', ask:'$24 + $7.50', ll:'Regional retail broker', mkt:'On-market', status:'Touring'},
+      {prop:'Alamo Ranch former fitness', type:'2nd-gen · 14,000 SF', ask:'TBD', ll:'Developer', mkt:'Off-market', status:'Inquiry sent'},
+      {prop:'Loop 410 dark restaurant/club', type:'2nd-gen bar · 12,500 SF', ask:'$20 + NNN', ll:'Landlord direct', mkt:'Off-market', status:'Owner outreach'}
+    ],
+    tl:[
+      {phase:'Launch', win:'Weeks 1–2', act:'Countersign exclusive; confirm criteria from the SSC; pull all 10,500–15,000 SF endcap/freestanding inventory; build and rank the target list; open off-market box-owner outreach'},
+      {phase:'Canvass', win:'Weeks 3–5', act:'Work every channel; direct outreach to owners of dark box / former-entertainment / 2nd-gen bar space; drive the corridors; vet parking and noise buffers; schedule tours'},
+      {phase:'Tour & Score', win:'Weeks 6–8', act:'Batched tours; log in Tour Tracker; score in Site & Concept Fit vs. $6.0M / 6–8%; confirm bar, patio, cooler, ceiling, and parking feasibility; narrow to top 2–3'},
+      {phase:'LOI', win:'Weeks 9–12', act:'LOIs out to shortlist in parallel; create competition; push abatement + TI over the $3M build; negotiate use protection and all-in rent ≤ $30K/mo'},
+      {phase:'Select & Close', win:'Weeks 13–16', act:'Select site; finalize business terms; hand executed LOI to counsel; sequence delivery to hold the Q2 2027 open'}
+    ]
+  };
+  paint(); ['sub','tgt','tl'].forEach(renderRows); growAll(); save();
+}
+
+/* init */
+load();
+if(!state.rows.sub.length && !state.rows.tgt.length && !state.rows.tl.length){ state.rows={sub:[{}],tgt:[{}],tl:[{}]}; }
+bind(); paint(); ['sub','tgt','tl'].forEach(renderRows); growAll();
+window.addEventListener('load', growAll);
+</script>
+</body>
+</html>

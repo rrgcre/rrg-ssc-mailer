@@ -1,0 +1,650 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Confidential Information Memorandum</title>
+<style>
+:root{--navy:#0e1f3d;--brandnavy:#000E31;--red:#DA2B1F;--ink:#22272f;--muted:#5f6b7d;--soft:#8894a8;
+  --line:#e3e6ec;--card:#f4f5f7;--cardline:#e6e9ef;--green:#1f8a5b;--wash:#f7f8fb;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#dfe3ea;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:13px;}
+.serif{font-family:'Cambria','Palatino Linotype','Book Antiqua',Georgia,'Times New Roman',serif;}
+
+/* toolbar */
+.toolbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);}
+.tb-inner{max-width:850px;margin:0 auto;padding:11px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.tt{font-weight:800;color:var(--brandnavy);font-size:14px;} .tt span{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px;}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.btn{border:1px solid #cfd6e2;background:#fff;color:var(--brandnavy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:8px;cursor:pointer;}
+.btn:hover{border-color:#9fb0cc;} .btn.print{background:var(--brandnavy);color:#fff;border-color:var(--brandnavy);}
+.btn.on{background:#eaf0ff;border-color:#9fb4e6;color:#2647b0;}
+.savechip{font-size:11px;color:var(--green);font-weight:700;opacity:0;transition:opacity .3s;} .savechip.show{opacity:1;}
+
+/* page shell */
+#doc{max-width:850px;margin:20px auto;}
+.page{background:#fff;width:850px;min-height:1100px;margin:0 auto 22px;padding:70px 78px 60px;position:relative;box-shadow:0 6px 26px rgba(10,20,50,.09);}
+.page .pgfoot{position:absolute;left:78px;right:78px;bottom:30px;border-top:1px solid var(--line);padding-top:8px;display:flex;justify-content:space-between;font-size:9px;color:var(--soft);}
+.page .pgfoot .cc{color:#a9b2c2;}
+
+/* type */
+.ed:focus{outline:2px solid rgba(218,43,31,.35);outline-offset:2px;border-radius:3px;}
+.kick{font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;font-weight:700;color:var(--soft);margin-bottom:8px;}
+.kick.red{color:var(--red);}
+h1.title{font-size:40px;font-weight:600;color:var(--navy);margin:0 0 6px;letter-spacing:-.01em;line-height:1.05;}
+h2.sect{font-size:29px;font-weight:600;color:var(--navy);margin:0 0 4px;letter-spacing:-.005em;line-height:1.1;}
+.rule{border:none;border-top:1px solid var(--line);margin:12px 0 18px;}
+.sub{font-size:15px;color:var(--muted);margin:0;}
+p.body{font-size:12.5px;line-height:1.62;color:var(--ink);margin:0 0 12px;}
+p.body.intro{font-size:13px;color:#333a44;}
+h3.blk{font-size:14px;font-weight:700;color:var(--navy);margin:16px 0 5px;}
+h3.blkred{font-size:13px;font-weight:700;color:var(--navy);margin:14px 0 4px;}
+.lead{font-weight:700;color:var(--ink);}
+
+/* top cover rule */
+.coverbar{border-top:2.5px solid var(--navy);padding-top:16px;}
+
+/* stat strip */
+.strip{display:grid;grid-template-columns:repeat(4,1fr);background:var(--navy);border-radius:2px;margin:20px 0;overflow:hidden;}
+.strip.three{grid-template-columns:repeat(3,1fr);}
+.strip .c{padding:15px 16px;text-align:center;border-right:1px solid rgba(255,255,255,.09);}
+.strip .c:last-child{border-right:none;}
+.strip .k{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:#93a1bd;font-weight:700;}
+.strip .v{font-weight:600;font-size:26px;color:#fff;margin-top:5px;line-height:1;}
+.strip.three .v{font-size:30px;}
+
+.facts{text-align:center;font-size:12px;color:var(--muted);margin:6px 0 0;}
+.logos{display:flex;gap:18px;justify-content:center;align-items:center;margin:26px 0 6px;flex-wrap:wrap;}
+.logobox{min-width:150px;height:74px;border:1px dashed #cdd4df;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#9aa4b6;font-size:12px;font-weight:700;text-align:center;padding:6px 10px;background:#fafbfc;}
+
+.coverfoot{position:absolute;left:78px;right:78px;bottom:74px;}
+.coverfoot .rr{border-top:1px solid var(--line);padding-top:14px;}
+.coverfoot .rr b{font-size:14px;color:var(--navy);font-weight:700;}
+.coverfoot .rr .it{font-style:italic;color:var(--muted);font-size:12px;margin-top:1px;}
+.coverfoot .rr .ct{font-size:11px;color:var(--soft);margin-top:3px;}
+.coverfoot .rr .cf{font-style:italic;font-size:10.5px;color:#9aa4b6;margin-top:5px;}
+
+/* cards */
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0;}
+.grid.three{grid-template-columns:1fr 1fr 1fr;}
+.cardx{background:var(--card);border:1px solid var(--cardline);border-radius:4px;padding:13px 15px;position:relative;}
+.cardx .ct{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px;}
+.cardx .cs{font-size:11px;line-height:1.5;color:var(--muted);}
+.cardx .cpos{font-size:11px;font-style:italic;color:var(--red);font-weight:600;margin-bottom:6px;}
+.cardx ul{margin:6px 0 8px;padding-left:0;list-style:none;}
+.cardx ul li{font-size:11px;line-height:1.45;color:var(--ink);padding-left:12px;position:relative;margin-bottom:3px;}
+.cardx ul li:before{content:"–";position:absolute;left:0;color:var(--soft);}
+.cardx .cloc{font-size:10px;font-style:italic;color:var(--soft);margin-top:4px;}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:11.5px;margin:12px 0;}
+thead th{background:var(--navy);color:#fff;font-weight:600;font-size:10.5px;padding:8px 10px;text-align:center;}
+thead th:first-child{text-align:left;}
+tbody td{padding:7px 10px;text-align:center;border-bottom:1px solid var(--line);}
+tbody td:first-child{text-align:left;font-weight:700;color:var(--navy);}
+tbody tr:nth-child(even){background:var(--wash);}
+tbody tr.totrow{background:#eef1f6!important;}
+tbody tr.totrow td{font-weight:800;color:var(--navy);border-top:1.5px solid var(--navy);}
+td .pos{color:var(--green);font-weight:700;}
+.tnote{font-size:10px;font-style:italic;color:var(--soft);margin:2px 0 0;line-height:1.4;}
+
+/* risk / numbered */
+.rk{margin:12px 0;}
+.rk .rh{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:2px;}
+.rk .rh .no{color:var(--red);font-weight:800;margin-right:8px;}
+.rk p{font-size:11.5px;line-height:1.55;color:var(--ink);margin:0;}
+
+/* toc */
+.toc{margin-top:8px;}
+.toc .row{display:flex;align-items:baseline;font-size:12.5px;color:var(--ink);padding:5px 0;}
+.toc .row .nm{white-space:nowrap;} .toc .row .dots{flex:1;border-bottom:1px dotted #c3ccdb;margin:0 6px;transform:translateY(-3px);}
+.toc .row .pg{font-weight:700;color:var(--navy);}
+
+/* bullets */
+ul.plain{margin:8px 0;padding-left:0;list-style:none;}
+ul.plain li{font-size:12px;line-height:1.5;padding-left:16px;position:relative;margin-bottom:5px;color:var(--ink);}
+ul.plain li:before{content:"•";position:absolute;left:2px;color:var(--red);font-weight:700;}
+
+/* photo grid */
+.photos{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;margin-top:14px;}
+.photo{}
+.photo .ph{height:180px;border-radius:4px;background:#eef1f6 center/cover no-repeat;border:1px solid var(--cardline);display:flex;align-items:center;justify-content:center;color:#9aa4b6;font-size:11px;font-weight:600;cursor:pointer;text-align:center;padding:8px;}
+.photo .cap{font-size:10.5px;font-style:italic;color:var(--soft);text-align:center;margin-top:5px;}
+
+/* BOV valuation callout */
+.bov{border:1px solid var(--cardline);border-left:4px solid var(--red);background:var(--wash);border-radius:0 6px 6px 0;padding:16px 18px;margin:14px 0;}
+.bov .bk{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:800;margin-bottom:8px;}
+.bov .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.bov .bc .bl{font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);font-weight:700;}
+.bov .bc .bv{font-size:16px;font-weight:800;color:var(--navy);margin-top:3px;}
+.bov .note{font-size:10.5px;color:var(--muted);margin-top:10px;line-height:1.5;}
+
+/* editing controls */
+.rowctl{margin:2px 0 14px;display:flex;gap:8px;}
+.rowctl button{font-size:10.5px;border:1px solid #cfd6e2;background:#fff;color:#42506a;border-radius:6px;padding:4px 9px;cursor:pointer;font-weight:600;}
+.rowctl button:hover{border-color:#9fb0cc;}
+.delx{position:absolute;top:5px;right:6px;width:18px;height:18px;border:none;background:#fbe9e7;color:var(--red);border-radius:50%;font-size:12px;line-height:1;cursor:pointer;display:none;}
+.cardx:hover .delx{display:block;}
+tr .trdel{cursor:pointer;color:var(--red);font-weight:800;}
+body.editing .ed{background:rgba(120,150,220,.045);}
+body.editing .ed:hover{background:rgba(120,150,220,.10);}
+
+@media print{
+  @page{size:Letter;margin:0.5in 0.55in;}
+  html,body{background:#fff;}
+  .toolbar,.rowctl,.delx,.savechip{display:none!important;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  #doc{max-width:none;margin:0;}
+  .page{width:auto;min-height:9.9in;margin:0;padding:0 0 0.35in;box-shadow:none;break-after:page;position:relative;}
+  .page:last-child{break-after:auto;}
+  .page .pgfoot{position:absolute;left:0;right:0;bottom:6px;}
+  .coverfoot{position:absolute;bottom:64px;left:0;right:0;}
+  .ed:focus{outline:none;}
+  body.editing .ed,body.editing .ed:hover{background:none;}
+  .grid,.strip,table,.rk,.cardx,.photos,.bov{break-inside:avoid;}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar"><div class="tb-inner">
+  <div class="tt">RRG Confidential Information Memorandum <span>Edit in place · Print / Save PDF</span></div>
+  <div class="actions">
+    <span class="savechip" id="savechip">Saved ✓</span>
+    <button class="btn on" id="editBtn" onclick="toggleEdit()">Editing: On</button>
+    <button class="btn" onclick="pullBOV()">Pull from BOV</button>
+    <button class="btn" onclick="resetSample()">Reset to sample</button>
+    <button class="btn print" onclick="window.print()">Print / Save PDF</button>
+  </div>
+</div></div>
+
+<div id="doc">
+
+  <!-- ============ PAGE 1 · COVER ============ -->
+  <section class="page">
+    <div class="coverbar">
+      <div class="kick ed">Confidential Information Memorandum</div>
+      <h1 class="title serif ed">PILF Restaurant Group</h1>
+      <p class="sub ed">Multi-Unit Premium Pizza Platform &nbsp;·&nbsp; Dallas–Fort Worth, Texas</p>
+    </div>
+    <div class="logos" data-logos>
+      <div class="logobox ed">CANE ROSSO</div>
+      <div class="logobox ed">ZOLI'S PIZZA</div>
+      <div class="logobox ed">THUNDERBIRD PIES</div>
+    </div>
+    <div class="strip">
+      <div class="c"><div class="k ed">System Revenue</div><div class="v ed">$31.5M</div></div>
+      <div class="c"><div class="k ed">Avg. Unit Volume</div><div class="v ed">~$2.6M</div></div>
+      <div class="c"><div class="k ed">Store EBITDA</div><div class="v ed">~18%</div></div>
+      <div class="c"><div class="k ed">Adj. EBITDA</div><div class="v ed">~12%</div></div>
+    </div>
+    <p class="facts ed">12 Operating Units &nbsp;·&nbsp; 3 Distinct Brands &nbsp;·&nbsp; 500+ Employees &nbsp;·&nbsp; 15+ Years of Brand Equity</p>
+    <div class="coverfoot">
+      <div class="rr">
+        <b class="ed">Restaurant Realty Group, LLC</b>
+        <div class="it ed">The Restaurant Sales and Leasing Experts</div>
+        <div class="ct ed">Austin · Dallas · Fort Worth · Houston · San Antonio · rrgcre.com</div>
+        <div class="cf ed">This document is strictly confidential and intended solely for the named recipient.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PAGE 2 · CONFIDENTIALITY ============ -->
+  <section class="page">
+    <h2 class="sect serif ed">Confidentiality &amp; Disclaimer</h2><hr class="rule">
+    <p class="body ed">This Confidential Information Memorandum (this "Memorandum") has been prepared by Restaurant Realty Group, LLC ("RRG" or "Advisor") on behalf of ownership of PILF Restaurant Group (the "Company" or the "Platform") solely for the purpose of providing certain preliminary information to qualified prospective purchasers evaluating a potential acquisition of or investment in the Company.</p>
+    <p class="body ed">This Memorandum is being furnished on a strictly confidential basis. By accepting this Memorandum, the recipient agrees to treat all information contained herein as confidential and proprietary, to use such information solely to evaluate a potential transaction with respect to the Company, and not to reproduce, distribute, or disclose this Memorandum or its contents, in whole or in part, to any other party without the prior written consent of RRG and ownership.</p>
+    <p class="body ed"><span class="lead">No Warranty.</span> The information contained in this Memorandum has been prepared by RRG based upon information supplied by the Company's ownership and management and has not been independently verified. No representation or warranty, express or implied, is made by RRG, the Company, their respective affiliates, officers, directors, employees, agents, or advisors with respect to the accuracy, completeness, or fairness of the information or opinions contained herein.</p>
+    <p class="body ed"><span class="lead">Not an Offer.</span> This Memorandum does not constitute an offer to sell or a solicitation of an offer to buy any securities or assets of the Company, nor does it constitute a commitment by RRG or the Company to proceed with any transaction. Any such offer or solicitation will be made only pursuant to a definitive purchase agreement executed by authorized representatives.</p>
+    <p class="body ed"><span class="lead">Forward-Looking Statements.</span> Certain statements and financial projections contained herein are forward-looking and are based upon assumptions and estimates inherently subject to significant business, operational, economic, and competitive uncertainties. Actual results may differ materially from those projected.</p>
+    <p class="body ed"><span class="lead">Independent Evaluation.</span> Prospective purchasers are expected to conduct their own independent investigation, due diligence, and analysis of the Company, including legal, financial, operational, tax, labor, regulatory, and real estate matters, and should consult with their own advisors prior to making any investment decision.</p>
+    <p class="body ed"><span class="lead">Process Rights.</span> RRG and the Company reserve the right, in their sole and absolute discretion, to negotiate with one or more prospective purchasers at any time, to accept or reject any proposal, to terminate discussions with any party, and to modify or withdraw this process at any time without notice and without liability to any party.</p>
+    <p class="body ed"><span class="lead">Governing Law.</span> This Memorandum shall be governed by and construed in accordance with the laws of the State of Texas.</p>
+    <p class="body ed">All inquiries must be directed exclusively through Restaurant Realty Group, LLC. Direct contact with the Company, its ownership, management, employees, vendors, or landlords without the prior written consent of RRG is strictly prohibited.</p>
+  </section>
+
+  <!-- ============ PAGE 3 · TOC ============ -->
+  <section class="page">
+    <h2 class="sect serif ed">Table of Contents</h2><hr class="rule">
+    <div class="toc" data-toc></div>
+    <p class="tnote ed" style="margin-top:14px">Page references update automatically from the sections in this document.</p>
+  </section>
+
+  <!-- ============ PAGE 4 · EXECUTIVE SUMMARY ============ -->
+  <section class="page" data-toc-title="Executive Summary">
+    <div class="kick red ed">Executive Summary</div>
+    <h2 class="sect serif ed">A Rare Scaled Independent Pizza Platform</h2><hr class="rule">
+    <p class="body intro ed">Restaurant Realty Group is pleased to present PILF Restaurant Group — the opportunity to acquire one of Texas's most recognized independent pizza platforms. Built over more than a decade, the Company has developed deep consumer loyalty, chef-driven culinary credibility, and the operational infrastructure to support meaningful growth under new ownership.</p>
+    <div class="strip">
+      <div class="c"><div class="k ed">System Revenue</div><div class="v ed">$31.5M</div></div>
+      <div class="c"><div class="k ed">Avg. Unit Volume</div><div class="v ed">~$2.6M</div></div>
+      <div class="c"><div class="k ed">Store EBITDA</div><div class="v ed">~18%</div></div>
+      <div class="c"><div class="k ed">Adj. EBITDA</div><div class="v ed">~12%</div></div>
+    </div>
+    <h3 class="blk serif ed" style="font-size:16px">Key Investment Highlights</h3>
+    <div class="grid" data-cards>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Recognized Texas Brand</div><div class="cs ed">Named the best pizza in Texas by Tasting Table; featured among the best wood-fired pizza restaurants in the US by Mashed; a three-time Diners, Drive-Ins and Dives feature.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Institutional Infrastructure</div><div class="cs ed">500+ employees, centralized commissary, experienced management team, established accounting systems, and vendor relationships uncommon for an independent of this scale.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Multi-Brand Platform</div><div class="cs ed">Three distinct concepts — Cane Rosso, Zoli's, and Thunderbird Pies — addressing different customer segments and trade area profiles across DFW.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Embedded Growth Upside</div><div class="cs ed">Multiple levers available in margin improvement, unit growth, commissary utilization, and potential franchising or licensing of established brands.</div></div>
+    </div>
+    <div class="rowctl"><button onclick="addCard(this)">+ Add highlight</button></div>
+  </section>
+
+  <!-- ============ PAGE 5 · COMPANY HISTORY ============ -->
+  <section class="page" data-toc-title="Company History &amp; Founding Story">
+    <div class="kick red ed">Company History</div>
+    <h2 class="sect serif ed">Founding Story &amp; Brand Evolution</h2><hr class="rule">
+    <h3 class="blk ed">The Origin</h3>
+    <p class="body ed">Cane Rosso's story begins in 1995, when founder Jay Jerrier fell in love with authentic Italian pizza during his honeymoon in Sorrento, Italy. A former corporate sales executive, Jerrier returned home inspired — and obsessed. He built a wood-burning oven in his Dallas backyard and began training with Master Pizzaiolos through the Associazione Verace Pizza Napoletana (AVPN), the global authority on authentic Neapolitan pizza.</p>
+    <h3 class="blk ed">From Backyard to Brand</h3>
+    <p class="body ed">In 2009, Jerrier launched a mobile catering oven, quickly building a loyal following through local pop-up pizza events across Dallas. By 2011, Cane Rosso opened its first brick-and-mortar location in Dallas's Deep Ellum neighborhood — one of the city's most iconic cultural districts. The concept was an immediate success, winning "Best Pizza in Dallas" from D Magazine in its first year and every year through 2015.</p>
+    <h3 class="blk ed">Growth &amp; National Recognition</h3>
+    <p class="body ed">From that single Deep Ellum location, Cane Rosso grew methodically to nine DFW locations, adding the Zoli's and Thunderbird Pies concepts to address additional segments. The brand earned national recognition from Eater and The Daily Meal as one of America's top pizzerias, and attracted Guy Fieri's attention for three separate Diners, Drive-Ins and Dives episodes — a rare honor that cemented the brand's cultural credibility beyond Texas.</p>
+    <h3 class="blk ed">Cane Rosso Rescue</h3>
+    <p class="body ed">In 2014, Jerrier founded Cane Rosso Rescue, a fully operational 501(c)3 charitable dog rescue that has since saved over 1,000 dogs' lives across Texas. A portion of proceeds from all restaurant locations is donated to the rescue each month. The rescue has become an integral part of the brand's identity and community positioning — regularly highlighted in local and national media and featured by Guy Fieri during his most recent Diners, Drive-Ins and Dives visit.</p>
+    <h3 class="blk ed">The Product</h3>
+    <p class="body ed">Cane Rosso makes fresh dough daily using Italian-imported "00" flour, hand-crushed San Marzano tomatoes for sauce, and pulls fresh mozzarella in-house every day. Neapolitan pizzas are cooked at 900 degrees in a wood-fired oven imported from Italy, producing the characteristically light, slightly charred crust of authentic Neapolitan pizza. Executive Chef Mat Urban leads a broader menu that includes fresh pastas, salads, sandwiches, and desserts.</p>
+  </section>
+
+  <!-- ============ PAGE 6 · CONCEPT PORTFOLIO ============ -->
+  <section class="page" data-toc-title="Concept Portfolio">
+    <div class="kick red ed">Concept Portfolio</div>
+    <h2 class="sect serif ed">Three Distinct Brands, One Platform</h2><hr class="rule">
+    <p class="body intro ed">Each concept occupies a differentiated position within the premium pizza category, enabling the Platform to address multiple consumer segments and trade area profiles simultaneously.</p>
+    <div class="grid three" data-cards>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Cane Rosso</div><div class="cpos ed">Neapolitan · Full-Service · Flagship</div><ul><li class="ed">Authentic wood-fired Neapolitan pizza cooked at 900°F</li><li class="ed">Fresh dough daily using imported Italian "00" flour</li><li class="ed">In-house pulled mozzarella and hand-crushed San Marzano sauce</li><li class="ed">Full-service dining, robust bar program, seasonal pasta and desserts</li></ul><div class="cloc ed">9 locations · Deep Ellum · North Dallas · Lake Highlands · Carrollton · Frisco · White Rock · Sachse · Arlington · Fort Worth</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Zoli's Pizza</div><div class="cpos ed">East Coast American-Italian · Full-Service</div><ul><li class="ed">Distinct East Coast American-Italian identity</li><li class="ed">Full-service sit-down experience similar to Cane Rosso</li><li class="ed">Built for guests who prefer a non-Neapolitan experience</li><li class="ed">Complementary format to the flagship brand</li></ul><div class="cloc ed">2 locations · Addison · Fort Worth</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Thunderbird Pies</div><div class="cpos ed">Detroit-Style · Emerging Concept</div><ul><li class="ed">Detroit-style specialty pizza — a fast-growing national format</li><li class="ed">Culinary innovation and product development showcase</li><li class="ed">Strong expansion candidate under new ownership</li><li class="ed">Anchors the Platform's breadth in the pizza category</li></ul><div class="cloc ed">1 location · Dallas</div></div>
+    </div>
+    <div class="rowctl"><button onclick="addCard(this)">+ Add concept</button></div>
+    <h3 class="blk serif ed" style="font-size:16px">Commissary &amp; Centralized Infrastructure</h3>
+    <p class="body ed">The Platform includes a centralized commissary — with a lease secured through 2033 — that underpins operational consistency, purchasing leverage, and scalability across all three concepts. The facility produces over 4,000 pounds of fresh mozzarella per week, in addition to daily dough production, ingredient preparation, and centralized purchasing. This infrastructure represents a meaningful competitive advantage relative to independently operated peers — and a scalable foundation for future unit growth or third-party production revenue.</p>
+  </section>
+
+  <!-- ============ PAGE 7 · FOOD & MENU ============ -->
+  <section class="page" data-toc-title="Food, Menu &amp; The Craft">
+    <div class="kick red ed">Food, Menu &amp; The Craft</div>
+    <h2 class="sect serif ed">What's on the Plate</h2><hr class="rule">
+    <p class="body intro ed">The product is the brand. Every element of the Cane Rosso experience — from the flour imported from Italy to the mozzarella pulled fresh each morning — is a deliberate expression of culinary integrity. This commitment to craft is the foundation of the Platform's pricing power, consumer loyalty, and national press recognition.</p>
+    <div class="grid" data-cards>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Tipo "00" Flour</div><div class="cs ed">Italian-imported, milled specifically for Neapolitan dough — creates the characteristic light, extensible crust.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">San Marzano Tomatoes</div><div class="cs ed">Hand-crushed DOP-certified San Marzano tomatoes from the volcanic plains south of Mount Vesuvius.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Fresh Mozzarella</div><div class="cs ed">Pulled in-house every day — never shipped pre-formed; ensures peak texture and flavor on every pie.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Wood-Fired Italian Oven</div><div class="cs ed">900-degree oven imported from Italy; produces the authentic leopard-spotted char of true Neapolitan pizza in under 90 seconds.</div></div>
+    </div>
+    <div class="rowctl"><button onclick="addCard(this)">+ Add feature</button></div>
+    <h3 class="blk serif ed" style="font-size:16px">Signature Pies</h3>
+    <table><thead><tr><th>Signature Pie</th><th>Note</th><th>Description</th></tr></thead>
+      <tbody data-rows>
+        <tr><td class="ed">The Honey Bastard</td><td class="ed">Off-menu, most-requested</td><td class="ed" style="text-align:left">Mozzarella, hot soppressata, bacon marmalade, habanero-infused honey. Featured by Guy Fieri on DDD.</td></tr>
+        <tr><td class="ed">The Delia</td><td class="ed">Fan favorite</td><td class="ed" style="text-align:left">Bacon marmalade, roasted grape tomatoes, fresh arugula. Left Guy Fieri speechless on its DDD debut.</td></tr>
+        <tr><td class="ed">Margherita DOC</td><td class="ed">The purist's benchmark</td><td class="ed" style="text-align:left">San Marzano tomato, fresh mozzarella, basil, extra virgin olive oil — executed to true Neapolitan standard.</td></tr>
+        <tr><td class="ed">White Clam</td><td class="ed">Chef's selection</td><td class="ed" style="text-align:left">Fresh clams, garlic, olive oil, pecorino, parsley. A nod to the New Haven tradition through a Neapolitan lens.</td></tr>
+      </tbody></table>
+    <div class="rowctl"><button onclick="addRow(this)">+ Add pie</button></div>
+  </section>
+
+  <!-- ============ PAGE 8 · PHOTOGRAPHY ============ -->
+  <section class="page" data-toc-title="The Experience">
+    <div class="kick red ed">Photography</div>
+    <h2 class="sect serif ed">The Experience</h2><hr class="rule">
+    <p class="body intro ed">The full experience — the food, packed neighborhood dining rooms, the wood-fired oven in action, and the authentic leopard-charred Neapolitan pie. Click a frame to add a photo.</p>
+    <div class="photos" data-photos>
+      <div class="photo"><div class="ph" onclick="pickPhoto(this)">Click to add photo</div><div class="cap ed">Signature Neapolitan pie — authentic leopard char</div></div>
+      <div class="photo"><div class="ph" onclick="pickPhoto(this)">Click to add photo</div><div class="cap ed">900°F wood-fired oven, imported from Italy</div></div>
+      <div class="photo"><div class="ph" onclick="pickPhoto(this)">Click to add photo</div><div class="cap ed">Game-day catering — high-volume events</div></div>
+      <div class="photo"><div class="ph" onclick="pickPhoto(this)">Click to add photo</div><div class="cap ed">Flagship — Deep Ellum, Dallas</div></div>
+      <div class="photo"><div class="ph" onclick="pickPhoto(this)">Click to add photo</div><div class="cap ed">Patio dining</div></div>
+      <div class="photo"><div class="ph" onclick="pickPhoto(this)">Click to add photo</div><div class="cap ed">Inside the dining room</div></div>
+    </div>
+    <p class="tnote ed">Photos are embedded into the PDF but not stored in the browser draft — re-add them if you reopen a saved draft.</p>
+  </section>
+
+  <!-- ============ PAGE 9 · BRAND RECOGNITION ============ -->
+  <section class="page" data-toc-title="Brand Recognition &amp; Media">
+    <div class="kick red ed">Brand Recognition &amp; Media</div>
+    <h2 class="sect serif ed">National Recognition, Local Loyalty</h2><hr class="rule">
+    <p class="body intro ed">The Platform has generated an exceptional press record for an independent restaurant group of its size. National media coverage, five consecutive "Best Pizza in Dallas" wins, and three Diners, Drive-Ins and Dives appearances represent brand equity that would be difficult and expensive to replicate through paid marketing alone.</p>
+    <table><thead><tr><th>Publication / Platform</th><th>Year(s)</th><th>Recognition</th></tr></thead>
+      <tbody data-rows>
+        <tr><td class="ed">Tasting Table</td><td class="ed">2026</td><td class="ed" style="text-align:left">Named best pizza in Texas</td></tr>
+        <tr><td class="ed">Mashed</td><td class="ed">2026</td><td class="ed" style="text-align:left">Named among the best wood-fired pizza restaurants in the US</td></tr>
+        <tr><td class="ed">Diners, Drive-Ins and Dives</td><td class="ed">Multiple</td><td class="ed" style="text-align:left">Three Food Network features; signature pies and Cane Rosso Rescue highlighted</td></tr>
+        <tr><td class="ed">D Magazine</td><td class="ed">2011–2015</td><td class="ed" style="text-align:left">"Best Pizza in Dallas" — five consecutive years</td></tr>
+        <tr><td class="ed">Eater</td><td class="ed">Multiple</td><td class="ed" style="text-align:left">Recognized as one of America's top pizzerias</td></tr>
+        <tr><td class="ed">The Daily Meal</td><td class="ed">Multiple</td><td class="ed" style="text-align:left">Listed among America's best pizzerias</td></tr>
+      </tbody></table>
+    <div class="rowctl"><button onclick="addRow(this)">+ Add recognition</button></div>
+    <h3 class="blk serif ed" style="font-size:15px">Community Engagement &amp; Signature Events</h3>
+    <p class="body ed"><span class="lead">Cane Rosso Rescue</span> — a fully operational 501(c)3 that has saved over 1,000 dogs, generating press well beyond the food-media world. <span class="lead">Catalina Wine Mixer</span>, <span class="lead">All-You-Can-Eat Gaucho-Style Pizza Nights</span>, chef collaborations and pop-ups, <span class="lead">Half-Price Wine Wednesdays</span>, and <span class="lead">Pups on the Patio</span> adoption events round out a proprietary calendar that deepens guest relationships and drives incremental revenue.</p>
+  </section>
+
+  <!-- ============ PAGE 10 · MANAGEMENT ============ -->
+  <section class="page" data-toc-title="Management Team">
+    <div class="kick red ed">Management Team</div>
+    <h2 class="sect serif ed">Experienced, Institutionalized Leadership</h2><hr class="rule">
+    <p class="body intro ed">The Platform is led by an experienced management team that has evolved well beyond a founder-centric organization. The depth of the leadership structure — spanning finance, operations, culinary, marketing, HR, and area management — is substantially more developed than most independent restaurant groups of comparable size.</p>
+    <table><thead><tr><th>Role</th><th>Responsibilities</th></tr></thead>
+      <tbody data-rows>
+        <tr><td class="ed">Owner &amp; Founder</td><td class="ed" style="text-align:left">Jay Jerrier — founder of Cane Rosso; trained at AVPN; visionary behind brand, culture, and culinary identity</td></tr>
+        <tr><td class="ed">President &amp; CFO</td><td class="ed" style="text-align:left">Oversees all financial operations, strategic planning, and corporate administration</td></tr>
+        <tr><td class="ed">Chief Operations Officer</td><td class="ed" style="text-align:left">Leads system-wide operational execution, standards, and cross-concept performance</td></tr>
+        <tr><td class="ed">Chief Marketing Officer</td><td class="ed" style="text-align:left">Brand strategy, digital marketing, and consumer engagement across all concepts</td></tr>
+        <tr><td class="ed">Director of Operations</td><td class="ed" style="text-align:left">Day-to-day oversight of unit operations and GM performance across the portfolio</td></tr>
+        <tr><td class="ed">Corporate Executive Chef</td><td class="ed" style="text-align:left">Mat Urban — leads culinary development, menu innovation, and recipe standards</td></tr>
+        <tr><td class="ed">Controller</td><td class="ed" style="text-align:left">Financial reporting, accounting operations, and internal controls</td></tr>
+        <tr><td class="ed">Director of Human Resources</td><td class="ed" style="text-align:left">Recruiting, retention, training, and people operations platform-wide</td></tr>
+      </tbody></table>
+    <div class="rowctl"><button onclick="addRow(this)">+ Add role</button></div>
+    <p class="tnote ed">Unit-level management includes General Managers, Assistant GMs, Kitchen Managers, and Assistant Kitchen Managers at each operating location. Individual names, bios, and full organizational detail will be made available to qualified buyers upon entry into diligence.</p>
+  </section>
+
+  <!-- ============ PAGE 11 · MARKET ============ -->
+  <section class="page" data-toc-title="Market &amp; Industry Overview">
+    <div class="kick red ed">Market &amp; Industry Overview</div>
+    <h2 class="sect serif ed">Premium Pizza — A Category Built for This Moment</h2><hr class="rule">
+    <p class="body intro ed">The premium and artisan pizza segment has continued to outperform broader casual dining categories. Consumer preferences have shifted decisively toward authenticity, culinary transparency, and quality ingredients — trends that directly favor the craft-forward positioning of the Platform's concepts.</p>
+    <div class="grid" data-cards>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Authenticity over convenience</div><div class="cs ed">Consumers increasingly seek genuine culinary craft and identifiable ingredient sourcing — a direct advantage for the Platform's rigorous Neapolitan technique.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Detroit-style momentum</div><div class="cs ed">Detroit-style pizza has emerged as one of the fastest-growing formats nationally, providing a meaningful growth vector for Thunderbird Pies.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Premium pricing power</div><div class="cs ed">Craft pizza consumers demonstrate strong willingness to pay premium prices, supporting AUVs and margins unavailable to commodity operators.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Experiential dining demand</div><div class="cs ed">Post-pandemic consumers continue to prioritize memorable, neighborhood-oriented dining over transactional quick-service alternatives.</div></div>
+    </div>
+    <div class="rowctl"><button onclick="addCard(this)">+ Add trend</button></div>
+    <h3 class="blk serif ed" style="font-size:15px">The Dallas–Fort Worth Market</h3>
+    <p class="body ed">DFW is one of the strongest restaurant markets in the United States. Sustained population growth, a diverse and economically vibrant consumer base, and a robust food culture have created a favorable environment for premium independent concepts. Cane Rosso's presence across 9 DFW locations reflects both the depth of the market and the brand's proven ability to operate across multiple trade-area profiles — urban core, suburban infill, and mixed-use developments.</p>
+    <h3 class="blk serif ed" style="font-size:15px">Competitive Positioning</h3>
+    <p class="body ed">The Platform operates in a category substantially differentiated from traditional quick-service pizza chains. The combination of authentic Neapolitan technique, imported Italian ingredients, chef-driven innovation, and a decade of brand equity creates a competitive moat that is difficult and time-intensive to replicate.</p>
+  </section>
+
+  <!-- ============ PAGE 12 · FINANCIAL OVERVIEW ============ -->
+  <section class="page" data-toc-title="Financial Overview">
+    <div class="kick red ed">Financial Overview</div>
+    <h2 class="sect serif ed">Three-Year Financial Summary</h2><hr class="rule">
+    <p class="body intro ed">The Platform has grown system revenue from $28.1M in 2023 to $31.5M in 2025 — a 12.2% increase over two years — while adding new operating units and building the institutional infrastructure to support a larger, scalable platform. Reported EBITDA of approximately 5% in 2025 reflects roughly $485K in one-time construction costs related to the Sachse build-out. Normalizing for this item and owner-related compensation, adjusted EBITDA was approximately 12%.</p>
+    <table><thead><tr><th>Metric</th><th>2023</th><th>2024</th><th>2025</th><th>2-Yr Growth</th></tr></thead>
+      <tbody data-rows>
+        <tr><td class="ed">System Revenue</td><td class="ed">$28.1M</td><td class="ed">$29.8M</td><td class="ed">$31.5M</td><td class="ed">+12.2%</td></tr>
+        <tr><td class="ed">Operating Units</td><td class="ed">10</td><td class="ed">11</td><td class="ed">12</td><td class="ed">+2 units</td></tr>
+        <tr><td class="ed">Avg. Unit Volume</td><td class="ed">$2.81M</td><td class="ed">$2.71M</td><td class="ed">$2.60M</td><td class="ed">Diluted by opens</td></tr>
+        <tr><td class="ed">Store-Level EBITDA</td><td class="ed">17%</td><td class="ed">14%</td><td class="ed">18%</td><td class="ed">+1 pt</td></tr>
+        <tr><td class="ed">Reported EBITDA</td><td class="ed">8%</td><td class="ed">5%</td><td class="ed">5%</td><td class="ed">(3) pts</td></tr>
+        <tr><td class="ed">Adjusted EBITDA</td><td class="ed">14%</td><td class="ed">11%</td><td class="ed">12%</td><td class="ed">(2) pts</td></tr>
+      </tbody></table>
+    <p class="tnote ed">All figures are approximate. A detailed multi-year P&amp;L, EBITDA normalization schedule, and store-level reporting package will be provided to qualified buyers during diligence.</p>
+    <h3 class="blk serif ed" style="font-size:15px">2026 Year-to-Date Performance — Through May</h3>
+    <div class="strip three">
+      <div class="c"><div class="k ed">System Revenue (YoY)</div><div class="v ed">~Flat</div></div>
+      <div class="c"><div class="k ed">Net Profit (YTD)</div><div class="v ed">+48%</div></div>
+      <div class="c"><div class="k ed">EBITDA (YTD)</div><div class="v ed">+45%</div></div>
+    </div>
+    <table><thead><tr><th>Metric</th><th>YTD 2026</th><th>YTD 2025</th><th>Change</th></tr></thead>
+      <tbody data-rows>
+        <tr><td class="ed">System Revenue</td><td class="ed">$13.20M</td><td class="ed">$13.32M</td><td class="ed">~Flat (-0.9%)</td></tr>
+        <tr><td class="ed">Net Profit</td><td class="ed">$637K</td><td class="ed">$431K</td><td class="ed"><span class="pos">+47.7%</span></td></tr>
+        <tr><td class="ed">EBITDA (Reported)</td><td class="ed">$784K</td><td class="ed">$540K</td><td class="ed"><span class="pos">+45.1%</span></td></tr>
+        <tr><td class="ed">Reported EBITDA Margin</td><td class="ed">5.9%</td><td class="ed">4.1%</td><td class="ed"><span class="pos">+1.8 pts</span></td></tr>
+        <tr><td class="ed">Net Margin</td><td class="ed">4.8%</td><td class="ed">3.2%</td><td class="ed"><span class="pos">+1.6 pts</span></td></tr>
+      </tbody></table>
+    <p class="tnote ed">Source: Company management financial statements for the period ending 05/31/2026. Unaudited and subject to independent verification during diligence.</p>
+  </section>
+
+  <!-- ============ PAGE 13 · FINANCIAL DETAIL ============ -->
+  <section class="page">
+    <h3 class="blk serif ed" style="font-size:16px;margin-top:0">2025 Performance by Concept</h3>
+    <p class="body ed">Cane Rosso represents 79% of system revenue and carries the strongest unit economics. Zoli's is demonstrating meaningful margin improvement, with store-level EBITDA growing from 11% in 2023 to 17% in 2025. Thunderbird Pies remains a development-stage concept.</p>
+    <table><thead><tr><th>Concept</th><th>2025 Rev.</th><th>% Sys.</th><th>Store EBITDA</th><th>Adj. EBITDA</th><th>AUV</th><th>Units</th></tr></thead>
+      <tbody data-rows>
+        <tr><td class="ed">Cane Rosso</td><td class="ed">$24.8M</td><td class="ed">79%</td><td class="ed">18%</td><td class="ed">11%</td><td class="ed">$2.80M</td><td class="ed">9</td></tr>
+        <tr><td class="ed">Zoli's</td><td class="ed">$5.7M</td><td class="ed">18%</td><td class="ed">17%</td><td class="ed">9%</td><td class="ed">$2.80M</td><td class="ed">2</td></tr>
+        <tr><td class="ed">Thunderbird Pies</td><td class="ed">$1.1M</td><td class="ed">3%</td><td class="ed">3%</td><td class="ed">0%</td><td class="ed">$1.10M</td><td class="ed">1</td></tr>
+        <tr class="totrow"><td class="ed">Total System</td><td class="ed">$31.5M</td><td class="ed">100%</td><td class="ed">18%</td><td class="ed">12%</td><td class="ed">$2.60M</td><td class="ed">12</td></tr>
+      </tbody></table>
+    <div class="rowctl"><button onclick="addRow(this)">+ Add concept row</button></div>
+    <h3 class="blk serif ed" style="font-size:15px">EBITDA Bridge — Reported to Adjusted</h3>
+    <p class="body ed">The gap between reported and adjusted EBITDA reflects owner-related compensation, management fees, and non-recurring items. A detailed normalization schedule will be provided during diligence.</p>
+    <table><thead><tr><th>Line Item</th><th>Margin</th><th>Notes</th></tr></thead>
+      <tbody data-rows>
+        <tr><td class="ed">System Revenue</td><td class="ed">$31.5M</td><td class="ed" style="text-align:left"></td></tr>
+        <tr><td class="ed">Store-Level EBITDA</td><td class="ed">~18%</td><td class="ed" style="text-align:left">Gross unit-level profitability</td></tr>
+        <tr><td class="ed">Corporate Overhead</td><td class="ed">~(8%)</td><td class="ed" style="text-align:left"></td></tr>
+        <tr><td class="ed">Reported EBITDA</td><td class="ed">~5%</td><td class="ed" style="text-align:left"></td></tr>
+        <tr><td class="ed">One-Time Construction Costs</td><td class="ed">+~2%</td><td class="ed" style="text-align:left">Sachse build-out ($485K; non-recurring)</td></tr>
+        <tr><td class="ed">Owner Comp &amp; Non-Recurring</td><td class="ed">+~5%</td><td class="ed" style="text-align:left">Detailed in diligence bridge schedule</td></tr>
+        <tr class="totrow"><td class="ed">Adjusted EBITDA</td><td class="ed">~12%</td><td class="ed" style="text-align:left"></td></tr>
+      </tbody></table>
+    <div class="rowctl"><button onclick="addRow(this)">+ Add line item</button></div>
+  </section>
+
+  <!-- ============ PAGE 14 · VALUATION (BOV LINK) ============ -->
+  <section class="page" data-toc-title="Valuation Guidance">
+    <div class="kick red ed">Valuation Guidance</div>
+    <h2 class="sect serif ed">Value Framework</h2><hr class="rule">
+    <p class="body intro ed">The valuation guidance below is drawn from RRG's accompanying Broker's Opinion of Value, which applies a market multiple to normalized adjusted EBITDA and cross-checks against revenue and comparable transactions. It is provided to frame buyer expectations; final value will be established through the transaction process. Use <span class="lead">Pull from BOV</span> in the toolbar to populate these figures from your current BOV draft.</p>
+    <div class="bov">
+      <div class="bk">Per RRG Broker's Opinion of Value</div>
+      <div class="grid4">
+        <div class="bc"><div class="bl">Concluded Value Range</div><div class="bv ed" id="bovRange">—</div></div>
+        <div class="bc"><div class="bl">Recommended Target</div><div class="bv ed" id="bovTarget">—</div></div>
+        <div class="bc"><div class="bl">Adj. EBITDA Multiple</div><div class="bv ed" id="bovMult">—</div></div>
+        <div class="bc"><div class="bl">Adj. EBITDA Basis</div><div class="bv ed" id="bovEbitda">—</div></div>
+      </div>
+      <div class="note ed" id="bovNote">Open the Broker's Opinion of Value tool, complete the earnings and multiple, then return here and click "Pull from BOV." The concluded range and target will drop in automatically.</div>
+    </div>
+    <p class="body ed">The BOV is an internal opinion prepared by RRG for planning and marketing purposes; it is not a certified appraisal. It should be read together with the Assumptions &amp; Limiting Conditions in that document. Buyers are expected to form their own view of value through independent diligence.</p>
+  </section>
+
+  <!-- ============ PAGE 15 · RISK FACTORS ============ -->
+  <section class="page" data-toc-title="Risk Factors">
+    <div class="kick red ed">Risk Factors</div>
+    <h2 class="sect serif ed">Investment Considerations</h2><hr class="rule">
+    <p class="body intro ed">The following risk factors are provided to assist prospective buyers in evaluating this opportunity. This list is not exhaustive; buyers and their advisors are expected to conduct independent due diligence and identify additional risks specific to their thesis and operational capabilities.</p>
+    <div data-risks>
+      <div class="rk"><div class="rh"><span class="no ed">01</span><span class="ed">Single-Market Geographic Concentration</span></div><p class="ed">The Platform operates exclusively within the Dallas–Fort Worth metropolitan area. A sustained downturn or market-specific event affecting the DFW restaurant industry could disproportionately impact revenue and profitability relative to a geographically diversified operator.</p></div>
+      <div class="rk"><div class="rh"><span class="no ed">02</span><span class="ed">Founder and Key-Person Dependency</span></div><p class="ed">Cane Rosso's brand identity and cultural credibility have been significantly shaped by founder Jay Jerrier. New ownership should evaluate transition planning and any post-closing involvement arrangements.</p></div>
+      <div class="rk"><div class="rh"><span class="no ed">03</span><span class="ed">Deep Ellum Road Construction</span></div><p class="ed">The original Deep Ellum flagship sits in a corridor under road construction expected to continue through 2027. The Company has mitigated this through a renegotiated lease providing rent relief and approximately 60% of revenue through off-premise channels.</p></div>
+      <div class="rk"><div class="rh"><span class="no ed">04</span><span class="ed">Thunderbird Pies Underperformance</span></div><p class="ed">Thunderbird Pies generated $1.1M in 2025 at approximately 3% store-level EBITDA — materially below the other concepts. The unit operates on a lease with no further renewal options per a 2023 amendment, creating a decision point for new ownership.</p></div>
+      <div class="rk"><div class="rh"><span class="no ed">05</span><span class="ed">Adjusted EBITDA Margin Compression</span></div><p class="ed">Platform-level adjusted EBITDA has declined from 14% in 2023 to 12% in 2025, reflecting investment in management, technology, and new units. The gap between unit-level and platform-level profitability represents a right-sizing opportunity — and a risk if anticipated overhead reductions are not achieved.</p></div>
+      <div class="rk"><div class="rh"><span class="no ed">06</span><span class="ed">Labor Cost and Availability</span></div><p class="ed">The industry continues to face elevated labor costs and competition for qualified talent across DFW. Minimum-wage pressure, benefits expectations, and turnover represent ongoing headwinds.</p></div>
+      <div class="rk"><div class="rh"><span class="no ed">07</span><span class="ed">Food Cost and Commodity Inflation</span></div><p class="ed">The commitment to premium imported ingredients creates exposure to food-cost inflation, currency fluctuation, and supply-chain disruption. Sustained cost increases without corresponding price adjustments would pressure margins.</p></div>
+      <div class="rk"><div class="rh"><span class="no ed">08</span><span class="ed">New Unit Ramp Risk</span></div><p class="ed">Locations opened in 2024 and 2025 remain in early ramp and are not yet at full run-rate. Systemwide AUV and margins are currently diluted by these opens; buyers should model each unit's ramp trajectory.</p></div>
+    </div>
+    <div class="rowctl"><button onclick="addRisk(this)">+ Add risk factor</button></div>
+  </section>
+
+  <!-- ============ PAGE 16 · GROWTH ============ -->
+  <section class="page" data-toc-title="Growth &amp; Optimization Opportunities">
+    <div class="kick red ed">Value Creation</div>
+    <h2 class="sect serif ed">Growth &amp; Optimization Opportunities</h2><hr class="rule">
+    <p class="body intro ed">New ownership inherits a platform with multiple embedded levers for operational improvement, margin enhancement, and strategic growth.</p>
+    <div class="grid three" data-cards>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">FIFA World Cup 2026</div><div class="cs ed">A formal proposal to serve at the FIFA World Cup in Dallas — mobile wood-burning oven units at an estimated 150 pizzas/hour each. A significant near-term incremental revenue event.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Event &amp; Catering Revenue</div><div class="cs ed">Proven high-volume track record: ACM Awards, AT&amp;T Stadium, Watermark Church (1,600 pizzas in 90 minutes). Underdeveloped relative to demonstrated capability.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Deep Ellum Construction Completion</div><div class="cs ed">Road construction concludes in 2027. Restoration of full foot traffic to one of Dallas's highest-profile corridors — with no additional capital required.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Labor Optimization</div><div class="cs ed">Unit-level scheduling efficiency and staffing-model improvements across 500+ employees.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Purchasing &amp; Commissary</div><div class="cs ed">Vendor consolidation, renegotiation, and third-party commissary revenue opportunities.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Franchising &amp; Licensing</div><div class="cs ed">Monetize established brand IP through qualified franchisee or licensing arrangements.</div></div>
+    </div>
+    <div class="rowctl"><button onclick="addCard(this)">+ Add opportunity</button></div>
+  </section>
+
+  <!-- ============ PAGE 17 · TRANSACTION ============ -->
+  <section class="page" data-toc-title="Transaction Overview">
+    <div class="kick red ed">Transaction Overview</div>
+    <h2 class="sect serif ed">Ideal Buyer Profile &amp; Structure</h2><hr class="rule">
+    <p class="body intro ed">Ownership is exploring a potential transaction and is open to a range of structures. The opportunity is expected to attract qualified buyers with hospitality operating experience and a genuine interest in brand-led restaurant platforms.</p>
+    <h3 class="blk serif ed" style="font-size:15px">Buyer Types</h3>
+    <div class="grid" data-cards>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Strategic Operators</div><div class="cs ed">Multi-unit restaurant groups or regional hospitality companies seeking a premium differentiated platform with existing brand scale and consumer loyalty.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Private Equity</div><div class="cs ed">Firms with restaurant-sector experience seeking a scalable platform with institutional infrastructure, identifiable EBITDA expansion, and a clear growth thesis.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Family Offices</div><div class="cs ed">Patient capital seeking a cash-flowing hospitality investment with strong brand equity, regional loyalty, and clear operational management.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">Multi-Unit Franchisees</div><div class="cs ed">Experienced multi-brand operators seeking a premium independent concept with franchising potential and established operating systems.</div></div>
+    </div>
+    <div class="rowctl"><button onclick="addCard(this)">+ Add buyer type</button></div>
+    <h3 class="blk serif ed" style="font-size:15px">Potential Transaction Structures</h3>
+    <ul class="plain" data-list>
+      <li class="ed">Full platform acquisition</li>
+      <li class="ed">Majority recapitalization with seller rollover</li>
+      <li class="ed">Strategic investment with ongoing ownership participation</li>
+      <li class="ed">Structured transaction with earnout components</li>
+    </ul>
+    <div class="rowctl"><button onclick="addLi(this)">+ Add structure</button></div>
+  </section>
+
+  <!-- ============ PAGE 18 · DUE DILIGENCE ============ -->
+  <section class="page" data-toc-title="Due Diligence Process">
+    <div class="kick red ed">Due Diligence Process</div>
+    <h2 class="sect serif ed">Controlled &amp; Phased Diligence</h2><hr class="rule">
+    <p class="body intro ed">All inquiries are managed through a confidential, phased process. Qualified parties receive progressively detailed information as the process advances.</p>
+    <div class="grid" data-cards>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">01 · NDA &amp; Qualification</div><div class="cs ed">Execute NDA and provide buyer background. Receive CIM and overview package.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">02 · Financial Package</div><div class="cs ed">Historical P&amp;Ls, EBITDA bridge, store-level reporting, lease and payroll summaries.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">03 · Management Meeting</div><div class="cs ed">Introductions to ownership and leadership. Site visits for qualified parties.</div></div>
+      <div class="cardx"><button class="delx" onclick="delCard(this)">×</button><div class="ct ed">04 · LOI &amp; Full Diligence</div><div class="cs ed">Full data room: legal, operational, real estate, and HR materials.</div></div>
+    </div>
+    <div class="rowctl"><button onclick="addCard(this)">+ Add step</button></div>
+    <h3 class="blk serif ed" style="font-size:15px">Available Diligence Materials</h3>
+    <ul class="plain" data-list>
+      <li class="ed">Historical financial statements — multi-year P&amp;L, balance sheet, cash flow</li>
+      <li class="ed">Store-level performance summaries and monthly operating reports</li>
+      <li class="ed">EBITDA bridge and normalization schedules</li>
+      <li class="ed">Lease summaries and real estate documentation</li>
+      <li class="ed">Organizational charts and leadership team profiles</li>
+      <li class="ed">Vendor agreements and purchasing documentation</li>
+      <li class="ed">Payroll summaries and HR information</li>
+      <li class="ed">Standard operating procedures and operational documentation</li>
+    </ul>
+    <div class="rowctl"><button onclick="addLi(this)">+ Add material</button></div>
+    <div style="text-align:center;margin-top:26px;border-top:1px solid var(--line);padding-top:16px">
+      <div class="serif ed" style="font-size:15px;color:var(--navy)">All inquiries must remain strictly confidential</div>
+      <div class="ed" style="font-size:12px;color:var(--muted);margin-top:4px">Restaurant Realty Group, LLC &nbsp;·&nbsp; The Restaurant Sales and Leasing Experts</div>
+      <div class="ed" style="font-size:11px;color:var(--soft);margin-top:2px">Austin · Dallas · Fort Worth · Houston · San Antonio · rrgcre.com</div>
+    </div>
+  </section>
+
+</div>
+
+<input type="file" id="photoInput" accept="image/*" style="display:none">
+
+<script>
+var KEY='rrg_cim_v1', editing=true, curPhoto=null;
+
+/* ---------- page footers + TOC ---------- */
+function coverTitle(){ var t=document.querySelector('h1.title'); return t?t.textContent.trim():'Confidential Information Memorandum'; }
+function numberPages(){
+  var pages=document.querySelectorAll('.page');
+  pages.forEach(function(pg,i){
+    var f=pg.querySelector('.pgfoot');
+    if(!f){ f=document.createElement('div'); f.className='pgfoot'; pg.appendChild(f); }
+    f.innerHTML='<span>'+esc(coverTitle())+' — Strictly Confidential</span>'+
+                '<span class="cc">Restaurant Realty Group, LLC · rrgcre.com</span>'+
+                '<span>Page '+(i+1)+'</span>';
+  });
+  // cover page: hide its running footer (it has the RRG block instead)
+  var first=pages[0].querySelector('.pgfoot'); if(first) first.style.display='none';
+}
+function buildTOC(){
+  var toc=document.querySelector('[data-toc]'); if(!toc) return;
+  var pages=document.querySelectorAll('.page'); toc.innerHTML='';
+  pages.forEach(function(pg,i){
+    var t=pg.getAttribute('data-toc-title'); if(!t) return;
+    var row=document.createElement('div'); row.className='row';
+    row.innerHTML='<span class="nm">'+t+'</span><span class="dots"></span><span class="pg">'+(i+1)+'</span>';
+    toc.appendChild(row);
+  });
+}
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+
+/* ---------- edit mode ---------- */
+function applyEditable(){
+  document.querySelectorAll('.ed').forEach(function(el){ el.contentEditable = editing?'true':'false'; });
+  document.body.classList.toggle('editing', editing);
+  var b=document.getElementById('editBtn'); b.textContent='Editing: '+(editing?'On':'Off'); b.classList.toggle('on',editing);
+}
+function toggleEdit(){ editing=!editing; applyEditable(); }
+
+/* ---------- add / remove ---------- */
+function refresh(){ numberPages(); buildTOC(); applyEditable(); save(); }
+function addRow(btn){
+  var tb=btn.closest('.page').querySelector('[data-rows]');
+  // find the section's table nearest the button
+  var tables=btn.closest('.page').querySelectorAll('table');
+  var t=tables[tables.length-1]; var body=t.querySelector('tbody'); var last=body.querySelector('tr:not(.totrow):last-child')||body.lastElementChild;
+  var clone=last.cloneNode(true); clone.classList.remove('totrow');
+  clone.querySelectorAll('td').forEach(function(td){ td.classList.add('ed'); if(td.querySelector('.pos')){td.innerHTML='';} else td.textContent=''; });
+  if(last.classList.contains('totrow')) body.insertBefore(clone,last); else body.appendChild(clone);
+  refresh();
+}
+function addCard(btn){
+  var grid=btn.closest('.page').querySelector('[data-cards]');
+  var last=grid.lastElementChild; var clone=last.cloneNode(true);
+  clone.querySelectorAll('.ct,.cs,.cpos,.cloc,li').forEach(function(e){ e.textContent=''; });
+  grid.appendChild(clone); refresh();
+}
+function delCard(btn){ var c=btn.closest('.cardx'); if(c && confirm('Remove this card?')){ c.remove(); refresh(); } }
+function addRisk(btn){
+  var box=btn.closest('.page').querySelector('[data-risks]');
+  var n=box.querySelectorAll('.rk').length+1; var nn=(n<10?'0':'')+n;
+  var d=document.createElement('div'); d.className='rk';
+  d.innerHTML='<div class="rh"><span class="no ed">'+nn+'</span><span class="ed">New risk factor</span></div><p class="ed">Describe the risk.</p>';
+  box.appendChild(d); refresh();
+}
+function addLi(btn){
+  var ul=btn.closest('.page').querySelector('[data-list]');
+  var li=document.createElement('li'); li.className='ed'; li.textContent='New item'; ul.appendChild(li); refresh();
+}
+
+/* ---------- photos ---------- */
+function pickPhoto(el){ curPhoto=el; document.getElementById('photoInput').click(); }
+document.getElementById('photoInput').addEventListener('change',function(e){
+  var f=e.target.files[0]; if(!f||!curPhoto) return;
+  var r=new FileReader(); r.onload=function(){ curPhoto.style.backgroundImage='url('+r.result+')'; curPhoto.textContent=''; curPhoto.setAttribute('data-has','1'); };
+  r.readAsDataURL(f); e.target.value='';
+});
+
+/* ---------- BOV link ---------- */
+function pullBOV(){
+  var raw=null; try{ raw=localStorage.getItem('rrg_bov_summary'); }catch(e){}
+  if(!raw){ alert('No BOV found in this browser yet.\n\nOpen the Broker’s Opinion of Value tool, fill in the earnings and multiple, then come back and click Pull from BOV.'); return; }
+  var b; try{ b=JSON.parse(raw); }catch(e){ alert('Could not read the BOV data.'); return; }
+  document.getElementById('bovRange').textContent = b.rangeText||'—';
+  document.getElementById('bovTarget').textContent = b.targetText||'—';
+  document.getElementById('bovMult').textContent = b.multText||'—';
+  document.getElementById('bovEbitda').textContent = b.ebitdaText||'—';
+  var subj=b.subject?(' for '+b.subject):'';
+  document.getElementById('bovNote').textContent =
+    'Pulled from the RRG Broker’s Opinion of Value'+subj+(b.date?(' ('+b.date+')'):'')+
+    '. Concluded range '+(b.rangeText||'')+', recommended target '+(b.targetText||'')+
+    ', at '+(b.multText||'')+' adjusted EBITDA of '+(b.ebitdaText||'')+'. Verify against the current BOV before distribution.';
+  save();
+  alert('Valuation guidance pulled from your BOV draft.');
+}
+
+/* ---------- save / restore ---------- */
+var st=null;
+function save(){ if(st)clearTimeout(st); st=setTimeout(function(){
+  try{ localStorage.setItem(KEY, document.getElementById('doc').innerHTML); chip(); }catch(e){}
+},400); }
+function chip(){ var c=document.getElementById('savechip'); c.classList.add('show'); setTimeout(function(){c.classList.remove('show');},1100); }
+function restore(){
+  var s=null; try{ s=localStorage.getItem(KEY); }catch(e){}
+  if(s){ document.getElementById('doc').innerHTML=s; }
+}
+function resetSample(){
+  if(!confirm('Reset to the sample CIM? This clears your edits in this browser.')) return;
+  try{ localStorage.removeItem(KEY); }catch(e){}
+  location.reload();
+}
+
+/* ---------- init ---------- */
+restore();
+document.getElementById('doc').addEventListener('input', save);
+document.getElementById('doc').addEventListener('input', function(e){
+  if(e.target && e.target.classList && e.target.classList.contains('title')){ numberPages(); }
+});
+numberPages(); buildTOC(); applyEditable();
+</script>
+</body>
+</html>

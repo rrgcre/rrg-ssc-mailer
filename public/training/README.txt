@@ -1,0 +1,4 @@
+Drop the RRG training-course PDF in this folder named:
+    rrg-training-course.pdf
+The dashboard's "RRG Training Course" link points here.
+If you use a different filename, update the TRAINING array in index.html.

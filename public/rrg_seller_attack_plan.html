@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Seller Market Attack Plan</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8894a8;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;--green:#1f8a5b;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#e9edf3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+
+.toolbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);}
+.tb-inner{max-width:920px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.tt{font-weight:800;color:var(--navy);font-size:14px;} .tt span{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px;}
+.actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:8px;cursor:pointer;}
+.btn:hover{border-color:#9fb0cc;} .btn.print{background:var(--navy);color:#fff;border-color:var(--navy);}
+.savechip{font-size:11px;color:var(--green);font-weight:700;opacity:0;transition:opacity .3s;} .savechip.show{opacity:1;}
+
+.wrap{max-width:920px;margin:22px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(10,20,50,.08);}
+
+.band{color:#fff;padding:38px 46px 30px;position:relative;overflow:hidden;
+  background:radial-gradient(96% 130% at 27% 12%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.band > *{position:relative;z-index:2;}
+.band::after{content:"";position:absolute;z-index:0;width:1300px;height:1300px;right:-380px;top:120px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%, #0b1430 0%, #08112a 48%, #050c22 82%);border:1px solid rgba(120,150,220,.10);pointer-events:none;}
+.confline{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#8fa0c2;font-weight:700;margin-bottom:22px;}
+.rrg{display:inline-flex;align-items:center;}
+.rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:44px;height:44px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.rrg .bar{background:#fff;width:3px;height:32px;margin:0 12px;} .rrg .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:26px 0 6px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+.band h1 input{font-size:29px;font-weight:800;letter-spacing:-.01em;margin:0;color:#fff;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.22);width:100%;font-family:inherit;padding:0 0 3px;}
+.band h1 input:focus{outline:none;border-bottom-color:var(--red);}
+.subin{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.16);color:#c3ccdf;font-size:14px;font-weight:600;font-family:inherit;padding:6px 0 2px;width:100%;margin-top:8px;}
+.subin.tag{color:#9fb0cc;font-size:12px;font-style:italic;}
+.subin:focus{outline:none;border-bottom-color:var(--red);color:#fff;}
+.accent{width:58px;height:5px;background:var(--red);border-radius:3px;margin:16px 0 14px;}
+.prep{display:flex;flex-direction:column;gap:9px;margin-top:6px;max-width:560px;}
+.pf{display:flex;flex-direction:column;gap:2px;} .pf label{font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:#8093b6;font-weight:700;}
+.pf input{background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.18);color:#dce3f0;font-size:12px;font-weight:600;font-family:inherit;padding:2px 0;width:100%;}
+.pf input:focus{outline:none;border-bottom-color:var(--red);color:#fff;}
+
+.strip{display:grid;grid-template-columns:repeat(4,1fr);margin-top:22px;border:1px solid rgba(255,255,255,.14);border-radius:12px;overflow:hidden;position:relative;z-index:2;}
+.strip .c{padding:13px 16px;border-right:1px solid rgba(255,255,255,.12);}
+.strip .c:last-child{border-right:none;}
+.strip .k{font-size:8px;letter-spacing:.12em;text-transform:uppercase;color:#8fa0c2;font-weight:700;}
+.strip .v{font-family:inherit;font-weight:800;font-size:18px;color:#fff;margin-top:4px;line-height:1.05;}
+.strip .v input{width:100%;background:transparent;border:none;border-bottom:1px dashed rgba(255,255,255,.18);color:#fff;font:800 18px inherit;font-family:inherit;padding:0;}
+.strip .v input:focus{outline:none;border-bottom-color:var(--red);}
+.strip .v.red{color:#ff7a5c;}
+
+.inner{padding:6px 46px 34px;}
+.kl{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:800;margin:30px 0 3px;}
+.sec{display:flex;align-items:center;gap:12px;margin:2px 0 12px;}
+.sec h2{font-size:17px;color:var(--navy);margin:0;font-weight:800;letter-spacing:-.01em;}
+.sec .flex{flex:1;height:1px;background:var(--line);}
+.hint{font-size:11px;color:var(--muted);line-height:1.5;margin:2px 0 10px;}
+
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;margin-top:6px;}
+.fg.three{grid-template-columns:1fr 1fr 1fr;}
+.f{display:flex;flex-direction:column;gap:3px;}
+.f.full{grid-column:1/-1;}
+.f label{font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.f input,.f select{border:1px solid var(--inp);border-radius:8px;padding:8px 10px;font-family:inherit;font-size:12.5px;color:var(--ink);background:#fff;}
+.f input:focus,.f select:focus{outline:none;border-color:var(--red);}
+
+.narr{width:100%;border:1px solid var(--inp);border-radius:9px;padding:11px 13px;font-family:inherit;font-size:12.5px;color:var(--ink);min-height:70px;resize:vertical;line-height:1.55;margin-top:10px;overflow:hidden;}
+.narr:focus{outline:none;border-color:var(--red);}
+
+.callout{border-left:4px solid var(--red);background:var(--wash);border-radius:0 10px 10px 0;padding:13px 16px;margin-top:14px;}
+.callout .ct{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:800;margin-bottom:5px;}
+.callout textarea{width:100%;border:none;background:transparent;font-family:inherit;font-size:12px;color:var(--ink);line-height:1.55;resize:vertical;min-height:46px;overflow:hidden;}
+.callout textarea:focus{outline:none;}
+
+/* BOV valuation callout */
+.bov{border:1px solid var(--line);border-left:4px solid var(--red);background:var(--wash);border-radius:0 10px 10px 0;padding:14px 16px;margin-top:14px;}
+.bov .bk{font-size:8.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--red);font-weight:800;margin-bottom:8px;}
+.bov .g4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+.bov .bl{font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);font-weight:700;}
+.bov .bv{font-size:15px;font-weight:800;color:var(--navy);margin-top:3px;}
+.bov .bn{font-size:10.5px;color:var(--muted);margin-top:9px;line-height:1.5;}
+
+table{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:10px;}
+th{font-size:8.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);padding:7px 8px;text-align:left;border-bottom:1px solid var(--line);}
+td{padding:2px 4px;border-bottom:1px solid var(--line);vertical-align:top;}
+td [contenteditable]{min-height:20px;padding:5px 6px;border-radius:5px;font-size:11.5px;line-height:1.4;outline:none;}
+td [contenteditable]:focus{background:#fffdfd;box-shadow:inset 0 0 0 1px var(--red);}
+td [contenteditable]:empty:before{content:attr(data-ph);color:#b6bfce;}
+td .num{text-align:center;font-weight:800;color:var(--navy);}
+.trdel{cursor:pointer;color:#c9d0dd;font-weight:800;text-align:center;width:24px;user-select:none;}
+.trdel:hover{color:var(--red);}
+.rowctl{margin:8px 0 4px;}
+.rowctl button{font-size:10.5px;border:1px solid var(--inp);background:#fff;color:#42506a;border-radius:6px;padding:5px 10px;cursor:pointer;font-weight:600;}
+.rowctl button:hover{border-color:#9fb0cc;}
+
+.chk{display:grid;grid-template-columns:1fr 1fr;gap:8px 18px;margin-top:10px;}
+.chk label{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:var(--ink);line-height:1.4;cursor:pointer;}
+.chk input{margin-top:2px;width:15px;height:15px;accent-color:var(--red);flex:none;}
+
+.steps{counter-reset:st;margin-top:10px;}
+.step{display:flex;gap:12px;padding:9px 0;border-bottom:1px solid var(--line);}
+.step:last-child{border-bottom:none;}
+.step .no{counter-increment:st;flex:none;width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;}
+.step .no:before{content:counter(st);}
+.step .sc{flex:1;} .step .st{font-weight:700;color:var(--navy);font-size:12.5px;}
+.step .sd{font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:1px;}
+
+.sublabel{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:16px 0 5px;}
+
+.foot{margin-top:30px;border-top:1px solid var(--line);padding-top:12px;display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);flex-wrap:wrap;gap:6px;}
+.foot b{color:var(--navy);}
+
+@media(max-width:720px){ .strip,.bov .g4{grid-template-columns:1fr 1fr;} .inner{padding:6px 22px 28px;} .band{padding:26px 22px;} .fg,.fg.three,.chk{grid-template-columns:1fr;} }
+@media print{
+  @page{size:Letter;margin:0.55in 0.6in;} @page cover{margin:0;}
+  body{background:#fff;}
+  .toolbar,.rrg-noprint,.rowctl,.trdel{display:none!important;}
+  .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .band{page:cover;border-radius:0;height:11in;overflow:hidden;break-after:page;}
+  input,textarea,select{border:none!important;background:none!important;resize:none;-webkit-appearance:none;appearance:none;}
+  .f input,.f select{border:1px solid #d7dde8!important;}
+  .band h1 input,.subin,.pf input,.strip .v input{border-bottom:none!important;}
+  .band input,.band h1 input,.subin,.pf input,.strip .v input{color:#e9edf6!important;-webkit-text-fill-color:#e9edf6!important;}
+  .band h1 input,.strip .v input{color:#fff!important;-webkit-text-fill-color:#fff!important;}
+  td [contenteditable]:focus{box-shadow:none;}
+  .narr,.callout textarea{min-height:0!important;overflow:visible!important;}
+  table,.callout,.strip,.sec,.chk,.kl-block,.steps,.bov{break-inside:avoid;}
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar"><div class="tb-inner">
+  <div class="tt">RRG Seller Market Attack Plan <span>The go-to-market campaign — Print / Save PDF</span></div>
+  <div class="actions">
+    <span class="savechip" id="savechip">Draft saved ✓</span>
+    <button class="btn" onclick="pullBOV()">Pull from BOV</button>
+    <button class="btn" onclick="loadSample()">Load sample</button>
+    <button class="btn" onclick="clearAll()">Clear</button>
+    <button class="btn print" onclick="growAll();window.print()">Print / Save PDF</button>
+  </div>
+</div></div>
+
+<div class="wrap" id="sheet">
+  <div class="band">
+    <div class="confline">Prepared for Ownership &nbsp;·&nbsp; Restaurant Realty Group &nbsp;·&nbsp; Confidential Go-To-Market Strategy</div>
+    <span class="rrg"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <div class="kicker">Market Attack Plan · Seller Engagement</div>
+    <h1><input data-k="business" placeholder="Business / Platform Name"></h1>
+    <input class="subin" data-k="mission" placeholder="The engagement — e.g. Confidential sale of a 12-unit, 3-brand premium pizza platform">
+    <input class="subin tag" data-k="markets" placeholder="Market & buyer reach — e.g. Dallas–Fort Worth · buyers sourced nationally">
+    <div class="accent"></div>
+    <div class="prep">
+      <div class="pf"><label>Prepared For</label><input data-k="preparedFor" placeholder="Ownership of ..."></div>
+      <div class="pf"><label>Prepared By</label><input data-k="preparedBy" value="Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com"></div>
+      <div class="pf"><label>Date</label><input data-k="date" placeholder="Month DD, YYYY"></div>
+    </div>
+    <div class="strip">
+      <div class="c"><div class="k">Buyer Segments</div><div class="v" id="hSeg">—</div></div>
+      <div class="c"><div class="k">Target Buyers</div><div class="v" id="hBuyers">—</div></div>
+      <div class="c"><div class="k">Guidance</div><div class="v red"><input data-k="guidance" placeholder="$18–23M"></div></div>
+      <div class="c"><div class="k">Exclusive Term</div><div class="v"><input data-k="exclusive" placeholder="9–12 months"></div></div>
+    </div>
+  </div>
+
+  <div class="inner">
+
+    <!-- 1. THE ENGAGEMENT -->
+    <div class="kl-block"><div class="kl">The Engagement</div>
+    <div class="sec"><h2>What We're Selling</h2><div class="flex"></div></div>
+    <div class="hint">Pull the earnings and value straight from the BOV. This is the mandate the whole campaign is built to execute.</div>
+    <div class="fg three">
+      <div class="f"><label>What's Included</label><input data-k="included" placeholder="12 units · 3 brands · commissary · FF&E · IP"></div>
+      <div class="f"><label>Adjusted EBITDA</label><input data-k="ebitda" placeholder="~$3.8M (12% of $31.5M)"></div>
+      <div class="f"><label>Asking / Guidance</label><input data-k="ask" placeholder="$18–23M (guided, not posted)"></div>
+      <div class="f"><label>Structure(s) Open To</label><input data-k="structure" placeholder="Full sale · recap · majority w/ rollover"></div>
+      <div class="f"><label>Reason for Sale</label><input data-k="reason" placeholder="Owner transition; capitalize on scale"></div>
+      <div class="f"><label>Confidentiality</label><input data-k="confid" placeholder="Blind until NDA; no staff / vendor / landlord contact"></div>
+    </div>
+    <div class="bov">
+      <div class="bk">Valuation basis — per RRG Broker's Opinion of Value</div>
+      <div class="g4">
+        <div><div class="bl">Concluded Range</div><div class="bv" id="bRange">—</div></div>
+        <div><div class="bl">Recommended Target</div><div class="bv" id="bTarget">—</div></div>
+        <div><div class="bl">Adj. EBITDA Multiple</div><div class="bv" id="bMult">—</div></div>
+        <div><div class="bl">Adj. EBITDA Basis</div><div class="bv" id="bEbitda">—</div></div>
+      </div>
+      <div class="bn" id="bNote">Click "Pull from BOV" to bring in the concluded range and target from your current Broker's Opinion of Value draft. The go-to-market number is set from the BOV — we anchor high and let the process find the ceiling.</div>
+    </div>
+    <textarea class="narr" data-k="engNarr" placeholder="One paragraph: what the business is, why it's a rare asset, and what a successful outcome looks like for ownership."></textarea>
+    </div>
+
+    <!-- 2. POSITIONING -->
+    <div class="kl-block"><div class="kl">Positioning</div>
+    <div class="sec"><h2>The Story That Sells It</h2><div class="flex"></div></div>
+    <div class="hint">How we frame the opportunity to buyers — the hook that drives demand and defends the multiple.</div>
+    <textarea class="narr" data-k="posNarr" placeholder="The positioning: what makes this a must-see asset, the growth story, and the specific value a new owner captures."></textarea>
+    <div class="sublabel">Headline selling points (one per line)</div>
+    <textarea class="narr" data-k="hooks" placeholder="Recognized brand · institutional infrastructure · multi-brand platform · embedded growth · clean, defensible earnings"></textarea>
+    </div>
+
+    <!-- 3. BUYER TARGET STRATEGY -->
+    <div class="kl-block"><div class="kl">Buyer Strategy</div>
+    <div class="sec"><h2>Who We Go After</h2><div class="flex"></div></div>
+    <div class="hint">The heart of the campaign — a segmented, named target universe. Every segment is worked with the angle that moves it. The count feeds the cover.</div>
+    <table><thead><tr><th style="width:20%">Buyer Segment</th><th style="width:34%">Who, Specifically</th><th>What Moves Them</th><th style="width:9%">Targets</th><th></th></tr></thead>
+      <tbody data-rows="buy"></tbody></table>
+    <div class="rowctl"><button onclick="addRow('buy')">+ Add buyer segment</button></div>
+    </div>
+
+    <!-- 4. MARKETING PROCESS -->
+    <div class="kl-block"><div class="kl">The Process</div>
+    <div class="sec"><h2>Confidential Marketing Sequence</h2><div class="flex"></div></div>
+    <div class="hint">A controlled, phased release — information goes out only as buyers qualify and commit. This protects the business and builds competitive tension.</div>
+    <div class="steps">
+      <div class="step"><div class="no"></div><div class="sc"><div class="st ed" contenteditable="true">Blind teaser</div><div class="sd ed" contenteditable="true">A no-name, one-page profile goes to the qualified target list — enough to attract, nothing that identifies the business.</div></div></div>
+      <div class="step"><div class="no"></div><div class="sc"><div class="st" contenteditable="true">NDA execution</div><div class="sd" contenteditable="true">Interested parties sign RRG's NDA and provide background and proof of financial capacity before anything else is released.</div></div></div>
+      <div class="step"><div class="no"></div><div class="sc"><div class="st" contenteditable="true">CIM release</div><div class="sd" contenteditable="true">Qualified, NDA-bound buyers receive the full Confidential Information Memorandum and overview package.</div></div></div>
+      <div class="step"><div class="no"></div><div class="sc"><div class="st" contenteditable="true">Management meetings &amp; site visits</div><div class="sd" contenteditable="true">Vetted buyers meet ownership and tour discreetly. Buyer Q&A managed through RRG.</div></div></div>
+      <div class="step"><div class="no"></div><div class="sc"><div class="st" contenteditable="true">Call for offers → LOIs</div><div class="sd" contenteditable="true">A defined deadline drives written offers in parallel — creating the competitive tension that moves price and terms.</div></div></div>
+      <div class="step"><div class="no"></div><div class="sc"><div class="st" contenteditable="true">Best-and-final → selection</div><div class="sd" contenteditable="true">Shortlist buyers to best-and-final; select on price, certainty, and fit; execute LOI and move to PSA and diligence.</div></div></div>
+    </div>
+    <div class="sublabel" style="margin-top:16px">Channels in play</div>
+    <div class="chk">
+      <label><input type="checkbox" data-c="c1">RRG proprietary buyer &amp; investor database</label>
+      <label><input type="checkbox" data-c="c2">Direct, confidential outreach to named strategic operators</label>
+      <label><input type="checkbox" data-c="c3">PE / family-office and search-fund network</label>
+      <label><input type="checkbox" data-c="c4">Select confidential listing platforms (blind)</label>
+      <label><input type="checkbox" data-c="c5">Industry &amp; franchise-community relationships</label>
+      <label><input type="checkbox" data-c="c6">Existing RRG buyer relationships from active mandates</label>
+    </div>
+    </div>
+
+    <!-- 5. CONFIDENTIALITY -->
+    <div class="kl-block"><div class="kl">Confidentiality</div>
+    <div class="sec"><h2>Selling Without Tipping the Market</h2><div class="flex"></div></div>
+    <div class="hint">Restaurants and bars are fragile to a leaked sale — staff, vendors, landlords, and competitors. The whole process is built to keep it quiet until a deal is real.</div>
+    <textarea class="narr" data-k="confNarr" placeholder="How confidentiality is protected: blind teaser, NDA gating, controlled data room, no direct company contact, staff/vendor/landlord protection, and how inquiries are routed only through RRG."></textarea>
+    </div>
+
+    <!-- 6. COMPETITIVE TENSION -->
+    <div class="kl-block"><div class="kl">Leverage</div>
+    <div class="sec"><h2>Creating Competitive Tension</h2><div class="flex"></div></div>
+    <div class="hint">The whole game on the sell side: never negotiate with one buyer. A defined process with a deadline and multiple qualified bidders is what moves price toward — and past — the top of the BOV range.</div>
+    <div class="sublabel">Pricing &amp; process strategy</div>
+    <div class="fg three">
+      <div class="f"><label>Anchor / Guidance</label><input data-k="pAnchor" placeholder="$23M (top of BOV range)"></div>
+      <div class="f"><label>Target Clearing</label><input data-k="pTarget" placeholder="~$20M"></div>
+      <div class="f"><label>Floor / Walk-Away</label><input data-k="pFloor" placeholder="$17M"></div>
+      <div class="f"><label>Offer Deadline</label><input data-k="pDeadline" placeholder="Call for offers ~week 10"></div>
+      <div class="f"><label>Minimum Bidders</label><input data-k="pBidders" placeholder="3+ at LOI"></div>
+      <div class="f"><label>Selection Criteria</label><input data-k="pCriteria" placeholder="Price · certainty of close · fit"></div>
+    </div>
+    <textarea class="narr" data-k="tensionNarr" placeholder="How we run the process to maximize tension: guided pricing (not posted), parallel LOIs, a firm deadline, and a best-and-final round — and how we weigh price against certainty and cultural fit."></textarea>
+    </div>
+
+    <!-- 7. TIMELINE -->
+    <div class="kl-block"><div class="kl">Timeline</div>
+    <div class="sec"><h2>Campaign Milestones</h2><div class="flex"></div></div>
+    <table><thead><tr><th style="width:18%">Phase</th><th style="width:16%">Window</th><th>Actions &amp; Deliverables</th><th></th></tr></thead>
+      <tbody data-rows="tl"></tbody></table>
+    <div class="rowctl"><button onclick="addRow('tl')">+ Add phase</button></div>
+    </div>
+
+    <!-- 8. REPORTING -->
+    <div class="kl-block"><div class="kl">Reporting &amp; Next Steps</div>
+    <div class="sec"><h2>How We Keep You In Front Of It</h2><div class="flex"></div></div>
+    <textarea class="narr" data-k="reportNarr" placeholder="Reporting cadence (weekly buyer-activity update), what RRG commits to deliver, and the immediate next steps to launch the campaign."></textarea>
+    <div class="callout"><div class="ct">The RRG commitment</div><textarea data-k="commit">RRG represents ownership exclusively and runs a confidential, controlled process. We take the story to the full qualified buyer universe — strategic, financial, and operator — gate information behind NDAs, and drive parallel offers to a deadline so ownership negotiates from strength. Every inquiry routes through RRG; no buyer runs around the process. Our job is the best price and terms with the highest certainty of close.</textarea></div>
+    </div>
+
+    <div class="foot">
+      <span>Restaurant Realty Group, LLC &nbsp;·&nbsp; <b>Restaurant Transactions. Done Right.</b></span>
+      <span>Confidential go-to-market strategy — prepared for ownership. Not an offer to sell securities.</span>
+    </div>
+  </div>
+</div>
+
+<script>
+var K='rrg_sellerplan_v1';
+var COLS={
+  buy:[ {k:'seg',ph:'Segment'}, {k:'who',ph:'Named / profiled buyers in this segment'}, {k:'move',ph:'The angle that moves them'}, {k:'n',ph:'#',cls:'num'} ],
+  tl:[ {k:'phase',ph:'Phase'}, {k:'win',ph:'Weeks 1–2'}, {k:'act',ph:'Actions & deliverables'} ]
+};
+var state={vals:{}, checks:{}, rows:{buy:[],tl:[]}};
+
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function grow(t){ if(t&&t.tagName==='TEXTAREA'){ t.style.height='auto'; t.style.height=(t.scrollHeight+2)+'px'; } }
+function growAll(){ document.querySelectorAll('textarea').forEach(grow); }
+function num(s){ s=(s||'').toString().replace(/[^0-9.\-]/g,''); var n=parseFloat(s); return isNaN(n)?0:n; }
+
+function renderRows(which){
+  var tb=document.querySelector('[data-rows="'+which+'"]'); tb.innerHTML='';
+  var cols=COLS[which];
+  state.rows[which].forEach(function(row,i){
+    var tr=document.createElement('tr');
+    var cells=cols.map(function(c){
+      return '<td><div contenteditable="true" data-w="'+which+'" data-i="'+i+'" data-f="'+c.k+'" data-ph="'+esc(c.ph)+'" class="'+(c.cls||'')+'">'+esc(row[c.k]||'')+'</div></td>';
+    }).join('');
+    tr.innerHTML=cells+'<td class="trdel" onclick="delRow(\''+which+'\','+i+')" title="Remove">×</td>';
+    tb.appendChild(tr);
+  });
+  bindCells(which); countStrip();
+}
+function bindCells(which){
+  document.querySelectorAll('[data-rows="'+which+'"] [contenteditable]').forEach(function(el){
+    el.addEventListener('input',function(){
+      var i=+el.getAttribute('data-i'), f=el.getAttribute('data-f');
+      state.rows[which][i][f]=el.textContent;
+      if(which==='buy'&&f==='n') countStrip();
+      save();
+    });
+  });
+}
+function addRow(which){ state.rows[which].push({}); renderRows(which); save(); }
+function delRow(which,i){ state.rows[which].splice(i,1); renderRows(which); save(); }
+
+function countStrip(){
+  document.getElementById('hSeg').textContent = state.rows.buy.length||'—';
+  var total=0; state.rows.buy.forEach(function(r){ total+=num(r.n); });
+  document.getElementById('hBuyers').textContent = total? (total+'+') : '—';
+}
+
+function bind(){
+  document.querySelectorAll('[data-k]').forEach(function(el){
+    el.addEventListener('input',function(){ state.vals[el.getAttribute('data-k')]=el.value; grow(el); save(); });
+  });
+  document.querySelectorAll('[data-c]').forEach(function(el){
+    el.addEventListener('change',function(){ state.checks[el.getAttribute('data-c')]=el.checked; save(); });
+  });
+}
+function paint(){
+  document.querySelectorAll('[data-k]').forEach(function(el){ var k=el.getAttribute('data-k'); if(state.vals[k]!=null) el.value=state.vals[k]; });
+  document.querySelectorAll('[data-c]').forEach(function(el){ el.checked=!!state.checks[el.getAttribute('data-c')]; });
+}
+
+function pullBOV(){
+  var raw=null; try{ raw=localStorage.getItem('rrg_bov_summary'); }catch(e){}
+  if(!raw){ alert('No BOV found in this browser yet.\n\nOpen the Broker’s Opinion of Value tool, fill in the earnings and multiple, then come back and click Pull from BOV.'); return; }
+  var b; try{ b=JSON.parse(raw); }catch(e){ alert('Could not read the BOV data.'); return; }
+  document.getElementById('bRange').textContent=b.rangeText||'—';
+  document.getElementById('bTarget').textContent=b.targetText||'—';
+  document.getElementById('bMult').textContent=b.multText||'—';
+  document.getElementById('bEbitda').textContent=b.ebitdaText||'—';
+  var subj=b.subject?(' for '+b.subject):'';
+  document.getElementById('bNote').textContent='Pulled from the RRG Broker’s Opinion of Value'+subj+(b.date?(' ('+b.date+')'):'')+'. Concluded range '+(b.rangeText||'')+', recommended target '+(b.targetText||'')+', at '+(b.multText||'')+' on adjusted EBITDA of '+(b.ebitdaText||'')+'. We anchor guidance at the top of the range and let the process find the ceiling.';
+  // seed guidance / ebitda fields if empty
+  var g=document.querySelector('[data-k=guidance]'); if(g && !g.value){ g.value=b.rangeText||''; state.vals.guidance=g.value; }
+  var eb=document.querySelector('[data-k=ebitda]'); if(eb && !eb.value){ eb.value=(b.ebitdaText||'')+' adj. EBITDA'; state.vals.ebitda=eb.value; }
+  var ask=document.querySelector('[data-k=ask]'); if(ask && !ask.value){ ask.value=(b.targetText||'')+' target · '+(b.rangeText||'')+' range'; state.vals.ask=ask.value; }
+  save(); alert('Valuation basis pulled from your BOV draft.');
+}
+
+var t;
+function save(){ try{ localStorage.setItem(K, JSON.stringify(state)); }catch(e){} var c=document.getElementById('savechip'); c.classList.add('show'); clearTimeout(t); t=setTimeout(function(){c.classList.remove('show');},1200); }
+function load(){ try{ var s=localStorage.getItem(K); if(s){ var o=JSON.parse(s); state.vals=o.vals||{}; state.checks=o.checks||{}; state.rows=o.rows||{buy:[],tl:[]}; } }catch(e){} }
+
+function clearAll(){
+  if(!confirm('Clear this attack plan?')) return;
+  var pb=state.vals.preparedBy;
+  state={vals:{preparedBy:pb||'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com'}, checks:{}, rows:{buy:[{}],tl:[{}]}};
+  document.querySelectorAll('[data-k]').forEach(function(el){ el.value=(el.getAttribute('data-k')==='preparedBy')?state.vals.preparedBy:''; });
+  document.querySelectorAll('[data-c]').forEach(function(el){ el.checked=false; });
+  ['buy','tl'].forEach(renderRows); growAll(); save();
+}
+
+function loadSample(){
+  state.vals={
+    business:'PILF Restaurant Group', mission:'Confidential sale of a 12-unit, 3-brand premium pizza platform',
+    markets:'Dallas–Fort Worth · buyers sourced nationally', preparedFor:'Ownership of PILF Restaurant Group',
+    preparedBy:'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com', date:'July 17, 2026',
+    guidance:'$18–23M', exclusive:'9–12 months',
+    included:'12 units · Cane Rosso / Zoli’s / Thunderbird · commissary (lease to 2033) · FF&E · brands & IP',
+    ebitda:'~$3.8M adj. EBITDA (~12% of $31.5M)', ask:'$18–23M guided (not posted)',
+    structure:'Full sale · majority recap w/ rollover · structured w/ earnout', reason:'Owner transition; capitalize on brand scale',
+    confid:'Blind until NDA; no staff / vendor / landlord / competitor contact',
+    engNarr:'PILF Restaurant Group is a rare scaled independent pizza platform — three recognized DFW brands, a centralized commissary, institutional infrastructure, and durable, defensible earnings. Ownership is running a confidential, controlled process to attract the strongest strategic and financial buyers and achieve the best price and terms with high certainty of close, while protecting the business throughout.',
+    posNarr:'We position PILF as a scaled, brand-led platform that a single acquirer cannot easily replicate: a decade-plus of brand equity, national press, a commissary moat, and a clean adjusted-EBITDA story with embedded margin and unit-growth upside. The pitch to buyers is scarcity — very few independent platforms of this quality and size come to market — and a clear path to grow earnings under new ownership.',
+    hooks:'Recognized, press-decorated Texas brand\nMulti-brand platform across three segments\nCommissary + institutional infrastructure (moat)\nClean, normalized adjusted-EBITDA story\nEmbedded growth: margin, units, catering, franchising\nBelow-market, secured lease position',
+    confNarr:'The process is blind until an NDA is executed. The teaser carries no name, address, or identifying financials. Only qualified, NDA-bound buyers with demonstrated capacity receive the CIM and enter a controlled data room. Management meetings and site visits are discreet and scheduled through RRG. No buyer contacts staff, vendors, landlords, or competitors directly — every inquiry routes through RRG. This protects the workforce, the vendor and landlord relationships, and the brand while the process runs.',
+    pAnchor:'$23M (top of BOV range)', pTarget:'~$20M', pFloor:'$17M', pDeadline:'Call for offers ~week 10', pBidders:'3+ at LOI', pCriteria:'Price · certainty of close · cultural fit',
+    tensionNarr:'Guidance is communicated privately, never posted. We release to the full qualified universe at once so buyers know they are competing, then set a firm call-for-offers deadline to force parallel LOIs. A best-and-final round follows among the top bidders. We weigh price against certainty of close and fit — the highest number with weak financing or a shaky buyer is not the best offer. The competitive process is what carries price toward and past the middle of the BOV range.',
+    reportNarr:'Weekly written buyer-activity report to ownership: outreach sent, NDAs executed, CIMs released, meetings held, and offers in hand. RRG delivers the teaser and target list within week two, launches outreach by week three, and drives to a call for offers by roughly week ten. Immediate next step: countersign the exclusive and approve the teaser so we can go to market.'
+  };
+  state.checks={c1:true,c2:true,c3:true,c4:true,c5:true,c6:true};
+  state.rows={
+    buy:[
+      {seg:'Strategic Operators', who:'Regional multi-unit pizza & polished-casual groups; platform-building operators seeking scale in Texas', move:'Brand scale, daypart & purchasing synergy, immediate DFW footprint', n:'25'},
+      {seg:'Private Equity', who:'Lower-middle-market funds with restaurant / multi-unit experience', move:'Clean EBITDA, identifiable margin expansion, unit-growth runway, commissary asset', n:'40'},
+      {seg:'Family Offices', who:'Patient capital seeking cash-flowing hospitality with brand equity', move:'Durable brand, regional loyalty, management depth, downside protection', n:'20'},
+      {seg:'Franchise / Multi-Brand Platforms', who:'Franchisors and multi-brand operators seeking premium IP', move:'Established brands, franchising & licensing upside, systems in place', n:'12'},
+      {seg:'Experienced Owner-Operators', who:'Proven local / regional operators with capital or backing', move:'Turnkey platform, brand + culture, lifestyle + upside', n:'15'}
+    ],
+    tl:[
+      {phase:'Prep', win:'Weeks 1–2', act:'Countersign exclusive; finalize CIM and blind teaser; build and rank the buyer target list; stand up the NDA and data room'},
+      {phase:'Launch', win:'Weeks 3–5', act:'Release blind teaser to the full qualified universe; execute NDAs; qualify capacity; release CIM to vetted buyers'},
+      {phase:'Meetings', win:'Weeks 6–9', act:'Management meetings and discreet site visits; buyer Q&A through RRG; supplemental data-room requests'},
+      {phase:'Offers', win:'Weeks 10–12', act:'Call for offers to a deadline; parallel LOIs; best-and-final among the top bidders; select on price, certainty, and fit'},
+      {phase:'Close', win:'Weeks 13–20', act:'Execute LOI; PSA and confirmatory diligence; manage to signing and close'}
+    ]
+  };
+  paint(); ['buy','tl'].forEach(renderRows); growAll(); save();
+}
+
+/* init */
+load();
+if(!state.rows.buy.length && !state.rows.tl.length){ state.rows={buy:[{}],tl:[{}]}; }
+bind(); paint(); ['buy','tl'].forEach(renderRows); growAll();
+window.addEventListener('load', growAll);
+</script>
+</body>
+</html>
