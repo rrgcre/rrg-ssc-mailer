@@ -1,44 +1,131 @@
-# ---- RRG SSC Mailer configuration ----
-# Copy this file to ".env" and fill in your values.
 
-# Port the service listens on (most hosts set PORT automatically)
-PORT=8787
+Cloud
+Claude finished the response
+That explains everything — the deploy failed because there's no Dockerfile in the repo. When you uploaded, the files got crossed (that's also why render.yaml had the FROM ghcr... line earlier — the Dockerfile's contents landed in the wrong file). So we just need to create the Dockerfile fresh.
 
-# Who always gets CC'd on every SSC (the firm's file copy)
-CC_ALWAYS=van@rrgcre.com
+On GitHub:
 
-# The "From" address shown on the email
-MAIL_FROM=van@rrgcre.com
+In your repo, click Add file → Create new file (not Upload).
+In the filename box at the top, type exactly: Dockerfile — capital D, no extension, no .txt.
+Paste this into the body:
+dockerfile
+FROM ghcr.io/puppeteer/puppeteer:22.12.1
 
-# Restrict which website may call this API (your form's URL). Use * to allow any.
-ALLOW_ORIGIN=*
+ENV PUPPETEER_SKIP_DOWNLOAD=false \
+    NODE_ENV=production
 
-# ---- Password gate (keeps the form internal to RRG) ----
-# Set both to require a login before anyone can open the form or use the API.
-# Share these with your reps only. Leave blank to turn the gate off.
-APP_USER=rrg
-APP_PASS=change-this-to-a-strong-shared-password
+USER root
+WORKDIR /app
 
-# ---- SMTP (outgoing email) ----
-# Google Workspace example (recommended for @rrgcre.com):
-#   SMTP_HOST=smtp.gmail.com
-#   SMTP_PORT=587
-#   SMTP_SECURE=false
-#   SMTP_USER=van@rrgcre.com
-#   SMTP_PASS=your-16-char-app-password     <-- create at https://myaccount.google.com/apppasswords
-#
-# SendGrid example:
-#   SMTP_HOST=smtp.sendgrid.net
-#   SMTP_PORT=587
-#   SMTP_USER=apikey
-#   SMTP_PASS=SG.xxxxxxxx
-#
-# Postmark / Resend / Mailgun all provide SMTP host/user/pass too.
-SMTP_HOST=
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=
-SMTP_PASS=
+COPY package*.json ./
+RUN npm install --omit=dev --no-audit --no-fund
 
-# Optional: path to a Chromium binary (only needed if not using the bundled one)
-# PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+COPY . .
+
+EXPOSE 8787
+CMD ["node", "server.js"]
+Click Commit changes.
+That drops the missing Dockerfile at the repo root where render.yaml points (./Dockerfile). Render will auto-redeploy on the commit — or hit Manual Deploy → Deploy latest commit.
+
+Quick gut-check while you're in there: make sure render.yaml still starts with services: (the YAML we pasted), and that package.json, server.js, store.js, mailer.js, and the public/ folder are all showing in the repo file list. If any of those are missing too, tell me which and I'll get you the contents. The Dockerfile was the one that didn't make it — create it and you should be building.
+
+now what
+
+Now it deploys. Head to your Render service page (rrg-ssc-mailer) — the commit should have kicked off a fresh build automatically. If you don't see one running, click Manual Deploy → Deploy latest commit.
+
+Watch it build for a few minutes (the Chromium image is the slow part). When the status turns green "Live," open the URL at the top of the page (like rrg-ssc-mailer.onrender.com), type your APP_PASS, and the dashboard should load.
+
+Tell me what it does — green "Live," or another failure. If it fails again, this time the build log under Events will have a real error to grab. You're one clean build away.
+
+Uploaded image
+Progress — the Dockerfile's there now and the build actually ran; it just exited with an error partway through (that's the Exited with status 1 while building your code). This time the real build log is available. I need it.
+
+In that top red row — "Deploy failed for 3733257: Create Dockerfile" — click the blue "deploy logs" link (in "Check your deploy logs for more information"). That opens the Docker build output. Scroll to the bottom and copy the last ~20 lines — it'll show exactly which step failed, almost certainly an npm error.
+
+Paste those and I'll fix it fast. We're past the config problems now; this is just one build step complaining.
+
+#5 [1/5] FROM ghcr.io/puppeteer/puppeteer:22.12.1@sha256:34ee19dfd97aafb01e9f353c0d5538dce092a25e3e8763634f6a566e93013901
+#5 extracting sha256:a3e4c4d8a88e065a9b9ed4634fafd6b3064ea8a673efbf8ecc046038c73363ef 0.1s done
+#5 extracting sha256:9dbab0291c0e40e9c4172533b5c8c74c1f7b24b50c6973b45c687d1d5f086679 done
+#5 extracting sha256:d79b49a47550ab1cf77b43ee81e5df98b6f0eb6754aab0437b8a38d347c51aba
+#5 extracting sha256:d79b49a47550ab1cf77b43ee81e5df98b6f0eb6754aab0437b8a38d347c51aba 6.0s done
+#5 DONE 29.1s
+#5 [1/5] FROM ghcr.io/puppeteer/puppeteer:22.12.1@sha256:34ee19dfd97aafb01e9f353c0d5538dce092a25e3e8763634f6a566e93013901
+#5 extracting sha256:4f4fb700ef54461cfa02571ae0db9a0dc1e0cdb5577484a6d75e68dc38e8acc1 done
+#5 extracting sha256:a48b67046be217b9ca4f95e4d67eeb1550b8c831ff3d34db2aa25c72fa05cf09 0.0s done
+#5 extracting sha256:b21f328caff3e6446521d75d14c49259ca313ce1160e262a8f9a14c9a5a73481
+#5 extracting sha256:b21f328caff3e6446521d75d14c49259ca313ce1160e262a8f9a14c9a5a73481 5.9s done
+#5 DONE 35.0s
+#6 [2/5] WORKDIR /app
+#6 DONE 0.0s
+#7 [3/5] COPY package*.json ./
+#7 DONE 0.0s
+#8 [4/5] RUN npm install --omit=dev --no-audit --no-fund
+#8 0.790 npm ERR! code EJSONPARSE
+#8 0.790 npm ERR! path /app/package.json
+#8 0.793 npm ERR! JSON.parse Unexpected token '#', "# ---- RRG"... is not valid JSON while parsing '# ---- RRG SSC Mailer configuration ----'
+#8 0.793 npm ERR! JSON.parse Failed to parse JSON data.
+#8 0.793 npm ERR! JSON.parse Note: package.json must be actual JSON, not just JavaScript.
+#8 0.796
+#8 0.796 npm ERR! A complete log of this run can be found in: /root/.npm/_logs/2026-07-19T22_22_35_137Z-debug-0.log
+#8 ERROR: process "/bin/sh -c npm install --omit=dev --no-audit --no-fund" did not complete successfully: exit code: 1
+------
+ > [4/5] RUN npm install --omit=dev --no-audit --no-fund:
+ ERR! code EJSONPARSE
+0.790 npm ERR! path /app/package.json
+0.793 npm ERR! JSON.parse Unexpected token '#', "# ---- RRG"... is not valid JSON while parsing '# ---- RRG SSC Mailer configuration ----'
+0.793 npm ERR! JSON.parse Failed to parse JSON data.
+0.793 npm ERR! JSON.parse Note: package.json must be actual JSON, not just JavaScript.
+0.796
+0.796 npm ERR! A complete log of this run can be found in: /root/.npm/_logs/2026-07-19T22_22_35_137Z-debug-0.log
+------
+Dockerfile:10
+--------------------
+   8 |
+   9 |     COPY package*.json ./
+  10 | >>> RUN npm install --omit=dev --no-audit --no-fund
+  11 |
+  12 |     COPY . .
+--------------------
+error: failed to solve: process "/bin/sh -c npm install --omit=dev --no-audit --no-fund" did not complete successfully: exit code: 1
+error: exit status 1
+
+Show more
+That's the exact problem, and it's the same file-crossing from the upload: your package.json doesn't contain JSON — it has the .env.example config text (# ---- RRG SSC Mailer configuration ----). npm can't parse it, so the build dies. The files' contents got shuffled during the manual creation.
+
+Fix package.json the same way:
+
+Repo → click package.json → pencil ✏️.
+Select all, delete, paste exactly this:
+json
+{
+  "name": "rrg-ssc-mailer",
+  "version": "1.0.0",
+  "description": "RRG intake mailer — receives form submissions, renders a branded PDF, emails the rep, logs to disk.",
+  "main": "server.js",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "nodemailer": "^6.9.13",
+    "puppeteer": "^22.12.1"
+  }
+}
+Commit changes.
+It'll auto-redeploy. But here's the thing — this is the third scrambled file (render.yaml, then the missing Dockerfile, now package.json), which means the upload got jumbled and other files may be wrong too (server.js, store.js, mailer.js, template.js). Rather than fix them one failed build at a time, let me stop the bleeding: commit that package.json, and if the next build fails on a different file, we'll do a clean re-do the reliable way — I'll drop the correct files straight onto your PC and you push them with GitHub Desktop, no manual pasting. Commit it and tell me what the next build says.
+
+
+
+
+
+
+Claude is AI and can make mistakes. Please double-check responses. Give us feedback
+Rrg ssc mailer · ZIP
+Rrg ssc mailer
+ZIP
+No preview available
+Downloaded rrg-ssc-mailer.zip Show in Explorer
