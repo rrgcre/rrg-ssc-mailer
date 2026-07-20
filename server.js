@@ -271,7 +271,7 @@ app.get('/api/screenings', (req, res) => {
   const list = loadScreens().slice().reverse().filter(s => isAdmin || ownsScreen(req, s));
   res.json({
     ok: true, isAdmin: !!isAdmin,
-    screenings: list.map(s => ({ id: s.id, business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt })),
+    screenings: list.map(s => ({ id: s.id, business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, decision: s.decision || '', processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt })),
   });
 });
 app.get('/api/screening/:id', (req, res) => {
@@ -286,6 +286,18 @@ app.post('/api/screening/:id/advance', (req, res) => {
   if (!s) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!ownsScreen(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   s.processed = true; s.processedAt = new Date().toISOString();
+  saveScreens(arr);
+  res.json({ ok: true });
+});
+// Pass on a lead (decline to move it forward) — or reconsider it.
+app.post('/api/screening/:id/decision', express.json(), (req, res) => {
+  const arr = loadScreens();
+  const s = arr.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsScreen(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const dec = String((req.body || {}).decision || '');
+  s.decision = dec === 'passed' ? 'passed' : '';
+  s.decisionAt = new Date().toISOString();
   saveScreens(arr);
   res.json({ ok: true });
 });

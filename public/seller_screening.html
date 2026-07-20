@@ -626,7 +626,8 @@
     return miss;
   }
   // Stable per-session id so Print and Submit of the same screening upsert one queue record.
-  var FORM_ID='ss_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+  // (Edit-load overrides this with the record's own id so re-saving updates the same record.)
+  if(!window.RRG_FORM_ID) window.RRG_FORM_ID='ss_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
   function _saveRecord(){
     try{
       if(!window.RRG_API) return;               // only on the hosted toolkit
@@ -706,7 +707,8 @@
       }
     });
     return {
-      formId: FORM_ID,
+      formId: window.RRG_FORM_ID,
+      snapshot: (window.rrgSerialize ? window.rrgSerialize() : null),
       concept: header['business name']||'Seller',
       contact: header['seller contact name']||'',
       preparedBy: header['rrg rep']||'',
@@ -995,6 +997,8 @@
   function save(){ if(restoring) return; try{ var a=serialize(); if(!hasData(a)){ localStorage.removeItem(KEY); return; } localStorage.setItem(KEY, JSON.stringify({n:a.length,t:Date.now(),d:a})); chip(); }catch(e){} }
   function schedule(){ if(saveTimer) clearTimeout(saveTimer); saveTimer=setTimeout(save,400); }
   window.rrgClearDraft=function(){ try{ localStorage.removeItem(KEY); }catch(e){} };
+  window.rrgSerialize=serialize;
+  window.rrgRestore=function(arr){ if(arr && arr.length){ restore({d:arr}); } };
   function restore(rec){ restoring=true; var list=els();
     rec.d.forEach(function(v,i){ var el=list[i]; if(!el) return; if(el.type==='checkbox'||el.type==='radio') el.checked=!!v; else el.value=v; });
     list.forEach(function(el){ if(el.type==='checkbox'||el.type==='radio'){ if(el.checked) el.dispatchEvent(new Event('change',{bubbles:true})); } else if(el.value) el.dispatchEvent(new Event('input',{bubbles:true})); });
@@ -1012,12 +1016,46 @@
     k.onclick=function(){ bar.remove(); };
     bar.appendChild(f); bar.appendChild(k); bar.className='rrg-noprint'; document.body.insertBefore(bar, document.body.firstChild);
   }
-  try{ var raw=localStorage.getItem(KEY); if(raw){ var rec=JSON.parse(raw);
-    if(rec && rec.d && rec.n===els().length && hasData(rec.d)){ restore(rec); banner(rec); }
-    else if(rec && rec.n!==els().length){ localStorage.removeItem(KEY); } } }catch(e){}
+  // Skip the browser draft when we're opening a specific saved screening to edit.
+  if(!/[?&]screening=/.test(location.search)){
+    try{ var raw=localStorage.getItem(KEY); if(raw){ var rec=JSON.parse(raw);
+      if(rec && rec.d && rec.n===els().length && hasData(rec.d)){ restore(rec); banner(rec); }
+      else if(rec && rec.n!==els().length){ localStorage.removeItem(KEY); } } }catch(e){}
+  }
   form.addEventListener('input', schedule);
   form.addEventListener('change', schedule);
   window.addEventListener('beforeunload', save);
+})();
+</script>
+<script>
+/* Edit-load: open a saved screening from the queue (?screening=ID) and rehydrate it. */
+(function(){
+  var id=new URLSearchParams(location.search).get('screening');
+  if(!id) return;
+  var API=(String(location.protocol).indexOf('http')===0?location.origin:'');
+  function setByLabel(labels,val){
+    if(!val) return;
+    var ls=[].slice.call(document.querySelectorAll('#sscform label.k'));
+    for(var i=0;i<ls.length;i++){ var t=ls[i].textContent.replace('*','').trim().toLowerCase();
+      if(labels.indexOf(t)>=0){ var inp=ls[i].parentElement.querySelector('input,textarea'); if(inp){ inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); } return; } }
+  }
+  fetch(API+'/api/screening/'+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok||!j.screening) return;
+    var s=j.screening, d=s.data||{};
+    if(s.formId) window.RRG_FORM_ID=s.formId;      // re-saving updates the SAME record
+    if(d.snapshot && window.rrgRestore){ window.rrgRestore(d.snapshot); }
+    else { // older record without a full snapshot — restore the basics we have
+      setByLabel(['business name'], s.business);
+      setByLabel(['seller contact name'], s.contact);
+      setByLabel(['market'], s.market);
+      setByLabel(['call date'], s.date);
+    }
+    var b=document.createElement('div');
+    b.className='rrg-noprint';
+    b.style.cssText='background:#0b1a3a;color:#fff;font:600 13px/1.3 -apple-system,Segoe UI,Roboto,sans-serif;padding:10px 16px;';
+    b.textContent='Editing “'+(s.business||'screening')+'”. Save or Submit to update this record in the queue.';
+    document.body.insertBefore(b, document.body.firstChild);
+  }).catch(function(){});
 })();
 </script>
 </body>

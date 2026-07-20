@@ -47,7 +47,10 @@ tr:hover td{background:#fbfcfe;}
 .act a,.act button{font:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;text-decoration:none;border:1px solid var(--line);background:#fff;color:var(--navy);white-space:nowrap;}
 .act a:hover,.act button:hover{border-color:#9fb0cc;}
 .act .adv{background:var(--navy);color:#fff;border-color:var(--navy);}
+.act .pass{color:var(--muted);}
 .act .del{color:var(--red);border-color:#f0c9c6;}
+.passed{color:var(--muted);font-weight:700;font-size:12.5px;}
+.done{margin-right:2px;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;}
 .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
 .empty .np{margin-top:16px;display:inline-block;background:var(--red);color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:10px;}
@@ -116,7 +119,7 @@ function paint(){
   var list=ALL.slice();
   if(SCOPE==='mine'){ list=list.filter(isMine); }
   else { var uf=document.getElementById('userFilter'); var val=(ME.role==='admin'&&uf)?uf.value:''; if(val) list=list.filter(function(s){ return (s.byUser||s.by)===val; }); }
-  if(VIEW==='await'){ list=list.filter(function(s){ return s.status==='advance' && !s.processed; }); }
+  if(VIEW==='await'){ list=list.filter(function(s){ return s.status==='advance' && !s.processed && s.decision!=='passed'; }); }
   var sf=(document.getElementById('statusFilter')||{}).value||''; if(sf) list=list.filter(function(s){ return s.status===sf; });
   var q=(((document.getElementById('q')||{}).value)||'').trim().toLowerCase();
   if(q) list=list.filter(function(s){ return ((s.business||'')+' '+(s.contact||'')+' '+(s.market||'')).toLowerCase().indexOf(q)>=0; });
@@ -145,15 +148,26 @@ function render(list){
   }
   var rows=list.map(function(s){
     var meta=[s.date||fmt(s.createdAt), s.market, s.by].filter(Boolean).map(esc).join(' · ');
-    var advCell = s.processed
-      ? '<span class="done">✓ Questionnaire started</span> <a href="./valuation_questionnaire.html?screening='+encodeURIComponent(s.id)+'">Reopen</a>'
-      : (s.status==='advance'
-          ? '<a class="adv" href="./valuation_questionnaire.html?screening='+encodeURIComponent(s.id)+'">Advance to Questionnaire →</a>'
-          : '<a href="./valuation_questionnaire.html?screening='+encodeURIComponent(s.id)+'">Start Questionnaire</a>');
+    var vq='./valuation_questionnaire.html?screening='+encodeURIComponent(s.id);
+    var mid;
+    if(s.processed){
+      mid='<span class="done">✓ Questionnaire started</span> <a href="'+vq+'">Reopen</a>';
+    } else if(s.decision==='passed'){
+      mid='<span class="passed">✕ Passed</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
+    } else {
+      mid=(s.status==='advance'
+        ? '<a class="adv" href="'+vq+'">Advance to Questionnaire →</a>'
+        : '<a href="'+vq+'">Start Questionnaire</a>')
+        + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Pass</button>';
+    }
     return '<tr>'+
       '<td><div class="biz">'+esc(s.business||'Seller')+'</div><div class="meta">'+meta+(s.contact?(' · '+esc(s.contact)):'')+'</div></td>'+
       '<td class="hide">'+badge(s)+'</td>'+
-      '<td><div class="act">'+advCell+'<button class="del" onclick="del(\''+s.id+'\',this)">Remove</button></div></td>'+
+      '<td><div class="act">'+
+        '<a href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'">Edit</a>'+
+        mid+
+        '<button class="del" onclick="del(\''+s.id+'\',this)">Remove</button>'+
+      '</div></td>'+
     '</tr>';
   }).join('');
   body.innerHTML='<table><thead><tr><th>Business</th><th class="hide">Lead status</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
@@ -161,6 +175,11 @@ function render(list){
 function del(id,btn){
   if(!confirm('Remove this screening from the queue?')) return;
   fetch('/api/screening/'+encodeURIComponent(id),{method:'DELETE'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not remove.'); }).catch(function(){ alert('Could not remove.'); });
+}
+function decide(id,decision){
+  if(decision==='passed' && !confirm('Pass on this lead? It won’t move to the Valuation Questionnaire.')) return;
+  fetch('/api/screening/'+encodeURIComponent(id)+'/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:decision})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not update.'); }).catch(function(){ alert('Could not update.'); });
 }
 function load(){
   Promise.all([
