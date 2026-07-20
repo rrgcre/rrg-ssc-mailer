@@ -200,8 +200,8 @@ var TOOLS = [
   /* ---- Seller Engagement pipeline (ordered by step) ---- */
   { name:'Call Screening Log', tag:'Seller', file:'rrg_screening_queue.html', icon:'funnel', track:'pipeline', step:1,
     desc:"Every seller call we've made — log a new call, screen it, then pass or advance the strong leads to the Valuation Questionnaire." },
-  { name:'Valuation Questionnaire', tag:'Seller', file:'valuation_questionnaire.html', icon:'gauge', track:'pipeline', step:2,
-    desc:"The deep listing profile and valuation tool — operations, financials, lease, facility, and the off-book factors that move value." },
+  { name:'Valuation Questionnaire', tag:'Seller', file:'rrg_questionnaire_queue.html', icon:'gauge', track:'pipeline', step:2,
+    desc:"Your questionnaire log — start a deep listing profile, then build the BOV from it. Operations, financials, lease, and the off-book factors that move value." },
   { name:"Broker's Opinion of Value", tag:'Value', file:'rrg_bov_builder.html', icon:'seal', track:'pipeline', step:3,
     desc:"Build a client-ready BOV in the RRG format — add-back bridge, multiple selection, valuation matrix, and go-to-market, all computed live." },
   { name:'Build a BOV (AI)', tag:'Value', file:'rrg_bov_generate.html', icon:'spark', track:'pipeline', sort:2.7,
@@ -248,6 +248,12 @@ var GUIDES = {
     when:"On or right after your first real conversation with a prospective seller.",
     how:["Enter the business, seller contact, market, and call date.","Work through motivation, financials, and expectations as you talk.","Mark the lead outcome, then submit — it saves and enters the Screening Queue."],
     tip:"Motivation is the whole ballgame. Note whether it's a “right number” seller or a health / partnership / burnout exit — that read drives urgency, price, and everything downstream."
+  },
+  'rrg_questionnaire_queue.html':{
+    background:"Your valuation questionnaire log — every deep listing profile in one place, the same way the Call Screening Log works. Four views: All, Waiting (needs a BOV), Advanced (BOV started), and Passed. Admins can view the whole team.",
+    when:"After you advance a strong lead from the Call Screening Log, or any time you're working questionnaires toward a BOV.",
+    how:["Click “+ New Questionnaire” (or advance a call from the Call Screening Log, which opens one pre-filled).","Fill it in with the seller and hit Save or Save & Close — it lands in this log.","From the log, click “Build BOV →” to open the BOV builder (marks it advanced), or Pass / Edit / Remove.","Switch views and use search, sort, Print, or Export CSV."],
+    tip:"Chase the add-backs and the off-book value here — this profile is the input the BOV stands on. Garbage in, garbage out; a thorough questionnaire is what lets you defend the number."
   },
   'valuation_questionnaire.html':{
     background:"The deep listing profile. It gathers the operating detail, financials, lease terms, and the off-book factors an accurate valuation depends on.",

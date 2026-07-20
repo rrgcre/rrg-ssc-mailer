@@ -27,6 +27,33 @@ const SCREEN_FILE = path.join(BOV_DATA_DIR, 'screenings.json');
 function loadScreens() { try { return JSON.parse(fs.readFileSync(SCREEN_FILE, 'utf8')); } catch (e) { return []; } }
 function saveScreens(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SCREEN_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newScreenId() { return 'scr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+// ---- Questionnaire queue store (valuation questionnaires awaiting a BOV) ----
+const QUEST_FILE = path.join(BOV_DATA_DIR, 'questionnaires.json');
+function loadQuests() { try { return JSON.parse(fs.readFileSync(QUEST_FILE, 'utf8')); } catch (e) { return []; } }
+function saveQuests(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(QUEST_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newQuestId() { return 'q_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function ownsQuest(req, s) {
+  if (req.user && req.user.role === 'admin') return true;
+  if (s.byUser) return s.byUser === (req.user && req.user.username);
+  return s.by && s.by === (req.user && req.user.name);
+}
+function upsertQuest(req, data) {
+  const arr = loadQuests();
+  const fid = String((data && data.formId) || '').slice(0, 48);
+  const fields = {
+    business: String(data.concept || 'Business').slice(0, 120),
+    market: String(data.market || '').slice(0, 80),
+    data: data,
+    by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
+  };
+  const mine = s => (s.byUser && s.byUser === fields.byUser) || (!s.byUser && s.by && s.by === fields.by);
+  const existing = fid ? arr.find(s => s.formId === fid && mine(s)) : null;
+  if (existing) { Object.assign(existing, fields); existing.updatedAt = new Date().toISOString(); saveQuests(arr); return existing; }
+  const rec = Object.assign({ id: newQuestId(), formId: fid, processed: false, processedAt: '', decision: '', createdAt: new Date().toISOString() }, fields);
+  arr.push(rec); saveQuests(arr);
+  return rec;
+}
 // Pull the selected "Lead Status" out of the screening's structured sections.
 function leadStatusOf(data) {
   try {
@@ -293,11 +320,19 @@ app.post('/api/log', (req, res) => {
   if (formType === 'seller') {
     try { upsertScreening(req, data); } catch (e2) { console.error('screening enqueue error:', e2); }
   }
+  // Every submitted valuation questionnaire drops into the Questionnaire Queue.
+  if (formType === 'valuation') {
+    try { upsertQuest(req, data); } catch (e3) { console.error('questionnaire enqueue error:', e3); }
+  }
 });
 
 // Print / Save PDF also files the record to the queue (no email, no submission log).
 app.post('/api/screening-save', express.json({ limit: '2mb' }), (req, res) => {
   try { const s = upsertScreening(req, req.body || {}); res.json({ ok: true, id: s.id }); }
+  catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/questionnaire-save', express.json({ limit: '2mb' }), (req, res) => {
+  try { const s = upsertQuest(req, req.body || {}); res.json({ ok: true, id: s.id }); }
   catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
@@ -343,6 +378,49 @@ app.delete('/api/screening/:id', (req, res) => {
   if (!s) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!ownsScreen(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   saveScreens(arr.filter(x => x.id !== req.params.id));
+  res.json({ ok: true });
+});
+
+// ---- Questionnaire queue routes (mirror of the screening queue) ----
+app.get('/api/questionnaires', (req, res) => {
+  const isAdmin = req.user && req.user.role === 'admin';
+  const list = loadQuests().slice().reverse().filter(s => isAdmin || ownsQuest(req, s));
+  res.json({
+    ok: true, isAdmin: !!isAdmin,
+    questionnaires: list.map(s => ({ id: s.id, business: s.business, market: s.market, decision: s.decision || '', processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt })),
+  });
+});
+app.get('/api/questionnaire/:id', (req, res) => {
+  const s = loadQuests().find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsQuest(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  res.json({ ok: true, questionnaire: s });
+});
+app.post('/api/questionnaire/:id/advance', (req, res) => {
+  const arr = loadQuests();
+  const s = arr.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsQuest(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  s.processed = true; s.processedAt = new Date().toISOString();
+  saveQuests(arr);
+  res.json({ ok: true });
+});
+app.post('/api/questionnaire/:id/decision', express.json(), (req, res) => {
+  const arr = loadQuests();
+  const s = arr.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsQuest(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const dec = String((req.body || {}).decision || '');
+  s.decision = dec === 'passed' ? 'passed' : ''; s.decisionAt = new Date().toISOString();
+  saveQuests(arr);
+  res.json({ ok: true });
+});
+app.delete('/api/questionnaire/:id', (req, res) => {
+  const arr = loadQuests();
+  const s = arr.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsQuest(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  saveQuests(arr.filter(x => x.id !== req.params.id));
   res.json({ ok: true });
 });
 app.get('/log.csv', (_req, res) => {

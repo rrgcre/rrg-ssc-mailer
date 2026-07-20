@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — Call Log</title>
+<title>RRG — Questionnaire Log</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--amber:#b9761a;--blue:#2647b0;}
 *{box-sizing:border-box;}
@@ -76,11 +76,11 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
 </head>
 <body>
 <div class="top"><div class="top-inner">
-  <a class="newbtn" href="./seller_screening.html">+ New Call</a>
+  <a class="newbtn" href="./valuation_questionnaire.html">+ New Questionnaire</a>
   <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-  <div class="kicker">Seller Pipeline · Step 1</div>
-  <h1>Call Screening Log</h1>
-  <div class="sub">Every seller call we've made, in one log. Log a new call, screen it, then pass or advance it to the Valuation Questionnaire.</div>
+  <div class="kicker">Seller Pipeline · Step 2</div>
+  <h1>Questionnaire Log</h1>
+  <div class="sub">Every valuation questionnaire, in one log. Start a new one, then build the BOV from it.</div>
 </div></div>
 
 <div class="wrap">
@@ -96,7 +96,7 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
       <span class="cnt" id="cnt"></span><a class="home" href="./index.html">← Dashboard</a>
     </div>
     <div class="hd hd2">
-      <input id="q" class="search" placeholder="Search business, contact, or market…" oninput="paint()">
+      <input id="q" class="search" placeholder="Search business or market…" oninput="paint()">
       <span class="lbl">Sort</span>
       <select id="sortBy" class="ufilter" onchange="paint()">
         <option value="new">Newest first</option>
@@ -149,18 +149,18 @@ function paint(){
   render(list);
 }
 function printLog(){
-  var label={all:'All calls',waiting:'Waiting for pass or advance',advanced:'Advanced to questionnaire',passed:'Passed'}[VIEW]||'All calls';
+  var label={all:'All questionnaires',waiting:'Waiting to build a BOV',advanced:'BOV started',passed:'Passed'}[VIEW]||'All questionnaires';
   var when=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
-  document.getElementById('printhead').innerHTML='<div class="ph-title">RRG Call Screening Log</div><div class="ph-sub">'+esc(label)+' · '+CURRENT.length+' call'+(CURRENT.length===1?'':'s')+' · '+when+'</div>';
+  document.getElementById('printhead').innerHTML='<div class="ph-title">RRG Questionnaire Log</div><div class="ph-sub">'+esc(label)+' · '+CURRENT.length+' questionnaire'+(CURRENT.length===1?'':'s')+' · '+when+'</div>';
   window.print();
 }
 function csvCell(v){ v=(v==null?'':String(v)); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 function exportCsv(){
-  var head=['Business','Contact','Market','Call Date','Lead Status','State','Rep'];
+  var head=['Business','Metro','State','Rep','Created'];
   var lines=[head.join(',')];
-  CURRENT.forEach(function(s){ lines.push([s.business,s.contact,s.market,s.date,s.statusText,stateOf(s),s.by].map(csvCell).join(',')); });
+  CURRENT.forEach(function(s){ lines.push([s.business,s.market,stateOf(s),s.by,fmt(s.createdAt)].map(csvCell).join(',')); });
   var blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8'});
-  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='rrg-call-log.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='rrg-questionnaire-log.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 function badge(s){
   var st=stateOf(s);
@@ -169,34 +169,34 @@ function badge(s){
 }
 function render(list){
   var body=document.getElementById('body'), cnt=document.getElementById('cnt');
-  cnt.textContent = list.length ? (list.length+' call'+(list.length===1?'':'s')) : '';
+  cnt.textContent = list.length ? (list.length+' questionnaire'+(list.length===1?'':'s')) : '';
   if(!list.length){
     var em={
-      all:['No calls logged yet.','Log your first call and it lands here.'],
-      waiting:['Nothing waiting.','Every call has been passed or advanced. Nice and clean.'],
-      advanced:['Nothing advanced yet.','Calls you move to the Valuation Questionnaire show up here.'],
-      passed:['No passed calls.','Calls you pass on show up here — you can always Reconsider them.']
-    }[VIEW]||['No calls.',''];
-    body.innerHTML='<div class="empty"><b>'+em[0]+'</b>'+em[1]+'<br><a class="np" href="./seller_screening.html">+ New Call</a></div>';
+      all:['No questionnaires yet.','Start your first one and it lands here.'],
+      waiting:['Nothing waiting.','Every questionnaire has a BOV started or was passed.'],
+      advanced:['No BOVs started yet.','Questionnaires you build a BOV from show up here.'],
+      passed:['No passed questionnaires.','Ones you pass on show up here — you can always Reconsider them.']
+    }[VIEW]||['Nothing here.',''];
+    body.innerHTML='<div class="empty"><b>'+em[0]+'</b>'+em[1]+'<br><a class="np" href="./valuation_questionnaire.html">+ New Questionnaire</a></div>';
     return;
   }
   var rows=list.map(function(s){
-    var meta=[s.date||fmt(s.createdAt), s.market, s.by].filter(Boolean).map(esc).join(' · ');
-    var vq='./valuation_questionnaire.html?screening='+encodeURIComponent(s.id);
+    var meta=[fmt(s.createdAt), s.market, s.by].filter(Boolean).map(esc).join(' · ');
+    var bov='./rrg_bov_builder.html?q='+encodeURIComponent(s.id);
     var mid;
     if(s.processed){
-      mid='<span class="done">✓ Advanced</span> <a href="'+vq+'">Reopen</a>';
+      mid='<span class="done">✓ BOV started</span> <a href="'+bov+'">Reopen</a>';
     } else if(s.decision==='passed'){
       mid='<span class="passed">✕ Passed</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
     } else {
-      mid='<a class="adv" href="'+vq+'">Advance to Questionnaire →</a>'
+      mid='<a class="adv" href="'+bov+'" onclick="markAdvanced(\''+s.id+'\')">Build BOV →</a>'
         + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Pass</button>';
     }
     return '<tr data-id="'+esc(s.id)+'">'+
-      '<td><div class="biz">'+esc(s.business||'Seller')+'</div><div class="meta">'+meta+(s.contact?(' · '+esc(s.contact)):'')+'</div></td>'+
+      '<td><div class="biz">'+esc(s.business||'Business')+'</div><div class="meta">'+meta+'</div></td>'+
       '<td>'+badge(s)+'</td>'+
       '<td><div class="act">'+
-        '<a href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'">Edit</a>'+
+        '<a href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Edit</a>'+
         mid+
         '<button class="del" onclick="del(\''+s.id+'\',this)">Remove</button>'+
       '</div></td>'+
@@ -205,23 +205,25 @@ function render(list){
   body.innerHTML='<table><thead><tr><th>Business</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 function del(id,btn){
-  if(!confirm('Remove this call from the log?')) return;
-  fetch('/api/screening/'+encodeURIComponent(id),{method:'DELETE'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not remove.'); }).catch(function(){ alert('Could not remove.'); });
+  if(!confirm('Remove this questionnaire from the log?')) return;
+  fetch('/api/questionnaire/'+encodeURIComponent(id),{method:'DELETE'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not remove.'); }).catch(function(){ alert('Could not remove.'); });
 }
 function decide(id,decision){
-  if(decision==='passed' && !confirm('Pass on this lead? It won’t move to the Valuation Questionnaire.')) return;
-  fetch('/api/screening/'+encodeURIComponent(id)+'/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:decision})})
+  if(decision==='passed' && !confirm('Pass on this questionnaire? It won’t move to a BOV.')) return;
+  fetch('/api/questionnaire/'+encodeURIComponent(id)+'/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:decision})})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not update.'); }).catch(function(){ alert('Could not update.'); });
 }
+// Building a BOV marks the questionnaire advanced (fire-and-forget; navigation continues).
+function markAdvanced(id){ try{ fetch('/api/questionnaire/'+encodeURIComponent(id)+'/advance',{method:'POST'}).catch(function(){}); }catch(e){} }
 function load(){
   Promise.all([
     fetch('/api/session').then(function(r){return r.json();}).catch(function(){return null;}),
-    fetch('/api/screenings').then(function(r){return r.json();}).catch(function(){return null;})
+    fetch('/api/questionnaires').then(function(r){return r.json();}).catch(function(){return null;})
   ]).then(function(res){
     var s=res[0], j=res[1];
     if(s&&s.ok){ ME={username:s.username||'',name:s.name||'',role:s.role||''}; }
-    if(!j){ document.getElementById('body').innerHTML='<div class="empty"><b>Couldn’t reach the server.</b>The Screening Queue works on the hosted toolkit.</div>'; return; }
-    ALL=(j&&j.screenings)||[];
+    if(!j){ document.getElementById('body').innerHTML='<div class="empty"><b>Couldn’t reach the server.</b>The Questionnaire Log works on the hosted toolkit.</div>'; return; }
+    ALL=(j&&j.questionnaires)||[];
     buildUserFilter(); paint();
   });
 }
