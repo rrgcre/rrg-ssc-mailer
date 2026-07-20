@@ -15,10 +15,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 
 /* ---- header band ---- */
 .top{
-  color:#fff;padding:40px 0 44px;position:relative;overflow:hidden;
-  background:radial-gradient(95% 115% at 30% 18%, #1c2e5c 0%, #112044 40%, #0b1636 68%, #071029 100%);
+  color:#fff;padding:40px 0 0;position:relative;overflow:hidden;
+  background:radial-gradient(130% 150% at 82% -20%, #182a54 0%, #0d1b3d 42%, #070f2b 72%, #04091d 100%);
 }
 .top-inner{max-width:1080px;margin:0 auto;padding:0 32px;position:relative;z-index:2;}
+/* giant outlined RRG monogram — the brand mark as background art */
+.mono{position:absolute;right:-40px;top:52%;transform:translateY(-50%);z-index:1;
+  font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:330px;line-height:.72;
+  letter-spacing:-.06em;color:transparent;-webkit-text-stroke:2px rgba(218,43,31,.32);pointer-events:none;user-select:none;}
+.rule{position:relative;z-index:2;width:64px;height:4px;background:var(--red);border-radius:3px;margin:18px 0 14px;}
+.tagline{position:relative;z-index:2;margin-top:6px;font-size:15px;font-weight:800;color:#fff;white-space:nowrap;letter-spacing:-.01em;}
+.tagline .r{color:var(--red);}
+/* workflow strip across the bottom of the header */
+.pipe{position:relative;z-index:2;max-width:1080px;margin:30px auto 0;padding:0 32px;display:flex;border-top:1px solid rgba(255,255,255,.12);}
+.pipe span{flex:1;padding:14px 6px 16px;font-size:10.5px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;color:#8ea0c4;text-align:center;border-left:1px solid rgba(255,255,255,.08);}
+.pipe span:first-child{border-left:none;}
+.pipe span b{color:#fff;}
+@media(max-width:820px){ .mono{font-size:210px;opacity:.55;} .pipe{display:none;} }
 .topnav{position:absolute;top:0;right:32px;display:flex;align-items:center;gap:8px;font-size:12.5px;}
 .topnav .who{color:#c3ccdf;font-weight:600;margin-right:4px;}
 .topnav a{color:#c3ccdf;text-decoration:none;font-weight:600;border:1px solid rgba(255,255,255,.2);padding:6px 12px;border-radius:8px;white-space:nowrap;}
@@ -33,7 +46,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .orb2{width:540px;height:540px;left:14%;top:-60%;
   background:radial-gradient(circle, rgba(62,90,172,.32) 0%, transparent 66%);filter:blur(8px);}
 .brand{display:inline-flex;align-items:center;position:relative;z-index:2;}
-.brand .disc{background:var(--red);color:#fff;border-radius:50%;width:46px;height:46px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.brand .disc{background:var(--red);color:#fff;border-radius:50%;width:46px;height:46px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;box-shadow:0 0 0 7px rgba(218,43,31,.12), 0 8px 26px rgba(218,43,31,.32);}
 .brand .bar{background:#fff;width:3px;height:34px;margin:0 13px;}
 .brand .wm{font-weight:800;color:#fff;font-size:15px;text-transform:uppercase;line-height:.95;letter-spacing:.01em;}
 .kicker{position:relative;z-index:2;margin:30px 0 4px;color:var(--red);font-weight:700;letter-spacing:.32em;font-size:11px;text-transform:uppercase;}
@@ -104,17 +117,23 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
 <body>
 
 <div class="top">
-  <div class="orbs">
-    <div class="orb orb1"></div>
-    <div class="orb orb2"></div>
-  </div>
+  <div class="mono">RRG</div>
   <div class="top-inner">
     <div class="topnav" id="topnav"></div>
     <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
     <div class="kicker">Internal Toolkit</div>
-    <h1>Associate Dashboard</h1>
-    <div class="sub">Every RRG intake and valuation tool in one place. <b style="color:#fff;">Restaurant Transactions. Done Right.</b></div>
-    <div class="prop">Proprietary &amp; Confidential &nbsp;·&nbsp; Property of Restaurant Realty Group, LLC &nbsp;·&nbsp; Internal RRG use only</div>
+    <h1>The RRG <span style="color:var(--red)">Toolkit</span></h1>
+    <div class="rule"></div>
+    <div class="sub">Every intake, valuation, and go-to-market tool in one place.</div>
+    <div class="tagline">Restaurant Transactions. <span class="r">Done Right.</span></div>
+  </div>
+  <div class="pipe">
+    <span><b>Seller</b> Screening</span>
+    <span><b>Valuation</b> Questionnaire</span>
+    <span><b>BOV</b></span>
+    <span><b>CIM</b></span>
+    <span><b>Market</b> Attack</span>
+    <span><b>Tenant</b> Rep</span>
   </div>
 </div>
 
