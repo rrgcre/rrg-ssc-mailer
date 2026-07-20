@@ -54,6 +54,27 @@ function upsertQuest(req, data) {
   arr.push(rec); saveQuests(arr);
   return rec;
 }
+// Ensure an advanced call has a matching questionnaire record (so it shows in the Questionnaire Log).
+function ensureQuestForScreening(s) {
+  if (!s) return null;
+  const arr = loadQuests();
+  const fid = 'qfromscr_' + s.id;
+  const existing = arr.find(q => q.formId === fid);
+  if (existing) return existing;
+  const d = s.data || {};
+  const rec = {
+    id: newQuestId(), formId: fid, processed: false, processedAt: '', decision: '',
+    business: s.business || 'Business', market: s.market || '',
+    data: { formId: fid, concept: s.business || '', market: s.market || '', address: d.address || '' },
+    by: s.by || '', byUser: s.byUser || '', createdAt: new Date().toISOString(),
+  };
+  arr.push(rec); saveQuests(arr);
+  return rec;
+}
+// One-time reconcile: every already-advanced call gets a questionnaire record.
+function backfillQuests() {
+  try { loadScreens().filter(x => x.processed).forEach(ensureQuestForScreening); } catch (e) { console.error('backfill error:', e); }
+}
 // Pull the selected "Lead Status" out of the screening's structured sections.
 function leadStatusOf(data) {
   try {
@@ -167,6 +188,7 @@ function seedSampleCalls() {
   } catch (e) { console.error('sample-call seed error:', e); }
 }
 seedSampleCalls();
+backfillQuests();  // reconcile any already-advanced calls into the Questionnaire Log
 
 /* ---------- cookies ---------- */
 function parseCookies(req) {
@@ -358,7 +380,9 @@ app.post('/api/screening/:id/advance', (req, res) => {
   if (!ownsScreen(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   s.processed = true; s.processedAt = new Date().toISOString();
   saveScreens(arr);
-  res.json({ ok: true });
+  let qid = '';
+  try { const q = ensureQuestForScreening(s); qid = (q && q.id) || ''; } catch (e) {}
+  res.json({ ok: true, questionnaireId: qid });
 });
 // Pass on a lead (decline to move it forward) — or reconsider it.
 app.post('/api/screening/:id/decision', express.json(), (req, res) => {
