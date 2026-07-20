@@ -21,8 +21,14 @@ h1{position:relative;z-index:2;font-size:30px;font-weight:800;margin:0;color:#ff
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
 .hd{display:flex;align-items:center;padding:16px 22px;border-bottom:1px solid var(--line);gap:12px;}
 .hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
-.hd .home{margin-left:auto;text-decoration:none;color:var(--navy);font-weight:600;font-size:12.5px;border:1px solid var(--line);padding:7px 13px;border-radius:8px;}
+.hd .home{margin-left:12px;text-decoration:none;color:var(--navy);font-weight:600;font-size:12.5px;border:1px solid var(--line);padding:7px 13px;border-radius:8px;}
 .hd .home:hover{border-color:#9fb0cc;}
+.tabs{display:inline-flex;background:var(--wash);border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px;}
+.tab{border:none;background:transparent;color:var(--muted);font:inherit;font-size:12.5px;font-weight:700;padding:6px 14px;border-radius:7px;cursor:pointer;}
+.tab.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(10,20,50,.1);}
+.hd .cnt{margin-left:auto;}
+.ufilter{margin-left:12px;border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;font-size:12.5px;color:var(--navy);font-weight:600;background:#fff;}
+.ufilter:focus{outline:none;border-color:var(--red);}
 table{width:100%;border-collapse:collapse;font-size:13px;}
 th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:middle;}
 th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);}
@@ -51,7 +57,11 @@ tr:hover td{background:#fbfcfe;}
 
 <div class="wrap">
   <div class="card">
-    <div class="hd"><b>Saved BOVs</b><span class="cnt" id="cnt"></span><a class="home" href="./index.html">← Dashboard</a></div>
+    <div class="hd">
+      <div class="tabs"><button class="tab on" id="tabMine" onclick="setTab('mine')">My BOVs</button><button class="tab" id="tabAll" onclick="setTab('all')">All BOVs</button></div>
+      <select id="userFilter" class="ufilter" style="display:none" onchange="onUserFilter()"></select>
+      <span class="cnt" id="cnt"></span><a class="home" href="./index.html">← Dashboard</a>
+    </div>
     <div id="body"></div>
   </div>
 </div>
@@ -61,11 +71,36 @@ tr:hover td{background:#fbfcfe;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 
+var ALL=[], ME={username:'',name:'',role:''}, TAB='mine';
+function setTab(t){ TAB=t; document.getElementById('tabMine').classList.toggle('on',t==='mine'); document.getElementById('tabAll').classList.toggle('on',t==='all'); paint(); }
+function isMine(b){ return (b.byUser && b.byUser===ME.username) || (!b.byUser && b.by && b.by===ME.name); }
+function onUserFilter(){ var uf=document.getElementById('userFilter'); if(uf.value){ setTab('all'); } else { paint(); } }
+function paint(){
+  var list;
+  if(TAB==='mine'){ list=ALL.filter(isMine); }
+  else {
+    var uf=document.getElementById('userFilter'); var val=(ME.role==='admin'&&uf)?uf.value:'';
+    list = val ? ALL.filter(function(b){ return (b.byUser||b.by)===val; }) : ALL;
+  }
+  render(list);
+}
+function buildUserFilter(){
+  if(ME.role!=='admin') return;
+  var uf=document.getElementById('userFilter'); if(!uf) return;
+  var seen={}, opts=[];
+  ALL.forEach(function(b){ var k=b.byUser||b.by; if(k&&!seen[k]){ seen[k]=1; opts.push({key:k,label:b.by||b.byUser}); } });
+  opts.sort(function(a,b){ return String(a.label).localeCompare(String(b.label)); });
+  uf.innerHTML='<option value="">Filter: everyone</option>'+opts.map(function(o){ return '<option value="'+esc(o.key)+'">'+esc(o.label)+'</option>'; }).join('');
+  uf.style.display='';
+}
+
 function render(bovs){
   var body=document.getElementById('body'), cnt=document.getElementById('cnt');
-  cnt.textContent = bovs.length ? (bovs.length+' in the pipeline') : '';
+  cnt.textContent = bovs.length ? (bovs.length+(TAB==='mine'?' of yours':' in the pipeline')) : '';
   if(!bovs.length){
-    body.innerHTML='<div class="empty"><b>No BOVs saved yet.</b>Open the Broker’s Opinion of Value tool, build one, and click <b style="display:inline">Save to queue</b>. It’ll show up here, ready to turn into a CIM.</div>';
+    body.innerHTML = TAB==='mine'
+      ? '<div class="empty"><b>You haven’t saved any BOVs yet.</b>Build one in the Broker’s Opinion of Value tool and click <b style="display:inline">Save to queue</b> — or switch to <b style="display:inline">All BOVs</b> to see the team’s pipeline.</div>'
+      : '<div class="empty"><b>No BOVs saved yet.</b>Open the Broker’s Opinion of Value tool, build one, and click <b style="display:inline">Save to queue</b>. It’ll show up here, ready to turn into a CIM.</div>';
     return;
   }
   var rows=bovs.map(function(b){
@@ -84,8 +119,15 @@ function render(bovs){
 }
 
 function load(){
-  fetch('/api/bovs').then(function(r){return r.json();}).then(function(j){ render((j&&j.bovs)||[]); })
-    .catch(function(){ document.getElementById('body').innerHTML='<div class="empty"><b>Couldn’t reach the server.</b>The BOV Queue works on the hosted toolkit.</div>'; });
+  Promise.all([
+    fetch('/api/session').then(function(r){return r.json();}).catch(function(){return null;}),
+    fetch('/api/bovs').then(function(r){return r.json();}).catch(function(){return null;})
+  ]).then(function(res){
+    var s=res[0], j=res[1];
+    if(s&&s.ok){ ME={username:s.username||'',name:s.name||'',role:s.role||''}; }
+    if(!j){ document.getElementById('body').innerHTML='<div class="empty"><b>Couldn’t reach the server.</b>The BOV Queue works on the hosted toolkit.</div>'; return; }
+    ALL=(j&&j.bovs)||[]; buildUserFilter(); paint();
+  });
 }
 function del(id,btn){
   if(!confirm('Remove this BOV from the queue?')) return;

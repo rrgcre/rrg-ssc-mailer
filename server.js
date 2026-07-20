@@ -180,7 +180,7 @@ app.get('/log.csv', (_req, res) => {
 // ---- BOV queue ----
 app.get('/api/bovs', (_req, res) => res.json({
   ok: true,
-  bovs: loadBovs().slice().reverse().map(b => ({ id: b.id, business: b.business, date: b.date, rangeText: b.rangeText, targetText: b.targetText, multText: b.multText, ebitdaText: b.ebitdaText, by: b.by, createdAt: b.createdAt })),
+  bovs: loadBovs().slice().reverse().map(b => ({ id: b.id, business: b.business, date: b.date, rangeText: b.rangeText, targetText: b.targetText, multText: b.multText, ebitdaText: b.ebitdaText, by: b.by, byUser: b.byUser, createdAt: b.createdAt })),
 }));
 app.get('/api/bov/:id', (req, res) => {
   const b = loadBovs().find(x => x.id === req.params.id);
@@ -197,7 +197,8 @@ app.post('/api/bov', (req, res) => {
     rangeText: String(b.rangeText || '').slice(0, 60), targetText: String(b.targetText || '').slice(0, 60),
     multText: String(b.multText || '').slice(0, 40), ebitdaText: String(b.ebitdaText || '').slice(0, 40),
     state: (b.state && typeof b.state === 'object') ? b.state : null,
-    by: (req.user && req.user.name) || '', createdAt: new Date().toISOString(),
+    by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
+    createdAt: new Date().toISOString(),
   };
   bovs.push(rec); saveBovs(bovs);
   res.json({ ok: true, id: rec.id });
