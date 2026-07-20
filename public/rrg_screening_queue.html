@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — Seller Screenings</title>
+<title>RRG — Call Log</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--amber:#b9761a;--blue:#2647b0;}
 *{box-sizing:border-box;}
@@ -60,11 +60,11 @@ tr:hover td{background:#fbfcfe;}
 </head>
 <body>
 <div class="top">
-  <a class="newbtn" href="./seller_screening.html">+ New Screening</a>
+  <a class="newbtn" href="./seller_screening.html">+ New Call</a>
   <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Seller Pipeline · Step 1</div>
-  <h1>Seller Screenings</h1>
-  <div class="sub">Every screening call, in one queue. Screen a new seller, then advance the strong leads to the Valuation Questionnaire.</div>
+  <h1>Call Log</h1>
+  <div class="sub">Every seller call we've made, in one log. Log a new call, then advance the strong leads to the Valuation Questionnaire.</div>
 </div>
 
 <div class="wrap">
@@ -141,9 +141,9 @@ function render(list){
   var body=document.getElementById('body'), cnt=document.getElementById('cnt');
   cnt.textContent = list.length ? (list.length+(VIEW==='await'?' awaiting':'')) : '';
   if(!list.length){
-    body.innerHTML='<div class="empty"><b>'+(VIEW==='await'?'No screenings awaiting a questionnaire.':'No screenings yet.')+'</b>'+
-      (VIEW==='await'?'Strong leads marked <b style="display:inline">Advance</b> show up here, ready for the Valuation Questionnaire.':'Run your first screening call and it lands here.')+
-      '<br><a class="np" href="./seller_screening.html">+ New Screening</a></div>';
+    body.innerHTML='<div class="empty"><b>'+(VIEW==='await'?'No calls awaiting a questionnaire.':'No calls logged yet.')+'</b>'+
+      (VIEW==='await'?'Strong leads marked <b style="display:inline">Advance</b> show up here, ready for the Valuation Questionnaire.':'Log your first call and it lands here.')+
+      '<br><a class="np" href="./seller_screening.html">+ New Call</a></div>';
     return;
   }
   var rows=list.map(function(s){
@@ -173,7 +173,7 @@ function render(list){
   body.innerHTML='<table><thead><tr><th>Business</th><th class="hide">Lead status</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 function del(id,btn){
-  if(!confirm('Remove this screening from the queue?')) return;
+  if(!confirm('Remove this call from the log?')) return;
   fetch('/api/screening/'+encodeURIComponent(id),{method:'DELETE'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not remove.'); }).catch(function(){ alert('Could not remove.'); });
 }
 function decide(id,decision){

@@ -113,6 +113,34 @@ const TOOL_LIST = [
 // Ensure an admin account exists on boot (from ADMIN_USER / ADMIN_PASS).
 auth.seedAdmin();
 
+// Seed a few sample calls into the Call Log the first time only (safe to Remove).
+function seedSampleCalls() {
+  const marker = path.join(BOV_DATA_DIR, '.calls_seeded');
+  try { if (fs.existsSync(marker)) return; } catch (e) {}
+  try {
+    const admin = String(process.env.ADMIN_USER || 'van').toLowerCase();
+    const arr = loadScreens();
+    const t = Date.now();
+    const mk = (o, i) => Object.assign({
+      id: 'scr_seed' + i, formId: 'seed' + i, processed: false, processedAt: '', decision: '',
+      by: 'Van Rinn', byUser: admin, createdAt: new Date(t - i * 36e5).toISOString(),
+      data: { formId: 'seed' + i, concept: o.business, contact: o.contact, market: o.market, date: o.date,
+        sections: [{ n: '6', title: 'Call Outcome & Notes', groups: [{ kind: 'options', label: 'Lead Status', selected: [o.statusText] }] }] },
+    }, o);
+    const samples = [
+      { business: 'Barrio Cantina', contact: 'Miguel Reyes', market: 'San Antonio', date: '07/18/2026', statusText: 'Advance (Strong Lead, Financials Requested)', status: 'advance' },
+      { business: 'The Copper Still', contact: 'Dana Whitfield', market: 'Austin', date: '07/17/2026', statusText: 'Nurture (Interested, Not Ready)', status: 'nurture' },
+      { business: 'Lakeside Grill & Patio', contact: 'Tom Fenn', market: 'Dallas', date: '07/16/2026', statusText: 'Pass (Not a Fit)', status: 'pass' },
+    ];
+    samples.forEach((s, i) => arr.push(mk(s, i + 1)));
+    saveScreens(arr);
+    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
+    fs.writeFileSync(marker, new Date().toISOString());
+    console.log('[calls] Seeded 3 sample calls.');
+  } catch (e) { console.error('sample-call seed error:', e); }
+}
+seedSampleCalls();
+
 /* ---------- cookies ---------- */
 function parseCookies(req) {
   const out = {};
