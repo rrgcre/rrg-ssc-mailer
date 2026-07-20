@@ -72,9 +72,26 @@ function ensureQuestForScreening(s) {
   arr.push(rec); saveQuests(arr);
   return rec;
 }
-// One-time reconcile: every already-advanced call gets a questionnaire record.
+// Reconcile: every advanced call has a questionnaire record (efficient, idempotent).
 function backfillQuests() {
-  try { loadScreens().filter(x => x.processed).forEach(ensureQuestForScreening); } catch (e) { console.error('backfill error:', e); }
+  try {
+    const quests = loadQuests();
+    const have = new Set(quests.map(q => q.formId));
+    let added = false;
+    loadScreens().filter(x => x.processed).forEach(function (s) {
+      const fid = 'qfromscr_' + s.id;
+      if (have.has(fid)) return;
+      const d = s.data || {};
+      quests.push({
+        id: newQuestId(), formId: fid, processed: false, processedAt: '', decision: '', completed: false,
+        business: s.business || 'Business', market: s.market || '',
+        data: { formId: fid, concept: s.business || '', market: s.market || '', address: d.address || '' },
+        by: s.by || '', byUser: s.byUser || '', createdAt: new Date().toISOString(),
+      });
+      have.add(fid); added = true;
+    });
+    if (added) saveQuests(quests);
+  } catch (e) { console.error('backfill error:', e); }
 }
 // Pull the selected "Lead Status" out of the screening's structured sections.
 function leadStatusOf(data) {
@@ -408,6 +425,7 @@ app.delete('/api/screening/:id', (req, res) => {
 
 // ---- Questionnaire queue routes (mirror of the screening queue) ----
 app.get('/api/questionnaires', (req, res) => {
+  backfillQuests();  // self-heal: any advanced call missing a questionnaire gets one now
   const isAdmin = req.user && req.user.role === 'admin';
   const list = loadQuests().slice().reverse().filter(s => isAdmin || ownsQuest(req, s));
   res.json({
