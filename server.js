@@ -8,6 +8,7 @@ const nodemailer = require('nodemailer');
 const { sendSsc } = require('./mailer.js');
 const store = require('./store.js');
 const auth = require('./auth.js');
+const bovgen = require('./bovgen.js');
 
 const fs = require('fs');
 const path = require('path');
@@ -198,6 +199,27 @@ app.get('/api/bov/:id', (req, res) => {
   if (!ownsBov(req, b)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   res.json({ ok: true, bov: b });
 });
+// AI-generate a BOV from uploaded documents, then save it to the queue.
+app.post('/api/generate-bov', express.json({ limit: '32mb' }), async (req, res) => {
+  try {
+    const { business, files } = req.body || {};
+    if (!files || !files.length) return res.status(400).json({ ok: false, error: 'Attach at least the financials and lease.' });
+    const out = await bovgen.generateBov({ business, files });
+    const bovs = loadBovs();
+    const rec = {
+      id: newBovId(), business: String(out.business || 'Untitled').slice(0, 120), date: String(out.date || '').slice(0, 40),
+      rangeText: out.summary.rangeText, targetText: out.summary.targetText, multText: out.summary.multText, ebitdaText: out.summary.ebitdaText,
+      state: out.state, aiGenerated: true,
+      by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: new Date().toISOString(),
+    };
+    bovs.push(rec); saveBovs(bovs);
+    res.json({ ok: true, id: rec.id, summary: out.summary });
+  } catch (e) {
+    console.error('generate-bov error:', e);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
+
 app.post('/api/bov', (req, res) => {
   const b = req.body || {};
   const biz = String(b.business || '').trim();

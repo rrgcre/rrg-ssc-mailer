@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Build a BOV</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8894a8;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;--green:#1f8a5b;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#e9edf3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:720px;margin:0 auto;}
+.band{color:#fff;padding:34px 40px 30px;position:relative;overflow:hidden;
+  background:radial-gradient(96% 130% at 27% 12%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.rrg{display:inline-flex;align-items:center;}
+.rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.rrg .bar{background:#fff;width:3px;height:30px;margin:0 12px;} .rrg .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:22px 0 5px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+h1{font-size:28px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:8px;max-width:520px;line-height:1.5;}
+.home{position:absolute;top:26px;right:32px;color:#c3ccdf;text-decoration:none;font-size:12.5px;font-weight:600;border:1px solid rgba(255,255,255,.2);padding:6px 12px;border-radius:8px;}
+.home:hover{border-color:#fff;color:#fff;}
+.card{background:#fff;margin:-14px 20px 40px;border-radius:14px;box-shadow:0 10px 34px rgba(10,20,50,.12);padding:26px 30px 30px;position:relative;}
+label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 0 5px;}
+.name{width:100%;border:1px solid var(--inp);border-radius:9px;padding:11px 13px;font-family:inherit;font-size:14px;color:var(--ink);}
+.name:focus{outline:none;border-color:var(--red);}
+.drop{border:1.5px dashed #c7d0df;border-radius:11px;padding:14px 16px;margin-top:8px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color .15s,background .15s;}
+.drop:hover{border-color:#9fb0cc;background:var(--wash);}
+.drop .ic{width:34px;height:34px;flex:none;border-radius:9px;background:#eaf0ff;display:flex;align-items:center;justify-content:center;}
+.drop .t{font-weight:700;color:var(--navy);font-size:13.5px;} .drop .h{font-size:11.5px;color:var(--muted);margin-top:1px;}
+.drop.has{border-style:solid;border-color:#bfe6d1;background:#f2fbf6;}
+.files{font-size:11.5px;color:var(--green);font-weight:600;margin-top:6px;padding-left:2px;}
+.sec{margin-top:18px;}
+.go{margin-top:24px;width:100%;background:var(--navy);color:#fff;border:none;border-radius:10px;padding:14px;font:inherit;font-size:15px;font-weight:700;cursor:pointer;}
+.go:hover{background:#0b1a3a;} .go:disabled{opacity:.6;cursor:default;}
+.note{font-size:11.5px;color:var(--muted);margin-top:12px;line-height:1.5;text-align:center;}
+.status{margin-top:16px;border-radius:10px;padding:14px 16px;font-size:13px;display:none;}
+.status.work{display:block;background:#eef3ff;color:#2647b0;} .status.err{display:block;background:#fdeceb;color:var(--red);font-weight:600;}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid #b9c8ef;border-top-color:#2647b0;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:8px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.foot{text-align:center;color:var(--muted);font-size:11px;padding:0 20px 40px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="band">
+    <a class="home" href="./index.html">← Dashboard</a>
+    <span class="rrg"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <div class="kicker">Broker's Opinion of Value</div>
+    <h1>Build a BOV</h1>
+    <div class="sub">Drop in the deal's documents and RRG's analyst drafts the Broker's Opinion of Value — adjusted EBITDA, the multiple, the valuation matrix, and the narrative. You review and print.</div>
+  </div>
+
+  <div class="card">
+    <label class="fl" for="biz">Business / Concept Name</label>
+    <input class="name" id="biz" placeholder="e.g. The Magnolia Pancake Haus" autocomplete="off">
+
+    <div class="sec">
+      <label class="fl">1 · Financials</label>
+      <div class="drop" onclick="pick('fin')"><div class="ic">💰</div><div><div class="t">Financials — P&amp;L, trend, add-backs</div><div class="h">PDF, image, or CSV. The trailing P&amp;L and any normalization detail.</div></div></div>
+      <div class="files" id="fin_files"></div>
+      <input type="file" id="fin_in" multiple accept=".pdf,.png,.jpg,.jpeg,.csv,.txt" style="display:none" onchange="took('fin')">
+    </div>
+    <div class="sec">
+      <label class="fl">2 · Valuation Questionnaire</label>
+      <div class="drop" onclick="pick('vq')"><div class="ic">📋</div><div><div class="t">Completed RRG Valuation Questionnaire</div><div class="h">PDF (print the completed questionnaire to PDF).</div></div></div>
+      <div class="files" id="vq_files"></div>
+      <input type="file" id="vq_in" multiple accept=".pdf,.png,.jpg,.jpeg,.txt" style="display:none" onchange="took('vq')">
+    </div>
+    <div class="sec">
+      <label class="fl">3 · Lease &amp; Amendments</label>
+      <div class="drop" onclick="pick('lease')"><div class="ic">📄</div><div><div class="t">Lease + any amendments</div><div class="h">PDF. Include every amendment — term, rent, options, assignability.</div></div></div>
+      <div class="files" id="lease_files"></div>
+      <input type="file" id="lease_in" multiple accept=".pdf,.png,.jpg,.jpeg,.txt" style="display:none" onchange="took('lease')">
+    </div>
+
+    <button class="go" id="go" onclick="generate()">Build the BOV</button>
+    <div class="status" id="status"></div>
+    <div class="note">The analysis runs privately on RRG's server. Generating takes about 30–60 seconds. You'll land on the finished BOV, fully editable, and it's saved to your BOV Queue.</div>
+  </div>
+</div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+
+<script>
+var SLOTS={fin:[],vq:[],lease:[]}, LABEL={fin:'Financials',vq:'Valuation Questionnaire',lease:'Lease & Amendments'};
+function pick(s){ document.getElementById(s+'_in').click(); }
+function took(s){
+  var inp=document.getElementById(s+'_in'); SLOTS[s]=Array.prototype.slice.call(inp.files);
+  var el=document.getElementById(s+'_files'), drop=inp.previousElementSibling.previousElementSibling;
+  // the drop is the element with onclick; find it: it's 2 siblings up in DOM order (drop, files, input)
+  var dropEl=inp.parentNode.querySelector('.drop');
+  if(SLOTS[s].length){ el.textContent='✓ '+SLOTS[s].map(function(f){return f.name;}).join(', '); dropEl.classList.add('has'); }
+  else { el.textContent=''; dropEl.classList.remove('has'); }
+}
+function readFile(file,label){
+  return new Promise(function(resolve){
+    var isText=/^text\//.test(file.type)||/\.(csv|txt)$/i.test(file.name);
+    var r=new FileReader();
+    r.onload=function(){
+      if(isText){ resolve({name:file.name,type:'text/plain',text:String(r.result),label:label}); }
+      else { resolve({name:file.name,type:file.type||'application/pdf',dataB64:String(r.result).split(',')[1]||'',label:label}); }
+    };
+    if(isText) r.readAsText(file); else r.readAsDataURL(file);
+  });
+}
+function setStatus(cls,html){ var s=document.getElementById('status'); s.className='status '+cls; s.innerHTML=html; }
+function generate(){
+  var biz=document.getElementById('biz').value.trim();
+  var all=[]; Object.keys(SLOTS).forEach(function(s){ SLOTS[s].forEach(function(f){ all.push({file:f,label:LABEL[s]}); }); });
+  if(!all.length){ setStatus('err','Attach at least the financials and the lease.'); return; }
+  var go=document.getElementById('go'); go.disabled=true;
+  setStatus('work','<span class="spin"></span>Reading your documents…');
+  Promise.all(all.map(function(x){ return readFile(x.file,x.label); })).then(function(files){
+    var mb=files.reduce(function(a,f){ return a+((f.dataB64?f.dataB64.length*0.75:(f.text||'').length)); },0)/1e6;
+    if(mb>28){ setStatus('err','Those files are too large together (~'+mb.toFixed(0)+'MB). Trim to the essential pages and try again.'); go.disabled=false; return; }
+    setStatus('work','<span class="spin"></span>RRG’s analyst is reading the financials, questionnaire, and lease and drafting the BOV… (30–60 sec)');
+    fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files})})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok&&j.id){ setStatus('work','<span class="spin"></span>Done — opening your BOV…'); location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(j.id); }
+        else { setStatus('err', (j&&j.error)||'Generation failed.'); go.disabled=false; }
+      }).catch(function(){ setStatus('err','Could not reach the server. This works on the hosted toolkit.'); go.disabled=false; });
+  });
+}
+</script>
+</body>
+</html>
