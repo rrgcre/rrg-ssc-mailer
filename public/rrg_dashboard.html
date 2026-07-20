@@ -80,13 +80,13 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
 @media(max-width:560px){ .top{padding:26px 22px;} h1{font-size:26px;} .wrap{padding:24px 18px 40px;} }
 
 /* ---- Agreements ---- */
-/* ---- Quick Links ---- */
-.ql{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;}
-.qlcard{display:flex;align-items:center;gap:11px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s;}
-.qlcard:hover{border-color:#c9d2e2;transform:translateY(-2px);}
-.qlcard .qi{width:30px;height:30px;flex:none;border-radius:8px;background:#eaf0ff;color:#2647b0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;}
-.qlcard .qn{font-weight:700;color:var(--navy);font-size:13px;line-height:1.2;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.qlcard .qu{font-size:10.5px;color:var(--muted);margin-top:1px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* ---- Quick Links (compact pills) ---- */
+.ql{display:flex;flex-wrap:wrap;gap:8px;}
+.qlcard{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 11px;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s;}
+.qlcard:hover{border-color:#c9d2e2;transform:translateY(-1px);}
+.qlcard .qi{width:19px;height:19px;flex:none;border-radius:5px;background:#eaf0ff;color:#2647b0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10.5px;}
+.qlcard .qn{font-weight:700;color:var(--navy);font-size:12px;line-height:1;white-space:nowrap;}
+.qlcard .qu{display:none;}
 
 .agr{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;}
 .agrcard{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s;}
