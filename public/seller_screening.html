@@ -732,20 +732,33 @@
   window.smClose=function(){ document.getElementById('smodal').classList.remove('show'); };
 
   window._collectData=_collectData;
+  // Read a response defensively — never let an HTML error page (e.g. a 404 or a
+  // login redirect) blow up on JSON.parse and show a rep a raw "Unexpected token" error.
+  function _readResp(r){
+    return r.text().then(function(t){
+      var j=null; try{ j=JSON.parse(t); }catch(e){}
+      return { ok:r.ok, status:r.status, j:j };
+    }, function(){ return { ok:false, status:0, j:null }; });
+  }
+  function _friendlyErr(res){
+    if(res.status===401 || res.status===403) return 'Your session expired. Open the dashboard, sign in again, then resubmit — or copy the text and send it manually.';
+    if(!res.j) return 'The RRG server didn’t respond as expected. Copy the text and send it manually, or try again in a moment.';
+    return (res.j.error || 'Server error. You can send it manually instead.');
+  }
   function _logToServer(){
     var data=_collectData(); data.formType='seller'; _sm('sending');
-    fetch(String(window.RRG_API).replace(/\/$/,'')+'/api/log',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
-      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,j:j}; }); })
-      .then(function(res){ if(res.ok && res.j && res.j.ok){ _sm('logged', data.repEmail); } else { _sm('error', (res.j&&res.j.error)||'Server error.'); } })
-      .catch(function(e){ _sm('error', String(e.message||e)); });
+    fetch(String(window.RRG_API).replace(/\/$/,'')+'/api/log',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+      .then(_readResp)
+      .then(function(res){ if(res.ok && res.j && res.j.ok){ _sm('logged', data.repEmail); } else { _sm('error', _friendlyErr(res)); } })
+      .catch(function(){ _sm('error', 'Couldn’t reach the RRG server. Copy the text and send it manually.'); });
     return true;
   }
   function _sendViaBackend(){
     var data=_collectData(); _sm('sending');
-    fetch(String(window.RRG_API).replace(/\/$/,'')+'/api/send-ssc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
-      .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,j:j}; }); })
-      .then(function(res){ if(res.ok && res.j && res.j.ok){ _sm('sent', data.repEmail); } else { _sm('error', (res.j&&res.j.error)||('Server error ('+ (res.j?'':'no JSON') +').')); } })
-      .catch(function(e){ _sm('error', String(e.message||e)); });
+    fetch(String(window.RRG_API).replace(/\/$/,'')+'/api/send-ssc',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+      .then(_readResp)
+      .then(function(res){ if(res.ok && res.j && res.j.ok){ _sm('sent', data.repEmail); } else { _sm('error', _friendlyErr(res)); } })
+      .catch(function(){ _sm('error', 'Couldn’t reach the RRG server. Copy the text and send it manually.'); });
     return true;
   }
 
