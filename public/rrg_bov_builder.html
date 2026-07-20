@@ -104,6 +104,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   <div class="actions">
     <button class="btn" onclick="loadSample()">Load sample</button>
     <button class="btn" onclick="clearAll()">Clear</button>
+    <button class="btn" onclick="saveToQueue()">Save to queue</button>
     <button class="btn print" onclick="window.print()">Print / Save PDF</button>
   </div>
 </div></div>
@@ -333,6 +334,21 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 
   function renderAll(){ buildBridge(); simpleTable('benchBody',state.bench,[0,1],'bench'); simpleTable('buyerBody',state.buyers,[0,1,2],'buyer'); compute(); growAll(); }
 
+  // Save this BOV to the shared server queue (so it can be promoted to a CIM).
+  window.saveToQueue=function(){
+    state.fields=collect();
+    var biz=((q('subject')&&q('subject').value)||'').trim();
+    if(!biz){ alert('Enter the business name on the cover first.'); return; }
+    var g=function(id){ var el=document.getElementById(id); return el?el.textContent:''; };
+    var payload={ business:biz, date:(q('date')&&q('date').value)||'',
+      rangeText:g('hRange'), targetText:g('hTarget'), multText:g('hMult'), ebitdaText:g('hEbitda'), state:state };
+    fetch('/api/bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok){ alert('Saved "'+biz+'" to the BOV queue. Open the BOV Queue to turn it into a CIM.'); }
+        else { alert((j&&j.error)||'Could not save to the queue.'); }
+      }).catch(function(){ alert('Could not reach the server — “Save to queue” works on the hosted toolkit (rrg-ssc-mailer.onrender.com), not a local file.'); });
+  };
+
   window.clearAll=function(){
     if(!confirm('Clear this BOV?')) return;
     state={fields:{}, bridge:BRIDGE.map(function(r){return {label:r[0],amt:''};}), bench:BENCH.map(function(r){return r.slice();}), buyers:BUYERS.map(function(r){return r.slice();})};
@@ -372,7 +388,14 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     state=s; if(!state.bridge||!state.bridge.length) state.bridge=BRIDGE.map(function(r){return {label:r[0],amt:''};});
     if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();});
     apply(state.fields); renderAll(); return true; }catch(e){ return false; } }
-  if(!restore()){ state.bridge=BRIDGE.map(function(r){return {label:r[0],amt:''};}); state.bench=BENCH.map(function(r){return r.slice();}); state.buyers=BUYERS.map(function(r){return r.slice();}); q('assume').value=ASSUME; loadSample(); }
+  function initBlank(){ state.bridge=BRIDGE.map(function(r){return {label:r[0],amt:''};}); state.bench=BENCH.map(function(r){return r.slice();}); state.buyers=BUYERS.map(function(r){return r.slice();}); q('assume').value=ASSUME; loadSample(); }
+  function applyState(s){ state=s; if(!state.bridge||!state.bridge.length) state.bridge=BRIDGE.map(function(r){return {label:r[0],amt:''};}); if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();}); apply(state.fields||{}); renderAll(); }
+  var _bid=(new URLSearchParams(location.search)).get('bov');
+  if(_bid){
+    fetch('/api/bov/'+encodeURIComponent(_bid)).then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok&&j.bov&&j.bov.state){ applyState(j.bov.state); } else if(!restore()){ initBlank(); }
+    }).catch(function(){ if(!restore()) initBlank(); });
+  } else if(!restore()){ initBlank(); }
 })();
 </script>
 </body>

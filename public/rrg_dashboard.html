@@ -142,6 +142,8 @@ var TOOLS = [
     desc:"The deep listing profile and valuation tool — operations, financials, lease, facility, and the off-book factors that move value." },
   { name:"Broker's Opinion of Value", tag:'Value', file:'rrg_bov_builder.html', icon:'seal', track:'pipeline', step:3,
     desc:"Build a client-ready BOV in the RRG format — add-back bridge, multiple selection, valuation matrix, and go-to-market, all computed live." },
+  { name:'BOV Queue', tag:'Value', file:'rrg_bov_queue.html', icon:'queue', track:'pipeline', sort:3.5,
+    desc:"Every saved BOV in one place — reopen one, or promote it to a CIM in a click (the valuation carries over)." },
   { name:'CIM Builder', tag:'Value', file:'rrg_cim_builder.html', icon:'book', track:'pipeline', step:4,
     desc:"Build the full confidential offering book in the RRG format — edit in place, pull the valuation from the BOV, and print a client-ready 18-page PDF." },
   { name:'Market Attack Plan', tag:'Seller', file:'rrg_seller_attack_plan.html', icon:'megaphone', track:'pipeline', step:5,
@@ -170,6 +172,7 @@ var TRACKS = [
 ];
 
 var ICONS = {
+  queue:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M24 6 8 14l16 8 16-8-16-8Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 24l16 8 16-8" stroke="#DA2B1F" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 32l16 8 16-8" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/></svg>',
   checklist:'<svg class="icon" viewBox="0 0 48 48" fill="none"><rect x="11" y="8" width="26" height="34" rx="3" stroke="#000E31" stroke-width="1.6"/><path d="M17 16l2 2 3.5-3.5" stroke="#DA2B1F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 25l2 2 3.5-3.5" stroke="#DA2B1F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 34l2 2 3.5-3.5" stroke="#DA2B1F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><line x1="27" y1="17" x2="32" y2="17" stroke="#000E31" stroke-width="1.4"/><line x1="27" y1="26" x2="32" y2="26" stroke="#000E31" stroke-width="1.4"/><line x1="27" y1="35" x2="32" y2="35" stroke="#000E31" stroke-width="1.4"/></svg>',
   megaphone:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M10 20v8l4 1 2 8h4l-1.5-7L34 36V12L18.5 19H12a2 2 0 0 0-2 2Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><path d="M34 16c3 1.5 4.5 4 4.5 8s-1.5 6.5-4.5 8" stroke="#DA2B1F" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>',
   flag:'<svg class="icon" viewBox="0 0 48 48" fill="none"><line x1="14" y1="6" x2="14" y2="42" stroke="#000E31" stroke-width="1.8" stroke-linecap="round"/><path d="M14 9h20l-4 6 4 6H14" stroke="#DA2B1F" stroke-width="1.6" stroke-linejoin="round" fill="none"/><circle cx="14" cy="6" r="2" fill="#000E31"/></svg>',

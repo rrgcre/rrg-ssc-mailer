@@ -9,8 +9,17 @@ const { sendSsc } = require('./mailer.js');
 const store = require('./store.js');
 const auth = require('./auth.js');
 
+const fs = require('fs');
+const path = require('path');
 const app = express();
 const COOKIE = 'rrg_sess';
+
+// ---- BOV queue store (on the persistent disk) ----
+const BOV_DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+const BOVS_FILE = path.join(BOV_DATA_DIR, 'bovs.json');
+function loadBovs() { try { return JSON.parse(fs.readFileSync(BOVS_FILE, 'utf8')); } catch (e) { return []; } }
+function saveBovs(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BOVS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newBovId() { return 'bov_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // Ensure an admin account exists on boot (from ADMIN_USER / ADMIN_PASS).
@@ -128,6 +137,38 @@ app.get('/log.csv', (_req, res) => {
   if (fs.existsSync(store.CSV)) return fs.createReadStream(store.CSV).pipe(res);
   res.send(store.CSV_COLS.join(',') + '\n');
 });
+// ---- BOV queue ----
+app.get('/api/bovs', (_req, res) => res.json({
+  ok: true,
+  bovs: loadBovs().slice().reverse().map(b => ({ id: b.id, business: b.business, date: b.date, rangeText: b.rangeText, targetText: b.targetText, multText: b.multText, ebitdaText: b.ebitdaText, by: b.by, createdAt: b.createdAt })),
+}));
+app.get('/api/bov/:id', (req, res) => {
+  const b = loadBovs().find(x => x.id === req.params.id);
+  if (!b) return res.status(404).json({ ok: false, error: 'Not found.' });
+  res.json({ ok: true, bov: b });
+});
+app.post('/api/bov', (req, res) => {
+  const b = req.body || {};
+  const biz = String(b.business || '').trim();
+  if (!biz) return res.status(400).json({ ok: false, error: 'Business name required.' });
+  const bovs = loadBovs();
+  const rec = {
+    id: newBovId(), business: biz.slice(0, 120), date: String(b.date || '').slice(0, 40),
+    rangeText: String(b.rangeText || '').slice(0, 60), targetText: String(b.targetText || '').slice(0, 60),
+    multText: String(b.multText || '').slice(0, 40), ebitdaText: String(b.ebitdaText || '').slice(0, 40),
+    state: (b.state && typeof b.state === 'object') ? b.state : null,
+    by: (req.user && req.user.name) || '', createdAt: new Date().toISOString(),
+  };
+  bovs.push(rec); saveBovs(bovs);
+  res.json({ ok: true, id: rec.id });
+});
+app.delete('/api/bov/:id', (req, res) => {
+  let bovs = loadBovs(); const n = bovs.length;
+  bovs = bovs.filter(x => x.id !== req.params.id);
+  if (bovs.length === n) return res.status(404).json({ ok: false, error: 'Not found.' });
+  saveBovs(bovs); res.json({ ok: true });
+});
+
 // Quick links — admin-only links are filtered out for non-admins.
 app.get('/api/links', (req, res) => {
   const all = auth.loadLinks();

@@ -605,22 +605,32 @@ document.getElementById('photoInput').addEventListener('change',function(e){
 });
 
 /* ---------- BOV link ---------- */
-function pullBOV(){
-  var raw=null; try{ raw=localStorage.getItem('rrg_bov_summary'); }catch(e){}
-  if(!raw){ alert('No BOV found in this browser yet.\n\nOpen the Broker’s Opinion of Value tool, fill in the earnings and multiple, then come back and click Pull from BOV.'); return; }
-  var b; try{ b=JSON.parse(raw); }catch(e){ alert('Could not read the BOV data.'); return; }
+function fillBOV(b, quiet){
   document.getElementById('bovRange').textContent = b.rangeText||'—';
   document.getElementById('bovTarget').textContent = b.targetText||'—';
   document.getElementById('bovMult').textContent = b.multText||'—';
   document.getElementById('bovEbitda').textContent = b.ebitdaText||'—';
-  var subj=b.subject?(' for '+b.subject):'';
+  var subj=(b.subject||b.business)?(' for '+(b.subject||b.business)):'';
   document.getElementById('bovNote').textContent =
     'Pulled from the RRG Broker’s Opinion of Value'+subj+(b.date?(' ('+b.date+')'):'')+
     '. Concluded range '+(b.rangeText||'')+', recommended target '+(b.targetText||'')+
     ', at '+(b.multText||'')+' adjusted EBITDA of '+(b.ebitdaText||'')+'. Verify against the current BOV before distribution.';
   save();
-  alert('Valuation guidance pulled from your BOV draft.');
+  if(!quiet) alert('Valuation guidance pulled from the BOV.');
 }
+function pullBOV(){
+  var raw=null; try{ raw=localStorage.getItem('rrg_bov_summary'); }catch(e){}
+  if(!raw){ alert('No BOV found in this browser yet.\n\nOpen the Broker’s Opinion of Value tool, fill in the earnings and multiple, then come back and click Pull from BOV.'); return; }
+  var b; try{ b=JSON.parse(raw); }catch(e){ alert('Could not read the BOV data.'); return; }
+  fillBOV(b);
+}
+// When launched from the BOV queue (?bov=id), pull that deal's valuation from the server.
+(function(){
+  var id=(new URLSearchParams(location.search)).get('bov'); if(!id) return;
+  fetch('/api/bov/'+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok&&j.bov){ fillBOV(j.bov, true); }
+  }).catch(function(){});
+})();
 
 /* ---------- save / restore ---------- */
 var st=null;

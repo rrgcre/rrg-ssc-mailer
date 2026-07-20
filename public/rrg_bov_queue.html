@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — BOV Queue</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:30px 40px 34px;position:relative;overflow:hidden;
+  background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top .brand{display:inline-flex;align-items:center;position:relative;z-index:2;}
+.top .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.top .bar{background:#fff;width:3px;height:30px;margin:0 12px;} .top .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{position:relative;z-index:2;margin:22px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+h1{position:relative;z-index:2;font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{position:relative;z-index:2;color:#aeb8cf;font-size:13px;margin-top:7px;}
+.wrap{max-width:1080px;margin:26px auto;padding:0 24px 60px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
+.hd{display:flex;align-items:center;padding:16px 22px;border-bottom:1px solid var(--line);gap:12px;}
+.hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
+.hd .home{margin-left:auto;text-decoration:none;color:var(--navy);font-weight:600;font-size:12.5px;border:1px solid var(--line);padding:7px 13px;border-radius:8px;}
+.hd .home:hover{border-color:#9fb0cc;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:middle;}
+th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);}
+tr:hover td{background:#fbfcfe;}
+.biz{font-weight:800;color:var(--navy);font-size:14px;} .meta{color:var(--muted);font-size:11.5px;margin-top:2px;}
+.val{white-space:nowrap;} .val .r{font-weight:800;color:var(--red);} .val .t{color:var(--navy);font-weight:600;}
+.dim{color:var(--muted);}
+.act{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;}
+.act a,.act button{font:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;text-decoration:none;border:1px solid var(--line);background:#fff;color:var(--navy);white-space:nowrap;}
+.act a:hover,.act button:hover{border-color:#9fb0cc;}
+.act .cim{background:var(--navy);color:#fff;border-color:var(--navy);}
+.act .del{color:var(--red);border-color:#f0c9c6;}
+.empty{text-align:center;color:var(--muted);padding:54px 20px;}
+.empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
+.foot{max-width:1080px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+@media(max-width:720px){ th.hide,td.hide{display:none;} .top{padding:24px 20px;} h1{font-size:24px;} }
+</style>
+</head>
+<body>
+<div class="top">
+  <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Seller Pipeline</div>
+  <h1>BOV Queue</h1>
+  <div class="sub">Every saved Broker's Opinion of Value — reopen it, or promote it to a CIM.</div>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="hd"><b>Saved BOVs</b><span class="cnt" id="cnt"></span><a class="home" href="./index.html">← Dashboard</a></div>
+    <div id="body"></div>
+  </div>
+</div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
+
+function render(bovs){
+  var body=document.getElementById('body'), cnt=document.getElementById('cnt');
+  cnt.textContent = bovs.length ? (bovs.length+' in the pipeline') : '';
+  if(!bovs.length){
+    body.innerHTML='<div class="empty"><b>No BOVs saved yet.</b>Open the Broker’s Opinion of Value tool, build one, and click <b style="display:inline">Save to queue</b>. It’ll show up here, ready to turn into a CIM.</div>';
+    return;
+  }
+  var rows=bovs.map(function(b){
+    var val='<span class="val"><span class="r">'+esc(b.rangeText||'—')+'</span><br><span class="t">'+esc(b.targetText||'')+'</span></span>';
+    return '<tr>'+
+      '<td><div class="biz">'+esc(b.business||'Untitled')+'</div><div class="meta">'+esc(b.date||fmt(b.createdAt))+(b.by?(' · '+esc(b.by)):'')+'</div></td>'+
+      '<td class="hide">'+val+'</td>'+
+      '<td class="hide dim">'+esc(b.multText||'')+'<br>'+esc(b.ebitdaText||'')+'</td>'+
+      '<td><div class="act">'+
+        '<a href="./rrg_bov_builder.html?bov='+encodeURIComponent(b.id)+'">Open BOV</a>'+
+        '<a class="cim" href="./rrg_cim_builder.html?bov='+encodeURIComponent(b.id)+'">Turn into CIM →</a>'+
+        '<button class="del" onclick="del(\''+b.id+'\',this)">Remove</button>'+
+      '</div></td></tr>';
+  }).join('');
+  body.innerHTML='<table><thead><tr><th>Business</th><th class="hide">Concluded Range / Target</th><th class="hide">Multiple / EBITDA</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+
+function load(){
+  fetch('/api/bovs').then(function(r){return r.json();}).then(function(j){ render((j&&j.bovs)||[]); })
+    .catch(function(){ document.getElementById('body').innerHTML='<div class="empty"><b>Couldn’t reach the server.</b>The BOV Queue works on the hosted toolkit.</div>'; });
+}
+function del(id,btn){
+  if(!confirm('Remove this BOV from the queue?')) return;
+  fetch('/api/bov/'+encodeURIComponent(id),{method:'DELETE'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not remove.'); }).catch(function(){ alert('Could not remove.'); });
+}
+load();
+</script>
+</body>
+</html>
