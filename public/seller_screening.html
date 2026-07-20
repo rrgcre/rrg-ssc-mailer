@@ -242,6 +242,7 @@
 </head>
 <body>
 <script>/* served copy: auto-target this server so submissions log + email */ window.RRG_API=location.origin;</script>
+<!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to dashboard" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)"><span style="font-size:14px;line-height:1">←</span> Dashboard</a><style>@media print{.rrg-back{display:none!important}}@media(max-width:560px){.rrg-back{left:12px;bottom:12px;padding:9px 13px}}</style>
 
 <div class="toolbar">
   <div class="tt">RRG Seller Screening <span>Fill in, then Submit &amp; Email</span></div>
@@ -366,7 +367,7 @@
       </div>
     </div>
     <div class="grid three rowgap">
-      <div class="field"><label class="k">Years in Operation<span class="req-star">*</span></label><input type="text" class="int req" inputmode="numeric"></div>
+      <div class="field"><label class="k">Years in Operation<span class="req-star">*</span></label><input type="text" class="dec2 req" inputmode="decimal"></div>
       <div class="field"><label class="k">Number of Locations<span class="req-star">*</span></label><input type="text" class="int req" inputmode="numeric"></div>
       <div class="field"><label class="k">Approx. Employees</label><input type="text" class="int" inputmode="numeric"></div>
     </div>
@@ -792,10 +793,12 @@
   function _grp(s){s=(s||'').replace(/[^0-9]/g,'');return s?Number(s).toLocaleString('en-US'):'';}
   function _pct(s){s=(s||'').replace(/[^0-9.]/g,'');var p=s.split('.');if(p.length>2)s=p[0]+'.'+p.slice(1).join('');return s;}
   function _int(s){return (s||'').replace(/[^0-9]/g,'');}
+  function _dec2(s){ s=(s||'').replace(/[^0-9.]/g,''); var p=s.split('.'); if(p.length>2) s=p[0]+'.'+p.slice(1).join(''); p=s.split('.'); if(p[1]!==undefined) s=p[0]+'.'+p[1].slice(0,2); return s; }
   document.addEventListener('input',function(e){
     var el=e.target; if(!el.classList) return;
     if(el.classList.contains('money')||el.classList.contains('grp')) el.value=_grp(el.value);
     else if(el.classList.contains('pct')) el.value=_pct(el.value);
+    else if(el.classList.contains('dec2')) el.value=_dec2(el.value);
     else if(el.classList.contains('int')) el.value=_int(el.value);
   });
 
