@@ -321,17 +321,7 @@
       <div class="field full"><label class="k">Restaurant Name<span class="req-star">*</span></label><input type="text" class="req"></div>
     </div>
     <div class="sec"><div class="num">1</div><h2>Business Overview</h2><div class="flex"></div></div>
-    <div class="subhead">Location &amp; Contact</div>
-    <div class="grid rowgap">
-      <div class="field full"><label class="k">Street Address</label><input type="text"></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">City<span class="req-star">*</span></label><input type="text" class="req"></div>
-      <div class="field"><label class="k">State</label><input type="text"></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">Zip</label><input type="text"></div>
-    </div>
+    <div class="subhead">Location <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted);font-size:11px">— address &amp; metro carried over from the qualification call</span></div>
     <div class="grid rowgap">
       <div class="field full"><label class="k">Shopping Center</label><input type="text"></div>
     </div>
@@ -343,7 +333,7 @@
       <div class="oset full single"><label class="k">Sector</label><div class="optcols c4"><label class="opt"><input type="checkbox">Growing Fast</label><label class="opt"><input type="checkbox">Growing at Average Rate</label><label class="opt"><input type="checkbox">Flat</label><label class="opt"><input type="checkbox">Declining</label></div></div>
     </div>
     <div class="grid rowgap">
-      <div class="oset full single"><label class="k">Years in Operation</label><div class="optcols c4"><label class="opt"><input type="checkbox">Under 2 Yrs</label><label class="opt"><input type="checkbox">2 to 5 Yrs</label><label class="opt"><input type="checkbox">5 to 10 Yrs</label><label class="opt"><input type="checkbox">11+ Yrs</label></div></div>
+      <div class="field"><label class="k">Years in Operation</label><input type="text" class="dec2" inputmode="decimal" placeholder="e.g. 8"></div>
     </div>
     <div class="grid rowgap">
       <div class="field full"><label class="k">Why Is the Business Up for Sale?</label><textarea></textarea></div>
@@ -351,9 +341,6 @@
     <div class="grid rowgap">
       <div class="oset single"><label class="k">Has the Business Ever Been Sold Before?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
       <div class="oset single"><label class="k">Any Pending Litigation?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field full"><label class="k">How Scalable Is the Business?</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap">
       <div class="field full"><label class="k">Risk Factors</label><textarea></textarea></div>
@@ -394,10 +381,10 @@
       <div class="oset single"><label class="k">Can Pricing Be Increased?</label><div class="optcols c3"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">Yes, Selectively</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap">
-      <div class="field full"><label class="k">Growth Prospects Detail</label><textarea></textarea></div>
+      <div class="field full"><label class="k">Pricing Detail</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap">
-      <div class="field full"><label class="k">Pricing Detail</label><textarea></textarea></div>
+      <div class="field full"><label class="k">Growth Prospects Detail</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Average Cover</label><input type="text"></div>
@@ -710,7 +697,7 @@
       concept: _fieldByLabel('Restaurant Name')||'Business',
       contact: '',
       preparedBy: _fieldByLabel('RRG Advisor')||'',
-      market: _fieldByLabel('City')||'',
+      market: _fieldByLabel('City')||window.__qMarket||'',
       date: '',
       repEmail: (document.getElementById('clientEmail').value||'').trim(),
       sections: sections
@@ -791,12 +778,14 @@
 
   // numeric / currency formatting
   function _grp(s){s=(s||'').replace(/[^0-9]/g,'');return s?Number(s).toLocaleString('en-US'):'';}
-  function _pct(s){s=(s||'').replace(/[^0-9.]/g,'');var p=s.split('.');if(p.length>2)s=p[0]+'.'+p.slice(1).join('');return s;}
+  function _pct(s){s=(s||'').replace(/[^0-9.]/g,'');var p=s.split('.');if(p.length>2)s=p[0]+'.'+p.slice(1).join('');if(s!==''&&s!=='.'&&parseFloat(s)>100)s='100';return s;}
+  function _dec2(s){s=(s||'').replace(/[^0-9.]/g,'');var p=s.split('.');if(p.length>2)s=p[0]+'.'+p.slice(1).join('');p=s.split('.');if(p[1]!==undefined)s=p[0]+'.'+p[1].slice(0,2);return s;}
   function _int(s){return (s||'').replace(/[^0-9]/g,'');}
   document.addEventListener('input',function(e){
     var el=e.target; if(!el.classList) return;
     if(el.classList.contains('money')||el.classList.contains('grp')) el.value=_grp(el.value);
     else if(el.classList.contains('pct')) el.value=_pct(el.value);
+    else if(el.classList.contains('dec2')) el.value=_dec2(el.value);
     else if(el.classList.contains('int')) el.value=_int(el.value);
   });
 
@@ -995,7 +984,7 @@
 
   function _updateHeader(){
     var hc=document.getElementById('hdrConcept'), ht=document.getElementById('hdrTarget'); if(!hc||!ht) return;
-    var concept=_fieldByLabel('Restaurant Name'), market=_fieldByLabel('City');
+    var concept=_fieldByLabel('Restaurant Name'), market=_fieldByLabel('City')||window.__qMarket||'';
     hc.textContent = concept || 'Valuation Questionnaire';
     ht.textContent = market ? ('Location: '+market) : 'Restaurant name and city appear here as you complete the profile.';
   }
@@ -1085,11 +1074,9 @@
   }
   fetch(API+'/api/screening/'+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok||!j.screening) return;
-    var s=j.screening, d=s.data||{};
+    var s=j.screening;
+    window.__qMarket = s.market || '';                 // carried from the call; not re-collected here
     setByLabel(['restaurant name','business name','concept name'], s.business);
-    setByLabel(['street address'], d.address||'');
-    setByLabel(['city'], s.market);
-    setByLabel(['state'], 'TX');
     // one questionnaire per advanced call (deterministic id → no duplicates)
     window.RRG_Q_FORM_ID='qfromscr_'+id;
     // mark the call advanced, and file a Waiting questionnaire so it shows in the log now
@@ -1109,7 +1096,14 @@
     if(!j||!j.ok||!j.questionnaire) return;
     var s=j.questionnaire, d=s.data||{};
     if(s.formId) window.RRG_Q_FORM_ID=s.formId;   // re-saving updates the SAME record
+    window.__qMarket = s.market || (d && d.market) || '';
     if(d.snapshot && window.rrgRestore){ window.rrgRestore(d.snapshot); }
+    else {
+      // no saved snapshot yet (freshly advanced) — auto-fill the Name so the rep can complete it
+      var ls=[].slice.call(document.querySelectorAll('#sscform label.k'));
+      for(var i=0;i<ls.length;i++){ var t=ls[i].textContent.replace('*','').trim().toLowerCase();
+        if(t==='restaurant name'||t==='business name'||t==='concept name'){ var inp=ls[i].parentElement.querySelector('input,textarea'); if(inp){ inp.value=s.business||''; inp.dispatchEvent(new Event('input',{bubbles:true})); } break; } }
+    }
     var b=document.createElement('div'); b.className='rrg-noprint';
     b.style.cssText='background:#0b1a3a;color:#fff;font:600 13px/1.3 -apple-system,Segoe UI,Roboto,sans-serif;padding:10px 16px;';
     b.textContent='Editing “'+(s.business||'questionnaire')+'”. Save to update it in the Questionnaire Log.';
