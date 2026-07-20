@@ -430,6 +430,17 @@ app.get('/admin', requireAdmin, (req, res) => {
   res.set('Content-Type', 'text/html; charset=utf-8').send(shell('Admin Console', `
     <div class="bar"><span class="stat"><b>${users.length}</b> users</span><span class="stat"><b>${logins.filter(l=>l.result==='success').length}</b> logins shown</span><span class="stat"><b>${usageAll.length}</b> tool opens</span>
       <span class="dl"><a href="/log">Submissions</a> <a href="/admin/logins.csv">Login CSV</a> <a href="/admin/usage.csv">Usage CSV</a> <a href="/logout">Sign out</a></span></div>
+    <style>
+      .wrap h2.acch{cursor:pointer;user-select:none;display:flex;align-items:center;gap:9px;border-top:1px solid #e6e9f0;padding-top:20px;margin-top:26px;}
+      .wrap h2.acch:first-of-type{border-top:none;padding-top:0;}
+      .wrap h2.acch .chev{display:inline-flex;color:#DA2B1F;font-weight:900;font-size:16px;transition:transform .18s;transform:rotate(90deg);width:14px;}
+      .wrap h2.acch.collapsed .chev{transform:rotate(0deg);}
+      .wrap h2.acch .cc{margin-left:auto;font-size:11px;font-weight:600;color:#8a93a8;letter-spacing:0;text-transform:none;}
+      .accbody{padding-top:4px;}
+      .expandbar{display:flex;gap:14px;margin:2px 0 4px;}
+      .expandbar a{font-size:12px;font-weight:700;color:#2647b0;cursor:pointer;text-decoration:none;}
+    </style>
+    <div class="expandbar"><a onclick="accAll(true)">Expand all</a><a onclick="accAll(false)">Collapse all</a></div>
     <div class="wrap">
       <h2>Add a user</h2>
       <form class="add" method="post" action="/api/admin/add-user" onsubmit="return au(this)">
@@ -473,6 +484,26 @@ app.get('/admin', requireAdmin, (req, res) => {
       function saveLinks(){ var links=[]; document.querySelectorAll('.lrow').forEach(function(r){ var n=r.querySelector('.ln').value.trim(), u=r.querySelector('.lu').value.trim(), a=r.querySelector('.la').checked; if(n&&u) links.push({name:n,url:u,adminOnly:a}); }); post('/api/admin/links',{links:links}).then(function(j){ var m=document.getElementById('lmsg'); if(j.ok){ m.textContent='Saved '+(j.links.length)+' link(s) ✓'; } else { m.textContent=j.error||'Failed'; } }); }
       function saveToolAccess(){ var t=[]; document.querySelectorAll('.ta:checked').forEach(function(c){ t.push(c.value); }); post('/api/admin/tool-access',{adminOnly:t}).then(function(j){ var m=document.getElementById('tmsg'); if(j.ok){ m.textContent='Saved — '+j.adminOnly.length+' tool(s) admin-only ✓'; } else { m.textContent=j.error||'Failed'; } }); }
       document.querySelectorAll('form[action="/api/admin/toggle"],form[action="/api/admin/remove"]').forEach(function(f){ f.addEventListener('submit',function(e){ e.preventDefault(); var d={}; new FormData(f).forEach((v,k)=>d[k]=v); post(f.action,d).then(j=>{ if(j.ok) location.reload(); else alert(j.error||'Failed'); }); }); });
+      /* Collapsible admin sections (chevrons) */
+      var ACC=[];
+      (function(){
+        var hs=[].slice.call(document.querySelectorAll('.wrap > h2'));
+        hs.forEach(function(h,idx){
+          var body=document.createElement('div'); body.className='accbody';
+          var n=h.nextElementSibling;
+          while(n && n.tagName!=='H2'){ var nx=n.nextElementSibling; body.appendChild(n); n=nx; }
+          h.after(body);
+          h.classList.add('acch');
+          h.insertAdjacentHTML('afterbegin','<span class="chev" aria-hidden="true">›</span>');
+          var key='rrgadm_'+idx, saved=null; try{ saved=localStorage.getItem(key); }catch(e){}
+          var open = saved===null ? (idx<2) : saved==='1';
+          if(!open){ h.classList.add('collapsed'); body.style.display='none'; }
+          function set(o){ h.classList.toggle('collapsed',!o); body.style.display=o?'':'none'; try{ localStorage.setItem(key,o?'1':'0'); }catch(e){} }
+          h.addEventListener('click',function(ev){ if(ev.target.closest('a,button,input,select')) return; set(h.classList.contains('collapsed')); });
+          ACC.push(set);
+        });
+      })();
+      function accAll(o){ ACC.forEach(function(set){ set(o); }); }
     </script>`));
 });
 app.post('/api/admin/add-user', requireAdmin, (req, res) => {
