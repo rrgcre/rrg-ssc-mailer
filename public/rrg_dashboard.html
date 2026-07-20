@@ -98,6 +98,28 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
 .card h2{font-size:18px;font-weight:800;color:var(--navy);margin:0 0 6px;letter-spacing:-.01em;}
 .card p{font-size:13px;line-height:1.5;color:var(--muted);margin:0 0 18px;flex:1;}
 .open{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:13px;color:var(--navy);}
+.cardfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.guidebtn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:#98a1b5;font:inherit;font-size:12px;font-weight:700;padding:4px 0;}
+.guidebtn:hover{color:var(--red);}
+.guidebtn .ic{display:inline-flex;width:15px;height:15px;border:1.5px solid currentColor;border-radius:50%;align-items:center;justify-content:center;font-size:10px;font-style:italic;font-weight:800;font-family:Georgia,'Times New Roman',serif;}
+/* how-to-use modal */
+.gmodal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(7,16,41,.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);}
+.gmodal.show{display:flex;}
+.gcard{background:#fff;border-radius:16px;max-width:470px;width:100%;box-shadow:0 24px 70px rgba(4,10,30,.5);padding:26px 28px 24px;position:relative;max-height:88vh;overflow:auto;}
+.gx{position:absolute;top:12px;right:15px;background:none;border:none;font-size:25px;line-height:1;color:#9aa3b5;cursor:pointer;}
+.gx:hover{color:var(--navy);}
+.ghead{display:flex;align-items:center;gap:14px;margin-bottom:4px;padding-right:24px;}
+.ghead .gi{width:46px;height:46px;flex:none;border-radius:11px;background:#f2f5fb;display:flex;align-items:center;justify-content:center;}
+.ghead .gi .icon{width:26px;height:26px;}
+.gtag{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);font-weight:800;}
+.gcard h3{margin:2px 0 0;font-size:20px;font-weight:800;color:var(--navy);letter-spacing:-.01em;}
+.glabel{margin:18px 0 5px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8a93a8;font-weight:800;}
+.gcard p{margin:0;font-size:13.5px;line-height:1.55;color:#3a4256;}
+.gcard ol{margin:0;padding-left:20px;} .gcard ol li{font-size:13.5px;line-height:1.5;color:#3a4256;margin:5px 0;}
+.gtip{margin-top:16px;background:#fff5f4;border:1px solid #f6d4d0;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.5;color:#7a2b25;}
+.gtip b{color:var(--red);}
+.gopen{margin-top:20px;display:inline-block;background:var(--navy);color:#fff;text-decoration:none;border-radius:10px;padding:11px 22px;font-size:14px;font-weight:700;}
+.gopen:hover{background:#0b1a3a;}
 .open .arw{transition:transform .16s ease;}
 .card:hover .open .arw{transform:translateX(4px);}
 .open .arw svg{display:block;}
@@ -160,6 +182,14 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
   <span id="count"></span>
 </div>
 
+<div class="gmodal" id="gmodal" onclick="if(event.target===this)closeGuide()">
+  <div class="gcard">
+    <button class="gx" type="button" onclick="closeGuide()" aria-label="Close">&times;</button>
+    <div class="ghead"><span class="gi" id="gGi"></span><div><div class="gtag" id="gGtag"></div><h3 id="gGtitle"></h3></div></div>
+    <div id="gGbody"></div>
+  </div>
+</div>
+
 <script>
 /* =========================================================================
    RRG TOOLKIT — tool registry.
@@ -205,6 +235,94 @@ var TRACKS = [
   { key:'tenant',   label:'Tenant Representation', note:'find the space, prove the fit, track the tour, close the lease' },
 ];
 
+/* Per-tool background + how-to (the "How to use" button). Keyed by file. Edit freely. */
+var GUIDES = {
+  'seller_screening.html':{
+    background:"The first-call qualifier. It captures who the seller is, why they're selling, what the business does, and whether this is a lead worth RRG's time and effort.",
+    when:"On or right after your first real conversation with a prospective seller.",
+    how:["Enter the business, seller contact, market, and call date.","Work through motivation, financials, and expectations as you talk.","Mark the lead outcome, then submit — it saves to the RRG record.","Use “Draft email” if you want to send a recap or hand it off."],
+    tip:"Motivation is the whole ballgame. A seller who “might sell for the right number” is a different lead than one with a health, partnership, or burnout issue — note which, because it drives urgency, price, and everything downstream."
+  },
+  'valuation_questionnaire.html':{
+    background:"The deep listing profile. It gathers the operating detail, financials, lease terms, and the off-book factors an accurate valuation depends on.",
+    when:"Once a seller is qualified and engaged — before you build the BOV.",
+    how:["Complete each section with the seller: operations, financials, lease, facility.","Capture every add-back and anything that doesn't show on the books.","Save / print to PDF — this is the input the BOV is built from."],
+    tip:"Chase the add-backs hard. Owner salary, personal auto, one-time legal, above-market rent — every clean, documentable add-back raises adjusted earnings and the sale price. If you can't document it, don't count it."
+  },
+  'rrg_bov_builder.html':{
+    background:"The manual BOV builder in RRG's format — add-back bridge, multiple selection, valuation matrix, and go-to-market, all computed live.",
+    when:"When you want to build or fine-tune a BOV by hand, or edit one the AI drafted.",
+    how:["Enter trailing revenue and the add-back bridge to reach adjusted EBITDA.","Set the low / base / high multiple — the matrix and range update live.","Write the narrative sections, then print the client-ready BOV."],
+    tip:"The number lives and dies on the multiple. Anchor it to real comps for this concept and size, and be ready to defend the high end with exactly what supports it — brand, lease, growth, management depth."
+  },
+  'rrg_bov_generate.html':{
+    background:"The fast path. Upload the deal's documents and RRG's analyst drafts the full BOV — adjusted EBITDA, the multiple, the valuation matrix, and the narrative — for you to review.",
+    when:"When you have the financials and questionnaire in hand and want a defensible first draft in a minute, not an hour.",
+    how:["Upload the financials and the Valuation Questionnaire (add the lease if the business leases its space).","Click Build the BOV and give it ~30–60 seconds.","Review and edit the draft, then it's saved to your BOV Queue."],
+    tip:"It's a sharp first draft, not gospel. Always eyeball the add-backs and the multiple before you put your name on it — you're the broker, the AI is the analyst."
+  },
+  'rrg_bov_queue.html':{
+    background:"Your library of saved BOVs. Reopen any one, or promote it straight into a CIM with the valuation carried over.",
+    when:"Any time you need to find, revisit, or advance a BOV you've already built.",
+    how:["Find the BOV under My BOVs (admins see the whole team and can filter by rep).","Open to edit, or “Turn into CIM” to start the offering book.","Remove ones you no longer need."],
+    tip:"Promote to CIM the moment a seller signs the listing — the valuation flows straight over, so you're building the marketing book instead of re-keying the numbers."
+  },
+  'rrg_cim_builder.html':{
+    background:"The confidential offering book buyers actually read. It pulls the valuation from the BOV; you add the story, the photos, and the proof.",
+    when:"After the BOV, once you have a signed listing and you're taking the business to market.",
+    how:["Start from the BOV so the numbers carry over.","Add the concept story, packed-house and food photos, financial exhibits, and press.","Edit in place and print the client-ready PDF."],
+    tip:"Buyers buy the story and the upside, not just the EBITDA. Lead with what makes this concept hard to replicate — location, brand, lease, systems — then let the numbers confirm it."
+  },
+  'rrg_seller_attack_plan.html':{
+    background:"The go-to-market campaign for a listing — segmented buyer targets, the confidential marketing sequence, and the competitive-tension strategy.",
+    when:"Once the CIM is ready and you're driving the business into the market.",
+    how:["Build the segmented buyer target list: strategics, operators, PE / family offices, individuals.","Lay out the outreach sequence and timeline.","Set the tension strategy — how you'll create and hold competition."],
+    tip:"Competition is your only real leverage. Line up enough qualified buyers that no single one believes they're the only game — that's what moves both price and terms."
+  },
+  'rrg_commission_calculator.html':{
+    background:"The business-sale commission calculator on RRG's tiered rate card.",
+    when:"When you're modeling a deal's economics or confirming your payout at closing.",
+    how:["Enter the sale price and your split.","Read the gross, the blended rate, and the agent / house breakdown."],
+    tip:"Run it before you set the fee, not after. Knowing your blended rate at each price point keeps you sharp — and honest — in the listing conversation."
+  },
+  'docs/rrg-closing-transfer-list.pdf':{
+    background:"The closing checklist — every utility, license, permit, and vendor account the seller transfers to the buyer for a clean handover.",
+    when:"As the deal approaches closing, to run the operational handoff.",
+    how:["Open the PDF and work it line by line with buyer and seller.","Confirm each account is transferred, closed, or reassigned before funding."],
+    tip:"This is where sloppy deals lose goodwill. A buyer whose liquor license or POS lapses on day one remembers who dropped it — own this checklist and you protect the whole close."
+  },
+  'ssc_form.html':{
+    background:"The tenant's target blueprint — markets, space, economics, and timeline. The spec you build before any site search begins.",
+    when:"At the start of a tenant-rep engagement, before you tour anything.",
+    how:["Define the target markets and trade areas.","Set space size, condition, and the economic parameters.","Capture timeline and dealbreakers, then send / save the SSC."],
+    tip:"Nail the non-negotiables early. Knowing the hard no's — no second-gen space, must have a patio, must have a hood — saves everyone weeks of touring the wrong boxes."
+  },
+  'rrg_tenant_attack_plan.html':{
+    background:"The site-acquisition campaign — ranked submarkets, the target property and landlord hit list, the canvass, and the leverage strategy.",
+    when:"After the SSC, when you're actively hunting space for a tenant.",
+    how:["Rank submarkets against the SSC.","Build the target property and landlord list, including off-market.","Run the canvass and set your negotiating leverage."],
+    tip:"The best space is often not listed. Work the landlord hit list and the direct canvass — that's where you find deals before they ever hit the open market."
+  },
+  'rrg_site_fit.html':{
+    background:"Scores a specific space for a specific concept — projected sales, the occupancy-cost test, a weighted fit scorecard, and a go / no-go call.",
+    when:"When you have a real space in play and need to prove it works before writing an LOI.",
+    how:["Enter the space (size, rent, terms) and the concept's sales assumptions.","Review projected sales and the occupancy-cost ratio.","Read the fit score and the go / no-go."],
+    tip:"Occupancy cost is the guardrail. If rent + NNN blows past the healthy percentage of projected sales for the concept, the space is a trap no matter how pretty it shows."
+  },
+  'rrg_tour_tracker.html':{
+    background:"The record of every space you show a tenant — size, asking rent, their reaction, and a rating — so the shortlist ranks itself.",
+    when:"Throughout a tenant tour, logging each space as you see it.",
+    how:["Add each space with date, size, and asking rent.","Note the tenant's reaction and rate it 1–5.","Sort to surface the leaders."],
+    tip:"Log reactions in the tenant's own words. “Kitchen's too small” beats a bare 3/5 when you're steering them to a decision two weeks later."
+  },
+  'rrg_lease_commission_calculator.html':{
+    background:"The lease commission calculator — commission on total consideration across the full term.",
+    when:"When you're modeling a lease deal's payout or confirming it at signing.",
+    how:["Enter SF, rent, escalation, and term.","Apply any step-down schedule and your split.","Read total consideration and the agent / house breakdown."],
+    tip:"Escalations compound your fee. Model the full term with the bumps in — the back years of a long lease are where the commission actually adds up."
+  }
+};
+
 var ICONS = {
   spark:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M24 7l3.2 9.6L37 20l-9.8 3.4L24 33l-3.2-9.6L11 20l9.8-3.4L24 7Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><path d="M37 30l1.3 3.7L42 35l-3.7 1.3L37 40l-1.3-3.7L32 35l3.7-1.3L37 30Z" fill="#DA2B1F" stroke="#DA2B1F" stroke-width="1" stroke-linejoin="round"/></svg>',
   queue:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M24 6 8 14l16 8 16-8-16-8Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 24l16 8 16-8" stroke="#DA2B1F" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 32l16 8 16-8" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/></svg>',
@@ -241,9 +359,29 @@ function cardEl(t){
     '<div class="cardtop">'+(ICONS[t.icon]||ICONS.doc)+'<span class="tag '+tagclass+'">'+esc(t.tag)+'</span></div>'+
     '<h2>'+esc(t.name)+'</h2>'+
     '<p>'+esc(t.desc)+'</p>'+
-    '<span class="open">'+cta+' '+ARROW+'</span>';
+    '<div class="cardfoot"><span class="open">'+cta+' '+ARROW+'</span>'+
+      '<button class="guidebtn" type="button"><span class="ic">i</span> How to use</button></div>';
+  var gb=a.querySelector('.guidebtn');
+  if(gb) gb.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); openGuide(t); });
   return a;
 }
+function openGuide(t){
+  var g=GUIDES[t.file]||{};
+  document.getElementById('gGi').innerHTML=ICONS[t.icon]||ICONS.doc;
+  document.getElementById('gGtag').textContent=t.tag||'';
+  document.getElementById('gGtitle').textContent=t.name;
+  var html='';
+  html+='<div class="glabel">Background</div><p>'+esc(g.background||t.desc||'')+'</p>';
+  if(g.when){ html+='<div class="glabel">When to use it</div><p>'+esc(g.when)+'</p>'; }
+  if(g.how&&g.how.length){ html+='<div class="glabel">How to run it</div><ol>'+g.how.map(function(s){return '<li>'+esc(s)+'</li>';}).join('')+'</ol>'; }
+  if(g.tip){ html+='<div class="gtip"><b>Pro tip — </b>'+esc(g.tip)+'</div>'; }
+  var cta=t.pdf?'Open PDF':'Open tool';
+  html+='<a class="gopen" href="./'+t.file+'"'+(t.pdf?' target="_blank" rel="noopener"':'')+'>'+cta+' →</a>';
+  document.getElementById('gGbody').innerHTML=html;
+  document.getElementById('gmodal').classList.add('show');
+}
+function closeGuide(){ document.getElementById('gmodal').classList.remove('show'); }
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeGuide(); });
 
 function buildTiles(isAdmin, adminOnly){
   adminOnly = adminOnly || [];
