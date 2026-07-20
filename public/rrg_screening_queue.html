@@ -68,7 +68,7 @@ tr:hover td{background:#fbfcfe;}
   <div class="card">
     <div class="hd">
       <div class="tabs" id="scopeTabs"><button class="tab on" id="tabMine" onclick="setScope('mine')">Mine</button><button class="tab" id="tabAll" onclick="setScope('all')">Team</button></div>
-      <div class="tabs"><button class="tab on" id="tabAwait" onclick="setView('await')">Awaiting Questionnaire</button><button class="tab" id="tabAllv" onclick="setView('all')">All</button></div>
+      <div class="tabs"><button class="tab on" id="tabAllv" onclick="setView('all')">All</button><button class="tab" id="tabAwait" onclick="setView('await')">Awaiting Questionnaire</button></div>
       <select id="userFilter" class="ufilter" style="display:none" onchange="onUserFilter()"></select>
       <span class="cnt" id="cnt"></span><a class="home" href="./index.html">← Dashboard</a>
     </div>
@@ -98,7 +98,7 @@ tr:hover td{background:#fbfcfe;}
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
-var ALL=[], ME={username:'',name:'',role:''}, SCOPE='mine', VIEW='await';
+var ALL=[], ME={username:'',name:'',role:''}, SCOPE='mine', VIEW='all';
 function setScope(t){ SCOPE=t; document.getElementById('tabMine').classList.toggle('on',t==='mine'); document.getElementById('tabAll').classList.toggle('on',t==='all'); paint(); }
 function setView(v){ VIEW=v; document.getElementById('tabAwait').classList.toggle('on',v==='await'); document.getElementById('tabAllv').classList.toggle('on',v==='all'); paint(); }
 function isMine(s){ return (s.byUser && s.byUser===ME.username) || (!s.byUser && s.by && s.by===ME.name); }
