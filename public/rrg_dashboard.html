@@ -198,8 +198,8 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
    ========================================================================= */
 var TOOLS = [
   /* ---- Seller Engagement pipeline (ordered by step) ---- */
-  { name:'Call Log', tag:'Seller', file:'rrg_screening_queue.html', icon:'funnel', track:'pipeline', step:1,
-    desc:"Every seller call we've made — log a new call, then advance the strong leads straight to the Valuation Questionnaire." },
+  { name:'Call Screening Log', tag:'Seller', file:'rrg_screening_queue.html', icon:'funnel', track:'pipeline', step:1,
+    desc:"Every seller call we've made — log a new call, screen it, then pass or advance the strong leads to the Valuation Questionnaire." },
   { name:'Valuation Questionnaire', tag:'Seller', file:'valuation_questionnaire.html', icon:'gauge', track:'pipeline', step:2,
     desc:"The deep listing profile and valuation tool — operations, financials, lease, facility, and the off-book factors that move value." },
   { name:"Broker's Opinion of Value", tag:'Value', file:'rrg_bov_builder.html', icon:'seal', track:'pipeline', step:3,
@@ -238,9 +238,9 @@ var TRACKS = [
 /* Per-tool background + how-to (the "How to use" button). Keyed by file. Edit freely. */
 var GUIDES = {
   'rrg_screening_queue.html':{
-    background:"Your seller call log. Every call you make lands here with its outcome; the strong leads advance from here to the Valuation Questionnaire. Toggle “Awaiting Questionnaire” to see just the Advance leads that still need one, or “All” to see every call (admins can view the whole team).",
-    when:"Any time you take a call with a prospective seller, or when you're ready to move approved leads forward.",
-    how:["Click “+ New Call” to log a fresh call.","Back in the log, find an Advance (strong) lead.","Click “Advance to Questionnaire →” — it opens the Valuation Questionnaire pre-filled with the basics and marks the call moved.","Edit, Pass, or Remove any call; use the Mine / Team and Awaiting / All toggles and the search / sort to work your list."],
+    background:"Your seller call screening log — every call you make, in one place. Four views control the list: All (every call you've ever made), Waiting (still needs a pass-or-advance decision), Advanced (moved to the Valuation Questionnaire), and Passed. Admins can view the whole team.",
+    when:"Any time you take a call with a prospective seller, or when you're ready to work through your list.",
+    how:["Click “+ New Call” to log a fresh call.","Screen it, then use the row buttons: Advance to Questionnaire, Pass, Edit, or Remove.","Switch views (All / Waiting / Advanced / Passed) and use search, sort, Print, or Export CSV to work the log.","Advancing opens the Valuation Questionnaire pre-filled with the basics."],
     tip:"Motivation is the whole ballgame. A seller who “might sell for the right number” is a different lead than one with a health, partnership, or burnout issue — note it on the call, because it drives which leads you advance first."
   },
   'seller_screening.html':{

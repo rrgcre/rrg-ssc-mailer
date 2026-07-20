@@ -55,7 +55,22 @@ tr:hover td{background:#fbfcfe;}
 .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
 .empty .np{margin-top:16px;display:inline-block;background:var(--red);color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:10px;}
 .foot{max-width:1080px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+.tool{border:1px solid var(--line);background:#fff;color:var(--navy);font:inherit;font-size:12px;font-weight:700;padding:8px 12px;border-radius:8px;cursor:pointer;}
+.tool:hover{border-color:#9fb0cc;}
+#printhead{display:none;}
 @media(max-width:720px){ th.hide,td.hide{display:none;} .top{padding:24px 20px;} h1{font-size:24px;} .newbtn{position:static;margin-top:16px;} }
+@media print{
+  body{background:#fff;}
+  .top,.hd,.hd2,.foot,.rrg-back,.newbtn{display:none!important;}
+  .wrap{margin:0;padding:0;max-width:none;}
+  .card{border:none;box-shadow:none;border-radius:0;}
+  #printhead{display:block!important;padding:0 0 12px;}
+  #printhead .ph-title{font-size:20px;font-weight:800;color:#000E31;}
+  #printhead .ph-sub{font-size:12px;color:#555;margin-top:3px;}
+  th:last-child,td:last-child{display:none;}   /* hide Actions column */
+  th.hide,td.hide{display:table-cell!important;}
+  tr{break-inside:avoid;}
+}
 </style>
 </head>
 <body>
@@ -63,28 +78,25 @@ tr:hover td{background:#fbfcfe;}
   <a class="newbtn" href="./seller_screening.html">+ New Call</a>
   <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Seller Pipeline · Step 1</div>
-  <h1>Call Log</h1>
-  <div class="sub">Every seller call we've made, in one log. Log a new call, then advance the strong leads to the Valuation Questionnaire.</div>
+  <h1>Call Screening Log</h1>
+  <div class="sub">Every seller call we've made, in one log. Log a new call, screen it, then pass or advance it to the Valuation Questionnaire.</div>
 </div>
 
 <div class="wrap">
   <div class="card">
     <div class="hd">
       <div class="tabs" id="scopeTabs"><button class="tab on" id="tabMine" onclick="setScope('mine')">Mine</button><button class="tab" id="tabAll" onclick="setScope('all')">Team</button></div>
-      <div class="tabs"><button class="tab on" id="tabAllv" onclick="setView('all')">All</button><button class="tab" id="tabAwait" onclick="setView('await')">Awaiting Questionnaire</button></div>
+      <div class="tabs">
+        <button class="tab on" id="v_all" onclick="setView('all')">All</button>
+        <button class="tab" id="v_waiting" onclick="setView('waiting')">Waiting</button>
+        <button class="tab" id="v_advanced" onclick="setView('advanced')">Advanced</button>
+        <button class="tab" id="v_passed" onclick="setView('passed')">Passed</button>
+      </div>
       <select id="userFilter" class="ufilter" style="display:none" onchange="onUserFilter()"></select>
       <span class="cnt" id="cnt"></span><a class="home" href="./index.html">← Dashboard</a>
     </div>
     <div class="hd hd2">
       <input id="q" class="search" placeholder="Search business, contact, or market…" oninput="paint()">
-      <span class="lbl">Status</span>
-      <select id="statusFilter" class="ufilter" onchange="paint()">
-        <option value="">All</option>
-        <option value="advance">Advance</option>
-        <option value="nurture">Nurture</option>
-        <option value="pass">Pass</option>
-        <option value="refer">Refer Out</option>
-      </select>
       <span class="lbl">Sort</span>
       <select id="sortBy" class="ufilter" onchange="paint()">
         <option value="new">Newest first</option>
@@ -92,7 +104,10 @@ tr:hover td{background:#fbfcfe;}
         <option value="biz">Business A–Z</option>
         <option value="status">Lead status</option>
       </select>
+      <button class="tool" onclick="printLog()">🖨 Print</button>
+      <button class="tool" onclick="exportCsv()">↓ Export CSV</button>
     </div>
+    <div id="printhead"></div>
     <div id="body"></div>
   </div>
 </div>
@@ -101,9 +116,11 @@ tr:hover td{background:#fbfcfe;}
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
-var ALL=[], ME={username:'',name:'',role:''}, SCOPE='mine', VIEW='all';
+var ALL=[], ME={username:'',name:'',role:''}, SCOPE='mine', VIEW='all', CURRENT=[];
+var VIEWS=['all','waiting','advanced','passed'];
 function setScope(t){ SCOPE=t; document.getElementById('tabMine').classList.toggle('on',t==='mine'); document.getElementById('tabAll').classList.toggle('on',t==='all'); paint(); }
-function setView(v){ VIEW=v; document.getElementById('tabAwait').classList.toggle('on',v==='await'); document.getElementById('tabAllv').classList.toggle('on',v==='all'); paint(); }
+function setView(v){ VIEW=v; VIEWS.forEach(function(x){ document.getElementById('v_'+x).classList.toggle('on',x===v); }); paint(); }
+function stateOf(s){ return s.processed?'Advanced':(s.decision==='passed'?'Passed':'Waiting'); }
 function isMine(s){ return (s.byUser && s.byUser===ME.username) || (!s.byUser && s.by && s.by===ME.name); }
 function onUserFilter(){ var uf=document.getElementById('userFilter'); if(uf.value){ setScope('all'); } else { paint(); } }
 function buildUserFilter(){
@@ -119,8 +136,9 @@ function paint(){
   var list=ALL.slice();
   if(SCOPE==='mine'){ list=list.filter(isMine); }
   else { var uf=document.getElementById('userFilter'); var val=(ME.role==='admin'&&uf)?uf.value:''; if(val) list=list.filter(function(s){ return (s.byUser||s.by)===val; }); }
-  if(VIEW==='await'){ list=list.filter(function(s){ return s.status==='advance' && !s.processed && s.decision!=='passed'; }); }
-  var sf=(document.getElementById('statusFilter')||{}).value||''; if(sf) list=list.filter(function(s){ return s.status===sf; });
+  if(VIEW==='waiting') list=list.filter(function(s){ return !s.processed && s.decision!=='passed'; });
+  else if(VIEW==='advanced') list=list.filter(function(s){ return s.processed; });
+  else if(VIEW==='passed') list=list.filter(function(s){ return s.decision==='passed'; });
   var q=(((document.getElementById('q')||{}).value)||'').trim().toLowerCase();
   if(q) list=list.filter(function(s){ return ((s.business||'')+' '+(s.contact||'')+' '+(s.market||'')).toLowerCase().indexOf(q)>=0; });
   var sb=((document.getElementById('sortBy')||{}).value)||'new';
@@ -130,7 +148,22 @@ function paint(){
     var ta=new Date(a.createdAt||0).getTime(), tb=new Date(b.createdAt||0).getTime();
     return sb==='old' ? ta-tb : tb-ta;
   });
+  CURRENT=list;
   render(list);
+}
+function printLog(){
+  var label={all:'All calls',waiting:'Waiting for pass or advance',advanced:'Advanced to questionnaire',passed:'Passed'}[VIEW]||'All calls';
+  var when=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('printhead').innerHTML='<div class="ph-title">RRG Call Screening Log</div><div class="ph-sub">'+esc(label)+' · '+CURRENT.length+' call'+(CURRENT.length===1?'':'s')+' · '+when+'</div>';
+  window.print();
+}
+function csvCell(v){ v=(v==null?'':String(v)); return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
+function exportCsv(){
+  var head=['Business','Contact','Market','Call Date','Lead Status','State','Rep'];
+  var lines=[head.join(',')];
+  CURRENT.forEach(function(s){ lines.push([s.business,s.contact,s.market,s.date,s.statusText,stateOf(s),s.by].map(csvCell).join(',')); });
+  var blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='rrg-call-log.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 function badge(s){
   var m={advance:['b-advance','Advance'],nurture:['b-nurture','Nurture'],pass:['b-pass','Pass'],refer:['b-refer','Refer Out']};
@@ -141,9 +174,13 @@ function render(list){
   var body=document.getElementById('body'), cnt=document.getElementById('cnt');
   cnt.textContent = list.length ? (list.length+(VIEW==='await'?' awaiting':'')) : '';
   if(!list.length){
-    body.innerHTML='<div class="empty"><b>'+(VIEW==='await'?'No calls awaiting a questionnaire.':'No calls logged yet.')+'</b>'+
-      (VIEW==='await'?'Strong leads marked <b style="display:inline">Advance</b> show up here, ready for the Valuation Questionnaire.':'Log your first call and it lands here.')+
-      '<br><a class="np" href="./seller_screening.html">+ New Call</a></div>';
+    var em={
+      all:['No calls logged yet.','Log your first call and it lands here.'],
+      waiting:['Nothing waiting.','Every call has been passed or advanced. Nice and clean.'],
+      advanced:['Nothing advanced yet.','Calls you move to the Valuation Questionnaire show up here.'],
+      passed:['No passed calls.','Calls you pass on show up here — you can always Reconsider them.']
+    }[VIEW]||['No calls.',''];
+    body.innerHTML='<div class="empty"><b>'+em[0]+'</b>'+em[1]+'<br><a class="np" href="./seller_screening.html">+ New Call</a></div>';
     return;
   }
   var rows=list.map(function(s){
