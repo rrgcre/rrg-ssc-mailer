@@ -210,31 +210,45 @@ function cardEl(t){
   return a;
 }
 
-TRACKS.forEach(function(tr){
-  var items=TOOLS.filter(function(t){return t.track===tr.key;});
-  if(!items.length) return;
-  if(tr.flow) items.sort(function(a,b){return (a.step||a.sort||0)-(b.step||b.sort||0);});
-  var head=document.createElement('div');
-  head.className='trackhead';
-  head.innerHTML='<span class="tl">'+esc(tr.label)+'</span><span class="tn">'+esc(tr.note)+'</span>';
-  grid.appendChild(head);
-  var g=document.createElement('div');
-  g.className='grid'+(tr.flow?' flow':'');
-  items.forEach(function(t){ g.appendChild(cardEl(t)); });
-  if(tr.key==='tenant'){
-    var add=document.createElement('div');
-    add.className='addcard';
-    add.innerHTML='<div class="plus">+</div><div class="t">More tools coming</div><div class="s">This toolkit grows as RRG adds forms.</div>';
-    g.appendChild(add);
-  }
-  grid.appendChild(g);
-});
-
-document.getElementById('lbl').textContent = TOOLS.length+' tools · '+TRACKS.length+' tracks';
-document.getElementById('count').textContent = TOOLS.length+' tools · updated live';
+function buildTiles(isAdmin, adminOnly){
+  adminOnly = adminOnly || [];
+  function visible(t){ return isAdmin || adminOnly.indexOf(t.file)<0; }
+  grid.innerHTML='';
+  TRACKS.forEach(function(tr){
+    var items=TOOLS.filter(function(t){return t.track===tr.key && visible(t);});
+    if(!items.length) return;
+    if(tr.flow) items.sort(function(a,b){return (a.step||a.sort||0)-(b.step||b.sort||0);});
+    var head=document.createElement('div');
+    head.className='trackhead';
+    head.innerHTML='<span class="tl">'+esc(tr.label)+'</span><span class="tn">'+esc(tr.note)+'</span>';
+    grid.appendChild(head);
+    var g=document.createElement('div');
+    g.className='grid'+(tr.flow?' flow':'');
+    items.forEach(function(t){ g.appendChild(cardEl(t)); });
+    if(tr.key==='tenant'){
+      var add=document.createElement('div');
+      add.className='addcard';
+      add.innerHTML='<div class="plus">+</div><div class="t">More tools coming</div><div class="s">This toolkit grows as RRG adds forms.</div>';
+      g.appendChild(add);
+    }
+    grid.appendChild(g);
+  });
+  var shown=TOOLS.filter(visible).length;
+  document.getElementById('lbl').textContent = shown+' tools · '+TRACKS.length+' tracks';
+  document.getElementById('count').textContent = shown+' tools · updated live';
+}
 
 /* ---- server origin (used to auto-list agreements) ---- */
 window.RRG_API = window.RRG_API || (String(location.protocol).indexOf('http')===0 ? location.origin : '');
+
+/* ---- role-aware: hide admin-only tools from reps ---- */
+(function(){
+  var api=window.RRG_API||'';
+  if(!api){ buildTiles(true, []); return; }   // standalone/file preview shows all
+  fetch(api.replace(/\/$/,'')+'/api/session').then(function(r){return r.json();}).then(function(s){
+    buildTiles(s&&s.role==='admin', (s&&s.adminOnlyTools)||[]);
+  }).catch(function(){ buildTiles(true, []); });
+})();
 
 /* ---- Quick Links — admin-managed, fetched from the server ---- */
 function renderQuickLinks(list){

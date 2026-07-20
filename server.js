@@ -22,6 +22,31 @@ function saveBovs(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_
 function newBovId() { return 'bov_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
+// Date + time in Central, e.g. "7/20/26, 1:12 PM" (falls back if ICU is limited).
+function fmtWhen(ts) {
+  const t = new Date(ts);
+  if (isNaN(t.getTime())) return esc(ts);
+  try {
+    return t.toLocaleString('en-US', { timeZone: 'America/Chicago', month: 'numeric', day: 'numeric', year: '2-digit', hour: 'numeric', minute: '2-digit', hour12: true });
+  } catch (e) { return t.toISOString().replace('T', ' ').slice(0, 16) + ' UTC'; }
+}
+
+// Tools that can be marked admin-only (name + file), for the admin toggle UI.
+const TOOL_LIST = [
+  { name: 'Site Selection Criteria', file: 'ssc_form.html' },
+  { name: 'Seller Screening', file: 'seller_screening.html' },
+  { name: 'Valuation Questionnaire', file: 'valuation_questionnaire.html' },
+  { name: "Broker's Opinion of Value", file: 'rrg_bov_builder.html' },
+  { name: 'BOV Queue', file: 'rrg_bov_queue.html' },
+  { name: 'CIM Builder', file: 'rrg_cim_builder.html' },
+  { name: 'Market Attack Plan (Sell)', file: 'rrg_seller_attack_plan.html' },
+  { name: 'Market Attack Plan (Tenant)', file: 'rrg_tenant_attack_plan.html' },
+  { name: 'Site & Concept Fit', file: 'rrg_site_fit.html' },
+  { name: 'Tour Tracker', file: 'rrg_tour_tracker.html' },
+  { name: 'Sale Commission', file: 'rrg_commission_calculator.html' },
+  { name: 'Lease Commission', file: 'rrg_lease_commission_calculator.html' },
+];
+
 // Ensure an admin account exists on boot (from ADMIN_USER / ADMIN_PASS).
 auth.seedAdmin();
 
@@ -86,6 +111,21 @@ app.post('/api/login', (req, res) => {
 });
 
 app.get('/logout', (_req, res) => { clearSessionCookie(res); res.redirect('/login?e=1'); });
+
+// Who am I + which tools are admin-only (dashboard uses this to hide restricted tiles).
+app.get('/api/session', (req, res) => res.json({
+  ok: true, username: req.user.username, name: req.user.name, role: req.user.role,
+  adminOnlyTools: auth.loadToolAccess(),
+}));
+
+// Block admin-only tool files for non-admins (even by direct URL).
+app.use((req, res, next) => {
+  if (req.method === 'GET' && /\.html$/.test(req.path) && !(req.user && req.user.role === 'admin')) {
+    const file = req.path.replace(/^\//, '');
+    if (auth.loadToolAccess().indexOf(file) >= 0) return res.redirect('/');
+  }
+  next();
+});
 
 // Log which tool a signed-in rep opens (dashboard + any *.html tool page).
 app.use((req, res, next) => {
@@ -195,8 +235,7 @@ app.get('/log', (_req, res) => {
   const rows = store.readAll().slice().reverse();
   const nSsc = rows.filter(r => r.form === 'ssc').length, nSeller = rows.filter(r => r.form === 'seller').length;
   const body = rows.map(r => {
-    const t = new Date(r.timestamp);
-    const when = isNaN(t.getTime()) ? esc(r.timestamp) : t.toLocaleString('en-US', { timeZone: 'America/Chicago' });
+    const when = fmtWhen(r.timestamp);
     const badge = r.form === 'seller' ? '<span class="tag seller">Seller</span>' : '<span class="tag ssc">SSC</span>';
     return `<tr><td class="ts">${when}</td><td>${badge}</td><td class="nm">${esc(r.name) || '—'}</td><td>${esc(r.market) || '—'}</td><td>${esc(r.rep) || '—'}</td><td class="hl">${esc(r.highlights) || '—'}</td></tr>`;
   }).join('') || '<tr><td colspan="6" class="empty">No submissions logged yet.</td></tr>';
@@ -212,6 +251,10 @@ app.get('/admin', requireAdmin, (req, res) => {
   const logins = auth.readLogins().slice(-300).reverse();
   const usageAll = auth.readUsage();
   const links = auth.loadLinks();
+  const adminOnlyTools = auth.loadToolAccess();
+  const toolAccessRows = TOOL_LIST.map(t =>
+    `<label class="tacc"><input type="checkbox" class="ta" value="${esc(t.file)}"${adminOnlyTools.indexOf(t.file) >= 0 ? ' checked' : ''}> ${esc(t.name)}</label>`
+  ).join('');
   const linkRows = Array.from({ length: 20 }, (_, i) => {
     const l = links[i] || { name: '', url: '', adminOnly: false };
     return `<div class="lrow"><input class="ln" placeholder="Name (e.g. CoStar)" value="${esc(l.name)}"><input class="lu" placeholder="https://…" value="${esc(l.url)}"><label class="lchk"><input type="checkbox" class="la"${l.adminOnly ? ' checked' : ''}> Admin only</label></div>`;
@@ -223,11 +266,9 @@ app.get('/admin', requireAdmin, (req, res) => {
     .map(([t, n]) => `<tr><td class="nm">${esc(t)}</td><td>${n}</td></tr>`).join('') || '<tr><td colspan="2" class="empty">No tool opens yet.</td></tr>';
   const userSummary = Object.entries(byUser).sort((a, b) => b[1] - a[1])
     .map(([u, n]) => `<tr><td class="mono">${esc(u)}</td><td>${n}</td></tr>`).join('') || '<tr><td colspan="2" class="empty">—</td></tr>';
-  const usageRecent = usageAll.slice(-200).reverse().map(u => {
-    const t = new Date(u.timestamp);
-    const when = isNaN(t.getTime()) ? esc(u.timestamp) : t.toLocaleString('en-US', { timeZone: 'America/Chicago' });
-    return `<tr><td class="ts">${when}</td><td class="mono">${esc(u.username)}</td><td class="nm">${esc(u.tool)}</td><td class="mono">${esc(u.ip)}</td></tr>`;
-  }).join('') || '<tr><td colspan="4" class="empty">No tool activity yet.</td></tr>';
+  const usageRecent = usageAll.slice(-200).reverse().map(u =>
+    `<tr><td class="ts">${fmtWhen(u.timestamp)}</td><td class="mono">${esc(u.username)}</td><td class="nm">${esc(u.tool)}</td><td class="mono">${esc(u.ip)}</td></tr>`
+  ).join('') || '<tr><td colspan="4" class="empty">No tool activity yet.</td></tr>';
   const urows = users.map(u => `<tr>
       <td class="nm">${esc(u.name)} ${u.role === 'admin' ? '<span class="tag admin">Admin</span>' : ''} ${u.disabled ? '<span class="tag off">Disabled</span>' : ''}</td>
       <td class="mono">${esc(u.username)}</td>
@@ -237,11 +278,9 @@ app.get('/admin', requireAdmin, (req, res) => {
         <form method="post" action="/api/admin/toggle"><input type="hidden" name="username" value="${esc(u.username)}"><input type="hidden" name="disabled" value="${u.disabled ? '0' : '1'}"><button>${u.disabled ? 'Enable' : 'Disable'}</button></form>
         <form method="post" action="/api/admin/remove" onsubmit="return confirm('Remove ${esc(u.username)}?')"><input type="hidden" name="username" value="${esc(u.username)}"><button class="danger">Remove</button></form>
       </td></tr>`).join('') || '<tr><td colspan="4" class="empty">No users yet.</td></tr>';
-  const lrows = logins.map(l => {
-    const t = new Date(l.timestamp);
-    const when = isNaN(t.getTime()) ? esc(l.timestamp) : t.toLocaleString('en-US', { timeZone: 'America/Chicago' });
-    return `<tr><td class="ts">${when}</td><td class="mono">${esc(l.username) || '—'}</td><td>${l.result === 'success' ? '<span class="tag ok">Success</span>' : '<span class="tag off">Failed</span>'}</td><td class="mono">${esc(l.ip)}</td></tr>`;
-  }).join('') || '<tr><td colspan="4" class="empty">No logins recorded yet.</td></tr>';
+  const lrows = logins.map(l =>
+    `<tr><td class="ts">${fmtWhen(l.timestamp)}</td><td class="mono">${esc(l.username) || '—'}</td><td>${l.result === 'success' ? '<span class="tag ok">Success</span>' : '<span class="tag off">Failed</span>'}</td><td class="mono">${esc(l.ip)}</td></tr>`
+  ).join('') || '<tr><td colspan="4" class="empty">No logins recorded yet.</td></tr>';
   res.set('Content-Type', 'text/html; charset=utf-8').send(shell('Admin Console', `
     <div class="bar"><span class="stat"><b>${users.length}</b> users</span><span class="stat"><b>${logins.filter(l=>l.result==='success').length}</b> logins shown</span><span class="stat"><b>${usageAll.length}</b> tool opens</span>
       <span class="dl"><a href="/log">Submissions</a> <a href="/admin/logins.csv">Login CSV</a> <a href="/admin/usage.csv">Usage CSV</a> <a href="/logout">Sign out</a></span></div>
@@ -256,6 +295,12 @@ app.get('/admin', requireAdmin, (req, res) => {
       </form>
       <h2>Users</h2>
       <table><thead><tr><th>Name</th><th>Username</th><th>Added</th><th>Actions</th></tr></thead><tbody>${urows}</tbody></table>
+
+      <h2 style="margin-top:34px">Tool Access <span class="sub2">— check a tool to make it admin-only (hidden from reps, and blocked by direct link)</span></h2>
+      <div class="links">
+        <div class="taccgrid">${toolAccessRows}</div>
+        <div style="margin-top:10px"><button class="primary" onclick="saveToolAccess()">Save tool access</button> <span id="tmsg" class="sub2"></span></div>
+      </div>
 
       <h2 style="margin-top:34px">Dashboard Quick Links <span class="sub2">— up to 20; check "Admin only" to hide a link from reps</span></h2>
       <div class="links">${linkRows}
@@ -276,6 +321,7 @@ app.get('/admin', requireAdmin, (req, res) => {
       function au(f){ post('/api/admin/add-user',{name:f.name.value,username:f.username.value,password:f.password.value,role:f.role.value}).then(j=>{ if(j.ok){location.reload();} else alert(j.error||'Failed'); }); return false; }
       function rp(f){ var p=prompt('New password for '+f.username.value+' (min 6):'); if(!p) return false; post('/api/admin/reset',{username:f.username.value,password:p}).then(j=>{ alert(j.ok?'Password reset.':(j.error||'Failed')); }); return false; }
       function saveLinks(){ var links=[]; document.querySelectorAll('.lrow').forEach(function(r){ var n=r.querySelector('.ln').value.trim(), u=r.querySelector('.lu').value.trim(), a=r.querySelector('.la').checked; if(n&&u) links.push({name:n,url:u,adminOnly:a}); }); post('/api/admin/links',{links:links}).then(function(j){ var m=document.getElementById('lmsg'); if(j.ok){ m.textContent='Saved '+(j.links.length)+' link(s) ✓'; } else { m.textContent=j.error||'Failed'; } }); }
+      function saveToolAccess(){ var t=[]; document.querySelectorAll('.ta:checked').forEach(function(c){ t.push(c.value); }); post('/api/admin/tool-access',{adminOnly:t}).then(function(j){ var m=document.getElementById('tmsg'); if(j.ok){ m.textContent='Saved — '+j.adminOnly.length+' tool(s) admin-only ✓'; } else { m.textContent=j.error||'Failed'; } }); }
       document.querySelectorAll('form[action="/api/admin/toggle"],form[action="/api/admin/remove"]').forEach(function(f){ f.addEventListener('submit',function(e){ e.preventDefault(); var d={}; new FormData(f).forEach((v,k)=>d[k]=v); post(f.action,d).then(j=>{ if(j.ok) location.reload(); else alert(j.error||'Failed'); }); }); });
     </script>`));
 });
@@ -293,6 +339,10 @@ app.post('/api/admin/remove', requireAdmin, (req, res) => {
 });
 app.post('/api/admin/links', requireAdmin, (req, res) => {
   try { const saved = auth.saveLinks((req.body || {}).links || []); res.json({ ok: true, links: saved }); }
+  catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
+});
+app.post('/api/admin/tool-access', requireAdmin, (req, res) => {
+  try { const saved = auth.saveToolAccess((req.body || {}).adminOnly || []); res.json({ ok: true, adminOnly: saved }); }
   catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
 });
 app.get('/admin/logins.csv', requireAdmin, (_req, res) => {
@@ -326,6 +376,8 @@ function chrome() {
 .links{background:var(--wash);border:1px solid var(--line);border-radius:10px;padding:14px;max-width:640px;}
 .lrow{display:flex;gap:10px;margin-bottom:8px;align-items:center;} .lrow .ln{flex:0 0 180px;} .lrow .lu{flex:1;}
 .lchk{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);font-weight:600;white-space:nowrap;} .lchk input{width:15px;height:15px;accent-color:var(--red);}
+.taccgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 16px;}
+.tacc{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink);font-weight:600;cursor:pointer;} .tacc input{width:15px;height:15px;accent-color:var(--red);}
 .links input{border:1px solid #cfd6e2;border-radius:7px;padding:8px 10px;font:inherit;font-size:13px;min-width:0;}
 .links button{border:1px solid var(--navy);background:var(--navy);color:#fff;font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:7px;cursor:pointer;}
 table{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px;} th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle;}

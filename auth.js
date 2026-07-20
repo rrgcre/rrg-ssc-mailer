@@ -54,6 +54,16 @@ const DEFAULT_LINKS = [
   { name: 'Alcohol Sales', url: 'https://alcoholsales.com' },
 ];
 function loadLinks() { try { return JSON.parse(fs.readFileSync(LINKS, 'utf8')); } catch (e) { return DEFAULT_LINKS.slice(); } }
+
+/* ---------- admin-only tool access (which tool files reps can't see) ---------- */
+const TOOLACC = path.join(DATA_DIR, 'tool_access.json');
+function loadToolAccess() { try { const o = JSON.parse(fs.readFileSync(TOOLACC, 'utf8')); return Array.isArray(o.adminOnly) ? o.adminOnly : []; } catch (e) { return []; } }
+function saveToolAccess(list) {
+  ensureDir();
+  const clean = (Array.isArray(list) ? list : []).map(f => String(f || '').trim()).filter(f => /^[\w.-]+\.html$/.test(f)).slice(0, 50);
+  fs.writeFileSync(TOOLACC, JSON.stringify({ adminOnly: clean }, null, 2));
+  return clean;
+}
 function saveLinks(list) {
   ensureDir();
   const clean = (Array.isArray(list) ? list : []).map(l => ({
@@ -217,5 +227,5 @@ module.exports = {
   DATA_DIR, LOGIN_COLS, LOG_CSV, USAGE_COLS, USAGE_CSV, SESSION_DAYS,
   loadUsers, findUser, addUser, removeUser, resetPassword, setDisabled, seedAdmin, authenticate,
   logLogin, readLogins, logUsage, readUsage, toolName, makeSession, readSession,
-  loadLinks, saveLinks,
+  loadLinks, saveLinks, loadToolAccess, saveToolAccess,
 };
