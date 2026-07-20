@@ -78,16 +78,64 @@ function saveLinks(list) {
 function normUser(u) { return String(u || '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, ''); }
 function findUser(username) { const n = normUser(username); return loadUsers().find(u => u.username === n) || null; }
 
-function addUser({ username, name, password, role }) {
+function cleanContact(v, max) { return String(v == null ? '' : v).trim().slice(0, max || 120); }
+
+// Format a user's "prepared by" line for BOVs/CIMs: "Name, Title · Phone · Email"
+function preparedByFor(u) {
+  if (!u) return '';
+  const nameTitle = [u.name, u.title].filter(Boolean).join(', ');
+  return [nameTitle, u.phone, u.email].filter(Boolean).join(' · ');
+}
+
+function addUser({ username, name, password, role, title, phone, email }) {
   const n = normUser(username);
   if (!n) throw new Error('Username required.');
   if (!password || String(password).length < 6) throw new Error('Password must be at least 6 characters.');
   const users = loadUsers();
   if (users.some(u => u.username === n)) throw new Error('That username already exists.');
   const { salt, hash } = hashPassword(password);
-  users.push({ username: n, name: String(name || n), role: role === 'admin' ? 'admin' : 'rep', salt, hash, createdAt: new Date().toISOString(), disabled: false });
+  users.push({
+    username: n, name: String(name || n), role: role === 'admin' ? 'admin' : 'rep',
+    title: cleanContact(title, 80), phone: cleanContact(phone, 40), email: cleanContact(email, 120),
+    salt, hash, createdAt: new Date().toISOString(), disabled: false,
+  });
   saveUsers(users);
   return { username: n };
+}
+
+// A user updates their own contact info (used in BOVs/CIMs). Username/role unchanged.
+function updateProfile(username, { name, title, phone, email }) {
+  const n = normUser(username);
+  const users = loadUsers();
+  const u = users.find(x => x.username === n);
+  if (!u) throw new Error('User not found.');
+  if (name != null) { const nm = cleanContact(name, 120); if (!nm) throw new Error('Name cannot be blank.'); u.name = nm; }
+  if (title != null) u.title = cleanContact(title, 80);
+  if (phone != null) u.phone = cleanContact(phone, 40);
+  if (email != null) u.email = cleanContact(email, 120);
+  saveUsers(users);
+  return profileOf(u);
+}
+
+// A user changes their own password — must supply the correct current one.
+function changePassword(username, currentPassword, newPassword) {
+  const n = normUser(username);
+  const users = loadUsers();
+  const u = users.find(x => x.username === n);
+  if (!u) throw new Error('User not found.');
+  if (!verifyPassword(currentPassword, u.salt, u.hash)) throw new Error('Current password is incorrect.');
+  if (!newPassword || String(newPassword).length < 6) throw new Error('New password must be at least 6 characters.');
+  Object.assign(u, hashPassword(newPassword));
+  saveUsers(users);
+}
+
+function profileOf(u) {
+  if (!u) return null;
+  return {
+    username: u.username, name: u.name, role: u.role,
+    title: u.title || '', phone: u.phone || '', email: u.email || '',
+    preparedBy: preparedByFor(u),
+  };
 }
 function removeUser(username) {
   const n = normUser(username);
@@ -125,7 +173,11 @@ function seedAdmin() {
   if (users.some(u => u.role === 'admin')) return { seeded: false };
   if (!ap) { console.warn('[auth] No admin and ADMIN_PASS not set — set ADMIN_PASS to create the first login.'); return { seeded: false }; }
   const { salt, hash } = hashPassword(ap);
-  users.push({ username: au, name: 'Administrator', role: 'admin', salt, hash, createdAt: new Date().toISOString(), disabled: false });
+  users.push({
+    username: au, name: 'Van Rinn', role: 'admin',
+    title: 'President & Founder', phone: '210-362-0678', email: 'van@rrgcre.com',
+    salt, hash, createdAt: new Date().toISOString(), disabled: false,
+  });
   saveUsers(users);
   console.log(`[auth] Seeded admin account "${au}".`);
   return { seeded: true, username: au };
@@ -135,7 +187,7 @@ function authenticate(username, password) {
   const u = findUser(username);
   if (!u || u.disabled) return null;
   if (!verifyPassword(password, u.salt, u.hash)) return null;
-  return { username: u.username, name: u.name, role: u.role };
+  return profileOf(u);
 }
 
 /* ---------- login activity log ---------- */
@@ -217,15 +269,17 @@ function readSession(token) {
   if (sig.length !== expect.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return null;
   let p; try { p = JSON.parse(Buffer.from(b64, 'base64url').toString()); } catch (e) { return null; }
   if (!p || !p.exp || p.exp < Date.now()) return null;
-  // make sure the user still exists and is active
+  // make sure the user still exists and is active; return fresh profile so
+  // contact-info edits take effect immediately (no re-login needed).
   const u = findUser(p.u);
   if (!u || u.disabled) return null;
-  return { username: u.username, name: u.name, role: u.role };
+  return profileOf(u);
 }
 
 module.exports = {
   DATA_DIR, LOGIN_COLS, LOG_CSV, USAGE_COLS, USAGE_CSV, SESSION_DAYS,
   loadUsers, findUser, addUser, removeUser, resetPassword, setDisabled, seedAdmin, authenticate,
+  updateProfile, changePassword, profileOf, preparedByFor,
   logLogin, readLogins, logUsage, readUsage, toolName, makeSession, readSession,
   loadLinks, saveLinks, loadToolAccess, saveToolAccess,
 };

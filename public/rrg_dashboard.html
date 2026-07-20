@@ -19,6 +19,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
   background:radial-gradient(95% 115% at 30% 18%, #1c2e5c 0%, #112044 40%, #0b1636 68%, #071029 100%);
 }
 .top-inner{max-width:1080px;margin:0 auto;padding:0 32px;position:relative;z-index:2;}
+.topnav{position:absolute;top:0;right:32px;display:flex;align-items:center;gap:8px;font-size:12.5px;}
+.topnav .who{color:#c3ccdf;font-weight:600;margin-right:4px;}
+.topnav a{color:#c3ccdf;text-decoration:none;font-weight:600;border:1px solid rgba(255,255,255,.2);padding:6px 12px;border-radius:8px;white-space:nowrap;}
+.topnav a:hover{border-color:#fff;color:#fff;}
+.topnav a.out{border-color:transparent;}
 /* ABC-style two-tone sweep: a huge dark circle whose top-left edge is the arc */
 .orbs{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
 .orb{position:absolute;border-radius:50%;}
@@ -104,6 +109,7 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
     <div class="orb orb2"></div>
   </div>
   <div class="top-inner">
+    <div class="topnav" id="topnav"></div>
     <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
     <div class="kicker">Internal Toolkit</div>
     <h1>Associate Dashboard</h1>
@@ -250,8 +256,19 @@ window.RRG_API = window.RRG_API || (String(location.protocol).indexOf('http')===
   if(!api){ buildTiles(true, []); return; }   // standalone/file preview shows all
   fetch(api.replace(/\/$/,'')+'/api/session').then(function(r){return r.json();}).then(function(s){
     buildTiles(s&&s.role==='admin', (s&&s.adminOnlyTools)||[]);
+    renderTopNav(s);
   }).catch(function(){ buildTiles(true, []); });
 })();
+function renderTopNav(s){
+  var nav=document.getElementById('topnav'); if(!nav) return;
+  var isAdmin=s&&s.role==='admin', first=((s&&s.name)||'').trim().split(/\s+/)[0]||'';
+  var html='';
+  if(first) html+='<span class="who">Hi, '+esc(first)+'</span>';
+  html+='<a href="./rrg_account.html">Account</a>';
+  if(isAdmin) html+='<a href="/admin">Admin</a>';
+  html+='<a class="out" href="/logout">Sign out</a>';
+  nav.innerHTML=html;
+}
 
 /* ---- Quick Links — admin-managed, fetched from the server ---- */
 function renderQuickLinks(list){

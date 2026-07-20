@@ -116,8 +116,29 @@ app.get('/logout', (_req, res) => { clearSessionCookie(res); res.redirect('/logi
 // Who am I + which tools are admin-only (dashboard uses this to hide restricted tiles).
 app.get('/api/session', (req, res) => res.json({
   ok: true, username: req.user.username, name: req.user.name, role: req.user.role,
+  title: req.user.title || '', phone: req.user.phone || '', email: req.user.email || '',
+  preparedBy: req.user.preparedBy || '',
   adminOnlyTools: auth.loadToolAccess(),
 }));
+
+// ---- Self-service account: view/edit own contact info + change own password ----
+app.get('/api/me', (req, res) => res.json({ ok: true, profile: auth.profileOf(auth.findUser(req.user.username)) }));
+
+app.post('/api/me/profile', express.json(), (req, res) => {
+  try {
+    const b = req.body || {};
+    const p = auth.updateProfile(req.user.username, { name: b.name, title: b.title, phone: b.phone, email: b.email });
+    res.json({ ok: true, profile: p });
+  } catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+
+app.post('/api/me/password', express.json(), (req, res) => {
+  try {
+    const b = req.body || {};
+    auth.changePassword(req.user.username, b.current, b.next);
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 
 // Block admin-only tool files for non-admins (even by direct URL).
 app.use((req, res, next) => {
@@ -204,7 +225,8 @@ app.post('/api/generate-bov', express.json({ limit: '32mb' }), async (req, res) 
   try {
     const { business, files } = req.body || {};
     if (!files || !files.length) return res.status(400).json({ ok: false, error: 'Attach at least the financials and lease.' });
-    const out = await bovgen.generateBov({ business, files });
+    const preparedBy = (req.user && req.user.preparedBy) || '';
+    const out = await bovgen.generateBov({ business, files, preparedBy });
     const bovs = loadBovs();
     const rec = {
       id: newBovId(), business: String(out.business || 'Untitled').slice(0, 120), date: String(out.date || '').slice(0, 40),
@@ -327,8 +349,12 @@ app.get('/admin', requireAdmin, (req, res) => {
         <input name="username" placeholder="username (lowercase)" required>
         <input name="password" placeholder="password (min 6)" required>
         <select name="role"><option value="rep">Rep</option><option value="admin">Admin</option></select>
+        <input name="title" placeholder="Title (e.g. Associate)">
+        <input name="phone" placeholder="Phone (for BOVs)">
+        <input name="email" placeholder="Email (for BOVs)">
         <button class="primary">Add user</button>
       </form>
+      <div class="sub2" style="margin:-6px 0 4px">Title, phone &amp; email appear as the "prepared by" line on that rep's BOVs. Reps can edit their own under Account.</div>
       <h2>Users</h2>
       <table><thead><tr><th>Name</th><th>Username</th><th>Added</th><th>Actions</th></tr></thead><tbody>${urows}</tbody></table>
 
@@ -354,7 +380,7 @@ app.get('/admin', requireAdmin, (req, res) => {
     </div>
     <script>
       function post(action, data){ return fetch(action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json()); }
-      function au(f){ post('/api/admin/add-user',{name:f.name.value,username:f.username.value,password:f.password.value,role:f.role.value}).then(j=>{ if(j.ok){location.reload();} else alert(j.error||'Failed'); }); return false; }
+      function au(f){ post('/api/admin/add-user',{name:f.name.value,username:f.username.value,password:f.password.value,role:f.role.value,title:f.title.value,phone:f.phone.value,email:f.email.value}).then(j=>{ if(j.ok){location.reload();} else alert(j.error||'Failed'); }); return false; }
       function rp(f){ var p=prompt('New password for '+f.username.value+' (min 6):'); if(!p) return false; post('/api/admin/reset',{username:f.username.value,password:p}).then(j=>{ alert(j.ok?'Password reset.':(j.error||'Failed')); }); return false; }
       function saveLinks(){ var links=[]; document.querySelectorAll('.lrow').forEach(function(r){ var n=r.querySelector('.ln').value.trim(), u=r.querySelector('.lu').value.trim(), a=r.querySelector('.la').checked; if(n&&u) links.push({name:n,url:u,adminOnly:a}); }); post('/api/admin/links',{links:links}).then(function(j){ var m=document.getElementById('lmsg'); if(j.ok){ m.textContent='Saved '+(j.links.length)+' link(s) ✓'; } else { m.textContent=j.error||'Failed'; } }); }
       function saveToolAccess(){ var t=[]; document.querySelectorAll('.ta:checked').forEach(function(c){ t.push(c.value); }); post('/api/admin/tool-access',{adminOnly:t}).then(function(j){ var m=document.getElementById('tmsg'); if(j.ok){ m.textContent='Saved — '+j.adminOnly.length+' tool(s) admin-only ✓'; } else { m.textContent=j.error||'Failed'; } }); }

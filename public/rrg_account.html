@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — My Account</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8894a8;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;--green:#1f8a5b;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#e9edf3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:600px;margin:0 auto;}
+.band{color:#fff;padding:30px 40px 26px;position:relative;overflow:hidden;
+  background:radial-gradient(96% 130% at 27% 12%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.rrg{display:inline-flex;align-items:center;}
+.rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.rrg .bar{background:#fff;width:3px;height:30px;margin:0 12px;} .rrg .wm{font-weight:800;font-size:12px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:20px 0 5px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+h1{font-size:27px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:8px;max-width:460px;line-height:1.5;}
+.home{position:absolute;top:24px;right:30px;color:#c3ccdf;text-decoration:none;font-size:12.5px;font-weight:600;border:1px solid rgba(255,255,255,.2);padding:6px 12px;border-radius:8px;}
+.home:hover{border-color:#fff;color:#fff;}
+.card{background:#fff;margin:-14px 20px 22px;border-radius:14px;box-shadow:0 10px 34px rgba(10,20,50,.12);padding:24px 28px 26px;position:relative;}
+.card h2{font-size:16px;font-weight:800;color:var(--navy);margin:0 0 3px;letter-spacing:-.01em;}
+.card .desc{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:14px;}
+label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:14px 0 5px;}
+.row2{display:flex;gap:14px;} .row2>div{flex:1;}
+input.f{width:100%;border:1px solid var(--inp);border-radius:9px;padding:11px 13px;font-family:inherit;font-size:14px;color:var(--ink);}
+input.f:focus{outline:none;border-color:var(--red);}
+input.f:disabled{background:var(--wash);color:var(--soft);}
+.prev{margin-top:16px;background:var(--wash);border:1px solid var(--line);border-radius:9px;padding:12px 14px;}
+.prev .pl{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);font-weight:700;}
+.prev .pv{font-size:13px;color:var(--navy);font-weight:600;margin-top:4px;line-height:1.4;}
+.save{margin-top:18px;background:var(--navy);color:#fff;border:none;border-radius:10px;padding:12px 22px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;}
+.save:hover{background:#0b1a3a;} .save:disabled{opacity:.55;cursor:default;}
+.msg{display:inline-block;margin-left:12px;font-size:12.5px;font-weight:600;}
+.msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.foot{text-align:center;color:var(--muted);font-size:11px;padding:0 20px 40px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="band">
+    <a class="home" href="./index.html">← Dashboard</a>
+    <span class="rrg"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <div class="kicker">My Account</div>
+    <h1 id="hName">Account</h1>
+    <div class="sub">Your contact details flow onto every BOV and CIM you produce. Keep them current, and change your password here anytime.</div>
+  </div>
+
+  <div class="card">
+    <h2>Contact info</h2>
+    <div class="desc">This is the "prepared by" line that appears on your BOVs and CIMs.</div>
+    <label class="fl">Full name</label>
+    <input class="f" id="name" autocomplete="name" placeholder="e.g. Van Rinn">
+    <div class="row2">
+      <div><label class="fl">Title</label><input class="f" id="title" placeholder="e.g. Associate Broker"></div>
+      <div><label class="fl">Phone</label><input class="f" id="phone" autocomplete="tel" placeholder="e.g. 210-362-0678"></div>
+    </div>
+    <label class="fl">Email</label>
+    <input class="f" id="email" autocomplete="email" placeholder="e.g. you@rrgcre.com">
+    <div class="prev"><div class="pl">Appears on BOVs / CIMs as</div><div class="pv" id="prev">—</div></div>
+    <div><button class="save" id="saveProfile" onclick="saveProfile()">Save contact info</button><span class="msg" id="pmsg"></span></div>
+  </div>
+
+  <div class="card">
+    <h2>Change password</h2>
+    <div class="desc">Choose something only you know — at least 6 characters.</div>
+    <label class="fl">Current password</label>
+    <input class="f" id="cur" type="password" autocomplete="current-password">
+    <div class="row2">
+      <div><label class="fl">New password</label><input class="f" id="np1" type="password" autocomplete="new-password"></div>
+      <div><label class="fl">Confirm new password</label><input class="f" id="np2" type="password" autocomplete="new-password"></div>
+    </div>
+    <div><button class="save" id="savePw" onclick="savePw()">Update password</button><span class="msg" id="wmsg"></span></div>
+  </div>
+</div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+
+<script>
+var API=(String(location.protocol).indexOf('http')===0?location.origin:'');
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function preview(){
+  var nt=[$('name').value.trim(),$('title').value.trim()].filter(Boolean).join(', ');
+  var line=[nt,$('phone').value.trim(),$('email').value.trim()].filter(Boolean).join(' · ');
+  $('prev').textContent=line||'—';
+}
+['name','title','phone','email'].forEach(function(id){ $(id).addEventListener('input',preview); });
+function setMsg(id,cls,txt){ var m=$(id); m.className='msg '+cls; m.textContent=txt; }
+
+function load(){
+  fetch(API+'/api/me').then(function(r){return r.json();}).then(function(j){
+    var p=(j&&j.profile)||{};
+    $('name').value=p.name||''; $('title').value=p.title||''; $('phone').value=p.phone||''; $('email').value=p.email||'';
+    var first=((p.name||'').trim().split(/\s+/)[0])||'Account';
+    $('hName').textContent=first==='Account'?'Account':(first+"'s Account");
+    preview();
+  }).catch(function(){ preview(); });
+}
+load();
+
+function saveProfile(){
+  var b=$('saveProfile'); b.disabled=true; setMsg('pmsg','','Saving…');
+  fetch(API+'/api/me/profile',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:$('name').value,title:$('title').value,phone:$('phone').value,email:$('email').value})})
+    .then(function(r){return r.json();}).then(function(j){
+      b.disabled=false;
+      if(j&&j.ok){ setMsg('pmsg','ok','Saved ✓'); preview(); }
+      else setMsg('pmsg','err',(j&&j.error)||'Could not save.');
+    }).catch(function(){ b.disabled=false; setMsg('pmsg','err','Could not reach the server.'); });
+}
+function savePw(){
+  var cur=$('cur').value, n1=$('np1').value, n2=$('np2').value;
+  if(!cur){ setMsg('wmsg','err','Enter your current password.'); return; }
+  if(n1.length<6){ setMsg('wmsg','err','New password must be at least 6 characters.'); return; }
+  if(n1!==n2){ setMsg('wmsg','err','New passwords don’t match.'); return; }
+  var b=$('savePw'); b.disabled=true; setMsg('wmsg','','Updating…');
+  fetch(API+'/api/me/password',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({current:cur,next:n1})})
+    .then(function(r){return r.json();}).then(function(j){
+      b.disabled=false;
+      if(j&&j.ok){ setMsg('wmsg','ok','Password updated ✓'); $('cur').value='';$('np1').value='';$('np2').value=''; }
+      else setMsg('wmsg','err',(j&&j.error)||'Could not update.');
+    }).catch(function(){ b.disabled=false; setMsg('wmsg','err','Could not reach the server.'); });
+}
+</script>
+</body>
+</html>
