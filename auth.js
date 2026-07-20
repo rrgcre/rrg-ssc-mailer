@@ -42,6 +42,28 @@ function loadUsers() {
   try { return JSON.parse(fs.readFileSync(USERS, 'utf8')); } catch (e) { return []; }
 }
 function saveUsers(users) { ensureDir(); fs.writeFileSync(USERS, JSON.stringify(users, null, 2)); }
+
+/* ---------- dashboard quick links (admin-managed, shared) ---------- */
+const LINKS = path.join(DATA_DIR, 'links.json');
+// Starting set — shown until an admin saves the list (then the saved list wins).
+const DEFAULT_LINKS = [
+  { name: 'RRG', url: 'https://www.rrgcre.com' },
+  { name: 'Copper', url: 'https://www.copper.com' },
+  { name: 'CoStar', url: 'https://secure.costargroup.com/login?signin=7380e0b9c209f54617739184e77b6293' },
+  { name: 'Placer', url: 'https://www.placer.ai' },
+  { name: 'Alcohol Sales', url: 'https://alcoholsales.com' },
+];
+function loadLinks() { try { return JSON.parse(fs.readFileSync(LINKS, 'utf8')); } catch (e) { return DEFAULT_LINKS.slice(); } }
+function saveLinks(list) {
+  ensureDir();
+  const clean = (Array.isArray(list) ? list : []).map(l => ({
+    name: String((l && l.name) || '').trim().slice(0, 60),
+    url: String((l && l.url) || '').trim().slice(0, 300),
+  })).filter(l => l.name && l.url).slice(0, 10)
+    .map(l => ({ name: l.name, url: /^https?:\/\//i.test(l.url) ? l.url : 'https://' + l.url }));
+  fs.writeFileSync(LINKS, JSON.stringify(clean, null, 2));
+  return clean;
+}
 function normUser(u) { return String(u || '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, ''); }
 function findUser(username) { const n = normUser(username); return loadUsers().find(u => u.username === n) || null; }
 
@@ -194,4 +216,5 @@ module.exports = {
   DATA_DIR, LOGIN_COLS, LOG_CSV, USAGE_COLS, USAGE_CSV, SESSION_DAYS,
   loadUsers, findUser, addUser, removeUser, resetPassword, setDisabled, seedAdmin, authenticate,
   logLogin, readLogins, logUsage, readUsage, toolName, makeSession, readSession,
+  loadLinks, saveLinks,
 };

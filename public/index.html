@@ -80,6 +80,14 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
 @media(max-width:560px){ .top{padding:26px 22px;} h1{font-size:26px;} .wrap{padding:24px 18px 40px;} }
 
 /* ---- Agreements ---- */
+/* ---- Quick Links ---- */
+.ql{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;}
+.qlcard{display:flex;align-items:center;gap:11px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s;}
+.qlcard:hover{border-color:#c9d2e2;transform:translateY(-2px);}
+.qlcard .qi{width:30px;height:30px;flex:none;border-radius:8px;background:#eaf0ff;color:#2647b0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;}
+.qlcard .qn{font-weight:700;color:var(--navy);font-size:13px;line-height:1.2;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.qlcard .qu{font-size:10.5px;color:var(--muted);margin-top:1px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
 .agr{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;}
 .agrcard{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s;}
 .agrcard:hover{border-color:#c9d2e2;transform:translateY(-2px);}
@@ -107,6 +115,10 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
 <div class="wrap">
   <div class="sectionlabel" id="lbl"></div>
   <div id="grid"></div>
+  <div id="qlWrap" style="display:none">
+    <div class="sectionlabel" style="margin-top:32px">Quick Links <span style="font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted);font-size:11px;margin-left:6px">— sites the team uses</span></div>
+    <div class="ql" id="qlGrid"></div>
+  </div>
   <div class="sectionlabel" style="margin-top:32px">Agreements, Documents &amp; Training <span style="font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted);font-size:11px;margin-left:6px">— open or download</span></div>
   <div class="agr" id="agrGrid"></div>
 </div>
@@ -220,6 +232,27 @@ document.getElementById('count').textContent = TOOLS.length+' tools · updated l
 
 /* ---- server origin (used to auto-list agreements) ---- */
 window.RRG_API = window.RRG_API || (String(location.protocol).indexOf('http')===0 ? location.origin : '');
+
+/* ---- Quick Links — admin-managed, fetched from the server ---- */
+function renderQuickLinks(list){
+  list = (list||[]).filter(function(l){ return l && l.name && l.url; });
+  var wrap=document.getElementById('qlWrap'), grid=document.getElementById('qlGrid');
+  if(!list.length){ wrap.style.display='none'; return; }
+  grid.innerHTML=''; wrap.style.display='';
+  list.forEach(function(l){
+    var url=String(l.url); if(!/^https?:\/\//i.test(url)) url='https://'+url;
+    var host=''; try{ host=new URL(url).hostname.replace(/^www\./,''); }catch(e){ host=url; }
+    var initial=(l.name||'?').trim().charAt(0).toUpperCase();
+    var a=document.createElement('a'); a.className='qlcard'; a.href=url; a.target='_blank'; a.rel='noopener';
+    a.innerHTML='<span class="qi">'+esc(initial)+'</span><span style="min-width:0"><span class="qn">'+esc(l.name)+'</span><span class="qu">'+esc(host)+'</span></span>';
+    grid.appendChild(a);
+  });
+}
+(function(){
+  var api=window.RRG_API||''; if(!api){ renderQuickLinks([]); return; }
+  fetch(api.replace(/\/$/,'')+'/api/links').then(function(r){return r.json();})
+    .then(function(j){ renderQuickLinks(j&&j.links||[]); }).catch(function(){ renderQuickLinks([]); });
+})();
 
 /* ---- Agreements — auto-listed from the server's /agreements folder (frequently updated; more added anytime) ---- */
 var AGREEMENTS=[

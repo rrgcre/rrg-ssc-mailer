@@ -128,6 +128,9 @@ app.get('/log.csv', (_req, res) => {
   if (fs.existsSync(store.CSV)) return fs.createReadStream(store.CSV).pipe(res);
   res.send(store.CSV_COLS.join(',') + '\n');
 });
+// Quick links — readable by any signed-in user (for the dashboard).
+app.get('/api/links', (_req, res) => res.json({ ok: true, links: auth.loadLinks() }));
+
 app.get('/api/agreements', (_req, res) => {
   const fs = require('fs'); const path = require('path');
   const dir = path.join(__dirname, 'public', 'agreements');
@@ -162,6 +165,11 @@ app.get('/admin', requireAdmin, (req, res) => {
   const users = auth.loadUsers();
   const logins = auth.readLogins().slice(-300).reverse();
   const usageAll = auth.readUsage();
+  const links = auth.loadLinks();
+  const linkRows = Array.from({ length: 10 }, (_, i) => {
+    const l = links[i] || { name: '', url: '' };
+    return `<div class="lrow"><input class="ln" placeholder="Name (e.g. CoStar)" value="${esc(l.name)}"><input class="lu" placeholder="https://…" value="${esc(l.url)}"></div>`;
+  }).join('');
   // summaries
   const byTool = {}, byUser = {};
   usageAll.forEach(u => { byTool[u.tool] = (byTool[u.tool] || 0) + 1; byUser[u.username] = (byUser[u.username] || 0) + 1; });
@@ -202,6 +210,11 @@ app.get('/admin', requireAdmin, (req, res) => {
       </form>
       <h2>Users</h2>
       <table><thead><tr><th>Name</th><th>Username</th><th>Added</th><th>Actions</th></tr></thead><tbody>${urows}</tbody></table>
+
+      <h2 style="margin-top:34px">Dashboard Quick Links <span class="sub2">— up to 10; shown to everyone on the dashboard</span></h2>
+      <div class="links">${linkRows}
+        <div style="margin-top:10px"><button class="primary" onclick="saveLinks()">Save quick links</button> <span id="lmsg" class="sub2"></span></div>
+      </div>
       <h2 style="margin-top:34px">Tool Usage <span class="sub2">— what your team is using</span></h2>
       <div class="cols">
         <div><h3>By tool</h3><table><thead><tr><th>Tool</th><th>Opens</th></tr></thead><tbody>${toolSummary}</tbody></table></div>
@@ -216,6 +229,7 @@ app.get('/admin', requireAdmin, (req, res) => {
       function post(action, data){ return fetch(action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json()); }
       function au(f){ post('/api/admin/add-user',{name:f.name.value,username:f.username.value,password:f.password.value,role:f.role.value}).then(j=>{ if(j.ok){location.reload();} else alert(j.error||'Failed'); }); return false; }
       function rp(f){ var p=prompt('New password for '+f.username.value+' (min 6):'); if(!p) return false; post('/api/admin/reset',{username:f.username.value,password:p}).then(j=>{ alert(j.ok?'Password reset.':(j.error||'Failed')); }); return false; }
+      function saveLinks(){ var links=[]; document.querySelectorAll('.lrow').forEach(function(r){ var n=r.querySelector('.ln').value.trim(), u=r.querySelector('.lu').value.trim(); if(n&&u) links.push({name:n,url:u}); }); post('/api/admin/links',{links:links}).then(function(j){ var m=document.getElementById('lmsg'); if(j.ok){ m.textContent='Saved '+(j.links.length)+' link(s) ✓'; } else { m.textContent=j.error||'Failed'; } }); }
       document.querySelectorAll('form[action="/api/admin/toggle"],form[action="/api/admin/remove"]').forEach(function(f){ f.addEventListener('submit',function(e){ e.preventDefault(); var d={}; new FormData(f).forEach((v,k)=>d[k]=v); post(f.action,d).then(j=>{ if(j.ok) location.reload(); else alert(j.error||'Failed'); }); }); });
     </script>`));
 });
@@ -230,6 +244,10 @@ app.post('/api/admin/toggle', requireAdmin, (req, res) => {
 });
 app.post('/api/admin/remove', requireAdmin, (req, res) => {
   try { auth.removeUser((req.body || {}).username); res.json({ ok: true }); } catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
+});
+app.post('/api/admin/links', requireAdmin, (req, res) => {
+  try { const saved = auth.saveLinks((req.body || {}).links || []); res.json({ ok: true, links: saved }); }
+  catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
 });
 app.get('/admin/logins.csv', requireAdmin, (_req, res) => {
   const fs = require('fs');
@@ -259,6 +277,10 @@ function chrome() {
 .dl{margin-left:auto;display:flex;gap:8px;} .dl a{background:var(--navy);color:#fff;text-decoration:none;font-size:12.5px;font-weight:600;padding:7px 13px;border-radius:7px;}
 .wrap{padding:14px 28px 48px;} .wrap h2{font-size:14px;color:var(--navy);margin:22px 0 8px;} .wrap h3{font-size:12.5px;color:var(--navy);margin:14px 0 6px;} .sub2{font-weight:500;color:var(--muted);font-size:12px;}
 .cols{display:grid;grid-template-columns:1fr 1fr;gap:24px;} @media(max-width:640px){.cols{grid-template-columns:1fr;}}
+.links{background:var(--wash);border:1px solid var(--line);border-radius:10px;padding:14px;max-width:640px;}
+.lrow{display:flex;gap:10px;margin-bottom:8px;} .lrow .ln{flex:0 0 200px;} .lrow .lu{flex:1;}
+.links input{border:1px solid #cfd6e2;border-radius:7px;padding:8px 10px;font:inherit;font-size:13px;min-width:0;}
+.links button{border:1px solid var(--navy);background:var(--navy);color:#fff;font:inherit;font-size:13px;font-weight:600;padding:8px 14px;border-radius:7px;cursor:pointer;}
 table{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px;} th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:middle;}
 th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;} tr:hover td{background:var(--wash);}
 .ts{white-space:nowrap;color:var(--muted);} .nm{font-weight:600;color:var(--navy);} .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;} .hl{color:#3a4256;max-width:340px;}
