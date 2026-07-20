@@ -211,6 +211,14 @@ app.get('/api/session', (req, res) => res.json({
   adminOnlyTools: auth.loadToolAccess(),
 }));
 
+// Active user names — populates the "RRG Rep" dropdown on the call form (any signed-in user).
+app.get('/api/users-list', (req, res) => {
+  const users = auth.loadUsers().filter(u => !u.disabled)
+    .map(u => ({ username: u.username, name: u.name }))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  res.json({ ok: true, users });
+});
+
 // ---- Self-service account: view/edit own contact info + change own password ----
 app.get('/api/me', (req, res) => res.json({ ok: true, profile: auth.profileOf(auth.findUser(req.user.username)) }));
 

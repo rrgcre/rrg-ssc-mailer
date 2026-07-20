@@ -9,15 +9,16 @@
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.top{color:#fff;padding:30px 40px 34px;position:relative;overflow:hidden;
+.top{color:#fff;padding:30px 0 34px;position:relative;overflow:hidden;
   background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-inner{max-width:1080px;margin:0 auto;padding:0 24px;position:relative;}
 .top .brand{display:inline-flex;align-items:center;position:relative;z-index:2;}
 .top .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
 .top .bar{background:#fff;width:3px;height:30px;margin:0 12px;} .top .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
 .kicker{position:relative;z-index:2;margin:22px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
 h1{position:relative;z-index:2;font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .sub{position:relative;z-index:2;color:#aeb8cf;font-size:13px;margin-top:7px;max-width:560px;line-height:1.5;}
-.newbtn{position:absolute;top:30px;right:40px;z-index:3;display:inline-flex;align-items:center;gap:8px;background:var(--red);color:#fff;text-decoration:none;font-weight:700;font-size:13.5px;padding:11px 18px;border-radius:10px;box-shadow:0 8px 24px rgba(218,43,31,.3);}
+.newbtn{position:absolute;top:0;right:24px;z-index:3;display:inline-flex;align-items:center;gap:8px;background:var(--red);color:#fff;text-decoration:none;font-weight:700;font-size:13.5px;padding:11px 18px;border-radius:10px;box-shadow:0 8px 24px rgba(218,43,31,.3);}
 .newbtn:hover{background:#c0241a;}
 .wrap{max-width:1080px;margin:26px auto;padding:0 24px 60px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
@@ -58,7 +59,7 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
 .tool{border:1px solid var(--line);background:#fff;color:var(--navy);font:inherit;font-size:12px;font-weight:700;padding:8px 12px;border-radius:8px;cursor:pointer;}
 .tool:hover{border-color:#9fb0cc;}
 #printhead{display:none;}
-@media(max-width:720px){ th.hide,td.hide{display:none;} .top{padding:24px 20px;} h1{font-size:24px;} .newbtn{position:static;margin-top:16px;} }
+@media(max-width:720px){ th.hide,td.hide{display:none;} .top{padding:24px 0;} h1{font-size:24px;} .newbtn{position:static;margin-top:16px;} }
 @media print{
   body{background:#fff;}
   .top,.hd,.hd2,.foot,.rrg-back,.newbtn{display:none!important;}
@@ -74,13 +75,13 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
 </style>
 </head>
 <body>
-<div class="top">
+<div class="top"><div class="top-inner">
   <a class="newbtn" href="./seller_screening.html">+ New Call</a>
   <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Seller Pipeline · Step 1</div>
   <h1>Call Screening Log</h1>
   <div class="sub">Every seller call we've made, in one log. Log a new call, screen it, then pass or advance it to the Valuation Questionnaire.</div>
-</div>
+</div></div>
 
 <div class="wrap">
   <div class="card">

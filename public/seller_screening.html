@@ -104,6 +104,8 @@
   input[type=text]{ height:36px; }
   textarea{ min-height:58px; resize:vertical; }
   input[type=text]:focus, textarea:focus{ border-color:var(--red); box-shadow:0 0 0 3px rgba(218,43,31,.10); }
+  .field select{ width:100%; height:36px; font-family:'Inter',sans-serif; font-size:13px; color:var(--navy); border:1px solid var(--inp); border-radius:7px; padding:7px 10px; background:#fff; outline:none; cursor:pointer; }
+  .field select:focus{ border-color:var(--red); box-shadow:0 0 0 3px rgba(218,43,31,.10); }
 
   .field{ margin-bottom:2px; }
 
@@ -321,9 +323,9 @@
     <div class="grid rowgap">
       <div class="field"><label class="k">Business Name<span class="req-star">*</span></label><input type="text" class="req"></div>
       <div class="field"><label class="k">Seller Contact Name<span class="req-star">*</span></label><input type="text" class="req"></div>
-      <div class="field"><label class="k">RRG Rep<span class="req-star">*</span></label><input type="text" class="req"></div>
-      <div class="field"><label class="k">Call Date<span class="req-star">*</span></label><input type="text" class="req" placeholder="MM / DD / YYYY"></div>
-      <div class="field"><label class="k">Market<span class="req-star">*</span></label><input type="text" class="req"></div>
+      <div class="field"><label class="k">RRG Rep<span class="req-star">*</span></label><select class="req" id="repSelect"><option value="">Select…</option></select></div>
+      <div class="field"><label class="k">Call Date<span class="req-star">*</span></label><input type="text" class="req" id="callDate" placeholder="MM / DD / YYYY"></div>
+      <div class="field"><label class="k">Metro<span class="req-star">*</span></label><select class="req" id="metroSelect"><option value="">Select…</option><option>Austin</option><option>Dallas</option><option>Houston</option><option>San Antonio</option><option>RGV</option><option>Other</option></select></div>
       <div class="field"><label class="k">Business Address</label><input type="text"></div>
     </div>
 
@@ -618,7 +620,7 @@
   function _hideBanner(){var b=document.getElementById('vbanner');if(b)b.style.display='none';}
   function _validate(){
     var miss=[];
-    document.querySelectorAll('input.req, textarea.req').forEach(function(el){
+    document.querySelectorAll('input.req, textarea.req, select.req').forEach(function(el){
       el.classList.remove('missing');
       var bad=!el.value.trim();
       if(!bad && el.classList.contains('email')) bad=!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim());
@@ -717,7 +719,7 @@
       } else if(el.classList.contains('subhead')){
         if(cur) cur.groups.push({kind:'subhead',text:el.textContent.trim()});
       } else if(el.classList.contains('field')){
-        var lb=el.querySelector('label.k'), inp=el.querySelector('input,textarea'); if(!lb||!inp) return;
+        var lb=el.querySelector('label.k'), inp=el.querySelector('input,textarea,select'); if(!lb||!inp) return;
         var label=_labelText(lb), value=inp.value.trim();
         if(cur) cur.groups.push({kind:'field',label:label,value:value}); else header[label.toLowerCase()]=value;
       } else if(el.classList.contains('oset')){
@@ -741,7 +743,7 @@
       concept: header['business name']||'Seller',
       contact: header['seller contact name']||'',
       preparedBy: header['rrg rep']||'',
-      market: header['market']||'',
+      market: header['metro']||header['market']||'',
       date: header['call date']||'',
       repEmail: (document.getElementById('clientEmail').value||'').trim(),
       sections: sections
@@ -871,7 +873,7 @@
   function _grpS(t){ return Array.prototype.slice.call(document.querySelectorAll('#sscform .oset')).find(function(o){var k=o.querySelector('label.k');return k && k.textContent.replace('*','').trim().toLowerCase().indexOf(t.toLowerCase())===0;}); }
   function _check(gl, txt){ var g=_grpS(gl); if(!g) return; var o=Array.prototype.slice.call(g.querySelectorAll('.opt')).find(function(l){return l.textContent.trim().toLowerCase().indexOf(txt.toLowerCase())!==-1;}); if(o){var i=o.querySelector('input'); i.checked=true; i.dispatchEvent(new Event('change',{bubbles:true}));} }
   function _kit(row, txt){ var g=_grpS('Kitchen'); if(!g) return; var sr=Array.prototype.slice.call(g.querySelectorAll('.subrow')).find(function(r){return r.querySelector('.srk').textContent.trim().toLowerCase()===row.toLowerCase();}); if(!sr) return; var o=Array.prototype.slice.call(sr.querySelectorAll('.opt')).find(function(l){return l.textContent.trim().toLowerCase()===txt.toLowerCase();}); if(o) o.querySelector('input').checked=true; }
-  function _set(lbl, val){ var lb=Array.prototype.slice.call(document.querySelectorAll('#sscform label.k')).find(function(l){return l.textContent.replace('*','').trim().toLowerCase()===lbl.toLowerCase();}); if(!lb) return; var inp=lb.parentElement.querySelector('input,textarea'); if(!inp) return; inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); }
+  function _set(lbl, val){ var lb=Array.prototype.slice.call(document.querySelectorAll('#sscform label.k')).find(function(l){return l.textContent.replace('*','').trim().toLowerCase()===lbl.toLowerCase();}); if(!lb) return; var inp=lb.parentElement.querySelector('input,textarea,select'); if(!inp) return; inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); }
   function _setInline(lab, val){ var s=Array.prototype.slice.call(document.querySelectorAll('#sscform .inl .lab')).find(function(x){return x.textContent.trim().toLowerCase()===lab.toLowerCase();}); if(!s) return; var inp=s.parentElement.querySelector('input'); inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); }
   window.loadSample=function(){
     var form=document.getElementById('sscform');
@@ -883,7 +885,7 @@
     _set('Seller Contact Name','Marcus Hale');
     _set('RRG Rep','Avery');
     _set('Call Date','07 / 14 / 2026');
-    _set('Market','Austin');
+    _set('Metro','Austin');
     _set('Business Address','1200 S Lamar Blvd, Austin, TX 78704');
     // Section 1 - Business Profile
     _check('Concept Type','Full Service');
@@ -942,7 +944,7 @@
       for(var i=0;i<data.sections.length;i++){ var g=data.sections[i].groups; for(var j=0;j<g.length;j++){ var lb=(g[j].label||'').toLowerCase(); if(lb.indexOf(st)===0){ if(g[j].kind==='field') return g[j].value||''; if(g[j].kind==='options') return (g[j].selected&&g[j].selected[0])||''; } } } return '';
     }
     var market=data.market||'';
-    var snap=[['Concept Type',firstOf('concept type')],['Market',market],['Timeline',firstOf('timeline')],['Profitability',firstOf('profitability')]].filter(function(x){return x[1];});
+    var snap=[['Concept Type',firstOf('concept type')],['Metro',market],['Timeline',firstOf('timeline')],['Profitability',firstOf('profitability')]].filter(function(x){return x[1];});
     var snapHtml=snap.map(function(x){return '<div class="cell"><div class="lbl">'+_pvEsc(x[0])+'</div><div class="val">'+_pvEsc(x[1])+'</div></div>';}).join('');
     var secHtml=''; var first=true;
     data.sections.forEach(function(sec){
@@ -979,7 +981,7 @@
     var lbls=document.querySelectorAll('#sscform label.k');
     for(var i=0;i<lbls.length;i++){ var t=_labelText(lbls[i]); var inp=lbls[i].parentElement.querySelector('input,textarea');
       if(t==='Business Name'&&inp) concept=inp.value.trim();
-      if(t==='Market'&&inp) market=inp.value.trim(); }
+      if(t==='Metro'&&inp) market=inp.value.trim(); }
     hc.textContent = concept || 'New Seller Screening';
     ht.textContent = market ? ('Market: '+market) : 'Business and market appear here as you complete the screen.';
   }
@@ -1019,7 +1021,7 @@
 (function(){
   var form=document.getElementById('sscform'); if(!form) return; var _ns=document.createElement('style'); _ns.textContent='@media print{.rrg-noprint{display:none!important}}'; document.head.appendChild(_ns);
   var KEY='rrgdraft:'+(document.title||location.pathname);
-  function els(){ return Array.prototype.slice.call(form.querySelectorAll('input,textarea')); }
+  function els(){ return Array.prototype.slice.call(form.querySelectorAll('input,textarea,select')); }
   var restoring=false, saveTimer=null;
   function serialize(){ return els().map(function(el){ return (el.type==='checkbox'||el.type==='radio')?(el.checked?1:0):el.value; }); }
   function hasData(a){ return a.some(function(v){ return v===1 || (typeof v==='string' && v.trim()!==''); }); }
@@ -1045,46 +1047,58 @@
     k.onclick=function(){ bar.remove(); };
     bar.appendChild(f); bar.appendChild(k); bar.className='rrg-noprint'; document.body.insertBefore(bar, document.body.firstChild);
   }
-  // Skip the browser draft when we're opening a specific saved screening to edit.
-  if(!/[?&]screening=/.test(location.search)){
-    try{ var raw=localStorage.getItem(KEY); if(raw){ var rec=JSON.parse(raw);
-      if(rec && rec.d && rec.n===els().length && hasData(rec.d)){ restore(rec); banner(rec); }
-      else if(rec && rec.n!==els().length){ localStorage.removeItem(KEY); } } }catch(e){}
-  }
+  // New entries open blank — discard any old browser draft (edits load from the saved record).
+  if(!/[?&]screening=/.test(location.search)){ try{ localStorage.removeItem(KEY); }catch(e){} }
   form.addEventListener('input', schedule);
   form.addEventListener('change', schedule);
   window.addEventListener('beforeunload', save);
 })();
 </script>
 <script>
-/* Edit-load: open a saved screening from the queue (?screening=ID) and rehydrate it. */
+/* Header init: RRG Rep dropdown, default call date, and edit-load (?screening=ID). */
 (function(){
-  var id=new URLSearchParams(location.search).get('screening');
-  if(!id) return;
   var API=(String(location.protocol).indexOf('http')===0?location.origin:'');
-  function setByLabel(labels,val){
-    if(!val) return;
-    var ls=[].slice.call(document.querySelectorAll('#sscform label.k'));
-    for(var i=0;i<ls.length;i++){ var t=ls[i].textContent.replace('*','').trim().toLowerCase();
-      if(labels.indexOf(t)>=0){ var inp=ls[i].parentElement.querySelector('input,textarea'); if(inp){ inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); } return; } }
+  var isEdit=/[?&]screening=/.test(location.search);
+  var repSel=document.getElementById('repSelect');
+  function ensureOption(sel,val){ if(!sel||!val) return; var has=[].slice.call(sel.options).some(function(o){return o.textContent===val;}); if(!has){ var o=document.createElement('option'); o.value=val; o.textContent=val; sel.appendChild(o); } }
+
+  // Build the RRG Rep dropdown from the user list.
+  var repsReady=fetch(API+'/api/users-list').then(function(r){return r.json();}).then(function(j){
+    if(repSel && j && j.users){ j.users.forEach(function(u){ var o=document.createElement('option'); o.value=u.name; o.textContent=u.name; repSel.appendChild(o); }); }
+  }).catch(function(){});
+
+  if(!isEdit){
+    var cd=document.getElementById('callDate');
+    if(cd && !cd.value){ var d=new Date(); function p(n){return (n<10?'0':'')+n;} cd.value=p(d.getMonth()+1)+' / '+p(d.getDate())+' / '+d.getFullYear(); cd.dispatchEvent(new Event('input',{bubbles:true})); }
+    Promise.all([repsReady, fetch(API+'/api/session').then(function(r){return r.json();}).catch(function(){return null;})]).then(function(res){
+      var s=res[1]; if(s && s.ok && s.name && repSel && !repSel.value){ ensureOption(repSel,s.name); repSel.value=s.name; repSel.dispatchEvent(new Event('change',{bubbles:true})); }
+    });
+    return;
   }
-  fetch(API+'/api/screening/'+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(j){
-    if(!j||!j.ok||!j.screening) return;
+
+  // Edit-load — rehydrate the saved call after the rep options exist.
+  var id=new URLSearchParams(location.search).get('screening');
+  function setByLabel(labels,val){ if(!val) return; var ls=[].slice.call(document.querySelectorAll('#sscform label.k'));
+    for(var i=0;i<ls.length;i++){ var t=ls[i].textContent.replace('*','').trim().toLowerCase();
+      if(labels.indexOf(t)>=0){ var inp=ls[i].parentElement.querySelector('input,textarea,select'); if(inp){ if(inp.tagName==='SELECT') ensureOption(inp,val); inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); } return; } }
+  }
+  Promise.all([repsReady, fetch(API+'/api/screening/'+encodeURIComponent(id)).then(function(r){return r.json();}).catch(function(){return null;})]).then(function(res){
+    var j=res[1]; if(!j||!j.ok||!j.screening) return;
     var s=j.screening, d=s.data||{};
-    if(s.formId) window.RRG_FORM_ID=s.formId;      // re-saving updates the SAME record
+    if(s.formId) window.RRG_FORM_ID=s.formId;
     if(d.snapshot && window.rrgRestore){ window.rrgRestore(d.snapshot); }
-    else { // older record without a full snapshot — restore the basics we have
+    else {
       setByLabel(['business name'], s.business);
       setByLabel(['seller contact name'], s.contact);
-      setByLabel(['market'], s.market);
+      setByLabel(['metro','market'], s.market);
       setByLabel(['call date'], s.date);
     }
-    var b=document.createElement('div');
-    b.className='rrg-noprint';
+    if(d.preparedBy && repSel){ ensureOption(repSel,d.preparedBy); repSel.value=d.preparedBy; repSel.dispatchEvent(new Event('change',{bubbles:true})); }
+    var b=document.createElement('div'); b.className='rrg-noprint';
     b.style.cssText='background:#0b1a3a;color:#fff;font:600 13px/1.3 -apple-system,Segoe UI,Roboto,sans-serif;padding:10px 16px;';
-    b.textContent='Editing “'+(s.business||'screening')+'”. Save or Submit to update this record in the queue.';
+    b.textContent='Editing “'+(s.business||'call')+'”. Save or Submit to update this record in the log.';
     document.body.insertBefore(b, document.body.firstChild);
-  }).catch(function(){});
+  });
 })();
 </script>
 </body>
