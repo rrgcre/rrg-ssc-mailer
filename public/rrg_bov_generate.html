@@ -113,7 +113,7 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
 
     <div class="drop" onclick="pick('lease')">
       <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/></svg></div>
-      <div class="mid"><div class="t">Lease &amp; Amendments<span class="req">*</span></div><div class="h">The lease plus every amendment — term, rent, options, assignability.</div></div>
+      <div class="mid"><div class="t">Lease &amp; Amendments<span class="opt">— if leased</span></div><div class="h">The lease plus every amendment — term, rent, options, assignability. Skip if the business owns its real estate.</div></div>
       <div class="cta">Upload</div>
     </div>
     <div class="files" id="lease_files"></div>
@@ -121,7 +121,7 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
 
     <button class="go" id="go" onclick="generate()">Build the BOV</button>
     <div class="status" id="status"></div>
-    <div class="note"><span style="color:var(--red);font-weight:700">*</span> all three required. Runs privately on RRG's server, ~30–60 seconds. You'll land on the finished BOV — fully editable — saved to your BOV Queue.</div>
+    <div class="note"><span style="color:var(--red);font-weight:700">*</span> required. Add the lease if the business leases its space — skip it if it owns the real estate. Runs privately on RRG's server, ~30–60 seconds. You'll land on the finished BOV — fully editable — saved to your BOV Queue.</div>
   </div>
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
@@ -174,8 +174,7 @@ function generate(){
   var missing=[];
   if(!SLOTS.fin.length) missing.push('Financials');
   if(!SLOTS.vq.length) missing.push('Valuation Questionnaire');
-  if(!SLOTS.lease.length) missing.push('Lease & Amendments');
-  if(missing.length){ setStatus('err','Upload all three documents before building — still need: '+missing.join(', ')+'.'); return; }
+  if(missing.length){ setStatus('err','Upload the required documents before building — still need: '+missing.join(', ')+'. (Add the lease too if the business leases its space.)'); return; }
   var all=[]; Object.keys(SLOTS).forEach(function(s){ SLOTS[s].forEach(function(f){ all.push({file:f,label:LABEL[s]}); }); });
   setStatus('',''); document.getElementById('status').className='status';
   modal('Reading your documents…','Preparing the financials, questionnaire, and lease for analysis.');

@@ -224,7 +224,7 @@ app.get('/api/bov/:id', (req, res) => {
 app.post('/api/generate-bov', express.json({ limit: '32mb' }), async (req, res) => {
   try {
     const { business, files } = req.body || {};
-    if (!files || !files.length) return res.status(400).json({ ok: false, error: 'Attach at least the financials and lease.' });
+    if (!files || !files.length) return res.status(400).json({ ok: false, error: 'Attach at least the financials and the valuation questionnaire.' });
     const preparedBy = (req.user && req.user.preparedBy) || '';
     const out = await bovgen.generateBov({ business, files, preparedBy });
     const bovs = loadBovs();

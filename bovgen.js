@@ -14,6 +14,7 @@ Do the analysis:
 - Normalize trailing earnings to ADJUSTED EBITDA via an add-back bridge (start from revenue, then net income as reported, then each add-back: depreciation, interest, non-recurring, discretionary/owner, rent normalization to the executed lease, etc.).
 - Select a defensible market MULTIPLE range for this concept and size (single-unit owner-operated ~1.5–3.0× SDE; profitable independents ~3.0–5.0×; multi-unit/manager-run ~4.0–7.0× adj. EBITDA). Give low / base / high.
 - Note lease posture from the actual lease (term remaining, base + NNN, options, assignability) and normalize rent if needed.
+- OWNED REAL ESTATE: if there is no lease because the business owns its real estate, do NOT skip rent. Impute a fair market rent as an expense so the operating-business earnings are comparable to a leased peer, and state clearly that the real estate is a SEPARATE asset excluded from the business value (note it can be sold, leased back, or included as a separate line). Say which you did in the earnings and excluded narratives.
 - Give a range, not false precision. Flag anything off the books that moves value (owner dependence, related-party landlord, deferred capex, concentration).
 
 Return ONLY a single JSON object — no prose, no markdown fences — with EXACTLY this shape (all string values unless noted):
