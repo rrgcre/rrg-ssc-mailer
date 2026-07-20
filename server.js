@@ -55,6 +55,34 @@ function ownsScreen(req, s) {
   if (s.byUser) return s.byUser === (req.user && req.user.username);
   return s.by && s.by === (req.user && req.user.name);
 }
+// Create or update a screening-queue record. Dedups by formId within the same
+// user, so printing and submitting the same screening make ONE record.
+function upsertScreening(req, data) {
+  const arr = loadScreens();
+  const fid = String((data && data.formId) || '').slice(0, 48);
+  const statusTxt = leadStatusOf(data);
+  const fields = {
+    business: String(data.concept || 'Seller').slice(0, 120),
+    contact: String(data.contact || '').slice(0, 120),
+    market: String(data.market || '').slice(0, 80),
+    date: String(data.date || '').slice(0, 40),
+    statusText: String(statusTxt || '').slice(0, 90),
+    status: statusCode(statusTxt),
+    data: data,
+    by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
+  };
+  const mine = s => (s.byUser && s.byUser === fields.byUser) || (!s.byUser && s.by && s.by === fields.by);
+  const existing = fid ? arr.find(s => s.formId === fid && mine(s)) : null;
+  if (existing) {
+    Object.assign(existing, fields);
+    existing.updatedAt = new Date().toISOString();
+    saveScreens(arr);
+    return existing;
+  }
+  const rec = Object.assign({ id: newScreenId(), formId: fid, processed: false, processedAt: '', createdAt: new Date().toISOString() }, fields);
+  arr.push(rec); saveScreens(arr);
+  return rec;
+}
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // Date + time in Central, e.g. "7/20/26, 1:12 PM" (falls back if ICU is limited).
@@ -225,27 +253,16 @@ app.post('/api/log', (req, res) => {
   const formType = String(data.formType || 'seller').toLowerCase().replace(/[^a-z]/g, '').slice(0, 20) || 'seller';
   try { const e = store.appendSubmission(formType, data, { ip: req.ip, emailed: false, by: req.user && req.user.username }); res.json({ ok: true, timestamp: e.timestamp }); }
   catch (err) { console.error('log error:', err); res.status(500).json({ ok: false, error: String((err && err.message) || err) }); }
-  // Every submitted seller screening also drops into the Screening Queue.
+  // Every submitted seller screening also drops into the Screening Queue (dedup by formId).
   if (formType === 'seller') {
-    try {
-      const arr = loadScreens();
-      const statusTxt = leadStatusOf(data);
-      arr.push({
-        id: newScreenId(),
-        business: String(data.concept || 'Seller').slice(0, 120),
-        contact: String(data.contact || '').slice(0, 120),
-        market: String(data.market || '').slice(0, 80),
-        date: String(data.date || '').slice(0, 40),
-        statusText: String(statusTxt || '').slice(0, 90),
-        status: statusCode(statusTxt),
-        processed: false, processedAt: '',
-        data: data,
-        by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
-        createdAt: new Date().toISOString(),
-      });
-      saveScreens(arr);
-    } catch (e2) { console.error('screening enqueue error:', e2); }
+    try { upsertScreening(req, data); } catch (e2) { console.error('screening enqueue error:', e2); }
   }
+});
+
+// Print / Save PDF also files the record to the queue (no email, no submission log).
+app.post('/api/screening-save', express.json({ limit: '2mb' }), (req, res) => {
+  try { const s = upsertScreening(req, req.body || {}); res.json({ ok: true, id: s.id }); }
+  catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
 // ---- Screening queue ----

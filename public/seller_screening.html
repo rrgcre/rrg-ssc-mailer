@@ -625,10 +625,22 @@
     });
     return miss;
   }
+  // Stable per-session id so Print and Submit of the same screening upsert one queue record.
+  var FORM_ID='ss_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+  function _saveRecord(){
+    try{
+      if(!window.RRG_API) return;               // only on the hosted toolkit
+      var data=_collectData(); data.formType='seller';
+      fetch(String(window.RRG_API).replace(/\/$/,'')+'/api/screening-save',
+        {method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).catch(function(){});
+    }catch(e){}
+  }
   window.validateAndPrint=function(){
     var m=_validate();
     if(m.length){ _showBanner('Complete '+m.length+' required field'+(m.length>1?'s':'')+' (marked *) before saving.'); m[0].scrollIntoView({behavior:'smooth',block:'center'}); return false; }
-    _hideBanner(); _renderPrintView(); document.body.classList.add('pv');
+    _hideBanner();
+    _saveRecord();                              // Print / Save PDF files the record to the queue too
+    _renderPrintView(); document.body.classList.add('pv');
     var done=false; function un(){ if(done) return; done=true; document.body.classList.remove('pv'); }
     window.addEventListener('afterprint', un, {once:true}); setTimeout(un, 3000);
     window.print(); return true;
@@ -694,6 +706,7 @@
       }
     });
     return {
+      formId: FORM_ID,
       concept: header['business name']||'Seller',
       contact: header['seller contact name']||'',
       preparedBy: header['rrg rep']||'',
