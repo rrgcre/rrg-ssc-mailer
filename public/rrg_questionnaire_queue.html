@@ -90,7 +90,7 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
         <button class="tab" id="v_all" onclick="setView('all')">All</button>
         <button class="tab on" id="v_waiting" onclick="setView('waiting')">Waiting</button>
         <button class="tab" id="v_advanced" onclick="setView('advanced')">Advanced</button>
-        <button class="tab" id="v_passed" onclick="setView('passed')">Passed</button>
+        <button class="tab" id="v_passed" onclick="setView('passed')">Rejected</button>
       </div>
       <select id="userFilter" class="ufilter" style="display:none" onchange="paint()"></select>
       <span class="cnt" id="cnt"></span><a class="home" href="./index.html">← Dashboard</a>
@@ -119,7 +119,7 @@ function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime()
 var ALL=[], ME={username:'',name:'',role:''}, VIEW='waiting', CURRENT=[];
 var VIEWS=['all','waiting','advanced','passed'];
 function setView(v){ VIEW=v; VIEWS.forEach(function(x){ document.getElementById('v_'+x).classList.toggle('on',x===v); }); paint(); }
-function stateOf(s){ return s.processed?'Advanced':(s.decision==='passed'?'Passed':'Waiting'); }
+function stateOf(s){ return s.processed?'Advanced':(s.decision==='passed'?'Rejected':'Waiting'); }
 function buildUserFilter(){
   if(ME.role!=='admin') return;
   var uf=document.getElementById('userFilter'); if(!uf) return;
@@ -141,7 +141,7 @@ function paint(){
   var sb=((document.getElementById('sortBy')||{}).value)||'new';
   list.sort(function(a,b){
     if(sb==='biz') return String(a.business||'').localeCompare(String(b.business||''));
-    if(sb==='status'){ var ord={Waiting:0,Advanced:1,Passed:2}; return (ord[stateOf(a)]||0)-(ord[stateOf(b)]||0); }
+    if(sb==='status'){ var ord={Waiting:0,Advanced:1,Rejected:2}; return (ord[stateOf(a)]||0)-(ord[stateOf(b)]||0); }
     var ta=new Date(a.createdAt||0).getTime(), tb=new Date(b.createdAt||0).getTime();
     return sb==='old' ? ta-tb : tb-ta;
   });
@@ -149,7 +149,7 @@ function paint(){
   render(list);
 }
 function printLog(){
-  var label={all:'All questionnaires',waiting:'Waiting to build a BOV',advanced:'BOV started',passed:'Passed'}[VIEW]||'All questionnaires';
+  var label={all:'All questionnaires',waiting:'Waiting to build a BOV',advanced:'BOV started',passed:'Rejected'}[VIEW]||'All questionnaires';
   var when=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   document.getElementById('printhead').innerHTML='<div class="ph-title">RRG Questionnaire Log</div><div class="ph-sub">'+esc(label)+' · '+CURRENT.length+' questionnaire'+(CURRENT.length===1?'':'s')+' · '+when+'</div>';
   window.print();
@@ -164,7 +164,7 @@ function exportCsv(){
 }
 function badge(s){
   var st=stateOf(s);
-  var cls={Waiting:'b-waiting',Advanced:'b-advanced',Passed:'b-passed'}[st]||'b-waiting';
+  var cls={Waiting:'b-waiting',Advanced:'b-advanced',Rejected:'b-passed'}[st]||'b-waiting';
   return '<span class="badge '+cls+'">'+st+'</span>';
 }
 function render(list){
@@ -175,7 +175,7 @@ function render(list){
       all:['No questionnaires yet.','Start your first one and it lands here.'],
       waiting:['Nothing waiting.','Every questionnaire has a BOV started or was passed.'],
       advanced:['No BOVs started yet.','Questionnaires you build a BOV from show up here.'],
-      passed:['No passed questionnaires.','Ones you pass on show up here — you can always Reconsider them.']
+      passed:['No rejected questionnaires.','Ones you reject show up here — you can always Reconsider them.']
     }[VIEW]||['Nothing here.',''];
     body.innerHTML='<div class="empty"><b>'+em[0]+'</b>'+em[1]+'<br><a class="np" href="./valuation_questionnaire.html">+ New Questionnaire</a></div>';
     return;
@@ -187,10 +187,10 @@ function render(list){
     if(s.processed){
       mid='<span class="done">✓ BOV started</span> <a href="'+bov+'">Reopen</a>';
     } else if(s.decision==='passed'){
-      mid='<span class="passed">✕ Passed</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
+      mid='<span class="passed">✕ Rejected</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
     } else {
       mid='<a class="adv" href="'+bov+'" onclick="markAdvanced(\''+s.id+'\')">Build BOV →</a>'
-        + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Pass</button>';
+        + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Reject</button>';
     }
     return '<tr data-id="'+esc(s.id)+'">'+
       '<td><div class="biz">'+esc(s.business||'Business')+'</div><div class="meta">'+meta+'</div></td>'+
@@ -209,7 +209,7 @@ function del(id,btn){
   fetch('/api/questionnaire/'+encodeURIComponent(id),{method:'DELETE'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not remove.'); }).catch(function(){ alert('Could not remove.'); });
 }
 function decide(id,decision){
-  if(decision==='passed' && !confirm('Pass on this questionnaire? It won’t move to a BOV.')) return;
+  if(decision==='passed' && !confirm('Reject this questionnaire? It won’t move to a BOV.')) return;
   fetch('/api/questionnaire/'+encodeURIComponent(id)+'/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:decision})})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not update.'); }).catch(function(){ alert('Could not update.'); });
 }

@@ -80,7 +80,7 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
   <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Seller Pipeline · Step 1</div>
   <h1>Call Screening Log</h1>
-  <div class="sub">Every seller call we've made, in one log. Log a new call, screen it, then pass or advance it to the Valuation Questionnaire.</div>
+  <div class="sub">Every seller call we've made, in one log. Log a new call, screen it, then reject or advance it to the Valuation Questionnaire.</div>
 </div></div>
 
 <div class="wrap">
@@ -90,7 +90,7 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
         <button class="tab" id="v_all" onclick="setView('all')">All</button>
         <button class="tab on" id="v_waiting" onclick="setView('waiting')">Waiting</button>
         <button class="tab" id="v_advanced" onclick="setView('advanced')">Advanced</button>
-        <button class="tab" id="v_passed" onclick="setView('passed')">Passed</button>
+        <button class="tab" id="v_passed" onclick="setView('passed')">Rejected</button>
       </div>
       <select id="userFilter" class="ufilter" style="display:none" onchange="paint()"></select>
       <span class="cnt" id="cnt"></span><a class="home" href="./index.html">← Dashboard</a>
@@ -119,7 +119,7 @@ function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime()
 var ALL=[], ME={username:'',name:'',role:''}, VIEW='waiting', CURRENT=[];
 var VIEWS=['all','waiting','advanced','passed'];
 function setView(v){ VIEW=v; VIEWS.forEach(function(x){ document.getElementById('v_'+x).classList.toggle('on',x===v); }); paint(); }
-function stateOf(s){ return s.processed?'Advanced':(s.decision==='passed'?'Passed':'Waiting'); }
+function stateOf(s){ return s.processed?'Advanced':(s.decision==='passed'?'Rejected':'Waiting'); }
 function buildUserFilter(){
   if(ME.role!=='admin') return;
   var uf=document.getElementById('userFilter'); if(!uf) return;
@@ -141,7 +141,7 @@ function paint(){
   var sb=((document.getElementById('sortBy')||{}).value)||'new';
   list.sort(function(a,b){
     if(sb==='biz') return String(a.business||'').localeCompare(String(b.business||''));
-    if(sb==='status'){ var ord={Waiting:0,Advanced:1,Passed:2}; return (ord[stateOf(a)]||0)-(ord[stateOf(b)]||0); }
+    if(sb==='status'){ var ord={Waiting:0,Advanced:1,Rejected:2}; return (ord[stateOf(a)]||0)-(ord[stateOf(b)]||0); }
     var ta=new Date(a.createdAt||0).getTime(), tb=new Date(b.createdAt||0).getTime();
     return sb==='old' ? ta-tb : tb-ta;
   });
@@ -149,7 +149,7 @@ function paint(){
   render(list);
 }
 function printLog(){
-  var label={all:'All calls',waiting:'Waiting for pass or advance',advanced:'Advanced to questionnaire',passed:'Passed'}[VIEW]||'All calls';
+  var label={all:'All calls',waiting:'Waiting for reject or advance',advanced:'Advanced to questionnaire',passed:'Rejected'}[VIEW]||'All calls';
   var when=new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
   document.getElementById('printhead').innerHTML='<div class="ph-title">RRG Call Screening Log</div><div class="ph-sub">'+esc(label)+' · '+CURRENT.length+' call'+(CURRENT.length===1?'':'s')+' · '+when+'</div>';
   window.print();
@@ -164,7 +164,7 @@ function exportCsv(){
 }
 function badge(s){
   var st=stateOf(s);
-  var cls={Waiting:'b-waiting',Advanced:'b-advanced',Passed:'b-passed'}[st]||'b-waiting';
+  var cls={Waiting:'b-waiting',Advanced:'b-advanced',Rejected:'b-passed'}[st]||'b-waiting';
   return '<span class="badge '+cls+'">'+st+'</span>';
 }
 function render(list){
@@ -173,9 +173,9 @@ function render(list){
   if(!list.length){
     var em={
       all:['No calls logged yet.','Log your first call and it lands here.'],
-      waiting:['Nothing waiting.','Every call has been passed or advanced. Nice and clean.'],
+      waiting:['Nothing waiting.','Every call has been rejected or advanced. Nice and clean.'],
       advanced:['Nothing advanced yet.','Calls you move to the Valuation Questionnaire show up here.'],
-      passed:['No passed calls.','Calls you pass on show up here — you can always Reconsider them.']
+      passed:['No rejected calls.','Calls you reject show up here — you can always Reconsider them.']
     }[VIEW]||['No calls.',''];
     body.innerHTML='<div class="empty"><b>'+em[0]+'</b>'+em[1]+'<br><a class="np" href="./seller_screening.html">+ New Call</a></div>';
     return;
@@ -187,10 +187,10 @@ function render(list){
     if(s.processed){
       mid='<span class="done">✓ Advanced</span> <a href="'+vq+'">Reopen</a>';
     } else if(s.decision==='passed'){
-      mid='<span class="passed">✕ Passed</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
+      mid='<span class="passed">✕ Rejected</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
     } else {
       mid='<a class="adv" href="'+vq+'">Advance to Questionnaire →</a>'
-        + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Pass</button>';
+        + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Reject</button>';
     }
     return '<tr data-id="'+esc(s.id)+'">'+
       '<td><div class="biz">'+esc(s.business||'Seller')+'</div><div class="meta">'+meta+(s.contact?(' · '+esc(s.contact)):'')+'</div></td>'+
@@ -209,7 +209,7 @@ function del(id,btn){
   fetch('/api/screening/'+encodeURIComponent(id),{method:'DELETE'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not remove.'); }).catch(function(){ alert('Could not remove.'); });
 }
 function decide(id,decision){
-  if(decision==='passed' && !confirm('Pass on this lead? It won’t move to the Valuation Questionnaire.')) return;
+  if(decision==='passed' && !confirm('Reject this lead? It won’t move to the Valuation Questionnaire.')) return;
   fetch('/api/screening/'+encodeURIComponent(id)+'/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:decision})})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not update.'); }).catch(function(){ alert('Could not update.'); });
 }

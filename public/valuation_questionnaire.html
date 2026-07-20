@@ -331,7 +331,6 @@
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Zip</label><input type="text"></div>
-      <div class="field"><label class="k">Phone</label><input type="text"></div>
     </div>
     <div class="grid rowgap">
       <div class="field full"><label class="k">Shopping Center</label><input type="text"></div>
@@ -1082,11 +1081,17 @@
   }
   fetch(API+'/api/screening/'+encodeURIComponent(id)).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok||!j.screening) return;
-    var s=j.screening;
+    var s=j.screening, d=s.data||{};
     setByLabel(['restaurant name','business name','concept name'], s.business);
+    setByLabel(['street address'], d.address||'');
     setByLabel(['city'], s.market);
-    // mark this screening as advanced to the questionnaire stage
+    setByLabel(['state'], 'TX');
+    // one questionnaire per advanced call (deterministic id → no duplicates)
+    window.RRG_Q_FORM_ID='qfromscr_'+id;
+    // mark the call advanced, and file a Waiting questionnaire so it shows in the log now
     fetch(API+'/api/screening/'+encodeURIComponent(id)+'/advance',{method:'POST'}).catch(function(){});
+    if(window._collectData){ var data=window._collectData(); data.formType='valuation';
+      fetch(API+'/api/questionnaire-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).catch(function(){}); }
   }).catch(function(){});
 })();
 </script>
