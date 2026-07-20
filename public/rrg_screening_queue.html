@@ -182,14 +182,13 @@ function render(list){
   }
   var rows=list.map(function(s){
     var meta=[s.date||fmt(s.createdAt), s.market, s.by].filter(Boolean).map(esc).join(' · ');
-    var vq='./valuation_questionnaire.html?screening='+encodeURIComponent(s.id);
     var mid;
     if(s.processed){
-      mid='<span class="done">✓ Advanced</span> <a href="'+vq+'">Reopen</a>';
+      mid='<span class="done">✓ Advanced</span> <a href="#" onclick="advanceCall(\''+s.id+'\');return false;">Reopen</a>';
     } else if(s.decision==='passed'){
       mid='<span class="passed">✕ Rejected</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
     } else {
-      mid='<a class="adv" href="'+vq+'">Advance to Questionnaire →</a>'
+      mid='<a class="adv" href="#" onclick="advanceCall(\''+s.id+'\');return false;">Advance to Questionnaire →</a>'
         + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Reject</button>';
     }
     return '<tr data-id="'+esc(s.id)+'">'+
@@ -207,6 +206,15 @@ function render(list){
 function del(id,btn){
   if(!confirm('Remove this call from the log?')) return;
   fetch('/api/screening/'+encodeURIComponent(id),{method:'DELETE'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not remove.'); }).catch(function(){ alert('Could not remove.'); });
+}
+// Advance a call: create its questionnaire server-side (reliable), then open it.
+function advanceCall(id){
+  fetch('/api/screening/'+encodeURIComponent(id)+'/advance',{method:'POST'})
+    .then(function(r){return r.json();}).then(function(j){
+      var qid=(j&&j.questionnaireId)||'';
+      location.href = qid ? ('./valuation_questionnaire.html?q='+encodeURIComponent(qid))
+                          : ('./valuation_questionnaire.html?screening='+encodeURIComponent(id));
+    }).catch(function(){ location.href='./valuation_questionnaire.html?screening='+encodeURIComponent(id); });
 }
 function decide(id,decision){
   if(decision==='passed' && !confirm('Reject this lead? It won’t move to the Valuation Questionnaire.')) return;

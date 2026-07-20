@@ -438,8 +438,8 @@
       <div class="field full"><label class="k">Management Team Detail</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">General Manager Tenure</label><input type="text"></div>
-      <div class="field"><label class="k">Kitchen Manager Tenure</label><input type="text"></div>
+      <div class="field"><label class="k">General Manager Tenure</label><span class="padorn"><input type="text" class="yrs99" inputmode="numeric" placeholder="e.g. 5"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">Kitchen Manager Tenure</label><span class="padorn"><input type="text" class="yrs99" inputmode="numeric" placeholder="e.g. 5"><span class="ad-suf">yrs</span></span></div>
     </div>
     <div class="grid rowgap">
       <div class="field full"><label class="k">Owner Roles</label><textarea></textarea></div>
@@ -780,12 +780,14 @@
   function _grp(s){s=(s||'').replace(/[^0-9]/g,'');return s?Number(s).toLocaleString('en-US'):'';}
   function _pct(s){s=(s||'').replace(/[^0-9.]/g,'');var p=s.split('.');if(p.length>2)s=p[0]+'.'+p.slice(1).join('');if(s!==''&&s!=='.'&&parseFloat(s)>100)s='100';return s;}
   function _dec2(s){s=(s||'').replace(/[^0-9.]/g,'');var p=s.split('.');if(p.length>2)s=p[0]+'.'+p.slice(1).join('');p=s.split('.');if(p[1]!==undefined)s=p[0]+'.'+p[1].slice(0,2);return s;}
+  function _yrs99(s){s=(s||'').replace(/[^0-9]/g,'').slice(0,2);if(s!==''&&parseInt(s,10)>99)s='99';return s;}
   function _int(s){return (s||'').replace(/[^0-9]/g,'');}
   document.addEventListener('input',function(e){
     var el=e.target; if(!el.classList) return;
     if(el.classList.contains('money')||el.classList.contains('grp')) el.value=_grp(el.value);
     else if(el.classList.contains('pct')) el.value=_pct(el.value);
     else if(el.classList.contains('dec2')) el.value=_dec2(el.value);
+    else if(el.classList.contains('yrs99')) el.value=_yrs99(el.value);
     else if(el.classList.contains('int')) el.value=_int(el.value);
   });
 
