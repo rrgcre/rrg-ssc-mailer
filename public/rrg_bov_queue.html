@@ -126,7 +126,10 @@ function load(){
     var s=res[0], j=res[1];
     if(s&&s.ok){ ME={username:s.username||'',name:s.name||'',role:s.role||''}; }
     if(!j){ document.getElementById('body').innerHTML='<div class="empty"><b>Couldn’t reach the server.</b>The BOV Queue works on the hosted toolkit.</div>'; return; }
-    ALL=(j&&j.bovs)||[]; buildUserFilter(); paint();
+    ALL=(j&&j.bovs)||[];
+    // Reps only see their own — hide the team view + the tabs entirely; admins get the whole team.
+    if(ME.role!=='admin'){ TAB='mine'; var tb=document.getElementById('tabMine').parentNode; if(tb) tb.style.display='none'; }
+    buildUserFilter(); paint();
   });
 }
 function del(id,btn){

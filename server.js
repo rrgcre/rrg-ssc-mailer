@@ -178,13 +178,24 @@ app.get('/log.csv', (_req, res) => {
   res.send(store.CSV_COLS.join(',') + '\n');
 });
 // ---- BOV queue ----
-app.get('/api/bovs', (_req, res) => res.json({
-  ok: true,
-  bovs: loadBovs().slice().reverse().map(b => ({ id: b.id, business: b.business, date: b.date, rangeText: b.rangeText, targetText: b.targetText, multText: b.multText, ebitdaText: b.ebitdaText, by: b.by, byUser: b.byUser, createdAt: b.createdAt })),
-}));
+// A rep can only see/open/delete their own BOVs; an admin sees the whole team.
+function ownsBov(req, b) {
+  if (req.user && req.user.role === 'admin') return true;
+  if (b.byUser) return b.byUser === (req.user && req.user.username);
+  return b.by && b.by === (req.user && req.user.name);
+}
+app.get('/api/bovs', (req, res) => {
+  const isAdmin = req.user && req.user.role === 'admin';
+  const list = loadBovs().slice().reverse().filter(b => isAdmin || ownsBov(req, b));
+  res.json({
+    ok: true, isAdmin: !!isAdmin,
+    bovs: list.map(b => ({ id: b.id, business: b.business, date: b.date, rangeText: b.rangeText, targetText: b.targetText, multText: b.multText, ebitdaText: b.ebitdaText, by: b.by, byUser: b.byUser, createdAt: b.createdAt })),
+  });
+});
 app.get('/api/bov/:id', (req, res) => {
   const b = loadBovs().find(x => x.id === req.params.id);
   if (!b) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsBov(req, b)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   res.json({ ok: true, bov: b });
 });
 app.post('/api/bov', (req, res) => {
@@ -204,10 +215,12 @@ app.post('/api/bov', (req, res) => {
   res.json({ ok: true, id: rec.id });
 });
 app.delete('/api/bov/:id', (req, res) => {
-  let bovs = loadBovs(); const n = bovs.length;
-  bovs = bovs.filter(x => x.id !== req.params.id);
-  if (bovs.length === n) return res.status(404).json({ ok: false, error: 'Not found.' });
-  saveBovs(bovs); res.json({ ok: true });
+  const bovs = loadBovs();
+  const target = bovs.find(x => x.id === req.params.id);
+  if (!target) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsBov(req, target)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  saveBovs(bovs.filter(x => x.id !== req.params.id));
+  res.json({ ok: true });
 });
 
 // Quick links — admin-only links are filtered out for non-admins.
