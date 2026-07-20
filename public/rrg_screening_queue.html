@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Seller Screenings</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--amber:#b9761a;--blue:#2647b0;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:30px 40px 34px;position:relative;overflow:hidden;
+  background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top .brand{display:inline-flex;align-items:center;position:relative;z-index:2;}
+.top .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.top .bar{background:#fff;width:3px;height:30px;margin:0 12px;} .top .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{position:relative;z-index:2;margin:22px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+h1{position:relative;z-index:2;font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{position:relative;z-index:2;color:#aeb8cf;font-size:13px;margin-top:7px;max-width:560px;line-height:1.5;}
+.newbtn{position:absolute;top:30px;right:40px;z-index:3;display:inline-flex;align-items:center;gap:8px;background:var(--red);color:#fff;text-decoration:none;font-weight:700;font-size:13.5px;padding:11px 18px;border-radius:10px;box-shadow:0 8px 24px rgba(218,43,31,.3);}
+.newbtn:hover{background:#c0241a;}
+.wrap{max-width:1080px;margin:26px auto;padding:0 24px 60px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
+.hd{display:flex;align-items:center;padding:14px 22px;border-bottom:1px solid var(--line);gap:10px;flex-wrap:wrap;}
+.tabs{display:inline-flex;background:var(--wash);border:1px solid var(--line);border-radius:9px;padding:3px;gap:2px;}
+.tab{border:none;background:transparent;color:var(--muted);font:inherit;font-size:12.5px;font-weight:700;padding:6px 14px;border-radius:7px;cursor:pointer;}
+.tab.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(10,20,50,.1);}
+.ufilter{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;font-size:12.5px;color:var(--navy);font-weight:600;background:#fff;}
+.ufilter:focus{outline:none;border-color:var(--red);}
+.hd2{padding:12px 22px;gap:10px;}
+.search{flex:1;min-width:200px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;font:inherit;font-size:12.5px;color:var(--navy);}
+.search:focus{outline:none;border-color:var(--red);}
+.lbl{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;}
+.cnt{margin-left:auto;color:var(--muted);font-size:12.5px;}
+.home{text-decoration:none;color:var(--navy);font-weight:600;font-size:12.5px;border:1px solid var(--line);padding:7px 13px;border-radius:8px;}
+.home:hover{border-color:#9fb0cc;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:middle;}
+th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);}
+tr:hover td{background:#fbfcfe;}
+.biz{font-weight:800;color:var(--navy);font-size:14px;} .meta{color:var(--muted);font-size:11.5px;margin-top:2px;}
+.badge{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.03em;padding:4px 9px;border-radius:100px;white-space:nowrap;}
+.b-advance{background:#e7f6ee;color:var(--green);} .b-nurture{background:#fdf2e3;color:var(--amber);}
+.b-pass{background:#eef0f4;color:#6b7488;} .b-refer{background:#eaf0ff;color:var(--blue);} .b-none{background:#eef0f4;color:#6b7488;}
+.done{display:inline-block;font-size:11px;color:var(--green);font-weight:700;}
+.act{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;}
+.act a,.act button{font:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;text-decoration:none;border:1px solid var(--line);background:#fff;color:var(--navy);white-space:nowrap;}
+.act a:hover,.act button:hover{border-color:#9fb0cc;}
+.act .adv{background:var(--navy);color:#fff;border-color:var(--navy);}
+.act .del{color:var(--red);border-color:#f0c9c6;}
+.empty{text-align:center;color:var(--muted);padding:54px 20px;}
+.empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
+.empty .np{margin-top:16px;display:inline-block;background:var(--red);color:#fff;text-decoration:none;font-weight:700;padding:10px 18px;border-radius:10px;}
+.foot{max-width:1080px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+@media(max-width:720px){ th.hide,td.hide{display:none;} .top{padding:24px 20px;} h1{font-size:24px;} .newbtn{position:static;margin-top:16px;} }
+</style>
+</head>
+<body>
+<div class="top">
+  <a class="newbtn" href="./seller_screening.html">+ New Screening</a>
+  <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Seller Pipeline · Step 1</div>
+  <h1>Seller Screenings</h1>
+  <div class="sub">Every screening call, in one queue. Screen a new seller, then advance the strong leads to the Valuation Questionnaire.</div>
+</div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="hd">
+      <div class="tabs" id="scopeTabs"><button class="tab on" id="tabMine" onclick="setScope('mine')">Mine</button><button class="tab" id="tabAll" onclick="setScope('all')">Team</button></div>
+      <div class="tabs"><button class="tab on" id="tabAwait" onclick="setView('await')">Awaiting Questionnaire</button><button class="tab" id="tabAllv" onclick="setView('all')">All</button></div>
+      <select id="userFilter" class="ufilter" style="display:none" onchange="onUserFilter()"></select>
+      <span class="cnt" id="cnt"></span><a class="home" href="./index.html">← Dashboard</a>
+    </div>
+    <div class="hd hd2">
+      <input id="q" class="search" placeholder="Search business, contact, or market…" oninput="paint()">
+      <span class="lbl">Status</span>
+      <select id="statusFilter" class="ufilter" onchange="paint()">
+        <option value="">All</option>
+        <option value="advance">Advance</option>
+        <option value="nurture">Nurture</option>
+        <option value="pass">Pass</option>
+        <option value="refer">Refer Out</option>
+      </select>
+      <span class="lbl">Sort</span>
+      <select id="sortBy" class="ufilter" onchange="paint()">
+        <option value="new">Newest first</option>
+        <option value="old">Oldest first</option>
+        <option value="biz">Business A–Z</option>
+        <option value="status">Lead status</option>
+      </select>
+    </div>
+    <div id="body"></div>
+  </div>
+</div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
+var ALL=[], ME={username:'',name:'',role:''}, SCOPE='mine', VIEW='await';
+function setScope(t){ SCOPE=t; document.getElementById('tabMine').classList.toggle('on',t==='mine'); document.getElementById('tabAll').classList.toggle('on',t==='all'); paint(); }
+function setView(v){ VIEW=v; document.getElementById('tabAwait').classList.toggle('on',v==='await'); document.getElementById('tabAllv').classList.toggle('on',v==='all'); paint(); }
+function isMine(s){ return (s.byUser && s.byUser===ME.username) || (!s.byUser && s.by && s.by===ME.name); }
+function onUserFilter(){ var uf=document.getElementById('userFilter'); if(uf.value){ setScope('all'); } else { paint(); } }
+function buildUserFilter(){
+  if(ME.role!=='admin') return;
+  var uf=document.getElementById('userFilter'); if(!uf) return;
+  var seen={}, opts=[];
+  ALL.forEach(function(s){ var k=s.byUser||s.by; if(k&&!seen[k]){ seen[k]=1; opts.push({key:k,label:s.by||s.byUser}); } });
+  opts.sort(function(a,b){ return String(a.label).localeCompare(String(b.label)); });
+  uf.innerHTML='<option value="">Filter: everyone</option>'+opts.map(function(o){ return '<option value="'+esc(o.key)+'">'+esc(o.label)+'</option>'; }).join('');
+  uf.style.display='';
+}
+function paint(){
+  var list=ALL.slice();
+  if(SCOPE==='mine'){ list=list.filter(isMine); }
+  else { var uf=document.getElementById('userFilter'); var val=(ME.role==='admin'&&uf)?uf.value:''; if(val) list=list.filter(function(s){ return (s.byUser||s.by)===val; }); }
+  if(VIEW==='await'){ list=list.filter(function(s){ return s.status==='advance' && !s.processed; }); }
+  var sf=(document.getElementById('statusFilter')||{}).value||''; if(sf) list=list.filter(function(s){ return s.status===sf; });
+  var q=(((document.getElementById('q')||{}).value)||'').trim().toLowerCase();
+  if(q) list=list.filter(function(s){ return ((s.business||'')+' '+(s.contact||'')+' '+(s.market||'')).toLowerCase().indexOf(q)>=0; });
+  var sb=((document.getElementById('sortBy')||{}).value)||'new';
+  list.sort(function(a,b){
+    if(sb==='biz') return String(a.business||'').localeCompare(String(b.business||''));
+    if(sb==='status') return String(a.status||'zzz').localeCompare(String(b.status||'zzz'));
+    var ta=new Date(a.createdAt||0).getTime(), tb=new Date(b.createdAt||0).getTime();
+    return sb==='old' ? ta-tb : tb-ta;
+  });
+  render(list);
+}
+function badge(s){
+  var m={advance:['b-advance','Advance'],nurture:['b-nurture','Nurture'],pass:['b-pass','Pass'],refer:['b-refer','Refer Out']};
+  var x=m[s.status]||['b-none', (s.statusText||'—')];
+  return '<span class="badge '+x[0]+'">'+esc(x[1])+'</span>';
+}
+function render(list){
+  var body=document.getElementById('body'), cnt=document.getElementById('cnt');
+  cnt.textContent = list.length ? (list.length+(VIEW==='await'?' awaiting':'')) : '';
+  if(!list.length){
+    body.innerHTML='<div class="empty"><b>'+(VIEW==='await'?'No screenings awaiting a questionnaire.':'No screenings yet.')+'</b>'+
+      (VIEW==='await'?'Strong leads marked <b style="display:inline">Advance</b> show up here, ready for the Valuation Questionnaire.':'Run your first screening call and it lands here.')+
+      '<br><a class="np" href="./seller_screening.html">+ New Screening</a></div>';
+    return;
+  }
+  var rows=list.map(function(s){
+    var meta=[s.date||fmt(s.createdAt), s.market, s.by].filter(Boolean).map(esc).join(' · ');
+    var advCell = s.processed
+      ? '<span class="done">✓ Questionnaire started</span> <a href="./valuation_questionnaire.html?screening='+encodeURIComponent(s.id)+'">Reopen</a>'
+      : (s.status==='advance'
+          ? '<a class="adv" href="./valuation_questionnaire.html?screening='+encodeURIComponent(s.id)+'">Advance to Questionnaire →</a>'
+          : '<a href="./valuation_questionnaire.html?screening='+encodeURIComponent(s.id)+'">Start Questionnaire</a>');
+    return '<tr>'+
+      '<td><div class="biz">'+esc(s.business||'Seller')+'</div><div class="meta">'+meta+(s.contact?(' · '+esc(s.contact)):'')+'</div></td>'+
+      '<td class="hide">'+badge(s)+'</td>'+
+      '<td><div class="act">'+advCell+'<button class="del" onclick="del(\''+s.id+'\',this)">Remove</button></div></td>'+
+    '</tr>';
+  }).join('');
+  body.innerHTML='<table><thead><tr><th>Business</th><th class="hide">Lead status</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
+}
+function del(id,btn){
+  if(!confirm('Remove this screening from the queue?')) return;
+  fetch('/api/screening/'+encodeURIComponent(id),{method:'DELETE'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not remove.'); }).catch(function(){ alert('Could not remove.'); });
+}
+function load(){
+  Promise.all([
+    fetch('/api/session').then(function(r){return r.json();}).catch(function(){return null;}),
+    fetch('/api/screenings').then(function(r){return r.json();}).catch(function(){return null;})
+  ]).then(function(res){
+    var s=res[0], j=res[1];
+    if(s&&s.ok){ ME={username:s.username||'',name:s.name||'',role:s.role||''}; }
+    if(!j){ document.getElementById('body').innerHTML='<div class="empty"><b>Couldn’t reach the server.</b>The Screening Queue works on the hosted toolkit.</div>'; return; }
+    ALL=(j&&j.screenings)||[];
+    if(ME.role!=='admin'){ SCOPE='mine'; var tb=document.getElementById('scopeTabs'); if(tb) tb.style.display='none'; }
+    buildUserFilter(); paint();
+  });
+}
+load();
+</script>
+</body>
+</html>

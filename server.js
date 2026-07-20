@@ -21,6 +21,40 @@ const BOVS_FILE = path.join(BOV_DATA_DIR, 'bovs.json');
 function loadBovs() { try { return JSON.parse(fs.readFileSync(BOVS_FILE, 'utf8')); } catch (e) { return []; } }
 function saveBovs(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BOVS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newBovId() { return 'bov_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+// ---- Screening queue store (seller screenings awaiting a questionnaire) ----
+const SCREEN_FILE = path.join(BOV_DATA_DIR, 'screenings.json');
+function loadScreens() { try { return JSON.parse(fs.readFileSync(SCREEN_FILE, 'utf8')); } catch (e) { return []; } }
+function saveScreens(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SCREEN_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newScreenId() { return 'scr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+// Pull the selected "Lead Status" out of the screening's structured sections.
+function leadStatusOf(data) {
+  try {
+    var secs = (data && data.sections) || [];
+    for (var i = 0; i < secs.length; i++) {
+      var gs = secs[i].groups || [];
+      for (var j = 0; j < gs.length; j++) {
+        if (gs[j].kind === 'options' && /lead status/i.test(gs[j].label || '')) {
+          return (gs[j].selected && gs[j].selected[0]) || '';
+        }
+      }
+    }
+  } catch (e) {}
+  return '';
+}
+function statusCode(txt) {
+  txt = String(txt || '');
+  if (/^advance/i.test(txt)) return 'advance';
+  if (/^nurture/i.test(txt)) return 'nurture';
+  if (/^pass/i.test(txt)) return 'pass';
+  if (/^refer/i.test(txt)) return 'refer';
+  return '';
+}
+function ownsScreen(req, s) {
+  if (req.user && req.user.role === 'admin') return true;
+  if (s.byUser) return s.byUser === (req.user && req.user.username);
+  return s.by && s.by === (req.user && req.user.name);
+}
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 // Date + time in Central, e.g. "7/20/26, 1:12 PM" (falls back if ICU is limited).
@@ -191,6 +225,60 @@ app.post('/api/log', (req, res) => {
   const formType = String(data.formType || 'seller').toLowerCase().replace(/[^a-z]/g, '').slice(0, 20) || 'seller';
   try { const e = store.appendSubmission(formType, data, { ip: req.ip, emailed: false, by: req.user && req.user.username }); res.json({ ok: true, timestamp: e.timestamp }); }
   catch (err) { console.error('log error:', err); res.status(500).json({ ok: false, error: String((err && err.message) || err) }); }
+  // Every submitted seller screening also drops into the Screening Queue.
+  if (formType === 'seller') {
+    try {
+      const arr = loadScreens();
+      const statusTxt = leadStatusOf(data);
+      arr.push({
+        id: newScreenId(),
+        business: String(data.concept || 'Seller').slice(0, 120),
+        contact: String(data.contact || '').slice(0, 120),
+        market: String(data.market || '').slice(0, 80),
+        date: String(data.date || '').slice(0, 40),
+        statusText: String(statusTxt || '').slice(0, 90),
+        status: statusCode(statusTxt),
+        processed: false, processedAt: '',
+        data: data,
+        by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
+        createdAt: new Date().toISOString(),
+      });
+      saveScreens(arr);
+    } catch (e2) { console.error('screening enqueue error:', e2); }
+  }
+});
+
+// ---- Screening queue ----
+app.get('/api/screenings', (req, res) => {
+  const isAdmin = req.user && req.user.role === 'admin';
+  const list = loadScreens().slice().reverse().filter(s => isAdmin || ownsScreen(req, s));
+  res.json({
+    ok: true, isAdmin: !!isAdmin,
+    screenings: list.map(s => ({ id: s.id, business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt })),
+  });
+});
+app.get('/api/screening/:id', (req, res) => {
+  const s = loadScreens().find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsScreen(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  res.json({ ok: true, screening: s });
+});
+app.post('/api/screening/:id/advance', (req, res) => {
+  const arr = loadScreens();
+  const s = arr.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsScreen(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  s.processed = true; s.processedAt = new Date().toISOString();
+  saveScreens(arr);
+  res.json({ ok: true });
+});
+app.delete('/api/screening/:id', (req, res) => {
+  const arr = loadScreens();
+  const s = arr.find(x => x.id === req.params.id);
+  if (!s) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsScreen(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  saveScreens(arr.filter(x => x.id !== req.params.id));
+  res.json({ ok: true });
 });
 app.get('/log.csv', (_req, res) => {
   const fs = require('fs');
