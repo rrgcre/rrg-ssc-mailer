@@ -59,8 +59,9 @@ function saveLinks(list) {
   const clean = (Array.isArray(list) ? list : []).map(l => ({
     name: String((l && l.name) || '').trim().slice(0, 60),
     url: String((l && l.url) || '').trim().slice(0, 300),
-  })).filter(l => l.name && l.url).slice(0, 10)
-    .map(l => ({ name: l.name, url: /^https?:\/\//i.test(l.url) ? l.url : 'https://' + l.url }));
+    adminOnly: !!(l && l.adminOnly),
+  })).filter(l => l.name && l.url).slice(0, 20)
+    .map(l => ({ name: l.name, url: /^https?:\/\//i.test(l.url) ? l.url : 'https://' + l.url, adminOnly: l.adminOnly }));
   fs.writeFileSync(LINKS, JSON.stringify(clean, null, 2));
   return clean;
 }
