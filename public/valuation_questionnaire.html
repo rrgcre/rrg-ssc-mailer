@@ -703,6 +703,10 @@
     return {
       formId: (window.RRG_Q_FORM_ID || (window.RRG_Q_FORM_ID='q_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8))),
       snapshot: (window.rrgSerialize ? window.rrgSerialize() : null),
+      complete: (function(){ var ok=true;
+        document.querySelectorAll('#sscform input.req, #sscform textarea.req, #sscform select.req').forEach(function(el){ if(!el.value.trim()){ ok=false; } else if(el.classList.contains('email') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim())){ ok=false; } });
+        document.querySelectorAll('#sscform .oset[data-req]').forEach(function(os){ if(!Array.prototype.slice.call(os.querySelectorAll('input')).some(function(i){return i.checked;})) ok=false; });
+        return ok; })(),
       concept: _fieldByLabel('Restaurant Name')||'Business',
       contact: '',
       preparedBy: _fieldByLabel('RRG Advisor')||'',

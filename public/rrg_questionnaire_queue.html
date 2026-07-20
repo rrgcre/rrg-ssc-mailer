@@ -48,6 +48,8 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
 .act a,.act button{font:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;text-decoration:none;border:1px solid var(--line);background:#fff;color:var(--navy);white-space:nowrap;}
 .act a:hover,.act button:hover{border-color:#9fb0cc;}
 .act .adv{background:var(--navy);color:#fff;border-color:var(--navy);}
+.act .complete{background:#b9761a;border-color:#b9761a;color:#fff;}
+.act .complete:hover{background:#9c6416;border-color:#9c6416;}
 .act .pass{color:var(--muted);}
 .act .del{color:var(--red);border-color:#f0c9c6;}
 .passed{color:var(--muted);font-weight:700;font-size:12.5px;}
@@ -76,11 +78,10 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
 </head>
 <body>
 <div class="top"><div class="top-inner">
-  <a class="newbtn" href="./valuation_questionnaire.html">+ New Questionnaire</a>
   <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Seller Pipeline · Step 2</div>
   <h1>Questionnaire Log</h1>
-  <div class="sub">Every valuation questionnaire, in one log. Start a new one, then build the BOV from it.</div>
+  <div class="sub">Questionnaires arrive here when a qualified call is advanced. Complete one, then build the BOV from it.</div>
 </div></div>
 
 <div class="wrap">
@@ -172,12 +173,12 @@ function render(list){
   cnt.textContent = list.length ? (list.length+' questionnaire'+(list.length===1?'':'s')) : '';
   if(!list.length){
     var em={
-      all:['No questionnaires yet.','Start your first one and it lands here.'],
-      waiting:['Nothing waiting.','Every questionnaire has a BOV started or was passed.'],
+      all:['No questionnaires yet.','They arrive here when you advance a qualified call from the Seller Qualification Call log.'],
+      waiting:['Nothing waiting.','Advance a qualified call and it lands here to complete.'],
       advanced:['No BOVs started yet.','Questionnaires you build a BOV from show up here.'],
       passed:['No rejected questionnaires.','Ones you reject show up here — you can always Reconsider them.']
     }[VIEW]||['Nothing here.',''];
-    body.innerHTML='<div class="empty"><b>'+em[0]+'</b>'+em[1]+'<br><a class="np" href="./valuation_questionnaire.html">+ New Questionnaire</a></div>';
+    body.innerHTML='<div class="empty"><b>'+em[0]+'</b>'+em[1]+'<br><a class="np" href="./rrg_screening_queue.html">Open the Call Log →</a></div>';
     return;
   }
   var rows=list.map(function(s){
@@ -189,8 +190,10 @@ function render(list){
     } else if(s.decision==='passed'){
       mid='<span class="passed">✕ Rejected</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
     } else {
-      mid='<a class="adv" href="'+bov+'" onclick="markAdvanced(\''+s.id+'\')">Build BOV →</a>'
-        + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Reject</button>';
+      var act = s.completed
+        ? '<a class="adv" href="'+bov+'" onclick="markAdvanced(\''+s.id+'\')">Build BOV →</a>'
+        : '<a class="adv complete" href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Complete Questionnaire →</a>';
+      mid=act + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Reject</button>';
     }
     return '<tr data-id="'+esc(s.id)+'">'+
       '<td><div class="biz">'+esc(s.business||'Business')+'</div><div class="meta">'+meta+'</div></td>'+

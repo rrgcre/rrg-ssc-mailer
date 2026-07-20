@@ -44,6 +44,7 @@ function upsertQuest(req, data) {
   const fields = {
     business: String(data.concept || 'Business').slice(0, 120),
     market: String(data.market || '').slice(0, 80),
+    completed: !!(data && data.complete),
     data: data,
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
@@ -63,7 +64,7 @@ function ensureQuestForScreening(s) {
   if (existing) return existing;
   const d = s.data || {};
   const rec = {
-    id: newQuestId(), formId: fid, processed: false, processedAt: '', decision: '',
+    id: newQuestId(), formId: fid, processed: false, processedAt: '', decision: '', completed: false,
     business: s.business || 'Business', market: s.market || '',
     data: { formId: fid, concept: s.business || '', market: s.market || '', address: d.address || '' },
     by: s.by || '', byUser: s.byUser || '', createdAt: new Date().toISOString(),
@@ -411,7 +412,7 @@ app.get('/api/questionnaires', (req, res) => {
   const list = loadQuests().slice().reverse().filter(s => isAdmin || ownsQuest(req, s));
   res.json({
     ok: true, isAdmin: !!isAdmin,
-    questionnaires: list.map(s => ({ id: s.id, business: s.business, market: s.market, decision: s.decision || '', processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt })),
+    questionnaires: list.map(s => ({ id: s.id, business: s.business, market: s.market, decision: s.decision || '', completed: !!s.completed, processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt })),
   });
 });
 app.get('/api/questionnaire/:id', (req, res) => {
