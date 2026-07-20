@@ -36,6 +36,8 @@
   .btn.sample:hover{ color:#fff; border-color:#5c6e96; }
   .btn.blank{ background:#eef1f6; color:#0b1c44; }
   .btn.blank:hover{ background:#dfe4ee; }
+  .btn.save{ background:#1f8a5b; color:#fff; }
+  .btn.save:hover{ background:#1a7a4f; }
 
   /* ---- sheet ---- */
   .wrap{ max-width:8.5in; margin:22px auto 60px; }
@@ -251,6 +253,7 @@
     <button class="btn clear" onclick="if(confirm('Clear all fields?')){document.getElementById('sscform').reset();document.dispatchEvent(new Event('input',{bubbles:true}));if(window.rrgClearDraft)window.rrgClearDraft();}">Clear form</button>
     <button class="btn blank" onclick="printBlank()">Print blank copy</button>
     <button class="btn blank" onclick="validateAndPrint()">Print / Save PDF</button>
+    <button class="btn save" onclick="saveAndClose()">Save &amp; Close</button>
     <button class="btn print" onclick="emailSSC()">Submit &amp; Email</button>
   </div>
 </div>
@@ -636,6 +639,18 @@
         {method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).catch(function(){});
     }catch(e){}
   }
+  // Save the call to the log (no email, no print) and return to the Call Screening Log.
+  window.saveAndClose=function(){
+    var LOG='./rrg_screening_queue.html';
+    if(!window.RRG_API){ try{ if(window.rrgClearDraft) window.rrgClearDraft(); }catch(e){} location.href=LOG; return false; }
+    var data=_collectData(); data.formType='seller';
+    try{ if(window.rrgClearDraft) window.rrgClearDraft(); }catch(e){}   // it's filed to the log now
+    fetch(String(window.RRG_API).replace(/\/$/,'')+'/api/screening-save',
+      {method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+      .then(function(){ location.href=LOG; })
+      .catch(function(){ location.href=LOG; });
+    return false;
+  };
   window.validateAndPrint=function(){
     var m=_validate();
     if(m.length){ _showBanner('Complete '+m.length+' required field'+(m.length>1?'s':'')+' (marked *) before saving.'); m[0].scrollIntoView({behavior:'smooth',block:'center'}); return false; }
