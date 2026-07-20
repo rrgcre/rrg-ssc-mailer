@@ -40,8 +40,8 @@ th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mu
 tr:hover td{background:#fbfcfe;}
 .biz{font-weight:800;color:var(--navy);font-size:14px;} .meta{color:var(--muted);font-size:11.5px;margin-top:2px;}
 .badge{display:inline-block;font-size:10.5px;font-weight:800;letter-spacing:.03em;padding:4px 9px;border-radius:100px;white-space:nowrap;}
-.b-advance{background:#e7f6ee;color:var(--green);} .b-nurture{background:#fdf2e3;color:var(--amber);}
-.b-pass{background:#eef0f4;color:#6b7488;} .b-refer{background:#eaf0ff;color:var(--blue);} .b-none{background:#eef0f4;color:#6b7488;}
+.b-waiting{background:#fdf2e3;color:var(--amber);} .b-advanced{background:#e7f6ee;color:var(--green);} .b-passed{background:#eef0f4;color:#6b7488;}
+tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 0 0 var(--red);}
 .done{display:inline-block;font-size:11px;color:var(--green);font-weight:700;}
 .act{display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end;}
 .act a,.act button{font:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;text-decoration:none;border:1px solid var(--line);background:#fff;color:var(--navy);white-space:nowrap;}
@@ -85,14 +85,13 @@ tr:hover td{background:#fbfcfe;}
 <div class="wrap">
   <div class="card">
     <div class="hd">
-      <div class="tabs" id="scopeTabs"><button class="tab on" id="tabMine" onclick="setScope('mine')">Mine</button><button class="tab" id="tabAll" onclick="setScope('all')">Team</button></div>
       <div class="tabs">
         <button class="tab on" id="v_all" onclick="setView('all')">All</button>
         <button class="tab" id="v_waiting" onclick="setView('waiting')">Waiting</button>
         <button class="tab" id="v_advanced" onclick="setView('advanced')">Advanced</button>
         <button class="tab" id="v_passed" onclick="setView('passed')">Passed</button>
       </div>
-      <select id="userFilter" class="ufilter" style="display:none" onchange="onUserFilter()"></select>
+      <select id="userFilter" class="ufilter" style="display:none" onchange="paint()"></select>
       <span class="cnt" id="cnt"></span><a class="home" href="./index.html">← Dashboard</a>
     </div>
     <div class="hd hd2">
@@ -102,7 +101,7 @@ tr:hover td{background:#fbfcfe;}
         <option value="new">Newest first</option>
         <option value="old">Oldest first</option>
         <option value="biz">Business A–Z</option>
-        <option value="status">Lead status</option>
+        <option value="status">Status</option>
       </select>
       <button class="tool" onclick="printLog()">🖨 Print</button>
       <button class="tool" onclick="exportCsv()">↓ Export CSV</button>
@@ -116,13 +115,10 @@ tr:hover td{background:#fbfcfe;}
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
-var ALL=[], ME={username:'',name:'',role:''}, SCOPE='mine', VIEW='all', CURRENT=[];
+var ALL=[], ME={username:'',name:'',role:''}, VIEW='all', CURRENT=[];
 var VIEWS=['all','waiting','advanced','passed'];
-function setScope(t){ SCOPE=t; document.getElementById('tabMine').classList.toggle('on',t==='mine'); document.getElementById('tabAll').classList.toggle('on',t==='all'); paint(); }
 function setView(v){ VIEW=v; VIEWS.forEach(function(x){ document.getElementById('v_'+x).classList.toggle('on',x===v); }); paint(); }
 function stateOf(s){ return s.processed?'Advanced':(s.decision==='passed'?'Passed':'Waiting'); }
-function isMine(s){ return (s.byUser && s.byUser===ME.username) || (!s.byUser && s.by && s.by===ME.name); }
-function onUserFilter(){ var uf=document.getElementById('userFilter'); if(uf.value){ setScope('all'); } else { paint(); } }
 function buildUserFilter(){
   if(ME.role!=='admin') return;
   var uf=document.getElementById('userFilter'); if(!uf) return;
@@ -134,8 +130,8 @@ function buildUserFilter(){
 }
 function paint(){
   var list=ALL.slice();
-  if(SCOPE==='mine'){ list=list.filter(isMine); }
-  else { var uf=document.getElementById('userFilter'); var val=(ME.role==='admin'&&uf)?uf.value:''; if(val) list=list.filter(function(s){ return (s.byUser||s.by)===val; }); }
+  var uf=document.getElementById('userFilter'); var val=(ME.role==='admin'&&uf)?uf.value:'';
+  if(val) list=list.filter(function(s){ return (s.byUser||s.by)===val; });
   if(VIEW==='waiting') list=list.filter(function(s){ return !s.processed && s.decision!=='passed'; });
   else if(VIEW==='advanced') list=list.filter(function(s){ return s.processed; });
   else if(VIEW==='passed') list=list.filter(function(s){ return s.decision==='passed'; });
@@ -144,7 +140,7 @@ function paint(){
   var sb=((document.getElementById('sortBy')||{}).value)||'new';
   list.sort(function(a,b){
     if(sb==='biz') return String(a.business||'').localeCompare(String(b.business||''));
-    if(sb==='status') return String(a.status||'zzz').localeCompare(String(b.status||'zzz'));
+    if(sb==='status'){ var ord={Waiting:0,Advanced:1,Passed:2}; return (ord[stateOf(a)]||0)-(ord[stateOf(b)]||0); }
     var ta=new Date(a.createdAt||0).getTime(), tb=new Date(b.createdAt||0).getTime();
     return sb==='old' ? ta-tb : tb-ta;
   });
@@ -166,13 +162,13 @@ function exportCsv(){
   var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='rrg-call-log.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 function badge(s){
-  var m={advance:['b-advance','Advance'],nurture:['b-nurture','Nurture'],pass:['b-pass','Pass'],refer:['b-refer','Refer Out']};
-  var x=m[s.status]||['b-none', (s.statusText||'—')];
-  return '<span class="badge '+x[0]+'">'+esc(x[1])+'</span>';
+  var st=stateOf(s);
+  var cls={Waiting:'b-waiting',Advanced:'b-advanced',Passed:'b-passed'}[st]||'b-waiting';
+  return '<span class="badge '+cls+'">'+st+'</span>';
 }
 function render(list){
   var body=document.getElementById('body'), cnt=document.getElementById('cnt');
-  cnt.textContent = list.length ? (list.length+(VIEW==='await'?' awaiting':'')) : '';
+  cnt.textContent = list.length ? (list.length+' call'+(list.length===1?'':'s')) : '';
   if(!list.length){
     var em={
       all:['No calls logged yet.','Log your first call and it lands here.'],
@@ -188,18 +184,16 @@ function render(list){
     var vq='./valuation_questionnaire.html?screening='+encodeURIComponent(s.id);
     var mid;
     if(s.processed){
-      mid='<span class="done">✓ Questionnaire started</span> <a href="'+vq+'">Reopen</a>';
+      mid='<span class="done">✓ Advanced</span> <a href="'+vq+'">Reopen</a>';
     } else if(s.decision==='passed'){
       mid='<span class="passed">✕ Passed</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
     } else {
-      mid=(s.status==='advance'
-        ? '<a class="adv" href="'+vq+'">Advance to Questionnaire →</a>'
-        : '<a href="'+vq+'">Start Questionnaire</a>')
+      mid='<a class="adv" href="'+vq+'">Advance to Questionnaire →</a>'
         + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Pass</button>';
     }
-    return '<tr>'+
+    return '<tr data-id="'+esc(s.id)+'">'+
       '<td><div class="biz">'+esc(s.business||'Seller')+'</div><div class="meta">'+meta+(s.contact?(' · '+esc(s.contact)):'')+'</div></td>'+
-      '<td class="hide">'+badge(s)+'</td>'+
+      '<td>'+badge(s)+'</td>'+
       '<td><div class="act">'+
         '<a href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'">Edit</a>'+
         mid+
@@ -207,7 +201,7 @@ function render(list){
       '</div></td>'+
     '</tr>';
   }).join('');
-  body.innerHTML='<table><thead><tr><th>Business</th><th class="hide">Lead status</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  body.innerHTML='<table><thead><tr><th>Business</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 function del(id,btn){
   if(!confirm('Remove this call from the log?')) return;
@@ -227,10 +221,17 @@ function load(){
     if(s&&s.ok){ ME={username:s.username||'',name:s.name||'',role:s.role||''}; }
     if(!j){ document.getElementById('body').innerHTML='<div class="empty"><b>Couldn’t reach the server.</b>The Screening Queue works on the hosted toolkit.</div>'; return; }
     ALL=(j&&j.screenings)||[];
-    if(ME.role!=='admin'){ SCOPE='mine'; var tb=document.getElementById('scopeTabs'); if(tb) tb.style.display='none'; }
     buildUserFilter(); paint();
   });
 }
+// click a row to highlight it (ignore clicks on the action buttons/links)
+document.getElementById('body').addEventListener('click',function(e){
+  if(e.target.closest('a,button,select,input')) return;
+  var tr=e.target.closest('tr'); if(!tr || !tr.getAttribute('data-id')) return;
+  var was=tr.classList.contains('selrow');
+  [].slice.call(this.querySelectorAll('tr.selrow')).forEach(function(x){ x.classList.remove('selrow'); });
+  if(!was) tr.classList.add('selrow');
+});
 load();
 </script>
 </body>

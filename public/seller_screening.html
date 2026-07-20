@@ -38,6 +38,8 @@
   .btn.blank:hover{ background:#dfe4ee; }
   .btn.save{ background:#1f8a5b; color:#fff; }
   .btn.save:hover{ background:#1a7a4f; }
+  .btn.save2{ background:transparent; color:#7fe3b4; border:1px solid #2f7a58; }
+  .btn.save2:hover{ background:#123a2a; color:#aef0d2; }
 
   /* ---- sheet ---- */
   .wrap{ max-width:8.5in; margin:22px auto 60px; }
@@ -253,6 +255,7 @@
     <button class="btn clear" onclick="if(confirm('Clear all fields?')){document.getElementById('sscform').reset();document.dispatchEvent(new Event('input',{bubbles:true}));if(window.rrgClearDraft)window.rrgClearDraft();}">Clear form</button>
     <button class="btn blank" onclick="printBlank()">Print blank copy</button>
     <button class="btn blank" onclick="validateAndPrint()">Print / Save PDF</button>
+    <button class="btn save2" onclick="saveOnly(this)">Save</button>
     <button class="btn save" onclick="saveAndClose()">Save &amp; Close</button>
     <button class="btn print" onclick="emailSSC()">Submit &amp; Email</button>
   </div>
@@ -639,6 +642,17 @@
         {method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).catch(function(){});
     }catch(e){}
   }
+  // Save the call to the log and stay on the form (for quick edits).
+  window.saveOnly=function(btn){
+    if(!window.RRG_API){ if(btn){ var o0=btn.textContent; btn.textContent='Saved ✓'; setTimeout(function(){ btn.textContent=o0; },1600); } return false; }
+    var data=_collectData(); data.formType='seller';
+    var o=btn?btn.textContent:''; if(btn){ btn.textContent='Saving…'; btn.disabled=true; }
+    fetch(String(window.RRG_API).replace(/\/$/,'')+'/api/screening-save',
+      {method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+      .then(function(r){return r.json();}).then(function(j){ if(btn){ btn.disabled=false; btn.textContent=(j&&j.ok)?'Saved ✓':'Save'; setTimeout(function(){ btn.textContent='Save'; },1600); } })
+      .catch(function(){ if(btn){ btn.disabled=false; btn.textContent='Save'; } });
+    return false;
+  };
   // Save the call to the log (no email, no print) and return to the Call Screening Log.
   window.saveAndClose=function(){
     var LOG='./rrg_screening_queue.html';
