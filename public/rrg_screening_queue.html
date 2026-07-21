@@ -48,6 +48,8 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
 .act a,.act button{font:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;text-decoration:none;border:1px solid var(--line);background:#fff;color:var(--navy);white-space:nowrap;}
 .act a:hover,.act button:hover{border-color:#9fb0cc;}
 .act .adv{background:var(--navy);color:#fff;border-color:var(--navy);}
+.act .complete{background:#b9761a;border-color:#b9761a;color:#fff;}
+.act .complete:hover{background:#9c6416;border-color:#9c6416;}
 .act .pass{color:var(--muted);}
 .act .del{color:var(--red);border-color:#f0c9c6;}
 .passed{color:var(--muted);font-weight:700;font-size:12.5px;}
@@ -188,7 +190,9 @@ function render(list){
     } else if(s.decision==='passed'){
       mid='<span class="passed">✕ Rejected</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
     } else {
-      mid='<a class="adv" href="#" onclick="advanceCall(\''+s.id+'\');return false;">Advance to Questionnaire →</a>'
+      mid=(s.completed
+            ? '<a class="adv" href="#" onclick="advanceCall(\''+s.id+'\');return false;">Advance to Questionnaire →</a>'
+            : '<a class="adv complete" href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'" title="Fill in the required fields, then advance">Complete Screening →</a>')
         + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Reject</button>';
     }
     return '<tr data-id="'+esc(s.id)+'">'+
@@ -210,11 +214,16 @@ function del(id,btn){
 // Advance a call: create its questionnaire server-side (reliable), then open it.
 function advanceCall(id){
   fetch('/api/screening/'+encodeURIComponent(id)+'/advance',{method:'POST'})
-    .then(function(r){return r.json();}).then(function(j){
-      var qid=(j&&j.questionnaireId)||'';
+    .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});}).then(function(res){
+      var j=res.j||{};
+      if(!res.ok || !j.ok){
+        if(j.incomplete){ if(confirm('This screening isn’t complete yet. Open it to finish the required fields?')) location.href='./seller_screening.html?screening='+encodeURIComponent(id); return; }
+        alert((j&&j.error)||'Could not advance this call.'); return;
+      }
+      var qid=j.questionnaireId||'';
       location.href = qid ? ('./valuation_questionnaire.html?q='+encodeURIComponent(qid))
                           : ('./valuation_questionnaire.html?screening='+encodeURIComponent(id));
-    }).catch(function(){ location.href='./valuation_questionnaire.html?screening='+encodeURIComponent(id); });
+    }).catch(function(){ alert('Could not advance this call — please try again.'); });
 }
 function decide(id,decision){
   if(decision==='passed' && !confirm('Reject this lead? It won’t move to the Valuation Questionnaire.')) return;

@@ -135,6 +135,7 @@ function upsertScreening(req, data) {
     date: String(data.date || '').slice(0, 40),
     statusText: String(statusTxt || '').slice(0, 90),
     status: statusCode(statusTxt),
+    completed: !!(data && data.complete),
     data: data,
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
@@ -383,7 +384,7 @@ app.get('/api/screenings', (req, res) => {
   const list = loadScreens().slice().reverse().filter(s => isAdmin || ownsScreen(req, s));
   res.json({
     ok: true, isAdmin: !!isAdmin,
-    screenings: list.map(s => ({ id: s.id, business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, decision: s.decision || '', processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt })),
+    screenings: list.map(s => ({ id: s.id, business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, decision: s.decision || '', completed: !!s.completed, processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt })),
   });
 });
 app.get('/api/screening/:id', (req, res) => {
@@ -397,6 +398,9 @@ app.post('/api/screening/:id/advance', (req, res) => {
   const s = arr.find(x => x.id === req.params.id);
   if (!s) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!ownsScreen(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  // A screening must have its required fields complete before it can advance to a questionnaire.
+  // (Re-advancing an already-processed call — "Reopen" — is always allowed.)
+  if (!s.processed && !s.completed) return res.status(409).json({ ok: false, incomplete: true, error: 'Complete the required fields on the screening before advancing it.' });
   s.processed = true; s.processedAt = new Date().toISOString();
   saveScreens(arr);
   let qid = '';

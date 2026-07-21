@@ -247,7 +247,6 @@
 </style>
 </head>
 <body>
-<script>/* served copy: auto-target this server so submissions log + email */ window.RRG_API=location.origin;</script>
 <!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to dashboard" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)"><span style="font-size:14px;line-height:1">←</span> Dashboard</a><style>@media print{.rrg-back{display:none!important}}@media(max-width:560px){.rrg-back{left:12px;bottom:12px;padding:9px 13px}}</style>
 
 <div class="toolbar">
@@ -740,6 +739,10 @@
     return {
       formId: window.RRG_FORM_ID,
       snapshot: (window.rrgSerialize ? window.rrgSerialize() : null),
+      complete: (function(){ var ok=true;
+        document.querySelectorAll('#sscform input.req, #sscform textarea.req, #sscform select.req').forEach(function(el){ if(!el.value.trim()){ ok=false; } else if(el.classList.contains('email') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim())){ ok=false; } });
+        document.querySelectorAll('#sscform .oset[data-req]').forEach(function(os){ if(!Array.prototype.slice.call(os.querySelectorAll('input')).some(function(i){return i.checked;})) ok=false; });
+        return ok; })(),
       concept: header['business name']||'Seller',
       contact: header['seller contact name']||'',
       preparedBy: header['rrg rep']||'',
