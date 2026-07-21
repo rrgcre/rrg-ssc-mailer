@@ -1283,14 +1283,17 @@
       note('RRG is reading the questionnaire and drafting the value factors…');
       fetch(API+'/api/valuation-factors',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({ business:data.concept||'', market:data.market||'', answers:answers, driverOptions:driverOptions, detractorOptions:detractorOptions })})
-        .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,j:j}; }); })
+        .then(function(r){ return r.text().then(function(txt){ var j=null; try{ j=JSON.parse(txt); }catch(e){} return {ok:r.ok,status:r.status,j:j,txt:txt}; }); })
         .then(function(res){
           if(btn){ btn.disabled=false; btn.textContent='Re-run analysis'; }
-          if(!res.ok || !res.j || !res.j.ok || !res.j.result){ note('Couldn’t complete the analysis: '+((res.j&&res.j.error)||'server error')+'. You can fill the section by hand.', true); return; }
+          if(!res.j){ // server returned HTML (error page / 404) instead of JSON — almost always a stale deploy
+            note('The analysis service isn’t responding as expected (HTTP '+res.status+'). The latest server needs to be deployed on Render, and ANTHROPIC_API_KEY must be set. You can fill the section by hand for now.', true); return;
+          }
+          if(!res.ok || !res.j.ok || !res.j.result){ note('Couldn’t complete the analysis: '+(res.j.error||('server error '+res.status))+'. You can fill the section by hand.', true); return; }
           apply(res.j.result); window.vfUnlock(false);
           note('Draft complete — review and adjust before saving. This is based on the questionnaire only; the definitive number comes from the BOV with financials.');
         })
-        .catch(function(e){ if(btn){ btn.disabled=false; btn.textContent=btn.dataset.o||'Run RRG Valuation Analysis'; } note('Network error: '+String(e.message||e), true); });
+        .catch(function(e){ if(btn){ btn.disabled=false; btn.textContent=btn.dataset.o||'Run RRG Valuation Analysis'; } note('Couldn’t reach the analysis service: '+String(e.message||e)+'. You can fill the section by hand.', true); });
     };
   })();
 
