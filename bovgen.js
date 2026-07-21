@@ -143,9 +143,12 @@ function extractJson(text) {
   return null;
 }
 
-async function generateBov({ business, files, preparedBy, questionnaire, links }) {
+async function generateBov({ business, files, preparedBy, questionnaire, links, systemPrompt }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('ANTHROPIC_API_KEY is not set on the server.');
+  // Admins can override the analyst instructions (Admin → BOV Analyst Prompt);
+  // fall back to the built-in default when none is set.
+  const sys = (systemPrompt && String(systemPrompt).trim()) ? String(systemPrompt) : SYSTEM;
   const content = fileBlocks(files);
   // The completed Valuation Questionnaire is already in the RRG system — feed it
   // in as text so the rep never has to re-upload it.
@@ -172,7 +175,7 @@ async function generateBov({ business, files, preparedBy, questionnaire, links }
   const resp = await fetch(API_URL, {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: MODEL, max_tokens: 8000, system: SYSTEM, messages: [{ role: 'user', content }] }),
+    body: JSON.stringify({ model: MODEL, max_tokens: 8000, system: sys, messages: [{ role: 'user', content }] }),
   });
   if (!resp.ok) {
     const t = await resp.text().catch(() => '');
@@ -193,4 +196,4 @@ async function generateBov({ business, files, preparedBy, questionnaire, links }
   return { state, summary, business: state.fields.subject || business || 'Untitled', date: state.fields.date || '', usage };
 }
 
-module.exports = { generateBov, MODEL };
+module.exports = { generateBov, MODEL, DEFAULT_SYSTEM: SYSTEM };

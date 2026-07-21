@@ -22,6 +22,13 @@ const BOVS_FILE = path.join(BOV_DATA_DIR, 'bovs.json');
 function loadBovs() { try { return JSON.parse(fs.readFileSync(BOVS_FILE, 'utf8')); } catch (e) { return []; } }
 function saveBovs(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BOVS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newBovId() { return 'bov_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+// ---- Admin-editable BOV analyst prompt ----
+// Empty file / no file = use bovgen's built-in default.
+const BOV_PROMPT_FILE = path.join(BOV_DATA_DIR, 'bov_prompt.txt');
+function loadBovPromptCustom() { try { const t = fs.readFileSync(BOV_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
+function saveBovPromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BOV_PROMPT_FILE, String(t)); } catch (e) {} }
+function clearBovPromptCustom() { try { fs.unlinkSync(BOV_PROMPT_FILE); } catch (e) {} }
 // When a valuation questionnaire is advanced, drop a "waiting BOV" into the BOV
 // queue — the same pattern as advancing a seller call into the Questionnaire Log.
 // Idempotent: advancing the same questionnaire twice reuses the one queued BOV.
@@ -605,7 +612,7 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
       }
     }
 
-    const out = await bovgen.generateBov({ business, files, preparedBy, questionnaire: questionnaireText, links });
+    const out = await bovgen.generateBov({ business, files, preparedBy, questionnaire: questionnaireText, links, systemPrompt: loadBovPromptCustom() || undefined });
     const bovs = loadBovs();
     const rec = (target && bovs.find(x => x.id === target.id)) || {
       id: newBovId(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: new Date().toISOString(),
@@ -748,7 +755,7 @@ app.get('/admin', requireAdmin, (req, res) => {
   ).join('') || '<tr><td colspan="4" class="empty">No logins recorded yet.</td></tr>';
   res.set('Content-Type', 'text/html; charset=utf-8').send(shell('Admin Console', `
     <div class="bar"><span class="stat"><b>${users.length}</b> users</span><span class="stat"><b>${logins.filter(l=>l.result==='success').length}</b> logins shown</span><span class="stat"><b>${usageAll.length}</b> tool opens</span>
-      <span class="dl"><a href="/log">Submissions</a> <a href="/admin/logins.csv">Login CSV</a> <a href="/admin/usage.csv">Usage CSV</a> <a href="/logout">Sign out</a></span></div>
+      <span class="dl"><a href="/index.html" style="background:#DA2B1F;color:#fff;padding:6px 13px;border-radius:8px;font-weight:800;text-decoration:none">Switch to user view →</a> <a href="/log">Submissions</a> <a href="/admin/logins.csv">Login CSV</a> <a href="/admin/usage.csv">Usage CSV</a> <a href="/logout">Sign out</a></span></div>
     <style>
       .wrap h2.acch{cursor:pointer;user-select:none;display:flex;align-items:center;gap:9px;border-top:1px solid #e6e9f0;padding-top:20px;margin-top:26px;}
       .wrap h2.acch:first-of-type{border-top:none;padding-top:0;}
@@ -758,6 +765,9 @@ app.get('/admin', requireAdmin, (req, res) => {
       .accbody{padding-top:4px;}
       .expandbar{display:flex;gap:14px;padding:10px 28px 0;}
       .expandbar a{font-size:12px;font-weight:700;color:#2647b0;cursor:pointer;text-decoration:none;}
+      .bovprompt{width:100%;min-height:340px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;padding:14px 15px;border:1px solid #cfd6e2;border-radius:10px;color:#1a2236;resize:vertical;background:#fff;}
+      .bovprompt:focus{outline:none;border-color:#DA2B1F;}
+      .btn.ghost{background:#eef1f7;color:#000E31;border:1px solid #e6e9f0;}
     </style>
     <div class="expandbar"><a onclick="accAll(true)">Expand all</a><a onclick="accAll(false)">Collapse all</a></div>
     <div class="wrap">
@@ -787,6 +797,14 @@ app.get('/admin', requireAdmin, (req, res) => {
       <div class="links">${linkRows}
         <div style="margin-top:10px"><button class="primary" onclick="saveLinks()">Save quick links</button> <span id="lmsg" class="sub2"></span></div>
       </div>
+
+      <h2 style="margin-top:34px">BOV Analyst Prompt <span class="sub2">— the instructions Claude follows when drafting a BOV. Edit to change how valuations are written; keep the JSON output block at the end intact so the BOV still builds. Reset any time to restore the RRG default.</span></h2>
+      <div class="links">
+        <div class="sub2" id="bpstate" style="margin:0 0 8px">Loading…</div>
+        <textarea id="bovPrompt" class="bovprompt" spellcheck="false"></textarea>
+        <div style="margin-top:10px"><button class="primary" onclick="saveBovPrompt()">Save prompt</button> <button onclick="resetBovPrompt()">Reset to RRG default</button> <span id="bpmsg" class="sub2"></span></div>
+      </div>
+
       <h2 style="margin-top:34px">Tool Usage <span class="sub2">— what your team is using</span></h2>
       <div class="cols">
         <div><h3>By tool</h3><table><thead><tr><th>Tool</th><th>Opens</th></tr></thead><tbody>${toolSummary}</tbody></table></div>
@@ -803,6 +821,11 @@ app.get('/admin', requireAdmin, (req, res) => {
       function rp(f){ var p=prompt('New password for '+f.username.value+' (min 6):'); if(!p) return false; post('/api/admin/reset',{username:f.username.value,password:p}).then(j=>{ alert(j.ok?'Password reset.':(j.error||'Failed')); }); return false; }
       function saveLinks(){ var links=[]; document.querySelectorAll('.lrow').forEach(function(r){ var n=r.querySelector('.ln').value.trim(), u=r.querySelector('.lu').value.trim(), a=r.querySelector('.la').checked; if(n&&u) links.push({name:n,url:u,default:a}); }); post('/api/admin/links',{links:links}).then(function(j){ var m=document.getElementById('lmsg'); if(j.ok){ m.textContent='Saved '+(j.links.length)+' link(s) ✓'; } else { m.textContent=j.error||'Failed'; } }); }
       function saveToolAccess(){ var t=[]; document.querySelectorAll('.ta:checked').forEach(function(c){ t.push(c.value); }); post('/api/admin/tool-access',{adminOnly:t}).then(function(j){ var m=document.getElementById('tmsg'); if(j.ok){ m.textContent='Saved — '+j.adminOnly.length+' tool(s) admin-only ✓'; } else { m.textContent=j.error||'Failed'; } }); }
+      function _bpState(isDefault){ var s=document.getElementById('bpstate'); if(s) s.textContent = isDefault ? 'Currently using the RRG default prompt.' : 'Currently using a custom prompt.'; }
+      function loadBovPrompt(){ fetch('/api/admin/bov-prompt').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('bovPrompt').value=j.prompt||''; _bpState(j.isDefault); } }).catch(function(){ var s=document.getElementById('bpstate'); if(s) s.textContent='Could not load the prompt.'; }); }
+      function saveBovPrompt(){ var v=document.getElementById('bovPrompt').value; var m=document.getElementById('bpmsg'); m.textContent='Saving…'; post('/api/admin/bov-prompt',{prompt:v}).then(function(j){ if(j.ok){ m.textContent = j.isDefault ? 'Saved — matches the default, so the default is in use ✓' : 'Saved custom prompt ✓'; document.getElementById('bovPrompt').value=j.prompt||v; _bpState(j.isDefault); } else m.textContent=j.error||'Failed'; }); }
+      function resetBovPrompt(){ if(!confirm('Reset the BOV prompt to the RRG default? Your custom prompt will be discarded.')) return; post('/api/admin/bov-prompt',{reset:true}).then(function(j){ if(j.ok){ document.getElementById('bovPrompt').value=j.prompt||''; document.getElementById('bpmsg').textContent='Reset to default ✓'; _bpState(true); } }); }
+      loadBovPrompt();
       document.querySelectorAll('form[action="/api/admin/toggle"],form[action="/api/admin/remove"]').forEach(function(f){ f.addEventListener('submit',function(e){ e.preventDefault(); var d={}; new FormData(f).forEach((v,k)=>d[k]=v); post(f.action,d).then(j=>{ if(j.ok) location.reload(); else alert(j.error||'Failed'); }); }); });
       /* Collapsible admin sections (chevrons) */
       var ACC=[];
@@ -845,6 +868,22 @@ app.post('/api/admin/links', requireAdmin, (req, res) => {
 app.post('/api/admin/tool-access', requireAdmin, (req, res) => {
   try { const saved = auth.saveToolAccess((req.body || {}).adminOnly || []); res.json({ ok: true, adminOnly: saved }); }
   catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
+});
+// The BOV analyst prompt (Admin → BOV Analyst Prompt). Returns the effective
+// prompt (custom if set, else the built-in default) plus which one it is.
+app.get('/api/admin/bov-prompt', requireAdmin, (req, res) => {
+  const custom = loadBovPromptCustom();
+  res.json({ ok: true, prompt: custom || bovgen.DEFAULT_SYSTEM, isDefault: !custom });
+});
+app.post('/api/admin/bov-prompt', requireAdmin, (req, res) => {
+  const b = req.body || {};
+  const def = String(bovgen.DEFAULT_SYSTEM || '');
+  if (b.reset) { clearBovPromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
+  const p = String(b.prompt || '').trim();
+  // Blank, or identical to the default, means "just use the default".
+  if (!p || p === def.trim()) { clearBovPromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
+  saveBovPromptCustom(p);
+  res.json({ ok: true, prompt: p, isDefault: false });
 });
 app.get('/admin/logins.csv', requireAdmin, (_req, res) => {
   const fs = require('fs');
