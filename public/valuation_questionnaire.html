@@ -188,6 +188,9 @@
   .padorn input{ padding-right:24px; }
   .ad-pre{ position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:13px; pointer-events:none; }
   .ad-suf{ position:absolute; right:11px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:13px; pointer-events:none; }
+  .padorn.narrow{ max-width:120px; }
+  .field input.numnar{ max-width:120px; }
+  .madorn.narrow{ max-width:150px; }
 
   .emodal{ display:none; position:fixed; inset:0; z-index:1000; background:rgba(4,10,25,.55); align-items:center; justify-content:center; padding:20px; }
   .emodal.show{ display:flex; }
@@ -422,12 +425,12 @@
       <div class="field full"><label class="k">Pricing Detail</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Average Cover ($)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="dec2" inputmode="decimal"></span></div>
-      <div class="field"><label class="k">Average Ticket ($)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="dec2" inputmode="decimal"></span></div>
+      <div class="field"><label class="k">Average Cover ($)</label><span class="madorn narrow"><span class="ad-pre">$</span><input type="text" class="dec2" inputmode="decimal"></span></div>
+      <div class="field"><label class="k">Average Ticket ($)</label><span class="madorn narrow"><span class="ad-pre">$</span><input type="text" class="dec2" inputmode="decimal"></span></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Working Capital Required</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
-      <div class="field"><label class="k">Capital Improvements per Year</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
+      <div class="field"><label class="k">Working Capital Required</label><span class="madorn narrow"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
+      <div class="field"><label class="k">Capital Improvements per Year</label><span class="madorn narrow"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
     </div>
     <div class="sec brk"><div class="num">4</div><h2>Financial Records</h2><div class="flex"></div></div>
     <div class="grid rowgap">
@@ -532,11 +535,11 @@
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Current NNN ($/SF)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="dec2" inputmode="decimal"></span></div>
-      <div class="field"><label class="k">Monthly Rent</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
+      <div class="field"><label class="k">Current Monthly Rent</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Option 1 (Months)</label><input type="text" class="int" inputmode="numeric"></div>
-      <div class="field"><label class="k">Option 2 (Months)</label><input type="text" class="int" inputmode="numeric"></div>
+      <div class="field"><label class="k">Option 1 (Months)</label><input type="text" class="int numnar" inputmode="numeric"></div>
+      <div class="field"><label class="k">Option 2 (Months)</label><input type="text" class="int numnar" inputmode="numeric"></div>
     </div>
     <div class="grid rowgap">
       <div class="oset single"><label class="k">Is the Property Available for Sale?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
@@ -547,11 +550,16 @@
     </div>
     <div class="sec brk"><div class="num">9</div><h2>Facility &amp; Equipment</h2><div class="flex"></div></div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Indoor Capacity</label><input type="text" class="int" inputmode="numeric" placeholder="seats"></div>
-      <div class="field"><label class="k">Outdoor Capacity</label><input type="text" class="int" inputmode="numeric" placeholder="seats"></div>
+      <div class="field"><label class="k">Indoor Capacity</label><input type="text" class="int" inputmode="numeric"></div>
+      <div class="field"><label class="k">Outdoor Capacity</label><input type="text" class="int" inputmode="numeric"></div>
+    </div>
+    <div class="subhead">General Condition</div>
+    <div class="grid rowgap">
+      <div class="field"><label class="k">Furniture — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
+      <div class="field"><label class="k">Fixtures — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">General Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
+      <div class="field"><label class="k">Facility — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
       <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
     </div>
     <div class="grid rowgap">
@@ -573,27 +581,27 @@
     </div>
     <div class="subhead">Equipment — Age &amp; Condition</div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">A/C Units — Age</label><span class="padorn"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">A/C Units — Age</label><span class="padorn narrow"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
       <div class="field"><label class="k">A/C Units — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Walk-Ins — Age</label><span class="padorn"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">Walk-Ins — Age</label><span class="padorn narrow"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
       <div class="field"><label class="k">Walk-Ins — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Grease Trap — Age</label><span class="padorn"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">Grease Trap — Age</label><span class="padorn narrow"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
       <div class="field"><label class="k">Grease Trap — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Furnishings — Age</label><span class="padorn"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">Furnishings — Age</label><span class="padorn narrow"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
       <div class="field"><label class="k">Furnishings — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Kitchen Equipment — Age</label><span class="padorn"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">Kitchen Equipment — Age</label><span class="padorn narrow"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
       <div class="field"><label class="k">Kitchen Equipment — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Bar Equipment — Age</label><span class="padorn"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">Bar Equipment — Age</label><span class="padorn narrow"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
       <div class="field"><label class="k">Bar Equipment — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
     </div>
     <div class="grid rowgap">
@@ -984,7 +992,7 @@
     _set("How the Company Compares to Peers", "Competes primarily with Torchy\u2019s Tacos, Tacodeli, and Veracruz All Natural in the Austin fast-casual taco market, differentiating on a queso-first identity (queso as the core product, not a topping). Ranks #2 in Austin organic search visibility (behind Tacodeli), #1 on several high-intent local terms. Holds an advantage in catering, where larger competitors are weaker, and unique brand visibility via the exclusive Q2 Stadium partnership with Austin FC. The broader QSR sector is seeing flat-to-declining traffic and some closures; Kesos has grown revenue every month in 2026.");
     _set("Non-Compete Terms (Duration / Area)", "Open to discussion");
     _set("Months Remaining on Base Term", "36");
-    _set("Current Base Lease ($/SF)", "30.12"); _set("Current NNN ($/SF)", "12.00"); _set("Monthly Rent", "9000");
+    _set("Current Base Lease ($/SF)", "30.12"); _set("Current NNN ($/SF)", "12.00"); _set("Current Monthly Rent", "9000");
     _set("Option 1 (Months)", "60");
     _set("Option 2 (Months)", "0");
     _set("Landlord Relationship", "Strong relationship. The landlord is a local family with whom we have maintained a positive, long-term working relationship.");
@@ -1030,7 +1038,7 @@
     _check("Lease vs Market Rate", "Below");
     _check("Is the Property Available for Sale", "No");
     _check("Notified Landlord of Intent to Sell", "No");
-    _set("General Condition", "Excellent");
+    _set("Furniture — Condition", "Good"); _set("Fixtures — Condition", "Good"); _set("Facility — Condition", "Excellent");
     _check("Electrical Working Properly", "Yes");
     _check("Plumbing Working Properly", "Yes");
     _check("Any Equipment Needing Repair", "No");
