@@ -561,12 +561,21 @@ app.delete('/api/bov/:id', (req, res) => {
   res.json({ ok: true });
 });
 
-// Quick links — admin-only links are filtered out for non-admins.
+// Quick links — company default links + this user's own personal links.
 app.get('/api/links', (req, res) => {
-  const all = auth.loadLinks();
-  const isAdmin = req.user && req.user.role === 'admin';
-  const links = (isAdmin ? all : all.filter(l => !l.adminOnly)).map(l => ({ name: l.name, url: l.url }));
-  res.json({ ok: true, links });
+  const defaults = auth.loadLinks().filter(l => l.default).map(l => ({ name: l.name, url: l.url }));
+  const u = req.user && auth.findUser(req.user.username);
+  const personal = auth.userLinksOf(u).map(l => ({ name: l.name, url: l.url }));
+  res.json({ ok: true, links: defaults.concat(personal) });
+});
+// A user's own quick links (managed on the Account page).
+app.get('/api/me/links', (req, res) => {
+  const u = req.user && auth.findUser(req.user.username);
+  res.json({ ok: true, links: auth.userLinksOf(u) });
+});
+app.post('/api/me/links', express.json({ limit: '256kb' }), (req, res) => {
+  try { const saved = auth.setUserLinks(req.user.username, (req.body || {}).links || []); res.json({ ok: true, links: saved }); }
+  catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
 app.get('/api/agreements', (_req, res) => {
@@ -603,13 +612,14 @@ app.get('/admin', requireAdmin, (req, res) => {
   const logins = auth.readLogins().slice(-300).reverse();
   const usageAll = auth.readUsage();
   const links = auth.loadLinks();
+  const lastLogin = auth.lastLoginMap();
   const adminOnlyTools = auth.loadToolAccess();
   const toolAccessRows = TOOL_LIST.map(t =>
     `<label class="tacc"><input type="checkbox" class="ta" value="${esc(t.file)}"${adminOnlyTools.indexOf(t.file) >= 0 ? ' checked' : ''}> ${esc(t.name)}</label>`
   ).join('');
   const linkRows = Array.from({ length: 20 }, (_, i) => {
-    const l = links[i] || { name: '', url: '', adminOnly: false };
-    return `<div class="lrow"><input class="ln" placeholder="Name (e.g. CoStar)" value="${esc(l.name)}"><input class="lu" placeholder="https://…" value="${esc(l.url)}"><label class="lchk"><input type="checkbox" class="la"${l.adminOnly ? ' checked' : ''}> Admin only</label></div>`;
+    const l = links[i] || { name: '', url: '', default: false };
+    return `<div class="lrow"><input class="ln" placeholder="Name (e.g. CoStar)" value="${esc(l.name)}"><input class="lu" placeholder="https://…" value="${esc(l.url)}"><label class="lchk"><input type="checkbox" class="la"${l.default ? ' checked' : ''}> Default for all</label></div>`;
   }).join('');
   // summaries
   const byTool = {}, byUser = {};
@@ -624,12 +634,14 @@ app.get('/admin', requireAdmin, (req, res) => {
   const urows = users.map(u => `<tr>
       <td class="nm">${esc(u.name)} ${u.role === 'admin' ? '<span class="tag admin">Admin</span>' : ''} ${u.disabled ? '<span class="tag off">Disabled</span>' : ''}</td>
       <td class="mono">${esc(u.username)}</td>
+      <td class="mono">${esc(u.email) || '—'}</td>
       <td class="ts">${esc((u.createdAt || '').slice(0, 10))}</td>
+      <td class="ts">${lastLogin[u.username] ? fmtWhen(lastLogin[u.username]) : '<span class="sub2">Never</span>'}</td>
       <td class="act">
         <form method="post" action="/api/admin/reset" onsubmit="return rp(this)"><input type="hidden" name="username" value="${esc(u.username)}"><button>Reset password</button></form>
         <form method="post" action="/api/admin/toggle"><input type="hidden" name="username" value="${esc(u.username)}"><input type="hidden" name="disabled" value="${u.disabled ? '0' : '1'}"><button>${u.disabled ? 'Enable' : 'Disable'}</button></form>
         <form method="post" action="/api/admin/remove" onsubmit="return confirm('Remove ${esc(u.username)}?')"><input type="hidden" name="username" value="${esc(u.username)}"><button class="danger">Remove</button></form>
-      </td></tr>`).join('') || '<tr><td colspan="4" class="empty">No users yet.</td></tr>';
+      </td></tr>`).join('') || '<tr><td colspan="6" class="empty">No users yet.</td></tr>';
   const lrows = logins.map(l =>
     `<tr><td class="ts">${fmtWhen(l.timestamp)}</td><td class="mono">${esc(l.username) || '—'}</td><td>${l.result === 'success' ? '<span class="tag ok">Success</span>' : '<span class="tag off">Failed</span>'}</td><td class="mono">${esc(l.ip)}</td></tr>`
   ).join('') || '<tr><td colspan="4" class="empty">No logins recorded yet.</td></tr>';
@@ -643,25 +655,26 @@ app.get('/admin', requireAdmin, (req, res) => {
       .wrap h2.acch.collapsed .chev{transform:rotate(0deg);}
       .wrap h2.acch .cc{margin-left:auto;font-size:11px;font-weight:600;color:#8a93a8;letter-spacing:0;text-transform:none;}
       .accbody{padding-top:4px;}
-      .expandbar{display:flex;gap:14px;margin:2px 0 4px;}
+      .expandbar{display:flex;gap:14px;padding:10px 28px 0;}
       .expandbar a{font-size:12px;font-weight:700;color:#2647b0;cursor:pointer;text-decoration:none;}
     </style>
     <div class="expandbar"><a onclick="accAll(true)">Expand all</a><a onclick="accAll(false)">Collapse all</a></div>
     <div class="wrap">
       <h2>Add a user</h2>
       <form class="add" method="post" action="/api/admin/add-user" onsubmit="return au(this)">
-        <input name="name" placeholder="Full name" required>
+        <input name="firstName" placeholder="First name" required>
+        <input name="lastName" placeholder="Last name" required>
         <input name="username" placeholder="username (lowercase)" required>
+        <input name="email" placeholder="Email" required>
         <input name="password" placeholder="password (min 6)" required>
         <select name="role"><option value="rep">Rep</option><option value="admin">Admin</option></select>
         <input name="title" placeholder="Title (e.g. Associate)">
         <input name="phone" placeholder="Phone (for BOVs)">
-        <input name="email" placeholder="Email (for BOVs)">
         <button class="primary">Add user</button>
       </form>
       <div class="sub2" style="margin:-6px 0 4px">Title, phone &amp; email appear as the "prepared by" line on that rep's BOVs. Reps can edit their own under Account.</div>
       <h2>Users</h2>
-      <table><thead><tr><th>Name</th><th>Username</th><th>Added</th><th>Actions</th></tr></thead><tbody>${urows}</tbody></table>
+      <table><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Added</th><th>Last Login</th><th>Actions</th></tr></thead><tbody>${urows}</tbody></table>
 
       <h2 style="margin-top:34px">Tool Access <span class="sub2">— check a tool to make it admin-only (hidden from reps, and blocked by direct link)</span></h2>
       <div class="links">
@@ -669,7 +682,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveToolAccess()">Save tool access</button> <span id="tmsg" class="sub2"></span></div>
       </div>
 
-      <h2 style="margin-top:34px">Dashboard Quick Links <span class="sub2">— up to 20; check "Admin only" to hide a link from reps</span></h2>
+      <h2 style="margin-top:34px">Dashboard Quick Links <span class="sub2">— up to 20; check "Default for all" to put a link on every user's dashboard. Each user can add their own under Account.</span></h2>
       <div class="links">${linkRows}
         <div style="margin-top:10px"><button class="primary" onclick="saveLinks()">Save quick links</button> <span id="lmsg" class="sub2"></span></div>
       </div>
@@ -685,9 +698,9 @@ app.get('/admin', requireAdmin, (req, res) => {
     </div>
     <script>
       function post(action, data){ return fetch(action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json()); }
-      function au(f){ post('/api/admin/add-user',{name:f.name.value,username:f.username.value,password:f.password.value,role:f.role.value,title:f.title.value,phone:f.phone.value,email:f.email.value}).then(j=>{ if(j.ok){location.reload();} else alert(j.error||'Failed'); }); return false; }
+      function au(f){ post('/api/admin/add-user',{firstName:f.firstName.value,lastName:f.lastName.value,username:f.username.value,email:f.email.value,password:f.password.value,role:f.role.value,title:f.title.value,phone:f.phone.value}).then(j=>{ if(j.ok){location.reload();} else alert(j.error||'Failed'); }); return false; }
       function rp(f){ var p=prompt('New password for '+f.username.value+' (min 6):'); if(!p) return false; post('/api/admin/reset',{username:f.username.value,password:p}).then(j=>{ alert(j.ok?'Password reset.':(j.error||'Failed')); }); return false; }
-      function saveLinks(){ var links=[]; document.querySelectorAll('.lrow').forEach(function(r){ var n=r.querySelector('.ln').value.trim(), u=r.querySelector('.lu').value.trim(), a=r.querySelector('.la').checked; if(n&&u) links.push({name:n,url:u,adminOnly:a}); }); post('/api/admin/links',{links:links}).then(function(j){ var m=document.getElementById('lmsg'); if(j.ok){ m.textContent='Saved '+(j.links.length)+' link(s) ✓'; } else { m.textContent=j.error||'Failed'; } }); }
+      function saveLinks(){ var links=[]; document.querySelectorAll('.lrow').forEach(function(r){ var n=r.querySelector('.ln').value.trim(), u=r.querySelector('.lu').value.trim(), a=r.querySelector('.la').checked; if(n&&u) links.push({name:n,url:u,default:a}); }); post('/api/admin/links',{links:links}).then(function(j){ var m=document.getElementById('lmsg'); if(j.ok){ m.textContent='Saved '+(j.links.length)+' link(s) ✓'; } else { m.textContent=j.error||'Failed'; } }); }
       function saveToolAccess(){ var t=[]; document.querySelectorAll('.ta:checked').forEach(function(c){ t.push(c.value); }); post('/api/admin/tool-access',{adminOnly:t}).then(function(j){ var m=document.getElementById('tmsg'); if(j.ok){ m.textContent='Saved — '+j.adminOnly.length+' tool(s) admin-only ✓'; } else { m.textContent=j.error||'Failed'; } }); }
       document.querySelectorAll('form[action="/api/admin/toggle"],form[action="/api/admin/remove"]').forEach(function(f){ f.addEventListener('submit',function(e){ e.preventDefault(); var d={}; new FormData(f).forEach((v,k)=>d[k]=v); post(f.action,d).then(j=>{ if(j.ok) location.reload(); else alert(j.error||'Failed'); }); }); });
       /* Collapsible admin sections (chevrons) */

@@ -45,15 +45,21 @@ function saveUsers(users) { ensureDir(); fs.writeFileSync(USERS, JSON.stringify(
 
 /* ---------- dashboard quick links (admin-managed, shared) ---------- */
 const LINKS = path.join(DATA_DIR, 'links.json');
-// Starting set — shown until an admin saves the list (then the saved list wins).
+// Company links the admin curates. "default:true" links appear on every user's
+// dashboard automatically; users can also add their own personal quick links.
 const DEFAULT_LINKS = [
-  { name: 'RRG', url: 'https://www.rrgcre.com' },
-  { name: 'Copper', url: 'https://www.copper.com' },
-  { name: 'CoStar', url: 'https://secure.costargroup.com/login?signin=7380e0b9c209f54617739184e77b6293' },
-  { name: 'Placer', url: 'https://www.placer.ai' },
-  { name: 'Alcohol Sales', url: 'https://alcoholsales.com' },
+  { name: 'RRG', url: 'https://www.rrgcre.com', default: true },
+  { name: 'Copper', url: 'https://www.copper.com', default: true },
+  { name: 'CoStar', url: 'https://secure.costargroup.com/login?signin=7380e0b9c209f54617739184e77b6293', default: true },
+  { name: 'Placer', url: 'https://www.placer.ai', default: true },
+  { name: 'Alcohol Sales', url: 'https://alcoholsales.com', default: true },
 ];
-function loadLinks() { try { return JSON.parse(fs.readFileSync(LINKS, 'utf8')); } catch (e) { return DEFAULT_LINKS.slice(); } }
+function loadLinks() {
+  let raw; try { raw = JSON.parse(fs.readFileSync(LINKS, 'utf8')); } catch (e) { return DEFAULT_LINKS.slice(); }
+  if (!Array.isArray(raw)) return DEFAULT_LINKS.slice();
+  // migrate: old "adminOnly" links become non-default (hidden from users until re-checked); everything else defaults to shown.
+  return raw.map(l => ({ name: l.name, url: l.url, default: (l.default != null ? !!l.default : !(l && l.adminOnly)) }));
+}
 
 /* ---------- admin-only tool access (which tool files reps can't see) ---------- */
 const TOOLACC = path.join(DATA_DIR, 'tool_access.json');
@@ -64,16 +70,40 @@ function saveToolAccess(list) {
   fs.writeFileSync(TOOLACC, JSON.stringify({ adminOnly: clean }, null, 2));
   return clean;
 }
-function saveLinks(list) {
-  ensureDir();
-  const clean = (Array.isArray(list) ? list : []).map(l => ({
+// Normalize a list of {name,url[,default]} — trims, caps, forces https, limits count.
+function cleanLinkList(list, keepDefault, max) {
+  return (Array.isArray(list) ? list : []).map(l => ({
     name: String((l && l.name) || '').trim().slice(0, 60),
     url: String((l && l.url) || '').trim().slice(0, 300),
-    adminOnly: !!(l && l.adminOnly),
-  })).filter(l => l.name && l.url).slice(0, 20)
-    .map(l => ({ name: l.name, url: /^https?:\/\//i.test(l.url) ? l.url : 'https://' + l.url, adminOnly: l.adminOnly }));
+    default: !!(l && l.default),
+  })).filter(l => l.name && l.url).slice(0, max || 20)
+    .map(l => {
+      const url = /^https?:\/\//i.test(l.url) ? l.url : 'https://' + l.url;
+      return keepDefault ? { name: l.name, url, default: l.default } : { name: l.name, url };
+    });
+}
+function saveLinks(list) {
+  ensureDir();
+  const clean = cleanLinkList(list, true, 20);
   fs.writeFileSync(LINKS, JSON.stringify(clean, null, 2));
   return clean;
+}
+// Per-user personal quick links (stored on the user record).
+function userLinksOf(u) { return (u && Array.isArray(u.links)) ? u.links : []; }
+function setUserLinks(username, list) {
+  const n = normUser(username);
+  const users = loadUsers();
+  const u = users.find(x => x.username === n);
+  if (!u) throw new Error('User not found.');
+  u.links = cleanLinkList(list, false, 12);
+  saveUsers(users);
+  return u.links;
+}
+// Most recent successful login timestamp per username (from the login log).
+function lastLoginMap() {
+  const map = {};
+  readLogins().forEach(l => { if (l.result === 'success' && l.username) map[l.username] = l.timestamp; });
+  return map;
 }
 function normUser(u) { return String(u || '').trim().toLowerCase().replace(/[^a-z0-9._-]/g, ''); }
 function findUser(username) { const n = normUser(username); return loadUsers().find(u => u.username === n) || null; }
@@ -87,17 +117,19 @@ function preparedByFor(u) {
   return [nameTitle, u.phone, u.email].filter(Boolean).join(' · ');
 }
 
-function addUser({ username, name, password, role, title, phone, email }) {
+function addUser({ username, firstName, lastName, name, password, role, title, phone, email }) {
   const n = normUser(username);
   if (!n) throw new Error('Username required.');
   if (!password || String(password).length < 6) throw new Error('Password must be at least 6 characters.');
   const users = loadUsers();
   if (users.some(u => u.username === n)) throw new Error('That username already exists.');
+  const first = cleanContact(firstName, 60), last = cleanContact(lastName, 60);
+  const full = [first, last].filter(Boolean).join(' ') || cleanContact(name, 120) || n;
   const { salt, hash } = hashPassword(password);
   users.push({
-    username: n, name: String(name || n), role: role === 'admin' ? 'admin' : 'rep',
+    username: n, firstName: first, lastName: last, name: full, role: role === 'admin' ? 'admin' : 'rep',
     title: cleanContact(title, 80), phone: cleanContact(phone, 40), email: cleanContact(email, 120),
-    salt, hash, createdAt: new Date().toISOString(), disabled: false,
+    links: [], salt, hash, createdAt: new Date().toISOString(), disabled: false,
   });
   saveUsers(users);
   return { username: n };
@@ -132,8 +164,9 @@ function changePassword(username, currentPassword, newPassword) {
 function profileOf(u) {
   if (!u) return null;
   return {
-    username: u.username, name: u.name, role: u.role,
+    username: u.username, name: u.name, firstName: u.firstName || '', lastName: u.lastName || '', role: u.role,
     title: u.title || '', phone: u.phone || '', email: u.email || '',
+    links: (Array.isArray(u.links) ? u.links : []),
     preparedBy: preparedByFor(u),
   };
 }
@@ -281,5 +314,5 @@ module.exports = {
   loadUsers, findUser, addUser, removeUser, resetPassword, setDisabled, seedAdmin, authenticate,
   updateProfile, changePassword, profileOf, preparedByFor,
   logLogin, readLogins, logUsage, readUsage, toolName, makeSession, readSession,
-  loadLinks, saveLinks, loadToolAccess, saveToolAccess,
+  loadLinks, saveLinks, userLinksOf, setUserLinks, lastLoginMap, loadToolAccess, saveToolAccess,
 };

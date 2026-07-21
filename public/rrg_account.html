@@ -36,6 +36,10 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
 .msg{display:inline-block;margin-left:12px;font-size:12.5px;font-weight:600;}
 .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
 .foot{text-align:center;color:var(--muted);font-size:11px;padding:0 20px 40px;}
+.lkrow{display:flex;gap:9px;align-items:center;margin-top:9px;}
+.lkrow input.f{flex:1;} .lkrow input.lkname{flex:0 0 34%;}
+.lkrow .rm{flex:0 0 auto;background:#fbeceb;color:var(--red);border:1px solid #f0c9c6;border-radius:8px;width:34px;height:38px;font-size:17px;line-height:1;cursor:pointer;}
+.addlink{margin-top:12px;background:#eef1f7;color:var(--navy);border:1px solid var(--line);border-radius:9px;padding:9px 15px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -61,6 +65,14 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
     <input class="f" id="email" autocomplete="email" placeholder="e.g. you@rrgcre.com">
     <div class="prev"><div class="pl">Appears on BOVs / CIMs as</div><div class="pv" id="prev">—</div></div>
     <div><button class="save" id="saveProfile" onclick="saveProfile()">Save contact info</button><span class="msg" id="pmsg"></span></div>
+  </div>
+
+  <div class="card">
+    <h2>My Quick Links</h2>
+    <div class="desc">Your own dashboard shortcuts, shown alongside the company default links. Up to 12.</div>
+    <div id="linkRows"></div>
+    <button type="button" class="addlink" onclick="addLinkRow('','')">+ Add link</button>
+    <div style="margin-top:6px"><button class="save" id="saveLinks" onclick="saveLinks()">Save my links</button><span class="msg" id="lkmsg"></span></div>
   </div>
 
   <div class="card">
@@ -99,6 +111,34 @@ function load(){
   }).catch(function(){ preview(); });
 }
 load();
+
+/* ---- My Quick Links ---- */
+function addLinkRow(name,url){
+  var box=$('linkRows'); if(box.querySelectorAll('.lkrow').length>=12){ setMsg('lkmsg','err','Up to 12 links.'); return; }
+  var row=document.createElement('div'); row.className='lkrow';
+  row.innerHTML='<input class="f lkname" placeholder="Name" maxlength="60"><input class="f lkurl" placeholder="https://…" maxlength="300"><button type="button" class="rm" title="Remove">×</button>';
+  row.querySelector('.lkname').value=name||''; row.querySelector('.lkurl').value=url||'';
+  row.querySelector('.rm').onclick=function(){ row.remove(); };
+  box.appendChild(row);
+}
+function loadLinks(){
+  fetch(API+'/api/me/links').then(function(r){return r.json();}).then(function(j){
+    var box=$('linkRows'); box.innerHTML='';
+    var list=(j&&j.links)||[];
+    if(!list.length){ addLinkRow('',''); } else list.forEach(function(l){ addLinkRow(l.name,l.url); });
+  }).catch(function(){ addLinkRow('',''); });
+}
+function saveLinks(){
+  var links=[];
+  document.querySelectorAll('#linkRows .lkrow').forEach(function(r){ var n=r.querySelector('.lkname').value.trim(), u=r.querySelector('.lkurl').value.trim(); if(n&&u) links.push({name:n,url:u}); });
+  var b=$('saveLinks'); b.disabled=true; setMsg('lkmsg','','Saving…');
+  fetch(API+'/api/me/links',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({links:links})})
+    .then(function(r){return r.json();}).then(function(j){ b.disabled=false;
+      if(j&&j.ok){ setMsg('lkmsg','ok','Saved '+j.links.length+' link'+(j.links.length===1?'':'s')+' ✓'); }
+      else setMsg('lkmsg','err',(j&&j.error)||'Could not save.'); })
+    .catch(function(){ b.disabled=false; setMsg('lkmsg','err','Could not reach the server.'); });
+}
+loadLinks();
 
 function saveProfile(){
   var b=$('saveProfile'); b.disabled=true; setMsg('pmsg','','Saving…');

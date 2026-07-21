@@ -189,7 +189,7 @@ function render(list){
     return;
   }
   var rows=list.map(function(s){
-    var meta=[fmt(s.createdAt), s.market, s.by].filter(Boolean).map(esc).join(' · ');
+    var meta=[s.market, s.by].filter(Boolean).map(esc).join(' · ');
     var bov='./rrg_bov_builder.html?q='+encodeURIComponent(s.id);
     var mid;
     if(s.processed){
@@ -205,6 +205,7 @@ function render(list){
     }
     return '<tr data-id="'+esc(s.id)+'">'+
       '<td><div class="biz">'+esc(s.business||'Business')+'</div><div class="meta">'+meta+'</div></td>'+
+      '<td class="meta">'+esc(fmt(s.createdAt))+'</td>'+
       '<td>'+badge(s)+'</td>'+
       '<td><div class="act">'+
         '<a href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Edit</a>'+
@@ -213,7 +214,7 @@ function render(list){
       '</div></td>'+
     '</tr>';
   }).join('');
-  body.innerHTML='<table><thead><tr><th>Business</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  body.innerHTML='<table><thead><tr><th>Business</th><th>Advanced</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 function del(id,btn){
   if(!confirm('Remove this questionnaire from the log?')) return;
