@@ -392,14 +392,15 @@
     <div class="sec brk"><div class="num">2</div><h2>Operations &amp; Hours</h2><div class="flex"></div></div>
     <div class="subhead">Operating Hours</div>
     <div class="hoursgrid" id="hoursGrid">
-      <div class="hrow" data-day="Monday"><span class="hday">Monday</span><input type="text" class="hopen" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
-      <div class="hrow" data-day="Tuesday"><span class="hday">Tuesday</span><input type="text" class="hopen" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
-      <div class="hrow" data-day="Wednesday"><span class="hday">Wednesday</span><input type="text" class="hopen" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
-      <div class="hrow" data-day="Thursday"><span class="hday">Thursday</span><input type="text" class="hopen" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
-      <div class="hrow" data-day="Friday"><span class="hday">Friday</span><input type="text" class="hopen" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
-      <div class="hrow" data-day="Saturday"><span class="hday">Saturday</span><input type="text" class="hopen" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
-      <div class="hrow" data-day="Sunday"><span class="hday">Sunday</span><input type="text" class="hopen" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Monday"><span class="hday">Monday</span><input type="text" class="hopen" list="rrgTimes" autocomplete="off" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" list="rrgTimes" autocomplete="off" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Tuesday"><span class="hday">Tuesday</span><input type="text" class="hopen" list="rrgTimes" autocomplete="off" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" list="rrgTimes" autocomplete="off" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Wednesday"><span class="hday">Wednesday</span><input type="text" class="hopen" list="rrgTimes" autocomplete="off" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" list="rrgTimes" autocomplete="off" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Thursday"><span class="hday">Thursday</span><input type="text" class="hopen" list="rrgTimes" autocomplete="off" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" list="rrgTimes" autocomplete="off" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Friday"><span class="hday">Friday</span><input type="text" class="hopen" list="rrgTimes" autocomplete="off" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" list="rrgTimes" autocomplete="off" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Saturday"><span class="hday">Saturday</span><input type="text" class="hopen" list="rrgTimes" autocomplete="off" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" list="rrgTimes" autocomplete="off" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Sunday"><span class="hday">Sunday</span><input type="text" class="hopen" list="rrgTimes" autocomplete="off" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" list="rrgTimes" autocomplete="off" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
     </div>
+    <datalist id="rrgTimes"></datalist>
     <div class="grid rowgap">
       <div class="oset single"><label class="k">Operating Hours Changed Recently?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
       <div class="oset single"><label class="k">Is the Business Seasonal?</label><div class="optcols c3"><label class="opt"><input type="checkbox">No</label><label class="opt"><input type="checkbox">Moderately</label><label class="opt"><input type="checkbox">Highly</label></div></div>
@@ -1095,13 +1096,44 @@
   _cond('Do Tax Returns Match', 'wrapTaxMismatch', ['No']);
   _cond('Any Unreported Income', 'wrapUnreported', ['Yes']);
 
-  // Per-day operating hours: "Closed" disables that day's open/close inputs.
+  // Per-day operating hours: 12-hour time picker + carry each day forward from the day before.
   (function(){
     var grid=document.getElementById('hoursGrid'); if(!grid) return;
+    var rows=[].slice.call(grid.querySelectorAll('.hrow'));
+    // Build the 12-hour time list (15-minute increments) into the shared datalist.
+    var dl=document.getElementById('rrgTimes');
+    if(dl && !dl.children.length){
+      for(var h=0; h<24; h++){ for(var m=0; m<60; m+=15){
+        var ap=h<12?'AM':'PM', hh=h%12; if(hh===0) hh=12;
+        var o=document.createElement('option'); o.value=hh+':'+(m<10?'0'+m:m)+' '+ap; dl.appendChild(o);
+      } }
+    }
+    function isClosed(row){ var c=row.querySelector('.hclosedcb'); return c && c.checked; }
+    function prevOpenIdx(i){ for(var k=i-1;k>=0;k--){ if(!isClosed(rows[k])) return k; } return -1; }
+    // Copy a committed value down into following days that are still empty and not closed.
+    function cascade(fromIdx, sel, val){
+      if(!val) return;
+      for(var k=fromIdx+1;k<rows.length;k++){
+        if(isClosed(rows[k])) continue;
+        var inp=rows[k].querySelector(sel);
+        if(inp && !inp.value.trim()){ inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); }
+      }
+    }
     grid.addEventListener('change', function(e){
-      var cb=e.target; if(!cb.classList || !cb.classList.contains('hclosedcb')) return;
-      var row=cb.closest('.hrow'); if(!row) return;
-      row.querySelectorAll('input.hopen, input.hclose').forEach(function(i){ i.disabled=cb.checked; if(cb.checked){ i.value=''; i.dispatchEvent(new Event('input',{bubbles:true})); } });
+      var t=e.target; if(!t.classList) return;
+      if(t.classList.contains('hclosedcb')){
+        var row=t.closest('.hrow'), op=row.querySelector('.hopen'), cl=row.querySelector('.hclose');
+        if(t.checked){ [op,cl].forEach(function(i){ i.disabled=true; i.value=''; i.dispatchEvent(new Event('input',{bubbles:true})); }); }
+        else { [op,cl].forEach(function(i){ i.disabled=false; });
+          var pi=prevOpenIdx(rows.indexOf(row));   // reopening a day: inherit the previous open day
+          if(pi>=0){ if(!op.value){ op.value=rows[pi].querySelector('.hopen').value; op.dispatchEvent(new Event('input',{bubbles:true})); }
+                     if(!cl.value){ cl.value=rows[pi].querySelector('.hclose').value; cl.dispatchEvent(new Event('input',{bubbles:true})); } }
+        }
+        return;
+      }
+      if(t.classList.contains('hopen')||t.classList.contains('hclose')){
+        cascade(rows.indexOf(t.closest('.hrow')), t.classList.contains('hopen')?'.hopen':'.hclose', t.value.trim());
+      }
     });
   })();
 
