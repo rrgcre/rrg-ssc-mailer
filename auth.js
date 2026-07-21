@@ -20,6 +20,11 @@ const KEYFILE = path.join(DATA_DIR, 'session.key');
 const LOGIN_COLS = ['timestamp', 'username', 'result', 'ip', 'userAgent'];
 const USAGE_COLS = ['timestamp', 'username', 'tool', 'path', 'ip'];
 const SESSION_DAYS = 7;
+// Idle timeout: a signed-in session expires after this many minutes with no
+// requests. Every authenticated request slides it forward by this much again
+// (see the auth gate in server.js), so an active user is never kicked out but
+// a machine left idle is signed out automatically.
+const SESSION_IDLE_MIN = Number(process.env.SESSION_IDLE_MIN || 60);
 
 function ensureDir() { if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true }); }
 
@@ -291,7 +296,7 @@ function secret() {
 }
 function sign(payloadB64) { return crypto.createHmac('sha256', secret()).update(payloadB64).digest('base64url'); }
 function makeSession(user) {
-  const payload = { u: user.username, r: user.role, n: user.name, exp: Date.now() + SESSION_DAYS * 864e5 };
+  const payload = { u: user.username, r: user.role, n: user.name, exp: Date.now() + SESSION_IDLE_MIN * 60000 };
   const b64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
   return b64 + '.' + sign(b64);
 }
@@ -310,7 +315,7 @@ function readSession(token) {
 }
 
 module.exports = {
-  DATA_DIR, LOGIN_COLS, LOG_CSV, USAGE_COLS, USAGE_CSV, SESSION_DAYS,
+  DATA_DIR, LOGIN_COLS, LOG_CSV, USAGE_COLS, USAGE_CSV, SESSION_DAYS, SESSION_IDLE_MIN,
   loadUsers, findUser, addUser, removeUser, resetPassword, setDisabled, seedAdmin, authenticate,
   updateProfile, changePassword, profileOf, preparedByFor,
   logLogin, readLogins, logUsage, readUsage, toolName, makeSession, readSession,

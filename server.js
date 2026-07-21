@@ -22,6 +22,24 @@ const BOVS_FILE = path.join(BOV_DATA_DIR, 'bovs.json');
 function loadBovs() { try { return JSON.parse(fs.readFileSync(BOVS_FILE, 'utf8')); } catch (e) { return []; } }
 function saveBovs(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BOVS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newBovId() { return 'bov_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+// When a valuation questionnaire is advanced, drop a "waiting BOV" into the BOV
+// queue — the same pattern as advancing a seller call into the Questionnaire Log.
+// Idempotent: advancing the same questionnaire twice reuses the one queued BOV.
+function ensureBovForQuest(q) {
+  if (!q) return null;
+  const arr = loadBovs();
+  const srcId = 'bovfromq_' + q.id;
+  const existing = arr.find(b => b.srcFormId === srcId);
+  if (existing) return existing;
+  const rec = {
+    id: newBovId(), srcFormId: srcId, srcQuestId: q.id, pending: true,
+    business: q.business || 'Business', market: q.market || '', date: '',
+    rangeText: '', targetText: '', multText: '', ebitdaText: '',
+    by: q.by || '', byUser: q.byUser || '', createdAt: new Date().toISOString(),
+  };
+  arr.push(rec); saveBovs(arr);
+  return rec;
+}
 
 // ---- Screening queue store (seller screenings awaiting a questionnaire) ----
 const SCREEN_FILE = path.join(BOV_DATA_DIR, 'screenings.json');
@@ -33,6 +51,16 @@ function newScreenId() { return 'scr_' + Date.now().toString(36) + Math.random()
 const QUEST_FILE = path.join(BOV_DATA_DIR, 'questionnaires.json');
 function loadQuests() { try { return JSON.parse(fs.readFileSync(QUEST_FILE, 'utf8')); } catch (e) { return []; } }
 function saveQuests(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(QUEST_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+
+// ---- Deleted-questionnaire tombstones ----
+// When a rep deletes a questionnaire that was auto-created from an advanced
+// seller call, we record its formId here so backfillQuests() does NOT recreate
+// it on the next Q-Log load. Re-advancing the source call clears the tombstone.
+const QUEST_TOMB_FILE = path.join(BOV_DATA_DIR, 'questionnaires_deleted.json');
+function loadQuestTombs() { try { return JSON.parse(fs.readFileSync(QUEST_TOMB_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveQuestTombs(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(QUEST_TOMB_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function addQuestTomb(fid) { if (!fid) return; const a = loadQuestTombs(); if (a.indexOf(fid) < 0) { a.push(fid); saveQuestTombs(a); } }
+function removeQuestTomb(fid) { if (!fid) return; const a = loadQuestTombs(); const b = a.filter(x => x !== fid); if (b.length !== a.length) saveQuestTombs(b); }
 function newQuestId() { return 'q_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function ownsQuest(req, s) {
   if (req.user && req.user.role === 'admin') return true;
@@ -79,10 +107,11 @@ function backfillQuests() {
   try {
     const quests = loadQuests();
     const have = new Set(quests.map(q => q.formId));
+    const tombs = new Set(loadQuestTombs());
     let added = false;
     loadScreens().filter(x => x.processed).forEach(function (s) {
       const fid = 'qfromscr_' + s.id;
-      if (have.has(fid)) return;
+      if (have.has(fid) || tombs.has(fid)) return;
       const d = s.data || {};
       quests.push({
         id: newQuestId(), formId: fid, processed: false, processedAt: '', decision: '', completed: false,
@@ -222,7 +251,7 @@ function parseCookies(req) {
   return out;
 }
 function setSessionCookie(res, token) {
-  res.setHeader('Set-Cookie', `${COOKIE}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Secure; Max-Age=${auth.SESSION_DAYS * 86400}`);
+  res.setHeader('Set-Cookie', `${COOKIE}=${encodeURIComponent(token)}; HttpOnly; Path=/; SameSite=Lax; Secure; Max-Age=${auth.SESSION_IDLE_MIN * 60}`);
 }
 function clearSessionCookie(res) {
   res.setHeader('Set-Cookie', `${COOKIE}=; HttpOnly; Path=/; SameSite=Lax; Secure; Max-Age=0`);
@@ -237,7 +266,13 @@ const OPEN = new Set(['/health', '/login', '/api/login', '/logout']);
 app.use((req, res, next) => {
   if (OPEN.has(req.path)) return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
-  if (sess) { req.user = sess; return next(); }
+  if (sess) {
+    req.user = sess;
+    // Slide the idle timeout forward: any activity re-issues a fresh session
+    // cookie, so an active user stays signed in and an idle one is logged out.
+    try { setSessionCookie(res, auth.makeSession(sess)); } catch (e) {}
+    return next();
+  }
   // Not authenticated
   if (req.path.startsWith('/api/') || /\.(csv|json)$/.test(req.path)) {
     return res.status(401).json({ ok: false, error: 'Not signed in.' });
@@ -405,6 +440,7 @@ app.post('/api/screening/:id/advance', (req, res) => {
   if (!s.processed && !s.completed) return res.status(409).json({ ok: false, incomplete: true, error: 'Complete the required fields on the screening before advancing it.' });
   s.processed = true; s.processedAt = new Date().toISOString();
   saveScreens(arr);
+  removeQuestTomb('qfromscr_' + s.id);  // explicit re-advance undoes a prior delete
   let qid = '';
   try { const q = ensureQuestForScreening(s); qid = (q && q.id) || ''; } catch (e) {}
   res.json({ ok: true, questionnaireId: qid });
@@ -453,7 +489,9 @@ app.post('/api/questionnaire/:id/advance', (req, res) => {
   if (!ownsQuest(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   s.processed = true; s.processedAt = new Date().toISOString();
   saveQuests(arr);
-  res.json({ ok: true });
+  let bovId = '';
+  try { const b = ensureBovForQuest(s); bovId = (b && b.id) || ''; } catch (e) {}
+  res.json({ ok: true, bovId });
 });
 app.post('/api/questionnaire/:id/decision', express.json(), (req, res) => {
   const arr = loadQuests();
@@ -470,6 +508,7 @@ app.delete('/api/questionnaire/:id', (req, res) => {
   const s = arr.find(x => x.id === req.params.id);
   if (!s) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!ownsQuest(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  addQuestTomb(s.formId);  // so backfillQuests won't resurrect it on the next load
   saveQuests(arr.filter(x => x.id !== req.params.id));
   res.json({ ok: true });
 });
@@ -492,7 +531,7 @@ app.get('/api/bovs', (req, res) => {
   const list = loadBovs().slice().reverse().filter(b => isAdmin || ownsBov(req, b));
   res.json({
     ok: true, isAdmin: !!isAdmin,
-    bovs: list.map(b => ({ id: b.id, business: b.business, date: b.date, rangeText: b.rangeText, targetText: b.targetText, multText: b.multText, ebitdaText: b.ebitdaText, by: b.by, byUser: b.byUser, createdAt: b.createdAt })),
+    bovs: list.map(b => ({ id: b.id, business: b.business, date: b.date, rangeText: b.rangeText, targetText: b.targetText, multText: b.multText, ebitdaText: b.ebitdaText, pending: !!b.pending, srcQuestId: b.srcQuestId || '', by: b.by, byUser: b.byUser, createdAt: b.createdAt })),
   });
 });
 app.get('/api/bov/:id', (req, res) => {
