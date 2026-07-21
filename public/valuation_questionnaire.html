@@ -114,6 +114,8 @@
   .hrow select.htime:focus{ outline:none; border-color:var(--red); box-shadow:0 0 0 3px rgba(218,43,31,.12); }
   .hrow select.htime:disabled{ background:#f3f4f7; color:#9aa3b2; cursor:default; }
   .hrow select.htime:invalid,.hrow select.htime option[value=""]{ color:#9aa3b2; }
+  .field select.fsel{ width:100%; box-sizing:border-box; padding:11px 12px; border:1px solid var(--line); border-radius:10px; font:inherit; font-size:14px; background:#fff; color:var(--navy); -webkit-appearance:menulist; appearance:menulist; cursor:pointer; }
+  .field select.fsel:focus{ outline:none; border-color:var(--red); box-shadow:0 0 0 3px rgba(218,43,31,.12); }
   .hrow .hdash{ text-align:center; color:var(--muted); font-weight:700; }
   .hrow .hclosed{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:var(--muted); white-space:nowrap; cursor:pointer; }
   .hrow .hclosed input{ margin:0; }
@@ -411,7 +413,7 @@
     <div class="grid rowgap" id="wrapSeasonality">
       <div class="field full"><label class="k">Seasonality Detail</label><textarea></textarea></div>
     </div>
-    <div class="sec brk"><div class="num">3</div><h2>Revenue &amp; Profitability</h2><div class="flex"></div></div>
+    <div class="sec brk"><div class="num">3</div><h2>Menu Prices &amp; Tickets</h2><div class="flex"></div></div>
     <div class="grid rowgap">
       <div class="oset single"><label class="k">Can Pricing Be Increased?</label><div class="optcols c3"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">Yes, Selectively</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
@@ -419,8 +421,8 @@
       <div class="field full"><label class="k">Pricing Detail</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Average Cover</label><input type="text"></div>
-      <div class="field"><label class="k">Average Ticket ($)</label><input type="text"></div>
+      <div class="field"><label class="k">Average Cover ($)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="dec2" inputmode="decimal"></span></div>
+      <div class="field"><label class="k">Average Ticket ($)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="dec2" inputmode="decimal"></span></div>
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Last Price Increase</label><input type="text"></div>
@@ -431,9 +433,6 @@
     </div>
     <div class="sec brk"><div class="num">4</div><h2>Financial Records</h2><div class="flex"></div></div>
     <div class="grid rowgap">
-      <div class="field full"><label class="k">Financial Records Accuracy</label><textarea></textarea></div>
-    </div>
-    <div class="grid rowgap">
       <div class="oset single"><label class="k">Do Tax Returns Match Financial Statements?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
       <div class="oset single"><label class="k">Any Unreported Income?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
@@ -442,6 +441,9 @@
     </div>
     <div class="grid rowgap" id="wrapUnreported">
       <div class="field full"><label class="k">Unreported Income — Detail</label><textarea></textarea></div>
+    </div>
+    <div class="grid rowgap">
+      <div class="field full"><label class="k">Financial Records Accuracy</label><textarea></textarea></div>
     </div>
     <div class="sec brk" id="secAlcohol"><div class="num">5</div><h2>Alcohol &amp; TABC</h2><div class="flex"></div></div>
     <div class="grid rowgap">
@@ -457,8 +459,8 @@
     </div>
     <div class="sec brk"><div class="num">6</div><h2>Labor &amp; Management</h2><div class="flex"></div></div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Labor Cost (% of Sales)</label><span class="padorn"><input type="text" class="pct" inputmode="decimal"><span class="ad-suf">%</span></span></div>
-      <div class="field"><label class="k">Employee Turnover Rate</label><input type="text"></div>
+      <div class="field"><label class="k">Employee Turnover Rate</label><select class="fsel"><option value="">Select…</option><option>Under 25%</option><option>25–50%</option><option>50–75%</option><option>75–100%</option><option>Over 100%</option><option>Unknown</option></select></div>
+      <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Full-Time Employees</label><input type="text" class="int" inputmode="numeric"></div>
@@ -505,7 +507,7 @@
       <div class="oset single"><label class="k">Willing to Sign a Non-Compete?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
       <div class="oset single"><label class="k">Highly Desirable Location?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
-    <div class="grid rowgap">
+    <div class="grid rowgap" id="wrapNonCompete">
       <div class="field full"><label class="k">Non-Compete Terms (Duration / Area)</label><input type="text"></div>
     </div>
     <div class="sec brk"><div class="num">8</div><h2>Real Estate &amp; Lease</h2><div class="flex"></div></div>
@@ -695,7 +697,7 @@
       if(el.classList.contains('sec')){ var h=el.querySelector('h2'); out.push(''); out.push('=== '+(h?h.textContent.trim().toUpperCase():'')+' ==='); }
       else if(el.classList.contains('subhead')){ out.push('- '+el.textContent.trim()+' -'); }
       else if(el.classList.contains('field')){
-        var lb=el.querySelector('label.k'), inp=el.querySelector('input,textarea');
+        var lb=el.querySelector('label.k'), inp=el.querySelector('input,textarea,select');
         if(lb&&inp) out.push(_clean(lb)+': '+(inp.value.trim()||'—'));
       } else if(el.classList.contains('oset')){
         var lb=el.querySelector('label.k'); if(!lb) return;
@@ -746,7 +748,7 @@
         });
         if(cur && rows.length) cur.groups.push({kind:'field',label:'Operating Hours',value:rows.join('   ·   ')});
       } else if(el.classList.contains('field')){
-        var lb=el.querySelector('label.k'), inp=el.querySelector('input,textarea'); if(!lb||!inp) return;
+        var lb=el.querySelector('label.k'), inp=el.querySelector('input,textarea,select'); if(!lb||!inp) return;
         var label=_labelText(lb), value=inp.value.trim();
         if(cur) cur.groups.push({kind:'field',label:label,value:value}); else header[label.toLowerCase()]=value;
       } else if(el.classList.contains('oset')){
@@ -897,7 +899,7 @@
   function _grpS(t){ return Array.prototype.slice.call(document.querySelectorAll('#sscform .oset')).find(function(o){var k=o.querySelector('label.k');return k && k.textContent.replace('*','').trim().toLowerCase().indexOf(t.toLowerCase())===0;}); }
   function _check(gl, txt){ var g=_grpS(gl); if(!g) return; var o=Array.prototype.slice.call(g.querySelectorAll('.opt')).find(function(l){return l.textContent.trim().toLowerCase().indexOf(txt.toLowerCase())!==-1;}); if(o){var i=o.querySelector('input'); i.checked=true; i.dispatchEvent(new Event('change',{bubbles:true}));} }
   function _kit(row, txt){ var g=_grpS('Kitchen'); if(!g) return; var sr=Array.prototype.slice.call(g.querySelectorAll('.subrow')).find(function(r){return r.querySelector('.srk').textContent.trim().toLowerCase()===row.toLowerCase();}); if(!sr) return; var o=Array.prototype.slice.call(sr.querySelectorAll('.opt')).find(function(l){return l.textContent.trim().toLowerCase()===txt.toLowerCase();}); if(o) o.querySelector('input').checked=true; }
-  function _set(lbl, val){ var lb=Array.prototype.slice.call(document.querySelectorAll('#sscform label.k')).find(function(l){return l.textContent.replace('*','').trim().toLowerCase()===lbl.toLowerCase();}); if(!lb) return; var inp=lb.parentElement.querySelector('input,textarea'); if(!inp) return; inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); }
+  function _set(lbl, val){ var lb=Array.prototype.slice.call(document.querySelectorAll('#sscform label.k')).find(function(l){return l.textContent.replace('*','').trim().toLowerCase()===lbl.toLowerCase();}); if(!lb) return; var inp=lb.parentElement.querySelector('input,textarea,select'); if(!inp) return; inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); inp.dispatchEvent(new Event('change',{bubbles:true})); }
   function _setInline(lab, val){ var s=Array.prototype.slice.call(document.querySelectorAll('#sscform .inl .lab')).find(function(x){return x.textContent.trim().toLowerCase()===lab.toLowerCase();}); if(!s) return; var inp=s.parentElement.querySelector('input'); inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); }
   window.loadSample=function(){
     var form=document.getElementById('sscform');
@@ -926,7 +928,7 @@
     _set("Gross Margin Detail", "Food and packaging cost is controlled in the 27\u201328% range against a target of 26\u201328%, down from earlier in the year. Labor percentage is trending down at MLK following a February 2026 restructure, though Spicewood labor remains elevated (~37\u201346%) and is an active focus area.");
     _set("Growth Prospects Detail", "Growth is driven by three concurrent channels: a new SEO-optimized website (#2 organic ranking in Austin, live since March 2026), an active catering outbound push with two new B2B channels (Foodja and LunchDrop), and the Q2 Stadium concession partnership with Austin FC, which also functions as a customer-acquisition funnel back to the restaurants. A wholesale account also launched in June 2026.");
     _set("Pricing Detail", "About one year since the last adjustment (July 2025). Menu Governance Rules price and promote items by food-cost thresholds (<=27.5% freely promotable, 28\u201330% allowed but not featured, >33% must be fixed or rotated). This supports targeted increases on high-margin core items without broad repricing, and any increase flows directly to the bottom line given the controlled cost structure.");
-    _set("Average Cover", "1.07");
+    _set("Average Cover ($)", "18.50");
     _set("Average Ticket ($)", "17.37");
     _set("% of Sales from Food", "96");
     _set("Current Food Cost (% of Sales)", "29");
@@ -1095,6 +1097,16 @@
   _cond('Is the Business Seasonal', 'wrapSeasonality', ['Moderately','Highly']);
   _cond('Do Tax Returns Match', 'wrapTaxMismatch', ['No']);
   _cond('Any Unreported Income', 'wrapUnreported', ['Yes']);
+  _cond('Willing to Sign a Non-Compete', 'wrapNonCompete', ['Yes']);
+
+  // Dynamic section numbering: number only the visible sections 1..N (so hidden Franchise / Alcohol never leave a gap).
+  window.__renumber=function(){
+    var n=0;
+    document.querySelectorAll('#sscform .sec').forEach(function(sec){
+      if(getComputedStyle(sec).display==='none') return;
+      n++; var num=sec.querySelector('.num'); if(num) num.textContent=n;
+    });
+  };
 
   // Per-day operating hours: 12-hour dropdowns (blank by default) + carry each day forward from the day before.
   (function(){
@@ -1176,6 +1188,7 @@
       sec.style.display = fran ? '' : 'none';
       if(body) body.style.display = fran ? (sec.classList.contains('collapsed')?'none':'') : 'none';
       if(remodel){ if(fran){ remodel.classList.add('req'); } else { remodel.classList.remove('req'); remodel.classList.remove('missing'); } }
+      if(window.__renumber) window.__renumber();
     };
     g.addEventListener('change', window.__franchiseUpd);
     window.__franchiseUpd();
@@ -1191,6 +1204,7 @@
       var body=(sec.nextElementSibling && sec.nextElementSibling.classList && sec.nextElementSibling.classList.contains('accbody')) ? sec.nextElementSibling : null;
       sec.style.display = on ? '' : 'none';
       if(body) body.style.display = on ? (sec.classList.contains('collapsed')?'none':'') : 'none';
+      if(window.__renumber) window.__renumber();
     };
     g.addEventListener('change', window.__alcoholUpd);
     window.__alcoholUpd();
