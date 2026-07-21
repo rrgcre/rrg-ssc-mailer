@@ -415,6 +415,7 @@
     </div>
     <div class="sec brk"><div class="num">3</div><h2>Menu Prices &amp; Tickets</h2><div class="flex"></div></div>
     <div class="grid rowgap">
+      <div class="field"><label class="k">Last Price Increase</label><input type="text"></div>
       <div class="oset single"><label class="k">Can Pricing Be Increased?</label><div class="optcols c3"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">Yes, Selectively</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap">
@@ -425,11 +426,8 @@
       <div class="field"><label class="k">Average Ticket ($)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="dec2" inputmode="decimal"></span></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Last Price Increase</label><input type="text"></div>
       <div class="field"><label class="k">Working Capital Required</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field full"><label class="k">Capital Improvements per Year</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
+      <div class="field"><label class="k">Capital Improvements per Year</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
     </div>
     <div class="sec brk"><div class="num">4</div><h2>Financial Records</h2><div class="flex"></div></div>
     <div class="grid rowgap">
@@ -450,12 +448,8 @@
       <div class="oset full single"><label class="k">TABC License Type</label><div class="optcols c3"><label class="opt"><input type="checkbox">None</label><label class="opt"><input type="checkbox">Beer &amp; Wine</label><label class="opt"><input type="checkbox">Liquor, Beer &amp; Wine</label></div></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Latest Serving Time</label><input type="text"></div>
+      <div class="field"><label class="k">Latest Serving Time</label><select class="fsel timesel"><option value="">Select…</option></select></div>
       <div class="field"><label class="k">License Expiration</label><input type="text"></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">% of Sales from Alcohol</label><span class="padorn"><input type="text" class="pct" inputmode="decimal"><span class="ad-suf">%</span></span></div>
-      <div class="field"><label class="k">Alcohol Cost (% of Sales)</label><span class="padorn"><input type="text" class="pct" inputmode="decimal"><span class="ad-suf">%</span></span></div>
     </div>
     <div class="sec brk"><div class="num">6</div><h2>Labor &amp; Management</h2><div class="flex"></div></div>
     <div class="grid rowgap">
@@ -478,7 +472,7 @@
       <div class="field"><label class="k">Kitchen Manager Tenure</label><span class="padorn"><input type="text" class="yrs99" inputmode="numeric" placeholder="e.g. 5"><span class="ad-suf">yrs</span></span></div>
     </div>
     <div class="grid rowgap">
-      <div class="field full"><label class="k">Owner Roles</label><textarea></textarea></div>
+      <div class="oset full"><label class="k">Owner Role(s)</label><div class="optcols c3"><label class="opt"><input type="checkbox">Operations</label><label class="opt"><input type="checkbox">Kitchen / Chef</label><label class="opt"><input type="checkbox">Front of House</label><label class="opt"><input type="checkbox">Bar Management</label><label class="opt"><input type="checkbox">Purchasing / Vendors</label><label class="opt"><input type="checkbox">Finance / Bookkeeping</label><label class="opt"><input type="checkbox">Marketing / Social</label><label class="opt"><input type="checkbox">HR / Scheduling</label><label class="opt"><input type="checkbox">Catering / Events</label><label class="opt"><input type="checkbox">General Manager</label><label class="opt"><input type="checkbox">Absentee / Passive</label></div></div>
     </div>
     <div class="grid rowgap">
       <div class="oset full single"><label class="k">Owner Hours per Week</label><div class="optcols c4"><label class="opt"><input type="checkbox">Under 10</label><label class="opt"><input type="checkbox">10 to 20</label><label class="opt"><input type="checkbox">20 to 40</label><label class="opt"><input type="checkbox">40+</label></div></div>
@@ -491,13 +485,28 @@
       <div class="oset single"><label class="k">Family Members Work in the Business?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
       <div class="oset single"><label class="k">Non-Working Family on Payroll?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
+    <div class="grid rowgap" id="wrapFamilyWork">
+      <div class="field full"><label class="k">Which family members work in the business, and in what roles?</label><textarea></textarea></div>
+    </div>
+    <div class="grid rowgap" id="wrapNonWorkingFamily">
+      <div class="field full"><label class="k">Which non-working family are on payroll — who, and how much?</label><textarea></textarea></div>
+    </div>
     <div class="grid rowgap">
       <div class="oset single"><label class="k">Family Working Without Compensation?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
       <div class="oset single"><label class="k">Key Employees Willing to Stay?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
+    <div class="grid rowgap" id="wrapFamilyNoComp">
+      <div class="field full"><label class="k">Which family work without compensation — who, their role, and cost to replace?</label><textarea></textarea></div>
+    </div>
+    <div class="grid rowgap" id="wrapKeyEmployees">
+      <div class="field full"><label class="k">Which key employees will stay, and in what role?</label><textarea></textarea></div>
+    </div>
     <div class="grid rowgap">
       <div class="oset single"><label class="k">Wages vs Industry Average</label><div class="optcols c3"><label class="opt"><input type="checkbox">Below</label><label class="opt"><input type="checkbox">At</label><label class="opt"><input type="checkbox">Above</label></div></div>
       <div class="oset single"><label class="k">Any Employees on Contract?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+    </div>
+    <div class="grid rowgap" id="wrapContractEmployees">
+      <div class="field full"><label class="k">Which employees are on contract?</label><textarea></textarea></div>
     </div>
     <div class="sec brk"><div class="num">7</div><h2>Market Position</h2><div class="flex"></div></div>
     <div class="grid rowgap">
@@ -936,7 +945,7 @@
     _set("Working Capital Required", "100000");
     _set("Capital Improvements per Year", "0");
     _set("Financial Records Accuracy", "Records are maintained by Nuve, an outsourced accounting firm, on a monthly basis with consistent management reporting across all three entities (MLK LLC, Spicewood LLC, and KTH Operating Company LLC). They are unaudited management accounts, prepared monthly and reconciled to bank and POS (Toast) data.");
-    _set("Latest Serving Time", "12 am");
+    _set("Latest Serving Time", "12:00 AM");
     _set("License Expiration", "05/08/2027");
     _set("% of Sales from Alcohol", "3.5");
     _set("Alcohol Cost (% of Sales)", "20.0");
@@ -947,7 +956,7 @@
     _set("Management Team Detail", "A General Manager oversees all locations and Q2 Stadium (promoted April 2026), an Operations Manager runs day-to-day execution, and a Kitchen Manager oversees food quality and cost control at the flagship. The company runs a documented EOS framework (since January 2026) with weekly accountability meetings, defined KPI ownership, and structured bonus plans.");
     _set("General Manager Tenure", "Miguel Terrero, with Kesos Tacos since 2015 (11 years); promoted to General Manager over all locations and Q2 Stadium in April 2026.");
     _set("Kitchen Manager Tenure", "Gilberto Salazar, with Kesos Tacos since 2015 (11 years); currently Kitchen Manager at the MLK location.");
-    _set("Owner Roles", "Jhonatan Aldama serves as CEO and day-to-day operator across strategy, finance, marketing, and operations for both locations and Q2 Stadium. Co-owners Oscar and Gustavo Aldama are passive investors, not involved in daily operations, and participate in monthly ownership reviews.");
+    _check("Owner Role", "Operations"); _check("Owner Role", "Finance"); _check("Owner Role", "Marketing"); _check("Owner Role", "General Manager");
     _set("How the Company Compares to Peers", "Competes primarily with Torchy\u2019s Tacos, Tacodeli, and Veracruz All Natural in the Austin fast-casual taco market, differentiating on a queso-first identity (queso as the core product, not a topping). Ranks #2 in Austin organic search visibility (behind Tacodeli), #1 on several high-intent local terms. Holds an advantage in catering, where larger competitors are weaker, and unique brand visibility via the exclusive Q2 Stadium partnership with Austin FC. The broader QSR sector is seeing flat-to-declining traffic and some closures; Kesos has grown revenue every month in 2026.");
     _set("Non-Compete Terms (Duration / Area)", "Open to discussion");
     _set("Months Remaining on Base Term", "36");
@@ -1098,6 +1107,11 @@
   _cond('Do Tax Returns Match', 'wrapTaxMismatch', ['No']);
   _cond('Any Unreported Income', 'wrapUnreported', ['Yes']);
   _cond('Willing to Sign a Non-Compete', 'wrapNonCompete', ['Yes']);
+  _cond('Family Members Work in the Business', 'wrapFamilyWork', ['Yes']);
+  _cond('Non-Working Family on Payroll', 'wrapNonWorkingFamily', ['Yes']);
+  _cond('Family Working Without Compensation', 'wrapFamilyNoComp', ['Yes']);
+  _cond('Key Employees Willing to Stay', 'wrapKeyEmployees', ['Yes']);
+  _cond('Any Employees on Contract', 'wrapContractEmployees', ['Yes']);
 
   // Dynamic section numbering: number only the visible sections 1..N (so hidden Franchise / Alcohol never leave a gap).
   window.__renumber=function(){
@@ -1114,7 +1128,8 @@
     var rows=[].slice.call(grid.querySelectorAll('.hrow'));
     // Populate every time dropdown with 15-minute 12-hour options (keeping the blank placeholder).
     var times=[]; for(var h=0; h<24; h++){ for(var m=0; m<60; m+=15){ var ap=h<12?'AM':'PM', hh=h%12; if(hh===0) hh=12; times.push(hh+':'+(m<10?'0'+m:m)+' '+ap); } }
-    grid.querySelectorAll('select.htime').forEach(function(sel){
+    // populate every hours dropdown, plus any standalone single time dropdown (e.g. Latest Serving Time)
+    document.querySelectorAll('#sscform select.htime, #sscform select.timesel').forEach(function(sel){
       var frag=document.createDocumentFragment();
       times.forEach(function(t){ var o=document.createElement('option'); o.value=t; o.textContent=t; frag.appendChild(o); });
       sel.appendChild(frag);
