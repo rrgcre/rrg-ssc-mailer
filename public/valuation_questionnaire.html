@@ -110,9 +110,10 @@
   .hoursgrid{ display:flex; flex-direction:column; gap:7px; margin:2px 0 4px; }
   .hrow{ display:grid; grid-template-columns:104px 1fr 16px 1fr auto; align-items:center; gap:9px; }
   .hrow .hday{ font-weight:700; font-size:12.5px; color:var(--navy); }
-  .hrow input[type=text]{ width:100%; box-sizing:border-box; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font:inherit; font-size:13px; background:#fff; color:var(--navy); }
-  .hrow input[type=text]:focus{ outline:none; border-color:var(--red); box-shadow:0 0 0 3px rgba(218,43,31,.12); }
-  .hrow input[disabled]{ background:#f3f4f7; color:#9aa3b2; }
+  .hrow select.htime{ width:100%; box-sizing:border-box; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font:inherit; font-size:13px; background:#fff; color:var(--navy); -webkit-appearance:menulist; appearance:menulist; cursor:pointer; }
+  .hrow select.htime:focus{ outline:none; border-color:var(--red); box-shadow:0 0 0 3px rgba(218,43,31,.12); }
+  .hrow select.htime:disabled{ background:#f3f4f7; color:#9aa3b2; cursor:default; }
+  .hrow select.htime:invalid,.hrow select.htime option[value=""]{ color:#9aa3b2; }
   .hrow .hdash{ text-align:center; color:var(--muted); font-weight:700; }
   .hrow .hclosed{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:var(--muted); white-space:nowrap; cursor:pointer; }
   .hrow .hclosed input{ margin:0; }
@@ -392,15 +393,14 @@
     <div class="sec brk"><div class="num">2</div><h2>Operations &amp; Hours</h2><div class="flex"></div></div>
     <div class="subhead">Operating Hours</div>
     <div class="hoursgrid" id="hoursGrid">
-      <div class="hrow" data-day="Monday"><span class="hday">Monday</span><input type="text" class="hopen" list="rrgTimes" autocomplete="off" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" list="rrgTimes" autocomplete="off" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
-      <div class="hrow" data-day="Tuesday"><span class="hday">Tuesday</span><input type="text" class="hopen" list="rrgTimes" autocomplete="off" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" list="rrgTimes" autocomplete="off" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
-      <div class="hrow" data-day="Wednesday"><span class="hday">Wednesday</span><input type="text" class="hopen" list="rrgTimes" autocomplete="off" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" list="rrgTimes" autocomplete="off" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
-      <div class="hrow" data-day="Thursday"><span class="hday">Thursday</span><input type="text" class="hopen" list="rrgTimes" autocomplete="off" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" list="rrgTimes" autocomplete="off" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
-      <div class="hrow" data-day="Friday"><span class="hday">Friday</span><input type="text" class="hopen" list="rrgTimes" autocomplete="off" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" list="rrgTimes" autocomplete="off" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
-      <div class="hrow" data-day="Saturday"><span class="hday">Saturday</span><input type="text" class="hopen" list="rrgTimes" autocomplete="off" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" list="rrgTimes" autocomplete="off" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
-      <div class="hrow" data-day="Sunday"><span class="hday">Sunday</span><input type="text" class="hopen" list="rrgTimes" autocomplete="off" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" list="rrgTimes" autocomplete="off" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Monday"><span class="hday">Monday</span><select class="hopen htime"><option value="">Open…</option></select><span class="hdash">–</span><select class="hclose htime"><option value="">Close…</option></select><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Tuesday"><span class="hday">Tuesday</span><select class="hopen htime"><option value="">Open…</option></select><span class="hdash">–</span><select class="hclose htime"><option value="">Close…</option></select><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Wednesday"><span class="hday">Wednesday</span><select class="hopen htime"><option value="">Open…</option></select><span class="hdash">–</span><select class="hclose htime"><option value="">Close…</option></select><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Thursday"><span class="hday">Thursday</span><select class="hopen htime"><option value="">Open…</option></select><span class="hdash">–</span><select class="hclose htime"><option value="">Close…</option></select><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Friday"><span class="hday">Friday</span><select class="hopen htime"><option value="">Open…</option></select><span class="hdash">–</span><select class="hclose htime"><option value="">Close…</option></select><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Saturday"><span class="hday">Saturday</span><select class="hopen htime"><option value="">Open…</option></select><span class="hdash">–</span><select class="hclose htime"><option value="">Close…</option></select><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Sunday"><span class="hday">Sunday</span><select class="hopen htime"><option value="">Open…</option></select><span class="hdash">–</span><select class="hclose htime"><option value="">Close…</option></select><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
     </div>
-    <datalist id="rrgTimes"></datalist>
     <div class="grid rowgap">
       <div class="oset single"><label class="k">Operating Hours Changed Recently?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
       <div class="oset single"><label class="k">Is the Business Seasonal?</label><div class="optcols c3"><label class="opt"><input type="checkbox">No</label><label class="opt"><input type="checkbox">Moderately</label><label class="opt"><input type="checkbox">Highly</label></div></div>
@@ -1096,43 +1096,42 @@
   _cond('Do Tax Returns Match', 'wrapTaxMismatch', ['No']);
   _cond('Any Unreported Income', 'wrapUnreported', ['Yes']);
 
-  // Per-day operating hours: 12-hour time picker + carry each day forward from the day before.
+  // Per-day operating hours: 12-hour dropdowns (blank by default) + carry each day forward from the day before.
   (function(){
     var grid=document.getElementById('hoursGrid'); if(!grid) return;
     var rows=[].slice.call(grid.querySelectorAll('.hrow'));
-    // Build the 12-hour time list (15-minute increments) into the shared datalist.
-    var dl=document.getElementById('rrgTimes');
-    if(dl && !dl.children.length){
-      for(var h=0; h<24; h++){ for(var m=0; m<60; m+=15){
-        var ap=h<12?'AM':'PM', hh=h%12; if(hh===0) hh=12;
-        var o=document.createElement('option'); o.value=hh+':'+(m<10?'0'+m:m)+' '+ap; dl.appendChild(o);
-      } }
-    }
+    // Populate every time dropdown with 15-minute 12-hour options (keeping the blank placeholder).
+    var times=[]; for(var h=0; h<24; h++){ for(var m=0; m<60; m+=15){ var ap=h<12?'AM':'PM', hh=h%12; if(hh===0) hh=12; times.push(hh+':'+(m<10?'0'+m:m)+' '+ap); } }
+    grid.querySelectorAll('select.htime').forEach(function(sel){
+      var frag=document.createDocumentFragment();
+      times.forEach(function(t){ var o=document.createElement('option'); o.value=t; o.textContent=t; frag.appendChild(o); });
+      sel.appendChild(frag);
+    });
     function isClosed(row){ var c=row.querySelector('.hclosedcb'); return c && c.checked; }
     function prevOpenIdx(i){ for(var k=i-1;k>=0;k--){ if(!isClosed(rows[k])) return k; } return -1; }
-    // Copy a committed value down into following days that are still empty and not closed.
+    // Copy a chosen value down into following days that are still blank and not closed.
     function cascade(fromIdx, sel, val){
       if(!val) return;
       for(var k=fromIdx+1;k<rows.length;k++){
         if(isClosed(rows[k])) continue;
-        var inp=rows[k].querySelector(sel);
-        if(inp && !inp.value.trim()){ inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); }
+        var s=rows[k].querySelector(sel);
+        if(s && !s.value){ s.value=val; s.dispatchEvent(new Event('input',{bubbles:true})); }
       }
     }
     grid.addEventListener('change', function(e){
       var t=e.target; if(!t.classList) return;
       if(t.classList.contains('hclosedcb')){
         var row=t.closest('.hrow'), op=row.querySelector('.hopen'), cl=row.querySelector('.hclose');
-        if(t.checked){ [op,cl].forEach(function(i){ i.disabled=true; i.value=''; i.dispatchEvent(new Event('input',{bubbles:true})); }); }
-        else { [op,cl].forEach(function(i){ i.disabled=false; });
-          var pi=prevOpenIdx(rows.indexOf(row));   // reopening a day: inherit the previous open day
+        if(t.checked){ [op,cl].forEach(function(s){ s.value=''; s.disabled=true; s.dispatchEvent(new Event('input',{bubbles:true})); }); }
+        else { [op,cl].forEach(function(s){ s.disabled=false; });
+          var pi=prevOpenIdx(rows.indexOf(row));   // reopening a day inherits the previous open day
           if(pi>=0){ if(!op.value){ op.value=rows[pi].querySelector('.hopen').value; op.dispatchEvent(new Event('input',{bubbles:true})); }
                      if(!cl.value){ cl.value=rows[pi].querySelector('.hclose').value; cl.dispatchEvent(new Event('input',{bubbles:true})); } }
         }
         return;
       }
       if(t.classList.contains('hopen')||t.classList.contains('hclose')){
-        cascade(rows.indexOf(t.closest('.hrow')), t.classList.contains('hopen')?'.hopen':'.hclose', t.value.trim());
+        cascade(rows.indexOf(t.closest('.hrow')), t.classList.contains('hopen')?'.hopen':'.hclose', t.value);
       }
     });
   })();
