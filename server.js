@@ -9,6 +9,7 @@ const { sendSsc } = require('./mailer.js');
 const store = require('./store.js');
 const auth = require('./auth.js');
 const bovgen = require('./bovgen.js');
+const valgen = require('./valgen.js');
 
 const fs = require('fs');
 const path = require('path');
@@ -512,6 +513,19 @@ app.post('/api/generate-bov', express.json({ limit: '32mb' }), async (req, res) 
     res.json({ ok: true, id: rec.id, summary: out.summary });
   } catch (e) {
     console.error('generate-bov error:', e);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
+
+// AI-complete the Valuation Factors section from the questionnaire answers (text only).
+app.post('/api/valuation-factors', express.json({ limit: '4mb' }), async (req, res) => {
+  try {
+    const { business, market, answers, driverOptions, detractorOptions } = req.body || {};
+    if (!answers || String(answers).trim().length < 30) return res.status(400).json({ ok: false, error: 'Not enough questionnaire content to analyze.' });
+    const out = await valgen.generateFactors({ business, market, answers, driverOptions, detractorOptions });
+    res.json({ ok: true, result: out.result });
+  } catch (e) {
+    console.error('valuation-factors error:', e);
     res.status(500).json({ ok: false, error: String((e && e.message) || e) });
   }
 });

@@ -40,6 +40,8 @@
   .btn.save:hover{ background:#1a7a4f; }
   .btn.save2{ background:transparent; color:#7fe3b4; border:1px solid #2f7a58; }
   .btn.save2:hover{ background:#123a2a; color:#aef0d2; }
+  .btn.exit{ background:transparent; color:#c4cee0; border:1px solid #33436a; }
+  .btn.exit:hover{ color:#fff; border-color:#5c6e96; }
 
   /* ---- sheet ---- */
   .wrap{ max-width:8.5in; margin:22px auto 60px; }
@@ -79,6 +81,31 @@
 
   /* section */
   .sec{ display:flex; align-items:center; gap:12px; margin:30px 0 14px; }
+  .sec.acch{ cursor:pointer; user-select:none; }
+  .sec.acch .secchev{ margin-left:auto; color:var(--red); font-weight:900; font-size:17px; line-height:1; transition:transform .18s; transform:rotate(90deg); }
+  .sec.acch.collapsed .secchev{ transform:rotate(0deg); }
+  .sec.acch.collapsed{ margin-bottom:14px; }
+  .accbar{ display:flex; gap:16px; margin:6px 0 -8px; }
+  .accbar a{ font-size:12.5px; font-weight:700; color:#2647b0; cursor:pointer; }
+  @media print{ .accbody{ display:block!important; } .secchev,.accbar{ display:none!important; } }
+  /* Valuation Factors — RRG analysis panel + advisor lock */
+  .vf-panel{ background:linear-gradient(180deg,#0b1a3a,#000e31); color:#fff; border:1px solid rgba(255,255,255,.14); border-radius:14px; padding:18px 20px; margin:4px 0 20px; box-shadow:0 10px 30px rgba(0,14,49,.25); }
+  .vf-badge{ display:inline-block; background:var(--red); color:#fff; font:800 10.5px/1 'Archivo',sans-serif; letter-spacing:.12em; text-transform:uppercase; padding:6px 10px; border-radius:100px; margin-bottom:10px; }
+  .vf-copy{ font-size:13.5px; line-height:1.5; color:rgba(255,255,255,.9); max-width:70ch; }
+  .vf-copy b{ color:#fff; }
+  .vf-actions{ display:flex; align-items:center; gap:16px; margin-top:14px; flex-wrap:wrap; }
+  .vf-run{ background:var(--red); color:#fff; border:0; border-radius:10px; padding:12px 20px; font:800 13.5px/1 'Archivo',sans-serif; letter-spacing:.02em; cursor:pointer; box-shadow:0 6px 18px rgba(218,43,31,.4); transition:transform .1s, box-shadow .2s; }
+  .vf-run:hover{ transform:translateY(-1px); box-shadow:0 9px 24px rgba(218,43,31,.5); }
+  .vf-run:disabled{ opacity:.65; cursor:default; transform:none; box-shadow:none; }
+  .vf-manual{ color:rgba(255,255,255,.72); font-size:12.5px; font-weight:600; cursor:pointer; text-decoration:underline; }
+  .vf-manual:hover{ color:#fff; }
+  .vf-note{ margin-top:12px; font-size:12.5px; line-height:1.45; color:rgba(255,255,255,.85); display:none; }
+  .vf-note.show{ display:block; }
+  .vf-note.err{ color:#ffb4ad; }
+  /* lock the advisor fields until analysis is run or the advisor opts to fill by hand */
+  #secVF.vf-locked ~ .accbody-vf, .vf-fields.locked{ }
+  .vf-fields.locked{ position:relative; opacity:.5; pointer-events:none; filter:saturate(.4); }
+  @media print{ .vf-panel{ display:none!important; } .vf-fields.locked{ opacity:1!important; filter:none!important; } }
   .sec .num{ font-family:'Archivo',sans-serif; font-weight:800; font-size:14px; color:#fff;
     background:var(--red); width:27px; height:27px; border-radius:7px; display:flex;
     align-items:center; justify-content:center; flex:none; }
@@ -256,6 +283,7 @@
     <button class="btn blank" onclick="validateAndPrint()">Print / Save PDF</button>
     <button class="btn save2" onclick="qSaveOnly(this)">Save</button>
     <button class="btn save" onclick="qSaveClose()">Save &amp; Close</button>
+    <button class="btn exit" onclick="qExit()">Exit — Don't Save</button>
     <button class="btn print" onclick="emailSSC()">Submit &amp; Email</button>
   </div>
 </div>
@@ -330,10 +358,8 @@
       <div class="field full"><label class="k">One-Sentence Description</label><textarea placeholder="How you would describe the business to an acquaintance"></textarea></div>
     </div>
     <div class="grid rowgap">
-      <div class="oset full single"><label class="k">Sector</label><div class="optcols c4"><label class="opt"><input type="checkbox">Growing Fast</label><label class="opt"><input type="checkbox">Growing at Average Rate</label><label class="opt"><input type="checkbox">Flat</label><label class="opt"><input type="checkbox">Declining</label></div></div>
-    </div>
-    <div class="grid rowgap">
       <div class="field"><label class="k">Years in Operation</label><input type="text" class="dec2" inputmode="decimal" placeholder="e.g. 8"></div>
+      <div class="oset single"><label class="k">Is This a Franchise?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap">
       <div class="field full"><label class="k">Why Is the Business Up for Sale?</label><textarea></textarea></div>
@@ -348,7 +374,7 @@
     <div class="grid rowgap">
       <div class="oset single"><label class="k">Accolades or Awards?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
-    <div class="grid rowgap">
+    <div class="grid rowgap" id="wrapAccolades">
       <div class="field full"><label class="k">Describe the Accolades</label><textarea></textarea></div>
     </div>
     <div class="sec brk"><div class="num">2</div><h2>Operations &amp; Hours</h2><div class="flex"></div></div>
@@ -359,10 +385,10 @@
       <div class="oset single"><label class="k">Operating Hours Changed Recently?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
       <div class="oset single"><label class="k">Is the Business Seasonal?</label><div class="optcols c3"><label class="opt"><input type="checkbox">No</label><label class="opt"><input type="checkbox">Moderately</label><label class="opt"><input type="checkbox">Highly</label></div></div>
     </div>
-    <div class="grid rowgap">
+    <div class="grid rowgap" id="wrapHoursChange">
       <div class="field full"><label class="k">Details of Hours Change</label><textarea></textarea></div>
     </div>
-    <div class="grid rowgap">
+    <div class="grid rowgap" id="wrapSeasonality">
       <div class="field full"><label class="k">Seasonality Detail</label><textarea></textarea></div>
     </div>
     <div class="sec brk"><div class="num">3</div><h2>Revenue &amp; Profitability</h2><div class="flex"></div></div>
@@ -530,34 +556,65 @@
     <div class="grid rowgap">
       <div class="field full"><label class="k">Next Required Remodel</label><input type="text"></div>
     </div>
-    <div class="sec brk"><div class="num">10</div><h2>Valuation Factors</h2><div class="flex"></div></div>
-    <div class="subhead">RRG Advisor Use: Off-Book Items That Move Value</div>
-    <div class="field full"><label class="k">Owner Add-Backs / Normalizations</label><textarea placeholder="Owner salary vs. market, personal expenses, one-time / non-recurring items, related-party rent, etc."></textarea></div>
+    <div class="sec brk" id="secFranchise"><div class="num">10</div><h2>Franchise (If Applicable)</h2><div class="flex"></div></div>
+    <div class="subhead">Complete only if the business operates under a franchise agreement.</div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Total Estimated Add-Backs</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
-      <div class="field"><label class="k">Adjusted Earnings (SDE / EBITDA)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
+      <div class="field"><label class="k">Years Remaining on Franchise Agreement</label><input type="text" class="dec2" inputmode="decimal" placeholder="e.g. 6"></div>
+      <div class="field"><label class="k">Royalty Paid to Franchisor</label><span class="padorn"><input type="text" class="pct" inputmode="decimal"><span class="ad-suf">%</span></span></div>
     </div>
+    <div class="grid rowgap">
+      <div class="field"><label class="k">Marketing Fee Paid to Franchisor</label><span class="padorn"><input type="text" class="pct" inputmode="decimal"><span class="ad-suf">%</span></span></div>
+      <div class="field"><label class="k">Other Monthly Fee</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
+    </div>
+    <div class="grid rowgap">
+      <div class="field"><label class="k">Transfer Fee Amount</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
+      <div class="field"><label class="k">Weeks of Training Required</label><input type="text" class="int" inputmode="numeric"></div>
+    </div>
+    <div class="grid rowgap">
+      <div class="field full"><label class="k">Training Location</label><input type="text"></div>
+    </div>
+    <div class="grid rowgap">
+      <div class="field"><label class="k">Last Remodel of the Restaurant</label><input type="text" placeholder="e.g. 2021"></div>
+      <div class="field"><label class="k">Next Required Remodel<span class="req-star">*</span></label><input type="text" id="franchiseRemodel" placeholder="e.g. 2027"></div>
+    </div>
+    <div class="grid rowgap">
+      <div class="field"><label class="k">Approximate Cost of Next Remodel</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
+      <div class="field"><label class="k">Franchise Agreement</label><input type="file" accept=".pdf,.doc,.docx,image/*"></div>
+    </div>
+
+    <div class="sec brk" id="secVF"><div class="num">11</div><h2>Valuation Factors</h2><div class="flex"></div></div>
+    <div class="vf-panel rrg-noprint" id="vfPanel">
+      <div class="vf-badge">RRG Analysis</div>
+      <div class="vf-copy"><b>This section is completed by RRG, not by the seller.</b> Fill in the questionnaire above, then run the analysis — RRG reads your answers and drafts the off-book value factors, drivers, detractors, and a preliminary value opinion for your advisor to review.</div>
+      <div class="vf-actions">
+        <button type="button" class="vf-run" id="vfRunBtn" onclick="runValuationAnalysis(this)">Run RRG Valuation Analysis</button>
+        <a class="vf-manual" id="vfManual" onclick="vfUnlock(true)">Fill in by hand instead</a>
+      </div>
+      <div class="vf-note" id="vfNote"></div>
+    </div>
+    <div class="subhead">Off-Book Items That Affect Value</div>
+    <div class="field full"><label class="k">Off-Book Detail</label><textarea id="vfOffBook" placeholder="Items that move value but are not reflected in the reported books — e.g. unrecorded cash sales, owner perks run through the business, below-market family labor, related-party rent, deferred maintenance, transferable contracts or relationships, brand goodwill."></textarea></div>
     <div class="subhead">Value Drivers</div>
-    <div class="oset full"><label class="k">What Supports a Premium</label><div class="optcols c3"><label class="opt"><input type="checkbox">Transferable systems / SOPs</label><label class="opt"><input type="checkbox">Trained management staying</label><label class="opt"><input type="checkbox">Owner absentee / semi-absentee</label><label class="opt"><input type="checkbox">Growing revenue</label><label class="opt"><input type="checkbox">Improving margins</label><label class="opt"><input type="checkbox">Below-market lease</label><label class="opt"><input type="checkbox">Long lease term / options</label><label class="opt"><input type="checkbox">Diversified revenue channels</label><label class="opt"><input type="checkbox">Exclusive / defensible contracts</label><label class="opt"><input type="checkbox">Strong brand / reputation</label><label class="opt"><input type="checkbox">Clean, verifiable books</label><label class="opt"><input type="checkbox">Liquor license value</label><label class="opt"><input type="checkbox">Prime location</label><label class="opt"><input type="checkbox">Low deferred capex</label></div></div>
-    <div class="field full rowgap"><label class="k">Value Driver Notes</label><textarea></textarea></div>
+    <div class="oset full" id="vfDrivers"><label class="k">What Supports a Premium</label><div class="optcols c3"><label class="opt"><input type="checkbox">Transferable systems / SOPs</label><label class="opt"><input type="checkbox">Trained management staying</label><label class="opt"><input type="checkbox">Owner absentee / semi-absentee</label><label class="opt"><input type="checkbox">Growing revenue</label><label class="opt"><input type="checkbox">Improving margins</label><label class="opt"><input type="checkbox">Below-market lease</label><label class="opt"><input type="checkbox">Long lease term / options</label><label class="opt"><input type="checkbox">Diversified revenue channels</label><label class="opt"><input type="checkbox">Exclusive / defensible contracts</label><label class="opt"><input type="checkbox">Strong brand / reputation</label><label class="opt"><input type="checkbox">Clean, verifiable books</label><label class="opt"><input type="checkbox">Prime location</label><label class="opt"><input type="checkbox">Low deferred capex</label></div></div>
+    <div class="field full rowgap"><label class="k">Value Driver Notes</label><textarea id="vfDriverNotes"></textarea></div>
     <div class="subhead">Value Detractors &amp; Risks</div>
-    <div class="oset full"><label class="k">What Pulls Value Down</label><div class="optcols c3"><label class="opt"><input type="checkbox">Owner-dependent operations</label><label class="opt"><input type="checkbox">Customer / channel concentration</label><label class="opt"><input type="checkbox">Revenue or margin decline</label><label class="opt"><input type="checkbox">Underperforming unit(s)</label><label class="opt"><input type="checkbox">Short lease / assignment risk</label><label class="opt"><input type="checkbox">Existing debt / liens</label><label class="opt"><input type="checkbox">Deferred capital expenditures</label><label class="opt"><input type="checkbox">Aging equipment</label><label class="opt"><input type="checkbox">Sector / market headwinds</label><label class="opt"><input type="checkbox">Key-person risk</label><label class="opt"><input type="checkbox">Below-market wages</label><label class="opt"><input type="checkbox">Unverifiable books</label><label class="opt"><input type="checkbox">Pending litigation</label><label class="opt"><input type="checkbox">Landlord unaware of sale</label></div></div>
-    <div class="field full rowgap"><label class="k">Risk / Detractor Notes</label><textarea></textarea></div>
+    <div class="oset full" id="vfDetractors"><label class="k">What Pulls Value Down</label><div class="optcols c3"><label class="opt"><input type="checkbox">Owner-dependent operations</label><label class="opt"><input type="checkbox">Customer / channel concentration</label><label class="opt"><input type="checkbox">Underperforming unit(s)</label><label class="opt"><input type="checkbox">Short lease / assignment risk</label><label class="opt"><input type="checkbox">Existing debt / liens</label><label class="opt"><input type="checkbox">Deferred capital expenditures</label><label class="opt"><input type="checkbox">Aging equipment</label><label class="opt"><input type="checkbox">Sector / market headwinds</label><label class="opt"><input type="checkbox">Key-person risk</label><label class="opt"><input type="checkbox">Below-market wages</label><label class="opt"><input type="checkbox">Unverifiable books</label><label class="opt"><input type="checkbox">Pending litigation</label><label class="opt"><input type="checkbox">Landlord unaware of sale</label></div></div>
+    <div class="field full rowgap"><label class="k">Risk / Detractor Notes</label><textarea id="vfRiskNotes"></textarea></div>
     <div class="subhead">Advisor Value Opinion</div>
     <div class="grid rowgap">
-      <div class="oset single"><label class="k">Valuation Basis</label><div class="optcols c4"><label class="opt"><input type="checkbox">SDE</label><label class="opt"><input type="checkbox">EBITDA</label><label class="opt"><input type="checkbox">Revenue Multiple</label><label class="opt"><input type="checkbox">Blended</label></div></div>
-      <div class="field"><label class="k">Suggested Multiple Range</label><input type="text" placeholder="e.g. 3.0x to 4.0x"></div>
+      <div class="oset single" id="vfBasis"><label class="k">Valuation Basis</label><div class="optcols c4"><label class="opt"><input type="checkbox">SDE</label><label class="opt"><input type="checkbox">EBITDA</label><label class="opt"><input type="checkbox">Revenue Multiple</label><label class="opt"><input type="checkbox">Blended</label></div></div>
+      <div class="field"><label class="k">Suggested Multiple Range</label><input type="text" id="vfMultiple" placeholder="e.g. 3.0x to 4.0x"></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Indicated Value (Low)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
-      <div class="field"><label class="k">Indicated Value (High)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
+      <div class="field"><label class="k">Indicated Value (Low)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" id="vfLow" inputmode="numeric"></span></div>
+      <div class="field"><label class="k">Indicated Value (High)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" id="vfHigh" inputmode="numeric"></span></div>
     </div>
     <div class="grid rowgap">
-      <div class="oset single"><label class="k">Confidence</label><div class="optcols c3"><label class="opt"><input type="checkbox">High</label><label class="opt"><input type="checkbox">Medium</label><label class="opt"><input type="checkbox">Low</label></div></div>
+      <div class="oset single" id="vfConfidence"><label class="k">Confidence</label><div class="optcols c3"><label class="opt"><input type="checkbox">High</label><label class="opt"><input type="checkbox">Medium</label><label class="opt"><input type="checkbox">Low</label></div></div>
       <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
     </div>
-    <div class="field full rowgap"><label class="k">Valuation Rationale</label><textarea></textarea></div>
-    <div class="sec brk"><div class="num">11</div><h2>Submission</h2><div class="flex"></div></div>
+    <div class="field full rowgap"><label class="k">Valuation Rationale</label><textarea id="vfRationale"></textarea></div>
+    <div class="sec brk"><div class="num">12</div><h2>Submission</h2><div class="flex"></div></div>
     <div class="grid rowgap">
       <div class="field"><label class="k">RRG Advisor</label><input type="text"></div>
       <div class="field"><label class="k">RRG Advisor Email (copy sent here)<span class="req-star">*</span></label><input type="text" class="req email" id="clientEmail" placeholder="advisor@rrgcre.com"></div>
@@ -600,6 +657,7 @@
   function _showBanner(msg){var b=document.getElementById('vbanner');b.textContent=msg;b.style.display='block';}
   function _hideBanner(){var b=document.getElementById('vbanner');if(b)b.style.display='none';}
   function _validate(){
+    if(window.rrgExpandAll) window.rrgExpandAll(true);   // reveal every section so nothing's missed
     var miss=[];
     document.querySelectorAll('input.req, textarea.req').forEach(function(el){
       el.classList.remove('missing');
@@ -916,7 +974,7 @@
     _check("Plumbing Working Properly", "Yes");
     _check("Any Equipment Needing Repair", "No");
     _check("Any Equipment Leased or Financed", "No");
-    _set('Owner Add-Backs / Normalizations','Owner salary appears at market (no add-back). Add back one-time EOS implementation and rebranding costs and non-recurring Spicewood turnaround losses; confirm any owner personal expenses and related-party items run through the entities.');
+    _set('Off-Book Detail','Owner and family perks run through the entities, some cash tips/sales not fully reflected in reported revenue, related-party considerations on rent, and transferable goodwill from the Q2 Stadium / Austin FC relationship that is not carried on the books.');
     _check('What Supports a Premium',"Transferable systems");
     _check('What Supports a Premium',"Trained management staying");
     _check('What Supports a Premium',"Owner absentee");
@@ -993,6 +1051,135 @@
   document.addEventListener('input', _updateHeader);
   document.addEventListener('change', _updateHeader);
   _updateHeader();
+
+  // Conditional fields: only show the detail when its trigger option is selected.
+  function _cond(groupLabel, wrapId, showValues){
+    var g=_grpS(groupLabel), wrap=document.getElementById(wrapId);
+    if(!g||!wrap) return;
+    function upd(){
+      var show=false;
+      g.querySelectorAll('.opt').forEach(function(o){ var inp=o.querySelector('input'); if(inp&&inp.checked && showValues.indexOf(o.textContent.trim())>=0) show=true; });
+      wrap.style.display = show ? '' : 'none';
+    }
+    g.addEventListener('change', upd);
+    upd();
+  }
+  _cond('Accolades', 'wrapAccolades', ['Yes']);
+  _cond('Operating Hours Changed', 'wrapHoursChange', ['Yes']);
+  _cond('Is the Business Seasonal', 'wrapSeasonality', ['Moderately','Highly']);
+
+  // Accordion: collapse the long form into openable sections.
+  (function(){
+    var form=document.getElementById('sscform'); if(!form) return;
+    var isEdit=/[?&]q=/.test(location.search);
+    var secs=[].slice.call(form.querySelectorAll('.sec'));
+    if(!secs.length) return;
+    var container=secs[0].parentElement;   // sections live inside .inner, not directly under the form
+    var bar=document.createElement('div'); bar.className='accbar rrg-noprint';
+    bar.innerHTML='<a id="accExpand">Expand all</a><a id="accCollapse">Collapse all</a>';
+    container.insertBefore(bar, secs[0]);
+    var pairs=[];
+    secs.forEach(function(sec,idx){
+      var body=document.createElement('div'); body.className='accbody';
+      var n=sec.nextElementSibling;
+      while(n && !(n.classList && n.classList.contains('sec'))){ var nx=n.nextElementSibling; body.appendChild(n); n=nx; }
+      sec.after(body);
+      sec.classList.add('acch');
+      sec.insertAdjacentHTML('beforeend','<span class="secchev" aria-hidden="true">›</span>');
+      var open = isEdit ? true : (idx===0);
+      if(!open){ sec.classList.add('collapsed'); body.style.display='none'; }
+      sec.addEventListener('click',function(){ var c=sec.classList.toggle('collapsed'); body.style.display=c?'none':''; });
+      pairs.push([sec,body]);
+    });
+    window.rrgExpandAll=function(open){ pairs.forEach(function(p){ p[0].classList.toggle('collapsed',!open); p[1].style.display=open?'':'none'; }); if(window.__franchiseUpd) window.__franchiseUpd(); };
+    document.getElementById('accExpand').onclick=function(){ window.rrgExpandAll(true); };
+    document.getElementById('accCollapse').onclick=function(){ window.rrgExpandAll(false); };
+    window.addEventListener('beforeprint', function(){ window.rrgExpandAll(true); });
+  })();
+
+  // ---- Franchise section: only shown / required when the business is a franchise ----
+  (function(){
+    var g=_grpS('Is This a Franchise'), sec=document.getElementById('secFranchise'), remodel=document.getElementById('franchiseRemodel');
+    if(!g||!sec) return;
+    function isFran(){ var yes=false; g.querySelectorAll('.opt').forEach(function(o){ var i=o.querySelector('input'); if(i&&i.checked && /^yes$/i.test(o.textContent.trim())) yes=true; }); return yes; }
+    window.__franchiseUpd=function(){
+      var fran=isFran();
+      var body=(sec.nextElementSibling && sec.nextElementSibling.classList && sec.nextElementSibling.classList.contains('accbody')) ? sec.nextElementSibling : null;
+      sec.style.display = fran ? '' : 'none';
+      if(body) body.style.display = fran ? (sec.classList.contains('collapsed')?'none':'') : 'none';
+      if(remodel){ if(fran){ remodel.classList.add('req'); } else { remodel.classList.remove('req'); remodel.classList.remove('missing'); } }
+    };
+    g.addEventListener('change', window.__franchiseUpd);
+    window.__franchiseUpd();
+  })();
+
+  // ---- Valuation Factors: completed by RRG (AI), activated by the user ----
+  (function(){
+    var sec=document.getElementById('secVF'), panel=document.getElementById('vfPanel');
+    if(!sec||!panel) return;
+    // scope = the accordion body that now holds the panel + advisor fields (fallback: the section's parent)
+    var scope=(sec.nextElementSibling && sec.nextElementSibling.classList && sec.nextElementSibling.classList.contains('accbody')) ? sec.nextElementSibling : sec.parentElement;
+    // wrap everything after the panel into a lockable container (order preserved -> autosave indices unaffected)
+    var wrap=document.createElement('div'); wrap.className='vf-fields locked';
+    var after=[], seen=false;
+    [].slice.call(scope.children).forEach(function(el){ if(el===panel){ seen=true; return; } if(seen) after.push(el); });
+    if(after.length){ scope.insertBefore(wrap, after[0]); after.forEach(function(n){ wrap.appendChild(n); }); }
+
+    function note(msg,err){ var n=document.getElementById('vfNote'); if(n){ n.className='vf-note show'+(err?' err':''); n.textContent=msg; } }
+    window.vfUnlock=function(byHand){ wrap.classList.remove('locked'); if(byHand){ note('Section unlocked — fill it in by hand.'); var m=document.getElementById('vfManual'); if(m) m.style.display='none'; } };
+
+    function setId(id,val){ var el=document.getElementById(id); if(el && val!=null && String(val).trim()!==''){ el.value=String(val); el.dispatchEvent(new Event('input',{bubbles:true})); } }
+    function checkMany(wrapId, arr){ var w=document.getElementById(wrapId); if(!w||!arr) return; var opts=[].slice.call(w.querySelectorAll('.opt'));
+      (arr||[]).forEach(function(name){ var t=String(name).trim().toLowerCase(); var o=opts.find(function(x){ var lt=x.textContent.trim().toLowerCase(); return lt===t||lt.indexOf(t)>=0||t.indexOf(lt)>=0; }); if(o){ var i=o.querySelector('input'); i.checked=true; i.dispatchEvent(new Event('change',{bubbles:true})); } }); }
+    function checkOne(wrapId, name){ if(!name) return; var w=document.getElementById(wrapId); if(!w) return; var opts=[].slice.call(w.querySelectorAll('.opt')); var t=String(name).trim().toLowerCase(); var o=opts.find(function(x){ var lt=x.textContent.trim().toLowerCase(); return lt===t||lt.indexOf(t)>=0||t.indexOf(lt)>=0; }); if(o){ var i=o.querySelector('input'); i.checked=true; i.dispatchEvent(new Event('change',{bubbles:true})); } }
+    function apply(r){
+      setId('vfOffBook', r.offBook); setId('vfDriverNotes', r.driverNotes); setId('vfRiskNotes', r.riskNotes);
+      setId('vfMultiple', r.multiple); setId('vfLow', r.indicatedLow); setId('vfHigh', r.indicatedHigh); setId('vfRationale', r.rationale);
+      checkMany('vfDrivers', r.drivers); checkMany('vfDetractors', r.detractors);
+      checkOne('vfBasis', r.basis); checkOne('vfConfidence', r.confidence);
+    }
+
+    function vfHasContent(){
+      var ids=['vfOffBook','vfDriverNotes','vfRiskNotes','vfMultiple','vfLow','vfHigh','vfRationale'];
+      if(ids.some(function(id){ var e=document.getElementById(id); return e && e.value.trim(); })) return true;
+      return ['vfDrivers','vfDetractors','vfBasis','vfConfidence'].some(function(id){ var w=document.getElementById(id); return w && w.querySelector('input:checked'); });
+    }
+    window.vfMaybeUnlock=function(){ if(vfHasContent()){ window.vfUnlock(false); var b=document.getElementById('vfRunBtn'); if(b) b.textContent='Re-run analysis'; } };
+    window.addEventListener('load', function(){ setTimeout(window.vfMaybeUnlock, 400); });
+
+    window.runValuationAnalysis=function(btn){
+      var API=(String(location.protocol).indexOf('http')===0?location.origin:'');
+      var data=window._collectData ? window._collectData() : {};
+      var qa=[];
+      (data.sections||[]).forEach(function(s){
+        if(/valuation factors/i.test(s.title||'')) return;
+        var lines=[];
+        (s.groups||[]).forEach(function(g){
+          if(g.kind==='field' && g.value) lines.push(g.label+': '+g.value);
+          else if(g.kind==='options' && g.selected && g.selected.length) lines.push(g.label+': '+g.selected.join(', '));
+          else if(g.kind==='subgroups'){ (g.rows||[]).forEach(function(rw){ if(rw.selected&&rw.selected.length) lines.push(g.label+' — '+rw.label+': '+rw.selected.join(', ')); }); }
+        });
+        if(lines.length) qa.push('## '+(s.title||'')+'\n'+lines.join('\n'));
+      });
+      var answers=qa.join('\n\n');
+      if(answers.replace(/\s/g,'').length < 40){ note('Fill in more of the questionnaire above first — there isn’t enough here yet for a useful analysis.', true); return; }
+      if(!API){ note('This runs on the live RRG site — open the questionnaire from the dashboard and try again.', true); return; }
+      var driverOptions=[].slice.call(document.querySelectorAll('#vfDrivers .opt')).map(function(o){return o.textContent.trim();});
+      var detractorOptions=[].slice.call(document.querySelectorAll('#vfDetractors .opt')).map(function(o){return o.textContent.trim();});
+      if(btn){ btn.disabled=true; btn.dataset.o=btn.dataset.o||btn.textContent; btn.textContent='Analyzing…'; }
+      note('RRG is reading the questionnaire and drafting the value factors…');
+      fetch(API+'/api/valuation-factors',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ business:data.concept||'', market:data.market||'', answers:answers, driverOptions:driverOptions, detractorOptions:detractorOptions })})
+        .then(function(r){ return r.json().then(function(j){ return {ok:r.ok,j:j}; }); })
+        .then(function(res){
+          if(btn){ btn.disabled=false; btn.textContent='Re-run analysis'; }
+          if(!res.ok || !res.j || !res.j.ok || !res.j.result){ note('Couldn’t complete the analysis: '+((res.j&&res.j.error)||'server error')+'. You can fill the section by hand.', true); return; }
+          apply(res.j.result); window.vfUnlock(false);
+          note('Draft complete — review and adjust before saving. This is based on the questionnaire only; the definitive number comes from the BOV with financials.');
+        })
+        .catch(function(e){ if(btn){ btn.disabled=false; btn.textContent=btn.dataset.o||'Run RRG Valuation Analysis'; } note('Network error: '+String(e.message||e), true); });
+    };
+  })();
 
   (function(){
     var tg=document.getElementById('termGroup'), tx=document.getElementById('termOther');
@@ -1099,7 +1286,7 @@
     var s=j.questionnaire, d=s.data||{};
     if(s.formId) window.RRG_Q_FORM_ID=s.formId;   // re-saving updates the SAME record
     window.__qMarket = s.market || (d && d.market) || '';
-    if(d.snapshot && window.rrgRestore){ window.rrgRestore(d.snapshot); }
+    if(d.snapshot && window.rrgRestore){ window.rrgRestore(d.snapshot); setTimeout(function(){ if(window.vfMaybeUnlock) window.vfMaybeUnlock(); if(window.__franchiseUpd) window.__franchiseUpd(); }, 60); }
     else {
       // no saved snapshot yet (freshly advanced) — auto-fill the Name so the rep can complete it
       var ls=[].slice.call(document.querySelectorAll('#sscform label.k'));
@@ -1130,6 +1317,13 @@
     if(!API){ location.href=LOG; return false; }
     fetch(API+'/api/questionnaire-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload())})
       .then(function(){ location.href=LOG; }).catch(function(){ location.href=LOG; });
+    return false;
+  };
+  // Leave the questionnaire without saving anything to the log.
+  window.qExit=function(){
+    if(!confirm('Exit without saving? Any changes since your last save will be lost.')) return false;
+    try{ if(window.rrgClearDraft) window.rrgClearDraft(); }catch(e){}
+    location.href=LOG;
     return false;
   };
 })();

@@ -1,2 +1,1 @@
-RRG deploy refresh marker — safe to delete.
-Generated to nudge GitHub Desktop to rescan.
+RRG refresh 2026-07-21T00:34:08Z
