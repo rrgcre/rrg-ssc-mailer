@@ -443,9 +443,6 @@
       <div class="oset single" data-req><label class="k">Do Tax Returns Match Financial Statements?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
       <div class="oset single" data-req><label class="k">Any Unreported Income?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
-    <div class="grid rowgap" id="wrapTaxMismatch">
-      <div class="field full"><label class="k">Explain the Tax / Financial Difference</label><textarea></textarea></div>
-    </div>
     <div class="grid rowgap" id="wrapUnreported">
       <div class="field full"><label class="k">Unreported Income — Detail</label><textarea></textarea></div>
     </div>
@@ -455,7 +452,7 @@
     </div>
     <div class="sec brk" id="secAlcohol"><div class="num">5</div><h2>Alcohol &amp; TABC</h2><div class="flex"></div></div>
     <div class="grid rowgap">
-      <div class="oset full single"><label class="k">TABC License Type</label><div class="optcols c3"><label class="opt"><input type="checkbox">None</label><label class="opt"><input type="checkbox">Beer &amp; Wine</label><label class="opt"><input type="checkbox">Liquor, Beer &amp; Wine</label></div></div>
+      <div class="oset full single"><label class="k">TABC License Type</label><div class="optcols"><label class="opt"><input type="checkbox">Beer &amp; Wine</label><label class="opt"><input type="checkbox">Liquor, Beer &amp; Wine</label></div></div>
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Latest Serving Time</label><select class="fsel"><option value="">Select…</option><option>10:00 PM</option><option>11:00 PM</option><option>12:00 AM</option><option>1:00 AM</option><option>2:00 AM</option></select></div>
@@ -474,8 +471,8 @@
       <div class="field full"><label class="k">Management Team Detail</label><textarea class="req"></textarea></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">General Manager Tenure</label><span class="padorn narrow"><input type="text" class="yrs99" inputmode="numeric" placeholder="e.g. 5"><span class="ad-suf">yrs</span></span></div>
-      <div class="field"><label class="k">Kitchen Manager Tenure</label><span class="padorn narrow"><input type="text" class="yrs99" inputmode="numeric" placeholder="e.g. 5"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">General Manager Tenure</label><span class="padorn narrow"><input type="text" class="yrs99" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">Kitchen Manager Tenure</label><span class="padorn narrow"><input type="text" class="yrs99" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Employee Turnover Rate</label><select class="fsel req"><option value="">Select…</option><option>None</option><option>Very Little</option><option>Normal</option><option>High Turnover</option><option>Unknown</option></select></div>
@@ -571,7 +568,7 @@
       <div class="field"><label class="k">Number of Parking Spaces</label><input type="text" class="int numnar" inputmode="numeric"></div>
     </div>
     <div class="grid rowgap">
-      <div class="field full"><label class="k">Customer Parking</label><textarea class="req"></textarea></div>
+      <div class="field full"><label class="k">Customer Parking</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap">
       <div class="oset single" data-req><label class="k">Electrical Working Properly?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
@@ -584,15 +581,8 @@
       <div class="field full"><label class="k">Plumbing — what needs attention?</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Last Remodel</label><input type="text" class="req"></div>
-      <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="oset single" data-req><label class="k">Any Equipment Needing Repair or Replacement?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
       <div class="oset single" data-req><label class="k">Any Equipment Leased or Financed?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
-    </div>
-    <div class="grid rowgap" id="wrapEquipRepair">
-      <div class="field full"><label class="k">What needs repair or replacement?</label><textarea></textarea></div>
+      <div class="oset single"><label class="k">&nbsp;</label><div class="optcols" style="visibility:hidden"><label class="opt"><input type="checkbox"></label></div></div>
     </div>
     <div class="grid rowgap" id="wrapEquipLease">
       <div class="field full"><label class="k">What is leased or financed?</label><textarea></textarea></div>
@@ -620,13 +610,13 @@
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Approximate Cost of Next Remodel</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
-      <div class="field"><label class="k">Franchise Agreement</label><input type="file" accept=".pdf,.doc,.docx,image/*"></div>
+      <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
     </div>
 
     <div class="sec brk" id="secVF"><div class="num">11</div><h2>Valuation Factors</h2><div class="flex"></div></div>
     <div class="vf-panel rrg-noprint" id="vfPanel">
       <div class="vf-badge">RRG Analysis</div>
-      <div class="vf-copy"><b>This section is completed by RRG, not by the seller.</b> Fill in the questionnaire above, then run the analysis — RRG reads your answers and drafts the off-book value factors, value drivers, and detractors for your advisor to review.</div>
+      <div class="vf-copy"><b>This section is completed by the system, not by the rep.</b> Fill in the questionnaire above, then run the analysis — RRG reads your answers and drafts the off-book value factors, value drivers, and detractors for your advisor to review.</div>
       <div class="vf-actions">
         <button type="button" class="vf-run" id="vfRunBtn" onclick="runValuationAnalysis(this)">Run RRG Valuation Analysis</button>
         <a class="vf-manual" id="vfManual" onclick="vfUnlock(true)">Fill in by hand instead</a>
@@ -636,14 +626,14 @@
     <div class="subhead">Off-Book Items That Affect Value</div>
     <div class="field full"><label class="k">Off-Book Detail</label><textarea id="vfOffBook" placeholder="Items that move value but are not reflected in the reported books — e.g. unrecorded cash sales, owner perks run through the business, below-market family labor, related-party rent, deferred maintenance, transferable contracts or relationships, brand goodwill."></textarea></div>
     <div class="subhead">Value Drivers</div>
-    <div class="oset full" id="vfDrivers"><label class="k">What Supports a Premium</label><div class="optcols c3"><label class="opt"><input type="checkbox">Transferable systems / SOPs</label><label class="opt"><input type="checkbox">Trained management staying</label><label class="opt"><input type="checkbox">Owner absentee / semi-absentee</label><label class="opt"><input type="checkbox">Growing revenue</label><label class="opt"><input type="checkbox">Improving margins</label><label class="opt"><input type="checkbox">Below-market lease</label><label class="opt"><input type="checkbox">Long lease term / options</label><label class="opt"><input type="checkbox">Diversified revenue channels</label><label class="opt"><input type="checkbox">Exclusive / defensible contracts</label><label class="opt"><input type="checkbox">Strong brand / reputation</label><label class="opt"><input type="checkbox">Clean, verifiable books</label><label class="opt"><input type="checkbox">Prime location</label><label class="opt"><input type="checkbox">Low deferred capex</label></div></div>
+    <div class="oset full" id="vfDrivers"><label class="k">What Supports a Premium</label><div class="optcols c3"><label class="opt"><input type="checkbox">Transferable systems / SOPs</label><label class="opt"><input type="checkbox">Trained management staying</label><label class="opt"><input type="checkbox">Owner absentee / semi-absentee</label><label class="opt"><input type="checkbox">Below-market lease</label><label class="opt"><input type="checkbox">Long lease term / options</label><label class="opt"><input type="checkbox">Diversified revenue channels</label><label class="opt"><input type="checkbox">Exclusive / defensible contracts</label><label class="opt"><input type="checkbox">Strong brand / reputation</label><label class="opt"><input type="checkbox">Clean, verifiable books</label><label class="opt"><input type="checkbox">Prime location</label></div></div>
     <div class="field full rowgap"><label class="k">Value Driver Notes</label><textarea id="vfDriverNotes"></textarea></div>
     <div class="subhead">Value Detractors &amp; Risks</div>
-    <div class="oset full" id="vfDetractors"><label class="k">What Pulls Value Down</label><div class="optcols c3"><label class="opt"><input type="checkbox">Owner-dependent operations</label><label class="opt"><input type="checkbox">Customer / channel concentration</label><label class="opt"><input type="checkbox">Underperforming unit(s)</label><label class="opt"><input type="checkbox">Short lease / assignment risk</label><label class="opt"><input type="checkbox">Existing debt / liens</label><label class="opt"><input type="checkbox">Deferred capital expenditures</label><label class="opt"><input type="checkbox">Aging equipment</label><label class="opt"><input type="checkbox">Sector / market headwinds</label><label class="opt"><input type="checkbox">Key-person risk</label><label class="opt"><input type="checkbox">Below-market wages</label><label class="opt"><input type="checkbox">Unverifiable books</label><label class="opt"><input type="checkbox">Pending litigation</label><label class="opt"><input type="checkbox">Landlord unaware of sale</label></div></div>
+    <div class="oset full" id="vfDetractors"><label class="k">What Pulls Value Down</label><div class="optcols c3"><label class="opt"><input type="checkbox">Owner-dependent operations</label><label class="opt"><input type="checkbox">Customer / channel concentration</label><label class="opt"><input type="checkbox">Short lease / assignment risk</label><label class="opt"><input type="checkbox">Existing debt / liens</label><label class="opt"><input type="checkbox">Aging equipment</label><label class="opt"><input type="checkbox">Sector / market headwinds</label><label class="opt"><input type="checkbox">Key-person risk</label><label class="opt"><input type="checkbox">Below-market wages</label><label class="opt"><input type="checkbox">Unverifiable books</label><label class="opt"><input type="checkbox">Pending litigation</label><label class="opt"><input type="checkbox">Landlord unaware of sale</label></div></div>
     <div class="field full rowgap"><label class="k">Risk / Detractor Notes</label><textarea id="vfRiskNotes"></textarea></div>
     <div class="sec brk"><div class="num">12</div><h2>Submission</h2><div class="flex"></div></div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">RRG Advisor</label><input type="text"></div>
+      <div class="field"><label class="k">RRG Advisor</label><input type="text" id="rrgAdvisor"></div>
       <div class="field"><label class="k">RRG Advisor Email (copy sent here)<span class="req-star">*</span></label><input type="text" class="req email" id="clientEmail" placeholder="advisor@rrgcre.com"></div>
     </div>
     <div class="grid rowgap">
@@ -1124,7 +1114,6 @@
   _cond('Any Pending Litigation', 'wrapLitigation', ['Yes'], true);
   _cond('Operating Hours Changed', 'wrapHoursChange', ['Yes']);
   _cond('Is the Business Seasonal', 'wrapSeasonality', ['Moderately','Highly']);
-  _cond('Do Tax Returns Match', 'wrapTaxMismatch', ['No'], true);
   _cond('Any Unreported Income', 'wrapUnreported', ['Yes'], true);
   _cond('Willing to Sign a Non-Compete', 'wrapNonCompete', ['Yes'], true);
   _cond('Family Members Work in the Business', 'wrapFamilyWork', ['Yes'], true);
@@ -1135,7 +1124,6 @@
   _cond('Any Employees on Contract', 'wrapContractEmployees', ['Yes'], true);
   _cond('Electrical Working Properly', 'wrapElectrical', ['No'], true);
   _cond('Plumbing Working Properly', 'wrapPlumbing', ['No'], true);
-  _cond('Any Equipment Needing Repair', 'wrapEquipRepair', ['Yes'], true);
   _cond('Any Equipment Leased or Financed', 'wrapEquipLease', ['Yes'], true);
   window.__autoStars();
 
@@ -1471,6 +1459,17 @@
   // legacy aliases (any older handler still referencing these keeps working)
   window.qSaveOnly=function(){ serverSave(); return false; };
   window.qSaveClose=window.qClose; window.qExit=window.qClose;
+})();
+</script>
+<script>
+/* Default RRG Advisor name + email to the signed-in user (only when blank). */
+(function(){
+  var API=(String(location.protocol).indexOf('http')===0?location.origin:''); if(!API) return;
+  fetch(API+'/api/me',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    var p=(j&&j.profile)||{};
+    var adv=document.getElementById('rrgAdvisor'); if(adv && !adv.value.trim()){ var nm=[p.firstName,p.lastName].filter(Boolean).join(' ')||p.name||''; if(nm){ adv.value=nm; adv.dispatchEvent(new Event('input',{bubbles:true})); } }
+    var em=document.getElementById('clientEmail'); if(em && !em.value.trim() && p.email){ em.value=p.email; em.dispatchEvent(new Event('input',{bubbles:true})); }
+  }).catch(function(){});
 })();
 </script>
 </body>
