@@ -528,7 +528,11 @@
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Months Remaining on Base Term</label><input type="text" class="int" inputmode="numeric"></div>
-      <div class="field"><label class="k">Current Base Lease ($/SF)</label><input type="text"></div>
+      <div class="field"><label class="k">Current Base Lease ($/SF)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="dec2" inputmode="decimal"></span></div>
+    </div>
+    <div class="grid rowgap">
+      <div class="field"><label class="k">Current NNN ($/SF)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="dec2" inputmode="decimal"></span></div>
+      <div class="field"><label class="k">Monthly Rent</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Option 1 (Months)</label><input type="text" class="int" inputmode="numeric"></div>
@@ -547,7 +551,8 @@
       <div class="field"><label class="k">Outdoor Capacity</label><input type="text" class="int" inputmode="numeric" placeholder="seats"></div>
     </div>
     <div class="grid rowgap">
-      <div class="oset full single"><label class="k">General Condition</label><div class="optcols c4"><label class="opt"><input type="checkbox">Excellent</label><label class="opt"><input type="checkbox">Good</label><label class="opt"><input type="checkbox">Fair</label><label class="opt"><input type="checkbox">Poor</label></div></div>
+      <div class="field"><label class="k">General Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
+      <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Number of Parking Spaces</label><input type="text" class="int" inputmode="numeric"></div>
@@ -560,24 +565,50 @@
       <div class="oset single"><label class="k">Electrical Working Properly?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
       <div class="oset single"><label class="k">Plumbing Working Properly?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
+    <div class="grid rowgap" id="wrapElectrical">
+      <div class="field full"><label class="k">Electrical — what needs attention?</label><textarea></textarea></div>
+    </div>
+    <div class="grid rowgap" id="wrapPlumbing">
+      <div class="field full"><label class="k">Plumbing — what needs attention?</label><textarea></textarea></div>
+    </div>
+    <div class="subhead">Equipment — Age &amp; Condition</div>
     <div class="grid rowgap">
-      <div class="field full"><label class="k">A/C Units (Age and Condition)</label><input type="text"></div>
+      <div class="field"><label class="k">A/C Units — Age</label><span class="padorn"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">A/C Units — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Walk-Ins (Age and Condition)</label><input type="text"></div>
-      <div class="field"><label class="k">Grease Trap (Age and Condition)</label><input type="text"></div>
+      <div class="field"><label class="k">Walk-Ins — Age</label><span class="padorn"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">Walk-Ins — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Furnishings (Age and Condition)</label><input type="text"></div>
-      <div class="field"><label class="k">Kitchen Equipment (Age and Condition)</label><input type="text"></div>
+      <div class="field"><label class="k">Grease Trap — Age</label><span class="padorn"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">Grease Trap — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Bar Equipment (Age and Condition)</label><input type="text"></div>
+      <div class="field"><label class="k">Furnishings — Age</label><span class="padorn"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">Furnishings — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
+    </div>
+    <div class="grid rowgap">
+      <div class="field"><label class="k">Kitchen Equipment — Age</label><span class="padorn"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">Kitchen Equipment — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
+    </div>
+    <div class="grid rowgap">
+      <div class="field"><label class="k">Bar Equipment — Age</label><span class="padorn"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">Bar Equipment — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
+    </div>
+    <div class="grid rowgap">
       <div class="field"><label class="k">Last Remodel</label><input type="text"></div>
+      <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
     </div>
     <div class="grid rowgap">
       <div class="oset single"><label class="k">Any Equipment Needing Repair or Replacement?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
       <div class="oset single"><label class="k">Any Equipment Leased or Financed?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+    </div>
+    <div class="grid rowgap" id="wrapEquipRepair">
+      <div class="field full"><label class="k">What needs repair or replacement?</label><textarea></textarea></div>
+    </div>
+    <div class="grid rowgap" id="wrapEquipLease">
+      <div class="field full"><label class="k">What is leased or financed, and on what terms?</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap">
       <div class="field full"><label class="k">Next Required Remodel</label><input type="text"></div>
@@ -953,18 +984,18 @@
     _set("How the Company Compares to Peers", "Competes primarily with Torchy\u2019s Tacos, Tacodeli, and Veracruz All Natural in the Austin fast-casual taco market, differentiating on a queso-first identity (queso as the core product, not a topping). Ranks #2 in Austin organic search visibility (behind Tacodeli), #1 on several high-intent local terms. Holds an advantage in catering, where larger competitors are weaker, and unique brand visibility via the exclusive Q2 Stadium partnership with Austin FC. The broader QSR sector is seeing flat-to-declining traffic and some closures; Kesos has grown revenue every month in 2026.");
     _set("Non-Compete Terms (Duration / Area)", "Open to discussion");
     _set("Months Remaining on Base Term", "36");
-    _set("Current Base Lease ($/SF)", "30.12");
+    _set("Current Base Lease ($/SF)", "30.12"); _set("Current NNN ($/SF)", "12.00"); _set("Monthly Rent", "9000");
     _set("Option 1 (Months)", "60");
     _set("Option 2 (Months)", "0");
     _set("Landlord Relationship", "Strong relationship. The landlord is a local family with whom we have maintained a positive, long-term working relationship.");
     _set("Indoor Capacity", "40"); _set("Outdoor Capacity", "20");
     _set("Customer Parking", "Designated on-site parking for the restaurant, plus paid street parking available nearby.");
-    _set("A/C Units (Age and Condition)", "Two units, approximately 9 years old, in working condition.");
-    _set("Walk-Ins (Age and Condition)", "1, unknown");
-    _set("Grease Trap (Age and Condition)", "1, unknown");
-    _set("Furnishings (Age and Condition)", "About 7 years");
-    _set("Kitchen Equipment (Age and Condition)", "Range 3 to 5 years");
-    _set("Bar Equipment (Age and Condition)", "Range 3 to 7 years");
+    _set("A/C Units — Age", "9"); _set("A/C Units — Condition", "Good");
+    _set("Walk-Ins — Age", "6"); _set("Walk-Ins — Condition", "Good");
+    _set("Grease Trap — Age", "6"); _set("Grease Trap — Condition", "Fair");
+    _set("Furnishings — Age", "7"); _set("Furnishings — Condition", "Good");
+    _set("Kitchen Equipment — Age", "4"); _set("Kitchen Equipment — Condition", "Good");
+    _set("Bar Equipment — Age", "5"); _set("Bar Equipment — Condition", "Good");
     _set("Last Remodel", "2019");
     _set("Next Required Remodel", "N/A");
     _set("RRG Advisor", "Van Rinn");
@@ -999,7 +1030,7 @@
     _check("Lease vs Market Rate", "Below");
     _check("Is the Property Available for Sale", "No");
     _check("Notified Landlord of Intent to Sell", "No");
-    _check("General Condition", "Excellent");
+    _set("General Condition", "Excellent");
     _check("Electrical Working Properly", "Yes");
     _check("Plumbing Working Properly", "Yes");
     _check("Any Equipment Needing Repair", "No");
@@ -1105,6 +1136,10 @@
   _cond('Family Working Without Compensation', 'wrapFamilyNoComp', ['Yes']);
   _cond('Key Employees Willing to Stay', 'wrapKeyEmployees', ['Yes']);
   _cond('Any Employees on Contract', 'wrapContractEmployees', ['Yes']);
+  _cond('Electrical Working Properly', 'wrapElectrical', ['No']);
+  _cond('Plumbing Working Properly', 'wrapPlumbing', ['No']);
+  _cond('Any Equipment Needing Repair', 'wrapEquipRepair', ['Yes']);
+  _cond('Any Equipment Leased or Financed', 'wrapEquipLease', ['Yes']);
 
   // Dynamic section numbering: number only the visible sections 1..N (so hidden Franchise / Alcohol never leave a gap).
   window.__renumber=function(){
