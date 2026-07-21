@@ -8,7 +8,7 @@ const API_URL = 'https://api.anthropic.com/v1/messages';
 
 const SYSTEM = `You are a deeply experienced restaurant & bar commercial real-estate and business-sale broker at Restaurant Realty Group (RRG). You prepare Broker's Opinions of Value (BOVs). No fluff, best practice, defensible numbers. You are analyzing a real deal's documents and producing the BOV data.
 
-You will receive some or all of: financial statements (P&L, trend, add-backs), a completed RRG Valuation Questionnaire, and the lease plus any amendments. Read them carefully.
+You will receive some or all of: financial statements (P&L, trend, add-backs), a completed RRG Valuation Questionnaire, and the lease plus any amendments. Read them carefully. You may also receive reference links the broker gathered (press, reviews, a walkthrough video, the web presence) — use these for qualitative color, positioning, and the go-to-market narrative only; never let them override the documented financials.
 
 Do the analysis:
 - Normalize trailing earnings to ADJUSTED EBITDA via an add-back bridge (start from revenue, then net income as reported, then each add-back: depreciation, interest, non-recurring, discretionary/owner, rent normalization to the executed lease, etc.).
@@ -94,6 +94,46 @@ function fileBlocks(files) {
   return blocks;
 }
 
+// ---- Reference links (press, reviews, video, web presence) ----
+// Fetched server-side so Claude actually reads the content, not just the URL.
+function stripHtml(html) {
+  return String(html || '')
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>').replace(/&#39;/g, "'").replace(/&quot;/g, '"')
+    .replace(/\s+/g, ' ').trim();
+}
+function isSafeUrl(u) {
+  try {
+    const x = new URL(u);
+    if (!/^https?:$/.test(x.protocol)) return false;
+    const h = x.hostname;
+    if (/^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(h)) return false;
+    if (/^172\.(1[6-9]|2\d|3[01])\./.test(h)) return false;
+    return true;
+  } catch (e) { return false; }
+}
+async function fetchLinkText(url) {
+  if (typeof fetch !== 'function') return { url, note: 'link fetch unavailable' };
+  if (!isSafeUrl(url)) return { url, note: 'skipped (not a public http/https link)' };
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 9000);
+    const r = await fetch(url, { signal: ctl.signal, redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (RRG BOV analyst)' } });
+    clearTimeout(timer);
+    if (!r.ok) return { url, note: 'could not load (HTTP ' + r.status + ')' };
+    const ct = String(r.headers.get('content-type') || '');
+    if (/text\/html|text\/plain|application\/xhtml|application\/json/i.test(ct) || ct === '') {
+      const body = await r.text();
+      const text = stripHtml(body).slice(0, 12000);
+      return { url, text: text || '[no readable text found]' };
+    }
+    return { url, note: 'non-text content (' + ct.split(';')[0] + ')' };
+  } catch (e) { return { url, note: (e && e.name === 'AbortError') ? 'timed out' : 'could not load' }; }
+}
+
 function extractJson(text) {
   if (!text) return null;
   let t = text.trim().replace(/^```(json)?/i, '').replace(/```$/,'').trim();
@@ -103,7 +143,7 @@ function extractJson(text) {
   return null;
 }
 
-async function generateBov({ business, files, preparedBy, questionnaire }) {
+async function generateBov({ business, files, preparedBy, questionnaire, links }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('ANTHROPIC_API_KEY is not set on the server.');
   const content = fileBlocks(files);
@@ -113,6 +153,16 @@ async function generateBov({ business, files, preparedBy, questionnaire }) {
     content.push({ type: 'text', text:
       '=== Valuation Questionnaire (completed by the rep in the RRG system) ===\n' +
       String(questionnaire).slice(0, 120000) });
+  }
+  // Reference links the broker gathered (press, reviews, video, web presence).
+  // Fetched here so the analyst reads the actual content for qualitative color.
+  const urls = Array.isArray(links) ? links.filter(u => u && String(u).trim()).slice(0, 10) : [];
+  if (urls.length) {
+    const fetched = await Promise.all(urls.map(fetchLinkText));
+    let ref = '=== Reference links the broker provided (press, reviews, video, web presence) ===\n' +
+      'Use for qualitative color, positioning, and go-to-market narrative — do NOT let them override the documented financials.\n';
+    fetched.forEach(f => { if (f) ref += '\n--- ' + f.url + ' ---\n' + (f.text || ('[' + (f.note || 'link') + ']')) + '\n'; });
+    content.push({ type: 'text', text: ref.slice(0, 80000) });
   }
   content.push({ type: 'text', text:
     `Business / concept name: ${business || '(not given — infer from documents)'}.\n` +

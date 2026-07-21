@@ -283,7 +283,12 @@ function clearSessionCookie(res) {
 }
 
 app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
-app.use(express.json({ limit: '1mb' }));
+// The document-upload endpoints declare their own larger JSON limits below.
+// Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
+app.use((req, res, next) => {
+  if (req.path === '/api/generate-bov' || req.path === '/api/valuation-factors') return next();
+  express.json({ limit: '1mb' })(req, res, next);
+});
 app.use(express.urlencoded({ extended: false }));
 
 /* ---------- auth gate ---------- */
@@ -546,6 +551,18 @@ app.get('/log.csv', (_req, res) => {
 });
 // ---- BOV queue ----
 // A rep can only see/open/delete their own BOVs; an admin sees the whole team.
+// Trailing revenue ("the money the business brought in") lives in bridge row 0
+// of the generated BOV. Format it as $x.xM for the Business Valuations list.
+function bovRevenueText(b) {
+  try {
+    const br = (b.state && b.state.bridge) || [];
+    if (br.length && /revenue/i.test(br[0].label || '')) {
+      const n = Number(String(br[0].amt).replace(/[^0-9.\-]/g, '')) || 0;
+      if (n > 0) { const m = n / 1e6; return '$' + (m >= 10 ? m.toFixed(1) : m.toFixed(2)) + 'M'; }
+    }
+  } catch (e) {}
+  return '';
+}
 function ownsBov(req, b) {
   if (req.user && req.user.role === 'admin') return true;
   if (b.byUser) return b.byUser === (req.user && req.user.username);
@@ -556,7 +573,7 @@ app.get('/api/bovs', (req, res) => {
   const list = loadBovs().slice().reverse().filter(b => isAdmin || ownsBov(req, b));
   res.json({
     ok: true, isAdmin: !!isAdmin,
-    bovs: list.map(b => ({ id: b.id, business: b.business, date: b.date, rangeText: b.rangeText, targetText: b.targetText, multText: b.multText, ebitdaText: b.ebitdaText, pending: !!b.pending, srcQuestId: b.srcQuestId || '', by: b.by, byUser: b.byUser, createdAt: b.createdAt })),
+    bovs: list.map(b => ({ id: b.id, business: b.business, date: b.date, revText: bovRevenueText(b), rangeText: b.rangeText, targetText: b.targetText, multText: b.multText, ebitdaText: b.ebitdaText, pending: !!b.pending, srcQuestId: b.srcQuestId || '', by: b.by, byUser: b.byUser, createdAt: b.createdAt })),
   });
 });
 app.get('/api/bov/:id', (req, res) => {
@@ -566,9 +583,9 @@ app.get('/api/bov/:id', (req, res) => {
   res.json({ ok: true, bov: b });
 });
 // AI-generate a BOV from uploaded documents, then save it to the queue.
-app.post('/api/generate-bov', express.json({ limit: '32mb' }), async (req, res) => {
+app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) => {
   try {
-    const { business, files, bovId } = req.body || {};
+    const { business, files, bovId, links } = req.body || {};
     if (!files || !files.length) return res.status(400).json({ ok: false, error: 'Attach at least one financial document.' });
     const preparedBy = (req.user && req.user.preparedBy) || '';
 
@@ -588,7 +605,7 @@ app.post('/api/generate-bov', express.json({ limit: '32mb' }), async (req, res) 
       }
     }
 
-    const out = await bovgen.generateBov({ business, files, preparedBy, questionnaire: questionnaireText });
+    const out = await bovgen.generateBov({ business, files, preparedBy, questionnaire: questionnaireText, links });
     const bovs = loadBovs();
     const rec = (target && bovs.find(x => x.id === target.id)) || {
       id: newBovId(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: new Date().toISOString(),

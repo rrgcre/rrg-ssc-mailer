@@ -121,13 +121,15 @@ function render(bovs){
       : '<a href="./rrg_bov_builder.html?bov='+id+'">Open</a>'+
         '<a class="cim" href="./rrg_cim_builder.html?bov='+id+'">Advance to CIM →</a>'+
         '<button class="del" onclick="del(\''+b.id+'\',this)">Delete</button>';
+    var rev=(pending||!b.revText) ? '<span class="dim">—</span>' : '<span class="val"><span class="t">'+esc(b.revText)+'</span></span>';
     return '<tr>'+
       '<td><div class="biz">'+esc(b.business||'Untitled')+pill+'</div><div class="meta">'+esc(b.date||fmt(b.createdAt))+(b.by?(' · '+esc(b.by)):'')+'</div></td>'+
+      '<td class="hide">'+rev+'</td>'+
       '<td class="hide">'+val+'</td>'+
       '<td class="hide dim">'+(pending?'':(esc(b.multText||'')+'<br>'+esc(b.ebitdaText||'')))+'</td>'+
       '<td><div class="act">'+actions+'</div></td></tr>';
   }).join('');
-  body.innerHTML='<table><thead><tr><th>Business</th><th class="hide">Concluded Range / Target</th><th class="hide">Multiple / EBITDA</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  body.innerHTML='<table><thead><tr><th>Business</th><th class="hide">Revenue</th><th class="hide">Concluded Range / Target</th><th class="hide">Multiple / EBITDA</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 
 function load(){

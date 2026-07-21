@@ -52,6 +52,16 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
 .files{font-size:11.5px;color:var(--green);font-weight:600;margin:-4px 0 12px 51px;}
 .files:empty{margin:0;}
 .vqnote{font-size:12px;color:var(--green);font-weight:600;background:#f2fbf6;border:1px solid #bfe6d1;border-radius:9px;padding:10px 13px;margin-bottom:10px;}
+.linkhint{font-size:11.5px;color:var(--muted);margin:0 0 10px;line-height:1.5;}
+.linkadd{display:flex;gap:8px;}
+.linkin{flex:1;min-width:0;border:1px solid var(--inp);border-radius:9px;padding:11px 13px;font-family:inherit;font-size:14px;color:var(--ink);}
+.linkin:focus{outline:none;border-color:var(--red);}
+.linkbtn{flex:none;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:0 18px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.linkbtn:hover{background:#0b1a3a;}
+.linklist{margin-top:10px;display:flex;flex-direction:column;gap:7px;}
+.linkrow{display:flex;align-items:center;gap:10px;background:var(--wash);border:1px solid var(--line);border-radius:9px;padding:9px 12px;}
+.linkrow .u{flex:1;min-width:0;font-size:12.5px;color:var(--navy);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.linkrow .x{flex:none;background:none;border:none;color:var(--red);font-size:18px;line-height:1;cursor:pointer;padding:0 4px;}
 
 .go{margin-top:20px;width:100%;background:var(--navy);color:#fff;border:none;border-radius:10px;padding:15px;font:inherit;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.01em;}
 .go:hover{background:#0b1a3a;} .go:disabled{opacity:.55;cursor:default;}
@@ -114,6 +124,17 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
     <div class="files" id="lease_files"></div>
     <input type="file" id="lease_in" multiple accept=".pdf,.png,.jpg,.jpeg,.txt" style="display:none" onchange="took('lease')">
 
+    <div class="uphd" style="margin-top:24px">
+      <span class="l">Reviews, press &amp; video <span style="color:var(--soft);font-weight:600;font-size:11px">— optional</span></span>
+      <span class="r">links</span>
+    </div>
+    <div class="linkhint">Paste links that show the business in its best light — a newspaper review, a press feature, a walkthrough video, the website. The analyst reads them for extra color on the opportunity.</div>
+    <div class="linkadd">
+      <input type="url" id="linkInput" class="linkin" placeholder="https://…" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();addLink();}">
+      <button type="button" class="linkbtn" onclick="addLink()">Add link</button>
+    </div>
+    <div class="linklist" id="linkList"></div>
+
     <button class="go" id="go" onclick="generate()" disabled>Build the BOV</button>
     <div class="status" id="status"></div>
     <div class="note"><span style="color:var(--red);font-weight:700">*</span> at least one financials document is required — the button activates once it's attached. Add the lease if the business leases its space; skip it if it owns the real estate. Runs privately on an RRG Virtual Analyst, ~30–60 seconds. You'll land on the finished BOV — fully editable — saved to your Valuations list.</div>
@@ -148,6 +169,24 @@ var BOV_ID='';
 })();
 function pick(s){ document.getElementById(s+'_in').click(); }
 function gate(){ document.getElementById('go').disabled = !SLOTS.fin.length; }
+// ---- Reference links (press, reviews, video, web presence) ----
+var LINKS=[];
+function _escLink(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function addLink(){
+  var inp=document.getElementById('linkInput'); var v=(inp.value||'').trim();
+  if(!v) return;
+  if(!/^https?:\/\//i.test(v)) v='https://'+v;
+  try{ new URL(v); }catch(e){ setStatus('err','That doesn’t look like a valid link.'); return; }
+  if(LINKS.indexOf(v)<0) LINKS.push(v);
+  inp.value=''; setStatus('',''); document.getElementById('status').className='status'; renderLinks();
+}
+function removeLink(i){ LINKS.splice(i,1); renderLinks(); }
+function renderLinks(){
+  document.getElementById('linkList').innerHTML = LINKS.map(function(u,i){
+    return '<div class="linkrow"><span class="u" title="'+_escLink(u)+'">'+_escLink(u)+'</span>'+
+      '<button type="button" class="x" title="Remove" onclick="removeLink('+i+')">×</button></div>';
+  }).join('');
+}
 function took(s){
   var inp=document.getElementById(s+'_in'); SLOTS[s]=Array.prototype.slice.call(inp.files);
   var el=document.getElementById(s+'_files');
@@ -181,6 +220,7 @@ function cancelGen(){
   setStatus('err','Cancelled. Nothing was saved — adjust the documents and build again when you’re ready.');
 }
 function generate(){
+  try{ var _li=document.getElementById('linkInput'); if(_li && _li.value.trim()) addLink(); }catch(e){}
   var biz=document.getElementById('biz').value.trim();
   if(!SLOTS.fin.length){ setStatus('err','Upload at least one financials document before building. (Add the lease too if the business leases its space.)'); return; }
   var all=[]; Object.keys(SLOTS).forEach(function(s){ SLOTS[s].forEach(function(f){ all.push({file:f,label:LABEL[s]}); }); });
@@ -193,10 +233,14 @@ function generate(){
     if(mb>28){ showOverlay(false); setStatus('err','Those files are too large together (~'+mb.toFixed(0)+'MB). Trim to the essential pages and try again.'); return; }
     modal('Building the BOV…','An RRG Virtual Analyst is reading the financials, questionnaire, and lease and drafting the Broker’s Opinion of Value. This takes about 30–60 seconds.');
     ABORT=new AbortController();
-    fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files,bovId:BOV_ID}),signal:ABORT.signal})
-      .then(function(r){return r.json();}).then(function(j){
-        if(j&&j.ok&&j.id){ modal('Done — opening your BOV…','Taking you to the finished draft.'); location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(j.id); }
-        else { showOverlay(false); setStatus('err', (j&&j.error)||'Generation failed.'); }
+    fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files,bovId:BOV_ID,links:LINKS}),signal:ABORT.signal})
+      .then(function(r){ return r.text().then(function(t){ var j=null; try{ j=JSON.parse(t); }catch(e){} return {ok:r.ok,status:r.status,j:j}; }); })
+      .then(function(res){
+        if(res.j&&res.j.ok&&res.j.id){ modal('Done — opening your BOV…','Taking you to the finished draft.'); location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(res.j.id); return; }
+        showOverlay(false);
+        if(res.status===413){ setStatus('err','The documents are over the server’s upload limit. Trim the PDFs to the key pages (P&L, add-backs, lease) and try again.'); }
+        else if(res.j&&res.j.error){ setStatus('err',res.j.error); }
+        else { setStatus('err','Build failed (server '+res.status+'). Try again, or trim the documents if they’re very large.'); }
       }).catch(function(err){
         if(err&&err.name==='AbortError') return; // handled by cancelGen
         showOverlay(false); setStatus('err','Could not reach the server. This works on the hosted toolkit.');
