@@ -39,26 +39,19 @@ async function generateFactors({ business, market, answers, driverOptions, detra
 
 Do the analysis from the answers provided:
 - OFF-BOOK ITEMS THAT AFFECT VALUE: items that move value but are not reflected in the reported books — unrecorded cash sales, owner/family perks run through the business, below-market family labor, related-party rent, deferred maintenance, transferable contracts/relationships, brand goodwill. This is NOT an add-back / earnings-normalization bridge — do not compute adjusted EBITDA here. Write 2-4 tight sentences on what is off the books and which way it moves value.
-- VALUE DRIVERS: choose from this EXACT list (return the strings verbatim), only the ones the answers support: ${JSON.stringify(drivers)}.
-- VALUE DETRACTORS: choose from this EXACT list (return the strings verbatim), only the ones the answers support: ${JSON.stringify(detractors)}.
+- VALUE DRIVERS: return an array of the drivers the answers support. You MUST copy each string CHARACTER-FOR-CHARACTER from this exact list (same words, spaces, slashes, and capitalization) — do not paraphrase, shorten, or invent new labels: ${JSON.stringify(drivers)}. Include every one the answers reasonably support (usually 3-8); an empty array is only correct if the business is genuinely weak on all of them.
+- VALUE DETRACTORS: same rule — return an array copied CHARACTER-FOR-CHARACTER from this exact list, only the ones the answers support: ${JSON.stringify(detractors)}.
 - driverNotes / riskNotes: 1-3 sentences each, specific to this business.
-- Advisor value opinion: pick a defensible BASIS (one of: SDE, EBITDA, Revenue Multiple, Blended) and a MULTIPLE range for this concept and size (single-unit owner-operated ~1.5-3.0x SDE; profitable independents ~3.0-5.0x; multi-unit/manager-run ~4.0-7.0x adj. EBITDA). If — and only if — the answers contain enough of a revenue or earnings figure to support it, give an indicated value LOW and HIGH (plain numbers, no $ or commas); otherwise leave indicatedLow and indicatedHigh empty strings and say why in the rationale.
-- CONFIDENCE: one of High, Medium, Low. With no financial statements, Low or Medium is usually honest.
-- rationale: 2-4 sentences — what supports the high end, what anchors the floor, and a clear note that the definitive value comes from the BOV once financials and the lease are in hand.
+
+Do NOT produce any valuation multiple, indicated value, confidence, or price opinion — that is done later in the BOV with the financials. Only the qualitative factors above.
 
 Return ONLY a single JSON object (no prose, no markdown fences) with EXACTLY this shape:
 {
  "offBook": "string",
- "drivers": ["exact strings from the drivers list"],
+ "drivers": ["strings copied verbatim from the drivers list"],
  "driverNotes": "string",
- "detractors": ["exact strings from the detractors list"],
- "riskNotes": "string",
- "basis": "SDE | EBITDA | Revenue Multiple | Blended",
- "multiple": "e.g. 3.0x to 4.0x",
- "indicatedLow": "plain number or empty string",
- "indicatedHigh": "plain number or empty string",
- "confidence": "High | Medium | Low",
- "rationale": "string"
+ "detractors": ["strings copied verbatim from the detractors list"],
+ "riskNotes": "string"
 }`;
 
   const user = `Business / concept: ${business || '(not given)'}\nMetro: ${market || '(not given)'}\n\n=== VALUATION QUESTIONNAIRE ANSWERS ===\n${String(answers || '').slice(0, 100000)}\n\nComplete the Valuation Factors JSON now.`;
@@ -79,7 +72,7 @@ Return ONLY a single JSON object (no prose, no markdown fences) with EXACTLY thi
   // normalize shape
   result.drivers = Array.isArray(result.drivers) ? result.drivers : [];
   result.detractors = Array.isArray(result.detractors) ? result.detractors : [];
-  ['offBook', 'driverNotes', 'riskNotes', 'basis', 'multiple', 'indicatedLow', 'indicatedHigh', 'confidence', 'rationale']
+  ['offBook', 'driverNotes', 'riskNotes']
     .forEach(k => { if (result[k] == null) result[k] = ''; else result[k] = String(result[k]); });
   return { result, usage: dj.usage || {} };
 }

@@ -476,7 +476,8 @@
       <div class="oset full"><label class="k">Owner Role(s)</label><div class="optcols c3"><label class="opt"><input type="checkbox">Operations</label><label class="opt"><input type="checkbox">Kitchen / Chef</label><label class="opt"><input type="checkbox">Front of House</label><label class="opt"><input type="checkbox">Bar Management</label><label class="opt"><input type="checkbox">Purchasing / Vendors</label><label class="opt"><input type="checkbox">Finance / Bookkeeping</label><label class="opt"><input type="checkbox">Marketing / Social</label><label class="opt"><input type="checkbox">HR / Scheduling</label><label class="opt"><input type="checkbox">Catering / Events</label><label class="opt"><input type="checkbox">General Manager</label><label class="opt"><input type="checkbox">Absentee / Passive</label></div></div>
     </div>
     <div class="grid rowgap">
-      <div class="oset full single"><label class="k">Owner Hours per Week</label><div class="optcols c4"><label class="opt"><input type="checkbox">Under 10</label><label class="opt"><input type="checkbox">10 to 20</label><label class="opt"><input type="checkbox">20 to 40</label><label class="opt"><input type="checkbox">40+</label></div></div>
+      <div class="field"><label class="k">Owner Hours per Week</label><span class="padorn"><input type="text" class="int" inputmode="numeric" placeholder="e.g. 45"><span class="ad-suf">hrs</span></span></div>
+      <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
     </div>
     <div class="grid rowgap">
       <div class="oset single"><label class="k">Owner Salary Included in P&amp;Ls?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
@@ -542,10 +543,15 @@
     </div>
     <div class="sec brk"><div class="num">9</div><h2>Facility &amp; Equipment</h2><div class="flex"></div></div>
     <div class="grid rowgap">
-      <div class="field full"><label class="k">Customer Capacity (Indoor / Outdoor)</label><input type="text"></div>
+      <div class="field"><label class="k">Indoor Capacity</label><input type="text" class="int" inputmode="numeric" placeholder="seats"></div>
+      <div class="field"><label class="k">Outdoor Capacity</label><input type="text" class="int" inputmode="numeric" placeholder="seats"></div>
     </div>
     <div class="grid rowgap">
       <div class="oset full single"><label class="k">General Condition</label><div class="optcols c4"><label class="opt"><input type="checkbox">Excellent</label><label class="opt"><input type="checkbox">Good</label><label class="opt"><input type="checkbox">Fair</label><label class="opt"><input type="checkbox">Poor</label></div></div>
+    </div>
+    <div class="grid rowgap">
+      <div class="field"><label class="k">Number of Parking Spaces</label><input type="text" class="int" inputmode="numeric"></div>
+      <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
     </div>
     <div class="grid rowgap">
       <div class="field full"><label class="k">Customer Parking</label><textarea></textarea></div>
@@ -605,7 +611,7 @@
     <div class="sec brk" id="secVF"><div class="num">11</div><h2>Valuation Factors</h2><div class="flex"></div></div>
     <div class="vf-panel rrg-noprint" id="vfPanel">
       <div class="vf-badge">RRG Analysis</div>
-      <div class="vf-copy"><b>This section is completed by RRG, not by the seller.</b> Fill in the questionnaire above, then run the analysis — RRG reads your answers and drafts the off-book value factors, drivers, detractors, and a preliminary value opinion for your advisor to review.</div>
+      <div class="vf-copy"><b>This section is completed by RRG, not by the seller.</b> Fill in the questionnaire above, then run the analysis — RRG reads your answers and drafts the off-book value factors, value drivers, and detractors for your advisor to review.</div>
       <div class="vf-actions">
         <button type="button" class="vf-run" id="vfRunBtn" onclick="runValuationAnalysis(this)">Run RRG Valuation Analysis</button>
         <a class="vf-manual" id="vfManual" onclick="vfUnlock(true)">Fill in by hand instead</a>
@@ -620,20 +626,6 @@
     <div class="subhead">Value Detractors &amp; Risks</div>
     <div class="oset full" id="vfDetractors"><label class="k">What Pulls Value Down</label><div class="optcols c3"><label class="opt"><input type="checkbox">Owner-dependent operations</label><label class="opt"><input type="checkbox">Customer / channel concentration</label><label class="opt"><input type="checkbox">Underperforming unit(s)</label><label class="opt"><input type="checkbox">Short lease / assignment risk</label><label class="opt"><input type="checkbox">Existing debt / liens</label><label class="opt"><input type="checkbox">Deferred capital expenditures</label><label class="opt"><input type="checkbox">Aging equipment</label><label class="opt"><input type="checkbox">Sector / market headwinds</label><label class="opt"><input type="checkbox">Key-person risk</label><label class="opt"><input type="checkbox">Below-market wages</label><label class="opt"><input type="checkbox">Unverifiable books</label><label class="opt"><input type="checkbox">Pending litigation</label><label class="opt"><input type="checkbox">Landlord unaware of sale</label></div></div>
     <div class="field full rowgap"><label class="k">Risk / Detractor Notes</label><textarea id="vfRiskNotes"></textarea></div>
-    <div class="subhead">Advisor Value Opinion</div>
-    <div class="grid rowgap">
-      <div class="oset single" id="vfBasis"><label class="k">Valuation Basis</label><div class="optcols c4"><label class="opt"><input type="checkbox">SDE</label><label class="opt"><input type="checkbox">EBITDA</label><label class="opt"><input type="checkbox">Revenue Multiple</label><label class="opt"><input type="checkbox">Blended</label></div></div>
-      <div class="field"><label class="k">Suggested Multiple Range</label><input type="text" id="vfMultiple" placeholder="e.g. 3.0x to 4.0x"></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">Indicated Value (Low)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" id="vfLow" inputmode="numeric"></span></div>
-      <div class="field"><label class="k">Indicated Value (High)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" id="vfHigh" inputmode="numeric"></span></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="oset single" id="vfConfidence"><label class="k">Confidence</label><div class="optcols c3"><label class="opt"><input type="checkbox">High</label><label class="opt"><input type="checkbox">Medium</label><label class="opt"><input type="checkbox">Low</label></div></div>
-      <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
-    </div>
-    <div class="field full rowgap"><label class="k">Valuation Rationale</label><textarea id="vfRationale"></textarea></div>
     <div class="sec brk"><div class="num">12</div><h2>Submission</h2><div class="flex"></div></div>
     <div class="grid rowgap">
       <div class="field"><label class="k">RRG Advisor</label><input type="text"></div>
@@ -965,7 +957,7 @@
     _set("Option 1 (Months)", "60");
     _set("Option 2 (Months)", "0");
     _set("Landlord Relationship", "Strong relationship. The landlord is a local family with whom we have maintained a positive, long-term working relationship.");
-    _set("Customer Capacity (Indoor / Outdoor)", "About 40 indoor, 20 outdoor");
+    _set("Indoor Capacity", "40"); _set("Outdoor Capacity", "20");
     _set("Customer Parking", "Designated on-site parking for the restaurant, plus paid street parking available nearby.");
     _set("A/C Units (Age and Condition)", "Two units, approximately 9 years old, in working condition.");
     _set("Walk-Ins (Age and Condition)", "1, unknown");
@@ -992,7 +984,7 @@
     _check("TABC License Type", "Liquor, Beer");
     _check("Trained Management Team in Place", "Yes");
     _check("Relationship With Customers", "Don");
-    _check("Owner Hours per Week", "10 to 20");
+    _set("Owner Hours per Week", "45");
     _check("Owner Salary Included in P", "Yes");
     _check("Owner Salary Level", "At Market");
     _check("Family Members Work in the Business", "No");
@@ -1242,20 +1234,18 @@
     window.vfUnlock=function(byHand){ wrap.classList.remove('locked'); if(byHand){ note('Section unlocked — fill it in by hand.'); var m=document.getElementById('vfManual'); if(m) m.style.display='none'; } };
 
     function setId(id,val){ var el=document.getElementById(id); if(el && val!=null && String(val).trim()!==''){ el.value=String(val); el.dispatchEvent(new Event('input',{bubbles:true})); } }
-    function checkMany(wrapId, arr){ var w=document.getElementById(wrapId); if(!w||!arr) return; var opts=[].slice.call(w.querySelectorAll('.opt'));
-      (arr||[]).forEach(function(name){ var t=String(name).trim().toLowerCase(); var o=opts.find(function(x){ var lt=x.textContent.trim().toLowerCase(); return lt===t||lt.indexOf(t)>=0||t.indexOf(lt)>=0; }); if(o){ var i=o.querySelector('input'); i.checked=true; i.dispatchEvent(new Event('change',{bubbles:true})); } }); }
-    function checkOne(wrapId, name){ if(!name) return; var w=document.getElementById(wrapId); if(!w) return; var opts=[].slice.call(w.querySelectorAll('.opt')); var t=String(name).trim().toLowerCase(); var o=opts.find(function(x){ var lt=x.textContent.trim().toLowerCase(); return lt===t||lt.indexOf(t)>=0||t.indexOf(lt)>=0; }); if(o){ var i=o.querySelector('input'); i.checked=true; i.dispatchEvent(new Event('change',{bubbles:true})); } }
+    function _n(s){ return String(s==null?'':s).toLowerCase().replace(/[^a-z0-9]/g,''); }   // punctuation/space-insensitive key
+    function checkMany(wrapId, arr){ var w=document.getElementById(wrapId); if(!w||!Array.isArray(arr)) return; var opts=[].slice.call(w.querySelectorAll('.opt'));
+      arr.forEach(function(name){ var t=_n(name); if(!t) return; var o=opts.find(function(x){ var lt=_n(x.textContent); return lt===t||lt.indexOf(t)>=0||t.indexOf(lt)>=0; }); if(o){ var i=o.querySelector('input'); i.checked=true; i.dispatchEvent(new Event('change',{bubbles:true})); } }); }
     function apply(r){
       setId('vfOffBook', r.offBook); setId('vfDriverNotes', r.driverNotes); setId('vfRiskNotes', r.riskNotes);
-      setId('vfMultiple', r.multiple); setId('vfLow', r.indicatedLow); setId('vfHigh', r.indicatedHigh); setId('vfRationale', r.rationale);
       checkMany('vfDrivers', r.drivers); checkMany('vfDetractors', r.detractors);
-      checkOne('vfBasis', r.basis); checkOne('vfConfidence', r.confidence);
     }
 
     function vfHasContent(){
-      var ids=['vfOffBook','vfDriverNotes','vfRiskNotes','vfMultiple','vfLow','vfHigh','vfRationale'];
+      var ids=['vfOffBook','vfDriverNotes','vfRiskNotes'];
       if(ids.some(function(id){ var e=document.getElementById(id); return e && e.value.trim(); })) return true;
-      return ['vfDrivers','vfDetractors','vfBasis','vfConfidence'].some(function(id){ var w=document.getElementById(id); return w && w.querySelector('input:checked'); });
+      return ['vfDrivers','vfDetractors'].some(function(id){ var w=document.getElementById(id); return w && w.querySelector('input:checked'); });
     }
     window.vfMaybeUnlock=function(){ if(vfHasContent()){ window.vfUnlock(false); var b=document.getElementById('vfRunBtn'); if(b) b.textContent='Re-run analysis'; } };
     window.addEventListener('load', function(){ setTimeout(window.vfMaybeUnlock, 400); });
