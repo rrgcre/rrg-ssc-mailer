@@ -29,17 +29,15 @@ const BOV_PROMPT_FILE = path.join(BOV_DATA_DIR, 'bov_prompt.txt');
 function loadBovPromptCustom() { try { const t = fs.readFileSync(BOV_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
 function saveBovPromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BOV_PROMPT_FILE, String(t)); } catch (e) {} }
 function clearBovPromptCustom() { try { fs.unlinkSync(BOV_PROMPT_FILE); } catch (e) {} }
-// When a valuation questionnaire is advanced, drop a "waiting BOV" into the BOV
-// queue — the same pattern as advancing a seller call into the Questionnaire Log.
-// Idempotent: advancing the same questionnaire twice reuses the one queued BOV.
+// When a valuation questionnaire is advanced ("Request BOV"), drop a fresh
+// "waiting BOV" into the queue — the same pattern as advancing a seller call.
+// Each request creates a NEW valuation record, so a business can be valued more
+// than once (re-runs, updated scenarios). Delete the ones you don't need.
 function ensureBovForQuest(q) {
   if (!q) return null;
   const arr = loadBovs();
-  const srcId = 'bovfromq_' + q.id;
-  const existing = arr.find(b => b.srcFormId === srcId);
-  if (existing) return existing;
   const rec = {
-    id: newBovId(), srcFormId: srcId, srcQuestId: q.id, pending: true,
+    id: newBovId(), srcFormId: 'bovfromq_' + q.id, srcQuestId: q.id, pending: true,
     business: q.business || 'Business', market: q.market || '', date: '',
     rangeText: '', targetText: '', multText: '', ebitdaText: '',
     by: q.by || '', byUser: q.byUser || '', createdAt: new Date().toISOString(),

@@ -134,6 +134,23 @@ async function fetchLinkText(url) {
   } catch (e) { return { url, note: (e && e.name === 'AbortError') ? 'timed out' : 'could not load' }; }
 }
 
+// Pull the highest number out of a "likely multiple" cell (handles "4.5×",
+// "4.0–5.0x", "~4x"); returns -1 when there's no number so blanks sink to the end.
+function multipleValue(s) {
+  const m = String(s == null ? '' : s).match(/-?\d+(?:\.\d+)?/g);
+  if (!m || !m.length) return -1;
+  return Math.max.apply(null, m.map(Number));
+}
+function sortBuyersByMultiple(rows) {
+  if (!Array.isArray(rows)) return rows;
+  // Keep any header row (row 0 with a non-numeric multiple label) in place.
+  const hasHeader = rows.length && multipleValue(rows[0] && rows[0][1]) < 0 && /multiple/i.test(String((rows[0] || [])[1] || ''));
+  const head = hasHeader ? rows.slice(0, 1) : [];
+  const body = hasHeader ? rows.slice(1) : rows.slice();
+  body.sort((a, b) => multipleValue(b && b[1]) - multipleValue(a && a[1]));
+  return head.concat(body);
+}
+
 function extractJson(text) {
   if (!text) return null;
   let t = text.trim().replace(/^```(json)?/i, '').replace(/```$/,'').trim();
@@ -191,6 +208,10 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
   if (!Array.isArray(state.bridge)) state.bridge = [];
   if (!Array.isArray(state.bench)) state.bench = [];
   if (!Array.isArray(state.buyers)) state.buyers = [];
+  // Sort the buyer-type list by likely multiple, highest first — reads best to
+  // worst regardless of the order the model happened to return. Handled here in
+  // code (not the prompt) so it stays correct even if the prompt is edited.
+  state.buyers = sortBuyersByMultiple(state.buyers);
   const summary = summarize(state);
   const usage = data.usage || {};
   return { state, summary, business: state.fields.subject || business || 'Untitled', date: state.fields.date || '', usage };

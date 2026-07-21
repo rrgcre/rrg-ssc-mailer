@@ -190,17 +190,15 @@ function render(list){
   }
   var rows=list.map(function(s){
     var meta=[s.market, s.by].filter(Boolean).map(esc).join(' · ');
-    var mid;
-    if(s.processed){
-      mid='<span class="done">✓ BOV requested</span> <a href="./rrg_bov_queue.html">View in Business Valuations →</a>';
-    } else {
-      // Gold "Questionnaire" (opens the form to complete it — gold while it still
-      // needs work, neutral once complete) plus a "Request BOV" action.
-      var qbtn = s.completed
-        ? '<a href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Questionnaire</a>'
-        : '<a class="adv complete" href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Questionnaire</a>';
-      mid = qbtn + '<button class="adv" onclick="requestBov(\''+s.id+'\',this)">Request BOV</button>';
-    }
+    // Gold "Questionnaire" (opens the form to complete it — gold while it still
+    // needs work, neutral once complete) plus a "Request BOV" action. Request BOV
+    // stays available even after a prior request: each click creates a new
+    // valuation record, so you can request a business more than once.
+    var qbtn = s.completed
+      ? '<a href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Questionnaire</a>'
+      : '<a class="adv complete" href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Questionnaire</a>';
+    var mid = qbtn + '<button class="adv" onclick="requestBov(\''+s.id+'\',this)">Request BOV</button>';
+    if(s.processed){ mid += '<a href="./rrg_bov_queue.html">View in Business Valuations →</a>'; }
     return '<tr data-id="'+esc(s.id)+'">'+
       '<td><div class="biz">'+esc(s.business||'Business')+'</div><div class="meta">'+meta+'</div></td>'+
       '<td class="meta">'+esc(fmt(s.createdAt))+'</td>'+
