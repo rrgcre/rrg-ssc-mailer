@@ -1073,7 +1073,7 @@
     window.scrollTo({top:0,behavior:'smooth'});
   };
 
-  function _pvEsc(s){ var d=document.createElement('div'); d.textContent=String(s==null?'':s).replace(/\u2014/g, ', '); return d.innerHTML; }
+  function _pvEsc(s){ var d=document.createElement('div'); d.textContent=String(s==null?'':s).replace(/\u2014/g, '\u2013'); return d.innerHTML; }
   function _renderPrintView(){
     var data=_collectData();
     function firstOf(st){ st=st.toLowerCase();
