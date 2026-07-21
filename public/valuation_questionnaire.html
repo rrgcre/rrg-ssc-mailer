@@ -106,6 +106,17 @@
   #secVF.vf-locked ~ .accbody-vf, .vf-fields.locked{ }
   .vf-fields.locked{ position:relative; opacity:.5; pointer-events:none; filter:saturate(.4); }
   @media print{ .vf-panel{ display:none!important; } .vf-fields.locked{ opacity:1!important; filter:none!important; } }
+  /* per-day operating hours */
+  .hoursgrid{ display:flex; flex-direction:column; gap:7px; margin:2px 0 4px; }
+  .hrow{ display:grid; grid-template-columns:104px 1fr 16px 1fr auto; align-items:center; gap:9px; }
+  .hrow .hday{ font-weight:700; font-size:12.5px; color:var(--navy); }
+  .hrow input[type=text]{ width:100%; box-sizing:border-box; padding:9px 11px; border:1px solid var(--line); border-radius:9px; font:inherit; font-size:13px; background:#fff; color:var(--navy); }
+  .hrow input[type=text]:focus{ outline:none; border-color:var(--red); box-shadow:0 0 0 3px rgba(218,43,31,.12); }
+  .hrow input[disabled]{ background:#f3f4f7; color:#9aa3b2; }
+  .hrow .hdash{ text-align:center; color:var(--muted); font-weight:700; }
+  .hrow .hclosed{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:600; color:var(--muted); white-space:nowrap; cursor:pointer; }
+  .hrow .hclosed input{ margin:0; }
+  @media (max-width:560px){ .hrow{ grid-template-columns:64px 1fr 12px 1fr; row-gap:4px; } .hrow .hclosed{ grid-column:2 / -1; justify-content:flex-start; } }
   .sec .num{ font-family:'Archivo',sans-serif; font-weight:800; font-size:14px; color:#fff;
     background:var(--red); width:27px; height:27px; border-radius:7px; display:flex;
     align-items:center; justify-content:center; flex:none; }
@@ -281,9 +292,7 @@
     <button class="btn clear" onclick="if(confirm('Clear all fields?')){document.getElementById('sscform').reset();document.dispatchEvent(new Event('input',{bubbles:true}));if(window.rrgClearDraft)window.rrgClearDraft();}">Clear form</button>
     <button class="btn blank" onclick="printBlank()">Print blank copy</button>
     <button class="btn blank" onclick="validateAndPrint()">Print / Save PDF</button>
-    <button class="btn save2" onclick="qSaveOnly(this)">Save</button>
-    <button class="btn save" onclick="qSaveClose()">Save &amp; Close</button>
-    <button class="btn exit" onclick="qExit()">Exit — Don't Save</button>
+    <button class="btn save" onclick="qClose()">Close</button>
     <button class="btn print" onclick="emailSSC()">Submit &amp; Email</button>
   </div>
 </div>
@@ -362,6 +371,9 @@
       <div class="oset single"><label class="k">Is This a Franchise?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap">
+      <div class="oset single"><label class="k">Do You Serve Alcohol?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+    </div>
+    <div class="grid rowgap">
       <div class="field full"><label class="k">Why Is the Business Up for Sale?</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap">
@@ -378,8 +390,15 @@
       <div class="field full"><label class="k">Describe the Accolades</label><textarea></textarea></div>
     </div>
     <div class="sec brk"><div class="num">2</div><h2>Operations &amp; Hours</h2><div class="flex"></div></div>
-    <div class="grid rowgap">
-      <div class="field full"><label class="k">Standard Operating Hours</label><textarea></textarea></div>
+    <div class="subhead">Operating Hours</div>
+    <div class="hoursgrid" id="hoursGrid">
+      <div class="hrow" data-day="Monday"><span class="hday">Monday</span><input type="text" class="hopen" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Tuesday"><span class="hday">Tuesday</span><input type="text" class="hopen" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Wednesday"><span class="hday">Wednesday</span><input type="text" class="hopen" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Thursday"><span class="hday">Thursday</span><input type="text" class="hopen" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Friday"><span class="hday">Friday</span><input type="text" class="hopen" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Saturday"><span class="hday">Saturday</span><input type="text" class="hopen" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
+      <div class="hrow" data-day="Sunday"><span class="hday">Sunday</span><input type="text" class="hopen" placeholder="Open"><span class="hdash">–</span><input type="text" class="hclose" placeholder="Close"><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
     </div>
     <div class="grid rowgap">
       <div class="oset single"><label class="k">Operating Hours Changed Recently?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
@@ -393,32 +412,14 @@
     </div>
     <div class="sec brk"><div class="num">3</div><h2>Revenue &amp; Profitability</h2><div class="flex"></div></div>
     <div class="grid rowgap">
-      <div class="oset single"><label class="k">Revenue Trend</label><div class="optcols c3"><label class="opt"><input type="checkbox">Increasing</label><label class="opt"><input type="checkbox">Steady</label><label class="opt"><input type="checkbox">Decreasing</label></div></div>
-      <div class="oset single"><label class="k">Gross Margin Trend</label><div class="optcols c3"><label class="opt"><input type="checkbox">Improving</label><label class="opt"><input type="checkbox">Steady</label><label class="opt"><input type="checkbox">Declining</label></div></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field full"><label class="k">Revenue Trend Detail</label><textarea></textarea></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field full"><label class="k">Gross Margin Detail</label><textarea></textarea></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="oset single"><label class="k">Revenue Growth Prospects Positive?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
       <div class="oset single"><label class="k">Can Pricing Be Increased?</label><div class="optcols c3"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">Yes, Selectively</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap">
       <div class="field full"><label class="k">Pricing Detail</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap">
-      <div class="field full"><label class="k">Growth Prospects Detail</label><textarea></textarea></div>
-    </div>
-    <div class="grid rowgap">
       <div class="field"><label class="k">Average Cover</label><input type="text"></div>
       <div class="field"><label class="k">Average Ticket ($)</label><input type="text"></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">% of Sales from Food</label><span class="padorn"><input type="text" class="pct" inputmode="decimal"><span class="ad-suf">%</span></span></div>
-      <div class="field"><label class="k">Current Food Cost (% of Sales)</label><span class="padorn"><input type="text" class="pct" inputmode="decimal"><span class="ad-suf">%</span></span></div>
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Last Price Increase</label><input type="text"></div>
@@ -435,7 +436,13 @@
       <div class="oset single"><label class="k">Do Tax Returns Match Financial Statements?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
       <div class="oset single"><label class="k">Any Unreported Income?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
-    <div class="sec brk"><div class="num">5</div><h2>Alcohol &amp; TABC</h2><div class="flex"></div></div>
+    <div class="grid rowgap" id="wrapTaxMismatch">
+      <div class="field full"><label class="k">Explain the Tax / Financial Difference</label><textarea></textarea></div>
+    </div>
+    <div class="grid rowgap" id="wrapUnreported">
+      <div class="field full"><label class="k">Unreported Income — Detail</label><textarea></textarea></div>
+    </div>
+    <div class="sec brk" id="secAlcohol"><div class="num">5</div><h2>Alcohol &amp; TABC</h2><div class="flex"></div></div>
     <div class="grid rowgap">
       <div class="oset full single"><label class="k">TABC License Type</label><div class="optcols c3"><label class="opt"><input type="checkbox">None</label><label class="opt"><input type="checkbox">Beer &amp; Wine</label><label class="opt"><input type="checkbox">Liquor, Beer &amp; Wine</label></div></div>
     </div>
@@ -720,12 +727,23 @@
   }
   function _collectData(){
     var header={}, sections=[], cur=null;
-    document.querySelectorAll('#sscform .sec, #sscform .subhead, #sscform .field, #sscform .oset').forEach(function(el){
+    document.querySelectorAll('#sscform .sec, #sscform .subhead, #sscform .field, #sscform .oset, #sscform .hoursgrid').forEach(function(el){
       if(el.classList.contains('sec')){
         var h=el.querySelector('h2'), num=el.querySelector('.num');
         cur={n:num?num.textContent.trim():'', title:h?h.textContent.trim():'', groups:[]}; sections.push(cur);
       } else if(el.classList.contains('subhead')){
         if(cur) cur.groups.push({kind:'subhead',text:el.textContent.trim()});
+      } else if(el.classList.contains('hoursgrid')){
+        var rows=[];
+        el.querySelectorAll('.hrow').forEach(function(hr){
+          var day=hr.getAttribute('data-day');
+          var closed=hr.querySelector('.hclosedcb') && hr.querySelector('.hclosedcb').checked;
+          var op=(hr.querySelector('.hopen')||{}).value, cl=(hr.querySelector('.hclose')||{}).value;
+          op=(op||'').trim(); cl=(cl||'').trim();
+          var v = closed ? 'Closed' : ((op||cl) ? (op+' – '+cl) : '');
+          if(v) rows.push(day+': '+v);
+        });
+        if(cur && rows.length) cur.groups.push({kind:'field',label:'Operating Hours',value:rows.join('   ·   ')});
       } else if(el.classList.contains('field')){
         var lb=el.querySelector('label.k'), inp=el.querySelector('input,textarea'); if(!lb||!inp) return;
         var label=_labelText(lb), value=inp.value.trim();
@@ -752,6 +770,10 @@
         document.querySelectorAll('#sscform input.req, #sscform textarea.req, #sscform select.req').forEach(function(el){ if(!el.value.trim()){ ok=false; } else if(el.classList.contains('email') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim())){ ok=false; } });
         document.querySelectorAll('#sscform .oset[data-req]').forEach(function(os){ if(!Array.prototype.slice.call(os.querySelectorAll('input')).some(function(i){return i.checked;})) ok=false; });
         return ok; })(),
+      completePct: (function(){ var total=0, done=0;
+        document.querySelectorAll('#sscform input.req, #sscform textarea.req, #sscform select.req').forEach(function(el){ total++; var ok=!!el.value.trim(); if(ok && el.classList.contains('email')) ok=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim()); if(ok) done++; });
+        document.querySelectorAll('#sscform .oset[data-req]').forEach(function(os){ total++; if(Array.prototype.slice.call(os.querySelectorAll('input')).some(function(i){return i.checked;})) done++; });
+        return total ? Math.round(done/total*100) : 100; })(),
       concept: _fieldByLabel('Restaurant Name')||'Business',
       contact: '',
       preparedBy: _fieldByLabel('RRG Advisor')||'',
@@ -893,7 +915,10 @@
     _set("How Scalable Is the Business?", "The brand has a proven, replicable unit model. We operate under a documented EOS framework with standardized SOPs, recipe books, and training systems built for multi-unit expansion. Two existing locations demonstrate the operating model works in both downtown/urban and suburban/family settings.");
     _set("Risk Factors", "One underperforming location (Spicewood) currently below breakeven and in an active turnaround, exposure to QSR sector-wide traffic softness, and existing SBA debt obligations tied to both entities.");
     _set("Describe the Accolades", "Jhonatan Aldama won Austin\u2019s 40 Under 40 (Food, Events & Hospitality); featured in local media (KXAN, Wanderlist); official Austin FC / Q2 Stadium concession vendor.");
-    _set("Standard Operating Hours", "Mon\u2013Fri: 7 am \u2013 9 pm; Sat: 8 am \u2013 9 pm; Sun: 8 am \u2013 8 pm");
+    _check("Is This a Franchise", "No");
+    _check("Do You Serve Alcohol", "Yes");
+    (function(){ var hrs={Monday:['7:00 AM','9:00 PM'],Tuesday:['7:00 AM','9:00 PM'],Wednesday:['7:00 AM','9:00 PM'],Thursday:['7:00 AM','9:00 PM'],Friday:['7:00 AM','9:00 PM'],Saturday:['8:00 AM','9:00 PM'],Sunday:['8:00 AM','8:00 PM']};
+      Object.keys(hrs).forEach(function(day){ var row=document.querySelector('#hoursGrid .hrow[data-day="'+day+'"]'); if(!row) return; var o=row.querySelector('.hopen'), c=row.querySelector('.hclose'); if(o){o.value=hrs[day][0];o.dispatchEvent(new Event('input',{bubbles:true}));} if(c){c.value=hrs[day][1];c.dispatchEvent(new Event('input',{bubbles:true}));} }); })();
     _set("Details of Hours Change", "Hours were adjusted as part of the January 2026 Operating Reset (cut from later closes). Note this was a deliberate margin/labor discipline move, not a demand-driven cutback, in case it comes up in diligence.");
     _set("Seasonality Detail", "Revenue has some seasonality tied to the UT Austin academic calendar (MLK serves the downtown/UT corridor) and the Austin FC season (Q2 Stadium concessions run February through approximately November, including 17 MLS matches plus non-MLS events). Core restaurant operations are otherwise stable year-round.");
     _set("Revenue Trend Detail", "Consolidated revenue has grown every month in 2026, from $88,402 in January to $107,436 in April, a 21.5% increase over four months. May 2026 is tracking as the strongest month of the year. MLK has been profitable for three consecutive months; Spicewood, while still below breakeven, has a narrowing loss and improving year-over-year comparisons.");
@@ -1067,6 +1092,18 @@
   _cond('Accolades', 'wrapAccolades', ['Yes']);
   _cond('Operating Hours Changed', 'wrapHoursChange', ['Yes']);
   _cond('Is the Business Seasonal', 'wrapSeasonality', ['Moderately','Highly']);
+  _cond('Do Tax Returns Match', 'wrapTaxMismatch', ['No']);
+  _cond('Any Unreported Income', 'wrapUnreported', ['Yes']);
+
+  // Per-day operating hours: "Closed" disables that day's open/close inputs.
+  (function(){
+    var grid=document.getElementById('hoursGrid'); if(!grid) return;
+    grid.addEventListener('change', function(e){
+      var cb=e.target; if(!cb.classList || !cb.classList.contains('hclosedcb')) return;
+      var row=cb.closest('.hrow'); if(!row) return;
+      row.querySelectorAll('input.hopen, input.hclose').forEach(function(i){ i.disabled=cb.checked; if(cb.checked){ i.value=''; i.dispatchEvent(new Event('input',{bubbles:true})); } });
+    });
+  })();
 
   // Accordion: collapse the long form into openable sections.
   (function(){
@@ -1086,12 +1123,12 @@
       sec.after(body);
       sec.classList.add('acch');
       sec.insertAdjacentHTML('beforeend','<span class="secchev" aria-hidden="true">›</span>');
-      var open = isEdit ? true : (idx===0);
+      var open = (idx===0);   // always open only Section 1; the rest start collapsed
       if(!open){ sec.classList.add('collapsed'); body.style.display='none'; }
       sec.addEventListener('click',function(){ var c=sec.classList.toggle('collapsed'); body.style.display=c?'none':''; });
       pairs.push([sec,body]);
     });
-    window.rrgExpandAll=function(open){ pairs.forEach(function(p){ p[0].classList.toggle('collapsed',!open); p[1].style.display=open?'':'none'; }); if(window.__franchiseUpd) window.__franchiseUpd(); };
+    window.rrgExpandAll=function(open){ pairs.forEach(function(p){ p[0].classList.toggle('collapsed',!open); p[1].style.display=open?'':'none'; }); if(window.__franchiseUpd) window.__franchiseUpd(); if(window.__alcoholUpd) window.__alcoholUpd(); };
     document.getElementById('accExpand').onclick=function(){ window.rrgExpandAll(true); };
     document.getElementById('accCollapse').onclick=function(){ window.rrgExpandAll(false); };
     window.addEventListener('beforeprint', function(){ window.rrgExpandAll(true); });
@@ -1111,6 +1148,21 @@
     };
     g.addEventListener('change', window.__franchiseUpd);
     window.__franchiseUpd();
+  })();
+
+  // ---- Alcohol & TABC (Section 5): only shown if the business serves alcohol ----
+  (function(){
+    var g=_grpS('Do You Serve Alcohol'), sec=document.getElementById('secAlcohol');
+    if(!g||!sec) return;
+    function serves(){ var yes=false; g.querySelectorAll('.opt').forEach(function(o){ var i=o.querySelector('input'); if(i&&i.checked && /^yes$/i.test(o.textContent.trim())) yes=true; }); return yes; }
+    window.__alcoholUpd=function(){
+      var on=serves();
+      var body=(sec.nextElementSibling && sec.nextElementSibling.classList && sec.nextElementSibling.classList.contains('accbody')) ? sec.nextElementSibling : null;
+      sec.style.display = on ? '' : 'none';
+      if(body) body.style.display = on ? (sec.classList.contains('collapsed')?'none':'') : 'none';
+    };
+    g.addEventListener('change', window.__alcoholUpd);
+    window.__alcoholUpd();
   })();
 
   // ---- Valuation Factors: completed by RRG (AI), activated by the user ----
@@ -1286,7 +1338,7 @@
     var s=j.questionnaire, d=s.data||{};
     if(s.formId) window.RRG_Q_FORM_ID=s.formId;   // re-saving updates the SAME record
     window.__qMarket = s.market || (d && d.market) || '';
-    if(d.snapshot && window.rrgRestore){ window.rrgRestore(d.snapshot); setTimeout(function(){ if(window.vfMaybeUnlock) window.vfMaybeUnlock(); if(window.__franchiseUpd) window.__franchiseUpd(); }, 60); }
+    if(d.snapshot && window.rrgRestore){ window.rrgRestore(d.snapshot); setTimeout(function(){ if(window.vfMaybeUnlock) window.vfMaybeUnlock(); if(window.__franchiseUpd) window.__franchiseUpd(); if(window.__alcoholUpd) window.__alcoholUpd(); }, 60); }
     else {
       // no saved snapshot yet (freshly advanced) — auto-fill the Name so the rep can complete it
       var ls=[].slice.call(document.querySelectorAll('#sscform label.k'));
@@ -1295,37 +1347,43 @@
     }
     var b=document.createElement('div'); b.className='rrg-noprint';
     b.style.cssText='background:#0b1a3a;color:#fff;font:600 13px/1.3 -apple-system,Segoe UI,Roboto,sans-serif;padding:10px 16px;';
-    b.textContent='Editing “'+(s.business||'questionnaire')+'”. Save to update it in the Questionnaire Log.';
+    b.textContent='Editing “'+(s.business||'questionnaire')+'”. Changes save automatically to the Questionnaire Log.';
     document.body.insertBefore(b, document.body.firstChild);
   }).catch(function(){});
 })();
-/* Save buttons — file the questionnaire to the log. */
+/* Autosave to the log + Close. No manual Save button — the questionnaire files itself as you go. */
 (function(){
   var API=(String(location.protocol).indexOf('http')===0?location.origin:'');
   var LOG='./rrg_questionnaire_queue.html';
+  var form=document.getElementById('sscform');
   function payload(){ var d=window._collectData?window._collectData():{}; d.formType='valuation'; return d; }
-  window.qSaveOnly=function(btn){
-    if(!API){ if(btn){var o=btn.textContent;btn.textContent='Saved ✓';setTimeout(function(){btn.textContent=o;},1500);} return false; }
-    var o=btn?btn.textContent:''; if(btn){btn.textContent='Saving…';btn.disabled=true;}
-    fetch(API+'/api/questionnaire-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload())})
-      .then(function(r){return r.json();}).then(function(j){ if(btn){btn.disabled=false;btn.textContent=(j&&j.ok)?'Saved ✓':'Save';setTimeout(function(){btn.textContent='Save';},1500);} })
-      .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Save';} });
-    return false;
-  };
-  window.qSaveClose=function(){
+  function hasData(){ if(!form) return false;
+    return Array.prototype.slice.call(form.querySelectorAll('input,textarea,select')).some(function(el){ return (el.type==='checkbox'||el.type==='radio')?el.checked:(el.value&&el.value.trim()!==''); });
+  }
+  // "Saved to log" chip (sits above the local draft chip)
+  var chip=document.createElement('div'); chip.className='rrg-noprint'; chip.textContent='Saved to log ✓';
+  chip.style.cssText='position:fixed;right:14px;bottom:44px;z-index:9998;background:#0e7a3a;color:#fff;font:700 12px/1 -apple-system,Segoe UI,Roboto,sans-serif;padding:8px 12px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.22);opacity:0;transition:opacity .3s;pointer-events:none;';
+  if(document.body) document.body.appendChild(chip);
+  function flash(){ chip.style.opacity='1'; if(flash._t)clearTimeout(flash._t); flash._t=setTimeout(function(){chip.style.opacity='0';},1400); }
+  var t=null;
+  function serverSave(){ if(!API || !hasData() || !window._collectData) return;
+    fetch(API+'/api/questionnaire-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload())}).then(function(){ flash(); }).catch(function(){});
+  }
+  function schedule(){ if(t)clearTimeout(t); t=setTimeout(serverSave,1300); }
+  if(form){ form.addEventListener('input',schedule); form.addEventListener('change',schedule); }
+  // best-effort final save when leaving the page
+  window.addEventListener('beforeunload', function(){ try{ if(API && hasData() && navigator.sendBeacon){ navigator.sendBeacon(API+'/api/questionnaire-save', new Blob([JSON.stringify(payload())],{type:'application/json'})); } }catch(e){} });
+
+  window.qClose=function(){
     try{ if(window.rrgClearDraft) window.rrgClearDraft(); }catch(e){}
-    if(!API){ location.href=LOG; return false; }
+    if(!API || !hasData()){ location.href=LOG; return false; }
     fetch(API+'/api/questionnaire-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload())})
       .then(function(){ location.href=LOG; }).catch(function(){ location.href=LOG; });
     return false;
   };
-  // Leave the questionnaire without saving anything to the log.
-  window.qExit=function(){
-    if(!confirm('Exit without saving? Any changes since your last save will be lost.')) return false;
-    try{ if(window.rrgClearDraft) window.rrgClearDraft(); }catch(e){}
-    location.href=LOG;
-    return false;
-  };
+  // legacy aliases (any older handler still referencing these keeps working)
+  window.qSaveOnly=function(){ serverSave(); return false; };
+  window.qSaveClose=window.qClose; window.qExit=window.qClose;
 })();
 </script>
 </body>

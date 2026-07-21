@@ -46,6 +46,7 @@ function upsertQuest(req, data) {
     business: String(data.concept || 'Business').slice(0, 120),
     market: String(data.market || '').slice(0, 80),
     completed: !!(data && data.complete),
+    completePct: (data && data.completePct != null) ? Math.max(0, Math.min(100, Math.round(Number(data.completePct) || 0))) : (data && data.complete ? 100 : 0),
     data: data,
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
@@ -136,6 +137,7 @@ function upsertScreening(req, data) {
     statusText: String(statusTxt || '').slice(0, 90),
     status: statusCode(statusTxt),
     completed: !!(data && data.complete),
+    completePct: (data && data.completePct != null) ? Math.max(0, Math.min(100, Math.round(Number(data.completePct) || 0))) : (data && data.complete ? 100 : 0),
     data: data,
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
@@ -384,7 +386,7 @@ app.get('/api/screenings', (req, res) => {
   const list = loadScreens().slice().reverse().filter(s => isAdmin || ownsScreen(req, s));
   res.json({
     ok: true, isAdmin: !!isAdmin,
-    screenings: list.map(s => ({ id: s.id, business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, decision: s.decision || '', completed: !!s.completed, processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt })),
+    screenings: list.map(s => ({ id: s.id, business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, decision: s.decision || '', completed: !!s.completed, completePct: (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0)), processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt })),
   });
 });
 app.get('/api/screening/:id', (req, res) => {
@@ -435,7 +437,7 @@ app.get('/api/questionnaires', (req, res) => {
   const list = loadQuests().slice().reverse().filter(s => isAdmin || ownsQuest(req, s));
   res.json({
     ok: true, isAdmin: !!isAdmin,
-    questionnaires: list.map(s => ({ id: s.id, business: s.business, market: s.market, decision: s.decision || '', completed: !!s.completed, processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt })),
+    questionnaires: list.map(s => ({ id: s.id, business: s.business, market: s.market, decision: s.decision || '', completed: !!s.completed, completePct: (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0)), processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt })),
   });
 });
 app.get('/api/questionnaire/:id', (req, res) => {

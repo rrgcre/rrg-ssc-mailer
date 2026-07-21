@@ -256,8 +256,7 @@
     <button class="btn clear" onclick="if(confirm('Clear all fields?')){document.getElementById('sscform').reset();document.dispatchEvent(new Event('input',{bubbles:true}));if(window.rrgClearDraft)window.rrgClearDraft();}">Clear form</button>
     <button class="btn blank" onclick="printBlank()">Print blank copy</button>
     <button class="btn blank" onclick="validateAndPrint()">Print / Save PDF</button>
-    <button class="btn save2" onclick="saveOnly(this)">Save</button>
-    <button class="btn save" onclick="saveAndClose()">Save &amp; Close</button>
+    <button class="btn save" onclick="screenClose()">Close</button>
     <button class="btn print" onclick="emailSSC()">Submit &amp; Email</button>
   </div>
 </div>
@@ -644,28 +643,36 @@
     }catch(e){}
   }
   // Save the call to the log and stay on the form (for quick edits).
-  window.saveOnly=function(btn){
-    if(!window.RRG_API){ if(btn){ var o0=btn.textContent; btn.textContent='Saved ✓'; setTimeout(function(){ btn.textContent=o0; },1600); } return false; }
-    var data=_collectData(); data.formType='seller';
-    var o=btn?btn.textContent:''; if(btn){ btn.textContent='Saving…'; btn.disabled=true; }
-    fetch(String(window.RRG_API).replace(/\/$/,'')+'/api/screening-save',
-      {method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
-      .then(function(r){return r.json();}).then(function(j){ if(btn){ btn.disabled=false; btn.textContent=(j&&j.ok)?'Saved ✓':'Save'; setTimeout(function(){ btn.textContent='Save'; },1600); } })
-      .catch(function(){ if(btn){ btn.disabled=false; btn.textContent='Save'; } });
-    return false;
-  };
-  // Save the call to the log (no email, no print) and return to the Call Screening Log.
-  window.saveAndClose=function(){
+  // ---- Autosave to the Call log + Close. No manual Save button — the call files itself as you go. ----
+  var _CAN = String(location.protocol).indexOf('http')===0;
+  function _apiBase(){ return String(window.RRG_API||'').replace(/\/$/,''); }
+  function _hasData(){ var f=document.getElementById('sscform'); if(!f) return false;
+    return Array.prototype.slice.call(f.querySelectorAll('input,textarea,select')).some(function(el){ return (el.type==='checkbox'||el.type==='radio')?el.checked:(el.value&&el.value.trim()!==''); });
+  }
+  var _svChip=document.createElement('div'); _svChip.className='rrg-noprint'; _svChip.textContent='Saved to log ✓';
+  _svChip.style.cssText='position:fixed;right:14px;bottom:44px;z-index:9998;background:#0e7a3a;color:#fff;font:700 12px/1 -apple-system,Segoe UI,Roboto,sans-serif;padding:8px 12px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.22);opacity:0;transition:opacity .3s;pointer-events:none;';
+  if(document.body) document.body.appendChild(_svChip);
+  function _flash(){ _svChip.style.opacity='1'; if(_flash._t)clearTimeout(_flash._t); _flash._t=setTimeout(function(){_svChip.style.opacity='0';},1400); }
+  var _svT=null;
+  function _serverSave(){ if(!_CAN || !_hasData()) return; var data=_collectData(); data.formType='seller';
+    fetch(_apiBase()+'/api/screening-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){ _flash(); }).catch(function(){});
+  }
+  function _svSchedule(){ if(_svT)clearTimeout(_svT); _svT=setTimeout(_serverSave,1300); }
+  (function(){ var f=document.getElementById('sscform'); if(f){ f.addEventListener('input',_svSchedule); f.addEventListener('change',_svSchedule); } })();
+  window.addEventListener('beforeunload', function(){ try{ if(_CAN && _hasData() && navigator.sendBeacon){ var data=_collectData(); data.formType='seller'; navigator.sendBeacon(_apiBase()+'/api/screening-save', new Blob([JSON.stringify(data)],{type:'application/json'})); } }catch(e){} });
+
+  window.screenClose=function(){
     var LOG='./rrg_screening_queue.html';
-    if(!window.RRG_API){ try{ if(window.rrgClearDraft) window.rrgClearDraft(); }catch(e){} location.href=LOG; return false; }
+    try{ if(window.rrgClearDraft) window.rrgClearDraft(); }catch(e){}
+    if(!_CAN || !_hasData()){ location.href=LOG; return false; }
     var data=_collectData(); data.formType='seller';
-    try{ if(window.rrgClearDraft) window.rrgClearDraft(); }catch(e){}   // it's filed to the log now
-    fetch(String(window.RRG_API).replace(/\/$/,'')+'/api/screening-save',
-      {method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
-      .then(function(){ location.href=LOG; })
-      .catch(function(){ location.href=LOG; });
+    fetch(_apiBase()+'/api/screening-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+      .then(function(){ location.href=LOG; }).catch(function(){ location.href=LOG; });
     return false;
   };
+  // legacy aliases
+  window.saveOnly=function(){ _serverSave(); return false; };
+  window.saveAndClose=window.screenClose;
   window.validateAndPrint=function(){
     var m=_validate();
     if(m.length){ _showBanner('Complete '+m.length+' required field'+(m.length>1?'s':'')+' (marked *) before saving.'); m[0].scrollIntoView({behavior:'smooth',block:'center'}); return false; }
@@ -743,6 +750,10 @@
         document.querySelectorAll('#sscform input.req, #sscform textarea.req, #sscform select.req').forEach(function(el){ if(!el.value.trim()){ ok=false; } else if(el.classList.contains('email') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim())){ ok=false; } });
         document.querySelectorAll('#sscform .oset[data-req]').forEach(function(os){ if(!Array.prototype.slice.call(os.querySelectorAll('input')).some(function(i){return i.checked;})) ok=false; });
         return ok; })(),
+      completePct: (function(){ var total=0, done=0;
+        document.querySelectorAll('#sscform input.req, #sscform textarea.req, #sscform select.req').forEach(function(el){ total++; var ok=!!el.value.trim(); if(ok && el.classList.contains('email')) ok=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim()); if(ok) done++; });
+        document.querySelectorAll('#sscform .oset[data-req]').forEach(function(os){ total++; if(Array.prototype.slice.call(os.querySelectorAll('input')).some(function(i){return i.checked;})) done++; });
+        return total ? Math.round(done/total*100) : 100; })(),
       concept: header['business name']||'Seller',
       contact: header['seller contact name']||'',
       preparedBy: header['rrg rep']||'',

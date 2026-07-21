@@ -48,8 +48,9 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
 .act a,.act button{font:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;text-decoration:none;border:1px solid var(--line);background:#fff;color:var(--navy);white-space:nowrap;}
 .act a:hover,.act button:hover{border-color:#9fb0cc;}
 .act .adv{background:var(--navy);color:#fff;border-color:var(--navy);}
-.act .complete{background:#b9761a;border-color:#b9761a;color:#fff;}
+.act .complete{background:#b9761a;border-color:#b9761a;color:#fff;display:inline-flex;align-items:center;gap:7px;}
 .act .complete:hover{background:#9c6416;border-color:#9c6416;}
+.act .complete .pring{display:block;flex:0 0 auto;}
 .act .pass{color:var(--muted);}
 .act .del{color:var(--red);border-color:#f0c9c6;}
 .passed{color:var(--muted);font-weight:700;font-size:12.5px;}
@@ -164,6 +165,12 @@ function exportCsv(){
   var blob=new Blob([lines.join('\n')],{type:'text/csv;charset=utf-8'});
   var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='rrg-call-log.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
+// Small progress ring showing % of required fields complete (white on the gold button).
+function pctRing(p){ p=Math.max(0,Math.min(100,Math.round(p||0))); var r=7, c=2*Math.PI*r, off=c*(1-p/100);
+  return '<svg class="pring" viewBox="0 0 18 18" width="15" height="15" aria-hidden="true">'
+    +'<circle cx="9" cy="9" r="'+r+'" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="2.6"/>'
+    +'<circle cx="9" cy="9" r="'+r+'" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-dasharray="'+c.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'" transform="rotate(-90 9 9)"/></svg>';
+}
 function badge(s){
   var st=stateOf(s);
   var cls={Waiting:'b-waiting',Advanced:'b-advanced',Rejected:'b-passed'}[st]||'b-waiting';
@@ -190,9 +197,10 @@ function render(list){
     } else if(s.decision==='passed'){
       mid='<span class="passed">✕ Rejected</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
     } else {
+      var _pct=(typeof s.completePct==='number')?s.completePct:0;
       mid=(s.completed
             ? '<a class="adv" href="#" onclick="advanceCall(\''+s.id+'\');return false;">Advance to Questionnaire →</a>'
-            : '<a class="adv complete" href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'" title="Fill in the required fields, then advance">Complete Screening →</a>')
+            : '<a class="adv complete" href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'" title="'+_pct+'% of required fields done — finish to advance">'+pctRing(_pct)+'Complete Screening · '+_pct+'%</a>')
         + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Reject</button>';
     }
     return '<tr data-id="'+esc(s.id)+'">'+
