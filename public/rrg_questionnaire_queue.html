@@ -190,13 +190,12 @@ function render(list){
   }
   var rows=list.map(function(s){
     var meta=[s.market, s.by].filter(Boolean).map(esc).join(' · ');
-    var bov='./rrg_bov_builder.html?q='+encodeURIComponent(s.id);
     var mid;
     if(s.processed){
-      mid='<span class="done">✓ BOV started</span> <a href="'+bov+'">Reopen</a>';
+      mid='<span class="done">✓ BOV requested</span> <a href="./rrg_bov_queue.html">View in Valuations →</a>';
     } else {
       mid = s.completed
-        ? '<a class="adv" href="'+bov+'" onclick="markAdvanced(\''+s.id+'\')">Advance to BOV →</a>'
+        ? '<button class="adv" onclick="requestBov(\''+s.id+'\',this)">Request BOV</button>'
         : '<a class="adv complete" href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Complete Questionnaire →</a>';
     }
     return '<tr data-id="'+esc(s.id)+'">'+
@@ -224,8 +223,18 @@ function decide(id,decision){
   fetch('/api/questionnaire/'+encodeURIComponent(id)+'/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:decision})})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not update.'); }).catch(function(){ alert('Could not update.'); });
 }
-// Building a BOV marks the questionnaire advanced (fire-and-forget; navigation continues).
-function markAdvanced(id){ try{ fetch('/api/questionnaire/'+encodeURIComponent(id)+'/advance',{method:'POST'}).catch(function(){}); }catch(e){} }
+// Request a BOV: create the valuation record on the server, then open the AI
+// builder for that record (the questionnaire is already in the system).
+function requestBov(id,btn){
+  if(btn){ btn.disabled=true; btn.textContent='Requesting…'; }
+  fetch('/api/questionnaire/'+encodeURIComponent(id)+'/advance',{method:'POST',credentials:'same-origin'})
+    .then(function(r){ return r.text().then(function(t){ var j=null; try{j=JSON.parse(t);}catch(e){} return {ok:r.ok,j:j}; }); })
+    .then(function(res){
+      if(res.ok && res.j && res.j.ok && res.j.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(res.j.bovId); }
+      else { if(btn){btn.disabled=false;btn.textContent='Request BOV';} alert((res.j&&res.j.error)||'Could not request the BOV.'); }
+    })
+    .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Request BOV';} alert('Could not reach the server to request the BOV.'); });
+}
 function load(){
   Promise.all([
     fetch('/api/session').then(function(r){return r.json();}).catch(function(){return null;}),

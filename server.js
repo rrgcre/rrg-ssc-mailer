@@ -61,6 +61,31 @@ function loadQuestTombs() { try { return JSON.parse(fs.readFileSync(QUEST_TOMB_F
 function saveQuestTombs(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(QUEST_TOMB_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function addQuestTomb(fid) { if (!fid) return; const a = loadQuestTombs(); if (a.indexOf(fid) < 0) { a.push(fid); saveQuestTombs(a); } }
 function removeQuestTomb(fid) { if (!fid) return; const a = loadQuestTombs(); const b = a.filter(x => x !== fid); if (b.length !== a.length) saveQuestTombs(b); }
+// Flatten a stored questionnaire into readable "Section / Label: value" text so it
+// can be fed to the BOV analyst without the rep re-uploading it (mirrors the
+// answers builder in the Valuation Questionnaire's Run-Analysis action).
+function questToText(quest) {
+  try {
+    const d = (quest && quest.data) || {};
+    const out = [];
+    const head = [];
+    if (d.concept) head.push('Business / concept: ' + d.concept);
+    if (d.market) head.push('Market: ' + d.market);
+    if (d.address) head.push('Address: ' + d.address);
+    if (head.length) out.push(head.join('\n'));
+    (d.sections || []).forEach(function (s) {
+      if (/valuation factors/i.test(s.title || '')) return;
+      const lines = [];
+      (s.groups || []).forEach(function (g) {
+        if (g.kind === 'field' && g.value) lines.push(g.label + ': ' + g.value);
+        else if (g.kind === 'options' && g.selected && g.selected.length) lines.push(g.label + ': ' + g.selected.join(', '));
+        else if (g.kind === 'subgroups') { (g.rows || []).forEach(function (rw) { if (rw.selected && rw.selected.length) lines.push(g.label + ' — ' + rw.label + ': ' + rw.selected.join(', ')); }); }
+      });
+      if (lines.length) out.push('## ' + (s.title || '') + '\n' + lines.join('\n'));
+    });
+    return out.join('\n\n');
+  } catch (e) { return ''; }
+}
 function newQuestId() { return 'q_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function ownsQuest(req, s) {
   if (req.user && req.user.role === 'admin') return true;
@@ -543,18 +568,38 @@ app.get('/api/bov/:id', (req, res) => {
 // AI-generate a BOV from uploaded documents, then save it to the queue.
 app.post('/api/generate-bov', express.json({ limit: '32mb' }), async (req, res) => {
   try {
-    const { business, files } = req.body || {};
-    if (!files || !files.length) return res.status(400).json({ ok: false, error: 'Attach at least the financials and the valuation questionnaire.' });
+    const { business, files, bovId } = req.body || {};
+    if (!files || !files.length) return res.status(400).json({ ok: false, error: 'Attach at least one financial document.' });
     const preparedBy = (req.user && req.user.preparedBy) || '';
-    const out = await bovgen.generateBov({ business, files, preparedBy });
+
+    // Fulfilling an existing (Requested) valuation record? Pull its questionnaire
+    // from the system so the rep never re-uploads the VQ, and update that record
+    // in place rather than creating a duplicate.
+    let target = null, questionnaireText = '';
+    if (bovId) {
+      const existing = loadBovs().find(x => x.id === bovId);
+      if (existing) {
+        if (!ownsBov(req, existing)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+        target = existing;
+        if (existing.srcQuestId) {
+          const q = loadQuests().find(x => x.id === existing.srcQuestId);
+          if (q) questionnaireText = questToText(q);
+        }
+      }
+    }
+
+    const out = await bovgen.generateBov({ business, files, preparedBy, questionnaire: questionnaireText });
     const bovs = loadBovs();
-    const rec = {
-      id: newBovId(), business: String(out.business || 'Untitled').slice(0, 120), date: String(out.date || '').slice(0, 40),
-      rangeText: out.summary.rangeText, targetText: out.summary.targetText, multText: out.summary.multText, ebitdaText: out.summary.ebitdaText,
-      state: out.state, aiGenerated: true,
-      by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: new Date().toISOString(),
+    const rec = (target && bovs.find(x => x.id === target.id)) || {
+      id: newBovId(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: new Date().toISOString(),
     };
-    bovs.push(rec); saveBovs(bovs);
+    rec.business = String(out.business || rec.business || 'Untitled').slice(0, 120);
+    rec.date = String(out.date || '').slice(0, 40);
+    rec.rangeText = out.summary.rangeText; rec.targetText = out.summary.targetText;
+    rec.multText = out.summary.multText; rec.ebitdaText = out.summary.ebitdaText;
+    rec.state = out.state; rec.aiGenerated = true; rec.pending = false; rec.builtAt = new Date().toISOString();
+    if (!target) bovs.push(rec);
+    saveBovs(bovs);
     res.json({ ok: true, id: rec.id, summary: out.summary });
   } catch (e) {
     console.error('generate-bov error:', e);

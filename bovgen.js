@@ -103,14 +103,21 @@ function extractJson(text) {
   return null;
 }
 
-async function generateBov({ business, files, preparedBy }) {
+async function generateBov({ business, files, preparedBy, questionnaire }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('ANTHROPIC_API_KEY is not set on the server.');
   const content = fileBlocks(files);
+  // The completed Valuation Questionnaire is already in the RRG system — feed it
+  // in as text so the rep never has to re-upload it.
+  if (questionnaire && String(questionnaire).trim()) {
+    content.push({ type: 'text', text:
+      '=== Valuation Questionnaire (completed by the rep in the RRG system) ===\n' +
+      String(questionnaire).slice(0, 120000) });
+  }
   content.push({ type: 'text', text:
     `Business / concept name: ${business || '(not given — infer from documents)'}.\n` +
     `Prepared by: ${preparedBy || 'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com'}.\n` +
-    `Analyze the attached documents and output the BOV JSON object now.` });
+    `Analyze the attached documents${questionnaire ? ' and the Valuation Questionnaire above' : ''} and output the BOV JSON object now.` });
 
   const resp = await fetch(API_URL, {
     method: 'POST',

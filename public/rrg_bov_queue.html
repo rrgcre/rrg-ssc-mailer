@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — BOV Queue</title>
+<title>RRG — Valuations</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
 *{box-sizing:border-box;}
@@ -40,7 +40,12 @@ tr:hover td{background:#fbfcfe;}
 .act a,.act button{font:inherit;font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;cursor:pointer;text-decoration:none;border:1px solid var(--line);background:#fff;color:var(--navy);white-space:nowrap;}
 .act a:hover,.act button:hover{border-color:#9fb0cc;}
 .act .cim{background:var(--navy);color:#fff;border-color:var(--navy);}
+.act .build{background:#b9761a;color:#fff;border-color:#b9761a;}
+.act .build:hover{background:#9c6416;border-color:#9c6416;}
 .act .del{color:var(--red);border-color:#f0c9c6;}
+.pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;margin-left:8px;vertical-align:middle;}
+.pill.pend{background:#fff4e6;color:#b9761a;border:1px solid #f0d7ad;}
+.pill.done{background:#eaf7f0;color:var(--green);border:1px solid #bfe6d1;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;}
 .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
 .foot{max-width:1080px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
@@ -51,14 +56,14 @@ tr:hover td{background:#fbfcfe;}
 <div class="top">
   <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Seller Pipeline</div>
-  <h1>BOV Queue</h1>
-  <div class="sub">Every saved Broker's Opinion of Value — reopen it, or promote it to a CIM.</div>
+  <h1>Valuations</h1>
+  <div class="sub">Every valuation in the pipeline — build the requested ones, reopen a draft, or advance one to a CIM.</div>
 </div>
 
 <div class="wrap">
   <div class="card">
     <div class="hd">
-      <div class="tabs"><button class="tab on" id="tabMine" onclick="setTab('mine')">My BOVs</button><button class="tab" id="tabAll" onclick="setTab('all')">All BOVs</button></div>
+      <div class="tabs"><button class="tab on" id="tabMine" onclick="setTab('mine')">My Valuations</button><button class="tab" id="tabAll" onclick="setTab('all')">All Valuations</button></div>
       <select id="userFilter" class="ufilter" style="display:none" onchange="onUserFilter()"></select>
       <span class="cnt" id="cnt"></span><a class="home" href="./index.html">← Dashboard</a>
     </div>
@@ -99,21 +104,28 @@ function render(bovs){
   cnt.textContent = bovs.length ? (bovs.length+(TAB==='mine'?' of yours':' in the pipeline')) : '';
   if(!bovs.length){
     body.innerHTML = TAB==='mine'
-      ? '<div class="empty"><b>You haven’t saved any BOVs yet.</b>Build one in the Broker’s Opinion of Value tool and click <b style="display:inline">Save to queue</b> — or switch to <b style="display:inline">All BOVs</b> to see the team’s pipeline.</div>'
-      : '<div class="empty"><b>No BOVs saved yet.</b>Open the Broker’s Opinion of Value tool, build one, and click <b style="display:inline">Save to queue</b>. It’ll show up here, ready to turn into a CIM.</div>';
+      ? '<div class="empty"><b>No valuations yet.</b>They arrive here when you click <b style="display:inline">Request BOV</b> on a completed questionnaire — or switch to <b style="display:inline">All Valuations</b> to see the team’s pipeline.</div>'
+      : '<div class="empty"><b>No valuations yet.</b>Open the Valuation Questionnaire log, complete a questionnaire, and click <b style="display:inline">Request BOV</b>. It’ll show up here to build, then advance to a CIM.</div>';
     return;
   }
   var rows=bovs.map(function(b){
-    var val='<span class="val"><span class="r">'+esc(b.rangeText||'—')+'</span><br><span class="t">'+esc(b.targetText||'')+'</span></span>';
+    var id=encodeURIComponent(b.id);
+    var pending=!!b.pending;
+    var pill=pending?'<span class="pill pend">Requested</span>':'<span class="pill done">Built</span>';
+    var val=pending
+      ? '<span class="dim">Awaiting build</span>'
+      : '<span class="val"><span class="r">'+esc(b.rangeText||'—')+'</span><br><span class="t">'+esc(b.targetText||'')+'</span></span>';
+    var actions=pending
+      ? '<a class="build" href="./rrg_bov_generate.html?bov='+id+'">Build Valuation →</a>'+
+        '<button class="del" onclick="del(\''+b.id+'\',this)">Delete</button>'
+      : '<a href="./rrg_bov_builder.html?bov='+id+'">Open</a>'+
+        '<a class="cim" href="./rrg_cim_builder.html?bov='+id+'">Advance to CIM →</a>'+
+        '<button class="del" onclick="del(\''+b.id+'\',this)">Delete</button>';
     return '<tr>'+
-      '<td><div class="biz">'+esc(b.business||'Untitled')+'</div><div class="meta">'+esc(b.date||fmt(b.createdAt))+(b.by?(' · '+esc(b.by)):'')+'</div></td>'+
+      '<td><div class="biz">'+esc(b.business||'Untitled')+pill+'</div><div class="meta">'+esc(b.date||fmt(b.createdAt))+(b.by?(' · '+esc(b.by)):'')+'</div></td>'+
       '<td class="hide">'+val+'</td>'+
-      '<td class="hide dim">'+esc(b.multText||'')+'<br>'+esc(b.ebitdaText||'')+'</td>'+
-      '<td><div class="act">'+
-        '<a href="./rrg_bov_builder.html?bov='+encodeURIComponent(b.id)+'">Open BOV</a>'+
-        '<a class="cim" href="./rrg_cim_builder.html?bov='+encodeURIComponent(b.id)+'">Turn into CIM →</a>'+
-        '<button class="del" onclick="del(\''+b.id+'\',this)">Remove</button>'+
-      '</div></td></tr>';
+      '<td class="hide dim">'+(pending?'':(esc(b.multText||'')+'<br>'+esc(b.ebitdaText||'')))+'</td>'+
+      '<td><div class="act">'+actions+'</div></td></tr>';
   }).join('');
   body.innerHTML='<table><thead><tr><th>Business</th><th class="hide">Concluded Range / Target</th><th class="hide">Multiple / EBITDA</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
@@ -125,7 +137,7 @@ function load(){
   ]).then(function(res){
     var s=res[0], j=res[1];
     if(s&&s.ok){ ME={username:s.username||'',name:s.name||'',role:s.role||''}; }
-    if(!j){ document.getElementById('body').innerHTML='<div class="empty"><b>Couldn’t reach the server.</b>The BOV Queue works on the hosted toolkit.</div>'; return; }
+    if(!j){ document.getElementById('body').innerHTML='<div class="empty"><b>Couldn’t reach the server.</b>The Valuations list works on the hosted toolkit.</div>'; return; }
     ALL=(j&&j.bovs)||[];
     // Reps only see their own — hide the team view + the tabs entirely; admins get the whole team.
     if(ME.role!=='admin'){ TAB='mine'; var tb=document.getElementById('tabMine').parentNode; if(tb) tb.style.display='none'; }
@@ -133,8 +145,9 @@ function load(){
   });
 }
 function del(id,btn){
-  if(!confirm('Remove this BOV from the queue?')) return;
-  fetch('/api/bov/'+encodeURIComponent(id),{method:'DELETE'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not remove.'); }).catch(function(){ alert('Could not remove.'); });
+  if(!confirm('Delete this valuation? This removes it from the list.')) return;
+  if(btn){ btn.disabled=true; btn.textContent='Deleting…'; }
+  fetch('/api/bov/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { if(btn){btn.disabled=false;btn.textContent='Delete';} alert('Could not delete.'); } }).catch(function(){ if(btn){btn.disabled=false;btn.textContent='Delete';} alert('Could not delete.'); });
 }
 load();
 </script>

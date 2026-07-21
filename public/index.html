@@ -202,8 +202,8 @@ var TOOLS = [
     desc:"Every seller call we've made — log a new call, screen it, then pass or advance the strong leads to the Valuation Questionnaire." },
   { name:'Valuation Questionnaire', tag:'Seller', file:'rrg_questionnaire_queue.html', icon:'gauge', track:'pipeline', step:2,
     desc:"Your questionnaire log — start a deep listing profile, then build the BOV from it. Operations, financials, lease, and the off-book factors that move value." },
-  { name:'Valuations', tag:'Value', file:'rrg_bov_generate.html', icon:'spark', track:'pipeline', step:3,
-    desc:"Upload the financials, Valuation Questionnaire, and lease — RRG's analyst drafts the full BOV for you to review, edit, and print. No form-filling." },
+  { name:'Valuations', tag:'Value', file:'rrg_bov_queue.html', icon:'queue', track:'pipeline', step:3,
+    desc:"Your valuation pipeline — every BOV requested from a questionnaire. Build the requested ones with an RRG Virtual Analyst, then advance to a CIM." },
   { name:'CIM Builder', tag:'Value', file:'rrg_cim_builder.html', icon:'book', track:'pipeline', step:4,
     desc:"Build the full confidential offering book in the RRG format — edit in place, pull the valuation from the BOV, and print a client-ready 18-page PDF." },
   { name:'Market Attack Plan', tag:'Seller', file:'rrg_seller_attack_plan.html', icon:'megaphone', track:'pipeline', step:5,
@@ -270,10 +270,10 @@ var GUIDES = {
     tip:"It's a sharp first draft, not gospel. Always eyeball the add-backs and the multiple before you put your name on it — you're the broker, the AI is the analyst."
   },
   'rrg_bov_queue.html':{
-    background:"Your library of saved BOVs. Reopen any one, or promote it straight into a CIM with the valuation carried over.",
-    when:"Any time you need to find, revisit, or advance a BOV you've already built.",
-    how:["Find the BOV under My BOVs (admins see the whole team and can filter by rep).","Open to edit, or “Turn into CIM” to start the offering book.","Remove ones you no longer need."],
-    tip:"Promote to CIM the moment a seller signs the listing — the valuation flows straight over, so you're building the marketing book instead of re-keying the numbers."
+    background:"Your valuation pipeline — every BOV requested from a questionnaire, in one place. A record lands here the moment you click Request BOV on a completed questionnaire. Two states: Requested (awaiting build) and Built. Admins see the whole team; reps see their own.",
+    when:"Any time you're working requested valuations toward a finished BOV, or advancing a finished one to a CIM. You don't start valuations here — they arrive from the questionnaire log.",
+    how:["A Requested record shows a gold “Build Valuation →” — it opens the RRG Virtual Analyst, with the business name and questionnaire already carried over; upload the financials (and lease) and build.","Once built, the record flips to Built with the concluded range — Open it to edit, or “Advance to CIM →” to start the offering book.","Use Delete to drop a record, or the tabs and rep filter to work the list."],
+    tip:"Advance to CIM the moment a seller signs the listing — the valuation flows straight over, so you're building the marketing book instead of re-keying the numbers."
   },
   'rrg_cim_builder.html':{
     background:"The confidential offering book buyers actually read. It pulls the valuation from the BOV; you add the story, the photos, and the proof.",

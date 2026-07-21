@@ -536,11 +536,7 @@
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Months Remaining on Base Term</label><input type="text" class="int req" inputmode="numeric"></div>
-      <div class="field"><label class="k">Current Base Lease ($/SF)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="dec2 req" inputmode="decimal"></span></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">Current NNN ($/SF)</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="dec2 req" inputmode="decimal"></span></div>
-      <div class="field"><label class="k">Current Monthly Rent</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money req" inputmode="numeric"></span></div>
+      <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Option 1 (Months)</label><input type="text" class="int numnar req" inputmode="numeric"></div>
@@ -689,9 +685,12 @@
     });
     return miss;
   }
+  // Expose the required-field validator + banner so other actions (e.g. the
+  // Valuation Factors analysis) can gate on completeness just like Print does.
+  window.__vqValidate=_validate; window.__vqBanner=_showBanner; window.__vqHideBanner=_hideBanner;
   window.validateAndPrint=function(){
     var m=_validate();
-    if(m.length){ _showBanner('Complete '+m.length+' required field'+(m.length>1?'s':'')+' (marked *) before saving.'); m[0].scrollIntoView({behavior:'smooth',block:'center'}); return false; }
+    if(m.length){ _showBanner('Complete '+m.length+' required field'+(m.length>1?'s':'')+' (marked *) before printing or analyzing.'); m[0].scrollIntoView({behavior:'smooth',block:'center'}); return false; }
     _hideBanner(); _renderPrintView(); document.body.classList.add('pv');
     var done=false; function un(){ if(done) return; done=true; document.body.classList.remove('pv'); }
     window.addEventListener('afterprint', un, {once:true}); setTimeout(un, 3000);
@@ -958,7 +957,6 @@
     _set("How the Company Compares to Peers", "Competes primarily with Torchy\u2019s Tacos, Tacodeli, and Veracruz All Natural in the Austin fast-casual taco market, differentiating on a queso-first identity (queso as the core product, not a topping). Ranks #2 in Austin organic search visibility (behind Tacodeli), #1 on several high-intent local terms. Holds an advantage in catering, where larger competitors are weaker, and unique brand visibility via the exclusive Q2 Stadium partnership with Austin FC. The broader QSR sector is seeing flat-to-declining traffic and some closures; Kesos has grown revenue every month in 2026.");
     _set("Non-Compete Duration", "2 years"); _set("Non-Compete Area", "5-mile radius");
     _set("Months Remaining on Base Term", "36");
-    _set("Current Base Lease ($/SF)", "30.12"); _set("Current NNN ($/SF)", "12.00"); _set("Current Monthly Rent", "9000");
     _set("Option 1 (Months)", "60");
     _set("Option 2 (Months)", "0");
     _set("Landlord Relationship", "Strong relationship. The landlord is a local family with whom we have maintained a positive, long-term working relationship.");
@@ -1272,6 +1270,15 @@
     window.addEventListener('load', function(){ setTimeout(window.vfMaybeUnlock, 400); });
 
     window.runValuationAnalysis=function(btn){
+      // Gate on required fields — same rule as the Print button. Won't run until
+      // every required field (marked *) across the questionnaire is complete.
+      var _miss=(window.__vqValidate?window.__vqValidate():[]);
+      if(_miss.length){
+        if(window.__vqBanner) window.__vqBanner('Complete '+_miss.length+' required field'+(_miss.length>1?'s':'')+' (marked *) before printing or analyzing.');
+        try{ _miss[0].scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
+        return;
+      }
+      if(window.__vqHideBanner) window.__vqHideBanner();
       var API=(String(location.protocol).indexOf('http')===0?location.origin:'');
       var data=window._collectData ? window._collectData() : {};
       var qa=[];

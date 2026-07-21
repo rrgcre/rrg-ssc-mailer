@@ -51,6 +51,7 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
 .drop.has:hover .cta{background:var(--green);color:#fff;border-color:var(--green);}
 .files{font-size:11.5px;color:var(--green);font-weight:600;margin:-4px 0 12px 51px;}
 .files:empty{margin:0;}
+.vqnote{font-size:12px;color:var(--green);font-weight:600;background:#f2fbf6;border:1px solid #bfe6d1;border-radius:9px;padding:10px 13px;margin-bottom:10px;}
 
 .go{margin-top:20px;width:100%;background:var(--navy);color:#fff;border:none;border-radius:10px;padding:15px;font:inherit;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.01em;}
 .go:hover{background:#0b1a3a;} .go:disabled{opacity:.55;cursor:default;}
@@ -83,7 +84,7 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
     <span class="rrg"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
     <div class="kicker">Broker's Opinion of Value</div>
     <h1>Build a BOV</h1>
-    <div class="sub">Upload the deal's documents below. RRG's analyst reads them and drafts the full BOV — adjusted EBITDA, the multiple, the valuation matrix, and the narrative. You review and print.</div>
+    <div class="sub">Upload the deal's documents below. An RRG Virtual Analyst reads them and drafts the full BOV — adjusted EBITDA, the multiple, the valuation matrix, and the narrative. You review and print.</div>
   </div>
 
   <div class="card">
@@ -103,13 +104,7 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
     <div class="files" id="fin_files"></div>
     <input type="file" id="fin_in" multiple accept=".pdf,.png,.jpg,.jpeg,.csv,.txt" style="display:none" onchange="took('fin')">
 
-    <div class="drop" onclick="pick('vq')">
-      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/></svg></div>
-      <div class="mid"><div class="t">Valuation Questionnaire<span class="req">*</span></div><div class="h">The completed RRG Valuation Questionnaire (print to PDF).</div></div>
-      <div class="cta">Upload</div>
-    </div>
-    <div class="files" id="vq_files"></div>
-    <input type="file" id="vq_in" multiple accept=".pdf,.png,.jpg,.jpeg,.txt" style="display:none" onchange="took('vq')">
+    <div class="vqnote" id="vqnote">✓ The Valuation Questionnaire is already in the system — no need to upload it.</div>
 
     <div class="drop" onclick="pick('lease')">
       <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/></svg></div>
@@ -119,9 +114,9 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
     <div class="files" id="lease_files"></div>
     <input type="file" id="lease_in" multiple accept=".pdf,.png,.jpg,.jpeg,.txt" style="display:none" onchange="took('lease')">
 
-    <button class="go" id="go" onclick="generate()">Build the BOV</button>
+    <button class="go" id="go" onclick="generate()" disabled>Build the BOV</button>
     <div class="status" id="status"></div>
-    <div class="note"><span style="color:var(--red);font-weight:700">*</span> required. Add the lease if the business leases its space — skip it if it owns the real estate. Runs privately on RRG's server, ~30–60 seconds. You'll land on the finished BOV — fully editable — saved to your BOV Queue.</div>
+    <div class="note"><span style="color:var(--red);font-weight:700">*</span> at least one financials document is required — the button activates once it's attached. Add the lease if the business leases its space; skip it if it owns the real estate. Runs privately on an RRG Virtual Analyst, ~30–60 seconds. You'll land on the finished BOV — fully editable — saved to your Valuations list.</div>
   </div>
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
@@ -130,20 +125,36 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
   <div class="modal">
     <div class="bigspin"></div>
     <div class="mt" id="modalTitle">Building the BOV…</div>
-    <div class="mm" id="modalMsg">RRG's analyst is reading the financials, questionnaire, and lease and drafting the Broker's Opinion of Value. This takes about 30–60 seconds.</div>
+    <div class="mm" id="modalMsg">An RRG Virtual Analyst is reading the financials, questionnaire, and lease and drafting the Broker's Opinion of Value. This takes about 30–60 seconds.</div>
     <button class="mcancel" id="cancel" onclick="cancelGen()">Cancel</button>
   </div>
 </div>
 
 <script>
-var SLOTS={fin:[],vq:[],lease:[]}, LABEL={fin:'Financials',vq:'Valuation Questionnaire',lease:'Lease & Amendments'};
+var SLOTS={fin:[],lease:[]}, LABEL={fin:'Financials',lease:'Lease & Amendments'};
+var BOV_ID='';
+// Opened for a specific Requested valuation record: prefill the business name and
+// remember the record id so building fulfills it (rather than creating a new one).
+(function initRecord(){
+  try{
+    var id=new URLSearchParams(location.search).get('bov');
+    if(!id){ var vn=document.getElementById('vqnote'); if(vn) vn.style.display='none'; return; }
+    BOV_ID=id;
+    fetch('/api/bov/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+      var b=(j&&j.bov)||null;
+      if(b){ var el=document.getElementById('biz'); if(el && !el.value.trim() && b.business){ el.value=b.business; } }
+    }).catch(function(){});
+  }catch(e){}
+})();
 function pick(s){ document.getElementById(s+'_in').click(); }
+function gate(){ document.getElementById('go').disabled = !SLOTS.fin.length; }
 function took(s){
   var inp=document.getElementById(s+'_in'); SLOTS[s]=Array.prototype.slice.call(inp.files);
   var el=document.getElementById(s+'_files');
   var dropEl=document.querySelector('.drop[onclick*="'+s+'"]');
   if(SLOTS[s].length){ el.textContent='✓ '+SLOTS[s].map(function(f){return f.name;}).join(', '); if(dropEl){dropEl.classList.add('has');dropEl.querySelector('.cta').textContent='Replace';} }
   else { el.textContent=''; if(dropEl){dropEl.classList.remove('has');dropEl.querySelector('.cta').textContent='Upload';} }
+  gate();
 }
 function readFile(file,label){
   return new Promise(function(resolve){
@@ -171,10 +182,7 @@ function cancelGen(){
 }
 function generate(){
   var biz=document.getElementById('biz').value.trim();
-  var missing=[];
-  if(!SLOTS.fin.length) missing.push('Financials');
-  if(!SLOTS.vq.length) missing.push('Valuation Questionnaire');
-  if(missing.length){ setStatus('err','Upload the required documents before building — still need: '+missing.join(', ')+'. (Add the lease too if the business leases its space.)'); return; }
+  if(!SLOTS.fin.length){ setStatus('err','Upload at least one financials document before building. (Add the lease too if the business leases its space.)'); return; }
   var all=[]; Object.keys(SLOTS).forEach(function(s){ SLOTS[s].forEach(function(f){ all.push({file:f,label:LABEL[s]}); }); });
   setStatus('',''); document.getElementById('status').className='status';
   modal('Reading your documents…','Preparing the financials, questionnaire, and lease for analysis.');
@@ -183,9 +191,9 @@ function generate(){
     if(!RUNNING) return;
     var mb=files.reduce(function(a,f){ return a+((f.dataB64?f.dataB64.length*0.75:(f.text||'').length)); },0)/1e6;
     if(mb>28){ showOverlay(false); setStatus('err','Those files are too large together (~'+mb.toFixed(0)+'MB). Trim to the essential pages and try again.'); return; }
-    modal('Building the BOV…','RRG’s analyst is reading the financials, questionnaire, and lease and drafting the Broker’s Opinion of Value. This takes about 30–60 seconds.');
+    modal('Building the BOV…','An RRG Virtual Analyst is reading the financials, questionnaire, and lease and drafting the Broker’s Opinion of Value. This takes about 30–60 seconds.');
     ABORT=new AbortController();
-    fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files}),signal:ABORT.signal})
+    fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files,bovId:BOV_ID}),signal:ABORT.signal})
       .then(function(r){return r.json();}).then(function(j){
         if(j&&j.ok&&j.id){ modal('Done — opening your BOV…','Taking you to the finished draft.'); location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(j.id); }
         else { showOverlay(false); setStatus('err', (j&&j.error)||'Generation failed.'); }
