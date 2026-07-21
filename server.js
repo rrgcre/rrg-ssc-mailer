@@ -556,17 +556,39 @@ app.get('/log.csv', (_req, res) => {
 });
 // ---- BOV queue ----
 // A rep can only see/open/delete their own BOVs; an admin sees the whole team.
+// Money for the Business Valuations list — never "$0.45M"; use "$450K" under $1M.
+function moneyShort(n) {
+  n = Number(n) || 0; const a = Math.abs(n);
+  if (a >= 1e6) { const m = n / 1e6; return '$' + (a >= 1e7 ? m.toFixed(1) : m.toFixed(2)) + 'M'; }
+  if (a >= 1e3) return '$' + Math.round(n / 1e3) + 'K';
+  return '$' + Math.round(n);
+}
 // Trailing revenue ("the money the business brought in") lives in bridge row 0
-// of the generated BOV. Format it as $x.xM for the Business Valuations list.
+// of the generated BOV.
 function bovRevenueText(b) {
   try {
     const br = (b.state && b.state.bridge) || [];
     if (br.length && /revenue/i.test(br[0].label || '')) {
       const n = Number(String(br[0].amt).replace(/[^0-9.\-]/g, '')) || 0;
-      if (n > 0) { const m = n / 1e6; return '$' + (m >= 10 ? m.toFixed(1) : m.toFixed(2)) + 'M'; }
+      if (n > 0) return moneyShort(n);
     }
   } catch (e) {}
   return '';
+}
+// Sort a BOV's buyer-type list by likely multiple (highest first), keeping a
+// header row (if any) on top. Applied to every saved BOV so it's consistent.
+function bovMultVal(s) { const m = String(s == null ? '' : s).match(/-?\d+(?:\.\d+)?/g); return (m && m.length) ? Math.max.apply(null, m.map(Number)) : -1; }
+function sortBovBuyers(state) {
+  try {
+    const rows = state && state.buyers;
+    if (!Array.isArray(rows) || rows.length < 2) return state;
+    const hasHead = bovMultVal(rows[0] && rows[0][1]) < 0 && /multiple/i.test(String((rows[0] || [])[1] || ''));
+    const head = hasHead ? rows.slice(0, 1) : [];
+    const body = hasHead ? rows.slice(1) : rows.slice();
+    body.sort((a, b) => bovMultVal(b && b[1]) - bovMultVal(a && a[1]));
+    state.buyers = head.concat(body);
+  } catch (e) {}
+  return state;
 }
 function ownsBov(req, b) {
   if (req.user && req.user.role === 'admin') return true;
@@ -651,7 +673,7 @@ app.post('/api/bov', (req, res) => {
     id: newBovId(), business: biz.slice(0, 120), date: String(b.date || '').slice(0, 40),
     rangeText: String(b.rangeText || '').slice(0, 60), targetText: String(b.targetText || '').slice(0, 60),
     multText: String(b.multText || '').slice(0, 40), ebitdaText: String(b.ebitdaText || '').slice(0, 40),
-    state: (b.state && typeof b.state === 'object') ? b.state : null,
+    state: (b.state && typeof b.state === 'object') ? sortBovBuyers(b.state) : null,
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
     createdAt: new Date().toISOString(),
   };

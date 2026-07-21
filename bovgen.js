@@ -59,7 +59,12 @@ Return ONLY a single JSON object — no prose, no markdown fences — with EXACT
 IMPORTANT: bridge row 0 MUST be revenue (it is excluded from the Adjusted EBITDA total); every other bridge row sums to Adjusted EBITDA. Amounts are plain numbers (no $ or commas). If a document is missing, make the most defensible assumption you can from what's provided and say so in the relevant narrative. Output the JSON object only.`;
 
 function num(s) { return Number(String(s == null ? '' : s).replace(/[^0-9.\-]/g, '')) || 0; }
-function moneyM(n) { n = n / 1e6; return '$' + (n >= 10 ? n.toFixed(1) : n.toFixed(2)) + 'M'; }
+function moneyM(n) {
+  n = Number(n) || 0; const a = Math.abs(n);
+  if (a >= 1e6) { const m = n / 1e6; return '$' + (a >= 1e7 ? m.toFixed(1) : m.toFixed(2)) + 'M'; }
+  if (a >= 1e3) return '$' + Math.round(n / 1e3) + 'K';   // never "$0.45M" — use "$450K"
+  return '$' + Math.round(n);
+}
 function money(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
 
 // Compute the headline summary from a generated state (same math as the BOV builder).

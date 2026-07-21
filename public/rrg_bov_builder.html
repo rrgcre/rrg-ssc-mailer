@@ -106,7 +106,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     <button class="btn" onclick="loadSample()">Load sample</button>
     <button class="btn" onclick="clearAll()">Clear</button>
     <button class="btn" onclick="saveToQueue()">Save to queue</button>
-    <button class="btn print" onclick="window.print()">Print / Save PDF</button>
+    <button class="btn print" onclick="printBov()">Print / Save PDF</button>
   </div>
 </div></div>
 
@@ -237,7 +237,10 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   var state={fields:{}, bridge:[], bench:[], buyers:[]};
   function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.\-]/g,''))||0; }
   function money(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
-  function moneyM(n){ n=n/1e6; return '$'+(n>=10?n.toFixed(1):n.toFixed(2))+'M'; }
+  function moneyM(n){ n=Number(n)||0; var a=Math.abs(n); if(a>=1e6){ var m=n/1e6; return '$'+(a>=1e7?m.toFixed(1):m.toFixed(2))+'M'; } if(a>=1e3) return '$'+Math.round(n/1e3)+'K'; return '$'+Math.round(n); }
+  function _bmv(s){ var m=String(s==null?'':s).match(/-?\d+(?:\.\d+)?/g); return (m&&m.length)?Math.max.apply(null,m.map(Number)):-1; }
+  function sortBuyers(){ try{ var rows=state.buyers; if(!Array.isArray(rows)||rows.length<2) return; var hasHead=_bmv(rows[0]&&rows[0][1])<0 && /multiple/i.test(String((rows[0]||[])[1]||'')); var head=hasHead?rows.slice(0,1):[]; var body=hasHead?rows.slice(1):rows.slice(); body.sort(function(a,b){ return _bmv(b&&b[1]) - _bmv(a&&a[1]); }); state.buyers=head.concat(body); }catch(e){} }
+  function printBov(){ sortBuyers(); renderAll(); window.print(); }
   function grp(s){ s=String(s).replace(/[^0-9\-]/g,''); return s?Number(s).toLocaleString('en-US'):''; }
   window.grpme=function(el){ el.value=grp(el.value); };
   function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -388,9 +391,9 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   function restore(){ try{ var raw=localStorage.getItem(KEY); if(!raw)return false; var s=JSON.parse(raw); if(!s||!s.fields)return false;
     state=s; if(!state.bridge||!state.bridge.length) state.bridge=BRIDGE.map(function(r){return {label:r[0],amt:''};});
     if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();});
-    apply(state.fields); renderAll(); return true; }catch(e){ return false; } }
+    sortBuyers(); apply(state.fields); renderAll(); return true; }catch(e){ return false; } }
   function initBlank(){ state.bridge=BRIDGE.map(function(r){return {label:r[0],amt:''};}); state.bench=BENCH.map(function(r){return r.slice();}); state.buyers=BUYERS.map(function(r){return r.slice();}); q('assume').value=ASSUME; loadSample(); }
-  function applyState(s){ state=s; if(!state.bridge||!state.bridge.length) state.bridge=BRIDGE.map(function(r){return {label:r[0],amt:''};}); if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();}); apply(state.fields||{}); renderAll(); }
+  function applyState(s){ state=s; if(!state.bridge||!state.bridge.length) state.bridge=BRIDGE.map(function(r){return {label:r[0],amt:''};}); if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();}); sortBuyers(); apply(state.fields||{}); renderAll(); }
   var _bid=(new URLSearchParams(location.search)).get('bov');
   if(_bid){
     fetch('/api/bov/'+encodeURIComponent(_bid)).then(function(r){return r.json();}).then(function(j){
