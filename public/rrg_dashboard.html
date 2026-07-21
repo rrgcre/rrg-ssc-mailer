@@ -202,12 +202,8 @@ var TOOLS = [
     desc:"Every seller call we've made — log a new call, screen it, then pass or advance the strong leads to the Valuation Questionnaire." },
   { name:'Valuation Questionnaire', tag:'Seller', file:'rrg_questionnaire_queue.html', icon:'gauge', track:'pipeline', step:2,
     desc:"Your questionnaire log — start a deep listing profile, then build the BOV from it. Operations, financials, lease, and the off-book factors that move value." },
-  { name:"Broker's Opinion of Value", tag:'Value', file:'rrg_bov_builder.html', icon:'seal', track:'pipeline', step:3,
-    desc:"Build a client-ready BOV in the RRG format — add-back bridge, multiple selection, valuation matrix, and go-to-market, all computed live." },
   { name:'Build a BOV (AI)', tag:'Value', file:'rrg_bov_generate.html', icon:'spark', track:'pipeline', sort:2.7,
     desc:"Upload the financials, Valuation Questionnaire, and lease — RRG's analyst drafts the full BOV for you to review, edit, and print. No form-filling." },
-  { name:'BOV Queue', tag:'Value', file:'rrg_bov_queue.html', icon:'queue', track:'pipeline', sort:3.5,
-    desc:"Every saved BOV in one place — reopen one, or promote it to a CIM in a click (the valuation carries over)." },
   { name:'CIM Builder', tag:'Value', file:'rrg_cim_builder.html', icon:'book', track:'pipeline', step:4,
     desc:"Build the full confidential offering book in the RRG format — edit in place, pull the valuation from the BOV, and print a client-ready 18-page PDF." },
   { name:'Market Attack Plan', tag:'Seller', file:'rrg_seller_attack_plan.html', icon:'megaphone', track:'pipeline', step:5,
@@ -250,10 +246,10 @@ var GUIDES = {
     tip:"Motivation is the whole ballgame. Note whether it's a “right number” seller or a health / partnership / burnout exit — that read drives urgency, price, and everything downstream."
   },
   'rrg_questionnaire_queue.html':{
-    background:"Your valuation questionnaire log — every deep listing profile in one place, the same way the Call Screening Log works. Four views: All, Waiting (needs a BOV), Advanced (BOV started), and Passed. Admins can view the whole team.",
-    when:"After you advance a strong lead from the Call Screening Log, or any time you're working questionnaires toward a BOV.",
-    how:["Click “+ New Questionnaire” (or advance a call from the Call Screening Log, which opens one pre-filled).","Fill it in with the seller and hit Save or Save & Close — it lands in this log.","From the log, click “Build BOV →” to open the BOV builder (marks it advanced), or Pass / Edit / Remove.","Switch views and use search, sort, Print, or Export CSV."],
-    tip:"Chase the add-backs and the off-book value here — this profile is the input the BOV stands on. Garbage in, garbage out; a thorough questionnaire is what lets you defend the number."
+    background:"Your Valuation Questionnaire log — every deep listing profile in one place. A questionnaire lands here automatically when you advance a qualified call from the Seller Qualification Call log. Views: All, Waiting (needs completing), Advanced (moved to a BOV). Admins see the whole team; reps see their own.",
+    when:"Any time you're working an advanced call toward a value opinion. You don't create questionnaires here — they arrive from the Call log.",
+    how:["Open a Waiting questionnaire (the amber “Complete Questionnaire →” button) and fill it in — it autosaves as you go, so there's no Save button, just Close.","A gold “Complete Questionnaire →” means required fields are still open; once it's complete the button turns navy “Advance to BOV →”.","Click “Advance to BOV →” to carry the profile into the BOV. Use Delete to drop a questionnaire, or the tabs, search, sort, Print, and Export CSV to work the list.","The Valuation Factors section is filled by the system, not the rep — the questionnaire feeds it."],
+    tip:"Completeness is the whole game here: the questionnaire is the factual basis the BOV stands on. A thorough, complete profile is what lets you defend the number."
   },
   'valuation_questionnaire.html':{
     background:"The deep listing profile. It gathers the operating detail, financials, lease terms, and the off-book factors an accurate valuation depends on.",

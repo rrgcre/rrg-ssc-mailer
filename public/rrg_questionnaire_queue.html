@@ -194,31 +194,30 @@ function render(list){
     var mid;
     if(s.processed){
       mid='<span class="done">✓ BOV started</span> <a href="'+bov+'">Reopen</a>';
-    } else if(s.decision==='passed'){
-      mid='<span class="passed">✕ Rejected</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
     } else {
-      var _pct=(typeof s.completePct==='number')?s.completePct:0;
-      var act = s.completed
-        ? '<a class="adv" href="'+bov+'" onclick="markAdvanced(\''+s.id+'\')">Build BOV →</a>'
-        : '<a class="adv complete" href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'" title="'+_pct+'% of required fields done">'+pctRing(_pct)+'Complete Questionnaire · '+_pct+'%</a>';
-      mid=act + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Reject</button>';
+      mid = s.completed
+        ? '<a class="adv" href="'+bov+'" onclick="markAdvanced(\''+s.id+'\')">Advance to BOV →</a>'
+        : '<a class="adv complete" href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Complete Questionnaire →</a>';
     }
     return '<tr data-id="'+esc(s.id)+'">'+
       '<td><div class="biz">'+esc(s.business||'Business')+'</div><div class="meta">'+meta+'</div></td>'+
       '<td class="meta">'+esc(fmt(s.createdAt))+'</td>'+
       '<td>'+badge(s)+'</td>'+
       '<td><div class="act">'+
-        '<a href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Edit</a>'+
         mid+
-        '<button class="del" onclick="del(\''+s.id+'\',this)">Remove</button>'+
+        '<button class="del" onclick="del(\''+s.id+'\',this)">Delete</button>'+
       '</div></td>'+
     '</tr>';
   }).join('');
   body.innerHTML='<table><thead><tr><th>Business</th><th>Advanced</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
 }
 function del(id,btn){
-  if(!confirm('Remove this questionnaire from the log?')) return;
-  fetch('/api/questionnaire/'+encodeURIComponent(id),{method:'DELETE'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not remove.'); }).catch(function(){ alert('Could not remove.'); });
+  if(!confirm('Delete this questionnaire? This removes it from the log.')) return;
+  if(btn){ btn.disabled=true; btn.textContent='Deleting…'; }
+  fetch('/api/questionnaire/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'})
+    .then(function(r){ return r.text().then(function(t){ var j=null; try{j=JSON.parse(t);}catch(e){} return {ok:r.ok,j:j}; }); })
+    .then(function(res){ if(res.ok && res.j && res.j.ok){ load(); } else { if(btn){btn.disabled=false;btn.textContent='Delete';} alert((res.j&&res.j.error)||'Could not delete.'); } })
+    .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Delete';} alert('Could not reach the server to delete.'); });
 }
 function decide(id,decision){
   if(decision==='passed' && !confirm('Reject this questionnaire? It won’t move to a BOV.')) return;
