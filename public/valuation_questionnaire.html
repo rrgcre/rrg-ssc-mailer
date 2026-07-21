@@ -370,27 +370,27 @@
     </div>
     <div class="subhead">The Business</div>
     <div class="grid rowgap">
-      <div class="field full"><label class="k">One-Sentence Description</label><textarea placeholder="How you would describe the business to an acquaintance"></textarea></div>
+      <div class="field full"><label class="k">One-Sentence Description</label><textarea class="req" placeholder="How you would describe the business to an acquaintance"></textarea></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Years in Operation</label><input type="text" class="dec2" inputmode="decimal" placeholder="e.g. 8"></div>
-      <div class="oset single"><label class="k">Is This a Franchise?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="field"><label class="k">Years in Operation</label><input type="text" class="dec2 req numnar" inputmode="decimal" placeholder="e.g. 8"></div>
+      <div class="oset single" data-req><label class="k">Is This a Franchise?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap">
-      <div class="oset single"><label class="k">Do You Serve Alcohol?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="oset single" data-req><label class="k">Do You Serve Alcohol?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap">
-      <div class="field full"><label class="k">Why Is the Business Up for Sale?</label><textarea></textarea></div>
+      <div class="field full"><label class="k">Why Is the Business Up for Sale?</label><textarea class="req"></textarea></div>
     </div>
     <div class="grid rowgap">
-      <div class="oset single"><label class="k">Has the Business Ever Been Sold Before?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
-      <div class="oset single"><label class="k">Any Pending Litigation?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="oset single" data-req><label class="k">Has the Business Ever Been Sold Before?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="oset single" data-req><label class="k">Any Pending Litigation?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap">
-      <div class="field full"><label class="k">Risk Factors</label><textarea></textarea></div>
+      <div class="field full"><label class="k">Risk Factors</label><textarea class="req"></textarea></div>
     </div>
     <div class="grid rowgap">
-      <div class="oset single"><label class="k">Accolades or Awards?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="oset single" data-req><label class="k">Accolades or Awards?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap" id="wrapAccolades">
       <div class="field full"><label class="k">Describe the Accolades</label><textarea></textarea></div>
@@ -407,8 +407,8 @@
       <div class="hrow" data-day="Sunday"><span class="hday">Sunday</span><select class="hopen htime"><option value="">Open…</option></select><span class="hdash">–</span><select class="hclose htime"><option value="">Close…</option></select><label class="hclosed"><input type="checkbox" class="hclosedcb">Closed</label></div>
     </div>
     <div class="grid rowgap">
-      <div class="oset single"><label class="k">Operating Hours Changed Recently?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
-      <div class="oset single"><label class="k">Is the Business Seasonal?</label><div class="optcols c3"><label class="opt"><input type="checkbox">No</label><label class="opt"><input type="checkbox">Moderately</label><label class="opt"><input type="checkbox">Highly</label></div></div>
+      <div class="oset single" data-req><label class="k">Operating Hours Changed Recently?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="oset single" data-req><label class="k">Is the Business Seasonal?</label><div class="optcols c3"><label class="opt"><input type="checkbox">No</label><label class="opt"><input type="checkbox">Moderately</label><label class="opt"><input type="checkbox">Highly</label></div></div>
     </div>
     <div class="grid rowgap" id="wrapHoursChange">
       <div class="field full"><label class="k">Details of Hours Change</label><textarea></textarea></div>
@@ -418,7 +418,7 @@
     </div>
     <div class="sec brk"><div class="num">3</div><h2>Menu Prices &amp; Tickets</h2><div class="flex"></div></div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Last Price Increase</label><input type="text"></div>
+      <div class="field"><label class="k">Last Price Increase</label><input type="date" class="numnar"></div>
       <div class="oset single"><label class="k">Can Pricing Be Increased?</label><div class="optcols c3"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">Yes, Selectively</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap">
@@ -434,8 +434,8 @@
     </div>
     <div class="sec brk"><div class="num">4</div><h2>Financial Records</h2><div class="flex"></div></div>
     <div class="grid rowgap">
-      <div class="oset single"><label class="k">Do Tax Returns Match Financial Statements?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
-      <div class="oset single"><label class="k">Any Unreported Income?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="oset single" data-req><label class="k">Do Tax Returns Match Financial Statements?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="oset single" data-req><label class="k">Any Unreported Income?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap" id="wrapTaxMismatch">
       <div class="field full"><label class="k">Explain the Tax / Financial Difference</label><textarea></textarea></div>
@@ -444,7 +444,7 @@
       <div class="field full"><label class="k">Unreported Income — Detail</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Financial Records Accuracy</label><select class="fsel"><option value="">Select…</option><option>Audited financials</option><option>CPA-reviewed</option><option>CPA-compiled</option><option>Bookkeeper-maintained (monthly)</option><option>Tax returns only</option><option>Owner / internal records</option><option>Incomplete / unreliable</option></select></div>
+      <div class="field"><label class="k">Financial Records Accuracy</label><select class="fsel req"><option value="">Select…</option><option>Audited financials</option><option>CPA-reviewed</option><option>CPA-compiled</option><option>Bookkeeper-maintained (monthly)</option><option>Tax returns only</option><option>Owner / internal records</option><option>Incomplete / unreliable</option></select></div>
       <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
     </div>
     <div class="sec brk" id="secAlcohol"><div class="num">5</div><h2>Alcohol &amp; TABC</h2><div class="flex"></div></div>
@@ -457,38 +457,38 @@
     </div>
     <div class="sec brk"><div class="num">6</div><h2>Labor &amp; Management</h2><div class="flex"></div></div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Employee Turnover Rate</label><select class="fsel"><option value="">Select…</option><option>Under 25%</option><option>25–50%</option><option>50–75%</option><option>75–100%</option><option>Over 100%</option><option>Unknown</option></select></div>
+      <div class="field"><label class="k">Full-Time Employees</label><input type="text" class="int req numnar" inputmode="numeric"></div>
+      <div class="field"><label class="k">Part-Time Employees</label><input type="text" class="int req numnar" inputmode="numeric"></div>
+    </div>
+    <div class="grid rowgap">
+      <div class="oset single" data-req><label class="k">Trained Management Team in Place?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="oset single" data-req><label class="k">Relationship With Customers</label><div class="optcols c3"><label class="opt"><input type="checkbox">Know Most</label><label class="opt"><input type="checkbox">Know Some</label><label class="opt"><input type="checkbox">Don&#x27;t Know Most</label></div></div>
+    </div>
+    <div class="grid rowgap">
+      <div class="field full"><label class="k">Management Team Detail</label><textarea class="req"></textarea></div>
+    </div>
+    <div class="grid rowgap">
+      <div class="field"><label class="k">General Manager Tenure</label><span class="padorn narrow"><input type="text" class="yrs99 req" inputmode="numeric" placeholder="e.g. 5"><span class="ad-suf">yrs</span></span></div>
+      <div class="field"><label class="k">Kitchen Manager Tenure</label><span class="padorn narrow"><input type="text" class="yrs99 req" inputmode="numeric" placeholder="e.g. 5"><span class="ad-suf">yrs</span></span></div>
+    </div>
+    <div class="grid rowgap">
+      <div class="field"><label class="k">Employee Turnover Rate</label><select class="fsel req"><option value="">Select…</option><option>Under 25%</option><option>25–50%</option><option>50–75%</option><option>75–100%</option><option>Over 100%</option><option>Unknown</option></select></div>
       <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
     </div>
     <div class="grid rowgap">
-      <div class="field"><label class="k">Full-Time Employees</label><input type="text" class="int" inputmode="numeric"></div>
-      <div class="field"><label class="k">Part-Time Employees</label><input type="text" class="int" inputmode="numeric"></div>
+      <div class="oset full" data-req><label class="k">Owner Role(s)</label><div class="optcols c3"><label class="opt"><input type="checkbox">A Little of Everything</label><label class="opt"><input type="checkbox">Operations</label><label class="opt"><input type="checkbox">Kitchen / Chef</label><label class="opt"><input type="checkbox">Front of House</label><label class="opt"><input type="checkbox">Bar Management</label><label class="opt"><input type="checkbox">Purchasing / Vendors</label><label class="opt"><input type="checkbox">Finance / Bookkeeping</label><label class="opt"><input type="checkbox">Marketing / Social</label><label class="opt"><input type="checkbox">HR / Scheduling</label><label class="opt"><input type="checkbox">Catering / Events</label><label class="opt"><input type="checkbox">General Manager</label><label class="opt"><input type="checkbox">Absentee / Passive</label></div></div>
     </div>
     <div class="grid rowgap">
-      <div class="oset single"><label class="k">Trained Management Team in Place?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
-      <div class="oset single"><label class="k">Relationship With Customers</label><div class="optcols c3"><label class="opt"><input type="checkbox">Know Most</label><label class="opt"><input type="checkbox">Know Some</label><label class="opt"><input type="checkbox">Don&#x27;t Know Most</label></div></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field full"><label class="k">Management Team Detail</label><textarea></textarea></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">General Manager Tenure</label><span class="padorn"><input type="text" class="yrs99" inputmode="numeric" placeholder="e.g. 5"><span class="ad-suf">yrs</span></span></div>
-      <div class="field"><label class="k">Kitchen Manager Tenure</label><span class="padorn"><input type="text" class="yrs99" inputmode="numeric" placeholder="e.g. 5"><span class="ad-suf">yrs</span></span></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="oset full"><label class="k">Owner Role(s)</label><div class="optcols c3"><label class="opt"><input type="checkbox">Operations</label><label class="opt"><input type="checkbox">Kitchen / Chef</label><label class="opt"><input type="checkbox">Front of House</label><label class="opt"><input type="checkbox">Bar Management</label><label class="opt"><input type="checkbox">Purchasing / Vendors</label><label class="opt"><input type="checkbox">Finance / Bookkeeping</label><label class="opt"><input type="checkbox">Marketing / Social</label><label class="opt"><input type="checkbox">HR / Scheduling</label><label class="opt"><input type="checkbox">Catering / Events</label><label class="opt"><input type="checkbox">General Manager</label><label class="opt"><input type="checkbox">Absentee / Passive</label></div></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">Owner Hours per Week</label><span class="padorn"><input type="text" class="int" inputmode="numeric" placeholder="e.g. 45"><span class="ad-suf">hrs</span></span></div>
+      <div class="field"><label class="k">Owner Hours per Week</label><span class="padorn narrow"><input type="text" class="int req" inputmode="numeric" placeholder="e.g. 45"><span class="ad-suf">hrs</span></span></div>
       <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
     </div>
     <div class="grid rowgap">
-      <div class="oset single"><label class="k">Owner Salary Included in P&amp;Ls?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
-      <div class="oset single"><label class="k">Owner Salary Level</label><div class="optcols c3"><label class="opt"><input type="checkbox">Below Market</label><label class="opt"><input type="checkbox">At Market</label><label class="opt"><input type="checkbox">Above Market</label></div></div>
+      <div class="oset single" data-req><label class="k">Owner Salary Included in P&amp;Ls?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="oset single" data-req><label class="k">Owner Salary Level</label><div class="optcols c3"><label class="opt"><input type="checkbox">Below Market</label><label class="opt"><input type="checkbox">At Market</label><label class="opt"><input type="checkbox">Above Market</label></div></div>
     </div>
     <div class="grid rowgap">
-      <div class="oset single"><label class="k">Family Members Work in the Business?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
-      <div class="oset single"><label class="k">Non-Working Family on Payroll?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="oset single" data-req><label class="k">Family Members Work in the Business?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="oset single" data-req><label class="k">Non-Working Family on Payroll?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap" id="wrapFamilyWork">
       <div class="field full"><label class="k">Which family members work in the business, and in what roles?</label><textarea></textarea></div>
@@ -497,8 +497,8 @@
       <div class="field full"><label class="k">Which non-working family are on payroll — who, and how much?</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap">
-      <div class="oset single"><label class="k">Family Working Without Compensation?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
-      <div class="oset single"><label class="k">Key Employees Willing to Stay?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="oset single" data-req><label class="k">Family Working Without Compensation?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="oset single" data-req><label class="k">Key Employees Willing to Stay?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap" id="wrapFamilyNoComp">
       <div class="field full"><label class="k">Which family work without compensation — who, their role, and cost to replace?</label><textarea></textarea></div>
@@ -507,8 +507,8 @@
       <div class="field full"><label class="k">Which key employees will stay, and in what role?</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap">
-      <div class="oset single"><label class="k">Wages vs Industry Average</label><div class="optcols c3"><label class="opt"><input type="checkbox">Below</label><label class="opt"><input type="checkbox">At</label><label class="opt"><input type="checkbox">Above</label></div></div>
-      <div class="oset single"><label class="k">Any Employees on Contract?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
+      <div class="oset single" data-req><label class="k">Wages vs Industry Average</label><div class="optcols c3"><label class="opt"><input type="checkbox">Below</label><label class="opt"><input type="checkbox">At</label><label class="opt"><input type="checkbox">Above</label></div></div>
+      <div class="oset single" data-req><label class="k">Any Employees on Contract?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap" id="wrapContractEmployees">
       <div class="field full"><label class="k">Which employees are on contract?</label><textarea></textarea></div>
@@ -519,10 +519,10 @@
     </div>
     <div class="grid rowgap">
       <div class="oset single"><label class="k">Willing to Sign a Non-Compete?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
-      <div class="oset single"><label class="k">Highly Desirable Location?</label><div class="optcols"><label class="opt"><input type="checkbox">Yes</label><label class="opt"><input type="checkbox">No</label></div></div>
     </div>
     <div class="grid rowgap" id="wrapNonCompete">
-      <div class="field full"><label class="k">Non-Compete Terms (Duration / Area)</label><input type="text"></div>
+      <div class="field"><label class="k">Non-Compete Duration</label><input type="text" placeholder="e.g. 2 years"></div>
+      <div class="field"><label class="k">Non-Compete Area</label><input type="text" placeholder="e.g. 5-mile radius"></div>
     </div>
     <div class="sec brk"><div class="num">8</div><h2>Real Estate &amp; Lease</h2><div class="flex"></div></div>
     <div class="grid rowgap">
@@ -556,15 +556,11 @@
     <div class="subhead">General Condition</div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Furniture — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
-      <div class="field"><label class="k">Fixtures — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
+      <div class="field"><label class="k">Equipment — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Facility — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
-      <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">Number of Parking Spaces</label><input type="text" class="int" inputmode="numeric"></div>
-      <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
+      <div class="field"><label class="k">Number of Parking Spaces</label><input type="text" class="int numnar" inputmode="numeric"></div>
     </div>
     <div class="grid rowgap">
       <div class="field full"><label class="k">Customer Parking</label><textarea></textarea></div>
@@ -579,31 +575,6 @@
     <div class="grid rowgap" id="wrapPlumbing">
       <div class="field full"><label class="k">Plumbing — what needs attention?</label><textarea></textarea></div>
     </div>
-    <div class="subhead">Equipment — Age &amp; Condition</div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">A/C Units — Age</label><span class="padorn narrow"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
-      <div class="field"><label class="k">A/C Units — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">Walk-Ins — Age</label><span class="padorn narrow"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
-      <div class="field"><label class="k">Walk-Ins — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">Grease Trap — Age</label><span class="padorn narrow"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
-      <div class="field"><label class="k">Grease Trap — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">Furnishings — Age</label><span class="padorn narrow"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
-      <div class="field"><label class="k">Furnishings — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">Kitchen Equipment — Age</label><span class="padorn narrow"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
-      <div class="field"><label class="k">Kitchen Equipment — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field"><label class="k">Bar Equipment — Age</label><span class="padorn narrow"><input type="text" class="int" inputmode="numeric"><span class="ad-suf">yrs</span></span></div>
-      <div class="field"><label class="k">Bar Equipment — Condition</label><select class="fsel"><option value="">Select…</option><option>Excellent</option><option>Good</option><option>Fair</option><option>Poor</option></select></div>
-    </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Last Remodel</label><input type="text"></div>
       <div class="field"><label class="k">&nbsp;</label><input type="text" style="visibility:hidden"></div>
@@ -616,10 +587,7 @@
       <div class="field full"><label class="k">What needs repair or replacement?</label><textarea></textarea></div>
     </div>
     <div class="grid rowgap" id="wrapEquipLease">
-      <div class="field full"><label class="k">What is leased or financed, and on what terms?</label><textarea></textarea></div>
-    </div>
-    <div class="grid rowgap">
-      <div class="field full"><label class="k">Next Required Remodel</label><input type="text"></div>
+      <div class="field full"><label class="k">What is leased or financed?</label><textarea></textarea></div>
     </div>
     <div class="sec brk" id="secFranchise"><div class="num">10</div><h2>Franchise (If Applicable)</h2><div class="flex"></div></div>
     <div class="subhead">Complete only if the business operates under a franchise agreement.</div>
@@ -973,7 +941,7 @@
     _set("Average Ticket ($)", "17.37");
     _set("% of Sales from Food", "96");
     _set("Current Food Cost (% of Sales)", "29");
-    _set("Last Price Increase", "July 2025");
+    _set("Last Price Increase", "2025-07-01");
     _set("Working Capital Required", "100000");
     _set("Capital Improvements per Year", "0");
     _set("Financial Records Accuracy", "Bookkeeper-maintained (monthly)");
@@ -990,7 +958,7 @@
     _set("Kitchen Manager Tenure", "Gilberto Salazar, with Kesos Tacos since 2015 (11 years); currently Kitchen Manager at the MLK location.");
     _check("Owner Role", "Operations"); _check("Owner Role", "Finance"); _check("Owner Role", "Marketing"); _check("Owner Role", "General Manager");
     _set("How the Company Compares to Peers", "Competes primarily with Torchy\u2019s Tacos, Tacodeli, and Veracruz All Natural in the Austin fast-casual taco market, differentiating on a queso-first identity (queso as the core product, not a topping). Ranks #2 in Austin organic search visibility (behind Tacodeli), #1 on several high-intent local terms. Holds an advantage in catering, where larger competitors are weaker, and unique brand visibility via the exclusive Q2 Stadium partnership with Austin FC. The broader QSR sector is seeing flat-to-declining traffic and some closures; Kesos has grown revenue every month in 2026.");
-    _set("Non-Compete Terms (Duration / Area)", "Open to discussion");
+    _set("Non-Compete Duration", "2 years"); _set("Non-Compete Area", "5-mile radius");
     _set("Months Remaining on Base Term", "36");
     _set("Current Base Lease ($/SF)", "30.12"); _set("Current NNN ($/SF)", "12.00"); _set("Current Monthly Rent", "9000");
     _set("Option 1 (Months)", "60");
@@ -998,17 +966,12 @@
     _set("Landlord Relationship", "Strong relationship. The landlord is a local family with whom we have maintained a positive, long-term working relationship.");
     _set("Indoor Capacity", "40"); _set("Outdoor Capacity", "20");
     _set("Customer Parking", "Designated on-site parking for the restaurant, plus paid street parking available nearby.");
-    _set("A/C Units — Age", "9"); _set("A/C Units — Condition", "Good");
-    _set("Walk-Ins — Age", "6"); _set("Walk-Ins — Condition", "Good");
-    _set("Grease Trap — Age", "6"); _set("Grease Trap — Condition", "Fair");
-    _set("Furnishings — Age", "7"); _set("Furnishings — Condition", "Good");
-    _set("Kitchen Equipment — Age", "4"); _set("Kitchen Equipment — Condition", "Good");
-    _set("Bar Equipment — Age", "5"); _set("Bar Equipment — Condition", "Good");
+    _set("Number of Parking Spaces", "24");
     _set("Last Remodel", "2019");
     _set("Next Required Remodel", "N/A");
     _set("RRG Advisor", "Van Rinn");
     _check("Sector", "Growing at Average");
-    _check("Years in Operation", "11+");
+    _set("Years in Operation", "11");
     _check("Has the Business Ever Been Sold Before", "No");
     _check("Any Pending Litigation", "No");
     _check("Accolades or Awards", "Yes");
@@ -1030,6 +993,7 @@
     _check("Non-Working Family on Payroll", "No");
     _check("Family Working Without Compensation", "No");
     _check("Key Employees Willing to Stay", "Yes");
+    _set("Which key employees will stay, and in what role?", "GM and both kitchen leads have agreed to stay through the transition.");
     _check("Wages vs Industry Average", "At");
     _check("Any Employees on Contract", "No");
     _check("Willing to Sign a Non-Compete", "Yes");
@@ -1038,7 +1002,7 @@
     _check("Lease vs Market Rate", "Below");
     _check("Is the Property Available for Sale", "No");
     _check("Notified Landlord of Intent to Sell", "No");
-    _set("Furniture — Condition", "Good"); _set("Fixtures — Condition", "Good"); _set("Facility — Condition", "Excellent");
+    _set("Furniture — Condition", "Good"); _set("Equipment — Condition", "Good"); _set("Facility — Condition", "Excellent");
     _check("Electrical Working Properly", "Yes");
     _check("Plumbing Working Properly", "Yes");
     _check("Any Equipment Needing Repair", "No");
@@ -1122,28 +1086,39 @@
   _updateHeader();
 
   // Conditional fields: only show the detail when its trigger option is selected.
-  function _cond(groupLabel, wrapId, showValues){
+  // Mark required fields with a red asterisk (idempotent; runs at load and when a conditional becomes required).
+  function _starOf(lb){ if(lb && !lb.querySelector('.req-star')){ var s=document.createElement('span'); s.className='req-star'; s.textContent='*'; var hint=lb.querySelector('.hint'); if(hint) lb.insertBefore(s, hint); else lb.appendChild(s); } }
+  window.__autoStars=function(){
+    document.querySelectorAll('#sscform input.req, #sscform textarea.req, #sscform select.req').forEach(function(el){ var f=el.closest('.field')||el.closest('.oset'); if(f) _starOf(f.querySelector('label.k')); });
+    document.querySelectorAll('#sscform .oset[data-req]').forEach(function(os){ _starOf(os.querySelector('label.k')); });
+  };
+  function _cond(groupLabel, wrapId, showValues, requireWhenShown){
     var g=_grpS(groupLabel), wrap=document.getElementById(wrapId);
     if(!g||!wrap) return;
     function upd(){
       var show=false;
       g.querySelectorAll('.opt').forEach(function(o){ var inp=o.querySelector('input'); if(inp&&inp.checked && showValues.indexOf(o.textContent.trim())>=0) show=true; });
       wrap.style.display = show ? '' : 'none';
+      if(requireWhenShown){
+        wrap.querySelectorAll('input,textarea,select').forEach(function(el){ if(show){ el.classList.add('req'); } else { el.classList.remove('req'); el.classList.remove('missing'); } });
+        if(show && window.__autoStars) window.__autoStars();
+      }
     }
     g.addEventListener('change', upd);
     upd();
   }
-  _cond('Accolades', 'wrapAccolades', ['Yes']);
+  _cond('Accolades', 'wrapAccolades', ['Yes'], true);
   _cond('Operating Hours Changed', 'wrapHoursChange', ['Yes']);
   _cond('Is the Business Seasonal', 'wrapSeasonality', ['Moderately','Highly']);
-  _cond('Do Tax Returns Match', 'wrapTaxMismatch', ['No']);
-  _cond('Any Unreported Income', 'wrapUnreported', ['Yes']);
+  _cond('Do Tax Returns Match', 'wrapTaxMismatch', ['No'], true);
+  _cond('Any Unreported Income', 'wrapUnreported', ['Yes'], true);
   _cond('Willing to Sign a Non-Compete', 'wrapNonCompete', ['Yes']);
-  _cond('Family Members Work in the Business', 'wrapFamilyWork', ['Yes']);
-  _cond('Non-Working Family on Payroll', 'wrapNonWorkingFamily', ['Yes']);
-  _cond('Family Working Without Compensation', 'wrapFamilyNoComp', ['Yes']);
-  _cond('Key Employees Willing to Stay', 'wrapKeyEmployees', ['Yes']);
-  _cond('Any Employees on Contract', 'wrapContractEmployees', ['Yes']);
+  _cond('Family Members Work in the Business', 'wrapFamilyWork', ['Yes'], true);
+  _cond('Non-Working Family on Payroll', 'wrapNonWorkingFamily', ['Yes'], true);
+  _cond('Family Working Without Compensation', 'wrapFamilyNoComp', ['Yes'], true);
+  _cond('Key Employees Willing to Stay', 'wrapKeyEmployees', ['Yes'], true);
+  _cond('Any Employees on Contract', 'wrapContractEmployees', ['Yes'], true);
+  window.__autoStars();
   _cond('Electrical Working Properly', 'wrapElectrical', ['No']);
   _cond('Plumbing Working Properly', 'wrapPlumbing', ['No']);
   _cond('Any Equipment Needing Repair', 'wrapEquipRepair', ['Yes']);
