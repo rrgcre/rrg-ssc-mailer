@@ -232,7 +232,20 @@ function cancelGen(){
   showOverlay(false);
   setStatus('err','Cancelled. Nothing was saved — adjust the documents and build again when you’re ready.');
 }
+// Completion chime. The AudioContext is created/resumed on the Build click (a
+// user gesture) so browsers allow it to sound minutes later when the BOV is done.
+var AUDIO=null;
+function unlockAudio(){ try{ if(!AUDIO){ var C=window.AudioContext||window.webkitAudioContext; if(C) AUDIO=new C(); } if(AUDIO && AUDIO.state==='suspended') AUDIO.resume(); }catch(e){} }
+function playDone(){
+  try{
+    if(!AUDIO){ var C=window.AudioContext||window.webkitAudioContext; if(C) AUDIO=new C(); }
+    if(!AUDIO) return;
+    function tone(freq,start,dur){ var o=AUDIO.createOscillator(), g=AUDIO.createGain(); o.type='sine'; o.frequency.value=freq; o.connect(g); g.connect(AUDIO.destination); var t=AUDIO.currentTime+start; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.28,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.start(t); o.stop(t+dur+0.05); }
+    tone(880,0,0.55); tone(1318.5,0.15,0.7);   // A5 → E6, a soft two-note "ding-ding"
+  }catch(e){}
+}
 function generate(){
+  unlockAudio();
   try{ var _li=document.getElementById('linkInput'); if(_li && _li.value.trim()) addLink(); }catch(e){}
   var biz=document.getElementById('biz').value.trim();
   if(!SLOTS.fin.length){ setStatus('err','Upload at least one financials document before building. (Add the lease too if the business leases its space.)'); return; }
@@ -249,7 +262,7 @@ function generate(){
     fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files,bovId:BOV_ID,links:LINKS,preparedFor:(document.getElementById('prepFor').value||'').trim()}),signal:ABORT.signal})
       .then(function(r){ return r.text().then(function(t){ var j=null; try{ j=JSON.parse(t); }catch(e){} return {ok:r.ok,status:r.status,j:j}; }); })
       .then(function(res){
-        if(res.j&&res.j.ok&&res.j.id){ modal('Done — opening your BOV…','Taking you to the finished draft.'); location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(res.j.id); return; }
+        if(res.j&&res.j.ok&&res.j.id){ stopTimer(); playDone(); modal('Done — your BOV is ready ✓','Opening the finished draft…'); var _id=res.j.id; setTimeout(function(){ location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(_id); }, 800); return; }
         showOverlay(false);
         if(res.status===413){ setStatus('err','The documents are over the server’s upload limit. Trim the PDFs to the key pages (P&L, add-backs, lease) and try again.'); }
         else if(res.j&&res.j.error){ setStatus('err',res.j.error); }
