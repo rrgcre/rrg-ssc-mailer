@@ -83,7 +83,8 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
 .modal .bigspin{width:40px;height:40px;border:4px solid #e6ecfa;border-top-color:var(--navy);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 18px;}
 .modal .mt{font-size:17px;font-weight:800;color:var(--navy);letter-spacing:-.01em;}
 .modal .mm{font-size:13px;color:var(--muted);line-height:1.55;margin-top:8px;}
-.modal .mcancel{margin-top:22px;background:#fff;color:var(--red);border:1px solid #f2c9c6;border-radius:10px;padding:11px 24px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;}
+.modal .mtimer{margin-top:14px;font-size:13px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;letter-spacing:.02em;}
+.modal .mcancel{margin-top:16px;background:#fff;color:var(--red);border:1px solid #f2c9c6;border-radius:10px;padding:11px 24px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;}
 .modal .mcancel:hover{background:#fdeceb;border-color:var(--red);}
 </style>
 </head>
@@ -147,6 +148,7 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
     <div class="bigspin"></div>
     <div class="mt" id="modalTitle">Building the BOV…</div>
     <div class="mm" id="modalMsg">Our Valuation Analyst is reviewing the financials, adjustments, and key value drivers to produce a thorough, defensible opinion of value. This analysis may take a few minutes. Thank you for your patience.</div>
+    <div class="mtimer" id="modalTimer"></div>
     <button class="mcancel" id="cancel" onclick="cancelGen()">Cancel</button>
   </div>
 </div>
@@ -208,10 +210,15 @@ function readFile(file,label){
 }
 function setStatus(cls,html){ var s=document.getElementById('status'); s.className='status '+cls; s.innerHTML=html; }
 var ABORT=null, RUNNING=false;
+var TIMER=null, T0=0;
+function fmtElapsed(s){ var m=Math.floor(s/60), ss=s%60; return m+':'+(ss<10?'0':'')+ss; }
+function startTimer(){ T0=Date.now(); var el=document.getElementById('modalTimer'); if(el) el.textContent='0:00 elapsed'; if(TIMER) clearInterval(TIMER); TIMER=setInterval(function(){ var el=document.getElementById('modalTimer'); if(el) el.textContent=fmtElapsed(Math.floor((Date.now()-T0)/1000))+' elapsed'; },1000); }
+function stopTimer(){ if(TIMER){ clearInterval(TIMER); TIMER=null; } }
 function showOverlay(on){
   RUNNING=on;
   document.getElementById('overlay').classList[on?'add':'remove']('show');
   document.getElementById('go').disabled=on;
+  if(on) startTimer(); else stopTimer();
 }
 function modal(title,msg){ document.getElementById('modalTitle').textContent=title; document.getElementById('modalMsg').textContent=msg; }
 function cancelGen(){
