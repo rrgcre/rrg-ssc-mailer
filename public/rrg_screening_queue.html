@@ -210,7 +210,7 @@ function render(list){
       // Incomplete → gold button opens the call in edit mode AND highlights the
       // missing required fields (&finish=1). Complete → "Begin Questionnaire →".
       mid=(s.completed
-            ? '<a class="adv" href="#" onclick="advanceCall(\''+s.id+'\');return false;">Begin Questionnaire →</a>'
+            ? '<a class="adv" href="#" onclick="advanceCall(\''+s.id+'\',true);return false;">Begin Questionnaire →</a>'
             : '<a class="adv complete" href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'&finish=1" title="'+_pct+'% of required fields done — finish to advance">'+pctRing(_pct)+'Complete Screening · '+_pct+'%</a>')
         + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Reject</button>';
     }
@@ -231,7 +231,8 @@ function del(id,btn){
   fetch('/api/screening/'+encodeURIComponent(id),{method:'DELETE'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not remove.'); }).catch(function(){ alert('Could not remove.'); });
 }
 // Advance a call: create its questionnaire server-side (reliable), then open it.
-function advanceCall(id){
+// intro=true (Begin Questionnaire) shows the priming screen; Reopen omits it.
+function advanceCall(id, intro){
   fetch('/api/screening/'+encodeURIComponent(id)+'/advance',{method:'POST'})
     .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});}).then(function(res){
       var j=res.j||{};
@@ -239,9 +240,9 @@ function advanceCall(id){
         if(j.incomplete){ if(confirm('This screening isn’t complete yet. Open it to finish the required fields?')) location.href='./seller_screening.html?screening='+encodeURIComponent(id); return; }
         alert((j&&j.error)||'Could not advance this call.'); return;
       }
-      var qid=j.questionnaireId||'';
-      location.href = qid ? ('./valuation_questionnaire.html?q='+encodeURIComponent(qid))
-                          : ('./valuation_questionnaire.html?screening='+encodeURIComponent(id));
+      var qid=j.questionnaireId||'', tail=intro?'&intro=1':'';
+      location.href = qid ? ('./valuation_questionnaire.html?q='+encodeURIComponent(qid)+tail)
+                          : ('./valuation_questionnaire.html?screening='+encodeURIComponent(id)+tail);
     }).catch(function(){ alert('Could not advance this call — please try again.'); });
 }
 function decide(id,decision){
