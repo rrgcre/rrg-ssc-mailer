@@ -208,9 +208,9 @@ function render(list){
     } else {
       var _pct=(typeof s.completePct==='number')?s.completePct:0;
       // Incomplete → gold button opens the call in edit mode AND highlights the
-      // missing required fields (&finish=1). Complete → "Advance →".
+      // missing required fields (&finish=1). Complete → "Begin Questionnaire →".
       mid=(s.completed
-            ? '<a class="adv" href="#" onclick="advanceCall(\''+s.id+'\');return false;">Advance →</a>'
+            ? '<a class="adv" href="#" onclick="advanceCall(\''+s.id+'\');return false;">Begin Questionnaire →</a>'
             : '<a class="adv complete" href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'&finish=1" title="'+_pct+'% of required fields done — finish to advance">'+pctRing(_pct)+'Complete Screening · '+_pct+'%</a>')
         + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Reject</button>';
     }
@@ -219,6 +219,7 @@ function render(list){
       '<td>'+badge(s)+'</td>'+
       '<td><div class="act">'+
         mid+
+        '<a href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'">Edit</a>'+
         '<button class="del" onclick="del(\''+s.id+'\',this)">Remove</button>'+
       '</div></td>'+
     '</tr>';
