@@ -86,6 +86,8 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
 .modal .mtimer{margin-top:14px;font-size:13px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;letter-spacing:.02em;}
 .modal .mcancel{margin-top:16px;background:#fff;color:var(--red);border:1px solid #f2c9c6;border-radius:10px;padding:11px 24px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;}
 .modal .mcancel:hover{background:#fdeceb;border-color:var(--red);}
+.modal .mmute{margin-top:14px;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;user-select:none;border:1px solid #e6e9f0;border-radius:100px;padding:6px 14px;transition:.15s;}
+.modal .mmute:hover{border-color:#9fb0cc;color:var(--navy);}
 </style>
 </head>
 <body>
@@ -152,7 +154,8 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
     <div class="mt" id="modalTitle">Building the BOV…</div>
     <div class="mm" id="modalMsg">Our Valuation Analyst is reviewing the financials, adjustments, and key value drivers to produce a thorough, defensible opinion of value. This analysis may take a few minutes. Thank you for your patience.</div>
     <div class="mtimer" id="modalTimer"></div>
-    <button class="mcancel" id="cancel" onclick="cancelGen()">Cancel</button>
+    <div class="mcancelwrap"><button class="mcancel" id="cancel" onclick="cancelGen()">Cancel</button></div>
+    <div><span class="mmute" id="muteLink" onclick="toggleMute()" role="button" tabindex="0">🔊 Sound on · tap to mute</span></div>
   </div>
 </div>
 
@@ -224,7 +227,7 @@ function showOverlay(on){
   RUNNING=on;
   document.getElementById('overlay').classList[on?'add':'remove']('show');
   document.getElementById('go').disabled=on;
-  if(on) startTimer(); else stopTimer();
+  if(on){ startTimer(); startAmbient(); } else { stopTimer(); stopAmbient(); }
 }
 function modal(title,msg){ document.getElementById('modalTitle').textContent=title; document.getElementById('modalMsg').textContent=msg; }
 function cancelGen(){
@@ -236,6 +239,65 @@ function cancelGen(){
 // user gesture) so browsers allow it to sound minutes later when the BOV is done.
 var AUDIO=null;
 function unlockAudio(){ try{ if(!AUDIO){ var C=window.AudioContext||window.webkitAudioContext; if(C) AUDIO=new C(); } if(AUDIO && AUDIO.state==='suspended') AUDIO.resume(); }catch(e){} }
+
+// ---- Futuristic build-ambience: a soft sci-fi drone with a slow filter sweep,
+// a whole-tone shimmer arpeggio through an echo, and occasional data blips.
+// Plays only while the build overlay is up; mutable via the on-screen link.
+var AMB=null;
+function ambientMuted(){ try{ return localStorage.getItem('rrg_build_sound_muted')==='1'; }catch(e){ return false; } }
+function setAmbientMuted(m){ try{ localStorage.setItem('rrg_build_sound_muted', m?'1':'0'); }catch(e){} }
+var AMB_VOL=0.11;
+function startAmbient(){
+  try{
+    if(!AUDIO){ var C=window.AudioContext||window.webkitAudioContext; if(C) AUDIO=new C(); }
+    if(!AUDIO || AMB) return;
+    var now=AUDIO.currentTime;
+    var master=AUDIO.createGain(); master.gain.value=0.0001; master.connect(AUDIO.destination);
+    if(!ambientMuted()) master.gain.exponentialRampToValueAtTime(AMB_VOL, now+2.2);
+    // Echo for depth (feedback delay).
+    var dly=AUDIO.createDelay(1.0); dly.delayTime.value=0.33;
+    var fb=AUDIO.createGain(); fb.gain.value=0.35; dly.connect(fb); fb.connect(dly); dly.connect(master);
+    // Sweeping low-pass the whole bed runs through.
+    var lp=AUDIO.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900; lp.Q.value=6; lp.connect(master);
+    // Slow LFO opens/closes the filter — the "breathing machine" motion.
+    var lfo=AUDIO.createOscillator(), lfoG=AUDIO.createGain(); lfo.type='sine'; lfo.frequency.value=0.06; lfoG.gain.value=700; lfo.connect(lfoG); lfoG.connect(lp.frequency); lfo.start();
+    // Detuned drone (C2 + G2) — the hull hum.
+    var drone=[]; [65.41,98.00].forEach(function(f,i){ var o=AUDIO.createOscillator(), g=AUDIO.createGain(); o.type=i?'triangle':'sawtooth'; o.frequency.value=f; o.detune.value=i?7:-7; g.gain.value=0.05; o.connect(g); g.connect(lp); o.start(); drone.push(o); });
+    // Whole-tone shimmer (C5 D5 E5 F#5 G#5 A#5) — floaty, "not of this world".
+    var notes=[523.25,587.33,659.25,739.99,830.61,932.33,830.61,659.25];
+    var idx=0;
+    var iv=setInterval(function(){ try{
+      var t=AUDIO.currentTime, f=notes[idx%notes.length]; idx++;
+      var o=AUDIO.createOscillator(), g=AUDIO.createGain(); o.type='sine'; o.frequency.value=f;
+      o.connect(g); g.connect(dly); g.connect(lp);
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.09,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+1.3);
+      o.start(t); o.stop(t+1.4);
+    }catch(e){} }, 560);
+    // Occasional high "data blip".
+    var bv=setInterval(function(){ try{
+      if(Math.random()>0.5) return;
+      var t=AUDIO.currentTime, f=1400+Math.round(Math.random()*5)*160;
+      var o=AUDIO.createOscillator(), g=AUDIO.createGain(); o.type='square'; o.frequency.value=f;
+      o.connect(g); g.connect(dly);
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.05,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+0.16);
+      o.start(t); o.stop(t+0.2);
+    }catch(e){} }, 1300);
+    AMB={master:master, drone:drone, lfo:lfo, iv:iv, bv:bv};
+    updateMuteLink();
+  }catch(e){}
+}
+function stopAmbient(){
+  if(!AMB) return; var A=AMB; AMB=null;
+  try{ clearInterval(A.iv); clearInterval(A.bv); }catch(e){}
+  try{ var t=AUDIO.currentTime; A.master.gain.cancelScheduledValues(t); A.master.gain.setValueAtTime(Math.max(A.master.gain.value,0.0001),t); A.master.gain.exponentialRampToValueAtTime(0.0001,t+0.6); }catch(e){}
+  setTimeout(function(){ try{ A.drone.forEach(function(o){o.stop();}); A.lfo.stop(); }catch(e){} }, 750);
+}
+function updateMuteLink(){ var el=document.getElementById('muteLink'); if(el) el.textContent = ambientMuted() ? '🔇 Sound off · tap to unmute' : '🔊 Sound on · tap to mute'; }
+window.toggleMute=function(){
+  var m=!ambientMuted(); setAmbientMuted(m);
+  try{ if(AMB && AMB.master){ var t=AUDIO.currentTime; AMB.master.gain.cancelScheduledValues(t); AMB.master.gain.setValueAtTime(Math.max(AMB.master.gain.value,0.0001),t); AMB.master.gain.exponentialRampToValueAtTime(m?0.0001:AMB_VOL, t+0.4); } }catch(e){}
+  updateMuteLink();
+};
 function playDone(){
   try{
     if(!AUDIO){ var C=window.AudioContext||window.webkitAudioContext; if(C) AUDIO=new C(); }
@@ -262,7 +324,7 @@ function generate(){
     fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files,bovId:BOV_ID,links:LINKS,preparedFor:(document.getElementById('prepFor').value||'').trim()}),signal:ABORT.signal})
       .then(function(r){ return r.text().then(function(t){ var j=null; try{ j=JSON.parse(t); }catch(e){} return {ok:r.ok,status:r.status,j:j}; }); })
       .then(function(res){
-        if(res.j&&res.j.ok&&res.j.id){ stopTimer(); playDone(); modal('Done — your BOV is ready ✓','Opening the finished draft…'); var _id=res.j.id; setTimeout(function(){ location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(_id); }, 800); return; }
+        if(res.j&&res.j.ok&&res.j.id){ stopTimer(); stopAmbient(); playDone(); modal('Done — your BOV is ready ✓','Opening the finished draft…'); var _id=res.j.id; setTimeout(function(){ location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(_id); }, 900); return; }
         showOverlay(false);
         if(res.status===413){ setStatus('err','The documents are over the server’s upload limit. Trim the PDFs to the key pages (P&L, add-backs, lease) and try again.'); }
         else if(res.j&&res.j.error){ setStatus('err',res.j.error); }
