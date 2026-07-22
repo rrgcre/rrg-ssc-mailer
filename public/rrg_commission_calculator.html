@@ -105,9 +105,8 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
 <div class="toolbar"><div class="tb-inner">
   <div class="tt">RRG Commission Calculator <span>Enter the deal, see the split</span></div>
   <div class="actions">
-    <button class="btn" onclick="loadSample()">Load sample</button>
     <button class="btn" onclick="resetAll()">Reset</button>
-    <button class="btn print" onclick="window.print()">Print / Save PDF</button>
+    <button class="btn print" onclick="window.print()">Print</button>
   </div>
 </div></div>
 
@@ -285,7 +284,7 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
   };
 
   buildTierRows();
-  loadSample();
+  resetRateCard();   // initialize the rate card; open with blank deal inputs
 })();
 </script>
 </body>

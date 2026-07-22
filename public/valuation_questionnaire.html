@@ -316,7 +316,7 @@
       <button type="button" class="mbtn s" id="emCopyBtn" onclick="emCopy()">Copy email text</button>
       <button type="button" class="mbtn g" onclick="emClose()">Close</button>
     </div>
-    <div class="emodal-note">Tip: to attach the branded PDF, use &ldquo;Print / Save PDF&rdquo; first, then attach the saved file in your email.</div>
+    <div class="emodal-note">Tip: to attach the branded PDF, use &ldquo;Print&rdquo; first, then attach the saved file in your email.</div>
   </div>
 </div>
 <div id="smodal" class="emodal">
@@ -810,7 +810,7 @@
     var h=document.getElementById('sm-h'), msg=document.getElementById('sm-msg'), act=document.getElementById('sm-actions');
     act.innerHTML='';
     if(state==='sending'){ h.textContent='Saving\u2026'; msg.textContent='Recording this screening in the RRG log\u2026'; }
-    else if(state==='logged'){ h.textContent='Logged \u2713'; msg.textContent='This screening is saved to the RRG log'+(extra?(' under '+extra):'')+'. Use Print / Save PDF to attach it to an email, or draft one now.';
+    else if(state==='logged'){ h.textContent='Logged \u2713'; msg.textContent='This screening is saved to the RRG log'+(extra?(' under '+extra):'')+'. Use Print to attach it to an email, or draft one now.';
       act.innerHTML='<button type="button" class="mbtn p" onclick="smClose()">Done</button><button type="button" class="mbtn s" onclick="smClose();_openCopyPanel();">Draft email</button>'; }
     else if(state==='sent'){ h.textContent='Sent \u2713'; msg.textContent='The branded Seller Screening PDF was emailed to '+extra+', with van@rrgcre.com copied.';
       act.innerHTML='<button type="button" class="mbtn p" onclick="smClose()">Done</button>'; }

@@ -127,11 +127,19 @@ function stateOf(s){ return s.processed?'Advanced':(s.decision==='passed'?'Rejec
 function buildUserFilter(){
   if(ME.role!=='admin') return;
   var uf=document.getElementById('userFilter'); if(!uf) return;
-  var seen={}, opts=[];
-  ALL.forEach(function(s){ var k=s.byUser||s.by; if(k&&!seen[k]){ seen[k]=1; opts.push({key:k,label:s.by||s.byUser}); } });
-  opts.sort(function(a,b){ return String(a.label).localeCompare(String(b.label)); });
-  uf.innerHTML='<option value="">Filter: everyone</option>'+opts.map(function(o){ return '<option value="'+esc(o.key)+'">'+esc(o.label)+'</option>'; }).join('');
-  uf.style.display='';
+  var seen={}, opts=[], cur=uf.value||'';
+  // Every rep on the team roster is selectable — not just those who already have
+  // calls in the log. Reps present in the log are merged in as a fallback.
+  function add(key,label){ if(key && !seen[key]){ seen[key]=1; opts.push({key:key,label:label||key}); } }
+  fetch('/api/users-list').then(function(r){return r.json();}).then(function(j){
+    if(j && j.users) j.users.forEach(function(u){ add(u.username||u.name, u.name||u.username); });
+  }).catch(function(){}).then(function(){
+    ALL.forEach(function(s){ add(s.byUser||s.by, s.by||s.byUser); });
+    opts.sort(function(a,b){ return String(a.label).localeCompare(String(b.label)); });
+    uf.innerHTML='<option value="">Filter by rep: everyone</option>'+opts.map(function(o){ return '<option value="'+esc(o.key)+'">'+esc(o.label)+'</option>'; }).join('');
+    if(cur) uf.value=cur;
+    uf.style.display='';
+  });
 }
 function paint(){
   var list=ALL.slice();
@@ -199,16 +207,17 @@ function render(list){
       mid='<span class="passed">✕ Rejected</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
     } else {
       var _pct=(typeof s.completePct==='number')?s.completePct:0;
+      // Incomplete → gold button opens the call in edit mode AND highlights the
+      // missing required fields (&finish=1). Complete → "Advance →".
       mid=(s.completed
-            ? '<a class="adv" href="#" onclick="advanceCall(\''+s.id+'\');return false;">Advance to Questionnaire →</a>'
-            : '<a class="adv complete" href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'" title="'+_pct+'% of required fields done — finish to advance">'+pctRing(_pct)+'Complete Screening · '+_pct+'%</a>')
+            ? '<a class="adv" href="#" onclick="advanceCall(\''+s.id+'\');return false;">Advance →</a>'
+            : '<a class="adv complete" href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'&finish=1" title="'+_pct+'% of required fields done — finish to advance">'+pctRing(_pct)+'Complete Screening · '+_pct+'%</a>')
         + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Reject</button>';
     }
     return '<tr data-id="'+esc(s.id)+'">'+
       '<td><div class="biz">'+esc(s.business||'Seller')+'</div><div class="meta">'+meta+(s.contact?(' · '+esc(s.contact)):'')+'</div></td>'+
       '<td>'+badge(s)+'</td>'+
       '<td><div class="act">'+
-        '<a href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'">Edit</a>'+
         mid+
         '<button class="del" onclick="del(\''+s.id+'\',this)">Remove</button>'+
       '</div></td>'+

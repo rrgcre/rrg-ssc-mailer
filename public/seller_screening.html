@@ -255,7 +255,7 @@
     <button class="btn sample" onclick="loadSample()">Load sample</button>
     <button class="btn clear" onclick="if(confirm('Clear all fields?')){document.getElementById('sscform').reset();document.dispatchEvent(new Event('input',{bubbles:true}));if(window.rrgClearDraft)window.rrgClearDraft();}">Clear form</button>
     <button class="btn blank" onclick="printBlank()">Print blank copy</button>
-    <button class="btn blank" onclick="validateAndPrint()">Print / Save PDF</button>
+    <button class="btn blank" onclick="validateAndPrint()">Print</button>
     <button class="btn save" onclick="screenClose()">Close</button>
     <button class="btn print" onclick="emailSSC()">Submit &amp; Email</button>
   </div>
@@ -275,7 +275,7 @@
       <button type="button" class="mbtn s" id="emCopyBtn" onclick="emCopy()">Copy email text</button>
       <button type="button" class="mbtn g" onclick="emClose()">Close</button>
     </div>
-    <div class="emodal-note">Tip: to attach the branded PDF, use &ldquo;Print / Save PDF&rdquo; first, then attach the saved file in your email.</div>
+    <div class="emodal-note">Tip: to attach the branded PDF, use &ldquo;Print&rdquo; first, then attach the saved file in your email.</div>
   </div>
 </div>
 <div id="smodal" class="emodal">
@@ -631,6 +631,9 @@
     });
     return miss;
   }
+  // Expose the required-field validator + banner so the "Complete Screening"
+  // flow can highlight missing fields when the form opens (?finish=1).
+  window.__scrValidate=_validate; window.__scrBanner=_showBanner;
   // Stable per-session id so Print and Submit of the same screening upsert one queue record.
   // (Edit-load overrides this with the record's own id so re-saving updates the same record.)
   if(!window.RRG_FORM_ID) window.RRG_FORM_ID='ss_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
@@ -783,7 +786,7 @@
     var h=document.getElementById('sm-h'), msg=document.getElementById('sm-msg'), act=document.getElementById('sm-actions');
     act.innerHTML='';
     if(state==='sending'){ h.textContent='Saving\u2026'; msg.textContent='Recording this screening in the RRG log\u2026'; }
-    else if(state==='logged'){ h.textContent='Logged \u2713'; msg.textContent='This screening is saved to the RRG log'+(extra?(' under '+extra):'')+'. Use Print / Save PDF to attach it to an email, or draft one now.';
+    else if(state==='logged'){ h.textContent='Logged \u2713'; msg.textContent='This screening is saved to the RRG log'+(extra?(' under '+extra):'')+'. Use Print to attach it to an email, or draft one now.';
       act.innerHTML='<button type="button" class="mbtn p" onclick="smClose()">Done</button><button type="button" class="mbtn s" onclick="smClose();_openCopyPanel();">Draft email</button>'; }
     else if(state==='sent'){ h.textContent='Sent \u2713'; msg.textContent='The branded Seller Screening PDF was emailed to '+extra+', with van@rrgcre.com copied.';
       act.innerHTML='<button type="button" class="mbtn p" onclick="smClose()">Done</button>'; }
@@ -1115,6 +1118,18 @@
     b.style.cssText='background:#0b1a3a;color:#fff;font:600 13px/1.3 -apple-system,Segoe UI,Roboto,sans-serif;padding:10px 16px;';
     b.textContent='Editing “'+(s.business||'call')+'”. Save or Submit to update this record in the log.';
     document.body.insertBefore(b, document.body.firstChild);
+    // Opened from "Complete Screening" — highlight the missing required fields,
+    // advise the rep, and jump to the first one. (Only required fields are flagged;
+    // optional detail fields are never marked.)
+    if(new URLSearchParams(location.search).get('finish')==='1'){
+      setTimeout(function(){ try{
+        var miss = window.__scrValidate ? window.__scrValidate() : [];
+        if(miss.length){
+          if(window.__scrBanner) window.__scrBanner('Finish '+miss.length+' required field'+(miss.length>1?'s':'')+' (marked *, highlighted in red) to advance this call.');
+          miss[0].scrollIntoView({behavior:'smooth',block:'center'});
+        }
+      }catch(e){} }, 450);
+    }
   });
 })();
 </script>

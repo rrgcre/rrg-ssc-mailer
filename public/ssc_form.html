@@ -250,7 +250,7 @@
     <button class="btn sample" onclick="loadSample()">Load sample</button>
     <button class="btn clear" onclick="if(confirm('Clear all fields?')){document.getElementById('sscform').reset();document.dispatchEvent(new Event('input',{bubbles:true}));if(window.rrgClearDraft)window.rrgClearDraft();}">Clear form</button>
     <button class="btn blank" onclick="printBlank()">Print blank copy</button>
-    <button class="btn blank" onclick="validateAndPrint()">Print / Save PDF</button>
+    <button class="btn blank" onclick="validateAndPrint()">Print</button>
     <button class="btn print" onclick="emailSSC()">Submit &amp; Email</button>
   </div>
 </div>
@@ -269,7 +269,7 @@
       <button type="button" class="mbtn s" id="emCopyBtn" onclick="emCopy()">Copy email text</button>
       <button type="button" class="mbtn g" onclick="emClose()">Close</button>
     </div>
-    <div class="emodal-note">Tip: to attach the branded PDF, use &ldquo;Print / Save PDF&rdquo; first, then attach the saved file in your email.</div>
+    <div class="emodal-note">Tip: to attach the branded PDF, use &ldquo;Print&rdquo; first, then attach the saved file in your email.</div>
   </div>
 </div>
 <div id="smodal" class="emodal">
