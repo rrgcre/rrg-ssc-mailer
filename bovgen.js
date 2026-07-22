@@ -10,11 +10,26 @@ const SYSTEM = `You are a deeply experienced restaurant & bar commercial real-es
 
 You will receive some or all of: financial statements (P&L, trend, add-backs), a completed RRG Valuation Questionnaire, and the lease plus any amendments. Read them carefully. You may also receive reference links the broker gathered (press, reviews, a walkthrough video, the web presence) — use these for qualitative color, positioning, and the go-to-market narrative only; never let them override the documented financials.
 
-Do the analysis:
-- Normalize trailing earnings to ADJUSTED EBITDA via an add-back bridge (start from revenue, then net income as reported, then each add-back: depreciation, interest, non-recurring, discretionary/owner, rent normalization to the executed lease, etc.).
-- Select a defensible market MULTIPLE range for this concept and size (single-unit owner-operated ~1.5–3.0× SDE; profitable independents ~3.0–5.0×; multi-unit/manager-run ~4.0–7.0× adj. EBITDA). Give low / base / high.
+Do the analysis. Build the earnings the SAME WAY, EVERY TIME, using this exact add-back bridge:
+  Net income (as reported)
+  + Interest (interest ONLY — never principal)
+  + Entity income tax (C-corp ONLY; pass-through entities = 0)
+  + Depreciation
+  + Amortization
+  = EBITDA
+  + Owner salary + payroll tax
+  + Owner health / auto / personal
+  + Family payroll ABOVE the market value of the work performed
+  + TRUE one-time items (verified against the history)
+  ± Rent normalization (adjust UP or DOWN toward the market/executed lease — it cuts both ways)
+  = SDE  (Seller's Discretionary Earnings — the owner-operator's number)
+  − Market GM / replacement labor (the cost to replace the working owner for a hands-off buyer)
+  = ADJUSTED EBITDA  (the hands-off buyer's number)
+- Base the earnings ALWAYS on the trailing twelve months (TTM). Use prior years only to read the TREND (growing, flat, or declining revenue and margin) — a strong, improving trend supports the HIGH end of the multiple; a soft or declining trend pulls it toward the LOW end. Prior years inform the multiple; they do not change the TTM earnings base. Say what the trend is and how it moved the multiple in the methodology / why-the-range-holds narratives.
+- Compute BOTH SDE and Adjusted EBITDA every time, and report both figures.
+- VALUATION BASIS: if trailing revenue is UNDER $1,200,000, conclude value on SDE using SDE multiples (single-unit owner-operated ≈ 1.5–3.0× SDE, higher for a strong brand/lease). If trailing revenue is $1,200,000 OR MORE, conclude on Adjusted EBITDA using EBITDA multiples (profitable independents ≈ 3.0–5.0×; multi-unit / manager-run ≈ 4.0–7.0×). Set "basis" to "SDE" or "Adjusted EBITDA" accordingly, and give low / base / high multiples for that basis.
 - Note lease posture from the actual lease (term remaining, base + NNN, options, assignability) and normalize rent if needed.
-- OWNED REAL ESTATE: if there is no lease because the business owns its real estate, do NOT skip rent. Impute a fair market rent as an expense so the operating-business earnings are comparable to a leased peer, and state clearly that the real estate is a SEPARATE asset excluded from the business value (note it can be sold, leased back, or included as a separate line). Say which you did in the earnings and excluded narratives.
+- OWNED REAL ESTATE: if there is no lease because the business owns its real estate, do NOT skip rent — impute a fair market rent via the rent-normalization line so earnings are comparable to a leased peer, and state clearly that the real estate is a SEPARATE asset excluded from the business value. Say what you did in the earnings and excluded narratives.
 - Give a range, not false precision. Flag anything off the books that moves value (owner dependence, related-party landlord, deferred capex, concentration).
 
 Return ONLY a single JSON object — no prose, no markdown fences — with EXACTLY this shape (all string values unless noted):
@@ -27,10 +42,11 @@ Return ONLY a single JSON object — no prose, no markdown fences — with EXACT
    "preparedBy": "Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com",
    "preparedBy2": "",
    "date": "Month YYYY",
+   "basis": "SDE or Adjusted EBITDA — which earnings the multiple is applied to, per the revenue rule",
    "multLow": "4.0", "multBase": "4.5", "multHigh": "5.0",
    "revLo": "0.50", "revHi": "0.60",
-   "ebLow": "conservative adjusted-EBITDA scenario as a number, e.g. 1020000",
-   "ebUp": "upside adjusted-EBITDA scenario as a number, e.g. 1250000",
+   "ebLow": "conservative earnings scenario on the valuation basis, as a number, e.g. 1020000",
+   "ebUp": "upside earnings scenario on the valuation basis, as a number, e.g. 1250000",
    "purpose": "1 paragraph — purpose & scope of this opinion",
    "subjectOf": "what exactly is being valued",
    "excluded": "what is excluded (real estate, etc.)",
@@ -44,19 +60,16 @@ Return ONLY a single JSON object — no prose, no markdown fences — with EXACT
    "concNarr": "concluded value — the range and most-likely clearing value and why",
    "gtmNarr": "recommended pricing / go-to-market strategy (INTERNAL — anchor/target/floor)"
  },
- "bridge": [
-   {"label":"Trailing revenue","amt":"9195755"},
-   {"label":"Net income (as reported)","amt":"553161"},
-   {"label":"Add back: depreciation","amt":"133561"},
-   {"label":"Add back: interest","amt":"965"},
-   {"label":"Add back: non-recurring","amt":"56408"},
-   {"label":"Add back: discretionary / owner","amt":"24782"},
-   {"label":"Rent normalization to executed lease","amt":"352962"}
- ],
+ "bridge": {
+   "revenue": 900000, "netIncome": 120000,
+   "interest": 3000, "entityTax": 0, "depreciation": 45000, "amortization": 0,
+   "ownerSalary": 95000, "ownerHealth": 18000, "familyPayroll": 12000, "oneTime": 8000, "rentNorm": 0,
+   "marketGM": 70000
+ },
  "bench": [["Business profile","typical multiple"], ["...","..."]],
  "buyers": [["Buyer type","likely multiple","what moves them"], ["...","...","..."]]
 }
-IMPORTANT: bridge row 0 MUST be revenue (it is excluded from the Adjusted EBITDA total); every other bridge row sums to Adjusted EBITDA. Amounts are plain numbers (no $ or commas). If a document is missing, make the most defensible assumption you can from what's provided and say so in the relevant narrative. Output the JSON object only.`;
+IMPORTANT: "bridge" is an OBJECT of plain numbers (no $, no commas). The system computes the subtotals from it, the same way every time: EBITDA = netIncome + interest + entityTax + depreciation + amortization; SDE = EBITDA + ownerSalary + ownerHealth + familyPayroll + oneTime + rentNorm; ADJUSTED EBITDA = SDE − marketGM. Give rentNorm as a SIGNED number (negative to reduce earnings toward market rent). Give marketGM as a POSITIVE cost (it is subtracted). Use 0 for any line that does not apply. If a document is missing, make the most defensible assumption and say so in the relevant narrative. Output the JSON object only.`;
 
 function num(s) { return Number(String(s == null ? '' : s).replace(/[^0-9.\-]/g, '')) || 0; }
 function moneyM(n) {
@@ -67,18 +80,44 @@ function moneyM(n) {
 }
 function money(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
 
+// Compute the three bridge subtotals — the same way, every time. Accepts the new
+// keyed bridge object; falls back to the legacy array (sum of add-backs) so old
+// saved BOVs still summarize.
+function bridgeSubtotals(bridge) {
+  if (Array.isArray(bridge)) {
+    let e = 0, rev = 0;
+    bridge.forEach((r, i) => { if (i === 0) { rev = num(r && r.amt); return; } e += num(r && r.amt); });
+    return { revenue: rev, ebitda: e, sde: e, adj: e };  // legacy: one number
+  }
+  const b = bridge || {};
+  const ebitda = num(b.netIncome) + num(b.interest) + num(b.entityTax) + num(b.depreciation) + num(b.amortization);
+  const sde = ebitda + num(b.ownerSalary) + num(b.ownerHealth) + num(b.familyPayroll) + num(b.oneTime) + num(b.rentNorm);
+  const adj = sde - num(b.marketGM);
+  return { revenue: num(b.revenue), ebitda, sde, adj };
+}
+// Under the SDE threshold (default $1.2M) trailing revenue → value on SDE; otherwise Adjusted EBITDA.
+const DEFAULT_SDE_THRESHOLD = 1200000;
+function basisFor(sub, fieldsBasis, threshold) {
+  const t = Number(threshold) > 0 ? Number(threshold) : DEFAULT_SDE_THRESHOLD;
+  if (sub.revenue > 0) return sub.revenue < t ? 'SDE' : 'Adjusted EBITDA';
+  return /sde/i.test(String(fieldsBasis || '')) ? 'SDE' : 'Adjusted EBITDA';
+}
 // Compute the headline summary from a generated state (same math as the BOV builder).
-function summarize(state) {
-  const b = (state && state.bridge) || [];
-  let e = 0; b.forEach((r, i) => { if (i === 0) return; e += num(r.amt); });
+function summarize(state, threshold) {
+  const sub = bridgeSubtotals(state && state.bridge);
   const f = (state && state.fields) || {};
+  const basis = basisFor(sub, f.basis, threshold);
+  const basisVal = basis === 'SDE' ? sub.sde : sub.adj;
   const lo = num(f.multLow), ba = num(f.multBase), hi = num(f.multHigh);
   return {
-    ebitda: e,
-    rangeText: e > 0 ? (moneyM(e * lo) + ' – ' + moneyM(e * hi)) : '—',
-    targetText: e > 0 ? ('~' + moneyM(e * ba)) : '—',
+    basis: basis, basisVal: basisVal, sde: sub.sde, adjEbitda: sub.adj, revenue: sub.revenue,
+    ebitda: basisVal,   // headline earnings = the basis figure the multiple is applied to
+    rangeText: basisVal > 0 ? (moneyM(basisVal * lo) + ' – ' + moneyM(basisVal * hi)) : '—',
+    targetText: basisVal > 0 ? ('~' + moneyM(basisVal * ba)) : '—',
     multText: (lo && hi) ? (lo.toFixed(1) + '–' + hi.toFixed(1) + '×') : '—',
-    ebitdaText: e > 0 ? ('~' + moneyM(e)) : '—',
+    ebitdaText: basisVal > 0 ? ('~' + moneyM(basisVal)) : '—',
+    sdeText: sub.sde > 0 ? ('~' + moneyM(sub.sde)) : '—',
+    adjText: sub.adj > 0 ? ('~' + moneyM(sub.adj)) : '—',
   };
 }
 
@@ -165,7 +204,8 @@ function extractJson(text) {
   return null;
 }
 
-async function generateBov({ business, files, preparedBy, questionnaire, links, systemPrompt }) {
+async function generateBov({ business, files, preparedBy, questionnaire, links, systemPrompt, sdeThreshold }) {
+  const threshold = Number(sdeThreshold) > 0 ? Number(sdeThreshold) : DEFAULT_SDE_THRESHOLD;
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('ANTHROPIC_API_KEY is not set on the server.');
   // Admins can override the analyst instructions (Admin → BOV Analyst Prompt);
@@ -192,6 +232,7 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
   content.push({ type: 'text', text:
     `Business / concept name: ${business || '(not given — infer from documents)'}.\n` +
     `Prepared by: ${preparedBy || 'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com'}.\n` +
+    `VALUATION BASIS RULE (current setting): if trailing revenue is UNDER $${threshold.toLocaleString('en-US')}, conclude value on SDE; at or above $${threshold.toLocaleString('en-US')}, conclude on Adjusted EBITDA. Set "basis" accordingly.\n` +
     `Analyze the attached documents${questionnaire ? ' and the Valuation Questionnaire above' : ''} and output the BOV JSON object now.` });
 
   const resp = await fetch(API_URL, {
@@ -210,14 +251,14 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
   // enforce the prepared-by defaults and clean shape
   state.fields = state.fields || {};
   if (!state.fields.preparedBy) state.fields.preparedBy = preparedBy || 'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com';
-  if (!Array.isArray(state.bridge)) state.bridge = [];
+  if (!state.bridge || typeof state.bridge !== 'object') state.bridge = {};  // keep object OR legacy array; both are handled downstream
   if (!Array.isArray(state.bench)) state.bench = [];
   if (!Array.isArray(state.buyers)) state.buyers = [];
   // Sort the buyer-type list by likely multiple, highest first — reads best to
   // worst regardless of the order the model happened to return. Handled here in
   // code (not the prompt) so it stays correct even if the prompt is edited.
   state.buyers = sortBuyersByMultiple(state.buyers);
-  const summary = summarize(state);
+  const summary = summarize(state, threshold);
   const usage = data.usage || {};
   return { state, summary, business: state.fields.subject || business || 'Untitled', date: state.fields.date || '', usage };
 }

@@ -29,6 +29,16 @@ const BOV_PROMPT_FILE = path.join(BOV_DATA_DIR, 'bov_prompt.txt');
 function loadBovPromptCustom() { try { const t = fs.readFileSync(BOV_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
 function saveBovPromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BOV_PROMPT_FILE, String(t)); } catch (e) {} }
 function clearBovPromptCustom() { try { fs.unlinkSync(BOV_PROMPT_FILE); } catch (e) {} }
+// ---- BOV config (admin-editable): the SDE-vs-EBITDA revenue threshold ----
+const BOV_CONFIG_FILE = path.join(BOV_DATA_DIR, 'bov_config.json');
+const DEFAULT_SDE_THRESHOLD = 1200000;
+function loadSdeThreshold() {
+  try { const c = JSON.parse(fs.readFileSync(BOV_CONFIG_FILE, 'utf8')); const n = Number(c && c.sdeThreshold); return n > 0 ? n : DEFAULT_SDE_THRESHOLD; }
+  catch (e) { return DEFAULT_SDE_THRESHOLD; }
+}
+function saveSdeThreshold(n) {
+  try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BOV_CONFIG_FILE, JSON.stringify({ sdeThreshold: Number(n) || DEFAULT_SDE_THRESHOLD }, null, 2)); } catch (e) {}
+}
 // When a valuation questionnaire is advanced ("Request BOV"), drop a fresh
 // "waiting BOV" into the queue — the same pattern as advancing a seller call.
 // Each request creates a NEW valuation record, so a business can be valued more
@@ -567,11 +577,14 @@ function moneyShort(n) {
 // of the generated BOV.
 function bovRevenueText(b) {
   try {
-    const br = (b.state && b.state.bridge) || [];
-    if (br.length && /revenue/i.test(br[0].label || '')) {
-      const n = Number(String(br[0].amt).replace(/[^0-9.\-]/g, '')) || 0;
-      if (n > 0) return moneyShort(n);
+    const br = b.state && b.state.bridge;
+    let n = 0;
+    if (br && !Array.isArray(br) && br.revenue != null) {          // new keyed bridge
+      n = Number(String(br.revenue).replace(/[^0-9.\-]/g, '')) || 0;
+    } else if (Array.isArray(br) && br[0] && /revenue/i.test(br[0].label || '')) {  // legacy array
+      n = Number(String(br[0].amt).replace(/[^0-9.\-]/g, '')) || 0;
     }
+    if (n > 0) return moneyShort(n);
   } catch (e) {}
   return '';
 }
@@ -632,7 +645,7 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
       }
     }
 
-    const out = await bovgen.generateBov({ business, files, preparedBy, questionnaire: questionnaireText, links, systemPrompt: loadBovPromptCustom() || undefined });
+    const out = await bovgen.generateBov({ business, files, preparedBy, questionnaire: questionnaireText, links, systemPrompt: loadBovPromptCustom() || undefined, sdeThreshold: loadSdeThreshold() });
     const bovs = loadBovs();
     const rec = (target && bovs.find(x => x.id === target.id)) || {
       id: newBovId(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: new Date().toISOString(),
@@ -641,6 +654,7 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
     rec.date = String(out.date || '').slice(0, 40);
     rec.rangeText = out.summary.rangeText; rec.targetText = out.summary.targetText;
     rec.multText = out.summary.multText; rec.ebitdaText = out.summary.ebitdaText;
+    rec.basis = out.summary.basis; rec.sdeText = out.summary.sdeText; rec.adjText = out.summary.adjText;
     rec.state = out.state; rec.aiGenerated = true; rec.pending = false; rec.builtAt = new Date().toISOString();
     if (!target) bovs.push(rec);
     saveBovs(bovs);
@@ -673,6 +687,7 @@ app.post('/api/bov', (req, res) => {
     id: newBovId(), business: biz.slice(0, 120), date: String(b.date || '').slice(0, 40),
     rangeText: String(b.rangeText || '').slice(0, 60), targetText: String(b.targetText || '').slice(0, 60),
     multText: String(b.multText || '').slice(0, 40), ebitdaText: String(b.ebitdaText || '').slice(0, 40),
+    basis: String(b.basis || '').slice(0, 24), sdeText: String(b.sdeText || '').slice(0, 40), adjText: String(b.adjText || '').slice(0, 40),
     state: (b.state && typeof b.state === 'object') ? sortBovBuyers(b.state) : null,
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
     createdAt: new Date().toISOString(),
@@ -818,6 +833,13 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveLinks()">Save quick links</button> <span id="lmsg" class="sub2"></span></div>
       </div>
 
+      <h2 style="margin-top:34px">BOV Valuation Basis <span class="sub2">— deals with trailing sales BELOW this value are concluded on SDE; at or above it, on Adjusted EBITDA.</span></h2>
+      <div class="links">
+        <label class="sub2" style="display:block;margin-bottom:4px">SDE threshold (annual sales, $)</label>
+        <input id="sdeThreshold" inputmode="numeric" style="border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;width:200px" placeholder="1200000">
+        <div style="margin-top:10px"><button class="primary" onclick="saveBovConfig()">Save threshold</button> <span id="bcmsg" class="sub2"></span></div>
+      </div>
+
       <h2 style="margin-top:34px">BOV Analyst Prompt <span class="sub2">— the instructions Claude follows when drafting a BOV. Edit to change how valuations are written; keep the JSON output block at the end intact so the BOV still builds. Reset any time to restore the RRG default.</span></h2>
       <div class="links">
         <div class="sub2" id="bpstate" style="margin:0 0 8px">Loading…</div>
@@ -846,6 +868,10 @@ app.get('/admin', requireAdmin, (req, res) => {
       function saveBovPrompt(){ var v=document.getElementById('bovPrompt').value; var m=document.getElementById('bpmsg'); m.textContent='Saving…'; post('/api/admin/bov-prompt',{prompt:v}).then(function(j){ if(j.ok){ m.textContent = j.isDefault ? 'Saved — matches the default, so the default is in use ✓' : 'Saved custom prompt ✓'; document.getElementById('bovPrompt').value=j.prompt||v; _bpState(j.isDefault); } else m.textContent=j.error||'Failed'; }); }
       function resetBovPrompt(){ if(!confirm('Reset the BOV prompt to the RRG default? Your custom prompt will be discarded.')) return; post('/api/admin/bov-prompt',{reset:true}).then(function(j){ if(j.ok){ document.getElementById('bovPrompt').value=j.prompt||''; document.getElementById('bpmsg').textContent='Reset to default ✓'; _bpState(true); } }); }
       loadBovPrompt();
+      function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
+      function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); } }); }
+      function saveBovConfig(){ var v=(document.getElementById('sdeThreshold').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('bcmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{sdeThreshold:v}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); m.textContent='Saved — SDE below $'+fmtNum(j.sdeThreshold)+' in sales ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
+      loadBovConfig();
       document.querySelectorAll('form[action="/api/admin/toggle"],form[action="/api/admin/remove"]').forEach(function(f){ f.addEventListener('submit',function(e){ e.preventDefault(); var d={}; new FormData(f).forEach((v,k)=>d[k]=v); post(f.action,d).then(j=>{ if(j.ok) location.reload(); else alert(j.error||'Failed'); }); }); });
       /* Collapsible admin sections (chevrons) */
       var ACC=[];
@@ -904,6 +930,16 @@ app.post('/api/admin/bov-prompt', requireAdmin, (req, res) => {
   if (!p || p === def.trim()) { clearBovPromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
   saveBovPromptCustom(p);
   res.json({ ok: true, prompt: p, isDefault: false });
+});
+// SDE-vs-EBITDA revenue threshold. Admins read/write; any signed-in user (the
+// BOV builder) can read it to compute the basis client-side.
+app.get('/api/bov-config', (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD }));
+app.get('/api/admin/bov-config', requireAdmin, (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD }));
+app.post('/api/admin/bov-config', requireAdmin, (req, res) => {
+  const n = Number(String((req.body || {}).sdeThreshold).replace(/[^0-9.]/g, ''));
+  if (!(n > 0)) return res.status(400).json({ ok: false, error: 'Enter a dollar amount greater than 0.' });
+  saveSdeThreshold(n);
+  res.json({ ok: true, sdeThreshold: loadSdeThreshold() });
 });
 app.get('/admin/logins.csv', requireAdmin, (_req, res) => {
   const fs = require('fs');

@@ -423,15 +423,16 @@ body.editing .ed:hover{background:rgba(120,150,220,.10);}
   <section class="page" data-toc-title="Valuation Guidance">
     <div class="kick red ed">Valuation Guidance</div>
     <h2 class="sect serif ed">Value Framework</h2><hr class="rule">
-    <p class="body intro ed">The valuation guidance below is drawn from RRG's accompanying Broker's Opinion of Value, which applies a market multiple to normalized adjusted EBITDA and cross-checks against revenue and comparable transactions. It is provided to frame buyer expectations; final value will be established through the transaction process. Use <span class="lead">Pull from BOV</span> in the toolbar to populate these figures from your current BOV draft.</p>
+    <p class="body intro ed">The valuation guidance below is drawn from RRG's accompanying Broker's Opinion of Value, which applies a market multiple to normalized trailing-twelve-month earnings — SDE (Seller's Discretionary Earnings) for owner-operated businesses under $1.2M in sales, adjusted EBITDA for larger operations — and cross-checks against revenue and comparable transactions. It is provided to frame buyer expectations; final value will be established through the transaction process. Use <span class="lead">Pull from BOV</span> in the toolbar to populate these figures from your current BOV draft.</p>
     <div class="bov">
       <div class="bk">Per RRG Broker's Opinion of Value</div>
       <div class="grid4">
         <div class="bc"><div class="bl">Concluded Value Range</div><div class="bv ed" id="bovRange">—</div></div>
         <div class="bc"><div class="bl">Recommended Target</div><div class="bv ed" id="bovTarget">—</div></div>
-        <div class="bc"><div class="bl">Adj. EBITDA Multiple</div><div class="bv ed" id="bovMult">—</div></div>
-        <div class="bc"><div class="bl">Adj. EBITDA Basis</div><div class="bv ed" id="bovEbitda">—</div></div>
+        <div class="bc"><div class="bl" id="bovMultLabel">Multiple</div><div class="bv ed" id="bovMult">—</div></div>
+        <div class="bc"><div class="bl" id="bovEbitdaLabel">Valuation Basis</div><div class="bv ed" id="bovEbitda">—</div></div>
       </div>
+      <div class="bk ed" id="bovBoth" style="margin-top:8px"></div>
       <div class="note ed" id="bovNote">Open the Broker's Opinion of Value tool, complete the earnings and multiple, then return here and click "Pull from BOV." The concluded range and target will drop in automatically.</div>
     </div>
     <p class="body ed">The BOV is an internal opinion prepared by RRG for planning and marketing purposes; it is not a certified appraisal. It should be read together with the Assumptions &amp; Limiting Conditions in that document. Buyers are expected to form their own view of value through independent diligence.</p>
@@ -607,15 +608,22 @@ document.getElementById('photoInput').addEventListener('change',function(e){
 
 /* ---------- BOV link ---------- */
 function fillBOV(b, quiet){
+  var isSde = /sde/i.test(b.basis||'');
+  var basisShort = isSde?'SDE':'Adj. EBITDA';
+  var basisWord = isSde?'SDE':'adjusted EBITDA';
   document.getElementById('bovRange').textContent = b.rangeText||'—';
   document.getElementById('bovTarget').textContent = b.targetText||'—';
   document.getElementById('bovMult').textContent = b.multText||'—';
   document.getElementById('bovEbitda').textContent = b.ebitdaText||'—';
+  var ml=document.getElementById('bovMultLabel'); if(ml) ml.textContent=basisShort+' Multiple';
+  var el=document.getElementById('bovEbitdaLabel'); if(el) el.textContent=basisShort+' Basis';
+  var both=document.getElementById('bovBoth');
+  if(both){ var sde=b.sdeText||'', adj=b.adjText||''; both.textContent=(sde||adj)?('TTM earnings — SDE: '+(sde||'—')+'   ·   Adjusted EBITDA: '+(adj||'—')+'   ·   Valuation basis: '+(isSde?'SDE':'Adjusted EBITDA')):''; }
   var subj=(b.subject||b.business)?(' for '+(b.subject||b.business)):'';
   document.getElementById('bovNote').textContent =
     'Pulled from the RRG Broker’s Opinion of Value'+subj+(b.date?(' ('+b.date+')'):'')+
     '. Concluded range '+(b.rangeText||'')+', recommended target '+(b.targetText||'')+
-    ', at '+(b.multText||'')+' adjusted EBITDA of '+(b.ebitdaText||'')+'. Verify against the current BOV before distribution.';
+    ', at '+(b.multText||'')+' '+basisWord+' of '+(b.ebitdaText||'')+'. Verify against the current BOV before distribution.';
   save();
   if(!quiet) alert('Valuation guidance pulled from the BOV.');
 }

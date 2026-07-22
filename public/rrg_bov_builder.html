@@ -128,8 +128,9 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     <div class="strip">
       <div class="c"><div class="k">Concluded Value Range</div><div class="v red" id="hRange">—</div></div>
       <div class="c"><div class="k">Recommended Target</div><div class="v" id="hTarget">—</div></div>
-      <div class="c"><div class="k">Adj. EBITDA Multiple</div><div class="v" id="hMult">—</div></div>
-      <div class="c"><div class="k">Adj. TTM EBITDA</div><div class="v" id="hEbitda">—</div></div>
+      <div class="c"><div class="k">Multiple <span style="opacity:.7">(× <span class="basisLabel">Adj. EBITDA</span>)</span></div><div class="v" id="hMult">—</div></div>
+      <div class="c"><div class="k">SDE (TTM)</div><div class="v" id="hSde">—</div></div>
+      <div class="c"><div class="k">Adj. EBITDA (TTM)</div><div class="v" id="hEbitda">—</div></div>
     </div>
   </div>
 
@@ -154,11 +155,11 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 
     <!-- 3 EARNINGS -->
     <div class="kl-block"><div class="kl">Earnings</div>
-    <div class="sec"><h2>Basis of Value — Adjusted EBITDA</h2><div class="flex"></div></div>
+    <div class="sec"><h2>Basis of Value — The Bridge (TTM)</h2><div class="flex"></div></div>
     <table>
       <thead><tr><th>Trailing Twelve Months</th><th>$</th></tr></thead>
       <tbody id="bridgeBody"></tbody>
-      <tfoot><tr class="tot"><td>Adjusted EBITDA <span id="marginTxt" style="color:var(--muted);font-weight:600"></span></td><td class="calc" id="adjEbitda">$0</td></tr></tfoot>
+      <tfoot><tr class="tot"><td>Valuation basis — <span class="basisLabel">Adjusted EBITDA</span> <span id="marginTxt" style="color:var(--muted);font-weight:600"></span></td><td class="calc" id="adjEbitda">$0</td></tr></tfoot>
     </table>
     <textarea class="narr" data-k="earnNarr" placeholder="Occupancy note and earnings-quality commentary — what's normalized and why."></textarea>
     </div>
@@ -196,7 +197,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     <div class="kl-block"><div class="kl">Conclusion</div>
     <div class="sec"><h2>Valuation Matrix &amp; Concluded Range</h2><div class="flex"></div></div>
     <table class="matrix">
-      <thead><tr><th>Adjusted EBITDA Scenario</th><th id="mcLo">4.0×</th><th id="mcBase">4.5×</th><th id="mcHi">5.0×</th></tr></thead>
+      <thead><tr><th><span class="basisLabel">Adjusted EBITDA</span> Scenario</th><th id="mcLo">4.0×</th><th id="mcBase">4.5×</th><th id="mcHi">5.0×</th></tr></thead>
       <tbody>
         <tr><td class="l">Conservative &nbsp; <input data-k="ebLow" inputmode="numeric" value="" placeholder="$" oninput="grpme(this);compute()" style="width:110px;display:inline-block"></td><td class="calc" id="m00">—</td><td class="calc" id="m01">—</td><td class="calc" id="m02">—</td></tr>
         <tr class="baserow"><td class="l">Base (as normalized) &nbsp; <b id="ebBaseTxt">$0</b></td><td class="calc" id="m10">—</td><td class="calc" id="m11">—</td><td class="calc" id="m12">—</td></tr>
@@ -251,10 +252,53 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   document.addEventListener('input', function(e){ if(e.target.tagName==='TEXTAREA') grow(e.target); });
   window.addEventListener('load', function(){ setTimeout(growAll,30); });
 
-  var BRIDGE=[['Go-forward platform revenue','revenue',false],['Net income (as reported)','netIncome',false],
-    ['Add back: depreciation','addDep',false],['Add back: interest','addInt',false],
-    ['Add back: non-recurring','addNonRec',false],['Add back: discretionary (T&E)','addTE',false],
-    ['Rent normalization to executed leases','addRent',false]];
+  // The bridge — the same way, every time. Fixed line items; the rep fills amounts.
+  var BRIDGE_SPEC=[
+    {key:'revenue',      label:'Revenue (TTM)',                                     op:'rev'},
+    {key:'netIncome',    label:'Net income (as reported)',                           op:'base'},
+    {key:'interest',     label:'+ Interest (interest only — never principal)',       op:'add'},
+    {key:'entityTax',    label:'+ Entity income tax (C-corp only)',                  op:'add'},
+    {key:'depreciation', label:'+ Depreciation',                                     op:'add'},
+    {key:'amortization', label:'+ Amortization',                                     op:'add'},
+    {label:'= EBITDA',                                                               op:'st', st:'ebitda'},
+    {key:'ownerSalary',  label:'+ Owner salary + payroll tax',                       op:'add'},
+    {key:'ownerHealth',  label:'+ Owner health / auto / personal',                   op:'add'},
+    {key:'familyPayroll',label:'+ Family payroll above the market value of the work', op:'add'},
+    {key:'oneTime',      label:'+ True one-time items',                              op:'add'},
+    {key:'rentNorm',     label:'± Rent normalization',                               op:'add'},
+    {label:'= SDE — the owner-operator’s number',                                    op:'st', st:'sde'},
+    {key:'marketGM',     label:'− Market GM / replacement labor',                    op:'sub'},
+    {label:'= Adjusted EBITDA — the hands-off buyer’s number',                       op:'st', st:'adj'}
+  ];
+  function blankBridge(){ var o={}; BRIDGE_SPEC.forEach(function(r){ if(r.key) o[r.key]=''; }); return o; }
+  function migrateBridge(b){
+    var o=blankBridge();
+    if(b && !Array.isArray(b)){ Object.keys(o).forEach(function(k){ if(b[k]!=null) o[k]=b[k]; }); return o; }
+    (Array.isArray(b)?b:[]).forEach(function(r,i){ var L=String(r&&r.label||'').toLowerCase(), a=(r&&r.amt)||'';
+      if(i===0||/revenue/.test(L)) o.revenue=a;
+      else if(/net income/.test(L)) o.netIncome=a;
+      else if(/deprec/.test(L)) o.depreciation=a;
+      else if(/amort/.test(L)) o.amortization=a;
+      else if(/interest/.test(L)) o.interest=a;
+      else if(/rent/.test(L)) o.rentNorm=a;
+      else if(/owner|salary|discretion/.test(L)) o.ownerSalary=a;
+      else o.oneTime=a;
+    });
+    return o;
+  }
+  var SDE_THRESHOLD=1200000;  // admin-configurable; fetched from /api/bov-config on load
+  function bv(k){ return num(state.bridge && state.bridge[k]); }
+  function subtotals(){
+    var rev=bv('revenue');
+    var ebitda=bv('netIncome')+bv('interest')+bv('entityTax')+bv('depreciation')+bv('amortization');
+    var sde=ebitda+bv('ownerSalary')+bv('ownerHealth')+bv('familyPayroll')+bv('oneTime')+bv('rentNorm');
+    var adj=sde-bv('marketGM');
+    var basis = rev>0 ? (rev<SDE_THRESHOLD?'SDE':'Adjusted EBITDA') : (state.basis||'Adjusted EBITDA');
+    return {rev:rev, ebitda:ebitda, sde:sde, adj:adj, basis:basis, basisVal:(basis==='SDE'?sde:adj)};
+  }
+  try{ fetch('/api/bov-config',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&Number(j.sdeThreshold)>0){ SDE_THRESHOLD=Number(j.sdeThreshold); if(window.compute) compute(); } }).catch(function(){}); }catch(e){}
+  function setTxt(id,t){ var el=document.getElementById(id); if(el) el.textContent=t; }
+  function setBasisLabels(b){ document.querySelectorAll('.basisLabel').forEach(function(x){ x.textContent=(b==='SDE'?'SDE':'Adj. EBITDA'); }); }
   var BENCH=[['Single-unit, owner-operated','1.5–3.0× SDE'],['Profitable independent, single unit','3.0–5.0× SDE'],
     ['Independent group, $1–5M earnings','3.0–5.0× EBITDA'],['Multi-unit / manager-run groups','4.0–7.0× adj. EBITDA'],
     ['This platform (selected)','4.0–5.0× adj. EBITDA'],['Scaled platforms / franchisors','7.0–12×+ EBITDA']];
@@ -263,22 +307,24 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     ['Experienced owner-operator','4.0–4.75×','Lifestyle + brand; tempered by financing']];
   var ASSUME="1.  This BOV is an opinion of value prepared by RRG for the ownership of the Company for internal planning and marketing purposes. It is not a certified appraisal, a USPAP-compliant report, a fairness opinion, or a guarantee of the price at which the business will sell.\n\n2.  The opinion relies on financial and operating information supplied by ownership and management, which RRG has not audited or independently verified. Adjusted-earnings figures reflect normalizing adjustments and remain subject to a buyer's quality-of-earnings review.\n\n3.  Value is expressed for the going-concern operating business, with real estate treated as noted and any leases assumed and assigned. A change in lease terms, rent, or their market-supportability would change the conclusion.\n\n4.  The opinion is stated as of the date shown and reflects market conditions, transaction multiples, capital availability, and industry sentiment as of that date; these change over time. Actual value realized depends on buyer perception of earnings durability, growth, deal structure, financing, and negotiation.\n\n5.  RRG represents the seller and is compensated on a completed sale. This opinion should not be relied upon by any buyer or third party as investment, legal, tax, or accounting advice.";
 
-  // ---- bridge ----
+  // ---- bridge (fixed structure; subtotals computed inline) ----
   function buildBridge(){
+    if(!state.bridge || Array.isArray(state.bridge)) state.bridge=migrateBridge(state.bridge);
     var tb=document.getElementById('bridgeBody'); tb.innerHTML='';
-    state.bridge.forEach(function(r,i){
+    BRIDGE_SPEC.forEach(function(row){
       var tr=document.createElement('tr');
-      tr.innerHTML='<td class="l"><input data-bi="'+i+'" data-bf="label" value="'+esc(r.label)+'"></td>'+
-        '<td><input data-bi="'+i+'" data-bf="amt" inputmode="numeric" value="'+esc(r.amt)+'" placeholder="0"></td>';
+      if(row.op==='st'){
+        tr.className='subtot';
+        var id = row.st==='ebitda'?'stEbitda':(row.st==='sde'?'stSde':'stAdj');
+        tr.innerHTML='<td class="l" style="font-weight:800;color:var(--navy)">'+esc(row.label)+'</td><td class="calc"><b id="'+id+'">$0</b></td>';
+      } else {
+        tr.innerHTML='<td class="l">'+esc(row.label)+'</td>'+
+          '<td><input data-bk="'+row.key+'" inputmode="numeric" value="'+esc(state.bridge[row.key]||'')+'" placeholder="0"></td>';
+      }
       tb.appendChild(tr);
     });
-    tb.querySelectorAll('[data-bi]').forEach(function(el){ el.addEventListener('input',function(){
-      var i=+el.getAttribute('data-bi'),f=el.getAttribute('data-bf'); if(f==='amt') el.value=grp(el.value); state.bridge[i][f]=el.value; compute(); save(); }); });
-  }
-  function adjEbitda(){
-    // revenue (row0) and net income (row1) + all add-backs (rows 2+); revenue excluded from the sum
-    var e=0; state.bridge.forEach(function(r,i){ if(i===0) return; e+=num(r.amt); });
-    return e;
+    tb.querySelectorAll('[data-bk]').forEach(function(el){ el.addEventListener('input',function(){
+      var k=el.getAttribute('data-bk'); el.value=grp(el.value); state.bridge[k]=el.value; compute(); save(); }); });
   }
 
   function simpleTable(bodyId, arr, cols, akey){
@@ -292,35 +338,39 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   }
 
   window.compute=function(){
-    var e=adjEbitda(), rev=num(state.bridge[0]?state.bridge[0].amt:0);
+    var s=subtotals(), e=s.basisVal, rev=s.rev;
     var lo=num(val('multLow')),ba=num(val('multBase')),hi=num(val('multHigh'));
-    document.getElementById('adjEbitda').textContent=money(e);
-    document.getElementById('marginTxt').textContent=rev>0?('('+(e/rev*100).toFixed(1)+'% of revenue)'):'';
+    // bridge subtotals (inline) + basis labels
+    setTxt('stEbitda',money(s.ebitda)); setTxt('stSde',money(s.sde)); setTxt('stAdj',money(s.adj));
+    setBasisLabels(s.basis);
+    setTxt('adjEbitda',money(e));
+    setTxt('marginTxt', rev>0?('('+(e/rev*100).toFixed(1)+'% of revenue · basis: '+s.basis+')'):('· basis: '+s.basis));
     var vLo=e*lo, vBa=e*ba, vHi=e*hi;
-    document.getElementById('hRange').textContent=e>0?(moneyM(vLo)+' – '+moneyM(vHi)):'—';
-    document.getElementById('hTarget').textContent=e>0?('~'+moneyM(vBa)):'—';
-    document.getElementById('hMult').textContent=(lo&&hi)?(lo.toFixed(1)+'–'+hi.toFixed(1)+'×'):'—';
-    document.getElementById('hEbitda').textContent=e>0?('~'+moneyM(e)):'—';
+    setTxt('hRange', e>0?(moneyM(vLo)+' – '+moneyM(vHi)):'—');
+    setTxt('hTarget', e>0?('~'+moneyM(vBa)):'—');
+    setTxt('hMult',(lo&&hi)?(lo.toFixed(1)+'–'+hi.toFixed(1)+'×'):'—');
+    setTxt('hSde', s.sde>0?('~'+moneyM(s.sde)):'—');
+    setTxt('hEbitda', s.adj>0?('~'+moneyM(s.adj)):'—');
+    var basisWord = s.basis==='SDE'?'SDE':'adjusted EBITDA';
     document.getElementById('execLead').innerHTML = e>0
-      ? ('It is RRG’s opinion that the fair market value falls within a range of approximately <b>'+moneyM(vLo)+' to '+moneyM(vHi)+'</b>, with a most-likely clearing value near <b>'+moneyM(vBa)+'</b>, derived from a market approach applied to adjusted EBITDA of <b>'+money(e)+'</b> at <b>'+lo.toFixed(1)+'× to '+hi.toFixed(1)+'×</b> (base case '+ba.toFixed(1)+'×).')
+      ? ('It is RRG’s opinion that the fair market value falls within a range of approximately <b>'+moneyM(vLo)+' to '+moneyM(vHi)+'</b>, with a most-likely clearing value near <b>'+moneyM(vBa)+'</b>, derived from a market approach applied to '+basisWord+' of <b>'+money(e)+'</b> at <b>'+lo.toFixed(1)+'× to '+hi.toFixed(1)+'×</b> (base case '+ba.toFixed(1)+'×).')
       : 'Enter the earnings and multiple below to generate the conclusion.';
-    // multiple headers
-    document.getElementById('mcLo').textContent=lo.toFixed(1)+'×'; document.getElementById('mcBase').textContent=ba.toFixed(1)+'×'; document.getElementById('mcHi').textContent=hi.toFixed(1)+'×';
-    // matrix
+    setTxt('mcLo',lo.toFixed(1)+'×'); setTxt('mcBase',ba.toFixed(1)+'×'); setTxt('mcHi',hi.toFixed(1)+'×');
     var ebLow=num(val('ebLow'))||e, ebUp=num(val('ebUp'))||e;
-    document.getElementById('ebBaseTxt').textContent=money(e);
+    setTxt('ebBaseTxt',money(e));
     var mults=[lo,ba,hi], ebs=[ebLow,e,ebUp];
     for(var r=0;r<3;r++) for(var col=0;col<3;col++){ var cell=document.getElementById('m'+r+col); if(cell) cell.textContent=(ebs[r]>0&&mults[col]>0)?money(ebs[r]*mults[col]):'—'; }
-    // revenue check
     var rlo=num(val('revLo')),rhi=num(val('revHi'));
-    document.getElementById('revCheck').textContent=(rev>0&&rlo&&rhi)?(moneyM(rev*rlo)+' – '+moneyM(rev*rhi)):'—';
-    // publish a compact summary for the CIM builder to read (shared, format-stable)
+    setTxt('revCheck',(rev>0&&rlo&&rhi)?(moneyM(rev*rlo)+' – '+moneyM(rev*rhi)):'—');
+    // publish a compact summary for the CIM builder (includes SDE, Adj EBITDA, basis)
     try{ if(e>0){ localStorage.setItem('rrg_bov_summary', JSON.stringify({
       subject: val('subject')||'', date: val('date')||'',
-      rangeLow: vLo, rangeHigh: vHi, target: vBa, ebitda: e,
+      rangeLow: vLo, rangeHigh: vHi, target: vBa,
+      basis: s.basis, basisVal: e, sde: s.sde, adjEbitda: s.adj, ebitda: e, revenue: rev,
       multLow: lo, multBase: ba, multHigh: hi,
       rangeText: moneyM(vLo)+' – '+moneyM(vHi), targetText: '~'+moneyM(vBa),
       multText: lo.toFixed(1)+'–'+hi.toFixed(1)+'×', ebitdaText: money(e),
+      sdeText: moneyM(s.sde), adjText: moneyM(s.adj),
       stamp: Date.now()
     })); } }catch(e2){}
   };
@@ -344,8 +394,10 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     var biz=((q('subject')&&q('subject').value)||'').trim();
     if(!biz){ alert('Enter the business name on the cover first.'); return; }
     var g=function(id){ var el=document.getElementById(id); return el?el.textContent:''; };
+    var _s=subtotals();
     var payload={ business:biz, date:(q('date')&&q('date').value)||'',
-      rangeText:g('hRange'), targetText:g('hTarget'), multText:g('hMult'), ebitdaText:g('hEbitda'), state:state };
+      rangeText:g('hRange'), targetText:g('hTarget'), multText:g('hMult'), ebitdaText:g('hEbitda'),
+      basis:_s.basis, sdeText:moneyM(_s.sde), adjText:moneyM(_s.adj), state:state };
     fetch('/api/bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
       .then(function(r){return r.json();}).then(function(j){
         if(j&&j.ok){ alert('Saved "'+biz+'" to the BOV queue. Open the BOV Queue to turn it into a CIM.'); }
@@ -355,17 +407,14 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 
   window.clearAll=function(){
     if(!confirm('Clear this BOV?')) return;
-    state={fields:{}, bridge:BRIDGE.map(function(r){return {label:r[0],amt:''};}), bench:BENCH.map(function(r){return r.slice();}), buyers:BUYERS.map(function(r){return r.slice();})};
+    state={fields:{}, bridge:blankBridge(), bench:BENCH.map(function(r){return r.slice();}), buyers:BUYERS.map(function(r){return r.slice();})};
     document.querySelectorAll('[data-k]').forEach(function(el){ if(el.getAttribute('data-k')==='assume') el.value=ASSUME; else if(['multLow','multBase','multHigh'].indexOf(el.getAttribute('data-k'))>=0){} else if(el.getAttribute('data-k')==='revLo')el.value='0.50'; else if(el.getAttribute('data-k')==='revHi')el.value='0.60'; else if(el.getAttribute('data-k')==='preparedBy')el.value='Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com'; else if(el.getAttribute('data-k')==='preparedBy2')el.value='Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com'; else el.value=''; });
     q('multLow').value='4.0'; q('multBase').value='4.5'; q('multHigh').value='5.0';
     renderAll(); try{localStorage.removeItem(KEY);}catch(e){}
   };
 
   window.loadSample=function(){
-    state.bridge=[{label:'Go-forward platform revenue',amt:'9,195,755'},{label:'Net income (as reported)',amt:'553,161'},
-      {label:'Add back: depreciation',amt:'133,561'},{label:'Add back: interest',amt:'965'},
-      {label:'Add back: non-recurring (project & other)',amt:'56,408'},{label:'Add back: travel & entertainment (discretionary)',amt:'24,782'},
-      {label:'Rent normalization to executed 2024 leases',amt:'352,962'}];
+    state.bridge={revenue:'9,195,755', netIncome:'553,161', interest:'965', entityTax:'0', depreciation:'133,561', amortization:'0', ownerSalary:'0', ownerHealth:'0', familyPayroll:'0', oneTime:'56,408', rentNorm:'352,962', marketGM:'0'};
     state.bench=BENCH.map(function(r){return r.slice();}); state.buyers=BUYERS.map(function(r){return r.slice();});
     var f={subject:'The Magnolia Pancake Haus',descriptor:'Three-Restaurant Go-Forward Platform · Operating Business',tagline:'A San Antonio Institution Since 2000',
       preparedFor:'Ownership of The Magnolia Pancake Haus',preparedBy:'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com',preparedBy2:'Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com',date:'July 2026',
@@ -389,11 +438,11 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 
   // init
   function restore(){ try{ var raw=localStorage.getItem(KEY); if(!raw)return false; var s=JSON.parse(raw); if(!s||!s.fields)return false;
-    state=s; if(!state.bridge||!state.bridge.length) state.bridge=BRIDGE.map(function(r){return {label:r[0],amt:''};});
+    state=s; state.bridge=migrateBridge(state.bridge);
     if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();});
     sortBuyers(); apply(state.fields); renderAll(); return true; }catch(e){ return false; } }
-  function initBlank(){ state.bridge=BRIDGE.map(function(r){return {label:r[0],amt:''};}); state.bench=BENCH.map(function(r){return r.slice();}); state.buyers=BUYERS.map(function(r){return r.slice();}); q('assume').value=ASSUME; loadSample(); }
-  function applyState(s){ state=s; if(!state.bridge||!state.bridge.length) state.bridge=BRIDGE.map(function(r){return {label:r[0],amt:''};}); if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();}); sortBuyers(); apply(state.fields||{}); renderAll(); }
+  function initBlank(){ state.bridge=blankBridge(); state.bench=BENCH.map(function(r){return r.slice();}); state.buyers=BUYERS.map(function(r){return r.slice();}); q('assume').value=ASSUME; loadSample(); }
+  function applyState(s){ state=s; state.bridge=migrateBridge(state.bridge); if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();}); sortBuyers(); apply(state.fields||{}); renderAll(); }
   var _bid=(new URLSearchParams(location.search)).get('bov');
   if(_bid){
     fetch('/api/bov/'+encodeURIComponent(_bid)).then(function(r){return r.json();}).then(function(j){
