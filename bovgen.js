@@ -43,7 +43,7 @@ Return ONLY a single JSON object — no prose, no markdown fences — with EXACT
    "preparedFor": "Ownership of ...",
    "preparedBy": "Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com",
    "preparedBy2": "",
-   "date": "Month YYYY",
+   "date": "YYYY-MM (the valuation month, e.g. 2026-07)",
    "basis": "SDE or Adjusted EBITDA — which earnings the multiple is applied to, per the revenue rule",
    "multLow": "4.0", "multBase": "4.5", "multHigh": "5.0",
    "revLo": "0.50", "revHi": "0.60",

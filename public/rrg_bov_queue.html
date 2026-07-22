@@ -9,8 +9,9 @@
 *{box-sizing:border-box;}
 html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.top{color:#fff;padding:30px 40px 34px;position:relative;overflow:hidden;
+.top{color:#fff;padding:30px 0 34px;position:relative;overflow:hidden;
   background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1080px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
 .top .brand{display:inline-flex;align-items:center;position:relative;z-index:2;}
 .top .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
 .top .bar{background:#fff;width:3px;height:30px;margin:0 12px;} .top .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
@@ -49,15 +50,17 @@ tr:hover td{background:#fbfcfe;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;}
 .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
 .foot{max-width:1080px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
-@media(max-width:720px){ th.hide,td.hide{display:none;} .top{padding:24px 20px;} h1{font-size:24px;} }
+@media(max-width:720px){ th.hide,td.hide{display:none;} .top{padding:24px 0;} h1{font-size:24px;} }
 </style>
 </head>
 <body>
 <div class="top">
-  <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'" title="Back to dashboard" style="cursor:pointer"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Seller Pipeline</div>
   <h1>Business Valuations</h1>
   <div class="sub">Every valuation in the pipeline — build the requested ones, reopen a draft, or advance one to a CIM.</div>
+  </div>
 </div>
 
 <div class="wrap">

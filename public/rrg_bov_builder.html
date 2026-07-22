@@ -91,6 +91,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   @page{size:Letter;margin:0.55in 0.6in;} @page cover{margin:0;}
   body{background:#fff;}
   .toolbar,.rrg-noprint{display:none!important;}
+  input[type=month]::-webkit-calendar-picker-indicator{display:none!important;}
   .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   .band{page:cover;border-radius:0;height:11in;overflow:hidden;break-after:page;}
@@ -131,7 +132,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
       <div class="pf"><label>Prepared For</label><input data-k="preparedFor" placeholder="Ownership of ..."></div>
       <div class="pf wide"><label>Prepared By</label><input data-k="preparedBy" value="Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com"></div>
       <div class="pf wide"><label>&nbsp;</label><input data-k="preparedBy2" value="Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com"></div>
-      <div class="pf"><label>Date</label><input data-k="date" placeholder="Month Year"></div>
+      <div class="pf"><label>Date</label><input type="month" data-k="date"></div>
     </div>
     <div class="strip">
       <div class="c"><div class="k">Concluded Value Range</div><div class="v red" id="hRange">—</div></div>
@@ -401,7 +402,16 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 
   // save/restore
   function collect(){ var o={}; document.querySelectorAll('[data-k]').forEach(function(el){ o[el.getAttribute('data-k')]=el.value; }); return o; }
-  function apply(o){ document.querySelectorAll('[data-k]').forEach(function(el){ var k=el.getAttribute('data-k'); if(o[k]!=null) el.value=o[k]; }); }
+  // Coerce a saved cover date into the YYYY-MM the month picker needs. Accepts
+  // "2026-07", "July 2026", "Jul 2026", "07/2026", or "MM/DD/YYYY".
+  var _MONTHS={jan:'01',feb:'02',mar:'03',apr:'04',may:'05',jun:'06',jul:'07',aug:'08',sep:'09',oct:'10',nov:'11',dec:'12'};
+  function normMonth(v){ v=String(v||'').trim(); if(!v) return '';
+    var m=v.match(/^(\d{4})-(\d{2})/); if(m) return m[1]+'-'+m[2];
+    m=v.match(/^([A-Za-z]{3,})\.?\s+(\d{4})$/); if(m){ var mo=_MONTHS[m[1].slice(0,3).toLowerCase()]; if(mo) return m[2]+'-'+mo; }
+    m=v.match(/^(\d{1,2})[\/\-](\d{4})$/); if(m) return m[2]+'-'+('0'+m[1]).slice(-2);
+    m=v.match(/^(\d{1,2})[\/\-]\d{1,2}[\/\-](\d{4})$/); if(m) return m[2]+'-'+('0'+m[1]).slice(-2);
+    return v; }
+  function apply(o){ document.querySelectorAll('[data-k]').forEach(function(el){ var k=el.getAttribute('data-k'); if(o[k]!=null){ el.value=(k==='date')?normMonth(o[k]):o[k]; } }); }
   var st=null; function save(){ if(st)clearTimeout(st); st=setTimeout(function(){ state.fields=collect(); try{localStorage.setItem(KEY,JSON.stringify(state));chip();}catch(e){} },350); }
   var c=document.createElement('div'); c.className='rrg-noprint';
   c.style.cssText='position:fixed;right:14px;bottom:14px;z-index:9998;background:#0b1a3a;color:#fff;font:600 12px/1 -apple-system,Segoe UI,Roboto,sans-serif;padding:8px 12px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.22);opacity:0;transition:opacity .3s;pointer-events:none;';
@@ -455,7 +465,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     state.bridge={revenue:'9,195,755', netIncome:'553,161', interest:'965', entityTax:'0', depreciation:'133,561', amortization:'0', ownerSalary:'0', ownerHealth:'0', familyPayroll:'0', oneTime:'56,408', rentNorm:'352,962', marketGM:'0'};
     state.bench=BENCH.map(function(r){return r.slice();}); state.buyers=BUYERS.map(function(r){return r.slice();});
     var f={subject:'The Magnolia Pancake Haus',descriptor:'Three-Restaurant Go-Forward Platform · Operating Business',tagline:'A San Antonio Institution Since 2000',
-      preparedFor:'Ownership of The Magnolia Pancake Haus',preparedBy:'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com',preparedBy2:'Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com',date:'July 2026',
+      preparedFor:'Ownership of The Magnolia Pancake Haus',preparedBy:'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com',preparedBy2:'Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com',date:'2026-07',
       multLow:'4.0',multBase:'4.5',multHigh:'5.0',revLo:'0.50',revHi:'0.60',ebLow:'1,020,000',ebUp:'1,250,000',
       purpose:'At ownership’s request, RRG has prepared this Broker’s Opinion of Value for the three-restaurant go-forward platform of The Magnolia Pancake Haus (the “Company”), presented as a sale of the operating business. The purpose is to establish a supportable value range and recommended pricing strategy to guide the confidential, invitation-based marketing process described in the Company’s CIM.',
       subjectOf:'The going-concern operating business of the three continuing restaurants — Huebner Rd., Northwoods, and Cibolo — sold as an asset or equity transaction with a defined transition, and with the executed leases assumed by the buyer.',

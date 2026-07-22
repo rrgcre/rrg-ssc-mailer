@@ -119,6 +119,7 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
+function prettyDate(v){ v=String(v||''); var m=v.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?(m[2]+'/'+m[3]+'/'+m[1]):v; }
 var ALL=[], ME={username:'',name:'',role:''}, VIEW='waiting', CURRENT=[];
 var VIEWS=['all','waiting','advanced','passed'];
 function setView(v){ VIEW=v; VIEWS.forEach(function(x){ document.getElementById('v_'+x).classList.toggle('on',x===v); }); paint(); }
@@ -190,7 +191,7 @@ function render(list){
     return;
   }
   var rows=list.map(function(s){
-    var meta=[s.date||fmt(s.createdAt), s.market, s.by].filter(Boolean).map(esc).join(' · ');
+    var meta=[prettyDate(s.date)||fmt(s.createdAt), s.market, s.by].filter(Boolean).map(esc).join(' · ');
     var mid;
     if(s.processed){
       mid='<span class="done">✓ Advanced</span> <a href="#" onclick="advanceCall(\''+s.id+'\');return false;">Reopen</a>';

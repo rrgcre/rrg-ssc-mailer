@@ -304,7 +304,7 @@
       <line x1="150" y1="208" x2="150" y2="236" stroke="rgba(255,255,255,.14)" stroke-width="1"/>
       <circle cx="150" cy="250" r="8" fill="#DA2B1F"/>
     </svg>
-    <span class="rrg"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <span class="rrg" onclick="location.href='./index.html'" title="Back to dashboard" style="cursor:pointer"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
     <div class="kicker">Seller Screening</div>
     <h1 id="hdrConcept">New Seller Screening</h1>
     <div class="accent"></div>
@@ -322,7 +322,7 @@
       <div class="field"><label class="k">Business Name<span class="req-star">*</span></label><input type="text" class="req"></div>
       <div class="field"><label class="k">Seller Contact Name<span class="req-star">*</span></label><input type="text" class="req"></div>
       <div class="field"><label class="k">RRG Rep<span class="req-star">*</span></label><select class="req" id="repSelect"><option value="">Select…</option></select></div>
-      <div class="field"><label class="k">Call Date<span class="req-star">*</span></label><input type="text" class="req" id="callDate" placeholder="MM / DD / YYYY"></div>
+      <div class="field"><label class="k">Call Date<span class="req-star">*</span></label><input type="date" class="req" id="callDate"></div>
       <div class="field"><label class="k">Metro<span class="req-star">*</span></label><select class="req" id="metroSelect"><option value="">Select…</option><option>Austin</option><option>Dallas</option><option>Houston</option><option>San Antonio</option><option>RGV</option><option>Other</option></select></div>
       <div class="field"><label class="k">Business Address</label><input type="text"></div>
     </div>
@@ -899,7 +899,7 @@
     _set('Business Name',"Hale's Kitchen & Tap");
     _set('Seller Contact Name','Marcus Hale');
     _set('RRG Rep','Avery');
-    _set('Call Date','07 / 14 / 2026');
+    _set('Call Date','2026-07-14');
     _set('Metro','Austin');
     _set('Business Address','1200 S Lamar Blvd, Austin, TX 78704');
     // Section 1 - Business Profile
@@ -953,6 +953,8 @@
   };
 
   function _pvEsc(s){ var d=document.createElement('div'); d.textContent=String(s==null?'':s).replace(/\u2014/g, ', '); return d.innerHTML; }
+  // ISO (YYYY-MM-DD) from a native date input \u2192 friendly MM/DD/YYYY; passes other formats through.
+  function _prettyDate(v){ v=String(v||''); var m=v.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?(m[2]+'/'+m[3]+'/'+m[1]):v; }
   function _renderPrintView(){
     var data=_collectData();
     function firstOf(st){ st=st.toLowerCase();
@@ -975,7 +977,7 @@
     var prep='';
     if(data.preparedBy) prep+='<div><div class="k">Prepared By</div><div class="v">'+_pvEsc(data.preparedBy)+'</div></div>';
     if(data.contact) prep+='<div><div class="k">Operator</div><div class="v">'+_pvEsc(data.contact)+'</div></div>';
-    if(data.date) prep+='<div><div class="k">Date</div><div class="v">'+_pvEsc(data.date)+'</div></div>';
+    if(data.date) prep+='<div><div class="k">Date</div><div class="v">'+_pvEsc(_prettyDate(data.date))+'</div></div>';
     var foot='<div class="pfoot"><span>Restaurant Realty Group, LLC &nbsp;&middot;&nbsp; <b>Restaurant Transactions. Done Right.</b></span><span>Confidential</span></div>';
     var h='';
     h+='<div class="page cover cpage"><div class="band"><svg class=\"tgt\" viewBox=\"0 0 300 300\" aria-hidden=\"true\"><circle cx=\"150\" cy=\"150\" r=\"140\" fill=\"none\" stroke=\"rgba(255,255,255,.07)\" stroke-width=\"1.5\"/><circle cx=\"96\" cy=\"58\" r=\"5.5\" fill=\"none\" stroke=\"rgba(255,255,255,.15)\" stroke-width=\"1.4\"/><circle cx=\"150\" cy=\"49\" r=\"5.5\" fill=\"none\" stroke=\"rgba(255,255,255,.13)\" stroke-width=\"1.4\"/><circle cx=\"204\" cy=\"58\" r=\"5.5\" fill=\"none\" stroke=\"rgba(255,255,255,.15)\" stroke-width=\"1.4\"/><circle cx=\"123\" cy=\"52\" r=\"3.4\" fill=\"none\" stroke=\"rgba(255,255,255,.10)\" stroke-width=\"1.1\"/><circle cx=\"177\" cy=\"52\" r=\"3.4\" fill=\"none\" stroke=\"rgba(255,255,255,.10)\" stroke-width=\"1.1\"/><path d=\"M56 84 L131 176 L131 208 L169 208 L169 176 L244 84\" fill=\"none\" stroke=\"rgba(255,255,255,.16)\" stroke-width=\"1.6\" stroke-linejoin=\"round\"/><line x1=\"56\" y1=\"84\" x2=\"244\" y2=\"84\" stroke=\"rgba(255,255,255,.16)\" stroke-width=\"1.6\"/><line x1=\"96\" y1=\"130\" x2=\"204\" y2=\"130\" stroke=\"rgba(218,43,31,.60)\" stroke-width=\"1.6\"/><line x1=\"150\" y1=\"208\" x2=\"150\" y2=\"236\" stroke=\"rgba(255,255,255,.14)\" stroke-width=\"1\"/><circle cx=\"150\" cy=\"250\" r=\"8\" fill=\"#DA2B1F\"/></svg><span class="rrg"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>';
@@ -1084,7 +1086,7 @@
 
   if(!isEdit){
     var cd=document.getElementById('callDate');
-    if(cd && !cd.value){ var d=new Date(); function p(n){return (n<10?'0':'')+n;} cd.value=p(d.getMonth()+1)+' / '+p(d.getDate())+' / '+d.getFullYear(); cd.dispatchEvent(new Event('input',{bubbles:true})); }
+    if(cd && !cd.value){ var d=new Date(); function p(n){return (n<10?'0':'')+n;} cd.value=d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate()); cd.dispatchEvent(new Event('input',{bubbles:true})); }
     Promise.all([repsReady, fetch(API+'/api/session').then(function(r){return r.json();}).catch(function(){return null;})]).then(function(res){
       var s=res[1]; if(s && s.ok && s.name && repSel && !repSel.value){ ensureOption(repSel,s.name); repSel.value=s.name; repSel.dispatchEvent(new Event('change',{bubbles:true})); }
     });
