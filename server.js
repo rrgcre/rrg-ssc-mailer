@@ -542,6 +542,8 @@ app.post('/api/questionnaire/:id/advance', (req, res) => {
   if (!ownsQuest(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   s.processed = true; s.processedAt = new Date().toISOString();
   saveQuests(arr);
+  // One valuation per questionnaire — ensureBovForQuest reuses the existing
+  // record if one is already there, so this never creates a duplicate.
   let bovId = '';
   try { const b = ensureBovForQuest(s); bovId = (b && b.id) || ''; } catch (e) {}
   res.json({ ok: true, bovId });

@@ -269,19 +269,21 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     {key:'depreciation', label:'+ Depreciation',                                     op:'add'},
     {key:'amortization', label:'+ Amortization',                                     op:'add'},
     {label:'= EBITDA',                                                               op:'st', st:'ebitda'},
+    {label:'Owner Compensation & Discretionary (recurring)',                         op:'grp'},
     {key:'ownerSalary',  label:'+ Owner salary + payroll tax',                       op:'add'},
     {key:'ownerHealth',  label:'+ Owner health / auto / personal',                   op:'add'},
-    {key:'familyPayroll',label:'+ Family payroll above the market value of the work', op:'add'},
-    {key:'oneTime',      label:'+ True one-time items',                              op:'add'},
+    {key:'familyPayroll',label:'+ Family payroll above the market value of the work', op:'add', anchor:'addBacks'},
+    {label:'Non-Recurring (one-time)',                                               op:'grp'},
+    {key:'oneTime',      label:'+ True one-time items',                              op:'add', anchor:'oneTimeItems'},
     {key:'rentNorm',     label:'± Rent normalization',                               op:'add'},
     {label:'= SDE — the owner-operator’s number',                                    op:'st', st:'sde'},
     {key:'marketGM',     label:'− Market GM / replacement labor',                    op:'sub'},
     {label:'= Adjusted EBITDA — the hands-off buyer’s number',                       op:'st', st:'adj'}
   ];
-  function blankBridge(){ var o={}; BRIDGE_SPEC.forEach(function(r){ if(r.key) o[r.key]=''; }); o.oneTimeItems=[]; return o; }
+  function blankBridge(){ var o={}; BRIDGE_SPEC.forEach(function(r){ if(r.key) o[r.key]=''; }); o.addBacks=[]; o.oneTimeItems=[]; return o; }
   function migrateBridge(b){
     var o=blankBridge();
-    if(b && !Array.isArray(b)){ Object.keys(o).forEach(function(k){ if(k!=='oneTimeItems' && b[k]!=null) o[k]=b[k]; }); o.oneTimeItems=(b && Array.isArray(b.oneTimeItems))?b.oneTimeItems:[]; return o; }
+    if(b && !Array.isArray(b)){ Object.keys(o).forEach(function(k){ if(k!=='oneTimeItems' && k!=='addBacks' && b[k]!=null) o[k]=b[k]; }); o.addBacks=(b && Array.isArray(b.addBacks))?b.addBacks:[]; o.oneTimeItems=(b && Array.isArray(b.oneTimeItems))?b.oneTimeItems:[]; return o; }
     (Array.isArray(b)?b:[]).forEach(function(r,i){ var L=String(r&&r.label||'').toLowerCase(), a=(r&&r.amt)||'';
       if(i===0||/revenue/.test(L)) o.revenue=a;
       else if(/net income/.test(L)) o.netIncome=a;
@@ -296,11 +298,13 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   }
   var SDE_THRESHOLD=1200000;  // admin-configurable; fetched from /api/bov-config on load
   function bv(k){ return num(state.bridge && state.bridge[k]); }
-  function oneTimeTotal(){ var t=bv('oneTime'); (state.bridge && state.bridge.oneTimeItems || []).forEach(function(it){ t+=num(it&&it.amt); }); return t; }
+  function itemsTotal(arr){ var t=0; (arr||[]).forEach(function(it){ t+=num(it&&it.amt); }); return t; }
+  function addBackTotal(){ return itemsTotal(state.bridge && state.bridge.addBacks); }
+  function oneTimeTotal(){ return bv('oneTime') + itemsTotal(state.bridge && state.bridge.oneTimeItems); }
   function subtotals(){
     var rev=bv('revenue');
     var ebitda=bv('netIncome')+bv('interest')+bv('entityTax')+bv('depreciation')+bv('amortization');
-    var sde=ebitda+bv('ownerSalary')+bv('ownerHealth')+bv('familyPayroll')+oneTimeTotal()+bv('rentNorm');
+    var sde=ebitda+bv('ownerSalary')+bv('ownerHealth')+bv('familyPayroll')+addBackTotal()+oneTimeTotal()+bv('rentNorm');
     var adj=sde-bv('marketGM');
     var basis = rev>0 ? (rev<SDE_THRESHOLD?'SDE':'Adjusted EBITDA') : (state.basis||'Adjusted EBITDA');
     return {rev:rev, ebitda:ebitda, sde:sde, adj:adj, basis:basis, basisVal:(basis==='SDE'?sde:adj)};
@@ -317,11 +321,34 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   var ASSUME="1.  This BOV is an opinion of value prepared by RRG for the ownership of the Company for internal planning and marketing purposes. It is not a certified appraisal, a USPAP-compliant report, a fairness opinion, or a guarantee of the price at which the business will sell.\n\n2.  The opinion relies on financial and operating information supplied by ownership and management, which RRG has not audited or independently verified. Adjusted-earnings figures reflect normalizing adjustments and remain subject to a buyer's quality-of-earnings review.\n\n3.  Value is expressed for the going-concern operating business, with real estate treated as noted and any leases assumed and assigned. A change in lease terms, rent, or their market-supportability would change the conclusion.\n\n4.  The opinion is stated as of the date shown and reflects market conditions, transaction multiples, capital availability, and industry sentiment as of that date; these change over time. Actual value realized depends on buyer perception of earnings durability, growth, deal structure, financing, and negotiation.\n\n5.  RRG represents the seller and is compensated on a completed sale. This opinion should not be relied upon by any buyer or third party as investment, legal, tax, or accounting advice.";
 
   // ---- bridge (fixed structure; subtotals computed inline) ----
+  // Render one broker-defined add-back list (label + amount + basis note) under an
+  // anchor line. arrName is 'addBacks' (recurring) or 'oneTimeItems' (non-recurring).
+  function renderItemList(tb, arrName, placeholder, addLabel){
+    var arr = state.bridge[arrName] || (state.bridge[arrName]=[]);
+    arr.forEach(function(it,idx){
+      var er=document.createElement('tr'); er.className='ab-item';
+      er.innerHTML='<td class="l" style="padding-left:24px;vertical-align:top">'+
+          '<input data-ci="'+arrName+'" data-cidx="'+idx+'" data-cif="label" value="'+esc(it.label||'')+'" placeholder="'+esc(placeholder)+'" style="font-style:italic">'+
+          '<input data-ci="'+arrName+'" data-cidx="'+idx+'" data-cif="note" value="'+esc(it.note||'')+'" placeholder="basis — how you verified it (prints on the schedule)" style="display:block;margin-top:3px;font-size:11px;color:#6b7488;width:100%">'+
+        '</td>'+
+        '<td style="white-space:nowrap;vertical-align:top"><input data-ci="'+arrName+'" data-cidx="'+idx+'" data-cif="amt" inputmode="numeric" value="'+esc(it.amt||'')+'" placeholder="0" style="width:calc(100% - 26px)"><button type="button" class="otx rrg-noprint" onclick="removeItem(\''+arrName+'\','+idx+')" title="Remove" style="border:none;background:none;color:var(--red);font-size:17px;line-height:1;cursor:pointer;width:20px">×</button></td>';
+      tb.appendChild(er);
+    });
+    var ar=document.createElement('tr'); ar.className='rrg-noprint';
+    ar.innerHTML='<td colspan="2" style="padding:6px 0 8px 24px"><button type="button" onclick="addItem(\''+arrName+'\')" style="background:#eef1f7;border:1px solid #e6e9f0;border-radius:7px;padding:5px 12px;font:inherit;font-size:12px;font-weight:700;color:var(--navy);cursor:pointer">'+esc(addLabel)+'</button></td>';
+    tb.appendChild(ar);
+  }
   function buildBridge(){
     if(!state.bridge || Array.isArray(state.bridge)) state.bridge=migrateBridge(state.bridge);
+    if(!Array.isArray(state.bridge.addBacks)) state.bridge.addBacks=[];
     if(!Array.isArray(state.bridge.oneTimeItems)) state.bridge.oneTimeItems=[];
     var tb=document.getElementById('bridgeBody'); tb.innerHTML='';
     BRIDGE_SPEC.forEach(function(row){
+      if(row.op==='grp'){
+        var gr=document.createElement('tr'); gr.className='grphead';
+        gr.innerHTML='<td colspan="2" style="padding:11px 0 3px;font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border:none">'+esc(row.label)+'</td>';
+        tb.appendChild(gr); return;
+      }
       var tr=document.createElement('tr');
       if(row.op==='st'){
         tr.className='subtot';
@@ -332,26 +359,24 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
           '<td><input data-bk="'+row.key+'" inputmode="numeric" value="'+esc(state.bridge[row.key]||'')+'" placeholder="0"></td>';
       }
       tb.appendChild(tr);
-      // Additional itemized one-time items live right under the fixed one-time line.
-      if(row.key==='oneTime'){
-        state.bridge.oneTimeItems.forEach(function(it,idx){
-          var er=document.createElement('tr');
-          er.innerHTML='<td class="l" style="padding-left:24px"><input data-oti="'+idx+'" data-otf="label" value="'+esc(it.label||'')+'" placeholder="+ one-time item — describe it" style="font-style:italic"></td>'+
-            '<td style="white-space:nowrap"><input data-oti="'+idx+'" data-otf="amt" inputmode="numeric" value="'+esc(it.amt||'')+'" placeholder="0" style="width:calc(100% - 26px)"><button type="button" class="otx rrg-noprint" onclick="removeOneTime('+idx+')" title="Remove" style="border:none;background:none;color:var(--red);font-size:17px;line-height:1;cursor:pointer;width:20px">×</button></td>';
-          tb.appendChild(er);
-        });
-        var ar=document.createElement('tr'); ar.className='rrg-noprint';
-        ar.innerHTML='<td colspan="2" style="padding:6px 0 8px 24px"><button type="button" onclick="addOneTime()" style="background:#eef1f7;border:1px solid #e6e9f0;border-radius:7px;padding:5px 12px;font:inherit;font-size:12px;font-weight:700;color:var(--navy);cursor:pointer">+ Add one-time item</button></td>';
-        tb.appendChild(ar);
-      }
+      // Broker-defined add-backs render right under their anchor line.
+      if(row.anchor==='addBacks') renderItemList(tb,'addBacks','+ owner add-back — e.g. “Franchise + Licensing fees paid to owner entity”','+ Add owner add-back');
+      if(row.anchor==='oneTimeItems') renderItemList(tb,'oneTimeItems','+ one-time item — describe it','+ Add one-time item');
     });
     tb.querySelectorAll('[data-bk]').forEach(function(el){ el.addEventListener('input',function(){
       var k=el.getAttribute('data-bk'); el.value=grp(el.value); state.bridge[k]=el.value; compute(); save(); }); });
-    tb.querySelectorAll('[data-oti]').forEach(function(el){ el.addEventListener('input',function(){
-      var i=+el.getAttribute('data-oti'), f=el.getAttribute('data-otf'); if(f==='amt') el.value=grp(el.value); state.bridge.oneTimeItems[i][f]=el.value; compute(); save(); }); });
+    tb.querySelectorAll('[data-ci]').forEach(function(el){ el.addEventListener('input',function(){
+      var a=el.getAttribute('data-ci'), i=+el.getAttribute('data-cidx'), f=el.getAttribute('data-cif');
+      if(f==='amt') el.value=grp(el.value);
+      if(!Array.isArray(state.bridge[a])) state.bridge[a]=[];
+      if(!state.bridge[a][i]) state.bridge[a][i]={};
+      state.bridge[a][i][f]=el.value; compute(); save(); }); });
   }
-  window.addOneTime=function(){ if(!Array.isArray(state.bridge.oneTimeItems)) state.bridge.oneTimeItems=[]; state.bridge.oneTimeItems.push({label:'',amt:''}); buildBridge(); compute(); save(); };
-  window.removeOneTime=function(i){ state.bridge.oneTimeItems.splice(i,1); buildBridge(); compute(); save(); };
+  window.addItem=function(arrName){ if(!Array.isArray(state.bridge[arrName])) state.bridge[arrName]=[]; state.bridge[arrName].push({label:'',amt:'',note:''}); buildBridge(); compute(); save(); };
+  window.removeItem=function(arrName,i){ if(Array.isArray(state.bridge[arrName])) state.bridge[arrName].splice(i,1); buildBridge(); compute(); save(); };
+  // Back-compat aliases (older saved states / any lingering handlers).
+  window.addOneTime=function(){ window.addItem('oneTimeItems'); };
+  window.removeOneTime=function(i){ window.removeItem('oneTimeItems',i); };
 
   function simpleTable(bodyId, arr, cols, akey){
     var tb=document.getElementById(bodyId); tb.innerHTML='';
