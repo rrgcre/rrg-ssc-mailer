@@ -565,6 +565,17 @@ app.delete('/api/questionnaire/:id', (req, res) => {
   if (!ownsQuest(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   addQuestTomb(s.formId);  // so backfillQuests won't resurrect it on the next load
   saveQuests(arr.filter(x => x.id !== req.params.id));
+  // If this questionnaire came from a seller call, revert that call to Waiting —
+  // otherwise the Call Log keeps showing "Advanced" for a questionnaire that no
+  // longer exists. Reverting lets the rep re-advance the call cleanly.
+  try {
+    const m = String(s.formId || '').match(/^qfromscr_(.+)$/);
+    if (m) {
+      const screens = loadScreens();
+      const sc = screens.find(x => x.id === m[1]);
+      if (sc && sc.processed) { sc.processed = false; sc.processedAt = ''; saveScreens(screens); }
+    }
+  } catch (e) {}
   res.json({ ok: true });
 });
 app.get('/log.csv', (_req, res) => {
