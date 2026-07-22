@@ -106,22 +106,22 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 </style>
 </head>
 <body>
-<!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to dashboard" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)"><span style="font-size:14px;line-height:1">←</span> Dashboard</a><style>@media print{.rrg-back{display:none!important}}@media(max-width:560px){.rrg-back{left:12px;bottom:12px;padding:9px 13px}}</style>
-
 <div class="toolbar"><div class="tb-inner">
   <div class="tt">RRG Broker's Opinion of Value <span>Fill in, then Print</span></div>
   <div class="actions">
+    <button class="btn" onclick="goDashboard()">← Dashboard</button>
+    <button class="btn" onclick="goQuestionnaire()">← Questionnaire</button>
     <button class="btn" onclick="loadSample()">Load sample</button>
     <button class="btn" onclick="clearAll()">Clear</button>
-    <button class="btn" onclick="saveToQueue()">Save to queue</button>
     <button class="btn print" onclick="printBov()">Print</button>
+    <button class="btn" onclick="closeBov()">Close</button>
   </div>
 </div></div>
 
 <div class="wrap" id="sheet">
   <div class="band">
     <div class="confline">Confidential &nbsp;·&nbsp; Prepared for Ownership &nbsp;·&nbsp; Not for Distribution</div>
-    <span class="rrg"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <span class="rrg" onclick="goDashboard()" title="Back to dashboard" style="cursor:pointer"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
     <div class="kicker">Broker's Opinion of Value</div>
     <h1><input data-k="subject" placeholder="Business Name"></h1>
     <input class="subin" data-k="descriptor" placeholder="Descriptor — e.g. Three-Restaurant Go-Forward Platform · Operating Business">
@@ -412,21 +412,35 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 
   function renderAll(){ buildBridge(); simpleTable('benchBody',state.bench,[0,1],'bench'); simpleTable('buyerBody',state.buyers,[0,1,2],'buyer'); compute(); growAll(); }
 
-  // Save this BOV to the shared server queue (so it can be promoted to a CIM).
-  window.saveToQueue=function(){
+  // Collect the current cover figures into a server payload.
+  function bovPayload(){
     state.fields=collect();
     var biz=((q('subject')&&q('subject').value)||'').trim();
-    if(!biz){ alert('Enter the business name on the cover first.'); return; }
     var g=function(id){ var el=document.getElementById(id); return el?el.textContent:''; };
     var _s=subtotals();
     var payload={ business:biz, date:(q('date')&&q('date').value)||'',
       rangeText:g('hRange'), targetText:g('hTarget'), multText:g('hMult'), ebitdaText:g('hEbitda'),
       basis:_s.basis, sdeText:moneyM(_s.sde), adjText:moneyM(_s.adj), state:state };
+    if(_bid) payload.id=_bid;
+    return payload;
+  }
+
+  // Save in place (updating the existing record when we opened one) then return
+  // to the Business Valuations log.
+  window.closeBov=function(){
+    var payload=bovPayload();
+    if(!payload.business){ alert('Enter the business name on the cover first.'); return; }
     fetch('/api/bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
       .then(function(r){return r.json();}).then(function(j){
-        if(j&&j.ok){ alert('Saved "'+biz+'" to the BOV queue. Open the BOV Queue to turn it into a CIM.'); }
-        else { alert((j&&j.error)||'Could not save to the queue.'); }
-      }).catch(function(){ alert('Could not reach the server — “Save to queue” works on the hosted toolkit (rrg-ssc-mailer.onrender.com), not a local file.'); });
+        if(j&&j.ok){ location.href='./rrg_bov_queue.html'; }
+        else { alert((j&&j.error)||'Could not save.'); }
+      }).catch(function(){ location.href='./rrg_bov_queue.html'; });
+  };
+
+  window.goDashboard=function(){ location.href='./index.html'; };
+  window.goQuestionnaire=function(){
+    if(_srcQuestId){ location.href='./valuation_questionnaire.html?q='+encodeURIComponent(_srcQuestId); }
+    else { location.href='./rrg_questionnaire_queue.html'; }
   };
 
   window.clearAll=function(){
@@ -468,9 +482,11 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   function initBlank(){ state.bridge=blankBridge(); state.bench=BENCH.map(function(r){return r.slice();}); state.buyers=BUYERS.map(function(r){return r.slice();}); q('assume').value=ASSUME; loadSample(); }
   function applyState(s){ state=s; state.bridge=migrateBridge(state.bridge); if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();}); sortBuyers(); apply(state.fields||{}); renderAll(); }
   var _bid=(new URLSearchParams(location.search)).get('bov');
+  var _srcQuestId='';
   if(_bid){
     fetch('/api/bov/'+encodeURIComponent(_bid)).then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok&&j.bov&&j.bov.state){ applyState(j.bov.state); } else if(!restore()){ initBlank(); }
+      if(j&&j.ok&&j.bov){ _srcQuestId=j.bov.srcQuestId||''; if(j.bov.state){ applyState(j.bov.state); } else if(!restore()){ initBlank(); } }
+      else if(!restore()){ initBlank(); }
     }).catch(function(){ if(!restore()) initBlank(); });
   } else if(!restore()){ initBlank(); }
 })();

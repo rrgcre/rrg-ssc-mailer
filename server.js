@@ -688,15 +688,28 @@ app.post('/api/bov', (req, res) => {
   const biz = String(b.business || '').trim();
   if (!biz) return res.status(400).json({ ok: false, error: 'Business name required.' });
   const bovs = loadBovs();
-  const rec = {
-    id: newBovId(), business: biz.slice(0, 120), date: String(b.date || '').slice(0, 40),
+  const fields = {
+    business: biz.slice(0, 120), date: String(b.date || '').slice(0, 40),
     rangeText: String(b.rangeText || '').slice(0, 60), targetText: String(b.targetText || '').slice(0, 60),
     multText: String(b.multText || '').slice(0, 40), ebitdaText: String(b.ebitdaText || '').slice(0, 40),
     basis: String(b.basis || '').slice(0, 24), sdeText: String(b.sdeText || '').slice(0, 40), adjText: String(b.adjText || '').slice(0, 40),
     state: (b.state && typeof b.state === 'object') ? sortBovBuyers(b.state) : null,
+  };
+  // Update an existing (owned) record in place when an id is supplied — editing a
+  // valuation should not spawn a duplicate. Otherwise create a fresh record.
+  if (b.id) {
+    const existing = bovs.find(x => x.id === b.id);
+    if (existing) {
+      if (!ownsBov(req, existing)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+      Object.assign(existing, fields, { pending: false, updatedAt: new Date().toISOString() });
+      saveBovs(bovs);
+      return res.json({ ok: true, id: existing.id });
+    }
+  }
+  const rec = Object.assign({ id: newBovId() }, fields, {
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
     createdAt: new Date().toISOString(),
-  };
+  });
   bovs.push(rec); saveBovs(bovs);
   res.json({ ok: true, id: rec.id });
 });
