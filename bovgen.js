@@ -132,7 +132,7 @@ function fileBlocks(files) {
     } else if (mt.indexOf('image/') === 0 && f.dataB64) {
       blocks.push({ type: 'image', source: { type: 'base64', media_type: mt, data: f.dataB64 } });
     } else if (f.text) {
-      blocks.push({ type: 'text', text: '=== ' + label + ' ===\n' + String(f.text).slice(0, 120000) });
+      blocks.push({ type: 'text', text: '=== ' + label + ' ===\n' + String(f.text).slice(0, 60000) });
     }
   });
   return blocks;
@@ -217,17 +217,17 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
   if (questionnaire && String(questionnaire).trim()) {
     content.push({ type: 'text', text:
       '=== Valuation Questionnaire (completed by the rep in the RRG system) ===\n' +
-      String(questionnaire).slice(0, 120000) });
+      String(questionnaire).slice(0, 60000) });
   }
   // Reference links the broker gathered (press, reviews, video, web presence).
   // Fetched here so the analyst reads the actual content for qualitative color.
-  const urls = Array.isArray(links) ? links.filter(u => u && String(u).trim()).slice(0, 10) : [];
+  const urls = Array.isArray(links) ? links.filter(u => u && String(u).trim()).slice(0, 6) : [];
   if (urls.length) {
     const fetched = await Promise.all(urls.map(fetchLinkText));
     let ref = '=== Reference links the broker provided (press, reviews, video, web presence) ===\n' +
       'Use for qualitative color, positioning, and go-to-market narrative — do NOT let them override the documented financials.\n';
-    fetched.forEach(f => { if (f) ref += '\n--- ' + f.url + ' ---\n' + (f.text || ('[' + (f.note || 'link') + ']')) + '\n'; });
-    content.push({ type: 'text', text: ref.slice(0, 80000) });
+    fetched.forEach(f => { if (f) ref += '\n--- ' + f.url + ' ---\n' + (f.text ? String(f.text).slice(0, 5000) : ('[' + (f.note || 'link') + ']')) + '\n'; });
+    content.push({ type: 'text', text: ref.slice(0, 30000) });
   }
   content.push({ type: 'text', text:
     `Business / concept name: ${business || '(not given — infer from documents)'}.\n` +
@@ -242,6 +242,9 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
   });
   if (!resp.ok) {
     const t = await resp.text().catch(() => '');
+    if (/too long|prompt is too|maximum.*tokens|context.*length|exceed/i.test(t)) {
+      throw new Error('The uploaded documents are too large for the analyst to read in one pass. Send just the essentials — the trailing-twelve-month P&L / income statement and any add-back or normalization schedule — and skip full tax returns, bank statements, and multi-year detail. Then build again.');
+    }
     throw new Error('Claude API error ' + resp.status + ': ' + t.slice(0, 400));
   }
   const data = await resp.json();
