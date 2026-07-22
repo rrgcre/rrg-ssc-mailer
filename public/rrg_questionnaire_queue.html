@@ -205,6 +205,10 @@ function render(list){
     if(s.processed){
       mid += '<button class="adv" disabled title="A valuation already exists — delete it in Business Valuations to request a new one." style="opacity:.4;cursor:not-allowed">Request BOV</button>';
       mid += '<a href="./rrg_bov_queue.html">View in Business Valuations →</a>';
+    } else if(!s.completed){
+      // An incomplete questionnaire can't be advanced — dim the button until the
+      // required fields are filled in.
+      mid += '<button class="adv" disabled title="Complete the required fields on the questionnaire before requesting a BOV." style="opacity:.4;cursor:not-allowed">Request BOV</button>';
     } else {
       mid += '<button class="adv" onclick="requestBov(\''+s.id+'\',this)">Request BOV</button>';
     }
@@ -240,8 +244,10 @@ function requestBov(id,btn){
   fetch('/api/questionnaire/'+encodeURIComponent(id)+'/advance',{method:'POST',credentials:'same-origin'})
     .then(function(r){ return r.text().then(function(t){ var j=null; try{j=JSON.parse(t);}catch(e){} return {ok:r.ok,j:j}; }); })
     .then(function(res){
-      if(res.ok && res.j && res.j.ok && res.j.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(res.j.bovId); }
-      else { if(btn){btn.disabled=false;btn.textContent='Request BOV';} alert((res.j&&res.j.error)||'Could not request the BOV.'); }
+      if(res.ok && res.j && res.j.ok && res.j.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(res.j.bovId); return; }
+      if(btn){btn.disabled=false;btn.textContent='Request BOV';}
+      if(res.j && res.j.incomplete){ if(confirm('This questionnaire isn’t complete yet. Open it to finish the required fields?')) location.href='./valuation_questionnaire.html?q='+encodeURIComponent(id); return; }
+      alert((res.j&&res.j.error)||'Could not request the BOV.');
     })
     .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Request BOV';} alert('Could not reach the server to request the BOV.'); });
 }

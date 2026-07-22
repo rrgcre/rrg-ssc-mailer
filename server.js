@@ -540,6 +540,9 @@ app.post('/api/questionnaire/:id/advance', (req, res) => {
   const s = arr.find(x => x.id === req.params.id);
   if (!s) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!ownsQuest(req, s)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  // An incomplete questionnaire cannot be advanced to a BOV — the analyst must
+  // have the full picture. (Re-advancing an already-processed questionnaire is fine.)
+  if (!s.processed && !s.completed) return res.status(409).json({ ok: false, incomplete: true, error: 'Complete the required fields on the questionnaire before requesting a BOV.' });
   s.processed = true; s.processedAt = new Date().toISOString();
   saveQuests(arr);
   // One valuation per questionnaire — ensureBovForQuest reuses the existing
