@@ -146,7 +146,7 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
   <div class="modal">
     <div class="bigspin"></div>
     <div class="mt" id="modalTitle">Building the BOV…</div>
-    <div class="mm" id="modalMsg">The RRG Virtual Analyst is carefully working through the deal to produce a thorough, defensible opinion of value. Rigorous analysis takes a few minutes — thank you for your patience.</div>
+    <div class="mm" id="modalMsg">Our Valuation Analyst is reviewing the financials, adjustments, and key value drivers to produce a thorough, defensible opinion of value. This analysis may take a few minutes. Thank you for your patience.</div>
     <button class="mcancel" id="cancel" onclick="cancelGen()">Cancel</button>
   </div>
 </div>
@@ -231,7 +231,7 @@ function generate(){
     if(!RUNNING) return;
     var mb=files.reduce(function(a,f){ return a+((f.dataB64?f.dataB64.length*0.75:(f.text||'').length)); },0)/1e6;
     if(mb>28){ showOverlay(false); setStatus('err','Those files are too large together (~'+mb.toFixed(0)+'MB). Trim to the essential pages and try again.'); return; }
-    modal('Building your BOV…','The RRG Virtual Analyst is carefully working through the deal to produce a thorough, defensible opinion of value. Rigorous analysis takes a few minutes — thank you for your patience.');
+    modal('Building your BOV…','Our Valuation Analyst is reviewing the financials, adjustments, and key value drivers to produce a thorough, defensible opinion of value. This analysis may take a few minutes. Thank you for your patience.');
     ABORT=new AbortController();
     fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files,bovId:BOV_ID,links:LINKS}),signal:ABORT.signal})
       .then(function(r){ return r.text().then(function(t){ var j=null; try{ j=JSON.parse(t); }catch(e){} return {ok:r.ok,status:r.status,j:j}; }); })
