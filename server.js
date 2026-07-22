@@ -15,6 +15,8 @@ const fs = require('fs');
 const path = require('path');
 const app = express();
 const COOKIE = 'rrg_sess';
+// Deploy stamp — set when the server boots, so it reflects the latest Render deploy.
+const BUILD = new Date().toISOString();
 
 // ---- BOV queue store (on the persistent disk) ----
 const BOV_DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
@@ -360,6 +362,7 @@ app.get('/api/session', (req, res) => res.json({
   title: req.user.title || '', phone: req.user.phone || '', email: req.user.email || '',
   preparedBy: req.user.preparedBy || '',
   adminOnlyTools: auth.loadToolAccess(),
+  build: BUILD,
 }));
 
 // Active user names — populates the "RRG Rep" dropdown on the call form (any signed-in user).

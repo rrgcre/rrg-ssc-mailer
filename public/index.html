@@ -179,6 +179,7 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
 
 <div class="foot">
   <span>Restaurant Realty Group, LLC &nbsp;·&nbsp; <b>Restaurant Transactions. Done Right.</b></span>
+  <span id="buildStamp" style="opacity:.75"></span>
   <span id="count"></span>
 </div>
 
@@ -429,8 +430,16 @@ window.RRG_API = window.RRG_API || (String(location.protocol).indexOf('http')===
   fetch(api.replace(/\/$/,'')+'/api/session').then(function(r){return r.json();}).then(function(s){
     buildTiles(s&&s.role==='admin', (s&&s.adminOnlyTools)||[]);
     renderTopNav(s);
-  }).catch(function(){ buildTiles(true, []); });
+    stampBuild(s&&s.build);
+  }).catch(function(){ buildTiles(true, []); stampBuild(); });
 })();
+function stampBuild(iso){
+  var el=document.getElementById('buildStamp'); if(!el) return;
+  var today=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+  var dep='';
+  try{ if(iso){ var d=new Date(iso); if(!isNaN(d.getTime())){ dep=' · Build '+d.toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}); } } }catch(e){}
+  el.textContent = today + dep;
+}
 function renderTopNav(s){
   var nav=document.getElementById('topnav'); if(!nav) return;
   var isAdmin=s&&s.role==='admin', first=((s&&s.name)||'').trim().split(/\s+/)[0]||'';

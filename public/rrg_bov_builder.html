@@ -213,7 +213,6 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
         <tr><td class="l">Upside (confirmed) &nbsp; <input data-k="ebUp" inputmode="numeric" value="" placeholder="$" oninput="grpme(this);compute()" style="width:110px;display:inline-block"></td><td class="calc" id="m20">—</td><td class="calc" id="m21">—</td><td class="calc" id="m22">—</td></tr>
       </tbody>
     </table>
-    <div class="sublabel" style="margin-top:12px">Revenue cross-check &nbsp;·&nbsp; <input data-k="revLo" value="0.50" style="width:44px;border:1px solid var(--inp);border-radius:5px;padding:2px 4px;text-align:center;font-family:inherit" oninput="compute()">× – <input data-k="revHi" value="0.60" style="width:44px;border:1px solid var(--inp);border-radius:5px;padding:2px 4px;text-align:center;font-family:inherit" oninput="compute()">× of trailing revenue → <b id="revCheck" style="color:var(--navy)">—</b></div>
     <div class="callout"><div class="ct">Concluded value — RRG opinion</div><textarea data-k="concNarr"></textarea></div>
     </div>
 
@@ -387,8 +386,6 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     setTxt('ebBaseTxt',money(e));
     var mults=[lo,ba,hi], ebs=[ebLow,e,ebUp];
     for(var r=0;r<3;r++) for(var col=0;col<3;col++){ var cell=document.getElementById('m'+r+col); if(cell) cell.textContent=(ebs[r]>0&&mults[col]>0)?money(ebs[r]*mults[col]):'—'; }
-    var rlo=num(val('revLo')),rhi=num(val('revHi'));
-    setTxt('revCheck',(rev>0&&rlo&&rhi)?(moneyM(rev*rlo)+' – '+moneyM(rev*rhi)):'—');
     // publish a compact summary for the CIM builder (includes SDE, Adj EBITDA, basis)
     try{ if(e>0){ localStorage.setItem('rrg_bov_summary', JSON.stringify({
       subject: val('subject')||'', date: val('date')||'',
