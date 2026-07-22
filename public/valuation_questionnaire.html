@@ -308,15 +308,17 @@
   <div class="card">
     <div class="kick">RRG Valuation Questionnaire</div>
     <h2>Before you begin</h2>
-    <p>You’re about to complete the questionnaire our valuation analyst uses to build a defensible opinion of value for this business. The more complete and accurate your answers, the stronger the valuation — so it’s worth doing in one focused sitting.</p>
-    <p>Have these within reach before you start:</p>
-    <ul>
-      <li>Recent P&amp;Ls and tax returns — trailing twelve months plus prior years</li>
-      <li>The lease — remaining term, rent, options, and whether it’s assignable</li>
-      <li>Owner and family compensation, perks, and any true one-time expenses</li>
-      <li>A candid read on operations, staffing, and what really drives the business</li>
-    </ul>
-    <p>Answer as completely and honestly as you can — this is the foundation the entire valuation is built on. Your answers save automatically, so you can step away and pick up right where you left off.</p>
+    <div id="qintroBody">
+      <p>You’re about to complete the questionnaire our valuation analyst uses to build a defensible opinion of value for this business. The more complete and accurate your answers, the stronger the valuation — so it’s worth doing in one focused sitting.</p>
+      <p>Have these within reach before you start:</p>
+      <ul>
+        <li>Recent P&amp;Ls and tax returns — trailing twelve months plus prior years</li>
+        <li>The lease — remaining term, rent, options, and whether it’s assignable</li>
+        <li>Owner and family compensation, perks, and any true one-time expenses</li>
+        <li>A candid read on operations, staffing, and what really drives the business</li>
+      </ul>
+      <p>Answer as completely and honestly as you can — this is the foundation the entire valuation is built on. Your answers save automatically, so you can step away and pick up right where you left off.</p>
+    </div>
     <div class="row">
       <button class="skip" id="qintroSkip" type="button">Begin now →</button>
       <span class="count" id="qintroCount">Starting automatically in 10s…</span>
@@ -337,8 +339,21 @@
     var n=secs; if(cEl) cEl.textContent='Starting automatically in '+n+'s…';
     timer=setInterval(function(){ n--; if(cEl) cEl.textContent='Starting automatically in '+n+'s…'; if(n<=0) done(); },1000);
   }
-  // Duration is admin-configurable (Admin → Questionnaire Intro Screen); default 10.
+  // Render the admin-editable message: blank lines → paragraphs, "- " lines → list.
+  function esc(s){ return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  function renderMsg(text){
+    var lines=String(text||'').split(/\r?\n/), html='', inList=false;
+    lines.forEach(function(ln){ var t=ln.trim();
+      if(/^[-•]\s+/.test(t)){ if(!inList){ html+='<ul>'; inList=true; } html+='<li>'+esc(t.replace(/^[-•]\s+/,''))+'</li>'; return; }
+      if(inList){ html+='</ul>'; inList=false; }
+      if(t) html+='<p>'+esc(t)+'</p>';
+    });
+    if(inList) html+='</ul>';
+    return html;
+  }
+  // Duration + message are admin-configurable (Admin → Questionnaire Intro Screen).
   fetch('/api/bov-config',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok&&j.introMessage){ var bd=document.getElementById('qintroBody'); if(bd){ var h=renderMsg(j.introMessage); if(h) bd.innerHTML=h; } }
     run(j&&j.ok&&j.introSeconds!=null ? j.introSeconds : 10);
   }).catch(function(){ run(10); });
 })();
