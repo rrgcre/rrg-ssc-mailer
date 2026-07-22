@@ -11,7 +11,7 @@ html,body{margin:0;padding:0;background:#e9edf3;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
 .wrap{max-width:640px;margin:0 auto;}
 .band{color:#fff;padding:30px 40px 26px;position:relative;overflow:hidden;
-  background:radial-gradient(96% 130% at 27% 12%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+  background:radial-gradient(96% 130% at 27% 12%, #2b2a63 0%, #1c1a4c 42%, #131035 70%, #0a0823 100%);}
 .rrg{display:inline-flex;align-items:center;}
 .rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
 .rrg .bar{background:#fff;width:3px;height:30px;margin:0 12px;} .rrg .wm{font-weight:800;font-size:12px;text-transform:uppercase;line-height:.95;}
@@ -102,6 +102,9 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
     <label class="fl" for="biz">Business / Concept Name</label>
     <input class="name" id="biz" placeholder="e.g. The Magnolia Pancake Haus" autocomplete="off">
 
+    <label class="fl" for="prepFor">Prepared For</label>
+    <input class="name" id="prepFor" placeholder="e.g. Ownership of The Magnolia Pancake Haus" autocomplete="off">
+
     <div class="uphd">
       <span class="l">Upload the deal documents</span>
       <span class="r">PDF, image, or CSV</span>
@@ -165,7 +168,10 @@ var BOV_ID='';
     BOV_ID=id;
     fetch('/api/bov/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
       var b=(j&&j.bov)||null;
-      if(b){ var el=document.getElementById('biz'); if(el && !el.value.trim() && b.business){ el.value=b.business; } }
+      if(b){
+        var el=document.getElementById('biz'); if(el && !el.value.trim() && b.business){ el.value=b.business; }
+        var pf=document.getElementById('prepFor'); if(pf && !pf.value.trim() && b.business){ pf.value='Ownership of '+b.business; }
+      }
     }).catch(function(){});
   }catch(e){}
 })();
@@ -240,7 +246,7 @@ function generate(){
     if(mb>28){ showOverlay(false); setStatus('err','Those files are too large together (~'+mb.toFixed(0)+'MB). Trim to the essential pages and try again.'); return; }
     modal('Building your BOV…','Our Valuation Analyst is reviewing the financials, adjustments, and key value drivers to produce a thorough, defensible opinion of value. This analysis may take a few minutes. Thank you for your patience.');
     ABORT=new AbortController();
-    fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files,bovId:BOV_ID,links:LINKS}),signal:ABORT.signal})
+    fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files,bovId:BOV_ID,links:LINKS,preparedFor:(document.getElementById('prepFor').value||'').trim()}),signal:ABORT.signal})
       .then(function(r){ return r.text().then(function(t){ var j=null; try{ j=JSON.parse(t); }catch(e){} return {ok:r.ok,status:r.status,j:j}; }); })
       .then(function(res){
         if(res.j&&res.j.ok&&res.j.id){ modal('Done — opening your BOV…','Taking you to the finished draft.'); location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(res.j.id); return; }

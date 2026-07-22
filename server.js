@@ -625,7 +625,7 @@ app.get('/api/bov/:id', (req, res) => {
 // AI-generate a BOV from uploaded documents, then save it to the queue.
 app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) => {
   try {
-    const { business, files, bovId, links } = req.body || {};
+    const { business, files, bovId, links, preparedFor } = req.body || {};
     if (!files || !files.length) return res.status(400).json({ ok: false, error: 'Attach at least one financial document.' });
     const preparedBy = (req.user && req.user.preparedBy) || '';
 
@@ -646,6 +646,8 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
     }
 
     const out = await bovgen.generateBov({ business, files, preparedBy, questionnaire: questionnaireText, links, systemPrompt: loadBovPromptCustom() || undefined, sdeThreshold: loadSdeThreshold() });
+    // Rep-entered "Prepared For" overrides whatever the analyst inferred.
+    if (preparedFor && String(preparedFor).trim()) { out.state = out.state || {}; out.state.fields = out.state.fields || {}; out.state.fields.preparedFor = String(preparedFor).slice(0, 200); }
     const bovs = loadBovs();
     const rec = (target && bovs.find(x => x.id === target.id)) || {
       id: newBovId(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: new Date().toISOString(),
@@ -700,7 +702,17 @@ app.delete('/api/bov/:id', (req, res) => {
   const target = bovs.find(x => x.id === req.params.id);
   if (!target) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!ownsBov(req, target)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  saveBovs(bovs.filter(x => x.id !== req.params.id));
+  const remaining = bovs.filter(x => x.id !== req.params.id);
+  saveBovs(remaining);
+  // If this was the last valuation tied to a questionnaire, revert that
+  // questionnaire's status to Waiting (un-processed) in the Questionnaire Log.
+  if (target.srcQuestId && !remaining.some(b => b.srcQuestId === target.srcQuestId)) {
+    try {
+      const quests = loadQuests();
+      const q = quests.find(x => x.id === target.srcQuestId);
+      if (q && q.processed) { q.processed = false; q.processedAt = ''; saveQuests(quests); }
+    } catch (e) {}
+  }
   res.json({ ok: true });
 });
 

@@ -101,12 +101,12 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 <!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to dashboard" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)"><span style="font-size:14px;line-height:1">←</span> Dashboard</a><style>@media print{.rrg-back{display:none!important}}@media(max-width:560px){.rrg-back{left:12px;bottom:12px;padding:9px 13px}}</style>
 
 <div class="toolbar"><div class="tb-inner">
-  <div class="tt">RRG Broker's Opinion of Value <span>Fill in, then Print / Save PDF</span></div>
+  <div class="tt">RRG Broker's Opinion of Value <span>Fill in, then Print</span></div>
   <div class="actions">
     <button class="btn" onclick="loadSample()">Load sample</button>
     <button class="btn" onclick="clearAll()">Clear</button>
     <button class="btn" onclick="saveToQueue()">Save to queue</button>
-    <button class="btn print" onclick="printBov()">Print / Save PDF</button>
+    <button class="btn print" onclick="printBov()">Print</button>
   </div>
 </div></div>
 
@@ -241,7 +241,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   function moneyM(n){ n=Number(n)||0; var a=Math.abs(n); if(a>=1e6){ var m=n/1e6; return '$'+(a>=1e7?m.toFixed(1):m.toFixed(2))+'M'; } if(a>=1e3) return '$'+Math.round(n/1e3)+'K'; return '$'+Math.round(n); }
   function _bmv(s){ var m=String(s==null?'':s).match(/-?\d+(?:\.\d+)?/g); return (m&&m.length)?Math.max.apply(null,m.map(Number)):-1; }
   function sortBuyers(){ try{ var rows=state.buyers; if(!Array.isArray(rows)||rows.length<2) return; var hasHead=_bmv(rows[0]&&rows[0][1])<0 && /multiple/i.test(String((rows[0]||[])[1]||'')); var head=hasHead?rows.slice(0,1):[]; var body=hasHead?rows.slice(1):rows.slice(); body.sort(function(a,b){ return _bmv(b&&b[1]) - _bmv(a&&a[1]); }); state.buyers=head.concat(body); }catch(e){} }
-  function printBov(){ sortBuyers(); renderAll(); window.print(); }
+  window.printBov=function(){ sortBuyers(); renderAll(); setTimeout(function(){ window.print(); }, 60); };
   function grp(s){ s=String(s).replace(/[^0-9\-]/g,''); return s?Number(s).toLocaleString('en-US'):''; }
   window.grpme=function(el){ el.value=grp(el.value); };
   function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
