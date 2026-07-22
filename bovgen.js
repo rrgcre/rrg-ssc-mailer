@@ -42,6 +42,7 @@ Do the analysis. Build the earnings the SAME WAY, EVERY TIME, using this exact a
 - Use PRIOR years only to read the TREND (growing, flat, or declining revenue and margin) — a strong, improving trend supports the HIGH end of the multiple; a soft or declining trend pulls it toward the LOW end. Prior years inform the multiple; they do NOT change the T12 earnings base. Say what the trend is and how it moved the multiple in the methodology / why-the-range-holds narratives.
 - Compute BOTH SDE and Adjusted EBITDA every time, and report both figures.
 - VALUATION BASIS: if trailing revenue is UNDER $1,200,000, conclude value on SDE using SDE multiples (single-unit owner-operated ≈ 1.5–3.0× SDE). If trailing revenue is $1,200,000 OR MORE, conclude on Adjusted EBITDA using EBITDA multiples (profitable independents ≈ 3.0–5.0×; multi-unit / manager-run ≈ 4.0–7.0×). Set "basis" to "SDE" or "Adjusted EBITDA" accordingly, and give low / base / high multiples for that basis.
+- ASSET-SALE FLOOR — NO GOING-CONCERN VALUE. If trailing SDE is at or below the asset-sale floor (a low, marginal, break-even, or negative owner's earnings), the business has little or no going-concern value: do NOT apply an earnings multiple. Conclude the value as an ASSET SALE — the worth is in the tangible assets (FF&E, leasehold improvements, a transferable or below-market lease, and any liquor/other licenses), NOT the earnings. Set "assetSale" to true, set "basis" to "Asset Sale", and write concNarr and gtmNarr to state plainly that the business is best marketed as an asset sale, that the price reflects tangible assets rather than a multiple of earnings, and why (marginal / negative earnings, owner-dependent, etc.). A losing or barely-profitable restaurant is an asset sale, not a going concern. When SDE is healthy and above the floor, set "assetSale" to false and value normally.
 - MULTIPLE DISCIPLINE — price to SELL, not to a top-of-market ask. For a single-unit owner-operated restaurant/bar, anchor the SDE multiple around 2.0–2.5× and only reach the top of the band (or above) when the fundamentals clearly earn it. Pull the multiple DOWN for: short remaining lease term (not SBA-financeable), small or rural market, heavy owner/operator dependence, below-market wages that will normalize up, customer/daypart concentration, or no seller financing. Push UP only for: a long, assignable, below-market lease; manager-run / low owner dependence; clean, growing financials; strong brand and AUVs; and real multiple-buyer demand. State the multiple you chose and the one or two factors that set it. Do NOT apply an EBITDA-scale multiple (4×+) to an SDE deal.
 - CROSS-CHECK: always sanity-check the earnings-multiple conclusion against a revenue multiple (roughly 0.3–0.5× of trailing revenue for a full-service restaurant/bar) and reconcile. Conclude where the methods CONVERGE, not at the top of any single method.
 - Note lease posture from the actual lease (term remaining, base + NNN, options, assignability) and normalize rent if needed.
@@ -51,6 +52,7 @@ Do the analysis. Build the earnings the SAME WAY, EVERY TIME, using this exact a
 Return ONLY a single JSON object — no prose, no markdown fences — with EXACTLY this shape (all string values unless noted):
 {
  "periodBasis": "t12 or fiscal — set to 't12' when you built the earnings from an actual trailing-twelve-month period (interim/monthly data available). Set to 'fiscal' ONLY when no interim data existed and you used the latest complete fiscal year as a proxy for the T12.",
+ "assetSale": "boolean (true/false, not a string) — true when trailing SDE is at or below the asset-sale floor so the business is valued as an asset sale with no going-concern value; false otherwise.",
  "fields": {
    "subject": "Business name",
    "descriptor": "e.g. Single-Unit Full-Service Restaurant · Operating Business",
@@ -114,6 +116,7 @@ function bridgeSubtotals(bridge) {
 }
 // Under the SDE threshold (default $1.2M) trailing revenue → value on SDE; otherwise Adjusted EBITDA.
 const DEFAULT_SDE_THRESHOLD = 1200000;
+const DEFAULT_ASSET_SALE_FLOOR = 25000;
 function basisFor(sub, fieldsBasis, threshold) {
   const t = Number(threshold) > 0 ? Number(threshold) : DEFAULT_SDE_THRESHOLD;
   if (sub.revenue > 0) return sub.revenue < t ? 'SDE' : 'Adjusted EBITDA';
@@ -221,8 +224,9 @@ function extractJson(text) {
   return null;
 }
 
-async function generateBov({ business, files, preparedBy, questionnaire, links, systemPrompt, sdeThreshold }) {
+async function generateBov({ business, files, preparedBy, questionnaire, links, systemPrompt, sdeThreshold, assetSaleFloor }) {
   const threshold = Number(sdeThreshold) > 0 ? Number(sdeThreshold) : DEFAULT_SDE_THRESHOLD;
+  const floor = (Number(assetSaleFloor) >= 0 && assetSaleFloor != null) ? Number(assetSaleFloor) : DEFAULT_ASSET_SALE_FLOOR;
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('ANTHROPIC_API_KEY is not set on the server.');
   // Admins can override the analyst instructions (Admin → BOV Analyst Prompt);
@@ -250,6 +254,7 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
     `Business / concept name: ${business || '(not given — infer from documents)'}.\n` +
     `Prepared by: ${preparedBy || 'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com'}.\n` +
     `VALUATION BASIS RULE (current setting): if trailing revenue is UNDER $${threshold.toLocaleString('en-US')}, conclude value on SDE; at or above $${threshold.toLocaleString('en-US')}, conclude on Adjusted EBITDA. Set "basis" accordingly.\n` +
+    `ASSET-SALE FLOOR (current setting): if trailing SDE is AT OR BELOW $${floor.toLocaleString('en-US')} (marginal, break-even, or losing), the business has NO going-concern value — set "assetSale" to true, set "basis" to "Asset Sale", do NOT apply an earnings multiple, and value on tangible assets (FF&E, leasehold improvements, a transferable/below-market lease, licenses). Write concNarr and gtmNarr as an asset sale.\n` +
     `Analyze the attached documents${questionnaire ? ' and the Valuation Questionnaire above' : ''} and output the BOV JSON object now.` });
 
   const resp = await fetch(API_URL, {

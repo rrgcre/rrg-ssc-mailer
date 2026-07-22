@@ -297,6 +297,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     return o;
   }
   var SDE_THRESHOLD=1200000;  // admin-configurable; fetched from /api/bov-config on load
+  var ASSET_FLOOR=25000, ASSET_MSG='';  // asset-sale floor + notice (admin-configurable)
   function bv(k){ return num(state.bridge && state.bridge[k]); }
   function itemsTotal(arr){ var t=0; (arr||[]).forEach(function(it){ t+=num(it&&it.amt); }); return t; }
   function addBackTotal(){ return itemsTotal(state.bridge && state.bridge.addBacks); }
@@ -309,7 +310,23 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     var basis = rev>0 ? (rev<SDE_THRESHOLD?'SDE':'Adjusted EBITDA') : (state.basis||'Adjusted EBITDA');
     return {rev:rev, ebitda:ebitda, sde:sde, adj:adj, basis:basis, basisVal:(basis==='SDE'?sde:adj)};
   }
-  try{ fetch('/api/bov-config',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&Number(j.sdeThreshold)>0){ SDE_THRESHOLD=Number(j.sdeThreshold); if(window.compute) compute(); } }).catch(function(){}); }catch(e){}
+  try{ fetch('/api/bov-config',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(Number(j.sdeThreshold)>0) SDE_THRESHOLD=Number(j.sdeThreshold); if(j.assetSaleFloor!=null) ASSET_FLOOR=Number(j.assetSaleFloor); if(j.assetSaleMessage) ASSET_MSG=j.assetSaleMessage; if(window.compute) compute(); } }).catch(function(){}); }catch(e){}
+  // Show/hide the asset-sale notice based on the live SDE (updates as the bridge is
+  // edited). Dismiss sticks until SDE rises above the floor, then drops below again.
+  var _assetDismissed=false;
+  function checkAssetSale(sde){
+    var have=document.getElementById('assetBanner');
+    if(sde<=ASSET_FLOOR){
+      if(have || _assetDismissed) return;
+      var msg=ASSET_MSG||'This business has little or no going-concern value — market it as an asset sale (tangible assets, not an earnings multiple).';
+      var b=document.createElement('div'); b.id='assetBanner'; b.className='rrg-noprint';
+      b.style.cssText='position:sticky;top:0;z-index:9997;background:#fdeceb;border-bottom:1px solid #f0c9c6;color:#9a2820;font:600 13px/1.45 -apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;padding:12px 18px;display:flex;gap:12px;align-items:flex-start';
+      b.innerHTML='<span style="font-size:16px;line-height:1">🏷️</span><span style="flex:1"></span><button type="button" title="Dismiss" style="border:none;background:none;color:#9a2820;font-size:18px;line-height:1;cursor:pointer;font-weight:700">×</button>';
+      b.children[1].textContent=msg;
+      b.children[2].addEventListener('click',function(){ _assetDismissed=true; b.remove(); });
+      document.body.insertBefore(b, document.body.firstChild);
+    } else { if(have) have.remove(); _assetDismissed=false; }
+  }
   function setTxt(id,t){ var el=document.getElementById(id); if(el) el.textContent=t; }
   function setBasisLabels(b){ document.querySelectorAll('.basisLabel').forEach(function(x){ x.textContent=(b==='SDE'?'SDE':'Adj. EBITDA'); }); }
   var BENCH=[['Single-unit, owner-operated','1.5–3.0× SDE'],['Profitable independent, single unit','3.0–5.0× SDE'],
@@ -393,6 +410,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     var lo=num(val('multLow')),ba=num(val('multBase')),hi=num(val('multHigh'));
     // bridge subtotals (inline) + basis labels
     setTxt('stEbitda',money(s.ebitda)); setTxt('stSde',money(s.sde)); setTxt('stAdj',money(s.adj));
+    if(typeof checkAssetSale==='function') checkAssetSale(s.sde);
     setBasisLabels(s.basis);
     setTxt('adjEbitda',money(e));
     setTxt('marginTxt', rev>0?('('+(e/rev*100).toFixed(1)+'% of revenue · basis: '+s.basis+')'):('· basis: '+s.basis));
