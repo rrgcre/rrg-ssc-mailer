@@ -298,12 +298,42 @@ window.toggleMute=function(){
   try{ if(AMB && AMB.master){ var t=AUDIO.currentTime; AMB.master.gain.cancelScheduledValues(t); AMB.master.gain.setValueAtTime(Math.max(AMB.master.gain.value,0.0001),t); AMB.master.gain.exponentialRampToValueAtTime(m?0.0001:AMB_VOL, t+0.4); } }catch(e){}
   updateMuteLink();
 };
+// How long the "your BOV is ready" screen stays before opening the draft
+// (admin-configurable; default 2s). Fetched on load.
+var DONE_MS=2000;
+try{ fetch('/api/bov-config',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.doneSeconds!=null){ DONE_MS=Math.max(0,Number(j.doneSeconds))*1000; } }).catch(function(){}); }catch(e){}
+
+// Futuristic "complete" flourish — a filter-swept ascending arpeggio with echo,
+// a rising shimmer, and a short sub thump for body.
 function playDone(){
   try{
     if(!AUDIO){ var C=window.AudioContext||window.webkitAudioContext; if(C) AUDIO=new C(); }
     if(!AUDIO) return;
-    function tone(freq,start,dur){ var o=AUDIO.createOscillator(), g=AUDIO.createGain(); o.type='sine'; o.frequency.value=freq; o.connect(g); g.connect(AUDIO.destination); var t=AUDIO.currentTime+start; g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.28,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.start(t); o.stop(t+dur+0.05); }
-    tone(880,0,0.55); tone(1318.5,0.15,0.7);   // A5 → E6, a soft two-note "ding-ding"
+    var t0=AUDIO.currentTime;
+    var master=AUDIO.createGain(); master.gain.value=0.85; master.connect(AUDIO.destination);
+    var dly=AUDIO.createDelay(0.5); dly.delayTime.value=0.16; var fb=AUDIO.createGain(); fb.gain.value=0.32; dly.connect(fb); fb.connect(dly); dly.connect(master);
+    var lp=AUDIO.createBiquadFilter(); lp.type='lowpass'; lp.Q.value=7; lp.frequency.setValueAtTime(600,t0); lp.frequency.exponentialRampToValueAtTime(9000,t0+0.5); lp.connect(master);
+    // ascending bright arpeggio (C6 E6 G6 C7 E7), triangle + slightly detuned saw
+    [523.25,659.25,783.99,1046.5,1318.5].forEach(function(f,i){
+      var t=t0+i*0.075;
+      var o=AUDIO.createOscillator(), o2=AUDIO.createOscillator(), g=AUDIO.createGain();
+      o.type='triangle'; o.frequency.value=f; o2.type='sawtooth'; o2.frequency.value=f; o2.detune.value=7;
+      o.connect(g); o2.connect(g); g.connect(lp); g.connect(dly);
+      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.2,t+0.015); g.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
+      o.start(t); o2.start(t); o.stop(t+0.55); o2.stop(t+0.55);
+    });
+    // rising shimmer sparkle at the top
+    var sp=AUDIO.createOscillator(), sg=AUDIO.createGain(); sp.type='sine';
+    sp.frequency.setValueAtTime(1568,t0+0.36); sp.frequency.exponentialRampToValueAtTime(2637,t0+0.56);
+    sp.connect(sg); sg.connect(dly); sg.connect(master);
+    sg.gain.setValueAtTime(0.0001,t0+0.36); sg.gain.exponentialRampToValueAtTime(0.16,t0+0.42); sg.gain.exponentialRampToValueAtTime(0.0001,t0+1.15);
+    sp.start(t0+0.36); sp.stop(t0+1.2);
+    // sub thump
+    var sub=AUDIO.createOscillator(), subg=AUDIO.createGain(); sub.type='sine';
+    sub.frequency.setValueAtTime(150,t0); sub.frequency.exponentialRampToValueAtTime(70,t0+0.3);
+    sub.connect(subg); subg.connect(master);
+    subg.gain.setValueAtTime(0.0001,t0); subg.gain.exponentialRampToValueAtTime(0.32,t0+0.02); subg.gain.exponentialRampToValueAtTime(0.0001,t0+0.4);
+    sub.start(t0); sub.stop(t0+0.45);
   }catch(e){}
 }
 function generate(){
@@ -324,7 +354,7 @@ function generate(){
     fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files,bovId:BOV_ID,links:LINKS,preparedFor:(document.getElementById('prepFor').value||'').trim()}),signal:ABORT.signal})
       .then(function(r){ return r.text().then(function(t){ var j=null; try{ j=JSON.parse(t); }catch(e){} return {ok:r.ok,status:r.status,j:j}; }); })
       .then(function(res){
-        if(res.j&&res.j.ok&&res.j.id){ stopTimer(); stopAmbient(); playDone(); modal('Done — your BOV is ready ✓','Opening the finished draft…'); var _id=res.j.id; setTimeout(function(){ location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(_id); }, 900); return; }
+        if(res.j&&res.j.ok&&res.j.id){ stopTimer(); stopAmbient(); playDone(); modal('Done — your BOV is ready ✓','Opening the finished draft…'); var _id=res.j.id; setTimeout(function(){ location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(_id); }, DONE_MS); return; }
         showOverlay(false);
         if(res.status===413){ setStatus('err','The documents are over the server’s upload limit. Trim the PDFs to the key pages (P&L, add-backs, lease) and try again.'); }
         else if(res.j&&res.j.error){ setStatus('err',res.j.error); }

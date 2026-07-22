@@ -520,11 +520,25 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     sortBuyers(); apply(state.fields); renderAll(); return true; }catch(e){ return false; } }
   function initBlank(){ resetBlank(); }
   function applyState(s){ state=s; state.bridge=migrateBridge(state.bridge); if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();}); sortBuyers(); apply(state.fields||{}); renderAll(); }
+  // Warn the rep (admin-editable message) when this valuation fell back to the
+  // fiscal year because no TTM statement was provided and we're past Q1.
+  function showNoTtmNotice(){
+    if(document.getElementById('noTtmBanner')) return;
+    fetch('/api/bov-config',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+      var msg=(j&&j.noTtmMessage)||'This valuation was built on the previous fiscal year — no TTM statement was provided.';
+      var b=document.createElement('div'); b.id='noTtmBanner'; b.className='rrg-noprint';
+      b.style.cssText='position:sticky;top:0;z-index:9998;background:#fff4e6;border-bottom:1px solid #f0d7ad;color:#8a5a12;font:600 13px/1.45 -apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;padding:12px 18px;display:flex;gap:12px;align-items:flex-start';
+      b.innerHTML='<span style="font-size:16px;line-height:1">⚠️</span><span style="flex:1"></span><button type="button" title="Dismiss" style="border:none;background:none;color:#8a5a12;font-size:18px;line-height:1;cursor:pointer;font-weight:700">×</button>';
+      b.children[1].textContent=msg;
+      b.children[2].addEventListener('click',function(){ b.remove(); });
+      document.body.insertBefore(b, document.body.firstChild);
+    }).catch(function(){});
+  }
   var _bid=(new URLSearchParams(location.search)).get('bov');
   var _srcQuestId='';
   if(_bid){
     fetch('/api/bov/'+encodeURIComponent(_bid)).then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok&&j.bov){ _srcQuestId=j.bov.srcQuestId||''; if(j.bov.state){ applyState(j.bov.state); } else if(!restore()){ initBlank(); } }
+      if(j&&j.ok&&j.bov){ _srcQuestId=j.bov.srcQuestId||''; if(j.bov.state){ applyState(j.bov.state); } else if(!restore()){ initBlank(); } if(j.bov.noTtmNotice) showNoTtmNotice(); }
       else if(!restore()){ initBlank(); }
     }).catch(function(){ if(!restore()) initBlank(); });
   } else if(!restore()){ initBlank(); }
