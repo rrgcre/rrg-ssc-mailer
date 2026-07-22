@@ -327,11 +327,20 @@
 (function(){
   if(new URLSearchParams(location.search).get('intro')!=='1') return;
   var ov=document.getElementById('qintro'); if(!ov) return;
-  ov.classList.add('show');
-  var n=10, cEl=document.getElementById('qintroCount'), timer=null;
+  ov.classList.add('show');   // show immediately — no flash of the form behind it
+  var sk=document.getElementById('qintroSkip'), cEl=document.getElementById('qintroCount'), timer=null;
   function done(){ if(timer){ clearInterval(timer); timer=null; } ov.classList.remove('show'); }
-  timer=setInterval(function(){ n--; if(cEl) cEl.textContent='Starting automatically in '+n+'s…'; if(n<=0) done(); },1000);
-  var sk=document.getElementById('qintroSkip'); if(sk) sk.addEventListener('click',done);
+  if(sk) sk.addEventListener('click',done);
+  function run(secs){
+    secs=Math.round(Number(secs)); if(!isFinite(secs)) secs=10;
+    if(secs<=0){ done(); return; }   // admin turned the intro screen off
+    var n=secs; if(cEl) cEl.textContent='Starting automatically in '+n+'s…';
+    timer=setInterval(function(){ n--; if(cEl) cEl.textContent='Starting automatically in '+n+'s…'; if(n<=0) done(); },1000);
+  }
+  // Duration is admin-configurable (Admin → Questionnaire Intro Screen); default 10.
+  fetch('/api/bov-config',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    run(j&&j.ok&&j.introSeconds!=null ? j.introSeconds : 10);
+  }).catch(function(){ run(10); });
 })();
 </script>
 <!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to dashboard" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)"><span style="font-size:14px;line-height:1">←</span> Dashboard</a><style>@media print{.rrg-back{display:none!important}}@media(max-width:560px){.rrg-back{left:12px;bottom:12px;padding:9px 13px}}</style>

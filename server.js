@@ -31,16 +31,24 @@ const BOV_PROMPT_FILE = path.join(BOV_DATA_DIR, 'bov_prompt.txt');
 function loadBovPromptCustom() { try { const t = fs.readFileSync(BOV_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
 function saveBovPromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BOV_PROMPT_FILE, String(t)); } catch (e) {} }
 function clearBovPromptCustom() { try { fs.unlinkSync(BOV_PROMPT_FILE); } catch (e) {} }
-// ---- BOV config (admin-editable): the SDE-vs-EBITDA revenue threshold ----
+// ---- BOV / app config (admin-editable) ----
 const BOV_CONFIG_FILE = path.join(BOV_DATA_DIR, 'bov_config.json');
 const DEFAULT_SDE_THRESHOLD = 1200000;
-function loadSdeThreshold() {
-  try { const c = JSON.parse(fs.readFileSync(BOV_CONFIG_FILE, 'utf8')); const n = Number(c && c.sdeThreshold); return n > 0 ? n : DEFAULT_SDE_THRESHOLD; }
-  catch (e) { return DEFAULT_SDE_THRESHOLD; }
+const DEFAULT_INTRO_SECONDS = 10;
+// Generic config store — MERGES keys so settings don't clobber each other.
+function loadCfg() { try { return JSON.parse(fs.readFileSync(BOV_CONFIG_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
+function saveCfg(patch) {
+  try {
+    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
+    const merged = Object.assign(loadCfg(), patch || {});
+    fs.writeFileSync(BOV_CONFIG_FILE, JSON.stringify(merged, null, 2));
+  } catch (e) {}
 }
-function saveSdeThreshold(n) {
-  try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BOV_CONFIG_FILE, JSON.stringify({ sdeThreshold: Number(n) || DEFAULT_SDE_THRESHOLD }, null, 2)); } catch (e) {}
-}
+function loadSdeThreshold() { const n = Number(loadCfg().sdeThreshold); return n > 0 ? n : DEFAULT_SDE_THRESHOLD; }
+function saveSdeThreshold(n) { saveCfg({ sdeThreshold: Number(n) || DEFAULT_SDE_THRESHOLD }); }
+// Seconds the "Before you begin" questionnaire intro screen stays up (0 = off).
+function loadIntroSeconds() { const c = loadCfg(); const n = Number(c.introSeconds); return (isFinite(n) && n >= 0) ? n : DEFAULT_INTRO_SECONDS; }
+function saveIntroSeconds(n) { let v = Math.round(Number(n)); if (!isFinite(v) || v < 0) v = DEFAULT_INTRO_SECONDS; if (v > 120) v = 120; saveCfg({ introSeconds: v }); }
 // When a valuation questionnaire is advanced ("Request BOV"), drop a fresh
 // "waiting BOV" into the queue — the same pattern as advancing a seller call.
 // Each request creates a NEW valuation record, so a business can be valued more
@@ -897,6 +905,13 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveBovConfig()">Save threshold</button> <span id="bcmsg" class="sub2"></span></div>
       </div>
 
+      <h2 style="margin-top:34px">Questionnaire Intro Screen <span class="sub2">— how long the "Before you begin" priming screen stays up when a rep starts a questionnaire. Set to 0 to turn it off.</span></h2>
+      <div class="links">
+        <label class="sub2" style="display:block;margin-bottom:4px">Seconds on screen (default 10)</label>
+        <input id="introSeconds" inputmode="numeric" style="border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;width:120px" placeholder="10">
+        <div style="margin-top:10px"><button class="primary" onclick="saveIntroSeconds()">Save duration</button> <span id="ismsg" class="sub2"></span></div>
+      </div>
+
       <h2 style="margin-top:34px">BOV Analyst Prompt <span class="sub2">— the instructions Claude follows when drafting a BOV. Edit to change how valuations are written; keep the JSON output block at the end intact so the BOV still builds. Reset any time to restore the RRG default.</span></h2>
       <div class="links">
         <div class="sub2" id="bpstate" style="margin:0 0 8px">Loading…</div>
@@ -926,8 +941,9 @@ app.get('/admin', requireAdmin, (req, res) => {
       function resetBovPrompt(){ if(!confirm('Reset the BOV prompt to the RRG default? Your custom prompt will be discarded.')) return; post('/api/admin/bov-prompt',{reset:true}).then(function(j){ if(j.ok){ document.getElementById('bovPrompt').value=j.prompt||''; document.getElementById('bpmsg').textContent='Reset to default ✓'; _bpState(true); } }); }
       loadBovPrompt();
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
-      function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); } }); }
+      function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); var is=document.getElementById('introSeconds'); if(is) is.value=(j.introSeconds!=null?j.introSeconds:10); } }); }
       function saveBovConfig(){ var v=(document.getElementById('sdeThreshold').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('bcmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{sdeThreshold:v}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); m.textContent='Saved — SDE below $'+fmtNum(j.sdeThreshold)+' in sales ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
+      function saveIntroSeconds(){ var v=(document.getElementById('introSeconds').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('ismsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{introSeconds:v}).then(function(j){ if(j&&j.ok){ document.getElementById('introSeconds').value=(j.introSeconds!=null?j.introSeconds:10); m.textContent=(Number(j.introSeconds)===0?'Saved — intro screen off ✓':('Saved — '+j.introSeconds+'s ✓')); } else m.textContent=(j&&j.error)||'Failed'; }); }
       loadBovConfig();
       document.querySelectorAll('form[action="/api/admin/toggle"],form[action="/api/admin/remove"]').forEach(function(f){ f.addEventListener('submit',function(e){ e.preventDefault(); var d={}; new FormData(f).forEach((v,k)=>d[k]=v); post(f.action,d).then(j=>{ if(j.ok) location.reload(); else alert(j.error||'Failed'); }); }); });
       /* Collapsible admin sections (chevrons) */
@@ -990,13 +1006,22 @@ app.post('/api/admin/bov-prompt', requireAdmin, (req, res) => {
 });
 // SDE-vs-EBITDA revenue threshold. Admins read/write; any signed-in user (the
 // BOV builder) can read it to compute the basis client-side.
-app.get('/api/bov-config', (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD }));
-app.get('/api/admin/bov-config', requireAdmin, (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD }));
+app.get('/api/bov-config', (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD, introSeconds: loadIntroSeconds(), defaultIntroSeconds: DEFAULT_INTRO_SECONDS }));
+app.get('/api/admin/bov-config', requireAdmin, (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD, introSeconds: loadIntroSeconds(), defaultIntroSeconds: DEFAULT_INTRO_SECONDS }));
 app.post('/api/admin/bov-config', requireAdmin, (req, res) => {
-  const n = Number(String((req.body || {}).sdeThreshold).replace(/[^0-9.]/g, ''));
-  if (!(n > 0)) return res.status(400).json({ ok: false, error: 'Enter a dollar amount greater than 0.' });
-  saveSdeThreshold(n);
-  res.json({ ok: true, sdeThreshold: loadSdeThreshold() });
+  const b = req.body || {};
+  // Both fields are optional — update whichever is supplied.
+  if (b.sdeThreshold != null && String(b.sdeThreshold).trim() !== '') {
+    const n = Number(String(b.sdeThreshold).replace(/[^0-9.]/g, ''));
+    if (!(n > 0)) return res.status(400).json({ ok: false, error: 'Enter a dollar amount greater than 0.' });
+    saveSdeThreshold(n);
+  }
+  if (b.introSeconds != null && String(b.introSeconds).trim() !== '') {
+    const s = Number(String(b.introSeconds).replace(/[^0-9.]/g, ''));
+    if (!(s >= 0)) return res.status(400).json({ ok: false, error: 'Enter a number of seconds (0 or more).' });
+    saveIntroSeconds(s);
+  }
+  res.json({ ok: true, sdeThreshold: loadSdeThreshold(), introSeconds: loadIntroSeconds() });
 });
 app.get('/admin/logins.csv', requireAdmin, (_req, res) => {
   const fs = require('fs');
