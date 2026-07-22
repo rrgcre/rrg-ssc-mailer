@@ -247,50 +247,53 @@ var AMB=null;
 function ambientMuted(){ try{ return localStorage.getItem('rrg_build_sound_muted')==='1'; }catch(e){ return false; } }
 function setAmbientMuted(m){ try{ localStorage.setItem('rrg_build_sound_muted', m?'1':'0'); }catch(e){} }
 var AMB_VOL=0.11;
+// A deep, slow, "orb"-like drone: low sine bed, gentle breathing in both
+// brightness and volume, and long consonant blooms that swell in and out.
 function startAmbient(){
   try{
     if(!AUDIO){ var C=window.AudioContext||window.webkitAudioContext; if(C) AUDIO=new C(); }
     if(!AUDIO || AMB) return;
     var now=AUDIO.currentTime;
     var master=AUDIO.createGain(); master.gain.value=0.0001; master.connect(AUDIO.destination);
-    if(!ambientMuted()) master.gain.exponentialRampToValueAtTime(AMB_VOL, now+2.2);
-    // Echo for depth (feedback delay).
-    var dly=AUDIO.createDelay(1.0); dly.delayTime.value=0.33;
-    var fb=AUDIO.createGain(); fb.gain.value=0.35; dly.connect(fb); fb.connect(dly); dly.connect(master);
-    // Sweeping low-pass the whole bed runs through.
-    var lp=AUDIO.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=900; lp.Q.value=6; lp.connect(master);
-    // Slow LFO opens/closes the filter — the "breathing machine" motion.
-    var lfo=AUDIO.createOscillator(), lfoG=AUDIO.createGain(); lfo.type='sine'; lfo.frequency.value=0.06; lfoG.gain.value=700; lfo.connect(lfoG); lfoG.connect(lp.frequency); lfo.start();
-    // Detuned drone (C2 + G2) — the hull hum.
-    var drone=[]; [65.41,98.00].forEach(function(f,i){ var o=AUDIO.createOscillator(), g=AUDIO.createGain(); o.type=i?'triangle':'sawtooth'; o.frequency.value=f; o.detune.value=i?7:-7; g.gain.value=0.05; o.connect(g); g.connect(lp); o.start(); drone.push(o); });
-    // Whole-tone shimmer (C5 D5 E5 F#5 G#5 A#5) — floaty, "not of this world".
-    var notes=[523.25,587.33,659.25,739.99,830.61,932.33,830.61,659.25];
+    if(!ambientMuted()) master.gain.exponentialRampToValueAtTime(AMB_VOL, now+4);   // slow fade-in
+    // Long, spacious echo.
+    var dly=AUDIO.createDelay(1.5); dly.delayTime.value=0.6;
+    var fb=AUDIO.createGain(); fb.gain.value=0.42; dly.connect(fb); fb.connect(dly); dly.connect(master);
+    // Warm, dark low-pass keeps everything round and deep.
+    var lp=AUDIO.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=420; lp.Q.value=1.5; lp.connect(master);
+    // Very slow filter breathing (~0.03 Hz ≈ 33s).
+    var lfo=AUDIO.createOscillator(), lfoG=AUDIO.createGain(); lfo.type='sine'; lfo.frequency.value=0.03; lfoG.gain.value=260; lfo.connect(lfoG); lfoG.connect(lp.frequency); lfo.start();
+    // Slow amplitude breathing of the whole orb (~0.07 Hz ≈ 14s).
+    var amp=AUDIO.createGain(); amp.gain.value=0.85; amp.connect(lp);
+    var alfo=AUDIO.createOscillator(), alfoG=AUDIO.createGain(); alfo.type='sine'; alfo.frequency.value=0.07; alfoG.gain.value=0.28; alfo.connect(alfoG); alfoG.connect(amp.gain); alfo.start();
+    // Deep, round drone — low sines (A1, A2, E3), slightly detuned for warmth.
+    var drone=[];
+    [{f:55,t:'sine',g:0.17},{f:110,t:'sine',g:0.11},{f:164.81,t:'triangle',g:0.05}].forEach(function(d){
+      var o=AUDIO.createOscillator(), g=AUDIO.createGain(); o.type=d.t; o.frequency.value=d.f; o.detune.value=(Math.random()*8-4);
+      g.gain.value=d.g; o.connect(g); g.connect(amp); g.connect(dly); o.start(); drone.push(o);
+    });
+    // Occasional slow "bloom" — a soft mid note that swells in and out like the
+    // orb pulsing. Every ~6s; long attack and release, low register, consonant.
+    var notes=[220,261.63,329.63,293.66,196.00];   // A3 C4 E4 D4 G3
     var idx=0;
     var iv=setInterval(function(){ try{
       var t=AUDIO.currentTime, f=notes[idx%notes.length]; idx++;
-      var o=AUDIO.createOscillator(), g=AUDIO.createGain(); o.type='sine'; o.frequency.value=f;
-      o.connect(g); g.connect(dly); g.connect(lp);
-      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.09,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+1.3);
-      o.start(t); o.stop(t+1.4);
-    }catch(e){} }, 560);
-    // Occasional high "data blip".
-    var bv=setInterval(function(){ try{
-      if(Math.random()>0.5) return;
-      var t=AUDIO.currentTime, f=1400+Math.round(Math.random()*5)*160;
-      var o=AUDIO.createOscillator(), g=AUDIO.createGain(); o.type='square'; o.frequency.value=f;
-      o.connect(g); g.connect(dly);
-      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.05,t+0.01); g.gain.exponentialRampToValueAtTime(0.0001,t+0.16);
-      o.start(t); o.stop(t+0.2);
-    }catch(e){} }, 1300);
-    AMB={master:master, drone:drone, lfo:lfo, iv:iv, bv:bv};
+      var o=AUDIO.createOscillator(), g=AUDIO.createGain(); o.type='sine'; o.frequency.value=f; o.detune.value=(Math.random()*6-3);
+      o.connect(g); g.connect(amp); g.connect(dly);
+      g.gain.setValueAtTime(0.0001,t);
+      g.gain.exponentialRampToValueAtTime(0.06,t+2);      // slow swell in
+      g.gain.exponentialRampToValueAtTime(0.0001,t+5.5);  // slow fade out
+      o.start(t); o.stop(t+5.8);
+    }catch(e){} }, 6000);
+    AMB={master:master, drone:drone, lfo:lfo, alfo:alfo, iv:iv, bv:null};
     updateMuteLink();
   }catch(e){}
 }
 function stopAmbient(){
   if(!AMB) return; var A=AMB; AMB=null;
-  try{ clearInterval(A.iv); clearInterval(A.bv); }catch(e){}
-  try{ var t=AUDIO.currentTime; A.master.gain.cancelScheduledValues(t); A.master.gain.setValueAtTime(Math.max(A.master.gain.value,0.0001),t); A.master.gain.exponentialRampToValueAtTime(0.0001,t+0.6); }catch(e){}
-  setTimeout(function(){ try{ A.drone.forEach(function(o){o.stop();}); A.lfo.stop(); }catch(e){} }, 750);
+  try{ clearInterval(A.iv); if(A.bv) clearInterval(A.bv); }catch(e){}
+  try{ var t=AUDIO.currentTime; A.master.gain.cancelScheduledValues(t); A.master.gain.setValueAtTime(Math.max(A.master.gain.value,0.0001),t); A.master.gain.exponentialRampToValueAtTime(0.0001,t+0.8); }catch(e){}
+  setTimeout(function(){ try{ A.drone.forEach(function(o){o.stop();}); A.lfo.stop(); if(A.alfo) A.alfo.stop(); }catch(e){} }, 950);
 }
 function updateMuteLink(){ var el=document.getElementById('muteLink'); if(el) el.textContent = ambientMuted() ? '🔇 Sound off · tap to unmute' : '🔊 Sound on · tap to mute'; }
 window.toggleMute=function(){
