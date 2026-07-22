@@ -74,6 +74,14 @@ tr.tot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);}
 tr.tot td.calc{color:var(--red);}
 tr.baserow td{background:#fdeceb;font-weight:700;}
 .matrix td.calc,.matrix th{white-space:nowrap;}
+/* Prominent multiple controls — the rep's main lever, edited live (no re-build) */
+.multguide{font-size:11.5px;color:var(--red);font-weight:700;background:#fdf1f0;border:1px solid #f2c9c6;border-radius:8px;padding:8px 11px;margin:2px 0 10px;max-width:470px;}
+.multtable td.multtd{padding:8px 6px;}
+.multwrap{display:inline-flex;align-items:center;gap:3px;justify-content:center;}
+.multwrap input{width:64px;border:1px solid var(--inp);border-radius:9px;padding:7px 4px;font-size:23px;font-weight:800;color:var(--navy);text-align:center;background:#fff;}
+.multwrap input:hover{border-color:#9fb0cc;} .multwrap input:focus{outline:none;border-color:var(--red);background:#fffdfd;}
+.multwrap .mx{font-size:18px;font-weight:700;color:var(--muted);}
+.multtd.base .multwrap input{border-color:var(--red);box-shadow:0 0 0 2px rgba(218,43,31,.12);}
 
 .foot{margin-top:30px;border-top:1px solid var(--line);padding-top:12px;display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);flex-wrap:wrap;gap:6px;}
 .foot b{color:var(--navy);}
@@ -167,13 +175,14 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     <!-- 4 APPROACH -->
     <div class="kl-block"><div class="kl">Approach</div>
     <div class="sec"><h2>Valuation Methodology &amp; Multiple Selection</h2><div class="flex"></div></div>
-    <div class="sublabel">Selected adjusted-EBITDA multiple range</div>
-    <table style="max-width:420px">
+    <div class="sublabel">Selected multiple range <span style="text-transform:none;font-weight:600;color:var(--muted);letter-spacing:0">(× <span class="basisLabel">Adj. EBITDA</span>)</span></div>
+    <div class="multguide rrg-noprint">This is your lever. Adjust the multiple to set the value — the concluded range, target, and matrix recalculate instantly. No re-build, no Claude credits.</div>
+    <table style="max-width:470px" class="multtable">
       <thead><tr><th>Low</th><th>Base Case</th><th>High</th></tr></thead>
       <tbody><tr>
-        <td><input data-k="multLow" inputmode="decimal" value="4.0" oninput="compute()" style="text-align:center"></td>
-        <td><input data-k="multBase" inputmode="decimal" value="4.5" oninput="compute()" style="text-align:center"></td>
-        <td><input data-k="multHigh" inputmode="decimal" value="5.0" oninput="compute()" style="text-align:center"></td>
+        <td class="multtd"><span class="multwrap"><input data-k="multLow" inputmode="decimal" value="4.0" oninput="compute()"><span class="mx">×</span></span></td>
+        <td class="multtd base"><span class="multwrap"><input data-k="multBase" inputmode="decimal" value="4.5" oninput="compute()"><span class="mx">×</span></span></td>
+        <td class="multtd"><span class="multwrap"><input data-k="multHigh" inputmode="decimal" value="5.0" oninput="compute()"><span class="mx">×</span></span></td>
       </tr></tbody>
     </table>
     <textarea class="narr" data-k="methodNarr" placeholder="Market approach (primary), the subject's positioning within the band, income cross-check (implied earnings yield), and revenue cross-check."></textarea>
