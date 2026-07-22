@@ -1430,6 +1430,17 @@
     b.style.cssText='background:#0b1a3a;color:#fff;font:600 13px/1.3 -apple-system,Segoe UI,Roboto,sans-serif;padding:10px 16px;';
     b.textContent='Editing “'+(s.business||'questionnaire')+'”. Changes save automatically to the Questionnaire Log.';
     document.body.insertBefore(b, document.body.firstChild);
+    // Arrived here because a BOV advance was blocked — highlight the missing
+    // required fields, advise the rep, and jump to the first one.
+    if(new URLSearchParams(location.search).get('finish')==='1'){
+      setTimeout(function(){ try{
+        var miss = window.__vqValidate ? window.__vqValidate() : [];
+        if(miss.length){
+          if(window.__vqBanner) window.__vqBanner('Finish '+miss.length+' required field'+(miss.length>1?'s':'')+' (marked *, highlighted in red) to request a BOV for this business.');
+          miss[0].scrollIntoView({behavior:'smooth',block:'center'});
+        }
+      }catch(e){} }, 450);
+    }
   }).catch(function(){});
 })();
 /* Autosave to the log + Close. No manual Save button — the questionnaire files itself as you go. */

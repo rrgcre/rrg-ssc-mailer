@@ -205,11 +205,9 @@ function render(list){
     if(s.processed){
       mid += '<button class="adv" disabled title="A valuation already exists — delete it in Business Valuations to request a new one." style="opacity:.4;cursor:not-allowed">Request BOV</button>';
       mid += '<a href="./rrg_bov_queue.html">View in Business Valuations →</a>';
-    } else if(!s.completed){
-      // An incomplete questionnaire can't be advanced — dim the button until the
-      // required fields are filled in.
-      mid += '<button class="adv" disabled title="Complete the required fields on the questionnaire before requesting a BOV." style="opacity:.4;cursor:not-allowed">Request BOV</button>';
     } else {
+      // Clickable even when incomplete — clicking an incomplete one advises the
+      // rep and highlights the missing required fields (see requestBov).
       mid += '<button class="adv" onclick="requestBov(\''+s.id+'\',this)">Request BOV</button>';
     }
     return '<tr data-id="'+esc(s.id)+'">'+
@@ -246,7 +244,7 @@ function requestBov(id,btn){
     .then(function(res){
       if(res.ok && res.j && res.j.ok && res.j.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(res.j.bovId); return; }
       if(btn){btn.disabled=false;btn.textContent='Request BOV';}
-      if(res.j && res.j.incomplete){ if(confirm('This questionnaire isn’t complete yet. Open it to finish the required fields?')) location.href='./valuation_questionnaire.html?q='+encodeURIComponent(id); return; }
+      if(res.j && res.j.incomplete){ if(confirm('This questionnaire isn’t complete yet — open it to finish the required fields? The missing ones will be highlighted for you.')) location.href='./valuation_questionnaire.html?q='+encodeURIComponent(id)+'&finish=1'; return; }
       alert((res.j&&res.j.error)||'Could not request the BOV.');
     })
     .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Request BOV';} alert('Could not reach the server to request the BOV.'); });
