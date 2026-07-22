@@ -112,7 +112,6 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   <div class="actions">
     <button class="btn" onclick="goDashboard()">← Dashboard</button>
     <button class="btn" onclick="goQuestionnaire()">← Questionnaire</button>
-    <button class="btn" onclick="loadSample()">Load sample</button>
     <button class="btn" onclick="clearAll()">Clear</button>
     <button class="btn print" onclick="printBov()">Print</button>
     <button class="btn" onclick="closeBov()">Close</button>
@@ -453,12 +452,17 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     else { location.href='./rrg_questionnaire_queue.html'; }
   };
 
-  window.clearAll=function(){
-    if(!confirm('Clear this BOV?')) return;
+  // Reset the builder to a blank BOV with sensible defaults (multiples, revenue
+  // band, rep contact) — used by both Clear and a fresh (record-less) open.
+  function resetBlank(){
     state={fields:{}, bridge:blankBridge(), bench:BENCH.map(function(r){return r.slice();}), buyers:BUYERS.map(function(r){return r.slice();})};
     document.querySelectorAll('[data-k]').forEach(function(el){ if(el.getAttribute('data-k')==='assume') el.value=ASSUME; else if(['multLow','multBase','multHigh'].indexOf(el.getAttribute('data-k'))>=0){} else if(el.getAttribute('data-k')==='revLo')el.value='0.50'; else if(el.getAttribute('data-k')==='revHi')el.value='0.60'; else if(el.getAttribute('data-k')==='preparedBy')el.value='Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com'; else if(el.getAttribute('data-k')==='preparedBy2')el.value='Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com'; else el.value=''; });
     q('multLow').value='4.0'; q('multBase').value='4.5'; q('multHigh').value='5.0';
-    renderAll(); try{localStorage.removeItem(KEY);}catch(e){}
+    renderAll();
+  }
+  window.clearAll=function(){
+    if(!confirm('Clear this BOV?')) return;
+    resetBlank(); try{localStorage.removeItem(KEY);}catch(e){}
   };
 
   window.loadSample=function(){
@@ -489,7 +493,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     state=s; state.bridge=migrateBridge(state.bridge);
     if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();});
     sortBuyers(); apply(state.fields); renderAll(); return true; }catch(e){ return false; } }
-  function initBlank(){ state.bridge=blankBridge(); state.bench=BENCH.map(function(r){return r.slice();}); state.buyers=BUYERS.map(function(r){return r.slice();}); q('assume').value=ASSUME; loadSample(); }
+  function initBlank(){ resetBlank(); }
   function applyState(s){ state=s; state.bridge=migrateBridge(state.bridge); if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();}); sortBuyers(); apply(state.fields||{}); renderAll(); }
   var _bid=(new URLSearchParams(location.search)).get('bov');
   var _srcQuestId='';

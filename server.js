@@ -48,6 +48,11 @@ function saveSdeThreshold(n) {
 function ensureBovForQuest(q) {
   if (!q) return null;
   const arr = loadBovs();
+  // ONE valuation per questionnaire. If a valuation already exists for this VQ,
+  // reuse it — the only way to get a fresh valuation is to delete the existing
+  // one, which reverts the questionnaire to Waiting.
+  const existing = arr.find(x => x.srcQuestId === q.id);
+  if (existing) return existing;
   const rec = {
     id: newBovId(), srcFormId: 'bovfromq_' + q.id, srcQuestId: q.id, pending: true,
     business: q.business || 'Business', market: q.market || '', date: '',
@@ -646,6 +651,14 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
           if (q) questionnaireText = questToText(q);
         }
       }
+    }
+
+    // Build ONCE. A valuation that has already been built is frozen — its earnings
+    // bridge is the source of truth and must not be silently regenerated into
+    // different numbers. To rebuild, the rep deletes it in Business Valuations
+    // (which reverts the questionnaire to Waiting) and requests a fresh one.
+    if (target && target.aiGenerated && !target.pending) {
+      return res.status(409).json({ ok: false, error: 'This valuation is already built. Its earnings bridge is locked. To rebuild from the financials, delete it in Business Valuations first — that reverts the questionnaire to Waiting so you can request a fresh valuation.' });
     }
 
     const out = await bovgen.generateBov({ business, files, preparedBy, questionnaire: questionnaireText, links, systemPrompt: loadBovPromptCustom() || undefined, sdeThreshold: loadSdeThreshold() });

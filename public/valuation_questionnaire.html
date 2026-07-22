@@ -294,7 +294,6 @@
 <div class="toolbar">
   <div class="tt">RRG Valuation Questionnaire <span>Fill in, then Submit &amp; Email</span></div>
   <div class="actions">
-    <button class="btn sample" onclick="loadSample()">Load sample</button>
     <button class="btn clear" onclick="if(confirm('Clear all fields?')){document.getElementById('sscform').reset();document.dispatchEvent(new Event('input',{bubbles:true}));if(window.rrgClearDraft)window.rrgClearDraft();}">Clear form</button>
     <button class="btn blank" onclick="printBlank()">Print blank copy</button>
     <button class="btn blank" onclick="validateAndPrint()">Print</button>

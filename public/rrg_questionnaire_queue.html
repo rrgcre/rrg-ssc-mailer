@@ -197,8 +197,13 @@ function render(list){
     var qbtn = s.completed
       ? '<a href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Questionnaire</a>'
       : '<a class="adv complete" href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Questionnaire</a>';
-    var mid = qbtn + '<button class="adv" onclick="requestBov(\''+s.id+'\',this)">Request BOV</button>';
+    // ONE valuation per questionnaire. Once a valuation exists (processed), the
+    // Request BOV button is gone — the valuation lives in Business Valuations.
+    // To redo it, delete it there (which reverts this row to Waiting) and the
+    // Request BOV button returns.
+    var mid = qbtn;
     if(s.processed){ mid += '<a href="./rrg_bov_queue.html">View in Business Valuations →</a>'; }
+    else { mid += '<button class="adv" onclick="requestBov(\''+s.id+'\',this)">Request BOV</button>'; }
     return '<tr data-id="'+esc(s.id)+'">'+
       '<td><div class="biz">'+esc(s.business||'Business')+'</div><div class="meta">'+meta+'</div></td>'+
       '<td class="meta">'+esc(fmt(s.createdAt))+'</td>'+
