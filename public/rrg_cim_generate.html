@@ -80,7 +80,7 @@ input:focus{outline:none;border-color:var(--red);}
   var sk=document.getElementById('packIntroSkip'), cEl=document.getElementById('packIntroCount'), timer=null;
   function done(){ if(timer){ clearInterval(timer); timer=null; } ov.classList.remove('show'); }
   if(sk) sk.addEventListener('click',done);
-  function run(secs){ secs=Math.round(Number(secs)); if(!isFinite(secs)) secs=12; if(secs<=0){ done(); return; }
+  function run(secs){ secs=Math.round(Number(secs)); if(!isFinite(secs)) secs=20; if(secs<=0){ done(); return; }
     var n=secs; if(cEl) cEl.textContent='Continuing automatically in '+n+'s…';
     timer=setInterval(function(){ n--; if(cEl) cEl.textContent='Continuing automatically in '+n+'s…'; if(n<=0) done(); },1000); }
   function esc(s){ return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
@@ -92,8 +92,8 @@ input:focus{outline:none;border-color:var(--red);}
     if(inList) html+='</ul>'; return html; }
   fetch('/api/bov-config',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(j&&j.ok&&j.packIntroMessage){ var bd=document.getElementById('packIntroBody'); if(bd){ var h=renderMsg(j.packIntroMessage); if(h) bd.innerHTML=h; } }
-    run(j&&j.ok&&j.packIntroSeconds!=null ? j.packIntroSeconds : 12);
-  }).catch(function(){ run(12); });
+    run(j&&j.ok&&j.packIntroSeconds!=null ? j.packIntroSeconds : 20);
+  }).catch(function(){ run(20); });
 })();
 </script>
 <!--rrgback--><a href="./rrg_cim_queue.html" class="rrg-back" aria-label="Back to Marketing Packs" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> Marketing Packs</a>
