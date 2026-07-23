@@ -995,7 +995,7 @@ app.get('/api/agreements', (_req, res) => {
     loadDocs().forEach(d => {
       let updated = Date.parse(d.uploadedAt) || 0;
       try { updated = fs.statSync(path.join(DOCS_DIR, d.id + '.' + d.ext)).mtimeMs; } catch (e) {}
-      list.push({ name: d.title || prettyName(d.originalName), file: 'doc/' + d.id + '.' + d.ext, type: d.type || ((d.category || 'Document') + ' · ' + String(d.ext).toUpperCase()), updated });
+      list.push({ id: d.id, name: d.title || prettyName(d.originalName), file: 'doc/' + d.id + '.' + d.ext, type: d.type || ((d.category || 'Document') + ' · ' + String(d.ext).toUpperCase()), updated });
     });
   } catch (e) { console.error('agreements uploaded list error:', e); }
   list.sort((a, b) => a.name.localeCompare(b.name));

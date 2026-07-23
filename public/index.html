@@ -150,6 +150,9 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
 .agr{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;}
 .agrcard{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s;}
 .agrcard:hover{border-color:#c9d2e2;transform:translateY(-2px);}
+.agritem{position:relative;}
+.agrdel{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);background:#fff;color:var(--red);font-size:15px;font-weight:800;line-height:1;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,.14);display:none;padding:0;}
+.agritem:hover .agrdel{display:block;}
 .agrcard .di{width:30px;height:36px;flex:none;}
 .agrcard .an{font-weight:700;color:var(--navy);font-size:13px;line-height:1.25;display:block;}
 .agrcard .at{font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.04em;margin-top:2px;display:block;}
@@ -178,7 +181,20 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
   </div>
   <div class="sectionlabel" id="lbl"></div>
   <div id="grid"></div>
-  <div class="sectionlabel" style="margin-top:32px">Agreements, Documents &amp; Training <span style="font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted);font-size:11px;margin-left:6px">— open or download</span></div>
+  <div class="sectionlabel" style="margin-top:32px;display:flex;align-items:center;gap:10px">
+    <span>Agreements, Documents &amp; Training <span style="font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted);font-size:11px;margin-left:6px">— open or download</span></span>
+    <button id="docAddBtn" onclick="toggleDocForm()" style="display:none;margin-left:auto;border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 12px;font:inherit;font-size:11px;font-weight:700;color:var(--navy);cursor:pointer;text-transform:none;letter-spacing:0">+ Add document</button>
+  </div>
+  <div id="docForm" style="display:none;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <input id="docTitle" placeholder="Title (e.g. Buyer Broker Agreement)" style="flex:1;min-width:200px;border:1px solid #cfd6e2;border-radius:8px;padding:8px 11px;font:inherit;font-size:13px;color:var(--navy)">
+      <select id="docCategory" style="border:1px solid #cfd6e2;border-radius:8px;padding:8px 11px;font:inherit;font-size:13px;background:#fff;color:var(--navy)"><option>Agreement</option><option>Document</option><option>Training</option></select>
+      <input type="file" id="docFile" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" style="font:inherit;font-size:12px">
+      <button onclick="uploadDoc()" style="border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:8px;padding:8px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer">Upload</button>
+      <span id="docmsg" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">PDF, Word, PNG or JPG · up to 20 MB · appears for everyone instantly.</div>
+  </div>
   <div class="agr" id="agrGrid"></div>
 </div>
 
@@ -439,9 +455,12 @@ window.RRG_API = window.RRG_API || (String(location.protocol).indexOf('http')===
   var api=window.RRG_API||'';
   if(!api){ buildTiles(true, []); return; }   // standalone/file preview shows all
   fetch(api.replace(/\/$/,'')+'/api/session').then(function(r){return r.json();}).then(function(s){
+    window.IS_ADMIN = !!(s&&s.role==='admin');
     buildTiles(s&&s.role==='admin', (s&&s.adminOnlyTools)||[]);
     renderTopNav(s);
     stampBuild(s&&s.build);
+    var ab=document.getElementById('docAddBtn'); if(ab&&window.IS_ADMIN) ab.style.display='';
+    if(typeof loadAgreements==='function') loadAgreements();   // re-render so admin gets delete controls
   }).catch(function(){ buildTiles(true, []); stampBuild(); });
 })();
 function stampBuild(iso){
@@ -511,21 +530,42 @@ function _fmtDate(ms){ if(!ms) return ''; var d=new Date(ms); return (d.getMonth
 function renderAgreements(list){
   var ag=document.getElementById('agrGrid'); ag.innerHTML='';
   list.forEach(function(d){
+    var wrap=document.createElement('div'); wrap.className='agritem';
     var a=document.createElement('a'); a.className='agrcard'; a.href='./'+d.file; a.target='_blank'; a.rel='noopener';
     var meta=esc(d.type)+(d.updated?(' \u00b7 Updated '+_fmtDate(d.updated)):'');
     a.innerHTML=DOCICON+'<span><span class="an">'+esc(d.name)+'</span><span class="at">'+meta+'</span></span>';
-    ag.appendChild(a);
+    wrap.appendChild(a);
+    if(window.IS_ADMIN && d.id){ var x=document.createElement('button'); x.className='agrdel'; x.textContent='\u00d7'; x.title='Remove'; (function(id,name){ x.onclick=function(ev){ ev.preventDefault(); ev.stopPropagation(); delDoc(id,name); }; })(d.id,d.name); wrap.appendChild(x); }
+    ag.appendChild(wrap);
   });
 }
-(function(){
+function loadAgreements(){
   var api=window.RRG_API||'';
-  if(api){
-    fetch(api.replace(/\/$/,'')+'/api/agreements').then(function(r){return r.json();}).then(function(j){
-      var base=(j&&j.ok&&j.agreements&&j.agreements.length ? j.agreements : AGREEMENTS);
-      renderAgreements(base.concat(TRAINING));
-    }).catch(function(){ renderAgreements(AGREEMENTS.concat(TRAINING)); });
-  } else { renderAgreements(AGREEMENTS.concat(TRAINING)); }
-})();
+  if(!api){ renderAgreements(AGREEMENTS.concat(TRAINING)); return; }
+  fetch(api.replace(/\/$/,'')+'/api/agreements').then(function(r){return r.json();}).then(function(j){
+    var base=(j&&j.ok&&j.agreements&&j.agreements.length ? j.agreements : AGREEMENTS);
+    renderAgreements(base.concat(TRAINING));
+  }).catch(function(){ renderAgreements(AGREEMENTS.concat(TRAINING)); });
+}
+function toggleDocForm(){ var f=document.getElementById('docForm'); if(f) f.style.display=(f.style.display==='none'?'block':'none'); }
+function uploadDoc(){
+  var api=window.RRG_API||'', fi=document.getElementById('docFile'), f=fi&&fi.files&&fi.files[0], m=document.getElementById('docmsg');
+  if(!f){ m.textContent='Choose a file first.'; return; }
+  if(f.size>20*1024*1024){ m.textContent='File too large (max 20 MB).'; return; }
+  m.textContent='Uploading\u2026';
+  var rd=new FileReader();
+  rd.onload=function(){ var s=String(rd.result||''), i=s.indexOf(','), b64=(i>=0?s.slice(i+1):s);
+    fetch(api.replace(/\/$/,'')+'/api/admin/upload-doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:b64,title:document.getElementById('docTitle').value,category:document.getElementById('docCategory').value})})
+      .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ m.textContent='Uploaded \u2713'; document.getElementById('docTitle').value=''; fi.value=''; loadAgreements(); setTimeout(function(){ m.textContent=''; document.getElementById('docForm').style.display='none'; },1100); } else { m.textContent=(j&&j.error)||'Upload failed'; } })
+      .catch(function(){ m.textContent='Upload failed \u2014 try again.'; }); };
+  rd.onerror=function(){ m.textContent='Could not read that file.'; };
+  rd.readAsDataURL(f);
+}
+function delDoc(id,name){ if(!confirm('Remove \u201c'+(name||'this document')+'\u201d from the dashboard?')) return; var api=window.RRG_API||'';
+  fetch(api.replace(/\/$/,'')+'/api/admin/delete-doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:id})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) loadAgreements(); else alert((j&&j.error)||'Could not remove.'); }).catch(function(){ alert('Could not reach the server.'); });
+}
+loadAgreements();
 </script>
 </body>
 </html>
