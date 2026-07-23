@@ -514,21 +514,15 @@ function renderQuickLinks(list){
     .then(function(j){ renderQuickLinks(j&&j.links||[]); }).catch(function(){ renderQuickLinks([]); });
 })();
 
-/* ---- Agreements — auto-listed from the server's /agreements folder (frequently updated; more added anytime) ---- */
-var AGREEMENTS=[
-  {name:'Exclusive Tenant Representation Agreement', file:'agreements/exclusive-tenant-rep.pdf', type:'PDF'},
-  {name:'Exclusive Business Seller Representation Agreement', file:'agreements/exclusive-seller-rep.pdf', type:'PDF'},
-  {name:'Mutual NDA', file:'agreements/mutual-nda.pdf', type:'PDF'}
-];
-/* Training & reference PDFs — always shown, independent of the agreements folder.
-   Drop the file at public/training/ and update the filename here if it differs. */
-var TRAINING=[
-  {name:'RRG Training Course', file:'training/rrg-training-course.pdf', type:'Training · PDF'}
-];
+/* Documents shown here come from the server (admin-uploaded files + any real files
+   in public/agreements). No hardcoded placeholders — the list is only real files. */
+var AGREEMENTS=[];
+var TRAINING=[];
 var DOCICON='<svg class="di" viewBox="0 0 30 36" fill="none"><path d="M2 2h18l8 8v24H2V2Z" stroke="#000E31" stroke-width="1.4" stroke-linejoin="round"/><path d="M20 2v8h8" stroke="#000E31" stroke-width="1.4" stroke-linejoin="round"/><line x1="7" y1="20" x2="23" y2="20" stroke="#DA2B1F" stroke-width="1.6"/><line x1="7" y1="26" x2="18" y2="26" stroke="#000E31" stroke-width="1.4"/></svg>';
 function _fmtDate(ms){ if(!ms) return ''; var d=new Date(ms); return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 function renderAgreements(list){
   var ag=document.getElementById('agrGrid'); ag.innerHTML='';
+  if(!list.length){ ag.innerHTML='<div style="grid-column:1/-1;color:var(--muted);font-size:13px;padding:4px 2px">'+(window.IS_ADMIN?'No documents yet — click “+ Add document” to upload one.':'No documents posted yet.')+'</div>'; return; }
   list.forEach(function(d){
     var wrap=document.createElement('div'); wrap.className='agritem';
     var a=document.createElement('a'); a.className='agrcard'; a.href='./'+d.file; a.target='_blank'; a.rel='noopener';
