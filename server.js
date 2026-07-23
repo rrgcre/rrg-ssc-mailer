@@ -94,7 +94,7 @@ const DEFAULT_ASSET_SALE_MESSAGE = "This business has little or no going-concern
 function loadAssetSaleMessage() { const m = loadCfg().assetSaleMessage; return (typeof m === 'string' && m.trim()) ? m : DEFAULT_ASSET_SALE_MESSAGE; }
 function saveAssetSaleMessage(t) { saveCfg({ assetSaleMessage: String(t == null ? '' : t).slice(0, 2000) }); }
 // Which build-ambience sound plays during a BOV build (id from rrg_ambience.js).
-const DEFAULT_AMBIENCE_ID = 'orb';
+const DEFAULT_AMBIENCE_ID = 'factory';
 function loadAmbienceId() { const m = loadCfg().ambienceId; return (typeof m === 'string' && m.trim()) ? m.slice(0, 32) : DEFAULT_AMBIENCE_ID; }
 function saveAmbienceId(t) { saveCfg({ ambienceId: String(t == null ? '' : t).trim().slice(0, 32) || DEFAULT_AMBIENCE_ID }); }
 // When a valuation questionnaire is advanced ("Request BOV"), drop a fresh
@@ -1158,7 +1158,7 @@ app.get('/admin', requireAdmin, (req, res) => {
       loadCimPrompt();
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
       var INTRO_DEFAULT_MSG='';
-      function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); var is=document.getElementById('introSeconds'); if(is) is.value=(j.introSeconds!=null?j.introSeconds:10); INTRO_DEFAULT_MSG=j.defaultIntroMessage||''; var im=document.getElementById('introMessage'); if(im) im.value=j.introMessage||j.defaultIntroMessage||''; var ds=document.getElementById('doneSeconds'); if(ds) ds.value=(j.doneSeconds!=null?j.doneSeconds:2); var nt=document.getElementById('noTtmMessage'); if(nt) nt.value=j.noTtmMessage||j.defaultNoTtmMessage||''; var af=document.getElementById('assetSaleFloor'); if(af) af.value=fmtNum(j.assetSaleFloor!=null?j.assetSaleFloor:(j.defaultAssetSaleFloor!=null?j.defaultAssetSaleFloor:25000)); var am=document.getElementById('assetSaleMessage'); if(am) am.value=j.assetSaleMessage||j.defaultAssetSaleMessage||''; renderSounds(j.ambienceId||'orb'); } }); }
+      function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); var is=document.getElementById('introSeconds'); if(is) is.value=(j.introSeconds!=null?j.introSeconds:10); INTRO_DEFAULT_MSG=j.defaultIntroMessage||''; var im=document.getElementById('introMessage'); if(im) im.value=j.introMessage||j.defaultIntroMessage||''; var ds=document.getElementById('doneSeconds'); if(ds) ds.value=(j.doneSeconds!=null?j.doneSeconds:2); var nt=document.getElementById('noTtmMessage'); if(nt) nt.value=j.noTtmMessage||j.defaultNoTtmMessage||''; var af=document.getElementById('assetSaleFloor'); if(af) af.value=fmtNum(j.assetSaleFloor!=null?j.assetSaleFloor:(j.defaultAssetSaleFloor!=null?j.defaultAssetSaleFloor:25000)); var am=document.getElementById('assetSaleMessage'); if(am) am.value=j.assetSaleMessage||j.defaultAssetSaleMessage||''; renderSounds(j.ambienceId||'factory'); } }); }
       // ----- Build-sound picker (uses the shared RRG_AMBIENCE library) -----
       function renderSounds(sel){ var el=document.getElementById('soundList'); if(!el||!window.RRG_AMBIENCE) return;
         el.innerHTML=RRG_AMBIENCE.sounds.map(function(s){ return '<label style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid #eef1f6">'
