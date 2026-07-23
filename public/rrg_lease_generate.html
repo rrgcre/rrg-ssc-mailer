@@ -28,6 +28,8 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 .btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:700;font-size:13px;padding:10px 16px;border-radius:9px;cursor:pointer;}
 .build{background:var(--navy);color:#fff;border-color:var(--navy);font-size:15px;padding:13px 30px;border-radius:11px;}
 .build:disabled{opacity:.5;cursor:not-allowed;}
+.chk{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600;color:var(--ink);padding:6px 0;cursor:pointer;}
+.chk input{width:16px;height:16px;accent-color:var(--navy);cursor:pointer;}
 .manual{display:inline-block;margin-top:14px;color:#9fb0cc;font-size:12.5px;text-decoration:underline;cursor:pointer;}
 .status{margin-top:14px;border-radius:10px;padding:12px 15px;font-size:13px;display:none;}
 .status.err{display:block;background:#fdeceb;color:var(--red);font-weight:600;}
@@ -57,8 +59,14 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
     <input type="file" id="fileIn" accept="application/pdf,image/*" multiple style="display:none" onchange="addFiles(this.files)">
     <div id="fileList"></div>
   </div>
+  <div class="card">
+    <h2>Redaction</h2>
+    <div class="h">Hide identifying party names on the abstract so it's safe to share with buyers or co-brokers. Both are on by default — turn either off to show the name.</div>
+    <label class="chk"><input type="checkbox" id="redactLandlord" checked> Redact landlord info</label>
+    <label class="chk"><input type="checkbox" id="redactTenant" checked> Redact tenant info</label>
+  </div>
   <div style="text-align:center;margin-top:6px">
-    <button class="build" id="buildBtn" onclick="buildLease()">Build the abstract →</button>
+    <button class="build" id="buildBtn" onclick="buildLease()" disabled>Build the abstract →</button>
     <div><a class="manual" id="manualLink" onclick="goManual()">or fill it in manually instead →</a></div>
   </div>
   <div class="status" id="status"></div>
@@ -78,7 +86,8 @@ var FILES=[];
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function readFile(file,cb){ var r=new FileReader(); r.onload=function(){ var s=String(r.result||''); var i=s.indexOf(','); cb({dataB64:i>=0?s.slice(i+1):s, type:file.type||'application/pdf', name:file.name||'lease'}); }; r.readAsDataURL(file); }
 function addFiles(files){ Array.prototype.slice.call(files||[]).forEach(function(f){ readFile(f,function(o){ FILES.push(o); renderFiles(); }); }); document.getElementById('fileIn').value=''; }
-function renderFiles(){ document.getElementById('fileList').innerHTML=FILES.map(function(f,i){ return '<div class="filerow"><span class="nm">'+esc(f.name)+'</span><button class="x" onclick="FILES.splice('+i+',1);renderFiles()">×</button></div>'; }).join(''); }
+function syncBuildBtn(){ var b=document.getElementById('buildBtn'); if(b) b.disabled = FILES.length===0; }
+function renderFiles(){ document.getElementById('fileList').innerHTML=FILES.map(function(f,i){ return '<div class="filerow"><span class="nm">'+esc(f.name)+'</span><button class="x" onclick="FILES.splice('+i+',1);renderFiles()">×</button></div>'; }).join(''); syncBuildBtn(); }
 function setStatus(msg){ var s=document.getElementById('status'); s.className='status err'; s.textContent=msg; }
 function goManual(){ location.href='./rrg_lease_abstract.html?lease='+encodeURIComponent(LEASE_ID)+'&new=1'; }
 if(LEASE_ID){ fetch('/api/lease/'+encodeURIComponent(LEASE_ID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.lease&&j.lease.business){ document.getElementById('hdr').textContent='Build Lease Abstract · '+j.lease.business; } }).catch(function(){}); }
@@ -106,8 +115,9 @@ function buildLease(){
   var btn=document.getElementById('buildBtn'); btn.disabled=true;
   document.getElementById('status').className='status';
   overlay(true);
+  var rl=document.getElementById('redactLandlord'), rt=document.getElementById('redactTenant');
   fetch('/api/generate-lease',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',
-    body:JSON.stringify({leaseId:LEASE_ID, files:FILES})})
+    body:JSON.stringify({leaseId:LEASE_ID, files:FILES, redactLandlord:rl?rl.checked:true, redactTenant:rt?rt.checked:true})})
     .then(function(r){ return r.text().then(function(t){ var j=null; try{j=JSON.parse(t);}catch(e){} return {ok:r.ok,status:r.status,j:j}; }); })
     .then(function(res){
       if(res.j&&res.j.ok&&res.j.id){ stopAmbient(); playDone(); document.getElementById('modalTitle').textContent='Done — abstract ready ✓'; document.getElementById('modalMsg').textContent='Opening it now…'; setTimeout(function(){ location.href='./rrg_lease_abstract.html?lease='+encodeURIComponent(res.j.id); }, 1100); return; }

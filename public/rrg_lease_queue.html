@@ -83,8 +83,11 @@ function load(){
   }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load lease abstracts.</div>'; });
 }
 function newAbstract(btn){
+  var name=prompt('Business name for this abstract (e.g. Taco Dive):','');
+  if(name===null) return;            // cancelled
+  name=(name||'').trim();
   if(btn){ btn.disabled=true; btn.textContent='…'; }
-  fetch('/api/lease/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})})
+  fetch('/api/lease/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:name})})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id){ location.href='./rrg_lease_generate.html?lease='+encodeURIComponent(j.id); } else { if(btn){btn.disabled=false;btn.textContent='+ New abstract';} alert((j&&j.error)||'Could not start.'); } })
     .catch(function(){ if(btn){btn.disabled=false;btn.textContent='+ New abstract';} alert('Could not reach the server.'); });
 }

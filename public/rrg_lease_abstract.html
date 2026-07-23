@@ -52,7 +52,8 @@ table.sch th{background:var(--wash);color:var(--muted);font-size:10.5px;text-tra
   <div class="actions">
     <span class="savechip" id="savechip">Saved ✓</span>
     <button class="btn on" id="editBtn" onclick="toggleEdit()">Editing: On</button>
-    <button class="btn" id="redactBtn" onclick="toggleRedact()">Redact LL/Tenant: Off</button>
+    <button class="btn" id="redactLLBtn" onclick="toggleRedactLL()">Redact Landlord: Off</button>
+    <button class="btn" id="redactTenBtn" onclick="toggleRedactTenant()">Redact Tenant: Off</button>
     <a class="btn" href="./rrg_lease_queue.html">Lease Abstracts</a>
     <button class="btn print" onclick="window.print()">Print</button>
   </div>
@@ -65,12 +66,16 @@ var A=null;   // the abstract record
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function getPath(o,p){ return p.split('.').reduce(function(a,k){ return (a==null)?a:a[k]; }, o); }
 function setPath(o,p,v){ var ks=p.split('.'); var a=o; for(var i=0;i<ks.length-1;i++){ if(a[ks[i]]==null) a[ks[i]]={}; a=a[ks[i]]; } a[ks[ks.length-1]]=v; }
-function blankState(){ return { header:{business:'',propertyAddress:'',leaseDate:'',documentList:''}, parties:{landlord:'',tenant:'',guarantor:''}, premises:{description:'',squareFeet:'',suite:'',commonAreas:''}, term:{commencement:'',expiration:'',originalTerm:'',remainingTerm:'',rentCommencement:''}, rent:{current:'',perSF:'',escalation:'',percentageRent:'',schedule:[]}, options:{renewalOptions:'',renewalNotice:'',renewalRent:''}, charges:{structure:'',cam:'',taxes:'',insurance:'',otherCharges:''}, deposit:{securityDeposit:'',other:''}, use:{permittedUse:'',exclusive:'',hours:'',coTenancy:''}, assignment:{assignmentSublet:'',consentStandard:'',transferFee:'',changeOfControl:''}, guaranty:{type:'',personalGuaranty:'',burnoff:''}, keyProvisions:{maintenance:'',improvements:'',signage:'',parking:'',insurance:'',holdover:'',default:'',estoppelSNDA:''}, criticalDates:[], summary:'', flags:[], redact:false }; }
+function blankState(){ return { header:{business:'',propertyAddress:'',leaseDate:'',documentList:''}, parties:{landlord:'',tenant:'',guarantor:''}, premises:{description:'',squareFeet:'',suite:'',commonAreas:''}, term:{commencement:'',expiration:'',originalTerm:'',remainingTerm:'',rentCommencement:''}, rent:{current:'',perSF:'',escalation:'',percentageRent:'',schedule:[]}, options:{renewalOptions:'',renewalNotice:'',renewalRent:''}, charges:{structure:'',cam:'',taxes:'',insurance:'',otherCharges:''}, deposit:{securityDeposit:'',other:''}, use:{permittedUse:'',exclusive:'',hours:'',coTenancy:''}, assignment:{assignmentSublet:'',consentStandard:'',transferFee:'',changeOfControl:''}, guaranty:{type:'',personalGuaranty:'',burnoff:''}, keyProvisions:{maintenance:'',improvements:'',signage:'',parking:'',insurance:'',holdover:'',default:'',estoppelSNDA:''}, criticalDates:[], summary:'', flags:[], redactLandlord:true, redactTenant:true }; }
 
 function ed(path,text,cls){ return '<span class="ed val'+(cls?(' '+cls):'')+'" contenteditable data-k="'+esc(path)+'">'+esc(text||'')+'</span>'; }
 function row(label,path,val){ return '<div class="lbl">'+esc(label)+'</div><div class="val">'+ed(path,val)+'</div>'; }
 function partyRow(label,path,val){
-  if(A.state.redact){ return '<div class="lbl">'+esc(label)+'</div><div class="val"><span class="redacted">Withheld — available under NDA</span></div>'; }
+  var s=A.state;
+  var masked = (path==='parties.landlord' && s.redactLandlord)
+            || (path==='parties.tenant'   && s.redactTenant)
+            || (path==='parties.guarantor'&& s.redactTenant);   // guarantor backs the tenant
+  if(masked){ return '<div class="lbl">'+esc(label)+'</div><div class="val"><span class="redacted">Withheld — available under NDA</span></div>'; }
   return row(label,path,val);
 }
 
@@ -123,7 +128,8 @@ function render(s){
   out+='</div>';
   document.getElementById('doc').innerHTML=out;
   wireEdits();
-  var rb=document.getElementById('redactBtn'); rb.textContent='Redact LL/Tenant: '+(s.redact?'On':'Off'); rb.classList.toggle('on',!!s.redact);
+  var lb=document.getElementById('redactLLBtn'); if(lb){ lb.textContent='Redact Landlord: '+(s.redactLandlord?'On':'Off'); lb.classList.toggle('on',!!s.redactLandlord); }
+  var tb=document.getElementById('redactTenBtn'); if(tb){ tb.textContent='Redact Tenant: '+(s.redactTenant?'On':'Off'); tb.classList.toggle('on',!!s.redactTenant); }
 }
 
 var _t=null;
@@ -133,11 +139,15 @@ function queueSave(){ var chip=document.getElementById('savechip'); if(_t) clear
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ chip.classList.add('show'); setTimeout(function(){chip.classList.remove('show');},1300); } }).catch(function(){});
 }, 700); }
 function toggleEdit(){ var on=document.body.classList.toggle('editing'); var b=document.getElementById('editBtn'); b.textContent='Editing: '+(on?'On':'Off'); b.classList.toggle('on',on); document.querySelectorAll('#doc [contenteditable]').forEach(function(el){ el.setAttribute('contenteditable', on?'true':'false'); }); }
-function toggleRedact(){ A.state.redact=!A.state.redact; render(A.state); queueSave(); }
+function toggleRedactLL(){ A.state.redactLandlord=!A.state.redactLandlord; render(A.state); queueSave(); }
+function toggleRedactTenant(){ A.state.redactTenant=!A.state.redactTenant; render(A.state); queueSave(); }
+function normalizeRedact(s){ if(!s) return; // migrate legacy single "redact" flag to the two-flag model
+  if(typeof s.redactLandlord==='undefined') s.redactLandlord = (typeof s.redact==='undefined') ? true : !!s.redact;
+  if(typeof s.redactTenant==='undefined')   s.redactTenant   = (typeof s.redact==='undefined') ? true : !!s.redact; }
 
 if(LID){
   fetch('/api/lease/'+encodeURIComponent(LID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(j&&j.ok&&j.lease){ A=j.lease; if(!A.state){ A.state=blankState(); if(A.business) A.state.header.business=A.business; } render(A.state); if(ISNEW){ /* fresh manual abstract: save the blank so it shows as built */ queueSave(); } }
+    if(j&&j.ok&&j.lease){ A=j.lease; if(!A.state){ A.state=blankState(); if(A.business) A.state.header.business=A.business; } normalizeRedact(A.state); render(A.state); if(ISNEW){ /* fresh manual abstract: save the blank so it shows as built */ queueSave(); } }
     else { document.getElementById('doc').innerHTML='<div class="loading">Could not load this abstract.</div>'; }
   }).catch(function(){ document.getElementById('doc').innerHTML='<div class="loading">Could not reach the server.</div>'; });
 } else { document.getElementById('doc').innerHTML='<div class="loading">No abstract selected. Open one from Lease Abstracts.</div>'; }

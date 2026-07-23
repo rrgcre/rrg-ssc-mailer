@@ -118,7 +118,7 @@ function saveAssetSaleFloor(n) { let v = Number(n); if (!isFinite(v) || v < 0) v
 const DEFAULT_ASSET_SALE_MESSAGE = "This business has little or no going-concern value — trailing owner’s earnings (SDE) fall at or below the asset-sale floor. It is best marketed as an ASSET SALE: the price reflects the tangible assets (equipment, leasehold improvements, a transferable or below-market lease, and any liquor / other licenses), not a multiple of earnings. Process it as an asset sale, not a going-concern listing.";
 function loadAssetSaleMessage() { const m = loadCfg().assetSaleMessage; return (typeof m === 'string' && m.trim()) ? m : DEFAULT_ASSET_SALE_MESSAGE; }
 function saveAssetSaleMessage(t) { saveCfg({ assetSaleMessage: String(t == null ? '' : t).slice(0, 2000) }); }
-// Which build-ambience sound plays during a BOV build (id from rrg_ambience.js).
+// Which build-ambience sound plays on every build screen — BOV, Marketing Pack, Lease (id from rrg_ambience.js).
 const DEFAULT_AMBIENCE_ID = 'analyst';
 function loadAmbienceId() { const m = loadCfg().ambienceId; return (typeof m === 'string' && m.trim()) ? m.slice(0, 32) : DEFAULT_AMBIENCE_ID; }
 function saveAmbienceId(t) { saveCfg({ ambienceId: String(t == null ? '' : t).trim().slice(0, 32) || DEFAULT_AMBIENCE_ID }); }
@@ -974,8 +974,13 @@ app.post('/api/generate-lease', express.json({ limit: '48mb' }), async (req, res
       systemPrompt: loadLeasePromptCustom() || undefined,
     });
     out.state = out.state || {};
-    if (typeof out.state.redact === 'undefined') out.state.redact = false;
-    l.business = String(out.business || l.business || 'Lease Abstract').slice(0, 120);
+    // Redaction is chosen on the build screen — landlord and tenant each default ON.
+    out.state.redactLandlord = (typeof b.redactLandlord === 'undefined') ? true : !!b.redactLandlord;
+    out.state.redactTenant   = (typeof b.redactTenant   === 'undefined') ? true : !!b.redactTenant;
+    // If the rep gave this abstract a business name at creation, keep it; otherwise use what the analyst extracted.
+    const typedName = (l.business && l.business !== 'Lease Abstract') ? l.business : '';
+    l.business = String(typedName || out.business || l.business || 'Lease Abstract').slice(0, 120);
+    if (out.state.header && (typedName || !out.state.header.business)) out.state.header.business = l.business;
     if (out.state.header) l.propertyAddress = String(out.state.header.propertyAddress || '').slice(0, 200);
     l.state = out.state; l.aiGenerated = true; l.pending = false; l.builtAt = new Date().toISOString();
     saveLeases(arr);
@@ -1311,7 +1316,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveDoneSeconds()">Save duration</button> <span id="dsmsg" class="sub2"></span></div>
       </div>
 
-      <h2 style="margin-top:34px">Build Sound <span class="sub2">— the ambience that plays while a BOV builds. Tap Preview to sample, pick one, then Save.</span></h2>
+      <h2 style="margin-top:34px">Build Sound <span class="sub2">— the ambience that plays on every build screen: Business Valuations, Marketing Packs, and Lease Abstracts. Tap Preview to sample, pick one, then Save.</span></h2>
       <div class="links">
         <div id="soundList"></div>
         <div style="margin-top:10px"><button class="primary" onclick="saveAmbience()">Save sound</button> <button onclick="stopPreview()">Stop preview</button> <span id="sndmsg" class="sub2"></span></div>
@@ -1400,7 +1405,7 @@ app.get('/admin', requireAdmin, (req, res) => {
       function stopPreview(){ if(!PREV) return; var P=PREV; PREV=null; try{ var t=P.ctx.currentTime; P.master.gain.cancelScheduledValues(t); P.master.gain.setValueAtTime(Math.max(P.master.gain.value,0.0001),t); P.master.gain.exponentialRampToValueAtTime(0.0001,t+0.4); }catch(e){} if(P.timer) clearTimeout(P.timer); if(P.handle&&P.handle.stop) P.handle.stop(); setTimeout(function(){ try{ P.ctx.close(); }catch(e){} }, 1300); var all=document.querySelectorAll('#soundList .prevbtn'); for(var i=0;i<all.length;i++) all[i].textContent='Preview'; }
       function previewSound(id, btn){ stopPreview(); try{ var C=window.AudioContext||window.webkitAudioContext; var ctx=new C(); if(ctx.state==='suspended') ctx.resume(); var master=ctx.createGain(); master.gain.value=0.0001; master.connect(ctx.destination); master.gain.exponentialRampToValueAtTime(0.09, ctx.currentTime+0.6); var handle=RRG_AMBIENCE.play(ctx, master, id); var timer=setTimeout(stopPreview, 9000); PREV={ctx:ctx, master:master, handle:handle, timer:timer, id:id}; if(btn) btn.textContent='◼ Stop'; }catch(e){} }
       function togglePreview(id, btn){ if(PREV && PREV.id===id){ stopPreview(); } else { previewSound(id, btn); } }
-      function saveAmbience(){ var r=document.querySelector('#soundList input[name=ambience]:checked'); var id=r?r.value:'orb'; var m=document.getElementById('sndmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{ambienceId:id}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — plays on the next build'; } else m.textContent=(j&&j.error)||'Failed'; }); }
+      function saveAmbience(){ var r=document.querySelector('#soundList input[name=ambience]:checked'); var id=r?r.value:'orb'; var m=document.getElementById('sndmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{ambienceId:id}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — plays on the next build (all build screens)'; } else m.textContent=(j&&j.error)||'Failed'; }); }
       function saveDoneSeconds(){ var v=(document.getElementById('doneSeconds').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('dsmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{doneSeconds:v}).then(function(j){ if(j&&j.ok){ document.getElementById('doneSeconds').value=(j.doneSeconds!=null?j.doneSeconds:2); m.textContent='Saved — '+j.doneSeconds+'s ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
       function saveNoTtmMessage(){ var v=document.getElementById('noTtmMessage').value||''; var m=document.getElementById('ntmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{noTtmMessage:v}).then(function(j){ if(j&&j.ok){ document.getElementById('noTtmMessage').value=j.noTtmMessage||''; m.textContent='Saved ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
       function resetNoTtmMessage(){ if(!confirm('Reset the no-TTM notice to the RRG default?')) return; var m=document.getElementById('ntmsg'); m.textContent='Resetting…'; post('/api/admin/bov-config',{noTtmMessage:''}).then(function(j){ if(j&&j.ok){ document.getElementById('noTtmMessage').value=j.noTtmMessage||''; m.textContent='Reset to default ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
