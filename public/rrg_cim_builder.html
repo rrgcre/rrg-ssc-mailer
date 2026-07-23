@@ -47,6 +47,17 @@ p.body.intro{font-size:13px;color:#333a44;}
 .coverfoot .rr b{font-size:14px;color:var(--navy);font-weight:700;}
 .coverfoot .rr .ct{font-size:11px;color:var(--soft);margin-top:3px;}
 .coverfoot .rr .cf{font-style:italic;font-size:10.5px;color:#9aa4b6;margin-top:5px;}
+/* --- refreshed cover --- */
+.rrglogo{width:212px;height:auto;display:block;margin:2px 0 20px;}
+.coverbar2{border-top:2.5px solid var(--brandnavy);margin:0 0 15px;}
+h1.title.cvr{font-weight:500;text-align:left;font-size:42px;letter-spacing:-.015em;}
+.sub.cvr{text-align:left;margin-top:5px;font-size:15px;color:#4a5568;}
+.coverfoot2{margin-top:46px;}
+.coverfoot2 .rr{border-top:1px solid var(--line);padding-top:14px;text-align:left;}
+.coverfoot2 .rr b{font-size:15px;color:var(--brandnavy);font-weight:800;letter-spacing:-.01em;}
+.coverfoot2 .rr .tag{font-style:italic;font-size:11.5px;color:var(--muted);margin-top:2px;}
+.coverfoot2 .rr .cities{font-size:11px;color:var(--soft);margin-top:6px;letter-spacing:.02em;}
+.coverfoot2 .rr .conf{font-style:italic;font-size:10px;color:#a9b2c2;margin-top:6px;}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0;}
 .cardx{background:var(--card);border:1px solid var(--cardline);border-radius:4px;padding:13px 15px;position:relative;}
 .cardx .ct{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:4px;}
@@ -120,6 +131,17 @@ function setPath(o,p,v){ var ks=p.split('.'); var a=o; for(var i=0;i<ks.length-1
 function ed(tag,cls,path,text){ return '<'+tag+' class="ed '+cls+'" contenteditable data-k="'+esc(path)+'">'+esc(text||'')+'</'+tag+'>'; }
 function foot(pg){ return '<div class="pgfoot"><span>Prepared by Restaurant Realty Group, LLC · Strictly Confidential · Do Not Circulate</span><span class="cc">Page '+pg+'</span></div>'; }
 
+function rrgLogoSVG(){
+  return '<svg class="rrglogo" viewBox="0 0 600 212" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Restaurant Realty Group">'
+    +'<circle cx="106" cy="106" r="96" fill="#DA2B1F"/>'
+    +'<text x="106" y="108" text-anchor="middle" dominant-baseline="central" font-family="Arial Black, Arial Narrow, Arial, sans-serif" font-weight="900" font-size="62" letter-spacing="-2" fill="#ffffff">RRG</text>'
+    +'<rect x="232" y="22" width="7" height="168" fill="#000E31"/>'
+    +'<g font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="45" letter-spacing="0.5" fill="#000E31">'
+    +'<text x="266" y="70">RESTAURANT</text>'
+    +'<text x="266" y="123">REALTY</text>'
+    +'<text x="266" y="176">GROUP</text>'
+    +'</g></svg>';
+}
 function renderCim(s){
   var c=s.cover||{}, biz=(c.title||CIM.business||'The Company');
   var stats=(c.stats||[]).slice(0,4);
@@ -128,19 +150,22 @@ function renderCim(s){
   var pg=1;
 
   // COVER
-  out+='<div class="page"><div class="coverbar" style="text-align:center;border-top:none">'
-    +'<div class="kick red" style="text-align:center">Draft · For Ownership Review · Not for Distribution</div>'
-    +'<div class="logos"><div class="logobox" style="border:none;background:none;color:var(--red);font-weight:900;font-size:20px">RRG · RESTAURANT REALTY GROUP</div></div>'
+  out+='<div class="page">'
+    +rrgLogoSVG()
+    +'<div class="coverbar2"></div>'
+    +'<div class="kick">Confidential Information Memorandum</div>'
+    +'<h1 class="title cvr ed" data-k="cover.title" contenteditable>'+esc(biz)+'</h1>'
+    +ed('div','sub cvr','cover.tagline',c.tagline||'')
     +logoHtml
-    +'<div class="kick" style="text-align:center;margin-top:26px">Confidential Information Memorandum</div>'
-    +'<h1 class="title serif ed" data-k="cover.title" contenteditable style="text-align:center;font-size:44px">'+esc(biz)+'</h1>'
-    +ed('div','sub serif','cover.tagline',c.tagline||'').replace('class="ed','style="text-align:center;font-style:italic;margin-top:6px" class="ed')
-    +'<div class="strip">'+stats.map(function(st){ return '<div class="c"><div class="v ed" contenteditable data-k="__stv">'+esc(st.v||'')+'</div><div class="k ed" contenteditable data-k="__stk">'+esc(st.k||'')+'</div></div>'; }).join('')+'</div>'
+    +'<div class="strip">'+stats.map(function(st){ return '<div class="c"><div class="k ed" contenteditable data-k="__stk">'+esc(st.k||'')+'</div><div class="v ed" contenteditable data-k="__stv">'+esc(st.v||'')+'</div></div>'; }).join('')+'</div>'
     +'<div class="facts ed" contenteditable data-k="cover.foundingLine">'+esc(c.foundingLine||'')+'</div>'
-    +'<div class="coverfoot"><div class="rr"><b>Presented for sale by Restaurant Realty Group, LLC</b>'
-    +'<div class="ct">Van Rinn, President &amp; Founder · 210-362-0678 · van@rrgcre.com &nbsp; | &nbsp; Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com</div>'
-    +'<div class="cf">Confidential · Do not copy, circulate, or distribute. Delivered under an executed NDA. © Restaurant Realty Group, LLC.</div></div></div>'
-    +'</div></div>';
+    +'<div class="coverfoot2"><div class="rr">'
+    +'<b>Restaurant Realty Group, LLC</b>'
+    +'<div class="tag">The Restaurant Sales and Leasing Experts</div>'
+    +'<div class="cities">Van Rinn, President &amp; Founder · 210-362-0678 · van@rrgcre.com &nbsp;|&nbsp; Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com</div>'
+    +'<div class="conf">This document is strictly confidential and intended solely for the named recipient. Do not copy, circulate, or distribute. Delivered under an executed NDA. © Restaurant Realty Group, LLC.</div>'
+    +'</div></div>'
+    +'</div>';
 
   // CONFIDENTIALITY
   out+='<div class="page"><div class="kick red">Legal Notices</div><h2 class="sect serif">Confidentiality &amp; Disclaimer</h2><hr class="rule">'
