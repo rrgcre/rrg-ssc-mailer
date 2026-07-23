@@ -228,12 +228,10 @@ var TOOLS = [
     desc:"Every valuation in one place. The RRG Virtual Analyst drafts a defensible Broker's Opinion of Value from the deal's documents; you review and edit, then advance it to a Marketing Pack with the numbers locked." },
   { name:'Marketing Packs', tag:'Value', file:'rrg_cim_queue.html', icon:'book', track:'pipeline', step:4,
     desc:"The confidential offering package. Build a Confidential Information Memorandum in the RRG format — the valuation carries over from the BOV, you add the story and photos, edit in place, and print a client-ready PDF." },
-  { name:'Market Attack Plan', tag:'Seller', file:'rrg_seller_attack_plan.html', icon:'megaphone', track:'pipeline', step:5,
-    desc:"The go-to-market campaign — segmented buyer target list, the confidential marketing sequence, and the competitive-tension strategy that drives the Marketing Pack into the market." },
+  { name:'Market Attack Plan', tag:'Seller', file:'rrg_attack_queue.html', icon:'megaphone', track:'pipeline', step:5,
+    desc:"The confidential go-to-market strategy — the analyst drafts the segmented buyer target universe, the marketing sequence, and the competitive-tension plan from the deal. Advance a built Marketing Pack to create one, then edit and print." },
   { name:'Commission Forecaster', tag:'Deal', file:'rrg_commission_calculator.html', icon:'calc', track:'pipeline', step:6,
     desc:"Close and get paid — business-sale commission on RRG's tiered rate card. Enter price and split, see gross, blended rate, and the agent / house breakdown." },
-  { name:'Closing Transfer List', tag:'Seller', file:'docs/rrg-closing-transfer-list.pdf', icon:'checklist', track:'pipeline', sort:7, pdf:true,
-    desc:"At closing — the account-transfer checklist: every utility, license, permit, and vendor account the seller hands to the buyer for a clean handover." },
 
   /* ---- Tenant Representation ---- */
   { name:'Site Selection Criteria', tag:'Tenant', file:'ssc_form.html', icon:'target', track:'tenant',
@@ -317,11 +315,11 @@ var GUIDES = {
     how:["Start from the BOV so the numbers carry over.","Add the concept story, packed-house and food photos, financial exhibits, and press.","Edit in place and print the client-ready PDF."],
     tip:"Buyers buy the story and the upside, not just the EBITDA. Lead with what makes this concept hard to replicate — location, brand, lease, systems — then let the numbers confirm it."
   },
-  'rrg_seller_attack_plan.html':{
-    background:"The go-to-market campaign for a listing — segmented buyer targets, the confidential marketing sequence, and the competitive-tension strategy.",
-    when:"Once the Marketing Pack is ready and you're driving the business into the market.",
-    how:["Build the segmented buyer target list: strategics, operators, PE / family offices, individuals.","Lay out the outreach sequence and timeline.","Set the tension strategy — how you'll create and hold competition."],
-    tip:"Competition is your only real leverage. Line up enough qualified buyers that no single one believes they're the only game — that's what moves both price and terms."
+  'rrg_attack_queue.html':{
+    background:"Your Market Attack Plans — the confidential go-to-market strategy for each listing, in one place. A plan is created the moment you advance a built Marketing Pack. Two states: Not built (awaiting build) and Built. Admins see the whole team; reps see their own.",
+    when:"Once the Marketing Pack is built and you're taking the business to market.",
+    how:["From Marketing Packs, click “Advance to Attack Plan →” on a built pack, then “Build Plan →” — the RRG analyst drafts the buyer target universe, the marketing sequence, competitive tension, and the timeline straight from the deal. Nothing to upload.","Open a built plan to review and edit every section in place, then Print or Download the PDF.","To rebuild, Delete the existing plan first."],
+    tip:"Competition is your only real leverage. The buyer-segment universe is the heart of the plan — line up enough qualified buyers that no single one believes they're the only game, and that's what moves both price and terms."
   },
   'rrg_commission_calculator.html':{
     background:"The business-sale commission calculator on RRG's tiered rate card.",

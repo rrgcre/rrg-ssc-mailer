@@ -11,6 +11,7 @@ const auth = require('./auth.js');
 const bovgen = require('./bovgen.js');
 const cimgen = require('./cimgen.js');
 const leasegen = require('./leasegen.js');
+const attackgen = require('./attackgen.js');
 const valgen = require('./valgen.js');
 
 const fs = require('fs');
@@ -40,6 +41,15 @@ const LEASE_PROMPT_FILE = path.join(BOV_DATA_DIR, 'lease_prompt.txt');
 function loadLeasePromptCustom() { try { const t = fs.readFileSync(LEASE_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
 function saveLeasePromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(LEASE_PROMPT_FILE, String(t)); } catch (e) {} }
 function clearLeasePromptCustom() { try { fs.unlinkSync(LEASE_PROMPT_FILE); } catch (e) {} }
+// Market Attack Plans (MAP) — the sell-side go-to-market strategy, advanced from a Marketing Pack (CIM).
+const MAPS_FILE = path.join(BOV_DATA_DIR, 'maps.json');
+function loadMaps() { try { return JSON.parse(fs.readFileSync(MAPS_FILE, 'utf8')); } catch (e) { return []; } }
+function saveMaps(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(MAPS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newMapId() { return 'map_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+const MAP_PROMPT_FILE = path.join(BOV_DATA_DIR, 'map_prompt.txt');
+function loadMapPromptCustom() { try { const t = fs.readFileSync(MAP_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
+function saveMapPromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(MAP_PROMPT_FILE, String(t)); } catch (e) {} }
+function clearMapPromptCustom() { try { fs.unlinkSync(MAP_PROMPT_FILE); } catch (e) {} }
 
 // ---- Admin-editable BOV analyst prompt ----
 // Empty file / no file = use bovgen's built-in default.
@@ -389,7 +399,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc') return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc') return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -1030,6 +1040,116 @@ app.post('/api/generate-lease', express.json({ limit: '48mb' }), async (req, res
   }
 });
 
+// ================= Market Attack Plans (MAP) — sell-side =================
+function ownsMap(req, m) {
+  if (req.user && req.user.role === 'admin') return true;
+  if (m.byUser) return m.byUser === (req.user && req.user.username);
+  return m.by && m.by === (req.user && req.user.name);
+}
+// One MAP per Marketing Pack (CIM). Reuse the existing one if present, else create a pending record.
+function ensureMapForCim(req, cim) {
+  if (!cim) return null;
+  const arr = loadMaps();
+  const existing = arr.find(x => x.srcCimId === cim.id);
+  if (existing) return existing;
+  const rec = {
+    id: newMapId(), srcCimId: cim.id, srcBovId: cim.srcBovId || '', srcQuestId: cim.srcQuestId || '', pending: true,
+    business: cim.business || 'Business', market: cim.market || '',
+    by: (req.user && req.user.name) || cim.by || '', byUser: (req.user && req.user.username) || cim.byUser || '',
+    createdAt: new Date().toISOString(),
+  };
+  arr.push(rec); saveMaps(arr);
+  return rec;
+}
+// Everything the system knows for a MAP: the BOV, the CIM state, the questionnaire, and the call.
+function mapInputsFor(map) {
+  const cim = loadCims().find(x => x.id === map.srcCimId) || null;
+  const bovId = (cim && cim.srcBovId) || map.srcBovId || '';
+  const bov = bovId ? loadBovs().find(x => x.id === bovId) : null;
+  let questionnaire = '', call = '';
+  const qid = (bov && bov.srcQuestId) || (cim && cim.srcQuestId) || map.srcQuestId || '';
+  if (qid) {
+    const q = loadQuests().find(x => x.id === qid);
+    if (q) {
+      questionnaire = questToText(q);
+      const m = String(q.formId || '').match(/^qfromscr_(.+)$/);
+      if (m) { const sc = loadScreens().find(x => x.id === m[1]); if (sc) call = questToText(sc); }
+    }
+  }
+  const summary = bov ? { business: bov.business, revText: bov.revText || bovRevenueText(bov), rangeText: bov.rangeText, targetText: bov.targetText, multText: bov.multText, basis: bov.basis, sdeText: bov.sdeText, adjText: bov.adjText, date: bov.date } : null;
+  return { cim, cimState: (cim && cim.state) || null, bov, bovState: (bov && bov.state) || null, summary, questionnaire, call };
+}
+app.get('/api/maps', (req, res) => {
+  const isAdmin = req.user && req.user.role === 'admin';
+  const list = loadMaps().slice().reverse().filter(m => isAdmin || ownsMap(req, m));
+  res.json({ ok: true, isAdmin: !!isAdmin, maps: list.map(m => ({ id: m.id, business: m.business, market: m.market || '', pending: !!m.pending, srcCimId: m.srcCimId || '', srcBovId: m.srcBovId || '', by: m.by, byUser: m.byUser, createdAt: m.createdAt, builtAt: m.builtAt || '' })) });
+});
+app.get('/api/map/:id', (req, res) => {
+  const m = loadMaps().find(x => x.id === req.params.id);
+  if (!m) return res.status(404).json({ ok: false, error: 'Market Attack Plan not found.' });
+  if (!ownsMap(req, m)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  res.json({ ok: true, map: m });
+});
+app.delete('/api/map/:id', (req, res) => {
+  const arr = loadMaps();
+  const m = arr.find(x => x.id === req.params.id);
+  if (!m) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsMap(req, m)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  saveMaps(arr.filter(x => x.id !== m.id));
+  res.json({ ok: true });
+});
+// Advance a Marketing Pack to a Market Attack Plan — ensure one exists, return its id.
+app.post('/api/cim/:id/advance-map', (req, res) => {
+  const cim = loadCims().find(x => x.id === req.params.id);
+  if (!cim) return res.status(404).json({ ok: false, error: 'Marketing Pack not found.' });
+  if (!ownsCim(req, cim)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  if (cim.pending) return res.status(409).json({ ok: false, error: 'Build the Marketing Pack before advancing it to a Market Attack Plan.' });
+  let mapId = '';
+  try { const m = ensureMapForCim(req, cim); mapId = (m && m.id) || ''; } catch (e) {}
+  res.json({ ok: true, mapId });
+});
+// Save in-builder edits (the whole MAP state).
+app.post('/api/map-save', express.json({ limit: '4mb' }), (req, res) => {
+  const b = req.body || {};
+  const arr = loadMaps();
+  const m = arr.find(x => x.id === b.id);
+  if (!m) return res.status(404).json({ ok: false, error: 'Market Attack Plan not found.' });
+  if (!ownsMap(req, m)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  if (b.state && typeof b.state === 'object') {
+    m.state = b.state;
+    if (m.state.header && m.state.header.business) m.business = String(m.state.header.business).slice(0, 120);
+    if (m.pending) { m.pending = false; if (!m.builtAt) m.builtAt = new Date().toISOString(); }
+    m.updatedAt = new Date().toISOString(); saveMaps(arr);
+  }
+  res.json({ ok: true });
+});
+// Generate the Market Attack Plan from the deal (BOV + CIM + questionnaire + call).
+app.post('/api/generate-map', express.json({ limit: '8mb' }), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const arr = loadMaps();
+    const m = arr.find(x => x.id === b.mapId);
+    if (!m) return res.status(404).json({ ok: false, error: 'Market Attack Plan not found.' });
+    if (!ownsMap(req, m)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    if (m.aiGenerated && !m.pending) return res.status(409).json({ ok: false, error: 'This plan is already built. Delete it in the log to rebuild.' });
+    const inp = mapInputsFor(m);
+    const out = await attackgen.generateMap({
+      business: m.business, bovSummary: inp.summary, bovState: inp.bovState, cimState: inp.cimState,
+      questionnaire: inp.questionnaire, call: inp.call,
+      preparedBy: (req.user && req.user.preparedBy) || (req.user && req.user.name) || '',
+      systemPrompt: loadMapPromptCustom() || undefined,
+    });
+    out.state = out.state || {};
+    m.business = String(out.business || m.business || 'Market Attack Plan').slice(0, 120);
+    m.state = out.state; m.aiGenerated = true; m.pending = false; m.builtAt = new Date().toISOString();
+    saveMaps(arr);
+    res.json({ ok: true, id: m.id });
+  } catch (e) {
+    console.error('generate-map error:', e);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
+
 // AI-complete the Valuation Factors section from the questionnaire answers (text only).
 app.post('/api/valuation-factors', express.json({ limit: '4mb' }), async (req, res) => {
   try {
@@ -1376,6 +1496,13 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveCimPrompt()">Save prompt</button> <button onclick="resetCimPrompt()">Reset to RRG default</button> <span id="cpmsg" class="sub2"></span></div>
       </div>
 
+      <h2 style="margin-top:34px" data-open="1">Market Attack Plan Prompt <span class="sub2">— the instructions Claude follows when drafting the sell-side Market Attack Plan advanced from a Marketing Pack. Keep the JSON output block intact so the plan still builds. Reset any time to restore the RRG default.</span></h2>
+      <div class="links">
+        <div class="sub2" id="mpstate" style="margin:0 0 8px">Loading…</div>
+        <textarea id="mapPrompt" class="bovprompt" spellcheck="false"></textarea>
+        <div style="margin-top:10px"><button class="primary" onclick="saveMapPrompt()">Save prompt</button> <button onclick="resetMapPrompt()">Reset to RRG default</button> <span id="mpmsg" class="sub2"></span></div>
+      </div>
+
       <div class="grp">Activity &amp; Logs</div>
       <h2 style="margin-top:20px">Tool Usage <span class="sub2">— what your team is using</span></h2>
       <div class="cols">
@@ -1426,6 +1553,11 @@ app.get('/admin', requireAdmin, (req, res) => {
       function loadCimPrompt(){ fetch('/api/admin/cim-prompt').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('cimPrompt').value=j.prompt||''; _cpState(j.isDefault); } }).catch(function(){ var s=document.getElementById('cpstate'); if(s) s.textContent='Could not load the prompt.'; }); }
       function saveCimPrompt(){ var v=document.getElementById('cimPrompt').value; var m=document.getElementById('cpmsg'); m.textContent='Saving…'; post('/api/admin/cim-prompt',{prompt:v}).then(function(j){ if(j.ok){ m.textContent = j.isDefault ? 'Saved — matches the default ✓' : 'Saved custom prompt ✓'; document.getElementById('cimPrompt').value=j.prompt||v; _cpState(j.isDefault); } else m.textContent=j.error||'Failed'; }); }
       function resetCimPrompt(){ if(!confirm('Reset the Marketing Pack prompt to the RRG default? Your custom prompt will be discarded.')) return; post('/api/admin/cim-prompt',{reset:true}).then(function(j){ if(j.ok){ document.getElementById('cimPrompt').value=j.prompt||''; document.getElementById('cpmsg').textContent='Reset to default ✓'; _cpState(true); } }); }
+      function _mpState(isDefault){ var s=document.getElementById('mpstate'); if(s) s.textContent = isDefault ? 'Currently using the RRG default Market Attack Plan prompt.' : 'Currently using a custom Market Attack Plan prompt.'; }
+      function loadMapPrompt(){ fetch('/api/admin/map-prompt').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('mapPrompt').value=j.prompt||''; _mpState(j.isDefault); } }).catch(function(){ var s=document.getElementById('mpstate'); if(s) s.textContent='Could not load the prompt.'; }); }
+      function saveMapPrompt(){ var v=document.getElementById('mapPrompt').value; var m=document.getElementById('mpmsg'); m.textContent='Saving…'; post('/api/admin/map-prompt',{prompt:v}).then(function(j){ if(j.ok){ m.textContent = j.isDefault ? 'Saved — matches the default ✓' : 'Saved custom prompt ✓'; document.getElementById('mapPrompt').value=j.prompt||v; _mpState(j.isDefault); } else m.textContent=j.error||'Failed'; }); }
+      function resetMapPrompt(){ if(!confirm('Reset the Market Attack Plan prompt to the RRG default? Your custom prompt will be discarded.')) return; post('/api/admin/map-prompt',{reset:true}).then(function(j){ if(j.ok){ document.getElementById('mapPrompt').value=j.prompt||''; document.getElementById('mpmsg').textContent='Reset to default ✓'; _mpState(true); } }); }
+      try{ loadMapPrompt(); }catch(e){}
       try{ loadCimPrompt(); }catch(e){}
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
       var INTRO_DEFAULT_MSG='', PACK_INTRO_DEFAULT_MSG='';
@@ -1545,6 +1677,20 @@ app.post('/api/admin/lease-prompt', requireAdmin, (req, res) => {
   const p = String(b.prompt || '').trim();
   if (!p || p === def.trim()) { clearLeasePromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
   saveLeasePromptCustom(p);
+  res.json({ ok: true, prompt: p, isDefault: false });
+});
+// Market Attack Plan prompt — mirror of the CIM prompt routes.
+app.get('/api/admin/map-prompt', requireAdmin, (req, res) => {
+  const custom = loadMapPromptCustom();
+  res.json({ ok: true, prompt: custom || attackgen.DEFAULT_SYSTEM, isDefault: !custom });
+});
+app.post('/api/admin/map-prompt', requireAdmin, (req, res) => {
+  const b = req.body || {};
+  const def = String(attackgen.DEFAULT_SYSTEM || '');
+  if (b.reset) { clearMapPromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
+  const p = String(b.prompt || '').trim();
+  if (!p || p === def.trim()) { clearMapPromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
+  saveMapPromptCustom(p);
   res.json({ ok: true, prompt: p, isDefault: false });
 });
 // SDE-vs-EBITDA revenue threshold. Admins read/write; any signed-in user (the

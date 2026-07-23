@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Market Attack Plan</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1c2536;--muted:#6b7488;--soft:#8a93a8;--line:#e3e7ef;--wash:#f6f8fc;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#e9edf3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.toolbar{position:sticky;top:0;z-index:40;background:rgba(9,17,40,.97);color:#fff;}
+.tb-inner{max-width:900px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:12px;}
+.tt{font-weight:800;font-size:13px;} .tt span{font-weight:500;color:#aeb8cf;font-size:11.5px;margin-left:6px;}
+.actions{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.btn{font:inherit;font-size:12.5px;font-weight:700;padding:7px 13px;border-radius:8px;border:1px solid rgba(255,255,255,.24);background:transparent;color:#fff;cursor:pointer;text-decoration:none;}
+.btn:hover{background:rgba(255,255,255,.1);} .btn.on{background:#fff;color:var(--navy);} .btn.print{background:var(--red);border-color:var(--red);}
+.savechip{font-size:11.5px;color:#8fe6b6;opacity:0;transition:opacity .2s;} .savechip.show{opacity:1;}
+.doc{max-width:900px;margin:22px auto;background:#fff;border:1px solid var(--line);box-shadow:0 10px 40px rgba(10,20,50,.10);padding:46px 50px 40px;}
+.hd{border-bottom:2px solid var(--navy);padding-bottom:16px;margin-bottom:8px;}
+.hd .rrg{color:var(--red);font-weight:900;font-size:15px;letter-spacing:.02em;}
+.hd .kt{color:var(--red);font-weight:800;letter-spacing:.24em;font-size:10.5px;text-transform:uppercase;margin-top:12px;}
+.hd h1{font-size:28px;font-weight:800;color:var(--navy);margin:3px 0 2px;letter-spacing:-.01em;}
+.hd .mission{color:var(--ink);font-size:14px;font-weight:600;}
+.hd .markets{color:var(--muted);font-size:12.5px;margin-top:2px;}
+.prep{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin:14px 0 6px;}
+.prep .pf label{display:block;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);font-weight:700;margin-bottom:2px;}
+.prep .pf .v{font-size:12.5px;color:var(--ink);}
+.strip{display:grid;grid-template-columns:repeat(4,1fr);background:var(--navy);border-radius:4px;overflow:hidden;margin:12px 0 6px;}
+.strip .c{padding:12px 14px;text-align:center;border-right:1px solid rgba(255,255,255,.09);}
+.strip .c:last-child{border-right:none;}
+.strip .k{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:#93a1bd;font-weight:700;}
+.strip .v{font-weight:700;font-size:15px;color:#fff;margin-top:4px;} .strip .v.red{color:#ff8a80;}
+.kl{color:var(--red);font-weight:800;letter-spacing:.14em;font-size:10px;text-transform:uppercase;margin:26px 0 2px;}
+.sec{margin:2px 0 8px;color:var(--navy);font-weight:800;font-size:19px;letter-spacing:-.01em;border-bottom:1px solid var(--line);padding-bottom:6px;}
+.narr{font-size:13px;line-height:1.6;color:var(--ink);margin:6px 0;}
+.rows{display:grid;grid-template-columns:200px 1fr;gap:0;margin:6px 0;}
+.rows .lbl{color:var(--muted);font-size:12px;font-weight:700;padding:8px 12px 8px 0;border-bottom:1px solid #f0f2f7;}
+.rows .val{font-size:13px;color:var(--ink);padding:8px 0;border-bottom:1px solid #f0f2f7;line-height:1.5;}
+.hooks{margin:6px 0;padding-left:0;list-style:none;} .hooks li{font-size:12.5px;line-height:1.5;padding-left:16px;position:relative;margin-bottom:5px;color:var(--ink);} .hooks li:before{content:"▸";position:absolute;left:0;color:var(--red);font-weight:700;}
+table.t{width:100%;border-collapse:collapse;font-size:12.5px;margin:8px 0 4px;}
+table.t th,table.t td{text-align:left;padding:8px 10px;border:1px solid var(--line);vertical-align:top;}
+table.t th{background:var(--wash);color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.04em;}
+table.t td .val{outline:none;}
+.rowctl{margin:4px 0 2px;} .rowctl button,.delrow{font:inherit;font-size:11.5px;font-weight:700;color:var(--navy);border:1px solid var(--line);background:#fff;border-radius:7px;padding:5px 11px;cursor:pointer;}
+.delrow{color:var(--red);border-color:#f0cfca;padding:3px 8px;}
+.steps{counter-reset:st;margin:8px 0;} .step{display:flex;gap:12px;margin-bottom:10px;} .step .no{counter-increment:st;flex:0 0 26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;} .step .no:before{content:counter(st);} .step .st{font-weight:700;color:var(--navy);font-size:13px;} .step .sd{font-size:12px;color:var(--ink);line-height:1.5;margin-top:1px;}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0;} .chip{font-size:11.5px;color:var(--navy);background:var(--wash);border:1px solid var(--line);border-radius:100px;padding:5px 12px;}
+.callout{border:1px solid var(--line);border-left:4px solid var(--red);background:var(--wash);border-radius:0 8px 8px 0;padding:13px 16px;margin:12px 0;}
+.callout .ct{font-size:12px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+.foot{color:var(--soft);font-size:10.5px;margin-top:26px;border-top:1px solid var(--line);padding-top:12px;line-height:1.5;}
+.ed{outline:none;} body.editing .ed{background:rgba(120,150,220,.06);border-radius:3px;} body.editing .ed:hover{background:rgba(120,150,220,.12);}
+.loading{max-width:840px;margin:60px auto;text-align:center;color:var(--muted);font-size:14px;}
+@media print{
+  @page{size:Letter;margin:0.5in 0.6in;}
+  html,body{background:#fff;} .toolbar,.rrg-back,.savechip,.rowctl,.delrow{display:none!important;}
+  .doc{max-width:none;margin:0;border:none;box-shadow:none;padding:0;}
+  .ed{background:none!important;} *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .kl-block,table.t,.callout,.step,.rows{break-inside:avoid;}
+}
+</style>
+</head>
+<body class="editing">
+<!--rrgback--><a href="./rrg_attack_queue.html" class="rrg-back" aria-label="Back to Market Attack Plans" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> Market Attack Plans</a>
+<div class="toolbar"><div class="tb-inner">
+  <div class="tt">RRG Market Attack Plan <span>Edit in place · Print</span></div>
+  <div class="actions">
+    <span class="savechip" id="savechip">Saved ✓</span>
+    <button class="btn on" id="editBtn" onclick="toggleEdit()">Editing: On</button>
+    <a class="btn" href="./rrg_attack_queue.html">Market Attack Plans</a>
+    <button class="btn print" onclick="window.print()">Print</button>
+  </div>
+</div></div>
+<div id="doc"><div class="loading">Loading the plan…</div></div>
+<script>
+var MID=(new URLSearchParams(location.search)).get('map')||'';
+var A=null;
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function getPath(o,p){ return p.split('.').reduce(function(a,k){ return (a==null)?a:a[k]; }, o); }
+function setPath(o,p,v){ var ks=p.split('.'); var a=o; for(var i=0;i<ks.length-1;i++){ if(a[ks[i]]==null) a[ks[i]]=(/^\d+$/.test(ks[i+1])?[]:{}); a=a[ks[i]]; } a[ks[ks.length-1]]=v; }
+function blankState(){ return { header:{business:'',mission:'',markets:'',preparedFor:'',preparedBy:'',guidance:'',exclusive:''}, bov:{range:'',target:'',multiple:'',basis:'',note:''}, engagement:{included:'',ebitda:'',ask:'',structure:'',reason:'',confid:'',narr:''}, positioning:{narr:'',hooks:[]}, buyers:[], sequence:[], channels:[], confidentiality:{narr:''}, tension:{anchor:'',target:'',floor:'',deadline:'',bidders:'',criteria:'',narr:''}, timeline:[], reporting:{narr:'',commit:''} }; }
+
+function ed(path,text,tag){ tag=tag||'span'; return '<'+tag+' class="ed val" contenteditable data-k="'+esc(path)+'">'+esc(text||'')+'</'+tag+'>'; }
+function row(label,path,val){ return '<div class="lbl">'+esc(label)+'</div><div class="val">'+ed(path,val)+'</div>'; }
+function block(kl,title,inner){ return '<div class="kl-block"><div class="kl">'+esc(kl)+'</div><div class="sec">'+esc(title)+'</div>'+inner+'</div>'; }
+
+function render(s){
+  var h=s.header||{}, biz=h.business||A.business||'Market Attack Plan';
+  var buyers=s.buyers||[], seq=s.sequence||[], channels=s.channels||[], tl=s.timeline||[], hooks=(s.positioning&&s.positioning.hooks)||[];
+  var out='<div class="doc">';
+  // header
+  out+='<div class="hd"><div class="rrg">RRG · RESTAURANT REALTY GROUP</div><div class="kt">Market Attack Plan · Seller Engagement</div>'
+    +'<h1 class="ed" contenteditable data-k="header.business">'+esc(biz)+'</h1>'
+    +'<div class="mission">'+ed('header.mission',h.mission)+'</div>'
+    +'<div class="markets">'+ed('header.markets',h.markets)+'</div></div>';
+  out+='<div class="prep">'
+    +'<div class="pf"><label>Prepared For</label><div class="v">'+ed('header.preparedFor',h.preparedFor)+'</div></div>'
+    +'<div class="pf"><label>Prepared By</label><div class="v">'+ed('header.preparedBy',h.preparedBy)+'</div></div>'
+    +'<div class="pf"><label>Guidance</label><div class="v">'+ed('header.guidance',h.guidance)+'</div></div></div>';
+  out+='<div class="strip">'
+    +'<div class="c"><div class="k">Buyer Segments</div><div class="v">'+(buyers.length||'—')+'</div></div>'
+    +'<div class="c"><div class="k">Guidance</div><div class="v red">'+esc(h.guidance||'—')+'</div></div>'
+    +'<div class="c"><div class="k">Exclusive Term</div><div class="v">'+esc(h.exclusive||'—')+'</div></div>'
+    +'<div class="c"><div class="k">Structure</div><div class="v" style="font-size:12px">'+esc((s.engagement&&s.engagement.structure)||'—')+'</div></div></div>';
+
+  // 1. engagement
+  var e=s.engagement||{};
+  out+=block('The Engagement','What We’re Selling',
+    '<div class="rows">'+row('What’s included','engagement.included',e.included)+row('Earnings','engagement.ebitda',e.ebitda)+row('Asking / Guidance','engagement.ask',e.ask)+row('Structure(s) open to','engagement.structure',e.structure)+row('Reason for sale','engagement.reason',e.reason)+row('Confidentiality','engagement.confid',e.confid)+'</div>'
+    +'<div class="callout"><div class="ct">Valuation basis — per RRG Broker’s Opinion of Value</div><div class="rows">'+row('Concluded range','bov.range',(s.bov||{}).range)+row('Recommended target','bov.target',(s.bov||{}).target)+row('Multiple','bov.multiple',(s.bov||{}).multiple)+row('Earnings basis','bov.basis',(s.bov||{}).basis)+'</div><div class="narr">'+ed('bov.note',(s.bov||{}).note)+'</div></div>'
+    +'<div class="narr">'+ed('engagement.narr',e.narr)+'</div>');
+
+  // 2. positioning
+  var p=s.positioning||{};
+  var hooksHtml='<ul class="hooks">'+hooks.map(function(hk,i){ return '<li>'+ed('positioning.hooks.'+i,hk)+'</li>'; }).join('')+'</ul>'
+    +'<div class="rowctl"><button onclick="addHook()">+ Add selling point</button></div>';
+  out+=block('Positioning','The Story That Sells It','<div class="narr">'+ed('positioning.narr',p.narr)+'</div><div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:10px">Headline selling points</div>'+hooksHtml);
+
+  // 3. buyers
+  var buyRows=buyers.map(function(b,i){ return '<tr><td>'+ed('buyers.'+i+'.segment',b.segment)+'</td><td>'+ed('buyers.'+i+'.who',b.who)+'</td><td>'+ed('buyers.'+i+'.moves',b.moves)+'</td><td>'+ed('buyers.'+i+'.targets',b.targets)+'</td><td><button class="delrow" onclick="delRow(\'buyers\','+i+')">✕</button></td></tr>'; }).join('');
+  out+=block('Buyer Strategy','Who We Go After',
+    '<table class="t"><thead><tr><th style="width:20%">Buyer Segment</th><th style="width:32%">Who, Specifically</th><th>What Moves Them</th><th style="width:10%">Targets</th><th style="width:6%"></th></tr></thead><tbody>'+buyRows+'</tbody></table>'
+    +'<div class="rowctl"><button onclick="addBuyer()">+ Add buyer segment</button></div>');
+
+  // 4. sequence
+  var seqHtml='<div class="steps">'+seq.map(function(st,i){ return '<div class="step"><div class="no"></div><div><div class="st ed" contenteditable data-k="sequence.'+i+'.title">'+esc(st.title||'')+'</div><div class="sd ed" contenteditable data-k="sequence.'+i+'.desc">'+esc(st.desc||'')+'</div></div></div>'; }).join('')+'</div>';
+  var chanHtml='<div class="chips">'+channels.map(function(c,i){ return '<span class="chip ed" contenteditable data-k="channels.'+i+'">'+esc(c)+'</span>'; }).join('')+'</div>';
+  out+=block('The Process','Confidential Marketing Sequence',seqHtml+'<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:6px">Channels in play</div>'+chanHtml);
+
+  // 5. confidentiality
+  out+=block('Confidentiality','Selling Without Tipping the Market','<div class="narr">'+ed('confidentiality.narr',(s.confidentiality||{}).narr)+'</div>');
+
+  // 6. tension
+  var t=s.tension||{};
+  out+=block('Leverage','Creating Competitive Tension',
+    '<div class="rows">'+row('Anchor / guidance','tension.anchor',t.anchor)+row('Target clearing','tension.target',t.target)+row('Floor / walk-away','tension.floor',t.floor)+row('Offer deadline','tension.deadline',t.deadline)+row('Minimum bidders','tension.bidders',t.bidders)+row('Selection criteria','tension.criteria',t.criteria)+'</div>'
+    +'<div class="narr">'+ed('tension.narr',t.narr)+'</div>');
+
+  // 7. timeline
+  var tlRows=tl.map(function(r,i){ return '<tr><td style="width:20%">'+ed('timeline.'+i+'.phase',r.phase)+'</td><td style="width:18%">'+ed('timeline.'+i+'.window',r.window)+'</td><td>'+ed('timeline.'+i+'.actions',r.actions)+'</td><td style="width:6%"><button class="delrow" onclick="delRow(\'timeline\','+i+')">✕</button></td></tr>'; }).join('');
+  out+=block('Timeline','Campaign Milestones','<table class="t"><thead><tr><th>Phase</th><th>Window</th><th>Actions &amp; Deliverables</th><th></th></tr></thead><tbody>'+tlRows+'</tbody></table><div class="rowctl"><button onclick="addPhase()">+ Add phase</button></div>');
+
+  // 8. reporting
+  var rp=s.reporting||{};
+  out+=block('Reporting &amp; Next Steps','How We Keep You In Front Of It','<div class="narr">'+ed('reporting.narr',rp.narr)+'</div><div class="callout"><div class="ct">The RRG commitment</div><div class="narr">'+ed('reporting.commit',rp.commit)+'</div></div>');
+
+  out+='<div class="foot">Restaurant Realty Group, LLC · <b>Restaurant Transactions. Done Right.</b><br>Confidential go-to-market strategy — prepared for ownership. Not an offer to sell securities.</div>';
+  out+='</div>';
+  document.getElementById('doc').innerHTML=out;
+  wireEdits();
+}
+
+var _t=null;
+function wireEdits(){ document.querySelectorAll('#doc [data-k]').forEach(function(el){ el.addEventListener('input',function(){ setPath(A.state, el.getAttribute('data-k'), el.innerText); queueSave(); }); }); }
+function queueSave(){ var chip=document.getElementById('savechip'); if(_t) clearTimeout(_t); _t=setTimeout(function(){
+  fetch('/api/map-save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:MID,state:A.state})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ chip.classList.add('show'); setTimeout(function(){chip.classList.remove('show');},1300); } }).catch(function(){});
+}, 700); }
+function toggleEdit(){ var on=document.body.classList.toggle('editing'); var b=document.getElementById('editBtn'); b.textContent='Editing: '+(on?'On':'Off'); b.classList.toggle('on',on); document.querySelectorAll('#doc [contenteditable]').forEach(function(el){ el.setAttribute('contenteditable', on?'true':'false'); }); }
+function addBuyer(){ if(!A.state.buyers) A.state.buyers=[]; A.state.buyers.push({segment:'',who:'',moves:'',targets:''}); render(A.state); queueSave(); }
+function addPhase(){ if(!A.state.timeline) A.state.timeline=[]; A.state.timeline.push({phase:'',window:'',actions:''}); render(A.state); queueSave(); }
+function addHook(){ if(!A.state.positioning) A.state.positioning={hooks:[]}; if(!A.state.positioning.hooks) A.state.positioning.hooks=[]; A.state.positioning.hooks.push(''); render(A.state); queueSave(); }
+function delRow(key,i){ if(A.state[key]&&A.state[key].length>i){ A.state[key].splice(i,1); render(A.state); queueSave(); } }
+
+if(MID){
+  fetch('/api/map/'+encodeURIComponent(MID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok&&j.map){ A=j.map; if(!A.state){ A.state=blankState(); if(A.business) A.state.header.business=A.business; } render(A.state);
+      if((new URLSearchParams(location.search)).get('print')==='1'){ document.body.classList.remove('editing'); setTimeout(function(){ window.print(); }, 400); } }
+    else { document.getElementById('doc').innerHTML='<div class="loading">Could not load this plan.</div>'; }
+  }).catch(function(){ document.getElementById('doc').innerHTML='<div class="loading">Could not reach the server.</div>'; });
+} else { document.getElementById('doc').innerHTML='<div class="loading">No plan selected. Open one from Market Attack Plans.</div>'; }
+</script>
+</body>
+</html>
