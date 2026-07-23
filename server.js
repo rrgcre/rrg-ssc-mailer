@@ -399,7 +399,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc') return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/room-upload') return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -407,7 +407,8 @@ app.use(express.urlencoded({ extended: false }));
 /* ---------- auth gate ---------- */
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout']);
 app.use((req, res, next) => {
-  if (OPEN.has(req.path)) return next();
+  // Buyer-facing data-room links are public (the unguessable token is the gate).
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/roomfile/')) return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -1301,6 +1302,201 @@ app.get('/doc/:name', (req, res) => {
   if (!fp.startsWith(DOCS_DIR) || !fs.existsSync(fp)) return res.status(404).end();
   res.sendFile(fp);
 });
+
+// ================= Deal Data Rooms =================
+// One room per deal (Marketing Pack). Files live on the persistent disk; a buyer
+// reaches the room through an unguessable share link. Not Fort Knox — practical.
+const ROOMS_FILE = path.join(BOV_DATA_DIR, 'rooms.json');
+const ROOMS_DIR = path.join(BOV_DATA_DIR, 'rooms');
+function loadRooms() { try { return JSON.parse(fs.readFileSync(ROOMS_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveRooms(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(ROOMS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newRoomId() { return 'room_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function newRoomDocId() { return 'rd_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
+function newRoomToken() { try { return crypto.randomBytes(16).toString('hex'); } catch (e) { return (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 28); } }
+const ROOM_CATEGORIES = ['Financials', 'Tax Returns', 'Lease', 'Equipment & FF&E', 'Licenses & Permits', 'Legal & Corporate', 'Menus & Marketing', 'Other'];
+const ROOM_EXT = /^(pdf|docx?|xlsx?|csv|pptx?|png|jpe?g|gif|txt)$/i;
+function ownsRoom(req, r) {
+  if (req.user && req.user.role === 'admin') return true;
+  if (r.byUser) return r.byUser === (req.user && req.user.username);
+  return r.by && r.by === (req.user && req.user.name);
+}
+function ensureRoomForCim(req, cim) {
+  if (!cim) return null;
+  const arr = loadRooms();
+  const existing = arr.find(x => x.srcCimId === cim.id);
+  if (existing) return existing;
+  const rec = {
+    id: newRoomId(), srcCimId: cim.id, srcBovId: cim.srcBovId || '', token: newRoomToken(),
+    business: cim.business || 'Business',
+    by: (req.user && req.user.name) || cim.by || '', byUser: (req.user && req.user.username) || cim.byUser || '',
+    createdAt: new Date().toISOString(), docs: [], access: [],
+  };
+  arr.push(rec); saveRooms(arr);
+  return rec;
+}
+function roomPublic(r, origin) {
+  const base = (origin || '') + '/room/' + r.token;
+  return { id: r.id, business: r.business, token: r.token, link: base, docCount: (r.docs || []).length, srcCimId: r.srcCimId || '', createdAt: r.createdAt, builtAt: r.builtAt || '', by: r.by };
+}
+app.get('/api/rooms', (req, res) => {
+  const isAdmin = req.user && req.user.role === 'admin';
+  const list = loadRooms().slice().reverse().filter(r => isAdmin || ownsRoom(req, r));
+  const origin = req.protocol + '://' + req.get('host');
+  res.json({ ok: true, isAdmin: !!isAdmin, rooms: list.map(r => roomPublic(r, origin)) });
+});
+app.get('/api/room/:id', (req, res) => {
+  const r = loadRooms().find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const origin = req.protocol + '://' + req.get('host');
+  res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-100).reverse(), categories: ROOM_CATEGORIES } });
+});
+// Ensure (auto-create) the data room for a deal, from the Marketing Pack.
+app.post('/api/cim/:id/room', (req, res) => {
+  const cim = loadCims().find(x => x.id === req.params.id);
+  if (!cim) return res.status(404).json({ ok: false, error: 'Marketing Pack not found.' });
+  if (!ownsCim(req, cim)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  let id = '';
+  try { const r = ensureRoomForCim(req, cim); id = (r && r.id) || ''; } catch (e) {}
+  res.json({ ok: true, roomId: id });
+});
+// Upload a document into a room.
+app.post('/api/room-upload', express.json({ limit: '40mb' }), (req, res) => {
+  const b = req.body || {};
+  const arr = loadRooms();
+  const r = arr.find(x => x.id === b.roomId);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const orig = String(b.filename || '').trim();
+  const m = orig.match(/\.([a-z0-9]+)$/i); const ext = m ? m[1].toLowerCase() : '';
+  if (!ROOM_EXT.test(ext)) return res.status(400).json({ ok: false, error: 'That file type isn\'t supported. Use PDF, Word, Excel, CSV, PowerPoint, an image, or text.' });
+  const data = String(b.dataB64 || ''); if (!data) return res.status(400).json({ ok: false, error: 'No file data received.' });
+  let buf; try { buf = Buffer.from(data, 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the file data.' }); }
+  if (!buf.length) return res.status(400).json({ ok: false, error: 'The file appears to be empty.' });
+  if (buf.length > 20 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 20 MB).' });
+  const category = (ROOM_CATEGORIES.indexOf(b.category) >= 0) ? b.category : 'Other';
+  const title = String(b.title || '').trim().slice(0, 140) || prettyName(orig);
+  try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not create the rooms folder.' }); }
+  const id = newRoomDocId();
+  try { fs.writeFileSync(path.join(ROOMS_DIR, id + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
+  r.docs = r.docs || [];
+  r.docs.push({ id, title, category, ext, originalName: orig, size: buf.length, uploadedAt: new Date().toISOString(), by: (req.user && req.user.name) || '' });
+  if (!r.builtAt) r.builtAt = new Date().toISOString();
+  saveRooms(arr);
+  res.json({ ok: true, docs: r.docs });
+});
+app.post('/api/room/:id/delete-doc', express.json(), (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const did = String((req.body || {}).id || '');
+  const d = (r.docs || []).find(x => x.id === did);
+  if (d) { try { fs.unlinkSync(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} }
+  r.docs = (r.docs || []).filter(x => x.id !== did);
+  saveRooms(arr);
+  res.json({ ok: true, docs: r.docs });
+});
+app.delete('/api/room/:id', (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  (r.docs || []).forEach(d => { try { fs.unlinkSync(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} });
+  saveRooms(arr.filter(x => x.id !== r.id));
+  res.json({ ok: true });
+});
+// Regenerate the share link (invalidates the old one).
+app.post('/api/room/:id/newlink', (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  r.token = newRoomToken(); saveRooms(arr);
+  const origin = req.protocol + '://' + req.get('host');
+  res.json({ ok: true, token: r.token, link: origin + '/room/' + r.token });
+});
+function logRoomAccess(r, req, event, doc) {
+  try {
+    r.access = r.access || [];
+    r.access.push({ at: new Date().toISOString(), ip: (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim(), event: event, doc: doc || '' });
+    if (r.access.length > 1000) r.access = r.access.slice(-1000);
+  } catch (e) {}
+}
+// PUBLIC buyer-facing room page — reachable with the share token, no login.
+app.get('/room/:token', (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.token === req.params.token);
+  if (!r) return res.status(404).set('Content-Type', 'text/html').send(roomNotFoundPage());
+  logRoomAccess(r, req, 'view', ''); saveRooms(arr);
+  res.set('Content-Type', 'text/html; charset=utf-8').send(roomPublicPage(r));
+});
+// PUBLIC file download from a room.
+app.get('/roomfile/:token/:docid', (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.token === req.params.token);
+  if (!r) return res.status(404).end();
+  const d = (r.docs || []).find(x => x.id === String(req.params.docid));
+  if (!d) return res.status(404).end();
+  const fp = path.join(ROOMS_DIR, d.id + '.' + d.ext);
+  if (!fp.startsWith(ROOMS_DIR) || !fs.existsSync(fp)) return res.status(404).end();
+  logRoomAccess(r, req, 'download', d.title || d.originalName); saveRooms(arr);
+  res.setHeader('Content-Disposition', 'inline; filename="' + String(d.title || d.originalName || d.id).replace(/[^\w.\- ]+/g, '_') + '.' + d.ext + '"');
+  res.sendFile(fp);
+});
+function fmtBytes(n) { n = Number(n) || 0; if (n < 1024) return n + ' B'; if (n < 1048576) return (n / 1024).toFixed(0) + ' KB'; return (n / 1048576).toFixed(1) + ' MB'; }
+function roomShell(title, inner) {
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:28px 0 30px;background:radial-gradient(95% 130% at 28% 15%,#1c2e5c 0%,#112044 42%,#0b1636 70%,#071029 100%);}
+.in{max-width:820px;margin:0 auto;padding:0 24px;}
+.brand{display:inline-flex;align-items:center;} .disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font:900 13px 'Arial Black',Arial,sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:28px;margin:0 12px;} .wm{font-weight:800;font-size:13px;text-transform:uppercase;line-height:.95;color:#fff;}
+.kick{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.28em;font-size:11px;text-transform:uppercase;}
+h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:6px;}
+.wrap{max-width:820px;margin:22px auto;padding:0 24px 60px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:14px;}
+.chd{padding:13px 20px;border-bottom:1px solid var(--line);font-weight:800;color:var(--navy);font-size:13px;display:flex;align-items:center;gap:8px;}
+.chd .n{margin-left:auto;color:var(--muted);font-weight:600;font-size:11.5px;}
+.docrow{display:flex;align-items:center;gap:12px;padding:11px 20px;border-top:1px solid #f0f2f7;text-decoration:none;color:inherit;}
+.docrow:first-child{border-top:none;} .docrow:hover{background:#fbfcfe;}
+.ext{flex:0 0 44px;height:30px;border-radius:6px;background:var(--wash);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;color:var(--navy);text-transform:uppercase;}
+.dt{flex:1;font-weight:600;color:var(--navy);font-size:13.5px;} .dm{color:var(--muted);font-size:11px;margin-top:1px;}
+.dl{border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;white-space:nowrap;}
+.note{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 20px;color:var(--muted);font-size:12.5px;line-height:1.6;}
+.empty{text-align:center;color:var(--muted);padding:46px 20px;}
+.foot{max-width:820px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11px;line-height:1.6;}
+</style></head><body>
+<div class="top"><div class="in"><span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+${inner.head}</div></div>
+<div class="wrap">${inner.body}</div>
+<div class="foot">Confidential &amp; proprietary. Access to this data room is provided under a non-disclosure agreement to a qualified, identified party for the sole purpose of evaluating a potential acquisition. Do not copy, forward, or distribute. All inquiries route exclusively through Restaurant Realty Group, LLC · rrgcre.com</div>
+</body></html>`;
+}
+function roomPublicPage(r) {
+  const docs = (r.docs || []);
+  const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${docs.length} document${docs.length === 1 ? '' : 's'} · Provided by Restaurant Realty Group under NDA</div>`;
+  let body;
+  if (!docs.length) {
+    body = '<div class="card"><div class="empty"><b>Documents are being prepared.</b><br>Your RRG contact will let you know as materials are added.</div></div>';
+  } else {
+    body = ROOM_CATEGORIES.map(cat => {
+      const inCat = docs.filter(d => (d.category || 'Other') === cat);
+      if (!inCat.length) return '';
+      return `<div class="card"><div class="chd">${esc(cat)}<span class="n">${inCat.length}</span></div>` +
+        inCat.map(d => `<a class="docrow" href="/roomfile/${esc(r.token)}/${esc(d.id)}" target="_blank" rel="noopener"><span class="ext">${esc(d.ext)}</span><div style="flex:1"><div class="dt">${esc(d.title || d.originalName)}</div><div class="dm">${esc(fmtBytes(d.size))}</div></div><span class="dl">Open →</span></a>`).join('') +
+        `</div>`;
+    }).join('');
+  }
+  return roomShell('RRG Data Room — ' + (r.business || 'Confidential'), { head, body });
+}
+function roomNotFoundPage() {
+  return roomShell('RRG Data Room', { head: '<div class="kick">Data Room</div><h1>Link not found</h1><div class="sub">This data room link is invalid or has been retired.</div>', body: '<div class="note">The link you followed is no longer active. Please contact your RRG representative for an updated link.</div>' });
+}
 
 /* ---------- submission log view (now shows who submitted) ---------- */
 app.get('/log', (_req, res) => {

@@ -35,6 +35,7 @@ tr:hover td{background:#fbfcfe;}
 .act .del{color:var(--red);border-color:#f0c9c6;}
 .act .dl{color:var(--navy);}
 .act .adv{background:#0e7a53;color:#fff;border-color:#0e7a53;}
+.act .room{color:#0e7a53;border-color:#bfe6d1;}
 .dlmodal{position:fixed;inset:0;z-index:200;background:rgba(6,12,32,.55);display:flex;align-items:center;justify-content:center;padding:20px;}
 .dlcard{background:#fff;border-radius:14px;padding:22px 24px;max-width:450px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4);}
 .dlh{font-size:16px;font-weight:800;color:var(--navy);}
@@ -95,6 +96,13 @@ function openPackDL(id){
   }).catch(function(){ lm.textContent='Could not check'; });
 }
 function closePackDL(){ document.getElementById('dlmodal').style.display='none'; }
+function openRoom(cimId,btn){
+  if(btn){ btn.disabled=true; btn.textContent='…'; }
+  fetch('/api/cim/'+encodeURIComponent(cimId)+'/room',{method:'POST',credentials:'same-origin'})
+    .then(function(r){ return r.text().then(function(t){ var j=null; try{j=JSON.parse(t);}catch(e){} return {ok:r.ok,j:j}; }); })
+    .then(function(res){ if(res.ok&&res.j&&res.j.ok&&res.j.roomId){ location.href='./rrg_room.html?room='+encodeURIComponent(res.j.roomId); } else { if(btn){btn.disabled=false;btn.textContent='Data Room';} alert((res.j&&res.j.error)||'Could not open the data room.'); } })
+    .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Data Room';} alert('Could not reach the server.'); });
+}
 function advanceMap(cimId){
   fetch('/api/cim/'+encodeURIComponent(cimId)+'/advance-map',{method:'POST',credentials:'same-origin'})
     .then(function(r){ return r.text().then(function(t){ var j=null; try{j=JSON.parse(t);}catch(e){} return {ok:r.ok,j:j}; }); })
@@ -116,7 +124,7 @@ function renderList(list){
       { label:'Status', sort:function(a,b){ return (statusRank(a)-statusRank(b)) || RRGList.cmp(dateOf(a),dateOf(b)); },
         cell:function(c){ return c.pending?'<span class="pill pend">Requested</span>':'<span class="pill done">Built</span>'; } },
       { label:'Actions', align:'right', sortable:false,
-        cell:function(c){ var mid=c.pending?('<a class="build" href="./rrg_cim_generate.html?cim='+encodeURIComponent(c.id)+'">Build Pack →</a>'):('<a class="open" href="./rrg_cim_builder.html?cim='+encodeURIComponent(c.id)+'">Open</a>'); var adv=c.pending?'':('<button class="adv" onclick="advanceMap(\''+c.id+'\')">Advance to Attack Plan →</button>'); var dl=c.pending?'':('<button class="dl" onclick="openPackDL(\''+c.id+'\')">Download</button>'); return '<div class="act">'+mid+adv+dl+'<button class="del" onclick="delCim(\''+c.id+'\',this)">Delete</button></div>'; } }
+        cell:function(c){ var mid=c.pending?('<a class="build" href="./rrg_cim_generate.html?cim='+encodeURIComponent(c.id)+'">Build Pack →</a>'):('<a class="open" href="./rrg_cim_builder.html?cim='+encodeURIComponent(c.id)+'">Open</a>'); var adv=c.pending?'':('<button class="adv" onclick="advanceMap(\''+c.id+'\')">Advance to Attack Plan →</button>'); var room=c.pending?'':('<button class="room" onclick="openRoom(\''+c.id+'\',this)">Data Room</button>'); var dl=c.pending?'':('<button class="dl" onclick="openPackDL(\''+c.id+'\')">Download</button>'); return '<div class="act">'+mid+adv+room+dl+'<button class="del" onclick="delCim(\''+c.id+'\',this)">Delete</button></div>'; } }
     ],
     bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelCims(ids,done); } } ]
   };

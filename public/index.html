@@ -226,6 +226,8 @@ var TOOLS = [
     desc:"The deep listing profile. It captures what the financials don't — operations, lease, condition, and the off-book factors that move value — then feeds a Business Valuation with one click." },
   { name:'Business Valuations', tag:'Value', file:'rrg_bov_queue.html', icon:'queue', track:'pipeline', step:3,
     desc:"Every valuation in one place. The RRG Virtual Analyst drafts a defensible Broker's Opinion of Value from the deal's documents; you review and edit, then advance it to a Marketing Pack with the numbers locked." },
+  { name:'Data Room', tag:'Deal', file:'rrg_rooms_queue.html', icon:'vault', track:'pipeline', sort:4.5,
+    desc:"A confidential, per-deal document room with a shareable buyer link. Open it from a built Marketing Pack, drop in P&Ls, tax returns, the lease, and equipment lists by section, and share the link with NDA'd buyers — with an access log of every view and download." },
   { name:'Marketing Packs', tag:'Value', file:'rrg_cim_queue.html', icon:'book', track:'pipeline', step:4,
     desc:"The confidential offering package. Build a Confidential Information Memorandum in the RRG format — the valuation carries over from the BOV, you add the story and photos, edit in place, and print a client-ready PDF." },
   { name:'Market Attack Plan', tag:'Seller', file:'rrg_attack_queue.html', icon:'megaphone', track:'pipeline', step:5,
@@ -309,6 +311,12 @@ var GUIDES = {
     how:["Advance a built valuation from Business Valuations to create the pack, then click “Build Pack →” — add photos and the logo, and the RRG analyst drafts the Confidential Information Memorandum from the valuation, questionnaire, and qualification call.","Open a built pack to review and edit the CIM in place, then print the client-ready PDF.","To rebuild, Delete the existing pack first — that keeps the CIM's numbers locked to the valuation."],
     tip:"The CIM is the document; the campaign that sells it is your Copper email sequence — teaser, NDA, CIM, call for offers. Build the pack, then run the sequence to create competition and drive the price."
   },
+  'rrg_rooms_queue.html':{
+    background:"A confidential, per-deal document room. Each room has a fixed set of sections — Financials, Tax Returns, Lease, Equipment, Licenses, Legal, Menus & Marketing, Other — and a single shareable buyer link. Admins see the whole team; reps see their own.",
+    when:"Once you're releasing diligence materials to NDA'd buyers — usually alongside the Marketing Pack.",
+    how:["Open a data room from a built Marketing Pack (it's created automatically for that deal), then add files under the right section — add or remove documents anytime.","Copy the buyer link and send it to a qualified, NDA'd buyer; they can view and download, and every view and download is logged.","Regenerate the link anytime to instantly retire the old one."],
+    tip:"Name files the way a buyer reads them — “2023 Profit & Loss,” “Current Lease — Fully Executed.” A clean, well-organized room signals a well-run process and builds buyer confidence."
+  },
   'rrg_cim_builder.html':{
     background:"The confidential offering book buyers actually read. It pulls the valuation from the BOV; you add the story, the photos, and the proof.",
     when:"After the BOV, once you have a signed listing and you're taking the business to market.",
@@ -380,7 +388,8 @@ var ICONS = {
   target:'<svg class="icon" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" stroke="#000E31" stroke-width="1.6"/><circle cx="24" cy="24" r="12.5" stroke="#000E31" stroke-width="1.6"/><circle cx="24" cy="24" r="5" fill="#DA2B1F"/></svg>',
   funnel:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M8 11h32L28 27v9l-8 4V27L8 11Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><line x1="14" y1="18" x2="34" y2="18" stroke="#DA2B1F" stroke-width="1.6"/><circle cx="24" cy="44" r="2.6" fill="#DA2B1F"/></svg>',
   gauge:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M8 33a16 16 0 0 1 32 0" stroke="#000E31" stroke-width="1.6" stroke-linecap="round"/><line x1="24" y1="33" x2="33" y2="22" stroke="#DA2B1F" stroke-width="1.8" stroke-linecap="round"/><circle cx="24" cy="33" r="3" fill="#000E31"/></svg>',
-  doc:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M13 6h15l7 7v29H13V6Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><line x1="18" y1="22" x2="30" y2="22" stroke="#000E31" stroke-width="1.6"/><line x1="18" y1="28" x2="30" y2="28" stroke="#000E31" stroke-width="1.6"/><line x1="18" y1="34" x2="26" y2="34" stroke="#DA2B1F" stroke-width="1.8"/></svg>'
+  doc:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M13 6h15l7 7v29H13V6Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><line x1="18" y1="22" x2="30" y2="22" stroke="#000E31" stroke-width="1.6"/><line x1="18" y1="28" x2="30" y2="28" stroke="#000E31" stroke-width="1.6"/><line x1="18" y1="34" x2="26" y2="34" stroke="#DA2B1F" stroke-width="1.8"/></svg>',
+  vault:'<svg class="icon" viewBox="0 0 48 48" fill="none"><rect x="7" y="13" width="34" height="27" rx="3" stroke="#000E31" stroke-width="1.6"/><path d="M7 18h13l3-4h9" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round" fill="none"/><rect x="19.5" y="26" width="9" height="8" rx="1.5" stroke="#DA2B1F" stroke-width="1.6"/><path d="M21.5 26v-2a2.5 2.5 0 0 1 5 0v2" stroke="#DA2B1F" stroke-width="1.5" fill="none"/></svg>'
 };
 var ARROW='<span class="arw"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#DA2B1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
 
