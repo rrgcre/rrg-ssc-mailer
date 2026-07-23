@@ -22,6 +22,24 @@
   // gentle tremolo LFO onto a gain param
   function breath(ctx,param,rate,depth,h){ var l=O(ctx,'sine',rate), lg=ctx.createGain(); lg.gain.value=depth; l.connect(lg); lg.connect(param); l.start(); h.add(l); }
 
+  // Real audio file, looped and routed through the caller's gain (so the master
+  // fade + mute work exactly like the synth sounds).
+  function fileSound(id,name,desc,src){
+    return { id:id, name:name, desc:desc, src:src, file:true,
+      build:function(ctx,out){
+        var h=mkHandle(), au=new Audio(); au.src=src; au.loop=true; au.preload='auto';
+        try{ var node=ctx.createMediaElementSource(au); node.connect(out); }catch(e){}
+        au.play().catch(function(){});
+        h.audio=au;
+        h.stop=function(){ if(this._stopped) return; this._stopped=true; setTimeout(function(){ try{ au.pause(); }catch(e){} }, 750); };
+        return h;
+      } };
+  }
+  // Real-audio tracks live here — populated as files are dropped into /sounds.
+  var FILE_SOUNDS = [
+    // e.g. fileSound('lofi', 'Lo-Fi', 'Chilled lo-fi loop.', '/sounds/lofi.mp3'),
+  ];
+
   var SOUNDS=[
     { id:'orb', name:'Orb', desc:'Warm breathing sine chord — calm and round.',
       build:function(ctx,out){ var h=mkHandle();
@@ -103,6 +121,8 @@
       build:function(){ return mkHandle(); } }
   ];
 
+  // Real-audio tracks appear first in the picker, ahead of the synth options.
+  SOUNDS = FILE_SOUNDS.concat(SOUNDS);
   window.RRG_AMBIENCE = {
     sounds: SOUNDS,
     get:function(id){ for(var i=0;i<SOUNDS.length;i++){ if(SOUNDS[i].id===id) return SOUNDS[i]; } return SOUNDS[0]; },
