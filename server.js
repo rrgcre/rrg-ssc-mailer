@@ -986,6 +986,8 @@ app.get('/log', (_req, res) => {
 });
 
 /* ================= ADMIN CONSOLE ================= */
+const SERVER_BOOT = new Date();
+const ADMIN_BUILD = 'v3 · groups + prompts open by default';
 app.get('/admin', requireAdmin, (req, res) => {
   const users = auth.loadUsers();
   const logins = auth.readLogins().slice(-300).reverse();
@@ -1025,7 +1027,7 @@ app.get('/admin', requireAdmin, (req, res) => {
     `<tr><td class="ts">${fmtWhen(l.timestamp)}</td><td class="mono">${esc(l.username) || '—'}</td><td>${l.result === 'success' ? '<span class="tag ok">Success</span>' : '<span class="tag off">Failed</span>'}</td><td class="mono">${esc(l.ip)}</td></tr>`
   ).join('') || '<tr><td colspan="4" class="empty">No logins recorded yet.</td></tr>';
   res.set('Content-Type', 'text/html; charset=utf-8').send(shell('Admin Console', `
-    <div class="bar"><span class="stat"><b>${users.length}</b> users</span><span class="stat"><b>${logins.filter(l=>l.result==='success').length}</b> logins shown</span><span class="stat"><b>${usageAll.length}</b> tool opens</span>
+    <div class="bar"><span class="stat"><b>${users.length}</b> users</span><span class="stat"><b>${logins.filter(l=>l.result==='success').length}</b> logins shown</span><span class="stat"><b>${usageAll.length}</b> tool opens</span><span class="stat" title="Version and when the running server last started. After you push and Render redeploys, refresh this page — if the boot time doesn't update to just now, the new code isn't live yet."><b>${esc(ADMIN_BUILD)}</b> · booted ${esc(SERVER_BOOT.toLocaleString('en-US',{timeZone:'America/Chicago'}))} CT</span>
       <span class="dl"><a href="/index.html" style="background:#DA2B1F;color:#fff;padding:6px 13px;border-radius:8px;font-weight:800;text-decoration:none">Switch to user view →</a> <a href="/log">Submissions</a> <a href="/admin/logins.csv">Login CSV</a> <a href="/admin/usage.csv">Usage CSV</a> <a href="/logout">Sign out</a></span></div>
     <style>
       .wrap h2.acch{cursor:pointer;user-select:none;display:flex;align-items:center;gap:9px;border-top:1px solid #e6e9f0;padding-top:20px;margin-top:26px;}
@@ -1039,9 +1041,12 @@ app.get('/admin', requireAdmin, (req, res) => {
       .bovprompt{width:100%;min-height:340px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;padding:14px 15px;border:1px solid #cfd6e2;border-radius:10px;color:#1a2236;resize:vertical;background:#fff;}
       .bovprompt:focus{outline:none;border-color:#DA2B1F;}
       .btn.ghost{background:#eef1f7;color:#000E31;border:1px solid #e6e9f0;}
+      .wrap .grp{margin:34px 0 4px;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#DA2B1F;border-bottom:2px solid #f0d9d6;padding-bottom:6px;}
+      .wrap .grp:first-child{margin-top:6px;}
     </style>
     <div class="expandbar"><a onclick="accAll(true)">Expand all</a><a onclick="accAll(false)">Collapse all</a></div>
     <div class="wrap">
+      <div class="grp">People &amp; Access</div>
       <h2>Add a user</h2>
       <form class="add" method="post" action="/api/admin/add-user" onsubmit="return au(this)">
         <input name="firstName" placeholder="First name" required>
@@ -1069,28 +1074,12 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveLinks()">Save quick links</button> <span id="lmsg" class="sub2"></span></div>
       </div>
 
-      <h2 style="margin-top:34px">BOV Valuation Basis <span class="sub2">— deals with trailing sales BELOW this value are concluded on SDE; at or above it, on Adjusted EBITDA.</span></h2>
+      <div class="grp">Valuation Rules</div>
+      <h2 style="margin-top:20px">BOV Valuation Basis <span class="sub2">— deals with trailing sales BELOW this value are concluded on SDE; at or above it, on Adjusted EBITDA.</span></h2>
       <div class="links">
         <label class="sub2" style="display:block;margin-bottom:4px">SDE threshold (annual sales, $)</label>
         <input id="sdeThreshold" inputmode="numeric" style="border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;width:200px" placeholder="1200000">
         <div style="margin-top:10px"><button class="primary" onclick="saveBovConfig()">Save threshold</button> <span id="bcmsg" class="sub2"></span></div>
-      </div>
-
-      <h2 style="margin-top:34px">Questionnaire Intro Screen <span class="sub2">— the "Before you begin" priming screen a rep sees when starting a questionnaire.</span></h2>
-      <div class="links">
-        <label class="sub2" style="display:block;margin-bottom:4px">Seconds on screen (default 10; 0 = off)</label>
-        <input id="introSeconds" inputmode="numeric" style="border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;width:120px" placeholder="10">
-        <div style="margin-top:10px"><button class="primary" onclick="saveIntroSeconds()">Save duration</button> <span id="ismsg" class="sub2"></span></div>
-        <label class="sub2" style="display:block;margin:18px 0 4px">Message shown on the screen <span style="font-weight:400">— blank lines separate paragraphs; a line starting with &ldquo;- &rdquo; becomes a checklist item</span></label>
-        <textarea id="introMessage" spellcheck="true" style="width:100%;min-height:200px;border:1px solid #cfd6e2;border-radius:8px;padding:11px 13px;font:inherit;font-size:13.5px;line-height:1.5;resize:vertical"></textarea>
-        <div style="margin-top:10px"><button class="primary" onclick="saveIntroMessage()">Save message</button> <button onclick="resetIntroMessage()">Reset to default</button> <span id="immsg" class="sub2"></span></div>
-      </div>
-
-      <h2 style="margin-top:34px">BOV Ready Screen <span class="sub2">— how long the "your BOV is ready" screen (with the completion sound) stays up before the finished draft opens.</span></h2>
-      <div class="links">
-        <label class="sub2" style="display:block;margin-bottom:4px">Seconds on screen (default 2)</label>
-        <input id="doneSeconds" inputmode="decimal" style="border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;width:120px" placeholder="2">
-        <div style="margin-top:10px"><button class="primary" onclick="saveDoneSeconds()">Save duration</button> <span id="dsmsg" class="sub2"></span></div>
       </div>
 
       <h2 style="margin-top:34px">No-TTM Notice <span class="sub2">— shown on a BOV when no trailing-twelve-month statement was provided and we're past Q1, so the valuation fell back to the previous fiscal year.</span></h2>
@@ -1109,27 +1098,47 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveAssetSaleMessage()">Save message</button> <button onclick="resetAssetSaleMessage()">Reset to default</button> <span id="asmmsg" class="sub2"></span></div>
       </div>
 
+      <div class="grp">Screens &amp; Sound</div>
+      <h2 style="margin-top:20px">Questionnaire Intro Screen <span class="sub2">— the "Before you begin" priming screen a rep sees when starting a questionnaire.</span></h2>
+      <div class="links">
+        <label class="sub2" style="display:block;margin-bottom:4px">Seconds on screen (default 10; 0 = off)</label>
+        <input id="introSeconds" inputmode="numeric" style="border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;width:120px" placeholder="10">
+        <div style="margin-top:10px"><button class="primary" onclick="saveIntroSeconds()">Save duration</button> <span id="ismsg" class="sub2"></span></div>
+        <label class="sub2" style="display:block;margin:18px 0 4px">Message shown on the screen <span style="font-weight:400">— blank lines separate paragraphs; a line starting with &ldquo;- &rdquo; becomes a checklist item</span></label>
+        <textarea id="introMessage" spellcheck="true" style="width:100%;min-height:200px;border:1px solid #cfd6e2;border-radius:8px;padding:11px 13px;font:inherit;font-size:13.5px;line-height:1.5;resize:vertical"></textarea>
+        <div style="margin-top:10px"><button class="primary" onclick="saveIntroMessage()">Save message</button> <button onclick="resetIntroMessage()">Reset to default</button> <span id="immsg" class="sub2"></span></div>
+      </div>
+
+      <h2 style="margin-top:34px">BOV Ready Screen <span class="sub2">— how long the "your BOV is ready" screen (with the completion sound) stays up before the finished draft opens.</span></h2>
+      <div class="links">
+        <label class="sub2" style="display:block;margin-bottom:4px">Seconds on screen (default 2)</label>
+        <input id="doneSeconds" inputmode="decimal" style="border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;width:120px" placeholder="2">
+        <div style="margin-top:10px"><button class="primary" onclick="saveDoneSeconds()">Save duration</button> <span id="dsmsg" class="sub2"></span></div>
+      </div>
+
       <h2 style="margin-top:34px">Build Sound <span class="sub2">— the ambience that plays while a BOV builds. Tap Preview to sample, pick one, then Save.</span></h2>
       <div class="links">
         <div id="soundList"></div>
         <div style="margin-top:10px"><button class="primary" onclick="saveAmbience()">Save sound</button> <button onclick="stopPreview()">Stop preview</button> <span id="sndmsg" class="sub2"></span></div>
       </div>
 
-      <h2 style="margin-top:34px">BOV Analyst Prompt <span class="sub2">— the instructions Claude follows when drafting a BOV. Edit to change how valuations are written; keep the JSON output block at the end intact so the BOV still builds. Reset any time to restore the RRG default.</span></h2>
+      <div class="grp">AI Prompts</div>
+      <h2 style="margin-top:20px" data-open="1">BOV Analyst Prompt <span class="sub2">— the instructions Claude follows when drafting a BOV. Edit to change how valuations are written; keep the JSON output block at the end intact so the BOV still builds. Reset any time to restore the RRG default.</span></h2>
       <div class="links">
         <div class="sub2" id="bpstate" style="margin:0 0 8px">Loading…</div>
         <textarea id="bovPrompt" class="bovprompt" spellcheck="false"></textarea>
         <div style="margin-top:10px"><button class="primary" onclick="saveBovPrompt()">Save prompt</button> <button onclick="resetBovPrompt()">Reset to RRG default</button> <span id="bpmsg" class="sub2"></span></div>
       </div>
 
-      <h2 style="margin-top:34px">Marketing Pack Prompt <span class="sub2">— the instructions Claude follows when drafting the Confidential Information Memorandum inside a Marketing Pack. Keep the JSON output block intact so the pack still builds. Reset any time to restore the RRG default.</span></h2>
+      <h2 style="margin-top:34px" data-open="1">Marketing Pack Prompt <span class="sub2">— the instructions Claude follows when drafting the Confidential Information Memorandum inside a Marketing Pack. Keep the JSON output block intact so the pack still builds. Reset any time to restore the RRG default.</span></h2>
       <div class="links">
         <div class="sub2" id="cpstate" style="margin:0 0 8px">Loading…</div>
         <textarea id="cimPrompt" class="bovprompt" spellcheck="false"></textarea>
         <div style="margin-top:10px"><button class="primary" onclick="saveCimPrompt()">Save prompt</button> <button onclick="resetCimPrompt()">Reset to RRG default</button> <span id="cpmsg" class="sub2"></span></div>
       </div>
 
-      <h2 style="margin-top:34px">Tool Usage <span class="sub2">— what your team is using</span></h2>
+      <div class="grp">Activity &amp; Logs</div>
+      <h2 style="margin-top:20px">Tool Usage <span class="sub2">— what your team is using</span></h2>
       <div class="cols">
         <div><h3>By tool</h3><table><thead><tr><th>Tool</th><th>Opens</th></tr></thead><tbody>${toolSummary}</tbody></table></div>
         <div><h3>By user</h3><table><thead><tr><th>User</th><th>Opens</th></tr></thead><tbody>${userSummary}</tbody></table></div>
@@ -1190,12 +1199,13 @@ app.get('/admin', requireAdmin, (req, res) => {
         hs.forEach(function(h,idx){
           var body=document.createElement('div'); body.className='accbody';
           var n=h.nextElementSibling;
-          while(n && n.tagName!=='H2'){ var nx=n.nextElementSibling; body.appendChild(n); n=nx; }
+          while(n && n.tagName!=='H2' && !(n.classList && n.classList.contains('grp'))){ var nx=n.nextElementSibling; body.appendChild(n); n=nx; }
           h.after(body);
           h.classList.add('acch');
           h.insertAdjacentHTML('afterbegin','<span class="chev" aria-hidden="true">›</span>');
-          var key='rrgadm_'+idx, saved=null; try{ saved=localStorage.getItem(key); }catch(e){}
-          var open = saved===null ? (idx<2) : saved==='1';
+          var forceOpen = h.getAttribute('data-open')==='1';
+          var key='rrgadm2_'+idx, saved=null; try{ saved=localStorage.getItem(key); }catch(e){}
+          var open = saved===null ? (idx<2 || forceOpen) : saved==='1';
           if(!open){ h.classList.add('collapsed'); body.style.display='none'; }
           function set(o){ h.classList.toggle('collapsed',!o); body.style.display=o?'':'none'; try{ localStorage.setItem(key,o?'1':'0'); }catch(e){} }
           h.addEventListener('click',function(ev){ if(ev.target.closest('a,button,input,select')) return; set(h.classList.contains('collapsed')); });
