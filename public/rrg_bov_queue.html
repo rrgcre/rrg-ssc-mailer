@@ -123,7 +123,7 @@ function render(bovs){
       ? '<a class="build" href="./rrg_bov_generate.html?bov='+id+'">Build Valuation →</a>'+
         '<button class="del" onclick="del(\''+b.id+'\',this)">Delete</button>'
       : '<a href="./rrg_bov_builder.html?bov='+id+'">Open</a>'+
-        '<a class="cim" href="./rrg_cim_builder.html?bov='+id+'">Advance to CIM →</a>'+
+        '<a class="cim" href="#" onclick="advanceCim(\''+b.id+'\');return false;">Advance to CIM →</a>'+
         '<button class="del" onclick="del(\''+b.id+'\',this)">Delete</button>';
     var rev=(pending||!b.revText) ? '<span class="dim">—</span>' : '<span class="val"><span class="t">'+esc(b.revText)+'</span></span>';
     var sde=(pending||!b.sdeText) ? '<span class="dim">—</span>' : '<span class="val"><span class="t">'+esc(b.sdeText)+'</span></span>';
@@ -157,6 +157,16 @@ function del(id,btn){
   if(!confirm('Delete this valuation? This removes it from the list.')) return;
   if(btn){ btn.disabled=true; btn.textContent='Deleting…'; }
   fetch('/api/bov/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { if(btn){btn.disabled=false;btn.textContent='Delete';} alert('Could not delete.'); } }).catch(function(){ if(btn){btn.disabled=false;btn.textContent='Delete';} alert('Could not delete.'); });
+}
+// Advance a built valuation to a CIM: create/reuse the CIM record, then open the
+// Build-a-CIM screen (reuses the BOV numbers, questionnaire, and call).
+function advanceCim(bovId){
+  fetch('/api/bov/'+encodeURIComponent(bovId)+'/advance-cim',{method:'POST',credentials:'same-origin'})
+    .then(function(r){ return r.text().then(function(t){ var j=null; try{j=JSON.parse(t);}catch(e){} return {ok:r.ok,j:j}; }); })
+    .then(function(res){
+      if(res.ok && res.j && res.j.ok && res.j.cimId){ location.href='./rrg_cim_generate.html?cim='+encodeURIComponent(res.j.cimId); }
+      else { alert((res.j&&res.j.error)||'Could not advance to a CIM.'); }
+    }).catch(function(){ alert('Could not reach the server.'); });
 }
 load();
 </script>
