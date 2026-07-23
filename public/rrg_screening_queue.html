@@ -101,13 +101,6 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
     </div>
     <div class="hd hd2">
       <input id="q" class="search" placeholder="Search business, contact, or market…" oninput="paint()">
-      <span class="lbl">Sort</span>
-      <select id="sortBy" class="ufilter" onchange="paint()">
-        <option value="new">Newest first</option>
-        <option value="old">Oldest first</option>
-        <option value="biz">Business A–Z</option>
-        <option value="status">Status</option>
-      </select>
       <button class="tool" onclick="printLog()">🖨 Print</button>
       <button class="tool" onclick="exportCsv()">↓ Export CSV</button>
     </div>
@@ -117,11 +110,12 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 
+<script src="/rrg_list.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 function prettyDate(v){ v=String(v||''); var m=v.match(/^(\d{4})-(\d{2})-(\d{2})$/); return m?(m[2]+'/'+m[3]+'/'+m[1]):v; }
-var ALL=[], ME={username:'',name:'',role:''}, VIEW='waiting', CURRENT=[];
+var ALL=[], ME={username:'',name:'',role:''}, VIEW='waiting', CURRENT=[], CTL=null;
 var VIEWS=['all','waiting','advanced','passed'];
 function setView(v){ VIEW=v; VIEWS.forEach(function(x){ document.getElementById('v_'+x).classList.toggle('on',x===v); }); paint(); }
 function stateOf(s){ return s.processed?'Advanced':(s.decision==='passed'?'Rejected':'Waiting'); }
@@ -151,13 +145,7 @@ function paint(){
   else if(VIEW==='passed') list=list.filter(function(s){ return s.decision==='passed'; });
   var q=(((document.getElementById('q')||{}).value)||'').trim().toLowerCase();
   if(q) list=list.filter(function(s){ return ((s.business||'')+' '+(s.contact||'')+' '+(s.market||'')).toLowerCase().indexOf(q)>=0; });
-  var sb=((document.getElementById('sortBy')||{}).value)||'new';
-  list.sort(function(a,b){
-    if(sb==='biz') return String(a.business||'').localeCompare(String(b.business||''));
-    if(sb==='status'){ var ord={Waiting:0,Advanced:1,Rejected:2}; return (ord[stateOf(a)]||0)-(ord[stateOf(b)]||0); }
-    var ta=new Date(a.createdAt||0).getTime(), tb=new Date(b.createdAt||0).getTime();
-    return sb==='old' ? ta-tb : tb-ta;
-  });
+  list.sort(function(a,b){ return new Date(b.createdAt||0).getTime()-new Date(a.createdAt||0).getTime(); });
   CURRENT=list;
   render(list);
 }
@@ -190,6 +178,7 @@ function render(list){
   var body=document.getElementById('body'), cnt=document.getElementById('cnt');
   cnt.textContent = list.length ? (list.length+' call'+(list.length===1?'':'s')) : '';
   if(!list.length){
+    CTL=null;
     var em={
       all:['No calls logged yet.','Log your first call and it lands here.'],
       waiting:['Nothing waiting.','Every call has been rejected or advanced. Nice and clean.'],
@@ -199,33 +188,39 @@ function render(list){
     body.innerHTML='<div class="empty"><b>'+em[0]+'</b>'+em[1]+'<br><a class="np" href="./seller_screening.html">+ New Call</a></div>';
     return;
   }
-  var rows=list.map(function(s){
-    var meta=[prettyDate(s.date)||fmt(s.createdAt), s.market, s.by].filter(Boolean).map(esc).join(' · ');
-    var mid;
-    if(s.processed){
-      mid='<span class="done">✓ Advanced</span> <a href="#" onclick="advanceCall(\''+s.id+'\');return false;">Reopen</a>';
-    } else if(s.decision==='passed'){
-      mid='<span class="passed">✕ Rejected</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
-    } else {
-      var _pct=(typeof s.completePct==='number')?s.completePct:0;
-      // Incomplete → gold button opens the call in edit mode AND highlights the
-      // missing required fields (&finish=1). Complete → "Begin Questionnaire →".
-      mid=(s.completed
-            ? '<a class="adv" href="#" onclick="advanceCall(\''+s.id+'\',true);return false;">Begin Questionnaire →</a>'
-            : '<a class="adv complete" href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'&finish=1" title="'+_pct+'% of required fields done — finish to advance">'+pctRing(_pct)+'Complete Screening · '+_pct+'%</a>')
-        + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Reject</button>';
-    }
-    return '<tr data-id="'+esc(s.id)+'">'+
-      '<td><div class="biz">'+esc(s.business||'Seller')+'</div><div class="meta">'+meta+(s.contact?(' · '+esc(s.contact)):'')+'</div></td>'+
-      '<td>'+badge(s)+'</td>'+
-      '<td><div class="act">'+
-        mid+
-        '<a href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'">Edit</a>'+
-        '<button class="del" onclick="del(\''+s.id+'\',this)">Remove</button>'+
-      '</div></td>'+
-    '</tr>';
-  }).join('');
-  body.innerHTML='<table><thead><tr><th>Business</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  var cfg={
+    mount:'#body', data:list, key:'screenings', rowId:function(s){ return s.id; }, defaultSort:-1,
+    columns:[
+      { label:'Business', sort:function(a,b){ return RRGList.cmp(a.business,b.business); }, cell:function(s){
+          var meta=[prettyDate(s.date)||fmt(s.createdAt), s.market, s.by].filter(Boolean).map(esc).join(' · ');
+          return '<div class="biz">'+esc(s.business||'Seller')+'</div><div class="meta">'+meta+(s.contact?(' · '+esc(s.contact)):'')+'</div>'; } },
+      { label:'Status', sort:function(a,b){ var ord={Waiting:0,Advanced:1,Rejected:2}; return (ord[stateOf(a)]||0)-(ord[stateOf(b)]||0); }, cell:function(s){ return badge(s); } },
+      { label:'Actions', align:'right', sortable:false, cell:function(s){
+          var mid;
+          if(s.processed){
+            mid='<span class="done">✓ Advanced</span> <a href="#" onclick="advanceCall(\''+s.id+'\');return false;">Reopen</a>';
+          } else if(s.decision==='passed'){
+            mid='<span class="passed">✕ Rejected</span> <button onclick="decide(\''+s.id+'\',\'\')">Reconsider</button>';
+          } else {
+            var _pct=(typeof s.completePct==='number')?s.completePct:0;
+            mid=(s.completed
+                  ? '<a class="adv" href="#" onclick="advanceCall(\''+s.id+'\',true);return false;">Begin Questionnaire →</a>'
+                  : '<a class="adv complete" href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'&finish=1" title="'+_pct+'% of required fields done — finish to advance">'+pctRing(_pct)+'Complete Screening · '+_pct+'%</a>')
+              + '<button class="pass" onclick="decide(\''+s.id+'\',\'passed\')">Reject</button>';
+          }
+          return '<div class="act">'+mid+'<a href="./seller_screening.html?screening='+encodeURIComponent(s.id)+'">Edit</a><button class="del" onclick="del(\''+s.id+'\',this)">Remove</button></div>'; } }
+    ],
+    bulk:[ { label:'Remove selected', danger:true, fn:function(ids,done){ bulkDelScreen(ids,done); } } ]
+  };
+  if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
+}
+function bulkDelScreen(ids,done){
+  if(!confirm('Remove '+ids.length+' call'+(ids.length>1?'s':'')+' from the log?')) return;
+  var n=0; ids.forEach(function(id){
+    fetch('/api/screening/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
+      .then(function(){ if(++n===ids.length){ if(done)done(); load(); } })
+      .catch(function(){ if(++n===ids.length){ if(done)done(); load(); } });
+  });
 }
 function del(id,btn){
   if(!confirm('Remove this call from the log?')) return;

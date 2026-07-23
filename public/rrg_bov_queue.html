@@ -76,11 +76,13 @@ tr:hover td{background:#fbfcfe;}
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 
+<script src="/rrg_list.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
+function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.\-]/g,''))||0; }
 
-var ALL=[], ME={username:'',name:'',role:''}, TAB='mine';
+var ALL=[], ME={username:'',name:'',role:''}, TAB='mine', CTL=null;
 function setTab(t){ TAB=t; document.getElementById('tabMine').classList.toggle('on',t==='mine'); document.getElementById('tabAll').classList.toggle('on',t==='all'); paint(); }
 function isMine(b){ return (b.byUser && b.byUser===ME.username) || (!b.byUser && b.by && b.by===ME.name); }
 function onUserFilter(){ var uf=document.getElementById('userFilter'); if(uf.value){ setTab('all'); } else { paint(); } }
@@ -107,36 +109,43 @@ function render(bovs){
   var body=document.getElementById('body'), cnt=document.getElementById('cnt');
   cnt.textContent = bovs.length ? (bovs.length+(TAB==='mine'?' of yours':' in the pipeline')) : '';
   if(!bovs.length){
+    CTL=null;
     body.innerHTML = TAB==='mine'
       ? '<div class="empty"><b>No valuations yet.</b>They arrive here when you click <b style="display:inline">Request BOV</b> on a completed questionnaire — or switch to <b style="display:inline">All Valuations</b> to see the team’s pipeline.</div>'
       : '<div class="empty"><b>No valuations yet.</b>Open the Valuation Questionnaire log, complete a questionnaire, and click <b style="display:inline">Request BOV</b>. It’ll show up here to build, then advance to a Marketing Pack.</div>';
     return;
   }
-  var rows=bovs.map(function(b){
-    var id=encodeURIComponent(b.id);
-    var pending=!!b.pending;
-    var pill=pending?'<span class="pill pend">Requested</span>':'<span class="pill done">Built</span>';
-    var val=pending
-      ? '<span class="dim">Awaiting build</span>'
-      : '<span class="val"><span class="r">'+esc(b.rangeText||'—')+'</span><br><span class="t">'+esc(b.targetText||'')+'</span></span>';
-    var actions=pending
-      ? '<a class="build" href="./rrg_bov_generate.html?bov='+id+'">Build Valuation →</a>'+
-        '<button class="del" onclick="del(\''+b.id+'\',this)">Delete</button>'
-      : '<a href="./rrg_bov_builder.html?bov='+id+'">Open</a>'+
-        '<a class="cim" href="#" onclick="advanceCim(\''+b.id+'\');return false;">Advance to Marketing Pack →</a>'+
-        '<button class="del" onclick="del(\''+b.id+'\',this)">Delete</button>';
-    var rev=(pending||!b.revText) ? '<span class="dim">—</span>' : '<span class="val"><span class="t">'+esc(b.revText)+'</span></span>';
-    var sde=(pending||!b.sdeText) ? '<span class="dim">—</span>' : '<span class="val"><span class="t">'+esc(b.sdeText)+'</span></span>';
-    var adj=(pending||!(b.adjText||b.ebitdaText)) ? '' : ('Adj. EBITDA '+esc(b.adjText||b.ebitdaText||''));
-    return '<tr>'+
-      '<td><div class="biz">'+esc(b.business||'Untitled')+pill+'</div><div class="meta">'+esc(pending?('Requested '+fmt(b.createdAt)):('Built '+fmt(b.builtAt||b.createdAt)))+(b.by?(' · '+esc(b.by)):'')+'</div></td>'+
-      '<td class="hide">'+rev+'</td>'+
-      '<td class="hide">'+sde+'</td>'+
-      '<td class="hide">'+val+'</td>'+
-      '<td class="hide dim">'+(pending?'':(esc(b.multText||'')+'<br>'+adj))+'</td>'+
-      '<td><div class="act">'+actions+'</div></td></tr>';
-  }).join('');
-  body.innerHTML='<table><thead><tr><th>Business</th><th class="hide">Revenue</th><th class="hide">SDE</th><th class="hide">Concluded Range / Target</th><th class="hide">Multiple / Adj. EBITDA</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  var cfg={
+    mount:'#body', data:bovs, key:'bovs', rowId:function(b){ return b.id; }, defaultSort:0, defaultDir:1,
+    columns:[
+      { label:'Business', sort:function(a,b){ return RRGList.cmp(a.business,b.business); }, cell:function(b){
+          var pending=!!b.pending; var pill=pending?'<span class="pill pend">Requested</span>':'<span class="pill done">Built</span>';
+          return '<div class="biz">'+esc(b.business||'Untitled')+pill+'</div><div class="meta">'+esc(pending?('Requested '+fmt(b.createdAt)):('Built '+fmt(b.builtAt||b.createdAt)))+(b.by?(' · '+esc(b.by)):'')+'</div>'; } },
+      { label:'Revenue', cls:'hide', sort:function(a,b){ return num(a.revText)-num(b.revText); }, cell:function(b){
+          return (b.pending||!b.revText)?'<span class="dim">—</span>':'<span class="val"><span class="t">'+esc(b.revText)+'</span></span>'; } },
+      { label:'SDE', cls:'hide', sort:function(a,b){ return num(a.sdeText)-num(b.sdeText); }, cell:function(b){
+          return (b.pending||!b.sdeText)?'<span class="dim">—</span>':'<span class="val"><span class="t">'+esc(b.sdeText)+'</span></span>'; } },
+      { label:'Concluded Range / Target', cls:'hide', sort:function(a,b){ return num(a.targetText)-num(b.targetText); }, cell:function(b){
+          return b.pending?'<span class="dim">Awaiting build</span>':'<span class="val"><span class="r">'+esc(b.rangeText||'—')+'</span><br><span class="t">'+esc(b.targetText||'')+'</span></span>'; } },
+      { label:'Multiple / Adj. EBITDA', cls:'hide', sort:function(a,b){ return num(a.multText)-num(b.multText); }, cell:function(b){
+          if(b.pending) return '<span class="dim"></span>'; var adj=(b.adjText||b.ebitdaText)?('Adj. EBITDA '+esc(b.adjText||b.ebitdaText||'')):''; return '<span class="dim">'+esc(b.multText||'')+'<br>'+adj+'</span>'; } },
+      { label:'Actions', align:'right', sortable:false, cell:function(b){
+          var id=encodeURIComponent(b.id);
+          return '<div class="act">'+(b.pending
+            ? '<a class="build" href="./rrg_bov_generate.html?bov='+id+'">Build Valuation →</a><button class="del" onclick="del(\''+b.id+'\',this)">Delete</button>'
+            : '<a href="./rrg_bov_builder.html?bov='+id+'">Open</a><a class="cim" href="#" onclick="advanceCim(\''+b.id+'\');return false;">Advance to Marketing Pack →</a><button class="del" onclick="del(\''+b.id+'\',this)">Delete</button>')+'</div>'; } }
+    ],
+    bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelBovs(ids,done); } } ]
+  };
+  if(CTL) CTL.refresh(bovs); else CTL=RRGList.create(cfg);
+}
+function bulkDelBovs(ids,done){
+  if(!confirm('Delete '+ids.length+' valuation'+(ids.length>1?'s':'')+'? This removes them from the list.')) return;
+  var n=0; ids.forEach(function(id){
+    fetch('/api/bov/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
+      .then(function(){ if(++n===ids.length){ if(done)done(); load(); } })
+      .catch(function(){ if(++n===ids.length){ if(done)done(); load(); } });
+  });
 }
 
 function load(){

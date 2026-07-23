@@ -100,13 +100,6 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
     </div>
     <div class="hd hd2">
       <input id="q" class="search" placeholder="Search business or market…" oninput="paint()">
-      <span class="lbl">Sort</span>
-      <select id="sortBy" class="ufilter" onchange="paint()">
-        <option value="new">Newest first</option>
-        <option value="old">Oldest first</option>
-        <option value="biz">Business A–Z</option>
-        <option value="status">Status</option>
-      </select>
       <button class="tool" onclick="printLog()">🖨 Print</button>
       <button class="tool" onclick="exportCsv()">↓ Export CSV</button>
     </div>
@@ -116,10 +109,11 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 
+<script src="/rrg_list.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
-var ALL=[], ME={username:'',name:'',role:''}, VIEW='waiting', CURRENT=[];
+var ALL=[], ME={username:'',name:'',role:''}, VIEW='waiting', CURRENT=[], CTL=null;
 var VIEWS=['all','waiting','advanced','passed'];
 function setView(v){ VIEW=v; VIEWS.forEach(function(x){ document.getElementById('v_'+x).classList.toggle('on',x===v); }); paint(); }
 function stateOf(s){ return s.processed?'Advanced':(s.decision==='passed'?'Rejected':'Waiting'); }
@@ -141,13 +135,6 @@ function paint(){
   else if(VIEW==='passed') list=list.filter(function(s){ return s.decision==='passed'; });
   var q=(((document.getElementById('q')||{}).value)||'').trim().toLowerCase();
   if(q) list=list.filter(function(s){ return ((s.business||'')+' '+(s.contact||'')+' '+(s.market||'')).toLowerCase().indexOf(q)>=0; });
-  var sb=((document.getElementById('sortBy')||{}).value)||'new';
-  list.sort(function(a,b){
-    if(sb==='biz') return String(a.business||'').localeCompare(String(b.business||''));
-    if(sb==='status'){ var ord={Waiting:0,Advanced:1,Rejected:2}; return (ord[stateOf(a)]||0)-(ord[stateOf(b)]||0); }
-    var ta=new Date(a.createdAt||0).getTime(), tb=new Date(b.createdAt||0).getTime();
-    return sb==='old' ? ta-tb : tb-ta;
-  });
   CURRENT=list;
   render(list);
 }
@@ -180,6 +167,7 @@ function render(list){
   var body=document.getElementById('body'), cnt=document.getElementById('cnt');
   cnt.textContent = list.length ? (list.length+' questionnaire'+(list.length===1?'':'s')) : '';
   if(!list.length){
+    CTL=null;
     var em={
       all:['No questionnaires yet.','They arrive here when you advance a qualified call from the Seller Qualification Call log.'],
       waiting:['Nothing waiting.','Advance a qualified call and it lands here to complete.'],
@@ -189,39 +177,38 @@ function render(list){
     body.innerHTML='<div class="empty"><b>'+em[0]+'</b>'+em[1]+'<br><a class="np" href="./rrg_screening_queue.html">Open the Call Log →</a></div>';
     return;
   }
-  var rows=list.map(function(s){
-    var meta=[s.market, s.by].filter(Boolean).map(esc).join(' · ');
-    // Gold "Questionnaire" (opens the form to complete it — gold while it still
-    // needs work, neutral once complete) plus a "Request BOV" action. Request BOV
-    // stays available even after a prior request: each click creates a new
-    // valuation record, so you can request a business more than once.
-    var qbtn = s.completed
-      ? '<a href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Questionnaire</a>'
-      : '<a class="adv complete" href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Questionnaire</a>';
-    // ONE valuation per questionnaire. Once a valuation exists (processed), the
-    // Request BOV button is dimmed and disabled — the valuation lives in
-    // Business Valuations. To redo it, delete it there (which reverts this row
-    // to Waiting) and the Request BOV button re-enables.
-    var mid = qbtn;
-    if(s.processed){
-      mid += '<button class="adv" disabled title="A valuation already exists — delete it in Business Valuations to request a new one." style="opacity:.4;cursor:not-allowed">Request BOV</button>';
-      mid += '<a href="./rrg_bov_queue.html">View in Business Valuations →</a>';
-    } else {
-      // Clickable even when incomplete — clicking an incomplete one advises the
-      // rep and highlights the missing required fields (see requestBov).
-      mid += '<button class="adv" onclick="requestBov(\''+s.id+'\',this)">Request BOV</button>';
-    }
-    return '<tr data-id="'+esc(s.id)+'">'+
-      '<td><div class="biz">'+esc(s.business||'Business')+'</div><div class="meta">'+meta+'</div></td>'+
-      '<td class="meta">'+esc(fmt(s.createdAt))+'</td>'+
-      '<td>'+badge(s)+'</td>'+
-      '<td><div class="act">'+
-        mid+
-        '<button class="del" onclick="del(\''+s.id+'\',this)">Delete</button>'+
-      '</div></td>'+
-    '</tr>';
-  }).join('');
-  body.innerHTML='<table><thead><tr><th>Business</th><th>Advanced</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead><tbody>'+rows+'</tbody></table>';
+  var cfg={
+    mount:'#body', data:list, key:'questionnaires', rowId:function(s){ return s.id; }, defaultSort:1, defaultDir:-1,
+    columns:[
+      { label:'Business', sort:function(a,b){ return RRGList.cmp(a.business,b.business); }, cell:function(s){
+          var meta=[s.market, s.by].filter(Boolean).map(esc).join(' · ');
+          return '<div class="biz">'+esc(s.business||'Business')+'</div><div class="meta">'+meta+'</div>'; } },
+      { label:'Advanced', sort:function(a,b){ return RRGList.cmp(a.createdAt,b.createdAt); }, cell:function(s){ return '<span class="meta">'+esc(fmt(s.createdAt))+'</span>'; } },
+      { label:'Status', sort:function(a,b){ var ord={Waiting:0,Advanced:1,Rejected:2}; return (ord[stateOf(a)]||0)-(ord[stateOf(b)]||0); }, cell:function(s){ return badge(s); } },
+      { label:'Actions', align:'right', sortable:false, cell:function(s){
+          var qbtn = s.completed
+            ? '<a href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Questionnaire</a>'
+            : '<a class="adv complete" href="./valuation_questionnaire.html?q='+encodeURIComponent(s.id)+'">Questionnaire</a>';
+          var mid = qbtn;
+          if(s.processed){
+            mid += '<button class="adv" disabled title="A valuation already exists — delete it in Business Valuations to request a new one." style="opacity:.4;cursor:not-allowed">Request BOV</button>';
+            mid += '<a href="./rrg_bov_queue.html">View in Business Valuations →</a>';
+          } else {
+            mid += '<button class="adv" onclick="requestBov(\''+s.id+'\',this)">Request BOV</button>';
+          }
+          return '<div class="act">'+mid+'<button class="del" onclick="del(\''+s.id+'\',this)">Delete</button></div>'; } }
+    ],
+    bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelQ(ids,done); } } ]
+  };
+  if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
+}
+function bulkDelQ(ids,done){
+  if(!confirm('Delete '+ids.length+' questionnaire'+(ids.length>1?'s':'')+'? This removes them from the log.')) return;
+  var n=0; ids.forEach(function(id){
+    fetch('/api/questionnaire/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
+      .then(function(){ if(++n===ids.length){ if(done)done(); load(); } })
+      .catch(function(){ if(++n===ids.length){ if(done)done(); load(); } });
+  });
 }
 function del(id,btn){
   if(!confirm('Delete this questionnaire? This removes it from the log.')) return;
