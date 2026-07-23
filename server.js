@@ -82,6 +82,10 @@ function saveAssetSaleFloor(n) { let v = Number(n); if (!isFinite(v) || v < 0) v
 const DEFAULT_ASSET_SALE_MESSAGE = "This business has little or no going-concern value — trailing owner’s earnings (SDE) fall at or below the asset-sale floor. It is best marketed as an ASSET SALE: the price reflects the tangible assets (equipment, leasehold improvements, a transferable or below-market lease, and any liquor / other licenses), not a multiple of earnings. Process it as an asset sale, not a going-concern listing.";
 function loadAssetSaleMessage() { const m = loadCfg().assetSaleMessage; return (typeof m === 'string' && m.trim()) ? m : DEFAULT_ASSET_SALE_MESSAGE; }
 function saveAssetSaleMessage(t) { saveCfg({ assetSaleMessage: String(t == null ? '' : t).slice(0, 2000) }); }
+// Which build-ambience sound plays during a BOV build (id from rrg_ambience.js).
+const DEFAULT_AMBIENCE_ID = 'orb';
+function loadAmbienceId() { const m = loadCfg().ambienceId; return (typeof m === 'string' && m.trim()) ? m.slice(0, 32) : DEFAULT_AMBIENCE_ID; }
+function saveAmbienceId(t) { saveCfg({ ambienceId: String(t == null ? '' : t).trim().slice(0, 32) || DEFAULT_AMBIENCE_ID }); }
 // When a valuation questionnaire is advanced ("Request BOV"), drop a fresh
 // "waiting BOV" into the queue — the same pattern as advancing a seller call.
 // Each request creates a NEW valuation record, so a business can be valued more
@@ -978,6 +982,12 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveAssetSaleMessage()">Save message</button> <button onclick="resetAssetSaleMessage()">Reset to default</button> <span id="asmmsg" class="sub2"></span></div>
       </div>
 
+      <h2 style="margin-top:34px">Build Sound <span class="sub2">— the ambience that plays while a BOV builds. Tap Preview to sample, pick one, then Save.</span></h2>
+      <div class="links">
+        <div id="soundList"></div>
+        <div style="margin-top:10px"><button class="primary" onclick="saveAmbience()">Save sound</button> <button onclick="stopPreview()">Stop preview</button> <span id="sndmsg" class="sub2"></span></div>
+      </div>
+
       <h2 style="margin-top:34px">BOV Analyst Prompt <span class="sub2">— the instructions Claude follows when drafting a BOV. Edit to change how valuations are written; keep the JSON output block at the end intact so the BOV still builds. Reset any time to restore the RRG default.</span></h2>
       <div class="links">
         <div class="sub2" id="bpstate" style="margin:0 0 8px">Loading…</div>
@@ -995,6 +1005,7 @@ app.get('/admin', requireAdmin, (req, res) => {
       <h2 style="margin-top:34px">Login Activity <span class="sub2">— newest first, last 300</span></h2>
       <table><thead><tr><th>When (CT)</th><th>Username</th><th>Result</th><th>IP</th></tr></thead><tbody>${lrows}</tbody></table>
     </div>
+    <script src="/rrg_ambience.js"></script>
     <script>
       function post(action, data){ return fetch(action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json()); }
       function au(f){ post('/api/admin/add-user',{firstName:f.firstName.value,lastName:f.lastName.value,username:f.username.value,email:f.email.value,password:f.password.value,role:f.role.value,title:f.title.value,phone:f.phone.value}).then(j=>{ if(j.ok){location.reload();} else alert(j.error||'Failed'); }); return false; }
@@ -1008,7 +1019,19 @@ app.get('/admin', requireAdmin, (req, res) => {
       loadBovPrompt();
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
       var INTRO_DEFAULT_MSG='';
-      function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); var is=document.getElementById('introSeconds'); if(is) is.value=(j.introSeconds!=null?j.introSeconds:10); INTRO_DEFAULT_MSG=j.defaultIntroMessage||''; var im=document.getElementById('introMessage'); if(im) im.value=j.introMessage||''; var ds=document.getElementById('doneSeconds'); if(ds) ds.value=(j.doneSeconds!=null?j.doneSeconds:2); var nt=document.getElementById('noTtmMessage'); if(nt) nt.value=j.noTtmMessage||''; var af=document.getElementById('assetSaleFloor'); if(af) af.value=fmtNum(j.assetSaleFloor!=null?j.assetSaleFloor:25000); var am=document.getElementById('assetSaleMessage'); if(am) am.value=j.assetSaleMessage||''; } }); }
+      function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); var is=document.getElementById('introSeconds'); if(is) is.value=(j.introSeconds!=null?j.introSeconds:10); INTRO_DEFAULT_MSG=j.defaultIntroMessage||''; var im=document.getElementById('introMessage'); if(im) im.value=j.introMessage||''; var ds=document.getElementById('doneSeconds'); if(ds) ds.value=(j.doneSeconds!=null?j.doneSeconds:2); var nt=document.getElementById('noTtmMessage'); if(nt) nt.value=j.noTtmMessage||''; var af=document.getElementById('assetSaleFloor'); if(af) af.value=fmtNum(j.assetSaleFloor!=null?j.assetSaleFloor:25000); var am=document.getElementById('assetSaleMessage'); if(am) am.value=j.assetSaleMessage||''; renderSounds(j.ambienceId||'orb'); } }); }
+      // ----- Build-sound picker (uses the shared RRG_AMBIENCE library) -----
+      function renderSounds(sel){ var el=document.getElementById('soundList'); if(!el||!window.RRG_AMBIENCE) return;
+        el.innerHTML=RRG_AMBIENCE.sounds.map(function(s){ return '<label style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid #eef1f6">'
+          +'<input type="radio" name="ambience" value="'+s.id+'"'+(s.id===sel?' checked':'')+'>'
+          +'<span style="flex:1"><b style="color:#0b1a3a">'+s.name+'</b> <span class="sub2">— '+s.desc+'</span></span>'
+          +'<button type="button" class="prevbtn" data-id="'+s.id+'" onclick="togglePreview(\''+s.id+'\',this)" style="border:1px solid #cfd6e2;background:#fff;border-radius:8px;padding:6px 13px;font:inherit;font-size:12.5px;font-weight:700;color:#0b1a3a;cursor:pointer">Preview</button>'
+          +'</label>'; }).join(''); }
+      var PREV=null;
+      function stopPreview(){ if(!PREV) return; var P=PREV; PREV=null; try{ var t=P.ctx.currentTime; P.master.gain.cancelScheduledValues(t); P.master.gain.setValueAtTime(Math.max(P.master.gain.value,0.0001),t); P.master.gain.exponentialRampToValueAtTime(0.0001,t+0.4); }catch(e){} if(P.timer) clearTimeout(P.timer); if(P.handle&&P.handle.stop) P.handle.stop(); setTimeout(function(){ try{ P.ctx.close(); }catch(e){} }, 1300); var all=document.querySelectorAll('#soundList .prevbtn'); for(var i=0;i<all.length;i++) all[i].textContent='Preview'; }
+      function previewSound(id, btn){ stopPreview(); try{ var C=window.AudioContext||window.webkitAudioContext; var ctx=new C(); if(ctx.state==='suspended') ctx.resume(); var master=ctx.createGain(); master.gain.value=0.0001; master.connect(ctx.destination); master.gain.exponentialRampToValueAtTime(0.09, ctx.currentTime+0.6); var handle=RRG_AMBIENCE.play(ctx, master, id); var timer=setTimeout(stopPreview, 9000); PREV={ctx:ctx, master:master, handle:handle, timer:timer, id:id}; if(btn) btn.textContent='◼ Stop'; }catch(e){} }
+      function togglePreview(id, btn){ if(PREV && PREV.id===id){ stopPreview(); } else { previewSound(id, btn); } }
+      function saveAmbience(){ var r=document.querySelector('#soundList input[name=ambience]:checked'); var id=r?r.value:'orb'; var m=document.getElementById('sndmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{ambienceId:id}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — plays on the next build'; } else m.textContent=(j&&j.error)||'Failed'; }); }
       function saveDoneSeconds(){ var v=(document.getElementById('doneSeconds').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('dsmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{doneSeconds:v}).then(function(j){ if(j&&j.ok){ document.getElementById('doneSeconds').value=(j.doneSeconds!=null?j.doneSeconds:2); m.textContent='Saved — '+j.doneSeconds+'s ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
       function saveNoTtmMessage(){ var v=document.getElementById('noTtmMessage').value||''; var m=document.getElementById('ntmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{noTtmMessage:v}).then(function(j){ if(j&&j.ok){ document.getElementById('noTtmMessage').value=j.noTtmMessage||''; m.textContent='Saved ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
       function resetNoTtmMessage(){ if(!confirm('Reset the no-TTM notice to the RRG default?')) return; var m=document.getElementById('ntmsg'); m.textContent='Resetting…'; post('/api/admin/bov-config',{noTtmMessage:''}).then(function(j){ if(j&&j.ok){ document.getElementById('noTtmMessage').value=j.noTtmMessage||''; m.textContent='Reset to default ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
@@ -1081,8 +1104,8 @@ app.post('/api/admin/bov-prompt', requireAdmin, (req, res) => {
 });
 // SDE-vs-EBITDA revenue threshold. Admins read/write; any signed-in user (the
 // BOV builder) can read it to compute the basis client-side.
-app.get('/api/bov-config', (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD, introSeconds: loadIntroSeconds(), defaultIntroSeconds: DEFAULT_INTRO_SECONDS, introMessage: loadIntroMessage(), doneSeconds: loadDoneSeconds(), defaultDoneSeconds: DEFAULT_DONE_SECONDS, noTtmMessage: loadNoTtmMessage(), assetSaleFloor: loadAssetSaleFloor(), assetSaleMessage: loadAssetSaleMessage() }));
-app.get('/api/admin/bov-config', requireAdmin, (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD, introSeconds: loadIntroSeconds(), defaultIntroSeconds: DEFAULT_INTRO_SECONDS, introMessage: loadIntroMessage(), defaultIntroMessage: DEFAULT_INTRO_MESSAGE, doneSeconds: loadDoneSeconds(), defaultDoneSeconds: DEFAULT_DONE_SECONDS, noTtmMessage: loadNoTtmMessage(), defaultNoTtmMessage: DEFAULT_NO_TTM_MESSAGE, assetSaleFloor: loadAssetSaleFloor(), defaultAssetSaleFloor: DEFAULT_ASSET_SALE_FLOOR, assetSaleMessage: loadAssetSaleMessage(), defaultAssetSaleMessage: DEFAULT_ASSET_SALE_MESSAGE }));
+app.get('/api/bov-config', (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD, introSeconds: loadIntroSeconds(), defaultIntroSeconds: DEFAULT_INTRO_SECONDS, introMessage: loadIntroMessage(), doneSeconds: loadDoneSeconds(), defaultDoneSeconds: DEFAULT_DONE_SECONDS, noTtmMessage: loadNoTtmMessage(), assetSaleFloor: loadAssetSaleFloor(), assetSaleMessage: loadAssetSaleMessage(), ambienceId: loadAmbienceId() }));
+app.get('/api/admin/bov-config', requireAdmin, (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD, introSeconds: loadIntroSeconds(), defaultIntroSeconds: DEFAULT_INTRO_SECONDS, introMessage: loadIntroMessage(), defaultIntroMessage: DEFAULT_INTRO_MESSAGE, doneSeconds: loadDoneSeconds(), defaultDoneSeconds: DEFAULT_DONE_SECONDS, noTtmMessage: loadNoTtmMessage(), defaultNoTtmMessage: DEFAULT_NO_TTM_MESSAGE, assetSaleFloor: loadAssetSaleFloor(), defaultAssetSaleFloor: DEFAULT_ASSET_SALE_FLOOR, assetSaleMessage: loadAssetSaleMessage(), defaultAssetSaleMessage: DEFAULT_ASSET_SALE_MESSAGE, ambienceId: loadAmbienceId() }));
 app.post('/api/admin/bov-config', requireAdmin, (req, res) => {
   const b = req.body || {};
   // All fields optional — update whichever is supplied.
@@ -1120,7 +1143,8 @@ app.post('/api/admin/bov-config', requireAdmin, (req, res) => {
     const t = String(b.assetSaleMessage).trim();
     if (t === '') saveCfg({ assetSaleMessage: '' }); else saveAssetSaleMessage(t);
   }
-  res.json({ ok: true, sdeThreshold: loadSdeThreshold(), introSeconds: loadIntroSeconds(), introMessage: loadIntroMessage(), doneSeconds: loadDoneSeconds(), noTtmMessage: loadNoTtmMessage(), assetSaleFloor: loadAssetSaleFloor(), assetSaleMessage: loadAssetSaleMessage() });
+  if (b.ambienceId != null && String(b.ambienceId).trim() !== '') saveAmbienceId(b.ambienceId);
+  res.json({ ok: true, sdeThreshold: loadSdeThreshold(), introSeconds: loadIntroSeconds(), introMessage: loadIntroMessage(), doneSeconds: loadDoneSeconds(), noTtmMessage: loadNoTtmMessage(), assetSaleFloor: loadAssetSaleFloor(), assetSaleMessage: loadAssetSaleMessage(), ambienceId: loadAmbienceId() });
 });
 app.get('/admin/logins.csv', requireAdmin, (_req, res) => {
   const fs = require('fs');
