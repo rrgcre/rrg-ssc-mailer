@@ -42,6 +42,7 @@ Rules:
 - The cover stats and all financial figures MUST equal the BOV's concluded figures — same revenue, same adjusted earnings, same basis. If the BOV is SDE-basis, present SDE; if Adjusted EBITDA, present that.
 - Match the sample's tone: section intros are 1-2 tight paragraphs; card bodies are 2-3 sentences; risk items are honest and framed as underwritable, never disqualifying.
 - Write for a buyer. Sell the strengths, present the risks as transparency, and make the go-to-market posture clear.
+- TEXAS LIQUOR LICENSE — NO VALUE (except San Marcos). Never present a Texas liquor license / TABC permit as a value-bearing asset or a source of purchase-price value. In Texas a liquor license has no separate resale or transfer value — the ONE exception is a business located in San Marcos, Texas, where it does carry transferable value and may be described as such. Everywhere else in Texas, do not imply the license adds to the price; you may note it transfers with the business as an operational item, but not as value. Only for a San Marcos business may the license be framed as having value.
 - Output the JSON object only.`;
 
 function isSafeUrl(u) { try { const p = new URL(u); return (p.protocol === 'http:' || p.protocol === 'https:'); } catch (e) { return false; } }
