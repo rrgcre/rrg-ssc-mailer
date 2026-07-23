@@ -1358,8 +1358,9 @@ app.get('/admin', requireAdmin, (req, res) => {
           +'<b style="flex:1;color:#0b1a3a;font-size:13.5px">'+docEsc(d.title)+'</b>'
           +'<span class="sub2">'+docEsc(d.type||d.category||'')+'</span>'
           +'<a href="/doc/'+docEsc(d.id)+'.'+docEsc(d.ext)+'" target="_blank" rel="noopener" style="border:1px solid #cfd6e2;background:#fff;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;color:#0b1a3a;text-decoration:none">Open</a>'
-          +'<button onclick="delDoc(\''+docEsc(d.id)+'\')" style="border:1px solid #f0cfca;background:#fff5f4;border-radius:7px;padding:5px 12px;font:inherit;font-size:12px;font-weight:700;color:#DA2B1F;cursor:pointer">Delete</button>'
-          +'</div>'; }).join(''); }
+          +'<button type="button" class="docdel" data-id="'+docEsc(d.id)+'" style="border:1px solid #f0cfca;background:#fff5f4;border-radius:7px;padding:5px 12px;font:inherit;font-size:12px;font-weight:700;color:#DA2B1F;cursor:pointer">Delete</button>'
+          +'</div>'; }).join('');
+        [].slice.call(el.querySelectorAll('.docdel')).forEach(function(b){ b.onclick=function(){ delDoc(b.getAttribute('data-id')); }; }); }
       function loadDocList(){ fetch('/api/admin/documents').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) renderDocList(j.documents||[]); }).catch(function(){}); }
       function uploadDoc(){ var fi=document.getElementById('docFile'), f=fi&&fi.files&&fi.files[0], m=document.getElementById('docmsg');
         if(!f){ m.textContent='Choose a file first.'; return; }
