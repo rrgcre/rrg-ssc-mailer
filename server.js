@@ -9,6 +9,7 @@ const { sendSsc } = require('./mailer.js');
 const store = require('./store.js');
 const auth = require('./auth.js');
 const bovgen = require('./bovgen.js');
+const cimgen = require('./cimgen.js');
 const valgen = require('./valgen.js');
 
 const fs = require('fs');
@@ -31,6 +32,11 @@ const BOV_PROMPT_FILE = path.join(BOV_DATA_DIR, 'bov_prompt.txt');
 function loadBovPromptCustom() { try { const t = fs.readFileSync(BOV_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
 function saveBovPromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BOV_PROMPT_FILE, String(t)); } catch (e) {} }
 function clearBovPromptCustom() { try { fs.unlinkSync(BOV_PROMPT_FILE); } catch (e) {} }
+// Admin-editable CIM prompt (mirrors the BOV prompt).
+const CIM_PROMPT_FILE = path.join(BOV_DATA_DIR, 'cim_prompt.txt');
+function loadCimPromptCustom() { try { const t = fs.readFileSync(CIM_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
+function saveCimPromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(CIM_PROMPT_FILE, String(t)); } catch (e) {} }
+function clearCimPromptCustom() { try { fs.unlinkSync(CIM_PROMPT_FILE); } catch (e) {} }
 // ---- BOV / app config (admin-editable) ----
 const BOV_CONFIG_FILE = path.join(BOV_DATA_DIR, 'bov_config.json');
 const DEFAULT_SDE_THRESHOLD = 1200000;
@@ -995,6 +1001,13 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveBovPrompt()">Save prompt</button> <button onclick="resetBovPrompt()">Reset to RRG default</button> <span id="bpmsg" class="sub2"></span></div>
       </div>
 
+      <h2 style="margin-top:34px">CIM Prompt <span class="sub2">— the instructions Claude follows when drafting a Confidential Information Memorandum. Keep the JSON output block intact so the CIM still builds. Reset any time to restore the RRG default.</span></h2>
+      <div class="links">
+        <div class="sub2" id="cpstate" style="margin:0 0 8px">Loading…</div>
+        <textarea id="cimPrompt" class="bovprompt" spellcheck="false"></textarea>
+        <div style="margin-top:10px"><button class="primary" onclick="saveCimPrompt()">Save prompt</button> <button onclick="resetCimPrompt()">Reset to RRG default</button> <span id="cpmsg" class="sub2"></span></div>
+      </div>
+
       <h2 style="margin-top:34px">Tool Usage <span class="sub2">— what your team is using</span></h2>
       <div class="cols">
         <div><h3>By tool</h3><table><thead><tr><th>Tool</th><th>Opens</th></tr></thead><tbody>${toolSummary}</tbody></table></div>
@@ -1017,6 +1030,11 @@ app.get('/admin', requireAdmin, (req, res) => {
       function saveBovPrompt(){ var v=document.getElementById('bovPrompt').value; var m=document.getElementById('bpmsg'); m.textContent='Saving…'; post('/api/admin/bov-prompt',{prompt:v}).then(function(j){ if(j.ok){ m.textContent = j.isDefault ? 'Saved — matches the default, so the default is in use ✓' : 'Saved custom prompt ✓'; document.getElementById('bovPrompt').value=j.prompt||v; _bpState(j.isDefault); } else m.textContent=j.error||'Failed'; }); }
       function resetBovPrompt(){ if(!confirm('Reset the BOV prompt to the RRG default? Your custom prompt will be discarded.')) return; post('/api/admin/bov-prompt',{reset:true}).then(function(j){ if(j.ok){ document.getElementById('bovPrompt').value=j.prompt||''; document.getElementById('bpmsg').textContent='Reset to default ✓'; _bpState(true); } }); }
       loadBovPrompt();
+      function _cpState(isDefault){ var s=document.getElementById('cpstate'); if(s) s.textContent = isDefault ? 'Currently using the RRG default CIM prompt.' : 'Currently using a custom CIM prompt.'; }
+      function loadCimPrompt(){ fetch('/api/admin/cim-prompt').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('cimPrompt').value=j.prompt||''; _cpState(j.isDefault); } }).catch(function(){ var s=document.getElementById('cpstate'); if(s) s.textContent='Could not load the prompt.'; }); }
+      function saveCimPrompt(){ var v=document.getElementById('cimPrompt').value; var m=document.getElementById('cpmsg'); m.textContent='Saving…'; post('/api/admin/cim-prompt',{prompt:v}).then(function(j){ if(j.ok){ m.textContent = j.isDefault ? 'Saved — matches the default ✓' : 'Saved custom prompt ✓'; document.getElementById('cimPrompt').value=j.prompt||v; _cpState(j.isDefault); } else m.textContent=j.error||'Failed'; }); }
+      function resetCimPrompt(){ if(!confirm('Reset the CIM prompt to the RRG default? Your custom prompt will be discarded.')) return; post('/api/admin/cim-prompt',{reset:true}).then(function(j){ if(j.ok){ document.getElementById('cimPrompt').value=j.prompt||''; document.getElementById('cpmsg').textContent='Reset to default ✓'; _cpState(true); } }); }
+      loadCimPrompt();
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
       var INTRO_DEFAULT_MSG='';
       function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); var is=document.getElementById('introSeconds'); if(is) is.value=(j.introSeconds!=null?j.introSeconds:10); INTRO_DEFAULT_MSG=j.defaultIntroMessage||''; var im=document.getElementById('introMessage'); if(im) im.value=j.introMessage||j.defaultIntroMessage||''; var ds=document.getElementById('doneSeconds'); if(ds) ds.value=(j.doneSeconds!=null?j.doneSeconds:2); var nt=document.getElementById('noTtmMessage'); if(nt) nt.value=j.noTtmMessage||j.defaultNoTtmMessage||''; var af=document.getElementById('assetSaleFloor'); if(af) af.value=fmtNum(j.assetSaleFloor!=null?j.assetSaleFloor:(j.defaultAssetSaleFloor!=null?j.defaultAssetSaleFloor:25000)); var am=document.getElementById('assetSaleMessage'); if(am) am.value=j.assetSaleMessage||j.defaultAssetSaleMessage||''; renderSounds(j.ambienceId||'orb'); } }); }
@@ -1100,6 +1118,20 @@ app.post('/api/admin/bov-prompt', requireAdmin, (req, res) => {
   // Blank, or identical to the default, means "just use the default".
   if (!p || p === def.trim()) { clearBovPromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
   saveBovPromptCustom(p);
+  res.json({ ok: true, prompt: p, isDefault: false });
+});
+// CIM prompt — mirror of the BOV prompt routes.
+app.get('/api/admin/cim-prompt', requireAdmin, (req, res) => {
+  const custom = loadCimPromptCustom();
+  res.json({ ok: true, prompt: custom || cimgen.DEFAULT_SYSTEM, isDefault: !custom });
+});
+app.post('/api/admin/cim-prompt', requireAdmin, (req, res) => {
+  const b = req.body || {};
+  const def = String(cimgen.DEFAULT_SYSTEM || '');
+  if (b.reset) { clearCimPromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
+  const p = String(b.prompt || '').trim();
+  if (!p || p === def.trim()) { clearCimPromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
+  saveCimPromptCustom(p);
   res.json({ ok: true, prompt: p, isDefault: false });
 });
 // SDE-vs-EBITDA revenue threshold. Admins read/write; any signed-in user (the
