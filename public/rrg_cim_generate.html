@@ -44,9 +44,58 @@ input:focus{outline:none;border-color:var(--red);}
 .mt{font-size:17px;font-weight:800;color:var(--navy);} .mm{font-size:13px;color:var(--muted);line-height:1.55;margin-top:8px;}
 .mtimer{margin-top:14px;font-size:13px;font-weight:800;color:var(--navy);}
 .mmute{margin-top:14px;display:inline-flex;gap:6px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;border:1px solid var(--line);border-radius:100px;padding:6px 14px;}
+.packintro{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:24px;background:radial-gradient(120% 130% at 30% 10%, #16264e 0%, #0d1a3a 55%, #070f26 100%);}
+.packintro.show{display:flex;}
+.packintro .pcard{max-width:600px;width:100%;}
+.packintro .kick{color:#DA2B1F;font-weight:800;letter-spacing:.28em;font-size:11px;text-transform:uppercase;margin-bottom:12px;}
+.packintro h2{font-size:29px;font-weight:800;margin:0 0 14px;letter-spacing:-.01em;color:#fff;}
+.packintro p{font-size:14.5px;line-height:1.6;color:#cdd6ea;margin:0 0 12px;}
+.packintro ul{margin:2px 0 20px;padding:0;list-style:none;}
+.packintro li{font-size:13.5px;color:#e6ecfa;padding:8px 0 8px 26px;position:relative;border-top:1px solid rgba(255,255,255,.09);line-height:1.5;}
+.packintro li:before{content:'✓';position:absolute;left:0;top:8px;color:#DA2B1F;font-weight:800;}
+.packintro .row{display:flex;align-items:center;gap:18px;margin-top:6px;flex-wrap:wrap;}
+.packintro .skip{background:#DA2B1F;color:#fff;border:none;border-radius:10px;padding:13px 26px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;}
+.packintro .skip:hover{background:#b8241a;}
+.packintro .count{color:#9fb0cc;font-size:13px;font-weight:600;font-variant-numeric:tabular-nums;}
 </style>
 </head>
 <body>
+<div class="packintro" id="packIntro" role="dialog" aria-label="Before you build">
+  <div class="pcard">
+    <div class="kick">RRG Marketing Pack</div>
+    <h2>Here’s what’s about to happen</h2>
+    <div id="packIntroBody">
+      <p>You’re about to generate the full Marketing Pack for this business — the Confidential Information Memorandum and a ready-to-send email campaign, built from the deal’s valuation, questionnaire, and qualification call.</p>
+    </div>
+    <div class="row">
+      <button class="skip" id="packIntroSkip" type="button">Got it — continue →</button>
+      <span class="count" id="packIntroCount"></span>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var ov=document.getElementById('packIntro'); if(!ov) return;
+  ov.classList.add('show');
+  var sk=document.getElementById('packIntroSkip'), cEl=document.getElementById('packIntroCount'), timer=null;
+  function done(){ if(timer){ clearInterval(timer); timer=null; } ov.classList.remove('show'); }
+  if(sk) sk.addEventListener('click',done);
+  function run(secs){ secs=Math.round(Number(secs)); if(!isFinite(secs)) secs=12; if(secs<=0){ done(); return; }
+    var n=secs; if(cEl) cEl.textContent='Continuing automatically in '+n+'s…';
+    timer=setInterval(function(){ n--; if(cEl) cEl.textContent='Continuing automatically in '+n+'s…'; if(n<=0) done(); },1000); }
+  function esc(s){ return String(s).replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];}); }
+  function renderMsg(text){ var lines=String(text||'').split(/\r?\n/), html='', inList=false;
+    lines.forEach(function(ln){ var t=ln.trim();
+      if(/^[-•]\s+/.test(t)){ if(!inList){ html+='<ul>'; inList=true; } html+='<li>'+esc(t.replace(/^[-•]\s+/,''))+'</li>'; return; }
+      if(inList){ html+='</ul>'; inList=false; }
+      if(t) html+='<p>'+esc(t)+'</p>'; });
+    if(inList) html+='</ul>'; return html; }
+  fetch('/api/bov-config',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok&&j.packIntroMessage){ var bd=document.getElementById('packIntroBody'); if(bd){ var h=renderMsg(j.packIntroMessage); if(h) bd.innerHTML=h; } }
+    run(j&&j.ok&&j.packIntroSeconds!=null ? j.packIntroSeconds : 12);
+  }).catch(function(){ run(12); });
+})();
+</script>
 <!--rrgback--><a href="./rrg_cim_queue.html" class="rrg-back" aria-label="Back to Marketing Packs" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> Marketing Packs</a>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>

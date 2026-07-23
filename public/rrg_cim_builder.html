@@ -70,10 +70,21 @@ ul.plain{margin:8px 0;padding-left:0;list-style:none;} ul.plain li{font-size:12p
 .quote{border-left:4px solid var(--red);background:var(--wash);padding:13px 16px;margin:6px 0 16px;} .quote .q{font-style:italic;font-size:15px;color:var(--navy);} .quote .a{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin-top:6px;}
 body.editing .ed{background:rgba(120,150,220,.045);} body.editing .ed:hover{background:rgba(120,150,220,.10);}
 .loading{max-width:850px;margin:60px auto;text-align:center;color:var(--muted);font-size:14px;}
+.emails-panel{max-width:850px;margin:22px auto 90px;padding:0 22px;}
+.emails-panel .ehead{font-family:'Georgia',serif;font-size:22px;font-weight:700;color:var(--navy);margin:6px 0 3px;}
+.emails-panel .esubhead{font-size:12.5px;color:var(--muted);margin-bottom:18px;line-height:1.5;}
+.emailcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px 17px;margin-bottom:13px;box-shadow:0 4px 16px rgba(10,20,50,.05);}
+.emailcard .et{font-weight:800;color:var(--navy);font-size:14px;margin:0;}
+.emailcard .ed2{font-size:11.5px;color:var(--muted);margin:2px 0 9px;line-height:1.45;}
+.emailcard .esub{font-size:12.5px;color:var(--ink);margin-bottom:7px;}
+.emailcard .esub b{color:var(--soft);font-weight:700;}
+.emailcard .ebody{white-space:pre-wrap;font-size:12.5px;line-height:1.55;color:#33405c;border-top:1px dashed var(--line);padding-top:9px;}
+.emailcard .ecopy{float:right;border:1px solid var(--line);background:#f5f7fb;border-radius:7px;padding:5px 13px;font:inherit;font-size:12px;font-weight:800;color:var(--navy);cursor:pointer;}
+.emailcard .ecopy:hover{background:#eef2fb;border-color:#c9d3e6;}
 @media print{
   @page{size:Letter;margin:0.5in 0.55in;}
   html,body{background:#fff;}
-  .toolbar,.rrg-back,.savechip{display:none!important;}
+  .toolbar,.rrg-back,.savechip,.emails-panel{display:none!important;}
   *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
   #doc{max-width:none;margin:0;}
   .page{width:auto;min-height:9.9in;margin:0;padding:0 0 0.35in;box-shadow:none;break-after:page;position:relative;}
@@ -90,11 +101,13 @@ body.editing .ed{background:rgba(120,150,220,.045);} body.editing .ed:hover{back
   <div class="actions">
     <span class="savechip" id="savechip">Saved ✓</span>
     <button class="btn on" id="editBtn" onclick="toggleEdit()">Editing: On</button>
+    <button class="btn" id="emailsBtn" onclick="toggleEmails()">Emails</button>
     <a class="btn" href="./rrg_cim_queue.html">Marketing Packs</a>
     <button class="btn print" onclick="window.print()">Print</button>
   </div>
 </div></div>
 <div id="doc"><div class="loading">Loading the memorandum…</div></div>
+<div id="emails" class="emails-panel" style="display:none"></div>
 <script>
 var CID=(new URLSearchParams(location.search)).get('cim')||'';
 var CIM=null;
@@ -248,9 +261,67 @@ function queueSave(){ var chip=document.getElementById('savechip'); if(_saveT) c
 }, 700); }
 function toggleEdit(){ var on=document.body.classList.toggle('editing'); var b=document.getElementById('editBtn'); b.textContent='Editing: '+(on?'On':'Off'); b.classList.toggle('on',on); document.querySelectorAll('#doc [contenteditable]').forEach(function(el){ el.setAttribute('contenteditable', on?'true':'false'); }); }
 
+// ---- Marketing Emails: the confidential-sale sequence, filled with this deal ----
+function toggleEmails(){ var em=document.getElementById('emails'), doc=document.getElementById('doc'), btn=document.getElementById('emailsBtn');
+  var on=em.style.display==='none'; em.style.display=on?'block':'none'; doc.style.display=on?'none':'block';
+  btn.textContent=on?'Document':'Emails'; btn.classList.toggle('on',on); if(on) window.scrollTo(0,0); }
+function dealFields(s){ s=s||{}; var biz=(s.cover&&s.cover.title)||(CIM&&CIM.business)||'the business';
+  var br=(s.bov&&s.bov.bridge)||{}; var rev=num(br.revenue), ni=num(br.netIncome);
+  var ebitda=ni+num(br.interest)+num(br.entityTax)+num(br.depreciation)+num(br.amortization);
+  var sde=ebitda+num(br.ownerSalary)+num(br.ownerHealth)+num(br.familyPayroll)+num(br.oneTime)+num(br.rentNorm);
+  return { biz:biz, rev:(rev?money(rev):'[[$Revenue]]'), sde:(sde?money(sde):'[[$SDE]]') }; }
+function emailSet(f){ var B=f.biz, R=f.rev, S=f.sde; return [
+  { t:'1. Teaser (Blind Profile)', d:'To your buyer list. No name or address — its only job is to earn a reply and an NDA.',
+    subj:'New [[City]] [[Concept]] Opportunity — '+R+' Revenue, Priced to Move',
+    body:'[First Name],\n\nWe’ve just been retained on a confidential sale that fits what you’ve told me you’re looking for.\n\n• Concept: Established [[concept]], [[years]] years operating\n• Location: [[submarket / trade area]]\n• Revenue (TTM): '+R+'\n• Seller’s Discretionary Earnings: '+S+'\n• Asking / Guidance: [[$Price or “Call for offers”]]\n• Why it’s compelling: [[one sharp line]]\n\nThe business, address, and financials are confidential and released only under NDA to qualified buyers. Reply here and I’ll send our short qualifier and the confidentiality agreement — this one won’t sit long.\n\n[Your Name]\nRestaurant Realty Group · [[phone]]' },
+  { t:'2. Buyer Qualifier', d:'Before you release anything, the buyer earns it. Screens out tire-kickers and competitors.',
+    subj:'Re: '+B+' Opportunity — Quick Qualification Before I Release Details',
+    body:'[First Name],\n\nGlad you’re interested. To protect our seller’s confidentiality, I qualify every buyer before releasing the business name or financials. Quick and painless — just reply with:\n\n1. Funding: How is a purchase in this range being funded — cash, SBA, investor group? Proof of funds or a lender pre-qual is ideal.\n2. Experience: Your background in restaurants/hospitality or operating a business.\n3. Timeline: How soon are you looking to acquire?\n4. Role: Are you the principal buyer, or representing one?\n\nOnce I have that, I’ll send the confidentiality agreement and, on signature, the full package.\n\n[Your Name]\nRestaurant Realty Group' },
+  { t:'3. Send NDA', d:'Deliver the confidentiality agreement. Nothing confidential goes out until it’s signed.',
+    subj:B+' — Confidentiality Agreement to Review & Sign',
+    body:'[First Name],\n\nThanks — you’re qualified. Here’s our confidentiality agreement: [[e-sign link]].\n\nPlease review and sign, and the moment it’s executed I’ll release the Confidential Information Memorandum with the business name, financials, and full details.\n\nOne important note the agreement covers: do not contact the business, its staff, ownership, landlord, or vendors directly. The sale is strictly confidential and the employees are not aware. All communication runs through me.\n\n[Your Name]\nRestaurant Realty Group' },
+  { t:'4. Send CIM', d:'The reveal. NDA is executed — deliver the CIM and point straight to the next step.',
+    subj:B+' — Confidential Information Memorandum (Under NDA)',
+    body:'[First Name],\n\nNDA received — thank you. Attached is the Confidential Information Memorandum for '+B+'.\n\nInside: the concept and its market position, historical and trailing-twelve-month financials, the earnings bridge to Seller’s Discretionary Earnings, growth opportunities, and the transaction structure. A few highlights:\n\n• Revenue (TTM): '+R+'\n• SDE: '+S+'\n• The upside: [[value-creation headline]]\n\nTake it in, then let’s get you on a call this week while your questions are fresh. If we move to offers, I’ll want your interest confirmed by [[date]].\n\n[Your Name]\nRestaurant Realty Group · [[phone]]' },
+  { t:'5. Data Room Access', d:'For serious buyers who want to verify. Grant access, set expectations, keep control.',
+    subj:B+' — Data Room Access',
+    body:'[First Name],\n\nAs requested, you now have access to the secure data room for '+B+': [[link]].\n\nYou’ll find P&Ls and tax returns, the current lease, the equipment list, and supporting documents for your diligence. Access is logged and remains subject to the NDA you signed.\n\nKeep questions coming to me directly — I’ll get answers from ownership. As a reminder, no direct contact with the business, staff, or landlord. If you like what you see, the next step is a call with ownership and, when you’re ready, a written offer.\n\n[Your Name]\nRestaurant Realty Group' },
+  { t:'6. Talk to Owner (Call / Site Visit)', d:'Coordinate the buyer-seller call or a discreet after-hours walkthrough.',
+    subj:B+' — Scheduling Your Time with Ownership',
+    body:'[First Name],\n\nLet’s get you in front of ownership. I can set up a call or a discreet after-hours site visit — the staff are not aware of the sale, so any visit is scheduled around them or as a normal guest.\n\nSend me two or three windows over the next several days and I’ll lock it in. Come with your real questions — operations, staffing, the lease, suppliers, why they’re selling. This is where serious buyers separate themselves.\n\nTalk soon,\n[Your Name]\nRestaurant Realty Group · [[phone]]' },
+  { t:'7. Call for Offers / LOI Request', d:'The one that makes you money. A deadline creates competition; without it, buyers sit.',
+    subj:B+' — Offers Due [[Date]]',
+    body:'[First Name],\n\nWe’ve had strong interest in '+B+', and ownership has asked me to call for offers.\n\nLetters of Intent are due [[date, time]]. To be considered, your LOI should include:\n\n• Purchase price and structure (asset vs. entity, cash/SBA/seller note)\n• Proposed deposit and diligence period\n• Any contingencies (financing, lease assignment, licensing)\n• Proof of funds or lender pre-qualification\n\nHappy to review a draft before you submit. If you need anything to firm up your number, tell me now while there’s still time.\n\n[Your Name]\nRestaurant Realty Group · [[phone]]' },
+  { t:'8. Buyer Follow-Up / Nudge', d:'For buyers sitting on the CIM. Honest pressure so nothing goes cold.',
+    subj:B+' — Where do you stand?',
+    body:'[First Name],\n\nChecking in on '+B+'. Interest has been strong and we’re moving toward offers.\n\nAre you still in? If yes, let’s get your remaining questions answered and, if it helps, another call with ownership before you commit to a number. If the fit isn’t there, no problem — just let me know so I can manage the process.\n\n[Your Name]' },
+  { t:'9. Landlord / Lease-Assignment', d:'Restaurant-critical. The lease can make or break the deal — get ahead of it.',
+    subj:B+' — Lease Assignment / Landlord Coordination',
+    body:'[First Name / Landlord Contact],\n\nI’m representing ownership of '+B+' at [[address]] in a confidential sale and want to get ahead of the lease assignment.\n\nCould you send the current lease terms, the assignment provisions and any transfer fee, and what the landlord will want from a qualified replacement tenant (financials, experience, personal guaranty)? Lining this up early keeps a clean deal from stalling at the finish line.\n\n[Your Name]\nRestaurant Realty Group' },
+  { t:'10. Seller Activity Update', d:'Keep your client informed. Best practice — it retains clients and earns the decisions you’ll need.',
+    subj:B+' — Marketing Update',
+    body:'[First Name],\n\nQuick update on '+B+':\n\n• Teasers out to [[#]] buyers on our list\n• [[#]] NDAs signed, [[#]] CIMs released\n• [[#]] buyer calls / site visits completed\n• Offers targeted for [[date]]\n\n[[One line of read: momentum, feedback themes, or a recommendation.]]\n\nI’ll have the next update to you by [[date]]. Call me anytime.\n\n[Your Name]' },
+  { t:'11. Decline / Keep-Warm', d:'Never burn a qualified buyer. Today’s runner-up is tomorrow’s backup.',
+    subj:B+' — Update',
+    body:'[First Name],\n\nThank you for your interest in '+B+'. Ownership has moved forward with another buyer at this stage.\n\nDeals don’t always close, so I’d like to keep you as a backup if that’s alright — and I’ve got other [[concept]] opportunities coming. Tell me what you’re hunting for and I’ll keep you first in line.\n\n[Your Name]\nRestaurant Realty Group' }
+]; }
+function buildEmails(s){
+  var f=dealFields(s), list=emailSet(f), em=document.getElementById('emails');
+  var html='<div class="ehead">Marketing Emails — '+esc(f.biz)+'</div><div class="esubhead">The confidential-sale sequence for this deal, with the business name and figures filled in. Copy each into Copper or your email. Bracketed [[…]] values are the few deal specifics to drop in (city, concept, price, dates, your name).</div>';
+  html+=list.map(function(e){ return '<div class="emailcard"><button class="ecopy">Copy</button><div class="et">'+esc(e.t)+'</div><div class="ed2">'+esc(e.d)+'</div><div class="esub"><b>Subject:</b> '+esc(e.subj)+'</div><div class="ebody">'+esc(e.body)+'</div></div>'; }).join('');
+  em.innerHTML=html;
+  var cards=em.querySelectorAll('.emailcard');
+  [].slice.call(cards).forEach(function(card,i){ var btn=card.querySelector('.ecopy'); btn.onclick=function(){ var e=list[i]; copyText('Subject: '+e.subj+'\n\n'+e.body, btn); }; });
+}
+function copyText(txt, btn){
+  function ok(){ var o=btn.textContent; btn.textContent='Copied ✓'; setTimeout(function(){ btn.textContent=o; },1400); }
+  function fallback(){ var ta=document.createElement('textarea'); ta.value=txt; ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); ok(); }catch(e){} document.body.removeChild(ta); }
+  try{ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt).then(ok).catch(fallback); } else fallback(); }catch(e){ fallback(); }
+}
+
 if(CID){
   fetch('/api/cim/'+encodeURIComponent(CID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(j&&j.ok&&j.cim){ CIM=j.cim; if(CIM.state&&CIM.state.cover){ renderCim(CIM.state); } else { document.getElementById('doc').innerHTML='<div class="loading">This Marketing Pack hasn’t been built yet. Open it from Marketing Packs and press Build.</div>'; } }
+    if(j&&j.ok&&j.cim){ CIM=j.cim; if(CIM.state&&CIM.state.cover){ renderCim(CIM.state); buildEmails(CIM.state); } else { document.getElementById('doc').innerHTML='<div class="loading">This Marketing Pack hasn’t been built yet. Open it from Marketing Packs and press Build.</div>'; document.getElementById('emailsBtn').style.display='none'; } }
     else { document.getElementById('doc').innerHTML='<div class="loading">Could not load this Marketing Pack.</div>'; }
   }).catch(function(){ document.getElementById('doc').innerHTML='<div class="loading">Could not reach the server.</div>'; });
 } else { document.getElementById('doc').innerHTML='<div class="loading">No Marketing Pack selected. Open one from Marketing Packs.</div>'; }

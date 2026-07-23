@@ -75,6 +75,21 @@ const DEFAULT_INTRO_MESSAGE = [
 ].join("\n");
 function loadIntroMessage() { const m = loadCfg().introMessage; return (typeof m === 'string' && m.trim()) ? m : DEFAULT_INTRO_MESSAGE; }
 function saveIntroMessage(t) { saveCfg({ introMessage: String(t == null ? '' : t).slice(0, 4000) }); }
+
+// Admin-editable "what's about to happen" screen shown before a Marketing Pack builds.
+const DEFAULT_PACK_INTRO_SECONDS = 12;
+function loadPackIntroSeconds() { const c = loadCfg(); const n = Number(c.packIntroSeconds); return (isFinite(n) && n >= 0) ? n : DEFAULT_PACK_INTRO_SECONDS; }
+function savePackIntroSeconds(n) { let v = Math.round(Number(n)); if (!isFinite(v) || v < 0) v = DEFAULT_PACK_INTRO_SECONDS; if (v > 120) v = 120; saveCfg({ packIntroSeconds: v }); }
+const DEFAULT_PACK_INTRO_MESSAGE = [
+  "You’re about to generate the full Marketing Pack for this business. In one step, RRG’s analyst produces the complete go-to-market package:",
+  "",
+  "- The Confidential Information Memorandum (CIM) — the confidential offering book buyers read, built from this deal’s valuation, questionnaire, and qualification call",
+  "- A ready-to-send email campaign — the whole confidential-sale sequence: teaser, buyer qualifier, NDA cover, CIM delivery, data-room access, the call with ownership, and the call for offers",
+  "",
+  "Add your photos and logo, then press Build. Everything reuses the numbers already locked in the valuation, so the CIM and the emails stay consistent end to end. You can edit any of it after it’s built."
+].join("\n");
+function loadPackIntroMessage() { const m = loadCfg().packIntroMessage; return (typeof m === 'string' && m.trim()) ? m : DEFAULT_PACK_INTRO_MESSAGE; }
+function savePackIntroMessage(t) { saveCfg({ packIntroMessage: String(t == null ? '' : t).slice(0, 4000) }); }
 // Seconds the "your BOV is ready" screen (with the completion sound) stays up
 // before opening the finished draft.
 const DEFAULT_DONE_SECONDS = 2;
@@ -1110,6 +1125,16 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveIntroMessage()">Save message</button> <button onclick="resetIntroMessage()">Reset to default</button> <span id="immsg" class="sub2"></span></div>
       </div>
 
+      <h2 style="margin-top:34px">Marketing Pack Intro Screen <span class="sub2">— the "what's about to happen" screen a rep sees on the Build a Marketing Pack page, before generating the CIM and email campaign.</span></h2>
+      <div class="links">
+        <label class="sub2" style="display:block;margin-bottom:4px">Seconds on screen (default 12; 0 = off)</label>
+        <input id="packIntroSeconds" inputmode="numeric" style="border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;width:120px" placeholder="12">
+        <div style="margin-top:10px"><button class="primary" onclick="savePackIntroSeconds()">Save duration</button> <span id="pismsg" class="sub2"></span></div>
+        <label class="sub2" style="display:block;margin:18px 0 4px">Message shown on the screen <span style="font-weight:400">— blank lines separate paragraphs; a line starting with &ldquo;- &rdquo; becomes a checklist item</span></label>
+        <textarea id="packIntroMessage" spellcheck="true" style="width:100%;min-height:200px;border:1px solid #cfd6e2;border-radius:8px;padding:11px 13px;font:inherit;font-size:13.5px;line-height:1.5;resize:vertical"></textarea>
+        <div style="margin-top:10px"><button class="primary" onclick="savePackIntroMessage()">Save message</button> <button onclick="resetPackIntroMessage()">Reset to default</button> <span id="pimmsg" class="sub2"></span></div>
+      </div>
+
       <h2 style="margin-top:34px">BOV Ready Screen <span class="sub2">— how long the "your BOV is ready" screen (with the completion sound) stays up before the finished draft opens.</span></h2>
       <div class="links">
         <label class="sub2" style="display:block;margin-bottom:4px">Seconds on screen (default 2)</label>
@@ -1169,8 +1194,8 @@ app.get('/admin', requireAdmin, (req, res) => {
       function resetCimPrompt(){ if(!confirm('Reset the Marketing Pack prompt to the RRG default? Your custom prompt will be discarded.')) return; post('/api/admin/cim-prompt',{reset:true}).then(function(j){ if(j.ok){ document.getElementById('cimPrompt').value=j.prompt||''; document.getElementById('cpmsg').textContent='Reset to default ✓'; _cpState(true); } }); }
       try{ loadCimPrompt(); }catch(e){}
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
-      var INTRO_DEFAULT_MSG='';
-      function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); var is=document.getElementById('introSeconds'); if(is) is.value=(j.introSeconds!=null?j.introSeconds:10); INTRO_DEFAULT_MSG=j.defaultIntroMessage||''; var im=document.getElementById('introMessage'); if(im) im.value=j.introMessage||j.defaultIntroMessage||''; var ds=document.getElementById('doneSeconds'); if(ds) ds.value=(j.doneSeconds!=null?j.doneSeconds:2); var nt=document.getElementById('noTtmMessage'); if(nt) nt.value=j.noTtmMessage||j.defaultNoTtmMessage||''; var af=document.getElementById('assetSaleFloor'); if(af) af.value=fmtNum(j.assetSaleFloor!=null?j.assetSaleFloor:(j.defaultAssetSaleFloor!=null?j.defaultAssetSaleFloor:25000)); var am=document.getElementById('assetSaleMessage'); if(am) am.value=j.assetSaleMessage||j.defaultAssetSaleMessage||''; renderSounds(j.ambienceId||'analyst'); } }).catch(function(){ renderSounds('analyst'); }); }
+      var INTRO_DEFAULT_MSG='', PACK_INTRO_DEFAULT_MSG='';
+      function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); var is=document.getElementById('introSeconds'); if(is) is.value=(j.introSeconds!=null?j.introSeconds:10); INTRO_DEFAULT_MSG=j.defaultIntroMessage||''; var im=document.getElementById('introMessage'); if(im) im.value=j.introMessage||j.defaultIntroMessage||''; var ds=document.getElementById('doneSeconds'); if(ds) ds.value=(j.doneSeconds!=null?j.doneSeconds:2); var nt=document.getElementById('noTtmMessage'); if(nt) nt.value=j.noTtmMessage||j.defaultNoTtmMessage||''; var af=document.getElementById('assetSaleFloor'); if(af) af.value=fmtNum(j.assetSaleFloor!=null?j.assetSaleFloor:(j.defaultAssetSaleFloor!=null?j.defaultAssetSaleFloor:25000)); var am=document.getElementById('assetSaleMessage'); if(am) am.value=j.assetSaleMessage||j.defaultAssetSaleMessage||''; var pis=document.getElementById('packIntroSeconds'); if(pis) pis.value=(j.packIntroSeconds!=null?j.packIntroSeconds:12); PACK_INTRO_DEFAULT_MSG=j.defaultPackIntroMessage||''; var pim=document.getElementById('packIntroMessage'); if(pim) pim.value=j.packIntroMessage||j.defaultPackIntroMessage||''; renderSounds(j.ambienceId||'analyst'); } }).catch(function(){ renderSounds('analyst'); }); }
       // ----- Build-sound picker (uses the shared RRG_AMBIENCE library) -----
       function renderSounds(sel){ var el=document.getElementById('soundList'); if(!el) return;
         if(!window.RRG_AMBIENCE){ el.innerHTML='<div class="sub2">Loading sounds...</div>'; setTimeout(function(){ renderSounds(sel); }, 400); return; }
@@ -1196,6 +1221,9 @@ app.get('/admin', requireAdmin, (req, res) => {
       function saveIntroSeconds(){ var v=(document.getElementById('introSeconds').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('ismsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{introSeconds:v}).then(function(j){ if(j&&j.ok){ document.getElementById('introSeconds').value=(j.introSeconds!=null?j.introSeconds:10); m.textContent=(Number(j.introSeconds)===0?'Saved — intro screen off ✓':('Saved — '+j.introSeconds+'s ✓')); } else m.textContent=(j&&j.error)||'Failed'; }); }
       function saveIntroMessage(){ var v=document.getElementById('introMessage').value||''; var m=document.getElementById('immsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{introMessage:v}).then(function(j){ if(j&&j.ok){ document.getElementById('introMessage').value=j.introMessage||''; m.textContent='Saved ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
       function resetIntroMessage(){ if(!confirm('Reset the intro message to the RRG default?')) return; var m=document.getElementById('immsg'); m.textContent='Resetting…'; post('/api/admin/bov-config',{introMessage:''}).then(function(j){ if(j&&j.ok){ document.getElementById('introMessage').value=j.introMessage||INTRO_DEFAULT_MSG; m.textContent='Reset to default ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
+      function savePackIntroSeconds(){ var v=(document.getElementById('packIntroSeconds').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('pismsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{packIntroSeconds:v}).then(function(j){ if(j&&j.ok){ document.getElementById('packIntroSeconds').value=(j.packIntroSeconds!=null?j.packIntroSeconds:12); m.textContent=(Number(j.packIntroSeconds)===0?'Saved — intro screen off ✓':('Saved — '+j.packIntroSeconds+'s ✓')); } else m.textContent=(j&&j.error)||'Failed'; }); }
+      function savePackIntroMessage(){ var v=document.getElementById('packIntroMessage').value||''; var m=document.getElementById('pimmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{packIntroMessage:v}).then(function(j){ if(j&&j.ok){ document.getElementById('packIntroMessage').value=j.packIntroMessage||''; m.textContent='Saved ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
+      function resetPackIntroMessage(){ if(!confirm('Reset the Marketing Pack intro message to the RRG default?')) return; var m=document.getElementById('pimmsg'); m.textContent='Resetting…'; post('/api/admin/bov-config',{packIntroMessage:''}).then(function(j){ if(j&&j.ok){ document.getElementById('packIntroMessage').value=j.packIntroMessage||PACK_INTRO_DEFAULT_MSG; m.textContent='Reset to default ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
       try{ loadBovConfig(); }catch(e){}
       document.querySelectorAll('form[action="/api/admin/toggle"],form[action="/api/admin/remove"]').forEach(function(f){ f.addEventListener('submit',function(e){ e.preventDefault(); var d={}; new FormData(f).forEach((v,k)=>d[k]=v); post(f.action,d).then(j=>{ if(j.ok) location.reload(); else alert(j.error||'Failed'); }); }); });
       /* Collapsible admin sections (chevrons) */
@@ -1273,8 +1301,8 @@ app.post('/api/admin/cim-prompt', requireAdmin, (req, res) => {
 });
 // SDE-vs-EBITDA revenue threshold. Admins read/write; any signed-in user (the
 // BOV builder) can read it to compute the basis client-side.
-app.get('/api/bov-config', (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD, introSeconds: loadIntroSeconds(), defaultIntroSeconds: DEFAULT_INTRO_SECONDS, introMessage: loadIntroMessage(), doneSeconds: loadDoneSeconds(), defaultDoneSeconds: DEFAULT_DONE_SECONDS, noTtmMessage: loadNoTtmMessage(), assetSaleFloor: loadAssetSaleFloor(), assetSaleMessage: loadAssetSaleMessage(), ambienceId: loadAmbienceId() }));
-app.get('/api/admin/bov-config', requireAdmin, (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD, introSeconds: loadIntroSeconds(), defaultIntroSeconds: DEFAULT_INTRO_SECONDS, introMessage: loadIntroMessage(), defaultIntroMessage: DEFAULT_INTRO_MESSAGE, doneSeconds: loadDoneSeconds(), defaultDoneSeconds: DEFAULT_DONE_SECONDS, noTtmMessage: loadNoTtmMessage(), defaultNoTtmMessage: DEFAULT_NO_TTM_MESSAGE, assetSaleFloor: loadAssetSaleFloor(), defaultAssetSaleFloor: DEFAULT_ASSET_SALE_FLOOR, assetSaleMessage: loadAssetSaleMessage(), defaultAssetSaleMessage: DEFAULT_ASSET_SALE_MESSAGE, ambienceId: loadAmbienceId() }));
+app.get('/api/bov-config', (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD, introSeconds: loadIntroSeconds(), defaultIntroSeconds: DEFAULT_INTRO_SECONDS, introMessage: loadIntroMessage(), packIntroSeconds: loadPackIntroSeconds(), packIntroMessage: loadPackIntroMessage(), doneSeconds: loadDoneSeconds(), defaultDoneSeconds: DEFAULT_DONE_SECONDS, noTtmMessage: loadNoTtmMessage(), assetSaleFloor: loadAssetSaleFloor(), assetSaleMessage: loadAssetSaleMessage(), ambienceId: loadAmbienceId() }));
+app.get('/api/admin/bov-config', requireAdmin, (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD, introSeconds: loadIntroSeconds(), defaultIntroSeconds: DEFAULT_INTRO_SECONDS, introMessage: loadIntroMessage(), defaultIntroMessage: DEFAULT_INTRO_MESSAGE, packIntroSeconds: loadPackIntroSeconds(), defaultPackIntroSeconds: DEFAULT_PACK_INTRO_SECONDS, packIntroMessage: loadPackIntroMessage(), defaultPackIntroMessage: DEFAULT_PACK_INTRO_MESSAGE, doneSeconds: loadDoneSeconds(), defaultDoneSeconds: DEFAULT_DONE_SECONDS, noTtmMessage: loadNoTtmMessage(), defaultNoTtmMessage: DEFAULT_NO_TTM_MESSAGE, assetSaleFloor: loadAssetSaleFloor(), defaultAssetSaleFloor: DEFAULT_ASSET_SALE_FLOOR, assetSaleMessage: loadAssetSaleMessage(), defaultAssetSaleMessage: DEFAULT_ASSET_SALE_MESSAGE, ambienceId: loadAmbienceId() }));
 app.post('/api/admin/bov-config', requireAdmin, (req, res) => {
   const b = req.body || {};
   // All fields optional — update whichever is supplied.
@@ -1298,6 +1326,16 @@ app.post('/api/admin/bov-config', requireAdmin, (req, res) => {
     if (!(s >= 0)) return res.status(400).json({ ok: false, error: 'Enter a number of seconds (0 or more).' });
     saveDoneSeconds(s);
   }
+  if (b.packIntroSeconds != null && String(b.packIntroSeconds).trim() !== '') {
+    const s = Number(String(b.packIntroSeconds).replace(/[^0-9.]/g, ''));
+    if (!(s >= 0)) return res.status(400).json({ ok: false, error: 'Enter a number of seconds (0 or more).' });
+    savePackIntroSeconds(s);
+  }
+  // packIntroMessage: empty string resets to the RRG default.
+  if (b.packIntroMessage != null) {
+    const t = String(b.packIntroMessage).trim();
+    if (t === '') saveCfg({ packIntroMessage: '' }); else savePackIntroMessage(t);
+  }
   // noTtmMessage: empty string resets to the RRG default.
   if (b.noTtmMessage != null) {
     const t = String(b.noTtmMessage).trim();
@@ -1313,7 +1351,7 @@ app.post('/api/admin/bov-config', requireAdmin, (req, res) => {
     if (t === '') saveCfg({ assetSaleMessage: '' }); else saveAssetSaleMessage(t);
   }
   if (b.ambienceId != null && String(b.ambienceId).trim() !== '') saveAmbienceId(b.ambienceId);
-  res.json({ ok: true, sdeThreshold: loadSdeThreshold(), introSeconds: loadIntroSeconds(), introMessage: loadIntroMessage(), doneSeconds: loadDoneSeconds(), noTtmMessage: loadNoTtmMessage(), assetSaleFloor: loadAssetSaleFloor(), assetSaleMessage: loadAssetSaleMessage(), ambienceId: loadAmbienceId() });
+  res.json({ ok: true, sdeThreshold: loadSdeThreshold(), introSeconds: loadIntroSeconds(), introMessage: loadIntroMessage(), packIntroSeconds: loadPackIntroSeconds(), packIntroMessage: loadPackIntroMessage(), doneSeconds: loadDoneSeconds(), noTtmMessage: loadNoTtmMessage(), assetSaleFloor: loadAssetSaleFloor(), assetSaleMessage: loadAssetSaleMessage(), ambienceId: loadAmbienceId() });
 });
 app.get('/admin/logins.csv', requireAdmin, (_req, res) => {
   const fs = require('fs');
