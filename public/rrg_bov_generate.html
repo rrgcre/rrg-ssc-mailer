@@ -10,31 +10,31 @@
 html,body{margin:0;padding:0;background:#e9edf3;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
 .wrap{max-width:640px;margin:0 auto;}
-.band{color:#fff;padding:30px 40px 26px;position:relative;overflow:hidden;
+.band{color:#fff;padding:20px 40px 16px;position:relative;overflow:hidden;
   background:radial-gradient(96% 130% at 27% 12%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
 .rrg{display:inline-flex;align-items:center;}
 .rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
 .rrg .bar{background:#fff;width:3px;height:30px;margin:0 12px;} .rrg .wm{font-weight:800;font-size:12px;text-transform:uppercase;line-height:.95;}
-.kicker{margin:20px 0 5px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+.kicker{margin:12px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
 h1{font-size:27px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .sub{color:#aeb8cf;font-size:13px;margin-top:8px;max-width:480px;line-height:1.5;}
 .home{position:absolute;top:24px;right:30px;color:#c3ccdf;text-decoration:none;font-size:12.5px;font-weight:600;border:1px solid rgba(255,255,255,.2);padding:6px 12px;border-radius:8px;}
 .home:hover{border-color:#fff;color:#fff;}
-.card{background:#fff;margin:-14px 20px 34px;border-radius:14px;box-shadow:0 10px 34px rgba(10,20,50,.12);padding:24px 28px 28px;position:relative;}
+.card{background:#fff;margin:-14px 20px 22px;border-radius:14px;box-shadow:0 10px 34px rgba(10,20,50,.12);padding:18px 22px 20px;position:relative;}
 
 .step{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--soft);font-weight:700;}
 .lede{font-size:16px;font-weight:800;color:var(--navy);margin:3px 0 2px;letter-spacing:-.01em;}
 .ledesub{font-size:12.5px;color:var(--muted);line-height:1.5;margin-bottom:4px;}
 
-label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:16px 0 5px;}
+label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:12px 0 4px;}
 .name{width:100%;border:1px solid var(--inp);border-radius:9px;padding:11px 13px;font-family:inherit;font-size:14px;color:var(--ink);}
 .name:focus{outline:none;border-color:var(--red);}
 
-.uphd{display:flex;align-items:baseline;justify-content:space-between;margin:22px 0 10px;}
+.uphd{display:flex;align-items:baseline;justify-content:space-between;margin:16px 0 8px;}
 .uphd .l{font-size:13px;font-weight:800;color:var(--navy);}
 .uphd .r{font-size:11px;color:var(--soft);font-weight:600;}
 
-.drop{border:1.5px dashed #c3ccdd;border-radius:11px;padding:15px 16px;margin-bottom:10px;display:flex;align-items:center;gap:13px;cursor:pointer;transition:border-color .15s,background .15s;background:#fbfcfe;}
+.drop{border:1.5px dashed #c3ccdd;border-radius:11px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:13px;cursor:pointer;transition:border-color .15s,background .15s;background:#fbfcfe;}
 .drop:hover{border-color:var(--red);background:#fff;}
 .drop .ic{width:38px;height:38px;flex:none;border-radius:10px;background:#eef2fb;display:flex;align-items:center;justify-content:center;color:var(--navy);}
 .drop .ic svg{width:20px;height:20px;}
@@ -99,7 +99,7 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
     <span class="rrg" onclick="location.href='./index.html'" title="Back to dashboard" style="cursor:pointer"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
     <div class="kicker">Broker's Opinion of Value</div>
     <h1>Build a BOV</h1>
-    <div class="sub">Upload the deal's documents below. An RRG Virtual Analyst reads them and drafts the full BOV — adjusted EBITDA, the multiple, the valuation matrix, and the narrative. You review and print.</div>
+    <div class="sub">Upload the deal's documents. The RRG Virtual Analyst drafts the full BOV — adjusted EBITDA, the multiple, the matrix, and the narrative. You review and print.</div>
   </div>
 
   <div class="card">
@@ -249,7 +249,7 @@ var AMB=null;
 function ambientMuted(){ try{ return localStorage.getItem('rrg_build_sound_muted')==='1'; }catch(e){ return false; } }
 function setAmbientMuted(m){ try{ localStorage.setItem('rrg_build_sound_muted', m?'1':'0'); }catch(e){} }
 var AMB_VOL=0.085;
-var AMB_SELECTED='orb';   // which sound plays (admin-chosen; fetched on load)
+var AMB_SELECTED='analyst';   // which sound plays (admin-chosen; fetched on load)
 // Plays the admin-selected sound from the shared RRG_AMBIENCE library while the
 // build overlay is up.
 function startAmbient(){
@@ -280,37 +280,14 @@ window.toggleMute=function(){
 var DONE_MS=2000;
 try{ fetch('/api/bov-config',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(j.doneSeconds!=null) DONE_MS=Math.max(0,Number(j.doneSeconds))*1000; if(j.ambienceId) AMB_SELECTED=j.ambienceId; } }).catch(function(){}); }catch(e){}
 
-// Futuristic "complete" flourish — a filter-swept ascending arpeggio with echo,
-// a rising shimmer, and a short sub thump for body.
+// Clean two-note finish chime when the BOV is done (shared with the sound library).
 function playDone(){
   try{
+    if(ambientMuted()) return;
     if(!AUDIO){ var C=window.AudioContext||window.webkitAudioContext; if(C) AUDIO=new C(); }
-    if(!AUDIO) return;
-    var t0=AUDIO.currentTime;
-    var master=AUDIO.createGain(); master.gain.value=0.85; master.connect(AUDIO.destination);
-    var dly=AUDIO.createDelay(0.5); dly.delayTime.value=0.16; var fb=AUDIO.createGain(); fb.gain.value=0.32; dly.connect(fb); fb.connect(dly); dly.connect(master);
-    var lp=AUDIO.createBiquadFilter(); lp.type='lowpass'; lp.Q.value=7; lp.frequency.setValueAtTime(600,t0); lp.frequency.exponentialRampToValueAtTime(9000,t0+0.5); lp.connect(master);
-    // ascending bright arpeggio (C6 E6 G6 C7 E7), triangle + slightly detuned saw
-    [523.25,659.25,783.99,1046.5,1318.5].forEach(function(f,i){
-      var t=t0+i*0.075;
-      var o=AUDIO.createOscillator(), o2=AUDIO.createOscillator(), g=AUDIO.createGain();
-      o.type='triangle'; o.frequency.value=f; o2.type='sawtooth'; o2.frequency.value=f; o2.detune.value=7;
-      o.connect(g); o2.connect(g); g.connect(lp); g.connect(dly);
-      g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.2,t+0.015); g.gain.exponentialRampToValueAtTime(0.0001,t+0.5);
-      o.start(t); o2.start(t); o.stop(t+0.55); o2.stop(t+0.55);
-    });
-    // rising shimmer sparkle at the top
-    var sp=AUDIO.createOscillator(), sg=AUDIO.createGain(); sp.type='sine';
-    sp.frequency.setValueAtTime(1568,t0+0.36); sp.frequency.exponentialRampToValueAtTime(2637,t0+0.56);
-    sp.connect(sg); sg.connect(dly); sg.connect(master);
-    sg.gain.setValueAtTime(0.0001,t0+0.36); sg.gain.exponentialRampToValueAtTime(0.16,t0+0.42); sg.gain.exponentialRampToValueAtTime(0.0001,t0+1.15);
-    sp.start(t0+0.36); sp.stop(t0+1.2);
-    // sub thump
-    var sub=AUDIO.createOscillator(), subg=AUDIO.createGain(); sub.type='sine';
-    sub.frequency.setValueAtTime(150,t0); sub.frequency.exponentialRampToValueAtTime(70,t0+0.3);
-    sub.connect(subg); subg.connect(master);
-    subg.gain.setValueAtTime(0.0001,t0); subg.gain.exponentialRampToValueAtTime(0.32,t0+0.02); subg.gain.exponentialRampToValueAtTime(0.0001,t0+0.4);
-    sub.start(t0); sub.stop(t0+0.45);
+    if(!AUDIO || !window.RRG_AMBIENCE || !RRG_AMBIENCE.finish) return;
+    var master=AUDIO.createGain(); master.gain.value=0.9; master.connect(AUDIO.destination);
+    RRG_AMBIENCE.finish(AUDIO, master);
   }catch(e){}
 }
 function generate(){

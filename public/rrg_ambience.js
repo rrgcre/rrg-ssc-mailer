@@ -51,12 +51,29 @@
       o.start(t); o.stop(t+dur+0.05);
     });
   }
-  // a short percussive tick (bandpassed noise) — conveyor / gear
+  // a short percussive tick (bandpassed noise) — key click / gear
   function tick(ctx,dest,buf,cf,t,peak,dur){
     var s=noise(ctx,buf), bp=BQ(ctx,'bandpass',cf,4), g=G(ctx,0.0001); s.connect(bp); bp.connect(g); g.connect(dest);
     g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+0.003); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
     s.start(t); s.stop(t+dur+0.03);
   }
+  // a soft pitched ping / data blip
+  function blip(ctx,dest,freq,t,peak,dur){ var o=O(ctx,'sine',freq), g=G(ctx,0.0001); o.connect(g); g.connect(dest);
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.start(t); o.stop(t+dur+0.03); }
+  // a soft paper-shuffle / desk texture (band-limited noise swell)
+  function paper(ctx,dest,buf,cf,t,peak,dur){ var s=noise(ctx,buf), bp=BQ(ctx,'bandpass',cf,0.7), g=G(ctx,0.0001); s.connect(bp); bp.connect(g); g.connect(dest);
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+dur*0.2); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); s.start(t); s.stop(t+dur+0.05); }
+  // a warm hum chord bed through a lowpass, with a slow breath; returns the amp gain
+  function humBed(ctx,out,h,voices,cutoff,gain,breathRate,breathDepth){
+    var lp=BQ(ctx,'lowpass',cutoff||900); lp.connect(out);
+    var amp=G(ctx,gain==null?0.08:gain); amp.connect(lp); if(breathRate) breath(ctx,amp.gain,breathRate,breathDepth||0.14,h);
+    voices.forEach(function(d){ var o=O(ctx,'sine',d[0]),g=G(ctx,d[1]); o.connect(g); g.connect(amp); o.start(); h.add(o); });
+    return { lp:lp, amp:amp };
+  }
+  // a gentle rising tone (the "section done" lift)
+  function rise(ctx,dest,f0,f1,t,peak,dur){ var o=O(ctx,'sine',f0), g=G(ctx,0.0001); o.connect(g); g.connect(dest);
+    o.frequency.setValueAtTime(f0,t); o.frequency.linearRampToValueAtTime(f1,t+dur*0.7);
+    g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(peak,t+dur*0.35); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.start(t); o.stop(t+dur+0.05); }
 
   // Real audio file, looped through the caller's gain (master fade + mute apply).
   function fileSound(id,name,desc,src){
@@ -76,86 +93,75 @@
   ];
 
   var SOUNDS=[
-    { id:'factory', name:'Factory Floor', desc:'A low motor drone under a steady mechanical piston beat.',
+    { id:'analyst', name:'Soft Analytical Pulse', desc:'A warm hum with quiet ticks, subtle desk texture, and a gentle rise as it works.',
       build:function(ctx,out){ var h=mkHandle(), buf=noiseBuf(ctx);
-        var lp=BQ(ctx,'lowpass',620); lp.connect(out);
-        var amp=G(ctx,0.09); amp.connect(lp); breath(ctx,amp.gain,0.4,0.12,h);
-        [[110,0.09],[147,0.05]].forEach(function(d){ var o=O(ctx,'triangle',d[0]),g=G(ctx,d[1]); o.connect(g); g.connect(amp); o.start(); h.add(o); });
-        var beat=0; h.iv(setInterval(function(){ try{ var t=ctx.currentTime; thud(ctx,out,138,t,0.12); if(beat%2===1) tick(ctx,out,buf,2400,t+0.45,0.03,0.05); beat++; }catch(e){} }, 900));
+        var bed=humBed(ctx,out,h,[[98,0.10],[147,0.05],[220,0.02]],900,0.08,0.08,0.14);
+        h.iv(setInterval(function(){ try{ tick(ctx,out,buf,2600,ctx.currentTime,0.022,0.03); }catch(e){} }, 2600));
+        var tk=0; h.iv(setInterval(function(){ try{ var t=ctx.currentTime; if(tk%2===0){ paper(ctx,out,buf,1900,t,0.028,0.5); } else { for(var k=0;k<4;k++){ tick(ctx,out,buf,3000+k*160,t+k*0.085,0.018,0.02); } } tk++; }catch(e){} }, 8500));
+        h.iv(setInterval(function(){ try{ rise(ctx,bed.lp,330,494,ctx.currentTime,0.045,1.5); }catch(e){} }, 14000));
         return h; } },
 
-    { id:'foundry', name:'Foundry', desc:'Metallic clanks ringing out over a furnace rumble.',
+    { id:'quiet', name:'Quiet Study', desc:'Barely-there hum with the occasional page turn. Very sparse.',
       build:function(ctx,out){ var h=mkHandle(), buf=noiseBuf(ctx);
-        var lp=BQ(ctx,'lowpass',260); lp.connect(out);
-        var rum=noise(ctx,buf), rg=G(ctx,0.04); rum.connect(lp); lp.connect(out); rum.connect(rg); rg.connect(lp); rum.start(); h.add(rum);
-        var base=O(ctx,'triangle',92), bg=G(ctx,0.05); base.connect(bg); bg.connect(lp); base.start(); h.add(base); breath(ctx,bg.gain,0.3,0.5,h);
-        var seq=[196,233,175,262], i=0;
-        h.iv(setInterval(function(){ try{ clank(ctx,out,seq[i++%seq.length],ctx.currentTime,0.09,2.2); }catch(e){} }, 2100));
+        humBed(ctx,out,h,[[110,0.07],[165,0.035]],700,0.07,0.05,0.16);
+        h.iv(setInterval(function(){ try{ tick(ctx,out,buf,2200,ctx.currentTime,0.014,0.04); }catch(e){} }, 5000));
+        h.iv(setInterval(function(){ try{ paper(ctx,out,buf,1600,ctx.currentTime,0.03,0.7); }catch(e){} }, 11000));
         return h; } },
 
-    { id:'turbine', name:'Turbine', desc:'A smooth turbine whir that slowly rises and falls.',
-      build:function(ctx,out){ var h=mkHandle();
-        var lp=BQ(ctx,'lowpass',1400,2); lp.connect(out);
-        var sweep=O(ctx,'sine',0.05), sg=G(ctx,700); sweep.connect(sg); sg.connect(lp.frequency); sweep.start(); h.add(sweep);
-        var amp=G(ctx,0.07); amp.connect(lp); breath(ctx,amp.gain,0.12,0.2,h);
-        [[174,0.05],[176.5,0.05],[352,0.03]].forEach(function(d){ var o=O(ctx,'sawtooth',d[0]),g=G(ctx,d[1]); o.connect(g); g.connect(amp); o.start(); h.add(o); });
-        return h; } },
-
-    { id:'steam', name:'Steam Works', desc:'A boiler hum with rhythmic bursts of steam.',
+    { id:'desk', name:'Data Desk', desc:'A low hum under a soft, steady patter of keys.',
       build:function(ctx,out){ var h=mkHandle(), buf=noiseBuf(ctx);
-        var lp=BQ(ctx,'lowpass',700); lp.connect(out);
-        var boil=O(ctx,'triangle',120), bg=G(ctx,0.06); boil.connect(bg); bg.connect(lp); boil.start(); h.add(boil); breath(ctx,bg.gain,0.9,0.35,h);
-        var alt=0; h.iv(setInterval(function(){ try{ var t=ctx.currentTime; hiss(ctx,out,buf,2600,t,(alt%2?0.05:0.07),0.12,(alt%2?0.7:1.3)); alt++; }catch(e){} }, 3400));
+        humBed(ctx,out,h,[[98,0.08],[147,0.04]],850,0.08,0.07,0.12);
+        var c=0; h.iv(setInterval(function(){ try{ var t=ctx.currentTime, n=2+(c%4); for(var k=0;k<n;k++){ tick(ctx,out,buf,2800+((k*137)%700),t+k*0.075,0.016,0.02); } c++; }catch(e){} }, 3000));
         return h; } },
 
-    { id:'assembly', name:'Assembly Line', desc:'A conveyor tick with servo whirs stepping across it.',
+    { id:'terminal', name:'Warm Terminal', desc:'A warm hum with soft data blips drifting over it.',
       build:function(ctx,out){ var h=mkHandle(), buf=noiseBuf(ctx);
-        var lp=BQ(ctx,'lowpass',900); lp.connect(out);
-        var bed=O(ctx,'triangle',98), bg=G(ctx,0.05); bed.connect(bg); bg.connect(lp); bed.start(); h.add(bed);
-        h.iv(setInterval(function(){ try{ tick(ctx,out,buf,3000,ctx.currentTime,0.035,0.04); }catch(e){} }, 520));
-        h.iv(setInterval(function(){ try{ var t=ctx.currentTime, o=O(ctx,'sawtooth',300), lp2=BQ(ctx,'lowpass',1600), g=G(ctx,0.0001); o.connect(lp2); lp2.connect(g); g.connect(out); o.frequency.setValueAtTime(300,t); o.frequency.exponentialRampToValueAtTime(620,t+0.22); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.05,t+0.04); g.gain.exponentialRampToValueAtTime(0.0001,t+0.5); o.start(t); o.stop(t+0.55); }catch(e){} }, 2600));
+        humBed(ctx,out,h,[[110,0.08],[165,0.04]],1000,0.08,0.07,0.13);
+        var seq=[660,880,990,784], i=0; h.iv(setInterval(function(){ try{ blip(ctx,out,seq[i++%seq.length],ctx.currentTime,0.04,0.5); }catch(e){} }, 2500));
+        h.iv(setInterval(function(){ try{ tick(ctx,out,buf,3000,ctx.currentTime,0.014,0.02); }catch(e){} }, 1700));
         return h; } },
 
-    { id:'hydraulic', name:'Hydraulic Press', desc:'A slow pneumatic press: a groan down, then a hiss of release.',
+    { id:'focus', name:'Focus Room', desc:'A soft pad with a slow filter breath. Almost still.',
       build:function(ctx,out){ var h=mkHandle(), buf=noiseBuf(ctx);
-        function cycle(){ try{ var t=ctx.currentTime;
-          var o=O(ctx,'sawtooth',220), lp=BQ(ctx,'lowpass',900), g=G(ctx,0.0001); o.connect(lp); lp.connect(g); g.connect(out);
-          o.frequency.setValueAtTime(220,t); o.frequency.exponentialRampToValueAtTime(96,t+1.1);
-          g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.08,t+0.2); g.gain.setValueAtTime(0.08,t+1.0); g.gain.exponentialRampToValueAtTime(0.0001,t+1.25);
-          o.start(t); o.stop(t+1.3);
-          thud(ctx,out,120,t+1.05,0.1);
-          hiss(ctx,out,buf,2200,t+1.15,0.06,0.05,0.8);
-        }catch(e){} }
-        cycle(); h.iv(setInterval(cycle, 4200));
+        var lp=BQ(ctx,'lowpass',700,1); lp.connect(out);
+        var sweep=O(ctx,'sine',0.04), sg=G(ctx,320); sweep.connect(sg); sg.connect(lp.frequency); sweep.start(); h.add(sweep);
+        var amp=G(ctx,0.07); amp.connect(lp); breath(ctx,amp.gain,0.05,0.2,h);
+        [[110,0.09],[165,0.05],[220,0.03]].forEach(function(d){ var o=O(ctx,'triangle',d[0]),g=G(ctx,d[1]); o.connect(g); g.connect(amp); o.start(); h.add(o); });
+        h.iv(setInterval(function(){ try{ tick(ctx,out,buf,2000,ctx.currentTime,0.012,0.04); }catch(e){} }, 9000));
         return h; } },
 
-    { id:'generator', name:'Generator', desc:'A steady electrical hum with a slow flicker.',
-      build:function(ctx,out){ var h=mkHandle();
-        var lp=BQ(ctx,'lowpass',1200); lp.connect(out);
-        var amp=G(ctx,0.07); amp.connect(lp); breath(ctx,amp.gain,0.7,0.12,h);
-        [[120,'sawtooth',0.06],[240,'sawtooth',0.03],[360,'square',0.012]].forEach(function(d){ var o=O(ctx,d[1],d[0]),g=G(ctx,d[2]); o.connect(g); g.connect(amp); o.start(); h.add(o); });
-        return h; } },
-
-    { id:'forge', name:'Forge', desc:'Hammer strikes on the anvil, ringing out. Sparse and heavy.',
-      build:function(ctx,out){ var h=mkHandle();
-        function strike(){ try{ var t=ctx.currentTime; thud(ctx,out,150,t,0.09); clank(ctx,out,330,t+0.005,0.11,2.6); }catch(e){} }
-        strike(); h.iv(setInterval(strike, 2200));
-        return h; } },
-
-    { id:'boiler', name:'Boiler Room', desc:'A deep pump throb with the odd pipe knock.',
-      build:function(ctx,out){ var h=mkHandle();
-        var lp=BQ(ctx,'lowpass',560); lp.connect(out);
-        var amp=G(ctx,0.08); amp.connect(lp); breath(ctx,amp.gain,0.9,0.4,h);
-        [[98,0.09],[147,0.05]].forEach(function(d){ var o=O(ctx,'triangle',d[0]),g=G(ctx,d[1]); o.connect(g); g.connect(amp); o.start(); h.add(o); });
-        var k=0; h.iv(setInterval(function(){ try{ if(k%3===0) clank(ctx,out,262,ctx.currentTime,0.05,1.1); k++; }catch(e){} }, 2400));
-        return h; } },
-
-    { id:'machine', name:'Machine Idle', desc:'A steady machine idle with gear ticks.',
+    { id:'ledger', name:'Ledger', desc:'A quiet hum with pen-scratch texture and a soft tick of time.',
       build:function(ctx,out){ var h=mkHandle(), buf=noiseBuf(ctx);
-        var lp=BQ(ctx,'lowpass',700); lp.connect(out);
-        var mot=O(ctx,'triangle',104), mg=G(ctx,0.07); mot.connect(mg); mg.connect(lp); mot.start(); h.add(mot); breath(ctx,mg.gain,0.5,0.14,h);
-        var rat=noise(ctx,buf), bp=BQ(ctx,'bandpass',480,2), rg=G(ctx,0.015); rat.connect(bp); bp.connect(rg); rg.connect(out); rat.start(); h.add(rat); breath(ctx,rg.gain,3.0,0.01,h);
-        h.iv(setInterval(function(){ try{ tick(ctx,out,buf,1800,ctx.currentTime,0.03,0.03); }catch(e){} }, 700));
+        humBed(ctx,out,h,[[98,0.07],[147,0.035]],800,0.07,0.06,0.12);
+        h.iv(setInterval(function(){ try{ tick(ctx,out,buf,2400,ctx.currentTime,0.016,0.03); }catch(e){} }, 2000));
+        h.iv(setInterval(function(){ try{ var t=ctx.currentTime; for(var k=0;k<3;k++){ paper(ctx,out,buf,2600,t+k*0.14,0.02,0.16); } }catch(e){} }, 6000));
+        return h; } },
+
+    { id:'signal', name:'Signal Lab', desc:'A warm bed with a soft ping every few seconds and a faint rise.',
+      build:function(ctx,out){ var h=mkHandle(), buf=noiseBuf(ctx);
+        var bed=humBed(ctx,out,h,[[110,0.08],[165,0.04]],1000,0.08,0.09,0.14);
+        h.iv(setInterval(function(){ try{ var t=ctx.currentTime, o=O(ctx,'sine',880), g=G(ctx,0.0001); o.frequency.setValueAtTime(880,t); o.frequency.exponentialRampToValueAtTime(560,t+0.4); o.connect(g); g.connect(bed.lp); g.gain.setValueAtTime(0.0001,t); g.gain.exponentialRampToValueAtTime(0.05,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+1.0); o.start(t); o.stop(t+1.1); }catch(e){} }, 4000));
+        h.iv(setInterval(function(){ try{ rise(ctx,bed.lp,392,588,ctx.currentTime,0.04,1.4); }catch(e){} }, 16000));
+        return h; } },
+
+    { id:'office', name:'Morning Office', desc:'A warm pad and light keyboard clatter in the distance.',
+      build:function(ctx,out){ var h=mkHandle(), buf=noiseBuf(ctx);
+        humBed(ctx,out,h,[[110,0.06],[165,0.035],[220,0.02]],900,0.07,0.07,0.14);
+        var c=0; h.iv(setInterval(function(){ try{ var t=ctx.currentTime, n=3+(c%4); for(var k=0;k<n;k++){ tick(ctx,out,buf,2700+((k*97)%600),t+k*0.07,0.013,0.02); } c++; }catch(e){} }, 5000));
+        h.iv(setInterval(function(){ try{ tick(ctx,out,buf,2200,ctx.currentTime,0.012,0.03); }catch(e){} }, 3000));
+        return h; } },
+
+    { id:'deepwork', name:'Deep Work', desc:'A deeper warm drone with a slow, gentle swell. Immersive.',
+      build:function(ctx,out){ var h=mkHandle(), buf=noiseBuf(ctx);
+        humBed(ctx,out,h,[[92,0.10],[138,0.05]],600,0.09,0.05,0.3);
+        h.iv(setInterval(function(){ try{ tick(ctx,out,buf,1600,ctx.currentTime,0.014,0.05); }catch(e){} }, 7000));
+        return h; } },
+
+    { id:'calc', name:'Calc', desc:'A soft hum with a light adding-machine tick and a periodic two-note lift.',
+      build:function(ctx,out){ var h=mkHandle(), buf=noiseBuf(ctx);
+        humBed(ctx,out,h,[[110,0.07],[147,0.035]],850,0.07,0.07,0.12);
+        var c=0; h.iv(setInterval(function(){ try{ if(c%3!==2){ tick(ctx,out,buf,2900,ctx.currentTime,0.013,0.02); } c++; }catch(e){} }, 900));
+        h.iv(setInterval(function(){ try{ var t=ctx.currentTime; blip(ctx,out,660,t,0.035,0.5); blip(ctx,out,880,t+0.16,0.03,0.6); }catch(e){} }, 15000));
         return h; } },
 
     { id:'off', name:'Off (silent)', desc:'No sound during the build.',
@@ -164,9 +170,19 @@
 
   // Real-audio tracks appear first in the picker, ahead of the synth options.
   SOUNDS = FILE_SOUNDS.concat(SOUNDS);
+  // Clean two-note finish chime — played once when a BOV or Marketing Pack is done.
+  function finish(ctx,out){ try{ var t=ctx.currentTime;
+    function n(freq,at,dur,peak){ var o=O(ctx,'sine',freq), o2=O(ctx,'triangle',freq*2), g=G(ctx,0.0001); o.connect(g); o2.connect(g); g.connect(out);
+      g.gain.setValueAtTime(0.0001,t+at); g.gain.exponentialRampToValueAtTime(peak,t+at+0.015); g.gain.exponentialRampToValueAtTime(0.0001,t+at+dur);
+      o.start(t+at); o.stop(t+at+dur+0.05); o2.start(t+at); o2.stop(t+at+dur+0.05); }
+    n(659.25, 0.00, 1.3, 0.16);   // E5
+    n(987.77, 0.17, 1.7, 0.13);   // B5 — a clean rising two-note
+  }catch(e){} }
+
   window.RRG_AMBIENCE = {
     sounds: SOUNDS,
     get:function(id){ for(var i=0;i<SOUNDS.length;i++){ if(SOUNDS[i].id===id) return SOUNDS[i]; } return SOUNDS[0]; },
-    play:function(ctx,out,id){ return this.get(id).build(ctx,out); }
+    play:function(ctx,out,id){ return this.get(id).build(ctx,out); },
+    finish:function(ctx,out){ return finish(ctx,out); }
   };
 })();
