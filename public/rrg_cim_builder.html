@@ -103,6 +103,12 @@ body.editing .ed:hover{background:rgba(120,150,220,.10);border-radius:3px;}
   .page:last-child{break-after:auto;}
   .ed:focus{outline:none;} body.editing .ed,body.editing .ed:hover{background:none;}
   .grid,.strip,table,.rk,.photos,.callout,.cardx{break-inside:avoid;}
+  /* emails-only print mode (Download → Emails PDF) */
+  body.pmail #doc{display:none!important;}
+  body.pmail #emails{display:block!important;max-width:none;margin:0;padding:0;}
+  body.pmail #emails .ecopy{display:none!important;}
+  body.pmail #emails .emailcard{box-shadow:none;border:1px solid #d7dce6;break-inside:avoid;}
+  body.pmail #emails .ehead{font-size:20px;}
 }
 </style>
 </head>
@@ -304,6 +310,12 @@ function showView(v){
   window.scrollTo(0,0);
 }
 function fmtDate(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }catch(e){ return ''; } }
+// Auto-print a single piece as its own PDF (opened from the Download chooser on the Marketing Packs log).
+function maybePrint(){
+  var p=(new URLSearchParams(location.search)).get('print');
+  if(p==='cim'){ showView('doc'); setTimeout(function(){ window.print(); }, 400); }
+  else if(p==='emails'){ showView('emails'); document.body.classList.add('pmail'); setTimeout(function(){ window.print(); }, 400); }
+}
 function loadLeaseView(){
   var lv=document.getElementById('leaseview');
   lv.innerHTML=leaseHead()+'<div class="sub2" style="color:#5f6b7d;padding:4px 2px">Loading…</div>';
@@ -390,7 +402,7 @@ function copyText(txt, btn){
 
 if(CID){
   fetch('/api/cim/'+encodeURIComponent(CID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(j&&j.ok&&j.cim){ CIM=j.cim; if(CIM.state&&CIM.state.cover){ renderCim(CIM.state); buildEmails(CIM.state); } else { document.getElementById('doc').innerHTML='<div class="loading">This Marketing Pack’s CIM hasn’t been built yet. Open it from Marketing Packs and press Build. You can still add a Lease Abstract to the pack from the tab above.</div>'; document.getElementById('viewEmailsBtn').style.display='none'; } }
+    if(j&&j.ok&&j.cim){ CIM=j.cim; if(CIM.state&&CIM.state.cover){ renderCim(CIM.state); buildEmails(CIM.state); maybePrint(); } else { document.getElementById('doc').innerHTML='<div class="loading">This Marketing Pack’s CIM hasn’t been built yet. Open it from Marketing Packs and press Build. You can still add a Lease Abstract to the pack from the tab above.</div>'; document.getElementById('viewEmailsBtn').style.display='none'; } }
     else { document.getElementById('doc').innerHTML='<div class="loading">Could not load this Marketing Pack.</div>'; }
   }).catch(function(){ document.getElementById('doc').innerHTML='<div class="loading">Could not reach the server.</div>'; });
 } else { document.getElementById('doc').innerHTML='<div class="loading">No Marketing Pack selected. Open one from Marketing Packs.</div>'; }

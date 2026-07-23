@@ -33,6 +33,19 @@ tr:hover td{background:#fbfcfe;}
 .act a:hover,.act button:hover{border-color:#9fb0cc;}
 .act .build{background:#b9761a;color:#fff;border-color:#b9761a;} .act .open{background:var(--navy);color:#fff;border-color:var(--navy);}
 .act .del{color:var(--red);border-color:#f0c9c6;}
+.act .dl{color:var(--navy);}
+.dlmodal{position:fixed;inset:0;z-index:200;background:rgba(6,12,32,.55);display:flex;align-items:center;justify-content:center;padding:20px;}
+.dlcard{background:#fff;border-radius:14px;padding:22px 24px;max-width:450px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4);}
+.dlh{font-size:16px;font-weight:800;color:var(--navy);}
+.dlsub{font-size:12px;color:var(--muted);margin:4px 0 8px;line-height:1.5;}
+.dlrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line);}
+.dlrow>div:first-child{flex:1;}
+.dlrow .dlname{font-weight:700;color:var(--navy);font-size:13.5px;}
+.dlrow .dlmeta{font-size:11.5px;color:var(--muted);margin-top:1px;}
+.dlbtn{border:1px solid var(--navy);background:var(--navy);color:#fff;font:inherit;font-size:12.5px;font-weight:700;padding:8px 14px;border-radius:8px;cursor:pointer;white-space:nowrap;}
+.dlbtn:disabled{opacity:.5;cursor:not-allowed;background:#fff;color:var(--muted);border-color:var(--line);}
+.dlacts{margin-top:16px;text-align:right;}
+.dlclose{border:1px solid var(--line);background:#fff;color:var(--navy);font:inherit;font-size:12.5px;font-weight:700;padding:8px 14px;border-radius:8px;cursor:pointer;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
 .foot{max-width:1080px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 </style>
@@ -52,14 +65,40 @@ tr:hover td{background:#fbfcfe;}
   </div>
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<div id="dlmodal" class="dlmodal" style="display:none"><div class="dlcard">
+  <div class="dlh" id="dlTitle">Download pack</div>
+  <div class="dlsub">Each piece saves as its own PDF using the content already produced — nothing is regenerated. When the print dialog opens, choose “Save as PDF”.</div>
+  <div class="dlrow"><div><div class="dlname">CIM</div><div class="dlmeta">The confidential offering memorandum</div></div><button class="dlbtn" id="dlCim">Save PDF →</button></div>
+  <div class="dlrow"><div><div class="dlname">Lease Abstract</div><div class="dlmeta" id="dlLeaseMeta">Checking…</div></div><button class="dlbtn" id="dlLease" disabled>Save PDF →</button></div>
+  <div class="dlrow"><div><div class="dlname">Email Templates</div><div class="dlmeta">The confidential-sale email sequence</div></div><button class="dlbtn" id="dlEmails">Save PDF →</button></div>
+  <div class="dlacts"><button class="dlclose" onclick="closePackDL()">Close</button></div>
+</div></div>
 <script src="/rrg_list.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 var CTL=null;
+var BIZ={};
+function openPackDL(id){
+  var m=document.getElementById('dlmodal'); m.style.display='flex';
+  document.getElementById('dlTitle').textContent='Download — '+(BIZ[id]||'Marketing Pack');
+  document.getElementById('dlCim').onclick=function(){ window.open('./rrg_cim_builder.html?cim='+encodeURIComponent(id)+'&print=cim','_blank'); };
+  document.getElementById('dlEmails').onclick=function(){ window.open('./rrg_cim_builder.html?cim='+encodeURIComponent(id)+'&print=emails','_blank'); };
+  var lb=document.getElementById('dlLease'), lm=document.getElementById('dlLeaseMeta');
+  lb.disabled=true; lb.onclick=null; lm.textContent='Checking…';
+  fetch('/api/cim/'+encodeURIComponent(id)+'/lease',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    var l=j&&j.ok?j.lease:null;
+    if(l&&!l.pending){ lm.textContent='Redacted lease summary'; lb.disabled=false; lb.onclick=function(){ window.open('./rrg_lease_abstract.html?lease='+encodeURIComponent(l.id)+'&print=1','_blank'); }; }
+    else if(l&&l.pending){ lm.textContent='Started — build it first'; }
+    else { lm.textContent='No lease abstract in this pack'; }
+  }).catch(function(){ lm.textContent='Could not check'; });
+}
+function closePackDL(){ document.getElementById('dlmodal').style.display='none'; }
+document.addEventListener('click',function(e){ if(e.target&&e.target.id==='dlmodal') closePackDL(); });
 function statusRank(c){ return c.pending?0:1; }
 function dateOf(c){ return c.pending?(c.createdAt||''):(c.builtAt||c.createdAt||''); }
 function renderList(list){
+  (list||[]).forEach(function(c){ BIZ[c.id]=c.business||'Marketing Pack'; });
   var cfg={
     mount:'#body', data:list, key:'cims', countEl:'#cnt',
     empty:'<div class="empty"><b>No Marketing Packs yet.</b>Advance a built valuation from Business Valuations to start one.<br><a class="act open" style="display:inline-block;margin-top:16px;padding:10px 18px" href="./rrg_bov_queue.html">Go to Business Valuations →</a></div>',
@@ -70,7 +109,7 @@ function renderList(list){
       { label:'Status', sort:function(a,b){ return (statusRank(a)-statusRank(b)) || RRGList.cmp(dateOf(a),dateOf(b)); },
         cell:function(c){ return c.pending?'<span class="pill pend">Requested</span>':'<span class="pill done">Built</span>'; } },
       { label:'Actions', align:'right', sortable:false,
-        cell:function(c){ var mid=c.pending?('<a class="build" href="./rrg_cim_generate.html?cim='+encodeURIComponent(c.id)+'">Build Pack →</a>'):('<a class="open" href="./rrg_cim_builder.html?cim='+encodeURIComponent(c.id)+'">Open</a>'); return '<div class="act">'+mid+'<button class="del" onclick="delCim(\''+c.id+'\',this)">Delete</button></div>'; } }
+        cell:function(c){ var mid=c.pending?('<a class="build" href="./rrg_cim_generate.html?cim='+encodeURIComponent(c.id)+'">Build Pack →</a>'):('<a class="open" href="./rrg_cim_builder.html?cim='+encodeURIComponent(c.id)+'">Open</a>'); var dl=c.pending?'':('<button class="dl" onclick="openPackDL(\''+c.id+'\')">Download</button>'); return '<div class="act">'+mid+dl+'<button class="del" onclick="delCim(\''+c.id+'\',this)">Delete</button></div>'; } }
     ],
     bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelCims(ids,done); } } ]
   };

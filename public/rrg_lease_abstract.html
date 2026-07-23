@@ -147,7 +147,8 @@ function normalizeRedact(s){ if(!s) return; // migrate legacy single "redact" fl
 
 if(LID){
   fetch('/api/lease/'+encodeURIComponent(LID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(j&&j.ok&&j.lease){ A=j.lease; if(!A.state){ A.state=blankState(); if(A.business) A.state.header.business=A.business; } normalizeRedact(A.state); render(A.state); if(ISNEW){ /* fresh manual abstract: save the blank so it shows as built */ queueSave(); } }
+    if(j&&j.ok&&j.lease){ A=j.lease; if(!A.state){ A.state=blankState(); if(A.business) A.state.header.business=A.business; } normalizeRedact(A.state); render(A.state); if(ISNEW){ /* fresh manual abstract: save the blank so it shows as built */ queueSave(); }
+      if((new URLSearchParams(location.search)).get('print')==='1'){ document.body.classList.remove('editing'); setTimeout(function(){ window.print(); }, 400); } }
     else { document.getElementById('doc').innerHTML='<div class="loading">Could not load this abstract.</div>'; }
   }).catch(function(){ document.getElementById('doc').innerHTML='<div class="loading">Could not reach the server.</div>'; });
 } else { document.getElementById('doc').innerHTML='<div class="loading">No abstract selected. Open one from Lease Abstracts.</div>'; }
