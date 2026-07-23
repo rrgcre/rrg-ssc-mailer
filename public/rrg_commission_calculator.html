@@ -179,6 +179,9 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
   function ratefmt(r){ return String(+(r*100).toFixed(3)); }
 
   var elPrice=document.getElementById('price'), elShare=document.getElementById('share'), elName=document.getElementById('dealName');
+  var FIXED_SHARE = 50;        // firm policy: rep split fixed at 50%
+  var SHARE_LOCKED = true;     // locked until we confirm the user is an admin
+  var shareVal=function(){ return (SHARE_LOCKED || elShare.value==='') ? FIXED_SHARE : num(elShare.value); };
 
   // ---- build the editable tier table once ----
   function buildTierRows(){
@@ -237,7 +240,7 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
 
   function recompute(){
     var price=num(elPrice.value);
-    var share=Math.max(0,Math.min(100,num(elShare.value)))/100;
+    var share=Math.max(0,Math.min(100,shareVal()))/100;
     var tiers=readTiers();
     var r=commissionFor(price,tiers);
     var gross=r.total, agent=gross*share, house=gross-agent, blend=price>0?gross/price:0;
@@ -275,16 +278,46 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
   elName.addEventListener('input', recompute);
 
   window.loadSample=function(){
-    elName.value='Sample business sale'; elPrice.value='2,500,000'; elShare.value='50';
+    elName.value='Sample business sale'; elPrice.value='2,500,000';
+    if(!SHARE_LOCKED) elShare.value='50';
     resetRateCard();
   };
   window.resetAll=function(){
-    elName.value=''; elPrice.value=''; elShare.value='';
+    elName.value=''; elPrice.value='';
+    if(!SHARE_LOCKED) elShare.value='';
     resetRateCard();
   };
 
+  // ---- rep split fixed at 50% unless an admin is using the tool ----
+  function applyShareLock(){
+    var hint=elShare.closest('.field').querySelector('.hint');
+    elShare.value=String(FIXED_SHARE);
+    if(SHARE_LOCKED){
+      elShare.readOnly=true;
+      elShare.setAttribute('aria-readonly','true');
+      elShare.style.background='#f5f7fb'; elShare.style.color='#6b7488'; elShare.style.cursor='not-allowed';
+      if(hint) hint.innerHTML='Fixed at <b>50%</b> per firm policy';
+    } else {
+      elShare.readOnly=false;
+      elShare.removeAttribute('aria-readonly');
+      elShare.style.background=''; elShare.style.color=''; elShare.style.cursor='';
+      if(hint) hint.innerHTML='Admin override · house keeps the remainder';
+    }
+    recompute();
+  }
+  function checkRole(){
+    var api=window.RRG_API||(String(location.protocol).indexOf('http')===0?location.origin:'');
+    if(!api){ SHARE_LOCKED=false; applyShareLock(); return; }  // file:// preview only: editable
+    fetch(api.replace(/\/$/,'')+'/api/session',{credentials:'same-origin'})
+      .then(function(r){return r.json();})
+      .then(function(s){ SHARE_LOCKED = !(s&&s.role==='admin'); applyShareLock(); })
+      .catch(function(){ SHARE_LOCKED=true; applyShareLock(); });
+  }
+
   buildTierRows();
   resetRateCard();   // initialize the rate card; open with blank deal inputs
+  applyShareLock();  // locked-at-50 by default until role check confirms admin
+  checkRole();
 })();
 </script>
 </body>
