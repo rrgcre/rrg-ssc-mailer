@@ -7,7 +7,7 @@ const API_URL = 'https://api.anthropic.com/v1/messages';
 
 const SYSTEM = `You are a deeply experienced restaurant & bar business-sale advisor at Restaurant Realty Group (RRG). You write Confidential Information Memorandums (CIMs) — the sell-side marketing document a qualified, NDA'd buyer reads to evaluate acquiring a restaurant or bar. You write in RRG's voice: confident, precise, no fluff, defensible, and quietly persuasive. You are selling the business honestly — highlighting real strengths and framing risks as normal diligence items, never hiding them.
 
-You are given: the RRG Broker's Opinion of Value (the concluded valuation, the earnings bridge, and the basis) already built for this business; the completed Valuation Questionnaire; optionally the financial documents and reference links (press, reviews, web presence); and a list of the photo captions the rep is including. Use ALL of it. The CIM's financial numbers MUST match the BOV exactly — do not re-derive or change the revenue, earnings, adjustments, or concluded value. Pull them straight from the BOV.
+You are given: the RRG Broker's Opinion of Value (the concluded valuation, the earnings bridge, and the basis) already built for this business; the completed Valuation Questionnaire; the notes from the Seller Qualification Call (the rep's first conversation with the owner — motivation, story, operating color, expectations); optionally reference links (press, reviews, web presence); and a list of the photo captions the rep is including. Use ALL of it — the questionnaire and the call are your richest source of the story, the operating model, and the owner's own words. The CIM's financial numbers MUST match the BOV exactly — do not re-derive or change the revenue, earnings, adjustments, or concluded value. Pull them straight from the BOV.
 
 Write the full CIM as a single JSON object — no prose, no markdown fences — with EXACTLY this shape (all values are strings unless noted; use "" for anything you genuinely cannot support, and never invent facts not grounded in the inputs):
 {
@@ -79,7 +79,7 @@ function extractJson(text) {
   return null;
 }
 
-async function generateCim({ business, bovSummary, bovState, questionnaire, files, links, photoCaptions, systemPrompt }) {
+async function generateCim({ business, bovSummary, bovState, questionnaire, call, files, links, photoCaptions, systemPrompt }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('ANTHROPIC_API_KEY is not set on the server.');
   const sys = (systemPrompt && String(systemPrompt).trim()) ? String(systemPrompt) : SYSTEM;
@@ -92,7 +92,10 @@ async function generateCim({ business, bovSummary, bovState, questionnaire, file
       JSON.stringify({ summary: bovSummary || null, bridge: (bovState && bovState.bridge) || null, fields: (bovState && bovState.fields) || null }).slice(0, 40000) });
   }
   if (questionnaire && String(questionnaire).trim()) {
-    content.push({ type: 'text', text: '=== Valuation Questionnaire (completed by the rep) ===\n' + String(questionnaire).slice(0, 60000) });
+    content.push({ type: 'text', text: '=== Valuation Questionnaire (completed in the RRG system) ===\n' + String(questionnaire).slice(0, 60000) });
+  }
+  if (call && String(call).trim()) {
+    content.push({ type: 'text', text: '=== Seller Qualification Call (the rep\'s first conversation with the owner) ===\n' + String(call).slice(0, 40000) });
   }
   const urls = Array.isArray(links) ? links.filter(u => u && String(u).trim()).slice(0, 6) : [];
   if (urls.length) {

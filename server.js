@@ -25,6 +25,11 @@ const BOVS_FILE = path.join(BOV_DATA_DIR, 'bovs.json');
 function loadBovs() { try { return JSON.parse(fs.readFileSync(BOVS_FILE, 'utf8')); } catch (e) { return []; } }
 function saveBovs(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BOVS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newBovId() { return 'bov_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+// ---- CIM store (Confidential Information Memorandums) — mirrors the BOV store ----
+const CIMS_FILE = path.join(BOV_DATA_DIR, 'cims.json');
+function loadCims() { try { return JSON.parse(fs.readFileSync(CIMS_FILE, 'utf8')); } catch (e) { return []; } }
+function saveCims(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(CIMS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newCimId() { return 'cim_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 // ---- Admin-editable BOV analyst prompt ----
 // Empty file / no file = use bovgen's built-in default.
@@ -683,6 +688,42 @@ function ownsBov(req, b) {
   if (b.byUser) return b.byUser === (req.user && req.user.username);
   return b.by && b.by === (req.user && req.user.name);
 }
+function ownsCim(req, c) {
+  if (req.user && req.user.role === 'admin') return true;
+  if (c.byUser) return c.byUser === (req.user && req.user.username);
+  return c.by && c.by === (req.user && req.user.name);
+}
+// One CIM per BOV. Reuse the existing one if present, else create a pending record.
+function ensureCimForBov(req, bov) {
+  if (!bov) return null;
+  const arr = loadCims();
+  const existing = arr.find(x => x.srcBovId === bov.id);
+  if (existing) return existing;
+  const rec = {
+    id: newCimId(), srcBovId: bov.id, srcQuestId: bov.srcQuestId || '', pending: true,
+    business: bov.business || 'Business', market: bov.market || '',
+    by: (req.user && req.user.name) || bov.by || '', byUser: (req.user && req.user.username) || bov.byUser || '',
+    createdAt: new Date().toISOString(),
+  };
+  arr.push(rec); saveCims(arr);
+  return rec;
+}
+// Gather everything the system already knows for a CIM: the BOV, the questionnaire,
+// and the qualification call that produced it.
+function cimInputsFor(cim) {
+  const bov = loadCims && loadBovs().find(x => x.id === cim.srcBovId);
+  let questionnaire = '', call = '';
+  if (bov && bov.srcQuestId) {
+    const q = loadQuests().find(x => x.id === bov.srcQuestId);
+    if (q) {
+      questionnaire = questToText(q);
+      const m = String(q.formId || '').match(/^qfromscr_(.+)$/);
+      if (m) { const sc = loadScreens().find(x => x.id === m[1]); if (sc) call = questToText(sc); }
+    }
+  }
+  const summary = bov ? { business: bov.business, revText: bov.revText || bovRevenueText(bov), rangeText: bov.rangeText, targetText: bov.targetText, multText: bov.multText, basis: bov.basis, sdeText: bov.sdeText, adjText: bov.adjText, date: bov.date } : null;
+  return { bov, bovState: (bov && bov.state) || null, summary, questionnaire, call };
+}
 app.get('/api/bovs', (req, res) => {
   const isAdmin = req.user && req.user.role === 'admin';
   const list = loadBovs().slice().reverse().filter(b => isAdmin || ownsBov(req, b));
@@ -753,6 +794,70 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
     res.json({ ok: true, id: rec.id, summary: out.summary, noTtmNotice: rec.noTtmNotice });
   } catch (e) {
     console.error('generate-bov error:', e);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
+
+// ---- CIM routes (mirror the BOV routes) ----
+app.get('/api/cims', (req, res) => {
+  const isAdmin = req.user && req.user.role === 'admin';
+  const list = loadCims().slice().reverse().filter(c => isAdmin || ownsCim(req, c));
+  res.json({ ok: true, isAdmin: !!isAdmin, cims: list.map(c => ({
+    id: c.id, business: c.business, market: c.market, pending: !!c.pending, srcBovId: c.srcBovId || '',
+    by: c.by, byUser: c.byUser, createdAt: c.createdAt, builtAt: c.builtAt || '',
+  })) });
+});
+app.get('/api/cim/:id', (req, res) => {
+  const c = loadCims().find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsCim(req, c)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  res.json({ ok: true, cim: c });
+});
+app.delete('/api/cim/:id', (req, res) => {
+  const arr = loadCims();
+  const target = arr.find(x => x.id === req.params.id);
+  if (!target) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsCim(req, target)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  saveCims(arr.filter(x => x.id !== req.params.id));
+  res.json({ ok: true });
+});
+// "Advance to CIM" from the BOV log — ensure a CIM exists for this BOV, return its id.
+app.post('/api/bov/:id/advance-cim', (req, res) => {
+  const bov = loadBovs().find(x => x.id === req.params.id);
+  if (!bov) return res.status(404).json({ ok: false, error: 'Valuation not found.' });
+  if (!ownsBov(req, bov)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  if (bov.pending) return res.status(409).json({ ok: false, error: 'Build the valuation before advancing it to a CIM.' });
+  let cimId = '';
+  try { const c = ensureCimForBov(req, bov); cimId = (c && c.id) || ''; } catch (e) {}
+  res.json({ ok: true, cimId });
+});
+// Generate the CIM: reuse the stored BOV numbers, the questionnaire, and the call;
+// the rep only supplies photos + logo.
+app.post('/api/generate-cim', express.json({ limit: '48mb' }), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const cims = loadCims();
+    const cim = cims.find(x => x.id === b.cimId);
+    if (!cim) return res.status(404).json({ ok: false, error: 'CIM not found.' });
+    if (!ownsCim(req, cim)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    if (cim.aiGenerated && !cim.pending) return res.status(409).json({ ok: false, error: 'This CIM is already built. Delete it in the CIM log to rebuild.' });
+    const inp = cimInputsFor(cim);
+    const photos = Array.isArray(b.photos) ? b.photos.slice(0, 24) : [];
+    const captions = photos.map(p => p && p.caption).filter(Boolean);
+    const out = await cimgen.generateCim({
+      business: cim.business, bovSummary: inp.summary, bovState: inp.bovState,
+      questionnaire: inp.questionnaire, call: inp.call, links: b.links || [],
+      photoCaptions: captions, systemPrompt: loadCimPromptCustom() || undefined,
+    });
+    out.state = out.state || {};
+    out.state.photos = photos;                 // {dataB64,type,caption} — rendered by the builder
+    out.state.logo = (b.logo && b.logo.dataB64) ? b.logo : null;
+    cim.business = String(out.business || cim.business || 'Untitled').slice(0, 120);
+    cim.state = out.state; cim.aiGenerated = true; cim.pending = false; cim.builtAt = new Date().toISOString();
+    saveCims(cims);
+    res.json({ ok: true, id: cim.id });
+  } catch (e) {
+    console.error('generate-cim error:', e);
     res.status(500).json({ ok: false, error: String((e && e.message) || e) });
   }
 });
