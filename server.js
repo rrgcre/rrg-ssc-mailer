@@ -10,6 +10,7 @@ const store = require('./store.js');
 const auth = require('./auth.js');
 const bovgen = require('./bovgen.js');
 const cimgen = require('./cimgen.js');
+const leasegen = require('./leasegen.js');
 const valgen = require('./valgen.js');
 
 const fs = require('fs');
@@ -30,6 +31,15 @@ const CIMS_FILE = path.join(BOV_DATA_DIR, 'cims.json');
 function loadCims() { try { return JSON.parse(fs.readFileSync(CIMS_FILE, 'utf8')); } catch (e) { return []; } }
 function saveCims(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(CIMS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newCimId() { return 'cim_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+// Lease abstracts (standalone or attached to a deal).
+const LEASES_FILE = path.join(BOV_DATA_DIR, 'leases.json');
+function loadLeases() { try { return JSON.parse(fs.readFileSync(LEASES_FILE, 'utf8')); } catch (e) { return []; } }
+function saveLeases(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(LEASES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newLeaseId() { return 'lse_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+const LEASE_PROMPT_FILE = path.join(BOV_DATA_DIR, 'lease_prompt.txt');
+function loadLeasePromptCustom() { try { const t = fs.readFileSync(LEASE_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
+function saveLeasePromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(LEASE_PROMPT_FILE, String(t)); } catch (e) {} }
+function clearLeasePromptCustom() { try { fs.unlinkSync(LEASE_PROMPT_FILE); } catch (e) {} }
 
 // ---- Admin-editable BOV analyst prompt ----
 // Empty file / no file = use bovgen's built-in default.
@@ -379,7 +389,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc') return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc') return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -893,6 +903,89 @@ app.post('/api/generate-cim', express.json({ limit: '48mb' }), async (req, res) 
   }
 });
 
+// ================= Lease Abstracts =================
+function ownsLease(req, l) {
+  if (req.user && req.user.role === 'admin') return true;
+  if (l.byUser) return l.byUser === (req.user && req.user.username);
+  return l.by && l.by === (req.user && req.user.name);
+}
+app.get('/api/leases', (req, res) => {
+  const isAdmin = req.user && req.user.role === 'admin';
+  const list = loadLeases().slice().reverse().filter(l => isAdmin || ownsLease(req, l));
+  res.json({ ok: true, isAdmin: !!isAdmin, leases: list.map(l => ({
+    id: l.id, business: l.business, propertyAddress: l.propertyAddress || '', pending: !!l.pending,
+    srcQuestId: l.srcQuestId || '', srcBovId: l.srcBovId || '', by: l.by, byUser: l.byUser,
+    createdAt: l.createdAt, builtAt: l.builtAt || '',
+  })) });
+});
+app.get('/api/lease/:id', (req, res) => {
+  const l = loadLeases().find(x => x.id === req.params.id);
+  if (!l) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsLease(req, l)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  res.json({ ok: true, lease: l });
+});
+app.delete('/api/lease/:id', (req, res) => {
+  const arr = loadLeases();
+  const target = arr.find(x => x.id === req.params.id);
+  if (!target) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsLease(req, target)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  saveLeases(arr.filter(x => x.id !== req.params.id));
+  res.json({ ok: true });
+});
+// Create a standalone blank lease abstract, return its id (for the "New abstract" button).
+app.post('/api/lease/new', express.json(), (req, res) => {
+  const b = req.body || {};
+  const rec = {
+    id: newLeaseId(), business: String(b.business || 'Lease Abstract').slice(0, 120), propertyAddress: '',
+    pending: true, srcQuestId: '', srcBovId: '', by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
+    createdAt: new Date().toISOString(), state: null,
+  };
+  const arr = loadLeases(); arr.push(rec); saveLeases(arr);
+  res.json({ ok: true, id: rec.id });
+});
+// Save in-builder edits (the whole abstract state, including the redact flag).
+app.post('/api/lease-save', express.json({ limit: '4mb' }), (req, res) => {
+  const b = req.body || {};
+  const arr = loadLeases();
+  const l = arr.find(x => x.id === b.id);
+  if (!l) return res.status(404).json({ ok: false, error: 'Lease abstract not found.' });
+  if (!ownsLease(req, l)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  if (b.state && typeof b.state === 'object') {
+    l.state = b.state;
+    if (l.state.header) { l.business = String(l.state.header.business || l.business || 'Lease Abstract').slice(0, 120); l.propertyAddress = String(l.state.header.propertyAddress || l.propertyAddress || '').slice(0, 200); }
+    if (l.pending) { l.pending = false; if (!l.builtAt) l.builtAt = new Date().toISOString(); }  // a saved abstract is a built one
+    l.updatedAt = new Date().toISOString(); saveLeases(arr);
+  }
+  res.json({ ok: true });
+});
+// Generate the abstract from the uploaded lease document(s).
+app.post('/api/generate-lease', express.json({ limit: '48mb' }), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const arr = loadLeases();
+    const l = arr.find(x => x.id === b.leaseId);
+    if (!l) return res.status(404).json({ ok: false, error: 'Lease abstract not found.' });
+    if (!ownsLease(req, l)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    const files = Array.isArray(b.files) ? b.files.slice(0, 12) : [];
+    if (!files.length) return res.status(400).json({ ok: false, error: 'Upload the lease document before building.' });
+    const asOf = new Date().toLocaleDateString('en-US');
+    const out = await leasegen.generateLease({
+      business: l.business, files, questionnaire: b.questionnaire || '', asOf,
+      systemPrompt: loadLeasePromptCustom() || undefined,
+    });
+    out.state = out.state || {};
+    if (typeof out.state.redact === 'undefined') out.state.redact = false;
+    l.business = String(out.business || l.business || 'Lease Abstract').slice(0, 120);
+    if (out.state.header) l.propertyAddress = String(out.state.header.propertyAddress || '').slice(0, 200);
+    l.state = out.state; l.aiGenerated = true; l.pending = false; l.builtAt = new Date().toISOString();
+    saveLeases(arr);
+    res.json({ ok: true, id: l.id });
+  } catch (e) {
+    console.error('generate-lease error:', e);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
+
 // AI-complete the Valuation Factors section from the questionnaire answers (text only).
 app.post('/api/valuation-factors', express.json({ limit: '4mb' }), async (req, res) => {
   try {
@@ -1393,6 +1486,20 @@ app.post('/api/admin/cim-prompt', requireAdmin, (req, res) => {
   const p = String(b.prompt || '').trim();
   if (!p || p === def.trim()) { clearCimPromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
   saveCimPromptCustom(p);
+  res.json({ ok: true, prompt: p, isDefault: false });
+});
+// Lease-abstract extraction prompt — mirror of the CIM prompt routes.
+app.get('/api/admin/lease-prompt', requireAdmin, (req, res) => {
+  const custom = loadLeasePromptCustom();
+  res.json({ ok: true, prompt: custom || leasegen.DEFAULT_SYSTEM, isDefault: !custom });
+});
+app.post('/api/admin/lease-prompt', requireAdmin, (req, res) => {
+  const b = req.body || {};
+  const def = String(leasegen.DEFAULT_SYSTEM || '');
+  if (b.reset) { clearLeasePromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
+  const p = String(b.prompt || '').trim();
+  if (!p || p === def.trim()) { clearLeasePromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
+  saveLeasePromptCustom(p);
   res.json({ ok: true, prompt: p, isDefault: false });
 });
 // SDE-vs-EBITDA revenue threshold. Admins read/write; any signed-in user (the

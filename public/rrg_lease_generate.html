@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Build a Lease Abstract</title>
+<script src="/rrg_ambience.js"></script>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
+.top{color:#fff;padding:20px 0 20px;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:760px;margin:0 auto;padding:0 24px;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;}
+.bar{background:#fff;width:3px;height:28px;margin:0 11px;} .wm{font-weight:800;font-size:13px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:16px 0 4px;color:var(--red);font-weight:700;letter-spacing:.28em;font-size:11px;text-transform:uppercase;}
+h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
+.subh{color:#aeb8cf;font-size:13px;margin-top:6px;}
+.wrap{max-width:760px;margin:16px auto;padding:0 24px 44px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 6px 24px rgba(10,20,50,.06);margin-bottom:12px;}
+.card h2{font-size:15px;color:var(--navy);margin:0 0 3px;} .card .h{color:var(--muted);font-size:12.5px;margin-bottom:10px;line-height:1.45;}
+.drop{border:1.5px dashed var(--inp);border-radius:10px;padding:18px;text-align:center;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;background:var(--wash);}
+.drop:hover{border-color:#9fb0cc;}
+.filerow{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-top:9px;font-size:13px;}
+.filerow .nm{flex:1;color:var(--navy);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.filerow .x{border:none;background:none;color:var(--red);font-size:18px;font-weight:700;cursor:pointer;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:700;font-size:13px;padding:10px 16px;border-radius:9px;cursor:pointer;}
+.build{background:var(--navy);color:#fff;border-color:var(--navy);font-size:15px;padding:13px 30px;border-radius:11px;}
+.build:disabled{opacity:.5;cursor:not-allowed;}
+.manual{display:inline-block;margin-top:14px;color:#9fb0cc;font-size:12.5px;text-decoration:underline;cursor:pointer;}
+.status{margin-top:14px;border-radius:10px;padding:12px 15px;font-size:13px;display:none;}
+.status.err{display:block;background:#fdeceb;color:var(--red);font-weight:600;}
+.overlay{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(6,12,32,.72);}
+.overlay.show{display:flex;}
+.modal{background:#fff;border-radius:16px;padding:34px 32px;max-width:440px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.4);}
+.bigspin{width:40px;height:40px;border:4px solid #e6ecfa;border-top-color:var(--navy);border-radius:50%;animation:sp .8s linear infinite;margin:0 auto 18px;}
+@keyframes sp{to{transform:rotate(360deg)}}
+.mt{font-size:17px;font-weight:800;color:var(--navy);} .mm{font-size:13px;color:var(--muted);line-height:1.55;margin-top:8px;}
+.mtimer{margin-top:14px;font-size:13px;font-weight:800;color:var(--navy);}
+.mmute{margin-top:14px;display:inline-flex;gap:6px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;border:1px solid var(--line);border-radius:100px;padding:6px 14px;}
+</style>
+</head>
+<body>
+<!--rrgback--><a href="./rrg_lease_queue.html" class="rrg-back" aria-label="Back to Lease Abstracts" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> Lease Abstracts</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Lease Abstract</div>
+  <h1 id="hdr">Build a Lease Abstract</h1>
+  <div class="subh">Upload the lease (and any amendments) — the analyst pulls the key terms into a clean abstract you can edit and print.</div>
+</div></div>
+<div class="wrap">
+  <div class="card">
+    <h2>Lease document</h2>
+    <div class="h">The lease, plus any amendments or a lease summary. PDF works best; images are fine. Send the lease itself, not the full exhibit set.</div>
+    <div class="drop" onclick="document.getElementById('fileIn').click()">+ Click to add the lease (PDF or images)</div>
+    <input type="file" id="fileIn" accept="application/pdf,image/*" multiple style="display:none" onchange="addFiles(this.files)">
+    <div id="fileList"></div>
+  </div>
+  <div style="text-align:center;margin-top:6px">
+    <button class="build" id="buildBtn" onclick="buildLease()">Build the abstract →</button>
+    <div><a class="manual" id="manualLink" onclick="goManual()">or fill it in manually instead →</a></div>
+  </div>
+  <div class="status" id="status"></div>
+</div>
+
+<div class="overlay" id="overlay"><div class="modal">
+  <div class="bigspin"></div>
+  <div class="mt" id="modalTitle">Reading the lease…</div>
+  <div class="mm" id="modalMsg">The analyst is pulling the term, rent, options, NNN, assignment, and guaranty from the document.</div>
+  <div class="mtimer" id="modalTimer"></div>
+  <div><span class="mmute" id="muteLink" onclick="toggleMute()">🔊 Sound on · tap to mute</span></div>
+</div></div>
+
+<script>
+var LEASE_ID=(new URLSearchParams(location.search)).get('lease')||'';
+var FILES=[];
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function readFile(file,cb){ var r=new FileReader(); r.onload=function(){ var s=String(r.result||''); var i=s.indexOf(','); cb({dataB64:i>=0?s.slice(i+1):s, type:file.type||'application/pdf', name:file.name||'lease'}); }; r.readAsDataURL(file); }
+function addFiles(files){ Array.prototype.slice.call(files||[]).forEach(function(f){ readFile(f,function(o){ FILES.push(o); renderFiles(); }); }); document.getElementById('fileIn').value=''; }
+function renderFiles(){ document.getElementById('fileList').innerHTML=FILES.map(function(f,i){ return '<div class="filerow"><span class="nm">'+esc(f.name)+'</span><button class="x" onclick="FILES.splice('+i+',1);renderFiles()">×</button></div>'; }).join(''); }
+function setStatus(msg){ var s=document.getElementById('status'); s.className='status err'; s.textContent=msg; }
+function goManual(){ location.href='./rrg_lease_abstract.html?lease='+encodeURIComponent(LEASE_ID)+'&new=1'; }
+if(LEASE_ID){ fetch('/api/lease/'+encodeURIComponent(LEASE_ID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.lease&&j.lease.business){ document.getElementById('hdr').textContent='Build Lease Abstract · '+j.lease.business; } }).catch(function(){}); }
+
+// ---- build overlay + ambience + timer ----
+var AUDIO=null, AMB=null, AMB_VOL=0.085, AMB_SELECTED='analyst', T0=0, TIMER=null;
+function playDone(){ try{ if(ambientMuted()) return; if(!AUDIO || !window.RRG_AMBIENCE || !RRG_AMBIENCE.finish) return; var m=AUDIO.createGain(); m.gain.value=0.9; m.connect(AUDIO.destination); RRG_AMBIENCE.finish(AUDIO, m); }catch(e){} }
+try{ fetch('/api/bov-config',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.ambienceId) AMB_SELECTED=j.ambienceId; }).catch(function(){}); }catch(e){}
+function ambientMuted(){ try{ return localStorage.getItem('rrg_build_sound_muted')==='1'; }catch(e){ return false; } }
+function setAmbientMuted(m){ try{ localStorage.setItem('rrg_build_sound_muted', m?'1':'0'); }catch(e){} }
+function unlockAudio(){ try{ if(!AUDIO){ var C=window.AudioContext||window.webkitAudioContext; if(C) AUDIO=new C(); } if(AUDIO&&AUDIO.state==='suspended') AUDIO.resume(); }catch(e){} }
+function startAmbient(){ try{ if(!AUDIO||AMB||AMB_SELECTED==='off'||!window.RRG_AMBIENCE) return; var m=AUDIO.createGain(); m.gain.value=0.0001; m.connect(AUDIO.destination); if(!ambientMuted()) m.gain.exponentialRampToValueAtTime(AMB_VOL, AUDIO.currentTime+3); AMB={master:m, handle:RRG_AMBIENCE.play(AUDIO,m,AMB_SELECTED)}; updateMuteLink(); }catch(e){} }
+function stopAmbient(){ if(!AMB) return; var A=AMB; AMB=null; try{ var t=AUDIO.currentTime; A.master.gain.cancelScheduledValues(t); A.master.gain.setValueAtTime(Math.max(A.master.gain.value,0.0001),t); A.master.gain.exponentialRampToValueAtTime(0.0001,t+0.7); }catch(e){} if(A.handle&&A.handle.stop) A.handle.stop(); }
+function updateMuteLink(){ var el=document.getElementById('muteLink'); if(el) el.textContent=ambientMuted()?'🔇 Sound off · tap to unmute':'🔊 Sound on · tap to mute'; }
+window.toggleMute=function(){ var m=!ambientMuted(); setAmbientMuted(m); try{ if(AMB&&AMB.master){ var t=AUDIO.currentTime; AMB.master.gain.cancelScheduledValues(t); AMB.master.gain.setValueAtTime(Math.max(AMB.master.gain.value,0.0001),t); AMB.master.gain.exponentialRampToValueAtTime(m?0.0001:AMB_VOL,t+0.4); } }catch(e){} updateMuteLink(); };
+function fmtEl(s){ var m=Math.floor(s/60),x=s%60; return m+':'+(x<10?'0':'')+x; }
+function startTimer(){ T0=Date.now(); var e=document.getElementById('modalTimer'); if(e) e.textContent='0:00 elapsed'; if(TIMER)clearInterval(TIMER); TIMER=setInterval(function(){ var el=document.getElementById('modalTimer'); if(el) el.textContent=fmtEl(Math.floor((Date.now()-T0)/1000))+' elapsed'; },1000); }
+function stopTimer(){ if(TIMER){clearInterval(TIMER);TIMER=null;} }
+function overlay(on){ document.getElementById('overlay').classList[on?'add':'remove']('show'); if(on){ startTimer(); startAmbient(); } else { stopTimer(); stopAmbient(); } }
+
+function buildLease(){
+  if(!LEASE_ID){ setStatus('No abstract selected. Open this from the Lease Abstracts log.'); return; }
+  if(!FILES.length){ setStatus('Add the lease document first — or use “fill it in manually” below.'); return; }
+  unlockAudio();
+  var btn=document.getElementById('buildBtn'); btn.disabled=true;
+  document.getElementById('status').className='status';
+  overlay(true);
+  fetch('/api/generate-lease',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',
+    body:JSON.stringify({leaseId:LEASE_ID, files:FILES})})
+    .then(function(r){ return r.text().then(function(t){ var j=null; try{j=JSON.parse(t);}catch(e){} return {ok:r.ok,status:r.status,j:j}; }); })
+    .then(function(res){
+      if(res.j&&res.j.ok&&res.j.id){ stopAmbient(); playDone(); document.getElementById('modalTitle').textContent='Done — abstract ready ✓'; document.getElementById('modalMsg').textContent='Opening it now…'; setTimeout(function(){ location.href='./rrg_lease_abstract.html?lease='+encodeURIComponent(res.j.id); }, 1100); return; }
+      overlay(false); btn.disabled=false;
+      setStatus((res.j&&res.j.error)||('Build failed (server '+res.status+').'));
+    }).catch(function(){ overlay(false); btn.disabled=false; setStatus('Could not reach the server.'); });
+}
+</script>
+</body>
+</html>

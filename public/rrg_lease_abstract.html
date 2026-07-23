@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Lease Abstract</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1c2536;--muted:#6b7488;--soft:#8a93a8;--line:#e3e7ef;--wash:#f6f8fc;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#e9edf3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.toolbar{position:sticky;top:0;z-index:40;background:rgba(9,17,40,.97);color:#fff;}
+.tb-inner{max-width:840px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:12px;}
+.tt{font-weight:800;font-size:13px;} .tt span{font-weight:500;color:#aeb8cf;font-size:11.5px;margin-left:6px;}
+.actions{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.btn{font:inherit;font-size:12.5px;font-weight:700;padding:7px 13px;border-radius:8px;border:1px solid rgba(255,255,255,.24);background:transparent;color:#fff;cursor:pointer;text-decoration:none;}
+.btn:hover{background:rgba(255,255,255,.1);} .btn.on{background:#fff;color:var(--navy);} .btn.print{background:var(--red);border-color:var(--red);}
+.savechip{font-size:11.5px;color:#8fe6b6;opacity:0;transition:opacity .2s;} .savechip.show{opacity:1;}
+.doc{max-width:840px;margin:22px auto;background:#fff;border:1px solid var(--line);box-shadow:0 10px 40px rgba(10,20,50,.10);padding:44px 46px 40px;}
+.hd{border-bottom:2px solid var(--navy);padding-bottom:16px;margin-bottom:18px;}
+.hd .rrg{color:var(--red);font-weight:900;font-size:15px;letter-spacing:.02em;}
+.hd .kt{color:var(--red);font-weight:800;letter-spacing:.26em;font-size:10.5px;text-transform:uppercase;margin-top:14px;}
+.hd h1{font-size:27px;font-weight:800;color:var(--navy);margin:3px 0 2px;letter-spacing:-.01em;}
+.hd .addr{color:var(--muted);font-size:13px;}
+.hd .docl{color:var(--soft);font-size:11.5px;margin-top:6px;}
+.summary{background:var(--wash);border:1px solid var(--line);border-left:4px solid var(--navy);border-radius:8px;padding:13px 16px;margin:6px 0 18px;font-size:13.5px;line-height:1.55;color:#2a3446;}
+.flags{margin:0 0 18px;} .flags .fl{display:flex;gap:9px;font-size:12.5px;color:#7a2018;background:#fdeeec;border:1px solid #f3cfc9;border-radius:7px;padding:8px 11px;margin-bottom:6px;line-height:1.4;}
+.flags .fl:before{content:'▲';color:var(--red);font-size:10px;line-height:1.4;}
+.sec{margin:18px 0 6px;color:var(--navy);font-weight:800;font-size:13px;letter-spacing:.04em;text-transform:uppercase;border-bottom:1px solid var(--line);padding-bottom:5px;}
+.rows{display:grid;grid-template-columns:190px 1fr;gap:0;}
+.rows .lbl{color:var(--muted);font-size:12px;font-weight:700;padding:8px 12px 8px 0;border-bottom:1px solid #f0f2f7;}
+.rows .val{font-size:13px;color:var(--ink);padding:8px 0;border-bottom:1px solid #f0f2f7;line-height:1.5;}
+.redacted{color:var(--soft);font-style:italic;}
+table.sch{width:100%;border-collapse:collapse;font-size:12.5px;margin:8px 0 4px;}
+table.sch th,table.sch td{text-align:left;padding:7px 10px;border:1px solid var(--line);}
+table.sch th{background:var(--wash);color:var(--muted);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;}
+.foot{color:var(--soft);font-size:10.5px;margin-top:26px;border-top:1px solid var(--line);padding-top:12px;line-height:1.5;}
+.ed{outline:none;} body.editing .ed{background:rgba(120,150,220,.06);border-radius:3px;} body.editing .ed:hover{background:rgba(120,150,220,.12);}
+.loading{max-width:840px;margin:60px auto;text-align:center;color:var(--muted);font-size:14px;}
+@media print{
+  @page{size:Letter;margin:0.5in 0.6in;}
+  html,body{background:#fff;} .toolbar,.rrg-back,.savechip{display:none!important;}
+  .doc{max-width:none;margin:0;border:none;box-shadow:none;padding:0;}
+  .ed{background:none!important;} .flags .fl{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
+</style>
+</head>
+<body class="editing">
+<!--rrgback--><a href="./rrg_lease_queue.html" class="rrg-back" aria-label="Back to Lease Abstracts" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> Lease Abstracts</a>
+<div class="toolbar"><div class="tb-inner">
+  <div class="tt">RRG Lease Abstract <span>Edit in place · Print</span></div>
+  <div class="actions">
+    <span class="savechip" id="savechip">Saved ✓</span>
+    <button class="btn on" id="editBtn" onclick="toggleEdit()">Editing: On</button>
+    <button class="btn" id="redactBtn" onclick="toggleRedact()">Redact LL/Tenant: Off</button>
+    <a class="btn" href="./rrg_lease_queue.html">Lease Abstracts</a>
+    <button class="btn print" onclick="window.print()">Print</button>
+  </div>
+</div></div>
+<div id="doc"><div class="loading">Loading the abstract…</div></div>
+<script>
+var LID=(new URLSearchParams(location.search)).get('lease')||'';
+var ISNEW=(new URLSearchParams(location.search)).get('new')==='1';
+var A=null;   // the abstract record
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function getPath(o,p){ return p.split('.').reduce(function(a,k){ return (a==null)?a:a[k]; }, o); }
+function setPath(o,p,v){ var ks=p.split('.'); var a=o; for(var i=0;i<ks.length-1;i++){ if(a[ks[i]]==null) a[ks[i]]={}; a=a[ks[i]]; } a[ks[ks.length-1]]=v; }
+function blankState(){ return { header:{business:'',propertyAddress:'',leaseDate:'',documentList:''}, parties:{landlord:'',tenant:'',guarantor:''}, premises:{description:'',squareFeet:'',suite:'',commonAreas:''}, term:{commencement:'',expiration:'',originalTerm:'',remainingTerm:'',rentCommencement:''}, rent:{current:'',perSF:'',escalation:'',percentageRent:'',schedule:[]}, options:{renewalOptions:'',renewalNotice:'',renewalRent:''}, charges:{structure:'',cam:'',taxes:'',insurance:'',otherCharges:''}, deposit:{securityDeposit:'',other:''}, use:{permittedUse:'',exclusive:'',hours:'',coTenancy:''}, assignment:{assignmentSublet:'',consentStandard:'',transferFee:'',changeOfControl:''}, guaranty:{type:'',personalGuaranty:'',burnoff:''}, keyProvisions:{maintenance:'',improvements:'',signage:'',parking:'',insurance:'',holdover:'',default:'',estoppelSNDA:''}, criticalDates:[], summary:'', flags:[], redact:false }; }
+
+function ed(path,text,cls){ return '<span class="ed val'+(cls?(' '+cls):'')+'" contenteditable data-k="'+esc(path)+'">'+esc(text||'')+'</span>'; }
+function row(label,path,val){ return '<div class="lbl">'+esc(label)+'</div><div class="val">'+ed(path,val)+'</div>'; }
+function partyRow(label,path,val){
+  if(A.state.redact){ return '<div class="lbl">'+esc(label)+'</div><div class="val"><span class="redacted">Withheld — available under NDA</span></div>'; }
+  return row(label,path,val);
+}
+
+function render(s){
+  var h=s.header||{}, biz=h.business||A.business||'Lease Abstract';
+  var out='<div class="doc">';
+  out+='<div class="hd"><div class="rrg">RRG · RESTAURANT REALTY GROUP</div>'
+    +'<div class="kt">Lease Abstract</div>'
+    +'<h1 class="ed" contenteditable data-k="header.business">'+esc(biz)+'</h1>'
+    +'<div class="addr">'+ed('header.propertyAddress',h.propertyAddress)+'</div>'
+    +'<div class="docl">Documents abstracted: '+ed('header.documentList',h.documentList)+' · Lease dated '+ed('header.leaseDate',h.leaseDate)+'</div></div>';
+
+  if(s.summary || document.body) out+='<div class="summary"><b style="color:#1a2740">Summary — </b>'+ed('summary',s.summary)+'</div>';
+
+  var flags=(s.flags||[]).filter(function(x){return x&&String(x).trim();});
+  if(flags.length){ out+='<div class="flags">'+flags.map(function(f,i){ return '<div class="fl"><span class="ed" contenteditable data-k="flags.'+i+'" style="flex:1">'+esc(f)+'</span></div>'; }).join('')+'</div>'; }
+
+  function block(title, rowsHtml){ return '<div class="sec">'+title+'</div><div class="rows">'+rowsHtml+'</div>'; }
+  var p=s.parties||{};
+  out+=block('Parties', partyRow('Landlord','parties.landlord',p.landlord)+partyRow('Tenant','parties.tenant',p.tenant)+partyRow('Guarantor','parties.guarantor',p.guarantor));
+  var pr=s.premises||{};
+  out+=block('Premises', row('Description','premises.description',pr.description)+row('Rentable SF','premises.squareFeet',pr.squareFeet)+row('Suite / Unit','premises.suite',pr.suite)+row('Common areas','premises.commonAreas',pr.commonAreas));
+  var t=s.term||{};
+  out+=block('Term', row('Commencement','term.commencement',t.commencement)+row('Expiration','term.expiration',t.expiration)+row('Original term','term.originalTerm',t.originalTerm)+row('Remaining term','term.remainingTerm',t.remainingTerm)+row('Rent commencement','term.rentCommencement',t.rentCommencement));
+  var r=s.rent||{};
+  var rentRows=row('Current base rent','rent.current',r.current)+row('Rent per SF','rent.perSF',r.perSF)+row('Escalation','rent.escalation',r.escalation)+row('Percentage rent','rent.percentageRent',r.percentageRent);
+  out+=block('Base Rent', rentRows);
+  var sch=(r.schedule||[]);
+  if(sch.length){ out+='<table class="sch"><thead><tr><th>Period</th><th>Monthly</th><th>Annual</th></tr></thead><tbody>'
+    +sch.map(function(x,i){ return '<tr><td>'+ed('rent.schedule.'+i+'.period',x.period)+'</td><td>'+ed('rent.schedule.'+i+'.monthlyRent',x.monthlyRent)+'</td><td>'+ed('rent.schedule.'+i+'.annualRent',x.annualRent)+'</td></tr>'; }).join('')+'</tbody></table>'; }
+  var o=s.options||{};
+  out+=block('Renewal Options', row('Options','options.renewalOptions',o.renewalOptions)+row('Notice to exercise','options.renewalNotice',o.renewalNotice)+row('Option rent basis','options.renewalRent',o.renewalRent));
+  var c=s.charges||{};
+  out+=block('Operating Charges', row('Structure','charges.structure',c.structure)+row('CAM','charges.cam',c.cam)+row('Real estate taxes','charges.taxes',c.taxes)+row('Insurance','charges.insurance',c.insurance)+row('Other charges','charges.otherCharges',c.otherCharges));
+  var d=s.deposit||{};
+  out+=block('Security Deposit', row('Security deposit','deposit.securityDeposit',d.securityDeposit)+row('Other','deposit.other',d.other));
+  var u=s.use||{};
+  out+=block('Use', row('Permitted use','use.permittedUse',u.permittedUse)+row('Exclusive','use.exclusive',u.exclusive)+row('Operating hours','use.hours',u.hours)+row('Co-tenancy','use.coTenancy',u.coTenancy));
+  var as=s.assignment||{};
+  out+=block('Assignment &amp; Subletting', row('Assignment / sublet','assignment.assignmentSublet',as.assignmentSublet)+row('Consent standard','assignment.consentStandard',as.consentStandard)+row('Transfer fee','assignment.transferFee',as.transferFee)+row('Change of control','assignment.changeOfControl',as.changeOfControl));
+  var g=s.guaranty||{};
+  out+=block('Guaranty', row('Type','guaranty.type',g.type)+row('Personal guaranty','guaranty.personalGuaranty',g.personalGuaranty)+row('Burn-off / limitation','guaranty.burnoff',g.burnoff));
+  var k=s.keyProvisions||{};
+  out+=block('Key Provisions', row('Maintenance','keyProvisions.maintenance',k.maintenance)+row('Improvements / TI','keyProvisions.improvements',k.improvements)+row('Signage','keyProvisions.signage',k.signage)+row('Parking','keyProvisions.parking',k.parking)+row('Insurance','keyProvisions.insurance',k.insurance)+row('Holdover','keyProvisions.holdover',k.holdover)+row('Default &amp; cure','keyProvisions.default',k.default)+row('Estoppel / SNDA','keyProvisions.estoppelSNDA',k.estoppelSNDA));
+  var cd=(s.criticalDates||[]);
+  if(cd.length){ out+='<div class="sec">Critical Dates</div><table class="sch"><thead><tr><th>Date</th><th>Event</th></tr></thead><tbody>'
+    +cd.map(function(x,i){ return '<tr><td>'+ed('criticalDates.'+i+'.date',x.date)+'</td><td>'+ed('criticalDates.'+i+'.event',x.event)+'</td></tr>'; }).join('')+'</tbody></table>'; }
+
+  out+='<div class="foot">Prepared by Restaurant Realty Group, LLC · This abstract summarizes selected lease provisions for convenience only and does not replace the lease. Terms are subject to the executed lease and any amendments. Strictly confidential.</div>';
+  out+='</div>';
+  document.getElementById('doc').innerHTML=out;
+  wireEdits();
+  var rb=document.getElementById('redactBtn'); rb.textContent='Redact LL/Tenant: '+(s.redact?'On':'Off'); rb.classList.toggle('on',!!s.redact);
+}
+
+var _t=null;
+function wireEdits(){ document.querySelectorAll('#doc [data-k]').forEach(function(el){ el.addEventListener('input',function(){ setPath(A.state, el.getAttribute('data-k'), el.innerText); queueSave(); }); }); }
+function queueSave(){ var chip=document.getElementById('savechip'); if(_t) clearTimeout(_t); _t=setTimeout(function(){
+  fetch('/api/lease-save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:LID,state:A.state})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ chip.classList.add('show'); setTimeout(function(){chip.classList.remove('show');},1300); } }).catch(function(){});
+}, 700); }
+function toggleEdit(){ var on=document.body.classList.toggle('editing'); var b=document.getElementById('editBtn'); b.textContent='Editing: '+(on?'On':'Off'); b.classList.toggle('on',on); document.querySelectorAll('#doc [contenteditable]').forEach(function(el){ el.setAttribute('contenteditable', on?'true':'false'); }); }
+function toggleRedact(){ A.state.redact=!A.state.redact; render(A.state); queueSave(); }
+
+if(LID){
+  fetch('/api/lease/'+encodeURIComponent(LID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok&&j.lease){ A=j.lease; if(!A.state){ A.state=blankState(); if(A.business) A.state.header.business=A.business; } render(A.state); if(ISNEW){ /* fresh manual abstract: save the blank so it shows as built */ queueSave(); } }
+    else { document.getElementById('doc').innerHTML='<div class="loading">Could not load this abstract.</div>'; }
+  }).catch(function(){ document.getElementById('doc').innerHTML='<div class="loading">Could not reach the server.</div>'; });
+} else { document.getElementById('doc').innerHTML='<div class="loading">No abstract selected. Open one from Lease Abstracts.</div>'; }
+</script>
+</body>
+</html>
