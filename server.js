@@ -943,6 +943,45 @@ app.post('/api/lease/new', express.json(), (req, res) => {
   const arr = loadLeases(); arr.push(rec); saveLeases(arr);
   res.json({ ok: true, id: rec.id });
 });
+// The lease abstract that belongs to this Marketing Pack's deal (matched by the source BOV, then questionnaire).
+function leaseForDeal(req, cim) {
+  if (!cim) return null;
+  const arr = loadLeases();
+  let l = cim.srcBovId ? arr.find(x => x.srcBovId && x.srcBovId === cim.srcBovId && ownsLease(req, x)) : null;
+  if (!l && cim.srcQuestId) l = arr.find(x => x.srcQuestId && x.srcQuestId === cim.srcQuestId && ownsLease(req, x));
+  return l || null;
+}
+// Does this pack's deal have a lease abstract? (for the Lease Abstract view in the builder)
+app.get('/api/cim/:id/lease', (req, res) => {
+  const cim = loadCims().find(x => x.id === req.params.id);
+  if (!cim) return res.status(404).json({ ok: false, error: 'Marketing Pack not found.' });
+  if (!ownsCim(req, cim)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const l = leaseForDeal(req, cim);
+  if (!l) return res.json({ ok: true, lease: null });
+  res.json({ ok: true, lease: {
+    id: l.id, business: l.business, propertyAddress: l.propertyAddress || '',
+    pending: !!l.pending, builtAt: l.builtAt || '', createdAt: l.createdAt || '',
+    redactLandlord: l.state ? (l.state.redactLandlord !== false) : true,
+    redactTenant: l.state ? (l.state.redactTenant !== false) : true,
+  } });
+});
+// Start a lease abstract tied to this pack's deal (or return the one already linked).
+app.post('/api/cim/:id/lease/new', express.json(), (req, res) => {
+  const cim = loadCims().find(x => x.id === req.params.id);
+  if (!cim) return res.status(404).json({ ok: false, error: 'Marketing Pack not found.' });
+  if (!ownsCim(req, cim)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const existing = leaseForDeal(req, cim);
+  if (existing) return res.json({ ok: true, id: existing.id, existed: true });
+  const arr = loadLeases();
+  const rec = {
+    id: newLeaseId(), business: String(cim.business || 'Lease Abstract').slice(0, 120), propertyAddress: '',
+    pending: true, srcQuestId: cim.srcQuestId || '', srcBovId: cim.srcBovId || '',
+    by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
+    createdAt: new Date().toISOString(), state: null,
+  };
+  arr.push(rec); saveLeases(arr);
+  res.json({ ok: true, id: rec.id });
+});
 // Save in-builder edits (the whole abstract state, including the redact flag).
 app.post('/api/lease-save', express.json({ limit: '4mb' }), (req, res) => {
   const b = req.body || {};

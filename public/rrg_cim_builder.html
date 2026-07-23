@@ -18,6 +18,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .btn{border:1px solid #cfd6e2;background:#fff;color:var(--brandnavy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:8px;cursor:pointer;text-decoration:none;}
 .btn:hover{border-color:#9fb0cc;} .btn.print{background:var(--brandnavy);color:#fff;border-color:var(--brandnavy);}
 .btn.on{background:#eaf0ff;border-color:#9fb4e6;color:#2647b0;}
+.viewnav{display:inline-flex;gap:6px;padding:3px 8px;border-left:1px solid var(--line);border-right:1px solid var(--line);margin:0 2px;}
 .savechip{font-size:11px;color:var(--green);font-weight:700;opacity:0;transition:opacity .3s;} .savechip.show{opacity:1;}
 #doc{max-width:850px;margin:20px auto;}
 .page{background:#fff;width:850px;min-height:1100px;margin:0 auto 22px;padding:70px 78px 60px;position:relative;box-shadow:0 6px 26px rgba(10,20,50,.09);}
@@ -79,7 +80,7 @@ ul.plain{margin:8px 0;padding-left:0;list-style:none;} ul.plain li{font-size:12p
 .callout{border:1px solid var(--cardline);border-left:4px solid var(--red);background:var(--wash);border-radius:0 6px 6px 0;padding:14px 16px;margin:14px 0;}
 .callout .ct{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:3px;} .callout .cb{font-size:11.5px;line-height:1.55;color:var(--ink);}
 .quote{border-left:4px solid var(--red);background:var(--wash);padding:13px 16px;margin:6px 0 16px;} .quote .q{font-style:italic;font-size:15px;color:var(--navy);} .quote .a{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin-top:6px;}
-body.editing .ed{background:rgba(120,150,220,.045);} body.editing .ed:hover{background:rgba(120,150,220,.10);}
+body.editing .ed:hover{background:rgba(120,150,220,.10);border-radius:3px;}
 .loading{max-width:850px;margin:60px auto;text-align:center;color:var(--muted);font-size:14px;}
 .emails-panel{max-width:850px;margin:22px auto 90px;padding:0 22px;}
 .emails-panel .ehead{font-family:'Georgia',serif;font-size:22px;font-weight:700;color:var(--navy);margin:6px 0 3px;}
@@ -112,13 +113,18 @@ body.editing .ed{background:rgba(120,150,220,.045);} body.editing .ed:hover{back
   <div class="actions">
     <span class="savechip" id="savechip">Saved ✓</span>
     <button class="btn on" id="editBtn" onclick="toggleEdit()">Editing: On</button>
-    <button class="btn" id="emailsBtn" onclick="toggleEmails()">Emails</button>
+    <span class="viewnav">
+      <button class="btn on" id="viewDocBtn" onclick="showView('doc')">CIM</button>
+      <button class="btn" id="viewEmailsBtn" onclick="showView('emails')">Emails</button>
+      <button class="btn" id="viewLeaseBtn" onclick="showView('lease')">Lease Abstract</button>
+    </span>
     <a class="btn" href="./rrg_cim_queue.html">Marketing Packs</a>
     <button class="btn print" onclick="window.print()">Print</button>
   </div>
 </div></div>
 <div id="doc"><div class="loading">Loading the memorandum…</div></div>
 <div id="emails" class="emails-panel" style="display:none"></div>
+<div id="leaseview" class="emails-panel" style="display:none"></div>
 <script>
 var CID=(new URLSearchParams(location.search)).get('cim')||'';
 var CIM=null;
@@ -287,9 +293,47 @@ function queueSave(){ var chip=document.getElementById('savechip'); if(_saveT) c
 function toggleEdit(){ var on=document.body.classList.toggle('editing'); var b=document.getElementById('editBtn'); b.textContent='Editing: '+(on?'On':'Off'); b.classList.toggle('on',on); document.querySelectorAll('#doc [contenteditable]').forEach(function(el){ el.setAttribute('contenteditable', on?'true':'false'); }); }
 
 // ---- Marketing Emails: the confidential-sale sequence, filled with this deal ----
-function toggleEmails(){ var em=document.getElementById('emails'), doc=document.getElementById('doc'), btn=document.getElementById('emailsBtn');
-  var on=em.style.display==='none'; em.style.display=on?'block':'none'; doc.style.display=on?'none':'block';
-  btn.textContent=on?'Document':'Emails'; btn.classList.toggle('on',on); if(on) window.scrollTo(0,0); }
+function showView(v){
+  var doc=document.getElementById('doc'), em=document.getElementById('emails'), lv=document.getElementById('leaseview');
+  doc.style.display=v==='doc'?'block':'none'; em.style.display=v==='emails'?'block':'none'; lv.style.display=v==='lease'?'block':'none';
+  document.getElementById('viewDocBtn').classList.toggle('on',v==='doc');
+  document.getElementById('viewEmailsBtn').classList.toggle('on',v==='emails');
+  document.getElementById('viewLeaseBtn').classList.toggle('on',v==='lease');
+  var eb=document.getElementById('editBtn'); if(eb) eb.style.display=v==='doc'?'':'none';   // Editing applies to the CIM only
+  if(v==='lease') loadLeaseView();
+  window.scrollTo(0,0);
+}
+function fmtDate(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }catch(e){ return ''; } }
+function loadLeaseView(){
+  var lv=document.getElementById('leaseview');
+  lv.innerHTML=leaseHead()+'<div class="sub2" style="color:#5f6b7d;padding:4px 2px">Loading…</div>';
+  fetch('/api/cim/'+encodeURIComponent(CID)+'/lease',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ lv.querySelector('.sub2').textContent='Could not load the lease abstract.'; return; }
+    renderLeaseView(j.lease);
+  }).catch(function(){ var s=lv.querySelector('.sub2'); if(s) s.textContent='Could not reach the server.'; });
+}
+function leaseHead(){ return '<div class="ehead">Lease Abstract</div><div class="esubhead">The lease summary that rides with this deal — term, rent, options, NNN, assignment, and guaranty. Landlord and tenant are redacted by default so it’s safe to share with buyers.</div>'; }
+function renderLeaseView(l){
+  var lv=document.getElementById('leaseview');
+  if(!l){
+    lv.innerHTML=leaseHead()+'<div class="emailcard"><div class="et">No lease abstract in this pack yet</div><div class="ed2">Add the lease and the analyst pulls the terms into a clean, buyer-safe abstract tied to this deal.</div><button class="ecopy" style="float:none;margin-top:10px" onclick="addLease(this)">+ Add a lease abstract →</button></div>';
+    return;
+  }
+  var when=l.pending?('Started '+fmtDate(l.createdAt)):('Abstracted'+(l.builtAt?(' '+fmtDate(l.builtAt)):''));
+  var rd=[]; if(l.redactLandlord) rd.push('Landlord'); if(l.redactTenant) rd.push('Tenant');
+  var redline=l.pending?'':('<div class="esub"><b>Redaction:</b> '+(rd.length?(rd.join(' & ')+' withheld for buyer copies'):'None — full names shown')+'</div>');
+  var meta=[esc(l.propertyAddress||''),when].filter(Boolean).join(' · ');
+  var action=l.pending
+    ? '<a class="ecopy" style="float:none;text-decoration:none;display:inline-block;margin-top:10px" href="./rrg_lease_generate.html?lease='+encodeURIComponent(l.id)+'">Build it →</a>'
+    : '<a class="ecopy" style="float:none;text-decoration:none;display:inline-block;margin-top:10px" href="./rrg_lease_abstract.html?lease='+encodeURIComponent(l.id)+'">Open lease abstract →</a>';
+  lv.innerHTML=leaseHead()+'<div class="emailcard"><div class="et">'+esc(l.business||'Lease Abstract')+'</div><div class="ed2">'+meta+'</div>'+redline+action+'</div>';
+}
+function addLease(btn){
+  if(btn){ btn.disabled=true; btn.textContent='…'; }
+  fetch('/api/cim/'+encodeURIComponent(CID)+'/lease/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id){ location.href='./rrg_lease_generate.html?lease='+encodeURIComponent(j.id); } else { if(btn){btn.disabled=false;btn.textContent='+ Add a lease abstract →';} alert((j&&j.error)||'Could not start.'); } })
+    .catch(function(){ if(btn){btn.disabled=false;btn.textContent='+ Add a lease abstract →';} alert('Could not reach the server.'); });
+}
 function dealFields(s){ s=s||{}; var biz=(s.cover&&s.cover.title)||(CIM&&CIM.business)||'the business';
   var br=(s.bov&&s.bov.bridge)||{}; var rev=num(br.revenue), ni=num(br.netIncome);
   var ebitda=ni+num(br.interest)+num(br.entityTax)+num(br.depreciation)+num(br.amortization);
@@ -346,7 +390,7 @@ function copyText(txt, btn){
 
 if(CID){
   fetch('/api/cim/'+encodeURIComponent(CID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(j&&j.ok&&j.cim){ CIM=j.cim; if(CIM.state&&CIM.state.cover){ renderCim(CIM.state); buildEmails(CIM.state); } else { document.getElementById('doc').innerHTML='<div class="loading">This Marketing Pack hasn’t been built yet. Open it from Marketing Packs and press Build.</div>'; document.getElementById('emailsBtn').style.display='none'; } }
+    if(j&&j.ok&&j.cim){ CIM=j.cim; if(CIM.state&&CIM.state.cover){ renderCim(CIM.state); buildEmails(CIM.state); } else { document.getElementById('doc').innerHTML='<div class="loading">This Marketing Pack’s CIM hasn’t been built yet. Open it from Marketing Packs and press Build. You can still add a Lease Abstract to the pack from the tab above.</div>'; document.getElementById('viewEmailsBtn').style.display='none'; } }
     else { document.getElementById('doc').innerHTML='<div class="loading">Could not load this Marketing Pack.</div>'; }
   }).catch(function(){ document.getElementById('doc').innerHTML='<div class="loading">Could not reach the server.</div>'; });
 } else { document.getElementById('doc').innerHTML='<div class="loading">No Marketing Pack selected. Open one from Marketing Packs.</div>'; }
