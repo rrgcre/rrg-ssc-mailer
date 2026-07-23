@@ -86,7 +86,7 @@ const DEFAULT_PACK_INTRO_MESSAGE = [
   "- The Confidential Information Memorandum (CIM) — the confidential offering book buyers read, built from this deal’s valuation, questionnaire, and qualification call",
   "- A ready-to-send email campaign — the whole confidential-sale sequence: teaser, buyer qualifier, NDA cover, CIM delivery, data-room access, the call with ownership, and the call for offers",
   "",
-  "Add your photos and logo, then press Build. Everything reuses the numbers already locked in the valuation, so the CIM and the emails stay consistent end to end. You can edit any of it after it’s built."
+  "To get started, on the next screen, add your photos and logo, then press Build. Everything reuses the numbers already locked in the valuation, so the CIM and the emails stay consistent end to end. You can edit any of it after it’s built."
 ].join("\n");
 function loadPackIntroMessage() { const m = loadCfg().packIntroMessage; return (typeof m === 'string' && m.trim()) ? m : DEFAULT_PACK_INTRO_MESSAGE; }
 function savePackIntroMessage(t) { saveCfg({ packIntroMessage: String(t == null ? '' : t).slice(0, 4000) }); }
