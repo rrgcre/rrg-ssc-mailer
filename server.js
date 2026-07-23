@@ -379,7 +379,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/valuation-factors') return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc') return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -972,17 +972,77 @@ app.post('/api/me/links', express.json({ limit: '256kb' }), (req, res) => {
   catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
+// ---- Admin-uploaded documents (persist on the DATA_DIR disk, survive deploys) ----
+const DOCS_DIR = path.join(BOV_DATA_DIR, 'documents');
+const DOCS_FILE = path.join(BOV_DATA_DIR, 'documents.json');
+function loadDocs() { try { return JSON.parse(fs.readFileSync(DOCS_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveDocs(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(DOCS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newDocId() { return 'doc_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
+function prettyName(f) { return String(f || '').replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
+
 app.get('/api/agreements', (_req, res) => {
-  const fs = require('fs'); const path = require('path');
-  const dir = path.join(__dirname, 'public', 'agreements');
+  const pretty = f => f.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  let list = [];
   try {
-    if (!fs.existsSync(dir)) return res.json({ ok: true, agreements: [] });
-    const pretty = f => f.replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    const agreements = fs.readdirSync(dir).filter(f => /\.(pdf|docx?|png|jpe?g)$/i.test(f))
-      .map(f => ({ name: pretty(f), file: 'agreements/' + f, type: (f.split('.').pop() || '').toUpperCase(), updated: fs.statSync(path.join(dir, f)).mtimeMs }))
-      .sort((a, b) => a.name.localeCompare(b.name));
-    res.json({ ok: true, agreements });
-  } catch (e) { console.error('agreements list error:', e); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+    const dir = path.join(__dirname, 'public', 'agreements');
+    if (fs.existsSync(dir)) {
+      list = fs.readdirSync(dir).filter(f => /\.(pdf|docx?|png|jpe?g)$/i.test(f))
+        .map(f => ({ name: pretty(f), file: 'agreements/' + f, type: (f.split('.').pop() || '').toUpperCase(), updated: fs.statSync(path.join(dir, f)).mtimeMs }));
+    }
+  } catch (e) { console.error('agreements folder list error:', e); }
+  // Merge in admin-uploaded documents (from the persistent disk).
+  try {
+    loadDocs().forEach(d => {
+      let updated = Date.parse(d.uploadedAt) || 0;
+      try { updated = fs.statSync(path.join(DOCS_DIR, d.id + '.' + d.ext)).mtimeMs; } catch (e) {}
+      list.push({ name: d.title || prettyName(d.originalName), file: 'doc/' + d.id + '.' + d.ext, type: d.type || ((d.category || 'Document') + ' · ' + String(d.ext).toUpperCase()), updated });
+    });
+  } catch (e) { console.error('agreements uploaded list error:', e); }
+  list.sort((a, b) => a.name.localeCompare(b.name));
+  res.json({ ok: true, agreements: list });
+});
+
+// List uploaded documents (admin manager).
+app.get('/api/admin/documents', requireAdmin, (req, res) => res.json({ ok: true, documents: loadDocs() }));
+
+// Upload a document (base64 JSON so no multipart dependency). Stored on DATA_DIR.
+app.post('/api/admin/upload-doc', requireAdmin, express.json({ limit: '40mb' }), (req, res) => {
+  const b = req.body || {};
+  const orig = String(b.filename || '').trim();
+  const m = orig.match(/\.([a-z0-9]+)$/i); const ext = m ? m[1].toLowerCase() : '';
+  if (!/^(pdf|docx?|png|jpe?g)$/i.test(ext)) return res.status(400).json({ ok: false, error: 'Only PDF, Word, PNG or JPG files are allowed.' });
+  const data = String(b.dataB64 || ''); if (!data) return res.status(400).json({ ok: false, error: 'No file data received.' });
+  let buf; try { buf = Buffer.from(data, 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the file data.' }); }
+  if (!buf.length) return res.status(400).json({ ok: false, error: 'The file appears to be empty.' });
+  if (buf.length > 20 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 20 MB).' });
+  const category = (['Agreement', 'Document', 'Training'].indexOf(b.category) >= 0) ? b.category : 'Document';
+  const title = String(b.title || '').trim().slice(0, 120) || prettyName(orig);
+  try { if (!fs.existsSync(DOCS_DIR)) fs.mkdirSync(DOCS_DIR, { recursive: true }); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not create the documents folder.' }); }
+  const id = newDocId();
+  try { fs.writeFileSync(path.join(DOCS_DIR, id + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
+  const docs = loadDocs();
+  docs.push({ id, title, category, ext, originalName: orig, type: category + ' · ' + ext.toUpperCase(), uploadedAt: new Date().toISOString(), by: (req.user && req.user.name) || '' });
+  saveDocs(docs);
+  res.json({ ok: true, documents: docs });
+});
+
+// Delete an uploaded document.
+app.post('/api/admin/delete-doc', requireAdmin, express.json(), (req, res) => {
+  const id = String((req.body || {}).id || '');
+  const docs = loadDocs(); const d = docs.find(x => x.id === id);
+  if (!d) return res.status(404).json({ ok: false, error: 'Document not found.' });
+  try { fs.unlinkSync(path.join(DOCS_DIR, d.id + '.' + d.ext)); } catch (e) {}
+  saveDocs(docs.filter(x => x.id !== id));
+  res.json({ ok: true, documents: loadDocs() });
+});
+
+// Serve an uploaded document (login-gated by the auth middleware above).
+app.get('/doc/:name', (req, res) => {
+  const name = String(req.params.name || '');
+  if (!/^doc_[a-z0-9]+\.(pdf|docx?|png|jpe?g)$/i.test(name)) return res.status(404).end();
+  const fp = path.join(DOCS_DIR, name);
+  if (!fp.startsWith(DOCS_DIR) || !fs.existsSync(fp)) return res.status(404).end();
+  res.sendFile(fp);
 });
 
 /* ---------- submission log view (now shows who submitted) ---------- */
@@ -1090,6 +1150,22 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveLinks()">Save quick links</button> <span id="lmsg" class="sub2"></span></div>
       </div>
 
+      <h2 style="margin-top:34px">Documents &amp; Agreements <span class="sub2">— files shown in the dashboard's "Agreements, Documents &amp; Training" section. Upload here and they appear for everyone instantly — no GitHub, no push. PDF, Word, PNG or JPG, up to 20&nbsp;MB.</span></h2>
+      <div class="links">
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input id="docTitle" placeholder="Title (e.g. Buyer Broker Agreement)" style="flex:1;min-width:220px;border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px">
+          <select id="docCategory" style="border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;background:#fff">
+            <option>Agreement</option><option>Document</option><option>Training</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+          <input type="file" id="docFile" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" style="font:inherit;font-size:13px">
+          <button class="primary" onclick="uploadDoc()">Upload document</button>
+          <span id="docmsg" class="sub2"></span>
+        </div>
+        <div id="docList" style="margin-top:14px"></div>
+      </div>
+
       <div class="grp">Valuation Rules</div>
       <h2 style="margin-top:20px">BOV Valuation Basis <span class="sub2">— deals with trailing sales BELOW this value are concluded on SDE; at or above it, on Adjusted EBITDA.</span></h2>
       <div class="links">
@@ -1182,6 +1258,26 @@ app.get('/admin', requireAdmin, (req, res) => {
       function au(f){ post('/api/admin/add-user',{firstName:f.firstName.value,lastName:f.lastName.value,username:f.username.value,email:f.email.value,password:f.password.value,role:f.role.value,title:f.title.value,phone:f.phone.value}).then(j=>{ if(j.ok){location.reload();} else alert(j.error||'Failed'); }); return false; }
       function rp(f){ var p=prompt('New password for '+f.username.value+' (min 6):'); if(!p) return false; post('/api/admin/reset',{username:f.username.value,password:p}).then(j=>{ alert(j.ok?'Password reset.':(j.error||'Failed')); }); return false; }
       function saveLinks(){ var links=[]; document.querySelectorAll('.lrow').forEach(function(r){ var n=r.querySelector('.ln').value.trim(), u=r.querySelector('.lu').value.trim(), a=r.querySelector('.la').checked; if(n&&u) links.push({name:n,url:u,default:a}); }); post('/api/admin/links',{links:links}).then(function(j){ var m=document.getElementById('lmsg'); if(j.ok){ m.textContent='Saved '+(j.links.length)+' link(s) ✓'; } else { m.textContent=j.error||'Failed'; } }); }
+      function docEsc(s){ var d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+      function renderDocList(list){ var el=document.getElementById('docList'); if(!el) return;
+        if(!list||!list.length){ el.innerHTML='<div class="sub2">No uploaded documents yet.</div>'; return; }
+        el.innerHTML=list.map(function(d){ return '<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid #eef1f6">'
+          +'<b style="flex:1;color:#0b1a3a;font-size:13.5px">'+docEsc(d.title)+'</b>'
+          +'<span class="sub2">'+docEsc(d.type||d.category||'')+'</span>'
+          +'<a href="/doc/'+docEsc(d.id)+'.'+docEsc(d.ext)+'" target="_blank" rel="noopener" style="border:1px solid #cfd6e2;background:#fff;border-radius:7px;padding:5px 12px;font-size:12px;font-weight:700;color:#0b1a3a;text-decoration:none">Open</a>'
+          +'<button onclick="delDoc(\''+docEsc(d.id)+'\')" style="border:1px solid #f0cfca;background:#fff5f4;border-radius:7px;padding:5px 12px;font:inherit;font-size:12px;font-weight:700;color:#DA2B1F;cursor:pointer">Delete</button>'
+          +'</div>'; }).join(''); }
+      function loadDocList(){ fetch('/api/admin/documents').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) renderDocList(j.documents||[]); }).catch(function(){}); }
+      function uploadDoc(){ var fi=document.getElementById('docFile'), f=fi&&fi.files&&fi.files[0], m=document.getElementById('docmsg');
+        if(!f){ m.textContent='Choose a file first.'; return; }
+        if(f.size>20*1024*1024){ m.textContent='File too large (max 20 MB).'; return; }
+        m.textContent='Uploading…';
+        var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''), i=s.indexOf(','), b64=(i>=0?s.slice(i+1):s);
+          post('/api/admin/upload-doc',{filename:f.name, dataB64:b64, title:document.getElementById('docTitle').value, category:document.getElementById('docCategory').value}).then(function(j){ if(j&&j.ok){ m.textContent='Uploaded ✓'; document.getElementById('docTitle').value=''; fi.value=''; renderDocList(j.documents||[]); } else { m.textContent=(j&&j.error)||'Upload failed'; } }).catch(function(){ m.textContent='Upload failed — try again.'; }); };
+        rd.onerror=function(){ m.textContent='Could not read that file.'; };
+        rd.readAsDataURL(f); }
+      function delDoc(id){ if(!confirm('Remove this document from the dashboard? This deletes the uploaded file.')) return; post('/api/admin/delete-doc',{id:id}).then(function(j){ if(j&&j.ok) renderDocList(j.documents||[]); else alert((j&&j.error)||'Could not delete.'); }); }
+      loadDocList();
       function saveToolAccess(){ var t=[]; document.querySelectorAll('.ta:checked').forEach(function(c){ t.push(c.value); }); post('/api/admin/tool-access',{adminOnly:t}).then(function(j){ var m=document.getElementById('tmsg'); if(j.ok){ m.textContent='Saved — '+j.adminOnly.length+' tool(s) admin-only ✓'; } else { m.textContent=j.error||'Failed'; } }); }
       function _bpState(isDefault){ var s=document.getElementById('bpstate'); if(s) s.textContent = isDefault ? 'Currently using the RRG default prompt.' : 'Currently using a custom prompt.'; }
       function loadBovPrompt(){ fetch('/api/admin/bov-prompt').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('bovPrompt').value=j.prompt||''; _bpState(j.isDefault); } }).catch(function(){ var s=document.getElementById('bpstate'); if(s) s.textContent='Could not load the prompt.'; }); }
