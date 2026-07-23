@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — Confidential Information Memorandum</title>
+<title>RRG — Marketing Pack</title>
 <style>
 :root{--navy:#0e1f3d;--brandnavy:#000E31;--red:#DA2B1F;--ink:#22272f;--muted:#5f6b7d;--soft:#8894a8;
   --line:#e3e6ec;--card:#f4f5f7;--cardline:#e6e9ef;--green:#1f8a5b;--wash:#f7f8fb;}
@@ -18,7 +18,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .btn{border:1px solid #cfd6e2;background:#fff;color:var(--brandnavy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:8px;cursor:pointer;text-decoration:none;}
 .btn:hover{border-color:#9fb0cc;} .btn.print{background:var(--brandnavy);color:#fff;border-color:var(--brandnavy);}
 .btn.on{background:#eaf0ff;border-color:#9fb4e6;color:#2647b0;}
-.viewnav{display:inline-flex;gap:6px;padding:3px 8px;border-left:1px solid var(--line);border-right:1px solid var(--line);margin:0 2px;}
+.viewnav{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-left:1px solid var(--line);border-right:1px solid var(--line);margin:0 2px;}
+.viewnav .vlabel{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-right:2px;}
 .savechip{font-size:11px;color:var(--green);font-weight:700;opacity:0;transition:opacity .3s;} .savechip.show{opacity:1;}
 #doc{max-width:850px;margin:20px auto;}
 .page{background:#fff;width:850px;min-height:1100px;margin:0 auto 22px;padding:70px 78px 60px;position:relative;box-shadow:0 6px 26px rgba(10,20,50,.09);}
@@ -77,6 +78,10 @@ ul.plain{margin:8px 0;padding-left:0;list-style:none;} ul.plain li{font-size:12p
 .photos{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;margin-top:14px;}
 .photo .ph{height:180px;border-radius:4px;background:#eef1f6 center/cover no-repeat;border:1px solid var(--cardline);}
 .photo .cap{font-size:10.5px;font-style:italic;color:var(--soft);text-align:center;margin-top:5px;}
+.gallery{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;margin-top:14px;}
+.gphoto{margin:0;break-inside:avoid;}
+.gphoto .gph{height:252px;border-radius:4px;background:#eef1f6 center/cover no-repeat;border:1px solid var(--cardline);}
+.gphoto figcaption{font-size:10.5px;font-style:italic;color:var(--soft);text-align:center;margin-top:6px;}
 .callout{border:1px solid var(--cardline);border-left:4px solid var(--red);background:var(--wash);border-radius:0 6px 6px 0;padding:14px 16px;margin:14px 0;}
 .callout .ct{font-size:13px;font-weight:700;color:var(--navy);margin-bottom:3px;} .callout .cb{font-size:11.5px;line-height:1.55;color:var(--ink);}
 .quote{border-left:4px solid var(--red);background:var(--wash);padding:13px 16px;margin:6px 0 16px;} .quote .q{font-style:italic;font-size:15px;color:var(--navy);} .quote .a{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin-top:6px;}
@@ -115,11 +120,11 @@ body.editing .ed:hover{background:rgba(120,150,220,.10);border-radius:3px;}
 <body class="editing">
 <!--rrgback--><a href="./rrg_cim_queue.html" class="rrg-back" aria-label="Back to Marketing Packs" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> Marketing Packs</a>
 <div class="toolbar"><div class="tb-inner">
-  <div class="tt">RRG Confidential Information Memorandum <span>Edit in place · Print</span></div>
+  <div class="tt">RRG Marketing Pack <span>CIM · Emails · Lease Abstract</span></div>
   <div class="actions">
     <span class="savechip" id="savechip">Saved ✓</span>
     <button class="btn on" id="editBtn" onclick="toggleEdit()">Editing: On</button>
-    <span class="viewnav">
+    <span class="viewnav"><span class="vlabel">Pack:</span>
       <button class="btn on" id="viewDocBtn" onclick="showView('doc')">CIM</button>
       <button class="btn" id="viewEmailsBtn" onclick="showView('emails')">Emails</button>
       <button class="btn" id="viewLeaseBtn" onclick="showView('lease')">Lease Abstract</button>
@@ -190,7 +195,7 @@ function renderCim(s){
     +foot(++pg)+'</div>';
 
   // TABLE OF CONTENTS
-  var toc=[['Confidentiality & Disclaimer',2],['Executive Summary',4],['The Company Story',5],['Concept, Menu & Craft',6],['Market & Industry Overview',7],['Financial Overview',8],['Value-Creation Opportunities',9],['Risk Factors & Considerations',10],['Transaction Overview',11],['Due Diligence Process',12]];
+  var toc=[['Confidentiality & Disclaimer',2],['Executive Summary',4],['The Company Story',5],['Concept, Menu & Craft',6],['Property Gallery',7],['Market & Industry Overview',8],['Financial Overview',9],['Value-Creation Opportunities',10],['Risk Factors & Considerations',11],['Transaction Overview',12],['Due Diligence Process',13]];
   out+='<div class="page"><div class="kick red">Contents</div><h2 class="sect serif">Table of Contents</h2><hr class="rule"><div class="toc">'
     +toc.map(function(r){ return '<div class="row"><span class="nm">'+esc(r[0])+'</span><span class="dots"></span><span class="pg">'+r[1]+'</span></div>'; }).join('')
     +'</div>'+foot(++pg)+'</div>';
@@ -219,9 +224,22 @@ function renderCim(s){
     +(co.signature||[]).map(function(sg,i){ return '<li><b class="ed" contenteditable data-k="concept.signature.'+i+'.name">'+esc(sg.name||'')+'</b> <span class="ed" contenteditable data-k="concept.signature.'+i+'.desc">'+esc(sg.desc||'')+'</span></li>'; }).join('')
     +'</ul>';
   if(co.closing) out+=ed('p','body','concept.closing',co.closing).replace('class="ed','style="font-style:italic;color:var(--muted)" class="ed');
-  var photos=(s.photos||[]).filter(function(p){return p&&p.dataB64;});
-  if(photos.length) out+='<div class="photos">'+photos.map(function(p,i){ return '<div class="photo"><div class="ph" style="background-image:url(data:'+esc(p.type||'image/jpeg')+';base64,'+p.dataB64+')"></div><div class="cap ed" contenteditable data-k="photos.'+i+'.caption">'+esc(p.caption||'')+'</div></div>'; }).join('')+'</div>';
   out+=foot(++pg)+'</div>';
+
+  // PROPERTY GALLERY — every CIM carries a dedicated photo page; up to two pages when there are many photos.
+  var photos=(s.photos||[]).filter(function(p){return p&&p.dataB64;});
+  var GPER=6, gpages=Math.max(1, Math.min(2, Math.ceil(photos.length/GPER)));
+  for(var gp=0; gp<gpages; gp++){
+    var slice=photos.slice(gp*GPER, gp*GPER+GPER);
+    var title='Property Gallery'+(gpages>1?(' <span style="font-size:16px;color:var(--muted);font-weight:400">— '+(gp+1)+' of '+gpages+'</span>'):'');
+    out+='<div class="page"><div class="kick red">A Look Inside</div><h2 class="sect serif">'+title+'</h2><hr class="rule">';
+    if(slice.length){
+      out+='<div class="gallery">'+slice.map(function(p,i){ var idx=gp*GPER+i; return '<figure class="gphoto"><div class="gph" style="background-image:url(data:'+esc(p.type||'image/jpeg')+';base64,'+p.dataB64+')"></div><figcaption class="ed" contenteditable data-k="photos.'+idx+'.caption">'+esc(p.caption||'')+'</figcaption></figure>'; }).join('')+'</div>';
+    } else {
+      out+='<p class="body" style="color:var(--muted);font-style:italic">Add property, interior, and food photography on the build screen — every Marketing Pack should include a gallery page.</p>';
+    }
+    out+=foot(++pg)+'</div>';
+  }
 
   // MARKET
   var mk=s.market||{};
@@ -346,21 +364,47 @@ function addLease(btn){
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id){ location.href='./rrg_lease_generate.html?lease='+encodeURIComponent(j.id); } else { if(btn){btn.disabled=false;btn.textContent='+ Add a lease abstract →';} alert((j&&j.error)||'Could not start.'); } })
     .catch(function(){ if(btn){btn.disabled=false;btn.textContent='+ Add a lease abstract →';} alert('Could not reach the server.'); });
 }
+var REP={name:'',phone:''};   // the signed-in rep — auto-fills the sign-off + phone
+function parseYears(s){ var f=(s.cover&&s.cover.foundingLine)||''; var m=f.match(/(\d+)\+?\s*years?/i); if(m) return m[1]; var y=f.match(/founded\s+(\d{4})/i); if(y){ var n=(new Date()).getFullYear()-parseInt(y[1],10); if(n>0&&n<200) return String(n); } return ''; }
 function dealFields(s){ s=s||{}; var biz=(s.cover&&s.cover.title)||(CIM&&CIM.business)||'the business';
   var br=(s.bov&&s.bov.bridge)||{}; var rev=num(br.revenue), ni=num(br.netIncome);
   var ebitda=ni+num(br.interest)+num(br.entityTax)+num(br.depreciation)+num(br.amortization);
   var sde=ebitda+num(br.ownerSalary)+num(br.ownerHealth)+num(br.familyPayroll)+num(br.oneTime)+num(br.rentNorm);
-  return { biz:biz, rev:(rev?money(rev):'[[$Revenue]]'), sde:(sde?money(sde):'[[$SDE]]') }; }
+  var concept=((s.cover&&s.cover.tagline)||'').trim();
+  var sharp=''; try{ var hl=(s.execSummary&&s.execSummary.highlights)||[]; if(hl.length&&hl[0]&&hl[0].title) sharp=hl[0].title; }catch(e){}
+  return {
+    biz:biz,
+    rev:(rev?money(rev):'[[$Revenue]]'),
+    sde:(sde?money(sde):'[[$SDE]]'),
+    concept: concept || '[[concept]]',
+    years: parseYears(s) || '[[years]]',
+    sharp: sharp || '[[one sharp line]]',
+    asking: 'Call for offers',
+    repName: REP.name || '[Your Name]',
+    repPhone: REP.phone || '[[phone]]'
+  };
+}
+// Fill the auto-fillable tokens from the deal + the signed-in rep. Anything we don't know
+// stays a bracket so it's obvious what still needs a hand — the rep changes as little as possible.
+function fillEmail(txt, f){ if(!txt) return txt;
+  return txt
+    .replace(/\[Your Name\]/g, f.repName)
+    .replace(/\[\[phone\]\]/g, f.repPhone)
+    .replace(/\[\[concept\]\]/g, f.concept)
+    .replace(/\[\[years\]\]/g, f.years)
+    .replace(/\[\[one sharp line\]\]/g, f.sharp)
+    .replace(/\[\[\$Price or [“"]Call for offers[”"]\]\]/g, f.asking);
+}
 function emailSet(f){ var B=f.biz, R=f.rev, S=f.sde; return [
   { t:'1. Teaser (Blind Profile)', d:'To your buyer list. No name or address — its only job is to earn a reply and an NDA.',
     subj:'New [[City]] [[Concept]] Opportunity — '+R+' Revenue, Priced to Move',
-    body:'[First Name],\n\nWe’ve just been retained on a confidential sale that fits what you’ve told me you’re looking for.\n\n• Concept: Established [[concept]], [[years]] years operating\n• Location: [[submarket / trade area]]\n• Revenue (TTM): '+R+'\n• Seller’s Discretionary Earnings: '+S+'\n• Asking / Guidance: [[$Price or “Call for offers”]]\n• Why it’s compelling: [[one sharp line]]\n\nThe business, address, and financials are confidential and released only under NDA to qualified buyers. Reply here and I’ll send our short qualifier and the confidentiality agreement — this one won’t sit long.\n\n[Your Name]\nRestaurant Realty Group · [[phone]]' },
+    body:'[First Name],\n\nI’m a broker with Restaurant Realty Group — we specialize in confidential restaurant and bar sales. We haven’t met; I’m reaching out to a short list of qualified buyers and operators because we’ve just been retained on an opportunity that may be a fit.\n\n• Concept: Established [[concept]], [[years]] years operating\n• Location: [[submarket / trade area]]\n• Revenue (TTM): '+R+'\n• Seller’s Discretionary Earnings: '+S+'\n• Asking / Guidance: [[$Price or “Call for offers”]]\n• Why it’s compelling: [[one sharp line]]\n\nThe business, address, and financials are confidential and released only under NDA to qualified buyers. Reply here and I’ll send a short qualifier and our confidentiality agreement (sent through DocuSign) — this one won’t sit long.\n\n[Your Name]\nRestaurant Realty Group · [[phone]]' },
   { t:'2. Buyer Qualifier', d:'Before you release anything, the buyer earns it. Screens out tire-kickers and competitors.',
     subj:'Re: '+B+' Opportunity — Quick Qualification Before I Release Details',
-    body:'[First Name],\n\nGlad you’re interested. To protect our seller’s confidentiality, I qualify every buyer before releasing the business name or financials. Quick and painless — just reply with:\n\n1. Funding: How is a purchase in this range being funded — cash, SBA, investor group? Proof of funds or a lender pre-qual is ideal.\n2. Experience: Your background in restaurants/hospitality or operating a business.\n3. Timeline: How soon are you looking to acquire?\n4. Role: Are you the principal buyer, or representing one?\n\nOnce I have that, I’ll send the confidentiality agreement and, on signature, the full package.\n\n[Your Name]\nRestaurant Realty Group' },
+    body:'[First Name],\n\nGlad you’re interested. To protect our seller’s confidentiality, I qualify every buyer before releasing the business name or financials. Quick and painless — just reply with:\n\n1. Funding: How is a purchase in this range being funded — cash, SBA, investor group? Proof of funds or a lender pre-qual is ideal.\n2. Experience: Your background in restaurants/hospitality or operating a business.\n3. Timeline: How soon are you looking to acquire?\n4. Role: Are you the principal buyer, or representing one?\n\nOnce I have that, I’ll send our confidentiality agreement through DocuSign and, on signature, release the full package.\n\n[Your Name]\nRestaurant Realty Group' },
   { t:'3. Send NDA', d:'Deliver the confidentiality agreement. Nothing confidential goes out until it’s signed.',
     subj:B+' — Confidentiality Agreement to Review & Sign',
-    body:'[First Name],\n\nThanks — you’re qualified. Here’s our confidentiality agreement: [[e-sign link]].\n\nPlease review and sign, and the moment it’s executed I’ll release the Confidential Information Memorandum with the business name, financials, and full details.\n\nOne important note the agreement covers: do not contact the business, its staff, ownership, landlord, or vendors directly. The sale is strictly confidential and the employees are not aware. All communication runs through me.\n\n[Your Name]\nRestaurant Realty Group' },
+    body:'[First Name],\n\nThanks — you’re qualified. I’ve just sent our confidentiality agreement to you through DocuSign — please review and sign there.\n\nThe moment it’s executed I’ll release the Confidential Information Memorandum with the business name, financials, and full details.\n\nOne important note the agreement covers: do not contact the business, its staff, ownership, landlord, or vendors directly. The sale is strictly confidential and the employees are not aware. All communication runs through me.\n\n[Your Name]\nRestaurant Realty Group' },
   { t:'4. Send CIM', d:'The reveal. NDA is executed — deliver the CIM and point straight to the next step.',
     subj:B+' — Confidential Information Memorandum (Under NDA)',
     body:'[First Name],\n\nNDA received — thank you. Attached is the Confidential Information Memorandum for '+B+'.\n\nInside: the concept and its market position, historical and trailing-twelve-month financials, the earnings bridge to Seller’s Discretionary Earnings, growth opportunities, and the transaction structure. A few highlights:\n\n• Revenue (TTM): '+R+'\n• SDE: '+S+'\n• The upside: [[value-creation headline]]\n\nTake it in, then let’s get you on a call this week while your questions are fresh. If we move to offers, I’ll want your interest confirmed by [[date]].\n\n[Your Name]\nRestaurant Realty Group · [[phone]]' },
@@ -387,8 +431,9 @@ function emailSet(f){ var B=f.biz, R=f.rev, S=f.sde; return [
     body:'[First Name],\n\nThank you for your interest in '+B+'. Ownership has moved forward with another buyer at this stage.\n\nDeals don’t always close, so I’d like to keep you as a backup if that’s alright — and I’ve got other [[concept]] opportunities coming. Tell me what you’re hunting for and I’ll keep you first in line.\n\n[Your Name]\nRestaurant Realty Group' }
 ]; }
 function buildEmails(s){
-  var f=dealFields(s), list=emailSet(f), em=document.getElementById('emails');
-  var html='<div class="ehead">Marketing Emails — '+esc(f.biz)+'</div><div class="esubhead">The confidential-sale sequence for this deal, with the business name and figures filled in. Copy each into Copper or your email. Bracketed [[…]] values are the few deal specifics to drop in (city, concept, price, dates, your name).</div>';
+  var f=dealFields(s), em=document.getElementById('emails');
+  var list=emailSet(f).map(function(e){ return { t:e.t, d:e.d, subj:fillEmail(e.subj,f), body:fillEmail(e.body,f) }; });
+  var html='<div class="ehead">Marketing Emails — '+esc(f.biz)+'</div><div class="esubhead">The confidential-sale sequence for this deal — business name, figures, concept, years, your name and phone are already filled in. Only the few remaining bracketed [[…]] items need a hand (the recipient’s name, location, and any dates/links). DocuSign handles the agreements.</div>';
   html+=list.map(function(e){ return '<div class="emailcard"><button class="ecopy">Copy</button><div class="et">'+esc(e.t)+'</div><div class="ed2">'+esc(e.d)+'</div><div class="esub"><b>Subject:</b> '+esc(e.subj)+'</div><div class="ebody">'+esc(e.body)+'</div></div>'; }).join('');
   em.innerHTML=html;
   var cards=em.querySelectorAll('.emailcard');
@@ -406,6 +451,8 @@ if(CID){
     else { document.getElementById('doc').innerHTML='<div class="loading">Could not load this Marketing Pack.</div>'; }
   }).catch(function(){ document.getElementById('doc').innerHTML='<div class="loading">Could not reach the server.</div>'; });
 } else { document.getElementById('doc').innerHTML='<div class="loading">No Marketing Pack selected. Open one from Marketing Packs.</div>'; }
+// Pull the signed-in rep so the email sign-off + phone auto-fill; refresh emails once we have it.
+try{ fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(sn){ if(sn){ REP.name=sn.name||''; REP.phone=sn.phone||''; if(CIM&&CIM.state&&CIM.state.cover) buildEmails(CIM.state); } }).catch(function(){}); }catch(e){}
 </script>
 </body>
 </html>
