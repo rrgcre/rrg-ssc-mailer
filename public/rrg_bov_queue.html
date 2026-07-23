@@ -60,7 +60,7 @@ tr:hover td{background:#fbfcfe;}
   <span class="brand" onclick="location.href='./index.html'" title="Back to dashboard" style="cursor:pointer"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Seller Pipeline</div>
   <h1>Business Valuations</h1>
-  <div class="sub">Every valuation in the pipeline — build the requested ones, reopen a draft, or advance one to a CIM.</div>
+  <div class="sub">Every valuation in the pipeline — build the requested ones, reopen a draft, or advance one to a Marketing Pack.</div>
   </div>
 </div>
 
@@ -109,7 +109,7 @@ function render(bovs){
   if(!bovs.length){
     body.innerHTML = TAB==='mine'
       ? '<div class="empty"><b>No valuations yet.</b>They arrive here when you click <b style="display:inline">Request BOV</b> on a completed questionnaire — or switch to <b style="display:inline">All Valuations</b> to see the team’s pipeline.</div>'
-      : '<div class="empty"><b>No valuations yet.</b>Open the Valuation Questionnaire log, complete a questionnaire, and click <b style="display:inline">Request BOV</b>. It’ll show up here to build, then advance to a CIM.</div>';
+      : '<div class="empty"><b>No valuations yet.</b>Open the Valuation Questionnaire log, complete a questionnaire, and click <b style="display:inline">Request BOV</b>. It’ll show up here to build, then advance to a Marketing Pack.</div>';
     return;
   }
   var rows=bovs.map(function(b){
@@ -123,7 +123,7 @@ function render(bovs){
       ? '<a class="build" href="./rrg_bov_generate.html?bov='+id+'">Build Valuation →</a>'+
         '<button class="del" onclick="del(\''+b.id+'\',this)">Delete</button>'
       : '<a href="./rrg_bov_builder.html?bov='+id+'">Open</a>'+
-        '<a class="cim" href="#" onclick="advanceCim(\''+b.id+'\');return false;">Advance to CIM →</a>'+
+        '<a class="cim" href="#" onclick="advanceCim(\''+b.id+'\');return false;">Advance to Marketing Pack →</a>'+
         '<button class="del" onclick="del(\''+b.id+'\',this)">Delete</button>';
     var rev=(pending||!b.revText) ? '<span class="dim">—</span>' : '<span class="val"><span class="t">'+esc(b.revText)+'</span></span>';
     var sde=(pending||!b.sdeText) ? '<span class="dim">—</span>' : '<span class="val"><span class="t">'+esc(b.sdeText)+'</span></span>';
@@ -165,7 +165,7 @@ function advanceCim(bovId){
     .then(function(r){ return r.text().then(function(t){ var j=null; try{j=JSON.parse(t);}catch(e){} return {ok:r.ok,j:j}; }); })
     .then(function(res){
       if(res.ok && res.j && res.j.ok && res.j.cimId){ location.href='./rrg_cim_generate.html?cim='+encodeURIComponent(res.j.cimId); }
-      else { alert((res.j&&res.j.error)||'Could not advance to a CIM.'); }
+      else { alert((res.j&&res.j.error)||'Could not advance to a Marketing Pack.'); }
     }).catch(function(){ alert('Could not reach the server.'); });
 }
 load();

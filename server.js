@@ -841,7 +841,7 @@ app.post('/api/bov/:id/advance-cim', (req, res) => {
   const bov = loadBovs().find(x => x.id === req.params.id);
   if (!bov) return res.status(404).json({ ok: false, error: 'Valuation not found.' });
   if (!ownsBov(req, bov)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  if (bov.pending) return res.status(409).json({ ok: false, error: 'Build the valuation before advancing it to a CIM.' });
+  if (bov.pending) return res.status(409).json({ ok: false, error: 'Build the valuation before advancing it to a Marketing Pack.' });
   let cimId = '';
   try { const c = ensureCimForBov(req, bov); cimId = (c && c.id) || ''; } catch (e) {}
   res.json({ ok: true, cimId });
@@ -1122,7 +1122,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveBovPrompt()">Save prompt</button> <button onclick="resetBovPrompt()">Reset to RRG default</button> <span id="bpmsg" class="sub2"></span></div>
       </div>
 
-      <h2 style="margin-top:34px">CIM Prompt <span class="sub2">— the instructions Claude follows when drafting a Confidential Information Memorandum. Keep the JSON output block intact so the CIM still builds. Reset any time to restore the RRG default.</span></h2>
+      <h2 style="margin-top:34px">Marketing Pack Prompt <span class="sub2">— the instructions Claude follows when drafting the Confidential Information Memorandum inside a Marketing Pack. Keep the JSON output block intact so the pack still builds. Reset any time to restore the RRG default.</span></h2>
       <div class="links">
         <div class="sub2" id="cpstate" style="margin:0 0 8px">Loading…</div>
         <textarea id="cimPrompt" class="bovprompt" spellcheck="false"></textarea>
@@ -1154,7 +1154,7 @@ app.get('/admin', requireAdmin, (req, res) => {
       function _cpState(isDefault){ var s=document.getElementById('cpstate'); if(s) s.textContent = isDefault ? 'Currently using the RRG default CIM prompt.' : 'Currently using a custom CIM prompt.'; }
       function loadCimPrompt(){ fetch('/api/admin/cim-prompt').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('cimPrompt').value=j.prompt||''; _cpState(j.isDefault); } }).catch(function(){ var s=document.getElementById('cpstate'); if(s) s.textContent='Could not load the prompt.'; }); }
       function saveCimPrompt(){ var v=document.getElementById('cimPrompt').value; var m=document.getElementById('cpmsg'); m.textContent='Saving…'; post('/api/admin/cim-prompt',{prompt:v}).then(function(j){ if(j.ok){ m.textContent = j.isDefault ? 'Saved — matches the default ✓' : 'Saved custom prompt ✓'; document.getElementById('cimPrompt').value=j.prompt||v; _cpState(j.isDefault); } else m.textContent=j.error||'Failed'; }); }
-      function resetCimPrompt(){ if(!confirm('Reset the CIM prompt to the RRG default? Your custom prompt will be discarded.')) return; post('/api/admin/cim-prompt',{reset:true}).then(function(j){ if(j.ok){ document.getElementById('cimPrompt').value=j.prompt||''; document.getElementById('cpmsg').textContent='Reset to default ✓'; _cpState(true); } }); }
+      function resetCimPrompt(){ if(!confirm('Reset the Marketing Pack prompt to the RRG default? Your custom prompt will be discarded.')) return; post('/api/admin/cim-prompt',{reset:true}).then(function(j){ if(j.ok){ document.getElementById('cimPrompt').value=j.prompt||''; document.getElementById('cpmsg').textContent='Reset to default ✓'; _cpState(true); } }); }
       loadCimPrompt();
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
       var INTRO_DEFAULT_MSG='';

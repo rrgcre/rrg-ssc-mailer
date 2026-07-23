@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — Build a CIM</title>
+<title>RRG — Build a Marketing Pack</title>
 <script src="/rrg_ambience.js"></script>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;}
@@ -47,11 +47,11 @@ input:focus{outline:none;border-color:var(--red);}
 </style>
 </head>
 <body>
-<!--rrgback--><a href="./rrg_cim_queue.html" class="rrg-back" aria-label="Back to CIM log" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> CIM Log</a>
+<!--rrgback--><a href="./rrg_cim_queue.html" class="rrg-back" aria-label="Back to Marketing Packs" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> Marketing Packs</a>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Confidential Information Memorandum</div>
-  <h1 id="hdr">Build a CIM</h1>
+  <h1 id="hdr">Build a Marketing Pack</h1>
   <div class="sub" id="sub">Add photos and your logo — the numbers and story come from the system.</div>
 </div></div>
 <div class="wrap">
@@ -77,13 +77,13 @@ input:focus{outline:none;border-color:var(--red);}
     <div class="row"><input type="url" id="linkIn" placeholder="https://…"> <button class="btn" onclick="addLink()">Add</button></div>
     <div id="linkList" style="margin-top:8px"></div>
   </div>
-  <div style="text-align:center;margin-top:6px"><button class="build" id="buildBtn" onclick="buildCim()">Build the CIM →</button></div>
+  <div style="text-align:center;margin-top:6px"><button class="build" id="buildBtn" onclick="buildCim()">Build the Marketing Pack →</button></div>
   <div class="status" id="status"></div>
 </div>
 
 <div class="overlay" id="overlay"><div class="modal">
   <div class="bigspin"></div>
-  <div class="mt" id="modalTitle">Building the CIM…</div>
+  <div class="mt" id="modalTitle">Building your Marketing Pack…</div>
   <div class="mm" id="modalMsg">Our analyst is writing the memorandum from the valuation, the questionnaire, and your photos. This takes a few minutes.</div>
   <div class="mtimer" id="modalTimer"></div>
   <div><span class="mmute" id="muteLink" onclick="toggleMute()">🔊 Sound on · tap to mute</span></div>
@@ -102,10 +102,10 @@ function renderLinks(){ document.getElementById('linkList').innerHTML=LINKS.map(
 function setStatus(msg){ var s=document.getElementById('status'); s.className='status err'; s.textContent=msg; }
 
 // load the CIM header
-if(CIM_ID){ fetch('/api/cim/'+encodeURIComponent(CIM_ID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.cim){ document.getElementById('hdr').textContent='Build CIM · '+(j.cim.business||''); } }).catch(function(){}); }
+if(CIM_ID){ fetch('/api/cim/'+encodeURIComponent(CIM_ID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.cim){ document.getElementById('hdr').textContent='Build Marketing Pack · '+(j.cim.business||''); } }).catch(function(){}); }
 
 // ---- build overlay + ambience + timer ----
-var AUDIO=null, AMB=null, AMB_VOL=0.085, AMB_SELECTED='orb', T0=0, TIMER=null;
+var AUDIO=null, AMB=null, AMB_VOL=0.085, AMB_SELECTED='factory', T0=0, TIMER=null;
 try{ fetch('/api/bov-config',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.ambienceId) AMB_SELECTED=j.ambienceId; }).catch(function(){}); }catch(e){}
 function ambientMuted(){ try{ return localStorage.getItem('rrg_build_sound_muted')==='1'; }catch(e){ return false; } }
 function setAmbientMuted(m){ try{ localStorage.setItem('rrg_build_sound_muted', m?'1':'0'); }catch(e){} }
@@ -120,7 +120,7 @@ function stopTimer(){ if(TIMER){clearInterval(TIMER);TIMER=null;} }
 function overlay(on){ document.getElementById('overlay').classList[on?'add':'remove']('show'); if(on){ startTimer(); startAmbient(); } else { stopTimer(); stopAmbient(); } }
 
 function buildCim(){
-  if(!CIM_ID){ setStatus('No CIM selected. Open this from the CIM log or Advance to CIM.'); return; }
+  if(!CIM_ID){ setStatus('No Marketing Pack selected. Open this from Marketing Packs or Advance to Marketing Pack.'); return; }
   unlockAudio();
   var btn=document.getElementById('buildBtn'); btn.disabled=true;
   document.getElementById('status').className='status';
@@ -129,7 +129,7 @@ function buildCim(){
     body:JSON.stringify({cimId:CIM_ID, photos:PHOTOS, logo:LOGO, links:LINKS})})
     .then(function(r){ return r.text().then(function(t){ var j=null; try{j=JSON.parse(t);}catch(e){} return {ok:r.ok,status:r.status,j:j}; }); })
     .then(function(res){
-      if(res.j&&res.j.ok&&res.j.id){ stopAmbient(); document.getElementById('modalTitle').textContent='Done — your CIM is ready ✓'; document.getElementById('modalMsg').textContent='Opening the finished draft…'; setTimeout(function(){ location.href='./rrg_cim_builder.html?cim='+encodeURIComponent(res.j.id); }, 1200); return; }
+      if(res.j&&res.j.ok&&res.j.id){ stopAmbient(); document.getElementById('modalTitle').textContent='Done — your Marketing Pack is ready ✓'; document.getElementById('modalMsg').textContent='Opening the finished draft…'; setTimeout(function(){ location.href='./rrg_cim_builder.html?cim='+encodeURIComponent(res.j.id); }, 1200); return; }
       overlay(false); btn.disabled=false;
       setStatus((res.j&&res.j.error)||('Build failed (server '+res.status+').'));
     }).catch(function(){ overlay(false); btn.disabled=false; setStatus('Could not reach the server.'); });

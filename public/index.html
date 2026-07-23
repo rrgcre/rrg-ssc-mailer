@@ -205,15 +205,15 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
 var TOOLS = [
   /* ---- Seller Engagement pipeline (ordered by step) ---- */
   { name:'Seller Qualification Call', tag:'Seller', file:'rrg_screening_queue.html', icon:'funnel', track:'pipeline', step:1,
-    desc:"The front door of the pipeline — log every prospective-seller call, screen the lead for motivation and fit, and advance the real ones straight into a Valuation Questionnaire." },
+    desc:"The front door of the pipeline. Log every prospective-seller call, read the real motivation behind the sale, and advance the leads worth chasing straight into a Valuation Questionnaire — everything you captured carries over." },
   { name:'Valuation Questionnaire', tag:'Seller', file:'rrg_questionnaire_queue.html', icon:'gauge', track:'pipeline', step:2,
-    desc:"The deep listing profile — it captures the information outside the financials that moves value: operations, lease, condition, and the off-book factors. Complete it, then request a Business Valuation from it." },
+    desc:"The deep listing profile. It captures what the financials don't — operations, lease, condition, and the off-book factors that move value — then feeds a Business Valuation with one click." },
   { name:'Business Valuations', tag:'Value', file:'rrg_bov_queue.html', icon:'queue', track:'pipeline', step:3,
-    desc:"Every valuation requested from a questionnaire, in one place. An RRG Virtual Analyst drafts a defensible Broker's Opinion of Value from the deal's documents — review it, then advance it to a CIM." },
-  { name:'Confidential Information Memorandums', tag:'Value', file:'rrg_cim_queue.html', icon:'book', track:'pipeline', step:4,
-    desc:"Build the full confidential offering book in the RRG format — edit in place, pull the valuation from the BOV, and print a client-ready 18-page PDF." },
+    desc:"Every valuation in one place. The RRG Virtual Analyst drafts a defensible Broker's Opinion of Value from the deal's documents; you review and edit, then advance it to a Marketing Pack with the numbers locked." },
+  { name:'Marketing Packs', tag:'Value', file:'rrg_cim_queue.html', icon:'book', track:'pipeline', step:4,
+    desc:"The confidential offering package. Build a Confidential Information Memorandum in the RRG format — the valuation carries over from the BOV, you add the story and photos, edit in place, and print a client-ready PDF." },
   { name:'Market Attack Plan', tag:'Seller', file:'rrg_seller_attack_plan.html', icon:'megaphone', track:'pipeline', step:5,
-    desc:"The go-to-market campaign — segmented buyer target list, the confidential marketing sequence, and the competitive-tension strategy that drives the CIM into the market." },
+    desc:"The go-to-market campaign — segmented buyer target list, the confidential marketing sequence, and the competitive-tension strategy that drives the Marketing Pack into the market." },
   { name:'Commission Forecaster', tag:'Deal', file:'rrg_commission_calculator.html', icon:'calc', track:'pipeline', step:6,
     desc:"Close and get paid — business-sale commission on RRG's tiered rate card. Enter price and split, see gross, blended rate, and the agent / house breakdown." },
   { name:'Closing Transfer List', tag:'Seller', file:'docs/rrg-closing-transfer-list.pdf', icon:'checklist', track:'pipeline', sort:7, pdf:true,
@@ -241,9 +241,9 @@ var TRACKS = [
 var GUIDES = {
   'rrg_screening_queue.html':{
     background:"Your seller-call log and the front door to the whole pipeline — every prospective-seller call in one place. Tabs filter the list: All, Waiting (still needs a pass-or-advance decision), Advanced (moved to a Valuation Questionnaire), and Passed. Admins see the whole team; reps see their own.",
-    when:"Any time you take a call with a prospective seller — or when you're ready to work your list and move the real leads forward.",
-    how:["Click “+ New Call” to log the call: who the seller is, why they're selling, what the business does, and the ballpark numbers.","Screen it, then use the row buttons — Advance to Questionnaire on the real ones, Pass on the rest, or Edit to update.","Advancing opens a Valuation Questionnaire pre-filled with what you already captured — no re-keying.","Use the tabs, search, sort, Print, and Export CSV to work the log."],
-    tip:"Motivation is the whole ballgame. A “right-number” seller is a different lead than a health, partnership, or burnout exit — note it on the call, because it drives which leads you advance first and how you price them."
+    when:"Any time you take a call with a prospective seller, or when you're ready to work your list and move the real leads forward.",
+    how:["Click “+ New Call” to log it — who the seller is, why they're really selling, what the business does, and the ballpark numbers.","Screen it, then use the row buttons: Advance to Questionnaire on the real ones, Pass on the rest, Edit to update.","Advancing opens a Valuation Questionnaire pre-filled with what you captured — no re-keying.","Use the tabs, search, sort, Print, and Export CSV to work the log."],
+    tip:"Motivation is the whole ballgame. A “right-number” seller is a different animal than a health, partnership, or burnout exit — note it on the call, because it drives which leads you advance first and how hard you push on price."
   },
   'seller_screening.html':{
     background:"The first-call qualifier itself. It captures who the seller is, why they're selling, what the business does, and whether this is a lead worth RRG's time. Submitting it drops the lead into the Screening Queue.",
@@ -254,8 +254,8 @@ var GUIDES = {
   'rrg_questionnaire_queue.html':{
     background:"Your Valuation Questionnaire log — every deep listing profile in one place. A questionnaire lands here automatically when you advance a qualified call. Tabs: All, Waiting (still being completed), Advanced (a valuation has been requested), and Rejected. Admins see the whole team; reps see their own.",
     when:"Any time you're working a qualified call toward a value opinion. You don't create questionnaires here — they arrive from the Seller Qualification Call log.",
-    how:["Each row has a gold “Questionnaire” button — open it to fill the profile in. It autosaves as you go, so there's no Save button, just Close; the button stays gold until every required field is done.","Click “Request BOV” to create a Business Valuation record and open the RRG Virtual Analyst — the questionnaire and the qualification call are already carried over.","Use Delete to drop a questionnaire, and the tabs, search, sort, Print, or Export CSV to work the list.","The Valuation Factors section is completed by the system from your answers — not by the rep."],
-    tip:"Completeness is the whole game: this profile is the factual basis the valuation stands on. Chase the off-book value and the add-backs — a thorough questionnaire is what lets you defend the number."
+    how:["Each row has a gold “Questionnaire” button — open it and fill in the profile. It autosaves, so there's no Save button, just Close; the button stays gold until every required field is done.","Click “Request BOV” to create a Business Valuation and open the RRG Virtual Analyst — the questionnaire and the qualification call carry over automatically.","Use Delete to drop one, and the tabs, search, sort, Print, or Export CSV to work the list.","The Valuation Factors section is completed by the system from your answers — not by the rep."],
+    tip:"Completeness is the whole game: this profile is the factual basis the valuation stands on. Chase the off-book value and every documentable add-back — a thorough questionnaire is what lets you defend the number."
   },
   'valuation_questionnaire.html':{
     background:"The deep listing profile. It gathers the operating detail, financials, lease terms, and the off-book factors an accurate valuation depends on.",
@@ -277,9 +277,15 @@ var GUIDES = {
   },
   'rrg_bov_queue.html':{
     background:"Your Business Valuations pipeline — every valuation requested from a questionnaire, in one place. A record lands here the moment you click Request BOV. Two states: Requested (awaiting build) and Built. Admins see the whole team; reps see their own.",
-    when:"Any time you're turning requested valuations into finished BOVs, or advancing a finished one to a CIM. You don't start valuations here — they arrive from the questionnaire log.",
-    how:["A Requested record shows a gold “Build Valuation →” — it opens the RRG Virtual Analyst with the business name, questionnaire, and qualification call already in hand; add the financials (and lease) and build.","Once built, the record flips to Built with the concluded range — Open it to review or edit, or “Advance to CIM →” to start the offering book.","Use Delete to drop a record, and the tabs and rep filter to work the list."],
-    tip:"Advance to CIM the moment a seller signs the listing — the valuation carries straight over, so you're building the marketing book instead of re-keying the numbers."
+    when:"Any time you're turning requested valuations into finished BOVs, or advancing a finished one to a Marketing Pack. You don't start valuations here — they arrive from the questionnaire log.",
+    how:["A Requested record shows a gold “Build Valuation →” — it opens the RRG Virtual Analyst with the business name, questionnaire, and qualification call already in hand; add the financials (and lease) and build.","Once built, the record flips to Built with the concluded range — Open it to review or edit, or “Advance to Marketing Pack →” to start the offering package.","Use Delete to drop a record, and the tabs and rep filter to work the list."],
+    tip:"Advance to Marketing Pack the moment a seller signs — the valuation carries straight over, so you're building the offering package instead of re-keying the numbers."
+  },
+  'rrg_cim_queue.html':{
+    background:"Your Marketing Packs pipeline — every offering package in one place. A pack is created the moment you advance a built valuation from Business Valuations. Two states: Requested (awaiting build) and Built. Admins see the whole team; reps see their own.",
+    when:"Once a seller has signed and you're taking the business to market — after the BOV is built.",
+    how:["Advance a built valuation from Business Valuations to create the pack, then click “Build Pack →” — add photos and the logo, and the RRG analyst drafts the Confidential Information Memorandum from the valuation, questionnaire, and qualification call.","Open a built pack to review and edit the CIM in place, then print the client-ready PDF.","To rebuild, Delete the existing pack first — that keeps the CIM's numbers locked to the valuation."],
+    tip:"The CIM is the document; the campaign that sells it is your Copper email sequence — teaser, NDA, CIM, call for offers. Build the pack, then run the sequence to create competition and drive the price."
   },
   'rrg_cim_builder.html':{
     background:"The confidential offering book buyers actually read. It pulls the valuation from the BOV; you add the story, the photos, and the proof.",
@@ -289,7 +295,7 @@ var GUIDES = {
   },
   'rrg_seller_attack_plan.html':{
     background:"The go-to-market campaign for a listing — segmented buyer targets, the confidential marketing sequence, and the competitive-tension strategy.",
-    when:"Once the CIM is ready and you're driving the business into the market.",
+    when:"Once the Marketing Pack is ready and you're driving the business into the market.",
     how:["Build the segmented buyer target list: strategics, operators, PE / family offices, individuals.","Lay out the outreach sequence and timeline.","Set the tension strategy — how you'll create and hold competition."],
     tip:"Competition is your only real leverage. Line up enough qualified buyers that no single one believes they're the only game — that's what moves both price and terms."
   },

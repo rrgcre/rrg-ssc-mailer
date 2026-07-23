@@ -84,13 +84,13 @@ body.editing .ed{background:rgba(120,150,220,.045);} body.editing .ed:hover{back
 </style>
 </head>
 <body class="editing">
-<!--rrgback--><a href="./rrg_cim_queue.html" class="rrg-back" aria-label="Back to CIM log" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> CIM Log</a>
+<!--rrgback--><a href="./rrg_cim_queue.html" class="rrg-back" aria-label="Back to Marketing Packs" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> Marketing Packs</a>
 <div class="toolbar"><div class="tb-inner">
   <div class="tt">RRG Confidential Information Memorandum <span>Edit in place · Print</span></div>
   <div class="actions">
     <span class="savechip" id="savechip">Saved ✓</span>
     <button class="btn on" id="editBtn" onclick="toggleEdit()">Editing: On</button>
-    <a class="btn" href="./rrg_cim_queue.html">CIM Log</a>
+    <a class="btn" href="./rrg_cim_queue.html">Marketing Packs</a>
     <button class="btn print" onclick="window.print()">Print</button>
   </div>
 </div></div>
@@ -250,10 +250,10 @@ function toggleEdit(){ var on=document.body.classList.toggle('editing'); var b=d
 
 if(CID){
   fetch('/api/cim/'+encodeURIComponent(CID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(j&&j.ok&&j.cim){ CIM=j.cim; if(CIM.state&&CIM.state.cover){ renderCim(CIM.state); } else { document.getElementById('doc').innerHTML='<div class="loading">This CIM hasn’t been built yet. Open it from the CIM log and press Build.</div>'; } }
-    else { document.getElementById('doc').innerHTML='<div class="loading">Could not load this CIM.</div>'; }
+    if(j&&j.ok&&j.cim){ CIM=j.cim; if(CIM.state&&CIM.state.cover){ renderCim(CIM.state); } else { document.getElementById('doc').innerHTML='<div class="loading">This Marketing Pack hasn’t been built yet. Open it from Marketing Packs and press Build.</div>'; } }
+    else { document.getElementById('doc').innerHTML='<div class="loading">Could not load this Marketing Pack.</div>'; }
   }).catch(function(){ document.getElementById('doc').innerHTML='<div class="loading">Could not reach the server.</div>'; });
-} else { document.getElementById('doc').innerHTML='<div class="loading">No CIM selected. Open one from the CIM log.</div>'; }
+} else { document.getElementById('doc').innerHTML='<div class="loading">No Marketing Pack selected. Open one from Marketing Packs.</div>'; }
 </script>
 </body>
 </html>
