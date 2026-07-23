@@ -821,6 +821,21 @@ app.delete('/api/cim/:id', (req, res) => {
   saveCims(arr.filter(x => x.id !== req.params.id));
   res.json({ ok: true });
 });
+// Save in-builder edits back onto the CIM record.
+app.post('/api/cim-save', (req, res) => {
+  const b = req.body || {};
+  const cims = loadCims();
+  const cim = cims.find(x => x.id === b.id);
+  if (!cim) return res.status(404).json({ ok: false, error: 'CIM not found.' });
+  if (!ownsCim(req, cim)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  if (b.state && typeof b.state === 'object') {
+    const prev = cim.state || {};
+    // The client sends edited text only — preserve the heavy photo/logo/bov data.
+    cim.state = Object.assign({}, b.state, { photos: prev.photos, logo: prev.logo, bov: prev.bov });
+    cim.updatedAt = new Date().toISOString(); saveCims(cims);
+  }
+  res.json({ ok: true });
+});
 // "Advance to CIM" from the BOV log — ensure a CIM exists for this BOV, return its id.
 app.post('/api/bov/:id/advance-cim', (req, res) => {
   const bov = loadBovs().find(x => x.id === req.params.id);
@@ -852,6 +867,7 @@ app.post('/api/generate-cim', express.json({ limit: '48mb' }), async (req, res) 
     out.state = out.state || {};
     out.state.photos = photos;                 // {dataB64,type,caption} — rendered by the builder
     out.state.logo = (b.logo && b.logo.dataB64) ? b.logo : null;
+    out.state.bov = { summary: inp.summary, bridge: (inp.bovState && inp.bovState.bridge) || null };  // figures for the financial tables
     cim.business = String(out.business || cim.business || 'Untitled').slice(0, 120);
     cim.state = out.state; cim.aiGenerated = true; cim.pending = false; cim.builtAt = new Date().toISOString();
     saveCims(cims);
