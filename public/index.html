@@ -533,15 +533,8 @@ function buildConsole(isAdmin, adminOnly){
   adminOnly = adminOnly || [];
   function visible(t){ return isAdmin || adminOnly.indexOf(t.file)<0; }
   var vis=TOOLS.filter(visible);
-  var cats=[{key:'all',label:'All'}].concat(TRACKS.map(function(tr){return {key:tr.key,label:tr.label};}));
-  grid.innerHTML='<div class="cvbar"><div class="cvchips" id="cvchips"></div></div><div id="cvresults"></div>';
-  function renderChips(){
-    document.getElementById('cvchips').innerHTML=cats.map(function(c){
-      var n=(c.key==='all')?vis.length:vis.filter(function(t){return t.track===c.key;}).length;
-      return '<button class="cvchip'+(CV_STATE.cat===c.key?' on':'')+'" data-c="'+esc(c.key)+'">'+esc(c.label)+' <span>'+n+'</span></button>';
-    }).join('');
-    document.querySelectorAll('.cvchip').forEach(function(b){ b.addEventListener('click',function(){ CV_STATE.cat=b.getAttribute('data-c'); renderChips(); draw(); }); });
-  }
+  CV_STATE.cat='all';
+  grid.innerHTML='<div id="cvresults"></div>';
   function itemsFor(trKey){ var items=vis.filter(function(t){return t.track===trKey;}); items.sort(function(a,b){return (a.step||a.sort||99)-(b.step||b.sort||99);}); return items; }
   function accGet(){ try{ return JSON.parse(localStorage.getItem('rrg_dashacc')||'{}')||{}; }catch(e){ return {}; } }
   function accSet(o){ try{ localStorage.setItem('rrg_dashacc',JSON.stringify(o)); }catch(e){} }
@@ -564,7 +557,6 @@ function buildConsole(isAdmin, adminOnly){
     var ea=document.getElementById('cvExpandAll'); if(ea) ea.addEventListener('click',function(){ accSet({}); draw(); });
     var ca=document.getElementById('cvCollapseAll'); if(ca) ca.addEventListener('click',function(){ var st={}; TRACKS.forEach(function(tr){ if(itemsFor(tr.key).length) st[tr.key]=1; }); accSet(st); draw(); });
   }
-  renderChips();
   draw();
   document.getElementById('lbl').textContent = vis.length+' tools';
   document.getElementById('count').textContent = vis.length+' tools · updated live';
