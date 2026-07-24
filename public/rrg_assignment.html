@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — Assignment</title>
+<title>RRG — Deal</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--amber:#e0a41a;}
 *{box-sizing:border-box;}
@@ -24,6 +24,13 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .card .ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);}
 .card .ch b{color:var(--navy);font-size:13.5px;} .card .ch span{color:var(--muted);font-size:11.5px;margin-left:auto;}
 .card .cb{padding:6px 20px 16px;}
+/* accordion */
+.card.acc > .ch{cursor:pointer;user-select:none;transition:background .15s;}
+.card.acc > .ch:hover{background:#fafbfe;}
+.accchev{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex:none;color:var(--soft);font-size:11px;transition:transform .2s ease;}
+.card.acc:not(.collapsed) > .ch .accchev{transform:rotate(90deg);}
+.card.acc.collapsed > .ch{border-bottom:none;}
+.card.acc.collapsed > *:not(.ch){display:none !important;}
 .facts{display:grid;grid-template-columns:1fr 1fr;gap:0 26px;}
 .fact{padding:11px 0;border-bottom:1px solid var(--line);} .fact:last-child,.facts .fact:nth-last-child(2):nth-child(odd){border-bottom:none;}
 .fact .k{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;} .fact .v{font-size:14px;color:var(--ink);margin-top:3px;font-weight:600;}
@@ -136,11 +143,11 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 </style>
 </head>
 <body>
-<!--rrgback--><a href="./rrg_assignments.html" class="rrg-back" aria-label="Back to assignments" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Assignments</a>
+<!--rrgback--><a href="./rrg_assignments.html" class="rrg-back" aria-label="Back to deals" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Deals</a>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'" title="Back to toolbox"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-  <div class="crumb"><a href="./rrg_assignments.html">Assignments</a> &nbsp;›&nbsp; <span id="crumb">Deal file</span></div>
-  <h1 id="h1">Assignment</h1>
+  <div class="crumb"><a href="./rrg_assignments.html">Deals</a> &nbsp;›&nbsp; <span id="crumb">Deal file</span></div>
+  <h1 id="h1">Deal</h1>
   <div class="subline" id="subline"></div>
 </div></div>
 <div id="root" class="loading">Loading the deal file…</div>
@@ -175,7 +182,7 @@ function stageMeta(k,s){
 function render(){
   var s=A.stages||{};
   document.getElementById('crumb').textContent=A.business||'Deal file';
-  document.getElementById('h1').textContent=A.business||'Assignment';
+  document.getElementById('h1').textContent=A.business||'Deal';
   var sub=[];
   if(A.market) sub.push('<span>'+esc(A.market)+'</span>');
   if(A.contact) sub.push('<span>Contact: <b>'+esc(A.contact)+'</b></span>');
@@ -240,8 +247,30 @@ function render(){
   wireRoomActivity();
   wireOffers();
   wireTours();
+  setupAccordion();
 }
 function fmtDT(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; var h=d.getHours(),m=d.getMinutes(),ap=h<12?'AM':'PM',hh=(h%12)||12; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2)+' '+hh+':'+String(m).padStart(2,'0')+' '+ap; }
+/* ---------- Accordion (collapsible sections on the deal file) ---------- */
+var ACC_STATE={}, ACC_INIT=false;
+function accTitle(card){ var b=card.querySelector('.ch b'); return b?b.textContent.trim():''; }
+function setupAccordion(){
+  if(!ACC_INIT){ ACC_STATE['Location Tours']=true; ACC_STATE['Data Room Activity']=true; ACC_INIT=true; }  // secondary sections start collapsed
+  document.querySelectorAll('.main > .card').forEach(function(card){
+    card.classList.add('acc');
+    var ch=card.querySelector('.ch'); if(!ch) return;
+    var title=accTitle(card);
+    if(!ch.querySelector('.accchev')){
+      var chev=document.createElement('span'); chev.className='accchev'; chev.textContent='▸';
+      ch.insertBefore(chev, ch.firstChild);
+      ch.addEventListener('click', function(e){
+        if(e.target.closest('button, a, input, select, textarea')) return;
+        var collapsed=card.classList.toggle('collapsed'); ACC_STATE[accTitle(card)]=collapsed;
+      });
+    }
+    if(ACC_STATE[title]) card.classList.add('collapsed'); else card.classList.remove('collapsed');
+  });
+}
+function expandSectionOf(el){ var card=el&&el.closest('.card'); if(card){ card.classList.remove('collapsed'); ACC_STATE[accTitle(card)]=false; } }
 function evLabel(e){
   if(e.event==='download') return 'Downloaded '+(e.doc?('“'+e.doc+'”'):'a document');
   if(e.event==='signin')   return 'Signed in with an access code';
@@ -371,6 +400,7 @@ function offerFormHTML(o){
 }
 function openOfferForm(o){
   var f=document.getElementById('offerForm');
+  expandSectionOf(f);
   f.innerHTML=offerFormHTML(o);
   f.removeAttribute('hidden');
   document.getElementById('of_save').addEventListener('click',function(){ saveOffer(o&&o.id); });
@@ -408,6 +438,7 @@ function rerenderOffers(){
   var existing=main.querySelector('.offers');
   if(existing){ existing.closest('.card').replaceWith(fresh); }
   wireOffers();
+  setupAccordion();
 }
 function offerById(id){ return OFFERS.filter(function(x){return x.id===id;})[0]; }
 function postOffer(body,onok,onerr){
@@ -489,6 +520,7 @@ function tourFormHTML(t){
 }
 function openTourForm(t){
   var f=document.getElementById('tourForm');
+  expandSectionOf(f);
   f.innerHTML=tourFormHTML(t); f.removeAttribute('hidden');
   document.getElementById('tf_save').addEventListener('click',function(){ saveTour(t&&t.id); });
   document.getElementById('tf_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
@@ -520,6 +552,7 @@ function rerenderTours(){
   var existing=main.querySelector('.tours');
   if(existing){ existing.closest('.card').replaceWith(tmp.firstChild); }
   wireTours();
+  setupAccordion();
 }
 function tourById(id){ return TOURS.filter(function(x){return x.id===id;})[0]; }
 function wireTours(){
@@ -543,12 +576,12 @@ function save(){
 }
 window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(); e.returnValue=''; } });
 function load(){
-  if(!KEY){ document.getElementById('root').innerHTML='<div class="empty" style="text-align:center;color:#6b7488;padding:40px">No assignment selected. <a href="./rrg_assignments.html">Back to assignments →</a></div>'; return; }
+  if(!KEY){ document.getElementById('root').innerHTML='<div class="empty" style="text-align:center;color:#6b7488;padding:40px">No deal selected. <a href="./rrg_assignments.html">Back to deals →</a></div>'; return; }
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
   }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; render(); })
-  .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this assignment.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to assignments</a></div>'; });
+  .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();
 </script>

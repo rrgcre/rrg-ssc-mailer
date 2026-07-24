@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — Assignments</title>
+<title>RRG — Deals</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--amber:#e0a41a;}
 *{box-sizing:border-box;}
@@ -56,13 +56,13 @@ tr:hover td{background:#fbfcfe;}
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'" title="Back to toolbox"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Book of Business</div>
-  <h1>Assignments</h1>
-  <div class="sub">Every deal in one place. Each assignment ties together its qualification call, questionnaire, valuation, marketing pack, attack plan, data room, and lease abstract — so you can see, at a glance, where every listing stands.</div>
+  <h1>Deals</h1>
+  <div class="sub">Every deal in one place. Each deal ties together its qualification call, questionnaire, valuation, marketing pack, attack plan, data room, and lease abstract — so you can see, at a glance, where every listing stands.</div>
 </div></div>
 <div class="wrap">
   <div class="tiles" id="tiles"></div>
   <div class="card">
-    <div class="hd"><b>Assignments</b><span class="cnt" id="cnt"></span><input id="search" placeholder="Search business, market, contact…" oninput="applyFilters()"></div>
+    <div class="hd"><b>Deals</b><span class="cnt" id="cnt"></span><input id="search" placeholder="Search business, market, contact…" oninput="applyFilters()"></div>
     <div id="body"></div>
   </div>
 </div>
@@ -97,7 +97,7 @@ function applyFilters(){
 function renderList(list){
   var cfg={
     mount:'#body', data:list, key:'assignments', countEl:'#cnt',
-    empty:'<div class="empty"><b>No assignments yet.</b>Log a seller qualification call to start your first deal — everything downstream links back here automatically.</div>',
+    empty:'<div class="empty"><b>No deals yet.</b>Log a seller qualification call to start your first deal — everything downstream links back here automatically.</div>',
     rowId:function(a){ return a.key; }, defaultSort:5, defaultDir:1,
     columns:[
       { label:'Business', sort:function(a,b){ return RRGList.cmp(a.business,b.business); },
@@ -115,7 +115,7 @@ function renderList(list){
 function load(){
   fetch('/api/assignments',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     ALL=(j&&j.assignments)||[]; renderTiles(); applyFilters();
-  }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load assignments.</div>'; });
+  }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load deals.</div>'; });
 }
 load();
 </script>
