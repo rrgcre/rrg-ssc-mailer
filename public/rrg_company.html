@@ -22,6 +22,11 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:20px;}
 .ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);} .ch b{color:var(--navy);font-size:13.5px;} .ch span{color:var(--muted);font-size:11.5px;}
 .addbtn{margin-left:auto;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:7px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;}
+.addbtn.ghost{background:#fff;color:var(--navy);border-color:#cdd6e6;}
+.findcard{background:#fff8f7;border-bottom:1px solid #f3d9d5;}
+.findhd{font-weight:800;color:var(--navy);font-size:13.5px;margin:2px 0 4px;}
+.findsub{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px;max-width:640px;}
+.findmsg{font-size:12px;color:var(--muted);align-self:center;}
 .cb{padding:6px 0 4px;}
 .crow{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);}
 .crow:last-child{border-bottom:none;}
@@ -84,8 +89,9 @@ function render(){
     return '<div class="crow"><div class="cav">'+esc(initials(p.name).toUpperCase())+'</div><div class="cinfo"><div class="cname">'+esc(p.name||'Contact')+'</div><div class="csub">'+sub+'</div></div><span class="ctype">'+esc(p.type||'')+'</span><button class="crm" data-rm="'+esc(p.id)+'">Remove</button></div>';
   }).join('') : '<div class="empty">No contacts yet. Add the owner, partners, or advisors tied to this company.</div>';
   function locRow(l){
-    var line=[l.address,l.city].filter(Boolean).map(esc).join(', ');
-    return '<div class="crow"><div class="cav" style="background:#fff4e6;color:#b9761a">◆</div><div class="cinfo"><div class="cname">'+esc(l.name||l.address||'Location')+'</div><div class="csub">'+line+(l.notes?(' · '+esc(l.notes)):'')+'</div></div><span class="ctype '+locStatusClass(l.status)+'">'+esc(l.status||'Open')+'</span><button class="ledit" data-le="'+esc(l.id)+'">Edit</button><button class="crm" data-lrm="'+esc(l.id)+'">Remove</button></div>';
+    var loc=[l.address,l.city,l.state].filter(Boolean).map(esc).join(', ');
+    var line=[loc,(l.phone?esc(l.phone):''),(l.notes?esc(l.notes):'')].filter(Boolean).join(' · ');
+    return '<div class="crow"><div class="cav" style="background:#fff4e6;color:#b9761a">◆</div><div class="cinfo"><div class="cname">'+esc(l.name||l.address||'Location')+'</div><div class="csub">'+line+'</div></div><span class="ctype '+locStatusClass(l.status)+'">'+esc(l.status||'Open')+'</span><button class="ledit" data-le="'+esc(l.id)+'">Edit</button><button class="crm" data-lrm="'+esc(l.id)+'">Remove</button></div>';
   }
   var locs;
   if(!LOCATIONS.length){ locs='<div class="empty">No locations yet. A company can run several concepts, each with several locations — add each unit with its concept, address, and status.</div>'; }
@@ -104,7 +110,7 @@ function render(){
   document.getElementById('root').innerHTML=
     '<div class="main">'
     + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="addContactBtn">+ Add contact</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
-    + '<div class="card"><div class="ch"><b>Locations</b><span>'+LOCATIONS.length+'</span><button class="addbtn" id="addLocBtn">+ Add location</button></div><div class="cb"><div id="locForm" hidden></div>'+locs+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Locations</b><span>'+LOCATIONS.length+'</span><button class="addbtn ghost" id="findLocBtn">✨ Find locations</button><button class="addbtn" id="addLocBtn">+ Add location</button></div><div class="cb"><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
     + '<div class="card"><div class="ch"><b>Deals</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Company</b></div><div class="cb">'
@@ -119,6 +125,7 @@ function render(){
   document.getElementById('addContactBtn').addEventListener('click',openContactForm);
   document.querySelectorAll('.crm[data-rm]').forEach(function(b){ b.addEventListener('click',function(){ removeContact(b.getAttribute('data-rm')); }); });
   var alb=document.getElementById('addLocBtn'); if(alb) alb.addEventListener('click',function(){ openLocForm(null); });
+  var flb=document.getElementById('findLocBtn'); if(flb) flb.addEventListener('click',openFindForm);
   document.querySelectorAll('.ledit').forEach(function(b){ b.addEventListener('click',function(){ var l=LOCATIONS.filter(function(x){return x.id===b.getAttribute('data-le');})[0]; if(l) openLocForm(l); }); });
   document.querySelectorAll('.crm[data-lrm]').forEach(function(b){ b.addEventListener('click',function(){ removeLoc(b.getAttribute('data-lrm')); }); });
 }
@@ -132,6 +139,8 @@ function openLocForm(l){
     +'<div><label class="fld">Location name</label><input id="lo_name" value="'+esc(l.name||'')+'" placeholder="e.g. Downtown, Airport, Unit 2"></div>'
     +'<div><label class="fld">City / market</label><input id="lo_city" value="'+esc(l.city||'')+'" placeholder="City"></div>'
     +'<div class="wide"><label class="fld">Address</label><input id="lo_address" value="'+esc(l.address||'')+'" placeholder="Street address"></div>'
+    +'<div><label class="fld">State</label><input id="lo_state" value="'+esc(l.state||'')+'" placeholder="TX"></div>'
+    +'<div><label class="fld">Phone</label><input id="lo_phone" value="'+esc(l.phone||'')+'" placeholder="(555) 555-5555"></div>'
     +'<div class="wide"><label class="fld">Notes</label><input id="lo_notes" value="'+esc(l.notes||'')+'" placeholder="Sq ft, seats, lease, remarks…"></div>'
     +'</div><div class="cbtns"><button class="sbtn" id="lo_save">'+(l.id?'Save location':'Add location')+'</button><button class="cbtn" id="lo_cancel">Cancel</button></div></div>';
   f.removeAttribute('hidden');
@@ -139,8 +148,39 @@ function openLocForm(l){
   document.getElementById('lo_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
   document.getElementById('lo_name').focus();
 }
+function openFindForm(){
+  var f=document.getElementById('findForm'); var cdl=conceptList().map(function(x){return '<option value="'+esc(x)+'">';}).join('');
+  f.innerHTML='<div class="cform findcard"><div class="findhd">✨ Find this concept’s locations</div>'
+    +'<div class="findsub">Enter the concept, its website, and roughly how many units it runs. Claude searches the web and creates a location record — address and phone — for each one it finds. Review and edit them after.</div>'
+    +'<div class="cgrid">'
+    +'<div><label class="fld">Concept / brand</label><input id="fd_concept" list="conceptDL2" placeholder="e.g. Taco House"><datalist id="conceptDL2">'+cdl+'</datalist></div>'
+    +'<div><label class="fld">Approx. # of locations</label><input id="fd_count" placeholder="e.g. 6"></div>'
+    +'<div class="wide"><label class="fld">Website</label><input id="fd_site" placeholder="tacohouse.com"></div>'
+    +'</div><div class="cbtns"><button class="sbtn" id="fd_go">Search the web &amp; add locations</button><button class="cbtn" id="fd_cancel">Cancel</button><span id="fd_msg" class="findmsg"></span></div></div>';
+  f.removeAttribute('hidden');
+  document.getElementById('fd_go').addEventListener('click',runFindLocations);
+  document.getElementById('fd_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
+  document.getElementById('fd_concept').focus();
+}
+function runFindLocations(){
+  var concept=document.getElementById('fd_concept').value.trim();
+  var website=document.getElementById('fd_site').value.trim();
+  var count=document.getElementById('fd_count').value.trim();
+  var msg=document.getElementById('fd_msg');
+  if(!concept){ document.getElementById('fd_concept').focus(); return; }
+  if(!website){ document.getElementById('fd_site').focus(); msg.textContent='A website is needed to search.'; return; }
+  var b=document.getElementById('fd_go'); b.disabled=true; b.textContent='Searching the web…'; msg.textContent='This can take up to a minute — Claude is reading the site and map listings.';
+  fetch('/api/company/'+encodeURIComponent(ID)+'/find-locations',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({concept:concept,website:website,count:count})})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ LOCATIONS=j.locations||LOCATIONS; var n=j.created||0; render();
+        // brief confirmation via alert since render() wipes the form
+        setTimeout(function(){ alert(n?('Added '+n+' location'+(n===1?'':'s')+' for '+concept+'.'+(j.note?('\n\n'+j.note):'')):('No new locations were found from that site.'+(j.note?('\n\n'+j.note):''))); },50);
+      } else { b.disabled=false;b.textContent='Search the web & add locations'; msg.textContent=(j&&j.error)||'Search failed.'; }
+    })
+    .catch(function(){ b.disabled=false;b.textContent='Search the web & add locations'; msg.textContent='Could not reach the server.'; });
+}
 function saveLoc(id){
-  var body={ name:document.getElementById('lo_name').value.trim(), concept:document.getElementById('lo_concept').value.trim(), address:document.getElementById('lo_address').value.trim(), city:document.getElementById('lo_city').value.trim(), status:document.getElementById('lo_status').value, notes:document.getElementById('lo_notes').value.trim() };
+  var body={ name:document.getElementById('lo_name').value.trim(), concept:document.getElementById('lo_concept').value.trim(), address:document.getElementById('lo_address').value.trim(), city:document.getElementById('lo_city').value.trim(), state:document.getElementById('lo_state').value.trim(), phone:document.getElementById('lo_phone').value.trim(), status:document.getElementById('lo_status').value, notes:document.getElementById('lo_notes').value.trim() };
   if(id) body.id=id;
   if(!body.name && !body.address){ document.getElementById('lo_name').focus(); return; }
   var b=document.getElementById('lo_save'); b.disabled=true; b.textContent='Saving…';

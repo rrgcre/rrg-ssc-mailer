@@ -61,6 +61,14 @@ select,input.owner,textarea{width:100%;border:1px solid #cfd6e2;border-radius:9p
 select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%236b7488' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;cursor:pointer;}
 textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .fldrow{margin-bottom:15px;}
+.listingbox{margin-bottom:15px;padding:12px 13px;border:1px solid var(--line);border-radius:11px;background:#fbfcff;}
+.listinghd{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:800;margin-bottom:10px;}
+.fldrow2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.fldrow2 input{padding:8px 10px;font-size:13px;}
+.autorow{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);font-weight:600;cursor:pointer;}
+.autorow input{width:auto;}
+.expnote{margin-top:9px;font-size:12px;font-weight:700;color:var(--muted);}
+.expnote.warn{color:#b9761a;} .expnote.bad{color:var(--red);}
 .savebtn{width:100%;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:12px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;}
 .savebtn:disabled{opacity:.55;cursor:default;}
 .saved{text-align:center;font-size:11.5px;color:var(--green);font-weight:700;margin-top:9px;height:14px;opacity:0;transition:opacity .2s;}
@@ -245,6 +253,13 @@ function render(){
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
       + '<div class="fldrow"><label class="fld">Owner</label><input class="owner" id="f_owner" value="'+esc(A.owner||'')+'" placeholder="Assigned rep"></div>'
       + '<div class="fldrow"><label class="fld">Deal name override</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||'')+'" placeholder="'+esc(A.business||'')+'"></div>'
+      + '<div class="listingbox">'
+        + '<div class="listinghd">Listing agreement</div>'
+        + '<div class="fldrow2"><div><label class="fld">Listed on</label><input type="date" class="owner" id="f_lstart" value="'+esc(A.listingStart||'')+'"></div>'
+        + '<div><label class="fld">Expires</label><input type="date" class="owner" id="f_lexp" value="'+esc(A.listingExpires||'')+'"></div></div>'
+        + '<label class="autorow"><input type="checkbox" id="f_lauto"'+(A.autoRenew?' checked':'')+'> Auto-renews</label>'
+        + '<div class="expnote" id="expNote"></div>'
+      + '</div>'
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="f_notes" placeholder="Private notes on this deal — next steps, seller temperature, key dates…">'+esc(A.notes||'')+'</textarea></div>'
       + '<button class="savebtn" id="savebtn" disabled>Save changes</button>'
       + '<div class="saved" id="saved">Saved ✓</div>'
@@ -252,11 +267,12 @@ function render(){
     + '</div></div></div>'
     + peopleDatalistHTML();
 
-  ['f_status','f_owner','f_biz','f_notes'].forEach(function(id){
-    var el=document.getElementById(id);
-    var ev=(el.tagName==='SELECT')?'change':'input';
-    el.addEventListener(ev,function(){ setDirty(true); });
+  ['f_status','f_owner','f_biz','f_notes','f_lstart','f_lexp','f_lauto'].forEach(function(id){
+    var el=document.getElementById(id); if(!el) return;
+    var ev=(el.tagName==='SELECT'||el.type==='checkbox'||el.type==='date')?'change':'input';
+    el.addEventListener(ev,function(){ setDirty(true); if(id==='f_lexp'||id==='f_lauto') updateExpNote(); });
   });
+  updateExpNote();
   document.getElementById('savebtn').addEventListener('click',save);
   var sdb=document.getElementById('startDealBtn'); if(sdb) sdb.addEventListener('click',startDeal);
   var ddb=document.getElementById('delDealBtn'); if(ddb) ddb.addEventListener('click',deleteDeal);
@@ -629,13 +645,27 @@ function rerenderNdas(){ var main=document.querySelector('.main'); if(!main) ret
 function ndaById(id){ return NDAS.filter(function(x){return x.id===id;})[0]; }
 function wireNdas(){ var add=document.getElementById('addNdaBtn'); if(add) add.addEventListener('click',function(){ openNdaForm(null); }); document.querySelectorAll('.nedit').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); var n=ndaById(b.getAttribute('data-nid')); if(n) openNdaForm(n); }); }); document.querySelectorAll('.ndel').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); delNda(b.getAttribute('data-nid')); }); }); }
 function setDirty(v){ DIRTY=v; var b=document.getElementById('savebtn'); if(b) b.disabled=!v; if(v){ var s=document.getElementById('saved'); if(s) s.classList.remove('show'); } }
+function updateExpNote(){
+  var el=document.getElementById('expNote'); if(!el) return;
+  var ev=document.getElementById('f_lexp').value; var auto=document.getElementById('f_lauto').checked;
+  if(!ev){ el.textContent=''; el.className='expnote'; return; }
+  var d=new Date(ev+'T00:00:00'); if(isNaN(d.getTime())){ el.textContent=''; return; }
+  var t=new Date(); t.setHours(0,0,0,0); var n=Math.round((d-t)/86400000);
+  var txt, cls='expnote';
+  if(n<0){ txt='Expired '+(-n)+' day'+(n===-1?'':'s')+' ago'; cls='expnote bad'; }
+  else if(n===0){ txt='Expires today'; cls='expnote bad'; }
+  else { txt='Expires in '+n+' day'+(n===1?'':'s'); cls='expnote'+(n<=14?' bad':(n<=30?' warn':'')); }
+  if(auto) txt+=' · auto-renews';
+  el.textContent=txt; el.className=cls;
+}
 function save(){
   var b=document.getElementById('savebtn'); b.disabled=true; b.textContent='Saving…';
-  var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value };
+  var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value,
+    listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked };
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){
       b.textContent='Save changes';
-      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride;
+      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew;
         document.getElementById('subline').querySelector('.hpill').textContent=body.status;
         if(body.businessOverride){ A.business=body.businessOverride; document.getElementById('h1').textContent=body.businessOverride; document.getElementById('crumb').textContent=body.businessOverride; }
         var s=document.getElementById('saved'); s.classList.add('show'); setTimeout(function(){ s.classList.remove('show'); },2200);

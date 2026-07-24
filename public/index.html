@@ -229,9 +229,12 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
 </div>
 
 <div class="foot">
-  <span>Restaurant Realty Group, LLC &nbsp;·&nbsp; <b>Restaurant Transactions. Done Right.</b></span>
+  <span><span id="copyLine">© Restaurant Realty Group, LLC.</span> All rights reserved. &nbsp;·&nbsp; <b>Restaurant Transactions. Done Right.</b></span>
   <span id="buildStamp" style="opacity:.75"></span>
   <span id="count"></span>
+</div>
+<div style="max-width:1080px;margin:0 auto;padding:0 32px 30px;color:#8a93a8;font-size:11px;line-height:1.55">
+  Proprietary &amp; Confidential — this toolkit and all content, data, valuations, and documents it generates are the exclusive property of Restaurant Realty Group, LLC, and are intended solely for authorized RRG personnel. Unauthorized use, reproduction, or distribution is prohibited.
 </div>
 
 <div class="gmodal" id="gmodal" onclick="if(event.target===this)closeGuide()">
@@ -447,6 +450,7 @@ var ARROW='<span class="arw"><svg width="15" height="15" viewBox="0 0 24 24" fil
 
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 
+try{ var _cy=new Date().getFullYear(); var _cl=document.getElementById('copyLine'); if(_cl) _cl.textContent='© '+_cy+' Restaurant Realty Group, LLC.'; }catch(e){}
 var COUNTS={}, ACTIVE={};
 function countBadge(t){
   var n=COUNTS[t.file]; if(typeof n!=='number') return '';

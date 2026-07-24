@@ -45,6 +45,12 @@ tr:hover td{background:#fbfcfe;}
 .pill.Closed{background:#eafaf0;color:#0e7a53;border-color:#b9e6cd;}
 .pill.Hold{background:#f2f4f8;color:#6b7488;border-color:#e0e5ee;}
 .pill.Lost{background:#fdeceb;color:var(--red);border-color:#f3cfc9;}
+.exppill{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid;white-space:nowrap;}
+.exp-ok{background:#eef7f0;color:var(--green);border-color:#bfe6d1;}
+.exp-warn{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;}
+.exp-soon{background:#fdeceb;color:var(--red);border-color:#f3cfc9;}
+.exp-past{background:#fdeceb;color:#fff;border-color:var(--red);background:var(--red);}
+.renew{color:#0e7a53;font-weight:800;margin-left:5px;font-size:13px;vertical-align:middle;}
 .open{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:7px 14px;font:inherit;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
 .foot{max-width:1180px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
@@ -101,6 +107,17 @@ function pipeCell(a){
   return '<div class="pipe">'+STAGES.map(function(s){ var st=a.stages[s[0]]; var cls=!st?'':(st.done?'done':'pend'); return '<div class="pnode'+(st?' act':'')+'"><div class="pdot '+cls+'" title="'+esc(s[1])+(st?(st.done?' — done':' — in progress'):' — not started')+'"></div><div class="plabel">'+esc(s[1])+'</div></div>'; }).join('')+'</div>';
 }
 function statusClass(s){ return (s||'New').split(' ')[0]; }
+// Days until a deal's listing expires (large number when no date, so it sorts last).
+function expDays(a){ if(!a.listingExpires) return 99999; var d=new Date(a.listingExpires+'T00:00:00'); if(isNaN(d.getTime())) return 99999; var t=new Date(); t.setHours(0,0,0,0); return Math.round((d-t)/86400000); }
+function expiresCell(a){
+  if(!a.listingExpires){ return '<span class="meta">—</span>'; }
+  var n=expDays(a), cls='exp-ok', txt;
+  if(n<0){ cls='exp-past'; txt='Expired '+(-n)+'d ago'; }
+  else if(n===0){ cls='exp-soon'; txt='Expires today'; }
+  else { txt='in '+n+' day'+(n===1?'':'s'); if(n<=14) cls='exp-soon'; else if(n<=30) cls='exp-warn'; }
+  var renew=a.autoRenew?'<span class="renew" title="Auto-renews">↻</span>':'';
+  return '<span class="exppill '+cls+'">'+esc(txt)+'</span>'+renew+'<div class="meta">'+esc(fmt(a.listingExpires))+'</div>';
+}
 function stageCount(a){ return STAGES.filter(function(s){ return a.stages[s[0]]; }).length; }
 function renderTiles(){
   var by={New:0,Active:0,'Under Contract':0,Closed:0,other:0};
@@ -122,13 +139,14 @@ function renderList(list){
   var cfg={
     mount:'#body', data:list, key:'assignments', countEl:'#cnt',
     empty:'<div class="empty"><b>No deals yet.</b>Log a seller qualification call to start your first deal — everything downstream links back here automatically.</div>',
-    rowId:function(a){ return a.key; }, defaultSort:5, defaultDir:1,
+    rowId:function(a){ return a.key; }, defaultSort:6, defaultDir:1,
     columns:[
       { label:'Business', sort:function(a,b){ return RRGList.cmp(a.business,b.business); },
         cell:function(a){ var meta=[a.market,a.contact].filter(Boolean).map(esc).join(' · '); return '<div class="biz">'+esc(a.business)+'</div><div class="meta">'+meta+'</div>'; } },
       { label:'Pipeline', sortable:false, cell:function(a){ return pipeCell(a); } },
       { label:'Value', sort:function(a,b){ return RRGList.cmp(a.value,b.value); }, cell:function(a){ return a.value?('<b style="color:var(--navy)">'+esc(a.value)+'</b>'+(a.basis?('<div class="meta">'+esc(a.basis)+'</div>'):'')):'<span class="meta">—</span>'; } },
       { label:'Status', sort:function(a,b){ return RRGList.cmp(a.status,b.status); }, cell:function(a){ return '<span class="pill '+statusClass(a.status)+'">'+esc(a.status)+'</span>'; } },
+      { label:'Listing expires', sort:function(a,b){ return expDays(a)-expDays(b); }, cell:function(a){ return expiresCell(a); } },
       { label:'Owner', sort:function(a,b){ return RRGList.cmp(a.owner,b.owner); }, cell:function(a){ return '<span class="meta" style="color:var(--ink)">'+esc(a.owner||'—')+'</span>'; } },
       { label:'Updated', sort:function(a,b){ return RRGList.cmp(a.lastActivity,b.lastActivity); }, cell:function(a){ return '<span class="meta">'+esc(fmt(a.lastActivity))+'</span>'; } },
       { label:'', align:'right', sortable:false, cell:function(a){ var start=a.canStart?('<button class="startbtn" data-start="'+esc(a.dealId)+'">Start the deal →</button>'):''; return start+'<a class="open" href="./rrg_assignment.html?key='+encodeURIComponent(a.key)+'">Open →</a>'; } }

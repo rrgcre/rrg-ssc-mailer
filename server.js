@@ -14,6 +14,7 @@ const leasegen = require('./leasegen.js');
 const attackgen = require('./attackgen.js');
 const offergen = require('./offergen.js');
 const ticketgen = require('./ticketgen.js');
+const locationgen = require('./locationgen.js');
 const archiver = require('archiver');
 const valgen = require('./valgen.js');
 
@@ -2052,6 +2053,7 @@ function assignmentView(d, overlay) {
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', owner: o.owner || by, businessOverride: o.businessOverride || '',
+    listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew,
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
@@ -2111,6 +2113,9 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.notes === 'string') cur.notes = b.notes.slice(0, 8000);
   if (typeof b.owner === 'string') cur.owner = b.owner.slice(0, 120);
   if (typeof b.businessOverride === 'string') cur.businessOverride = b.businessOverride.slice(0, 120);
+  if (typeof b.listingStart === 'string') cur.listingStart = b.listingStart.slice(0, 10);
+  if (typeof b.listingExpires === 'string') cur.listingExpires = b.listingExpires.slice(0, 10);
+  if (typeof b.autoRenew === 'boolean') cur.autoRenew = b.autoRenew;
   cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true });
@@ -2321,9 +2326,17 @@ function applyLocationFields(l, b) {
   if (typeof b.concept === 'string') l.concept = b.concept.slice(0, 120);
   if (typeof b.address === 'string') l.address = b.address.slice(0, 200);
   if (typeof b.city === 'string') l.city = b.city.slice(0, 120);
+  if (typeof b.state === 'string') l.state = b.state.slice(0, 20);
+  if (typeof b.phone === 'string') l.phone = b.phone.slice(0, 60);
+  if (typeof b.website === 'string') l.website = b.website.slice(0, 300);
   if (typeof b.status === 'string') l.status = LOCATION_STATUSES.indexOf(b.status) >= 0 ? b.status : 'Open';
   if (typeof b.notes === 'string') l.notes = b.notes.slice(0, 2000);
 }
+// Optional custom prompt for the location finder (admin-overridable, like the others).
+const LOC_PROMPT_FILE = path.join(BOV_DATA_DIR, 'location_prompt.txt');
+function loadLocPromptCustom() { try { const t = fs.readFileSync(LOC_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
+function saveLocPromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(LOC_PROMPT_FILE, String(t)); } catch (e) {} }
+function clearLocPromptCustom() { try { fs.unlinkSync(LOC_PROMPT_FILE); } catch (e) {} }
 app.get('/api/company/:id', (req, res) => {
   const c = companyById(req.params.id);
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
@@ -2348,6 +2361,35 @@ app.post('/api/company/:id/location/:locId/remove', (req, res) => {
   c.locations = (c.locations || []).filter(l => l.id !== req.params.locId);
   c.updatedAt = new Date().toISOString(); saveCompanies(arr);
   res.json({ ok: true, locations: c.locations });
+});
+// Onboarding — search a concept's website for its locations and create records for them.
+app.post('/api/company/:id/find-locations', express.json(), async (req, res) => {
+  try {
+    const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+    if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+    const b = req.body || {};
+    const concept = String(b.concept || '').trim();
+    const website = String(b.website || '').trim();
+    const count = String(b.count || '').trim();
+    if (!concept) return res.status(400).json({ ok: false, error: 'A concept name is required.' });
+    if (!website) return res.status(400).json({ ok: false, error: 'A website is required to search for locations.' });
+    const result = await locationgen.findLocations({ company: c.name, concept, website, count, systemPrompt: loadLocPromptCustom() || undefined });
+    const now = new Date().toISOString();
+    c.locations = c.locations || [];
+    const created = [];
+    (result.locations || []).forEach(l => {
+      // Skip obvious duplicates (same concept + address already present).
+      const dupe = c.locations.some(x => (x.concept || '') === concept && normKey(x.address || '') && normKey(x.address || '') === normKey(l.address || ''));
+      if (dupe) return;
+      const rec = { id: newLocationId(), name: l.name || '', concept, address: l.address || '', city: l.city || '', state: l.state || '', phone: l.phone || '', website, status: 'Open', notes: '', source: 'ai-web', createdAt: now };
+      c.locations.push(rec); created.push(rec);
+    });
+    c.updatedAt = now; saveCompanies(arr);
+    res.json({ ok: true, created: created.length, locations: c.locations, note: result.note || '' });
+  } catch (e) {
+    console.error('find-locations error:', e && e.message);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
 });
 app.post('/api/company', express.json(), (req, res) => {
   const b = req.body || {};
