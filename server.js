@@ -14,6 +14,7 @@ const leasegen = require('./leasegen.js');
 const attackgen = require('./attackgen.js');
 const offergen = require('./offergen.js');
 const ticketgen = require('./ticketgen.js');
+const archiver = require('archiver');
 const valgen = require('./valgen.js');
 
 const fs = require('fs');
@@ -137,6 +138,72 @@ function loadTicketPromptCustom() { try { const t = fs.readFileSync(TICKET_PROMP
 function saveTicketPromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(TICKET_PROMPT_FILE, String(t)); } catch (e) {} }
 function clearTicketPromptCustom() { try { fs.unlinkSync(TICKET_PROMPT_FILE); } catch (e) {} }
 function loadTicketPrompt() { return loadTicketPromptCustom() || undefined; }
+
+// ---- Data backup — zips the entire data directory (all JSON stores + uploaded
+// documents + data-room files) so the whole book of business can be restored. A
+// daily snapshot is kept on the persistent disk; admins can download any snapshot
+// or a fresh one on demand, and an automation token allows off-site copies. ----
+const BACKUP_DIR = path.join(BOV_DATA_DIR, 'backups');
+const BACKUP_KEEP = 14; // rolling window of daily snapshots retained on disk
+function backupStamp(d) { d = d || new Date(); const p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); }
+function backupStampFull(d) { d = d || new Date(); const p = n => String(n).padStart(2, '0'); return backupStamp(d) + '_' + p(d.getHours()) + p(d.getMinutes()) + p(d.getSeconds()); }
+// Pipe a zip of the data directory to any writable stream. Excludes the backups
+// folder itself (no recursion) and the session-signing key (a secret).
+function writeBackupZip(dest) {
+  return new Promise((resolve, reject) => {
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    let bytes = 0;
+    archive.on('error', reject);
+    archive.on('data', c => { bytes += c.length; });
+    if (dest && typeof dest.on === 'function') dest.on('close', () => resolve(bytes));
+    archive.pipe(dest);
+    try {
+      const entries = fs.readdirSync(BOV_DATA_DIR, { withFileTypes: true });
+      entries.forEach(ent => {
+        if (ent.name === 'backups') return;                 // don't nest backups in backups
+        if (ent.name === 'session.key' || /\.key$/.test(ent.name)) return; // don't export secrets
+        const full = path.join(BOV_DATA_DIR, ent.name);
+        if (ent.isDirectory()) archive.directory(full, ent.name);
+        else if (ent.isFile()) archive.file(full, { name: ent.name });
+      });
+    } catch (e) { return reject(e); }
+    archive.finalize();
+  });
+}
+function listBackups() {
+  try {
+    return fs.readdirSync(BACKUP_DIR).filter(f => /\.zip$/.test(f)).map(f => {
+      let size = 0, mtime = 0; try { const st = fs.statSync(path.join(BACKUP_DIR, f)); size = st.size; mtime = st.mtimeMs; } catch (e) {}
+      return { name: f, size, at: new Date(mtime).toISOString() };
+    }).sort((a, b) => b.name.localeCompare(a.name));
+  } catch (e) { return []; }
+}
+function pruneBackups() {
+  try {
+    const files = fs.readdirSync(BACKUP_DIR).filter(f => /\.zip$/.test(f)).sort();
+    while (files.length > BACKUP_KEEP) { const old = files.shift(); try { fs.unlinkSync(path.join(BACKUP_DIR, old)); } catch (e) {} }
+  } catch (e) {}
+}
+async function makeSnapshot(tag) {
+  try { if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true }); } catch (e) {}
+  const name = 'rrg-backup-' + (tag || backupStamp()) + '.zip';
+  const tmp = path.join(BACKUP_DIR, '.' + name + '.tmp');
+  const out = fs.createWriteStream(tmp);
+  await writeBackupZip(out);
+  try { fs.renameSync(tmp, path.join(BACKUP_DIR, name)); } catch (e) { try { fs.unlinkSync(tmp); } catch (e2) {} throw e; }
+  pruneBackups();
+  return name;
+}
+// Daily automatic snapshot: on boot and then hourly, ensure today's snapshot exists.
+let _lastBackupDay = '';
+async function ensureDailyBackup() {
+  const day = backupStamp();
+  if (_lastBackupDay === day) return;
+  const exists = listBackups().some(b => b.name === 'rrg-backup-' + day + '.zip');
+  if (exists) { _lastBackupDay = day; return; }
+  try { await makeSnapshot(day); _lastBackupDay = day; console.log('Daily backup written: rrg-backup-' + day + '.zip'); }
+  catch (e) { console.error('Daily backup failed:', e && e.message); }
+}
 function findOrCreateCompany(req, info) {
   const name = String((info && info.name) || '').trim();
   if (!name) return null;
@@ -517,6 +584,12 @@ app.use((req, res, next) => {
     // cookie, so an active user stays signed in and an idle one is logged out.
     try { setSessionCookie(res, auth.makeSession(sess)); } catch (e) {}
     return next();
+  }
+  // Backup endpoints may be pulled off-site by an automation using a secret token
+  // (set BACKUP_TOKEN on the server). A valid token acts as an admin for backup only.
+  if (req.path.startsWith('/api/admin/backup') && process.env.BACKUP_TOKEN) {
+    const tok = req.query.token || req.headers['x-backup-token'] || '';
+    if (tok && tok === process.env.BACKUP_TOKEN) { req.user = { username: 'backup-bot', role: 'admin', name: 'Backup automation' }; return next(); }
   }
   // Not authenticated
   if (req.path.startsWith('/api/') || /\.(csv|json)$/.test(req.path)) {
@@ -2800,6 +2873,18 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveTicketPrompt()">Save prompt</button> <button onclick="resetTicketPrompt()">Reset to RRG default</button> <span id="tkmsg" class="sub2"></span></div>
       </div>
 
+      <div class="grp">Data Backup</div>
+      <h2 style="margin-top:20px" data-open="1">Backups <span class="sub2">— a full copy of everything the team has created: deals, companies, contacts, requests, calls, valuations, marketing packs, and every uploaded data-room file. The server writes an automatic snapshot once a day (kept ${BACKUP_KEEP} days). Download one any time to keep an off-site copy in Drive or Dropbox.</span></h2>
+      <div class="links">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+          <a class="primary" href="/api/admin/backup" style="text-decoration:none;display:inline-block">⬇ Download full backup now</a>
+          <button onclick="runBackup()">Save a snapshot on the server</button>
+          <span id="bkmsg" class="sub2"></span>
+        </div>
+        <div class="sub2" id="bkoffsite" style="margin:2px 0 10px"></div>
+        <div id="bklist" class="sub2">Loading saved snapshots…</div>
+      </div>
+
       <div class="grp">Activity &amp; Logs</div>
       <h2 style="margin-top:20px">Tool Usage <span class="sub2">— what your team is using</span></h2>
       <div class="cols">
@@ -2873,6 +2958,19 @@ app.get('/admin', requireAdmin, (req, res) => {
       try{ loadMapPrompt(); }catch(e){}
       try{ loadCimPrompt(); }catch(e){}
       try{ loadTicketPrompt(); }catch(e){}
+      function _bkSize(n){ if(!n) return '0 KB'; if(n<1024*1024) return (n/1024).toFixed(0)+' KB'; return (n/1024/1024).toFixed(1)+' MB'; }
+      function _bkDate(iso){ try{ var d=new Date(iso); return d.toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
+      function loadBackups(){ fetch('/api/admin/backups').then(function(r){return r.json();}).then(function(j){
+        if(!j||!j.ok){ document.getElementById('bklist').textContent='Could not load snapshots.'; return; }
+        var off=document.getElementById('bkoffsite');
+        off.innerHTML = j.tokenSet ? 'Off-site automation is <b style="color:#0e7a53">armed</b> — a scheduled job can pull backups with the backup token.' : 'Tip: to automate a daily <b>off-site</b> copy, set a <code>BACKUP_TOKEN</code> on the server and a scheduled job can pull <code>/api/admin/backup?token=…</code> into Drive.';
+        var b=j.backups||[];
+        if(!b.length){ document.getElementById('bklist').innerHTML='<div>No saved snapshots yet — the first daily snapshot writes automatically, or click “Save a snapshot” above.</div>'; return; }
+        document.getElementById('bklist').innerHTML='<table style="margin-top:4px"><thead><tr><th>Snapshot</th><th>Size</th><th>Saved</th><th></th></tr></thead><tbody>'+
+          b.map(function(x){ return '<tr><td>'+x.name+'</td><td>'+_bkSize(x.size)+'</td><td>'+_bkDate(x.at)+'</td><td><a href="/api/admin/backup/file/'+encodeURIComponent(x.name)+'">Download</a></td></tr>'; }).join('')+'</tbody></table>';
+      }).catch(function(){ document.getElementById('bklist').textContent='Could not load snapshots.'; }); }
+      function runBackup(){ var m=document.getElementById('bkmsg'); m.textContent='Saving snapshot…'; post('/api/admin/backup/run',{}).then(function(j){ if(j&&j.ok){ m.textContent='Snapshot saved ✓'; loadBackups(); setTimeout(function(){ m.textContent=''; },1500); } else { m.textContent=(j&&j.error)||'Backup failed'; } }); }
+      try{ loadBackups(); }catch(e){}
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
       var INTRO_DEFAULT_MSG='', PACK_INTRO_DEFAULT_MSG='';
       function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); var is=document.getElementById('introSeconds'); if(is) is.value=(j.introSeconds!=null?j.introSeconds:10); INTRO_DEFAULT_MSG=j.defaultIntroMessage||''; var im=document.getElementById('introMessage'); if(im) im.value=j.introMessage||j.defaultIntroMessage||''; var ds=document.getElementById('doneSeconds'); if(ds) ds.value=(j.doneSeconds!=null?j.doneSeconds:2); var nt=document.getElementById('noTtmMessage'); if(nt) nt.value=j.noTtmMessage||j.defaultNoTtmMessage||''; var af=document.getElementById('assetSaleFloor'); if(af) af.value=fmtNum(j.assetSaleFloor!=null?j.assetSaleFloor:(j.defaultAssetSaleFloor!=null?j.defaultAssetSaleFloor:25000)); var am=document.getElementById('assetSaleMessage'); if(am) am.value=j.assetSaleMessage||j.defaultAssetSaleMessage||''; var pis=document.getElementById('packIntroSeconds'); if(pis) pis.value=(j.packIntroSeconds!=null?j.packIntroSeconds:20); PACK_INTRO_DEFAULT_MSG=j.defaultPackIntroMessage||''; var pim=document.getElementById('packIntroMessage'); if(pim) pim.value=j.packIntroMessage||j.defaultPackIntroMessage||''; renderSounds(j.ambienceId||'analyst'); } }).catch(function(){ renderSounds('analyst'); }); }
@@ -3021,6 +3119,32 @@ app.post('/api/admin/map-prompt', requireAdmin, (req, res) => {
 app.get('/api/admin/ticket-prompt', requireAdmin, (req, res) => {
   const custom = loadTicketPromptCustom();
   res.json({ ok: true, prompt: custom || ticketgen.DEFAULT_SYSTEM, isDefault: !custom });
+});
+// ---- Data backup routes ----
+// List saved daily snapshots + whether off-site automation is armed.
+app.get('/api/admin/backups', requireAdmin, (req, res) => {
+  res.json({ ok: true, backups: listBackups(), keep: BACKUP_KEEP, tokenSet: !!process.env.BACKUP_TOKEN });
+});
+// Create a fresh snapshot on the disk right now.
+app.post('/api/admin/backup/run', requireAdmin, async (req, res) => {
+  try { const name = await makeSnapshot(backupStampFull()); res.json({ ok: true, name, backups: listBackups() }); }
+  catch (e) { console.error('backup run error:', e && e.message); res.status(500).json({ ok: false, error: 'Backup failed: ' + String((e && e.message) || e) }); }
+});
+// Download a live backup of everything, generated on the fly (admin session or token).
+app.get('/api/admin/backup', async (req, res) => {
+  if (!(req.user && req.user.role === 'admin')) return res.status(403).json({ ok: false, error: 'Admin only.' });
+  res.setHeader('Content-Type', 'application/zip');
+  res.setHeader('Content-Disposition', 'attachment; filename="rrg-backup-' + backupStampFull() + '.zip"');
+  try { await writeBackupZip(res); } catch (e) { console.error('backup stream error:', e && e.message); try { res.status(500).end(); } catch (e2) {} }
+});
+// Download a specific saved snapshot (admin session or token).
+app.get('/api/admin/backup/file/:name', (req, res) => {
+  if (!(req.user && req.user.role === 'admin')) return res.status(403).json({ ok: false, error: 'Admin only.' });
+  const name = path.basename(String(req.params.name || ''));
+  if (!/^rrg-backup-[\w.\-]+\.zip$/.test(name)) return res.status(400).json({ ok: false, error: 'Bad backup name.' });
+  const fp = path.join(BACKUP_DIR, name);
+  if (!fp.startsWith(BACKUP_DIR) || !fs.existsSync(fp)) return res.status(404).json({ ok: false, error: 'Snapshot not found.' });
+  res.download(fp, name);
 });
 app.post('/api/admin/ticket-prompt', requireAdmin, (req, res) => {
   const b = req.body || {};
@@ -3181,6 +3305,11 @@ function go(f){
 }
 </script></body></html>`;
 }
+
+// Automatic daily data backup: write today's snapshot shortly after boot, then
+// re-check every hour so a fresh snapshot always lands each day the server runs.
+setTimeout(() => { ensureDailyBackup(); }, 15000);
+setInterval(() => { ensureDailyBackup(); }, 60 * 60 * 1000);
 
 const PORT = process.env.PORT || 8787;
 app.listen(PORT, () => console.log(`RRG toolkit server listening on :${PORT}`));
