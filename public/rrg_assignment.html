@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Assignment</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--amber:#e0a41a;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:28px 0 30px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1040px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.crumb{margin:20px 0 4px;font-size:12px;} .crumb a{color:#aeb8cf;text-decoration:none;} .crumb a:hover{color:#fff;} .crumb span{color:var(--red);font-weight:700;letter-spacing:.06em;}
+h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01em;}
+.subline{color:#aeb8cf;font-size:13px;margin-top:7px;display:flex;gap:14px;flex-wrap:wrap;}
+.subline b{color:#fff;font-weight:700;}
+.hpill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:4px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.3);color:#fff;background:rgba(255,255,255,.08);margin-top:14px;}
+.wrap{max-width:1040px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;}
+@media(max-width:840px){.wrap{grid-template-columns:1fr;}}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:20px;}
+.card .ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);}
+.card .ch b{color:var(--navy);font-size:13.5px;} .card .ch span{color:var(--muted);font-size:11.5px;margin-left:auto;}
+.card .cb{padding:6px 20px 16px;}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:0 26px;}
+.fact{padding:11px 0;border-bottom:1px solid var(--line);} .fact:last-child,.facts .fact:nth-last-child(2):nth-child(odd){border-bottom:none;}
+.fact .k{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;} .fact .v{font-size:14px;color:var(--ink);margin-top:3px;font-weight:600;}
+.fact .v.big{font-size:19px;color:var(--navy);font-weight:800;letter-spacing:-.01em;}
+/* pipeline */
+.track{padding:8px 20px 18px;}
+.step{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line);}
+.step:last-child{border-bottom:none;}
+.rail{display:flex;flex-direction:column;align-items:center;position:relative;}
+.dot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;flex:none;z-index:1;}
+.dot.done{background:var(--green);} .dot.pend{background:#fff;border:2px solid var(--amber);color:var(--amber);} .dot.absent{background:#eef1f6;border:2px solid #dbe1ea;color:#aab3c2;}
+.line{width:2px;flex:1;background:var(--line);margin:3px 0 -14px;min-height:14px;}
+.step:last-child .line{display:none;}
+.sinfo{flex:1;min-width:0;}
+.sname{font-size:13.5px;font-weight:800;color:var(--navy);} .sname .lbl{color:var(--soft);font-weight:700;font-size:10px;letter-spacing:.05em;text-transform:uppercase;margin-left:8px;}
+.smeta{font-size:12px;color:var(--muted);margin-top:3px;}
+.sact{margin-left:auto;display:flex;align-items:center;gap:8px;flex:none;}
+.slink{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:6px 13px;font:inherit;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;}
+.slink.ghost{background:#fff;color:var(--navy);}
+.snone{font-size:11.5px;color:var(--soft);font-style:italic;white-space:nowrap;}
+.stag{font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:2px 8px;border-radius:999px;}
+.stag.done{background:#eef7f0;color:var(--green);border:1px solid #bfe6d1;}
+.stag.pend{background:#fff4e6;color:#b9761a;border:1px solid #f0d7ad;}
+/* side panel */
+.side .card{position:sticky;top:16px;}
+label.fld{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:2px 0 6px;}
+select,input.owner,textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;}
+select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%236b7488' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;cursor:pointer;}
+textarea{min-height:120px;resize:vertical;line-height:1.5;}
+.fldrow{margin-bottom:15px;}
+.savebtn{width:100%;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:12px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;}
+.savebtn:disabled{opacity:.55;cursor:default;}
+.saved{text-align:center;font-size:11.5px;color:var(--green);font-weight:700;margin-top:9px;height:14px;opacity:0;transition:opacity .2s;}
+.saved.show{opacity:1;}
+.foot{max-width:1040px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+.loading{max-width:1040px;margin:60px auto;padding:0 24px;color:var(--muted);text-align:center;}
+</style>
+</head>
+<body>
+<!--rrgback--><a href="./rrg_assignments.html" class="rrg-back" aria-label="Back to assignments" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Assignments</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'" title="Back to toolbox"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="crumb"><a href="./rrg_assignments.html">Assignments</a> &nbsp;›&nbsp; <span id="crumb">Deal file</span></div>
+  <h1 id="h1">Assignment</h1>
+  <div class="subline" id="subline"></div>
+</div></div>
+<div id="root" class="loading">Loading the deal file…</div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function fmt(iso){ if(!iso) return '—'; var d=new Date(iso); if(isNaN(d.getTime())) return '—'; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }
+function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
+var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false;
+// stage definitions: key, label, description, link builder
+var STAGES=[
+  { k:'call', name:'Seller Qualification Call', lbl:'Call', href:function(s){return './seller_screening.html?screening='+encodeURIComponent(s.id);}, open:'Open call' },
+  { k:'questionnaire', name:'Valuation Questionnaire', lbl:'VQ', href:function(s){return './valuation_questionnaire.html?q='+encodeURIComponent(s.id);}, open:'Open questionnaire' },
+  { k:'bov', name:'Broker Opinion of Value', lbl:'BOV', href:function(s){return './rrg_bov_builder.html?bov='+encodeURIComponent(s.id);}, open:'Open BOV' },
+  { k:'pack', name:'Marketing Pack', lbl:'Pack', href:function(s){return './rrg_cim_builder.html?cim='+encodeURIComponent(s.id);}, open:'Open pack' },
+  { k:'attack', name:'Market Attack Plan', lbl:'MAP', href:function(s){return './rrg_attack_builder.html?map='+encodeURIComponent(s.id);}, open:'Open plan' },
+  { k:'room', name:'Data Room', lbl:'Room', href:function(s){return './rrg_room.html?room='+encodeURIComponent(s.id);}, open:'Open room' },
+  { k:'lease', name:'Lease Abstract', lbl:'Lease', href:function(s){return './rrg_lease_abstract.html?lease='+encodeURIComponent(s.id);}, open:'Open abstract' }
+];
+function stageMeta(k,s){
+  if(k==='call') return s.meta||'Logged';
+  if(k==='questionnaire') return s.done?'Completed':((s.pct||0)+'% complete');
+  if(k==='bov') return s.done?((s.target||s.value||'Valued')+(s.basis?(' · '+s.basis):'')):'Draft in progress';
+  if(k==='pack') return s.done?'Built — CIM, templates & abstract':'Building';
+  if(k==='attack') return s.done?'Plan ready':'Building';
+  if(k==='room') return (s.docs||0)+' document'+((s.docs===1)?'':'s')+(s.gated?' · access-gated':'');
+  if(k==='lease') return s.done?'Abstract ready':'Building';
+  return '';
+}
+function render(){
+  var s=A.stages||{};
+  document.getElementById('crumb').textContent=A.business||'Deal file';
+  document.getElementById('h1').textContent=A.business||'Assignment';
+  var sub=[];
+  if(A.market) sub.push('<span>'+esc(A.market)+'</span>');
+  if(A.contact) sub.push('<span>Contact: <b>'+esc(A.contact)+'</b></span>');
+  if(A.value) sub.push('<span>Value: <b>'+esc(A.value)+'</b></span>');
+  sub.push('<span class="hpill" style="margin:0">'+esc(A.status||'New')+'</span>');
+  document.getElementById('subline').innerHTML=sub.join('');
+
+  var done=STAGES.filter(function(d){return s[d.k]&&s[d.k].done;}).length;
+  var started=STAGES.filter(function(d){return s[d.k];}).length;
+
+  var facts='<div class="facts">'
+    +'<div class="fact"><div class="k">Estimated value</div><div class="v big">'+(A.value?esc(A.value):'—')+'</div></div>'
+    +'<div class="fact"><div class="k">Basis</div><div class="v">'+(A.basis?esc(A.basis):'—')+'</div></div>'
+    +'<div class="fact"><div class="k">Market</div><div class="v">'+(A.market?esc(A.market):'—')+'</div></div>'
+    +'<div class="fact"><div class="k">Seller contact</div><div class="v">'+(A.contact?esc(A.contact):'—')+'</div></div>'
+    +'<div class="fact"><div class="k">Originated</div><div class="v">'+esc(fmt(A.createdAt))+'</div></div>'
+    +'<div class="fact"><div class="k">Last activity</div><div class="v">'+esc(fmt(A.lastActivity))+'</div></div>'
+    +'</div>';
+
+  var steps=STAGES.map(function(d){
+    var st=s[d.k];
+    var cls=!st?'absent':(st.done?'done':'pend');
+    var mark=!st?'':(st.done?'✓':'…');
+    var right;
+    if(!st){ right='<span class="snone">Not started</span>'; }
+    else {
+      var tag='<span class="stag '+(st.done?'done':'pend')+'">'+(st.done?'Done':'In progress')+'</span>';
+      right=tag+'<a class="slink'+(st.done?'':' ghost')+'" href="'+d.href(st)+'">'+esc(d.open)+' →</a>';
+    }
+    return '<div class="step"><div class="rail"><div class="dot '+cls+'">'+mark+'</div><div class="line"></div></div>'
+      +'<div class="sinfo"><div class="sname">'+esc(d.name)+'<span class="lbl">'+esc(d.lbl)+'</span></div>'
+      +'<div class="smeta">'+(st?esc(stageMeta(d.k,st)):'This stage hasn’t been created for this deal yet.')+'</div></div>'
+      +'<div class="sact">'+right+'</div></div>';
+  }).join('');
+
+  var opts=STATUSES.map(function(x){ return '<option'+(A.status===x?' selected':'')+'>'+esc(x)+'</option>'; }).join('');
+
+  document.getElementById('root').className='wrap';
+  document.getElementById('root').innerHTML=
+    '<div class="main">'
+    + '<div class="card"><div class="ch"><b>Deal facts</b><span>'+done+' of '+STAGES.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Pipeline</b><span>'+started+' of '+STAGES.length+' started</span></div><div class="track">'+steps+'</div></div>'
+    + '</div>'
+    + '<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
+      + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
+      + '<div class="fldrow"><label class="fld">Owner</label><input class="owner" id="f_owner" value="'+esc(A.owner||'')+'" placeholder="Assigned rep"></div>'
+      + '<div class="fldrow"><label class="fld">Deal name override</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||'')+'" placeholder="'+esc(A.business||'')+'"></div>'
+      + '<div class="fldrow"><label class="fld">Notes</label><textarea id="f_notes" placeholder="Private notes on this deal — next steps, seller temperature, key dates…">'+esc(A.notes||'')+'</textarea></div>'
+      + '<button class="savebtn" id="savebtn" disabled>Save changes</button>'
+      + '<div class="saved" id="saved">Saved ✓</div>'
+    + '</div></div></div>';
+
+  ['f_status','f_owner','f_biz','f_notes'].forEach(function(id){
+    var el=document.getElementById(id);
+    var ev=(el.tagName==='SELECT')?'change':'input';
+    el.addEventListener(ev,function(){ setDirty(true); });
+  });
+  document.getElementById('savebtn').addEventListener('click',save);
+}
+function setDirty(v){ DIRTY=v; var b=document.getElementById('savebtn'); if(b) b.disabled=!v; if(v){ var s=document.getElementById('saved'); if(s) s.classList.remove('show'); } }
+function save(){
+  var b=document.getElementById('savebtn'); b.disabled=true; b.textContent='Saving…';
+  var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value };
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){
+      b.textContent='Save changes';
+      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride;
+        document.getElementById('subline').querySelector('.hpill').textContent=body.status;
+        if(body.businessOverride){ A.business=body.businessOverride; document.getElementById('h1').textContent=body.businessOverride; document.getElementById('crumb').textContent=body.businessOverride; }
+        var s=document.getElementById('saved'); s.classList.add('show'); setTimeout(function(){ s.classList.remove('show'); },2200);
+      } else { b.disabled=false; alert((j&&j.error)||'Could not save.'); }
+    }).catch(function(){ b.textContent='Save changes'; b.disabled=false; alert('Could not reach the server.'); });
+}
+window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(); e.returnValue=''; } });
+function load(){
+  if(!KEY){ document.getElementById('root').innerHTML='<div class="empty" style="text-align:center;color:#6b7488;padding:40px">No assignment selected. <a href="./rrg_assignments.html">Back to assignments →</a></div>'; return; }
+  fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
+    if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
+    return r.json();
+  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; render(); })
+  .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this assignment.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to assignments</a></div>'; });
+}
+load();
+</script>
+</body>
+</html>

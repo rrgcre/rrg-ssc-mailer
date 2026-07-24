@@ -225,6 +225,10 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
    icon options: 'target' | 'funnel' | 'gauge' | 'doc'   (add more in ICONS)
    ========================================================================= */
 var TOOLS = [
+  /* ---- Book of Business (the overview) ---- */
+  { name:'Assignments', tag:'Deal', file:'rrg_assignments.html', icon:'briefcase', track:'book',
+    desc:"Every deal in one file. Each assignment ties together its qualification call, questionnaire, valuation, marketing pack, attack plan, data room, and lease abstract — so you see at a glance where every listing stands, and manage status, owner, and notes from one place." },
+
   /* ---- Seller Engagement pipeline (ordered by step) ---- */
   { name:'Seller Qualification Calls', tag:'Seller', file:'rrg_screening_queue.html', icon:'funnel', track:'pipeline', step:1,
     desc:"The front door of the pipeline. Log every prospective-seller call, read the real motivation behind the sale, and advance the leads worth chasing straight into a Valuation Questionnaire — everything you captured carries over." },
@@ -257,12 +261,19 @@ var TOOLS = [
 ];
 
 var TRACKS = [
+  { key:'book',     label:'Book of Business', note:'every deal in one file — the command center for the whole pipeline' },
   { key:'pipeline', label:'Seller Engagement', note:'the deal pipeline — screen → value → opine → offer → close', flow:true },
   { key:'tenant',   label:'Tenant Representation', note:'find the space, prove the fit, track the tour, close the lease' },
 ];
 
 /* Per-tool background + how-to (the "How to use" button). Keyed by file. Edit freely. */
 var GUIDES = {
+  'rrg_assignments.html':{
+    background:"Your book of business — every deal in one file. Each assignment automatically ties together the whole chain for a listing: the seller qualification call, the questionnaire, the valuation, the marketing pack, the attack plan, the data room, and the lease abstract. Nothing to create by hand — the moment you log a call or build any piece, it groups under one deal. Admins see the whole team; reps see their own.",
+    when:"Any time you want the big picture — where each listing stands, what's done, what's next — or to set a deal's status, owner, and notes in one place.",
+    how:["Open the list to see every deal with a seven-stage pipeline tracker, its estimated value, and its status. Use the status tiles and search to filter.","Click Open on a deal to see its full file — the facts, and every stage with a direct link into that call, questionnaire, BOV, pack, plan, room, or abstract.","On the deal file, set the Status, Owner, and Notes and hit Save — that's your running record on the deal.","A green dot means a stage is done, an amber ring means it's in progress, and a gray dot means it hasn't been started yet."],
+    tip:"Work the amber rings. A deal stuck between stages — a built BOV with no signed pack, a pack with no attack plan — is where momentum leaks. The tracker shows you exactly where every deal is waiting on you."
+  },
   'rrg_screening_queue.html':{
     background:"Your seller-call log and the front door to the whole pipeline — every prospective-seller call in one place. Tabs filter the list: All, Waiting (still needs a pass-or-advance decision), Advanced (moved to a Valuation Questionnaire), and Passed. Admins see the whole team; reps see their own.",
     when:"Any time you take a call with a prospective seller, or when you're ready to work your list and move the real leads forward.",
@@ -395,7 +406,8 @@ var ICONS = {
   funnel:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M8 11h32L28 27v9l-8 4V27L8 11Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><line x1="14" y1="18" x2="34" y2="18" stroke="#DA2B1F" stroke-width="1.6"/><circle cx="24" cy="44" r="2.6" fill="#DA2B1F"/></svg>',
   gauge:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M8 33a16 16 0 0 1 32 0" stroke="#000E31" stroke-width="1.6" stroke-linecap="round"/><line x1="24" y1="33" x2="33" y2="22" stroke="#DA2B1F" stroke-width="1.8" stroke-linecap="round"/><circle cx="24" cy="33" r="3" fill="#000E31"/></svg>',
   doc:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M13 6h15l7 7v29H13V6Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><line x1="18" y1="22" x2="30" y2="22" stroke="#000E31" stroke-width="1.6"/><line x1="18" y1="28" x2="30" y2="28" stroke="#000E31" stroke-width="1.6"/><line x1="18" y1="34" x2="26" y2="34" stroke="#DA2B1F" stroke-width="1.8"/></svg>',
-  vault:'<svg class="icon" viewBox="0 0 48 48" fill="none"><rect x="7" y="13" width="34" height="27" rx="3" stroke="#000E31" stroke-width="1.6"/><path d="M7 18h13l3-4h9" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round" fill="none"/><rect x="19.5" y="26" width="9" height="8" rx="1.5" stroke="#DA2B1F" stroke-width="1.6"/><path d="M21.5 26v-2a2.5 2.5 0 0 1 5 0v2" stroke="#DA2B1F" stroke-width="1.5" fill="none"/></svg>'
+  vault:'<svg class="icon" viewBox="0 0 48 48" fill="none"><rect x="7" y="13" width="34" height="27" rx="3" stroke="#000E31" stroke-width="1.6"/><path d="M7 18h13l3-4h9" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round" fill="none"/><rect x="19.5" y="26" width="9" height="8" rx="1.5" stroke="#DA2B1F" stroke-width="1.6"/><path d="M21.5 26v-2a2.5 2.5 0 0 1 5 0v2" stroke="#DA2B1F" stroke-width="1.5" fill="none"/></svg>',
+  briefcase:'<svg class="icon" viewBox="0 0 48 48" fill="none"><rect x="7" y="15" width="34" height="24" rx="3" stroke="#000E31" stroke-width="1.6"/><path d="M18 15v-3a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v3" stroke="#000E31" stroke-width="1.6"/><line x1="7" y1="26" x2="41" y2="26" stroke="#DA2B1F" stroke-width="1.5"/><rect x="21" y="23" width="6" height="6" rx="1.5" fill="#fff" stroke="#DA2B1F" stroke-width="1.6"/></svg>'
 };
 var ARROW='<span class="arw"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#DA2B1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
 

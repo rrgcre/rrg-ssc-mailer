@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Assignments</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--amber:#e0a41a;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:30px 0 30px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1180px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:680px;}
+.wrap{max-width:1180px;margin:22px auto;padding:0 24px 60px;}
+.tiles{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px;}
+.tile{background:#fff;border:1px solid var(--line);border-radius:13px;padding:14px 16px;box-shadow:0 6px 22px rgba(10,20,50,.05);cursor:pointer;}
+.tile.on{border-color:#9fb4e6;box-shadow:0 6px 22px rgba(38,71,176,.14);}
+.tile b{display:block;font-size:26px;font-weight:800;color:var(--navy);letter-spacing:-.02em;line-height:1;}
+.tile span{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
+.hd{display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line);gap:12px;flex-wrap:wrap;}
+.hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
+.hd input{margin-left:auto;border:1px solid var(--line);border-radius:9px;padding:8px 13px;font:inherit;font-size:13px;min-width:200px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{text-align:left;padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:middle;}
+th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);}
+tr:hover td{background:#fbfcfe;}
+.biz{font-weight:800;color:var(--navy);font-size:14px;} .meta{color:var(--muted);font-size:11.5px;margin-top:2px;}
+.pipe{display:flex;gap:2px;align-items:flex-start;}
+.pnode{display:flex;flex-direction:column;align-items:center;gap:3px;width:32px;}
+.pdot{width:12px;height:12px;border-radius:50%;background:#e2e7ef;border:1.5px solid #d3dae5;position:relative;}
+.pdot.done{background:var(--green);border-color:var(--green);}
+.pdot.pend{background:#fff;border-color:var(--amber);box-shadow:inset 0 0 0 3px var(--amber);}
+.plabel{font-size:8px;color:#aab3c2;font-weight:800;letter-spacing:.02em;text-transform:uppercase;}
+.pnode.act .plabel{color:#4a5568;}
+.pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid;}
+.pill.New{background:#eef2fb;color:#2647b0;border-color:#d3ddf3;}
+.pill.Active{background:#eef7f0;color:var(--green);border-color:#bfe6d1;}
+.pill.Under{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;}
+.pill.Closed{background:#eafaf0;color:#0e7a53;border-color:#b9e6cd;}
+.pill.Hold{background:#f2f4f8;color:#6b7488;border-color:#e0e5ee;}
+.pill.Lost{background:#fdeceb;color:var(--red);border-color:#f3cfc9;}
+.open{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:7px 14px;font:inherit;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;}
+.empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
+.foot{max-width:1180px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+@media(max-width:720px){.tiles{grid-template-columns:repeat(3,1fr);} }
+</style>
+</head>
+<body>
+<!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to toolbox" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'" title="Back to toolbox"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Book of Business</div>
+  <h1>Assignments</h1>
+  <div class="sub">Every deal in one place. Each assignment ties together its qualification call, questionnaire, valuation, marketing pack, attack plan, data room, and lease abstract — so you can see, at a glance, where every listing stands.</div>
+</div></div>
+<div class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div class="card">
+    <div class="hd"><b>Assignments</b><span class="cnt" id="cnt"></span><input id="search" placeholder="Search business, market, contact…" oninput="applyFilters()"></div>
+    <div id="body"></div>
+  </div>
+</div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<script src="/rrg_list.js"></script>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
+var ALL=[], CTL=null, FILTER='';
+var STAGES=[['call','Call'],['questionnaire','VQ'],['bov','BOV'],['pack','Pack'],['attack','MAP'],['room','Room'],['lease','Lease']];
+function pipeCell(a){
+  return '<div class="pipe">'+STAGES.map(function(s){ var st=a.stages[s[0]]; var cls=!st?'':(st.done?'done':'pend'); return '<div class="pnode'+(st?' act':'')+'"><div class="pdot '+cls+'" title="'+esc(s[1])+(st?(st.done?' — done':' — in progress'):' — not started')+'"></div><div class="plabel">'+esc(s[1])+'</div></div>'; }).join('')+'</div>';
+}
+function statusClass(s){ return (s||'New').split(' ')[0]; }
+function stageCount(a){ return STAGES.filter(function(s){ return a.stages[s[0]]; }).length; }
+function renderTiles(){
+  var by={New:0,Active:0,'Under Contract':0,Closed:0,other:0};
+  ALL.forEach(function(a){ if(by[a.status]!=null) by[a.status]++; else by.other++; });
+  var tiles=[['',ALL.length,'All deals'],['Active',by.Active,'Active'],['Under Contract',by['Under Contract'],'Under contract'],['New',by.New,'New'],['Closed',by.Closed,'Closed']];
+  document.getElementById('tiles').innerHTML=tiles.map(function(t){ return '<div class="tile'+(FILTER===t[0]?' on':'')+'" onclick="setStatusFilter(\''+t[0]+'\')"><b>'+t[1]+'</b><span>'+esc(t[2])+'</span></div>'; }).join('');
+}
+function setStatusFilter(s){ FILTER=(FILTER===s?'':s); renderTiles(); applyFilters(); }
+function applyFilters(){
+  var q=(document.getElementById('search').value||'').toLowerCase().trim();
+  var list=ALL.filter(function(a){
+    if(FILTER && a.status!==FILTER) return false;
+    if(q){ var hay=(a.business+' '+a.market+' '+a.contact+' '+a.owner).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+    return true;
+  });
+  renderList(list);
+}
+function renderList(list){
+  var cfg={
+    mount:'#body', data:list, key:'assignments', countEl:'#cnt',
+    empty:'<div class="empty"><b>No assignments yet.</b>Log a seller qualification call to start your first deal — everything downstream links back here automatically.</div>',
+    rowId:function(a){ return a.key; }, defaultSort:5, defaultDir:1,
+    columns:[
+      { label:'Business', sort:function(a,b){ return RRGList.cmp(a.business,b.business); },
+        cell:function(a){ var meta=[a.market,a.contact].filter(Boolean).map(esc).join(' · '); return '<div class="biz">'+esc(a.business)+'</div><div class="meta">'+meta+'</div>'; } },
+      { label:'Pipeline', sortable:false, cell:function(a){ return pipeCell(a); } },
+      { label:'Value', sort:function(a,b){ return RRGList.cmp(a.value,b.value); }, cell:function(a){ return a.value?('<b style="color:var(--navy)">'+esc(a.value)+'</b>'+(a.basis?('<div class="meta">'+esc(a.basis)+'</div>'):'')):'<span class="meta">—</span>'; } },
+      { label:'Status', sort:function(a,b){ return RRGList.cmp(a.status,b.status); }, cell:function(a){ return '<span class="pill '+statusClass(a.status)+'">'+esc(a.status)+'</span>'; } },
+      { label:'Owner', sort:function(a,b){ return RRGList.cmp(a.owner,b.owner); }, cell:function(a){ return '<span class="meta" style="color:var(--ink)">'+esc(a.owner||'—')+'</span>'; } },
+      { label:'Updated', sort:function(a,b){ return RRGList.cmp(a.lastActivity,b.lastActivity); }, cell:function(a){ return '<span class="meta">'+esc(fmt(a.lastActivity))+'</span>'; } },
+      { label:'', align:'right', sortable:false, cell:function(a){ return '<a class="open" href="./rrg_assignment.html?key='+encodeURIComponent(a.key)+'">Open →</a>'; } }
+    ]
+  };
+  if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
+}
+function load(){
+  fetch('/api/assignments',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    ALL=(j&&j.assignments)||[]; renderTiles(); applyFilters();
+  }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load assignments.</div>'; });
+}
+load();
+</script>
+</body>
+</html>

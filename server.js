@@ -1597,6 +1597,117 @@ function roomPublicPage(r, grant) {
 function roomNotFoundPage() {
   return roomShell('RRG Data Room', { head: '<div class="kick">Data Room</div><h1>Link not found</h1><div class="sub">This data room link is invalid or has been retired.</div>', body: '<div class="note">The link you followed is no longer active. Please contact your RRG representative for an updated link.</div>' });
 }
+// ================= Assignments (the deal / book of business) =================
+// An assignment is one deal. It is derived by grouping every pipeline record
+// (call, questionnaire, BOV, pack, attack plan, data room, lease) that resolves
+// to the same root, plus an editable overlay (status, notes, owner) persisted here.
+const ASSIGN_FILE = path.join(BOV_DATA_DIR, 'assignments.json');
+function loadAssignOverlay() { try { return JSON.parse(fs.readFileSync(ASSIGN_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
+function saveAssignOverlay(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(ASSIGN_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+const ASSIGN_STATUSES = ['New', 'Active', 'Under Contract', 'Closed', 'On Hold', 'Lost'];
+function assignmentsIndex() {
+  const screens = loadScreens(), quests = loadQuests(), bovs = loadBovs(), cims = loadCims(), maps = loadMaps(), rooms = loadRooms(), leases = loadLeases();
+  const questById = {}, bovById = {}, cimById = {};
+  quests.forEach(q => questById[q.id] = q); bovs.forEach(b => bovById[b.id] = b); cims.forEach(c => cimById[c.id] = c);
+  const questByScreen = {};
+  quests.forEach(q => { const m = String(q.formId || '').match(/^qfromscr_(.+)$/); if (m) questByScreen[m[1]] = q.id; });
+  function questIdOf(rec, type) {
+    if (type === 'quest') return rec.id;
+    if (type === 'screen') return questByScreen[rec.id] || null;
+    if (type === 'bov') return rec.srcQuestId || null;
+    if (type === 'cim') return rec.srcQuestId || (bovById[rec.srcBovId] && bovById[rec.srcBovId].srcQuestId) || null;
+    if (type === 'map') return rec.srcQuestId || (cimById[rec.srcCimId] && cimById[rec.srcCimId].srcQuestId) || (bovById[rec.srcBovId] && bovById[rec.srcBovId].srcQuestId) || null;
+    if (type === 'room') { const c = cimById[rec.srcCimId]; return (c && c.srcQuestId) || (bovById[rec.srcBovId] && bovById[rec.srcBovId].srcQuestId) || null; }
+    if (type === 'lease') return rec.srcQuestId || (bovById[rec.srcBovId] && bovById[rec.srcBovId].srcQuestId) || null;
+    return null;
+  }
+  function screenIdFor(qid) { if (!qid) return null; const q = questById[qid]; if (!q) return null; const m = String(q.formId || '').match(/^qfromscr_(.+)$/); return m ? m[1] : null; }
+  function keyOf(rec, type) {
+    const qid = questIdOf(rec, type);
+    const sid = (type === 'screen') ? rec.id : screenIdFor(qid);
+    if (sid) return 's_' + sid;
+    if (qid) return 'q_' + qid;
+    return type + '_' + rec.id;
+  }
+  const deals = {};
+  function slot(rec, type) {
+    const key = keyOf(rec, type);
+    if (!deals[key]) deals[key] = { key, screen: null, quest: null, bov: null, cim: null, map: null, room: null, lease: null };
+    // keep the most-complete/newest of each type
+    const cur = deals[key][type];
+    if (!cur || String(rec.builtAt || rec.createdAt || '') > String(cur.builtAt || cur.createdAt || '')) deals[key][type] = rec;
+  }
+  screens.forEach(s => slot(s, 'screen'));
+  quests.forEach(q => slot(q, 'quest'));
+  bovs.forEach(b => slot(b, 'bov'));
+  cims.forEach(c => slot(c, 'cim'));
+  maps.forEach(m => slot(m, 'map'));
+  rooms.forEach(r => slot(r, 'room'));
+  leases.forEach(l => slot(l, 'lease'));
+  return deals;
+}
+function assignmentView(d, overlay) {
+  const o = overlay[d.key] || {};
+  const pick = (f) => (d.quest && d.quest[f]) || (d.bov && d.bov[f]) || (d.cim && d.cim[f]) || (d.map && d.map[f]) || (d.screen && d.screen[f]) || (d.lease && d.lease[f]) || (d.room && d.room[f]) || '';
+  const business = o.businessOverride || pick('business') || 'Untitled';
+  const market = pick('market') || '';
+  const contact = (d.screen && d.screen.contact) || '';
+  const anchor = d.screen || d.quest || d.bov || d.cim || d.map || d.lease || d.room || {};
+  const by = anchor.by || '', byUser = anchor.byUser || '';
+  const bov = d.bov || null, cim = d.cim || null, map = d.map || null, room = d.room || null, lease = d.lease || null;
+  const stages = {
+    call: d.screen ? { done: true, id: d.screen.id, meta: d.screen.decision || d.screen.statusText || '' } : null,
+    questionnaire: d.quest ? { done: !!d.quest.completed, id: d.quest.id, pct: (typeof d.quest.completePct === 'number' ? d.quest.completePct : (d.quest.completed ? 100 : 0)) } : null,
+    bov: bov ? { done: !bov.pending, id: bov.id, value: bov.rangeText || '', target: bov.targetText || '', basis: bov.basis || '' } : null,
+    pack: cim ? { done: !cim.pending, id: cim.id } : null,
+    attack: map ? { done: !map.pending, id: map.id } : null,
+    room: room ? { done: (room.docs || []).length > 0, id: room.id, docs: (room.docs || []).length, gated: roomIsGated(room) } : null,
+    lease: lease ? { done: !lease.pending, id: lease.id } : null,
+  };
+  const times = [d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).map(r => r.builtAt || r.updatedAt || r.createdAt || '').filter(Boolean);
+  const lastActivity = times.sort().slice(-1)[0] || '';
+  const created = [d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).map(r => r.createdAt || '').filter(Boolean).sort()[0] || '';
+  return {
+    key: d.key, business, market, contact, by, byUser,
+    status: o.status || 'New', notes: o.notes || '', owner: o.owner || by, businessOverride: o.businessOverride || '',
+    value: (bov && (bov.targetText || bov.rangeText)) || '', basis: (bov && bov.basis) || '',
+    stages, lastActivity, createdAt: created,
+  };
+}
+function ownsAssignment(req, d) {
+  if (req.user && req.user.role === 'admin') return true;
+  const u = req.user && req.user.username;
+  return [d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).some(r => r.byUser === u);
+}
+app.get('/api/assignments', (req, res) => {
+  const deals = assignmentsIndex(), overlay = loadAssignOverlay();
+  const isAdmin = req.user && req.user.role === 'admin';
+  const list = Object.values(deals).filter(d => isAdmin || ownsAssignment(req, d)).map(d => assignmentView(d, overlay));
+  list.sort((a, b) => String(b.lastActivity).localeCompare(String(a.lastActivity)));
+  res.json({ ok: true, isAdmin: !!isAdmin, statuses: ASSIGN_STATUSES, assignments: list });
+});
+app.get('/api/assignment/:key', (req, res) => {
+  const deals = assignmentsIndex(), overlay = loadAssignOverlay();
+  const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, assignment: assignmentView(d, overlay) });
+});
+app.post('/api/assignment/:key/save', express.json(), (req, res) => {
+  const deals = assignmentsIndex();
+  const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay();
+  const b = req.body || {}, cur = overlay[d.key] || {};
+  if (typeof b.status === 'string' && ASSIGN_STATUSES.indexOf(b.status) >= 0) cur.status = b.status;
+  if (typeof b.notes === 'string') cur.notes = b.notes.slice(0, 8000);
+  if (typeof b.owner === 'string') cur.owner = b.owner.slice(0, 120);
+  if (typeof b.businessOverride === 'string') cur.businessOverride = b.businessOverride.slice(0, 120);
+  cur.updatedAt = new Date().toISOString();
+  overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true });
+});
 function roomGatePage(r, err) {
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">Enter your personal access code to continue. Access is provided by Restaurant Realty Group under NDA.</div>`;
   const body = `<div class="card"><div style="padding:24px 22px">`
