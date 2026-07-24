@@ -127,7 +127,13 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .oarec{font-size:12.5px;color:var(--ink);line-height:1.55;margin-top:11px;}
 .oasug{font-size:12.5px;color:#8a5a12;background:#fff8ec;border:1px solid #f0d7ad;border-radius:8px;padding:9px 12px;margin-top:11px;}
 .oaby{font-size:10.5px;color:var(--soft);margin-top:10px;}
-#offerForm,#tourForm{padding:14px 20px 4px;border-bottom:1px solid var(--line);background:#fbfcff;}
+#offerForm,#tourForm,#ndaForm{padding:14px 20px 4px;border-bottom:1px solid var(--line);background:#fbfcff;}
+.ndas{padding:2px 0;}
+.plink{color:#2647b0;font-weight:600;}
+.startdeal{width:100%;background:#0e7a53;color:#fff;border:none;border-radius:9px;padding:12px;font:inherit;font-size:13.5px;font-weight:800;cursor:pointer;margin-bottom:6px;}
+.startnote{font-size:11px;color:var(--muted);line-height:1.45;margin-bottom:14px;}
+.dangerzone{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);}
+.deldeal{width:100%;background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:9px;padding:10px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-bottom:6px;}
 /* tours */
 .tlist{padding:2px 0;}
 .tcard{padding:14px 20px;border-bottom:1px solid var(--line);}
@@ -156,9 +162,12 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return '—'; var d=new Date(iso); if(isNaN(d.getTime())) return '—'; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
-var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[];
+var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[];
 var OFFER_TYPES=['IOI','LOI'], OFFER_STATUSES=['Received','Under review','Countered','Accepted','Rejected','Withdrawn'];
 var TOUR_INTEREST=['Hot','Warm','Cool','Passed'];
+var NDA_METHODS=['DocuSign','Email','Paper','Other'], NDA_STATUSES=['Sent','Received','Countersigned','Expired'];
+function peopleDatalistHTML(){ return '<datalist id="peopleList">'+PEOPLE.map(function(p){ return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>'; }).join('')+'</datalist>'; }
+function personLine(personId){ if(!personId) return ''; var p=PEOPLE.filter(function(x){return x.id===personId;})[0]; if(!p) return ''; var bits=[p.company,p.email].filter(Boolean).map(esc).join(' · '); return bits?('<span class="plink" title="Linked buyer record">'+bits+'</span>'):''; }
 // stage definitions: key, label, description, link builder
 var STAGES=[
   { k:'call', name:'Seller Qualification Call', lbl:'Call', href:function(s){return './seller_screening.html?screening='+encodeURIComponent(s.id);}, open:'Open call' },
@@ -226,17 +235,21 @@ function render(){
     + '<div class="card"><div class="ch"><b>Deal facts</b><span>'+done+' of '+STAGES.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
     + '<div class="card"><div class="ch"><b>Pipeline</b><span>'+started+' of '+STAGES.length+' started</span></div><div class="track">'+steps+'</div></div>'
     + offersCard()
+    + ndasCard()
     + toursCard()
     + roomActivityCard()
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
+      + (A.canStart?('<button class="startdeal" id="startDealBtn">Start the deal →</button><div class="startnote">Opens a Seller Qualification Call and drops this deal into the pipeline.</div>'):'')
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
       + '<div class="fldrow"><label class="fld">Owner</label><input class="owner" id="f_owner" value="'+esc(A.owner||'')+'" placeholder="Assigned rep"></div>'
       + '<div class="fldrow"><label class="fld">Deal name override</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||'')+'" placeholder="'+esc(A.business||'')+'"></div>'
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="f_notes" placeholder="Private notes on this deal — next steps, seller temperature, key dates…">'+esc(A.notes||'')+'</textarea></div>'
       + '<button class="savebtn" id="savebtn" disabled>Save changes</button>'
       + '<div class="saved" id="saved">Saved ✓</div>'
-    + '</div></div></div>';
+      + (A.dealId?('<div class="dangerzone"><button class="deldeal" id="delDealBtn">Delete deal</button><div class="startnote">Removes the deal, its records, data room, and all files. Cannot be undone.</div></div>'):'')
+    + '</div></div></div>'
+    + peopleDatalistHTML();
 
   ['f_status','f_owner','f_biz','f_notes'].forEach(function(id){
     var el=document.getElementById(id);
@@ -244,11 +257,17 @@ function render(){
     el.addEventListener(ev,function(){ setDirty(true); });
   });
   document.getElementById('savebtn').addEventListener('click',save);
+  var sdb=document.getElementById('startDealBtn'); if(sdb) sdb.addEventListener('click',startDeal);
+  var ddb=document.getElementById('delDealBtn'); if(ddb) ddb.addEventListener('click',deleteDeal);
   wireRoomActivity();
   wireOffers();
   wireTours();
+  wireNdas();
   setupAccordion();
 }
+function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){}); }
+function startDeal(){ var b=document.getElementById('startDealBtn'); if(b){b.disabled=true;b.textContent='Starting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId)+'/start',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { if(b){b.disabled=false;b.textContent='Start the deal →';} alert((j&&j.error)||'Could not start the deal.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Start the deal →';} alert('Could not reach the server.'); }); }
+function deleteDeal(){ if(!confirm('Delete this deal and everything in it — records, data room, and all uploaded files? This cannot be undone.')) return; var b=document.getElementById('delDealBtn'); if(b){b.disabled=true;b.textContent='Deleting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignments.html'; } else { if(b){b.disabled=false;b.textContent='Delete deal';} alert((j&&j.error)||'Could not delete the deal.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Delete deal';} alert('Could not reach the server.'); }); }
 function fmtDT(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; var h=d.getHours(),m=d.getMinutes(),ap=h<12?'AM':'PM',hh=(h%12)||12; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2)+' '+hh+':'+String(m).padStart(2,'0')+' '+ap; }
 /* ---------- Accordion (collapsible sections on the deal file) ---------- */
 var ACC_STATE={}, ACC_INIT=false;
@@ -357,6 +376,7 @@ function offerCardHTML(o){
       +'<div class="obuyer2">'+esc(o.buyer||'Unnamed buyer')+'</div>'
       +'<div class="oamt">'+amt+'</div></div>'
     +'<div class="ometa">Received '+esc(o.received?fmt(o.received):'—')+' · <span class="opill '+offerStatusClass(o.status)+'">'+esc(o.status||'Received')+'</span>'+(scoreBadge?(' '+scoreBadge):'')+'</div>'
+    +(personLine(o.personId)?('<div class="ometa" style="margin-top:2px">'+personLine(o.personId)+'</div>'):'')
     +(o.terms?('<div class="oterms2">'+esc(o.terms)+'</div>'):'')
     +counter
     +rate
@@ -390,7 +410,8 @@ function offerFormHTML(o){
   var ssel=OFFER_STATUSES.map(function(s){return '<option'+((o.status||'Received')===s?' selected':'')+'>'+esc(s)+'</option>';}).join('');
   return '<div class="ofgrid">'
     +'<div class="off"><label class="fld">Type</label><select id="of_type">'+tsel+'</select></div>'
-    +'<div class="off"><label class="fld">Buyer / party</label><input id="of_buyer" value="'+esc(o.buyer||'')+'" placeholder="Buyer name or group"></div>'
+    +'<div class="off"><label class="fld">Buyer / party</label><input id="of_buyer" list="peopleList" value="'+esc(o.buyer||'')+'" placeholder="Buyer name or group"></div>'
+    +'<div class="off"><label class="fld">Buyer email (links record)</label><input id="of_email" value="'+esc(o.email||'')+'" placeholder="optional"></div>'
     +'<div class="off"><label class="fld">Amount</label><input id="of_amount" value="'+esc(o.amount||'')+'" placeholder="$ offer price" inputmode="numeric"></div>'
     +'<div class="off"><label class="fld">Received</label><input id="of_received" type="date" value="'+esc(o.received||'')+'"></div>'
     +'<div class="off"><label class="fld">Status</label><select id="of_status">'+ssel+'</select></div>'
@@ -408,7 +429,7 @@ function openOfferForm(o){
   f.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function collectOffer(){
-  return { type:document.getElementById('of_type').value, buyer:document.getElementById('of_buyer').value.trim(),
+  return { type:document.getElementById('of_type').value, buyer:document.getElementById('of_buyer').value.trim(), buyerEmail:document.getElementById('of_email').value.trim(),
     amount:document.getElementById('of_amount').value.trim(), received:document.getElementById('of_received').value,
     status:document.getElementById('of_status').value, terms:document.getElementById('of_terms').value.trim() };
 }
@@ -444,7 +465,7 @@ function offerById(id){ return OFFERS.filter(function(x){return x.id===id;})[0];
 function postOffer(body,onok,onerr){
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/offer',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok){ OFFERS=j.offers||[]; if(A) A.offers=OFFERS; if(onok)onok(j); else rerenderOffers(); }
+      if(j&&j.ok){ OFFERS=j.offers||[]; if(A) A.offers=OFFERS; if(j.people) PEOPLE=j.people; if(onok)onok(j); else rerenderOffers(); }
       else { if(onerr)onerr(); alert((j&&j.error)||'Could not update the offer.'); }
     }).catch(function(){ if(onerr)onerr(); alert('Could not reach the server.'); });
 }
@@ -486,6 +507,7 @@ function tourIntClass(i){ return 'ti-'+String(i||'').toLowerCase(); }
 function tourCardHTML(t){
   var intr=t.interest?('<span class="tint '+tourIntClass(t.interest)+'">'+esc(t.interest)+'</span>'):'';
   var meta=[t.date?('Toured '+fmt(t.date)):'', t.host?('Hosted by '+t.host):'', t.attendees?(t.attendees):''].filter(Boolean).map(esc).join(' · ');
+  var pl=personLine(t.personId); if(pl) meta=meta?(meta+' · '+pl):pl;
   return '<div class="tcard" data-tid="'+esc(t.id)+'">'
     +'<div class="thead"><div class="tparty">'+esc(t.party||'Prospective buyer')+'</div>'+intr
       +'<span class="ospacer"></span><button class="tedit" data-tid="'+esc(t.id)+'">Edit</button><button class="tdel" data-tid="'+esc(t.id)+'">Delete</button></div>'
@@ -509,7 +531,8 @@ function tourFormHTML(t){
   t=t||{};
   var isel='<option value=""'+(!t.interest?' selected':'')+'>— interest —</option>'+TOUR_INTEREST.map(function(x){return '<option'+(t.interest===x?' selected':'')+'>'+x+'</option>';}).join('');
   return '<div class="ofgrid tourgrid">'
-    +'<div class="off"><label class="fld">Who toured</label><input id="tf_party" value="'+esc(t.party||'')+'" placeholder="Buyer / party name"></div>'
+    +'<div class="off"><label class="fld">Who toured</label><input id="tf_party" list="peopleList" value="'+esc(t.party||'')+'" placeholder="Buyer / party name"></div>'
+    +'<div class="off"><label class="fld">Email (links buyer)</label><input id="tf_email" value="'+esc(t.email||'')+'" placeholder="optional"></div>'
     +'<div class="off"><label class="fld">Date</label><input id="tf_date" type="date" value="'+esc(t.date||'')+'"></div>'
     +'<div class="off"><label class="fld">Interest</label><select id="tf_interest">'+isel+'</select></div>'
     +'<div class="off"><label class="fld">Hosted by</label><input id="tf_host" value="'+esc(t.host||'')+'" placeholder="RRG rep who showed it"></div>'
@@ -527,7 +550,7 @@ function openTourForm(t){
   f.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function collectTour(){
-  return { party:document.getElementById('tf_party').value.trim(), date:document.getElementById('tf_date').value,
+  return { party:document.getElementById('tf_party').value.trim(), partyEmail:document.getElementById('tf_email').value.trim(), date:document.getElementById('tf_date').value,
     interest:document.getElementById('tf_interest').value, host:document.getElementById('tf_host').value.trim(),
     attendees:document.getElementById('tf_attendees').value.trim(), notes:document.getElementById('tf_notes').value.trim() };
 }
@@ -536,7 +559,7 @@ function saveTour(id){
   var btn=document.getElementById('tf_save'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/tour',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok){ TOURS=j.tours||[]; if(A) A.tours=TOURS; rerenderTours(); }
+      if(j&&j.ok){ TOURS=j.tours||[]; if(A) A.tours=TOURS; if(j.people) PEOPLE=j.people; rerenderTours(); }
       else { if(btn){btn.disabled=false;btn.textContent='Log tour';} alert((j&&j.error)||'Could not save the tour.'); }
     }).catch(function(){ if(btn){btn.disabled=false;btn.textContent='Log tour';} alert('Could not reach the server.'); });
 }
@@ -560,6 +583,50 @@ function wireTours(){
   document.querySelectorAll('.tedit').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); var t=tourById(b.getAttribute('data-tid')); if(t) openTourForm(t); }); });
   document.querySelectorAll('.tdel').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); delTour(b.getAttribute('data-tid')); }); });
 }
+/* ---------- NDAs (linked to the buyer registry) ---------- */
+function ndaStatusClass(s){ return 'os-'+String(s||'Received').toLowerCase().replace(/[^a-z]+/g,''); }
+function ndaCardHTML(n){
+  var meta=[n.date?('Received '+fmt(n.date)):'', n.method||''].filter(Boolean).map(esc).join(' · ');
+  var pl=personLine(n.personId);
+  return '<div class="tcard" data-nid="'+esc(n.id)+'">'
+    +'<div class="thead"><div class="tparty">'+esc(n.party||'Unnamed party')+'</div>'
+      +'<span class="opill '+ndaStatusClass(n.status)+'">'+esc(n.status||'Received')+'</span>'
+      +'<span class="ospacer"></span><button class="nedit" data-nid="'+esc(n.id)+'">Edit</button><button class="ndel" data-nid="'+esc(n.id)+'">Delete</button></div>'
+    +(meta?('<div class="tmeta">'+meta+(pl?(' · '+pl):'')+'</div>'):(pl?('<div class="tmeta">'+pl+'</div>'):''))
+    +(n.notes?('<div class="tnotes">'+esc(n.notes)+'</div>'):'')
+  +'</div>';
+}
+function ndasCard(){
+  var body;
+  if(!NDAS.length){ body='<div class="noev" style="padding:18px 20px">No NDAs logged yet. Record each signed NDA as it comes back — who signed, when, and how — so you know exactly who’s cleared to see the CIM and enter the data room.</div>'; }
+  else { var sorted=NDAS.slice().sort(function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); }); body='<div class="tlist">'+sorted.map(ndaCardHTML).join('')+'</div>'; }
+  return '<div class="card"><div class="ch" style="display:flex"><b>NDAs</b><span style="margin-left:12px">'+NDAS.length+' logged</span><button class="addoffer" id="addNdaBtn" style="margin-left:auto">+ Log NDA</button></div>'
+    +'<div class="cb ndas"><div id="ndaForm" hidden></div>'+body+'</div></div>';
+}
+function ndaFormHTML(n){
+  n=n||{};
+  var msel=NDA_METHODS.map(function(x){return '<option'+((n.method||'DocuSign')===x?' selected':'')+'>'+x+'</option>';}).join('');
+  var ssel=NDA_STATUSES.map(function(x){return '<option'+((n.status||'Received')===x?' selected':'')+'>'+esc(x)+'</option>';}).join('');
+  return '<div class="ofgrid tourgrid">'
+    +'<div class="off"><label class="fld">Who signed</label><input id="nf_party" list="peopleList" value="'+esc(n.party||'')+'" placeholder="Buyer / party name"></div>'
+    +'<div class="off"><label class="fld">Email (links buyer)</label><input id="nf_email" value="'+esc(n.email||'')+'" placeholder="optional"></div>'
+    +'<div class="off"><label class="fld">Received</label><input id="nf_date" type="date" value="'+esc(n.date||'')+'"></div>'
+    +'<div class="off"><label class="fld">Method</label><select id="nf_method">'+msel+'</select></div>'
+    +'<div class="off"><label class="fld">Status</label><select id="nf_status">'+ssel+'</select></div>'
+    +'<div class="off wide"><label class="fld">Notes</label><textarea id="nf_notes" placeholder="Expiration, scope, exclusions…">'+esc(n.notes||'')+'</textarea></div>'
+    +'</div>'
+    +'<div class="ofbtns"><button class="savebtn2" id="nf_save">'+(n.id?'Save NDA':'Log NDA')+'</button><button class="cancelbtn" id="nf_cancel">Cancel</button></div>';
+}
+function openNdaForm(n){ var f=document.getElementById('ndaForm'); expandSectionOf(f); f.innerHTML=ndaFormHTML(n); f.removeAttribute('hidden'); document.getElementById('nf_save').addEventListener('click',function(){ saveNda(n&&n.id); }); document.getElementById('nf_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; }); f.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+function collectNda(){ return { party:document.getElementById('nf_party').value.trim(), partyEmail:document.getElementById('nf_email').value.trim(), date:document.getElementById('nf_date').value, method:document.getElementById('nf_method').value, status:document.getElementById('nf_status').value, notes:document.getElementById('nf_notes').value.trim() }; }
+function saveNda(id){ var body=collectNda(); if(id) body.id=id; var btn=document.getElementById('nf_save'); if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/nda',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ NDAS=j.ndas||[]; if(A) A.ndas=NDAS; if(j.people) PEOPLE=j.people; rerenderNdas(); } else { if(btn){btn.disabled=false;btn.textContent='Log NDA';} alert((j&&j.error)||'Could not save the NDA.'); } })
+    .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Log NDA';} alert('Could not reach the server.'); }); }
+function delNda(id){ if(!confirm('Delete this NDA record?')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/nda/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ NDAS=j.ndas||[]; if(A) A.ndas=NDAS; rerenderNdas(); } else alert((j&&j.error)||'Could not delete.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+function rerenderNdas(){ var main=document.querySelector('.main'); if(!main) return; var tmp=document.createElement('div'); tmp.innerHTML=ndasCard(); var ex=main.querySelector('.ndas'); if(ex){ ex.closest('.card').replaceWith(tmp.firstChild); } wireNdas(); setupAccordion(); }
+function ndaById(id){ return NDAS.filter(function(x){return x.id===id;})[0]; }
+function wireNdas(){ var add=document.getElementById('addNdaBtn'); if(add) add.addEventListener('click',function(){ openNdaForm(null); }); document.querySelectorAll('.nedit').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); var n=ndaById(b.getAttribute('data-nid')); if(n) openNdaForm(n); }); }); document.querySelectorAll('.ndel').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); delNda(b.getAttribute('data-nid')); }); }); }
 function setDirty(v){ DIRTY=v; var b=document.getElementById('savebtn'); if(b) b.disabled=!v; if(v){ var s=document.getElementById('saved'); if(s) s.classList.remove('show'); } }
 function save(){
   var b=document.getElementById('savebtn'); b.disabled=true; b.textContent='Saving…';
@@ -580,7 +647,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; render(); })
+  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; render(); loadPeople(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();

@@ -52,6 +52,55 @@ function loadMapPromptCustom() { try { const t = fs.readFileSync(MAP_PROMPT_FILE
 function saveMapPromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(MAP_PROMPT_FILE, String(t)); } catch (e) {} }
 function clearMapPromptCustom() { try { fs.unlinkSync(MAP_PROMPT_FILE); } catch (e) {} }
 
+// Deals — first-class deal records. A deal can be created directly (with its own data
+// room), then "started" to promote it into a Seller Qualification Call and the pipeline.
+const DEALS_FILE = path.join(BOV_DATA_DIR, 'deals.json');
+function loadDeals() { try { return JSON.parse(fs.readFileSync(DEALS_FILE, 'utf8')); } catch (e) { return []; } }
+function saveDeals(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(DEALS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newDealId() { return 'deal_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function ownsDeal(req, d) {
+  if (req.user && req.user.role === 'admin') return true;
+  if (d.byUser) return d.byUser === (req.user && req.user.username);
+  return d.by && d.by === (req.user && req.user.name);
+}
+
+// People — a GLOBAL buyer / prospect / contact registry shared across all deals. Offers,
+// tours, NDAs, and data-room buyers all link back to a person by personId, so the same
+// buyer connects across every deal they touch.
+const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
+const PERSON_TYPES = ['Buyer', 'Prospect', 'Investor', 'Broker', 'Operator', 'Other'];
+function loadPeople() { try { return JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')); } catch (e) { return []; } }
+function savePeople(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PEOPLE_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newPersonId() { return 'per_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function normKey(s) { return String(s || '').trim().toLowerCase(); }
+function personById(id) { if (!id) return null; return loadPeople().find(p => p.id === id) || null; }
+// Find a person by email (preferred) or name; create one if none exists. Enriches blanks.
+function findOrCreatePerson(req, info) {
+  const name = String((info && info.name) || '').trim();
+  const email = String((info && info.email) || '').trim();
+  const company = String((info && info.company) || '').trim();
+  if (!name && !email) return null;
+  const arr = loadPeople();
+  let p = null;
+  if (email) p = arr.find(x => normKey(x.email) && normKey(x.email) === normKey(email));
+  if (!p && name) p = arr.find(x => normKey(x.name) === normKey(name));
+  if (p) {
+    let ch = false;
+    if (email && !p.email) { p.email = email.slice(0, 160); ch = true; }
+    if (company && !p.company) { p.company = company.slice(0, 160); ch = true; }
+    if (ch) { p.updatedAt = new Date().toISOString(); savePeople(arr); }
+    return p;
+  }
+  p = {
+    id: newPersonId(), name: name.slice(0, 160) || email.slice(0, 160), company: company.slice(0, 160),
+    email: email.slice(0, 160), phone: '', type: 'Buyer', notes: '',
+    createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
+  };
+  arr.push(p); savePeople(arr);
+  return p;
+}
+function personBrief(p) { return p ? { id: p.id, name: p.name || '', company: p.company || '', email: p.email || '', type: p.type || '' } : null; }
+
 // ---- Admin-editable BOV analyst prompt ----
 // Empty file / no file = use bovgen's built-in default.
 const BOV_PROMPT_FILE = path.join(BOV_DATA_DIR, 'bov_prompt.txt');
@@ -849,6 +898,15 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
     rec.assetSale = (out.state && out.state.assetSale === true) || (out.summary && Number(out.summary.sde) <= _floor);
     if (!target) bovs.push(rec);
     saveBovs(bovs);
+    // Auto-file the uploaded financials / lease into this deal's data room (if it has one).
+    try {
+      const idx = assignmentsIndex(); let grp = null;
+      for (const k in idx) { if (idx[k].bov && idx[k].bov.id === rec.id) { grp = idx[k]; break; } }
+      if (grp && grp.room) {
+        const rooms = loadRooms(); const room = rooms.find(x => x.id === grp.room.id);
+        if (room) { let added = 0; (files || []).forEach(f => { if (addFileToRoom(room, f, { source: 'bov:' + rec.id, by: (req.user && req.user.name) || '' })) added++; }); if (added) saveRooms(rooms); }
+      }
+    } catch (e) { console.error('bov room-file error:', e && e.message); }
     res.json({ ok: true, id: rec.id, summary: out.summary, noTtmNotice: rec.noTtmNotice });
   } catch (e) {
     console.error('generate-bov error:', e);
@@ -877,6 +935,7 @@ app.delete('/api/cim/:id', (req, res) => {
   if (!target) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!ownsCim(req, target)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   saveCims(arr.filter(x => x.id !== req.params.id));
+  removeRoomDocsBySource('cim:' + req.params.id);   // pull the files this pack put in the data room
   res.json({ ok: true });
 });
 // Save in-builder edits back onto the CIM record.
@@ -929,6 +988,24 @@ app.post('/api/generate-cim', express.json({ limit: '48mb' }), async (req, res) 
     cim.business = String(out.business || cim.business || 'Untitled').slice(0, 120);
     cim.state = out.state; cim.aiGenerated = true; cim.pending = false; cim.builtAt = new Date().toISOString();
     saveCims(cims);
+    // Auto-file the marketing photos into this deal's data room (Menus & Marketing).
+    try {
+      const idx = assignmentsIndex(); let grp = null;
+      for (const k in idx) { if (idx[k].cim && idx[k].cim.id === cim.id) { grp = idx[k]; break; } }
+      if (grp && grp.room) {
+        const rooms = loadRooms(); const room = rooms.find(x => x.id === grp.room.id);
+        if (room) {
+          let added = 0;
+          const mimeExt = t => ({ 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'image/webp': 'png' }[String(t || '').toLowerCase()] || 'jpg');
+          photos.forEach((p, i) => {
+            if (!p || !p.dataB64) return;
+            const nm = (String(p.caption || '').trim() || ('Marketing Photo ' + (i + 1))).slice(0, 80) + '.' + mimeExt(p.type);
+            if (addFileToRoom(room, { name: nm, dataB64: p.dataB64, label: 'Menus & Marketing' }, { source: 'cim:' + cim.id, category: 'Menus & Marketing', title: (String(p.caption || '').trim() || ('Marketing Photo ' + (i + 1))), by: (req.user && req.user.name) || '' })) added++;
+          });
+          if (added) saveRooms(rooms);
+        }
+      }
+    } catch (e) { console.error('cim room-file error:', e && e.message); }
     res.json({ ok: true, id: cim.id });
   } catch (e) {
     console.error('generate-cim error:', e);
@@ -1223,6 +1300,7 @@ app.delete('/api/bov/:id', (req, res) => {
   if (!ownsBov(req, target)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const remaining = bovs.filter(x => x.id !== req.params.id);
   saveBovs(remaining);
+  removeRoomDocsBySource('bov:' + req.params.id);   // pull the financials/lease this BOV filed
   // If this was the last valuation tied to a questionnaire, revert that
   // questionnaire's status to Waiting (un-processed) in the Questionnaire Log.
   if (target.srcQuestId && !remaining.some(b => b.srcQuestId === target.srcQuestId)) {
@@ -1640,6 +1718,93 @@ function applyTourFields(t, b) {
   if (typeof b.interest === 'string') t.interest = TOUR_INTEREST.indexOf(b.interest) >= 0 ? b.interest : '';
   if (typeof b.notes === 'string') t.notes = b.notes.slice(0, 4000);
 }
+const NDA_METHODS = ['DocuSign', 'Email', 'Paper', 'Other'];
+const NDA_STATUSES = ['Sent', 'Received', 'Countersigned', 'Expired'];
+function newNdaId() { return 'nda_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function applyNdaFields(n, b) {
+  if (typeof b.party === 'string') n.party = b.party.slice(0, 160);
+  if (typeof b.date === 'string') n.date = b.date.slice(0, 20);
+  if (typeof b.method === 'string') n.method = NDA_METHODS.indexOf(b.method) >= 0 ? b.method : 'DocuSign';
+  if (typeof b.status === 'string') n.status = NDA_STATUSES.indexOf(b.status) >= 0 ? b.status : 'Received';
+  if (typeof b.notes === 'string') n.notes = b.notes.slice(0, 4000);
+}
+// ---- Data-room auto-filing helpers (deals) ----
+// The data room that belongs to a deal (by the deal's own roomId, else its srcDealId link).
+function roomForDeal(deal) {
+  if (!deal) return null;
+  const rooms = loadRooms();
+  return (deal.roomId && rooms.find(r => r.id === deal.roomId)) || rooms.find(r => r.srcDealId === deal.id) || null;
+}
+function ensureRoomForDeal(req, deal) {
+  if (!deal) return null;
+  const existing = roomForDeal(deal);
+  if (existing) return existing;
+  const arr = loadRooms();
+  const rec = {
+    id: newRoomId(), srcDealId: deal.id, srcCimId: '', srcBovId: '', token: newRoomToken(),
+    business: deal.business || 'Data Room',
+    by: (req && req.user && req.user.name) || deal.by || '', byUser: (req && req.user && req.user.username) || deal.byUser || '',
+    createdAt: new Date().toISOString(), docs: [], access: [], grants: [],
+  };
+  arr.push(rec); saveRooms(arr);
+  return rec;
+}
+// Map a BOV upload label to a room category.
+function categoryForUploadLabel(label) {
+  const l = String(label || '').toLowerCase();
+  if (/lease/.test(l)) return 'Lease';
+  if (/tax/.test(l)) return 'Tax Returns';
+  if (/financ|p&l|profit|balance|income|statement/.test(l)) return 'Financials';
+  if (/menu|market|photo|image|press/.test(l)) return 'Menus & Marketing';
+  if (/licen|permit/.test(l)) return 'Licenses & Permits';
+  if (/legal|corp|entity|operating agreement/.test(l)) return 'Legal & Corporate';
+  if (/equip|ffe|ff&e|asset list/.test(l)) return 'Equipment & FF&E';
+  return 'Other';
+}
+// Write one uploaded file into a room, tagged by source (so it can be cascade-removed).
+// file = { name, dataB64, text, type, label }. Returns the doc or null (skips text/dupes).
+function addFileToRoom(room, file, opts) {
+  try {
+    opts = opts || {};
+    if (!room || !file) return null;
+    const orig = String(file.name || file.filename || '').trim();
+    const m = orig.match(/\.([a-z0-9]+)$/i); let ext = m ? m[1].toLowerCase() : '';
+    let buf = null;
+    if (file.dataB64) { buf = Buffer.from(String(file.dataB64), 'base64'); }
+    else if (typeof file.text === 'string' && file.text) { buf = Buffer.from(file.text, 'utf8'); if (!ext) ext = 'txt'; }
+    if (!buf || !buf.length) return null;
+    if (!ROOM_EXT.test(ext)) return null;
+    if (buf.length > 20 * 1024 * 1024) return null;
+    room.docs = room.docs || [];
+    const source = opts.source || '';
+    const category = opts.category || categoryForUploadLabel(file.label);
+    const title = String(opts.title || file.label || prettyName(orig) || 'Document').slice(0, 140);
+    // idempotent: skip if the same source already filed a file with this original name
+    if (source && room.docs.some(d => d.source === source && d.originalName === orig)) return null;
+    try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch (e) { return null; }
+    const id = newRoomDocId();
+    try { fs.writeFileSync(path.join(ROOMS_DIR, id + '.' + ext), buf); } catch (e) { return null; }
+    const doc = { id, title, category, ext, originalName: orig, size: buf.length, uploadedAt: new Date().toISOString(), by: (opts.by || ''), source, auto: true };
+    room.docs.push(doc);
+    if (!room.builtAt) room.builtAt = new Date().toISOString();
+    return doc;
+  } catch (e) { return null; }
+}
+// Remove every room doc contributed by a given source id (e.g. 'bov:ID' or 'cim:ID').
+function removeRoomDocsBySource(source) {
+  if (!source) return 0;
+  const arr = loadRooms(); let n = 0, touched = false;
+  arr.forEach(r => {
+    const keep = [];
+    (r.docs || []).forEach(d => {
+      if (d.source === source) { try { fs.unlinkSync(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} n++; touched = true; }
+      else keep.push(d);
+    });
+    r.docs = keep;
+  });
+  if (touched) saveRooms(arr);
+  return n;
+}
 function newOfferId() { return 'ofr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 // Apply only the fields present in the body, so a status-only action (Accept/Counter/
 // Reject) never wipes the buyer, amount, or terms.
@@ -1656,11 +1821,12 @@ function applyOfferFields(o, b) {
   }
 }
 function assignmentsIndex() {
-  const screens = loadScreens(), quests = loadQuests(), bovs = loadBovs(), cims = loadCims(), maps = loadMaps(), rooms = loadRooms(), leases = loadLeases();
-  const questById = {}, bovById = {}, cimById = {};
-  quests.forEach(q => questById[q.id] = q); bovs.forEach(b => bovById[b.id] = b); cims.forEach(c => cimById[c.id] = c);
+  const screens = loadScreens(), quests = loadQuests(), bovs = loadBovs(), cims = loadCims(), maps = loadMaps(), rooms = loadRooms(), leases = loadLeases(), dealRecs = loadDeals();
+  const questById = {}, bovById = {}, cimById = {}, dealById = {};
+  quests.forEach(q => questById[q.id] = q); bovs.forEach(b => bovById[b.id] = b); cims.forEach(c => cimById[c.id] = c); dealRecs.forEach(d => dealById[d.id] = d);
   const questByScreen = {};
   quests.forEach(q => { const m = String(q.formId || '').match(/^qfromscr_(.+)$/); if (m) questByScreen[m[1]] = q.id; });
+  function dealKeyOf(deal) { return deal.screenId ? ('s_' + deal.screenId) : ('d_' + deal.id); }
   function questIdOf(rec, type) {
     if (type === 'quest') return rec.id;
     if (type === 'screen') return questByScreen[rec.id] || null;
@@ -1673,6 +1839,9 @@ function assignmentsIndex() {
   }
   function screenIdFor(qid) { if (!qid) return null; const q = questById[qid]; if (!q) return null; const m = String(q.formId || '').match(/^qfromscr_(.+)$/); return m ? m[1] : null; }
   function keyOf(rec, type) {
+    if (type === 'deal') return dealKeyOf(rec);
+    // A room pre-created for a deal follows that deal's key (so it merges once started).
+    if (type === 'room' && rec.srcDealId && dealById[rec.srcDealId]) return dealKeyOf(dealById[rec.srcDealId]);
     const qid = questIdOf(rec, type);
     const sid = (type === 'screen') ? rec.id : screenIdFor(qid);
     if (sid) return 's_' + sid;
@@ -1682,11 +1851,12 @@ function assignmentsIndex() {
   const deals = {};
   function slot(rec, type) {
     const key = keyOf(rec, type);
-    if (!deals[key]) deals[key] = { key, screen: null, quest: null, bov: null, cim: null, map: null, room: null, lease: null };
+    if (!deals[key]) deals[key] = { key, deal: null, screen: null, quest: null, bov: null, cim: null, map: null, room: null, lease: null };
     // keep the most-complete/newest of each type
     const cur = deals[key][type];
     if (!cur || String(rec.builtAt || rec.createdAt || '') > String(cur.builtAt || cur.createdAt || '')) deals[key][type] = rec;
   }
+  dealRecs.forEach(d => slot(d, 'deal'));
   screens.forEach(s => slot(s, 'screen'));
   quests.forEach(q => slot(q, 'quest'));
   bovs.forEach(b => slot(b, 'bov'));
@@ -1698,11 +1868,12 @@ function assignmentsIndex() {
 }
 function assignmentView(d, overlay) {
   const o = overlay[d.key] || {};
-  const pick = (f) => (d.quest && d.quest[f]) || (d.bov && d.bov[f]) || (d.cim && d.cim[f]) || (d.map && d.map[f]) || (d.screen && d.screen[f]) || (d.lease && d.lease[f]) || (d.room && d.room[f]) || '';
+  const deal = d.deal || null;
+  const pick = (f) => (deal && deal[f]) || (d.quest && d.quest[f]) || (d.bov && d.bov[f]) || (d.cim && d.cim[f]) || (d.map && d.map[f]) || (d.screen && d.screen[f]) || (d.lease && d.lease[f]) || (d.room && d.room[f]) || '';
   const business = o.businessOverride || pick('business') || 'Untitled';
   const market = pick('market') || '';
-  const contact = (d.screen && d.screen.contact) || '';
-  const anchor = d.screen || d.quest || d.bov || d.cim || d.map || d.lease || d.room || {};
+  const contact = (d.screen && d.screen.contact) || (deal && deal.contact) || '';
+  const anchor = deal || d.screen || d.quest || d.bov || d.cim || d.map || d.lease || d.room || {};
   const by = anchor.by || '', byUser = anchor.byUser || '';
   const bov = d.bov || null, cim = d.cim || null, map = d.map || null, room = d.room || null, lease = d.lease || null;
   const stages = {
@@ -1714,14 +1885,17 @@ function assignmentView(d, overlay) {
     room: room ? { done: (room.docs || []).length > 0, id: room.id, docs: (room.docs || []).length, gated: roomIsGated(room) } : null,
     lease: lease ? { done: !lease.pending, id: lease.id } : null,
   };
-  const times = [d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).map(r => r.builtAt || r.updatedAt || r.createdAt || '').filter(Boolean);
+  const times = [deal, d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).map(r => r.builtAt || r.updatedAt || r.createdAt || '').filter(Boolean);
   const lastActivity = times.sort().slice(-1)[0] || '';
-  const created = [d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).map(r => r.createdAt || '').filter(Boolean).sort()[0] || '';
+  const created = [deal, d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).map(r => r.createdAt || '').filter(Boolean).sort()[0] || '';
   return {
     key: d.key, business, market, contact, by, byUser,
+    dealId: deal ? deal.id : '', started: !!d.screen, canStart: !!(deal && !d.screen),
+    roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', owner: o.owner || by, businessOverride: o.businessOverride || '',
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
+    ndas: Array.isArray(o.ndas) ? o.ndas : [],
     value: (bov && (bov.targetText || bov.rangeText)) || '', basis: (bov && bov.basis) || '',
     stages, lastActivity, createdAt: created,
   };
@@ -1729,7 +1903,7 @@ function assignmentView(d, overlay) {
 function ownsAssignment(req, d) {
   if (req.user && req.user.role === 'admin') return true;
   const u = req.user && req.user.username;
-  return [d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).some(r => r.byUser === u);
+  return [d.deal, d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).some(r => r.byUser === u);
 }
 // Data-room access, shaped for the deal file: everyone granted access with their
 // tallies, plus the full event log so the UI can drill into what each person did.
@@ -1803,9 +1977,12 @@ app.post('/api/assignment/:key/offer', express.json(), (req, res) => {
     applyOfferFields(rec, b);
     offers.push(rec);
   }
+  // Link to the global buyer registry (by buyer name / email).
+  const tgt = b.id ? offers.find(o => o.id === b.id) : offers[offers.length - 1];
+  if (tgt && (tgt.buyer || b.buyerEmail)) { const p = findOrCreatePerson(req, { name: tgt.buyer, email: b.buyerEmail, company: b.buyerCompany }); if (p) tgt.personId = p.id; }
   cur.offers = offers; cur.updatedAt = now;
   overlay[d.key] = cur; saveAssignOverlay(overlay);
-  res.json({ ok: true, offers });
+  res.json({ ok: true, offers, people: loadPeople().map(personBrief) });
 });
 // Run the RRG analyst on one offer — scores it and returns a broker's assessment.
 app.post('/api/assignment/:key/offer/:offerId/analyze', express.json(), async (req, res) => {
@@ -1869,9 +2046,11 @@ app.post('/api/assignment/:key/tour', express.json(), (req, res) => {
     applyTourFields(rec, b);
     tours.push(rec);
   }
+  const tt = b.id ? tours.find(t => t.id === b.id) : tours[tours.length - 1];
+  if (tt && (tt.party || b.partyEmail)) { const p = findOrCreatePerson(req, { name: tt.party, email: b.partyEmail, company: b.partyCompany }); if (p) tt.personId = p.id; }
   cur.tours = tours; cur.updatedAt = now;
   overlay[d.key] = cur; saveAssignOverlay(overlay);
-  res.json({ ok: true, tours });
+  res.json({ ok: true, tours, people: loadPeople().map(personBrief) });
 });
 app.delete('/api/assignment/:key/tour/:tourId', (req, res) => {
   const deals = assignmentsIndex();
@@ -1884,6 +2063,166 @@ app.delete('/api/assignment/:key/tour/:tourId', (req, res) => {
   cur.tours = tours; cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true, tours });
+});
+// NDAs — signed non-disclosures received on this deal (linked to the buyer registry).
+app.post('/api/assignment/:key/nda', express.json(), (req, res) => {
+  const deals = assignmentsIndex();
+  const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay();
+  const cur = overlay[d.key] || {};
+  const ndas = Array.isArray(cur.ndas) ? cur.ndas : [];
+  const b = req.body || {}, now = new Date().toISOString();
+  if (b.id) {
+    const ex = ndas.find(n => n.id === b.id);
+    if (!ex) return res.status(404).json({ ok: false, error: 'NDA not found.' });
+    applyNdaFields(ex, b); ex.updatedAt = now;
+  } else {
+    const rec = { id: newNdaId(), party: '', date: '', method: 'DocuSign', status: 'Received', notes: '',
+      createdAt: now, updatedAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+    applyNdaFields(rec, b);
+    ndas.push(rec);
+  }
+  const nn = b.id ? ndas.find(n => n.id === b.id) : ndas[ndas.length - 1];
+  if (nn && (nn.party || b.partyEmail)) { const p = findOrCreatePerson(req, { name: nn.party, email: b.partyEmail, company: b.partyCompany }); if (p) nn.personId = p.id; }
+  cur.ndas = ndas; cur.updatedAt = now;
+  overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, ndas, people: loadPeople().map(personBrief) });
+});
+app.delete('/api/assignment/:key/nda/:ndaId', (req, res) => {
+  const deals = assignmentsIndex();
+  const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay();
+  const cur = overlay[d.key] || {};
+  const ndas = (Array.isArray(cur.ndas) ? cur.ndas : []).filter(n => n.id !== req.params.ndaId);
+  cur.ndas = ndas; cur.updatedAt = new Date().toISOString();
+  overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, ndas });
+});
+// ---- People (global buyer registry) ----
+app.get('/api/people', (req, res) => {
+  res.json({ ok: true, people: loadPeople().map(personBrief), types: PERSON_TYPES });
+});
+app.post('/api/person', express.json(), (req, res) => {
+  const b = req.body || {};
+  const arr = loadPeople();
+  let p = b.id ? arr.find(x => x.id === b.id) : null;
+  const now = new Date().toISOString();
+  if (!p) { p = { id: newPersonId(), name: '', company: '', email: '', phone: '', type: 'Buyer', notes: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(p); }
+  if (typeof b.name === 'string') p.name = b.name.slice(0, 160);
+  if (typeof b.company === 'string') p.company = b.company.slice(0, 160);
+  if (typeof b.email === 'string') p.email = b.email.slice(0, 160);
+  if (typeof b.phone === 'string') p.phone = b.phone.slice(0, 60);
+  if (typeof b.type === 'string' && PERSON_TYPES.indexOf(b.type) >= 0) p.type = b.type;
+  if (typeof b.notes === 'string') p.notes = b.notes.slice(0, 4000);
+  p.updatedAt = now; savePeople(arr);
+  res.json({ ok: true, person: p, people: arr.map(personBrief) });
+});
+app.delete('/api/person/:id', (req, res) => {
+  if (!(req.user && req.user.role === 'admin')) return res.status(403).json({ ok: false, error: 'Admin only.' });
+  const arr = loadPeople().filter(p => p.id !== req.params.id);
+  savePeople(arr);
+  res.json({ ok: true, people: arr.map(personBrief) });
+});
+// ---- Deals (first-class) ----
+app.post('/api/deal/new', express.json(), (req, res) => {
+  const b = req.body || {};
+  const business = String(b.business || '').trim();
+  if (!business) return res.status(400).json({ ok: false, error: 'A business / deal name is required.' });
+  const rec = {
+    id: newDealId(), business: business.slice(0, 120), market: String(b.market || '').slice(0, 80), contact: String(b.contact || '').slice(0, 120),
+    screenId: '', roomId: '', createdAt: new Date().toISOString(),
+    by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
+  };
+  const arr = loadDeals(); arr.push(rec);
+  const room = ensureRoomForDeal(req, rec);   // auto-build its structured data room
+  if (room) rec.roomId = room.id;
+  saveDeals(arr);
+  res.json({ ok: true, id: rec.id, key: 'd_' + rec.id, roomId: rec.roomId });
+});
+app.post('/api/deal/:id', express.json(), (req, res) => {
+  const arr = loadDeals(); const rec = arr.find(x => x.id === req.params.id);
+  if (!rec) return res.status(404).json({ ok: false, error: 'Deal not found.' });
+  if (!ownsDeal(req, rec)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const b = req.body || {};
+  if (typeof b.business === 'string' && b.business.trim()) rec.business = b.business.trim().slice(0, 120);
+  if (typeof b.market === 'string') rec.market = b.market.slice(0, 80);
+  if (typeof b.contact === 'string') rec.contact = b.contact.slice(0, 120);
+  rec.updatedAt = new Date().toISOString(); saveDeals(arr);
+  res.json({ ok: true });
+});
+// Promote a deal into a Seller Qualification Call (the pipeline front door).
+app.post('/api/deal/:id/start', express.json(), (req, res) => {
+  const arr = loadDeals(); const rec = arr.find(x => x.id === req.params.id);
+  if (!rec) return res.status(404).json({ ok: false, error: 'Deal not found.' });
+  if (!ownsDeal(req, rec)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  if (rec.screenId) return res.json({ ok: true, key: 's_' + rec.screenId, screenId: rec.screenId, existed: true });
+  const screens = loadScreens();
+  const screen = {
+    id: newScreenId(), formId: 'dealstart_' + rec.id, business: rec.business || 'Seller', contact: rec.contact || '', market: rec.market || '',
+    date: new Date().toLocaleDateString('en-US'), statusText: 'New (Started from Deal)', status: 'nurture',
+    completed: false, completePct: 0, data: { concept: rec.business || '', contact: rec.contact || '', market: rec.market || '' },
+    by: rec.by || ((req.user && req.user.name) || ''), byUser: rec.byUser || ((req.user && req.user.username) || ''),
+    processed: false, processedAt: '', createdAt: new Date().toISOString(),
+  };
+  screens.push(screen); saveScreens(screens);
+  rec.screenId = screen.id; rec.startedAt = new Date().toISOString(); saveDeals(arr);
+  // The deal's key changes d_<id> -> s_<screenId>; carry its overlay (status, offers,
+  // tours, NDAs, notes) across so nothing logged before starting is orphaned.
+  const overlay = loadAssignOverlay(); const oldKey = 'd_' + rec.id, newKey = 's_' + screen.id;
+  if (overlay[oldKey] && !overlay[newKey]) { overlay[newKey] = overlay[oldKey]; delete overlay[oldKey]; saveAssignOverlay(overlay); }
+  res.json({ ok: true, key: 's_' + screen.id, screenId: screen.id });
+});
+// Delete a deal and everything linked to it (records, data room, uploaded files).
+app.delete('/api/deal/:id', (req, res) => {
+  const arr = loadDeals(); const rec = arr.find(x => x.id === req.params.id);
+  if (!rec) return res.status(404).json({ ok: false, error: 'Deal not found.' });
+  if (!ownsDeal(req, rec)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const key = rec.screenId ? ('s_' + rec.screenId) : ('d_' + rec.id);
+  // Resolve the whole chain for this deal from the index, then delete each record.
+  const group = assignmentsIndex()[key] || {};
+  const screenId = rec.screenId || (group.screen && group.screen.id) || '';
+  // gather ids
+  const questId = (group.quest && group.quest.id) || '';
+  const bovIds = [], cimIds = [], mapIds = [], leaseIds = [], roomIds = [];
+  if (group.bov) bovIds.push(group.bov.id);
+  if (group.cim) cimIds.push(group.cim.id);
+  if (group.map) mapIds.push(group.map.id);
+  if (group.lease) leaseIds.push(group.lease.id);
+  if (group.room) roomIds.push(group.room.id);
+  if (rec.roomId) roomIds.push(rec.roomId);
+  // widen: catch any record pointing into this chain even if not the "newest"
+  if (screenId) {
+    const q = loadQuests().find(x => String(x.formId || '') === 'qfromscr_' + screenId); if (q && !questId) { /* handled below by formId filter */ }
+  }
+  // delete rooms (+ their files) linked by id, srcDealId, or srcCim in cimIds
+  const rooms = loadRooms();
+  const roomKeep = [];
+  rooms.forEach(r => {
+    const linked = roomIds.indexOf(r.id) >= 0 || r.srcDealId === rec.id || (r.srcCimId && cimIds.indexOf(r.srcCimId) >= 0);
+    if (linked) { (r.docs || []).forEach(dd => { try { fs.unlinkSync(path.join(ROOMS_DIR, dd.id + '.' + dd.ext)); } catch (e) {} }); }
+    else roomKeep.push(r);
+  });
+  if (roomKeep.length !== rooms.length) saveRooms(roomKeep);
+  // delete leases / maps / cims / bovs by id
+  if (leaseIds.length) saveLeases(loadLeases().filter(x => leaseIds.indexOf(x.id) < 0));
+  if (mapIds.length) saveMaps(loadMaps().filter(x => mapIds.indexOf(x.id) < 0));
+  if (cimIds.length) saveCims(loadCims().filter(x => cimIds.indexOf(x.id) < 0));
+  if (bovIds.length) saveBovs(loadBovs().filter(x => bovIds.indexOf(x.id) < 0));
+  // delete questionnaire(s) tied to this screening, then the screening
+  if (screenId) {
+    saveQuests(loadQuests().filter(x => String(x.formId || '') !== 'qfromscr_' + screenId));
+    saveScreens(loadScreens().filter(x => x.id !== screenId));
+  } else if (questId) {
+    saveQuests(loadQuests().filter(x => x.id !== questId));
+  }
+  // overlay + deal record
+  const overlay = loadAssignOverlay(); if (overlay[key]) { delete overlay[key]; saveAssignOverlay(overlay); }
+  saveDeals(arr.filter(x => x.id !== rec.id));
+  res.json({ ok: true });
 });
 function roomGatePage(r, err) {
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">Enter your personal access code to continue. Access is provided by Restaurant Realty Group under NDA.</div>`;
