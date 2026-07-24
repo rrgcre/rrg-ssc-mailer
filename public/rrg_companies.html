@@ -32,6 +32,8 @@ tr:hover td{background:#fbfcfe;}
 .pill-seller{background:#eaf5ef;color:#1f8a5b;border-color:#c7e6d6;} .pill-buyer{background:#fdf0e6;color:#b5641a;border-color:#f4d8bd;}
 .count{font-weight:700;color:var(--ink);} .count span{color:var(--soft);font-weight:600;font-size:11px;}
 .open{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:7px 14px;font:inherit;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;}
+.codel{background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:8px;padding:7px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.codel:hover{background:#fdeceb;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
 .foot{max-width:1120px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .newbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin-left:auto;}
@@ -75,7 +77,7 @@ tr:hover td{background:#fbfcfe;}
 <script src="/rrg_list.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var ALL=[], CTL=null;
+var ALL=[], CTL=null, IS_ADMIN=false;
 function applyFilter(){
   var q=(document.getElementById('search').value||'').toLowerCase().trim();
   var list=ALL.filter(function(c){ if(!q) return true; return ((c.name||'')+' '+(c.market||'')+' '+(c.type||'')).toLowerCase().indexOf(q)>=0; });
@@ -91,7 +93,7 @@ function renderList(list){
       { label:'Contacts', align:'left', sort:function(a,b){ return (a.contacts||0)-(b.contacts||0); }, cell:function(c){ return '<span class="count">'+(c.contacts||0)+' <span>contact'+((c.contacts===1)?'':'s')+'</span></span>'; } },
       { label:'Locations', align:'left', sort:function(a,b){ return (a.locations||0)-(b.locations||0); }, cell:function(c){ return '<span class="count">'+(c.locations||0)+' <span>location'+((c.locations===1)?'':'s')+'</span></span>'; } },
       { label:'Deals', align:'left', sort:function(a,b){ return (a.deals||0)-(b.deals||0); }, cell:function(c){ return '<span class="count">'+(c.deals||0)+' <span>deal'+((c.deals===1)?'':'s')+'</span></span>'; } },
-      { label:'', align:'right', sortable:false, cell:function(c){ return '<a class="open" href="./rrg_company.html?id='+encodeURIComponent(c.id)+'">Open →</a>'; } }
+      { label:'', align:'right', sortable:false, cell:function(c){ var del=IS_ADMIN?('<button class="codel" data-del="'+esc(c.id)+'" data-name="'+esc(c.name)+'" data-deals="'+(c.deals||0)+'" title="Delete company">Delete</button> '):''; return del+'<a class="open" href="./rrg_company.html?id='+encodeURIComponent(c.id)+'">Open →</a>'; } }
     ]
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
@@ -106,11 +108,19 @@ function createCompany(){
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.company){ location.href='./rrg_company.html?id='+encodeURIComponent(j.company.id); } else { b.disabled=false;b.textContent='Create company'; alert((j&&j.error)||'Could not create the company.'); } })
     .catch(function(){ b.disabled=false;b.textContent='Create company'; alert('Could not reach the server.'); });
 }
+function deleteCompany(id,name,deals){
+  var dn=deals>0?(' This also deletes '+deals+' linked deal'+(deals===1?'':'s')+' and everything in them.'):'';
+  if(!confirm('Delete “'+(name||'this company')+'” and ALL associated records?'+dn+'\n\nConcepts, locations, and photos go with it. Contacts are kept. Cannot be undone.')) return;
+  fetch('/api/company/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ALL=ALL.filter(function(c){return c.id!==id;}); applyFilter(); } else alert((j&&j.error)||'Could not delete.'); })
+    .catch(function(){ alert('Could not reach the server.'); });
+}
+document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.codel[data-del]'); if(b){ e.preventDefault(); deleteCompany(b.getAttribute('data-del'),b.getAttribute('data-name'),Number(b.getAttribute('data-deals'))||0); } });
 document.getElementById('newBtn').addEventListener('click',openModal);
 document.getElementById('m_cancel').addEventListener('click',closeModal);
 document.getElementById('m_create').addEventListener('click',createCompany);
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target.id==='modal') closeModal(); });
-fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; CTYPES=(j&&j.types)||CTYPES; applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load companies.</div>'; });
+fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; CTYPES=(j&&j.types)||CTYPES; IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load companies.</div>'; });
 </script>
 </body>
 </html>

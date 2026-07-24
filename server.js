@@ -2310,7 +2310,7 @@ app.delete('/api/person/:id', (req, res) => {
 app.get('/api/companies', (req, res) => {
   const cos = loadCompanies(), people = loadPeople(), deals = loadDeals();
   const rows = cos.map(c => ({ id: c.id, name: c.name, market: c.market || '', type: c.type || '', contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt }));
-  res.json({ ok: true, companies: rows, types: COMPANY_TYPES });
+  res.json({ ok: true, companies: rows, types: COMPANY_TYPES, isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 // A person's full cross-book view: their company, the deals where they're the client,
 // and every offer / tour / NDA they're linked to across all deals.
