@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Companies</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:30px 0 30px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1120px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:680px;}
+.tabs{margin-top:18px;display:flex;gap:8px;}
+.tabs a{color:#aeb8cf;text-decoration:none;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:100px;border:1px solid rgba(255,255,255,.2);}
+.tabs a.on{background:#fff;color:var(--navy);border-color:#fff;}
+.wrap{max-width:1120px;margin:22px auto;padding:0 24px 60px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
+.hd{display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line);gap:12px;}
+.hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
+.hd input{margin-left:auto;border:1px solid var(--line);border-radius:9px;padding:8px 13px;font:inherit;font-size:13px;min-width:220px;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:middle;}
+th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);}
+tr:hover td{background:#fbfcfe;}
+.nm{font-weight:800;color:var(--navy);font-size:14px;} .meta{color:var(--muted);font-size:11.5px;margin-top:2px;}
+.pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;}
+.count{font-weight:700;color:var(--ink);} .count span{color:var(--soft);font-weight:600;font-size:11px;}
+.open{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:7px 14px;font:inherit;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;}
+.empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
+.foot{max-width:1120px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+</style>
+</head>
+<body>
+<!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to toolbox" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">CRM</div>
+  <h1>Companies</h1>
+  <div class="sub">Every company in your book — owners' businesses and buyer groups — with their contacts, locations, and deals in one place.</div>
+  <div class="tabs"><a href="./rrg_companies.html" class="on">Companies</a><a href="./rrg_people.html">Contacts</a></div>
+</div></div>
+<div class="wrap">
+  <div class="card">
+    <div class="hd"><b>Companies</b><span class="cnt" id="cnt"></span><input id="search" placeholder="Search name or market…" oninput="applyFilter()"></div>
+    <div id="body"></div>
+  </div>
+</div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<script src="/rrg_list.js"></script>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var ALL=[], CTL=null;
+function applyFilter(){
+  var q=(document.getElementById('search').value||'').toLowerCase().trim();
+  var list=ALL.filter(function(c){ if(!q) return true; return ((c.name||'')+' '+(c.market||'')+' '+(c.type||'')).toLowerCase().indexOf(q)>=0; });
+  renderList(list);
+}
+function renderList(list){
+  var cfg={ mount:'#body', data:list, key:'companies', countEl:'#cnt',
+    empty:'<div class="empty"><b>No companies yet.</b>Companies are created automatically when you start a deal — the business name opens its company file.</div>',
+    rowId:function(c){ return c.id; }, defaultSort:0, defaultDir:1,
+    columns:[
+      { label:'Company', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(c){ return '<div class="nm">'+esc(c.name)+'</div>'+(c.market?('<div class="meta">'+esc(c.market)+'</div>'):''); } },
+      { label:'Type', sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, cell:function(c){ return '<span class="pill">'+esc(c.type||'Business')+'</span>'; } },
+      { label:'Contacts', align:'left', sort:function(a,b){ return (a.contacts||0)-(b.contacts||0); }, cell:function(c){ return '<span class="count">'+(c.contacts||0)+' <span>contact'+((c.contacts===1)?'':'s')+'</span></span>'; } },
+      { label:'Locations', align:'left', sort:function(a,b){ return (a.locations||0)-(b.locations||0); }, cell:function(c){ return '<span class="count">'+(c.locations||0)+' <span>location'+((c.locations===1)?'':'s')+'</span></span>'; } },
+      { label:'Deals', align:'left', sort:function(a,b){ return (a.deals||0)-(b.deals||0); }, cell:function(c){ return '<span class="count">'+(c.deals||0)+' <span>deal'+((c.deals===1)?'':'s')+'</span></span>'; } },
+      { label:'', align:'right', sortable:false, cell:function(c){ return '<a class="open" href="./rrg_company.html?id='+encodeURIComponent(c.id)+'">Open →</a>'; } }
+    ]
+  };
+  if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
+}
+fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load companies.</div>'; });
+</script>
+</body>
+</html>

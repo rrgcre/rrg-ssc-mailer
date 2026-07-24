@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Contact</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:28px 0 30px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1040px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.crumb{margin:20px 0 4px;font-size:12px;} .crumb a{color:#aeb8cf;text-decoration:none;} .crumb a:hover{color:#fff;}
+h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01em;}
+.subline{color:#aeb8cf;font-size:13px;margin-top:7px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
+.hpill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:4px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.3);color:#fff;background:rgba(255,255,255,.08);}
+.subline a{color:#fff;font-weight:700;text-decoration:underline;text-underline-offset:2px;}
+.wrap{max-width:1040px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:1fr 320px;gap:20px;align-items:start;}
+@media(max-width:840px){.wrap{grid-template-columns:1fr;}}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:20px;}
+.ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);} .ch b{color:var(--navy);font-size:13.5px;} .ch span{color:var(--muted);font-size:11.5px;margin-left:auto;}
+.row{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;} .row:last-child{border-bottom:none;} .row:hover{background:#fbfcfe;}
+.rbiz{font-weight:800;color:var(--navy);font-size:13.5px;} .rmeta{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.rt{margin-left:auto;font-size:11px;font-weight:700;color:var(--ink);white-space:nowrap;}
+.tag{font-size:9.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;}
+.tag.loi{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;}
+.empty{color:var(--muted);font-size:12.5px;font-style:italic;padding:16px 20px;}
+label.fld{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:2px 0 6px;}
+input,select,textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;}
+select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%236b7488' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;cursor:pointer;}
+textarea{min-height:90px;resize:vertical;line-height:1.5;}
+.fldrow{margin-bottom:14px;} .side .cb{padding:14px 18px 16px;}
+.savebtn{width:100%;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:11px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;} .savebtn:disabled{opacity:.55;cursor:default;}
+.saved{text-align:center;font-size:11.5px;color:var(--green);font-weight:700;margin-top:9px;height:14px;opacity:0;transition:opacity .2s;} .saved.show{opacity:1;}
+.foot{max-width:1040px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+.loading{max-width:1040px;margin:60px auto;padding:0 24px;color:var(--muted);text-align:center;}
+</style>
+</head>
+<body>
+<!--rrgback--><a href="./rrg_people.html" class="rrg-back" aria-label="Back to contacts" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Contacts</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="crumb"><a href="./rrg_people.html">Contacts</a> &nbsp;›&nbsp; <span id="crumb">Contact</span></div>
+  <h1 id="h1">Contact</h1>
+  <div class="subline" id="subline"></div>
+</div></div>
+<div id="root" class="loading">Loading the contact…</div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
+function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
+function money(v){ if(v==null||v==='') return ''; var n=Number(String(v).replace(/[^0-9.\-]/g,'')); if(!isFinite(n)||n===0) return esc(String(v)); return '$'+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
+var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], PTYPES=['Buyer'], DIRTY=false;
+function dealLink(key,biz,right){ return '<a class="row" href="./rrg_assignment.html?key='+encodeURIComponent(key)+'"><div><div class="rbiz">'+esc(biz||'Deal')+'</div>'+(right&&right.meta?('<div class="rmeta">'+right.meta+'</div>'):'')+'</div>'+(right&&right.tag?('<span class="rt">'+right.tag+'</span>'):'')+'</a>'; }
+function listCard(title,items,builder,emptyMsg){
+  var body = items.length ? items.map(builder).join('') : '<div class="empty">'+esc(emptyMsg)+'</div>';
+  return '<div class="card"><div class="ch"><b>'+esc(title)+'</b><span>'+items.length+'</span></div><div>'+body+'</div></div>';
+}
+function render(){
+  document.getElementById('crumb').textContent=P.name||'Contact';
+  document.getElementById('h1').textContent=P.name||'Contact';
+  var sub=[]; if(P.type) sub.push('<span class="hpill">'+esc(P.type)+'</span>');
+  if(CO&&CO.id) sub.push('<span>Company: <a href="./rrg_company.html?id='+encodeURIComponent(CO.id)+'">'+esc(CO.name)+'</a></span>');
+  if(P.email) sub.push('<span>'+esc(P.email)+'</span>'); if(P.phone) sub.push('<span>'+esc(P.phone)+'</span>');
+  document.getElementById('subline').innerHTML=sub.join('');
+  var dealsCard = listCard('Deals (as client)', DEALS, function(d){ return dealLink(d.key,d.business,{tag:esc(d.role||'Client')}); }, 'Not the client on any deal.');
+  var offersCard = listCard('Offers made', OFFERS, function(o){ return dealLink(o.key,o.business,{meta:esc((o.type||'')+' · '+(o.status||''))+(o.received?(' · '+fmt(o.received)):''), tag:(o.amount?money(o.amount):'')}); }, 'No offers logged from this contact.');
+  var toursCard = listCard('Tours', TOURS, function(t){ return dealLink(t.key,t.business,{meta:(t.date?fmt(t.date):''), tag:esc(t.interest||'')}); }, 'No tours logged for this contact.');
+  var ndasCard = listCard('NDAs', NDAS, function(n){ return dealLink(n.key,n.business,{meta:esc((n.method||'')+(n.date?(' · '+fmt(n.date)):'')), tag:esc(n.status||'')}); }, 'No NDAs on file for this contact.');
+  var ptsel=PTYPES.map(function(t){return '<option'+(P.type===t?' selected':'')+'>'+esc(t)+'</option>';}).join('');
+  document.getElementById('root').className='wrap';
+  document.getElementById('root').innerHTML=
+    '<div class="main">'+dealsCard+offersCard+toursCard+ndasCard+'</div>'
+    + '<div class="side"><div class="card"><div class="ch"><b>Contact</b></div><div class="cb">'
+      + '<div class="fldrow"><label class="fld">Name</label><input id="p_name" value="'+esc(P.name||'')+'"></div>'
+      + '<div class="fldrow"><label class="fld">Type</label><select id="p_type">'+ptsel+'</select></div>'
+      + '<div class="fldrow"><label class="fld">Company</label><input id="p_company" value="'+esc((CO&&CO.name)||P.company||'')+'" placeholder="Company name"></div>'
+      + '<div class="fldrow"><label class="fld">Email</label><input id="p_email" value="'+esc(P.email||'')+'"></div>'
+      + '<div class="fldrow"><label class="fld">Phone</label><input id="p_phone" value="'+esc(P.phone||'')+'"></div>'
+      + '<div class="fldrow"><label class="fld">Notes</label><textarea id="p_notes" placeholder="Preferences, budget, concepts of interest, history…">'+esc(P.notes||'')+'</textarea></div>'
+      + '<button class="savebtn" id="p_save" disabled>Save changes</button><div class="saved" id="p_saved">Saved ✓</div>'
+    + '</div></div></div>';
+  ['p_name','p_type','p_company','p_email','p_phone','p_notes'].forEach(function(id){ var el=document.getElementById(id); el.addEventListener(el.tagName==='SELECT'?'change':'input',function(){ DIRTY=true; document.getElementById('p_save').disabled=false; }); });
+  document.getElementById('p_save').addEventListener('click',savePerson);
+}
+function savePerson(){
+  var b=document.getElementById('p_save'); b.disabled=true; b.textContent='Saving…';
+  var body={ id:ID, name:document.getElementById('p_name').value.trim(), type:document.getElementById('p_type').value, company:document.getElementById('p_company').value.trim(), email:document.getElementById('p_email').value.trim(), phone:document.getElementById('p_phone').value.trim(), notes:document.getElementById('p_notes').value };
+  fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ b.textContent='Save changes'; if(j&&j.ok){ P=j.person; DIRTY=false; document.getElementById('h1').textContent=P.name; document.getElementById('crumb').textContent=P.name; var s=document.getElementById('p_saved'); s.classList.add('show'); setTimeout(function(){s.classList.remove('show');},2000); } else { b.disabled=false; alert((j&&j.error)||'Could not save.'); } })
+    .catch(function(){ b.textContent='Save changes'; b.disabled=false; alert('Could not reach the server.'); });
+}
+window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(); e.returnValue=''; } });
+function load(){
+  if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No contact selected. <a href="./rrg_people.html">Back to contacts →</a></div>'; return; }
+  fetch('/api/person/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
+    .then(function(j){ P=j.person; CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; PTYPES=j.personTypes||PTYPES; render(); })
+    .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this contact.')+'<br><br><a href="./rrg_people.html" style="color:#000E31;font-weight:700">← Back to contacts</a></div>'; });
+}
+load();
+</script>
+</body>
+</html>

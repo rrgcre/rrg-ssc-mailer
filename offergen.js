@@ -65,7 +65,7 @@ async function analyzeOffer({ business, market, dealTarget, dealRange, dealBasis
   const resp = await fetch(API_URL, {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: MODEL, max_tokens: 2000, temperature: 0.2, system: sys, messages: [{ role: 'user', content }] }),
+    body: JSON.stringify({ model: MODEL, max_tokens: 2000, temperature: 0.2, system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content }] }),
   });
   if (!resp.ok) {
     const t = await resp.text().catch(() => '');

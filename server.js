@@ -2132,7 +2132,9 @@ app.delete('/api/assignment/:key/nda/:ndaId', (req, res) => {
 });
 // ---- People (global buyer registry) ----
 app.get('/api/people', (req, res) => {
-  res.json({ ok: true, people: loadPeople().map(personBrief), types: PERSON_TYPES });
+  const cos = {}; loadCompanies().forEach(c => cos[c.id] = c.name);
+  const people = loadPeople().map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '' }));
+  res.json({ ok: true, people: people, types: PERSON_TYPES });
 });
 app.post('/api/person', express.json(), (req, res) => {
   const b = req.body || {};
@@ -2159,8 +2161,25 @@ app.delete('/api/person/:id', (req, res) => {
 // ---- Companies (account files) ----
 app.get('/api/companies', (req, res) => {
   const cos = loadCompanies(), people = loadPeople(), deals = loadDeals();
-  const rows = cos.map(c => ({ id: c.id, name: c.name, market: c.market || '', type: c.type || '', contacts: people.filter(p => p.companyId === c.id).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt }));
+  const rows = cos.map(c => ({ id: c.id, name: c.name, market: c.market || '', type: c.type || '', contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt }));
   res.json({ ok: true, companies: rows, types: COMPANY_TYPES });
+});
+// A person's full cross-book view: their company, the deals where they're the client,
+// and every offer / tour / NDA they're linked to across all deals.
+app.get('/api/person/:id', (req, res) => {
+  const p = personById(req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
+  const overlay = loadAssignOverlay(), idx = assignmentsIndex();
+  const bizByKey = {}; for (const k in idx) { try { bizByKey[k] = assignmentView(idx[k], overlay).business; } catch (e) {} }
+  const deals = [], offers = [], tours = [], ndas = [];
+  loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client' }); });
+  for (const key in overlay) {
+    const o = overlay[key], biz = bizByKey[key] || '(deal)';
+    (o.offers || []).filter(x => x.personId === p.id).forEach(x => offers.push({ key: key, business: biz, type: x.type, amount: x.amount, status: x.status, received: x.received }));
+    (o.tours || []).filter(x => x.personId === p.id).forEach(x => tours.push({ key: key, business: biz, date: x.date, interest: x.interest }));
+    (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
+  }
+  res.json({ ok: true, person: p, company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, personTypes: PERSON_TYPES });
 });
 const LOCATION_STATUSES = ['Open', 'Closed', 'Under LOI', 'Prospective'];
 function newLocationId() { return 'loc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }

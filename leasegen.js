@@ -68,7 +68,7 @@ async function generateLease({ business, files, questionnaire, asOf, systemPromp
   const resp = await fetch(API_URL, {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: MODEL, max_tokens: 6000, temperature: 0, system: sys, messages: [{ role: 'user', content }] }),
+    body: JSON.stringify({ model: MODEL, max_tokens: 6000, temperature: 0, system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content }] }),
   });
   if (!resp.ok) {
     const t = await resp.text().catch(() => '');
