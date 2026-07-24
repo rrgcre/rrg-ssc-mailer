@@ -2420,6 +2420,10 @@ app.get('/admin', requireAdmin, (req, res) => {
       <span class="dl"><a href="/index.html" style="background:#DA2B1F;color:#fff;padding:6px 13px;border-radius:8px;font-weight:800;text-decoration:none">Switch to user view →</a> <a href="/log">Submissions</a> <a href="/admin/logins.csv">Login CSV</a> <a href="/admin/usage.csv">Usage CSV</a> <a href="/logout">Sign out</a></span></div>
     <style>
       .expandbar{display:none!important;}
+      .userscroll{max-height:390px;overflow-y:auto;border:1px solid #e9edf3;border-radius:11px;}
+      .userscroll table{margin:0;}
+      .userscroll thead th{position:sticky;top:0;z-index:2;background:#f6f8fb;box-shadow:inset 0 -1px 0 #e9edf3;}
+      .userscroll::-webkit-scrollbar{width:10px;} .userscroll::-webkit-scrollbar-thumb{background:#cfd6e2;border-radius:8px;border:2px solid #fff;}
       .bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:18px 28px 2px;}
       .bar .stat{background:#f6f8fb;border:1px solid #e9edf3;border-radius:11px;padding:8px 14px;font-size:10.5px;color:#6b7488;font-weight:700;text-transform:uppercase;letter-spacing:.04em;line-height:1.3;}
       .bar .stat b{display:block;font-size:18px;color:#000E31;font-weight:800;letter-spacing:-.01em;text-transform:none;}
@@ -2462,8 +2466,8 @@ app.get('/admin', requireAdmin, (req, res) => {
         <button class="primary">Add user</button>
       </form>
       <div class="sub2" style="margin:-6px 0 4px">Title, phone &amp; email appear as the "prepared by" line on that rep's BOVs. Reps can edit their own under Account.</div>
-      <h2>Users</h2>
-      <table><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Added</th><th>Last Login</th><th>Actions</th></tr></thead><tbody>${urows}</tbody></table>
+      <h2>Users <span class="sub2">— ${users.length} total${users.length > 8 ? ' · scroll for more' : ''}</span></h2>
+      <div class="userscroll"><table><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Added</th><th>Last Login</th><th>Actions</th></tr></thead><tbody>${urows}</tbody></table></div>
 
       <h2 style="margin-top:34px">Tool Access <span class="sub2">— check a tool to make it admin-only (hidden from reps, and blocked by direct link)</span></h2>
       <div class="links">
