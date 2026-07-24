@@ -186,6 +186,7 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
 .cvgrouphd:first-child{margin-top:6px;} .cvgrouphd .gn{color:var(--muted);font-weight:500;font-size:11.5px;}
 .cvacctools + .cvgroup .cvgrouphd{margin-top:8px;}
 .cbadge{display:inline-flex;align-items:center;justify-content:center;min-width:20px;height:19px;padding:0 6px;border-radius:999px;background:#eef2fb;color:#2647b0;border:1px solid #d7e0f3;font-size:11px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;}
+.cbadge-active{background:#eafaf0;color:#0e7a53;border-color:#bfe6ce;margin-left:5px;}
 .cvlist{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 4px 18px rgba(10,20,50,.04);}
 .cvrow{display:flex;align-items:center;gap:14px;padding:13px 16px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;}
 .cvrow:last-child{border-bottom:none;} .cvrow:hover{background:#f7f9fd;} .cvrow:hover .cvgo{color:var(--red);}
@@ -446,8 +447,14 @@ var ARROW='<span class="arw"><svg width="15" height="15" viewBox="0 0 24 24" fil
 
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 
-var COUNTS={};
-function countBadge(t){ var n=COUNTS[t.file]; if(typeof n!=='number') return ''; return '<span class="cbadge" title="'+n+' record'+(n===1?'':'s')+' in this file">'+n+'</span>'; }
+var COUNTS={}, ACTIVE={};
+function countBadge(t){
+  var n=COUNTS[t.file]; if(typeof n!=='number') return '';
+  var html='<span class="cbadge" title="'+n+' record'+(n===1?'':'s')+' in this file">'+n+'</span>';
+  var a=ACTIVE[t.file];
+  if(typeof a==='number') html+='<span class="cbadge cbadge-active" title="'+a+' active deal'+(a===1?'':'s')+' — not closed or lost">'+a+' active</span>';
+  return html;
+}
 
 var grid=document.getElementById('grid');
 
@@ -590,7 +597,7 @@ window.RRG_API = window.RRG_API || (String(location.protocol).indexOf('http')===
 function loadCounts(){
   var api=window.RRG_API||''; if(!api) return;
   fetch(api.replace(/\/$/,'')+'/api/counts',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(j&&j.ok&&j.counts){ COUNTS=j.counts; renderTools(); }
+    if(j&&j.ok&&j.counts){ COUNTS=j.counts; ACTIVE=j.active||{}; renderTools(); }
   }).catch(function(){});
 }
 function stampBuild(iso){

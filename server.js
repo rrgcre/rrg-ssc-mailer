@@ -2606,7 +2606,13 @@ app.delete('/api/ticket/:id', (req, res) => {
 app.get('/api/counts', (req, res) => {
   const isAdmin = !!(req.user && req.user.role === 'admin');
   const tickets = loadTickets();
-  let dealCount = 0; try { dealCount = Object.keys(assignmentsIndex()).length; } catch (e) { dealCount = loadDeals().length; }
+  // Total deals + how many are still live (not Closed or Lost).
+  let dealCount = 0, activeDeals = 0;
+  try {
+    const idx = assignmentsIndex(); const ov = loadAssignOverlay();
+    const keys = Object.keys(idx); dealCount = keys.length;
+    keys.forEach(k => { const st = (ov[k] && ov[k].status) || 'New'; if (st !== 'Closed' && st !== 'Lost') activeDeals++; });
+  } catch (e) { dealCount = loadDeals().length; activeDeals = dealCount; }
   const counts = {
     'rrg_companies.html': loadCompanies().length,
     'rrg_people.html': loadPeople().length,
@@ -2619,7 +2625,9 @@ app.get('/api/counts', (req, res) => {
     'rrg_attack_queue.html': loadMaps().length,
     'rrg_rooms_queue.html': loadRooms().length,
   };
-  res.json({ ok: true, counts });
+  // Secondary "active" badges keyed by tool file.
+  const active = { 'rrg_assignments.html': activeDeals };
+  res.json({ ok: true, counts, active });
 });
 
 function roomGatePage(r, err) {
