@@ -1,7 +1,7 @@
 // RRG — AI Lease Abstract generation. Reads an uploaded lease (PDF/image/text)
 // and returns a structured lease-abstract "state" the abstract builder renders.
 // Extraction-focused: temperature 0, never invents terms. Requires ANTHROPIC_API_KEY.
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
+let MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 
 const SYSTEM = `You are a meticulous commercial real estate lease analyst at Restaurant Realty Group (RRG). You read a commercial lease (and any amendments) for a restaurant or bar and produce a precise LEASE ABSTRACT — a structured summary of the terms that matter to a buyer acquiring the business, with special attention to TRANSFERABILITY (assignment, remaining term, renewal options, and guaranty), because for a restaurant sale the lease can make or break the deal.
@@ -75,7 +75,7 @@ async function generateLease({ business, files, questionnaire, asOf, systemPromp
     if (/too long|prompt is too|maximum.*tokens|context.*length|exceed/i.test(t)) {
       throw new Error('The lease document is too large to read in one pass. Upload just the lease and its amendments (not the full exhibit set) and build again.');
     }
-    throw new Error('Claude API error ' + resp.status + ': ' + t.slice(0, 400));
+    throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 400));
   }
   const data = await resp.json();
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
@@ -85,4 +85,5 @@ async function generateLease({ business, files, questionnaire, asOf, systemPromp
   return { state, business: biz, usage: data.usage || null };
 }
 
-module.exports = { generateLease, MODEL, DEFAULT_SYSTEM: SYSTEM };
+function setModel(m){ if (m) MODEL = String(m); }
+module.exports = { setModel,  generateLease, MODEL, DEFAULT_SYSTEM: SYSTEM };

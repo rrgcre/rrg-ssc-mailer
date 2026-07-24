@@ -1,9 +1,9 @@
 // RRG — AI BOV generation. Sends the deal documents (financials, Valuation
-// Questionnaire, lease + amendments) to Claude and returns a structured BOV
+// Questionnaire, lease + amendments) to the AI model and returns a structured BOV
 // "state" object that the existing BOV builder renders. No form-filling.
 //
 // Requires env: ANTHROPIC_API_KEY.  Optional: ANTHROPIC_MODEL (default Sonnet).
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
+let MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 
 const SYSTEM = `You are a deeply experienced restaurant & bar commercial real-estate and business-sale broker at Restaurant Realty Group (RRG). You prepare Broker's Opinions of Value (BOVs). No fluff, best practice, defensible numbers. You are analyzing a real deal's documents and producing the BOV data.
@@ -144,7 +144,7 @@ function summarize(state, threshold) {
   };
 }
 
-// Build Claude content blocks from uploaded files (PDF -> document, image -> image, else text).
+// Build the AI model content blocks from uploaded files (PDF -> document, image -> image, else text).
 function fileBlocks(files) {
   const blocks = [];
   (files || []).forEach(f => {
@@ -162,7 +162,7 @@ function fileBlocks(files) {
 }
 
 // ---- Reference links (press, reviews, video, web presence) ----
-// Fetched server-side so Claude actually reads the content, not just the URL.
+// Fetched server-side so the AI model actually reads the content, not just the URL.
 function stripHtml(html) {
   return String(html || '')
     .replace(/<script[\s\S]*?<\/script>/gi, ' ')
@@ -270,7 +270,7 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
     if (/too long|prompt is too|maximum.*tokens|context.*length|exceed/i.test(t)) {
       throw new Error('The uploaded documents are too large for the analyst to read in one pass. Send just the essentials — the trailing-twelve-month P&L / income statement and any add-back or normalization schedule — and skip full tax returns, bank statements, and multi-year detail. Then build again.');
     }
-    throw new Error('Claude API error ' + resp.status + ': ' + t.slice(0, 400));
+    throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 400));
   }
   const data = await resp.json();
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
@@ -291,4 +291,5 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
   return { state, summary, business: state.fields.subject || business || 'Untitled', date: state.fields.date || '', usage };
 }
 
-module.exports = { generateBov, MODEL, DEFAULT_SYSTEM: SYSTEM };
+function setModel(m){ if (m) MODEL = String(m); }
+module.exports = { setModel,  generateBov, MODEL, DEFAULT_SYSTEM: SYSTEM };

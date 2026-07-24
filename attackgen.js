@@ -3,7 +3,7 @@
 // valuation, the CIM state, the completed Valuation Questionnaire, and the Seller
 // Qualification Call, and return a structured MAP "state" the attack-plan builder
 // renders. Requires ANTHROPIC_API_KEY.
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
+let MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 
 const SYSTEM = `You are a deeply experienced restaurant & bar business-sale broker at Restaurant Realty Group (RRG). You write the confidential Market Attack Plan (MAP) — the internal, ownership-facing go-to-market strategy for selling a restaurant or bar business. It is NOT the buyer-facing CIM; it is the campaign playbook prepared for the seller: how RRG takes the business to market, who we go after, how we run a controlled confidential process, and how we drive competitive tension to the best price and terms. Write in RRG's voice: confident, precise, no fluff, strategic, and quietly persuasive to ownership.
@@ -128,7 +128,7 @@ async function generateMap({ business, bovSummary, bovState, cimState, questionn
     if (/too long|prompt is too|maximum.*tokens|context.*length|exceed/i.test(t)) {
       throw new Error('The deal inputs are too large for the analyst to read in one pass. Try again.');
     }
-    throw new Error('Claude API error ' + resp.status + ': ' + t.slice(0, 400));
+    throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 400));
   }
   const data = await resp.json();
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
@@ -138,4 +138,5 @@ async function generateMap({ business, bovSummary, bovState, cimState, questionn
   return { state, business: (state.header && state.header.business) || business || 'Market Attack Plan', usage: data.usage || null };
 }
 
-module.exports = { generateMap, MODEL, DEFAULT_SYSTEM: SYSTEM };
+function setModel(m){ if (m) MODEL = String(m); }
+module.exports = { setModel,  generateMap, MODEL, DEFAULT_SYSTEM: SYSTEM };

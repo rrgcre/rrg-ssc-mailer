@@ -3,7 +3,7 @@
 // the RRG analyst returns a structured broker's assessment: how the price stacks up, the
 // strengths and risks in the terms, a recommended action (accept / counter / reject), and
 // a suggested counter. Requires ANTHROPIC_API_KEY.
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
+let MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 
 const SYSTEM = `You are a deeply experienced restaurant & bar business-sale broker at Restaurant Realty Group (RRG), advising the SELLER. An offer — an IOI (Indication of Interest) or an LOI (Letter of Intent) — has come in on a listing you represent. Your job is to give ownership a sharp, honest, no-BS assessment so they negotiate from strength. You always play to win for your client: maximize price and certainty of close, protect confidentiality, and use competitive tension.
@@ -69,7 +69,7 @@ async function analyzeOffer({ business, market, dealTarget, dealRange, dealBasis
   });
   if (!resp.ok) {
     const t = await resp.text().catch(() => '');
-    throw new Error('Claude API error ' + resp.status + ': ' + t.slice(0, 300));
+    throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 300));
   }
   const data = await resp.json();
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
@@ -78,4 +78,5 @@ async function analyzeOffer({ business, market, dealTarget, dealRange, dealBasis
   return a;
 }
 
-module.exports = { analyzeOffer, MODEL, DEFAULT_SYSTEM: SYSTEM };
+function setModel(m){ if (m) MODEL = String(m); }
+module.exports = { setModel,  analyzeOffer, MODEL, DEFAULT_SYSTEM: SYSTEM };

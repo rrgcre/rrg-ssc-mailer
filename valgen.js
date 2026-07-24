@@ -8,7 +8,7 @@
 // financial statements + lease.
 //
 // Requires env: ANTHROPIC_API_KEY.  Optional: ANTHROPIC_MODEL (default Sonnet).
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
+let MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 
 function extractJson(text) {
@@ -63,7 +63,7 @@ Return ONLY a single JSON object (no prose, no markdown fences) with EXACTLY thi
   });
   if (!resp.ok) {
     const t = await resp.text().catch(() => '');
-    throw new Error('Claude API error ' + resp.status + ': ' + t.slice(0, 300));
+    throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 300));
   }
   const dj = await resp.json();
   const text = (dj.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
@@ -77,4 +77,5 @@ Return ONLY a single JSON object (no prose, no markdown fences) with EXACTLY thi
   return { result, usage: dj.usage || {} };
 }
 
-module.exports = { generateFactors, MODEL };
+function setModel(m){ if (m) MODEL = String(m); }
+module.exports = { setModel,  generateFactors, MODEL };

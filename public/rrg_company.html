@@ -40,10 +40,23 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 /* concept blocks */
 .cptblock{margin:0 -20px;padding:0;border-top:1px solid var(--line);}
 .cptblock:first-child{border-top:none;}
-.cptbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 20px 10px;background:#f7f9fd;}
+.cptbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 20px 10px;background:#f7f9fd;cursor:pointer;}
+.cptbar:hover{background:#f1f5fc;}
+.cptchev{color:var(--red);font-size:11px;flex:none;transition:transform .15s;} .cptblock.open .cptchev{transform:rotate(90deg);}
+.cptlocs{display:none;} .cptblock.open .cptlocs{display:block;}
+.expall{color:#2647b0;font-weight:700;cursor:pointer;} .expall:hover{text-decoration:underline;}
 .cptname{font-weight:800;color:var(--navy);font-size:14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
 .cptcount{background:#eef2fb;color:#2647b0;border-radius:999px;font-size:10.5px;font-weight:800;padding:2px 9px;}
 .cptsite{font-size:11.5px;color:#2647b0;text-decoration:none;font-weight:700;}
+.cptlogo{width:26px;height:26px;border-radius:6px;object-fit:contain;background:#fff;border:1px solid var(--line);flex:none;}
+.cptlogo-mono{display:flex;align-items:center;justify-content:center;color:#2647b0;background:#eef2fb;font-weight:800;font-size:12px;}
+.locthumb-logo{background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;} .locthumb-logo img{max-width:100%;max-height:100%;object-fit:contain;}
+.tenpill{display:inline-block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:1px 7px;border-radius:999px;}
+.ten-leased{background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;} .ten-owned{background:#eaf5ef;color:#1f8a5b;border:1px solid #c7e6d6;}
+.closedpill{display:inline-block;font-size:10px;font-weight:800;color:#5a3d9e;background:#efe9f7;border:1px solid #d9cdf0;border-radius:999px;padding:1px 8px;}
+.logorow{display:flex;gap:12px;align-items:flex-start;} .logoprev{width:52px;height:52px;border-radius:10px;border:1px solid var(--line);background:#fff;flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;} .logoprev img{max-width:100%;max-height:100%;object-fit:contain;}
+.logobtns{display:flex;gap:8px;margin-top:7px;}
+.cpsaved{font-size:11.5px;color:var(--green);font-weight:700;margin-left:8px;}
 .cptacts{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;}
 .mini{background:#fff;border:1px solid var(--line);color:var(--navy);border-radius:7px;padding:5px 10px;font:inherit;font-size:11px;font-weight:700;cursor:pointer;}
 .mini:hover{border-color:#c9d2e2;} .mini.danger{color:var(--red);border-color:#f0c9c6;}
@@ -116,6 +129,7 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
 var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Open','Under Construction','Under LOI','Prospective','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, DIRTY=false;
+var EXPANDED={};
 function conceptById(id){ return CONCEPTS.filter(function(x){return x.id===id;})[0]||null; }
 function normUrl(u){ u=String(u||'').trim(); if(!u) return ''; return /^https?:\/\//i.test(u)?u:('https://'+u); }
 function hostOf(u){ try{ return new URL(normUrl(u)).hostname.replace(/^www\./,''); }catch(e){ return String(u||''); } }
@@ -131,14 +145,17 @@ function render(){
     var sub=[p.title].concat(p.emails||(p.email?[p.email]:[])).concat(p.phones||(p.phone?[p.phone]:[])).filter(Boolean).map(esc).join(' · ');
     return '<a class="crow crowlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'"><div class="cav">'+esc(initials(p.name).toUpperCase())+'</div><div class="cinfo"><div class="cname">'+esc(p.name||'Contact')+'</div><div class="csub">'+sub+'</div></div><span class="ctype">'+esc(p.type||'')+'</span><button class="crm" data-rm="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();">Remove</button></a>';
   }).join('') : '<div class="empty">No contacts yet. Add the owner, partners, or advisors tied to this company.</div>';
+  var CPTLOGO={}; CONCEPTS.forEach(function(c){ if(c.logo) CPTLOGO[c.name]=c.logo; });
   function locThumb(l){
     var p=(l.photos||[])[0];
     if(p) return '<div class="locthumb" style="background-image:url(/api/locphoto/'+esc(p.id+'.'+p.ext)+')"></div>';
+    var lg=CPTLOGO[l.concept||''];
+    if(lg) return '<div class="locthumb locthumb-logo"><img src="'+esc(lg)+'" onerror="this.parentNode.style.display=\'none\';this.parentNode.insertAdjacentHTML(\'afterend\',\'<div class=\\\'cav\\\' style=\\\'background:#fff4e6;color:#b9761a\\\'>◆</div>\')"></div>';
     return '<div class="cav" style="background:#fff4e6;color:#b9761a">◆</div>';
   }
   function locRow(l){
     var loc=[l.address,l.city,l.state].filter(Boolean).map(esc).join(', ');
-    var bits=[]; if(loc) bits.push(loc); if(l.siteType) bits.push(esc(l.siteType)); if(l.phone) bits.push(esc(l.phone)); if(l.opened) bits.push('Opened '+esc(fmtD(l.opened))); if(l.leaseExpires) bits.push('Lease exp '+esc(fmtD(l.leaseExpires)));
+    var bits=[]; if(loc) bits.push(loc); if(l.siteType) bits.push(esc(l.siteType)); if(l.tenure) bits.push('<span class="tenpill ten-'+l.tenure.toLowerCase()+'">'+esc(l.tenure)+'</span>'); if(l.phone) bits.push(esc(l.phone)); if(l.opened) bits.push('Opened '+esc(fmtD(l.opened))); if(l.closedDate) bits.push('<span class="closedpill">Closed '+esc(fmtD(l.closedDate))+'</span>'); if(l.leaseExpires) bits.push('Lease exp '+esc(fmtD(l.leaseExpires)));
     var line=bits.join(' · '); var np=(l.photos||[]).length;
     var badge=np?('<span class="phcount" title="'+np+' photo'+(np===1?'':'s')+'">'+np+' ▣</span>'):'';
     var flag=l.flagship?'<span class="flagtag" title="Flagship location">★ Flagship</span>':'';
@@ -152,7 +169,9 @@ function render(){
     var site=cpt.website?('<a class="cptsite" href="'+esc(normUrl(cpt.website))+'" target="_blank" rel="noopener">'+esc(hostOf(cpt.website))+' ↗</a>'):'';
     var mkts=(cpt.markets&&cpt.markets.length)?('<span class="cptmkts">'+cpt.markets.map(esc).join(' · ')+'</span>'):'';
     var rows=mine.length?mine.map(locRow).join(''):'<div class="cptempty">No locations yet — add one, or use ✨ Find locations to pull them from the website.</div>';
-    return '<div class="cptblock"><div class="cptbar"><div class="cptname">'+esc(cpt.name)+' <span class="cptcount">'+mine.length+' loc'+(mine.length===1?'':'s')+'</span>'+site+mkts+'</div>'
+    var open=!!EXPANDED[cpt.id];
+    var logo=cpt.logo?('<img class="cptlogo" src="'+esc(cpt.logo)+'" onerror="this.style.display=\'none\'">'):'<span class="cptlogo cptlogo-mono">'+esc((cpt.name||'?').charAt(0).toUpperCase())+'</span>';
+    return '<div class="cptblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="'+esc(cpt.id)+'"><span class="cptchev">▶</span>'+logo+'<div class="cptname">'+esc(cpt.name)+' <span class="cptcount">'+mine.length+' loc'+(mine.length===1?'':'s')+'</span>'+site+mkts+'</div>'
       + '<div class="cptacts"><button class="mini" data-find="'+esc(cpt.id)+'">✨ Find</button><button class="mini" data-addloc="'+esc(cpt.id)+'">+ Location</button><button class="mini" data-editc="'+esc(cpt.id)+'">Edit</button><button class="mini danger" data-rmc="'+esc(cpt.id)+'">Remove</button></div></div>'
       + '<div class="cptlocs">'+rows+'</div></div>';
   }
@@ -162,8 +181,9 @@ function render(){
   if(!CONCEPTS.length && !LOCATIONS.length){ locs='<div class="empty">No concepts yet. A company runs one or more concepts (brands) — e.g. a group with Cane Rosso, Zoli’s, and Thunderbird. Add a concept, then add or auto-find its locations.</div>'; }
   else {
     locs=CONCEPTS.map(conceptBlock).join('');
-    if(orphans.length){ locs+='<div class="cptblock"><div class="cptbar"><div class="cptname">Unassigned <span class="cptcount">'+orphans.length+'</span></div></div><div class="cptlocs">'+orphans.map(locRow).join('')+'</div></div>'; }
-    locs+='<div class="cpttotal">'+CONCEPTS.length+' concept'+(CONCEPTS.length===1?'':'s')+' · <b>'+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</b> total</div>';
+    if(orphans.length){ var oOpen=!!EXPANDED['__orphan__']; locs+='<div class="cptblock'+(oOpen?' open':'')+'"><div class="cptbar" data-cpt="__orphan__"><span class="cptchev">▶</span><div class="cptname">Unassigned <span class="cptcount">'+orphans.length+' loc'+(orphans.length===1?'':'s')+'</span></div></div><div class="cptlocs">'+orphans.map(locRow).join('')+'</div></div>'; }
+    var allOpen=CONCEPTS.length&&CONCEPTS.every(function(c){return EXPANDED[c.id];});
+    locs+='<div class="cpttotal">'+CONCEPTS.length+' concept'+(CONCEPTS.length===1?'':'s')+' · <b>'+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</b> total · <span class="expall" id="cptExpand">'+(allOpen?'Collapse all':'Expand all')+'</span></div>';
   }
   var deals = DEALS.length ? DEALS.map(function(d){
     return '<a class="drow" href="./rrg_assignment.html?key='+encodeURIComponent(d.key)+'"><div><div class="dbiz">'+esc(d.business)+'</div><div class="dmeta">'+esc(d.market||'')+'</div></div><span class="dstate '+(d.started?'on':'off')+'">'+(d.started?'In pipeline':'Not started')+'</span></a>';
@@ -203,30 +223,67 @@ function render(){
   document.querySelectorAll('.mini[data-addloc]').forEach(function(b){ b.addEventListener('click',function(){ var c=conceptById(b.getAttribute('data-addloc')); openLocForm(null,c?c.name:''); }); });
   document.querySelectorAll('.mini[data-editc]').forEach(function(b){ b.addEventListener('click',function(){ var c=conceptById(b.getAttribute('data-editc')); if(c) openConceptForm(c); }); });
   document.querySelectorAll('.mini[data-rmc]').forEach(function(b){ b.addEventListener('click',function(){ removeConcept(b.getAttribute('data-rmc')); }); });
+  document.querySelectorAll('.cptbar[data-cpt]').forEach(function(bar){ bar.addEventListener('click',function(e){ if(e.target.closest('button,a')) return; var id=bar.getAttribute('data-cpt'); EXPANDED[id]=!EXPANDED[id]; bar.parentNode.classList.toggle('open',EXPANDED[id]); }); });
+  var xa=document.getElementById('cptExpand'); if(xa) xa.addEventListener('click',function(){ var all=CONCEPTS.every(function(c){return EXPANDED[c.id];}); CONCEPTS.forEach(function(c){ EXPANDED[c.id]=!all; }); EXPANDED['__orphan__']=!all; render(); });
   document.querySelectorAll('.ledit').forEach(function(b){ b.addEventListener('click',function(){ var l=LOCATIONS.filter(function(x){return x.id===b.getAttribute('data-le');})[0]; if(l) openLocForm(l); }); });
   document.querySelectorAll('.crm[data-lrm]').forEach(function(b){ b.addEventListener('click',function(){ removeLoc(b.getAttribute('data-lrm')); }); });
 }
 function fmtD(d){ if(!d) return ''; var p=String(d).split('-'); if(p.length===3) return (+p[1])+'/'+(+p[2])+'/'+String(p[0]).slice(2); return d; }
+var _cpSaveTimer=null;
 function openConceptForm(cpt){
-  cpt=cpt||{}; var f=document.getElementById('conceptForm');
+  cpt=cpt||{}; var f=document.getElementById('conceptForm'); var isEdit=!!cpt.id;
   var set={}; (cpt.markets||[]).forEach(function(m){ set[m]=1; });
   var mboxes=MARKETS.map(function(m){ return '<label class="servechk"><input type="checkbox" class="cp_mkt" value="'+esc(m)+'"'+(set[m]?' checked':'')+'> '+esc(m)+'</label>'; }).join('');
-  f.innerHTML='<div class="cform findcard"><div class="findhd">'+(cpt.id?'Edit concept':'Add a concept')+'</div>'
+  var logoCtl = isEdit
+    ? '<div class="logorow"><div class="logoprev" id="cp_logoprev"></div><div style="flex:1"><input id="cp_logo" value="'+esc(cpt.logo||'')+'" placeholder="Logo image URL"><div class="logobtns"><label class="mfadd">Upload logo<input type="file" id="cp_logofile" accept="image/*" hidden></label><button type="button" class="mfadd" id="cp_logoauto">Use website logo</button></div></div></div>'
+    : '<div class="logorow"><div class="logoprev" id="cp_logoprev"></div><input id="cp_logo" value="'+esc(cpt.logo||'')+'" placeholder="Auto-pulled from the website — or paste a URL"></div>';
+  f.innerHTML='<div class="cform findcard"><div class="findhd">'+(isEdit?'Edit concept':'Add a concept')+' <span class="cpsaved" id="cp_saved"></span></div>'
     +'<div class="cgrid">'
     +'<div><label class="fld">Concept / brand name</label><input id="cp_name" value="'+esc(cpt.name||'')+'" placeholder="e.g. Cane Rosso"></div>'
     +'<div><label class="fld">Website</label><input id="cp_site" value="'+esc(cpt.website||'')+'" placeholder="canerosso.com"></div>'
+    +'<div class="wide"><label class="fld">Logo</label>'+logoCtl+'</div>'
     +'<div class="wide"><label class="fld">Markets</label><div class="servegrid">'+mboxes+'</div></div>'
-    +'</div><div class="cbtns"><button class="sbtn" id="cp_save">'+(cpt.id?'Save concept':'Add concept')+'</button><button class="cbtn" id="cp_cancel">Cancel</button><span id="cp_msg" class="findmsg"></span></div></div>';
+    +'</div><div class="cbtns">'+(isEdit?'<button class="sbtn" id="cp_done">Done</button>':'<button class="sbtn" id="cp_save">Add concept</button>')+'<button class="cbtn" id="cp_cancel">Cancel</button><span id="cp_msg" class="findmsg"></span></div></div>';
   f.removeAttribute('hidden');
-  document.getElementById('cp_save').addEventListener('click',function(){ saveConcept(cpt.id); });
-  document.getElementById('cp_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
+  function drawLogoPrev(){ var u=document.getElementById('cp_logo').value.trim(); var p=document.getElementById('cp_logoprev'); p.innerHTML=u?('<img src="'+esc(u)+'" onerror="this.style.display=\'none\'">'):('<span class="cptlogo-mono" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">'+esc((document.getElementById('cp_name').value||'?').charAt(0).toUpperCase())+'</span>'); }
+  document.getElementById('cp_site').addEventListener('input',function(){ var lg=document.getElementById('cp_logo'); if(!lg.value.trim()||lg.dataset.auto){ var d=hostOf(this.value); lg.value=d?('https://logo.clearbit.com/'+d):''; lg.dataset.auto='1'; drawLogoPrev(); } if(isEdit) queueConceptSave(cpt.id); });
+  document.getElementById('cp_logo').addEventListener('input',function(){ this.dataset.auto=''; drawLogoPrev(); if(isEdit) queueConceptSave(cpt.id); });
+  drawLogoPrev();
+  if(isEdit){
+    document.getElementById('cp_name').addEventListener('input',function(){ queueConceptSave(cpt.id); });
+    f.querySelectorAll('.cp_mkt').forEach(function(x){ x.addEventListener('change',function(){ queueConceptSave(cpt.id); }); });
+    var lf=document.getElementById('cp_logofile'); if(lf) lf.addEventListener('change',function(){ if(lf.files&&lf.files[0]) uploadConceptLogo(cpt.id,lf.files[0]); });
+    var la=document.getElementById('cp_logoauto'); if(la) la.addEventListener('click',function(){ var d=hostOf(document.getElementById('cp_site').value); var lg=document.getElementById('cp_logo'); lg.value=d?('https://logo.clearbit.com/'+d):''; lg.dataset.auto='1'; drawLogoPrev(); queueConceptSave(cpt.id); });
+    document.getElementById('cp_done').addEventListener('click',function(){ if(_cpSaveTimer){clearTimeout(_cpSaveTimer);conceptAutosave(cpt.id,true);} else { f.setAttribute('hidden','');f.innerHTML='';render(); } });
+  } else {
+    document.getElementById('cp_save').addEventListener('click',function(){ saveConcept(null); });
+  }
+  document.getElementById('cp_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; render(); });
   document.getElementById('cp_name').focus();
+}
+function queueConceptSave(id){ var ind=document.getElementById('cp_saved'); if(ind) ind.textContent='…'; if(_cpSaveTimer) clearTimeout(_cpSaveTimer); _cpSaveTimer=setTimeout(function(){ conceptAutosave(id,false); },700); }
+function conceptAutosave(id,close){
+  _cpSaveTimer=null;
+  var name=document.getElementById('cp_name').value.trim(); if(!name) return;
+  var markets=[]; document.querySelectorAll('.cp_mkt:checked').forEach(function(x){ markets.push(x.value); });
+  var body={id:id,name:name,website:document.getElementById('cp_site').value.trim(),logo:document.getElementById('cp_logo').value.trim(),markets:markets};
+  fetch('/api/company/'+encodeURIComponent(ID)+'/concept',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CONCEPTS=j.concepts||CONCEPTS; LOCATIONS=j.locations||LOCATIONS; var ind=document.getElementById('cp_saved'); if(close){ var f=document.getElementById('conceptForm'); f.setAttribute('hidden','');f.innerHTML=''; render(); } else if(ind){ ind.textContent='Saved ✓'; } } else { var m=document.getElementById('cp_msg'); if(m) m.textContent=(j&&j.error)||'Not saved'; } })
+    .catch(function(){ var m=document.getElementById('cp_msg'); if(m) m.textContent='Could not reach the server.'; });
+}
+function uploadConceptLogo(id,file){
+  if(file.size>6*1024*1024){ document.getElementById('cp_msg').textContent='Logo too large (max 6 MB).'; return; }
+  var ind=document.getElementById('cp_saved'); if(ind) ind.textContent='Uploading…';
+  var rd=new FileReader();
+  rd.onload=function(){ fetch('/api/company/'+encodeURIComponent(ID)+'/concept/'+encodeURIComponent(id)+'/logo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:file.name,dataB64:String(rd.result||'')})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CONCEPTS=j.concepts||CONCEPTS; var cc=conceptById(id); var lg=document.getElementById('cp_logo'); if(cc&&lg){ lg.value=cc.logo||''; lg.dataset.auto=''; } var p=document.getElementById('cp_logoprev'); if(p&&cc) p.innerHTML='<img src="'+esc(cc.logo)+'" onerror="this.style.display=\'none\'">'; if(ind) ind.textContent='Saved ✓'; } else { document.getElementById('cp_msg').textContent=(j&&j.error)||'Upload failed.'; } }); };
+  rd.readAsDataURL(file);
 }
 function saveConcept(id){
   var name=document.getElementById('cp_name').value.trim(); var website=document.getElementById('cp_site').value.trim();
   if(!name){ document.getElementById('cp_name').focus(); return; }
   var markets=[]; document.querySelectorAll('.cp_mkt:checked').forEach(function(x){ markets.push(x.value); });
-  var body={name:name,website:website,markets:markets}; if(id) body.id=id;
+  var body={name:name,website:website,logo:document.getElementById('cp_logo').value.trim(),markets:markets}; if(id) body.id=id;
   var b=document.getElementById('cp_save'); b.disabled=true; b.textContent='Saving…';
   fetch('/api/company/'+encodeURIComponent(ID)+'/concept',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CONCEPTS=j.concepts||CONCEPTS; LOCATIONS=j.locations||LOCATIONS; render(); } else { b.disabled=false;b.textContent='Add concept'; document.getElementById('cp_msg').textContent=(j&&j.error)||'Could not save.'; } })
@@ -271,6 +328,7 @@ function openLocForm(l,presetConcept){
     +'<div><label class="fld">Status</label><select id="lo_status">'+ssel+'</select></div>'
     +'<div><label class="fld">Location name</label><input id="lo_name" value="'+esc(l.name||'')+'" placeholder="e.g. Downtown, Airport, Unit 2"></div>'
     +'<div><label class="fld">Site type</label><select id="lo_sitetype">'+stsel+'</select></div>'
+    +'<div><label class="fld">Leased or owned</label><select id="lo_tenure"><option value="">— select —</option><option'+((l.tenure||'')==='Leased'?' selected':'')+'>Leased</option><option'+((l.tenure||'')==='Owned'?' selected':'')+'>Owned</option></select></div>'
     +'<div class="wide"><label class="fld">Address</label><input id="lo_address" value="'+esc(l.address||'')+'" placeholder="Street address"></div>'
     +'<div><label class="fld">City / market</label><input id="lo_city" value="'+esc(l.city||'')+'" placeholder="City"></div>'
     +'<div><label class="fld">State</label><input id="lo_state" value="'+esc(l.state||'')+'" placeholder="TX"></div>'
@@ -278,6 +336,7 @@ function openLocForm(l,presetConcept){
     +'<div><label class="fld">Date opened</label><input type="date" id="lo_opened" value="'+esc(l.opened||'')+'"></div>'
     +'<div><label class="fld">Lease commencement</label><input type="date" id="lo_lstart" value="'+esc(l.leaseStart||'')+'"></div>'
     +'<div><label class="fld">Lease expiration</label><input type="date" id="lo_lexp" value="'+esc(l.leaseExpires||'')+'"></div>'
+    +'<div><label class="fld">Closed / went dark</label><input type="date" id="lo_closed" value="'+esc(l.closedDate||'')+'"></div>'
     +'<div class="wide"><label class="commrow"><input type="checkbox" id="lo_flag"'+(l.flagship?' checked':'')+'> ★ Flagship location for this concept</label></div>'
     +'<div class="wide"><label class="commrow"><input type="checkbox" id="lo_comm"'+(l.commissary?' checked':'')+'> This location is a commissary / central kitchen</label></div>'
     +'<div class="wide" id="servesWrap"'+(l.commissary?'':' style="display:none"')+'>'+servesPicker(l)+'</div>'
@@ -314,7 +373,7 @@ function openFindForm(cptId){
   var f=document.getElementById('findForm');
   var csel=conceptSelectHtml('fd_concept', cpt?cpt.name:'');
   f.innerHTML='<div class="cform findcard"><div class="findhd">✨ Find this concept’s locations</div>'
-    +'<div class="findsub">Pick the concept and confirm its website. Claude searches the web and creates a location record — address and phone — for each unit it finds. Review and edit them after.</div>'
+    +'<div class="findsub">Pick the concept and confirm its website. The RRG analyst searches the web and creates a location record — address and phone — for each unit it finds. Review and edit them after.</div>'
     +'<div class="cgrid">'
     +'<div><label class="fld">Concept</label>'+csel+'</div>'
     +'<div><label class="fld">Approx. # of locations</label><input id="fd_count" placeholder="e.g. 8"></div>'
@@ -333,13 +392,11 @@ function runFindLocations(){
   var msg=document.getElementById('fd_msg');
   if(!concept){ document.getElementById('fd_concept').focus(); msg.textContent='Pick a concept first (add one above if none).'; return; }
   if(!website){ document.getElementById('fd_site').focus(); msg.textContent='A website is needed to search.'; return; }
-  var b=document.getElementById('fd_go'); b.disabled=true; b.textContent='Searching the web…'; msg.textContent='This can take up to a minute — Claude is reading the site and map listings.';
+  var b=document.getElementById('fd_go'); b.disabled=true; b.textContent='Searching the web…'; msg.textContent='This can take up to a minute — the analyst is reading the site and map listings.';
   fetch('/api/company/'+encodeURIComponent(ID)+'/find-locations',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({concept:concept,website:website,count:count})})
     .then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok){ LOCATIONS=j.locations||LOCATIONS; var n=j.created||0; render();
-        // brief confirmation via alert since render() wipes the form
-        setTimeout(function(){ alert(n?('Added '+n+' location'+(n===1?'':'s')+' for '+concept+'.'+(j.note?('\n\n'+j.note):'')):('No new locations were found from that site.'+(j.note?('\n\n'+j.note):''))); },50);
-      } else { b.disabled=false;b.textContent='Search the web & add locations'; msg.textContent=(j&&j.error)||'Search failed.'; }
+      if(j&&j.ok){ var cpt2=CONCEPTS.filter(function(x){return x.name===concept;})[0]; if(cpt2) EXPANDED[cpt2.id]=true; LOCATIONS=j.locations||LOCATIONS; render(); }
+      else { b.disabled=false;b.textContent='Search the web & add locations'; msg.textContent=(j&&j.error)||'Search failed.'; }
     })
     .catch(function(){ b.disabled=false;b.textContent='Search the web & add locations'; msg.textContent='Could not reach the server.'; });
 }
@@ -347,12 +404,12 @@ function saveLoc(id){
   var comm=document.getElementById('lo_comm').checked;
   var servesAll=false, serves=[];
   if(comm){ var sa=document.getElementById('sv_all'); servesAll=!!(sa&&sa.checked); if(!servesAll){ document.querySelectorAll('.sv_one:checked').forEach(function(x){ serves.push(x.value); }); } }
-  var body={ name:document.getElementById('lo_name').value.trim(), concept:document.getElementById('lo_concept').value, siteType:document.getElementById('lo_sitetype').value, address:document.getElementById('lo_address').value.trim(), city:document.getElementById('lo_city').value.trim(), state:document.getElementById('lo_state').value.trim(), phone:document.getElementById('lo_phone').value.trim(), opened:document.getElementById('lo_opened').value, leaseStart:document.getElementById('lo_lstart').value, leaseExpires:document.getElementById('lo_lexp').value, status:document.getElementById('lo_status').value, notes:document.getElementById('lo_notes').value.trim(), flagship:document.getElementById('lo_flag').checked, commissary:comm, servesAll:servesAll, serves:serves };
+  var body={ name:document.getElementById('lo_name').value.trim(), concept:document.getElementById('lo_concept').value, siteType:document.getElementById('lo_sitetype').value, tenure:document.getElementById('lo_tenure').value, address:document.getElementById('lo_address').value.trim(), city:document.getElementById('lo_city').value.trim(), state:document.getElementById('lo_state').value.trim(), phone:document.getElementById('lo_phone').value.trim(), opened:document.getElementById('lo_opened').value, leaseStart:document.getElementById('lo_lstart').value, leaseExpires:document.getElementById('lo_lexp').value, closedDate:document.getElementById('lo_closed').value, status:document.getElementById('lo_status').value, notes:document.getElementById('lo_notes').value.trim(), flagship:document.getElementById('lo_flag').checked, commissary:comm, servesAll:servesAll, serves:serves };
   if(id) body.id=id;
   if(!body.name && !body.address){ document.getElementById('lo_name').focus(); return; }
   var b=document.getElementById('lo_save'); b.disabled=true; b.textContent='Saving…';
   fetch('/api/company/'+encodeURIComponent(ID)+'/location',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||[]; render(); } else { b.disabled=false;b.textContent='Add location'; alert((j&&j.error)||'Could not save the location.'); } })
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||[]; var cpt3=CONCEPTS.filter(function(x){return x.name===body.concept;})[0]; if(cpt3) EXPANDED[cpt3.id]=true; else EXPANDED['__orphan__']=true; render(); } else { b.disabled=false;b.textContent='Add location'; alert((j&&j.error)||'Could not save the location.'); } })
     .catch(function(){ b.disabled=false;b.textContent='Add location'; alert('Could not reach the server.'); });
 }
 function removeLoc(id){

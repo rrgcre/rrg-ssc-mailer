@@ -4,7 +4,7 @@
 // There is NO live agent — this assistant works each ticket automatically: it resolves what
 // it can with direct guidance, flags anything that needs a physical/human action inside RRG,
 // or asks the rep for the missing specifics. Requires ANTHROPIC_API_KEY.
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
+let MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 
 const SYSTEM = `You are the Brokerage Office Assistant at Restaurant Realty Group (RRG), a commercial real estate brokerage specializing exclusively in restaurants and bars. RRG's agents ("reps") open internal request tickets when they need something from the office. You handle every ticket — there is NO human behind you and no live agent will follow up, so you must fully work the ticket yourself in one reply. You are sharp, warm, and completely no-BS. You play to win for the rep and the firm: you remove friction so reps can spend their time in front of buyers and sellers.
@@ -63,7 +63,7 @@ async function handleTicket({ subject, category, priority, details, thread, rep,
   });
   if (!resp.ok) {
     const t = await resp.text().catch(() => '');
-    throw new Error('Claude API error ' + resp.status + ': ' + t.slice(0, 300));
+    throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 300));
   }
   const data = await resp.json();
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
@@ -74,4 +74,5 @@ async function handleTicket({ subject, category, priority, details, thread, rep,
   return a;
 }
 
-module.exports = { handleTicket, MODEL, DEFAULT_SYSTEM: SYSTEM };
+function setModel(m){ if (m) MODEL = String(m); }
+module.exports = { setModel,  handleTicket, MODEL, DEFAULT_SYSTEM: SYSTEM };

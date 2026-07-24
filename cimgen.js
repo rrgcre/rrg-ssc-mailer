@@ -1,8 +1,8 @@
 // RRG — AI CIM (Confidential Information Memorandum) generation. Mirrors bovgen:
 // sends the deal's BOV valuation, the completed Valuation Questionnaire, financial
-// docs, reference links, and rep-provided photo captions to Claude and returns a
+// docs, reference links, and rep-provided photo captions to the AI model and returns a
 // structured CIM "state" the CIM builder renders. Requires ANTHROPIC_API_KEY.
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
+let MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 
 const SYSTEM = `You are a deeply experienced restaurant & bar business-sale advisor at Restaurant Realty Group (RRG). You write Confidential Information Memorandums (CIMs) — the sell-side marketing document a qualified, NDA'd buyer reads to evaluate acquiring a restaurant or bar. You write in RRG's voice: confident, precise, no fluff, defensible, and quietly persuasive. You are selling the business honestly — highlighting real strengths and framing risks as normal diligence items, never hiding them.
@@ -122,7 +122,7 @@ async function generateCim({ business, bovSummary, bovState, questionnaire, call
     if (/too long|prompt is too|maximum.*tokens|context.*length|exceed/i.test(t)) {
       throw new Error('The uploaded documents are too large for the analyst to read in one pass. Send just the essentials and build again.');
     }
-    throw new Error('Claude API error ' + resp.status + ': ' + t.slice(0, 400));
+    throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 400));
   }
   const data = await resp.json();
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
@@ -131,4 +131,5 @@ async function generateCim({ business, bovSummary, bovState, questionnaire, call
   return { state, business: (state.cover && state.cover.title) || business || 'Untitled', usage: data.usage || null };
 }
 
-module.exports = { generateCim, MODEL, DEFAULT_SYSTEM: SYSTEM };
+function setModel(m){ if (m) MODEL = String(m); }
+module.exports = { setModel,  generateCim, MODEL, DEFAULT_SYSTEM: SYSTEM };

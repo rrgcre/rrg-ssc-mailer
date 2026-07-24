@@ -3,7 +3,7 @@
 // physical location's street address, city, and phone number, and returns them as structured
 // records so onboarding can auto-create the location list for that concept. Requires
 // ANTHROPIC_API_KEY. Uses the Anthropic web-search server tool.
-const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
+let MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 
 const SYSTEM = `You are a diligence researcher for Restaurant Realty Group (RRG), a brokerage specializing in restaurants and bars. Your job is to find the real, current physical locations of a restaurant concept so a broker can build the company's location list during onboarding.
@@ -53,7 +53,7 @@ async function findLocations({ company, concept, website, count, systemPrompt })
   });
   if (!resp.ok) {
     const t = await resp.text().catch(() => '');
-    throw new Error('Claude API error ' + resp.status + ': ' + t.slice(0, 400));
+    throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 400));
   }
   const data = await resp.json();
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
@@ -70,4 +70,5 @@ async function findLocations({ company, concept, website, count, systemPrompt })
   return { locations, note: String(a.note || '').slice(0, 300) };
 }
 
-module.exports = { findLocations, MODEL, DEFAULT_SYSTEM: SYSTEM };
+function setModel(m){ if (m) MODEL = String(m); }
+module.exports = { setModel,  findLocations, MODEL, DEFAULT_SYSTEM: SYSTEM };

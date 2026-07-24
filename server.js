@@ -33,6 +33,14 @@ function saveBovs(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_
 function newBovId() { return 'bov_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 // ---- Brand (org logo, admin-managed) ----
+// AI model — admin-settable so the firm can move to a newer model without a redeploy.
+const AI_MODEL_FILE = path.join(BOV_DATA_DIR, 'ai_model.txt');
+const DEFAULT_AI_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
+function loadAiModel() { try { const t = fs.readFileSync(AI_MODEL_FILE, 'utf8').trim(); return t || DEFAULT_AI_MODEL; } catch (e) { return DEFAULT_AI_MODEL; } }
+function saveAiModel(m) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(AI_MODEL_FILE, String(m || '').trim()); } catch (e) {} }
+function applyAiModel() { const m = loadAiModel(); [bovgen, cimgen, leasegen, attackgen, offergen, ticketgen, locationgen, valgen].forEach(g => { try { if (g && g.setModel) g.setModel(m); } catch (e) {} }); }
+applyAiModel(); // pick up the admin-selected model on boot
+
 const BRAND_FILE = path.join(BOV_DATA_DIR, 'brand.json');
 const LOGO_EXT = /^(png|jpe?g|gif|webp|svg)$/i;
 const LOGO_MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' };
@@ -595,7 +603,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path)) return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path)) return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -2384,8 +2392,10 @@ function applyLocationFields(l, b) {
   if (typeof b.phone === 'string') l.phone = b.phone.slice(0, 60);
   if (typeof b.website === 'string') l.website = b.website.slice(0, 300);
   if (typeof b.opened === 'string') l.opened = b.opened.slice(0, 10);
+  if (typeof b.tenure === 'string') l.tenure = (['Leased', 'Owned'].indexOf(b.tenure) >= 0) ? b.tenure : (b.tenure === '' ? '' : l.tenure);
   if (typeof b.leaseStart === 'string') l.leaseStart = b.leaseStart.slice(0, 10);
   if (typeof b.leaseExpires === 'string') l.leaseExpires = b.leaseExpires.slice(0, 10);
+  if (typeof b.closedDate === 'string') l.closedDate = b.closedDate.slice(0, 10);
   if (typeof b.flagship === 'boolean') l.flagship = b.flagship;
   if (typeof b.commissary === 'boolean') l.commissary = b.commissary;
   if (typeof b.servesAll === 'boolean') l.servesAll = b.servesAll;
@@ -2452,6 +2462,9 @@ app.get('/api/company/:id', (req, res) => {
 });
 // ---- Concepts — a company runs one or more concepts (brands); locations attach to a concept. ----
 function newConceptId() { return 'cpt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function domainOf(u) { try { let s = String(u || '').trim(); if (!s) return ''; if (!/^https?:\/\//i.test(s)) s = 'https://' + s; return new URL(s).hostname.replace(/^www\./, ''); } catch (e) { return ''; } }
+// Auto logo from a brand's domain (Clearbit logo service; the client falls back to a monogram if it 404s).
+function logoFromWebsite(w) { const d = domainOf(w); return d ? ('https://logo.clearbit.com/' + d) : ''; }
 app.post('/api/company/:id/concept', express.json(), (req, res) => {
   const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
@@ -2467,16 +2480,57 @@ app.post('/api/company/:id/concept', express.json(), (req, res) => {
     cpt.name = name.slice(0, 120);
     if (typeof b.website === 'string') cpt.website = b.website.slice(0, 300);
     if (Array.isArray(b.markets)) cpt.markets = b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30);
+    // Logo: explicit value wins; else auto-derive from the website if none is set yet.
+    if (typeof b.logo === 'string') cpt.logo = b.logo.slice(0, 400);
+    if (!cpt.logo && cpt.website) cpt.logo = logoFromWebsite(cpt.website);
     cpt.updatedAt = now;
     // keep the locations' concept label in sync with a rename
     if (oldName && oldName !== cpt.name) (c.locations || []).forEach(l => { if ((l.concept || '') === oldName) l.concept = cpt.name; });
   } else {
     if (c.concepts.some(x => normKey(x.name) === normKey(name))) return res.status(400).json({ ok: false, error: 'That concept already exists.' });
-    cpt = { id: newConceptId(), name: name.slice(0, 120), website: String(b.website || '').slice(0, 300), markets: Array.isArray(b.markets) ? b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30) : [], createdAt: now };
+    const website = String(b.website || '').slice(0, 300);
+    cpt = { id: newConceptId(), name: name.slice(0, 120), website: website, logo: (typeof b.logo === 'string' && b.logo) ? b.logo.slice(0, 400) : logoFromWebsite(website), markets: Array.isArray(b.markets) ? b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30) : [], createdAt: now };
     c.concepts.push(cpt);
   }
   c.updatedAt = now; saveCompanies(arr);
   res.json({ ok: true, concepts: c.concepts, locations: c.locations || [], concept: cpt });
+});
+// Concept logo upload — store an image and point the concept's logo at it.
+const CPTLOGO_DIR = path.join(BOV_DATA_DIR, 'cptlogos');
+app.post('/api/company/:id/concept/:cid/logo', express.json({ limit: '8mb' }), (req, res) => {
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const cpt = (c.concepts || []).find(x => x.id === req.params.cid);
+  if (!cpt) return res.status(404).json({ ok: false, error: 'Concept not found.' });
+  const dataB64 = String((req.body && req.body.dataB64) || '').replace(/^data:[^,]*,/, '');
+  if (!dataB64) return res.status(400).json({ ok: false, error: 'No image data.' });
+  const ext = photoExtFromName((req.body && req.body.filename) || '');
+  const buf = Buffer.from(dataB64, 'base64');
+  if (buf.length > 6 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 6 MB).' });
+  try { if (!fs.existsSync(CPTLOGO_DIR)) fs.mkdirSync(CPTLOGO_DIR, { recursive: true }); fs.writeFileSync(path.join(CPTLOGO_DIR, cpt.id + '.' + ext), buf); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the logo.' }); }
+  cpt.logoExt = ext; cpt.logo = '/api/cptlogo/' + cpt.id + '.' + ext + '?v=' + Date.now(); cpt.updatedAt = new Date().toISOString();
+  saveCompanies(arr);
+  res.json({ ok: true, concepts: c.concepts });
+});
+app.post('/api/company/:id/concept/:cid/logo/clear', express.json(), (req, res) => {
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const cpt = (c.concepts || []).find(x => x.id === req.params.cid);
+  if (!cpt) return res.status(404).json({ ok: false, error: 'Concept not found.' });
+  if (cpt.logoExt) { try { fs.unlinkSync(path.join(CPTLOGO_DIR, cpt.id + '.' + cpt.logoExt)); } catch (e) {} cpt.logoExt = ''; }
+  cpt.logo = logoFromWebsite(cpt.website); cpt.updatedAt = new Date().toISOString(); saveCompanies(arr);
+  res.json({ ok: true, concepts: c.concepts });
+});
+app.get('/api/cptlogo/:name', (req, res) => {
+  const name = path.basename(String(req.params.name || ''));
+  if (!/^cpt_[\w]+\.(png|jpg|jpeg|webp|gif|svg)$/.test(name)) return res.status(400).end();
+  const fp = path.join(CPTLOGO_DIR, name);
+  if (!fp.startsWith(CPTLOGO_DIR) || !fs.existsSync(fp)) return res.status(404).end();
+  const ext = name.split('.').pop();
+  res.setHeader('Content-Type', ext === 'png' ? 'image/png' : (ext === 'svg' ? 'image/svg+xml' : (ext === 'webp' ? 'image/webp' : (ext === 'gif' ? 'image/gif' : 'image/jpeg'))));
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  fs.createReadStream(fp).pipe(res);
 });
 app.post('/api/company/:id/concept/:cid/remove', express.json(), (req, res) => {
   const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
@@ -3203,21 +3257,21 @@ app.get('/admin', requireAdmin, (req, res) => {
       </div>
 
       <div class="grp">AI Prompts</div>
-      <h2 style="margin-top:20px" data-open="1">BOV Analyst Prompt <span class="sub2">— the instructions Claude follows when drafting a BOV. Edit to change how valuations are written; keep the JSON output block at the end intact so the BOV still builds. Reset any time to restore the RRG default.</span></h2>
+      <h2 style="margin-top:20px" data-open="1">BOV Analyst Prompt <span class="sub2">— the instructions the RRG analyst follows when drafting a BOV. Edit to change how valuations are written; keep the JSON output block at the end intact so the BOV still builds. Reset any time to restore the RRG default.</span></h2>
       <div class="links">
         <div class="sub2" id="bpstate" style="margin:0 0 8px">Loading…</div>
         <textarea id="bovPrompt" class="bovprompt" spellcheck="false"></textarea>
         <div style="margin-top:10px"><button class="primary" onclick="saveBovPrompt()">Save prompt</button> <button onclick="resetBovPrompt()">Reset to RRG default</button> <span id="bpmsg" class="sub2"></span></div>
       </div>
 
-      <h2 style="margin-top:34px" data-open="1">Marketing Pack Prompt <span class="sub2">— the instructions Claude follows when drafting the Confidential Information Memorandum inside a Marketing Pack. Keep the JSON output block intact so the pack still builds. Reset any time to restore the RRG default.</span></h2>
+      <h2 style="margin-top:34px" data-open="1">Marketing Pack Prompt <span class="sub2">— the instructions the RRG analyst follows when drafting the Confidential Information Memorandum inside a Marketing Pack. Keep the JSON output block intact so the pack still builds. Reset any time to restore the RRG default.</span></h2>
       <div class="links">
         <div class="sub2" id="cpstate" style="margin:0 0 8px">Loading…</div>
         <textarea id="cimPrompt" class="bovprompt" spellcheck="false"></textarea>
         <div style="margin-top:10px"><button class="primary" onclick="saveCimPrompt()">Save prompt</button> <button onclick="resetCimPrompt()">Reset to RRG default</button> <span id="cpmsg" class="sub2"></span></div>
       </div>
 
-      <h2 style="margin-top:34px" data-open="1">Market Attack Plan Prompt <span class="sub2">— the instructions Claude follows when drafting the sell-side Market Attack Plan advanced from a Marketing Pack. Keep the JSON output block intact so the plan still builds. Reset any time to restore the RRG default.</span></h2>
+      <h2 style="margin-top:34px" data-open="1">Market Attack Plan Prompt <span class="sub2">— the instructions the RRG analyst follows when drafting the sell-side Market Attack Plan advanced from a Marketing Pack. Keep the JSON output block intact so the plan still builds. Reset any time to restore the RRG default.</span></h2>
       <div class="links">
         <div class="sub2" id="mpstate" style="margin:0 0 8px">Loading…</div>
         <textarea id="mapPrompt" class="bovprompt" spellcheck="false"></textarea>
@@ -3229,6 +3283,19 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div class="sub2" id="tkstate" style="margin:0 0 8px">Loading…</div>
         <textarea id="ticketPrompt" class="bovprompt" spellcheck="false"></textarea>
         <div style="margin-top:10px"><button class="primary" onclick="saveTicketPrompt()">Save prompt</button> <button onclick="resetTicketPrompt()">Reset to RRG default</button> <span id="tkmsg" class="sub2"></span></div>
+      </div>
+
+      <div class="grp">AI Engine</div>
+      <h2 style="margin-top:20px">AI Model <span class="sub2">— the model powering every AI feature (valuations, marketing packs, attack plans, offer analysis, the location finder, and the Requests office). Change it here to move to a newer model without a redeploy. Enter the exact model id from your AI provider.</span></h2>
+      <div class="links">
+        <div class="sub2" id="aimstate" style="margin:0 0 8px">Loading…</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <input type="text" id="aiModel" placeholder="e.g. claude-sonnet-4-5" style="flex:1;min-width:260px;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy)">
+          <button class="primary" onclick="saveAiModel()">Save model</button>
+          <button onclick="resetAiModel()">Reset to default</button>
+          <span id="aimmsg" class="sub2"></span>
+        </div>
+        <div class="sub2" style="margin-top:8px">Takes effect immediately for new AI runs. If a saved id isn't valid at your provider, AI features will error until it's corrected — reset to default to recover.</div>
       </div>
 
       <div class="grp">Data Backup</div>
@@ -3332,6 +3399,11 @@ app.get('/admin', requireAdmin, (req, res) => {
           b.map(function(x){ return '<tr><td>'+x.name+'</td><td>'+_bkSize(x.size)+'</td><td>'+_bkDate(x.at)+'</td><td><a href="/api/admin/backup/file/'+encodeURIComponent(x.name)+'">Download</a></td></tr>'; }).join('')+'</tbody></table>';
       }).catch(function(){ document.getElementById('bklist').textContent='Could not load snapshots.'; }); }
       function runBackup(){ var m=document.getElementById('bkmsg'); m.textContent='Saving snapshot…'; post('/api/admin/backup/run',{}).then(function(j){ if(j&&j.ok){ m.textContent='Snapshot saved ✓'; loadBackups(); setTimeout(function(){ m.textContent=''; },1500); } else { m.textContent=(j&&j.error)||'Backup failed'; } }); }
+      function _aimState(j){ var s=document.getElementById('aimstate'); if(s) s.textContent = j.isDefault ? ('Using the default model ('+j.default+').') : ('Using a custom model ('+j.model+'). Default is '+j.default+'.'); }
+      function loadAiModel(){ fetch('/api/admin/ai-model').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('aiModel').value=j.model||''; _aimState(j); } }).catch(function(){ var s=document.getElementById('aimstate'); if(s) s.textContent='Could not load the model setting.'; }); }
+      function saveAiModel(){ var v=document.getElementById('aiModel').value.trim(), m=document.getElementById('aimmsg'); m.textContent='Saving…'; post('/api/admin/ai-model',{model:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; _aimState(j); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
+      function resetAiModel(){ if(!confirm('Reset the AI model to the default?')) return; post('/api/admin/ai-model',{reset:true}).then(function(j){ if(j&&j.ok){ document.getElementById('aiModel').value=j.model||''; document.getElementById('aimmsg').textContent='Reset ✓'; _aimState(j); } }); }
+      try{ loadAiModel(); }catch(e){}
       try{ loadBackups(); }catch(e){}
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
       var INTRO_DEFAULT_MSG='', PACK_INTRO_DEFAULT_MSG='';
@@ -3481,6 +3553,17 @@ app.post('/api/admin/map-prompt', requireAdmin, (req, res) => {
 app.get('/api/admin/ticket-prompt', requireAdmin, (req, res) => {
   const custom = loadTicketPromptCustom();
   res.json({ ok: true, prompt: custom || ticketgen.DEFAULT_SYSTEM, isDefault: !custom });
+});
+// ---- AI model selection ----
+app.get('/api/admin/ai-model', requireAdmin, (req, res) => res.json({ ok: true, model: loadAiModel(), default: DEFAULT_AI_MODEL, isDefault: loadAiModel() === DEFAULT_AI_MODEL }));
+app.post('/api/admin/ai-model', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {};
+  if (b.reset) { saveAiModel(''); applyAiModel(); return res.json({ ok: true, model: loadAiModel(), default: DEFAULT_AI_MODEL, isDefault: true }); }
+  const m = String(b.model || '').trim();
+  if (!m) { saveAiModel(''); applyAiModel(); return res.json({ ok: true, model: loadAiModel(), default: DEFAULT_AI_MODEL, isDefault: true }); }
+  if (!/^[a-zA-Z0-9._-]+$/.test(m) || m.length > 80) return res.status(400).json({ ok: false, error: 'That doesn’t look like a valid model id (letters, numbers, dots and dashes only).' });
+  saveAiModel(m); applyAiModel();
+  res.json({ ok: true, model: loadAiModel(), default: DEFAULT_AI_MODEL, isDefault: m === DEFAULT_AI_MODEL });
 });
 // ---- Data backup routes ----
 // List saved daily snapshots + whether off-site automation is armed.
