@@ -2796,6 +2796,125 @@ app.get('/api/counts', (req, res) => {
   const active = { 'rrg_assignments.html': activeDeals };
   res.json({ ok: true, counts, active });
 });
+// ---- Command Center — management + prospecting intelligence across the book & pipeline ----
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(String(dateStr) + 'T00:00:00'); if (isNaN(d.getTime())) return null;
+  const t = new Date(); t.setHours(0, 0, 0, 0);
+  return Math.round((d - t) / 86400000);
+}
+function parseMoney(str) {
+  if (!str) return 0;
+  const m = String(str).replace(/,/g, '').match(/\$?\s*([0-9]+(?:\.[0-9]+)?)\s*([mMkK])?/);
+  if (!m) return 0;
+  let n = parseFloat(m[1]); if (!isFinite(n)) return 0;
+  const u = (m[2] || '').toLowerCase(); if (u === 'm') n *= 1e6; else if (u === 'k') n *= 1e3;
+  return n;
+}
+app.get('/api/command', (req, res) => {
+  const isAdmin = !!(req.user && req.user.role === 'admin');
+  const companies = loadCompanies();
+  const people = loadPeople();
+  // ---------- Lease ladder (every location with a lease expiration) ----------
+  const leaseLadder = [];
+  companies.forEach(c => {
+    (c.locations || []).forEach(l => {
+      const dte = daysUntil(l.leaseExpires);
+      if (dte === null) return;
+      const cpt = (c.concepts || []).find(x => x.name === l.concept);
+      leaseLadder.push({
+        companyId: c.id, company: c.name, concept: l.concept || '', name: l.name || l.address || 'Location',
+        city: l.city || '', state: l.state || '', markets: (cpt && cpt.markets) || [], status: l.status || 'Open',
+        siteType: l.siteType || '', commissary: !!l.commissary, flagship: !!l.flagship,
+        leaseStart: l.leaseStart || '', leaseExpires: l.leaseExpires, daysToExpiry: dte,
+      });
+    });
+  });
+  leaseLadder.sort((a, b) => a.daysToExpiry - b.daysToExpiry);
+  const leaseBuckets = { expired: 0, m6: 0, m12: 0, m18: 0, m24: 0, beyond: 0 };
+  leaseLadder.forEach(x => {
+    const d = x.daysToExpiry;
+    if (d < 0) leaseBuckets.expired++; else if (d <= 182) leaseBuckets.m6++; else if (d <= 365) leaseBuckets.m12++;
+    else if (d <= 547) leaseBuckets.m18++; else if (d <= 730) leaseBuckets.m24++; else leaseBuckets.beyond++;
+  });
+  // ---------- Pipeline (seller-side deal management) ----------
+  const overlay = loadAssignOverlay();
+  const deals = Object.values(assignmentsIndex()).filter(d => isAdmin || ownsAssignment(req, d)).map(d => assignmentView(d, overlay));
+  const STAGE_KEYS = ['call', 'questionnaire', 'bov', 'pack', 'attack', 'room'];
+  const funnel = {}; STAGE_KEYS.forEach(k => funnel[k] = 0);
+  const statusBreak = {}; const byOwner = {};
+  let activeVal = 0, activeCount = 0, closedCount = 0, lostCount = 0;
+  const now = Date.now();
+  const staleRows = [], expiringRows = [], noInterestRows = [];
+  deals.forEach(d => {
+    STAGE_KEYS.forEach(k => { if (d.stages[k] && d.stages[k].done) funnel[k]++; });
+    statusBreak[d.status] = (statusBreak[d.status] || 0) + 1;
+    const live = d.status !== 'Closed' && d.status !== 'Lost';
+    const own = d.owner || '—';
+    byOwner[own] = byOwner[own] || { owner: own, active: 0, total: 0, expiring: 0, value: 0 };
+    byOwner[own].total++;
+    if (d.status === 'Closed') closedCount++; if (d.status === 'Lost') lostCount++;
+    if (live) {
+      activeCount++; byOwner[own].active++;
+      const v = parseMoney(d.value); activeVal += v; byOwner[own].value += v;
+      // stale: no activity in 30+ days
+      const la = d.lastActivity ? new Date(d.lastActivity).getTime() : 0;
+      const ageDays = la ? Math.round((now - la) / 86400000) : null;
+      if (ageDays !== null && ageDays >= 30) staleRows.push({ key: d.key, business: d.business, owner: own, status: d.status, ageDays });
+      // no buyer interest but marketed (has pack)
+      if (d.stages.pack && d.stages.pack.done && !(d.offers.length || d.tours.length)) noInterestRows.push({ key: d.key, business: d.business, owner: own });
+    }
+    const dte = daysUntil(d.listingExpires);
+    if (dte !== null && dte <= 90) { byOwner[own].expiring++; expiringRows.push({ key: d.key, business: d.business, owner: own, daysToExpiry: dte, autoRenew: d.autoRenew, listingExpires: d.listingExpires }); }
+  });
+  expiringRows.sort((a, b) => a.daysToExpiry - b.daysToExpiry);
+  staleRows.sort((a, b) => b.ageDays - a.ageDays);
+  // ---------- Portfolio intelligence ----------
+  let locTotal = 0, conceptTotal = 0, commissaryCount = 0;
+  const statusMix = {}, siteMix = {}, marketCoverage = {};
+  const multiUnit = [], singleUnit = [], darkUnits = [], underConstruction = [], noContacts = [], noDeals = [];
+  const dealsByCompany = {}; loadDeals().forEach(d => { if (d.companyId) dealsByCompany[d.companyId] = (dealsByCompany[d.companyId] || 0) + 1; });
+  RRG_METROS.forEach(m => marketCoverage[m] = { concepts: 0, locations: 0 });
+  companies.forEach(c => {
+    const locs = c.locations || [];
+    locTotal += locs.length;
+    (c.concepts || []).forEach(cpt => {
+      conceptTotal++;
+      const cptLocs = locs.filter(l => l.concept === cpt.name);
+      if (cptLocs.length > 1) multiUnit.push({ companyId: c.id, company: c.name, concept: cpt.name, units: cptLocs.length });
+      else singleUnit.push({ companyId: c.id, company: c.name, concept: cpt.name, units: cptLocs.length });
+      (cpt.markets || []).forEach(mk => { if (marketCoverage[mk]) { marketCoverage[mk].concepts++; marketCoverage[mk].locations += cptLocs.length; } });
+    });
+    locs.forEach(l => {
+      statusMix[l.status || 'Open'] = (statusMix[l.status || 'Open'] || 0) + 1;
+      if (l.siteType) siteMix[l.siteType] = (siteMix[l.siteType] || 0) + 1;
+      if (l.commissary) commissaryCount++;
+      if ((l.status || '') === 'Dark') darkUnits.push({ companyId: c.id, company: c.name, concept: l.concept || '', name: l.name || l.address || 'Location', city: l.city || '' });
+      if ((l.status || '') === 'Under Construction') underConstruction.push({ companyId: c.id, company: c.name, concept: l.concept || '', name: l.name || l.address || 'Location', city: l.city || '' });
+    });
+    const contactCount = people.filter(p => p.companyId === c.id).length;
+    if (!contactCount) noContacts.push({ companyId: c.id, company: c.name });
+    if (!dealsByCompany[c.id]) noDeals.push({ companyId: c.id, company: c.name });
+  });
+  multiUnit.sort((a, b) => b.units - a.units);
+  res.json({
+    ok: true, isAdmin,
+    generatedAt: new Date().toISOString(),
+    lease: { ladder: leaseLadder, buckets: leaseBuckets },
+    pipeline: {
+      funnel, funnelOrder: STAGE_KEYS, statusBreak,
+      summary: { total: deals.length, active: activeCount, closed: closedCount, lost: lostCount, activeValue: Math.round(activeVal) },
+      byOwner: Object.values(byOwner).sort((a, b) => b.active - a.active),
+      expiring: expiringRows, stale: staleRows, noInterest: noInterestRows,
+    },
+    portfolio: {
+      totals: { companies: companies.length, concepts: conceptTotal, locations: locTotal, contacts: people.length, commissaries: commissaryCount },
+      statusMix, siteMix, marketCoverage,
+      multiUnit, singleUnit: singleUnit.length, darkUnits, underConstruction,
+      housekeeping: { noContacts, noDeals },
+    },
+  });
+});
 
 function roomGatePage(r, err) {
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">Enter your personal access code to continue. Access is provided by Restaurant Realty Group under NDA.</div>`;
