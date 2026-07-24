@@ -1351,6 +1351,18 @@ app.get('/api/room/:id', (req, res) => {
   const origin = req.protocol + '://' + req.get('host');
   res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-100).reverse(), categories: ROOM_CATEGORIES } });
 });
+// Create a standalone data room (not tied to a Marketing Pack).
+app.post('/api/room/new', express.json(), (req, res) => {
+  const b = req.body || {};
+  const rec = {
+    id: newRoomId(), srcCimId: '', srcBovId: '', token: newRoomToken(),
+    business: String(b.business || 'Data Room').slice(0, 120),
+    by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
+    createdAt: new Date().toISOString(), docs: [], access: [],
+  };
+  const arr = loadRooms(); arr.push(rec); saveRooms(arr);
+  res.json({ ok: true, id: rec.id });
+});
 // Ensure (auto-create) the data room for a deal, from the Marketing Pack.
 app.post('/api/cim/:id/room', (req, res) => {
   const cim = loadCims().find(x => x.id === req.params.id);

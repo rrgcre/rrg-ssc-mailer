@@ -83,7 +83,9 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
 .trackhead:first-child{margin-top:6px;}
 .trackhead .tl{font-size:15px;font-weight:800;color:var(--navy);letter-spacing:-.01em;}
 .trackhead .tn{font-size:12px;color:var(--muted);font-weight:500;}
-.grid.flow .card{border-top:3px solid var(--red);}
+.grid.flow .card{border-top:3px solid var(--red);background:linear-gradient(180deg,#fdf4f3 0%,#fbfcfe 46%);}
+.grid.tenant .card{border-top:3px solid #2647b0;background:linear-gradient(180deg,#eff3fc 0%,#fbfcfe 46%);}
+.grid.tenant .card::before{background:#2647b0;}
 .stepbadge{position:absolute;top:12px;right:14px;z-index:3;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--red);background:#fdeceb;border-radius:20px;padding:3px 9px;}
 .card.hasstep .tag{display:none;}
 .card.hasstep .cardtop{justify-content:flex-start;}
@@ -102,6 +104,10 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
 .card h2{font-size:18px;font-weight:800;color:var(--navy);margin:0 0 6px;letter-spacing:-.01em;}
 .card p{font-size:13px;line-height:1.5;color:var(--muted);margin:0 0 18px;flex:1;}
 .open{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:13px;color:var(--navy);}
+.cardin{position:relative;z-index:1;display:flex;flex-direction:column;flex:1;}
+.cardwm{position:absolute;right:-22px;bottom:-26px;width:162px;height:162px;opacity:.07;z-index:0;pointer-events:none;}
+.cardwm .icon{width:162px;height:162px;}
+.card:hover .cardwm{opacity:.09;}
 .cardfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;}
 .guidebtn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:#98a1b5;font:inherit;font-size:12px;font-weight:700;padding:4px 0;}
 .guidebtn:hover{color:var(--red);}
@@ -406,12 +412,15 @@ function cardEl(t){
   var step = t.step ? '<span class="stepbadge">Step '+t.step+'</span>' : '';
   var cta = t.pdf ? 'Open PDF' : 'Open tool';
   a.innerHTML =
-    step+
-    '<div class="cardtop">'+(ICONS[t.icon]||ICONS.doc)+'<span class="tag '+tagclass+'">'+esc(t.tag)+'</span></div>'+
-    '<h2>'+esc(t.name)+'</h2>'+
-    '<p>'+esc(t.desc)+'</p>'+
-    '<div class="cardfoot"><span class="open">'+cta+' '+ARROW+'</span>'+
-      '<button class="guidebtn" type="button"><span class="ic">i</span> How to use</button></div>';
+    '<div class="cardwm">'+(ICONS[t.icon]||ICONS.doc)+'</div>'+
+    '<div class="cardin">'+
+      step+
+      '<div class="cardtop">'+(ICONS[t.icon]||ICONS.doc)+'<span class="tag '+tagclass+'">'+esc(t.tag)+'</span></div>'+
+      '<h2>'+esc(t.name)+'</h2>'+
+      '<p>'+esc(t.desc)+'</p>'+
+      '<div class="cardfoot"><span class="open">'+cta+' '+ARROW+'</span>'+
+        '<button class="guidebtn" type="button"><span class="ic">i</span> How to use</button></div>'+
+    '</div>';
   var gb=a.querySelector('.guidebtn');
   if(gb) gb.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); openGuide(t); });
   return a;
@@ -447,7 +456,7 @@ function buildTiles(isAdmin, adminOnly){
     head.innerHTML='<span class="tl">'+esc(tr.label)+'</span><span class="tn">'+esc(tr.note)+'</span>';
     grid.appendChild(head);
     var g=document.createElement('div');
-    g.className='grid'+(tr.flow?' flow':'');
+    g.className='grid'+(tr.flow?' flow':'')+' '+tr.key;
     items.forEach(function(t){ g.appendChild(cardEl(t)); });
     if(tr.key==='tenant'){
       var add=document.createElement('div');
