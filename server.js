@@ -2186,6 +2186,8 @@ app.post('/api/person', express.json(), (req, res) => {
   if (typeof b.name === 'string') p.name = b.name.slice(0, 160);
   if (typeof b.company === 'string') p.company = b.company.slice(0, 160);
   if (typeof b.companyId === 'string') p.companyId = b.companyId.slice(0, 40);
+  // A typed company name links to (or creates) a real company record.
+  if (typeof b.companyName === 'string' && b.companyName.trim()) { const co = findOrCreateCompany(req, { name: b.companyName }); if (co) { p.companyId = co.id; p.company = co.name; } }
   if (typeof b.email === 'string') p.email = b.email.slice(0, 160);
   if (typeof b.phone === 'string') p.phone = b.phone.slice(0, 60);
   if (typeof b.type === 'string' && PERSON_TYPES.indexOf(b.type) >= 0) p.type = b.type;

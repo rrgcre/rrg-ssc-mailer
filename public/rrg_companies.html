@@ -33,6 +33,16 @@ tr:hover td{background:#fbfcfe;}
 .open{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:7px 14px;font:inherit;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
 .foot{max-width:1120px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+.newbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin-left:auto;}
+.hd input{margin-left:10px;}
+.modal{position:fixed;inset:0;background:rgba(6,14,32,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
+.modal[hidden]{display:none!important;}
+.modalcard{background:#fff;border-radius:16px;width:100%;max-width:440px;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;}
+.modalh{padding:18px 22px;font-size:16px;font-weight:800;color:var(--navy);border-bottom:1px solid var(--line);}
+.modalb{padding:18px 22px;} .mfld{display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:12px 0 6px;} .modalb .mfld:first-child{margin-top:0;}
+.modalb input,.modalb select{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;background:#fff;}
+.modalf{display:flex;gap:9px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line);}
+.mbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 17px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;} .mbtn.ghost{background:#fff;color:var(--muted);border-color:var(--line);}
 </style>
 </head>
 <body>
@@ -46,11 +56,20 @@ tr:hover td{background:#fbfcfe;}
 </div></div>
 <div class="wrap">
   <div class="card">
-    <div class="hd"><b>Companies</b><span class="cnt" id="cnt"></span><input id="search" placeholder="Search name or market…" oninput="applyFilter()"></div>
+    <div class="hd"><b>Companies</b><span class="cnt" id="cnt"></span><button id="newBtn" class="newbtn">+ New company</button><input id="search" placeholder="Search name or market…" oninput="applyFilter()"></div>
     <div id="body"></div>
   </div>
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<div id="modal" class="modal" hidden><div class="modalcard">
+  <div class="modalh">New company</div>
+  <div class="modalb">
+    <label class="mfld">Company name</label><input id="m_name" placeholder="e.g. Blue Agave Restaurant Group">
+    <label class="mfld">Type</label><select id="m_type"></select>
+    <label class="mfld">Market</label><input id="m_market" placeholder="City / metro (optional)">
+  </div>
+  <div class="modalf"><button id="m_cancel" class="mbtn ghost">Cancel</button><button id="m_create" class="mbtn">Create company</button></div>
+</div></div>
 <script src="/rrg_list.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -75,7 +94,21 @@ function renderList(list){
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
 }
-fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load companies.</div>'; });
+var CTYPES=['Business'];
+function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=CTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join(''); document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_name').focus(); }
+function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_name','m_market'].forEach(function(id){document.getElementById(id).value='';}); }
+function createCompany(){
+  var name=document.getElementById('m_name').value.trim(); if(!name){ document.getElementById('m_name').focus(); return; }
+  var b=document.getElementById('m_create'); b.disabled=true; b.textContent='Creating…';
+  fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:name,type:document.getElementById('m_type').value,market:document.getElementById('m_market').value.trim()})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.company){ location.href='./rrg_company.html?id='+encodeURIComponent(j.company.id); } else { b.disabled=false;b.textContent='Create company'; alert((j&&j.error)||'Could not create the company.'); } })
+    .catch(function(){ b.disabled=false;b.textContent='Create company'; alert('Could not reach the server.'); });
+}
+document.getElementById('newBtn').addEventListener('click',openModal);
+document.getElementById('m_cancel').addEventListener('click',closeModal);
+document.getElementById('m_create').addEventListener('click',createCompany);
+document.getElementById('modal').addEventListener('click',function(e){ if(e.target.id==='modal') closeModal(); });
+fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; CTYPES=(j&&j.types)||CTYPES; applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load companies.</div>'; });
 </script>
 </body>
 </html>
