@@ -225,15 +225,13 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
    icon options: 'target' | 'funnel' | 'gauge' | 'doc'   (add more in ICONS)
    ========================================================================= */
 var TOOLS = [
-  /* ---- Book of Business (the overview) ---- */
+  /* ---- Book of Business — the top row: companies, contacts, deals ---- */
+  { name:'Companies', tag:'Deal', file:'rrg_companies.html', icon:'buildings', track:'book',
+    desc:"Every company in your book — the businesses you're selling and the buyer groups chasing them. Each company file holds its contacts, its locations, and every deal tied to it. Companies are created automatically when you start a deal." },
+  { name:'Contacts', tag:'Deal', file:'rrg_people.html', icon:'people', track:'book',
+    desc:"Every buyer, seller, and client in one searchable directory. Open a contact to see everything they're connected to across your whole book — their company, the deals they're on, and every offer, tour, and NDA in their name." },
   { name:'Deals', tag:'Deal', file:'rrg_assignments.html', icon:'briefcase', track:'book',
     desc:"Every deal in one file. Each deal ties together its qualification call, questionnaire, valuation, marketing pack, attack plan, data room, and lease abstract — so you see at a glance where every listing stands, and manage status, owner, offers, tours, and notes from one place." },
-
-  /* ---- CRM ---- */
-  { name:'Companies', tag:'Deal', file:'rrg_companies.html', icon:'buildings', track:'crm',
-    desc:"Every company in your book — the businesses you're selling and the buyer groups chasing them. Each company file holds its contacts, its locations, and every deal tied to it. Companies are created automatically when you start a deal." },
-  { name:'Contacts', tag:'Deal', file:'rrg_people.html', icon:'people', track:'crm',
-    desc:"Every buyer, seller, and client in one searchable directory. Open a contact to see everything they're connected to across your whole book — their company, the deals they're on, and every offer, tour, and NDA in their name." },
 
   /* ---- Seller Engagement pipeline (ordered by step) ---- */
   { name:'Seller Qualification Calls', tag:'Seller', file:'rrg_screening_queue.html', icon:'funnel', track:'pipeline', step:1,
@@ -267,8 +265,7 @@ var TOOLS = [
 ];
 
 var TRACKS = [
-  { key:'book',     label:'Book of Business', note:'every deal in one file — the command center for the whole pipeline' },
-  { key:'crm',      label:'CRM', note:'the people and companies behind the deals — your whole book of relationships' },
+  { key:'book',     label:'Book of Business', note:'companies, contacts, and deals — the command center for your whole book' },
   { key:'pipeline', label:'Seller Engagement', note:'the deal pipeline — screen → value → opine → offer → close', flow:true },
   { key:'tenant',   label:'Tenant Representation', note:'find the space, prove the fit, track the tour, close the lease' },
 ];
