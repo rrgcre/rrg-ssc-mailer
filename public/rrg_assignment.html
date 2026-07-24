@@ -27,7 +27,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 /* accordion */
 .card.acc > .ch{cursor:pointer;user-select:none;transition:background .15s;}
 .card.acc > .ch:hover{background:#fafbfe;}
-.accchev{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex:none;color:var(--soft);font-size:11px;transition:transform .2s ease;}
+.card .ch .accchev{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex:none;margin-left:0;color:var(--red);font-size:15px;line-height:1;transition:transform .2s ease;}
 .card.acc:not(.collapsed) > .ch .accchev{transform:rotate(90deg);}
 .card.acc.collapsed > .ch{border-bottom:none;}
 .card.acc.collapsed > *:not(.ch){display:none !important;}
@@ -260,7 +260,7 @@ function setupAccordion(){
     var ch=card.querySelector('.ch'); if(!ch) return;
     var title=accTitle(card);
     if(!ch.querySelector('.accchev')){
-      var chev=document.createElement('span'); chev.className='accchev'; chev.textContent='▸';
+      var chev=document.createElement('span'); chev.className='accchev'; chev.textContent='▶';
       ch.insertBefore(chev, ch.firstChild);
       ch.addEventListener('click', function(e){
         if(e.target.closest('button, a, input, select, textarea')) return;
