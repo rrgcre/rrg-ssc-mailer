@@ -72,7 +72,7 @@ tr:hover td{background:#fbfcfe;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 var ALL=[], CTL=null, FILTER='';
-var STAGES=[['call','Call'],['questionnaire','VQ'],['bov','BOV'],['pack','Pack'],['attack','MAP'],['room','Room'],['lease','Lease']];
+var STAGES=[['call','Call'],['questionnaire','VQ'],['bov','BOV'],['pack','Pack'],['lease','Lease'],['attack','MAP'],['room','Room']];
 function pipeCell(a){
   return '<div class="pipe">'+STAGES.map(function(s){ var st=a.stages[s[0]]; var cls=!st?'':(st.done?'done':'pend'); return '<div class="pnode'+(st?' act':'')+'"><div class="pdot '+cls+'" title="'+esc(s[1])+(st?(st.done?' — done':' — in progress'):' — not started')+'"></div><div class="plabel">'+esc(s[1])+'</div></div>'; }).join('')+'</div>';
 }

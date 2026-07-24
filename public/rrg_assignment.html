@@ -60,6 +60,79 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .saved.show{opacity:1;}
 .foot{max-width:1040px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .loading{max-width:1040px;margin:60px auto;padding:0 24px;color:var(--muted);text-align:center;}
+/* room activity */
+.roomact{padding:4px 0 6px;}
+.prow{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);cursor:pointer;}
+.prow:hover{background:#fbfcfe;}
+.pmain{min-width:0;} .pname{font-size:13.5px;font-weight:800;color:var(--navy);display:flex;align-items:center;gap:8px;} .psub{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.pcount{margin-left:auto;font-size:12px;color:var(--ink);font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:9px;}
+.chev{display:inline-block;color:var(--soft);transition:transform .15s;font-size:11px;}
+.prow.open .chev{transform:rotate(90deg);}
+.apill{font-size:9px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:2px 7px;border-radius:999px;}
+.apill.on{background:#eef7f0;color:var(--green);border:1px solid #bfe6d1;} .apill.off{background:#fdeceb;color:var(--red);border:1px solid #f3cfc9;}
+.pevents{background:#f7f9fc;border-bottom:1px solid var(--line);padding:6px 20px 12px 20px;}
+.tl{padding:4px 0;} .tlrow{display:flex;gap:11px;padding:8px 0;border-bottom:1px dashed #e3e8f0;} .tlrow:last-child{border-bottom:none;}
+.tlic{width:22px;height:22px;flex:none;border-radius:50%;background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:11px;}
+.tll{font-size:12.5px;color:var(--ink);font-weight:600;} .tlm{font-size:11px;color:var(--muted);margin-top:1px;}
+.noev{color:var(--muted);font-size:12.5px;font-style:italic;}
+/* offers */
+.offers{padding:6px 0 8px;}
+.addoffer,.savebtn2,.cancelbtn{font:inherit;font-weight:700;border-radius:8px;cursor:pointer;}
+.addoffer{background:var(--navy);color:#fff;border:1px solid var(--navy);padding:7px 13px;font-size:12px;}
+.olist{padding:2px 0;}
+.ocard{padding:15px 20px;border-bottom:1px solid var(--line);}
+.ohead{display:flex;align-items:center;gap:11px;}
+.obuyer2{font-weight:800;color:var(--navy);font-size:15px;} .oamt{margin-left:auto;font-weight:800;color:var(--navy);font-size:16px;letter-spacing:-.01em;}
+.ometa{font-size:12px;color:var(--muted);margin-top:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.oterms2{font-size:12.5px;color:var(--ink);margin-top:9px;line-height:1.5;background:var(--wash);border:1px solid var(--line);border-radius:8px;padding:9px 12px;}
+.ocounter{font-size:12px;color:#b9761a;font-weight:600;margin-top:8px;}
+.otype{font-size:10px;font-weight:800;letter-spacing:.04em;padding:3px 8px;border-radius:6px;} .otype.ioi{background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;} .otype.loi{background:#fff4e6;color:#b9761a;border:1px solid #f0d7ad;}
+.opill{font-size:9.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 8px;border-radius:999px;border:1px solid;white-space:nowrap;}
+.os-received{background:#eef2fb;color:#2647b0;border-color:#d3ddf3;} .os-underreview{background:#f2f4f8;color:#5a6478;border-color:#e0e5ee;}
+.os-countered{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;} .os-accepted{background:#eafaf0;color:#0e7a53;border-color:#b9e6cd;}
+.os-rejected,.os-withdrawn{background:#fdeceb;color:var(--red);border-color:#f3cfc9;}
+.oscore{font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid;} .oscore.s-hi{background:#eafaf0;color:#0e7a53;border-color:#b9e6cd;} .oscore.s-mid{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;} .oscore.s-lo{background:#fdeceb;color:var(--red);border-color:#f3cfc9;}
+.oscore.big{font-size:22px;width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:none;padding:0;}
+/* manual rating */
+.orate{display:flex;align-items:center;gap:10px;margin-top:11px;} .orlabel{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;}
+.ratebtns{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+.rbtn{font:inherit;font-size:11.5px;font-weight:700;padding:6px 12px;background:#fff;color:var(--muted);border:none;border-right:1px solid var(--line);cursor:pointer;}
+.rbtn:last-child{border-right:none;}
+.rbtn.strong.on{background:#eafaf0;color:#0e7a53;} .rbtn.good.on{background:#eef2fb;color:#2647b0;} .rbtn.fair.on{background:#fff4e6;color:#b9761a;} .rbtn.weak.on{background:#fdeceb;color:var(--red);}
+.rbtn.on{font-weight:800;}
+/* actions */
+.oactions{display:flex;align-items:center;gap:7px;margin-top:13px;flex-wrap:wrap;}
+.oact{font:inherit;font-size:12px;font-weight:700;padding:7px 13px;border-radius:8px;cursor:pointer;border:1px solid;}
+.oact.analyze{background:var(--navy);color:#fff;border-color:var(--navy);} .oact.accept{background:#fff;color:#0e7a53;border-color:#bfe6d1;} .oact.counter{background:#fff;color:#b9761a;border-color:#f0d7ad;} .oact.reject{background:#fff;color:var(--red);border-color:#f3cfc9;}
+.oact:disabled{opacity:.6;cursor:default;} .ospacer{flex:1;}
+.oedit,.odel{background:#fff;border:1px solid var(--line);color:var(--navy);padding:6px 11px;font-size:11.5px;border-radius:8px;cursor:pointer;} .odel{color:var(--red);border-color:#f0c9c6;}
+/* analysis panel */
+.oanalysis{margin-top:13px;background:#f7f9fc;border:1px solid var(--line);border-radius:10px;padding:14px 15px;}
+.oaload,.oaerr{font-size:12.5px;color:var(--muted);font-style:italic;} .oaerr{color:var(--red);font-style:normal;}
+.oahead{display:flex;align-items:flex-start;gap:12px;} .oahd{flex:1;min-width:0;}
+.oaverdict{font-size:13px;font-weight:800;color:var(--navy);} .oahl{font-size:12.5px;color:var(--ink);margin-top:3px;}
+.oachip{font-size:10px;font-weight:800;letter-spacing:.03em;padding:3px 9px;border-radius:999px;white-space:nowrap;border:1px solid;}
+.oachip.act-accept{background:#eafaf0;color:#0e7a53;border-color:#b9e6cd;} .oachip.act-counter{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;} .oachip.act-reject{background:#fdeceb;color:var(--red);border-color:#f3cfc9;}
+.oavs{font-size:12.5px;color:var(--ink);margin-top:10px;font-weight:600;}
+.oalists{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:11px;} @media(max-width:640px){.oalists{grid-template-columns:1fr;}}
+.oalbl{font-size:10px;letter-spacing:.06em;text-transform:uppercase;font-weight:700;color:var(--soft);margin-bottom:4px;}
+.oal{margin:0;padding-left:16px;} .oal li{font-size:12px;margin:3px 0;line-height:1.45;} .oal.good li{color:#177a4e;} .oal.bad li{color:#b3392f;}
+.oarec{font-size:12.5px;color:var(--ink);line-height:1.55;margin-top:11px;}
+.oasug{font-size:12.5px;color:#8a5a12;background:#fff8ec;border:1px solid #f0d7ad;border-radius:8px;padding:9px 12px;margin-top:11px;}
+.oaby{font-size:10.5px;color:var(--soft);margin-top:10px;}
+#offerForm,#tourForm{padding:14px 20px 4px;border-bottom:1px solid var(--line);background:#fbfcff;}
+/* tours */
+.tlist{padding:2px 0;}
+.tcard{padding:14px 20px;border-bottom:1px solid var(--line);}
+.thead{display:flex;align-items:center;gap:10px;} .tparty{font-weight:800;color:var(--navy);font-size:14px;}
+.tmeta{font-size:12px;color:var(--muted);margin-top:5px;} .tnotes{font-size:12.5px;color:var(--ink);margin-top:8px;line-height:1.5;background:var(--wash);border:1px solid var(--line);border-radius:8px;padding:9px 12px;}
+.tint{font-size:9.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid;}
+.ti-hot{background:#fdeceb;color:var(--red);border-color:#f3cfc9;} .ti-warm{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;} .ti-cool{background:#eef2fb;color:#2647b0;border-color:#d3ddf3;} .ti-passed{background:#f2f4f8;color:#6b7488;border-color:#e0e5ee;}
+.tedit,.tdel{background:#fff;border:1px solid var(--line);color:var(--navy);padding:6px 11px;font-size:11.5px;border-radius:8px;cursor:pointer;} .tdel{color:var(--red);border-color:#f0c9c6;}
+.ofgrid{display:grid;grid-template-columns:110px 1fr 1fr;gap:12px;} .tourgrid{grid-template-columns:1fr 1fr 1fr;} .off.wide{grid-column:1/-1;} .off label.fld{margin-top:0;}
+.off input,.off select,.off textarea{width:100%;border:1px solid #cfd6e2;border-radius:8px;padding:9px 11px;font:inherit;font-size:13px;} .off textarea{min-height:60px;}
+.ofbtns{display:flex;gap:9px;margin:13px 0 6px;} .savebtn2{background:var(--navy);color:#fff;border:1px solid var(--navy);padding:9px 16px;font-size:13px;} .cancelbtn{background:#fff;color:var(--muted);border:1px solid var(--line);padding:9px 14px;font-size:13px;}
+@media(max-width:600px){.ofgrid{grid-template-columns:1fr 1fr;}}
 </style>
 </head>
 <body>
@@ -76,16 +149,18 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return '—'; var d=new Date(iso); if(isNaN(d.getTime())) return '—'; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
-var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false;
+var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[];
+var OFFER_TYPES=['IOI','LOI'], OFFER_STATUSES=['Received','Under review','Countered','Accepted','Rejected','Withdrawn'];
+var TOUR_INTEREST=['Hot','Warm','Cool','Passed'];
 // stage definitions: key, label, description, link builder
 var STAGES=[
   { k:'call', name:'Seller Qualification Call', lbl:'Call', href:function(s){return './seller_screening.html?screening='+encodeURIComponent(s.id);}, open:'Open call' },
   { k:'questionnaire', name:'Valuation Questionnaire', lbl:'VQ', href:function(s){return './valuation_questionnaire.html?q='+encodeURIComponent(s.id);}, open:'Open questionnaire' },
   { k:'bov', name:'Broker Opinion of Value', lbl:'BOV', href:function(s){return './rrg_bov_builder.html?bov='+encodeURIComponent(s.id);}, open:'Open BOV' },
   { k:'pack', name:'Marketing Pack', lbl:'Pack', href:function(s){return './rrg_cim_builder.html?cim='+encodeURIComponent(s.id);}, open:'Open pack' },
+  { k:'lease', name:'Lease Abstract', lbl:'Lease', href:function(s){return './rrg_lease_abstract.html?lease='+encodeURIComponent(s.id);}, open:'Open abstract' },
   { k:'attack', name:'Market Attack Plan', lbl:'MAP', href:function(s){return './rrg_attack_builder.html?map='+encodeURIComponent(s.id);}, open:'Open plan' },
-  { k:'room', name:'Data Room', lbl:'Room', href:function(s){return './rrg_room.html?room='+encodeURIComponent(s.id);}, open:'Open room' },
-  { k:'lease', name:'Lease Abstract', lbl:'Lease', href:function(s){return './rrg_lease_abstract.html?lease='+encodeURIComponent(s.id);}, open:'Open abstract' }
+  { k:'room', name:'Data Room', lbl:'Room', href:function(s){return './rrg_room.html?room='+encodeURIComponent(s.id);}, open:'Open room' }
 ];
 function stageMeta(k,s){
   if(k==='call') return s.meta||'Logged';
@@ -143,6 +218,9 @@ function render(){
     '<div class="main">'
     + '<div class="card"><div class="ch"><b>Deal facts</b><span>'+done+' of '+STAGES.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
     + '<div class="card"><div class="ch"><b>Pipeline</b><span>'+started+' of '+STAGES.length+' started</span></div><div class="track">'+steps+'</div></div>'
+    + offersCard()
+    + toursCard()
+    + roomActivityCard()
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
@@ -159,6 +237,295 @@ function render(){
     el.addEventListener(ev,function(){ setDirty(true); });
   });
   document.getElementById('savebtn').addEventListener('click',save);
+  wireRoomActivity();
+  wireOffers();
+  wireTours();
+}
+function fmtDT(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; var h=d.getHours(),m=d.getMinutes(),ap=h<12?'AM':'PM',hh=(h%12)||12; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2)+' '+hh+':'+String(m).padStart(2,'0')+' '+ap; }
+function evLabel(e){
+  if(e.event==='download') return 'Downloaded '+(e.doc?('“'+e.doc+'”'):'a document');
+  if(e.event==='signin')   return 'Signed in with an access code';
+  if(e.event==='view')     return 'Opened the data room';
+  return e.event||'Activity';
+}
+function evIcon(e){ return e.event==='download'?'⬇':(e.event==='signin'?'🔑':'👁'); }
+function timelineHTML(events){
+  if(!events.length) return '<div class="noev">No recorded activity.</div>';
+  return '<div class="tl">'+events.map(function(e){
+    return '<div class="tlrow"><span class="tlic">'+evIcon(e)+'</span><div class="tltxt"><div class="tll">'+esc(evLabel(e))+'</div><div class="tlm">'+esc(fmtDT(e.at))+(e.ip?(' · '+esc(e.ip)):'')+'</div></div></div>';
+  }).join('')+'</div>';
+}
+function roomActivityCard(){
+  if(!RA) return '';
+  var people=RA.people||[], events=RA.events||[];
+  var unattributed=events.filter(function(e){ return !e.grantId; });
+  var head='<div class="ch"><b>Data Room Activity</b><span>'+(RA.buyerCount||0)+' buyer'+((RA.buyerCount===1)?'':'s')+' · '+events.length+' event'+((events.length===1)?'':'s')+'</span></div>';
+  var open='<a class="slink ghost" style="margin-left:auto" href="./rrg_room.html?room='+encodeURIComponent(RA.id)+'">Open room →</a>';
+  if(!people.length && !events.length){
+    return '<div class="card"><div class="ch"><b>Data Room Activity</b>'+open+'</div><div class="cb"><div class="noev" style="padding:16px 0">No one has accessed this room yet. Add buyers and share the link from the room to start tracking access.</div></div></div>';
+  }
+  var rows=people.map(function(p){
+    var ev=events.filter(function(e){ return e.grantId===p.id; });
+    var name=p.name||p.email||'Buyer';
+    var pill=p.active?'<span class="apill on">Active</span>':'<span class="apill off">Revoked</span>';
+    var sub=[p.email||'', p.lastSeen?('Last seen '+fmtDT(p.lastSeen)):'Never signed in'].filter(Boolean).join(' · ');
+    return '<div class="prow" data-gid="'+esc(p.id)+'"><div class="pmain"><div class="pname">'+esc(name)+' '+pill+'</div><div class="psub">'+esc(sub)+'</div></div>'
+      +'<div class="pcount">'+p.views+' view'+((p.views===1)?'':'s')+' · '+p.downloads+' dl<span class="chev">▸</span></div></div>'
+      +'<div class="pevents" data-gid="'+esc(p.id)+'" hidden>'+timelineHTML(ev)+'</div>';
+  }).join('');
+  var extra='';
+  if(unattributed.length){
+    extra='<div class="prow" data-gid="__none"><div class="pmain"><div class="pname">Link opened — no code entered</div><div class="psub">Visits to the room link that never signed in</div></div>'
+      +'<div class="pcount">'+unattributed.length+' visit'+((unattributed.length===1)?'':'s')+'<span class="chev">▸</span></div></div>'
+      +'<div class="pevents" data-gid="__none" hidden>'+timelineHTML(unattributed)+'</div>';
+  }
+  return '<div class="card"><div class="ch" style="display:flex">'+'<b>Data Room Activity</b><span style="margin-left:12px">'+(RA.buyerCount||0)+' buyer'+((RA.buyerCount===1)?'':'s')+' · '+events.length+' event'+((events.length===1)?'':'s')+'</span>'+open+'</div><div class="roomact">'+rows+extra+'</div></div>';
+}
+function wireRoomActivity(){
+  document.querySelectorAll('.prow').forEach(function(row){
+    row.addEventListener('click',function(){
+      var gid=row.getAttribute('data-gid');
+      var panel=document.querySelector('.pevents[data-gid="'+gid.replace(/"/g,'')+'"]');
+      if(!panel) return;
+      var open=!panel.hasAttribute('hidden');
+      if(open){ panel.setAttribute('hidden',''); row.classList.remove('open'); }
+      else { panel.removeAttribute('hidden'); row.classList.add('open'); }
+    });
+  });
+}
+/* ---------- Offers: LOIs & IOIs ---------- */
+var RATINGS=['Strong','Good','Fair','Weak'];
+function money(v){ if(v==null||v==='') return ''; var n=Number(String(v).replace(/[^0-9.\-]/g,'')); if(!isFinite(n)||n===0) return esc(String(v)); return '$'+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
+function offerStatusClass(s){ return 'os-'+String(s||'Received').toLowerCase().replace(/[^a-z]+/g,''); }
+function scoreClass(n){ n=Number(n); return n>=75?'s-hi':(n>=55?'s-mid':'s-lo'); }
+function analysisHTML(a){
+  if(!a) return '';
+  var chips='';
+  if(a.action) chips+='<span class="oachip act-'+String(a.action).toLowerCase()+'">Recommends: '+esc(a.action)+'</span>';
+  var sc=(typeof a.score==='number')?('<span class="oscore big '+scoreClass(a.score)+'">'+a.score+'</span>'):'';
+  var lists='';
+  if(a.strengths&&a.strengths.length) lists+='<div class="oacol"><div class="oalbl up">Strengths</div><ul class="oal good">'+a.strengths.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>';
+  if(a.concerns&&a.concerns.length) lists+='<div class="oacol"><div class="oalbl up">Concerns</div><ul class="oal bad">'+a.concerns.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul></div>';
+  var counter='';
+  if(a.suggestedCounter) counter='<div class="oasug"><b>Suggested counter — </b>'+esc(a.suggestedCounter)+'</div>';
+  return '<div class="oahead">'+sc+'<div class="oahd"><div class="oaverdict">'+esc(a.verdict||'Analyzed')+(a.priceGap?(' · '+esc(a.priceGap)):'')+'</div><div class="oahl">'+esc(a.headline||'')+'</div></div>'+chips+'</div>'
+    +(a.vsValue?('<div class="oavs">'+esc(a.vsValue)+'</div>'):'')
+    +(lists?('<div class="oalists">'+lists+'</div>'):'')
+    +(a.recommendation?('<div class="oarec">'+esc(a.recommendation)+'</div>'):'')
+    +counter
+    +(a.at?('<div class="oaby">RRG analyst · '+esc(fmtDT(a.at))+'</div>'):'');
+}
+function offerCardHTML(o){
+  var amt=o.amount?money(o.amount):'—';
+  var scoreBadge=(typeof o.score==='number')?('<span class="oscore '+scoreClass(o.score)+'" title="RRG analyst score">Analyst '+o.score+'</span>'):'';
+  var rate='<div class="orate"><span class="orlabel">Your rating</span><div class="ratebtns">'
+    + RATINGS.map(function(r){ return '<button class="rbtn '+r.toLowerCase()+(o.rating===r?' on':'')+'" data-oid="'+esc(o.id)+'" data-r="'+r+'">'+r+'</button>'; }).join('')
+    + '</div></div>';
+  var counter=o.counter?('<div class="ocounter">↩ Countered '+(o.counter.amount?money(o.counter.amount):'')+(o.counter.terms?(' — '+esc(o.counter.terms)):'')+'</div>'):'';
+  var hasA=!!o.analysis;
+  return '<div class="ocard" data-oid="'+esc(o.id)+'">'
+    +'<div class="ohead"><span class="otype '+(o.type==='LOI'?'loi':'ioi')+'">'+esc(o.type||'IOI')+'</span>'
+      +'<div class="obuyer2">'+esc(o.buyer||'Unnamed buyer')+'</div>'
+      +'<div class="oamt">'+amt+'</div></div>'
+    +'<div class="ometa">Received '+esc(o.received?fmt(o.received):'—')+' · <span class="opill '+offerStatusClass(o.status)+'">'+esc(o.status||'Received')+'</span>'+(scoreBadge?(' '+scoreBadge):'')+'</div>'
+    +(o.terms?('<div class="oterms2">'+esc(o.terms)+'</div>'):'')
+    +counter
+    +rate
+    +'<div class="oactions">'
+      +'<button class="oact analyze" data-oid="'+esc(o.id)+'">✦ '+(hasA?'Re-analyze':'Analyze')+'</button>'
+      +'<button class="oact accept" data-oid="'+esc(o.id)+'">Accept</button>'
+      +'<button class="oact counter" data-oid="'+esc(o.id)+'">Counter</button>'
+      +'<button class="oact reject" data-oid="'+esc(o.id)+'">Reject</button>'
+      +'<span class="ospacer"></span>'
+      +'<button class="oedit" data-oid="'+esc(o.id)+'">Edit</button>'
+      +'<button class="odel" data-oid="'+esc(o.id)+'">Delete</button>'
+    +'</div>'
+    +'<div class="oanalysis" data-oid="'+esc(o.id)+'"'+(hasA?'':' hidden')+'>'+(hasA?analysisHTML(o.analysis):'')+'</div>'
+  +'</div>';
+}
+function offersCard(){
+  var body;
+  if(!OFFERS.length){
+    body='<div class="noev" style="padding:18px 20px">No offers logged yet. Record the first IOI or LOI as it comes in — amount, buyer, and terms — then rate it and let the RRG analyst score it for you.</div>';
+  } else {
+    var sorted=OFFERS.slice().sort(function(a,b){ return String(b.received||'').localeCompare(String(a.received||'')); });
+    body='<div class="olist">'+sorted.map(offerCardHTML).join('')+'</div>';
+  }
+  var addbtn='<button class="addoffer" id="addOfferBtn" style="margin-left:auto">+ Record offer</button>';
+  return '<div class="card"><div class="ch" style="display:flex"><b>Offers — IOIs &amp; LOIs</b><span style="margin-left:12px">'+OFFERS.length+' logged</span>'+addbtn+'</div>'
+    + '<div class="cb offers"><div id="offerForm" hidden></div>'+body+'</div></div>';
+}
+function offerFormHTML(o){
+  o=o||{};
+  var tsel=OFFER_TYPES.map(function(t){return '<option'+((o.type||'IOI')===t?' selected':'')+'>'+t+'</option>';}).join('');
+  var ssel=OFFER_STATUSES.map(function(s){return '<option'+((o.status||'Received')===s?' selected':'')+'>'+esc(s)+'</option>';}).join('');
+  return '<div class="ofgrid">'
+    +'<div class="off"><label class="fld">Type</label><select id="of_type">'+tsel+'</select></div>'
+    +'<div class="off"><label class="fld">Buyer / party</label><input id="of_buyer" value="'+esc(o.buyer||'')+'" placeholder="Buyer name or group"></div>'
+    +'<div class="off"><label class="fld">Amount</label><input id="of_amount" value="'+esc(o.amount||'')+'" placeholder="$ offer price" inputmode="numeric"></div>'
+    +'<div class="off"><label class="fld">Received</label><input id="of_received" type="date" value="'+esc(o.received||'')+'"></div>'
+    +'<div class="off"><label class="fld">Status</label><select id="of_status">'+ssel+'</select></div>'
+    +'<div class="off wide"><label class="fld">Key terms / notes</label><textarea id="of_terms" placeholder="Contingencies, financing, close timeline, earnest money, exclusivity…">'+esc(o.terms||'')+'</textarea></div>'
+    +'</div>'
+    +'<div class="ofbtns"><button class="savebtn2" id="of_save">'+(o.id?'Save offer':'Add offer')+'</button><button class="cancelbtn" id="of_cancel">Cancel</button>'+(o.id?'':'')+'</div>';
+}
+function openOfferForm(o){
+  var f=document.getElementById('offerForm');
+  f.innerHTML=offerFormHTML(o);
+  f.removeAttribute('hidden');
+  document.getElementById('of_save').addEventListener('click',function(){ saveOffer(o&&o.id); });
+  document.getElementById('of_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
+  f.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function collectOffer(){
+  return { type:document.getElementById('of_type').value, buyer:document.getElementById('of_buyer').value.trim(),
+    amount:document.getElementById('of_amount').value.trim(), received:document.getElementById('of_received').value,
+    status:document.getElementById('of_status').value, terms:document.getElementById('of_terms').value.trim() };
+}
+function saveOffer(id){
+  var body=collectOffer(); if(id) body.id=id;
+  var btn=document.getElementById('of_save'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/offer',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ OFFERS=j.offers||[]; if(A) A.offers=OFFERS; rerenderOffers(); }
+      else { if(btn){btn.disabled=false;btn.textContent='Add offer';} alert((j&&j.error)||'Could not save the offer.'); }
+    }).catch(function(){ if(btn){btn.disabled=false;btn.textContent='Add offer';} alert('Could not reach the server.'); });
+}
+function delOffer(id){
+  if(!confirm('Delete this offer? This cannot be undone.')) return;
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/offer/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ OFFERS=j.offers||[]; if(A) A.offers=OFFERS; rerenderOffers(); } else alert((j&&j.error)||'Could not delete.'); })
+    .catch(function(){ alert('Could not reach the server.'); });
+}
+function rerenderOffers(){
+  var main=document.querySelector('.main'); if(!main) return;
+  // replace the offers card in place
+  var cards=main.querySelectorAll('.card');
+  // rebuild whole main region's offers card by re-rendering the card node
+  var tmp=document.createElement('div'); tmp.innerHTML=offersCard();
+  var fresh=tmp.firstChild;
+  // find existing offers card (the one containing '.offers')
+  var existing=main.querySelector('.offers');
+  if(existing){ existing.closest('.card').replaceWith(fresh); }
+  wireOffers();
+}
+function offerById(id){ return OFFERS.filter(function(x){return x.id===id;})[0]; }
+function postOffer(body,onok,onerr){
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/offer',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ OFFERS=j.offers||[]; if(A) A.offers=OFFERS; if(onok)onok(j); else rerenderOffers(); }
+      else { if(onerr)onerr(); alert((j&&j.error)||'Could not update the offer.'); }
+    }).catch(function(){ if(onerr)onerr(); alert('Could not reach the server.'); });
+}
+function setRating(id,r){ var o=offerById(id); var next=(o&&o.rating===r)?'':r; postOffer({id:id,rating:next}); }
+function acceptOffer(id){ if(!confirm('Mark this offer ACCEPTED? Set the others to Rejected/Withdrawn separately if needed.')) return; postOffer({id:id,status:'Accepted'}); }
+function rejectOffer(id){ if(!confirm('Reject this offer?')) return; postOffer({id:id,status:'Rejected'}); }
+function counterOffer(id){
+  var o=offerById(id)||{};
+  var pre=(o.analysis&&o.analysis.suggestedCounter)||'';
+  var amt=prompt('Counter amount (leave blank to keep price):', (o.counter&&o.counter.amount)||'');
+  if(amt===null) return;
+  var terms=prompt('Counter terms / note:', (o.counter&&o.counter.terms)||pre||'');
+  if(terms===null) return;
+  postOffer({id:id,status:'Countered',counter:{amount:amt.trim(),terms:terms.trim()}});
+}
+function analyzeOffer(id){
+  var panel=document.querySelector('.oanalysis[data-oid="'+id+'"]');
+  var btn=document.querySelector('.oact.analyze[data-oid="'+id+'"]');
+  if(panel){ panel.removeAttribute('hidden'); panel.innerHTML='<div class="oaload">The RRG analyst is reviewing this offer…</div>'; }
+  if(btn){ btn.disabled=true; btn.textContent='✦ Analyzing…'; }
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/offer/'+encodeURIComponent(id)+'/analyze',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ OFFERS=j.offers||[]; if(A) A.offers=OFFERS; rerenderOffers(); }
+      else { if(panel) panel.innerHTML='<div class="oaerr">'+esc((j&&j.error)||'Could not analyze this offer.')+'</div>'; if(btn){btn.disabled=false;btn.textContent='✦ Analyze';} }
+    }).catch(function(){ if(panel) panel.innerHTML='<div class="oaerr">Could not reach the server.</div>'; if(btn){btn.disabled=false;btn.textContent='✦ Analyze';} });
+}
+function wireOffers(){
+  var add=document.getElementById('addOfferBtn'); if(add) add.addEventListener('click',function(){ openOfferForm(null); });
+  document.querySelectorAll('.oedit').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); var o=offerById(b.getAttribute('data-oid')); if(o) openOfferForm(o); }); });
+  document.querySelectorAll('.odel').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); delOffer(b.getAttribute('data-oid')); }); });
+  document.querySelectorAll('.rbtn').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); setRating(b.getAttribute('data-oid'), b.getAttribute('data-r')); }); });
+  document.querySelectorAll('.oact.analyze').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); analyzeOffer(b.getAttribute('data-oid')); }); });
+  document.querySelectorAll('.oact.accept').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); acceptOffer(b.getAttribute('data-oid')); }); });
+  document.querySelectorAll('.oact.counter').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); counterOffer(b.getAttribute('data-oid')); }); });
+  document.querySelectorAll('.oact.reject').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); rejectOffer(b.getAttribute('data-oid')); }); });
+}
+/* ---------- Location Tours ---------- */
+function tourIntClass(i){ return 'ti-'+String(i||'').toLowerCase(); }
+function tourCardHTML(t){
+  var intr=t.interest?('<span class="tint '+tourIntClass(t.interest)+'">'+esc(t.interest)+'</span>'):'';
+  var meta=[t.date?('Toured '+fmt(t.date)):'', t.host?('Hosted by '+t.host):'', t.attendees?(t.attendees):''].filter(Boolean).map(esc).join(' · ');
+  return '<div class="tcard" data-tid="'+esc(t.id)+'">'
+    +'<div class="thead"><div class="tparty">'+esc(t.party||'Prospective buyer')+'</div>'+intr
+      +'<span class="ospacer"></span><button class="tedit" data-tid="'+esc(t.id)+'">Edit</button><button class="tdel" data-tid="'+esc(t.id)+'">Delete</button></div>'
+    +(meta?('<div class="tmeta">'+meta+'</div>'):'')
+    +(t.notes?('<div class="tnotes">'+esc(t.notes)+'</div>'):'')
+  +'</div>';
+}
+function toursCard(){
+  var body;
+  if(!TOURS.length){
+    body='<div class="noev" style="padding:18px 20px">No tours logged yet. Record each buyer site visit — who came, when, who hosted, and their read — so you can see interest building across the marketing period.</div>';
+  } else {
+    var sorted=TOURS.slice().sort(function(a,b){ return String(b.date||'').localeCompare(String(a.date||'')); });
+    body='<div class="tlist">'+sorted.map(tourCardHTML).join('')+'</div>';
+  }
+  var addbtn='<button class="addoffer" id="addTourBtn" style="margin-left:auto">+ Log tour</button>';
+  return '<div class="card"><div class="ch" style="display:flex"><b>Location Tours</b><span style="margin-left:12px">'+TOURS.length+' logged</span>'+addbtn+'</div>'
+    + '<div class="cb tours"><div id="tourForm" hidden></div>'+body+'</div></div>';
+}
+function tourFormHTML(t){
+  t=t||{};
+  var isel='<option value=""'+(!t.interest?' selected':'')+'>— interest —</option>'+TOUR_INTEREST.map(function(x){return '<option'+(t.interest===x?' selected':'')+'>'+x+'</option>';}).join('');
+  return '<div class="ofgrid tourgrid">'
+    +'<div class="off"><label class="fld">Who toured</label><input id="tf_party" value="'+esc(t.party||'')+'" placeholder="Buyer / party name"></div>'
+    +'<div class="off"><label class="fld">Date</label><input id="tf_date" type="date" value="'+esc(t.date||'')+'"></div>'
+    +'<div class="off"><label class="fld">Interest</label><select id="tf_interest">'+isel+'</select></div>'
+    +'<div class="off"><label class="fld">Hosted by</label><input id="tf_host" value="'+esc(t.host||'')+'" placeholder="RRG rep who showed it"></div>'
+    +'<div class="off"><label class="fld">Attendees</label><input id="tf_attendees" value="'+esc(t.attendees||'')+'" placeholder="Who attended (optional)"></div>'
+    +'<div class="off wide"><label class="fld">Notes / feedback</label><textarea id="tf_notes" placeholder="What they said, questions raised, follow-up…">'+esc(t.notes||'')+'</textarea></div>'
+    +'</div>'
+    +'<div class="ofbtns"><button class="savebtn2" id="tf_save">'+(t.id?'Save tour':'Log tour')+'</button><button class="cancelbtn" id="tf_cancel">Cancel</button></div>';
+}
+function openTourForm(t){
+  var f=document.getElementById('tourForm');
+  f.innerHTML=tourFormHTML(t); f.removeAttribute('hidden');
+  document.getElementById('tf_save').addEventListener('click',function(){ saveTour(t&&t.id); });
+  document.getElementById('tf_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
+  f.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function collectTour(){
+  return { party:document.getElementById('tf_party').value.trim(), date:document.getElementById('tf_date').value,
+    interest:document.getElementById('tf_interest').value, host:document.getElementById('tf_host').value.trim(),
+    attendees:document.getElementById('tf_attendees').value.trim(), notes:document.getElementById('tf_notes').value.trim() };
+}
+function saveTour(id){
+  var body=collectTour(); if(id) body.id=id;
+  var btn=document.getElementById('tf_save'); if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/tour',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ TOURS=j.tours||[]; if(A) A.tours=TOURS; rerenderTours(); }
+      else { if(btn){btn.disabled=false;btn.textContent='Log tour';} alert((j&&j.error)||'Could not save the tour.'); }
+    }).catch(function(){ if(btn){btn.disabled=false;btn.textContent='Log tour';} alert('Could not reach the server.'); });
+}
+function delTour(id){
+  if(!confirm('Delete this tour record?')) return;
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/tour/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TOURS=j.tours||[]; if(A) A.tours=TOURS; rerenderTours(); } else alert((j&&j.error)||'Could not delete.'); })
+    .catch(function(){ alert('Could not reach the server.'); });
+}
+function rerenderTours(){
+  var main=document.querySelector('.main'); if(!main) return;
+  var tmp=document.createElement('div'); tmp.innerHTML=toursCard();
+  var existing=main.querySelector('.tours');
+  if(existing){ existing.closest('.card').replaceWith(tmp.firstChild); }
+  wireTours();
+}
+function tourById(id){ return TOURS.filter(function(x){return x.id===id;})[0]; }
+function wireTours(){
+  var add=document.getElementById('addTourBtn'); if(add) add.addEventListener('click',function(){ openTourForm(null); });
+  document.querySelectorAll('.tedit').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); var t=tourById(b.getAttribute('data-tid')); if(t) openTourForm(t); }); });
+  document.querySelectorAll('.tdel').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); delTour(b.getAttribute('data-tid')); }); });
 }
 function setDirty(v){ DIRTY=v; var b=document.getElementById('savebtn'); if(b) b.disabled=!v; if(v){ var s=document.getElementById('saved'); if(s) s.classList.remove('show'); } }
 function save(){
@@ -180,7 +547,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; render(); })
+  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; render(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this assignment.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to assignments</a></div>'; });
 }
 load();

@@ -12,6 +12,7 @@ const bovgen = require('./bovgen.js');
 const cimgen = require('./cimgen.js');
 const leasegen = require('./leasegen.js');
 const attackgen = require('./attackgen.js');
+const offergen = require('./offergen.js');
 const valgen = require('./valgen.js');
 
 const fs = require('fs');
@@ -734,7 +735,7 @@ function ensureCimForBov(req, bov) {
   if (!bov) return null;
   const arr = loadCims();
   const existing = arr.find(x => x.srcBovId === bov.id);
-  if (existing) return existing;
+  if (existing) { ensureLeaseForCim(req, existing); return existing; }
   const rec = {
     id: newCimId(), srcBovId: bov.id, srcQuestId: bov.srcQuestId || '', pending: true,
     business: bov.business || 'Business', market: bov.market || '',
@@ -742,6 +743,27 @@ function ensureCimForBov(req, bov) {
     createdAt: new Date().toISOString(),
   };
   arr.push(rec); saveCims(arr);
+  ensureLeaseForCim(req, rec);   // the pack ships with a lease abstract (both redactions on)
+  return rec;
+}
+// A Marketing Pack ships as three pieces — the CIM, the email templates, and a lease
+// abstract. Create the lease the moment the pack is created, tied to the same deal, with
+// both landlord & tenant redactions on by default. Idempotent: reuse the deal's abstract
+// if one already exists (built manually or from a prior advance).
+function ensureLeaseForCim(req, cim) {
+  if (!cim) return null;
+  const arr = loadLeases();
+  let l = cim.srcBovId ? arr.find(x => x.srcBovId && x.srcBovId === cim.srcBovId) : null;
+  if (!l && cim.srcQuestId) l = arr.find(x => x.srcQuestId && x.srcQuestId === cim.srcQuestId);
+  if (l) return l;
+  const rec = {
+    id: newLeaseId(), business: String(cim.business || 'Lease Abstract').slice(0, 120), propertyAddress: '',
+    pending: true, srcQuestId: cim.srcQuestId || '', srcBovId: cim.srcBovId || '',
+    by: (req.user && req.user.name) || cim.by || '', byUser: (req.user && req.user.username) || cim.byUser || '',
+    createdAt: new Date().toISOString(),
+    state: null,   // awaiting the lease document; redactions default ON everywhere state is null
+  };
+  arr.push(rec); saveLeases(arr);
   return rec;
 }
 // Gather everything the system already knows for a CIM: the BOV, the questionnaire,
@@ -1605,6 +1627,34 @@ const ASSIGN_FILE = path.join(BOV_DATA_DIR, 'assignments.json');
 function loadAssignOverlay() { try { return JSON.parse(fs.readFileSync(ASSIGN_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
 function saveAssignOverlay(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(ASSIGN_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
 const ASSIGN_STATUSES = ['New', 'Active', 'Under Contract', 'Closed', 'On Hold', 'Lost'];
+const OFFER_TYPES = ['IOI', 'LOI'];
+const OFFER_STATUSES = ['Received', 'Under review', 'Countered', 'Accepted', 'Rejected', 'Withdrawn'];
+const OFFER_RATINGS = ['Strong', 'Good', 'Fair', 'Weak'];   // the rep's own 1-of-4 gut rating
+const TOUR_INTEREST = ['Hot', 'Warm', 'Cool', 'Passed'];    // buyer's read after a location tour
+function newTourId() { return 'tur_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function applyTourFields(t, b) {
+  if (typeof b.party === 'string') t.party = b.party.slice(0, 160);
+  if (typeof b.date === 'string') t.date = b.date.slice(0, 20);
+  if (typeof b.attendees === 'string') t.attendees = b.attendees.slice(0, 300);
+  if (typeof b.host === 'string') t.host = b.host.slice(0, 120);
+  if (typeof b.interest === 'string') t.interest = TOUR_INTEREST.indexOf(b.interest) >= 0 ? b.interest : '';
+  if (typeof b.notes === 'string') t.notes = b.notes.slice(0, 4000);
+}
+function newOfferId() { return 'ofr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+// Apply only the fields present in the body, so a status-only action (Accept/Counter/
+// Reject) never wipes the buyer, amount, or terms.
+function applyOfferFields(o, b) {
+  if (typeof b.type === 'string' && OFFER_TYPES.indexOf(b.type) >= 0) o.type = b.type;
+  if (typeof b.buyer === 'string') o.buyer = b.buyer.slice(0, 160);
+  if (typeof b.amount === 'string') o.amount = b.amount.slice(0, 40);
+  if (typeof b.received === 'string') o.received = b.received.slice(0, 20);
+  if (typeof b.status === 'string' && OFFER_STATUSES.indexOf(b.status) >= 0) o.status = b.status;
+  if (typeof b.rating === 'string') o.rating = OFFER_RATINGS.indexOf(b.rating) >= 0 ? b.rating : '';
+  if (typeof b.terms === 'string') o.terms = b.terms.slice(0, 4000);
+  if (b.counter && typeof b.counter === 'object') {
+    o.counter = { amount: String(b.counter.amount || '').slice(0, 40), terms: String(b.counter.terms || '').slice(0, 2000), at: new Date().toISOString() };
+  }
+}
 function assignmentsIndex() {
   const screens = loadScreens(), quests = loadQuests(), bovs = loadBovs(), cims = loadCims(), maps = loadMaps(), rooms = loadRooms(), leases = loadLeases();
   const questById = {}, bovById = {}, cimById = {};
@@ -1670,6 +1720,8 @@ function assignmentView(d, overlay) {
   return {
     key: d.key, business, market, contact, by, byUser,
     status: o.status || 'New', notes: o.notes || '', owner: o.owner || by, businessOverride: o.businessOverride || '',
+    offers: Array.isArray(o.offers) ? o.offers : [],
+    tours: Array.isArray(o.tours) ? o.tours : [],
     value: (bov && (bov.targetText || bov.rangeText)) || '', basis: (bov && bov.basis) || '',
     stages, lastActivity, createdAt: created,
   };
@@ -1678,6 +1730,27 @@ function ownsAssignment(req, d) {
   if (req.user && req.user.role === 'admin') return true;
   const u = req.user && req.user.username;
   return [d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).some(r => r.byUser === u);
+}
+// Data-room access, shaped for the deal file: everyone granted access with their
+// tallies, plus the full event log so the UI can drill into what each person did.
+function roomActivityFor(d, origin) {
+  const r = d.room;
+  if (!r) return null;
+  const events = (r.access || []).map(e => ({
+    at: e.at || '', event: e.event || 'view', doc: e.doc || '',
+    who: e.who || '', grantId: e.grantId || '', ip: e.ip || '',
+  })).sort((a, b) => String(b.at).localeCompare(String(a.at)));
+  const people = (r.grants || []).map(g => ({
+    id: g.id, name: g.name || '', email: g.email || '', active: g.active !== false,
+    createdAt: g.createdAt || '', lastSeen: g.lastSeen || '',
+    views: g.views || 0, downloads: g.downloads || 0,
+  }));
+  return {
+    id: r.id, business: r.business || '', token: r.token || '',
+    link: origin ? (origin + '/room/' + r.token) : '',
+    gated: roomIsGated(r), docCount: (r.docs || []).length,
+    people, events, buyerCount: people.filter(p => p.active).length,
+  };
 }
 app.get('/api/assignments', (req, res) => {
   const deals = assignmentsIndex(), overlay = loadAssignOverlay();
@@ -1691,7 +1764,8 @@ app.get('/api/assignment/:key', (req, res) => {
   const d = deals[req.params.key];
   if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
   if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, assignment: assignmentView(d, overlay) });
+  const origin = req.protocol + '://' + req.get('host');
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, assignment: assignmentView(d, overlay), roomActivity: roomActivityFor(d, origin) });
 });
 app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   const deals = assignmentsIndex();
@@ -1707,6 +1781,109 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true });
+});
+// Record or update an LOI / IOI received on this assignment.
+app.post('/api/assignment/:key/offer', express.json(), (req, res) => {
+  const deals = assignmentsIndex();
+  const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay();
+  const cur = overlay[d.key] || {};
+  const offers = Array.isArray(cur.offers) ? cur.offers : [];
+  const b = req.body || {};
+  const now = new Date().toISOString();
+  if (b.id) {
+    const ex = offers.find(o => o.id === b.id);
+    if (!ex) return res.status(404).json({ ok: false, error: 'Offer not found.' });
+    applyOfferFields(ex, b); ex.updatedAt = now;
+  } else {
+    const rec = { id: newOfferId(), type: 'IOI', buyer: '', amount: '', received: '', status: 'Received', rating: '', terms: '',
+      createdAt: now, updatedAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+    applyOfferFields(rec, b);
+    offers.push(rec);
+  }
+  cur.offers = offers; cur.updatedAt = now;
+  overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, offers });
+});
+// Run the RRG analyst on one offer — scores it and returns a broker's assessment.
+app.post('/api/assignment/:key/offer/:offerId/analyze', express.json(), async (req, res) => {
+  try {
+    const deals = assignmentsIndex();
+    const d = deals[req.params.key];
+    if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
+    if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    const overlay = loadAssignOverlay();
+    const cur = overlay[d.key] || {};
+    const offers = Array.isArray(cur.offers) ? cur.offers : [];
+    const o = offers.find(x => x.id === req.params.offerId);
+    if (!o) return res.status(404).json({ ok: false, error: 'Offer not found.' });
+    const bov = d.bov || null;
+    const view = assignmentView(d, overlay);
+    const analysis = await offergen.analyzeOffer({
+      business: view.business, market: view.market || '',
+      dealTarget: (bov && bov.targetText) || '', dealRange: (bov && bov.rangeText) || '', dealBasis: (bov && bov.basis) || '',
+      offer: o, otherOffers: offers.filter(x => x.id !== o.id),
+      preparedBy: (req.user && req.user.name) || '',
+    });
+    o.analysis = Object.assign({}, analysis, { at: new Date().toISOString(), by: (req.user && req.user.name) || '' });
+    if (typeof analysis.score === 'number') o.score = Math.max(0, Math.min(100, Math.round(analysis.score)));
+    o.updatedAt = new Date().toISOString();
+    cur.offers = offers; overlay[d.key] = cur; saveAssignOverlay(overlay);
+    res.json({ ok: true, offers, offer: o });
+  } catch (e) {
+    console.error('offer analyze error:', e);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
+app.delete('/api/assignment/:key/offer/:offerId', (req, res) => {
+  const deals = assignmentsIndex();
+  const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay();
+  const cur = overlay[d.key] || {};
+  const offers = (Array.isArray(cur.offers) ? cur.offers : []).filter(o => o.id !== req.params.offerId);
+  cur.offers = offers; cur.updatedAt = new Date().toISOString();
+  overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, offers });
+});
+// Location tours — who toured the business, when, hosted by whom, and their read.
+app.post('/api/assignment/:key/tour', express.json(), (req, res) => {
+  const deals = assignmentsIndex();
+  const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay();
+  const cur = overlay[d.key] || {};
+  const tours = Array.isArray(cur.tours) ? cur.tours : [];
+  const b = req.body || {}, now = new Date().toISOString();
+  if (b.id) {
+    const ex = tours.find(t => t.id === b.id);
+    if (!ex) return res.status(404).json({ ok: false, error: 'Tour not found.' });
+    applyTourFields(ex, b); ex.updatedAt = now;
+  } else {
+    const rec = { id: newTourId(), party: '', date: '', attendees: '', host: (req.user && req.user.name) || '', interest: '', notes: '',
+      createdAt: now, updatedAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+    applyTourFields(rec, b);
+    tours.push(rec);
+  }
+  cur.tours = tours; cur.updatedAt = now;
+  overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, tours });
+});
+app.delete('/api/assignment/:key/tour/:tourId', (req, res) => {
+  const deals = assignmentsIndex();
+  const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay();
+  const cur = overlay[d.key] || {};
+  const tours = (Array.isArray(cur.tours) ? cur.tours : []).filter(t => t.id !== req.params.tourId);
+  cur.tours = tours; cur.updatedAt = new Date().toISOString();
+  overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, tours });
 });
 function roomGatePage(r, err) {
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">Enter your personal access code to continue. Access is provided by Restaurant Realty Group under NDA.</div>`;
