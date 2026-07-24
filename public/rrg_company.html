@@ -117,6 +117,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .foot{max-width:1040px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .loading{max-width:1040px;margin:60px auto;padding:0 24px;color:var(--muted);text-align:center;}
 </style>
+<script src="/rrg_brand.js"></script>
 </head>
 <body>
 <!--rrgback--><a href="./rrg_assignments.html" class="rrg-back" aria-label="Back to deals" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Deals</a>
@@ -149,12 +150,9 @@ function render(){
     var sub=[p.title].concat(p.emails||(p.email?[p.email]:[])).concat(p.phones||(p.phone?[p.phone]:[])).filter(Boolean).map(esc).join(' · ');
     return '<a class="crow crowlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'"><div class="cav">'+esc(initials(p.name).toUpperCase())+'</div><div class="cinfo"><div class="cname">'+esc(p.name||'Contact')+'</div><div class="csub">'+sub+'</div></div><span class="ctype">'+esc(p.type||'')+'</span><button class="crm" data-rm="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();">Remove</button></a>';
   }).join('') : '<div class="empty">No contacts yet. Add the owner, partners, or advisors tied to this company.</div>';
-  var CPTLOGO={}; CONCEPTS.forEach(function(c){ if(c.logo) CPTLOGO[c.name]=c.logo; });
   function locThumb(l){
     var p=(l.photos||[])[0];
     if(p) return '<div class="locthumb" style="background-image:url(/api/locphoto/'+esc(p.id+'.'+p.ext)+')"></div>';
-    var lg=CPTLOGO[l.concept||''];
-    if(lg) return '<div class="locthumb locthumb-logo"><img src="'+esc(lg)+'" onerror="this.parentNode.style.display=\'none\';this.parentNode.insertAdjacentHTML(\'afterend\',\'<div class=\\\'cav\\\' style=\\\'background:#fff4e6;color:#b9761a\\\'>◆</div>\')"></div>';
     return '<div class="cav" style="background:#fff4e6;color:#b9761a">◆</div>';
   }
   function locRow(l){
@@ -388,7 +386,7 @@ function pullLocPhoto(locId){
 function pullConceptPhotos(concept,btn){
   if(btn){ btn.disabled=true; btn.textContent='Pulling…'; }
   fetch('/api/company/'+encodeURIComponent(ID)+'/pull-photos',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({concept:concept})})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||LOCATIONS; render(); } else { if(btn){btn.disabled=false;btn.textContent='⤓ Photos';} alert((j&&j.error)||'Could not pull photos.'); } })
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||LOCATIONS; render(); if(!j.added){ setTimeout(function(){ alert('No photos added'+(j.note?(' — '+j.note):'.')+(j.scanned?('\n('+j.scanned+' location'+(j.scanned===1?'':'s')+' checked)'):'')); },40); } } else { if(btn){btn.disabled=false;btn.textContent='⤓ Photos';} alert((j&&j.error)||'Could not pull photos.'); } })
     .catch(function(){ if(btn){btn.disabled=false;btn.textContent='⤓ Photos';} alert('Could not reach the server.'); });
 }
 function removeLocPhoto(locId,photoId){

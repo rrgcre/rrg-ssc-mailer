@@ -37,6 +37,7 @@ tr:hover td{background:#fbfcfe;}
 .t-buyer{background:#eaf0ff;color:#2647b0;border-color:#d3ddf3;} .t-seller,.t-client{background:#fdf1df;color:#b5791f;border-color:#f0d7ad;}
 .t-investor{background:#e7f5ee;color:#1f8a5b;border-color:#bfe6d1;} .t-other,.t-broker,.t-operator,.t-prospect{background:#f2f4f8;color:#6b7488;border-color:#e0e5ee;}
 .open{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:7px 14px;font:inherit;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;}
+.pdel{background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:8px;padding:7px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;} .pdel:hover{background:#fdeceb;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
 .foot{max-width:1120px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .newbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin-left:auto;}
@@ -54,6 +55,7 @@ tr:hover td{background:#fbfcfe;}
 .modalf{display:flex;gap:9px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line);}
 .mbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 17px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;} .mbtn.ghost{background:#fff;color:var(--muted);border-color:var(--line);}
 </style>
+<script src="/rrg_brand.js"></script>
 </head>
 <body>
 <!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to toolbox" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
@@ -89,7 +91,7 @@ tr:hover td{background:#fbfcfe;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return (((p[0]||'')[0]||'')+((p[1]||'')[0]||'')).toUpperCase(); }
 function tclass(t){ return 't-'+String(t||'other').toLowerCase().replace(/[^a-z]+/g,''); }
-var ALL=[], CTL=null, FILTER='', TYPES=[];
+var ALL=[], CTL=null, FILTER='', TYPES=[], IS_ADMIN=false;
 function renderFilters(){
   var chips=[['','All']].concat(TYPES.map(function(t){return [t,t];}));
   document.getElementById('filters').innerHTML=chips.map(function(c){ return '<button class="fchip'+(FILTER===c[0]?' on':'')+'" data-f="'+esc(c[0])+'">'+esc(c[1])+'</button>'; }).join('');
@@ -113,7 +115,7 @@ function renderList(list){
       { label:'Company', sort:function(a,b){ return RRGList.cmp(a.companyName||a.company,b.companyName||b.company); }, cell:function(p){ var cn=p.companyName||p.company||''; return cn?esc(cn):'<span class="meta">—</span>'; } },
       { label:'Type', sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, cell:function(p){ return '<span class="pill '+tclass(p.type)+'">'+esc(p.type||'—')+'</span>'; } },
       { label:'Phone', sortable:false, cell:function(p){ var ph=(p.phones&&p.phones.length)?p.phones[0]:(p.phone||''); var extra=(p.phones&&p.phones.length>1)?(' <span class="meta">+'+(p.phones.length-1)+'</span>'):''; return ph?(esc(ph)+extra):'<span class="meta">—</span>'; } },
-      { label:'', align:'right', sortable:false, cell:function(p){ return '<a class="open" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">Open →</a>'; } }
+      { label:'', align:'right', sortable:false, cell:function(p){ var del=IS_ADMIN?('<button class="pdel" data-del="'+esc(p.id)+'" data-name="'+esc(p.name||'')+'">Delete</button> '):''; return del+'<a class="open" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">Open →</a>'; } }
     ]
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
@@ -139,7 +141,14 @@ document.getElementById('newBtn').addEventListener('click',openModal);
 document.getElementById('m_cancel').addEventListener('click',closeModal);
 document.getElementById('m_create').addEventListener('click',createContact);
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target.id==='modal') closeModal(); });
-fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; TYPES=(j&&j.types)||[]; renderFilters(); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load contacts.</div>'; });
+function deletePerson(pid,name){
+  if(!confirm('Delete contact “'+(name||'this person')+'” from your registry? This removes the person record. Their name stays on any past offers/tours/NDAs. Cannot be undone.')) return;
+  fetch('/api/person/'+encodeURIComponent(pid),{method:'DELETE',credentials:'same-origin'})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ALL=ALL.filter(function(p){return p.id!==pid;}); applyFilter(); } else alert((j&&j.error)||'Could not delete.'); })
+    .catch(function(){ alert('Could not reach the server.'); });
+}
+document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.pdel[data-del]'); if(b){ e.preventDefault(); deletePerson(b.getAttribute('data-del'),b.getAttribute('data-name')); } });
+fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&j.isAdmin); renderFilters(); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load contacts.</div>'; });
 </script>
 </body>
 </html>

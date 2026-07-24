@@ -603,13 +603,13 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path)) return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path)) return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
 
 /* ---------- auth gate ---------- */
-const OPEN = new Set(['/health', '/login', '/api/login', '/logout']);
+const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/rrg_brand.js']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
   if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/roomfile/')) return next();
@@ -1588,13 +1588,80 @@ app.post('/api/admin/logo', requireAdmin, express.json({ limit: '8mb' }), (req, 
     fs.writeFileSync(path.join(BOV_DATA_DIR, 'brand_logo.' + ext), buf);
   } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the logo.' }); }
   const now = new Date().toISOString();
-  saveBrand({ logoExt: ext, logoType: LOGO_MIME[ext] || 'image/png', updatedAt: now, by: (req.user && req.user.name) || '' });
+  const brand = loadBrand(); brand.logoExt = ext; brand.logoType = LOGO_MIME[ext] || 'image/png'; brand.updatedAt = now; brand.by = (req.user && req.user.name) || ''; saveBrand(brand);
   res.json({ ok: true, hasLogo: true, logoUrl: '/api/brand/logo?v=' + encodeURIComponent(now) });
 });
 app.post('/api/admin/logo/clear', requireAdmin, (req, res) => {
   const b = loadBrand(); if (b.logoExt) { try { fs.unlinkSync(path.join(BOV_DATA_DIR, 'brand_logo.' + b.logoExt)); } catch (e) {} }
-  saveBrand({});
+  delete b.logoExt; delete b.logoType; b.updatedAt = new Date().toISOString(); saveBrand(b);
   res.json({ ok: true, hasLogo: false });
+});
+// ---- App name (admin-set) — drives the browser tab title on every page ----
+const DEFAULT_APP_NAME = 'FullServe';
+function loadAppName() { const b = loadBrand(); return (b.appName && String(b.appName).trim()) || DEFAULT_APP_NAME; }
+app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName() }));
+app.get('/api/admin/app-name', requireAdmin, (req, res) => res.json({ ok: true, name: loadAppName(), isDefault: loadAppName() === DEFAULT_APP_NAME, default: DEFAULT_APP_NAME }));
+app.post('/api/admin/app-name', requireAdmin, express.json(), (req, res) => {
+  const n = String((req.body && req.body.name) || '').trim().slice(0, 60);
+  const b = loadBrand();
+  if (!n) { delete b.appName; } else { b.appName = n; }
+  b.updatedAt = new Date().toISOString(); saveBrand(b);
+  res.json({ ok: true, name: loadAppName(), isDefault: loadAppName() === DEFAULT_APP_NAME });
+});
+// ---- Favicon (admin-set) — served at /favicon.ico for every page ----
+const FAVICON_MIME = { ico: 'image/x-icon', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' };
+const FAVICON_EXT = /^(ico|png|jpe?g|gif|webp|svg)$/i;
+app.get('/favicon.ico', (req, res) => {
+  const b = loadBrand();
+  if (!b.faviconExt) return res.status(404).end();
+  try { const buf = fs.readFileSync(path.join(BOV_DATA_DIR, 'brand_favicon.' + b.faviconExt)); res.set('Content-Type', b.faviconType || FAVICON_MIME[b.faviconExt] || 'image/png'); res.set('Cache-Control', 'public, max-age=3600'); res.send(buf); }
+  catch (e) { res.status(404).end(); }
+});
+app.get('/api/admin/favicon', requireAdmin, (req, res) => { const b = loadBrand(); res.json({ ok: true, hasFavicon: !!b.faviconExt }); });
+app.post('/api/admin/favicon', requireAdmin, express.json({ limit: '4mb' }), (req, res) => {
+  const b = req.body || {};
+  let m = String(b.filename || '').trim().match(/\.([a-z0-9]+)$/i); let ext = m ? m[1].toLowerCase() : '';
+  if (ext === 'jpeg') ext = 'jpg';
+  if (!FAVICON_EXT.test(ext)) return res.status(400).json({ ok: false, error: 'Use an ICO, PNG, SVG, GIF, or WEBP image.' });
+  const data = String(b.dataB64 || ''); if (!data) return res.status(400).json({ ok: false, error: 'No image data received.' });
+  let buf; try { buf = Buffer.from(data, 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the image.' }); }
+  if (!buf.length) return res.status(400).json({ ok: false, error: 'The image appears to be empty.' });
+  if (buf.length > 1024 * 1024) return res.status(400).json({ ok: false, error: 'Favicon too large (max 1 MB).' });
+  try {
+    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
+    const old = loadBrand(); if (old.faviconExt && old.faviconExt !== ext) { try { fs.unlinkSync(path.join(BOV_DATA_DIR, 'brand_favicon.' + old.faviconExt)); } catch (e) {} }
+    fs.writeFileSync(path.join(BOV_DATA_DIR, 'brand_favicon.' + ext), buf);
+  } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the favicon.' }); }
+  const brand = loadBrand(); brand.faviconExt = ext; brand.faviconType = FAVICON_MIME[ext] || 'image/png'; brand.updatedAt = new Date().toISOString(); saveBrand(brand);
+  res.json({ ok: true, hasFavicon: true });
+});
+app.post('/api/admin/favicon/clear', requireAdmin, (req, res) => {
+  const b = loadBrand(); if (b.faviconExt) { try { fs.unlinkSync(path.join(BOV_DATA_DIR, 'brand_favicon.' + b.faviconExt)); } catch (e) {} }
+  delete b.faviconExt; delete b.faviconType; b.updatedAt = new Date().toISOString(); saveBrand(b);
+  res.json({ ok: true, hasFavicon: false });
+});
+// Auto-pull the company logo from a website domain (Clearbit).
+app.post('/api/admin/logo/pull', requireAdmin, express.json(), async (req, res) => {
+  const d = domainOf(String((req.body && req.body.url) || '')); if (!d) return res.status(400).json({ ok: false, error: 'Enter a website (e.g. rrgcre.com).' });
+  const img = await fetchImageBuffer('https://logo.clearbit.com/' + d, 200);
+  if (!img) return res.status(404).json({ ok: false, error: 'Could not find a logo for ' + d + '. Try uploading one instead.' });
+  let ext = LOGO_EXT.test(img.ext) ? img.ext : 'png';
+  try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); const old = loadBrand(); if (old.logoExt && old.logoExt !== ext) { try { fs.unlinkSync(path.join(BOV_DATA_DIR, 'brand_logo.' + old.logoExt)); } catch (e) {} } fs.writeFileSync(path.join(BOV_DATA_DIR, 'brand_logo.' + ext), img.buf); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the logo.' }); }
+  const brand = loadBrand(); brand.logoExt = ext; brand.logoType = LOGO_MIME[ext] || 'image/png'; brand.updatedAt = new Date().toISOString(); saveBrand(brand);
+  res.json({ ok: true, hasLogo: true });
+});
+// Auto-pull the favicon from a website domain (Clearbit, then Google favicon service).
+app.post('/api/admin/favicon/pull', requireAdmin, express.json(), async (req, res) => {
+  const d = domainOf(String((req.body && req.body.url) || '')); if (!d) return res.status(400).json({ ok: false, error: 'Enter a website (e.g. rrgcre.com).' });
+  let img = await fetchImageBuffer('https://logo.clearbit.com/' + d, 200);
+  if (!img) img = await fetchImageBuffer('https://www.google.com/s2/favicons?domain=' + encodeURIComponent(d) + '&sz=64', 100);
+  if (!img) return res.status(404).json({ ok: false, error: 'Could not find a favicon for ' + d + '. Try uploading one instead.' });
+  let ext = FAVICON_EXT.test(img.ext) ? img.ext : 'png';
+  try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); const old = loadBrand(); if (old.faviconExt && old.faviconExt !== ext) { try { fs.unlinkSync(path.join(BOV_DATA_DIR, 'brand_favicon.' + old.faviconExt)); } catch (e) {} } fs.writeFileSync(path.join(BOV_DATA_DIR, 'brand_favicon.' + ext), img.buf); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the favicon.' }); }
+  const brand = loadBrand(); brand.faviconExt = ext; brand.faviconType = FAVICON_MIME[ext] || 'image/png'; brand.updatedAt = new Date().toISOString(); saveBrand(brand);
+  res.json({ ok: true, hasFavicon: true });
 });
 
 // Serve an uploaded document (login-gated by the auth middleware above).
@@ -2315,7 +2382,7 @@ app.delete('/api/assignment/:key/nda/:ndaId', (req, res) => {
 app.get('/api/people', (req, res) => {
   const cos = {}; loadCompanies().forEach(c => cos[c.id] = c.name);
   const people = loadPeople().map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '' }));
-  res.json({ ok: true, people: people, types: PERSON_TYPES });
+  res.json({ ok: true, people: people, types: PERSON_TYPES, isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 app.post('/api/person', express.json(), (req, res) => {
   const b = req.body || {};
@@ -2376,7 +2443,7 @@ app.get('/api/person/:id', (req, res) => {
     (o.tours || []).filter(x => x.personId === p.id).forEach(x => tours.push({ key: key, business: biz, date: x.date, interest: x.interest }));
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p) }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, personTypes: PERSON_TYPES });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p) }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, personTypes: PERSON_TYPES, isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
@@ -2413,29 +2480,40 @@ function photoExtFromName(n) { const m = String(n || '').toLowerCase().match(/\.
 const GMAPS_KEY_FILE = path.join(BOV_DATA_DIR, 'google_maps.key');
 function loadGmapsKey() { try { const t = fs.readFileSync(GMAPS_KEY_FILE, 'utf8').trim(); return t || process.env.GOOGLE_MAPS_API_KEY || ''; } catch (e) { return process.env.GOOGLE_MAPS_API_KEY || ''; } }
 function saveGmapsKey(k) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(GMAPS_KEY_FILE, String(k || '').trim()); } catch (e) {} }
-async function fetchImageBuffer(url) {
+async function fetchImageBuffer(url, minBytes) {
   try {
     const r = await fetch(url); if (!r.ok) return null;
     const ct = r.headers.get('content-type') || ''; if (!/image\//.test(ct)) return null;
-    const buf = Buffer.from(await r.arrayBuffer()); if (buf.length < 1500) return null; // skip "no imagery" placeholders
-    return { buf, ext: ct.includes('png') ? 'png' : (ct.includes('webp') ? 'webp' : 'jpg') };
+    const buf = Buffer.from(await r.arrayBuffer()); if (buf.length < (minBytes == null ? 1500 : minBytes)) return null;
+    return { buf, ext: ct.includes('svg') ? 'svg' : (ct.includes('png') ? 'png' : (ct.includes('webp') ? 'webp' : (ct.includes('x-icon') || ct.includes('vnd.microsoft.icon') ? 'ico' : (ct.includes('gif') ? 'gif' : 'jpg')))) };
   } catch (e) { return null; }
 }
+// Each returns { img, reason } — reason is a short diagnostic when no image comes back.
 async function streetViewPhoto(key, addr) {
-  if (!key || !addr) return null;
+  if (!key) return { img: null, reason: 'no key' };
+  if (!addr) return { img: null, reason: 'no address' };
   const enc = encodeURIComponent(addr);
-  try { const mr = await fetch('https://maps.googleapis.com/maps/api/streetview/metadata?location=' + enc + '&key=' + key); const mj = await mr.json(); if (!mj || mj.status !== 'OK') return null; } catch (e) { return null; }
-  return fetchImageBuffer('https://maps.googleapis.com/maps/api/streetview?size=640x640&location=' + enc + '&fov=80&key=' + key);
+  try {
+    const mr = await fetch('https://maps.googleapis.com/maps/api/streetview/metadata?location=' + enc + '&key=' + key);
+    const mj = await mr.json();
+    if (!mj) return { img: null, reason: 'street view: no response' };
+    if (mj.status !== 'OK') return { img: null, reason: 'street view: ' + mj.status + (mj.error_message ? (' — ' + mj.error_message) : '') };
+  } catch (e) { return { img: null, reason: 'street view: request failed' }; }
+  const img = await fetchImageBuffer('https://maps.googleapis.com/maps/api/streetview?size=640x640&location=' + enc + '&fov=80&key=' + key);
+  return { img, reason: img ? '' : 'street view: image download failed' };
 }
 async function placesPhoto(key, query) {
-  if (!key || !query) return null;
+  if (!key || !query) return { img: null, reason: '' };
   try {
     const fr = await fetch('https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=' + encodeURIComponent(query) + '&inputtype=textquery&fields=photos,place_id&key=' + key);
-    const fj = await fr.json(); const cand = (fj && fj.candidates && fj.candidates[0]) || null;
+    const fj = await fr.json();
+    if (fj && fj.status && ['REQUEST_DENIED', 'OVER_QUERY_LIMIT', 'INVALID_REQUEST'].indexOf(fj.status) >= 0) return { img: null, reason: 'places: ' + fj.status + (fj.error_message ? (' — ' + fj.error_message) : '') };
+    const cand = (fj && fj.candidates && fj.candidates[0]) || null;
     const ref = cand && cand.photos && cand.photos[0] && cand.photos[0].photo_reference;
-    if (!ref) return null;
-    return fetchImageBuffer('https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=' + encodeURIComponent(ref) + '&key=' + key);
-  } catch (e) { return null; }
+    if (!ref) return { img: null, reason: 'places: no photo on listing' };
+    const img = await fetchImageBuffer('https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=' + encodeURIComponent(ref) + '&key=' + key);
+    return { img, reason: img ? '' : 'places: image download failed' };
+  } catch (e) { return { img: null, reason: 'places: request failed' }; }
 }
 function attachPhotoBuffer(l, img, source) {
   if (!img) return false; l.photos = l.photos || []; if (l.photos.length >= LOCPHOTO_MAX) return false;
@@ -2445,12 +2523,12 @@ function attachPhotoBuffer(l, img, source) {
 }
 // Pull the best available photo(s) for one location: a Places business photo, then a Street View storefront.
 async function pullPhotosForLocation(key, l) {
-  let added = 0;
+  let added = 0; const reasons = [];
   const addr = [l.address, l.city, l.state].filter(Boolean).join(', ');
   const query = [l.concept, l.name, l.address, l.city, l.state].filter(Boolean).join(' ');
-  if ((l.photos || []).length < LOCPHOTO_MAX) { const p = await placesPhoto(key, query || addr); if (attachPhotoBuffer(l, p, 'places')) added++; }
-  if ((l.photos || []).length < LOCPHOTO_MAX) { const s = await streetViewPhoto(key, addr); if (attachPhotoBuffer(l, s, 'streetview')) added++; }
-  return added;
+  if ((l.photos || []).length < LOCPHOTO_MAX) { const p = await placesPhoto(key, query || addr); if (attachPhotoBuffer(l, p.img, 'places')) added++; else if (p.reason) reasons.push(p.reason); }
+  if ((l.photos || []).length < LOCPHOTO_MAX) { const s = await streetViewPhoto(key, addr); if (attachPhotoBuffer(l, s.img, 'streetview')) added++; else if (s.reason) reasons.push(s.reason); }
+  return { added, reasons };
 }
 app.get('/api/admin/gmaps-key', requireAdmin, (req, res) => res.json({ ok: true, set: !!loadGmapsKey(), fromEnv: !fs.existsSync(GMAPS_KEY_FILE) && !!process.env.GOOGLE_MAPS_API_KEY }));
 app.post('/api/admin/gmaps-key', requireAdmin, express.json(), (req, res) => {
@@ -2469,9 +2547,9 @@ app.post('/api/company/:id/location/:locId/pull-photo', express.json(), async (r
   const l = (c.locations || []).find(x => x.id === req.params.locId);
   if (!l) return res.status(404).json({ ok: false, error: 'Location not found.' });
   if ((l.photos || []).length >= LOCPHOTO_MAX) return res.json({ ok: true, locations: c.locations, added: 0, note: 'Already has photos.' });
-  let added = 0; try { added = await pullPhotosForLocation(key, l); } catch (e) { console.error('pull-photo:', e && e.message); }
-  if (added) { c.updatedAt = new Date().toISOString(); saveCompanies(arr); }
-  res.json({ ok: true, locations: c.locations, added, note: added ? '' : 'No photo found for that address.' });
+  let out = { added: 0, reasons: [] }; try { out = await pullPhotosForLocation(key, l); } catch (e) { console.error('pull-photo:', e && e.message); out.reasons = ['server error']; }
+  if (out.added) { c.updatedAt = new Date().toISOString(); saveCompanies(arr); }
+  res.json({ ok: true, locations: c.locations, added: out.added, note: out.added ? '' : ((out.reasons && out.reasons.join(' · ')) || 'No photo found for that address.') });
 });
 // Bulk pull for all photoless locations (optionally scoped to a concept).
 app.post('/api/company/:id/pull-photos', express.json(), async (req, res) => {
@@ -2480,10 +2558,11 @@ app.post('/api/company/:id/pull-photos', express.json(), async (req, res) => {
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
   const concept = String((req.body && req.body.concept) || '');
   const targets = (c.locations || []).filter(l => (!concept || (l.concept || '') === concept) && (l.photos || []).length === 0).slice(0, 60);
-  let added = 0;
-  for (const l of targets) { try { if (await pullPhotosForLocation(key, l)) added++; } catch (e) {} }
+  let added = 0; const reasons = {};
+  for (const l of targets) { try { const r = await pullPhotosForLocation(key, l); if (r.added) added++; else (r.reasons || []).forEach(x => { reasons[x] = (reasons[x] || 0) + 1; }); } catch (e) {} }
   if (added) { c.updatedAt = new Date().toISOString(); saveCompanies(arr); }
-  res.json({ ok: true, locations: c.locations, added, scanned: targets.length });
+  const topReason = Object.keys(reasons).sort((a, b) => reasons[b] - reasons[a])[0] || '';
+  res.json({ ok: true, locations: c.locations, added, scanned: targets.length, note: (added ? '' : (topReason || 'No photos found.')) });
 });
 app.post('/api/company/:id/location/:locId/photo', express.json({ limit: '12mb' }), (req, res) => {
   const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
@@ -2670,7 +2749,7 @@ app.post('/api/company/:id/find-locations', express.json(), async (req, res) => 
     // If a Google key is set, auto-pull a storefront/photo for each new location (best effort).
     const gkey = loadGmapsKey();
     let photos = 0;
-    if (gkey && created.length) { for (const l of created.slice(0, 40)) { try { if (await pullPhotosForLocation(gkey, l)) photos++; } catch (e) {} } }
+    if (gkey && created.length) { for (const l of created.slice(0, 40)) { try { const pr = await pullPhotosForLocation(gkey, l); if (pr.added) photos++; } catch (e) {} } }
     c.updatedAt = now; saveCompanies(arr);
     res.json({ ok: true, created: created.length, locations: c.locations, note: result.note || '', photos });
   } catch (e) {
@@ -3257,7 +3336,18 @@ app.get('/admin', requireAdmin, (req, res) => {
       </div>
 
       <div class="grp">Brand</div>
-      <h2 style="margin-top:20px">Header Announcement <span class="sub2">— a short message shown across the top of everyone's dashboard, next to the logo. Use it for notices, reminders, or a rallying line. Leave blank to hide it.</span></h2>
+      <h2 style="margin-top:20px">App Name <span class="sub2">— the product name shown in the browser tab on every page. Change it here to rebrand the whole app.</span></h2>
+      <div class="links">
+        <div class="sub2" id="appnState" style="margin:0 0 8px">Loading…</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="appName" maxlength="60" placeholder="FullServe" style="flex:1;min-width:220px;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy)">
+          <button class="primary" onclick="saveAppName()">Save name</button>
+          <button onclick="resetAppName()">Reset to default</button>
+          <span id="appnMsg" class="sub2"></span>
+        </div>
+      </div>
+
+      <h2 style="margin-top:34px">Header Announcement <span class="sub2">— a short message shown across the top of everyone's dashboard, next to the logo. Use it for notices, reminders, or a rallying line. Leave blank to hide it.</span></h2>
       <div class="links">
         <input type="text" id="hdrMsg" maxlength="300" placeholder="e.g. Q3 push — get your listings loaded by Friday. New: auto-find locations on any concept." style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy)">
         <div style="margin-top:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
@@ -3272,10 +3362,31 @@ app.get('/admin', requireAdmin, (req, res) => {
       <div class="links">
         <div id="logoPreview" style="margin-bottom:12px"></div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="logoUrl" placeholder="Auto-pull from a website (e.g. rrgcre.com)" style="flex:1;min-width:220px;border:1px solid #cfd6e2;border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;color:var(--navy)">
+          <button onclick="pullLogo()">Pull from website</button>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
+          <span class="sub2">or upload:</span>
           <input type="file" id="logoFile" accept=".png,.jpg,.jpeg,.svg,.gif,.webp,image/*" style="font:inherit;font-size:13px">
           <button class="primary" onclick="uploadLogo()">Upload logo</button>
           <button onclick="clearLogo()">Remove</button>
           <span id="logomsg" class="sub2"></span>
+        </div>
+      </div>
+
+      <h2 style="margin-top:34px">Favicon <span class="sub2">— the little icon in the browser tab. Use a square image (ICO, PNG or SVG), ideally 32×32 or larger, up to 1&nbsp;MB. Applies across every page.</span></h2>
+      <div class="links">
+        <div id="favPreview" style="margin-bottom:12px"></div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input type="text" id="favUrl" placeholder="Auto-pull from a website (e.g. rrgcre.com)" style="flex:1;min-width:220px;border:1px solid #cfd6e2;border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;color:var(--navy)">
+          <button onclick="pullFavicon()">Pull from website</button>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
+          <span class="sub2">or upload:</span>
+          <input type="file" id="favFile" accept=".ico,.png,.svg,.gif,.webp,image/*" style="font:inherit;font-size:13px">
+          <button class="primary" onclick="uploadFavicon()">Upload favicon</button>
+          <button onclick="clearFavicon()">Remove</button>
+          <span id="favmsg" class="sub2"></span>
         </div>
       </div>
 
@@ -3454,6 +3565,25 @@ app.get('/admin', requireAdmin, (req, res) => {
         rd.onerror=function(){ m.textContent='Could not read that image.'; };
         rd.readAsDataURL(f); }
       function clearLogo(){ if(!confirm('Remove the company logo? Marketing Packs will fall back to the built-in RRG wordmark.')) return; post('/api/admin/logo/clear',{}).then(function(j){ if(j&&j.ok){ renderLogo(false); document.getElementById('logomsg').textContent='Removed.'; } }); }
+      function renderFav(has){ var p=document.getElementById('favPreview'); if(!p) return; if(has){ p.innerHTML='<div style="display:inline-flex;align-items:center;gap:12px;background:#fff;border:1px solid #e9edf3;border-radius:10px;padding:10px 14px"><img src="/favicon.ico?v='+Date.now()+'" alt="Favicon" style="width:32px;height:32px;display:block"><span class="sub2">Current favicon</span></div>'; } else { p.innerHTML='<div class="sub2" style="padding:6px 0">No favicon set — the browser shows its default tab icon.</div>'; } }
+      function loadFavicon(){ fetch('/api/admin/favicon').then(function(r){return r.json();}).then(function(j){ renderFav(!!(j&&j.hasFavicon)); }).catch(function(){ renderFav(false); }); }
+      function uploadFavicon(){ var fi=document.getElementById('favFile'), f=fi&&fi.files&&fi.files[0], m=document.getElementById('favmsg');
+        if(!f){ m.textContent='Choose an image first.'; return; }
+        if(f.size>1024*1024){ m.textContent='Favicon too large (max 1 MB).'; return; }
+        m.textContent='Uploading…';
+        var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''), i=s.indexOf(','), b64=(i>=0?s.slice(i+1):s);
+          post('/api/admin/favicon',{filename:f.name, dataB64:b64}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — reload to see the tab icon.'; fi.value=''; renderFav(true); } else { m.textContent=(j&&j.error)||'Upload failed'; } }).catch(function(){ m.textContent='Upload failed — try again.'; }); };
+        rd.onerror=function(){ m.textContent='Could not read that image.'; };
+        rd.readAsDataURL(f); }
+      function clearFavicon(){ if(!confirm('Remove the favicon? The browser will show its default tab icon.')) return; post('/api/admin/favicon/clear',{}).then(function(j){ if(j&&j.ok){ renderFav(false); document.getElementById('favmsg').textContent='Removed.'; } }); }
+      function pullLogo(){ var u=document.getElementById('logoUrl').value.trim(), m=document.getElementById('logomsg'); if(!u){ m.textContent='Enter a website.'; return; } m.textContent='Pulling…'; post('/api/admin/logo/pull',{url:u}).then(function(j){ if(j&&j.ok){ m.textContent='Pulled ✓'; renderLogo(true); } else { m.textContent=(j&&j.error)||'Could not pull.'; } }); }
+      function pullFavicon(){ var u=document.getElementById('favUrl').value.trim(), m=document.getElementById('favmsg'); if(!u){ m.textContent='Enter a website.'; return; } m.textContent='Pulling…'; post('/api/admin/favicon/pull',{url:u}).then(function(j){ if(j&&j.ok){ m.textContent='Pulled ✓ — reload to see the tab icon.'; renderFav(true); } else { m.textContent=(j&&j.error)||'Could not pull.'; } }); }
+      function _appnState(j){ var s=document.getElementById('appnState'); if(s) s.textContent = j.isDefault ? ('Using the default name ('+(j.name||'FullServe')+').') : ('Custom name: '+j.name+'.'); }
+      function loadAppName(){ fetch('/api/admin/app-name').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('appName').value=j.name||''; _appnState(j); } }).catch(function(){}); }
+      function saveAppName(){ var v=document.getElementById('appName').value.trim(), m=document.getElementById('appnMsg'); m.textContent='Saving…'; post('/api/admin/app-name',{name:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — reload to see the tab title.'; _appnState(j); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
+      function resetAppName(){ post('/api/admin/app-name',{name:''}).then(function(j){ if(j&&j.ok){ document.getElementById('appName').value=j.name||''; document.getElementById('appnMsg').textContent='Reset ✓'; _appnState(j); } }); }
+      try{ loadFavicon(); }catch(e){}
+      try{ loadAppName(); }catch(e){}
       function loadHdrMsg(){ fetch('/api/admin/header-msg').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('hdrMsg').value=j.msg||''; document.getElementById('hdrMsgOn').checked=(j.on!==false); } }).catch(function(){}); }
       function saveHdrMsg(){ var v=document.getElementById('hdrMsg').value, on=document.getElementById('hdrMsgOn').checked, m=document.getElementById('hdrMsgMsg'); m.textContent='Saving…'; post('/api/admin/header-msg',{msg:v,on:on}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — reps see it on their next dashboard load.'; } else { m.textContent=(j&&j.error)||'Failed'; } }); }
       function clearHdrMsg(){ document.getElementById('hdrMsg').value=''; post('/api/admin/header-msg',{msg:'',on:document.getElementById('hdrMsgOn').checked}).then(function(j){ if(j&&j.ok) document.getElementById('hdrMsgMsg').textContent='Cleared.'; }); }

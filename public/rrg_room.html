@@ -39,21 +39,10 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 .docrow a.view{font-size:11.5px;font-weight:700;color:var(--navy);text-decoration:none;border:1px solid var(--line);border-radius:7px;padding:5px 11px;}
 .docrow button.x{border:1px solid #f0cfca;background:#fff5f4;color:var(--red);border-radius:7px;padding:5px 10px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
 .catempty{padding:9px 20px;color:var(--soft);font-size:11.5px;font-style:italic;border-top:1px solid #f0f2f7;}
-.log{max-height:230px;overflow:auto;} .logrow{display:flex;gap:10px;font-size:11.5px;padding:6px 20px;border-top:1px solid #f5f6fa;color:var(--muted);} .logrow .ev{font-weight:700;color:var(--navy);width:74px;} .logrow .when{width:112px;} .logrow .who{width:120px;color:var(--ink);font-weight:600;}
-.gatechip{font-size:11px;font-weight:800;letter-spacing:.03em;padding:3px 10px;border-radius:20px;}
-.gatechip.on{background:#eaf7f0;color:var(--green);border:1px solid #bfe6d1;} .gatechip.off{background:#fff4e6;color:#b9761a;border:1px solid #f0d7ad;}
-.grow{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid #f0f2f7;}
-.grow.off{opacity:.55;}
-.grow .gname{font-weight:700;color:var(--navy);font-size:13px;}
-.grow .revoked{font-size:9.5px;font-weight:800;color:var(--red);background:#fdeceb;border-radius:20px;padding:1px 7px;text-transform:uppercase;letter-spacing:.04em;margin-left:6px;}
-.grow .gmeta{color:var(--muted);font-size:11px;margin-top:1px;}
-.grow .gcode{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;font-weight:700;letter-spacing:.1em;color:var(--navy);background:var(--wash);border:1px solid var(--line);border-radius:7px;padding:6px 11px;cursor:pointer;}
-.grow .gcode:hover{border-color:#9fb0cc;}
-.grow button.x{border:1px solid #f0cfca;background:#fff5f4;color:var(--red);border-radius:7px;padding:6px 11px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
-.grow button.react{border:1px solid #bfe6d1;background:#eefaf3;color:#0e7a53;border-radius:7px;padding:6px 11px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
-.grow button.ginv{border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:7px;padding:6px 12px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.log{max-height:230px;overflow:auto;} .logrow{display:flex;gap:10px;font-size:11.5px;padding:6px 20px;border-top:1px solid #f5f6fa;color:var(--muted);} .logrow .ev{font-weight:700;color:var(--navy);width:74px;} .logrow .when{width:120px;}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:12.5px;font-weight:700;padding:10px 18px;border-radius:100px;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .2s;pointer-events:none;z-index:99;} .toast.show{opacity:1;}
 </style>
+<script src="/rrg_brand.js"></script>
 </head>
 <body>
 <!--rrgback--><a href="./rrg_rooms_queue.html" class="rrg-back" aria-label="Back to Data Rooms" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> Data Rooms</a>
@@ -67,20 +56,8 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 
   <div class="card"><div class="cbody">
     <h2>Buyer link</h2>
-    <div class="h">This is the address of the room. Once you add buyers below, each one also needs their personal access code to get in — so send every buyer this link <b>and their code</b>. Until you add a buyer, the link opens the room directly. Regenerate it to retire the old link instantly.</div>
+    <div class="h">Anyone with this link can view and download the documents in this room. Share it only with qualified, NDA'd buyers. Regenerate it to retire the old link instantly.</div>
     <div class="linkbar"><span class="url" id="url">…</span><button class="btn primary" onclick="copyLink()">Copy link</button><a class="btn" id="openLink" href="#" target="_blank" rel="noopener">Preview</a><button class="btn" onclick="regen()">Regenerate</button></div>
-  </div></div>
-
-  <div class="card"><div class="cbody">
-    <h2 style="display:flex;align-items:center;gap:10px">Access &amp; security <span class="gatechip" id="gatechip">…</span></h2>
-    <div class="h">Add each buyer you're giving access to — they get a personal code to open the room. Every view and download is tracked to them, sessions end after 15 minutes of inactivity, and you can revoke anyone instantly. Send each buyer the link above <b>and their code</b>.</div>
-    <div class="up" style="grid-template-columns:1fr 1fr auto">
-      <div class="fld"><label>Buyer name</label><input type="text" id="gName" placeholder="e.g. Jane Buyer"></div>
-      <div class="fld"><label>Email (optional)</label><input type="text" id="gEmail" placeholder="jane@example.com"></div>
-      <div class="fld"><button class="btn green" onclick="addBuyer()">+ Add buyer</button></div>
-    </div>
-    <div class="umsg" id="gmsg"></div>
-    <div id="grantList"></div>
   </div></div>
 
   <div class="card"><div class="cbody">
@@ -128,44 +105,12 @@ function renderDocs(){
     return '<div class="cat"><div class="cathd">'+esc(cat)+'<span class="n">'+inCat.length+'</span></div>'+rows+'</div>';
   }).join('');
 }
-function evLabel(e){ return e==='download'?'Download':(e==='signin'?'Signed in':'View'); }
 function renderLog(){
   var el=document.getElementById('log'), a=ROOM.access||[];
   if(!a.length){ el.innerHTML='<div class="logrow" style="border-top:none">No buyer activity yet.</div>'; return; }
-  el.innerHTML=a.map(function(x){ return '<div class="logrow"><span class="ev">'+esc(evLabel(x.event))+'</span><span class="when">'+esc(fmtWhen(x.at))+'</span><span class="who">'+esc(x.who||'—')+'</span><span style="flex:1">'+esc(x.doc||'')+'</span><span>'+esc(x.ip||'')+'</span></div>'; }).join('');
+  el.innerHTML=a.map(function(x){ return '<div class="logrow"><span class="ev">'+esc(x.event==='download'?'Download':'View')+'</span><span class="when">'+esc(fmtWhen(x.at))+'</span><span style="flex:1">'+esc(x.doc||'—')+'</span><span>'+esc(x.ip||'')+'</span></div>'; }).join('');
 }
-function renderGrants(){
-  var el=document.getElementById('grantList'), grants=ROOM.grants||[], chip=document.getElementById('gatechip');
-  if(chip){ chip.textContent=ROOM.gated?'Locked · code required':'Open · link only'; chip.className='gatechip '+(ROOM.gated?'on':'off'); }
-  if(!grants.length){ el.innerHTML='<div class="catempty">No buyers added yet — the room is open to anyone with the link until you add one.</div>'; return; }
-  el.innerHTML=grants.map(function(g){
-    var seen=g.lastSeen?('Last in '+fmtWhen(g.lastSeen)):'Not accessed yet';
-    var inv=g.active?('<button class="ginv" onclick="copyInvite(\''+esc(g.code)+'\')" title="Copy the link + this code to send">Copy invite</button>'):'';
-    var act=g.active?('<button class="x" onclick="toggleGrant(\''+g.id+'\')">Revoke</button>'):('<button class="react" onclick="toggleGrant(\''+g.id+'\')">Reactivate</button>');
-    return '<div class="grow'+(g.active?'':' off')+'"><div style="flex:1"><div class="gname">'+esc(g.name||g.email||'Buyer')+(g.active?'':' <span class="revoked">revoked</span>')+'</div><div class="gmeta">'+esc(g.email||'')+(g.email?' · ':'')+seen+' · '+(g.views||0)+' views · '+(g.downloads||0)+' downloads</div></div><span class="gcode" onclick="copyCode(\''+esc(g.code)+'\')" title="Copy just the code">'+esc(g.code)+'</span>'+inv+act+'</div>';
-  }).join('');
-}
-function copyCode(code){ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(code).then(function(){ toast('Code copied ✓'); }).catch(function(){ prompt('Code:',code); }); } else prompt('Code:',code); }
-function copyInvite(code){
-  var msg=(ROOM.business||'Confidential opportunity')+' — RRG Confidential Data Room\n\n'
-    +'Access link: '+(ROOM.link||'')+'\n'
-    +'Your access code: '+code+'\n\n'
-    +'Open the link, enter your code, and you can view and download the materials. For confidentiality your session ends after 15 minutes of inactivity — just re-enter your code to return. Please don\'t forward this link or code.';
-  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(msg).then(function(){ toast('Invite copied ✓ — paste into your email'); }).catch(function(){ prompt('Copy this invite:',msg); }); } else prompt('Copy this invite:',msg);
-}
-function addBuyer(){
-  var name=(document.getElementById('gName').value||'').trim(), email=(document.getElementById('gEmail').value||'').trim(), m=document.getElementById('gmsg');
-  if(!name && !email){ m.textContent='Add a name or email.'; return; }
-  m.textContent='Adding…';
-  fetch('/api/room/'+encodeURIComponent(RID)+'/grant',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:name,email:email})})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants; if(j.gated) ROOM.gated=true; renderGrants(); document.getElementById('gName').value=''; document.getElementById('gEmail').value=''; var g=j.grants[j.grants.length-1]; m.innerHTML='Added ✓ — access code <b style="font-family:ui-monospace,Menlo,monospace;letter-spacing:.1em">'+esc(g.code)+'</b>. Send the buyer the link plus this code.'; } else { m.textContent=(j&&j.error)||'Failed'; } })
-    .catch(function(){ m.textContent='Could not reach the server.'; });
-}
-function toggleGrant(id){
-  fetch('/api/room/'+encodeURIComponent(RID)+'/grant-toggle',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:id})})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants; renderGrants(); } else alert((j&&j.error)||'Failed'); }).catch(function(){ alert('Could not reach the server.'); });
-}
-function paint(){ document.getElementById('hdr').textContent='Data Room · '+(ROOM.business||''); paintLink(); renderGrants(); renderCats(); renderDocs(); renderLog(); }
+function paint(){ document.getElementById('hdr').textContent='Data Room · '+(ROOM.business||''); paintLink(); renderCats(); renderDocs(); renderLog(); }
 function load(){
   fetch('/api/room/'+encodeURIComponent(RID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(j&&j.ok&&j.room){ ROOM=j.room; paint(); } else { document.getElementById('docList').innerHTML='<div class="catempty">Could not load this data room.</div>'; }
