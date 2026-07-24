@@ -105,7 +105,7 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
 .card p{font-size:13px;line-height:1.5;color:var(--muted);margin:0 0 18px;flex:1;}
 .open{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:13px;color:var(--navy);}
 .cardin{position:relative;z-index:1;display:flex;flex-direction:column;flex:1;}
-.cardwm{position:absolute;right:-40px;top:14px;width:150px;height:150px;opacity:.06;z-index:0;pointer-events:none;}
+.cardwm{position:absolute;right:-34px;bottom:-34px;width:150px;height:150px;opacity:.06;z-index:0;pointer-events:none;}
 .cardwm .icon{width:150px;height:150px;}
 .card:hover .cardwm{opacity:.09;}
 .cardfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;}
@@ -318,10 +318,10 @@ var GUIDES = {
     tip:"The CIM is the document; the campaign that sells it is your Copper email sequence — teaser, NDA, CIM, call for offers. Build the pack, then run the sequence to create competition and drive the price."
   },
   'rrg_rooms_queue.html':{
-    background:"A confidential, per-deal document room. Each room has a fixed set of sections — Financials, Tax Returns, Lease, Equipment, Licenses, Legal, Menus & Marketing, Other — and a single shareable buyer link. Admins see the whole team; reps see their own.",
+    background:"A confidential, per-deal document room with controlled buyer access. Each room has a fixed set of sections — Financials, Tax Returns, Lease, Equipment, Licenses, Legal, Menus & Marketing, Other — one shareable link, and a per-buyer access code so you can see exactly who's been in. Admins see the whole team; reps see their own.",
     when:"Once you're releasing diligence materials to NDA'd buyers — usually alongside the Marketing Pack.",
-    how:["Open a data room from a built Marketing Pack (it's created automatically for that deal), then add files under the right section — add or remove documents anytime.","Copy the buyer link and send it to a qualified, NDA'd buyer; they can view and download, and every view and download is logged.","Regenerate the link anytime to instantly retire the old one."],
-    tip:"Name files the way a buyer reads them — “2023 Profit & Loss,” “Current Lease — Fully Executed.” A clean, well-organized room signals a well-run process and builds buyer confidence."
+    how:["Open a data room from a built Marketing Pack (created automatically for that deal), or start one with “+ New data room,” then add files under the right section — add or remove documents anytime.","Under Access & security, add each buyer (name + email) to generate their personal access code. Send them the room link and their code. Adding the first buyer locks the room so a code is required.","Every view and download is tracked to the buyer in the access log; their session ends after 15 minutes of inactivity, and you can revoke anyone instantly or regenerate the link to retire it."],
+    tip:"Give each buyer their own code rather than sharing one — that's how you know who opened what, and how you shut a single party out without disrupting everyone else. Name files the way a buyer reads them: “2023 Profit & Loss,” “Current Lease — Fully Executed.”"
   },
   'rrg_cim_builder.html':{
     background:"The confidential offering book buyers actually read. It pulls the valuation from the BOV; you add the story, the photos, and the proof.",

@@ -1315,6 +1315,41 @@ function newRoomDocId() { return 'rd_' + Math.random().toString(36).slice(2, 10)
 function newRoomToken() { try { return crypto.randomBytes(16).toString('hex'); } catch (e) { return (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 28); } }
 const ROOM_CATEGORIES = ['Financials', 'Tax Returns', 'Lease', 'Equipment & FF&E', 'Licenses & Permits', 'Legal & Corporate', 'Menus & Marketing', 'Other'];
 const ROOM_EXT = /^(pdf|docx?|xlsx?|csv|pptx?|png|jpe?g|gif|txt)$/i;
+// ---- Buyer access control: per-buyer codes + a 15-min idle session ----
+const ROOM_COOKIE = 'rrg_room';
+const ROOM_IDLE_MS = 15 * 60 * 1000;
+const ROOM_KEYFILE = path.join(BOV_DATA_DIR, 'room.key');
+function roomSecret() {
+  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  try { return fs.readFileSync(ROOM_KEYFILE, 'utf8'); }
+  catch (e) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); } catch (_) {} const k = crypto.randomBytes(32).toString('hex'); try { fs.writeFileSync(ROOM_KEYFILE, k); } catch (_) {} return k; }
+}
+function signRoomSess(payload) {
+  const b = Buffer.from(JSON.stringify(payload)).toString('base64url');
+  const sig = crypto.createHmac('sha256', roomSecret()).update(b).digest('base64url');
+  return b + '.' + sig;
+}
+function readRoomSess(tok) {
+  if (!tok || tok.indexOf('.') < 0) return null;
+  const [b, sig] = tok.split('.');
+  let expect; try { expect = crypto.createHmac('sha256', roomSecret()).update(b).digest('base64url'); } catch (e) { return null; }
+  if (!sig || sig.length !== expect.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return null;
+  let p; try { p = JSON.parse(Buffer.from(b, 'base64url').toString()); } catch (e) { return null; }
+  if (!p || !p.exp || p.exp < Date.now()) return null;
+  return p;
+}
+function setRoomCookie(res, token) { res.append('Set-Cookie', ROOM_COOKIE + '=' + token + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=900'); }
+function newGrantId() { return 'g_' + Math.random().toString(36).slice(2, 9); }
+function newGrantCode() { const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s = ''; try { const b = crypto.randomBytes(8); for (let i = 0; i < 8; i++) s += A[b[i] % A.length]; } catch (e) { for (let i = 0; i < 8; i++) s += A[Math.floor(Math.random() * A.length)]; } return s; }
+// The active grant for the current buyer session on this room, or null.
+function roomGrantFor(req, r) {
+  const sess = readRoomSess(parseCookies(req)[ROOM_COOKIE]);
+  if (!sess || sess.r !== r.id) return null;
+  return (r.grants || []).find(g => g.id === sess.g && g.active) || null;
+}
+// A room is gated once it has ever been locked (a buyer was added). Revoking every
+// buyer then locks everyone OUT rather than falling back open.
+function roomIsGated(r) { return !!r.locked || (r.grants || []).some(g => g.active); }
 function ownsRoom(req, r) {
   if (req.user && req.user.role === 'admin') return true;
   if (r.byUser) return r.byUser === (req.user && req.user.username);
@@ -1329,7 +1364,7 @@ function ensureRoomForCim(req, cim) {
     id: newRoomId(), srcCimId: cim.id, srcBovId: cim.srcBovId || '', token: newRoomToken(),
     business: cim.business || 'Business',
     by: (req.user && req.user.name) || cim.by || '', byUser: (req.user && req.user.username) || cim.byUser || '',
-    createdAt: new Date().toISOString(), docs: [], access: [],
+    createdAt: new Date().toISOString(), docs: [], access: [], grants: [],
   };
   arr.push(rec); saveRooms(arr);
   return rec;
@@ -1349,7 +1384,34 @@ app.get('/api/room/:id', (req, res) => {
   if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const origin = req.protocol + '://' + req.get('host');
-  res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-100).reverse(), categories: ROOM_CATEGORIES } });
+  res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-120).reverse(), categories: ROOM_CATEGORIES,
+    gated: roomIsGated(r),
+    grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', code: g.code, active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
+});
+// Add a buyer (grant) — generates a personal access code.
+app.post('/api/room/:id/grant', express.json(), (req, res) => {
+  const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const b = req.body || {};
+  const name = String(b.name || '').trim().slice(0, 100);
+  const email = String(b.email || '').trim().slice(0, 120);
+  if (!name && !email) return res.status(400).json({ ok: false, error: 'Add a name or email for this buyer.' });
+  r.grants = r.grants || [];
+  r.locked = true;   // adding a buyer locks the room — a code is now required
+  const g = { id: newGrantId(), name, email, code: newGrantCode(), active: true, createdAt: new Date().toISOString(), lastSeen: '', views: 0, downloads: 0, by: (req.user && req.user.name) || '' };
+  r.grants.push(g); saveRooms(arr);
+  res.json({ ok: true, grants: r.grants, gated: true });
+});
+// Revoke / reactivate a buyer's access.
+app.post('/api/room/:id/grant-toggle', express.json(), (req, res) => {
+  const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const g = (r.grants || []).find(x => x.id === String((req.body || {}).grantId || ''));
+  if (!g) return res.status(404).json({ ok: false, error: 'Buyer not found.' });
+  g.active = !g.active; saveRooms(arr);
+  res.json({ ok: true, grants: r.grants });
 });
 // Create a standalone data room (not tied to a Marketing Pack).
 app.post('/api/room/new', express.json(), (req, res) => {
@@ -1358,7 +1420,7 @@ app.post('/api/room/new', express.json(), (req, res) => {
     id: newRoomId(), srcCimId: '', srcBovId: '', token: newRoomToken(),
     business: String(b.business || 'Data Room').slice(0, 120),
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
-    createdAt: new Date().toISOString(), docs: [], access: [],
+    createdAt: new Date().toISOString(), docs: [], access: [], grants: [],
   };
   const arr = loadRooms(); arr.push(rec); saveRooms(arr);
   res.json({ ok: true, id: rec.id });
@@ -1428,31 +1490,56 @@ app.post('/api/room/:id/newlink', (req, res) => {
   const origin = req.protocol + '://' + req.get('host');
   res.json({ ok: true, token: r.token, link: origin + '/room/' + r.token });
 });
-function logRoomAccess(r, req, event, doc) {
+function logRoomAccess(r, req, event, doc, grant) {
   try {
     r.access = r.access || [];
-    r.access.push({ at: new Date().toISOString(), ip: (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim(), event: event, doc: doc || '' });
+    const entry = { at: new Date().toISOString(), ip: (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim(), event: event, doc: doc || '' };
+    if (grant) { entry.grantId = grant.id; entry.who = grant.name || grant.email || ''; if (event === 'download') grant.downloads = (grant.downloads || 0) + 1; if (event === 'view') grant.views = (grant.views || 0) + 1; }
+    r.access.push(entry);
     if (r.access.length > 1000) r.access = r.access.slice(-1000);
   } catch (e) {}
 }
-// PUBLIC buyer-facing room page — reachable with the share token, no login.
+// PUBLIC buyer-facing room page — gated by a personal access code once buyers are added.
 app.get('/room/:token', (req, res) => {
   const arr = loadRooms();
   const r = arr.find(x => x.token === req.params.token);
   if (!r) return res.status(404).set('Content-Type', 'text/html').send(roomNotFoundPage());
-  logRoomAccess(r, req, 'view', ''); saveRooms(arr);
-  res.set('Content-Type', 'text/html; charset=utf-8').send(roomPublicPage(r));
+  if (roomIsGated(r)) {
+    const grant = roomGrantFor(req, r);
+    if (!grant) return res.set('Content-Type', 'text/html; charset=utf-8').send(roomGatePage(r, ''));
+    grant.lastSeen = new Date().toISOString();
+    setRoomCookie(res, signRoomSess({ r: r.id, g: grant.id, exp: Date.now() + ROOM_IDLE_MS }));
+    logRoomAccess(r, req, 'view', '', grant); saveRooms(arr);
+    return res.set('Content-Type', 'text/html; charset=utf-8').send(roomPublicPage(r, grant));
+  }
+  logRoomAccess(r, req, 'view', '', null); saveRooms(arr);
+  res.set('Content-Type', 'text/html; charset=utf-8').send(roomPublicPage(r, null));
 });
-// PUBLIC file download from a room.
+// Buyer enters their access code.
+app.post('/room/:token/enter', (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.token === req.params.token);
+  if (!r) return res.status(404).set('Content-Type', 'text/html').send(roomNotFoundPage());
+  const code = String((req.body && req.body.code) || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const grant = (r.grants || []).find(g => g.active && String(g.code).toUpperCase() === code);
+  if (!grant) return res.status(200).set('Content-Type', 'text/html; charset=utf-8').send(roomGatePage(r, 'That code isn’t valid. Check it and try again, or contact your RRG representative.'));
+  grant.lastSeen = new Date().toISOString(); logRoomAccess(r, req, 'signin', '', grant); saveRooms(arr);
+  setRoomCookie(res, signRoomSess({ r: r.id, g: grant.id, exp: Date.now() + ROOM_IDLE_MS }));
+  res.redirect('/room/' + r.token);
+});
+// PUBLIC file download from a room (gated when buyers are added).
 app.get('/roomfile/:token/:docid', (req, res) => {
   const arr = loadRooms();
   const r = arr.find(x => x.token === req.params.token);
   if (!r) return res.status(404).end();
+  let grant = null;
+  if (roomIsGated(r)) { grant = roomGrantFor(req, r); if (!grant) return res.redirect('/room/' + r.token); }
   const d = (r.docs || []).find(x => x.id === String(req.params.docid));
   if (!d) return res.status(404).end();
   const fp = path.join(ROOMS_DIR, d.id + '.' + d.ext);
   if (!fp.startsWith(ROOMS_DIR) || !fs.existsSync(fp)) return res.status(404).end();
-  logRoomAccess(r, req, 'download', d.title || d.originalName); saveRooms(arr);
+  if (grant) { grant.lastSeen = new Date().toISOString(); setRoomCookie(res, signRoomSess({ r: r.id, g: grant.id, exp: Date.now() + ROOM_IDLE_MS })); }
+  logRoomAccess(r, req, 'download', d.title || d.originalName, grant); saveRooms(arr);
   res.setHeader('Content-Disposition', 'inline; filename="' + String(d.title || d.originalName || d.id).replace(/[^\w.\- ]+/g, '_') + '.' + d.ext + '"');
   res.sendFile(fp);
 });
@@ -1489,9 +1576,10 @@ ${inner.head}</div></div>
 <div class="foot">Confidential &amp; proprietary. Access to this data room is provided under a non-disclosure agreement to a qualified, identified party for the sole purpose of evaluating a potential acquisition. Do not copy, forward, or distribute. All inquiries route exclusively through Restaurant Realty Group, LLC · rrgcre.com</div>
 </body></html>`;
 }
-function roomPublicPage(r) {
+function roomPublicPage(r, grant) {
   const docs = (r.docs || []);
-  const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${docs.length} document${docs.length === 1 ? '' : 's'} · Provided by Restaurant Realty Group under NDA</div>`;
+  const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · session ends after 15 min idle</div>` : '';
+  const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${docs.length} document${docs.length === 1 ? '' : 's'} · Provided by Restaurant Realty Group under NDA</div>${who}`;
   let body;
   if (!docs.length) {
     body = '<div class="card"><div class="empty"><b>Documents are being prepared.</b><br>Your RRG contact will let you know as materials are added.</div></div>';
@@ -1508,6 +1596,19 @@ function roomPublicPage(r) {
 }
 function roomNotFoundPage() {
   return roomShell('RRG Data Room', { head: '<div class="kick">Data Room</div><h1>Link not found</h1><div class="sub">This data room link is invalid or has been retired.</div>', body: '<div class="note">The link you followed is no longer active. Please contact your RRG representative for an updated link.</div>' });
+}
+function roomGatePage(r, err) {
+  const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">Enter your personal access code to continue. Access is provided by Restaurant Realty Group under NDA.</div>`;
+  const body = `<div class="card"><div style="padding:24px 22px">`
+    + (err ? `<div style="background:#fdeceb;color:#b3261e;border:1px solid #f3cfc9;border-radius:8px;padding:10px 13px;font-size:12.5px;font-weight:600;margin-bottom:16px">${esc(err)}</div>` : '')
+    + `<form method="POST" action="/room/${esc(r.token)}/enter">`
+    + `<label style="display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8a93a8;font-weight:700;margin-bottom:6px">Access code</label>`
+    + `<input name="code" autocomplete="off" autocapitalize="characters" spellcheck="false" autofocus placeholder="e.g. K7RM2QAP" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:13px;font:inherit;font-size:17px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;text-align:center">`
+    + `<button type="submit" style="width:100%;margin-top:14px;background:#000E31;color:#fff;border:none;border-radius:9px;padding:13px;font:inherit;font-size:14px;font-weight:700;cursor:pointer">Enter data room →</button>`
+    + `</form>`
+    + `<div style="font-size:11.5px;color:#8a93a8;margin-top:16px;line-height:1.55">Your code was provided by your RRG contact. For confidentiality, this session ends automatically after 15 minutes of inactivity.</div>`
+    + `</div></div>`;
+  return roomShell('RRG Data Room — Access', { head, body });
 }
 
 /* ---------- submission log view (now shows who submitted) ---------- */
