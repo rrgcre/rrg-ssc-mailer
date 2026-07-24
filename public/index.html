@@ -26,10 +26,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .rule{display:none;}
 .tagline{position:relative;z-index:2;margin-top:5px;font-size:12.5px;font-weight:800;color:#fff;white-space:nowrap;letter-spacing:-.01em;}
 .tagline .r{color:var(--red);}
-.hdrclock{position:absolute;right:32px;bottom:16px;text-align:right;z-index:3;}
+.hdrclock{margin-left:auto;text-align:right;z-index:3;}
 .hdrclock .d{font-weight:800;font-size:12px;color:#fff;letter-spacing:-.01em;}
 .hdrclock .t{font-size:11.5px;color:#aeb8cf;font-weight:700;margin-top:1px;font-variant-numeric:tabular-nums;}
-@media(max-width:640px){ .hdrclock{position:static;text-align:left;margin-top:16px;} }
+@media(max-width:640px){ .hdrclock{text-align:right;} }
 @media(max-width:820px){ .mono{font-size:230px;} }
 .topnav{position:absolute;top:0;right:32px;display:flex;align-items:center;gap:8px;font-size:12.5px;z-index:6;}
 .topnav .who{color:#c3ccdf;font-weight:600;margin-right:4px;}
@@ -68,7 +68,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .brand .disc{background:var(--red);color:#fff;border-radius:50%;width:36px;height:36px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;box-shadow:0 0 0 5px rgba(218,43,31,.12), 0 6px 18px rgba(218,43,31,.28);}
 .brand .bar{background:#fff;width:3px;height:26px;margin:0 11px;}
 .brand .wm{font-weight:800;color:#fff;font-size:12px;text-transform:uppercase;line-height:.95;letter-spacing:.01em;}
-.hdrrow{display:flex;align-items:center;gap:16px;position:relative;z-index:2;}
+.hdrrow{display:flex;align-items:center;gap:16px;position:relative;z-index:2;margin-top:34px;}
 .hdrrow .brand{flex:none;}
 .hdrdiv{width:1px;align-self:stretch;background:rgba(255,255,255,.18);flex:none;}
 .hdrtext{min-width:0;}
@@ -215,8 +215,8 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
     <div class="topnav" id="topnav"></div>
     <div class="hdrrow">
       <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+      <div class="hdrclock" id="hdrClock"><div class="d" id="hcDate">&nbsp;</div><div class="t" id="hcTime">&nbsp;</div></div>
     </div>
-    <div class="hdrclock" id="hdrClock"><div class="d" id="hcDate">&nbsp;</div><div class="t" id="hcTime">&nbsp;</div></div>
   </div>
 </div>
 
