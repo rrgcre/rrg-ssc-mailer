@@ -29,6 +29,9 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .cinfo{min-width:0;flex:1;} .cname{font-weight:800;color:var(--navy);font-size:13.5px;} .csub{font-size:11.5px;color:var(--muted);margin-top:2px;}
 .ctype{font-size:9.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;}
 .ctype.ls-open{background:#eafaf0;color:#0e7a53;border-color:#b9e6cd;} .ctype.ls-closed{background:#fdeceb;color:var(--red);border-color:#f3cfc9;} .ctype.ls-underloi{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;} .ctype.ls-prospective{background:#f2f4f8;color:#6b7488;border-color:#e0e5ee;}
+.cptgrp{margin-bottom:6px;} .cptgrp:last-child{margin-bottom:0;}
+.cpthd{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--navy);padding:10px 2px 6px;border-bottom:1px solid var(--line);margin-bottom:2px;display:flex;align-items:center;gap:7px;}
+.cpthd span{background:#eef2fb;color:#2647b0;border-radius:999px;font-size:10px;padding:1px 7px;}
 .ledit{background:#fff;border:1px solid var(--line);color:var(--navy);border-radius:7px;padding:5px 9px;font:inherit;font-size:11px;font-weight:700;cursor:pointer;}
 .crm{background:#fff;border:1px solid #f0c9c6;color:var(--red);border-radius:7px;padding:5px 9px;font:inherit;font-size:11px;font-weight:700;cursor:pointer;}
 .drow{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;}
@@ -67,7 +70,8 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
-var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CTYPES=['Business'], PTYPES=['Buyer'], LSTATUSES=['Open','Closed','Under LOI','Prospective'], DIRTY=false;
+var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Open','Closed','Under LOI','Prospective'], DIRTY=false;
+function conceptList(){ var s={}; LOCATIONS.forEach(function(l){ if(l.concept) s[l.concept]=1; }); return Object.keys(s); }
 function locStatusClass(s){ return 'ls-'+String(s||'Open').toLowerCase().replace(/[^a-z]+/g,''); }
 function render(){
   document.getElementById('crumb').textContent=C.name||'Company';
@@ -79,10 +83,18 @@ function render(){
     var sub=[p.title,p.email,p.phone].filter(Boolean).map(esc).join(' · ');
     return '<div class="crow"><div class="cav">'+esc(initials(p.name).toUpperCase())+'</div><div class="cinfo"><div class="cname">'+esc(p.name||'Contact')+'</div><div class="csub">'+sub+'</div></div><span class="ctype">'+esc(p.type||'')+'</span><button class="crm" data-rm="'+esc(p.id)+'">Remove</button></div>';
   }).join('') : '<div class="empty">No contacts yet. Add the owner, partners, or advisors tied to this company.</div>';
-  var locs = LOCATIONS.length ? LOCATIONS.map(function(l){
+  function locRow(l){
     var line=[l.address,l.city].filter(Boolean).map(esc).join(', ');
     return '<div class="crow"><div class="cav" style="background:#fff4e6;color:#b9761a">◆</div><div class="cinfo"><div class="cname">'+esc(l.name||l.address||'Location')+'</div><div class="csub">'+line+(l.notes?(' · '+esc(l.notes)):'')+'</div></div><span class="ctype '+locStatusClass(l.status)+'">'+esc(l.status||'Open')+'</span><button class="ledit" data-le="'+esc(l.id)+'">Edit</button><button class="crm" data-lrm="'+esc(l.id)+'">Remove</button></div>';
-  }).join('') : '<div class="empty">No locations yet. Add each unit — address, city, and status.</div>';
+  }
+  var locs;
+  if(!LOCATIONS.length){ locs='<div class="empty">No locations yet. A company can run several concepts, each with several locations — add each unit with its concept, address, and status.</div>'; }
+  else {
+    var byC={}, order=[]; LOCATIONS.forEach(function(l){ var k=l.concept||'—'; if(!byC[k]){byC[k]=[];order.push(k);} byC[k].push(l); });
+    // one unnamed group and nothing else → don't show a heading
+    if(order.length===1 && order[0]==='—'){ locs=LOCATIONS.map(locRow).join(''); }
+    else { locs=order.map(function(k){ var hd=(k==='—')?'Other locations':k; return '<div class="cptgrp"><div class="cpthd">'+esc(hd)+' <span>'+byC[k].length+'</span></div>'+byC[k].map(locRow).join('')+'</div>'; }).join(''); }
+  }
   var deals = DEALS.length ? DEALS.map(function(d){
     return '<a class="drow" href="./rrg_assignment.html?key='+encodeURIComponent(d.key)+'"><div><div class="dbiz">'+esc(d.business)+'</div><div class="dmeta">'+esc(d.market||'')+'</div></div><span class="dstate '+(d.started?'on':'off')+'">'+(d.started?'In pipeline':'Not started')+'</span></a>';
   }).join('') : '<div class="empty">No deals linked to this company yet.</div>';
@@ -98,7 +110,7 @@ function render(){
     + '<div class="side"><div class="card"><div class="ch"><b>Company</b></div><div class="cb">'
       + '<div class="fldrow"><label class="fld">Name</label><input id="c_name" value="'+esc(C.name||'')+'"></div>'
       + '<div class="fldrow"><label class="fld">Type</label><select id="c_type">'+ctsel+'</select></div>'
-      + '<div class="fldrow"><label class="fld">Market</label><input id="c_market" value="'+esc(C.market||'')+'" placeholder="City / metro"></div>'
+      + '<div class="fldrow"><label class="fld">Market</label><input id="c_market" list="metroList" value="'+esc(C.market||'')+'" placeholder="Choose or type a market"><datalist id="metroList"><option value="Austin"><option value="Dallas"><option value="Houston"><option value="San Antonio"><option value="Rio Grande Valley"><option value="Central Texas"></datalist></div>'
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="c_notes" placeholder="Ownership, history, relationships, anything worth remembering…">'+esc(C.notes||'')+'</textarea></div>'
       + '<button class="savebtn" id="c_save" disabled>Save changes</button><div class="saved" id="c_saved">Saved ✓</div>'
     + '</div></div></div>';
@@ -113,11 +125,13 @@ function render(){
 function openLocForm(l){
   l=l||{}; var f=document.getElementById('locForm');
   var ssel=LSTATUSES.map(function(x){return '<option'+((l.status||'Open')===x?' selected':'')+'>'+esc(x)+'</option>';}).join('');
+  var cdl=conceptList().map(function(x){return '<option value="'+esc(x)+'">';}).join('');
   f.innerHTML='<div class="cform"><div class="cgrid">'
-    +'<div><label class="fld">Location name</label><input id="lo_name" value="'+esc(l.name||'')+'" placeholder="e.g. Downtown, Airport, Unit 2"></div>'
+    +'<div><label class="fld">Concept / brand</label><input id="lo_concept" list="conceptDL" value="'+esc(l.concept||'')+'" placeholder="e.g. Taco House"><datalist id="conceptDL">'+cdl+'</datalist></div>'
     +'<div><label class="fld">Status</label><select id="lo_status">'+ssel+'</select></div>'
-    +'<div class="wide"><label class="fld">Address</label><input id="lo_address" value="'+esc(l.address||'')+'" placeholder="Street address"></div>'
+    +'<div><label class="fld">Location name</label><input id="lo_name" value="'+esc(l.name||'')+'" placeholder="e.g. Downtown, Airport, Unit 2"></div>'
     +'<div><label class="fld">City / market</label><input id="lo_city" value="'+esc(l.city||'')+'" placeholder="City"></div>'
+    +'<div class="wide"><label class="fld">Address</label><input id="lo_address" value="'+esc(l.address||'')+'" placeholder="Street address"></div>'
     +'<div class="wide"><label class="fld">Notes</label><input id="lo_notes" value="'+esc(l.notes||'')+'" placeholder="Sq ft, seats, lease, remarks…"></div>'
     +'</div><div class="cbtns"><button class="sbtn" id="lo_save">'+(l.id?'Save location':'Add location')+'</button><button class="cbtn" id="lo_cancel">Cancel</button></div></div>';
   f.removeAttribute('hidden');
@@ -126,7 +140,7 @@ function openLocForm(l){
   document.getElementById('lo_name').focus();
 }
 function saveLoc(id){
-  var body={ name:document.getElementById('lo_name').value.trim(), address:document.getElementById('lo_address').value.trim(), city:document.getElementById('lo_city').value.trim(), status:document.getElementById('lo_status').value, notes:document.getElementById('lo_notes').value.trim() };
+  var body={ name:document.getElementById('lo_name').value.trim(), concept:document.getElementById('lo_concept').value.trim(), address:document.getElementById('lo_address').value.trim(), city:document.getElementById('lo_city').value.trim(), status:document.getElementById('lo_status').value, notes:document.getElementById('lo_notes').value.trim() };
   if(id) body.id=id;
   if(!body.name && !body.address){ document.getElementById('lo_name').focus(); return; }
   var b=document.getElementById('lo_save'); b.disabled=true; b.textContent='Saving…';

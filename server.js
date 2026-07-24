@@ -13,6 +13,7 @@ const cimgen = require('./cimgen.js');
 const leasegen = require('./leasegen.js');
 const attackgen = require('./attackgen.js');
 const offergen = require('./offergen.js');
+const ticketgen = require('./ticketgen.js');
 const valgen = require('./valgen.js');
 
 const fs = require('fs');
@@ -114,12 +115,28 @@ function personBrief(p) { return p ? { id: p.id, name: p.name || '', company: p.
 // Companies — a company / account file that groups its associated contacts (people) and
 // its deals. Created at onboarding (the subject business), reusable across deals.
 const COMPANIES_FILE = path.join(BOV_DATA_DIR, 'companies.json');
-const COMPANY_TYPES = ['Business', 'Buyer Group', 'Investor', 'Vendor', 'Franchisor', 'Other'];
+const COMPANY_TYPES = ['Seller', 'Buyer'];
 function loadCompanies() { try { return JSON.parse(fs.readFileSync(COMPANIES_FILE, 'utf8')); } catch (e) { return []; } }
 function saveCompanies(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(COMPANIES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newCompanyId() { return 'co_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function companyById(id) { if (!id) return null; return loadCompanies().find(c => c.id === id) || null; }
 function companyBrief(c) { return c ? { id: c.id, name: c.name || '', market: c.market || '', type: c.type || '' } : null; }
+
+// ---- Tickets — reps open requests to the brokerage office; office works & resolves them ----
+const TICKETS_FILE = path.join(BOV_DATA_DIR, 'tickets.json');
+const TICKET_STATUSES = ['Open', 'Answered', 'Action Needed', 'Info Needed', 'Closed'];
+const TICKET_PRIORITIES = ['Normal', 'High', 'Urgent'];
+const TICKET_CATEGORIES = ['Marketing', 'Signage & Riders', 'Photography', 'Listings / MLS', 'Legal / Compliance', 'IT / Software', 'Supplies', 'Accounting', 'Other'];
+function loadTickets() { try { return JSON.parse(fs.readFileSync(TICKETS_FILE, 'utf8')); } catch (e) { return []; } }
+function saveTickets(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(TICKETS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newTicketId() { return 'tkt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function ownsTicket(req, t) { if (req.user && req.user.role === 'admin') return true; return t.byUser && t.byUser === (req.user && req.user.username); }
+function ticketNo(t) { return t.num ? ('#' + String(t.num)) : ('#' + String(t.id).slice(-5)); }
+const TICKET_PROMPT_FILE = path.join(BOV_DATA_DIR, 'ticket_prompt.txt');
+function loadTicketPromptCustom() { try { const t = fs.readFileSync(TICKET_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
+function saveTicketPromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(TICKET_PROMPT_FILE, String(t)); } catch (e) {} }
+function clearTicketPromptCustom() { try { fs.unlinkSync(TICKET_PROMPT_FILE); } catch (e) {} }
+function loadTicketPrompt() { return loadTicketPromptCustom() || undefined; }
 function findOrCreateCompany(req, info) {
   const name = String((info && info.name) || '').trim();
   if (!name) return null;
@@ -129,7 +146,7 @@ function findOrCreateCompany(req, info) {
     if (info.market && !c.market) { c.market = String(info.market).slice(0, 80); c.updatedAt = new Date().toISOString(); saveCompanies(arr); }
     return c;
   }
-  const type = (info && COMPANY_TYPES.indexOf(info.type) >= 0) ? info.type : 'Business';
+  const type = (info && COMPANY_TYPES.indexOf(info.type) >= 0) ? info.type : 'Seller';
   c = { id: newCompanyId(), name: name.slice(0, 160), market: String((info && info.market) || '').slice(0, 80), type: type, notes: '', createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
   arr.push(c); saveCompanies(arr);
   return c;
@@ -2228,6 +2245,7 @@ const LOCATION_STATUSES = ['Open', 'Closed', 'Under LOI', 'Prospective'];
 function newLocationId() { return 'loc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function applyLocationFields(l, b) {
   if (typeof b.name === 'string') l.name = b.name.slice(0, 160);
+  if (typeof b.concept === 'string') l.concept = b.concept.slice(0, 120);
   if (typeof b.address === 'string') l.address = b.address.slice(0, 200);
   if (typeof b.city === 'string') l.city = b.city.slice(0, 120);
   if (typeof b.status === 'string') l.status = LOCATION_STATUSES.indexOf(b.status) >= 0 ? b.status : 'Open';
@@ -2247,7 +2265,7 @@ app.post('/api/company/:id/location', express.json(), (req, res) => {
   const b = req.body || {}; c.locations = c.locations || [];
   const now = new Date().toISOString();
   if (b.id) { const ex = c.locations.find(l => l.id === b.id); if (!ex) return res.status(404).json({ ok: false, error: 'Location not found.' }); applyLocationFields(ex, b); ex.updatedAt = now; }
-  else { const rec = { id: newLocationId(), name: '', address: '', city: '', status: 'Open', notes: '', createdAt: now }; applyLocationFields(rec, b); if (!rec.name && !rec.address) return res.status(400).json({ ok: false, error: 'A location name or address is required.' }); c.locations.push(rec); }
+  else { const rec = { id: newLocationId(), name: '', concept: '', address: '', city: '', status: 'Open', notes: '', createdAt: now }; applyLocationFields(rec, b); if (!rec.name && !rec.address) return res.status(400).json({ ok: false, error: 'A location name or address is required.' }); c.locations.push(rec); }
   c.updatedAt = now; saveCompanies(arr);
   res.json({ ok: true, locations: c.locations });
 });
@@ -2314,7 +2332,7 @@ app.post('/api/deal/new', express.json(), (req, res) => {
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
   // Onboarding: open the company file for the subject business...
-  const company = findOrCreateCompany(req, { name: rec.business, market: rec.market, type: 'Business' });
+  const company = findOrCreateCompany(req, { name: rec.business, market: rec.market, type: 'Seller' });
   if (company) rec.companyId = company.id;
   // ...and locate the existing client, or onboard them, associated with that company.
   if (rec.contact || b.contactEmail) { const p = findOrCreatePerson(req, { name: rec.contact, email: b.contactEmail, type: 'Client', companyId: rec.companyId }); if (p) { rec.contactPersonId = p.id; if (!rec.contact) rec.contact = p.name; } }
@@ -2406,6 +2424,131 @@ app.delete('/api/deal/:id', (req, res) => {
   saveDeals(arr.filter(x => x.id !== rec.id));
   res.json({ ok: true });
 });
+// ---- Tickets — reps open requests to the brokerage office; an AI office assistant works each one ----
+function ticketBrief(t) {
+  const msgs = Array.isArray(t.thread) ? t.thread : [];
+  const last = msgs.length ? msgs[msgs.length - 1] : null;
+  return {
+    id: t.id, num: t.num || 0, no: ticketNo(t), subject: t.subject || '', category: t.category || 'Other',
+    priority: t.priority || 'Normal', status: t.status || 'Open',
+    by: t.by || '', byUser: t.byUser || '', createdAt: t.createdAt || '', updatedAt: t.updatedAt || t.createdAt || '',
+    messages: msgs.length, lastFrom: last ? last.from : '', lastAt: last ? last.at : (t.createdAt || ''),
+  };
+}
+function ticketFull(t) {
+  return {
+    id: t.id, num: t.num || 0, no: ticketNo(t), subject: t.subject || '', category: t.category || 'Other',
+    priority: t.priority || 'Normal', status: t.status || 'Open', by: t.by || '', byUser: t.byUser || '',
+    createdAt: t.createdAt || '', updatedAt: t.updatedAt || t.createdAt || '',
+    thread: (Array.isArray(t.thread) ? t.thread : []).map(m => ({ from: m.from, name: m.name || '', at: m.at || '', text: m.text || '', status: m.status || '' })),
+  };
+}
+// Run the AI brokerage-office assistant on a ticket; appends its reply to the thread and sets status.
+async function runTicketAI(t, req) {
+  const thread = Array.isArray(t.thread) ? t.thread : [];
+  const first = thread.find(m => m.from === 'rep');
+  try {
+    const out = await ticketgen.handleTicket({
+      subject: t.subject, category: t.category, priority: t.priority,
+      details: (first && first.text) || t.subject || '',
+      thread: thread,
+      rep: t.by || (req && req.user && req.user.name) || 'an RRG rep',
+      systemPrompt: loadTicketPrompt(),
+    });
+    thread.push({ from: 'office', name: 'RRG Brokerage Office', at: new Date().toISOString(), text: out.reply, status: out.status });
+    t.status = out.status || 'Answered';
+    if (out.summary) t.aiSummary = String(out.summary).slice(0, 140);
+  } catch (e) {
+    console.error('ticket AI error:', e && e.message);
+    thread.push({ from: 'office', name: 'RRG Brokerage Office', at: new Date().toISOString(),
+      text: "Thanks — your request is logged and the office will follow up. (The automated assistant is temporarily unavailable, so a person will review this shortly.)", status: 'Open', failed: true });
+    t.status = 'Open';
+  }
+  t.thread = thread; t.updatedAt = new Date().toISOString();
+}
+app.get('/api/tickets', (req, res) => {
+  const isAdmin = !!(req.user && req.user.role === 'admin');
+  let arr = loadTickets();
+  if (!isAdmin) arr = arr.filter(t => ownsTicket(req, t));
+  arr = arr.slice().sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
+  res.json({ ok: true, tickets: arr.map(ticketBrief), categories: TICKET_CATEGORIES, priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin });
+});
+app.get('/api/ticket/:id', (req, res) => {
+  const t = loadTickets().find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
+  if (!ownsTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  res.json({ ok: true, ticket: ticketFull(t), categories: TICKET_CATEGORIES, priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin: !!(req.user && req.user.role === 'admin') });
+});
+app.post('/api/ticket', express.json(), async (req, res) => {
+  const b = req.body || {};
+  const subject = String(b.subject || '').trim();
+  const details = String(b.details || '').trim();
+  if (!subject) return res.status(400).json({ ok: false, error: 'A subject is required.' });
+  if (!details) return res.status(400).json({ ok: false, error: 'Please describe your request.' });
+  const arr = loadTickets();
+  const nextNum = arr.reduce((m, x) => Math.max(m, x.num || 0), 1000) + 1;
+  const now = new Date().toISOString();
+  const t = {
+    id: newTicketId(), num: nextNum, subject: subject.slice(0, 160),
+    category: TICKET_CATEGORIES.indexOf(b.category) >= 0 ? b.category : 'Other',
+    priority: TICKET_PRIORITIES.indexOf(b.priority) >= 0 ? b.priority : 'Normal',
+    status: 'Open', createdAt: now, updatedAt: now,
+    by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
+    thread: [{ from: 'rep', name: (req.user && req.user.name) || 'Rep', at: now, text: details.slice(0, 8000) }],
+  };
+  await runTicketAI(t, req);           // AI office assistant works it immediately
+  arr.push(t); saveTickets(arr);
+  res.json({ ok: true, ticket: ticketFull(t) });
+});
+app.post('/api/ticket/:id/reply', express.json(), async (req, res) => {
+  const arr = loadTickets(); const t = arr.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
+  if (!ownsTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const text = String((req.body && req.body.text) || '').trim();
+  if (!text) return res.status(400).json({ ok: false, error: 'Message is empty.' });
+  t.thread = Array.isArray(t.thread) ? t.thread : [];
+  t.thread.push({ from: 'rep', name: (req.user && req.user.name) || 'Rep', at: new Date().toISOString(), text: text.slice(0, 8000) });
+  t.status = 'Open';
+  await runTicketAI(t, req);           // AI responds to the rep's follow-up
+  saveTickets(arr);
+  res.json({ ok: true, ticket: ticketFull(t) });
+});
+app.post('/api/ticket/:id/status', express.json(), (req, res) => {
+  const arr = loadTickets(); const t = arr.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
+  if (!ownsTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const s = String((req.body && req.body.status) || '');
+  if (TICKET_STATUSES.indexOf(s) < 0) return res.status(400).json({ ok: false, error: 'Bad status.' });
+  t.status = s; t.updatedAt = new Date().toISOString(); saveTickets(arr);
+  res.json({ ok: true, ticket: ticketFull(t) });
+});
+app.delete('/api/ticket/:id', (req, res) => {
+  const arr = loadTickets(); const t = arr.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
+  if (!ownsTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  saveTickets(arr.filter(x => x.id !== req.params.id));
+  res.json({ ok: true });
+});
+// Record counts per tool file — powers the little count badges on the dashboard.
+app.get('/api/counts', (req, res) => {
+  const isAdmin = !!(req.user && req.user.role === 'admin');
+  const tickets = loadTickets();
+  let dealCount = 0; try { dealCount = Object.keys(assignmentsIndex()).length; } catch (e) { dealCount = loadDeals().length; }
+  const counts = {
+    'rrg_companies.html': loadCompanies().length,
+    'rrg_people.html': loadPeople().length,
+    'rrg_assignments.html': dealCount,
+    'rrg_tickets.html': isAdmin ? tickets.length : tickets.filter(t => ownsTicket(req, t)).length,
+    'rrg_screening_queue.html': loadScreens().length,
+    'rrg_questionnaire_queue.html': loadQuests().length,
+    'rrg_bov_queue.html': loadBovs().length,
+    'rrg_cim_queue.html': loadCims().length,
+    'rrg_attack_queue.html': loadMaps().length,
+    'rrg_rooms_queue.html': loadRooms().length,
+  };
+  res.json({ ok: true, counts });
+});
+
 function roomGatePage(r, err) {
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">Enter your personal access code to continue. Access is provided by Restaurant Realty Group under NDA.</div>`;
   const body = `<div class="card"><div style="padding:24px 22px">`
@@ -2650,6 +2793,13 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveMapPrompt()">Save prompt</button> <button onclick="resetMapPrompt()">Reset to RRG default</button> <span id="mpmsg" class="sub2"></span></div>
       </div>
 
+      <h2 style="margin-top:34px" data-open="1">Brokerage Office (Requests) Prompt <span class="sub2">— the instructions the AI office assistant follows when it answers rep <b>Requests</b>. This is the office persona: what it can resolve directly, what it flags as an action for the office, and how it asks for missing info. Keep the JSON output block intact so replies still build. Reset any time to restore the RRG default.</span></h2>
+      <div class="links">
+        <div class="sub2" id="tkstate" style="margin:0 0 8px">Loading…</div>
+        <textarea id="ticketPrompt" class="bovprompt" spellcheck="false"></textarea>
+        <div style="margin-top:10px"><button class="primary" onclick="saveTicketPrompt()">Save prompt</button> <button onclick="resetTicketPrompt()">Reset to RRG default</button> <span id="tkmsg" class="sub2"></span></div>
+      </div>
+
       <div class="grp">Activity &amp; Logs</div>
       <h2 style="margin-top:20px">Tool Usage <span class="sub2">— what your team is using</span></h2>
       <div class="cols">
@@ -2716,8 +2866,13 @@ app.get('/admin', requireAdmin, (req, res) => {
       function loadMapPrompt(){ fetch('/api/admin/map-prompt').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('mapPrompt').value=j.prompt||''; _mpState(j.isDefault); } }).catch(function(){ var s=document.getElementById('mpstate'); if(s) s.textContent='Could not load the prompt.'; }); }
       function saveMapPrompt(){ var v=document.getElementById('mapPrompt').value; var m=document.getElementById('mpmsg'); m.textContent='Saving…'; post('/api/admin/map-prompt',{prompt:v}).then(function(j){ if(j.ok){ m.textContent = j.isDefault ? 'Saved — matches the default ✓' : 'Saved custom prompt ✓'; document.getElementById('mapPrompt').value=j.prompt||v; _mpState(j.isDefault); } else m.textContent=j.error||'Failed'; }); }
       function resetMapPrompt(){ if(!confirm('Reset the Market Attack Plan prompt to the RRG default? Your custom prompt will be discarded.')) return; post('/api/admin/map-prompt',{reset:true}).then(function(j){ if(j.ok){ document.getElementById('mapPrompt').value=j.prompt||''; document.getElementById('mpmsg').textContent='Reset to default ✓'; _mpState(true); } }); }
+      function _tkState(isDefault){ var s=document.getElementById('tkstate'); if(s) s.textContent = isDefault ? 'Currently using the RRG default Brokerage Office prompt.' : 'Currently using a custom Brokerage Office prompt.'; }
+      function loadTicketPrompt(){ fetch('/api/admin/ticket-prompt').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('ticketPrompt').value=j.prompt||''; _tkState(j.isDefault); } }).catch(function(){ var s=document.getElementById('tkstate'); if(s) s.textContent='Could not load the prompt.'; }); }
+      function saveTicketPrompt(){ var v=document.getElementById('ticketPrompt').value; var m=document.getElementById('tkmsg'); m.textContent='Saving…'; post('/api/admin/ticket-prompt',{prompt:v}).then(function(j){ if(j.ok){ m.textContent = j.isDefault ? 'Saved — matches the default ✓' : 'Saved custom prompt ✓'; document.getElementById('ticketPrompt').value=j.prompt||v; _tkState(j.isDefault); } else m.textContent=j.error||'Failed'; }); }
+      function resetTicketPrompt(){ if(!confirm('Reset the Brokerage Office prompt to the RRG default? Your custom prompt will be discarded.')) return; post('/api/admin/ticket-prompt',{reset:true}).then(function(j){ if(j.ok){ document.getElementById('ticketPrompt').value=j.prompt||''; document.getElementById('tkmsg').textContent='Reset to default ✓'; _tkState(true); } }); }
       try{ loadMapPrompt(); }catch(e){}
       try{ loadCimPrompt(); }catch(e){}
+      try{ loadTicketPrompt(); }catch(e){}
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
       var INTRO_DEFAULT_MSG='', PACK_INTRO_DEFAULT_MSG='';
       function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); var is=document.getElementById('introSeconds'); if(is) is.value=(j.introSeconds!=null?j.introSeconds:10); INTRO_DEFAULT_MSG=j.defaultIntroMessage||''; var im=document.getElementById('introMessage'); if(im) im.value=j.introMessage||j.defaultIntroMessage||''; var ds=document.getElementById('doneSeconds'); if(ds) ds.value=(j.doneSeconds!=null?j.doneSeconds:2); var nt=document.getElementById('noTtmMessage'); if(nt) nt.value=j.noTtmMessage||j.defaultNoTtmMessage||''; var af=document.getElementById('assetSaleFloor'); if(af) af.value=fmtNum(j.assetSaleFloor!=null?j.assetSaleFloor:(j.defaultAssetSaleFloor!=null?j.defaultAssetSaleFloor:25000)); var am=document.getElementById('assetSaleMessage'); if(am) am.value=j.assetSaleMessage||j.defaultAssetSaleMessage||''; var pis=document.getElementById('packIntroSeconds'); if(pis) pis.value=(j.packIntroSeconds!=null?j.packIntroSeconds:20); PACK_INTRO_DEFAULT_MSG=j.defaultPackIntroMessage||''; var pim=document.getElementById('packIntroMessage'); if(pim) pim.value=j.packIntroMessage||j.defaultPackIntroMessage||''; renderSounds(j.ambienceId||'analyst'); } }).catch(function(){ renderSounds('analyst'); }); }
@@ -2860,6 +3015,20 @@ app.post('/api/admin/map-prompt', requireAdmin, (req, res) => {
   const p = String(b.prompt || '').trim();
   if (!p || p === def.trim()) { clearMapPromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
   saveMapPromptCustom(p);
+  res.json({ ok: true, prompt: p, isDefault: false });
+});
+// Ticket office-assistant prompt — mirror of the CIM prompt routes.
+app.get('/api/admin/ticket-prompt', requireAdmin, (req, res) => {
+  const custom = loadTicketPromptCustom();
+  res.json({ ok: true, prompt: custom || ticketgen.DEFAULT_SYSTEM, isDefault: !custom });
+});
+app.post('/api/admin/ticket-prompt', requireAdmin, (req, res) => {
+  const b = req.body || {};
+  const def = String(ticketgen.DEFAULT_SYSTEM || '');
+  if (b.reset) { clearTicketPromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
+  const p = String(b.prompt || '').trim();
+  if (!p || p === def.trim()) { clearTicketPromptCustom(); return res.json({ ok: true, prompt: def, isDefault: true }); }
+  saveTicketPromptCustom(p);
   res.json({ ok: true, prompt: p, isDefault: false });
 });
 // SDE-vs-EBITDA revenue threshold. Admins read/write; any signed-in user (the

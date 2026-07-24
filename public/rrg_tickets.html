@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Requests</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:26px 0 28px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1000px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:28px;margin:0 11px;} .wm{font-weight:800;font-size:13px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:18px 0 3px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:10.5px;text-transform:uppercase;}
+h1{font-size:28px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:640px;line-height:1.5;}
+.wrap{max-width:1000px;margin:22px auto;padding:0 24px 70px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
+.hd{display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line);gap:12px;}
+.hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
+.filters{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;}
+.fchip{background:#fff;border:1px solid var(--line);color:var(--muted);border-radius:100px;padding:6px 12px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
+.fchip.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.newbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
+.trow{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--line);cursor:pointer;}
+.trow:hover{background:#fbfcfe;} .trow:last-child{border-bottom:none;}
+.tno{font-size:11px;color:var(--soft);font-weight:700;font-variant-numeric:tabular-nums;flex:none;width:52px;}
+.tmain{min-width:0;flex:1;} .tsub{font-weight:800;color:var(--navy);font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tmeta{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.stpill{font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;flex:none;white-space:nowrap;}
+.st-open{background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;}
+.st-answered{background:#eafaf0;color:#0e7a53;border:1px solid #b9e6cd;}
+.st-actionneeded{background:#fff4e6;color:#b9761a;border:1px solid #f0d7ad;}
+.st-infoneeded{background:#fdf0e6;color:#b5641a;border:1px solid #f4d8bd;}
+.st-closed{background:#f2f4f8;color:#6b7488;border:1px solid #e0e5ee;}
+.pr-High,.pr-Urgent{color:var(--red);font-weight:800;}
+.empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
+.foot{max-width:1000px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(6,14,32,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
+.modal[hidden]{display:none!important;}
+.modalcard{background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;}
+.modalh{padding:18px 22px;font-size:16px;font-weight:800;color:var(--navy);border-bottom:1px solid var(--line);}
+.modalb{padding:18px 22px;max-height:70vh;overflow:auto;} .mfld{display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:12px 0 6px;} .modalb .mfld:first-child{margin-top:0;}
+.modalb input,.modalb select,.modalb textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;background:#fff;}
+.modalb textarea{min-height:120px;resize:vertical;line-height:1.5;}
+.row2{display:flex;gap:12px;} .row2>div{flex:1;}
+.modalf{display:flex;gap:9px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line);}
+.mbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 17px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;} .mbtn.ghost{background:#fff;color:var(--muted);border-color:var(--line);}
+.mbtn:disabled{opacity:.6;cursor:default;}
+/* thread */
+.thwrap{padding:6px 0 0;}
+.msg{display:flex;gap:12px;padding:16px 22px;border-bottom:1px solid var(--line);}
+.mav{width:34px;height:34px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;}
+.mav.rep{background:#eef2fb;color:#2647b0;} .mav.office{background:var(--red);color:#fff;font-family:'Arial Black',Arial,sans-serif;font-size:11px;letter-spacing:-.03em;}
+.mbody{min-width:0;flex:1;} .mfrom{font-weight:800;color:var(--navy);font-size:13px;} .mfrom span{color:var(--soft);font-weight:600;font-size:11px;margin-left:8px;}
+.mtext{font-size:13.5px;color:var(--ink);line-height:1.6;margin-top:5px;white-space:pre-wrap;}
+.msg.office{background:#fbfcfe;}
+.replybox{padding:16px 22px;}
+.replybox textarea{width:100%;border:1px solid #cfd6e2;border-radius:10px;padding:12px 14px;font:inherit;font-size:14px;min-height:80px;resize:vertical;line-height:1.5;}
+.replyrow{display:flex;gap:9px;justify-content:space-between;align-items:center;margin-top:10px;}
+.linkbtn{background:none;border:none;color:var(--muted);font:inherit;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline;}
+.linkbtn.danger{color:var(--red);}
+.detmeta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:2px 22px 4px;}
+.detmeta .dchip{font-size:11px;color:var(--muted);background:var(--wash);border:1px solid var(--line);border-radius:100px;padding:4px 10px;font-weight:600;}
+.thinking{padding:14px 22px;color:var(--muted);font-size:12.5px;font-style:italic;}
+.backlink{background:none;border:none;color:var(--muted);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;padding:0;}
+</style>
+</head>
+<body>
+<!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to toolbox" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Brokerage Office</div>
+  <h1>Requests</h1>
+  <div class="sub">Need something from the office — collateral, signage, photography, an MLS action, a compliance question? Open a request and the brokerage office answers it right away.</div>
+</div></div>
+<div class="wrap">
+  <div id="listView">
+    <div class="card">
+      <div class="hd"><b>Your requests</b><span class="cnt" id="cnt"></span><button id="newBtn" class="newbtn">+ New request</button></div>
+      <div class="filters" id="filters" style="padding:10px 20px 4px"></div>
+      <div id="body"></div>
+    </div>
+  </div>
+  <div id="detailView" hidden></div>
+</div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+
+<div id="modal" class="modal" hidden><div class="modalcard">
+  <div class="modalh">New request to the office</div>
+  <div class="modalb">
+    <label class="mfld">Subject</label><input id="m_subject" placeholder="e.g. Need a yard sign for 4th & Congress listing">
+    <div class="row2">
+      <div><label class="mfld">Category</label><select id="m_category"></select></div>
+      <div><label class="mfld">Priority</label><select id="m_priority"></select></div>
+    </div>
+    <label class="mfld">What do you need?</label><textarea id="m_details" placeholder="Give the office everything it needs to act — the listing/address, sizes, quantities, deadline, where to send it…"></textarea>
+  </div>
+  <div class="modalf"><button id="m_cancel" class="mbtn ghost">Cancel</button><button id="m_create" class="mbtn">Send to office</button></div>
+</div></div>
+
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function stClass(s){ return 'st-'+String(s||'Open').toLowerCase().replace(/[^a-z]+/g,''); }
+function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
+function ago(iso){ if(!iso) return ''; var d=new Date(iso), now=new Date(), s=(now-d)/1000; if(s<60) return 'just now'; if(s<3600) return Math.floor(s/60)+'m ago'; if(s<86400) return Math.floor(s/3600)+'h ago'; if(s<604800) return Math.floor(s/86400)+'d ago'; return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+var ALL=[], CATS=[], PRIS=[], STATUSES=[], ISADMIN=false, FILTER='all';
+
+function renderFilters(){
+  var opts=[{k:'all',l:'All'},{k:'open',l:'Needs you'},{k:'Answered',l:'Answered'},{k:'Closed',l:'Closed'}];
+  document.getElementById('filters').innerHTML=opts.map(function(o){ return '<button class="fchip'+(FILTER===o.k?' on':'')+'" data-f="'+o.k+'">'+esc(o.l)+'</button>'; }).join('');
+  document.querySelectorAll('.fchip').forEach(function(b){ b.addEventListener('click',function(){ FILTER=b.getAttribute('data-f'); renderFilters(); renderList(); }); });
+}
+function passFilter(t){
+  if(FILTER==='all') return true;
+  if(FILTER==='open') return ['Info Needed','Action Needed','Open'].indexOf(t.status)>=0;
+  return t.status===FILTER;
+}
+function renderList(){
+  var list=ALL.filter(passFilter);
+  document.getElementById('cnt').textContent=list.length?('· '+list.length):'';
+  if(!ALL.length){ document.getElementById('body').innerHTML='<div class="empty"><b>No requests yet.</b>Open your first request — the brokerage office answers marketing, signage, photography, MLS, compliance, IT, supplies and more.</div>'; return; }
+  if(!list.length){ document.getElementById('body').innerHTML='<div class="empty">Nothing in this view.</div>'; return; }
+  document.getElementById('body').innerHTML=list.map(function(t){
+    var meta=[esc(t.category)]; if(ISADMIN&&t.by) meta.push(esc(t.by)); meta.push(ago(t.lastAt)+(t.lastFrom==='office'?' · office replied':''));
+    var pr=(t.priority&&t.priority!=='Normal')?(' <span class="pr-'+esc(t.priority)+'">· '+esc(t.priority)+'</span>'):'';
+    return '<div class="trow" data-id="'+esc(t.id)+'"><div class="tno">'+esc(t.no)+'</div><div class="tmain"><div class="tsub">'+esc(t.subject)+'</div><div class="tmeta">'+meta.join(' · ')+pr+'</div></div><span class="stpill '+stClass(t.status)+'">'+esc(t.status)+'</span></div>';
+  }).join('');
+  document.querySelectorAll('.trow').forEach(function(r){ r.addEventListener('click',function(){ openTicket(r.getAttribute('data-id')); }); });
+}
+
+/* ---- detail / thread ---- */
+function renderThread(t){
+  var msgs=(t.thread||[]).map(function(m){
+    var isOffice=m.from==='office';
+    var av='<div class="mav '+(isOffice?'office':'rep')+'">'+(isOffice?'RRG':esc(initials(m.name).toUpperCase()))+'</div>';
+    return '<div class="msg '+(isOffice?'office':'rep')+'">'+av+'<div class="mbody"><div class="mfrom">'+esc(m.name||(isOffice?'RRG Brokerage Office':'You'))+'<span>'+ago(m.at)+'</span></div><div class="mtext">'+esc(m.text)+'</div></div></div>';
+  }).join('');
+  var closed=t.status==='Closed';
+  var reply=closed
+    ? '<div class="replybox"><div style="color:var(--muted);font-size:12.5px">This request is closed. <button class="linkbtn" id="reopenBtn">Reopen it</button> to add more.</div></div>'
+    : '<div class="replybox"><textarea id="replyText" placeholder="Add a reply or more detail for the office…"></textarea><div class="replyrow"><button class="linkbtn danger" id="closeBtn">Close request</button><button class="mbtn" id="sendReply">Send reply</button></div></div>';
+  document.getElementById('detailView').innerHTML=
+    '<button class="backlink" id="backBtn">← All requests</button>'
+    + '<div class="card" style="margin-top:12px">'
+    + '<div class="hd"><b>'+esc(t.no)+' · '+esc(t.subject)+'</b><span class="stpill '+stClass(t.status)+'" style="margin-left:auto">'+esc(t.status)+'</span></div>'
+    + '<div class="detmeta"><span class="dchip">'+esc(t.category)+'</span>'+((t.priority&&t.priority!=='Normal')?('<span class="dchip">'+esc(t.priority)+' priority</span>'):'')+(ISADMIN&&t.by?('<span class="dchip">From '+esc(t.by)+'</span>'):'')+'</div>'
+    + '<div class="thwrap">'+msgs+'</div>'
+    + '<div id="thinkSlot"></div>'
+    + reply
+    + '</div>';
+  document.getElementById('backBtn').addEventListener('click',showList);
+  var sr=document.getElementById('sendReply'); if(sr) sr.addEventListener('click',function(){ sendReply(t.id); });
+  var cb=document.getElementById('closeBtn'); if(cb) cb.addEventListener('click',function(){ setStatus(t.id,'Closed'); });
+  var rb=document.getElementById('reopenBtn'); if(rb) rb.addEventListener('click',function(){ setStatus(t.id,'Open'); });
+}
+function showList(){ document.getElementById('detailView').setAttribute('hidden',''); document.getElementById('listView').removeAttribute('hidden'); load(); }
+function showDetail(t){ document.getElementById('listView').setAttribute('hidden',''); var d=document.getElementById('detailView'); d.removeAttribute('hidden'); renderThread(t); window.scrollTo(0,0); }
+function openTicket(id){
+  fetch('/api/ticket/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ showDetail(j.ticket); } else alert((j&&j.error)||'Could not open the request.'); }).catch(function(){ alert('Could not reach the server.'); });
+}
+function sendReply(id){
+  var ta=document.getElementById('replyText'); var text=(ta.value||'').trim(); if(!text){ ta.focus(); return; }
+  var b=document.getElementById('sendReply'); b.disabled=true; b.textContent='Sending…';
+  document.getElementById('thinkSlot').innerHTML='<div class="thinking">The office is reviewing your reply…</div>';
+  fetch('/api/ticket/'+encodeURIComponent(id)+'/reply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:text})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ showDetail(j.ticket); } else { b.disabled=false;b.textContent='Send reply'; alert((j&&j.error)||'Could not send.'); } })
+    .catch(function(){ b.disabled=false;b.textContent='Send reply'; alert('Could not reach the server.'); });
+}
+function setStatus(id,s){
+  fetch('/api/ticket/'+encodeURIComponent(id)+'/status',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({status:s})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ showDetail(j.ticket); } else alert((j&&j.error)||'Could not update.'); }).catch(function(){ alert('Could not reach the server.'); });
+}
+
+/* ---- new request ---- */
+function openModal(){
+  document.getElementById('m_category').innerHTML=CATS.map(function(c){return '<option>'+esc(c)+'</option>';}).join('');
+  document.getElementById('m_priority').innerHTML=PRIS.map(function(p){return '<option>'+esc(p)+'</option>';}).join('');
+  document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_subject').focus();
+}
+function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_subject','m_details'].forEach(function(id){document.getElementById(id).value='';}); }
+function createTicket(){
+  var subject=document.getElementById('m_subject').value.trim(); var details=document.getElementById('m_details').value.trim();
+  if(!subject){ document.getElementById('m_subject').focus(); return; }
+  if(!details){ document.getElementById('m_details').focus(); return; }
+  var b=document.getElementById('m_create'); b.disabled=true; b.textContent='Sending…';
+  fetch('/api/ticket',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({subject:subject,details:details,category:document.getElementById('m_category').value,priority:document.getElementById('m_priority').value})})
+    .then(function(r){return r.json();}).then(function(j){ b.disabled=false;b.textContent='Send to office'; if(j&&j.ok&&j.ticket){ closeModal(); showDetail(j.ticket); } else { alert((j&&j.error)||'Could not send the request.'); } })
+    .catch(function(){ b.disabled=false;b.textContent='Send to office'; alert('Could not reach the server.'); });
+}
+document.getElementById('newBtn').addEventListener('click',openModal);
+document.getElementById('m_cancel').addEventListener('click',closeModal);
+document.getElementById('m_create').addEventListener('click',createTicket);
+document.getElementById('modal').addEventListener('click',function(e){ if(e.target.id==='modal') closeModal(); });
+
+function load(){
+  fetch('/api/tickets',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    ALL=(j&&j.tickets)||[]; CATS=(j&&j.categories)||[]; PRIS=(j&&j.priorities)||[]; STATUSES=(j&&j.statuses)||[]; ISADMIN=!!(j&&j.isAdmin);
+    renderFilters(); renderList();
+  }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load requests.</div>'; });
+}
+load();
+</script>
+</body>
+</html>
