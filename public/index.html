@@ -620,6 +620,7 @@ function renderTopNav(s){
   var isAdmin=s&&s.role==='admin', first=((s&&s.name)||'').trim().split(/\s+/)[0]||'';
   var links='';
   if(first) links+='<span class="who">Hi, '+esc(first)+'</span>';
+  links+='<a href="./rrg_help.html">Help</a>';
   links+='<a href="./rrg_account.html">Account</a>';
   if(isAdmin) links+='<a href="/admin">Admin</a>';
   links+='<a class="out" href="/logout">Sign out</a>';
