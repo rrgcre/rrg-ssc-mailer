@@ -32,6 +32,10 @@ input,select,textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padd
 select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%236b7488' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;cursor:pointer;}
 textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .fldrow{margin-bottom:14px;} .side .cb{padding:14px 18px 16px;}
+.fldrow2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.mfwrap{display:flex;flex-direction:column;gap:6px;} .mfrow{display:flex;gap:6px;align-items:center;}
+.mfrow input{flex:1;} .mfrm{background:#fff;border:1px solid #f0c9c6;color:#DA2B1F;border-radius:7px;width:32px;height:36px;flex:none;font-size:15px;cursor:pointer;}
+.mfadd{align-self:flex-start;background:#fff;border:1px dashed #cdd6e6;color:var(--navy);border-radius:7px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;}
 .savebtn{width:100%;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:11px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;} .savebtn:disabled{opacity:.55;cursor:default;}
 .saved{text-align:center;font-size:11.5px;color:var(--green);font-weight:700;margin-top:9px;height:14px;opacity:0;transition:opacity .2s;} .saved.show{opacity:1;}
 .foot{max-width:1040px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
@@ -75,23 +79,33 @@ function render(){
   document.getElementById('root').innerHTML=
     '<div class="main">'+dealsCard+offersCard+toursCard+ndasCard+'</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Contact</b></div><div class="cb">'
-      + '<div class="fldrow"><label class="fld">Name</label><input id="p_name" value="'+esc(P.name||'')+'"></div>'
-      + '<div class="fldrow"><label class="fld">Type</label><select id="p_type">'+ptsel+'</select></div>'
+      + '<div class="fldrow2"><div><label class="fld">First name *</label><input id="p_first" value="'+esc(P.firstName||'')+'"></div><div><label class="fld">Last name *</label><input id="p_last" value="'+esc(P.lastName||'')+'"></div></div>'
+      + '<div class="fldrow"><label class="fld">Type *</label><select id="p_type">'+ptsel+'</select></div>'
       + '<div class="fldrow"><label class="fld">Company</label><input id="p_company" value="'+esc((CO&&CO.name)||P.company||'')+'" placeholder="Company name"></div>'
-      + '<div class="fldrow"><label class="fld">Email</label><input id="p_email" value="'+esc(P.email||'')+'"></div>'
-      + '<div class="fldrow"><label class="fld">Phone</label><input id="p_phone" value="'+esc(P.phone||'')+'"></div>'
+      + '<div class="fldrow"><label class="fld">Emails</label><div id="p_emails">'+mfHtml('p_email',(P.emails&&P.emails.length?P.emails:(P.email?[P.email]:[])),'name@email.com')+'</div></div>'
+      + '<div class="fldrow"><label class="fld">Phones</label><div id="p_phones">'+mfHtml('p_phone',(P.phones&&P.phones.length?P.phones:(P.phone?[P.phone]:[])),'(555) 555-5555')+'</div></div>'
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="p_notes" placeholder="Preferences, budget, concepts of interest, history…">'+esc(P.notes||'')+'</textarea></div>'
-      + '<button class="savebtn" id="p_save" disabled>Save changes</button><div class="saved" id="p_saved">Saved ✓</div>'
+      + '<button class="savebtn" id="p_save" disabled>Save changes</button><div class="saved" id="p_saved">Saved ✓</div><div id="p_msg" style="font-size:12.5px;color:#b23a2c;margin-top:8px"></div>'
     + '</div></div></div>';
-  ['p_name','p_type','p_company','p_email','p_phone','p_notes'].forEach(function(id){ var el=document.getElementById(id); el.addEventListener(el.tagName==='SELECT'?'change':'input',function(){ DIRTY=true; document.getElementById('p_save').disabled=false; }); });
+  var root=document.getElementById('root');
+  ['p_first','p_last','p_type','p_company','p_notes'].forEach(function(id){ var el=document.getElementById(id); el.addEventListener(el.tagName==='SELECT'?'change':'input',function(){ DIRTY=true; document.getElementById('p_save').disabled=false; }); });
+  root.querySelectorAll('.p_email,.p_phone').forEach(function(el){ el.addEventListener('input',function(){ DIRTY=true; document.getElementById('p_save').disabled=false; }); });
+  wireMulti(root);
   document.getElementById('p_save').addEventListener('click',savePerson);
 }
+function mfHtml(cls,values,ph){ values=(values&&values.length)?values:['']; var rows=values.map(function(v){ return '<div class="mfrow"><input class="'+cls+'" value="'+esc(v)+'" placeholder="'+esc(ph)+'"><button type="button" class="mfrm">×</button></div>'; }).join(''); return '<div class="mfwrap">'+rows+'<button type="button" class="mfadd" data-cls="'+cls+'" data-ph="'+esc(ph)+'">+ Add another</button></div>'; }
+function wireMulti(scope){ scope.querySelectorAll('.mfadd').forEach(function(b){ b.addEventListener('click',function(){ var cls=b.getAttribute('data-cls'),ph=b.getAttribute('data-ph'); var row=document.createElement('div'); row.className='mfrow'; row.innerHTML='<input class="'+cls+'" placeholder="'+esc(ph)+'"><button type="button" class="mfrm">×</button>'; b.parentNode.insertBefore(row,b); row.querySelector('.mfrm').addEventListener('click',function(){row.remove();DIRTY=true;document.getElementById('p_save').disabled=false;}); var inp=row.querySelector('input'); inp.addEventListener('input',function(){DIRTY=true;document.getElementById('p_save').disabled=false;}); inp.focus(); }); }); scope.querySelectorAll('.mfrm').forEach(function(b){ b.addEventListener('click',function(){ b.parentNode.remove(); DIRTY=true; document.getElementById('p_save').disabled=false; }); }); }
+function collectMulti(scope,cls){ var out=[]; scope.querySelectorAll('.'+cls).forEach(function(i){ var v=i.value.trim(); if(v) out.push(v); }); return out; }
 function savePerson(){
-  var b=document.getElementById('p_save'); b.disabled=true; b.textContent='Saving…';
-  var body={ id:ID, name:document.getElementById('p_name').value.trim(), type:document.getElementById('p_type').value, company:document.getElementById('p_company').value.trim(), email:document.getElementById('p_email').value.trim(), phone:document.getElementById('p_phone').value.trim(), notes:document.getElementById('p_notes').value };
+  var b=document.getElementById('p_save'), m=document.getElementById('p_msg'), root=document.getElementById('root');
+  var first=document.getElementById('p_first').value.trim(), last=document.getElementById('p_last').value.trim(), type=document.getElementById('p_type').value;
+  if(!first||!last){ m.textContent='First and last name are required.'; return; }
+  if(!type){ m.textContent='Pick a contact type.'; return; }
+  m.textContent=''; b.disabled=true; b.textContent='Saving…';
+  var body={ id:ID, firstName:first, lastName:last, type:type, company:document.getElementById('p_company').value.trim(), companyName:document.getElementById('p_company').value.trim(), emails:collectMulti(root,'p_email'), phones:collectMulti(root,'p_phone'), notes:document.getElementById('p_notes').value };
   fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
-    .then(function(r){return r.json();}).then(function(j){ b.textContent='Save changes'; if(j&&j.ok){ P=j.person; DIRTY=false; document.getElementById('h1').textContent=P.name; document.getElementById('crumb').textContent=P.name; var s=document.getElementById('p_saved'); s.classList.add('show'); setTimeout(function(){s.classList.remove('show');},2000); } else { b.disabled=false; alert((j&&j.error)||'Could not save.'); } })
-    .catch(function(){ b.textContent='Save changes'; b.disabled=false; alert('Could not reach the server.'); });
+    .then(function(r){return r.json();}).then(function(j){ b.textContent='Save changes'; if(j&&j.ok){ P=j.person; DIRTY=false; document.getElementById('h1').textContent=P.name; document.getElementById('crumb').textContent=P.name; var s=document.getElementById('p_saved'); s.classList.add('show'); setTimeout(function(){s.classList.remove('show');},2000); } else { b.disabled=false; m.textContent=(j&&j.error)||'Could not save.'; } })
+    .catch(function(){ b.textContent='Save changes'; b.disabled=false; m.textContent='Could not reach the server.'; });
 }
 window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(); e.returnValue=''; } });
 function load(){

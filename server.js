@@ -83,11 +83,33 @@ const PERSON_TYPES = ['Buyer', 'Seller', 'Client', 'Prospect', 'Investor', 'Brok
 function loadPeople() { try { return JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')); } catch (e) { return []; } }
 function savePeople(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PEOPLE_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newPersonId() { return 'per_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function splitName(n) { n = String(n || '').trim(); if (!n) return { first: '', last: '' }; const i = n.indexOf(' '); if (i < 0) return { first: n, last: '' }; return { first: n.slice(0, i).trim(), last: n.slice(i + 1).trim() }; }
+function composeName(f, l) { return [String(f || '').trim(), String(l || '').trim()].filter(Boolean).join(' '); }
+function personFirst(p) { return (p && p.firstName != null) ? p.firstName : splitName(p && p.name).first; }
+function personLast(p) { return (p && p.lastName != null) ? p.lastName : splitName(p && p.name).last; }
+// Multiple emails / phones per contact — normalize to a clean, de-duplicated list.
+function cleanList(a, max, len) {
+  if (!Array.isArray(a)) a = (a != null && a !== '') ? [a] : [];
+  const seen = {}, out = [];
+  a.forEach(v => { v = String(v || '').trim().slice(0, len || 160); if (!v) return; const k = v.toLowerCase(); if (seen[k]) return; seen[k] = 1; out.push(v); });
+  return out.slice(0, max || 10);
+}
+function personEmails(p) { return Array.isArray(p && p.emails) ? p.emails : ((p && p.email) ? [p.email] : []); }
+function personPhones(p) { return Array.isArray(p && p.phones) ? p.phones : ((p && p.phone) ? [p.phone] : []); }
+// Find another contact that already owns any of these emails (global uniqueness).
+function emailOwner(arr, emails, exceptId) {
+  const set = {}; emails.forEach(e => { const k = normKey(e); if (k) set[k] = 1; });
+  if (!Object.keys(set).length) return null;
+  return arr.find(x => x.id !== exceptId && personEmails(x).some(e => set[normKey(e)])) || null;
+}
 function normKey(s) { return String(s || '').trim().toLowerCase(); }
 function personById(id) { if (!id) return null; return loadPeople().find(p => p.id === id) || null; }
 // Find a person by email (preferred) or name; create one if none exists. Enriches blanks.
 function findOrCreatePerson(req, info) {
-  const name = String((info && info.name) || '').trim();
+  const first = String((info && info.firstName) || '').trim();
+  const last = String((info && info.lastName) || '').trim();
+  let name = String((info && info.name) || '').trim();
+  if ((first || last) && !name) name = composeName(first, last);
   const email = String((info && info.email) || '').trim();
   const company = String((info && info.company) || '').trim();
   if (!name && !email) return null;
@@ -104,15 +126,20 @@ function findOrCreatePerson(req, info) {
     return p;
   }
   const type = (info && PERSON_TYPES.indexOf(info.type) >= 0) ? info.type : 'Buyer';
+  const fullName = (name.slice(0, 160) || email.slice(0, 160));
+  const sp = splitName(fullName);
+  const emails = cleanList((info && info.emails) || (email ? [email] : []), 10, 160);
+  const phones = cleanList((info && info.phones) || [], 10, 60);
   p = {
-    id: newPersonId(), name: name.slice(0, 160) || email.slice(0, 160), company: company.slice(0, 160), companyId: (info && info.companyId) || '',
-    email: email.slice(0, 160), phone: '', type: type, notes: '',
+    id: newPersonId(), name: fullName, firstName: (first || sp.first).slice(0, 80), lastName: (last || sp.last).slice(0, 80),
+    company: company.slice(0, 160), companyId: (info && info.companyId) || '',
+    emails: emails, phones: phones, email: emails[0] || '', phone: phones[0] || '', type: type, notes: '',
     createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
   arr.push(p); savePeople(arr);
   return p;
 }
-function personBrief(p) { return p ? { id: p.id, name: p.name || '', company: p.company || '', companyId: p.companyId || '', email: p.email || '', phone: p.phone || '', type: p.type || '' } : null; }
+function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: em[0] || '', phone: ph[0] || '', type: p.type || '' } : null; }
 
 // Companies — a company / account file that groups its associated contacts (people) and
 // its deals. Created at onboarding (the subject business), reusable across deals.
@@ -2285,20 +2312,31 @@ app.get('/api/people', (req, res) => {
 app.post('/api/person', express.json(), (req, res) => {
   const b = req.body || {};
   const arr = loadPeople();
+  const isNew = !b.id;
   let p = b.id ? arr.find(x => x.id === b.id) : null;
   const now = new Date().toISOString();
-  if (!p) { p = { id: newPersonId(), name: '', company: '', companyId: '', email: '', phone: '', type: 'Buyer', notes: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(p); }
-  if (typeof b.name === 'string') p.name = b.name.slice(0, 160);
+  // Required first / last / type on entry.
+  const first = String((typeof b.firstName === 'string' ? b.firstName : (p && p.firstName) || '') || '').trim();
+  const last = String((typeof b.lastName === 'string' ? b.lastName : (p && p.lastName) || '') || '').trim();
+  if (!first || !last) return res.status(400).json({ ok: false, error: 'First and last name are required.' });
+  const typeIn = (typeof b.type === 'string' && PERSON_TYPES.indexOf(b.type) >= 0) ? b.type : (p && p.type) || '';
+  if (!typeIn) return res.status(400).json({ ok: false, error: 'A contact type is required.' });
+  // Multiple emails / phones — all emails must be globally unique.
+  const emails = (b.emails !== undefined || b.email !== undefined) ? cleanList(b.emails !== undefined ? b.emails : b.email, 10, 160) : (p ? personEmails(p) : []);
+  const phones = (b.phones !== undefined || b.phone !== undefined) ? cleanList(b.phones !== undefined ? b.phones : b.phone, 10, 60) : (p ? personPhones(p) : []);
+  const clash = emailOwner(arr, emails, p ? p.id : '__new__');
+  if (clash) return res.status(409).json({ ok: false, error: 'That email is already on ' + (clash.name || 'another contact') + '.', existingId: clash.id });
+  if (!p) { p = { id: newPersonId(), createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(p); }
+  p.firstName = first.slice(0, 80); p.lastName = last.slice(0, 80); p.name = composeName(p.firstName, p.lastName);
+  p.type = typeIn;
+  p.emails = emails; p.phones = phones; p.email = emails[0] || ''; p.phone = phones[0] || '';
   if (typeof b.company === 'string') p.company = b.company.slice(0, 160);
   if (typeof b.companyId === 'string') p.companyId = b.companyId.slice(0, 40);
-  // A typed company name links to (or creates) a real company record.
   if (typeof b.companyName === 'string' && b.companyName.trim()) { const co = findOrCreateCompany(req, { name: b.companyName }); if (co) { p.companyId = co.id; p.company = co.name; } }
-  if (typeof b.email === 'string') p.email = b.email.slice(0, 160);
-  if (typeof b.phone === 'string') p.phone = b.phone.slice(0, 60);
-  if (typeof b.type === 'string' && PERSON_TYPES.indexOf(b.type) >= 0) p.type = b.type;
+  if (typeof b.title === 'string') p.title = b.title.slice(0, 120);
   if (typeof b.notes === 'string') p.notes = b.notes.slice(0, 4000);
   p.updatedAt = now; savePeople(arr);
-  res.json({ ok: true, person: p, people: arr.map(personBrief) });
+  res.json({ ok: true, person: Object.assign({}, p, { emails: personEmails(p), phones: personPhones(p) }), people: arr.map(personBrief) });
 });
 app.delete('/api/person/:id', (req, res) => {
   if (!(req.user && req.user.role === 'admin')) return res.status(403).json({ ok: false, error: 'Admin only.' });
@@ -2309,7 +2347,10 @@ app.delete('/api/person/:id', (req, res) => {
 // ---- Companies (account files) ----
 app.get('/api/companies', (req, res) => {
   const cos = loadCompanies(), people = loadPeople(), deals = loadDeals();
-  const rows = cos.map(c => ({ id: c.id, name: c.name, market: c.market || '', type: c.type || '', contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt }));
+  const rows = cos.map(c => {
+    const mk = {}; (c.concepts || []).forEach(cp => (cp.markets || []).forEach(m => { if (m) mk[m] = 1; }));
+    return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', concepts: (c.concepts || []).length, contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt };
+  });
   res.json({ ok: true, companies: rows, types: COMPANY_TYPES, isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 // A person's full cross-book view: their company, the deals where they're the client,
@@ -2327,7 +2368,7 @@ app.get('/api/person/:id', (req, res) => {
     (o.tours || []).filter(x => x.personId === p.id).forEach(x => tours.push({ key: key, business: biz, date: x.date, interest: x.interest }));
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
   }
-  res.json({ ok: true, person: p, company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, personTypes: PERSON_TYPES });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p) }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, personTypes: PERSON_TYPES });
 });
 const LOCATION_STATUSES = ['Open', 'Under Construction', 'Under LOI', 'Prospective', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
@@ -2405,7 +2446,7 @@ function clearLocPromptCustom() { try { fs.unlinkSync(LOC_PROMPT_FILE); } catch 
 app.get('/api/company/:id', (req, res) => {
   const c = companyById(req.params.id);
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
-  const contacts = loadPeople().filter(p => p.companyId === c.id).map(p => ({ id: p.id, name: p.name, email: p.email || '', phone: p.phone || '', type: p.type || '', title: p.title || '' }));
+  const contacts = loadPeople().filter(p => p.companyId === c.id).map(p => ({ id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), email: personEmails(p)[0] || '', phone: personPhones(p)[0] || '', type: p.type || '', title: p.title || '' }));
   const dealRows = loadDeals().filter(d => d.companyId === c.id).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id) }));
   res.json({ ok: true, company: c, contacts, deals: dealRows, locations: c.locations || [], concepts: c.concepts || [], types: COMPANY_TYPES, personTypes: PERSON_TYPES, locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, markets: RRG_METROS, isAdmin: !!(req.user && req.user.role === 'admin') });
 });
@@ -2507,7 +2548,14 @@ app.post('/api/company', express.json(), (req, res) => {
   const arr = loadCompanies();
   let c = b.id ? arr.find(x => x.id === b.id) : null;
   const now = new Date().toISOString();
-  if (!c) { const nm = String(b.name || '').trim(); if (!nm) return res.status(400).json({ ok: false, error: 'A company name is required.' }); c = { id: newCompanyId(), name: '', market: '', type: 'Business', notes: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(c); }
+  if (!c) {
+    const nm = String(b.name || '').trim();
+    if (!nm) return res.status(400).json({ ok: false, error: 'A company name is required.' });
+    // Prevent duplicates — if a company with this name already exists, point to it.
+    const existing = arr.find(x => normKey(x.name) === normKey(nm));
+    if (existing) return res.status(409).json({ ok: false, error: 'A company named “' + existing.name + '” already exists.', existingId: existing.id, existing: { id: existing.id, name: existing.name } });
+    c = { id: newCompanyId(), name: '', market: '', type: 'Seller', notes: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(c);
+  }
   if (typeof b.name === 'string' && b.name.trim()) c.name = b.name.trim().slice(0, 160);
   if (typeof b.market === 'string') c.market = b.market.slice(0, 80);
   if (typeof b.type === 'string' && COMPANY_TYPES.indexOf(b.type) >= 0) c.type = b.type;
@@ -2529,12 +2577,17 @@ app.post('/api/company/:id/contact', express.json(), (req, res) => {
   let p = b.personId ? arr.find(x => x.id === b.personId) : null;
   if (p) { p.companyId = c.id; if (typeof b.type === 'string' && PERSON_TYPES.indexOf(b.type) >= 0) p.type = b.type; if (typeof b.title === 'string') p.title = b.title.slice(0, 120); p.updatedAt = new Date().toISOString(); savePeople(arr); }
   else {
-    const name = String(b.name || '').trim(); const email = String(b.email || '').trim();
-    if (!name && !email) return res.status(400).json({ ok: false, error: 'A contact name or email is required.' });
-    p = findOrCreatePerson(req, { name: name, email: email, companyId: c.id, type: (PERSON_TYPES.indexOf(b.type) >= 0 ? b.type : 'Buyer') });
-    if (p && (b.phone || b.title)) { const a2 = loadPeople(); const pp = a2.find(x => x.id === p.id); if (pp) { if (b.phone) pp.phone = String(b.phone).slice(0, 60); if (b.title) pp.title = String(b.title).slice(0, 120); savePeople(a2); } }
+    const first = String(b.firstName || '').trim(), last = String(b.lastName || '').trim();
+    const emails = cleanList(b.emails !== undefined ? b.emails : b.email, 10, 160);
+    const phones = cleanList(b.phones !== undefined ? b.phones : b.phone, 10, 60);
+    if (!first || !last) return res.status(400).json({ ok: false, error: 'First and last name are required.' });
+    if (!(typeof b.type === 'string' && PERSON_TYPES.indexOf(b.type) >= 0)) return res.status(400).json({ ok: false, error: 'A contact type is required.' });
+    const clash = emailOwner(arr, emails, '__new__');
+    if (clash) return res.status(409).json({ ok: false, error: 'That email is already on ' + (clash.name || 'another contact') + '.', existingId: clash.id });
+    p = findOrCreatePerson(req, { firstName: first, lastName: last, name: composeName(first, last), emails: emails, phones: phones, companyId: c.id, type: b.type });
+    if (p && b.title) { const a2 = loadPeople(); const pp = a2.find(x => x.id === p.id); if (pp) { pp.title = String(b.title).slice(0, 120); savePeople(a2); } }
   }
-  const contacts = loadPeople().filter(x => x.companyId === c.id).map(x => ({ id: x.id, name: x.name, email: x.email || '', phone: x.phone || '', type: x.type || '', title: x.title || '' }));
+  const contacts = loadPeople().filter(x => x.companyId === c.id).map(x => ({ id: x.id, name: x.name, firstName: personFirst(x), lastName: personLast(x), emails: personEmails(x), phones: personPhones(x), email: personEmails(x)[0] || '', phone: personPhones(x)[0] || '', type: x.type || '', title: x.title || '' }));
   res.json({ ok: true, contacts });
 });
 // Remove a contact's association from a company (does not delete the person).
