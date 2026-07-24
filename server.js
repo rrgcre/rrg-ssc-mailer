@@ -2378,7 +2378,7 @@ app.get('/api/person/:id', (req, res) => {
   }
   res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p) }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, personTypes: PERSON_TYPES });
 });
-const LOCATION_STATUSES = ['Open', 'Under Construction', 'Under LOI', 'Prospective', 'Dark', 'Closed'];
+const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
 const RRG_METROS = ['Austin', 'Dallas', 'Houston', 'San Antonio', 'Rio Grande Valley', 'Central Texas'];
 function newLocationId() { return 'loc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -2401,13 +2401,90 @@ function applyLocationFields(l, b) {
   if (typeof b.servesAll === 'boolean') l.servesAll = b.servesAll;
   if (Array.isArray(b.serves)) l.serves = b.serves.map(x => String(x || '').slice(0, 120)).filter(Boolean).slice(0, 40);
   if (!l.commissary) { l.servesAll = false; l.serves = []; } // only commissaries carry a service map
-  if (typeof b.status === 'string') l.status = LOCATION_STATUSES.indexOf(b.status) >= 0 ? b.status : 'Open';
+  if (typeof b.status === 'string') l.status = LOCATION_STATUSES.indexOf(b.status) >= 0 ? b.status : (b.status === 'Open' ? 'Operating' : l.status || 'Operating');
   if (typeof b.notes === 'string') l.notes = b.notes.slice(0, 2000);
 }
 // Location photos — a couple of images per location, stored on the data disk.
 const LOCPHOTO_DIR = path.join(BOV_DATA_DIR, 'locphotos');
 const LOCPHOTO_MAX = 2;
 function photoExtFromName(n) { const m = String(n || '').toLowerCase().match(/\.(png|jpg|jpeg|webp|gif)$/); return m ? (m[1] === 'jpeg' ? 'jpg' : m[1]) : 'jpg'; }
+// ---- Google Maps integration (Street View + Places photos) — key stays server-side ----
+// Stored as *.key so it is excluded from data backups.
+const GMAPS_KEY_FILE = path.join(BOV_DATA_DIR, 'google_maps.key');
+function loadGmapsKey() { try { const t = fs.readFileSync(GMAPS_KEY_FILE, 'utf8').trim(); return t || process.env.GOOGLE_MAPS_API_KEY || ''; } catch (e) { return process.env.GOOGLE_MAPS_API_KEY || ''; } }
+function saveGmapsKey(k) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(GMAPS_KEY_FILE, String(k || '').trim()); } catch (e) {} }
+async function fetchImageBuffer(url) {
+  try {
+    const r = await fetch(url); if (!r.ok) return null;
+    const ct = r.headers.get('content-type') || ''; if (!/image\//.test(ct)) return null;
+    const buf = Buffer.from(await r.arrayBuffer()); if (buf.length < 1500) return null; // skip "no imagery" placeholders
+    return { buf, ext: ct.includes('png') ? 'png' : (ct.includes('webp') ? 'webp' : 'jpg') };
+  } catch (e) { return null; }
+}
+async function streetViewPhoto(key, addr) {
+  if (!key || !addr) return null;
+  const enc = encodeURIComponent(addr);
+  try { const mr = await fetch('https://maps.googleapis.com/maps/api/streetview/metadata?location=' + enc + '&key=' + key); const mj = await mr.json(); if (!mj || mj.status !== 'OK') return null; } catch (e) { return null; }
+  return fetchImageBuffer('https://maps.googleapis.com/maps/api/streetview?size=640x640&location=' + enc + '&fov=80&key=' + key);
+}
+async function placesPhoto(key, query) {
+  if (!key || !query) return null;
+  try {
+    const fr = await fetch('https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=' + encodeURIComponent(query) + '&inputtype=textquery&fields=photos,place_id&key=' + key);
+    const fj = await fr.json(); const cand = (fj && fj.candidates && fj.candidates[0]) || null;
+    const ref = cand && cand.photos && cand.photos[0] && cand.photos[0].photo_reference;
+    if (!ref) return null;
+    return fetchImageBuffer('https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=' + encodeURIComponent(ref) + '&key=' + key);
+  } catch (e) { return null; }
+}
+function attachPhotoBuffer(l, img, source) {
+  if (!img) return false; l.photos = l.photos || []; if (l.photos.length >= LOCPHOTO_MAX) return false;
+  const pid = 'lph_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  try { if (!fs.existsSync(LOCPHOTO_DIR)) fs.mkdirSync(LOCPHOTO_DIR, { recursive: true }); fs.writeFileSync(path.join(LOCPHOTO_DIR, pid + '.' + img.ext), img.buf); } catch (e) { return false; }
+  l.photos.push({ id: pid, ext: img.ext, source: source || 'google' }); return true;
+}
+// Pull the best available photo(s) for one location: a Places business photo, then a Street View storefront.
+async function pullPhotosForLocation(key, l) {
+  let added = 0;
+  const addr = [l.address, l.city, l.state].filter(Boolean).join(', ');
+  const query = [l.concept, l.name, l.address, l.city, l.state].filter(Boolean).join(' ');
+  if ((l.photos || []).length < LOCPHOTO_MAX) { const p = await placesPhoto(key, query || addr); if (attachPhotoBuffer(l, p, 'places')) added++; }
+  if ((l.photos || []).length < LOCPHOTO_MAX) { const s = await streetViewPhoto(key, addr); if (attachPhotoBuffer(l, s, 'streetview')) added++; }
+  return added;
+}
+app.get('/api/admin/gmaps-key', requireAdmin, (req, res) => res.json({ ok: true, set: !!loadGmapsKey(), fromEnv: !fs.existsSync(GMAPS_KEY_FILE) && !!process.env.GOOGLE_MAPS_API_KEY }));
+app.post('/api/admin/gmaps-key', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {};
+  if (b.clear) { saveGmapsKey(''); return res.json({ ok: true, set: !!loadGmapsKey() }); }
+  const k = String(b.key || '').trim();
+  if (!k) return res.status(400).json({ ok: false, error: 'Paste a Google Maps API key.' });
+  if (!/^[A-Za-z0-9_\-]{20,80}$/.test(k)) return res.status(400).json({ ok: false, error: 'That doesn’t look like a Google API key.' });
+  saveGmapsKey(k); res.json({ ok: true, set: true });
+});
+// Pull a photo for one location on demand.
+app.post('/api/company/:id/location/:locId/pull-photo', express.json(), async (req, res) => {
+  const key = loadGmapsKey(); if (!key) return res.status(400).json({ ok: false, error: 'No Google Maps API key is set. Add one in Admin → Integrations.' });
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const l = (c.locations || []).find(x => x.id === req.params.locId);
+  if (!l) return res.status(404).json({ ok: false, error: 'Location not found.' });
+  if ((l.photos || []).length >= LOCPHOTO_MAX) return res.json({ ok: true, locations: c.locations, added: 0, note: 'Already has photos.' });
+  let added = 0; try { added = await pullPhotosForLocation(key, l); } catch (e) { console.error('pull-photo:', e && e.message); }
+  if (added) { c.updatedAt = new Date().toISOString(); saveCompanies(arr); }
+  res.json({ ok: true, locations: c.locations, added, note: added ? '' : 'No photo found for that address.' });
+});
+// Bulk pull for all photoless locations (optionally scoped to a concept).
+app.post('/api/company/:id/pull-photos', express.json(), async (req, res) => {
+  const key = loadGmapsKey(); if (!key) return res.status(400).json({ ok: false, error: 'No Google Maps API key is set. Add one in Admin → Integrations.' });
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const concept = String((req.body && req.body.concept) || '');
+  const targets = (c.locations || []).filter(l => (!concept || (l.concept || '') === concept) && (l.photos || []).length === 0).slice(0, 60);
+  let added = 0;
+  for (const l of targets) { try { if (await pullPhotosForLocation(key, l)) added++; } catch (e) {} }
+  if (added) { c.updatedAt = new Date().toISOString(); saveCompanies(arr); }
+  res.json({ ok: true, locations: c.locations, added, scanned: targets.length });
+});
 app.post('/api/company/:id/location/:locId/photo', express.json({ limit: '12mb' }), (req, res) => {
   const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
@@ -2458,7 +2535,7 @@ app.get('/api/company/:id', (req, res) => {
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
   const contacts = loadPeople().filter(p => p.companyId === c.id).map(p => ({ id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), email: personEmails(p)[0] || '', phone: personPhones(p)[0] || '', type: p.type || '', title: p.title || '' }));
   const dealRows = loadDeals().filter(d => d.companyId === c.id).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id) }));
-  res.json({ ok: true, company: c, contacts, deals: dealRows, locations: c.locations || [], concepts: c.concepts || [], types: COMPANY_TYPES, personTypes: PERSON_TYPES, locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, markets: RRG_METROS, isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, company: c, contacts, deals: dealRows, locations: c.locations || [], concepts: c.concepts || [], types: COMPANY_TYPES, personTypes: PERSON_TYPES, locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, markets: RRG_METROS, hasMaps: !!loadGmapsKey(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 // ---- Concepts — a company runs one or more concepts (brands); locations attach to a concept. ----
 function newConceptId() { return 'cpt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -2550,7 +2627,7 @@ app.post('/api/company/:id/location', express.json(), (req, res) => {
   const now = new Date().toISOString();
   let target;
   if (b.id) { const ex = c.locations.find(l => l.id === b.id); if (!ex) return res.status(404).json({ ok: false, error: 'Location not found.' }); applyLocationFields(ex, b); ex.updatedAt = now; target = ex; }
-  else { const rec = { id: newLocationId(), name: '', concept: '', address: '', city: '', state: '', phone: '', opened: '', status: 'Open', notes: '', photos: [], createdAt: now }; applyLocationFields(rec, b); if (!rec.name && !rec.address) return res.status(400).json({ ok: false, error: 'A location name or address is required.' }); c.locations.push(rec); target = rec; }
+  else { const rec = { id: newLocationId(), name: '', concept: '', address: '', city: '', state: '', phone: '', opened: '', status: 'Operating', notes: '', photos: [], createdAt: now }; applyLocationFields(rec, b); if (!rec.name && !rec.address) return res.status(400).json({ ok: false, error: 'A location name or address is required.' }); c.locations.push(rec); target = rec; }
   // One flagship per concept — if this one is now flagship, clear its concept siblings.
   if (target && target.flagship) c.locations.forEach(l => { if (l.id !== target.id && (l.concept || '') === (target.concept || '')) l.flagship = false; });
   c.updatedAt = now; saveCompanies(arr);
@@ -2587,11 +2664,15 @@ app.post('/api/company/:id/find-locations', express.json(), async (req, res) => 
       // Skip obvious duplicates (same concept + address already present).
       const dupe = c.locations.some(x => (x.concept || '') === concept && normKey(x.address || '') && normKey(x.address || '') === normKey(l.address || ''));
       if (dupe) return;
-      const rec = { id: newLocationId(), name: l.name || '', concept, address: l.address || '', city: l.city || '', state: l.state || '', phone: l.phone || '', website, opened: '', status: 'Open', notes: '', photos: [], source: 'ai-web', createdAt: now };
+      const rec = { id: newLocationId(), name: l.name || '', concept, address: l.address || '', city: l.city || '', state: l.state || '', phone: l.phone || '', website, opened: '', status: 'Operating', notes: '', photos: [], source: 'ai-web', createdAt: now };
       c.locations.push(rec); created.push(rec);
     });
+    // If a Google key is set, auto-pull a storefront/photo for each new location (best effort).
+    const gkey = loadGmapsKey();
+    let photos = 0;
+    if (gkey && created.length) { for (const l of created.slice(0, 40)) { try { if (await pullPhotosForLocation(gkey, l)) photos++; } catch (e) {} } }
     c.updatedAt = now; saveCompanies(arr);
-    res.json({ ok: true, created: created.length, locations: c.locations, note: result.note || '' });
+    res.json({ ok: true, created: created.length, locations: c.locations, note: result.note || '', photos });
   } catch (e) {
     console.error('find-locations error:', e && e.message);
     res.status(500).json({ ok: false, error: String((e && e.message) || e) });
@@ -3298,6 +3379,19 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div class="sub2" style="margin-top:8px">Takes effect immediately for new AI runs. If a saved id isn't valid at your provider, AI features will error until it's corrected — reset to default to recover.</div>
       </div>
 
+      <div class="grp">Integrations</div>
+      <h2 style="margin-top:20px">Google Maps API key <span class="sub2">— powers automatic location photos (Street View storefronts + Google Places business photos). Create a key in Google Cloud with the <b>Street View Static</b> and <b>Places</b> APIs enabled, then paste it here. The key is stored on the server only and is never sent to browsers or included in backups.</span></h2>
+      <div class="links">
+        <div class="sub2" id="gmstate" style="margin:0 0 8px">Loading…</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <input type="password" id="gmapsKey" placeholder="Paste Google Maps API key" autocomplete="off" style="flex:1;min-width:260px;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy)">
+          <button class="primary" onclick="saveGmapsKey()">Save key</button>
+          <button onclick="clearGmapsKey()">Remove</button>
+          <span id="gmmsg" class="sub2"></span>
+        </div>
+        <div class="sub2" style="margin-top:8px">Once set, a “Pull photo” button appears on every location and the location finder auto-fetches a storefront for each unit it adds.</div>
+      </div>
+
       <div class="grp">Data Backup</div>
       <h2 style="margin-top:20px" data-open="1">Backups <span class="sub2">— a full copy of everything the team has created: deals, companies, contacts, requests, calls, valuations, marketing packs, and every uploaded data-room file. The server writes an automatic snapshot once a day (kept ${BACKUP_KEEP} days). Download one any time to keep an off-site copy in Drive or Dropbox.</span></h2>
       <div class="links">
@@ -3404,6 +3498,11 @@ app.get('/admin', requireAdmin, (req, res) => {
       function saveAiModel(){ var v=document.getElementById('aiModel').value.trim(), m=document.getElementById('aimmsg'); m.textContent='Saving…'; post('/api/admin/ai-model',{model:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; _aimState(j); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
       function resetAiModel(){ if(!confirm('Reset the AI model to the default?')) return; post('/api/admin/ai-model',{reset:true}).then(function(j){ if(j&&j.ok){ document.getElementById('aiModel').value=j.model||''; document.getElementById('aimmsg').textContent='Reset ✓'; _aimState(j); } }); }
       try{ loadAiModel(); }catch(e){}
+      function _gmState(j){ var s=document.getElementById('gmstate'); if(s) s.textContent = j.set ? (j.fromEnv?'A key is set from the server environment.':'A key is saved. Photo pulls are enabled.') : 'No key set — automatic location photos are off.'; }
+      function loadGmapsKey(){ fetch('/api/admin/gmaps-key').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ _gmState(j); } }).catch(function(){ var s=document.getElementById('gmstate'); if(s) s.textContent='Could not load the key status.'; }); }
+      function saveGmapsKey(){ var v=document.getElementById('gmapsKey').value.trim(), m=document.getElementById('gmmsg'); if(!v){ m.textContent='Paste a key first.'; return; } m.textContent='Saving…'; post('/api/admin/gmaps-key',{key:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; document.getElementById('gmapsKey').value=''; _gmState(j); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
+      function clearGmapsKey(){ if(!confirm('Remove the Google Maps API key? Automatic location photos will turn off.')) return; post('/api/admin/gmaps-key',{clear:true}).then(function(j){ if(j&&j.ok){ document.getElementById('gmmsg').textContent='Removed.'; _gmState(j); } }); }
+      try{ loadGmapsKey(); }catch(e){}
       try{ loadBackups(); }catch(e){}
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
       var INTRO_DEFAULT_MSG='', PACK_INTRO_DEFAULT_MSG='';
