@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Company</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:28px 0 30px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1040px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.crumb{margin:20px 0 4px;font-size:12px;} .crumb a{color:#aeb8cf;text-decoration:none;} .crumb a:hover{color:#fff;}
+h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01em;}
+.subline{color:#aeb8cf;font-size:13px;margin-top:7px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
+.hpill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:4px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.3);color:#fff;background:rgba(255,255,255,.08);}
+.wrap{max-width:1040px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:1fr 330px;gap:20px;align-items:start;}
+@media(max-width:840px){.wrap{grid-template-columns:1fr;}}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:20px;}
+.ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);} .ch b{color:var(--navy);font-size:13.5px;} .ch span{color:var(--muted);font-size:11.5px;}
+.addbtn{margin-left:auto;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:7px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;}
+.cb{padding:6px 0 4px;}
+.crow{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);}
+.crow:last-child{border-bottom:none;}
+.cav{width:34px;height:34px;flex:none;border-radius:50%;background:#eef2fb;color:#2647b0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;}
+.cinfo{min-width:0;flex:1;} .cname{font-weight:800;color:var(--navy);font-size:13.5px;} .csub{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.ctype{font-size:9.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;}
+.ctype.ls-open{background:#eafaf0;color:#0e7a53;border-color:#b9e6cd;} .ctype.ls-closed{background:#fdeceb;color:var(--red);border-color:#f3cfc9;} .ctype.ls-underloi{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;} .ctype.ls-prospective{background:#f2f4f8;color:#6b7488;border-color:#e0e5ee;}
+.ledit{background:#fff;border:1px solid var(--line);color:var(--navy);border-radius:7px;padding:5px 9px;font:inherit;font-size:11px;font-weight:700;cursor:pointer;}
+.crm{background:#fff;border:1px solid #f0c9c6;color:var(--red);border-radius:7px;padding:5px 9px;font:inherit;font-size:11px;font-weight:700;cursor:pointer;}
+.drow{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;}
+.drow:last-child{border-bottom:none;} .drow:hover{background:#fbfcfe;}
+.dbiz{font-weight:800;color:var(--navy);font-size:13.5px;} .dmeta{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.dstate{margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:3px 9px;border-radius:999px;}
+.dstate.on{background:#eafaf0;color:#0e7a53;border:1px solid #b9e6cd;} .dstate.off{background:#f2f4f8;color:#6b7488;border:1px solid #e0e5ee;}
+.empty{color:var(--muted);font-size:12.5px;font-style:italic;padding:16px 20px;}
+label.fld{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:2px 0 6px;}
+input,select,textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;}
+select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%236b7488' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;cursor:pointer;}
+textarea{min-height:90px;resize:vertical;line-height:1.5;}
+.fldrow{margin-bottom:14px;} .side .cb{padding:14px 18px 16px;}
+.savebtn{width:100%;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:11px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;}
+.savebtn:disabled{opacity:.55;cursor:default;}
+.saved{text-align:center;font-size:11.5px;color:var(--green);font-weight:700;margin-top:9px;height:14px;opacity:0;transition:opacity .2s;} .saved.show{opacity:1;}
+.cform{padding:14px 20px 4px;border-bottom:1px solid var(--line);background:#fbfcff;}
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;} .cgrid .wide{grid-column:1/-1;}
+.cgrid input,.cgrid select{padding:9px 11px;font-size:13px;}
+.cbtns{display:flex;gap:9px;margin:12px 0 8px;} .sbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;} .cbtn{background:#fff;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:9px 14px;font:inherit;font-size:13px;cursor:pointer;}
+.foot{max-width:1040px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+.loading{max-width:1040px;margin:60px auto;padding:0 24px;color:var(--muted);text-align:center;}
+</style>
+</head>
+<body>
+<!--rrgback--><a href="./rrg_assignments.html" class="rrg-back" aria-label="Back to deals" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Deals</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="crumb"><a href="./rrg_assignments.html">Deals</a> &nbsp;›&nbsp; <span id="crumb">Company</span></div>
+  <h1 id="h1">Company</h1>
+  <div class="subline" id="subline"></div>
+</div></div>
+<div id="root" class="loading">Loading the company file…</div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
+function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
+var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CTYPES=['Business'], PTYPES=['Buyer'], LSTATUSES=['Open','Closed','Under LOI','Prospective'], DIRTY=false;
+function locStatusClass(s){ return 'ls-'+String(s||'Open').toLowerCase().replace(/[^a-z]+/g,''); }
+function render(){
+  document.getElementById('crumb').textContent=C.name||'Company';
+  document.getElementById('h1').textContent=C.name||'Company';
+  var sub=[]; if(C.type) sub.push('<span class="hpill">'+esc(C.type)+'</span>'); if(C.market) sub.push('<span>'+esc(C.market)+'</span>');
+  sub.push('<span>'+CONTACTS.length+' contact'+(CONTACTS.length===1?'':'s')+'</span>'); sub.push('<span>'+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span>'); sub.push('<span>'+DEALS.length+' deal'+(DEALS.length===1?'':'s')+'</span>');
+  document.getElementById('subline').innerHTML=sub.join('');
+  var contacts = CONTACTS.length ? CONTACTS.map(function(p){
+    var sub=[p.title,p.email,p.phone].filter(Boolean).map(esc).join(' · ');
+    return '<div class="crow"><div class="cav">'+esc(initials(p.name).toUpperCase())+'</div><div class="cinfo"><div class="cname">'+esc(p.name||'Contact')+'</div><div class="csub">'+sub+'</div></div><span class="ctype">'+esc(p.type||'')+'</span><button class="crm" data-rm="'+esc(p.id)+'">Remove</button></div>';
+  }).join('') : '<div class="empty">No contacts yet. Add the owner, partners, or advisors tied to this company.</div>';
+  var locs = LOCATIONS.length ? LOCATIONS.map(function(l){
+    var line=[l.address,l.city].filter(Boolean).map(esc).join(', ');
+    return '<div class="crow"><div class="cav" style="background:#fff4e6;color:#b9761a">◆</div><div class="cinfo"><div class="cname">'+esc(l.name||l.address||'Location')+'</div><div class="csub">'+line+(l.notes?(' · '+esc(l.notes)):'')+'</div></div><span class="ctype '+locStatusClass(l.status)+'">'+esc(l.status||'Open')+'</span><button class="ledit" data-le="'+esc(l.id)+'">Edit</button><button class="crm" data-lrm="'+esc(l.id)+'">Remove</button></div>';
+  }).join('') : '<div class="empty">No locations yet. Add each unit — address, city, and status.</div>';
+  var deals = DEALS.length ? DEALS.map(function(d){
+    return '<a class="drow" href="./rrg_assignment.html?key='+encodeURIComponent(d.key)+'"><div><div class="dbiz">'+esc(d.business)+'</div><div class="dmeta">'+esc(d.market||'')+'</div></div><span class="dstate '+(d.started?'on':'off')+'">'+(d.started?'In pipeline':'Not started')+'</span></a>';
+  }).join('') : '<div class="empty">No deals linked to this company yet.</div>';
+  var ptsel=PTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
+  var ctsel=CTYPES.map(function(t){return '<option'+(C.type===t?' selected':'')+'>'+esc(t)+'</option>';}).join('');
+  document.getElementById('root').className='wrap';
+  document.getElementById('root').innerHTML=
+    '<div class="main">'
+    + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="addContactBtn">+ Add contact</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Locations</b><span>'+LOCATIONS.length+'</span><button class="addbtn" id="addLocBtn">+ Add location</button></div><div class="cb"><div id="locForm" hidden></div>'+locs+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Deals</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
+    + '</div>'
+    + '<div class="side"><div class="card"><div class="ch"><b>Company</b></div><div class="cb">'
+      + '<div class="fldrow"><label class="fld">Name</label><input id="c_name" value="'+esc(C.name||'')+'"></div>'
+      + '<div class="fldrow"><label class="fld">Type</label><select id="c_type">'+ctsel+'</select></div>'
+      + '<div class="fldrow"><label class="fld">Market</label><input id="c_market" value="'+esc(C.market||'')+'" placeholder="City / metro"></div>'
+      + '<div class="fldrow"><label class="fld">Notes</label><textarea id="c_notes" placeholder="Ownership, history, relationships, anything worth remembering…">'+esc(C.notes||'')+'</textarea></div>'
+      + '<button class="savebtn" id="c_save" disabled>Save changes</button><div class="saved" id="c_saved">Saved ✓</div>'
+    + '</div></div></div>';
+  ['c_name','c_type','c_market','c_notes'].forEach(function(id){ var el=document.getElementById(id); el.addEventListener(el.tagName==='SELECT'?'change':'input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; }); });
+  document.getElementById('c_save').addEventListener('click',saveCompany);
+  document.getElementById('addContactBtn').addEventListener('click',openContactForm);
+  document.querySelectorAll('.crm[data-rm]').forEach(function(b){ b.addEventListener('click',function(){ removeContact(b.getAttribute('data-rm')); }); });
+  var alb=document.getElementById('addLocBtn'); if(alb) alb.addEventListener('click',function(){ openLocForm(null); });
+  document.querySelectorAll('.ledit').forEach(function(b){ b.addEventListener('click',function(){ var l=LOCATIONS.filter(function(x){return x.id===b.getAttribute('data-le');})[0]; if(l) openLocForm(l); }); });
+  document.querySelectorAll('.crm[data-lrm]').forEach(function(b){ b.addEventListener('click',function(){ removeLoc(b.getAttribute('data-lrm')); }); });
+}
+function openLocForm(l){
+  l=l||{}; var f=document.getElementById('locForm');
+  var ssel=LSTATUSES.map(function(x){return '<option'+((l.status||'Open')===x?' selected':'')+'>'+esc(x)+'</option>';}).join('');
+  f.innerHTML='<div class="cform"><div class="cgrid">'
+    +'<div><label class="fld">Location name</label><input id="lo_name" value="'+esc(l.name||'')+'" placeholder="e.g. Downtown, Airport, Unit 2"></div>'
+    +'<div><label class="fld">Status</label><select id="lo_status">'+ssel+'</select></div>'
+    +'<div class="wide"><label class="fld">Address</label><input id="lo_address" value="'+esc(l.address||'')+'" placeholder="Street address"></div>'
+    +'<div><label class="fld">City / market</label><input id="lo_city" value="'+esc(l.city||'')+'" placeholder="City"></div>'
+    +'<div class="wide"><label class="fld">Notes</label><input id="lo_notes" value="'+esc(l.notes||'')+'" placeholder="Sq ft, seats, lease, remarks…"></div>'
+    +'</div><div class="cbtns"><button class="sbtn" id="lo_save">'+(l.id?'Save location':'Add location')+'</button><button class="cbtn" id="lo_cancel">Cancel</button></div></div>';
+  f.removeAttribute('hidden');
+  document.getElementById('lo_save').addEventListener('click',function(){ saveLoc(l.id); });
+  document.getElementById('lo_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
+  document.getElementById('lo_name').focus();
+}
+function saveLoc(id){
+  var body={ name:document.getElementById('lo_name').value.trim(), address:document.getElementById('lo_address').value.trim(), city:document.getElementById('lo_city').value.trim(), status:document.getElementById('lo_status').value, notes:document.getElementById('lo_notes').value.trim() };
+  if(id) body.id=id;
+  if(!body.name && !body.address){ document.getElementById('lo_name').focus(); return; }
+  var b=document.getElementById('lo_save'); b.disabled=true; b.textContent='Saving…';
+  fetch('/api/company/'+encodeURIComponent(ID)+'/location',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||[]; render(); } else { b.disabled=false;b.textContent='Add location'; alert((j&&j.error)||'Could not save the location.'); } })
+    .catch(function(){ b.disabled=false;b.textContent='Add location'; alert('Could not reach the server.'); });
+}
+function removeLoc(id){
+  if(!confirm('Remove this location?')) return;
+  fetch('/api/company/'+encodeURIComponent(ID)+'/location/'+encodeURIComponent(id)+'/remove',{method:'POST',credentials:'same-origin'})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||[]; render(); } else alert((j&&j.error)||'Could not remove.'); })
+    .catch(function(){ alert('Could not reach the server.'); });
+}
+function openContactForm(){
+  var f=document.getElementById('contactForm');
+  var ptsel=PTYPES.map(function(t){return '<option'+(t==='Buyer'?'':'')+'>'+esc(t)+'</option>';}).join('');
+  f.innerHTML='<div class="cform"><div class="cgrid">'
+    +'<div><label class="fld">Name</label><input id="ct_name" placeholder="Contact name"></div>'
+    +'<div><label class="fld">Title / role</label><input id="ct_title" placeholder="Owner, partner, GM…"></div>'
+    +'<div><label class="fld">Email</label><input id="ct_email" placeholder="optional"></div>'
+    +'<div><label class="fld">Phone</label><input id="ct_phone" placeholder="optional"></div>'
+    +'<div class="wide"><label class="fld">Type</label><select id="ct_type">'+ptsel+'</select></div>'
+    +'</div><div class="cbtns"><button class="sbtn" id="ct_save">Add contact</button><button class="cbtn" id="ct_cancel">Cancel</button></div></div>';
+  f.removeAttribute('hidden');
+  document.getElementById('ct_save').addEventListener('click',saveContact);
+  document.getElementById('ct_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
+  document.getElementById('ct_name').focus();
+}
+function saveContact(){
+  var body={ name:document.getElementById('ct_name').value.trim(), title:document.getElementById('ct_title').value.trim(), email:document.getElementById('ct_email').value.trim(), phone:document.getElementById('ct_phone').value.trim(), type:document.getElementById('ct_type').value };
+  if(!body.name && !body.email){ document.getElementById('ct_name').focus(); return; }
+  var b=document.getElementById('ct_save'); b.disabled=true; b.textContent='Adding…';
+  fetch('/api/company/'+encodeURIComponent(ID)+'/contact',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CONTACTS=j.contacts||[]; render(); } else { b.disabled=false;b.textContent='Add contact'; alert((j&&j.error)||'Could not add the contact.'); } })
+    .catch(function(){ b.disabled=false;b.textContent='Add contact'; alert('Could not reach the server.'); });
+}
+function removeContact(pid){
+  if(!confirm('Remove this contact from the company? (The person stays in your registry.)')) return;
+  fetch('/api/company/'+encodeURIComponent(ID)+'/contact/'+encodeURIComponent(pid)+'/remove',{method:'POST',credentials:'same-origin'})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CONTACTS=j.contacts||[]; render(); } else alert((j&&j.error)||'Could not remove.'); })
+    .catch(function(){ alert('Could not reach the server.'); });
+}
+function saveCompany(){
+  var b=document.getElementById('c_save'); b.disabled=true; b.textContent='Saving…';
+  var body={ id:ID, name:document.getElementById('c_name').value.trim(), type:document.getElementById('c_type').value, market:document.getElementById('c_market').value.trim(), notes:document.getElementById('c_notes').value };
+  fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ b.textContent='Save changes'; if(j&&j.ok){ C=j.company; DIRTY=false; document.getElementById('h1').textContent=C.name; document.getElementById('crumb').textContent=C.name; var s=document.getElementById('c_saved'); s.classList.add('show'); setTimeout(function(){s.classList.remove('show');},2000); } else { b.disabled=false; alert((j&&j.error)||'Could not save.'); } })
+    .catch(function(){ b.textContent='Save changes'; b.disabled=false; alert('Could not reach the server.'); });
+}
+window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(); e.returnValue=''; } });
+function load(){
+  if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No company selected. <a href="./rrg_assignments.html">Back to deals →</a></div>'; return; }
+  fetch('/api/company/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
+    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; render(); })
+    .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this company.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
+}
+load();
+</script>
+</body>
+</html>

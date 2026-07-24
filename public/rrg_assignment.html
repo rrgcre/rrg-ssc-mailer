@@ -193,6 +193,7 @@ function render(){
   document.getElementById('crumb').textContent=A.business||'Deal file';
   document.getElementById('h1').textContent=A.business||'Deal';
   var sub=[];
+  if(A.company&&A.company.id) sub.push('<span>Company: <a href="./rrg_company.html?id='+encodeURIComponent(A.company.id)+'" style="color:#fff;font-weight:700;text-decoration:underline;text-underline-offset:2px">'+esc(A.company.name)+'</a></span>');
   if(A.market) sub.push('<span>'+esc(A.market)+'</span>');
   if(A.contact) sub.push('<span>Contact: <b>'+esc(A.contact)+'</b></span>');
   if(A.value) sub.push('<span>Value: <b>'+esc(A.value)+'</b></span>');

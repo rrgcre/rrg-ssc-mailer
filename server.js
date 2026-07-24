@@ -88,19 +88,44 @@ function findOrCreatePerson(req, info) {
     let ch = false;
     if (email && !p.email) { p.email = email.slice(0, 160); ch = true; }
     if (company && !p.company) { p.company = company.slice(0, 160); ch = true; }
+    if (info && info.companyId && !p.companyId) { p.companyId = info.companyId; ch = true; }
     if (ch) { p.updatedAt = new Date().toISOString(); savePeople(arr); }
     return p;
   }
   const type = (info && PERSON_TYPES.indexOf(info.type) >= 0) ? info.type : 'Buyer';
   p = {
-    id: newPersonId(), name: name.slice(0, 160) || email.slice(0, 160), company: company.slice(0, 160),
+    id: newPersonId(), name: name.slice(0, 160) || email.slice(0, 160), company: company.slice(0, 160), companyId: (info && info.companyId) || '',
     email: email.slice(0, 160), phone: '', type: type, notes: '',
     createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
   arr.push(p); savePeople(arr);
   return p;
 }
-function personBrief(p) { return p ? { id: p.id, name: p.name || '', company: p.company || '', email: p.email || '', type: p.type || '' } : null; }
+function personBrief(p) { return p ? { id: p.id, name: p.name || '', company: p.company || '', companyId: p.companyId || '', email: p.email || '', phone: p.phone || '', type: p.type || '' } : null; }
+
+// Companies — a company / account file that groups its associated contacts (people) and
+// its deals. Created at onboarding (the subject business), reusable across deals.
+const COMPANIES_FILE = path.join(BOV_DATA_DIR, 'companies.json');
+const COMPANY_TYPES = ['Business', 'Buyer Group', 'Investor', 'Vendor', 'Franchisor', 'Other'];
+function loadCompanies() { try { return JSON.parse(fs.readFileSync(COMPANIES_FILE, 'utf8')); } catch (e) { return []; } }
+function saveCompanies(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(COMPANIES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newCompanyId() { return 'co_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function companyById(id) { if (!id) return null; return loadCompanies().find(c => c.id === id) || null; }
+function companyBrief(c) { return c ? { id: c.id, name: c.name || '', market: c.market || '', type: c.type || '' } : null; }
+function findOrCreateCompany(req, info) {
+  const name = String((info && info.name) || '').trim();
+  if (!name) return null;
+  const arr = loadCompanies();
+  let c = arr.find(x => normKey(x.name) === normKey(name));
+  if (c) {
+    if (info.market && !c.market) { c.market = String(info.market).slice(0, 80); c.updatedAt = new Date().toISOString(); saveCompanies(arr); }
+    return c;
+  }
+  const type = (info && COMPANY_TYPES.indexOf(info.type) >= 0) ? info.type : 'Business';
+  c = { id: newCompanyId(), name: name.slice(0, 160), market: String((info && info.market) || '').slice(0, 80), type: type, notes: '', createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+  arr.push(c); saveCompanies(arr);
+  return c;
+}
 
 // ---- Admin-editable BOV analyst prompt ----
 // Empty file / no file = use bovgen's built-in default.
@@ -1893,6 +1918,7 @@ function assignmentView(d, overlay) {
     key: d.key, business, market, contact, by, byUser,
     dealId: deal ? deal.id : '', started: !!d.screen, canStart: !!(deal && !d.screen),
     clientPersonId: deal ? (deal.contactPersonId || '') : '',
+    companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', owner: o.owner || by, businessOverride: o.businessOverride || '',
     offers: Array.isArray(o.offers) ? o.offers : [],
@@ -2113,9 +2139,10 @@ app.post('/api/person', express.json(), (req, res) => {
   const arr = loadPeople();
   let p = b.id ? arr.find(x => x.id === b.id) : null;
   const now = new Date().toISOString();
-  if (!p) { p = { id: newPersonId(), name: '', company: '', email: '', phone: '', type: 'Buyer', notes: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(p); }
+  if (!p) { p = { id: newPersonId(), name: '', company: '', companyId: '', email: '', phone: '', type: 'Buyer', notes: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(p); }
   if (typeof b.name === 'string') p.name = b.name.slice(0, 160);
   if (typeof b.company === 'string') p.company = b.company.slice(0, 160);
+  if (typeof b.companyId === 'string') p.companyId = b.companyId.slice(0, 40);
   if (typeof b.email === 'string') p.email = b.email.slice(0, 160);
   if (typeof b.phone === 'string') p.phone = b.phone.slice(0, 60);
   if (typeof b.type === 'string' && PERSON_TYPES.indexOf(b.type) >= 0) p.type = b.type;
@@ -2129,6 +2156,91 @@ app.delete('/api/person/:id', (req, res) => {
   savePeople(arr);
   res.json({ ok: true, people: arr.map(personBrief) });
 });
+// ---- Companies (account files) ----
+app.get('/api/companies', (req, res) => {
+  const cos = loadCompanies(), people = loadPeople(), deals = loadDeals();
+  const rows = cos.map(c => ({ id: c.id, name: c.name, market: c.market || '', type: c.type || '', contacts: people.filter(p => p.companyId === c.id).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt }));
+  res.json({ ok: true, companies: rows, types: COMPANY_TYPES });
+});
+const LOCATION_STATUSES = ['Open', 'Closed', 'Under LOI', 'Prospective'];
+function newLocationId() { return 'loc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function applyLocationFields(l, b) {
+  if (typeof b.name === 'string') l.name = b.name.slice(0, 160);
+  if (typeof b.address === 'string') l.address = b.address.slice(0, 200);
+  if (typeof b.city === 'string') l.city = b.city.slice(0, 120);
+  if (typeof b.status === 'string') l.status = LOCATION_STATUSES.indexOf(b.status) >= 0 ? b.status : 'Open';
+  if (typeof b.notes === 'string') l.notes = b.notes.slice(0, 2000);
+}
+app.get('/api/company/:id', (req, res) => {
+  const c = companyById(req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const contacts = loadPeople().filter(p => p.companyId === c.id).map(p => ({ id: p.id, name: p.name, email: p.email || '', phone: p.phone || '', type: p.type || '', title: p.title || '' }));
+  const dealRows = loadDeals().filter(d => d.companyId === c.id).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id) }));
+  res.json({ ok: true, company: c, contacts, deals: dealRows, locations: c.locations || [], types: COMPANY_TYPES, personTypes: PERSON_TYPES, locationStatuses: LOCATION_STATUSES });
+});
+// Add / update a location on a company.
+app.post('/api/company/:id/location', express.json(), (req, res) => {
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const b = req.body || {}; c.locations = c.locations || [];
+  const now = new Date().toISOString();
+  if (b.id) { const ex = c.locations.find(l => l.id === b.id); if (!ex) return res.status(404).json({ ok: false, error: 'Location not found.' }); applyLocationFields(ex, b); ex.updatedAt = now; }
+  else { const rec = { id: newLocationId(), name: '', address: '', city: '', status: 'Open', notes: '', createdAt: now }; applyLocationFields(rec, b); if (!rec.name && !rec.address) return res.status(400).json({ ok: false, error: 'A location name or address is required.' }); c.locations.push(rec); }
+  c.updatedAt = now; saveCompanies(arr);
+  res.json({ ok: true, locations: c.locations });
+});
+app.post('/api/company/:id/location/:locId/remove', (req, res) => {
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  c.locations = (c.locations || []).filter(l => l.id !== req.params.locId);
+  c.updatedAt = new Date().toISOString(); saveCompanies(arr);
+  res.json({ ok: true, locations: c.locations });
+});
+app.post('/api/company', express.json(), (req, res) => {
+  const b = req.body || {};
+  const arr = loadCompanies();
+  let c = b.id ? arr.find(x => x.id === b.id) : null;
+  const now = new Date().toISOString();
+  if (!c) { const nm = String(b.name || '').trim(); if (!nm) return res.status(400).json({ ok: false, error: 'A company name is required.' }); c = { id: newCompanyId(), name: '', market: '', type: 'Business', notes: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(c); }
+  if (typeof b.name === 'string' && b.name.trim()) c.name = b.name.trim().slice(0, 160);
+  if (typeof b.market === 'string') c.market = b.market.slice(0, 80);
+  if (typeof b.type === 'string' && COMPANY_TYPES.indexOf(b.type) >= 0) c.type = b.type;
+  if (typeof b.notes === 'string') c.notes = b.notes.slice(0, 6000);
+  c.updatedAt = now; saveCompanies(arr);
+  res.json({ ok: true, company: c });
+});
+// Add / associate a contact (person) to a company.
+app.post('/api/company/:id/contact', express.json(), (req, res) => {
+  const c = companyById(req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const b = req.body || {};
+  const arr = loadPeople();
+  let p = b.personId ? arr.find(x => x.id === b.personId) : null;
+  if (p) { p.companyId = c.id; if (typeof b.type === 'string' && PERSON_TYPES.indexOf(b.type) >= 0) p.type = b.type; if (typeof b.title === 'string') p.title = b.title.slice(0, 120); p.updatedAt = new Date().toISOString(); savePeople(arr); }
+  else {
+    const name = String(b.name || '').trim(); const email = String(b.email || '').trim();
+    if (!name && !email) return res.status(400).json({ ok: false, error: 'A contact name or email is required.' });
+    p = findOrCreatePerson(req, { name: name, email: email, companyId: c.id, type: (PERSON_TYPES.indexOf(b.type) >= 0 ? b.type : 'Buyer') });
+    if (p && (b.phone || b.title)) { const a2 = loadPeople(); const pp = a2.find(x => x.id === p.id); if (pp) { if (b.phone) pp.phone = String(b.phone).slice(0, 60); if (b.title) pp.title = String(b.title).slice(0, 120); savePeople(a2); } }
+  }
+  const contacts = loadPeople().filter(x => x.companyId === c.id).map(x => ({ id: x.id, name: x.name, email: x.email || '', phone: x.phone || '', type: x.type || '', title: x.title || '' }));
+  res.json({ ok: true, contacts });
+});
+// Remove a contact's association from a company (does not delete the person).
+app.post('/api/company/:id/contact/:personId/remove', (req, res) => {
+  const c = companyById(req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.personId);
+  if (p && p.companyId === c.id) { p.companyId = ''; p.updatedAt = new Date().toISOString(); savePeople(arr); }
+  const contacts = arr.filter(x => x.companyId === c.id).map(x => ({ id: x.id, name: x.name, email: x.email || '', phone: x.phone || '', type: x.type || '', title: x.title || '' }));
+  res.json({ ok: true, contacts });
+});
+app.delete('/api/company/:id', (req, res) => {
+  if (!(req.user && req.user.role === 'admin')) return res.status(403).json({ ok: false, error: 'Admin only.' });
+  saveCompanies(loadCompanies().filter(c => c.id !== req.params.id));
+  const arr = loadPeople(); let ch = false; arr.forEach(p => { if (p.companyId === req.params.id) { p.companyId = ''; ch = true; } }); if (ch) savePeople(arr);
+  res.json({ ok: true });
+});
 // ---- Deals (first-class) ----
 app.post('/api/deal/new', express.json(), (req, res) => {
   const b = req.body || {};
@@ -2136,11 +2248,14 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   if (!business) return res.status(400).json({ ok: false, error: 'A business / deal name is required.' });
   const rec = {
     id: newDealId(), business: business.slice(0, 120), market: String(b.market || '').slice(0, 80), contact: String(b.contact || '').slice(0, 120),
-    screenId: '', roomId: '', contactPersonId: '', createdAt: new Date().toISOString(),
+    screenId: '', roomId: '', contactPersonId: '', companyId: '', createdAt: new Date().toISOString(),
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
-  // Locate the existing client, or onboard them into the people registry.
-  if (rec.contact || b.contactEmail) { const p = findOrCreatePerson(req, { name: rec.contact, email: b.contactEmail, type: 'Client' }); if (p) { rec.contactPersonId = p.id; if (!rec.contact) rec.contact = p.name; } }
+  // Onboarding: open the company file for the subject business...
+  const company = findOrCreateCompany(req, { name: rec.business, market: rec.market, type: 'Business' });
+  if (company) rec.companyId = company.id;
+  // ...and locate the existing client, or onboard them, associated with that company.
+  if (rec.contact || b.contactEmail) { const p = findOrCreatePerson(req, { name: rec.contact, email: b.contactEmail, type: 'Client', companyId: rec.companyId }); if (p) { rec.contactPersonId = p.id; if (!rec.contact) rec.contact = p.name; } }
   const arr = loadDeals(); arr.push(rec);
   const room = ensureRoomForDeal(req, rec);   // auto-build its structured data room
   if (room) rec.roomId = room.id;
