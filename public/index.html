@@ -68,8 +68,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .brand .disc{background:var(--red);color:#fff;border-radius:50%;width:36px;height:36px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;box-shadow:0 0 0 5px rgba(218,43,31,.12), 0 6px 18px rgba(218,43,31,.28);}
 .brand .bar{background:#fff;width:3px;height:26px;margin:0 11px;}
 .brand .wm{font-weight:800;color:#fff;font-size:12px;text-transform:uppercase;line-height:.95;letter-spacing:.01em;}
-.hdrrow{display:flex;align-items:center;gap:16px;position:relative;z-index:2;margin-top:2px;}
+.hdrrow{display:flex;align-items:center;gap:16px;position:relative;z-index:2;margin-top:2px;min-height:44px;}
 .hdrrow .brand{flex:none;}
+.hdrmsg{flex:1;min-width:0;color:#eaf0ff;font-size:13.5px;line-height:1.4;font-weight:600;padding-right:170px;}
+.hdrmsg .hm-in{display:inline-flex;align-items:flex-start;gap:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-left:3px solid var(--red);border-radius:9px;padding:9px 14px;max-width:760px;}
+.hdrmsg .hm-ic{color:var(--red);font-weight:900;flex:none;}
+@media(max-width:760px){ .hdrmsg{display:none;} }
 .hdrdiv{width:1px;align-self:stretch;background:rgba(255,255,255,.18);flex:none;}
 .hdrtext{min-width:0;}
 .kicker{position:relative;z-index:2;margin:0 0 2px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:10px;text-transform:uppercase;}
@@ -216,6 +220,7 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
     <div class="topnav" id="topnav"></div>
     <div class="hdrrow">
       <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+      <div class="hdrmsg" id="hdrMsg"></div>
     </div>
   </div>
 </div>
@@ -593,10 +598,12 @@ window.RRG_API = window.RRG_API || (String(location.protocol).indexOf('http')===
     window._toolCtx={isAdmin:!!(s&&s.role==='admin'), adminOnly:(s&&s.adminOnlyTools)||[]};
     renderTools();
     renderTopNav(s);
+    setHeaderMsg(s&&s.headerMsg);
     stampBuild(s&&s.build);
     loadCounts();
   }).catch(function(){ window._toolCtx={isAdmin:true,adminOnly:[]}; renderTools(); stampBuild(); });
 })();
+function setHeaderMsg(msg){ var el=document.getElementById('hdrMsg'); if(!el) return; msg=(msg||'').trim(); el.innerHTML = msg ? ('<span class="hm-in"><span class="hm-ic">◆</span><span>'+esc(msg)+'</span></span>') : ''; }
 /* ---- record counts shown as small badges next to tool titles ---- */
 function loadCounts(){
   var api=window.RRG_API||''; if(!api) return;

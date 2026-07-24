@@ -635,8 +635,18 @@ app.get('/api/session', (req, res) => res.json({
   preparedBy: req.user.preparedBy || '',
   adminOnlyTools: auth.loadToolAccess(),
   logoUrl: (function () { const b = loadBrand(); return b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(b.updatedAt || '')) : ''; })(),
+  headerMsg: (function () { const b = loadBrand(); return (b.headerMsg && b.headerMsgOn !== false) ? String(b.headerMsg) : ''; })(),
   build: BUILD,
 }));
+// Admin-settable header announcement (shown across the top of the dashboard).
+app.get('/api/admin/header-msg', requireAdmin, (req, res) => { const b = loadBrand(); res.json({ ok: true, msg: b.headerMsg || '', on: b.headerMsgOn !== false }); });
+app.post('/api/admin/header-msg', requireAdmin, express.json(), (req, res) => {
+  const b = loadBrand();
+  if (typeof req.body.msg === 'string') b.headerMsg = req.body.msg.slice(0, 300);
+  if (typeof req.body.on === 'boolean') b.headerMsgOn = req.body.on;
+  b.updatedAt = new Date().toISOString(); saveBrand(b);
+  res.json({ ok: true, msg: b.headerMsg || '', on: b.headerMsgOn !== false });
+});
 
 // Active user names — populates the "RRG Rep" dropdown on the call form (any signed-in user).
 app.get('/api/users-list', (req, res) => {
@@ -2321,6 +2331,7 @@ app.get('/api/person/:id', (req, res) => {
 });
 const LOCATION_STATUSES = ['Open', 'Under Construction', 'Under LOI', 'Prospective', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
+const RRG_METROS = ['Austin', 'Dallas', 'Houston', 'San Antonio', 'Rio Grande Valley', 'Central Texas'];
 function newLocationId() { return 'loc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function applyLocationFields(l, b) {
   if (typeof b.name === 'string') l.name = b.name.slice(0, 160);
@@ -2396,7 +2407,7 @@ app.get('/api/company/:id', (req, res) => {
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
   const contacts = loadPeople().filter(p => p.companyId === c.id).map(p => ({ id: p.id, name: p.name, email: p.email || '', phone: p.phone || '', type: p.type || '', title: p.title || '' }));
   const dealRows = loadDeals().filter(d => d.companyId === c.id).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id) }));
-  res.json({ ok: true, company: c, contacts, deals: dealRows, locations: c.locations || [], concepts: c.concepts || [], types: COMPANY_TYPES, personTypes: PERSON_TYPES, locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES });
+  res.json({ ok: true, company: c, contacts, deals: dealRows, locations: c.locations || [], concepts: c.concepts || [], types: COMPANY_TYPES, personTypes: PERSON_TYPES, locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, markets: RRG_METROS, isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 // ---- Concepts — a company runs one or more concepts (brands); locations attach to a concept. ----
 function newConceptId() { return 'cpt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -2414,12 +2425,13 @@ app.post('/api/company/:id/concept', express.json(), (req, res) => {
     const oldName = cpt.name;
     cpt.name = name.slice(0, 120);
     if (typeof b.website === 'string') cpt.website = b.website.slice(0, 300);
+    if (Array.isArray(b.markets)) cpt.markets = b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30);
     cpt.updatedAt = now;
     // keep the locations' concept label in sync with a rename
     if (oldName && oldName !== cpt.name) (c.locations || []).forEach(l => { if ((l.concept || '') === oldName) l.concept = cpt.name; });
   } else {
     if (c.concepts.some(x => normKey(x.name) === normKey(name))) return res.status(400).json({ ok: false, error: 'That concept already exists.' });
-    cpt = { id: newConceptId(), name: name.slice(0, 120), website: String(b.website || '').slice(0, 300), createdAt: now };
+    cpt = { id: newConceptId(), name: name.slice(0, 120), website: String(b.website || '').slice(0, 300), markets: Array.isArray(b.markets) ? b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30) : [], createdAt: now };
     c.concepts.push(cpt);
   }
   c.updatedAt = now; saveCompanies(arr);
@@ -2536,9 +2548,23 @@ app.post('/api/company/:id/contact/:personId/remove', (req, res) => {
 });
 app.delete('/api/company/:id', (req, res) => {
   if (!(req.user && req.user.role === 'admin')) return res.status(403).json({ ok: false, error: 'Admin only.' });
-  saveCompanies(loadCompanies().filter(c => c.id !== req.params.id));
-  const arr = loadPeople(); let ch = false; arr.forEach(p => { if (p.companyId === req.params.id) { p.companyId = ''; ch = true; } }); if (ch) savePeople(arr);
-  res.json({ ok: true });
+  const id = req.params.id;
+  const companies = loadCompanies();
+  const c = companies.find(x => x.id === id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  // 1) Delete every deal tied to this company, with its full record chain + files.
+  const deals = loadDeals();
+  const linkedDeals = deals.filter(d => d.companyId === id);
+  linkedDeals.forEach(d => { try { purgeDealRecords(d); } catch (e) { console.error('company delete — deal purge failed:', e && e.message); } });
+  if (linkedDeals.length) saveDeals(loadDeals().filter(d => d.companyId !== id));
+  // 2) Delete the company's location photo files.
+  let photos = 0;
+  (c.locations || []).forEach(l => (l.photos || []).forEach(p => { try { fs.unlinkSync(path.join(LOCPHOTO_DIR, p.id + '.' + p.ext)); photos++; } catch (e) {} }));
+  // 3) Remove the company record (concepts + locations are embedded, so they go with it).
+  saveCompanies(companies.filter(x => x.id !== id));
+  // 4) Unlink contacts (people are global — keep them, just clear the association).
+  const people = loadPeople(); let ch = false; people.forEach(p => { if (p.companyId === id) { p.companyId = ''; ch = true; } }); if (ch) savePeople(people);
+  res.json({ ok: true, deletedDeals: linkedDeals.length, deletedPhotos: photos });
 });
 // ---- Deals (first-class) ----
 app.post('/api/deal/new', express.json(), (req, res) => {
@@ -2596,15 +2622,12 @@ app.post('/api/deal/:id/start', express.json(), (req, res) => {
   res.json({ ok: true, key: 's_' + screen.id, screenId: screen.id });
 });
 // Delete a deal and everything linked to it (records, data room, uploaded files).
-app.delete('/api/deal/:id', (req, res) => {
-  const arr = loadDeals(); const rec = arr.find(x => x.id === req.params.id);
-  if (!rec) return res.status(404).json({ ok: false, error: 'Deal not found.' });
-  if (!ownsDeal(req, rec)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+// Delete every record in a deal's chain (rooms+files, lease, map, cim, bov, questionnaire,
+// screening, and overlay). Does NOT touch the deals array — caller removes the deal record.
+function purgeDealRecords(rec) {
   const key = rec.screenId ? ('s_' + rec.screenId) : ('d_' + rec.id);
-  // Resolve the whole chain for this deal from the index, then delete each record.
   const group = assignmentsIndex()[key] || {};
   const screenId = rec.screenId || (group.screen && group.screen.id) || '';
-  // gather ids
   const questId = (group.quest && group.quest.id) || '';
   const bovIds = [], cimIds = [], mapIds = [], leaseIds = [], roomIds = [];
   if (group.bov) bovIds.push(group.bov.id);
@@ -2613,11 +2636,6 @@ app.delete('/api/deal/:id', (req, res) => {
   if (group.lease) leaseIds.push(group.lease.id);
   if (group.room) roomIds.push(group.room.id);
   if (rec.roomId) roomIds.push(rec.roomId);
-  // widen: catch any record pointing into this chain even if not the "newest"
-  if (screenId) {
-    const q = loadQuests().find(x => String(x.formId || '') === 'qfromscr_' + screenId); if (q && !questId) { /* handled below by formId filter */ }
-  }
-  // delete rooms (+ their files) linked by id, srcDealId, or srcCim in cimIds
   const rooms = loadRooms();
   const roomKeep = [];
   rooms.forEach(r => {
@@ -2626,20 +2644,23 @@ app.delete('/api/deal/:id', (req, res) => {
     else roomKeep.push(r);
   });
   if (roomKeep.length !== rooms.length) saveRooms(roomKeep);
-  // delete leases / maps / cims / bovs by id
   if (leaseIds.length) saveLeases(loadLeases().filter(x => leaseIds.indexOf(x.id) < 0));
   if (mapIds.length) saveMaps(loadMaps().filter(x => mapIds.indexOf(x.id) < 0));
   if (cimIds.length) saveCims(loadCims().filter(x => cimIds.indexOf(x.id) < 0));
   if (bovIds.length) saveBovs(loadBovs().filter(x => bovIds.indexOf(x.id) < 0));
-  // delete questionnaire(s) tied to this screening, then the screening
   if (screenId) {
     saveQuests(loadQuests().filter(x => String(x.formId || '') !== 'qfromscr_' + screenId));
     saveScreens(loadScreens().filter(x => x.id !== screenId));
   } else if (questId) {
     saveQuests(loadQuests().filter(x => x.id !== questId));
   }
-  // overlay + deal record
   const overlay = loadAssignOverlay(); if (overlay[key]) { delete overlay[key]; saveAssignOverlay(overlay); }
+}
+app.delete('/api/deal/:id', (req, res) => {
+  const arr = loadDeals(); const rec = arr.find(x => x.id === req.params.id);
+  if (!rec) return res.status(404).json({ ok: false, error: 'Deal not found.' });
+  if (!ownsDeal(req, rec)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  purgeDealRecords(rec);
   saveDeals(arr.filter(x => x.id !== rec.id));
   res.json({ ok: true });
 });
@@ -2929,7 +2950,18 @@ app.get('/admin', requireAdmin, (req, res) => {
       </div>
 
       <div class="grp">Brand</div>
-      <h2 style="margin-top:20px">Company Logo <span class="sub2">— your firm's logo. Used as the default on Marketing Packs (reps can still override per pack). PNG, JPG, SVG, GIF or WEBP, up to 4&nbsp;MB.</span></h2>
+      <h2 style="margin-top:20px">Header Announcement <span class="sub2">— a short message shown across the top of everyone's dashboard, next to the logo. Use it for notices, reminders, or a rallying line. Leave blank to hide it.</span></h2>
+      <div class="links">
+        <input type="text" id="hdrMsg" maxlength="300" placeholder="e.g. Q3 push — get your listings loaded by Friday. New: auto-find locations on any concept." style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy)">
+        <div style="margin-top:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <button class="primary" onclick="saveHdrMsg()">Save message</button>
+          <button onclick="clearHdrMsg()">Clear</button>
+          <label class="sub2" style="display:inline-flex;align-items:center;gap:7px"><input type="checkbox" id="hdrMsgOn" checked> Show on dashboard</label>
+          <span id="hdrMsgMsg" class="sub2"></span>
+        </div>
+      </div>
+
+      <h2 style="margin-top:34px">Company Logo <span class="sub2">— your firm's logo. Used as the default on Marketing Packs (reps can still override per pack). PNG, JPG, SVG, GIF or WEBP, up to 4&nbsp;MB.</span></h2>
       <div class="links">
         <div id="logoPreview" style="margin-bottom:12px"></div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
@@ -3089,8 +3121,12 @@ app.get('/admin', requireAdmin, (req, res) => {
         rd.onerror=function(){ m.textContent='Could not read that image.'; };
         rd.readAsDataURL(f); }
       function clearLogo(){ if(!confirm('Remove the company logo? Marketing Packs will fall back to the built-in RRG wordmark.')) return; post('/api/admin/logo/clear',{}).then(function(j){ if(j&&j.ok){ renderLogo(false); document.getElementById('logomsg').textContent='Removed.'; } }); }
+      function loadHdrMsg(){ fetch('/api/admin/header-msg').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('hdrMsg').value=j.msg||''; document.getElementById('hdrMsgOn').checked=(j.on!==false); } }).catch(function(){}); }
+      function saveHdrMsg(){ var v=document.getElementById('hdrMsg').value, on=document.getElementById('hdrMsgOn').checked, m=document.getElementById('hdrMsgMsg'); m.textContent='Saving…'; post('/api/admin/header-msg',{msg:v,on:on}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — reps see it on their next dashboard load.'; } else { m.textContent=(j&&j.error)||'Failed'; } }); }
+      function clearHdrMsg(){ document.getElementById('hdrMsg').value=''; post('/api/admin/header-msg',{msg:'',on:document.getElementById('hdrMsgOn').checked}).then(function(j){ if(j&&j.ok) document.getElementById('hdrMsgMsg').textContent='Cleared.'; }); }
       loadDocList();
       loadLogo();
+      loadHdrMsg();
       function saveToolAccess(){ var t=[]; document.querySelectorAll('.ta:checked').forEach(function(c){ t.push(c.value); }); post('/api/admin/tool-access',{adminOnly:t}).then(function(j){ var m=document.getElementById('tmsg'); if(j.ok){ m.textContent='Saved — '+j.adminOnly.length+' tool(s) admin-only ✓'; } else { m.textContent=j.error||'Failed'; } }); }
       function _bpState(isDefault){ var s=document.getElementById('bpstate'); if(s) s.textContent = isDefault ? 'Currently using the RRG default prompt.' : 'Currently using a custom prompt.'; }
       function loadBovPrompt(){ fetch('/api/admin/bov-prompt').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('bovPrompt').value=j.prompt||''; _bpState(j.isDefault); } }).catch(function(){ var s=document.getElementById('bpstate'); if(s) s.textContent='Could not load the prompt.'; }); }
