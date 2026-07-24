@@ -1371,7 +1371,7 @@ function ensureRoomForCim(req, cim) {
 }
 function roomPublic(r, origin) {
   const base = (origin || '') + '/room/' + r.token;
-  return { id: r.id, business: r.business, token: r.token, link: base, docCount: (r.docs || []).length, srcCimId: r.srcCimId || '', createdAt: r.createdAt, builtAt: r.builtAt || '', by: r.by };
+  return { id: r.id, business: r.business, token: r.token, link: base, docCount: (r.docs || []).length, gated: roomIsGated(r), buyerCount: (r.grants || []).filter(g => g.active).length, srcCimId: r.srcCimId || '', createdAt: r.createdAt, builtAt: r.builtAt || '', by: r.by };
 }
 app.get('/api/rooms', (req, res) => {
   const isAdmin = req.user && req.user.role === 'admin';
@@ -1672,19 +1672,32 @@ app.get('/admin', requireAdmin, (req, res) => {
     <div class="bar"><span class="stat"><b>${users.length}</b> users</span><span class="stat"><b>${logins.filter(l=>l.result==='success').length}</b> logins shown</span><span class="stat"><b>${usageAll.length}</b> tool opens</span><span class="stat" title="Version and when the running server last started. After you push and Render redeploys, refresh this page — if the boot time doesn't update to just now, the new code isn't live yet."><b>${esc(ADMIN_BUILD)}</b> · booted ${esc(SERVER_BOOT.toLocaleString('en-US',{timeZone:'America/Chicago'}))} CT</span>
       <span class="dl"><a href="/index.html" style="background:#DA2B1F;color:#fff;padding:6px 13px;border-radius:8px;font-weight:800;text-decoration:none">Switch to user view →</a> <a href="/log">Submissions</a> <a href="/admin/logins.csv">Login CSV</a> <a href="/admin/usage.csv">Usage CSV</a> <a href="/logout">Sign out</a></span></div>
     <style>
-      .wrap h2.acch{cursor:pointer;user-select:none;display:flex;align-items:center;gap:9px;border-top:1px solid #e6e9f0;padding-top:20px;margin-top:26px;}
-      .wrap h2.acch:first-of-type{border-top:none;padding-top:0;}
-      .wrap h2.acch .chev{display:inline-flex;color:#DA2B1F;font-weight:900;font-size:16px;transition:transform .18s;transform:rotate(90deg);width:14px;}
-      .wrap h2.acch.collapsed .chev{transform:rotate(0deg);}
-      .wrap h2.acch .cc{margin-left:auto;font-size:11px;font-weight:600;color:#8a93a8;letter-spacing:0;text-transform:none;}
-      .accbody{padding-top:4px;}
-      .expandbar{display:flex;gap:14px;padding:10px 28px 0;}
-      .expandbar a{font-size:12px;font-weight:700;color:#2647b0;cursor:pointer;text-decoration:none;}
+      .expandbar{display:none!important;}
+      .bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:18px 28px 2px;}
+      .bar .stat{background:#f6f8fb;border:1px solid #e9edf3;border-radius:11px;padding:8px 14px;font-size:10.5px;color:#6b7488;font-weight:700;text-transform:uppercase;letter-spacing:.04em;line-height:1.3;}
+      .bar .stat b{display:block;font-size:18px;color:#000E31;font-weight:800;letter-spacing:-.01em;text-transform:none;}
+      .bar .dl{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+      .bar .dl a{font-size:12.5px;font-weight:700;color:#000E31;text-decoration:none;border:1px solid #e6e9f0;border-radius:8px;padding:8px 13px;background:#fff;}
+      .bar .dl a:hover{border-color:#9fb0cc;}
+      .wrap.is-console{max-width:1200px;}
+      .console{display:flex;align-items:flex-start;}
+      .sidenav{flex:0 0 230px;position:sticky;top:12px;padding:6px 12px 20px;border-right:1px solid #e9edf3;}
+      .sidenav .snlabel{font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#9aa4b6;padding:6px 13px;}
+      .sidenav .snav{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:10px;color:#3a4560;font-weight:700;font-size:13.5px;text-decoration:none;cursor:pointer;margin-bottom:3px;transition:background .12s;}
+      .sidenav .snav:hover{background:#f5f7fb;}
+      .sidenav .snav.on{background:#eef2fb;color:#000E31;}
+      .sidenav .snav .si{width:9px;height:9px;border-radius:50%;background:#cfd6e2;flex:none;}
+      .sidenav .snav.on .si{background:#DA2B1F;}
+      .apanels{flex:1;min-width:0;padding:2px 6px 70px 32px;}
+      .apanel{display:none;} .apanel.show{display:block;animation:apf .2s ease;}
+      @keyframes apf{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+      .apanel .ptitle{font-size:23px;font-weight:800;color:#000E31;margin:0 0 20px;letter-spacing:-.015em;border-bottom:2px solid #f0d9d6;padding-bottom:13px;}
+      .apanel h2{font-size:15px;color:#000E31;border-top:1px solid #eef1f6;padding-top:20px;margin-top:24px;}
+      .apanel h2:first-of-type{border-top:none;padding-top:0;margin-top:2px;}
       .bovprompt{width:100%;min-height:340px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px;line-height:1.55;padding:14px 15px;border:1px solid #cfd6e2;border-radius:10px;color:#1a2236;resize:vertical;background:#fff;}
       .bovprompt:focus{outline:none;border-color:#DA2B1F;}
       .btn.ghost{background:#eef1f7;color:#000E31;border:1px solid #e6e9f0;}
-      .wrap .grp{margin:34px 0 4px;font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#DA2B1F;border-bottom:2px solid #f0d9d6;padding-bottom:6px;}
-      .wrap .grp:first-child{margin-top:6px;}
+      @media(max-width:820px){ .console{flex-direction:column;} .sidenav{flex:auto;width:100%;position:static;display:flex;flex-wrap:wrap;gap:6px;border-right:none;border-bottom:1px solid #e9edf3;} .sidenav .snlabel{display:none;} .apanels{padding-left:6px;} }
     </style>
     <div class="expandbar"><a onclick="accAll(true)">Expand all</a><a onclick="accAll(false)">Collapse all</a></div>
     <div class="wrap">
@@ -1901,27 +1914,37 @@ app.get('/admin', requireAdmin, (req, res) => {
       function resetPackIntroMessage(){ if(!confirm('Reset the Marketing Pack intro message to the RRG default?')) return; var m=document.getElementById('pimmsg'); m.textContent='Resetting…'; post('/api/admin/bov-config',{packIntroMessage:''}).then(function(j){ if(j&&j.ok){ document.getElementById('packIntroMessage').value=j.packIntroMessage||PACK_INTRO_DEFAULT_MSG; m.textContent='Reset to default ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
       try{ loadBovConfig(); }catch(e){}
       document.querySelectorAll('form[action="/api/admin/toggle"],form[action="/api/admin/remove"]').forEach(function(f){ f.addEventListener('submit',function(e){ e.preventDefault(); var d={}; new FormData(f).forEach((v,k)=>d[k]=v); post(f.action,d).then(j=>{ if(j.ok) location.reload(); else alert(j.error||'Failed'); }); }); });
-      /* Collapsible admin sections (chevrons) */
-      var ACC=[];
+      /* Build the sidebar console from the existing group sections (no HTML change) */
       (function(){
-        var hs=[].slice.call(document.querySelectorAll('.wrap > h2'));
-        hs.forEach(function(h,idx){
-          var body=document.createElement('div'); body.className='accbody';
-          var n=h.nextElementSibling;
-          while(n && n.tagName!=='H2' && !(n.classList && n.classList.contains('grp'))){ var nx=n.nextElementSibling; body.appendChild(n); n=nx; }
-          h.after(body);
-          h.classList.add('acch');
-          h.insertAdjacentHTML('afterbegin','<span class="chev" aria-hidden="true">›</span>');
-          var forceOpen = h.getAttribute('data-open')==='1';
-          var key='rrgadm2_'+idx, saved=null; try{ saved=localStorage.getItem(key); }catch(e){}
-          var open = saved===null ? (idx<2 || forceOpen) : saved==='1';
-          if(!open){ h.classList.add('collapsed'); body.style.display='none'; }
-          function set(o){ h.classList.toggle('collapsed',!o); body.style.display=o?'':'none'; try{ localStorage.setItem(key,o?'1':'0'); }catch(e){} }
-          h.addEventListener('click',function(ev){ if(ev.target.closest('a,button,input,select')) return; set(h.classList.contains('collapsed')); });
-          ACC.push(set);
+        var wrap=document.querySelector('.wrap'); if(!wrap) return;
+        var kids=[].slice.call(wrap.children), groups=[], cur=null;
+        kids.forEach(function(el){
+          if(el.classList && el.classList.contains('grp')){ cur={label:el.textContent.trim(), items:[]}; groups.push(cur); }
+          else if(cur){ cur.items.push(el); }
         });
+        if(!groups.length) return;
+        var box=document.createElement('div'); box.className='console';
+        var nav=document.createElement('aside'); nav.className='sidenav';
+        nav.innerHTML='<div class="snlabel">Admin</div>';
+        var main=document.createElement('main'); main.className='apanels';
+        groups.forEach(function(g,i){
+          var id='apanel-'+i;
+          var a=document.createElement('a'); a.className='snav'+(i===0?' on':''); a.setAttribute('data-target',id);
+          a.innerHTML='<span class="si"></span>'+g.label; nav.appendChild(a);
+          var panel=document.createElement('section'); panel.className='apanel'+(i===0?' show':''); panel.id=id;
+          var title=document.createElement('div'); title.className='ptitle'; title.textContent=g.label; panel.appendChild(title);
+          g.items.forEach(function(it){ panel.appendChild(it); });
+          main.appendChild(panel);
+        });
+        box.appendChild(nav); box.appendChild(main);
+        wrap.innerHTML=''; wrap.appendChild(box); wrap.classList.add('is-console');
+        var navs=[].slice.call(nav.querySelectorAll('.snav')), panels=[].slice.call(main.querySelectorAll('.apanel'));
+        function show(id){ panels.forEach(function(p){ p.classList.toggle('show',p.id===id); }); navs.forEach(function(n){ n.classList.toggle('on',n.getAttribute('data-target')===id); }); try{ localStorage.setItem('rrgadm_panel',id); }catch(e){} window.scrollTo(0,0); }
+        navs.forEach(function(n){ n.addEventListener('click',function(e){ e.preventDefault(); show(n.getAttribute('data-target')); }); });
+        var saved=null; try{ saved=localStorage.getItem('rrgadm_panel'); }catch(e){}
+        if(saved && document.getElementById(saved)) show(saved);
       })();
-      function accAll(o){ ACC.forEach(function(set){ set(o); }); }
+      function accAll(){}
     </script>`));
 });
 app.post('/api/admin/add-user', requireAdmin, (req, res) => {

@@ -51,6 +51,7 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 .grow .gcode:hover{border-color:#9fb0cc;}
 .grow button.x{border:1px solid #f0cfca;background:#fff5f4;color:var(--red);border-radius:7px;padding:6px 11px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
 .grow button.react{border:1px solid #bfe6d1;background:#eefaf3;color:#0e7a53;border-radius:7px;padding:6px 11px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
+.grow button.ginv{border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:7px;padding:6px 12px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:12.5px;font-weight:700;padding:10px 18px;border-radius:100px;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .2s;pointer-events:none;z-index:99;} .toast.show{opacity:1;}
 </style>
 </head>
@@ -139,11 +140,19 @@ function renderGrants(){
   if(!grants.length){ el.innerHTML='<div class="catempty">No buyers added yet — the room is open to anyone with the link until you add one.</div>'; return; }
   el.innerHTML=grants.map(function(g){
     var seen=g.lastSeen?('Last in '+fmtWhen(g.lastSeen)):'Not accessed yet';
+    var inv=g.active?('<button class="ginv" onclick="copyInvite(\''+esc(g.code)+'\')" title="Copy the link + this code to send">Copy invite</button>'):'';
     var act=g.active?('<button class="x" onclick="toggleGrant(\''+g.id+'\')">Revoke</button>'):('<button class="react" onclick="toggleGrant(\''+g.id+'\')">Reactivate</button>');
-    return '<div class="grow'+(g.active?'':' off')+'"><div style="flex:1"><div class="gname">'+esc(g.name||g.email||'Buyer')+(g.active?'':' <span class="revoked">revoked</span>')+'</div><div class="gmeta">'+esc(g.email||'')+(g.email?' · ':'')+seen+' · '+(g.views||0)+' views · '+(g.downloads||0)+' downloads</div></div><span class="gcode" onclick="copyCode(\''+esc(g.code)+'\')" title="Copy code">'+esc(g.code)+'</span>'+act+'</div>';
+    return '<div class="grow'+(g.active?'':' off')+'"><div style="flex:1"><div class="gname">'+esc(g.name||g.email||'Buyer')+(g.active?'':' <span class="revoked">revoked</span>')+'</div><div class="gmeta">'+esc(g.email||'')+(g.email?' · ':'')+seen+' · '+(g.views||0)+' views · '+(g.downloads||0)+' downloads</div></div><span class="gcode" onclick="copyCode(\''+esc(g.code)+'\')" title="Copy just the code">'+esc(g.code)+'</span>'+inv+act+'</div>';
   }).join('');
 }
 function copyCode(code){ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(code).then(function(){ toast('Code copied ✓'); }).catch(function(){ prompt('Code:',code); }); } else prompt('Code:',code); }
+function copyInvite(code){
+  var msg=(ROOM.business||'Confidential opportunity')+' — RRG Confidential Data Room\n\n'
+    +'Access link: '+(ROOM.link||'')+'\n'
+    +'Your access code: '+code+'\n\n'
+    +'Open the link, enter your code, and you can view and download the materials. For confidentiality your session ends after 15 minutes of inactivity — just re-enter your code to return. Please don\'t forward this link or code.';
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(msg).then(function(){ toast('Invite copied ✓ — paste into your email'); }).catch(function(){ prompt('Copy this invite:',msg); }); } else prompt('Copy this invite:',msg);
+}
 function addBuyer(){
   var name=(document.getElementById('gName').value||'').trim(), email=(document.getElementById('gEmail').value||'').trim(), m=document.getElementById('gmsg');
   if(!name && !email){ m.textContent='Add a name or email.'; return; }

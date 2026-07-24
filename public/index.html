@@ -226,17 +226,17 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
    ========================================================================= */
 var TOOLS = [
   /* ---- Seller Engagement pipeline (ordered by step) ---- */
-  { name:'Seller Qualification Call', tag:'Seller', file:'rrg_screening_queue.html', icon:'funnel', track:'pipeline', step:1,
+  { name:'Seller Qualification Calls', tag:'Seller', file:'rrg_screening_queue.html', icon:'funnel', track:'pipeline', step:1,
     desc:"The front door of the pipeline. Log every prospective-seller call, read the real motivation behind the sale, and advance the leads worth chasing straight into a Valuation Questionnaire — everything you captured carries over." },
-  { name:'Valuation Questionnaire', tag:'Seller', file:'rrg_questionnaire_queue.html', icon:'gauge', track:'pipeline', step:2,
+  { name:'Valuation Questionnaires', tag:'Seller', file:'rrg_questionnaire_queue.html', icon:'gauge', track:'pipeline', step:2,
     desc:"The deep listing profile. It captures what the financials don't — operations, lease, condition, and the off-book factors that move value — then feeds a Business Valuation with one click." },
   { name:'Business Valuations', tag:'Value', file:'rrg_bov_queue.html', icon:'queue', track:'pipeline', step:3,
     desc:"Every valuation in one place. The RRG Virtual Analyst drafts a defensible Broker's Opinion of Value from the deal's documents; you review and edit, then advance it to a Marketing Pack with the numbers locked." },
-  { name:'Data Room', tag:'Deal', file:'rrg_rooms_queue.html', icon:'vault', track:'pipeline', sort:4.5,
+  { name:'Data Rooms', tag:'Deal', file:'rrg_rooms_queue.html', icon:'vault', track:'pipeline', sort:4.5,
     desc:"A confidential, per-deal document room with a shareable buyer link. Open it from a built Marketing Pack, drop in P&Ls, tax returns, the lease, and equipment lists by section, and share the link with NDA'd buyers — with an access log of every view and download." },
   { name:'Marketing Packs', tag:'Value', file:'rrg_cim_queue.html', icon:'book', track:'pipeline', step:4,
     desc:"The confidential offering package. Build a Confidential Information Memorandum in the RRG format — the valuation carries over from the BOV, you add the story and photos, edit in place, and print a client-ready PDF." },
-  { name:'Market Attack Plan', tag:'Seller', file:'rrg_attack_queue.html', icon:'megaphone', track:'pipeline', step:5,
+  { name:'Market Attack Plans', tag:'Seller', file:'rrg_attack_queue.html', icon:'megaphone', track:'pipeline', step:5,
     desc:"The confidential go-to-market strategy — the analyst drafts the segmented buyer target universe, the marketing sequence, and the competitive-tension plan from the deal. Advance a built Marketing Pack to create one, then edit and print." },
   { name:'Commission Forecaster', tag:'Deal', file:'rrg_commission_calculator.html', icon:'calc', track:'pipeline', step:6,
     desc:"Close and get paid — business-sale commission on RRG's tiered rate card. Enter price and split, see gross, blended rate, and the agent / house breakdown." },
@@ -250,7 +250,7 @@ var TOOLS = [
     desc:"Score a specific space for a specific concept — projected sales, the occupancy-cost test, a weighted fit scorecard, and a go / no-go call." },
   { name:'Tour Tracker', tag:'Tenant', file:'rrg_tour_tracker.html', icon:'tour', track:'tenant',
     desc:"Log every space you show a tenant — date, size, asking rent, their reaction, and a 1–5 rating. Rank the shortlist." },
-  { name:'Lease Abstract', tag:'Deal', file:'rrg_lease_queue.html', icon:'doc', track:'tenant',
+  { name:'Lease Abstracts', tag:'Deal', file:'rrg_lease_queue.html', icon:'doc', track:'tenant',
     desc:"Turn a lease into a clean one-look abstract — term, rent, options, NNN, assignment, and guaranty. Upload the lease and the analyst pulls the terms, or start blank. Run it standalone for a tenant deal, or ride it into a seller's Marketing Pack — and redact the landlord & tenant for shareable copies." },
   { name:'Lease Commission', tag:'Deal', file:'rrg_lease_commission_calculator.html', icon:'building', track:'tenant',
     desc:"Close the lease — commission on total consideration. SF, rent, escalation, and term, with step-down schedules and the agent / house split." },
@@ -405,16 +405,14 @@ var grid=document.getElementById('grid');
 
 function cardEl(t){
   var a=document.createElement('a');
-  a.className='card'+(t.step?' hasstep':'');
+  a.className='card';
   a.href='./'+t.file;
   if(t.pdf){ a.target='_blank'; a.rel='noopener'; }
   var tagclass = (t.tag||'').toLowerCase();
-  var step = t.step ? '<span class="stepbadge">Step '+t.step+'</span>' : '';
   var cta = t.pdf ? 'Open PDF' : 'Open tool';
   a.innerHTML =
     '<div class="cardwm">'+(ICONS[t.icon]||ICONS.doc)+'</div>'+
     '<div class="cardin">'+
-      step+
       '<div class="cardtop">'+(ICONS[t.icon]||ICONS.doc)+'<span class="tag '+tagclass+'">'+esc(t.tag)+'</span></div>'+
       '<h2>'+esc(t.name)+'</h2>'+
       '<p>'+esc(t.desc)+'</p>'+
