@@ -68,7 +68,7 @@ function ownsDeal(req, d) {
 // tours, NDAs, and data-room buyers all link back to a person by personId, so the same
 // buyer connects across every deal they touch.
 const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
-const PERSON_TYPES = ['Buyer', 'Prospect', 'Investor', 'Broker', 'Operator', 'Other'];
+const PERSON_TYPES = ['Buyer', 'Seller', 'Client', 'Prospect', 'Investor', 'Broker', 'Operator', 'Other'];
 function loadPeople() { try { return JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')); } catch (e) { return []; } }
 function savePeople(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PEOPLE_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newPersonId() { return 'per_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -91,9 +91,10 @@ function findOrCreatePerson(req, info) {
     if (ch) { p.updatedAt = new Date().toISOString(); savePeople(arr); }
     return p;
   }
+  const type = (info && PERSON_TYPES.indexOf(info.type) >= 0) ? info.type : 'Buyer';
   p = {
     id: newPersonId(), name: name.slice(0, 160) || email.slice(0, 160), company: company.slice(0, 160),
-    email: email.slice(0, 160), phone: '', type: 'Buyer', notes: '',
+    email: email.slice(0, 160), phone: '', type: type, notes: '',
     createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
   arr.push(p); savePeople(arr);
@@ -1891,6 +1892,7 @@ function assignmentView(d, overlay) {
   return {
     key: d.key, business, market, contact, by, byUser,
     dealId: deal ? deal.id : '', started: !!d.screen, canStart: !!(deal && !d.screen),
+    clientPersonId: deal ? (deal.contactPersonId || '') : '',
     roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', owner: o.owner || by, businessOverride: o.businessOverride || '',
     offers: Array.isArray(o.offers) ? o.offers : [],
@@ -2134,14 +2136,16 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   if (!business) return res.status(400).json({ ok: false, error: 'A business / deal name is required.' });
   const rec = {
     id: newDealId(), business: business.slice(0, 120), market: String(b.market || '').slice(0, 80), contact: String(b.contact || '').slice(0, 120),
-    screenId: '', roomId: '', createdAt: new Date().toISOString(),
+    screenId: '', roomId: '', contactPersonId: '', createdAt: new Date().toISOString(),
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
+  // Locate the existing client, or onboard them into the people registry.
+  if (rec.contact || b.contactEmail) { const p = findOrCreatePerson(req, { name: rec.contact, email: b.contactEmail, type: 'Client' }); if (p) { rec.contactPersonId = p.id; if (!rec.contact) rec.contact = p.name; } }
   const arr = loadDeals(); arr.push(rec);
   const room = ensureRoomForDeal(req, rec);   // auto-build its structured data room
   if (room) rec.roomId = room.id;
   saveDeals(arr);
-  res.json({ ok: true, id: rec.id, key: 'd_' + rec.id, roomId: rec.roomId });
+  res.json({ ok: true, id: rec.id, key: 'd_' + rec.id, roomId: rec.roomId, contactPersonId: rec.contactPersonId, people: loadPeople().map(personBrief) });
 });
 app.post('/api/deal/:id', express.json(), (req, res) => {
   const arr = loadDeals(); const rec = arr.find(x => x.id === req.params.id);
@@ -2151,8 +2155,9 @@ app.post('/api/deal/:id', express.json(), (req, res) => {
   if (typeof b.business === 'string' && b.business.trim()) rec.business = b.business.trim().slice(0, 120);
   if (typeof b.market === 'string') rec.market = b.market.slice(0, 80);
   if (typeof b.contact === 'string') rec.contact = b.contact.slice(0, 120);
+  if ((typeof b.contact === 'string' && b.contact.trim()) || b.contactEmail) { const p = findOrCreatePerson(req, { name: rec.contact, email: b.contactEmail, type: 'Client' }); if (p) rec.contactPersonId = p.id; }
   rec.updatedAt = new Date().toISOString(); saveDeals(arr);
-  res.json({ ok: true });
+  res.json({ ok: true, contactPersonId: rec.contactPersonId || '' });
 });
 // Promote a deal into a Seller Qualification Call (the pipeline front door).
 app.post('/api/deal/:id/start', express.json(), (req, res) => {

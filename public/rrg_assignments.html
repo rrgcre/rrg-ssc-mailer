@@ -52,6 +52,7 @@ tr:hover td{background:#fbfcfe;}
 .hd input{margin-left:10px;}
 .startbtn{background:#fff;color:#0e7a53;border:1px solid #bfe6d1;border-radius:8px;padding:7px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;text-decoration:none;white-space:nowrap;margin-right:6px;}
 .modal{position:fixed;inset:0;background:rgba(6,14,32,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
+.modal[hidden]{display:none!important;}
 .modalcard{background:#fff;border-radius:16px;width:100%;max-width:440px;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;}
 .modalh{padding:18px 22px;font-size:16px;font-weight:800;color:var(--navy);border-bottom:1px solid var(--line);}
 .modalb{padding:18px 22px;} .mfld{display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:12px 0 6px;} .modalb .mfld:first-child{margin-top:0;}
@@ -83,8 +84,10 @@ tr:hover td{background:#fbfcfe;}
   <div class="modalb">
     <label class="mfld">Business / deal name</label><input id="nd_business" placeholder="e.g. Blue Agave Cantina">
     <label class="mfld">Market</label><input id="nd_market" placeholder="e.g. Austin, TX">
-    <label class="mfld">Seller contact</label><input id="nd_contact" placeholder="Name (optional)">
-    <div class="modalnote">Creating a deal builds its data room automatically. Use <b>Start the deal</b> later to open a qualification call.</div>
+    <label class="mfld">Seller / client contact</label><input id="nd_contact" list="clientList" placeholder="Start typing to find an existing client…" autocomplete="off">
+    <datalist id="clientList"></datalist>
+    <label class="mfld">Client email <span style="text-transform:none;color:var(--muted);font-weight:500">(links / onboards the client)</span></label><input id="nd_email" placeholder="optional">
+    <div class="modalnote" id="clientHint">Creating a deal builds its data room automatically and links the client to your registry — a matching client is reused, a new one is onboarded. Use <b>Start the deal</b> later to open a qualification call.</div>
   </div>
   <div class="modalf"><button id="nd_cancel" class="mbtn ghost">Cancel</button><button id="nd_create" class="mbtn">Create deal</button></div>
 </div></div>
@@ -143,20 +146,26 @@ function startDeal(dealId,btn){
 }
 document.addEventListener('click',function(e){ var s=e.target.closest('.startbtn'); if(s){ e.preventDefault(); startDeal(s.getAttribute('data-start'),s); } });
 /* New deal modal */
-function openDealModal(){ document.getElementById('dealModal').removeAttribute('hidden'); document.getElementById('nd_business').focus(); }
-function closeDealModal(){ document.getElementById('dealModal').setAttribute('hidden',''); ['nd_business','nd_market','nd_contact'].forEach(function(id){document.getElementById(id).value='';}); }
+var PEOPLE=[];
+function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('clientList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){ return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||p.type||'')+'</option>'; }).join(''); }).catch(function(){}); }
+function clientMatch(){ var v=document.getElementById('nd_contact').value.trim().toLowerCase(); if(!v) return null; return PEOPLE.filter(function(p){ return (p.name||'').toLowerCase()===v; })[0]||null; }
+function updateClientHint(){ var h=document.getElementById('clientHint'); var m=clientMatch(); var em=document.getElementById('nd_email'); if(m){ h.innerHTML='✓ Linking to existing client <b>'+esc(m.name)+'</b>'+(m.company?(' · '+esc(m.company)):'')+'. This deal joins their record.'; if(m.email&&!em.value) em.value=m.email; } else if(document.getElementById('nd_contact').value.trim()){ h.innerHTML='New client — <b>'+esc(document.getElementById('nd_contact').value.trim())+'</b> will be onboarded into your registry.'; } else { h.innerHTML='Creating a deal builds its data room automatically and links the client to your registry — a matching client is reused, a new one is onboarded.'; } }
+function openDealModal(){ document.getElementById('dealModal').removeAttribute('hidden'); document.getElementById('nd_business').focus(); loadPeople(); }
+function closeDealModal(){ document.getElementById('dealModal').setAttribute('hidden',''); ['nd_business','nd_market','nd_contact','nd_email'].forEach(function(id){document.getElementById(id).value='';}); updateClientHint(); }
 function createDeal(){
   var business=document.getElementById('nd_business').value.trim();
   if(!business){ document.getElementById('nd_business').focus(); return; }
   var btn=document.getElementById('nd_create'); btn.disabled=true; btn.textContent='Creating…';
-  fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,market:document.getElementById('nd_market').value.trim(),contact:document.getElementById('nd_contact').value.trim()})})
+  fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,market:document.getElementById('nd_market').value.trim(),contact:document.getElementById('nd_contact').value.trim(),contactEmail:document.getElementById('nd_email').value.trim()})})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { btn.disabled=false; btn.textContent='Create deal'; alert((j&&j.error)||'Could not create the deal.'); } })
     .catch(function(){ btn.disabled=false; btn.textContent='Create deal'; alert('Could not reach the server.'); });
 }
 document.getElementById('newDealBtn').addEventListener('click',openDealModal);
 document.getElementById('nd_cancel').addEventListener('click',closeDealModal);
 document.getElementById('nd_create').addEventListener('click',createDeal);
+document.getElementById('nd_contact').addEventListener('input',updateClientHint);
 document.getElementById('dealModal').addEventListener('click',function(e){ if(e.target.id==='dealModal') closeDealModal(); });
+loadPeople();
 function load(){
   fetch('/api/assignments',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     ALL=(j&&j.assignments)||[]; renderTiles(); applyFilters();
