@@ -215,7 +215,6 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
     <div class="topnav" id="topnav"></div>
     <div class="hdrrow">
       <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-      <div class="hdrclock" id="hdrClock"><div class="d" id="hcDate">&nbsp;</div><div class="t" id="hcTime">&nbsp;</div></div>
     </div>
   </div>
 </div>
@@ -272,7 +271,7 @@ var TOOLS = [
     desc:"The confidential offering package. Build a Confidential Information Memorandum in the RRG format — the valuation carries over from the BOV, you add the story and photos, edit in place, and print a client-ready PDF." },
   { name:'Market Attack Plans', tag:'Seller', file:'rrg_attack_queue.html', icon:'megaphone', track:'pipeline', step:5,
     desc:"The confidential go-to-market strategy — the analyst drafts the segmented buyer target universe, the marketing sequence, and the competitive-tension plan from the deal. Advance a built Marketing Pack to create one, then edit and print." },
-  { name:'Commission Forecaster', tag:'Deal', file:'rrg_commission_calculator.html', icon:'calc', track:'tools',
+  { name:'Commission Forecaster', tag:'Deal', file:'rrg_commission_calculator.html', icon:'calc', track:'pipeline', step:6,
     desc:"Close and get paid — business-sale commission on RRG's tiered rate card. Enter price and split, see gross, blended rate, and the agent / house breakdown." },
 
   /* ---- Tenant Representation ---- */
@@ -284,9 +283,9 @@ var TOOLS = [
     desc:"Score a specific space for a specific concept — projected sales, the occupancy-cost test, a weighted fit scorecard, and a go / no-go call." },
   { name:'Tour Tracker', tag:'Tenant', file:'rrg_tour_tracker.html', icon:'tour', track:'tenant',
     desc:"Log every space you show a tenant — date, size, asking rent, their reaction, and a 1–5 rating. Rank the shortlist." },
-  { name:'Lease Abstracts', tag:'Deal', file:'rrg_lease_queue.html', icon:'doc', track:'tools',
+  { name:'Lease Abstracts', tag:'Deal', file:'rrg_lease_queue.html', icon:'doc', track:'tenant',
     desc:"Turn a lease into a clean one-look abstract — term, rent, options, NNN, assignment, and guaranty. Upload the lease and the analyst pulls the terms, or start blank. Run it standalone for a tenant deal, or ride it into a seller's Marketing Pack — and redact the landlord & tenant for shareable copies." },
-  { name:'Lease Commission', tag:'Deal', file:'rrg_lease_commission_calculator.html', icon:'building', track:'tools',
+  { name:'Lease Commission', tag:'Deal', file:'rrg_lease_commission_calculator.html', icon:'building', track:'tenant',
     desc:"Close the lease — commission on total consideration. SF, rent, escalation, and term, with step-down schedules and the agent / house split." },
 ];
 
