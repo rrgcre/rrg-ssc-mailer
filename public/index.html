@@ -225,7 +225,6 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
     <div class="sectionlabel">Quick Links <span style="font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted);font-size:11px;margin-left:6px">— sites the team uses</span></div>
     <div class="ql" id="qlGrid" style="margin-bottom:30px"></div>
   </div>
-  <div class="lblrow"><span class="sectionlabel" id="lbl"></span><span id="viewToggle" class="viewtoggle"></span></div>
   <div id="grid"></div>
 </div>
 
@@ -557,8 +556,6 @@ function buildConsole(isAdmin, adminOnly){
     var ca=document.getElementById('cvCollapseAll'); if(ca) ca.addEventListener('click',function(){ var st={}; TRACKS.forEach(function(tr){ if(itemsFor(tr.key).length) st[tr.key]=1; }); accSet(st); draw(); });
   }
   draw();
-  document.getElementById('lbl').textContent = vis.length+' tools';
-  document.getElementById('count').textContent = vis.length+' tools · updated live';
 }
 
 /* ---- view mode: console (default) or classic card grid ---- */
@@ -570,9 +567,8 @@ function renderViewToggle(v){
   el.querySelectorAll('button').forEach(function(b){ b.addEventListener('click',function(){ var nv=b.getAttribute('data-v'); if(nv!==currentView()) setView(nv); }); });
 }
 function renderTools(){
-  var c=window._toolCtx||{isAdmin:true,adminOnly:[]}, v=currentView();
-  if(v==='classic') buildTiles(c.isAdmin,c.adminOnly); else buildConsole(c.isAdmin,c.adminOnly);
-  renderViewToggle(v);
+  var c=window._toolCtx||{isAdmin:true,adminOnly:[]};
+  buildConsole(c.isAdmin,c.adminOnly);
 }
 
 /* ---- server origin (used to auto-list agreements) ---- */
