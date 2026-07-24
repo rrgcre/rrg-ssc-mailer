@@ -191,6 +191,13 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
 .cvgo{font-size:12.5px;font-weight:800;color:var(--navy);white-space:nowrap;flex:none;}
 @media(max-width:560px){.cvdesc{display:none;} .cvguide span:not(.ic){display:none;}}
 .cvempty{background:#fff;border:1px solid var(--line);border-radius:14px;padding:44px 20px;text-align:center;color:var(--muted);} .cvempty b{display:block;color:var(--navy);font-size:15px;margin-bottom:6px;}
+.cvgrouphd{cursor:pointer;user-select:none;}
+.cvchev{display:inline-flex;align-items:center;justify-content:center;width:16px;color:var(--red);font-size:12px;line-height:1;transition:transform .2s ease;}
+.cvgroup:not(.collapsed) .cvchev{transform:rotate(90deg);}
+.cvgroup.collapsed .cvlist{display:none;}
+.cvacctools{display:flex;gap:12px;margin-bottom:10px;}
+.cvacctools button{background:none;border:none;color:var(--muted);font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;padding:0;}
+.cvacctools button:hover{color:var(--red);}
 </style>
 </head>
 <body>
@@ -527,7 +534,7 @@ function buildConsole(isAdmin, adminOnly){
   function visible(t){ return isAdmin || adminOnly.indexOf(t.file)<0; }
   var vis=TOOLS.filter(visible);
   var cats=[{key:'all',label:'All'}].concat(TRACKS.map(function(tr){return {key:tr.key,label:tr.label};}));
-  grid.innerHTML='<div class="cvbar"><div class="cvsearch"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="#8a93a8" stroke-width="2"/><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="#8a93a8" stroke-width="2" stroke-linecap="round"/></svg><input id="cvq" placeholder="Search tools…" autocomplete="off"></div><div class="cvchips" id="cvchips"></div></div><div id="cvresults"></div>';
+  grid.innerHTML='<div class="cvbar"><div class="cvchips" id="cvchips"></div></div><div id="cvresults"></div>';
   function renderChips(){
     document.getElementById('cvchips').innerHTML=cats.map(function(c){
       var n=(c.key==='all')?vis.length:vis.filter(function(t){return t.track===c.key;}).length;
@@ -536,6 +543,8 @@ function buildConsole(isAdmin, adminOnly){
     document.querySelectorAll('.cvchip').forEach(function(b){ b.addEventListener('click',function(){ CV_STATE.cat=b.getAttribute('data-c'); renderChips(); draw(); }); });
   }
   function itemsFor(trKey){ var items=vis.filter(function(t){return t.track===trKey;}); items.sort(function(a,b){return (a.step||a.sort||99)-(b.step||b.sort||99);}); return items; }
+  function accGet(){ try{ return JSON.parse(localStorage.getItem('rrg_dashacc')||'{}')||{}; }catch(e){ return {}; } }
+  function accSet(o){ try{ localStorage.setItem('rrg_dashacc',JSON.stringify(o)); }catch(e){} }
   function draw(){
     var q=CV_STATE.q.toLowerCase().trim(), box=document.getElementById('cvresults');
     var filt=vis.filter(function(t){ if(CV_STATE.cat!=='all'&&t.track!==CV_STATE.cat) return false; if(q&&(t.name+' '+t.desc+' '+t.tag).toLowerCase().indexOf(q)<0) return false; return true; });
@@ -544,13 +553,18 @@ function buildConsole(isAdmin, adminOnly){
     if(q || CV_STATE.cat!=='all'){
       html='<div class="cvlist">'+filt.slice().sort(function(a,b){return a.track===b.track?((a.step||a.sort||99)-(b.step||b.sort||99)):0;}).map(cvRow).join('')+'</div>';
     } else {
-      TRACKS.forEach(function(tr){ var items=itemsFor(tr.key); if(!items.length) return; html+='<div class="cvgrouphd">'+esc(tr.label)+' <span class="gn">'+esc(tr.note)+'</span></div><div class="cvlist">'+items.map(cvRow).join('')+'</div>'; });
+      var acc=accGet(), groups=TRACKS.filter(function(tr){return itemsFor(tr.key).length;});
+      html+='<div class="cvacctools"><button type="button" id="cvExpandAll">Expand all</button><button type="button" id="cvCollapseAll">Collapse all</button></div>';
+      groups.forEach(function(tr){ var items=itemsFor(tr.key); var col=acc[tr.key]?' collapsed':'';
+        html+='<div class="cvgroup'+col+'" data-cat="'+esc(tr.key)+'"><div class="cvgrouphd" data-cat="'+esc(tr.key)+'"><span class="cvchev">▶</span>'+esc(tr.label)+' <span class="gn">'+esc(tr.note)+'</span></div><div class="cvlist">'+items.map(cvRow).join('')+'</div></div>'; });
     }
     box.innerHTML=html;
     document.querySelectorAll('.cvguide').forEach(function(b){ b.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); var t=TOOLS.filter(function(x){return x.file===b.getAttribute('data-file');})[0]; if(t) openGuide(t); }); });
+    document.querySelectorAll('.cvgrouphd[data-cat]').forEach(function(hd){ hd.addEventListener('click',function(e){ if(e.target.closest('a,button')) return; var cat=hd.getAttribute('data-cat'), grp=hd.closest('.cvgroup'), col=grp.classList.toggle('collapsed'), st=accGet(); if(col) st[cat]=1; else delete st[cat]; accSet(st); }); });
+    var ea=document.getElementById('cvExpandAll'); if(ea) ea.addEventListener('click',function(){ accSet({}); draw(); });
+    var ca=document.getElementById('cvCollapseAll'); if(ca) ca.addEventListener('click',function(){ var st={}; TRACKS.forEach(function(tr){ if(itemsFor(tr.key).length) st[tr.key]=1; }); accSet(st); draw(); });
   }
   renderChips();
-  var qi=document.getElementById('cvq'); qi.value=CV_STATE.q; qi.addEventListener('input',function(){ CV_STATE.q=qi.value; draw(); });
   draw();
   document.getElementById('lbl').textContent = vis.length+' tools';
   document.getElementById('count').textContent = vis.length+' tools · updated live';

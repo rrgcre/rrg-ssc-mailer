@@ -28,6 +28,14 @@ const BOVS_FILE = path.join(BOV_DATA_DIR, 'bovs.json');
 function loadBovs() { try { return JSON.parse(fs.readFileSync(BOVS_FILE, 'utf8')); } catch (e) { return []; } }
 function saveBovs(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BOVS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newBovId() { return 'bov_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+// ---- Brand (org logo, admin-managed) ----
+const BRAND_FILE = path.join(BOV_DATA_DIR, 'brand.json');
+const LOGO_EXT = /^(png|jpe?g|gif|webp|svg)$/i;
+const LOGO_MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' };
+function loadBrand() { try { return JSON.parse(fs.readFileSync(BRAND_FILE, 'utf8')); } catch (e) { return {}; } }
+function saveBrand(b) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BRAND_FILE, JSON.stringify(b, null, 2)); } catch (e) {} }
+function brandLogoObj() { try { const b = loadBrand(); if (!b.logoExt) return null; const buf = fs.readFileSync(path.join(BOV_DATA_DIR, 'brand_logo.' + b.logoExt)); return { dataB64: buf.toString('base64'), type: b.logoType || LOGO_MIME[b.logoExt] || 'image/png' }; } catch (e) { return null; } }
 // ---- CIM store (Confidential Information Memorandums) — mirrors the BOV store ----
 const CIMS_FILE = path.join(BOV_DATA_DIR, 'cims.json');
 function loadCims() { try { return JSON.parse(fs.readFileSync(CIMS_FILE, 'utf8')); } catch (e) { return []; } }
@@ -475,7 +483,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/room-upload') return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/room-upload') return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -535,6 +543,7 @@ app.get('/api/session', (req, res) => res.json({
   title: req.user.title || '', phone: req.user.phone || '', email: req.user.email || '',
   preparedBy: req.user.preparedBy || '',
   adminOnlyTools: auth.loadToolAccess(),
+  logoUrl: (function () { const b = loadBrand(); return b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(b.updatedAt || '')) : ''; })(),
   build: BUILD,
 }));
 
@@ -1009,7 +1018,7 @@ app.post('/api/generate-cim', express.json({ limit: '48mb' }), async (req, res) 
     });
     out.state = out.state || {};
     out.state.photos = photos;                 // {dataB64,type,caption} — rendered by the builder
-    out.state.logo = (b.logo && b.logo.dataB64) ? b.logo : null;
+    out.state.logo = (b.logo && b.logo.dataB64) ? b.logo : brandLogoObj();   // default to the org logo set in Admin
     out.state.bov = { summary: inp.summary, bridge: (inp.bovState && inp.bovState.bridge) || null };  // figures for the financial tables
     cim.business = String(out.business || cim.business || 'Untitled').slice(0, 120);
     cim.state = out.state; cim.aiGenerated = true; cim.pending = false; cim.builtAt = new Date().toISOString();
@@ -1418,6 +1427,38 @@ app.post('/api/admin/delete-doc', requireAdmin, express.json(), (req, res) => {
   try { fs.unlinkSync(path.join(DOCS_DIR, d.id + '.' + d.ext)); } catch (e) {}
   saveDocs(docs.filter(x => x.id !== id));
   res.json({ ok: true, documents: loadDocs() });
+});
+
+// ---- Brand logo (org-wide, admin-managed) ----
+app.get('/api/brand', (req, res) => { const b = loadBrand(); res.json({ ok: true, hasLogo: !!b.logoExt, logoUrl: b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(b.updatedAt || '')) : '', updatedAt: b.updatedAt || '' }); });
+app.get('/api/brand/logo', (req, res) => {
+  const b = loadBrand(); if (!b.logoExt) return res.status(404).end();
+  try { const buf = fs.readFileSync(path.join(BOV_DATA_DIR, 'brand_logo.' + b.logoExt)); res.set('Content-Type', b.logoType || LOGO_MIME[b.logoExt] || 'image/png'); res.set('Cache-Control', 'public, max-age=300'); res.send(buf); }
+  catch (e) { res.status(404).end(); }
+});
+app.post('/api/admin/logo', requireAdmin, express.json({ limit: '8mb' }), (req, res) => {
+  const b = req.body || {};
+  const orig = String(b.filename || '').trim();
+  let m = orig.match(/\.([a-z0-9]+)$/i); let ext = m ? m[1].toLowerCase() : '';
+  if (ext === 'jpeg') ext = 'jpg';
+  if (!LOGO_EXT.test(ext)) return res.status(400).json({ ok: false, error: 'Use a PNG, JPG, SVG, GIF, or WEBP image.' });
+  const data = String(b.dataB64 || ''); if (!data) return res.status(400).json({ ok: false, error: 'No image data received.' });
+  let buf; try { buf = Buffer.from(data, 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the image.' }); }
+  if (!buf.length) return res.status(400).json({ ok: false, error: 'The image appears to be empty.' });
+  if (buf.length > 4 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 4 MB).' });
+  try {
+    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
+    const old = loadBrand(); if (old.logoExt && old.logoExt !== ext) { try { fs.unlinkSync(path.join(BOV_DATA_DIR, 'brand_logo.' + old.logoExt)); } catch (e) {} }
+    fs.writeFileSync(path.join(BOV_DATA_DIR, 'brand_logo.' + ext), buf);
+  } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the logo.' }); }
+  const now = new Date().toISOString();
+  saveBrand({ logoExt: ext, logoType: LOGO_MIME[ext] || 'image/png', updatedAt: now, by: (req.user && req.user.name) || '' });
+  res.json({ ok: true, hasLogo: true, logoUrl: '/api/brand/logo?v=' + encodeURIComponent(now) });
+});
+app.post('/api/admin/logo/clear', requireAdmin, (req, res) => {
+  const b = loadBrand(); if (b.logoExt) { try { fs.unlinkSync(path.join(BOV_DATA_DIR, 'brand_logo.' + b.logoExt)); } catch (e) {} }
+  saveBrand({});
+  res.json({ ok: true, hasLogo: false });
 });
 
 // Serve an uploaded document (login-gated by the auth middleware above).
@@ -2515,6 +2556,18 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div id="docList" style="margin-top:14px"></div>
       </div>
 
+      <div class="grp">Brand</div>
+      <h2 style="margin-top:20px">Company Logo <span class="sub2">— your firm's logo. Used as the default on Marketing Packs (reps can still override per pack). PNG, JPG, SVG, GIF or WEBP, up to 4&nbsp;MB.</span></h2>
+      <div class="links">
+        <div id="logoPreview" style="margin-bottom:12px"></div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <input type="file" id="logoFile" accept=".png,.jpg,.jpeg,.svg,.gif,.webp,image/*" style="font:inherit;font-size:13px">
+          <button class="primary" onclick="uploadLogo()">Upload logo</button>
+          <button onclick="clearLogo()">Remove</button>
+          <span id="logomsg" class="sub2"></span>
+        </div>
+      </div>
+
       <div class="grp">Valuation Rules</div>
       <h2 style="margin-top:20px">BOV Valuation Basis <span class="sub2">— deals with trailing sales BELOW this value are concluded on SDE; at or above it, on Adjusted EBITDA.</span></h2>
       <div class="links">
@@ -2634,7 +2687,19 @@ app.get('/admin', requireAdmin, (req, res) => {
         rd.onerror=function(){ m.textContent='Could not read that file.'; };
         rd.readAsDataURL(f); }
       function delDoc(id){ if(!confirm('Remove this document from the dashboard? This deletes the uploaded file.')) return; post('/api/admin/delete-doc',{id:id}).then(function(j){ if(j&&j.ok) renderDocList(j.documents||[]); else alert((j&&j.error)||'Could not delete.'); }); }
+      function renderLogo(has){ var p=document.getElementById('logoPreview'); if(!p) return; if(has){ p.innerHTML='<div style="display:inline-flex;align-items:center;gap:14px;background:#fff;border:1px solid #e9edf3;border-radius:10px;padding:12px 16px"><img src="/api/brand/logo?v='+Date.now()+'" alt="Company logo" style="max-height:60px;max-width:240px;display:block"><span class="sub2">Current logo</span></div>'; } else { p.innerHTML='<div class="sub2" style="padding:6px 0">No logo set — reps see the built-in RRG wordmark on Marketing Packs.</div>'; } }
+      function loadLogo(){ fetch('/api/brand').then(function(r){return r.json();}).then(function(j){ renderLogo(!!(j&&j.hasLogo)); }).catch(function(){ renderLogo(false); }); }
+      function uploadLogo(){ var fi=document.getElementById('logoFile'), f=fi&&fi.files&&fi.files[0], m=document.getElementById('logomsg');
+        if(!f){ m.textContent='Choose an image first.'; return; }
+        if(f.size>4*1024*1024){ m.textContent='Image too large (max 4 MB).'; return; }
+        m.textContent='Uploading…';
+        var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''), i=s.indexOf(','), b64=(i>=0?s.slice(i+1):s);
+          post('/api/admin/logo',{filename:f.name, dataB64:b64}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; fi.value=''; renderLogo(true); } else { m.textContent=(j&&j.error)||'Upload failed'; } }).catch(function(){ m.textContent='Upload failed — try again.'; }); };
+        rd.onerror=function(){ m.textContent='Could not read that image.'; };
+        rd.readAsDataURL(f); }
+      function clearLogo(){ if(!confirm('Remove the company logo? Marketing Packs will fall back to the built-in RRG wordmark.')) return; post('/api/admin/logo/clear',{}).then(function(j){ if(j&&j.ok){ renderLogo(false); document.getElementById('logomsg').textContent='Removed.'; } }); }
       loadDocList();
+      loadLogo();
       function saveToolAccess(){ var t=[]; document.querySelectorAll('.ta:checked').forEach(function(c){ t.push(c.value); }); post('/api/admin/tool-access',{adminOnly:t}).then(function(j){ var m=document.getElementById('tmsg'); if(j.ok){ m.textContent='Saved — '+j.adminOnly.length+' tool(s) admin-only ✓'; } else { m.textContent=j.error||'Failed'; } }); }
       function _bpState(isDefault){ var s=document.getElementById('bpstate'); if(s) s.textContent = isDefault ? 'Currently using the RRG default prompt.' : 'Currently using a custom prompt.'; }
       function loadBovPrompt(){ fetch('/api/admin/bov-prompt').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('bovPrompt').value=j.prompt||''; _bpState(j.isDefault); } }).catch(function(){ var s=document.getElementById('bpstate'); if(s) s.textContent='Could not load the prompt.'; }); }
