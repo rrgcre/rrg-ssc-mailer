@@ -568,7 +568,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/room-upload') return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path)) return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -2319,19 +2319,73 @@ app.get('/api/person/:id', (req, res) => {
   }
   res.json({ ok: true, person: p, company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, personTypes: PERSON_TYPES });
 });
-const LOCATION_STATUSES = ['Open', 'Closed', 'Under LOI', 'Prospective'];
+const LOCATION_STATUSES = ['Open', 'Under Construction', 'Under LOI', 'Prospective', 'Dark', 'Closed'];
+const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
 function newLocationId() { return 'loc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function applyLocationFields(l, b) {
   if (typeof b.name === 'string') l.name = b.name.slice(0, 160);
   if (typeof b.concept === 'string') l.concept = b.concept.slice(0, 120);
+  if (typeof b.siteType === 'string') l.siteType = (b.siteType === '' || LOCATION_SITETYPES.indexOf(b.siteType) >= 0) ? b.siteType : l.siteType;
   if (typeof b.address === 'string') l.address = b.address.slice(0, 200);
   if (typeof b.city === 'string') l.city = b.city.slice(0, 120);
   if (typeof b.state === 'string') l.state = b.state.slice(0, 20);
   if (typeof b.phone === 'string') l.phone = b.phone.slice(0, 60);
   if (typeof b.website === 'string') l.website = b.website.slice(0, 300);
+  if (typeof b.opened === 'string') l.opened = b.opened.slice(0, 10);
+  if (typeof b.leaseStart === 'string') l.leaseStart = b.leaseStart.slice(0, 10);
+  if (typeof b.leaseExpires === 'string') l.leaseExpires = b.leaseExpires.slice(0, 10);
+  if (typeof b.flagship === 'boolean') l.flagship = b.flagship;
+  if (typeof b.commissary === 'boolean') l.commissary = b.commissary;
+  if (typeof b.servesAll === 'boolean') l.servesAll = b.servesAll;
+  if (Array.isArray(b.serves)) l.serves = b.serves.map(x => String(x || '').slice(0, 120)).filter(Boolean).slice(0, 40);
+  if (!l.commissary) { l.servesAll = false; l.serves = []; } // only commissaries carry a service map
   if (typeof b.status === 'string') l.status = LOCATION_STATUSES.indexOf(b.status) >= 0 ? b.status : 'Open';
   if (typeof b.notes === 'string') l.notes = b.notes.slice(0, 2000);
 }
+// Location photos — a couple of images per location, stored on the data disk.
+const LOCPHOTO_DIR = path.join(BOV_DATA_DIR, 'locphotos');
+const LOCPHOTO_MAX = 2;
+function photoExtFromName(n) { const m = String(n || '').toLowerCase().match(/\.(png|jpg|jpeg|webp|gif)$/); return m ? (m[1] === 'jpeg' ? 'jpg' : m[1]) : 'jpg'; }
+app.post('/api/company/:id/location/:locId/photo', express.json({ limit: '12mb' }), (req, res) => {
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const l = (c.locations || []).find(x => x.id === req.params.locId);
+  if (!l) return res.status(404).json({ ok: false, error: 'Location not found.' });
+  l.photos = l.photos || [];
+  if (l.photos.length >= LOCPHOTO_MAX) return res.status(400).json({ ok: false, error: 'Up to ' + LOCPHOTO_MAX + ' photos per location.' });
+  const b = req.body || {};
+  const dataB64 = String(b.dataB64 || '').replace(/^data:[^,]*,/, '');
+  if (!dataB64) return res.status(400).json({ ok: false, error: 'No image data.' });
+  const ext = photoExtFromName(b.filename);
+  const buf = Buffer.from(dataB64, 'base64');
+  if (buf.length > 10 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 10 MB).' });
+  const pid = 'lph_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  try { if (!fs.existsSync(LOCPHOTO_DIR)) fs.mkdirSync(LOCPHOTO_DIR, { recursive: true }); fs.writeFileSync(path.join(LOCPHOTO_DIR, pid + '.' + ext), buf); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the image.' }); }
+  l.photos.push({ id: pid, ext }); c.updatedAt = new Date().toISOString(); saveCompanies(arr);
+  res.json({ ok: true, locations: c.locations });
+});
+app.post('/api/company/:id/location/:locId/photo/:photoId/remove', (req, res) => {
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const l = (c.locations || []).find(x => x.id === req.params.locId);
+  if (!l) return res.status(404).json({ ok: false, error: 'Location not found.' });
+  const ph = (l.photos || []).find(p => p.id === req.params.photoId);
+  if (ph) { try { fs.unlinkSync(path.join(LOCPHOTO_DIR, ph.id + '.' + ph.ext)); } catch (e) {} }
+  l.photos = (l.photos || []).filter(p => p.id !== req.params.photoId);
+  c.updatedAt = new Date().toISOString(); saveCompanies(arr);
+  res.json({ ok: true, locations: c.locations });
+});
+app.get('/api/locphoto/:name', (req, res) => {
+  const name = path.basename(String(req.params.name || ''));
+  if (!/^lph_[\w]+\.(png|jpg|jpeg|webp|gif)$/.test(name)) return res.status(400).end();
+  const fp = path.join(LOCPHOTO_DIR, name);
+  if (!fp.startsWith(LOCPHOTO_DIR) || !fs.existsSync(fp)) return res.status(404).end();
+  const ext = name.split('.').pop();
+  res.setHeader('Content-Type', ext === 'png' ? 'image/png' : (ext === 'webp' ? 'image/webp' : (ext === 'gif' ? 'image/gif' : 'image/jpeg')));
+  res.setHeader('Cache-Control', 'private, max-age=86400');
+  fs.createReadStream(fp).pipe(res);
+});
 // Optional custom prompt for the location finder (admin-overridable, like the others).
 const LOC_PROMPT_FILE = path.join(BOV_DATA_DIR, 'location_prompt.txt');
 function loadLocPromptCustom() { try { const t = fs.readFileSync(LOC_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
@@ -2342,7 +2396,44 @@ app.get('/api/company/:id', (req, res) => {
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
   const contacts = loadPeople().filter(p => p.companyId === c.id).map(p => ({ id: p.id, name: p.name, email: p.email || '', phone: p.phone || '', type: p.type || '', title: p.title || '' }));
   const dealRows = loadDeals().filter(d => d.companyId === c.id).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id) }));
-  res.json({ ok: true, company: c, contacts, deals: dealRows, locations: c.locations || [], types: COMPANY_TYPES, personTypes: PERSON_TYPES, locationStatuses: LOCATION_STATUSES });
+  res.json({ ok: true, company: c, contacts, deals: dealRows, locations: c.locations || [], concepts: c.concepts || [], types: COMPANY_TYPES, personTypes: PERSON_TYPES, locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES });
+});
+// ---- Concepts — a company runs one or more concepts (brands); locations attach to a concept. ----
+function newConceptId() { return 'cpt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+app.post('/api/company/:id/concept', express.json(), (req, res) => {
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const b = req.body || {}; c.concepts = c.concepts || [];
+  const name = String(b.name || '').trim();
+  if (!name) return res.status(400).json({ ok: false, error: 'A concept name is required.' });
+  const now = new Date().toISOString();
+  let cpt;
+  if (b.id) {
+    cpt = c.concepts.find(x => x.id === b.id);
+    if (!cpt) return res.status(404).json({ ok: false, error: 'Concept not found.' });
+    const oldName = cpt.name;
+    cpt.name = name.slice(0, 120);
+    if (typeof b.website === 'string') cpt.website = b.website.slice(0, 300);
+    cpt.updatedAt = now;
+    // keep the locations' concept label in sync with a rename
+    if (oldName && oldName !== cpt.name) (c.locations || []).forEach(l => { if ((l.concept || '') === oldName) l.concept = cpt.name; });
+  } else {
+    if (c.concepts.some(x => normKey(x.name) === normKey(name))) return res.status(400).json({ ok: false, error: 'That concept already exists.' });
+    cpt = { id: newConceptId(), name: name.slice(0, 120), website: String(b.website || '').slice(0, 300), createdAt: now };
+    c.concepts.push(cpt);
+  }
+  c.updatedAt = now; saveCompanies(arr);
+  res.json({ ok: true, concepts: c.concepts, locations: c.locations || [], concept: cpt });
+});
+app.post('/api/company/:id/concept/:cid/remove', express.json(), (req, res) => {
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const cpt = (c.concepts || []).find(x => x.id === req.params.cid);
+  c.concepts = (c.concepts || []).filter(x => x.id !== req.params.cid);
+  // Also remove the concept's locations if asked; otherwise leave them (their label stays).
+  if (cpt && req.body && req.body.withLocations) c.locations = (c.locations || []).filter(l => (l.concept || '') !== cpt.name);
+  c.updatedAt = new Date().toISOString(); saveCompanies(arr);
+  res.json({ ok: true, concepts: c.concepts, locations: c.locations || [] });
 });
 // Add / update a location on a company.
 app.post('/api/company/:id/location', express.json(), (req, res) => {
@@ -2350,8 +2441,11 @@ app.post('/api/company/:id/location', express.json(), (req, res) => {
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
   const b = req.body || {}; c.locations = c.locations || [];
   const now = new Date().toISOString();
-  if (b.id) { const ex = c.locations.find(l => l.id === b.id); if (!ex) return res.status(404).json({ ok: false, error: 'Location not found.' }); applyLocationFields(ex, b); ex.updatedAt = now; }
-  else { const rec = { id: newLocationId(), name: '', concept: '', address: '', city: '', status: 'Open', notes: '', createdAt: now }; applyLocationFields(rec, b); if (!rec.name && !rec.address) return res.status(400).json({ ok: false, error: 'A location name or address is required.' }); c.locations.push(rec); }
+  let target;
+  if (b.id) { const ex = c.locations.find(l => l.id === b.id); if (!ex) return res.status(404).json({ ok: false, error: 'Location not found.' }); applyLocationFields(ex, b); ex.updatedAt = now; target = ex; }
+  else { const rec = { id: newLocationId(), name: '', concept: '', address: '', city: '', state: '', phone: '', opened: '', status: 'Open', notes: '', photos: [], createdAt: now }; applyLocationFields(rec, b); if (!rec.name && !rec.address) return res.status(400).json({ ok: false, error: 'A location name or address is required.' }); c.locations.push(rec); target = rec; }
+  // One flagship per concept — if this one is now flagship, clear its concept siblings.
+  if (target && target.flagship) c.locations.forEach(l => { if (l.id !== target.id && (l.concept || '') === (target.concept || '')) l.flagship = false; });
   c.updatedAt = now; saveCompanies(arr);
   res.json({ ok: true, locations: c.locations });
 });
@@ -2368,11 +2462,16 @@ app.post('/api/company/:id/find-locations', express.json(), async (req, res) => 
     const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
     if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
     const b = req.body || {};
-    const concept = String(b.concept || '').trim();
-    const website = String(b.website || '').trim();
+    // Prefer a chosen concept (id) and use its stored website; fall back to raw fields.
+    let concept = String(b.concept || '').trim();
+    let website = String(b.website || '').trim();
     const count = String(b.count || '').trim();
-    if (!concept) return res.status(400).json({ ok: false, error: 'A concept name is required.' });
-    if (!website) return res.status(400).json({ ok: false, error: 'A website is required to search for locations.' });
+    if (b.conceptId) {
+      const cpt = (c.concepts || []).find(x => x.id === b.conceptId);
+      if (cpt) { concept = cpt.name; if (!website) website = String(cpt.website || '').trim(); }
+    }
+    if (!concept) return res.status(400).json({ ok: false, error: 'A concept is required.' });
+    if (!website) return res.status(400).json({ ok: false, error: 'This concept has no website set — add one to the concept first.' });
     const result = await locationgen.findLocations({ company: c.name, concept, website, count, systemPrompt: loadLocPromptCustom() || undefined });
     const now = new Date().toISOString();
     c.locations = c.locations || [];
@@ -2381,7 +2480,7 @@ app.post('/api/company/:id/find-locations', express.json(), async (req, res) => 
       // Skip obvious duplicates (same concept + address already present).
       const dupe = c.locations.some(x => (x.concept || '') === concept && normKey(x.address || '') && normKey(x.address || '') === normKey(l.address || ''));
       if (dupe) return;
-      const rec = { id: newLocationId(), name: l.name || '', concept, address: l.address || '', city: l.city || '', state: l.state || '', phone: l.phone || '', website, status: 'Open', notes: '', source: 'ai-web', createdAt: now };
+      const rec = { id: newLocationId(), name: l.name || '', concept, address: l.address || '', city: l.city || '', state: l.state || '', phone: l.phone || '', website, opened: '', status: 'Open', notes: '', photos: [], source: 'ai-web', createdAt: now };
       c.locations.push(rec); created.push(rec);
     });
     c.updatedAt = now; saveCompanies(arr);
@@ -2401,6 +2500,11 @@ app.post('/api/company', express.json(), (req, res) => {
   if (typeof b.market === 'string') c.market = b.market.slice(0, 80);
   if (typeof b.type === 'string' && COMPANY_TYPES.indexOf(b.type) >= 0) c.type = b.type;
   if (typeof b.notes === 'string') c.notes = b.notes.slice(0, 6000);
+  if (b.office && typeof b.office === 'object') {
+    const o = c.office || {};
+    ['address', 'city', 'state', 'phone', 'website', 'email'].forEach(k => { if (typeof b.office[k] === 'string') o[k] = b.office[k].slice(0, 200); });
+    c.office = o;
+  }
   c.updatedAt = now; saveCompanies(arr);
   res.json({ ok: true, company: c });
 });
