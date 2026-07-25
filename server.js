@@ -2213,7 +2213,7 @@ function assignmentView(d, overlay) {
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', owner: o.owner || by, businessOverride: o.businessOverride || '',
-    listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew,
+    stageFlags: o.stageFlags || {}, referredBy: o.referredBy || '', referralPct: o.referralPct || '', listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew,
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
@@ -2273,6 +2273,14 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.notes === 'string') cur.notes = b.notes.slice(0, 8000);
   if (typeof b.owner === 'string') cur.owner = b.owner.slice(0, 120);
   if (typeof b.businessOverride === 'string') cur.businessOverride = b.businessOverride.slice(0, 120);
+  if (b.stageFlags && typeof b.stageFlags === 'object') {
+    const allowedStages = ['outreach','agreed','offers','dd','closing'];
+    const sf = {};
+    allowedStages.forEach(k => { if (b.stageFlags[k]) sf[k] = true; });
+    cur.stageFlags = sf;
+  }
+  if (typeof b.referredBy === 'string') cur.referredBy = b.referredBy.slice(0, 120);
+  if (b.referralPct != null) cur.referralPct = String(b.referralPct).replace(/[^0-9.]/g,'').slice(0, 6);
   if (typeof b.listingLive === 'string') cur.listingLive = b.listingLive.slice(0, 10);
   if (typeof b.listingStart === 'string') cur.listingStart = b.listingStart.slice(0, 10);
   if (typeof b.listingExpires === 'string') cur.listingExpires = b.listingExpires.slice(0, 10);
@@ -4163,6 +4171,64 @@ function go(f){
 // re-check every hour so a fresh snapshot always lands each day the server runs.
 setTimeout(() => { ensureDailyBackup(); }, 15000);
 setInterval(() => { ensureDailyBackup(); }, 60 * 60 * 1000);
+
+// ================= User Tasks =================
+const TASKS_FILE = path.join(BOV_DATA_DIR, 'tasks.json');
+function loadTasks() { try { return JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveTasks(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(TASKS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newTaskId() { return 'tsk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+const TASK_PRIORITIES = ['Low', 'Normal', 'High'];
+function taskVisible(t, req) {
+  if (req.user && req.user.role === 'admin') return true;
+  const u = req.user && req.user.username;
+  return t.assignee === u || t.createdBy === u;
+}
+app.get('/api/tasks', (req, res) => {
+  const all = loadTasks();
+  const mine = all.filter(t => taskVisible(t, req));
+  const users = auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username }));
+  res.json({ ok: true, tasks: mine, users, priorities: TASK_PRIORITIES, isAdmin: !!(req.user && req.user.role === 'admin'), me: (req.user && req.user.username) || '' });
+});
+app.post('/api/tasks', express.json(), (req, res) => {
+  const b = req.body || {}; const all = loadTasks(); const now = new Date().toISOString();
+  const title = String(b.title || '').trim().slice(0, 300);
+  if (!title) return res.status(400).json({ ok: false, error: 'A task title is required.' });
+  const users = auth.loadUsers();
+  const findUser = un => users.find(u => u.username === un);
+  const meU = req.user && req.user.username, isAdmin = req.user && req.user.role === 'admin';
+  let t;
+  if (b.id) {
+    t = all.find(x => x.id === b.id);
+    if (!t) return res.status(404).json({ ok: false, error: 'Task not found.' });
+    if (!isAdmin && t.createdBy !== meU && t.assignee !== meU) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  } else {
+    t = { id: newTaskId(), createdBy: meU || '', createdByName: (req.user && req.user.name) || '', createdAt: now, status: 'open', doneAt: '' };
+    all.push(t);
+  }
+  t.title = title;
+  if (typeof b.notes === 'string') t.notes = b.notes.slice(0, 4000);
+  if (typeof b.due === 'string') t.due = b.due.slice(0, 10);
+  if (typeof b.priority === 'string') t.priority = TASK_PRIORITIES.indexOf(b.priority) >= 0 ? b.priority : (t.priority || 'Normal');
+  if (!t.priority) t.priority = 'Normal';
+  if (typeof b.assignee === 'string') { const au = findUser(b.assignee); t.assignee = au ? au.username : ''; t.assigneeName = au ? (au.name || au.username) : ''; }
+  if (typeof b.status === 'string' && ['open', 'done'].indexOf(b.status) >= 0) { t.status = b.status; t.doneAt = b.status === 'done' ? now : ''; }
+  t.updatedAt = now;
+  saveTasks(all);
+  res.json({ ok: true, task: t });
+});
+app.post('/api/tasks/:id/toggle', (req, res) => {
+  const all = loadTasks(); const t = all.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Task not found.' });
+  if (!taskVisible(t, req)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  t.status = t.status === 'done' ? 'open' : 'done'; t.doneAt = t.status === 'done' ? new Date().toISOString() : ''; t.updatedAt = new Date().toISOString();
+  saveTasks(all); res.json({ ok: true, task: t });
+});
+app.delete('/api/tasks/:id', (req, res) => {
+  const all = loadTasks(); const t = all.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Task not found.' });
+  if (!(req.user && req.user.role === 'admin') && t.createdBy !== (req.user && req.user.username)) return res.status(403).json({ ok: false, error: 'Only the creator or an admin can delete this.' });
+  saveTasks(all.filter(x => x.id !== t.id)); res.json({ ok: true });
+});
 
 const PORT = process.env.PORT || 8787;
 app.listen(PORT, () => console.log(`RRG toolkit server listening on :${PORT}`));

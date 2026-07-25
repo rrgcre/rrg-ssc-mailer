@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Cap Rate Value Calculator</title>
+<script src="/rrg_brand.js"></script>
+<style>
+:root{ --navy:#000E31; --red:#DA2B1F; --ink:#1a2236; --muted:#6b7488; --line:#e6e9f0; --wash:#f5f7fb; --bg:#eef1f6; }
+*{box-sizing:border-box;} html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);}
+.top{background:radial-gradient(115% 130% at 50% 0%, #182a54 0%, #0d1b3d 55%, #04091d 100%);color:#fff;padding:20px 0;}
+.top-inner{max-width:900px;margin:0 auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.brand{display:inline-flex;align-items:center;gap:11px;}
+.brand .disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font-family:'Arial Black',Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;}
+.brand .wm{font-weight:800;font-size:15px;}
+.top a.back{color:#c3ccdf;text-decoration:none;font-weight:600;font-size:13px;border:1px solid rgba(255,255,255,.2);padding:7px 13px;border-radius:8px;}
+.top a.back:hover{border-color:#fff;color:#fff;}
+.wrap{max-width:900px;margin:0 auto;padding:24px 28px 60px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:20px;}
+.card h2{font-size:14px;color:var(--navy);margin:0 0 4px;}
+.sub{font-size:12.5px;color:var(--muted);margin:0 0 16px;}
+.solve{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+.solve button{background:#fff;border:1px solid #cfd6e2;border-radius:20px;padding:7px 15px;font:inherit;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;}
+.solve button.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+label.fld{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin-bottom:6px;}
+.inwrap{position:relative;} .inwrap .pre,.inwrap .suf{position:absolute;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:700;font-size:15px;}
+.inwrap .pre{left:13px;} .inwrap .suf{right:13px;}
+input{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:12px 14px;font:inherit;font-size:16px;font-weight:600;color:var(--ink);}
+input.haspre{padding-left:26px;} input.hassuf{padding-right:28px;}
+.inputs{display:grid;grid-template-columns:1fr 1fr;gap:16px;} @media(max-width:640px){.inputs{grid-template-columns:1fr;}}
+.result{margin-top:22px;background:var(--navy);color:#fff;border-radius:12px;padding:22px 24px;text-align:center;}
+.result .rl{font-size:11px;text-transform:uppercase;letter-spacing:.1em;color:#aeb8cf;font-weight:700;}
+.result .rv{font-size:38px;font-weight:800;margin-top:6px;letter-spacing:-.01em;}
+.result .rn{font-size:12.5px;color:#c3ccdf;margin-top:6px;}
+h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 10px;}
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th,td{padding:9px 10px;text-align:right;border-bottom:1px solid var(--line);}
+th:first-child,td:first-child{text-align:left;}
+thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+tr.base td{background:#fdf1df;font-weight:800;color:var(--navy);}
+.hint{font-size:12px;color:var(--muted);margin-top:8px;}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-inner">
+  <span class="brand"><span class="disc">RRG</span><span class="wm">Cap Rate Calculator</span></span>
+  <a class="back" href="./index.html">← Dashboard</a>
+</div></div>
+<div class="wrap">
+  <div class="card">
+    <h2>Value from NOI &amp; Cap Rate</h2>
+    <p class="sub">Value = NOI ÷ Cap Rate. Pick what you want to solve for, enter the other two.</p>
+    <div class="solve">
+      <button data-solve="value" class="on">Solve Value</button>
+      <button data-solve="noi">Solve NOI</button>
+      <button data-solve="cap">Solve Cap Rate</button>
+    </div>
+    <div class="inputs" id="inputs"></div>
+    <div class="result"><div class="rl" id="rl">Value</div><div class="rv" id="rv">—</div><div class="rn" id="rn"></div></div>
+  </div>
+  <div class="card" id="sensCard">
+    <h3>Value sensitivity by cap rate</h3>
+    <table><thead><tr><th>Cap rate</th><th>Value</th><th>vs. base</th></tr></thead><tbody id="sensBody"></tbody></table>
+    <div class="hint">Same NOI, value at cap rates ±1.0% around your input, in 0.25% steps.</div>
+  </div>
+</div>
+<script>
+var SOLVE='value';
+function money(n){ if(!isFinite(n)||n===null) return '—'; return '$'+Math.round(n).toLocaleString('en-US'); }
+function num(id){ var v=parseFloat((document.getElementById(id)||{}).value); return isFinite(v)?v:NaN; }
+function fields(){
+  var f={
+    value:{lbl:'Property value',id:'i_value',pre:'$',suf:'',ph:'e.g. 2,500,000'},
+    noi:{lbl:'Net operating income (NOI)',id:'i_noi',pre:'$',suf:'',ph:'e.g. 175,000'},
+    cap:{lbl:'Cap rate',id:'i_cap',suf:'%',pre:'',ph:'e.g. 7.0'}
+  };
+  var order=['value','noi','cap'].filter(function(k){return k!==SOLVE;});
+  document.getElementById('inputs').innerHTML=order.map(function(k){
+    var x=f[k];
+    return '<div><label class="fld">'+x.lbl+'</label><div class="inwrap">'+(x.pre?'<span class="pre">'+x.pre+'</span>':'')
+      +'<input id="'+x.id+'" class="'+(x.pre?'haspre ':'')+(x.suf?'hassuf':'')+'" inputmode="decimal" placeholder="'+x.ph+'">'
+      +(x.suf?'<span class="suf">'+x.suf+'</span>':'')+'</div></div>';
+  }).join('');
+  ['i_value','i_noi','i_cap'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('input',calc); });
+  document.getElementById('sensCard').style.display=(SOLVE==='value')?'':'none';
+}
+function calc(){
+  var rl=document.getElementById('rl'), rv=document.getElementById('rv'), rn=document.getElementById('rn');
+  if(SOLVE==='value'){
+    rl.textContent='Property value'; var noi=num('i_noi'), cap=num('i_cap');
+    if(isFinite(noi)&&isFinite(cap)&&cap>0){ var v=noi/(cap/100); rv.textContent=money(v); rn.textContent=money(noi)+' NOI at a '+cap+'% cap'; sens(noi,cap); }
+    else { rv.textContent='—'; rn.textContent=''; document.getElementById('sensBody').innerHTML=''; }
+  } else if(SOLVE==='noi'){
+    rl.textContent='Required NOI'; var val=num('i_value'), cap2=num('i_cap');
+    if(isFinite(val)&&isFinite(cap2)){ var n=val*(cap2/100); rv.textContent=money(n); rn.textContent='To hit '+money(val)+' at a '+cap2+'% cap'; }
+    else { rv.textContent='—'; rn.textContent=''; }
+  } else {
+    rl.textContent='Implied cap rate'; var val3=num('i_value'), noi3=num('i_noi');
+    if(isFinite(val3)&&isFinite(noi3)&&val3>0){ var c=(noi3/val3)*100; rv.textContent=c.toFixed(2)+'%'; rn.textContent=money(noi3)+' NOI on '+money(val3); }
+    else { rv.textContent='—'; rn.textContent=''; }
+  }
+}
+function sens(noi,cap){
+  var body=document.getElementById('sensBody'); var rows='';
+  var base=noi/(cap/100);
+  for(var d=-1.0; d<=1.0001; d+=0.25){
+    var c=Math.round((cap+d)*100)/100; if(c<=0) continue;
+    var v=noi/(c/100); var diff=v-base;
+    var pct=base?((diff/base)*100):0;
+    var cls=(Math.abs(c-cap)<0.001)?' class="base"':'';
+    rows+='<tr'+cls+'><td>'+c.toFixed(2)+'%</td><td>'+money(v)+'</td><td>'+(Math.abs(diff)<1?'—':((diff>0?'+':'')+money(diff)+' ('+(pct>0?'+':'')+pct.toFixed(1)+'%)'))+'</td></tr>';
+  }
+  body.innerHTML=rows;
+}
+document.querySelectorAll('.solve button').forEach(function(b){ b.addEventListener('click',function(){ SOLVE=b.getAttribute('data-solve'); document.querySelectorAll('.solve button').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); fields(); calc(); }); });
+fields(); calc();
+</script>
+</body>
+</html>

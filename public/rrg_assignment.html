@@ -179,15 +179,37 @@ function peopleDatalistHTML(){ return '<datalist id="peopleList">'+PEOPLE.map(fu
 function personLine(personId){ if(!personId) return ''; var p=PEOPLE.filter(function(x){return x.id===personId;})[0]; if(!p) return ''; var bits=[p.company,p.email].filter(Boolean).map(esc).join(' · '); return bits?('<span class="plink" title="Linked buyer record">'+bits+'</span>'):''; }
 // stage definitions: key, label, description, link builder
 var STAGES=[
+  { k:'room', name:'Data Room', lbl:'Room', href:function(s){return './rrg_room.html?room='+encodeURIComponent(s.id);}, open:'Open room' },
+  { k:'outreach', name:'Outreach', lbl:'Out', manual:true },
   { k:'call', name:'Seller Qualification Call', lbl:'Call', href:function(s){return './seller_screening.html?screening='+encodeURIComponent(s.id);}, open:'Open call' },
   { k:'questionnaire', name:'Valuation Questionnaire', lbl:'VQ', href:function(s){return './valuation_questionnaire.html?q='+encodeURIComponent(s.id);}, open:'Open questionnaire' },
   { k:'bov', name:'Broker Opinion of Value', lbl:'BOV', href:function(s){return './rrg_bov_builder.html?bov='+encodeURIComponent(s.id);}, open:'Open BOV' },
+  { k:'agreed', name:'Agreed', lbl:'Agreed', manual:true },
   { k:'pack', name:'Marketing Pack', lbl:'Pack', href:function(s){return './rrg_cim_builder.html?cim='+encodeURIComponent(s.id);}, open:'Open pack' },
-  { k:'lease', name:'Lease Abstract', lbl:'Lease', href:function(s){return './rrg_lease_abstract.html?lease='+encodeURIComponent(s.id);}, open:'Open abstract' },
   { k:'attack', name:'Market Attack Plan', lbl:'MAP', href:function(s){return './rrg_attack_builder.html?map='+encodeURIComponent(s.id);}, open:'Open plan' },
-  { k:'room', name:'Data Room', lbl:'Room', href:function(s){return './rrg_room.html?room='+encodeURIComponent(s.id);}, open:'Open room' }
+  { k:'lease', name:'Lease Abstract', lbl:'Lease', href:function(s){return './rrg_lease_abstract.html?lease='+encodeURIComponent(s.id);}, open:'Open abstract' },
+  { k:'offers', name:'Offers', lbl:'Offers', manual:true },
+  { k:'dd', name:'Due Diligence', lbl:'DD', manual:true },
+  { k:'closing', name:'Closing', lbl:'Closing', manual:true }
 ];
 function domDays(){ if(!A||!A.listingLive) return ''; var d=new Date(A.listingLive+'T00:00:00'); if(isNaN(d)) return ''; var n=Math.floor((Date.now()-d.getTime())/86400000); return n>=0?(n+' day'+(n===1?'':'s')):''; }
+function manualStepHtml(d){
+  var mf=A.stageFlags||{}; var mdone=!!mf[d.k];
+  var right='<span class="stag '+(mdone?'done':'pend')+'">'+(mdone?'Done':'Not yet')+'</span><button class="slink'+(mdone?'':' ghost')+'" data-mstage="'+d.k+'">'+(mdone?'Mark not done':'Mark done')+'</button>';
+  return '<div class="step"><div class="rail"><div class="dot '+(mdone?'done':'absent')+'">'+(mdone?'✓':'')+'</div><div class="line"></div></div>'
+    +'<div class="sinfo"><div class="sname">'+esc(d.name)+'<span class="lbl">'+esc(d.lbl)+'</span></div>'
+    +'<div class="smeta">'+(mdone?'Marked complete.':'Manual stage — mark it when you reach it.')+'</div></div>'
+    +'<div class="sact">'+right+'</div></div>';
+}
+function wireManualStages(){
+  document.querySelectorAll('[data-mstage]').forEach(function(b){
+    b.addEventListener('click',function(){
+      var k=b.getAttribute('data-mstage'); A.stageFlags=A.stageFlags||{}; A.stageFlags[k]=!A.stageFlags[k];
+      fetch('/api/assignment/'+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({stageFlags:A.stageFlags})})
+        .then(function(r){return r.json();}).then(function(){ render(); }).catch(function(){ render(); });
+    });
+  });
+}
 function stageMeta(k,s){
   if(k==='call') return s.meta||'Logged';
   if(k==='questionnaire') return s.done?'Completed':((s.pct||0)+'% complete');
@@ -211,8 +233,9 @@ function render(){
   sub.push('<span class="hpill" style="margin:0">'+esc(A.status||'New')+'</span>');
   document.getElementById('subline').innerHTML=sub.join('');
 
-  var done=STAGES.filter(function(d){return s[d.k]&&s[d.k].done;}).length;
-  var started=STAGES.filter(function(d){return s[d.k];}).length;
+  var mf=A.stageFlags||{};
+  var done=STAGES.filter(function(d){return d.manual?mf[d.k]:(s[d.k]&&s[d.k].done);}).length;
+  var started=STAGES.filter(function(d){return d.manual?mf[d.k]:s[d.k];}).length;
 
   var facts='<div class="facts">'
     +'<div class="fact"><div class="k">Estimated value</div><div class="v big">'+(A.value?esc(A.value):'—')+'</div></div>'
@@ -224,6 +247,7 @@ function render(){
     +'</div>';
 
   var steps=STAGES.map(function(d){
+    if(d.manual){ return manualStepHtml(d); }
     var st=s[d.k];
     var cls=!st?'absent':(st.done?'done':'pend');
     var mark=!st?'':(st.done?'✓':'…');
@@ -255,6 +279,8 @@ function render(){
       + (A.canStart?('<button class="startdeal" id="startDealBtn">Start the deal →</button><div class="startnote">Opens a Seller Qualification Call and drops this deal into the pipeline.</div>'):'')
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
       + '<div class="fldrow"><label class="fld">Owner</label><input class="owner" id="f_owner" value="'+esc(A.owner||'')+'" placeholder="Assigned rep"></div>'
+      + '<div class="fldrow"><label class="fld">Referred by</label><input class="owner" id="f_refby" list="peopleList" value="'+esc(A.referredBy||'')+'" placeholder="Contact who referred this"></div>'
+      + '<div class="fldrow"><label class="fld">Referral %</label><input class="owner" id="f_refpct" value="'+esc(A.referralPct||'')+'" placeholder="e.g. 10" inputmode="decimal" style="max-width:130px"></div>'
       + '<div class="fldrow"><label class="fld">Deal name override</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||'')+'" placeholder="'+esc(A.business||'')+'"></div>'
       + '<div class="listingbox">'
         + '<div class="listinghd">Listing agreement</div>'
@@ -272,7 +298,7 @@ function render(){
     + '</div></div></div>'
     + peopleDatalistHTML();
 
-  ['f_status','f_owner','f_biz','f_notes','f_lstart','f_lexp','f_lauto'].forEach(function(id){
+  ['f_status','f_owner','f_refby','f_refpct','f_biz','f_notes','f_lstart','f_lexp','f_llive','f_lauto'].forEach(function(id){
     var el=document.getElementById(id); if(!el) return;
     var ev=(el.tagName==='SELECT'||el.type==='checkbox'||el.type==='date')?'change':'input';
     el.addEventListener(ev,function(){ setDirty(true); if(id==='f_lexp'||id==='f_lauto') updateExpNote(); });
@@ -285,6 +311,7 @@ function render(){
   wireOffers();
   wireTours();
   wireNdas();
+  wireManualStages();
   setupAccordion();
 }
 function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){}); }
@@ -666,11 +693,11 @@ function updateExpNote(){
 function save(){
   var b=document.getElementById('savebtn'); b.disabled=true; b.textContent='Saving…';
   var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value,
-    listingLive:document.getElementById('f_llive').value, listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked };
+    referredBy:document.getElementById('f_refby').value, referralPct:document.getElementById('f_refpct').value, listingLive:document.getElementById('f_llive').value, listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked };
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){
       b.textContent='Save changes';
-      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew;
+      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew;
         document.getElementById('subline').querySelector('.hpill').textContent=body.status;
         if(body.businessOverride){ A.business=body.businessOverride; document.getElementById('h1').textContent=body.businessOverride; document.getElementById('crumb').textContent=body.businessOverride; }
         var s=document.getElementById('saved'); s.classList.add('show'); setTimeout(function(){ s.classList.remove('show'); },2200);
