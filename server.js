@@ -88,6 +88,7 @@ function ownsDeal(req, d) {
 // buyer connects across every deal they touch.
 const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
 const PERSON_TYPES = ['Buyer', 'Seller', 'Restaurant Owner', 'Client', 'Prospect', 'Investor', 'Broker', 'Operator', 'Referral Source', 'Other'];
+const LEAD_SOURCES = ['Referral', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
 function loadPeople() { try { return JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')); } catch (e) { return []; } }
 function savePeople(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PEOPLE_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newPersonId() { return 'per_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -108,6 +109,7 @@ function personPhones(p) { return Array.isArray(p && p.phones) ? p.phones : ((p 
 function preferredEmailOf(p) { const e = personEmails(p); return (p && p.preferredEmail && e.indexOf(p.preferredEmail) >= 0) ? p.preferredEmail : (e[0] || ''); }
 function preferredPhoneOf(p) { const ph = personPhones(p); return (p && p.preferredPhone && ph.indexOf(p.preferredPhone) >= 0) ? p.preferredPhone : (ph[0] || ''); }
 function personTags(p) { return Array.isArray(p && p.tags) ? p.tags : []; }
+function allTagsList() { const set = {}; try { loadPeople().forEach(p => (p.tags || []).forEach(t => { if (t) set[t] = 1; })); } catch (e) {} try { loadCompanies().forEach(c => (c.tags || []).forEach(t => { if (t) set[t] = 1; })); } catch (e) {} return Object.keys(set).sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase())); }
 // Find another contact that already owns any of these emails (global uniqueness).
 function emailOwner(arr, emails, exceptId) {
   const set = {}; emails.forEach(e => { const k = normKey(e); if (k) set[k] = 1; });
@@ -151,7 +153,7 @@ function findOrCreatePerson(req, info) {
   arr.push(p); savePeople(arr);
   return p;
 }
-function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', hasPhoto: !!p.photoExt } : null; }
+function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', createdAt: p.createdAt || '', owner: p.by || '', lastContacted: p.lastContacted || '', hasPhoto: !!p.photoExt } : null; }
 // One contact row as shown on a company file.
 function companyContactRow(p) { return { id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', emails: personEmails(p), phones: personPhones(p), email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', title: p.title || '', tags: personTags(p), leadSource: p.leadSource || '', hasPhoto: !!p.photoExt }; }
 
@@ -192,6 +194,7 @@ function cleanStrList(a, max, len) {
   return out.slice(0, max || 40);
 }
 function effPersonTypes() { const s = loadSettings(); return (Array.isArray(s.personTypes) && s.personTypes.length) ? s.personTypes : PERSON_TYPES; }
+function effLeadSources() { const s = loadSettings(); return (Array.isArray(s.leadSources) && s.leadSources.length) ? s.leadSources : LEAD_SOURCES; }
 function effCompanyTypes() { const s = loadSettings(); return (Array.isArray(s.companyTypes) && s.companyTypes.length) ? s.companyTypes : COMPANY_TYPES; }
 function effTicketCategories() { const s = loadSettings(); return (Array.isArray(s.ticketCategories) && s.ticketCategories.length) ? s.ticketCategories : TICKET_CATEGORIES; }
 function servicesEmails() { const s = loadSettings(); const a = cleanStrList(s.servicesEmails, 10, 160); return (a && a.length) ? a : ['van@rrgcre.com', 'avery@rrgcre.com']; }
@@ -2518,6 +2521,7 @@ app.post('/api/person', express.json(), (req, res) => {
   if (typeof b.title === 'string') p.title = b.title.slice(0, 120);
   if (typeof b.nickname === 'string') p.nickname = b.nickname.slice(0, 80);
   if (typeof b.leadSource === 'string') p.leadSource = b.leadSource.slice(0, 160);
+  if (typeof b.lastContacted === 'string') p.lastContacted = b.lastContacted.slice(0, 10);
   if (typeof b.url === 'string') p.url = b.url.slice(0, 300);
   if (b.tags !== undefined) p.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') p.notes = b.notes.slice(0, 4000);
@@ -2587,7 +2591,7 @@ app.get('/api/person/:id', (req, res) => {
     (o.tours || []).filter(x => x.personId === p.id).forEach(x => tours.push({ key: key, business: biz, date: x.date, interest: x.interest }));
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
@@ -2708,19 +2712,20 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(),
-    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES },
-    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories) },
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(),
+    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES },
+    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources) },
   });
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources() }); }
   if (b.personTypes !== undefined) s.personTypes = cleanStrList(b.personTypes, 40, 60) || [];
   if (b.companyTypes !== undefined) s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || [];
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
+  if (b.leadSources !== undefined) s.leadSources = cleanStrList(b.leadSources, 40, 60) || [];
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----

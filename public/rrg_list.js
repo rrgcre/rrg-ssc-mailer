@@ -45,7 +45,14 @@
       +'th.rl-th .rl-arrow{color:#b0b8c6;font-size:11px;margin-left:5px}'
       +'th.rl-th.rl-asc .rl-arrow,th.rl-th.rl-desc .rl-arrow{color:#DA2B1F}'
       +'td.rl-ck,th.rl-ck{width:34px;text-align:center;padding-left:6px;padding-right:6px}'
-      +'.rl-ck input{width:16px;height:16px;cursor:pointer;vertical-align:middle}';
+      +'.rl-ck input{width:16px;height:16px;cursor:pointer;vertical-align:middle}'
+      +'.rl-bar .rl-dens{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:#5b6472;cursor:pointer;font-weight:600}'
+      +'.rl-bar .rl-dens input{width:15px;height:15px;cursor:pointer;accent-color:#DA2B1F}'
+      +'.rl-compact table td{padding-top:5px !important;padding-bottom:5px !important;font-size:12.5px}'
+      +'.rl-compact table th{padding-top:6px !important;padding-bottom:6px !important}'
+      +'.rl-compact .av{width:26px !important;height:26px !important;font-size:10px !important;line-height:26px !important}'
+      +'.rl-compact .tags2{display:none !important}'
+      +'.rl-compact .who .meta{display:none !important}';
     var s=document.createElement('style'); s.id=STYLE_ID; s.textContent=css; document.head.appendChild(s);
   }
 
@@ -66,11 +73,12 @@
       per: PER_OPTS.indexOf(saved.per)>=0 ? saved.per : (opts.per||20),
       sort: (saved.sort!=null ? saved.sort : (opts.defaultSort!=null?opts.defaultSort:firstSortable())),
       dir: (saved.dir!=null ? saved.dir : (opts.defaultDir||1)),
+      compact: !!saved.compact,
       page: 0,
       sel: {}
     };
     function firstSortable(){ for(var i=0;i<cols.length;i++){ if(cols[i].sortable!==false && cols[i].sort) return i; } return -1; }
-    function persist(){ try{ localStorage.setItem(lsKey, JSON.stringify({per:state.per, sort:state.sort, dir:state.dir})); }catch(e){} }
+    function persist(){ try{ localStorage.setItem(lsKey, JSON.stringify({per:state.per, sort:state.sort, dir:state.dir, compact:state.compact})); }catch(e){} }
 
     function sortedData(){
       var d = state.data.slice();
@@ -104,7 +112,8 @@
         + '<button class="rl-prev"'+(state.page===0?' disabled':'')+'>‹</button>'
         + pageButtons(pc)
         + '<button class="rl-next"'+(state.page>=pc-1?' disabled':'')+'>›</button></span>';
-      var bar = '<div class="rl-bar">'+count+'<span class="rl-sp"></span>'+perSel+pager+'</div>';
+      var densTog = '<label class="rl-dens" title="Compact rows"><input type="checkbox" class="rl-densCk"'+(state.compact?' checked':'')+'> Compact</label>';
+      var bar = '<div class="rl-bar">'+count+'<span class="rl-sp"></span>'+densTog+perSel+pager+'</div>';
 
       // bulk bar
       var bulk='';
@@ -135,6 +144,7 @@
       }).join('');
 
       mount.innerHTML = bar + bulk + '<table><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table>';
+      mount.classList.toggle('rl-compact', !!state.compact);
       wire();
     }
 
@@ -157,6 +167,7 @@
       mount.querySelectorAll('th.rl-th').forEach(function(th){ if(th.classList.contains('rl-noselect')) return; th.onclick=function(){
         var ci=+th.getAttribute('data-ci'); if(state.sort===ci){ state.dir=-state.dir; } else { state.sort=ci; state.dir=1; } persist(); render();
       }; });
+      var densCk=$('.rl-densCk',mount); if(densCk) densCk.onchange=function(){ state.compact=densCk.checked; persist(); render(); };
       var perSel=$('.rl-perSel',mount); if(perSel) perSel.onchange=function(){ state.per=+perSel.value; state.page=0; persist(); render(); };
       var prev=$('.rl-prev',mount); if(prev) prev.onclick=function(){ if(state.page>0){ state.page--; render(); } };
       var next=$('.rl-next',mount); if(next) next.onclick=function(){ state.page++; render(); };

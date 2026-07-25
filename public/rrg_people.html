@@ -111,6 +111,7 @@ function applyFilter(){
   });
   renderList(list);
 }
+function fmtDate(d){ if(!d) return ''; var x=String(d).slice(0,10).split('-'); if(x.length!==3) return String(d); return x[1]+'/'+x[2]+'/'+x[0]; }
 function renderList(list){
   var cfg={ mount:'#body', data:list, key:'contacts', countEl:'#cnt',
     empty:'<div class="empty"><b>No contacts yet.</b>Contacts are added as you log offers, tours, and NDAs, or from a company file.</div>',
@@ -120,6 +121,10 @@ function renderList(list){
       { label:'Company', sort:function(a,b){ return RRGList.cmp(a.companyName||a.company,b.companyName||b.company); }, cell:function(p){ var cn=p.companyName||p.company||''; return cn?esc(cn):'<span class="meta">—</span>'; } },
       { label:'Type', sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, cell:function(p){ return p.type?('<span class="typetxt">'+esc(p.type)+'</span>'):'<span class="meta">—</span>'; } },
       { label:'Phone', sortable:false, cell:function(p){ var ph=(p.phones&&p.phones.length)?p.phones[0]:(p.phone||''); var extra=(p.phones&&p.phones.length>1)?(' <span class="meta">+'+(p.phones.length-1)+'</span>'):''; return ph?(esc(ph)+extra):'<span class="meta">—</span>'; } },
+      { label:'Email', sortable:false, cell:function(p){ var em=p.email||(p.emails&&p.emails[0])||''; var extra=(p.emails&&p.emails.length>1)?(' <span class="meta">+'+(p.emails.length-1)+'</span>'):''; return em?('<a class="open" style="font-weight:600" href="mailto:'+esc(em)+'">'+esc(em)+'</a>'+extra):'<span class="meta">—</span>'; } },
+      { label:'Owner', sort:function(a,b){ return RRGList.cmp(a.owner,b.owner); }, cell:function(p){ return p.owner?esc(p.owner):'<span class="meta">—</span>'; } },
+      { label:'Created', sort:function(a,b){ return RRGList.cmp(a.createdAt,b.createdAt); }, cell:function(p){ return p.createdAt?('<span class="meta">'+esc(fmtDate(p.createdAt))+'</span>'):'<span class="meta">—</span>'; } },
+      { label:'Last contacted', sort:function(a,b){ return RRGList.cmp(a.lastContacted,b.lastContacted); }, cell:function(p){ return p.lastContacted?esc(fmtDate(p.lastContacted)):'<span class="meta">—</span>'; } },
       { label:'', align:'right', sortable:false, cell:function(p){ var del=IS_ADMIN?('<button class="pdel" data-del="'+esc(p.id)+'" data-name="'+esc(p.name||'')+'">Delete</button> '):''; return del+'<a class="open" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">Open →</a>'; } }
     ]
   };

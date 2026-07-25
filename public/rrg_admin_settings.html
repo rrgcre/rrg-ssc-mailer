@@ -55,7 +55,7 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function post(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body||{})}).then(function(r){return r.json();}); }
 function get(url){ return fetch(url,{credentials:'same-origin'}).then(function(r){return r.json();}); }
 
-var TYPES={ personTypes:[], companyTypes:[], ticketCategories:[] };
+var TYPES={ personTypes:[], companyTypes:[], ticketCategories:[], leadSources:[] };
 
 function tagListHtml(kind,arr){
   return '<div class="tagbox" id="tb_'+kind+'">'+(arr.length?arr.map(function(t){ return '<span class="tagchip">'+esc(t)+'<button type="button" data-rm="'+kind+'" data-val="'+esc(t)+'">×</button></span>'; }).join(''):'<span class="note" style="margin:4px">None — add one below.</span>')+'</div>'
@@ -67,20 +67,21 @@ function renderTypes(){
     +'<div><label class="fld">Contact types</label>'+tagListHtml('personTypes',TYPES.personTypes)+'</div>'
     +'<div><label class="fld">Company types</label>'+tagListHtml('companyTypes',TYPES.companyTypes)+'</div>'
     +'<div><label class="fld">Request categories</label>'+tagListHtml('ticketCategories',TYPES.ticketCategories)+'</div>'
+    +'<div><label class="fld">Lead sources</label>'+tagListHtml('leadSources',TYPES.leadSources)+'</div>'
     +'</div>';
   document.querySelectorAll('[data-rm]').forEach(function(b){ b.addEventListener('click',function(){ var k=b.getAttribute('data-rm'), v=b.getAttribute('data-val'); TYPES[k]=TYPES[k].filter(function(x){return x!==v;}); renderTypes(); }); });
   document.querySelectorAll('[data-add]').forEach(function(b){ b.addEventListener('click',function(){ addType(b.getAttribute('data-add')); }); });
-  ['personTypes','companyTypes','ticketCategories'].forEach(function(k){ var inp=document.getElementById('add_'+k); if(inp) inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); addType(k); } }); });
+  ['personTypes','companyTypes','ticketCategories','leadSources'].forEach(function(k){ var inp=document.getElementById('add_'+k); if(inp) inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); addType(k); } }); });
 }
 function addType(k){ var inp=document.getElementById('add_'+k); var v=(inp.value||'').trim(); if(!v) return; if(TYPES[k].map(function(x){return x.toLowerCase();}).indexOf(v.toLowerCase())<0) TYPES[k].push(v); inp.value=''; renderTypes(); setTimeout(function(){var i=document.getElementById('add_'+k); if(i) i.focus();},0); }
 function saveTypes(){
   var m=document.getElementById('typesMsg'); m.textContent='Saving…'; m.className='msg';
-  post('/api/admin/types',{ personTypes:TYPES.personTypes, companyTypes:TYPES.companyTypes, ticketCategories:TYPES.ticketCategories }).then(function(j){
-    if(j&&j.ok){ TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[] }; renderTypes(); m.textContent='Saved ✓'; m.className='msg ok'; }
+  post('/api/admin/types',{ personTypes:TYPES.personTypes, companyTypes:TYPES.companyTypes, ticketCategories:TYPES.ticketCategories, leadSources:TYPES.leadSources }).then(function(j){
+    if(j&&j.ok){ TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[], leadSources:j.leadSources||[] }; renderTypes(); m.textContent='Saved ✓'; m.className='msg ok'; }
     else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; }
   }).catch(function(){ m.textContent='Could not reach the server.'; m.className='msg err'; });
 }
-function resetTypes(){ if(!confirm('Reset all three lists back to the built-in defaults?')) return; post('/api/admin/types',{reset:true}).then(function(j){ if(j&&j.ok){ TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[] }; renderTypes(); document.getElementById('typesMsg').textContent='Reset to defaults ✓'; document.getElementById('typesMsg').className='msg ok'; } }); }
+function resetTypes(){ if(!confirm('Reset all three lists back to the built-in defaults?')) return; post('/api/admin/types',{reset:true}).then(function(j){ if(j&&j.ok){ TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[], leadSources:j.leadSources||[] }; renderTypes(); document.getElementById('typesMsg').textContent='Reset to defaults ✓'; document.getElementById('typesMsg').className='msg ok'; } }); }
 
 function saveServices(){
   var m=document.getElementById('svcMsg'); m.textContent='Saving…'; m.className='msg';
@@ -142,7 +143,7 @@ function build(){
   document.getElementById('keyClear').addEventListener('click',clearKey);
   document.getElementById('resetBtn').addEventListener('click',resetBook);
   // load current values
-  get('/api/admin/types').then(function(j){ if(j&&j.ok){ TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[] }; renderTypes(); } });
+  get('/api/admin/types').then(function(j){ if(j&&j.ok){ TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[], leadSources:j.leadSources||[] }; renderTypes(); } });
   get('/api/admin/services-email').then(function(j){ if(j&&j.ok){ document.getElementById('svcEmails').value=(j.emails||[]).join(', '); } });
   get('/api/admin/anthropic-key').then(function(j){ if(j&&j.ok) renderKey(j); });
 }
