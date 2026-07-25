@@ -33,6 +33,7 @@ thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(
 .who a{color:var(--navy);font-weight:700;text-decoration:none;} .who a:hover{text-decoration:underline;}
 .stpill{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:3px 9px;border-radius:20px;white-space:nowrap;}
 .stpill.active{background:#e7f5ee;color:#1f8a5b;} .stpill.soon{background:#fdf1df;color:#b5791f;} .stpill.expired{background:#fdeceb;color:var(--red);}
+.sigp{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:20px;white-space:nowrap;background:#eef1f6;color:#98a1b5;} .sigp.sent{background:#fff4e6;color:#b5791f;} .sigp.signed{background:#e7f5ee;color:#1f8a5b;}
 .exp{font-weight:700;} .exp.red{color:var(--red);} .exp.amber{color:#b5791f;}
 .note{color:var(--muted);font-size:12.5px;max-width:280px;}
 .empty{color:var(--muted);font-size:13.5px;padding:26px 4px;text-align:center;}
@@ -88,7 +89,7 @@ function render(){
   var rows=AGR.filter(function(a){ if(FT!=='all'&&a.type!==FT) return false; if(FS!=='all'&&statusOf(a)!==FS) return false; return true; });
   var el=document.getElementById('list');
   if(!rows.length){ el.innerHTML='<div class="empty">No agreements match.</div>'; return; }
-  el.innerHTML='<table><thead><tr><th>Type</th><th>Party</th><th>Company</th><th>Deal</th><th>Effective</th><th>Expires</th><th>Status</th><th>Notes</th></tr></thead><tbody>'
+  el.innerHTML='<table><thead><tr><th>Type</th><th>Party</th><th>Company</th><th>Deal</th><th>Effective</th><th>Expires</th><th>Status</th><th>Signature</th><th>Notes</th></tr></thead><tbody>'
     +rows.map(function(a){
       var c=COLORS[a.type]||{bg:'#eef1f6',fg:'#6b7488'}; var st=statusOf(a); var du=daysUntil(a.expires);
       var who=a.personId?('<span class="who"><a href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'">'+esc(a.personName||'Contact')+'</a></span>'):esc(a.personName||'—');
@@ -101,6 +102,7 @@ function render(){
         +'<td>'+esc(fmt(a.effective))+'</td>'
         +'<td class="exp'+expCls+'">'+esc(fmt(a.expires))+'</td>'
         +'<td><span class="stpill '+st+'">'+stTxt+'</span></td>'
+        +'<td>'+(a.signStatus==='signed'?('<span class="sigp signed">Signed'+(a.signedDate?(' '+fmt(a.signedDate)):'')+'</span>'):(a.signStatus==='sent'?'<span class="sigp sent">Sent</span>':'<span class="sigp">—</span>'))+'</td>'
         +'<td class="note">'+esc(a.notes||'')+'</td></tr>';
     }).join('')+'</tbody></table>';
 }

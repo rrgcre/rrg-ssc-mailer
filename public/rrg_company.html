@@ -148,7 +148,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
-var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], LOGOAUTO='', DIRTY=false;
+var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], CUISINE_TYPES=[], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], LOGOAUTO='', DIRTY=false;
 var EXPANDED={};
 function conceptById(id){ return CONCEPTS.filter(function(x){return x.id===id;})[0]||null; }
 function normUrl(u){ u=String(u||'').trim(); if(!u) return ''; return /^https?:\/\//i.test(u)?u:('https://'+u); }
@@ -196,7 +196,7 @@ function render(){
   }
   function locRow(l){
     var loc=[l.address,l.city,l.state].filter(Boolean).map(esc).join(', ');
-    var bits=[]; if(loc) bits.push(loc); if(l.siteType) bits.push(esc(l.siteType)); if(l.tenure) bits.push('<span class="tenpill ten-'+l.tenure.toLowerCase()+'">'+esc(l.tenure)+'</span>'); if(l.phone) bits.push(esc(l.phone)); if(l.opened) bits.push('Opened '+esc(fmtD(l.opened))); if(l.closedDate) bits.push('<span class="closedpill">Closed '+esc(fmtD(l.closedDate))+'</span>'); if(l.leaseExpires) bits.push('Lease exp '+esc(fmtD(l.leaseExpires))); if(l.google&&typeof l.google.rating==='number') bits.push('<span class="grate" title="Google rating">★ '+l.google.rating.toFixed(1)+(l.google.reviews?(' ('+Number(l.google.reviews).toLocaleString()+')'):'')+'</span>'); if(l.google&&typeof l.google.priceLevel==='number'&&l.google.priceLevel>0) bits.push('<span class="grate" title="Google price level">'+new Array(l.google.priceLevel+1).join('$')+'</span>');
+    var bits=[]; if(loc) bits.push(loc); if(l.siteType) bits.push(esc(l.siteType)); if(l.tenure) bits.push('<span class="tenpill ten-'+l.tenure.toLowerCase()+'">'+esc(l.tenure)+'</span>'); if(l.sf) bits.push(esc(Number(l.sf).toLocaleString())+' SF'); if(l.phone) bits.push(esc(l.phone)); if(l.opened) bits.push('Opened '+esc(fmtD(l.opened))); if(l.closedDate) bits.push('<span class="closedpill">Closed '+esc(fmtD(l.closedDate))+'</span>'); if(l.leaseExpires) bits.push('Lease exp '+esc(fmtD(l.leaseExpires))); if(l.google&&typeof l.google.rating==='number') bits.push('<span class="grate" title="Google rating">★ '+l.google.rating.toFixed(1)+(l.google.reviews?(' ('+Number(l.google.reviews).toLocaleString()+')'):'')+'</span>'); if(l.google&&typeof l.google.priceLevel==='number'&&l.google.priceLevel>0) bits.push('<span class="grate" title="Google price level">'+new Array(l.google.priceLevel+1).join('$')+'</span>');
     var line=bits.join(' · '); var np=(l.photos||[]).length;
     var badge=np?('<span class="phcount" title="'+np+' photo'+(np===1?'':'s')+'">'+np+' ▣</span>'):'';
     var flag=l.flagship?'<span class="flagtag" title="Flagship location">★ Flagship</span>':'';
@@ -207,7 +207,7 @@ function render(){
   }
   function conceptBlock(cpt){
     var mine=LOCATIONS.filter(function(l){ return (l.concept||'')===cpt.name && !l.commissary; });
-    var tp=[]; if(cpt.conceptType) tp.push(esc(cpt.conceptType)); if(cpt.pricePoint) tp.push(esc(cpt.pricePoint));
+    var tp=[]; if(cpt.cuisine) tp.push(esc(cpt.cuisine)); if(cpt.conceptType) tp.push(esc(cpt.conceptType)); if(cpt.pricePoint) tp.push(esc(cpt.pricePoint));
     var tpbadge=tp.length?('<span class="cpttype">'+tp.join(' · ')+'</span>'):'';
     var mkts=(cpt.markets&&cpt.markets.length)?('<span class="cptmkts">'+cpt.markets.map(esc).join(' · ')+'</span>'):'';
     var rows=mine.length?mine.map(locRow).join(''):'<div class="cptempty">No locations yet — add one with <b>+ Location</b>, or open <b>Edit</b> to find them from the web.</div>';
@@ -299,6 +299,7 @@ function openConceptForm(cpt){
   var mboxes=MARKETS.map(function(m){ return '<label class="servechk"><input type="checkbox" class="cp_mkt" value="'+esc(m)+'"'+(set[m]?' checked':'')+'> '+esc(m)+'</label>'; }).join('');
   var ctypeOpts='<option value="">— select —</option>'+CONCEPT_TYPES.map(function(t){ return '<option'+((cpt.conceptType||'')===t?' selected':'')+'>'+esc(t)+'</option>'; }).join('');
   var priceOpts='<option value="">— select —</option>'+PRICE_POINTS.map(function(t){ return '<option'+((cpt.pricePoint||'')===t?' selected':'')+'>'+esc(t)+'</option>'; }).join('');
+  var cuisineOpts='<option value="">— select —</option>'+CUISINE_TYPES.map(function(t){ return '<option'+((cpt.cuisine||'')===t?' selected':'')+'>'+esc(t)+'</option>'; }).join('');
   var logoCtl = isEdit
     ? '<div class="logorow"><div class="logoprev" id="cp_logoprev"></div><div style="flex:1"><input id="cp_logo" value="'+esc(cpt.logo||'')+'" placeholder="Logo image URL (optional)"><div class="logobtns"><label class="mfadd">Upload logo<input type="file" id="cp_logofile" accept="image/*" hidden></label></div></div></div>'
     : '<div class="logorow"><div class="logoprev" id="cp_logoprev"></div><input id="cp_logo" value="'+esc(cpt.logo||'')+'" placeholder="Upload after saving, or paste a logo image URL (optional)"></div>';
@@ -308,8 +309,9 @@ function openConceptForm(cpt){
     +'<div><label class="fld">Website</label><input id="cp_site" value="'+esc(cpt.website||'')+'" placeholder="canerosso.com"></div>'
     +'<div><label class="fld">Concept type</label><select id="cp_ctype">'+ctypeOpts+'</select></div>'
     +'<div><label class="fld">Price point</label><select id="cp_price">'+priceOpts+'</select></div>'
+    +'<div><label class="fld">Cuisine</label><select id="cp_cuisine">'+cuisineOpts+'</select></div>'
     +'<div class="wide"><label class="fld">Logo</label>'+logoCtl+'</div>'
-    +'<div class="wide"><label class="fld">Markets</label><div class="servegrid">'+mboxes+'</div></div>'
+    +'<div class="wide" style="display:none"><label class="fld">Markets</label><div class="servegrid">'+mboxes+'</div></div>'
     +'<div class="wide findlocwrap"><label class="fld">Find locations from the web <span style="text-transform:none;letter-spacing:0;color:var(--soft);font-weight:600">— optional</span></label>'
       +'<div class="findloc"><input id="cp_findcount" placeholder="Approx. # of locations (optional)"><button type="button" class="mfadd" id="cp_find">✨ Find locations</button></div>'
       +'<div class="findloctip">Confirm the website above, then the RRG analyst searches the web and adds a location record — address &amp; phone — for each unit it finds. Review and edit them after.</div></div>'
@@ -321,7 +323,7 @@ function openConceptForm(cpt){
   drawLogoPrev();
   if(isEdit){
     document.getElementById('cp_name').addEventListener('input',function(){ queueConceptSave(cpt.id); });
-    ['cp_ctype','cp_price'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('change',function(){ queueConceptSave(cpt.id); }); });
+    ['cp_ctype','cp_price','cp_cuisine'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('change',function(){ queueConceptSave(cpt.id); }); });
     f.querySelectorAll('.cp_mkt').forEach(function(x){ x.addEventListener('change',function(){ queueConceptSave(cpt.id); }); });
     var lf=document.getElementById('cp_logofile'); if(lf) lf.addEventListener('change',function(){ if(lf.files&&lf.files[0]) uploadConceptLogo(cpt.id,lf.files[0]); });
     document.getElementById('cp_done').addEventListener('click',function(){ if(_cpSaveTimer){clearTimeout(_cpSaveTimer);conceptAutosave(cpt.id,true);} else { f.setAttribute('hidden','');f.innerHTML='';render(); } });
@@ -344,7 +346,7 @@ function conceptFind(cpt,isEdit){
   if(btn){ btn.disabled=true; btn.textContent='Searching…'; }
   if(msg) msg.textContent='This can take up to a minute — the analyst is reading the site and map listings.';
   var markets=[]; document.querySelectorAll('.cp_mkt:checked').forEach(function(x){ markets.push(x.value); });
-  var body={name:name,website:website,logo:document.getElementById('cp_logo').value.trim(),markets:markets,conceptType:cpVal('cp_ctype'),pricePoint:cpVal('cp_price')};
+  var body={name:name,website:website,logo:document.getElementById('cp_logo').value.trim(),markets:markets,conceptType:cpVal('cp_ctype'),pricePoint:cpVal('cp_price'),cuisine:cpVal('cp_cuisine')};
   if(isEdit&&cpt&&cpt.id) body.id=cpt.id;
   function fail(t){ if(btn){ btn.disabled=false; btn.textContent='✨ Find locations'; } if(msg) msg.textContent=t; }
   fetch('/api/company/'+encodeURIComponent(ID)+'/concept',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
@@ -365,7 +367,7 @@ function conceptAutosave(id,close){
   _cpSaveTimer=null;
   var name=document.getElementById('cp_name').value.trim(); if(!name) return;
   var markets=[]; document.querySelectorAll('.cp_mkt:checked').forEach(function(x){ markets.push(x.value); });
-  var body={id:id,name:name,website:document.getElementById('cp_site').value.trim(),logo:document.getElementById('cp_logo').value.trim(),markets:markets,conceptType:cpVal('cp_ctype'),pricePoint:cpVal('cp_price')};
+  var body={id:id,name:name,website:document.getElementById('cp_site').value.trim(),logo:document.getElementById('cp_logo').value.trim(),markets:markets,conceptType:cpVal('cp_ctype'),pricePoint:cpVal('cp_price'),cuisine:cpVal('cp_cuisine')};
   fetch('/api/company/'+encodeURIComponent(ID)+'/concept',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CONCEPTS=j.concepts||CONCEPTS; LOCATIONS=j.locations||LOCATIONS; var ind=document.getElementById('cp_saved'); if(close){ var f=document.getElementById('conceptForm'); f.setAttribute('hidden','');f.innerHTML=''; render(); } else if(ind){ ind.textContent='Saved ✓'; } } else { var m=document.getElementById('cp_msg'); if(m) m.textContent=(j&&j.error)||'Not saved'; } })
     .catch(function(){ var m=document.getElementById('cp_msg'); if(m) m.textContent='Could not reach the server.'; });
@@ -382,7 +384,7 @@ function saveConcept(id){
   var name=document.getElementById('cp_name').value.trim(); var website=document.getElementById('cp_site').value.trim();
   if(!name){ document.getElementById('cp_name').focus(); return; }
   var markets=[]; document.querySelectorAll('.cp_mkt:checked').forEach(function(x){ markets.push(x.value); });
-  var body={name:name,website:website,logo:document.getElementById('cp_logo').value.trim(),markets:markets,conceptType:cpVal('cp_ctype'),pricePoint:cpVal('cp_price')}; if(id) body.id=id;
+  var body={name:name,website:website,logo:document.getElementById('cp_logo').value.trim(),markets:markets,conceptType:cpVal('cp_ctype'),pricePoint:cpVal('cp_price'),cuisine:cpVal('cp_cuisine')}; if(id) body.id=id;
   var b=document.getElementById('cp_save'); b.disabled=true; b.textContent='Saving…';
   fetch('/api/company/'+encodeURIComponent(ID)+'/concept',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CONCEPTS=j.concepts||CONCEPTS; LOCATIONS=j.locations||LOCATIONS; render(); } else { b.disabled=false;b.textContent='Add concept'; document.getElementById('cp_msg').textContent=(j&&j.error)||'Could not save.'; } })
@@ -429,6 +431,7 @@ function openLocForm(l,presetConcept){
     +'<div><label class="fld">Location name</label><input id="lo_name" value="'+esc(l.name||'')+'" placeholder="e.g. Downtown, Airport, Unit 2"></div>'
     +'<div><label class="fld">Site type</label><select id="lo_sitetype">'+stsel+'</select></div>'
     +'<div><label class="fld">Leased or owned</label><select id="lo_tenure"><option value="">— select —</option><option'+((l.tenure||'')==='Leased'?' selected':'')+'>Leased</option><option'+((l.tenure||'')==='Owned'?' selected':'')+'>Owned</option></select></div>'
+    +'<div><label class="fld">Square feet</label><input id="lo_sf" inputmode="numeric" value="'+esc(l.sf||'')+'" placeholder="e.g. 2,400"></div>'
     +'<div class="wide"><label class="fld">Address</label><input id="lo_address" value="'+esc(l.address||'')+'" placeholder="Street address"></div>'
     +'<div><label class="fld">City / market</label><input id="lo_city" value="'+esc(l.city||'')+'" placeholder="City"></div>'
     +'<div><label class="fld">State</label><input id="lo_state" value="'+esc(l.state||'')+'" placeholder="TX"></div>'
@@ -436,7 +439,7 @@ function openLocForm(l,presetConcept){
     +'<div><label class="fld">Date opened</label><input type="date" id="lo_opened" value="'+esc(l.opened||'')+'"></div>'
     +'<div><label class="fld">Lease commencement</label><input type="date" id="lo_lstart" value="'+esc(l.leaseStart||'')+'"></div>'
     +'<div><label class="fld">Lease expiration</label><input type="date" id="lo_lexp" value="'+esc(l.leaseExpires||'')+'"></div>'
-    +'<div><label class="fld">Closed / went dark</label><input type="date" id="lo_closed" value="'+esc(l.closedDate||'')+'"></div>'
+    +'<div id="lo_closedwrap"'+((['Dark','Closed'].indexOf(l.status||'')>=0)?'':' style="display:none"')+'><label class="fld">Closed / went dark</label><input type="date" id="lo_closed" value="'+esc(l.closedDate||'')+'"></div>'
     +'<div class="wide"><label class="commrow"><input type="checkbox" id="lo_flag"'+(l.flagship?' checked':'')+'> ★ Flagship location for this concept</label></div>'
     +'<div class="wide"><label class="commrow"><input type="checkbox" id="lo_comm"'+(l.commissary?' checked':'')+'> This location is a commissary / central kitchen</label></div>'
     +'<div class="wide" id="servesWrap"'+(l.commissary?'':' style="display:none"')+'>'+servesPicker(l)+'</div>'
@@ -448,6 +451,7 @@ function openLocForm(l,presetConcept){
   document.getElementById('lo_save').addEventListener('click',function(){ saveLoc(l.id); });
   document.getElementById('lo_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
   var comm=document.getElementById('lo_comm'); if(comm) comm.addEventListener('change',function(){ document.getElementById('servesWrap').style.display=comm.checked?'':'none'; });
+  var stel=document.getElementById('lo_status'); if(stel) stel.addEventListener('change',function(){ var w=document.getElementById('lo_closedwrap'); if(w) w.style.display=(['Dark','Closed'].indexOf(stel.value)>=0)?'':'none'; });
   wireServesPicker();
   var pf=document.getElementById('lo_photo'); if(pf) pf.addEventListener('change',function(){ if(pf.files&&pf.files[0]) uploadLocPhoto(l.id,pf.files[0]); });
   var pull=document.getElementById('lo_pull'); if(pull) pull.addEventListener('click',function(){ pullLocPhoto(l.id); });
@@ -518,7 +522,7 @@ function saveLoc(id){
   var comm=document.getElementById('lo_comm').checked;
   var servesAll=false, serves=[];
   if(comm){ var sa=document.getElementById('sv_all'); servesAll=!!(sa&&sa.checked); if(!servesAll){ document.querySelectorAll('.sv_one:checked').forEach(function(x){ serves.push(x.value); }); } }
-  var body={ name:document.getElementById('lo_name').value.trim(), concept:document.getElementById('lo_concept').value, siteType:document.getElementById('lo_sitetype').value, tenure:document.getElementById('lo_tenure').value, address:document.getElementById('lo_address').value.trim(), city:document.getElementById('lo_city').value.trim(), state:document.getElementById('lo_state').value.trim(), phone:document.getElementById('lo_phone').value.trim(), opened:document.getElementById('lo_opened').value, leaseStart:document.getElementById('lo_lstart').value, leaseExpires:document.getElementById('lo_lexp').value, closedDate:document.getElementById('lo_closed').value, status:document.getElementById('lo_status').value, notes:document.getElementById('lo_notes').value.trim(), flagship:document.getElementById('lo_flag').checked, commissary:comm, servesAll:servesAll, serves:serves };
+  var body={ name:document.getElementById('lo_name').value.trim(), concept:document.getElementById('lo_concept').value, siteType:document.getElementById('lo_sitetype').value, tenure:document.getElementById('lo_tenure').value, sf:document.getElementById('lo_sf').value.trim(), address:document.getElementById('lo_address').value.trim(), city:document.getElementById('lo_city').value.trim(), state:document.getElementById('lo_state').value.trim(), phone:document.getElementById('lo_phone').value.trim(), opened:document.getElementById('lo_opened').value, leaseStart:document.getElementById('lo_lstart').value, leaseExpires:document.getElementById('lo_lexp').value, closedDate:document.getElementById('lo_closed').value, status:document.getElementById('lo_status').value, notes:document.getElementById('lo_notes').value.trim(), flagship:document.getElementById('lo_flag').checked, commissary:comm, servesAll:servesAll, serves:serves };
   if(id) body.id=id;
   if(!body.name && !body.address){ document.getElementById('lo_name').focus(); return; }
   var b=document.getElementById('lo_save'); b.disabled=true; b.textContent='Saving…';
@@ -598,7 +602,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No company selected. <a href="./rrg_assignments.html">Back to deals →</a></div>'; return; }
   fetch('/api/company/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; MARKETS=j.markets||MARKETS; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; HASMAPS=!!j.hasMaps; render(); })
+    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; HASMAPS=!!j.hasMaps; render(); })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this company.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();

@@ -90,6 +90,7 @@ const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
 const PERSON_TYPES = ['Buyer', 'Seller', 'Restaurant Owner', 'Client', 'Prospect', 'Investor', 'Broker', 'Operator', 'Referral Source', 'Other'];
 const LEAD_SOURCES = ['Referral', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
 const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'Note', 'To-Do'];
+const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Burgers', 'BBQ', 'Steakhouse', 'Seafood', 'Chinese', 'Japanese / Sushi', 'Thai', 'Vietnamese', 'Korean', 'Indian', 'Mediterranean', 'Greek', 'Southern / Soul', 'Breakfast / Brunch', 'Coffee / Cafe'];
 function loadPeople() { try { return JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')); } catch (e) { return []; } }
 function savePeople(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PEOPLE_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newPersonId() { return 'per_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -197,6 +198,7 @@ function cleanStrList(a, max, len) {
 function effPersonTypes() { const s = loadSettings(); return (Array.isArray(s.personTypes) && s.personTypes.length) ? s.personTypes : PERSON_TYPES; }
 function effLeadSources() { const s = loadSettings(); return (Array.isArray(s.leadSources) && s.leadSources.length) ? s.leadSources : LEAD_SOURCES; }
 function effActivityTypes() { const s = loadSettings(); return (Array.isArray(s.activityTypes) && s.activityTypes.length) ? s.activityTypes : ACTIVITY_TYPES; }
+function effCuisineTypes() { const s = loadSettings(); return (Array.isArray(s.cuisineTypes) && s.cuisineTypes.length) ? s.cuisineTypes : CUISINE_TYPES; }
 function newActivityId() { return 'act_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function logActivity(p, type, note, o) {
   o = o || {};
@@ -641,7 +643,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path)) return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path)) return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -650,7 +652,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/rrg_brand.js']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/roomfile/')) return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/')) return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -2637,7 +2639,7 @@ app.get('/api/companies', (req, res) => {
     const mk = {}; (c.concepts || []).forEach(cp => (cp.markets || []).forEach(m => { if (m) mk[m] = 1; }));
     return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt };
   });
-  res.json({ ok: true, companies: rows, types: effCompanyTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, companies: rows, types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 // A person's full cross-book view: their company, the deals where they're the client,
 // and every offer / tour / NDA they're linked to across all deals.
@@ -2673,6 +2675,7 @@ function applyLocationFields(l, b) {
   if (typeof b.website === 'string') l.website = b.website.slice(0, 300);
   if (typeof b.opened === 'string') l.opened = b.opened.slice(0, 10);
   if (typeof b.tenure === 'string') l.tenure = (['Leased', 'Owned'].indexOf(b.tenure) >= 0) ? b.tenure : (b.tenure === '' ? '' : l.tenure);
+  if (b.sf !== undefined) { const n = parseInt(String(b.sf).replace(/[^0-9]/g, ''), 10); l.sf = isFinite(n) ? n : ''; }
   if (typeof b.leaseStart === 'string') l.leaseStart = b.leaseStart.slice(0, 10);
   if (typeof b.leaseExpires === 'string') l.leaseExpires = b.leaseExpires.slice(0, 10);
   if (typeof b.closedDate === 'string') l.closedDate = b.closedDate.slice(0, 10);
@@ -2808,21 +2811,22 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(),
-    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES },
-    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes) },
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(),
+    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, cuisineTypes: CUISINE_TYPES },
+    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), cuisineTypes: Array.isArray(s.cuisineTypes) },
   });
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes() }); }
   if (b.personTypes !== undefined) s.personTypes = cleanStrList(b.personTypes, 40, 60) || [];
   if (b.companyTypes !== undefined) s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || [];
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
   if (b.leadSources !== undefined) s.leadSources = cleanStrList(b.leadSources, 40, 60) || [];
   if (b.activityTypes !== undefined) s.activityTypes = cleanStrList(b.activityTypes, 40, 60) || [];
+  if (b.cuisineTypes !== undefined) s.cuisineTypes = cleanStrList(b.cuisineTypes, 40, 60) || [];
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
@@ -2929,7 +2933,7 @@ app.get('/api/company/:id', (req, res) => {
   const _pn = {}; loadPeople().forEach(p => { _pn[p.id] = p.name; });
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
-  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, markets: RRG_METROS, hasMaps: !!loadGmapsKey(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), markets: RRG_METROS, hasMaps: !!loadGmapsKey(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 // ---- Concepts — a company runs one or more concepts (brands); locations attach to a concept. ----
 function newConceptId() { return 'cpt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -2953,6 +2957,7 @@ app.post('/api/company/:id/concept', express.json(), (req, res) => {
     if (Array.isArray(b.markets)) cpt.markets = b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30);
     if (typeof b.conceptType === 'string') cpt.conceptType = CONCEPT_TYPES.indexOf(b.conceptType) >= 0 ? b.conceptType : '';
     if (typeof b.pricePoint === 'string') cpt.pricePoint = PRICE_POINTS.indexOf(b.pricePoint) >= 0 ? b.pricePoint : '';
+    if (typeof b.cuisine === 'string') cpt.cuisine = effCuisineTypes().indexOf(b.cuisine) >= 0 ? b.cuisine : '';
     // Logo: use the explicit value only. No auto-derivation from the website.
     if (typeof b.logo === 'string') cpt.logo = b.logo.slice(0, 400);
     cpt.updatedAt = now;
@@ -2961,7 +2966,7 @@ app.post('/api/company/:id/concept', express.json(), (req, res) => {
   } else {
     if (c.concepts.some(x => normKey(x.name) === normKey(name))) return res.status(400).json({ ok: false, error: 'That concept already exists.' });
     const website = String(b.website || '').slice(0, 300);
-    cpt = { id: newConceptId(), name: name.slice(0, 120), website: website, logo: (typeof b.logo === 'string' && b.logo) ? b.logo.slice(0, 400) : '', markets: Array.isArray(b.markets) ? b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30) : [], conceptType: (typeof b.conceptType === 'string' && CONCEPT_TYPES.indexOf(b.conceptType) >= 0) ? b.conceptType : '', pricePoint: (typeof b.pricePoint === 'string' && PRICE_POINTS.indexOf(b.pricePoint) >= 0) ? b.pricePoint : '', createdAt: now };
+    cpt = { id: newConceptId(), name: name.slice(0, 120), website: website, logo: (typeof b.logo === 'string' && b.logo) ? b.logo.slice(0, 400) : '', markets: Array.isArray(b.markets) ? b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30) : [], conceptType: (typeof b.conceptType === 'string' && CONCEPT_TYPES.indexOf(b.conceptType) >= 0) ? b.conceptType : '', pricePoint: (typeof b.pricePoint === 'string' && PRICE_POINTS.indexOf(b.pricePoint) >= 0) ? b.pricePoint : '', cuisine: (typeof b.cuisine === 'string' && effCuisineTypes().indexOf(b.cuisine) >= 0) ? b.cuisine : '', createdAt: now };
     c.concepts.push(cpt);
   }
   c.updatedAt = now; saveCompanies(arr);
@@ -3015,16 +3020,17 @@ app.post('/api/company/:id/concept/:cid/remove', express.json(), (req, res) => {
   res.json({ ok: true, concepts: c.concepts, locations: c.locations || [] });
 });
 // Add / update a location on a company.
-app.post('/api/company/:id/location', express.json(), (req, res) => {
+app.post('/api/company/:id/location', express.json(), async (req, res) => {
   const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
   const b = req.body || {}; c.locations = c.locations || [];
   const now = new Date().toISOString();
-  let target;
+  let target, isNew = false;
   if (b.id) { const ex = c.locations.find(l => l.id === b.id); if (!ex) return res.status(404).json({ ok: false, error: 'Location not found.' }); applyLocationFields(ex, b); ex.updatedAt = now; target = ex; }
-  else { const rec = { id: newLocationId(), name: '', concept: '', address: '', city: '', state: '', phone: '', opened: '', status: 'Operating', notes: '', photos: [], createdAt: now }; applyLocationFields(rec, b); if (!rec.name && !rec.address) return res.status(400).json({ ok: false, error: 'A location name or address is required.' }); c.locations.push(rec); target = rec; }
+  else { const rec = { id: newLocationId(), name: '', concept: '', address: '', city: '', state: '', phone: '', opened: '', status: 'Operating', notes: '', photos: [], createdAt: now }; applyLocationFields(rec, b); if (!rec.name && !rec.address) return res.status(400).json({ ok: false, error: 'A location name or address is required.' }); c.locations.push(rec); target = rec; isNew = true; }
   // One flagship per concept — if this one is now flagship, clear its concept siblings.
   if (target && target.flagship) c.locations.forEach(l => { if (l.id !== target.id && (l.concept || '') === (target.concept || '')) l.flagship = false; });
+  try { const gkey = loadGmapsKey(); if (isNew && gkey && (target.address || target.city) && !(target.google && target.google.placeId)) { await pullPhotosForLocation(gkey, target); } } catch (e) { console.error('loc auto-enrich:', e && e.message); }
   c.updatedAt = now; saveCompanies(arr);
   res.json({ ok: true, locations: c.locations });
 });
@@ -4441,7 +4447,7 @@ const AGREEMENT_TYPES = [
 ];
 const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
 function agreementBrief(a) {
-  return { id: a.id, type: a.type, personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '' };
+  return { id: a.id, type: a.type, personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, signedResponses: a.signedResponses || null };
 }
 app.get('/api/agreements', (req, res) => {
   let all = loadAgreements();
@@ -4486,6 +4492,143 @@ app.delete('/api/agreements/:id', (req, res) => {
   if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
   if (!(req.user && req.user.role === 'admin') && a.createdBy !== (req.user && req.user.username)) return res.status(403).json({ ok: false, error: 'Only the creator or an admin can delete this.' });
   saveAgreements(all.filter(x => x.id !== a.id)); res.json({ ok: true });
+});
+
+// ---- Agreement documents + send-for-signature ----
+const AGREEMENT_DOC_DIR = path.join(BOV_DATA_DIR, 'agreedocs');
+function agreementTypeLabel(k) { const t = AGREEMENT_TYPES.find(x => x.key === k); return t ? t.label : (k || 'Agreement'); }
+function agreementDocExt(n) { const m = String(n || '').toLowerCase().match(/\.(pdf|docx|doc|png|jpe?g)$/); return m ? (m[1] === 'jpeg' ? 'jpg' : m[1]) : 'pdf'; }
+function agreementDocMime(ext) { return ({ pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', png: 'image/png', jpg: 'image/jpeg' })[ext] || 'application/octet-stream'; }
+app.post('/api/agreements/:id/doc', express.json({ limit: '28mb' }), (req, res) => {
+  const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  const b = req.body || {}; const dataB64 = String(b.dataB64 || '').replace(/^data:[^,]*,/, '');
+  if (!dataB64) return res.status(400).json({ ok: false, error: 'No file data.' });
+  const ext = agreementDocExt(b.filename); const buf = Buffer.from(dataB64, 'base64');
+  if (buf.length > 20 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 20 MB).' });
+  try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); if (a.docExt && a.docExt !== ext) { try { fs.unlinkSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); } catch (e) {} } fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + ext), buf); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
+  a.docExt = ext; a.docName = String(b.filename || ('agreement.' + ext)).slice(0, 200); a.updatedAt = new Date().toISOString();
+  saveAgreements(all); res.json({ ok: true, agreement: agreementBrief(a) });
+});
+app.get('/api/agreements/:id/doc', (req, res) => {
+  const a = loadAgreements().find(x => x.id === req.params.id);
+  if (!a || !a.docExt) return res.status(404).end();
+  try { const buf = fs.readFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); res.set('Content-Type', agreementDocMime(a.docExt)); res.set('Content-Disposition', 'inline; filename="' + String(a.docName || ('agreement.' + a.docExt)).replace(/[^\w.\- ]+/g, '') + '"'); res.send(buf); }
+  catch (e) { res.status(404).end(); }
+});
+app.post('/api/agreements/:id/doc/clear', (req, res) => {
+  const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  if (a.docExt) { try { fs.unlinkSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); } catch (e) {} }
+  a.docExt = ''; a.docName = ''; a.updatedAt = new Date().toISOString(); saveAgreements(all);
+  res.json({ ok: true, agreement: agreementBrief(a) });
+});
+app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
+  const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: "Email isn't set up. Configure it in Admin -> Email." });
+  const p = a.personId ? personById(a.personId) : null; const b = req.body || {};
+  const to = String(b.to || '').trim() || (p ? preferredEmailOf(p) : '');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'No valid recipient email — add one to the contact or type one.' });
+  const label = agreementTypeLabel(a.type);
+  if (!a.signToken) a.signToken = newSignToken();
+  const signUrl = reqOrigin(req) + '/sign/' + a.signToken;
+  const subject = String(b.subject || (label + ' for your signature')).slice(0, 300);
+  const message = String(b.message || ('Please review and sign your ' + label + ' online here:\n' + signUrl + '\n\nThank you,\nRestaurant Realty Group')).slice(0, 20000);
+  const attachments = [];
+  if (a.docExt) { try { const buf = fs.readFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); attachments.push({ filename: a.docName || ('agreement.' + a.docExt), content: buf }); } catch (e) {} }
+  try { await buildTransport().sendMail({ from: mailFrom(), to, subject, text: message, attachments }); }
+  catch (e) { console.error('agreement send:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+  const now = new Date().toISOString(); a.signStatus = 'sent'; a.sentAt = now; a.sentTo = to; a.updatedAt = now; saveAgreements(all);
+  if (p) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === p.id); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + to, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
+  res.json({ ok: true, agreement: agreementBrief(a), to });
+});
+app.post('/api/agreements/:id/sign', express.json(), (req, res) => {
+  const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  const now = new Date().toISOString(); const b = req.body || {};
+  a.signStatus = 'signed'; a.signedDate = (typeof b.date === 'string' && b.date) ? b.date.slice(0, 10) : now.slice(0, 10); a.status = 'active'; a.updatedAt = now; saveAgreements(all);
+  if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Signed', agreementTypeLabel(a.type) + ' signed', { auto: true, date: a.signedDate, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
+  res.json({ ok: true, agreement: agreementBrief(a) });
+});
+
+// ---- Lightweight in-app e-signature (tokenized public signing page) ----
+function newSignToken() { return crypto.randomBytes(18).toString('base64url'); }
+function defaultSignFields() { return [{ label: 'Full name', required: true }, { label: 'Title / Company', required: false }]; }
+function reqOrigin(req) { const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0]; return String(process.env.APP_URL || (proto + '://' + req.get('host'))).replace(/\/$/, ''); }
+app.get('/sign/:token', (req, res) => {
+  const a = loadAgreements().find(x => x.signToken && x.signToken === req.params.token);
+  if (!a) return res.status(404).send(roomShell('Signature', { head: '<div class="kick">Signature</div><h1>Link not found</h1><div class="sub">This signing link is invalid or has been retired.</div>', body: '<div class="card"><div style="padding:20px;color:#6b7488">Please contact your RRG representative for a current link.</div></div>' }));
+  const label = agreementTypeLabel(a.type);
+  const p = a.personId ? personById(a.personId) : null;
+  const head = `<div class="kick">Signature Request</div><h1>${esc(label)}</h1><div class="sub">Provided by Restaurant Realty Group${p ? (' for ' + esc(p.name)) : ''}</div>`;
+  if (a.signStatus === 'signed') {
+    return res.send(roomShell(label + ' — Signed', { head, body: `<div class="card"><div style="padding:22px"><b>This ${esc(label)} has already been signed${a.signedDate ? (' on ' + esc(a.signedDate)) : ''}.</b><div style="color:#6b7488;margin-top:8px">Thank you — no further action is needed.</div></div></div>` }));
+  }
+  const fields = (Array.isArray(a.signFields) && a.signFields.length) ? a.signFields : defaultSignFields();
+  const fieldHtml = fields.map((fld, i) => `<div style="margin-bottom:14px"><label style="display:block;font-size:12px;font-weight:700;color:#3a4560;margin-bottom:5px">${esc(fld.label)}${fld.required ? ' *' : ''}</label><input data-sf="${i}" data-req="${fld.required ? '1' : ''}" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:15px"></div>`).join('');
+  const docLink = a.docExt ? `<div style="margin-bottom:16px"><a href="/sign/${esc(a.signToken)}/doc" target="_blank" rel="noopener" style="color:#2647b0;font-weight:700;text-decoration:none">📎 Review the ${esc(label)} document →</a></div>` : '';
+  const note = a.notes ? `<div style="color:#55607a;font-size:13.5px;margin-bottom:16px;white-space:pre-wrap">${esc(a.notes)}</div>` : '';
+  const body = `<div class="card"><div style="padding:22px">${note}${docLink}${fieldHtml}<label style="display:block;font-size:12px;font-weight:700;color:#3a4560;margin:6px 0 6px">Signature *</label><div style="border:1px solid #cfd6e2;border-radius:9px;background:#fff;overflow:hidden"><canvas id="sigpad" style="width:100%;height:180px;touch-action:none;display:block"></canvas></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span style="font-size:11.5px;color:#98a1b5">Draw your signature above</span><button type="button" id="sigclear" style="background:none;border:none;color:#DA2B1F;font-weight:700;cursor:pointer;font-size:12.5px">Clear</button></div><label style="display:flex;align-items:flex-start;gap:8px;margin:16px 0;font-size:12.5px;color:#3a4560"><input type="checkbox" id="sigagree" style="margin-top:2px"> I agree this electronic signature is legally binding and equivalent to my handwritten signature.</label><button type="button" id="sigsubmit" style="width:100%;background:#000E31;color:#fff;border:none;border-radius:10px;padding:14px;font:inherit;font-size:15px;font-weight:700;cursor:pointer">Sign &amp; submit</button><div id="sigmsg" style="text-align:center;font-size:13px;color:#DA2B1F;margin-top:10px"></div></div></div>
+<script>
+(function(){
+  var c=document.getElementById('sigpad'),ctx=c.getContext('2d');
+  function fit(){var r=c.getBoundingClientRect();c.width=r.width*2;c.height=r.height*2;ctx.scale(2,2);ctx.lineWidth=2.2;ctx.lineCap='round';ctx.strokeStyle='#0b1a3a';}
+  fit();
+  var draw=false,last=null,dirty=false;
+  function pos(e){var r=c.getBoundingClientRect();var t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top};}
+  function dn(e){draw=true;last=pos(e);e.preventDefault();}
+  function mv(e){if(!draw)return;var q=pos(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(q.x,q.y);ctx.stroke();last=q;dirty=true;e.preventDefault();}
+  function up(){draw=false;}
+  c.addEventListener('mousedown',dn);c.addEventListener('mousemove',mv);window.addEventListener('mouseup',up);
+  c.addEventListener('touchstart',dn,{passive:false});c.addEventListener('touchmove',mv,{passive:false});c.addEventListener('touchend',up);
+  document.getElementById('sigclear').onclick=function(){ctx.clearRect(0,0,c.width,c.height);dirty=false;};
+  document.getElementById('sigsubmit').onclick=function(){
+    var m=document.getElementById('sigmsg'),flds=[],ok=true;
+    document.querySelectorAll('[data-sf]').forEach(function(el){var v=el.value.trim();if(el.getAttribute('data-req')&&!v){ok=false;el.style.borderColor='#DA2B1F';}flds.push(v);});
+    if(!ok){m.textContent='Please fill the required fields.';return;}
+    if(!dirty){m.textContent='Please draw your signature.';return;}
+    if(!document.getElementById('sigagree').checked){m.textContent='Please check the agreement box.';return;}
+    var nameEl=document.querySelectorAll('[data-sf]')[0];var name=nameEl?nameEl.value:'';
+    var btn=document.getElementById('sigsubmit');btn.disabled=true;btn.textContent='Submitting…';
+    fetch('/api/sign/'+encodeURIComponent(${JSON.stringify(a.signToken)}),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,responses:flds,signature:c.toDataURL('image/png')})})
+      .then(function(r){return r.json();}).then(function(j){
+        if(j&&j.ok){document.querySelector('.wrap').innerHTML='<div class="card"><div style="padding:26px;text-align:center"><div style="font-size:40px">✓</div><b style="font-size:17px;color:#000E31">Signed — thank you.</b><div style="color:#6b7488;margin-top:8px">A copy has been recorded with Restaurant Realty Group.</div></div></div>';window.scrollTo(0,0);}
+        else{btn.disabled=false;btn.textContent='Sign & submit';m.textContent=(j&&j.error)||'Could not submit.';}
+      }).catch(function(){btn.disabled=false;btn.textContent='Sign & submit';m.textContent='Could not reach the server.';});
+  };
+})();
+</script>`;
+  res.send(roomShell(label + ' — Signature', { head, body }));
+});
+app.get('/sign/:token/doc', (req, res) => {
+  const a = loadAgreements().find(x => x.signToken && x.signToken === req.params.token);
+  if (!a || !a.docExt) return res.status(404).end();
+  try { const buf = fs.readFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); res.set('Content-Type', agreementDocMime(a.docExt)); res.set('Content-Disposition', 'inline'); res.send(buf); } catch (e) { res.status(404).end(); }
+});
+app.post('/api/sign/:token', express.json({ limit: '4mb' }), (req, res) => {
+  const all = loadAgreements(); const a = all.find(x => x.signToken && x.signToken === req.params.token);
+  if (!a) return res.status(404).json({ ok: false, error: 'Invalid signing link.' });
+  if (a.signStatus === 'signed') return res.status(400).json({ ok: false, error: 'This agreement has already been signed.' });
+  const b = req.body || {};
+  const sig = String(b.signature || '');
+  if (!/^data:image\/png;base64,/.test(sig)) return res.status(400).json({ ok: false, error: 'A signature is required.' });
+  const fields = (Array.isArray(a.signFields) && a.signFields.length) ? a.signFields : defaultSignFields();
+  const responses = {};
+  (Array.isArray(b.responses) ? b.responses : []).forEach((v, i) => { if (fields[i]) responses[fields[i].label] = String(v || '').slice(0, 500); });
+  for (let i = 0; i < fields.length; i++) { if (fields[i].required && !String(responses[fields[i].label] || '').trim()) return res.status(400).json({ ok: false, error: 'Please complete: ' + fields[i].label }); }
+  const now = new Date().toISOString();
+  try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); const buf = Buffer.from(sig.replace(/^data:image\/png;base64,/, ''), 'base64'); if (buf.length > 3 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Signature too large.' }); fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, 'sig_' + a.id + '.png'), buf); a.hasSignature = true; } catch (e) {}
+  a.signStatus = 'signed'; a.signedDate = now.slice(0, 10); a.signedAt = now; a.signedName = String(b.name || responses['Full name'] || '').slice(0, 160); a.signedResponses = responses; a.signedIp = req.ip; a.status = 'active'; a.updatedAt = now;
+  saveAgreements(all);
+  if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Signed', agreementTypeLabel(a.type) + ' signed by ' + (a.signedName || 'contact'), { auto: true, date: a.signedDate }); savePeople(ppl); } } catch (e) {} }
+  res.json({ ok: true });
+});
+app.get('/api/agreements/:id/signature', (req, res) => {
+  const a = loadAgreements().find(x => x.id === req.params.id);
+  if (!a || !a.hasSignature) return res.status(404).end();
+  try { const buf = fs.readFileSync(path.join(AGREEMENT_DOC_DIR, 'sig_' + a.id + '.png')); res.set('Content-Type', 'image/png'); res.send(buf); } catch (e) { res.status(404).end(); }
 });
 
 const PORT = process.env.PORT || 8787;
