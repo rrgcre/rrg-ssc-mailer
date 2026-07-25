@@ -68,6 +68,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .brand .disc{background:var(--red);color:#fff;border-radius:50%;width:36px;height:36px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;box-shadow:0 0 0 5px rgba(218,43,31,.12), 0 6px 18px rgba(218,43,31,.28);}
 .brand .bar{background:#fff;width:3px;height:26px;margin:0 11px;}
 .brand .wm{font-weight:800;color:#fff;font-size:12px;text-transform:uppercase;line-height:.95;letter-spacing:.01em;}
+.brand.haslogo{padding:0;}
+.brand img.brandlogo{height:46px;width:auto;max-width:260px;object-fit:contain;display:block;}
 .hdrrow{display:flex;align-items:center;gap:16px;position:relative;z-index:2;margin-top:2px;min-height:44px;}
 .hdrrow .brand{flex:none;}
 .hdrmsg{flex:1;min-width:0;color:#eaf0ff;font-size:13.5px;line-height:1.4;font-weight:600;padding-right:170px;}
@@ -156,11 +158,26 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
 
 /* ---- Agreements ---- */
 /* ---- Quick Links (compact pills) ---- */
+.qlhd{display:flex;align-items:center;gap:14px;}
+.qlreorder{background:#fff;border:1px solid var(--line);border-radius:8px;color:var(--muted);font:inherit;font-size:11px;font-weight:700;padding:5px 12px;cursor:pointer;letter-spacing:.02em;}
+.qlreorder:hover{border-color:#c9d2e2;color:var(--navy);}
+.qlreorder.on{background:var(--navy);color:#fff;border-color:var(--navy);}
 .ql{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;}
 .qllink{display:inline-flex;align-items:center;gap:3px;text-decoration:none;color:var(--navy);font-weight:700;font-size:12.5px;line-height:1;white-space:nowrap;border-bottom:1px solid transparent;padding-bottom:1px;transition:border-color .15s,color .15s;}
 .qllink:hover{color:var(--red);border-bottom-color:var(--red);}
 .qllink .qarw{font-size:10px;color:var(--muted);font-weight:600;}
 .qllink:hover .qarw{color:var(--red);}
+/* reorder (edit) mode */
+.ql.editing{gap:9px;}
+.ql.editing .qllink{border:1px solid var(--line);border-radius:8px;padding:6px 8px 6px 11px;background:#fff;border-bottom-color:var(--line);color:var(--navy);cursor:grab;}
+.ql.editing .qllink[draggable=true]:active{cursor:grabbing;}
+.ql.editing .qllink.dragging{opacity:.35;}
+.ql.editing .qllink.fixed{opacity:.5;cursor:default;}
+.qlmove{display:none;}
+.ql.editing .qlmove{display:inline-flex;gap:3px;margin-left:8px;}
+.qlmove button{border:1px solid var(--line);background:#f5f7fb;border-radius:5px;width:19px;height:19px;line-height:1;font-size:9px;color:var(--navy);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;}
+.qlmove button:hover:not(:disabled){border-color:#9fb0cc;background:#eaf0ff;}
+.qlmove button:disabled{opacity:.3;cursor:default;}
 
 .agr{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;}
 .agrcard{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s;}
@@ -220,7 +237,7 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
   <div class="top-inner">
     <div class="topnav" id="topnav"></div>
     <div class="hdrrow">
-      <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+      <span class="brand" id="brandMark"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
       <div class="hdrmsg" id="hdrMsg"></div>
     </div>
   </div>
@@ -228,8 +245,11 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
 
 <div class="wrap">
   <div id="qlWrap" style="display:none">
-    <div class="sectionlabel">Quick Links <span style="font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted);font-size:11px;margin-left:6px">— sites the team uses</span></div>
-    <div class="ql" id="qlGrid" style="margin-bottom:30px"></div>
+    <div class="qlhd">
+      <div class="sectionlabel" style="margin:0">Quick Links <span style="font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted);font-size:11px;margin-left:6px">— sites the team uses</span></div>
+      <button type="button" id="qlEditBtn" class="qlreorder" style="display:none">Reorder</button>
+    </div>
+    <div class="ql" id="qlGrid" style="margin:14px 0 30px"></div>
   </div>
   <div id="grid"></div>
 </div>
@@ -259,14 +279,14 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
    ========================================================================= */
 var TOOLS = [
   /* ---- Book of Business — the top row: companies, contacts, deals ---- */
-  { name:'Command Center', tag:'Deal', file:'rrg_command.html', icon:'gauge2', track:'book',
-    desc:"Your management & prospecting cockpit. Three views over the whole book and pipeline: the lease-expiration ladder (every lease rolling in the next 6–24 months — your prospecting list), the seller pipeline (funnel, listings expiring, stale deals, value & production by agent), and portfolio intelligence (expanding concepts, dark units, market coverage)." },
   { name:'Companies', tag:'Deal', file:'rrg_companies.html', icon:'buildings', track:'book',
     desc:"Every company in your book — the businesses you're selling and the buyer groups chasing them. Each company file holds its contacts, its locations, and every deal tied to it. Companies are created automatically when you start a deal." },
   { name:'Contacts', tag:'Deal', file:'rrg_people.html', icon:'people', track:'book',
     desc:"Every buyer, seller, and client in one searchable directory. Open a contact to see everything they're connected to across your whole book — their company, the deals they're on, and every offer, tour, and NDA in their name." },
   { name:'Deals', tag:'Deal', file:'rrg_assignments.html', icon:'briefcase', track:'book',
     desc:"Every deal in one file. Each deal ties together its qualification call, questionnaire, valuation, marketing pack, attack plan, data room, and lease abstract — so you see at a glance where every listing stands, and manage status, owner, offers, tours, and notes from one place." },
+  { name:'Command Center', tag:'Deal', file:'rrg_command.html', icon:'gauge2', track:'tools',
+    desc:"Your management & prospecting cockpit. Three views over the whole book and pipeline: the lease-expiration ladder (every lease rolling in the next 6–24 months — your prospecting list), the seller pipeline (funnel, listings expiring, stale deals, value & production by agent), and portfolio intelligence (expanding concepts, dark units, market coverage)." },
   { name:'Requests', tag:'Deal', file:'rrg_tickets.html', icon:'ticket', track:'tools',
     desc:"Need something from the brokerage office — collateral, signage & riders, photography, an MLS action, a compliance question, IT help, or supplies? Open a request and the office answers it right away, so you stay in front of buyers and sellers." },
 
@@ -305,7 +325,7 @@ var TRACKS = [
   { key:'book',     label:'Book of Business', note:'companies, contacts, and deals — the command center for your whole book' },
   { key:'pipeline', label:'Seller Engagement', note:'the deal pipeline — screen → value → opine → offer → close', flow:true },
   { key:'tenant',   label:'Tenant Representation', note:'find the space, prove the fit, track the tour, close the lease' },
-  { key:'tools',    label:'Tools', note:'standalone calculators and the lease abstract — grab one any time' },
+  { key:'tools',    label:'Tools', note:'the command center, office requests, and standalone tools — open one any time' },
 ];
 
 /* Per-tool background + how-to (the "How to use" button). Keyed by file. Edit freely. */
@@ -631,9 +651,8 @@ function tickClock(){
 tickClock(); setInterval(tickClock,1000);
 function renderTopNav(s){
   var nav=document.getElementById('topnav'); if(!nav) return;
-  var isAdmin=s&&s.role==='admin', first=((s&&s.name)||'').trim().split(/\s+/)[0]||'';
+  var isAdmin=s&&s.role==='admin';
   var links='';
-  if(first) links+='<span class="who">Hi, '+esc(first)+'</span>';
   links+='<a href="./rrg_documents.html">Documents</a>';
   links+='<a href="./rrg_help.html">Help</a>';
   links+='<a href="./rrg_account.html">Account</a>';
@@ -647,24 +666,72 @@ function renderTopNav(s){
   document.addEventListener('click',function(e){ if(!nav.contains(e.target)) nav.classList.remove('open'); });
 }
 
-/* ---- Quick Links — admin-managed, fetched from the server ---- */
-function renderQuickLinks(list){
-  list = (list||[]).filter(function(l){ return l && l.name && l.url; });
-  var wrap=document.getElementById('qlWrap'), grid=document.getElementById('qlGrid');
-  if(!list.length){ wrap.style.display='none'; return; }
-  grid.innerHTML=''; wrap.style.display='';
-  list.forEach(function(l){
+/* ---- Quick Links — admin-managed + personal, fetched from the server, reorderable ---- */
+var QL_LINKS=[], QL_EDIT=false, QL_CANADMIN=false, QL_DRAG=-1, _qlTimer=null;
+function loadQuickLinks(){
+  var api=window.RRG_API||''; if(!api){ renderQuickLinks(); return; }
+  fetch(api.replace(/\/$/,'')+'/api/links',{credentials:'same-origin'}).then(function(r){return r.json();})
+    .then(function(j){ QL_CANADMIN=!!(j&&j.canOrderDefault); QL_LINKS=((j&&j.links)||[]).filter(function(l){return l&&l.name&&l.url;}); renderQuickLinks(); })
+    .catch(function(){ renderQuickLinks(); });
+}
+function qlCanMove(l){ return l && (l.scope==='personal' || (l.scope==='default' && QL_CANADMIN)); }
+function renderQuickLinks(){
+  var wrap=document.getElementById('qlWrap'), grid=document.getElementById('qlGrid'), btn=document.getElementById('qlEditBtn');
+  if(!QL_LINKS.length){ if(wrap) wrap.style.display='none'; return; }
+  if(wrap) wrap.style.display='';
+  var movable=QL_LINKS.filter(qlCanMove).length;
+  if(btn){ btn.style.display=(QL_LINKS.length>=2 && movable>=2)?'':'none'; btn.classList.toggle('on',QL_EDIT); btn.textContent=QL_EDIT?'Done':'Reorder'; }
+  grid.className='ql'+(QL_EDIT?' editing':'');
+  grid.innerHTML='';
+  QL_LINKS.forEach(function(l,i){
     var url=String(l.url); if(!/^https?:\/\//i.test(url)) url='https://'+url;
     var host=''; try{ host=new URL(url).hostname.replace(/^www\./,''); }catch(e){ host=url; }
-    var a=document.createElement('a'); a.className='qllink'; a.href=url; a.target='_blank'; a.rel='noopener'; a.title=host;
-    a.innerHTML='<span class="qn">'+esc(l.name)+'</span><span class="qarw">↗</span>';
-    grid.appendChild(a);
+    var el=document.createElement(QL_EDIT?'span':'a');
+    el.className='qllink'+(QL_EDIT&&!qlCanMove(l)?' fixed':''); el.title=host;
+    if(!QL_EDIT){ el.href=url; el.target='_blank'; el.rel='noopener'; }
+    el.innerHTML='<span class="qn">'+esc(l.name)+'</span>'+(QL_EDIT?'':'<span class="qarw">↗</span>');
+    if(QL_EDIT && qlCanMove(l)){
+      var mv=document.createElement('span'); mv.className='qlmove';
+      var up=document.createElement('button'); up.type='button'; up.textContent='▲'; up.title='Move up'; up.disabled=(i===0); up.addEventListener('click',function(e){ e.preventDefault(); qlMove(i,i-1); });
+      var dn=document.createElement('button'); dn.type='button'; dn.textContent='▼'; dn.title='Move down'; dn.disabled=(i===QL_LINKS.length-1); dn.addEventListener('click',function(e){ e.preventDefault(); qlMove(i,i+1); });
+      mv.appendChild(up); mv.appendChild(dn); el.appendChild(mv);
+      el.setAttribute('draggable','true');
+      el.addEventListener('dragstart',function(e){ QL_DRAG=i; el.classList.add('dragging'); try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',String(i)); }catch(_){} });
+      el.addEventListener('dragend',function(){ el.classList.remove('dragging'); QL_DRAG=-1; });
+      el.addEventListener('dragover',function(e){ e.preventDefault(); try{ e.dataTransfer.dropEffect='move'; }catch(_){} });
+      el.addEventListener('drop',function(e){ e.preventDefault(); if(QL_DRAG>-1 && QL_DRAG!==i) qlMove(QL_DRAG,i); });
+    }
+    grid.appendChild(el);
   });
 }
+function qlMove(from,to){ if(from<0||from>=QL_LINKS.length||to<0||to>=QL_LINKS.length) return; var it=QL_LINKS.splice(from,1)[0]; QL_LINKS.splice(to,0,it); renderQuickLinks(); qlPersist(); }
+function qlPersist(){ if(_qlTimer) clearTimeout(_qlTimer); _qlTimer=setTimeout(qlSave,500); }
+function qlSave(){
+  var api=window.RRG_API||''; if(!api) return;
+  var defaults=QL_LINKS.filter(function(l){return l.scope==='default';}).map(function(l){return {name:l.name,url:l.url};});
+  var personal=QL_LINKS.filter(function(l){return l.scope==='personal';}).map(function(l){return {name:l.name,url:l.url};});
+  fetch(api.replace(/\/$/,'')+'/api/links/order',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({defaults:defaults,personal:personal})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.links){ QL_CANADMIN=!!j.canOrderDefault; QL_LINKS=j.links.filter(function(l){return l&&l.name&&l.url;}); if(!QL_EDIT) renderQuickLinks(); } }).catch(function(){});
+}
+(function(){ var b=document.getElementById('qlEditBtn'); if(b) b.addEventListener('click',function(){ QL_EDIT=!QL_EDIT; renderQuickLinks(); }); })();
 (function(){
-  var api=window.RRG_API||''; if(!api){ renderQuickLinks([]); return; }
-  fetch(api.replace(/\/$/,'')+'/api/links').then(function(r){return r.json();})
-    .then(function(j){ renderQuickLinks(j&&j.links||[]); }).catch(function(){ renderQuickLinks([]); });
+  var api=window.RRG_API||''; if(!api){ renderQuickLinks(); return; }
+  loadQuickLinks();
+})();
+
+/* ---- Company logo in the header bar — swaps in the admin-uploaded logo when set ---- */
+(function(){
+  var api=window.RRG_API||'';
+  fetch((api?api.replace(/\/$/,''):'')+'/api/brand',{credentials:'same-origin'})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      if(j&&j.ok&&j.hasLogo&&j.logoUrl){
+        var el=document.getElementById('brandMark'); if(!el) return;
+        var img=new Image();
+        img.onload=function(){ el.classList.add('haslogo'); el.innerHTML=''; img.className='brandlogo'; img.alt='Company logo'; el.appendChild(img); };
+        img.src=j.logoUrl;
+      }
+    }).catch(function(){});
 })();
 
 </script>

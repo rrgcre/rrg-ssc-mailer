@@ -434,9 +434,8 @@ window.RRG_API = window.RRG_API || (String(location.protocol).indexOf('http')===
 })();
 function renderTopNav(s){
   var nav=document.getElementById('topnav'); if(!nav) return;
-  var isAdmin=s&&s.role==='admin', first=((s&&s.name)||'').trim().split(/\s+/)[0]||'';
+  var isAdmin=s&&s.role==='admin';
   var links='';
-  if(first) links+='<span class="who">Hi, '+esc(first)+'</span>';
   links+='<a href="./rrg_account.html">Account</a>';
   if(isAdmin) links+='<a href="/admin">Admin</a>';
   links+='<a class="out" href="/logout">Sign out</a>';

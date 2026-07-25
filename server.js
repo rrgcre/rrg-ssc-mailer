@@ -1486,10 +1486,22 @@ app.delete('/api/bov/:id', (req, res) => {
 
 // Quick links — company default links + this user's own personal links.
 app.get('/api/links', (req, res) => {
-  const defaults = auth.loadLinks().filter(l => l.default).map(l => ({ name: l.name, url: l.url }));
+  const defaults = auth.loadLinks().filter(l => l.default).map(l => ({ name: l.name, url: l.url, scope: 'default' }));
   const u = req.user && auth.findUser(req.user.username);
-  const personal = auth.userLinksOf(u).map(l => ({ name: l.name, url: l.url }));
-  res.json({ ok: true, links: defaults.concat(personal) });
+  const personal = auth.userLinksOf(u).map(l => ({ name: l.name, url: l.url, scope: 'personal' }));
+  res.json({ ok: true, links: defaults.concat(personal), canOrderDefault: !!(req.user && req.user.role === 'admin') });
+});
+// Persist a new quick-links order from the dashboard. Shared "default" links are
+// reorderable by admins; each user can always reorder their own personal links.
+app.post('/api/links/order', express.json({ limit: '256kb' }), (req, res) => {
+  try {
+    const b = req.body || {};
+    if (Array.isArray(b.personal)) auth.setUserLinks(req.user.username, b.personal);
+    if (Array.isArray(b.defaults) && req.user && req.user.role === 'admin') auth.reorderDefaultLinks(b.defaults);
+    const defaults = auth.loadLinks().filter(l => l.default).map(l => ({ name: l.name, url: l.url, scope: 'default' }));
+    const personal = auth.userLinksOf(auth.findUser(req.user.username)).map(l => ({ name: l.name, url: l.url, scope: 'personal' }));
+    res.json({ ok: true, links: defaults.concat(personal), canOrderDefault: !!(req.user && req.user.role === 'admin') });
+  } catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 // A user's own quick links (managed on the Account page).
 app.get('/api/me/links', (req, res) => {
@@ -2636,16 +2648,15 @@ app.post('/api/company/:id/concept', express.json(), (req, res) => {
     cpt.name = name.slice(0, 120);
     if (typeof b.website === 'string') cpt.website = b.website.slice(0, 300);
     if (Array.isArray(b.markets)) cpt.markets = b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30);
-    // Logo: explicit value wins; else auto-derive from the website if none is set yet.
+    // Logo: use the explicit value only. No auto-derivation from the website.
     if (typeof b.logo === 'string') cpt.logo = b.logo.slice(0, 400);
-    if (!cpt.logo && cpt.website) cpt.logo = logoFromWebsite(cpt.website);
     cpt.updatedAt = now;
     // keep the locations' concept label in sync with a rename
     if (oldName && oldName !== cpt.name) (c.locations || []).forEach(l => { if ((l.concept || '') === oldName) l.concept = cpt.name; });
   } else {
     if (c.concepts.some(x => normKey(x.name) === normKey(name))) return res.status(400).json({ ok: false, error: 'That concept already exists.' });
     const website = String(b.website || '').slice(0, 300);
-    cpt = { id: newConceptId(), name: name.slice(0, 120), website: website, logo: (typeof b.logo === 'string' && b.logo) ? b.logo.slice(0, 400) : logoFromWebsite(website), markets: Array.isArray(b.markets) ? b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30) : [], createdAt: now };
+    cpt = { id: newConceptId(), name: name.slice(0, 120), website: website, logo: (typeof b.logo === 'string' && b.logo) ? b.logo.slice(0, 400) : '', markets: Array.isArray(b.markets) ? b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30) : [], createdAt: now };
     c.concepts.push(cpt);
   }
   c.updatedAt = now; saveCompanies(arr);
@@ -2675,7 +2686,7 @@ app.post('/api/company/:id/concept/:cid/logo/clear', express.json(), (req, res) 
   const cpt = (c.concepts || []).find(x => x.id === req.params.cid);
   if (!cpt) return res.status(404).json({ ok: false, error: 'Concept not found.' });
   if (cpt.logoExt) { try { fs.unlinkSync(path.join(CPTLOGO_DIR, cpt.id + '.' + cpt.logoExt)); } catch (e) {} cpt.logoExt = ''; }
-  cpt.logo = logoFromWebsite(cpt.website); cpt.updatedAt = new Date().toISOString(); saveCompanies(arr);
+  cpt.logo = ''; cpt.updatedAt = new Date().toISOString(); saveCompanies(arr);
   res.json({ ok: true, concepts: c.concepts });
 });
 app.get('/api/cptlogo/:name', (req, res) => {

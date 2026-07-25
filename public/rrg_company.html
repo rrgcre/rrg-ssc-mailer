@@ -27,6 +27,10 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .findhd{font-weight:800;color:var(--navy);font-size:13.5px;margin:2px 0 4px;}
 .findsub{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px;max-width:640px;}
 .findmsg{font-size:12px;color:var(--muted);align-self:center;}
+.findlocwrap{margin-top:2px;padding-top:12px;border-top:1px dashed #e6d3cf;}
+.findloc{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.findloc input{flex:1;min-width:200px;}
+.findloctip{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:8px;max-width:640px;}
 .cb{padding:6px 0 4px;}
 .crow{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);}
 .crow:last-child{border-bottom:none;}
@@ -40,8 +44,9 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 /* concept blocks */
 .cptblock{margin:0 -20px;padding:0;border-top:1px solid var(--line);}
 .cptblock:first-child{border-top:none;}
-.cptbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 20px 10px;background:#f7f9fd;cursor:pointer;}
-.cptbar:hover{background:#f1f5fc;}
+.cptbar{display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:12px 20px;background:#f7f9fd;cursor:pointer;border-left:3px solid transparent;transition:background .12s,border-color .12s;}
+.cptbar:hover{background:#f1f5fc;border-left-color:var(--red);}
+.cptblock.open>.cptbar{background:#eef3fb;border-left-color:var(--red);}
 .cptchev{color:var(--red);font-size:11px;flex:none;transition:transform .15s;} .cptblock.open .cptchev{transform:rotate(90deg);}
 .cptlocs{display:none;} .cptblock.open .cptlocs{display:block;background:#fcfdff;}
 .cptlocs .crow{padding-left:46px;position:relative;}
@@ -49,10 +54,12 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .cptlocs .cptempty{padding-left:46px;}
 .commblock .cptbar{background:#fff8f1;} .commblock .cptbar:hover{background:#fdf1e4;}
 .expall{color:#2647b0;font-weight:700;cursor:pointer;} .expall:hover{text-decoration:underline;}
-.cptname{font-weight:800;color:var(--navy);font-size:14px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
-.cptcount{background:#eef2fb;color:#2647b0;border-radius:999px;font-size:10.5px;font-weight:800;padding:2px 9px;}
+.cptname{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;flex:1;}
+.cptnm{font-weight:800;color:var(--navy);font-size:14px;letter-spacing:-.01em;}
+.cptcount{background:#eef2fb;color:#2647b0;border-radius:999px;font-size:10px;font-weight:800;padding:2px 9px;letter-spacing:.02em;}
+.cptmkts{font-size:11px;color:var(--muted);font-weight:600;flex-basis:100%;margin-top:1px;}
 .cptsite{font-size:11.5px;color:#2647b0;text-decoration:none;font-weight:700;}
-.cptlogo{width:26px;height:26px;border-radius:6px;object-fit:contain;background:#fff;border:1px solid var(--line);flex:none;}
+.cptlogo{width:30px;height:30px;border-radius:7px;object-fit:contain;background:#fff;border:1px solid var(--line);flex:none;}
 .cptlogo-mono{display:flex;align-items:center;justify-content:center;color:#2647b0;background:#eef2fb;font-weight:800;font-size:12px;}
 .locthumb-logo{background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;} .locthumb-logo img{max-width:100%;max-height:100%;object-fit:contain;}
 .tenpill{display:inline-block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:1px 7px;border-radius:999px;}
@@ -139,6 +146,7 @@ function conceptById(id){ return CONCEPTS.filter(function(x){return x.id===id;})
 function normUrl(u){ u=String(u||'').trim(); if(!u) return ''; return /^https?:\/\//i.test(u)?u:('https://'+u); }
 function hostOf(u){ try{ return new URL(normUrl(u)).hostname.replace(/^www\./,''); }catch(e){ return String(u||''); } }
 function locStatusClass(s){ return 'ls-'+String(s||'Open').toLowerCase().replace(/[^a-z]+/g,''); }
+function cptLogoFail(img){ try{ var s=document.createElement('span'); s.className='cptlogo cptlogo-mono'; s.textContent=img.getAttribute('data-mono')||'?'; img.replaceWith(s); }catch(e){ img.style.display='none'; } }
 function render(){
   document.getElementById('crumb').textContent=C.name||'Company';
   document.getElementById('h1').textContent=C.name||'Company';
@@ -168,13 +176,15 @@ function render(){
   }
   function conceptBlock(cpt){
     var mine=LOCATIONS.filter(function(l){ return (l.concept||'')===cpt.name && !l.commissary; });
-    var site=cpt.website?('<a class="cptsite" href="'+esc(normUrl(cpt.website))+'" target="_blank" rel="noopener">'+esc(hostOf(cpt.website))+' ↗</a>'):'';
     var mkts=(cpt.markets&&cpt.markets.length)?('<span class="cptmkts">'+cpt.markets.map(esc).join(' · ')+'</span>'):'';
-    var rows=mine.length?mine.map(locRow).join(''):'<div class="cptempty">No locations yet — add one, or use ✨ Find locations to pull them from the website.</div>';
+    var rows=mine.length?mine.map(locRow).join(''):'<div class="cptempty">No locations yet — add one with <b>+ Location</b>, or open <b>Edit</b> to find them from the web.</div>';
     var open=!!EXPANDED[cpt.id];
-    var logo=cpt.logo?('<img class="cptlogo" src="'+esc(cpt.logo)+'" onerror="this.style.display=\'none\'">'):'<span class="cptlogo cptlogo-mono">'+esc((cpt.name||'?').charAt(0).toUpperCase())+'</span>';
-    return '<div class="cptblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="'+esc(cpt.id)+'"><span class="cptchev">▶</span>'+logo+'<div class="cptname">'+esc(cpt.name)+' <span class="cptcount">'+mine.length+' loc'+(mine.length===1?'':'s')+'</span>'+site+mkts+'</div>'
-      + '<div class="cptacts"><button class="mini" data-find="'+esc(cpt.id)+'">✨ Find</button>'+(HASMAPS?'<button class="mini" data-photos="'+esc(cpt.name)+'">⤓ Photos</button>':'')+'<button class="mini" data-addloc="'+esc(cpt.id)+'">+ Location</button><button class="mini" data-editc="'+esc(cpt.id)+'">Edit</button><button class="mini danger" data-rmc="'+esc(cpt.id)+'">Remove</button></div></div>'
+    var mletter=(cpt.name||'?').charAt(0).toUpperCase();
+    var mono='<span class="cptlogo cptlogo-mono">'+esc(mletter)+'</span>';
+    var logo=cpt.logo?('<img class="cptlogo" src="'+esc(cpt.logo)+'" alt="" data-mono="'+esc(mletter)+'" onerror="cptLogoFail(this)">'):mono;
+    return '<div class="cptblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="'+esc(cpt.id)+'"><span class="cptchev">▶</span>'+logo
+      + '<div class="cptname"><span class="cptnm">'+esc(cpt.name)+'</span><span class="cptcount">'+mine.length+' loc'+(mine.length===1?'':'s')+'</span>'+mkts+'</div>'
+      + '<div class="cptacts"><button class="mini" data-addloc="'+esc(cpt.id)+'">+ Location</button>'+(HASMAPS?'<button class="mini" data-photos="'+esc(cpt.name)+'">Photos</button>':'')+'<button class="mini" data-editc="'+esc(cpt.id)+'">Edit</button><button class="mini danger" data-rmc="'+esc(cpt.id)+'">Remove</button></div></div>'
       + '<div class="cptlocs">'+rows+'</div></div>';
   }
   var known={}; CONCEPTS.forEach(function(x){known[x.name]=1;});
@@ -247,31 +257,61 @@ function openConceptForm(cpt){
   var set={}; (cpt.markets||[]).forEach(function(m){ set[m]=1; });
   var mboxes=MARKETS.map(function(m){ return '<label class="servechk"><input type="checkbox" class="cp_mkt" value="'+esc(m)+'"'+(set[m]?' checked':'')+'> '+esc(m)+'</label>'; }).join('');
   var logoCtl = isEdit
-    ? '<div class="logorow"><div class="logoprev" id="cp_logoprev"></div><div style="flex:1"><input id="cp_logo" value="'+esc(cpt.logo||'')+'" placeholder="Logo image URL"><div class="logobtns"><label class="mfadd">Upload logo<input type="file" id="cp_logofile" accept="image/*" hidden></label><button type="button" class="mfadd" id="cp_logoauto">Use website logo</button></div></div></div>'
-    : '<div class="logorow"><div class="logoprev" id="cp_logoprev"></div><input id="cp_logo" value="'+esc(cpt.logo||'')+'" placeholder="Auto-pulled from the website — or paste a URL"></div>';
+    ? '<div class="logorow"><div class="logoprev" id="cp_logoprev"></div><div style="flex:1"><input id="cp_logo" value="'+esc(cpt.logo||'')+'" placeholder="Logo image URL (optional)"><div class="logobtns"><label class="mfadd">Upload logo<input type="file" id="cp_logofile" accept="image/*" hidden></label></div></div></div>'
+    : '<div class="logorow"><div class="logoprev" id="cp_logoprev"></div><input id="cp_logo" value="'+esc(cpt.logo||'')+'" placeholder="Upload after saving, or paste a logo image URL (optional)"></div>';
   f.innerHTML='<div class="cform findcard"><div class="findhd">'+(isEdit?'Edit concept':'Add a concept')+' <span class="cpsaved" id="cp_saved"></span></div>'
     +'<div class="cgrid">'
     +'<div><label class="fld">Concept / brand name</label><input id="cp_name" value="'+esc(cpt.name||'')+'" placeholder="e.g. Cane Rosso"></div>'
     +'<div><label class="fld">Website</label><input id="cp_site" value="'+esc(cpt.website||'')+'" placeholder="canerosso.com"></div>'
     +'<div class="wide"><label class="fld">Logo</label>'+logoCtl+'</div>'
     +'<div class="wide"><label class="fld">Markets</label><div class="servegrid">'+mboxes+'</div></div>'
+    +'<div class="wide findlocwrap"><label class="fld">Find locations from the web <span style="text-transform:none;letter-spacing:0;color:var(--soft);font-weight:600">— optional</span></label>'
+      +'<div class="findloc"><input id="cp_findcount" placeholder="Approx. # of locations (optional)"><button type="button" class="mfadd" id="cp_find">✨ Find locations</button></div>'
+      +'<div class="findloctip">Confirm the website above, then the RRG analyst searches the web and adds a location record — address &amp; phone — for each unit it finds. Review and edit them after.</div></div>'
     +'</div><div class="cbtns">'+(isEdit?'<button class="sbtn" id="cp_done">Done</button>':'<button class="sbtn" id="cp_save">Add concept</button>')+'<button class="cbtn" id="cp_cancel">Cancel</button><span id="cp_msg" class="findmsg"></span></div></div>';
   f.removeAttribute('hidden');
   function drawLogoPrev(){ var u=document.getElementById('cp_logo').value.trim(); var p=document.getElementById('cp_logoprev'); p.innerHTML=u?('<img src="'+esc(u)+'" onerror="this.style.display=\'none\'">'):('<span class="cptlogo-mono" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">'+esc((document.getElementById('cp_name').value||'?').charAt(0).toUpperCase())+'</span>'); }
-  document.getElementById('cp_site').addEventListener('input',function(){ var lg=document.getElementById('cp_logo'); if(!lg.value.trim()||lg.dataset.auto){ var d=hostOf(this.value); lg.value=d?('https://logo.clearbit.com/'+d):''; lg.dataset.auto='1'; drawLogoPrev(); } if(isEdit) queueConceptSave(cpt.id); });
-  document.getElementById('cp_logo').addEventListener('input',function(){ this.dataset.auto=''; drawLogoPrev(); if(isEdit) queueConceptSave(cpt.id); });
+  document.getElementById('cp_site').addEventListener('input',function(){ if(isEdit) queueConceptSave(cpt.id); });
+  document.getElementById('cp_logo').addEventListener('input',function(){ drawLogoPrev(); if(isEdit) queueConceptSave(cpt.id); });
   drawLogoPrev();
   if(isEdit){
     document.getElementById('cp_name').addEventListener('input',function(){ queueConceptSave(cpt.id); });
     f.querySelectorAll('.cp_mkt').forEach(function(x){ x.addEventListener('change',function(){ queueConceptSave(cpt.id); }); });
     var lf=document.getElementById('cp_logofile'); if(lf) lf.addEventListener('change',function(){ if(lf.files&&lf.files[0]) uploadConceptLogo(cpt.id,lf.files[0]); });
-    var la=document.getElementById('cp_logoauto'); if(la) la.addEventListener('click',function(){ var d=hostOf(document.getElementById('cp_site').value); var lg=document.getElementById('cp_logo'); lg.value=d?('https://logo.clearbit.com/'+d):''; lg.dataset.auto='1'; drawLogoPrev(); queueConceptSave(cpt.id); });
     document.getElementById('cp_done').addEventListener('click',function(){ if(_cpSaveTimer){clearTimeout(_cpSaveTimer);conceptAutosave(cpt.id,true);} else { f.setAttribute('hidden','');f.innerHTML='';render(); } });
   } else {
     document.getElementById('cp_save').addEventListener('click',function(){ saveConcept(null); });
   }
   document.getElementById('cp_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; render(); });
+  var fb=document.getElementById('cp_find'); if(fb) fb.addEventListener('click',function(){ conceptFind(cpt,isEdit); });
   document.getElementById('cp_name').focus();
+}
+// Save the concept (create or update) and then search the web for its locations — replaces the old per-row Find button.
+function conceptFind(cpt,isEdit){
+  if(_cpSaveTimer){ clearTimeout(_cpSaveTimer); _cpSaveTimer=null; }
+  var name=document.getElementById('cp_name').value.trim();
+  var website=document.getElementById('cp_site').value.trim();
+  var count=(document.getElementById('cp_findcount')||{}).value||'';
+  var msg=document.getElementById('cp_msg'), btn=document.getElementById('cp_find');
+  if(!name){ document.getElementById('cp_name').focus(); if(msg) msg.textContent='Name the concept first.'; return; }
+  if(!website){ document.getElementById('cp_site').focus(); if(msg) msg.textContent='Add the concept’s website to search.'; return; }
+  if(btn){ btn.disabled=true; btn.textContent='Searching…'; }
+  if(msg) msg.textContent='This can take up to a minute — the analyst is reading the site and map listings.';
+  var markets=[]; document.querySelectorAll('.cp_mkt:checked').forEach(function(x){ markets.push(x.value); });
+  var body={name:name,website:website,logo:document.getElementById('cp_logo').value.trim(),markets:markets};
+  if(isEdit&&cpt&&cpt.id) body.id=cpt.id;
+  function fail(t){ if(btn){ btn.disabled=false; btn.textContent='✨ Find locations'; } if(msg) msg.textContent=t; }
+  fetch('/api/company/'+encodeURIComponent(ID)+'/concept',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){
+      if(!j||!j.ok){ fail((j&&j.error)||'Could not save the concept.'); return; }
+      CONCEPTS=j.concepts||CONCEPTS; LOCATIONS=j.locations||LOCATIONS;
+      return fetch('/api/company/'+encodeURIComponent(ID)+'/find-locations',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({concept:name,website:website,count:count})})
+        .then(function(r){return r.json();}).then(function(j2){
+          if(j2&&j2.ok){ var c2=CONCEPTS.filter(function(x){return x.name===name;})[0]; if(c2) EXPANDED[c2.id]=true; LOCATIONS=j2.locations||LOCATIONS; var f=document.getElementById('conceptForm'); if(f){ f.setAttribute('hidden',''); f.innerHTML=''; } render(); }
+          else fail((j2&&j2.error)||'Search failed.');
+        });
+    })
+    .catch(function(){ fail('Could not reach the server.'); });
 }
 function queueConceptSave(id){ var ind=document.getElementById('cp_saved'); if(ind) ind.textContent='…'; if(_cpSaveTimer) clearTimeout(_cpSaveTimer); _cpSaveTimer=setTimeout(function(){ conceptAutosave(id,false); },700); }
 function conceptAutosave(id,close){
