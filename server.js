@@ -3256,7 +3256,9 @@ app.get('/api/counts', (req, res) => {
   const _t = new Date(); const _ts = _t.getFullYear()+'-'+String(_t.getMonth()+1).padStart(2,'0')+'-'+String(_t.getDate()).padStart(2,'0');
   let agrExpiring = 0;
   loadAgreements().forEach(a => { if (a.status === 'terminated' || !a.expires || a.expires < _ts) return; const du = daysUntil(a.expires); if (du != null && du <= 60) agrExpiring++; });
-  const expiring = { 'rrg_agreements.html': agrExpiring };
+  let tasksDue = 0;
+  loadTasks().forEach(t => { if (t.status === 'open' && taskVisible(t, req) && t.reminder && String(t.reminder).slice(0, 10) <= _ts) tasksDue++; });
+  const expiring = { 'rrg_agreements.html': agrExpiring, 'rrg_tasks.html': tasksDue };
   res.json({ ok: true, counts, active, expiring });
 });
 // ---- Command Center — management + prospecting intelligence across the book & pipeline ----
@@ -4195,8 +4197,11 @@ function taskVisible(t, req) {
 app.get('/api/tasks', (req, res) => {
   const all = loadTasks();
   const mine = all.filter(t => taskVisible(t, req));
-  const users = auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username }));
-  res.json({ ok: true, tasks: mine, users, priorities: TASK_PRIORITIES, isAdmin: !!(req.user && req.user.role === 'admin'), me: (req.user && req.user.username) || '' });
+  const contacts = loadPeople().map(p => ({ id: p.id, name: p.name })).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+  const deals = [];
+  try { const ov = loadAssignOverlay(), idx = assignmentsIndex(); for (const k in idx) { try { deals.push({ key: k, business: assignmentView(idx[k], ov).business }); } catch (e) {} } } catch (e) {}
+  deals.sort((a, b) => String(a.business || '').localeCompare(String(b.business || '')));
+  res.json({ ok: true, tasks: mine, contacts, deals, priorities: TASK_PRIORITIES, isAdmin: !!(req.user && req.user.role === 'admin'), me: (req.user && req.user.username) || '' });
 });
 app.post('/api/tasks', express.json(), (req, res) => {
   const b = req.body || {}; const all = loadTasks(); const now = new Date().toISOString();
@@ -4219,8 +4224,13 @@ app.post('/api/tasks', express.json(), (req, res) => {
   if (typeof b.due === 'string') t.due = b.due.slice(0, 10);
   if (typeof b.priority === 'string') t.priority = TASK_PRIORITIES.indexOf(b.priority) >= 0 ? b.priority : (t.priority || 'Normal');
   if (!t.priority) t.priority = 'Normal';
-  if (typeof b.assignee === 'string') { const au = findUser(b.assignee); t.assignee = au ? au.username : ''; t.assigneeName = au ? (au.name || au.username) : ''; }
+  t.assignee = t.createdBy || meU || ''; t.assigneeName = t.assigneeName || t.createdByName || (req.user && req.user.name) || '';
   if (typeof b.status === 'string' && ['open', 'done'].indexOf(b.status) >= 0) { t.status = b.status; t.doneAt = b.status === 'done' ? now : ''; }
+  if (typeof b.linkType === 'string') t.linkType = ['contact', 'deal', ''].indexOf(b.linkType) >= 0 ? b.linkType : (t.linkType || '');
+  if (typeof b.linkId === 'string') t.linkId = b.linkId.slice(0, 60);
+  if (typeof b.linkLabel === 'string') t.linkLabel = b.linkLabel.slice(0, 200);
+  if (b.linkType === '') { t.linkId = ''; t.linkLabel = ''; }
+  if (typeof b.reminder === 'string') t.reminder = b.reminder.slice(0, 16);
   t.updatedAt = now;
   saveTasks(all);
   res.json({ ok: true, task: t });

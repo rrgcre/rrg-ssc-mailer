@@ -508,7 +508,7 @@ function countBadge(t){
   var a=ACTIVE[t.file];
   if(typeof a==='number') html+='<span class="cbadge cbadge-active" title="'+a+' active deal'+(a===1?'':'s')+' — not closed or lost">'+a+' active</span>';
   var e=EXPIRING[t.file];
-  if(typeof e==='number'&&e>0) html+='<span class="cbadge" style="background:#fdf1df;color:#b5791f;border-color:#f0d7ad;margin-left:5px" title="'+e+' agreement'+(e===1?'':'s')+' expiring within 60 days">'+e+' expiring</span>';
+  if(typeof e==='number'&&e>0){ var _isT=(t.file==='rrg_tasks.html'); var _lbl=_isT?(e+' due'):(e+' expiring'); var _ttl=_isT?(e+' reminder'+(e===1?'':'s')+' due'):(e+' agreement'+(e===1?'':'s')+' expiring within 60 days'); html+='<span class="cbadge" style="background:#fdf1df;color:#b5791f;border-color:#f0d7ad;margin-left:5px" title="'+_ttl+'">'+_lbl+'</span>'; }
   return html;
 }
 
