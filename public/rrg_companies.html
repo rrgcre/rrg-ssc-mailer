@@ -50,6 +50,10 @@ tr:hover td{background:#fbfcfe;}
 .mbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 17px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;} .mbtn.ghost{background:#fff;color:var(--muted);border-color:var(--line);}
 .dupe.warn{background:#fdf7ec;border-color:#f0dcae;color:#7a5b22;} .dupe.warn a{color:#b5791f;} .dupe.warn b{color:#7a5b22;}
 .dupelist{display:flex;flex-direction:column;gap:3px;margin-top:5px;} .dupelist a{font-weight:700;text-decoration:none;} .dupehint{margin-top:6px;color:#98a1b5;font-size:11.5px;}
+.cowho{display:flex;align-items:center;gap:10px;} .cowhotext{min-width:0;} .colistlogo{position:relative;width:30px;height:30px;flex:none;border-radius:7px;background:#eef2fb;color:#2647b0;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;} .colistlogo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff;}
+.mgrp{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#98a1b5;font-weight:800;margin:16px 0 4px;border-top:1px solid #eef1f6;padding-top:12px;} .mgrp .mopt{text-transform:none;letter-spacing:0;font-weight:500;color:#b0b8c6;font-size:11px;}
+.mmk{display:flex;flex-wrap:wrap;gap:6px 12px;} .mmkc{font-size:12.5px;color:#3a4560;display:inline-flex;align-items:center;gap:5px;cursor:pointer;} .mmkc input{width:15px;height:15px;accent-color:#DA2B1F;}
+.mrow2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -75,6 +79,13 @@ tr:hover td{background:#fbfcfe;}
     <label class="mfld">Company name</label><input id="m_name" autocomplete="off" placeholder="e.g. Blue Agave Restaurant Group">
     <div id="m_dupe" class="dupe" hidden></div>
     <label class="mfld">Type</label><select id="m_type"></select>
+    <div class="mgrp">First concept <span class="mopt">— optional; single-brand operators fill this</span></div>
+    <label class="mfld">Concept / brand</label><input id="m_concept" autocomplete="off" placeholder="Often the same as the company">
+    <label class="mfld">Website</label><input id="m_website" autocomplete="off" placeholder="company.com — auto-pulls a logo">
+    <label class="mfld">Markets</label><div id="m_markets" class="mmk"></div>
+    <div class="mgrp">First location <span class="mopt">— optional</span></div>
+    <label class="mfld">Address</label><input id="m_addr" autocomplete="off" placeholder="Street address">
+    <div class="mrow2"><div><label class="mfld">City</label><input id="m_city" autocomplete="off"></div><div><label class="mfld">State</label><input id="m_state" autocomplete="off" placeholder="TX"></div></div>
   </div>
   <div class="modalf"><button id="m_cancel" class="mbtn ghost">Cancel</button><button id="m_create" class="mbtn">Create company</button></div>
 </div></div>
@@ -92,7 +103,7 @@ function renderList(list){
     empty:'<div class="empty"><b>No companies yet.</b>Companies are created automatically when you start a deal — the business name opens its company file.</div>',
     rowId:function(c){ return c.id; }, defaultSort:0, defaultDir:1,
     columns:[
-      { label:'Company', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(c){ var mk=(c.markets||[]).join(' · '); var tags=(c.tags&&c.tags.length)?('<div class="tags2">'+c.tags.map(function(t){return '<span class="tg">'+esc(t)+'</span>';}).join('')+'</div>'):''; return '<div class="nm">'+esc(c.name)+'</div>'+(mk?('<div class="meta">'+esc(mk)+'</div>'):'')+tags; } },
+      { label:'Company', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(c){ var mk=(c.markets||[]).join(' · '); var tags=(c.tags&&c.tags.length)?('<div class="tags2">'+c.tags.map(function(t){return '<span class="tg">'+esc(t)+'</span>';}).join('')+'</div>'):''; var lg=(c.logo||c.logoAuto||''); var lt=esc((c.name||'?').charAt(0).toUpperCase()); var av=lg?('<span class="colistlogo"><span>'+lt+'</span><img src="'+esc(lg)+'" onerror="this.remove()"></span>'):('<span class="colistlogo"><span>'+lt+'</span></span>'); return '<div class="cowho">'+av+'<div class="cowhotext"><div class="nm">'+esc(c.name)+'</div>'+(mk?('<div class="meta">'+esc(mk)+'</div>'):'')+tags+'</div></div>'; } },
       { label:'Type', sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, cell:function(c){ var t=c.type||'Seller'; return '<span class="pill '+(t==='Buyer'?'pill-buyer':'pill-seller')+'">'+esc(t)+'</span>'; } },
       { label:'Contacts', align:'left', sort:function(a,b){ return (a.contacts||0)-(b.contacts||0); }, cell:function(c){ return '<span class="count">'+(c.contacts||0)+' <span>contact'+((c.contacts===1)?'':'s')+'</span></span>'; } },
       { label:'Locations', align:'left', sort:function(a,b){ return (a.locations||0)-(b.locations||0); }, cell:function(c){ return '<span class="count">'+(c.locations||0)+' <span>location'+((c.locations===1)?'':'s')+'</span></span>'; } },
@@ -132,14 +143,28 @@ function checkDupe(){
     box.removeAttribute('hidden');
   } else { box.setAttribute('hidden',''); box.innerHTML=''; }
 }
-function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=CTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join(''); document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_name').focus(); }
-function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); document.getElementById('m_name').value=''; var box=document.getElementById('m_dupe'); box.setAttribute('hidden','');box.innerHTML=''; document.getElementById('m_create').disabled=false; }
+function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=CTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
+  var mk=document.getElementById('m_markets'); if(mk) mk.innerHTML=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'].map(function(m){return '<label class="mmkc"><input type="checkbox" value="'+esc(m)+'"> '+esc(m)+'</label>';}).join('');
+  var cc=document.getElementById('m_concept'); if(cc){ cc.value=''; cc.dataset.auto='1'; }
+  document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_name').focus(); }
+function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_name','m_concept','m_website','m_addr','m_city','m_state'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); var box=document.getElementById('m_dupe'); box.setAttribute('hidden','');box.innerHTML=''; document.getElementById('m_create').disabled=false; document.getElementById('m_create').textContent='Create company'; }
 function createCompany(){
   var name=document.getElementById('m_name').value.trim(); if(!name){ document.getElementById('m_name').focus(); return; }
   var d=findDupe(name); if(d){ if(confirm('“'+d.name+'” is already in your book. Open it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(d.id); return; }
   var b=document.getElementById('m_create'); b.disabled=true; b.textContent='Creating…';
-  fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:name,type:document.getElementById('m_type').value})})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.company){ location.href='./rrg_company.html?id='+encodeURIComponent(j.company.id); } else if(j&&j.existingId){ b.textContent='Create company'; if(confirm((j.error||'That company already exists.')+'\n\nOpen it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(j.existingId); else b.disabled=false; } else { b.disabled=false;b.textContent='Create company'; alert((j&&j.error)||'Could not create the company.'); } })
+  var conceptName=(document.getElementById('m_concept').value||'').trim();
+  var website=(document.getElementById('m_website').value||'').trim();
+  var markets=[]; document.querySelectorAll('#m_markets input:checked').forEach(function(x){ markets.push(x.value); });
+  var addr=(document.getElementById('m_addr').value||'').trim(), city=(document.getElementById('m_city').value||'').trim(), state=(document.getElementById('m_state').value||'').trim();
+  function J(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}); }
+  J('/api/company',{name:name,type:document.getElementById('m_type').value,office:(website?{website:website}:undefined)})
+    .then(function(j){
+      if(!(j&&j.ok&&j.company)){ if(j&&j.existingId){ b.textContent='Create company'; if(confirm((j.error||'That company already exists.')+'\n\nOpen it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(j.existingId); else b.disabled=false; } else { b.disabled=false;b.textContent='Create company'; alert((j&&j.error)||'Could not create the company.'); } return; }
+      var id=j.company.id; var chain=Promise.resolve();
+      if(conceptName){ chain=chain.then(function(){ return J('/api/company/'+encodeURIComponent(id)+'/concept',{name:conceptName,website:website,markets:markets}); }); }
+      if(addr||city){ chain=chain.then(function(){ return J('/api/company/'+encodeURIComponent(id)+'/location',{concept:conceptName,address:addr,city:city,state:state}); }); }
+      chain.then(function(){ location.href='./rrg_company.html?id='+encodeURIComponent(id); }, function(){ location.href='./rrg_company.html?id='+encodeURIComponent(id); });
+    })
     .catch(function(){ b.disabled=false;b.textContent='Create company'; alert('Could not reach the server.'); });
 }
 function deleteCompany(id,name,deals){
@@ -152,6 +177,8 @@ function deleteCompany(id,name,deals){
 document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.codel[data-del]'); if(b){ e.preventDefault(); deleteCompany(b.getAttribute('data-del'),b.getAttribute('data-name'),Number(b.getAttribute('data-deals'))||0); } });
 document.getElementById('newBtn').addEventListener('click',openModal);
 document.getElementById('m_name').addEventListener('input',checkDupe);
+document.getElementById('m_name').addEventListener('input',function(){ var cc=document.getElementById('m_concept'); if(cc&&cc.dataset.auto==='1') cc.value=this.value; });
+document.getElementById('m_concept').addEventListener('input',function(){ this.dataset.auto=''; });
 document.getElementById('m_cancel').addEventListener('click',closeModal);
 document.getElementById('m_create').addEventListener('click',createCompany);
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target.id==='modal') closeModal(); });

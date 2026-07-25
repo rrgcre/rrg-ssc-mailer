@@ -127,6 +127,10 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .jbeans{display:flex;flex-wrap:wrap;gap:8px;}
 .jbean{display:inline-flex;align-items:center;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;line-height:1;}
 .jbean b{font-weight:800;}
+.grate{color:#b5791f;font-weight:700;} .gclosed{background:#fdeceb;color:#DA2B1F;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:20px;white-space:nowrap;}
+.cohdrlogo{height:30px;width:auto;max-width:110px;object-fit:contain;background:#fff;border-radius:6px;padding:2px 5px;vertical-align:middle;}
+.logorow2{display:flex;gap:12px;align-items:flex-start;} .logoprev2{width:48px;height:48px;border-radius:10px;border:1px solid #e6e9f0;background:#fff;flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;} .logoprev2 img{max-width:100%;max-height:100%;object-fit:contain;} .comono{color:#2647b0;font-weight:800;font-size:18px;}
+.gpanel{background:#f5f7fb;border:1px solid #e6e9f0;border-radius:9px;padding:10px 12px;} .gphd{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;font-weight:800;} .gphd a{font-size:11px;color:#2647b0;text-transform:none;letter-spacing:0;text-decoration:none;} .gpgrid{display:flex;flex-wrap:wrap;gap:5px 16px;margin-top:6px;font-size:12.5px;color:#3a4560;} .gpnote{font-size:11px;color:#98a1b5;margin-top:7px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -144,7 +148,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
-var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], DIRTY=false;
+var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], LOGOAUTO='', DIRTY=false;
 var EXPANDED={};
 function conceptById(id){ return CONCEPTS.filter(function(x){return x.id===id;})[0]||null; }
 function normUrl(u){ u=String(u||'').trim(); if(!u) return ''; return /^https?:\/\//i.test(u)?u:('https://'+u); }
@@ -179,6 +183,7 @@ function render(){
   var sub=[]; if(C.type) sub.push('<span class="hpill">'+esc(C.type)+'</span>'); if(_mkl.length) sub.push('<span>'+esc(_mkl.join(' · '))+'</span>');
   if(C.tags&&C.tags.length) sub.push('<span>'+C.tags.map(function(t){return '<span class="hpill" style="text-transform:none;letter-spacing:.02em">'+esc(t)+'</span>';}).join(' ')+'</span>');
   sub.push('<span>'+CONTACTS.length+' contact'+(CONTACTS.length===1?'':'s')+'</span>'); sub.push('<span>'+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span>'); sub.push('<span>'+DEALS.length+' deal'+(DEALS.length===1?'':'s')+'</span>');
+  var _clogo=(C.logo||LOGOAUTO||''); if(_clogo) sub.unshift('<img class="cohdrlogo" src="'+esc(_clogo)+'" onerror="this.remove()">');
   document.getElementById('subline').innerHTML=sub.join('');
   var contacts = CONTACTS.length ? CONTACTS.map(function(p){
     var sub=[p.title].concat(p.emails||(p.email?[p.email]:[])).concat(p.phones||(p.phone?[p.phone]:[])).filter(Boolean).map(esc).join(' · ');
@@ -191,14 +196,14 @@ function render(){
   }
   function locRow(l){
     var loc=[l.address,l.city,l.state].filter(Boolean).map(esc).join(', ');
-    var bits=[]; if(loc) bits.push(loc); if(l.siteType) bits.push(esc(l.siteType)); if(l.tenure) bits.push('<span class="tenpill ten-'+l.tenure.toLowerCase()+'">'+esc(l.tenure)+'</span>'); if(l.phone) bits.push(esc(l.phone)); if(l.opened) bits.push('Opened '+esc(fmtD(l.opened))); if(l.closedDate) bits.push('<span class="closedpill">Closed '+esc(fmtD(l.closedDate))+'</span>'); if(l.leaseExpires) bits.push('Lease exp '+esc(fmtD(l.leaseExpires)));
+    var bits=[]; if(loc) bits.push(loc); if(l.siteType) bits.push(esc(l.siteType)); if(l.tenure) bits.push('<span class="tenpill ten-'+l.tenure.toLowerCase()+'">'+esc(l.tenure)+'</span>'); if(l.phone) bits.push(esc(l.phone)); if(l.opened) bits.push('Opened '+esc(fmtD(l.opened))); if(l.closedDate) bits.push('<span class="closedpill">Closed '+esc(fmtD(l.closedDate))+'</span>'); if(l.leaseExpires) bits.push('Lease exp '+esc(fmtD(l.leaseExpires))); if(l.google&&typeof l.google.rating==='number') bits.push('<span class="grate" title="Google rating">★ '+l.google.rating.toFixed(1)+(l.google.reviews?(' ('+Number(l.google.reviews).toLocaleString()+')'):'')+'</span>'); if(l.google&&typeof l.google.priceLevel==='number'&&l.google.priceLevel>0) bits.push('<span class="grate" title="Google price level">'+new Array(l.google.priceLevel+1).join('$')+'</span>');
     var line=bits.join(' · '); var np=(l.photos||[]).length;
     var badge=np?('<span class="phcount" title="'+np+' photo'+(np===1?'':'s')+'">'+np+' ▣</span>'):'';
     var flag=l.flagship?'<span class="flagtag" title="Flagship location">★ Flagship</span>':'';
     var comm=l.commissary?'<span class="commtag" title="Commissary / central kitchen">Commissary</span>':'';
     var serves='';
     if(l.commissary){ serves=l.servesAll?'Serves all concepts':((l.serves&&l.serves.length)?('Serves '+l.serves.map(esc).join(', ')):'Serves — set which concepts'); serves='<div class="servesline">'+serves+'</div>'; }
-    return '<div class="crow"><div class="locthumbwrap">'+locThumb(l)+'</div><div class="cinfo"><div class="cname">'+esc(l.name||l.address||'Location')+' '+flag+' '+comm+' '+badge+'</div><div class="csub">'+line+serves+(l.notes?('<div class="locnote">'+esc(l.notes)+'</div>'):'')+'</div></div><span class="ctype '+locStatusClass(l.status)+'">'+esc(l.status||'Open')+'</span><button class="ledit" data-le="'+esc(l.id)+'">Edit</button><button class="crm" data-lrm="'+esc(l.id)+'">Remove</button></div>';
+    return '<div class="crow"><div class="locthumbwrap">'+locThumb(l)+'</div><div class="cinfo"><div class="cname">'+esc(l.name||l.address||'Location')+' '+flag+' '+comm+' '+((l.google&&/CLOSED/.test(l.google.businessStatus||'')&&['Closed','Dark'].indexOf(l.status)<0)?'<span class="gclosed" title="Google Places shows this as '+esc(l.google.businessStatus||'')+'">⚠ Google: may be closed</span>':'')+' '+badge+'</div><div class="csub">'+line+serves+(l.notes?('<div class="locnote">'+esc(l.notes)+'</div>'):'')+'</div></div><span class="ctype '+locStatusClass(l.status)+'">'+esc(l.status||'Open')+'</span><button class="ledit" data-le="'+esc(l.id)+'">Edit</button><button class="crm" data-lrm="'+esc(l.id)+'">Remove</button></div>';
   }
   function conceptBlock(cpt){
     var mine=LOCATIONS.filter(function(l){ return (l.concept||'')===cpt.name && !l.commissary; });
@@ -250,6 +255,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Name</label><input id="c_name" value="'+esc(C.name||'')+'"></div>'
       + '<div class="fldrow"><label class="fld">Type</label><select id="c_type">'+ctsel+'</select></div>'
       + '<div class="fldrow"><label class="fld">Tags</label><input id="c_tags" value="'+esc((C.tags&&C.tags.length)?C.tags.join(', '):'')+'" placeholder="Comma-separated, e.g. franchisor, multi-unit, target"></div>'
+      + '<div class="fldrow"><label class="fld">Logo</label><div class="logorow2"><div class="logoprev2" id="c_logoprev"></div><div style="flex:1;min-width:0"><input id="c_logo" value="'+esc(C.logo||'')+'" placeholder="Logo URL — or use the website"><div style="margin-top:6px"><button type="button" class="mfadd" id="c_logoauto">Use website logo</button></div></div></div></div>'
       + '<div class="fldrow"><label class="fld">Markets</label><div class="mkline">'+((markets&&markets.length)?markets.map(esc).join(' · '):'<span class="mkempty">Set on each concept below</span>')+'</div></div>'
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="c_notes" placeholder="Ownership, history, relationships, anything worth remembering…">'+esc(C.notes||'')+'</textarea></div>'
       + '<div class="officebox">'
@@ -263,6 +269,11 @@ function render(){
       + (IS_ADMIN?('<div class="dangerz"><button class="delco" id="c_delete">Delete company</button><div class="dangernote">Admin only. Permanently removes this company, its concepts, all locations &amp; photos, and every deal tied to it — records, data rooms, and files. Contacts are kept. Cannot be undone.</div></div>'):'')
     + '</div></div></div>';
   ['c_name','c_type','c_tags','c_notes','o_address','o_city','o_state','o_phone','o_email','o_website'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener(el.tagName==='SELECT'?'change':'input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; }); });
+  (function(){ function draw(){ var p=document.getElementById('c_logoprev'); if(!p) return; var u=(document.getElementById('c_logo').value||'').trim()||(LOGOAUTO||''); p.innerHTML=u?('<img src="'+esc(u)+'" onerror="this.parentNode.innerHTML=&quot;<span class=\'comono\'>'+esc((C.name||'?').charAt(0).toUpperCase())+'</span>&quot;">'):('<span class="comono">'+esc((C.name||'?').charAt(0).toUpperCase())+'</span>'); }
+    var li=document.getElementById('c_logo'); if(li) li.addEventListener('input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
+    var la=document.getElementById('c_logoauto'); if(la) la.addEventListener('click',function(){ var d=(document.getElementById('o_website').value||'').replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0]; document.getElementById('c_logo').value=d?('https://logo.clearbit.com/'+d):''; DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
+    draw();
+  })();
   document.getElementById('c_save').addEventListener('click',saveCompany);
   var cd=document.getElementById('c_delete'); if(cd) cd.addEventListener('click',deleteCompany);
   document.getElementById('addContactBtn').addEventListener('click',openContactForm);
@@ -431,6 +442,7 @@ function openLocForm(l,presetConcept){
     +'<div class="wide" id="servesWrap"'+(l.commissary?'':' style="display:none"')+'>'+servesPicker(l)+'</div>'
     +'<div class="wide"><label class="fld">Notes</label><input id="lo_notes" value="'+esc(l.notes||'')+'" placeholder="Sq ft, seats, lease, remarks…"></div>'
     +photoBox(l)
+    +((l.google&&l.google.placeId)?('<div class="wide gpanel"><div class="gphd">Google data'+(l.google.mapsUrl?(' <a href="'+esc(l.google.mapsUrl)+'" target="_blank" rel="noopener">view on Maps ↗</a>'):'')+'</div><div class="gpgrid">'+((typeof l.google.rating==='number')?('<span>★ '+l.google.rating.toFixed(1)+(l.google.reviews?(' ('+Number(l.google.reviews).toLocaleString()+' reviews)'):'')+'</span>'):'')+(l.google.businessStatus?('<span>Status: '+esc(l.google.businessStatus)+'</span>'):'')+((typeof l.google.priceLevel==='number'&&l.google.priceLevel>0)?('<span>Price: '+new Array(l.google.priceLevel+1).join('$')+'</span>'):'')+((l.google.lat!=null&&l.google.lng!=null)?('<span>Geo: '+Number(l.google.lat).toFixed(5)+', '+Number(l.google.lng).toFixed(5)+'</span>'):'')+(l.google.address?('<span style="flex-basis:100%">Google address: '+esc(l.google.address)+'</span>'):'')+'</div><div class="gpnote">Captured from Google Places'+(l.google.at?(' · pulled '+esc(fmtD(l.google.at))):'')+'. Use the ⤓ Pull button to refresh.</div></div>'):'')
     +'</div><div class="cbtns"><button class="sbtn" id="lo_save">'+(l.id?'Save location':'Add location')+'</button><button class="cbtn" id="lo_cancel">Cancel</button></div></div>';
   f.removeAttribute('hidden');
   document.getElementById('lo_save').addEventListener('click',function(){ saveLoc(l.id); });
@@ -576,7 +588,7 @@ function deleteCompany(){
 }
 function saveCompany(){
   var b=document.getElementById('c_save'); b.disabled=true; b.textContent='Saving…';
-  var body={ id:ID, name:document.getElementById('c_name').value.trim(), type:document.getElementById('c_type').value, tags:(document.getElementById('c_tags').value||'').split(',').map(function(s){return s.trim();}).filter(Boolean), notes:document.getElementById('c_notes').value,
+  var body={ id:ID, name:document.getElementById('c_name').value.trim(), type:document.getElementById('c_type').value, tags:(document.getElementById('c_tags').value||'').split(',').map(function(s){return s.trim();}).filter(Boolean), notes:document.getElementById('c_notes').value, logo:(document.getElementById('c_logo')||{}).value||'',
     office:{ address:document.getElementById('o_address').value.trim(), city:document.getElementById('o_city').value.trim(), state:document.getElementById('o_state').value.trim(), phone:document.getElementById('o_phone').value.trim(), email:document.getElementById('o_email').value.trim(), website:document.getElementById('o_website').value.trim() } };
   fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ b.textContent='Save changes'; if(j&&j.ok){ C=j.company; DIRTY=false; document.getElementById('h1').textContent=C.name; document.getElementById('crumb').textContent=C.name; var s=document.getElementById('c_saved'); s.classList.add('show'); setTimeout(function(){s.classList.remove('show');},2000); } else { b.disabled=false; alert((j&&j.error)||'Could not save.'); } })
@@ -586,7 +598,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No company selected. <a href="./rrg_assignments.html">Back to deals →</a></div>'; return; }
   fetch('/api/company/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; MARKETS=j.markets||MARKETS; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; IS_ADMIN=!!j.isAdmin; HASMAPS=!!j.hasMaps; render(); })
+    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; MARKETS=j.markets||MARKETS; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; HASMAPS=!!j.hasMaps; render(); })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this company.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();

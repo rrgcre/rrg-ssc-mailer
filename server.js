@@ -89,6 +89,7 @@ function ownsDeal(req, d) {
 const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
 const PERSON_TYPES = ['Buyer', 'Seller', 'Restaurant Owner', 'Client', 'Prospect', 'Investor', 'Broker', 'Operator', 'Referral Source', 'Other'];
 const LEAD_SOURCES = ['Referral', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
+const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'Note', 'To-Do'];
 function loadPeople() { try { return JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')); } catch (e) { return []; } }
 function savePeople(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PEOPLE_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newPersonId() { return 'per_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -195,6 +196,19 @@ function cleanStrList(a, max, len) {
 }
 function effPersonTypes() { const s = loadSettings(); return (Array.isArray(s.personTypes) && s.personTypes.length) ? s.personTypes : PERSON_TYPES; }
 function effLeadSources() { const s = loadSettings(); return (Array.isArray(s.leadSources) && s.leadSources.length) ? s.leadSources : LEAD_SOURCES; }
+function effActivityTypes() { const s = loadSettings(); return (Array.isArray(s.activityTypes) && s.activityTypes.length) ? s.activityTypes : ACTIVITY_TYPES; }
+function newActivityId() { return 'act_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function logActivity(p, type, note, o) {
+  o = o || {};
+  p.activities = Array.isArray(p.activities) ? p.activities : [];
+  const now = new Date().toISOString();
+  const date = (o.date && /^\d{4}-\d{2}-\d{2}$/.test(o.date)) ? o.date : now.slice(0, 10);
+  const e = { id: newActivityId(), type: String(type || 'Note'), date, at: now, note: String(note || '').slice(0, 2000), by: o.by || '', byUser: o.byUser || '', auto: !!o.auto };
+  p.activities.unshift(e); p.activities = p.activities.slice(0, 800);
+  if (type !== 'To-Do') { if (!p.lastContacted || date > p.lastContacted) p.lastContacted = date; }
+  p.updatedAt = now;
+  return e;
+}
 function effCompanyTypes() { const s = loadSettings(); return (Array.isArray(s.companyTypes) && s.companyTypes.length) ? s.companyTypes : COMPANY_TYPES; }
 function effTicketCategories() { const s = loadSettings(); return (Array.isArray(s.ticketCategories) && s.ticketCategories.length) ? s.ticketCategories : TICKET_CATEGORIES; }
 function servicesEmails() { const s = loadSettings(); const a = cleanStrList(s.servicesEmails, 10, 160); return (a && a.length) ? a : ['van@rrgcre.com', 'avery@rrgcre.com']; }
@@ -2552,10 +2566,38 @@ app.post('/api/person/:id/email', express.json({ limit: '256kb' }), async (req, 
     p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
     const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', messageId: (info && info.messageId) || '' };
     p.emailLog.unshift(entry); p.emailLog = p.emailLog.slice(0, 100);
+    logActivity(p, 'Email', subject || '(no subject)', { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' });
     p.lastContacted = now.slice(0, 10); p.updatedAt = now;
     savePeople(arr);
     res.json({ ok: true, entry, emailLog: p.emailLog, lastContacted: p.lastContacted });
   } catch (e) { console.error('person email error:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/person/:id/activity', express.json(), (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
+  const b = req.body || {};
+  const type = String(b.type || '').trim();
+  if (effActivityTypes().indexOf(type) < 0) return res.status(400).json({ ok: false, error: 'Pick an activity type.' });
+  const entry = logActivity(p, type, b.note, { date: b.date, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', auto: false });
+  let task = null;
+  if (type === 'To-Do') {
+    try {
+      const tasks = loadTasks(); const tnow = new Date().toISOString();
+      const due = (typeof b.date === 'string' ? b.date : '').slice(0, 10);
+      task = { id: newTaskId(), title: (String(b.note || '').trim() || ('Follow up: ' + (p.name || 'contact'))).slice(0, 300), notes: '', assignee: (req.user && req.user.username) || '', assigneeName: (req.user && req.user.name) || '', due: due, reminder: due, priority: 'Normal', status: 'open', linkType: 'contact', linkId: p.id, linkLabel: p.name || '', createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', createdAt: tnow, updatedAt: tnow };
+      tasks.push(task); saveTasks(tasks); entry.taskId = task.id;
+    } catch (e) { console.error('activity->task error:', e && e.message); }
+  }
+  savePeople(arr);
+  res.json({ ok: true, entry, activities: p.activities, lastContacted: p.lastContacted, task });
+});
+app.delete('/api/person/:id/activity/:aid', (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
+  const before = (Array.isArray(p.activities) ? p.activities : []).length;
+  p.activities = (Array.isArray(p.activities) ? p.activities : []).filter(a => a.id !== req.params.aid);
+  if (p.activities.length !== before) { p.updatedAt = new Date().toISOString(); savePeople(arr); }
+  res.json({ ok: true, activities: p.activities });
 });
 app.post('/api/person/:id/photo', express.json({ limit: '8mb' }), (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
@@ -2593,7 +2635,7 @@ app.get('/api/companies', (req, res) => {
   const cos = loadCompanies(), people = loadPeople(), deals = loadDeals();
   const rows = cos.map(c => {
     const mk = {}; (c.concepts || []).forEach(cp => (cp.markets || []).forEach(m => { if (m) mk[m] = 1; }));
-    return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], concepts: (c.concepts || []).length, contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt };
+    return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt };
   });
   res.json({ ok: true, companies: rows, types: effCompanyTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
@@ -2612,7 +2654,7 @@ app.get('/api/person/:id', (req, res) => {
     (o.tours || []).filter(x => x.personId === p.id).forEach(x => tours.push({ key: key, business: biz, date: x.date, interest: x.interest }));
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), emailReady: isEmailConfigured(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
@@ -2692,14 +2734,47 @@ function attachPhotoBuffer(l, img, source) {
   try { if (!fs.existsSync(LOCPHOTO_DIR)) fs.mkdirSync(LOCPHOTO_DIR, { recursive: true }); fs.writeFileSync(path.join(LOCPHOTO_DIR, pid + '.' + img.ext), img.buf); } catch (e) { return false; }
   l.photos.push({ id: pid, ext: img.ext, source: source || 'google' }); return true;
 }
-// Pull the best available photo(s) for one location: a Places business photo, then a Street View storefront.
+// Google Places business-data enrichment: finds the listing and pulls address, geo, status, rating, phone, website.
+async function placesEnrich(key, query) {
+  if (!key || !query) return { data: null, reason: 'no key/query' };
+  try {
+    const fr = await fetch('https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=' + encodeURIComponent(query) + '&inputtype=textquery&fields=place_id&key=' + key);
+    const fj = await fr.json();
+    if (fj && fj.status && ['REQUEST_DENIED', 'OVER_QUERY_LIMIT', 'INVALID_REQUEST'].indexOf(fj.status) >= 0) return { data: null, reason: 'places: ' + fj.status + (fj.error_message ? (' — ' + fj.error_message) : '') };
+    const pid = fj && fj.candidates && fj.candidates[0] && fj.candidates[0].place_id;
+    if (!pid) return { data: null, reason: 'places: no match' };
+    const dr = await fetch('https://maps.googleapis.com/maps/api/place/details/json?place_id=' + encodeURIComponent(pid) + '&fields=business_status,formatted_address,geometry,formatted_phone_number,website,rating,user_ratings_total,price_level,name,url&key=' + key);
+    const dj = await dr.json();
+    const r = (dj && dj.result) || null;
+    if (!r) return { data: null, reason: 'places: no details' };
+    const loc = (r.geometry && r.geometry.location) || {};
+    return { data: {
+      placeId: pid, address: r.formatted_address || '',
+      lat: (typeof loc.lat === 'number') ? loc.lat : null, lng: (typeof loc.lng === 'number') ? loc.lng : null,
+      businessStatus: r.business_status || '', rating: (typeof r.rating === 'number') ? r.rating : null,
+      reviews: (typeof r.user_ratings_total === 'number') ? r.user_ratings_total : null,
+      priceLevel: (typeof r.price_level === 'number') ? r.price_level : null,
+      phone: r.formatted_phone_number || '', website: r.website || '', mapsUrl: r.url || '',
+      at: new Date().toISOString()
+    }, reason: '' };
+  } catch (e) { return { data: null, reason: 'places: request failed' }; }
+}
+function applyPlacesData(l, data) {
+  if (!data) return false;
+  l.google = Object.assign({}, l.google || {}, data);
+  if (!l.phone && data.phone) l.phone = data.phone;      // fill only empty fields — never overwrite what a rep typed
+  if (!l.website && data.website) l.website = data.website;
+  return true;
+}
+// Pull the best available photo(s) AND the Google business data for one location.
 async function pullPhotosForLocation(key, l) {
   let added = 0; const reasons = [];
   const addr = [l.address, l.city, l.state].filter(Boolean).join(', ');
   const query = [l.concept, l.name, l.address, l.city, l.state].filter(Boolean).join(' ');
+  try { const en = await placesEnrich(key, query || addr); if (en.data) applyPlacesData(l, en.data); else if (en.reason) reasons.push(en.reason); } catch (e) {}
   if ((l.photos || []).length < LOCPHOTO_MAX) { const p = await placesPhoto(key, query || addr); if (attachPhotoBuffer(l, p.img, 'places')) added++; else if (p.reason) reasons.push(p.reason); }
-  if ((l.photos || []).length < LOCPHOTO_MAX) { const s = await streetViewPhoto(key, addr); if (attachPhotoBuffer(l, s.img, 'streetview')) added++; else if (s.reason) reasons.push(s.reason); }
-  return { added, reasons };
+  if ((l.photos || []).length < LOCPHOTO_MAX) { const svp = await streetViewPhoto(key, addr); if (attachPhotoBuffer(l, svp.img, 'streetview')) added++; else if (svp.reason) reasons.push(svp.reason); }
+  return { added, reasons, enriched: !!(l.google && l.google.placeId) };
 }
 app.get('/api/admin/gmaps-key', requireAdmin, (req, res) => res.json({ ok: true, set: !!loadGmapsKey(), fromEnv: !fs.existsSync(GMAPS_KEY_FILE) && !!process.env.GOOGLE_MAPS_API_KEY }));
 app.post('/api/admin/gmaps-key', requireAdmin, express.json(), (req, res) => {
@@ -2733,20 +2808,21 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(),
-    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES },
-    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources) },
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(),
+    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES },
+    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes) },
   });
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes() }); }
   if (b.personTypes !== undefined) s.personTypes = cleanStrList(b.personTypes, 40, 60) || [];
   if (b.companyTypes !== undefined) s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || [];
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
   if (b.leadSources !== undefined) s.leadSources = cleanStrList(b.leadSources, 40, 60) || [];
+  if (b.activityTypes !== undefined) s.activityTypes = cleanStrList(b.activityTypes, 40, 60) || [];
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
@@ -2852,7 +2928,8 @@ app.get('/api/company/:id', (req, res) => {
   const _cids = loadPeople().filter(p => p.companyId === c.id).map(p => p.id);
   const _pn = {}; loadPeople().forEach(p => { _pn[p.id] = p.name; });
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
-  res.json({ ok: true, company: c, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, markets: RRG_METROS, hasMaps: !!loadGmapsKey(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  const companyLogoAuto = logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
+  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, markets: RRG_METROS, hasMaps: !!loadGmapsKey(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 // ---- Concepts — a company runs one or more concepts (brands); locations attach to a concept. ----
 function newConceptId() { return 'cpt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -3014,6 +3091,7 @@ app.post('/api/company', express.json(), (req, res) => {
   if (typeof b.type === 'string' && effCompanyTypes().indexOf(b.type) >= 0) c.type = b.type;
   if (b.tags !== undefined) c.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') c.notes = b.notes.slice(0, 6000);
+  if (typeof b.logo === 'string') c.logo = b.logo.slice(0, 400);
   if (b.office && typeof b.office === 'object') {
     const o = c.office || {};
     ['address', 'city', 'state', 'phone', 'website', 'email'].forEach(k => { if (typeof b.office[k] === 'string') o[k] = b.office[k].slice(0, 200); });
@@ -3523,7 +3601,7 @@ app.get('/admin', requireAdmin, (req, res) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.set('Content-Type', 'text/html; charset=utf-8').send(shell('Admin Console', `
     <div class="bar"><span class="stat"><b>${users.length}</b> users</span><span class="stat"><b>${logins.filter(l=>l.result==='success').length}</b> logins shown</span><span class="stat"><b>${usageAll.length}</b> tool opens</span><span class="stat" title="Version and when the running server last started. After you push and Render redeploys, refresh this page — if the boot time doesn't update to just now, the new code isn't live yet."><b>${esc(ADMIN_BUILD)}</b> · booted ${esc(SERVER_BOOT.toLocaleString('en-US',{timeZone:'America/Chicago'}))} CT</span>
-      <span class="dl"><a href="/index.html" style="background:#DA2B1F;color:#fff;padding:6px 13px;border-radius:8px;font-weight:800;text-decoration:none">Switch to user view →</a> <a href="/rrg_admin_settings.html">More settings</a> <a href="/log">Submissions</a> <a href="/admin/logins.csv">Login CSV</a> <a href="/admin/usage.csv">Usage CSV</a> <a href="/logout">Sign out</a></span></div>
+      <span class="dl"><a href="/index.html" style="background:#DA2B1F;color:#fff;padding:6px 13px;border-radius:8px;font-weight:800;text-decoration:none">Switch to user view →</a> <a href="/log">Submissions</a> <a href="/admin/logins.csv">Login CSV</a> <a href="/admin/usage.csv">Usage CSV</a> <a href="/logout">Sign out</a></span></div>
     <style>
       .expandbar{display:none!important;}
       .userscroll{max-height:390px;overflow-y:auto;border:1px solid #e9edf3;border-radius:11px;}
@@ -3993,6 +4071,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         navs.forEach(function(n){ n.addEventListener('click',function(e){ e.preventDefault(); show(n.getAttribute('data-target')); }); });
         var saved=null; try{ saved=localStorage.getItem('rrgadm_panel'); }catch(e){}
         if(saved && document.getElementById(saved)) show(saved);
+        var moreA=document.createElement('a'); moreA.className='snav'; moreA.href='/rrg_admin_settings.html'; moreA.style.marginTop='12px'; moreA.style.borderTop='1px solid #e9edf3'; moreA.style.paddingTop='15px'; moreA.innerHTML='<span class="si"></span>More settings →'; nav.appendChild(moreA);
       })();
       function accAll(){}
     </script>`));
@@ -4399,6 +4478,7 @@ app.post('/api/agreements', express.json(), (req, res) => {
   if (typeof b.notes === 'string') a.notes = b.notes.slice(0, 2000);
   a.updatedAt = now;
   saveAgreements(all);
+  if (!b.id && a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Sent', (a.type || 'Agreement') + ' agreement', { auto: true, by: a.createdByName || '', byUser: a.createdBy || '' }); savePeople(ppl); } } catch (e) {} }
   res.json({ ok: true, agreement: agreementBrief(a) });
 });
 app.delete('/api/agreements/:id', (req, res) => {
