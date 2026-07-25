@@ -48,6 +48,8 @@ tr:hover td{background:#fbfcfe;}
 .modalb input,.modalb select{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;background:#fff;}
 .modalf{display:flex;gap:9px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line);}
 .mbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 17px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;} .mbtn.ghost{background:#fff;color:var(--muted);border-color:var(--line);}
+.dupe.warn{background:#fdf7ec;border-color:#f0dcae;color:#7a5b22;} .dupe.warn a{color:#b5791f;} .dupe.warn b{color:#7a5b22;}
+.dupelist{display:flex;flex-direction:column;gap:3px;margin-top:5px;} .dupelist a{font-weight:700;text-decoration:none;} .dupehint{margin-top:6px;color:#98a1b5;font-size:11.5px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -101,14 +103,34 @@ function renderList(list){
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
 }
 var CTYPES=['Seller','Buyer'];
+var STOPWORDS={llc:1,inc:1,co:1,corp:1,corporation:1,company:1,ltd:1,the:1,a:1,an:1,of:1,and:1,restaurant:1,restaurants:1,group:1,grill:1,grille:1,kitchen:1,cafe:1,caf:1,bar:1,tavern:1,eatery:1,holdings:1,enterprises:1,hospitality:1,concepts:1,brands:1};
 function normName(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
+function coreTokens(s){ return normName(s).split(' ').filter(function(t){ return t && !STOPWORDS[t]; }); }
+function coreName(s){ return coreTokens(s).join(' '); }
+function lev(a,b){ if(a===b) return 0; var m=a.length,n=b.length; if(!m) return n; if(!n) return m; var prev=[],cur=[],i,j; for(j=0;j<=n;j++) prev[j]=j; for(i=1;i<=m;i++){ cur[0]=i; for(j=1;j<=n;j++){ var cost=a.charAt(i-1)===b.charAt(j-1)?0:1; cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+cost); } for(j=0;j<=n;j++) prev[j]=cur[j]; } return cur[n]; }
+function simScore(a,b){
+  var ca=coreName(a), cb=coreName(b); if(!ca||!cb) return 0; if(ca===cb) return 1;
+  var ta=coreTokens(a), tb=coreTokens(b), setb={}; tb.forEach(function(t){setb[t]=1;});
+  var seen={}, inter=0; ta.forEach(function(t){ if(setb[t]&&!seen[t]){inter++;seen[t]=1;} });
+  var uni={}; ta.concat(tb).forEach(function(t){uni[t]=1;}); var uniN=Object.keys(uni).length||1; var jac=inter/uniN;
+  var d=lev(ca,cb), lr=1-(d/Math.max(ca.length,cb.length));
+  var sub=((ca.indexOf(cb)>=0||cb.indexOf(ca)>=0)&&Math.min(ca.length,cb.length)>=3)?0.86:0;
+  return Math.max(jac,lr,sub);
+}
 function findDupe(name){ var n=normName(name); if(!n) return null; return ALL.filter(function(c){ return normName(c.name)===n; })[0]||null; }
+function findNearDupes(name){ var out=[]; if(coreName(name).length<3) return out; ALL.forEach(function(c){ if(normName(c.name)===normName(name)) return; var sc=simScore(name,c.name); if(sc>=0.6) out.push({c:c,sc:sc}); }); out.sort(function(x,y){return y.sc-x.sc;}); return out.slice(0,5); }
 function checkDupe(){
   var name=document.getElementById('m_name').value.trim();
   var box=document.getElementById('m_dupe'), btn=document.getElementById('m_create');
-  var d=findDupe(name);
-  if(d){ box.innerHTML='Already in your book — <b>'+esc(d.name)+'</b>. <a href="./rrg_company.html?id='+encodeURIComponent(d.id)+'">Open it →</a>'; box.removeAttribute('hidden'); btn.disabled=true; }
-  else { box.setAttribute('hidden',''); box.innerHTML=''; btn.disabled=false; }
+  var exact=findDupe(name);
+  if(exact){ box.className='dupe'; box.innerHTML='Already in your book — <b>'+esc(exact.name)+'</b>. <a href="./rrg_company.html?id='+encodeURIComponent(exact.id)+'">Open it →</a>'; box.removeAttribute('hidden'); btn.disabled=true; return; }
+  btn.disabled=false;
+  var near=findNearDupes(name);
+  if(near.length){
+    box.className='dupe warn';
+    box.innerHTML='<b>Possible match'+(near.length>1?'es':'')+'</b> — did you mean:<div class="dupelist">'+near.map(function(x){ return '<a href="./rrg_company.html?id='+encodeURIComponent(x.c.id)+'">'+esc(x.c.name)+' →</a>'; }).join('')+'</div><div class="dupehint">If none of these is it, go ahead and create.</div>';
+    box.removeAttribute('hidden');
+  } else { box.setAttribute('hidden',''); box.innerHTML=''; }
 }
 function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=CTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join(''); document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_name').focus(); }
 function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); document.getElementById('m_name').value=''; var box=document.getElementById('m_dupe'); box.setAttribute('hidden','');box.innerHTML=''; document.getElementById('m_create').disabled=false; }
@@ -135,5 +157,6 @@ document.getElementById('m_create').addEventListener('click',createCompany);
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target.id==='modal') closeModal(); });
 fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; CTYPES=(j&&j.types)||CTYPES; IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load companies.</div>'; });
 </script>
+<script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
 </body>
 </html>

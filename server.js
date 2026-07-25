@@ -2536,6 +2536,27 @@ app.delete('/api/person/:id', (req, res) => {
 });
 // ---- Contact photo (optional headshot / logo) ----
 const PERSONPHOTO_DIR = path.join(BOV_DATA_DIR, 'personphotos');
+app.post('/api/person/:id/email', express.json({ limit: '256kb' }), async (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
+  if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: "Email isn't set up. Configure it in Admin -> Email." });
+  const b = req.body || {};
+  const to = String(b.to || '').trim() || preferredEmailOf(p);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'A valid recipient email is required.' });
+  const subject = String(b.subject || '').slice(0, 300);
+  const body = String(b.body || '').slice(0, 20000);
+  if (!subject.trim() && !body.trim()) return res.status(400).json({ ok: false, error: 'Add a subject or a message.' });
+  try {
+    const info = await buildTransport().sendMail({ from: mailFrom(), to, subject: subject || '(no subject)', text: body });
+    const now = new Date().toISOString();
+    p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
+    const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', messageId: (info && info.messageId) || '' };
+    p.emailLog.unshift(entry); p.emailLog = p.emailLog.slice(0, 100);
+    p.lastContacted = now.slice(0, 10); p.updatedAt = now;
+    savePeople(arr);
+    res.json({ ok: true, entry, emailLog: p.emailLog, lastContacted: p.lastContacted });
+  } catch (e) { console.error('person email error:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 app.post('/api/person/:id/photo', express.json({ limit: '8mb' }), (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
@@ -2591,7 +2612,7 @@ app.get('/api/person/:id', (req, res) => {
     (o.tours || []).filter(x => x.personId === p.id).forEach(x => tours.push({ key: key, business: biz, date: x.date, interest: x.interest }));
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), emailReady: isEmailConfigured(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
@@ -3502,7 +3523,7 @@ app.get('/admin', requireAdmin, (req, res) => {
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.set('Content-Type', 'text/html; charset=utf-8').send(shell('Admin Console', `
     <div class="bar"><span class="stat"><b>${users.length}</b> users</span><span class="stat"><b>${logins.filter(l=>l.result==='success').length}</b> logins shown</span><span class="stat"><b>${usageAll.length}</b> tool opens</span><span class="stat" title="Version and when the running server last started. After you push and Render redeploys, refresh this page — if the boot time doesn't update to just now, the new code isn't live yet."><b>${esc(ADMIN_BUILD)}</b> · booted ${esc(SERVER_BOOT.toLocaleString('en-US',{timeZone:'America/Chicago'}))} CT</span>
-      <span class="dl"><a href="/index.html" style="background:#DA2B1F;color:#fff;padding:6px 13px;border-radius:8px;font-weight:800;text-decoration:none">Switch to user view →</a> <a href="/log">Submissions</a> <a href="/admin/logins.csv">Login CSV</a> <a href="/admin/usage.csv">Usage CSV</a> <a href="/logout">Sign out</a></span></div>
+      <span class="dl"><a href="/index.html" style="background:#DA2B1F;color:#fff;padding:6px 13px;border-radius:8px;font-weight:800;text-decoration:none">Switch to user view →</a> <a href="/rrg_admin_settings.html">More settings</a> <a href="/log">Submissions</a> <a href="/admin/logins.csv">Login CSV</a> <a href="/admin/usage.csv">Usage CSV</a> <a href="/logout">Sign out</a></span></div>
     <style>
       .expandbar{display:none!important;}
       .userscroll{max-height:390px;overflow-y:auto;border:1px solid #e9edf3;border-radius:11px;}

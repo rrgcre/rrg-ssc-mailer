@@ -294,8 +294,6 @@ var TOOLS = [
     desc:"Every deal in one file. Each deal ties together its qualification call, questionnaire, valuation, marketing pack, attack plan, data room, and lease abstract — so you see at a glance where every listing stands, and manage status, owner, offers, tours, and notes from one place." },
   { name:'Command Center', tag:'Deal', file:'rrg_command.html', icon:'gauge2', track:'tools', sort:1,
     desc:"Your management & prospecting cockpit. Three views over the whole book and pipeline: the lease-expiration ladder (every lease rolling in the next 6–24 months — your prospecting list), the seller pipeline (funnel, listings expiring, stale deals, value & production by agent), and portfolio intelligence (expanding concepts, dark units, market coverage)." },
-  { name:'Admin Settings', tag:'Deal', file:'rrg_admin_settings.html', icon:'gauge2', track:'tools', adminOnly:true, sort:6,
-    desc:"Admin only. Edit the contact, company, and request type lists; set the services-desk notification emails; manage the Claude API key; and reset the book (companies, concepts, locations)." },
   { name:'Tasks', tag:'Deal', file:'rrg_tasks.html', icon:'checklist', track:'tools', sort:2,
     desc:"Your team to-do list. Create tasks, assign them to anyone on the team, set a due date and priority, and check them off. See what's on your plate and what you've handed out." },
   { name:'Cap Rate Calculator', tag:'Deal', file:'rrg_cap_rate_calculator.html', icon:'calc', track:'tools', sort:5,
@@ -776,5 +774,6 @@ function qlSave(){
 })();
 
 </script>
+<script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
 </body>
 </html>
