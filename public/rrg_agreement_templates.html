@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Agreement Templates</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:28px 0 30px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:960px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+h1{font-size:29px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:680px;}
+.wrap{max-width:960px;margin:22px auto;padding:0 24px 70px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:20px;}
+.ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);} .ch b{color:var(--navy);font-size:14px;} .ch span{color:var(--muted);font-size:11.5px;} .ch .sp{margin-left:auto;}
+.cb{padding:18px 20px;}
+label.fld{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:2px 0 7px;}
+input,textarea,select{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;}
+textarea{min-height:92px;resize:vertical;line-height:1.5;}
+.btn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.btn.ghost{background:#fff;color:var(--navy);border-color:#cdd6e6;} .btn.red{background:var(--red);border-color:var(--red);}
+.btn.danger{background:#fff;color:var(--red);border-color:#f0c9c6;} .btn.danger:hover{background:#fdeceb;}
+.btn.sm{padding:6px 11px;font-size:12px;}
+.btn:disabled{opacity:.5;cursor:default;}
+.btnrow{display:flex;gap:9px;margin-top:16px;flex-wrap:wrap;align-items:center;}
+.msg{font-size:12.5px;font-weight:600;} .msg.ok{color:var(--green);} .msg.err{color:#b23a2c;}
+.note{font-size:12px;color:var(--muted);line-height:1.55;margin-top:8px;}
+.status{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;}
+.status.on{background:#eafaf0;color:#0e7a53;border:1px solid #b9e6cd;} .status.off{background:#f2f4f8;color:#6b7488;border:1px solid #e0e5ee;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;} @media(max-width:720px){.grid2{grid-template-columns:1fr;}}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);}
+.foot{max-width:960px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+.trow{display:flex;align-items:center;gap:12px;padding:13px 20px;border-top:1px solid var(--line);}
+.trow:first-child{border-top:none;}
+.trow .tn{font-weight:700;color:var(--navy);font-size:14px;}
+.trow .tmeta{font-size:12px;color:var(--muted);margin-top:2px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.pilltype{display:inline-block;font-size:11px;font-weight:700;background:#eef2ff;color:#3a4fb0;border-radius:6px;padding:2px 8px;}
+.file-ok{color:var(--green);font-weight:700;} .file-no{color:#b5791f;font-weight:700;}
+.trow .sp{margin-left:auto;} .trow .acts{display:flex;gap:7px;}
+.empty{padding:26px 20px;text-align:center;color:var(--soft);font-size:13px;}
+.uprow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;}
+.filelabel{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px dashed #cdd6e6;border-radius:9px;padding:9px 14px;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);font-weight:600;margin-top:6px;} .chk input{width:auto;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="/admin" class="rrg-back" aria-label="Back to admin console" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Admin console</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Admin</div>
+  <h1>Agreement Templates</h1>
+  <div class="sub">Your standard agreements, stored once and reused. Reps pick a template on any contact's Agreements section — the document attaches and the signer's fields auto-fill from the record, ready to send for signature. Admin only.</div>
+</div></div>
+<div id="root" class="wrap"><div class="gate">Loading…</div></div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function get(url){ return fetch(url,{credentials:'same-origin'}).then(function(r){return r.json();}); }
+function post(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body||{})}).then(function(r){return r.json();}); }
+function del(url){ return fetch(url,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}); }
+
+var TPLS=[], TYPES=[], EDIT=null;
+
+function typeLabel(k){ for(var i=0;i<TYPES.length;i++){ if(TYPES[i].key===k) return TYPES[i].label; } return k||''; }
+function fieldsToText(arr){ return (arr||[]).map(function(f){ return f.label+(f.required?' *':''); }).join('\n'); }
+function textToFields(t){ return String(t||'').split('\n').map(function(l){ l=l.trim(); if(!l) return null; var req=/\*\s*$/.test(l); return { label:l.replace(/\s*\*\s*$/,'').trim(), required:req }; }).filter(Boolean); }
+
+function render(){
+  var root=document.getElementById('root');
+  var typeOpts='<option value="">— none —</option>'+TYPES.map(function(t){ return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>'; }).join('');
+  var e=EDIT||{};
+  var editing=!!EDIT;
+  var form=''+
+    '<div class="card"><div class="ch"><b>'+(e.id?'Edit template':'New template')+'</b><span class="sp"></span>'+(editing?'<button class="btn ghost sm" id="t_close">Close</button>':'')+'</div><div class="cb">'+
+      '<div class="grid2">'+
+        '<div><label class="fld">Template name</label><input id="t_name" value="'+esc(e.name||'')+'" placeholder="e.g. Standard Tenant Rep Agreement"></div>'+
+        '<div><label class="fld">Category / type</label><select id="t_type">'+typeOpts+'</select></div>'+
+      '</div>'+
+      '<div style="margin-top:14px"><label class="fld">Signer fields — one per line, add * for required</label>'+
+        '<textarea id="t_fields" placeholder="Full name *&#10;Title / Company&#10;Date">'+esc(fieldsToText(e.signFields)|| '')+'</textarea>'+
+        '<div class="note">Fields whose label contains <b>name</b>, <b>company/title</b>, <b>date</b>, or <b>email</b> auto-fill from the linked contact on the signing page. The signer can edit them, then draws their signature.</div>'+
+      '</div>'+
+      '<div class="chk"><input type="checkbox" id="t_active"'+((e.active===false)?'':' checked')+'> Active (reps can pick this template)</div>'+
+      (e.id?('<div style="margin-top:16px"><label class="fld">Template document</label><div class="uprow">'+
+          (e.fileExt?('<span class="file-ok">📎 '+esc(e.fileName||'document')+'</span> <a class="btn ghost sm" href="/api/agreement-templates/'+esc(e.id)+'/file" target="_blank" rel="noopener">View</a>'):'<span class="file-no">No document uploaded yet</span>')+
+          '<label class="filelabel">⤒ '+(e.fileExt?'Replace file':'Upload file')+'<input type="file" id="t_file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label>'+
+        '</div><div class="note">PDF or Word, up to 20 MB. This is the document the signer reviews.</div></div>'):
+        '<div class="note" style="margin-top:14px">Save the template first, then you can upload its document.</div>')+
+      '<div class="btnrow"><button class="btn red" id="t_save">'+(e.id?'Save changes':'Create template')+'</button><span class="msg" id="t_msg"></span></div>'+
+    '</div></div>';
+
+  var listRows = TPLS.length ? TPLS.map(function(t){
+    return '<div class="trow"><div><div class="tn">'+esc(t.name)+'</div><div class="tmeta">'+
+      (t.type?('<span class="pilltype">'+esc(typeLabel(t.type))+'</span>'):'')+
+      (t.fileExt?('<span class="file-ok">📎 '+esc(t.fileName||('document.'+t.fileExt))+'</span>'):'<span class="file-no">no document</span>')+
+      '<span>'+((t.signFields||[]).length)+' field'+(((t.signFields||[]).length)===1?'':'s')+'</span>'+
+      '<span class="status '+(t.active?'on':'off')+'">'+(t.active?'Active':'Inactive')+'</span>'+
+      '</div></div><span class="sp"></span><div class="acts">'+
+      (t.fileExt?('<a class="btn ghost sm" href="/api/agreement-templates/'+esc(t.id)+'/file" target="_blank" rel="noopener">View</a>'):'')+
+      '<button class="btn ghost sm" data-edit="'+esc(t.id)+'">Edit</button>'+
+      '<button class="btn danger sm" data-del="'+esc(t.id)+'">Delete</button></div></div>';
+  }).join('') : '<div class="empty">No templates yet. Create your first standard agreement above.</div>';
+
+  var list='<div class="card"><div class="ch"><b>Template library</b><span>'+TPLS.length+' total</span><span class="sp"></span>'+(editing?'':'<button class="btn sm" id="t_new">+ New template</button>')+'</div>'+listRows+'</div>';
+
+  root.innerHTML = form + list;
+
+  if(document.getElementById('t_type')) document.getElementById('t_type').value = e.type||'';
+
+  var nb=document.getElementById('t_new'); if(nb) nb.addEventListener('click',function(){ EDIT={active:true}; render(); window.scrollTo(0,0); });
+  var cb=document.getElementById('t_close'); if(cb) cb.addEventListener('click',function(){ EDIT=null; render(); });
+  document.getElementById('t_save').addEventListener('click',saveTpl);
+  var fi=document.getElementById('t_file'); if(fi) fi.addEventListener('change',function(){ if(fi.files&&fi.files[0]) uploadFile(e.id, fi.files[0]); });
+  root.querySelectorAll('[data-edit]').forEach(function(b){ b.addEventListener('click',function(){ var t=TPLS.filter(function(x){return x.id===b.getAttribute('data-edit');})[0]; if(t){ EDIT=JSON.parse(JSON.stringify(t)); render(); window.scrollTo(0,0);} }); });
+  root.querySelectorAll('[data-del]').forEach(function(b){ b.addEventListener('click',function(){ delTpl(b.getAttribute('data-del')); }); });
+}
+
+function saveTpl(){
+  var name=(document.getElementById('t_name').value||'').trim();
+  var msg=document.getElementById('t_msg');
+  if(!name){ document.getElementById('t_name').focus(); if(msg){msg.textContent='Name the template first.';msg.className='msg err';} return; }
+  var body={ name:name, type:document.getElementById('t_type').value, signFields:textToFields(document.getElementById('t_fields').value), active:document.getElementById('t_active').checked };
+  if(EDIT&&EDIT.id) body.id=EDIT.id;
+  var btn=document.getElementById('t_save'); btn.disabled=true; if(msg){msg.textContent='Saving…';msg.className='msg';}
+  post('/api/admin/agreement-templates',body).then(function(j){
+    btn.disabled=false;
+    if(j&&j.ok){ EDIT=j.template; upsert(j.template); if(msg){msg.textContent='Saved ✓';msg.className='msg ok';} render(); }
+    else { if(msg){msg.textContent=(j&&j.error)||'Could not save.';msg.className='msg err';} }
+  }).catch(function(){ btn.disabled=false; if(msg){msg.textContent='Could not reach the server.';msg.className='msg err';} });
+}
+function uploadFile(id,file){
+  if(!id) return;
+  if(file.size>20*1024*1024){ alert('File too large (max 20 MB).'); return; }
+  var msg=document.getElementById('t_msg'); if(msg){msg.textContent='Uploading…';msg.className='msg';}
+  var rd=new FileReader();
+  rd.onload=function(){ post('/api/admin/agreement-templates/'+encodeURIComponent(id)+'/file',{filename:file.name,dataB64:String(rd.result||'')}).then(function(j){
+    if(j&&j.ok){ EDIT=j.template; upsert(j.template); if(msg){msg.textContent='Document uploaded ✓';msg.className='msg ok';} render(); }
+    else { if(msg){msg.textContent=(j&&j.error)||'Upload failed.';msg.className='msg err';} }
+  }).catch(function(){ if(msg){msg.textContent='Upload failed.';msg.className='msg err';} }); };
+  rd.readAsDataURL(file);
+}
+function delTpl(id){
+  var t=TPLS.filter(function(x){return x.id===id;})[0];
+  if(!confirm('Delete "'+((t&&t.name)||'this template')+'"? This removes the template and its document. Agreements already created from it are not affected.')) return;
+  del('/api/admin/agreement-templates/'+encodeURIComponent(id)).then(function(j){ if(j&&j.ok){ TPLS=TPLS.filter(function(x){return x.id!==id;}); if(EDIT&&EDIT.id===id) EDIT=null; render(); } else alert((j&&j.error)||'Could not delete.'); });
+}
+function upsert(t){ var found=false; TPLS=TPLS.map(function(x){ if(x.id===t.id){found=true; return t;} return x; }); if(!found) TPLS.push(t); TPLS.sort(function(a,b){return String(a.name).localeCompare(String(b.name));}); }
+
+get('/api/agreement-templates').then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load templates.</div>'; return; }
+  if(!j.isAdmin){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to manage agreement templates.</div>'; return; }
+  TPLS=j.templates||[]; TYPES=j.types||[]; render();
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+</script>
+</body>
+</html>

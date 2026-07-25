@@ -643,7 +643,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path)) return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path)) return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -4078,6 +4078,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         var saved=null; try{ saved=localStorage.getItem('rrgadm_panel'); }catch(e){}
         if(saved && document.getElementById(saved)) show(saved);
         var moreA=document.createElement('a'); moreA.className='snav'; moreA.href='/rrg_admin_settings.html'; moreA.style.marginTop='12px'; moreA.style.borderTop='1px solid #e9edf3'; moreA.style.paddingTop='15px'; moreA.innerHTML='<span class="si"></span>More settings →'; nav.appendChild(moreA);
+        var tplA=document.createElement('a'); tplA.className='snav'; tplA.href='/rrg_agreement_templates.html'; tplA.innerHTML='<span class="si"></span>Agreement templates →'; nav.appendChild(tplA);
       })();
       function accAll(){}
     </script>`));
@@ -4443,11 +4444,14 @@ const AGREEMENT_TYPES = [
   { key: 'CA', label: 'CA' },
   { key: 'ETRA', label: 'ETRA' },
   { key: 'Referral', label: 'Referral Agreement' },
-  { key: 'Listing', label: 'Exclusive Business Listing' }
+  { key: 'Listing', label: 'Exclusive Business Listing' },
+  { key: 'TenantRep', label: 'Tenant Rep Agreement' },
+  { key: 'BizSeller', label: 'Business Seller Agreement' },
+  { key: 'AssocBroker', label: 'Associate Broker Agreement' }
 ];
 const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
 function agreementBrief(a) {
-  return { id: a.id, type: a.type, personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, signedResponses: a.signedResponses || null };
+  return { id: a.id, type: a.type, personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '' };
 }
 app.get('/api/agreements', (req, res) => {
   let all = loadAgreements();
@@ -4567,7 +4571,11 @@ app.get('/sign/:token', (req, res) => {
     return res.send(roomShell(label + ' — Signed', { head, body: `<div class="card"><div style="padding:22px"><b>This ${esc(label)} has already been signed${a.signedDate ? (' on ' + esc(a.signedDate)) : ''}.</b><div style="color:#6b7488;margin-top:8px">Thank you — no further action is needed.</div></div></div>` }));
   }
   const fields = (Array.isArray(a.signFields) && a.signFields.length) ? a.signFields : defaultSignFields();
-  const fieldHtml = fields.map((fld, i) => `<div style="margin-bottom:14px"><label style="display:block;font-size:12px;font-weight:700;color:#3a4560;margin-bottom:5px">${esc(fld.label)}${fld.required ? ' *' : ''}</label><input data-sf="${i}" data-req="${fld.required ? '1' : ''}" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:15px"></div>`).join('');
+  const _party = p ? p.name : (a.personName || '');
+  const _coName = a.companyId ? ((companyById(a.companyId) || {}).name || '') : '';
+  const _today = new Date().toISOString().slice(0, 10);
+  function prefillFor(fld) { const k = String(fld.autofill || '').toLowerCase(); const L = String(fld.label || '').toLowerCase(); if (k === 'party_name' || k === 'name' || (!k && /\bname\b/.test(L))) return _party; if (k === 'company' || k === 'title' || (!k && /(company|firm|title)/.test(L))) return _coName; if (k === 'date' || (!k && /date/.test(L))) return _today; if (k === 'email' || (!k && /email/.test(L))) return (p ? preferredEmailOf(p) : ''); return ''; }
+  const fieldHtml = fields.map((fld, i) => `<div style="margin-bottom:14px"><label style="display:block;font-size:12px;font-weight:700;color:#3a4560;margin-bottom:5px">${esc(fld.label)}${fld.required ? ' *' : ''}</label><input data-sf="${i}" data-req="${fld.required ? '1' : ''}" value="${esc(prefillFor(fld))}" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:15px"></div>`).join('');
   const docLink = a.docExt ? `<div style="margin-bottom:16px"><a href="/sign/${esc(a.signToken)}/doc" target="_blank" rel="noopener" style="color:#2647b0;font-weight:700;text-decoration:none">📎 Review the ${esc(label)} document →</a></div>` : '';
   const note = a.notes ? `<div style="color:#55607a;font-size:13.5px;margin-bottom:16px;white-space:pre-wrap">${esc(a.notes)}</div>` : '';
   const body = `<div class="card"><div style="padding:22px">${note}${docLink}${fieldHtml}<label style="display:block;font-size:12px;font-weight:700;color:#3a4560;margin:6px 0 6px">Signature *</label><div style="border:1px solid #cfd6e2;border-radius:9px;background:#fff;overflow:hidden"><canvas id="sigpad" style="width:100%;height:180px;touch-action:none;display:block"></canvas></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span style="font-size:11.5px;color:#98a1b5">Draw your signature above</span><button type="button" id="sigclear" style="background:none;border:none;color:#DA2B1F;font-weight:700;cursor:pointer;font-size:12.5px">Clear</button></div><label style="display:flex;align-items:flex-start;gap:8px;margin:16px 0;font-size:12.5px;color:#3a4560"><input type="checkbox" id="sigagree" style="margin-top:2px"> I agree this electronic signature is legally binding and equivalent to my handwritten signature.</label><button type="button" id="sigsubmit" style="width:100%;background:#000E31;color:#fff;border:none;border-radius:10px;padding:14px;font:inherit;font-size:15px;font-weight:700;cursor:pointer">Sign &amp; submit</button><div id="sigmsg" style="text-align:center;font-size:13px;color:#DA2B1F;margin-top:10px"></div></div></div>
@@ -4629,6 +4637,79 @@ app.get('/api/agreements/:id/signature', (req, res) => {
   const a = loadAgreements().find(x => x.id === req.params.id);
   if (!a || !a.hasSignature) return res.status(404).end();
   try { const buf = fs.readFileSync(path.join(AGREEMENT_DOC_DIR, 'sig_' + a.id + '.png')); res.set('Content-Type', 'image/png'); res.send(buf); } catch (e) { res.status(404).end(); }
+});
+
+// ---- Reusable agreement templates (admin-managed library) ----
+const TEMPLATES_FILE = path.join(BOV_DATA_DIR, 'agreement_templates.json');
+const AGREEMENT_TPL_DIR = path.join(BOV_DATA_DIR, 'agreetemplates');
+function loadTemplates() { try { return JSON.parse(fs.readFileSync(TEMPLATES_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveTemplates(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(TEMPLATES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newTemplateId() { return 'tpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function cleanSignFields(arr) { if (!Array.isArray(arr)) return []; return arr.map(f => ({ label: String((f && f.label) || '').slice(0, 80), required: !!(f && f.required) })).filter(f => f.label).slice(0, 12); }
+function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], active: t.active !== false, updatedAt: t.updatedAt || '', createdAt: t.createdAt || '' }; }
+app.get('/api/agreement-templates', (req, res) => {
+  const isAdmin = !!(req.user && req.user.role === 'admin');
+  let all = loadTemplates().map(templateBrief);
+  if (!isAdmin) all = all.filter(t => t.active);
+  all.sort((x, y) => String(x.name).localeCompare(String(y.name)));
+  res.json({ ok: true, templates: all, types: AGREEMENT_TYPES, isAdmin });
+});
+app.post('/api/admin/agreement-templates', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const all = loadTemplates(); const now = new Date().toISOString();
+  const name = String(b.name || '').trim();
+  if (!name) return res.status(400).json({ ok: false, error: 'Give the template a name.' });
+  let t;
+  if (b.id) { t = all.find(x => x.id === b.id); if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' }); }
+  else { t = { id: newTemplateId(), createdAt: now, active: true }; all.push(t); }
+  t.name = name.slice(0, 120);
+  if (typeof b.type === 'string') t.type = AGREEMENT_TYPE_KEYS.indexOf(b.type) >= 0 ? b.type : '';
+  if (b.signFields !== undefined) t.signFields = cleanSignFields(b.signFields);
+  if (b.active !== undefined) t.active = !!b.active;
+  t.updatedAt = now; saveTemplates(all);
+  res.json({ ok: true, template: templateBrief(t) });
+});
+app.post('/api/admin/agreement-templates/:id/file', requireAdmin, express.json({ limit: '28mb' }), (req, res) => {
+  const all = loadTemplates(); const t = all.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' });
+  const b = req.body || {}; const dataB64 = String(b.dataB64 || '').replace(/^data:[^,]*,/, '');
+  if (!dataB64) return res.status(400).json({ ok: false, error: 'No file data.' });
+  const ext = agreementDocExt(b.filename); const buf = Buffer.from(dataB64, 'base64');
+  if (buf.length > 20 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 20 MB).' });
+  try { if (!fs.existsSync(AGREEMENT_TPL_DIR)) fs.mkdirSync(AGREEMENT_TPL_DIR, { recursive: true }); if (t.fileExt && t.fileExt !== ext) { try { fs.unlinkSync(path.join(AGREEMENT_TPL_DIR, t.id + '.' + t.fileExt)); } catch (e) {} } fs.writeFileSync(path.join(AGREEMENT_TPL_DIR, t.id + '.' + ext), buf); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
+  t.fileExt = ext; t.fileName = String(b.filename || ('template.' + ext)).slice(0, 200); t.updatedAt = new Date().toISOString();
+  saveTemplates(all); res.json({ ok: true, template: templateBrief(t) });
+});
+app.get('/api/agreement-templates/:id/file', (req, res) => {
+  const t = loadTemplates().find(x => x.id === req.params.id);
+  if (!t || !t.fileExt) return res.status(404).end();
+  try { const buf = fs.readFileSync(path.join(AGREEMENT_TPL_DIR, t.id + '.' + t.fileExt)); res.set('Content-Type', agreementDocMime(t.fileExt)); res.set('Content-Disposition', 'inline; filename="' + String(t.fileName || ('template.' + t.fileExt)).replace(/[^\w.\- ]+/g, '') + '"'); res.send(buf); }
+  catch (e) { res.status(404).end(); }
+});
+app.delete('/api/admin/agreement-templates/:id', requireAdmin, (req, res) => {
+  const all = loadTemplates(); const t = all.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' });
+  if (t.fileExt) { try { fs.unlinkSync(path.join(AGREEMENT_TPL_DIR, t.id + '.' + t.fileExt)); } catch (e) {} }
+  saveTemplates(all.filter(x => x.id !== t.id)); res.json({ ok: true });
+});
+app.post('/api/agreements/:id/apply-template', express.json(), (req, res) => {
+  const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  const t = loadTemplates().find(x => x.id === String((req.body || {}).templateId || ''));
+  if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' });
+  if (!t.fileExt) return res.status(400).json({ ok: false, error: 'That template has no document uploaded yet.' });
+  try {
+    if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true });
+    const src = fs.readFileSync(path.join(AGREEMENT_TPL_DIR, t.id + '.' + t.fileExt));
+    if (a.docExt && a.docExt !== t.fileExt) { try { fs.unlinkSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); } catch (e) {} }
+    fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + t.fileExt), src);
+  } catch (e) { return res.status(500).json({ ok: false, error: 'Could not copy the template document.' }); }
+  a.docExt = t.fileExt; a.docName = t.fileName || ('template.' + t.fileExt);
+  a.templateId = t.id; a.templateName = t.name || '';
+  if (Array.isArray(t.signFields) && t.signFields.length) a.signFields = t.signFields;
+  if (t.type && AGREEMENT_TYPE_KEYS.indexOf(t.type) >= 0) a.type = t.type;
+  a.updatedAt = new Date().toISOString(); saveAgreements(all);
+  res.json({ ok: true, agreement: agreementBrief(a) });
 });
 
 const PORT = process.env.PORT || 8787;
