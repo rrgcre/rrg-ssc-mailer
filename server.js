@@ -2543,7 +2543,7 @@ app.get('/api/person/:id', (req, res) => {
     (o.tours || []).filter(x => x.personId === p.id).forEach(x => tours.push({ key: key, business: biz, date: x.date, interest: x.interest }));
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, personTypes: effPersonTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
@@ -4228,6 +4228,63 @@ app.delete('/api/tasks/:id', (req, res) => {
   if (!t) return res.status(404).json({ ok: false, error: 'Task not found.' });
   if (!(req.user && req.user.role === 'admin') && t.createdBy !== (req.user && req.user.username)) return res.status(403).json({ ok: false, error: 'Only the creator or an admin can delete this.' });
   saveTasks(all.filter(x => x.id !== t.id)); res.json({ ok: true });
+});
+
+// ================= Agreements =================
+const AGREEMENTS_FILE = path.join(BOV_DATA_DIR, 'agreements.json');
+function loadAgreements() { try { return JSON.parse(fs.readFileSync(AGREEMENTS_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveAgreements(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(AGREEMENTS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newAgreementId() { return 'agr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+const AGREEMENT_TYPES = [
+  { key: 'NDA', label: 'NDA' },
+  { key: 'CA', label: 'CA' },
+  { key: 'ETRA', label: 'ETRA' },
+  { key: 'Referral', label: 'Referral Agreement' },
+  { key: 'Listing', label: 'Exclusive Business Listing' }
+];
+const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
+function agreementBrief(a) {
+  return { id: a.id, type: a.type, personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '' };
+}
+app.get('/api/agreements', (req, res) => {
+  let all = loadAgreements();
+  const pid = req.query.personId;
+  if (pid) all = all.filter(a => a.personId === pid);
+  const nameById = {}; loadPeople().forEach(p => { nameById[p.id] = p.name; });
+  all = all.map(a => Object.assign(agreementBrief(a), { personName: a.personName || nameById[a.personId] || '' }));
+  all.sort((x, y) => String(x.expires || '9999').localeCompare(String(y.expires || '9999')));
+  res.json({ ok: true, agreements: all, types: AGREEMENT_TYPES, isAdmin: !!(req.user && req.user.role === 'admin') });
+});
+app.post('/api/agreements', express.json(), (req, res) => {
+  const b = req.body || {}; const all = loadAgreements(); const now = new Date().toISOString();
+  const type = String(b.type || '').trim();
+  if (AGREEMENT_TYPE_KEYS.indexOf(type) < 0) return res.status(400).json({ ok: false, error: 'Pick an agreement type.' });
+  let a;
+  if (b.id) {
+    a = all.find(x => x.id === b.id);
+    if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  } else {
+    a = { id: newAgreementId(), createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', createdAt: now };
+    all.push(a);
+  }
+  a.type = type;
+  if (typeof b.personId === 'string') { a.personId = b.personId; const p = personById(b.personId); a.personName = p ? p.name : (b.personName || a.personName || ''); }
+  if (typeof b.companyId === 'string') a.companyId = b.companyId;
+  if (typeof b.dealKey === 'string') a.dealKey = b.dealKey;
+  if (typeof b.effective === 'string') a.effective = b.effective.slice(0, 10);
+  if (typeof b.expires === 'string') a.expires = b.expires.slice(0, 10);
+  if (typeof b.status === 'string' && ['active', 'expired', 'terminated'].indexOf(b.status) >= 0) a.status = b.status;
+  if (!a.status) a.status = 'active';
+  if (typeof b.notes === 'string') a.notes = b.notes.slice(0, 2000);
+  a.updatedAt = now;
+  saveAgreements(all);
+  res.json({ ok: true, agreement: agreementBrief(a) });
+});
+app.delete('/api/agreements/:id', (req, res) => {
+  const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  if (!(req.user && req.user.role === 'admin') && a.createdBy !== (req.user && req.user.username)) return res.status(403).json({ ok: false, error: 'Only the creator or an admin can delete this.' });
+  saveAgreements(all.filter(x => x.id !== a.id)); res.json({ ok: true });
 });
 
 const PORT = process.env.PORT || 8787;

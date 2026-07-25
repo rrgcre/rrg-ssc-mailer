@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Agreements</title>
+<script src="/rrg_brand.js"></script>
+<style>
+:root{ --navy:#000E31; --red:#DA2B1F; --ink:#1a2236; --muted:#6b7488; --line:#e6e9f0; --wash:#f5f7fb; --bg:#eef1f6; }
+*{box-sizing:border-box;} html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);}
+.top{background:radial-gradient(115% 130% at 50% 0%, #182a54 0%, #0d1b3d 55%, #04091d 100%);color:#fff;padding:20px 0;}
+.top-inner{max-width:1040px;margin:0 auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.brand{display:inline-flex;align-items:center;gap:11px;}
+.brand .disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font-family:'Arial Black',Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;}
+.brand .wm{font-weight:800;font-size:15px;}
+.top a.back{color:#c3ccdf;text-decoration:none;font-weight:600;font-size:13px;border:1px solid rgba(255,255,255,.2);padding:7px 13px;border-radius:8px;}
+.top a.back:hover{border-color:#fff;color:#fff;}
+.wrap{max-width:1040px;margin:0 auto;padding:24px 28px 60px;}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 18px;flex:1;min-width:120px;}
+.stat .n{font-size:26px;font-weight:800;color:var(--navy);} .stat .n.red{color:var(--red);} .stat .n.amber{color:#b5791f;}
+.stat .l{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin-top:2px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;}
+.filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+.filters .lbl{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin-right:2px;}
+.filters button{background:#fff;border:1px solid #cfd6e2;border-radius:20px;padding:6px 13px;font:inherit;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;}
+.filters button.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th,td{padding:11px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;}
+thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+.jbean{display:inline-flex;align-items:center;padding:4px 11px;border-radius:20px;font-size:11.5px;font-weight:800;}
+.who a{color:var(--navy);font-weight:700;text-decoration:none;} .who a:hover{text-decoration:underline;}
+.stpill{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:3px 9px;border-radius:20px;white-space:nowrap;}
+.stpill.active{background:#e7f5ee;color:#1f8a5b;} .stpill.soon{background:#fdf1df;color:#b5791f;} .stpill.expired{background:#fdeceb;color:var(--red);}
+.exp{font-weight:700;} .exp.red{color:var(--red);} .exp.amber{color:#b5791f;}
+.note{color:var(--muted);font-size:12.5px;max-width:280px;}
+.empty{color:var(--muted);font-size:13.5px;padding:26px 4px;text-align:center;}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-inner">
+  <span class="brand"><span class="disc">RRG</span><span class="wm">Agreements</span></span>
+  <a class="back" href="./index.html">← Dashboard</a>
+</div></div>
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+  <div class="card">
+    <div class="filters" id="typeFilters"></div>
+    <div class="filters">
+      <span class="lbl">Status</span>
+      <button data-s="all" class="on">All</button>
+      <button data-s="active">Active</button>
+      <button data-s="soon">Expiring ≤60d</button>
+      <button data-s="expired">Expired</button>
+    </div>
+    <div id="list"><div class="empty">Loading…</div></div>
+  </div>
+</div>
+<script>
+var AGR=[], TYPES=[], FT='all', FS='all';
+var COLORS={ NDA:{bg:'#eef2fb',fg:'#2647b0'}, CA:{bg:'#e6f5f3',fg:'#0f766e'}, ETRA:{bg:'#f1ebfb',fg:'#6d28d9'}, Referral:{bg:'#fdf1df',fg:'#b5791f'}, Listing:{bg:'#fdeceb',fg:'#DA2B1F'} };
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function fmt(d){ if(!d) return '—'; var p=d.split('-'); if(p.length!==3) return d; return p[1]+'/'+p[2]+'/'+p[0]; }
+function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function daysUntil(d){ if(!d) return null; var t=new Date(d+'T00:00:00'); if(isNaN(t)) return null; return Math.round((t.getTime()-Date.now())/86400000); }
+function label(k){ for(var i=0;i<TYPES.length;i++){ if(TYPES[i].key===k) return TYPES[i].label; } return k; }
+function statusOf(a){ var today=todayStr(); if(a.status==='terminated') return 'expired'; if(a.expires&&a.expires<today) return 'expired'; var du=daysUntil(a.expires); if(a.expires&&du!=null&&du<=60) return 'soon'; return 'active'; }
+function load(){
+  fetch('/api/agreements',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok) return; AGR=j.agreements||[]; TYPES=j.types||[]; buildTypeFilters(); render();
+  });
+}
+function buildTypeFilters(){
+  var el=document.getElementById('typeFilters');
+  el.innerHTML='<span class="lbl">Type</span><button data-t="all" class="on">All</button>'+TYPES.map(function(t){return '<button data-t="'+esc(t.key)+'">'+esc(t.label)+'</button>';}).join('');
+  el.querySelectorAll('[data-t]').forEach(function(b){ b.addEventListener('click',function(){ FT=b.getAttribute('data-t'); el.querySelectorAll('[data-t]').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); render(); }); });
+}
+function render(){
+  var stats=document.getElementById('stats');
+  var expired=AGR.filter(function(a){return statusOf(a)==='expired';}).length;
+  var soon=AGR.filter(function(a){return statusOf(a)==='soon';}).length;
+  var active=AGR.filter(function(a){return statusOf(a)==='active';}).length;
+  stats.innerHTML='<div class="stat"><div class="n">'+AGR.length+'</div><div class="l">Total agreements</div></div>'
+    +'<div class="stat"><div class="n">'+active+'</div><div class="l">Active</div></div>'
+    +'<div class="stat"><div class="n amber">'+soon+'</div><div class="l">Expiring ≤60 days</div></div>'
+    +'<div class="stat"><div class="n red">'+expired+'</div><div class="l">Expired</div></div>';
+  var rows=AGR.filter(function(a){ if(FT!=='all'&&a.type!==FT) return false; if(FS!=='all'&&statusOf(a)!==FS) return false; return true; });
+  var el=document.getElementById('list');
+  if(!rows.length){ el.innerHTML='<div class="empty">No agreements match.</div>'; return; }
+  el.innerHTML='<table><thead><tr><th>Type</th><th>Party</th><th>Effective</th><th>Expires</th><th>Status</th><th>Notes</th></tr></thead><tbody>'
+    +rows.map(function(a){
+      var c=COLORS[a.type]||{bg:'#eef1f6',fg:'#6b7488'}; var st=statusOf(a); var du=daysUntil(a.expires);
+      var who=a.personId?('<span class="who"><a href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'">'+esc(a.personName||'Contact')+'</a></span>'):esc(a.personName||'—');
+      var stTxt=st==='expired'?'Expired':(st==='soon'?('Expiring'+(du!=null?' '+du+'d':'')):'Active');
+      var expCls=st==='expired'?' red':(st==='soon'?' amber':'');
+      return '<tr><td><span class="jbean" style="background:'+c.bg+';color:'+c.fg+'">'+esc(label(a.type))+'</span></td>'
+        +'<td>'+who+'</td><td>'+esc(fmt(a.effective))+'</td>'
+        +'<td class="exp'+expCls+'">'+esc(fmt(a.expires))+'</td>'
+        +'<td><span class="stpill '+st+'">'+stTxt+'</span></td>'
+        +'<td class="note">'+esc(a.notes||'')+'</td></tr>';
+    }).join('')+'</tbody></table>';
+}
+document.querySelectorAll('.filters [data-s]').forEach(function(b){ b.addEventListener('click',function(){ FS=b.getAttribute('data-s'); document.querySelectorAll('.filters [data-s]').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); render(); }); });
+load();
+</script>
+</body>
+</html>

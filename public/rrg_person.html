@@ -46,6 +46,11 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .photoprev img{width:100%;height:100%;object-fit:cover;} .phinit{color:#2647b0;font-weight:800;font-size:20px;}
 .photobtns{display:flex;gap:8px;flex-wrap:wrap;}
 .subphoto{width:26px;height:26px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;border:1px solid rgba(255,255,255,.3);}
+.jbeans{display:flex;flex-wrap:wrap;gap:8px;}
+.jbean{display:inline-flex;align-items:center;gap:6px;padding:6px 6px 6px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;line-height:1;}
+.jbean b{font-weight:800;}
+.jrm{border:none;background:rgba(0,0,0,.10);color:inherit;width:17px;height:17px;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;padding:0;}
+.jrm:hover{background:rgba(0,0,0,.22);}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -66,7 +71,7 @@ function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/
 function personPhotoUrl(){ return (P&&P.photoExt)?('/api/personphoto/'+encodeURIComponent(ID)+'.'+P.photoExt+'?v='+(P.updatedAt?encodeURIComponent(P.updatedAt):Date.now())):''; }
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 function money(v){ if(v==null||v==='') return ''; var n=Number(String(v).replace(/[^0-9.\-]/g,'')); if(!isFinite(n)||n===0) return esc(String(v)); return '$'+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
-var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], PTYPES=['Buyer'], IS_ADMIN=false, DIRTY=false;
+var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], AGREEMENTS=[], ATYPES=[], PTYPES=['Buyer'], IS_ADMIN=false, DIRTY=false;
 function deletePerson(){
   if(!confirm('Delete “'+((P&&P.name)||'this contact')+'” from your registry? Their name stays on any past offers, tours, and NDAs. This cannot be undone.')) return;
   var b=document.getElementById('p_delete'); b.disabled=true; b.textContent='Deleting…';
@@ -78,6 +83,59 @@ function dealLink(key,biz,right){ return '<a class="row" href="./rrg_assignment.
 function listCard(title,items,builder,emptyMsg){
   var body = items.length ? items.map(builder).join('') : '<div class="empty">'+esc(emptyMsg)+'</div>';
   return '<div class="card"><div class="ch"><b>'+esc(title)+'</b><span>'+items.length+'</span></div><div>'+body+'</div></div>';
+}
+var ATYPE_COLORS={ NDA:{bg:'#eef2fb',fg:'#2647b0'}, CA:{bg:'#e6f5f3',fg:'#0f766e'}, ETRA:{bg:'#f1ebfb',fg:'#6d28d9'}, Referral:{bg:'#fdf1df',fg:'#b5791f'}, Listing:{bg:'#fdeceb',fg:'#DA2B1F'} };
+function atypeLabel(k){ for(var i=0;i<ATYPES.length;i++){ if(ATYPES[i].key===k) return ATYPES[i].label; } return k; }
+function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function daysUntil(d){ if(!d) return 99999; var t=new Date(d+'T00:00:00'); if(isNaN(t)) return 99999; return Math.round((t.getTime()-Date.now())/86400000); }
+function agrChip(a){
+  var c=ATYPE_COLORS[a.type]||{bg:'#eef1f6',fg:'#6b7488'};
+  var today=todayStr(); var expired=(a.status==='terminated')||(a.expires&&a.expires<today);
+  var du=daysUntil(a.expires); var soon=a.expires&&!expired&&du<=60;
+  var border=expired?'#DA2B1F':(soon?'#b5791f':'transparent');
+  var exp=a.status==='terminated'?'terminated':(a.expires?('exp '+fmt(a.expires)+(expired?' · EXPIRED':(soon?' · '+du+'d':''))):'no expiry');
+  return '<span class="jbean" data-agr="'+esc(a.id)+'" title="Click to edit" style="background:'+c.bg+';color:'+c.fg+';box-shadow:inset 0 0 0 1.6px '+border+'"><b>'+esc(atypeLabel(a.type))+'</b> · '+esc(exp)+'<button class="jrm" data-agrdel="'+esc(a.id)+'" title="Delete">×</button></span>';
+}
+function agreementsCard(){
+  var chips=AGREEMENTS.length?AGREEMENTS.map(agrChip).join(''):'<div class="empty" style="padding:6px 2px">No agreements on file for this contact.</div>';
+  var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
+  return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGREEMENTS.length+'</span></div>'
+    +'<div class="cb"><div class="jbeans">'+chips+'</div>'
+    +'<div style="margin-top:10px"><button type="button" class="mfadd" id="agrAddBtn">+ Add agreement</button></div>'
+    +'<div id="agrForm" hidden style="margin-top:12px;border-top:1px solid #e6e9f0;padding-top:12px">'
+      +'<input type="hidden" id="agr_id">'
+      +'<div class="fldrow2"><div><label class="fld">Type</label><select id="agr_type">'+opts+'</select></div>'
+      +'<div><label class="fld">Status</label><select id="agr_status"><option value="active">Active</option><option value="terminated">Terminated</option></select></div></div>'
+      +'<div class="fldrow2"><div><label class="fld">Effective</label><input type="date" id="agr_eff"></div>'
+      +'<div><label class="fld">Expires</label><input type="date" id="agr_exp"></div></div>'
+      +'<div class="fldrow"><label class="fld">Notes</label><input id="agr_notes" placeholder="Counterparty, terms, reference…"></div>'
+      +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button type="button" class="savebtn" id="agrSave" style="width:auto;padding:8px 16px">Save agreement</button><button type="button" class="mfadd" id="agrCancel">Cancel</button><span id="agrMsg" style="font-size:12px;color:#6b7488"></span></div>'
+    +'</div></div></div>';
+}
+function openAgrForm(a){
+  var f=document.getElementById('agrForm'); f.removeAttribute('hidden');
+  document.getElementById('agr_id').value=a?a.id:'';
+  document.getElementById('agr_type').value=a?a.type:((ATYPES[0]&&ATYPES[0].key)||'NDA');
+  document.getElementById('agr_status').value=a?(a.status==='terminated'?'terminated':'active'):'active';
+  document.getElementById('agr_eff').value=a?(a.effective||''):'';
+  document.getElementById('agr_exp').value=a?(a.expires||''):'';
+  document.getElementById('agr_notes').value=a?(a.notes||''):'';
+  document.getElementById('agrMsg').textContent='';
+}
+function saveAgreement(){
+  var msg=document.getElementById('agrMsg');
+  var body={ personId:ID, id:document.getElementById('agr_id').value||undefined, type:document.getElementById('agr_type').value, status:document.getElementById('agr_status').value, effective:document.getElementById('agr_eff').value, expires:document.getElementById('agr_exp').value, notes:document.getElementById('agr_notes').value.trim() };
+  msg.textContent='Saving…';
+  fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { msg.textContent=(j&&j.error)||'Failed'; } });
+}
+function delAgreement(id){ if(!confirm('Delete this agreement?')) return; fetch('/api/agreements/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert((j&&j.error)||'Could not delete.'); }); }
+function wireAgreements(){
+  var add=document.getElementById('agrAddBtn'); if(add) add.addEventListener('click',function(){ openAgrForm(null); });
+  var sv=document.getElementById('agrSave'); if(sv) sv.addEventListener('click',saveAgreement);
+  var cn=document.getElementById('agrCancel'); if(cn) cn.addEventListener('click',function(){ document.getElementById('agrForm').setAttribute('hidden',''); });
+  document.querySelectorAll('.jbean[data-agr]').forEach(function(b){ b.addEventListener('click',function(e){ if(e.target&&e.target.classList.contains('jrm')) return; var a=AGREEMENTS.filter(function(x){return x.id===b.getAttribute('data-agr');})[0]; if(a) openAgrForm(a); }); });
+  document.querySelectorAll('[data-agrdel]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); delAgreement(b.getAttribute('data-agrdel')); }); });
 }
 function render(){
   document.getElementById('crumb').textContent=P.name||'Contact';
@@ -103,7 +161,7 @@ function render(){
   var tagsVal=(P.tags&&P.tags.length)?P.tags.join(', '):'';
   document.getElementById('root').className='wrap';
   document.getElementById('root').innerHTML=
-    '<div class="main">'+dealsCard+offersCard+toursCard+ndasCard+'</div>'
+    '<div class="main">'+dealsCard+agreementsCard()+offersCard+toursCard+ndasCard+'</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Contact</b></div><div class="cb">'
       + '<div class="photorow"><div class="photoprev" id="p_photoprev">'+photoInner+'</div><div class="photobtns"><label class="mfadd">Upload photo<input type="file" id="p_photofile" accept="image/*" hidden></label>'+(P.photoExt?'<button type="button" class="mfadd" id="p_photoclear">Remove</button>':'')+'</div></div>'
       + '<div class="fldrow2"><div><label class="fld">First name *</label><input id="p_first" value="'+esc(P.firstName||'')+'"></div><div><label class="fld">Last name *</label><input id="p_last" value="'+esc(P.lastName||'')+'"></div></div>'
@@ -127,6 +185,7 @@ function render(){
   var pf=document.getElementById('p_photofile'); if(pf) pf.addEventListener('change',function(){ if(pf.files&&pf.files[0]) uploadPhoto(pf.files[0]); });
   var pc=document.getElementById('p_photoclear'); if(pc) pc.addEventListener('click',clearPhoto);
   document.getElementById('p_save').addEventListener('click',savePerson);
+  wireAgreements();
 }
 function mfHtml(cls,values,ph){ values=(values&&values.length)?values:['']; var rows=values.map(function(v){ return '<div class="mfrow"><input class="'+cls+'" value="'+esc(v)+'" placeholder="'+esc(ph)+'"><button type="button" class="mfrm">×</button></div>'; }).join(''); return '<div class="mfwrap">'+rows+'<button type="button" class="mfadd" data-cls="'+cls+'" data-ph="'+esc(ph)+'">+ Add another</button></div>'; }
 function wireMulti(scope){ scope.querySelectorAll('.mfadd').forEach(function(b){ b.addEventListener('click',function(){ var cls=b.getAttribute('data-cls'),ph=b.getAttribute('data-ph'); var row=document.createElement('div'); row.className='mfrow'; row.innerHTML='<input class="'+cls+'" placeholder="'+esc(ph)+'"><button type="button" class="mfrm">×</button>'; b.parentNode.insertBefore(row,b); row.querySelector('.mfrm').addEventListener('click',function(){row.remove();DIRTY=true;document.getElementById('p_save').disabled=false;}); var inp=row.querySelector('input'); inp.addEventListener('input',function(){DIRTY=true;document.getElementById('p_save').disabled=false;}); inp.focus(); }); }); scope.querySelectorAll('.mfrm').forEach(function(b){ b.addEventListener('click',function(){ b.parentNode.remove(); DIRTY=true; document.getElementById('p_save').disabled=false; }); }); }
@@ -162,7 +221,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No contact selected. <a href="./rrg_people.html">Back to contacts →</a></div>'; return; }
   fetch('/api/person/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ P=j.person; CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; PTYPES=j.personTypes||PTYPES; IS_ADMIN=!!j.isAdmin; render(); })
+    .then(function(j){ P=j.person; CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; IS_ADMIN=!!j.isAdmin; render(); })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this contact.')+'<br><br><a href="./rrg_people.html" style="color:#000E31;font-weight:700">← Back to contacts</a></div>'; });
 }
 load();
