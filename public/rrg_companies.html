@@ -9,7 +9,7 @@
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
 .top{color:#fff;padding:30px 0 30px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
-.top-in{max-width:1120px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.top-in{max-width:1320px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
 .brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
 .bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
 .kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
@@ -18,7 +18,7 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .tabs{margin-top:18px;display:flex;gap:8px;}
 .tabs a{color:#aeb8cf;text-decoration:none;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:100px;border:1px solid rgba(255,255,255,.2);}
 .tabs a.on{background:#fff;color:var(--navy);border-color:#fff;}
-.wrap{max-width:1120px;margin:22px auto;padding:0 24px 60px;}
+.wrap{max-width:1320px;margin:22px auto;padding:0 24px 60px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
 .hd{display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line);gap:12px;}
 .hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
@@ -31,12 +31,13 @@ tr:hover td{background:#fbfcfe;}
 .pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;}
 .pill-seller{background:#eaf5ef;color:#1f8a5b;border-color:#c7e6d6;} .pill-buyer{background:#fdf0e6;color:#b5641a;border-color:#f4d8bd;}
 .count{font-weight:700;color:var(--ink);} .count span{color:var(--soft);font-weight:600;font-size:11px;}
+.tags2{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;} .tags2 .tg{font-size:10px;font-weight:700;color:#3a4c74;background:#eef2fb;border:1px solid #dbe4f5;border-radius:6px;padding:2px 7px;}
 .open{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:7px 14px;font:inherit;font-size:12px;font-weight:700;text-decoration:none;white-space:nowrap;}
 .codel{background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:8px;padding:7px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .codel:hover{background:#fdeceb;}
 .dupe{background:#fff5f4;border:1px solid #f6d4d0;color:#7a2b25;border-radius:9px;padding:9px 12px;font-size:12.5px;margin:8px 0 2px;line-height:1.5;} .dupe a{color:#b23a2c;font-weight:800;text-decoration:none;} .dupe b{color:#7a2b25;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
-.foot{max-width:1120px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+.foot{max-width:1320px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .newbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;margin-left:auto;}
 .hd input{margin-left:10px;}
 .modal{position:fixed;inset:0;background:rgba(6,14,32,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
@@ -81,7 +82,7 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 var ALL=[], CTL=null, IS_ADMIN=false;
 function applyFilter(){
   var q=(document.getElementById('search').value||'').toLowerCase().trim();
-  var list=ALL.filter(function(c){ if(!q) return true; return ((c.name||'')+' '+((c.markets||[]).join(' '))+' '+(c.type||'')).toLowerCase().indexOf(q)>=0; });
+  var list=ALL.filter(function(c){ if(!q) return true; return ((c.name||'')+' '+((c.markets||[]).join(' '))+' '+(c.type||'')+' '+((c.tags||[]).join(' '))).toLowerCase().indexOf(q)>=0; });
   renderList(list);
 }
 function renderList(list){
@@ -89,7 +90,7 @@ function renderList(list){
     empty:'<div class="empty"><b>No companies yet.</b>Companies are created automatically when you start a deal — the business name opens its company file.</div>',
     rowId:function(c){ return c.id; }, defaultSort:0, defaultDir:1,
     columns:[
-      { label:'Company', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(c){ var mk=(c.markets||[]).join(' · '); return '<div class="nm">'+esc(c.name)+'</div>'+(mk?('<div class="meta">'+esc(mk)+'</div>'):''); } },
+      { label:'Company', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(c){ var mk=(c.markets||[]).join(' · '); var tags=(c.tags&&c.tags.length)?('<div class="tags2">'+c.tags.map(function(t){return '<span class="tg">'+esc(t)+'</span>';}).join('')+'</div>'):''; return '<div class="nm">'+esc(c.name)+'</div>'+(mk?('<div class="meta">'+esc(mk)+'</div>'):'')+tags; } },
       { label:'Type', sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, cell:function(c){ var t=c.type||'Seller'; return '<span class="pill '+(t==='Buyer'?'pill-buyer':'pill-seller')+'">'+esc(t)+'</span>'; } },
       { label:'Contacts', align:'left', sort:function(a,b){ return (a.contacts||0)-(b.contacts||0); }, cell:function(c){ return '<span class="count">'+(c.contacts||0)+' <span>contact'+((c.contacts===1)?'':'s')+'</span></span>'; } },
       { label:'Locations', align:'left', sort:function(a,b){ return (a.locations||0)-(b.locations||0); }, cell:function(c){ return '<span class="count">'+(c.locations||0)+' <span>location'+((c.locations===1)?'':'s')+'</span></span>'; } },

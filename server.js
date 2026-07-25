@@ -87,7 +87,7 @@ function ownsDeal(req, d) {
 // tours, NDAs, and data-room buyers all link back to a person by personId, so the same
 // buyer connects across every deal they touch.
 const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
-const PERSON_TYPES = ['Buyer', 'Seller', 'Client', 'Prospect', 'Investor', 'Broker', 'Operator', 'Other'];
+const PERSON_TYPES = ['Buyer', 'Seller', 'Restaurant Owner', 'Client', 'Prospect', 'Investor', 'Broker', 'Operator', 'Referral Source', 'Other'];
 function loadPeople() { try { return JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')); } catch (e) { return []; } }
 function savePeople(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PEOPLE_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newPersonId() { return 'per_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -104,6 +104,10 @@ function cleanList(a, max, len) {
 }
 function personEmails(p) { return Array.isArray(p && p.emails) ? p.emails : ((p && p.email) ? [p.email] : []); }
 function personPhones(p) { return Array.isArray(p && p.phones) ? p.phones : ((p && p.phone) ? [p.phone] : []); }
+// Preferred contact value the UI shows first; falls back to the first entry.
+function preferredEmailOf(p) { const e = personEmails(p); return (p && p.preferredEmail && e.indexOf(p.preferredEmail) >= 0) ? p.preferredEmail : (e[0] || ''); }
+function preferredPhoneOf(p) { const ph = personPhones(p); return (p && p.preferredPhone && ph.indexOf(p.preferredPhone) >= 0) ? p.preferredPhone : (ph[0] || ''); }
+function personTags(p) { return Array.isArray(p && p.tags) ? p.tags : []; }
 // Find another contact that already owns any of these emails (global uniqueness).
 function emailOwner(arr, emails, exceptId) {
   const set = {}; emails.forEach(e => { const k = normKey(e); if (k) set[k] = 1; });
@@ -147,7 +151,9 @@ function findOrCreatePerson(req, info) {
   arr.push(p); savePeople(arr);
   return p;
 }
-function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: em[0] || '', phone: ph[0] || '', type: p.type || '' } : null; }
+function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', hasPhoto: !!p.photoExt } : null; }
+// One contact row as shown on a company file.
+function companyContactRow(p) { return { id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', emails: personEmails(p), phones: personPhones(p), email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', title: p.title || '', tags: personTags(p), leadSource: p.leadSource || '', hasPhoto: !!p.photoExt }; }
 
 // Companies — a company / account file that groups its associated contacts (people) and
 // its deals. Created at onboarding (the subject business), reusable across deals.
@@ -163,7 +169,7 @@ function companyBrief(c) { return c ? { id: c.id, name: c.name || '', market: c.
 const TICKETS_FILE = path.join(BOV_DATA_DIR, 'tickets.json');
 const TICKET_STATUSES = ['Open', 'Answered', 'Action Needed', 'Info Needed', 'Closed'];
 const TICKET_PRIORITIES = ['Normal', 'High', 'Urgent'];
-const TICKET_CATEGORIES = ['Marketing', 'Signage & Riders', 'Photography', 'Listings / MLS', 'Legal / Compliance', 'IT / Software', 'Supplies', 'Accounting', 'Other'];
+const TICKET_CATEGORIES = ['Marketing', 'Signage & Riders', 'Photography', 'Listings', 'Legal / Compliance', 'IT / Software', 'Supplies', 'Accounting', 'Other'];
 function loadTickets() { try { return JSON.parse(fs.readFileSync(TICKETS_FILE, 'utf8')); } catch (e) { return []; } }
 function saveTickets(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(TICKETS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newTicketId() { return 'tkt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -174,6 +180,21 @@ function loadTicketPromptCustom() { try { const t = fs.readFileSync(TICKET_PROMP
 function saveTicketPromptCustom(t) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(TICKET_PROMPT_FILE, String(t)); } catch (e) {} }
 function clearTicketPromptCustom() { try { fs.unlinkSync(TICKET_PROMPT_FILE); } catch (e) {} }
 function loadTicketPrompt() { return loadTicketPromptCustom() || undefined; }
+
+// ---- Admin-editable app settings (custom type lists, request-services email, etc.) ----
+const SETTINGS_FILE = path.join(BOV_DATA_DIR, 'settings.json');
+function loadSettings() { try { return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
+function saveSettings(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SETTINGS_FILE, JSON.stringify(o || {}, null, 2)); } catch (e) {} }
+function cleanStrList(a, max, len) {
+  if (!Array.isArray(a)) return null;
+  const seen = {}, out = [];
+  a.forEach(v => { v = String(v == null ? '' : v).trim().slice(0, len || 60); if (!v) return; const k = v.toLowerCase(); if (seen[k]) return; seen[k] = 1; out.push(v); });
+  return out.slice(0, max || 40);
+}
+function effPersonTypes() { const s = loadSettings(); return (Array.isArray(s.personTypes) && s.personTypes.length) ? s.personTypes : PERSON_TYPES; }
+function effCompanyTypes() { const s = loadSettings(); return (Array.isArray(s.companyTypes) && s.companyTypes.length) ? s.companyTypes : COMPANY_TYPES; }
+function effTicketCategories() { const s = loadSettings(); return (Array.isArray(s.ticketCategories) && s.ticketCategories.length) ? s.ticketCategories : TICKET_CATEGORIES; }
+function servicesEmails() { const s = loadSettings(); const a = cleanStrList(s.servicesEmails, 10, 160); return (a && a.length) ? a : ['van@rrgcre.com', 'avery@rrgcre.com']; }
 
 // ---- Data backup — zips the entire data directory (all JSON stores + uploaded
 // documents + data-room files) so the whole book of business can be restored. A
@@ -740,6 +761,21 @@ function buildTransport() {
     auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
   });
 }
+// Best-effort notification email. Silently no-ops if SMTP isn't configured, and never throws.
+async function sendNotifyMail(to, subject, text) {
+  try {
+    if (!process.env.SMTP_HOST) return { ok: false, skipped: true };
+    const list = (Array.isArray(to) ? to : [to]).filter(Boolean).join(', ');
+    if (!list) return { ok: false, skipped: true };
+    const info = await buildTransport().sendMail({
+      from: process.env.MAIL_FROM || process.env.CC_ALWAYS || 'van@rrgcre.com',
+      to: list, subject: String(subject || '').slice(0, 200), text: String(text || ''),
+    });
+    return { ok: true, id: info.messageId };
+  } catch (e) { console.error('notify mail error:', e && e.message); return { ok: false, error: String((e && e.message) || e) }; }
+}
+function ticketOwnerEmail(t) { try { const u = auth.findUser(t.byUser); return (u && u.email) || ''; } catch (e) { return ''; } }
+function appBaseUrl() { return String(process.env.APP_URL || process.env.PUBLIC_URL || '').replace(/\/$/, ''); }
 app.post('/api/send-ssc', async (req, res) => {
   const data = req.body || {};
   if (!data.repEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.repEmail)) {
@@ -2394,7 +2430,7 @@ app.delete('/api/assignment/:key/nda/:ndaId', (req, res) => {
 app.get('/api/people', (req, res) => {
   const cos = {}; loadCompanies().forEach(c => cos[c.id] = c.name);
   const people = loadPeople().map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '' }));
-  res.json({ ok: true, people: people, types: PERSON_TYPES, isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, people: people, types: effPersonTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 app.post('/api/person', express.json(), (req, res) => {
   const b = req.body || {};
@@ -2406,7 +2442,7 @@ app.post('/api/person', express.json(), (req, res) => {
   const first = String((typeof b.firstName === 'string' ? b.firstName : (p && p.firstName) || '') || '').trim();
   const last = String((typeof b.lastName === 'string' ? b.lastName : (p && p.lastName) || '') || '').trim();
   if (!first || !last) return res.status(400).json({ ok: false, error: 'First and last name are required.' });
-  const typeIn = (typeof b.type === 'string' && PERSON_TYPES.indexOf(b.type) >= 0) ? b.type : (p && p.type) || '';
+  const typeIn = (typeof b.type === 'string' && effPersonTypes().indexOf(b.type) >= 0) ? b.type : (p && p.type) || '';
   if (!typeIn) return res.status(400).json({ ok: false, error: 'A contact type is required.' });
   // Multiple emails / phones — all emails must be globally unique.
   const emails = (b.emails !== undefined || b.email !== undefined) ? cleanList(b.emails !== undefined ? b.emails : b.email, 10, 160) : (p ? personEmails(p) : []);
@@ -2416,11 +2452,21 @@ app.post('/api/person', express.json(), (req, res) => {
   if (!p) { p = { id: newPersonId(), createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(p); }
   p.firstName = first.slice(0, 80); p.lastName = last.slice(0, 80); p.name = composeName(p.firstName, p.lastName);
   p.type = typeIn;
-  p.emails = emails; p.phones = phones; p.email = emails[0] || ''; p.phone = phones[0] || '';
+  p.emails = emails; p.phones = phones;
+  // Preferred email / phone — the value the app shows first (falls back to the first entry).
+  if (typeof b.preferredEmail === 'string') p.preferredEmail = emails.indexOf(b.preferredEmail.trim()) >= 0 ? b.preferredEmail.trim() : '';
+  else if (p.preferredEmail && emails.indexOf(p.preferredEmail) < 0) p.preferredEmail = '';
+  if (typeof b.preferredPhone === 'string') p.preferredPhone = phones.indexOf(b.preferredPhone.trim()) >= 0 ? b.preferredPhone.trim() : '';
+  else if (p.preferredPhone && phones.indexOf(p.preferredPhone) < 0) p.preferredPhone = '';
+  p.email = preferredEmailOf(p); p.phone = preferredPhoneOf(p);
   if (typeof b.company === 'string') p.company = b.company.slice(0, 160);
   if (typeof b.companyId === 'string') p.companyId = b.companyId.slice(0, 40);
   if (typeof b.companyName === 'string' && b.companyName.trim()) { const co = findOrCreateCompany(req, { name: b.companyName }); if (co) { p.companyId = co.id; p.company = co.name; } }
   if (typeof b.title === 'string') p.title = b.title.slice(0, 120);
+  if (typeof b.nickname === 'string') p.nickname = b.nickname.slice(0, 80);
+  if (typeof b.leadSource === 'string') p.leadSource = b.leadSource.slice(0, 160);
+  if (typeof b.url === 'string') p.url = b.url.slice(0, 300);
+  if (b.tags !== undefined) p.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') p.notes = b.notes.slice(0, 4000);
   p.updatedAt = now; savePeople(arr);
   res.json({ ok: true, person: Object.assign({}, p, { emails: personEmails(p), phones: personPhones(p) }), people: arr.map(personBrief) });
@@ -2431,14 +2477,47 @@ app.delete('/api/person/:id', (req, res) => {
   savePeople(arr);
   res.json({ ok: true, people: arr.map(personBrief) });
 });
+// ---- Contact photo (optional headshot / logo) ----
+const PERSONPHOTO_DIR = path.join(BOV_DATA_DIR, 'personphotos');
+app.post('/api/person/:id/photo', express.json({ limit: '8mb' }), (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
+  const dataB64 = String((req.body && req.body.dataB64) || '').replace(/^data:[^,]*,/, '');
+  if (!dataB64) return res.status(400).json({ ok: false, error: 'No image data.' });
+  const ext = photoExtFromName((req.body && req.body.filename) || '');
+  const buf = Buffer.from(dataB64, 'base64');
+  if (buf.length > 6 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 6 MB).' });
+  try { if (!fs.existsSync(PERSONPHOTO_DIR)) fs.mkdirSync(PERSONPHOTO_DIR, { recursive: true }); fs.writeFileSync(path.join(PERSONPHOTO_DIR, p.id + '.' + ext), buf); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the photo.' }); }
+  if (p.photoExt && p.photoExt !== ext) { try { fs.unlinkSync(path.join(PERSONPHOTO_DIR, p.id + '.' + p.photoExt)); } catch (e) {} }
+  p.photoExt = ext; p.updatedAt = new Date().toISOString(); savePeople(arr);
+  res.json({ ok: true, hasPhoto: true, photoUrl: '/api/personphoto/' + p.id + '.' + ext + '?v=' + Date.now() });
+});
+app.post('/api/person/:id/photo/clear', (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
+  if (p.photoExt) { try { fs.unlinkSync(path.join(PERSONPHOTO_DIR, p.id + '.' + p.photoExt)); } catch (e) {} p.photoExt = ''; }
+  p.updatedAt = new Date().toISOString(); savePeople(arr);
+  res.json({ ok: true, hasPhoto: false });
+});
+app.get('/api/personphoto/:name', (req, res) => {
+  const name = path.basename(String(req.params.name || ''));
+  if (!/^per_[\w]+\.(png|jpg|jpeg|webp|gif|svg)$/.test(name)) return res.status(400).end();
+  const fp = path.join(PERSONPHOTO_DIR, name);
+  if (!fp.startsWith(PERSONPHOTO_DIR) || !fs.existsSync(fp)) return res.status(404).end();
+  const ext = name.split('.').pop();
+  res.setHeader('Content-Type', ext === 'png' ? 'image/png' : (ext === 'svg' ? 'image/svg+xml' : (ext === 'webp' ? 'image/webp' : (ext === 'gif' ? 'image/gif' : 'image/jpeg'))));
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  fs.createReadStream(fp).pipe(res);
+});
 // ---- Companies (account files) ----
 app.get('/api/companies', (req, res) => {
   const cos = loadCompanies(), people = loadPeople(), deals = loadDeals();
   const rows = cos.map(c => {
     const mk = {}; (c.concepts || []).forEach(cp => (cp.markets || []).forEach(m => { if (m) mk[m] = 1; }));
-    return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', concepts: (c.concepts || []).length, contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt };
+    return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], concepts: (c.concepts || []).length, contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt };
   });
-  res.json({ ok: true, companies: rows, types: COMPANY_TYPES, isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, companies: rows, types: effCompanyTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 // A person's full cross-book view: their company, the deals where they're the client,
 // and every offer / tour / NDA they're linked to across all deals.
@@ -2455,10 +2534,12 @@ app.get('/api/person/:id', (req, res) => {
     (o.tours || []).filter(x => x.personId === p.id).forEach(x => tours.push({ key: key, business: biz, date: x.date, interest: x.interest }));
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p) }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, personTypes: PERSON_TYPES, isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, personTypes: effPersonTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
+const CONCEPT_TYPES = ['Full-Service', 'Fast-Casual', 'QSR', 'Bar / Nightlife', 'Cafe / Bakery', 'Food Truck', 'Ghost Kitchen', 'Other'];
+const PRICE_POINTS = ['$', '$$', '$$$', '$$$$'];
 const RRG_METROS = ['Austin', 'Dallas', 'Houston', 'San Antonio', 'Rio Grande Valley', 'Central Texas'];
 function newLocationId() { return 'loc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function applyLocationFields(l, b) {
@@ -2551,6 +2632,69 @@ app.post('/api/admin/gmaps-key', requireAdmin, express.json(), (req, res) => {
   if (!/^[A-Za-z0-9_\-]{20,80}$/.test(k)) return res.status(400).json({ ok: false, error: 'That doesn’t look like a Google API key.' });
   saveGmapsKey(k); res.json({ ok: true, set: true });
 });
+
+// ---- Anthropic (Claude) API key — admin-settable; overrides the ANTHROPIC_API_KEY env var ----
+const ANTHROPIC_KEY_FILE = path.join(BOV_DATA_DIR, 'anthropic.key');
+function loadAnthropicKeyFile() { try { const t = fs.readFileSync(ANTHROPIC_KEY_FILE, 'utf8').trim(); return t || ''; } catch (e) { return ''; } }
+function saveAnthropicKey(k) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(ANTHROPIC_KEY_FILE, String(k || '').trim()); } catch (e) {} }
+// At boot, a saved key file overrides the environment so the generators pick it up.
+(function () { const k = loadAnthropicKeyFile(); if (k) process.env.ANTHROPIC_API_KEY = k; })();
+app.get('/api/admin/anthropic-key', requireAdmin, (req, res) => res.json({ ok: true, set: !!process.env.ANTHROPIC_API_KEY, fromFile: !!loadAnthropicKeyFile(), fromEnv: !loadAnthropicKeyFile() && !!process.env.ANTHROPIC_API_KEY }));
+app.post('/api/admin/anthropic-key', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {};
+  if (b.clear) { saveAnthropicKey(''); return res.json({ ok: true, set: !!process.env.ANTHROPIC_API_KEY, fromFile: false, note: 'Cleared the saved key. The environment key (if any) is used after the next restart.' }); }
+  const k = String(b.key || '').trim();
+  if (!k) return res.status(400).json({ ok: false, error: 'Paste an Anthropic API key.' });
+  if (!/^sk-ant-[A-Za-z0-9_\-]{20,}$/.test(k)) return res.status(400).json({ ok: false, error: 'That doesn’t look like an Anthropic API key (they start with sk-ant-).' });
+  saveAnthropicKey(k); process.env.ANTHROPIC_API_KEY = k;
+  res.json({ ok: true, set: true, fromFile: true });
+});
+
+// ---- Admin-editable type lists (contact types, company types, request categories) ----
+app.get('/api/admin/types', requireAdmin, (req, res) => {
+  const s = loadSettings();
+  res.json({
+    ok: true,
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(),
+    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES },
+    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories) },
+  });
+});
+app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const s = loadSettings();
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories() }); }
+  if (b.personTypes !== undefined) s.personTypes = cleanStrList(b.personTypes, 40, 60) || [];
+  if (b.companyTypes !== undefined) s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || [];
+  if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
+  saveSettings(s);
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories() });
+});
+
+// ---- Request-services notification recipients (multi-address) ----
+app.get('/api/admin/services-email', requireAdmin, (req, res) => res.json({ ok: true, emails: servicesEmails() }));
+app.post('/api/admin/services-email', requireAdmin, express.json(), (req, res) => {
+  const s = loadSettings();
+  let list = (req.body || {}).emails;
+  if (typeof list === 'string') list = list.split(/[,;\s]+/);
+  s.servicesEmails = cleanStrList(list, 10, 160) || [];
+  saveSettings(s);
+  res.json({ ok: true, emails: servicesEmails() });
+});
+
+// ---- Admin: reset the whole book (companies + concepts + locations). Contacts & deals are kept. ----
+app.post('/api/admin/reset-book', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {};
+  if (String(b.confirm || '') !== 'RESET') return res.status(400).json({ ok: false, error: 'Type RESET to confirm.' });
+  const companies = loadCompanies();
+  companies.forEach(c => {
+    (c.concepts || []).forEach(cp => { if (cp.logoExt) { try { fs.unlinkSync(path.join(CPTLOGO_DIR, cp.id + '.' + cp.logoExt)); } catch (e) {} } });
+    (c.locations || []).forEach(l => { (l.photos || []).forEach(ph => { try { fs.unlinkSync(path.join(LOCPHOTO_DIR, ph.id + '.' + ph.ext)); } catch (e) {} }); });
+  });
+  const count = companies.length;
+  saveCompanies([]);
+  const people = loadPeople(); let ch = false; people.forEach(p => { if (p.companyId) { p.companyId = ''; ch = true; } }); if (ch) savePeople(people);
+  res.json({ ok: true, cleared: count });
+});
 // Pull a photo for one location on demand.
 app.post('/api/company/:id/location/:locId/pull-photo', express.json(), async (req, res) => {
   const key = loadGmapsKey(); if (!key) return res.status(400).json({ ok: false, error: 'No Google Maps API key is set. Add one in Admin → Integrations.' });
@@ -2624,9 +2768,9 @@ function clearLocPromptCustom() { try { fs.unlinkSync(LOC_PROMPT_FILE); } catch 
 app.get('/api/company/:id', (req, res) => {
   const c = companyById(req.params.id);
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
-  const contacts = loadPeople().filter(p => p.companyId === c.id).map(p => ({ id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), email: personEmails(p)[0] || '', phone: personPhones(p)[0] || '', type: p.type || '', title: p.title || '' }));
+  const contacts = loadPeople().filter(p => p.companyId === c.id).map(companyContactRow);
   const dealRows = loadDeals().filter(d => d.companyId === c.id).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id) }));
-  res.json({ ok: true, company: c, contacts, deals: dealRows, locations: c.locations || [], concepts: c.concepts || [], types: COMPANY_TYPES, personTypes: PERSON_TYPES, locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, markets: RRG_METROS, hasMaps: !!loadGmapsKey(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, company: c, contacts, deals: dealRows, locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, markets: RRG_METROS, hasMaps: !!loadGmapsKey(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 // ---- Concepts — a company runs one or more concepts (brands); locations attach to a concept. ----
 function newConceptId() { return 'cpt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -2648,6 +2792,8 @@ app.post('/api/company/:id/concept', express.json(), (req, res) => {
     cpt.name = name.slice(0, 120);
     if (typeof b.website === 'string') cpt.website = b.website.slice(0, 300);
     if (Array.isArray(b.markets)) cpt.markets = b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30);
+    if (typeof b.conceptType === 'string') cpt.conceptType = CONCEPT_TYPES.indexOf(b.conceptType) >= 0 ? b.conceptType : '';
+    if (typeof b.pricePoint === 'string') cpt.pricePoint = PRICE_POINTS.indexOf(b.pricePoint) >= 0 ? b.pricePoint : '';
     // Logo: use the explicit value only. No auto-derivation from the website.
     if (typeof b.logo === 'string') cpt.logo = b.logo.slice(0, 400);
     cpt.updatedAt = now;
@@ -2656,7 +2802,7 @@ app.post('/api/company/:id/concept', express.json(), (req, res) => {
   } else {
     if (c.concepts.some(x => normKey(x.name) === normKey(name))) return res.status(400).json({ ok: false, error: 'That concept already exists.' });
     const website = String(b.website || '').slice(0, 300);
-    cpt = { id: newConceptId(), name: name.slice(0, 120), website: website, logo: (typeof b.logo === 'string' && b.logo) ? b.logo.slice(0, 400) : '', markets: Array.isArray(b.markets) ? b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30) : [], createdAt: now };
+    cpt = { id: newConceptId(), name: name.slice(0, 120), website: website, logo: (typeof b.logo === 'string' && b.logo) ? b.logo.slice(0, 400) : '', markets: Array.isArray(b.markets) ? b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30) : [], conceptType: (typeof b.conceptType === 'string' && CONCEPT_TYPES.indexOf(b.conceptType) >= 0) ? b.conceptType : '', pricePoint: (typeof b.pricePoint === 'string' && PRICE_POINTS.indexOf(b.pricePoint) >= 0) ? b.pricePoint : '', createdAt: now };
     c.concepts.push(cpt);
   }
   c.updatedAt = now; saveCompanies(arr);
@@ -2783,7 +2929,8 @@ app.post('/api/company', express.json(), (req, res) => {
   }
   if (typeof b.name === 'string' && b.name.trim()) c.name = b.name.trim().slice(0, 160);
   if (typeof b.market === 'string') c.market = b.market.slice(0, 80);
-  if (typeof b.type === 'string' && COMPANY_TYPES.indexOf(b.type) >= 0) c.type = b.type;
+  if (typeof b.type === 'string' && effCompanyTypes().indexOf(b.type) >= 0) c.type = b.type;
+  if (b.tags !== undefined) c.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') c.notes = b.notes.slice(0, 6000);
   if (b.office && typeof b.office === 'object') {
     const o = c.office || {};
@@ -2800,19 +2947,19 @@ app.post('/api/company/:id/contact', express.json(), (req, res) => {
   const b = req.body || {};
   const arr = loadPeople();
   let p = b.personId ? arr.find(x => x.id === b.personId) : null;
-  if (p) { p.companyId = c.id; if (typeof b.type === 'string' && PERSON_TYPES.indexOf(b.type) >= 0) p.type = b.type; if (typeof b.title === 'string') p.title = b.title.slice(0, 120); p.updatedAt = new Date().toISOString(); savePeople(arr); }
+  if (p) { p.companyId = c.id; if (typeof b.type === 'string' && effPersonTypes().indexOf(b.type) >= 0) p.type = b.type; if (typeof b.title === 'string') p.title = b.title.slice(0, 120); p.updatedAt = new Date().toISOString(); savePeople(arr); }
   else {
     const first = String(b.firstName || '').trim(), last = String(b.lastName || '').trim();
     const emails = cleanList(b.emails !== undefined ? b.emails : b.email, 10, 160);
     const phones = cleanList(b.phones !== undefined ? b.phones : b.phone, 10, 60);
     if (!first || !last) return res.status(400).json({ ok: false, error: 'First and last name are required.' });
-    if (!(typeof b.type === 'string' && PERSON_TYPES.indexOf(b.type) >= 0)) return res.status(400).json({ ok: false, error: 'A contact type is required.' });
+    if (!(typeof b.type === 'string' && effPersonTypes().indexOf(b.type) >= 0)) return res.status(400).json({ ok: false, error: 'A contact type is required.' });
     const clash = emailOwner(arr, emails, '__new__');
     if (clash) return res.status(409).json({ ok: false, error: 'That email is already on ' + (clash.name || 'another contact') + '.', existingId: clash.id });
     p = findOrCreatePerson(req, { firstName: first, lastName: last, name: composeName(first, last), emails: emails, phones: phones, companyId: c.id, type: b.type });
     if (p && b.title) { const a2 = loadPeople(); const pp = a2.find(x => x.id === p.id); if (pp) { pp.title = String(b.title).slice(0, 120); savePeople(a2); } }
   }
-  const contacts = loadPeople().filter(x => x.companyId === c.id).map(x => ({ id: x.id, name: x.name, firstName: personFirst(x), lastName: personLast(x), emails: personEmails(x), phones: personPhones(x), email: personEmails(x)[0] || '', phone: personPhones(x)[0] || '', type: x.type || '', title: x.title || '' }));
+  const contacts = loadPeople().filter(x => x.companyId === c.id).map(companyContactRow);
   res.json({ ok: true, contacts });
 });
 // Remove a contact's association from a company (does not delete the person).
@@ -2821,7 +2968,7 @@ app.post('/api/company/:id/contact/:personId/remove', (req, res) => {
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.personId);
   if (p && p.companyId === c.id) { p.companyId = ''; p.updatedAt = new Date().toISOString(); savePeople(arr); }
-  const contacts = arr.filter(x => x.companyId === c.id).map(x => ({ id: x.id, name: x.name, email: x.email || '', phone: x.phone || '', type: x.type || '', title: x.title || '' }));
+  const contacts = arr.filter(x => x.companyId === c.id).map(companyContactRow);
   res.json({ ok: true, contacts });
 });
 app.delete('/api/company/:id', (req, res) => {
@@ -2989,13 +3136,13 @@ app.get('/api/tickets', (req, res) => {
   let arr = loadTickets();
   if (!isAdmin) arr = arr.filter(t => ownsTicket(req, t));
   arr = arr.slice().sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
-  res.json({ ok: true, tickets: arr.map(ticketBrief), categories: TICKET_CATEGORIES, priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin });
+  res.json({ ok: true, tickets: arr.map(ticketBrief), categories: effTicketCategories(), priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin });
 });
 app.get('/api/ticket/:id', (req, res) => {
   const t = loadTickets().find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
   if (!ownsTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  res.json({ ok: true, ticket: ticketFull(t), categories: TICKET_CATEGORIES, priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, ticket: ticketFull(t), categories: effTicketCategories(), priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 app.post('/api/ticket', express.json(), async (req, res) => {
   const b = req.body || {};
@@ -3008,7 +3155,7 @@ app.post('/api/ticket', express.json(), async (req, res) => {
   const now = new Date().toISOString();
   const t = {
     id: newTicketId(), num: nextNum, subject: subject.slice(0, 160),
-    category: TICKET_CATEGORIES.indexOf(b.category) >= 0 ? b.category : 'Other',
+    category: effTicketCategories().indexOf(b.category) >= 0 ? b.category : 'Other',
     priority: TICKET_PRIORITIES.indexOf(b.priority) >= 0 ? b.priority : 'Normal',
     status: 'Open', createdAt: now, updatedAt: now,
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
@@ -3016,6 +3163,11 @@ app.post('/api/ticket', express.json(), async (req, res) => {
   };
   await runTicketAI(t, req);           // AI office assistant works it immediately
   arr.push(t); saveTickets(arr);
+  // Notify the services desk that a new request came in (best-effort).
+  const base = appBaseUrl();
+  sendNotifyMail(servicesEmails(), 'New request ' + ticketNo(t) + ' · ' + t.subject,
+    'A new office request was submitted.\n\nFrom: ' + (t.by || 'a rep') + '\nCategory: ' + t.category + '\nPriority: ' + t.priority + '\n\n' + details +
+    (base ? ('\n\nOpen it: ' + base + '/rrg_tickets.html') : '')).catch(() => {});
   res.json({ ok: true, ticket: ticketFull(t) });
 });
 app.post('/api/ticket/:id/reply', express.json(), async (req, res) => {
@@ -3025,9 +3177,24 @@ app.post('/api/ticket/:id/reply', express.json(), async (req, res) => {
   const text = String((req.body && req.body.text) || '').trim();
   if (!text) return res.status(400).json({ ok: false, error: 'Message is empty.' });
   t.thread = Array.isArray(t.thread) ? t.thread : [];
-  t.thread.push({ from: 'rep', name: (req.user && req.user.name) || 'Rep', at: new Date().toISOString(), text: text.slice(0, 8000) });
+  const now = new Date().toISOString();
+  const isAdmin = !!(req.user && req.user.role === 'admin');
+  const isOffice = isAdmin && t.byUser !== (req.user && req.user.username);
+  if (isOffice) {
+    // An admin (the office) is answering someone else's request — post as the office, no AI, and notify the rep.
+    t.thread.push({ from: 'office', name: (req.user && req.user.name) || 'RRG Brokerage Office', at: now, text: text.slice(0, 8000) });
+    if (typeof req.body.status === 'string' && TICKET_STATUSES.indexOf(req.body.status) >= 0) t.status = req.body.status; else t.status = 'Answered';
+    t.updatedAt = now; saveTickets(arr);
+    const oe = ticketOwnerEmail(t); const base = appBaseUrl();
+    sendNotifyMail(oe, 'Reply on your request ' + ticketNo(t) + ' · ' + t.subject,
+      'The brokerage office replied to your request ' + ticketNo(t) + ':\n\n"' + text.slice(0, 600) + '"\n\nStatus: ' + t.status +
+      (base ? ('\n\nView it: ' + base + '/rrg_tickets.html') : '')).catch(() => {});
+    return res.json({ ok: true, ticket: ticketFull(t) });
+  }
+  // Owner follow-up → the AI office assistant responds.
+  t.thread.push({ from: 'rep', name: (req.user && req.user.name) || 'Rep', at: now, text: text.slice(0, 8000) });
   t.status = 'Open';
-  await runTicketAI(t, req);           // AI responds to the rep's follow-up
+  await runTicketAI(t, req);
   saveTickets(arr);
   res.json({ ok: true, ticket: ticketFull(t) });
 });

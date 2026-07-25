@@ -49,7 +49,7 @@
     var s=document.createElement('style'); s.id=STYLE_ID; s.textContent=css; document.head.appendChild(s);
   }
 
-  var PER_OPTS=[10,20,50];
+  var PER_OPTS=[10,20,50,100,100000]; // 100000 = "All"
 
   function create(opts){
     injectStyle();
@@ -97,7 +97,7 @@
       var selIds = selectedIds();
       // controls bar
       var perSel = '<span class="rl-per">Rows <select class="rl-perSel">'
-        + PER_OPTS.map(function(n){ return '<option value="'+n+'"'+(n===state.per?' selected':'')+'>'+n+'</option>'; }).join('')
+        + PER_OPTS.map(function(n){ return '<option value="'+n+'"'+(n===state.per?' selected':'')+'>'+(n>=100000?'All':n)+'</option>'; }).join('')
         + '</select></span>';
       var count = '<span class="rl-count">Showing '+showFrom+'–'+showTo+' of '+total+'</span>';
       var pager = '<span class="rl-pager">'

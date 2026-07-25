@@ -9,19 +9,21 @@
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
 .top{color:#fff;padding:26px 0 28px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
-.top-in{max-width:1000px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.top-in{max-width:1240px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
 .brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
 .bar{background:#fff;width:3px;height:28px;margin:0 11px;} .wm{font-weight:800;font-size:13px;text-transform:uppercase;line-height:.95;}
 .kicker{margin:18px 0 3px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:10.5px;text-transform:uppercase;}
 h1{font-size:28px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:640px;line-height:1.5;}
-.wrap{max-width:1000px;margin:22px auto;padding:0 24px 70px;}
+.wrap{max-width:1240px;margin:22px auto;padding:0 24px 70px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
 .hd{display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line);gap:12px;}
 .hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
 .filters{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;}
 .fchip{background:#fff;border:1px solid var(--line);color:var(--muted);border-radius:100px;padding:6px 12px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
 .fchip.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.fsel{border:1px solid var(--line);border-radius:100px;padding:6px 26px 6px 12px;font:inherit;font-size:11.5px;font-weight:700;color:var(--ink);background:#fff;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%236b7488' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 9px center;}
+.detsel{border:1px solid #d3ddf3;border-radius:100px;padding:4px 24px 4px 10px;font:inherit;font-size:11px;font-weight:700;color:var(--navy);background:#fff;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%236b7488' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 8px center;}
 .newbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
 .trow{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--line);cursor:pointer;}
 .trow:hover{background:#fbfcfe;} .trow:last-child{border-bottom:none;}
@@ -36,7 +38,7 @@ h1{font-size:28px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .st-closed{background:#f2f4f8;color:#6b7488;border:1px solid #e0e5ee;}
 .pr-High,.pr-Urgent{color:var(--red);font-weight:800;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
-.foot{max-width:1000px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+.foot{max-width:1240px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 /* modal */
 .modal{position:fixed;inset:0;background:rgba(6,14,32,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
 .modal[hidden]{display:none!important;}
@@ -75,7 +77,7 @@ h1{font-size:28px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Brokerage Office</div>
   <h1>Requests</h1>
-  <div class="sub">Need something from the office — collateral, signage, photography, an MLS action, a compliance question? Open a request and the brokerage office answers it right away.</div>
+  <div class="sub">Need something from the office — collateral, signage, photography, a listing action, a compliance question? Open a request and the brokerage office answers it right away.</div>
 </div></div>
 <div class="wrap">
   <div id="listView">
@@ -107,25 +109,52 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function stClass(s){ return 'st-'+String(s||'Open').toLowerCase().replace(/[^a-z]+/g,''); }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
 function ago(iso){ if(!iso) return ''; var d=new Date(iso), now=new Date(), s=(now-d)/1000; if(s<60) return 'just now'; if(s<3600) return Math.floor(s/60)+'m ago'; if(s<86400) return Math.floor(s/3600)+'h ago'; if(s<604800) return Math.floor(s/86400)+'d ago'; return d.toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
-var ALL=[], CATS=[], PRIS=[], STATUSES=[], ISADMIN=false, FILTER='all';
+function fmtDate(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}); }
+function openDays(t){ var start=new Date(t.createdAt||t.lastAt||Date.now()); var end=(t.status==='Closed')?new Date(t.updatedAt||t.lastAt||Date.now()):new Date(); var d=Math.max(0,Math.floor((end-start)/86400000)); return d; }
+function openLabel(t){ var d=openDays(t); var closed=t.status==='Closed'; return (closed?'Open ':'Open ')+ (d===0?'<1d':(d+'d')) + (closed?' (resolved)':''); }
+var ALL=[], CATS=[], PRIS=[], STATUSES=[], ISADMIN=false, FILTER='all', SORT='new', USERFILTER='';
 
 function renderFilters(){
   var opts=[{k:'all',l:'All'},{k:'open',l:'Needs you'},{k:'Answered',l:'Answered'},{k:'Closed',l:'Closed'}];
-  document.getElementById('filters').innerHTML=opts.map(function(o){ return '<button class="fchip'+(FILTER===o.k?' on':'')+'" data-f="'+o.k+'">'+esc(o.l)+'</button>'; }).join('');
+  var chips=opts.map(function(o){ return '<button class="fchip'+(FILTER===o.k?' on':'')+'" data-f="'+o.k+'">'+esc(o.l)+'</button>'; }).join('');
+  var sortSel='<select class="fsel" id="sortSel"><option value="new">Newest first</option><option value="old">Oldest first</option><option value="openlong">Longest open</option><option value="status">By status</option><option value="priority">By priority</option></select>';
+  var userSel='';
+  if(ISADMIN){
+    var users={}; ALL.forEach(function(t){ if(t.by) users[t.by]=1; });
+    var uopts='<option value="">All users</option>'+Object.keys(users).sort().map(function(u){ return '<option'+(USERFILTER===u?' selected':'')+'>'+esc(u)+'</option>'; }).join('');
+    userSel='<select class="fsel" id="userSel">'+uopts+'</select>';
+  }
+  document.getElementById('filters').innerHTML=chips+'<span style="flex:1"></span>'+userSel+sortSel;
   document.querySelectorAll('.fchip').forEach(function(b){ b.addEventListener('click',function(){ FILTER=b.getAttribute('data-f'); renderFilters(); renderList(); }); });
+  var ss=document.getElementById('sortSel'); if(ss){ ss.value=SORT; ss.addEventListener('change',function(){ SORT=ss.value; renderList(); }); }
+  var us=document.getElementById('userSel'); if(us){ us.addEventListener('change',function(){ USERFILTER=us.value; renderList(); }); }
 }
 function passFilter(t){
+  if(USERFILTER && t.by!==USERFILTER) return false;
   if(FILTER==='all') return true;
   if(FILTER==='open') return ['Info Needed','Action Needed','Open'].indexOf(t.status)>=0;
   return t.status===FILTER;
 }
+function sortList(list){
+  var prOrder={Urgent:0,High:1,Normal:2};
+  var stOrder={};(STATUSES||[]).forEach(function(s,i){stOrder[s]=i;});
+  return list.slice().sort(function(a,b){
+    if(SORT==='new') return String(b.createdAt||'').localeCompare(String(a.createdAt||''));
+    if(SORT==='old') return String(a.createdAt||'').localeCompare(String(b.createdAt||''));
+    if(SORT==='openlong') return openDays(b)-openDays(a);
+    if(SORT==='status') return (stOrder[a.status]||99)-(stOrder[b.status]||99);
+    if(SORT==='priority') return (prOrder[a.priority]==null?9:prOrder[a.priority])-(prOrder[b.priority]==null?9:prOrder[b.priority]);
+    return 0;
+  });
+}
 function renderList(){
-  var list=ALL.filter(passFilter);
+  renderFilters();
+  var list=sortList(ALL.filter(passFilter));
   document.getElementById('cnt').textContent=list.length?('· '+list.length):'';
-  if(!ALL.length){ document.getElementById('body').innerHTML='<div class="empty"><b>No requests yet.</b>Open your first request — the brokerage office answers marketing, signage, photography, MLS, compliance, IT, supplies and more.</div>'; return; }
+  if(!ALL.length){ document.getElementById('body').innerHTML='<div class="empty"><b>No requests yet.</b>Open your first request — the brokerage office answers marketing, signage, photography, listings, compliance, IT, supplies and more.</div>'; return; }
   if(!list.length){ document.getElementById('body').innerHTML='<div class="empty">Nothing in this view.</div>'; return; }
   document.getElementById('body').innerHTML=list.map(function(t){
-    var meta=[esc(t.category)]; if(ISADMIN&&t.by) meta.push(esc(t.by)); meta.push(ago(t.lastAt)+(t.lastFrom==='office'?' · office replied':''));
+    var meta=[esc(t.category)]; if(ISADMIN&&t.by) meta.push('by '+esc(t.by)); meta.push('opened '+fmtDate(t.createdAt)); meta.push(openLabel(t)); meta.push(ago(t.lastAt)+(t.lastFrom==='office'?' · office replied':''));
     var pr=(t.priority&&t.priority!=='Normal')?(' <span class="pr-'+esc(t.priority)+'">· '+esc(t.priority)+'</span>'):'';
     return '<div class="trow" data-id="'+esc(t.id)+'"><div class="tno">'+esc(t.no)+'</div><div class="tmain"><div class="tsub">'+esc(t.subject)+'</div><div class="tmeta">'+meta.join(' · ')+pr+'</div></div><span class="stpill '+stClass(t.status)+'">'+esc(t.status)+'</span></div>';
   }).join('');
@@ -147,7 +176,7 @@ function renderThread(t){
     '<button class="backlink" id="backBtn">← All requests</button>'
     + '<div class="card" style="margin-top:12px">'
     + '<div class="hd"><b>'+esc(t.no)+' · '+esc(t.subject)+'</b><span class="stpill '+stClass(t.status)+'" style="margin-left:auto">'+esc(t.status)+'</span></div>'
-    + '<div class="detmeta"><span class="dchip">'+esc(t.category)+'</span>'+((t.priority&&t.priority!=='Normal')?('<span class="dchip">'+esc(t.priority)+' priority</span>'):'')+(ISADMIN&&t.by?('<span class="dchip">From '+esc(t.by)+'</span>'):'')+'</div>'
+    + '<div class="detmeta"><span class="dchip">'+esc(t.category)+'</span>'+((t.priority&&t.priority!=='Normal')?('<span class="dchip">'+esc(t.priority)+' priority</span>'):'')+(ISADMIN&&t.by?('<span class="dchip">From '+esc(t.by)+'</span>'):'')+'<span class="dchip">Opened '+esc(fmtDate(t.createdAt))+'</span><span class="dchip">'+esc(openLabel(t))+'</span>'+(ISADMIN?('<select class="detsel" id="detStatus">'+(STATUSES||[]).map(function(s){return '<option'+(t.status===s?' selected':'')+'>'+esc(s)+'</option>';}).join('')+'</select>'):'')+'</div>'
     + '<div class="thwrap">'+msgs+'</div>'
     + '<div id="thinkSlot"></div>'
     + reply
@@ -156,6 +185,7 @@ function renderThread(t){
   var sr=document.getElementById('sendReply'); if(sr) sr.addEventListener('click',function(){ sendReply(t.id); });
   var cb=document.getElementById('closeBtn'); if(cb) cb.addEventListener('click',function(){ setStatus(t.id,'Closed'); });
   var rb=document.getElementById('reopenBtn'); if(rb) rb.addEventListener('click',function(){ setStatus(t.id,'Open'); });
+  var ds=document.getElementById('detStatus'); if(ds) ds.addEventListener('change',function(){ setStatus(t.id,ds.value); });
 }
 function showList(){ document.getElementById('detailView').setAttribute('hidden',''); document.getElementById('listView').removeAttribute('hidden'); load(); }
 function showDetail(t){ document.getElementById('listView').setAttribute('hidden',''); var d=document.getElementById('detailView'); d.removeAttribute('hidden'); renderThread(t); window.scrollTo(0,0); }

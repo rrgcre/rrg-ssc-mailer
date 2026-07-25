@@ -158,6 +158,12 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
 
 /* ---- Agreements ---- */
 /* ---- Quick Links (compact pills) ---- */
+#reqWidget{text-decoration:none;color:inherit;margin:0 0 26px;padding:14px 18px;border:1px solid var(--line);border-left:4px solid var(--red);border-radius:12px;background:#fff;display:flex;align-items:center;gap:14px;box-shadow:0 4px 16px rgba(10,20,50,.05);transition:transform .15s,box-shadow .15s;}
+#reqWidget:hover{transform:translateY(-1px);box-shadow:0 10px 26px rgba(10,20,50,.1);}
+#reqWidget .rqn{font-size:24px;font-weight:800;color:var(--red);line-height:1;font-variant-numeric:tabular-nums;flex:none;}
+#reqWidget .rqt{font-weight:800;color:var(--navy);font-size:14px;}
+#reqWidget .rqs{font-size:12px;color:var(--muted);margin-top:2px;}
+#reqWidget .rqgo{margin-left:auto;font-weight:800;color:var(--navy);font-size:13px;white-space:nowrap;}
 .qlhd{display:flex;align-items:center;gap:14px;}
 .qlreorder{background:#fff;border:1px solid var(--line);border-radius:8px;color:var(--muted);font:inherit;font-size:11px;font-weight:700;padding:5px 12px;cursor:pointer;letter-spacing:.02em;}
 .qlreorder:hover{border-color:#c9d2e2;color:var(--navy);}
@@ -251,6 +257,7 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
     </div>
     <div class="ql" id="qlGrid" style="margin:14px 0 30px"></div>
   </div>
+  <a id="reqWidget" href="./rrg_tickets.html" style="display:none"></a>
   <div id="grid"></div>
 </div>
 
@@ -287,6 +294,8 @@ var TOOLS = [
     desc:"Every deal in one file. Each deal ties together its qualification call, questionnaire, valuation, marketing pack, attack plan, data room, and lease abstract — so you see at a glance where every listing stands, and manage status, owner, offers, tours, and notes from one place." },
   { name:'Command Center', tag:'Deal', file:'rrg_command.html', icon:'gauge2', track:'tools',
     desc:"Your management & prospecting cockpit. Three views over the whole book and pipeline: the lease-expiration ladder (every lease rolling in the next 6–24 months — your prospecting list), the seller pipeline (funnel, listings expiring, stale deals, value & production by agent), and portfolio intelligence (expanding concepts, dark units, market coverage)." },
+  { name:'Admin Settings', tag:'Deal', file:'rrg_admin_settings.html', icon:'gauge2', track:'tools', adminOnly:true,
+    desc:"Admin only. Edit the contact, company, and request type lists; set the services-desk notification emails; manage the Claude API key; and reset the book (companies, concepts, locations)." },
   { name:'Requests', tag:'Deal', file:'rrg_tickets.html', icon:'ticket', track:'tools',
     desc:"Need something from the brokerage office — collateral, signage & riders, photography, an MLS action, a compliance question, IT help, or supplies? Open a request and the office answers it right away, so you stay in front of buyers and sellers." },
 
@@ -330,6 +339,12 @@ var TRACKS = [
 
 /* Per-tool background + how-to (the "How to use" button). Keyed by file. Edit freely. */
 var GUIDES = {
+  'rrg_tickets.html':{
+    background:"Your direct line to the brokerage office. Open a request for anything you need to keep deals moving — marketing collateral, signage & riders, listing photography, a listing/CoStar action, a legal or compliance question, IT help, or supplies. Each request is a threaded conversation with the office: you write what you need, the office works it and replies, and the status tracks where it stands. Admins see every rep's requests; reps see their own.",
+    when:"Any time you need something from the office rather than doing it yourself — and any time you want to check where an open request stands. Log it here instead of a scattered text or email so nothing gets dropped and there's a record.",
+    how:["Click “+ New request,” pick a category and priority, and describe exactly what you need — the listing/address, sizes, quantities, deadline, and where to send it. The more specific, the faster it's handled.","The office replies in the thread; you'll get an email when there's a response. Reply back with more detail any time — the whole back-and-forth stays on the request.","Track each request's status (Open → Answered/Action Needed/Info Needed → Closed) and how long it's been open. Sort by newest, oldest, longest-open, status, or priority; admins can also filter by rep.","Close a request when it's done — or reopen it if something else comes up on the same item."],
+    tip:"Treat priority honestly: reserve Urgent for things blocking a showing, an offer, or a closing today. When everything is urgent, nothing is — clean, specific Normal requests with a real deadline get worked faster than a vague “ASAP.”"
+  },
   'rrg_assignments.html':{
     background:"Your book of business — every deal in one file. Each deal automatically ties together the whole chain for a listing: the seller qualification call, the questionnaire, the valuation, the marketing pack, the attack plan, the data room, and the lease abstract — plus the offers you receive and the buyer tours you run. Nothing to create by hand — the moment you log a call or build any piece, it groups under one deal. Admins see the whole team; reps see their own.",
     when:"Any time you want the big picture — where each listing stands, what's done, what's next — or to set a deal's status, owner, and notes in one place.",
@@ -531,7 +546,7 @@ document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeGuide
 
 function buildTiles(isAdmin, adminOnly){
   adminOnly = adminOnly || [];
-  function visible(t){ return isAdmin || adminOnly.indexOf(t.file)<0; }
+  function visible(t){ if(t.adminOnly && !isAdmin) return false; return isAdmin || adminOnly.indexOf(t.file)<0; }
   grid.innerHTML='';
   TRACKS.forEach(function(tr){
     var items=TOOLS.filter(function(t){return t.track===tr.key && visible(t);});
@@ -568,7 +583,7 @@ function cvRow(t){
 }
 function buildConsole(isAdmin, adminOnly){
   adminOnly = adminOnly || [];
-  function visible(t){ return isAdmin || adminOnly.indexOf(t.file)<0; }
+  function visible(t){ if(t.adminOnly && !isAdmin) return false; return isAdmin || adminOnly.indexOf(t.file)<0; }
   var vis=TOOLS.filter(visible);
   CV_STATE.cat='all';
   grid.innerHTML='<div id="cvresults"></div>';
@@ -717,6 +732,24 @@ function qlSave(){
 (function(){
   var api=window.RRG_API||''; if(!api){ renderQuickLinks(); return; }
   loadQuickLinks();
+})();
+
+/* ---- Open requests widget — shows the rep their open requests (admins: whole team) ---- */
+(function(){
+  var api=window.RRG_API||''; if(!api) return;
+  fetch(api.replace(/\/$/,'')+'/api/tickets',{credentials:'same-origin'}).then(function(r){return r.json();})
+    .then(function(j){
+      if(!j||!j.ok) return;
+      var open=(j.tickets||[]).filter(function(t){ return t.status!=='Closed'; });
+      var el=document.getElementById('reqWidget'); if(!el) return;
+      if(!open.length){ el.style.display='none'; return; }
+      var needs=open.filter(function(t){ return t.lastFrom==='office'; }).length;
+      var admin=!!j.isAdmin;
+      var sub=admin?'Across the team':'Your requests to the brokerage office';
+      if(needs) sub+=' · '+needs+' with a new reply';
+      el.style.display='flex';
+      el.innerHTML='<span class="rqn">'+open.length+'</span><span style="min-width:0"><span class="rqt">Open request'+(open.length===1?'':'s')+'</span><span class="rqs">'+esc(sub)+'</span></span><span class="rqgo">Open Requests →</span>';
+    }).catch(function(){});
 })();
 
 /* ---- Company logo in the header bar — swaps in the admin-uploaded logo when set ---- */

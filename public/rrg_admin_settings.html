@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Admin Settings</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:28px 0 30px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:960px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+h1{font-size:29px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:680px;}
+.wrap{max-width:960px;margin:22px auto;padding:0 24px 70px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:20px;}
+.ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);} .ch b{color:var(--navy);font-size:14px;} .ch span{color:var(--muted);font-size:11.5px;}
+.cb{padding:18px 20px;}
+label.fld{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:2px 0 7px;}
+input,textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;}
+.tagbox{display:flex;flex-wrap:wrap;gap:7px;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--wash);min-height:46px;}
+.tagchip{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid #d3ddf3;color:var(--navy);border-radius:8px;padding:5px 9px;font-size:12.5px;font-weight:700;}
+.tagchip button{background:none;border:none;color:var(--red);font-size:15px;line-height:1;cursor:pointer;padding:0;}
+.addrow{display:flex;gap:8px;margin-top:10px;}
+.addrow input{flex:1;}
+.btn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.btn.ghost{background:#fff;color:var(--navy);border-color:#cdd6e6;} .btn.danger{background:#fff;color:var(--red);border-color:#f0c9c6;} .btn.danger:hover{background:#fdeceb;}
+.btn:disabled{opacity:.5;cursor:default;}
+.btnrow{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap;align-items:center;}
+.msg{font-size:12.5px;font-weight:600;} .msg.ok{color:var(--green);} .msg.err{color:#b23a2c;}
+.note{font-size:12px;color:var(--muted);line-height:1.55;margin-top:8px;}
+.status{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;}
+.status.on{background:#eafaf0;color:#0e7a53;border:1px solid #b9e6cd;} .status.off{background:#f2f4f8;color:#6b7488;border:1px solid #e0e5ee;}
+.grid2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;} @media(max-width:800px){.grid2{grid-template-columns:1fr;}}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);}
+.foot{max-width:960px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to toolbox" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Admin</div>
+  <h1>Settings</h1>
+  <div class="sub">Editable type lists, request notifications, the Claude API key, and data reset. Admin only.</div>
+</div></div>
+<div id="root" class="wrap"><div class="gate">Loading…</div></div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function post(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body||{})}).then(function(r){return r.json();}); }
+function get(url){ return fetch(url,{credentials:'same-origin'}).then(function(r){return r.json();}); }
+
+var TYPES={ personTypes:[], companyTypes:[], ticketCategories:[] };
+
+function tagListHtml(kind,arr){
+  return '<div class="tagbox" id="tb_'+kind+'">'+(arr.length?arr.map(function(t){ return '<span class="tagchip">'+esc(t)+'<button type="button" data-rm="'+kind+'" data-val="'+esc(t)+'">×</button></span>'; }).join(''):'<span class="note" style="margin:4px">None — add one below.</span>')+'</div>'
+    +'<div class="addrow"><input id="add_'+kind+'" placeholder="Add a value and press Enter"><button class="btn ghost" type="button" data-add="'+kind+'">Add</button></div>';
+}
+function renderTypes(){
+  document.getElementById('typesBox').innerHTML=
+    '<div class="grid2">'
+    +'<div><label class="fld">Contact types</label>'+tagListHtml('personTypes',TYPES.personTypes)+'</div>'
+    +'<div><label class="fld">Company types</label>'+tagListHtml('companyTypes',TYPES.companyTypes)+'</div>'
+    +'<div><label class="fld">Request categories</label>'+tagListHtml('ticketCategories',TYPES.ticketCategories)+'</div>'
+    +'</div>';
+  document.querySelectorAll('[data-rm]').forEach(function(b){ b.addEventListener('click',function(){ var k=b.getAttribute('data-rm'), v=b.getAttribute('data-val'); TYPES[k]=TYPES[k].filter(function(x){return x!==v;}); renderTypes(); }); });
+  document.querySelectorAll('[data-add]').forEach(function(b){ b.addEventListener('click',function(){ addType(b.getAttribute('data-add')); }); });
+  ['personTypes','companyTypes','ticketCategories'].forEach(function(k){ var inp=document.getElementById('add_'+k); if(inp) inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); addType(k); } }); });
+}
+function addType(k){ var inp=document.getElementById('add_'+k); var v=(inp.value||'').trim(); if(!v) return; if(TYPES[k].map(function(x){return x.toLowerCase();}).indexOf(v.toLowerCase())<0) TYPES[k].push(v); inp.value=''; renderTypes(); setTimeout(function(){var i=document.getElementById('add_'+k); if(i) i.focus();},0); }
+function saveTypes(){
+  var m=document.getElementById('typesMsg'); m.textContent='Saving…'; m.className='msg';
+  post('/api/admin/types',{ personTypes:TYPES.personTypes, companyTypes:TYPES.companyTypes, ticketCategories:TYPES.ticketCategories }).then(function(j){
+    if(j&&j.ok){ TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[] }; renderTypes(); m.textContent='Saved ✓'; m.className='msg ok'; }
+    else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; }
+  }).catch(function(){ m.textContent='Could not reach the server.'; m.className='msg err'; });
+}
+function resetTypes(){ if(!confirm('Reset all three lists back to the built-in defaults?')) return; post('/api/admin/types',{reset:true}).then(function(j){ if(j&&j.ok){ TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[] }; renderTypes(); document.getElementById('typesMsg').textContent='Reset to defaults ✓'; document.getElementById('typesMsg').className='msg ok'; } }); }
+
+function saveServices(){
+  var m=document.getElementById('svcMsg'); m.textContent='Saving…'; m.className='msg';
+  post('/api/admin/services-email',{ emails:document.getElementById('svcEmails').value }).then(function(j){
+    if(j&&j.ok){ document.getElementById('svcEmails').value=(j.emails||[]).join(', '); m.textContent='Saved ✓'; m.className='msg ok'; }
+    else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; }
+  });
+}
+
+function renderKey(j){
+  var s=document.getElementById('keyStatus');
+  if(j&&j.set){ s.className='status on'; s.textContent = j.fromFile?'Set (saved here)':(j.fromEnv?'Set (from environment)':'Set'); }
+  else { s.className='status off'; s.textContent='Not set'; }
+}
+function saveKey(){
+  var m=document.getElementById('keyMsg'), k=document.getElementById('keyInput').value.trim();
+  if(!k){ m.textContent='Paste a key first.'; m.className='msg err'; return; }
+  m.textContent='Saving…'; m.className='msg';
+  post('/api/admin/anthropic-key',{ key:k }).then(function(j){ if(j&&j.ok){ document.getElementById('keyInput').value=''; renderKey(j); m.textContent='Saved ✓'; m.className='msg ok'; } else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; } });
+}
+function clearKey(){ if(!confirm('Clear the saved Claude API key? The environment key (if any) is used after the next restart.')) return; post('/api/admin/anthropic-key',{clear:true}).then(function(j){ renderKey(j); document.getElementById('keyMsg').textContent=(j&&j.note)||'Cleared.'; document.getElementById('keyMsg').className='msg ok'; }); }
+
+function resetBook(){
+  var m=document.getElementById('resetMsg'), v=document.getElementById('resetConfirm').value.trim();
+  if(v!=='RESET'){ m.textContent='Type RESET (all caps) to confirm.'; m.className='msg err'; return; }
+  if(!confirm('This permanently deletes ALL companies, concepts, and locations (and their photos). Contacts and deals are kept. This cannot be undone. Continue?')) return;
+  m.textContent='Working…'; m.className='msg';
+  post('/api/admin/reset-book',{confirm:'RESET'}).then(function(j){ if(j&&j.ok){ document.getElementById('resetConfirm').value=''; m.textContent='Done — cleared '+(j.cleared||0)+' company record'+((j.cleared===1)?'':'s')+'.'; m.className='msg ok'; } else { m.textContent=(j&&j.error)||'Could not reset.'; m.className='msg err'; } });
+}
+
+function build(){
+  document.getElementById('root').innerHTML=
+    '<div class="card"><div class="ch"><b>Type lists</b><span>— contact types, company types, and request categories used across the app</span></div><div class="cb">'
+    +'<div id="typesBox"></div>'
+    +'<div class="btnrow"><button class="btn" id="typesSave">Save type lists</button><button class="btn ghost" id="typesReset">Reset to defaults</button><span class="msg" id="typesMsg"></span></div>'
+    +'<div class="note">“Restaurant Owner” and “Referral Source” are already in the default contact types. Renaming a value here does not change contacts already saved with the old value.</div>'
+    +'</div></div>'
+    +'<div class="card"><div class="ch"><b>Request notifications</b><span>— who gets emailed when a new office request comes in</span></div><div class="cb">'
+    +'<label class="fld">Services email(s)</label><input id="svcEmails" placeholder="van@rrgcre.com, avery@rrgcre.com">'
+    +'<div class="btnrow"><button class="btn" id="svcSave">Save recipients</button><span class="msg" id="svcMsg"></span></div>'
+    +'<div class="note">Comma-separated. A new request emails all of these (requires server email/SMTP to be configured).</div>'
+    +'</div></div>'
+    +'<div class="card"><div class="ch"><b>Claude API key</b><span>— powers the AI generators (BOV, CIM, attack plans, find-locations, office assistant)</span></div><div class="cb">'
+    +'<div style="margin-bottom:10px">Status: <span id="keyStatus" class="status off">…</span></div>'
+    +'<label class="fld">Set / replace key</label><input id="keyInput" type="password" placeholder="sk-ant-…" autocomplete="off">'
+    +'<div class="btnrow"><button class="btn" id="keySave">Save key</button><button class="btn ghost" id="keyClear">Clear saved key</button><span class="msg" id="keyMsg"></span></div>'
+    +'<div class="note">A key saved here is stored on the server data disk and overrides the ANTHROPIC_API_KEY environment variable. For security the current key is never shown back.</div>'
+    +'</div></div>'
+    +'<div class="card"><div class="ch"><b>Reset the book</b><span>— danger zone</span></div><div class="cb">'
+    +'<div class="note" style="margin-top:0">Permanently deletes <b>all companies, concepts, and locations</b> and their photos. Contacts and deals are kept. There is no undo.</div>'
+    +'<label class="fld" style="margin-top:12px">Type RESET to confirm</label><input id="resetConfirm" placeholder="RESET" autocomplete="off" style="max-width:220px">'
+    +'<div class="btnrow"><button class="btn danger" id="resetBtn">Delete all companies / concepts / locations</button><span class="msg" id="resetMsg"></span></div>'
+    +'</div></div>';
+  renderTypes();
+  document.getElementById('typesSave').addEventListener('click',saveTypes);
+  document.getElementById('typesReset').addEventListener('click',resetTypes);
+  document.getElementById('svcSave').addEventListener('click',saveServices);
+  document.getElementById('keySave').addEventListener('click',saveKey);
+  document.getElementById('keyClear').addEventListener('click',clearKey);
+  document.getElementById('resetBtn').addEventListener('click',resetBook);
+  // load current values
+  get('/api/admin/types').then(function(j){ if(j&&j.ok){ TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[] }; renderTypes(); } });
+  get('/api/admin/services-email').then(function(j){ if(j&&j.ok){ document.getElementById('svcEmails').value=(j.emails||[]).join(', '); } });
+  get('/api/admin/anthropic-key').then(function(j){ if(j&&j.ok) renderKey(j); });
+}
+
+get('/api/session').then(function(s){
+  if(s&&s.role==='admin'){ build(); }
+  else { document.getElementById('root').innerHTML='<div class="gate"><b style="color:var(--navy);font-size:16px">Admins only</b><br><br>This page is for RRG administrators. <a href="./index.html" style="color:var(--navy);font-weight:700">← Back to the toolbox</a></div>'; }
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not verify your session. <a href="/login">Sign in →</a></div>'; });
+</script>
+</body>
+</html>
