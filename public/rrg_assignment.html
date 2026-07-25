@@ -154,6 +154,9 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .off input,.off select,.off textarea{width:100%;border:1px solid #cfd6e2;border-radius:8px;padding:9px 11px;font:inherit;font-size:13px;} .off textarea{min-height:60px;}
 .ofbtns{display:flex;gap:9px;margin:13px 0 6px;} .savebtn2{background:var(--navy);color:#fff;border:1px solid var(--navy);padding:9px 16px;font-size:13px;} .cancelbtn{background:#fff;color:var(--muted);border:1px solid var(--line);padding:9px 14px;font-size:13px;}
 @media(max-width:600px){.ofgrid{grid-template-columns:1fr 1fr;}}
+.jbeans{display:flex;flex-wrap:wrap;gap:8px;}
+.jbean{display:inline-flex;align-items:center;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;line-height:1;}
+.jbean b{font-weight:800;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -171,7 +174,7 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return '—'; var d=new Date(iso); if(isNaN(d.getTime())) return '—'; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
-var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[];
+var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], AGR=[], ATYPES=[];
 var OFFER_TYPES=['IOI','LOI'], OFFER_STATUSES=['Received','Under review','Countered','Accepted','Rejected','Withdrawn'];
 var TOUR_INTEREST=['Hot','Warm','Cool','Passed'];
 var NDA_METHODS=['DocuSign','Email','Paper','Other'], NDA_STATUSES=['Sent','Received','Countersigned','Expired'];
@@ -219,6 +222,24 @@ function stageMeta(k,s){
   if(k==='room') return (s.docs||0)+' document'+((s.docs===1)?'':'s')+(s.gated?' · access-gated':'');
   if(k==='lease') return s.done?'Abstract ready':'Building';
   return '';
+}
+var ATYPE_COLORS={ NDA:{bg:'#eef2fb',fg:'#2647b0'}, CA:{bg:'#e6f5f3',fg:'#0f766e'}, ETRA:{bg:'#f1ebfb',fg:'#6d28d9'}, Referral:{bg:'#fdf1df',fg:'#b5791f'}, Listing:{bg:'#fdeceb',fg:'#DA2B1F'} };
+function agrTypeLabel(k){ for(var i=0;i<ATYPES.length;i++){ if(ATYPES[i].key===k) return ATYPES[i].label; } return k; }
+function agrToday(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function agrDays(d){ if(!d) return 99999; var t=new Date(d+'T00:00:00'); if(isNaN(t)) return 99999; return Math.round((t.getTime()-Date.now())/86400000); }
+function agrFmtD(d){ if(!d) return ''; var p=String(d).split('-'); if(p.length!==3) return d; return p[1]+'/'+p[2]+'/'+p[0]; }
+function agrChipDeal(a){
+  var c=(ATYPE_COLORS[a.type]||{bg:'#eef1f6',fg:'#6b7488'});
+  var today=agrToday(); var expired=(a.status==='terminated')||(a.expires&&a.expires<today);
+  var du=agrDays(a.expires); var soon=a.expires&&!expired&&du<=60;
+  var border=expired?'#DA2B1F':(soon?'#b5791f':'transparent');
+  var exp=a.status==='terminated'?'terminated':(a.expires?('exp '+agrFmtD(a.expires)+(expired?' · EXPIRED':(soon?' · '+du+'d':''))):'no expiry');
+  var who=a.personName?(' · '+esc(a.personName)):'';
+  return '<span class="jbean" style="background:'+c.bg+';color:'+c.fg+';box-shadow:inset 0 0 0 1.6px '+border+'"><b>'+esc(agrTypeLabel(a.type))+'</b> · '+esc(exp)+who+'</span>';
+}
+function agreementsCardDeal(){
+  if(!AGR.length) return '';
+  return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGR.length+'</span></div><div class="cb" style="padding:14px 20px"><div class="jbeans">'+AGR.map(agrChipDeal).join('')+'</div></div></div>';
 }
 function render(){
   var s=A.stages||{};
@@ -273,6 +294,7 @@ function render(){
     + ndasCard()
     + toursCard()
     + offersCard()
+    + agreementsCardDeal()
     + roomActivityCard()
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
@@ -710,7 +732,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; render(); loadPeople(); })
+  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; render(); loadPeople(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();

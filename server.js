@@ -2260,7 +2260,8 @@ app.get('/api/assignment/:key', (req, res) => {
   if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
   if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const origin = req.protocol + '://' + req.get('host');
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, assignment: assignmentView(d, overlay), roomActivity: roomActivityFor(d, origin) });
+  const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: AGREEMENT_TYPES, roomActivity: roomActivityFor(d, origin) });
 });
 app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   const deals = assignmentsIndex();
@@ -2779,7 +2780,10 @@ app.get('/api/company/:id', (req, res) => {
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
   const contacts = loadPeople().filter(p => p.companyId === c.id).map(companyContactRow);
   const dealRows = loadDeals().filter(d => d.companyId === c.id).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id) }));
-  res.json({ ok: true, company: c, contacts, deals: dealRows, locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, markets: RRG_METROS, hasMaps: !!loadGmapsKey(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  const _cids = loadPeople().filter(p => p.companyId === c.id).map(p => p.id);
+  const _pn = {}; loadPeople().forEach(p => { _pn[p.id] = p.name; });
+  const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
+  res.json({ ok: true, company: c, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, markets: RRG_METROS, hasMaps: !!loadGmapsKey(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 // ---- Concepts — a company runs one or more concepts (brands); locations attach to a concept. ----
 function newConceptId() { return 'cpt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -3245,10 +3249,15 @@ app.get('/api/counts', (req, res) => {
     'rrg_cim_queue.html': loadCims().length,
     'rrg_attack_queue.html': loadMaps().length,
     'rrg_rooms_queue.html': loadRooms().length,
+    'rrg_agreements.html': loadAgreements().length,
   };
   // Secondary "active" badges keyed by tool file.
   const active = { 'rrg_assignments.html': activeDeals };
-  res.json({ ok: true, counts, active });
+  const _t = new Date(); const _ts = _t.getFullYear()+'-'+String(_t.getMonth()+1).padStart(2,'0')+'-'+String(_t.getDate()).padStart(2,'0');
+  let agrExpiring = 0;
+  loadAgreements().forEach(a => { if (a.status === 'terminated' || !a.expires || a.expires < _ts) return; const du = daysUntil(a.expires); if (du != null && du <= 60) agrExpiring++; });
+  const expiring = { 'rrg_agreements.html': agrExpiring };
+  res.json({ ok: true, counts, active, expiring });
 });
 // ---- Command Center — management + prospecting intelligence across the book & pipeline ----
 function daysUntil(dateStr) {
@@ -4251,7 +4260,9 @@ app.get('/api/agreements', (req, res) => {
   const pid = req.query.personId;
   if (pid) all = all.filter(a => a.personId === pid);
   const nameById = {}; loadPeople().forEach(p => { nameById[p.id] = p.name; });
-  all = all.map(a => Object.assign(agreementBrief(a), { personName: a.personName || nameById[a.personId] || '' }));
+  const coNameById = {}; loadCompanies().forEach(c => { coNameById[c.id] = c.name; });
+  const bizByKey = {}; try { const ov = loadAssignOverlay(), idx = assignmentsIndex(); for (const k in idx) { try { bizByKey[k] = assignmentView(idx[k], ov).business; } catch (e) {} } } catch (e) {}
+  all = all.map(a => Object.assign(agreementBrief(a), { personName: a.personName || nameById[a.personId] || '', companyName: coNameById[a.companyId] || '', dealName: bizByKey[a.dealKey] || '' }));
   all.sort((x, y) => String(x.expires || '9999').localeCompare(String(y.expires || '9999')));
   res.json({ ok: true, agreements: all, types: AGREEMENT_TYPES, isAdmin: !!(req.user && req.user.role === 'admin') });
 });
@@ -4271,6 +4282,7 @@ app.post('/api/agreements', express.json(), (req, res) => {
   if (typeof b.personId === 'string') { a.personId = b.personId; const p = personById(b.personId); a.personName = p ? p.name : (b.personName || a.personName || ''); }
   if (typeof b.companyId === 'string') a.companyId = b.companyId;
   if (typeof b.dealKey === 'string') a.dealKey = b.dealKey;
+  if (!a.companyId && a.personId) { const pp = personById(a.personId); if (pp && pp.companyId) a.companyId = pp.companyId; }
   if (typeof b.effective === 'string') a.effective = b.effective.slice(0, 10);
   if (typeof b.expires === 'string') a.expires = b.expires.slice(0, 10);
   if (typeof b.status === 'string' && ['active', 'expired', 'terminated'].indexOf(b.status) >= 0) a.status = b.status;

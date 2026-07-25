@@ -88,14 +88,17 @@ function render(){
   var rows=AGR.filter(function(a){ if(FT!=='all'&&a.type!==FT) return false; if(FS!=='all'&&statusOf(a)!==FS) return false; return true; });
   var el=document.getElementById('list');
   if(!rows.length){ el.innerHTML='<div class="empty">No agreements match.</div>'; return; }
-  el.innerHTML='<table><thead><tr><th>Type</th><th>Party</th><th>Effective</th><th>Expires</th><th>Status</th><th>Notes</th></tr></thead><tbody>'
+  el.innerHTML='<table><thead><tr><th>Type</th><th>Party</th><th>Company</th><th>Deal</th><th>Effective</th><th>Expires</th><th>Status</th><th>Notes</th></tr></thead><tbody>'
     +rows.map(function(a){
       var c=COLORS[a.type]||{bg:'#eef1f6',fg:'#6b7488'}; var st=statusOf(a); var du=daysUntil(a.expires);
       var who=a.personId?('<span class="who"><a href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'">'+esc(a.personName||'Contact')+'</a></span>'):esc(a.personName||'—');
       var stTxt=st==='expired'?'Expired':(st==='soon'?('Expiring'+(du!=null?' '+du+'d':'')):'Active');
       var expCls=st==='expired'?' red':(st==='soon'?' amber':'');
       return '<tr><td><span class="jbean" style="background:'+c.bg+';color:'+c.fg+'">'+esc(label(a.type))+'</span></td>'
-        +'<td>'+who+'</td><td>'+esc(fmt(a.effective))+'</td>'
+        +'<td>'+who+'</td>'
+        +'<td>'+(a.companyId&&a.companyName?('<span class="who"><a href="./rrg_company.html?id='+encodeURIComponent(a.companyId)+'">'+esc(a.companyName)+'</a></span>'):'—')+'</td>'
+        +'<td>'+(a.dealKey?('<span class="who"><a href="./rrg_assignment.html?key='+encodeURIComponent(a.dealKey)+'">'+esc(a.dealName||'deal')+'</a></span>'):'—')+'</td>'
+        +'<td>'+esc(fmt(a.effective))+'</td>'
         +'<td class="exp'+expCls+'">'+esc(fmt(a.expires))+'</td>'
         +'<td><span class="stpill '+st+'">'+stTxt+'</span></td>'
         +'<td class="note">'+esc(a.notes||'')+'</td></tr>';

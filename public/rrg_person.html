@@ -108,6 +108,7 @@ function agreementsCard(){
       +'<div><label class="fld">Status</label><select id="agr_status"><option value="active">Active</option><option value="terminated">Terminated</option></select></div></div>'
       +'<div class="fldrow2"><div><label class="fld">Effective</label><input type="date" id="agr_eff"></div>'
       +'<div><label class="fld">Expires</label><input type="date" id="agr_exp"></div></div>'
+      +'<div class="fldrow"><label class="fld">Link to deal (optional)</label><select id="agr_deal"><option value="">— none —</option>'+DEALS.map(function(d){return '<option value="'+esc(d.key)+'">'+esc(d.business||d.key)+'</option>';}).join('')+'</select></div>'
       +'<div class="fldrow"><label class="fld">Notes</label><input id="agr_notes" placeholder="Counterparty, terms, reference…"></div>'
       +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button type="button" class="savebtn" id="agrSave" style="width:auto;padding:8px 16px">Save agreement</button><button type="button" class="mfadd" id="agrCancel">Cancel</button><span id="agrMsg" style="font-size:12px;color:#6b7488"></span></div>'
     +'</div></div></div>';
@@ -119,12 +120,13 @@ function openAgrForm(a){
   document.getElementById('agr_status').value=a?(a.status==='terminated'?'terminated':'active'):'active';
   document.getElementById('agr_eff').value=a?(a.effective||''):'';
   document.getElementById('agr_exp').value=a?(a.expires||''):'';
+  document.getElementById('agr_deal').value=a?(a.dealKey||''):'';
   document.getElementById('agr_notes').value=a?(a.notes||''):'';
   document.getElementById('agrMsg').textContent='';
 }
 function saveAgreement(){
   var msg=document.getElementById('agrMsg');
-  var body={ personId:ID, id:document.getElementById('agr_id').value||undefined, type:document.getElementById('agr_type').value, status:document.getElementById('agr_status').value, effective:document.getElementById('agr_eff').value, expires:document.getElementById('agr_exp').value, notes:document.getElementById('agr_notes').value.trim() };
+  var body={ personId:ID, id:document.getElementById('agr_id').value||undefined, type:document.getElementById('agr_type').value, status:document.getElementById('agr_status').value, effective:document.getElementById('agr_eff').value, expires:document.getElementById('agr_exp').value, dealKey:document.getElementById('agr_deal').value, notes:document.getElementById('agr_notes').value.trim() };
   msg.textContent='Saving…';
   fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { msg.textContent=(j&&j.error)||'Failed'; } });

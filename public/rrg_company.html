@@ -124,6 +124,9 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .cbtns{display:flex;gap:9px;margin:12px 0 8px;} .sbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;} .cbtn{background:#fff;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:9px 14px;font:inherit;font-size:13px;cursor:pointer;}
 .foot{max-width:1040px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .loading{max-width:1040px;margin:60px auto;padding:0 24px;color:var(--muted);text-align:center;}
+.jbeans{display:flex;flex-wrap:wrap;gap:8px;}
+.jbean{display:inline-flex;align-items:center;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;line-height:1;}
+.jbean b{font-weight:800;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -141,13 +144,34 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
-var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, HASMAPS=false, DIRTY=false;
+var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], DIRTY=false;
 var EXPANDED={};
 function conceptById(id){ return CONCEPTS.filter(function(x){return x.id===id;})[0]||null; }
 function normUrl(u){ u=String(u||'').trim(); if(!u) return ''; return /^https?:\/\//i.test(u)?u:('https://'+u); }
 function hostOf(u){ try{ return new URL(normUrl(u)).hostname.replace(/^www\./,''); }catch(e){ return String(u||''); } }
 function locStatusClass(s){ return 'ls-'+String(s||'Open').toLowerCase().replace(/[^a-z]+/g,''); }
 function cptLogoFail(img){ try{ var s=document.createElement('span'); s.className='cptlogo cptlogo-mono'; s.textContent=img.getAttribute('data-mono')||'?'; img.replaceWith(s); }catch(e){ img.style.display='none'; } }
+var ATYPE_COLORS={ NDA:{bg:'#eef2fb',fg:'#2647b0'}, CA:{bg:'#e6f5f3',fg:'#0f766e'}, ETRA:{bg:'#f1ebfb',fg:'#6d28d9'}, Referral:{bg:'#fdf1df',fg:'#b5791f'}, Listing:{bg:'#fdeceb',fg:'#DA2B1F'} };
+function agrTypeLabel(k){ for(var i=0;i<ATYPES.length;i++){ if(ATYPES[i].key===k) return ATYPES[i].label; } return k; }
+function agrToday(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function agrDays(d){ if(!d) return 99999; var t=new Date(d+'T00:00:00'); if(isNaN(t)) return 99999; return Math.round((t.getTime()-Date.now())/86400000); }
+function agrFmt(d){ if(!d) return ''; var p=String(d).split('-'); if(p.length!==3) return d; return p[1]+'/'+p[2]+'/'+p[0]; }
+function agrChipCo(a){
+  var c=(ATYPE_COLORS[a.type]||{bg:'#eef1f6',fg:'#6b7488'});
+  var today=agrToday(); var expired=(a.status==='terminated')||(a.expires&&a.expires<today);
+  var du=agrDays(a.expires); var soon=a.expires&&!expired&&du<=60;
+  var border=expired?'#DA2B1F':(soon?'#b5791f':'transparent');
+  var exp=a.status==='terminated'?'terminated':(a.expires?('exp '+agrFmt(a.expires)+(expired?' · EXPIRED':(soon?' · '+du+'d':''))):'no expiry');
+  var who=a.personName?(' · '+esc(a.personName)):'';
+  var inner='<b>'+esc(agrTypeLabel(a.type))+'</b> · '+esc(exp)+who;
+  var st='background:'+c.bg+';color:'+c.fg+';box-shadow:inset 0 0 0 1.6px '+border;
+  if(a.personId) return '<a class="jbean" href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'" style="text-decoration:none;'+st+'">'+inner+'</a>';
+  return '<span class="jbean" style="'+st+'">'+inner+'</span>';
+}
+function agreementsCardCo(){
+  var chips=AGREEMENTS.length?AGREEMENTS.map(agrChipCo).join(''):'<div class="empty" style="padding:6px 2px">No agreements linked to this company yet. Add them from a contact.</div>';
+  return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGREEMENTS.length+'</span></div><div class="cb"><div class="jbeans">'+chips+'</div></div></div>';
+}
 function render(){
   document.getElementById('crumb').textContent=C.name||'Company';
   document.getElementById('h1').textContent=C.name||'Company';
@@ -220,6 +244,7 @@ function render(){
     + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="addContactBtn">+ Add contact</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
     + '<div class="card"><div class="ch"><b>Concepts, Commissaries &amp; Locations</b><span>'+CONCEPTS.length+' concept'+(CONCEPTS.length===1?'':'s')+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn">+ Commissary</button><button class="addbtn" id="addConceptBtn">+ Add concept</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
     + '<div class="card"><div class="ch"><b>Deals</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
+    + agreementsCardCo()
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Company</b></div><div class="cb">'
       + '<div class="fldrow"><label class="fld">Name</label><input id="c_name" value="'+esc(C.name||'')+'"></div>'
@@ -561,7 +586,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No company selected. <a href="./rrg_assignments.html">Back to deals →</a></div>'; return; }
   fetch('/api/company/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; MARKETS=j.markets||MARKETS; IS_ADMIN=!!j.isAdmin; HASMAPS=!!j.hasMaps; render(); })
+    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; MARKETS=j.markets||MARKETS; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; IS_ADMIN=!!j.isAdmin; HASMAPS=!!j.hasMaps; render(); })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this company.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();
