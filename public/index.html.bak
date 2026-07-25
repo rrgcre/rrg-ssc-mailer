@@ -169,13 +169,13 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
 .qlreorder:hover{border-color:#c9d2e2;color:var(--navy);}
 .qlreorder.on{background:var(--navy);color:#fff;border-color:var(--navy);}
 .ql{display:flex;flex-wrap:wrap;gap:8px 20px;align-items:center;}
-.qllink{display:inline-flex;align-items:center;gap:3px;text-decoration:none;color:var(--red);font-weight:700;font-size:12.5px;line-height:1;white-space:nowrap;border-bottom:1px solid transparent;padding-bottom:1px;transition:border-color .15s,color .15s;}
+.qllink{display:inline-flex;align-items:center;gap:3px;text-decoration:none;color:var(--navy);font-weight:700;font-size:12.5px;line-height:1;white-space:nowrap;border-bottom:1px solid transparent;padding-bottom:1px;transition:border-color .15s,color .15s;}
 .qllink:hover{color:var(--red);border-bottom-color:var(--red);}
 .qllink .qarw{font-size:10px;color:var(--muted);font-weight:600;}
 .qllink:hover .qarw{color:var(--red);}
 /* reorder (edit) mode */
 .ql.editing{gap:9px;}
-.ql.editing .qllink{border:1px solid var(--line);border-radius:8px;padding:6px 8px 6px 11px;background:#fff;border-bottom-color:var(--line);color:var(--red);cursor:grab;}
+.ql.editing .qllink{border:1px solid var(--line);border-radius:8px;padding:6px 8px 6px 11px;background:#fff;border-bottom-color:var(--line);color:var(--navy);cursor:grab;}
 .ql.editing .qllink[draggable=true]:active{cursor:grabbing;}
 .ql.editing .qllink.dragging{opacity:.35;}
 .ql.editing .qllink.fixed{opacity:.5;cursor:default;}

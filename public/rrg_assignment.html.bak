@@ -244,9 +244,9 @@ function render(){
     '<div class="main">'
     + '<div class="card"><div class="ch"><b>Deal facts</b><span>'+done+' of '+STAGES.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
     + '<div class="card"><div class="ch"><b>Pipeline</b><span>'+started+' of '+STAGES.length+' started</span></div><div class="track">'+steps+'</div></div>'
+    + offersCard()
     + ndasCard()
     + toursCard()
-    + offersCard()
     + roomActivityCard()
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
