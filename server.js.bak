@@ -2213,7 +2213,7 @@ function assignmentView(d, overlay) {
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', owner: o.owner || by, businessOverride: o.businessOverride || '',
-    listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew,
+    listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew,
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
@@ -2273,7 +2273,6 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.notes === 'string') cur.notes = b.notes.slice(0, 8000);
   if (typeof b.owner === 'string') cur.owner = b.owner.slice(0, 120);
   if (typeof b.businessOverride === 'string') cur.businessOverride = b.businessOverride.slice(0, 120);
-  if (typeof b.listingLive === 'string') cur.listingLive = b.listingLive.slice(0, 10);
   if (typeof b.listingStart === 'string') cur.listingStart = b.listingStart.slice(0, 10);
   if (typeof b.listingExpires === 'string') cur.listingExpires = b.listingExpires.slice(0, 10);
   if (typeof b.autoRenew === 'boolean') cur.autoRenew = b.autoRenew;

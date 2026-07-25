@@ -187,6 +187,7 @@ var STAGES=[
   { k:'attack', name:'Market Attack Plan', lbl:'MAP', href:function(s){return './rrg_attack_builder.html?map='+encodeURIComponent(s.id);}, open:'Open plan' },
   { k:'room', name:'Data Room', lbl:'Room', href:function(s){return './rrg_room.html?room='+encodeURIComponent(s.id);}, open:'Open room' }
 ];
+function domDays(){ if(!A||!A.listingLive) return ''; var d=new Date(A.listingLive+'T00:00:00'); if(isNaN(d)) return ''; var n=Math.floor((Date.now()-d.getTime())/86400000); return n>=0?(n+' day'+(n===1?'':'s')):''; }
 function stageMeta(k,s){
   if(k==='call') return s.meta||'Logged';
   if(k==='questionnaire') return s.done?'Completed':((s.pct||0)+'% complete');
@@ -206,6 +207,7 @@ function render(){
   if(A.market) sub.push('<span>'+esc(A.market)+'</span>');
   if(A.contact) sub.push('<span>Contact: <b>'+esc(A.contact)+'</b></span>');
   if(A.value) sub.push('<span>Value: <b>'+esc(A.value)+'</b></span>');
+  if(domDays()) sub.push('<span>On market: <b>'+esc(domDays())+'</b></span>');
   sub.push('<span class="hpill" style="margin:0">'+esc(A.status||'New')+'</span>');
   document.getElementById('subline').innerHTML=sub.join('');
 
@@ -258,6 +260,8 @@ function render(){
         + '<div class="listinghd">Listing agreement</div>'
         + '<div class="fldrow2"><div><label class="fld">Listed on</label><input type="date" class="owner" id="f_lstart" value="'+esc(A.listingStart||'')+'"></div>'
         + '<div><label class="fld">Expires</label><input type="date" class="owner" id="f_lexp" value="'+esc(A.listingExpires||'')+'"></div></div>'
+        + '<div class="fldrow2"><div><label class="fld">Live date (on market)</label><input type="date" class="owner" id="f_llive" value="'+esc(A.listingLive||'')+'"></div>'
+        + '<div><label class="fld">Days on market</label><input class="owner" id="f_dom" value="'+esc(domDays())+'" readonly style="background:#f5f7fb;font-weight:700"></div></div>'
         + '<label class="autorow"><input type="checkbox" id="f_lauto"'+(A.autoRenew?' checked':'')+'> Auto-renews</label>'
         + '<div class="expnote" id="expNote"></div>'
       + '</div>'
@@ -662,11 +666,11 @@ function updateExpNote(){
 function save(){
   var b=document.getElementById('savebtn'); b.disabled=true; b.textContent='Saving…';
   var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value,
-    listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked };
+    listingLive:document.getElementById('f_llive').value, listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked };
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){
       b.textContent='Save changes';
-      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew;
+      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew;
         document.getElementById('subline').querySelector('.hpill').textContent=body.status;
         if(body.businessOverride){ A.business=body.businessOverride; document.getElementById('h1').textContent=body.businessOverride; document.getElementById('crumb').textContent=body.businessOverride; }
         var s=document.getElementById('saved'); s.classList.add('show'); setTimeout(function(){ s.classList.remove('show'); },2200);
