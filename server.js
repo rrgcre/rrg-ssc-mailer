@@ -753,22 +753,65 @@ app.use((req, res, next) => {
 app.use(express.static('public')); // toolkit — gated by the middleware above
 
 /* ---------- email + submission log (unchanged, now gated) ---------- */
-function buildTransport() {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT || 587),
-    secure: String(process.env.SMTP_SECURE || 'false') === 'true',
-    auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
-  });
+// ---- Email (SMTP) config: stored on the persistent disk (email.key = excluded from backups) ----
+const EMAIL_CFG_FILE = path.join(BOV_DATA_DIR, 'email.key');
+function rawEmailCfg() { try { return JSON.parse(fs.readFileSync(EMAIL_CFG_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
+function loadEmailConfig() {
+  const c = rawEmailCfg();
+  return {
+    host: c.host || process.env.SMTP_HOST || '',
+    port: Number(c.port || process.env.SMTP_PORT || 587),
+    secure: (c.secure != null ? !!c.secure : (String(process.env.SMTP_SECURE || 'false') === 'true')),
+    user: c.user || process.env.SMTP_USER || '',
+    pass: (c.pass != null && c.pass !== '' ? c.pass : (process.env.SMTP_PASS || '')),
+    from: c.from || process.env.MAIL_FROM || process.env.CC_ALWAYS || 'van@rrgcre.com',
+    enabled: (c.enabled != null ? !!c.enabled : true),
+  };
 }
+function saveEmailConfig(c) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(EMAIL_CFG_FILE, JSON.stringify(c, null, 2)); } catch (e) {} }
+function isEmailConfigured() { const c = loadEmailConfig(); return !!(c.enabled && c.host); }
+function mailFrom() { return loadEmailConfig().from; }
+function buildTransport() {
+  const c = loadEmailConfig();
+  return nodemailer.createTransport({ host: c.host, port: c.port, secure: c.secure, auth: (c.user || c.pass) ? { user: c.user, pass: c.pass } : undefined });
+}
+app.get('/api/admin/email', requireAdmin, (req, res) => {
+  const c = loadEmailConfig();
+  res.json({ ok: true, host: c.host, port: c.port, secure: c.secure, user: c.user, from: c.from, enabled: c.enabled, hasPass: !!c.pass, configured: isEmailConfigured() });
+});
+app.post('/api/admin/email', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const cur = rawEmailCfg();
+  const c = {
+    host: typeof b.host === 'string' ? b.host.trim().slice(0, 200) : (cur.host || ''),
+    port: b.port != null ? (Number(b.port) || 587) : (cur.port || 587),
+    secure: b.secure != null ? !!b.secure : (cur.secure || false),
+    user: typeof b.user === 'string' ? b.user.trim().slice(0, 200) : (cur.user || ''),
+    from: typeof b.from === 'string' ? b.from.trim().slice(0, 200) : (cur.from || ''),
+    enabled: b.enabled != null ? !!b.enabled : (cur.enabled != null ? cur.enabled : true),
+    pass: cur.pass || '',
+  };
+  if (typeof b.pass === 'string' && b.pass !== '') c.pass = b.pass;
+  if (b.clearPass) c.pass = '';
+  saveEmailConfig(c);
+  res.json({ ok: true, configured: isEmailConfigured() });
+});
+app.post('/api/admin/email/test', requireAdmin, express.json(), async (req, res) => {
+  const to = String((req.body && req.body.to) || '').trim();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'Enter a valid destination email.' });
+  if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: 'Save your email settings first (host + enabled on).' });
+  try {
+    const info = await buildTransport().sendMail({ from: mailFrom(), to, subject: 'RRG toolkit — test email', text: 'This is a test from your RRG toolkit. If you got this, outbound email is working.' });
+    res.json({ ok: true, id: info.messageId });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 // Best-effort notification email. Silently no-ops if SMTP isn't configured, and never throws.
 async function sendNotifyMail(to, subject, text) {
   try {
-    if (!process.env.SMTP_HOST) return { ok: false, skipped: true };
+    if (!isEmailConfigured()) return { ok: false, skipped: true };
     const list = (Array.isArray(to) ? to : [to]).filter(Boolean).join(', ');
     if (!list) return { ok: false, skipped: true };
     const info = await buildTransport().sendMail({
-      from: process.env.MAIL_FROM || process.env.CC_ALWAYS || 'van@rrgcre.com',
+      from: mailFrom(),
       to: list, subject: String(subject || '').slice(0, 200), text: String(text || ''),
     });
     return { ok: true, id: info.messageId };
@@ -783,7 +826,7 @@ app.post('/api/send-ssc', async (req, res) => {
   }
   let out = null, err = null, emailed = false;
   try {
-    if (!process.env.SMTP_HOST) throw new Error('Server email is not configured (SMTP_HOST missing).');
+    if (!isEmailConfigured()) throw new Error('Server email is not configured. Set it in Admin → Email.');
     out = await sendSsc(data, buildTransport());
     emailed = true;
   } catch (e) { err = e; }
@@ -3701,6 +3744,31 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div class="sub2" style="margin-top:8px">Once set, a “Pull photo” button appears on every location and the location finder auto-fetches a storefront for each unit it adds.</div>
       </div>
 
+      <h2 style="margin-top:34px">Email (SMTP) <span class="sub2">— outbound email for the app: contact emails, document sends, and alert digests. Enter your mail provider's SMTP details (Gmail, SendGrid, etc.). Stored on the server only and excluded from backups. Use the test button to confirm it works before relying on it.</span></h2>
+      <div class="links">
+        <div class="sub2" id="emState" style="margin:0 0 8px">Loading…</div>
+        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px">
+          <div><label class="sub2">SMTP host</label><input id="em_host" placeholder="smtp.gmail.com" autocomplete="off" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
+          <div><label class="sub2">Port</label><input id="em_port" placeholder="587" autocomplete="off" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
+          <div><label class="sub2">Security</label><select id="em_secure" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;background:#fff"><option value="false">STARTTLS (587)</option><option value="true">SSL/TLS (465)</option></select></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
+          <div><label class="sub2">Username</label><input id="em_user" placeholder="van@rrgcre.com" autocomplete="off" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
+          <div><label class="sub2">Password / app password</label><input type="password" id="em_pass" placeholder="app password" autocomplete="new-password" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:14px;margin-top:10px;align-items:end">
+          <div><label class="sub2">From address</label><input id="em_from" placeholder="Restaurant Realty Group &lt;van@rrgcre.com&gt;" autocomplete="off" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
+          <label class="sub2" style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding-bottom:10px"><input type="checkbox" id="em_enabled" checked> Email enabled</label>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="primary" onclick="saveEmail()">Save email settings</button>
+          <input id="em_test" placeholder="send test to you@email.com" autocomplete="off" style="border:1px solid #cfd6e2;border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;min-width:220px">
+          <button onclick="testEmail()">Send test</button>
+          <span id="emMsg" class="sub2"></span>
+        </div>
+        <div class="sub2" style="margin-top:8px">Gmail: use an <b>app password</b> (myaccount.google.com/apppasswords), host <b>smtp.gmail.com</b>, port <b>587</b>. Leave the password blank when saving to keep the current one.</div>
+      </div>
+
       <div class="grp">Data Backup</div>
       <h2 style="margin-top:20px" data-open="1">Backups <span class="sub2">— a full copy of everything the team has created: deals, companies, contacts, requests, calls, valuations, marketing packs, and every uploaded data-room file. The server writes an automatic snapshot once a day (kept ${BACKUP_KEEP} days). Download one any time to keep an off-site copy in Drive or Dropbox.</span></h2>
       <div class="links">
@@ -3830,7 +3898,12 @@ app.get('/admin', requireAdmin, (req, res) => {
       function loadGmapsKey(){ fetch('/api/admin/gmaps-key').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ _gmState(j); } }).catch(function(){ var s=document.getElementById('gmstate'); if(s) s.textContent='Could not load the key status.'; }); }
       function saveGmapsKey(){ var v=document.getElementById('gmapsKey').value.trim(), m=document.getElementById('gmmsg'); if(!v){ m.textContent='Paste a key first.'; return; } m.textContent='Saving…'; post('/api/admin/gmaps-key',{key:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; document.getElementById('gmapsKey').value=''; _gmState(j); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
       function clearGmapsKey(){ if(!confirm('Remove the Google Maps API key? Automatic location photos will turn off.')) return; post('/api/admin/gmaps-key',{clear:true}).then(function(j){ if(j&&j.ok){ document.getElementById('gmmsg').textContent='Removed.'; _gmState(j); } }); }
+      function _emState(j){ var s=document.getElementById('emState'); if(!s) return; if(j&&j.configured){ s.innerHTML='<b style="color:#0e7a53">Email is on</b> — sending as '+(j.from||'')+' via '+(j.host||''); } else { s.textContent=(j&&j.host)?'Configured but disabled — turn on Email enabled and save.':'Not configured yet. Enter your SMTP details below.'; } }
+      function loadEmail(){ fetch('/api/admin/email').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('em_host').value=j.host||''; document.getElementById('em_port').value=j.port||587; document.getElementById('em_secure').value=j.secure?'true':'false'; document.getElementById('em_user').value=j.user||''; document.getElementById('em_from').value=j.from||''; document.getElementById('em_enabled').checked=(j.enabled!==false); document.getElementById('em_pass').placeholder=j.hasPass?'leave blank to keep current':'app password'; _emState(j); } }).catch(function(){ var s=document.getElementById('emState'); if(s) s.textContent='Could not load email settings.'; }); }
+      function saveEmail(){ var m=document.getElementById('emMsg'); m.textContent='Saving…'; var body={ host:document.getElementById('em_host').value.trim(), port:document.getElementById('em_port').value.trim(), secure:document.getElementById('em_secure').value==='true', user:document.getElementById('em_user').value.trim(), from:document.getElementById('em_from').value.trim(), enabled:document.getElementById('em_enabled').checked }; var pw=document.getElementById('em_pass').value; if(pw) body.pass=pw; post('/api/admin/email',body).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; document.getElementById('em_pass').value=''; loadEmail(); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
+      function testEmail(){ var to=document.getElementById('em_test').value.trim(), m=document.getElementById('emMsg'); if(!to){ m.textContent='Enter a destination email for the test.'; return; } m.textContent='Sending test…'; post('/api/admin/email/test',{to:to}).then(function(j){ if(j&&j.ok){ m.textContent='Test sent ✓ — check that inbox.'; } else { m.textContent='Test failed: '+((j&&j.error)||'unknown'); } }); }
       try{ loadGmapsKey(); }catch(e){}
+      try{ loadEmail(); }catch(e){}
       try{ loadBackups(); }catch(e){}
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
       var INTRO_DEFAULT_MSG='', PACK_INTRO_DEFAULT_MSG='';
