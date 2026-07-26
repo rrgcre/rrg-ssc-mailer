@@ -644,7 +644,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path)) return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path)) return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -4456,7 +4456,7 @@ const AGREEMENT_TYPES = [
 ];
 const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
 function agreementBrief(a) {
-  return { id: a.id, type: a.type, personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '' };
+  return { id: a.id, type: a.type, personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: a.signerCount === 2 ? 2 : 1, hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
 }
 app.get('/api/agreements', (req, res) => {
   let all = loadAgreements();
@@ -4567,8 +4567,9 @@ function newSignToken() { return crypto.randomBytes(18).toString('base64url'); }
 function defaultSignFields() { return [{ label: 'Full name', required: true }, { label: 'Title / Company', required: false }]; }
 function reqOrigin(req) { const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0]; return String(process.env.APP_URL || (proto + '://' + req.get('host'))).replace(/\/$/, ''); }
 app.get('/sign/:token', (req, res) => {
-  const a = loadAgreements().find(x => x.signToken && x.signToken === req.params.token);
+  const _found = findAgrByToken(loadAgreements(), req.params.token); const a = _found ? _found.a : null;
   if (!a) return res.status(404).send(roomShell('Signature', { head: '<div class="kick">Signature</div><h1>Link not found</h1><div class="sub">This signing link is invalid or has been retired.</div>', body: '<div class="card"><div style="padding:20px;color:#6b7488">Please contact your RRG representative for a current link.</div></div>' }));
+  if (_found.signer && Array.isArray(a.pdfFields) && a.pdfFields.length) return res.send(advancedSignPage(a, _found.signer, req));
   const label = agreementTypeLabel(a.type);
   const p = a.personId ? personById(a.personId) : null;
   const head = `<div class="kick">Signature Request</div><h1>${esc(label)}</h1><div class="sub">Provided by Restaurant Realty Group${p ? (' for ' + esc(p.name)) : ''}</div>`;
@@ -4616,13 +4617,14 @@ app.get('/sign/:token', (req, res) => {
   res.send(roomShell(label + ' — Signature', { head, body }));
 });
 app.get('/sign/:token/doc', (req, res) => {
-  const a = loadAgreements().find(x => x.signToken && x.signToken === req.params.token);
+  const _fd = findAgrByToken(loadAgreements(), req.params.token); const a = _fd ? _fd.a : null;
   if (!a || !a.docExt) return res.status(404).end();
   try { const buf = fs.readFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); res.set('Content-Type', agreementDocMime(a.docExt)); res.set('Content-Disposition', 'inline'); res.send(buf); } catch (e) { res.status(404).end(); }
 });
-app.post('/api/sign/:token', express.json({ limit: '4mb' }), (req, res) => {
-  const all = loadAgreements(); const a = all.find(x => x.signToken && x.signToken === req.params.token);
+app.post('/api/sign/:token', express.json({ limit: '8mb' }), async (req, res) => {
+  const all = loadAgreements(); const _f = findAgrByToken(all, req.params.token); const a = _f ? _f.a : null;
   if (!a) return res.status(404).json({ ok: false, error: 'Invalid signing link.' });
+  if (_f.signer && Array.isArray(a.pdfFields) && a.pdfFields.length) return submitAdvancedSign(req, res, all, a, _f.signer);
   if (a.signStatus === 'signed') return res.status(400).json({ ok: false, error: 'This agreement has already been signed.' });
   const b = req.body || {};
   const sig = String(b.signature || '');
@@ -4746,6 +4748,257 @@ app.post('/api/agreements/:id/apply-template', express.json(), (req, res) => {
   a.updatedAt = new Date().toISOString(); saveAgreements(all);
   res.json({ ok: true, agreement: agreementBrief(a) });
 });
+
+// ==== Advanced in-PDF signing engine (placed fields, multi-signer, final PDF) ====
+function findAgrByToken(list, token) {
+  if (!token) return null;
+  for (const a of list) {
+    if (a.signToken && a.signToken === token) return { a, signer: null };
+    if (Array.isArray(a.signers)) { const sg = a.signers.find(s => s.token && s.token === token); if (sg) return { a, signer: sg }; }
+  }
+  return null;
+}
+function ensureSigners(a) {
+  const n = a.signerCount === 2 ? 2 : 1;
+  if (!Array.isArray(a.signers) || !a.signers.length) {
+    a.signers = [];
+    for (let i = 1; i <= n; i++) a.signers.push({ order: i, role: 's' + i, label: (i === 1 ? (a.signer1Label || 'Signer 1') : (a.signer2Label || 'Signer 2')), name: '', email: '', status: 'pending', token: '', signedAt: '', ip: '' });
+  }
+  return a.signers;
+}
+function signerFieldPrefill(a, fld) {
+  const p = a.personId ? personById(a.personId) : null;
+  const k = String(fld.autofill || '').toLowerCase();
+  if (k === 'party_name') return p ? p.name : (a.personName || '');
+  if (k === 'company') return a.companyId ? ((companyById(a.companyId) || {}).name || '') : '';
+  if (k === 'date') return new Date().toISOString().slice(0, 10);
+  if (k === 'email') return p ? preferredEmailOf(p) : '';
+  return '';
+}
+function sigFieldPath(a, fid) { return path.join(AGREEMENT_DOC_DIR, 'fld_' + a.id + '_' + String(fid).replace(/[^a-z0-9]/gi, '') + '.png'); }
+
+app.post('/api/agreements/:id/signers', express.json(), (req, res) => {
+  const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  ensureSigners(a);
+  const arr = Array.isArray((req.body || {}).signers) ? req.body.signers : [];
+  arr.forEach(inp => { const sg = a.signers.find(s => s.order === parseInt(inp.order, 10)); if (sg) { if (typeof inp.name === 'string') sg.name = inp.name.slice(0, 160); if (typeof inp.email === 'string') sg.email = inp.email.slice(0, 200); } });
+  a.updatedAt = new Date().toISOString(); saveAgreements(all);
+  res.json({ ok: true, agreement: agreementBrief(a) });
+});
+
+app.post('/api/agreements/:id/send-adv', express.json(), async (req, res) => {
+  const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  if (!(Array.isArray(a.pdfFields) && a.pdfFields.length)) return res.status(400).json({ ok: false, error: 'This agreement has no placed fields.' });
+  if (a.docExt !== 'pdf') return res.status(400).json({ ok: false, error: 'The document must be a PDF.' });
+  if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: "Email isn't set up. Configure it in Admin -> Email." });
+  ensureSigners(a);
+  for (const sg of a.signers) { if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(sg.email || ''))) return res.status(400).json({ ok: false, error: 'Add a valid email for ' + (sg.label || ('Signer ' + sg.order)) + '.' }); }
+  const next = a.signers.slice().sort((x, y) => x.order - y.order).find(s => s.status !== 'signed');
+  if (!next) return res.status(400).json({ ok: false, error: 'All signers have already signed.' });
+  if (!next.token) next.token = newSignToken();
+  next.status = 'sent';
+  const now = new Date().toISOString();
+  a.signStatus = a.signers.some(s => s.status === 'signed') ? 'partial' : 'sent'; a.sentAt = now; a.updatedAt = now; saveAgreements(all);
+  const label = agreementTypeLabel(a.type); const signUrl = reqOrigin(req) + '/sign/' + next.token;
+  const subject = String((req.body || {}).subject || (label + ' for your signature')).slice(0, 300);
+  const message = String((req.body || {}).message || ('Please review and sign your ' + label + ' online here:\n' + signUrl + '\n\nThank you,\nRestaurant Realty Group')).slice(0, 20000);
+  try { await buildTransport().sendMail({ from: mailFrom(), to: next.email, subject, text: message }); }
+  catch (e) { console.error('send-adv:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+  if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + (next.label || '') + ' ' + next.email, { auto: true }); savePeople(ppl); } } catch (e) {} }
+  res.json({ ok: true, agreement: agreementBrief(a), to: next.email, signer: next.label });
+});
+
+app.get('/api/sign/:token/data', (req, res) => {
+  const found = findAgrByToken(loadAgreements(), req.params.token);
+  if (!found || !found.signer) return res.status(404).json({ ok: false, error: 'Invalid link.' });
+  const a = found.a, me = found.signer;
+  const fields = (a.pdfFields || []).map(f => {
+    const mine = (f.signer === me.order);
+    const signerObj = (a.signers || []).find(s => s.order === f.signer);
+    const locked = !!(signerObj && signerObj.status === 'signed');
+    let value = (a.fieldValues && a.fieldValues[f.id]) || '';
+    if (mine && !value) value = signerFieldPrefill(a, f);
+    return { id: f.id, page: f.page, x: f.x, y: f.y, w: f.w, h: f.h, type: f.type, label: f.label, required: f.required, mine, locked, value };
+  });
+  res.json({ ok: true, label: agreementTypeLabel(a.type), notes: a.notes || '', signerLabel: me.label, signerName: me.name, order: me.order, already: (me.status === 'signed'), fields });
+});
+
+app.get('/sign/:token/fieldimg/:fid', (req, res) => {
+  const found = findAgrByToken(loadAgreements(), req.params.token);
+  if (!found) return res.status(404).end();
+  try { const buf = fs.readFileSync(sigFieldPath(found.a, req.params.fid)); res.set('Content-Type', 'image/png'); res.send(buf); } catch (e) { res.status(404).end(); }
+});
+
+app.get('/api/agreements/:id/final', (req, res) => {
+  const a = loadAgreements().find(x => x.id === req.params.id);
+  if (!a || !a.hasFinal) return res.status(404).end();
+  try { const buf = fs.readFileSync(path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf')); res.set('Content-Type', 'application/pdf'); res.set('Content-Disposition', 'inline; filename="signed-agreement.pdf"'); res.send(buf); } catch (e) { res.status(404).end(); }
+});
+
+async function burnFinalPdf(a) {
+  const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+  const bytes = fs.readFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.pdf'));
+  const pdf = await PDFDocument.load(bytes);
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const pages = pdf.getPages();
+  for (const f of (a.pdfFields || [])) {
+    const page = pages[f.page]; if (!page) continue;
+    const sz = page.getSize(); const pw = sz.width, ph = sz.height;
+    const bx = f.x * pw, bw = f.w * pw, bh = f.h * ph, byTop = f.y * ph; const byBottom = ph - (byTop + bh);
+    if (f.type === 'signature' || f.type === 'initials') {
+      const ip = sigFieldPath(a, f.id);
+      if (fs.existsSync(ip)) { try { const png = await pdf.embedPng(fs.readFileSync(ip)); const scl = Math.min(bw / png.width, bh / png.height); const dw = png.width * scl, dh = png.height * scl; page.drawImage(png, { x: bx + (bw - dw) / 2, y: byBottom + (bh - dh) / 2, width: dw, height: dh }); } catch (e) {} }
+    } else if (f.type === 'checkbox') {
+      const v = (a.fieldValues && a.fieldValues[f.id]); if (v === '1' || v === true || v === 'true') { const s = Math.min(bw, bh); page.drawText('X', { x: bx + Math.max(1, (bw - s * 0.6) / 2), y: byBottom + Math.max(1, (bh - s * 0.72) / 2), size: s * 0.9, font: bold, color: rgb(0.05, 0.09, 0.2) }); }
+    } else {
+      const v = String((a.fieldValues && a.fieldValues[f.id]) || ''); if (v) { const size = Math.max(7, Math.min(12, bh * 0.62)); page.drawText(v.slice(0, 120), { x: bx + 2, y: byBottom + Math.max(2, (bh - size) / 2), size, font, color: rgb(0.05, 0.09, 0.2) }); }
+    }
+  }
+  const ap = pdf.addPage(); const asz = ap.getSize(); const ah = asz.height; let y = ah - 60;
+  ap.drawText('Electronic Signature Certificate', { x: 50, y, size: 16, font: bold, color: rgb(0.05, 0.09, 0.2) });
+  ap.drawText('Restaurant Realty Group', { x: 50, y: y - 16, size: 10, font, color: rgb(0.4, 0.45, 0.55) }); y -= 50;
+  ap.drawText('Agreement: ' + agreementTypeLabel(a.type), { x: 50, y, size: 11, font: bold }); y -= 24;
+  (a.signers || []).forEach(sg => {
+    ap.drawText((sg.label || ('Signer ' + sg.order)) + ':  ' + (sg.name || '') + '   <' + (sg.email || '') + '>', { x: 50, y, size: 10, font: bold }); y -= 15;
+    ap.drawText('Signed: ' + (sg.signedAt || '-') + '     IP: ' + (sg.ip || '-'), { x: 64, y, size: 9, font, color: rgb(0.4, 0.45, 0.55) }); y -= 24;
+  });
+  ap.drawText('Each party consented to sign electronically. Drawn signatures are legally binding equivalents of', { x: 50, y: 46, size: 8, font, color: rgb(0.5, 0.55, 0.62) });
+  ap.drawText('handwritten signatures under applicable e-signature law.', { x: 50, y: 36, size: 8, font, color: rgb(0.5, 0.55, 0.62) });
+  const out = await pdf.save();
+  fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'), Buffer.from(out));
+  a.hasFinal = true;
+}
+
+function submitAdvancedSign(req, res, all, a, me) {
+  if (me.status === 'signed') return res.status(400).json({ ok: false, error: 'You have already signed this document.' });
+  const b = req.body || {};
+  const values = (b.values && typeof b.values === 'object') ? b.values : {};
+  const sigs = (b.sigs && typeof b.sigs === 'object') ? b.sigs : {};
+  const myFields = (a.pdfFields || []).filter(f => f.signer === me.order);
+  for (const f of myFields) {
+    if (f.type === 'signature' || f.type === 'initials') { if (f.required && !sigs[f.id] && !fs.existsSync(sigFieldPath(a, f.id))) return res.status(400).json({ ok: false, error: 'Please complete: ' + (f.label || 'Signature') }); }
+    else if (f.type === 'checkbox') {} 
+    else { if (f.required && !String(values[f.id] || '').trim()) return res.status(400).json({ ok: false, error: 'Please complete: ' + (f.label || 'a required field') }); }
+  }
+  a.fieldValues = a.fieldValues || {};
+  try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); } catch (e) {}
+  myFields.forEach(f => {
+    if (f.type === 'signature' || f.type === 'initials') { const d = String(sigs[f.id] || ''); if (/^data:image\/png;base64,/.test(d)) { try { const buf = Buffer.from(d.replace(/^data:image\/png;base64,/, ''), 'base64'); if (buf.length <= 3 * 1024 * 1024) fs.writeFileSync(sigFieldPath(a, f.id), buf); } catch (e) {} } }
+    else if (f.type === 'checkbox') { a.fieldValues[f.id] = values[f.id] ? '1' : ''; }
+    else { a.fieldValues[f.id] = String(values[f.id] || '').slice(0, 500); }
+  });
+  const now = new Date().toISOString(); me.status = 'signed'; me.signedAt = now; me.ip = req.ip;
+  const next = a.signers.slice().sort((x, y) => x.order - y.order).find(s => s.status !== 'signed');
+  (async () => {
+    if (!next) {
+      try { await burnFinalPdf(a); } catch (e) { console.error('burnFinalPdf:', e && e.message); }
+      a.signStatus = 'signed'; a.signedDate = now.slice(0, 10); a.signedAt = now; a.status = 'active'; a.updatedAt = now; saveAgreements(all);
+      if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Signed', agreementTypeLabel(a.type) + ' fully signed', { auto: true, date: a.signedDate }); savePeople(ppl); } } catch (e) {} }
+      try { if (isEmailConfigured() && a.hasFinal) { const fp = path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'); (a.signers || []).map(s => s.email).filter(Boolean).forEach(to => { buildTransport().sendMail({ from: mailFrom(), to, subject: agreementTypeLabel(a.type) + ' - fully signed', text: 'All parties have signed. A copy is attached.', attachments: [{ filename: 'signed-agreement.pdf', path: fp }] }).catch(() => {}); }); } } catch (e) {}
+      return res.json({ ok: true, done: true });
+    } else {
+      if (!next.token) next.token = newSignToken(); next.status = 'sent'; a.signStatus = 'partial'; a.updatedAt = now; saveAgreements(all);
+      try { if (isEmailConfigured()) { const url = reqOrigin(req) + '/sign/' + next.token; buildTransport().sendMail({ from: mailFrom(), to: next.email, subject: agreementTypeLabel(a.type) + ' for your signature', text: 'Please review and sign your ' + agreementTypeLabel(a.type) + ' online here:\n' + url + '\n\nThank you,\nRestaurant Realty Group' }).catch(() => {}); } } catch (e) {}
+      return res.json({ ok: true, done: false, next: next.label });
+    }
+  })();
+}
+
+function advancedSignPage(a, me, req) {
+  const label = agreementTypeLabel(a.type);
+  const head = `<div class="kick">Signature Request</div><h1>${esc(label)}</h1><div class="sub">${esc(me.label || ('Signer ' + me.order))}${me.name ? (' &middot; ' + esc(me.name)) : ''} &middot; Provided by Restaurant Realty Group</div>`;
+  if (me.status === 'signed') return roomShell(label + ' - Signed', { head, body: `<div class="card"><div style="padding:24px"><b>You have already signed this ${esc(label)}.</b><div style="color:#6b7488;margin-top:8px">Thank you - no further action is needed.</div></div></div>` });
+  const body = `<div class="card"><div style="padding:14px 16px"><div id="advmsg" style="color:#6b7488;font-size:13px;margin-bottom:10px">Loading document&hellip;</div><div id="pages"></div>
+  <div style="margin-top:16px"><label style="display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:#3a4560"><input type="checkbox" id="agree"> I agree the entries and drawn signatures I provide are legally binding equivalents of my handwritten signature.</label></div>
+  <button id="submitBtn" style="width:100%;margin-top:14px;background:#000E31;color:#fff;border:none;border-radius:10px;padding:14px;font:inherit;font-size:15px;font-weight:700;cursor:pointer">Finish &amp; submit</button>
+  <div id="err" style="text-align:center;color:#DA2B1F;font-size:13px;margin-top:10px"></div></div></div>
+  <div id="sigmodal" style="display:none;position:fixed;inset:0;background:rgba(6,16,41,.55);z-index:99;align-items:center;justify-content:center;padding:14px">
+    <div style="background:#fff;border-radius:14px;padding:18px;width:min(460px,94vw)"><div style="font-weight:800;color:#000E31;margin-bottom:8px" id="sigmodaltitle">Draw your signature</div>
+    <div style="border:1px solid #cfd6e2;border-radius:9px;overflow:hidden"><canvas id="mpad" style="width:100%;height:180px;touch-action:none;display:block"></canvas></div>
+    <div style="display:flex;justify-content:space-between;margin-top:10px"><button id="mclear" style="background:none;border:none;color:#DA2B1F;font-weight:700;cursor:pointer">Clear</button><div><button id="mcancel" style="background:#eef1f6;border:none;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer;margin-right:6px">Cancel</button><button id="mapply" style="background:#000E31;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer">Apply</button></div></div></div>
+  </div>
+<style>.fbox{border:1px dashed rgba(38,71,176,.55);background:rgba(38,71,176,.06);border-radius:3px;font-size:11px;color:#2647b0;display:flex;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}.fbox.mine{border-color:#DA2B1F;background:rgba(218,43,31,.08);color:#DA2B1F;cursor:pointer}.fbox.locked{border-style:solid;border-color:#1f8a5b;background:rgba(31,138,91,.07);color:#14603f}.fbox.other{opacity:.45}.fbox input{outline:none}</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(function(){
+  var TOKEN=${JSON.stringify(me.token)};
+  if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  var DATA=null, SIGS={}, VALS={}, curField=null;
+  var mpad=document.getElementById('mpad'), mctx=mpad.getContext('2d'), mdirty=false, mdraw=false, mlast=null;
+  function fitpad(){var r=mpad.getBoundingClientRect();mpad.width=r.width*2;mpad.height=r.height*2;mctx.scale(2,2);mctx.lineWidth=2.2;mctx.lineCap='round';mctx.strokeStyle='#0b1a3a';}
+  function mpos(e){var r=mpad.getBoundingClientRect();var t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top};}
+  mpad.addEventListener('mousedown',function(e){mdraw=true;mlast=mpos(e);e.preventDefault();});
+  mpad.addEventListener('mousemove',function(e){if(!mdraw)return;var q=mpos(e);mctx.beginPath();mctx.moveTo(mlast.x,mlast.y);mctx.lineTo(q.x,q.y);mctx.stroke();mlast=q;mdirty=true;e.preventDefault();});
+  window.addEventListener('mouseup',function(){mdraw=false;});
+  mpad.addEventListener('touchstart',function(e){mdraw=true;mlast=mpos(e);e.preventDefault();},{passive:false});
+  mpad.addEventListener('touchmove',function(e){if(!mdraw)return;var q=mpos(e);mctx.beginPath();mctx.moveTo(mlast.x,mlast.y);mctx.lineTo(q.x,q.y);mctx.stroke();mlast=q;mdirty=true;e.preventDefault();},{passive:false});
+  document.getElementById('mclear').onclick=function(){mctx.clearRect(0,0,mpad.width,mpad.height);mdirty=false;};
+  document.getElementById('mcancel').onclick=function(){document.getElementById('sigmodal').style.display='none';};
+  document.getElementById('mapply').onclick=function(){ if(!mdirty){document.getElementById('sigmodal').style.display='none';return;} SIGS[curField.id]=mpad.toDataURL('image/png'); document.getElementById('sigmodal').style.display='none'; renderField(curField); };
+  function openPad(f){ curField=f; document.getElementById('sigmodaltitle').textContent=(f.type==='initials'?'Draw your initials':'Draw your signature'); document.getElementById('sigmodal').style.display='flex'; setTimeout(function(){fitpad();mctx.clearRect(0,0,mpad.width,mpad.height);mdirty=false;},30); }
+
+  function renderField(f){
+    var box=document.querySelector('[data-fid="'+f.id+'"]'); if(!box) return;
+    box.innerHTML=''; box.className='fbox';
+    if(f.locked){ box.classList.add('locked'); if(f.type==='signature'||f.type==='initials'){ var im=document.createElement('img'); im.src='/sign/'+encodeURIComponent(TOKEN)+'/fieldimg/'+encodeURIComponent(f.id); im.style.maxWidth='100%'; im.style.maxHeight='100%'; box.appendChild(im); } else if(f.type==='checkbox'){ box.textContent=f.value?'X':''; } else { box.textContent=f.value||''; } return; }
+    if(!f.mine){ box.classList.add('other'); box.textContent=(f.type==='signature'||f.type==='initials')?'Signature':(f.label||''); return; }
+    box.classList.add('mine');
+    if(f.type==='signature'||f.type==='initials'){ if(SIGS[f.id]){ var im2=document.createElement('img'); im2.src=SIGS[f.id]; im2.style.maxWidth='100%'; im2.style.maxHeight='100%'; box.appendChild(im2); } else { box.textContent=(f.type==='initials'?'Initial':'Sign here'); } box.onclick=function(){openPad(f);}; }
+    else if(f.type==='checkbox'){ var cb=document.createElement('input'); cb.type='checkbox'; cb.checked=!!VALS[f.id]; cb.style.margin='0'; cb.onchange=function(){VALS[f.id]=cb.checked?'1':'';}; box.style.cursor='default'; box.appendChild(cb); }
+    else { var inp=document.createElement('input'); inp.type=(f.type==='date'?'date':'text'); inp.value=(VALS[f.id]!=null?VALS[f.id]:(f.value||'')); VALS[f.id]=inp.value; inp.style.width='100%'; inp.style.height='100%'; inp.style.border='none'; inp.style.background='transparent'; inp.style.font='inherit'; inp.style.fontSize='12px'; inp.style.padding='0 3px'; inp.style.color='#0b1a3a'; box.style.cursor='text'; inp.oninput=function(){VALS[f.id]=inp.value;}; box.appendChild(inp); }
+  }
+
+  function renderPdf(){
+    var pagesEl=document.getElementById('pages'); pagesEl.innerHTML='';
+    fetch('/sign/'+encodeURIComponent(TOKEN)+'/doc',{credentials:'same-origin'}).then(function(r){return r.arrayBuffer();}).then(function(buf){
+      return pdfjsLib.getDocument({data:buf}).promise;
+    }).then(function(pdf){
+      var chain=Promise.resolve();
+      for(var i=1;i<=pdf.numPages;i++){(function(pn){ chain=chain.then(function(){ return pdf.getPage(pn).then(function(page){
+        var vp1=page.getViewport({scale:1}); var targetW=Math.min(760,(pagesEl.clientWidth||760)); var scale=targetW/vp1.width; var vp=page.getViewport({scale:scale});
+        var wrap=document.createElement('div'); wrap.style.position='relative'; wrap.style.margin='0 auto 16px'; wrap.style.width=vp.width+'px'; wrap.style.height=vp.height+'px'; wrap.style.boxShadow='0 2px 12px rgba(10,20,50,.14)';
+        var cv=document.createElement('canvas'); cv.width=vp.width; cv.height=vp.height; wrap.appendChild(cv);
+        var ov=document.createElement('div'); ov.style.position='absolute'; ov.style.left='0'; ov.style.top='0'; ov.style.right='0'; ov.style.bottom='0'; wrap.appendChild(ov);
+        pagesEl.appendChild(wrap);
+        (DATA.fields||[]).filter(function(f){return f.page===(pn-1);}).forEach(function(f){
+          var el=document.createElement('div'); el.setAttribute('data-fid',f.id); el.className='fbox';
+          el.style.position='absolute'; el.style.left=(f.x*vp.width)+'px'; el.style.top=(f.y*vp.height)+'px'; el.style.width=(f.w*vp.width)+'px'; el.style.height=(f.h*vp.height)+'px';
+          ov.appendChild(el); renderField(f);
+        });
+        return page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
+      }); }); })(i); }
+      return chain;
+    }).catch(function(){ document.getElementById('advmsg').textContent='Could not load the document.'; });
+  }
+
+  fetch('/api/sign/'+encodeURIComponent(TOKEN)+'/data',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){document.getElementById('advmsg').textContent='This link is no longer valid.';return;}
+    DATA=j; document.getElementById('advmsg').textContent=j.notes||'Fill your fields, draw your signature, then submit.';
+    renderPdf();
+  }).catch(function(){document.getElementById('advmsg').textContent='Could not reach the server.';});
+
+  document.getElementById('submitBtn').onclick=function(){
+    var err=document.getElementById('err'); err.textContent='';
+    if(!document.getElementById('agree').checked){err.textContent='Please check the agreement box.';return;}
+    var miss=null;
+    (DATA.fields||[]).filter(function(f){return f.mine&&f.required;}).forEach(function(f){
+      if(f.type==='signature'||f.type==='initials'){ if(!SIGS[f.id]) miss=miss||(f.label||'Signature'); }
+      else if(f.type==='checkbox'){} else { if(!String(VALS[f.id]||'').trim()) miss=miss||(f.label||'a field'); }
+    });
+    if(miss){err.textContent='Please complete: '+miss;return;}
+    var btn=document.getElementById('submitBtn'); btn.disabled=true; btn.textContent='Submitting...';
+    fetch('/api/sign/'+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:VALS,sigs:SIGS})}).then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ var done=j.done; document.querySelector('.wrap').innerHTML='<div class="card"><div style="padding:26px;text-align:center"><div style="font-size:40px">&#10003;</div><b style="font-size:17px;color:#000E31">Signed - thank you.</b><div style="color:#6b7488;margin-top:8px">'+(done?'All parties have signed. A copy has been recorded.':'Your part is complete. We have sent it to the next signer.')+'</div></div></div>'; window.scrollTo(0,0); }
+      else { btn.disabled=false; btn.textContent='Finish & submit'; err.textContent=(j&&j.error)||'Could not submit.'; }
+    }).catch(function(){ btn.disabled=false; btn.textContent='Finish & submit'; err.textContent='Could not reach the server.'; });
+  };
+})();
+</script>`;
+  return roomShell(label + ' - Signature', { head, body });
+}
 
 const PORT = process.env.PORT || 8787;
 app.listen(PORT, () => console.log(`RRG toolkit server listening on :${PORT}`));
