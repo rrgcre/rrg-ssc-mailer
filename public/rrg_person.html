@@ -98,6 +98,15 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .rsec.collapsed .cv{transform:rotate(-90deg);}
 .rsec.collapsed .rsecbody{display:none;}
 .raillink{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;padding:2px 0;}
+.railsec .railbody{padding:4px 0 8px;}
+.rrow{display:flex;align-items:center;gap:10px;padding:9px 18px;text-decoration:none;color:inherit;}
+.rrow:hover{background:#fbfcfe;}
+.rric{width:28px;height:28px;border-radius:7px;background:#eef1f6;color:#3f8a63;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;}
+.rrmain{flex:1;min-width:0;}
+.rrnm{font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rrmt{font-size:12px;color:var(--muted);margin-top:1px;}
+.rchip{flex:none;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:#f2f4f8;color:#6b7488;}
+.rrempty{font-size:12.5px;color:var(--soft);padding:8px 18px;}
 .abtn{background:#fff;border:1px solid #e3e8f0;color:var(--ink);border-radius:8px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
 .abtn:hover{background:#f2f4f8;}
 .feed{max-height:560px;overflow-y:auto;margin:2px -2px 0;padding:0 2px;}
@@ -413,6 +422,9 @@ function wireEmail(){
 }
 function toggleVip(){ if(!ID) return; var nv=!(P&&P.vip); fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:ID,vip:nv})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ P=j.person; var c=document.getElementById('vipChip'); if(c){ c.className='vipchip'+(P.vip?' on':''); c.title=P.vip?'VIP — click to remove':'Mark as VIP'; } } }).catch(function(){}); }
 function statTiles(){ var acts=(ACTIVITIES&&ACTIVITIES.length)||0; var lc=P.lastContacted?fmt(P.lastContacted):'—'; return '<div class="tiles"><div class="tile"><div class="n">'+acts+'</div><div class="l">Activities</div></div><div class="tile"><div class="n">'+esc(lc)+'</div><div class="l">Last contacted</div></div><div class="tile"><div class="n">'+DEALS.length+'</div><div class="l">Deals</div></div></div>'; }
+function railLink(key,title,meta,chip){ return '<a class="rrow" href="./rrg_assignment.html?key='+encodeURIComponent(key)+'"><span class="rric">$</span><div class="rrmain"><div class="rrnm">'+esc(title||'Deal')+'</div>'+(meta?'<div class="rrmt">'+esc(meta)+'</div>':'')+'</div>'+(chip?('<span class="rchip">'+esc(chip)+'</span>'):'')+'</a>'; }
+function railSec(title,count,body){ return '<div class="card railsec"><div class="ch"><b>'+esc(title)+'</b><span>'+count+'</span></div><div class="railbody">'+body+'</div></div>'; }
+function relatedRail(){ var dh=DEALS.length?DEALS.map(function(d){ return railLink(d.key,d.business,d.market||'',d.role||'Client'); }).join(''):'<div class="rrempty">No deals.</div>'; var th=TOURS.length?TOURS.map(function(t){ return railLink(t.key,t.business,(t.date?fmt(t.date):''),t.interest||''); }).join(''):'<div class="rrempty">No tours.</div>'; return railSec('Deals',DEALS.length,dh)+railSec('Tours',TOURS.length,th); }
 function companyRail(){ if(!(CO&&CO.id)) return '<div class="card"><div class="ch"><b>Company</b></div><div class="cb"><div class="empty">Not linked to a company.</div></div></div>'; return '<div class="card"><div class="ch"><b>Company</b></div><div class="cb"><a class="raillink" href="./rrg_company.html?id='+encodeURIComponent(CO.id)+'"><div class="cav" style="width:36px;height:36px;border-radius:8px;background:#eef1f6;color:#6b7488;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px">'+esc(initials(CO.name))+'</div><div><div style="font-weight:600;color:var(--ink)">'+esc(CO.name)+'</div><div style="font-size:12.5px;color:var(--muted);margin-top:1px">'+esc(CO.type||'Company')+' →</div></div></a></div></div>'; }
 function render(){
   document.getElementById('crumb').textContent=P.name||'Contact';
@@ -464,7 +476,7 @@ function render(){
       + (IS_ADMIN?('<div class="pdangerz"><button class="pdelbtn" id="p_delete">Delete contact</button><div class="pdangernote">Admin only. Removes this person from the registry. Their name stays on any past offers and tours. Cannot be undone.</div></div>'):'')
     + '</div></div></div>'
     + '<div class="mid">'+statTiles()+activityCard()+'</div>'
-    + '<div class="rail">'+companyRail()+agreementsCard()+dealsCard+toursCard+'</div>';
+    + '<div class="rail">'+companyRail()+relatedRail()+agreementsCard()+'</div>';
   var root=document.getElementById('root');
   var pd=document.getElementById('p_delete'); if(pd) pd.addEventListener('click',deletePerson);
   ['p_first','p_last','p_type','p_nick','p_company','p_lead','p_url','p_lastcontact','p_notes'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener(el.tagName==='SELECT'?'change':'input',queueSave); });
