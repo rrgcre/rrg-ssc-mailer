@@ -3755,7 +3755,10 @@ app.get('/api/counts', (req, res) => {
   let tasksOverdue = 0;
   loadTasks().forEach(t => { if (t.status === 'open' && taskVisible(t, req) && t.due && String(t.due).slice(0, 10) < _ts) tasksOverdue++; });
   const expiring = { 'rrg_agreements.html': agrExpiring, 'rrg_tasks.html': tasksDue };
-  const overdue = { 'rrg_tasks.html': tasksOverdue };
+  let reqOverdue = 0;
+  const _rnow = Date.now(); const _sla = { Urgent: 1, High: 2, Normal: 4 };
+  loadTickets().forEach(t => { if (!canSeeTicket(req, t)) return; const st = t.status || 'Open'; if (st === 'Closed' || st === 'Answered') return; const created = Date.parse(t.createdAt || t.at || '') || 0; if (!created) return; const ageDays = (_rnow - created) / 86400000; const sla = (_sla[t.priority] != null) ? _sla[t.priority] : 4; if (ageDays > sla) reqOverdue++; });
+  const overdue = { 'rrg_tasks.html': tasksOverdue, 'rrg_tickets.html': reqOverdue };
   res.json({ ok: true, counts, active, expiring, overdue });
 });
 // ---- Command Center — management + prospecting intelligence across the book & pipeline ----

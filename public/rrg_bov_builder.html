@@ -115,6 +115,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     <button class="btn" onclick="goDashboard()">← Dashboard</button>
     <button class="btn" onclick="goQuestionnaire()">← Questionnaire</button>
     <button class="btn" onclick="clearAll()">Clear</button>
+    <label class="btn" style="display:inline-flex;align-items:center;gap:7px;font-weight:600" title="Use your brand color on the cover banner (Admin → Brand Colors)"><input type="checkbox" id="brandCover" style="width:15px;height:15px;accent-color:var(--red);margin:0"> Brand cover</label>
     <button class="btn print" onclick="printBov()">Print</button>
     <button class="btn" onclick="closeBov()">Close</button>
   </div>
@@ -562,6 +563,18 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
       else if(!restore()){ initBlank(); }
     }).catch(function(){ if(!restore()) initBlank(); });
   } else if(!restore()){ initBlank(); }
+})();
+</script>
+<script>
+/* Brand the BOV cover banner with the firm's brand color (Admin -> Brand Colors).
+   The rest of the report already inherits the palette via rrg_brand.js; only the
+   cover's dark gradient is hardcoded, so we derive it from the brand primary. */
+(function(){
+  var KEY='rrg_bov_cover_brand', DEF_PRIMARY='#000E31', primary=DEF_PRIMARY;
+  function shade(hex,pct){ hex=String(hex||'').replace('#',''); if(hex.length===3) hex=hex.split('').map(function(c){return c+c;}).join(''); var n=parseInt(hex,16); if(isNaN(n)) return '#'+hex; var r=(n>>16)&255,g=(n>>8)&255,b=n&255; function a(v){ return pct>=0? Math.round(v+(255-v)*pct/100) : Math.round(v*(100+pct)/100); } return '#'+[a(r),a(g),a(b)].map(function(v){ v=Math.max(0,Math.min(255,v)); return ('0'+v.toString(16)).slice(-2); }).join(''); }
+  function apply(on){ var st=document.getElementById('bovCoverBrand'); if(on){ var p=primary; var band='radial-gradient(96% 130% at 27% 12%, '+shade(p,22)+' 0%, '+shade(p,4)+' 42%, '+shade(p,-16)+' 70%, '+shade(p,-40)+' 100%)'; var after='radial-gradient(circle at 34% 30%, '+shade(p,-8)+' 0%, '+shade(p,-26)+' 48%, '+shade(p,-46)+' 82%)'; if(!st){ st=document.createElement('style'); st.id='bovCoverBrand'; document.head.appendChild(st);} st.textContent='.band{background:'+band+' !important}.band::after{background:'+after+' !important}'; } else if(st){ st.parentNode.removeChild(st); } }
+  function wire(){ var cb=document.getElementById('brandCover'); if(!cb) return; var stored=localStorage.getItem(KEY); var on = (stored===null) ? (String(primary).toLowerCase()!==DEF_PRIMARY.toLowerCase()) : (stored==='1'); cb.checked=on; apply(on); cb.addEventListener('change',function(){ localStorage.setItem(KEY, cb.checked?'1':'0'); apply(cb.checked); }); }
+  fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.palette&&j.palette.primary) primary=j.palette.primary; wire(); }).catch(wire);
 })();
 </script>
 </body>

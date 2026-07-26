@@ -131,7 +131,7 @@
     document.body.insertBefore(nav, document.body.firstChild);
     document.body.insertBefore(top, document.body.firstChild);
     document.body.classList.add('rrg-shelled');
-    try { fetch('/api/counts',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var od=(j&&j.overdue&&j.overdue['rrg_tasks.html'])||0; if(od>0){ var tl=nav.querySelector('a.it[href="rrg_tasks.html"]'); if(tl){ tl.classList.add('rl-overdue'); tl.title=od+' overdue task'+(od===1?'':'s'); if(!tl.querySelector('.navbadge')){ var b=document.createElement('span'); b.className='navbadge'; b.textContent=od>99?'99+':String(od); tl.appendChild(b); } } } }).catch(function(){}); } catch(e){}
+    try { fetch('/api/counts',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var od=(j&&j.overdue)||{}; var NOUN={'rrg_tickets.html':'past-due request','rrg_tasks.html':'overdue task'}; Object.keys(od).forEach(function(href){ var c=od[href]||0; if(c<=0) return; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||tl.querySelector('.navbadge')) return; var noun=NOUN[href]||'item'; tl.title=c+' '+noun+(c===1?'':'s'); var b=document.createElement('span'); b.className='navbadge'; b.textContent=c>99?'99+':String(c); tl.appendChild(b); }); }).catch(function(){}); } catch(e){}
     // mobile burger
     var burger=document.getElementById('rrgburger'); if(window.innerWidth<=900){ burger.style.display='flex'; }
     burger && burger.addEventListener('click', function(){ nav.classList.toggle('open'); });
