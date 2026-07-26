@@ -98,6 +98,21 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .rsec.collapsed .cv{transform:rotate(-90deg);}
 .rsec.collapsed .rsecbody{display:none;}
 .raillink{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;padding:2px 0;}
+.abtn{background:#fff;border:1px solid #e3e8f0;color:var(--ink);border-radius:8px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
+.abtn:hover{background:#f2f4f8;}
+.feed{max-height:560px;overflow-y:auto;margin:2px -2px 0;padding:0 2px;}
+.feedrow{display:flex;gap:11px;align-items:flex-start;padding:13px 2px;border-top:1px solid #eef1f6;}
+.feedrow:first-child{border-top:none;}
+.feedic{width:30px;height:30px;border-radius:50%;background:#eef1f6;color:#6b7488;display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;}
+.feedchip{flex:none;font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:4px 8px;border-radius:999px;min-width:56px;text-align:center;line-height:1.1;}
+.feedmain{flex:1;min-width:0;}
+.feedtop{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.feedttl{font-size:14px;font-weight:600;color:var(--ink);}
+.feedwhen{font-size:12px;color:var(--soft);}
+.feedmeta{font-size:12px;color:var(--muted);margin-top:2px;}
+.feednote{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.55;}
+.feedrow .actdel{border:none;background:none;color:#c7cedb;cursor:pointer;font-size:16px;flex:none;line-height:1;padding:0 2px;}
+.feedrow .actdel:hover{color:var(--red);}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -334,12 +349,31 @@ function actColor(t){ var m={'Tour':['#eef2fb','#2647b0'],'Photo Shoot':['#f1ebf
 function activityCard(){
   var opts=ACTTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
   var d=new Date(); var td=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  var log=(ACTIVITIES&&ACTIVITIES.length)?ACTIVITIES.map(function(a){ var c=actColor(a.type); return '<div class="actrow"><span class="actchip" style="background:'+c[0]+';color:'+c[1]+'">'+esc(a.type)+'</span><div class="actmain"><div class="acttop"><span class="actdate">'+esc(fmt(a.date||a.at))+'</span>'+(a.auto?'<span class="actauto">auto</span>':'')+(a.by?('<span class="actby">'+esc(a.by)+'</span>'):'')+'</div>'+(a.note?('<div class="actnote">'+esc(a.note)+'</div>'):'')+(a.taskId?'<div class="acttask">↳ task created</div>':'')+'</div><button class="actdel" data-actdel="'+esc(a.id)+'" title="Delete">×</button></div>'; }).join(''):'<div class="empty" style="padding:8px 2px">No activity logged yet. Log a call, tour, meal, text — or a To-Do (which also creates a task).</div>';
-  return '<div class="card actcard"><div class="ch"><b>Activity</b><span>'+((ACTIVITIES&&ACTIVITIES.length)||0)+'</span></div><div class="cb">'
-    +'<div class="actadd"><select id="act_type">'+opts+'</select><input type="date" id="act_date" value="'+td+'"><input id="act_note" placeholder="Note — for a To-Do this becomes the task"><button type="button" class="savebtn" id="act_add" style="width:auto;padding:8px 16px">Log</button></div>'
-    +'<div class="actlog">'+log+'</div></div></div>';
+  var to=P.email||((P.emails&&P.emails[0])||'');
+  var items=[];
+  (ACTIVITIES||[]).forEach(function(a){ items.push({k:'a',t:a.date||a.at||'',d:a}); });
+  (P.emailLog||[]).forEach(function(e){ items.push({k:'e',t:e.sentAt||'',d:e}); });
+  items.sort(function(x,y){ return String(y.t).localeCompare(String(x.t)); });
+  var feed = items.length ? items.map(function(it){
+    if(it.k==='e'){ var e=it.d; return '<div class="feedrow"><span class="feedic">✉</span><div class="feedmain"><div class="feedtop"><span class="feedttl">'+esc(e.subject||'(no subject)')+'</span><span class="feedwhen">'+esc(fmt(e.sentAt))+'</span></div><div class="feedmeta">Email · To '+esc(e.to)+(e.by?(' · '+esc(e.by)):'')+'</div>'+(e.body?('<div class="feednote">'+esc(e.body).split('\n').join('<br>')+'</div>'):'')+'</div></div>'; }
+    var a=it.d; var c=actColor(a.type); return '<div class="feedrow"><span class="feedchip" style="background:'+c[0]+';color:'+c[1]+'">'+esc(a.type)+'</span><div class="feedmain"><div class="feedtop"><span class="feedwhen">'+esc(fmt(a.date||a.at))+'</span>'+(a.auto?'<span class="actauto">auto</span>':'')+(a.by?('<span class="actby">'+esc(a.by)+'</span>'):'')+'</div>'+(a.note?('<div class="feednote">'+esc(a.note)+'</div>'):'')+(a.taskId?'<div class="acttask">↳ task created</div>':'')+'</div><button class="actdel" data-actdel="'+esc(a.id)+'" title="Delete">×</button></div>';
+  }).join('') : '<div class="empty" style="padding:16px 2px">No activity yet. Log a call, tour, meal or note — or send an email — using the buttons above.</div>';
+  var emComposer = EMAILREADY
+    ? '<div class="fldrow"><label class="fld">To</label><input id="em_to" value="'+esc(to)+'" placeholder="recipient@email.com"></div><div class="fldrow"><label class="fld">Subject</label><input id="em_subj" placeholder="Subject"></div><div class="fldrow"><label class="fld">Message</label><textarea id="em_body" style="min-height:120px" placeholder="Write your message…"></textarea></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="savebtn" id="em_send" style="width:auto;padding:9px 18px">Send email</button><span id="em_msg" style="font-size:12.5px;color:#6b7488"></span></div>'
+    : '<div class="empty" style="padding:8px 2px">Email isn\'t set up yet. An admin can configure it in <a href="/admin">Admin</a>.</div>';
+  return '<div class="card actcard"><div class="ch"><b>Activity</b><span>'+items.length+'</span>'
+    +'<div style="margin-left:auto;display:flex;gap:8px"><button type="button" class="abtn" id="act_show">+ Log activity</button><button type="button" class="abtn" id="em_show">✉ Send email</button></div></div>'
+    +'<div class="cb">'
+    +'<div id="actComposer" hidden style="margin-bottom:14px"><div class="actadd"><select id="act_type">'+opts+'</select><input type="date" id="act_date" value="'+td+'"><input id="act_note" placeholder="Note — for a To-Do this becomes the task"><button type="button" class="savebtn" id="act_add" style="width:auto;padding:8px 16px">Log</button></div></div>'
+    +'<div id="emailComposer" hidden style="margin-bottom:14px">'+emComposer+'</div>'
+    +'<div class="feed">'+feed+'</div></div></div>';
 }
+
 function wireActivity(){
+  var _as=document.getElementById('act_show'),_es=document.getElementById('em_show'),_ac=document.getElementById('actComposer'),_ec=document.getElementById('emailComposer');
+  function _tog(showEl,hideEl){ if(!showEl)return; var h=showEl.hasAttribute('hidden'); if(h){ showEl.removeAttribute('hidden'); if(hideEl) hideEl.setAttribute('hidden',''); var f=showEl.querySelector('input,select,textarea'); if(f) try{f.focus();}catch(e){} } else showEl.setAttribute('hidden',''); }
+  if(_as) _as.addEventListener('click',function(){ _tog(_ac,_ec); });
+  if(_es) _es.addEventListener('click',function(){ _tog(_ec,_ac); });
   var b=document.getElementById('act_add'); if(b) b.addEventListener('click',function(){
     var type=document.getElementById('act_type').value, date=document.getElementById('act_date').value, note=document.getElementById('act_note').value.trim();
     b.disabled=true;
@@ -429,7 +463,7 @@ function render(){
       + '<div class="saved" id="p_saved"></div><div id="p_msg" style="font-size:12.5px;color:#b23a2c;margin-top:8px"></div>'
       + (IS_ADMIN?('<div class="pdangerz"><button class="pdelbtn" id="p_delete">Delete contact</button><div class="pdangernote">Admin only. Removes this person from the registry. Their name stays on any past offers and tours. Cannot be undone.</div></div>'):'')
     + '</div></div></div>'
-    + '<div class="mid">'+statTiles()+activityCard()+emailCard()+'</div>'
+    + '<div class="mid">'+statTiles()+activityCard()+'</div>'
     + '<div class="rail">'+companyRail()+agreementsCard()+dealsCard+toursCard+'</div>';
   var root=document.getElementById('root');
   var pd=document.getElementById('p_delete'); if(pd) pd.addEventListener('click',deletePerson);
