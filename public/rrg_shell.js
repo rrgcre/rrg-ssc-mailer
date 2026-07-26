@@ -13,8 +13,7 @@
 
   var NAV = [
     { items: [
-      { ic: '⌂', label: 'Home', href: 'index.html' },
-      { ic: '◱', label: 'Feed', href: 'rrg_feed.html' },
+      { ic: '◱', label: 'Activity Feed', href: 'rrg_feed.html' },
       { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' }
     ] },
     { grp: 'Records', items: [
