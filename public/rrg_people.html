@@ -97,16 +97,18 @@ tr:hover td{background:#fbfcfe;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return (((p[0]||'')[0]||'')+((p[1]||'')[0]||'')).toUpperCase(); }
 function tclass(t){ return 't-'+String(t||'other').toLowerCase().replace(/[^a-z]+/g,''); }
-var ALL=[], CTL=null, FILTER='', TYPES=[], IS_ADMIN=false;
+var ALL=[], CTL=null, FILTER='', TYPES=[], IS_ADMIN=false, VIPONLY=false;
 function renderFilters(){
   var opts='<option value="">All types</option>'+TYPES.map(function(t){ return '<option'+(FILTER===t?' selected':'')+'>'+esc(t)+'</option>'; }).join('');
-  document.getElementById('filters').innerHTML='<span class="flabel">Type</span><select id="typeFilter" class="fsel">'+opts+'</select>';
+  document.getElementById('filters').innerHTML='<span class="flabel">Type</span><select id="typeFilter" class="fsel">'+opts+'</select>'+'<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:#8a6d10;cursor:pointer;margin-left:6px"><input type="checkbox" id="vipOnly"'+(VIPONLY?' checked':'')+' style="accent-color:#e2b93a"> \u2605 VIP only</label>';
   var sel=document.getElementById('typeFilter'); if(sel) sel.addEventListener('change',function(){ FILTER=sel.value; applyFilter(); });
+  var vo=document.getElementById('vipOnly'); if(vo) vo.addEventListener('change',function(){ VIPONLY=vo.checked; applyFilter(); });
 }
 function applyFilter(){
   var q=(document.getElementById('search').value||'').toLowerCase().trim();
   var list=ALL.filter(function(p){
     if(FILTER && p.type!==FILTER) return false;
+    if(VIPONLY && !p.vip) return false;
     if(q){ var hay=((p.name||'')+' '+(p.nickname||'')+' '+(p.companyName||p.company||'')+' '+((p.emails||[p.email||'']).join(' '))+' '+((p.phones||[]).join(' '))+' '+((p.tags||[]).join(' '))+' '+(p.leadSource||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; }
     return true;
   });
@@ -118,7 +120,7 @@ function renderList(list){
     empty:'<div class="empty"><b>No contacts yet.</b>Contacts are added as you log offers, tours, and NDAs, or from a company file.</div>',
     rowId:function(p){ return p.id; }, defaultSort:0, defaultDir:1,
     columns:[
-      { label:'Name', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(p){ var tags=(p.tags&&p.tags.length)?('<div class="tags2">'+p.tags.map(function(t){return '<span class="tg">'+esc(t)+'</span>';}).join('')+'</div>'):''; var nm=esc(p.name||'Contact')+(p.nickname?(' <span class="meta">“'+esc(p.nickname)+'”</span>'):''); return '<div class="who"><div class="av">'+esc(initials(p.name))+'</div><div><div class="nm">'+nm+'</div><div class="meta">'+esc(p.email||'')+'</div>'+tags+'</div></div>'; } },
+      { label:'Name', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(p){ var tags=(p.tags&&p.tags.length)?('<div class="tags2">'+p.tags.map(function(t){return '<span class="tg">'+esc(t)+'</span>';}).join('')+'</div>'):''; var star=p.vip?'<span title="VIP" style="color:#e2b93a;font-weight:900;margin-right:4px">\u2605</span>':''; var nm=star+esc(p.name||'Contact')+(p.nickname?(' <span class="meta">“'+esc(p.nickname)+'”</span>'):''); return '<div class="who"><div class="av">'+esc(initials(p.name))+'</div><div><div class="nm">'+nm+'</div><div class="meta">'+esc(p.email||'')+'</div>'+tags+'</div></div>'; } },
       { label:'Company', sort:function(a,b){ return RRGList.cmp(a.companyName||a.company,b.companyName||b.company); }, cell:function(p){ var cn=p.companyName||p.company||''; return cn?esc(cn):'<span class="meta">—</span>'; } },
       { label:'Type', sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, cell:function(p){ return p.type?('<span class="typetxt">'+esc(p.type)+'</span>'):'<span class="meta">—</span>'; } },
       { label:'Phone', sortable:false, cell:function(p){ var ph=p.phone||(p.phones&&p.phones[0])||''; var extra=(p.phones&&p.phones.length>1)?(' <span class="meta">+'+(p.phones.length-1)+'</span>'):''; return ph?(esc(ph)+extra):'<span class="meta">—</span>'; } },
