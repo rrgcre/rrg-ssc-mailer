@@ -2809,7 +2809,8 @@ app.get('/api/companies', (req, res) => {
     const mk = {}; (c.concepts || []).forEach(cp => (cp.markets || []).forEach(m => { if (m) mk[m] = 1; }));
     return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt };
   });
-  res.json({ ok: true, companies: rows, types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), defaultState: effDefaultState(), personTypes: effPersonTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  const _cities = {}; cos.forEach(c => { if (c.office && c.office.city) _cities[c.office.city] = 1; (c.locations || []).forEach(l => { if (l.city) _cities[l.city] = 1; }); }); const _titles = {}; people.forEach(pp => { if (pp.title) _titles[pp.title] = 1; });
+  res.json({ ok: true, companies: rows, types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), defaultState: effDefaultState(), personTypes: effPersonTypes(), cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 // A person's full cross-book view: their company, the deals where they're the client,
 // and every offer / tour / NDA they're linked to across all deals.
