@@ -122,6 +122,7 @@ function renderList(list){
   var cfg={ mount:'#body', data:list, key:'contacts', countEl:'#cnt',
     empty:'<div class="empty"><b>No contacts yet.</b>Contacts are added as you log offers, tours, and NDAs, or from a company file.</div>',
     rowId:function(p){ return p.id; }, defaultSort:0, defaultDir:1,
+    bulk: IS_ADMIN ? [ { label:'Merge\u2026', min:2, fn:openMergePicker }, { label:'Delete', danger:true, min:1, fn:bulkDeletePeople } ] : null,
     columns:[
       { label:'Name', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(p){ var star=p.vip?'<span title="VIP" style="color:#e2b93a;font-weight:900;margin-right:4px">\u2605</span>':''; var nm=star+'<a class="nmlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">'+esc(p.name||'Contact')+'</a>'+(p.nickname?(' <span class="meta">“'+esc(p.nickname)+'”</span>'):''); return '<div class="who"><div class="av">'+esc(initials(p.name))+'</div><div><div class="nm">'+nm+'</div><div class="meta">'+esc(p.email||'')+'</div></div></div>'; } },
       { label:'Company', sort:function(a,b){ return RRGList.cmp(a.companyName||a.company,b.companyName||b.company); }, cell:function(p){ var cn=p.companyName||p.company||''; if(!cn) return '<span class="meta">—</span>'; return p.companyId?('<a class="colink" href="./rrg_company.html?id='+encodeURIComponent(p.companyId)+'">'+esc(cn)+'</a>'):esc(cn); } },
@@ -176,6 +177,32 @@ document.getElementById('newBtn').addEventListener('click',openModal);
 document.getElementById('m_cancel').addEventListener('click',closeModal);
 document.getElementById('m_create').addEventListener('click',createContact);
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target.id==='modal') closeModal(); });
+function reloadPeople(){ return fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; if(j&&j.types) TYPES=j.types; IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }); }
+function bulkDeletePeople(ids, done){
+  if(!ids||!ids.length) return;
+  if(!confirm('Delete '+ids.length+' contact'+(ids.length>1?'s':'')+' from your registry? Their names stay on any past offers, tours and NDAs. This cannot be undone.')) return;
+  Promise.all(ids.map(function(id){ return fetch('/api/person/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).catch(function(){return {ok:false};}); }))
+    .then(function(res){ var fail=res.filter(function(x){return !x||!x.ok;}).length; if(done) done(); reloadPeople().then(function(){ if(fail) alert(fail+' of '+ids.length+' could not be deleted.'); }); });
+}
+function openMergePicker(ids, done){
+  var people=ids.map(function(id){ return (ALL||[]).find(function(p){return p.id===id;}); }).filter(Boolean);
+  if(people.length<2){ alert('Select at least two contacts to merge.'); return; }
+  var rows=people.map(function(p,i){ var co=p.companyName||p.company||''; var sub=[p.email||'', co].filter(Boolean).join(' \u00b7 '); return '<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e6ebf3;border-radius:10px;margin-bottom:7px;cursor:pointer;font-size:14px"><input type="radio" name="mgkeep" value="'+esc(p.id)+'"'+(i===0?' checked':'')+' style="width:auto"><span style="font-weight:700;color:#1f2a3d">'+esc(p.name||'Contact')+'</span>'+(sub?'<span style="color:#8a94a6;font-size:12px">'+esc(sub)+'</span>':'')+'</label>'; }).join('');
+  var ov=document.createElement('div'); ov.className='modal'; ov.id='mergeModal';
+  ov.innerHTML='<div class="modalcard" style="max-width:520px"><div class="modalh">Merge '+people.length+' contacts</div><div class="modalb"><div style="font-size:12.5px;color:#5b6472;line-height:1.5;margin-bottom:12px">Pick the record to <b>keep</b>. The others merge into it \u2014 emails, phones, tags, notes, tours and any linked deals or agreements move over, then the extra records are removed. This cannot be undone.</div>'+rows+'<div id="mg_msg" style="color:var(--red,#DA2B1F);font-size:12.5px;margin-top:8px"></div></div><div class="modalf"><button class="mbtn ghost" id="mg_cancel">Cancel</button><button class="mbtn" id="mg_go">Merge contacts</button></div></div>';
+  document.body.appendChild(ov);
+  function close(){ ov.remove(); }
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  ov.querySelector('#mg_cancel').addEventListener('click',close);
+  ov.querySelector('#mg_go').addEventListener('click',function(){
+    var keep=ov.querySelector('input[name=mgkeep]:checked'); if(!keep) return;
+    var keepId=keep.value; var mergeIds=ids.filter(function(id){return id!==keepId;});
+    var gb=ov.querySelector('#mg_go'); gb.disabled=true; gb.textContent='Merging\u2026';
+    fetch('/api/person/merge',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({keepId:keepId,mergeIds:mergeIds})})
+      .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ close(); if(done) done(); reloadPeople(); } else { gb.disabled=false; gb.textContent='Merge contacts'; ov.querySelector('#mg_msg').textContent=(j&&j.error)||'Could not merge.'; } })
+      .catch(function(){ gb.disabled=false; gb.textContent='Merge contacts'; ov.querySelector('#mg_msg').textContent='Could not reach the server.'; });
+  });
+}
 function deletePerson(pid,name){
   if(!confirm('Delete contact “'+(name||'this person')+'” from your registry? This removes the person record. Their name stays on any past offers/tours/NDAs. Cannot be undone.')) return;
   fetch('/api/person/'+encodeURIComponent(pid),{method:'DELETE',credentials:'same-origin'})
