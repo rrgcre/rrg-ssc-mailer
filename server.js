@@ -4089,6 +4089,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         if(saved && document.getElementById(saved)) show(saved);
         var moreA=document.createElement('a'); moreA.className='snav'; moreA.href='/rrg_admin_settings.html'; moreA.style.marginTop='12px'; moreA.style.borderTop='1px solid #e9edf3'; moreA.style.paddingTop='15px'; moreA.innerHTML='<span class="si"></span>More settings →'; nav.appendChild(moreA);
         var tplA=document.createElement('a'); tplA.className='snav'; tplA.href='/rrg_agreement_templates.html'; tplA.innerHTML='<span class="si"></span>Agreement templates →'; nav.appendChild(tplA);
+        var rolesA=document.createElement('a'); rolesA.className='snav'; rolesA.href='/rrg_roles.html'; rolesA.innerHTML='<span class="si"></span>Roles & permissions →'; nav.appendChild(rolesA);
       })();
       function accAll(){}
     </script>`));
@@ -5004,6 +5005,133 @@ function advancedSignPage(a, me, req) {
 </script>`;
   return roomShell(label + ' - Signature', { head, body });
 }
+
+// ==== Roles & permissions (admin-managed; enforced only when the master switch is ON) ====
+const PERM_CORE = [
+  { key: 'see_all', label: 'See all records', note: 'Off = only records they own' },
+  { key: 'edit_all', label: "Edit others' records" },
+  { key: 'delete', label: 'Delete records' },
+  { key: 'reassign', label: 'Reassign ownership' },
+  { key: 'admin_console', label: 'Open admin console / settings' },
+  { key: 'manage_users', label: 'Manage users & roles' },
+  { key: 'manage_templates', label: 'Manage agreement templates' },
+  { key: 'data_reset', label: 'Reset / back up data' },
+];
+const GATEABLE_TOOLS = [
+  { file: 'rrg_companies.html', name: 'Companies' },
+  { file: 'rrg_people.html', name: 'Contacts' },
+  { file: 'rrg_assignments.html', name: 'Deals' },
+  { file: 'rrg_command.html', name: 'Command Center' },
+  { file: 'rrg_tasks.html', name: 'Tasks' },
+  { file: 'rrg_agreements.html', name: 'Agreements' },
+  { file: 'rrg_tickets.html', name: 'Requests' },
+  { file: 'rrg_screening_queue.html', name: 'Seller Qualification Calls' },
+  { file: 'rrg_questionnaire_queue.html', name: 'Valuation Questionnaires' },
+  { file: 'rrg_bov_queue.html', name: 'Business Valuations' },
+  { file: 'rrg_rooms_queue.html', name: 'Data Rooms' },
+  { file: 'rrg_cim_queue.html', name: 'Marketing Packs' },
+  { file: 'rrg_attack_queue.html', name: 'Market Attack Plans' },
+  { file: 'ssc_form.html', name: 'Site Selection Criteria' },
+  { file: 'rrg_site_fit.html', name: 'Site & Concept Fit' },
+  { file: 'rrg_tour_tracker.html', name: 'Tour Tracker' },
+  { file: 'rrg_lease_queue.html', name: 'Lease Abstracts' },
+  { file: 'rrg_tenant_attack_plan.html', name: 'Market Attack Plan (Tenant)' },
+];
+function toolPermKey(file) { return 'tool:' + file; }
+const ALL_PERM_KEYS = PERM_CORE.map(p => p.key).concat(GATEABLE_TOOLS.map(t => toolPermKey(t.file)));
+function allPerms() { const p = {}; ALL_PERM_KEYS.forEach(k => p[k] = true); return p; }
+function defaultRolePerms(kind) {
+  const p = {};
+  GATEABLE_TOOLS.forEach(t => p[toolPermKey(t.file)] = true); // both defaults get all tools
+  if (kind === 'senior') { ['see_all', 'edit_all', 'delete', 'reassign'].forEach(k => p[k] = true); }
+  return p; // associate: core all off, tools on
+}
+function loadRoles() {
+  const s = loadSettings();
+  if (Array.isArray(s.roles) && s.roles.length) {
+    let roles = s.roles.map(r => ({ key: String(r.key || ''), name: String(r.name || ''), builtin: !!r.builtin, perms: (r.perms && typeof r.perms === 'object') ? r.perms : {} })).filter(r => r.key && r.name);
+    if (!roles.some(r => r.key === 'admin')) roles.unshift({ key: 'admin', name: 'Admin', builtin: true, perms: {} });
+    roles = roles.map(r => r.key === 'admin' ? Object.assign({}, r, { perms: allPerms() }) : r);
+    return roles;
+  }
+  return [
+    { key: 'admin', name: 'Admin', builtin: true, perms: allPerms() },
+    { key: 'senior', name: 'Senior Associate', builtin: true, perms: defaultRolePerms('senior') },
+    { key: 'associate', name: 'Associate', builtin: true, perms: defaultRolePerms('associate') },
+  ];
+}
+function saveRoles(roles) { const s = loadSettings(); s.roles = roles; saveSettings(s); }
+function permsEnabled() { return !!loadSettings().permsEnabled; }
+function effectivePerms(user) {
+  const out = {};
+  const roles = loadRoles();
+  const rkey = (user && user.role) || 'associate';
+  let rd = roles.find(r => r.key === rkey) || roles.find(r => r.key === 'associate') || { perms: {} };
+  const base = rd.perms || {};
+  const ov = (user && user.perms && typeof user.perms === 'object') ? user.perms : {};
+  ALL_PERM_KEYS.forEach(k => { out[k] = (k in ov) ? !!ov[k] : !!base[k]; });
+  return out;
+}
+// Dormant while the master switch is OFF (returns true for everything). Wired into gates in Stage 2.
+function userCan(user, key) {
+  if (!permsEnabled()) return true;
+  if (user && user.role === 'admin') return true;
+  return !!effectivePerms(user)[key];
+}
+
+app.get('/api/admin/permissions', requireAdmin, (req, res) => {
+  res.json({
+    ok: true, enabled: permsEnabled(), core: PERM_CORE, tools: GATEABLE_TOOLS, roles: loadRoles(),
+    users: auth.loadUsers().map(u => ({ username: u.username, name: u.name || u.username, role: u.role || 'associate', perms: (u.perms && typeof u.perms === 'object') ? u.perms : {}, disabled: !!u.disabled })),
+  });
+});
+app.post('/api/admin/permissions/toggle', requireAdmin, express.json(), (req, res) => {
+  const s = loadSettings(); s.permsEnabled = !!(req.body || {}).enabled; saveSettings(s);
+  res.json({ ok: true, enabled: s.permsEnabled });
+});
+app.post('/api/admin/roles', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {};
+  const name = String(b.name || '').trim();
+  if (!name) return res.status(400).json({ ok: false, error: 'Name the role.' });
+  let roles = loadRoles();
+  let key = String(b.key || '').trim();
+  if (!key) { key = 'role_' + (name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30) || Math.random().toString(36).slice(2, 7)); }
+  const perms = (b.perms && typeof b.perms === 'object') ? b.perms : {};
+  const clean = {}; ALL_PERM_KEYS.forEach(k => clean[k] = !!perms[k]);
+  const existing = roles.find(x => x.key === key);
+  if (existing) { if (existing.key !== 'admin') { existing.name = name.slice(0, 60); existing.perms = clean; } }
+  else { roles.push({ key: key, name: name.slice(0, 60), builtin: false, perms: clean }); }
+  roles = roles.map(x => x.key === 'admin' ? Object.assign({}, x, { perms: allPerms() }) : x);
+  saveRoles(roles);
+  res.json({ ok: true, roles: loadRoles() });
+});
+app.post('/api/admin/roles/delete', requireAdmin, express.json(), (req, res) => {
+  const key = String((req.body || {}).key || '');
+  const roles = loadRoles();
+  const r = roles.find(x => x.key === key);
+  if (!r) return res.status(404).json({ ok: false, error: 'Role not found.' });
+  if (r.builtin) return res.status(400).json({ ok: false, error: 'Built-in roles cannot be deleted.' });
+  try { auth.loadUsers().forEach(u => { if (u.role === key) { try { auth.setUserAccess(u.username, { role: 'associate' }); } catch (e) {} } }); } catch (e) {}
+  saveRoles(roles.filter(x => x.key !== key));
+  res.json({ ok: true, roles: loadRoles() });
+});
+app.post('/api/admin/user-access', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {};
+  try { const prof = auth.setUserAccess(b.username, { role: b.role, perms: b.perms }); res.json({ ok: true, user: { username: prof.username, name: prof.name, role: prof.role, perms: prof.perms } }); }
+  catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
+});
+app.post('/api/admin/reassign', requireAdmin, express.json(), (req, res) => {
+  const from = String((req.body || {}).from || ''), to = String((req.body || {}).to || '');
+  if (!from || !to) return res.status(400).json({ ok: false, error: 'Pick both reps.' });
+  if (from === to) return res.status(400).json({ ok: false, error: 'Pick two different reps.' });
+  let people = 0, companies = 0;
+  try { const ppl = loadPeople(); ppl.forEach(p => { if ((p.by || '') === from) { p.by = to; people++; } }); if (people) savePeople(ppl); } catch (e) {}
+  try { const cos = loadCompanies(); cos.forEach(c => { if (((c.owner || c.by || '')) === from) { c.owner = to; companies++; } }); if (companies) saveCompanies(cos); } catch (e) {}
+  res.json({ ok: true, people, companies });
+});
+app.get('/api/permissions/me', (req, res) => {
+  res.json({ ok: true, enabled: permsEnabled(), role: (req.user && req.user.role) || '', perms: effectivePerms(req.user || {}) });
+});
 
 const PORT = process.env.PORT || 8787;
 app.listen(PORT, () => console.log(`RRG toolkit server listening on :${PORT}`));

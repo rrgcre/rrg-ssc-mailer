@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Roles &amp; Permissions</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:26px 0 28px;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1000px;margin:0 auto;padding:0 24px;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;}
+.bar{background:#fff;width:3px;height:28px;margin:0 12px;} .wm{font-weight:800;font-size:13px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:18px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+h1{font-size:27px;font-weight:800;margin:0;color:#fff;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:720px;}
+.wrap{max-width:1000px;margin:22px auto;padding:0 24px 70px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);margin-bottom:20px;overflow:hidden;}
+.ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);} .ch b{color:var(--navy);font-size:15px;} .ch span{color:var(--muted);font-size:12px;} .ch .sp{margin-left:auto;}
+.cb{padding:18px 20px;}
+label.fld{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:2px 0 6px;}
+input,select{border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;}
+.btn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:9px 15px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.btn.ghost{background:#fff;color:var(--navy);border-color:#cdd6e6;} .btn.red{background:var(--red);border-color:var(--red);} .btn.sm{padding:6px 11px;font-size:12px;}
+.btn.danger{background:#fff;color:var(--red);border-color:#f0c9c6;} .btn:disabled{opacity:.5;cursor:default;}
+.msg{font-size:12.5px;font-weight:600;} .msg.ok{color:var(--green);} .msg.err{color:#b23a2c;}
+.note{font-size:12px;color:var(--muted);line-height:1.55;}
+.master{display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.pill{display:inline-block;font-size:11px;font-weight:800;padding:4px 11px;border-radius:999px;text-transform:uppercase;letter-spacing:.04em;}
+.pill.on{background:#e7f5ee;color:#0e7a53;border:1px solid #b9e6cd;} .pill.off{background:#f2f4f8;color:#6b7488;border:1px solid #e0e5ee;}
+.switch{position:relative;display:inline-block;width:52px;height:28px;} .switch input{opacity:0;width:0;height:0;}
+.slider{position:absolute;inset:0;background:#cdd6e6;border-radius:999px;transition:.2s;cursor:pointer;} .slider:before{content:'';position:absolute;height:22px;width:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s;}
+.switch input:checked+.slider{background:var(--green);} .switch input:checked+.slider:before{transform:translateX(24px);}
+.rolechips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;}
+.rolechip{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 13px;font-size:13px;font-weight:700;color:var(--ink);cursor:pointer;}
+.rolechip.on{border-color:var(--navy);background:#f0f3fb;box-shadow:inset 0 0 0 1px var(--navy);}
+.permgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 22px;margin:6px 0 4px;} @media(max-width:720px){.permgrid{grid-template-columns:1fr;}}
+.permrow{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f1f3f7;font-size:13px;} .permrow .pn{flex:1;color:#2a3550;} .permrow .pn small{color:var(--soft);font-weight:600;}
+.seclbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);font-weight:800;margin:14px 0 4px;}
+table{width:100%;border-collapse:collapse;font-size:13px;} th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);font-weight:800;padding:9px 10px;border-bottom:1px solid var(--line);} td{padding:9px 10px;border-bottom:1px solid #f1f3f7;vertical-align:middle;}
+.ovpanel{background:var(--wash);border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:8px;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);}
+.foot{max-width:1000px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="/admin" class="rrg-back" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Admin console</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Admin</div>
+  <h1>Roles &amp; Permissions</h1>
+  <div class="sub">Define roles, assign them to users, and override individual switches per user. Nothing is restricted until you turn on <b>Enforce permissions</b>. Admin only.</div>
+</div></div>
+<div id="root" class="wrap"><div class="gate">Loading…</div></div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function get(u){return fetch(u,{credentials:'same-origin'}).then(function(r){return r.json();});}
+function post(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(b||{})}).then(function(r){return r.json();});}
+var ST=null, SELROLE='associate', OVUSER=null;
+
+function permRows(){ return ST.core.map(function(c){return {key:c.key,label:c.label,note:c.note||''};}).concat(ST.tools.map(function(t){return {key:'tool:'+t.file,label:t.name,note:'tool'};})); }
+function roleByKey(k){ return (ST.roles||[]).filter(function(r){return r.key===k;})[0]; }
+
+function render(){
+  var root=document.getElementById('root');
+  // master
+  var master='<div class="card"><div class="ch"><b>Enforce permissions</b><span class="sp"></span><span class="pill '+(ST.enabled?'on':'off')+'">'+(ST.enabled?'ON — enforced':'OFF — not enforced')+'</span></div><div class="cb"><div class="master"><label class="switch"><input type="checkbox" id="master"'+(ST.enabled?' checked':'')+'><span class="slider"></span></label><div class="note" style="flex:1;min-width:220px">While <b>off</b>, the app works exactly as it does today (admin vs. everyone; everyone sees everything). Set up roles below with zero risk, then flip this on. You can turn it off instantly if anything looks wrong.</div></div><div id="masterMsg" class="msg" style="margin-top:8px"></div></div></div>';
+
+  // roles
+  var chips=(ST.roles||[]).map(function(r){ return '<div class="rolechip'+(r.key===SELROLE?' on':'')+'" data-role="'+esc(r.key)+'">'+esc(r.name)+(r.builtin?'':' <span style="color:#98a1b5">•</span>')+'</div>'; }).join('');
+  var role=roleByKey(SELROLE)||ST.roles[0];
+  var isAdminRole=(role.key==='admin');
+  var rows=permRows();
+  var coreHtml=ST.core.map(function(c){ var on=!!(role.perms&&role.perms[c.key]); return '<div class="permrow"><span class="pn">'+esc(c.label)+(c.note?(' <small>'+esc(c.note)+'</small>'):'')+'</span><label class="switch" style="width:44px;height:24px"><input type="checkbox" data-perm="'+esc(c.key)+'"'+(on?' checked':'')+(isAdminRole?' disabled':'')+'><span class="slider" style=""></span></label></div>'; }).join('');
+  var toolHtml=ST.tools.map(function(t){ var k='tool:'+t.file; var on=!!(role.perms&&role.perms[k]); return '<div class="permrow"><span class="pn">'+esc(t.name)+'</span><label class="switch" style="width:44px;height:24px"><input type="checkbox" data-perm="'+esc(k)+'"'+(on?' checked':'')+(isAdminRole?' disabled':'')+'><span class="slider"></span></label></div>'; }).join('');
+  var rolesCard='<div class="card"><div class="ch"><b>Roles</b><span>bundles of switches you assign to users</span></div><div class="cb">'
+    +'<div class="rolechips">'+chips+'</div>'
+    +'<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px"><div><label class="fld">Role name</label><input id="roleName" value="'+esc(role.name)+'"'+(isAdminRole?' disabled':'')+' style="min-width:220px"></div>'
+    +(isAdminRole?'<div class="note">The Admin role always has every permission.</div>':'<button class="btn red sm" id="roleSave">Save role</button>'+(role.builtin?'':'<button class="btn danger sm" id="roleDel">Delete role</button>')+'<span id="roleMsg" class="msg"></span>')+'</div>'
+    +'<div class="seclbl">Permissions</div><div class="permgrid"><div>'+coreHtml+'</div><div></div></div>'
+    +'<div class="seclbl">Tool access</div><div class="permgrid">'+toolHtml+'</div>'
+    +'<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div><label class="fld">Add a new role</label><input id="newRole" placeholder="e.g. Team Lead"></div><button class="btn sm" id="roleAdd">+ Add role</button><span id="addMsg" class="msg"></span></div>'
+    +'</div></div>';
+
+  // users
+  var roleOpts=(ST.roles||[]).map(function(r){return '<option value="'+esc(r.key)+'">'+esc(r.name)+'</option>';}).join('');
+  var urows=(ST.users||[]).map(function(u){
+    var ovcount=Object.keys(u.perms||{}).length;
+    return '<tr><td><b>'+esc(u.name)+'</b><div style="font-size:11.5px;color:#98a1b5">'+esc(u.username)+(u.disabled?' · disabled':'')+'</div></td>'
+      +'<td><select data-urole="'+esc(u.username)+'">'+roleOpts+'</select></td>'
+      +'<td>'+(ovcount?('<span class="pill on" style="text-transform:none">'+ovcount+' override'+(ovcount===1?'':'s')+'</span>'):'<span style="color:#98a1b5">—</span>')+'</td>'
+      +'<td style="text-align:right"><button class="btn ghost sm" data-ovuser="'+esc(u.username)+'">'+(OVUSER===u.username?'Close':'Overrides')+'</button></td></tr>'
+      +(OVUSER===u.username?('<tr><td colspan="4">'+overridePanel(u)+'</td></tr>'):'');
+  }).join('');
+  var usersCard='<div class="card"><div class="ch"><b>Users</b><span>assign a role, or override individual switches per person</span></div><div class="cb"><table><thead><tr><th>User</th><th>Role</th><th>Overrides</th><th></th></tr></thead><tbody>'+urows+'</tbody></table></div></div>';
+
+  // reassign
+  var repOpts='<option value="">— pick —</option>'+(ST.users||[]).map(function(u){return '<option value="'+esc(u.username)+'">'+esc(u.name)+'</option>';}).join('');
+  var reassign='<div class="card"><div class="ch"><b>Reassign accounts</b><span>hand one rep\'s contacts &amp; companies to another</span></div><div class="cb"><div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div><label class="fld">From</label><select id="raFrom">'+repOpts+'</select></div><div><label class="fld">To</label><select id="raTo">'+repOpts+'</select></div><button class="btn sm" id="raGo">Reassign</button><span id="raMsg" class="msg"></span></div><div class="note" style="margin-top:8px">Moves ownership of every contact and company owned by the first rep to the second. Useful when someone leaves or hands off a book.</div></div></div>';
+
+  root.innerHTML=master+rolesCard+usersCard+reassign;
+
+  // set user role dropdown values
+  (ST.users||[]).forEach(function(u){ var el=document.querySelector('[data-urole="'+u.username+'"]'); if(el) el.value=u.role||'associate'; });
+
+  document.getElementById('master').addEventListener('change',function(){ var on=this.checked; post('/api/admin/permissions/toggle',{enabled:on}).then(function(j){ var m=document.getElementById('masterMsg'); if(j&&j.ok){ ST.enabled=j.enabled; m.textContent=j.enabled?'Enforcement is ON.':'Enforcement is OFF.'; m.className='msg ok'; render(); } else { m.textContent='Could not change.'; m.className='msg err'; } }); });
+  document.querySelectorAll('[data-role]').forEach(function(b){ b.addEventListener('click',function(){ SELROLE=b.getAttribute('data-role'); render(); }); });
+  var rs=document.getElementById('roleSave'); if(rs) rs.addEventListener('click',saveRole);
+  var rd=document.getElementById('roleDel'); if(rd) rd.addEventListener('click',delRole);
+  var ra=document.getElementById('roleAdd'); if(ra) ra.addEventListener('click',addRole);
+  document.querySelectorAll('[data-urole]').forEach(function(sel){ sel.addEventListener('change',function(){ saveUserRole(sel.getAttribute('data-urole'), sel.value); }); });
+  document.querySelectorAll('[data-ovuser]').forEach(function(b){ b.addEventListener('click',function(){ OVUSER=(OVUSER===b.getAttribute('data-ovuser'))?null:b.getAttribute('data-ovuser'); render(); }); });
+  var og=document.getElementById('ovSave'); if(og) og.addEventListener('click',function(){ saveOverrides(OVUSER); });
+  var rg=document.getElementById('raGo'); if(rg) rg.addEventListener('click',doReassign);
+}
+
+function overridePanel(u){
+  var rows=permRows();
+  var body=rows.map(function(p){
+    var cur=(p.key in (u.perms||{}))?(u.perms[p.key]?'on':'off'):'def';
+    return '<div class="permrow"><span class="pn">'+esc(p.label)+(p.note==='tool'?' <small>(tool)</small>':'')+'</span><select data-ov="'+esc(p.key)+'" style="padding:5px 8px;font-size:12.5px"><option value="def"'+(cur==='def'?' selected':'')+'>Role default</option><option value="on"'+(cur==='on'?' selected':'')+'>Force ON</option><option value="off"'+(cur==='off'?' selected':'')+'>Force OFF</option></select></div>';
+  }).join('');
+  return '<div class="ovpanel"><div class="note" style="margin-bottom:8px">Overrides win over the role. Leave a switch on <b>Role default</b> to follow '+esc((roleByKey(u.role)||{}).name||u.role)+'.</div>'+body+'<div style="margin-top:12px"><button class="btn red sm" id="ovSave">Save overrides for '+esc(u.name)+'</button> <span id="ovMsg" class="msg"></span></div></div>';
+}
+
+function collectPerms(){ var p={}; document.querySelectorAll('[data-perm]').forEach(function(cb){ p[cb.getAttribute('data-perm')]=cb.checked; }); return p; }
+function saveRole(){
+  var role=roleByKey(SELROLE); var name=(document.getElementById('roleName').value||'').trim();
+  var m=document.getElementById('roleMsg'); if(m){m.textContent='Saving…';m.className='msg';}
+  post('/api/admin/roles',{key:role.key,name:name,perms:collectPerms()}).then(function(j){ if(j&&j.ok){ ST.roles=j.roles; if(m){m.textContent='Saved ✓';m.className='msg ok';} render(); } else if(m){ m.textContent=(j&&j.error)||'Failed'; m.className='msg err'; } });
+}
+function addRole(){
+  var name=(document.getElementById('newRole').value||'').trim(); var m=document.getElementById('addMsg');
+  if(!name){ if(m){m.textContent='Name it first.';m.className='msg err';} return; }
+  var perms={}; (ST.tools||[]).forEach(function(t){ perms['tool:'+t.file]=true; }); // new role: tools on, core off
+  post('/api/admin/roles',{name:name,perms:perms}).then(function(j){ if(j&&j.ok){ ST.roles=j.roles; var added=j.roles[j.roles.length-1]; SELROLE=added?added.key:SELROLE; render(); } else if(m){ m.textContent=(j&&j.error)||'Failed'; m.className='msg err'; } });
+}
+function delRole(){
+  var role=roleByKey(SELROLE); if(!confirm('Delete the "'+role.name+'" role? Users on it move to Associate.')) return;
+  post('/api/admin/roles/delete',{key:role.key}).then(function(j){ if(j&&j.ok){ ST.roles=j.roles; SELROLE='associate'; reload(); } else alert((j&&j.error)||'Failed'); });
+}
+function saveUserRole(username,role){ post('/api/admin/user-access',{username:username,role:role}).then(function(j){ if(j&&j.ok){ reload(); } else alert((j&&j.error)||'Could not change role.'); }); }
+function saveOverrides(username){
+  var perms={}; document.querySelectorAll('[data-ov]').forEach(function(sel){ var v=sel.value; if(v==='on') perms[sel.getAttribute('data-ov')]=true; else if(v==='off') perms[sel.getAttribute('data-ov')]=false; });
+  var u=(ST.users||[]).filter(function(x){return x.username===username;})[0];
+  post('/api/admin/user-access',{username:username,role:(u?u.role:undefined),perms:perms}).then(function(j){ var m=document.getElementById('ovMsg'); if(j&&j.ok){ if(m){m.textContent='Saved ✓';m.className='msg ok';} reload(); } else if(m){ m.textContent=(j&&j.error)||'Failed'; m.className='msg err'; } });
+}
+function doReassign(){
+  var from=document.getElementById('raFrom').value, to=document.getElementById('raTo').value, m=document.getElementById('raMsg');
+  if(!from||!to){ if(m){m.textContent='Pick both.';m.className='msg err';} return; }
+  if(!confirm('Reassign all contacts & companies from '+from+' to '+to+'?')) return;
+  if(m){m.textContent='Working…';m.className='msg';}
+  post('/api/admin/reassign',{from:from,to:to}).then(function(j){ if(j&&j.ok){ if(m){m.textContent='Reassigned '+j.people+' contacts and '+j.companies+' companies.';m.className='msg ok';} } else if(m){ m.textContent=(j&&j.error)||'Failed'; m.className='msg err'; } });
+}
+function reload(){ get('/api/admin/permissions').then(function(j){ if(j&&j.ok){ ST=j; render(); } }); }
+
+get('/api/admin/permissions').then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Admins only. <a href="/admin">Back</a></div>'; return; }
+  ST=j; render();
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+</script>
+</body>
+</html>
