@@ -171,7 +171,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
-var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], CUISINE_TYPES=[], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], LOGOAUTO='', TITLES=[], DIRTY=false;
+var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], CUISINE_TYPES=[], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], LOGOAUTO='', TITLES=[], LEADSOURCES=[], DIRTY=false;
 var EXPANDED={};
 function conceptById(id){ return CONCEPTS.filter(function(x){return x.id===id;})[0]||null; }
 function normUrl(u){ u=String(u||'').trim(); if(!u) return ''; return /^https?:\/\//i.test(u)?u:('https://'+u); }
@@ -275,6 +275,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Name</label><input id="c_name" value="'+esc(C.name||'')+'"></div>'
       + '<div class="fldrow"><label class="fld">Type</label><select id="c_type">'+ctsel+'</select></div>'
       + '<div class="fldrow"><label class="fld">Tags</label><input id="c_tags" value="'+esc((C.tags&&C.tags.length)?C.tags.join(', '):'')+'" placeholder="Comma-separated, e.g. franchisor, multi-unit, target"></div>'
+      + '<div class="fldrow"><label class="fld">Lead source</label><input id="c_lead" list="c_leadlist" autocomplete="off" value="'+esc(C.leadSource||'')+'" placeholder="Referral, CoStar, event"><datalist id="c_leadlist">'+(LEADSOURCES||[]).map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist></div>'
       + '<div class="fldrow"><label class="fld">Logo</label><div class="logorow2"><div class="logoprev2" id="c_logoprev"></div><div style="flex:1;min-width:0"><input id="c_logo" value="'+esc(C.logo||'')+'" placeholder="Logo URL — or use the website"><div style="margin-top:6px"><button type="button" class="mfadd" id="c_logoup">Upload logo</button> <button type="button" class="mfadd" id="c_logoauto">Use website logo</button><input type="file" id="c_logofile" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" style="display:none"></div></div></div></div>'
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="c_notes" placeholder="Ownership, history, relationships, anything worth remembering…">'+esc(C.notes||'')+'</textarea></div>'
       + '<div class="officebox">'
@@ -287,7 +288,7 @@ function render(){
       + '<button class="savebtn" id="c_save" disabled>Save changes</button><div class="saved" id="c_saved">Saved ✓</div>'
       + (IS_ADMIN?('<div class="dangerz"><button class="delco" id="c_delete">Delete company</button><div class="dangernote">Admin only. Permanently removes this company, its concepts, all locations &amp; photos, and every deal tied to it — records, data rooms, and files. Contacts are kept. Cannot be undone.</div></div>'):'')
     + '</div></div></div>';
-  ['c_name','c_type','c_tags','c_notes','o_address','o_city','o_state','o_phone','o_email','o_website'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener(el.tagName==='SELECT'?'change':'input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; }); });
+  ['c_name','c_type','c_lead','c_tags','c_notes','o_address','o_city','o_state','o_phone','o_email','o_website'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener(el.tagName==='SELECT'?'change':'input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; }); });
   (function(){ function draw(){ var p=document.getElementById('c_logoprev'); if(!p) return; var u=(document.getElementById('c_logo').value||'').trim()||(LOGOAUTO||''); p.innerHTML=u?('<img src="'+esc(u)+'" onerror="this.parentNode.innerHTML=&quot;<span class=\'comono\'>'+esc((C.name||'?').charAt(0).toUpperCase())+'</span>&quot;">'):('<span class="comono">'+esc((C.name||'?').charAt(0).toUpperCase())+'</span>'); }
     var li=document.getElementById('c_logo'); if(li) li.addEventListener('input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
     var la=document.getElementById('c_logoauto'); if(la) la.addEventListener('click',function(){ var d=(document.getElementById('o_website').value||'').replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0]; document.getElementById('c_logo').value=d?('https://logo.clearbit.com/'+d):''; DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
@@ -576,7 +577,7 @@ function wireMulti(scope){
 function collectMulti(scope,cls){ var out=[]; scope.querySelectorAll('.'+cls).forEach(function(i){ var v=i.value.trim(); if(v) out.push(v); }); return out; }
 function openContactForm(){
   var f=document.getElementById('contactForm');
-  var ptsel='<option value="">— select —</option>'+PTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
+  var ptsel='<option value="">— select —</option>'+PTYPES.map(function(t){return '<option'+((C&&C.type&&t===C.type)?' selected':'')+'>'+esc(t)+'</option>';}).join('');
   var LEADSRC=['Referral','CoStar','LoopNet','Crexi','Cold call','Event / conference','Website','Email campaign','Walk-in','Existing client','Social media','Other']; var leadOpts=LEADSRC.map(function(x){return '<option value="'+esc(x)+'">';}).join(''); var titleOpts=(TITLES||[]).map(function(x){return '<option value="'+esc(x)+'">';}).join('');
   f.innerHTML='<div class="cform"><div class="cgrid">'
     +'<div><label class="fld">First name *</label><input id="ct_first" placeholder="First"></div>'
@@ -627,7 +628,7 @@ function deleteCompany(){
 }
 function saveCompany(){
   var b=document.getElementById('c_save'); b.disabled=true; b.textContent='Saving…';
-  var body={ id:ID, name:document.getElementById('c_name').value.trim(), type:document.getElementById('c_type').value, tags:(document.getElementById('c_tags').value||'').split(',').map(function(s){return s.trim();}).filter(Boolean), notes:document.getElementById('c_notes').value, logo:(document.getElementById('c_logo')||{}).value||'',
+  var body={ id:ID, name:document.getElementById('c_name').value.trim(), type:document.getElementById('c_type').value, leadSource:(document.getElementById('c_lead')||{}).value||'', tags:(document.getElementById('c_tags').value||'').split(',').map(function(s){return s.trim();}).filter(Boolean), notes:document.getElementById('c_notes').value, logo:(document.getElementById('c_logo')||{}).value||'',
     office:{ address:document.getElementById('o_address').value.trim(), city:document.getElementById('o_city').value.trim(), state:document.getElementById('o_state').value.trim(), phone:document.getElementById('o_phone').value.trim(), email:document.getElementById('o_email').value.trim(), website:document.getElementById('o_website').value.trim() } };
   fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ b.textContent='Save changes'; if(j&&j.ok){ C=j.company; DIRTY=false; document.getElementById('crumb').textContent=C.name; var s=document.getElementById('c_saved'); s.classList.add('show'); setTimeout(function(){s.classList.remove('show');},2000); } else { b.disabled=false; alert((j&&j.error)||'Could not save.'); } })
@@ -637,7 +638,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No company selected. <a href="./rrg_companies.html">Back to companies →</a></div>'; return; }
   fetch('/api/company/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; TITLES=j.titles||TITLES; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; HASMAPS=!!j.hasMaps; render(); })
+    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; TITLES=j.titles||TITLES; LEADSOURCES=j.leadSources||LEADSOURCES; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; HASMAPS=!!j.hasMaps; render(); })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this company.')+'<br><br><a href="./rrg_companies.html" style="color:#000E31;font-weight:700">← Back to companies</a></div>'; });
 }
 load();

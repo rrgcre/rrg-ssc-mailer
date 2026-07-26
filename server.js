@@ -133,7 +133,7 @@ function findOrCreatePerson(req, info) {
   const arr = loadPeople();
   let p = null;
   if (email) p = arr.find(x => normKey(x.email) && normKey(x.email) === normKey(email));
-  if (!p && name) p = arr.find(x => normKey(x.name) === normKey(name));
+  if (!p && name && !(info && info.strict)) p = arr.find(x => normKey(x.name) === normKey(name));
   if (p) {
     let ch = false;
     if (email && !p.email) { p.email = email.slice(0, 160); ch = true; }
@@ -2904,7 +2904,7 @@ app.get('/api/companies', (req, res) => {
     return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt };
   });
   const _cities = {}; cos.forEach(c => { if (c.office && c.office.city) _cities[c.office.city] = 1; (c.locations || []).forEach(l => { if (l.city) _cities[l.city] = 1; }); }); const _titles = {}; people.forEach(pp => { if (pp.title) _titles[pp.title] = 1; });
-  res.json({ ok: true, companies: rows, types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: CONCEPT_TYPES, defaultState: effDefaultState(), personTypes: effPersonTypes(), cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, companies: rows, types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: CONCEPT_TYPES, leadSources: effLeadSources(), defaultState: effDefaultState(), personTypes: effPersonTypes(), cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 // A person's full cross-book view: their company, the deals where they're the client,
 // and every offer / tour / NDA they're linked to across all deals.
@@ -3246,7 +3246,7 @@ app.get('/api/company/:id', (req, res) => {
   const _pn = {}; loadPeople().forEach(p => { _pn[p.id] = p.name; });
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
-  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), hasMaps: !!loadGmapsKey(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), hasMaps: !!loadGmapsKey(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 // ---- Concepts — a company runs one or more concepts (brands); locations attach to a concept. ----
 function newConceptId() { return 'cpt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -3447,6 +3447,7 @@ app.post('/api/company', express.json(), (req, res) => {
   if (typeof b.type === 'string' && effCompanyTypes().indexOf(b.type) >= 0) c.type = b.type;
   if (b.tags !== undefined) c.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') c.notes = b.notes.slice(0, 6000);
+  if (typeof b.leadSource === 'string') c.leadSource = b.leadSource.slice(0, 160);
   if (typeof b.logo === 'string') c.logo = b.logo.slice(0, 400);
   if (b.office && typeof b.office === 'object') {
     const o = c.office || {};
@@ -3472,7 +3473,8 @@ app.post('/api/company/:id/contact', express.json(), (req, res) => {
     if (!(typeof b.type === 'string' && effPersonTypes().indexOf(b.type) >= 0)) return res.status(400).json({ ok: false, error: 'A contact type is required.' });
     const clash = emailOwner(arr, emails, '__new__');
     if (clash) return res.status(409).json({ ok: false, error: 'That email is already on ' + (clash.name || 'another contact') + '.', existingId: clash.id });
-    p = findOrCreatePerson(req, { firstName: first, lastName: last, name: composeName(first, last), emails: emails, phones: phones, companyId: c.id, type: b.type });
+    p = findOrCreatePerson(req, { firstName: first, lastName: last, name: composeName(first, last), emails: emails, phones: phones, companyId: c.id, type: b.type, strict: true });
+    if (p && typeof b.type === 'string' && effPersonTypes().indexOf(b.type) >= 0 && p.type !== b.type) { const _a = loadPeople(); const _pp = _a.find(x => x.id === p.id); if (_pp) { _pp.type = b.type; _pp.updatedAt = new Date().toISOString(); savePeople(_a); p.type = b.type; } }
     if (p && (b.title || b.nickname || b.notes || Array.isArray(b.tags) || b.leadSource || b.referredBy || b.referredById)) { const a2 = loadPeople(); const pp = a2.find(x => x.id === p.id); if (pp) { if (b.title) pp.title = String(b.title).slice(0, 120); if (b.nickname) pp.nickname = String(b.nickname).slice(0, 80); if (b.notes) pp.notes = String(b.notes).slice(0, 4000); if (Array.isArray(b.tags)) pp.tags = b.tags.map(x => String(x || '').slice(0, 60)).filter(Boolean).slice(0, 30); if (Array.isArray(b.prefContact)) pp.prefContact = b.prefContact.filter(x => ['phone','text','email'].indexOf(x) >= 0); if (b.leadSource) pp.leadSource = String(b.leadSource).slice(0, 160); if (b.referredBy) pp.referredBy = String(b.referredBy).slice(0, 160); if (b.referredById) pp.referredById = String(b.referredById).slice(0, 40); pp.updatedAt = new Date().toISOString(); savePeople(a2); } }
   }
   const contacts = loadPeople().filter(x => x.companyId === c.id).map(companyContactRow);
@@ -4907,7 +4909,7 @@ const AGREEMENT_TYPES = [
 ];
 const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
 function agreementBrief(a) {
-  return { id: a.id, type: a.type, personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: a.signerCount === 2 ? 2 : 1, hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
+  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: a.signerCount === 2 ? 2 : 1, hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
 }
 app.get('/api/agreements', (req, res) => {
   let all = loadAgreements();
@@ -4934,6 +4936,7 @@ app.post('/api/agreements', express.json(), (req, res) => {
     all.push(a);
   }
   a.type = type;
+  if (typeof b.name === 'string') a.name = b.name.slice(0, 160);
   if (typeof b.personId === 'string') { a.personId = b.personId; const p = personById(b.personId); a.personName = p ? p.name : (b.personName || a.personName || ''); }
   if (typeof b.companyId === 'string') a.companyId = b.companyId;
   if (typeof b.dealKey === 'string') a.dealKey = b.dealKey;

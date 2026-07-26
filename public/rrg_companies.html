@@ -80,6 +80,7 @@ tr:hover td{background:#fbfcfe;}
     <label class="mfld">Company name</label><input id="m_name" autocomplete="off" placeholder="e.g. Blue Agave Restaurant Group">
     <div id="m_dupe" class="dupe" hidden></div>
     <label class="mfld">Type</label><select id="m_type"></select>
+    <label class="mfld">Lead source</label><input id="m_lead" list="leadsrclist" autocomplete="off" placeholder="Referral, CoStar, event"><datalist id="leadsrclist"></datalist>
     <div class="mgrp">First concept <span class="mopt">— optional; single-brand operators fill this</span></div>
     <label class="mfld">Concept / brand</label><input id="m_concept" autocomplete="off" placeholder="Often the same as the company">
     <label class="mfld">Concept type</label><select id="m_conctype" style="width:100%;padding:9px 11px;border:1px solid #d5dbe6;border-radius:9px;font:inherit;background:#fff"></select>
@@ -126,7 +127,7 @@ function renderList(list){
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
 }
-var CTYPES=['Seller','Buyer']; var CITIES=[], TITLES=[], ALLTAGS=[], MTAGS=[], CONCEPTTYPES=[];
+var CTYPES=['Seller','Buyer']; var CITIES=[], TITLES=[], ALLTAGS=[], MTAGS=[], CONCEPTTYPES=[], LEADSOURCES=[];
 var CUISINE=['American','Tex-Mex','Mexican','Italian','Pizza','Burgers','BBQ','Steakhouse','Seafood','Chinese','Japanese / Sushi','Thai','Vietnamese','Korean','Indian','Mediterranean','Greek','Southern / Soul','Breakfast / Brunch','Coffee / Cafe','Hawaiian','Desserts'];
 var DEFAULTSTATE='TX'; var PERSONTYPES=['Restaurant Owner'];
 var STOPWORDS={llc:1,inc:1,co:1,corp:1,corporation:1,company:1,ltd:1,the:1,a:1,an:1,of:1,and:1,restaurant:1,restaurants:1,group:1,grill:1,grille:1,kitchen:1,cafe:1,caf:1,bar:1,tavern:1,eatery:1,holdings:1,enterprises:1,hospitality:1,concepts:1,brands:1};
@@ -173,7 +174,7 @@ function setupCReferral(){
   fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var ppl=(j&&j.people)||[]; CREFMAP={}; var rl=document.getElementById('crefbyList'); var opts=ppl.slice().sort(function(a,b){return RRGList.cmp(a.name,b.name);}).map(function(p){ var co=p.companyName||p.company||''; var lbl=(p.name||'Contact')+(co?(' — '+co):''); CREFMAP[lbl.toLowerCase()]=p.id; if(!CREFMAP[String(p.name||'').toLowerCase()]) CREFMAP[String(p.name||'').toLowerCase()]=p.id; return '<option value="'+esc(lbl)+'">'; }).join(''); if(rl) rl.innerHTML=opts; CREFLOADED=true; }).catch(function(){});
 }
 function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=CTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
-  var cu=document.getElementById('m_cuisine'); if(cu) cu.innerHTML='<option value="">— cuisine (optional) —</option>'+CUISINE.map(function(m){return '<option>'+esc(m)+'</option>';}).join(''); var cty=document.getElementById('m_conctype'); if(cty) cty.innerHTML='<option value="">— concept type (optional) —</option>'+CONCEPTTYPES.map(function(m){return '<option>'+esc(m)+'</option>';}).join('');
+  var cu=document.getElementById('m_cuisine'); if(cu) cu.innerHTML='<option value="">— cuisine (optional) —</option>'+CUISINE.map(function(m){return '<option>'+esc(m)+'</option>';}).join(''); var cty=document.getElementById('m_conctype'); if(cty) cty.innerHTML='<option value="">— concept type (optional) —</option>'+CONCEPTTYPES.map(function(m){return '<option>'+esc(m)+'</option>';}).join(''); var lsd=document.getElementById('leadsrclist'); if(lsd) lsd.innerHTML=(LEADSOURCES||[]).map(function(m){return '<option value="'+esc(m)+'">';}).join('');
   var cc=document.getElementById('m_concept'); if(cc){ cc.value=''; cc.dataset.auto='1'; }
   ['m_zip','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';}); var stEl=document.getElementById('m_state'); if(stEl) stEl.value=DEFAULTSTATE;
   var ct=document.getElementById('m_ctype'); if(ct) ct.innerHTML='<option value="">— select —</option>'+PERSONTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
@@ -182,7 +183,7 @@ function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=C
   MTAGS=[]; renderMTags(); document.querySelectorAll('.m_prefchk').forEach(function(c){c.checked=false;});
   var _cl=document.getElementById('m_clead'); if(_cl) _cl.value=''; setupCReferral();
   document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_name').focus(); }
-function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_name','m_concept','m_website','m_addr','m_city','m_state','m_zip','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes','m_clead','m_crefby'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); var _cc=document.getElementById('crefbyCell'); if(_cc) _cc.style.display='none'; var box=document.getElementById('m_dupe'); box.setAttribute('hidden','');box.innerHTML=''; document.getElementById('m_create').disabled=false; document.getElementById('m_create').textContent='Create company'; MTAGS=[]; if(typeof renderMTags==='function') renderMTags(); }
+function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_name','m_concept','m_website','m_addr','m_city','m_state','m_zip','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes','m_clead','m_crefby','m_lead'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); var _cc=document.getElementById('crefbyCell'); if(_cc) _cc.style.display='none'; var box=document.getElementById('m_dupe'); box.setAttribute('hidden','');box.innerHTML=''; document.getElementById('m_create').disabled=false; document.getElementById('m_create').textContent='Create company'; MTAGS=[]; if(typeof renderMTags==='function') renderMTags(); }
 function createCompany(){
   var name=document.getElementById('m_name').value.trim(); if(!name){ document.getElementById('m_name').focus(); return; }
   var d=findDupe(name); if(d){ if(confirm('“'+d.name+'” is already in your book. Open it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(d.id); return; }
@@ -197,7 +198,7 @@ function createCompany(){
   var ctype=(document.getElementById('m_ctype')||{}).value||''; var ctags=MTAGS.slice(); var cpref=[]; document.querySelectorAll('.m_prefchk').forEach(function(c){ if(c.checked) cpref.push(c.value); }); { var _pend=(document.getElementById('m_ctag').value||'').trim(); if(_pend&&ctags.map(function(x){return x.toLowerCase();}).indexOf(_pend.toLowerCase())<0) ctags.push(_pend); }
   if(cfirst&&clast&&!ctype){ b.disabled=false; b.textContent='Create company'; alert('Pick a contact type for the first contact (or clear the name to skip adding a contact).'); document.getElementById('m_ctype').focus(); return; }
   function J(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}); }
-  J('/api/company',{name:name,type:document.getElementById('m_type').value,office:(website?{website:website}:undefined)})
+  J('/api/company',{name:name,type:document.getElementById('m_type').value,leadSource:(document.getElementById('m_lead')||{}).value||'',office:(website?{website:website}:undefined)})
     .then(function(j){
       if(!(j&&j.ok&&j.company)){ if(j&&j.existingId){ b.textContent='Create company'; if(confirm((j.error||'That company already exists.')+'\n\nOpen it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(j.existingId); else b.disabled=false; } else { b.disabled=false;b.textContent='Create company'; alert((j&&j.error)||'Could not create the company.'); } return; }
       var id=j.company.id; var chain=Promise.resolve();
@@ -224,7 +225,7 @@ document.getElementById('m_cancel').addEventListener('click',closeModal);
 document.getElementById('m_create').addEventListener('click',createCompany);
 (function(){ var ti=document.getElementById('m_ctag'); if(ti){ ti.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===','){ e.preventDefault(); addMTag(ti.value); ti.value=''; } }); ti.addEventListener('change',function(){ if(ti.value){ addMTag(ti.value); ti.value=''; } }); } var ph=document.getElementById('m_cphone'); if(ph){ ph.addEventListener('input',function(){ ph.value=mfmtPhone(ph.value); }); } })();
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target.id==='modal') closeModal(); });
-fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; CTYPES=(j&&j.types)||CTYPES; CUISINE=(j&&j.cuisineTypes)||CUISINE; CONCEPTTYPES=(j&&j.conceptTypes)||CONCEPTTYPES; DEFAULTSTATE=(j&&j.defaultState)||DEFAULTSTATE; PERSONTYPES=(j&&j.personTypes)||PERSONTYPES; CITIES=(j&&j.cities)||[]; TITLES=(j&&j.titles)||[]; ALLTAGS=(j&&j.allTags)||[]; IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load companies.</div>'; });
+fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; CTYPES=(j&&j.types)||CTYPES; CUISINE=(j&&j.cuisineTypes)||CUISINE; CONCEPTTYPES=(j&&j.conceptTypes)||CONCEPTTYPES; LEADSOURCES=(j&&j.leadSources)||LEADSOURCES; DEFAULTSTATE=(j&&j.defaultState)||DEFAULTSTATE; PERSONTYPES=(j&&j.personTypes)||PERSONTYPES; CITIES=(j&&j.cities)||[]; TITLES=(j&&j.titles)||[]; ALLTAGS=(j&&j.allTags)||[]; IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load companies.</div>'; });
 </script>
 <script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
 <script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>

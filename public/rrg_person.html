@@ -106,6 +106,12 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .rrnm{font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .rrmt{font-size:12px;color:var(--muted);margin-top:1px;}
 .rchip{flex:none;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:#f2f4f8;color:#6b7488;}
+.rchip.bad{background:#fdeceb;color:#DA2B1F;}
+.railbody{max-height:266px;overflow-y:auto;}
+.agrlist{max-height:280px;overflow-y:auto;margin:-4px 0;}
+.agrrow{cursor:pointer;}
+.agrx{flex:none;border:none;background:none;color:#c7cedb;cursor:pointer;font-size:16px;line-height:1;padding:0 4px;}
+.agrx:hover{color:var(--red);}
 .rrempty{font-size:12.5px;color:var(--soft);padding:8px 18px;}
 .abtn{background:#fff;border:1px solid #e3e8f0;color:var(--ink);border-radius:8px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
 .abtn:hover{background:#f2f4f8;}
@@ -142,7 +148,7 @@ function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/
 function personPhotoUrl(){ return (P&&P.photoExt)?('/api/personphoto/'+encodeURIComponent(ID)+'.'+P.photoExt+'?v='+(P.updatedAt?encodeURIComponent(P.updatedAt):Date.now())):''; }
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 function money(v){ if(v==null||v==='') return ''; var n=Number(String(v).replace(/[^0-9.\-]/g,'')); if(!isFinite(n)||n===0) return esc(String(v)); return '$'+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
-var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], AGREEMENTS=[], ATYPES=[], PTYPES=['Buyer'], LEADSOURCES=[], ALLTAGS=[], CURTAGS=[], SAVET=null, EMAILREADY=false, COMPANIESLIST=[], ACTIVITIES=[], ACTTYPES=[], TEMPLATES=[], IS_ADMIN=false, DIRTY=false, GMAIL=[], GMAILCONN=false, GMAILEMAIL='', GMAILLOADED=false;
+var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], AGREEMENTS=[], ATYPES=[], PTYPES=['Buyer'], LEADSOURCES=[], ALLTAGS=[], CURTAGS=[], SAVET=null, EMAILREADY=false, COMPANIESLIST=[], ACTIVITIES=[], ACTTYPES=[], TEMPLATES=[], IS_ADMIN=false, DIRTY=false, GMAIL=[], GMAILCONN=false, GMAILEMAIL='', GMAILLOADED=false, PENDING_AGR_FILE=null;
 function deletePerson(){
   if(!confirm('Delete “'+((P&&P.name)||'this contact')+'” from your registry? Their name stays on any past offers, tours, and NDAs. This cannot be undone.')) return;
   var b=document.getElementById('p_delete'); b.disabled=true; b.textContent='Deleting…';
@@ -167,14 +173,23 @@ function agrChip(a){
   var exp=a.status==='terminated'?'terminated':(a.expires?('exp '+fmt(a.expires)+(expired?' · EXPIRED':(soon?' · '+du+'d':''))):'no expiry');
   return '<span class="jbean" data-agr="'+esc(a.id)+'" title="Click to edit" style="background:'+c.bg+';color:'+c.fg+';box-shadow:inset 0 0 0 1.6px '+border+'"><b>'+esc(atypeLabel(a.type))+'</b> · '+esc(exp)+(a.signStatus==='signed'?' · ✍':(a.signStatus==='sent'?' · ✉':''))+'<button class="jrm" data-agrdel="'+esc(a.id)+'" title="Delete">×</button></span>';
 }
+function agrRow(a){
+  var today=todayStr(); var expired=(a.status==='terminated')||(a.expires&&a.expires<today);
+  var du=daysUntil(a.expires); var soon=a.expires&&!expired&&du<=60;
+  var right = a.signStatus==='signed'?'Signed':(a.signStatus==='sent'?'Sent':(a.status==='terminated'?'Terminated':(a.expires?(expired?'Expired':(soon?(du+'d'):'Active')):'Active')));
+  var title=a.name||atypeLabel(a.type);
+  var meta=atypeLabel(a.type)+(a.expires?(' \u00b7 exp '+fmt(a.expires)):'')+(a.docExt?' \u00b7 \ud83d\udcce':'');
+  return '<div class="rrow agrrow" data-agr="'+esc(a.id)+'" title="Click to edit"><span class="rric" style="background:#f1ebfb;color:#6d28d9">\u270d</span><div class="rrmain"><div class="rrnm">'+esc(title)+'</div><div class="rrmt">'+esc(meta)+'</div></div><span class="rchip'+((expired)?' bad':'')+'">'+esc(right)+'</span><button class="agrx" data-agrdel="'+esc(a.id)+'" title="Delete">\u00d7</button></div>';
+}
 function agreementsCard(){
-  var chips=AGREEMENTS.length?AGREEMENTS.map(agrChip).join(''):'<div class="empty" style="padding:6px 2px">No agreements on file for this contact.</div>';
+  var chips=AGREEMENTS.length?AGREEMENTS.map(agrRow).join(''):'<div class="rrempty">No agreements on file for this contact.</div>';
   var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
   return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGREEMENTS.length+'</span></div>'
-    +'<div class="cb"><div class="jbeans">'+chips+'</div>'
+    +'<div class="cb"><div class="agrlist">'+chips+'</div>'
     +'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="savebtn" id="agrSendBtn" style="width:auto;padding:8px 16px">✉ Send for signature</button><button type="button" class="mfadd" id="agrAddBtn">+ Add / track (no send)</button></div>'
     +'<div id="agrForm" hidden style="margin-top:12px;border-top:1px solid #e6e9f0;padding-top:12px">'
       +'<input type="hidden" id="agr_id">'
+      +'<div class="fldrow"><label class="fld">Agreement name</label><input id="agr_name" placeholder="e.g. Mutual NDA — Cane Rosso"></div>'
       +'<div class="fldrow2"><div><label class="fld">Type</label><select id="agr_type">'+opts+'</select></div>'
       +'<div><label class="fld">Status</label><select id="agr_status"><option value="active">Active</option><option value="terminated">Terminated</option></select></div></div>'
       +'<div class="fldrow2"><div><label class="fld">Effective</label><input type="date" id="agr_eff"></div>'
@@ -186,7 +201,7 @@ function agreementsCard(){
     +'</div>'+sendModalHtml()+'</div></div>';
 }
 function openAgrForm(a){
-  var f=document.getElementById('agrForm'); f.removeAttribute('hidden');
+  var f=document.getElementById('agrForm'); f.removeAttribute('hidden'); PENDING_AGR_FILE=null;
   document.getElementById('agr_id').value=a?a.id:'';
   document.getElementById('agr_type').value=a?a.type:((ATYPES[0]&&ATYPES[0].key)||'NDA');
   document.getElementById('agr_status').value=a?(a.status==='terminated'?'terminated':'active'):'active';
@@ -194,6 +209,7 @@ function openAgrForm(a){
   document.getElementById('agr_exp').value=a?(a.expires||''):'';
   document.getElementById('agr_deal').value=a?(a.dealKey||''):'';
   document.getElementById('agr_notes').value=a?(a.notes||''):'';
+  document.getElementById('agr_name').value=a?(a.name||''):'';
   document.getElementById('agrMsg').textContent='';
   var sig=document.getElementById('agr_sig');
   if(a&&a.id&&a.pdfFieldCount>0){ renderAdvSig(a); return; }
@@ -212,7 +228,7 @@ function openAgrForm(a){
     document.getElementById('agr_signed').addEventListener('click',function(){ markAgrSigned(a.id); });
     var ts=document.getElementById('agr_tpl'); if(ts) ts.addEventListener('change',function(){ if(ts.value) applyTemplate(a.id, ts.value); });
     var cl=document.getElementById('agr_copylink'); if(cl) cl.addEventListener('click',function(){ var i=document.getElementById('agr_link'); if(i){ i.select(); try{ navigator.clipboard.writeText(i.value); }catch(e){ try{document.execCommand('copy');}catch(e2){} } var m=document.getElementById('agr_sigmsg'); if(m)m.textContent='Link copied.'; } });
-  } else { sig.innerHTML='<div class="agrsignote">Save the agreement first — then attach a file and email it for signature.</div>'; }
+  } else { sig.innerHTML='<div class="agrsigrow"><label class="mfadd" style="cursor:pointer">📎 Attach agreement document<input type="file" id="agr_docfile_new" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label> <span id="agr_docnew_name" style="font-size:11.5px;color:#1f8a5b;font-weight:600"></span></div><div class="agrsignote" style="margin-top:6px">Attach the signed or existing agreement now, or save first and send for signature.</div>'; var dfn=document.getElementById('agr_docfile_new'); if(dfn) dfn.addEventListener('change',function(){ PENDING_AGR_FILE=(dfn.files&&dfn.files[0])||null; var nm=document.getElementById('agr_docnew_name'); if(nm) nm.textContent=PENDING_AGR_FILE?('✓ '+PENDING_AGR_FILE.name):''; }); }
 }
 function renderAdvSig(a){
   var sig=document.getElementById('agr_sig');
@@ -236,12 +252,13 @@ function renderAdvSig(a){
   sig.querySelectorAll('.advname,.advemail').forEach(function(el){ el.addEventListener('change',function(){ saveSigners(); }); });
   var sb=document.getElementById('adv_send'); if(sb) sb.addEventListener('click',function(){ if(!EMAILREADY){ alert('Email is not set up yet (Admin → Email).'); return; } var m=document.getElementById('adv_msg'); m.textContent='Saving…'; saveSigners().then(function(){ m.textContent='Sending…'; return fetch('/api/agreements/'+encodeURIComponent(a.id)+'/send-adv',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}); }).then(function(j){ if(j&&j.ok){ load(); } else { m.textContent=(j&&j.error)||'Send failed.'; alert((j&&j.error)||'Send failed.'); } }).catch(function(){ m.textContent='Could not reach the server.'; }); });
 }
+function finishAgrSave(ag){ if(ag){ var found=false; AGREEMENTS=AGREEMENTS.map(function(x){ if(x.id===ag.id){found=true;return ag;} return x; }); if(!found) AGREEMENTS.push(ag); } var f=document.getElementById('agrForm'); if(f) f.setAttribute('hidden',''); render(); }
 function saveAgreement(){
   var msg=document.getElementById('agrMsg');
-  var body={ personId:ID, id:document.getElementById('agr_id').value||undefined, type:document.getElementById('agr_type').value, status:document.getElementById('agr_status').value, effective:document.getElementById('agr_eff').value, expires:document.getElementById('agr_exp').value, dealKey:document.getElementById('agr_deal').value, notes:document.getElementById('agr_notes').value.trim() };
+  var body={ personId:ID, id:document.getElementById('agr_id').value||undefined, name:document.getElementById('agr_name').value.trim(), type:document.getElementById('agr_type').value, status:document.getElementById('agr_status').value, effective:document.getElementById('agr_eff').value, expires:document.getElementById('agr_exp').value, dealKey:document.getElementById('agr_deal').value, notes:document.getElementById('agr_notes').value.trim() };
   msg.textContent='Saving…';
   fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ refreshAgr(j.agreement); } else { msg.textContent=(j&&j.error)||'Failed'; } });
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var ag=j.agreement; if(PENDING_AGR_FILE&&ag&&ag.id){ var file=PENDING_AGR_FILE; PENDING_AGR_FILE=null; var rd=new FileReader(); rd.onload=function(){ fetch('/api/agreements/'+encodeURIComponent(ag.id)+'/doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:file.name,dataB64:String(rd.result||'')})}).then(function(r2){return r2.json();}).then(function(j2){ finishAgrSave((j2&&j2.ok&&j2.agreement)||ag); }).catch(function(){ finishAgrSave(ag); }); }; rd.readAsDataURL(file); } else { finishAgrSave(ag); } } else { msg.textContent=(j&&j.error)||'Failed'; } });
 }
 function delAgreement(id){ if(!confirm('Delete this agreement?')) return; fetch('/api/agreements/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert((j&&j.error)||'Could not delete.'); }); }
 function refreshAgr(u){ if(!u){ load(); return; } var found=false; AGREEMENTS=AGREEMENTS.map(function(x){ if(x.id===u.id){found=true; return u;} return x; }); if(!found) AGREEMENTS.push(u); render(); openAgrForm(u); }
@@ -341,8 +358,9 @@ function wireAgreements(){
   var smf=document.getElementById('sm_file'); if(smf) smf.addEventListener('change',function(){ document.getElementById('sm_filename').textContent=(smf.files&&smf.files[0])?smf.files[0].name:''; });
   var sv=document.getElementById('agrSave'); if(sv) sv.addEventListener('click',saveAgreement);
   var cn=document.getElementById('agrCancel'); if(cn) cn.addEventListener('click',function(){ document.getElementById('agrForm').setAttribute('hidden',''); });
-  document.querySelectorAll('.jbean[data-agr]').forEach(function(b){ b.addEventListener('click',function(e){ if(e.target&&e.target.classList.contains('jrm')) return; var a=AGREEMENTS.filter(function(x){return x.id===b.getAttribute('data-agr');})[0]; if(a) openAgrForm(a); }); });
+  document.querySelectorAll('.agrrow[data-agr]').forEach(function(b){ b.addEventListener('click',function(e){ if(e.target.closest('button')) return; var a=AGREEMENTS.filter(function(x){return x.id===b.getAttribute('data-agr');})[0]; if(a) openAgrForm(a); }); });
   document.querySelectorAll('[data-agrdel]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); delAgreement(b.getAttribute('data-agrdel')); }); });
+  var atb=document.getElementById('addTourBtn'); if(atb) atb.addEventListener('click',openTourForm);
 }
 function fmtPhoneVal(v){ var d=String(v==null?'':v).replace(/\D/g,'').slice(0,10); if(d.length>6) return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6); if(d.length>3) return '('+d.slice(0,3)+') '+d.slice(3); if(d.length>0) return '('+d; return ''; }
 document.addEventListener('input',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('p_phone')) t.value=fmtPhoneVal(t.value); });
@@ -431,8 +449,25 @@ function wireEmail(){
 function toggleVip(){ if(!ID) return; var nv=!(P&&P.vip); fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:ID,vip:nv})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ P=j.person; var c=document.getElementById('vipChip'); if(c){ c.className='vipchip'+(P.vip?' on':''); c.title=P.vip?'VIP — click to remove':'Mark as VIP'; } } }).catch(function(){}); }
 function statTiles(){ var acts=(ACTIVITIES&&ACTIVITIES.length)||0; var lc=P.lastContacted?fmt(P.lastContacted):'—'; return '<div class="tiles"><div class="tile"><div class="n">'+acts+'</div><div class="l">Activities</div></div><div class="tile"><div class="n">'+esc(lc)+'</div><div class="l">Last contacted</div></div><div class="tile"><div class="n">'+DEALS.length+'</div><div class="l">Deals</div></div></div>'; }
 function railLink(key,title,meta,chip){ return '<a class="rrow" href="./rrg_assignment.html?key='+encodeURIComponent(key)+'"><span class="rric">$</span><div class="rrmain"><div class="rrnm">'+esc(title||'Deal')+'</div>'+(meta?'<div class="rrmt">'+esc(meta)+'</div>':'')+'</div>'+(chip?('<span class="rchip">'+esc(chip)+'</span>'):'')+'</a>'; }
-function railSec(title,count,body){ return '<div class="card railsec"><div class="ch"><b>'+esc(title)+'</b><span>'+count+'</span></div><div class="railbody">'+body+'</div></div>'; }
-function relatedRail(){ var dh=DEALS.length?DEALS.map(function(d){ return railLink(d.key,d.business,d.market||'',d.role||'Client'); }).join(''):'<div class="rrempty">No deals.</div>'; var th=TOURS.length?TOURS.map(function(t){ return railLink(t.key,t.business,(t.date?fmt(t.date):''),t.interest||''); }).join(''):'<div class="rrempty">No tours.</div>'; return railSec('Deals',DEALS.length,dh)+railSec('Tours',TOURS.length,th); }
+function railSec(title,count,body,extra){ return '<div class="card railsec"><div class="ch"><b>'+esc(title)+'</b><span>'+count+'</span>'+(extra||'')+'</div>'+(extra?'<div id="tourForm" hidden style="padding:8px 16px 2px;border-bottom:1px solid #eef1f6"></div>':'')+'<div class="railbody">'+body+'</div></div>'; }
+function relatedRail(){ var dh=DEALS.length?DEALS.map(function(d){ return railLink(d.key,d.business,d.market||'',d.role||'Client'); }).join(''):'<div class="rrempty">No deals.</div>'; var th=TOURS.length?TOURS.map(function(t){ return railLink(t.key,t.business,(t.date?fmt(t.date):''),t.interest||''); }).join(''):'<div class="rrempty">No tours.</div>'; var tourBtn='<button type="button" class="mfadd" id="addTourBtn" style="margin-left:auto;padding:4px 10px;font-size:11.5px">+ Add</button>'; return railSec('Deals',DEALS.length,dh)+railSec('Tours',TOURS.length,th,tourBtn); }
+function openTourForm(){
+  if(!DEALS.length){ alert('Link this contact to a deal first — tours are logged under a deal.'); return; }
+  var f=document.getElementById('tourForm'); if(!f) return;
+  var dopts=DEALS.map(function(d){return '<option value="'+esc(d.key)+'">'+esc(d.business||d.key)+'</option>';}).join('');
+  var iopts=['Hot','Warm','Cool','Passed'].map(function(x){return '<option>'+esc(x)+'</option>';}).join('');
+  f.innerHTML='<div class="fldrow"><label class="fld">Deal</label><select id="tr_deal">'+dopts+'</select></div>'+'<div class="fldrow2"><div><label class="fld">Date</label><input type="date" id="tr_date" value="'+todayStr()+'"></div><div><label class="fld">Interest</label><select id="tr_interest"><option value="">\u2014</option>'+iopts+'</select></div></div>'+'<div class="fldrow"><label class="fld">Notes</label><input id="tr_notes" placeholder="What they toured, their read"></div>'+'<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px"><button type="button" class="savebtn" id="tr_save" style="width:auto;padding:7px 14px">Save tour</button><button type="button" class="mfadd" id="tr_cancel">Cancel</button><span id="tr_msg" style="font-size:12px;color:#6b7488"></span></div>';
+  f.removeAttribute('hidden');
+  document.getElementById('tr_save').addEventListener('click',saveTour);
+  document.getElementById('tr_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
+}
+function saveTour(){
+  var key=document.getElementById('tr_deal').value, m=document.getElementById('tr_msg');
+  if(!key){ m.textContent='Pick a deal.'; return; }
+  var body={ party:P.name, date:document.getElementById('tr_date').value, interest:document.getElementById('tr_interest').value, notes:document.getElementById('tr_notes').value.trim() };
+  var b=document.getElementById('tr_save'); b.disabled=true; m.textContent='Saving\u2026';
+  fetch('/api/assignment/'+encodeURIComponent(key)+'/tour',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { b.disabled=false; m.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ b.disabled=false; m.textContent='Could not reach the server.'; });
+}
 function companyRail(){ if(!(CO&&CO.id)) return '<div class="card"><div class="ch"><b>Company</b></div><div class="cb"><div class="empty">Not linked to a company.</div></div></div>'; return '<div class="card"><div class="ch"><b>Company</b></div><div class="cb"><a class="raillink" href="./rrg_company.html?id='+encodeURIComponent(CO.id)+'"><div class="cav" style="width:36px;height:36px;border-radius:8px;background:#eef1f6;color:#6b7488;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px">'+esc(initials(CO.name))+'</div><div><div style="font-weight:600;color:var(--ink)">'+esc(CO.name)+'</div><div style="font-size:12.5px;color:var(--muted);margin-top:1px">'+esc(CO.type||'Company')+' →</div></div></a></div></div>'; }
 function render(){
   document.getElementById('crumb').textContent=P.name||'Contact';
