@@ -7,7 +7,7 @@
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);font-size:14px;-webkit-font-smoothing:antialiased;}
 .top{color:#fff;padding:15px 0 17px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
 .top-in{max-width:1040px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
 .brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
@@ -19,16 +19,16 @@ h1{font-size:21px;font-weight:800;margin:3px 0 0;color:#fff;letter-spacing:-.01e
 .subline a{color:#fff;font-weight:700;text-decoration:underline;text-underline-offset:2px;}
 .wrap{max-width:1040px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;}
 @media(max-width:840px){.wrap{grid-template-columns:1fr;}}
-.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:20px;}
-.ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);} .ch b{color:var(--navy);font-size:13.5px;} .ch span{color:var(--muted);font-size:11.5px;margin-left:auto;}
+.card{background:#fff;border:1px solid #e9edf3;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.05);overflow:hidden;margin-bottom:16px;}
+.ch{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid #eef1f6;} .ch b{color:var(--ink);font-size:15px;font-weight:600;} .ch span{color:var(--soft);font-size:12.5px;font-weight:500;margin-left:auto;}
 .row{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;} .row:last-child{border-bottom:none;} .row:hover{background:#fbfcfe;}
 .rbiz{font-weight:800;color:var(--navy);font-size:13.5px;} .rmeta{font-size:11.5px;color:var(--muted);margin-top:2px;}
 .rt{margin-left:auto;font-size:11px;font-weight:700;color:var(--ink);white-space:nowrap;}
 .tag{font-size:9.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;}
 .tag.loi{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;}
 .empty{color:var(--muted);font-size:12.5px;font-style:italic;padding:16px 20px;}
-label.fld{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:2px 0 6px;}
-input,select,textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;}
+label.fld{display:block;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);font-weight:600;margin:2px 0 7px;}
+input,select,textarea{width:100%;border:1px solid #dbe1ea;border-radius:10px;padding:11px 13px;font:inherit;font-size:14px;color:var(--ink);background:#fff;}
 select{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%236b7488' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 12px center;padding-right:30px;cursor:pointer;}
 textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .fldrow{margin-bottom:14px;} .cb{padding:14px 18px 16px;} .side .cb{padding:14px 18px 16px;}
@@ -82,6 +82,22 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .smsrow{display:grid;gap:5px;border:1px solid #e6e9f0;border-radius:9px;padding:9px 10px;background:#fbfcfe}
 .smsrow .fld{margin:0 0 3px}
 .agrmodalbtns{display:flex;gap:9px;align-items:center;margin-top:16px}
+</style>
+<style>
+.wrap{max-width:none;margin:16px 0 0;padding:0 24px 60px;display:grid;grid-template-columns:340px minmax(0,1fr) 360px;gap:20px;align-items:start;}
+@media(max-width:1250px){.wrap{grid-template-columns:1fr;}}
+.side,.mid,.rail{min-width:0;}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:16px;}
+.tile{background:#fff;border:1px solid #e9edf3;border-radius:12px;padding:15px 16px;box-shadow:0 1px 2px rgba(16,24,40,.04);}
+.tile .n{font-size:21px;font-weight:600;color:var(--ink);letter-spacing:-.01em;}
+.tile .l{font-size:12px;color:var(--muted);margin-top:3px;}
+.rsec{border-top:1px solid #eef1f6;}
+.rsec:first-of-type{border-top:none;}
+.rsechd{display:flex;align-items:center;padding:13px 0 9px;cursor:pointer;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;user-select:none;}
+.rsechd .cv{margin-left:auto;font-size:11px;color:var(--soft);transition:transform .15s;}
+.rsec.collapsed .cv{transform:rotate(-90deg);}
+.rsec.collapsed .rsecbody{display:none;}
+.raillink{display:flex;align-items:center;gap:11px;text-decoration:none;color:inherit;padding:2px 0;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -362,6 +378,8 @@ function wireEmail(){
   });
 }
 function toggleVip(){ if(!ID) return; var nv=!(P&&P.vip); fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:ID,vip:nv})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ P=j.person; var c=document.getElementById('vipChip'); if(c){ c.className='vipchip'+(P.vip?' on':''); c.title=P.vip?'VIP — click to remove':'Mark as VIP'; } } }).catch(function(){}); }
+function statTiles(){ var acts=(ACTIVITIES&&ACTIVITIES.length)||0; var lc=P.lastContacted?fmt(P.lastContacted):'—'; return '<div class="tiles"><div class="tile"><div class="n">'+acts+'</div><div class="l">Activities</div></div><div class="tile"><div class="n">'+esc(lc)+'</div><div class="l">Last contacted</div></div><div class="tile"><div class="n">'+DEALS.length+'</div><div class="l">Deals</div></div></div>'; }
+function companyRail(){ if(!(CO&&CO.id)) return '<div class="card"><div class="ch"><b>Company</b></div><div class="cb"><div class="empty">Not linked to a company.</div></div></div>'; return '<div class="card"><div class="ch"><b>Company</b></div><div class="cb"><a class="raillink" href="./rrg_company.html?id='+encodeURIComponent(CO.id)+'"><div class="cav" style="width:36px;height:36px;border-radius:8px;background:#eef1f6;color:#6b7488;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px">'+esc(initials(CO.name))+'</div><div><div style="font-weight:600;color:var(--ink)">'+esc(CO.name)+'</div><div style="font-size:12.5px;color:var(--muted);margin-top:1px">'+esc(CO.type||'Company')+' →</div></div></a></div></div>'; }
 function render(){
   document.getElementById('crumb').textContent=P.name||'Contact';
   document.getElementById('h1').textContent=P.name||'Contact';
@@ -391,21 +409,28 @@ function render(){
   var tagDatalist='<datalist id="alltagslist">'+ALLTAGS.map(function(t){return '<option value="'+esc(t)+'">';}).join('')+'</datalist>';
   document.getElementById('root').innerHTML=
     '<div class="side"><div class="card"><div class="ch"><b>Contact</b><span class="autonote">Autosaves</span></div><div class="cb">'
+      + '<div class="rsec" data-rsec><div class="rsechd">Identity <span class="cv">▾</span></div><div class="rsecbody">'
       + '<div class="photorow"><div class="photoprev" id="p_photoprev">'+photoInner+'</div><div class="photobtns"><label class="mfadd">Upload photo<input type="file" id="p_photofile" accept="image/*" hidden></label>'+(P.photoExt?'<button type="button" class="mfadd" id="p_photoclear">Remove</button>':'')+'</div></div>'
       + '<div class="fldrow2"><div><label class="fld">First name *</label><input id="p_first" value="'+esc(P.firstName||'')+'"></div><div><label class="fld">Last name *</label><input id="p_last" value="'+esc(P.lastName||'')+'"></div></div>'
       + '<div class="fldrow2"><div><label class="fld">Nickname</label><input id="p_nick" value="'+esc(P.nickname||'')+'" placeholder="Optional"></div><div><label class="fld">Type *</label><select id="p_type">'+ptsel+'</select></div></div>'
       + '<div class="fldrow"><label class="fld">Company'+(CO&&CO.id?(' <a class="colink" href="./rrg_company.html?id='+encodeURIComponent(CO.id)+'">open →</a>'):'')+'</label><div class="coauto"><input id="p_company" value="'+esc((CO&&CO.name)||P.company||'')+'" placeholder="Start typing to find a company" autocomplete="off"><div class="cosug" id="p_cosug" hidden></div></div></div>'
+      + '</div></div>'
+      + '<div class="rsec" data-rsec><div class="rsechd">Communication <span class="cv">▾</span></div><div class="rsecbody">'
       + '<div class="fldrow"><label class="fld">Emails <span class="prefhint">★ marks preferred</span></label><div id="p_emails">'+prefFieldHtml('p_email',pemails,'name@email.com','prefemail',P.preferredEmail)+'</div></div>'
       + '<div class="fldrow"><label class="fld">Phones <span class="prefhint">★ marks preferred</span></label><div id="p_phones">'+prefFieldHtml('p_phone',pphones,'(555) 555-5555','prefphone',P.preferredPhone,true)+'</div></div>'
       + '<div class="fldrow2"><div><label class="fld">Lead source</label><select id="p_lead">'+leadOpts+'</select></div><div><label class="fld">LinkedIn</label><input id="p_url" value="'+esc(P.url||'')+'" placeholder="linkedin.com/in/…"></div></div>'
       + '<div class="fldrow"><label class="fld">Preferred contact method</label><div id="p_pref" style="display:flex;gap:16px;font-size:13px;padding-top:2px">'+['phone','text','email'].map(function(k){ var pc=Array.isArray(P.prefContact)?P.prefContact:[]; return '<label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="p_prefchk" value="'+k+'"'+(pc.indexOf(k)>=0?' checked':'')+'> '+k.charAt(0).toUpperCase()+k.slice(1)+'</label>'; }).join('')+'</div></div>'
+      + '</div></div>'
+      + '<div class="rsec" data-rsec><div class="rsechd">Details <span class="cv">▾</span></div><div class="rsecbody">'
       + '<div class="fldrow2"><div><label class="fld">Last contacted</label><input type="date" id="p_lastcontact" value="'+esc(P.lastContacted||'')+'"></div><div style="display:flex;align-items:flex-end"><button type="button" class="mfadd" id="p_ctToday" style="margin-bottom:1px">Contacted today</button></div></div>'
       + '<div class="fldrow"><label class="fld">Tags</label><div class="tagedit" id="p_tagedit"></div><input id="p_taginput" list="alltagslist" placeholder="Type a tag, Enter to add" autocomplete="off" style="margin-top:7px">'+tagDatalist+'</div>'
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="p_notes" placeholder="Preferences, budget, concepts of interest, history…">'+esc(P.notes||'')+'</textarea></div>'
+      + '</div></div>'
       + '<div class="saved" id="p_saved"></div><div id="p_msg" style="font-size:12.5px;color:#b23a2c;margin-top:8px"></div>'
       + (IS_ADMIN?('<div class="pdangerz"><button class="pdelbtn" id="p_delete">Delete contact</button><div class="pdangernote">Admin only. Removes this person from the registry. Their name stays on any past offers and tours. Cannot be undone.</div></div>'):'')
     + '</div></div></div>'
-    + '<div class="main">'+activityCard()+agreementsCard()+emailCard()+dealsCard+toursCard+'</div>';
+    + '<div class="mid">'+statTiles()+activityCard()+emailCard()+'</div>'
+    + '<div class="rail">'+companyRail()+agreementsCard()+dealsCard+toursCard+'</div>';
   var root=document.getElementById('root');
   var pd=document.getElementById('p_delete'); if(pd) pd.addEventListener('click',deletePerson);
   ['p_first','p_last','p_type','p_nick','p_company','p_lead','p_url','p_lastcontact','p_notes'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener(el.tagName==='SELECT'?'change':'input',queueSave); });
@@ -423,6 +448,7 @@ function render(){
   wireAgreements();
   wireEmail();
   wireActivity();
+  document.querySelectorAll('[data-rsec] .rsechd').forEach(function(h){ h.addEventListener('click',function(){ h.parentNode.classList.toggle('collapsed'); }); });
 }
 function mfHtml(cls,values,ph){ values=(values&&values.length)?values:['']; var rows=values.map(function(v){ return '<div class="mfrow"><input class="'+cls+'" value="'+esc(v)+'" placeholder="'+esc(ph)+'"><button type="button" class="mfrm">×</button></div>'; }).join(''); return '<div class="mfwrap">'+rows+'<button type="button" class="mfadd" data-cls="'+cls+'" data-ph="'+esc(ph)+'">+ Add another</button></div>'; }
 function prefFieldHtml(cls,values,ph,grp,prefVal,isPhone){
