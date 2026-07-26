@@ -33,7 +33,8 @@
       { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
       { ic: '✚', label: 'Site & Concept Fit', href: 'rrg_site_fit.html' },
       { ic: '⊚', label: 'Tour Tracker', href: 'rrg_tour_tracker.html' },
-      { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' }
+      { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' },
+      { ic: '§', label: 'LOI Builder', href: 'rrg_loi_builder.html' }
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
       { ic: '✉', label: 'Requests', href: 'rrg_tickets.html' },

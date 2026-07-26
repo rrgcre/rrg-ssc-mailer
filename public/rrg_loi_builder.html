@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — LOI Builder</title>
+<script src="/rrg_brand.js"></script>
+<style>
+:root{ --navy:#000E31; --red:#DA2B1F; --ink:#1a2236; --muted:#6b7488; --line:#e6e9f0; --wash:#f5f7fb; --bg:#eef1f6; --gold:#dfa937; }
+*{box-sizing:border-box;} html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);}
+.top{background:radial-gradient(115% 130% at 50% 0%, #3a2c0e 0%, #241a06 55%, #120c02 100%);color:#fff;padding:24px 0;}
+.top-inner{max-width:960px;margin:0 auto;padding:0 28px;}
+.kick{color:var(--gold);font-weight:700;letter-spacing:.28em;font-size:11px;text-transform:uppercase;}
+h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
+.sub{color:#d8cfae;font-size:13px;margin-top:6px;max-width:640px;line-height:1.5;}
+.wrap{max-width:960px;margin:22px auto 60px;padding:0 28px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);margin-bottom:16px;overflow:hidden;}
+.ch{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;}
+.ch b{color:var(--navy);font-size:14px;} .ch .hint{color:var(--muted);font-size:12px;}
+.cb{padding:16px 18px;}
+.typerow{display:flex;gap:10px;flex-wrap:wrap;}
+.typebtn{border:1px solid #cfd6e2;background:#fff;color:var(--ink);border-radius:10px;padding:11px 18px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;}
+.typebtn.on{background:var(--gold);border-color:var(--gold);color:#241905;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;}
+@media(max-width:640px){.grid{grid-template-columns:1fr;}}
+.fld{display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 0 5px;}
+.f input{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;background:#fff;}
+.f input:focus{outline:none;border-color:var(--gold);}
+.clause{border:1px solid var(--line);border-radius:10px;margin-bottom:9px;overflow:hidden;}
+.clause.on{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold);}
+.clhd{display:flex;align-items:center;gap:11px;padding:11px 13px;cursor:pointer;}
+.clhd input{width:18px;height:18px;flex:none;accent-color:var(--gold);cursor:pointer;}
+.cltitle{font-weight:700;color:var(--navy);font-size:13.5px;flex:1;}
+.cltoggle{color:var(--muted);font-size:12px;cursor:pointer;user-select:none;}
+.clbody{padding:0 13px 12px 42px;color:#42506b;font-size:12.5px;line-height:1.55;display:none;}
+.clause.exp .clbody{display:block;}
+.actions{display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap;}
+.gen{background:var(--red);color:#fff;border:none;border-radius:10px;padding:13px 26px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;}
+.gen:disabled{opacity:.6;cursor:default;}
+.msg{font-size:13px;color:var(--muted);}
+.adminlink{margin-left:auto;font-size:12.5px;color:var(--gold);font-weight:700;text-decoration:none;}
+.selcount{font-size:12px;color:var(--muted);}
+.note{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-inner">
+  <div class="kick">Tenant Rep · Documents</div>
+  <h1>LOI Builder</h1>
+  <div class="sub">Pick the LOI type, fill the key info and terms, choose the sections this deal needs, and download an editable Word (.rtf) draft to finish up.</div>
+</div></div>
+<div class="wrap" id="wrap"><div class="card"><div class="cb"><div class="msg">Loading…</div></div></div></div>
+
+<script>
+var CFG=null, TYPES=[], IS_ADMIN=false, REP='', TYPE='tenant_rep', VALUES={}, SEL={};
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function todayStr(){ try{ return new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}); }catch(e){ return ''; } }
+
+function curType(){ return CFG&&CFG[TYPE]?CFG[TYPE]:{info:[],terms:[],clauses:[]}; }
+
+function fieldHtml(f){
+  var v=VALUES[f.key]!=null?VALUES[f.key]:'';
+  return '<div class="f"><label class="fld">'+esc(f.label)+'</label><input data-k="'+esc(f.key)+'" value="'+esc(v)+'"></div>';
+}
+function render(){
+  var t=curType();
+  var typebtns=TYPES.map(function(ty){ return '<button class="typebtn'+(ty.key===TYPE?' on':'')+'" data-type="'+esc(ty.key)+'">'+esc(ty.name)+'</button>'; }).join('');
+  var info=(t.info||[]).map(fieldHtml).join('');
+  var terms=(t.terms||[]).map(fieldHtml).join('');
+  var clauses=(t.clauses||[]).slice().sort(function(a,b){return (a.order||0)-(b.order||0);}).map(function(c){
+    var on=!!SEL[c.id];
+    return '<div class="clause'+(on?' on':'')+'" data-cid="'+esc(c.id)+'"><div class="clhd"><input type="checkbox" class="clck"'+(on?' checked':'')+'><span class="cltitle">'+esc(c.title)+'</span><span class="cltoggle">preview</span></div><div class="clbody">'+esc(c.body)+'</div></div>';
+  }).join('');
+  var selN=Object.keys(SEL).filter(function(k){return SEL[k];}).length;
+  var adminLink=IS_ADMIN?'<a class="adminlink" href="./rrg_admin_loi.html">Manage clause library →</a>':'';
+  document.getElementById('wrap').innerHTML=
+    '<div class="card"><div class="ch"><b>LOI type</b>'+adminLink+'</div><div class="cb"><div class="typerow">'+typebtns+'</div></div></div>'
+    +'<div class="card"><div class="ch"><b>Key info</b></div><div class="cb"><div class="grid">'+info+'</div></div></div>'
+    +'<div class="card"><div class="ch"><b>Key terms</b><span class="hint">Blanks become fill-in lines in the draft</span></div><div class="cb"><div class="grid">'+terms+'</div></div></div>'
+    +'<div class="card"><div class="ch"><b>Optional sections</b><span class="hint">Check the ones this deal needs</span><span class="selcount" style="margin-left:auto">'+selN+' selected</span></div><div class="cb">'+(clauses||'<div class="msg">No sections in the library yet.</div>')+'</div></div>'
+    +'<div class="card"><div class="cb"><div class="actions"><button class="gen" id="genBtn">Generate LOI (.rtf)</button><span class="msg" id="genMsg"></span></div><div class="note">The draft downloads as a Word-compatible .rtf — open it in Word or Google Docs to finish up. Any blank term prints as a fill-in line.</div></div></div>';
+  wire();
+}
+function collect(){
+  document.querySelectorAll('#wrap input[data-k]').forEach(function(i){ VALUES[i.getAttribute('data-k')]=i.value; });
+}
+function wire(){
+  document.querySelectorAll('.typebtn').forEach(function(b){ b.addEventListener('click',function(){ collect(); TYPE=b.getAttribute('data-type'); SEL={}; render(); }); });
+  document.querySelectorAll('#wrap input[data-k]').forEach(function(i){ i.addEventListener('input',function(){ VALUES[i.getAttribute('data-k')]=i.value; }); });
+  document.querySelectorAll('.clause').forEach(function(cl){
+    var cid=cl.getAttribute('data-cid');
+    var ck=cl.querySelector('.clck');
+    ck.addEventListener('change',function(){ SEL[cid]=ck.checked; cl.classList.toggle('on',ck.checked); var n=Object.keys(SEL).filter(function(k){return SEL[k];}).length; var sc=document.querySelector('.selcount'); if(sc) sc.textContent=n+' selected'; });
+    cl.querySelector('.cltoggle').addEventListener('click',function(e){ e.stopPropagation(); cl.classList.toggle('exp'); });
+    cl.querySelector('.cltitle').addEventListener('click',function(){ ck.checked=!ck.checked; ck.dispatchEvent(new Event('change')); });
+  });
+  var g=document.getElementById('genBtn'); if(g) g.addEventListener('click',generate);
+}
+function generate(){
+  collect();
+  var g=document.getElementById('genBtn'), m=document.getElementById('genMsg');
+  var clauses=Object.keys(SEL).filter(function(k){return SEL[k];});
+  g.disabled=true; g.textContent='Generating…'; if(m) m.textContent='';
+  fetch('/api/loi/generate',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:TYPE,values:VALUES,clauses:clauses})})
+    .then(function(r){ if(!r.ok) throw new Error('Server error'); var cd=r.headers.get('Content-Disposition')||''; var mm=cd.match(/filename="([^"]+)"/); var name=mm?mm[1]:'LOI.rtf'; return r.blob().then(function(bl){ return {bl:bl,name:name}; }); })
+    .then(function(o){ var url=URL.createObjectURL(o.bl); var a=document.createElement('a'); a.href=url; a.download=o.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(url);},1500); g.disabled=false; g.textContent='Generate LOI (.rtf)'; if(m) m.textContent='Downloaded '+o.name; })
+    .catch(function(){ g.disabled=false; g.textContent='Generate LOI (.rtf)'; if(m) m.textContent='Could not generate — try again.'; });
+}
+fetch('/api/loi',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+  CFG=(j&&j.config)||{}; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&j.isAdmin); REP=(j&&j.rep)||'';
+  if(TYPES.length && !CFG[TYPE]) TYPE=TYPES[0].key;
+  VALUES.date=todayStr(); if(REP) VALUES.rep=REP;
+  render();
+}).catch(function(){ document.getElementById('wrap').innerHTML='<div class="card"><div class="cb"><div class="msg">Could not load the LOI Builder.</div></div></div>'; });
+</script>
+</body>
+</html>

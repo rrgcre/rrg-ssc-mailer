@@ -211,6 +211,7 @@ const TOOL_DEFS = [
   { file: 'rrg_companies.html', name: 'Companies' },
   { file: 'rrg_people.html', name: 'Contacts' },
   { file: 'rrg_assignments.html', name: 'Listings' },
+  { file: 'rrg_loi_builder.html', name: 'LOI Builder' },
   { file: 'rrg_agreements.html', name: 'Agreements' },
   { file: 'rrg_tasks.html', name: 'Tasks' },
   { file: 'rrg_tickets.html', name: 'Requests' },
@@ -5594,6 +5595,7 @@ const GATEABLE_TOOLS = [
   { file: 'rrg_companies.html', name: 'Companies' },
   { file: 'rrg_people.html', name: 'Contacts' },
   { file: 'rrg_assignments.html', name: 'Listings' },
+  { file: 'rrg_loi_builder.html', name: 'LOI Builder' },
   { file: 'rrg_command.html', name: 'Command Center' },
   { file: 'rrg_tasks.html', name: 'Tasks' },
   { file: 'rrg_agreements.html', name: 'Agreements' },
@@ -5778,6 +5780,220 @@ app.post('/api/admin/sms/test', requireAdmin, express.json(), async (req, res) =
   catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 function taskChannels(t) { if (Array.isArray(t.remChannels)) return t.remChannels; if (t.remChannel === 'email') return ['email']; if (t.remChannel === 'popup') return ['popup']; return ['popup', 'email']; }
+
+// ================= LOI Builder (tenant-rep + business-sale letters of intent) =================
+function newLoiClauseId() { return 'loic_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+const LOI_TYPES = [ { key: 'tenant_rep', name: 'Tenant Rep (Lease)' }, { key: 'business_sale', name: 'Business Sale' } ];
+
+function defaultLoiConfig() {
+  return {
+    tenant_rep: {
+      name: 'Tenant Rep (Lease)',
+      top: `RESTAURANT REALTY GROUP, LLC
+Austin  |  Dallas  |  Houston  |  San Antonio
+
+{{date}}
+
+{{landlord}}
+RE: Letter of Intent to Lease - {{property}}
+
+Dear {{landlord}}:
+
+On behalf of {{tenant}} ("Tenant"), Restaurant Realty Group, LLC submits this non-binding Letter of Intent setting forth the principal terms under which Tenant would lease space at {{property}}. This letter is intended solely to facilitate negotiation of a definitive lease and creates no binding obligation on either party except as expressly stated below.`,
+      bottom: `Non-Binding. This Letter of Intent is a non-binding expression of interest only. No party is bound unless and until a definitive lease is executed by both parties, and either party may withdraw at any time prior to such execution.
+
+Confidentiality. The parties shall keep the terms of this Letter of Intent confidential and shall not disclose them to any third party except their respective attorneys, accountants, and advisors.
+
+Governing Law. This Letter of Intent shall be governed by the laws of the State of Texas.
+
+Expiration. This Letter of Intent shall expire if not accepted in writing on or before {{expiration}}.
+
+Accepted and Agreed:
+
+TENANT: {{tenant}}
+
+By: ______________________________   Date: __________
+
+LANDLORD: {{landlord}}
+
+By: ______________________________   Date: __________
+
+Broker: {{rep}}, Restaurant Realty Group, LLC`,
+      info: [
+        { key: 'date', label: 'Date' },
+        { key: 'tenant', label: 'Tenant (entity)' },
+        { key: 'landlord', label: 'Landlord' },
+        { key: 'property', label: 'Property / address / suite' },
+        { key: 'rep', label: 'RRG rep' }
+      ],
+      terms: [
+        { key: 'premises', label: 'Premises / Suite' },
+        { key: 'rsf', label: 'Rentable Square Feet' },
+        { key: 'use', label: 'Permitted Use' },
+        { key: 'term', label: 'Lease Term' },
+        { key: 'commencement', label: 'Commencement / Delivery' },
+        { key: 'base_rent', label: 'Base Rent' },
+        { key: 'rent_structure', label: 'Rent Structure (NNN / Gross)' },
+        { key: 'escalations', label: 'Annual Escalations' },
+        { key: 'free_rent', label: 'Free Rent / Abatement' },
+        { key: 'ti', label: 'TI Allowance' },
+        { key: 'delivery_condition', label: 'Delivery Condition' },
+        { key: 'options', label: 'Renewal Options' },
+        { key: 'security', label: 'Security Deposit' },
+        { key: 'guaranty', label: 'Personal Guaranty' },
+        { key: 'expiration', label: 'LOI Expiration' }
+      ],
+      clauses: [
+        { id: 'c_patio', order: 0, title: 'Patio / Outdoor Seating', body: `Tenant shall have the exclusive right to use the outdoor/patio area adjacent to the Premises for seating and service at no additional base rent. Landlord shall deliver the patio area in a condition suitable for restaurant use, including any required railings, drainage, and utility connections, and shall reasonably cooperate with Tenant in obtaining any municipal permits required for outdoor service.` },
+        { id: 'c_parking', order: 1, title: 'Parking', body: `Landlord shall provide not fewer than {{parking_spaces}} parking spaces for the non-exclusive use of Tenant, its employees, and its patrons at no additional charge, and shall maintain the parking area, lighting, and access drives in good condition throughout the Term.` },
+        { id: 'c_bar', order: 2, title: 'Bar Service / TABC Liquor', body: `The Permitted Use shall include the sale and on-premises consumption of alcoholic beverages. Landlord represents that the Premises may be used for such purpose under applicable zoning and that no deed restriction, covenant, or other tenant exclusive prohibits the sale of alcohol at the Premises. Tenant's obligations are contingent upon Tenant obtaining all required TABC permits.` },
+        { id: 'c_grease', order: 3, title: 'Grease Trap, Hood & Venting', body: `Landlord shall deliver the Premises with an adequately sized grease trap/interceptor and a code-compliant kitchen exhaust hood, make-up air, and roof-penetration venting suitable for a full-service restaurant, or shall provide a corresponding allowance for Tenant to install same, and shall permit Tenant to install and maintain rooftop and exterior equipment as reasonably required.` },
+        { id: 'c_signage', order: 4, title: 'Signage', body: `Tenant shall have the right to install building, storefront, and, where available, pylon/monument signage identifying Tenant's business, subject to Landlord's reasonable approval and applicable codes. Landlord shall provide Tenant its proportionate share of any multi-tenant pylon or monument sign.` },
+        { id: 'c_hours', order: 5, title: 'Hours of Operation', body: `Tenant shall have the right to operate during such days and hours as Tenant determines appropriate for its concept, including late-night and weekend hours, subject only to applicable law. No lease provision or association rule shall restrict Tenant's operating hours.` },
+        { id: 'c_hvac', order: 6, title: 'HVAC Responsibility', body: `Landlord shall deliver the HVAC system serving the Premises in good working order and shall warrant the same for not less than one (1) year following the Commencement Date. Thereafter Tenant shall maintain the HVAC under a service contract, provided that replacement of any major component shall remain Landlord's responsibility.` },
+        { id: 'c_excl', order: 7, title: 'Exclusive Use / Radius', body: `During the Term, Landlord shall not lease or permit the use of any other space in the property, or any adjacent property owned by Landlord, to a business whose primary use is {{exclusive_use}}. This exclusive shall run with the Premises and inure to the benefit of Tenant and its successors and assigns.` },
+        { id: 'c_coten', order: 8, title: 'Co-Tenancy', body: `Tenant's obligation to open and to pay full base rent shall be conditioned upon the property maintaining occupancy of not less than {{cotenancy_pct}}% of leasable area and continued operation of the anchor tenant(s). If the co-tenancy condition is not satisfied, Tenant shall be entitled to reduced (alternative) rent and, if the failure continues, the right to terminate.` },
+        { id: 'c_assign', order: 9, title: 'Assignment & Subletting', body: `Tenant shall have the right to assign the lease or sublet the Premises to an affiliate, franchisee, or in connection with the sale of substantially all of Tenant's business without Landlord's consent, and otherwise with Landlord's consent, not to be unreasonably withheld, conditioned, or delayed.` },
+        { id: 'c_snda', order: 10, title: 'SNDA / Non-Subordination', body: `The lease shall not be subordinate to any current or future mortgage unless the holder delivers to Tenant a commercially reasonable Subordination, Non-Disturbance and Attornment Agreement recognizing Tenant's rights under the lease so long as Tenant is not in default.` },
+        { id: 'c_ada', order: 11, title: 'ADA & Compliance', body: `Landlord shall deliver the Premises and all common areas in compliance with all applicable laws, including the Americans with Disabilities Act, and free of hazardous materials. Any compliance work required as of delivery that is not the result of Tenant's specific improvements shall be Landlord's responsibility and expense.` },
+        { id: 'c_delay', order: 12, title: 'Delivery Delay / Outside Date', body: `If Landlord is unable to deliver the Premises in the required condition by the target delivery date, base rent and the rent commencement date shall be postponed day-for-day, and if delivery is delayed beyond {{outside_date}}, Tenant may terminate this transaction without penalty.` }
+      ]
+    },
+    business_sale: {
+      name: 'Business Sale',
+      top: `RESTAURANT REALTY GROUP, LLC
+Austin  |  Dallas  |  Houston  |  San Antonio
+
+{{date}}
+
+{{seller}}
+RE: Letter of Intent to Purchase - {{business}}
+
+Dear {{seller}}:
+
+On behalf of {{buyer}} ("Buyer"), Restaurant Realty Group, LLC submits this non-binding Letter of Intent setting forth the principal terms under which Buyer would acquire {{business}}. This letter is intended solely to facilitate negotiation of a definitive purchase agreement and creates no binding obligation except as expressly stated below.`,
+      bottom: `Non-Binding. This Letter of Intent is a non-binding expression of interest only, except for the Confidentiality and Exclusivity provisions, if any. No party is bound to complete the transaction unless and until a definitive purchase agreement is executed by both parties.
+
+Confidentiality. The parties shall keep the existence and terms of this Letter of Intent strictly confidential.
+
+Governing Law. This Letter of Intent shall be governed by the laws of the State of Texas.
+
+Expiration. This Letter of Intent shall expire if not accepted in writing on or before {{expiration}}.
+
+Accepted and Agreed:
+
+BUYER: {{buyer}}
+
+By: ______________________________   Date: __________
+
+SELLER: {{seller}}
+
+By: ______________________________   Date: __________
+
+Broker: {{rep}}, Restaurant Realty Group, LLC`,
+      info: [
+        { key: 'date', label: 'Date' },
+        { key: 'buyer', label: 'Buyer (entity)' },
+        { key: 'seller', label: 'Seller' },
+        { key: 'business', label: 'Business / concept' },
+        { key: 'rep', label: 'RRG rep' }
+      ],
+      terms: [
+        { key: 'purchase_price', label: 'Purchase Price' },
+        { key: 'structure', label: 'Structure (Asset / Entity)' },
+        { key: 'earnest', label: 'Earnest Money Deposit' },
+        { key: 'allocation', label: 'Price Allocation' },
+        { key: 'financing', label: 'Financing / Seller Note' },
+        { key: 'dd_period', label: 'Due Diligence Period' },
+        { key: 'closing', label: 'Target Closing' },
+        { key: 'lease', label: 'Lease Assignment / New Lease' },
+        { key: 'expiration', label: 'LOI Expiration' }
+      ],
+      clauses: [
+        { id: 'b_sellerfin', order: 0, title: 'Seller Financing', body: `A portion of the Purchase Price in the amount of {{seller_note}} shall be seller-financed under a promissory note bearing interest at {{note_rate}} per annum, amortized over {{note_term}}, secured by the assets sold and personally guaranteed by Buyer's principals.` },
+        { id: 'b_transition', order: 1, title: 'Training & Transition', body: `Seller shall provide Buyer with training and transition assistance for a period of {{training_period}} following Closing at no additional cost, to ensure an orderly transfer of operations, vendor relationships, and recipes/systems.` },
+        { id: 'b_noncompete', order: 2, title: 'Non-Compete', body: `Seller and its principals shall execute a non-competition and non-solicitation agreement for a period of {{noncompete_years}} years within a {{noncompete_radius}} radius of the business location(s).` },
+        { id: 'b_inventory', order: 3, title: 'Inventory', body: `Usable food, beverage, and supply inventory on hand at Closing shall be purchased by Buyer at Seller's documented cost, in addition to the Purchase Price, based on a joint physical count taken at Closing.` },
+        { id: 'b_tabc', order: 4, title: 'TABC / Liquor License', body: `The transaction is contingent on transfer or issuance of all required TABC permits. Consistent with RRG practice, the Texas liquor license is assigned no separate value and is not a price component (except in San Marcos, Texas, where transferable license value may apply).` },
+        { id: 'b_lease', order: 5, title: 'Lease Assignment', body: `Closing is contingent upon assignment of the existing lease to Buyer on terms acceptable to Buyer, or the execution of a new lease with the landlord, with Seller and broker reasonably cooperating to obtain landlord consent.` },
+        { id: 'b_exclusivity', order: 6, title: 'Exclusivity / No-Shop', body: `For a period of {{exclusivity_days}} days following acceptance, Seller shall not solicit, encourage, or entertain any competing offer for the business and shall negotiate exclusively and in good faith with Buyer toward a definitive agreement.` }
+      ]
+    }
+  };
+}
+function loadLoiConfig() { const s = loadSettings(); return (s.loi && s.loi.tenant_rep) ? s.loi : defaultLoiConfig(); }
+function saveLoiConfig(cfg) { const s = loadSettings(); s.loi = cfg; saveSettings(s); }
+
+function loiFill(text, vals) { return String(text == null ? '' : text).replace(/\{\{(\w+)\}\}/g, function (_, k) { var v = vals[k]; return (v != null && String(v).trim() !== '') ? String(v) : '____________'; }); }
+function loiRtfEsc(s) {
+  s = String(s == null ? '' : s);
+  s = s.replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}');
+  s = s.replace(/\r\n|\r|\n/g, '\\par ');
+  s = s.replace(/[^\x00-\x7F]/g, function (c) { return '\\u' + c.charCodeAt(0) + '?'; });
+  return s;
+}
+
+app.get('/api/loi', (req, res) => {
+  res.json({ ok: true, types: LOI_TYPES, config: loadLoiConfig(), isAdmin: !!(req.user && req.user.role === 'admin'), rep: (req.user && req.user.name) || '' });
+});
+app.post('/api/loi/generate', express.json(), (req, res) => {
+  const b = req.body || {};
+  const cfg = loadLoiConfig();
+  const type = (b.type && cfg[b.type]) ? b.type : 'tenant_rep';
+  const t = cfg[type];
+  const vals = Object.assign({}, b.values || {});
+  if (!vals.date) vals.date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const sel = Array.isArray(b.clauses) ? b.clauses : [];
+  const parts = ['{\\rtf1\\ansi\\ansicpg1252\\deff0{\\fonttbl{\\f0\\froman Times New Roman;}}\\paperw12240\\paperh15840\\margl1440\\margr1440\\margt1440\\margb1440\\f0\\fs22 '];
+  parts.push(loiRtfEsc(loiFill(t.top, vals)) + '\\par \\par ');
+  parts.push('{\\b\\fs24 KEY TERMS}\\par ');
+  (t.terms || []).forEach(function (f) { var v = vals[f.key]; if (v != null && String(v).trim() !== '') parts.push('{\\b ' + loiRtfEsc(f.label) + ': }' + loiRtfEsc(String(v)) + '\\par '); });
+  parts.push('\\par ');
+  (t.clauses || []).filter(function (c) { return sel.indexOf(c.id) >= 0; }).sort(function (a, c) { return (a.order || 0) - (c.order || 0); }).forEach(function (c) {
+    parts.push('{\\b ' + loiRtfEsc(c.title) + '}\\par ');
+    parts.push(loiRtfEsc(loiFill(c.body, vals)) + '\\par \\par ');
+  });
+  parts.push(loiRtfEsc(loiFill(t.bottom, vals)));
+  parts.push('}');
+  const rtf = parts.join('');
+  const who = String(vals.tenant || vals.buyer || vals.business || 'Draft').replace(/[^a-zA-Z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'Draft';
+  const fname = 'LOI_' + (type === 'business_sale' ? 'Business' : 'TenantRep') + '_' + who + '.rtf';
+  res.setHeader('Content-Type', 'application/rtf');
+  res.setHeader('Content-Disposition', 'attachment; filename="' + fname + '"');
+  res.send(rtf);
+});
+app.post('/api/loi/boilerplate', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const cfg = loadLoiConfig(); const t = cfg[b.type];
+  if (!t) return res.status(400).json({ ok: false, error: 'Unknown LOI type.' });
+  if (typeof b.top === 'string') t.top = b.top.slice(0, 20000);
+  if (typeof b.bottom === 'string') t.bottom = b.bottom.slice(0, 20000);
+  saveLoiConfig(cfg); res.json({ ok: true, config: cfg });
+});
+app.post('/api/loi/clause', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const cfg = loadLoiConfig(); const t = cfg[b.type];
+  if (!t) return res.status(400).json({ ok: false, error: 'Unknown LOI type.' });
+  const list = t.clauses = Array.isArray(t.clauses) ? t.clauses : [];
+  let c = b.id ? list.find(x => x.id === b.id) : null;
+  if (!c) { c = { id: newLoiClauseId(), order: list.length }; list.push(c); }
+  if (typeof b.title === 'string') c.title = b.title.slice(0, 160);
+  if (typeof b.body === 'string') c.body = b.body.slice(0, 8000);
+  saveLoiConfig(cfg); res.json({ ok: true, clause: c, config: cfg });
+});
+app.delete('/api/loi/clause/:type/:id', requireAdmin, (req, res) => {
+  const cfg = loadLoiConfig(); const t = cfg[req.params.type];
+  if (!t) return res.status(400).json({ ok: false, error: 'Unknown LOI type.' });
+  t.clauses = (t.clauses || []).filter(c => c.id !== req.params.id);
+  saveLoiConfig(cfg); res.json({ ok: true, config: cfg });
+});
+app.post('/api/loi/clause/reorder', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const cfg = loadLoiConfig(); const t = cfg[b.type];
+  if (!t) return res.status(400).json({ ok: false, error: 'Unknown LOI type.' });
+  const order = Array.isArray(b.order) ? b.order : [];
+  (t.clauses || []).forEach(c => { const i = order.indexOf(c.id); c.order = i < 0 ? 999 : i; });
+  (t.clauses || []).sort((a, c) => (a.order || 0) - (c.order || 0));
+  saveLoiConfig(cfg); res.json({ ok: true, config: cfg });
+});
+
 
 const PORT = process.env.PORT || 8787;
 app.listen(PORT, () => console.log(`RRG toolkit server listening on :${PORT}`));
