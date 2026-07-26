@@ -24,6 +24,11 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .tile{background:#fff;border:1px solid #e9edf3;border-radius:12px;padding:15px 16px;box-shadow:0 1px 2px rgba(16,24,40,.04);}
 .tile .n{font-size:21px;font-weight:600;color:var(--ink);letter-spacing:-.01em;}
 .tile .l{font-size:12px;color:var(--muted);margin-top:3px;}
+.rechero{display:flex;align-items:center;gap:13px;margin-bottom:16px;}
+.rechero .rhlogo{width:48px;height:48px;border-radius:11px;background:#eef1f6;color:#5a6478;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;border:1px solid #e9edf3;overflow:hidden;flex:none;}
+.rechero .rhlogo img{width:100%;height:100%;object-fit:contain;}
+.rechero .rhname{font-size:20px;font-weight:600;color:var(--ink);letter-spacing:-.01em;}
+.rechero .rhmeta{font-size:13px;color:var(--muted);margin-top:2px;}
 .rrow{display:flex;align-items:center;gap:10px;padding:9px 20px;text-decoration:none;color:inherit;}
 .rrow:hover{background:#fbfcfe;}
 .rric{width:28px;height:28px;border-radius:7px;background:#eef1f6;color:#3f8a63;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;}
@@ -188,6 +193,7 @@ function agreementsCardCo(){
   var chips=AGREEMENTS.length?AGREEMENTS.map(agrChipCo).join(''):'<div class="empty" style="padding:6px 2px">No agreements linked to this company yet. Add them from a contact.</div>';
   return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGREEMENTS.length+'</span></div><div class="cb"><div class="jbeans">'+chips+'</div></div></div>';
 }
+function recordHeaderCo(){ var lg=(C.logo||LOGOAUTO||''); return '<div class="rechero"><div class="rhlogo">'+(lg?('<img src="'+esc(lg)+'" onerror="this.remove()">'):esc((C.name||'?').charAt(0).toUpperCase()))+'</div><div><div class="rhname">'+esc(C.name||'Company')+'</div><div class="rhmeta">'+esc(C.type||'Company')+' · '+CONTACTS.length+' contact'+(CONTACTS.length===1?'':'s')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+' · '+DEALS.length+' deal'+(DEALS.length===1?'':'s')+'</div></div></div>'; }
 function statTilesCo(){ return '<div class="tiles"><div class="tile"><div class="n">'+CONCEPTS.length+'</div><div class="l">Concepts</div></div><div class="tile"><div class="n">'+LOCATIONS.length+'</div><div class="l">Locations</div></div><div class="tile"><div class="n">'+DEALS.length+'</div><div class="l">Deals</div></div></div>'; }
 function render(){
   document.getElementById('crumb').textContent=C.name||'Company';
@@ -213,7 +219,7 @@ function render(){
   }
   function conceptBlock(cpt){
     var mine=LOCATIONS.filter(function(l){ return (l.concept||'')===cpt.name && !l.commissary; });
-    var tp=[]; if(cpt.cuisine) tp.push(esc(cpt.cuisine)); if(cpt.conceptType) tp.push(esc(cpt.conceptType)); if(cpt.pricePoint) tp.push(esc(cpt.pricePoint));
+    var tp=[]; if(cpt.conceptType) tp.push(esc(cpt.conceptType)); if(cpt.pricePoint) tp.push(esc(cpt.pricePoint));
     var tpbadge=tp.length?('<span class="cpttype">'+tp.join(' · ')+'</span>'):'';
     var mkts=(cpt.markets&&cpt.markets.length)?('<span class="cptmkts">'+cpt.markets.map(esc).join(' · ')+'</span>'):'';
     var rows=mine.length?mine.map(locRow).join(''):'<div class="cptempty">No locations yet — add one with <b>+ Location</b>, or open <b>Edit</b> to find them from the web.</div>';
@@ -251,9 +257,9 @@ function render(){
   var mkset={}; CONCEPTS.forEach(function(cp){ (cp.markets||[]).forEach(function(m){ if(m) mkset[m]=1; }); }); var markets=Object.keys(mkset);
   document.getElementById('root').className='wrap';
   document.getElementById('root').innerHTML=
-    '<div class="mid">'+statTilesCo()
+    '<div class="mid">'+recordHeaderCo()+statTilesCo()
     + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="addContactBtn">+ Add contact</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
-    + '<div class="card"><div class="ch"><b>Concepts, Commissaries &amp; Locations</b><span>'+CONCEPTS.length+' concept'+(CONCEPTS.length===1?'':'s')+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn">+ Commissary</button><button class="addbtn" id="addConceptBtn">+ Add concept</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Concepts, Locations &amp; Commissaries</b><span>'+CONCEPTS.length+' concept'+(CONCEPTS.length===1?'':'s')+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn">+ Commissary</button><button class="addbtn" id="addConceptBtn">+ Add concept</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
     + '</div>'
     + '<div class="rail">'
     + '<div class="card"><div class="ch"><b>Deals</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
@@ -264,12 +270,11 @@ function render(){
       + '<div class="fldrow"><label class="fld">Type</label><select id="c_type">'+ctsel+'</select></div>'
       + '<div class="fldrow"><label class="fld">Tags</label><input id="c_tags" value="'+esc((C.tags&&C.tags.length)?C.tags.join(', '):'')+'" placeholder="Comma-separated, e.g. franchisor, multi-unit, target"></div>'
       + '<div class="fldrow"><label class="fld">Logo</label><div class="logorow2"><div class="logoprev2" id="c_logoprev"></div><div style="flex:1;min-width:0"><input id="c_logo" value="'+esc(C.logo||'')+'" placeholder="Logo URL — or use the website"><div style="margin-top:6px"><button type="button" class="mfadd" id="c_logoup">Upload logo</button> <button type="button" class="mfadd" id="c_logoauto">Use website logo</button><input type="file" id="c_logofile" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" style="display:none"></div></div></div></div>'
-      + '<div class="fldrow"><label class="fld">Markets</label><div class="mkline">'+((markets&&markets.length)?markets.map(esc).join(' · '):'<span class="mkempty">Set on each concept below</span>')+'</div></div>'
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="c_notes" placeholder="Ownership, history, relationships, anything worth remembering…">'+esc(C.notes||'')+'</textarea></div>'
       + '<div class="officebox">'
         + '<div class="officehd">Corporate office</div>'
         + '<div class="fldrow"><label class="fld">Address</label><input id="o_address" value="'+esc((C.office&&C.office.address)||'')+'"></div>'
-        + '<div class="fldrow2c"><div><label class="fld">City</label><input id="o_city" value="'+esc((C.office&&C.office.city)||'')+'"></div><div><label class="fld">State</label><input id="o_state" value="'+esc((C.office&&C.office.state)||'')+'"></div></div>'
+        + '<div class="fldrow2c"><div><label class="fld">City</label><input id="o_city" value="'+esc((C.office&&C.office.city)||'')+'"></div><div><label class="fld">State</label><input id="o_state" maxlength="2" oninput="this.value=this.value.toUpperCase()" value="'+esc((C.office&&C.office.state)||'')+'"></div></div>'
         + '<div class="fldrow2c"><div><label class="fld">Phone</label><input id="o_phone" value="'+esc((C.office&&C.office.phone)||'')+'"></div><div><label class="fld">Email</label><input id="o_email" value="'+esc((C.office&&C.office.email)||'')+'"></div></div>'
         + '<div class="fldrow"><label class="fld">Website</label><input id="o_website" value="'+esc((C.office&&C.office.website)||'')+'"></div>'
       + '</div>'
@@ -440,14 +445,14 @@ function openLocForm(l,presetConcept){
     +'<div><label class="fld">Status</label><select id="lo_status">'+ssel+'</select></div>'
     +'<div><label class="fld">Location name</label><input id="lo_name" value="'+esc(l.name||'')+'" placeholder="e.g. Downtown, Airport, Unit 2"></div>'
     +'<div><label class="fld">Site type</label><select id="lo_sitetype">'+stsel+'</select></div>'
-    +'<div><label class="fld">Leased or owned</label><select id="lo_tenure"><option value="">— select —</option><option'+((l.tenure||'')==='Leased'?' selected':'')+'>Leased</option><option'+((l.tenure||'')==='Owned'?' selected':'')+'>Owned</option></select></div>'
-    +'<div><label class="fld">Square feet</label><input id="lo_sf" inputmode="numeric" value="'+esc(l.sf||'')+'" placeholder="e.g. 2,400"></div>'
     +'<div class="wide"><label class="fld">Address</label><input id="lo_address" value="'+esc(l.address||'')+'" placeholder="Street address"></div>'
     +'<div><label class="fld">City / market</label><input id="lo_city" value="'+esc(l.city||'')+'" placeholder="City"></div>'
-    +'<div><label class="fld">State</label><input id="lo_state" value="'+esc(l.state||'')+'" placeholder="TX"></div>'
+    +'<div><label class="fld">State</label><input id="lo_state" maxlength="2" oninput="this.value=this.value.toUpperCase()" value="'+esc(l.state||'')+'" placeholder="TX"></div>'
     +'<div><label class="fld">Zip</label><input id="lo_zip" value="'+esc(l.zip||'')+'" placeholder="ZIP"></div>'
     +'<div><label class="fld">Phone</label><input id="lo_phone" value="'+esc(l.phone||'')+'" placeholder="(555) 555-5555"></div>'
     +'<div><label class="fld">Date opened</label><input type="date" id="lo_opened" value="'+esc(l.opened||'')+'"></div>'
+    +'<div><label class="fld">Leased or owned</label><select id="lo_tenure"><option value="">— select —</option><option'+((l.tenure||'')==='Leased'?' selected':'')+'>Leased</option><option'+((l.tenure||'')==='Owned'?' selected':'')+'>Owned</option></select></div>'
+    +'<div><label class="fld">Square feet</label><input id="lo_sf" inputmode="numeric" value="'+esc(l.sf||'')+'" placeholder="e.g. 2,400"></div>'
     +'<div><label class="fld">Lease commencement</label><input type="date" id="lo_lstart" value="'+esc(l.leaseStart||'')+'"></div>'
     +'<div><label class="fld">Lease expiration</label><input type="date" id="lo_lexp" value="'+esc(l.leaseExpires||'')+'"></div>'
     +'<div id="lo_closedwrap"'+((['Dark','Closed'].indexOf(l.status||'')>=0)?'':' style="display:none"')+'><label class="fld">Closed / went dark</label><input type="date" id="lo_closed" value="'+esc(l.closedDate||'')+'"></div>'

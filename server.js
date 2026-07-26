@@ -90,7 +90,7 @@ const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
 const PERSON_TYPES = ['Buyer', 'Seller', 'Restaurant Owner', 'Client', 'Prospect', 'Investor', 'Broker', 'Operator', 'Referral Source', 'Other'];
 const LEAD_SOURCES = ['Referral', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
 const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'Diligence', 'Note', 'To-Do'];
-const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Burgers', 'BBQ', 'Steakhouse', 'Seafood', 'Chinese', 'Japanese / Sushi', 'Thai', 'Vietnamese', 'Korean', 'Indian', 'Mediterranean', 'Greek', 'Southern / Soul', 'Breakfast / Brunch', 'Coffee / Cafe'];
+const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Burgers', 'BBQ', 'Steakhouse', 'Seafood', 'Chinese', 'Japanese / Sushi', 'Thai', 'Vietnamese', 'Korean', 'Indian', 'Mediterranean', 'Greek', 'Southern / Soul', 'Breakfast / Brunch', 'Coffee / Cafe', 'Hawaiian', 'Desserts'];
 function loadPeople() { try { return JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')); } catch (e) { return []; } }
 function savePeople(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PEOPLE_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newPersonId() { return 'per_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -335,7 +335,7 @@ function listBackups() {
     return fs.readdirSync(BACKUP_DIR).filter(f => /\.zip$/.test(f)).map(f => {
       let size = 0, mtime = 0; try { const st = fs.statSync(path.join(BACKUP_DIR, f)); size = st.size; mtime = st.mtimeMs; } catch (e) {}
       return { name: f, size, at: new Date(mtime).toISOString() };
-    }).sort((a, b) => b.name.localeCompare(a.name));
+    }).sort((a, b) => (String(b.at)).localeCompare(String(a.at)) || b.name.localeCompare(a.name));
   } catch (e) { return []; }
 }
 function pruneBackups() {
@@ -2878,7 +2878,7 @@ function applyLocationFields(l, b) {
 }
 // Location photos — a couple of images per location, stored on the data disk.
 const LOCPHOTO_DIR = path.join(BOV_DATA_DIR, 'locphotos');
-const LOCPHOTO_MAX = 2;
+const LOCPHOTO_MAX = 5;
 function photoExtFromName(n) { const m = String(n || '').toLowerCase().match(/\.(png|jpg|jpeg|webp|gif)$/); return m ? (m[1] === 'jpeg' ? 'jpg' : m[1]) : 'jpg'; }
 // ---- Google Maps integration (Street View + Places photos) — key stays server-side ----
 // Stored as *.key so it is excluded from data backups.
@@ -3904,7 +3904,7 @@ app.get('/admin', requireAdmin, (req, res) => {
     </style>
     <div class="expandbar"><a onclick="accAll(true)">Expand all</a><a onclick="accAll(false)">Collapse all</a></div>
     <div class="wrap">
-      <div class="grp">People &amp; Access</div>
+      <div class="grp">Users &amp; Access</div>
       <h2>Add a user</h2>
       <form class="add" method="post" action="/api/admin/add-user" onsubmit="return au(this)">
         <input name="firstName" placeholder="First name" required>
