@@ -87,24 +87,23 @@ function render(){
         '<div class="note">Fields whose label contains <b>name</b>, <b>company/title</b>, <b>date</b>, or <b>email</b> auto-fill from the linked contact on the signing page. The signer can edit them, then draws their signature.</div>'+
       '</div>'+
       '<div class="chk"><input type="checkbox" id="t_active"'+((e.active===false)?'':' checked')+'> Active (reps can pick this template)</div>'+
-      (e.id?('<div style="margin-top:16px"><label class="fld">Template document</label><div class="uprow">'+
-          (e.fileExt?('<span class="file-ok">📎 '+esc(e.fileName||'document')+'</span> <a class="btn ghost sm" href="/api/agreement-templates/'+esc(e.id)+'/file" target="_blank" rel="noopener">View</a>'):'<span class="file-no">No document uploaded yet</span>')+
-          '<label class="filelabel">⤒ '+(e.fileExt?'Replace file':'Upload file')+'<input type="file" id="t_file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label>'+
+      '<div style="margin-top:16px"><label class="fld">Template document (PDF or Word)</label><div class="uprow">'+
+          (e.fileExt?('<span class="file-ok">📎 '+esc(e.fileName||'document')+'</span> <a class="btn ghost sm" href="/api/agreement-templates/'+esc(e.id)+'/file" target="_blank" rel="noopener">View</a>'):'<span id="t_fname" class="file-no">No file chosen yet</span>')+
+          '<label class="filelabel">⤒ '+(e.fileExt?'Replace file':'Choose file')+'<input type="file" id="t_file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label>'+
           (e.fileExt==='pdf'?(' <a class="btn sm" style="background:#0e8a5f;border-color:#0e8a5f" href="/rrg_sign_designer.html?template='+esc(e.id)+'">✍ Design fields on the PDF</a>'):'')+
-        '</div><div class="note">PDF or Word, up to 20 MB. This is the document the signer reviews.</div></div>'):
-        '<div class="note" style="margin-top:14px">Save the template first, then you can upload its document.</div>')+
+        '</div><div class="note">Choose the file here — it saves together when you click '+(e.id?'Save changes':'Create template')+'. PDF or Word, up to 20 MB.</div></div>'+
       '<div class="btnrow"><button class="btn red" id="t_save">'+(e.id?'Save changes':'Create template')+'</button><span class="msg" id="t_msg"></span></div>'+
     '</div></div>';
 
   var listRows = TPLS.length ? TPLS.map(function(t){
-    return '<div class="trow"><div><div class="tn">'+esc(t.name)+'</div><div class="tmeta">'+
-      (t.type?('<span class="pilltype">'+esc(typeLabel(t.type))+'</span>'):'')+
-      (t.fileExt?('<span class="file-ok">📎 '+esc(t.fileName||('document.'+t.fileExt))+'</span>'):'<span class="file-no">no document</span>')+
-      '<span>'+((t.signFields||[]).length)+' field'+(((t.signFields||[]).length)===1?'':'s')+'</span>'+
-      ((t.pdfFields&&t.pdfFields.length)?('<span class="pilltype" style="background:#eef7f0;color:#0e7a53">'+t.pdfFields.length+' placed · '+(t.signerCount===2?'2 signers':'1 signer')+'</span>'):'')+
-      '<span class="status '+(t.active?'on':'off')+'">'+(t.active?'Active':'Inactive')+'</span>'+
-      '</div></div><span class="sp"></span><div class="acts">'+
-      (t.fileExt?('<a class="btn ghost sm" href="/api/agreement-templates/'+esc(t.id)+'/file" target="_blank" rel="noopener">View</a>'):'')+
+    var meta=[];
+    if(t.type) meta.push(esc(typeLabel(t.type)));
+    meta.push(t.fileExt?('📎 '+String(t.fileExt).toUpperCase()):'no file');
+    if(t.pdfFields&&t.pdfFields.length) meta.push(t.pdfFields.length+' placed fields · '+(t.signerCount===2?'2 signers':'1 signer'));
+    else if((t.signFields||[]).length) meta.push((t.signFields||[]).length+' fields');
+    return '<div class="trow"><div style="min-width:0;flex:1"><div class="tn">'+esc(t.name)+(t.active?'':' <span class="status off">Inactive</span>')+'</div>'+
+      '<div class="tmeta">'+meta.join(' &nbsp;·&nbsp; ')+'</div></div><span class="sp"></span><div class="acts">'+
+      (t.fileExt?('<a class="btn ghost sm" href="/api/agreement-templates/'+esc(t.id)+'/file" target="_blank" rel="noopener">View</a><button class="btn ghost sm" data-print="'+esc(t.id)+'">Print</button>'):'')+
       (t.fileExt==='pdf'?('<a class="btn ghost sm" href="/rrg_sign_designer.html?template='+esc(t.id)+'">Design fields</a>'):'')+
       '<button class="btn ghost sm" data-edit="'+esc(t.id)+'">Edit</button>'+
       '<button class="btn danger sm" data-del="'+esc(t.id)+'">Delete</button></div></div>';
@@ -119,9 +118,10 @@ function render(){
   var nb=document.getElementById('t_new'); if(nb) nb.addEventListener('click',function(){ EDIT={active:true}; render(); window.scrollTo(0,0); });
   var cb=document.getElementById('t_close'); if(cb) cb.addEventListener('click',function(){ EDIT=null; render(); });
   document.getElementById('t_save').addEventListener('click',saveTpl);
-  var fi=document.getElementById('t_file'); if(fi) fi.addEventListener('change',function(){ if(fi.files&&fi.files[0]) uploadFile(e.id, fi.files[0]); });
+  var fi=document.getElementById('t_file'); if(fi) fi.addEventListener('change',function(){ var fn=document.getElementById('t_fname'); if(fn&&fi.files&&fi.files[0]) fn.textContent=fi.files[0].name; });
   root.querySelectorAll('[data-edit]').forEach(function(b){ b.addEventListener('click',function(){ var t=TPLS.filter(function(x){return x.id===b.getAttribute('data-edit');})[0]; if(t){ EDIT=JSON.parse(JSON.stringify(t)); render(); window.scrollTo(0,0);} }); });
   root.querySelectorAll('[data-del]').forEach(function(b){ b.addEventListener('click',function(){ delTpl(b.getAttribute('data-del')); }); });
+  root.querySelectorAll('[data-print]').forEach(function(b){ b.addEventListener('click',function(){ printTpl(b.getAttribute('data-print')); }); });
 }
 
 function saveTpl(){
@@ -130,12 +130,30 @@ function saveTpl(){
   if(!name){ document.getElementById('t_name').focus(); if(msg){msg.textContent='Name the template first.';msg.className='msg err';} return; }
   var body={ name:name, type:document.getElementById('t_type').value, signFields:textToFields(document.getElementById('t_fields').value), active:document.getElementById('t_active').checked };
   if(EDIT&&EDIT.id) body.id=EDIT.id;
+  var fileEl=document.getElementById('t_file'); var file=(fileEl&&fileEl.files&&fileEl.files[0])||null;
+  if(file&&file.size>20*1024*1024){ if(msg){msg.textContent='File too large (max 20 MB).';msg.className='msg err';} return; }
   var btn=document.getElementById('t_save'); btn.disabled=true; if(msg){msg.textContent='Saving…';msg.className='msg';}
   post('/api/admin/agreement-templates',body).then(function(j){
-    btn.disabled=false;
-    if(j&&j.ok){ EDIT=j.template; upsert(j.template); if(msg){msg.textContent='Saved ✓';msg.className='msg ok';} render(); }
-    else { if(msg){msg.textContent=(j&&j.error)||'Could not save.';msg.className='msg err';} }
+    if(!(j&&j.ok)){ btn.disabled=false; if(msg){msg.textContent=(j&&j.error)||'Could not save.';msg.className='msg err';} return; }
+    var tpl=j.template;
+    if(file){
+      if(msg){msg.textContent='Uploading document…';}
+      var rd=new FileReader();
+      rd.onload=function(){ post('/api/admin/agreement-templates/'+encodeURIComponent(tpl.id)+'/file',{filename:file.name,dataB64:String(rd.result||'')}).then(function(j2){
+        btn.disabled=false;
+        if(j2&&j2.ok){ tpl=j2.template; EDIT=tpl; upsert(tpl); if(msg){msg.textContent='Saved ✓';msg.className='msg ok';} }
+        else { EDIT=tpl; upsert(tpl); if(msg){msg.textContent=(j2&&j2.error)||'Saved, but the document upload failed.';msg.className='msg err';} }
+        render();
+      }).catch(function(){ btn.disabled=false; EDIT=tpl; upsert(tpl); if(msg){msg.textContent='Saved, but the document upload failed.';msg.className='msg err';} render(); }); };
+      rd.readAsDataURL(file);
+    } else { btn.disabled=false; EDIT=tpl; upsert(tpl); if(msg){msg.textContent='Saved ✓';msg.className='msg ok';} render(); }
   }).catch(function(){ btn.disabled=false; if(msg){msg.textContent='Could not reach the server.';msg.className='msg err';} });
+}
+function printTpl(id){
+  var url='/api/agreement-templates/'+encodeURIComponent(id)+'/file';
+  var f=document.createElement('iframe'); f.style.position='fixed'; f.style.right='0'; f.style.bottom='0'; f.style.width='0'; f.style.height='0'; f.style.border='0';
+  f.src=url; f.onload=function(){ try{ f.contentWindow.focus(); f.contentWindow.print(); }catch(e){ window.open(url,'_blank'); } };
+  document.body.appendChild(f);
 }
 function uploadFile(id,file){
   if(!id) return;

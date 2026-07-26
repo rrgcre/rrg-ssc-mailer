@@ -200,6 +200,8 @@ function effLeadSources() { const s = loadSettings(); return (Array.isArray(s.le
 function effActivityTypes() { const s = loadSettings(); return (Array.isArray(s.activityTypes) && s.activityTypes.length) ? s.activityTypes : ACTIVITY_TYPES; }
 function effCuisineTypes() { const s = loadSettings(); return (Array.isArray(s.cuisineTypes) && s.cuisineTypes.length) ? s.cuisineTypes : CUISINE_TYPES; }
 function effMaxPullLocations() { const s = loadSettings(); const n = parseInt(s.maxPullLocations, 10); return (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
+function effDefaultState() { const s = loadSettings(); const v = String(s.defaultState || '').trim(); return v ? v.slice(0, 20) : 'TX'; }
+function effAssistantName() { const s = loadSettings(); const v = String(s.assistantName || '').trim(); return v ? v.slice(0, 40) : 'Claude'; }
 function newActivityId() { return 'act_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function logActivity(p, type, note, o) {
   o = o || {};
@@ -718,7 +720,7 @@ app.get('/api/session', (req, res) => res.json({
 app.get('/api/admin/header-msg', requireAdmin, (req, res) => { const b = loadBrand(); res.json({ ok: true, msg: b.headerMsg || '', on: b.headerMsgOn !== false }); });
 app.post('/api/admin/header-msg', requireAdmin, express.json(), (req, res) => {
   const b = loadBrand();
-  if (typeof req.body.msg === 'string') b.headerMsg = req.body.msg.slice(0, 300);
+  if (typeof req.body.msg === 'string') b.headerMsg = req.body.msg.slice(0, 160);
   if (typeof req.body.on === 'boolean') b.headerMsgOn = req.body.on;
   b.updatedAt = new Date().toISOString(); saveBrand(b);
   res.json({ ok: true, msg: b.headerMsg || '', on: b.headerMsgOn !== false });
@@ -1710,7 +1712,7 @@ app.post('/api/admin/logo/clear', requireAdmin, (req, res) => {
 // ---- App name (admin-set) — drives the browser tab title on every page ----
 const DEFAULT_APP_NAME = 'FullServe';
 function loadAppName() { const b = loadBrand(); return (b.appName && String(b.appName).trim()) || DEFAULT_APP_NAME; }
-app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName() }));
+app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName() }));
 app.get('/api/admin/app-name', requireAdmin, (req, res) => res.json({ ok: true, name: loadAppName(), isDefault: loadAppName() === DEFAULT_APP_NAME, default: DEFAULT_APP_NAME }));
 app.post('/api/admin/app-name', requireAdmin, express.json(), (req, res) => {
   const n = String((req.body && req.body.name) || '').trim().slice(0, 60);
@@ -2640,7 +2642,7 @@ app.get('/api/companies', (req, res) => {
     const mk = {}; (c.concepts || []).forEach(cp => (cp.markets || []).forEach(m => { if (m) mk[m] = 1; }));
     return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt };
   });
-  res.json({ ok: true, companies: rows, types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, companies: rows, types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), defaultState: effDefaultState(), personTypes: effPersonTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 // A person's full cross-book view: their company, the deals where they're the client,
 // and every offer / tour / NDA they're linked to across all deals.
@@ -2672,6 +2674,7 @@ function applyLocationFields(l, b) {
   if (typeof b.address === 'string') l.address = b.address.slice(0, 200);
   if (typeof b.city === 'string') l.city = b.city.slice(0, 120);
   if (typeof b.state === 'string') l.state = b.state.slice(0, 20);
+  if (typeof b.zip === 'string') l.zip = b.zip.replace(/[^0-9-]/g, '').slice(0, 10);
   if (typeof b.phone === 'string') l.phone = b.phone.slice(0, 60);
   if (typeof b.website === 'string') l.website = b.website.slice(0, 300);
   if (typeof b.opened === 'string') l.opened = b.opened.slice(0, 10);
@@ -2812,14 +2815,14 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(),
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(),
     defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, cuisineTypes: CUISINE_TYPES },
     isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), cuisineTypes: Array.isArray(s.cuisineTypes) },
   });
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.maxPullLocations; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName() }); }
   if (b.personTypes !== undefined) s.personTypes = cleanStrList(b.personTypes, 40, 60) || [];
   if (b.companyTypes !== undefined) s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || [];
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
@@ -2827,8 +2830,10 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   if (b.activityTypes !== undefined) s.activityTypes = cleanStrList(b.activityTypes, 40, 60) || [];
   if (b.cuisineTypes !== undefined) s.cuisineTypes = cleanStrList(b.cuisineTypes, 40, 60) || [];
   if (b.maxPullLocations !== undefined) { const n = parseInt(b.maxPullLocations, 10); s.maxPullLocations = (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
+  if (typeof b.defaultState === 'string') s.defaultState = b.defaultState.trim().slice(0, 20);
+  if (typeof b.assistantName === 'string') s.assistantName = b.assistantName.trim().slice(0, 40);
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
@@ -3128,7 +3133,7 @@ app.post('/api/company/:id/contact', express.json(), (req, res) => {
     const clash = emailOwner(arr, emails, '__new__');
     if (clash) return res.status(409).json({ ok: false, error: 'That email is already on ' + (clash.name || 'another contact') + '.', existingId: clash.id });
     p = findOrCreatePerson(req, { firstName: first, lastName: last, name: composeName(first, last), emails: emails, phones: phones, companyId: c.id, type: b.type });
-    if (p && b.title) { const a2 = loadPeople(); const pp = a2.find(x => x.id === p.id); if (pp) { pp.title = String(b.title).slice(0, 120); savePeople(a2); } }
+    if (p && (b.title || b.nickname || b.notes || Array.isArray(b.tags))) { const a2 = loadPeople(); const pp = a2.find(x => x.id === p.id); if (pp) { if (b.title) pp.title = String(b.title).slice(0, 120); if (b.nickname) pp.nickname = String(b.nickname).slice(0, 80); if (b.notes) pp.notes = String(b.notes).slice(0, 4000); if (Array.isArray(b.tags)) pp.tags = b.tags.map(x => String(x || '').slice(0, 60)).filter(Boolean).slice(0, 30); pp.updatedAt = new Date().toISOString(); savePeople(a2); } }
   }
   const contacts = loadPeople().filter(x => x.companyId === c.id).map(companyContactRow);
   res.json({ ok: true, contacts });
@@ -3705,7 +3710,7 @@ app.get('/admin', requireAdmin, (req, res) => {
 
       <h2 style="margin-top:34px">Header Announcement <span class="sub2">— a short message shown across the top of everyone's dashboard, next to the logo. Use it for notices, reminders, or a rallying line. Leave blank to hide it.</span></h2>
       <div class="links">
-        <input type="text" id="hdrMsg" maxlength="300" placeholder="e.g. Q3 push — get your listings loaded by Friday. New: auto-find locations on any concept." style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy)">
+        <input type="text" id="hdrMsg" maxlength="160" placeholder="e.g. Q3 push — get your listings loaded by Friday. New: auto-find locations on any concept." style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy)">
         <div style="margin-top:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
           <button class="primary" onclick="saveHdrMsg()">Save message</button>
           <button onclick="clearHdrMsg()">Clear</button>

@@ -81,11 +81,18 @@ tr:hover td{background:#fbfcfe;}
     <label class="mfld">Type</label><select id="m_type"></select>
     <div class="mgrp">First concept <span class="mopt">— optional; single-brand operators fill this</span></div>
     <label class="mfld">Concept / brand</label><input id="m_concept" autocomplete="off" placeholder="Often the same as the company">
-    <label class="mfld">Website</label><input id="m_website" autocomplete="off" placeholder="company.com — auto-pulls a logo">
     <label class="mfld">Cuisine</label><select id="m_cuisine" style="width:100%;padding:9px 11px;border:1px solid #d5dbe6;border-radius:9px;font:inherit;background:#fff"></select>
+    <label class="mfld">Website</label><input id="m_website" autocomplete="off" placeholder="company.com — auto-pulls a logo">
     <div class="mgrp">First location <span class="mopt">— optional</span></div>
     <label class="mfld">Address</label><input id="m_addr" autocomplete="off" placeholder="Street address">
     <div class="mrow2"><div><label class="mfld">City</label><input id="m_city" autocomplete="off"></div><div><label class="mfld">State</label><input id="m_state" autocomplete="off" placeholder="TX"></div></div>
+    <label class="mfld">Zip</label><input id="m_zip" autocomplete="off" placeholder="ZIP" style="max-width:170px">
+    <div class="mgrp">First contact <span class="mopt">— optional; most operators have just one</span></div>
+    <div class="mrow2"><div><label class="mfld">First name</label><input id="m_cfirst" autocomplete="off"></div><div><label class="mfld">Last name</label><input id="m_clast" autocomplete="off"></div></div>
+    <div class="mrow2"><div><label class="mfld">Nickname</label><input id="m_cnick" autocomplete="off"></div><div><label class="mfld">Position</label><input id="m_ctitle" autocomplete="off" placeholder="Owner, GM…"></div></div>
+    <div class="mrow2"><div><label class="mfld">Phone</label><input id="m_cphone" autocomplete="off"></div><div><label class="mfld">Email</label><input id="m_cemail" autocomplete="off"></div></div>
+    <label class="mfld">Tag</label><input id="m_ctag" autocomplete="off" placeholder="e.g. Key contact">
+    <label class="mfld">Notes</label><input id="m_cnotes" autocomplete="off">
   </div>
   <div class="modalf"><button id="m_cancel" class="mbtn ghost">Cancel</button><button id="m_create" class="mbtn">Create company</button></div>
 </div></div>
@@ -115,6 +122,7 @@ function renderList(list){
 }
 var CTYPES=['Seller','Buyer'];
 var CUISINE=['American','Tex-Mex','Mexican','Italian','Pizza','Burgers','BBQ','Steakhouse','Seafood','Chinese','Japanese / Sushi','Thai','Vietnamese','Korean','Indian','Mediterranean','Greek','Southern / Soul','Breakfast / Brunch','Coffee / Cafe'];
+var DEFAULTSTATE='TX'; var PERSONTYPES=['Restaurant Owner'];
 var STOPWORDS={llc:1,inc:1,co:1,corp:1,corporation:1,company:1,ltd:1,the:1,a:1,an:1,of:1,and:1,restaurant:1,restaurants:1,group:1,grill:1,grille:1,kitchen:1,cafe:1,caf:1,bar:1,tavern:1,eatery:1,holdings:1,enterprises:1,hospitality:1,concepts:1,brands:1};
 function normName(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
 function coreTokens(s){ return normName(s).split(' ').filter(function(t){ return t && !STOPWORDS[t]; }); }
@@ -147,8 +155,9 @@ function checkDupe(){
 function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=CTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
   var cu=document.getElementById('m_cuisine'); if(cu) cu.innerHTML='<option value="">— cuisine (optional) —</option>'+CUISINE.map(function(m){return '<option>'+esc(m)+'</option>';}).join('');
   var cc=document.getElementById('m_concept'); if(cc){ cc.value=''; cc.dataset.auto='1'; }
+  ['m_zip','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';}); var stEl=document.getElementById('m_state'); if(stEl) stEl.value=DEFAULTSTATE;
   document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_name').focus(); }
-function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_name','m_concept','m_website','m_addr','m_city','m_state'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); var box=document.getElementById('m_dupe'); box.setAttribute('hidden','');box.innerHTML=''; document.getElementById('m_create').disabled=false; document.getElementById('m_create').textContent='Create company'; }
+function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_name','m_concept','m_website','m_addr','m_city','m_state','m_zip','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); var box=document.getElementById('m_dupe'); box.setAttribute('hidden','');box.innerHTML=''; document.getElementById('m_create').disabled=false; document.getElementById('m_create').textContent='Create company'; }
 function createCompany(){
   var name=document.getElementById('m_name').value.trim(); if(!name){ document.getElementById('m_name').focus(); return; }
   var d=findDupe(name); if(d){ if(confirm('“'+d.name+'” is already in your book. Open it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(d.id); return; }
@@ -157,13 +166,17 @@ function createCompany(){
   var website=(document.getElementById('m_website').value||'').trim();
   var cuisine=(document.getElementById('m_cuisine')||{}).value||'';
   var addr=(document.getElementById('m_addr').value||'').trim(), city=(document.getElementById('m_city').value||'').trim(), state=(document.getElementById('m_state').value||'').trim();
+  var zip=(document.getElementById('m_zip').value||'').trim();
+  var cfirst=(document.getElementById('m_cfirst').value||'').trim(), clast=(document.getElementById('m_clast').value||'').trim();
+  var cnick=(document.getElementById('m_cnick').value||'').trim(), ctitle=(document.getElementById('m_ctitle').value||'').trim(), cphone=(document.getElementById('m_cphone').value||'').trim(), cemail=(document.getElementById('m_cemail').value||'').trim(), ctag=(document.getElementById('m_ctag').value||'').trim(), cnotes=(document.getElementById('m_cnotes').value||'').trim();
   function J(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}); }
   J('/api/company',{name:name,type:document.getElementById('m_type').value,office:(website?{website:website}:undefined)})
     .then(function(j){
       if(!(j&&j.ok&&j.company)){ if(j&&j.existingId){ b.textContent='Create company'; if(confirm((j.error||'That company already exists.')+'\n\nOpen it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(j.existingId); else b.disabled=false; } else { b.disabled=false;b.textContent='Create company'; alert((j&&j.error)||'Could not create the company.'); } return; }
       var id=j.company.id; var chain=Promise.resolve();
       if(conceptName){ chain=chain.then(function(){ return J('/api/company/'+encodeURIComponent(id)+'/concept',{name:conceptName,website:website,cuisine:cuisine}); }); }
-      if(addr||city){ chain=chain.then(function(){ return J('/api/company/'+encodeURIComponent(id)+'/location',{concept:conceptName,address:addr,city:city,state:state}); }); }
+      if(addr||city){ chain=chain.then(function(){ return J('/api/company/'+encodeURIComponent(id)+'/location',{concept:conceptName,address:addr,city:city,state:state,zip:zip}); }); }
+      if(cfirst&&clast){ chain=chain.then(function(){ var ptype=(PERSONTYPES.indexOf('Restaurant Owner')>=0?'Restaurant Owner':(PERSONTYPES[0]||'Restaurant Owner')); return J('/api/company/'+encodeURIComponent(id)+'/contact',{firstName:cfirst,lastName:clast,nickname:cnick,title:ctitle,phone:cphone,email:cemail,tags:(ctag?[ctag]:[]),notes:cnotes,type:ptype}); }); }
       chain.then(function(){ location.href='./rrg_company.html?id='+encodeURIComponent(id); }, function(){ location.href='./rrg_company.html?id='+encodeURIComponent(id); });
     })
     .catch(function(){ b.disabled=false;b.textContent='Create company'; alert('Could not reach the server.'); });
@@ -183,7 +196,7 @@ document.getElementById('m_concept').addEventListener('input',function(){ this.d
 document.getElementById('m_cancel').addEventListener('click',closeModal);
 document.getElementById('m_create').addEventListener('click',createCompany);
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target.id==='modal') closeModal(); });
-fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; CTYPES=(j&&j.types)||CTYPES; CUISINE=(j&&j.cuisineTypes)||CUISINE; IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load companies.</div>'; });
+fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; CTYPES=(j&&j.types)||CTYPES; CUISINE=(j&&j.cuisineTypes)||CUISINE; DEFAULTSTATE=(j&&j.defaultState)||DEFAULTSTATE; PERSONTYPES=(j&&j.personTypes)||PERSONTYPES; IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load companies.</div>'; });
 </script>
 <script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
 </body>
