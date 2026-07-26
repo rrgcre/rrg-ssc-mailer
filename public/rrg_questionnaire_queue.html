@@ -129,7 +129,7 @@ function buildUserFilter(){
 }
 function paint(){
   var list=ALL.slice();
-  var uf=document.getElementById('userFilter'); var val=(ME.role==='admin'&&uf)?uf.value:'';
+  var uf=document.getElementById('userFilter'); var val=((ME.role==='admin'||ME.role==='creator')&&uf)?uf.value:'';
   if(val) list=list.filter(function(s){ return (s.byUser||s.by)===val; });
   if(VIEW==='waiting') list=list.filter(function(s){ return !s.processed && s.decision!=='passed'; });
   else if(VIEW==='advanced') list=list.filter(function(s){ return s.processed; });

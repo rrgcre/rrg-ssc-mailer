@@ -121,7 +121,7 @@ function build(){
 }
 
 get('/api/session').then(function(s){
-  if(s&&s.role==='admin'){ build(); }
+  if(s&&(s.role==='admin'||s.role==='creator')){ build(); }
   else { document.getElementById('root').innerHTML='<div class="gate"><b style="color:var(--navy);font-size:16px">Admins only</b><br><br>This page is for RRG administrators. <a href="./index.html" style="color:var(--navy);font-weight:700">← Back to the toolbox</a></div>'; }
 }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not verify your session. <a href="/login">Sign in →</a></div>'; });
 </script>

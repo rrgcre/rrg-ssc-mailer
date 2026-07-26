@@ -152,7 +152,7 @@
       }).catch(function(){});
       fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){
         try{ window.__rrgSession=s; document.dispatchEvent(new CustomEvent('rrg:session',{detail:s})); }catch(e){}
-        if(s&&s.role==='admin'){ var g=nav.querySelector('[data-admingrp]'); if(g) g.style.display=''; }
+        if(s&&(s.role==='admin'||s.role==='creator')){ var g=nav.querySelector('[data-admingrp]'); if(g) g.style.display=''; }
         var nm=(s&&(s.name||s.username))||''; var uav=document.getElementById('rrguav'); if(uav&&nm){ var parts=nm.trim().split(/\s+/); uav.textContent=((parts[0]||'')[0]||'')+((parts[1]||'')[0]||'')||nm[0].toUpperCase(); }
         var ac=document.getElementById('rrgacct'); if(ac&&nm) ac.textContent=nm.split(/\s+/)[0];
       }).catch(function(){});

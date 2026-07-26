@@ -91,7 +91,7 @@ function paint(){
   var list;
   if(TAB==='mine'){ list=ALL.filter(isMine); }
   else {
-    var uf=document.getElementById('userFilter'); var val=(ME.role==='admin'&&uf)?uf.value:'';
+    var uf=document.getElementById('userFilter'); var val=((ME.role==='admin'||ME.role==='creator')&&uf)?uf.value:'';
     list = val ? ALL.filter(function(b){ return (b.byUser||b.by)===val; }) : ALL;
   }
   render(list);

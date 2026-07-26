@@ -123,7 +123,7 @@ function delDoc(ev,id,name){ ev.preventDefault(); ev.stopPropagation(); if(!conf
 }
 renderTabs();
 fetch(window.RRG_API.replace(/\/$/,'')+'/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){
-  window.IS_ADMIN=!!(s&&s.role==='admin'); var ab=document.getElementById('docAddBtn'); if(ab&&window.IS_ADMIN) ab.style.display='';
+  window.IS_ADMIN=!!(s&&(s.role==='admin'||s.role==='creator')); var ab=document.getElementById('docAddBtn'); if(ab&&window.IS_ADMIN) ab.style.display='';
   loadDocs();
 }).catch(function(){ loadDocs(); });
 </script>

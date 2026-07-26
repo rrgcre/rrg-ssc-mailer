@@ -643,9 +643,9 @@ window.RRG_API = window.RRG_API || (String(location.protocol).indexOf('http')===
   var api=window.RRG_API||'';
   if(!api){ window._toolCtx={isAdmin:true,adminOnly:[]}; renderTools(); return; }   // standalone/file preview shows all
   fetch(api.replace(/\/$/,'')+'/api/session').then(function(r){return r.json();}).then(function(s){
-    window.IS_ADMIN = !!(s&&s.role==='admin');
+    window.IS_ADMIN = !!(s&&(s.role==='admin'||s.role==='creator'));
     var TL=(s&&s.toolLabels)||{}; TOOLS.forEach(function(t){ if(TL[t.file]) t.name=TL[t.file]; });
-    window._toolCtx={isAdmin:!!(s&&s.role==='admin'), adminOnly:(s&&s.adminOnlyTools)||[]};
+    window._toolCtx={isAdmin:!!(s&&(s.role==='admin'||s.role==='creator')), adminOnly:(s&&s.adminOnlyTools)||[]};
     renderTools();
     renderTopNav(s);
     setHeaderMsg(s&&s.headerMsg);
@@ -677,7 +677,7 @@ function tickClock(){
 tickClock(); setInterval(tickClock,1000);
 function renderTopNav(s){
   var nav=document.getElementById('topnav'); if(!nav) return;
-  var isAdmin=s&&s.role==='admin';
+  var isAdmin=s&&(s.role==='admin'||s.role==='creator');
   var links='';
   links+='<a href="./rrg_documents.html">Documents</a>';
   links+='<a href="./rrg_help.html">Help</a>';

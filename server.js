@@ -79,7 +79,7 @@ function loadDeals() { try { return JSON.parse(fs.readFileSync(DEALS_FILE, 'utf8
 function saveDeals(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(DEALS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newDealId() { return 'deal_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function ownsDeal(req, d) {
-  if (req.user && req.user.role === 'admin') return true;
+  if (req.user && isSuper(req.user)) return true;
   if (d.byUser) return d.byUser === (req.user && req.user.username);
   return d.by && d.by === (req.user && req.user.name);
 }
@@ -178,7 +178,7 @@ const TICKET_CATEGORIES = ['Marketing', 'Signage & Riders', 'Photography', 'List
 function loadTickets() { try { return JSON.parse(fs.readFileSync(TICKETS_FILE, 'utf8')); } catch (e) { return []; } }
 function saveTickets(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(TICKETS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newTicketId() { return 'tkt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
-function ownsTicket(req, t) { if (req.user && req.user.role === 'admin') return true; return t.byUser && t.byUser === (req.user && req.user.username); }
+function ownsTicket(req, t) { if (req.user && isSuper(req.user)) return true; return t.byUser && t.byUser === (req.user && req.user.username); }
 function ticketNo(t) { return t.num ? ('#' + String(t.num)) : ('#' + String(t.id).slice(-5)); }
 const TICKET_PROMPT_FILE = path.join(BOV_DATA_DIR, 'ticket_prompt.txt');
 function loadTicketPromptCustom() { try { const t = fs.readFileSync(TICKET_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
@@ -531,7 +531,7 @@ function questToText(quest) {
 }
 function newQuestId() { return 'q_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function ownsQuest(req, s) {
-  if (req.user && req.user.role === 'admin') return true;
+  if (req.user && isSuper(req.user)) return true;
   if (s.byUser) return s.byUser === (req.user && req.user.username);
   return s.by && s.by === (req.user && req.user.name);
 }
@@ -616,7 +616,7 @@ function statusCode(txt) {
   return '';
 }
 function ownsScreen(req, s) {
-  if (req.user && req.user.role === 'admin') return true;
+  if (req.user && isSuper(req.user)) return true;
   if (s.byUser) return s.byUser === (req.user && req.user.username);
   return s.by && s.by === (req.user && req.user.name);
 }
@@ -759,8 +759,9 @@ app.use((req, res, next) => {
   }
   return res.redirect('/login');
 });
+function isSuper(u) { if (!u) return false; var r = u.role; return r === 'admin' || r === 'creator'; }
 function requireAdmin(req, res, next) {
-  if (req.user && req.user.role === 'admin') return next();
+  if (req.user && isSuper(req.user)) return next();
   if (req.path.startsWith('/api/')) return res.status(403).json({ ok: false, error: 'Admin only.' });
   return res.status(403).send('Admin access only.');
 }
@@ -792,7 +793,7 @@ app.get('/logout', (_req, res) => { clearSessionCookie(res); res.redirect('/logi
 // Who am I + which tools are admin-only (dashboard uses this to hide restricted tiles).
 app.get('/api/session', (req, res) => res.json({
   ok: true, username: req.user.username, name: req.user.name, role: req.user.role,
-  canExport: !!(req.user && (req.user.role === 'admin' || (permsEnabled() && effectivePerms(req.user).export_data))),
+  canExport: !!(req.user && (isSuper(req.user) || (permsEnabled() && effectivePerms(req.user).export_data))),
   title: req.user.title || '', phone: req.user.phone || '', email: req.user.email || '',
   preparedBy: req.user.preparedBy || '',
   adminOnlyTools: auth.loadToolAccess(),
@@ -840,7 +841,7 @@ app.post('/api/me/password', express.json(), (req, res) => {
 
 // Block admin-only tool files for non-admins (even by direct URL).
 app.use((req, res, next) => {
-  if (req.method === 'GET' && /\.html$/.test(req.path) && !(req.user && req.user.role === 'admin')) {
+  if (req.method === 'GET' && /\.html$/.test(req.path) && !(req.user && isSuper(req.user))) {
     const file = req.path.replace(/^\//, '');
     if (auth.loadToolAccess().indexOf(file) >= 0) return res.redirect('/');
     if (permsEnabled() && GATEABLE_TOOLS.some(t => t.file === file) && !effectivePerms(req.user)['tool:' + file]) return res.redirect('/');
@@ -970,7 +971,7 @@ app.post('/api/questionnaire-save', express.json({ limit: '2mb' }), (req, res) =
 
 // ---- Screening queue ----
 app.get('/api/screenings', (req, res) => {
-  const isAdmin = req.user && req.user.role === 'admin';
+  const isAdmin = req.user && isSuper(req.user);
   const list = loadScreens().slice().reverse().filter(s => isAdmin || ownsScreen(req, s));
   res.json({
     ok: true, isAdmin: !!isAdmin,
@@ -1022,7 +1023,7 @@ app.delete('/api/screening/:id', (req, res) => {
 // ---- Questionnaire queue routes (mirror of the screening queue) ----
 app.get('/api/questionnaires', (req, res) => {
   backfillQuests();  // self-heal: any advanced call missing a questionnaire gets one now
-  const isAdmin = req.user && req.user.role === 'admin';
+  const isAdmin = req.user && isSuper(req.user);
   const list = loadQuests().slice().reverse().filter(s => isAdmin || ownsQuest(req, s));
   res.json({
     ok: true, isAdmin: !!isAdmin,
@@ -1128,12 +1129,12 @@ function sortBovBuyers(state) {
   return state;
 }
 function ownsBov(req, b) {
-  if (req.user && req.user.role === 'admin') return true;
+  if (req.user && isSuper(req.user)) return true;
   if (b.byUser) return b.byUser === (req.user && req.user.username);
   return b.by && b.by === (req.user && req.user.name);
 }
 function ownsCim(req, c) {
-  if (req.user && req.user.role === 'admin') return true;
+  if (req.user && isSuper(req.user)) return true;
   if (c.byUser) return c.byUser === (req.user && req.user.username);
   return c.by && c.by === (req.user && req.user.name);
 }
@@ -1190,7 +1191,7 @@ function cimInputsFor(cim) {
   return { bov, bovState: (bov && bov.state) || null, summary, questionnaire, call };
 }
 app.get('/api/bovs', (req, res) => {
-  const isAdmin = req.user && req.user.role === 'admin';
+  const isAdmin = req.user && isSuper(req.user);
   const list = loadBovs().slice().reverse().filter(b => isAdmin || ownsBov(req, b));
   res.json({
     ok: true, isAdmin: !!isAdmin,
@@ -1274,7 +1275,7 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
 
 // ---- CIM routes (mirror the BOV routes) ----
 app.get('/api/cims', (req, res) => {
-  const isAdmin = req.user && req.user.role === 'admin';
+  const isAdmin = req.user && isSuper(req.user);
   const list = loadCims().slice().reverse().filter(c => isAdmin || ownsCim(req, c));
   res.json({ ok: true, isAdmin: !!isAdmin, cims: list.map(c => ({
     id: c.id, business: c.business, market: c.market, pending: !!c.pending, srcBovId: c.srcBovId || '',
@@ -1373,12 +1374,12 @@ app.post('/api/generate-cim', express.json({ limit: '48mb' }), async (req, res) 
 
 // ================= Lease Abstracts =================
 function ownsLease(req, l) {
-  if (req.user && req.user.role === 'admin') return true;
+  if (req.user && isSuper(req.user)) return true;
   if (l.byUser) return l.byUser === (req.user && req.user.username);
   return l.by && l.by === (req.user && req.user.name);
 }
 app.get('/api/leases', (req, res) => {
-  const isAdmin = req.user && req.user.role === 'admin';
+  const isAdmin = req.user && isSuper(req.user);
   const list = loadLeases().slice().reverse().filter(l => isAdmin || ownsLease(req, l));
   res.json({ ok: true, isAdmin: !!isAdmin, leases: list.map(l => ({
     id: l.id, business: l.business, propertyAddress: l.propertyAddress || '', pending: !!l.pending,
@@ -1500,7 +1501,7 @@ app.post('/api/generate-lease', express.json({ limit: '48mb' }), async (req, res
 
 // ================= Market Attack Plans (MAP) — sell-side =================
 function ownsMap(req, m) {
-  if (req.user && req.user.role === 'admin') return true;
+  if (req.user && isSuper(req.user)) return true;
   if (m.byUser) return m.byUser === (req.user && req.user.username);
   return m.by && m.by === (req.user && req.user.name);
 }
@@ -1538,7 +1539,7 @@ function mapInputsFor(map) {
   return { cim, cimState: (cim && cim.state) || null, bov, bovState: (bov && bov.state) || null, summary, questionnaire, call };
 }
 app.get('/api/maps', (req, res) => {
-  const isAdmin = req.user && req.user.role === 'admin';
+  const isAdmin = req.user && isSuper(req.user);
   const list = loadMaps().slice().reverse().filter(m => isAdmin || ownsMap(req, m));
   res.json({ ok: true, isAdmin: !!isAdmin, maps: list.map(m => ({ id: m.id, business: m.business, market: m.market || '', pending: !!m.pending, srcCimId: m.srcCimId || '', srcBovId: m.srcBovId || '', by: m.by, byUser: m.byUser, createdAt: m.createdAt, builtAt: m.builtAt || '' })) });
 });
@@ -1676,7 +1677,7 @@ app.get('/api/links', (req, res) => {
   const defaults = auth.loadLinks().filter(l => l.default).map(l => ({ name: l.name, url: l.url, scope: 'default' }));
   const u = req.user && auth.findUser(req.user.username);
   const personal = auth.userLinksOf(u).map(l => ({ name: l.name, url: l.url, scope: 'personal' }));
-  res.json({ ok: true, links: defaults.concat(personal), canOrderDefault: !!(req.user && req.user.role === 'admin'), show: effShowQuickLinks() });
+  res.json({ ok: true, links: defaults.concat(personal), canOrderDefault: !!(req.user && isSuper(req.user)), show: effShowQuickLinks() });
 });
 // Persist a new quick-links order from the dashboard. Shared "default" links are
 // reorderable by admins; each user can always reorder their own personal links.
@@ -1684,10 +1685,10 @@ app.post('/api/links/order', express.json({ limit: '256kb' }), (req, res) => {
   try {
     const b = req.body || {};
     if (Array.isArray(b.personal)) auth.setUserLinks(req.user.username, b.personal);
-    if (Array.isArray(b.defaults) && req.user && req.user.role === 'admin') auth.reorderDefaultLinks(b.defaults);
+    if (Array.isArray(b.defaults) && req.user && isSuper(req.user)) auth.reorderDefaultLinks(b.defaults);
     const defaults = auth.loadLinks().filter(l => l.default).map(l => ({ name: l.name, url: l.url, scope: 'default' }));
     const personal = auth.userLinksOf(auth.findUser(req.user.username)).map(l => ({ name: l.name, url: l.url, scope: 'personal' }));
-    res.json({ ok: true, links: defaults.concat(personal), canOrderDefault: !!(req.user && req.user.role === 'admin') });
+    res.json({ ok: true, links: defaults.concat(personal), canOrderDefault: !!(req.user && isSuper(req.user)) });
   } catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 // A user's own quick links (managed on the Account page).
@@ -1957,7 +1958,7 @@ function roomGrantFor(req, r) {
 // buyer then locks everyone OUT rather than falling back open.
 function roomIsGated(r) { return !!r.locked || (r.grants || []).some(g => g.active); }
 function ownsRoom(req, r) {
-  if (req.user && req.user.role === 'admin') return true;
+  if (req.user && isSuper(req.user)) return true;
   if (r.byUser) return r.byUser === (req.user && req.user.username);
   return r.by && r.by === (req.user && req.user.name);
 }
@@ -1980,7 +1981,7 @@ function roomPublic(r, origin) {
   return { id: r.id, business: r.business, token: r.token, link: base, docCount: (r.docs || []).length, gated: roomIsGated(r), buyerCount: (r.grants || []).filter(g => g.active).length, srcCimId: r.srcCimId || '', createdAt: r.createdAt, builtAt: r.builtAt || '', by: r.by };
 }
 app.get('/api/rooms', (req, res) => {
-  const isAdmin = req.user && req.user.role === 'admin';
+  const isAdmin = req.user && isSuper(req.user);
   const list = loadRooms().slice().reverse().filter(r => isAdmin || ownsRoom(req, r));
   const origin = req.protocol + '://' + req.get('host');
   res.json({ ok: true, isAdmin: !!isAdmin, rooms: list.map(r => roomPublic(r, origin)) });
@@ -2485,7 +2486,7 @@ function assignmentView(d, overlay) {
   };
 }
 function ownsAssignment(req, d) {
-  if (req.user && req.user.role === 'admin') return true;
+  if (req.user && isSuper(req.user)) return true;
   const u = req.user && req.user.username;
   return [d.deal, d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).some(r => r.byUser === u);
 }
@@ -2512,7 +2513,7 @@ function roomActivityFor(d, origin) {
 }
 app.get('/api/assignments', (req, res) => {
   const deals = assignmentsIndex(), overlay = loadAssignOverlay();
-  const isAdmin = req.user && req.user.role === 'admin';
+  const isAdmin = req.user && isSuper(req.user);
   const list = Object.values(deals).filter(d => isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d)).map(d => assignmentView(d, overlay));
   list.sort((a, b) => String(b.lastActivity).localeCompare(String(a.lastActivity)));
   res.json({ ok: true, isAdmin: !!isAdmin, statuses: ASSIGN_STATUSES, assignments: list });
@@ -2739,7 +2740,7 @@ app.delete('/api/assignment/:key/nda/:ndaId', (req, res) => {
 app.get('/api/people', (req, res) => {
   const cos = {}; loadCompanies().forEach(c => cos[c.id] = c.name);
   const people = loadPeople().filter(p => !restrictToOwn(req) || permOwnerMatch(req, p.by)).map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '' }));
-  res.json({ ok: true, people: people, types: effPersonTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, people: people, types: effPersonTypes(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 app.post('/api/person', express.json(), (req, res) => {
   const b = req.body || {};
@@ -2786,14 +2787,14 @@ app.post('/api/person', express.json(), (req, res) => {
   res.json({ ok: true, person: Object.assign({}, p, { emails: personEmails(p), phones: personPhones(p) }), people: arr.map(personBrief) });
 });
 app.delete('/api/person/:id', (req, res) => {
-  if (!(req.user && req.user.role === 'admin')) return res.status(403).json({ ok: false, error: 'Admin only.' });
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
   const arr = loadPeople().filter(p => p.id !== req.params.id);
   savePeople(arr);
   res.json({ ok: true, people: arr.map(personBrief) });
 });
 app.post('/api/person/merge', express.json(), (req, res) => {
   const u = req.user || {};
-  const canMerge = u.role === 'admin' || (permsEnabled() && effectivePerms(u).delete);
+  const canMerge = isSuper(u) || (permsEnabled() && effectivePerms(u).delete);
   if (!canMerge) return res.status(403).json({ ok: false, error: 'You do not have permission to merge contacts.' });
   const b = req.body || {};
   const keepId = String(b.keepId || '');
@@ -3030,7 +3031,7 @@ app.get('/api/companies', (req, res) => {
     return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, mainContactId: c.mainContactId || '', mainContact: (c.mainContactId && (people.find(p => p.id === c.mainContactId) || {}).name) || '', createdAt: c.createdAt };
   });
   const _cities = {}; cos.forEach(c => { if (c.office && c.office.city) _cities[c.office.city] = 1; (c.locations || []).forEach(l => { if (l.city) _cities[l.city] = 1; }); }); const _titles = {}; people.forEach(pp => { if (pp.title) _titles[pp.title] = 1; });
-  res.json({ ok: true, companies: rows, types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: CONCEPT_TYPES, leadSources: effLeadSources(), defaultState: effDefaultState(), personTypes: effPersonTypes(), cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, companies: rows, types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: CONCEPT_TYPES, leadSources: effLeadSources(), defaultState: effDefaultState(), personTypes: effPersonTypes(), cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // A person's full cross-book view: their company, the deals where they're the client,
 // and every offer / tour / NDA they're linked to across all deals.
@@ -3049,7 +3050,7 @@ app.get('/api/person/:id', (req, res) => {
     (o.tours || []).filter(x => x.personId === p.id).forEach(x => tours.push({ id: x.id, key: key, business: biz, date: x.date, interest: x.interest }));
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
@@ -3373,7 +3374,7 @@ app.get('/api/company/:id', (req, res) => {
   const _pn = {}; loadPeople().forEach(p => { _pn[p.id] = p.name; });
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
-  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), hasMaps: !!loadGmapsKey(), isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), hasMaps: !!loadGmapsKey(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // ---- Concepts — a company runs one or more concepts (brands); locations attach to a concept. ----
 function newConceptId() { return 'cpt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -3618,7 +3619,7 @@ app.post('/api/company/:id/contact/:personId/remove', (req, res) => {
   res.json({ ok: true, contacts });
 });
 app.delete('/api/company/:id', (req, res) => {
-  if (!(req.user && req.user.role === 'admin')) return res.status(403).json({ ok: false, error: 'Admin only.' });
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
   const id = req.params.id;
   const companies = loadCompanies();
   const c = companies.find(x => x.id === id);
@@ -3780,7 +3781,7 @@ async function runTicketAI(t, req) {
   t.thread = thread; t.updatedAt = new Date().toISOString();
 }
 app.get('/api/tickets', (req, res) => {
-  const isAdmin = !!(req.user && req.user.role === 'admin');
+  const isAdmin = !!(req.user && isSuper(req.user));
   let arr = loadTickets().filter(t => canSeeTicket(req, t));
   arr = arr.slice().sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
   res.json({ ok: true, tickets: arr.map(ticketBrief), categories: effTicketCategories(), priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin, ribbon: effShowRequestRibbon(), departments: effDepartments().map(d => ({ id: d.id, name: d.name, cats: d.cats })), myDepartments: userDepartmentIds(req.user && req.user.username) });
@@ -3789,7 +3790,7 @@ app.get('/api/ticket/:id', (req, res) => {
   const t = loadTickets().find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
   if (!canSeeTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  res.json({ ok: true, ticket: ticketFull(t), categories: effTicketCategories(), priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin: !!(req.user && req.user.role === 'admin'), departments: effDepartments().map(d => ({ id: d.id, name: d.name, cats: d.cats })) });
+  res.json({ ok: true, ticket: ticketFull(t), categories: effTicketCategories(), priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin: !!(req.user && isSuper(req.user)), departments: effDepartments().map(d => ({ id: d.id, name: d.name, cats: d.cats })) });
 });
 app.post('/api/ticket', express.json(), async (req, res) => {
   const b = req.body || {};
@@ -3864,7 +3865,7 @@ app.delete('/api/ticket/:id', (req, res) => {
 });
 // Record counts per tool file — powers the little count badges on the dashboard.
 app.get('/api/counts', (req, res) => {
-  const isAdmin = !!(req.user && req.user.role === 'admin');
+  const isAdmin = !!(req.user && isSuper(req.user));
   const tickets = loadTickets();
   // Total deals + how many are still live (not Closed or Lost).
   let dealCount = 0, activeDeals = 0;
@@ -3918,7 +3919,7 @@ function parseMoney(str) {
   return n;
 }
 app.get('/api/command', (req, res) => {
-  const isAdmin = !!(req.user && req.user.role === 'admin');
+  const isAdmin = !!(req.user && isSuper(req.user));
   const companies = loadCompanies();
   const people = loadPeople();
   // ---------- Lease ladder (every location with a lease expiration) ----------
@@ -4079,7 +4080,7 @@ app.get('/admin', requireAdmin, (req, res) => {
     `<tr><td class="ts">${fmtWhen(u.timestamp)}</td><td class="mono">${esc(u.username)}</td><td class="nm">${esc(u.tool)}</td><td class="mono">${esc(u.ip)}</td></tr>`
   ).join('') || '<tr><td colspan="4" class="empty">No tool activity yet.</td></tr>';
   const urows = users.map(u => `<tr>
-      <td class="nm">${esc(u.name)} ${u.role === 'admin' ? '<span class="tag admin">Admin</span>' : ''} ${u.disabled ? '<span class="tag off">Disabled</span>' : ''}</td>
+      <td class="nm">${esc(u.name)} ${isSuper(u) ? '<span class="tag admin">Admin</span>' : ''} ${u.disabled ? '<span class="tag off">Disabled</span>' : ''}</td>
       <td class="mono">${esc(u.username)}</td>
       <td class="mono">${esc(u.email) || '—'}</td>
       <td class="ts">${esc((u.createdAt || '').slice(0, 10))}</td>
@@ -4162,7 +4163,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         function renderUsers(){
           RRGList.create({ mount:'#userlist', data:UDATA, key:'adminusers', rowId:function(u){return u.username;}, defaultSort:0, defaultDir:1,
             columns:[
-              {label:'Name', width:210, sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(u){ return '<b>'+uesc(u.name||u.username)+'</b>'+(u.role==='admin'?' <span class="tag admin">Admin</span>':'')+(u.disabled?' <span class="tag off">Disabled</span>':''); }},
+              {label:'Name', width:210, sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(u){ return '<b>'+uesc(u.name||u.username)+'</b>'+(isSuper(u)?' <span class="tag admin">Admin</span>':'')+(u.disabled?' <span class="tag off">Disabled</span>':''); }},
               {label:'Username', sort:function(a,b){return RRGList.cmp(a.username,b.username);}, cell:function(u){return '<span class="mono">'+uesc(u.username)+'</span>';}},
               {label:'Email', sort:function(a,b){return RRGList.cmp(a.email,b.email);}, cell:function(u){return '<span class="mono">'+(uesc(u.email)||'—')+'</span>';}},
               {label:'Added', sort:function(a,b){return RRGList.cmp(a.created,b.created);}, cell:function(u){return '<span class="ts">'+(uesc(u.created)||'—')+'</span>';}},
@@ -4772,14 +4773,14 @@ app.post('/api/admin/backup/run', requireAdmin, async (req, res) => {
 });
 // Download a live backup of everything, generated on the fly (admin session or token).
 app.get('/api/admin/backup', async (req, res) => {
-  if (!(req.user && req.user.role === 'admin')) return res.status(403).json({ ok: false, error: 'Admin only.' });
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
   res.setHeader('Content-Type', 'application/zip');
   res.setHeader('Content-Disposition', 'attachment; filename="rrg-backup-' + backupStampFull() + '.zip"');
   try { await writeBackupZip(res); } catch (e) { console.error('backup stream error:', e && e.message); try { res.status(500).end(); } catch (e2) {} }
 });
 // Download a specific saved snapshot (admin session or token).
 app.get('/api/admin/backup/file/:name', (req, res) => {
-  if (!(req.user && req.user.role === 'admin')) return res.status(403).json({ ok: false, error: 'Admin only.' });
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
   const name = path.basename(String(req.params.name || ''));
   if (!/^rrg-backup-[\w.\-]+\.zip$/.test(name)) return res.status(400).json({ ok: false, error: 'Bad backup name.' });
   const fp = path.join(BACKUP_DIR, name);
@@ -4958,7 +4959,7 @@ function saveTasks(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV
 function newTaskId() { return 'tsk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const TASK_PRIORITIES = ['Low', 'Normal', 'High'];
 function taskVisible(t, req) {
-  if (req.user && req.user.role === 'admin') return true;
+  if (req.user && isSuper(req.user)) return true;
   const u = req.user && req.user.username;
   return t.assignee === u || t.createdBy === u;
 }
@@ -4969,7 +4970,7 @@ app.get('/api/tasks', (req, res) => {
   const deals = [];
   try { const ov = loadAssignOverlay(), idx = assignmentsIndex(); for (const k in idx) { try { deals.push({ key: k, business: assignmentView(idx[k], ov).business }); } catch (e) {} } } catch (e) {}
   deals.sort((a, b) => String(a.business || '').localeCompare(String(b.business || '')));
-  res.json({ ok: true, tasks: mine, contacts, deals, priorities: TASK_PRIORITIES, activityTypes: effActivityTypes(), emailReady: isEmailConfigured(), smsReady: isSmsConfigured(), isAdmin: !!(req.user && req.user.role === 'admin'), me: (req.user && req.user.username) || '' });
+  res.json({ ok: true, tasks: mine, contacts, deals, priorities: TASK_PRIORITIES, activityTypes: effActivityTypes(), emailReady: isEmailConfigured(), smsReady: isSmsConfigured(), isAdmin: !!(req.user && isSuper(req.user)), me: (req.user && req.user.username) || '' });
 });
 app.post('/api/tasks', express.json(), (req, res) => {
   const b = req.body || {}; const all = loadTasks(); const now = new Date().toISOString();
@@ -4977,7 +4978,7 @@ app.post('/api/tasks', express.json(), (req, res) => {
   if (!title) return res.status(400).json({ ok: false, error: 'A task title is required.' });
   const users = auth.loadUsers();
   const findUser = un => users.find(u => u.username === un);
-  const meU = req.user && req.user.username, isAdmin = req.user && req.user.role === 'admin';
+  const meU = req.user && req.user.username, isAdmin = req.user && isSuper(req.user);
   let t;
   if (b.id) {
     t = all.find(x => x.id === b.id);
@@ -5016,7 +5017,7 @@ app.post('/api/tasks/:id/toggle', (req, res) => {
 app.delete('/api/tasks/:id', (req, res) => {
   const all = loadTasks(); const t = all.find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Task not found.' });
-  if (!(req.user && req.user.role === 'admin') && t.createdBy !== (req.user && req.user.username)) return res.status(403).json({ ok: false, error: 'Only the creator or an admin can delete this.' });
+  if (!(req.user && isSuper(req.user)) && t.createdBy !== (req.user && req.user.username)) return res.status(403).json({ ok: false, error: 'Only the creator or an admin can delete this.' });
   saveTasks(all.filter(x => x.id !== t.id)); res.json({ ok: true });
 });
 
@@ -5049,7 +5050,7 @@ app.get('/api/agreements', (req, res) => {
   if (restrictToOwn(req)) all = all.filter(a => permOwnerMatch(req, a.createdBy));
   all = all.map(a => Object.assign(agreementBrief(a), { personName: a.personName || nameById[a.personId] || '', companyName: coNameById[a.companyId] || '', dealName: bizByKey[a.dealKey] || '' }));
   all.sort((x, y) => String(x.expires || '9999').localeCompare(String(y.expires || '9999')));
-  res.json({ ok: true, agreements: all, types: AGREEMENT_TYPES, isAdmin: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, agreements: all, types: AGREEMENT_TYPES, isAdmin: !!(req.user && isSuper(req.user)) });
 });
 app.post('/api/agreements', express.json(), (req, res) => {
   const b = req.body || {}; const all = loadAgreements(); const now = new Date().toISOString();
@@ -5082,7 +5083,7 @@ app.post('/api/agreements', express.json(), (req, res) => {
 app.delete('/api/agreements/:id', (req, res) => {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
-  if (!(req.user && req.user.role === 'admin') && a.createdBy !== (req.user && req.user.username)) return res.status(403).json({ ok: false, error: 'Only the creator or an admin can delete this.' });
+  if (!(req.user && isSuper(req.user)) && a.createdBy !== (req.user && req.user.username)) return res.status(403).json({ ok: false, error: 'Only the creator or an admin can delete this.' });
   saveAgreements(all.filter(x => x.id !== a.id)); res.json({ ok: true });
 });
 
@@ -5238,7 +5239,7 @@ function newTemplateId() { return 'tpl_' + Date.now().toString(36) + Math.random
 function cleanSignFields(arr) { if (!Array.isArray(arr)) return []; return arr.map(f => ({ label: String((f && f.label) || '').slice(0, 80), required: !!(f && f.required) })).filter(f => f.label).slice(0, 12); }
 function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: t.signerCount === 2 ? 2 : 1, signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', active: t.active !== false, updatedAt: t.updatedAt || '', createdAt: t.createdAt || '' }; }
 app.get('/api/agreement-templates', (req, res) => {
-  const isAdmin = !!(req.user && req.user.role === 'admin');
+  const isAdmin = !!(req.user && isSuper(req.user));
   let all = loadTemplates().map(templateBrief);
   if (!isAdmin) all = all.filter(t => t.active);
   all.sort((x, y) => String(x.name).localeCompare(String(y.name)));
@@ -5630,10 +5631,12 @@ function loadRoles() {
   if (Array.isArray(s.roles) && s.roles.length) {
     let roles = s.roles.map(r => ({ key: String(r.key || ''), name: String(r.name || ''), builtin: !!r.builtin, perms: (r.perms && typeof r.perms === 'object') ? r.perms : {} })).filter(r => r.key && r.name);
     if (!roles.some(r => r.key === 'admin')) roles.unshift({ key: 'admin', name: 'Admin', builtin: true, perms: {} });
-    roles = roles.map(r => r.key === 'admin' ? Object.assign({}, r, { perms: allPerms() }) : r);
+    if (!roles.some(r => r.key === 'creator')) roles.unshift({ key: 'creator', name: 'Creator (Master)', builtin: true, perms: {} });
+    roles = roles.map(r => (r.key === 'admin' || r.key === 'creator') ? Object.assign({}, r, { perms: allPerms() }) : r);
     return roles;
   }
   return [
+    { key: 'creator', name: 'Creator (Master)', builtin: true, perms: allPerms() },
     { key: 'admin', name: 'Admin', builtin: true, perms: allPerms() },
     { key: 'senior', name: 'Senior Associate', builtin: true, perms: defaultRolePerms('senior') },
     { key: 'associate', name: 'Associate', builtin: true, perms: defaultRolePerms('associate') },
@@ -5654,12 +5657,12 @@ function effectivePerms(user) {
 // Dormant while the master switch is OFF (returns true for everything). Wired into gates in Stage 2.
 function userCan(user, key) {
   if (!permsEnabled()) return true;
-  if (user && user.role === 'admin') return true;
+  if (user && isSuper(user)) return true;
   return !!effectivePerms(user)[key];
 }
 function permOwnerMatch(req, owner) { if (!owner) return true; const u = req.user || {}; return owner === u.name || owner === u.username; }
-function restrictToOwn(req) { if (!permsEnabled()) return false; if (req.user && req.user.role === 'admin') return false; return !effectivePerms(req.user).see_all; }
-function canSeeAllDeals(req) { if (req.user && req.user.role === 'admin') return true; return permsEnabled() && !!effectivePerms(req.user).see_all; }
+function restrictToOwn(req) { if (!permsEnabled()) return false; if (req.user && isSuper(req.user)) return false; return !effectivePerms(req.user).see_all; }
+function canSeeAllDeals(req) { if (req.user && isSuper(req.user)) return true; return permsEnabled() && !!effectivePerms(req.user).see_all; }
 
 app.get('/api/admin/permissions', requireAdmin, (req, res) => {
   res.json({
@@ -5938,7 +5941,7 @@ function loiRtfEsc(s) {
 }
 
 app.get('/api/loi', (req, res) => {
-  res.json({ ok: true, types: LOI_TYPES, config: loadLoiConfig(), isAdmin: !!(req.user && req.user.role === 'admin'), rep: (req.user && req.user.name) || '' });
+  res.json({ ok: true, types: LOI_TYPES, config: loadLoiConfig(), isAdmin: !!(req.user && isSuper(req.user)), rep: (req.user && req.user.name) || '' });
 });
 app.post('/api/loi/generate', express.json(), (req, res) => {
   const b = req.body || {};

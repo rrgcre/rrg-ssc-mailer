@@ -321,7 +321,7 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
     if(!api){ SHARE_LOCKED=false; applyShareLock(); return; }  // file:// preview only: editable
     fetch(api.replace(/\/$/,'')+'/api/session',{credentials:'same-origin'})
       .then(function(r){return r.json();})
-      .then(function(s){ SHARE_LOCKED = !(s&&s.role==='admin'); applyShareLock(); })
+      .then(function(s){ SHARE_LOCKED = !(s&&(s.role==='admin'||s.role==='creator')); applyShareLock(); })
       .catch(function(){ SHARE_LOCKED=true; applyShareLock(); });
   }
 
