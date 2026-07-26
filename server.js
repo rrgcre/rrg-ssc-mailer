@@ -2729,6 +2729,8 @@ app.post('/api/person', express.json(), (req, res) => {
   if (typeof b.title === 'string') p.title = b.title.slice(0, 120);
   if (typeof b.nickname === 'string') p.nickname = b.nickname.slice(0, 80);
   if (typeof b.leadSource === 'string') p.leadSource = b.leadSource.slice(0, 160);
+  if (typeof b.referredBy === 'string') p.referredBy = b.referredBy.slice(0, 160);
+  if (typeof b.referredById === 'string') p.referredById = b.referredById.slice(0, 40);
   if (Array.isArray(b.prefContact)) p.prefContact = b.prefContact.filter(x => ['phone', 'text', 'email'].indexOf(x) >= 0);
   if (typeof b.lastContacted === 'string') p.lastContacted = b.lastContacted.slice(0, 10);
   if (typeof b.url === 'string') p.url = b.url.slice(0, 300);

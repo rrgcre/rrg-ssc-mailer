@@ -435,6 +435,7 @@ function render(){
   if(P.email) sub.push('<span>'+esc(P.email)+'</span>'); if(P.phone) sub.push('<span>'+esc(P.phone)+'</span>');
   if(P.url){ var u=/^https?:\/\//i.test(P.url)?P.url:('https://'+P.url); sub.push('<span><a href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(P.url)+'</a></span>'); }
   if(P.leadSource) sub.push('<span>Source: '+esc(P.leadSource)+'</span>');
+  if(P.referredBy){ var rbh=P.referredById?('<a href="./rrg_person.html?id='+encodeURIComponent(P.referredById)+'">'+esc(P.referredBy)+'</a>'):esc(P.referredBy); sub.push('<span>Referred by: '+rbh+'</span>'); }
   if(P.prefContact&&P.prefContact.length) sub.push('<span>Prefers: '+P.prefContact.map(function(x){return esc(x);}).join(' / ')+'</span>');
   if(P.tags&&P.tags.length) sub.push('<span>'+P.tags.map(function(t){return '<span class="hpill" style="text-transform:none;letter-spacing:.02em">'+esc(t)+'</span>';}).join(' ')+'</span>');
   document.getElementById('subline').innerHTML=sub.join('');

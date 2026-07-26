@@ -88,7 +88,8 @@ tr:hover td{background:#fbfcfe;}
     <label class="mfld">Company</label><input id="m_company" list="coList" placeholder="Start typing to link an existing company…" autocomplete="off"><datalist id="coList"></datalist>
     <label class="mfld">Emails</label><div id="m_emails"></div>
     <label class="mfld">Phones</label><div id="m_phones"></div>
-    <div class="mrow"><div><label class="mfld">Lead source</label><input id="m_lead" placeholder="Referral, CoStar, event…"></div><div><label class="mfld">Nickname</label><input id="m_nick" placeholder="Optional"></div></div>
+    <div class="mrow"><div><label class="mfld">Lead source</label><input id="m_lead" list="leadList" placeholder="Referral, CoStar, event…" autocomplete="off"><datalist id="leadList"></datalist></div><div><label class="mfld">Nickname</label><input id="m_nick" placeholder="Optional"></div></div>
+    <div class="mrow" id="refbyRow" hidden><div style="grid-column:1 / -1"><label class="mfld">Referred by</label><input id="m_refby" list="refbyList" placeholder="Type a contact name…" autocomplete="off"><datalist id="refbyList"></datalist></div></div>
     <label class="mfld">Tags</label><input id="m_tags" placeholder="Comma-separated, e.g. hot, franchisee, DFW">
     <div id="m_msg" style="font-size:12.5px;color:#b23a2c;margin-top:8px"></div>
   </div>
@@ -139,8 +140,20 @@ function mfHtml(cls,ph){ return '<div class="mfwrap"><div class="mfrow"><input c
 function wireMulti(scope){ scope.querySelectorAll('.mfadd').forEach(function(b){ b.addEventListener('click',function(){ var cls=b.getAttribute('data-cls'),ph=b.getAttribute('data-ph'); var row=document.createElement('div'); row.className='mfrow'; row.innerHTML='<input class="'+cls+'" placeholder="'+esc(ph)+'"><button type="button" class="mfrm">×</button>'; b.parentNode.insertBefore(row,b); row.querySelector('.mfrm').addEventListener('click',function(){row.remove();}); row.querySelector('input').focus(); }); }); scope.querySelectorAll('.mfrm').forEach(function(b){ b.addEventListener('click',function(){ if(b.parentNode.parentNode.querySelectorAll('.mfrow').length>1) b.parentNode.remove(); else b.previousSibling.value=''; }); }); }
 function collectMulti(scope,cls){ var out=[]; scope.querySelectorAll('.'+cls).forEach(function(i){ var v=i.value.trim(); if(v) out.push(v); }); return out; }
 function loadCompaniesList(){ fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var dl=document.getElementById('coList'); if(dl) dl.innerHTML=((j&&j.companies)||[]).map(function(c){return '<option value="'+esc(c.name)+'">'+esc(((c.markets||[]).join(', '))||c.type||'')+'</option>';}).join(''); }).catch(function(){}); }
-function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML='<option value="">— select —</option>'+(TYPES.length?TYPES:['Buyer','Seller']).map(function(t){return '<option>'+esc(t)+'</option>';}).join(''); document.getElementById('m_emails').innerHTML=mfHtml('m_email','name@email.com'); document.getElementById('m_phones').innerHTML=mfHtml('m_phone','(555) 555-5555'); wireMulti(document.getElementById('modal')); document.getElementById('m_msg').textContent=''; document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_first').focus(); loadCompaniesList(); }
-function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_first','m_last','m_company','m_lead','m_nick','m_tags'].forEach(function(id){var el=document.getElementById(id); if(el) el.value='';}); }
+var LEADSRC=['Referral','CoStar','LoopNet','Crexi','Cold call','Event / conference','Website','Email campaign','Walk-in','Existing client','Social media','Other'];
+var REFMAP={};
+function isReferral(){ return /referr/i.test((document.getElementById('m_lead').value||'')); }
+function toggleRefby(){ var row=document.getElementById('refbyRow'); if(!row) return; if(isReferral()) row.removeAttribute('hidden'); else { row.setAttribute('hidden',''); var rb=document.getElementById('m_refby'); if(rb) rb.value=''; } }
+function setupReferral(){
+  var ld=document.getElementById('leadList'); if(ld) ld.innerHTML=LEADSRC.map(function(x){return '<option value="'+esc(x)+'">';}).join('');
+  REFMAP={}; var rl=document.getElementById('refbyList');
+  var opts=(ALL||[]).slice().sort(function(a,b){return RRGList.cmp(a.name,b.name);}).map(function(p){ var co=p.companyName||p.company||''; var lbl=(p.name||'Contact')+(co?(' — '+co):''); REFMAP[lbl.toLowerCase()]=p.id; REFMAP[String(p.name||'').toLowerCase()]=REFMAP[String(p.name||'').toLowerCase()]||p.id; return '<option value="'+esc(lbl)+'">'; }).join('');
+  if(rl) rl.innerHTML=opts;
+  var lead=document.getElementById('m_lead'); if(lead && !lead._refwired){ lead._refwired=1; lead.addEventListener('input',toggleRefby); lead.addEventListener('change',toggleRefby); }
+  toggleRefby();
+}
+function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML='<option value="">— select —</option>'+(TYPES.length?TYPES:['Buyer','Seller']).map(function(t){return '<option>'+esc(t)+'</option>';}).join(''); document.getElementById('m_emails').innerHTML=mfHtml('m_email','name@email.com'); document.getElementById('m_phones').innerHTML=mfHtml('m_phone','(555) 555-5555'); wireMulti(document.getElementById('modal')); document.getElementById('m_msg').textContent=''; document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_first').focus(); loadCompaniesList(); setupReferral(); }
+function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_first','m_last','m_company','m_lead','m_nick','m_tags','m_refby'].forEach(function(id){var el=document.getElementById(id); if(el) el.value='';}); var rr=document.getElementById('refbyRow'); if(rr) rr.setAttribute('hidden',''); }
 function createContact(){
   var m=document.getElementById('m_msg');
   var first=document.getElementById('m_first').value.trim(), last=document.getElementById('m_last').value.trim(), type=document.getElementById('m_type').value;
@@ -148,6 +161,7 @@ function createContact(){
   if(!type){ m.textContent='Pick a contact type.'; return; }
   var tags=(document.getElementById('m_tags').value||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
   var body={ firstName:first, lastName:last, type:type, companyName:document.getElementById('m_company').value.trim(), emails:collectMulti(document.getElementById('modal'),'m_email'), phones:collectMulti(document.getElementById('modal'),'m_phone'), leadSource:document.getElementById('m_lead').value.trim(), nickname:document.getElementById('m_nick').value.trim(), tags:tags };
+  if(isReferral()){ var rbv=(document.getElementById('m_refby').value||'').trim(); if(rbv){ body.referredBy=rbv; var rid=REFMAP[rbv.toLowerCase()]; if(rid) body.referredById=rid; } }
   var b=document.getElementById('m_create'); b.disabled=true; b.textContent='Creating…';
   fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.person){ location.href='./rrg_person.html?id='+encodeURIComponent(j.person.id); } else if(j&&j.existingId){ b.disabled=false;b.textContent='Create contact'; if(confirm((j.error||'That email already exists.')+'\n\nOpen that contact?')) location.href='./rrg_person.html?id='+encodeURIComponent(j.existingId); else m.textContent=j.error||''; } else { b.disabled=false;b.textContent='Create contact'; m.textContent=(j&&j.error)||'Could not create the contact.'; } })
