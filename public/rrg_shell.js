@@ -144,7 +144,7 @@
     // hydrate app name, role, user
     try {
       fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-        if(j&&j.name){ var w=document.getElementById('rrgwsn'); if(w) w.textContent=j.name; var d=document.getElementById('rrgdisc'); if(d) d.textContent=(j.name||'RRG').replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase()||'RRG'; }
+        if(j&&j.name){ var w=document.getElementById('rrgwsn'); if(w) w.textContent=j.name; } var d=document.getElementById('rrgdisc'); if(d){ if(j&&j.logoUrl){ d.innerHTML='<img src="'+j.logoUrl+'" alt="" style="width:100%;height:100%;object-fit:contain;border-radius:7px;background:#fff" onerror="this.parentNode.textContent=(&quot;'+((j&&j.name)||'RRG').replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase()+'&quot;)">'; d.style.background='#fff'; d.style.padding='0'; } else { d.textContent=((j&&j.name)||'RRG').replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase()||'RRG'; } }
       }).catch(function(){});
       fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){
         if(s&&s.role==='admin'){ var g=nav.querySelector('[data-admingrp]'); if(g) g.style.display=''; }

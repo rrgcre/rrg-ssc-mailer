@@ -121,6 +121,12 @@ a.crowlink{text-decoration:none;color:inherit;} a.crowlink:hover{background:#fbf
 .phx{position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;border:1px solid #f0c9c6;background:#fff;color:var(--red);font-weight:800;font-size:12px;line-height:1;cursor:pointer;}
 .phadd{display:inline-flex;align-items:center;justify-content:center;width:64px;height:64px;border-radius:9px;border:1px dashed #c9d2e2;color:var(--muted);font-size:11px;font-weight:700;cursor:pointer;text-align:center;padding:4px;}
 .phhint,.phnote{font-size:11px;color:var(--muted);} .phmsg{font-size:11.5px;color:var(--muted);margin-top:6px;}
+.phthumb{cursor:zoom-in;}
+.phmain{position:absolute;left:3px;bottom:3px;background:#dfa937;color:#241905;font-size:9px;font-weight:800;padding:2px 6px;border-radius:6px;letter-spacing:.02em;}
+.phsetmain{position:absolute;left:3px;bottom:3px;background:rgba(6,12,28,.6);color:#fff;border:none;font-size:9px;font-weight:700;padding:2px 6px;border-radius:6px;cursor:pointer;}
+.phsetmain:hover{background:rgba(6,12,28,.82);}
+.phlightbox{position:fixed;inset:0;background:rgba(6,12,28,.86);z-index:9999;display:flex;align-items:center;justify-content:center;padding:30px;cursor:zoom-out;}
+.phlightbox img{max-width:94vw;max-height:92vh;border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
 .ledit{background:transparent;border:1px solid transparent;color:#9aa3b5;border-radius:7px;padding:5px 9px;font:inherit;font-size:11px;font-weight:700;cursor:pointer;transition:background .12s,color .12s;} .crow:hover .ledit{color:#5a6478;} .ledit:hover{background:#eef2fb;color:var(--navy);}
 .crm{background:transparent;border:1px solid transparent;color:#c19b97;border-radius:7px;padding:5px 9px;font:inherit;font-size:11px;font-weight:700;cursor:pointer;transition:background .12s,color .12s;} .crow:hover .crm{color:#bd8a85;} .crm:hover{background:#fdeceb;color:var(--red);}
 .drow{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;}
@@ -429,12 +435,12 @@ function conceptSelectHtml(id,selName){
   return '<select id="'+id+'">'+opts+'</select>';
 }
 function photoBox(l){
-  if(!l.id) return '<div class="wide"><label class="fld">Photos</label><div class="phhint">Save the location first, then add up to 2 photos.</div></div>';
+  if(!l.id) return '<div class="wide"><label class="fld">Photos</label><div class="phhint">Save the location first, then add up to 5 photos.</div></div>';
   var ph=(l.photos||[]);
-  var thumbs=ph.map(function(p){ return '<div class="phthumb" style="background-image:url(/api/locphoto/'+esc(p.id+'.'+p.ext)+')"><button type="button" class="phx" data-phrm="'+esc(p.id)+'" title="Remove photo">×</button></div>'; }).join('');
-  var add=(ph.length<2)?'<label class="phadd">+ Add photo<input type="file" id="lo_photo" accept="image/*" hidden></label>':'';
-  var pull=(HASMAPS&&ph.length<2)?'<button type="button" class="phadd" id="lo_pull">⤓ Pull from Google</button>':'';
-  return '<div class="wide"><label class="fld">Photos <span class="phnote">('+ph.length+'/2)</span></label><div class="phrow">'+thumbs+add+pull+'</div><div class="phmsg" id="lo_phmsg"></div></div>';
+  var thumbs=ph.map(function(p,i){ var url='/api/locphoto/'+esc(p.id+'.'+p.ext); var mk=(i===0)?'<span class="phmain">★ Main</span>':'<button type="button" class="phsetmain" data-phmain="'+esc(p.id)+'" title="Set as main photo">☆ Main</button>'; return '<div class="phthumb" style="background-image:url('+url+')" data-phview="'+url+'"><button type="button" class="phx" data-phrm="'+esc(p.id)+'" title="Remove photo">×</button>'+mk+'</div>'; }).join('');
+  var add=(ph.length<5)?'<label class="phadd">+ Add photo<input type="file" id="lo_photo" accept="image/*" hidden></label>':'';
+  var pull=(HASMAPS&&ph.length<5)?'<button type="button" class="phadd" id="lo_pull">⤓ Pull from Google</button>':'';
+  return '<div class="wide"><label class="fld">Photos <span class="phnote">('+ph.length+'/5)</span></label><div class="phrow">'+thumbs+add+pull+'</div><div class="phmsg" id="lo_phmsg"></div></div>';
 }
 function openLocForm(l,presetConcept){
   l=l||{}; var f=document.getElementById('locForm');
@@ -474,6 +480,8 @@ function openLocForm(l,presetConcept){
   var pf=document.getElementById('lo_photo'); if(pf) pf.addEventListener('change',function(){ if(pf.files&&pf.files[0]) uploadLocPhoto(l.id,pf.files[0]); });
   var pull=document.getElementById('lo_pull'); if(pull) pull.addEventListener('click',function(){ pullLocPhoto(l.id); });
   f.querySelectorAll('.phx[data-phrm]').forEach(function(b){ b.addEventListener('click',function(){ removeLocPhoto(l.id,b.getAttribute('data-phrm')); }); });
+  f.querySelectorAll('.phthumb[data-phview]').forEach(function(t){ t.addEventListener('click',function(e){ if(e.target.closest('button')) return; openPhoto(t.getAttribute('data-phview')); }); });
+  f.querySelectorAll('.phsetmain[data-phmain]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); setMainPhoto(l.id,b.getAttribute('data-phmain')); }); });
   document.getElementById('lo_name').focus();
 }
 function uploadLocPhoto(locId,file){
@@ -499,6 +507,8 @@ function pullConceptPhotos(concept,btn){
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||LOCATIONS; render(); if(!j.added){ setTimeout(function(){ alert('No photos added'+(j.note?(' — '+j.note):'.')+(j.scanned?('\n('+j.scanned+' location'+(j.scanned===1?'':'s')+' checked)'):'')); },40); } } else { if(btn){btn.disabled=false;btn.textContent='⤓ Photos';} alert((j&&j.error)||'Could not pull photos.'); } })
     .catch(function(){ if(btn){btn.disabled=false;btn.textContent='⤓ Photos';} alert('Could not reach the server.'); });
 }
+function openPhoto(url){ var ov=document.createElement('div'); ov.className='phlightbox'; ov.innerHTML='<img src="'+url+'" alt="">'; ov.addEventListener('click',function(){ ov.remove(); }); document.addEventListener('keydown',function esc(e){ if(e.key==='Escape'){ ov.remove(); document.removeEventListener('keydown',esc); } }); document.body.appendChild(ov); }
+function setMainPhoto(locId,photoId){ fetch('/api/company/'+encodeURIComponent(ID)+'/location/'+encodeURIComponent(locId)+'/photo/'+encodeURIComponent(photoId)+'/main',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||LOCATIONS; var nl=LOCATIONS.filter(function(x){return x.id===locId;})[0]; render(); openLocForm(nl); } else alert((j&&j.error)||'Could not set the main photo.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 function removeLocPhoto(locId,photoId){
   fetch('/api/company/'+encodeURIComponent(ID)+'/location/'+encodeURIComponent(locId)+'/photo/'+encodeURIComponent(photoId)+'/remove',{method:'POST',credentials:'same-origin'})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||LOCATIONS; var nl=LOCATIONS.filter(function(x){return x.id===locId;})[0]; openLocForm(nl); } else alert((j&&j.error)||'Could not remove.'); })

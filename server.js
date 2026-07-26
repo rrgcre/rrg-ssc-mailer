@@ -1799,7 +1799,7 @@ function loadAppName() { const b = loadBrand(); return (b.appName && String(b.ap
 const PALETTE_DEFAULT = { primary: '#000E31', accent: '#DA2B1F', sidebar: '#0b1a38', positive: '#1f8a5b' };
 function isHexColor(v) { return /^#[0-9a-fA-F]{6}$/.test(String(v || '')); }
 function effPalette() { const b = loadBrand(); const pl = (b.palette && typeof b.palette === 'object') ? b.palette : {}; return { primary: isHexColor(pl.primary) ? pl.primary : PALETTE_DEFAULT.primary, accent: isHexColor(pl.accent) ? pl.accent : PALETTE_DEFAULT.accent, sidebar: isHexColor(pl.sidebar) ? pl.sidebar : PALETTE_DEFAULT.sidebar, positive: isHexColor(pl.positive) ? pl.positive : PALETTE_DEFAULT.positive }; }
-app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), palette: effPalette() }));
+app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), palette: effPalette(), logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })() }));
 app.get('/api/feed', (req, res) => {
   let people = loadPeople();
   if (restrictToOwn(req)) people = people.filter(p => permOwnerMatch(req, p.by));
@@ -3207,6 +3207,17 @@ app.post('/api/company/:id/location/:locId/photo/:photoId/remove', (req, res) =>
   const ph = (l.photos || []).find(p => p.id === req.params.photoId);
   if (ph) { try { fs.unlinkSync(path.join(LOCPHOTO_DIR, ph.id + '.' + ph.ext)); } catch (e) {} }
   l.photos = (l.photos || []).filter(p => p.id !== req.params.photoId);
+  c.updatedAt = new Date().toISOString(); saveCompanies(arr);
+  res.json({ ok: true, locations: c.locations });
+});
+app.post('/api/company/:id/location/:locId/photo/:photoId/main', (req, res) => {
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const l = (c.locations || []).find(x => x.id === req.params.locId);
+  if (!l) return res.status(404).json({ ok: false, error: 'Location not found.' });
+  const ph = l.photos || []; const i = ph.findIndex(p => p.id === req.params.photoId);
+  if (i < 0) return res.status(404).json({ ok: false, error: 'Photo not found.' });
+  const pick = ph.splice(i, 1)[0]; ph.unshift(pick); l.photos = ph;
   c.updatedAt = new Date().toISOString(); saveCompanies(arr);
   res.json({ ok: true, locations: c.locations });
 });
