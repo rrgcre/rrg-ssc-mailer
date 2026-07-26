@@ -82,6 +82,7 @@ tr:hover td{background:#fbfcfe;}
     <label class="mfld">Type</label><select id="m_type"></select>
     <div class="mgrp">First concept <span class="mopt">— optional; single-brand operators fill this</span></div>
     <label class="mfld">Concept / brand</label><input id="m_concept" autocomplete="off" placeholder="Often the same as the company">
+    <label class="mfld">Concept type</label><select id="m_conctype" style="width:100%;padding:9px 11px;border:1px solid #d5dbe6;border-radius:9px;font:inherit;background:#fff"></select>
     <label class="mfld">Cuisine</label><select id="m_cuisine" style="width:100%;padding:9px 11px;border:1px solid #d5dbe6;border-radius:9px;font:inherit;background:#fff"></select>
     <label class="mfld">Website</label><input id="m_website" autocomplete="off" placeholder="company.com — auto-pulls a logo">
     <div class="mgrp">First location <span class="mopt">— optional</span></div>
@@ -125,7 +126,7 @@ function renderList(list){
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
 }
-var CTYPES=['Seller','Buyer']; var CITIES=[], TITLES=[], ALLTAGS=[], MTAGS=[];
+var CTYPES=['Seller','Buyer']; var CITIES=[], TITLES=[], ALLTAGS=[], MTAGS=[], CONCEPTTYPES=[];
 var CUISINE=['American','Tex-Mex','Mexican','Italian','Pizza','Burgers','BBQ','Steakhouse','Seafood','Chinese','Japanese / Sushi','Thai','Vietnamese','Korean','Indian','Mediterranean','Greek','Southern / Soul','Breakfast / Brunch','Coffee / Cafe','Hawaiian','Desserts'];
 var DEFAULTSTATE='TX'; var PERSONTYPES=['Restaurant Owner'];
 var STOPWORDS={llc:1,inc:1,co:1,corp:1,corporation:1,company:1,ltd:1,the:1,a:1,an:1,of:1,and:1,restaurant:1,restaurants:1,group:1,grill:1,grille:1,kitchen:1,cafe:1,caf:1,bar:1,tavern:1,eatery:1,holdings:1,enterprises:1,hospitality:1,concepts:1,brands:1};
@@ -172,7 +173,7 @@ function setupCReferral(){
   fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var ppl=(j&&j.people)||[]; CREFMAP={}; var rl=document.getElementById('crefbyList'); var opts=ppl.slice().sort(function(a,b){return RRGList.cmp(a.name,b.name);}).map(function(p){ var co=p.companyName||p.company||''; var lbl=(p.name||'Contact')+(co?(' — '+co):''); CREFMAP[lbl.toLowerCase()]=p.id; if(!CREFMAP[String(p.name||'').toLowerCase()]) CREFMAP[String(p.name||'').toLowerCase()]=p.id; return '<option value="'+esc(lbl)+'">'; }).join(''); if(rl) rl.innerHTML=opts; CREFLOADED=true; }).catch(function(){});
 }
 function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=CTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
-  var cu=document.getElementById('m_cuisine'); if(cu) cu.innerHTML='<option value="">— cuisine (optional) —</option>'+CUISINE.map(function(m){return '<option>'+esc(m)+'</option>';}).join('');
+  var cu=document.getElementById('m_cuisine'); if(cu) cu.innerHTML='<option value="">— cuisine (optional) —</option>'+CUISINE.map(function(m){return '<option>'+esc(m)+'</option>';}).join(''); var cty=document.getElementById('m_conctype'); if(cty) cty.innerHTML='<option value="">— concept type (optional) —</option>'+CONCEPTTYPES.map(function(m){return '<option>'+esc(m)+'</option>';}).join('');
   var cc=document.getElementById('m_concept'); if(cc){ cc.value=''; cc.dataset.auto='1'; }
   ['m_zip','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';}); var stEl=document.getElementById('m_state'); if(stEl) stEl.value=DEFAULTSTATE;
   var ct=document.getElementById('m_ctype'); if(ct) ct.innerHTML='<option value="">— select —</option>'+PERSONTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
@@ -188,7 +189,7 @@ function createCompany(){
   var b=document.getElementById('m_create'); b.disabled=true; b.textContent='Creating…';
   var conceptName=(document.getElementById('m_concept').value||'').trim();
   var website=(document.getElementById('m_website').value||'').trim();
-  var cuisine=(document.getElementById('m_cuisine')||{}).value||'';
+  var cuisine=(document.getElementById('m_cuisine')||{}).value||''; var conctype=(document.getElementById('m_conctype')||{}).value||'';
   var addr=(document.getElementById('m_addr').value||'').trim(), city=(document.getElementById('m_city').value||'').trim(), state=(document.getElementById('m_state').value||'').trim();
   var zip=(document.getElementById('m_zip').value||'').trim();
   var cfirst=(document.getElementById('m_cfirst').value||'').trim(), clast=(document.getElementById('m_clast').value||'').trim();
@@ -200,7 +201,7 @@ function createCompany(){
     .then(function(j){
       if(!(j&&j.ok&&j.company)){ if(j&&j.existingId){ b.textContent='Create company'; if(confirm((j.error||'That company already exists.')+'\n\nOpen it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(j.existingId); else b.disabled=false; } else { b.disabled=false;b.textContent='Create company'; alert((j&&j.error)||'Could not create the company.'); } return; }
       var id=j.company.id; var chain=Promise.resolve();
-      if(conceptName){ chain=chain.then(function(){ return J('/api/company/'+encodeURIComponent(id)+'/concept',{name:conceptName,website:website,cuisine:cuisine}); }); }
+      if(conceptName){ chain=chain.then(function(){ return J('/api/company/'+encodeURIComponent(id)+'/concept',{name:conceptName,website:website,cuisine:cuisine,conceptType:conctype}); }); }
       if(addr||city){ chain=chain.then(function(){ return J('/api/company/'+encodeURIComponent(id)+'/location',{concept:conceptName,address:addr,city:city,state:state,zip:zip}); }); }
       if(cfirst&&clast){ chain=chain.then(function(){ var _cbody={firstName:cfirst,lastName:clast,nickname:cnick,title:ctitle,phone:cphone,email:cemail,tags:ctags,prefContact:cpref,notes:cnotes,type:ctype}; var _cld=(document.getElementById('m_clead')||{}).value||''; if(_cld.trim()){ _cbody.leadSource=_cld.trim(); if(/referr/i.test(_cld)){ var _rv=((document.getElementById('m_crefby')||{}).value||'').trim(); if(_rv){ _cbody.referredBy=_rv; var _rid=CREFMAP[_rv.toLowerCase()]; if(_rid) _cbody.referredById=_rid; } } } return J('/api/company/'+encodeURIComponent(id)+'/contact',_cbody).then(function(cj){ if(cj&&!cj.ok){ alert('Company created, but the contact was not added: '+((cj&&cj.error)||'unknown error')); } return cj; }); }); }
       chain.then(function(){ location.href='./rrg_company.html?id='+encodeURIComponent(id); }, function(){ location.href='./rrg_company.html?id='+encodeURIComponent(id); });
@@ -223,7 +224,7 @@ document.getElementById('m_cancel').addEventListener('click',closeModal);
 document.getElementById('m_create').addEventListener('click',createCompany);
 (function(){ var ti=document.getElementById('m_ctag'); if(ti){ ti.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===','){ e.preventDefault(); addMTag(ti.value); ti.value=''; } }); ti.addEventListener('change',function(){ if(ti.value){ addMTag(ti.value); ti.value=''; } }); } var ph=document.getElementById('m_cphone'); if(ph){ ph.addEventListener('input',function(){ ph.value=mfmtPhone(ph.value); }); } })();
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target.id==='modal') closeModal(); });
-fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; CTYPES=(j&&j.types)||CTYPES; CUISINE=(j&&j.cuisineTypes)||CUISINE; DEFAULTSTATE=(j&&j.defaultState)||DEFAULTSTATE; PERSONTYPES=(j&&j.personTypes)||PERSONTYPES; CITIES=(j&&j.cities)||[]; TITLES=(j&&j.titles)||[]; ALLTAGS=(j&&j.allTags)||[]; IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load companies.</div>'; });
+fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; CTYPES=(j&&j.types)||CTYPES; CUISINE=(j&&j.cuisineTypes)||CUISINE; CONCEPTTYPES=(j&&j.conceptTypes)||CONCEPTTYPES; DEFAULTSTATE=(j&&j.defaultState)||DEFAULTSTATE; PERSONTYPES=(j&&j.personTypes)||PERSONTYPES; CITIES=(j&&j.cities)||[]; TITLES=(j&&j.titles)||[]; ALLTAGS=(j&&j.allTags)||[]; IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load companies.</div>'; });
 </script>
 <script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
 <script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
