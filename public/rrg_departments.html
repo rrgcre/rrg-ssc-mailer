@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Departments</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:28px 0 30px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:960px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+h1{font-size:29px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:680px;}
+.wrap{max-width:960px;margin:22px auto;padding:0 24px 70px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:18px;}
+.ch{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);} .ch b{color:var(--navy);font-size:14px;} .ch span{color:var(--muted);font-size:11.5px;}
+.cb{padding:16px 18px;}
+label.fld{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:2px 0 7px;}
+input,textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;}
+.btn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.btn.ghost{background:#fff;color:var(--navy);border-color:#cdd6e6;} .btn.danger{background:#fff;color:var(--red);border-color:#f0c9c6;} .btn.danger:hover{background:#fdeceb;}
+.btn.sm{padding:6px 11px;font-size:12px;}
+.btnrow{display:flex;gap:9px;margin-top:14px;flex-wrap:wrap;align-items:center;}
+.msg{font-size:12.5px;font-weight:600;} .msg.ok{color:var(--green);} .msg.err{color:#b23a2c;}
+.note{font-size:12px;color:var(--muted);line-height:1.55;margin-top:8px;}
+.dept{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:14px;background:#fff;}
+.depthd{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.depthd input{font-weight:700;font-size:15px;}
+.subh{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:12px 0 8px;}
+.chks{display:flex;flex-wrap:wrap;gap:7px;}
+.chk{display:inline-flex;align-items:center;gap:6px;background:var(--wash);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px;font-weight:600;color:var(--navy);cursor:pointer;}
+.chk input{width:auto;}
+.chk.none{color:var(--muted);font-weight:500;background:none;border:none;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);}
+.foot{max-width:960px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="/admin" class="rrg-back" aria-label="Back to admin console" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">&larr;</span> Admin console</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Admin</div>
+  <h1>Departments</h1>
+  <div class="sub">Route office requests to the right team. Each department owns request categories and has assigned members &mdash; only a department&rsquo;s members (plus the person who opened the request) can see and answer what routes to it. Admin only.</div>
+</div></div>
+<div id="root" class="wrap"><div class="gate">Loading&hellip;</div></div>
+<div class="foot">Proprietary &amp; Confidential &middot; Property of Restaurant Realty Group, LLC &middot; Internal RRG use only.</div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function post(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body||{})}).then(function(r){return r.json();}); }
+function get(url){ return fetch(url,{credentials:'same-origin'}).then(function(r){return r.json();}); }
+
+var DEPTS=[], USERS=[], CATS=[];
+
+function deptCard(d,idx){
+  var mem = USERS.length ? USERS.map(function(u){
+    var on=(d.members||[]).indexOf(u.username)>=0;
+    return '<label class="chk"><input type="checkbox" class="d_mem" value="'+esc(u.username)+'"'+(on?' checked':'')+'> '+esc(u.name||u.username)+'</label>';
+  }).join('') : '<span class="chk none">No users yet &mdash; add users under Roles &amp; permissions.</span>';
+  var cats = CATS.length ? CATS.map(function(c){
+    var on=(d.cats||[]).indexOf(c)>=0;
+    return '<label class="chk"><input type="checkbox" class="d_cat" value="'+esc(c)+'"'+(on?' checked':'')+'> '+esc(c)+'</label>';
+  }).join('') : '<span class="chk none">No categories.</span>';
+  return '<div class="dept" data-dept data-id="'+esc(d.id||'')+'">'
+    +'<div class="depthd"><input class="d_name" value="'+esc(d.name||'')+'" placeholder="Department name" maxlength="60"><button class="btn danger sm" type="button" data-del="'+idx+'">Delete</button></div>'
+    +'<div class="subh">Members &mdash; who sees &amp; answers requests routed here</div><div class="chks">'+mem+'</div>'
+    +'<div class="subh">Request categories this department handles</div><div class="chks">'+cats+'</div>'
+    +'<div class="subh" style="margin-top:14px">Extra notification emails (optional)</div><input class="d_email" value="'+esc((d.emails||[]).join(', '))+'" placeholder="e.g. marketing@rrgcre.com, ops@rrgcre.com">'
+    +'</div>';
+}
+
+function syncFromDom(){
+  var out=[]; 
+  document.querySelectorAll('[data-dept]').forEach(function(c){
+    var members=[]; c.querySelectorAll('.d_mem:checked').forEach(function(x){members.push(x.value);});
+    var cats=[]; c.querySelectorAll('.d_cat:checked').forEach(function(x){cats.push(x.value);});
+    var emails=((c.querySelector('.d_email')||{}).value||'').split(/[,;\s]+/).filter(Boolean);
+    out.push({ id:c.getAttribute('data-id')||'', name:(c.querySelector('.d_name')||{}).value||'', members:members, cats:cats, emails:emails });
+  });
+  DEPTS=out;
+}
+
+function render(){
+  var html=DEPTS.map(deptCard).join('') || '<div class="note" style="margin:0 0 8px">No departments yet. Add one below.</div>';
+  document.getElementById('deptBox').innerHTML=html;
+  document.querySelectorAll('[data-del]').forEach(function(b){ b.addEventListener('click',function(){ syncFromDom(); DEPTS.splice(+b.getAttribute('data-del'),1); render(); }); });
+}
+
+function addDept(){ syncFromDom(); DEPTS.push({ id:'', name:'', members:[], cats:[], emails:[] }); render(); var box=document.getElementById('deptBox'); var inp=box.querySelectorAll('.d_name'); if(inp.length) inp[inp.length-1].focus(); }
+
+function save(){
+  syncFromDom();
+  var clean=DEPTS.filter(function(d){ return (d.name||'').trim(); });
+  var m=document.getElementById('depMsg'); m.textContent='Saving…'; m.className='msg';
+  post('/api/admin/departments',{departments:clean}).then(function(j){
+    if(j&&j.ok){ DEPTS=j.departments||[]; render(); m.textContent='Saved ✓'; m.className='msg ok'; }
+    else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; }
+  }).catch(function(){ m.textContent='Could not reach the server.'; m.className='msg err'; });
+}
+
+function resetDepts(){ if(!confirm('Reset departments back to the built-in defaults? This clears members and custom departments.')) return; post('/api/admin/departments',{reset:true}).then(function(j){ if(j&&j.ok){ DEPTS=j.departments||[]; render(); var m=document.getElementById('depMsg'); m.textContent='Reset to defaults ✓'; m.className='msg ok'; } }); }
+
+function build(){
+  document.getElementById('root').innerHTML=
+    '<div class="card"><div class="ch"><b>Departments</b><span>&mdash; teams that requests route to</span></div><div class="cb">'
+    +'<div id="deptBox"></div>'
+    +'<div class="btnrow"><button class="btn ghost" id="addBtn" type="button">+ Add department</button></div>'
+    +'<div class="btnrow" style="border-top:1px solid var(--line);padding-top:14px;margin-top:16px"><button class="btn" id="saveBtn" type="button">Save all departments</button><button class="btn ghost" id="resetBtn" type="button">Reset to defaults</button><span class="msg" id="depMsg"></span></div>'
+    +'<div class="note">A request&rsquo;s department is set from the department picker on the request form (categories are filtered to the chosen department). Members receive the new-request email; if a department has no members or emails, the request notifications list is used as a fallback.</div>'
+    +'</div></div>';
+  render();
+  document.getElementById('addBtn').addEventListener('click',addDept);
+  document.getElementById('saveBtn').addEventListener('click',save);
+  document.getElementById('resetBtn').addEventListener('click',resetDepts);
+  get('/api/admin/departments').then(function(j){ if(j&&j.ok){ DEPTS=j.departments||[]; USERS=j.users||[]; CATS=j.categories||[]; render(); } });
+}
+
+get('/api/session').then(function(s){
+  if(s&&s.role==='admin'){ build(); }
+  else { document.getElementById('root').innerHTML='<div class="gate"><b style="color:var(--navy);font-size:16px">Admins only</b><br><br>This page is for RRG administrators. <a href="./index.html" style="color:var(--navy);font-weight:700">← Back to the toolbox</a></div>'; }
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not verify your session. <a href="/login">Sign in →</a></div>'; });
+</script>
+</body>
+</html>

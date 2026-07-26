@@ -294,16 +294,16 @@ var TOOLS = [
     desc:"Every buyer, seller, and client in one searchable directory. Open a contact to see everything they're connected to across your whole book — their company, the deals they're on, and every offer, tour, and NDA in their name." },
   { name:'Deals', tag:'Deal', file:'rrg_assignments.html', icon:'briefcase', track:'book', sort:3,
     desc:"Every deal in one file. Each deal ties together its qualification call, questionnaire, valuation, marketing pack, attack plan, data room, and lease abstract — so you see at a glance where every listing stands, and manage status, owner, offers, tours, and notes from one place." },
-  { name:'Tasks', tag:'Deal', file:'rrg_tasks.html', icon:'checklist', track:'book', sort:4,
-    desc:"Your team to-do list. Create tasks, assign them to anyone on the team, set a due date and priority, and check them off. See what's on your plate and what you've handed out." },
-  { name:'Agreements', tag:'Deal', file:'rrg_agreements.html', icon:'seal', track:'book', sort:5,
+  { name:'Agreements', tag:'Deal', file:'rrg_agreements.html', icon:'seal', track:'book', sort:4,
     desc:"Every agreement on the book in one place — NDAs, CAs, ETRAs, referral agreements, and exclusive business listings — with effective and expiration dates. See at a glance what's active, what's expiring within 60 days, and what's lapsed." },
+  { name:'Tasks', tag:'Deal', file:'rrg_tasks.html', icon:'checklist', track:'book', sort:5,
+    desc:"Your team to-do list. Create tasks, assign them to anyone on the team, set a due date and priority, and check them off. See what's on your plate and what you've handed out." },
+  { name:'Requests', tag:'Deal', file:'rrg_tickets.html', icon:'ticket', track:'book', sort:6,
+    desc:"Need something from the brokerage office — collateral, signage & riders, photography, an MLS action, a compliance question, IT help, or supplies? Open a request and the office answers it right away, so you stay in front of buyers and sellers." },
   { name:'Command Center', tag:'Deal', file:'rrg_command.html', icon:'gauge2', track:'tools', sort:1,
     desc:"Your management & prospecting cockpit. Three views over the whole book and pipeline: the lease-expiration ladder (every lease rolling in the next 6–24 months — your prospecting list), the seller pipeline (funnel, listings expiring, stale deals, value & production by agent), and portfolio intelligence (expanding concepts, dark units, market coverage)." },
   { name:'Cap Rate Calculator', tag:'Deal', file:'rrg_cap_rate_calculator.html', icon:'calc', track:'tools', sort:5,
     desc:"Value a property from its NOI and cap rate in seconds. Solve for value, required NOI, or implied cap rate — with a sensitivity table showing value across a range of cap rates." },
-  { name:'Requests', tag:'Deal', file:'rrg_tickets.html', icon:'ticket', track:'tools', sort:3,
-    desc:"Need something from the brokerage office — collateral, signage & riders, photography, an MLS action, a compliance question, IT help, or supplies? Open a request and the office answers it right away, so you stay in front of buyers and sellers." },
 
   /* ---- Business Sales pipeline (ordered by step) ---- */
   { name:'Seller Qualification Calls', tag:'Seller', file:'rrg_screening_queue.html', icon:'funnel', track:'pipeline', step:1,
@@ -337,10 +337,10 @@ var TOOLS = [
 ];
 
 var TRACKS = [
-  { key:'book',     label:'Book of Business', note:'companies, contacts, deals, tasks, and agreements — the command center for your whole book' },
+  { key:'book',     label:'Book of Business', note:'companies, contacts, deals, agreements, tasks, and requests — the command center for your whole book' },
   { key:'pipeline', label:'Business Sales', note:'the deal pipeline — screen → value → opine → offer → close', flow:true },
   { key:'tenant',   label:'Tenant Representation', note:'find the space, prove the fit, track the tour, close the lease' },
-  { key:'tools',    label:'Tools', note:'the command center, office requests, and standalone tools — open one any time' },
+  { key:'tools',    label:'Tools', note:'the command center and standalone tools — open one any time' },
 ];
 
 /* Per-tool background + how-to (the "How to use" button). Keyed by file. Edit freely. */
@@ -642,6 +642,7 @@ window.RRG_API = window.RRG_API || (String(location.protocol).indexOf('http')===
   if(!api){ window._toolCtx={isAdmin:true,adminOnly:[]}; renderTools(); return; }   // standalone/file preview shows all
   fetch(api.replace(/\/$/,'')+'/api/session').then(function(r){return r.json();}).then(function(s){
     window.IS_ADMIN = !!(s&&s.role==='admin');
+    var TL=(s&&s.toolLabels)||{}; TOOLS.forEach(function(t){ if(TL[t.file]) t.name=TL[t.file]; });
     window._toolCtx={isAdmin:!!(s&&s.role==='admin'), adminOnly:(s&&s.adminOnlyTools)||[]};
     renderTools();
     renderTopNav(s);
@@ -748,8 +749,9 @@ function qlSave(){
   fetch(api.replace(/\/$/,'')+'/api/tickets',{credentials:'same-origin'}).then(function(r){return r.json();})
     .then(function(j){
       if(!j||!j.ok) return;
-      var open=(j.tickets||[]).filter(function(t){ return t.status!=='Closed'; });
       var el=document.getElementById('reqWidget'); if(!el) return;
+      if(j.ribbon===false){ el.style.display='none'; return; }
+      var open=(j.tickets||[]).filter(function(t){ return t.status!=='Closed'; });
       if(!open.length){ el.style.display='none'; return; }
       var needs=open.filter(function(t){ return t.lastFrom==='office'; }).length;
       var admin=!!j.isAdmin;

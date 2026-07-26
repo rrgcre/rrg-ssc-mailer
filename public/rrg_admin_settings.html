@@ -59,7 +59,7 @@ function post(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type'
 function get(url){ return fetch(url,{credentials:'same-origin'}).then(function(r){return r.json();}); }
 
 var TYPES={ personTypes:[], companyTypes:[], ticketCategories:[], leadSources:[], activityTypes:[], cuisineTypes:[] };
-var MAXPULL=20; var DEFSTATE='TX'; var ASSISTANT='Claude';
+var MAXPULL=20; var DEFSTATE='TX'; var ASSISTANT='Claude'; var SHOWRIBBON=true; var TOOLDEFS=[]; var TOOLLABELS={};
 
 function tagListHtml(kind,arr){
   return '<div class="tagbox" id="tb_'+kind+'">'+(arr.length?arr.map(function(t,i){ return '<span class="tagchip"><button type="button" class="tmv" data-mv="'+kind+'" data-i="'+i+'" data-d="-1" title="Move earlier">‹</button><span class="tglbl">'+esc(t)+'</span><button type="button" class="tmv" data-mv="'+kind+'" data-i="'+i+'" data-d="1" title="Move later">›</button><button type="button" class="tgx" data-rm="'+kind+'" data-val="'+esc(t)+'" title="Remove">×</button></span>'; }).join(''):'<span class="note" style="margin:4px">None — add one below.</span>')+'</div>'
@@ -76,17 +76,31 @@ function renderTypes(){
     +'<div><label class="fld">Cuisine types</label>'+tagListHtml('cuisineTypes',TYPES.cuisineTypes)+'</div>'
     +'</div>'
     +'<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--line)"><label class="fld">Max locations per web pull</label><input id="maxpull" type="number" min="1" max="500" value="'+esc(MAXPULL)+'" style="max-width:150px"><div class="note" style="margin-top:6px">Caps how many locations the &ldquo;Find locations&rdquo; web pull creates at once, so a big chain does not import hundreds. Default 20.</div></div>'
-    +'<div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px"><div><label class="fld">Default state for new records</label><input id="defstate" value="'+esc(DEFSTATE)+'" maxlength="20" style="max-width:120px"></div><div><label class="fld">Assistant name (AI helper)</label><input id="assistant" value="'+esc(ASSISTANT)+'" maxlength="40" placeholder="Claude"></div></div><div class="note" style="margin-top:6px">Default state pre-fills the State field on new companies. Assistant name is what the app calls its AI helper throughout (default Claude).</div>';
+    +'<div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px"><div><label class="fld">Default state for new records</label><input id="defstate" value="'+esc(DEFSTATE)+'" maxlength="20" style="max-width:120px"></div><div><label class="fld">Assistant name (AI helper)</label><input id="assistant" value="'+esc(ASSISTANT)+'" maxlength="40" placeholder="Claude"></div></div><div class="note" style="margin-top:6px">Default state pre-fills the State field on new companies. Assistant name is what the app calls its AI helper throughout (default Claude).</div>'
+    +'<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)"><label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--navy);cursor:pointer"><input type="checkbox" id="showribbon"'+(SHOWRIBBON?' checked':'')+'> Show the open-requests ribbon on the dashboard</label><div class="note" style="margin-top:6px">When on, the dashboard shows a ribbon summarizing open requests. Turn off to hide it for everyone.</div></div>';
   document.querySelectorAll('[data-rm]').forEach(function(b){ b.addEventListener('click',function(){ var k=b.getAttribute('data-rm'), v=b.getAttribute('data-val'); TYPES[k]=TYPES[k].filter(function(x){return x!==v;}); renderTypes(); }); });
   document.querySelectorAll('[data-mv]').forEach(function(b){ b.addEventListener('click',function(){ var k=b.getAttribute('data-mv'), i=+b.getAttribute('data-i'), d=+b.getAttribute('data-d'), j=i+d; if(j<0||j>=TYPES[k].length) return; var t=TYPES[k][i]; TYPES[k][i]=TYPES[k][j]; TYPES[k][j]=t; renderTypes(); }); });
   document.querySelectorAll('[data-add]').forEach(function(b){ b.addEventListener('click',function(){ addType(b.getAttribute('data-add')); }); });
   ['personTypes','companyTypes','ticketCategories','leadSources','activityTypes','cuisineTypes'].forEach(function(k){ var inp=document.getElementById('add_'+k); if(inp) inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); addType(k); } }); });
 }
 function addType(k){ var inp=document.getElementById('add_'+k); var v=(inp.value||'').trim(); if(!v) return; if(TYPES[k].map(function(x){return x.toLowerCase();}).indexOf(v.toLowerCase())<0) TYPES[k].push(v); inp.value=''; renderTypes(); setTimeout(function(){var i=document.getElementById('add_'+k); if(i) i.focus();},0); }
+function renderToolLabels(){
+  var box=document.getElementById('toolLabelsBox'); if(!box) return;
+  box.innerHTML='<div class="grid2">'+TOOLDEFS.map(function(t){
+    var cur=TOOLLABELS[t.file]||'';
+    return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px"><span style="min-width:150px;color:var(--muted);font-size:13px">'+esc(t.name)+'</span><input data-tl="'+esc(t.file)+'" value="'+esc(cur)+'" placeholder="'+esc(t.name)+'" maxlength="40" style="flex:1"></div>';
+  }).join('')+'</div>';
+}
+function saveToolLabels(){
+  var m=document.getElementById('tlMsg'); m.textContent='Saving…'; m.className='msg';
+  var labels={}; document.querySelectorAll('[data-tl]').forEach(function(i){ var v=(i.value||'').trim(); if(v) labels[i.getAttribute('data-tl')]=v; });
+  post('/api/admin/tool-labels',{labels:labels}).then(function(j){ if(j&&j.ok){ TOOLDEFS=j.tools||TOOLDEFS; TOOLLABELS=j.labels||{}; renderToolLabels(); m.textContent='Saved ✓'; m.className='msg ok'; } else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; } });
+}
+function resetToolLabels(){ if(!confirm('Reset all tool names back to the built-in defaults?')) return; post('/api/admin/tool-labels',{reset:true}).then(function(j){ if(j&&j.ok){ TOOLDEFS=j.tools||TOOLDEFS; TOOLLABELS=j.labels||{}; renderToolLabels(); var m=document.getElementById('tlMsg'); m.textContent='Reset ✓'; m.className='msg ok'; } }); }
 function saveTypes(){
   var m=document.getElementById('typesMsg'); m.textContent='Saving…'; m.className='msg';
-  post('/api/admin/types',{ personTypes:TYPES.personTypes, companyTypes:TYPES.companyTypes, ticketCategories:TYPES.ticketCategories, leadSources:TYPES.leadSources, activityTypes:TYPES.activityTypes, cuisineTypes:TYPES.cuisineTypes, maxPullLocations:(document.getElementById('maxpull')?document.getElementById('maxpull').value:MAXPULL), defaultState:(document.getElementById('defstate')?document.getElementById('defstate').value:DEFSTATE), assistantName:(document.getElementById('assistant')?document.getElementById('assistant').value:ASSISTANT) }).then(function(j){
-    if(j&&j.ok){ TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[], leadSources:j.leadSources||[], activityTypes:j.activityTypes||[], cuisineTypes:j.cuisineTypes||[] }; MAXPULL=(j.maxPullLocations!=null?j.maxPullLocations:MAXPULL); DEFSTATE=(j.defaultState!=null?j.defaultState:DEFSTATE); ASSISTANT=(j.assistantName!=null?j.assistantName:ASSISTANT); renderTypes(); m.textContent='Saved ✓'; m.className='msg ok'; }
+  post('/api/admin/types',{ personTypes:TYPES.personTypes, companyTypes:TYPES.companyTypes, ticketCategories:TYPES.ticketCategories, leadSources:TYPES.leadSources, activityTypes:TYPES.activityTypes, cuisineTypes:TYPES.cuisineTypes, maxPullLocations:(document.getElementById('maxpull')?document.getElementById('maxpull').value:MAXPULL), defaultState:(document.getElementById('defstate')?document.getElementById('defstate').value:DEFSTATE), assistantName:(document.getElementById('assistant')?document.getElementById('assistant').value:ASSISTANT), showRequestRibbon:(document.getElementById('showribbon')?document.getElementById('showribbon').checked:SHOWRIBBON) }).then(function(j){
+    if(j&&j.ok){ TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[], leadSources:j.leadSources||[], activityTypes:j.activityTypes||[], cuisineTypes:j.cuisineTypes||[] }; MAXPULL=(j.maxPullLocations!=null?j.maxPullLocations:MAXPULL); DEFSTATE=(j.defaultState!=null?j.defaultState:DEFSTATE); ASSISTANT=(j.assistantName!=null?j.assistantName:ASSISTANT); SHOWRIBBON=(j.showRequestRibbon!=null?j.showRequestRibbon:SHOWRIBBON); renderTypes(); m.textContent='Saved ✓'; m.className='msg ok'; }
     else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; }
   }).catch(function(){ m.textContent='Could not reach the server.'; m.className='msg err'; });
 }
@@ -128,6 +142,11 @@ function build(){
     +'<div class="btnrow"><button class="btn" id="typesSave">Save type lists</button><button class="btn ghost" id="typesReset">Reset to defaults</button><span class="msg" id="typesMsg"></span></div>'
     +'<div class="note">“Restaurant Owner” and “Referral Source” are already in the default contact types. Renaming a value here does not change contacts already saved with the old value.</div>'
     +'</div></div>'
+    +'<div class="card"><div class="ch"><b>Tool names</b><span>— rename any tool as it appears on the dashboard (e.g. call &ldquo;Contacts&rdquo; &ldquo;People&rdquo;)</span></div><div class="cb">'
+    +'<div id="toolLabelsBox"></div>'
+    +'<div class="btnrow"><button class="btn" id="tlSave">Save tool names</button><button class="btn ghost" id="tlReset">Reset to defaults</button><span class="msg" id="tlMsg"></span></div>'
+    +'<div class="note">Leave a box blank to keep the built-in name. This changes the dashboard label; the tool&rsquo;s own page keeps its heading.</div>'
+    +'</div></div>'
     +'<div class="card"><div class="ch"><b>Request notifications</b><span>— who gets emailed when a new office request comes in</span></div><div class="cb">'
     +'<label class="fld">Services email(s)</label><input id="svcEmails" placeholder="van@rrgcre.com, avery@rrgcre.com">'
     +'<div class="btnrow"><button class="btn" id="svcSave">Save recipients</button><span class="msg" id="svcMsg"></span></div>'
@@ -147,12 +166,15 @@ function build(){
   renderTypes();
   document.getElementById('typesSave').addEventListener('click',saveTypes);
   document.getElementById('typesReset').addEventListener('click',resetTypes);
+  document.getElementById('tlSave').addEventListener('click',saveToolLabels);
+  document.getElementById('tlReset').addEventListener('click',resetToolLabels);
   document.getElementById('svcSave').addEventListener('click',saveServices);
   document.getElementById('keySave').addEventListener('click',saveKey);
   document.getElementById('keyClear').addEventListener('click',clearKey);
   document.getElementById('resetBtn').addEventListener('click',resetBook);
   // load current values
-  get('/api/admin/types').then(function(j){ if(j&&j.ok){ TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[], leadSources:j.leadSources||[], activityTypes:j.activityTypes||[], cuisineTypes:j.cuisineTypes||[] }; MAXPULL=(j.maxPullLocations!=null?j.maxPullLocations:MAXPULL); DEFSTATE=(j.defaultState!=null?j.defaultState:DEFSTATE); ASSISTANT=(j.assistantName!=null?j.assistantName:ASSISTANT); renderTypes(); } });
+  get('/api/admin/types').then(function(j){ if(j&&j.ok){ TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[], leadSources:j.leadSources||[], activityTypes:j.activityTypes||[], cuisineTypes:j.cuisineTypes||[] }; MAXPULL=(j.maxPullLocations!=null?j.maxPullLocations:MAXPULL); DEFSTATE=(j.defaultState!=null?j.defaultState:DEFSTATE); ASSISTANT=(j.assistantName!=null?j.assistantName:ASSISTANT); SHOWRIBBON=(j.showRequestRibbon!=null?j.showRequestRibbon:SHOWRIBBON); renderTypes(); } });
+  get('/api/admin/tool-labels').then(function(j){ if(j&&j.ok){ TOOLDEFS=j.tools||[]; TOOLLABELS=j.labels||{}; renderToolLabels(); } });
   get('/api/admin/services-email').then(function(j){ if(j&&j.ok){ document.getElementById('svcEmails').value=(j.emails||[]).join(', '); } });
   get('/api/admin/anthropic-key').then(function(j){ if(j&&j.ok) renderKey(j); });
 }

@@ -95,6 +95,7 @@ h1{font-size:28px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
   <div class="modalh">New request to the office</div>
   <div class="modalb">
     <label class="mfld">Subject</label><input id="m_subject" placeholder="e.g. Need a yard sign for 4th & Congress listing">
+    <label class="mfld">Department</label><select id="m_department"></select>
     <div class="row2">
       <div><label class="mfld">Category</label><select id="m_category"></select></div>
       <div><label class="mfld">Priority</label><select id="m_priority"></select></div>
@@ -112,7 +113,7 @@ function ago(iso){ if(!iso) return ''; var d=new Date(iso), now=new Date(), s=(n
 function fmtDate(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}); }
 function openDays(t){ var start=new Date(t.createdAt||t.lastAt||Date.now()); var end=(t.status==='Closed')?new Date(t.updatedAt||t.lastAt||Date.now()):new Date(); var d=Math.max(0,Math.floor((end-start)/86400000)); return d; }
 function openLabel(t){ var d=openDays(t); var closed=t.status==='Closed'; return (closed?'Open ':'Open ')+ (d===0?'<1d':(d+'d')) + (closed?' (resolved)':''); }
-var ALL=[], CATS=[], PRIS=[], STATUSES=[], ISADMIN=false, FILTER='all', SORT='new', USERFILTER='';
+var ALL=[], CATS=[], PRIS=[], STATUSES=[], DEPTS=[], ISADMIN=false, FILTER='all', SORT='new', USERFILTER='';
 
 function renderFilters(){
   var opts=[{k:'all',l:'All'},{k:'open',l:'Needs you'},{k:'Answered',l:'Answered'},{k:'Closed',l:'Closed'}];
@@ -154,7 +155,7 @@ function renderList(){
   if(!ALL.length){ document.getElementById('body').innerHTML='<div class="empty"><b>No requests yet.</b>Open your first request — the brokerage office answers marketing, signage, photography, listings, compliance, IT, supplies and more.</div>'; return; }
   if(!list.length){ document.getElementById('body').innerHTML='<div class="empty">Nothing in this view.</div>'; return; }
   document.getElementById('body').innerHTML=list.map(function(t){
-    var meta=[esc(t.category)]; if(ISADMIN&&t.by) meta.push('by '+esc(t.by)); meta.push('opened '+fmtDate(t.createdAt)); meta.push(openLabel(t)); meta.push(ago(t.lastAt)+(t.lastFrom==='office'?' · office replied':''));
+    var meta=[]; if(t.departmentName) meta.push(esc(t.departmentName)); meta.push(esc(t.category)); if(ISADMIN&&t.by) meta.push('by '+esc(t.by)); meta.push('opened '+fmtDate(t.createdAt)); meta.push(openLabel(t)); meta.push(ago(t.lastAt)+(t.lastFrom==='office'?' · office replied':''));
     var pr=(t.priority&&t.priority!=='Normal')?(' <span class="pr-'+esc(t.priority)+'">· '+esc(t.priority)+'</span>'):'';
     return '<div class="trow" data-id="'+esc(t.id)+'"><div class="tno">'+esc(t.no)+'</div><div class="tmain"><div class="tsub">'+esc(t.subject)+'</div><div class="tmeta">'+meta.join(' · ')+pr+'</div></div><span class="stpill '+stClass(t.status)+'">'+esc(t.status)+'</span></div>';
   }).join('');
@@ -176,7 +177,7 @@ function renderThread(t){
     '<button class="backlink" id="backBtn">← All requests</button>'
     + '<div class="card" style="margin-top:12px">'
     + '<div class="hd"><b>'+esc(t.no)+' · '+esc(t.subject)+'</b><span class="stpill '+stClass(t.status)+'" style="margin-left:auto">'+esc(t.status)+'</span></div>'
-    + '<div class="detmeta"><span class="dchip">'+esc(t.category)+'</span>'+((t.priority&&t.priority!=='Normal')?('<span class="dchip">'+esc(t.priority)+' priority</span>'):'')+(ISADMIN&&t.by?('<span class="dchip">From '+esc(t.by)+'</span>'):'')+'<span class="dchip">Opened '+esc(fmtDate(t.createdAt))+'</span><span class="dchip">'+esc(openLabel(t))+'</span>'+(ISADMIN?('<select class="detsel" id="detStatus">'+(STATUSES||[]).map(function(s){return '<option'+(t.status===s?' selected':'')+'>'+esc(s)+'</option>';}).join('')+'</select>'):'')+'</div>'
+    + '<div class="detmeta">'+(t.departmentName?('<span class="dchip" style="background:#eef4ff;border-color:#cfe0ff;color:#2f5bd0">'+esc(t.departmentName)+'</span>'):'')+'<span class="dchip">'+esc(t.category)+'</span>'+((t.priority&&t.priority!=='Normal')?('<span class="dchip">'+esc(t.priority)+' priority</span>'):'')+(ISADMIN&&t.by?('<span class="dchip">From '+esc(t.by)+'</span>'):'')+'<span class="dchip">Opened '+esc(fmtDate(t.createdAt))+'</span><span class="dchip">'+esc(openLabel(t))+'</span>'+(ISADMIN?('<select class="detsel" id="detStatus">'+(STATUSES||[]).map(function(s){return '<option'+(t.status===s?' selected':'')+'>'+esc(s)+'</option>';}).join('')+'</select>'):'')+'</div>'
     + '<div class="thwrap">'+msgs+'</div>'
     + '<div id="thinkSlot"></div>'
     + reply
@@ -206,8 +207,15 @@ function setStatus(id,s){
 }
 
 /* ---- new request ---- */
+function fillCats(){
+  var did=document.getElementById('m_department').value;
+  var d=DEPTS.filter(function(x){return x.id===did;})[0];
+  var cats=(d&&d.cats&&d.cats.length)?d.cats:CATS;
+  document.getElementById('m_category').innerHTML=cats.map(function(c){return '<option>'+esc(c)+'</option>';}).join('');
+}
 function openModal(){
-  document.getElementById('m_category').innerHTML=CATS.map(function(c){return '<option>'+esc(c)+'</option>';}).join('');
+  document.getElementById('m_department').innerHTML=DEPTS.map(function(d){return '<option value="'+esc(d.id)+'">'+esc(d.name)+'</option>';}).join('');
+  fillCats();
   document.getElementById('m_priority').innerHTML=PRIS.map(function(p){return '<option>'+esc(p)+'</option>';}).join('');
   document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_subject').focus();
 }
@@ -217,18 +225,19 @@ function createTicket(){
   if(!subject){ document.getElementById('m_subject').focus(); return; }
   if(!details){ document.getElementById('m_details').focus(); return; }
   var b=document.getElementById('m_create'); b.disabled=true; b.textContent='Sending…';
-  fetch('/api/ticket',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({subject:subject,details:details,category:document.getElementById('m_category').value,priority:document.getElementById('m_priority').value})})
+  fetch('/api/ticket',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({subject:subject,details:details,department:document.getElementById('m_department').value,category:document.getElementById('m_category').value,priority:document.getElementById('m_priority').value})})
     .then(function(r){return r.json();}).then(function(j){ b.disabled=false;b.textContent='Send to office'; if(j&&j.ok&&j.ticket){ closeModal(); showDetail(j.ticket); } else { alert((j&&j.error)||'Could not send the request.'); } })
     .catch(function(){ b.disabled=false;b.textContent='Send to office'; alert('Could not reach the server.'); });
 }
 document.getElementById('newBtn').addEventListener('click',openModal);
 document.getElementById('m_cancel').addEventListener('click',closeModal);
 document.getElementById('m_create').addEventListener('click',createTicket);
+document.getElementById('m_department').addEventListener('change',fillCats);
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target.id==='modal') closeModal(); });
 
 function load(){
   fetch('/api/tickets',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    ALL=(j&&j.tickets)||[]; CATS=(j&&j.categories)||[]; PRIS=(j&&j.priorities)||[]; STATUSES=(j&&j.statuses)||[]; ISADMIN=!!(j&&j.isAdmin);
+    ALL=(j&&j.tickets)||[]; CATS=(j&&j.categories)||[]; PRIS=(j&&j.priorities)||[]; STATUSES=(j&&j.statuses)||[]; DEPTS=(j&&j.departments)||[]; ISADMIN=!!(j&&j.isAdmin);
     renderFilters(); renderList();
   }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load requests.</div>'; });
 }

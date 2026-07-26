@@ -202,6 +202,36 @@ function effCuisineTypes() { const s = loadSettings(); return (Array.isArray(s.c
 function effMaxPullLocations() { const s = loadSettings(); const n = parseInt(s.maxPullLocations, 10); return (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
 function effDefaultState() { const s = loadSettings(); const v = String(s.defaultState || '').trim(); return v ? v.slice(0, 20) : 'TX'; }
 function effAssistantName() { const s = loadSettings(); const v = String(s.assistantName || '').trim(); return v ? v.slice(0, 40) : 'Claude'; }
+function effShowRequestRibbon() { const s = loadSettings(); return s.showRequestRibbon !== false; }
+// ---- Tool label overrides: admins can rename any tool (e.g. call "Contacts" "People").
+// Stored as { file: customLabel }; the dashboard applies them when rendering. ----
+const TOOL_DEFS = [
+  { file: 'rrg_companies.html', name: 'Companies' },
+  { file: 'rrg_people.html', name: 'Contacts' },
+  { file: 'rrg_assignments.html', name: 'Deals' },
+  { file: 'rrg_agreements.html', name: 'Agreements' },
+  { file: 'rrg_tasks.html', name: 'Tasks' },
+  { file: 'rrg_tickets.html', name: 'Requests' },
+  { file: 'rrg_command.html', name: 'Command Center' },
+  { file: 'rrg_cap_rate_calculator.html', name: 'Cap Rate Calculator' },
+  { file: 'rrg_screening_queue.html', name: 'Seller Qualification Calls' },
+  { file: 'rrg_questionnaire_queue.html', name: 'Valuation Questionnaires' },
+  { file: 'rrg_bov_queue.html', name: 'Business Valuations' },
+  { file: 'rrg_rooms_queue.html', name: 'Data Rooms' },
+  { file: 'rrg_cim_queue.html', name: 'Marketing Packs' },
+  { file: 'rrg_attack_queue.html', name: 'Market Attack Plans' },
+  { file: 'rrg_commission_calculator.html', name: 'Commission Forecaster' },
+  { file: 'ssc_form.html', name: 'Site Selection Criteria' },
+  { file: 'rrg_tenant_attack_plan.html', name: 'Market Attack Plan' },
+  { file: 'rrg_site_fit.html', name: 'Site & Concept Fit' },
+  { file: 'rrg_tour_tracker.html', name: 'Tour Tracker' },
+  { file: 'rrg_lease_queue.html', name: 'Lease Abstracts' },
+  { file: 'rrg_lease_commission_calculator.html', name: 'Lease Commission' },
+];
+const TOOL_FILES = TOOL_DEFS.map(t => t.file);
+function effToolLabels() { const s = loadSettings(); const m = (s.toolLabels && typeof s.toolLabels === 'object') ? s.toolLabels : {}; const out = {}; Object.keys(m).forEach(k => { if (TOOL_FILES.indexOf(k) >= 0) { const v = String(m[k] || '').trim().slice(0, 40); if (v) out[k] = v; } }); return out; }
+function cleanToolLabels(m) { if (!m || typeof m !== 'object') return {}; const out = {}; TOOL_DEFS.forEach(t => { const v = String(m[t.file] || '').trim().slice(0, 40); if (v && v !== t.name) out[t.file] = v; }); return out; }
+
 function newActivityId() { return 'act_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function logActivity(p, type, note, o) {
   o = o || {};
@@ -216,6 +246,56 @@ function logActivity(p, type, note, o) {
 }
 function effCompanyTypes() { const s = loadSettings(); return (Array.isArray(s.companyTypes) && s.companyTypes.length) ? s.companyTypes : COMPANY_TYPES; }
 function effTicketCategories() { const s = loadSettings(); return (Array.isArray(s.ticketCategories) && s.ticketCategories.length) ? s.ticketCategories : TICKET_CATEGORIES; }
+// ---- Departments: route requests to a team; only that team's members (plus the
+// requester) can see them. Departments own request categories, so a category maps
+// to the department that handles it. Members + emails receive the notification. ----
+const DEPARTMENTS_DEFAULT = [
+  { id: 'marketing',  name: 'Marketing & Creative', members: [], cats: ['Marketing', 'Signage & Riders', 'Photography'], emails: [] },
+  { id: 'listings',   name: 'Listings & MLS',       members: [], cats: ['Listings'], emails: [] },
+  { id: 'legal',      name: 'Legal & Compliance',   members: [], cats: ['Legal / Compliance'], emails: [] },
+  { id: 'it',         name: 'IT & Software',        members: [], cats: ['IT / Software'], emails: [] },
+  { id: 'accounting', name: 'Accounting',           members: [], cats: ['Accounting'], emails: [] },
+  { id: 'operations', name: 'Operations',           members: [], cats: ['Supplies', 'Other'], emails: [] },
+];
+function cleanDepartments(a) {
+  if (!Array.isArray(a)) return null;
+  const out = [];
+  a.forEach(d => {
+    if (!d || typeof d !== 'object') return;
+    const name = String(d.name || '').trim().slice(0, 60);
+    if (!name) return;
+    let id = String(d.id || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
+    if (!id) id = 'dpt-' + (out.length + 1);
+    while (out.some(x => x.id === id)) id = id + '-' + (out.length + 1);
+    const members = Array.isArray(d.members) ? Array.from(new Set(d.members.map(m => String(m || '').trim().toLowerCase()).filter(Boolean))).slice(0, 300) : [];
+    const cats = Array.isArray(d.cats) ? Array.from(new Set(d.cats.map(c => String(c || '').trim()).filter(Boolean))).slice(0, 40) : [];
+    const emails = Array.isArray(d.emails) ? Array.from(new Set(d.emails.map(e => String(e || '').trim()).filter(e => e.indexOf('@') > 0))).slice(0, 20) : [];
+    out.push({ id, name, members, cats, emails });
+  });
+  return out;
+}
+function effDepartments() { const s = loadSettings(); return (Array.isArray(s.departments) && s.departments.length) ? s.departments : DEPARTMENTS_DEFAULT; }
+function deptById(id) { if (!id) return null; return effDepartments().find(d => d.id === id) || null; }
+function deptForCategory(cat) { if (!cat) return null; return effDepartments().find(d => Array.isArray(d.cats) && d.cats.indexOf(cat) >= 0) || null; }
+function ticketDept(t) { return (t && t.department && deptById(t.department)) || deptForCategory(t && t.category) || null; }
+function userDepartmentIds(username) { const u = String(username || '').toLowerCase(); if (!u) return []; return effDepartments().filter(d => Array.isArray(d.members) && d.members.indexOf(u) >= 0).map(d => d.id); }
+function deptNotifyEmails(d) {
+  if (!d) return servicesEmails();
+  const emails = [];
+  (Array.isArray(d.members) ? d.members : []).forEach(un => { try { const u = auth.findUser(un); if (u && u.email) emails.push(u.email); } catch (e) {} });
+  (Array.isArray(d.emails) ? d.emails : []).forEach(e => emails.push(e));
+  const uniq = Array.from(new Set(emails.filter(Boolean)));
+  return uniq.length ? uniq : servicesEmails();
+}
+function canSeeTicket(req, t) {
+  const uname = String((req.user && req.user.username) || '').toLowerCase();
+  if (!uname) return false;
+  if (t.byUser && String(t.byUser).toLowerCase() === uname) return true;   // your own request
+  const d = ticketDept(t);
+  if (d && Array.isArray(d.members) && d.members.indexOf(uname) >= 0) return true;  // you're on the team it routed to
+  return false;
+}
+
 function servicesEmails() { const s = loadSettings(); const a = cleanStrList(s.servicesEmails, 10, 160); return (a && a.length) ? a : ['van@rrgcre.com', 'avery@rrgcre.com']; }
 
 // ---- Data backup — zips the entire data directory (all JSON stores + uploaded
@@ -712,6 +792,7 @@ app.get('/api/session', (req, res) => res.json({
   title: req.user.title || '', phone: req.user.phone || '', email: req.user.email || '',
   preparedBy: req.user.preparedBy || '',
   adminOnlyTools: auth.loadToolAccess(),
+  toolLabels: effToolLabels(),
   logoUrl: (function () { const b = loadBrand(); return b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(b.updatedAt || '')) : ''; })(),
   headerMsg: (function () { const b = loadBrand(); return (b.headerMsg && b.headerMsgOn !== false) ? String(b.headerMsg) : ''; })(),
   build: BUILD,
@@ -2827,14 +2908,14 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(),
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), showRequestRibbon: effShowRequestRibbon(),
     defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, cuisineTypes: CUISINE_TYPES },
     isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), cuisineTypes: Array.isArray(s.cuisineTypes) },
   });
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.showRequestRibbon; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), showRequestRibbon: effShowRequestRibbon() }); }
   if (b.personTypes !== undefined) s.personTypes = cleanStrList(b.personTypes, 40, 60) || [];
   if (b.companyTypes !== undefined) s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || [];
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
@@ -2844,8 +2925,9 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   if (b.maxPullLocations !== undefined) { const n = parseInt(b.maxPullLocations, 10); s.maxPullLocations = (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
   if (typeof b.defaultState === 'string') s.defaultState = b.defaultState.trim().slice(0, 20);
   if (typeof b.assistantName === 'string') s.assistantName = b.assistantName.trim().slice(0, 40);
+  if (b.showRequestRibbon !== undefined) s.showRequestRibbon = !!b.showRequestRibbon;
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), showRequestRibbon: effShowRequestRibbon() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
@@ -2858,6 +2940,32 @@ app.post('/api/admin/services-email', requireAdmin, express.json(), (req, res) =
   saveSettings(s);
   res.json({ ok: true, emails: servicesEmails() });
 });
+// ---- Departments admin (create / rename / delete / assign users / categories / emails) ----
+app.get('/api/admin/departments', requireAdmin, (req, res) => {
+  res.json({
+    ok: true,
+    departments: effDepartments(),
+    isCustom: Array.isArray(loadSettings().departments),
+    users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username, email: u.email || '' })),
+    categories: effTicketCategories(),
+  });
+});
+app.post('/api/admin/departments', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {};
+  if (b.reset) { const s = loadSettings(); delete s.departments; saveSettings(s); return res.json({ ok: true, departments: effDepartments() }); }
+  const cleaned = cleanDepartments(b.departments);
+  if (!cleaned) return res.status(400).json({ ok: false, error: 'Bad departments list.' });
+  const s = loadSettings(); s.departments = cleaned; saveSettings(s);
+  res.json({ ok: true, departments: effDepartments() });
+});
+app.get('/api/admin/tool-labels', requireAdmin, (req, res) => { res.json({ ok: true, tools: TOOL_DEFS, labels: effToolLabels() }); });
+app.post('/api/admin/tool-labels', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {};
+  if (b.reset) { const s = loadSettings(); delete s.toolLabels; saveSettings(s); return res.json({ ok: true, tools: TOOL_DEFS, labels: {} }); }
+  const s = loadSettings(); s.toolLabels = cleanToolLabels(b.labels); saveSettings(s);
+  res.json({ ok: true, tools: TOOL_DEFS, labels: effToolLabels() });
+});
+
 
 // ---- Admin: reset the whole book (companies + concepts + locations). Contacts & deals are kept. ----
 app.post('/api/admin/reset-book', requireAdmin, express.json(), (req, res) => {
@@ -3284,6 +3392,7 @@ function ticketBrief(t) {
   const last = msgs.length ? msgs[msgs.length - 1] : null;
   return {
     id: t.id, num: t.num || 0, no: ticketNo(t), subject: t.subject || '', category: t.category || 'Other',
+    department: t.department || '', departmentName: (ticketDept(t) || {}).name || '',
     priority: t.priority || 'Normal', status: t.status || 'Open',
     by: t.by || '', byUser: t.byUser || '', createdAt: t.createdAt || '', updatedAt: t.updatedAt || t.createdAt || '',
     messages: msgs.length, lastFrom: last ? last.from : '', lastAt: last ? last.at : (t.createdAt || ''),
@@ -3292,6 +3401,7 @@ function ticketBrief(t) {
 function ticketFull(t) {
   return {
     id: t.id, num: t.num || 0, no: ticketNo(t), subject: t.subject || '', category: t.category || 'Other',
+    department: t.department || '', departmentName: (ticketDept(t) || {}).name || '',
     priority: t.priority || 'Normal', status: t.status || 'Open', by: t.by || '', byUser: t.byUser || '',
     createdAt: t.createdAt || '', updatedAt: t.updatedAt || t.createdAt || '',
     thread: (Array.isArray(t.thread) ? t.thread : []).map(m => ({ from: m.from, name: m.name || '', at: m.at || '', text: m.text || '', status: m.status || '' })),
@@ -3322,16 +3432,15 @@ async function runTicketAI(t, req) {
 }
 app.get('/api/tickets', (req, res) => {
   const isAdmin = !!(req.user && req.user.role === 'admin');
-  let arr = loadTickets();
-  if (!isAdmin) arr = arr.filter(t => ownsTicket(req, t));
+  let arr = loadTickets().filter(t => canSeeTicket(req, t));
   arr = arr.slice().sort((a, b) => String(b.updatedAt || b.createdAt || '').localeCompare(String(a.updatedAt || a.createdAt || '')));
-  res.json({ ok: true, tickets: arr.map(ticketBrief), categories: effTicketCategories(), priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin });
+  res.json({ ok: true, tickets: arr.map(ticketBrief), categories: effTicketCategories(), priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin, ribbon: effShowRequestRibbon(), departments: effDepartments().map(d => ({ id: d.id, name: d.name, cats: d.cats })), myDepartments: userDepartmentIds(req.user && req.user.username) });
 });
 app.get('/api/ticket/:id', (req, res) => {
   const t = loadTickets().find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
-  if (!ownsTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  res.json({ ok: true, ticket: ticketFull(t), categories: effTicketCategories(), priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin: !!(req.user && req.user.role === 'admin') });
+  if (!canSeeTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  res.json({ ok: true, ticket: ticketFull(t), categories: effTicketCategories(), priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin: !!(req.user && req.user.role === 'admin'), departments: effDepartments().map(d => ({ id: d.id, name: d.name, cats: d.cats })) });
 });
 app.post('/api/ticket', express.json(), async (req, res) => {
   const b = req.body || {};
@@ -3342,9 +3451,11 @@ app.post('/api/ticket', express.json(), async (req, res) => {
   const arr = loadTickets();
   const nextNum = arr.reduce((m, x) => Math.max(m, x.num || 0), 1000) + 1;
   const now = new Date().toISOString();
+  const _cat = effTicketCategories().indexOf(b.category) >= 0 ? b.category : 'Other';
+  const _dept = deptById(b.department) || deptForCategory(_cat);
   const t = {
     id: newTicketId(), num: nextNum, subject: subject.slice(0, 160),
-    category: effTicketCategories().indexOf(b.category) >= 0 ? b.category : 'Other',
+    category: _cat, department: _dept ? _dept.id : '',
     priority: TICKET_PRIORITIES.indexOf(b.priority) >= 0 ? b.priority : 'Normal',
     status: 'Open', createdAt: now, updatedAt: now,
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
@@ -3354,21 +3465,20 @@ app.post('/api/ticket', express.json(), async (req, res) => {
   arr.push(t); saveTickets(arr);
   // Notify the services desk that a new request came in (best-effort).
   const base = appBaseUrl();
-  sendNotifyMail(servicesEmails(), 'New request ' + ticketNo(t) + ' · ' + t.subject,
-    'A new office request was submitted.\n\nFrom: ' + (t.by || 'a rep') + '\nCategory: ' + t.category + '\nPriority: ' + t.priority + '\n\n' + details +
+  sendNotifyMail(deptNotifyEmails(_dept), 'New request ' + ticketNo(t) + ' · ' + t.subject,
+    'A new office request was submitted.\n\nFrom: ' + (t.by || 'a rep') + '\nDepartment: ' + (_dept ? _dept.name : 'Unassigned') + '\nCategory: ' + t.category + '\nPriority: ' + t.priority + '\n\n' + details +
     (base ? ('\n\nOpen it: ' + base + '/rrg_tickets.html') : '')).catch(() => {});
   res.json({ ok: true, ticket: ticketFull(t) });
 });
 app.post('/api/ticket/:id/reply', express.json(), async (req, res) => {
   const arr = loadTickets(); const t = arr.find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
-  if (!ownsTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  if (!canSeeTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const text = String((req.body && req.body.text) || '').trim();
   if (!text) return res.status(400).json({ ok: false, error: 'Message is empty.' });
   t.thread = Array.isArray(t.thread) ? t.thread : [];
   const now = new Date().toISOString();
-  const isAdmin = !!(req.user && req.user.role === 'admin');
-  const isOffice = isAdmin && t.byUser !== (req.user && req.user.username);
+  const isOffice = String(t.byUser || '').toLowerCase() !== String((req.user && req.user.username) || '').toLowerCase();
   if (isOffice) {
     // An admin (the office) is answering someone else's request — post as the office, no AI, and notify the rep.
     t.thread.push({ from: 'office', name: (req.user && req.user.name) || 'RRG Brokerage Office', at: now, text: text.slice(0, 8000) });
@@ -3390,7 +3500,7 @@ app.post('/api/ticket/:id/reply', express.json(), async (req, res) => {
 app.post('/api/ticket/:id/status', express.json(), (req, res) => {
   const arr = loadTickets(); const t = arr.find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
-  if (!ownsTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  if (!canSeeTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const s = String((req.body && req.body.status) || '');
   if (TICKET_STATUSES.indexOf(s) < 0) return res.status(400).json({ ok: false, error: 'Bad status.' });
   t.status = s; t.updatedAt = new Date().toISOString(); saveTickets(arr);
@@ -4130,6 +4240,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         var moreA=document.createElement('a'); moreA.className='snav'; moreA.href='/rrg_admin_settings.html'; moreA.style.marginTop='12px'; moreA.style.borderTop='1px solid #e9edf3'; moreA.style.paddingTop='15px'; moreA.innerHTML='<span class="si"></span>More settings →'; nav.appendChild(moreA);
         var tplA=document.createElement('a'); tplA.className='snav'; tplA.href='/rrg_agreement_templates.html'; tplA.innerHTML='<span class="si"></span>Agreement templates →'; nav.appendChild(tplA);
         var rolesA=document.createElement('a'); rolesA.className='snav'; rolesA.href='/rrg_roles.html'; rolesA.innerHTML='<span class="si"></span>Roles & permissions →'; nav.appendChild(rolesA);
+        var deptA=document.createElement('a'); deptA.className='snav'; deptA.href='/rrg_departments.html'; deptA.innerHTML='<span class="si"></span>Departments →'; nav.appendChild(deptA);
       })();
       function accAll(){}
     </script>`));
