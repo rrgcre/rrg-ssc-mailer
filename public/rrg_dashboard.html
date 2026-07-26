@@ -198,7 +198,7 @@ h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.0
    icon options: 'target' | 'funnel' | 'gauge' | 'doc'   (add more in ICONS)
    ========================================================================= */
 var TOOLS = [
-  /* ---- Seller Engagement pipeline (ordered by step) ---- */
+  /* ---- Business Sales pipeline (ordered by step) ---- */
   { name:'Seller Qualification Call', tag:'Seller', file:'rrg_screening_queue.html', icon:'funnel', track:'pipeline', step:1,
     desc:"Every seller call we've made — log a new call, screen it, then pass or advance the strong leads to the Valuation Questionnaire." },
   { name:'Valuation Questionnaire', tag:'Seller', file:'rrg_questionnaire_queue.html', icon:'gauge', track:'pipeline', step:2,
@@ -228,7 +228,7 @@ var TOOLS = [
 ];
 
 var TRACKS = [
-  { key:'pipeline', label:'Seller Engagement', note:'the deal pipeline — screen → value → opine → offer → close', flow:true },
+  { key:'pipeline', label:'Business Sales', note:'the deal pipeline — screen → value → opine → offer → close', flow:true },
   { key:'tenant',   label:'Tenant Representation', note:'find the space, prove the fit, track the tour, close the lease' },
 ];
 
