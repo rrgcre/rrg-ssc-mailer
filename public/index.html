@@ -75,6 +75,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .hdrmsg{flex:1;min-width:0;color:#eaf0ff;font-size:13.5px;line-height:1.4;font-weight:600;padding-right:170px;}
 .hdrmsg .hm-in{display:inline-flex;align-items:flex-start;gap:9px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-left:3px solid var(--red);border-radius:9px;padding:9px 14px;max-width:760px;}
 .hdrmsg .hm-ic{color:var(--red);font-weight:900;flex:none;}
+.hdrmsg .hm-tx{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.35;}
 @media(max-width:760px){ .hdrmsg{display:none;} }
 .hdrdiv{width:1px;align-self:stretch;background:rgba(255,255,255,.18);flex:none;}
 .hdrtext{min-width:0;}
@@ -648,7 +649,7 @@ window.RRG_API = window.RRG_API || (String(location.protocol).indexOf('http')===
     loadCounts();
   }).catch(function(){ window._toolCtx={isAdmin:true,adminOnly:[]}; renderTools(); stampBuild(); });
 })();
-function setHeaderMsg(msg){ var el=document.getElementById('hdrMsg'); if(!el) return; msg=(msg||'').trim(); el.innerHTML = msg ? ('<span class="hm-in"><span class="hm-ic">◆</span><span>'+esc(msg)+'</span></span>') : ''; }
+function setHeaderMsg(msg){ var el=document.getElementById('hdrMsg'); if(!el) return; msg=(msg||'').trim(); el.innerHTML = msg ? ('<span class="hm-in"><span class="hm-ic">◆</span><span class="hm-tx">'+esc(msg)+'</span></span>') : ''; }
 /* ---- record counts shown as small badges next to tool titles ---- */
 function loadCounts(){
   var api=window.RRG_API||''; if(!api) return;
