@@ -58,7 +58,7 @@
     + 'body.rrg-shelled{padding-left:238px !important;padding-top:56px !important;}'
     + 'body.rrg-shelled .top,body.rrg-shelled .rrg-back{display:none !important;}'
     + '#rrgnav{position:fixed;top:0;left:0;bottom:0;width:238px;background:var(--navbg,#0b1a38);color:#c7d0e4;display:flex;flex-direction:column;z-index:60;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
-    + '#rrgnav .nt{display:flex;align-items:center;gap:9px;padding:13px 14px 8px;}'
+    + '#rrgnav .nt{display:flex;align-items:center;gap:9px;padding:10px 12px 6px;}'
     + '#rrgnav .ws{display:flex;align-items:center;gap:9px;cursor:pointer;border-radius:9px;padding:5px 7px;flex:1;text-decoration:none;}'
     + '#rrgnav .ws:hover{background:rgba(255,255,255,.06);}'
     + '#rrgnav .disc{width:30px;height:30px;border-radius:8px;background:var(--red,#DA2B1F);color:#fff;font-family:"Arial Black",Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}'
@@ -70,13 +70,13 @@
     + '#rrgtop .create .cplus{font-size:15px;font-weight:800;line-height:1;}'
     + '#rrgnav .scroll{flex:1;overflow-y:auto;padding:2px 10px 14px;}'
     + '#rrgnav .scroll::-webkit-scrollbar{width:7px;}#rrgnav .scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:7px;}'
-    + '#rrgnav .grp{margin-top:15px;}'
-    + '#rrgnav .lbl{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.34);font-weight:700;padding:5px 10px 6px;display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:7px;}'
+    + '#rrgnav .grp{margin-top:9px;}'
+    + '#rrgnav .lbl{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.34);font-weight:700;padding:3px 10px 3px;display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:7px;}'
     + '#rrgnav .lbl:hover{color:rgba(255,255,255,.6);background:rgba(255,255,255,.04);}'
     + '#rrgnav .lbl .gcv{margin-left:auto;font-size:9px;color:rgba(255,255,255,.4);transition:transform .15s;}'
     + '#rrgnav .grp.collapsed .gcv{transform:rotate(-90deg);}'
     + '#rrgnav .grp.collapsed a.it{display:none;}'
-    + '#rrgnav a.it{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:8px;color:#c3cce0;text-decoration:none;font-size:13.5px;font-weight:500;margin-bottom:1px;}'
+    + '#rrgnav a.it{display:flex;align-items:center;gap:10px;padding:5px 10px;border-radius:7px;color:#c3cce0;text-decoration:none;font-size:13.5px;font-weight:500;margin-bottom:1px;}'
     + '#rrgnav a.it:hover{background:rgba(255,255,255,.07);color:#fff;}'
     + '#rrgnav a.it.on{background:rgba(255,255,255,.12);color:#fff;font-weight:600;}'
     + '#rrgnav a.it .i{width:17px;text-align:center;color:var(--gc,rgba(255,255,255,.5));font-size:13.5px;flex:none;}'
@@ -141,7 +141,8 @@
     nav.querySelectorAll('.lbl[data-grp]').forEach(function(l){ var g=l.getAttribute('data-grp'); if(_coll[g]){ var grp=l.closest('.grp'); if(grp) grp.classList.add('collapsed'); } l.addEventListener('click',function(){ var grp=l.closest('.grp'); if(!grp) return; var on=grp.classList.toggle('collapsed'); try{ var c=JSON.parse(localStorage.getItem('rrg_navcoll')||'{}')||{}; if(on) c[g]=1; else delete c[g]; localStorage.setItem('rrg_navcoll',JSON.stringify(c)); }catch(e){} }); });
     // search → companies search (simple v1)
     var si=document.getElementById('rrgsearch');
-    si && si.addEventListener('keydown', function(e){ if(e.key==='Enter'){ var q=si.value.trim(); location.href='rrg_companies.html'+(q?('?q='+encodeURIComponent(q)):''); } });
+    si && si.addEventListener('input', function(){ if(typeof window.rrgLiveSearch==='function') window.rrgLiveSearch(si.value); });
+    si && si.addEventListener('keydown', function(e){ if(e.key==='Enter'){ var q=si.value.trim(); if(typeof window.rrgLiveSearch==='function'){ window.rrgLiveSearch(q); return; } location.href='rrg_companies.html'+(q?('?q='+encodeURIComponent(q)):''); } });
     // hydrate app name, role, user
     try {
       fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){

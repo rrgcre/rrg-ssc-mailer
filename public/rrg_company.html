@@ -61,6 +61,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .cav{width:38px;height:38px;flex:none;border-radius:50%;background:#eef1f6;color:#6b7488;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;}
 .cinfo{min-width:0;flex:1;} .cname{font-weight:600;color:var(--ink);font-size:14.5px;} .csub{font-size:12.5px;color:var(--muted);margin-top:3px;}
 .ctype{font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:#f2f4f8;color:#6b7488;border:1px solid #e6eaf1;}
+.cmain{background:none;border:none;color:#dfe3ea;cursor:pointer;font-size:16px;line-height:1;padding:0 5px;flex:none;} .cmain.on{color:#e2b93a;} .cmain:hover{color:#e2b93a;} .crow .cmain:not(.on){opacity:0;pointer-events:none;transition:opacity .13s;} .crow:hover .cmain{opacity:1;pointer-events:auto;} @media(hover:none){.crow .cmain{opacity:1!important;pointer-events:auto!important;}}
 .ctype.ls-operating,.ctype.ls-open{background:#eafaf0;color:#0e7a53;border-color:#b9e6cd;} .ctype.ls-closed{background:#fdeceb;color:var(--red);border-color:#f3cfc9;} .ctype.ls-underconstruction,.ctype.ls-underloi{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;} .ctype.ls-planned,.ctype.ls-prospective{background:#f2f4f8;color:#6b7488;border-color:#e0e5ee;} .ctype.ls-dark{background:#efe9f7;color:#5a3d9e;border-color:#d9cdf0;}
 .cptgrp{margin-bottom:6px;} .cptgrp:last-child{margin-bottom:0;}
 .cpthd{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--navy);padding:10px 2px 6px;border-bottom:1px solid var(--line);margin-bottom:2px;display:flex;align-items:center;gap:7px;}
@@ -237,7 +238,7 @@ function render(){
   document.getElementById('crumb').textContent=C.name||'Company';
   var contacts = CONTACTS.length ? CONTACTS.map(function(p){
     var sub=[p.title].concat(p.emails||(p.email?[p.email]:[])).concat(p.phones||(p.phone?[p.phone]:[])).filter(Boolean).map(esc).join(' · ');
-    return '<a class="crow crowlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'"><div class="cav">'+esc(initials(p.name).toUpperCase())+'</div><div class="cinfo"><div class="cname">'+esc(p.name||'Contact')+'</div><div class="csub">'+sub+'</div></div><span class="ctype">'+esc(p.type||'')+'</span><button class="crm" data-rm="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();">Remove</button></a>';
+    return '<a class="crow crowlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'"><div class="cav">'+esc(initials(p.name).toUpperCase())+'</div><div class="cinfo"><div class="cname">'+esc(p.name||'Contact')+'</div><div class="csub">'+sub+'</div></div><button class="cmain'+(p.id===C.mainContactId?' on':'')+'" data-main="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();" title="'+(p.id===C.mainContactId?'Main contact':'Set as main contact')+'">'+(p.id===C.mainContactId?'\u2605':'\u2606')+'</button><span class="ctype">'+esc(p.type||'')+'</span><button class="crm" data-rm="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();">Remove</button></a>';
   }).join('') : '<div class="empty">No contacts yet. Add the owner, partners, or advisors tied to this company.</div>';
   function locThumb(l){
     var p=(l.photos||[])[0];
@@ -334,6 +335,7 @@ function render(){
   document.getElementById('addContactBtn').addEventListener('click',openContactForm);
   var _aab=document.getElementById('addAgrBtn'); if(_aab) _aab.addEventListener('click',openCoAgrForm);
   document.querySelectorAll('.crm[data-rm]').forEach(function(b){ b.addEventListener('click',function(){ removeContact(b.getAttribute('data-rm')); }); });
+  document.querySelectorAll('.cmain[data-main]').forEach(function(b){ b.addEventListener('click',function(){ setMainContact(b.getAttribute('data-main')); }); });
   var acb=document.getElementById('addConceptBtn'); if(acb) acb.addEventListener('click',function(){ openConceptForm(null); });
   var acb2=document.getElementById('addCommBtn'); if(acb2) acb2.addEventListener('click',function(){ openLocForm({commissary:true,servesAll:true},''); });
   document.querySelectorAll('.mini[data-find]').forEach(function(b){ b.addEventListener('click',function(){ openFindForm(b.getAttribute('data-find')); }); });
@@ -644,6 +646,7 @@ function saveContact(){
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CONTACTS=j.contacts||[]; render(); } else if(j&&j.existingId){ b.disabled=false;b.textContent='Save'; if(confirm((j.error||'That email already exists.')+'\n\nOpen that contact?')) location.href='./rrg_person.html?id='+encodeURIComponent(j.existingId); } else { b.disabled=false;b.textContent='Save'; msg.textContent=(j&&j.error)||'Could not add the contact.'; } })
     .catch(function(){ b.disabled=false;b.textContent='Save'; msg.textContent='Could not reach the server.'; });
 }
+function setMainContact(pid){ var nv=(C.mainContactId===pid)?'':pid; fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:ID,mainContactId:nv})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ C=j.company; render(); } else alert((j&&j.error)||'Could not set the main contact.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 function removeContact(pid){
   if(!confirm('Remove this contact from the company? (The person stays in your registry.)')) return;
   fetch('/api/company/'+encodeURIComponent(ID)+'/contact/'+encodeURIComponent(pid)+'/remove',{method:'POST',credentials:'same-origin'})
