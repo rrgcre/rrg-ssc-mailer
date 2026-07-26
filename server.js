@@ -1879,6 +1879,10 @@ function newRoomId() { return 'room_' + Date.now().toString(36) + Math.random().
 function newRoomDocId() { return 'rd_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
 function newRoomToken() { try { return crypto.randomBytes(16).toString('hex'); } catch (e) { return (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 28); } }
 const ROOM_CATEGORIES = ['Financials', 'Tax Returns', 'Lease', 'Equipment & FF&E', 'Licenses & Permits', 'Legal & Corporate', 'Menus & Marketing', 'Other'];
+// Per-buyer access levels for a data room grant: view (preview only, no download),
+// download (view + download files), edit (download + upload their own documents).
+const ROOM_LEVELS = ['view', 'download', 'edit'];
+function cleanRoomLevel(v, dflt) { return ROOM_LEVELS.indexOf(String(v)) >= 0 ? String(v) : (dflt || 'download'); }
 const ROOM_EXT = /^(pdf|docx?|xlsx?|csv|pptx?|png|jpe?g|gif|txt)$/i;
 // ---- Buyer access control: per-buyer codes + a 15-min idle session ----
 const ROOM_COOKIE = 'rrg_room';
@@ -1951,7 +1955,7 @@ app.get('/api/room/:id', (req, res) => {
   const origin = req.protocol + '://' + req.get('host');
   res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-120).reverse(), categories: ROOM_CATEGORIES,
     gated: roomIsGated(r),
-    grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', code: g.code, active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
+    grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', code: g.code, level: g.level || 'download', active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
 });
 // Add a buyer (grant) — generates a personal access code.
 app.post('/api/room/:id/grant', express.json(), (req, res) => {
@@ -1964,7 +1968,7 @@ app.post('/api/room/:id/grant', express.json(), (req, res) => {
   if (!name && !email) return res.status(400).json({ ok: false, error: 'Add a name or email for this buyer.' });
   r.grants = r.grants || [];
   r.locked = true;   // adding a buyer locks the room — a code is now required
-  const g = { id: newGrantId(), name, email, code: newGrantCode(), active: true, createdAt: new Date().toISOString(), lastSeen: '', views: 0, downloads: 0, by: (req.user && req.user.name) || '' };
+  const g = { id: newGrantId(), name, email, code: newGrantCode(), level: cleanRoomLevel(b.level, 'download'), active: true, createdAt: new Date().toISOString(), lastSeen: '', views: 0, downloads: 0, by: (req.user && req.user.name) || '' };
   r.grants.push(g); saveRooms(arr);
   res.json({ ok: true, grants: r.grants, gated: true });
 });
@@ -1976,6 +1980,16 @@ app.post('/api/room/:id/grant-toggle', express.json(), (req, res) => {
   const g = (r.grants || []).find(x => x.id === String((req.body || {}).grantId || ''));
   if (!g) return res.status(404).json({ ok: false, error: 'Buyer not found.' });
   g.active = !g.active; saveRooms(arr);
+  res.json({ ok: true, grants: r.grants });
+});
+// Change a buyer's access level (view / download / edit).
+app.post('/api/room/:id/grant-level', express.json(), (req, res) => {
+  const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const g = (r.grants || []).find(x => x.id === String((req.body || {}).grantId || ''));
+  if (!g) return res.status(404).json({ ok: false, error: 'Buyer not found.' });
+  g.level = cleanRoomLevel((req.body || {}).level, g.level || 'download'); saveRooms(arr);
   res.json({ ok: true, grants: r.grants });
 });
 // Create a standalone data room (not tied to a Marketing Pack).
@@ -2104,9 +2118,33 @@ app.get('/roomfile/:token/:docid', (req, res) => {
   const fp = path.join(ROOMS_DIR, d.id + '.' + d.ext);
   if (!fp.startsWith(ROOMS_DIR) || !fs.existsSync(fp)) return res.status(404).end();
   if (grant) { grant.lastSeen = new Date().toISOString(); setRoomCookie(res, signRoomSess({ r: r.id, g: grant.id, exp: Date.now() + ROOM_IDLE_MS })); }
-  logRoomAccess(r, req, 'download', d.title || d.originalName, grant); saveRooms(arr);
-  res.setHeader('Content-Disposition', 'inline; filename="' + String(d.title || d.originalName || d.id).replace(/[^\w.\- ]+/g, '_') + '.' + d.ext + '"');
+  const level = grant ? (grant.level || 'download') : 'download';
+  const wantDl = String(req.query.dl || '') === '1';
+  const asDownload = wantDl && level !== 'view';   // view-only buyers can preview but never download
+  const fnameSafe = String(d.title || d.originalName || d.id).replace(/[^\w.\- ]+/g, '_') + '.' + d.ext;
+  if (asDownload && grant) { grant.downloads = (grant.downloads || 0) + 1; }
+  logRoomAccess(r, req, asDownload ? 'download' : 'view', d.title || d.originalName, grant); saveRooms(arr);
+  res.setHeader('Content-Disposition', (asDownload ? 'attachment' : 'inline') + '; filename="' + fnameSafe + '"');
   res.sendFile(fp);
+});
+// Buyer document upload — only for grants with the 'edit' level (contributors).
+app.post('/room/:token/upload', express.json({ limit: '40mb' }), (req, res) => {
+  const arr = loadRooms(); const r = arr.find(x => x.token === req.params.token);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  const grant = roomGrantFor(req, r);
+  if (!grant || (grant.level || 'download') !== 'edit') return res.status(403).json({ ok: false, error: 'You do not have permission to add documents to this room.' });
+  const b = req.body || {};
+  const orig = String(b.filename || '').trim();
+  const m = orig.match(/\.([a-z0-9]+)$/i); const ext = m ? m[1].toLowerCase() : '';
+  if (!ROOM_EXT.test(ext)) return res.status(400).json({ ok: false, error: 'Unsupported file type.' });
+  const data = String(b.dataB64 || ''); if (!data) return res.status(400).json({ ok: false, error: 'No file data received.' });
+  let buf; try { buf = Buffer.from(data, 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the file.' }); }
+  if (!buf.length) return res.status(400).json({ ok: false, error: 'The file appears to be empty.' });
+  if (buf.length > 20 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 20 MB).' });
+  const doc = addFileToRoom(r, { name: orig, dataB64: data }, { source: 'buyer:' + grant.id, category: (ROOM_CATEGORIES.indexOf(b.category) >= 0 ? b.category : 'Other'), title: (String(b.title || '').trim().slice(0, 140) || prettyName(orig)), by: (grant.name || grant.email || 'Buyer') + ' (buyer)' });
+  if (!doc) return res.status(400).json({ ok: false, error: 'Could not save the document.' });
+  grant.lastSeen = new Date().toISOString(); logRoomAccess(r, req, 'upload', doc.title, grant); saveRooms(arr);
+  res.json({ ok: true });
 });
 function fmtBytes(n) { n = Number(n) || 0; if (n < 1024) return n + ' B'; if (n < 1048576) return (n / 1024).toFixed(0) + ' KB'; return (n / 1048576).toFixed(1) + ' MB'; }
 function roomShell(title, inner) {
@@ -2143,22 +2181,38 @@ ${inner.head}</div></div>
 }
 function roomPublicPage(r, grant) {
   const docs = (r.docs || []);
-  const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · session ends after 15 min idle</div>` : '';
+  const level = grant ? (grant.level || 'download') : 'download';
+  const canDl = level !== 'view';
+  const canUp = level === 'edit';
+  const lvlLabel = level === 'view' ? 'View only' : (level === 'edit' ? 'View, download & upload' : 'View & download');
+  const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · ${esc(lvlLabel)} · session ends after 15 min idle</div>` : '';
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${docs.length} document${docs.length === 1 ? '' : 's'} · Provided by Restaurant Realty Group under NDA</div>${who}`;
-  let body;
+  let body = '';
+  if (canUp) {
+    body += `<div class="card"><div class="chd">Add a document</div><div style="padding:14px 20px">` +
+      `<div class="note" style="border:none;padding:0;margin:0 0 10px">You can contribute documents to this room (e.g. proof of funds or a signed NDA). PDF, Word, Excel, images, or text — up to 20 MB.</div>` +
+      `<input type="file" id="bup" style="display:none"><button class="dl" style="border:none;cursor:pointer" onclick="document.getElementById('bup').click()">Choose a file to add</button> <span id="bupmsg" style="font-size:12px;color:var(--muted)"></span>` +
+      `</div></div>`;
+  }
   if (!docs.length) {
-    body = '<div class="card"><div class="empty"><b>Documents are being prepared.</b><br>Your RRG contact will let you know as materials are added.</div></div>';
+    body += '<div class="card"><div class="empty"><b>Documents are being prepared.</b><br>Your RRG contact will let you know as materials are added.</div></div>';
   } else {
-    body = ROOM_CATEGORIES.map(cat => {
+    body += ROOM_CATEGORIES.map(cat => {
       const inCat = docs.filter(d => (d.category || 'Other') === cat);
       if (!inCat.length) return '';
       return `<div class="card"><div class="chd">${esc(cat)}<span class="n">${inCat.length}</span></div>` +
-        inCat.map(d => `<a class="docrow" href="/roomfile/${esc(r.token)}/${esc(d.id)}" target="_blank" rel="noopener"><span class="ext">${esc(d.ext)}</span><div style="flex:1"><div class="dt">${esc(d.title || d.originalName)}</div><div class="dm">${esc(fmtBytes(d.size))}</div></div><span class="dl">Open →</span></a>`).join('') +
+        inCat.map(d => {
+          const href = '/roomfile/' + esc(r.token) + '/' + esc(d.id) + (canDl ? '?dl=1' : '');
+          const label = canDl ? 'Download →' : 'View →';
+          return `<a class="docrow" href="${href}" target="_blank" rel="noopener"><span class="ext">${esc(d.ext)}</span><div style="flex:1"><div class="dt">${esc(d.title || d.originalName)}</div><div class="dm">${esc(fmtBytes(d.size))}</div></div><span class="dl">${label}</span></a>`;
+        }).join('') +
         `</div>`;
     }).join('');
   }
-  return roomShell('RRG Data Room — ' + (r.business || 'Confidential'), { head, body });
+  const script = canUp ? `<script>(function(){var fi=document.getElementById('bup');if(!fi)return;fi.addEventListener('change',function(){var f=fi.files&&fi.files[0];var m=document.getElementById('bupmsg');if(!f)return;if(f.size>20*1024*1024){m.textContent='That file is over 20 MB.';fi.value='';return;}m.textContent='Uploading '+f.name+'…';var rd=new FileReader();rd.onload=function(){var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s);fetch(location.pathname.replace(/\/+$/,'')+'/upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:b64})}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok){m.textContent='Added ✓ — reloading…';setTimeout(function(){location.reload();},700);}else{m.textContent=(j&&j.error)||'Upload failed.';fi.value='';}}).catch(function(){m.textContent='Upload failed.';fi.value='';});};rd.readAsDataURL(f);});})();<\/script>` : '';
+  return roomShell('RRG Data Room — ' + (r.business || 'Confidential'), { head, body: body + script });
 }
+
 function roomNotFoundPage() {
   return roomShell('RRG Data Room', { head: '<div class="kick">Data Room</div><h1>Link not found</h1><div class="sub">This data room link is invalid or has been retired.</div>', body: '<div class="note">The link you followed is no longer active. Please contact your RRG representative for an updated link.</div>' });
 }
