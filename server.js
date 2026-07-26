@@ -791,6 +791,7 @@ app.get('/logout', (_req, res) => { clearSessionCookie(res); res.redirect('/logi
 // Who am I + which tools are admin-only (dashboard uses this to hide restricted tiles).
 app.get('/api/session', (req, res) => res.json({
   ok: true, username: req.user.username, name: req.user.name, role: req.user.role,
+  canExport: !!(req.user && (req.user.role === 'admin' || (permsEnabled() && effectivePerms(req.user).export_data))),
   title: req.user.title || '', phone: req.user.phone || '', email: req.user.email || '',
   preparedBy: req.user.preparedBy || '',
   adminOnlyTools: auth.loadToolAccess(),
@@ -2746,6 +2747,69 @@ app.delete('/api/person/:id', (req, res) => {
   const arr = loadPeople().filter(p => p.id !== req.params.id);
   savePeople(arr);
   res.json({ ok: true, people: arr.map(personBrief) });
+});
+app.post('/api/person/merge', express.json(), (req, res) => {
+  const u = req.user || {};
+  const canMerge = u.role === 'admin' || (permsEnabled() && effectivePerms(u).delete);
+  if (!canMerge) return res.status(403).json({ ok: false, error: 'You do not have permission to merge contacts.' });
+  const b = req.body || {};
+  const keepId = String(b.keepId || '');
+  let mergeIds = Array.isArray(b.mergeIds) ? b.mergeIds.map(String).filter(Boolean) : [];
+  mergeIds = mergeIds.filter(id => id && id !== keepId);
+  const people = loadPeople();
+  const keep = people.find(p => p.id === keepId);
+  if (!keep) return res.status(404).json({ ok: false, error: 'Surviving contact not found.' });
+  const losers = mergeIds.map(id => people.find(p => p.id === id)).filter(Boolean);
+  if (!losers.length) return res.status(400).json({ ok: false, error: 'Pick at least one other contact to merge in.' });
+  const loserIds = losers.map(p => p.id);
+
+  // Union emails / phones (keeper order first)
+  const em = personEmails(keep).slice();
+  losers.forEach(l => personEmails(l).forEach(e => { if (em.map(x => String(x).toLowerCase()).indexOf(String(e).toLowerCase()) < 0) em.push(e); }));
+  const ph = personPhones(keep).slice();
+  losers.forEach(l => personPhones(l).forEach(x => { if (ph.indexOf(x) < 0) ph.push(x); }));
+  keep.emails = em.slice(0, 10); keep.phones = ph.slice(0, 10);
+
+  // Fill blank scalar fields from the first loser that has them
+  ['company', 'companyId', 'title', 'nickname', 'leadSource', 'referredBy', 'referredById', 'url', 'lastContacted'].forEach(f => {
+    if (!String(keep[f] || '').trim()) { for (const l of losers) { if (String(l[f] || '').trim()) { keep[f] = l[f]; break; } } }
+  });
+  keep.vip = !!(keep.vip || losers.some(l => l.vip));
+
+  // Union tags + preferred-contact
+  const tg = personTags(keep).slice();
+  losers.forEach(l => personTags(l).forEach(t => { if (tg.indexOf(t) < 0) tg.push(t); }));
+  keep.tags = tg.slice(0, 30);
+  const pc = Array.isArray(keep.prefContact) ? keep.prefContact.slice() : [];
+  losers.forEach(l => (Array.isArray(l.prefContact) ? l.prefContact : []).forEach(x => { if (pc.indexOf(x) < 0) pc.push(x); }));
+  keep.prefContact = pc;
+
+  // Concatenate person-level tours / activities
+  let tours = Array.isArray(keep.tours) ? keep.tours.slice() : [];
+  let acts = Array.isArray(keep.activities) ? keep.activities.slice() : [];
+  losers.forEach(l => { if (Array.isArray(l.tours)) tours = tours.concat(l.tours); if (Array.isArray(l.activities)) acts = acts.concat(l.activities); });
+  keep.tours = tours; keep.activities = acts;
+
+  // Merge notes
+  const baseNote = String(keep.notes || '').trim();
+  const extra = losers.map(l => String(l.notes || '').trim()).filter(n => n && n !== baseNote);
+  if (extra.length) keep.notes = [baseNote].concat(extra).filter(Boolean).join('\n\n---\n').slice(0, 8000);
+
+  keep.email = preferredEmailOf(keep); keep.phone = preferredPhoneOf(keep);
+  keep.updatedAt = new Date().toISOString();
+
+  // Drop losers, save people (keeper mutations included)
+  savePeople(people.filter(p => loserIds.indexOf(p.id) < 0));
+
+  const inLosers = id => id && loserIds.indexOf(id) >= 0;
+  // Reassign every reference from a loser to the keeper
+  try { const deals = loadDeals(); let ch = false; deals.forEach(d => { if (inLosers(d.contactPersonId)) { d.contactPersonId = keepId; ch = true; } }); if (ch) saveDeals(deals); } catch (e) {}
+  try { const ags = loadAgreements(); let ch = false; ags.forEach(a => { if (inLosers(a.personId)) { a.personId = keepId; a.personName = keep.name; ch = true; } }); if (ch) saveAgreements(ags); } catch (e) {}
+  try { const cos = loadCompanies(); let ch = false; cos.forEach(c => { if (inLosers(c.mainContactId)) { c.mainContactId = keepId; ch = true; } }); if (ch) saveCompanies(cos); } catch (e) {}
+  try { const pp = loadPeople(); let ch = false; pp.forEach(p => { if (inLosers(p.referredById)) { p.referredById = keepId; p.referredBy = keep.name; ch = true; } }); if (ch) savePeople(pp); } catch (e) {}
+  try { const ov = loadAssignOverlay(); let ch = false; Object.keys(ov).forEach(k => { const cur = ov[k]; if (!cur) return; ['offers', 'tours', 'ndas'].forEach(coll => { if (Array.isArray(cur[coll])) cur[coll].forEach(r => { if (inLosers(r.personId)) { r.personId = keepId; ch = true; } }); }); }); if (ch) saveAssignOverlay(ov); } catch (e) {}
+
+  res.json({ ok: true, keepId: keepId, merged: loserIds.length, people: loadPeople().map(personBrief) });
 });
 // ---- Contact photo (optional headshot / logo) ----
 const PERSONPHOTO_DIR = path.join(BOV_DATA_DIR, 'personphotos');
@@ -5482,6 +5546,7 @@ const PERM_CORE = [
   { key: 'edit_all', label: "Edit others' records" },
   { key: 'delete', label: 'Delete records' },
   { key: 'reassign', label: 'Reassign ownership' },
+  { key: 'export_data', label: 'Export & print lists', note: 'Off = cannot download CSV or print lists' },
   { key: 'admin_console', label: 'Open admin console / settings' },
   { key: 'manage_users', label: 'Manage users & roles' },
   { key: 'manage_templates', label: 'Manage agreement templates' },
@@ -5513,7 +5578,7 @@ function allPerms() { const p = {}; ALL_PERM_KEYS.forEach(k => p[k] = true); ret
 function defaultRolePerms(kind) {
   const p = {};
   GATEABLE_TOOLS.forEach(t => p[toolPermKey(t.file)] = true); // both defaults get all tools
-  if (kind === 'senior') { ['see_all', 'edit_all', 'delete', 'reassign'].forEach(k => p[k] = true); }
+  if (kind === 'senior') { ['see_all', 'edit_all', 'delete', 'reassign', 'export_data'].forEach(k => p[k] = true); }
   return p; // associate: core all off, tools on
 }
 function loadRoles() {
