@@ -1806,9 +1806,13 @@ app.get('/api/feed', (req, res) => {
   let people = loadPeople();
   if (restrictToOwn(req)) people = people.filter(p => permOwnerMatch(req, p.by));
   const items = [];
-  people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { items.push({ type: a.type || 'Note', note: a.note || '', at: a.date || a.at || '', by: a.by || '', auto: !!a.auto, personId: p.id, personName: p.name || 'Contact', company: p.company || '' }); }); });
-  items.sort((x, y) => String(y.at).localeCompare(String(x.at)));
-  res.json({ ok: true, items: items.slice(0, 200) });
+  people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { items.push({ type: a.type || 'Note', note: a.note || '', at: a.date || a.at || '', by: a.by || '', byUser: a.byUser || '', auto: !!a.auto, personId: p.id, personName: p.name || 'Contact', company: p.company || '' }); }); });
+  const canScope = !restrictToOwn(req);
+  const mine = req.query.scope === 'mine';
+  let out = items;
+  if (mine) { const u = req.user || {}; out = items.filter(it => (it.byUser && it.byUser === u.username) || (it.by && it.by === u.name)); }
+  out.sort((x, y) => String(y.at).localeCompare(String(x.at)));
+  res.json({ ok: true, items: out.slice(0, 200), scope: mine ? 'mine' : 'all', canScope: canScope });
 });
 app.get('/api/admin/palette', requireAdmin, (req, res) => res.json({ ok: true, palette: effPalette(), defaults: PALETTE_DEFAULT }));
 app.post('/api/admin/palette', requireAdmin, express.json(), (req, res) => {

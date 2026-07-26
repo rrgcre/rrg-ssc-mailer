@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — LOI Clause Library</title>
+<script src="/rrg_brand.js"></script>
+<style>
+:root{ --navy:#000E31; --red:#DA2B1F; --ink:#1a2236; --muted:#6b7488; --line:#e6e9f0; --wash:#f5f7fb; --bg:#eef1f6; --gold:#dfa937; }
+*{box-sizing:border-box;} html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);}
+.top{background:radial-gradient(115% 130% at 50% 0%, #2a1e3a 0%, #1a1226 55%, #0c0714 100%);color:#fff;padding:24px 0;}
+.top-inner{max-width:920px;margin:0 auto;padding:0 28px;}
+.kick{color:#b9a7e0;font-weight:700;letter-spacing:.28em;font-size:11px;text-transform:uppercase;}
+h1{font-size:26px;font-weight:800;margin:5px 0 0;}
+.sub{color:#cfc6e2;font-size:13px;margin-top:6px;}
+.wrap{max-width:920px;margin:22px auto 60px;padding:0 28px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);margin-bottom:16px;overflow:hidden;}
+.ch{padding:13px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px;}
+.ch b{color:var(--navy);font-size:14px;} .ch .hint{color:var(--muted);font-size:12px;}
+.cb{padding:16px 18px;}
+.typerow{display:flex;gap:10px;flex-wrap:wrap;}
+.typebtn{border:1px solid #cfd6e2;background:#fff;color:var(--ink);border-radius:10px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.typebtn.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+label.fld{display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 0 5px;}
+textarea,input.ti{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:13.5px;background:#fff;}
+textarea{min-height:90px;line-height:1.5;resize:vertical;}
+textarea.big{min-height:150px;}
+.btn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.btn.ghost{background:#fff;color:var(--navy);border:1px solid #cfd6e2;}
+.btn.red{background:#fff;color:var(--red);border:1px solid #f0c9c6;}
+.btn.sm{padding:6px 11px;font-size:12px;}
+.clause{border:1px solid var(--line);border-radius:11px;margin-bottom:11px;overflow:hidden;}
+.clhd{display:flex;align-items:center;gap:9px;padding:10px 13px;background:var(--wash);}
+.clhd .t{font-weight:700;color:var(--navy);font-size:13.5px;flex:1;}
+.clhd .ord{display:flex;gap:4px;}
+.clbody{padding:13px;}
+.row2{display:grid;grid-template-columns:1fr;gap:10px;}
+.savedtag{color:#1f8a5b;font-size:12px;font-weight:700;margin-left:8px;opacity:0;transition:opacity .2s;} .savedtag.show{opacity:1;}
+.note{font-size:12px;color:var(--muted);line-height:1.55;}
+.ph{font-family:ui-monospace,Menlo,Consolas,monospace;background:#eef2fb;color:#2647b0;border-radius:5px;padding:1px 5px;font-size:12px;}
+.addbtn{background:#fff;border:1px dashed #c9b6e0;color:#6d28d9;border-radius:9px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.gate{padding:40px;text-align:center;color:var(--muted);}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-inner">
+  <div class="kick">Admin · Documents</div>
+  <h1>LOI Clause Library</h1>
+  <div class="sub">Edit the top/bottom boilerplate and the optional sections users can pick when building an LOI.</div>
+</div></div>
+<div class="wrap" id="wrap"><div class="card"><div class="cb"><div class="note">Loading…</div></div></div></div>
+
+<script>
+var CFG=null, TYPES=[], IS_ADMIN=false, TYPE='tenant_rep';
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function curType(){ return CFG&&CFG[TYPE]?CFG[TYPE]:{top:'',bottom:'',clauses:[]}; }
+function flash(el){ if(!el) return; el.classList.add('show'); setTimeout(function(){el.classList.remove('show');},1400); }
+
+function render(){
+  if(!IS_ADMIN){ document.getElementById('wrap').innerHTML='<div class="card"><div class="gate">This page is for admins only.</div></div>'; return; }
+  var t=curType();
+  var typebtns=TYPES.map(function(ty){ return '<button class="typebtn'+(ty.key===TYPE?' on':'')+'" data-type="'+esc(ty.key)+'">'+esc(ty.name)+'</button>'; }).join('');
+  var clauses=(t.clauses||[]).slice().sort(function(a,b){return (a.order||0)-(b.order||0);}).map(function(c,idx,arr){
+    return '<div class="clause" data-cid="'+esc(c.id)+'"><div class="clhd"><span class="t">'+esc(c.title||'(untitled)')+'</span><span class="ord"><button class="btn ghost sm" data-up="'+esc(c.id)+'"'+(idx===0?' disabled':'')+'>▲</button><button class="btn ghost sm" data-down="'+esc(c.id)+'"'+(idx===arr.length-1?' disabled':'')+'>▼</button></span></div>'
+      +'<div class="clbody"><label class="fld">Section title</label><input class="ti cl-title" value="'+esc(c.title||'')+'">'
+      +'<label class="fld" style="margin-top:10px">Clause text</label><textarea class="cl-body">'+esc(c.body||'')+'</textarea>'
+      +'<div style="margin-top:10px;display:flex;gap:9px;align-items:center"><button class="btn sm cl-save" data-cid="'+esc(c.id)+'">Save section</button><button class="btn red sm cl-del" data-cid="'+esc(c.id)+'">Delete</button><span class="savedtag" data-saved="'+esc(c.id)+'">Saved ✓</span></div></div></div>';
+  }).join('');
+  document.getElementById('wrap').innerHTML=
+    '<div class="card"><div class="ch"><b>LOI type</b><a href="./rrg_loi_builder.html" style="margin-left:auto;font-size:12.5px;color:var(--gold);font-weight:700;text-decoration:none">Open builder →</a></div><div class="cb"><div class="typerow">'+typebtns+'</div></div></div>'
+    +'<div class="card"><div class="ch"><b>Boilerplate</b><span class="hint">Rarely changes — top and bottom of every '+esc(t.name||'')+' LOI</span></div><div class="cb">'
+      +'<label class="fld">Top (letterhead + intro)</label><textarea class="big" id="bp_top">'+esc(t.top||'')+'</textarea>'
+      +'<label class="fld" style="margin-top:12px">Bottom (disclaimers + signatures)</label><textarea class="big" id="bp_bottom">'+esc(t.bottom||'')+'</textarea>'
+      +'<div style="margin-top:10px;display:flex;gap:9px;align-items:center"><button class="btn" id="bpSave">Save boilerplate</button><span class="savedtag" id="bpSaved">Saved ✓</span></div>'
+      +'<div class="note" style="margin-top:10px">Use placeholders like <span class="ph">{{tenant}}</span>, <span class="ph">{{landlord}}</span>, <span class="ph">{{property}}</span>, <span class="ph">{{date}}</span>, <span class="ph">{{rep}}</span>, <span class="ph">{{expiration}}</span> — they fill from the builder inputs. Any placeholder left blank prints as a fill-in line.</div>'
+    +'</div></div>'
+    +'<div class="card"><div class="ch"><b>Optional sections</b><span class="hint">Users pick these when building an LOI</span></div><div class="cb">'+clauses+'<button class="addbtn" id="addClause">+ Add section</button></div></div>';
+  wire();
+}
+function wire(){
+  document.querySelectorAll('.typebtn').forEach(function(b){ b.addEventListener('click',function(){ TYPE=b.getAttribute('data-type'); render(); }); });
+  var bp=document.getElementById('bpSave'); if(bp) bp.addEventListener('click',saveBoilerplate);
+  document.querySelectorAll('.cl-save').forEach(function(b){ b.addEventListener('click',function(){ saveClause(b.getAttribute('data-cid'),b.closest('.clause')); }); });
+  document.querySelectorAll('.cl-del').forEach(function(b){ b.addEventListener('click',function(){ delClause(b.getAttribute('data-cid')); }); });
+  document.querySelectorAll('[data-up]').forEach(function(b){ b.addEventListener('click',function(){ move(b.getAttribute('data-up'),-1); }); });
+  document.querySelectorAll('[data-down]').forEach(function(b){ b.addEventListener('click',function(){ move(b.getAttribute('data-down'),1); }); });
+  var ac=document.getElementById('addClause'); if(ac) ac.addEventListener('click',addClause);
+}
+function saveBoilerplate(){
+  var body={type:TYPE, top:document.getElementById('bp_top').value, bottom:document.getElementById('bp_bottom').value};
+  post('/api/loi/boilerplate',body,function(j){ CFG=j.config; flash(document.getElementById('bpSaved')); });
+}
+function saveClause(cid,box){
+  var body={type:TYPE, id:cid, title:box.querySelector('.cl-title').value, body:box.querySelector('.cl-body').value};
+  post('/api/loi/clause',body,function(j){ CFG=j.config; var tag=box.querySelector('[data-saved]'); flash(tag); box.querySelector('.clhd .t').textContent=body.title||'(untitled)'; });
+}
+function delClause(cid){
+  if(!confirm('Delete this section from the library?')) return;
+  fetch('/api/loi/clause/'+encodeURIComponent(TYPE)+'/'+encodeURIComponent(cid),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CFG=j.config; render(); } else alert((j&&j.error)||'Could not delete.'); });
+}
+function addClause(){
+  post('/api/loi/clause',{type:TYPE,title:'New section',body:''},function(j){ CFG=j.config; render(); });
+}
+function move(cid,dir){
+  var t=curType(); var arr=(t.clauses||[]).slice().sort(function(a,b){return (a.order||0)-(b.order||0);});
+  var i=arr.findIndex(function(c){return c.id===cid;}); if(i<0) return; var ni=i+dir; if(ni<0||ni>=arr.length) return;
+  var tmp=arr[i]; arr[i]=arr[ni]; arr[ni]=tmp;
+  post('/api/loi/clause/reorder',{type:TYPE,order:arr.map(function(c){return c.id;})},function(j){ CFG=j.config; render(); });
+}
+function post(url,body,ok){
+  fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ok(j); } else alert((j&&j.error)||'Save failed.'); }).catch(function(){ alert('Could not reach the server.'); });
+}
+fetch('/api/loi',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+  CFG=(j&&j.config)||{}; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&j.isAdmin);
+  if(TYPES.length && !CFG[TYPE]) TYPE=TYPES[0].key;
+  render();
+}).catch(function(){ document.getElementById('wrap').innerHTML='<div class="card"><div class="cb"><div class="note">Could not load the clause library.</div></div></div>'; });
+</script>
+</body>
+</html>

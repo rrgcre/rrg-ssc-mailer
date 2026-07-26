@@ -22,6 +22,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .fwhen{font-size:12px;color:var(--soft);margin-left:auto;}
 .fnote{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.5;}
 .empty{color:var(--soft);font-size:13.5px;padding:40px 20px;text-align:center;}
+.scoperow{display:flex;gap:8px;margin-bottom:14px;}
+.scbtn{border:1px solid #cfd6e2;background:#fff;color:var(--ink);border-radius:100px;padding:6px 15px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
+.scbtn.on{background:var(--navy);border-color:var(--navy);color:#fff;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -29,13 +32,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <div class="wrap">
   <h1 class="pgh">Activity Feed</h1>
   <div class="pgs">Everything happening across your book — the latest calls, tours, notes, emails and agreements, newest first.</div>
+  <div class="scoperow" id="scoperow" style="display:none"><button class="scbtn on" data-scope="all">All activity</button><button class="scbtn" data-scope="mine">My activity</button></div>
   <div class="card" id="feed"><div class="empty">Loading…</div></div>
 </div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return String(iso); return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 function actColor(t){ var m={'Tour':['#eef2fb','#2647b0'],'Photo Shoot':['#f1ebfb','#6d28d9'],'Meal':['#fdf1df','#b5791f'],'Text':['#e6f5f3','#0f766e'],'Call':['#e7f5ee','#1f8a5b'],'Email':['#eef2fb','#3949ab'],'Form Submitted':['#eef1f6','#5b6472'],'Agreement Sent':['#fff4e6','#b9761a'],'Agreement Signed':['#fdeceb','#DA2B1F'],'Diligence':['#eef2fb','#2647b0'],'Note':['#eef1f6','#5b6472'],'To-Do':['#fdeceb','#DA2B1F']}; return m[t]||['#eef1f6','#5b6472']; }
-fetch('/api/feed',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+var SCOPE='all';
+function load(){
+  fetch('/api/feed'+(SCOPE==='mine'?'?scope=mine':''),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+  if(j&&j.canScope){ var sr=document.getElementById('scoperow'); if(sr) sr.style.display='flex'; }
   var el=document.getElementById('feed');
   var items=(j&&j.items)||[];
   if(!items.length){ el.innerHTML='<div class="empty">No activity logged across your contacts yet. Log a call, tour, or note on a contact and it shows up here.</div>'; return; }
@@ -44,6 +51,9 @@ fetch('/api/feed',{credentials:'same-origin'}).then(function(r){return r.json();
     return '<a class="feedrow" href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'"><span class="fchip" style="background:'+c[0]+';color:'+c[1]+'">'+esc(a.type)+'</span><div class="fmain"><div class="ftop"><span class="fwho">'+esc(a.personName)+'</span>'+(a.company?('<span class="fco">'+esc(a.company)+'</span>'):'')+'<span class="fwhen">'+esc(fmt(a.at))+(a.by?(' · '+esc(a.by)):'')+'</span></div>'+(a.note?('<div class="fnote">'+esc(a.note)+'</div>'):'')+'</div></a>';
   }).join('');
 }).catch(function(){ document.getElementById('feed').innerHTML='<div class="empty">Could not load the feed.</div>'; });
+}
+document.querySelectorAll('.scbtn').forEach(function(b){ b.addEventListener('click',function(){ SCOPE=b.getAttribute('data-scope'); document.querySelectorAll('.scbtn').forEach(function(x){x.classList.toggle('on',x===b);}); load(); }); });
+load();
 </script>
 </body>
 </html>
