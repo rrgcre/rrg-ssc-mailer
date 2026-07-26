@@ -1883,6 +1883,11 @@ const ROOM_CATEGORIES = ['Financials', 'Tax Returns', 'Lease', 'Equipment & FF&E
 // download (view + download files), edit (download + upload their own documents).
 const ROOM_LEVELS = ['view', 'download', 'edit'];
 function cleanRoomLevel(v, dflt) { return ROOM_LEVELS.indexOf(String(v)) >= 0 ? String(v) : (dflt || 'download'); }
+// Per-cell levels also allow 'none' (folder hidden from that buyer).
+const ROOM_CELL_LEVELS = ['none', 'view', 'download', 'edit'];
+// Effective level a buyer (grant) has for a given document category: the per-folder
+// override if set, otherwise the buyer's room-wide baseline level.
+function effGrantLevel(grant, category) { if (!grant) return 'download'; const cp = grant.catPerms && grant.catPerms[category]; if (ROOM_CELL_LEVELS.indexOf(cp) >= 0) return cp; return grant.level || 'download'; }
 const ROOM_EXT = /^(pdf|docx?|xlsx?|csv|pptx?|png|jpe?g|gif|txt)$/i;
 // ---- Buyer access control: per-buyer codes + a 15-min idle session ----
 const ROOM_COOKIE = 'rrg_room';
@@ -1955,7 +1960,7 @@ app.get('/api/room/:id', (req, res) => {
   const origin = req.protocol + '://' + req.get('host');
   res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-120).reverse(), categories: ROOM_CATEGORIES,
     gated: roomIsGated(r),
-    grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', code: g.code, level: g.level || 'download', active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
+    grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', code: g.code, level: g.level || 'download', catPerms: g.catPerms || {}, active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
 });
 // Add a buyer (grant) — generates a personal access code.
 app.post('/api/room/:id/grant', express.json(), (req, res) => {
@@ -1990,6 +1995,23 @@ app.post('/api/room/:id/grant-level', express.json(), (req, res) => {
   const g = (r.grants || []).find(x => x.id === String((req.body || {}).grantId || ''));
   if (!g) return res.status(404).json({ ok: false, error: 'Buyer not found.' });
   g.level = cleanRoomLevel((req.body || {}).level, g.level || 'download'); saveRooms(arr);
+  res.json({ ok: true, grants: r.grants });
+});
+// Set one folder's permission for one buyer (a matrix cell). level 'inherit' clears the override.
+app.post('/api/room/:id/grant-perms', express.json(), (req, res) => {
+  const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const b = req.body || {};
+  const g = (r.grants || []).find(x => x.id === String(b.grantId || ''));
+  if (!g) return res.status(404).json({ ok: false, error: 'Buyer not found.' });
+  const cat = String(b.category || ''); const lvl = String(b.level || '');
+  if (ROOM_CATEGORIES.indexOf(cat) < 0) return res.status(400).json({ ok: false, error: 'Unknown folder.' });
+  g.catPerms = g.catPerms || {};
+  if (lvl === 'inherit') { delete g.catPerms[cat]; }
+  else if (ROOM_CELL_LEVELS.indexOf(lvl) >= 0) { g.catPerms[cat] = lvl; }
+  else return res.status(400).json({ ok: false, error: 'Bad level.' });
+  saveRooms(arr);
   res.json({ ok: true, grants: r.grants });
 });
 // Create a standalone data room (not tied to a Marketing Pack).
@@ -2118,7 +2140,8 @@ app.get('/roomfile/:token/:docid', (req, res) => {
   const fp = path.join(ROOMS_DIR, d.id + '.' + d.ext);
   if (!fp.startsWith(ROOMS_DIR) || !fs.existsSync(fp)) return res.status(404).end();
   if (grant) { grant.lastSeen = new Date().toISOString(); setRoomCookie(res, signRoomSess({ r: r.id, g: grant.id, exp: Date.now() + ROOM_IDLE_MS })); }
-  const level = grant ? (grant.level || 'download') : 'download';
+  const level = grant ? effGrantLevel(grant, d.category || 'Other') : 'download';
+  if (level === 'none') return res.status(403).end();
   const wantDl = String(req.query.dl || '') === '1';
   const asDownload = wantDl && level !== 'view';   // view-only buyers can preview but never download
   const fnameSafe = String(d.title || d.originalName || d.id).replace(/[^\w.\- ]+/g, '_') + '.' + d.ext;
@@ -2132,8 +2155,9 @@ app.post('/room/:token/upload', express.json({ limit: '40mb' }), (req, res) => {
   const arr = loadRooms(); const r = arr.find(x => x.token === req.params.token);
   if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
   const grant = roomGrantFor(req, r);
-  if (!grant || (grant.level || 'download') !== 'edit') return res.status(403).json({ ok: false, error: 'You do not have permission to add documents to this room.' });
   const b = req.body || {};
+  const upCat = (ROOM_CATEGORIES.indexOf(b.category) >= 0 ? b.category : 'Other');
+  if (!grant || effGrantLevel(grant, upCat) !== 'edit') return res.status(403).json({ ok: false, error: 'You do not have permission to add documents to this folder.' });
   const orig = String(b.filename || '').trim();
   const m = orig.match(/\.([a-z0-9]+)$/i); const ext = m ? m[1].toLowerCase() : '';
   if (!ROOM_EXT.test(ext)) return res.status(400).json({ ok: false, error: 'Unsupported file type.' });
@@ -2141,7 +2165,7 @@ app.post('/room/:token/upload', express.json({ limit: '40mb' }), (req, res) => {
   let buf; try { buf = Buffer.from(data, 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the file.' }); }
   if (!buf.length) return res.status(400).json({ ok: false, error: 'The file appears to be empty.' });
   if (buf.length > 20 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 20 MB).' });
-  const doc = addFileToRoom(r, { name: orig, dataB64: data }, { source: 'buyer:' + grant.id, category: (ROOM_CATEGORIES.indexOf(b.category) >= 0 ? b.category : 'Other'), title: (String(b.title || '').trim().slice(0, 140) || prettyName(orig)), by: (grant.name || grant.email || 'Buyer') + ' (buyer)' });
+  const doc = addFileToRoom(r, { name: orig, dataB64: data }, { source: 'buyer:' + grant.id, category: upCat, title: (String(b.title || '').trim().slice(0, 140) || prettyName(orig)), by: (grant.name || grant.email || 'Buyer') + ' (buyer)' });
   if (!doc) return res.status(400).json({ ok: false, error: 'Could not save the document.' });
   grant.lastSeen = new Date().toISOString(); logRoomAccess(r, req, 'upload', doc.title, grant); saveRooms(arr);
   res.json({ ok: true });
