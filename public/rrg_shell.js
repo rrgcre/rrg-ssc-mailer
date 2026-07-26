@@ -17,8 +17,8 @@
       { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' }
     ] },
     { grp: 'Records', color: '#7ea6d8', items: [
-      { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
+      { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
       { ic: '◆', label: 'Deals', href: 'rrg_assignments.html' }
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [

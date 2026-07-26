@@ -28,7 +28,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .conametop{font-size:23px;font-weight:800;color:var(--ink);letter-spacing:-.01em;margin:0 0 14px;line-height:1.15;}
 .rechero .rhlogo{width:48px;height:48px;border-radius:11px;background:#eef1f6;color:#5a6478;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;border:1px solid #e9edf3;overflow:hidden;flex:none;}
 .rechero .rhlogo img{width:100%;height:100%;object-fit:contain;}
-.rechero .rhname{font-size:20px;font-weight:600;color:var(--ink);letter-spacing:-.01em;}
+.rechero .rhname{font-size:18px;font-weight:500;color:var(--ink);letter-spacing:-.01em;}
 .rechero .rhmeta{font-size:13px;color:var(--muted);margin-top:2px;}
 .rrow{display:flex;align-items:center;gap:10px;padding:9px 20px;text-decoration:none;color:inherit;}
 .rrow:hover{background:#fbfcfe;}
@@ -80,7 +80,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .commblock .cptbar{background:#fff8f1;} .commblock .cptbar:hover{background:#fdf1e4;}
 .expall{color:#2647b0;font-weight:700;cursor:pointer;} .expall:hover{text-decoration:underline;}
 .cptname{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;flex:1;}
-.cptnm{font-weight:600;color:var(--ink);font-size:15px;letter-spacing:-.01em;}
+.cptnm{font-weight:500;color:var(--ink);font-size:14px;letter-spacing:-.01em;}
 .cptcount{color:#9aa3b5;font-size:12px;font-weight:600;letter-spacing:0;} .cptcount::before{content:"·";margin-right:7px;color:#cfd6e2;}
 .cpttype{font-size:12px;font-weight:600;color:#9aa3b5;} .cpttype::before{content:"·";margin-right:7px;color:#cfd6e2;}
 .cptmkts{font-size:11px;color:var(--muted);font-weight:600;flex-basis:100%;margin-top:1px;}
@@ -305,7 +305,7 @@ function render(){
     + agreementsCardCo()
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Company</b></div><div class="cb">'
-      + '<div class="fldrow"><label class="fld">Logo</label><div class="logorow2"><div class="logoprev2" id="c_logoprev" title="Click to upload a logo"></div><div style="flex:1;min-width:0"><input id="c_logo" value="'+esc(C.logo||'')+'" placeholder="Logo URL — or use the website"><div style="margin-top:6px"><button type="button" class="mfadd" id="c_logoup">Upload</button> <button type="button" class="mfadd" id="c_logoauto">Use website</button><input type="file" id="c_logofile" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" style="display:none"></div><div style="font-size:11px;color:#98a1b5;margin-top:4px">Click the box to upload · max 6 MB</div></div></div></div>'
+      + '<div class="fldrow"><label class="fld">Logo</label><div class="logorow2"><div class="logoprev2" id="c_logoprev" title="Click to upload \u2014 click again to remove"></div><input type="hidden" id="c_logo" value="'+esc(C.logo||'')+'"><input type="file" id="c_logofile" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" style="display:none"></div></div>'
       + '<div class="fldrow"><label class="fld">Name</label><input id="c_name" value="'+esc(C.name||'')+'"></div>'
       + '<div class="fldrow"><label class="fld">Type</label><select id="c_type">'+ctsel+'</select></div>'
       + '<div class="fldrow"><label class="fld">Tags</label><input id="c_tags" value="'+esc((C.tags&&C.tags.length)?C.tags.join(', '):'')+'" placeholder="Comma-separated, e.g. franchisor, multi-unit, target"></div>'
@@ -326,8 +326,8 @@ function render(){
     var li=document.getElementById('c_logo'); if(li) li.addEventListener('input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
     var la=document.getElementById('c_logoauto'); if(la) la.addEventListener('click',function(){ var d=(document.getElementById('o_website').value||'').replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0]; document.getElementById('c_logo').value=d?('https://logo.clearbit.com/'+d):''; DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
     var lup=document.getElementById('c_logoup'), lf=document.getElementById('c_logofile');
-    var lprev=document.getElementById('c_logoprev'); if(lprev&&lf){ lprev.addEventListener('click',function(){ lf.click(); }); }
-    if(lup&&lf){ lup.addEventListener('click',function(){ lf.click(); }); lf.addEventListener('change',function(){ var f=lf.files&&lf.files[0]; if(!f) return; if(f.size>6*1024*1024){ alert('Image is over 6 MB — please use a smaller file.'); lf.value=''; return; } var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s); fetch('/api/company/'+encodeURIComponent(ID)+'/logo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:b64})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.logo){ C.logo=j.logo; document.getElementById('c_logo').value=j.logo; draw(); } else { alert((j&&j.error)||'Could not upload the logo.'); } lf.value=''; }).catch(function(){ alert('Could not reach the server.'); lf.value=''; }); }; rd.readAsDataURL(f); }); }
+    var lprev=document.getElementById('c_logoprev'); if(lprev&&lf){ lprev.addEventListener('click',function(){ var has=(document.getElementById('c_logo').value||'').trim(); if(has){ if(!confirm('Remove this logo?')) return; document.getElementById('c_logo').value=''; C.logo=''; DIRTY=true; document.getElementById('c_save').disabled=false; draw(); } else { lf.click(); } }); }
+    if(lf){ lf.addEventListener('change',function(){ var f=lf.files&&lf.files[0]; if(!f) return; if(f.size>6*1024*1024){ alert('Image is over 6 MB — please use a smaller file.'); lf.value=''; return; } var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s); fetch('/api/company/'+encodeURIComponent(ID)+'/logo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:b64})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.logo){ C.logo=j.logo; document.getElementById('c_logo').value=j.logo; draw(); } else { alert((j&&j.error)||'Could not upload the logo.'); } lf.value=''; }).catch(function(){ alert('Could not reach the server.'); lf.value=''; }); }; rd.readAsDataURL(f); }); }
     draw();
   })();
   document.getElementById('c_save').addEventListener('click',saveCompany);

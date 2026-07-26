@@ -54,6 +54,7 @@
       +'td.rl-ck,th.rl-ck{width:38px;text-align:center;padding-left:8px;padding-right:8px}'
       +'.rl-ck input{width:16px;height:16px;cursor:pointer;vertical-align:middle;accent-color:var(--red,#DA2B1F)}'
       +'.rl-wrap tbody td{padding:7px 11px;border-bottom:1px solid #eef1f6;font-size:13px;color:#1f2a3d;vertical-align:middle}'
+      +'.rl-wrap tbody td span,.rl-wrap tbody td a,.rl-wrap tbody td div,.rl-wrap tbody td b,.rl-wrap tbody td small,.rl-wrap tbody td label{font-size:inherit !important}'
       +'.rl-bar .rl-dens{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:#5b6472;cursor:pointer;font-weight:600}'
       +'.rl-bar .rl-dens input{width:15px;height:15px;cursor:pointer;accent-color:var(--red,#DA2B1F)}'
       +'.rl-compact .rl-wrap td{padding-top:4px !important;padding-bottom:4px !important;font-size:12.5px}'

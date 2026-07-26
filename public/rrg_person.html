@@ -43,7 +43,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .foot{max-width:1040px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .loading{max-width:1040px;margin:60px auto;padding:0 24px;color:var(--muted);text-align:center;}
 .photorow{display:flex;gap:12px;align-items:center;margin-bottom:14px;}
-.photoprev{width:60px;height:60px;border-radius:50%;overflow:hidden;background:#eef2fb;border:1px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;}
+.photoprev{cursor:pointer;width:60px;height:60px;border-radius:50%;overflow:hidden;background:#eef2fb;border:1px solid var(--line);flex:none;display:flex;align-items:center;justify-content:center;}
 .photoprev img{width:100%;height:100%;object-fit:cover;} .phinit{color:#2647b0;font-weight:800;font-size:20px;}
 .photobtns{display:flex;gap:8px;flex-wrap:wrap;}
 .subphoto{width:26px;height:26px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:8px;border:1px solid rgba(255,255,255,.3);}
@@ -515,7 +515,7 @@ function render(){
   document.getElementById('root').innerHTML=
     '<div class="side"><div class="card"><div class="ch"><b>Contact</b><span class="autonote">Autosaves</span></div><div class="cb">'
       + '<div class="rsec" data-rsec><div class="rsechd">Identity <span class="cv">▾</span></div><div class="rsecbody">'
-      + '<div class="photorow"><div class="photoprev" id="p_photoprev">'+photoInner+'</div><div class="photobtns"><label class="mfadd">Upload photo<input type="file" id="p_photofile" accept="image/*" hidden></label>'+(P.photoExt?'<button type="button" class="mfadd" id="p_photoclear">Remove</button>':'')+'</div></div>'
+      + '<div class="photorow"><div class="photoprev" id="p_photoprev" title="Click to upload a photo">'+photoInner+'</div><input type="file" id="p_photofile" accept="image/*" hidden></div>'
       + '<div class="fldrow2"><div><label class="fld">First name *</label><input id="p_first" value="'+esc(P.firstName||'')+'"></div><div><label class="fld">Last name *</label><input id="p_last" value="'+esc(P.lastName||'')+'"></div></div>'
       + '<div class="fldrow2"><div><label class="fld">Nickname</label><input id="p_nick" value="'+esc(P.nickname||'')+'" placeholder="Optional"></div><div><label class="fld">Type *</label><select id="p_type">'+ptsel+'</select></div></div>'
       + '<div class="fldrow"><label class="fld">Company'+(CO&&CO.id?(' <a class="colink" href="./rrg_company.html?id='+encodeURIComponent(CO.id)+'">open →</a>'):'')+'</label><div class="coauto"><input id="p_company" value="'+esc((CO&&CO.name)||P.company||'')+'" placeholder="Start typing to find a company" autocomplete="off"><div class="cosug" id="p_cosug" hidden></div></div></div>'
@@ -549,6 +549,7 @@ function render(){
   wireCompanyAuto();
   var ct=document.getElementById('p_ctToday'); if(ct) ct.addEventListener('click',function(){ var d=new Date(); document.getElementById('p_lastcontact').value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); queueSave(); });
   var pf=document.getElementById('p_photofile'); if(pf) pf.addEventListener('change',function(){ if(pf.files&&pf.files[0]) uploadPhoto(pf.files[0]); });
+  var ppp=document.getElementById('p_photoprev'); if(ppp&&pf) ppp.addEventListener('click',function(){ if(P.photoExt){ if(confirm('Remove this photo?')) clearPhoto(); } else { pf.click(); } });
   var pc=document.getElementById('p_photoclear'); if(pc) pc.addEventListener('click',clearPhoto);
   wireAgreements();
   wireEmail();
