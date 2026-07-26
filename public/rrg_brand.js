@@ -36,13 +36,13 @@
     if (dash < 0) dash = cur.indexOf(' - ');
     if (dash >= 0) suffix = cur.slice(dash + 1).replace(/^[\s—-]+/, '').trim();
     else if (cur && !/^rrg\b/i.test(cur)) suffix = cur.trim();
-    try { var _cp = JSON.parse(localStorage.getItem('rrg_pal') || 'null'); if (_cp) { var _de = document.documentElement; if (_cp.primary) _de.style.setProperty('--navy', _cp.primary); if (_cp.accent) _de.style.setProperty('--red', _cp.accent); } } catch (e) {}
+    try { var _cp = JSON.parse(localStorage.getItem('rrg_pal') || 'null'); if (_cp) { var _de = document.documentElement; if (_cp.primary) _de.style.setProperty('--navy', _cp.primary); if (_cp.accent) _de.style.setProperty('--red', _cp.accent); if (_cp.sidebar) _de.style.setProperty('--navbg', _cp.sidebar); if (_cp.positive) _de.style.setProperty('--green', _cp.positive); } } catch (e) {}
     fetch('/api/appname', { credentials: 'same-origin' })
       .then(function (r) { return r.json(); })
       .then(function (j) {
         var n = (j && j.name) || 'FullServe';
         document.title = suffix ? (n + ' — ' + suffix) : n;
-        try { var de = document.documentElement, pal = (j && j.palette) || {}; if (pal.primary) de.style.setProperty('--navy', pal.primary); if (pal.accent) de.style.setProperty('--red', pal.accent); localStorage.setItem('rrg_pal', JSON.stringify(pal)); } catch (e) {}
+        try { var de = document.documentElement, pal = (j && j.palette) || {}; if (pal.primary) de.style.setProperty('--navy', pal.primary); if (pal.accent) de.style.setProperty('--red', pal.accent); if (pal.sidebar) de.style.setProperty('--navbg', pal.sidebar); if (pal.positive) de.style.setProperty('--green', pal.positive); localStorage.setItem('rrg_pal', JSON.stringify(pal)); } catch (e) {}
         schedule((j && j.assistant) || 'Claude');
       })
       .catch(function () {});
@@ -72,3 +72,5 @@
     }
   } catch (e) {}
 })();
+/* load the app shell (persistent nav + top bar) on every page */
+(function(){ try{ if(!document.querySelector('script[src="/rrg_shell.js"]')){ var sc=document.createElement('script'); sc.src='/rrg_shell.js'; sc.defer=true; (document.head||document.documentElement).appendChild(sc); } }catch(e){} })();

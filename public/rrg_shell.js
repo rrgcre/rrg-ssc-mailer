@@ -1,0 +1,144 @@
+/* RRG app shell — persistent Copper-style left nav + top bar, injected on every page.
+   Palette-driven (--navbg / --red), admin-aware, hides the old per-page navy headers.
+   Opt a page out with <meta name="rrg-noshell">. */
+(function () {
+  if (window.__rrgShell) return;
+  var path = (location.pathname || '').toLowerCase();
+  var file = path.split('/').pop() || 'index.html';
+  if (/\/login/.test(path) || file === 'login' ) return;
+  if (document.querySelector('meta[name="rrg-noshell"]')) return;
+  window.__rrgShell = true;
+
+  var NAV = [
+    { items: [
+      { ic: '⌂', label: 'Home', href: 'index.html' },
+      { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' }
+    ] },
+    { grp: 'Records', items: [
+      { ic: '◑', label: 'People', href: 'rrg_people.html' },
+      { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
+      { ic: '◆', label: 'Deals', href: 'rrg_assignments.html' }
+    ] },
+    { grp: 'Business Sales', items: [
+      { ic: '◉', label: 'Command Center', href: 'rrg_command.html' },
+      { ic: '☎', label: 'Qualification Calls', href: 'rrg_screening_queue.html' },
+      { ic: '▤', label: 'Valuations', href: 'rrg_bov_queue.html' },
+      { ic: '▧', label: 'Marketing Packs', href: 'rrg_cim_queue.html' },
+      { ic: '➤', label: 'Attack Plans', href: 'rrg_attack_queue.html' },
+      { ic: '▥', label: 'Data Rooms', href: 'rrg_rooms_queue.html' }
+    ] },
+    { grp: 'Tenant Rep', items: [
+      { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
+      { ic: '✚', label: 'Site & Concept Fit', href: 'rrg_site_fit.html' },
+      { ic: '⊚', label: 'Tour Tracker', href: 'rrg_tour_tracker.html' },
+      { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' }
+    ] },
+    { grp: 'Tools', items: [
+      { ic: '✉', label: 'Requests', href: 'rrg_tickets.html' },
+      { ic: '✍', label: 'Agreements', href: 'rrg_agreements.html' },
+      { ic: '∑', label: 'Cap Rate', href: 'rrg_cap_rate_calculator.html' },
+      { ic: '＄', label: 'Commission', href: 'rrg_commission_calculator.html' }
+    ] },
+    { grp: 'Admin', admin: true, items: [
+      { ic: '▤', label: 'Admin console', href: 'admin' },
+      { ic: '◫', label: 'Departments', href: 'rrg_departments.html' },
+      { ic: '◔', label: 'Roles', href: 'rrg_roles.html' },
+      { ic: '⚙', label: 'Settings', href: 'rrg_admin_settings.html' }
+    ] }
+  ];
+
+  function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+  function sameFile(href){ var f=(href||'').split('/').pop().toLowerCase(); return f===file || (href==='admin' && (file==='admin'||path==='/admin')); }
+
+  // ---------- styles ----------
+  var css = ''
+    + ':root{--navbg:var(--navbg,#0b1a38);}'
+    + 'body.rrg-shelled{padding-left:238px !important;padding-top:56px !important;}'
+    + 'body.rrg-shelled .top,body.rrg-shelled .rrg-back{display:none !important;}'
+    + '#rrgnav{position:fixed;top:0;left:0;bottom:0;width:238px;background:var(--navbg,#0b1a38);color:#c7d0e4;display:flex;flex-direction:column;z-index:60;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
+    + '#rrgnav .nt{display:flex;align-items:center;gap:9px;padding:13px 14px 8px;}'
+    + '#rrgnav .ws{display:flex;align-items:center;gap:9px;cursor:pointer;border-radius:9px;padding:5px 7px;flex:1;text-decoration:none;}'
+    + '#rrgnav .ws:hover{background:rgba(255,255,255,.06);}'
+    + '#rrgnav .disc{width:30px;height:30px;border-radius:8px;background:var(--red,#DA2B1F);color:#fff;font-family:"Arial Black",Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}'
+    + '#rrgnav .wsn{font-weight:600;font-size:14.5px;color:#fff;}'
+    + '#rrgnav .create{margin:6px 14px 10px;background:var(--red,#DA2B1F);color:#fff;border:none;border-radius:9px;padding:10px 14px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;text-decoration:none;}'
+    + '#rrgnav .create:hover{filter:brightness(1.06);}'
+    + '#rrgnav .scroll{flex:1;overflow-y:auto;padding:2px 10px 14px;}'
+    + '#rrgnav .scroll::-webkit-scrollbar{width:7px;}#rrgnav .scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:7px;}'
+    + '#rrgnav .grp{margin-top:15px;}'
+    + '#rrgnav .lbl{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.34);font-weight:700;padding:0 10px 6px;}'
+    + '#rrgnav a.it{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:8px;color:#c3cce0;text-decoration:none;font-size:13.5px;font-weight:500;margin-bottom:1px;}'
+    + '#rrgnav a.it:hover{background:rgba(255,255,255,.07);color:#fff;}'
+    + '#rrgnav a.it.on{background:rgba(255,255,255,.12);color:#fff;font-weight:600;}'
+    + '#rrgnav a.it .i{width:17px;text-align:center;color:rgba(255,255,255,.5);font-size:13.5px;flex:none;}'
+    + '#rrgnav a.it.on .i{color:#fff;}'
+    + '#rrgnav .foot{border-top:1px solid rgba(255,255,255,.09);padding:8px 10px;}'
+    + '#rrgtop{position:fixed;top:0;left:238px;right:0;height:56px;background:#fff;border-bottom:1px solid #e9edf3;display:flex;align-items:center;gap:18px;padding:0 22px;z-index:59;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
+    + '#rrgtop .pt{font-size:16.5px;font-weight:600;color:#1d2739;min-width:90px;}'
+    + '#rrgtop .srch{flex:1;max-width:600px;margin:0 auto;position:relative;}'
+    + '#rrgtop .srch input{width:100%;border:1px solid #e9edf3;background:#f7f9fc;border-radius:10px;padding:9px 12px 9px 36px;font:inherit;font-size:13.5px;color:#1d2739;}'
+    + '#rrgtop .srch .si{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#98a1b5;}'
+    + '#rrgtop .acts{display:flex;align-items:center;gap:10px;margin-left:auto;}'
+    + '#rrgtop .ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#6b7488;cursor:pointer;text-decoration:none;}'
+    + '#rrgtop .ic:hover{background:#f2f4f8;color:#1d2739;}'
+    + '#rrgtop .uav{width:32px;height:32px;border-radius:50%;background:var(--navbg,#233a68);color:#fff;font-weight:600;font-size:12.5px;display:flex;align-items:center;justify-content:center;}'
+    + '@media(max-width:900px){body.rrg-shelled{padding-left:0 !important;}#rrgnav{transform:translateX(-100%);transition:transform .2s;}#rrgnav.open{transform:none;}#rrgtop{left:0;}}';
+  var st = document.createElement('style'); st.id='rrgshellcss'; st.textContent=css; document.head.appendChild(st);
+
+  // ---------- nav markup ----------
+  var appName = 'RRG';
+  var navHtml = '';
+  navHtml += '<div class="nt"><a class="ws" href="index.html"><span class="disc" id="rrgdisc">RRG</span><span class="wsn" id="rrgwsn">RRG</span></a></div>';
+  navHtml += '<a class="create" href="rrg_companies.html">+ Create New <span>›</span></a>';
+  navHtml += '<div class="scroll">';
+  NAV.forEach(function (g, gi) {
+    var cls = g.admin ? ' data-admingrp="1" style="display:none"' : '';
+    navHtml += '<div class="grp"' + cls + '>';
+    if (g.grp) navHtml += '<div class="lbl">' + esc(g.grp) + '</div>';
+    g.items.forEach(function (it) {
+      navHtml += '<a class="it' + (sameFile(it.href) ? ' on' : '') + '" href="' + esc(it.href) + '"><span class="i">' + it.ic + '</span>' + esc(it.label) + '</a>';
+    });
+    navHtml += '</div>';
+  });
+  navHtml += '</div>';
+  navHtml += '<div class="foot"><a class="it" href="rrg_account.html"><span class="i">◔</span><span id="rrgacct">Account</span></a><a class="it" href="index.html"><span class="i">?</span>Help</a></div>';
+
+  var nav = document.createElement('aside'); nav.id='rrgnav'; nav.innerHTML=navHtml;
+
+  // ---------- top bar ----------
+  var activeLabel = '';
+  NAV.forEach(function (g) { g.items.forEach(function (it) { if (sameFile(it.href)) activeLabel = it.label; }); });
+  if (!activeLabel) { var t = (document.title || '').split('—')[0].split(' - ')[0].trim(); activeLabel = t || 'RRG'; }
+  var top = document.createElement('div'); top.id='rrgtop';
+  top.innerHTML = ''
+    + '<div class="ic" id="rrgburger" style="display:none">≡</div>'
+    + '<div class="pt" id="rrgpt">' + esc(activeLabel) + '</div>'
+    + '<div class="srch"><span class="si">⌕</span><input placeholder="Search companies, contacts, deals…" id="rrgsearch"></div>'
+    + '<div class="acts"><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><a class="ic" href="rrg_tasks.html" title="Tasks">✔</a><div class="uav" id="rrguav">·</div></div>';
+
+  document.addEventListener('DOMContentLoaded', mount);
+  if (document.readyState !== 'loading') mount();
+  function mount(){
+    if (document.getElementById('rrgnav')) return;
+    document.body.insertBefore(nav, document.body.firstChild);
+    document.body.insertBefore(top, document.body.firstChild);
+    document.body.classList.add('rrg-shelled');
+    // mobile burger
+    var burger=document.getElementById('rrgburger'); if(window.innerWidth<=900){ burger.style.display='flex'; }
+    burger && burger.addEventListener('click', function(){ nav.classList.toggle('open'); });
+    // search → companies search (simple v1)
+    var si=document.getElementById('rrgsearch');
+    si && si.addEventListener('keydown', function(e){ if(e.key==='Enter'){ var q=si.value.trim(); location.href='rrg_companies.html'+(q?('?q='+encodeURIComponent(q)):''); } });
+    // hydrate app name, role, user
+    try {
+      fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+        if(j&&j.name){ var w=document.getElementById('rrgwsn'); if(w) w.textContent=j.name; var d=document.getElementById('rrgdisc'); if(d) d.textContent=(j.name||'RRG').replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase()||'RRG'; }
+      }).catch(function(){});
+      fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){
+        if(s&&s.role==='admin'){ var g=nav.querySelector('[data-admingrp]'); if(g) g.style.display=''; }
+        var nm=(s&&(s.name||s.username))||''; var uav=document.getElementById('rrguav'); if(uav&&nm){ var parts=nm.trim().split(/\s+/); uav.textContent=((parts[0]||'')[0]||'')+((parts[1]||'')[0]||'')||nm[0].toUpperCase(); }
+        var ac=document.getElementById('rrgacct'); if(ac&&nm) ac.textContent=nm.split(/\s+/)[0];
+      }).catch(function(){});
+    } catch(e){}
+  }
+})();

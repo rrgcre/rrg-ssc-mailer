@@ -1795,9 +1795,9 @@ app.post('/api/admin/logo/clear', requireAdmin, (req, res) => {
 // ---- App name (admin-set) — drives the browser tab title on every page ----
 const DEFAULT_APP_NAME = 'FullServe';
 function loadAppName() { const b = loadBrand(); return (b.appName && String(b.appName).trim()) || DEFAULT_APP_NAME; }
-const PALETTE_DEFAULT = { primary: '#000E31', accent: '#DA2B1F' };
+const PALETTE_DEFAULT = { primary: '#000E31', accent: '#DA2B1F', sidebar: '#0b1a38', positive: '#1f8a5b' };
 function isHexColor(v) { return /^#[0-9a-fA-F]{6}$/.test(String(v || '')); }
-function effPalette() { const b = loadBrand(); const pl = (b.palette && typeof b.palette === 'object') ? b.palette : {}; return { primary: isHexColor(pl.primary) ? pl.primary : PALETTE_DEFAULT.primary, accent: isHexColor(pl.accent) ? pl.accent : PALETTE_DEFAULT.accent }; }
+function effPalette() { const b = loadBrand(); const pl = (b.palette && typeof b.palette === 'object') ? b.palette : {}; return { primary: isHexColor(pl.primary) ? pl.primary : PALETTE_DEFAULT.primary, accent: isHexColor(pl.accent) ? pl.accent : PALETTE_DEFAULT.accent, sidebar: isHexColor(pl.sidebar) ? pl.sidebar : PALETTE_DEFAULT.sidebar, positive: isHexColor(pl.positive) ? pl.positive : PALETTE_DEFAULT.positive }; }
 app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), palette: effPalette() }));
 app.get('/api/admin/palette', requireAdmin, (req, res) => res.json({ ok: true, palette: effPalette(), defaults: PALETTE_DEFAULT }));
 app.post('/api/admin/palette', requireAdmin, express.json(), (req, res) => {
@@ -1807,6 +1807,8 @@ app.post('/api/admin/palette', requireAdmin, express.json(), (req, res) => {
   const pl = (b.palette && typeof b.palette === 'object') ? Object.assign({}, b.palette) : {};
   if (bd.primary !== undefined) { if (!isHexColor(bd.primary)) return res.status(400).json({ ok: false, error: 'Primary must be a 6-digit hex color like #0B1A38.' }); pl.primary = bd.primary; }
   if (bd.accent !== undefined) { if (!isHexColor(bd.accent)) return res.status(400).json({ ok: false, error: 'Accent must be a 6-digit hex color like #DA2B1F.' }); pl.accent = bd.accent; }
+  if (bd.sidebar !== undefined) { if (!isHexColor(bd.sidebar)) return res.status(400).json({ ok: false, error: 'Sidebar must be a 6-digit hex color.' }); pl.sidebar = bd.sidebar; }
+  if (bd.positive !== undefined) { if (!isHexColor(bd.positive)) return res.status(400).json({ ok: false, error: 'Positive must be a 6-digit hex color.' }); pl.positive = bd.positive; }
   b.palette = pl; saveBrand(b);
   res.json({ ok: true, palette: effPalette(), defaults: PALETTE_DEFAULT });
 });
