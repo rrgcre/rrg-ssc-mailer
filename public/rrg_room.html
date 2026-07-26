@@ -61,6 +61,19 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
   </div></div>
 
   <div class="card"><div class="cbody">
+    <h2>Buyers &amp; access</h2>
+    <div class="h">Give each buyer their own access code and set what they can do: <b>view only</b>, <b>download</b>, or <b>upload</b> (contribute documents). Adding a buyer locks the room so a personal code is required &mdash; the shared link alone stops working.</div>
+    <div class="up">
+      <div class="fld"><label>Buyer name</label><input type="text" id="bName" placeholder="e.g. Jane Smith / ABC Capital"></div>
+      <div class="fld"><label>Email (optional)</label><input type="text" id="bEmail" placeholder="jane@abccapital.com"></div>
+      <div class="fld"><label>Access level</label><select id="bLevel"><option value="view">View only</option><option value="download" selected>View &amp; download</option><option value="edit">View, download &amp; upload</option></select></div>
+      <div class="fld"><button class="btn green" onclick="addBuyer()">Add buyer</button></div>
+    </div>
+    <div class="umsg" id="bmsg"></div>
+    <div id="buyerList"></div>
+  </div></div>
+
+  <div class="card"><div class="cbody">
     <h2>Add a document</h2>
     <div class="h">PDF, Word, Excel, CSV, PowerPoint, images, or text — up to 20 MB each. Give it a clear name and drop it in the right section.</div>
     <div class="up">
@@ -110,7 +123,36 @@ function renderLog(){
   if(!a.length){ el.innerHTML='<div class="logrow" style="border-top:none">No buyer activity yet.</div>'; return; }
   el.innerHTML=a.map(function(x){ return '<div class="logrow"><span class="ev">'+esc(x.event==='download'?'Download':'View')+'</span><span class="when">'+esc(fmtWhen(x.at))+'</span><span style="flex:1">'+esc(x.doc||'—')+'</span><span>'+esc(x.ip||'')+'</span></div>'; }).join('');
 }
-function paint(){ document.getElementById('hdr').textContent='Data Room · '+(ROOM.business||''); paintLink(); renderCats(); renderDocs(); renderLog(); }
+function levelName(l){ return l==='view'?'View only':(l==='edit'?'View, download & upload':'View & download'); }
+function renderGrants(){
+  var el=document.getElementById('buyerList'); if(!el) return;
+  var gs=(ROOM.grants||[]);
+  if(!gs.length){ el.innerHTML='<div class="catempty">No individual buyers yet — the room is open to anyone with the link (view &amp; download). Add a buyer to switch on per-person codes.</div>'; return; }
+  el.innerHTML=gs.map(function(g){
+    var opts=['view','download','edit'].map(function(l){ return '<option value="'+l+'"'+(((g.level||'download')===l)?' selected':'')+'>'+esc(levelName(l))+'</option>'; }).join('');
+    return '<div class="docrow"><div style="flex:1"><div class="dt">'+esc(g.name||g.email||'Buyer')+(g.active?'':' <span style="color:#b23a2c;font-weight:700">(revoked)</span>')+'</div><div class="dm">Code <b>'+esc(g.code)+'</b>'+(g.email?(' · '+esc(g.email)):'')+' · '+(g.downloads||0)+' download'+((g.downloads===1)?'':'s')+'</div></div>'
+      +'<select onchange="setLevel(\''+g.id+'\',this.value)" style="margin-right:8px;padding:6px 8px;border:1px solid #cfd6e2;border-radius:7px;font:inherit;font-size:12px">'+opts+'</select>'
+      +'<button class="x" onclick="toggleGrant(\''+g.id+'\')">'+(g.active?'Revoke':'Restore')+'</button></div>';
+  }).join('');
+}
+function addBuyer(){
+  var name=document.getElementById('bName').value.trim(), email=document.getElementById('bEmail').value.trim(), level=document.getElementById('bLevel').value, m=document.getElementById('bmsg');
+  if(!name&&!email){ m.textContent='Add a name or email for this buyer.'; return; }
+  m.textContent='Adding…';
+  fetch('/api/room/'+encodeURIComponent(RID)+'/grant',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:name,email:email,level:level})})
+   .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; document.getElementById('bName').value=''; document.getElementById('bEmail').value=''; renderGrants(); m.textContent='Buyer added ✓ — share their code from the list below.'; } else { m.textContent=(j&&j.error)||'Could not add the buyer.'; } })
+   .catch(function(){ m.textContent='Could not reach the server.'; });
+}
+function setLevel(id,level){
+  fetch('/api/room/'+encodeURIComponent(RID)+'/grant-level',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:id,level:level})})
+   .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; renderGrants(); toast('Access updated ✓'); } else alert((j&&j.error)||'Failed'); }).catch(function(){ alert('Could not reach the server.'); });
+}
+function toggleGrant(id){
+  fetch('/api/room/'+encodeURIComponent(RID)+'/grant-toggle',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:id})})
+   .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; renderGrants(); } else alert((j&&j.error)||'Failed'); }).catch(function(){ alert('Could not reach the server.'); });
+}
+function paint(){ document.getElementById('hdr').textContent='Data Room · '+(ROOM.business||''); paintLink(); renderCats(); renderDocs(); renderGrants(); renderLog(); }
+
 function load(){
   fetch('/api/room/'+encodeURIComponent(RID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(j&&j.ok&&j.room){ ROOM=j.room; paint(); } else { document.getElementById('docList').innerHTML='<div class="catempty">Could not load this data room.</div>'; }
