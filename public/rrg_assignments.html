@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — Deals</title>
+<title>RRG — Listings</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--amber:#e0a41a;}
 *{box-sizing:border-box;}
@@ -75,28 +75,28 @@ tr:hover td{background:#fbfcfe;}
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'" title="Back to toolbox"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Book of Business</div>
-  <h1>Deals</h1>
-  <div class="sub">Every deal in one place. Each deal ties together its qualification call, questionnaire, valuation, marketing pack, attack plan, data room, and lease abstract — so you can see, at a glance, where every listing stands.</div>
+  <h1>Listings</h1>
+  <div class="sub">Every listing in one place. Each listing ties together its qualification call, questionnaire, valuation, marketing pack, attack plan, data room, and lease abstract — so you can see, at a glance, where every listing stands.</div>
 </div></div>
 <div class="wrap">
   <div class="tiles" id="tiles"></div>
   <div class="card">
-    <div class="hd"><b>Deals</b><span class="cnt" id="cnt"></span><button id="newDealBtn" class="newdeal">+ New deal</button><input id="search" placeholder="Search business, market, contact…" oninput="applyFilters()"></div>
+    <div class="hd"><b>Listings</b><span class="cnt" id="cnt"></span><button id="newDealBtn" class="newdeal">+ New listing</button><input id="search" placeholder="Search business, market, contact…" oninput="applyFilters()"></div>
     <div id="body"></div>
   </div>
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <div id="dealModal" class="modal" hidden><div class="modalcard">
-  <div class="modalh">New deal</div>
+  <div class="modalh">New listing</div>
   <div class="modalb">
-    <label class="mfld">Business / deal name</label><input id="nd_business" placeholder="e.g. Blue Agave Cantina">
+    <label class="mfld">Business / listing name</label><input id="nd_business" placeholder="e.g. Blue Agave Cantina">
     <label class="mfld">Market</label><input id="nd_market" placeholder="e.g. Austin, TX">
     <label class="mfld">Seller / client contact</label><input id="nd_contact" list="clientList" placeholder="Start typing to find an existing client…" autocomplete="off">
     <datalist id="clientList"></datalist>
     <label class="mfld">Client email <span style="text-transform:none;color:var(--muted);font-weight:500">(links / onboards the client)</span></label><input id="nd_email" placeholder="optional">
-    <div class="modalnote" id="clientHint">Creating a deal builds its data room automatically and links the client to your registry — a matching client is reused, a new one is onboarded. Use <b>Start the deal</b> later to open a qualification call.</div>
+    <div class="modalnote" id="clientHint">Creating a listing builds its data room automatically and links the client to your registry — a matching client is reused, a new one is onboarded. Use <b>Start the listing</b> later to open a qualification call.</div>
   </div>
-  <div class="modalf"><button id="nd_cancel" class="mbtn ghost">Cancel</button><button id="nd_create" class="mbtn">Create deal</button></div>
+  <div class="modalf"><button id="nd_cancel" class="mbtn ghost">Cancel</button><button id="nd_create" class="mbtn">Create listing</button></div>
 </div></div>
 <script src="/rrg_list.js"></script>
 <script>
@@ -139,7 +139,7 @@ function applyFilters(){
 function renderList(list){
   var cfg={
     mount:'#body', data:list, key:'assignments', countEl:'#cnt',
-    empty:'<div class="empty"><b>No deals yet.</b>Log a seller qualification call to start your first deal — everything downstream links back here automatically.</div>',
+    empty:'<div class="empty"><b>No listings yet.</b>Log a seller qualification call to start your first listing — everything downstream links back here automatically.</div>',
     rowId:function(a){ return a.key; }, defaultSort:6, defaultDir:1,
     columns:[
       { label:'Business', sort:function(a,b){ return RRGList.cmp(a.business,b.business); },
@@ -150,7 +150,7 @@ function renderList(list){
       { label:'Listing expires', sort:function(a,b){ return expDays(a)-expDays(b); }, cell:function(a){ return expiresCell(a); } },
       { label:'Owner', sort:function(a,b){ return RRGList.cmp(a.owner,b.owner); }, cell:function(a){ return '<span class="meta" style="color:var(--ink)">'+esc(a.owner||'—')+'</span>'; } },
       { label:'Updated', sort:function(a,b){ return RRGList.cmp(a.lastActivity,b.lastActivity); }, cell:function(a){ return '<span class="meta">'+esc(fmt(a.lastActivity))+'</span>'; } },
-      { label:'', align:'right', sortable:false, cell:function(a){ var start=a.canStart?('<button class="startbtn" data-start="'+esc(a.dealId)+'">Start the deal →</button>'):''; return start+'<a class="open" href="./rrg_assignment.html?key='+encodeURIComponent(a.key)+'">Open →</a>'; } }
+      { label:'', align:'right', sortable:false, cell:function(a){ var start=a.canStart?('<button class="startbtn" data-start="'+esc(a.dealId)+'">Start the listing →</button>'):''; return start+'<a class="open" href="./rrg_assignment.html?key='+encodeURIComponent(a.key)+'">Open →</a>'; } }
     ]
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
@@ -160,15 +160,15 @@ function startDeal(dealId,btn){
   if(!dealId) return;
   if(btn){ btn.disabled=true; btn.textContent='Starting…'; }
   fetch('/api/deal/'+encodeURIComponent(dealId)+'/start',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { if(btn){btn.disabled=false;btn.textContent='Start the deal →';} alert((j&&j.error)||'Could not start the deal.'); } })
-    .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Start the deal →';} alert('Could not reach the server.'); });
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { if(btn){btn.disabled=false;btn.textContent='Start the listing →';} alert((j&&j.error)||'Could not start the listing.'); } })
+    .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Start the listing →';} alert('Could not reach the server.'); });
 }
 document.addEventListener('click',function(e){ var s=e.target.closest('.startbtn'); if(s){ e.preventDefault(); startDeal(s.getAttribute('data-start'),s); } });
 /* New deal modal */
 var PEOPLE=[];
 function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('clientList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){ return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||p.type||'')+'</option>'; }).join(''); }).catch(function(){}); }
 function clientMatch(){ var v=document.getElementById('nd_contact').value.trim().toLowerCase(); if(!v) return null; return PEOPLE.filter(function(p){ return (p.name||'').toLowerCase()===v; })[0]||null; }
-function updateClientHint(){ var h=document.getElementById('clientHint'); var m=clientMatch(); var em=document.getElementById('nd_email'); if(m){ h.innerHTML='✓ Linking to existing client <b>'+esc(m.name)+'</b>'+(m.company?(' · '+esc(m.company)):'')+'. This deal joins their record.'; if(m.email&&!em.value) em.value=m.email; } else if(document.getElementById('nd_contact').value.trim()){ h.innerHTML='New client — <b>'+esc(document.getElementById('nd_contact').value.trim())+'</b> will be onboarded into your registry.'; } else { h.innerHTML='Creating a deal builds its data room automatically and links the client to your registry — a matching client is reused, a new one is onboarded.'; } }
+function updateClientHint(){ var h=document.getElementById('clientHint'); var m=clientMatch(); var em=document.getElementById('nd_email'); if(m){ h.innerHTML='✓ Linking to existing client <b>'+esc(m.name)+'</b>'+(m.company?(' · '+esc(m.company)):'')+'. This listing joins their record.'; if(m.email&&!em.value) em.value=m.email; } else if(document.getElementById('nd_contact').value.trim()){ h.innerHTML='New client — <b>'+esc(document.getElementById('nd_contact').value.trim())+'</b> will be onboarded into your registry.'; } else { h.innerHTML='Creating a listing builds its data room automatically and links the client to your registry — a matching client is reused, a new one is onboarded.'; } }
 function openDealModal(){ document.getElementById('dealModal').removeAttribute('hidden'); document.getElementById('nd_business').focus(); loadPeople(); }
 function closeDealModal(){ document.getElementById('dealModal').setAttribute('hidden',''); ['nd_business','nd_market','nd_contact','nd_email'].forEach(function(id){document.getElementById(id).value='';}); updateClientHint(); }
 function createDeal(){
@@ -176,8 +176,8 @@ function createDeal(){
   if(!business){ document.getElementById('nd_business').focus(); return; }
   var btn=document.getElementById('nd_create'); btn.disabled=true; btn.textContent='Creating…';
   fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,market:document.getElementById('nd_market').value.trim(),contact:document.getElementById('nd_contact').value.trim(),contactEmail:document.getElementById('nd_email').value.trim()})})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { btn.disabled=false; btn.textContent='Create deal'; alert((j&&j.error)||'Could not create the deal.'); } })
-    .catch(function(){ btn.disabled=false; btn.textContent='Create deal'; alert('Could not reach the server.'); });
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { btn.disabled=false; btn.textContent='Create listing'; alert((j&&j.error)||'Could not create the listing.'); } })
+    .catch(function(){ btn.disabled=false; btn.textContent='Create listing'; alert('Could not reach the server.'); });
 }
 document.getElementById('newDealBtn').addEventListener('click',openDealModal);
 document.getElementById('nd_cancel').addEventListener('click',closeDealModal);
@@ -188,7 +188,7 @@ loadPeople();
 function load(){
   fetch('/api/assignments',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     ALL=(j&&j.assignments)||[]; renderTiles(); applyFilters();
-  }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load deals.</div>'; });
+  }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load listings.</div>'; });
 }
 load();
 </script>

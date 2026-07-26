@@ -19,7 +19,7 @@
     { grp: 'Records', color: '#7ea6d8', items: [
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
       { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
-      { ic: '◆', label: 'Deals', href: 'rrg_assignments.html' }
+      { ic: '◆', label: 'Listings', href: 'rrg_assignments.html' }
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [
       { ic: '◉', label: 'Command Center', href: 'rrg_command.html' },
@@ -122,7 +122,7 @@
   var top = document.createElement('div'); top.id='rrgtop';
   top.innerHTML = ''
     + '<div class="ic" id="rrgburger" style="display:none">≡</div>'
-    + '<div class="srch"><span class="si">⌕</span><input placeholder="Search companies, contacts, deals…" id="rrgsearch"></div>'
+    + '<div class="srch"><span class="si">⌕</span><input placeholder="Search companies, contacts, listings…" id="rrgsearch"></div>'
     + '<div class="acts"><a class="create" href="rrg_companies.html"><span class="cplus">+</span> Create New</a><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><a class="ic" href="rrg_tasks.html" title="Tasks">✔</a><div class="uav" id="rrguav">·</div></div>';
 
   document.addEventListener('DOMContentLoaded', mount);

@@ -232,7 +232,7 @@ function saveCoAgr(){
   var b=document.getElementById('ca_save'); b.disabled=true; m.textContent='Saving\u2026';
   fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var ag=j.agreement; if(CO_AGR_FILE&&ag&&ag.id){ var file=CO_AGR_FILE; CO_AGR_FILE=null; var rd=new FileReader(); rd.onload=function(){ fetch('/api/agreements/'+encodeURIComponent(ag.id)+'/doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:file.name,dataB64:String(rd.result||'')})}).then(function(){ load(); }).catch(function(){ load(); }); }; rd.readAsDataURL(file); } else { load(); } } else { b.disabled=false; m.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ b.disabled=false; m.textContent='Could not reach the server.'; });
 }
-function recordHeaderCo(){ var lg=(C.logo||LOGOAUTO||''); return '<div class="rechero"><div class="rhlogo">'+(lg?('<img src="'+esc(lg)+'" onerror="this.remove()">'):esc((C.name||'?').charAt(0).toUpperCase()))+'</div><div><div class="rhname">'+esc(C.name||'Company')+'</div><div class="rhmeta">'+esc(C.type||'Company')+' · '+CONTACTS.length+' contact'+(CONTACTS.length===1?'':'s')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+' · '+DEALS.length+' deal'+(DEALS.length===1?'':'s')+'</div></div></div>'; }
+function recordHeaderCo(){ var lg=(C.logo||LOGOAUTO||''); return '<div class="rechero"><div class="rhlogo">'+(lg?('<img src="'+esc(lg)+'" onerror="this.remove()">'):esc((C.name||'?').charAt(0).toUpperCase()))+'</div><div><div class="rhname">'+esc(C.name||'Company')+'</div><div class="rhmeta">'+esc(C.type||'Company')+' · '+CONTACTS.length+' contact'+(CONTACTS.length===1?'':'s')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+' · '+DEALS.length+' listing'+(DEALS.length===1?'':'s')+'</div></div></div>'; }
 function statTilesCo(){ return '<div class="tiles"><div class="tile"><div class="n">'+CONCEPTS.length+'</div><div class="l">Concepts</div></div><div class="tile"><div class="n">'+LOCATIONS.length+'</div><div class="l">Locations</div></div><div class="tile"><div class="n">'+CONTACTS.length+'</div><div class="l">Contacts</div></div></div>'; }
 function render(){
   document.getElementById('crumb').textContent=C.name||'Company';
@@ -290,7 +290,7 @@ function render(){
   }
   var deals = DEALS.length ? DEALS.map(function(d){
     return '<a class="rrow" href="./rrg_assignment.html?key='+encodeURIComponent(d.key)+'"><span class="rric">$</span><div class="rrmain"><div class="rrnm">'+esc(d.business)+'</div>'+(d.market?'<div class="rrmt">'+esc(d.market)+'</div>':'')+'</div><span class="rchip">'+(d.started?'In pipeline':'Not started')+'</span></a>';
-  }).join('') : '<div class="rrempty">No deals linked yet.</div>';
+  }).join('') : '<div class="rrempty">No listings linked yet.</div>';
   var ptsel=PTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
   var ctsel=CTYPES.map(function(t){return '<option'+(C.type===t?' selected':'')+'>'+esc(t)+'</option>';}).join('');
   var mkset={}; CONCEPTS.forEach(function(cp){ (cp.markets||[]).forEach(function(m){ if(m) mkset[m]=1; }); }); var markets=Object.keys(mkset);
@@ -301,7 +301,7 @@ function render(){
     + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="addContactBtn">+ Add contact</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
     + '</div>'
     + '<div class="rail">'
-    + '<div class="card"><div class="ch"><b>Deals</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Listings</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
     + agreementsCardCo()
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Company</b></div><div class="cb">'
@@ -319,7 +319,7 @@ function render(){
         + '<div class="fldrow"><label class="fld">Website</label><input id="o_website" value="'+esc((C.office&&C.office.website)||'')+'"></div>'
       + '</div>'
       + '<button class="savebtn" id="c_save" disabled>Save changes</button><div class="saved" id="c_saved">Saved ✓</div>'
-      + (IS_ADMIN?('<div class="dangerz"><button class="delco" id="c_delete">Delete company</button><div class="dangernote">Admin only. Permanently removes this company, its concepts, all locations &amp; photos, and every deal tied to it — records, data rooms, and files. Contacts are kept. Cannot be undone.</div></div>'):'')
+      + (IS_ADMIN?('<div class="dangerz"><button class="delco" id="c_delete">Delete company</button><div class="dangernote">Admin only. Permanently removes this company, its concepts, all locations &amp; photos, and every listing tied to it — records, data rooms, and files. Contacts are kept. Cannot be undone.</div></div>'):'')
     + '</div></div></div>';
   ['c_name','c_type','c_lead','c_tags','c_notes','o_address','o_city','o_state','o_phone','o_email','o_website'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener(el.tagName==='SELECT'?'change':'input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; }); });
   (function(){ function draw(){ var p=document.getElementById('c_logoprev'); if(!p) return; var u=(document.getElementById('c_logo').value||'').trim()||(LOGOAUTO||''); p.innerHTML=u?('<img src="'+esc(u)+'" onerror="this.parentNode.innerHTML=&quot;<span class=\'comono\'>'+esc((C.name||'?').charAt(0).toUpperCase())+'</span>&quot;">'):('<span class="comono">'+esc((C.name||'?').charAt(0).toUpperCase())+'</span>'); }
@@ -655,12 +655,12 @@ function removeContact(pid){
 }
 function deleteCompany(){
   var n=(C&&C.name)||'this company';
-  var dealNote=DEALS.length?(' This will also delete '+DEALS.length+' linked deal'+(DEALS.length===1?'':'s')+' and everything in them.'):'';
+  var dealNote=DEALS.length?(' This will also delete '+DEALS.length+' linked listing'+(DEALS.length===1?'':'s')+' and everything in them.'):'';
   if(!confirm('Delete “'+n+'” and ALL associated records?'+dealNote+'\n\nConcepts, locations, and photos go with it. Contacts are kept in your registry. This cannot be undone.')) return;
   if(!confirm('Final check — permanently delete “'+n+'”? Type-safe confirm: this is irreversible.')) return;
   var b=document.getElementById('c_delete'); b.disabled=true; b.textContent='Deleting…';
   fetch('/api/company/'+encodeURIComponent(ID),{method:'DELETE',credentials:'same-origin'})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ alert('Deleted “'+n+'”'+(j.deletedDeals?(' and '+j.deletedDeals+' deal'+(j.deletedDeals===1?'':'s')):'')+'.'); location.href='./rrg_companies.html'; } else { b.disabled=false;b.textContent='Delete company'; alert((j&&j.error)||'Could not delete.'); } })
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ alert('Deleted “'+n+'”'+(j.deletedDeals?(' and '+j.deletedDeals+' listing'+(j.deletedDeals===1?'':'s')):'')+'.'); location.href='./rrg_companies.html'; } else { b.disabled=false;b.textContent='Delete company'; alert((j&&j.error)||'Could not delete.'); } })
     .catch(function(){ b.disabled=false;b.textContent='Delete company'; alert('Could not reach the server.'); });
 }
 function saveCompany(){

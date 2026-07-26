@@ -55,6 +55,7 @@
       +'.rl-ck input{width:16px;height:16px;cursor:pointer;vertical-align:middle;accent-color:var(--red,#DA2B1F)}'
       +'.rl-wrap tbody td{padding:7px 11px;border-bottom:1px solid #eef1f6;font-size:13px;color:#1f2a3d;vertical-align:middle}'
       +'.rl-wrap tbody td span,.rl-wrap tbody td a,.rl-wrap tbody td div,.rl-wrap tbody td b,.rl-wrap tbody td small,.rl-wrap tbody td label{font-size:inherit !important}'
+      +'.rl-wrap tbody td,.rl-wrap tbody td span,.rl-wrap tbody td a,.rl-wrap tbody td div,.rl-wrap tbody td b,.rl-wrap tbody td strong,.rl-wrap tbody td label{font-weight:400 !important}'
       +'.rl-bar .rl-dens{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:#5b6472;cursor:pointer;font-weight:600}'
       +'.rl-bar .rl-dens input{width:15px;height:15px;cursor:pointer;accent-color:var(--red,#DA2B1F)}'
       +'.rl-compact .rl-wrap td{padding-top:4px !important;padding-bottom:4px !important;font-size:12.5px}'
@@ -123,7 +124,7 @@
     };
     var keepMenu=false;
     function canExport(){ if(opts.canExport===false) return false; if(opts.canExport===true) return true; var ss=window.__rrgSession; return ss?!!ss.canExport:false; }
-    (function(){ if(window.__rrgSession) return; if(!window.__rrgSessionFetch){ window.__rrgSessionFetch=fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(ss){ window.__rrgSession=ss; try{document.dispatchEvent(new CustomEvent('rrg:session',{detail:ss}));}catch(e){} return ss; }).catch(function(){}); } document.addEventListener('rrg:session',function(){ try{ render(); }catch(e){} }); })();
+    (function(){ if(window.__rrgSession) return; if(!window.__rrgSessionFetch){ window.__rrgSessionFetch=fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(ss){ window.__rrgSession=ss; try{document.dispatchEvent(new CustomEvent('rrg:session',{detail:ss}));}catch(e){} return ss; }).catch(function(){}); } document.addEventListener('rrg:session',function(){ try{ var ce=canExport(); mount.querySelectorAll('.rl-export,.rl-print').forEach(function(b){ b.hidden=!ce; }); }catch(e){} }); })();
     function firstSortable(){ for(var i=0;i<cols.length;i++){ if(cols[i].sortable!==false && cols[i].sort) return i; } return -1; }
     function persist(){ try{ localStorage.setItem(lsKey, JSON.stringify({per:state.per, sort:state.sort, dir:state.dir, compact:state.compact, widths:state.widths, order:orderedMeta().map(function(m){return m.key;}), hidden:state.hidden, filters:state.filters})); }catch(e){} }
 
@@ -178,7 +179,7 @@
       var colsBtn = '<div class="rl-colwrap"><button class="rl-btn rl-colbtn" title="Choose columns"><span class="rlic">▦</span>Columns</button><div class="rl-colmenu" hidden></div></div>';
       var expBtn = '<button class="rl-btn rl-export" title="Export to CSV"><span class="rlic">⬇</span>Export</button>';
       var prnBtn = '<button class="rl-btn rl-print" title="Print this list"><span class="rlic">⎙</span>Print</button>';
-      if(!canExport()){ expBtn=''; prnBtn=''; }
+      if(!canExport()){ expBtn=expBtn.replace('<button ','<button hidden '); prnBtn=prnBtn.replace('<button ','<button hidden '); }
       var bar = '<div class="rl-bar"><span class="rl-sp"></span>'+count+densTog+perSel+filtBtn+savedBtn+colsBtn+expBtn+prnBtn+pager+'</div>';
       var filterPanel='';
       if(state._filterOpen){ var ffs=orderedMeta().filter(function(m){ return m.c.label && m.c.filterable!==false; }).map(function(m){ return '<div class="rl-filterfield"><label>'+esc(m.c.label)+'</label><input type="text" data-filterkey="'+esc(m.key)+'" value="'+esc(state.filters[m.key]||'')+'" placeholder="contains\u2026"></div>'; }).join(''); filterPanel='<div class="rl-filterpanel">'+ffs+'<button class="rl-filterclear">Clear all</button></div>'; }

@@ -210,7 +210,7 @@ function effShowQuickLinks() { const s = loadSettings(); return s.showQuickLinks
 const TOOL_DEFS = [
   { file: 'rrg_companies.html', name: 'Companies' },
   { file: 'rrg_people.html', name: 'Contacts' },
-  { file: 'rrg_assignments.html', name: 'Deals' },
+  { file: 'rrg_assignments.html', name: 'Listings' },
   { file: 'rrg_agreements.html', name: 'Agreements' },
   { file: 'rrg_tasks.html', name: 'Tasks' },
   { file: 'rrg_tickets.html', name: 'Requests' },
@@ -2279,6 +2279,7 @@ const ASSIGN_FILE = path.join(BOV_DATA_DIR, 'assignments.json');
 function loadAssignOverlay() { try { return JSON.parse(fs.readFileSync(ASSIGN_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
 function saveAssignOverlay(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(ASSIGN_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
 const ASSIGN_STATUSES = ['New', 'Active', 'Under Contract', 'Closed', 'On Hold', 'Lost'];
+const TXN_STATUSES = ['LOI', 'Under Contract', 'Due Diligence', 'Financing', 'Closing', 'Closed', 'Dead'];
 const OFFER_TYPES = ['IOI', 'LOI'];
 const OFFER_STATUSES = ['Received', 'Under review', 'Countered', 'Accepted', 'Rejected', 'Withdrawn'];
 const OFFER_RATINGS = ['Strong', 'Good', 'Fair', 'Weak'];   // the rep's own 1-of-4 gut rating
@@ -2473,6 +2474,7 @@ function assignmentView(d, overlay) {
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
+    transaction: (o.transaction && typeof o.transaction === 'object') ? o.transaction : null,
     value: (bov && (bov.targetText || bov.rangeText)) || '', basis: (bov && bov.basis) || '',
     stages, lastActivity, createdAt: created,
   };
@@ -2517,7 +2519,7 @@ app.get('/api/assignment/:key', (req, res) => {
   if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const origin = req.protocol + '://' + req.get('host');
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: AGREEMENT_TYPES, roomActivity: roomActivityFor(d, origin) });
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: AGREEMENT_TYPES, roomActivity: roomActivityFor(d, origin) });
 });
 app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   const deals = assignmentsIndex();
@@ -2543,6 +2545,42 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.listingExpires === 'string') cur.listingExpires = b.listingExpires.slice(0, 10);
   if (typeof b.autoRenew === 'boolean') cur.autoRenew = b.autoRenew;
   cur.updatedAt = new Date().toISOString();
+  overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true });
+});
+// ---- The Deal (transaction) on a listing: the actual buyer-side transaction, one per listing ----
+app.post('/api/assignment/:key/deal', express.json(), (req, res) => {
+  const deals = assignmentsIndex();
+  const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay();
+  const cur = overlay[d.key] || {};
+  const t = (cur.transaction && typeof cur.transaction === 'object') ? cur.transaction : { createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+  const b = req.body || {};
+  if (typeof b.buyer === 'string') t.buyer = b.buyer.slice(0, 160);
+  if (typeof b.buyerCompany === 'string') t.buyerCompany = b.buyerCompany.slice(0, 160);
+  if (typeof b.price === 'string') t.price = b.price.slice(0, 40);
+  if (typeof b.status === 'string' && TXN_STATUSES.indexOf(b.status) >= 0) t.status = b.status;
+  if (!t.status) t.status = TXN_STATUSES[0];
+  if (typeof b.opened === 'string') t.opened = b.opened.slice(0, 10);
+  if (typeof b.expectedClose === 'string') t.expectedClose = b.expectedClose.slice(0, 10);
+  if (typeof b.closedDate === 'string') t.closedDate = b.closedDate.slice(0, 10);
+  if (typeof b.notes === 'string') t.notes = b.notes.slice(0, 2000);
+  t.updatedAt = new Date().toISOString();
+  if (t.buyer || b.buyerEmail) { const p = findOrCreatePerson(req, { name: t.buyer, email: b.buyerEmail, company: t.buyerCompany, type: 'Buyer' }); if (p) t.personId = p.id; }
+  cur.transaction = t; cur.updatedAt = new Date().toISOString();
+  overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, transaction: t, people: loadPeople().map(personBrief) });
+});
+app.delete('/api/assignment/:key/deal', (req, res) => {
+  const deals = assignmentsIndex();
+  const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay();
+  const cur = overlay[d.key] || {};
+  delete cur.transaction; cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true });
 });
@@ -5555,7 +5593,7 @@ const PERM_CORE = [
 const GATEABLE_TOOLS = [
   { file: 'rrg_companies.html', name: 'Companies' },
   { file: 'rrg_people.html', name: 'Contacts' },
-  { file: 'rrg_assignments.html', name: 'Deals' },
+  { file: 'rrg_assignments.html', name: 'Listings' },
   { file: 'rrg_command.html', name: 'Command Center' },
   { file: 'rrg_tasks.html', name: 'Tasks' },
   { file: 'rrg_agreements.html', name: 'Agreements' },

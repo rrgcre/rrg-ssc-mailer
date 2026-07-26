@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — Deal</title>
+<title>RRG — Listing</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--amber:#e0a41a;}
 *{box-sizing:border-box;}
@@ -91,7 +91,7 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 .tll{font-size:12.5px;color:var(--ink);font-weight:600;} .tlm{font-size:11px;color:var(--muted);margin-top:1px;}
 .noev{color:var(--muted);font-size:12.5px;font-style:italic;}
 /* offers */
-.offers{padding:6px 0 8px;}
+.offers{padding:6px 0 8px;}.dealview{padding:6px 2px}.dealpill{display:inline-block;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:3px 10px;border-radius:999px;margin-bottom:10px}.dealkv{display:flex;gap:10px;padding:5px 0;border-bottom:1px solid #f0f2f6;font-size:13px}.dealkv .dkk{color:#8a94a6;min-width:120px;font-weight:600}.dealkv .dkv{color:#1f2a3d}.dealacts{display:flex;gap:8px;margin-top:12px}.dealform{padding:6px 2px 10px}.dealform .fldrow2{display:flex;gap:10px;margin-bottom:8px}.dealform .fldrow2>div{flex:1}.dealform input,.dealform select,.dealform textarea{width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px}.dealform textarea{min-height:60px}.dealformf{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
 .addoffer,.savebtn2,.cancelbtn{font:inherit;font-weight:700;border-radius:8px;cursor:pointer;}
 .addoffer{background:var(--navy);color:#fff;border:1px solid var(--navy);padding:7px 13px;font-size:12px;}
 .olist{padding:2px 0;}
@@ -164,8 +164,8 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 <!--rrgback--><a href="./rrg_assignments.html" class="rrg-back" aria-label="Back to deals" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Deals</a>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'" title="Back to toolbox"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-  <div class="crumb"><a href="./rrg_assignments.html">Deals</a> &nbsp;›&nbsp; <span id="crumb">Deal file</span></div>
-  <h1 id="h1">Deal</h1>
+  <div class="crumb"><a href="./rrg_assignments.html">Listings</a> &nbsp;›&nbsp; <span id="crumb">Listing file</span></div>
+  <h1 id="h1">Listing</h1>
   <div class="subline" id="subline"></div>
 </div></div>
 <div id="root" class="loading">Loading the deal file…</div>
@@ -176,6 +176,7 @@ function fmt(iso){ if(!iso) return '—'; var d=new Date(iso); if(isNaN(d.getTim
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], AGR=[], ATYPES=[];
 var OFFER_TYPES=['IOI','LOI'], OFFER_STATUSES=['Received','Under review','Countered','Accepted','Rejected','Withdrawn'];
+var TXN=null, TXNSTAT=['LOI','Under Contract','Due Diligence','Financing','Closing','Closed','Dead'];
 var TOUR_INTEREST=['Hot','Warm','Cool','Passed'];
 var NDA_METHODS=['DocuSign','Email','Paper','Other'], NDA_STATUSES=['Sent','Received','Countersigned','Expired'];
 function peopleDatalistHTML(){ return '<datalist id="peopleList">'+PEOPLE.map(function(p){ return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>'; }).join('')+'</datalist>'; }
@@ -289,8 +290,9 @@ function render(){
   document.getElementById('root').className='wrap';
   document.getElementById('root').innerHTML=
     '<div class="main">'
-    + '<div class="card"><div class="ch"><b>Deal facts</b><span>'+done+' of '+STAGES.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Listing facts</b><span>'+done+' of '+STAGES.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
     + '<div class="card"><div class="ch"><b>Pipeline</b><span>'+started+' of '+STAGES.length+' started</span></div><div class="track">'+steps+'</div></div>'
+    + dealCard()
     + ndasCard()
     + toursCard()
     + offersCard()
@@ -298,12 +300,12 @@ function render(){
     + roomActivityCard()
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
-      + (A.canStart?('<button class="startdeal" id="startDealBtn">Start the deal →</button><div class="startnote">Opens a Seller Qualification Call and drops this deal into the pipeline.</div>'):'')
+      + (A.canStart?('<button class="startdeal" id="startDealBtn">Start the listing →</button><div class="startnote">Opens a Seller Qualification Call and drops this listing into the pipeline.</div>'):'')
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
       + '<div class="fldrow"><label class="fld">Owner</label><input class="owner" id="f_owner" value="'+esc(A.owner||'')+'" placeholder="Assigned rep"></div>'
       + '<div class="fldrow"><label class="fld">Referred by</label><input class="owner" id="f_refby" list="peopleList" value="'+esc(A.referredBy||'')+'" placeholder="Contact who referred this"></div>'
       + '<div class="fldrow"><label class="fld">Referral %</label><input class="owner" id="f_refpct" value="'+esc(A.referralPct||'')+'" placeholder="e.g. 10" inputmode="decimal" style="max-width:130px"></div>'
-      + '<div class="fldrow"><label class="fld">Deal name override</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||'')+'" placeholder="'+esc(A.business||'')+'"></div>'
+      + '<div class="fldrow"><label class="fld">Listing name override</label><input class="owner" id="f_biz" value="'+esc(A.businessOverride||'')+'" placeholder="'+esc(A.business||'')+'"></div>'
       + '<div class="listingbox">'
         + '<div class="listinghd">Listing agreement</div>'
         + '<div class="fldrow2"><div><label class="fld">Listed on</label><input type="date" class="owner" id="f_lstart" value="'+esc(A.listingStart||'')+'"></div>'
@@ -313,10 +315,10 @@ function render(){
         + '<label class="autorow"><input type="checkbox" id="f_lauto"'+(A.autoRenew?' checked':'')+'> Auto-renews</label>'
         + '<div class="expnote" id="expNote"></div>'
       + '</div>'
-      + '<div class="fldrow"><label class="fld">Notes</label><textarea id="f_notes" placeholder="Private notes on this deal — next steps, seller temperature, key dates…">'+esc(A.notes||'')+'</textarea></div>'
+      + '<div class="fldrow"><label class="fld">Notes</label><textarea id="f_notes" placeholder="Private notes on this listing — next steps, seller temperature, key dates…">'+esc(A.notes||'')+'</textarea></div>'
       + '<button class="savebtn" id="savebtn" disabled>Save changes</button>'
       + '<div class="saved" id="saved">Saved ✓</div>'
-      + (A.dealId?('<div class="dangerzone"><button class="deldeal" id="delDealBtn">Delete deal</button><div class="startnote">Removes the deal, its records, data room, and all files. Cannot be undone.</div></div>'):'')
+      + (A.dealId?('<div class="dangerzone"><button class="deldeal" id="delDealBtn">Delete listing</button><div class="startnote">Removes the listing, its records, data room, and all files. Cannot be undone.</div></div>'):'')
     + '</div></div></div>'
     + peopleDatalistHTML();
 
@@ -333,12 +335,13 @@ function render(){
   wireOffers();
   wireTours();
   wireNdas();
+  wireDeal();
   wireManualStages();
   setupAccordion();
 }
 function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){}); }
-function startDeal(){ var b=document.getElementById('startDealBtn'); if(b){b.disabled=true;b.textContent='Starting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId)+'/start',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { if(b){b.disabled=false;b.textContent='Start the deal →';} alert((j&&j.error)||'Could not start the deal.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Start the deal →';} alert('Could not reach the server.'); }); }
-function deleteDeal(){ if(!confirm('Delete this deal and everything in it — records, data room, and all uploaded files? This cannot be undone.')) return; var b=document.getElementById('delDealBtn'); if(b){b.disabled=true;b.textContent='Deleting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignments.html'; } else { if(b){b.disabled=false;b.textContent='Delete deal';} alert((j&&j.error)||'Could not delete the deal.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Delete deal';} alert('Could not reach the server.'); }); }
+function startDeal(){ var b=document.getElementById('startDealBtn'); if(b){b.disabled=true;b.textContent='Starting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId)+'/start',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { if(b){b.disabled=false;b.textContent='Start the listing →';} alert((j&&j.error)||'Could not start the deal.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Start the listing →';} alert('Could not reach the server.'); }); }
+function deleteDeal(){ if(!confirm('Delete this listing and everything in it — records, data room, and all uploaded files? This cannot be undone.')) return; var b=document.getElementById('delDealBtn'); if(b){b.disabled=true;b.textContent='Deleting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignments.html'; } else { if(b){b.disabled=false;b.textContent='Delete listing';} alert((j&&j.error)||'Could not delete the listing.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Delete listing';} alert('Could not reach the server.'); }); }
 function fmtDT(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; var h=d.getHours(),m=d.getMinutes(),ap=h<12?'AM':'PM',hh=(h%12)||12; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2)+' '+hh+':'+String(m).padStart(2,'0')+' '+ap; }
 /* ---------- Accordion (collapsible sections on the deal file) ---------- */
 var ACC_STATE={}, ACC_INIT=false;
@@ -727,12 +730,59 @@ function save(){
     }).catch(function(){ b.textContent='Save changes'; b.disabled=false; alert('Could not reach the server.'); });
 }
 window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(); e.returnValue=''; } });
+/* ---------- Deal: the transaction on this listing (buyer under contract -> closing) ---------- */
+function dlv(id){ var e=document.getElementById(id); return e?e.value.trim():''; }
+function txnStatusColor(s){ var m={'LOI':['#eef2fb','#2647b0'],'Under Contract':['#fff4e6','#b9761a'],'Due Diligence':['#f1ebfb','#6d28d9'],'Financing':['#e6f5f3','#0f766e'],'Closing':['#fff7e0','#9a7400'],'Closed':['#e7f5ee','#1f8a5b'],'Dead':['#fdeceb','#DA2B1F']}; return m[s]||['#eef1f6','#5b6472']; }
+function dealCard(){
+  var body, addbtn;
+  if(TXN){
+    var c=txnStatusColor(TXN.status||'');
+    var rows=[];
+    if(TXN.buyer) rows.push(['Buyer', esc(TXN.buyer)+(TXN.buyerCompany?(' · '+esc(TXN.buyerCompany)):'')]);
+    if(TXN.price) rows.push(['Price', esc(TXN.price)]);
+    if(TXN.opened) rows.push(['Opened', esc(TXN.opened)]);
+    if(TXN.expectedClose) rows.push(['Expected close', esc(TXN.expectedClose)]);
+    if(TXN.closedDate) rows.push(['Closed', esc(TXN.closedDate)]);
+    if(TXN.notes) rows.push(['Notes', esc(TXN.notes)]);
+    var meta=rows.map(function(r){ return '<div class="dealkv"><span class="dkk">'+r[0]+'</span><span class="dkv">'+r[1]+'</span></div>'; }).join('');
+    body='<div class="dealview"><span class="dealpill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(TXN.status||'LOI')+'</span>'+meta
+       + '<div class="dealacts"><button class="mbtn ghost" id="dealEdit">Edit</button><button class="mbtn" id="dealDel" style="background:#fff;color:var(--red,#DA2B1F);border:1px solid #f0c9c6">Remove</button></div></div>';
+    addbtn='';
+  } else {
+    body='<div class="noev" style="padding:16px 18px">No deal yet. When a buyer goes under contract on this listing, open the deal — buyer, price, and close date — to track it to closing.</div>';
+    addbtn='<button class="addbtn" id="dealAdd">+ Open deal</button>';
+  }
+  return '<div class="card"><div class="ch" style="display:flex"><b>Deal</b>'+addbtn+'</div><div class="cb"><div id="dealForm" hidden></div>'+body+'</div></div>';
+}
+function dealFormHTML(){
+  var t=TXN||{};
+  var sopts=TXNSTAT.map(function(s){return '<option'+((t.status||'LOI')===s?' selected':'')+'>'+esc(s)+'</option>';}).join('');
+  return '<div class="dealform">'
+    + '<div class="fldrow2"><div><label class="fld">Buyer</label><input id="dl_buyer" list="peopleList" value="'+esc(t.buyer||'')+'" placeholder="Buyer name"></div><div><label class="fld">Buyer email</label><input id="dl_email" value="" placeholder="links to registry"></div></div>'
+    + '<div class="fldrow2"><div><label class="fld">Buyer company</label><input id="dl_co" value="'+esc(t.buyerCompany||'')+'"></div><div><label class="fld">Price</label><input id="dl_price" value="'+esc(t.price||'')+'" placeholder="$"></div></div>'
+    + '<div class="fldrow2"><div><label class="fld">Status</label><select id="dl_status">'+sopts+'</select></div><div><label class="fld">Opened</label><input type="date" id="dl_opened" value="'+esc(t.opened||'')+'"></div></div>'
+    + '<div class="fldrow2"><div><label class="fld">Expected close</label><input type="date" id="dl_exp" value="'+esc(t.expectedClose||'')+'"></div><div><label class="fld">Closed</label><input type="date" id="dl_closed" value="'+esc(t.closedDate||'')+'"></div></div>'
+    + '<div><label class="fld">Notes</label><textarea id="dl_notes" placeholder="Terms, contingencies, key dates…">'+esc(t.notes||'')+'</textarea></div>'
+    + '<div class="dealformf"><button class="mbtn ghost" id="dl_cancel">Cancel</button><button class="mbtn" id="dl_save">Save deal</button></div></div>';
+}
+function openDealForm(){ var f=document.getElementById('dealForm'); if(!f) return; f.innerHTML=dealFormHTML(); f.removeAttribute('hidden'); document.getElementById('dl_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; }); document.getElementById('dl_save').addEventListener('click',saveDeal); }
+function saveDeal(){
+  var body={ buyer:dlv('dl_buyer'), buyerEmail:dlv('dl_email'), buyerCompany:dlv('dl_co'), price:dlv('dl_price'), status:dlv('dl_status'), opened:dlv('dl_opened'), expectedClose:dlv('dl_exp'), closedDate:dlv('dl_closed'), notes:dlv('dl_notes') };
+  var b=document.getElementById('dl_save'); if(b){b.disabled=true;b.textContent='Saving…';}
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/deal',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TXN=j.transaction||null; if(A) A.transaction=TXN; if(j.people) PEOPLE=j.people; rerenderDeal(); } else { if(b){b.disabled=false;b.textContent='Save deal';} alert((j&&j.error)||'Could not save the deal.'); } })
+    .catch(function(){ if(b){b.disabled=false;b.textContent='Save deal';} alert('Could not reach the server.'); });
+}
+function removeDeal(){ if(!confirm('Remove the deal from this listing? The listing itself stays.')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/deal',{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TXN=null; if(A) A.transaction=null; rerenderDeal(); } else alert((j&&j.error)||'Could not remove the deal.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+function rerenderDeal(){ var main=document.querySelector('.main'); if(!main) return; var existing=null; main.querySelectorAll('.card .ch b').forEach(function(bb){ if(bb.textContent==='Deal') existing=bb.closest('.card'); }); if(!existing) return; var tmp=document.createElement('div'); tmp.innerHTML=dealCard(); existing.parentNode.replaceChild(tmp.firstChild,existing); wireDeal(); }
+function wireDeal(){ var a=document.getElementById('dealAdd'); if(a) a.addEventListener('click',openDealForm); var e=document.getElementById('dealEdit'); if(e) e.addEventListener('click',openDealForm); var d=document.getElementById('dealDel'); if(d) d.addEventListener('click',removeDeal); }
+
 function load(){
   if(!KEY){ document.getElementById('root').innerHTML='<div class="empty" style="text-align:center;color:#6b7488;padding:40px">No deal selected. <a href="./rrg_assignments.html">Back to deals →</a></div>'; return; }
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; render(); loadPeople(); })
+  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; render(); loadPeople(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();
