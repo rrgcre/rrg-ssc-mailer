@@ -159,7 +159,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .jbean b{font-weight:800;}
 .grate{color:#b5791f;font-weight:700;} .gclosed{background:#fdeceb;color:#DA2B1F;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:20px;white-space:nowrap;}
 .cohdrlogo{height:30px;width:auto;max-width:110px;object-fit:contain;background:#fff;border-radius:6px;padding:2px 5px;vertical-align:middle;}
-.logorow2{display:flex;gap:12px;align-items:flex-start;} .logoprev2{width:48px;height:48px;border-radius:10px;border:1px solid #e6e9f0;background:#fff;flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;} .logoprev2 img{max-width:100%;max-height:100%;object-fit:contain;} .comono{color:#2647b0;font-weight:800;font-size:18px;}
+.logorow2{display:flex;gap:12px;align-items:flex-start;} .logoprev2{width:64px;height:64px;border-radius:12px;border:1px dashed #cdd6e6;background:#fbfcfe;flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color .12s,background .12s;} .logoprev2:hover{border-color:#9fb0cc;background:#f4f7fb;} .logoprev2 img{max-width:100%;max-height:100%;object-fit:contain;} .comono{color:#2647b0;font-weight:800;font-size:18px;}
 .gpanel{background:#f5f7fb;border:1px solid #e6e9f0;border-radius:9px;padding:10px 12px;} .gphd{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;font-weight:800;} .gphd a{font-size:11px;color:#2647b0;text-transform:none;letter-spacing:0;text-decoration:none;} .gpgrid{display:flex;flex-wrap:wrap;gap:5px 16px;margin-top:6px;font-size:12.5px;color:#3a4560;} .gpnote{font-size:11px;color:#98a1b5;margin-top:7px;}
 </style>
 <script src="/rrg_brand.js"></script>
@@ -285,7 +285,7 @@ function render(){
     if(commissaries.length) locs+=commissaryBlock();
     if(orphans.length){ var oOpen=!!EXPANDED['__orphan__']; locs+='<div class="cptblock'+(oOpen?' open':'')+'"><div class="cptbar" data-cpt="__orphan__"><span class="cptchev">▶</span><div class="cptname">Unassigned <span class="cptcount">'+orphans.length+' loc'+(orphans.length===1?'':'s')+'</span></div></div><div class="cptlocs">'+orphans.map(locRow).join('')+'</div></div>'; }
     var allOpen=CONCEPTS.length&&CONCEPTS.every(function(c){return EXPANDED[c.id];});
-    locs+='<div class="cpttotal">'+CONCEPTS.length+' concept'+(CONCEPTS.length===1?'':'s')+' · <b>'+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</b> total · <span class="expall" id="cptExpand">'+(allOpen?'Collapse all':'Expand all')+'</span></div>';
+    locs+='<div class="cpttotal"><span class="expall" id="cptExpand">'+(allOpen?'Collapse all':'Expand all')+'</span></div>';
   }
   var deals = DEALS.length ? DEALS.map(function(d){
     return '<a class="rrow" href="./rrg_assignment.html?key='+encodeURIComponent(d.key)+'"><span class="rric">$</span><div class="rrmain"><div class="rrnm">'+esc(d.business)+'</div>'+(d.market?'<div class="rrmt">'+esc(d.market)+'</div>':'')+'</div><span class="rchip">'+(d.started?'In pipeline':'Not started')+'</span></a>';
@@ -295,7 +295,7 @@ function render(){
   var mkset={}; CONCEPTS.forEach(function(cp){ (cp.markets||[]).forEach(function(m){ if(m) mkset[m]=1; }); }); var markets=Object.keys(mkset);
   document.getElementById('root').className='wrap';
   document.getElementById('root').innerHTML=
-    '<div class="mid"><div class="conametop">'+esc(C.name||'Company')+'</div>'+statTilesCo()
+    '<div class="mid">'+statTilesCo()
     + '<div class="card"><div class="ch"><b>Concepts, Locations &amp; Commissaries</b><span>'+CONCEPTS.length+' concept'+(CONCEPTS.length===1?'':'s')+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn">+ Commissary</button><button class="addbtn" id="addConceptBtn">+ Add concept</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
     + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="addContactBtn">+ Add contact</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
     + '</div>'
@@ -304,11 +304,11 @@ function render(){
     + agreementsCardCo()
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Company</b></div><div class="cb">'
+      + '<div class="fldrow"><label class="fld">Logo</label><div class="logorow2"><div class="logoprev2" id="c_logoprev" title="Click to upload a logo"></div><div style="flex:1;min-width:0"><input id="c_logo" value="'+esc(C.logo||'')+'" placeholder="Logo URL — or use the website"><div style="margin-top:6px"><button type="button" class="mfadd" id="c_logoup">Upload</button> <button type="button" class="mfadd" id="c_logoauto">Use website</button><input type="file" id="c_logofile" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" style="display:none"></div><div style="font-size:11px;color:#98a1b5;margin-top:4px">Click the box to upload · max 6 MB</div></div></div></div>'
       + '<div class="fldrow"><label class="fld">Name</label><input id="c_name" value="'+esc(C.name||'')+'"></div>'
       + '<div class="fldrow"><label class="fld">Type</label><select id="c_type">'+ctsel+'</select></div>'
       + '<div class="fldrow"><label class="fld">Tags</label><input id="c_tags" value="'+esc((C.tags&&C.tags.length)?C.tags.join(', '):'')+'" placeholder="Comma-separated, e.g. franchisor, multi-unit, target"></div>'
       + '<div class="fldrow"><label class="fld">Lead source</label><input id="c_lead" list="c_leadlist" autocomplete="off" value="'+esc(C.leadSource||'')+'" placeholder="Referral, CoStar, event"><datalist id="c_leadlist">'+(LEADSOURCES||[]).map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist></div>'
-      + '<div class="fldrow"><label class="fld">Logo</label><div class="logorow2"><div class="logoprev2" id="c_logoprev"></div><div style="flex:1;min-width:0"><input id="c_logo" value="'+esc(C.logo||'')+'" placeholder="Logo URL — or use the website"><div style="margin-top:6px"><button type="button" class="mfadd" id="c_logoup">Upload logo</button> <button type="button" class="mfadd" id="c_logoauto">Use website logo</button><input type="file" id="c_logofile" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" style="display:none"></div></div></div></div>'
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="c_notes" placeholder="Ownership, history, relationships, anything worth remembering…">'+esc(C.notes||'')+'</textarea></div>'
       + '<div class="officebox">'
         + '<div class="officehd">Corporate office</div>'
@@ -325,6 +325,7 @@ function render(){
     var li=document.getElementById('c_logo'); if(li) li.addEventListener('input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
     var la=document.getElementById('c_logoauto'); if(la) la.addEventListener('click',function(){ var d=(document.getElementById('o_website').value||'').replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0]; document.getElementById('c_logo').value=d?('https://logo.clearbit.com/'+d):''; DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
     var lup=document.getElementById('c_logoup'), lf=document.getElementById('c_logofile');
+    var lprev=document.getElementById('c_logoprev'); if(lprev&&lf){ lprev.addEventListener('click',function(){ lf.click(); }); }
     if(lup&&lf){ lup.addEventListener('click',function(){ lf.click(); }); lf.addEventListener('change',function(){ var f=lf.files&&lf.files[0]; if(!f) return; if(f.size>6*1024*1024){ alert('Image is over 6 MB — please use a smaller file.'); lf.value=''; return; } var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s); fetch('/api/company/'+encodeURIComponent(ID)+'/logo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:b64})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.logo){ C.logo=j.logo; document.getElementById('c_logo').value=j.logo; draw(); } else { alert((j&&j.error)||'Could not upload the logo.'); } lf.value=''; }).catch(function(){ alert('Could not reach the server.'); lf.value=''; }); }; rd.readAsDataURL(f); }); }
     draw();
   })();
