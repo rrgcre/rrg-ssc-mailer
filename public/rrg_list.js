@@ -67,7 +67,17 @@
       +'.rl-filterfield label{font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:#8a94a6;font-weight:700}'
       +'.rl-filterfield input{border:1px solid #cfd6e2;border-radius:7px;padding:5px 8px;font:inherit;font-size:12.5px;min-width:132px}'
       +'.rl-filterfield input:focus{outline:none;border-color:#4a90e2}'
-      +'.rl-filterclear{font-size:11.5px;color:#5b6472;text-decoration:underline;cursor:pointer;background:none;border:none;padding:6px 4px}';
+      +'.rl-filterclear{font-size:11.5px;color:#5b6472;text-decoration:underline;cursor:pointer;background:none;border:none;padding:6px 4px}'
+      +'.rl-savedmenu{position:absolute;top:calc(100% + 6px);right:0;z-index:60;background:#fff;border:1px solid #e3e8f0;border-radius:11px;box-shadow:0 14px 40px rgba(12,22,54,.18);padding:7px;min-width:236px;max-height:340px;overflow:auto}'
+      +'.rl-savedrow{display:flex;align-items:center;gap:6px;padding:6px 9px;border-radius:8px;font-size:13px;color:#26324a}'
+      +'.rl-savedrow:hover{background:#f4f7fb}'
+      +'.rl-savedname{flex:1;cursor:pointer}'
+      +'.rl-saveddel{border:none;background:none;color:#c7cedb;cursor:pointer;font-size:15px;line-height:1;padding:0 2px}'
+      +'.rl-saveddel:hover{color:var(--red,#DA2B1F)}'
+      +'.rl-savenew{display:flex;gap:6px;padding:8px 9px 4px;border-top:1px solid #eef1f6;margin-top:5px}'
+      +'.rl-savename{flex:1;min-width:0;border:1px solid #cfd6e2;border-radius:7px;padding:5px 8px;font:inherit;font-size:12.5px}'
+      +'.rl-savebtn2{border:1px solid var(--navy,#000E31);background:var(--navy,#000E31);color:#fff;border-radius:7px;padding:5px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}'
+      +'.rl-savedempty{font-size:12px;color:#98a1b5;padding:6px 9px}';
     var s=document.createElement('style'); s.id=STYLE_ID; s.textContent=css; document.head.appendChild(s);
   }
 
@@ -153,10 +163,11 @@
       var densTog = '<label class="rl-dens" title="Compact rows"><input type="checkbox" class="rl-densCk"'+(state.compact?' checked':'')+'> Compact</label>';
       var fcount = Object.keys(state.filters||{}).filter(function(k){ return String(state.filters[k]||'').trim()!==''; }).length;
       var filtBtn = '<button class="rl-btn rl-filtbtn'+(state._filterOpen?' on':'')+'" title="Filter rows"><span class="rlic">\u2261</span>Filter'+(fcount?('<span class="rlfcount">'+fcount+'</span>'):'')+'</button>';
+      var savedBtn = '<div class="rl-colwrap"><button class="rl-btn rl-savedbtn" title="Saved searches"><span class="rlic">\u2606</span>Saved</button><div class="rl-savedmenu" hidden></div></div>';
       var colsBtn = '<div class="rl-colwrap"><button class="rl-btn rl-colbtn" title="Choose columns"><span class="rlic">▦</span>Columns</button><div class="rl-colmenu" hidden></div></div>';
       var expBtn = '<button class="rl-btn rl-export" title="Export to CSV"><span class="rlic">⬇</span>Export</button>';
       var prnBtn = '<button class="rl-btn rl-print" title="Print this list"><span class="rlic">⎙</span>Print</button>';
-      var bar = '<div class="rl-bar"><span class="rl-sp"></span>'+count+densTog+perSel+filtBtn+colsBtn+expBtn+prnBtn+pager+'</div>';
+      var bar = '<div class="rl-bar"><span class="rl-sp"></span>'+count+densTog+perSel+filtBtn+savedBtn+colsBtn+expBtn+prnBtn+pager+'</div>';
       var filterPanel='';
       if(state._filterOpen){ var ffs=orderedMeta().filter(function(m){ return m.c.label && m.c.filterable!==false; }).map(function(m){ return '<div class="rl-filterfield"><label>'+esc(m.c.label)+'</label><input type="text" data-filterkey="'+esc(m.key)+'" value="'+esc(state.filters[m.key]||'')+'" placeholder="contains\u2026"></div>'; }).join(''); filterPanel='<div class="rl-filterpanel">'+ffs+'<button class="rl-filterclear">Clear all</button></div>'; }
 
@@ -267,10 +278,22 @@
       var exp=$('.rl-export',mount); if(exp) exp.onclick=exportCsv;
       var prn=$('.rl-print',mount); if(prn) prn.onclick=printList;
       var fbt=$('.rl-filtbtn',mount); if(fbt) fbt.onclick=function(){ state._filterOpen=!state._filterOpen; render(); };
+      var svb=$('.rl-savedbtn',mount); if(svb) svb.onclick=function(e){ e.stopPropagation(); var menu=$('.rl-savedmenu',mount); if(menu.hidden) openSavedMenu(); else menu.hidden=true; };
       var fcl=$('.rl-filterclear',mount); if(fcl) fcl.onclick=function(){ state.filters={}; state.page=0; persist(); render(); };
       mount.querySelectorAll('.rl-filterfield input[data-filterkey]').forEach(function(fi){ fi.oninput=function(){ var k=fi.getAttribute('data-filterkey'); var v=fi.value; if(fi._t) clearTimeout(fi._t); fi._t=setTimeout(function(){ state.filters[k]=v; state._focusFilter=k; state.page=0; persist(); render(); },180); }; });
     }
 
+    function loadSaved(){ try{ return JSON.parse(localStorage.getItem('rrgsaved_'+(opts.key||'list'))||'[]')||[]; }catch(e){ return []; } }
+    function storeSaved(a){ try{ localStorage.setItem('rrgsaved_'+(opts.key||'list'), JSON.stringify(a)); }catch(e){} }
+    function captureState(){ return { filters:JSON.parse(JSON.stringify(state.filters||{})), hidden:JSON.parse(JSON.stringify(state.hidden||{})), order:orderedMeta().map(function(m){return m.key;}), sort:state.sort, dir:state.dir, per:state.per, compact:state.compact }; }
+    function applyState(st){ if(!st) return; state.filters=st.filters?JSON.parse(JSON.stringify(st.filters)):{}; state.hidden=st.hidden?JSON.parse(JSON.stringify(st.hidden)):{}; if(Array.isArray(st.order)) state.order=st.order.slice(); if(st.sort!=null) state.sort=st.sort; if(st.dir!=null) state.dir=st.dir; if(st.per!=null) state.per=st.per; state.compact=!!st.compact; state.page=0; if(state.filters&&Object.keys(state.filters).length) state._filterOpen=true; persist(); render(); }
+    function buildSavedMenu(){ var arr=loadSaved(); var rows=arr.length?arr.map(function(sv,i){ return '<div class="rl-savedrow"><span class="rl-savedname" data-si="'+i+'">'+esc(sv.name)+'</span><button class="rl-saveddel" data-sdi="'+i+'" title="Delete">\u00d7</button></div>'; }).join(''):'<div class="rl-savedempty">No saved searches yet.</div>'; return '<div class="rl-colmenu" style="position:static;box-shadow:none;border:none;padding:0;max-height:none"><div style="font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#98a1b5;padding:2px 9px 4px">Saved searches</div>'+rows+'<div class="rl-savenew"><input class="rl-savename" placeholder="Name this search"><button class="rl-savebtn2">Save current</button></div></div>'; }
+    function openSavedMenu(){ var menu=$('.rl-savedmenu',mount); if(!menu) return; var cm=$('.rl-colmenu',mount); if(cm) cm.hidden=true; menu.innerHTML=buildSavedMenu(); menu.hidden=false;
+      menu.querySelectorAll('.rl-savedname').forEach(function(x){ x.onclick=function(){ var arr=loadSaved(); var sv=arr[+x.getAttribute('data-si')]; if(sv) applyState(sv.state); }; });
+      menu.querySelectorAll('.rl-saveddel').forEach(function(x){ x.onclick=function(e){ e.stopPropagation(); var arr=loadSaved(); arr.splice(+x.getAttribute('data-sdi'),1); storeSaved(arr); openSavedMenu(); }; });
+      var sb=$('.rl-savebtn2',menu), si=$('.rl-savename',menu);
+      if(sb&&si){ sb.onclick=function(){ var nm=(si.value||'').trim(); if(!nm){ si.focus(); return; } var arr=loadSaved(); arr.push({ name:nm.slice(0,60), state:captureState() }); storeSaved(arr); openSavedMenu(); }; si.onkeydown=function(e){ if(e.key==='Enter'){ e.preventDefault(); sb.onclick(); } }; }
+    }
     function startEdit(td){
       if(td.querySelector('.rl-edinput')) return;
       var tr=td.parentNode; var id=tr.getAttribute('data-rowid'); var key=td.getAttribute('data-edkey');
@@ -291,7 +314,7 @@
     }
     function currentSlice(){ var all=sortedData(); var start=state.page*state.per; var slice=all.slice(start,start+state.per); return { items:slice, ids:slice.map(function(it,i){ return rowId(it,start+i); }) }; }
 
-    if(!mount.__rlClose){ mount.__rlClose=true; document.addEventListener('click',function(e){ var menu=$('.rl-colmenu',mount); if(menu && !menu.hidden && !e.target.closest('.rl-colwrap')) menu.hidden=true; }); }
+    if(!mount.__rlClose){ mount.__rlClose=true; document.addEventListener('click',function(e){ if(!e.target.closest('.rl-colwrap')){ var cm=$('.rl-colmenu',mount); if(cm) cm.hidden=true; var sm=$('.rl-savedmenu',mount); if(sm) sm.hidden=true; } }); }
 
     render();
     return { refresh:function(newData){ state.data=newData||[]; state.sel={}; render(); }, getSelected:selectedIds, clearSelection:function(){ state.sel={}; render(); } };
