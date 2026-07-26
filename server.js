@@ -3922,6 +3922,8 @@ app.get('/admin', requireAdmin, (req, res) => {
       <h2>Users <span class="sub2">— ${users.length} total${users.length > 8 ? ' · scroll for more' : ''}</span></h2>
       <div class="userscroll"><table><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Added</th><th>Last Login</th><th>Actions</th></tr></thead><tbody>${urows}</tbody></table></div>
 
+      <div style="margin-top:14px;padding:14px 16px;background:#f7f9fc;border:1px solid #e9edf3;border-radius:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b style="color:var(--navy)">Roles &amp; permissions</b><div class="sub2" style="margin-top:3px">Assign each user a role (Admin, Senior Associate, Associate, or a custom role) and control exactly which tools and records they can use.</div></div><a href="/rrg_roles.html" class="primary" style="text-decoration:none;padding:10px 16px;border-radius:8px">Manage roles &rarr;</a></div>
+
       <h2 style="margin-top:34px">Tool Access <span class="sub2">— check a tool to make it admin-only (hidden from reps, and blocked by direct link)</span></h2>
       <div class="links">
         <div class="taccgrid">${toolAccessRows}</div>
