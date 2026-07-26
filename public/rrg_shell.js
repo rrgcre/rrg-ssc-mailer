@@ -12,16 +12,16 @@
   try { document.addEventListener("input", function(e){ var t=e.target; if(!t||t.tagName!=="INPUT") return; var key=((t.id||"")+" "+(t.name||"")+" "+(t.className||"")).toLowerCase(); if(t.type==="tel" || /phone/.test(key)){ var d=String(t.value||"").replace(/\D/g,"").slice(0,10); var f = d.length<4 ? d : (d.length<7 ? "("+d.slice(0,3)+") "+d.slice(3) : "("+d.slice(0,3)+") "+d.slice(3,6)+"-"+d.slice(6)); if(f!==t.value){ t.value=f; } } }); } catch(e){}
 
   var NAV = [
-    { items: [
+    { color: '#8fa2c4', items: [
       { ic: '◱', label: 'Activity Feed', href: 'rrg_feed.html' },
       { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' }
     ] },
-    { grp: 'Records', items: [
+    { grp: 'Records', color: '#7ea6d8', items: [
       { ic: '◑', label: 'People', href: 'rrg_people.html' },
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
       { ic: '◆', label: 'Deals', href: 'rrg_assignments.html' }
     ] },
-    { grp: 'Business Sales', items: [
+    { grp: 'Business Sales', color: '#6bbf95', items: [
       { ic: '◉', label: 'Command Center', href: 'rrg_command.html' },
       { ic: '☎', label: 'Qualification Calls', href: 'rrg_screening_queue.html' },
       { ic: '▤', label: 'Valuations', href: 'rrg_bov_queue.html' },
@@ -29,19 +29,19 @@
       { ic: '➤', label: 'Attack Plans', href: 'rrg_attack_queue.html' },
       { ic: '▥', label: 'Data Rooms', href: 'rrg_rooms_queue.html' }
     ] },
-    { grp: 'Tenant Rep', items: [
+    { grp: 'Tenant Rep', color: '#d4ad63', items: [
       { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
       { ic: '✚', label: 'Site & Concept Fit', href: 'rrg_site_fit.html' },
       { ic: '⊚', label: 'Tour Tracker', href: 'rrg_tour_tracker.html' },
       { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' }
     ] },
-    { grp: 'Tools', items: [
+    { grp: 'Tools', color: '#a99be0', items: [
       { ic: '✉', label: 'Requests', href: 'rrg_tickets.html' },
       { ic: '✍', label: 'Agreements', href: 'rrg_agreements.html' },
       { ic: '∑', label: 'Cap Rate', href: 'rrg_cap_rate_calculator.html' },
       { ic: '＄', label: 'Commission', href: 'rrg_commission_calculator.html' }
     ] },
-    { grp: 'Admin', admin: true, items: [
+    { grp: 'Admin', admin: true, color: '#dd8a82', items: [
       { ic: '▤', label: 'Admin console', href: 'admin' },
       { ic: '◫', label: 'Departments', href: 'rrg_departments.html' },
       { ic: '◔', label: 'Roles', href: 'rrg_roles.html' },
@@ -77,7 +77,7 @@
     + '#rrgnav a.it{display:flex;align-items:center;gap:11px;padding:8px 10px;border-radius:8px;color:#c3cce0;text-decoration:none;font-size:13.5px;font-weight:500;margin-bottom:1px;}'
     + '#rrgnav a.it:hover{background:rgba(255,255,255,.07);color:#fff;}'
     + '#rrgnav a.it.on{background:rgba(255,255,255,.12);color:#fff;font-weight:600;}'
-    + '#rrgnav a.it .i{width:17px;text-align:center;color:rgba(255,255,255,.5);font-size:13.5px;flex:none;}'
+    + '#rrgnav a.it .i{width:17px;text-align:center;color:var(--gc,rgba(255,255,255,.5));font-size:13.5px;flex:none;}'
     + '#rrgnav a.it.on .i{color:#fff;}'
     + '#rrgnav .foot{border-top:1px solid rgba(255,255,255,.09);padding:8px 10px;}'
     + '#rrgtop{position:fixed;top:0;left:238px;right:0;height:56px;background:#fff;border-bottom:1px solid #e9edf3;display:flex;align-items:center;gap:18px;padding:0 22px;z-index:59;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
@@ -98,7 +98,8 @@
   navHtml += '<div class="nt"><a class="ws" href="index.html"><span class="disc" id="rrgdisc">RRG</span><span class="wsn" id="rrgwsn">RRG</span></a></div>';
   navHtml += '<div class="scroll">';
   NAV.forEach(function (g, gi) {
-    var cls = g.admin ? ' data-admingrp="1" style="display:none"' : '';
+    var _sp = []; if (g.color) _sp.push('--gc:' + g.color); if (g.admin) _sp.push('display:none');
+    var cls = (g.admin ? ' data-admingrp="1"' : '') + (_sp.length ? (' style="' + _sp.join(';') + '"') : '');
     navHtml += '<div class="grp"' + cls + '>';
     if (g.grp) navHtml += '<div class="lbl" data-grp="' + esc(g.grp) + '"><span>' + esc(g.grp) + '</span><span class="gcv">\u25be</span></div>';
     g.items.forEach(function (it) {
