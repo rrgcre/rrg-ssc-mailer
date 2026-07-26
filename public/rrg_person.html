@@ -69,6 +69,16 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .actdel{flex:none;border:none;background:transparent;color:#c3ccdf;font-size:16px;cursor:pointer;line-height:1;padding:2px 4px;} .actdel:hover{color:#DA2B1F;}
 .agrsig{margin-top:12px;border-top:1px solid #e6e9f0;padding-top:10px;} .agrsighd{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;font-weight:800;display:flex;align-items:center;gap:8px;} .agrsigrow{margin:8px 0;} .agrdoc{font-size:12.5px;color:#3a4560;} .agrsigbtns{display:flex;gap:8px;align-items:center;flex-wrap:wrap;} .agrsignote{font-size:12px;color:#98a1b5;}
 .sigpill{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:20px;background:#eef1f6;color:#6b7488;} .sigpill.sent{background:#fff4e6;color:#b5791f;} .sigpill.signed{background:#e7f5ee;color:#1f8a5b;} .agrsignedinfo{font-size:12.5px;color:#3a4560;margin:8px 0;} .agrsignedinfo a{color:#2647b0;font-weight:700;text-decoration:none;} .agrlinkrow{display:flex;gap:6px;align-items:center;margin-top:10px;} .agrlinkrow input{flex:1;min-width:0;border:1px solid #d5dbe6;border-radius:8px;padding:6px 9px;font:inherit;font-size:12px;color:#3a4560;background:#f7f9fc;} .agrlinkrow .mfadd{white-space:nowrap;} .agrtplrow{display:flex;align-items:center;gap:6px;margin:8px 0;flex-wrap:wrap;} .agrtplrow select{border:1px solid #d5dbe6;border-radius:8px;padding:6px 9px;font:inherit;font-size:12.5px;color:#3a4560;background:#fff;max-width:100%;} .agrtplrow .fld{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;font-weight:800;} .advsigners{display:flex;flex-direction:column;gap:8px;margin:8px 0;} .advsrow{display:grid;gap:5px;border:1px solid #e6e9f0;border-radius:9px;padding:9px 10px;background:#fbfcfe;} .advslbl{font-size:12px;font-weight:700;color:#3a4560;display:flex;align-items:center;gap:7px;} .advname,.advemail{border:1px solid #d5dbe6;border-radius:7px;padding:6px 9px;font:inherit;font-size:12.5px;} .advsrow input:disabled{background:#eef1f6;color:#98a1b5;}
+.agrmodal{position:fixed;inset:0;background:rgba(6,16,41,.5);z-index:80;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.agrmodalbox{background:#fff;border-radius:14px;padding:20px 22px;width:min(520px,96vw);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.agrmodalhd{font-size:17px;font-weight:800;color:#000E31}
+.agrmodalsub{font-size:12.5px;color:#6b7488;margin:4px 0 14px;line-height:1.5}
+.agrmodalbox .fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;font-weight:800;margin:10px 0 5px}
+.agrmodalbox select,.agrmodalbox input,.agrmodalbox textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:inherit;font-size:13.5px;color:#1a2236}
+.smsigners{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.smsrow{display:grid;gap:5px;border:1px solid #e6e9f0;border-radius:9px;padding:9px 10px;background:#fbfcfe}
+.smsrow .fld{margin:0 0 3px}
+.agrmodalbtns{display:flex;gap:9px;align-items:center;margin-top:16px}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -119,7 +129,7 @@ function agreementsCard(){
   var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
   return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGREEMENTS.length+'</span></div>'
     +'<div class="cb"><div class="jbeans">'+chips+'</div>'
-    +'<div style="margin-top:10px"><button type="button" class="mfadd" id="agrAddBtn">+ Add agreement</button></div>'
+    +'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="savebtn" id="agrSendBtn" style="width:auto;padding:8px 16px">✉ Send for signature</button><button type="button" class="mfadd" id="agrAddBtn">+ Add / track (no send)</button></div>'
     +'<div id="agrForm" hidden style="margin-top:12px;border-top:1px solid #e6e9f0;padding-top:12px">'
       +'<input type="hidden" id="agr_id">'
       +'<div class="fldrow2"><div><label class="fld">Type</label><select id="agr_type">'+opts+'</select></div>'
@@ -130,7 +140,7 @@ function agreementsCard(){
       +'<div class="fldrow"><label class="fld">Notes</label><input id="agr_notes" placeholder="Counterparty, terms, reference…"></div>'
       +'<div id="agr_sig" class="agrsig"></div>'
       +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button type="button" class="savebtn" id="agrSave" style="width:auto;padding:8px 16px">Save agreement</button><button type="button" class="mfadd" id="agrCancel">Cancel</button><span id="agrMsg" style="font-size:12px;color:#6b7488"></span></div>'
-    +'</div></div></div>';
+    +'</div>'+sendModalHtml()+'</div></div>';
 }
 function openAgrForm(a){
   var f=document.getElementById('agrForm'); f.removeAttribute('hidden');
@@ -188,17 +198,104 @@ function saveAgreement(){
   var body={ personId:ID, id:document.getElementById('agr_id').value||undefined, type:document.getElementById('agr_type').value, status:document.getElementById('agr_status').value, effective:document.getElementById('agr_eff').value, expires:document.getElementById('agr_exp').value, dealKey:document.getElementById('agr_deal').value, notes:document.getElementById('agr_notes').value.trim() };
   msg.textContent='Saving…';
   fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { msg.textContent=(j&&j.error)||'Failed'; } });
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ refreshAgr(j.agreement); } else { msg.textContent=(j&&j.error)||'Failed'; } });
 }
 function delAgreement(id){ if(!confirm('Delete this agreement?')) return; fetch('/api/agreements/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert((j&&j.error)||'Could not delete.'); }); }
-function refreshAgr(u){ if(!u){ load(); return; } AGREEMENTS=AGREEMENTS.map(function(x){return x.id===u.id?u:x;}); render(); var cur=AGREEMENTS.filter(function(x){return x.id===u.id;})[0]||u; openAgrForm(cur); }
+function refreshAgr(u){ if(!u){ load(); return; } var found=false; AGREEMENTS=AGREEMENTS.map(function(x){ if(x.id===u.id){found=true; return u;} return x; }); if(!found) AGREEMENTS.push(u); render(); openAgrForm(u); }
 function uploadAgrDoc(id,file){ if(file.size>20*1024*1024){ alert('File too large (max 20 MB).'); return; } var m=document.getElementById('agr_sigmsg'); if(m)m.textContent='Uploading…'; var rd=new FileReader(); rd.onload=function(){ fetch('/api/agreements/'+encodeURIComponent(id)+'/doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:file.name,dataB64:String(rd.result||'')})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ refreshAgr(j.agreement); } else { if(m)m.textContent=(j&&j.error)||'Upload failed.'; } }).catch(function(){ if(m)m.textContent='Upload failed.'; }); }; rd.readAsDataURL(file); }
 function clearAgrDoc(id){ if(!confirm('Remove the attached document?')) return; fetch('/api/agreements/'+encodeURIComponent(id)+'/doc/clear',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) refreshAgr(j.agreement); }); }
 function sendAgrForSig(id){ if(!EMAILREADY){ alert('Email is not set up yet (Admin → Email).'); return; } if(!confirm('Email this agreement to the contact for signature?')) return; var m=document.getElementById('agr_sigmsg'); if(m)m.textContent='Sending…'; fetch('/api/agreements/'+encodeURIComponent(id)+'/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { if(m)m.textContent=(j&&j.error)||'Send failed.'; alert((j&&j.error)||'Send failed.'); } }).catch(function(){ if(m)m.textContent='Could not reach the server.'; }); }
 function applyTemplate(id,tplId){ var m=document.getElementById('agr_sigmsg'); if(m)m.textContent='Loading template…'; fetch('/api/agreements/'+encodeURIComponent(id)+'/apply-template',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({templateId:tplId})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ refreshAgr(j.agreement); } else { if(m)m.textContent=(j&&j.error)||'Could not apply template.'; alert((j&&j.error)||'Could not apply template.'); } }).catch(function(){ if(m)m.textContent='Could not reach the server.'; }); }
 function markAgrSigned(id){ var d=prompt('Signed on (YYYY-MM-DD)? Leave blank for today.',''); if(d===null) return; fetch('/api/agreements/'+encodeURIComponent(id)+'/sign',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({date:(d||'').trim()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) load(); else alert((j&&j.error)||'Failed.'); }); }
+function sendModalHtml(){
+  var typeOpts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
+  return '<div id="sendModal" class="agrmodal" hidden><div class="agrmodalbox">'
+    +'<div class="agrmodalhd">Send an agreement</div>'
+    +'<div class="agrmodalsub">Pick a saved agreement, confirm who signs, and send. This creates the record and emails it in one step.</div>'
+    +'<label class="fld">Agreement</label><select id="sm_tpl"></select>'
+    +'<div id="sm_typewrap" hidden><label class="fld">Type</label><select id="sm_type">'+typeOpts+'</select></div>'
+    +'<div id="sm_filewrap" hidden><label class="fld">Document</label><label class="mfadd" style="cursor:pointer">📎 Attach a PDF or Word file<input type="file" id="sm_file" accept=".pdf,.doc,.docx" hidden></label> <span id="sm_filename" style="font-size:12px;color:#1f8a5b"></span></div>'
+    +'<div id="sm_simplewrap"><label class="fld">Send to</label><input id="sm_to" placeholder="name@email.com"></div>'
+    +'<div id="sm_signerswrap" class="smsigners" hidden></div>'
+    +'<label class="fld" style="margin-top:10px">Message (optional)</label><textarea id="sm_msg" rows="3" placeholder="A short note to include in the email…"></textarea>'
+    +'<div class="agrmodalbtns"><button type="button" class="savebtn" id="sm_send" style="width:auto;padding:9px 18px">Send agreement</button><button type="button" class="mfadd" id="sm_cancel">Cancel</button><span id="sm_msgout" style="font-size:12px;color:#DA2B1F"></span></div>'
+    +'</div></div>';
+}
+function smSignerRows(tpl){
+  var n=tpl.signerCount===2?2:1, rows='';
+  for(var i=1;i<=n;i++){
+    var lbl=i===1?(tpl.signer1Label||'Signer 1'):(tpl.signer2Label||'Signer 2');
+    var nm=i===1?(P.name||''):'';
+    var em=i===1?(P.preferredEmail||(P.emails&&P.emails[0])||P.email||''):'';
+    rows+='<div class="smsrow"><div class="fld">'+esc(lbl)+'</div><input class="sm_sname" data-o="'+i+'" placeholder="Full name" value="'+esc(nm)+'"><input class="sm_semail" data-o="'+i+'" placeholder="email@company.com" value="'+esc(em)+'"></div>';
+  }
+  return rows;
+}
+function smOnTpl(){
+  var v=document.getElementById('sm_tpl').value;
+  var tpl=(v&&v!=='__file')?TEMPLATES.filter(function(t){return t.id===v;})[0]:null;
+  var adv=!!(tpl&&tpl.pdfFields&&tpl.pdfFields.length);
+  document.getElementById('sm_typewrap').hidden=(v!=='__file');
+  document.getElementById('sm_filewrap').hidden=(v!=='__file');
+  document.getElementById('sm_signerswrap').hidden=!adv;
+  document.getElementById('sm_simplewrap').hidden=(adv||!v);
+  if(adv) document.getElementById('sm_signerswrap').innerHTML=smSignerRows(tpl);
+}
+function openSendModal(){
+  var tplOpts='<option value="">— Choose a template —</option>'+TEMPLATES.filter(function(t){return t.fileExt;}).map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+((t.pdfFields&&t.pdfFields.length)?(' (in-PDF, '+(t.signerCount===2?'2 signers':'1 signer')+')'):'')+'</option>';}).join('')+'<option value="__file">None — attach my own file</option>';
+  var stpl=document.getElementById('sm_tpl'); stpl.innerHTML=tplOpts;
+  document.getElementById('sm_to').value=(P.preferredEmail||(P.emails&&P.emails[0])||P.email||'');
+  document.getElementById('sm_msg').value='';
+  var sf=document.getElementById('sm_file'); if(sf) sf.value='';
+  document.getElementById('sm_filename').textContent='';
+  document.getElementById('sm_msgout').textContent='';
+  document.getElementById('sm_send').disabled=false;
+  smOnTpl();
+  document.getElementById('sendModal').removeAttribute('hidden');
+}
+function doSendAgreement(){
+  var out=document.getElementById('sm_msgout');
+  if(!EMAILREADY){ alert('Email is not set up yet (Admin → Email).'); return; }
+  var v=document.getElementById('sm_tpl').value;
+  if(!v){ out.textContent='Pick a template, or choose to attach your own file.'; return; }
+  var tpl=(v!=='__file')?TEMPLATES.filter(function(t){return t.id===v;})[0]:null;
+  var adv=!!(tpl&&tpl.pdfFields&&tpl.pdfFields.length);
+  var msg=document.getElementById('sm_msg').value.trim();
+  var type=tpl?(tpl.type||'NDA'):(document.getElementById('sm_type').value||'NDA');
+  var btn=document.getElementById('sm_send'); btn.disabled=true; out.style.color='#6b7488'; out.textContent='Creating…';
+  fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({personId:ID,type:type})})
+    .then(function(r){return r.json();}).then(function(j){
+      if(!(j&&j.ok)) throw new Error((j&&j.error)||'Could not create the agreement.');
+      var id=j.agreement.id;
+      var step;
+      if(tpl){ step=fetch('/api/agreements/'+encodeURIComponent(id)+'/apply-template',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({templateId:tpl.id})}).then(function(r){return r.json();}); }
+      else { var fi=document.getElementById('sm_file'); if(!(fi&&fi.files&&fi.files[0])) return Promise.reject(new Error('Attach a document to send.')); step=new Promise(function(res,rej){ var rd=new FileReader(); rd.onload=function(){ fetch('/api/agreements/'+encodeURIComponent(id)+'/doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:fi.files[0].name,dataB64:String(rd.result||'')})}).then(function(r){return r.json();}).then(res,rej); }; rd.readAsDataURL(fi.files[0]); }); }
+      return step.then(function(j2){ if(!(j2&&j2.ok)) throw new Error((j2&&j2.error)||'Could not attach the document.'); return id; });
+    }).then(function(id){
+      out.textContent='Sending…';
+      if(adv){
+        var signers=[];
+        document.querySelectorAll('#sm_signerswrap .sm_sname').forEach(function(n){ signers.push({order:+n.getAttribute('data-o'),name:n.value}); });
+        document.querySelectorAll('#sm_signerswrap .sm_semail').forEach(function(e){ var o=+e.getAttribute('data-o'); var r=signers.filter(function(x){return x.order===o;})[0]; if(r) r.email=e.value; });
+        return fetch('/api/agreements/'+encodeURIComponent(id)+'/signers',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({signers:signers})}).then(function(r){return r.json();}).then(function(){ return fetch('/api/agreements/'+encodeURIComponent(id)+'/send-adv',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({message:msg||undefined})}).then(function(r){return r.json();}); });
+      } else {
+        var to=document.getElementById('sm_to').value.trim();
+        return fetch('/api/agreements/'+encodeURIComponent(id)+'/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({to:to||undefined,message:msg||undefined})}).then(function(r){return r.json();});
+      }
+    }).then(function(js){
+      if(!(js&&js.ok)) throw new Error((js&&js.error)||'Could not send.');
+      document.getElementById('sendModal').setAttribute('hidden','');
+      load();
+      alert('Agreement sent'+(js.to?(' to '+js.to):(js.signer?(' to '+js.signer):''))+'.');
+    }).catch(function(e){ btn.disabled=false; out.style.color='#DA2B1F'; out.textContent=(e&&e.message)||'Something went wrong.'; });
+}
 function wireAgreements(){
   var add=document.getElementById('agrAddBtn'); if(add) add.addEventListener('click',function(){ openAgrForm(null); });
+  var sbtn=document.getElementById('agrSendBtn'); if(sbtn) sbtn.addEventListener('click',openSendModal);
+  var sc=document.getElementById('sm_cancel'); if(sc) sc.addEventListener('click',function(){ document.getElementById('sendModal').setAttribute('hidden',''); });
+  var stp=document.getElementById('sm_tpl'); if(stp) stp.addEventListener('change',smOnTpl);
+  var ssd=document.getElementById('sm_send'); if(ssd) ssd.addEventListener('click',doSendAgreement);
+  var smf=document.getElementById('sm_file'); if(smf) smf.addEventListener('change',function(){ document.getElementById('sm_filename').textContent=(smf.files&&smf.files[0])?smf.files[0].name:''; });
   var sv=document.getElementById('agrSave'); if(sv) sv.addEventListener('click',saveAgreement);
   var cn=document.getElementById('agrCancel'); if(cn) cn.addEventListener('click',function(){ document.getElementById('agrForm').setAttribute('hidden',''); });
   document.querySelectorAll('.jbean[data-agr]').forEach(function(b){ b.addEventListener('click',function(e){ if(e.target&&e.target.classList.contains('jrm')) return; var a=AGREEMENTS.filter(function(x){return x.id===b.getAttribute('data-agr');})[0]; if(a) openAgrForm(a); }); });

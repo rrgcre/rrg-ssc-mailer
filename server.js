@@ -4493,7 +4493,7 @@ app.post('/api/agreements', express.json(), (req, res) => {
   if (typeof b.notes === 'string') a.notes = b.notes.slice(0, 2000);
   a.updatedAt = now;
   saveAgreements(all);
-  if (!b.id && a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Sent', (a.type || 'Agreement') + ' agreement', { auto: true, by: a.createdByName || '', byUser: a.createdBy || '' }); savePeople(ppl); } } catch (e) {} }
+  // No activity is logged when an agreement is merely created — only when it is actually sent or signed.
   res.json({ ok: true, agreement: agreementBrief(a) });
 });
 app.delete('/api/agreements/:id', (req, res) => {
