@@ -132,6 +132,8 @@ tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);bord
       <div class="field opt"><label>Reduced Rate</label><span class="adorn suf"><input type="text" id="stepRate" inputmode="decimal" placeholder="—"><span class="suf">%</span></span><div class="hint">Rate after that year</div></div>
       <div class="field opt"><label>Side Share</label><span class="adorn suf"><input type="text" id="side" inputmode="decimal" placeholder="100"><span class="suf">%</span></span><div class="hint">100% sole · 50% co-broke</div></div>
       <div class="field opt"><label>Agent Split</label><span class="adorn suf"><input type="text" id="split" inputmode="decimal" placeholder="50"><span class="suf">%</span></span><div class="hint">Agent vs. house</div></div>
+      <div class="field opt"><label>Referral Fee</label><span class="adorn suf"><input type="text" id="refPct" inputmode="decimal" placeholder="0"><span class="suf">%</span></span><div class="hint">Off firm gross</div></div>
+      <div class="field opt"><label>Referred by</label><input type="text" id="refTo" placeholder="Broker / source owed"></div>
     </div>
 
     <div class="seclabel">Commission Summary</div>
@@ -145,8 +147,9 @@ tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);bord
     <div class="seclabel">Split</div>
     <div class="summary" style="grid-template-columns:repeat(3,1fr)">
       <div class="scard"><div class="k">Gross to Firm</div><div class="v" id="sFirm">$0</div><div class="s">Gross × side share</div></div>
-      <div class="scard agent"><div class="k">Agent Net</div><div class="v" id="sAgent">$0</div><div class="s">Firm gross × agent split</div></div>
+      <div class="scard agent"><div class="k">Agent Net</div><div class="v" id="sAgent">$0</div><div class="s">After referral × split</div></div>
       <div class="scard"><div class="k">House Net</div><div class="v" id="sHouse">$0</div><div class="s">Remainder to the house</div></div>
+      <div class="scard"><div class="k">Referral Fee</div><div class="v" id="sRef">$0</div><div class="s" id="sRefS">None</div></div>
     </div>
 
     <div class="seclabel">Rent &amp; Commission Schedule</div>
@@ -196,7 +199,10 @@ tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);bord
     }
     var eff=consideration>0?gross/consideration:0;
     var psf=sf>0?gross/sf:0;
-    var firm=gross*side, agent=firm*split, house=firm-agent;
+    var firm=gross*side;
+    var refPct=Math.max(0,Math.min(100,parseFloat((document.getElementById('refPct').value||'').replace(/[^0-9.]/g,''))||0))/100;
+    var referral=firm*refPct, netFirm=firm-referral;
+    var agent=netFirm*split, house=netFirm-agent;
 
     document.getElementById('sGross').textContent=money(gross);
     document.getElementById('sCons').textContent=money(consideration);
@@ -205,6 +211,8 @@ tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);bord
     document.getElementById('sFirm').textContent=money(firm);
     document.getElementById('sAgent').textContent=money(agent);
     document.getElementById('sHouse').textContent=money(house);
+    document.getElementById('sRef').textContent=money(referral);
+    var _rt=(document.getElementById('refTo').value||'').trim(); document.getElementById('sRefS').textContent=_rt?('to '+_rt):(referral>0?'% of firm gross':'None');
 
     var tb=document.getElementById('schedBody'); tb.innerHTML='';
     rows.forEach(function(r){
@@ -235,6 +243,8 @@ tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);bord
     el[id].addEventListener('input', function(){ el[id].value=el[id].value.replace(/[^0-9.]/g,''); recompute(); });
   });
   el.deal.addEventListener('input', recompute);
+  var _rp=document.getElementById('refPct'); if(_rp) _rp.addEventListener('input',function(){ _rp.value=_rp.value.replace(/[^0-9.]/g,''); recompute(); });
+  var _rtEl=document.getElementById('refTo'); if(_rtEl) _rtEl.addEventListener('input',recompute);
 
   window.loadSample=function(){
     el.deal.value='Sample — 2,500 SF endcap restaurant';

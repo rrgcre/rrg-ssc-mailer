@@ -155,7 +155,7 @@ function findOrCreatePerson(req, info) {
   arr.push(p); savePeople(arr);
   return p;
 }
-function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', createdAt: p.createdAt || '', owner: p.by || '', lastContacted: p.lastContacted || '', hasPhoto: !!p.photoExt } : null; }
+function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', prefContact: Array.isArray(p.prefContact) ? p.prefContact : [], createdAt: p.createdAt || '', owner: p.by || '', lastContacted: p.lastContacted || '', hasPhoto: !!p.photoExt } : null; }
 // One contact row as shown on a company file.
 function companyContactRow(p) { return { id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', emails: personEmails(p), phones: personPhones(p), email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', title: p.title || '', tags: personTags(p), leadSource: p.leadSource || '', hasPhoto: !!p.photoExt }; }
 
@@ -758,6 +758,7 @@ app.use((req, res, next) => {
   if (req.method === 'GET' && /\.html$/.test(req.path) && !(req.user && req.user.role === 'admin')) {
     const file = req.path.replace(/^\//, '');
     if (auth.loadToolAccess().indexOf(file) >= 0) return res.redirect('/');
+    if (permsEnabled() && GATEABLE_TOOLS.some(t => t.file === file) && !effectivePerms(req.user)['tool:' + file]) return res.redirect('/');
   }
   next();
 });
@@ -2315,7 +2316,7 @@ function roomActivityFor(d, origin) {
 app.get('/api/assignments', (req, res) => {
   const deals = assignmentsIndex(), overlay = loadAssignOverlay();
   const isAdmin = req.user && req.user.role === 'admin';
-  const list = Object.values(deals).filter(d => isAdmin || ownsAssignment(req, d)).map(d => assignmentView(d, overlay));
+  const list = Object.values(deals).filter(d => isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d)).map(d => assignmentView(d, overlay));
   list.sort((a, b) => String(b.lastActivity).localeCompare(String(a.lastActivity)));
   res.json({ ok: true, isAdmin: !!isAdmin, statuses: ASSIGN_STATUSES, assignments: list });
 });
@@ -2323,7 +2324,7 @@ app.get('/api/assignment/:key', (req, res) => {
   const deals = assignmentsIndex(), overlay = loadAssignOverlay();
   const d = deals[req.params.key];
   if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
-  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const origin = req.protocol + '://' + req.get('host');
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   res.json({ ok: true, statuses: ASSIGN_STATUSES, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: AGREEMENT_TYPES, roomActivity: roomActivityFor(d, origin) });
@@ -2504,7 +2505,7 @@ app.delete('/api/assignment/:key/nda/:ndaId', (req, res) => {
 // ---- People (global buyer registry) ----
 app.get('/api/people', (req, res) => {
   const cos = {}; loadCompanies().forEach(c => cos[c.id] = c.name);
-  const people = loadPeople().map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '' }));
+  const people = loadPeople().filter(p => !restrictToOwn(req) || permOwnerMatch(req, p.by)).map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '' }));
   res.json({ ok: true, people: people, types: effPersonTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
 });
 app.post('/api/person', express.json(), (req, res) => {
@@ -2540,6 +2541,7 @@ app.post('/api/person', express.json(), (req, res) => {
   if (typeof b.title === 'string') p.title = b.title.slice(0, 120);
   if (typeof b.nickname === 'string') p.nickname = b.nickname.slice(0, 80);
   if (typeof b.leadSource === 'string') p.leadSource = b.leadSource.slice(0, 160);
+  if (Array.isArray(b.prefContact)) p.prefContact = b.prefContact.filter(x => ['phone', 'text', 'email'].indexOf(x) >= 0);
   if (typeof b.lastContacted === 'string') p.lastContacted = b.lastContacted.slice(0, 10);
   if (typeof b.url === 'string') p.url = b.url.slice(0, 300);
   if (b.tags !== undefined) p.tags = (cleanStrList(b.tags, 30, 40) || []);
@@ -2637,7 +2639,7 @@ app.get('/api/personphoto/:name', (req, res) => {
 });
 // ---- Companies (account files) ----
 app.get('/api/companies', (req, res) => {
-  const cos = loadCompanies(), people = loadPeople(), deals = loadDeals();
+  const cos = loadCompanies().filter(c => !restrictToOwn(req) || permOwnerMatch(req, c.owner || c.by)), people = loadPeople(), deals = loadDeals();
   const rows = cos.map(c => {
     const mk = {}; (c.concepts || []).forEach(cp => (cp.markets || []).forEach(m => { if (m) mk[m] = 1; }));
     return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, createdAt: c.createdAt };
@@ -2649,6 +2651,7 @@ app.get('/api/companies', (req, res) => {
 app.get('/api/person/:id', (req, res) => {
   const p = personById(req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
+  if (restrictToOwn(req) && !permOwnerMatch(req, p.by)) return res.status(403).json({ ok: false, error: 'You can only view your own contacts.' });
   const overlay = loadAssignOverlay(), idx = assignmentsIndex();
   const bizByKey = {}; for (const k in idx) { try { bizByKey[k] = assignmentView(idx[k], overlay).business; } catch (e) {} }
   const deals = [], offers = [], tours = [], ndas = [];
@@ -2793,6 +2796,15 @@ app.post('/api/admin/gmaps-key', requireAdmin, express.json(), (req, res) => {
   saveGmapsKey(k); res.json({ ok: true, set: true });
 });
 
+app.post('/api/admin/gmaps-key/test', requireAdmin, async (req, res) => {
+  const key = loadGmapsKey(); if (!key) return res.status(400).json({ ok: false, error: 'No key set — save one first.' });
+  try {
+    const r = await fetch('https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=Starbucks&inputtype=textquery&fields=place_id&key=' + encodeURIComponent(key));
+    const j = await r.json();
+    if (j && (j.status === 'OK' || j.status === 'ZERO_RESULTS')) return res.json({ ok: true, status: j.status });
+    return res.status(400).json({ ok: false, error: (j && (j.error_message || j.status)) || 'Key rejected' });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 // ---- Anthropic (Claude) API key — admin-settable; overrides the ANTHROPIC_API_KEY env var ----
 const ANTHROPIC_KEY_FILE = path.join(BOV_DATA_DIR, 'anthropic.key');
 function loadAnthropicKeyFile() { try { const t = fs.readFileSync(ANTHROPIC_KEY_FILE, 'utf8').trim(); return t || ''; } catch (e) { return ''; } }
@@ -2934,6 +2946,7 @@ function clearLocPromptCustom() { try { fs.unlinkSync(LOC_PROMPT_FILE); } catch 
 app.get('/api/company/:id', (req, res) => {
   const c = companyById(req.params.id);
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  if (restrictToOwn(req) && !permOwnerMatch(req, c.owner || c.by)) return res.status(403).json({ ok: false, error: 'You can only view your own companies.' });
   const contacts = loadPeople().filter(p => p.companyId === c.id).map(companyContactRow);
   const dealRows = loadDeals().filter(d => d.companyId === c.id).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id) }));
   const _cids = loadPeople().filter(p => p.companyId === c.id).map(p => p.id);
@@ -3858,6 +3871,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
           <input type="password" id="gmapsKey" placeholder="Paste Google Maps API key" autocomplete="off" style="flex:1;min-width:260px;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy)">
           <button class="primary" onclick="saveGmapsKey()">Save key</button>
+          <button onclick="testGmaps()">Test key</button>
           <button onclick="clearGmapsKey()">Remove</button>
           <span id="gmmsg" class="sub2"></span>
         </div>
@@ -3887,6 +3901,26 @@ app.get('/admin', requireAdmin, (req, res) => {
           <span id="emMsg" class="sub2"></span>
         </div>
         <div class="sub2" style="margin-top:8px">Gmail: use an <b>app password</b> (myaccount.google.com/apppasswords), host <b>smtp.gmail.com</b>, port <b>587</b>. Leave the password blank when saving to keep the current one.</div>
+      </div>
+
+      <h2 style="margin-top:34px">SMS (Twilio) <span class="sub2">— outbound text messages for task reminders. Create a Twilio account, then paste your Account SID, Auth Token, and a Twilio phone number. Stored on the server only and excluded from backups. Reps are texted at the phone number on their user profile. Reminders only offer SMS once this is configured.</span></h2>
+      <div class="links">
+        <div class="sub2" id="smsState" style="margin:0 0 8px">Loading…</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div><label class="sub2">Account SID</label><input id="sms_sid" placeholder="ACxxxxxxxxxxxx" autocomplete="off" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
+          <div><label class="sub2">Auth Token</label><input type="password" id="sms_token" placeholder="auth token" autocomplete="new-password" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:14px;margin-top:10px;align-items:end">
+          <div><label class="sub2">From number (Twilio)</label><input id="sms_from" placeholder="+15125551234" autocomplete="off" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
+          <label class="sub2" style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding-bottom:10px"><input type="checkbox" id="sms_enabled" checked> SMS enabled</label>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+          <button class="primary" onclick="saveSms()">Save SMS settings</button>
+          <input id="sms_test" placeholder="send test to +1512..." autocomplete="off" style="border:1px solid #cfd6e2;border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;min-width:200px">
+          <button onclick="testSms()">Send test</button>
+          <span id="smsMsg" class="sub2"></span>
+        </div>
+        <div class="sub2" style="margin-top:8px">Get credentials at twilio.com (Console). Leave the token blank when saving to keep the current one.</div>
       </div>
 
       <div class="grp">Data Backup</div>
@@ -4017,13 +4051,19 @@ app.get('/admin', requireAdmin, (req, res) => {
       function _gmState(j){ var s=document.getElementById('gmstate'); if(s) s.textContent = j.set ? (j.fromEnv?'A key is set from the server environment.':'A key is saved. Photo pulls are enabled.') : 'No key set — automatic location photos are off.'; }
       function loadGmapsKey(){ fetch('/api/admin/gmaps-key').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ _gmState(j); } }).catch(function(){ var s=document.getElementById('gmstate'); if(s) s.textContent='Could not load the key status.'; }); }
       function saveGmapsKey(){ var v=document.getElementById('gmapsKey').value.trim(), m=document.getElementById('gmmsg'); if(!v){ m.textContent='Paste a key first.'; return; } m.textContent='Saving…'; post('/api/admin/gmaps-key',{key:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; document.getElementById('gmapsKey').value=''; _gmState(j); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
+      function testGmaps(){ var m=document.getElementById('gmmsg'); m.textContent='Testing…'; post('/api/admin/gmaps-key/test',{}).then(function(j){ if(j&&j.ok){ m.textContent='Key works ✓'; } else { m.textContent='Test failed: '+((j&&j.error)||'unknown'); } }); }
       function clearGmapsKey(){ if(!confirm('Remove the Google Maps API key? Automatic location photos will turn off.')) return; post('/api/admin/gmaps-key',{clear:true}).then(function(j){ if(j&&j.ok){ document.getElementById('gmmsg').textContent='Removed.'; _gmState(j); } }); }
       function _emState(j){ var s=document.getElementById('emState'); if(!s) return; if(j&&j.configured){ s.innerHTML='<b style="color:#0e7a53">Email is on</b> — sending as '+(j.from||'')+' via '+(j.host||''); } else { s.textContent=(j&&j.host)?'Configured but disabled — turn on Email enabled and save.':'Not configured yet. Enter your SMTP details below.'; } }
       function loadEmail(){ fetch('/api/admin/email').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('em_host').value=j.host||''; document.getElementById('em_port').value=j.port||587; document.getElementById('em_secure').value=j.secure?'true':'false'; document.getElementById('em_user').value=j.user||''; document.getElementById('em_from').value=j.from||''; document.getElementById('em_enabled').checked=(j.enabled!==false); document.getElementById('em_pass').placeholder=j.hasPass?'leave blank to keep current':'app password'; _emState(j); } }).catch(function(){ var s=document.getElementById('emState'); if(s) s.textContent='Could not load email settings.'; }); }
       function saveEmail(){ var m=document.getElementById('emMsg'); m.textContent='Saving…'; var body={ host:document.getElementById('em_host').value.trim(), port:document.getElementById('em_port').value.trim(), secure:document.getElementById('em_secure').value==='true', user:document.getElementById('em_user').value.trim(), from:document.getElementById('em_from').value.trim(), enabled:document.getElementById('em_enabled').checked }; var pw=document.getElementById('em_pass').value; if(pw) body.pass=pw; post('/api/admin/email',body).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; document.getElementById('em_pass').value=''; loadEmail(); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
       function testEmail(){ var to=document.getElementById('em_test').value.trim(), m=document.getElementById('emMsg'); if(!to){ m.textContent='Enter a destination email for the test.'; return; } m.textContent='Sending test…'; post('/api/admin/email/test',{to:to}).then(function(j){ if(j&&j.ok){ m.textContent='Test sent ✓ — check that inbox.'; } else { m.textContent='Test failed: '+((j&&j.error)||'unknown'); } }); }
+      function _smsState(j){ var s=document.getElementById('smsState'); if(!s) return; if(j&&j.configured){ s.innerHTML='<b style="color:#0e7a53">SMS is on</b> — texting from '+(j.from||''); } else { s.textContent=(j&&j.sid)?'Configured but incomplete or disabled — fill all fields, turn on, and save.':'Not configured yet. Enter your Twilio details below.'; } }
+      function loadSms(){ fetch('/api/admin/sms').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sms_sid').value=j.sid||''; document.getElementById('sms_from').value=j.from||''; document.getElementById('sms_enabled').checked=(j.enabled!==false); document.getElementById('sms_token').placeholder=j.hasToken?'leave blank to keep current':'auth token'; _smsState(j); } }).catch(function(){ var s=document.getElementById('smsState'); if(s) s.textContent='Could not load SMS settings.'; }); }
+      function saveSms(){ var m=document.getElementById('smsMsg'); m.textContent='Saving…'; var body={ sid:document.getElementById('sms_sid').value.trim(), from:document.getElementById('sms_from').value.trim(), enabled:document.getElementById('sms_enabled').checked }; var tk=document.getElementById('sms_token').value; if(tk) body.token=tk; post('/api/admin/sms',body).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; document.getElementById('sms_token').value=''; loadSms(); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
+      function testSms(){ var to=document.getElementById('sms_test').value.trim(), m=document.getElementById('smsMsg'); if(!to){ m.textContent='Enter a mobile number for the test.'; return; } m.textContent='Sending test…'; post('/api/admin/sms/test',{to:to}).then(function(j){ if(j&&j.ok){ m.textContent='Test sent ✓ — check that phone.'; } else { m.textContent='Test failed: '+((j&&j.error)||'unknown'); } }); }
       try{ loadGmapsKey(); }catch(e){}
       try{ loadEmail(); }catch(e){}
+      try{ loadSms(); }catch(e){}
       try{ loadBackups(); }catch(e){}
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
       var INTRO_DEFAULT_MSG='', PACK_INTRO_DEFAULT_MSG='';
@@ -4397,7 +4437,7 @@ app.get('/api/tasks', (req, res) => {
   const deals = [];
   try { const ov = loadAssignOverlay(), idx = assignmentsIndex(); for (const k in idx) { try { deals.push({ key: k, business: assignmentView(idx[k], ov).business }); } catch (e) {} } } catch (e) {}
   deals.sort((a, b) => String(a.business || '').localeCompare(String(b.business || '')));
-  res.json({ ok: true, tasks: mine, contacts, deals, priorities: TASK_PRIORITIES, isAdmin: !!(req.user && req.user.role === 'admin'), me: (req.user && req.user.username) || '' });
+  res.json({ ok: true, tasks: mine, contacts, deals, priorities: TASK_PRIORITIES, activityTypes: effActivityTypes(), emailReady: isEmailConfigured(), smsReady: isSmsConfigured(), isAdmin: !!(req.user && req.user.role === 'admin'), me: (req.user && req.user.username) || '' });
 });
 app.post('/api/tasks', express.json(), (req, res) => {
   const b = req.body || {}; const all = loadTasks(); const now = new Date().toISOString();
@@ -4419,6 +4459,7 @@ app.post('/api/tasks', express.json(), (req, res) => {
   if (typeof b.notes === 'string') t.notes = b.notes.slice(0, 4000);
   if (typeof b.due === 'string') t.due = b.due.slice(0, 10);
   if (typeof b.priority === 'string') t.priority = TASK_PRIORITIES.indexOf(b.priority) >= 0 ? b.priority : (t.priority || 'Normal');
+  if (typeof b.type === 'string') t.type = effActivityTypes().indexOf(b.type) >= 0 ? b.type : (b.type === '' ? '' : (t.type || ''));
   if (!t.priority) t.priority = 'Normal';
   t.assignee = t.createdBy || meU || ''; t.assigneeName = t.assigneeName || t.createdByName || (req.user && req.user.name) || '';
   if (typeof b.status === 'string' && ['open', 'done'].indexOf(b.status) >= 0) { t.status = b.status; t.doneAt = b.status === 'done' ? now : ''; }
@@ -4426,7 +4467,9 @@ app.post('/api/tasks', express.json(), (req, res) => {
   if (typeof b.linkId === 'string') t.linkId = b.linkId.slice(0, 60);
   if (typeof b.linkLabel === 'string') t.linkLabel = b.linkLabel.slice(0, 200);
   if (b.linkType === '') { t.linkId = ''; t.linkLabel = ''; }
-  if (typeof b.reminder === 'string') t.reminder = b.reminder.slice(0, 16);
+  if (typeof b.reminder === 'string') { t.reminder = b.reminder.slice(0, 16); t.remSent = false; }
+  if (Array.isArray(b.remChannels)) t.remChannels = b.remChannels.filter(x => ['popup', 'email', 'sms'].indexOf(x) >= 0);
+  if (!Array.isArray(t.remChannels) || !t.remChannels.length) t.remChannels = taskChannels(t);
   t.updatedAt = now;
   saveTasks(all);
   res.json({ ok: true, task: t });
@@ -4471,6 +4514,7 @@ app.get('/api/agreements', (req, res) => {
   const nameById = {}; loadPeople().forEach(p => { nameById[p.id] = p.name; });
   const coNameById = {}; loadCompanies().forEach(c => { coNameById[c.id] = c.name; });
   const bizByKey = {}; try { const ov = loadAssignOverlay(), idx = assignmentsIndex(); for (const k in idx) { try { bizByKey[k] = assignmentView(idx[k], ov).business; } catch (e) {} } } catch (e) {}
+  if (restrictToOwn(req)) all = all.filter(a => permOwnerMatch(req, a.createdBy));
   all = all.map(a => Object.assign(agreementBrief(a), { personName: a.personName || nameById[a.personId] || '', companyName: coNameById[a.companyId] || '', dealName: bizByKey[a.dealKey] || '' }));
   all.sort((x, y) => String(x.expires || '9999').localeCompare(String(y.expires || '9999')));
   res.json({ ok: true, agreements: all, types: AGREEMENT_TYPES, isAdmin: !!(req.user && req.user.role === 'admin') });
@@ -5078,6 +5122,9 @@ function userCan(user, key) {
   if (user && user.role === 'admin') return true;
   return !!effectivePerms(user)[key];
 }
+function permOwnerMatch(req, owner) { if (!owner) return true; const u = req.user || {}; return owner === u.name || owner === u.username; }
+function restrictToOwn(req) { if (!permsEnabled()) return false; if (req.user && req.user.role === 'admin') return false; return !effectivePerms(req.user).see_all; }
+function canSeeAllDeals(req) { if (req.user && req.user.role === 'admin') return true; return permsEnabled() && !!effectivePerms(req.user).see_all; }
 
 app.get('/api/admin/permissions', requireAdmin, (req, res) => {
   res.json({
@@ -5124,14 +5171,84 @@ app.post('/api/admin/reassign', requireAdmin, express.json(), (req, res) => {
   const from = String((req.body || {}).from || ''), to = String((req.body || {}).to || '');
   if (!from || !to) return res.status(400).json({ ok: false, error: 'Pick both reps.' });
   if (from === to) return res.status(400).json({ ok: false, error: 'Pick two different reps.' });
+  const fromU = auth.findUser(from), toU = auth.findUser(to);
+  const fromKeys = [from]; if (fromU) { if (fromU.name) fromKeys.push(fromU.name); if (fromU.username) fromKeys.push(fromU.username); }
+  const toName = (toU && toU.name) || to;
   let people = 0, companies = 0;
-  try { const ppl = loadPeople(); ppl.forEach(p => { if ((p.by || '') === from) { p.by = to; people++; } }); if (people) savePeople(ppl); } catch (e) {}
-  try { const cos = loadCompanies(); cos.forEach(c => { if (((c.owner || c.by || '')) === from) { c.owner = to; companies++; } }); if (companies) saveCompanies(cos); } catch (e) {}
+  try { const ppl = loadPeople(); ppl.forEach(p => { if (fromKeys.indexOf(p.by || '') >= 0) { p.by = toName; p.byUser = (toU && toU.username) || p.byUser; people++; } }); if (people) savePeople(ppl); } catch (e) {}
+  try { const cos = loadCompanies(); cos.forEach(c => { if (fromKeys.indexOf(c.owner || c.by || '') >= 0) { c.owner = toName; companies++; } }); if (companies) saveCompanies(cos); } catch (e) {}
   res.json({ ok: true, people, companies });
 });
 app.get('/api/permissions/me', (req, res) => {
   res.json({ ok: true, enabled: permsEnabled(), role: (req.user && req.user.role) || '', perms: effectivePerms(req.user || {}) });
 });
+
+// ---- Task reminders: due-list (for pop-ups) + background email sender ----
+app.get('/api/reminders/due', (req, res) => {
+  const meU = req.user && req.user.username;
+  const nowIso = new Date().toISOString().slice(0, 16);
+  const due = loadTasks().filter(t => t.status !== 'done' && t.reminder && taskChannels(t).indexOf('popup') >= 0 && String(t.reminder).slice(0, 16) <= nowIso && (t.assignee === meU || t.createdBy === meU))
+    .map(t => ({ id: t.id, title: t.title, due: t.due || '', linkLabel: t.linkLabel || '', reminder: t.reminder }));
+  res.json({ ok: true, reminders: due });
+});
+function runReminderSender() {
+  try {
+    if (!isEmailConfigured()) return;
+    const nowIso = new Date().toISOString().slice(0, 16);
+    const all = loadTasks(); let changed = false; const users = auth.loadUsers();
+    all.forEach(t => {
+      if (t.status !== 'done' && t.reminder && !t.remSent && String(t.reminder).slice(0, 16) <= nowIso) {
+        const ch = taskChannels(t);
+        const u = users.find(x => x.username === (t.assignee || t.createdBy));
+        const to = u && u.email;
+        if (ch.indexOf('email') >= 0 && to && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+          const link = (process.env.APP_URL || '') + '/rrg_tasks.html';
+          buildTransport().sendMail({ from: mailFrom(), to, subject: 'Reminder: ' + t.title, text: 'Task reminder from Restaurant Realty Group:\n\n' + t.title + (t.due ? ('\nDue: ' + t.due) : '') + (t.linkLabel ? ('\nRe: ' + t.linkLabel) : '') + '\n\nYour tasks: ' + link }).catch(() => {});
+        }
+        if (ch.indexOf('sms') >= 0 && isSmsConfigured() && u && u.phone) { sendSms(u.phone, 'Reminder: ' + t.title + (t.due ? (' (due ' + t.due + ')') : '')).catch(() => {}); }
+        t.remSent = true; changed = true;
+      }
+    });
+    if (changed) saveTasks(all);
+  } catch (e) { console.error('reminder sender:', e && e.message); }
+}
+setInterval(runReminderSender, 60000);
+
+// ---- SMS (Twilio) config + sender ----
+const SMS_CFG_FILE = path.join(BOV_DATA_DIR, 'sms.key');
+function rawSmsCfg() { try { return JSON.parse(fs.readFileSync(SMS_CFG_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
+function loadSmsConfig() { const c = rawSmsCfg(); return { sid: c.sid || process.env.TWILIO_SID || '', token: (c.token != null && c.token !== '') ? c.token : (process.env.TWILIO_TOKEN || ''), from: c.from || process.env.TWILIO_FROM || '', enabled: c.enabled != null ? !!c.enabled : true }; }
+function saveSmsConfig(c) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SMS_CFG_FILE, JSON.stringify(c, null, 2)); } catch (e) {} }
+function isSmsConfigured() { const c = loadSmsConfig(); return !!(c.enabled && c.sid && c.token && c.from); }
+function formatE164(p) { const raw = String(p || '').trim(); let d = raw.replace(/[^0-9]/g, ''); if (!d) return ''; if (raw[0] === '+') return '+' + d; if (d.length === 10) return '+1' + d; if (d.length === 11 && d[0] === '1') return '+' + d; return d.length >= 10 ? '+' + d : ''; }
+async function sendSms(to, body) {
+  const c = loadSmsConfig();
+  if (!(c.enabled && c.sid && c.token && c.from)) throw new Error('SMS is not configured.');
+  const num = formatE164(to); if (!num) throw new Error('Invalid phone number.');
+  const url = 'https://api.twilio.com/2010-04-01/Accounts/' + encodeURIComponent(c.sid) + '/Messages.json';
+  const params = new URLSearchParams(); params.append('To', num); params.append('From', c.from); params.append('Body', String(body || '').slice(0, 1500));
+  const authb = Buffer.from(c.sid + ':' + c.token).toString('base64');
+  const r = await fetch(url, { method: 'POST', headers: { 'Authorization': 'Basic ' + authb, 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error((j && j.message) || ('Twilio error ' + r.status));
+  return j;
+}
+app.get('/api/admin/sms', requireAdmin, (req, res) => { const c = loadSmsConfig(); res.json({ ok: true, sid: c.sid, from: c.from, enabled: c.enabled, hasToken: !!c.token, configured: isSmsConfigured() }); });
+app.post('/api/admin/sms', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const cur = rawSmsCfg();
+  const c = { sid: typeof b.sid === 'string' ? b.sid.trim().slice(0, 120) : (cur.sid || ''), from: typeof b.from === 'string' ? b.from.trim().slice(0, 40) : (cur.from || ''), enabled: b.enabled != null ? !!b.enabled : (cur.enabled != null ? cur.enabled : true), token: cur.token || '' };
+  if (typeof b.token === 'string' && b.token !== '') c.token = b.token;
+  if (b.clearToken) c.token = '';
+  saveSmsConfig(c); res.json({ ok: true, configured: isSmsConfigured() });
+});
+app.post('/api/admin/sms/test', requireAdmin, express.json(), async (req, res) => {
+  const to = String((req.body && req.body.to) || '').trim();
+  if (!to) return res.status(400).json({ ok: false, error: 'Enter a destination mobile number.' });
+  if (!isSmsConfigured()) return res.status(400).json({ ok: false, error: 'Save your SMS settings first (SID, token, from — enabled on).' });
+  try { await sendSms(to, 'RRG toolkit test text — if you got this, SMS is working.'); res.json({ ok: true }); }
+  catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+function taskChannels(t) { if (Array.isArray(t.remChannels)) return t.remChannels; if (t.remChannel === 'email') return ['email']; if (t.remChannel === 'popup') return ['popup']; return ['popup', 'email']; }
 
 const PORT = process.env.PORT || 8787;
 app.listen(PORT, () => console.log(`RRG toolkit server listening on :${PORT}`));

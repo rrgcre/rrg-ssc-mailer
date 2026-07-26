@@ -46,3 +46,27 @@
       .catch(function () {});
   } catch (e) {}
 })();
+
+/* Task reminder pop-ups (fire while the app is open in a browser). Email is the reliable backstop. */
+(function () {
+  if (/\/(login|sign)\b/.test(location.pathname)) return;
+  var SEEN = 'rrg_rem_seen';
+  function seen() { try { return JSON.parse(localStorage.getItem(SEEN) || '[]'); } catch (e) { return []; } }
+  function mark(ids) { try { var s = seen(); ids.forEach(function (i) { if (s.indexOf(i) < 0) s.push(i); }); localStorage.setItem(SEEN, JSON.stringify(s.slice(-300))); } catch (e) {} }
+  function notify(t) { try { new Notification('Reminder: ' + t.title, { body: (t.due ? ('Due ' + t.due) : '') + (t.linkLabel ? (' · ' + t.linkLabel) : ''), tag: t.id }); } catch (e) {} }
+  function poll() {
+    if (!(window.Notification && Notification.permission === 'granted')) return;
+    fetch('/api/reminders/due', { credentials: 'same-origin' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (!j || !j.ok || !j.reminders) return;
+      var s = seen(); var fresh = j.reminders.filter(function (t) { return s.indexOf(t.id) < 0; });
+      if (fresh.length) { fresh.forEach(notify); mark(fresh.map(function (t) { return t.id; })); }
+    }).catch(function () {});
+  }
+  function start() { poll(); setInterval(poll, 60000); }
+  try {
+    if (window.Notification) {
+      if (Notification.permission === 'granted') start();
+      else if (Notification.permission !== 'denied') { setTimeout(function () { Notification.requestPermission().then(function (p) { if (p === 'granted') start(); }); }, 3000); }
+    }
+  } catch (e) {}
+})();

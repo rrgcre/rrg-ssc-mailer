@@ -126,14 +126,17 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
       <div class="field"><label>Deal / Business</label><input type="text" id="dealName" placeholder="Deal name"></div>
       <div class="field"><label>Sale Price</label><span class="adorn pre"><span class="pre">$</span><input type="text" id="price" inputmode="numeric" placeholder="0"></span></div>
       <div class="field"><label>Agent Share</label><span class="adorn suf"><input type="text" id="share" inputmode="decimal" placeholder="50"><span class="suf">%</span></span><div class="hint">House keeps the remainder</div></div>
+      <div class="field"><label>Referral Fee</label><span class="adorn suf"><input type="text" id="refPct" inputmode="decimal" placeholder="0"><span class="suf">%</span></span><div class="hint">Owed off the top (% of gross)</div></div>
+      <div class="field"><label>Referred by (optional)</label><input type="text" id="refTo" placeholder="Broker / source owed the fee"></div>
     </div>
 
     <div class="seclabel">Commission Summary</div>
     <div class="summary">
       <div class="scard hero"><div class="k">Gross Commission</div><div class="v" id="sGross">$0</div><div class="s">Sum of all tiers</div></div>
       <div class="scard"><div class="k">Blended Rate</div><div class="v" id="sBlend">—</div><div class="s">Gross ÷ sale price</div></div>
-      <div class="scard agent"><div class="k">Agent Net</div><div class="v" id="sAgent">$0</div><div class="s">Gross × agent share</div></div>
-      <div class="scard"><div class="k">House Net</div><div class="v" id="sHouse">$0</div><div class="s">Gross − agent share</div></div>
+      <div class="scard agent"><div class="k">Agent Net</div><div class="v" id="sAgent">$0</div><div class="s">After referral × share</div></div>
+      <div class="scard"><div class="k">House Net</div><div class="v" id="sHouse">$0</div><div class="s">After referral</div></div>
+      <div class="scard"><div class="k">Referral Fee</div><div class="v" id="sRef">$0</div><div class="s" id="sRefS">None</div></div>
     </div>
 
     <div class="seclabel">Tiered Rate Schedule &amp; Commission <button class="reset-link" onclick="resetRateCard()">↺ Reset rate card</button></div>
@@ -244,11 +247,16 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
     var share=Math.max(0,Math.min(100,shareVal()))/100;
     var tiers=readTiers();
     var r=commissionFor(price,tiers);
-    var gross=r.total, agent=gross*share, house=gross-agent, blend=price>0?gross/price:0;
+    var gross=r.total;
+    var refPct=Math.max(0,Math.min(100,parseFloat((document.getElementById('refPct').value||'').replace(/[^0-9.]/g,''))||0))/100;
+    var referral=gross*refPct, netComm=gross-referral;
+    var agent=netComm*share, house=netComm-agent, blend=price>0?gross/price:0;
     document.getElementById('sGross').textContent=money(gross);
     document.getElementById('sBlend').textContent=price>0?pct(blend):'—';
     document.getElementById('sAgent').textContent=money(agent);
     document.getElementById('sHouse').textContent=money(house);
+    document.getElementById('sRef').textContent=money(referral);
+    var refTo=(document.getElementById('refTo').value||'').trim(); document.getElementById('sRefS').textContent=refTo?('to '+refTo):(referral>0?'% of gross':'None');
     var sumCommable=0;
     r.rows.forEach(function(row,i){
       var fs=document.getElementById('from'+i); if(fs) fs.textContent=money(row.from);
@@ -277,6 +285,8 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
   elPrice.addEventListener('input', function(){ elPrice.value=grp(elPrice.value); recompute(); });
   elShare.addEventListener('input', function(){ elShare.value=elShare.value.replace(/[^0-9.]/g,''); recompute(); });
   elName.addEventListener('input', recompute);
+  var elRef=document.getElementById('refPct'); if(elRef) elRef.addEventListener('input',function(){ elRef.value=elRef.value.replace(/[^0-9.]/g,''); recompute(); });
+  var elRefTo=document.getElementById('refTo'); if(elRefTo) elRefTo.addEventListener('input',recompute);
 
   window.loadSample=function(){
     elName.value='Sample business sale'; elPrice.value='2,500,000';
