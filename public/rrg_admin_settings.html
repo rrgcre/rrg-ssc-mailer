@@ -59,7 +59,7 @@ function post(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type'
 function get(url){ return fetch(url,{credentials:'same-origin'}).then(function(r){return r.json();}); }
 
 var TYPES={ personTypes:[], companyTypes:[], ticketCategories:[], leadSources:[], activityTypes:[], cuisineTypes:[] };
-var MAXPULL=20; var DEFSTATE='TX'; var ASSISTANT='Claude'; var SHOWRIBBON=true; var TOOLDEFS=[]; var TOOLLABELS={};
+var MAXPULL=20; var DEFSTATE='TX'; var ASSISTANT='Claude'; var SHOWRIBBON=true; var TOOLDEFS=[]; var TOOLLABELS={}; var PALETTE={primary:'#000E31',accent:'#DA2B1F'};
 
 function tagListHtml(kind,arr){
   return '<div class="tagbox" id="tb_'+kind+'">'+(arr.length?arr.map(function(t,i){ return '<span class="tagchip"><button type="button" class="tmv" data-mv="'+kind+'" data-i="'+i+'" data-d="-1" title="Move earlier">‹</button><span class="tglbl">'+esc(t)+'</span><button type="button" class="tmv" data-mv="'+kind+'" data-i="'+i+'" data-d="1" title="Move later">›</button><button type="button" class="tgx" data-rm="'+kind+'" data-val="'+esc(t)+'" title="Remove">×</button></span>'; }).join(''):'<span class="note" style="margin:4px">None — add one below.</span>')+'</div>'
@@ -84,6 +84,11 @@ function renderTypes(){
   ['personTypes','companyTypes','ticketCategories','leadSources','activityTypes','cuisineTypes'].forEach(function(k){ var inp=document.getElementById('add_'+k); if(inp) inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); addType(k); } }); });
 }
 function addType(k){ var inp=document.getElementById('add_'+k); var v=(inp.value||'').trim(); if(!v) return; if(TYPES[k].map(function(x){return x.toLowerCase();}).indexOf(v.toLowerCase())<0) TYPES[k].push(v); inp.value=''; renderTypes(); setTimeout(function(){var i=document.getElementById('add_'+k); if(i) i.focus();},0); }
+function fillPalette(){ var a=document.getElementById('pal_primary'),ah=document.getElementById('pal_primary_hex'),b=document.getElementById('pal_accent'),bh=document.getElementById('pal_accent_hex'); if(a)a.value=PALETTE.primary; if(ah)ah.value=PALETTE.primary; if(b)b.value=PALETTE.accent; if(bh)bh.value=PALETTE.accent; }
+function applyPaletteLive(){ try{ document.documentElement.style.setProperty('--navy',PALETTE.primary); document.documentElement.style.setProperty('--red',PALETTE.accent); localStorage.setItem('rrg_pal',JSON.stringify(PALETTE)); }catch(e){} }
+function wirePalette(){ function sync(ci,hi){ var c=document.getElementById(ci),h=document.getElementById(hi); if(!c||!h)return; c.addEventListener('input',function(){ h.value=c.value; }); h.addEventListener('input',function(){ if(/^#[0-9a-fA-F]{6}$/.test(h.value)) c.value=h.value; }); } sync('pal_primary','pal_primary_hex'); sync('pal_accent','pal_accent_hex'); }
+function savePalette(){ var m=document.getElementById('palMsg'); m.textContent='Saving…'; m.className='msg'; var pr=(document.getElementById('pal_primary_hex').value||'').trim()||document.getElementById('pal_primary').value; var ac=(document.getElementById('pal_accent_hex').value||'').trim()||document.getElementById('pal_accent').value; post('/api/admin/palette',{primary:pr,accent:ac}).then(function(j){ if(j&&j.ok){ PALETTE=j.palette; fillPalette(); applyPaletteLive(); m.textContent='Saved \u2713'; m.className='msg ok'; } else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; } }); }
+function resetPalette(){ if(!confirm('Reset the brand colors to the built-in defaults?')) return; post('/api/admin/palette',{reset:true}).then(function(j){ if(j&&j.ok){ PALETTE=j.palette; fillPalette(); applyPaletteLive(); var m=document.getElementById('palMsg'); m.textContent='Reset \u2713'; m.className='msg ok'; } }); }
 function renderToolLabels(){
   var box=document.getElementById('toolLabelsBox'); if(!box) return;
   box.innerHTML='<div class="grid2">'+TOOLDEFS.map(function(t){
@@ -142,6 +147,14 @@ function build(){
     +'<div class="btnrow"><button class="btn" id="typesSave">Save type lists</button><button class="btn ghost" id="typesReset">Reset to defaults</button><span class="msg" id="typesMsg"></span></div>'
     +'<div class="note">“Restaurant Owner” and “Referral Source” are already in the default contact types. Renaming a value here does not change contacts already saved with the old value.</div>'
     +'</div></div>'
+    +'<div class="card"><div class="ch"><b>Brand colors</b><span>&mdash; the main palette used across the whole app</span></div><div class="cb">'
+    +'<div style="display:flex;gap:28px;flex-wrap:wrap">'
+    +'<div><label class="fld">Primary &mdash; dark / brand</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="pal_primary" style="width:46px;height:40px;padding:2px;border:1px solid #cfd6e2;border-radius:8px;cursor:pointer"><input type="text" id="pal_primary_hex" maxlength="7" style="max-width:120px" placeholder="#000E31"></div><div class="note" style="margin-top:6px">Buttons, headers, the navigation.</div></div>'
+    +'<div><label class="fld">Accent &mdash; highlight / call-to-action</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="pal_accent" style="width:46px;height:40px;padding:2px;border:1px solid #cfd6e2;border-radius:8px;cursor:pointer"><input type="text" id="pal_accent_hex" maxlength="7" style="max-width:120px" placeholder="#DA2B1F"></div><div class="note" style="margin-top:6px">Accents, the &ldquo;Create&rdquo; button, key highlights.</div></div>'
+    +'</div>'
+    +'<div class="btnrow"><button class="btn" id="palSave">Save colors</button><button class="btn ghost" id="palReset">Reset to defaults</button><span class="msg" id="palMsg"></span></div>'
+    +'<div class="note">Applies across every screen. Your view updates immediately; teammates see it the next time each page loads.</div>'
+    +'</div></div>'
     +'<div class="card"><div class="ch"><b>Tool names</b><span>— rename any tool as it appears on the dashboard (e.g. call &ldquo;Contacts&rdquo; &ldquo;People&rdquo;)</span></div><div class="cb">'
     +'<div id="toolLabelsBox"></div>'
     +'<div class="btnrow"><button class="btn" id="tlSave">Save tool names</button><button class="btn ghost" id="tlReset">Reset to defaults</button><span class="msg" id="tlMsg"></span></div>'
@@ -166,6 +179,10 @@ function build(){
   renderTypes();
   document.getElementById('typesSave').addEventListener('click',saveTypes);
   document.getElementById('typesReset').addEventListener('click',resetTypes);
+  document.getElementById('palSave').addEventListener('click',savePalette);
+  document.getElementById('palReset').addEventListener('click',resetPalette);
+  wirePalette();
+  get('/api/admin/palette').then(function(j){ if(j&&j.ok){ PALETTE=j.palette; fillPalette(); } });
   document.getElementById('tlSave').addEventListener('click',saveToolLabels);
   document.getElementById('tlReset').addEventListener('click',resetToolLabels);
   document.getElementById('svcSave').addEventListener('click',saveServices);
