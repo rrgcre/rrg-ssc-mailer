@@ -78,6 +78,14 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
   </div>
 
   <div class="card">
+    <h2>Gmail</h2>
+    <div class="desc">Connect your Gmail so the emails you exchange with a contact appear on their record, and so you can send from the app straight through Gmail (it lands in your Sent folder and threads normally). Your mailbox stays private to you.</div>
+    <div id="gmState" class="desc" style="margin-bottom:12px">Checking…</div>
+    <div id="gmActions"></div>
+    <span class="msg" id="gmmsg"></span>
+  </div>
+
+  <div class="card">
     <h2>Change password</h2>
     <div class="desc">Choose something only you know — at least 6 characters.</div>
     <label class="fl">Current password</label>
@@ -166,6 +174,20 @@ function savePw(){
       else setMsg('wmsg','err',(j&&j.error)||'Could not update.');
     }).catch(function(){ b.disabled=false; setMsg('wmsg','err','Could not reach the server.'); });
 }
+
+/* ---- Gmail ---- */
+function renderGmail(){
+  var st=$('gmState'), ac=$('gmActions');
+  fetch(API+'/api/gmail/status',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.configured){ st.innerHTML='<span style="color:#a05a00">Gmail isn’t set up on the server yet — an admin needs to add the Google credentials.</span>'; ac.innerHTML=''; return; }
+    if(j.connected){ st.innerHTML='Connected as <b>'+esc(j.email||'your Gmail')+'</b>.'; ac.innerHTML='<button class="save" style="background:#b3261e" onclick="gmDisconnect()">Disconnect Gmail</button>'; }
+    else { st.innerHTML='Not connected yet.'; ac.innerHTML='<button class="save" onclick="gmConnect()">Connect Gmail</button>'; }
+  }).catch(function(){ st.textContent='Could not check Gmail status.'; });
+}
+function gmConnect(){ window.location.href=API+'/api/gmail/connect'; }
+function gmDisconnect(){ if(!confirm('Disconnect Gmail? Your emails will stop showing on contact records and sending will fall back to the app\u2019s email settings.')) return; fetch(API+'/api/gmail/disconnect',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(){ setMsg('gmmsg','ok','Disconnected.'); renderGmail(); }).catch(function(){ setMsg('gmmsg','err','Could not reach the server.'); }); }
+(function(){ var m=new URLSearchParams(location.search).get('gmail'); if(m){ var map={connected:['ok','Gmail connected ✓'],denied:['err','You declined access.'],error:['err','Something went wrong connecting Gmail — try again.'],badstate:['err','That link expired — try connecting again.']}; var t=map[m]; if(t){ setMsg('gmmsg',t[0],t[1]); } try{ history.replaceState({},'',location.pathname); }catch(e){} } })();
+renderGmail();
 </script>
 </body>
 </html>

@@ -29,7 +29,7 @@
       { ic: '➤', label: 'Attack Plans', href: 'rrg_attack_queue.html' },
       { ic: '▥', label: 'Data Rooms', href: 'rrg_rooms_queue.html' }
     ] },
-    { grp: 'Tenant Rep', color: '#d4ad63', items: [
+    { grp: 'Tenant Rep', color: '#dfa937', items: [
       { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
       { ic: '✚', label: 'Site & Concept Fit', href: 'rrg_site_fit.html' },
       { ic: '⊚', label: 'Tour Tracker', href: 'rrg_tour_tracker.html' },

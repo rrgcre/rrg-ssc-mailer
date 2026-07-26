@@ -142,7 +142,7 @@ function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/
 function personPhotoUrl(){ return (P&&P.photoExt)?('/api/personphoto/'+encodeURIComponent(ID)+'.'+P.photoExt+'?v='+(P.updatedAt?encodeURIComponent(P.updatedAt):Date.now())):''; }
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 function money(v){ if(v==null||v==='') return ''; var n=Number(String(v).replace(/[^0-9.\-]/g,'')); if(!isFinite(n)||n===0) return esc(String(v)); return '$'+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
-var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], AGREEMENTS=[], ATYPES=[], PTYPES=['Buyer'], LEADSOURCES=[], ALLTAGS=[], CURTAGS=[], SAVET=null, EMAILREADY=false, COMPANIESLIST=[], ACTIVITIES=[], ACTTYPES=[], TEMPLATES=[], IS_ADMIN=false, DIRTY=false;
+var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], AGREEMENTS=[], ATYPES=[], PTYPES=['Buyer'], LEADSOURCES=[], ALLTAGS=[], CURTAGS=[], SAVET=null, EMAILREADY=false, COMPANIESLIST=[], ACTIVITIES=[], ACTTYPES=[], TEMPLATES=[], IS_ADMIN=false, DIRTY=false, GMAIL=[], GMAILCONN=false, GMAILEMAIL='', GMAILLOADED=false;
 function deletePerson(){
   if(!confirm('Delete “'+((P&&P.name)||'this contact')+'” from your registry? Their name stays on any past offers, tours, and NDAs. This cannot be undone.')) return;
   var b=document.getElementById('p_delete'); b.disabled=true; b.textContent='Deleting…';
@@ -355,6 +355,8 @@ function wireCompanyAuto(){
   inp.addEventListener('blur',function(){ setTimeout(close,160); });
 }
 function actColor(t){ var m={'Tour':['#eef2fb','#2647b0'],'Photo Shoot':['#f1ebfb','#6d28d9'],'Meal':['#fdf1df','#b5791f'],'Text':['#e6f5f3','#0f766e'],'Call':['#e7f5ee','#1f8a5b'],'Email':['#eef2fb','#3949ab'],'Form Submitted':['#eef1f6','#5b6472'],'Agreement Sent':['#fff4e6','#b9761a'],'Agreement Signed':['#fdeceb','#DA2B1F'],'Note':['#eef1f6','#5b6472'],'To-Do':['#fdeceb','#DA2B1F']}; return m[t]||['#eef1f6','#5b6472']; }
+function addrLabel(s){ s=String(s||''); var m=s.match(/<([^>]+)>/); var nm=s.replace(/<[^>]+>/,'').replace(/"/g,'').trim(); if(m){ return nm||m[1]; } return s.trim(); }
+function loadGmail(){ if(!ID) return; fetch('/api/gmail/status',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ GMAILCONN=!!(j&&j.connected); GMAILEMAIL=(j&&j.email)||''; if(GMAILCONN){ return fetch('/api/person/'+encodeURIComponent(ID)+'/gmail',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(g){ GMAIL=(g&&g.messages)||[]; }); } }).then(function(){ GMAILLOADED=true; if(P) render(); }).catch(function(){ GMAILLOADED=true; }); }
 function activityCard(){
   var opts=ACTTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
   var d=new Date(); var td=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -362,14 +364,17 @@ function activityCard(){
   var items=[];
   (ACTIVITIES||[]).forEach(function(a){ items.push({k:'a',t:a.date||a.at||'',d:a}); });
   (P.emailLog||[]).forEach(function(e){ items.push({k:'e',t:e.sentAt||'',d:e}); });
+  (GMAIL||[]).forEach(function(g){ items.push({k:'g',t:(g.ts?new Date(g.ts).toISOString():(g.date||'')),d:g}); });
   items.sort(function(x,y){ return String(y.t).localeCompare(String(x.t)); });
   var feed = items.length ? items.map(function(it){
+    if(it.k==='g'){ var g=it.d; var dir=g.direction==='out'?'Sent':'Received'; var who=g.direction==='out'?('To '+esc(addrLabel(g.to))):('From '+esc(addrLabel(g.from))); return '<div class="feedrow" data-gmid="'+esc(g.id)+'"><span class="feedic" title="Gmail" style="color:#c5221f">\u2709</span><div class="feedmain"><div class="feedtop"><span class="feedttl">'+esc(g.subject||'(no subject)')+'</span><span class="feedwhen">'+esc(fmt(g.ts?new Date(g.ts).toISOString():g.date))+'</span></div><div class="feedmeta">Gmail \u00b7 '+dir+' \u00b7 '+who+(g.unread?' \u00b7 <b style="color:#c5221f">unread</b>':'')+'</div><div class="feednote gmsnip" data-gmsnip="'+esc(g.id)+'">'+esc(g.snippet||'')+'</div><a href="#" class="gmexpand" data-gmfull="'+esc(g.id)+'">Show full email</a></div></div>'; }
     if(it.k==='e'){ var e=it.d; return '<div class="feedrow"><span class="feedic">✉</span><div class="feedmain"><div class="feedtop"><span class="feedttl">'+esc(e.subject||'(no subject)')+'</span><span class="feedwhen">'+esc(fmt(e.sentAt))+'</span></div><div class="feedmeta">Email · To '+esc(e.to)+(e.by?(' · '+esc(e.by)):'')+'</div>'+(e.body?('<div class="feednote">'+esc(e.body).split('\n').join('<br>')+'</div>'):'')+'</div></div>'; }
     var a=it.d; var c=actColor(a.type); return '<div class="feedrow"><span class="feedchip" style="background:'+c[0]+';color:'+c[1]+'">'+esc(a.type)+'</span><div class="feedmain"><div class="feedtop"><span class="feedwhen">'+esc(fmt(a.date||a.at))+'</span>'+(a.auto?'<span class="actauto">auto</span>':'')+(a.by?('<span class="actby">'+esc(a.by)+'</span>'):'')+'</div>'+(a.note?('<div class="feednote">'+esc(a.note)+'</div>'):'')+(a.taskId?'<div class="acttask">↳ task created</div>':'')+'</div><button class="actdel" data-actdel="'+esc(a.id)+'" title="Delete">×</button></div>';
   }).join('') : '<div class="empty" style="padding:16px 2px">No activity yet. Log a call, tour, meal or note — or send an email — using the buttons above.</div>';
-  var emComposer = EMAILREADY
-    ? '<div class="fldrow"><label class="fld">To</label><input id="em_to" value="'+esc(to)+'" placeholder="recipient@email.com"></div><div class="fldrow"><label class="fld">Subject</label><input id="em_subj" placeholder="Subject"></div><div class="fldrow"><label class="fld">Message</label><textarea id="em_body" style="min-height:120px" placeholder="Write your message…"></textarea></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="savebtn" id="em_send" style="width:auto;padding:9px 18px">Send email</button><span id="em_msg" style="font-size:12.5px;color:#6b7488"></span></div>'
-    : '<div class="empty" style="padding:8px 2px">Email isn\'t set up yet. An admin can configure it in <a href="/admin">Admin</a>.</div>';
+  var _sendHint = GMAILCONN ? ('<div style="font-size:11.5px;color:#8a94a6;margin-top:6px">Sends through your Gmail'+(GMAILEMAIL?(' ('+esc(GMAILEMAIL)+')'):'')+' — lands in your Sent folder and threads normally.</div>') : (EMAILREADY ? '<div style="font-size:11.5px;color:#8a94a6;margin-top:6px">Sends via the app’s email settings.</div>' : '');
+  var emComposer = (EMAILREADY||GMAILCONN)
+    ? '<div class="fldrow"><label class="fld">To</label><input id="em_to" value="'+esc(to)+'" placeholder="recipient@email.com"></div><div class="fldrow"><label class="fld">Subject</label><input id="em_subj" placeholder="Subject"></div><div class="fldrow"><label class="fld">Message</label><textarea id="em_body" style="min-height:120px" placeholder="Write your message…"></textarea></div><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="savebtn" id="em_send" style="width:auto;padding:9px 18px">Send email</button><span id="em_msg" style="font-size:12.5px;color:#6b7488"></span></div>'+_sendHint
+    : '<div class="empty" style="padding:8px 2px">Email isn\'t set up yet. Connect your Gmail on the <a href="/rrg_account.html">Account</a> page, or an admin can set up email in <a href="/admin">Admin</a>.</div>';
   return '<div class="card actcard"><div class="ch"><b>Activity</b><span>'+items.length+'</span>'
     +'<div style="margin-left:auto;display:flex;gap:8px"><button type="button" class="abtn" id="act_show">+ Log activity</button><button type="button" class="abtn" id="em_show">✉ Send email</button></div></div>'
     +'<div class="cb">'
@@ -391,6 +396,7 @@ function wireActivity(){
       .catch(function(){ b.disabled=false; });
   });
   document.querySelectorAll('[data-actdel]').forEach(function(x){ x.addEventListener('click',function(){ if(!confirm('Delete this activity entry?')) return; fetch('/api/person/'+encodeURIComponent(ID)+'/activity/'+encodeURIComponent(x.getAttribute('data-actdel')),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ACTIVITIES=j.activities||[]; render(); } }); }); });
+  document.querySelectorAll('.gmexpand').forEach(function(x){ x.addEventListener('click',function(ev){ ev.preventDefault(); var id=x.getAttribute('data-gmfull'); var snip=document.querySelector('[data-gmsnip="'+id+'"]'); x.textContent='Loading\u2026'; fetch('/api/gmail/message/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.message){ if(snip){ snip.innerHTML=esc(j.message.body||j.message.snippet||'(no content)').split('\n').join('<br>'); } x.style.display='none'; } else { x.textContent='Could not load'; } }).catch(function(){ x.textContent='Could not load'; }); }); });
 }
 function emailCard(){
   var to=P.email||((P.emails&&P.emails[0])||'');
@@ -415,7 +421,9 @@ function wireEmail(){
     if(!to){ m.textContent='Add a recipient email.'; return; }
     if(!subj.trim()&&!body.trim()){ m.textContent='Add a subject or a message.'; return; }
     b.disabled=true; m.textContent='Sending…';
-    fetch('/api/person/'+encodeURIComponent(ID)+'/email',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({to:to,subject:subj,body:body})})
+    var _url = GMAILCONN ? '/api/gmail/send' : ('/api/person/'+encodeURIComponent(ID)+'/email');
+    var _payload = GMAILCONN ? {personId:ID,to:to,subject:subj,body:body} : {to:to,subject:subj,body:body};
+    fetch(_url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(_payload)})
       .then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ if(j.emailLog) P.emailLog=j.emailLog; if(j.lastContacted) P.lastContacted=j.lastContacted; render(); } else { m.textContent=(j&&j.error)||'Send failed.'; } })
       .catch(function(){ b.disabled=false; m.textContent='Could not reach the server.'; });
   });
@@ -557,7 +565,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No contact selected. <a href="./rrg_people.html">Back to contacts →</a></div>'; return; }
   fetch('/api/person/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ P=j.person; CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; IS_ADMIN=!!j.isAdmin; render(); })
+    .then(function(j){ P=j.person; CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; IS_ADMIN=!!j.isAdmin; render(); loadGmail(); })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this contact.')+'<br><br><a href="./rrg_people.html" style="color:#000E31;font-weight:700">← Back to contacts</a></div>'; });
 }
 fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ COMPANIESLIST=(j&&j.companies)||[]; }).catch(function(){});

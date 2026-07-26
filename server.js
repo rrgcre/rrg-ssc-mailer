@@ -8,6 +8,7 @@ const nodemailer = require('nodemailer');
 const { sendSsc } = require('./mailer.js');
 const store = require('./store.js');
 const auth = require('./auth.js');
+const gmail = require('./gmail.js');
 const bovgen = require('./bovgen.js');
 const cimgen = require('./cimgen.js');
 const leasegen = require('./leasegen.js');
@@ -321,7 +322,7 @@ function writeBackupZip(dest) {
       const entries = fs.readdirSync(BOV_DATA_DIR, { withFileTypes: true });
       entries.forEach(ent => {
         if (ent.name === 'backups') return;                 // don't nest backups in backups
-        if (ent.name === 'session.key' || /\.key$/.test(ent.name)) return; // don't export secrets
+        if (ent.name === 'session.key' || ent.name === 'gmail' || /\.key$/.test(ent.name)) return; // don't export secrets
         const full = path.join(BOV_DATA_DIR, ent.name);
         if (ent.isDirectory()) archive.directory(full, ent.name);
         else if (ent.isFile()) archive.file(full, { name: ent.name });
@@ -733,7 +734,7 @@ app.use((req, res, next) => {
 app.use(express.urlencoded({ extended: false }));
 
 /* ---------- auth gate ---------- */
-const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/rrg_brand.js']);
+const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/rrg_brand.js', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
   if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/')) return next();
@@ -2770,6 +2771,73 @@ app.post('/api/person/:id/email', express.json({ limit: '256kb' }), async (req, 
     res.json({ ok: true, entry, emailLog: p.emailLog, lastContacted: p.lastContacted });
   } catch (e) { console.error('person email error:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
+
+// ---- Gmail (per-user OAuth: read + send) ----
+app.get('/api/gmail/status', (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  res.json(Object.assign({ ok: true }, gmail.statusFor(u)));
+});
+app.get('/api/gmail/connect', (req, res) => {
+  if (!gmail.isConfigured()) return res.status(400).send('Gmail is not configured on the server yet.');
+  const u = (req.user && req.user.username) || '';
+  if (!u) return res.redirect('/login');
+  res.redirect(gmail.authUrl(u, req));
+});
+app.get('/api/gmail/callback', async (req, res) => {
+  try {
+    if (req.query.error) return res.redirect('/rrg_account.html?gmail=denied');
+    const st = gmail.readState(req.query.state || '');
+    if (!st || !st.u) return res.redirect('/rrg_account.html?gmail=badstate');
+    await gmail.connectFromCode(st.u, req.query.code, gmail.redirectUri(req));
+    res.redirect('/rrg_account.html?gmail=connected');
+  } catch (e) { console.error('gmail callback:', e && e.message); res.redirect('/rrg_account.html?gmail=error'); }
+});
+app.post('/api/gmail/disconnect', (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  gmail.deleteToken(u);
+  res.json({ ok: true });
+});
+app.get('/api/person/:id/gmail', async (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  const st = gmail.statusFor(u);
+  if (!st.connected) return res.json({ ok: true, connected: false, messages: [] });
+  const p = personById(req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
+  try { const messages = await gmail.messagesForContact(u, personEmails(p), 25); res.json({ ok: true, connected: true, messages }); }
+  catch (e) { console.error('gmail list:', e && e.message); res.status(502).json({ ok: false, connected: true, error: String((e && e.message) || e), messages: [] }); }
+});
+app.get('/api/gmail/message/:id', async (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Gmail not connected.' });
+  try { const m = await gmail.messageFull(u, req.params.id); res.json({ ok: true, message: m }); }
+  catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/gmail/send', express.json({ limit: '256kb' }), async (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Gmail first (Account -> Gmail).' });
+  const b = req.body || {};
+  const arr = loadPeople(); const p = b.personId ? arr.find(x => x.id === b.personId) : null;
+  const to = String(b.to || '').trim() || (p ? preferredEmailOf(p) : '');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'A valid recipient email is required.' });
+  const subject = String(b.subject || '').slice(0, 300);
+  const body = String(b.body || '').slice(0, 20000);
+  if (!subject.trim() && !body.trim()) return res.status(400).json({ ok: false, error: 'Add a subject or a message.' });
+  try {
+    const sent = await gmail.sendMessage(u, { to, subject, body, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '' });
+    let emailLog = null, lastContacted = null;
+    if (p) {
+      const now = new Date().toISOString();
+      p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
+      const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: u, messageId: sent.id, via: 'gmail' };
+      p.emailLog.unshift(entry); p.emailLog = p.emailLog.slice(0, 100);
+      logActivity(p, 'Email', subject || '(no subject)', { auto: true, by: (req.user && req.user.name) || '', byUser: u });
+      p.lastContacted = now.slice(0, 10); p.updatedAt = now; savePeople(arr);
+      emailLog = p.emailLog; lastContacted = p.lastContacted;
+    }
+    res.json({ ok: true, sent, emailLog, lastContacted });
+  } catch (e) { console.error('gmail send:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+
 app.post('/api/person/:id/activity', express.json(), (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
@@ -3874,6 +3942,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         <form method="post" action="/api/admin/toggle"><input type="hidden" name="username" value="${esc(u.username)}"><input type="hidden" name="disabled" value="${u.disabled ? '0' : '1'}"><button>${u.disabled ? 'Enable' : 'Disable'}</button></form>
         <form method="post" action="/api/admin/remove" onsubmit="return confirm('Remove ${esc(u.username)}?')"><input type="hidden" name="username" value="${esc(u.username)}"><button class="danger">Remove</button></form>
       </td></tr>`).join('') || '<tr><td colspan="6" class="empty">No users yet.</td></tr>';
+  const userData = users.slice().sort((a,b)=>String(a.name||a.username).toLowerCase().localeCompare(String(b.name||b.username).toLowerCase())).map(u => ({ name: u.name||'', username: u.username||'', email: u.email||'', role: u.role||'', disabled: !!u.disabled, created: (u.createdAt||'').slice(0,10), last: lastLogin[u.username] ? fmtWhen(lastLogin[u.username]) : '' }));
   const lrows = logins.map(l =>
     `<tr><td class="ts">${fmtWhen(l.timestamp)}</td><td class="mono">${esc(l.username) || '—'}</td><td>${l.result === 'success' ? '<span class="tag ok">Success</span>' : '<span class="tag off">Failed</span>'}</td><td class="mono">${esc(l.ip)}</td></tr>`
   ).join('') || '<tr><td colspan="4" class="empty">No logins recorded yet.</td></tr>';
@@ -3885,6 +3954,10 @@ app.get('/admin', requireAdmin, (req, res) => {
       .expandbar{display:none!important;}
       .userscroll{max-height:390px;overflow-y:auto;border:1px solid #e9edf3;border-radius:11px;}
       .userscroll table{margin:0;}
+      .uacts{display:flex;gap:6px;flex-wrap:nowrap;justify-content:flex-end;}
+      .uacts .ubtn{font:inherit;font-size:12px;padding:6px 10px;border:1px solid #cfd6e2;border-radius:7px;background:#fff;color:#0b1a3a;cursor:pointer;white-space:nowrap;}
+      .uacts .ubtn:hover{background:#f2f4f8;}
+      .uacts .ubtn.danger{color:#b3261e;border-color:#e6b8b4;}
       .userscroll thead th{position:sticky;top:0;z-index:2;background:#f6f8fb;box-shadow:inset 0 -1px 0 #e9edf3;}
       .userscroll::-webkit-scrollbar{width:10px;} .userscroll::-webkit-scrollbar-thumb{background:#cfd6e2;border-radius:8px;border:2px solid #fff;}
       .bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:18px 28px 2px;}
@@ -3930,7 +4003,34 @@ app.get('/admin', requireAdmin, (req, res) => {
       </form>
       <div class="sub2" style="margin:-6px 0 4px">Title, phone &amp; email appear as the "prepared by" line on that rep's BOVs. Reps can edit their own under Account.</div>
       <h2>Users <span class="sub2">— ${users.length} total${users.length > 8 ? ' · scroll for more' : ''}</span></h2>
-      <div class="userscroll"><table><thead><tr><th>Name</th><th>Username</th><th>Email</th><th>Added</th><th>Last Login</th><th>Actions</th></tr></thead><tbody>${urows}</tbody></table></div>
+      <div id="userlist"></div>
+      <script type="application/json" id="usersdata">${JSON.stringify(userData).replace(/</g, String.fromCharCode(92)+'u003c')}</script>
+      <script src="/rrg_list.js"></script>
+      <script>
+      (function(){
+        function uesc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+        var UDATA=[]; try{ UDATA=JSON.parse(document.getElementById('usersdata').textContent)||[]; }catch(e){}
+        function renderUsers(){
+          RRGList.create({ mount:'#userlist', data:UDATA, key:'adminusers', rowId:function(u){return u.username;}, defaultSort:0, defaultDir:1,
+            columns:[
+              {label:'Name', width:210, sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(u){ return '<b>'+uesc(u.name||u.username)+'</b>'+(u.role==='admin'?' <span class="tag admin">Admin</span>':'')+(u.disabled?' <span class="tag off">Disabled</span>':''); }},
+              {label:'Username', sort:function(a,b){return RRGList.cmp(a.username,b.username);}, cell:function(u){return '<span class="mono">'+uesc(u.username)+'</span>';}},
+              {label:'Email', sort:function(a,b){return RRGList.cmp(a.email,b.email);}, cell:function(u){return '<span class="mono">'+(uesc(u.email)||'—')+'</span>';}},
+              {label:'Added', sort:function(a,b){return RRGList.cmp(a.created,b.created);}, cell:function(u){return '<span class="ts">'+(uesc(u.created)||'—')+'</span>';}},
+              {label:'Last login', sort:function(a,b){return RRGList.cmp(a.last,b.last);}, cell:function(u){return '<span class="ts">'+(uesc(u.last)||'Never')+'</span>';}},
+              {label:'Actions', width:250, align:'right', sortable:false, cell:function(u){ return '<div class="uacts"><button type="button" class="ubtn" data-ureset="'+uesc(u.username)+'">Reset password</button><button type="button" class="ubtn" data-utoggle="'+uesc(u.username)+'" data-dis="'+(u.disabled?'0':'1')+'">'+(u.disabled?'Enable':'Disable')+'</button><button type="button" class="ubtn danger" data-uremove="'+uesc(u.username)+'">Remove</button></div>'; }}
+            ]
+          });
+          wireUsers();
+        }
+        function wireUsers(){
+          document.querySelectorAll('[data-ureset]').forEach(function(b){ b.onclick=function(){ var un=b.getAttribute('data-ureset'); var p=prompt('New password for '+un+' (min 6):'); if(!p) return; post('/api/admin/reset',{username:un,password:p}).then(function(j){ alert(j.ok?'Password reset.':(j.error||'Failed')); }); }; });
+          document.querySelectorAll('[data-utoggle]').forEach(function(b){ b.onclick=function(){ var un=b.getAttribute('data-utoggle'); post('/api/admin/toggle',{username:un,disabled:b.getAttribute('data-dis')}).then(function(j){ if(j.ok) location.reload(); else alert(j.error||'Failed'); }); }; });
+          document.querySelectorAll('[data-uremove]').forEach(function(b){ b.onclick=function(){ var un=b.getAttribute('data-uremove'); if(!confirm('Remove '+un+'?')) return; post('/api/admin/remove',{username:un}).then(function(j){ if(j.ok) location.reload(); else alert(j.error||'Failed'); }); }; });
+        }
+        if(window.RRGList){ renderUsers(); } else { var t=setInterval(function(){ if(window.RRGList){ clearInterval(t); renderUsers(); } },40); }
+      })();
+      </script>
 
       <div style="margin-top:14px;padding:14px 16px;background:#f7f9fc;border:1px solid #e9edf3;border-radius:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b style="color:var(--navy)">Roles &amp; permissions</b><div class="sub2" style="margin-top:3px">Assign each user a role (Admin, Senior Associate, Associate, or a custom role) and control exactly which tools and records they can use.</div></div><a href="/rrg_roles.html" class="primary" style="text-decoration:none;padding:10px 16px;border-radius:8px">Manage roles &rarr;</a></div>
 

@@ -1,0 +1,262 @@
+// gmail.js — per-user Gmail OAuth + read/send for the RRG toolkit.
+// SaaS model: ONE vendor OAuth app (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET).
+// Each user connects their own mailbox in one click; tokens are stored per
+// username on the persistent disk and are excluded from backups.
+const fs = require('fs');
+const path = require('path');
+const crypto = require('crypto');
+
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
+const TOK_DIR = path.join(DATA_DIR, 'gmail');
+const SESSION_KEYFILE = path.join(DATA_DIR, 'session.key');
+
+const CLIENT_ID = () => process.env.GOOGLE_CLIENT_ID || '';
+const CLIENT_SECRET = () => process.env.GOOGLE_CLIENT_SECRET || '';
+const SCOPES = [
+  'openid',
+  'email',
+  'https://www.googleapis.com/auth/gmail.readonly',
+  'https://www.googleapis.com/auth/gmail.send',
+];
+
+function isConfigured() { return !!(CLIENT_ID() && CLIENT_SECRET()); }
+
+// --- shared HMAC secret (same source as the session cookie signer) ---
+function secret() {
+  if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
+  try { return fs.readFileSync(SESSION_KEYFILE, 'utf8'); }
+  catch (e) { return 'rrg-gmail-fallback-secret'; }
+}
+function sign(s) { return crypto.createHmac('sha256', secret()).update(s).digest('base64url'); }
+
+// --- CSRF state (username + timestamp, signed) ---
+function makeState(username) {
+  const body = Buffer.from(JSON.stringify({ u: username, t: Date.now() })).toString('base64url');
+  return body + '.' + sign(body);
+}
+function readState(state) {
+  if (!state || state.indexOf('.') < 0) return null;
+  const [body, sig] = state.split('.');
+  const expect = sign(body);
+  if (sig.length !== expect.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expect))) return null;
+  let p; try { p = JSON.parse(Buffer.from(body, 'base64url').toString()); } catch (e) { return null; }
+  if (!p || !p.t || (Date.now() - p.t) > 15 * 60000) return null; // 15-min window
+  return p;
+}
+
+// --- token storage (one file per user) ---
+function tokFile(username) { return path.join(TOK_DIR, encodeURIComponent(String(username || '').toLowerCase()) + '.json'); }
+function loadToken(username) { try { return JSON.parse(fs.readFileSync(tokFile(username), 'utf8')); } catch (e) { return null; } }
+function saveToken(username, tok) {
+  try { if (!fs.existsSync(TOK_DIR)) fs.mkdirSync(TOK_DIR, { recursive: true }); } catch (e) {}
+  try { fs.writeFileSync(tokFile(username), JSON.stringify(tok, null, 2)); return true; } catch (e) { return false; }
+}
+function deleteToken(username) { try { fs.unlinkSync(tokFile(username)); } catch (e) {} }
+
+function statusFor(username) {
+  const t = loadToken(username);
+  return { configured: isConfigured(), connected: !!(t && t.refresh_token), email: (t && t.email) || '' };
+}
+
+// --- OAuth URLs ---
+function redirectUri(req) {
+  if (process.env.GOOGLE_OAUTH_REDIRECT) return process.env.GOOGLE_OAUTH_REDIRECT;
+  const proto = (req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+  const host = req.headers['x-forwarded-host'] || req.headers.host;
+  return proto + '://' + host + '/api/gmail/callback';
+}
+function authUrl(username, req) {
+  const p = new URLSearchParams({
+    client_id: CLIENT_ID(),
+    redirect_uri: redirectUri(req),
+    response_type: 'code',
+    scope: SCOPES.join(' '),
+    access_type: 'offline',
+    include_granted_scopes: 'true',
+    prompt: 'consent',
+    state: makeState(username),
+  });
+  return 'https://accounts.google.com/o/oauth2/v2/auth?' + p.toString();
+}
+
+async function exchangeCode(code, redirect) {
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code: code, client_id: CLIENT_ID(), client_secret: CLIENT_SECRET(),
+      redirect_uri: redirect, grant_type: 'authorization_code',
+    }).toString(),
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error((j && (j.error_description || j.error)) || 'Token exchange failed.');
+  return j; // { access_token, refresh_token, expires_in, id_token, ... }
+}
+
+function decodeIdEmail(idToken) {
+  try { const p = idToken.split('.')[1]; return (JSON.parse(Buffer.from(p, 'base64url').toString()) || {}).email || ''; }
+  catch (e) { return ''; }
+}
+
+// Store the result of a successful code exchange.
+async function connectFromCode(username, code, redirect) {
+  const j = await exchangeCode(code, redirect);
+  let email = decodeIdEmail(j.id_token || '');
+  const existing = loadToken(username) || {};
+  const tok = {
+    email: email || existing.email || '',
+    access_token: j.access_token || '',
+    refresh_token: j.refresh_token || existing.refresh_token || '',
+    expiry: Date.now() + ((j.expires_in || 3600) * 1000) - 60000,
+    scope: j.scope || SCOPES.join(' '),
+    connectedAt: existing.connectedAt || new Date().toISOString(),
+  };
+  if (!email && tok.access_token) {
+    try {
+      const ur = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: 'Bearer ' + tok.access_token } });
+      if (ur.ok) { const uj = await ur.json(); tok.email = uj.email || tok.email; }
+    } catch (e) {}
+  }
+  saveToken(username, tok);
+  return { email: tok.email };
+}
+
+async function refresh(username, tok) {
+  const r = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: CLIENT_ID(), client_secret: CLIENT_SECRET(),
+      refresh_token: tok.refresh_token, grant_type: 'refresh_token',
+    }).toString(),
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error((j && (j.error_description || j.error)) || 'Token refresh failed.');
+  tok.access_token = j.access_token || tok.access_token;
+  tok.expiry = Date.now() + ((j.expires_in || 3600) * 1000) - 60000;
+  saveToken(username, tok);
+  return tok;
+}
+
+async function accessToken(username) {
+  let tok = loadToken(username);
+  if (!tok || !tok.refresh_token) throw new Error('Gmail not connected.');
+  if (!tok.access_token || Date.now() >= (tok.expiry || 0)) tok = await refresh(username, tok);
+  return tok;
+}
+
+// Authenticated Gmail API call; refreshes once on 401.
+async function gapi(username, url, opts, _retry) {
+  const tok = await accessToken(username);
+  const o = Object.assign({}, opts);
+  o.headers = Object.assign({ Authorization: 'Bearer ' + tok.access_token }, (opts && opts.headers) || {});
+  const r = await fetch(url, o);
+  if (r.status === 401 && !_retry) {
+    const t = loadToken(username); if (t) { await refresh(username, t); return gapi(username, url, opts, true); }
+  }
+  return r;
+}
+
+function hdr(headers, name) { const h = (headers || []).find(x => x.name.toLowerCase() === name.toLowerCase()); return h ? h.value : ''; }
+
+// List sent+received messages exchanged with a contact's email address(es).
+async function messagesForContact(username, emails, max) {
+  const list = (emails || []).map(e => String(e || '').trim()).filter(Boolean);
+  if (!list.length) return [];
+  const q = list.map(e => '(from:' + e + ' OR to:' + e + ')').join(' OR ');
+  const u = 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=' + (max || 25) + '&q=' + encodeURIComponent(q);
+  const r = await gapi(username, u, {});
+  const j = await r.json();
+  if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail list failed.');
+  const ids = (j.messages || []).map(m => m.id);
+  const me = (loadToken(username) || {}).email || '';
+  const out = await Promise.all(ids.map(async id => {
+    try {
+      const mu = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + id + '?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject&metadataHeaders=Date';
+      const mr = await gapi(username, mu, {});
+      const mj = await mr.json();
+      if (!mr.ok) return null;
+      const H = mj.payload && mj.payload.headers;
+      const from = hdr(H, 'From');
+      const outbound = me && from.toLowerCase().indexOf(me.toLowerCase()) >= 0;
+      return {
+        id: mj.id, threadId: mj.threadId,
+        from: from, to: hdr(H, 'To'), subject: hdr(H, 'Subject'),
+        date: hdr(H, 'Date') || (mj.internalDate ? new Date(Number(mj.internalDate)).toISOString() : ''),
+        ts: mj.internalDate ? Number(mj.internalDate) : 0,
+        snippet: mj.snippet || '', direction: outbound ? 'out' : 'in',
+        unread: (mj.labelIds || []).indexOf('UNREAD') >= 0,
+      };
+    } catch (e) { return null; }
+  }));
+  return out.filter(Boolean).sort((a, b) => b.ts - a.ts);
+}
+
+function decodeBody(payload) {
+  if (!payload) return '';
+  function walk(part) {
+    if (!part) return '';
+    if (part.mimeType === 'text/plain' && part.body && part.body.data) return Buffer.from(part.body.data, 'base64url').toString('utf8');
+    if (part.parts) { for (const p of part.parts) { const t = walk(p); if (t) return t; } }
+    return '';
+  }
+  let text = walk(payload);
+  if (!text) { // fall back to first html stripped
+    function walkHtml(part) {
+      if (!part) return '';
+      if (part.mimeType === 'text/html' && part.body && part.body.data) return Buffer.from(part.body.data, 'base64url').toString('utf8');
+      if (part.parts) { for (const p of part.parts) { const t = walkHtml(p); if (t) return t; } }
+      return '';
+    }
+    const html = walkHtml(payload);
+    if (html) text = html.replace(/<style[\s\S]*?<\/style>/gi, '').replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ').replace(/\s+\n/g, '\n').trim();
+  }
+  return text;
+}
+
+async function messageFull(username, id) {
+  const r = await gapi(username, 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + id + '?format=full', {});
+  const j = await r.json();
+  if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail get failed.');
+  const H = j.payload && j.payload.headers;
+  return {
+    id: j.id, threadId: j.threadId,
+    from: hdr(H, 'From'), to: hdr(H, 'To'), subject: hdr(H, 'Subject'),
+    date: hdr(H, 'Date'), messageId: hdr(H, 'Message-ID'),
+    body: decodeBody(j.payload), snippet: j.snippet || '',
+  };
+}
+
+// Send a plain-text message via the Gmail API. Optionally thread a reply.
+async function sendMessage(username, opts) {
+  const tok = loadToken(username);
+  if (!tok || !tok.email) throw new Error('Gmail not connected.');
+  const from = tok.email;
+  const to = String(opts.to || '').trim();
+  if (!to) throw new Error('A recipient is required.');
+  const subject = String(opts.subject || '(no subject)');
+  const lines = [
+    'From: ' + from,
+    'To: ' + to,
+    'Subject: ' + subject,
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset="UTF-8"',
+  ];
+  if (opts.inReplyTo) { lines.push('In-Reply-To: ' + opts.inReplyTo); lines.push('References: ' + (opts.references || opts.inReplyTo)); }
+  const raw = lines.join('\r\n') + '\r\n\r\n' + String(opts.body || '');
+  const encoded = Buffer.from(raw).toString('base64url');
+  const payload = { raw: encoded };
+  if (opts.threadId) payload.threadId = opts.threadId;
+  const r = await gapi(username, 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+  });
+  const j = await r.json();
+  if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail send failed.');
+  return { id: j.id, threadId: j.threadId, from: from, to: to, subject: subject };
+}
+
+module.exports = {
+  isConfigured, SCOPES, statusFor, redirectUri, authUrl, readState,
+  connectFromCode, deleteToken, loadToken, statusForUser: statusFor,
+  messagesForContact, messageFull, sendMessage, TOK_DIR,
+};
