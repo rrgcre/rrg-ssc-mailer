@@ -37,7 +37,7 @@
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
       { ic: '✉', label: 'Requests', href: 'rrg_tickets.html' },
-      { ic: '✍', label: 'Agreements', href: 'rrg_agreements.html' },
+      { ic: '✍', label: 'Agreements', href: 'rrg_agreements.html', color: '#8b5cf6' },
       { ic: '∑', label: 'Cap Rate', href: 'rrg_cap_rate_calculator.html' },
       { ic: '＄', label: 'Commission', href: 'rrg_commission_calculator.html' }
     ] },
@@ -104,7 +104,7 @@
     navHtml += '<div class="grp"' + cls + '>';
     if (g.grp) navHtml += '<div class="lbl" data-grp="' + esc(g.grp) + '"><span>' + esc(g.grp) + '</span><span class="gcv">\u25be</span></div>';
     g.items.forEach(function (it) {
-      navHtml += '<a class="it' + (sameFile(it.href) ? ' on' : '') + '" href="' + esc(it.href) + '"><span class="i">' + it.ic + '</span>' + esc(it.label) + '</a>';
+      navHtml += '<a class="it' + (sameFile(it.href) ? ' on' : '') + '" href="' + esc(it.href) + '"><span class="i"' + ((it.color && !sameFile(it.href)) ? (' style="color:' + it.color + '"') : '') + '>' + it.ic + '</span>' + esc(it.label) + '</a>';
     });
     navHtml += '</div>';
   });
