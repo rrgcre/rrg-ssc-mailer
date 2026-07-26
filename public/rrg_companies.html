@@ -122,6 +122,9 @@ function renderList(list){
       { label:'Contacts', align:'left', sort:function(a,b){ return (a.contacts||0)-(b.contacts||0); }, cell:function(c){ return '<span class="count">'+(c.contacts||0)+' <span>contact'+((c.contacts===1)?'':'s')+'</span></span>'; } },
       { label:'Locations', align:'left', sort:function(a,b){ return (a.locations||0)-(b.locations||0); }, cell:function(c){ return '<span class="count">'+(c.locations||0)+' <span>location'+((c.locations===1)?'':'s')+'</span></span>'; } },
       { label:'Deals', align:'left', sort:function(a,b){ return (a.deals||0)-(b.deals||0); }, cell:function(c){ return '<span class="count">'+(c.deals||0)+' <span>deal'+((c.deals===1)?'':'s')+'</span></span>'; } },
+      { label:'Tags', defaultHidden:true, sortable:false, cell:function(c){ return (c.tags&&c.tags.length)?c.tags.map(function(t){return '<span style="font-size:10px;font-weight:700;color:#3a4c74;background:#eef2fb;border:1px solid #dbe4f5;border-radius:6px;padding:1px 6px;margin-right:3px">'+esc(t)+'</span>';}).join(''):'<span class="meta">—</span>'; } },
+      { label:'Markets', defaultHidden:true, sortable:false, cell:function(c){ return (c.markets&&c.markets.length)?esc(c.markets.join(', ')):'<span class="meta">—</span>'; } },
+      { label:'Created', defaultHidden:true, sort:function(a,b){ return RRGList.cmp(a.createdAt,b.createdAt); }, cell:function(c){ return c.createdAt?('<span class="meta">'+esc(String(c.createdAt).slice(0,10))+'</span>'):'<span class="meta">—</span>'; } },
       { label:'', align:'right', sortable:false, cell:function(c){ return IS_ADMIN?('<button class="codel" data-del="'+esc(c.id)+'" data-name="'+esc(c.name)+'" data-deals="'+(c.deals||0)+'" title="Delete company">Delete</button>'):'<span class="meta">—</span>'; } }
     ]
   };

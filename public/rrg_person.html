@@ -20,6 +20,7 @@ h1{font-size:21px;font-weight:800;margin:3px 0 0;color:#fff;letter-spacing:-.01e
 .wrap{max-width:1040px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;}
 @media(max-width:840px){.wrap{grid-template-columns:1fr;}}
 .card{background:#fff;border:1px solid #e9edf3;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.05);overflow:hidden;margin-bottom:12px;}
+/*rrg-accordion-css*/.card > .ch{cursor:pointer;} .card > .ch .rrgchev{margin-left:8px;color:#b0b8c6;font-size:11px;transition:transform .15s;flex:none;} .card.collapsed > .ch .rrgchev{transform:rotate(-90deg);} .card.collapsed > .cb{display:none;}
 .ch{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid #eef1f6;} .ch b{color:var(--ink);font-size:15px;font-weight:600;} .ch span{color:var(--soft);font-size:12.5px;font-weight:500;margin-left:auto;}
 .row{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;} .row:last-child{border-bottom:none;} .row:hover{background:#fbfcfe;}
 .rbiz{font-weight:800;color:var(--navy);font-size:13.5px;} .rmeta{font-size:11.5px;color:var(--muted);margin-top:2px;}
@@ -620,6 +621,25 @@ function load(){
 fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ COMPANIESLIST=(j&&j.companies)||[]; }).catch(function(){});
 fetch('/api/agreement-templates',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ TEMPLATES=(j&&j.templates)||[]; }).catch(function(){});
 load();
+</script>
+<script>/*rrg-accordion-js*/
+(function(){
+  var KEY='rrgcardcol_'+location.pathname;
+  function get(){ try{ return JSON.parse(localStorage.getItem(KEY)||'{}')||{}; }catch(e){ return {}; } }
+  function set(o){ try{ localStorage.setItem(KEY,JSON.stringify(o)); }catch(e){} }
+  function titleOf(card){ var b=card.querySelector('.ch b'); return b?b.textContent.trim():''; }
+  var root=document.getElementById('root'), mo=null;
+  function apply(){
+    if(mo) mo.disconnect();
+    var st=get();
+    document.querySelectorAll('.card > .ch').forEach(function(ch){ if(!ch.querySelector('.rrgchev')){ var cv=document.createElement('span'); cv.className='rrgchev'; cv.textContent='\u25be'; ch.appendChild(cv); } });
+    document.querySelectorAll('.card').forEach(function(card){ var t=titleOf(card); if(t) card.classList.toggle('collapsed', !!st[t]); });
+    connect();
+  }
+  function connect(){ if(root && window.MutationObserver){ if(!mo) mo=new MutationObserver(function(){ apply(); }); mo.observe(root,{childList:true,subtree:true}); } }
+  document.addEventListener('click',function(e){ var ch=e.target.closest('.card > .ch'); if(!ch) return; if(e.target.closest('button,input,select,a,label,textarea')) return; var card=ch.closest('.card'); if(!card) return; card.classList.toggle('collapsed'); var st=get(); var t=titleOf(card); if(t){ if(card.classList.contains('collapsed')) st[t]=1; else delete st[t]; set(st); } });
+  setTimeout(apply, 350);
+})();
 </script>
 </body>
 </html>

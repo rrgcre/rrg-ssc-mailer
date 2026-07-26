@@ -37,9 +37,13 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .rrnm{font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .rrmt{font-size:12px;color:var(--muted);margin-top:1px;}
 .rchip{flex:none;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:#f2f4f8;color:#6b7488;}
+.rchip.exec{background:#e7f5ee;color:#1f8a5b;} .rchip.sent{background:#fff4e6;color:#b5791f;} .rchip.bad{background:#fdeceb;color:#DA2B1F;}
+.agrlistco{max-height:320px;overflow-y:auto;}
+.rnm{font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .rrempty{font-size:12.5px;color:var(--soft);padding:8px 20px;}
 @media(max-width:840px){.wrap{grid-template-columns:1fr;}}
 .card{background:#fff;border:1px solid #e9edf3;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.05);overflow:hidden;margin-bottom:12px;}
+/*rrg-accordion-css*/.card > .ch{cursor:pointer;} .card > .ch .rrgchev{margin-left:8px;color:#b0b8c6;font-size:11px;transition:transform .15s;flex:none;} .card.collapsed > .ch .rrgchev{transform:rotate(-90deg);} .card.collapsed > .cb{display:none;}
 .ch{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid #eef1f6;} .ch b{color:var(--ink);font-size:15px;font-weight:600;} .ch span{color:var(--soft);font-size:12.5px;font-weight:500;}
 .addbtn{margin-left:auto;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:8px 15px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
 .addbtn.ghost{background:#fff;color:var(--navy);border-color:#cdd6e6;}
@@ -172,7 +176,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
-var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], CUISINE_TYPES=[], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], LOGOAUTO='', TITLES=[], LEADSOURCES=[], DIRTY=false;
+var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], CUISINE_TYPES=[], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], LOGOAUTO='', TITLES=[], LEADSOURCES=[], CO_AGR_FILE=null, DIRTY=false;
 var EXPANDED={};
 function conceptById(id){ return CONCEPTS.filter(function(x){return x.id===id;})[0]||null; }
 function normUrl(u){ u=String(u||'').trim(); if(!u) return ''; return /^https?:\/\//i.test(u)?u:('https://'+u); }
@@ -196,9 +200,36 @@ function agrChipCo(a){
   if(a.personId) return '<a class="jbean" href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'" style="text-decoration:none;'+st+'">'+inner+'</a>';
   return '<span class="jbean" style="'+st+'">'+inner+'</span>';
 }
+function agrRowCo(a){
+  var today=agrToday(); var expired=(a.status==='terminated')||(a.expires&&a.expires<today);
+  var du=agrDays(a.expires); var soon=a.expires&&!expired&&du<=60; var signed=(a.signStatus==='signed');
+  var right=signed?'\u2713 Executed':(a.signStatus==='sent'?'Sent':(a.status==='terminated'?'Terminated':(a.expires?(expired?'Expired':(soon?(du+'d'):'Active')):'Active')));
+  var chipCls=signed?' exec':(a.signStatus==='sent'?' sent':(expired?' bad':''));
+  var title=a.name||agrTypeLabel(a.type);
+  var meta=agrTypeLabel(a.type)+(a.personName?(' \u00b7 '+a.personName):'')+(a.expires?(' \u00b7 exp '+agrFmt(a.expires)):'');
+  var open=a.personId?(' onclick="location.href=&quot;./rrg_person.html?id='+encodeURIComponent(a.personId)+'&quot;" style="cursor:pointer"'):'';
+  return '<div class="rrow"'+open+'><div class="rrmain"><div class="rnm">'+esc(title)+'</div><div class="rrmt">'+esc(meta)+'</div></div><span class="rchip'+chipCls+'">'+esc(right)+'</span></div>';
+}
 function agreementsCardCo(){
-  var inner=AGREEMENTS.length?('<div class="jbeans" style="padding:12px 20px 8px">'+AGREEMENTS.map(agrChipCo).join('')+'</div>'):'<div class="empty">No agreements linked to this company yet. Add them from a contact.</div>';
-  return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGREEMENTS.length+'</span></div><div class="cb">'+inner+'</div></div>';
+  var inner=AGREEMENTS.length?('<div class="agrlistco">'+AGREEMENTS.map(agrRowCo).join('')+'</div>'):'<div class="empty">No agreements linked to this company yet.</div>';
+  return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGREEMENTS.length+'</span><button class="addbtn" id="addAgrBtn">+ Add agreement</button></div><div class="cb"><div id="coAgrForm" hidden></div>'+inner+'</div></div>';
+}
+function openCoAgrForm(){
+  var f=document.getElementById('coAgrForm'); if(!f) return;
+  var topts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
+  var copts='<option value="">\u2014 company-level (no contact) \u2014</option>'+CONTACTS.map(function(p){return '<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>';}).join('');
+  f.innerHTML='<div class="cform" style="padding:12px 20px"><div class="cgrid">'+'<div class="wide"><label class="fld">Agreement name</label><input id="ca_name" placeholder="e.g. Referral Agreement \u2014 Cane Rosso"></div>'+'<div><label class="fld">Type</label><select id="ca_type">'+topts+'</select></div>'+'<div><label class="fld">Contact</label><select id="ca_person">'+copts+'</select></div>'+'<div><label class="fld">Effective</label><input type="date" id="ca_eff"></div>'+'<div><label class="fld">Expires</label><input type="date" id="ca_exp"></div>'+'<div class="wide"><label class="fld">Notes</label><input id="ca_notes" placeholder="Counterparty, terms"></div>'+'<div class="wide"><label class="fld">Document</label><div><label class="mfadd" style="cursor:pointer">\ud83d\udcce Attach agreement<input type="file" id="ca_doc" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label> <span id="ca_docname" style="font-size:11.5px;color:#1f8a5b;font-weight:600"></span></div></div>'+'</div><div class="cbtns"><button class="sbtn" id="ca_save">Save agreement</button><button class="cbtn" id="ca_cancel">Cancel</button><span id="ca_msg" class="findmsg"></span></div></div>';
+  f.removeAttribute('hidden');
+  var df=document.getElementById('ca_doc'); if(df) df.addEventListener('change',function(){ CO_AGR_FILE=(df.files&&df.files[0])||null; var nm=document.getElementById('ca_docname'); if(nm) nm.textContent=CO_AGR_FILE?('\u2713 '+CO_AGR_FILE.name):''; });
+  document.getElementById('ca_save').addEventListener('click',saveCoAgr);
+  document.getElementById('ca_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; CO_AGR_FILE=null; });
+}
+function saveCoAgr(){
+  var m=document.getElementById('ca_msg');
+  var type=document.getElementById('ca_type').value;
+  var body={ companyId:ID, personId:document.getElementById('ca_person').value||'', name:document.getElementById('ca_name').value.trim(), type:type, effective:document.getElementById('ca_eff').value, expires:document.getElementById('ca_exp').value, notes:document.getElementById('ca_notes').value.trim() };
+  var b=document.getElementById('ca_save'); b.disabled=true; m.textContent='Saving\u2026';
+  fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var ag=j.agreement; if(CO_AGR_FILE&&ag&&ag.id){ var file=CO_AGR_FILE; CO_AGR_FILE=null; var rd=new FileReader(); rd.onload=function(){ fetch('/api/agreements/'+encodeURIComponent(ag.id)+'/doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:file.name,dataB64:String(rd.result||'')})}).then(function(){ load(); }).catch(function(){ load(); }); }; rd.readAsDataURL(file); } else { load(); } } else { b.disabled=false; m.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ b.disabled=false; m.textContent='Could not reach the server.'; });
 }
 function recordHeaderCo(){ var lg=(C.logo||LOGOAUTO||''); return '<div class="rechero"><div class="rhlogo">'+(lg?('<img src="'+esc(lg)+'" onerror="this.remove()">'):esc((C.name||'?').charAt(0).toUpperCase()))+'</div><div><div class="rhname">'+esc(C.name||'Company')+'</div><div class="rhmeta">'+esc(C.type||'Company')+' · '+CONTACTS.length+' contact'+(CONTACTS.length===1?'':'s')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+' · '+DEALS.length+' deal'+(DEALS.length===1?'':'s')+'</div></div></div>'; }
 function statTilesCo(){ return '<div class="tiles"><div class="tile"><div class="n">'+CONCEPTS.length+'</div><div class="l">Concepts</div></div><div class="tile"><div class="n">'+LOCATIONS.length+'</div><div class="l">Locations</div></div><div class="tile"><div class="n">'+CONTACTS.length+'</div><div class="l">Contacts</div></div></div>'; }
@@ -300,6 +331,7 @@ function render(){
   document.getElementById('c_save').addEventListener('click',saveCompany);
   var cd=document.getElementById('c_delete'); if(cd) cd.addEventListener('click',deleteCompany);
   document.getElementById('addContactBtn').addEventListener('click',openContactForm);
+  var _aab=document.getElementById('addAgrBtn'); if(_aab) _aab.addEventListener('click',openCoAgrForm);
   document.querySelectorAll('.crm[data-rm]').forEach(function(b){ b.addEventListener('click',function(){ removeContact(b.getAttribute('data-rm')); }); });
   var acb=document.getElementById('addConceptBtn'); if(acb) acb.addEventListener('click',function(){ openConceptForm(null); });
   var acb2=document.getElementById('addCommBtn'); if(acb2) acb2.addEventListener('click',function(){ openLocForm({commissary:true,servesAll:true},''); });
@@ -643,6 +675,25 @@ function load(){
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this company.')+'<br><br><a href="./rrg_companies.html" style="color:#000E31;font-weight:700">← Back to companies</a></div>'; });
 }
 load();
+</script>
+<script>/*rrg-accordion-js*/
+(function(){
+  var KEY='rrgcardcol_'+location.pathname;
+  function get(){ try{ return JSON.parse(localStorage.getItem(KEY)||'{}')||{}; }catch(e){ return {}; } }
+  function set(o){ try{ localStorage.setItem(KEY,JSON.stringify(o)); }catch(e){} }
+  function titleOf(card){ var b=card.querySelector('.ch b'); return b?b.textContent.trim():''; }
+  var root=document.getElementById('root'), mo=null;
+  function apply(){
+    if(mo) mo.disconnect();
+    var st=get();
+    document.querySelectorAll('.card > .ch').forEach(function(ch){ if(!ch.querySelector('.rrgchev')){ var cv=document.createElement('span'); cv.className='rrgchev'; cv.textContent='\u25be'; ch.appendChild(cv); } });
+    document.querySelectorAll('.card').forEach(function(card){ var t=titleOf(card); if(t) card.classList.toggle('collapsed', !!st[t]); });
+    connect();
+  }
+  function connect(){ if(root && window.MutationObserver){ if(!mo) mo=new MutationObserver(function(){ apply(); }); mo.observe(root,{childList:true,subtree:true}); } }
+  document.addEventListener('click',function(e){ var ch=e.target.closest('.card > .ch'); if(!ch) return; if(e.target.closest('button,input,select,a,label,textarea')) return; var card=ch.closest('.card'); if(!card) return; card.classList.toggle('collapsed'); var st=get(); var t=titleOf(card); if(t){ if(card.classList.contains('collapsed')) st[t]=1; else delete st[t]; set(st); } });
+  setTimeout(apply, 350);
+})();
 </script>
 </body>
 </html>

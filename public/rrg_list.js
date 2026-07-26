@@ -96,7 +96,7 @@
       compact: !!saved.compact,
       widths: (saved.widths&&typeof saved.widths==='object')?saved.widths:{},
       order: Array.isArray(saved.order)?saved.order.slice():null,
-      hidden: (saved.hidden&&typeof saved.hidden==='object')?saved.hidden:{},
+      hidden: (saved.hidden&&typeof saved.hidden==='object')?saved.hidden:(function(){ var h={}; cols.forEach(function(c){ if(c.defaultHidden) h[c.__key]=true; }); return h; })(),
       filters: (saved.filters&&typeof saved.filters==='object')?saved.filters:{},
       _filterOpen: false, _focusFilter: null,
       page: 0,
