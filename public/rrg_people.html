@@ -165,5 +165,6 @@ document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.
 fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&j.isAdmin); renderFilters(); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load contacts.</div>'; });
 </script>
 <script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
+<script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
 </body>
 </html>
