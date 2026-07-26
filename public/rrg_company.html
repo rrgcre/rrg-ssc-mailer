@@ -24,6 +24,14 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .tile{background:#fff;border:1px solid #e9edf3;border-radius:12px;padding:15px 16px;box-shadow:0 1px 2px rgba(16,24,40,.04);}
 .tile .n{font-size:21px;font-weight:600;color:var(--ink);letter-spacing:-.01em;}
 .tile .l{font-size:12px;color:var(--muted);margin-top:3px;}
+.rrow{display:flex;align-items:center;gap:10px;padding:9px 20px;text-decoration:none;color:inherit;}
+.rrow:hover{background:#fbfcfe;}
+.rric{width:28px;height:28px;border-radius:7px;background:#eef1f6;color:#3f8a63;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;}
+.rrmain{flex:1;min-width:0;}
+.rrnm{font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.rrmt{font-size:12px;color:var(--muted);margin-top:1px;}
+.rchip{flex:none;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:999px;background:#f2f4f8;color:#6b7488;}
+.rrempty{font-size:12.5px;color:var(--soft);padding:8px 20px;}
 @media(max-width:840px){.wrap{grid-template-columns:1fr;}}
 .card{background:#fff;border:1px solid #e9edf3;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.05);overflow:hidden;margin-bottom:16px;}
 .ch{display:flex;align-items:center;gap:10px;padding:17px 22px;border-bottom:1px solid #eef1f6;} .ch b{color:var(--ink);font-size:15px;font-weight:600;} .ch span{color:var(--soft);font-size:12.5px;font-weight:500;}
@@ -236,8 +244,8 @@ function render(){
     locs+='<div class="cpttotal">'+CONCEPTS.length+' concept'+(CONCEPTS.length===1?'':'s')+' · <b>'+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</b> total · <span class="expall" id="cptExpand">'+(allOpen?'Collapse all':'Expand all')+'</span></div>';
   }
   var deals = DEALS.length ? DEALS.map(function(d){
-    return '<a class="drow" href="./rrg_assignment.html?key='+encodeURIComponent(d.key)+'"><div><div class="dbiz">'+esc(d.business)+'</div><div class="dmeta">'+esc(d.market||'')+'</div></div><span class="dstate '+(d.started?'on':'off')+'">'+(d.started?'In pipeline':'Not started')+'</span></a>';
-  }).join('') : '<div class="empty">No deals linked to this company yet.</div>';
+    return '<a class="rrow" href="./rrg_assignment.html?key='+encodeURIComponent(d.key)+'"><span class="rric">$</span><div class="rrmain"><div class="rrnm">'+esc(d.business)+'</div>'+(d.market?'<div class="rrmt">'+esc(d.market)+'</div>':'')+'</div><span class="rchip">'+(d.started?'In pipeline':'Not started')+'</span></a>';
+  }).join('') : '<div class="rrempty">No deals linked yet.</div>';
   var ptsel=PTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
   var ctsel=CTYPES.map(function(t){return '<option'+(C.type===t?' selected':'')+'>'+esc(t)+'</option>';}).join('');
   var mkset={}; CONCEPTS.forEach(function(cp){ (cp.markets||[]).forEach(function(m){ if(m) mkset[m]=1; }); }); var markets=Object.keys(mkset);
