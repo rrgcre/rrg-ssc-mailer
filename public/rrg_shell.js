@@ -63,8 +63,9 @@
     + '#rrgnav .ws:hover{background:rgba(255,255,255,.06);}'
     + '#rrgnav .disc{width:30px;height:30px;border-radius:8px;background:var(--red,#DA2B1F);color:#fff;font-family:"Arial Black",Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}'
     + '#rrgnav .wsn{font-weight:600;font-size:14.5px;color:#fff;}'
-    + '#rrgnav .create{margin:6px 14px 10px;background:var(--red,#DA2B1F);color:#fff;border:none;border-radius:9px;padding:10px 14px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:space-between;text-decoration:none;}'
-    + '#rrgnav .create:hover{filter:brightness(1.06);}'
+    + '#rrgnav .create{margin:8px 14px 12px;background:transparent;color:#eaf0fb;border:1px solid rgba(255,255,255,.24);border-radius:8px;padding:9px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;transition:background .12s,border-color .12s,color .12s;}'
+    + '#rrgnav .create:hover{background:var(--red,#DA2B1F);border-color:var(--red,#DA2B1F);color:#fff;}'
+    + '#rrgnav .create .cplus{font-size:15px;font-weight:800;line-height:1;}'
     + '#rrgnav .scroll{flex:1;overflow-y:auto;padding:2px 10px 14px;}'
     + '#rrgnav .scroll::-webkit-scrollbar{width:7px;}#rrgnav .scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:7px;}'
     + '#rrgnav .grp{margin-top:15px;}'
@@ -95,7 +96,7 @@
   var appName = 'RRG';
   var navHtml = '';
   navHtml += '<div class="nt"><a class="ws" href="index.html"><span class="disc" id="rrgdisc">RRG</span><span class="wsn" id="rrgwsn">RRG</span></a></div>';
-  navHtml += '<a class="create" href="rrg_companies.html">+ Create New <span>›</span></a>';
+  navHtml += '<a class="create" href="rrg_companies.html"><span class="cplus">+</span> Create New</a>';
   navHtml += '<div class="scroll">';
   NAV.forEach(function (g, gi) {
     var cls = g.admin ? ' data-admingrp="1" style="display:none"' : '';

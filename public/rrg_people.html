@@ -35,7 +35,9 @@ th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mu
 tr:hover td{background:#fbfcfe;}
 .who{display:flex;align-items:center;gap:11px;}
 .av{width:34px;height:34px;flex:none;border-radius:50%;background:#eef2fb;color:#2647b0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;}
-.nm{font-weight:800;color:var(--navy);font-size:14px;} .meta{color:var(--muted);font-size:11.5px;margin-top:2px;}
+.nm{font-weight:800;color:var(--navy);font-size:14px;}
+.nmlink{color:var(--navy);font-weight:800;text-decoration:none;} .nmlink:hover{text-decoration:underline;}
+.colink{color:var(--navy);text-decoration:none;} .colink:hover{text-decoration:underline;} .meta{color:var(--muted);font-size:11.5px;margin-top:2px;}
 .pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid;}
 .t-buyer{background:#eaf0ff;color:#2647b0;border-color:#d3ddf3;} .t-seller,.t-client{background:#fdf1df;color:#b5791f;border-color:#f0d7ad;}
 .t-investor{background:#e7f5ee;color:#1f8a5b;border-color:#bfe6d1;} .t-other,.t-broker,.t-operator,.t-prospect{background:#f2f4f8;color:#6b7488;border-color:#e0e5ee;}
@@ -120,10 +122,10 @@ function renderList(list){
     empty:'<div class="empty"><b>No contacts yet.</b>Contacts are added as you log offers, tours, and NDAs, or from a company file.</div>',
     rowId:function(p){ return p.id; }, defaultSort:0, defaultDir:1,
     columns:[
-      { label:'Name', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(p){ var tags=(p.tags&&p.tags.length)?('<div class="tags2">'+p.tags.map(function(t){return '<span class="tg">'+esc(t)+'</span>';}).join('')+'</div>'):''; var star=p.vip?'<span title="VIP" style="color:#e2b93a;font-weight:900;margin-right:4px">\u2605</span>':''; var nm=star+esc(p.name||'Contact')+(p.nickname?(' <span class="meta">“'+esc(p.nickname)+'”</span>'):''); return '<div class="who"><div class="av">'+esc(initials(p.name))+'</div><div><div class="nm">'+nm+'</div><div class="meta">'+esc(p.email||'')+'</div>'+tags+'</div></div>'; } },
-      { label:'Company', sort:function(a,b){ return RRGList.cmp(a.companyName||a.company,b.companyName||b.company); }, cell:function(p){ var cn=p.companyName||p.company||''; return cn?esc(cn):'<span class="meta">—</span>'; } },
+      { label:'Name', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(p){ var star=p.vip?'<span title="VIP" style="color:#e2b93a;font-weight:900;margin-right:4px">\u2605</span>':''; var nm=star+'<a class="nmlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">'+esc(p.name||'Contact')+'</a>'+(p.nickname?(' <span class="meta">“'+esc(p.nickname)+'”</span>'):''); return '<div class="who"><div class="av">'+esc(initials(p.name))+'</div><div><div class="nm">'+nm+'</div><div class="meta">'+esc(p.email||'')+'</div></div></div>'; } },
+      { label:'Company', sort:function(a,b){ return RRGList.cmp(a.companyName||a.company,b.companyName||b.company); }, cell:function(p){ var cn=p.companyName||p.company||''; if(!cn) return '<span class="meta">—</span>'; return p.companyId?('<a class="colink" href="./rrg_company.html?id='+encodeURIComponent(p.companyId)+'">'+esc(cn)+'</a>'):esc(cn); } },
       { label:'Type', sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, cell:function(p){ return p.type?('<span class="typetxt">'+esc(p.type)+'</span>'):'<span class="meta">—</span>'; } },
-      { label:'Phone', sortable:false, cell:function(p){ var ph=p.phone||(p.phones&&p.phones[0])||''; var extra=(p.phones&&p.phones.length>1)?(' <span class="meta">+'+(p.phones.length-1)+'</span>'):''; return ph?(esc(ph)+extra):'<span class="meta">—</span>'; } },
+      { label:'Phone', width:160, sortable:false, cell:function(p){ var ph=p.phone||(p.phones&&p.phones[0])||''; var extra=(p.phones&&p.phones.length>1)?(' <span class="meta">+'+(p.phones.length-1)+'</span>'):''; return ph?(esc(ph)+extra):'<span class="meta">—</span>'; } },
       { label:'Email', sortable:false, cell:function(p){ var em=p.email||(p.emails&&p.emails[0])||''; var extra=(p.emails&&p.emails.length>1)?(' <span class="meta">+'+(p.emails.length-1)+'</span>'):''; return em?('<a class="emlink" href="mailto:'+esc(em)+'" title="Email '+esc(em)+'">'+esc(em)+'</a>'+extra):'<span class="meta">—</span>'; } },
       { label:'Owner', sort:function(a,b){ return RRGList.cmp(a.owner,b.owner); }, cell:function(p){ return p.owner?esc(p.owner):'<span class="meta">—</span>'; } },
       { label:'Created', sort:function(a,b){ return RRGList.cmp(a.createdAt,b.createdAt); }, cell:function(p){ return p.createdAt?('<span class="meta">'+esc(fmtDate(p.createdAt))+'</span>'):'<span class="meta">—</span>'; } },
