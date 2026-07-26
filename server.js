@@ -2891,18 +2891,10 @@ async function streetViewPhoto(key, addr) {
   const img = await fetchImageBuffer('https://maps.googleapis.com/maps/api/streetview?size=640x640&location=' + enc + '&fov=80&key=' + key);
   return { img, reason: img ? '' : 'street view: image download failed' };
 }
-async function placesPhoto(key, query) {
-  if (!key || !query) return { img: null, reason: '' };
-  try {
-    const fr = await fetch('https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=' + encodeURIComponent(query) + '&inputtype=textquery&fields=photos,place_id&key=' + key);
-    const fj = await fr.json();
-    if (fj && fj.status && ['REQUEST_DENIED', 'OVER_QUERY_LIMIT', 'INVALID_REQUEST'].indexOf(fj.status) >= 0) return { img: null, reason: 'places: ' + fj.status + (fj.error_message ? (' — ' + fj.error_message) : '') };
-    const cand = (fj && fj.candidates && fj.candidates[0]) || null;
-    const ref = cand && cand.photos && cand.photos[0] && cand.photos[0].photo_reference;
-    if (!ref) return { img: null, reason: 'places: no photo on listing' };
-    const img = await fetchImageBuffer('https://maps.googleapis.com/maps/api/place/photo?maxwidth=800&photo_reference=' + encodeURIComponent(ref) + '&key=' + key);
-    return { img, reason: img ? '' : 'places: image download failed' };
-  } catch (e) { return { img: null, reason: 'places: request failed' }; }
+async function placesPhotoNew(key, photoName) {
+  if (!key || !photoName) return { img: null, reason: '' };
+  const img = await fetchImageBuffer('https://places.googleapis.com/v1/' + photoName + '/media?maxWidthPx=800&key=' + encodeURIComponent(key));
+  return { img, reason: img ? '' : 'places: image download failed' };
 }
 function attachPhotoBuffer(l, img, source) {
   if (!img) return false; l.photos = l.photos || []; if (l.photos.length >= LOCPHOTO_MAX) return false;
@@ -2911,29 +2903,30 @@ function attachPhotoBuffer(l, img, source) {
   l.photos.push({ id: pid, ext: img.ext, source: source || 'google' }); return true;
 }
 // Google Places business-data enrichment: finds the listing and pulls address, geo, status, rating, phone, website.
-async function placesEnrich(key, query) {
-  if (!key || !query) return { data: null, reason: 'no key/query' };
+async function placesSearchNew(key, query) {
+  if (!key || !query) return { data: null, photos: [], reason: 'no key/query' };
   try {
-    const fr = await fetch('https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=' + encodeURIComponent(query) + '&inputtype=textquery&fields=place_id&key=' + key);
-    const fj = await fr.json();
-    if (fj && fj.status && ['REQUEST_DENIED', 'OVER_QUERY_LIMIT', 'INVALID_REQUEST'].indexOf(fj.status) >= 0) return { data: null, reason: 'places: ' + fj.status + (fj.error_message ? (' — ' + fj.error_message) : '') };
-    const pid = fj && fj.candidates && fj.candidates[0] && fj.candidates[0].place_id;
-    if (!pid) return { data: null, reason: 'places: no match' };
-    const dr = await fetch('https://maps.googleapis.com/maps/api/place/details/json?place_id=' + encodeURIComponent(pid) + '&fields=business_status,formatted_address,geometry,formatted_phone_number,website,rating,user_ratings_total,price_level,name,url&key=' + key);
-    const dj = await dr.json();
-    const r = (dj && dj.result) || null;
-    if (!r) return { data: null, reason: 'places: no details' };
-    const loc = (r.geometry && r.geometry.location) || {};
+    const r = await fetch('https://places.googleapis.com/v1/places:searchText', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': 'places.id,places.formattedAddress,places.location,places.businessStatus,places.rating,places.userRatingCount,places.priceLevel,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.displayName,places.photos' },
+      body: JSON.stringify({ textQuery: query, maxResultCount: 1 })
+    });
+    const j = await r.json();
+    if (!r.ok) return { data: null, photos: [], reason: 'places: ' + ((j && j.error && j.error.message) || ('HTTP ' + r.status)) };
+    const pl = (j && j.places && j.places[0]) || null;
+    if (!pl) return { data: null, photos: [], reason: 'places: no match' };
+    const loc = pl.location || {};
+    const PRICE = { PRICE_LEVEL_FREE: 0, PRICE_LEVEL_INEXPENSIVE: 1, PRICE_LEVEL_MODERATE: 2, PRICE_LEVEL_EXPENSIVE: 3, PRICE_LEVEL_VERY_EXPENSIVE: 4 };
     return { data: {
-      placeId: pid, address: r.formatted_address || '',
-      lat: (typeof loc.lat === 'number') ? loc.lat : null, lng: (typeof loc.lng === 'number') ? loc.lng : null,
-      businessStatus: r.business_status || '', rating: (typeof r.rating === 'number') ? r.rating : null,
-      reviews: (typeof r.user_ratings_total === 'number') ? r.user_ratings_total : null,
-      priceLevel: (typeof r.price_level === 'number') ? r.price_level : null,
-      phone: r.formatted_phone_number || '', website: r.website || '', mapsUrl: r.url || '',
+      placeId: pl.id || '', address: pl.formattedAddress || '',
+      lat: (typeof loc.latitude === 'number') ? loc.latitude : null, lng: (typeof loc.longitude === 'number') ? loc.longitude : null,
+      businessStatus: pl.businessStatus || '', rating: (typeof pl.rating === 'number') ? pl.rating : null,
+      reviews: (typeof pl.userRatingCount === 'number') ? pl.userRatingCount : null,
+      priceLevel: (pl.priceLevel && PRICE[pl.priceLevel] !== undefined) ? PRICE[pl.priceLevel] : null,
+      phone: pl.nationalPhoneNumber || pl.internationalPhoneNumber || '', website: pl.websiteUri || '', mapsUrl: pl.googleMapsUri || '',
       at: new Date().toISOString()
-    }, reason: '' };
-  } catch (e) { return { data: null, reason: 'places: request failed' }; }
+    }, photos: (pl.photos || []).map(function (x) { return x.name; }).filter(Boolean), reason: '' };
+  } catch (e) { return { data: null, photos: [], reason: 'places: request failed' }; }
 }
 function applyPlacesData(l, data) {
   if (!data) return false;
@@ -2947,8 +2940,9 @@ async function pullPhotosForLocation(key, l) {
   let added = 0; const reasons = [];
   const addr = [l.address, l.city, l.state].filter(Boolean).join(', ');
   const query = [l.concept, l.name, l.address, l.city, l.state].filter(Boolean).join(' ');
-  try { const en = await placesEnrich(key, query || addr); if (en.data) applyPlacesData(l, en.data); else if (en.reason) reasons.push(en.reason); } catch (e) {}
-  if ((l.photos || []).length < LOCPHOTO_MAX) { const p = await placesPhoto(key, query || addr); if (attachPhotoBuffer(l, p.img, 'places')) added++; else if (p.reason) reasons.push(p.reason); }
+  let _pnames = [];
+  try { const en = await placesSearchNew(key, query || addr); if (en.data) applyPlacesData(l, en.data); if (en.photos && en.photos.length) _pnames = en.photos; if (!en.data && en.reason) reasons.push(en.reason); } catch (e) {}
+  for (let _i = 0; _i < _pnames.length && (l.photos || []).length < LOCPHOTO_MAX; _i++) { const p = await placesPhotoNew(key, _pnames[_i]); if (attachPhotoBuffer(l, p.img, 'places')) added++; else { if (p.reason) reasons.push(p.reason); break; } }
   if ((l.photos || []).length < LOCPHOTO_MAX) { const svp = await streetViewPhoto(key, addr); if (attachPhotoBuffer(l, svp.img, 'streetview')) added++; else if (svp.reason) reasons.push(svp.reason); }
   return { added, reasons, enriched: !!(l.google && l.google.placeId) };
 }
@@ -2965,10 +2959,9 @@ app.post('/api/admin/gmaps-key', requireAdmin, express.json(), (req, res) => {
 app.post('/api/admin/gmaps-key/test', requireAdmin, async (req, res) => {
   const key = loadGmapsKey(); if (!key) return res.status(400).json({ ok: false, error: 'No key set — save one first.' });
   try {
-    const r = await fetch('https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=Starbucks&inputtype=textquery&fields=place_id&key=' + encodeURIComponent(key));
-    const j = await r.json();
-    if (j && (j.status === 'OK' || j.status === 'ZERO_RESULTS')) return res.json({ ok: true, status: j.status });
-    return res.status(400).json({ ok: false, error: (j && (j.error_message || j.status)) || 'Key rejected' });
+    const t = await placesSearchNew(key, 'Starbucks');
+    if (t.data) return res.json({ ok: true, status: 'OK' });
+    return res.status(400).json({ ok: false, error: t.reason || 'Key rejected' });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 // ---- Anthropic (Claude) API key — admin-settable; overrides the ANTHROPIC_API_KEY env var ----
