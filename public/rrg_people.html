@@ -35,8 +35,8 @@ th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mu
 tr:hover td{background:#fbfcfe;}
 .who{display:flex;align-items:center;gap:11px;}
 .av{width:34px;height:34px;flex:none;border-radius:50%;background:#eef2fb;color:#2647b0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;}
-.nm{font-weight:800;color:var(--navy);font-size:14px;}
-.nmlink{color:var(--navy);font-weight:800;text-decoration:none;} .nmlink:hover{text-decoration:underline;}
+.nm{font-weight:500;color:var(--navy);font-size:14px;}
+.nmlink{color:var(--navy);font-weight:500;text-decoration:none;} .nmlink:hover{text-decoration:underline;}
 .colink{color:var(--navy);text-decoration:none;} .colink:hover{text-decoration:underline;} .meta{color:var(--muted);font-size:11.5px;margin-top:2px;}
 .pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid;}
 .t-buyer{background:#eaf0ff;color:#2647b0;border-color:#d3ddf3;} .t-seller,.t-client{background:#fdf1df;color:#b5791f;border-color:#f0d7ad;}
@@ -125,12 +125,12 @@ function renderList(list){
     columns:[
       { label:'Name', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(p){ var star=p.vip?'<span title="VIP" style="color:#e2b93a;font-weight:900;margin-right:4px">\u2605</span>':''; var nm=star+'<a class="nmlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">'+esc(p.name||'Contact')+'</a>'+(p.nickname?(' <span class="meta">“'+esc(p.nickname)+'”</span>'):''); return '<div class="who"><div class="av">'+esc(initials(p.name))+'</div><div><div class="nm">'+nm+'</div><div class="meta">'+esc(p.email||'')+'</div></div></div>'; } },
       { label:'Company', sort:function(a,b){ return RRGList.cmp(a.companyName||a.company,b.companyName||b.company); }, cell:function(p){ var cn=p.companyName||p.company||''; if(!cn) return '<span class="meta">—</span>'; return p.companyId?('<a class="colink" href="./rrg_company.html?id='+encodeURIComponent(p.companyId)+'">'+esc(cn)+'</a>'):esc(cn); } },
-      { label:'Type', sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, cell:function(p){ return p.type?('<span class="typetxt">'+esc(p.type)+'</span>'):'<span class="meta">—</span>'; } },
+      { label:'Type', sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, edit:{ type:'select', allowBlank:true, options:function(){return TYPES.length?TYPES:['Buyer','Seller'];}, get:function(p){return p.type||'';}, save:function(p,val){ return fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:p.id,type:val})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ p.type=val; return true; } throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(p){ return p.type?('<span class="typetxt">'+esc(p.type)+'</span>'):'<span class="meta">—</span>'; } },
       { label:'Phone', width:160, sortable:false, cell:function(p){ var ph=p.phone||(p.phones&&p.phones[0])||''; var extra=(p.phones&&p.phones.length>1)?(' <span class="meta">+'+(p.phones.length-1)+'</span>'):''; return ph?(esc(ph)+extra):'<span class="meta">—</span>'; } },
       { label:'Email', sortable:false, cell:function(p){ var em=p.email||(p.emails&&p.emails[0])||''; var extra=(p.emails&&p.emails.length>1)?(' <span class="meta">+'+(p.emails.length-1)+'</span>'):''; return em?('<a class="emlink" href="mailto:'+esc(em)+'" title="Email '+esc(em)+'">'+esc(em)+'</a>'+extra):'<span class="meta">—</span>'; } },
       { label:'Owner', sort:function(a,b){ return RRGList.cmp(a.owner,b.owner); }, cell:function(p){ return p.owner?esc(p.owner):'<span class="meta">—</span>'; } },
       { label:'Created', sort:function(a,b){ return RRGList.cmp(a.createdAt,b.createdAt); }, cell:function(p){ return p.createdAt?('<span class="meta">'+esc(fmtDate(p.createdAt))+'</span>'):'<span class="meta">—</span>'; } },
-      { label:'Last contacted', sort:function(a,b){ return RRGList.cmp(a.lastContacted,b.lastContacted); }, cell:function(p){ return p.lastContacted?esc(fmtDate(p.lastContacted)):'<span class="meta">—</span>'; } },
+      { label:'Last contacted', sort:function(a,b){ return RRGList.cmp(a.lastContacted,b.lastContacted); }, edit:{ type:'date', get:function(p){return (p.lastContacted||'').slice(0,10);}, save:function(p,val){ return fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:p.id,lastContacted:val})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ p.lastContacted=val; return true; } throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(p){ return p.lastContacted?esc(fmtDate(p.lastContacted)):'<span class="meta">—</span>'; } },
       { label:'', align:'right', sortable:false, cell:function(p){ return IS_ADMIN?('<button class="pdel" data-del="'+esc(p.id)+'" data-name="'+esc(p.name||'')+'">Delete</button>'):'<span class="meta">—</span>'; } }
     ]
   };

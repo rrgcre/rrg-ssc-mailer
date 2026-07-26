@@ -2865,6 +2865,25 @@ app.delete('/api/person/:id/activity/:aid', (req, res) => {
   if (p.activities.length !== before) { p.updatedAt = new Date().toISOString(); savePeople(arr); }
   res.json({ ok: true, activities: p.activities });
 });
+app.post('/api/person/:id/tour', express.json(), (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
+  const b = req.body || {}, now = new Date().toISOString();
+  p.tours = Array.isArray(p.tours) ? p.tours : [];
+  const rec = { id: newTourId(), party: p.name || '', date: '', attendees: '', host: (req.user && req.user.name) || '', interest: '', notes: '', createdAt: now, updatedAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+  applyTourFields(rec, b);
+  p.tours.unshift(rec);
+  try { logActivity(p, 'Tour', rec.notes || 'Tour logged', { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); } catch (e) {}
+  p.updatedAt = now; savePeople(arr);
+  res.json({ ok: true, tours: p.tours });
+});
+app.delete('/api/person/:id/tour/:tourId', (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
+  p.tours = (Array.isArray(p.tours) ? p.tours : []).filter(t => t.id !== req.params.tourId);
+  p.updatedAt = new Date().toISOString(); savePeople(arr);
+  res.json({ ok: true, tours: p.tours });
+});
 app.post('/api/person/:id/photo', express.json({ limit: '8mb' }), (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
@@ -2915,11 +2934,12 @@ app.get('/api/person/:id', (req, res) => {
   const overlay = loadAssignOverlay(), idx = assignmentsIndex();
   const bizByKey = {}; for (const k in idx) { try { bizByKey[k] = assignmentView(idx[k], overlay).business; } catch (e) {} }
   const deals = [], offers = [], tours = [], ndas = [];
+  (Array.isArray(p.tours) ? p.tours : []).forEach(x => tours.push({ id: x.id, key: '', business: '', date: x.date, interest: x.interest, notes: x.notes, personLevel: true }));
   loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client' }); });
   for (const key in overlay) {
     const o = overlay[key], biz = bizByKey[key] || '(deal)';
     (o.offers || []).filter(x => x.personId === p.id).forEach(x => offers.push({ key: key, business: biz, type: x.type, amount: x.amount, status: x.status, received: x.received }));
-    (o.tours || []).filter(x => x.personId === p.id).forEach(x => tours.push({ key: key, business: biz, date: x.date, interest: x.interest }));
+    (o.tours || []).filter(x => x.personId === p.id).forEach(x => tours.push({ id: x.id, key: key, business: biz, date: x.date, interest: x.interest }));
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
   }
   res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), isAdmin: !!(req.user && req.user.role === 'admin') });
@@ -3241,8 +3261,8 @@ app.get('/api/company/:id', (req, res) => {
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
   if (restrictToOwn(req) && !permOwnerMatch(req, c.owner || c.by)) return res.status(403).json({ ok: false, error: 'You can only view your own companies.' });
   const contacts = loadPeople().filter(p => p.companyId === c.id).map(companyContactRow);
-  const dealRows = loadDeals().filter(d => d.companyId === c.id).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id) }));
   const _cids = loadPeople().filter(p => p.companyId === c.id).map(p => p.id);
+  const dealRows = loadDeals().filter(d => d.companyId === c.id || (d.contactPersonId && _cids.indexOf(d.contactPersonId) >= 0)).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id) }));
   const _pn = {}; loadPeople().forEach(p => { _pn[p.id] = p.name; });
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));

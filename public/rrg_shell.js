@@ -63,6 +63,8 @@
     + '#rrgnav .ws:hover{background:rgba(255,255,255,.06);}'
     + '#rrgnav .disc{width:30px;height:30px;border-radius:8px;background:var(--red,#DA2B1F);color:#fff;font-family:"Arial Black",Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}'
     + '#rrgnav .wsn{font-weight:600;font-size:14.5px;color:#fff;}'
+    + '#rrgnav .rrgbrand{display:block;width:100%;font-weight:700;font-size:16px;color:#fff;line-height:1.1;}'
+    + '#rrgnav .rrgbrandimg{max-width:100%;max-height:52px;object-fit:contain;display:block;}'
     + '#rrgtop .create{display:inline-flex;align-items:center;gap:6px;background:#fff;color:var(--navy,#000E31);border:1px solid #d3d9e4;border-radius:9px;padding:8px 15px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .12s,border-color .12s,color .12s;}'
     + '#rrgtop .create:hover{background:var(--navy,#000E31);border-color:var(--navy,#000E31);color:#fff;}'
     + '#rrgtop .create .cplus{font-size:15px;font-weight:800;line-height:1;}'
@@ -83,7 +85,7 @@
     + '#rrgnav .foot{border-top:1px solid rgba(255,255,255,.09);padding:8px 10px;}'
     + '#rrgtop{position:fixed;top:0;left:238px;right:0;height:56px;background:#fff;border-bottom:1px solid #e9edf3;display:flex;align-items:center;gap:18px;padding:0 22px;z-index:59;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
     + '#rrgtop .pt{font-size:16.5px;font-weight:600;color:#1d2739;min-width:90px;}'
-    + '#rrgtop .srch{flex:1;max-width:600px;margin:0 auto;position:relative;}'
+    + '#rrgtop .srch{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:46%;max-width:560px;}'
     + '#rrgtop .srch input{width:100%;border:1px solid #e9edf3;background:#f7f9fc;border-radius:10px;padding:9px 12px 9px 36px;font:inherit;font-size:13.5px;color:#1d2739;}'
     + '#rrgtop .srch .si{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#98a1b5;}'
     + '#rrgtop .acts{display:flex;align-items:center;gap:10px;margin-left:auto;}'
@@ -96,7 +98,7 @@
   // ---------- nav markup ----------
   var appName = 'RRG';
   var navHtml = '';
-  navHtml += '<div class="nt"><a class="ws" href="index.html"><span class="disc" id="rrgdisc">RRG</span><span class="wsn" id="rrgwsn">RRG</span></a></div>';
+  navHtml += '<div class="nt"><a class="ws" href="index.html" style="padding:2px 4px"><span class="rrgbrand" id="rrgbrand">RRG</span></a></div>';
   navHtml += '<div class="scroll">';
   NAV.forEach(function (g, gi) {
     var _sp = []; if (g.color) _sp.push('--gc:' + g.color); if (g.admin) _sp.push('display:none');
@@ -120,7 +122,6 @@
   var top = document.createElement('div'); top.id='rrgtop';
   top.innerHTML = ''
     + '<div class="ic" id="rrgburger" style="display:none">≡</div>'
-    + '<div class="pt" id="rrgpt">' + esc(activeLabel) + '</div>'
     + '<div class="srch"><span class="si">⌕</span><input placeholder="Search companies, contacts, deals…" id="rrgsearch"></div>'
     + '<div class="acts"><a class="create" href="rrg_companies.html"><span class="cplus">+</span> Create New</a><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><a class="ic" href="rrg_tasks.html" title="Tasks">✔</a><div class="uav" id="rrguav">·</div></div>';
 
@@ -144,7 +145,7 @@
     // hydrate app name, role, user
     try {
       fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-        if(j&&j.name){ var w=document.getElementById('rrgwsn'); if(w) w.textContent=j.name; } var d=document.getElementById('rrgdisc'); if(d){ if(j&&j.logoUrl){ d.innerHTML='<img src="'+j.logoUrl+'" alt="" style="width:100%;height:100%;object-fit:contain;border-radius:7px;background:#fff" onerror="this.parentNode.textContent=(&quot;'+((j&&j.name)||'RRG').replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase()+'&quot;)">'; d.style.background='#fff'; d.style.padding='0'; } else { d.textContent=((j&&j.name)||'RRG').replace(/[^A-Za-z]/g,'').slice(0,3).toUpperCase()||'RRG'; } }
+        var brand=document.getElementById('rrgbrand'); if(brand){ if(j&&j.logoUrl){ brand.innerHTML='<img src="'+j.logoUrl+'" alt="" class="rrgbrandimg">'; } else if(j&&j.name){ brand.textContent=j.name; } }
       }).catch(function(){});
       fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){
         if(s&&s.role==='admin'){ var g=nav.querySelector('[data-admingrp]'); if(g) g.style.display=''; }
