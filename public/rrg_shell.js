@@ -63,9 +63,9 @@
     + '#rrgnav .ws:hover{background:rgba(255,255,255,.06);}'
     + '#rrgnav .disc{width:30px;height:30px;border-radius:8px;background:var(--red,#DA2B1F);color:#fff;font-family:"Arial Black",Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}'
     + '#rrgnav .wsn{font-weight:600;font-size:14.5px;color:#fff;}'
-    + '#rrgnav .create{margin:8px 14px 12px;background:transparent;color:#eaf0fb;border:1px solid rgba(255,255,255,.24);border-radius:8px;padding:9px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;text-decoration:none;transition:background .12s,border-color .12s,color .12s;}'
-    + '#rrgnav .create:hover{background:var(--red,#DA2B1F);border-color:var(--red,#DA2B1F);color:#fff;}'
-    + '#rrgnav .create .cplus{font-size:15px;font-weight:800;line-height:1;}'
+    + '#rrgtop .create{display:inline-flex;align-items:center;gap:6px;background:#fff;color:var(--navy,#000E31);border:1px solid #d3d9e4;border-radius:9px;padding:8px 15px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .12s,border-color .12s,color .12s;}'
+    + '#rrgtop .create:hover{background:var(--navy,#000E31);border-color:var(--navy,#000E31);color:#fff;}'
+    + '#rrgtop .create .cplus{font-size:15px;font-weight:800;line-height:1;}'
     + '#rrgnav .scroll{flex:1;overflow-y:auto;padding:2px 10px 14px;}'
     + '#rrgnav .scroll::-webkit-scrollbar{width:7px;}#rrgnav .scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:7px;}'
     + '#rrgnav .grp{margin-top:15px;}'
@@ -96,7 +96,6 @@
   var appName = 'RRG';
   var navHtml = '';
   navHtml += '<div class="nt"><a class="ws" href="index.html"><span class="disc" id="rrgdisc">RRG</span><span class="wsn" id="rrgwsn">RRG</span></a></div>';
-  navHtml += '<a class="create" href="rrg_companies.html"><span class="cplus">+</span> Create New</a>';
   navHtml += '<div class="scroll">';
   NAV.forEach(function (g, gi) {
     var cls = g.admin ? ' data-admingrp="1" style="display:none"' : '';
@@ -121,7 +120,7 @@
     + '<div class="ic" id="rrgburger" style="display:none">≡</div>'
     + '<div class="pt" id="rrgpt">' + esc(activeLabel) + '</div>'
     + '<div class="srch"><span class="si">⌕</span><input placeholder="Search companies, contacts, deals…" id="rrgsearch"></div>'
-    + '<div class="acts"><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><a class="ic" href="rrg_tasks.html" title="Tasks">✔</a><div class="uav" id="rrguav">·</div></div>';
+    + '<div class="acts"><a class="create" href="rrg_companies.html"><span class="cplus">+</span> Create New</a><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><a class="ic" href="rrg_tasks.html" title="Tasks">✔</a><div class="uav" id="rrguav">·</div></div>';
 
   document.addEventListener('DOMContentLoaded', mount);
   if (document.readyState !== 'loading') mount();

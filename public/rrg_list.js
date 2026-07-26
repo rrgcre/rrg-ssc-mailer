@@ -120,7 +120,7 @@
         + pageButtons(pc)
         + '<button class="rl-next"'+(state.page>=pc-1?' disabled':'')+'>›</button></span>';
       var densTog = '<label class="rl-dens" title="Compact rows"><input type="checkbox" class="rl-densCk"'+(state.compact?' checked':'')+'> Compact</label>';
-      var bar = '<div class="rl-bar">'+densTog+perSel+'<span class="rl-sp"></span>'+count+pager+'</div>';
+      var bar = '<div class="rl-bar">'+'<span class="rl-sp"></span>'+count+densTog+perSel+pager+'</div>';
 
       // bulk bar
       var bulk='';

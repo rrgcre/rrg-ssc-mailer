@@ -131,7 +131,7 @@ function renderList(list){
       { label:'Owner', sort:function(a,b){ return RRGList.cmp(a.owner,b.owner); }, cell:function(p){ return p.owner?esc(p.owner):'<span class="meta">—</span>'; } },
       { label:'Created', sort:function(a,b){ return RRGList.cmp(a.createdAt,b.createdAt); }, cell:function(p){ return p.createdAt?('<span class="meta">'+esc(fmtDate(p.createdAt))+'</span>'):'<span class="meta">—</span>'; } },
       { label:'Last contacted', sort:function(a,b){ return RRGList.cmp(a.lastContacted,b.lastContacted); }, cell:function(p){ return p.lastContacted?esc(fmtDate(p.lastContacted)):'<span class="meta">—</span>'; } },
-      { label:'', align:'right', sortable:false, cell:function(p){ var del=IS_ADMIN?('<button class="pdel" data-del="'+esc(p.id)+'" data-name="'+esc(p.name||'')+'">Delete</button> '):''; return del+'<a class="open" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">Open →</a>'; } }
+      { label:'', align:'right', sortable:false, cell:function(p){ return IS_ADMIN?('<button class="pdel" data-del="'+esc(p.id)+'" data-name="'+esc(p.name||'')+'">Delete</button>'):'<span class="meta">—</span>'; } }
     ]
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
