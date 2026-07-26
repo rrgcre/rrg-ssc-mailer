@@ -691,16 +691,17 @@ function renderTopNav(s){
 }
 
 /* ---- Quick Links — admin-managed + personal, fetched from the server, reorderable ---- */
-var QL_LINKS=[], QL_EDIT=false, QL_CANADMIN=false, QL_DRAG=-1, _qlTimer=null;
+var QL_LINKS=[], QL_EDIT=false, QL_CANADMIN=false, QL_DRAG=-1, _qlTimer=null, QL_SHOW=true;
 function loadQuickLinks(){
   var api=window.RRG_API||''; if(!api){ renderQuickLinks(); return; }
   fetch(api.replace(/\/$/,'')+'/api/links',{credentials:'same-origin'}).then(function(r){return r.json();})
-    .then(function(j){ QL_CANADMIN=!!(j&&j.canOrderDefault); QL_LINKS=((j&&j.links)||[]).filter(function(l){return l&&l.name&&l.url;}); renderQuickLinks(); })
+    .then(function(j){ QL_CANADMIN=!!(j&&j.canOrderDefault); QL_SHOW=!(j&&j.show===false); QL_LINKS=((j&&j.links)||[]).filter(function(l){return l&&l.name&&l.url;}); renderQuickLinks(); })
     .catch(function(){ renderQuickLinks(); });
 }
 function qlCanMove(l){ return l && (l.scope==='personal' || (l.scope==='default' && QL_CANADMIN)); }
 function renderQuickLinks(){
   var wrap=document.getElementById('qlWrap'), grid=document.getElementById('qlGrid'), btn=document.getElementById('qlEditBtn');
+  if(QL_SHOW===false){ if(wrap) wrap.style.display='none'; return; }
   if(!QL_LINKS.length){ if(wrap) wrap.style.display='none'; return; }
   if(wrap) wrap.style.display='';
   var movable=QL_LINKS.filter(qlCanMove).length;

@@ -203,6 +203,7 @@ function effMaxPullLocations() { const s = loadSettings(); const n = parseInt(s.
 function effDefaultState() { const s = loadSettings(); const v = String(s.defaultState || '').trim(); return v ? v.slice(0, 20) : 'TX'; }
 function effAssistantName() { const s = loadSettings(); const v = String(s.assistantName || '').trim(); return v ? v.slice(0, 40) : 'Claude'; }
 function effShowRequestRibbon() { const s = loadSettings(); return s.showRequestRibbon !== false; }
+function effShowQuickLinks() { const s = loadSettings(); return s.showQuickLinks !== false; }
 // ---- Tool label overrides: admins can rename any tool (e.g. call "Contacts" "People").
 // Stored as { file: customLabel }; the dashboard applies them when rendering. ----
 const TOOL_DEFS = [
@@ -1672,7 +1673,7 @@ app.get('/api/links', (req, res) => {
   const defaults = auth.loadLinks().filter(l => l.default).map(l => ({ name: l.name, url: l.url, scope: 'default' }));
   const u = req.user && auth.findUser(req.user.username);
   const personal = auth.userLinksOf(u).map(l => ({ name: l.name, url: l.url, scope: 'personal' }));
-  res.json({ ok: true, links: defaults.concat(personal), canOrderDefault: !!(req.user && req.user.role === 'admin') });
+  res.json({ ok: true, links: defaults.concat(personal), canOrderDefault: !!(req.user && req.user.role === 'admin'), show: effShowQuickLinks() });
 });
 // Persist a new quick-links order from the dashboard. Shared "default" links are
 // reorderable by admins; each user can always reorder their own personal links.
@@ -2991,14 +2992,14 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), showRequestRibbon: effShowRequestRibbon(),
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks(),
     defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, cuisineTypes: CUISINE_TYPES },
     isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), cuisineTypes: Array.isArray(s.cuisineTypes) },
   });
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.showRequestRibbon; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), showRequestRibbon: effShowRequestRibbon() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.showRequestRibbon; delete s.showQuickLinks; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() }); }
   if (b.personTypes !== undefined) s.personTypes = cleanStrList(b.personTypes, 40, 60) || [];
   if (b.companyTypes !== undefined) s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || [];
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
@@ -3009,8 +3010,9 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   if (typeof b.defaultState === 'string') s.defaultState = b.defaultState.trim().slice(0, 20);
   if (typeof b.assistantName === 'string') s.assistantName = b.assistantName.trim().slice(0, 40);
   if (b.showRequestRibbon !== undefined) s.showRequestRibbon = !!b.showRequestRibbon;
+  if (b.showQuickLinks !== undefined) s.showQuickLinks = !!b.showQuickLinks;
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), showRequestRibbon: effShowRequestRibbon() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
