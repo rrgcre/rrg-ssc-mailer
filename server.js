@@ -3752,8 +3752,11 @@ app.get('/api/counts', (req, res) => {
   loadAgreements().forEach(a => { if (a.status === 'terminated' || !a.expires || a.expires < _ts) return; const du = daysUntil(a.expires); if (du != null && du <= 60) agrExpiring++; });
   let tasksDue = 0;
   loadTasks().forEach(t => { if (t.status === 'open' && taskVisible(t, req) && t.reminder && String(t.reminder).slice(0, 10) <= _ts) tasksDue++; });
+  let tasksOverdue = 0;
+  loadTasks().forEach(t => { if (t.status === 'open' && taskVisible(t, req) && t.due && String(t.due).slice(0, 10) < _ts) tasksOverdue++; });
   const expiring = { 'rrg_agreements.html': agrExpiring, 'rrg_tasks.html': tasksDue };
-  res.json({ ok: true, counts, active, expiring });
+  const overdue = { 'rrg_tasks.html': tasksOverdue };
+  res.json({ ok: true, counts, active, expiring, overdue });
 });
 // ---- Command Center — management + prospecting intelligence across the book & pipeline ----
 function daysUntil(dateStr) {
@@ -3943,6 +3946,8 @@ app.get('/admin', requireAdmin, (req, res) => {
         <form method="post" action="/api/admin/remove" onsubmit="return confirm('Remove ${esc(u.username)}?')"><input type="hidden" name="username" value="${esc(u.username)}"><button class="danger">Remove</button></form>
       </td></tr>`).join('') || '<tr><td colspan="6" class="empty">No users yet.</td></tr>';
   const userData = users.slice().sort((a,b)=>String(a.name||a.username).toLowerCase().localeCompare(String(b.name||b.username).toLowerCase())).map(u => ({ name: u.name||'', username: u.username||'', email: u.email||'', role: u.role||'', disabled: !!u.disabled, created: (u.createdAt||'').slice(0,10), last: lastLogin[u.username] ? fmtWhen(lastLogin[u.username]) : '' }));
+  const usageData = usageAll.slice(-500).reverse().map(u => ({ when: fmtWhen(u.timestamp), ts: u.timestamp||'', user: u.username||'', tool: u.tool||'', ip: u.ip||'' }));
+  const loginData = logins.map(l => ({ when: fmtWhen(l.timestamp), ts: l.timestamp||'', user: l.username||'', result: l.result||'', ip: l.ip||'' }));
   const lrows = logins.map(l =>
     `<tr><td class="ts">${fmtWhen(l.timestamp)}</td><td class="mono">${esc(l.username) || '—'}</td><td>${l.result === 'success' ? '<span class="tag ok">Success</span>' : '<span class="tag off">Failed</span>'}</td><td class="mono">${esc(l.ip)}</td></tr>`
   ).join('') || '<tr><td colspan="4" class="empty">No logins recorded yet.</td></tr>';
@@ -4294,9 +4299,39 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div><h3>By user</h3><table><thead><tr><th>User</th><th>Opens</th></tr></thead><tbody>${userSummary}</tbody></table></div>
       </div>
       <h3 style="margin-top:22px">Recent tool activity <span class="sub2">— newest first, last 200</span></h3>
-      <table><thead><tr><th>When (CT)</th><th>User</th><th>Tool</th><th>IP</th></tr></thead><tbody>${usageRecent}</tbody></table>
+      <div id="usagelist"></div>
       <h2 style="margin-top:34px">Login Activity <span class="sub2">— newest first, last 300</span></h2>
-      <table><thead><tr><th>When (CT)</th><th>Username</th><th>Result</th><th>IP</th></tr></thead><tbody>${lrows}</tbody></table>
+      <div id="loginlist"></div>
+      <script type="application/json" id="usagedata">${JSON.stringify(usageData).replace(/</g, String.fromCharCode(92)+'u003c')}</script>
+      <script type="application/json" id="logindata">${JSON.stringify(loginData).replace(/</g, String.fromCharCode(92)+'u003c')}</script>
+      <script src="/rrg_list.js"></script>
+      <script>
+      (function(){
+        function lesc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+        function pj(id){ try{ return JSON.parse(document.getElementById(id).textContent)||[]; }catch(e){ return []; } }
+        var USAGE=pj('usagedata'), LOGINS=pj('logindata');
+        function tsCmp(a,b){ return RRGList.cmp(a.ts,b.ts); }
+        function go(){
+          if(document.getElementById('usagelist')) RRGList.create({ mount:'#usagelist', data:USAGE, key:'adminusage', rowId:function(r){return r.ts+'|'+r.user+'|'+r.tool;}, defaultSort:0, defaultDir:-1, per:50,
+            columns:[
+              {label:'When (CT)', width:180, sort:tsCmp, cell:function(r){return '<span class="ts">'+lesc(r.when)+'</span>';}},
+              {label:'User', sort:function(a,b){return RRGList.cmp(a.user,b.user);}, cell:function(r){return '<span class="mono">'+(lesc(r.user)||'—')+'</span>';}},
+              {label:'Tool', sort:function(a,b){return RRGList.cmp(a.tool,b.tool);}, cell:function(r){return '<span class="nm">'+lesc(r.tool)+'</span>';}},
+              {label:'IP', sort:function(a,b){return RRGList.cmp(a.ip,b.ip);}, cell:function(r){return '<span class="mono">'+lesc(r.ip)+'</span>';}}
+            ]
+          });
+          if(document.getElementById('loginlist')) RRGList.create({ mount:'#loginlist', data:LOGINS, key:'adminlogins', rowId:function(r){return r.ts+'|'+r.user+'|'+r.ip;}, defaultSort:0, defaultDir:-1, per:50,
+            columns:[
+              {label:'When (CT)', width:180, sort:tsCmp, cell:function(r){return '<span class="ts">'+lesc(r.when)+'</span>';}},
+              {label:'Username', sort:function(a,b){return RRGList.cmp(a.user,b.user);}, cell:function(r){return '<span class="mono">'+(lesc(r.user)||'—')+'</span>';}},
+              {label:'Result', sort:function(a,b){return RRGList.cmp(a.result,b.result);}, cell:function(r){return r.result==='success'?'<span class="tag ok">Success</span>':'<span class="tag off">Failed</span>';}},
+              {label:'IP', sort:function(a,b){return RRGList.cmp(a.ip,b.ip);}, cell:function(r){return '<span class="mono">'+lesc(r.ip)+'</span>';}}
+            ]
+          });
+        }
+        if(window.RRGList){ go(); } else { var t=setInterval(function(){ if(window.RRGList){ clearInterval(t); go(); } },40); }
+      })();
+      </script>
     </div>
     <script src="/rrg_ambience.js?v=3"></script>
     <script>

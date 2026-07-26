@@ -17,7 +17,7 @@
       { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' }
     ] },
     { grp: 'Records', color: '#7ea6d8', items: [
-      { ic: '◑', label: 'People', href: 'rrg_people.html' },
+      { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
       { ic: '◆', label: 'Deals', href: 'rrg_assignments.html' }
     ] },
@@ -79,6 +79,7 @@
     + '#rrgnav a.it.on{background:rgba(255,255,255,.12);color:#fff;font-weight:600;}'
     + '#rrgnav a.it .i{width:17px;text-align:center;color:var(--gc,rgba(255,255,255,.5));font-size:13.5px;flex:none;}'
     + '#rrgnav a.it.on .i{color:#fff;}'
+    + '#rrgnav a.it .navbadge{margin-left:auto;background:var(--red,#DA2B1F);color:#fff;font-size:10.5px;font-weight:800;min-width:19px;height:18px;line-height:18px;text-align:center;border-radius:9px;padding:0 5px;box-shadow:0 1px 3px rgba(0,0,0,.25);}'
     + '#rrgnav .foot{border-top:1px solid rgba(255,255,255,.09);padding:8px 10px;}'
     + '#rrgtop{position:fixed;top:0;left:238px;right:0;height:56px;background:#fff;border-bottom:1px solid #e9edf3;display:flex;align-items:center;gap:18px;padding:0 22px;z-index:59;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
     + '#rrgtop .pt{font-size:16.5px;font-weight:600;color:#1d2739;min-width:90px;}'
@@ -130,6 +131,7 @@
     document.body.insertBefore(nav, document.body.firstChild);
     document.body.insertBefore(top, document.body.firstChild);
     document.body.classList.add('rrg-shelled');
+    try { fetch('/api/counts',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var od=(j&&j.overdue&&j.overdue['rrg_tasks.html'])||0; if(od>0){ var tl=nav.querySelector('a.it[href="rrg_tasks.html"]'); if(tl){ tl.classList.add('rl-overdue'); tl.title=od+' overdue task'+(od===1?'':'s'); if(!tl.querySelector('.navbadge')){ var b=document.createElement('span'); b.className='navbadge'; b.textContent=od>99?'99+':String(od); tl.appendChild(b); } } } }).catch(function(){}); } catch(e){}
     // mobile burger
     var burger=document.getElementById('rrgburger'); if(window.innerWidth<=900){ burger.style.display='flex'; }
     burger && burger.addEventListener('click', function(){ nav.classList.toggle('open'); });
