@@ -4457,7 +4457,7 @@ app.post('/api/tasks', express.json(), (req, res) => {
   }
   t.title = title;
   if (typeof b.notes === 'string') t.notes = b.notes.slice(0, 4000);
-  if (typeof b.due === 'string') t.due = b.due.slice(0, 10);
+  if (typeof b.due === 'string') t.due = b.due.slice(0, 16);
   if (typeof b.priority === 'string') t.priority = TASK_PRIORITIES.indexOf(b.priority) >= 0 ? b.priority : (t.priority || 'Normal');
   if (typeof b.type === 'string') t.type = effActivityTypes().indexOf(b.type) >= 0 ? b.type : (b.type === '' ? '' : (t.type || ''));
   if (!t.priority) t.priority = 'Normal';

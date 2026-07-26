@@ -64,15 +64,15 @@ textarea{min-height:56px;resize:vertical;}
     <div class="subline">Tasks are assigned to you. Optionally link one to a contact or a project, and set a reminder.</div>
     <div class="grid">
       <div><label class="fld">Task</label><input id="t_title" placeholder="What needs doing?"></div>
-      <div><label class="fld">Due</label><input type="date" id="t_due"></div>
+      <div><label class="fld">Due (date &amp; time)</label><input type="datetime-local" id="t_due"></div>
       <div><label class="fld">Priority</label><select id="t_priority"></select></div>
       <div><label class="fld">Type</label><select id="t_type"></select></div>
     </div>
     <div class="grid2">
       <div><label class="fld">Link to</label><select id="t_linktype"><option value="">— Nothing —</option><option value="contact">Contact</option><option value="deal">Project / deal</option></select></div>
       <div><label class="fld">Which one</label><select id="t_linktarget" disabled><option value="">—</option></select></div>
-      <div><label class="fld">Reminder</label><select id="t_remsel" onchange="document.getElementById('t_reminder').style.display=this.value==='custom'?'block':'none';"><option value="">None</option><option value="10">In 10 minutes</option><option value="30">In 30 minutes</option><option value="60">In 1 hour</option><option value="1440">In 1 day</option><option value="custom">Custom time…</option></select><input type="datetime-local" id="t_reminder" style="display:none;width:100%;margin-top:6px"></div>
-      <div><label class="fld">Notify by</label><div id="t_chans" style="display:flex;gap:14px;align-items:center;padding-top:8px;font-size:13px"><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="t_chan" value="popup" checked> Pop-up</label><label id="t_chan_email_l" style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="t_chan" value="email" id="t_chan_email"> Email</label><label id="t_chan_sms_l" style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="t_chan" value="sms" id="t_chan_sms"> SMS</label></div></div>
+      <div><label class="fld">Reminder</label><select id="t_remsel" onchange="document.getElementById('t_reminder').style.display=this.value==='custom'?'block':'none';"><option value="">No reminder</option><option value="0">At due date/time</option><option value="10">10 minutes before</option><option value="30">30 minutes before</option><option value="60">1 hour before</option><option value="1440">1 day before</option><option value="custom">Custom time…</option></select><input type="datetime-local" id="t_reminder" style="display:none;width:100%;margin-top:6px"></div>
+      <div><label class="fld">Send reminder via</label><div id="t_chans" style="display:flex;gap:14px;align-items:center;padding-top:8px;font-size:13px"><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="t_chan" value="popup" checked> Pop-up</label><label id="t_chan_email_l" style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="t_chan" value="email" id="t_chan_email"> Email</label><label id="t_chan_sms_l" style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="t_chan" value="sms" id="t_chan_sms"> SMS</label></div></div>
     </div>
     <div style="margin-top:12px"><label class="fld">Notes</label><textarea id="t_notes" placeholder="Optional detail…"></textarea></div>
     <div class="btnrow">
@@ -96,7 +96,7 @@ textarea{min-height:56px;resize:vertical;}
 var TASKS=[], CONTACTS=[], DEALS=[], PRIORITIES=['Low','Normal','High'], ACTTYPES=[], EMAILREADY=false, SMSREADY=false, ME='', ISADMIN=false, EDITID='';
 var SHOW='open', SCOPE='mine';
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
-function fmt(d){ if(!d) return ''; var p=String(d).slice(0,10).split('-'); if(p.length!==3) return d; return p[1]+'/'+p[2]+'/'+p[0]; }
+function fmt(d){ if(!d) return ''; var s=String(d); var p=s.slice(0,10).split('-'); if(p.length!==3) return d; var out=p[1]+'/'+p[2]+'/'+p[0]; var t=s.slice(11,16); if(t){ var hh=parseInt(t.slice(0,2),10)||0, mm=t.slice(3,5); var ap=hh>=12?'p':'a', h12=((hh%12)||12); out+=' '+h12+':'+mm+ap; } return out; }
 function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function load(){
   fetch('/api/tasks',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
@@ -175,9 +175,9 @@ function collect(){
 }
 function applyChannelAvail(){ var e=document.getElementById('t_chan_email'), sm=document.getElementById('t_chan_sms'); if(e){ e.disabled=!EMAILREADY; var el=document.getElementById('t_chan_email_l'); if(el){ el.style.opacity=EMAILREADY?'1':'.4'; el.title=EMAILREADY?'':'Set up Email in Admin → Email'; } if(!EMAILREADY) e.checked=false; } if(sm){ sm.disabled=!SMSREADY; var sl=document.getElementById('t_chan_sms_l'); if(sl){ sl.style.opacity=SMSREADY?'1':'.4'; sl.title=SMSREADY?'':'Set up SMS in Admin → SMS (Twilio)'; } if(!SMSREADY) sm.checked=false; } }
 function channelVals(){ var out=[]; document.querySelectorAll('.t_chan').forEach(function(cb){ if(cb.checked && !cb.disabled) out.push(cb.value); }); return out; }
-function reminderVal(){ var sel=document.getElementById('t_remsel').value; if(!sel) return ''; if(sel==='custom') return document.getElementById('t_reminder').value||''; var mins=parseInt(sel,10)||0; var d=new Date(Date.now()+mins*60000); function p2(x){return String(x).padStart(2,'0');} return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+'T'+p2(d.getHours())+':'+p2(d.getMinutes()); }
+function reminderVal(){ var sel=document.getElementById('t_remsel').value; if(!sel) return ''; if(sel==='custom') return document.getElementById('t_reminder').value||''; var dv=document.getElementById('t_due').value; var base=dv?new Date(dv):new Date(); if(isNaN(base.getTime())) base=new Date(); var mins=parseInt(sel,10)||0; var d=new Date(base.getTime()-mins*60000); function p2(x){return String(x).padStart(2,'0');} return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+'T'+p2(d.getHours())+':'+p2(d.getMinutes()); }
 function clearForm(){
-  document.getElementById('t_title').value=''; document.getElementById('t_due').value=todayStr();
+  document.getElementById('t_title').value=''; document.getElementById('t_due').value=todayStr()+'T09:00';
   var _rs=document.getElementById('t_remsel'); if(_rs)_rs.value=''; var _rr=document.getElementById('t_reminder'); _rr.style.display='none'; _rr.value=''; document.querySelectorAll('.t_chan').forEach(function(cb){ cb.checked=(cb.value==='popup'||cb.value==='email'); }); applyChannelAvail(); document.getElementById('t_notes').value='';
   document.getElementById('t_linktype').value=''; fillTargets('','');
   fillSelects(); EDITID=''; document.getElementById('formTitle').textContent='New task';
@@ -193,7 +193,7 @@ function save(){
 }
 function startEdit(id){
   var t=TASKS.filter(function(x){return x.id===id;})[0]; if(!t) return;
-  document.getElementById('t_title').value=t.title||''; document.getElementById('t_due').value=t.due||'';
+  document.getElementById('t_title').value=t.title||''; document.getElementById('t_due').value=(t.due?(t.due.length>10?t.due.slice(0,16):t.due+'T09:00'):'');
   var _es=document.getElementById('t_remsel'); if(_es)_es.value=t.reminder?'custom':''; var _er=document.getElementById('t_reminder'); _er.style.display=t.reminder?'block':'none'; _er.value=t.reminder?t.reminder.slice(0,16):''; var chs=(t.remChannels&&t.remChannels.length)?t.remChannels:(t.remChannel==='email'?['email']:t.remChannel==='popup'?['popup']:['popup','email']); document.querySelectorAll('.t_chan').forEach(function(cb){ cb.checked=chs.indexOf(cb.value)>=0; }); applyChannelAvail(); document.getElementById('t_notes').value=t.notes||'';
   fillSelects(); document.getElementById('t_priority').value=t.priority||'Normal'; var _ty=document.getElementById('t_type'); if(_ty) _ty.value=t.type||'';
   document.getElementById('t_linktype').value=t.linkType||''; fillTargets(t.linkType||'',t.linkId||'');
