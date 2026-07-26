@@ -135,10 +135,10 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
-<!--rrgback--><a href="./rrg_assignments.html" class="rrg-back" aria-label="Back to deals" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Deals</a>
+<!--rrgback--><a href="./rrg_companies.html" class="rrg-back" aria-label="Back to companies" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Companies</a>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-  <div class="crumb"><a href="./rrg_assignments.html">Deals</a> &nbsp;›&nbsp; <span id="crumb">Company</span></div>
+  <div class="crumb"><a href="./rrg_companies.html">Companies</a> &nbsp;›&nbsp; <span id="crumb">Company</span></div>
   <h1 id="h1">Company</h1>
   <div class="subline" id="subline"></div>
 </div></div>
@@ -255,15 +255,15 @@ function render(){
       + '<div class="fldrow"><label class="fld">Name</label><input id="c_name" value="'+esc(C.name||'')+'"></div>'
       + '<div class="fldrow"><label class="fld">Type</label><select id="c_type">'+ctsel+'</select></div>'
       + '<div class="fldrow"><label class="fld">Tags</label><input id="c_tags" value="'+esc((C.tags&&C.tags.length)?C.tags.join(', '):'')+'" placeholder="Comma-separated, e.g. franchisor, multi-unit, target"></div>'
-      + '<div class="fldrow"><label class="fld">Logo</label><div class="logorow2"><div class="logoprev2" id="c_logoprev"></div><div style="flex:1;min-width:0"><input id="c_logo" value="'+esc(C.logo||'')+'" placeholder="Logo URL — or use the website"><div style="margin-top:6px"><button type="button" class="mfadd" id="c_logoauto">Use website logo</button></div></div></div></div>'
+      + '<div class="fldrow"><label class="fld">Logo</label><div class="logorow2"><div class="logoprev2" id="c_logoprev"></div><div style="flex:1;min-width:0"><input id="c_logo" value="'+esc(C.logo||'')+'" placeholder="Logo URL — or use the website"><div style="margin-top:6px"><button type="button" class="mfadd" id="c_logoup">Upload logo</button> <button type="button" class="mfadd" id="c_logoauto">Use website logo</button><input type="file" id="c_logofile" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" style="display:none"></div></div></div></div>'
       + '<div class="fldrow"><label class="fld">Markets</label><div class="mkline">'+((markets&&markets.length)?markets.map(esc).join(' · '):'<span class="mkempty">Set on each concept below</span>')+'</div></div>'
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="c_notes" placeholder="Ownership, history, relationships, anything worth remembering…">'+esc(C.notes||'')+'</textarea></div>'
       + '<div class="officebox">'
         + '<div class="officehd">Corporate office</div>'
-        + '<div class="fldrow"><label class="fld">Address</label><input id="o_address" value="'+esc((C.office&&C.office.address)||'')+'" placeholder="Street address"></div>'
-        + '<div class="fldrow2c"><div><label class="fld">City</label><input id="o_city" value="'+esc((C.office&&C.office.city)||'')+'"></div><div><label class="fld">State</label><input id="o_state" value="'+esc((C.office&&C.office.state)||'')+'" placeholder="TX"></div></div>'
+        + '<div class="fldrow"><label class="fld">Address</label><input id="o_address" value="'+esc((C.office&&C.office.address)||'')+'"></div>'
+        + '<div class="fldrow2c"><div><label class="fld">City</label><input id="o_city" value="'+esc((C.office&&C.office.city)||'')+'"></div><div><label class="fld">State</label><input id="o_state" value="'+esc((C.office&&C.office.state)||'')+'"></div></div>'
         + '<div class="fldrow2c"><div><label class="fld">Phone</label><input id="o_phone" value="'+esc((C.office&&C.office.phone)||'')+'"></div><div><label class="fld">Email</label><input id="o_email" value="'+esc((C.office&&C.office.email)||'')+'"></div></div>'
-        + '<div class="fldrow"><label class="fld">Website</label><input id="o_website" value="'+esc((C.office&&C.office.website)||'')+'" placeholder="company.com"></div>'
+        + '<div class="fldrow"><label class="fld">Website</label><input id="o_website" value="'+esc((C.office&&C.office.website)||'')+'"></div>'
       + '</div>'
       + '<button class="savebtn" id="c_save" disabled>Save changes</button><div class="saved" id="c_saved">Saved ✓</div>'
       + (IS_ADMIN?('<div class="dangerz"><button class="delco" id="c_delete">Delete company</button><div class="dangernote">Admin only. Permanently removes this company, its concepts, all locations &amp; photos, and every deal tied to it — records, data rooms, and files. Contacts are kept. Cannot be undone.</div></div>'):'')
@@ -272,6 +272,8 @@ function render(){
   (function(){ function draw(){ var p=document.getElementById('c_logoprev'); if(!p) return; var u=(document.getElementById('c_logo').value||'').trim()||(LOGOAUTO||''); p.innerHTML=u?('<img src="'+esc(u)+'" onerror="this.parentNode.innerHTML=&quot;<span class=\'comono\'>'+esc((C.name||'?').charAt(0).toUpperCase())+'</span>&quot;">'):('<span class="comono">'+esc((C.name||'?').charAt(0).toUpperCase())+'</span>'); }
     var li=document.getElementById('c_logo'); if(li) li.addEventListener('input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
     var la=document.getElementById('c_logoauto'); if(la) la.addEventListener('click',function(){ var d=(document.getElementById('o_website').value||'').replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0]; document.getElementById('c_logo').value=d?('https://logo.clearbit.com/'+d):''; DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
+    var lup=document.getElementById('c_logoup'), lf=document.getElementById('c_logofile');
+    if(lup&&lf){ lup.addEventListener('click',function(){ lf.click(); }); lf.addEventListener('change',function(){ var f=lf.files&&lf.files[0]; if(!f) return; if(f.size>6*1024*1024){ alert('Image is over 6 MB — please use a smaller file.'); lf.value=''; return; } var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s); fetch('/api/company/'+encodeURIComponent(ID)+'/logo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:b64})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.logo){ C.logo=j.logo; document.getElementById('c_logo').value=j.logo; draw(); } else { alert((j&&j.error)||'Could not upload the logo.'); } lf.value=''; }).catch(function(){ alert('Could not reach the server.'); lf.value=''; }); }; rd.readAsDataURL(f); }); }
     draw();
   })();
   document.getElementById('c_save').addEventListener('click',saveCompany);
@@ -601,10 +603,10 @@ function saveCompany(){
 }
 window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(); e.returnValue=''; } });
 function load(){
-  if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No company selected. <a href="./rrg_assignments.html">Back to deals →</a></div>'; return; }
+  if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No company selected. <a href="./rrg_companies.html">Back to companies →</a></div>'; return; }
   fetch('/api/company/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
     .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; HASMAPS=!!j.hasMaps; render(); })
-    .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this company.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
+    .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this company.')+'<br><br><a href="./rrg_companies.html" style="color:#000E31;font-weight:700">← Back to companies</a></div>'; });
 }
 load();
 </script>

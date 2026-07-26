@@ -727,7 +727,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path)) return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path)) return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -3222,6 +3222,40 @@ app.get('/api/cptlogo/:name', (req, res) => {
   res.setHeader('Cache-Control', 'private, max-age=3600');
   fs.createReadStream(fp).pipe(res);
 });
+// ---- Company logo upload (uploaded file, stored on disk; mirrors concept logo) ----
+const COLOGO_DIR = path.join(BOV_DATA_DIR, 'cologos');
+app.post('/api/company/:id/logo', express.json({ limit: '8mb' }), (req, res) => {
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const dataB64 = String((req.body && req.body.dataB64) || '').replace(/^data:[^,]*,/, '');
+  if (!dataB64) return res.status(400).json({ ok: false, error: 'No image data.' });
+  const ext = photoExtFromName((req.body && req.body.filename) || '');
+  const buf = Buffer.from(dataB64, 'base64');
+  if (buf.length > 6 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 6 MB).' });
+  try { if (!fs.existsSync(COLOGO_DIR)) fs.mkdirSync(COLOGO_DIR, { recursive: true }); fs.writeFileSync(path.join(COLOGO_DIR, c.id + '.' + ext), buf); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the logo.' }); }
+  c.logoExt = ext; c.logo = '/api/cologo/' + c.id + '.' + ext + '?v=' + Date.now(); c.updatedAt = new Date().toISOString();
+  saveCompanies(arr);
+  res.json({ ok: true, logo: c.logo });
+});
+app.post('/api/company/:id/logo/clear', express.json(), (req, res) => {
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  if (c.logoExt) { try { fs.unlinkSync(path.join(COLOGO_DIR, c.id + '.' + c.logoExt)); } catch (e) {} c.logoExt = ''; }
+  c.logo = ''; c.updatedAt = new Date().toISOString(); saveCompanies(arr);
+  res.json({ ok: true });
+});
+app.get('/api/cologo/:name', (req, res) => {
+  const name = path.basename(String(req.params.name || ''));
+  if (!/^co_[\w]+\.(png|jpg|jpeg|webp|gif|svg)$/.test(name)) return res.status(400).end();
+  const fp = path.join(COLOGO_DIR, name);
+  if (!fp.startsWith(COLOGO_DIR) || !fs.existsSync(fp)) return res.status(404).end();
+  const ext = name.split('.').pop();
+  res.setHeader('Content-Type', ext === 'png' ? 'image/png' : (ext === 'svg' ? 'image/svg+xml' : (ext === 'webp' ? 'image/webp' : (ext === 'gif' ? 'image/gif' : 'image/jpeg'))));
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  fs.createReadStream(fp).pipe(res);
+});
+
 app.post('/api/company/:id/concept/:cid/remove', express.json(), (req, res) => {
   const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
