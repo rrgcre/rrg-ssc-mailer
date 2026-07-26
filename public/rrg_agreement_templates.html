@@ -90,6 +90,7 @@ function render(){
       (e.id?('<div style="margin-top:16px"><label class="fld">Template document</label><div class="uprow">'+
           (e.fileExt?('<span class="file-ok">📎 '+esc(e.fileName||'document')+'</span> <a class="btn ghost sm" href="/api/agreement-templates/'+esc(e.id)+'/file" target="_blank" rel="noopener">View</a>'):'<span class="file-no">No document uploaded yet</span>')+
           '<label class="filelabel">⤒ '+(e.fileExt?'Replace file':'Upload file')+'<input type="file" id="t_file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label>'+
+          (e.fileExt==='pdf'?(' <a class="btn sm" style="background:#0e8a5f;border-color:#0e8a5f" href="/rrg_sign_designer.html?template='+esc(e.id)+'">✍ Design fields on the PDF</a>'):'')+
         '</div><div class="note">PDF or Word, up to 20 MB. This is the document the signer reviews.</div></div>'):
         '<div class="note" style="margin-top:14px">Save the template first, then you can upload its document.</div>')+
       '<div class="btnrow"><button class="btn red" id="t_save">'+(e.id?'Save changes':'Create template')+'</button><span class="msg" id="t_msg"></span></div>'+
@@ -100,9 +101,11 @@ function render(){
       (t.type?('<span class="pilltype">'+esc(typeLabel(t.type))+'</span>'):'')+
       (t.fileExt?('<span class="file-ok">📎 '+esc(t.fileName||('document.'+t.fileExt))+'</span>'):'<span class="file-no">no document</span>')+
       '<span>'+((t.signFields||[]).length)+' field'+(((t.signFields||[]).length)===1?'':'s')+'</span>'+
+      ((t.pdfFields&&t.pdfFields.length)?('<span class="pilltype" style="background:#eef7f0;color:#0e7a53">'+t.pdfFields.length+' placed · '+(t.signerCount===2?'2 signers':'1 signer')+'</span>'):'')+
       '<span class="status '+(t.active?'on':'off')+'">'+(t.active?'Active':'Inactive')+'</span>'+
       '</div></div><span class="sp"></span><div class="acts">'+
       (t.fileExt?('<a class="btn ghost sm" href="/api/agreement-templates/'+esc(t.id)+'/file" target="_blank" rel="noopener">View</a>'):'')+
+      (t.fileExt==='pdf'?('<a class="btn ghost sm" href="/rrg_sign_designer.html?template='+esc(t.id)+'">Design fields</a>'):'')+
       '<button class="btn ghost sm" data-edit="'+esc(t.id)+'">Edit</button>'+
       '<button class="btn danger sm" data-del="'+esc(t.id)+'">Delete</button></div></div>';
   }).join('') : '<div class="empty">No templates yet. Create your first standard agreement above.</div>';

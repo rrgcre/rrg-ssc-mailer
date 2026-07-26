@@ -199,6 +199,7 @@ function effPersonTypes() { const s = loadSettings(); return (Array.isArray(s.pe
 function effLeadSources() { const s = loadSettings(); return (Array.isArray(s.leadSources) && s.leadSources.length) ? s.leadSources : LEAD_SOURCES; }
 function effActivityTypes() { const s = loadSettings(); return (Array.isArray(s.activityTypes) && s.activityTypes.length) ? s.activityTypes : ACTIVITY_TYPES; }
 function effCuisineTypes() { const s = loadSettings(); return (Array.isArray(s.cuisineTypes) && s.cuisineTypes.length) ? s.cuisineTypes : CUISINE_TYPES; }
+function effMaxPullLocations() { const s = loadSettings(); const n = parseInt(s.maxPullLocations, 10); return (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
 function newActivityId() { return 'act_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function logActivity(p, type, note, o) {
   o = o || {};
@@ -2811,22 +2812,23 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(),
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(),
     defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, cuisineTypes: CUISINE_TYPES },
     isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), cuisineTypes: Array.isArray(s.cuisineTypes) },
   });
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.maxPullLocations; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations() }); }
   if (b.personTypes !== undefined) s.personTypes = cleanStrList(b.personTypes, 40, 60) || [];
   if (b.companyTypes !== undefined) s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || [];
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
   if (b.leadSources !== undefined) s.leadSources = cleanStrList(b.leadSources, 40, 60) || [];
   if (b.activityTypes !== undefined) s.activityTypes = cleanStrList(b.activityTypes, 40, 60) || [];
   if (b.cuisineTypes !== undefined) s.cuisineTypes = cleanStrList(b.cuisineTypes, 40, 60) || [];
+  if (b.maxPullLocations !== undefined) { const n = parseInt(b.maxPullLocations, 10); s.maxPullLocations = (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
@@ -3057,11 +3059,14 @@ app.post('/api/company/:id/find-locations', express.json(), async (req, res) => 
     }
     if (!concept) return res.status(400).json({ ok: false, error: 'A concept is required.' });
     if (!website) return res.status(400).json({ ok: false, error: 'This concept has no website set — add one to the concept first.' });
-    const result = await locationgen.findLocations({ company: c.name, concept, website, count, systemPrompt: loadLocPromptCustom() || undefined });
+    const _cap = effMaxPullLocations();
+    const _rc = parseInt(count, 10);
+    const _useCount = String((isFinite(_rc) && _rc > 0) ? Math.min(_rc, _cap) : _cap);
+    const result = await locationgen.findLocations({ company: c.name, concept, website, count: _useCount, systemPrompt: loadLocPromptCustom() || undefined });
     const now = new Date().toISOString();
     c.locations = c.locations || [];
     const created = [];
-    (result.locations || []).forEach(l => {
+    (result.locations || []).slice(0, effMaxPullLocations()).forEach(l => {
       // Skip obvious duplicates (same concept + address already present).
       const dupe = c.locations.some(x => (x.concept || '') === concept && normKey(x.address || '') && normKey(x.address || '') === normKey(l.address || ''));
       if (dupe) return;
@@ -4646,7 +4651,7 @@ function loadTemplates() { try { return JSON.parse(fs.readFileSync(TEMPLATES_FIL
 function saveTemplates(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(TEMPLATES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newTemplateId() { return 'tpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function cleanSignFields(arr) { if (!Array.isArray(arr)) return []; return arr.map(f => ({ label: String((f && f.label) || '').slice(0, 80), required: !!(f && f.required) })).filter(f => f.label).slice(0, 12); }
-function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], active: t.active !== false, updatedAt: t.updatedAt || '', createdAt: t.createdAt || '' }; }
+function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: t.signerCount === 2 ? 2 : 1, signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', active: t.active !== false, updatedAt: t.updatedAt || '', createdAt: t.createdAt || '' }; }
 app.get('/api/agreement-templates', (req, res) => {
   const isAdmin = !!(req.user && req.user.role === 'admin');
   let all = loadTemplates().map(templateBrief);
@@ -4692,6 +4697,32 @@ app.delete('/api/admin/agreement-templates/:id', requireAdmin, (req, res) => {
   if (t.fileExt) { try { fs.unlinkSync(path.join(AGREEMENT_TPL_DIR, t.id + '.' + t.fileExt)); } catch (e) {} }
   saveTemplates(all.filter(x => x.id !== t.id)); res.json({ ok: true });
 });
+function clamp01(v) { v = parseFloat(v); if (!isFinite(v)) return 0; return Math.max(0, Math.min(1, v)); }
+function cleanPdfFields(arr) {
+  if (!Array.isArray(arr)) return [];
+  const T = ['text', 'signature', 'checkbox', 'date', 'initials'];
+  return arr.slice(0, 200).map(f => ({
+    id: String((f && f.id) || ('f' + Math.random().toString(36).slice(2, 8))).slice(0, 40),
+    page: Math.max(0, Math.min(999, parseInt((f && f.page) || 0, 10) || 0)),
+    x: clamp01(f && f.x), y: clamp01(f && f.y), w: clamp01(f && f.w) || 0.18, h: clamp01(f && f.h) || 0.03,
+    type: T.indexOf(String(f && f.type)) >= 0 ? String(f.type) : 'text',
+    signer: (parseInt((f && f.signer), 10) === 2) ? 2 : 1,
+    label: String((f && f.label) || '').slice(0, 80),
+    required: !!(f && f.required),
+    autofill: String((f && f.autofill) || '').slice(0, 20)
+  }));
+}
+app.post('/api/admin/agreement-templates/:id/fields', requireAdmin, express.json({ limit: '1mb' }), (req, res) => {
+  const all = loadTemplates(); const t = all.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' });
+  const b = req.body || {};
+  if (b.pdfFields !== undefined) t.pdfFields = cleanPdfFields(b.pdfFields);
+  if (b.signerCount !== undefined) t.signerCount = (parseInt(b.signerCount, 10) === 2) ? 2 : 1;
+  if (typeof b.signer1Label === 'string') t.signer1Label = b.signer1Label.slice(0, 60);
+  if (typeof b.signer2Label === 'string') t.signer2Label = b.signer2Label.slice(0, 60);
+  t.updatedAt = new Date().toISOString(); saveTemplates(all);
+  res.json({ ok: true, template: templateBrief(t) });
+});
 app.post('/api/agreements/:id/apply-template', express.json(), (req, res) => {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
@@ -4706,6 +4737,10 @@ app.post('/api/agreements/:id/apply-template', express.json(), (req, res) => {
   } catch (e) { return res.status(500).json({ ok: false, error: 'Could not copy the template document.' }); }
   a.docExt = t.fileExt; a.docName = t.fileName || ('template.' + t.fileExt);
   a.templateId = t.id; a.templateName = t.name || '';
+  a.pdfFields = Array.isArray(t.pdfFields) ? t.pdfFields : [];
+  a.signerCount = t.signerCount === 2 ? 2 : 1;
+  a.signer1Label = t.signer1Label || 'Signer 1';
+  a.signer2Label = t.signer2Label || 'Signer 2';
   if (Array.isArray(t.signFields) && t.signFields.length) a.signFields = t.signFields;
   if (t.type && AGREEMENT_TYPE_KEYS.indexOf(t.type) >= 0) a.type = t.type;
   a.updatedAt = new Date().toISOString(); saveAgreements(all);
