@@ -256,9 +256,11 @@ h1{position:relative;z-index:2;font-size:23px;font-weight:800;letter-spacing:-.0
     <div class="qlhd">
       <div class="sectionlabel" style="margin:0">Quick Links <span style="font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted);font-size:11px;margin-left:6px">— sites the team uses</span></div>
       <button type="button" id="qlEditBtn" class="qlreorder" style="display:none">Reorder</button>
+      <button type="button" id="qlHideBtn" class="qlreorder" onclick="setQlHidden(true)" title="Hide quick links for you">Hide</button>
     </div>
     <div class="ql" id="qlGrid" style="margin:14px 0 30px"></div>
   </div>
+  <div id="qlShow" style="display:none;margin:2px 2px 26px"><a href="#" class="qlreorder" style="text-decoration:none" onclick="setQlHidden(false);return false;">+ Show quick links</a></div>
   <a id="reqWidget" href="./rrg_tickets.html" style="display:none"></a>
   <div id="grid"></div>
 </div>
@@ -699,10 +701,15 @@ function loadQuickLinks(){
     .catch(function(){ renderQuickLinks(); });
 }
 function qlCanMove(l){ return l && (l.scope==='personal' || (l.scope==='default' && QL_CANADMIN)); }
+function qlHidden(){ try{ return localStorage.getItem('rrg_hideQL')==='1'; }catch(e){ return false; } }
+function setQlHidden(v){ try{ localStorage.setItem('rrg_hideQL', v?'1':'0'); }catch(e){} renderQuickLinks(); }
 function renderQuickLinks(){
   var wrap=document.getElementById('qlWrap'), grid=document.getElementById('qlGrid'), btn=document.getElementById('qlEditBtn');
   if(QL_SHOW===false){ if(wrap) wrap.style.display='none'; return; }
-  if(!QL_LINKS.length){ if(wrap) wrap.style.display='none'; return; }
+  if(!QL_LINKS.length){ if(wrap) wrap.style.display='none'; var sb0=document.getElementById('qlShow'); if(sb0) sb0.style.display='none'; return; }
+  var showBar=document.getElementById('qlShow');
+  if(qlHidden()){ if(wrap) wrap.style.display='none'; if(showBar) showBar.style.display=''; return; }
+  if(showBar) showBar.style.display='none';
   if(wrap) wrap.style.display='';
   var movable=QL_LINKS.filter(qlCanMove).length;
   if(btn){ btn.style.display=(QL_LINKS.length>=2 && movable>=2)?'':'none'; btn.classList.toggle('on',QL_EDIT); btn.textContent=QL_EDIT?'Done':'Reorder'; }
