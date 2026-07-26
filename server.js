@@ -1799,6 +1799,14 @@ const PALETTE_DEFAULT = { primary: '#000E31', accent: '#DA2B1F', sidebar: '#0b1a
 function isHexColor(v) { return /^#[0-9a-fA-F]{6}$/.test(String(v || '')); }
 function effPalette() { const b = loadBrand(); const pl = (b.palette && typeof b.palette === 'object') ? b.palette : {}; return { primary: isHexColor(pl.primary) ? pl.primary : PALETTE_DEFAULT.primary, accent: isHexColor(pl.accent) ? pl.accent : PALETTE_DEFAULT.accent, sidebar: isHexColor(pl.sidebar) ? pl.sidebar : PALETTE_DEFAULT.sidebar, positive: isHexColor(pl.positive) ? pl.positive : PALETTE_DEFAULT.positive }; }
 app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), palette: effPalette() }));
+app.get('/api/feed', (req, res) => {
+  let people = loadPeople();
+  if (restrictToOwn(req)) people = people.filter(p => permOwnerMatch(req, p.by));
+  const items = [];
+  people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { items.push({ type: a.type || 'Note', note: a.note || '', at: a.date || a.at || '', by: a.by || '', auto: !!a.auto, personId: p.id, personName: p.name || 'Contact', company: p.company || '' }); }); });
+  items.sort((x, y) => String(y.at).localeCompare(String(x.at)));
+  res.json({ ok: true, items: items.slice(0, 200) });
+});
 app.get('/api/admin/palette', requireAdmin, (req, res) => res.json({ ok: true, palette: effPalette(), defaults: PALETTE_DEFAULT }));
 app.post('/api/admin/palette', requireAdmin, express.json(), (req, res) => {
   const bd = req.body || {};
