@@ -8,6 +8,8 @@
   if (/\/login/.test(path) || file === 'login' ) return;
   if (document.querySelector('meta[name="rrg-noshell"]')) return;
   window.__rrgShell = true;
+  // Global phone formatting — any phone field, 10 digits -> (xxx) xxx-xxxx
+  try { document.addEventListener("input", function(e){ var t=e.target; if(!t||t.tagName!=="INPUT") return; var key=((t.id||"")+" "+(t.name||"")+" "+(t.className||"")).toLowerCase(); if(t.type==="tel" || /phone/.test(key)){ var d=String(t.value||"").replace(/\D/g,"").slice(0,10); var f = d.length<4 ? d : (d.length<7 ? "("+d.slice(0,3)+") "+d.slice(3) : "("+d.slice(0,3)+") "+d.slice(3,6)+"-"+d.slice(6)); if(f!==t.value){ t.value=f; } } }); } catch(e){}
 
   var NAV = [
     { items: [
