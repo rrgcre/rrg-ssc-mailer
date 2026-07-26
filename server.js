@@ -2205,25 +2205,29 @@ ${inner.head}</div></div>
 }
 function roomPublicPage(r, grant) {
   const docs = (r.docs || []);
-  const level = grant ? (grant.level || 'download') : 'download';
-  const canDl = level !== 'view';
-  const canUp = level === 'edit';
-  const lvlLabel = level === 'view' ? 'View only' : (level === 'edit' ? 'View, download & upload' : 'View & download');
+  const catLevel = cat => grant ? effGrantLevel(grant, cat) : 'download';
+  const editCats = ROOM_CATEGORIES.filter(c => catLevel(c) === 'edit');
+  const visibleCats = ROOM_CATEGORIES.filter(c => catLevel(c) !== 'none');
+  const visCount = docs.filter(d => catLevel(d.category || 'Other') !== 'none').length;
+  const lvlLabel = grant ? (editCats.length ? 'You can view, download & upload in some folders' : 'Folder-level access set by RRG') : '';
   const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · ${esc(lvlLabel)} · session ends after 15 min idle</div>` : '';
-  const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${docs.length} document${docs.length === 1 ? '' : 's'} · Provided by Restaurant Realty Group under NDA</div>${who}`;
+  const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${visCount} document${visCount === 1 ? '' : 's'} · Provided by Restaurant Realty Group under NDA</div>${who}`;
   let body = '';
-  if (canUp) {
+  if (editCats.length) {
     body += `<div class="card"><div class="chd">Add a document</div><div style="padding:14px 20px">` +
-      `<div class="note" style="border:none;padding:0;margin:0 0 10px">You can contribute documents to this room (e.g. proof of funds or a signed NDA). PDF, Word, Excel, images, or text — up to 20 MB.</div>` +
+      `<div class="note" style="border:none;padding:0;margin:0 0 10px">You can contribute documents to the folders you have upload rights to (e.g. proof of funds or a signed NDA). PDF, Word, Excel, images, or text — up to 20 MB.</div>` +
+      `<select id="bupcat" style="padding:8px 10px;border:1px solid #cfd6e2;border-radius:8px;font:inherit;margin-right:8px">` + editCats.map(c => `<option>${esc(c)}</option>`).join('') + `</select>` +
       `<input type="file" id="bup" style="display:none"><button class="dl" style="border:none;cursor:pointer" onclick="document.getElementById('bup').click()">Choose a file to add</button> <span id="bupmsg" style="font-size:12px;color:var(--muted)"></span>` +
       `</div></div>`;
   }
-  if (!docs.length) {
+  if (!visCount) {
     body += '<div class="card"><div class="empty"><b>Documents are being prepared.</b><br>Your RRG contact will let you know as materials are added.</div></div>';
   } else {
-    body += ROOM_CATEGORIES.map(cat => {
+    body += visibleCats.map(cat => {
       const inCat = docs.filter(d => (d.category || 'Other') === cat);
       if (!inCat.length) return '';
+      const lvl = catLevel(cat);
+      const canDl = lvl !== 'view';
       return `<div class="card"><div class="chd">${esc(cat)}<span class="n">${inCat.length}</span></div>` +
         inCat.map(d => {
           const href = '/roomfile/' + esc(r.token) + '/' + esc(d.id) + (canDl ? '?dl=1' : '');
@@ -2233,7 +2237,7 @@ function roomPublicPage(r, grant) {
         `</div>`;
     }).join('');
   }
-  const script = canUp ? `<script>(function(){var fi=document.getElementById('bup');if(!fi)return;fi.addEventListener('change',function(){var f=fi.files&&fi.files[0];var m=document.getElementById('bupmsg');if(!f)return;if(f.size>20*1024*1024){m.textContent='That file is over 20 MB.';fi.value='';return;}m.textContent='Uploading '+f.name+'…';var rd=new FileReader();rd.onload=function(){var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s);fetch(location.pathname.replace(/\/+$/,'')+'/upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:b64})}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok){m.textContent='Added ✓ — reloading…';setTimeout(function(){location.reload();},700);}else{m.textContent=(j&&j.error)||'Upload failed.';fi.value='';}}).catch(function(){m.textContent='Upload failed.';fi.value='';});};rd.readAsDataURL(f);});})();<\/script>` : '';
+  const script = editCats.length ? `<script>(function(){var fi=document.getElementById('bup');if(!fi)return;fi.addEventListener('change',function(){var f=fi.files&&fi.files[0];var m=document.getElementById('bupmsg');if(!f)return;if(f.size>20*1024*1024){m.textContent='That file is over 20 MB.';fi.value='';return;}m.textContent='Uploading '+f.name+'…';var rd=new FileReader();rd.onload=function(){var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s);var cat=(document.getElementById('bupcat')||{}).value||'';fetch(location.pathname.replace(/\/+$/,'')+'/upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:b64,category:cat})}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok){m.textContent='Added ✓ — reloading…';setTimeout(function(){location.reload();},700);}else{m.textContent=(j&&j.error)||'Upload failed.';fi.value='';}}).catch(function(){m.textContent='Upload failed.';fi.value='';});};rd.readAsDataURL(f);});})();<\/script>` : '';
   return roomShell('RRG Data Room — ' + (r.business || 'Confidential'), { head, body: body + script });
 }
 

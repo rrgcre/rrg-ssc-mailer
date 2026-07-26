@@ -62,11 +62,11 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 
   <div class="card"><div class="cbody">
     <h2>Buyers &amp; access</h2>
-    <div class="h">Give each buyer their own access code and set what they can do: <b>view only</b>, <b>download</b>, or <b>upload</b> (contribute documents). Adding a buyer locks the room so a personal code is required &mdash; the shared link alone stops working.</div>
+    <div class="h">Give each buyer their own access code, then set exactly what they can do <b>in each folder</b> using the grid below &mdash; no access, view, download, or upload. The level you pick here is their starting point for every folder; fine-tune per folder after adding. Adding a buyer locks the room so a personal code is required &mdash; the shared link alone stops working.</div>
     <div class="up">
       <div class="fld"><label>Buyer name</label><input type="text" id="bName" placeholder="e.g. Jane Smith / ABC Capital"></div>
       <div class="fld"><label>Email (optional)</label><input type="text" id="bEmail" placeholder="jane@abccapital.com"></div>
-      <div class="fld"><label>Access level</label><select id="bLevel"><option value="view">View only</option><option value="download" selected>View &amp; download</option><option value="edit">View, download &amp; upload</option></select></div>
+      <div class="fld"><label>Starting access</label><select id="bLevel"><option value="view">View only</option><option value="download" selected>View &amp; download</option><option value="edit">View, download &amp; upload</option></select></div>
       <div class="fld"><button class="btn green" onclick="addBuyer()">Add buyer</button></div>
     </div>
     <div class="umsg" id="bmsg"></div>
@@ -123,17 +123,34 @@ function renderLog(){
   if(!a.length){ el.innerHTML='<div class="logrow" style="border-top:none">No buyer activity yet.</div>'; return; }
   el.innerHTML=a.map(function(x){ return '<div class="logrow"><span class="ev">'+esc(x.event==='download'?'Download':'View')+'</span><span class="when">'+esc(fmtWhen(x.at))+'</span><span style="flex:1">'+esc(x.doc||'—')+'</span><span>'+esc(x.ip||'')+'</span></div>'; }).join('');
 }
-function levelName(l){ return l==='view'?'View only':(l==='edit'?'View, download & upload':'View & download'); }
+var CELL_ORDER=['none','view','download','edit'];
+function levelInfo(l){
+  if(l==='none') return {t:'No access', bg:'#f2f4f8', fg:'#9aa3b5'};
+  if(l==='view') return {t:'View', bg:'#eef4ff', fg:'#2f5bd0'};
+  if(l==='edit') return {t:'Edit', bg:'#0b1a3a', fg:'#ffffff'};
+  return {t:'Download', bg:'#dbe7ff', fg:'#123a8a'};
+}
+function effLevel(g,cat){ var cp=g.catPerms&&g.catPerms[cat]; return (CELL_ORDER.indexOf(cp)>=0)?cp:(g.level||'download'); }
+function nextLevel(l){ var i=CELL_ORDER.indexOf(l); return CELL_ORDER[(i+1)%CELL_ORDER.length]; }
 function renderGrants(){
   var el=document.getElementById('buyerList'); if(!el) return;
-  var gs=(ROOM.grants||[]);
-  if(!gs.length){ el.innerHTML='<div class="catempty">No individual buyers yet — the room is open to anyone with the link (view &amp; download). Add a buyer to switch on per-person codes.</div>'; return; }
-  el.innerHTML=gs.map(function(g){
-    var opts=['view','download','edit'].map(function(l){ return '<option value="'+l+'"'+(((g.level||'download')===l)?' selected':'')+'>'+esc(levelName(l))+'</option>'; }).join('');
-    return '<div class="docrow"><div style="flex:1"><div class="dt">'+esc(g.name||g.email||'Buyer')+(g.active?'':' <span style="color:#b23a2c;font-weight:700">(revoked)</span>')+'</div><div class="dm">Code <b>'+esc(g.code)+'</b>'+(g.email?(' · '+esc(g.email)):'')+' · '+(g.downloads||0)+' download'+((g.downloads===1)?'':'s')+'</div></div>'
-      +'<select onchange="setLevel(\''+g.id+'\',this.value)" style="margin-right:8px;padding:6px 8px;border:1px solid #cfd6e2;border-radius:7px;font:inherit;font-size:12px">'+opts+'</select>'
-      +'<button class="x" onclick="toggleGrant(\''+g.id+'\')">'+(g.active?'Revoke':'Restore')+'</button></div>';
+  var gs=(ROOM.grants||[]), cats=(ROOM.categories||[]);
+  if(!gs.length){ el.innerHTML='<div class="catempty">No individual buyers yet — the room is open to anyone with the link (view &amp; download). Add a buyer to switch on per-person, per-folder access.</div>'; return; }
+  var head='<tr><th style="text-align:left;padding:8px 10px;font-size:11px;color:#6b7488;position:sticky;left:0;background:#fff">Folder</th>'+gs.map(function(g){ return '<th style="padding:8px 10px;min-width:118px;font-size:12px;color:#0b1a3a;'+(g.active?'':'opacity:.5')+'">'+esc(g.name||g.email||'Buyer')+'<div style="font-weight:500;color:#6b7488;font-size:10.5px;margin-top:2px">Code '+esc(g.code)+'</div><button class="x" style="margin-top:4px" onclick="toggleGrant(\''+g.id+'\')">'+(g.active?'Revoke':'Restore')+'</button></th>'; }).join('')+'</tr>';
+  var rows=cats.map(function(cat,ci){
+    return '<tr><td style="padding:7px 10px;font-size:12.5px;font-weight:600;color:#0b1a3a;border-top:1px solid #eef0f5;position:sticky;left:0;background:#fff">'+esc(cat)+'</td>'+gs.map(function(g){
+      var lv=effLevel(g,cat), info=levelInfo(lv);
+      return '<td style="padding:6px;text-align:center;border-top:1px solid #eef0f5"><button title="Click to change access" onclick="cycleCell(\''+g.id+'\','+ci+',\''+lv+'\')" style="cursor:pointer;border:1px solid rgba(0,0,0,.08);border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;min-width:80px;background:'+info.bg+';color:'+info.fg+'">'+info.t+'</button></td>';
+    }).join('')+'</tr>';
   }).join('');
+  el.innerHTML='<div style="overflow-x:auto;margin-top:8px;border:1px solid #eef0f5;border-radius:10px"><table style="border-collapse:collapse;width:100%">'+head+rows+'</table></div>'
+    +'<div class="h" style="margin-top:10px">Click any cell to cycle its access: <b>No access</b> &rarr; <b>View</b> &rarr; <b>Download</b> &rarr; <b>Edit</b>. View lets the buyer preview that folder&rsquo;s files but not download them; Edit also lets them upload into that folder. Each buyer&rsquo;s starting level comes from the level you picked when adding them.</div>';
+}
+function cycleCell(gid,ci,cur){
+  var cat=(ROOM.categories||[])[ci]; if(cat==null) return;
+  var nl=nextLevel(cur);
+  fetch('/api/room/'+encodeURIComponent(RID)+'/grant-perms',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:gid,category:cat,level:nl})})
+   .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; renderGrants(); } else alert((j&&j.error)||'Could not update.'); }).catch(function(){ alert('Could not reach the server.'); });
 }
 function addBuyer(){
   var name=document.getElementById('bName').value.trim(), email=document.getElementById('bEmail').value.trim(), level=document.getElementById('bLevel').value, m=document.getElementById('bmsg');
