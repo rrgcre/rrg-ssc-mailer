@@ -2949,6 +2949,7 @@ function applyPlacesData(l, data) {
   l.google = Object.assign({}, l.google || {}, data);
   if (!l.phone && data.phone) l.phone = data.phone;      // fill only empty fields — never overwrite what a rep typed
   if (!l.website && data.website) l.website = data.website;
+  if (!l.zip && data.address) { const _zm = String(data.address).match(/\b(\d{5})(?:-\d{4})?\b/); if (_zm) l.zip = _zm[1]; }
   return true;
 }
 // Pull the best available photo(s) AND the Google business data for one location.
@@ -3383,7 +3384,7 @@ app.post('/api/company/:id/contact', express.json(), (req, res) => {
     const clash = emailOwner(arr, emails, '__new__');
     if (clash) return res.status(409).json({ ok: false, error: 'That email is already on ' + (clash.name || 'another contact') + '.', existingId: clash.id });
     p = findOrCreatePerson(req, { firstName: first, lastName: last, name: composeName(first, last), emails: emails, phones: phones, companyId: c.id, type: b.type });
-    if (p && (b.title || b.nickname || b.notes || Array.isArray(b.tags))) { const a2 = loadPeople(); const pp = a2.find(x => x.id === p.id); if (pp) { if (b.title) pp.title = String(b.title).slice(0, 120); if (b.nickname) pp.nickname = String(b.nickname).slice(0, 80); if (b.notes) pp.notes = String(b.notes).slice(0, 4000); if (Array.isArray(b.tags)) pp.tags = b.tags.map(x => String(x || '').slice(0, 60)).filter(Boolean).slice(0, 30); pp.updatedAt = new Date().toISOString(); savePeople(a2); } }
+    if (p && (b.title || b.nickname || b.notes || Array.isArray(b.tags))) { const a2 = loadPeople(); const pp = a2.find(x => x.id === p.id); if (pp) { if (b.title) pp.title = String(b.title).slice(0, 120); if (b.nickname) pp.nickname = String(b.nickname).slice(0, 80); if (b.notes) pp.notes = String(b.notes).slice(0, 4000); if (Array.isArray(b.tags)) pp.tags = b.tags.map(x => String(x || '').slice(0, 60)).filter(Boolean).slice(0, 30); if (Array.isArray(b.prefContact)) pp.prefContact = b.prefContact.filter(x => ['phone','text','email'].indexOf(x) >= 0); pp.updatedAt = new Date().toISOString(); savePeople(a2); } }
   }
   const contacts = loadPeople().filter(x => x.companyId === c.id).map(companyContactRow);
   res.json({ ok: true, contacts });

@@ -321,7 +321,7 @@ function openConceptForm(cpt){
   f.innerHTML='<div class="cform findcard"><div class="findhd">'+(isEdit?'Edit concept':'Add a concept')+' <span class="cpsaved" id="cp_saved"></span></div>'
     +'<div class="cgrid">'
     +'<div><label class="fld">Concept / brand name</label><input id="cp_name" value="'+esc(cpt.name||'')+'" placeholder="e.g. Cane Rosso"></div>'
-    +'<div><label class="fld">Website</label><input id="cp_site" value="'+esc(cpt.website||'')+'" placeholder="canerosso.com"></div>'
+    +'<div><label class="fld">Website</label><input id="cp_site" value="'+esc(cpt.website||'')+'"></div>'
     +'<div><label class="fld">Concept type</label><select id="cp_ctype">'+ctypeOpts+'</select></div>'
     +'<div><label class="fld">Cuisine</label><select id="cp_cuisine">'+cuisineOpts+'</select></div>'
     +'<div><label class="fld">Price point</label><select id="cp_price">'+priceOpts+'</select></div>'
@@ -511,7 +511,7 @@ function openFindForm(cptId){
     +'<div class="cgrid">'
     +'<div><label class="fld">Concept</label>'+csel+'</div>'
     +'<div><label class="fld">Approx. # of locations</label><input id="fd_count" placeholder="e.g. 8"></div>'
-    +'<div class="wide"><label class="fld">Website</label><input id="fd_site" value="'+esc(cpt&&cpt.website||'')+'" placeholder="canerosso.com"></div>'
+    +'<div class="wide"><label class="fld">Website</label><input id="fd_site" value="'+esc(cpt&&cpt.website||'')+'"></div>'
     +'</div><div class="cbtns"><button class="sbtn" id="fd_go">Search the web &amp; add locations</button><button class="cbtn" id="fd_cancel">Cancel</button><span id="fd_msg" class="findmsg"></span></div></div>';
   f.removeAttribute('hidden');
   // auto-fill website when concept changes
