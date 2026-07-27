@@ -84,4 +84,62 @@ async function dailyBrief({ data, repName, today }) {
   return extractJson(out) || null;
 }
 
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief };
+// 5) Contact call-prep from the CRM record.
+async function callPrep({ person }) {
+  const sys = 'You are a restaurant/bar CRE broker\'s chief of staff. Given a CRM contact record (details, recent activities, deals, agreements), write a tight pre-call briefing so the broker walks in sharp. ' +
+    'Return ONLY JSON: {"snapshot":"","lastTouch":"","openItems":[""],"openers":[""],"watchOut":""}. ' +
+    'snapshot: 1-2 sentences on who they are and where things stand. lastTouch: the last meaningful interaction. openItems: 2-4 concrete things to move forward. openers: 2-3 natural ways to start the call. watchOut: one sensitivity or "". Ground strictly in the record; if data is thin, say what is unknown rather than inventing.';
+  return extractJson(await callClaude(sys, 'CONTACT RECORD:\n' + JSON.stringify(person).slice(0, 12000), 1200)) || {};
+}
+// 6) Contact enrichment from sparse details.
+async function enrichContact({ name, company, email, phone, title, notes }) {
+  const sys = 'You are a restaurant/bar CRE broker\'s research assistant. From the sparse contact details, infer a helpful CRM profile. ' +
+    'Return ONLY JSON: {"title":"","type":"","markets":[],"talkingPoints":[""],"summary":""}. ' +
+    'type is their likely role: one of Buyer, Seller, Landlord, Tenant, Investor, Operator, Broker, Vendor, or "". markets: cities/areas they likely operate in if inferable. talkingPoints: 2-4 concrete openers for THIS person. summary: 1-2 sentence who-they-are. Do not fabricate deal history or specifics.';
+  return extractJson(await callClaude(sys, 'CONTACT:\n' + JSON.stringify({ name, company, email, phone, title, notes }), 900)) || {};
+}
+// 7) Company enrichment from name/website.
+async function enrichCompany({ name, website, markets }) {
+  const sys = 'You are a restaurant/bar CRE broker\'s assistant. From a company/group name and website, infer a concise CRM profile. ' +
+    'Return ONLY JSON: {"summary":"","conceptType":"","pricePoint":"","markets":[],"positioning":""}. ' +
+    'Use general knowledge if the brand is recognizable; if not, infer conservatively from the name and note uncertainty in summary. Do NOT invent location counts or financials.';
+  return extractJson(await callClaude(sys, 'COMPANY: ' + JSON.stringify({ name, website, markets }), 800)) || {};
+}
+// 8) LOI: suggest which optional sections this deal needs.
+async function suggestSections({ dealInfo, sections }) {
+  const sys = 'You are a restaurant/bar tenant-rep broker. Given the deal context and the library of optional LOI sections, recommend which sections THIS deal should include and why. ' +
+    'Return ONLY JSON: {"recommend":[{"id":"","title":"","why":""}],"customIdeas":[{"title":"","clause":""}]}. ' +
+    'Only recommend from the provided section list, by id. customIdeas: 0-3 clauses the deal may need that are NOT in the library (e.g. outdoor music, drive-thru hours, grease-trap responsibility), each with short draft language. Ground in the deal context.';
+  const user = 'DEAL CONTEXT:\n' + JSON.stringify(dealInfo).slice(0, 4000) + '\n\nAVAILABLE SECTIONS:\n' + JSON.stringify(sections).slice(0, 6000);
+  return extractJson(await callClaude(sys, user, 1400)) || {};
+}
+// 9) LOI: red-flag review of a drafted letter.
+async function reviewLoi({ text }) {
+  const sys = 'You are a restaurant/bar tenant-rep broker reviewing a drafted Letter of Intent before it goes out. Identify issues that would hurt your client or draw pushback. ' +
+    'Return ONLY JSON: {"flags":[{"severity":"high|med|low","issue":"","fix":""}],"missing":[""],"verdict":""}. ' +
+    'flags: aggressive, unclear, or one-sided terms. missing: important terms absent (options to renew, TI, delivery condition, guaranty burn-off, exclusivity, contingencies). verdict: one-line overall read. Be specific and practical; ground in the text.';
+  return extractJson(await callClaude(sys, 'LOI DRAFT:\n' + String(text || '').slice(0, 14000), 1600)) || {};
+}
+// 10) Concept positioning for BOV/CIM.
+async function conceptPositioning({ concept, locations }) {
+  const sys = 'You are a restaurant/bar CRE broker writing crisp positioning for a concept, for valuations and marketing packs. ' +
+    'Return ONLY JSON: {"positioning":"","signatureItems":[""],"daypart":"","expansionMarkets":[""]}. ' +
+    'positioning: one sharp sentence (segment, price point, who it is for). signatureItems: 2-5 equity items if known. daypart: primary dayparts. expansionMarkets: 2-4 fitting markets if inferable. Use general knowledge if recognizable; else infer conservatively. Do not fabricate specifics.';
+  return extractJson(await callClaude(sys, 'CONCEPT:\n' + JSON.stringify({ concept, locations }).slice(0, 8000), 1000)) || {};
+}
+// 11) Location site-read.
+async function locationSiteRead({ location }) {
+  const sys = 'You are a restaurant/bar CRE broker giving a fast site read on a location for a BOV/CIM. ' +
+    'Return ONLY JSON: {"strengths":[""],"risks":[""],"note":""}. ' +
+    'strengths/risks: 2-4 each, concrete (visibility, access, co-tenancy, daypart, parking, drive-thru, trade area, lease posture) from the attributes given. note: one-line overall. Ground in the data; flag unknowns rather than inventing.';
+  return extractJson(await callClaude(sys, 'LOCATION:\n' + JSON.stringify(location).slice(0, 4000), 900)) || {};
+}
+// 12) Calculator client-ready summary.
+async function calcSummary({ kind, inputs, outputs }) {
+  const sys = 'You are a restaurant/bar CRE broker. Turn these calculator inputs and results into a clean, client-ready summary paragraph, then a one-line market sanity check. ' +
+    'Return ONLY JSON: {"summary":"","sanity":""}. summary: 2-4 sentences a client could read. sanity: whether the numbers look reasonable for a restaurant/bar deal and any caveat. Use ONLY the numbers provided; do not invent figures.';
+  const user = 'CALCULATOR: ' + kind + '\nINPUTS:\n' + JSON.stringify(inputs).slice(0, 3000) + '\nRESULTS:\n' + JSON.stringify(outputs).slice(0, 3000);
+  return extractJson(await callClaude(sys, user, 900)) || {};
+}
+
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary };
