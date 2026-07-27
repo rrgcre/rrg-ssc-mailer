@@ -79,7 +79,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .cav{width:38px;height:38px;flex:none;border-radius:50%;background:#eef1f6;color:#6b7488;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;}
 .cinfo{min-width:0;flex:1;} .cname{font-weight:500;color:var(--ink);font-size:14px;} .cname .lnameedit{cursor:pointer;} .cname .lnameedit:hover{text-decoration:underline;text-underline-offset:2px;} .csub{font-size:12.5px;color:var(--muted);margin-top:3px;}
 .ctype{font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:#f2f4f8;color:#6b7488;border:1px solid #e6eaf1;}
-.cmain{background:none;border:none;color:#dfe3ea;cursor:pointer;font-size:16px;line-height:1;padding:0 5px;flex:none;} .cmain.on{color:#e2b93a;} .cmain:hover{color:#e2b93a;} .crow .cmain:not(.on){opacity:0;pointer-events:none;transition:opacity .13s;} .crow:hover .cmain{opacity:1;pointer-events:auto;} @media(hover:none){.crow .cmain{opacity:1!important;pointer-events:auto!important;}}
+.cmain{background:none;border:none;color:#c7ccd6;cursor:pointer;font-size:17px;line-height:1;padding:0 5px;flex:none;} .cmain.on{color:#e2b93a;} .cmain:hover{color:#e2b93a;} .crow .cmain:not(.on){opacity:.6;transition:opacity .13s;} .crow:hover .cmain{opacity:1;}
 .ctype.ls-operating,.ctype.ls-open{background:#eafaf0;color:#0e7a53;border-color:#b9e6cd;} .ctype.ls-closed{background:#fdeceb;color:var(--red);border-color:#f3cfc9;} .ctype.ls-underconstruction,.ctype.ls-underloi{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;} .ctype.ls-planned,.ctype.ls-prospective{background:#f2f4f8;color:#6b7488;border-color:#e0e5ee;} .ctype.ls-dark{background:#efe9f7;color:#5a3d9e;border-color:#d9cdf0;}
 .cptgrp{margin-bottom:6px;} .cptgrp:last-child{margin-bottom:0;}
 .cpthd{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--navy);padding:10px 2px 6px;border-bottom:1px solid var(--line);margin-bottom:2px;display:flex;align-items:center;gap:7px;}
@@ -491,16 +491,32 @@ function openConceptBuilder(){
     +'<div class="findsub">Enter one or more concept names (one per line). '+esc(ASSISTANT)+' finds each brand’s website, type, cuisine, price, logo, and locations. A metro helps it land on the right website.</div>'
     +'<div class="cgrid">'
     +'<div class="wide"><label class="fld">Concept name(s) — one per line</label><textarea id="cb_names" rows="4" placeholder="One concept per line" style="width:100%;padding:9px 11px;font:inherit;font-size:13px;border:1px solid #d5dbe6;border-radius:9px;resize:vertical"></textarea></div>'
+    +((C.type==='Restaurant Group')?('<div class="wide" data-ai="" style="margin-top:-2px"><button type="button" class="findbtn" id="cb_findgroup" style="background:#5b46b8;border-color:#5b46b8">✨ Find this group\'s concepts</button> <span style="font-size:11.5px;color:#8a80b3">'+esc(ASSISTANT)+' lists every brand '+esc(C.name||'this group')+' operates and builds them</span></div>'):'')
     +'<div><label class="fld">Major metro they operate in</label><input id="cb_metro" list="cb_mklist" placeholder="e.g. Dallas, Austin"><datalist id="cb_mklist">'+mkOpts+'</datalist></div>'
     +'<div><label class="fld">Approx. # locations each</label><input id="cb_count" placeholder="optional"></div>'
     +'</div><div class="cbtns"><button type="button" class="findbtn" id="cb_go">✨ Build all</button><button type="button" class="mfadd" id="cb_manual">Add one manually</button><button type="button" class="cbtn" id="cb_cancel">Cancel</button><span id="cb_msg" class="findmsg"></span></div></div>';
   f.removeAttribute('hidden'); expandCardOf(f);
   document.getElementById('cb_go').addEventListener('click',buildAllConcepts);
+  var _fg=document.getElementById('cb_findgroup'); if(_fg) _fg.addEventListener('click',findGroupConcepts);
   document.getElementById('cb_manual').addEventListener('click',function(){ openConceptForm(null); });
   document.getElementById('cb_cancel').addEventListener('click',function(){ f.setAttribute('hidden','');f.innerHTML='';render(); });
   document.getElementById('cb_names').focus();
 }
 var _cbStop=false;
+function findGroupConcepts(){
+  var msg=document.getElementById('cb_msg'); var btn=document.getElementById('cb_findgroup');
+  if(btn) btn.disabled=true; if(msg) msg.textContent=(window.__rrgAssistant||ASSISTANT||'AI')+' is finding this group’s concepts…';
+  fetch('/api/company/'+encodeURIComponent(ID)+'/find-concepts',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){
+    if(btn) btn.disabled=false;
+    if(!j||!j.ok){ if(msg) msg.textContent=(j&&j.error)||'Could not find concepts.'; return; }
+    var names=(j.concepts||[]).map(function(c){return c.name;}).filter(Boolean);
+    if(!names.length){ if(msg) msg.textContent='No concepts found — enter them manually.'; return; }
+    var ta=document.getElementById('cb_names'); if(ta) ta.value=names.join('\n');
+    var metro=(document.getElementById('cb_metro').value||'').trim(); var count=(document.getElementById('cb_count').value||'').trim();
+    if(msg) msg.textContent='Found '+names.length+' concept'+(names.length===1?'':'s')+' — building…';
+    runBuildConcepts(names,metro,count);
+  }).catch(function(){ if(btn) btn.disabled=false; if(msg) msg.textContent='Network error.'; });
+}
 function buildAllConcepts(){
   var names=(document.getElementById('cb_names').value||'').split(/\n/).map(function(s){return s.trim();}).filter(Boolean);
   var metro=(document.getElementById('cb_metro').value||'').trim();
@@ -509,7 +525,7 @@ function buildAllConcepts(){
   runBuildConcepts(names,metro,count);
 }
 function runBuildConcepts(names,metro,count){
-  names=(names||[]).slice(0,6); if(!names.length) return;
+  names=(names||[]).slice(0,12); if(!names.length) return;
   _cbStop=false; var i=0, ok=0, notes=[];
   aiShow('Starting on '+names.length+' concept'+(names.length===1?'':'s')+'…', function(){ _cbStop=true; });
   function J(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}); }

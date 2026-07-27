@@ -171,7 +171,7 @@ function companyContactRow(p) { return { id: p.id, name: p.name, firstName: pers
 // Companies — a company / account file that groups its associated contacts (people) and
 // its deals. Created at onboarding (the subject business), reusable across deals.
 const COMPANIES_FILE = path.join(BOV_DATA_DIR, 'companies.json');
-const COMPANY_TYPES = ['Seller', 'Buyer', 'Tenant'];
+const COMPANY_TYPES = ['Seller', 'Buyer', 'Tenant', 'Restaurant Group'];
 function loadCompanies() { try { return JSON.parse(fs.readFileSync(COMPANIES_FILE, 'utf8')); } catch (e) { return []; } }
 function saveCompanies(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(COMPANIES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newCompanyId() { return 'co_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
@@ -3726,6 +3726,15 @@ app.post('/api/company/:id/find-locations', express.json(), async (req, res) => 
 });
 // Given just a concept name, use AI web search to resolve the official website, concept
 // type, cuisine, and price point. Returned values are validated against the allowed lists.
+app.post('/api/company/:id/find-concepts', express.json(), async (req, res) => {
+  try {
+    if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'You do not have access to AI features.' });
+    const c = loadCompanies().find(function(x){ return x.id === req.params.id; });
+    if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+    const concepts = await aiassist.findGroupConcepts({ name: c.name || '', website: (c.office && c.office.website) || '' });
+    res.json({ ok: true, concepts: concepts });
+  } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
+});
 app.post('/api/company/:id/concept-resolve', express.json(), async (req, res) => {
   try {
     const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
