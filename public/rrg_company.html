@@ -517,7 +517,7 @@ function openLocForm(l,presetConcept){
   var pf=document.getElementById('lo_photo'); if(pf) pf.addEventListener('change',function(){ if(pf.files&&pf.files[0]) uploadLocPhoto(l.id,pf.files[0]); });
   var pull=document.getElementById('lo_pull'); if(pull) pull.addEventListener('click',function(){ pullLocPhoto(l.id); });
   f.querySelectorAll('.phx[data-phrm]').forEach(function(b){ b.addEventListener('click',function(){ removeLocPhoto(l.id,b.getAttribute('data-phrm')); }); });
-  f.querySelectorAll('.phthumb[data-phview]').forEach(function(t){ t.addEventListener('click',function(e){ if(e.target.closest('button')) return; openPhoto(t.getAttribute('data-phview')); }); });
+  f.querySelectorAll('.phthumb[data-phview]').forEach(function(t){ t.addEventListener('click',function(e){ if(e.target.closest('button')) return; e.stopPropagation(); openPhoto(t.getAttribute('data-phview')); }); });
   f.querySelectorAll('.phsetmain[data-phmain]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); setMainPhoto(l.id,b.getAttribute('data-phmain')); }); });
   document.getElementById('lo_name').focus();
 }
@@ -544,7 +544,7 @@ function pullConceptPhotos(concept,btn){
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||LOCATIONS; render(); if(!j.added){ setTimeout(function(){ alert('No photos added'+(j.note?(' — '+j.note):'.')+(j.scanned?('\n('+j.scanned+' location'+(j.scanned===1?'':'s')+' checked)'):'')); },40); } } else { if(btn){btn.disabled=false;btn.textContent='⤓ Photos';} alert((j&&j.error)||'Could not pull photos.'); } })
     .catch(function(){ if(btn){btn.disabled=false;btn.textContent='⤓ Photos';} alert('Could not reach the server.'); });
 }
-function openPhoto(url){ var ov=document.createElement('div'); ov.className='phlightbox'; ov.innerHTML='<img src="'+url+'" alt="">'; ov.addEventListener('click',function(){ ov.remove(); }); document.addEventListener('keydown',function esc(e){ if(e.key==='Escape'){ ov.remove(); document.removeEventListener('keydown',esc); } }); document.body.appendChild(ov); }
+function openPhoto(url){ var ov=document.createElement('div'); ov.className='phlightbox'; ov.innerHTML='<img src="'+url+'" alt="">'; function onkey(e){ if(e.key==='Escape'){ e.stopPropagation(); closeOv(); } } function closeOv(e){ if(e){ e.preventDefault(); e.stopPropagation(); } ov.remove(); document.removeEventListener('keydown',onkey); } ov.addEventListener('mousedown',function(e){ e.stopPropagation(); }); ov.addEventListener('click',closeOv); document.addEventListener('keydown',onkey); document.body.appendChild(ov); }
 function setMainPhoto(locId,photoId){ fetch('/api/company/'+encodeURIComponent(ID)+'/location/'+encodeURIComponent(locId)+'/photo/'+encodeURIComponent(photoId)+'/main',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||LOCATIONS; var nl=LOCATIONS.filter(function(x){return x.id===locId;})[0]; render(); openLocForm(nl); } else alert((j&&j.error)||'Could not set the main photo.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 function removeLocPhoto(locId,photoId){
   fetch('/api/company/'+encodeURIComponent(ID)+'/location/'+encodeURIComponent(locId)+'/photo/'+encodeURIComponent(photoId)+'/remove',{method:'POST',credentials:'same-origin'})
