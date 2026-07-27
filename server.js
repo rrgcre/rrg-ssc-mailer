@@ -3693,8 +3693,15 @@ app.post('/api/company/:id/find-locations', express.json(), async (req, res) => 
     const gkey = loadGmapsKey();
     let photos = 0;
     if (gkey && created.length) { for (const l of created.slice(0, 40)) { try { const pr = await pullPhotosForLocation(gkey, l); if (pr.added) photos++; } catch (e) {} } }
+    // While we're pulling info from the concept's website, also grab its logo (clearbit)
+    // and set it as the concept logo — but only if the concept doesn't already have one.
+    let logoSet = false;
+    let cptObj = null;
+    if (b.conceptId) cptObj = (c.concepts || []).find(x => x.id === b.conceptId);
+    if (!cptObj && concept) cptObj = (c.concepts || []).find(x => String(x.name || '').toLowerCase() === concept.toLowerCase());
+    if (cptObj && website && !String(cptObj.logo || '').trim()) { const lg = logoFromWebsite(website); if (lg) { cptObj.logo = lg; logoSet = true; } }
     c.updatedAt = now; saveCompanies(arr);
-    res.json({ ok: true, created: created.length, locations: c.locations, note: result.note || '', photos });
+    res.json({ ok: true, created: created.length, locations: c.locations, concepts: c.concepts, logoSet, note: result.note || '', photos });
   } catch (e) {
     console.error('find-locations error:', e && e.message);
     res.status(500).json({ ok: false, error: String((e && e.message) || e) });

@@ -169,7 +169,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 <!--rrgback--><a href="./rrg_companies.html" class="rrg-back" aria-label="Back to companies" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Companies</a>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-  <div class="crumb"><a href="./rrg_companies.html">Companies</a> &nbsp;›&nbsp; <span id="crumb">Company</span></div>
+  <div class="crumb"><a href="./rrg_companies.html">&#8592; Companies</a> &nbsp;›&nbsp; <span id="crumb">Company</span></div>
 </div></div>
 <div id="root" class="loading">Loading the company file…</div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
@@ -316,7 +316,7 @@ function render(){
     + '<div class="card"><div class="ch"><b>Listings</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
     + agreementsCardCo()
     + '</div>'
-    + '<div class="side"><div class="card"><div class="ch"><b>Company</b></div><div class="cb">'
+    + '<div class="side"><div class="card"><div class="ch"><b>Company</b><span style="margin-left:auto;font-size:11px;color:var(--soft);font-weight:600">Autosaves</span></div><div class="cb">'
       + '<div class="fldrow"><label class="fld">Logo</label><div class="logorow2"><div class="logoprev2" id="c_logoprev" title="Click to upload \u2014 click again to remove"></div><input type="hidden" id="c_logo" value="'+esc(C.logo||'')+'"><input type="file" id="c_logofile" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" style="display:none"></div></div>'
       + '<div class="fldrow"><label class="fld">Name</label><input id="c_name" value="'+esc(C.name||'')+'"></div>'
       + '<div class="fldrow"><label class="fld">Type</label><select id="c_type">'+ctsel+'</select></div>'
@@ -334,6 +334,8 @@ function render(){
       + (IS_ADMIN?('<div class="dangerz"><button class="delco" id="c_delete">Delete company</button><div class="dangernote">Admin only. Permanently removes this company, its concepts, all locations &amp; photos, and every listing tied to it — records, data rooms, and files. Contacts are kept. Cannot be undone.</div></div>'):'')
     + '</div></div></div>';
   ['c_name','c_type','c_lead','c_tags','c_notes','o_address','o_city','o_state','o_phone','o_email','o_website'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener(el.tagName==='SELECT'?'change':'input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; }); });
+  // Autosave: save on leaving a field (change/blur) or after a ~1s pause while typing.
+  (function(){ var _cAS=null; function commit(){ if(_cAS){ clearTimeout(_cAS); _cAS=null; } if(DIRTY) saveCompany(); } function pause(){ if(_cAS) clearTimeout(_cAS); _cAS=setTimeout(commit,1000); } ['c_name','c_type','c_lead','c_tags','c_notes','o_address','o_city','o_state','o_phone','o_email','o_website'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
   (function(){ function draw(){ var p=document.getElementById('c_logoprev'); if(!p) return; var u=(document.getElementById('c_logo').value||'').trim()||(LOGOAUTO||''); p.innerHTML=u?('<img src="'+esc(u)+'" onerror="this.parentNode.innerHTML=&quot;<span class=\'comono\'>'+esc((C.name||'?').charAt(0).toUpperCase())+'</span>&quot;">'):('<span class="comono">'+esc((C.name||'?').charAt(0).toUpperCase())+'</span>'); }
     var li=document.getElementById('c_logo'); if(li) li.addEventListener('input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
     var la=document.getElementById('c_logoauto'); if(la) la.addEventListener('click',function(){ var d=(document.getElementById('o_website').value||'').replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0]; document.getElementById('c_logo').value=d?('https://logo.clearbit.com/'+d):''; DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
@@ -427,7 +429,7 @@ function conceptFind(cpt,isEdit){
       CONCEPTS=j.concepts||CONCEPTS; LOCATIONS=j.locations||LOCATIONS;
       return fetch('/api/company/'+encodeURIComponent(ID)+'/find-locations',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({concept:name,website:website,count:count})})
         .then(function(r){return r.json();}).then(function(j2){
-          if(j2&&j2.ok){ var c2=CONCEPTS.filter(function(x){return x.name===name;})[0]; if(c2) EXPANDED[c2.id]=true; LOCATIONS=j2.locations||LOCATIONS; var f=document.getElementById('conceptForm'); if(f){ f.setAttribute('hidden',''); f.innerHTML=''; } render(); }
+          if(j2&&j2.ok){ CONCEPTS=j2.concepts||CONCEPTS; var c2=CONCEPTS.filter(function(x){return x.name===name;})[0]; if(c2) EXPANDED[c2.id]=true; LOCATIONS=j2.locations||LOCATIONS; var f=document.getElementById('conceptForm'); if(f){ f.setAttribute('hidden',''); f.innerHTML=''; } render(); }
           else fail((j2&&j2.error)||'Search failed.');
         });
     })
@@ -521,10 +523,10 @@ function openLocForm(l,presetConcept){
     +'<div class="wide"><label class="fld">Notes</label><input id="lo_notes" value="'+esc(l.notes||'')+'" placeholder="Sq ft, seats, lease, remarks…"></div>'
     +photoBox(l)
     +((l.google&&l.google.placeId)?('<div class="wide gpanel"><div class="gphd">Google data'+(l.google.mapsUrl?(' <a href="'+esc(l.google.mapsUrl)+'" target="_blank" rel="noopener">view on Maps ↗</a>'):'')+'</div><div class="gpgrid">'+((typeof l.google.rating==='number')?('<span>★ '+l.google.rating.toFixed(1)+(l.google.reviews?(' ('+Number(l.google.reviews).toLocaleString()+' reviews)'):'')+'</span>'):'')+(l.google.businessStatus?('<span>Status: '+esc(l.google.businessStatus)+'</span>'):'')+((typeof l.google.priceLevel==='number'&&l.google.priceLevel>0)?('<span>Price: '+new Array(l.google.priceLevel+1).join('$')+'</span>'):'')+((l.google.lat!=null&&l.google.lng!=null)?('<span>Geo: '+Number(l.google.lat).toFixed(5)+', '+Number(l.google.lng).toFixed(5)+'</span>'):'')+(l.google.address?('<span style="flex-basis:100%">Google address: '+esc(l.google.address)+'</span>'):'')+'</div><div class="gpnote">Captured from Google Places'+(l.google.at?(' · pulled '+esc(fmtD(l.google.at))):'')+'. Use the ⤓ Pull button to refresh.</div></div>'):'')
-    +'</div><div class="cbtns"><button class="sbtn" id="lo_save">'+(l.id?'Save location':'Add location')+'</button><button class="cbtn" id="lo_cancel">Cancel</button></div></div>';
+    +'</div><div class="cbtns"><button class="sbtn" id="lo_save">'+(l.id?'Done':'Add location')+'</button><button class="cbtn" id="lo_cancel">Cancel</button><span id="lo_saved" class="findmsg" style="margin-left:8px;color:var(--soft)"></span>'+(l.id?'<span style="margin-left:auto;font-size:11px;color:var(--soft);font-weight:600">Autosaves</span>':'')+'</div></div>';
   f.removeAttribute('hidden'); expandCardOf(f);
   document.getElementById('lo_save').addEventListener('click',function(){ saveLoc(l.id); });
-  document.getElementById('lo_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
+  document.getElementById('lo_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; render(); });
   var comm=document.getElementById('lo_comm'); if(comm) comm.addEventListener('change',function(){ document.getElementById('servesWrap').style.display=comm.checked?'':'none'; });
   var stel=document.getElementById('lo_status'); if(stel) stel.addEventListener('change',function(){ var w=document.getElementById('lo_closedwrap'); if(w) w.style.display=(['Dark','Closed'].indexOf(stel.value)>=0)?'':'none'; });
   wireServesPicker();
@@ -533,6 +535,12 @@ function openLocForm(l,presetConcept){
   f.querySelectorAll('.phx[data-phrm]').forEach(function(b){ b.addEventListener('click',function(){ removeLocPhoto(l.id,b.getAttribute('data-phrm')); }); });
   f.querySelectorAll('.phthumb[data-phview]').forEach(function(t){ t.addEventListener('click',function(e){ if(e.target.closest('button')) return; e.stopPropagation(); openPhoto(t.getAttribute('data-phview')); }); });
   f.querySelectorAll('.phsetmain[data-phmain]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); setMainPhoto(l.id,b.getAttribute('data-phmain')); }); });
+  // Autosave an existing location on leaving a field (change/blur) or a ~1s typing pause.
+  if(l.id){ var _lAS=null; function _lcommit(){ if(_lAS){ clearTimeout(_lAS); _lAS=null; } saveLoc(l.id,true); } function _lpause(){ if(_lAS) clearTimeout(_lAS); _lAS=setTimeout(_lcommit,1000); }
+    ['lo_concept','lo_status','lo_name','lo_sitetype','lo_address','lo_city','lo_state','lo_zip','lo_phone','lo_opened','lo_closed','lo_tenure','lo_sf','lo_lstart','lo_lexp','lo_notes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',_lpause); el.addEventListener('change',_lcommit); });
+    ['lo_flag','lo_comm'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('change',_lcommit); });
+    var _sa=document.getElementById('sv_all'); if(_sa) _sa.addEventListener('change',_lcommit); f.querySelectorAll('.sv_one').forEach(function(el){ el.addEventListener('change',_lcommit); });
+  }
   document.getElementById('lo_name').focus();
 }
 function uploadLocPhoto(locId,file){
@@ -592,22 +600,23 @@ function runFindLocations(){
   var b=document.getElementById('fd_go'); b.disabled=true; b.textContent='Searching the web…'; msg.textContent='This can take up to a minute — the analyst is reading the site and map listings.';
   fetch('/api/company/'+encodeURIComponent(ID)+'/find-locations',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({concept:concept,website:website,count:count})})
     .then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok){ var cpt2=CONCEPTS.filter(function(x){return x.name===concept;})[0]; if(cpt2) EXPANDED[cpt2.id]=true; LOCATIONS=j.locations||LOCATIONS; render(); }
+      if(j&&j.ok){ CONCEPTS=j.concepts||CONCEPTS; var cpt2=CONCEPTS.filter(function(x){return x.name===concept;})[0]; if(cpt2) EXPANDED[cpt2.id]=true; LOCATIONS=j.locations||LOCATIONS; render(); }
       else { b.disabled=false;b.textContent='Search the web & add locations'; msg.textContent=(j&&j.error)||'Search failed.'; }
     })
     .catch(function(){ b.disabled=false;b.textContent='Search the web & add locations'; msg.textContent='Could not reach the server.'; });
 }
-function saveLoc(id){
+function saveLoc(id,silent){
   var comm=document.getElementById('lo_comm').checked;
   var servesAll=false, serves=[];
   if(comm){ var sa=document.getElementById('sv_all'); servesAll=!!(sa&&sa.checked); if(!servesAll){ document.querySelectorAll('.sv_one:checked').forEach(function(x){ serves.push(x.value); }); } }
   var body={ name:document.getElementById('lo_name').value.trim(), concept:document.getElementById('lo_concept').value, siteType:document.getElementById('lo_sitetype').value, tenure:document.getElementById('lo_tenure').value, sf:document.getElementById('lo_sf').value.trim(), address:document.getElementById('lo_address').value.trim(), city:document.getElementById('lo_city').value.trim(), state:document.getElementById('lo_state').value.trim(), zip:document.getElementById('lo_zip').value.trim(), phone:document.getElementById('lo_phone').value.trim(), opened:document.getElementById('lo_opened').value, leaseStart:document.getElementById('lo_lstart').value, leaseExpires:document.getElementById('lo_lexp').value, closedDate:document.getElementById('lo_closed').value, status:document.getElementById('lo_status').value, notes:document.getElementById('lo_notes').value.trim(), flagship:document.getElementById('lo_flag').checked, commissary:comm, servesAll:servesAll, serves:serves };
   if(id) body.id=id;
-  if(!body.name && !body.address){ document.getElementById('lo_name').focus(); return; }
-  var b=document.getElementById('lo_save'); b.disabled=true; b.textContent='Saving…';
+  if(!body.name && !body.address){ if(silent) return; document.getElementById('lo_name').focus(); return; }
+  var b=document.getElementById('lo_save'); var ind=document.getElementById('lo_saved');
+  if(silent){ if(ind) ind.textContent='Saving…'; } else if(b){ b.disabled=true; b.textContent='Saving…'; }
   fetch('/api/company/'+encodeURIComponent(ID)+'/location',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||[]; if(body.commissary){ EXPANDED['__commissary__']=true; } else { var cpt3=CONCEPTS.filter(function(x){return x.name===body.concept;})[0]; if(cpt3) EXPANDED[cpt3.id]=true; else EXPANDED['__orphan__']=true; } render(); } else { b.disabled=false;b.textContent='Add location'; alert((j&&j.error)||'Could not save the location.'); } })
-    .catch(function(){ b.disabled=false;b.textContent='Add location'; alert('Could not reach the server.'); });
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ LOCATIONS=j.locations||[]; if(silent){ if(ind) ind.textContent='Saved ✓'; return; } if(body.commissary){ EXPANDED['__commissary__']=true; } else { var cpt3=CONCEPTS.filter(function(x){return x.name===body.concept;})[0]; if(cpt3) EXPANDED[cpt3.id]=true; else EXPANDED['__orphan__']=true; } render(); } else { if(silent){ if(ind) ind.textContent=''; return; } b.disabled=false;b.textContent='Add location'; alert((j&&j.error)||'Could not save the location.'); } })
+    .catch(function(){ if(silent){ if(ind) ind.textContent=''; return; } b.disabled=false;b.textContent='Add location'; alert('Could not reach the server.'); });
 }
 function removeLoc(id){
   if(!confirm('Remove this location?')) return;
