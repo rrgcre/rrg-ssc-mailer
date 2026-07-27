@@ -90,7 +90,7 @@ function ownsDeal(req, d) {
 const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
 const PERSON_TYPES = ['Buyer', 'Seller', 'Investor', 'Broker', 'Referral Source', 'Other'];
 const LEAD_SOURCES = ['Referral', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
-const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'Diligence', 'Note', 'To-Do'];
+const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'LOI', 'Diligence', 'Note', 'To-Do'];
 const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Burgers', 'BBQ', 'Steakhouse', 'Seafood', 'Chinese', 'Japanese / Sushi', 'Thai', 'Vietnamese', 'Korean', 'Indian', 'Mediterranean', 'Greek', 'Southern / Soul', 'Breakfast / Brunch', 'Coffee / Cafe', 'Hawaiian', 'Desserts', 'Bar / Lounge'];
 function loadPeople() { try { return JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')); } catch (e) { return []; } }
 function savePeople(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PEOPLE_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
@@ -760,6 +760,8 @@ app.use((req, res, next) => {
   return res.redirect('/login');
 });
 function isSuper(u) { if (!u) return false; var r = u.role; return r === 'admin' || r === 'creator'; }
+function manageLoiOk(req) { return isSuper(req.user) || (permsEnabled() && !!effectivePerms(req.user).manage_loi); }
+function requireManageLoi(req, res, next) { if (manageLoiOk(req)) return next(); return res.status(403).json({ ok: false, error: 'You do not have permission to manage the LOI library.' }); }
 function requireAdmin(req, res, next) {
   if (req.user && isSuper(req.user)) return next();
   if (req.path.startsWith('/api/')) return res.status(403).json({ ok: false, error: 'Admin only.' });
@@ -5591,6 +5593,7 @@ const PERM_CORE = [
   { key: 'delete', label: 'Delete records' },
   { key: 'reassign', label: 'Reassign ownership' },
   { key: 'export_data', label: 'Export & print lists', note: 'Off = cannot download CSV or print lists' },
+  { key: 'manage_loi', label: 'Manage LOI clause library' },
   { key: 'admin_console', label: 'Open admin console / settings' },
   { key: 'manage_users', label: 'Manage users & roles' },
   { key: 'manage_templates', label: 'Manage agreement templates' },
@@ -5838,7 +5841,7 @@ Broker: {{rep}}, Restaurant Realty Group, LLC`,
         { key: 'commencement', label: 'Commencement / Delivery', type: 'number', unit: 'days' },
         { key: 'base_rent', label: 'Base Rent ($/SF/yr)' },
         { key: 'rent_structure', label: 'Rent Structure', type: 'select', options: ['NNN (Triple Net)', 'Modified Gross', 'Full-Service Gross', 'Industrial Gross', 'Absolute Net', 'Percentage Rent'] },
-        { key: 'escalations', label: 'Annual Escalations' },
+        { key: 'escalations', label: 'Annual Escalations', type: 'escalation' },
         { key: 'free_rent', label: 'Free Rent / Abatement', type: 'number', unit: 'months' },
         { key: 'ti', label: 'TI Allowance', type: 'number', prefix: '$', unit: '/SF' },
         { key: 'delivery_condition', label: 'Delivery Condition', type: 'select', options: ['Warm shell', 'Cold / dark shell', 'Vanilla box', 'As-is', 'Turnkey (Landlord build-out)', 'Second-generation restaurant (as-is)'] },
@@ -5947,6 +5950,11 @@ function loiFmtTerm(f, vals) {
     var u = f.unit || ''; var sp = (u && /^[\/%]/.test(u)) ? '' : ' ';
     return (f.prefix || '') + out + (u ? sp + u : '');
   }
+  if (t === 'escalation') {
+    var a = (vals.esc_amount != null ? String(vals.esc_amount) : '').trim(); if (!a) return '';
+    var un = vals.esc_unit || '%';
+    return un === '%' ? (a + '% per year') : ('$' + a + '/SF per year');
+  }
   if (t === 'renewal') {
     var c = (vals.renewal_count != null ? String(vals.renewal_count) : '').trim();
     var y = (vals.renewal_years != null ? String(vals.renewal_years) : '').trim();
@@ -5972,7 +5980,31 @@ function loiRtfEsc(s) {
 }
 
 app.get('/api/loi', (req, res) => {
-  res.json({ ok: true, types: LOI_TYPES, config: loadLoiConfig(), isAdmin: !!(req.user && isSuper(req.user)), rep: (req.user && req.user.name) || '', logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), appName: loadAppName() });
+  res.json({ ok: true, types: LOI_TYPES, config: loadLoiConfig(), isAdmin: !!(req.user && isSuper(req.user)), canManage: manageLoiOk(req), rep: (req.user && req.user.name) || '', logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), appName: loadAppName() });
+});
+const LOIS_FILE = path.join(BOV_DATA_DIR, 'lois.json');
+function loadLois() { try { return JSON.parse(fs.readFileSync(LOIS_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveLois(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(LOIS_FILE, JSON.stringify(a || [], null, 2)); } catch (e) {} }
+function newLoiId() { return 'loi_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+app.get('/api/loi/parties', (req, res) => {
+  const out = [];
+  try { loadPeople().forEach(p => out.push({ id: p.id, kind: 'contact', name: p.name || '', sub: p.company || preferredEmailOf(p) || '' })); } catch (e) {}
+  try { loadCompanies().forEach(c => out.push({ id: c.id, kind: 'company', name: c.name || '', sub: c.type || '' })); } catch (e) {}
+  res.json({ ok: true, parties: out });
+});
+app.post('/api/loi/save', express.json(), (req, res) => {
+  const b = req.body || {}; const now = new Date().toISOString();
+  const lois = loadLois();
+  const rec = { id: newLoiId(), type: b.type || 'tenant_rep', property: (b.values && b.values.property) || '', tenant: b.tenant || null, landlord: b.landlord || null, values: b.values || {}, clauses: Array.isArray(b.clauses) ? b.clauses : [], createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+  lois.push(rec); saveLois(lois);
+  const label = 'LOI ' + (rec.type === 'business_sale' ? '(Business Sale)' : '(Tenant Rep)') + (rec.property ? (' - ' + rec.property) : '');
+  const logged = [];
+  [b.tenant, b.landlord].forEach(function (party) {
+    if (party && party.kind === 'contact' && party.id) {
+      try { const arr = loadPeople(); const p = arr.find(x => x.id === party.id); if (p) { logActivity(p, 'LOI', label, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(arr); logged.push(p.name || party.name || ''); } } catch (e) {}
+    }
+  });
+  res.json({ ok: true, id: rec.id, logged: logged });
 });
 app.post('/api/loi/generate', express.json(), (req, res) => {
   const b = req.body || {};
@@ -6000,14 +6032,14 @@ app.post('/api/loi/generate', express.json(), (req, res) => {
   res.setHeader('Content-Disposition', 'attachment; filename="' + fname + '"');
   res.send(rtf);
 });
-app.post('/api/loi/boilerplate', requireAdmin, express.json(), (req, res) => {
+app.post('/api/loi/boilerplate', requireManageLoi, express.json(), (req, res) => {
   const b = req.body || {}; const cfg = loadLoiConfig(); const t = cfg[b.type];
   if (!t) return res.status(400).json({ ok: false, error: 'Unknown LOI type.' });
   if (typeof b.top === 'string') t.top = b.top.slice(0, 20000);
   if (typeof b.bottom === 'string') t.bottom = b.bottom.slice(0, 20000);
   saveLoiConfig(cfg); res.json({ ok: true, config: cfg });
 });
-app.post('/api/loi/terms', requireAdmin, express.json(), (req, res) => {
+app.post('/api/loi/terms', requireManageLoi, express.json(), (req, res) => {
   const b = req.body || {}; const cfg = loadLoiConfig(); const t = cfg[b.type];
   if (!t) return res.status(400).json({ ok: false, error: 'Unknown LOI type.' });
   if (Array.isArray(b.terms)) {
@@ -6015,7 +6047,7 @@ app.post('/api/loi/terms', requireAdmin, express.json(), (req, res) => {
   }
   saveLoiConfig(cfg); res.json({ ok: true, config: cfg });
 });
-app.post('/api/loi/clause', requireAdmin, express.json(), (req, res) => {
+app.post('/api/loi/clause', requireManageLoi, express.json(), (req, res) => {
   const b = req.body || {}; const cfg = loadLoiConfig(); const t = cfg[b.type];
   if (!t) return res.status(400).json({ ok: false, error: 'Unknown LOI type.' });
   const list = t.clauses = Array.isArray(t.clauses) ? t.clauses : [];
@@ -6025,13 +6057,13 @@ app.post('/api/loi/clause', requireAdmin, express.json(), (req, res) => {
   if (typeof b.body === 'string') c.body = b.body.slice(0, 8000);
   saveLoiConfig(cfg); res.json({ ok: true, clause: c, config: cfg });
 });
-app.delete('/api/loi/clause/:type/:id', requireAdmin, (req, res) => {
+app.delete('/api/loi/clause/:type/:id', requireManageLoi, (req, res) => {
   const cfg = loadLoiConfig(); const t = cfg[req.params.type];
   if (!t) return res.status(400).json({ ok: false, error: 'Unknown LOI type.' });
   t.clauses = (t.clauses || []).filter(c => c.id !== req.params.id);
   saveLoiConfig(cfg); res.json({ ok: true, config: cfg });
 });
-app.post('/api/loi/clause/reorder', requireAdmin, express.json(), (req, res) => {
+app.post('/api/loi/clause/reorder', requireManageLoi, express.json(), (req, res) => {
   const b = req.body || {}; const cfg = loadLoiConfig(); const t = cfg[b.type];
   if (!t) return res.status(400).json({ ok: false, error: 'Unknown LOI type.' });
   const order = Array.isArray(b.order) ? b.order : [];

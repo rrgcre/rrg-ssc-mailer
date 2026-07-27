@@ -85,11 +85,16 @@ function curType(){ return CFG&&CFG[TYPE]?CFG[TYPE]:{info:[],terms:[],clauses:[]
 function loiFmtTerm(f,vals){
   var t=f.type;
   if(t==='number'){ var raw=vals[f.key]; if(raw==null) return ''; raw=String(raw).trim(); if(!raw) return ''; var out=raw; var d=raw.replace(/[^0-9.-]/g,''); if(f.comma&&d!==''&&!isNaN(Number(d))) out=Number(d).toLocaleString('en-US'); var u=f.unit||''; var c0=u.charAt(0); var sp=(u&&(c0==='/'||c0==='%'))?'':' '; return (f.prefix||'')+out+(u?sp+u:''); }
+  if(t==='escalation'){ var ea=(vals.esc_amount!=null?String(vals.esc_amount):'').trim(); if(!ea) return ''; var eu=vals.esc_unit||'%'; return eu==='%'?(ea+'% per year'):('$'+ea+'/SF per year'); }
   if(t==='renewal'){ var c=(vals.renewal_count!=null?String(vals.renewal_count):'').trim(); var y=(vals.renewal_years!=null?String(vals.renewal_years):'').trim(); if(!c&&!y) return ''; return (c||'____')+' option'+(c==='1'?'':'s')+' to renew, each '+(y||'____')+' years'; }
   if(t==='guaranty'){ var gy=(vals.pg_years!=null?String(vals.pg_years):'').trim(); var bo=!!vals.pg_burnoff; var boy=(vals.pg_burnoff_years!=null?String(vals.pg_burnoff_years):'').trim(); if(!gy&&!bo&&!boy) return ''; var g=(gy?('Personal guaranty of '+gy+' years'):'Personal guaranty'); if(bo) g+= boy?(', burning off after '+boy+' years'):', with burn-off'; return g; }
   var v=vals[f.key]; return (v!=null?String(v):'');
 }
 function fieldHtml(f){
+  if(f.type==='escalation'){
+    var ea=VALUES.esc_amount!=null?VALUES.esc_amount:''; var eu=VALUES.esc_unit||'%';
+    return '<div class="f"><label class="fld">'+esc(f.label)+'</label><div class="rowin"><input data-k="esc_amount" inputmode="decimal" placeholder="#" value="'+esc(ea)+'" class="numsm"><select data-k="esc_unit" style="width:auto"><option value="%"'+(eu==='%'?' selected':'')+'>% per year</option><option value="$/SF"'+(eu==='$/SF'?' selected':'')+'>$/SF per year</option></select></div></div>';
+  }
   if(f.type==='renewal'){
     var rc=VALUES.renewal_count!=null?VALUES.renewal_count:''; var ry=VALUES.renewal_years!=null?VALUES.renewal_years:'';
     return '<div class="f"><label class="fld">'+esc(f.label)+'</label><div class="rowin"><input data-k="renewal_count" inputmode="numeric" placeholder="#" value="'+esc(rc)+'" class="numsm"><span class="ux">option(s) of</span><input data-k="renewal_years" inputmode="numeric" placeholder="#" value="'+esc(ry)+'" class="numsm"><span class="ux">years each</span></div></div>';

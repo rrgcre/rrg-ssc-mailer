@@ -68,7 +68,7 @@ function render(){
       +'<div style="margin-top:10px;display:flex;gap:9px;align-items:center"><button class="btn sm cl-save" data-cid="'+esc(c.id)+'">Save section</button><button class="btn red sm cl-del" data-cid="'+esc(c.id)+'">Delete</button><span class="savedtag" data-saved="'+esc(c.id)+'">Saved ✓</span></div></div></div>';
   }).join('');
   var termsRows=(t.terms||[]).map(function(f){
-    var special=(f.type==='renewal'||f.type==='guaranty'); var isSel=f.type==='select'; var isNum=f.type==='number';
+    var special=(f.type==='renewal'||f.type==='guaranty'||f.type==='escalation'); var isSel=f.type==='select'; var isNum=f.type==='number';
     var torig=esc(JSON.stringify(f)).split('"').join('&quot;');
     var typeCtl=special?('<span style="font-size:11.5px;color:var(--muted);font-weight:700">structured ('+esc(f.type)+')</span>'):('<select class="ti tm-type" style="width:auto"><option value="text"'+((!isSel&&!isNum)?' selected':'')+'>Text</option><option value="select"'+(isSel?' selected':'')+'>Dropdown</option><option value="number"'+(isNum?' selected':'')+'>Number</option></select>');
     return '<div class="clause" data-tkey="'+esc(f.key)+'" data-torig="'+torig+'"><div class="clbody" style="padding:12px 13px">'
@@ -143,7 +143,7 @@ function post(url,body,ok){
   fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ok(j); } else alert((j&&j.error)||'Save failed.'); }).catch(function(){ alert('Could not reach the server.'); });
 }
 fetch('/api/loi',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-  CFG=(j&&j.config)||{}; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&j.isAdmin);
+  CFG=(j&&j.config)||{}; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&(j.canManage||j.isAdmin));
   if(TYPES.length && !CFG[TYPE]) TYPE=TYPES[0].key;
   render();
 }).catch(function(){ document.getElementById('wrap').innerHTML='<div class="card"><div class="cb"><div class="note">Could not load the clause library.</div></div></div>'; });
