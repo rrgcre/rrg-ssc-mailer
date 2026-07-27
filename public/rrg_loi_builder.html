@@ -61,6 +61,12 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 .msg{font-size:13px;color:var(--muted);}
 .adminlink{margin-left:auto;font-size:12.5px;color:var(--gold);font-weight:700;text-decoration:none;}
 .selcount{font-size:12px;color:var(--muted);}
+.aiov{position:fixed;inset:0;background:rgba(8,14,32,.5);display:flex;align-items:flex-start;justify-content:center;padding:34px 16px;z-index:300;overflow:auto;}
+.aimodal{background:#fff;border-radius:16px;width:100%;max-width:640px;box-shadow:0 24px 70px rgba(6,12,30,.4);}
+.aimh{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid #e6e9f0;}
+.aimb{padding:16px 18px;}
+.aimb textarea{width:100%;min-height:150px;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:13.5px;resize:vertical;}
+.aisum{margin-top:10px;font-size:12.5px;color:#42506b;background:#f6f4ff;border:1px solid #e2dcf6;border-radius:9px;padding:10px 12px;display:none;}
 .note{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;}
 #loilist .rl-wrap{max-height:440px;overflow-y:auto;}
 #loilist .rl-wrap thead th{position:sticky;top:0;z-index:2;background:#fbfcfe;box-shadow:inset 0 -1px 0 #e9edf3;}
@@ -151,7 +157,7 @@ function render(){
   var adminLink=CANMANAGE?'<a class="adminlink" href="./rrg_admin_loi.html">Manage clause library →</a>':'';
   document.getElementById('wrap').innerHTML=
     '<div style="margin-bottom:12px"><a href="#" id="toList" style="color:var(--navy);font-weight:700;font-size:13px;text-decoration:none">← All LOIs</a></div>'
-    +'<div class="card"><div class="ch"><b>LOI Builder</b>'+adminLink+'</div><div class="cb"><div class="typerow">'+typebtns+'</div></div></div>'
+    +'<div class="card"><div class="ch"><b>LOI Builder</b><button class="btn" id="aiLoiBtn" type="button" style="margin-left:auto;margin-right:8px">✨ Fill from a received LOI</button>'+adminLink+'</div><div class="cb"><div class="typerow">'+typebtns+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Key info</b></div><div class="cb"><div class="grid">'+info+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Key terms</b><span class="hint">Blanks become fill-in lines in the draft</span></div><div class="cb"><div class="grid">'+terms+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Optional sections</b>'+tbadge+'<span class="hint">Check the ones this deal needs</span><span class="selcount" style="margin-left:auto">'+selN+' selected</span></div><div class="cb"><div class="clausescroll">'+(clauses||'<div class="msg">No sections in the library yet.</div>')+'</div></div></div>'
@@ -173,6 +179,7 @@ function wire(){
   });
   var g=document.getElementById('genBtn'); if(g) g.addEventListener('click',buildDoc);
   var tl=document.getElementById('toList'); if(tl) tl.addEventListener('click',function(e){ e.preventDefault(); showList(); });
+  var ab=document.getElementById('aiLoiBtn'); if(ab) ab.addEventListener('click',openAiLoi);
   document.querySelectorAll('#wrap [data-party]').forEach(function(inp){
     var key=inp.getAttribute('data-party'); var wrap=inp.parentNode; var sug=wrap.querySelector('.partysug');
     function close(){ sug.hidden=true; sug.innerHTML=''; }
@@ -248,7 +255,31 @@ fetch('/api/loi',{credentials:'same-origin'}).then(function(r){return r.json();}
   loadReps(); loadParties(); loadLois();
 }).catch(function(){ document.getElementById('wrap').innerHTML='<div class="card"><div class="cb"><div class="msg">Could not load the LOI Builder.</div></div></div>'; });
 try{ loadLois(); }catch(e){}
+function openAiLoi(){ var ov=document.getElementById('aiov'); if(!ov) return; document.getElementById('aip_text').value=''; document.getElementById('aip_msg').textContent=''; var sm=document.getElementById('aip_sum'); sm.style.display='none'; sm.textContent=''; ov.hidden=false; }
+function aiLoiParse(){
+  var t=document.getElementById('aip_text').value; var m=document.getElementById('aip_msg'); var btn=document.getElementById('aip_go');
+  if(!t.trim()){ m.textContent='Paste the LOI first.'; return; }
+  btn.disabled=true; m.textContent='Reading…';
+  fetch('/api/loi/ai-parse',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:t,type:TYPE})})
+    .then(function(r){return r.json();}).then(function(j){ btn.disabled=false;
+      if(!j||!j.ok){ m.textContent=(j&&j.error)||'Could not read that.'; return; }
+      var v=j.values||{}; var map={party_tenant:'tenant',party_landlord:'landlord',party_buyer:'buyer',party_seller:'seller',property:'property'}; var filled=0;
+      Object.keys(v).forEach(function(k){ if(k==='summary') return; var val=v[k]; if(val===''||val==null) return; var key=map[k]||k; var inp=document.querySelector('#wrap [data-k="'+key+'"]'); if(inp){ inp.value=val; VALUES[key]=val; filled++; } });
+      var sm=document.getElementById('aip_sum'); if(v.summary){ sm.textContent='Summary: '+v.summary; sm.style.display='block'; }
+      m.textContent='Pulled '+filled+' field'+(filled===1?'':'s')+' into the builder — review, then close.';
+    }).catch(function(){ btn.disabled=false; m.textContent='Network error.'; });
+}
+(function(){ var x=document.getElementById('aip_x'); if(x) x.addEventListener('click',function(){ document.getElementById('aiov').hidden=true; }); var g=document.getElementById('aip_go'); if(g) g.addEventListener('click',aiLoiParse); var ov=document.getElementById('aiov'); if(ov) ov.addEventListener('click',function(e){ if(e.target===this) this.hidden=true; }); })();
 (function(){ var nb=document.getElementById('newLoiBtn'); if(nb) nb.addEventListener('click',function(){ showBuilder(); }); })();
 </script>
+<div class="aiov" id="aiov" hidden><div class="aimodal">
+  <div class="aimh"><b style="color:var(--navy);font-size:15px">✨ Fill from a received LOI</b><button id="aip_x" type="button" style="border:none;background:#f2f4f8;width:30px;height:30px;border-radius:8px;cursor:pointer;color:#6b7488;font-size:14px">✕</button></div>
+  <div class="aimb">
+    <div style="font-size:12px;color:#6b7488;margin-bottom:8px">Paste the LOI you received — AI pulls the parties and key terms into the builder. Review before you build.</div>
+    <textarea id="aip_text" placeholder="Paste the received LOI here…"></textarea>
+    <div style="margin-top:10px;display:flex;align-items:center;gap:10px"><button class="btn" id="aip_go" type="button">Pull the terms</button><span class="msg" id="aip_msg"></span></div>
+    <div class="aisum" id="aip_sum"></div>
+  </div>
+</div></div>
 </body>
 </html>

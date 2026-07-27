@@ -53,6 +53,15 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 .mf{display:flex;align-items:center;gap:10px;padding:15px 20px;border-top:1px solid var(--line);}
 .msg{font-size:12.5px;color:var(--muted);}
 .acell a{margin-right:6px;}
+.aibox{background:#f6f4ff;border:1px solid #e2dcf6;border-radius:12px;padding:12px 14px;margin-bottom:16px;}
+.aihd{font-size:12.5px;font-weight:800;color:#5b46b8;}
+.aihd span{display:block;font-weight:600;color:#8a80b3;font-size:11px;margin-top:2px;}
+.aibox textarea{width:100%;min-height:74px;margin-top:8px;border:1px solid #d7cff0;border-radius:9px;padding:9px 11px;font:inherit;font-size:13px;resize:vertical;}
+.airow{display:flex;align-items:center;gap:10px;margin-top:8px;}
+.mrow{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--line);}
+.mscore{font-size:20px;font-weight:800;min-width:40px;text-align:center;}
+.mnm{font-weight:700;color:var(--navy);font-size:13.5px;}
+.mrs{color:var(--muted);font-size:12.5px;margin-top:2px;}
 </style>
 </head>
 <body>
@@ -64,7 +73,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 
 <div class="wrap">
   <div class="card">
-    <div class="ch"><b>All spaces</b><span class="hint" id="cnt"></span><button class="btn primary" id="addBtn" style="margin-left:auto">+ Add space</button></div>
+    <div class="ch"><b>All spaces</b><span class="hint" id="cnt"></span><button class="btn" id="matchBtn" style="margin-left:auto">✨ AI match</button><button class="btn primary" id="addBtn" style="margin-left:8px">+ Add space</button></div>
     <div class="tiles" id="tiles"></div>
     <div class="cb"><div id="list"></div></div>
   </div>
@@ -73,6 +82,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 <div class="ov" id="ov" hidden><div class="modal">
   <div class="mh"><b id="mtitle">Add space</b><button class="x" id="mx">✕</button></div>
   <div class="mb">
+    <div class="aibox"><div class="aihd">✨ AI fill from a listing <span>paste a CoStar / LoopNet / Crexi blurb, broker email, or flyer — AI fills the fields below</span></div><textarea id="ai_paste" placeholder="Paste the listing here…"></textarea><div class="airow"><button class="btn" id="ai_fill" type="button">Fill the fields ↓</button><span class="msg" id="ai_msg"></span></div></div>
     <div class="grid">
       <div class="f full"><label class="fld">Address</label><input id="f_address" placeholder="1234 S Congress Ave"></div>
       <div class="f"><label class="fld">Shopping center</label><input id="f_center" placeholder="Southpark Plaza"></div>
@@ -93,6 +103,15 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
   <div class="mf"><button class="btn primary" id="msave">Save space</button><button class="btn ghost" id="mcancel">Cancel</button><span class="msg" id="mmsg"></span></div>
 </div></div>
 
+<div class="ov" id="mov" hidden><div class="modal" style="max-width:640px">
+  <div class="mh"><b>✨ Match spaces to a client</b><button class="x" id="mmx">✕</button></div>
+  <div class="mb">
+    <div class="fld">Client site criteria</div>
+    <textarea id="mcrit" placeholder="e.g. Fast-casual taco concept, 2,000–2,800 SF, end cap with drive-thru preferred, needs hood + grease trap, budget ≤ $35/SF all-in, north Austin trade area…" style="width:100%;min-height:96px;border:1px solid var(--inp);border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;resize:vertical"></textarea>
+    <div style="margin-top:10px"><button class="btn primary" id="mgo">Rank spaces</button><span class="msg" id="mstat" style="margin-left:10px"></span></div>
+    <div id="mres" style="margin-top:14px"></div>
+  </div>
+</div></div>
 <script src="/rrg_list.js"></script>
 <script>
 var TYPES=[], STATUS=[], FEATURES=[], SPACES=[], CTL=null, IS_ADMIN=false, EDIT=null, SEL={}, FILTER='';
@@ -164,6 +183,7 @@ function openForm(sp){
   document.getElementById('f_type').value=(sp&&sp.spaceType)||'';
   document.getElementById('f_status').value=(sp&&sp.status)||'Available';
   document.getElementById('mmsg').textContent='';
+  var ap=document.getElementById('ai_paste'); if(ap) ap.value=''; var am=document.getElementById('ai_msg'); if(am) am.textContent='';
   document.getElementById('ov').hidden=false;
 }
 function closeForm(){ document.getElementById('ov').hidden=true; }
@@ -198,6 +218,40 @@ function load(){
   });
 }
 
+function aiFill(){
+  var t=document.getElementById('ai_paste').value; var m=document.getElementById('ai_msg'); var btn=document.getElementById('ai_fill');
+  if(!t.trim()){ m.textContent='Paste a listing first.'; return; }
+  btn.disabled=true; m.textContent='Reading…';
+  fetch('/api/space/ai-intake',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:t})})
+    .then(function(r){return r.json();}).then(function(j){ btn.disabled=false;
+      if(!j||!j.ok){ m.textContent=(j&&j.error)||'Could not read that.'; return; }
+      var fd=j.fields||{};
+      if(fd.address) setv('f_address',fd.address); if(fd.center) setv('f_center',fd.center); if(fd.market) setv('f_market',fd.market);
+      if(fd.size!=null) setv('f_size',fd.size); if(fd.rent!=null) setv('f_rent',fd.rent); if(fd.nnn!=null) setv('f_nnn',fd.nnn);
+      if(fd.spaceType) document.getElementById('f_type').value=fd.spaceType;
+      if(fd.notes) setv('f_notes',fd.notes);
+      if(Array.isArray(fd.features)){ fd.features.forEach(function(fe){ SEL[fe]=true; }); document.querySelectorAll('#bones .chip').forEach(function(c){ c.classList.toggle('on',!!SEL[c.getAttribute('data-feat')]); }); }
+      m.textContent='Filled — review and save.';
+    }).catch(function(){ btn.disabled=false; m.textContent='Network error.'; });
+}
+function openMatch(){ document.getElementById('mcrit').value=''; document.getElementById('mstat').textContent=''; document.getElementById('mres').innerHTML=''; document.getElementById('mov').hidden=false; }
+function aiMatch(){
+  var crit=document.getElementById('mcrit').value; var st=document.getElementById('mstat'); var btn=document.getElementById('mgo'); var res=document.getElementById('mres');
+  if(!crit.trim()){ st.textContent='Add the criteria first.'; return; }
+  btn.disabled=true; st.textContent='Ranking…'; res.innerHTML='';
+  fetch('/api/spaces/ai-match',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({criteria:crit})})
+    .then(function(r){return r.json();}).then(function(j){ btn.disabled=false; st.textContent='';
+      if(!j||!j.ok){ st.textContent=(j&&j.error)||'Could not rank.'; return; }
+      var byId={}; SPACES.forEach(function(sp){ byId[sp.id]=sp; });
+      var rows=(j.ranked||[]).map(function(r){ var sp=byId[r.id]; if(!sp) return ''; var sc=Math.max(0,Math.min(100,Math.round(Number(r.score)||0))); var col=sc>=70?'#1f8a5b':(sc>=45?'#b5791f':'#98a1b5'); var sub=[sp.market,sp.spaceType].filter(Boolean).map(esc).join(' · '); return '<div class="mrow"><div class="mscore" style="color:'+col+'">'+sc+'</div><div class="minfo"><div class="mnm">'+esc(sp.name||sp.address||'Space')+'</div>'+(sub?('<div class="mrs">'+sub+'</div>'):'')+'<div class="mrs">'+esc(r.reason||'')+'</div></div></div>'; }).join('');
+      res.innerHTML=rows||'<div class="empty">No spaces to rank yet.</div>';
+    }).catch(function(){ btn.disabled=false; st.textContent='Network error.'; });
+}
+document.getElementById('ai_fill').addEventListener('click',aiFill);
+document.getElementById('matchBtn').addEventListener('click',openMatch);
+document.getElementById('mmx').addEventListener('click',function(){ document.getElementById('mov').hidden=true; });
+document.getElementById('mgo').addEventListener('click',aiMatch);
+document.getElementById('mov').addEventListener('click',function(e){ if(e.target===this) this.hidden=true; });
 document.getElementById('addBtn').addEventListener('click',function(){ openForm(null); });
 document.getElementById('mx').addEventListener('click',closeForm);
 document.getElementById('mcancel').addEventListener('click',closeForm);
