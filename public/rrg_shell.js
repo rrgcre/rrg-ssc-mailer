@@ -90,6 +90,8 @@
     + '#rrgnav .foot{border-top:1px solid rgba(255,255,255,.09);padding:8px 10px;}'
     + '#rrgtop{position:fixed;top:0;left:238px;right:0;height:56px;background:#fff;border-bottom:1px solid #e9edf3;display:flex;align-items:center;gap:18px;padding:0 22px;z-index:59;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
     + '#rrgtop .pt{font-size:16.5px;font-weight:600;color:#1d2739;min-width:90px;}'
+    + '#rrgtop .rrgback{display:inline-flex;align-items:center;gap:6px;color:#1d2739;text-decoration:none;font-size:13.5px;font-weight:500;padding:7px 13px;border:1px solid #e9edf3;border-radius:9px;background:#fff;white-space:nowrap;transition:background .12s;}'
+    + '#rrgtop .rrgback:hover{background:#f2f4f8;}'
     + '#rrgtop .srch{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:46%;max-width:560px;}'
     + '#rrgtop .srch input{width:100%;border:1px solid #e9edf3;background:#f7f9fc;border-radius:10px;padding:9px 12px 9px 36px;font:inherit;font-size:13.5px;color:#1d2739;}'
     + '#rrgtop .srch .si{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#98a1b5;}'
@@ -139,6 +141,9 @@
     document.body.insertBefore(nav, document.body.firstChild);
     document.body.insertBefore(top, document.body.firstChild);
     document.body.classList.add('rrg-shelled');
+    // Contextual back button in the header's left slot — pages opt in with
+    // <meta name="rrg-back" content="rrg_companies.html|Companies">.
+    try { var _mb=document.querySelector('meta[name="rrg-back"]'); if(_mb){ var _p=String(_mb.getAttribute('content')||'').split('|'); var _href=(_p[0]||'').trim(), _lbl=(_p[1]||'Back').trim(); if(_href){ var _bk=document.createElement('a'); _bk.className='rrgback'; _bk.href=_href; _bk.innerHTML='<span style="font-size:15px;line-height:1">←</span> '+esc(_lbl); top.insertBefore(_bk, top.firstChild); } } } catch(e){}
     try { fetch('/api/counts',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var od=(j&&j.overdue)||{}; var NOUN={'rrg_tickets.html':'past-due request','rrg_tasks.html':'overdue task'}; Object.keys(od).forEach(function(href){ var c=od[href]||0; if(c<=0) return; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||tl.querySelector('.navbadge')) return; var noun=NOUN[href]||'item'; tl.title=c+' '+noun+(c===1?'':'s'); var b=document.createElement('span'); b.className='navbadge'; b.textContent=c>99?'99+':String(c); tl.appendChild(b); }); }).catch(function(){}); } catch(e){}
     // mobile burger
     var burger=document.getElementById('rrgburger'); if(window.innerWidth<=900){ burger.style.display='flex'; }
