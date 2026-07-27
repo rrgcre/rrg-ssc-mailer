@@ -150,7 +150,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .savebtn:disabled{opacity:.55;cursor:default;}
 .saved{text-align:center;font-size:11.5px;color:var(--green);font-weight:700;margin-top:9px;height:14px;opacity:0;transition:opacity .2s;} .saved.show{opacity:1;}
 .cform{padding:14px 20px 4px;border-bottom:1px solid var(--line);background:#fbfcff;}
-.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;} .cgrid .wide{grid-column:1/-1;}
+.cgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px;} .cgrid .wide{grid-column:1/-1;} .cgrid .locsec{grid-column:1/-1;margin-top:6px;padding-top:10px;border-top:1px solid var(--line);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);}
 .cgrid input,.cgrid select{padding:9px 11px;font-size:13px;}
 .cbtns{display:flex;gap:9px;margin:12px 0 8px;} .sbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;} .cbtn{background:#fff;color:var(--muted);border:1px solid var(--line);border-radius:8px;padding:9px 14px;font:inherit;font-size:13px;cursor:pointer;}
 .foot{max-width:1640px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
@@ -497,23 +497,24 @@ function openLocForm(l,presetConcept){
   var ssel=LSTATUSES.map(function(x){return '<option'+((l.status||'Open')===x?' selected':'')+'>'+esc(x)+'</option>';}).join('');
   var stsel='<option value="">— select —</option>'+SITETYPES.map(function(x){return '<option'+((l.siteType||'')===x?' selected':'')+'>'+esc(x)+'</option>';}).join('');
   var selName=l.concept||presetConcept||'';
-  var LEADSRC=['Referral','CoStar','LoopNet','Crexi','Cold call','Event / conference','Website','Email campaign','Walk-in','Existing client','Social media','Other']; var leadOpts=LEADSRC.map(function(x){return '<option value="'+esc(x)+'">';}).join(''); var titleOpts=(TITLES||[]).map(function(x){return '<option value="'+esc(x)+'">';}).join('');
+  var LEADSRC=(LEADSOURCES&&LEADSOURCES.length)?LEADSOURCES:['Referral','Cold Call','Website','CoStar','LoopNet','Walk-in','Event / Networking','Existing Client','Social Media','Other']; var leadOpts=LEADSRC.map(function(x){return '<option value="'+esc(x)+'">';}).join(''); var titleOpts=(TITLES||[]).map(function(x){return '<option value="'+esc(x)+'">';}).join('');
   f.innerHTML='<div class="cform"><div class="cgrid">'
     +'<div><label class="fld">Concept / brand</label>'+conceptSelectHtml('lo_concept',selName)+'</div>'
     +'<div><label class="fld">Status</label><select id="lo_status">'+ssel+'</select></div>'
     +'<div><label class="fld">Location name</label><input id="lo_name" value="'+esc(l.name||'')+'" placeholder="e.g. Downtown, Airport, Unit 2"></div>'
-    +'<div><label class="fld">Site type</label><select id="lo_sitetype">'+stsel+'</select></div>'
     +'<div class="wide"><label class="fld">Address</label><input id="lo_address" value="'+esc(l.address||'')+'" placeholder="Street address"></div>'
     +'<div><label class="fld">City / market</label><input id="lo_city" value="'+esc(l.city||'')+'" placeholder="City"></div>'
     +'<div><label class="fld">State</label><input id="lo_state" maxlength="2" oninput="this.value=this.value.toUpperCase()" value="'+esc(l.state||'')+'" placeholder="TX"></div>'
     +'<div><label class="fld">Zip</label><input id="lo_zip" value="'+esc(l.zip||'')+'" placeholder="ZIP"></div>'
     +'<div><label class="fld">Phone</label><input id="lo_phone" value="'+esc(l.phone||'')+'" placeholder="(555) 555-5555"></div>'
     +'<div><label class="fld">Date opened</label><input type="date" id="lo_opened" value="'+esc(l.opened||'')+'"></div>'
+    +'<div id="lo_closedwrap"'+((['Dark','Closed'].indexOf(l.status||'')>=0)?'':' style="display:none"')+'><label class="fld">Closed / went dark</label><input type="date" id="lo_closed" value="'+esc(l.closedDate||'')+'"></div>'
+    +'<div class="locsec">Lease Details</div>'
+    +'<div><label class="fld">Site type</label><select id="lo_sitetype">'+stsel+'</select></div>'
     +'<div><label class="fld">Leased or owned</label><select id="lo_tenure"><option value="">— select —</option><option'+((l.tenure||'')==='Leased'?' selected':'')+'>Leased</option><option'+((l.tenure||'')==='Owned'?' selected':'')+'>Owned</option></select></div>'
     +'<div><label class="fld">Square feet</label><input id="lo_sf" inputmode="numeric" value="'+esc(l.sf||'')+'" placeholder="e.g. 2,400"></div>'
     +'<div><label class="fld">Lease commencement</label><input type="date" id="lo_lstart" value="'+esc(l.leaseStart||'')+'"></div>'
     +'<div><label class="fld">Lease expiration</label><input type="date" id="lo_lexp" value="'+esc(l.leaseExpires||'')+'"></div>'
-    +'<div id="lo_closedwrap"'+((['Dark','Closed'].indexOf(l.status||'')>=0)?'':' style="display:none"')+'><label class="fld">Closed / went dark</label><input type="date" id="lo_closed" value="'+esc(l.closedDate||'')+'"></div>'
     +'<div class="wide"><label class="commrow"><input type="checkbox" id="lo_flag"'+(l.flagship?' checked':'')+'> ★ Flagship location for this concept</label></div>'
     +'<div class="wide"><label class="commrow"><input type="checkbox" id="lo_comm"'+(l.commissary?' checked':'')+'> This location is a commissary / central kitchen</label></div>'
     +'<div class="wide" id="servesWrap"'+(l.commissary?'':' style="display:none"')+'>'+servesPicker(l)+'</div>'
@@ -627,7 +628,7 @@ function collectMulti(scope,cls){ var out=[]; scope.querySelectorAll('.'+cls).fo
 function openContactForm(){
   var f=document.getElementById('contactForm');
   var ptsel='<option value="">— select —</option>'+PTYPES.map(function(t){return '<option'+((C&&C.type&&t===C.type)?' selected':'')+'>'+esc(t)+'</option>';}).join('');
-  var LEADSRC=['Referral','CoStar','LoopNet','Crexi','Cold call','Event / conference','Website','Email campaign','Walk-in','Existing client','Social media','Other']; var leadOpts=LEADSRC.map(function(x){return '<option value="'+esc(x)+'">';}).join(''); var titleOpts=(TITLES||[]).map(function(x){return '<option value="'+esc(x)+'">';}).join('');
+  var LEADSRC=(LEADSOURCES&&LEADSOURCES.length)?LEADSOURCES:['Referral','Cold Call','Website','CoStar','LoopNet','Walk-in','Event / Networking','Existing Client','Social Media','Other']; var leadOpts=LEADSRC.map(function(x){return '<option value="'+esc(x)+'">';}).join(''); var titleOpts=(TITLES||[]).map(function(x){return '<option value="'+esc(x)+'">';}).join('');
   f.innerHTML='<div class="cform"><div class="cgrid">'
     +'<div><label class="fld">First name *</label><input id="ct_first" placeholder="First"></div>'
     +'<div><label class="fld">Last name *</label><input id="ct_last" placeholder="Last"></div>'
