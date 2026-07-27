@@ -65,7 +65,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .coauto{position:relative;} .cosug{position:absolute;left:0;right:0;top:100%;z-index:30;background:#fff;border:1px solid #cfd6e2;border-radius:9px;box-shadow:0 10px 26px rgba(10,20,50,.14);margin-top:3px;max-height:230px;overflow:auto;}
 .cosugrow{padding:8px 11px;font-size:13px;cursor:pointer;} .cosugrow:hover{background:#f5f7fb;color:#DA2B1F;}
 .colink{font-weight:700;color:#2647b0;text-decoration:none;text-transform:none;letter-spacing:0;font-size:11px;margin-left:6px;} .colink:hover{text-decoration:underline;}
-.actcard .actadd{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;} .actadd #act_note{flex:1;min-width:150px;}
+.actcard .actadd{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;margin-bottom:12px;} .actadd #act_note{flex:1;min-width:150px;}
 .actrow{display:flex;gap:10px;align-items:flex-start;padding:9px 2px;border-bottom:1px solid #eef1f6;} .actrow:last-child{border-bottom:none;}
 .actchip{flex:none;font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:20px;white-space:nowrap;margin-top:1px;}
 .actmain{flex:1;min-width:0;} .acttop{display:flex;gap:8px;align-items:center;font-size:11.5px;} .actdate{font-weight:700;color:#5b6472;} .actauto{background:#eef1f6;color:#8a93a5;font-size:9px;font-weight:800;padding:1px 5px;border-radius:10px;text-transform:uppercase;} .actby{color:#98a1b5;}
@@ -413,7 +413,7 @@ function activityCard(){
   return '<div class="card actcard"><div class="ch"><b>Activity</b><span>'+items.length+'</span>'
     +'<div style="margin-left:auto;display:flex;gap:8px"><button type="button" class="abtn" id="act_show">+ Log activity</button><button type="button" class="abtn" id="prepBtn" data-ai="">✨ Prep for call</button><button type="button" class="abtn" id="em_show">✉ Send email</button></div></div>'
     +'<div class="cb">'
-    +'<div id="actComposer" hidden style="margin-bottom:14px"><div class="actadd"><select id="act_type">'+opts+'</select><input type="date" id="act_date" value="'+td+'"><input id="act_note" placeholder="Note — for a To-Do this becomes the task"><button type="button" class="savebtn" id="act_add" style="width:auto;padding:8px 16px">Log</button></div></div>'
+    +'<div id="actComposer" hidden style="margin-bottom:14px"><div class="actadd"><select id="act_type">'+opts+'</select><input type="date" id="act_date" value="'+td+'"><textarea id="act_note" rows="2" placeholder="Note — for a To-Do this becomes the task" style="flex:1;min-width:150px;resize:vertical;font:inherit;font-size:13px;padding:8px 10px;border:1px solid #d5dbe6;border-radius:8px;line-height:1.4"></textarea><button type="button" class="savebtn" id="act_add" style="width:auto;padding:8px 16px">Log</button></div></div>'
     +'<div id="emailComposer" hidden style="margin-bottom:14px">'+emComposer+'</div>'
     +'<div class="feed">'+feed+'</div></div></div>';
 }
