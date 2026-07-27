@@ -32,6 +32,7 @@ th,td{padding:11px 10px;text-align:left;border-bottom:1px solid var(--line);vert
 thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
 .jbean{display:inline-flex;align-items:center;padding:4px 11px;border-radius:20px;font-size:11.5px;font-weight:800;}
 .who a{color:var(--navy);font-weight:700;text-decoration:none;} .who a:hover{text-decoration:underline;}
+.lk{color:var(--navy);text-decoration:none;font-weight:600;} .lk:hover{text-decoration:underline;}
 .stpill{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:3px 9px;border-radius:20px;white-space:nowrap;}
 .stpill.active{background:#e7f5ee;color:#1f8a5b;} .stpill.soon{background:#fdf1df;color:#b5791f;} .stpill.expired{background:#fdeceb;color:var(--red);}
 .sigp{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:20px;white-space:nowrap;background:#eef1f6;color:#98a1b5;} .sigp.sent{background:#fff4e6;color:#b5791f;} .sigp.signed{background:#e7f5ee;color:#1f8a5b;}
@@ -91,11 +92,11 @@ function render(){
   var cfg={ mount:'#list', data:rows, key:'agreements', empty:'<div class="empty">No agreements match.</div>', rowId:function(a){return a.id;}, defaultSort:5, defaultDir:1,
     columns:[
       { label:'Type', sort:function(a,b){return RRGList.cmp(label(a.type),label(b.type));}, cell:function(a){ return esc(label(a.type)); } },
-      { label:'Party', sort:function(a,b){return RRGList.cmp(a.personName,b.personName);}, cell:function(a){ return a.personId?('<a href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'">'+esc(a.personName||'Contact')+'</a>'):esc(a.personName||'—'); } },
-      { label:'Company', sort:function(a,b){return RRGList.cmp(a.companyName,b.companyName);}, cell:function(a){ return (a.companyId&&a.companyName)?('<a href="./rrg_company.html?id='+encodeURIComponent(a.companyId)+'">'+esc(a.companyName)+'</a>'):'<span class="meta">—</span>'; } },
-      { label:'Listing', sort:function(a,b){return RRGList.cmp(a.dealName,b.dealName);}, cell:function(a){ return a.dealKey?('<a href="./rrg_assignment.html?key='+encodeURIComponent(a.dealKey)+'">'+esc(a.dealName||'listing')+'</a>'):'<span class="meta">—</span>'; } },
+      { label:'Party', sort:function(a,b){return RRGList.cmp(a.personName,b.personName);}, cell:function(a){ return a.personId?('<a class="lk" href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'">'+esc(a.personName||'Contact')+'</a>'):esc(a.personName||'—'); } },
+      { label:'Company', sort:function(a,b){return RRGList.cmp(a.companyName,b.companyName);}, cell:function(a){ return (a.companyId&&a.companyName)?('<a class="lk" href="./rrg_company.html?id='+encodeURIComponent(a.companyId)+'">'+esc(a.companyName)+'</a>'):'<span class="meta">—</span>'; } },
+      { label:'Listing', sort:function(a,b){return RRGList.cmp(a.dealName,b.dealName);}, cell:function(a){ return a.dealKey?('<a class="lk" href="./rrg_assignment.html?key='+encodeURIComponent(a.dealKey)+'">'+esc(a.dealName||'listing')+'</a>'):'<span class="meta">—</span>'; } },
       { label:'Effective', sort:function(a,b){return RRGList.cmp(a.effective,b.effective);}, cell:function(a){ return esc(fmt(a.effective)); } },
-      { label:'Expires', sort:function(a,b){return RRGList.cmp(a.expires||'9999',b.expires||'9999');}, cell:function(a){ var st=statusOf(a); var cls=st==='expired'?'red':(st==='soon'?'amber':''); return '<span class="'+cls+'">'+esc(fmt(a.expires))+'</span>'; } },
+      { label:'Expires', sort:function(a,b){return RRGList.cmp(a.expires||'9999',b.expires||'9999');}, cell:function(a){ var st=statusOf(a); var cls=st==='expired'?'exp red':(st==='soon'?'exp amber':''); return '<span class="'+cls+'">'+esc(fmt(a.expires))+'</span>'; } },
       { label:'Status', sort:function(a,b){return RRGList.cmp(statusOf(a),statusOf(b));}, cell:function(a){ var st=statusOf(a); var du=daysUntil(a.expires); var txt=st==='expired'?'Expired':(st==='soon'?('Expiring'+(du!=null?' '+du+'d':'')):'Active'); return '<span class="stpill '+st+'">'+txt+'</span>'; } },
       { label:'Signature', sort:function(a,b){return RRGList.cmp(a.signStatus,b.signStatus);}, cell:function(a){ return a.signStatus==='signed'?('<span class="sigp signed">Signed'+(a.signedDate?(' '+fmt(a.signedDate)):'')+'</span>'):(a.signStatus==='sent'?'<span class="sigp sent">Sent</span>':'<span class="sigp">—</span>'); } },
       { label:'Notes', defaultHidden:true, sortable:false, cell:function(a){ return a.notes?esc(a.notes):'<span class="meta">—</span>'; } }
