@@ -80,6 +80,13 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 .doc .docname{font-size:22px;font-weight:800;letter-spacing:.02em;color:#111;}
 .doc h3.dochead{font-size:14px;font-weight:800;margin:18px 0 4px;color:#111;}
 .doc p{margin:0 0 11px;} .doc .docterm{margin:2px 0;}
+.doc.modern{font-family:'Calibri','Segoe UI',system-ui,-apple-system,Arial,sans-serif;color:#20262D;}
+.doc.modern .dochdr{border-bottom:2px solid #e9edf3;padding-bottom:14px;margin-bottom:18px;}
+.doc.modern .dockicker{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#2E74B5;margin-bottom:5px;}
+.doc.modern .docname{font-size:26px;font-weight:800;letter-spacing:-.01em;color:#183B56;}
+.doc.modern .docsub{font-size:14px;color:#66727E;margin-top:5px;}
+.doc.modern h3.dochead{font-size:14px;font-weight:800;color:#2E74B5;margin:20px 0 5px;letter-spacing:0;}
+.doc.modern .docterm b{color:#183B56;}
 @media print{ #rrgnav,#rrgtop,.top,#wrap,.docbar{display:none !important;} #docview{display:block !important;max-width:none;margin:0;padding:0;} .doc{border:none !important;box-shadow:none !important;padding:0 !important;max-width:none;font-size:12pt;} body{background:#fff !important;} }
 </style>
 </head>
@@ -191,7 +198,7 @@ function wire(){
 }
 function fillC(text){ return String(text==null?'':text).replace(/\{\{(\w+)\}\}/g,function(_,k){ var v=VALUES[k]; return (v!=null&&String(v).trim()!=='')?String(v):'____________'; }); }
 function docParas(txt){ return fillC(txt).split(/\n{2,}/).map(function(p){ return '<p>'+esc(p).split('\n').join('<br>')+'</p>'; }).join(''); }
-var LOILIST=null;
+var LOILIST=null; var NEGO={}; var FORMAT='classic';
 function loiFmtD(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]+'/'+x[0]; }
 function loiPartyCell(name,id,kind){ if(!name) return '<span style="color:var(--muted)">—</span>'; if(id&&kind==='contact') return '<a href="./rrg_person.html?id='+encodeURIComponent(id)+'" style="color:var(--navy);text-decoration:none">'+esc(name)+'</a>'; if(id&&kind==='company') return '<a href="./rrg_company.html?id='+encodeURIComponent(id)+'" style="color:var(--navy);text-decoration:none">'+esc(name)+'</a>'; return esc(name); }
 function loadLois(){
@@ -207,8 +214,10 @@ function loadLois(){
         { label:'Property', sort:function(a,b){return RRGList.cmp(a.property,b.property);}, cell:function(l){ return esc(l.property||'—'); } },
         { label:'Tenant / Buyer', sort:function(a,b){return RRGList.cmp(a.tenant,b.tenant);}, cell:function(l){ return loiPartyCell(l.tenant,l.tenantId,l.tenantKind); } },
         { label:'Landlord / Seller', sort:function(a,b){return RRGList.cmp(a.landlord,b.landlord);}, cell:function(l){ return loiPartyCell(l.landlord,l.landlordId,l.landlordKind); } },
+        { label:'Status', sort:function(a,b){return RRGList.cmp(a.status||'Draft',b.status||'Draft');}, cell:function(l){ return negoPill(l.status)+(l.rounds?(' <span style="color:var(--muted);font-size:11px">\u00b7 '+l.rounds+' rd</span>'):''); } },
         { label:'Created', sort:function(a,b){return RRGList.cmp(a.createdAt,b.createdAt);}, cell:function(l){ return '<span style="color:var(--muted)">'+esc(loiFmtD(l.createdAt))+'</span>'; } },
-        { label:'By', sort:function(a,b){return RRGList.cmp(a.by,b.by);}, cell:function(l){ return esc(l.by||'—'); } }
+        { label:'By', sort:function(a,b){return RRGList.cmp(a.by,b.by);}, cell:function(l){ return esc(l.by||'—'); } },
+        { label:'', sortable:false, cell:function(l){ return '<button class="btn" data-loimanage="'+esc(l.id)+'" style="padding:5px 12px;font-size:12px">Manage \u2192</button>'; } }
       ]
     });
   }).catch(function(){});
@@ -227,16 +236,17 @@ function saveToRecords(){
 }
 function buildDoc(){
   collect(); var t=curType(); var selIds=Object.keys(SEL).filter(function(k){return SEL[k];});
-  var hdr=LOGOURL?('<img class="doclogo" src="'+esc(LOGOURL)+'" alt="">'):('<div class="docname">'+esc(APPNAME||'')+'</div>');
+  var _tn=((TYPES.filter(function(x){return x.key===TYPE;})[0])||{}).name||''; var _title=LOGOURL?('<img class="doclogo" src="'+esc(LOGOURL)+'" alt="">'):('<div class="docname">'+esc(APPNAME||'')+'</div>'); var hdr=(FORMAT==='modern')?('<div class="dockicker">Letter of Intent</div>'+_title+'<div class="docsub">'+esc([_tn,VALUES.property||''].filter(Boolean).join('  \u00b7  '))+'</div>'):_title;
   var body='<div class="dochdr">'+hdr+'</div>'+docParas(t.top);
   var trows=(t.terms||[]).map(function(f){ var disp=loiFmtTerm(f,VALUES); return (disp&&String(disp).trim()!=='')?('<div class="docterm"><b>'+esc(f.label)+':</b> '+esc(String(disp))+'</div>'):''; }).filter(Boolean).join('');
   if(trows) body+='<h3 class="dochead">KEY TERMS</h3>'+trows;
   (t.clauses||[]).slice().sort(function(a,b){return (a.order||0)-(b.order||0);}).filter(function(c){return selIds.indexOf(c.id)>=0;}).forEach(function(c){ body+='<h3 class="dochead">'+esc(c.title)+'</h3>'+docParas(c.body); });
   body+=docParas(t.bottom);
   var dv=document.getElementById('docview');
-  dv.innerHTML='<div class="docbar"><button class="btn ghost" id="docBack">\u2190 Back to edit</button><button class="btn" id="docPrint">Print / Save PDF</button><button class="btn ghost" id="docLog">Log to records</button><button class="btn ghost" id="docRtf">Download .rtf</button><span class="msg" id="docMsg" style="margin-left:6px">Click into the document to edit, then print.</span></div><div class="doc" id="thedoc" contenteditable="true">'+body+'</div>';
+  dv.innerHTML='<div class="docbar"><button class="btn ghost" id="docBack">\u2190 Back to edit</button><button class="btn" id="docPrint">Print / Save PDF</button><button class="btn ghost" id="docLog">Log to records</button><button class="btn ghost" id="docRtf">Download .rtf</button><span style="margin-left:6px;display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted)">Format <select id="docFmt" style="border:1px solid #cfd6e2;border-radius:7px;padding:4px 7px;font:inherit;font-size:12.5px"><option value="classic"'+(FORMAT==='classic'?' selected':'')+'>Classic</option><option value="modern"'+(FORMAT==='modern'?' selected':'')+'>Modern</option></select></span><span class="msg" id="docMsg" style="margin-left:6px">Click into the document to edit, then print.</span></div><div class="doc '+FORMAT+'" id="thedoc" contenteditable="true">'+body+'</div>';
   document.getElementById('wrap').style.display='none'; dv.style.display=''; window.scrollTo(0,0);
   document.getElementById('docBack').addEventListener('click',function(){ dv.style.display='none'; document.getElementById('wrap').style.display=''; });
+  var _df=document.getElementById('docFmt'); if(_df) _df.addEventListener('change',function(){ FORMAT=_df.value; buildDoc(); });
   document.getElementById('docPrint').addEventListener('click',function(){ window.print(); });
   document.getElementById('docRtf').addEventListener('click',generate);
   var dl=document.getElementById('docLog'); if(dl) dl.addEventListener('click',saveToRecords);
@@ -245,7 +255,7 @@ function generate(){
   collect(); var g=document.getElementById('docRtf'), m=document.getElementById('docMsg');
   var clauses=Object.keys(SEL).filter(function(k){return SEL[k];});
   if(g){ g.disabled=true; g.textContent='Generating\u2026'; } if(m) m.textContent='';
-  fetch('/api/loi/generate',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:TYPE,values:VALUES,clauses:clauses})})
+  fetch('/api/loi/generate',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:TYPE,values:VALUES,clauses:clauses,format:FORMAT})})
     .then(function(r){ if(!r.ok) throw new Error('err'); var cd=r.headers.get('Content-Disposition')||''; var mm=cd.match(/filename="([^"]+)"/); var name=mm?mm[1]:'LOI.rtf'; return r.blob().then(function(bl){ return {bl:bl,name:name}; }); })
     .then(function(res){ var url=URL.createObjectURL(res.bl); var a=document.createElement('a'); a.href=url; a.download=res.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(url);},1500); if(g){ g.disabled=false; g.textContent='Download .rtf'; } if(m) m.textContent='Downloaded '+res.name; })
     .catch(function(){ if(g){ g.disabled=false; g.textContent='Download .rtf'; } if(m) m.textContent='Could not download.'; });
@@ -297,6 +307,37 @@ function loiReview(){ var dv=document.getElementById('docview'); var txt=(dv&&dv
    }).catch(function(){ if(btn) btn.disabled=false; showAiResult('Review draft','Network error.'); });
 }
 (function(){ var x=document.getElementById('airx'); if(x) x.addEventListener('click',function(){ document.getElementById('airov').hidden=true; }); var ov=document.getElementById('airov'); if(ov) ov.addEventListener('click',function(e){ if(e.target===this) this.hidden=true; }); })();
+function negoPill(st){ st=st||'Draft'; var c=({Draft:['#eef1f6','#6b7488'],Sent:['#e8f0fd','#2f6fd0'],Countered:['#fdf1df','#b5791f'],Negotiating:['#f3edfb','#7a4fd0'],Accepted:['#e7f5ee','#1f8a5b'],Dead:['#f3f4f7','#98a1b5']})[st]||['#eef1f6','#6b7488']; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px">'+esc(st)+'</span>'; }
+function termColor(st){ return ({Open:['#eef1f6','#6b7488'],Proposed:['#e8f0fd','#2f6fd0'],Accepted:['#e7f5ee','#1f8a5b'],Countered:['#fdf1df','#b5791f'],Rejected:['#fdeceb','#DA2B1F']})[st||'Open']||['#eef1f6','#6b7488']; }
+function openNego(id){ var body=document.getElementById('negoBody'); body.innerHTML='<div style="color:#6b7488;padding:20px">Loading…</div>'; document.getElementById('negov').hidden=false; fetch('/api/loi/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ body.innerHTML='<div style="color:#a5352c;padding:20px">'+esc((j&&j.error)||'Could not load.')+'</div>'; return; } NEGO={id:id,loi:j.loi||{},terms:j.terms||[],statuses:j.statuses||['Draft','Sent','Countered','Negotiating','Accepted','Dead'],termStates:j.termStates||['Open','Proposed','Accepted','Countered','Rejected']}; var l=NEGO.loi; document.getElementById('negoTitle').textContent=(l.type==='business_sale'?'Business Sale':'Tenant Rep')+(l.property?(' — '+l.property):'')+' · Negotiation'; renderNego(); }).catch(function(){ body.innerHTML='<div style="color:#a5352c;padding:20px">Network error.</div>'; }); }
+function renderNego(){ var l=NEGO.loi||{}; var terms=NEGO.terms||[]; var ts=l.termStatus||{}; var vals=l.values||{}; var statusOpts=NEGO.statuses.map(function(x){return '<option'+((l.status||'Draft')===x?' selected':'')+'>'+esc(x)+'</option>';}).join(''); var h='';
+ h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><span style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)">Status</span><select id="negoStatus" style="border:1px solid #cfd6e2;border-radius:8px;padding:7px 10px;font:inherit;font-size:13px">'+statusOpts+'</select>'+negoPill(l.status)+'<span style="margin-left:auto;display:flex;gap:6px"><button class="btn" data-negoquick="Accepted" style="padding:6px 12px;font-size:12px;background:#1f8a5b;border-color:#1f8a5b">Mark accepted</button><button class="btn" data-negoquick="Dead" style="padding:6px 12px;font-size:12px;background:#98a1b5;border-color:#98a1b5">Dead</button></span></div>';
+ h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:6px 0 8px">Terms — click a chip to cycle</div>';
+ if(terms.length){ h+='<div style="border:1px solid #eef1f6;border-radius:10px;overflow:hidden;margin-bottom:18px">'+terms.map(function(t,i){ var v=vals[t.key]; var st=ts[t.key]||'Open'; var c=termColor(st); return '<div style="display:flex;align-items:center;gap:10px;padding:9px 12px'+(i?';border-top:1px solid #f2f4f8':'')+'"><div style="flex:1"><div style="font-weight:600;color:var(--navy);font-size:13px">'+esc(t.label)+'</div>'+((v!=null&&String(v).trim()!=='')?('<div style="color:#6b7488;font-size:12px">'+esc(String(v))+'</div>'):'<div style="color:#c0c7d3;font-size:12px">—</div>')+'</div><button class="termchip" data-term="'+esc(t.key)+'" style="cursor:pointer;background:'+c[0]+';color:'+c[1]+';border:none;font-size:11px;font-weight:800;padding:5px 13px;border-radius:999px">'+esc(st)+'</button></div>'; }).join('')+'</div>'; } else { h+='<div style="color:#98a1b5;font-size:13px;margin-bottom:18px">No structured terms on this LOI.</div>'; }
+ h+='<div data-ai="" style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:#5b46b8;margin:6px 0 8px">✨ Log a counter</div>';
+ h+='<div data-ai="" style="margin-bottom:18px"><textarea id="negoCounter" placeholder="Paste their counter or response — AI extracts what moved and flips the term chips…" style="width:100%;min-height:80px;border:1px solid #d7cff0;border-radius:9px;padding:9px 11px;font:inherit;font-size:13px;resize:vertical"></textarea><div style="margin-top:8px;display:flex;gap:8px;align-items:center"><button class="btn" id="negoAnalyze" type="button">Analyze counter</button><span class="msg" id="negoCmsg"></span></div><div id="negoCres"></div></div>';
+ h+='<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:6px 0 8px">Rounds</div>';
+ h+='<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap"><select id="negoDir" style="border:1px solid #cfd6e2;border-radius:8px;padding:7px 10px;font:inherit;font-size:13px"><option value="sent">We sent</option><option value="received">We received</option></select><input id="negoNote" placeholder="Note (optional)" style="flex:1;min-width:160px;border:1px solid #cfd6e2;border-radius:8px;padding:7px 10px;font:inherit;font-size:13px"><button class="btn" id="negoAddRound" type="button">Add round</button></div>';
+ var rounds=Array.isArray(l.rounds)?l.rounds:[];
+ if(rounds.length){ h+=rounds.slice().reverse().map(function(r){ var d=r.direction==='received'?['#e8f0fd','#2f6fd0','Received']:['#eef7f3','#1f8a5b','Sent']; var chg=(r.changes&&r.changes.length)?('<div style="color:#6b7488;font-size:12px;margin-top:3px">'+r.changes.map(function(x){return esc(x.label||x.key||'')+': '+esc(x.to||x.status||'');}).join(' · ')+'</div>'):''; return '<div style="border-left:3px solid '+d[1]+';padding:6px 0 6px 10px;margin-bottom:9px"><span style="background:'+d[0]+';color:'+d[1]+';font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px">'+d[2]+'</span> <span style="color:#98a1b5;font-size:12px">'+esc(loiFmtD(r.at))+(r.by?(' · '+esc(r.by)):'')+'</span>'+(r.note?('<div style="font-size:13px;color:#33405c;margin-top:3px">'+esc(r.note)+'</div>'):'')+chg+'</div>'; }).join(''); } else { h+='<div style="color:#98a1b5;font-size:13px">No rounds logged yet.</div>'; }
+ document.getElementById('negoBody').innerHTML=h; wireNego(); }
+function wireNego(){ var st=document.getElementById('negoStatus'); if(st) st.onchange=function(){ var v=st.value; saveNego({status:v,logActivity:(v==='Accepted'?'Accepted':(v==='Countered'?'Countered':undefined))}); };
+ document.querySelectorAll('#negoBody [data-negoquick]').forEach(function(b){ b.onclick=function(){ var v=b.getAttribute('data-negoquick'); saveNego({status:v,logActivity:(v==='Accepted'?'Accepted':undefined)}); }; });
+ document.querySelectorAll('#negoBody .termchip').forEach(function(b){ b.onclick=function(){ var key=b.getAttribute('data-term'); var cur=(NEGO.loi.termStatus||{})[key]||'Open'; var stt=NEGO.termStates; var next=stt[(stt.indexOf(cur)+1)%stt.length]; var p={}; p[key]=next; saveNego({termStatus:p}); }; });
+ var ar=document.getElementById('negoAddRound'); if(ar) ar.onclick=function(){ var dir=document.getElementById('negoDir').value; var note=document.getElementById('negoNote').value; saveNego({round:{direction:dir,note:note}}); };
+ var an=document.getElementById('negoAnalyze'); if(an) an.onclick=negoAnalyze; }
+function saveNego(patch){ fetch('/api/loi/'+encodeURIComponent(NEGO.id)+'/nego',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(patch)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ NEGO.loi=j.loi; renderNego(); try{loadLois();}catch(e){} } }).catch(function(){}); }
+function negoAnalyze(){ var t=document.getElementById('negoCounter').value; var m=document.getElementById('negoCmsg'); var res=document.getElementById('negoCres'); if(!t.trim()){ m.textContent='Paste the counter first.'; return; } var btn=document.getElementById('negoAnalyze'); btn.disabled=true; m.textContent='Reading…';
+ fetch('/api/ai/loi-counter',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:NEGO.id,text:t})}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; m.textContent='';
+  if(!j||!j.ok){ m.textContent=(j&&j.error)||'Could not analyze.'; return; }
+  var rr=j.result||{}; var ch=Array.isArray(rr.changes)?rr.changes:[]; var h='';
+  if(rr.summary) h+='<div style="font-size:13px;color:var(--navy);font-weight:600;margin:8px 0">'+esc(rr.summary)+'</div>';
+  if(ch.length){ h+=ch.map(function(x){ var st=(x.status||'').charAt(0).toUpperCase()+(x.status||'').slice(1); var c=termColor(st); return '<div style="display:flex;gap:8px;align-items:center;padding:4px 0;font-size:12.5px"><span style="background:'+c[0]+';color:'+c[1]+';font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px">'+esc(st||'—')+'</span> <b>'+esc(x.label||x.key||'')+'</b>'+((x.from||x.to)?(' <span style="color:#98a1b5">'+esc(x.from||'—')+' → '+esc(x.to||'—')+'</span>'):'')+'</div>'; }).join(''); h+='<div style="margin-top:10px"><button class="btn primary" id="negoApply" type="button">Apply to terms + log round</button></div>'; } else { h+='<div style="color:#98a1b5;font-size:13px">No clear term changes found.</div>'; }
+  res.innerHTML=h; var ap=document.getElementById('negoApply'); if(ap) ap.onclick=function(){ negoApply(ch,rr.summary); };
+ }).catch(function(){ btn.disabled=false; m.textContent='Network error.'; }); }
+function negoApply(changes,summary){ var patch={}; var chgList=[]; (changes||[]).forEach(function(x){ if(x&&x.key){ var st=(x.status||'').charAt(0).toUpperCase()+(x.status||'').slice(1); if(NEGO.termStates.indexOf(st)<0) st='Countered'; patch[x.key]=st; chgList.push({key:x.key,label:x.label||x.key,to:(x.to||st),status:st}); } }); saveNego({termStatus:patch,status:'Countered',round:{direction:'received',note:(summary||'Counter received'),changes:chgList},logActivity:'Countered'}); }
+document.addEventListener('click',function(e){ var mg=e.target.closest('[data-loimanage]'); if(mg){ openNego(mg.getAttribute('data-loimanage')); return; } if(e.target.closest('#negoX')){ document.getElementById('negov').hidden=true; return; } var ov=document.getElementById('negov'); if(e.target===ov){ ov.hidden=true; } });
+
 (function(){ var nb=document.getElementById('newLoiBtn'); if(nb) nb.addEventListener('click',function(){ showBuilder(); }); })();
 </script>
 <div class="aiov" id="aiov" hidden><div class="aimodal">
@@ -309,5 +350,6 @@ function loiReview(){ var dv=document.getElementById('docview'); var txt=(dv&&dv
   </div>
 </div></div>
 <div class="aiov" id="airov" hidden><div class="aimodal"><div class="aimh"><b id="airtitle" style="color:var(--navy);font-size:15px"></b><button id="airx" type="button" style="border:none;background:#f2f4f8;width:30px;height:30px;border-radius:8px;cursor:pointer;color:#6b7488;font-size:14px">✕</button></div><div class="aimb" id="airbody" style="max-height:62vh;overflow:auto"></div></div></div>
+<div class="aiov" id="negov" hidden><div class="aimodal" style="max-width:720px"><div class="aimh"><b id="negoTitle" style="color:var(--navy);font-size:15px">LOI negotiation</b><button id="negoX" type="button" style="border:none;background:#f2f4f8;width:30px;height:30px;border-radius:8px;cursor:pointer;color:#6b7488;font-size:14px">✕</button></div><div class="aimb" id="negoBody" style="max-height:74vh;overflow:auto"></div></div></div>
 </body>
 </html>

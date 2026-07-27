@@ -6221,13 +6221,17 @@ app.post('/api/loi/generate', express.json(), (req, res) => {
   const vals = Object.assign({}, b.values || {});
   if (!vals.date) vals.date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   const sel = Array.isArray(b.clauses) ? b.clauses : [];
-  const parts = ['{\\rtf1\\ansi\\ansicpg1252\\deff0{\\fonttbl{\\f0\\froman Times New Roman;}}\\paperw12240\\paperh15840\\margl1440\\margr1440\\margt1440\\margb1440\\f0\\fs22 '];
+  const modern = b.format === 'modern';
+  const fontTbl = modern ? '{\\fonttbl{\\f0\\froman Times New Roman;}{\\f1\\fswiss Calibri;}}{\\colortbl;\\red24\\green59\\blue86;\\red46\\green116\\blue181;}' : '{\\fonttbl{\\f0\\froman Times New Roman;}}';
+  const baseFont = modern ? '\\f1\\fs21 ' : '\\f0\\fs22 ';
+  const hc = modern ? '\\cf2' : '';
+  const parts = ['{\\rtf1\\ansi\\ansicpg1252\\deff0' + fontTbl + '\\paperw12240\\paperh15840\\margl1440\\margr1440\\margt1440\\margb1440' + baseFont];
   parts.push(loiRtfEsc(loiFill(t.top, vals)) + '\\par \\par ');
-  parts.push('{\\b\\fs24 KEY TERMS}\\par ');
+  parts.push('{\\b' + hc + '\\fs24 KEY TERMS}\\par ');
   (t.terms || []).forEach(function (f) { var disp = loiFmtTerm(f, vals); if (disp && String(disp).trim() !== '') parts.push('{\\b ' + loiRtfEsc(f.label) + ': }' + loiRtfEsc(String(disp)) + '\\par '); });
   parts.push('\\par ');
   (t.clauses || []).filter(function (c) { return sel.indexOf(c.id) >= 0; }).sort(function (a, c) { return (a.order || 0) - (c.order || 0); }).forEach(function (c) {
-    parts.push('{\\b ' + loiRtfEsc(c.title) + '}\\par ');
+    parts.push('{\\b' + hc + ' ' + loiRtfEsc(c.title) + '}\\par ');
     parts.push(loiRtfEsc(loiFill(c.body, vals)) + '\\par \\par ');
   });
   parts.push(loiRtfEsc(loiFill(t.bottom, vals)));
