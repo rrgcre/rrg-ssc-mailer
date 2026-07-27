@@ -178,7 +178,7 @@ function setupCReferral(){
 function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=CTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
   var cu=document.getElementById('m_cuisine'); if(cu) cu.innerHTML='<option value="">— cuisine (optional) —</option>'+CUISINE.map(function(m){return '<option>'+esc(m)+'</option>';}).join(''); var cty=document.getElementById('m_conctype'); if(cty) cty.innerHTML='<option value="">— concept type (optional) —</option>'+CONCEPTTYPES.map(function(m){return '<option>'+esc(m)+'</option>';}).join(''); var lsd=document.getElementById('leadsrclist'); if(lsd) lsd.innerHTML=(LEADSOURCES||[]).map(function(m){return '<option value="'+esc(m)+'">';}).join('');
   var cc=document.getElementById('m_concept'); if(cc){ cc.value=''; cc.dataset.auto='1'; }
-  ['m_zip','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';}); var stEl=document.getElementById('m_state'); if(stEl) stEl.value=DEFAULTSTATE;
+  ['m_concepts','m_metro','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   var ct=document.getElementById('m_ctype'); if(ct) ct.innerHTML='<option value="">— select —</option>'+PERSONTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
   function fillDL(id,arr){ var el=document.getElementById(id); if(el) el.innerHTML=(arr||[]).map(function(v){return '<option value="'+esc(v)+'"></option>';}).join(''); }
   fillDL('citylist',CITIES); fillDL('titlelist',TITLES); fillDL('taglist',ALLTAGS);
