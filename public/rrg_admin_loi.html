@@ -34,6 +34,18 @@ textarea.big{min-height:150px;}
 .clhd{display:flex;align-items:center;gap:9px;padding:10px 13px;background:var(--wash);}
 .clhd .t{font-weight:700;color:var(--navy);font-size:13.5px;flex:1;}
 .clhd .ord{display:flex;gap:4px;}
+.secgrouphd{display:flex;align-items:center;gap:9px;margin:14px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line);}
+.secbadge{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:999px;}
+.secbadge.tr{background:#fdf1df;color:#b5791f;}
+.secbadge.biz{background:#e6f5ee;color:#1f8a5b;}
+.seccount{font-size:11.5px;color:var(--muted);font-weight:700;}
+.secrow{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;margin-bottom:7px;flex-wrap:wrap;}
+.secrow .secttl{flex:1;min-width:160px;font-weight:600;color:var(--ink);font-size:13.5px;}
+.secrow .secacts{display:flex;gap:6px;}
+.sec-editor{flex-basis:100%;}
+.secadd{display:flex;gap:8px;margin:6px 0 12px;}
+.secadd .sec-newtitle{flex:1;border:1px solid #cfd6e2;border-radius:9px;padding:8px 11px;font:inherit;font-size:13px;}
+.secempty{color:var(--muted);font-size:12.5px;padding:4px 2px 8px;}
 .clbody{padding:13px;}
 .row2{display:grid;grid-template-columns:1fr;gap:10px;}
 .savedtag{color:#1f8a5b;font-size:12px;font-weight:700;margin-left:8px;opacity:0;transition:opacity .2s;} .savedtag.show{opacity:1;}
@@ -89,7 +101,7 @@ function render(){
       +'<div class="note" style="margin-top:10px">Use placeholders like <span class="ph">{{tenant}}</span>, <span class="ph">{{landlord}}</span>, <span class="ph">{{property}}</span>, <span class="ph">{{date}}</span>, <span class="ph">{{rep}}</span>, <span class="ph">{{expiration}}</span> — they fill from the builder inputs. Any placeholder left blank prints as a fill-in line.</div>'
     +'</div></div>'
     +termsCard
-    +'<div class="card"><div class="ch"><b>Optional sections</b><span class="hint">Users pick these when building an LOI</span></div><div class="cb">'+clauses+'<button class="addbtn" id="addClause">+ Add section</button></div></div>';
+    +sectionsCard();
   wire();
 }
 function wire(){
@@ -97,11 +109,9 @@ function wire(){
   var bp=document.getElementById('bpSave'); if(bp) bp.addEventListener('click',saveBoilerplate);
   document.querySelectorAll('.tm-type').forEach(function(sel){ sel.addEventListener('change',function(){ var row=sel.closest('.clause'); var ow=row.querySelector('.tm-optswrap'); var uw=row.querySelector('.tm-unitwrap'); if(ow) ow.style.display=(sel.value==='select')?'':'none'; if(uw) uw.style.display=(sel.value==='number')?'':'none'; }); });
   var ts=document.getElementById('termsSave'); if(ts) ts.addEventListener('click',saveTerms);
-  document.querySelectorAll('.cl-save').forEach(function(b){ b.addEventListener('click',function(){ saveClause(b.getAttribute('data-cid'),b.closest('.clause')); }); });
-  document.querySelectorAll('.cl-del').forEach(function(b){ b.addEventListener('click',function(){ delClause(b.getAttribute('data-cid')); }); });
-  document.querySelectorAll('[data-up]').forEach(function(b){ b.addEventListener('click',function(){ move(b.getAttribute('data-up'),-1); }); });
-  document.querySelectorAll('[data-down]').forEach(function(b){ b.addEventListener('click',function(){ move(b.getAttribute('data-down'),1); }); });
-  var ac=document.getElementById('addClause'); if(ac) ac.addEventListener('click',addClause);
+  document.querySelectorAll('.sec-edit').forEach(function(b){ b.addEventListener('click',function(){ var row=b.closest('.secrow'); var ed=row.querySelector('.sec-editor'); if(!ed.hidden){ ed.hidden=true; ed.innerHTML=''; return; } var type=row.getAttribute('data-type'); var cid=row.getAttribute('data-cid'); var c=((CFG[type]&&CFG[type].clauses)||[]).filter(function(x){return x.id===cid;})[0]||{}; ed.innerHTML='<label class="fld" style="margin-top:10px">Section title</label><input class="ti sec-etitle" value="'+esc(c.title||'')+'"><label class="fld" style="margin-top:10px">Clause text</label><textarea class="sec-ebody">'+esc(c.body||'')+'</textarea><div style="margin-top:10px;display:flex;gap:8px;align-items:center"><button class="btn sm sec-esave">Save</button><button class="btn ghost sm sec-ecancel">Cancel</button></div>'; ed.hidden=false; ed.querySelector('.sec-esave').addEventListener('click',function(){ post('/api/loi/clause',{type:type,id:cid,title:ed.querySelector('.sec-etitle').value,body:ed.querySelector('.sec-ebody').value},function(j){ CFG=j.config; render(); }); }); ed.querySelector('.sec-ecancel').addEventListener('click',function(){ ed.hidden=true; ed.innerHTML=''; }); }); });
+  document.querySelectorAll('.sec-del').forEach(function(b){ b.addEventListener('click',function(){ var row=b.closest('.secrow'); delClause(row.getAttribute('data-type'), row.getAttribute('data-cid')); }); });
+  document.querySelectorAll('.sec-addbtn').forEach(function(b){ b.addEventListener('click',function(){ var type=b.getAttribute('data-type'); var inp=document.querySelector('.sec-newtitle[data-type="'+type+'"]'); var title=(inp&&inp.value.trim())||'New section'; post('/api/loi/clause',{type:type,title:title,body:''},function(j){ CFG=j.config; render(); }); }); });
 }
 function saveTerms(){
   var terms=[];
@@ -126,9 +136,22 @@ function saveClause(cid,box){
   var body={type:TYPE, id:cid, title:box.querySelector('.cl-title').value, body:box.querySelector('.cl-body').value};
   post('/api/loi/clause',body,function(j){ CFG=j.config; var tag=box.querySelector('[data-saved]'); flash(tag); box.querySelector('.clhd .t').textContent=body.title||'(untitled)'; });
 }
-function delClause(cid){
+function sectionsCard(){
+  var html='<div class="card"><div class="ch"><b>Optional sections</b><span class="hint">Marked by type — users pick these when building an LOI</span></div><div class="cb">';
+  (TYPES||[]).forEach(function(ty){
+    var t=CFG[ty.key]||{}; var list=(t.clauses||[]).slice().sort(function(a,b){return (a.order||0)-(b.order||0);});
+    html+='<div class="secgrouphd"><span class="secbadge '+(ty.key==='business_sale'?'biz':'tr')+'">'+esc(ty.name)+'</span><span class="seccount">'+list.length+' section'+(list.length===1?'':'s')+'</span></div>';
+    html+=(list.length?list.map(function(c){
+      return '<div class="secrow" data-type="'+esc(ty.key)+'" data-cid="'+esc(c.id)+'"><span class="secttl">'+esc(c.title||'(untitled)')+'</span><span class="secacts"><button class="btn ghost sm sec-edit">Edit</button><button class="btn red sm sec-del">Delete</button></span><div class="sec-editor" hidden></div></div>';
+    }).join(''):'<div class="secempty">No sections yet.</div>');
+    html+='<div class="secadd"><input class="sec-newtitle" data-type="'+esc(ty.key)+'" placeholder="Add a '+esc(ty.name)+' section — title"><button class="btn sm sec-addbtn" data-type="'+esc(ty.key)+'">+ Add</button></div>';
+  });
+  html+='</div></div>';
+  return html;
+}
+function delClause(type,cid){
   if(!confirm('Delete this section from the library?')) return;
-  fetch('/api/loi/clause/'+encodeURIComponent(TYPE)+'/'+encodeURIComponent(cid),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CFG=j.config; render(); } else alert((j&&j.error)||'Could not delete.'); });
+  fetch('/api/loi/clause/'+encodeURIComponent(type)+'/'+encodeURIComponent(cid),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CFG=j.config; render(); } else alert((j&&j.error)||'Could not delete.'); });
 }
 function addClause(){
   post('/api/loi/clause',{type:TYPE,title:'New section',body:''},function(j){ CFG=j.config; render(); });

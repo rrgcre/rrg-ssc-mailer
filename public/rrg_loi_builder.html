@@ -31,7 +31,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 .fhint{text-transform:none;letter-spacing:0;color:#b58a2a;font-weight:600;font-size:10px;margin-left:6px;}
 .rowin{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .ux{color:var(--muted);font-size:12.5px;font-weight:600;white-space:nowrap;}
-.numin{display:flex;align-items:center;gap:7px;}
+.numin{display:flex;align-items:center;gap:7px;max-width:230px;}
 .numin input{flex:1;}
 .numsm{max-width:96px;}
 .pgboy{max-width:210px;}
@@ -87,7 +87,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 <script>
 var CFG=null, TYPES=[], IS_ADMIN=false, REP='', TYPE='tenant_rep', VALUES={}, SEL={};
 var LOGOURL='', APPNAME='';
-var PARTIES=[]; var CANMANAGE=false;
+var PARTIES=[]; var CANMANAGE=false; var REPS=[];
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function todayStr(){ try{ return new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}); }catch(e){ return ''; } }
 
@@ -102,6 +102,11 @@ function loiFmtTerm(f,vals){
   var v=vals[f.key]; return (v!=null?String(v):'');
 }
 function fieldHtml(f){
+  if(f.type==='rep'){
+    var rv=VALUES[f.key]!=null?VALUES[f.key]:''; var reps=REPS.slice(); if(rv && reps.indexOf(rv)<0) reps.unshift(rv);
+    var opts='<option value="">— select —</option>'+reps.map(function(u){ return '<option'+(String(rv)===String(u)?' selected':'')+'>'+esc(u)+'</option>'; }).join('');
+    return '<div class="f"><label class="fld">'+esc(f.label)+'</label><select data-k="'+esc(f.key)+'">'+opts+'</select></div>';
+  }
   if(f.type==='party'){
     var pv=VALUES[f.key]!=null?VALUES[f.key]:''; var lk=VALUES[f.key+'_id']?' islinked':'';
     return '<div class="f"><label class="fld">'+esc(f.label)+'</label><div class="partywrap'+lk+'"><input data-k="'+esc(f.key)+'" data-party="'+esc(f.key)+'" value="'+esc(pv)+'" autocomplete="off" placeholder="Type to search contacts & companies…"><div class="partysug" hidden></div></div></div>';
@@ -190,6 +195,7 @@ function loadLois(){
     });
   }).catch(function(){});
 }
+function loadReps(){ fetch('/api/users-list',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ REPS=((j&&j.users)||[]).map(function(u){return u.name||u.username;}).filter(Boolean); }).catch(function(){}); }
 function loadParties(){ fetch('/api/loi/parties',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PARTIES=(j&&j.parties)||[]; render(); }).catch(function(){ render(); }); }
 function saveToRecords(){
   var tk=(TYPE==='business_sale')?'buyer':'tenant'; var lk=(TYPE==='business_sale')?'seller':'landlord';
@@ -230,7 +236,7 @@ fetch('/api/loi',{credentials:'same-origin'}).then(function(r){return r.json();}
   CFG=(j&&j.config)||{}; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&j.isAdmin); CANMANAGE=!!(j&&j.canManage); REP=(j&&j.rep)||''; LOGOURL=(j&&j.logoUrl)||''; APPNAME=(j&&j.appName)||'';
   if(TYPES.length && !CFG[TYPE]) TYPE=TYPES[0].key;
   VALUES.date=todayStr(); if(REP) VALUES.rep=REP;
-  loadParties(); loadLois();
+  loadReps(); loadParties(); loadLois();
 }).catch(function(){ document.getElementById('wrap').innerHTML='<div class="card"><div class="cb"><div class="msg">Could not load the LOI Builder.</div></div></div>'; });
 </script>
 </body>
