@@ -211,6 +211,8 @@ function effCuisineTypes() { const s = loadSettings(); return (Array.isArray(s.c
 function effMaxPullLocations() { const s = loadSettings(); const n = parseInt(s.maxPullLocations, 10); return (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
 function effDefaultState() { const s = loadSettings(); const v = String(s.defaultState || '').trim(); return v ? v.slice(0, 20) : 'TX'; }
 function effAssistantName() { const s = loadSettings(); const v = String(s.assistantName || '').trim(); return v ? v.slice(0, 40) : 'Claude'; }
+function effConceptLabel() { const s = loadSettings(); const v = String(s.conceptLabel || '').trim(); return v ? v.slice(0, 30) : 'Concept'; }
+function effConceptLabelPlural() { const s = loadSettings(); const v = String(s.conceptLabelPlural || '').trim(); return v ? v.slice(0, 30) : (effConceptLabel() + 's'); }
 function effShowRequestRibbon() { const s = loadSettings(); return s.showRequestRibbon !== false; }
 function effShowQuickLinks() { const s = loadSettings(); return s.showQuickLinks !== false; }
 // ---- Tool label overrides: admins can rename any tool (e.g. call "Contacts" "People").
@@ -1824,7 +1826,7 @@ function loadAppName() { const b = loadBrand(); return (b.appName && String(b.ap
 const PALETTE_DEFAULT = { primary: '#000E31', accent: '#DA2B1F', sidebar: '#0b1a38', positive: '#1f8a5b' };
 function isHexColor(v) { return /^#[0-9a-fA-F]{6}$/.test(String(v || '')); }
 function effPalette() { const b = loadBrand(); const pl = (b.palette && typeof b.palette === 'object') ? b.palette : {}; return { primary: isHexColor(pl.primary) ? pl.primary : PALETTE_DEFAULT.primary, accent: isHexColor(pl.accent) ? pl.accent : PALETTE_DEFAULT.accent, sidebar: isHexColor(pl.sidebar) ? pl.sidebar : PALETTE_DEFAULT.sidebar, positive: isHexColor(pl.positive) ? pl.positive : PALETTE_DEFAULT.positive }; }
-app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), palette: effPalette(), logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })() }));
+app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), concept: effConceptLabel(), conceptPlural: effConceptLabelPlural(), palette: effPalette(), logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })() }));
 app.get('/api/feed', (req, res) => {
   let people = loadPeople();
   if (restrictToOwn(req)) people = people.filter(p => permOwnerMatch(req, p.by));
@@ -3359,14 +3361,14 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks(),
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks(),
     defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, cuisineTypes: CUISINE_TYPES },
     isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), cuisineTypes: Array.isArray(s.cuisineTypes) },
   });
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.showRequestRibbon; delete s.showQuickLinks; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.showQuickLinks; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() }); }
   if (b.personTypes !== undefined) s.personTypes = cleanStrList(b.personTypes, 40, 60) || [];
   if (b.companyTypes !== undefined) s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || [];
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
@@ -3376,10 +3378,12 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   if (b.maxPullLocations !== undefined) { const n = parseInt(b.maxPullLocations, 10); s.maxPullLocations = (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
   if (typeof b.defaultState === 'string') s.defaultState = b.defaultState.trim().slice(0, 20);
   if (typeof b.assistantName === 'string') s.assistantName = b.assistantName.trim().slice(0, 40);
+  if (typeof b.conceptLabel === 'string') s.conceptLabel = b.conceptLabel.trim().slice(0, 30);
+  if (typeof b.conceptLabelPlural === 'string') s.conceptLabelPlural = b.conceptLabelPlural.trim().slice(0, 30);
   if (b.showRequestRibbon !== undefined) s.showRequestRibbon = !!b.showRequestRibbon;
   if (b.showQuickLinks !== undefined) s.showQuickLinks = !!b.showQuickLinks;
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
