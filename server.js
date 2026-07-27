@@ -1865,7 +1865,7 @@ const FAVICON_MIME = { ico: 'image/x-icon', png: 'image/png', jpg: 'image/jpeg',
 const FAVICON_EXT = /^(ico|png|jpe?g|gif|webp|svg)$/i;
 app.get('/favicon.ico', (req, res) => {
   const b = loadBrand();
-  if (!b.faviconExt) return res.status(404).end();
+  if (!b.faviconExt) { try { const dflt = fs.readFileSync(path.join(__dirname, 'public', 'fullserve_favicon.svg')); res.set('Content-Type', 'image/svg+xml'); res.set('Cache-Control', 'public, max-age=3600'); return res.send(dflt); } catch (e) { return res.status(404).end(); } }
   try { const buf = fs.readFileSync(path.join(BOV_DATA_DIR, 'brand_favicon.' + b.faviconExt)); res.set('Content-Type', b.faviconType || FAVICON_MIME[b.faviconExt] || 'image/png'); res.set('Cache-Control', 'public, max-age=3600'); res.send(buf); }
   catch (e) { res.status(404).end(); }
 });
