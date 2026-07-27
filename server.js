@@ -2781,8 +2781,8 @@ app.delete('/api/assignment/:key/nda/:ndaId', (req, res) => {
 });
 // ---- People (global buyer registry) ----
 app.get('/api/people', (req, res) => {
-  const cos = {}; loadCompanies().forEach(c => cos[c.id] = c.name);
-  const people = loadPeople().filter(p => !restrictToOwn(req) || permOwnerMatch(req, p.by)).map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '' }));
+  const cos = {}, coMain = {}; loadCompanies().forEach(c => { cos[c.id] = c.name; coMain[c.id] = c.mainContactId || ''; });
+  const people = loadPeople().filter(p => !restrictToOwn(req) || permOwnerMatch(req, p.by)).map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '', isMainContact: !!(p.companyId && coMain[p.companyId] === p.id) }));
   res.json({ ok: true, people: people, types: effPersonTypes(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 app.post('/api/person', express.json(), (req, res) => {
