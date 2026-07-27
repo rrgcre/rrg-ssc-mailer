@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Brief</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--gold:#dfa937;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#e9edf3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(120% 140% at 50% 0%, #182a54 0%, #0d1b3d 55%, #04091d 100%);color:#fff;padding:24px 0;}
+.top-inner{max-width:960px;margin:0 auto;padding:0 20px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.kick{color:var(--gold);font-weight:700;letter-spacing:.28em;font-size:11px;text-transform:uppercase;}
+h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
+.date{color:#c3ccdf;font-size:13px;margin-top:5px;}
+.refresh{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);color:#fff;font:inherit;font-size:13px;font-weight:700;padding:9px 16px;border-radius:9px;cursor:pointer;}
+.refresh:hover{background:rgba(255,255,255,.18);}
+.wrap{max-width:960px;margin:22px auto 60px;padding:0 20px;}
+.headline{font-size:19px;font-weight:800;color:var(--navy);line-height:1.35;margin:0 0 18px;letter-spacing:-.01em;}
+.sec{margin-bottom:26px;}
+.sec h2{font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:0 0 12px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:13px;box-shadow:0 6px 20px rgba(10,20,50,.05);overflow:hidden;}
+.item{display:flex;gap:14px;align-items:flex-start;padding:15px 18px;border-bottom:1px solid #f1f3f8;}
+.item:last-child{border-bottom:none;}
+.dot{width:9px;height:9px;border-radius:50%;flex:none;margin-top:6px;}
+.dot.high{background:var(--red);box-shadow:0 0 0 4px rgba(218,43,31,.12);}
+.dot.med{background:var(--gold);box-shadow:0 0 0 4px rgba(223,169,55,.14);}
+.dot.low{background:#9aa4b6;box-shadow:0 0 0 4px rgba(154,164,182,.14);}
+.iwhat{font-weight:700;color:var(--navy);font-size:14.5px;}
+.idet{color:#42506b;font-size:13px;margin-top:3px;line-height:1.5;}
+.upill{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:999px;margin-left:auto;white-space:nowrap;}
+.upill.high{background:#fdeceb;color:var(--red);} .upill.med{background:#fdf4e3;color:#b5791f;} .upill.low{background:#eef1f6;color:#6b7488;}
+.week{background:#fff;border:1px solid var(--line);border-radius:13px;padding:6px 18px;}
+.week div{padding:11px 0;border-bottom:1px solid #f1f3f8;font-size:13.5px;color:#33405c;display:flex;gap:10px;align-items:flex-start;}
+.week div:last-child{border-bottom:none;} .week div::before{content:'→';color:var(--gold);font-weight:800;flex:none;}
+.note{background:linear-gradient(180deg,#f7f5ff,#fbfaff);border:1px solid #e5dff6;border-radius:13px;padding:16px 18px;font-size:14px;color:#4a3f74;font-weight:600;line-height:1.5;display:flex;gap:11px;}
+.note b{color:#5b46b8;}
+.state{text-align:center;color:var(--muted);font-size:14px;padding:60px 20px;}
+.spin{display:inline-block;width:22px;height:22px;border:3px solid #d7dce6;border-top-color:var(--navy);border-radius:50%;animation:sp 1s linear infinite;vertical-align:middle;margin-right:9px;}
+@keyframes sp{to{transform:rotate(360deg);}}
+.err{background:#fdeceb;border:1px solid #f3c9c5;color:#a5352c;border-radius:11px;padding:14px 16px;font-size:13.5px;}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-inner">
+  <div><div class="kick">Your book · AI</div><h1>RRG Brief</h1><div class="date" id="date"></div></div>
+  <button class="refresh" id="refresh">↻ Refresh</button>
+</div></div>
+<div class="wrap"><div id="out"><div class="state"><span class="spin"></span>Reading your pipeline…</div></div></div>
+
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function fmtWhen(iso){ try{ return new Date(iso).toLocaleString('en-US',{hour:'numeric',minute:'2-digit',month:'short',day:'numeric'}); }catch(e){ return ''; } }
+function load(){
+  var out=document.getElementById('out');
+  out.innerHTML='<div class="state"><span class="spin"></span>Reading your pipeline…</div>';
+  fetch('/api/ai/brief',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ out.innerHTML='<div class="err">'+esc((j&&j.error)||'Could not build the brief.')+(/not configured/i.test((j&&j.error)||'')?' — set the Anthropic API key in Admin → Settings.':'')+'</div>'; return; }
+    render(j);
+  }).catch(function(){ out.innerHTML='<div class="err">Network error building the brief.</div>'; });
+}
+function render(j){
+  var b=j.brief||{}; var out=document.getElementById('out'); var h='';
+  if(j.generatedAt) document.getElementById('date').textContent='Generated '+fmtWhen(j.generatedAt);
+  if(b.headline) h+='<div class="headline">'+esc(b.headline)+'</div>';
+  var today=Array.isArray(b.today)?b.today:[];
+  if(today.length){
+    h+='<div class="sec"><h2>Do today</h2><div class="card">';
+    today.forEach(function(it){ var u=(it.urgency||'low').toLowerCase(); if(['high','med','low'].indexOf(u)<0)u='low'; h+='<div class="item"><span class="dot '+u+'"></span><div style="flex:1"><div class="iwhat">'+esc(it.what||'')+'</div>'+(it.detail?'<div class="idet">'+esc(it.detail)+'</div>':'')+'</div><span class="upill '+u+'">'+u+'</span></div>'; });
+    h+='</div></div>';
+  }
+  var wk=Array.isArray(b.thisWeek)?b.thisWeek.filter(Boolean):[];
+  if(wk.length){ h+='<div class="sec"><h2>This week</h2><div class="week">'+wk.map(function(x){return '<div>'+esc(x)+'</div>';}).join('')+'</div></div>'; }
+  if(b.note){ h+='<div class="sec"><div class="note"><b>Play to win:</b><span>'+esc(b.note)+'</span></div></div>'; }
+  if(!h){ h='<div class="state">Pipeline is quiet — nothing pressing. Good day to prospect.</div>'; }
+  out.innerHTML=h;
+}
+document.getElementById('refresh').addEventListener('click',load);
+load();
+</script>
+<script src="/rrg_brand.js"></script>
+</body>
+</html>

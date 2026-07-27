@@ -72,4 +72,16 @@ async function matchSpaces({ criteria, spaces }) {
   return (j && Array.isArray(j.ranked)) ? j.ranked : [];
 }
 
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces };
+// 4) Daily pipeline brief — grounded in the rep's live data.
+async function dailyBrief({ data, repName, today }) {
+  const sys =
+    'You are a deeply experienced restaurant/bar commercial real estate broker acting as ' + (repName ? (repName + "'s") : 'the') + ' chief of staff. You receive a JSON snapshot of the live pipeline and produce a tight, prioritized daily brief. No fluff, best practice, plays to win. ' +
+    'Focus on what makes or protects money: listings expiring, deals under contract or closing, commissions owed, LOIs awaiting a response, agreements about to lapse, overdue tasks. Be specific — name the business/party and the number.\n' +
+    'Return ONLY JSON: {"headline":"","today":[{"what":"","detail":"","urgency":"high|med|low"}],"thisWeek":[""],"note":""}. ' +
+    '"today" = the 3-7 highest-leverage actions right now, most urgent first. "thisWeek" = 0-5 heads-up items. "note" = one sharp strategic line. ' +
+    'Ground every item strictly in the data — never invent a name, number, or date. If the pipeline is quiet, say so honestly and point to prospecting.';
+  const out = await callClaude(sys, 'TODAY: ' + (today || '') + '\n\nPIPELINE SNAPSHOT (JSON):\n' + JSON.stringify(data).slice(0, 24000), 2000);
+  return extractJson(out) || null;
+}
+
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief };

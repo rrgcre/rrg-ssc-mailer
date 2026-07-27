@@ -2878,6 +2878,24 @@ app.post('/api/loi/ai-parse', express.json({ limit: '256kb' }), async (req, res)
     const values = await aiassist.parseLoiText({ text, terms }); res.json({ ok: true, values: values || {} });
   } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });
+app.get('/api/ai/brief', async (req, res) => {
+  try {
+    const uname = (req.user && req.user.username) || '';
+    const seeAll = isSuper(req.user) || canSeeAllDeals(req);
+    const overlay = loadAssignOverlay(); const idx = assignmentsIndex();
+    const listingsAll = Object.values(idx).filter(d => seeAll || ownsAssignment(req, d)).map(d => assignmentView(d, overlay));
+    const ownedKeys = new Set(listingsAll.map(l => l.key));
+    const _ts = new Date().toISOString().slice(0, 10);
+    const listings = listingsAll.map(l => ({ business: l.business, market: l.market, status: l.status, owner: l.owner, expires: l.listingExpires || '', daysToExpiry: l.listingExpires ? daysUntil(l.listingExpires) : null, value: l.value || '', hasDeal: !!l.transaction, deal: l.transaction ? { status: l.transaction.status || '', price: l.transaction.price || '', close: l.transaction.expectedClose || l.transaction.closedDate || '', commissionStatus: l.transaction.commissionStatus || '', commissionDue: l.transaction.commissionDue || '' } : null }));
+    const tasks = loadTasks().filter(t => t.status === 'open' && taskVisible(t, req) && t.due).map(t => ({ title: t.title, due: String(t.due).slice(0, 10), overdue: String(t.due).slice(0, 10) < _ts, assignee: t.assigneeName || '', priority: t.priority || '' })).sort((a, b) => a.due.localeCompare(b.due)).slice(0, 25);
+    const agreementsExpiring = loadAgreements().filter(a => a.status !== 'terminated' && a.expires && a.expires >= _ts).filter(a => seeAll || ownedKeys.has(a.dealKey) || a.byUser === uname).map(a => ({ name: a.name || a.type, type: a.type, party: a.personName || '', expires: a.expires, days: daysUntil(a.expires), signStatus: a.signStatus || '' })).filter(a => a.days != null && a.days <= 60).sort((a, b) => a.days - b.days).slice(0, 20);
+    const recentLois = loadLois().filter(l => seeAll || l.byUser === uname || l.by === (req.user && req.user.name)).slice().sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 15).map(l => ({ type: l.typeName || l.type || '', tenant: l.tenant || '', landlord: l.landlord || '', property: l.property || '', created: l.createdAt || '' }));
+    const sp = loadSpaces(); const spaces = { total: sp.length, available: sp.filter(x => x.status === 'Available').length, loiOut: sp.filter(x => x.status === 'LOI Out').length };
+    const data = { listings, tasks, agreementsExpiring, recentLois, spaces, counts: { listings: listings.length, openTasks: tasks.length, overdueTasks: tasks.filter(t => t.overdue).length, dealsUnderContract: listings.filter(l => l.deal && /Under Contract|Closing/i.test(l.deal.status)).length } };
+    const brief = await aiassist.dailyBrief({ data, repName: (req.user && req.user.name) || '', today: new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }) });
+    res.json({ ok: true, brief, generatedAt: new Date().toISOString(), repName: (req.user && req.user.name) || '' });
+  } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
+});
 app.post('/api/person/merge', express.json(), (req, res) => {
   const u = req.user || {};
   const canMerge = isSuper(u) || (permsEnabled() && effectivePerms(u).delete);
