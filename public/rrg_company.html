@@ -215,12 +215,24 @@ function agreementsCardCo(){
   var inner=AGREEMENTS.length?('<div class="agrlistco">'+AGREEMENTS.map(agrRowCo).join('')+'</div>'):'<div class="empty">No agreements linked to this company yet.</div>';
   return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGREEMENTS.length+'</span><button class="addbtn" id="addAgrBtn">+ Add agreement</button></div><div class="cb"><div id="coAgrForm" hidden></div>'+inner+'</div></div>';
 }
+// When an inline form opens inside a card, make sure that card is expanded —
+// otherwise the form renders inside a collapsed (display:none) card body and
+// appears to do nothing. Also clears the card's saved collapsed state so the
+// accordion MutationObserver does not immediately re-hide it.
+function expandCardOf(f){
+  try{
+    var card=f&&f.closest?f.closest('.card'):null; if(!card) return;
+    card.classList.remove('collapsed');
+    var b=card.querySelector('.ch b'), t=b?b.textContent.trim():'';
+    if(t){ var K='rrgcardcol_'+location.pathname, st={}; try{ st=JSON.parse(localStorage.getItem(K)||'{}')||{}; }catch(e){} if(st[t]){ delete st[t]; try{ localStorage.setItem(K,JSON.stringify(st)); }catch(e){} } }
+  }catch(e){}
+}
 function openCoAgrForm(){
   var f=document.getElementById('coAgrForm'); if(!f) return;
   var topts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
   var copts='<option value="">\u2014 company-level (no contact) \u2014</option>'+CONTACTS.map(function(p){return '<option value="'+esc(p.id)+'">'+esc(p.name)+'</option>';}).join('');
   f.innerHTML='<div class="cform" style="padding:12px 20px"><div class="cgrid">'+'<div class="wide"><label class="fld">Agreement name</label><input id="ca_name" placeholder="e.g. Referral Agreement \u2014 Cane Rosso"></div>'+'<div><label class="fld">Type</label><select id="ca_type">'+topts+'</select></div>'+'<div><label class="fld">Contact</label><select id="ca_person">'+copts+'</select></div>'+'<div><label class="fld">Effective</label><input type="date" id="ca_eff"></div>'+'<div><label class="fld">Expires</label><input type="date" id="ca_exp"></div>'+'<div class="wide"><label class="fld">Notes</label><input id="ca_notes" placeholder="Counterparty, terms"></div>'+'<div class="wide"><label class="fld">Document</label><div><label class="mfadd" style="cursor:pointer">\ud83d\udcce Attach agreement<input type="file" id="ca_doc" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label> <span id="ca_docname" style="font-size:11.5px;color:#1f8a5b;font-weight:600"></span></div></div>'+'</div><div class="cbtns"><button class="sbtn" id="ca_save">Save agreement</button><button class="cbtn" id="ca_cancel">Cancel</button><span id="ca_msg" class="findmsg"></span></div></div>';
-  f.removeAttribute('hidden');
+  f.removeAttribute('hidden'); expandCardOf(f);
   var df=document.getElementById('ca_doc'); if(df) df.addEventListener('change',function(){ CO_AGR_FILE=(df.files&&df.files[0])||null; var nm=document.getElementById('ca_docname'); if(nm) nm.textContent=CO_AGR_FILE?('\u2713 '+CO_AGR_FILE.name):''; });
   document.getElementById('ca_save').addEventListener('click',saveCoAgr);
   document.getElementById('ca_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; CO_AGR_FILE=null; });
@@ -374,7 +386,7 @@ function openConceptForm(cpt){
       +'<div class="findloc"><input id="cp_findcount" placeholder="Approx. # of locations (optional)"><button type="button" class="mfadd" id="cp_find">✨ Find locations</button></div>'
       +'<div class="findloctip">Confirm the website above, then the RRG analyst searches the web and adds a location record — address &amp; phone — for each unit it finds. Review and edit them after.</div></div>'
     +'</div><div class="cbtns">'+(isEdit?'<button class="sbtn" id="cp_done">Done</button>':'<button class="sbtn" id="cp_save">Add concept</button>')+'<button class="cbtn" id="cp_cancel">Cancel</button><span id="cp_msg" class="findmsg"></span></div></div>';
-  f.removeAttribute('hidden');
+  f.removeAttribute('hidden'); expandCardOf(f);
   function drawLogoPrev(){ var u=document.getElementById('cp_logo').value.trim(); var p=document.getElementById('cp_logoprev'); p.innerHTML=u?('<img src="'+esc(u)+'" onerror="this.style.display=\'none\'">'):('<span class="cptlogo-mono" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">'+esc((document.getElementById('cp_name').value||'?').charAt(0).toUpperCase())+'</span>'); }
   document.getElementById('cp_site').addEventListener('input',function(){ if(isEdit) queueConceptSave(cpt.id); });
   document.getElementById('cp_logo').addEventListener('input',function(){ drawLogoPrev(); if(isEdit) queueConceptSave(cpt.id); });
@@ -508,7 +520,7 @@ function openLocForm(l,presetConcept){
     +photoBox(l)
     +((l.google&&l.google.placeId)?('<div class="wide gpanel"><div class="gphd">Google data'+(l.google.mapsUrl?(' <a href="'+esc(l.google.mapsUrl)+'" target="_blank" rel="noopener">view on Maps ↗</a>'):'')+'</div><div class="gpgrid">'+((typeof l.google.rating==='number')?('<span>★ '+l.google.rating.toFixed(1)+(l.google.reviews?(' ('+Number(l.google.reviews).toLocaleString()+' reviews)'):'')+'</span>'):'')+(l.google.businessStatus?('<span>Status: '+esc(l.google.businessStatus)+'</span>'):'')+((typeof l.google.priceLevel==='number'&&l.google.priceLevel>0)?('<span>Price: '+new Array(l.google.priceLevel+1).join('$')+'</span>'):'')+((l.google.lat!=null&&l.google.lng!=null)?('<span>Geo: '+Number(l.google.lat).toFixed(5)+', '+Number(l.google.lng).toFixed(5)+'</span>'):'')+(l.google.address?('<span style="flex-basis:100%">Google address: '+esc(l.google.address)+'</span>'):'')+'</div><div class="gpnote">Captured from Google Places'+(l.google.at?(' · pulled '+esc(fmtD(l.google.at))):'')+'. Use the ⤓ Pull button to refresh.</div></div>'):'')
     +'</div><div class="cbtns"><button class="sbtn" id="lo_save">'+(l.id?'Save location':'Add location')+'</button><button class="cbtn" id="lo_cancel">Cancel</button></div></div>';
-  f.removeAttribute('hidden');
+  f.removeAttribute('hidden'); expandCardOf(f);
   document.getElementById('lo_save').addEventListener('click',function(){ saveLoc(l.id); });
   document.getElementById('lo_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
   var comm=document.getElementById('lo_comm'); if(comm) comm.addEventListener('change',function(){ document.getElementById('servesWrap').style.display=comm.checked?'':'none'; });
@@ -562,7 +574,7 @@ function openFindForm(cptId){
     +'<div><label class="fld">Approx. # of locations</label><input id="fd_count" placeholder="e.g. 8"></div>'
     +'<div class="wide"><label class="fld">Website</label><input id="fd_site" value="'+esc(cpt&&cpt.website||'')+'"></div>'
     +'</div><div class="cbtns"><button class="sbtn" id="fd_go">Search the web &amp; add locations</button><button class="cbtn" id="fd_cancel">Cancel</button><span id="fd_msg" class="findmsg"></span></div></div>';
-  f.removeAttribute('hidden');
+  f.removeAttribute('hidden'); expandCardOf(f);
   // auto-fill website when concept changes
   document.getElementById('fd_concept').addEventListener('change',function(){ var c=CONCEPTS.filter(function(x){return x.name===this.value;},this)[0]; var s=document.getElementById('fd_site'); if(c&&c.website&&!s.value) s.value=c.website; }.bind(document.getElementById('fd_concept')));
   document.getElementById('fd_go').addEventListener('click',runFindLocations);
@@ -627,7 +639,7 @@ function openContactForm(){
     +'<div class="wide"><label class="fld">Preferred contact method</label><div style="display:flex;gap:18px;font-size:13px;padding:4px 0 2px"><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="ct_pref" value="phone"> Phone</label><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="ct_pref" value="text"> Text</label><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="ct_pref" value="email"> Email</label></div></div>'
     +'<div class="wide"><label class="fld">Tags</label><input id="ct_tags" placeholder="Comma-separated, e.g. hot, franchisee, DFW"></div>'
     +'</div><div class="cbtns"><button class="sbtn" id="ct_save">Save</button><button class="cbtn" id="ct_cancel">Cancel</button><span id="ct_msg" class="findmsg"></span></div></div>';
-  f.removeAttribute('hidden');
+  f.removeAttribute('hidden'); expandCardOf(f);
   wireMulti(f);
   document.getElementById('ct_save').addEventListener('click',saveContact);
   document.getElementById('ct_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
