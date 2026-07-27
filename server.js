@@ -11,6 +11,7 @@ const auth = require('./auth.js');
 const gmail = require('./gmail.js');
 const bovgen = require('./bovgen.js');
 const cimgen = require('./cimgen.js');
+const aiassist = require('./aiassist.js');
 const leasegen = require('./leasegen.js');
 const attackgen = require('./attackgen.js');
 const offergen = require('./offergen.js');
@@ -2858,6 +2859,24 @@ app.delete('/api/space/:id', (req, res) => {
   const arr = loadSpaces().filter(x => x.id !== req.params.id);
   saveSpaces(arr);
   res.json({ ok: true, spaces: arr });
+});
+app.post('/api/space/ai-intake', express.json({ limit: '256kb' }), async (req, res) => {
+  try { const text = String((req.body || {}).text || ''); if (!text.trim()) return res.status(400).json({ ok: false, error: 'Paste a listing first.' });
+    const fields = await aiassist.parseSpaceListing({ text, types: SPACE_TYPES, features: SPACE_FEATURES }); res.json({ ok: true, fields: fields || {} });
+  } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
+});
+app.post('/api/spaces/ai-match', express.json({ limit: '256kb' }), async (req, res) => {
+  try { const crit = String((req.body || {}).criteria || ''); if (!crit.trim()) return res.status(400).json({ ok: false, error: 'Describe the client criteria first.' });
+    const spaces = loadSpaces(); if (!spaces.length) return res.json({ ok: true, ranked: [] });
+    const ranked = await aiassist.matchSpaces({ criteria: crit, spaces }); res.json({ ok: true, ranked: ranked || [] });
+  } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
+});
+app.post('/api/loi/ai-parse', express.json({ limit: '256kb' }), async (req, res) => {
+  try { const b = req.body || {}; const text = String(b.text || ''); if (!text.trim()) return res.status(400).json({ ok: false, error: 'Paste the LOI text first.' });
+    const cfg = loadLoiConfig(); const tkey = (b.type === 'business_sale') ? 'business_sale' : 'tenant_rep';
+    const terms = ((cfg[tkey] && cfg[tkey].terms) || []).map(t => ({ key: t.key, label: t.label, type: t.type || 'text' }));
+    const values = await aiassist.parseLoiText({ text, terms }); res.json({ ok: true, values: values || {} });
+  } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });
 app.post('/api/person/merge', express.json(), (req, res) => {
   const u = req.user || {};

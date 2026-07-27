@@ -42,7 +42,8 @@
       { ic: '✉', label: 'Requests', href: 'rrg_tickets.html' },
       { ic: '⚖', label: 'Agreements', href: 'rrg_agreements.html', color: '#8b5cf6' },
       { ic: '∑', label: 'Cap Rate', href: 'rrg_cap_rate_calculator.html' },
-      { ic: '＄', label: 'Commission', href: 'rrg_commission_calculator.html' }
+      { ic: '＄', label: 'Sale Commission', href: 'rrg_commission_calculator.html' },
+      { ic: '＄', label: 'Lease Commission', href: 'rrg_lease_commission_calculator.html' }
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
       { ic: '▤', label: 'Admin console', href: 'admin' },
