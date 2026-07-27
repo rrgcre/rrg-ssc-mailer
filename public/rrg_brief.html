@@ -39,6 +39,18 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 .state{text-align:center;color:var(--muted);font-size:14px;padding:60px 20px;}
 .spin{display:inline-block;width:22px;height:22px;border:3px solid #d7dce6;border-top-color:var(--navy);border-radius:50%;animation:sp 1s linear infinite;vertical-align:middle;margin-right:9px;}
 @keyframes sp{to{transform:rotate(360deg);}}
+.cancelbtn{background:#fff;border:1px solid #cfd6e2;color:var(--muted);font:inherit;font-size:13px;font-weight:700;padding:8px 18px;border-radius:9px;cursor:pointer;margin-top:16px;}
+.cancelbtn:hover{border-color:#9fb0cc;color:var(--navy);}
+.workingnote{font-size:12px;color:#98a1b5;margin-top:8px;}
+#briefStep{font-weight:700;color:var(--navy);font-size:14.5px;}
+.workwrap{display:flex;align-items:center;gap:14px;justify-content:center;}
+.worktext{text-align:left;}
+.cspin{width:26px;height:26px;border-radius:50%;background:conic-gradient(from 0deg,#DA2B1F,#dfa937,#183B56,#2E74B5,#DA2B1F);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 4px));mask:radial-gradient(farthest-side,transparent calc(100% - 4px),#000 calc(100% - 4px));animation:sp .9s linear infinite;flex:none;}
+.aibadge{display:inline-block;background:linear-gradient(135deg,#183B56,#2E74B5);color:#fff;font-weight:800;font-size:11px;padding:2px 9px;border-radius:999px;letter-spacing:.02em;}
+.progbar{max-width:280px;margin:16px auto 0;height:4px;border-radius:999px;background:#e9edf3;overflow:hidden;}
+.progbar span{display:block;height:100%;width:40%;border-radius:999px;background:linear-gradient(90deg,#183B56,#dfa937,#DA2B1F);animation:prog 1.25s ease-in-out infinite;}
+@keyframes prog{0%{margin-left:-45%}100%{margin-left:105%}}
+.retrylink{color:var(--navy);font-weight:700;text-decoration:none;}
 .err{background:#fdeceb;border:1px solid #f3c9c5;color:#a5352c;border-radius:11px;padding:14px 16px;font-size:13.5px;}
 </style>
 </head>
@@ -52,13 +64,23 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmtWhen(iso){ try{ return new Date(iso).toLocaleString('en-US',{hour:'numeric',minute:'2-digit',month:'short',day:'numeric'}); }catch(e){ return ''; } }
+var CTRL=null, BRIEF_TIMER=null, ASSISTANT='the assistant';
+function stopTimer(){ if(BRIEF_TIMER){ clearInterval(BRIEF_TIMER); BRIEF_TIMER=null; } }
+function cancelled(){ stopTimer(); var out=document.getElementById('out'); out.innerHTML='<div class="state">Cancelled. <a href="#" class="retrylink" id="retryLink">Run the brief →</a></div>'; var rl=document.getElementById('retryLink'); if(rl) rl.addEventListener('click',function(e){ e.preventDefault(); load(); }); }
 function load(){
   var out=document.getElementById('out');
-  out.innerHTML='<div class="state"><span class="spin"></span>Reading your pipeline…</div>';
-  fetch('/api/ai/brief',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+  if(CTRL){ try{CTRL.abort();}catch(e){} }
+  stopTimer();
+  CTRL=('AbortController' in window)?new AbortController():null;
+  var STEPS=[ASSISTANT+' is reading your listings and expirations…','Checking deals, closings, and commissions owed…','Scanning agreements and overdue tasks…','Weighing what matters most for today…','Writing your brief…'];
+  out.innerHTML='<div class="state"><div class="workwrap"><span class="cspin"></span><div class="worktext"><div id="briefStep">'+STEPS[0]+'</div><div class="workingnote"><span class="aibadge">✦ '+esc(ASSISTANT)+'</span> is working — usually a few seconds.</div></div></div><div class="progbar"><span></span></div><div><button class="cancelbtn" id="cancelBtn">Cancel</button></div></div>';
+  var si=0; BRIEF_TIMER=setInterval(function(){ si=(si+1)%STEPS.length; var e=document.getElementById('briefStep'); if(e) e.textContent=STEPS[si]; },1700);
+  var cb=document.getElementById('cancelBtn'); if(cb) cb.addEventListener('click',function(){ if(CTRL){ try{CTRL.abort();}catch(e){} } cancelled(); });
+  fetch('/api/ai/brief',{credentials:'same-origin',signal:CTRL?CTRL.signal:undefined}).then(function(r){return r.json();}).then(function(j){
+    stopTimer();
     if(!j||!j.ok){ out.innerHTML='<div class="err">'+esc((j&&j.error)||'Could not build the brief.')+(/not configured/i.test((j&&j.error)||'')?' — set the Anthropic API key in Admin → Settings.':'')+'</div>'; return; }
     render(j);
-  }).catch(function(){ out.innerHTML='<div class="err">Network error building the brief.</div>'; });
+  }).catch(function(err){ stopTimer(); if(err&&err.name==='AbortError') return; out.innerHTML='<div class="err">Network error building the brief.</div>'; });
 }
 function render(j){
   var b=j.brief||{}; var out=document.getElementById('out'); var h='';
@@ -77,7 +99,7 @@ function render(j){
   out.innerHTML=h;
 }
 document.getElementById('refresh').addEventListener('click',load);
-load();
+fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.assistant) ASSISTANT=j.assistant; }).catch(function(){}).then(function(){ load(); });
 </script>
 <script src="/rrg_brand.js"></script>
 </body>

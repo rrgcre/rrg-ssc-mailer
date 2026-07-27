@@ -55,6 +55,11 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 .clause.exp .clbody{display:block;}
 .clausescroll{max-height:360px;overflow-y:auto;padding-right:4px;}
 .clausescroll::-webkit-scrollbar{width:8px;} .clausescroll::-webkit-scrollbar-thumb{background:#d3dae5;border-radius:8px;}
+.clfilters{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;}
+.clfilters input,.clfilters select{border:1px solid #cfd6e2;border-radius:8px;padding:7px 10px;font:inherit;font-size:13px;background:#fff;}
+.clfilters #clSearch{flex:1;min-width:150px;}
+.vbadge{font-size:9px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:999px;margin-left:6px;}
+.vbadge.rest{background:#fdf1df;color:#b5791f;} .vbadge.bar{background:#e8f0fd;color:#2f6fd0;} .vbadge.dh{background:#f3edfb;color:#7a4fd0;}
 .actions{display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap;}
 .gen{background:var(--red);color:#fff;border:none;border-radius:10px;padding:13px 26px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;}
 .gen:disabled{opacity:.6;cursor:default;}
@@ -103,6 +108,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 
 <script>
 var CFG=null, TYPES=[], IS_ADMIN=false, REP='', TYPE='tenant_rep', VALUES={}, SEL={};
+var CLQ='', CLVENUE='', CLSORT='order', VENUES=[];
 var LOGOURL='', APPNAME='';
 var PARTIES=[]; var CANMANAGE=false; var REPS=[];
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -140,7 +146,7 @@ function fieldHtml(f){
   }
   if(f.type==='guaranty'){
     var gy=VALUES.pg_years!=null?VALUES.pg_years:''; var bo=!!VALUES.pg_burnoff; var boy=VALUES.pg_burnoff_years!=null?VALUES.pg_burnoff_years:'';
-    return '<div class="f"><label class="fld">'+esc(f.label)+'</label><div class="rowin"><input data-k="pg_years" inputmode="numeric" placeholder="#" value="'+esc(gy)+'" class="numsm"><span class="ux">years</span><label class="ckl"><input type="checkbox" data-k="pg_burnoff"'+(bo?' checked':'')+'> Burn-off</label><input data-k="pg_burnoff_years" inputmode="numeric" placeholder="after N yrs / rolling" value="'+esc(boy)+'" class="pgboy"'+(bo?'':' style="display:none"')+'></div></div>';
+    return '<div class="f"><label class="fld">'+esc(f.label)+'</label><div class="rowin"><input data-k="pg_years" inputmode="numeric" placeholder="#" value="'+esc(gy)+'" class="numsm"><span class="ux">years</span><label class="ckl"><input type="checkbox" data-k="pg_burnoff"'+(bo?' checked':'')+'> Burn-off</label><select data-k="pg_rolling" class="pgboy" style="width:auto'+(bo?'':';display:none')+'"><option value="">Fixed burn-off</option><option value="rolling"'+(VALUES.pg_rolling==='rolling'?' selected':'')+'>Rolling</option></select><input data-k="pg_burnoff_years" inputmode="numeric" placeholder="after N yrs / rolling" value="'+esc(boy)+'" class="pgboy"'+(bo?'':' style="display:none"')+'></div></div>';
   }
   var v=VALUES[f.key]!=null?VALUES[f.key]:'';
   var hint=f.hint?' <span class="fhint">'+esc(f.hint)+'</span>':'';
@@ -157,10 +163,6 @@ function render(){
   var typebtns=TYPES.map(function(ty){ return '<button class="typebtn'+(ty.key===TYPE?' on':'')+'" data-type="'+esc(ty.key)+'">'+esc(ty.name)+'</button>'; }).join('');
   var info=(t.info||[]).map(fieldHtml).join('');
   var terms=(t.terms||[]).map(fieldHtml).join('');
-  var clauses=(t.clauses||[]).slice().sort(function(a,b){return (a.order||0)-(b.order||0);}).map(function(c){
-    var on=!!SEL[c.id];
-    return '<div class="clause'+(on?' on':'')+'" data-cid="'+esc(c.id)+'"><div class="clhd"><input type="checkbox" class="clck"'+(on?' checked':'')+'><span class="cltitle">'+esc(c.title)+'</span><span class="cltoggle">preview</span></div><div class="clbody">'+esc(c.body)+'</div></div>';
-  }).join('');
   var selN=Object.keys(SEL).filter(function(k){return SEL[k];}).length;
   var adminLink=CANMANAGE?'<a class="adminlink" href="./rrg_admin_loi.html">Manage clause library →</a>':'';
   document.getElementById('wrap').innerHTML=
@@ -168,23 +170,24 @@ function render(){
     +'<div class="card"><div class="ch"><b>LOI Builder</b><button class="btn" id="aiLoiBtn" type="button" data-ai="" style="margin-left:auto;margin-right:8px">✨ Fill from a received LOI</button>'+adminLink+'</div><div class="cb"><div class="typerow">'+typebtns+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Key info</b></div><div class="cb"><div class="grid">'+info+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Key terms</b><span class="hint">Blanks become fill-in lines in the draft</span></div><div class="cb"><div class="grid">'+terms+'</div></div></div>'
-    +'<div class="card"><div class="ch"><b>Optional sections</b>'+tbadge+'<button class="btn" id="sugBtn" type="button" data-ai="" style="margin-left:10px;padding:5px 11px;font-size:12px">✨ Suggest</button><span class="hint" style="margin-left:10px">Check the ones this deal needs</span><span class="selcount" style="margin-left:auto">'+selN+' selected</span></div><div class="cb"><div class="clausescroll">'+(clauses||'<div class="msg">No sections in the library yet.</div>')+'</div></div></div>'
+    +'<div class="card"><div class="ch"><b>Optional sections</b>'+tbadge+'<button class="btn" id="sugBtn" type="button" data-ai="" style="margin-left:10px;padding:5px 11px;font-size:12px">✨ Suggest</button><span class="selcount" style="margin-left:auto">'+selN+' selected</span></div><div class="cb"><div class="clfilters"><input id="clSearch" placeholder="Search sections…" value="'+esc(CLQ)+'"><select id="clVenue"><option value="">All venues</option>'+VENUES.map(function(v){return '<option'+(CLVENUE===v?' selected':'')+'>'+esc(v)+'</option>';}).join('')+'</select><select id="clSort"><option value="order"'+(CLSORT==='order'?' selected':'')+'>Default order</option><option value="az"'+(CLSORT==='az'?' selected':'')+'>A \u2192 Z</option><option value="za"'+(CLSORT==='za'?' selected':'')+'>Z \u2192 A</option></select></div><div class="clausescroll"><div id="clauselist"></div></div></div></div>'
     +'<div class="card"><div class="cb"><div class="actions"><button class="gen" id="genBtn">Build LOI →</button><button class="btn" id="revBtn" type="button" data-ai="" style="margin-left:10px">✨ Review draft</button><span class="msg" id="genMsg"></span></div><div class="note">Assembles an editable, on-screen letter with your logo at the top. Edit anything in place, then Print / Save as PDF — or download an editable .rtf. Blank terms show as fill-in lines.</div></div></div>';
   wire();
 }
 function collect(){
   document.querySelectorAll('#wrap [data-k]').forEach(function(i){ VALUES[i.getAttribute('data-k')]=(i.type==='checkbox')?i.checked:i.value; });
 }
+function applyDefaults(){ var t=curType(); var d=(t&&t.defaults)||{}; Object.keys(d).forEach(function(k){ if(d[k]!=='' && (VALUES[k]==null||VALUES[k]==='')) VALUES[k]=d[k]; }); }
+function venueCls(v){ return v==='Bar'?'bar':(v==='Dance Hall'?'dh':'rest'); }
+function renderClauses(){ var t=curType(); var list=(t.clauses||[]).slice(); var q=CLQ.trim().toLowerCase(); if(q) list=list.filter(function(c){ return ((((c.title||'')+' '+(c.body||'')).toLowerCase()).indexOf(q)>=0); }); if(CLVENUE) list=list.filter(function(c){ return (c.venue||[]).indexOf(CLVENUE)>=0; }); if(CLSORT==='az') list.sort(function(a,b){ return (a.title||'').localeCompare(b.title||''); }); else if(CLSORT==='za') list.sort(function(a,b){ return (b.title||'').localeCompare(a.title||''); }); else list.sort(function(a,b){ return (a.order||0)-(b.order||0); }); var box=document.getElementById('clauselist'); if(!box) return; if(!list.length){ box.innerHTML='<div class="msg" style="padding:10px 4px">No sections match.</div>'; return; } box.innerHTML=list.map(function(c){ var on=!!SEL[c.id]; var vb=(c.venue&&c.venue.length)?(' '+c.venue.map(function(v){return '<span class="vbadge '+venueCls(v)+'">'+esc(v)+'</span>';}).join('')):''; return '<div class="clause'+(on?' on':'')+'" data-cid="'+esc(c.id)+'"><div class="clhd"><input type="checkbox" class="clck"'+(on?' checked':'')+'><span class="cltitle">'+esc(c.title)+'</span>'+vb+'<span class="cltoggle">preview</span></div><div class="clbody">'+esc(c.body)+'</div></div>'; }).join(''); wireClauses(); }
+function wireClauses(){ document.querySelectorAll('#clauselist .clause').forEach(function(cl){ var cid=cl.getAttribute('data-cid'); var ck=cl.querySelector('.clck'); ck.addEventListener('change',function(){ SEL[cid]=ck.checked; cl.classList.toggle('on',ck.checked); var n=Object.keys(SEL).filter(function(k){return SEL[k];}).length; var sc=document.querySelector('.selcount'); if(sc) sc.textContent=n+' selected'; }); cl.querySelector('.cltoggle').addEventListener('click',function(e){ e.stopPropagation(); cl.classList.toggle('exp'); }); cl.querySelector('.cltitle').addEventListener('click',function(){ ck.checked=!ck.checked; ck.dispatchEvent(new Event('change')); }); }); }
 function wire(){
-  document.querySelectorAll('.typebtn').forEach(function(b){ b.addEventListener('click',function(){ collect(); TYPE=b.getAttribute('data-type'); SEL={}; render(); }); });
-  document.querySelectorAll('#wrap [data-k]').forEach(function(i){ var ev=(i.tagName==='SELECT'||i.type==='checkbox')?'change':'input'; i.addEventListener(ev,function(){ VALUES[i.getAttribute('data-k')]=(i.type==='checkbox')?i.checked:i.value; if(i.getAttribute('data-k')==='pg_burnoff'){ var b=document.querySelector('.pgboy'); if(b) b.style.display=i.checked?'':'none'; } }); });
-  document.querySelectorAll('.clause').forEach(function(cl){
-    var cid=cl.getAttribute('data-cid');
-    var ck=cl.querySelector('.clck');
-    ck.addEventListener('change',function(){ SEL[cid]=ck.checked; cl.classList.toggle('on',ck.checked); var n=Object.keys(SEL).filter(function(k){return SEL[k];}).length; var sc=document.querySelector('.selcount'); if(sc) sc.textContent=n+' selected'; });
-    cl.querySelector('.cltoggle').addEventListener('click',function(e){ e.stopPropagation(); cl.classList.toggle('exp'); });
-    cl.querySelector('.cltitle').addEventListener('click',function(){ ck.checked=!ck.checked; ck.dispatchEvent(new Event('change')); });
-  });
+  document.querySelectorAll('.typebtn').forEach(function(b){ b.addEventListener('click',function(){ collect(); TYPE=b.getAttribute('data-type'); SEL={}; applyDefaults(); render(); }); });
+  document.querySelectorAll('#wrap [data-k]').forEach(function(i){ var ev=(i.tagName==='SELECT'||i.type==='checkbox')?'change':'input'; i.addEventListener(ev,function(){ VALUES[i.getAttribute('data-k')]=(i.type==='checkbox')?i.checked:i.value; if(i.getAttribute('data-k')==='pg_burnoff'){ document.querySelectorAll('.pgboy').forEach(function(b){ b.style.display=i.checked?'':'none'; }); } }); });
+  var cs=document.getElementById('clSearch'); if(cs) cs.addEventListener('input',function(){ CLQ=cs.value; renderClauses(); });
+  var cvn=document.getElementById('clVenue'); if(cvn) cvn.addEventListener('change',function(){ CLVENUE=cvn.value; renderClauses(); });
+  var cso=document.getElementById('clSort'); if(cso) cso.addEventListener('change',function(){ CLSORT=cso.value; renderClauses(); });
+  renderClauses();
   var g=document.getElementById('genBtn'); if(g) g.addEventListener('click',buildDoc);
   var tl=document.getElementById('toList'); if(tl) tl.addEventListener('click',function(e){ e.preventDefault(); showList(); });
   var ab=document.getElementById('aiLoiBtn'); if(ab) ab.addEventListener('click',openAiLoi);
@@ -262,9 +265,9 @@ function generate(){
     .catch(function(){ if(g){ g.disabled=false; g.textContent='Download .rtf'; } if(m) m.textContent='Could not download.'; });
 }
 fetch('/api/loi',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-  CFG=(j&&j.config)||{}; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&j.isAdmin); CANMANAGE=!!(j&&j.canManage); REP=(j&&j.rep)||''; LOGOURL=(j&&j.logoUrl)||''; APPNAME=(j&&j.appName)||'';
+  CFG=(j&&j.config)||{}; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&j.isAdmin); CANMANAGE=!!(j&&j.canManage); REP=(j&&j.rep)||''; LOGOURL=(j&&j.logoUrl)||''; APPNAME=(j&&j.appName)||''; VENUES=(j&&j.venues)||[];
   if(TYPES.length && !CFG[TYPE]) TYPE=TYPES[0].key;
-  VALUES.date=todayStr(); if(REP) VALUES.rep=REP;
+  VALUES.date=todayStr(); if(REP) VALUES.rep=REP; applyDefaults();
   loadReps(); loadParties(); loadLois();
 }).catch(function(){ document.getElementById('wrap').innerHTML='<div class="card"><div class="cb"><div class="msg">Could not load the LOI Builder.</div></div></div>'; });
 try{ loadLois(); }catch(e){}
@@ -272,7 +275,7 @@ function openAiLoi(){ var ov=document.getElementById('aiov'); if(!ov) return; do
 function aiLoiParse(){
   var t=document.getElementById('aip_text').value; var m=document.getElementById('aip_msg'); var btn=document.getElementById('aip_go');
   if(!t.trim()){ m.textContent='Paste the LOI first.'; return; }
-  btn.disabled=true; m.textContent='Reading…';
+  btn.disabled=true; m.textContent=(window.__rrgAssistant||'AI')+' is reading the LOI…';
   fetch('/api/loi/ai-parse',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:t,type:TYPE})})
     .then(function(r){return r.json();}).then(function(j){ btn.disabled=false;
       if(!j||!j.ok){ m.textContent=(j&&j.error)||'Could not read that.'; return; }
@@ -284,7 +287,7 @@ function aiLoiParse(){
 }
 (function(){ var x=document.getElementById('aip_x'); if(x) x.addEventListener('click',function(){ document.getElementById('aiov').hidden=true; }); var g=document.getElementById('aip_go'); if(g) g.addEventListener('click',aiLoiParse); var ov=document.getElementById('aiov'); if(ov) ov.addEventListener('click',function(e){ if(e.target===this) this.hidden=true; }); })();
 function showAiResult(title,html){ document.getElementById('airtitle').textContent=title; document.getElementById('airbody').innerHTML=html; document.getElementById('airov').hidden=false; }
-function loiSuggest(){ var btn=document.getElementById('sugBtn'); if(btn) btn.disabled=true;
+function loiSuggest(){ var btn=document.getElementById('sugBtn'); if(btn) btn.disabled=true; showAiResult('Suggested sections','<div style="color:#6b7488">'+esc(window.__rrgAssistant||'AI')+' is reviewing the deal…</div>');
   fetch('/api/ai/loi-suggest',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:TYPE,dealInfo:VALUES})})
    .then(function(r){return r.json();}).then(function(j){ if(btn) btn.disabled=false;
      if(!j||!j.ok){ showAiResult('Suggested sections',esc((j&&j.error)||'Could not suggest.')); return; }
@@ -295,8 +298,8 @@ function loiSuggest(){ var btn=document.getElementById('sugBtn'); if(btn) btn.di
      showAiResult('Suggested sections', h||'No extra sections needed for this deal.');
    }).catch(function(){ if(btn) btn.disabled=false; showAiResult('Suggested sections','Network error.'); });
 }
-function loiReview(){ var dv=document.getElementById('docview'); var txt=(dv&&dv.textContent||'').trim(); if(!txt){ showAiResult('Review draft','Build the LOI first (click <b>Build LOI →</b>), then run the review.'); return; }
-  var btn=document.getElementById('revBtn'); if(btn) btn.disabled=true;
+function loiReview(){ var _rv=document.getElementById('revBtn'); function _rvwork(){ showAiResult('Review draft','<div style="color:#6b7488">'+esc(window.__rrgAssistant||'AI')+' is reviewing your draft…</div>'); } var dv=document.getElementById('docview'); var txt=(dv&&dv.textContent||'').trim(); if(!txt){ showAiResult('Review draft','Build the LOI first (click <b>Build LOI →</b>), then run the review.'); return; }
+  var btn=document.getElementById('revBtn'); if(btn) btn.disabled=true; _rvwork();
   fetch('/api/ai/loi-review',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:txt})})
    .then(function(r){return r.json();}).then(function(j){ if(btn) btn.disabled=false;
      if(!j||!j.ok){ showAiResult('Review draft',esc((j&&j.error)||'Could not review.')); return; }
@@ -328,7 +331,7 @@ function wireNego(){ var st=document.getElementById('negoStatus'); if(st) st.onc
  var ar=document.getElementById('negoAddRound'); if(ar) ar.onclick=function(){ var dir=document.getElementById('negoDir').value; var note=document.getElementById('negoNote').value; saveNego({round:{direction:dir,note:note}}); };
  var an=document.getElementById('negoAnalyze'); if(an) an.onclick=negoAnalyze; }
 function saveNego(patch){ fetch('/api/loi/'+encodeURIComponent(NEGO.id)+'/nego',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(patch)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ NEGO.loi=j.loi; renderNego(); try{loadLois();}catch(e){} } }).catch(function(){}); }
-function negoAnalyze(){ var t=document.getElementById('negoCounter').value; var m=document.getElementById('negoCmsg'); var res=document.getElementById('negoCres'); if(!t.trim()){ m.textContent='Paste the counter first.'; return; } var btn=document.getElementById('negoAnalyze'); btn.disabled=true; m.textContent='Reading…';
+function negoAnalyze(){ var t=document.getElementById('negoCounter').value; var m=document.getElementById('negoCmsg'); var res=document.getElementById('negoCres'); if(!t.trim()){ m.textContent='Paste the counter first.'; return; } var btn=document.getElementById('negoAnalyze'); btn.disabled=true; m.textContent=(window.__rrgAssistant||'AI')+' is reading the counter…';
  fetch('/api/ai/loi-counter',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:NEGO.id,text:t})}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; m.textContent='';
   if(!j||!j.ok){ m.textContent=(j&&j.error)||'Could not analyze.'; return; }
   var rr=j.result||{}; var ch=Array.isArray(rr.changes)?rr.changes:[]; var h='';

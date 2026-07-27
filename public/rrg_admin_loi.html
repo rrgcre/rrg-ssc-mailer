@@ -38,6 +38,10 @@ textarea.big{min-height:150px;}
 .secbadge{font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:999px;}
 .secbadge.tr{background:#fdf1df;color:#b5791f;}
 .secbadge.biz{background:#e6f5ee;color:#1f8a5b;}
+.dfgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px 14px;}
+.secvenues{display:flex;gap:14px;flex-wrap:wrap;margin-top:5px;}
+.secbadge.vrest{background:#fdf1df;color:#b5791f;} .secbadge.vbar{background:#e8f0fd;color:#2f6fd0;} .secbadge.vdh{background:#f3edfb;color:#7a4fd0;}
+.secvbadges{display:inline-flex;gap:4px;margin-left:8px;} .bphead{cursor:pointer;}
 .seccount{font-size:11.5px;color:var(--muted);font-weight:700;}
 .secrow{display:flex;align-items:center;gap:10px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;margin-bottom:7px;flex-wrap:wrap;}
 .secrow .secttl{flex:1;min-width:160px;font-weight:600;color:var(--ink);font-size:13.5px;}
@@ -64,11 +68,28 @@ textarea.big{min-height:150px;}
 <div class="wrap" id="wrap"><div class="card"><div class="cb"><div class="note">Loading…</div></div></div></div>
 
 <script>
-var CFG=null, TYPES=[], IS_ADMIN=false, TYPE='tenant_rep';
+var CFG=null, TYPES=[], IS_ADMIN=false, TYPE='tenant_rep', VENUES=['Restaurant','Bar','Dance Hall'];
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function curType(){ return CFG&&CFG[TYPE]?CFG[TYPE]:{top:'',bottom:'',clauses:[]}; }
 function flash(el){ if(!el) return; el.classList.add('show'); setTimeout(function(){el.classList.remove('show');},1400); }
 
+function defaultsCard(){
+  var d=(curType().defaults)||{};
+  function inp(k,ph){ return '<input class="ti" data-df="'+k+'" value="'+esc(d[k]||'')+'" placeholder="'+esc(ph||'')+'" style="max-width:120px">'; }
+  var roll='<select class="ti" data-df="pg_rolling" style="width:auto"><option value="">Fixed burn-off</option><option value="rolling"'+(d.pg_rolling==='rolling'?' selected':'')+'>Rolling</option></select>';
+  var boChk='<label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600"><input type="checkbox" data-df="pg_burnoff"'+((d.pg_burnoff==='true'||d.pg_burnoff===true)?' checked':'')+'> Default burn-off on</label>';
+  return '<div class="card"><div class="ch"><b>Deal defaults</b><span class="hint">Pre-filled on every new '+esc(curType().name||'')+' LOI — reps can override</span></div><div class="cb"><div class="dfgrid">'
+    +'<div><label class="fld">Initial lease term (years)</label>'+inp('term','10')+'</div>'
+    +'<div><label class="fld">Free rent / abatement (days)</label>'+inp('free_rent','90')+'</div>'
+    +'<div><label class="fld">Renewal — # of options</label>'+inp('renewal_count','2')+'</div>'
+    +'<div><label class="fld">Renewal — years each</label>'+inp('renewal_years','5')+'</div>'
+    +'<div><label class="fld">LOI expiration (days)</label>'+inp('expiration','14')+'</div>'
+    +'<div><label class="fld">Guaranty (years)</label>'+inp('pg_years','')+'</div>'
+    +'<div><label class="fld">Burn-off / rolling (yrs)</label>'+inp('pg_burnoff_years','')+'</div>'
+    +'<div><label class="fld">Burn-off type</label>'+roll+'</div>'
+    +'</div><div style="margin-top:12px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">'+boChk+'<button class="btn" id="dfSave">Save defaults</button><span class="savedtag" id="dfSaved">Saved \u2713</span></div></div></div>';
+}
+function saveDefaults(){ var d={}; document.querySelectorAll('[data-df]').forEach(function(el){ var k=el.getAttribute('data-df'); d[k]=(el.type==='checkbox')?(el.checked?'true':''):el.value.trim(); }); post('/api/loi/defaults',{type:TYPE,defaults:d},function(j){ if(j&&j.ok){ curType().defaults=j.defaults; flash(document.getElementById('dfSaved')); } else alert((j&&j.error)||'Could not save.'); }); }
 function render(){
   if(!IS_ADMIN){ document.getElementById('wrap').innerHTML='<div class="card"><div class="gate">This page is for admins only.</div></div>'; return; }
   var t=curType();
@@ -94,7 +115,8 @@ function render(){
   var termsCard='<div class="card"><div class="ch"><b>Key terms</b><span class="hint">The structured inputs on every '+esc(t.name||'')+' LOI</span></div><div class="cb">'+termsRows+'<div style="margin-top:6px;display:flex;gap:9px;align-items:center"><button class="btn" id="termsSave">Save key terms</button><span class="savedtag" id="termsSaved">Saved \u2713</span></div></div></div>';
   document.getElementById('wrap').innerHTML=
     '<div class="card"><div class="ch"><b>LOI type</b><a href="./rrg_loi_builder.html" style="margin-left:auto;font-size:12.5px;color:var(--gold);font-weight:700;text-decoration:none">Open builder →</a></div><div class="cb"><div class="typerow">'+typebtns+'</div></div></div>'
-    +'<div class="card"><div class="ch"><b>Boilerplate</b><span class="hint">Rarely changes — top and bottom of every '+esc(t.name||'')+' LOI</span></div><div class="cb">'
+    +defaultsCard()
+    +'<div class="card"><div class="ch bphead"><b>Boilerplate</b><span class="hint">Rarely changes — hidden by default</span><span id="bpChev" style="margin-left:auto;color:#b0b8c6">▶</span></div><div class="cb" id="bpBody" style="display:none">'
       +'<label class="fld">Top (letterhead + intro)</label><textarea class="big" id="bp_top">'+esc(t.top||'')+'</textarea>'
       +'<label class="fld" style="margin-top:12px">Bottom (disclaimers + signatures)</label><textarea class="big" id="bp_bottom">'+esc(t.bottom||'')+'</textarea>'
       +'<div style="margin-top:10px;display:flex;gap:9px;align-items:center"><button class="btn" id="bpSave">Save boilerplate</button><span class="savedtag" id="bpSaved">Saved ✓</span></div>'
@@ -107,9 +129,12 @@ function render(){
 function wire(){
   document.querySelectorAll('.typebtn').forEach(function(b){ b.addEventListener('click',function(){ TYPE=b.getAttribute('data-type'); render(); }); });
   var bp=document.getElementById('bpSave'); if(bp) bp.addEventListener('click',saveBoilerplate);
+  var df=document.getElementById('dfSave'); if(df) df.addEventListener('click',saveDefaults);
+  var bh=document.querySelector('.bphead'); if(bh) bh.addEventListener('click',function(){ var bd=document.getElementById('bpBody'); var cv=document.getElementById('bpChev'); if(!bd) return; var open=bd.style.display==='none'; bd.style.display=open?'':'none'; if(cv) cv.textContent=open?'▼':'▶'; });
+  var ss=document.getElementById('secSearch'); if(ss) ss.addEventListener('input',function(){ var q=ss.value.trim().toLowerCase(); document.querySelectorAll('.secrow').forEach(function(r){ var tt=(r.querySelector('.secttl')?r.querySelector('.secttl').textContent:'').toLowerCase(); r.style.display=(!q||tt.indexOf(q)>=0)?'':'none'; }); });
   document.querySelectorAll('.tm-type').forEach(function(sel){ sel.addEventListener('change',function(){ var row=sel.closest('.clause'); var ow=row.querySelector('.tm-optswrap'); var uw=row.querySelector('.tm-unitwrap'); if(ow) ow.style.display=(sel.value==='select')?'':'none'; if(uw) uw.style.display=(sel.value==='number')?'':'none'; }); });
   var ts=document.getElementById('termsSave'); if(ts) ts.addEventListener('click',saveTerms);
-  document.querySelectorAll('.sec-edit').forEach(function(b){ b.addEventListener('click',function(){ var row=b.closest('.secrow'); var ed=row.querySelector('.sec-editor'); if(!ed.hidden){ ed.hidden=true; ed.innerHTML=''; return; } var type=row.getAttribute('data-type'); var cid=row.getAttribute('data-cid'); var c=((CFG[type]&&CFG[type].clauses)||[]).filter(function(x){return x.id===cid;})[0]||{}; ed.innerHTML='<label class="fld" style="margin-top:10px">Section title</label><input class="ti sec-etitle" value="'+esc(c.title||'')+'"><label class="fld" style="margin-top:10px">Clause text</label><textarea class="sec-ebody">'+esc(c.body||'')+'</textarea><div style="margin-top:10px;display:flex;gap:8px;align-items:center"><button class="btn sm sec-esave">Save</button><button class="btn ghost sm sec-ecancel">Cancel</button></div>'; ed.hidden=false; ed.querySelector('.sec-esave').addEventListener('click',function(){ post('/api/loi/clause',{type:type,id:cid,title:ed.querySelector('.sec-etitle').value,body:ed.querySelector('.sec-ebody').value},function(j){ CFG=j.config; render(); }); }); ed.querySelector('.sec-ecancel').addEventListener('click',function(){ ed.hidden=true; ed.innerHTML=''; }); }); });
+  document.querySelectorAll('.sec-edit').forEach(function(b){ b.addEventListener('click',function(){ var row=b.closest('.secrow'); var ed=row.querySelector('.sec-editor'); if(!ed.hidden){ ed.hidden=true; ed.innerHTML=''; return; } var type=row.getAttribute('data-type'); var cid=row.getAttribute('data-cid'); var c=((CFG[type]&&CFG[type].clauses)||[]).filter(function(x){return x.id===cid;})[0]||{}; ed.innerHTML='<label class="fld" style="margin-top:10px">Section title</label><input class="ti sec-etitle" value="'+esc(c.title||'')+'"><label class="fld" style="margin-top:10px">Clause text</label><textarea class="sec-ebody">'+esc(c.body||'')+'</textarea><label class="fld" style="margin-top:10px">Applies to (venue)</label><div class="secvenues">'+VENUES.map(function(v){return '<label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600"><input type="checkbox" class="sec-venue" value="'+esc(v)+'"'+(((c.venue||[]).indexOf(v)>=0)?' checked':'')+'> '+esc(v)+'</label>';}).join('')+'</div><div style="margin-top:10px;display:flex;gap:8px;align-items:center"><button class="btn sm sec-esave">Save</button><button class="btn ghost sm sec-ecancel">Cancel</button></div>'; ed.hidden=false; ed.querySelector('.sec-esave').addEventListener('click',function(){ post('/api/loi/clause',{type:type,id:cid,title:ed.querySelector('.sec-etitle').value,body:ed.querySelector('.sec-ebody').value,venue:Array.prototype.slice.call(ed.querySelectorAll('.sec-venue:checked')).map(function(x){return x.value;})},function(j){ CFG=j.config; render(); }); }); ed.querySelector('.sec-ecancel').addEventListener('click',function(){ ed.hidden=true; ed.innerHTML=''; }); }); });
   document.querySelectorAll('.sec-del').forEach(function(b){ b.addEventListener('click',function(){ var row=b.closest('.secrow'); delClause(row.getAttribute('data-type'), row.getAttribute('data-cid')); }); });
   document.querySelectorAll('.sec-addbtn').forEach(function(b){ b.addEventListener('click',function(){ var type=b.getAttribute('data-type'); var inp=document.querySelector('.sec-newtitle[data-type="'+type+'"]'); var title=(inp&&inp.value.trim())||'New section'; post('/api/loi/clause',{type:type,title:title,body:''},function(j){ CFG=j.config; render(); }); }); });
 }
@@ -137,12 +162,12 @@ function saveClause(cid,box){
   post('/api/loi/clause',body,function(j){ CFG=j.config; var tag=box.querySelector('[data-saved]'); flash(tag); box.querySelector('.clhd .t').textContent=body.title||'(untitled)'; });
 }
 function sectionsCard(){
-  var html='<div class="card"><div class="ch"><b>Optional sections</b><span class="hint">Marked by type — users pick these when building an LOI</span></div><div class="cb">';
+  var html='<div class="card"><div class="ch"><b>Optional sections</b><span class="hint">Marked by type — users pick these when building an LOI</span></div><div class="cb"><input id="secSearch" class="ti" placeholder="Search sections…" style="margin-bottom:12px;max-width:300px">';
   (TYPES||[]).forEach(function(ty){
     var t=CFG[ty.key]||{}; var list=(t.clauses||[]).slice().sort(function(a,b){return (a.order||0)-(b.order||0);});
     html+='<div class="secgrouphd"><span class="secbadge '+(ty.key==='business_sale'?'biz':'tr')+'">'+esc(ty.name)+'</span><span class="seccount">'+list.length+' section'+(list.length===1?'':'s')+'</span></div>';
     html+=(list.length?list.map(function(c){
-      return '<div class="secrow" data-type="'+esc(ty.key)+'" data-cid="'+esc(c.id)+'"><span class="secttl">'+esc(c.title||'(untitled)')+'</span><span class="secacts"><button class="btn ghost sm sec-edit">Edit</button><button class="btn red sm sec-del">Delete</button></span><div class="sec-editor" hidden></div></div>';
+      return '<div class="secrow" data-type="'+esc(ty.key)+'" data-cid="'+esc(c.id)+'"><span class="secttl">'+esc(c.title||'(untitled)')+'</span>'+((c.venue&&c.venue.length)?('<span class="secvbadges">'+c.venue.map(function(v){return '<span class="secbadge '+(v==='Bar'?'vbar':(v==='Dance Hall'?'vdh':'vrest'))+'">'+esc(v)+'</span>';}).join('')+'</span>'):'')+'<span class="secacts"><button class="btn ghost sm sec-edit">Edit</button><button class="btn red sm sec-del">Delete</button></span><div class="sec-editor" hidden></div></div>';
     }).join(''):'<div class="secempty">No sections yet.</div>');
     html+='<div class="secadd"><input class="sec-newtitle" data-type="'+esc(ty.key)+'" placeholder="Add a '+esc(ty.name)+' section — title"><button class="btn sm sec-addbtn" data-type="'+esc(ty.key)+'">+ Add</button></div>';
   });
@@ -166,7 +191,7 @@ function post(url,body,ok){
   fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ok(j); } else alert((j&&j.error)||'Save failed.'); }).catch(function(){ alert('Could not reach the server.'); });
 }
 fetch('/api/loi',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-  CFG=(j&&j.config)||{}; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&(j.canManage||j.isAdmin));
+  CFG=(j&&j.config)||{}; TYPES=(j&&j.types)||[]; VENUES=(j&&j.venues)||VENUES; IS_ADMIN=!!(j&&(j.canManage||j.isAdmin));
   if(TYPES.length && !CFG[TYPE]) TYPE=TYPES[0].key;
   render();
 }).catch(function(){ document.getElementById('wrap').innerHTML='<div class="card"><div class="cb"><div class="note">Could not load the clause library.</div></div></div>'; });

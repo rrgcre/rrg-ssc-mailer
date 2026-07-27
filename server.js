@@ -807,6 +807,7 @@ app.get('/api/session', (req, res) => res.json({
   canExport: !!(req.user && (isSuper(req.user) || (permsEnabled() && effectivePerms(req.user).export_data))),
   canManageLoi: manageLoiOk(req),
   canUseAi: aiAllowed(req),
+  assistant: effAssistantName(),
   title: req.user.title || '', phone: req.user.phone || '', email: req.user.email || '',
   preparedBy: req.user.preparedBy || '',
   adminOnlyTools: auth.loadToolAccess(),
@@ -5938,6 +5939,9 @@ function taskChannels(t) { if (Array.isArray(t.remChannels)) return t.remChannel
 function newLoiClauseId() { return 'loic_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const LOI_TYPES = [ { key: 'tenant_rep', name: 'Tenant Rep (Lease)' }, { key: 'business_sale', name: 'Business Sale' } ];
 const LOI_NEGO_STATUSES = ['Draft', 'Sent', 'Countered', 'Negotiating', 'Accepted', 'Dead'];
+const LOI_TR_DEFAULTS = { term: '10', free_rent: '90', renewal_count: '2', renewal_years: '5', expiration: '14', pg_years: '', pg_burnoff: '', pg_rolling: '', pg_burnoff_years: '' };
+const LOI_VENUES = ['Restaurant', 'Bar', 'Dance Hall'];
+const LOI_CLAUSE_VENUES = { c_bar:['Bar'], c_indoormusic:['Bar','Dance Hall'], c_outdoormusic:['Bar','Dance Hall'], c_entertainment:['Dance Hall'], c_assembly:['Dance Hall'], c_sound:['Bar','Dance Hall'], c_security:['Bar','Dance Hall'], c_afterhours:['Bar','Dance Hall'], c_patio:['Restaurant','Bar'], c_grease:['Restaurant'], c_hvac:['Restaurant'], c_drivethru:['Restaurant'], c_walkin:['Restaurant'], c_deliverycond:['Restaurant'], c_delivery:['Restaurant'], c_utilcap:['Restaurant'], c_trash:['Restaurant'] };
 const LOI_TERM_STATES = ['Open', 'Proposed', 'Accepted', 'Countered', 'Rejected'];
 
 const EXTRA_TR_CLAUSES = [
@@ -6001,7 +6005,7 @@ Broker: {{rep}}, Restaurant Realty Group, LLC`,
         { key: 'base_rent', label: 'Base Rent ($/SF/yr)' },
         { key: 'rent_structure', label: 'Rent Structure', type: 'select', options: ['NNN (Triple Net)', 'Modified Gross', 'Full-Service Gross', 'Industrial Gross', 'Absolute Net', 'Percentage Rent'] },
         { key: 'escalations', label: 'Annual Escalations', type: 'escalation' },
-        { key: 'free_rent', label: 'Free Rent / Abatement', type: 'number', unit: 'months' },
+        { key: 'free_rent', label: 'Free Rent / Abatement', type: 'number', unit: 'days' },
         { key: 'ti', label: 'TI Allowance', type: 'number', prefix: '$', unit: '/SF' },
         { key: 'delivery_condition', label: 'Delivery Condition', type: 'select', options: ['Warm shell', 'Cold / dark shell', 'Vanilla box', 'As-is', 'Turnkey (Landlord build-out)', 'Second-generation restaurant (as-is)'] },
         { key: 'options', label: 'Renewal Options', type: 'renewal' },
@@ -6096,8 +6100,28 @@ Broker: {{rep}}, Restaurant Realty Group, LLC`,
     }
   };
 }
-function loadLoiConfig() { const s = loadSettings(); return (s.loi && s.loi.tenant_rep) ? s.loi : defaultLoiConfig(); }
+function loadLoiConfig() { const s = loadSettings(); const cfg = (s.loi && s.loi.tenant_rep) ? s.loi : defaultLoiConfig(); if (cfg.tenant_rep && !cfg.tenant_rep.defaults) cfg.tenant_rep.defaults = {}; if (cfg.business_sale && !cfg.business_sale.defaults) cfg.business_sale.defaults = {}; return cfg; }
 function saveLoiConfig(cfg) { const s = loadSettings(); s.loi = cfg; saveSettings(s); }
+(function seedLoiVenues(){
+  try {
+    const st = loadSettings();
+    if (st.loiVenueSeeded) return;
+    const cfg = (st.loi && st.loi.tenant_rep) ? st.loi : defaultLoiConfig();
+    (cfg.tenant_rep && cfg.tenant_rep.clauses || []).forEach(function(c){ if (!c.venue && LOI_CLAUSE_VENUES[c.id]) c.venue = LOI_CLAUSE_VENUES[c.id].slice(); });
+    st.loi = cfg; st.loiVenueSeeded = true; saveSettings(st);
+  } catch (e) { console.error('LOI venue seed error:', e && e.message); }
+})();
+(function seedLoiDefaults(){
+  try {
+    const st = loadSettings();
+    if (st.loiDefaultsSeeded) return;
+    const cfg = (st.loi && st.loi.tenant_rep) ? st.loi : defaultLoiConfig();
+    const t = cfg.tenant_rep; t.defaults = t.defaults || {};
+    Object.keys(LOI_TR_DEFAULTS).forEach(function(k){ if (t.defaults[k] == null || t.defaults[k] === '') t.defaults[k] = LOI_TR_DEFAULTS[k]; });
+    (t.terms || []).forEach(function(term){ if (term.key === 'free_rent') term.unit = 'days'; });
+    st.loi = cfg; st.loiDefaultsSeeded = true; saveSettings(st);
+  } catch (e) { console.error('LOI defaults seed error:', e && e.message); }
+})();
 // One-time seed of restaurant/bar/dance-hall LOI sections into the live library (admins can edit/delete after).
 (function seedExtraLoiClauses(){
   try {
@@ -6138,7 +6162,7 @@ function loiFmtTerm(f, vals) {
     var bo = !!vals.pg_burnoff; var boy = (vals.pg_burnoff_years != null ? String(vals.pg_burnoff_years) : '').trim();
     if (!gy && !bo && !boy) return '';
     var g = 'Personal guaranty' + (gy ? (' of ' + gy + ' years') : '');
-    if (bo) g += boy ? (', burning off after ' + boy + ' years') : ', with burn-off';
+    if (bo) { if (vals.pg_rolling === 'rolling' || vals.pg_rolling === true || vals.pg_rolling === 'on') g += boy ? (', on a rolling ' + boy + '-year basis') : ', on a rolling basis'; else g += boy ? (', burning off after ' + boy + ' years') : ', with burn-off'; }
     return g;
   }
   var v = vals[f.key]; return (v != null ? String(v) : '');
@@ -6152,7 +6176,7 @@ function loiRtfEsc(s) {
 }
 
 app.get('/api/loi', (req, res) => {
-  res.json({ ok: true, types: LOI_TYPES, config: loadLoiConfig(), isAdmin: !!(req.user && isSuper(req.user)), canManage: manageLoiOk(req), rep: (req.user && req.user.name) || '', logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), appName: loadAppName() });
+  res.json({ ok: true, types: LOI_TYPES, venues: LOI_VENUES, config: loadLoiConfig(), isAdmin: !!(req.user && isSuper(req.user)), canManage: manageLoiOk(req), rep: (req.user && req.user.name) || '', logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), appName: loadAppName() });
 });
 const LOIS_FILE = path.join(BOV_DATA_DIR, 'lois.json');
 function loadLois() { try { return JSON.parse(fs.readFileSync(LOIS_FILE, 'utf8')) || []; } catch (e) { return []; } }
@@ -6181,6 +6205,14 @@ app.post('/api/loi/save', express.json(), (req, res) => {
 app.get('/api/lois', (req, res) => {
   const lois = loadLois().slice().reverse().map(function (l) { return { id: l.id, type: l.type || 'tenant_rep', typeName: (l.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep'), property: l.property || '', tenant: (l.tenant && l.tenant.name) || '', tenantId: (l.tenant && l.tenant.id) || '', tenantKind: (l.tenant && l.tenant.kind) || '', landlord: (l.landlord && l.landlord.name) || '', landlordId: (l.landlord && l.landlord.id) || '', landlordKind: (l.landlord && l.landlord.kind) || '', createdAt: l.createdAt || '', by: l.by || '', status: l.status || '', updatedAt: l.updatedAt || '', rounds: Array.isArray(l.rounds) ? l.rounds.length : 0 }; });
   res.json({ ok: true, lois: lois });
+});
+app.post('/api/loi/defaults', requireManageLoi, express.json(), (req, res) => {
+  const b = req.body || {}; const cfg = loadLoiConfig(); const tkey = (b.type === 'business_sale') ? 'business_sale' : 'tenant_rep';
+  const t = cfg[tkey]; if (!t) return res.status(400).json({ ok: false, error: 'Bad type.' });
+  const d = (b.defaults && typeof b.defaults === 'object') ? b.defaults : {};
+  const clean = {}; Object.keys(d).slice(0, 40).forEach(function(k){ clean[String(k).slice(0,40)] = String(d[k] == null ? '' : d[k]).slice(0, 60); });
+  t.defaults = clean; saveLoiConfig(cfg);
+  res.json({ ok: true, defaults: t.defaults });
 });
 app.get('/api/loi/:id', (req, res) => {
   const l = loadLois().find(x => x.id === req.params.id);
@@ -6266,6 +6298,7 @@ app.post('/api/loi/clause', requireManageLoi, express.json(), (req, res) => {
   if (!c) { c = { id: newLoiClauseId(), order: list.length }; list.push(c); }
   if (typeof b.title === 'string') c.title = b.title.slice(0, 160);
   if (typeof b.body === 'string') c.body = b.body.slice(0, 8000);
+  if (Array.isArray(b.venue)) c.venue = b.venue.filter(function(v){ return LOI_VENUES.indexOf(v) >= 0; });
   saveLoiConfig(cfg); res.json({ ok: true, clause: c, config: cfg });
 });
 app.delete('/api/loi/clause/:type/:id', requireManageLoi, (req, res) => {

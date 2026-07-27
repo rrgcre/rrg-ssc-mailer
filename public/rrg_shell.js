@@ -156,7 +156,7 @@
         var brand=document.getElementById('rrgbrand'); if(brand){ if(j&&j.logoUrl){ brand.innerHTML='<img src="'+j.logoUrl+'" alt="" class="rrgbrandimg">'; } else if(j&&j.name){ brand.textContent=j.name; } }
       }).catch(function(){});
       fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){
-        try{ window.__rrgSession=s; document.dispatchEvent(new CustomEvent('rrg:session',{detail:s})); }catch(e){}
+        try{ window.__rrgSession=s; window.__rrgAssistant=(s&&s.assistant)||'the assistant'; document.dispatchEvent(new CustomEvent('rrg:session',{detail:s})); }catch(e){}
         if(s&&(s.role==='admin'||s.role==='creator')){ var g=nav.querySelector('[data-admingrp]'); if(g) g.style.display=''; }
         if(s&&s.canManageLoi){ nav.querySelectorAll('a.it[data-need="loi"]').forEach(function(el){ el.style.display=''; }); }
         if(s&&!s.canUseAi){ var aist=document.createElement('style'); aist.textContent='[data-ai]{display:none !important;}'; document.head.appendChild(aist); }
