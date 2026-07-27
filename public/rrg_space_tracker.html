@@ -73,7 +73,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 
 <div class="wrap">
   <div class="card">
-    <div class="ch"><b>All spaces</b><span class="hint" id="cnt"></span><button class="btn" id="matchBtn" style="margin-left:auto">✨ AI match</button><button class="btn primary" id="addBtn" style="margin-left:8px">+ Add space</button></div>
+    <div class="ch"><b>All spaces</b><span class="hint" id="cnt"></span><button class="btn" id="matchBtn" data-ai="" style="margin-left:auto">✨ AI match</button><button class="btn primary" id="addBtn" style="margin-left:8px">+ Add space</button></div>
     <div class="tiles" id="tiles"></div>
     <div class="cb"><div id="list"></div></div>
   </div>
@@ -82,7 +82,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 <div class="ov" id="ov" hidden><div class="modal">
   <div class="mh"><b id="mtitle">Add space</b><button class="x" id="mx">✕</button></div>
   <div class="mb">
-    <div class="aibox"><div class="aihd">✨ AI fill from a listing <span>paste a CoStar / LoopNet / Crexi blurb, broker email, or flyer — AI fills the fields below</span></div><textarea id="ai_paste" placeholder="Paste the listing here…"></textarea><div class="airow"><button class="btn" id="ai_fill" type="button">Fill the fields ↓</button><span class="msg" id="ai_msg"></span></div></div>
+    <div class="aibox" data-ai=""><div class="aihd">✨ AI fill from a listing <span>paste a CoStar / LoopNet / Crexi blurb, broker email, or flyer — AI fills the fields below</span></div><textarea id="ai_paste" placeholder="Paste the listing here…"></textarea><div class="airow"><button class="btn" id="ai_fill" type="button">Fill the fields ↓</button><span class="msg" id="ai_msg"></span></div></div>
     <div class="grid">
       <div class="f full"><label class="fld">Address</label><input id="f_address" placeholder="1234 S Congress Ave"></div>
       <div class="f"><label class="fld">Shopping center</label><input id="f_center" placeholder="Southpark Plaza"></div>
@@ -98,7 +98,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
     </div>
     <div class="fld" style="margin:16px 0 7px">The bones <span style="text-transform:none;color:#98a1b5">— tap what's already built</span></div>
     <div class="chips" id="bones"></div>
-    <div class="aibox" style="background:#eef7f3;border-color:#cfe8dc;margin-top:16px"><div class="aihd" style="color:#1f8a5b">✨ Paste a Placer.ai report <span>foot traffic &amp; trade area — AI folds a clean summary into Notes</span></div><textarea id="pl_paste" placeholder="Paste your Placer report here…"></textarea><div class="airow"><button class="btn" id="pl_go" type="button">Summarize into Notes ↓</button><span class="msg" id="pl_msg"></span></div></div>
+    <div class="aibox" data-ai="" style="background:#eef7f3;border-color:#cfe8dc;margin-top:16px"><div class="aihd" style="color:#1f8a5b">✨ Paste a Placer.ai report <span>foot traffic &amp; trade area — AI folds a clean summary into Notes</span></div><textarea id="pl_paste" placeholder="Paste your Placer report here…"></textarea><div class="airow"><button class="btn" id="pl_go" type="button">Summarize into Notes ↓</button><span class="msg" id="pl_msg"></span></div></div>
     <div class="f full" style="margin-top:14px"><label class="fld">Notes</label><textarea id="f_notes" placeholder="Condition, term available, TI, timing…"></textarea></div>
   </div>
   <div class="mf"><button class="btn primary" id="msave">Save space</button><button class="btn ghost" id="mcancel">Cancel</button><span class="msg" id="mmsg"></span></div>

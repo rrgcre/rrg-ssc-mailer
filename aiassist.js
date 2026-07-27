@@ -151,4 +151,14 @@ async function parsePlacer({ text }) {
   return extractJson(await callClaude(sys, 'PLACER REPORT:\n' + String(text || '').slice(0, 14000), 1400)) || {};
 }
 
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer };
+// 14) LOI counter diff — compare a pasted counter/response to the current terms.
+async function counterDiff({ text, current, terms }) {
+  const lines = terms.map(t => '- "' + t.key + '": ' + t.label + ' (current: ' + (((current || {})[t.key]) || '\u2014') + ')').join('\n');
+  const sys = 'You are a restaurant/bar tenant-rep broker tracking an LOI negotiation. The rep pastes the other side\'s counter or response. Compare it to the CURRENT position on each key term and classify each term the counter addresses. ' +
+    'Return ONLY JSON: {"summary":"","changes":[{"key":"","label":"","from":"","to":"","status":"accepted|countered|rejected|open"}]}. ' +
+    'status: "accepted" if they agree to the current value; "countered" if they propose a different value (set from=current, to=their value); "rejected" if they reject it outright; "open" if unresolved. Include ONLY terms the counter actually addresses. summary: one plain line on what moved. Ground strictly in the pasted text; never invent a number.\n' +
+    'KEY TERMS (with current values):\n' + lines;
+  return extractJson(await callClaude(sys, 'COUNTER / RESPONSE TEXT:\n' + String(text || '').slice(0, 12000), 1500)) || {};
+}
+
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff };

@@ -91,7 +91,7 @@ function ownsDeal(req, d) {
 const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
 const PERSON_TYPES = ['Buyer', 'Seller', 'Investor', 'Broker', 'Referral Source', 'Other'];
 const LEAD_SOURCES = ['Referral', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
-const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'LOI Sent', 'LOI Received', 'Diligence', 'Note', 'To-Do'];
+const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'LOI Sent', 'LOI Received', 'LOI Countered', 'LOI Accepted', 'Diligence', 'Note', 'To-Do'];
 const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Burgers', 'BBQ', 'Steakhouse', 'Seafood', 'Chinese', 'Japanese / Sushi', 'Thai', 'Vietnamese', 'Korean', 'Indian', 'Mediterranean', 'Greek', 'Southern / Soul', 'Breakfast / Brunch', 'Coffee / Cafe', 'Hawaiian', 'Desserts', 'Bar / Lounge'];
 function loadPeople() { try { return JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')); } catch (e) { return []; } }
 function savePeople(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PEOPLE_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
@@ -4573,7 +4573,7 @@ app.get('/admin', requireAdmin, (req, res) => {
       <div class="links">
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
           <a class="primary" href="/api/admin/backup" style="text-decoration:none;display:inline-block">⬇ Download full backup now</a>
-          <button onclick="runBackup()">Save a snapshot on the server</button>
+          <style>.bkspin{display:inline-block;width:12px;height:12px;border:2px solid #cfd6e2;border-top-color:#DA2B1F;border-radius:50%;animation:bkspin .7s linear infinite;vertical-align:-1px;margin-right:5px}@keyframes bkspin{to{transform:rotate(360deg)}}</style><button id="bkbtn" onclick="runBackup()">Save a snapshot on the server</button>
           <span id="bkmsg" class="sub2"></span>
         </div>
         <div class="sub2" id="bkoffsite" style="margin:2px 0 10px"></div>
@@ -4717,7 +4717,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         document.getElementById('bklist').innerHTML='<table style="margin-top:4px"><thead><tr><th>Snapshot</th><th>Size</th><th>Saved</th><th></th></tr></thead><tbody>'+
           b.map(function(x){ return '<tr><td>'+x.name+'</td><td>'+_bkSize(x.size)+'</td><td>'+_bkDate(x.at)+'</td><td><a href="/api/admin/backup/file/'+encodeURIComponent(x.name)+'">Download</a></td></tr>'; }).join('')+'</tbody></table>';
       }).catch(function(){ document.getElementById('bklist').textContent='Could not load snapshots.'; }); }
-      function runBackup(){ var m=document.getElementById('bkmsg'); m.textContent='Saving snapshot…'; post('/api/admin/backup/run',{}).then(function(j){ if(j&&j.ok){ m.textContent='Snapshot saved ✓'; loadBackups(); setTimeout(function(){ m.textContent=''; },1500); } else { m.textContent=(j&&j.error)||'Backup failed'; } }); }
+      function runBackup(){ var m=document.getElementById('bkmsg'); var b=document.getElementById('bkbtn'); if(b){ b.disabled=true; b.dataset.lbl=b.textContent; b.textContent='Saving…'; } m.innerHTML='<span class="bkspin"></span>Saving a snapshot on the server — this can take a moment for large data rooms…'; post('/api/admin/backup/run',{}).then(function(j){ if(b){ b.disabled=false; b.textContent=b.dataset.lbl||'Save a snapshot on the server'; } if(j&&j.ok){ m.innerHTML='✓ Snapshot saved'+(j.name?(' — <b>'+j.name+'</b>'):'')+'. It is in the list below and ready to download.'; loadBackups(); setTimeout(function(){ m.textContent=''; },6000); } else { m.textContent=(j&&j.error)||'Backup failed.'; } }).catch(function(){ if(b){ b.disabled=false; b.textContent=b.dataset.lbl||'Save a snapshot on the server'; } m.textContent='Backup failed — network error.'; }); }
       function _aimState(j){ var s=document.getElementById('aimstate'); if(s) s.textContent = j.isDefault ? ('Using the default model ('+j.default+').') : ('Using a custom model ('+j.model+'). Default is '+j.default+'.'); }
       function loadAiModel(){ fetch('/api/admin/ai-model').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('aiModel').value=j.model||''; _aimState(j); } }).catch(function(){ var s=document.getElementById('aimstate'); if(s) s.textContent='Could not load the model setting.'; }); }
       function saveAiModel(){ var v=document.getElementById('aiModel').value.trim(), m=document.getElementById('aimmsg'); m.textContent='Saving…'; post('/api/admin/ai-model',{model:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; _aimState(j); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
@@ -5937,7 +5937,23 @@ function taskChannels(t) { if (Array.isArray(t.remChannels)) return t.remChannel
 // ================= LOI Builder (tenant-rep + business-sale letters of intent) =================
 function newLoiClauseId() { return 'loic_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const LOI_TYPES = [ { key: 'tenant_rep', name: 'Tenant Rep (Lease)' }, { key: 'business_sale', name: 'Business Sale' } ];
+const LOI_NEGO_STATUSES = ['Draft', 'Sent', 'Countered', 'Negotiating', 'Accepted', 'Dead'];
+const LOI_TERM_STATES = ['Open', 'Proposed', 'Accepted', 'Countered', 'Rejected'];
 
+const EXTRA_TR_CLAUSES = [
+  { id: 'c_ti', title: "Tenant Improvement Allowance", body: "Landlord shall provide a tenant improvement allowance of {{ti_allowance}} toward Tenant's build-out, payable within thirty (30) days after completion and delivery of lien waivers, or in the alternative deliver the Premises turnkey per Tenant's approved plans. Any unused allowance may be applied to rent." },
+  { id: 'c_freerent', title: "Free Rent / Rent Abatement", body: "Base rent and additional rent shall be fully abated for the first {{free_rent_months}} months following the Commencement Date to allow for Tenant's build-out and grand opening, in addition to any early-access/fixturing period." },
+  { id: 'c_pctrent', title: "Percentage Rent", body: "If the parties agree to percentage rent, it shall equal {{pct_rent}}% of gross sales above a natural breakpoint (annual base rent divided by the percentage), with no percentage rent due below the breakpoint and customary exclusions from gross sales (sales taxes, employee comps, third-party delivery fees, and gift-card sales until redeemed)." },
+  { id: 'c_goodguy', title: "Good-Guy / Limited Guaranty", body: "Any personal guaranty shall be a good-guy guaranty only, limited to rent accruing through the date Tenant surrenders the Premises broom-clean with keys, and shall burn off in full after {{guaranty_years}} years of the Term provided no default is then continuing." },
+  { id: 'c_kickout', title: "Kick-Out / Sales Threshold", body: "If Tenant's gross sales do not exceed {{kickout_sales}} in any consecutive twelve-month period after the third Lease year, Tenant may terminate on ninety (90) days' notice, subject to Landlord's right to keep the lease in force by waiving the shortfall for that period." },
+  { id: 'c_deliverycond', title: "Delivery Condition / Second-Generation", body: "Landlord shall deliver the Premises in {{delivery_condition}} condition. Where the Premises is a former restaurant (second-generation), all existing kitchen infrastructure, hood, grease trap, walk-in(s), and FF&E shall convey with the Premises in working order at no additional cost to Tenant." },
+  { id: 'c_walkin', title: "Walk-In Cooler & Freezer", body: "Tenant shall have the right to install and operate walk-in cooler(s) and freezer(s), including exterior condensing units in a Landlord-approved location; where existing walk-ins are present they shall convey in working order at no additional cost." },
+  { id: 'c_assembly', title: "Assembly Occupancy / Fire & Life Safety", body: "Landlord shall deliver the Premises suitable for the Assembly occupancy classification required by Tenant's use, including a code-compliant fire sprinkler and alarm system for the intended occupant load. Any life-safety work required as a condition of the assembly occupancy at delivery shall be Landlord's responsibility and expense." },
+  { id: 'c_sound', title: "Sound Attenuation / Noise", body: "Landlord shall deliver, or provide an allowance for, commercially reasonable sound attenuation for the Premises. Tenant's amplified sound shall comply with the applicable municipal noise ordinance; neither Landlord nor any association shall impose sound limits stricter than that ordinance, and any noise complaints shall be routed to Tenant for good-faith resolution." },
+  { id: 'c_entertainment', title: "Live Entertainment & Dance Floor", body: "The Permitted Use includes operation as a bar and live-entertainment/dance venue, including a stage, DJ booth, and dance floor. Landlord represents the Premises may be so used under applicable zoning and shall reasonably cooperate with Tenant in obtaining any dance-hall, entertainment, or cabaret permits required." },
+  { id: 'c_security', title: "Security & Crowd Control", body: "Tenant may staff licensed security personnel, operate video surveillance, and conduct ID verification consistent with responsible late-night operation. Landlord shall not restrict such measures and shall reasonably cooperate on shared-area security, lighting, and camera placement." },
+  { id: 'c_afterhours', title: "After-Hours Access", body: "Tenant, its staff, and its vendors shall have 24-hour access to the Premises and to the common areas reasonably necessary to serve the Premises for late-night operation, deliveries, cleaning, and maintenance, at no additional charge." },
+];
 function defaultLoiConfig() {
   return {
     tenant_rep: {
@@ -6082,6 +6098,19 @@ Broker: {{rep}}, Restaurant Realty Group, LLC`,
 }
 function loadLoiConfig() { const s = loadSettings(); return (s.loi && s.loi.tenant_rep) ? s.loi : defaultLoiConfig(); }
 function saveLoiConfig(cfg) { const s = loadSettings(); s.loi = cfg; saveSettings(s); }
+// One-time seed of restaurant/bar/dance-hall LOI sections into the live library (admins can edit/delete after).
+(function seedExtraLoiClauses(){
+  try {
+    const st = loadSettings();
+    if (st.loiExtraSeeded) return;
+    const cfg = (st.loi && st.loi.tenant_rep) ? st.loi : defaultLoiConfig();
+    const t = cfg.tenant_rep; t.clauses = Array.isArray(t.clauses) ? t.clauses : [];
+    const have = new Set(t.clauses.map(c => c.id));
+    let maxOrder = t.clauses.reduce((m, c) => Math.max(m, c.order || 0), -1);
+    EXTRA_TR_CLAUSES.forEach(c => { if (!have.has(c.id)) { maxOrder++; t.clauses.push({ id: c.id, order: maxOrder, title: c.title, body: c.body }); } });
+    st.loi = cfg; st.loiExtraSeeded = true; saveSettings(st);
+  } catch (e) { console.error('LOI clause seed error:', e && e.message); }
+})();
 
 function loiFill(text, vals) { return String(text == null ? '' : text).replace(/\{\{(\w+)\}\}/g, function (_, k) { var v = vals[k]; return (v != null && String(v).trim() !== '') ? String(v) : '____________'; }); }
 function loiFmtTerm(f, vals) {
@@ -6150,8 +6179,39 @@ app.post('/api/loi/save', express.json(), (req, res) => {
   res.json({ ok: true, id: rec.id, logged: logged });
 });
 app.get('/api/lois', (req, res) => {
-  const lois = loadLois().slice().reverse().map(function (l) { return { id: l.id, type: l.type || 'tenant_rep', typeName: (l.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep'), property: l.property || '', tenant: (l.tenant && l.tenant.name) || '', tenantId: (l.tenant && l.tenant.id) || '', tenantKind: (l.tenant && l.tenant.kind) || '', landlord: (l.landlord && l.landlord.name) || '', landlordId: (l.landlord && l.landlord.id) || '', landlordKind: (l.landlord && l.landlord.kind) || '', createdAt: l.createdAt || '', by: l.by || '' }; });
+  const lois = loadLois().slice().reverse().map(function (l) { return { id: l.id, type: l.type || 'tenant_rep', typeName: (l.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep'), property: l.property || '', tenant: (l.tenant && l.tenant.name) || '', tenantId: (l.tenant && l.tenant.id) || '', tenantKind: (l.tenant && l.tenant.kind) || '', landlord: (l.landlord && l.landlord.name) || '', landlordId: (l.landlord && l.landlord.id) || '', landlordKind: (l.landlord && l.landlord.kind) || '', createdAt: l.createdAt || '', by: l.by || '', status: l.status || '', updatedAt: l.updatedAt || '', rounds: Array.isArray(l.rounds) ? l.rounds.length : 0 }; });
   res.json({ ok: true, lois: lois });
+});
+app.get('/api/loi/:id', (req, res) => {
+  const l = loadLois().find(x => x.id === req.params.id);
+  if (!l) return res.status(404).json({ ok: false, error: 'LOI not found.' });
+  const cfg = loadLoiConfig(); const tkey = (l.type === 'business_sale') ? 'business_sale' : 'tenant_rep';
+  const terms = ((cfg[tkey] && cfg[tkey].terms) || []).map(t => ({ key: t.key, label: t.label }));
+  res.json({ ok: true, loi: l, terms, statuses: LOI_NEGO_STATUSES, termStates: LOI_TERM_STATES });
+});
+app.post('/api/loi/:id/nego', express.json({ limit: '256kb' }), (req, res) => {
+  const b = req.body || {}; const lois = loadLois(); const l = lois.find(x => x.id === req.params.id);
+  if (!l) return res.status(404).json({ ok: false, error: 'LOI not found.' });
+  const now = new Date().toISOString();
+  if (typeof b.status === 'string' && LOI_NEGO_STATUSES.indexOf(b.status) >= 0) l.status = b.status;
+  if (b.termStatus && typeof b.termStatus === 'object') l.termStatus = Object.assign({}, l.termStatus || {}, b.termStatus);
+  if (b.round && typeof b.round === 'object') { l.rounds = Array.isArray(l.rounds) ? l.rounds : []; l.rounds.push({ at: now, direction: (b.round.direction === 'received' ? 'received' : 'sent'), by: (req.user && req.user.name) || '', note: String(b.round.note || '').slice(0, 4000), changes: Array.isArray(b.round.changes) ? b.round.changes.slice(0, 60) : [] }); }
+  l.updatedAt = now; saveLois(lois);
+  if (typeof b.logActivity === 'string' && ['Countered', 'Accepted'].indexOf(b.logActivity) >= 0) {
+    const label = (l.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep') + (l.property ? (' - ' + l.property) : '');
+    [l.tenant, l.landlord].forEach(function (party) { if (party && party.kind === 'contact' && party.id) { try { const arr = loadPeople(); const p = arr.find(x => x.id === party.id); if (p) { logActivity(p, 'LOI ' + b.logActivity, label, { auto: true, by: (req.user && req.user.name) || '' }); savePeople(arr); } } catch (e) {} } });
+  }
+  res.json({ ok: true, loi: l });
+});
+app.post('/api/ai/loi-counter', express.json({ limit: '256kb' }), async (req, res) => {
+  try {
+    const b = req.body || {}; const l = loadLois().find(x => x.id === b.id);
+    if (!l) return res.status(404).json({ ok: false, error: 'LOI not found.' });
+    const cfg = loadLoiConfig(); const tkey = (l.type === 'business_sale') ? 'business_sale' : 'tenant_rep';
+    const terms = ((cfg[tkey] && cfg[tkey].terms) || []).map(t => ({ key: t.key, label: t.label }));
+    const result = await aiassist.counterDiff({ text: b.text || '', current: l.values || {}, terms });
+    res.json({ ok: true, result: result || {} });
+  } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });
 app.post('/api/loi/generate', express.json(), (req, res) => {
   const b = req.body || {};
