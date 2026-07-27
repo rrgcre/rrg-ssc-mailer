@@ -59,7 +59,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .crow{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);}
 .crow:last-child{border-bottom:none;} .crow:hover{background:#fbfcfe;} .crow .ledit,.crow .crm{opacity:0;pointer-events:none;transition:opacity .13s;} .crow:hover .ledit,.crow:hover .crm{opacity:1;pointer-events:auto;} @media(hover:none){.cptacts,.crow .ledit,.crow .crm{opacity:1!important;pointer-events:auto!important;}}
 .cav{width:38px;height:38px;flex:none;border-radius:50%;background:#eef1f6;color:#6b7488;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;}
-.cinfo{min-width:0;flex:1;} .cname{font-weight:600;color:var(--ink);font-size:14.5px;} .cname .lnameedit{cursor:pointer;} .cname .lnameedit:hover{text-decoration:underline;text-underline-offset:2px;} .csub{font-size:12.5px;color:var(--muted);margin-top:3px;}
+.cinfo{min-width:0;flex:1;} .cname{font-weight:500;color:var(--ink);font-size:14px;} .cname .lnameedit{cursor:pointer;} .cname .lnameedit:hover{text-decoration:underline;text-underline-offset:2px;} .csub{font-size:12.5px;color:var(--muted);margin-top:3px;}
 .ctype{font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:#f2f4f8;color:#6b7488;border:1px solid #e6eaf1;}
 .cmain{background:none;border:none;color:#dfe3ea;cursor:pointer;font-size:16px;line-height:1;padding:0 5px;flex:none;} .cmain.on{color:#e2b93a;} .cmain:hover{color:#e2b93a;} .crow .cmain:not(.on){opacity:0;pointer-events:none;transition:opacity .13s;} .crow:hover .cmain{opacity:1;pointer-events:auto;} @media(hover:none){.crow .cmain{opacity:1!important;pointer-events:auto!important;}}
 .ctype.ls-operating,.ctype.ls-open{background:#eafaf0;color:#0e7a53;border-color:#b9e6cd;} .ctype.ls-closed{background:#fdeceb;color:var(--red);border-color:#f3cfc9;} .ctype.ls-underconstruction,.ctype.ls-underloi{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;} .ctype.ls-planned,.ctype.ls-prospective{background:#f2f4f8;color:#6b7488;border-color:#e0e5ee;} .ctype.ls-dark{background:#efe9f7;color:#5a3d9e;border-color:#d9cdf0;}
@@ -74,13 +74,13 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .cptblock.open>.cptbar{background:#f8fafc;}
 .cptchev{color:#b3bccc;font-size:11px;flex:none;transition:transform .15s;} .cptblock.open .cptchev{transform:rotate(90deg);}
 .cptlocs{display:none;} .cptblock.open .cptlocs{display:block;background:#fcfdff;}
-.cptlocs .crow{padding-left:46px;position:relative;}
-.cptlocs .crow:before{content:"";position:absolute;left:28px;top:0;bottom:0;width:2px;background:#e6ebf5;}
-.cptlocs .cptempty{padding-left:46px;}
+.cptlocs .crow{padding-left:58px;position:relative;}
+.cptlocs .crow:before{content:"";position:absolute;left:34px;top:0;bottom:0;width:2px;background:#e6ebf5;}
+.cptlocs .cptempty{padding-left:58px;}
 .commblock .cptbar{background:#fff8f1;} .commblock .cptbar:hover{background:#fdf1e4;}
 .expall{color:#2647b0;font-weight:700;cursor:pointer;} .expall:hover{text-decoration:underline;}
 .cptname{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;flex:1;}
-.cptnm{font-weight:500;color:var(--ink);font-size:14px;letter-spacing:-.01em;}
+.cptnm{font-weight:500;color:var(--ink);font-size:15.5px;letter-spacing:-.01em;} .cptnm.cptnameedit{cursor:pointer;} .cptnm.cptnameedit:hover{text-decoration:underline;text-underline-offset:2px;}
 .cptcount{color:#9aa3b5;font-size:12px;font-weight:600;letter-spacing:0;} .cptcount::before{content:"·";margin-right:7px;color:#cfd6e2;}
 .cpttype{font-size:12px;font-weight:600;color:#9aa3b5;} .cpttype::before{content:"·";margin-right:7px;color:#cfd6e2;}
 .cptmkts{font-size:11px;color:var(--muted);font-weight:600;flex-basis:100%;margin-top:1px;}
@@ -279,7 +279,7 @@ function render(){
     var mono='<span class="cptlogo cptlogo-mono">'+esc(mletter)+'</span>';
     var logo=cpt.logo?('<img class="cptlogo" src="'+esc(cpt.logo)+'" alt="" data-mono="'+esc(mletter)+'" onerror="cptLogoFail(this)">'):mono;
     return '<div class="cptblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="'+esc(cpt.id)+'"><span class="cptchev">▶</span>'+logo
-      + '<div class="cptname"><span class="cptnm">'+esc(cpt.name)+'</span><span class="cptcount">'+mine.length+' loc'+(mine.length===1?'':'s')+'</span>'+tpbadge+mkts+'</div>'
+      + '<div class="cptname"><span class="cptnm cptnameedit" data-editc="'+esc(cpt.id)+'" title="Click to edit this concept">'+esc(cpt.name)+'</span><span class="cptcount">'+mine.length+' loc'+(mine.length===1?'':'s')+'</span>'+tpbadge+mkts+'</div>'
       + '<div class="cptacts"><button class="mini" data-addloc="'+esc(cpt.id)+'">+ Location</button>'+(HASMAPS?'<button class="mini" data-photos="'+esc(cpt.name)+'">Photos</button>':'')+'<button class="mini" data-editc="'+esc(cpt.id)+'">Edit</button><button class="mini danger" data-rmc="'+esc(cpt.id)+'">Remove</button></div></div>'
       + '<div class="cptlocs">'+rows+'</div></div>';
   }
@@ -354,7 +354,7 @@ function render(){
   var acb2=document.getElementById('addCommBtn'); if(acb2) acb2.addEventListener('click',function(){ openLocForm({commissary:true,servesAll:true},''); });
   document.querySelectorAll('.mini[data-find]').forEach(function(b){ b.addEventListener('click',function(){ openFindForm(b.getAttribute('data-find')); }); });
   document.querySelectorAll('.mini[data-addloc]').forEach(function(b){ b.addEventListener('click',function(){ var c=conceptById(b.getAttribute('data-addloc')); openLocForm(null,c?c.name:''); }); });
-  document.querySelectorAll('.mini[data-editc]').forEach(function(b){ b.addEventListener('click',function(){ var c=conceptById(b.getAttribute('data-editc')); if(c) openConceptForm(c); }); });
+  document.querySelectorAll('[data-editc]').forEach(function(b){ b.addEventListener('click',function(e){ if(e&&e.stopPropagation) e.stopPropagation(); var c=conceptById(b.getAttribute('data-editc')); if(c) openConceptForm(c); }); });
   document.querySelectorAll('.mini[data-rmc]').forEach(function(b){ b.addEventListener('click',function(){ removeConcept(b.getAttribute('data-rmc')); }); });
   var acm=document.querySelector('.mini[data-addcomm]'); if(acm) acm.addEventListener('click',function(){ openLocForm({commissary:true,servesAll:true},''); });
   document.querySelectorAll('.mini[data-photos]').forEach(function(b){ b.addEventListener('click',function(){ pullConceptPhotos(b.getAttribute('data-photos'),b); }); });

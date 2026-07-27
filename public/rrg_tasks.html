@@ -174,13 +174,16 @@ function clearForm(){
   fillSelects(); EDITID=''; document.getElementById('formTitle').textContent='New task';
   document.getElementById('addBtn').textContent='Add task'; document.getElementById('cancelEdit').style.display='none';
 }
-function save(){
+function save(silent){
   var body=collect(); var msg=document.getElementById('msg');
-  if(!body.title){ msg.textContent='Enter a task title.'; return; }
+  if(!body.title){ if(silent) return; msg.textContent='Enter a task title.'; return; }
+  if(silent && !EDITID) return; // only autosave an existing task being edited
   if(EDITID) body.id=EDITID;
   msg.textContent='Saving…';
   fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ msg.textContent='Saved ✓'; clearForm(); load(); setTimeout(function(){msg.textContent='';},1500); } else { msg.textContent=(j&&j.error)||'Failed'; } });
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ msg.textContent='Saved ✓';
+      if(silent){ var _t=TASKS.filter(function(x){return x.id===EDITID;})[0]; if(_t){ _t.title=body.title; _t.due=body.due; _t.priority=body.priority; _t.type=body.type; _t.reminder=body.reminder; _t.remChannels=body.remChannels; _t.linkType=body.linkType; _t.linkId=body.linkId; _t.linkLabel=body.linkLabel; _t.notes=body.notes; } render(); setTimeout(function(){msg.textContent='';},1500); return; }
+      clearForm(); load(); setTimeout(function(){msg.textContent='';},1500); } else { msg.textContent=(j&&j.error)||'Failed'; } });
 }
 function startEdit(id){
   var t=TASKS.filter(function(x){return x.id===id;})[0]; if(!t) return;
@@ -194,8 +197,13 @@ function startEdit(id){
 }
 function toggle(id){ fetch('/api/tasks/'+encodeURIComponent(id)+'/toggle',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var t=TASKS.filter(function(x){return x.id===id;})[0]; if(t){t.status=j.task.status;t.doneAt=j.task.doneAt;} render(); } }); }
 function del(id){ if(!confirm('Delete this task?')) return; fetch('/api/tasks/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TASKS=TASKS.filter(function(x){return x.id!==id;}); render(); } else alert((j&&j.error)||'Could not delete.'); }); }
-document.getElementById('addBtn').addEventListener('click',save);
+document.getElementById('addBtn').addEventListener('click',function(){ save(); });
 document.getElementById('cancelEdit').addEventListener('click',clearForm);
+// Autosave while EDITING an existing task (change/blur or ~1s pause). New-task entry stays explicit.
+(function(){ var _tAS=null; function commit(){ if(_tAS){ clearTimeout(_tAS); _tAS=null; } if(EDITID) save(true); } function pause(){ if(_tAS) clearTimeout(_tAS); _tAS=setTimeout(commit,1000); }
+  ['t_title','t_due','t_priority','t_type','t_remsel','t_reminder','t_notes','t_linktype','t_linktarget'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); });
+  document.querySelectorAll('.t_chan').forEach(function(cb){ cb.addEventListener('change',commit); });
+})();
 document.getElementById('t_linktype').addEventListener('change',function(){ fillTargets(this.value,''); });
 document.querySelectorAll('.filters [data-s]').forEach(function(b){ b.addEventListener('click',function(){ SHOW=b.getAttribute('data-s'); document.querySelectorAll('.filters [data-s]').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); render(); }); });
 document.querySelectorAll('.filters [data-scope]').forEach(function(b){ b.addEventListener('click',function(){ SCOPE=b.getAttribute('data-scope'); document.querySelectorAll('.filters [data-scope]').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); render(); }); });

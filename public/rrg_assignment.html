@@ -328,6 +328,8 @@ function render(){
     var ev=(el.tagName==='SELECT'||el.type==='checkbox'||el.type==='date')?'change':'input';
     el.addEventListener(ev,function(){ setDirty(true); if(id==='f_lexp'||id==='f_lauto') updateExpNote(); });
   });
+  // Autosave: save on leaving a field (change/blur) or after a ~1s pause while typing.
+  (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_refby','f_refpct','f_biz','f_notes','f_lstart','f_lexp','f_llive','f_lauto'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
   updateExpNote();
   document.getElementById('savebtn').addEventListener('click',save);
   var sdb=document.getElementById('startDealBtn'); if(sdb) sdb.addEventListener('click',startDeal);
