@@ -770,6 +770,7 @@ app.use((req, res, next) => {
 function isSuper(u) { if (!u) return false; var r = u.role; return r === 'admin' || r === 'creator'; }
 function manageLoiOk(req) { return isSuper(req.user) || (permsEnabled() && !!effectivePerms(req.user).manage_loi); }
 function requireManageLoi(req, res, next) { if (manageLoiOk(req)) return next(); return res.status(403).json({ ok: false, error: 'You do not have permission to manage the LOI library.' }); }
+function aiAllowed(req) { return isSuper(req.user) || !permsEnabled() || !!effectivePerms(req.user).use_ai; }
 function requireAdmin(req, res, next) {
   if (req.user && isSuper(req.user)) return next();
   if (req.path.startsWith('/api/')) return res.status(403).json({ ok: false, error: 'Admin only.' });
@@ -805,6 +806,7 @@ app.get('/api/session', (req, res) => res.json({
   ok: true, username: req.user.username, name: req.user.name, role: req.user.role,
   canExport: !!(req.user && (isSuper(req.user) || (permsEnabled() && effectivePerms(req.user).export_data))),
   canManageLoi: manageLoiOk(req),
+  canUseAi: aiAllowed(req),
   title: req.user.title || '', phone: req.user.phone || '', email: req.user.email || '',
   preparedBy: req.user.preparedBy || '',
   adminOnlyTools: auth.loadToolAccess(),
@@ -856,6 +858,14 @@ app.use((req, res, next) => {
     const file = req.path.replace(/^\//, '');
     if (auth.loadToolAccess().indexOf(file) >= 0) return res.redirect('/');
     if (permsEnabled() && GATEABLE_TOOLS.some(t => t.file === file) && !effectivePerms(req.user)['tool:' + file]) return res.redirect('/');
+  }
+  next();
+});
+
+// Gate every AI endpoint by role (open when enforcement is off).
+app.use((req, res, next) => {
+  if (/^\/api\/(ai\/|space\/ai-intake|spaces\/ai-match|loi\/ai-parse)/.test(req.path)) {
+    if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'You do not have access to AI features. Ask an admin to enable it for your role.' });
   }
   next();
 });
@@ -2865,8 +2875,19 @@ app.post('/api/space/ai-intake', express.json({ limit: '256kb' }), async (req, r
     const fields = await aiassist.parseSpaceListing({ text, types: SPACE_TYPES, features: SPACE_FEATURES }); res.json({ ok: true, fields: fields || {} });
   } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });
+app.get('/api/site-criteria', (req, res) => {
+  try { const list = store.readAll().filter(r => r.form === 'ssc').map(r => ({ key: r.timestamp, name: r.name || 'Untitled', market: r.market || '', rep: r.rep || '', when: r.timestamp || '', summary: r.highlights || '' })).reverse(); res.json({ ok: true, criteria: list }); }
+  catch (e) { res.json({ ok: true, criteria: [] }); }
+});
 app.post('/api/spaces/ai-match', express.json({ limit: '256kb' }), async (req, res) => {
-  try { const crit = String((req.body || {}).criteria || ''); if (!crit.trim()) return res.status(400).json({ ok: false, error: 'Describe the client criteria first.' });
+  try {
+    const b = req.body || {};
+    let crit = String(b.criteria || '').trim();
+    if (b.criteriaKey) {
+      const rec = store.readAll().filter(r => r.form === 'ssc' && r.timestamp === b.criteriaKey)[0];
+      if (rec) { const head = 'On-file Site Criteria — Client/Concept: ' + (rec.name || '') + (rec.market ? (' · Market: ' + rec.market) : '') + (rec.rep ? (' · Rep: ' + rec.rep) : ''); crit = head + '\n' + JSON.stringify(rec.data || {}).slice(0, 3500) + (crit ? ('\n\nAdditional notes from the rep: ' + crit) : ''); }
+    }
+    if (!crit.trim()) return res.status(400).json({ ok: false, error: 'Pick a client on file, or type the criteria.' });
     const spaces = loadSpaces(); if (!spaces.length) return res.json({ ok: true, ranked: [] });
     const ranked = await aiassist.matchSpaces({ criteria: crit, spaces }); res.json({ ok: true, ranked: ranked || [] });
   } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
@@ -5714,6 +5735,7 @@ const PERM_CORE = [
   { key: 'reassign', label: 'Reassign ownership' },
   { key: 'export_data', label: 'Export & print lists', note: 'Off = cannot download CSV or print lists' },
   { key: 'manage_loi', label: 'Manage LOI clause library' },
+  { key: 'use_ai', label: 'Use AI features', note: 'Space & LOI AI, call-prep, RRG Brief, enrichment' },
   { key: 'admin_console', label: 'Open admin console / settings' },
   { key: 'manage_users', label: 'Manage users & roles' },
   { key: 'manage_templates', label: 'Manage agreement templates' },
@@ -5746,6 +5768,7 @@ function allPerms() { const p = {}; ALL_PERM_KEYS.forEach(k => p[k] = true); ret
 function defaultRolePerms(kind) {
   const p = {};
   GATEABLE_TOOLS.forEach(t => p[toolPermKey(t.file)] = true); // both defaults get all tools
+  p.use_ai = true; // AI on by default for standard roles
   if (kind === 'senior') { ['see_all', 'edit_all', 'delete', 'reassign', 'export_data'].forEach(k => p[k] = true); }
   return p; // associate: core all off, tools on
 }

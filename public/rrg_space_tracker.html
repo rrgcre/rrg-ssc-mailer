@@ -107,8 +107,10 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 <div class="ov" id="mov" hidden><div class="modal" style="max-width:640px">
   <div class="mh"><b>✨ Match spaces to a client</b><button class="x" id="mmx">✕</button></div>
   <div class="mb">
-    <div class="fld">Client site criteria</div>
-    <textarea id="mcrit" placeholder="e.g. Fast-casual taco concept, 2,000–2,800 SF, end cap with drive-thru preferred, needs hood + grease trap, budget ≤ $35/SF all-in, north Austin trade area…" style="width:100%;min-height:96px;border:1px solid var(--inp);border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;resize:vertical"></textarea>
+    <div class="fld">Client — from Site Criteria on file</div>
+    <select id="mclient" style="width:100%;border:1px solid var(--inp);border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;background:#fff;margin-bottom:14px"><option value="">— pick a client —</option></select>
+    <div class="fld">Extra notes <span style="text-transform:none;letter-spacing:0;color:#98a1b5">(optional — or type criteria if none on file)</span></div>
+    <textarea id="mcrit" placeholder="Anything to add beyond the on-file criteria…" style="width:100%;min-height:80px;border:1px solid var(--inp);border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;resize:vertical"></textarea>
     <div style="margin-top:10px"><button class="btn primary" id="mgo">Rank spaces</button><span class="msg" id="mstat" style="margin-left:10px"></span></div>
     <div id="mres" style="margin-top:14px"></div>
   </div>
@@ -236,12 +238,13 @@ function aiFill(){
       m.textContent='Filled — review and save.';
     }).catch(function(){ btn.disabled=false; m.textContent='Network error.'; });
 }
-function openMatch(){ document.getElementById('mcrit').value=''; document.getElementById('mstat').textContent=''; document.getElementById('mres').innerHTML=''; document.getElementById('mov').hidden=false; }
+function loadCriteria(){ var sel=document.getElementById('mclient'); if(!sel) return; fetch('/api/site-criteria',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var list=(j&&j.criteria)||[]; sel.innerHTML='<option value="">'+(list.length?'— pick a client —':'— no Site Criteria on file yet —')+'</option>'+list.map(function(c){ var lbl=c.name+(c.market?(' · '+c.market):'')+(c.rep?(' · '+c.rep):''); return '<option value="'+esc(c.key)+'">'+esc(lbl)+'</option>'; }).join(''); }).catch(function(){}); }
+function openMatch(){ document.getElementById('mcrit').value=''; document.getElementById('mclient').value=''; document.getElementById('mstat').textContent=''; document.getElementById('mres').innerHTML=''; document.getElementById('mov').hidden=false; loadCriteria(); }
 function aiMatch(){
-  var crit=document.getElementById('mcrit').value; var st=document.getElementById('mstat'); var btn=document.getElementById('mgo'); var res=document.getElementById('mres');
-  if(!crit.trim()){ st.textContent='Add the criteria first.'; return; }
+  var crit=document.getElementById('mcrit').value; var key=document.getElementById('mclient').value; var st=document.getElementById('mstat'); var btn=document.getElementById('mgo'); var res=document.getElementById('mres');
+  if(!crit.trim()&&!key){ st.textContent='Pick a client or type criteria.'; return; }
   btn.disabled=true; st.textContent='Ranking…'; res.innerHTML='';
-  fetch('/api/spaces/ai-match',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({criteria:crit})})
+  fetch('/api/spaces/ai-match',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({criteria:crit,criteriaKey:key})})
     .then(function(r){return r.json();}).then(function(j){ btn.disabled=false; st.textContent='';
       if(!j||!j.ok){ st.textContent=(j&&j.error)||'Could not rank.'; return; }
       var byId={}; SPACES.forEach(function(sp){ byId[sp.id]=sp; });
