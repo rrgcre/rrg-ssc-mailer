@@ -3730,6 +3730,10 @@ app.post('/api/company/:id/find-locations', express.json(), async (req, res) => 
 });
 // Given just a concept name, use AI web search to resolve the official website, concept
 // type, cuisine, and price point. Returned values are validated against the allowed lists.
+app.post('/api/ai/find-concepts', express.json(), async (req, res) => {
+  try { const b = req.body || {}; const concepts = await aiassist.findGroupConcepts({ name: b.name || '', website: b.website || '' }); res.json({ ok: true, concepts: concepts }); }
+  catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
+});
 app.post('/api/company/:id/find-concepts', express.json(), async (req, res) => {
   try {
     if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'You do not have access to AI features.' });

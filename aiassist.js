@@ -164,7 +164,7 @@ async function counterDiff({ text, current, terms }) {
 // 15) Find every concept (brand) a restaurant group operates.
 async function findGroupConcepts({ name, website }) {
   const sys = "You are a restaurant/bar CRE broker's research assistant. Given the name of a restaurant GROUP or hospitality company, list the distinct restaurant/bar CONCEPTS (brands) it owns or operates. " +
-    'Return ONLY JSON: {"concepts":[{"name":"","cuisine":"","note":""}]}. Use each brand\'s consumer-facing name, once. Rely on general knowledge of the group; include only brands you are reasonably confident it operates — do not pad with guesses. If it is a single-concept operator, return just that one.';
+    'Return ONLY JSON: {"concepts":[{"name":"","cuisine":"","note":""}]}. List EVERY distinct customer-facing brand — a restaurant group usually operates several. Use each brand\'s consumer-facing name, once. Do NOT return the parent/holding-company name itself unless it is also a restaurant brand people dine at. Rely on knowledge of the group; include only brands you are reasonably confident it operates. If it is truly a single-concept operator, return just that one.';
   const out = await callClaude(sys, 'GROUP: ' + JSON.stringify({ name, website }), 1200);
   const j = extractJson(out); return (j && Array.isArray(j.concepts)) ? j.concepts : [];
 }
