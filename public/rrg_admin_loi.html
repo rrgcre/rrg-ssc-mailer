@@ -68,12 +68,15 @@ function render(){
       +'<div style="margin-top:10px;display:flex;gap:9px;align-items:center"><button class="btn sm cl-save" data-cid="'+esc(c.id)+'">Save section</button><button class="btn red sm cl-del" data-cid="'+esc(c.id)+'">Delete</button><span class="savedtag" data-saved="'+esc(c.id)+'">Saved ✓</span></div></div></div>';
   }).join('');
   var termsRows=(t.terms||[]).map(function(f){
-    var isSel=f.type==='select';
-    return '<div class="clause" data-tkey="'+esc(f.key)+'"><div class="clbody" style="padding:12px 13px">'
+    var special=(f.type==='renewal'||f.type==='guaranty'); var isSel=f.type==='select'; var isNum=f.type==='number';
+    var torig=esc(JSON.stringify(f)).split('"').join('&quot;');
+    var typeCtl=special?('<span style="font-size:11.5px;color:var(--muted);font-weight:700">structured ('+esc(f.type)+')</span>'):('<select class="ti tm-type" style="width:auto"><option value="text"'+((!isSel&&!isNum)?' selected':'')+'>Text</option><option value="select"'+(isSel?' selected':'')+'>Dropdown</option><option value="number"'+(isNum?' selected':'')+'>Number</option></select>');
+    return '<div class="clause" data-tkey="'+esc(f.key)+'" data-torig="'+torig+'"><div class="clbody" style="padding:12px 13px">'
       +'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><div style="flex:1;min-width:170px"><label class="fld">Label</label><input class="ti tm-label" value="'+esc(f.label||'')+'"></div>'
-      +'<div><label class="fld">Type</label><select class="ti tm-type" style="width:auto"><option value="text"'+(!isSel?' selected':'')+'>Text</option><option value="select"'+(isSel?' selected':'')+'>Dropdown</option></select></div>'
+      +'<div><label class="fld">Type</label><div>'+typeCtl+'</div></div>'
       +'<span style="font-size:11px;color:var(--muted)">fills <span class="ph">{{'+esc(f.key)+'}}</span></span></div>'
       +'<div class="tm-optswrap" style="margin-top:10px;'+(isSel?'':'display:none')+'"><label class="fld">Dropdown options (one per line)</label><textarea class="tm-opts" style="min-height:66px">'+esc((f.options||[]).join('\n'))+'</textarea></div>'
+      +'<div class="tm-unitwrap" style="margin-top:10px;'+(isNum?'':'display:none')+'"><label class="fld">Unit suffix (e.g. years, SF, days, /SF)</label><input class="ti tm-unit" value="'+esc(f.unit||'')+'" style="max-width:220px"></div>'
       +'</div></div>';
   }).join('');
   var termsCard='<div class="card"><div class="ch"><b>Key terms</b><span class="hint">The structured inputs on every '+esc(t.name||'')+' LOI</span></div><div class="cb">'+termsRows+'<div style="margin-top:6px;display:flex;gap:9px;align-items:center"><button class="btn" id="termsSave">Save key terms</button><span class="savedtag" id="termsSaved">Saved \u2713</span></div></div></div>';
@@ -92,7 +95,7 @@ function render(){
 function wire(){
   document.querySelectorAll('.typebtn').forEach(function(b){ b.addEventListener('click',function(){ TYPE=b.getAttribute('data-type'); render(); }); });
   var bp=document.getElementById('bpSave'); if(bp) bp.addEventListener('click',saveBoilerplate);
-  document.querySelectorAll('.tm-type').forEach(function(sel){ sel.addEventListener('change',function(){ var w=sel.closest('.clause').querySelector('.tm-optswrap'); if(w) w.style.display=(sel.value==='select')?'':'none'; }); });
+  document.querySelectorAll('.tm-type').forEach(function(sel){ sel.addEventListener('change',function(){ var row=sel.closest('.clause'); var ow=row.querySelector('.tm-optswrap'); var uw=row.querySelector('.tm-unitwrap'); if(ow) ow.style.display=(sel.value==='select')?'':'none'; if(uw) uw.style.display=(sel.value==='number')?'':'none'; }); });
   var ts=document.getElementById('termsSave'); if(ts) ts.addEventListener('click',saveTerms);
   document.querySelectorAll('.cl-save').forEach(function(b){ b.addEventListener('click',function(){ saveClause(b.getAttribute('data-cid'),b.closest('.clause')); }); });
   document.querySelectorAll('.cl-del').forEach(function(b){ b.addEventListener('click',function(){ delClause(b.getAttribute('data-cid')); }); });
@@ -103,9 +106,14 @@ function wire(){
 function saveTerms(){
   var terms=[];
   document.querySelectorAll('[data-tkey]').forEach(function(row){
+    var orig={}; try{ orig=JSON.parse(row.getAttribute('data-torig')||'{}'); }catch(e){}
     var f={ key:row.getAttribute('data-tkey'), label:row.querySelector('.tm-label').value };
-    var type=row.querySelector('.tm-type').value;
-    if(type==='select'){ f.type='select'; f.options=(row.querySelector('.tm-opts').value||'').split('\n').map(function(x){return x.trim();}).filter(Boolean); }
+    var sel=row.querySelector('.tm-type');
+    if(!sel){ f.type=orig.type; if(orig.options) f.options=orig.options; if(orig.unit) f.unit=orig.unit; if(orig.prefix) f.prefix=orig.prefix; if(orig.comma) f.comma=orig.comma; }
+    else { var ty=sel.value;
+      if(ty==='select'){ f.type='select'; f.options=(row.querySelector('.tm-opts').value||'').split('\n').map(function(x){return x.trim();}).filter(Boolean); }
+      else if(ty==='number'){ f.type='number'; var u=(row.querySelector('.tm-unit').value||'').trim(); if(u) f.unit=u; if(orig.prefix) f.prefix=orig.prefix; if(orig.comma) f.comma=orig.comma; }
+    }
     terms.push(f);
   });
   post('/api/loi/terms',{type:TYPE,terms:terms},function(j){ CFG=j.config; flash(document.getElementById('termsSaved')); });
