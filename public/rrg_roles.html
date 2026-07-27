@@ -91,11 +91,12 @@ function render(){
     var ovcount=Object.keys(u.perms||{}).length;
     return '<tr><td><b>'+esc(u.name)+'</b><div style="font-size:11.5px;color:#98a1b5">'+esc(u.username)+(u.disabled?' · disabled':'')+'</div></td>'
       +'<td><select data-urole="'+esc(u.username)+'">'+roleOpts+'</select></td>'
+      +'<td><input class="splitin" data-usplit="'+esc(u.username)+'" value="'+esc(u.commissionSplit||'')+'" placeholder="—" style="width:74px;border:1px solid #cfd6e2;border-radius:7px;padding:5px 8px;font:inherit;font-size:13px"></td>'
       +'<td>'+(ovcount?('<span class="pill on" style="text-transform:none">'+ovcount+' override'+(ovcount===1?'':'s')+'</span>'):'<span style="color:#98a1b5">—</span>')+'</td>'
       +'<td style="text-align:right"><button class="btn ghost sm" data-ovuser="'+esc(u.username)+'">'+(OVUSER===u.username?'Close':'Overrides')+'</button></td></tr>'
-      +(OVUSER===u.username?('<tr><td colspan="4">'+overridePanel(u)+'</td></tr>'):'');
+      +(OVUSER===u.username?('<tr><td colspan="5">'+overridePanel(u)+'</td></tr>'):'');
   }).join('');
-  var usersCard='<div class="card"><div class="ch"><b>Users</b><span>assign a role, or override individual switches per person</span></div><div class="cb"><table><thead><tr><th>User</th><th>Role</th><th>Overrides</th><th></th></tr></thead><tbody>'+urows+'</tbody></table></div></div>';
+  var usersCard='<div class="card"><div class="ch"><b>Users</b><span>assign a role, or override individual switches per person</span></div><div class="cb"><table><thead><tr><th>User</th><th>Role</th><th>Split</th><th>Overrides</th><th></th></tr></thead><tbody>'+urows+'</tbody></table></div></div>';
 
   // reassign
   var repOpts='<option value="">— pick —</option>'+(ST.users||[]).map(function(u){return '<option value="'+esc(u.username)+'">'+esc(u.name)+'</option>';}).join('');
@@ -112,6 +113,7 @@ function render(){
   var rd=document.getElementById('roleDel'); if(rd) rd.addEventListener('click',delRole);
   var ra=document.getElementById('roleAdd'); if(ra) ra.addEventListener('click',addRole);
   document.querySelectorAll('[data-urole]').forEach(function(sel){ sel.addEventListener('change',function(){ saveUserRole(sel.getAttribute('data-urole'), sel.value); }); });
+  document.querySelectorAll('[data-usplit]').forEach(function(inp){ inp.addEventListener('change',function(){ saveUserSplit(inp.getAttribute('data-usplit'), inp.value); }); });
   document.querySelectorAll('[data-ovuser]').forEach(function(b){ b.addEventListener('click',function(){ OVUSER=(OVUSER===b.getAttribute('data-ovuser'))?null:b.getAttribute('data-ovuser'); render(); }); });
   var og=document.getElementById('ovSave'); if(og) og.addEventListener('click',function(){ saveOverrides(OVUSER); });
   var rg=document.getElementById('raGo'); if(rg) rg.addEventListener('click',doReassign);
@@ -143,6 +145,7 @@ function delRole(){
   post('/api/admin/roles/delete',{key:role.key}).then(function(j){ if(j&&j.ok){ ST.roles=j.roles; SELROLE='associate'; reload(); } else alert((j&&j.error)||'Failed'); });
 }
 function saveUserRole(username,role){ post('/api/admin/user-access',{username:username,role:role}).then(function(j){ if(j&&j.ok){ reload(); } else alert((j&&j.error)||'Could not change role.'); }); }
+function saveUserSplit(username,split){ var u=(ST.users||[]).filter(function(x){return x.username===username;})[0]; post('/api/admin/user-access',{username:username,role:(u?u.role:undefined),commissionSplit:split}).then(function(j){ if(j&&j.ok){ if(u) u.commissionSplit=split; } else alert((j&&j.error)||'Could not save split.'); }); }
 function saveOverrides(username){
   var perms={}; document.querySelectorAll('[data-ov]').forEach(function(sel){ var v=sel.value; if(v==='on') perms[sel.getAttribute('data-ov')]=true; else if(v==='off') perms[sel.getAttribute('data-ov')]=false; });
   var u=(ST.users||[]).filter(function(x){return x.username===username;})[0];

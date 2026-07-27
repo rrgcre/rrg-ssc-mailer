@@ -81,11 +81,11 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 <div class="top"><div class="top-inner">
   <div class="kick">Tenant Rep · Documents</div>
   <h1>LOI Builder</h1>
-  <div class="sub">Pick the LOI type, fill the key info and terms, choose the sections this deal needs, and download an editable Word (.rtf) draft to finish up.</div>
+  <div class="sub">Every letter of intent in one place. Open one to review, or click + New LOI to build a tenant-rep or business-sale letter.</div>
 </div></div>
-<div class="wrap" id="wrap"><div class="card"><div class="cb"><div class="msg">Loading…</div></div></div></div>
+<div class="wrap" id="wrap" style="display:none"><div class="card"><div class="cb"><div class="msg">Loading…</div></div></div></div>
 <div class="wrap" id="docview" style="display:none"></div>
-<div class="wrap" id="loiwrap"><div class="card"><div class="ch"><b>All LOIs</b><span style="color:var(--muted);font-size:12px;margin-left:auto">every letter of intent you've built</span></div><div class="cb"><div id="loilist"></div></div></div></div>
+<div class="wrap" id="loiwrap"><div class="card"><div class="ch"><b>All LOIs</b><span style="color:var(--muted);font-size:12px;margin-left:10px">every letter of intent you've built</span><button class="btn" id="newLoiBtn" style="margin-left:auto">+ New LOI</button></div><div class="cb"><div id="loilist"></div></div></div></div>
 
 <script>
 var CFG=null, TYPES=[], IS_ADMIN=false, REP='', TYPE='tenant_rep', VALUES={}, SEL={};
@@ -95,6 +95,8 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function todayStr(){ try{ return new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}); }catch(e){ return ''; } }
 
 function curType(){ return CFG&&CFG[TYPE]?CFG[TYPE]:{info:[],terms:[],clauses:[]}; }
+function showList(){ var w=document.getElementById('wrap'), d=document.getElementById('docview'), l=document.getElementById('loiwrap'); if(w)w.style.display='none'; if(d)d.style.display='none'; if(l)l.style.display=''; loadLois(); window.scrollTo(0,0); }
+function showBuilder(){ var w=document.getElementById('wrap'), d=document.getElementById('docview'), l=document.getElementById('loiwrap'); if(l)l.style.display='none'; if(d)d.style.display='none'; if(w)w.style.display=''; window.scrollTo(0,0); }
 
 function loiFmtTerm(f,vals){
   var t=f.type;
@@ -148,7 +150,8 @@ function render(){
   var selN=Object.keys(SEL).filter(function(k){return SEL[k];}).length;
   var adminLink=CANMANAGE?'<a class="adminlink" href="./rrg_admin_loi.html">Manage clause library →</a>':'';
   document.getElementById('wrap').innerHTML=
-    '<div class="card"><div class="ch"><b>LOI Builder</b>'+adminLink+'</div><div class="cb"><div class="typerow">'+typebtns+'</div></div></div>'
+    '<div style="margin-bottom:12px"><a href="#" id="toList" style="color:var(--navy);font-weight:700;font-size:13px;text-decoration:none">← All LOIs</a></div>'
+    +'<div class="card"><div class="ch"><b>LOI Builder</b>'+adminLink+'</div><div class="cb"><div class="typerow">'+typebtns+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Key info</b></div><div class="cb"><div class="grid">'+info+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Key terms</b><span class="hint">Blanks become fill-in lines in the draft</span></div><div class="cb"><div class="grid">'+terms+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Optional sections</b>'+tbadge+'<span class="hint">Check the ones this deal needs</span><span class="selcount" style="margin-left:auto">'+selN+' selected</span></div><div class="cb"><div class="clausescroll">'+(clauses||'<div class="msg">No sections in the library yet.</div>')+'</div></div></div>'
@@ -169,6 +172,7 @@ function wire(){
     cl.querySelector('.cltitle').addEventListener('click',function(){ ck.checked=!ck.checked; ck.dispatchEvent(new Event('change')); });
   });
   var g=document.getElementById('genBtn'); if(g) g.addEventListener('click',buildDoc);
+  var tl=document.getElementById('toList'); if(tl) tl.addEventListener('click',function(e){ e.preventDefault(); showList(); });
   document.querySelectorAll('#wrap [data-party]').forEach(function(inp){
     var key=inp.getAttribute('data-party'); var wrap=inp.parentNode; var sug=wrap.querySelector('.partysug');
     function close(){ sug.hidden=true; sug.innerHTML=''; }
@@ -209,7 +213,7 @@ function saveToRecords(){
   var btn=document.getElementById('docLog'), m=document.getElementById('docMsg');
   if(btn){ btn.disabled=true; btn.textContent='Saving…'; }
   fetch('/api/loi/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
-    .then(function(r){return r.json();}).then(function(j){ if(btn){ btn.disabled=false; btn.textContent='Logged ✓'; } if(m){ m.textContent=(j&&j.logged&&j.logged.length)?('Logged to '+j.logged.join(' & ')+'.'):'Saved. Link a contact to log it on their timeline.'; } loadLois(); })
+    .then(function(r){return r.json();}).then(function(j){ if(btn){ btn.disabled=false; btn.textContent='Logged ✓'; } if(m){ m.textContent=(j&&j.logged&&j.logged.length)?('Logged to '+j.logged.join(' & ')+'.'):'Saved. Link a contact to log it on their timeline.'; } loadLois(); setTimeout(showList,900); })
     .catch(function(){ if(btn){ btn.disabled=false; btn.textContent='Log to records'; } if(m) m.textContent='Could not save.'; });
 }
 function buildDoc(){
@@ -244,6 +248,7 @@ fetch('/api/loi',{credentials:'same-origin'}).then(function(r){return r.json();}
   loadReps(); loadParties(); loadLois();
 }).catch(function(){ document.getElementById('wrap').innerHTML='<div class="card"><div class="cb"><div class="msg">Could not load the LOI Builder.</div></div></div>'; });
 try{ loadLois(); }catch(e){}
+(function(){ var nb=document.getElementById('newLoiBtn'); if(nb) nb.addEventListener('click',function(){ showBuilder(); }); })();
 </script>
 </body>
 </html>

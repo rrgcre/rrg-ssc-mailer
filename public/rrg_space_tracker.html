@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Space Tracker</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--gold:#dfa937;--inp:#cfd6e2;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#e9edf3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(115% 130% at 50% 0%, #182a54 0%, #0d1b3d 55%, #04091d 100%);color:#fff;padding:22px 0;}
+.top-inner{max-width:1240px;margin:0 auto;padding:0 20px;}
+.kick{color:var(--gold);font-weight:700;letter-spacing:.28em;font-size:11px;text-transform:uppercase;}
+h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
+.sub{color:#d8cfae;font-size:13px;margin-top:6px;max-width:680px;line-height:1.5;}
+.wrap{max-width:1240px;margin:20px auto;padding:0 20px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 8px 26px rgba(10,20,50,.06);}
+.ch{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);}
+.ch b{color:var(--navy);font-size:14px;}
+.ch .hint{color:var(--muted);font-size:12px;}
+.cb{padding:8px 12px 14px;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:700;font-size:13px;padding:9px 15px;border-radius:9px;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-block;}
+.btn:hover{border-color:#9fb0cc;}
+.btn.primary{background:var(--red);color:#fff;border-color:var(--red);}
+.btn.ghost{background:#fff;color:var(--muted);}
+.btn.sm{padding:5px 10px;font-size:12px;}
+.tiles{display:flex;gap:9px;flex-wrap:wrap;padding:0 20px 4px;}
+.tile{border:1px solid var(--line);background:#fff;border-radius:11px;padding:9px 14px;cursor:pointer;min-width:96px;}
+.tile.on{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy) inset;}
+.tile .n{font-size:20px;font-weight:800;color:var(--navy);}
+.tile .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin-top:1px;}
+.bone{display:inline-block;font-size:10.5px;font-weight:700;color:#3a4c74;background:#eef2fb;border:1px solid #dbe4f5;border-radius:6px;padding:1px 7px;margin:1px 3px 1px 0;white-space:nowrap;}
+.spname{color:var(--navy);text-decoration:none;font-weight:600;}
+.meta{color:var(--muted);font-size:11.5px;}
+.empty{color:var(--muted);font-size:13.5px;padding:26px 4px;text-align:center;}
+/* modal */
+.ov{position:fixed;inset:0;background:rgba(8,14,32,.5);display:flex;align-items:flex-start;justify-content:center;padding:34px 16px;z-index:200;overflow:auto;}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:720px;box-shadow:0 24px 70px rgba(6,12,30,.4);}
+.mh{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--line);}
+.mh b{font-size:16px;color:var(--navy);}
+.x{border:none;background:#f2f4f8;width:30px;height:30px;border-radius:8px;cursor:pointer;color:var(--muted);font-size:15px;}
+.mb{padding:18px 20px;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;}
+.f{display:flex;flex-direction:column;}
+.f.full{grid-column:1 / -1;}
+.fld{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:0 0 5px;}
+.f input,.f select,.f textarea{width:100%;border:1px solid var(--inp);border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;background:#fff;}
+.f textarea{min-height:66px;resize:vertical;}
+.chips{display:flex;flex-wrap:wrap;gap:7px;}
+.chip{border:1px solid var(--inp);background:#fff;color:var(--ink);border-radius:999px;padding:7px 13px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
+.chip.on{background:#eaf3ec;border-color:#1f8a5b;color:#146b45;}
+.mf{display:flex;align-items:center;gap:10px;padding:15px 20px;border-top:1px solid var(--line);}
+.msg{font-size:12.5px;color:var(--muted);}
+.acell a{margin-right:6px;}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-inner">
+  <div class="kick">Tenant Rep · Pipeline</div>
+  <h1>Space Tracker</h1>
+  <div class="sub">Every available space in one place — the economics ($/SF, NNN, size), the position, and the bones already built, so you can match a space to a client fast.</div>
+</div></div>
+
+<div class="wrap">
+  <div class="card">
+    <div class="ch"><b>All spaces</b><span class="hint" id="cnt"></span><button class="btn primary" id="addBtn" style="margin-left:auto">+ Add space</button></div>
+    <div class="tiles" id="tiles"></div>
+    <div class="cb"><div id="list"></div></div>
+  </div>
+</div>
+
+<div class="ov" id="ov" hidden><div class="modal">
+  <div class="mh"><b id="mtitle">Add space</b><button class="x" id="mx">✕</button></div>
+  <div class="mb">
+    <div class="grid">
+      <div class="f full"><label class="fld">Address</label><input id="f_address" placeholder="1234 S Congress Ave"></div>
+      <div class="f"><label class="fld">Shopping center</label><input id="f_center" placeholder="Southpark Plaza"></div>
+      <div class="f"><label class="fld">Market / City</label><input id="f_market" placeholder="Austin"></div>
+      <div class="f"><label class="fld">Space name / label <span style="text-transform:none;color:#98a1b5">(optional)</span></label><input id="f_name" placeholder="Former Chili's"></div>
+      <div class="f"><label class="fld">Position type</label><select id="f_type"></select></div>
+      <div class="f"><label class="fld">Size (SF)</label><input id="f_size" inputmode="decimal" placeholder="2400"></div>
+      <div class="f"><label class="fld">Base rent ($/SF/yr)</label><input id="f_rent" inputmode="decimal" placeholder="28"></div>
+      <div class="f"><label class="fld">NNN ($/SF/yr)</label><input id="f_nnn" inputmode="decimal" placeholder="8"></div>
+      <div class="f"><label class="fld">Status</label><select id="f_status"></select></div>
+      <div class="f"><label class="fld">Landlord / listing broker</label><input id="f_landlord" placeholder="Name or firm"></div>
+      <div class="f full"><label class="fld">Listing link <span style="text-transform:none;color:#98a1b5">(optional)</span></label><input id="f_url" placeholder="https://"></div>
+    </div>
+    <div class="fld" style="margin:16px 0 7px">The bones <span style="text-transform:none;color:#98a1b5">— tap what's already built</span></div>
+    <div class="chips" id="bones"></div>
+    <div class="f full" style="margin-top:14px"><label class="fld">Notes</label><textarea id="f_notes" placeholder="Condition, term available, TI, timing…"></textarea></div>
+  </div>
+  <div class="mf"><button class="btn primary" id="msave">Save space</button><button class="btn ghost" id="mcancel">Cancel</button><span class="msg" id="mmsg"></span></div>
+</div></div>
+
+<script src="/rrg_list.js"></script>
+<script>
+var TYPES=[], STATUS=[], FEATURES=[], SPACES=[], CTL=null, IS_ADMIN=false, EDIT=null, SEL={}, FILTER='';
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function money(n){ return (n==null||n==='')?'':('$'+Number(n).toFixed(2)); }
+function sf(n){ return (n==null||n==='')?'':(Number(n).toLocaleString()+' SF'); }
+function fmtDate(d){ if(!d) return ''; try{ return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){ return String(d).slice(0,10); } }
+function stColor(s){ return ({'Available':['#e7f5ee','#1f8a5b'],'Toured':['#e8f0fd','#2f6fd0'],'LOI Out':['#fdf1df','#b5791f'],'Leased':['#eceff5','#3a4c74'],'Passed':['#f3f4f7','#98a1b5']})[s]||['#eceff5','#3a4c74']; }
+function stPill(s){ var c=stColor(s); return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;white-space:nowrap">'+esc(s||'—')+'</span>'; }
+function totalRent(sp){ if(sp.rent==null && sp.nnn==null) return null; return (Number(sp.rent)||0)+(Number(sp.nnn)||0); }
+
+function renderTiles(){
+  var counts={}; SPACES.forEach(function(sp){ counts[sp.status]=(counts[sp.status]||0)+1; });
+  var defs=[['','All spaces',SPACES.length]].concat(STATUS.map(function(s){ return [s,s,counts[s]||0]; }));
+  document.getElementById('tiles').innerHTML=defs.map(function(d){
+    return '<div class="tile'+(FILTER===d[0]?' on':'')+'" data-f="'+esc(d[0])+'"><div class="n">'+d[2]+'</div><div class="l">'+esc(d[1])+'</div></div>';
+  }).join('');
+  document.querySelectorAll('.tile').forEach(function(t){ t.addEventListener('click',function(){ FILTER=t.getAttribute('data-f'); renderTiles(); draw(); }); });
+}
+
+function draw(){
+  if(!window.RRGList){ setTimeout(draw,80); return; }
+  var rows=SPACES.filter(function(sp){ return !FILTER || sp.status===FILTER; });
+  document.getElementById('cnt').textContent=rows.length?(rows.length+' space'+(rows.length===1?'':'s')):'';
+  var cfg={ mount:'#list', data:rows, key:'spaces', countEl:null,
+    empty:'<div class="empty"><b>No spaces yet.</b> Click <b>+ Add space</b> to log an available space and its bones.</div>',
+    rowId:function(sp){return sp.id;}, defaultSort:10, defaultDir:-1,
+    columns:[
+      { label:'Space', sort:function(a,b){ return RRGList.cmp(a.name||a.address,b.name||b.address); }, cell:function(sp){ var t=esc(sp.name||sp.address||'Untitled space'); var sub=[ (sp.name?sp.address:''), sp.center ].filter(Boolean).map(esc).join(' · '); var head=sp.url?('<a class="spname" href="'+esc(sp.url)+'" target="_blank" rel="noopener">'+t+'</a>'):('<span class="spname">'+t+'</span>'); return '<div>'+head+'</div>'+(sub?('<div class="meta">'+sub+'</div>'):''); } },
+      { label:'Market', sort:function(a,b){ return RRGList.cmp(a.market,b.market); }, cell:function(sp){ return sp.market?esc(sp.market):'<span class="meta">—</span>'; } },
+      { label:'Type', sort:function(a,b){ return RRGList.cmp(a.spaceType,b.spaceType); }, cell:function(sp){ return sp.spaceType?esc(sp.spaceType):'<span class="meta">—</span>'; } },
+      { label:'Size', align:'right', sort:function(a,b){ return (a.size||0)-(b.size||0); }, cell:function(sp){ return sp.size!=null?esc(sf(sp.size)):'<span class="meta">—</span>'; } },
+      { label:'Base $/SF', align:'right', sort:function(a,b){ return (a.rent||0)-(b.rent||0); }, cell:function(sp){ return sp.rent!=null?esc(money(sp.rent)):'<span class="meta">—</span>'; } },
+      { label:'NNN', align:'right', sort:function(a,b){ return (a.nnn||0)-(b.nnn||0); }, cell:function(sp){ return sp.nnn!=null?esc(money(sp.nnn)):'<span class="meta">—</span>'; } },
+      { label:'Total $/SF', align:'right', sort:function(a,b){ return (totalRent(a)||0)-(totalRent(b)||0); }, cell:function(sp){ var t=totalRent(sp); return t!=null?('<b style="color:var(--navy)">'+esc(money(t))+'</b>'):'<span class="meta">—</span>'; } },
+      { label:'Bones', sortable:false, cell:function(sp){ var fs=sp.features||[]; if(!fs.length) return '<span class="meta">—</span>'; return fs.map(function(x){ return '<span class="bone">'+esc(x)+'</span>'; }).join(''); } },
+      { label:'Status', sort:function(a,b){ return RRGList.cmp(a.status,b.status); }, cell:function(sp){ return stPill(sp.status); } },
+      { label:'Notes', defaultHidden:true, sortable:false, cell:function(sp){ return sp.notes?esc(sp.notes):'<span class="meta">—</span>'; } },
+      { label:'Updated', sort:function(a,b){ return RRGList.cmp(a.updatedAt,b.updatedAt); }, cell:function(sp){ return '<span class="meta">'+esc(fmtDate(sp.updatedAt||sp.createdAt))+'</span>'; } },
+      { label:'', align:'right', sortable:false, cell:function(sp){ return '<span class="acell"><button class="btn sm sp-edit" data-id="'+esc(sp.id)+'">Edit</button>'+(IS_ADMIN?('<button class="btn sm ghost sp-del" data-id="'+esc(sp.id)+'">Delete</button>'):'')+'</span>'; } }
+    ]
+  };
+  if(CTL) CTL.refresh(rows); else CTL=RRGList.create(cfg);
+}
+
+// event delegation for row actions
+document.addEventListener('click',function(e){
+  var ed=e.target.closest('.sp-edit'); if(ed){ openForm(SPACES.filter(function(s){return s.id===ed.getAttribute('data-id');})[0]); return; }
+  var dl=e.target.closest('.sp-del'); if(dl){ delSpace(dl.getAttribute('data-id')); return; }
+});
+
+function fillSelects(){
+  document.getElementById('f_type').innerHTML='<option value="">— select —</option>'+TYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
+  document.getElementById('f_status').innerHTML=STATUS.map(function(s){return '<option>'+esc(s)+'</option>';}).join('');
+  document.getElementById('bones').innerHTML=FEATURES.map(function(fe){ return '<button type="button" class="chip'+(SEL[fe]?' on':'')+'" data-feat="'+esc(fe)+'">'+esc(fe)+'</button>'; }).join('');
+  document.querySelectorAll('#bones .chip').forEach(function(c){ c.addEventListener('click',function(){ var k=c.getAttribute('data-feat'); SEL[k]=!SEL[k]; c.classList.toggle('on'); }); });
+}
+function val(id){ return document.getElementById(id).value; }
+function setv(id,v){ document.getElementById(id).value=(v==null?'':v); }
+
+function openForm(sp){
+  EDIT=sp||null; SEL={};
+  if(sp && sp.features) sp.features.forEach(function(f){ SEL[f]=true; });
+  document.getElementById('mtitle').textContent=sp?'Edit space':'Add space';
+  fillSelects();
+  setv('f_address',sp&&sp.address); setv('f_center',sp&&sp.center); setv('f_market',sp&&sp.market);
+  setv('f_name',sp&&sp.name); setv('f_size',sp&&sp.size); setv('f_rent',sp&&sp.rent); setv('f_nnn',sp&&sp.nnn);
+  setv('f_landlord',sp&&sp.landlord); setv('f_url',sp&&sp.url); setv('f_notes',sp&&sp.notes);
+  document.getElementById('f_type').value=(sp&&sp.spaceType)||'';
+  document.getElementById('f_status').value=(sp&&sp.status)||'Available';
+  document.getElementById('mmsg').textContent='';
+  document.getElementById('ov').hidden=false;
+}
+function closeForm(){ document.getElementById('ov').hidden=true; }
+
+function saveSpace(){
+  var body={
+    id:EDIT?EDIT.id:'', address:val('f_address'), center:val('f_center'), market:val('f_market'),
+    name:val('f_name'), spaceType:val('f_type'), size:val('f_size'), rent:val('f_rent'), nnn:val('f_nnn'),
+    status:val('f_status'), landlord:val('f_landlord'), url:val('f_url'), notes:val('f_notes'),
+    features:Object.keys(SEL).filter(function(k){return SEL[k];})
+  };
+  if(!body.address.trim() && !body.name.trim()){ document.getElementById('mmsg').textContent='Add an address or a name.'; return; }
+  var btn=document.getElementById('msave'); btn.disabled=true; document.getElementById('mmsg').textContent='Saving…';
+  fetch('/api/space',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ btn.disabled=false; if(j&&j.ok){ SPACES=j.spaces||SPACES; closeForm(); renderTiles(); draw(); } else { document.getElementById('mmsg').textContent=(j&&j.error)||'Save failed.'; } })
+    .catch(function(){ btn.disabled=false; document.getElementById('mmsg').textContent='Network error.'; });
+}
+function delSpace(id){
+  var sp=SPACES.filter(function(s){return s.id===id;})[0]; if(!sp) return;
+  if(!confirm('Delete '+((sp.name||sp.address)||'this space')+'? This cannot be undone.')) return;
+  fetch('/api/space/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ SPACES=j.spaces||[]; renderTiles(); draw(); } else alert((j&&j.error)||'Delete failed.'); })
+    .catch(function(){ alert('Network error.'); });
+}
+
+function load(){
+  fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){ IS_ADMIN=!!(s&&(s.role==='admin'||s.role==='creator')); }).catch(function(){}).then(function(){
+    fetch('/api/spaces',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+      SPACES=(j&&j.spaces)||[]; TYPES=(j&&j.types)||[]; STATUS=(j&&j.statuses)||[]; FEATURES=(j&&j.features)||[];
+      renderTiles(); draw();
+    }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not load spaces.</div>'; });
+  });
+}
+
+document.getElementById('addBtn').addEventListener('click',function(){ openForm(null); });
+document.getElementById('mx').addEventListener('click',closeForm);
+document.getElementById('mcancel').addEventListener('click',closeForm);
+document.getElementById('msave').addEventListener('click',saveSpace);
+document.getElementById('ov').addEventListener('click',function(e){ if(e.target===this) closeForm(); });
+load();
+</script>
+<script src="/rrg_brand.js"></script>
+</body>
+</html>

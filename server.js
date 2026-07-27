@@ -95,6 +95,13 @@ const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Bu
 function loadPeople() { try { return JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')); } catch (e) { return []; } }
 function savePeople(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PEOPLE_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newPersonId() { return 'per_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+const SPACES_FILE = path.join(BOV_DATA_DIR, 'spaces.json');
+function loadSpaces() { try { return JSON.parse(fs.readFileSync(SPACES_FILE, 'utf8')); } catch (e) { return []; } }
+function saveSpaces(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SPACES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newSpaceId() { return 'spc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+const SPACE_TYPES = ['End cap', 'Inline', 'Pad / Outparcel', 'Freestanding'];
+const SPACE_STATUS = ['Available', 'Toured', 'LOI Out', 'Leased', 'Passed'];
+const SPACE_FEATURES = ['Drive-thru', 'Hood / exhaust', 'Grease trap', 'Gas service', 'Walk-in cooler', 'Bar built-out', 'Patio', 'Fire suppression', '3-phase power', 'Restrooms (ADA)', '2nd-gen restaurant'];
 function splitName(n) { n = String(n || '').trim(); if (!n) return { first: '', last: '' }; const i = n.indexOf(' '); if (i < 0) return { first: n, last: '' }; return { first: n.slice(0, i).trim(), last: n.slice(i + 1).trim() }; }
 function composeName(f, l) { return [String(f || '').trim(), String(l || '').trim()].filter(Boolean).join(' '); }
 function personFirst(p) { return (p && p.firstName != null) ? p.firstName : splitName(p && p.name).first; }
@@ -796,6 +803,7 @@ app.get('/logout', (_req, res) => { clearSessionCookie(res); res.redirect('/logi
 app.get('/api/session', (req, res) => res.json({
   ok: true, username: req.user.username, name: req.user.name, role: req.user.role,
   canExport: !!(req.user && (isSuper(req.user) || (permsEnabled() && effectivePerms(req.user).export_data))),
+  canManageLoi: manageLoiOk(req),
   title: req.user.title || '', phone: req.user.phone || '', email: req.user.email || '',
   preparedBy: req.user.preparedBy || '',
   adminOnlyTools: auth.loadToolAccess(),
@@ -2815,6 +2823,42 @@ app.delete('/api/person/:id', (req, res) => {
   savePeople(arr);
   res.json({ ok: true, people: arr.map(personBrief) });
 });
+// ---------- Space Tracker: available-space inventory ----------
+app.get('/api/spaces', (req, res) => {
+  res.json({ ok: true, spaces: loadSpaces(), types: SPACE_TYPES, statuses: SPACE_STATUS, features: SPACE_FEATURES });
+});
+app.post('/api/space', express.json(), (req, res) => {
+  const b = req.body || {};
+  const arr = loadSpaces();
+  const now = new Date().toISOString();
+  const num = (v) => { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : null; };
+  let sp = b.id ? arr.find(x => x.id === b.id) : null;
+  if (!sp) { sp = { id: newSpaceId(), createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(sp); }
+  if (typeof b.name === 'string') sp.name = b.name.slice(0, 160);
+  if (typeof b.address === 'string') sp.address = b.address.slice(0, 200);
+  if (typeof b.center === 'string') sp.center = b.center.slice(0, 160);
+  if (typeof b.market === 'string') sp.market = b.market.slice(0, 120);
+  if (typeof b.spaceType === 'string') sp.spaceType = SPACE_TYPES.indexOf(b.spaceType) >= 0 ? b.spaceType : (sp.spaceType || '');
+  if (b.size !== undefined) sp.size = num(b.size);
+  if (b.rent !== undefined) sp.rent = num(b.rent);
+  if (b.nnn !== undefined) sp.nnn = num(b.nnn);
+  if (typeof b.status === 'string') sp.status = SPACE_STATUS.indexOf(b.status) >= 0 ? b.status : (sp.status || 'Available');
+  if (!sp.status) sp.status = 'Available';
+  if (typeof b.landlord === 'string') sp.landlord = b.landlord.slice(0, 160);
+  if (typeof b.companyId === 'string') sp.companyId = b.companyId.slice(0, 40);
+  if (typeof b.url === 'string') sp.url = b.url.slice(0, 300);
+  if (Array.isArray(b.features)) sp.features = b.features.map(x => String(x).slice(0, 40)).filter(Boolean).slice(0, 40);
+  if (typeof b.notes === 'string') sp.notes = b.notes.slice(0, 4000);
+  sp.updatedAt = now;
+  saveSpaces(arr);
+  res.json({ ok: true, space: sp, spaces: arr });
+});
+app.delete('/api/space/:id', (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
+  const arr = loadSpaces().filter(x => x.id !== req.params.id);
+  saveSpaces(arr);
+  res.json({ ok: true, spaces: arr });
+});
 app.post('/api/person/merge', express.json(), (req, res) => {
   const u = req.user || {};
   const canMerge = isSuper(u) || (permsEnabled() && effectivePerms(u).delete);
@@ -4172,6 +4216,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         <select name="role"><option value="rep">Rep</option><option value="admin">Admin</option></select>
         <input name="title" placeholder="Title (e.g. Associate)">
         <input name="phone" placeholder="Phone (for BOVs)">
+        <input name="commissionSplit" placeholder="Commission split (e.g. 50%)">
         <button class="primary">Add user</button>
       </form>
       <div class="sub2" style="margin:-6px 0 4px">Title, phone &amp; email appear as the "prepared by" line on that rep's BOVs. Reps can edit their own under Account.</div>
@@ -5691,7 +5736,7 @@ function canSeeAllDeals(req) { if (req.user && isSuper(req.user)) return true; r
 app.get('/api/admin/permissions', requireAdmin, (req, res) => {
   res.json({
     ok: true, enabled: permsEnabled(), core: PERM_CORE, tools: GATEABLE_TOOLS, roles: loadRoles(),
-    users: auth.loadUsers().map(u => ({ username: u.username, name: u.name || u.username, role: u.role || 'associate', perms: (u.perms && typeof u.perms === 'object') ? u.perms : {}, disabled: !!u.disabled })),
+    users: auth.loadUsers().map(u => ({ username: u.username, name: u.name || u.username, role: u.role || 'associate', perms: (u.perms && typeof u.perms === 'object') ? u.perms : {}, commissionSplit: u.commissionSplit || '', disabled: !!u.disabled })),
   });
 });
 app.post('/api/admin/permissions/toggle', requireAdmin, express.json(), (req, res) => {
@@ -5726,7 +5771,7 @@ app.post('/api/admin/roles/delete', requireAdmin, express.json(), (req, res) => 
 });
 app.post('/api/admin/user-access', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {};
-  try { const prof = auth.setUserAccess(b.username, { role: b.role, perms: b.perms }); res.json({ ok: true, user: { username: prof.username, name: prof.name, role: prof.role, perms: prof.perms } }); }
+  try { const prof = auth.setUserAccess(b.username, { role: b.role, perms: b.perms, commissionSplit: b.commissionSplit }); res.json({ ok: true, user: { username: prof.username, name: prof.name, role: prof.role, perms: prof.perms } }); }
   catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
 });
 app.post('/api/admin/reassign', requireAdmin, express.json(), (req, res) => {
