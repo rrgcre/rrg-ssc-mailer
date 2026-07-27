@@ -98,6 +98,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
     </div>
     <div class="fld" style="margin:16px 0 7px">The bones <span style="text-transform:none;color:#98a1b5">— tap what's already built</span></div>
     <div class="chips" id="bones"></div>
+    <div class="aibox" style="background:#eef7f3;border-color:#cfe8dc;margin-top:16px"><div class="aihd" style="color:#1f8a5b">✨ Paste a Placer.ai report <span>foot traffic &amp; trade area — AI folds a clean summary into Notes</span></div><textarea id="pl_paste" placeholder="Paste your Placer report here…"></textarea><div class="airow"><button class="btn" id="pl_go" type="button">Summarize into Notes ↓</button><span class="msg" id="pl_msg"></span></div></div>
     <div class="f full" style="margin-top:14px"><label class="fld">Notes</label><textarea id="f_notes" placeholder="Condition, term available, TI, timing…"></textarea></div>
   </div>
   <div class="mf"><button class="btn primary" id="msave">Save space</button><button class="btn ghost" id="mcancel">Cancel</button><span class="msg" id="mmsg"></span></div>
@@ -184,6 +185,7 @@ function openForm(sp){
   document.getElementById('f_status').value=(sp&&sp.status)||'Available';
   document.getElementById('mmsg').textContent='';
   var ap=document.getElementById('ai_paste'); if(ap) ap.value=''; var am=document.getElementById('ai_msg'); if(am) am.textContent='';
+  var pp=document.getElementById('pl_paste'); if(pp) pp.value=''; var pm=document.getElementById('pl_msg'); if(pm) pm.textContent='';
   document.getElementById('ov').hidden=false;
 }
 function closeForm(){ document.getElementById('ov').hidden=true; }
@@ -247,7 +249,10 @@ function aiMatch(){
       res.innerHTML=rows||'<div class="empty">No spaces to rank yet.</div>';
     }).catch(function(){ btn.disabled=false; st.textContent='Network error.'; });
 }
+function fmtPlacer(p){ var L=[]; if(p.visits) L.push('Visits: '+p.visits+(p.visitsPeriod?(' ('+p.visitsPeriod+')'):'')); if(p.visitTrend) L.push('Trend: '+p.visitTrend); if(p.tradeArea) L.push('Trade area: '+p.tradeArea); if(p.dwellMinutes) L.push('Dwell: '+p.dwellMinutes); if(Array.isArray(p.peakDayparts)&&p.peakDayparts.length) L.push('Peak: '+p.peakDayparts.join(', ')); if(Array.isArray(p.topOrigins)&&p.topOrigins.length) L.push('Top origins: '+p.topOrigins.join(', ')); if(p.demographics) L.push('Demographics: '+p.demographics); if(Array.isArray(p.highlights)&&p.highlights.length) L.push('Highlights: '+p.highlights.join('; ')); return L.length?('— Placer trade area —\n'+L.join('\n')):''; }
+function plParse(){ var t=document.getElementById('pl_paste').value; var m=document.getElementById('pl_msg'); var btn=document.getElementById('pl_go'); if(!t.trim()){ m.textContent='Paste a report first.'; return; } btn.disabled=true; m.textContent='Reading…'; fetch('/api/ai/placer',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:t})}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; if(!j||!j.ok){ m.textContent=(j&&j.error)||'Could not read that.'; return; } var blk=fmtPlacer(j.result||{}); if(!blk){ m.textContent='No figures found in that report.'; return; } var n=document.getElementById('f_notes'); n.value=(n.value?(n.value.trim()+'\n\n'):'')+blk; document.getElementById('pl_paste').value=''; m.textContent='Added to Notes ✓'; }).catch(function(){ btn.disabled=false; m.textContent='Network error.'; }); }
 document.getElementById('ai_fill').addEventListener('click',aiFill);
+document.getElementById('pl_go').addEventListener('click',plParse);
 document.getElementById('matchBtn').addEventListener('click',openMatch);
 document.getElementById('mmx').addEventListener('click',function(){ document.getElementById('mov').hidden=true; });
 document.getElementById('mgo').addEventListener('click',aiMatch);

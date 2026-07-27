@@ -2896,6 +2896,23 @@ app.get('/api/ai/brief', async (req, res) => {
     res.json({ ok: true, brief, generatedAt: new Date().toISOString(), repName: (req.user && req.user.name) || '' });
   } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });
+function aiRoute(fn) { return async (req, res) => { try { const result = await fn(req.body || {}); res.json({ ok: true, result: result || {} }); } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); } }; }
+app.post('/api/ai/contact-prep', express.json({ limit: '256kb' }), aiRoute(b => aiassist.callPrep({ person: b.person || {} })));
+app.post('/api/ai/enrich-contact', express.json({ limit: '64kb' }), aiRoute(b => aiassist.enrichContact(b || {})));
+app.post('/api/ai/enrich-company', express.json({ limit: '64kb' }), aiRoute(b => aiassist.enrichCompany(b || {})));
+app.post('/api/ai/loi-review', express.json({ limit: '256kb' }), aiRoute(b => aiassist.reviewLoi({ text: b.text || '' })));
+app.post('/api/ai/concept', express.json({ limit: '256kb' }), aiRoute(b => aiassist.conceptPositioning({ concept: b.concept || {}, locations: b.locations || [] })));
+app.post('/api/ai/site-read', express.json({ limit: '256kb' }), aiRoute(b => aiassist.locationSiteRead({ location: b.location || {} })));
+app.post('/api/ai/calc-summary', express.json({ limit: '256kb' }), aiRoute(b => aiassist.calcSummary({ kind: b.kind || '', inputs: b.inputs || {}, outputs: b.outputs || {} })));
+app.post('/api/ai/placer', express.json({ limit: '256kb' }), aiRoute(b => aiassist.parsePlacer({ text: b.text || '' })));
+app.post('/api/ai/loi-suggest', express.json({ limit: '256kb' }), async (req, res) => {
+  try {
+    const b = req.body || {}; const cfg = loadLoiConfig(); const tkey = (b.type === 'business_sale') ? 'business_sale' : 'tenant_rep';
+    const sections = ((cfg[tkey] && cfg[tkey].clauses) || []).map(c => ({ id: c.id, title: c.title }));
+    const result = await aiassist.suggestSections({ dealInfo: b.dealInfo || {}, sections });
+    res.json({ ok: true, result: result || {} });
+  } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
+});
 app.post('/api/person/merge', express.json(), (req, res) => {
   const u = req.user || {};
   const canMerge = isSuper(u) || (permsEnabled() && effectivePerms(u).delete);

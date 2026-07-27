@@ -142,4 +142,13 @@ async function calcSummary({ kind, inputs, outputs }) {
   return extractJson(await callClaude(sys, user, 900)) || {};
 }
 
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary };
+// 13) Placer.ai report -> structured trade-area / foot-traffic fields (paste-and-parse).
+async function parsePlacer({ text }) {
+  const sys = 'You extract the key figures from a pasted Placer.ai report (foot-traffic / trade-area analytics for a retail or restaurant location) into STRICT JSON for a restaurant/bar broker. ' +
+    'Return ONLY: {"visits":"","visitsPeriod":"","visitTrend":"","tradeArea":"","topOrigins":[""],"dwellMinutes":"","peakDayparts":[""],"demographics":"","highlights":[""]}. ' +
+    'visits: the visit/foot-traffic count with its unit as written (e.g. "142K annual visits"). visitsPeriod: the period it covers. visitTrend: YoY or trend direction if stated. tradeArea: the true trade area / drive-time or radius if given. topOrigins: top visitor origin areas/ZIPs. dwellMinutes: average dwell time. peakDayparts: busiest dayparts/days. demographics: a short line on the visitor profile (income, age) if stated. highlights: 2-4 notable takeaways. ' +
+    'Use ONLY what is in the pasted report. Leave "" or [] for anything not stated. Never fabricate figures. Output JSON only.';
+  return extractJson(await callClaude(sys, 'PLACER REPORT:\n' + String(text || '').slice(0, 14000), 1400)) || {};
+}
+
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer };
