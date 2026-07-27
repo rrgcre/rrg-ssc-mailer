@@ -67,6 +67,16 @@ function render(){
       +'<label class="fld" style="margin-top:10px">Clause text</label><textarea class="cl-body">'+esc(c.body||'')+'</textarea>'
       +'<div style="margin-top:10px;display:flex;gap:9px;align-items:center"><button class="btn sm cl-save" data-cid="'+esc(c.id)+'">Save section</button><button class="btn red sm cl-del" data-cid="'+esc(c.id)+'">Delete</button><span class="savedtag" data-saved="'+esc(c.id)+'">Saved ✓</span></div></div></div>';
   }).join('');
+  var termsRows=(t.terms||[]).map(function(f){
+    var isSel=f.type==='select';
+    return '<div class="clause" data-tkey="'+esc(f.key)+'"><div class="clbody" style="padding:12px 13px">'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end"><div style="flex:1;min-width:170px"><label class="fld">Label</label><input class="ti tm-label" value="'+esc(f.label||'')+'"></div>'
+      +'<div><label class="fld">Type</label><select class="ti tm-type" style="width:auto"><option value="text"'+(!isSel?' selected':'')+'>Text</option><option value="select"'+(isSel?' selected':'')+'>Dropdown</option></select></div>'
+      +'<span style="font-size:11px;color:var(--muted)">fills <span class="ph">{{'+esc(f.key)+'}}</span></span></div>'
+      +'<div class="tm-optswrap" style="margin-top:10px;'+(isSel?'':'display:none')+'"><label class="fld">Dropdown options (one per line)</label><textarea class="tm-opts" style="min-height:66px">'+esc((f.options||[]).join('\n'))+'</textarea></div>'
+      +'</div></div>';
+  }).join('');
+  var termsCard='<div class="card"><div class="ch"><b>Key terms</b><span class="hint">The structured inputs on every '+esc(t.name||'')+' LOI</span></div><div class="cb">'+termsRows+'<div style="margin-top:6px;display:flex;gap:9px;align-items:center"><button class="btn" id="termsSave">Save key terms</button><span class="savedtag" id="termsSaved">Saved \u2713</span></div></div></div>';
   document.getElementById('wrap').innerHTML=
     '<div class="card"><div class="ch"><b>LOI type</b><a href="./rrg_loi_builder.html" style="margin-left:auto;font-size:12.5px;color:var(--gold);font-weight:700;text-decoration:none">Open builder →</a></div><div class="cb"><div class="typerow">'+typebtns+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Boilerplate</b><span class="hint">Rarely changes — top and bottom of every '+esc(t.name||'')+' LOI</span></div><div class="cb">'
@@ -75,17 +85,30 @@ function render(){
       +'<div style="margin-top:10px;display:flex;gap:9px;align-items:center"><button class="btn" id="bpSave">Save boilerplate</button><span class="savedtag" id="bpSaved">Saved ✓</span></div>'
       +'<div class="note" style="margin-top:10px">Use placeholders like <span class="ph">{{tenant}}</span>, <span class="ph">{{landlord}}</span>, <span class="ph">{{property}}</span>, <span class="ph">{{date}}</span>, <span class="ph">{{rep}}</span>, <span class="ph">{{expiration}}</span> — they fill from the builder inputs. Any placeholder left blank prints as a fill-in line.</div>'
     +'</div></div>'
+    +termsCard
     +'<div class="card"><div class="ch"><b>Optional sections</b><span class="hint">Users pick these when building an LOI</span></div><div class="cb">'+clauses+'<button class="addbtn" id="addClause">+ Add section</button></div></div>';
   wire();
 }
 function wire(){
   document.querySelectorAll('.typebtn').forEach(function(b){ b.addEventListener('click',function(){ TYPE=b.getAttribute('data-type'); render(); }); });
   var bp=document.getElementById('bpSave'); if(bp) bp.addEventListener('click',saveBoilerplate);
+  document.querySelectorAll('.tm-type').forEach(function(sel){ sel.addEventListener('change',function(){ var w=sel.closest('.clause').querySelector('.tm-optswrap'); if(w) w.style.display=(sel.value==='select')?'':'none'; }); });
+  var ts=document.getElementById('termsSave'); if(ts) ts.addEventListener('click',saveTerms);
   document.querySelectorAll('.cl-save').forEach(function(b){ b.addEventListener('click',function(){ saveClause(b.getAttribute('data-cid'),b.closest('.clause')); }); });
   document.querySelectorAll('.cl-del').forEach(function(b){ b.addEventListener('click',function(){ delClause(b.getAttribute('data-cid')); }); });
   document.querySelectorAll('[data-up]').forEach(function(b){ b.addEventListener('click',function(){ move(b.getAttribute('data-up'),-1); }); });
   document.querySelectorAll('[data-down]').forEach(function(b){ b.addEventListener('click',function(){ move(b.getAttribute('data-down'),1); }); });
   var ac=document.getElementById('addClause'); if(ac) ac.addEventListener('click',addClause);
+}
+function saveTerms(){
+  var terms=[];
+  document.querySelectorAll('[data-tkey]').forEach(function(row){
+    var f={ key:row.getAttribute('data-tkey'), label:row.querySelector('.tm-label').value };
+    var type=row.querySelector('.tm-type').value;
+    if(type==='select'){ f.type='select'; f.options=(row.querySelector('.tm-opts').value||'').split('\n').map(function(x){return x.trim();}).filter(Boolean); }
+    terms.push(f);
+  });
+  post('/api/loi/terms',{type:TYPE,terms:terms},function(j){ CFG=j.config; flash(document.getElementById('termsSaved')); });
 }
 function saveBoilerplate(){
   var body={type:TYPE, top:document.getElementById('bp_top').value, bottom:document.getElementById('bp_bottom').value};

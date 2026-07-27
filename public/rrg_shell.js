@@ -72,13 +72,13 @@
     + '#rrgtop .create .cplus{font-size:15px;font-weight:800;line-height:1;}'
     + '#rrgnav .scroll{flex:1;overflow-y:auto;padding:2px 10px 14px;}'
     + '#rrgnav .scroll::-webkit-scrollbar{width:7px;}#rrgnav .scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:7px;}'
-    + '#rrgnav .grp{margin-top:9px;}'
-    + '#rrgnav .lbl{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.34);font-weight:700;padding:3px 10px 3px;display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:7px;}'
+    + '#rrgnav .grp{margin-top:6px;}'
+    + '#rrgnav .lbl{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.34);font-weight:700;padding:2px 10px 2px;display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:7px;}'
     + '#rrgnav .lbl:hover{color:rgba(255,255,255,.6);background:rgba(255,255,255,.04);}'
     + '#rrgnav .lbl .gcv{margin-left:auto;font-size:9px;color:rgba(255,255,255,.4);transition:transform .15s;}'
     + '#rrgnav .grp.collapsed .gcv{transform:rotate(-90deg);}'
     + '#rrgnav .grp.collapsed a.it{display:none;}'
-    + '#rrgnav a.it{display:flex;align-items:center;gap:10px;padding:5px 10px;border-radius:7px;color:#c3cce0;text-decoration:none;font-size:13.5px;font-weight:500;margin-bottom:1px;}'
+    + '#rrgnav a.it{display:flex;align-items:center;gap:10px;padding:4px 10px;border-radius:7px;color:#c3cce0;text-decoration:none;font-size:13.5px;font-weight:500;margin-bottom:0;}'
     + '#rrgnav a.it:hover{background:rgba(255,255,255,.07);color:#fff;}'
     + '#rrgnav a.it.on{background:rgba(255,255,255,.12);color:#fff;font-weight:600;}'
     + '#rrgnav a.it .i{width:17px;text-align:center;color:var(--gc,rgba(255,255,255,.5));font-size:13.5px;flex:none;}'
@@ -108,7 +108,7 @@
     navHtml += '<div class="grp"' + cls + '>';
     if (g.grp) navHtml += '<div class="lbl" data-grp="' + esc(g.grp) + '"><span>' + esc(g.grp) + '</span><span class="gcv">\u25be</span></div>';
     g.items.forEach(function (it) {
-      navHtml += '<a class="it' + (sameFile(it.href) ? ' on' : '') + '" href="' + esc(it.href) + '"><span class="i"' + ((it.color && !sameFile(it.href)) ? (' style="color:' + it.color + '"') : '') + '>' + it.ic + '</span>' + esc(it.label) + '</a>';
+      navHtml += '<a class="it' + (sameFile(it.href) ? ' on' : '') + '" href="' + esc(it.href) + '"><span class="i"' + (it.color ? (' style="color:' + it.color + '"') : '') + '>' + it.ic + '</span>' + esc(it.label) + '</a>';
     });
     navHtml += '</div>';
   });

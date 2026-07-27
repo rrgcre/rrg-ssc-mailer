@@ -4163,7 +4163,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         function renderUsers(){
           RRGList.create({ mount:'#userlist', data:UDATA, key:'adminusers', rowId:function(u){return u.username;}, defaultSort:0, defaultDir:1,
             columns:[
-              {label:'Name', width:210, sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(u){ return '<b>'+uesc(u.name||u.username)+'</b>'+(isSuper(u)?' <span class="tag admin">Admin</span>':'')+(u.disabled?' <span class="tag off">Disabled</span>':''); }},
+              {label:'Name', width:210, sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(u){ return '<b>'+uesc(u.name||u.username)+'</b>'+((u.role==='admin'||u.role==='creator')?' <span class="tag admin">Admin</span>':'')+(u.disabled?' <span class="tag off">Disabled</span>':''); }},
               {label:'Username', sort:function(a,b){return RRGList.cmp(a.username,b.username);}, cell:function(u){return '<span class="mono">'+uesc(u.username)+'</span>';}},
               {label:'Email', sort:function(a,b){return RRGList.cmp(a.email,b.email);}, cell:function(u){return '<span class="mono">'+(uesc(u.email)||'—')+'</span>';}},
               {label:'Added', sort:function(a,b){return RRGList.cmp(a.created,b.created);}, cell:function(u){return '<span class="ts">'+(uesc(u.created)||'—')+'</span>';}},
@@ -5830,7 +5830,7 @@ Broker: {{rep}}, Restaurant Realty Group, LLC`,
         { key: 'date', label: 'Date' },
         { key: 'tenant', label: 'Tenant (entity)' },
         { key: 'landlord', label: 'Landlord' },
-        { key: 'property', label: 'Property / address / suite' },
+        { key: 'property', label: 'Property / building address' },
         { key: 'rep', label: 'RRG rep' }
       ],
       terms: [
@@ -5839,8 +5839,8 @@ Broker: {{rep}}, Restaurant Realty Group, LLC`,
         { key: 'use', label: 'Permitted Use' },
         { key: 'term', label: 'Lease Term' },
         { key: 'commencement', label: 'Commencement / Delivery' },
-        { key: 'base_rent', label: 'Base Rent' },
-        { key: 'rent_structure', label: 'Rent Structure (NNN / Gross)' },
+        { key: 'base_rent', label: 'Base Rent ($/SF/yr)' },
+        { key: 'rent_structure', label: 'Rent Structure', type: 'select', options: ['NNN (Triple Net)', 'Modified Gross', 'Full-Service Gross', 'Industrial Gross', 'Absolute Net', 'Percentage Rent'] },
         { key: 'escalations', label: 'Annual Escalations' },
         { key: 'free_rent', label: 'Free Rent / Abatement' },
         { key: 'ti', label: 'TI Allowance' },
@@ -5974,6 +5974,14 @@ app.post('/api/loi/boilerplate', requireAdmin, express.json(), (req, res) => {
   if (!t) return res.status(400).json({ ok: false, error: 'Unknown LOI type.' });
   if (typeof b.top === 'string') t.top = b.top.slice(0, 20000);
   if (typeof b.bottom === 'string') t.bottom = b.bottom.slice(0, 20000);
+  saveLoiConfig(cfg); res.json({ ok: true, config: cfg });
+});
+app.post('/api/loi/terms', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const cfg = loadLoiConfig(); const t = cfg[b.type];
+  if (!t) return res.status(400).json({ ok: false, error: 'Unknown LOI type.' });
+  if (Array.isArray(b.terms)) {
+    t.terms = b.terms.map(function (f) { const o = { key: String(f.key || '').slice(0, 40), label: String(f.label || '').slice(0, 80) }; if (f.type === 'select') { o.type = 'select'; o.options = (Array.isArray(f.options) ? f.options : []).map(x => String(x).slice(0, 80)).filter(Boolean).slice(0, 24); } if (f.hint) o.hint = String(f.hint).slice(0, 80); return o; }).filter(f => f.key && f.label);
+  }
   saveLoiConfig(cfg); res.json({ ok: true, config: cfg });
 });
 app.post('/api/loi/clause', requireAdmin, express.json(), (req, res) => {
