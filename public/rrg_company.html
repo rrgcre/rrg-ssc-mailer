@@ -61,6 +61,16 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .findloc{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .findcount{flex:none;max-width:150px;}
 .findbtn{background:#5b46b8;color:#fff;border:1px solid #5b46b8;border-radius:8px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .12s;} .findbtn:hover{background:#4a389c;} .findbtn:disabled{opacity:.6;cursor:default;}
+.aiwork{position:fixed;inset:0;background:rgba(10,10,30,.55);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;}
+.aiwork[hidden]{display:none;}
+.aiworkbox{background:#fff;border-radius:18px;padding:32px 34px 26px;max-width:440px;width:100%;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.42);position:relative;overflow:hidden;}
+.aiworkbox:before{content:"";position:absolute;top:-45%;left:-45%;width:190%;height:190%;background:conic-gradient(from 0deg,#5b46b8,#8b5cf6,#ec4899,#f59e0b,#22c55e,#3b82f6,#5b46b8);opacity:.13;animation:aiworkspin 7s linear infinite;}
+@keyframes aiworkspin{to{transform:rotate(360deg);}}
+.aiworkorb{width:64px;height:64px;border-radius:50%;margin:0 auto 16px;background:conic-gradient(from 0deg,#5b46b8,#8b5cf6,#ec4899,#f59e0b,#22c55e,#3b82f6,#5b46b8);animation:aiworkspin 1.6s linear infinite;position:relative;z-index:1;}
+.aiworkorb:after{content:"✨";position:absolute;inset:7px;display:flex;align-items:center;justify-content:center;font-size:23px;background:#fff;border-radius:50%;}
+.aiworktitle{font-weight:800;color:var(--navy);font-size:16px;position:relative;z-index:1;}
+.aiworkmsg{color:#5a6478;font-size:13px;margin-top:7px;line-height:1.5;min-height:18px;position:relative;z-index:1;}
+.aiworkcancel{margin-top:18px;background:#fff;border:1px solid #d5dbe6;border-radius:9px;padding:8px 18px;font:inherit;font-size:13px;font-weight:600;color:#5a6478;cursor:pointer;position:relative;z-index:1;} .aiworkcancel:hover{background:#f4f7fb;}
 .findloctip{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:8px;max-width:640px;}
 .cb{padding:6px 0 4px;}
 .crow{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);}
@@ -357,7 +367,7 @@ function render(){
   var _aab=document.getElementById('addAgrBtn'); if(_aab) _aab.addEventListener('click',openCoAgrForm);
   document.querySelectorAll('.crm[data-rm]').forEach(function(b){ b.addEventListener('click',function(){ removeContact(b.getAttribute('data-rm')); }); });
   document.querySelectorAll('.cmain[data-main]').forEach(function(b){ b.addEventListener('click',function(){ setMainContact(b.getAttribute('data-main')); }); });
-  var acb=document.getElementById('addConceptBtn'); if(acb) acb.addEventListener('click',function(){ openConceptForm(null); });
+  var acb=document.getElementById('addConceptBtn'); if(acb) acb.addEventListener('click',openConceptBuilder);
   var acb2=document.getElementById('addCommBtn'); if(acb2) acb2.addEventListener('click',function(){ openLocForm({commissary:true,servesAll:true},''); });
   document.querySelectorAll('.mini[data-find]').forEach(function(b){ b.addEventListener('click',function(){ openFindForm(b.getAttribute('data-find')); }); });
   document.querySelectorAll('.mini[data-addloc]').forEach(function(b){ b.addEventListener('click',function(){ var c=conceptById(b.getAttribute('data-addloc')); openLocForm(null,c?c.name:''); }); });
@@ -413,6 +423,7 @@ function openConceptForm(cpt){
   }
   document.getElementById('cp_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; render(); });
   var fb=document.getElementById('cp_find'); if(fb) fb.addEventListener('click',function(){ conceptFind(cpt,isEdit); });
+  var bb=document.getElementById('cp_build'); if(bb) bb.addEventListener('click',function(){ conceptBuildFromName(cpt,isEdit); });
   document.getElementById('cp_name').focus();
 }
 // Save the concept (create or update) and then search the web for its locations — replaces the old per-row Find button.
@@ -425,22 +436,96 @@ function conceptFind(cpt,isEdit){
   if(!name){ document.getElementById('cp_name').focus(); if(msg) msg.textContent='Name the concept first.'; return; }
   if(!website){ document.getElementById('cp_site').focus(); if(msg) msg.textContent='Add the concept’s website to search.'; return; }
   if(btn){ btn.disabled=true; btn.textContent='Searching…'; }
-  if(msg) msg.textContent='This can take up to a minute — '+ASSISTANT+' is reading the site and map listings.';
+  var ctrl=window.AbortController?new AbortController():null;
+  aiShow('Reading '+name+'’s site and map listings to find its locations…', ctrl?function(){ try{ctrl.abort();}catch(e){} }:null);
   var markets=[]; document.querySelectorAll('.cp_mkt:checked').forEach(function(x){ markets.push(x.value); });
   var body={name:name,website:website,logo:document.getElementById('cp_logo').value.trim(),markets:markets,conceptType:cpVal('cp_ctype'),pricePoint:cpVal('cp_price'),cuisine:cpVal('cp_cuisine')};
   if(isEdit&&cpt&&cpt.id) body.id=cpt.id;
-  function fail(t){ if(btn){ btn.disabled=false; btn.textContent='✨ Find locations'; } if(msg) msg.textContent=t; }
-  fetch('/api/company/'+encodeURIComponent(ID)+'/concept',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+  function fail(t){ aiHide(); if(btn){ btn.disabled=false; btn.textContent='✨ Find locations'; } if(msg) msg.textContent=t; }
+  fetch('/api/company/'+encodeURIComponent(ID)+'/concept',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body),signal:ctrl?ctrl.signal:undefined})
     .then(function(r){return r.json();}).then(function(j){
       if(!j||!j.ok){ fail((j&&j.error)||'Could not save the concept.'); return; }
       CONCEPTS=j.concepts||CONCEPTS; LOCATIONS=j.locations||LOCATIONS;
-      return fetch('/api/company/'+encodeURIComponent(ID)+'/find-locations',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({concept:name,website:website,count:count})})
+      return fetch('/api/company/'+encodeURIComponent(ID)+'/find-locations',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({concept:name,website:website,count:count}),signal:ctrl?ctrl.signal:undefined})
         .then(function(r){return r.json();}).then(function(j2){
+          aiHide();
           if(j2&&j2.ok){ CONCEPTS=j2.concepts||CONCEPTS; var c2=CONCEPTS.filter(function(x){return x.name===name;})[0]; if(c2) EXPANDED[c2.id]=true; LOCATIONS=j2.locations||LOCATIONS; var f=document.getElementById('conceptForm'); if(f){ f.setAttribute('hidden',''); f.innerHTML=''; } render(); }
           else fail((j2&&j2.error)||'Search failed.');
         });
     })
-    .catch(function(){ fail('Could not reach the server.'); });
+    .catch(function(e){ if(e&&e.name==='AbortError'){ aiHide(); if(btn){ btn.disabled=false; btn.textContent='✨ Find locations'; } return; } fail('Could not reach the server.'); });
+}
+// ---- Colorful "AI is working" popup (lazily created) ----
+var AIWORK={onCancel:null};
+function _aiEnsure(){ var o=document.getElementById('aiwork'); if(o) return o; o=document.createElement('div'); o.className='aiwork'; o.id='aiwork'; o.hidden=true; o.innerHTML='<div class="aiworkbox"><div class="aiworkorb"></div><div class="aiworktitle" id="aiworktitle">Working…</div><div class="aiworkmsg" id="aiworkmsg"></div><button type="button" class="aiworkcancel" id="aiworkcancel">Cancel</button></div>'; document.body.appendChild(o); var cb=o.querySelector('#aiworkcancel'); if(cb) cb.addEventListener('click',function(){ var f=AIWORK.onCancel; aiHide(); if(typeof f==='function'){ try{f();}catch(e){} } }); return o; }
+function aiShow(msg,onCancel){ _aiEnsure(); document.getElementById('aiworktitle').textContent='✨ '+ASSISTANT+' is working…'; document.getElementById('aiworkmsg').textContent=msg||''; AIWORK.onCancel=onCancel||null; var cb=document.getElementById('aiworkcancel'); if(cb) cb.style.display=onCancel?'':'none'; document.getElementById('aiwork').hidden=false; }
+function aiSetMsg(msg){ var m=document.getElementById('aiworkmsg'); if(m) m.textContent=msg||''; }
+function aiHide(){ var o=document.getElementById('aiwork'); if(o) o.hidden=true; AIWORK.onCancel=null; }
+// ---- Build ONE concept from its name (fills website/type/cuisine/price, then finds locations) ----
+function conceptBuildFromName(cpt,isEdit){
+  var name=document.getElementById('cp_name').value.trim();
+  var msg=document.getElementById('cp_msg');
+  if(!name){ document.getElementById('cp_name').focus(); if(msg) msg.textContent='Enter the concept name first.'; return; }
+  var ctrl=window.AbortController?new AbortController():null;
+  aiShow('Searching the web for '+name+' — website, type, cuisine & price…', ctrl?function(){ try{ctrl.abort();}catch(e){} }:null);
+  fetch('/api/company/'+encodeURIComponent(ID)+'/concept-resolve',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:name}),signal:ctrl?ctrl.signal:undefined})
+    .then(function(r){return r.json();}).then(function(j){
+      if(!j||!j.ok){ aiHide(); if(msg) msg.textContent=(j&&j.error)||'Could not build the concept.'; return; }
+      var p=j.profile||{};
+      var s=document.getElementById('cp_site'); if(s&&p.website) s.value=p.website;
+      var ct=document.getElementById('cp_ctype'); if(ct&&p.conceptType) ct.value=p.conceptType;
+      var cu=document.getElementById('cp_cuisine'); if(cu&&p.cuisine) cu.value=p.cuisine;
+      var pp=document.getElementById('cp_price'); if(pp&&p.pricePoint) pp.value=p.pricePoint;
+      if(!p.website){ aiHide(); if(msg) msg.textContent=ASSISTANT+' could not confirm a website — add it, then use Find locations.'; return; }
+      aiSetMsg('Found the site. Now finding '+name+'’s locations…');
+      conceptFind(cpt,isEdit);
+    }).catch(function(e){ if(e&&e.name==='AbortError'){ aiHide(); return; } aiHide(); if(msg) msg.textContent='Could not reach the server.'; });
+}
+// ---- Bulk: enter several concept names and build them all ----
+function openConceptBuilder(){
+  var f=document.getElementById('conceptForm'); if(!f) return;
+  var mkOpts=(MARKETS||[]).map(function(m){return '<option value="'+esc(m)+'">';}).join('');
+  f.innerHTML='<div class="cform findcard"><div class="findhd">✨ Add concepts</div>'
+    +'<div class="findsub">Enter one or more concept names (one per line). '+esc(ASSISTANT)+' finds each brand’s website, type, cuisine, price, logo, and locations. A metro helps it land on the right website.</div>'
+    +'<div class="cgrid">'
+    +'<div class="wide"><label class="fld">Concept name(s) — one per line</label><textarea id="cb_names" rows="4" placeholder="Taco Dive&#10;Cane Rosso&#10;Zoli’s" style="width:100%;padding:9px 11px;font:inherit;font-size:13px;border:1px solid #d5dbe6;border-radius:9px;resize:vertical"></textarea></div>'
+    +'<div><label class="fld">Major metro they operate in</label><input id="cb_metro" list="cb_mklist" placeholder="e.g. Dallas, Austin"><datalist id="cb_mklist">'+mkOpts+'</datalist></div>'
+    +'<div><label class="fld">Approx. # locations each</label><input id="cb_count" placeholder="optional"></div>'
+    +'</div><div class="cbtns"><button type="button" class="findbtn" id="cb_go">✨ Build all</button><button type="button" class="mfadd" id="cb_manual">Add one manually</button><button type="button" class="cbtn" id="cb_cancel">Cancel</button><span id="cb_msg" class="findmsg"></span></div></div>';
+  f.removeAttribute('hidden'); expandCardOf(f);
+  document.getElementById('cb_go').addEventListener('click',buildAllConcepts);
+  document.getElementById('cb_manual').addEventListener('click',function(){ openConceptForm(null); });
+  document.getElementById('cb_cancel').addEventListener('click',function(){ f.setAttribute('hidden','');f.innerHTML='';render(); });
+  document.getElementById('cb_names').focus();
+}
+var _cbStop=false;
+function buildAllConcepts(){
+  var names=(document.getElementById('cb_names').value||'').split(/\n/).map(function(s){return s.trim();}).filter(Boolean);
+  var metro=(document.getElementById('cb_metro').value||'').trim();
+  var count=(document.getElementById('cb_count').value||'').trim();
+  var msg=document.getElementById('cb_msg');
+  if(!names.length){ document.getElementById('cb_names').focus(); if(msg) msg.textContent='Enter at least one concept name.'; return; }
+  _cbStop=false; var i=0, ok=0, notes=[];
+  aiShow('Starting on '+names.length+' concept'+(names.length===1?'':'s')+'…', function(){ _cbStop=true; });
+  function J(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}); }
+  function done(){ aiHide(); var f=document.getElementById('conceptForm'); if(f){ f.setAttribute('hidden','');f.innerHTML=''; } render(); }
+  function step(){
+    if(_cbStop || i>=names.length){ done(); return; }
+    var nm=names[i];
+    aiSetMsg('Building '+(i+1)+' of '+names.length+': '+nm+'  ·  searching the web…');
+    J('/api/company/'+encodeURIComponent(ID)+'/concept-resolve',{name:nm,market:metro}).then(function(rj){
+      var p=(rj&&rj.ok&&rj.profile)||{};
+      return J('/api/company/'+encodeURIComponent(ID)+'/concept',{name:nm,website:p.website||'',conceptType:p.conceptType||'',pricePoint:p.pricePoint||'',cuisine:p.cuisine||'',markets:metro?[metro]:[]}).then(function(cj){
+        if(cj&&cj.concepts) CONCEPTS=cj.concepts;
+        if(!cj||!cj.ok){ notes.push(nm); return; }
+        ok++;
+        if(!p.website){ return; }
+        aiSetMsg('Building '+(i+1)+' of '+names.length+': '+nm+'  ·  finding locations…');
+        return J('/api/company/'+encodeURIComponent(ID)+'/find-locations',{concept:nm,website:p.website,count:count}).then(function(fj){ if(fj&&fj.ok){ CONCEPTS=fj.concepts||CONCEPTS; LOCATIONS=fj.locations||LOCATIONS; } });
+      });
+    }).catch(function(){ notes.push(nm); }).then(function(){ i++; step(); });
+  }
+  step();
 }
 function cpVal(id){ var el=document.getElementById(id); return el?el.value:''; }
 function queueConceptSave(id){ var ind=document.getElementById('cp_saved'); if(ind) ind.textContent='…'; if(_cpSaveTimer) clearTimeout(_cpSaveTimer); _cpSaveTimer=setTimeout(function(){ conceptAutosave(id,false); },700); }
