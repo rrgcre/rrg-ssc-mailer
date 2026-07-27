@@ -14,7 +14,7 @@
   var NAV = [
     { color: '#8fa2c4', items: [
       { ic: '◱', label: 'Activity Feed', href: 'rrg_feed.html' },
-      { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' }
+      { ic: '✔', label: 'My Tasks', href: 'rrg_tasks.html' }
     ] },
     { grp: 'Records', color: '#7ea6d8', items: [
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
@@ -125,7 +125,7 @@
   top.innerHTML = ''
     + '<div class="ic" id="rrgburger" style="display:none">≡</div>'
     + '<div class="srch"><span class="si">⌕</span><input placeholder="Search companies, contacts, listings…" id="rrgsearch"></div>'
-    + '<div class="acts"><a class="create" href="rrg_companies.html"><span class="cplus">+</span> Create New</a><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><a class="ic" href="rrg_tasks.html" title="Tasks">✔</a><div class="uav" id="rrguav">·</div></div>';
+    + '<div class="acts"><a class="create" href="rrg_companies.html"><span class="cplus">+</span> Create New</a><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><a class="ic" href="rrg_tasks.html" title="My Tasks">✔</a><div class="uav" id="rrguav">·</div></div>';
 
   document.addEventListener('DOMContentLoaded', mount);
   if (document.readyState !== 'loading') mount();
