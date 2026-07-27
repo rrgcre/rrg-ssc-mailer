@@ -328,7 +328,7 @@ function render(){
   document.getElementById('root').innerHTML=
     '<div class="mid">'+statTilesCo()
     + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="addContactBtn">+ Add contact</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
-    + '<div class="card"><div class="ch"><b>Concepts, Their Locations &amp; Commissaries</b><span>'+CONCEPTS.length+' concept'+(CONCEPTS.length===1?'':'s')+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn">+ Commissary</button><button class="addbtn" id="addConceptBtn">+ Add concept</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
+    + '<div class="card"><div class="ch"><b>'+esc(CLABELP)+', Their Locations &amp; Commissaries</b><span>'+CONCEPTS.length+' '+(CONCEPTS.length===1?esc(CLABEL.toLowerCase()):esc(CLABELP.toLowerCase()))+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn">+ Commissary</button><button class="addbtn" id="addConceptBtn">+ Add '+esc(CLABEL.toLowerCase())+'</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
     + '</div>'
     + '<div class="rail">'
     + '<div class="card"><div class="ch"><b>Listings</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
@@ -487,11 +487,11 @@ function conceptBuildFromName(cpt,isEdit){
 function openConceptBuilder(){
   var f=document.getElementById('conceptForm'); if(!f) return;
   var mkOpts=(MARKETS||[]).map(function(m){return '<option value="'+esc(m)+'">';}).join('');
-  f.innerHTML='<div class="cform findcard"><div class="findhd">✨ Add concepts</div>'
+  f.innerHTML='<div class="cform findcard"><div class="findhd">✨ Add '+esc(CLABELP.toLowerCase())+'</div>'
     +'<div class="findsub">Enter one or more concept names (one per line). '+esc(ASSISTANT)+' finds each brand’s website, type, cuisine, price, logo, and locations. A metro helps it land on the right website.</div>'
     +'<div class="cgrid">'
-    +'<div class="wide"><label class="fld">Concept name(s) — one per line</label><textarea id="cb_names" rows="4" placeholder="One concept per line" style="width:100%;padding:9px 11px;font:inherit;font-size:13px;border:1px solid #d5dbe6;border-radius:9px;resize:vertical"></textarea></div>'
-    +((C.type==='Restaurant Group')?('<div class="wide" data-ai="" style="margin-top:-2px"><button type="button" class="findbtn" id="cb_findgroup" style="background:#5b46b8;border-color:#5b46b8">✨ Find this group\'s concepts</button> <span style="font-size:11.5px;color:#8a80b3">'+esc(ASSISTANT)+' lists every brand '+esc(C.name||'this group')+' operates and builds them</span></div>'):'')
+    +'<div class="wide"><label class="fld">'+esc(CLABEL)+' name(s) — one per line</label><textarea id="cb_names" rows="4" placeholder="One concept per line" style="width:100%;padding:9px 11px;font:inherit;font-size:13px;border:1px solid #d5dbe6;border-radius:9px;resize:vertical"></textarea></div>'
+    +((C.type==='Restaurant Group')?('<div class="wide" data-ai="" style="margin-top:-2px"><button type="button" class="findbtn" id="cb_findgroup" style="background:#5b46b8;border-color:#5b46b8">✨ Find this group\'s '+esc(CLABELP.toLowerCase())+'</button> <span style="font-size:11.5px;color:#8a80b3">'+esc(ASSISTANT)+' lists every brand '+esc(C.name||'this group')+' operates and builds them</span></div>'):'')
     +'<div><label class="fld">Major metro they operate in</label><input id="cb_metro" list="cb_mklist" placeholder="e.g. Dallas, Austin"><datalist id="cb_mklist">'+mkOpts+'</datalist></div>'
     +'<div><label class="fld">Approx. # locations each</label><input id="cb_count" placeholder="optional"></div>'
     +'</div><div class="cbtns"><button type="button" class="findbtn" id="cb_go">✨ Build all</button><button type="button" class="mfadd" id="cb_manual">Add one manually</button><button type="button" class="cbtn" id="cb_cancel">Cancel</button><span id="cb_msg" class="findmsg"></span></div></div>';
@@ -815,8 +815,8 @@ function load(){
     .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; TITLES=j.titles||TITLES; LEADSOURCES=j.leadSources||LEADSOURCES; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; HASMAPS=!!j.hasMaps; render(); try{ var _pb=localStorage.getItem('rrg_build_'+ID); if(_pb){ localStorage.removeItem('rrg_build_'+ID); var _o=JSON.parse(_pb)||{}; if(_o.names&&_o.names.length){ setTimeout(function(){ runBuildConcepts(_o.names,_o.metro||'',''); },500); } } }catch(e){} })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this company.')+'<br><br><a href="./rrg_companies.html" style="color:#000E31;font-weight:700">← Back to companies</a></div>'; });
 }
-var ASSISTANT='the RRG analyst';
-fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.assistant) ASSISTANT=j.assistant; }).catch(function(){});
+var ASSISTANT='the RRG analyst'; var CLABEL='Concept', CLABELP='Concepts';
+fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.assistant) ASSISTANT=j.assistant; if(j&&j.concept) CLABEL=j.concept; if(j&&j.conceptPlural) CLABELP=j.conceptPlural; if(typeof C!=='undefined'&&C){ try{render();}catch(e){} } }).catch(function(){});
 load();
 </script>
 <script>/*rrg-accordion-js*/
