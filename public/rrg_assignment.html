@@ -177,6 +177,7 @@ function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], AGR=[], ATYPES=[];
 var OFFER_TYPES=['IOI','LOI'], OFFER_STATUSES=['Received','Under review','Countered','Accepted','Rejected','Withdrawn'];
 var TXN=null, TXNSTAT=['LOI','Under Contract','Due Diligence','Financing','Closing','Closed','Dead'];
+var TXNCOMM=['Unpaid','Invoiced','Partial','Paid'];
 var TOUR_INTEREST=['Hot','Warm','Cool','Passed'];
 var NDA_METHODS=['DocuSign','Email','Paper','Other'], NDA_STATUSES=['Sent','Received','Countersigned','Expired'];
 function peopleDatalistHTML(){ return '<datalist id="peopleList">'+PEOPLE.map(function(p){ return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>'; }).join('')+'</datalist>'; }
@@ -743,6 +744,11 @@ function dealCard(){
     if(TXN.opened) rows.push(['Opened', esc(TXN.opened)]);
     if(TXN.expectedClose) rows.push(['Expected close', esc(TXN.expectedClose)]);
     if(TXN.closedDate) rows.push(['Closed', esc(TXN.closedDate)]);
+    if(TXN.terms) rows.push(['Terms', esc(TXN.terms)]);
+    if(TXN.commissionRate) rows.push(['Commission rate', esc(TXN.commissionRate)]);
+    if(TXN.commissionDue) rows.push(['Commission due', esc(TXN.commissionDue)]);
+    if(TXN.commissionPaid) rows.push(['Commission paid', esc(TXN.commissionPaid)]);
+    if(TXN.commissionStatus) rows.push(['Commission', esc(TXN.commissionStatus)]);
     if(TXN.notes) rows.push(['Notes', esc(TXN.notes)]);
     var meta=rows.map(function(r){ return '<div class="dealkv"><span class="dkk">'+r[0]+'</span><span class="dkv">'+r[1]+'</span></div>'; }).join('');
     body='<div class="dealview"><span class="dealpill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(TXN.status||'LOI')+'</span>'+meta
@@ -757,17 +763,21 @@ function dealCard(){
 function dealFormHTML(){
   var t=TXN||{};
   var sopts=TXNSTAT.map(function(s){return '<option'+((t.status||'LOI')===s?' selected':'')+'>'+esc(s)+'</option>';}).join('');
+  var copts=TXNCOMM.map(function(x){return '<option'+((t.commissionStatus||'Unpaid')===x?' selected':'')+'>'+esc(x)+'</option>';}).join('');
   return '<div class="dealform">'
     + '<div class="fldrow2"><div><label class="fld">Buyer</label><input id="dl_buyer" list="peopleList" value="'+esc(t.buyer||'')+'" placeholder="Buyer name"></div><div><label class="fld">Buyer email</label><input id="dl_email" value="" placeholder="links to registry"></div></div>'
     + '<div class="fldrow2"><div><label class="fld">Buyer company</label><input id="dl_co" value="'+esc(t.buyerCompany||'')+'"></div><div><label class="fld">Price</label><input id="dl_price" value="'+esc(t.price||'')+'" placeholder="$"></div></div>'
     + '<div class="fldrow2"><div><label class="fld">Status</label><select id="dl_status">'+sopts+'</select></div><div><label class="fld">Opened</label><input type="date" id="dl_opened" value="'+esc(t.opened||'')+'"></div></div>'
     + '<div class="fldrow2"><div><label class="fld">Expected close</label><input type="date" id="dl_exp" value="'+esc(t.expectedClose||'')+'"></div><div><label class="fld">Closed</label><input type="date" id="dl_closed" value="'+esc(t.closedDate||'')+'"></div></div>'
-    + '<div><label class="fld">Notes</label><textarea id="dl_notes" placeholder="Terms, contingencies, key dates…">'+esc(t.notes||'')+'</textarea></div>'
+    + '<div><label class="fld">Notes</label><textarea id="dl_notes" placeholder="Deal notes, contingencies, key dates…">'+esc(t.notes||'')+'</textarea></div>'
+    + '<div><label class="fld">Terms</label><textarea id="dl_terms" placeholder="Deal terms">'+esc(t.terms||'')+'</textarea></div>'
+    + '<div class="fldrow2"><div><label class="fld">Commission rate</label><input id="dl_crate" value="'+esc(t.commissionRate||'')+'" placeholder="e.g. 6%"></div><div><label class="fld">Commission due</label><input id="dl_cdue" value="'+esc(t.commissionDue||'')+'" placeholder="$"></div></div>'
+    + '<div class="fldrow2"><div><label class="fld">Commission paid</label><input id="dl_cpaid" value="'+esc(t.commissionPaid||'')+'" placeholder="$"></div><div><label class="fld">Commission status</label><select id="dl_cstatus">'+copts+'</select></div></div>'
     + '<div class="dealformf"><button class="mbtn ghost" id="dl_cancel">Cancel</button><button class="mbtn" id="dl_save">Save deal</button></div></div>';
 }
 function openDealForm(){ var f=document.getElementById('dealForm'); if(!f) return; f.innerHTML=dealFormHTML(); f.removeAttribute('hidden'); document.getElementById('dl_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; }); document.getElementById('dl_save').addEventListener('click',saveDeal); }
 function saveDeal(){
-  var body={ buyer:dlv('dl_buyer'), buyerEmail:dlv('dl_email'), buyerCompany:dlv('dl_co'), price:dlv('dl_price'), status:dlv('dl_status'), opened:dlv('dl_opened'), expectedClose:dlv('dl_exp'), closedDate:dlv('dl_closed'), notes:dlv('dl_notes') };
+  var body={ buyer:dlv('dl_buyer'), buyerEmail:dlv('dl_email'), buyerCompany:dlv('dl_co'), price:dlv('dl_price'), status:dlv('dl_status'), opened:dlv('dl_opened'), expectedClose:dlv('dl_exp'), closedDate:dlv('dl_closed'), notes:dlv('dl_notes'), terms:dlv('dl_terms'), commissionRate:dlv('dl_crate'), commissionDue:dlv('dl_cdue'), commissionPaid:dlv('dl_cpaid'), commissionStatus:dlv('dl_cstatus') };
   var b=document.getElementById('dl_save'); if(b){b.disabled=true;b.textContent='Saving…';}
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/deal',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TXN=j.transaction||null; if(A) A.transaction=TXN; if(j.people) PEOPLE=j.people; rerenderDeal(); } else { if(b){b.disabled=false;b.textContent='Save deal';} alert((j&&j.error)||'Could not save the deal.'); } })
@@ -782,7 +792,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; render(); loadPeople(); })
+  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; render(); loadPeople(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();

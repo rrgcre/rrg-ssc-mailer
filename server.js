@@ -2288,6 +2288,7 @@ function loadAssignOverlay() { try { return JSON.parse(fs.readFileSync(ASSIGN_FI
 function saveAssignOverlay(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(ASSIGN_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
 const ASSIGN_STATUSES = ['New', 'Active', 'Under Contract', 'Closed', 'On Hold', 'Lost'];
 const TXN_STATUSES = ['LOI', 'Under Contract', 'Due Diligence', 'Financing', 'Closing', 'Closed', 'Dead'];
+const TXN_COMM_STATUS = ['Unpaid', 'Invoiced', 'Partial', 'Paid'];
 const OFFER_TYPES = ['IOI', 'LOI'];
 const OFFER_STATUSES = ['Received', 'Under review', 'Countered', 'Accepted', 'Rejected', 'Withdrawn'];
 const OFFER_RATINGS = ['Strong', 'Good', 'Fair', 'Weak'];   // the rep's own 1-of-4 gut rating
@@ -2527,7 +2528,7 @@ app.get('/api/assignment/:key', (req, res) => {
   if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const origin = req.protocol + '://' + req.get('host');
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: AGREEMENT_TYPES, roomActivity: roomActivityFor(d, origin) });
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: AGREEMENT_TYPES, roomActivity: roomActivityFor(d, origin) });
 });
 app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   const deals = assignmentsIndex();
@@ -2556,6 +2557,21 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true });
 });
+app.get('/api/deals', (req, res) => {
+  const idx = assignmentsIndex(), overlay = loadAssignOverlay();
+  const isAdmin = isSuper(req.user);
+  const out = [];
+  Object.values(idx).forEach(function (d) {
+    const cur = overlay[d.key] || {}; const t = cur.transaction;
+    if (!t || typeof t !== 'object') return;
+    if (!(isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d))) return;
+    let business = cur.businessOverride || '';
+    try { business = business || assignmentView(d, overlay).business; } catch (e) {}
+    out.push({ key: d.key, business: business || '', buyer: t.buyer || '', buyerCompany: t.buyerCompany || '', personId: t.personId || '', price: t.price || '', status: t.status || '', opened: t.opened || '', expectedClose: t.expectedClose || '', closedDate: t.closedDate || '', terms: t.terms || '', commissionRate: t.commissionRate || '', commissionDue: t.commissionDue || '', commissionPaid: t.commissionPaid || '', commissionStatus: t.commissionStatus || '', updatedAt: t.updatedAt || '' });
+  });
+  out.sort(function (a, b) { return String(b.updatedAt).localeCompare(String(a.updatedAt)); });
+  res.json({ ok: true, deals: out, statuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, isAdmin: !!isAdmin });
+});
 // ---- The Deal (transaction) on a listing: the actual buyer-side transaction, one per listing ----
 app.post('/api/assignment/:key/deal', express.json(), (req, res) => {
   const deals = assignmentsIndex();
@@ -2575,6 +2591,11 @@ app.post('/api/assignment/:key/deal', express.json(), (req, res) => {
   if (typeof b.expectedClose === 'string') t.expectedClose = b.expectedClose.slice(0, 10);
   if (typeof b.closedDate === 'string') t.closedDate = b.closedDate.slice(0, 10);
   if (typeof b.notes === 'string') t.notes = b.notes.slice(0, 2000);
+  if (typeof b.terms === 'string') t.terms = b.terms.slice(0, 2000);
+  if (typeof b.commissionRate === 'string') t.commissionRate = b.commissionRate.slice(0, 40);
+  if (typeof b.commissionDue === 'string') t.commissionDue = b.commissionDue.slice(0, 40);
+  if (typeof b.commissionPaid === 'string') t.commissionPaid = b.commissionPaid.slice(0, 40);
+  if (typeof b.commissionStatus === 'string' && TXN_COMM_STATUS.indexOf(b.commissionStatus) >= 0) t.commissionStatus = b.commissionStatus;
   t.updatedAt = new Date().toISOString();
   if (t.buyer || b.buyerEmail) { const p = findOrCreatePerson(req, { name: t.buyer, email: b.buyerEmail, company: t.buyerCompany, type: 'Buyer' }); if (p) t.personId = p.id; }
   cur.transaction = t; cur.updatedAt = new Date().toISOString();

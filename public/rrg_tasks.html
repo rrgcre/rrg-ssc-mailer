@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RRG — Tasks</title>
 <script src="/rrg_brand.js"></script>
+<script src="/rrg_list.js"></script>
 <style>
 :root{ --navy:#000E31; --red:#DA2B1F; --ink:#1a2236; --muted:#6b7488; --line:#e6e9f0; --wash:#f5f7fb; --bg:#eef1f6; }
 *{box-sizing:border-box;} html,body{margin:0;padding:0;}
@@ -45,6 +46,8 @@ textarea{min-height:56px;resize:vertical;}
 .linkchip{display:inline-flex;align-items:center;gap:4px;background:#eef2fb;color:#2647b0;border-radius:20px;padding:2px 9px;font-weight:700;text-decoration:none;font-size:11.5px;}
 .linkchip.deal{background:#fdf1df;color:#b5791f;}
 .rem{font-weight:700;} .rem.due{color:var(--red);}
+.tbtn{background:#fff;border:1px solid #cfd6e2;border-radius:7px;padding:5px 10px;font:inherit;font-size:12px;font-weight:700;color:#26324a;cursor:pointer;margin-left:4px;} .tbtn:hover{background:#f4f7fb;}
+.ttitle.done{text-decoration:line-through;color:#98a1b5;}
 .due-lbl{font-weight:700;} .due-lbl.over{color:var(--red);}
 .tnotes{font-size:12.5px;color:#55607a;margin-top:5px;white-space:pre-wrap;}
 .tacts{display:flex;gap:6px;flex:none;}
@@ -94,7 +97,9 @@ textarea{min-height:56px;resize:vertical;}
 </div>
 <script>
 var TASKS=[], CONTACTS=[], DEALS=[], PRIORITIES=['Low','Normal','High'], ACTTYPES=[], EMAILREADY=false, SMSREADY=false, ME='', ISADMIN=false, EDITID='';
-var SHOW='open', SCOPE='mine';
+var SHOW='open', SCOPE='mine'; var TCTL=null;
+document.addEventListener('change',function(e){ var c=e.target.closest?e.target.closest('[data-toggle]'):null; if(c){ toggle(c.getAttribute('data-toggle')); } });
+document.addEventListener('click',function(e){ if(!e.target.closest) return; var ed=e.target.closest('[data-edit]'); if(ed){ startEdit(ed.getAttribute('data-edit')); return; } var dl=e.target.closest('[data-del]'); if(dl){ del(dl.getAttribute('data-del')); } });
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function fmt(d){ if(!d) return ''; var s=String(d); var p=s.slice(0,10).split('-'); if(p.length!==3) return d; var out=p[1]+'/'+p[2]+'/'+p[0]; var t=s.slice(11,16); if(t){ var hh=parseInt(t.slice(0,2),10)||0, mm=t.slice(3,5); var ap=hh>=12?'p':'a', h12=((hh%12)||12); out+=' '+h12+':'+mm+ap; } return out; }
 function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -131,37 +136,23 @@ function visibleTasks(){
   });
 }
 function render(){
-  var el=document.getElementById('list'); var today=todayStr();
-  var list=visibleTasks().slice().sort(function(a,b){
-    var ad=(a.status==='open'&&a.reminder&&a.reminder.slice(0,10)<=today)?0:1;
-    var bd=(b.status==='open'&&b.reminder&&b.reminder.slice(0,10)<=today)?0:1;
-    if(ad!==bd) return ad-bd;
-    var ao=(a.due||'9999'), bo=(b.due||'9999'); if(ao!==bo) return ao<bo?-1:1;
-    return String(a.createdAt||'').localeCompare(String(b.createdAt||''));
-  });
-  if(!list.length){ el.innerHTML='<div class="empty">No tasks here.</div>'; return; }
-  el.innerHTML=list.map(function(t){
-    var over=(t.status==='open'&&t.due&&t.due<today);
-    var remDue=(t.status==='open'&&t.reminder&&t.reminder.slice(0,10)<=today);
-    var lc=linkChip(t);
-    return '<div class="trow'+(t.status==='done'?' done':'')+(remDue?' due':'')+'">'
-      +'<input type="checkbox" class="tchk" data-toggle="'+esc(t.id)+'"'+(t.status==='done'?' checked':'')+'>'
-      +'<div class="tmain"><div class="ttitle">'+esc(t.title)+'</div>'
-      +'<div class="tmeta"><span class="pill '+esc(t.priority||'Normal')+'">'+esc(t.priority||'Normal')+'</span>'
-      +(t.type?('<span class="pill" style="background:#eef2ff;color:#3a4fb0">'+esc(t.type)+'</span>'):'')
-      +(lc?lc:'')
-      +(t.due?('<span class="due-lbl'+(over?' over':'')+'">'+(over?'Overdue ':'Due ')+esc(fmt(t.due))+'</span>'):'')
-      +(t.reminder?('<span class="rem'+(remDue?' due':'')+'">⏰ '+esc(fmt(t.reminder))+'</span>'):'')
-      +(ISADMIN&&SCOPE==='all'&&t.assigneeName?('<span>'+esc(t.assigneeName)+'</span>'):'')
-      +'</div>'
-      +(t.notes?('<div class="tnotes">'+esc(t.notes)+'</div>'):'')
-      +'</div>'
-      +'<div class="tacts"><button data-edit="'+esc(t.id)+'">Edit</button>'
-      +((ISADMIN||t.createdBy===ME)?('<button data-del="'+esc(t.id)+'">Delete</button>'):'')+'</div></div>';
-  }).join('');
-  el.querySelectorAll('[data-toggle]').forEach(function(b){ b.addEventListener('change',function(){ toggle(b.getAttribute('data-toggle')); }); });
-  el.querySelectorAll('[data-edit]').forEach(function(b){ b.addEventListener('click',function(){ startEdit(b.getAttribute('data-edit')); }); });
-  el.querySelectorAll('[data-del]').forEach(function(b){ b.addEventListener('click',function(){ del(b.getAttribute('data-del')); }); });
+  var today=todayStr();
+  var list=visibleTasks();
+  var cfg={ mount:'#list', data:list, key:'tasks', empty:'<div class="empty">No tasks here.</div>',
+    rowId:function(t){return t.id;}, defaultSort:5, defaultDir:1,
+    columns:[
+      { label:'', width:38, sortable:false, cell:function(t){ return '<input type="checkbox" class="tchk" data-toggle="'+esc(t.id)+'"'+(t.status==='done'?' checked':'')+'>'; } },
+      { label:'Task', sort:function(a,b){return RRGList.cmp(a.title,b.title);}, cell:function(t){ return '<div class="ttitle'+(t.status==='done'?' done':'')+'">'+esc(t.title)+'</div>'+(t.notes?('<div class="tnotes">'+esc(t.notes)+'</div>'):''); } },
+      { label:'Priority', sort:function(a,b){return RRGList.cmp(a.priority,b.priority);}, cell:function(t){ return '<span class="pill '+esc(t.priority||'Normal')+'">'+esc(t.priority||'Normal')+'</span>'; } },
+      { label:'Type', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.type,b.type);}, cell:function(t){ return t.type?esc(t.type):'<span class="meta">—</span>'; } },
+      { label:'Link', sortable:false, cell:function(t){ var c=linkChip(t); return c||'<span class="meta">—</span>'; } },
+      { label:'Due', sort:function(a,b){return RRGList.cmp(a.due||'9999',b.due||'9999');}, cell:function(t){ var over=(t.status==='open'&&t.due&&t.due<today); return t.due?('<span class="due-lbl'+(over?' over':'')+'">'+(over?'Overdue ':'')+esc(fmt(t.due))+'</span>'):'<span class="meta">—</span>'; } },
+      { label:'Reminder', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.reminder||'',b.reminder||'');}, cell:function(t){ return t.reminder?('⏰ '+esc(fmt(t.reminder))):'<span class="meta">—</span>'; } },
+      { label:'Assignee', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.assigneeName,b.assigneeName);}, cell:function(t){ return t.assigneeName?esc(t.assigneeName):'<span class="meta">—</span>'; } },
+      { label:'', align:'right', sortable:false, cell:function(t){ return '<button class="tbtn" data-edit="'+esc(t.id)+'">Edit</button>'+((ISADMIN||t.createdBy===ME)?(' <button class="tbtn" data-del="'+esc(t.id)+'">Delete</button>'):''); } }
+    ]
+  };
+  if(TCTL) TCTL.refresh(list); else TCTL=RRGList.create(cfg);
 }
 function collect(){
   var lt=document.getElementById('t_linktype').value;
