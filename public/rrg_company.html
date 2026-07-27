@@ -53,9 +53,14 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .findhd{font-weight:800;color:var(--navy);font-size:13.5px;margin:2px 0 4px;}
 .findsub{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px;max-width:640px;}
 .findmsg{font-size:12px;color:var(--muted);align-self:center;}
-.findlocwrap{margin-top:2px;padding-top:12px;border-top:1px dashed #e6d3cf;}
+.findlocwrap{margin-top:6px;}
+.findtool{background:linear-gradient(180deg,#f6f4ff,#efeaff);border:1px solid #ded6f5;border-radius:11px;padding:13px 15px;}
+.findtoolhd{font-weight:800;color:#5b46b8;font-size:13.5px;display:flex;align-items:center;}
+.aitag{display:inline-block;background:#5b46b8;color:#fff;font-size:9.5px;font-weight:800;letter-spacing:.05em;padding:2px 7px;border-radius:100px;margin-right:8px;text-transform:uppercase;}
+.findtoolsub{font-size:11.5px;color:#6a6088;line-height:1.5;margin:5px 0 11px;max-width:640px;}
 .findloc{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
-.findloc input{flex:1;min-width:200px;}
+.findcount{flex:none;max-width:150px;}
+.findbtn{background:#5b46b8;color:#fff;border:1px solid #5b46b8;border-radius:8px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .12s;} .findbtn:hover{background:#4a389c;} .findbtn:disabled{opacity:.6;cursor:default;}
 .findloctip{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:8px;max-width:640px;}
 .cb{padding:6px 0 4px;}
 .crow{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);}
@@ -312,7 +317,7 @@ function render(){
   document.getElementById('root').innerHTML=
     '<div class="mid">'+statTilesCo()
     + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="addContactBtn">+ Add contact</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
-    + '<div class="card"><div class="ch"><b>Concepts, Locations &amp; Commissaries</b><span>'+CONCEPTS.length+' concept'+(CONCEPTS.length===1?'':'s')+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn">+ Commissary</button><button class="addbtn" id="addConceptBtn">+ Add concept</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Concepts, Their Locations &amp; Commissaries</b><span>'+CONCEPTS.length+' concept'+(CONCEPTS.length===1?'':'s')+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn">+ Commissary</button><button class="addbtn" id="addConceptBtn">+ Add concept</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
     + '</div>'
     + '<div class="rail">'
     + '<div class="card"><div class="ch"><b>Listings</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
@@ -386,9 +391,9 @@ function openConceptForm(cpt){
     +'<div><label class="fld">Price point</label><select id="cp_price">'+priceOpts+'</select></div>'
     +'<div class="wide"><label class="fld">Logo</label>'+logoCtl+'</div>'
     +'<div class="wide" style="display:none"><label class="fld">Markets</label><div class="servegrid">'+mboxes+'</div></div>'
-    +'<div class="wide findlocwrap"><label class="fld">Find locations from the web <span style="text-transform:none;letter-spacing:0;color:var(--soft);font-weight:600">— optional</span></label>'
-      +'<div class="findloc"><input id="cp_findcount" placeholder="Approx. # of locations (optional)"><button type="button" class="mfadd" id="cp_find">✨ Find locations</button></div>'
-      +'<div class="findloctip">Confirm the website above, then '+esc(ASSISTANT)+' searches the web and adds a location record — address &amp; phone — for each unit it finds. Review and edit them after.</div></div>'
+    +'<div class="wide findlocwrap"><div class="findtool"><div class="findtoolhd"><span class="aitag">✨ AI tool</span>Auto-find locations from the web</div>'
+      +'<div class="findtoolsub">Confirm the website above, then '+esc(ASSISTANT)+' searches the web and adds a location record — address &amp; phone — for each unit it finds. Review and edit them after.</div>'
+      +'<div class="findloc"><input id="cp_findcount" class="findcount" placeholder="Approx. # (optional)"><button type="button" class="findbtn" id="cp_find">✨ Find locations</button></div></div></div>'
     +'</div><div class="cbtns">'+(isEdit?'<button class="sbtn" id="cp_done">Done</button>':'<button class="sbtn" id="cp_save">Add concept</button>')+'<button class="cbtn" id="cp_cancel">Cancel</button><span id="cp_msg" class="findmsg"></span></div></div>';
   f.removeAttribute('hidden'); expandCardOf(f);
   function drawLogoPrev(){ var u=document.getElementById('cp_logo').value.trim(); var p=document.getElementById('cp_logoprev'); p.innerHTML=u?('<img src="'+esc(u)+'" onerror="this.style.display=\'none\'">'):('<span class="cptlogo-mono" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">'+esc((document.getElementById('cp_name').value||'?').charAt(0).toUpperCase())+'</span>'); }
@@ -420,7 +425,7 @@ function conceptFind(cpt,isEdit){
   if(!name){ document.getElementById('cp_name').focus(); if(msg) msg.textContent='Name the concept first.'; return; }
   if(!website){ document.getElementById('cp_site').focus(); if(msg) msg.textContent='Add the concept’s website to search.'; return; }
   if(btn){ btn.disabled=true; btn.textContent='Searching…'; }
-  if(msg) msg.textContent='This can take up to a minute — the analyst is reading the site and map listings.';
+  if(msg) msg.textContent='This can take up to a minute — '+ASSISTANT+' is reading the site and map listings.';
   var markets=[]; document.querySelectorAll('.cp_mkt:checked').forEach(function(x){ markets.push(x.value); });
   var body={name:name,website:website,logo:document.getElementById('cp_logo').value.trim(),markets:markets,conceptType:cpVal('cp_ctype'),pricePoint:cpVal('cp_price'),cuisine:cpVal('cp_cuisine')};
   if(isEdit&&cpt&&cpt.id) body.id=cpt.id;
@@ -599,7 +604,7 @@ function runFindLocations(){
   var msg=document.getElementById('fd_msg');
   if(!concept){ document.getElementById('fd_concept').focus(); msg.textContent='Pick a concept first (add one above if none).'; return; }
   if(!website){ document.getElementById('fd_site').focus(); msg.textContent='A website is needed to search.'; return; }
-  var b=document.getElementById('fd_go'); b.disabled=true; b.textContent='Searching the web…'; msg.textContent='This can take up to a minute — the analyst is reading the site and map listings.';
+  var b=document.getElementById('fd_go'); b.disabled=true; b.textContent='Searching the web…'; msg.textContent='This can take up to a minute — '+ASSISTANT+' is reading the site and map listings.';
   fetch('/api/company/'+encodeURIComponent(ID)+'/find-locations',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({concept:concept,website:website,count:count})})
     .then(function(r){return r.json();}).then(function(j){
       if(j&&j.ok){ CONCEPTS=j.concepts||CONCEPTS; var cpt2=CONCEPTS.filter(function(x){return x.name===concept;})[0]; if(cpt2) EXPANDED[cpt2.id]=true; LOCATIONS=j.locations||LOCATIONS; render(); }

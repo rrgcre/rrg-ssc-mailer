@@ -81,15 +81,11 @@ tr:hover td{background:#fbfcfe;}
     <div id="m_dupe" class="dupe" hidden></div>
     <label class="mfld">Type</label><select id="m_type"></select>
     <label class="mfld">Lead source</label><input id="m_lead" list="leadsrclist" autocomplete="off" placeholder="Referral, CoStar, event"><datalist id="leadsrclist"></datalist>
-    <div class="mgrp">First concept <span class="mopt">— optional; single-brand operators fill this</span></div>
-    <label class="mfld">Concept / brand</label><input id="m_concept" autocomplete="off" placeholder="Often the same as the company">
+    <div class="mgrp">Main concept <span class="mopt">— the primary brand; its name + website let you auto-find locations later</span></div>
+    <label class="mfld">Concept / brand name</label><input id="m_concept" autocomplete="off" placeholder="Often the same as the company">
     <label class="mfld">Concept type</label><select id="m_conctype" style="width:100%;padding:9px 11px;border:1px solid #d5dbe6;border-radius:9px;font:inherit;background:#fff"></select>
     <label class="mfld">Cuisine</label><select id="m_cuisine" style="width:100%;padding:9px 11px;border:1px solid #d5dbe6;border-radius:9px;font:inherit;background:#fff"></select>
     <label class="mfld">Website</label><input id="m_website" autocomplete="off" placeholder="company.com — auto-pulls a logo">
-    <div class="mgrp">First location <span class="mopt">— optional</span></div>
-    <label class="mfld">Address</label><input id="m_addr" autocomplete="off" placeholder="Street address">
-    <div class="mrow2"><div><label class="mfld">City</label><input id="m_city" list="citylist" autocomplete="off"></div><div><label class="mfld">State</label><input id="m_state" autocomplete="off" maxlength="2" oninput="this.value=this.value.toUpperCase()" placeholder="TX"></div></div>
-    <label class="mfld">Zip</label><input id="m_zip" autocomplete="off" placeholder="ZIP" style="max-width:170px">
     <div class="mgrp">First contact <span class="mopt">— optional; most operators have just one</span></div>
     <div class="mrow2"><div><label class="mfld">First name</label><input id="m_cfirst" autocomplete="off"></div><div><label class="mfld">Last name</label><input id="m_clast" autocomplete="off"></div></div>
     <div class="mrow2"><div><label class="mfld">Nickname</label><input id="m_cnick" autocomplete="off"></div><div><label class="mfld">Title</label><input id="m_ctitle" list="titlelist" autocomplete="off"></div></div>
@@ -99,6 +95,10 @@ tr:hover td{background:#fbfcfe;}
     <label class="mfld">Preferred contact method</label><div id="m_pref" style="display:flex;gap:18px;font-size:13px;padding:4px 0 2px"><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="m_prefchk" value="phone"> Phone</label><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="m_prefchk" value="text"> Text</label><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="m_prefchk" value="email"> Email</label></div>
     <label class="mfld">Tags</label><div id="m_tagedit" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div><input id="m_ctag" list="taglist" autocomplete="off" placeholder="Type a tag, Enter to add">
     <label class="mfld">Notes</label><input id="m_cnotes" autocomplete="off">
+    <div class="mgrp">First location <span class="mopt">— optional</span></div>
+    <label class="mfld">Address</label><input id="m_addr" autocomplete="off" placeholder="Street address">
+    <div class="mrow2"><div><label class="mfld">City</label><input id="m_city" list="citylist" autocomplete="off"></div><div><label class="mfld">State</label><input id="m_state" autocomplete="off" maxlength="2" oninput="this.value=this.value.toUpperCase()" placeholder="TX"></div></div>
+    <label class="mfld">Zip</label><input id="m_zip" autocomplete="off" placeholder="ZIP" style="max-width:170px">
     <datalist id="citylist"></datalist><datalist id="titlelist"></datalist><datalist id="taglist"></datalist>
   </div>
   <div class="modalf"><button id="m_cancel" class="mbtn ghost">Cancel</button><button id="m_create" class="mbtn">Create company</button></div>

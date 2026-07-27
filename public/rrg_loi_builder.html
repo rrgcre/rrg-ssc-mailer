@@ -68,6 +68,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 .selcount{font-size:12px;color:var(--muted);}
 .aiov{position:fixed;inset:0;background:rgba(8,14,32,.5);display:flex;align-items:flex-start;justify-content:center;padding:34px 16px;z-index:300;overflow:auto;}
 .aiov[hidden]{display:none !important;}
+.aispin{width:16px;height:16px;border:2px solid #d7dce6;border-top-color:var(--navy,#000E31);border-radius:50%;display:inline-block;animation:aispin .7s linear infinite;flex:none;} @keyframes aispin{to{transform:rotate(360deg);}}
 .aimodal{background:#fff;border-radius:16px;width:100%;max-width:640px;box-shadow:0 24px 70px rgba(6,12,30,.4);}
 .aimh{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid #e6e9f0;}
 .aimb{padding:16px 18px;}
@@ -287,30 +288,42 @@ function aiLoiParse(){
 }
 (function(){ var x=document.getElementById('aip_x'); if(x) x.addEventListener('click',function(){ document.getElementById('aiov').hidden=true; }); var g=document.getElementById('aip_go'); if(g) g.addEventListener('click',aiLoiParse); var ov=document.getElementById('aiov'); if(ov) ov.addEventListener('click',function(e){ if(e.target===this) this.hidden=true; }); })();
 function showAiResult(title,html){ document.getElementById('airtitle').textContent=title; document.getElementById('airbody').innerHTML=html; document.getElementById('airov').hidden=false; }
-function loiSuggest(){ var btn=document.getElementById('sugBtn'); if(btn) btn.disabled=true; showAiResult('Suggested sections','<div style="color:#6b7488">'+esc(window.__rrgAssistant||'AI')+' is reviewing the deal…</div>');
-  fetch('/api/ai/loi-suggest',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:TYPE,dealInfo:VALUES})})
-   .then(function(r){return r.json();}).then(function(j){ if(btn) btn.disabled=false;
+// ---- Shared AI run state: shows a spinner + Cancel, lets the user abort, and
+// prevents a late response from re-opening a modal the user already closed. ----
+var AIREQ=null;
+function aiWorking(title){
+  document.getElementById('airtitle').textContent=title;
+  document.getElementById('airbody').innerHTML='<div style="display:flex;align-items:center;gap:11px;color:#6b7488;padding:4px 0"><span class="aispin"></span><span>'+esc(window.__rrgAssistant||'AI')+' is working… this can take a few seconds.</span></div><div style="margin-top:16px"><button type="button" class="btn" id="aiCancelBtn">Cancel</button></div>';
+  document.getElementById('airov').hidden=false;
+  var cb=document.getElementById('aiCancelBtn'); if(cb) cb.addEventListener('click',aiCancel);
+}
+function aiCancel(){ if(AIREQ){ try{ if(AIREQ.ctrl) AIREQ.ctrl.abort(); }catch(e){} if(AIREQ.btn) AIREQ.btn.disabled=false; AIREQ=null; } document.getElementById('airov').hidden=true; }
+function aiBegin(btn,title){ var ctrl=window.AbortController?new AbortController():null; AIREQ={ctrl:ctrl,btn:btn}; if(btn) btn.disabled=true; aiWorking(title); return AIREQ; }
+function aiActive(req){ if(AIREQ!==req) return false; if(req.btn) req.btn.disabled=false; AIREQ=null; return true; } // false ⇒ user cancelled; don't render
+function loiSuggest(){ var btn=document.getElementById('sugBtn'); var req=aiBegin(btn,'Suggested sections');
+  fetch('/api/ai/loi-suggest',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:TYPE,dealInfo:VALUES}),signal:req.ctrl?req.ctrl.signal:undefined})
+   .then(function(r){return r.json();}).then(function(j){ if(!aiActive(req)) return;
      if(!j||!j.ok){ showAiResult('Suggested sections',esc((j&&j.error)||'Could not suggest.')); return; }
      var rr=j.result||{}; var rec=Array.isArray(rr.recommend)?rr.recommend:[]; var applied=0;
      rec.forEach(function(x){ if(x&&x.id){ SEL[x.id]=true; applied++; } }); if(applied) render();
      var h=''; if(rec.length){ h+='<div style="font-weight:700;color:var(--navy);margin-bottom:8px">Checked '+applied+' section'+(applied===1?'':'s')+' for this deal:</div>'; h+=rec.map(function(x){return '<div style="margin-bottom:9px"><b>'+esc(x.title||'')+'</b><div style="color:#42506b;font-size:12.5px">'+esc(x.why||'')+'</div></div>';}).join(''); }
      var ci=Array.isArray(rr.customIdeas)?rr.customIdeas:[]; if(ci.length){ h+='<div style="font-weight:700;color:var(--navy);margin:14px 0 6px">Clauses worth adding:</div>'; h+=ci.map(function(x){return '<div style="margin-bottom:10px;background:#f6f4ff;border:1px solid #e2dcf6;border-radius:8px;padding:9px 11px"><b>'+esc(x.title||'')+'</b><div style="color:#42506b;font-size:12.5px;margin-top:3px">'+esc(x.clause||'')+'</div></div>';}).join(''); }
-     showAiResult('Suggested sections', h||'No extra sections needed for this deal.');
-   }).catch(function(){ if(btn) btn.disabled=false; showAiResult('Suggested sections','Network error.'); });
+     showAiResult('Suggested sections', h||'<div style="color:#1f8a5b;font-weight:600">✓ No extra sections needed — this deal already covers the essentials.</div>');
+   }).catch(function(e){ if(e&&e.name==='AbortError') return; if(!aiActive(req)) return; showAiResult('Suggested sections','Network error.'); });
 }
-function loiReview(){ var _rv=document.getElementById('revBtn'); function _rvwork(){ showAiResult('Review draft','<div style="color:#6b7488">'+esc(window.__rrgAssistant||'AI')+' is reviewing your draft…</div>'); } var dv=document.getElementById('docview'); var txt=(dv&&dv.textContent||'').trim(); if(!txt){ showAiResult('Review draft','Build the LOI first (click <b>Build LOI →</b>), then run the review.'); return; }
-  var btn=document.getElementById('revBtn'); if(btn) btn.disabled=true; _rvwork();
-  fetch('/api/ai/loi-review',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:txt})})
-   .then(function(r){return r.json();}).then(function(j){ if(btn) btn.disabled=false;
+function loiReview(){ var dv=document.getElementById('docview'); var txt=(dv&&dv.textContent||'').trim(); if(!txt){ showAiResult('Review draft','Build the LOI first (click <b>Build LOI →</b>), then run the review.'); return; }
+  var btn=document.getElementById('revBtn'); var req=aiBegin(btn,'Review draft');
+  fetch('/api/ai/loi-review',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:txt}),signal:req.ctrl?req.ctrl.signal:undefined})
+   .then(function(r){return r.json();}).then(function(j){ if(!aiActive(req)) return;
      if(!j||!j.ok){ showAiResult('Review draft',esc((j&&j.error)||'Could not review.')); return; }
      var rr=j.result||{}; var h=''; if(rr.verdict){ h+='<div style="font-weight:700;color:var(--navy);margin-bottom:10px">'+esc(rr.verdict)+'</div>'; }
      var col={high:'#DA2B1F',med:'#b5791f',low:'#6b7488'}; var fl=Array.isArray(rr.flags)?rr.flags:[];
      if(fl.length){ h+=fl.map(function(x){var sv=(x.severity||'low').toLowerCase(); var c=col[sv]||'#6b7488'; return '<div style="margin-bottom:9px;border-left:3px solid '+c+';padding-left:10px"><b style="color:'+c+'">'+sv.toUpperCase()+'</b> '+esc(x.issue||'')+(x.fix?'<div style="color:#42506b;font-size:12.5px;margin-top:2px">Fix: '+esc(x.fix)+'</div>':'')+'</div>';}).join(''); }
      var ms=Array.isArray(rr.missing)?rr.missing.filter(Boolean):[]; if(ms.length){ h+='<div style="font-weight:700;color:var(--navy);margin:12px 0 6px">Possibly missing:</div><ul style="margin:0;padding-left:18px;color:#42506b;font-size:12.5px">'+ms.map(function(x){return '<li>'+esc(x)+'</li>';}).join('')+'</ul>'; }
-     showAiResult('Review draft', h||'No issues flagged — looks clean.');
-   }).catch(function(){ if(btn) btn.disabled=false; showAiResult('Review draft','Network error.'); });
+     showAiResult('Review draft', h||'<div style="color:#1f8a5b;font-weight:600">✓ No issues flagged — looks clean.</div>');
+   }).catch(function(e){ if(e&&e.name==='AbortError') return; if(!aiActive(req)) return; showAiResult('Review draft','Network error.'); });
 }
-(function(){ var x=document.getElementById('airx'); if(x) x.addEventListener('click',function(){ document.getElementById('airov').hidden=true; }); var ov=document.getElementById('airov'); if(ov) ov.addEventListener('click',function(e){ if(e.target===this) this.hidden=true; }); })();
+(function(){ var x=document.getElementById('airx'); if(x) x.addEventListener('click',aiCancel); var ov=document.getElementById('airov'); if(ov) ov.addEventListener('click',function(e){ if(e.target===this) aiCancel(); }); })();
 function negoPill(st){ st=st||'Draft'; var c=({Draft:['#eef1f6','#6b7488'],Sent:['#e8f0fd','#2f6fd0'],Countered:['#fdf1df','#b5791f'],Negotiating:['#f3edfb','#7a4fd0'],Accepted:['#e7f5ee','#1f8a5b'],Dead:['#f3f4f7','#98a1b5']})[st]||['#eef1f6','#6b7488']; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px">'+esc(st)+'</span>'; }
 function termColor(st){ return ({Open:['#eef1f6','#6b7488'],Proposed:['#e8f0fd','#2f6fd0'],Accepted:['#e7f5ee','#1f8a5b'],Countered:['#fdf1df','#b5791f'],Rejected:['#fdeceb','#DA2B1F']})[st||'Open']||['#eef1f6','#6b7488']; }
 function openNego(id){ var body=document.getElementById('negoBody'); body.innerHTML='<div style="color:#6b7488;padding:20px">Loading…</div>'; document.getElementById('negov').hidden=false; fetch('/api/loi/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ body.innerHTML='<div style="color:#a5352c;padding:20px">'+esc((j&&j.error)||'Could not load.')+'</div>'; return; } NEGO={id:id,loi:j.loi||{},terms:j.terms||[],statuses:j.statuses||['Draft','Sent','Countered','Negotiating','Accepted','Dead'],termStates:j.termStates||['Open','Proposed','Accepted','Countered','Rejected']}; var l=NEGO.loi; document.getElementById('negoTitle').textContent=(l.type==='business_sale'?'Business Sale':'Tenant Rep')+(l.property?(' — '+l.property):'')+' · Negotiation'; renderNego(); }).catch(function(){ body.innerHTML='<div style="color:#a5352c;padding:20px">Network error.</div>'; }); }
