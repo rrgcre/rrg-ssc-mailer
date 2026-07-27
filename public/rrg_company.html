@@ -19,6 +19,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .hpill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:4px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.3);color:#fff;background:rgba(255,255,255,.08);}
 .wrap{max-width:none;margin:16px 0 0;padding:0 24px 60px;display:grid;grid-template-columns:360px minmax(0,1fr) 340px;gap:20px;align-items:start;}
 .side{order:-1;} .side,.mid,.rail{min-width:0;}
+.cobacktop{grid-column:1/-1;order:-2;justify-self:start;display:inline-flex;align-items:center;gap:6px;color:var(--navy);text-decoration:none;font-size:13px;font-weight:500;padding:7px 13px;border:1px solid var(--line);border-radius:8px;background:#fff;} .cobacktop:hover{background:#f4f7fb;border-color:#9fb0cc;}
 @media(max-width:1250px){.wrap{grid-template-columns:1fr;}}
 .tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:16px;}
 .tile{background:#fff;border:1px solid #e9edf3;border-radius:12px;padding:15px 16px;box-shadow:0 1px 2px rgba(16,24,40,.04);}
@@ -166,7 +167,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
-<!--rrgback--><a href="./rrg_companies.html" class="rrg-back" aria-label="Back to companies" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Companies</a>
+<!--rrgback--><a href="./rrg_companies.html" class="rrg-back" aria-label="Back to companies" style="position:fixed;right:22px;bottom:22px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Companies</a>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="crumb"><a href="./rrg_companies.html">&#8592; Companies</a> &nbsp;›&nbsp; <span id="crumb">Company</span></div>
@@ -308,7 +309,8 @@ function render(){
   var mkset={}; CONCEPTS.forEach(function(cp){ (cp.markets||[]).forEach(function(m){ if(m) mkset[m]=1; }); }); var markets=Object.keys(mkset);
   document.getElementById('root').className='wrap';
   document.getElementById('root').innerHTML=
-    '<div class="mid">'+statTilesCo()
+    '<a class="cobacktop" href="./rrg_companies.html">&#8592; Companies</a>'
+    +'<div class="mid">'+statTilesCo()
     + '<div class="card"><div class="ch"><b>Concepts, Locations &amp; Commissaries</b><span>'+CONCEPTS.length+' concept'+(CONCEPTS.length===1?'':'s')+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn">+ Commissary</button><button class="addbtn" id="addConceptBtn">+ Add concept</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
     + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="addContactBtn">+ Add contact</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
     + '</div>'
