@@ -120,5 +120,35 @@ async function resolveConcept({ name, market, conceptTypes, cuisines }) {
   };
 }
 
+const GROUP_SYSTEM = `You are a diligence researcher for Restaurant Realty Group (RRG), a brokerage specializing in restaurants and bars. Given the name of a restaurant GROUP, hospitality company, or operator (and optionally its website and market), use web search to identify EVERY distinct restaurant/bar CONCEPT (brand) the group owns or operates.
+
+Start with the group's OWN official website — look for an \"Our Restaurants\", \"Our Concepts\", \"Brands\", \"Concepts\", or \"Portfolio\" page — and corroborate with press and directories.
+
+Return a SINGLE JSON object — no prose, no markdown fences — with EXACTLY this shape:
+{\"concepts\":[{\"name\":\"the brand's consumer-facing name\",\"website\":\"the brand's official site or empty\",\"cuisine\":\"short cuisine label or empty\",\"note\":\"one short line\"}]}
+
+Rules:
+- List EVERY distinct brand you can confirm the group operates — a group usually has several.
+- Do NOT include the parent/holding-company name itself unless it is also a restaurant people dine at.
+- Use each brand's real consumer-facing name, once. Never invent brands or websites. If you cannot confirm any, return {\"concepts\":[]}.
+- Output the JSON object only.`;
+
+async function findGroupConcepts({ name, website, market }) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error('ANTHROPIC_API_KEY is not set on the server.');
+  const ask = 'Find every restaurant/bar concept this group operates and return the JSON.\n' + JSON.stringify({ group: name || '', website: website || '', market: market || '' });
+  const resp = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: MODEL, max_tokens: 1500, temperature: 0.1, system: [{ type: 'text', text: GROUP_SYSTEM }], tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 6 }], messages: [{ role: 'user', content: ask }] }),
+  });
+  if (!resp.ok) { const t = await resp.text().catch(() => ''); throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 400)); }
+  const data = await resp.json();
+  const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
+  const a = extractJson(text) || {};
+  const arr = Array.isArray(a.concepts) ? a.concepts : [];
+  return arr.map(c => ({ name: String((c && c.name) || '').slice(0, 120).trim(), website: String((c && c.website) || '').slice(0, 300).trim(), cuisine: String((c && c.cuisine) || '').slice(0, 60).trim(), note: String((c && c.note) || '').slice(0, 200) })).filter(c => c.name);
+}
+
 function setModel(m){ if (m) MODEL = String(m); }
-module.exports = { setModel,  findLocations, resolveConcept, MODEL, DEFAULT_SYSTEM: SYSTEM };
+module.exports = { setModel,  findLocations, resolveConcept, findGroupConcepts, MODEL, DEFAULT_SYSTEM: SYSTEM };

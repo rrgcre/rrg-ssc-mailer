@@ -3731,7 +3731,7 @@ app.post('/api/company/:id/find-locations', express.json(), async (req, res) => 
 // Given just a concept name, use AI web search to resolve the official website, concept
 // type, cuisine, and price point. Returned values are validated against the allowed lists.
 app.post('/api/ai/find-concepts', express.json(), async (req, res) => {
-  try { const b = req.body || {}; const concepts = await aiassist.findGroupConcepts({ name: b.name || '', website: b.website || '' }); res.json({ ok: true, concepts: concepts }); }
+  try { const b = req.body || {}; const concepts = await locationgen.findGroupConcepts({ name: b.name || '', website: b.website || '', market: b.market || '' }); res.json({ ok: true, concepts: concepts }); }
   catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });
 app.post('/api/company/:id/find-concepts', express.json(), async (req, res) => {
@@ -3739,7 +3739,7 @@ app.post('/api/company/:id/find-concepts', express.json(), async (req, res) => {
     if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'You do not have access to AI features.' });
     const c = loadCompanies().find(function(x){ return x.id === req.params.id; });
     if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
-    const concepts = await aiassist.findGroupConcepts({ name: c.name || '', website: (c.office && c.office.website) || '' });
+    const concepts = await locationgen.findGroupConcepts({ name: c.name || '', website: (c.office && c.office.website) || '' });
     res.json({ ok: true, concepts: concepts });
   } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });
