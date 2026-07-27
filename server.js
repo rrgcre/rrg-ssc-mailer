@@ -89,7 +89,7 @@ function ownsDeal(req, d) {
 // tours, NDAs, and data-room buyers all link back to a person by personId, so the same
 // buyer connects across every deal they touch.
 const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
-const PERSON_TYPES = ['Buyer', 'Seller', 'Investor', 'Broker', 'Referral Source', 'Other'];
+const PERSON_TYPES = ['Buyer', 'Seller', 'Tenant', 'Investor', 'Broker', 'Referral Source', 'Other'];
 const LEAD_SOURCES = ['Referral', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
 const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'LOI Sent', 'LOI Received', 'LOI Countered', 'LOI Accepted', 'Diligence', 'Note', 'To-Do'];
 const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Burgers', 'BBQ', 'Steakhouse', 'Seafood', 'Chinese', 'Japanese / Sushi', 'Thai', 'Vietnamese', 'Korean', 'Indian', 'Mediterranean', 'Greek', 'Southern / Soul', 'Breakfast / Brunch', 'Coffee / Cafe', 'Hawaiian', 'Desserts', 'Bar / Lounge'];
@@ -171,7 +171,7 @@ function companyContactRow(p) { return { id: p.id, name: p.name, firstName: pers
 // Companies — a company / account file that groups its associated contacts (people) and
 // its deals. Created at onboarding (the subject business), reusable across deals.
 const COMPANIES_FILE = path.join(BOV_DATA_DIR, 'companies.json');
-const COMPANY_TYPES = ['Seller', 'Buyer'];
+const COMPANY_TYPES = ['Seller', 'Buyer', 'Tenant'];
 function loadCompanies() { try { return JSON.parse(fs.readFileSync(COMPANIES_FILE, 'utf8')); } catch (e) { return []; } }
 function saveCompanies(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(COMPANIES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newCompanyId() { return 'co_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
