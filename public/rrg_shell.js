@@ -49,6 +49,7 @@
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
       { ic: '▤', label: 'Admin console', href: 'admin' },
       { ic: '◫', label: 'Departments', href: 'rrg_departments.html' },
+      { ic: '☺', label: 'Users', href: 'rrg_roles.html' },
       { ic: '◔', label: 'Roles', href: 'rrg_roles.html' },
       { ic: '⚙', label: 'Settings', href: 'rrg_admin_settings.html' }
     ] }

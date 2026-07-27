@@ -40,6 +40,12 @@ input,textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10p
 .tagchip{display:inline-flex;align-items:center;gap:2px;}
 .tagchip .tmv{border:none;background:transparent;color:#98a1b5;cursor:pointer;font-size:15px;font-weight:800;padding:0 1px;line-height:1;} .tagchip .tmv:hover{color:#DA2B1F;}
 .tagchip .tglbl{padding:0 2px;}
+.sectionhd{font-size:11.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);margin:30px 2px 13px;display:flex;align-items:center;gap:12px;}
+.sectionhd:first-child{margin-top:2px;}
+.sectionhd:after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),rgba(230,233,240,0));}
+.ch{background:var(--wash);}
+.card{transition:box-shadow .15s,border-color .15s;} .card:hover{box-shadow:0 10px 30px rgba(10,20,50,.09);}
+.card.danger{border-color:#f2cdc9;} .card.danger>.ch{background:#fdefed;border-bottom-color:#f5d7d3;} .card.danger>.ch b{color:var(--red);}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -142,7 +148,8 @@ function resetBook(){
 
 function build(){
   document.getElementById('root').innerHTML=
-    '<div class="card"><div class="ch"><b>Type lists</b><span>— contact types, company types, and request categories used across the app</span></div><div class="cb">'
+    '<div class="sectionhd">Customization</div>'
+    +'<div class="card"><div class="ch"><b>Type lists</b><span>— contact types, company types, and request categories used across the app</span></div><div class="cb">'
     +'<div id="typesBox"></div>'
     +'<div class="btnrow"><button class="btn" id="typesSave">Save type lists</button><button class="btn ghost" id="typesReset">Reset to defaults</button><span class="msg" id="typesMsg"></span></div>'
     +'<div class="note">“Restaurant Owner” and “Referral Source” are already in the default contact types. Renaming a value here does not change contacts already saved with the old value.</div>'
@@ -162,6 +169,7 @@ function build(){
     +'<div class="btnrow"><button class="btn" id="tlSave">Save tool names</button><button class="btn ghost" id="tlReset">Reset to defaults</button><span class="msg" id="tlMsg"></span></div>'
     +'<div class="note">Leave a box blank to keep the built-in name. This changes the dashboard label; the tool&rsquo;s own page keeps its heading.</div>'
     +'</div></div>'
+    +'<div class="sectionhd">Setup &amp; notifications</div>'
     +'<div class="card"><div class="ch"><b>Request notifications</b><span>— who gets emailed when a new office request comes in</span></div><div class="cb">'
     +'<label class="fld">Services email(s)</label><input id="svcEmails" placeholder="van@rrgcre.com, avery@rrgcre.com">'
     +'<div class="btnrow"><button class="btn" id="svcSave">Save recipients</button><span class="msg" id="svcMsg"></span></div>'
@@ -173,7 +181,8 @@ function build(){
     +'<div class="btnrow"><button class="btn" id="keySave">Save key</button><button class="btn ghost" id="keyClear">Clear saved key</button><span class="msg" id="keyMsg"></span></div>'
     +'<div class="note">A key saved here is stored on the server data disk and overrides the ANTHROPIC_API_KEY environment variable. For security the current key is never shown back.</div>'
     +'</div></div>'
-    +'<div class="card"><div class="ch"><b>Reset the book</b><span>— danger zone</span></div><div class="cb">'
+    +'<div class="sectionhd">Danger zone</div>'
+    +'<div class="card danger"><div class="ch"><b>Reset the book</b><span>— permanent, no undo</span></div><div class="cb">'
     +'<div class="note" style="margin-top:0">Permanently deletes <b>all companies, concepts, and locations</b> and their photos. Contacts and deals are kept. There is no undo.</div>'
     +'<label class="fld" style="margin-top:12px">Type RESET to confirm</label><input id="resetConfirm" placeholder="RESET" autocomplete="off" style="max-width:220px">'
     +'<div class="btnrow"><button class="btn danger" id="resetBtn">Delete all companies / concepts / locations</button><span class="msg" id="resetMsg"></span></div>'
