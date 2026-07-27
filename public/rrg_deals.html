@@ -16,6 +16,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 h1{font-size:26px;font-weight:800;margin:5px 0 0;}
 .sub{color:#bfe0cd;font-size:13px;margin-top:6px;}
 .wrap{max-width:1080px;margin:20px auto 60px;padding:0 28px;}
+.tiles{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px;}
+@media(max-width:760px){.tiles{grid-template-columns:repeat(3,1fr);}}
+.tile{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;cursor:pointer;box-shadow:0 1px 2px rgba(16,24,40,.04);transition:border-color .12s,box-shadow .12s;}
+.tile:hover{border-color:#cfd6e2;}
+.tile.on{border-color:var(--green);box-shadow:inset 0 0 0 1px var(--green);}
+.tile b{display:block;font-size:20px;color:var(--navy);font-weight:800;line-height:1.1;}
+.tile span{font-size:11.5px;color:var(--muted);font-weight:700;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;}
 .hd{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;}
 .hd b{color:var(--navy);font-size:14px;}
@@ -33,6 +40,7 @@ h1{font-size:26px;font-weight:800;margin:5px 0 0;}
   <div class="sub">Every buyer transaction across your listings — price, status, close, and commission due &amp; paid. Each becomes an invoice at closing.</div>
 </div></div>
 <div class="wrap">
+  <div class="tiles" id="tiles"></div>
   <div class="card"><div class="hd"><b>Deals</b><span class="meta" id="cnt"></span></div><div class="cb"><div id="list"><div class="empty">Loading…</div></div></div></div>
 </div>
 <script>
@@ -41,25 +49,39 @@ function fmtd(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-')
 function stColor(s){ var m={'LOI':['#eef2fb','#2647b0'],'Under Contract':['#fff4e6','#b9761a'],'Due Diligence':['#f1ebfb','#6d28d9'],'Financing':['#e6f5f3','#0f766e'],'Closing':['#fff7e0','#9a7400'],'Closed':['#e7f5ee','#1f8a5b'],'Dead':['#fdeceb','#DA2B1F']}; return m[s]||['#eef1f6','#5b6472']; }
 function commColor(s){ var m={'Unpaid':['#fdeceb','#DA2B1F'],'Invoiced':['#fff4e6','#b9761a'],'Partial':['#fff7e0','#9a7400'],'Paid':['#e7f5ee','#1f8a5b']}; return m[s]||['#eef1f6','#5b6472']; }
 function pill(s,c){ if(!s) return '<span class="meta">—</span>'; return '<span class="pill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(s)+'</span>'; }
-var CTL=null;
+
+var ALL=[], FILTER='', CTL=null;
+var DEFS=[
+  ['', 'All deals', function(){return true;}],
+  ['uc', 'Under contract', function(d){return d.status==='Under Contract';}],
+  ['closing', 'Closing', function(d){return d.status==='Closing';}],
+  ['closed', 'Closed', function(d){return d.status==='Closed';}],
+  ['due', 'Commission due', function(d){return ['Unpaid','Invoiced','Partial'].indexOf(d.commissionStatus||'')>=0;}],
+  ['paid', 'Paid', function(d){return d.commissionStatus==='Paid';}]
+];
+function filterFn(){ var f=DEFS.filter(function(x){return x[0]===FILTER;})[0]; return f?f[2]:function(){return true;}; }
+function renderTiles(){
+  document.getElementById('tiles').innerHTML=DEFS.map(function(x){ var c=ALL.filter(x[2]).length; return '<div class="tile'+(FILTER===x[0]?' on':'')+'" data-f="'+x[0]+'"><b>'+c+'</b><span>'+esc(x[1])+'</span></div>'; }).join('');
+  document.querySelectorAll('#tiles .tile').forEach(function(t){ t.addEventListener('click',function(){ var f=t.getAttribute('data-f'); FILTER=(FILTER===f)?'':f; renderTiles(); applyFilter(); }); });
+}
+function cfg(data){ return { mount:'#list', data:data, key:'dealsboard',
+  empty:'<div class="empty">No deals here. Open a listing and, under the <b>Deal</b> card, click <b>Open deal</b> when a buyer goes under contract.</div>',
+  rowId:function(d){return d.key;}, defaultSort:5, defaultDir:-1,
+  columns:[
+    { label:'Listing', sort:function(a,b){return RRGList.cmp(a.business,b.business);}, cell:function(d){ return '<a class="lk" href="./rrg_assignment.html?key='+encodeURIComponent(d.key)+'">'+esc(d.business||'Listing')+'</a>'; } },
+    { label:'Buyer', sort:function(a,b){return RRGList.cmp(a.buyer,b.buyer);}, cell:function(d){ if(!d.buyer) return '<span class="meta">—</span>'; var nm=d.personId?('<a class="lk" href="./rrg_person.html?id='+encodeURIComponent(d.personId)+'">'+esc(d.buyer)+'</a>'):esc(d.buyer); return nm+(d.buyerCompany?('<div class="meta">'+esc(d.buyerCompany)+'</div>'):''); } },
+    { label:'Price', sort:function(a,b){return RRGList.cmp(a.price,b.price);}, cell:function(d){ return d.price?esc(d.price):'<span class="meta">—</span>'; } },
+    { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, cell:function(d){ return pill(d.status,stColor(d.status)); } },
+    { label:'Close', sort:function(a,b){return RRGList.cmp(a.closedDate||a.expectedClose||'',b.closedDate||b.expectedClose||'');}, cell:function(d){ var dt=d.closedDate||d.expectedClose; return dt?('<span class="meta">'+(d.closedDate?'':'~ ')+esc(fmtd(dt))+'</span>'):'<span class="meta">—</span>'; } },
+    { label:'Commission due', sort:function(a,b){return RRGList.cmp(a.commissionDue,b.commissionDue);}, cell:function(d){ return d.commissionDue?esc(d.commissionDue):'<span class="meta">—</span>'; } },
+    { label:'Commission paid', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.commissionPaid,b.commissionPaid);}, cell:function(d){ return d.commissionPaid?esc(d.commissionPaid):'<span class="meta">—</span>'; } },
+    { label:'Commission', sort:function(a,b){return RRGList.cmp(a.commissionStatus,b.commissionStatus);}, cell:function(d){ return pill(d.commissionStatus,commColor(d.commissionStatus)); } },
+    { label:'Rate', defaultHidden:true, sortable:false, cell:function(d){ return d.commissionRate?esc(d.commissionRate):'<span class="meta">—</span>'; } }
+  ]
+}; }
+function applyFilter(){ var data=ALL.filter(filterFn()); document.getElementById('cnt').textContent=data.length?(data.length+' deal'+(data.length===1?'':'s')):''; if(CTL) CTL.refresh(data); else CTL=RRGList.create(cfg(data)); }
 fetch('/api/deals',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-  var data=(j&&j.deals)||[];
-  document.getElementById('cnt').textContent=data.length?(data.length+' deal'+(data.length===1?'':'s')):'';
-  CTL=RRGList.create({ mount:'#list', data:data, key:'dealsboard', countEl:'#cnt',
-    empty:'<div class="empty">No deals yet. Open a listing and, under the <b>Deal</b> card, click <b>Open deal</b> when a buyer goes under contract.</div>',
-    rowId:function(d){return d.key;}, defaultSort:5, defaultDir:-1,
-    columns:[
-      { label:'Listing', sort:function(a,b){return RRGList.cmp(a.business,b.business);}, cell:function(d){ return '<a class="lk" href="./rrg_assignment.html?key='+encodeURIComponent(d.key)+'">'+esc(d.business||'Listing')+'</a>'; } },
-      { label:'Buyer', sort:function(a,b){return RRGList.cmp(a.buyer,b.buyer);}, cell:function(d){ if(!d.buyer) return '<span class="meta">—</span>'; var nm=d.personId?('<a class="lk" href="./rrg_person.html?id='+encodeURIComponent(d.personId)+'">'+esc(d.buyer)+'</a>'):esc(d.buyer); return nm+(d.buyerCompany?('<div class="meta">'+esc(d.buyerCompany)+'</div>'):''); } },
-      { label:'Price', sort:function(a,b){return RRGList.cmp(a.price,b.price);}, cell:function(d){ return d.price?esc(d.price):'<span class="meta">—</span>'; } },
-      { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, cell:function(d){ return pill(d.status,stColor(d.status)); } },
-      { label:'Close', sort:function(a,b){return RRGList.cmp(a.closedDate||a.expectedClose||'',b.closedDate||b.expectedClose||'');}, cell:function(d){ var dt=d.closedDate||d.expectedClose; return dt?('<span class="meta">'+(d.closedDate?'':'~ ')+esc(fmtd(dt))+'</span>'):'<span class="meta">—</span>'; } },
-      { label:'Commission due', sort:function(a,b){return RRGList.cmp(a.commissionDue,b.commissionDue);}, cell:function(d){ return d.commissionDue?esc(d.commissionDue):'<span class="meta">—</span>'; } },
-      { label:'Commission paid', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.commissionPaid,b.commissionPaid);}, cell:function(d){ return d.commissionPaid?esc(d.commissionPaid):'<span class="meta">—</span>'; } },
-      { label:'Commission', sort:function(a,b){return RRGList.cmp(a.commissionStatus,b.commissionStatus);}, cell:function(d){ return pill(d.commissionStatus,commColor(d.commissionStatus)); } },
-      { label:'Rate', defaultHidden:true, sortable:false, cell:function(d){ return d.commissionRate?esc(d.commissionRate):'<span class="meta">—</span>'; } }
-    ]
-  });
+  ALL=(j&&j.deals)||[]; renderTiles(); applyFilter();
 }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not load deals.</div>'; });
 </script>
 </body>
