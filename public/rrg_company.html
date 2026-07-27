@@ -511,7 +511,7 @@ function runBuildConcepts(names,metro,count){
   _cbStop=false; var i=0, ok=0, notes=[];
   aiShow('Starting on '+names.length+' concept'+(names.length===1?'':'s')+'…', function(){ _cbStop=true; });
   function J(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}); }
-  function done(){ aiHide(); var f=document.getElementById('conceptForm'); if(f){ f.setAttribute('hidden','');f.innerHTML=''; } render(); }
+  function done(){ aiHide(); var f=document.getElementById('conceptForm'); if(f){ f.setAttribute('hidden','');f.innerHTML=''; } render(); if(!_cbStop){ if(ok===0){ alert('No concepts were built. Make sure the AI key is set (Admin → API keys), then try again — or add a concept manually with “+ Add concept”.'); } else if(notes.length){ alert('Built '+ok+' concept'+(ok===1?'':'s')+'. Could not fully build: '+notes.join(', ')); } } }
   function step(){
     if(_cbStop || i>=names.length){ done(); return; }
     var nm=names[i];

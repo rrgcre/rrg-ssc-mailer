@@ -84,7 +84,7 @@ tr:hover td{background:#fbfcfe;}
     <div class="mgrp">First contact <span class="mopt">— optional; most operators have just one</span></div>
     <div class="mrow2"><div><label class="mfld">First name</label><input id="m_cfirst" autocomplete="off"></div><div><label class="mfld">Last name</label><input id="m_clast" autocomplete="off"></div></div>
     <div class="mrow2"><div><label class="mfld">Nickname</label><input id="m_cnick" autocomplete="off"></div><div><label class="mfld">Title</label><input id="m_ctitle" list="titlelist" autocomplete="off"></div></div>
-    <div class="mrow2"><div><label class="mfld">Contact type</label><select id="m_ctype"></select></div><div><label class="mfld">Phone</label><input id="m_cphone" autocomplete="off" inputmode="numeric"></div></div>
+    <label class="mfld">Phone</label><input id="m_cphone" autocomplete="off" inputmode="numeric">
     <label class="mfld">Email</label><input id="m_cemail" autocomplete="off">
     <label class="mfld">Preferred contact method</label><div id="m_pref" style="display:flex;gap:18px;font-size:13px;padding:4px 0 2px"><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="m_prefchk" value="phone"> Phone</label><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="m_prefchk" value="text"> Text</label><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="m_prefchk" value="email"> Email</label></div>
     <div class="mrow2"><div><label class="mfld">Lead source</label><input id="m_clead" list="cleadList" autocomplete="off" placeholder="Referral, CoStar, event…"><datalist id="cleadList"></datalist></div><div id="crefbyCell" style="display:none"><label class="mfld">Referred by</label><input id="m_crefby" list="crefbyList" autocomplete="off" placeholder="Type a contact name…"><datalist id="crefbyList"></datalist></div></div>
@@ -177,7 +177,7 @@ function setupCReferral(){
 }
 function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=CTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
   var cu=document.getElementById('m_cuisine'); if(cu) cu.innerHTML='<option value="">— cuisine (optional) —</option>'+CUISINE.map(function(m){return '<option>'+esc(m)+'</option>';}).join(''); var cty=document.getElementById('m_conctype'); if(cty) cty.innerHTML='<option value="">— concept type (optional) —</option>'+CONCEPTTYPES.map(function(m){return '<option>'+esc(m)+'</option>';}).join(''); var lsd=document.getElementById('leadsrclist'); if(lsd) lsd.innerHTML=(LEADSOURCES||[]).map(function(m){return '<option value="'+esc(m)+'">';}).join('');
-  var cc=document.getElementById('m_concept'); if(cc){ cc.value=''; cc.dataset.auto='1'; }
+  var mcs0=document.getElementById('m_concepts'); if(mcs0){ mcs0.dataset.auto='1'; }
   ['m_concepts','m_metro','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   var ct=document.getElementById('m_ctype'); if(ct) ct.innerHTML='<option value="">— select —</option>'+PERSONTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
   function fillDL(id,arr){ var el=document.getElementById(id); if(el) el.innerHTML=(arr||[]).map(function(v){return '<option value="'+esc(v)+'"></option>';}).join(''); }
@@ -194,8 +194,7 @@ function createCompany(){
   var metro=((document.getElementById('m_metro')||{}).value||'').trim();
   var cfirst=(document.getElementById('m_cfirst').value||'').trim(), clast=(document.getElementById('m_clast').value||'').trim();
   var cnick=(document.getElementById('m_cnick').value||'').trim(), ctitle=(document.getElementById('m_ctitle').value||'').trim(), cphone=(document.getElementById('m_cphone').value||'').trim(), cemail=(document.getElementById('m_cemail').value||'').trim(), cnotes=(document.getElementById('m_cnotes').value||'').trim();
-  var ctype=(document.getElementById('m_ctype')||{}).value||''; var ctags=MTAGS.slice(); var cpref=[]; document.querySelectorAll('.m_prefchk').forEach(function(c){ if(c.checked) cpref.push(c.value); }); { var _pend=(document.getElementById('m_ctag').value||'').trim(); if(_pend&&ctags.map(function(x){return x.toLowerCase();}).indexOf(_pend.toLowerCase())<0) ctags.push(_pend); }
-  if(cfirst&&clast&&!ctype){ b.disabled=false; b.textContent='Create company'; alert('Pick a contact type for the first contact (or clear the name to skip adding a contact).'); document.getElementById('m_ctype').focus(); return; }
+  var ctype=document.getElementById('m_type').value; var ctags=MTAGS.slice(); var cpref=[]; document.querySelectorAll('.m_prefchk').forEach(function(c){ if(c.checked) cpref.push(c.value); }); { var _pend=(document.getElementById('m_ctag').value||'').trim(); if(_pend&&ctags.map(function(x){return x.toLowerCase();}).indexOf(_pend.toLowerCase())<0) ctags.push(_pend); }
   function J(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}); }
   J('/api/company',{name:name,type:document.getElementById('m_type').value,leadSource:(document.getElementById('m_lead')||{}).value||''})
     .then(function(j){
@@ -216,8 +215,8 @@ function deleteCompany(id,name,deals){
 document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.codel[data-del]'); if(b){ e.preventDefault(); deleteCompany(b.getAttribute('data-del'),b.getAttribute('data-name'),Number(b.getAttribute('data-deals'))||0); } });
 document.getElementById('newBtn').addEventListener('click',openModal);
 document.getElementById('m_name').addEventListener('input',checkDupe);
-document.getElementById('m_name').addEventListener('input',function(){ var cc=document.getElementById('m_concept'); if(cc&&cc.dataset.auto==='1') cc.value=this.value; });
-var _mc=document.getElementById('m_concept'); if(_mc) _mc.addEventListener('input',function(){ this.dataset.auto=''; });
+document.getElementById('m_name').addEventListener('input',function(){ var mcs=document.getElementById('m_concepts'); if(mcs&&mcs.dataset.auto==='1') mcs.value=this.value; });
+var _mc=document.getElementById('m_concepts'); if(_mc) _mc.addEventListener('input',function(){ this.dataset.auto=''; });
 document.getElementById('m_cancel').addEventListener('click',closeModal);
 document.getElementById('m_create').addEventListener('click',createCompany);
 (function(){ var ti=document.getElementById('m_ctag'); if(ti){ ti.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===','){ e.preventDefault(); addMTag(ti.value); ti.value=''; } }); ti.addEventListener('change',function(){ if(ti.value){ addMTag(ti.value); ti.value=''; } }); } var ph=document.getElementById('m_cphone'); if(ph){ ph.addEventListener('input',function(){ ph.value=mfmtPhone(ph.value); }); } })();
