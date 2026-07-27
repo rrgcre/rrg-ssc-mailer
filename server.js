@@ -3174,7 +3174,7 @@ app.get('/api/companies', (req, res) => {
     return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, contacts: people.filter(p => p.companyId === c.id).length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, mainContactId: c.mainContactId || '', mainContact: (c.mainContactId && (people.find(p => p.id === c.mainContactId) || {}).name) || '', createdAt: c.createdAt };
   });
   const _cities = {}; cos.forEach(c => { if (c.office && c.office.city) _cities[c.office.city] = 1; (c.locations || []).forEach(l => { if (l.city) _cities[l.city] = 1; }); }); const _titles = {}; people.forEach(pp => { if (pp.title) _titles[pp.title] = 1; });
-  res.json({ ok: true, companies: rows, types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: CONCEPT_TYPES, leadSources: effLeadSources(), defaultState: effDefaultState(), personTypes: effPersonTypes(), cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, companies: rows, types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: CONCEPT_TYPES, leadSources: effLeadSources(), defaultState: effDefaultState(), personTypes: effPersonTypes(), metros: RRG_METROS, cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // A person's full cross-book view: their company, the deals where they're the client,
 // and every offer / tour / NDA they're linked to across all deals.
@@ -3696,16 +3696,16 @@ app.post('/api/company/:id/find-locations', express.json(), async (req, res) => 
     const gkey = loadGmapsKey();
     let photos = 0;
     if (gkey && created.length) { for (const l of created.slice(0, 40)) { try { const pr = await pullPhotosForLocation(gkey, l); if (pr.added) photos++; } catch (e) {} } }
-    // While we're pulling info from the concept's website, try to grab its logo too —
-    // but only if the concept has no logo yet AND a real logo is actually found (we verify
-    // the clearbit URL returns an image rather than a 404, so we never store a dead link).
+    // While we're pulling info from the concept's website, set its logo too (same source
+    // as company logos — the browser loads it and falls back to the letter avatar if the
+    // brand has no logo). Only when the concept doesn't already have one.
     let logoSet = false;
     let cptObj = null;
     if (b.conceptId) cptObj = (c.concepts || []).find(x => x.id === b.conceptId);
     if (!cptObj && concept) cptObj = (c.concepts || []).find(x => String(x.name || '').toLowerCase() === concept.toLowerCase());
     if (cptObj && website && !String(cptObj.logo || '').trim()) {
       const lg = logoFromWebsite(website);
-      if (lg) { try { const lr = await fetch(lg); if (lr && lr.ok) { cptObj.logo = lg; logoSet = true; } } catch (e) {} }
+      if (lg) { cptObj.logo = lg; logoSet = true; }
     }
     // Set the concept's price point from Google (rounded average of the units' price
     // levels), only when the concept doesn't already have one.

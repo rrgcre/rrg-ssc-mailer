@@ -86,15 +86,11 @@ tr:hover td{background:#fbfcfe;}
     <div class="mrow2"><div><label class="mfld">Nickname</label><input id="m_cnick" autocomplete="off"></div><div><label class="mfld">Title</label><input id="m_ctitle" list="titlelist" autocomplete="off"></div></div>
     <label class="mfld">Phone</label><input id="m_cphone" autocomplete="off" inputmode="numeric">
     <label class="mfld">Email</label><input id="m_cemail" autocomplete="off">
-    <label class="mfld">Preferred contact method</label><div id="m_pref" style="display:flex;gap:18px;font-size:13px;padding:4px 0 2px"><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="m_prefchk" value="phone"> Phone</label><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="m_prefchk" value="text"> Text</label><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="m_prefchk" value="email"> Email</label></div>
-    <div class="mrow2"><div><label class="mfld">Lead source</label><input id="m_clead" list="cleadList" autocomplete="off" placeholder="Referral, CoStar, event…"><datalist id="cleadList"></datalist></div><div id="crefbyCell" style="display:none"><label class="mfld">Referred by</label><input id="m_crefby" list="crefbyList" autocomplete="off" placeholder="Type a contact name…"><datalist id="crefbyList"></datalist></div></div>
-    <label class="mfld">Tags</label><div id="m_tagedit" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px"></div><input id="m_ctag" list="taglist" autocomplete="off" placeholder="Type a tag, Enter to add">
-    <label class="mfld">Notes</label><input id="m_cnotes" autocomplete="off">
     <div class="mgrp">Concepts <span class="mopt">— up to 6, one per line</span></div>
     <label class="mfld">Concept name(s)</label><textarea id="m_concepts" rows="4" placeholder="Taco Dive&#10;Cane Rosso&#10;Zoli’s" style="width:100%;padding:9px 11px;border:1px solid #d5dbe6;border-radius:9px;font:inherit;font-size:13px;resize:vertical"></textarea>
-    <label class="mfld">Major metro they operate in</label><input id="m_metro" list="citylist" autocomplete="off" placeholder="e.g. Dallas — helps the AI find the right brand">
+    <label class="mfld">Major metro they operate in</label><input id="m_metro" list="metrolist" autocomplete="off" placeholder="e.g. Dallas — helps the AI find the right brand">
     <div style="font-size:11.5px;color:#6b7488;margin-top:6px;line-height:1.5">On <b>Create</b>, ✨ your AI agent builds each concept — website, type, cuisine, price, logo &amp; summary — and finds its locations with photos.</div>
-    <datalist id="citylist"></datalist><datalist id="titlelist"></datalist><datalist id="taglist"></datalist>
+    <datalist id="metrolist"></datalist><datalist id="citylist"></datalist><datalist id="titlelist"></datalist><datalist id="taglist"></datalist>
   </div>
   <div class="modalf"><button id="m_cancel" class="mbtn ghost">Cancel</button><button id="m_create" class="mbtn">Create company</button></div>
 </div></div>
@@ -129,7 +125,7 @@ function renderList(list){
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
 }
-var CTYPES=['Seller','Buyer']; var CITIES=[], TITLES=[], ALLTAGS=[], MTAGS=[], CONCEPTTYPES=[], LEADSOURCES=[];
+var CTYPES=['Seller','Buyer']; var CITIES=[], TITLES=[], ALLTAGS=[], MTAGS=[], CONCEPTTYPES=[], LEADSOURCES=[], METROS=[];
 var CUISINE=['American','Tex-Mex','Mexican','Italian','Pizza','Burgers','BBQ','Steakhouse','Seafood','Chinese','Japanese / Sushi','Thai','Vietnamese','Korean','Indian','Mediterranean','Greek','Southern / Soul','Breakfast / Brunch','Coffee / Cafe','Hawaiian','Desserts'];
 var DEFAULTSTATE='TX'; var PERSONTYPES=['Restaurant Owner'];
 var STOPWORDS={llc:1,inc:1,co:1,corp:1,corporation:1,company:1,ltd:1,the:1,a:1,an:1,of:1,and:1,restaurant:1,restaurants:1,group:1,grill:1,grille:1,kitchen:1,cafe:1,caf:1,bar:1,tavern:1,eatery:1,holdings:1,enterprises:1,hospitality:1,concepts:1,brands:1};
@@ -193,14 +189,14 @@ function createCompany(){
   var conceptNames=((document.getElementById('m_concepts')||{}).value||'').split(/\n/).map(function(s){return s.trim();}).filter(Boolean).slice(0,6);
   var metro=((document.getElementById('m_metro')||{}).value||'').trim();
   var cfirst=(document.getElementById('m_cfirst').value||'').trim(), clast=(document.getElementById('m_clast').value||'').trim();
-  var cnick=(document.getElementById('m_cnick').value||'').trim(), ctitle=(document.getElementById('m_ctitle').value||'').trim(), cphone=(document.getElementById('m_cphone').value||'').trim(), cemail=(document.getElementById('m_cemail').value||'').trim(), cnotes=(document.getElementById('m_cnotes').value||'').trim();
-  var ctype=document.getElementById('m_type').value; var ctags=MTAGS.slice(); var cpref=[]; document.querySelectorAll('.m_prefchk').forEach(function(c){ if(c.checked) cpref.push(c.value); }); { var _pend=(document.getElementById('m_ctag').value||'').trim(); if(_pend&&ctags.map(function(x){return x.toLowerCase();}).indexOf(_pend.toLowerCase())<0) ctags.push(_pend); }
+  var cnick=(document.getElementById('m_cnick').value||'').trim(), ctitle=(document.getElementById('m_ctitle').value||'').trim(), cphone=(document.getElementById('m_cphone').value||'').trim(), cemail=(document.getElementById('m_cemail').value||'').trim();
+  var ctype=document.getElementById('m_type').value;
   function J(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}); }
   J('/api/company',{name:name,type:document.getElementById('m_type').value,leadSource:(document.getElementById('m_lead')||{}).value||''})
     .then(function(j){
       if(!(j&&j.ok&&j.company)){ if(j&&j.existingId){ b.textContent='Create company'; if(confirm((j.error||'That company already exists.')+'\n\nOpen it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(j.existingId); else b.disabled=false; } else { b.disabled=false;b.textContent='Create company'; alert((j&&j.error)||'Could not create the company.'); } return; }
       var id=j.company.id; var chain=Promise.resolve();
-      if(cfirst&&clast){ chain=chain.then(function(){ var _cbody={firstName:cfirst,lastName:clast,nickname:cnick,title:ctitle,phone:cphone,email:cemail,tags:ctags,prefContact:cpref,notes:cnotes,type:ctype}; var _cld=(document.getElementById('m_clead')||{}).value||''; if(_cld.trim()){ _cbody.leadSource=_cld.trim(); if(/referr/i.test(_cld)){ var _rv=((document.getElementById('m_crefby')||{}).value||'').trim(); if(_rv){ _cbody.referredBy=_rv; var _rid=CREFMAP[_rv.toLowerCase()]; if(_rid) _cbody.referredById=_rid; } } } return J('/api/company/'+encodeURIComponent(id)+'/contact',_cbody).then(function(cj){ if(cj&&!cj.ok){ alert('Company created, but the contact was not added: '+((cj&&cj.error)||'unknown error')); } return cj; }); }); }
+      if(cfirst&&clast){ chain=chain.then(function(){ var _cbody={firstName:cfirst,lastName:clast,nickname:cnick,title:ctitle,phone:cphone,email:cemail,type:ctype}; return J('/api/company/'+encodeURIComponent(id)+'/contact',_cbody).then(function(cj){ if(cj&&!cj.ok){ alert('Company created, but the contact was not added: '+((cj&&cj.error)||'unknown error')); } return cj; }); }); }
       chain.then(function(){ if(conceptNames.length){ try{ localStorage.setItem('rrg_build_'+id, JSON.stringify({names:conceptNames,metro:metro})); }catch(e){} } location.href='./rrg_company.html?id='+encodeURIComponent(id); }, function(){ if(conceptNames.length){ try{ localStorage.setItem('rrg_build_'+id, JSON.stringify({names:conceptNames,metro:metro})); }catch(e){} } location.href='./rrg_company.html?id='+encodeURIComponent(id); });
     })
     .catch(function(){ b.disabled=false;b.textContent='Create company'; alert('Could not reach the server.'); });
