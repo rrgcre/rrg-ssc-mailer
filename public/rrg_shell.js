@@ -19,10 +19,10 @@
     { grp: 'Records', color: '#7ea6d8', items: [
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
       { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
-      { ic: '◆', label: 'Listings', href: 'rrg_assignments.html' }
+      { ic: '◆', label: 'Listings', href: 'rrg_assignments.html' },
+      { ic: '◈', label: 'Deals', href: 'rrg_deals.html' }
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [
-      { ic: '◉', label: 'Command Center', href: 'rrg_command.html' },
       { ic: '☎', label: 'Qualification Calls', href: 'rrg_screening_queue.html' },
       { ic: '▤', label: 'Valuations', href: 'rrg_bov_queue.html' },
       { ic: '▧', label: 'Marketing Packs', href: 'rrg_cim_queue.html' },
