@@ -3792,6 +3792,8 @@ app.post('/api/company/:id/contact', express.json(), (req, res) => {
     if (p && typeof b.type === 'string' && effPersonTypes().indexOf(b.type) >= 0 && p.type !== b.type) { const _a = loadPeople(); const _pp = _a.find(x => x.id === p.id); if (_pp) { _pp.type = b.type; _pp.updatedAt = new Date().toISOString(); savePeople(_a); p.type = b.type; } }
     if (p && (b.title || b.nickname || b.notes || Array.isArray(b.tags) || b.leadSource || b.referredBy || b.referredById)) { const a2 = loadPeople(); const pp = a2.find(x => x.id === p.id); if (pp) { if (b.title) pp.title = String(b.title).slice(0, 120); if (b.nickname) pp.nickname = String(b.nickname).slice(0, 80); if (b.notes) pp.notes = String(b.notes).slice(0, 4000); if (Array.isArray(b.tags)) pp.tags = b.tags.map(x => String(x || '').slice(0, 60)).filter(Boolean).slice(0, 30); if (Array.isArray(b.prefContact)) pp.prefContact = b.prefContact.filter(x => ['phone','text','email'].indexOf(x) >= 0); if (b.leadSource) pp.leadSource = String(b.leadSource).slice(0, 160); if (b.referredBy) pp.referredBy = String(b.referredBy).slice(0, 160); if (b.referredById) pp.referredById = String(b.referredById).slice(0, 40); pp.updatedAt = new Date().toISOString(); savePeople(a2); } }
   }
+  // If the company has no primary contact yet, make this newly-added contact the primary.
+  if (p) { try { const _cos = loadCompanies(); const _c = _cos.find(x => x.id === c.id); if (_c && !String(_c.mainContactId || '').trim()) { _c.mainContactId = p.id; _c.updatedAt = new Date().toISOString(); saveCompanies(_cos); } } catch (e) {} }
   const contacts = loadPeople().filter(x => x.companyId === c.id).map(companyContactRow);
   res.json({ ok: true, contacts });
 });
