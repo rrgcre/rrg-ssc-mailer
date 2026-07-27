@@ -3224,6 +3224,7 @@ function applyLocationFields(l, b) {
   if (!l.commissary) { l.servesAll = false; l.serves = []; } // only commissaries carry a service map
   if (typeof b.status === 'string') l.status = LOCATION_STATUSES.indexOf(b.status) >= 0 ? b.status : (b.status === 'Open' ? 'Operating' : l.status || 'Operating');
   if (typeof b.notes === 'string') l.notes = b.notes.slice(0, 2000);
+  if (typeof b.description === 'string') l.description = b.description.slice(0, 2000);
 }
 // Location photos — a couple of images per location, stored on the data disk.
 const LOCPHOTO_DIR = path.join(BOV_DATA_DIR, 'locphotos');
@@ -3273,7 +3274,7 @@ async function placesSearchNew(key, query) {
   try {
     const r = await fetch('https://places.googleapis.com/v1/places:searchText', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': 'places.id,places.formattedAddress,places.location,places.businessStatus,places.rating,places.userRatingCount,places.priceLevel,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.displayName,places.photos' },
+      headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': key, 'X-Goog-FieldMask': 'places.id,places.formattedAddress,places.location,places.businessStatus,places.rating,places.userRatingCount,places.priceLevel,places.nationalPhoneNumber,places.internationalPhoneNumber,places.websiteUri,places.googleMapsUri,places.displayName,places.photos,places.editorialSummary' },
       body: JSON.stringify({ textQuery: query, maxResultCount: 1 })
     });
     const j = await r.json();
@@ -3288,6 +3289,7 @@ async function placesSearchNew(key, query) {
       businessStatus: pl.businessStatus || '', rating: (typeof pl.rating === 'number') ? pl.rating : null,
       reviews: (typeof pl.userRatingCount === 'number') ? pl.userRatingCount : null,
       priceLevel: (pl.priceLevel && PRICE[pl.priceLevel] !== undefined) ? PRICE[pl.priceLevel] : null,
+      description: (pl.editorialSummary && pl.editorialSummary.text) ? String(pl.editorialSummary.text) : '',
       phone: pl.nationalPhoneNumber || pl.internationalPhoneNumber || '', website: pl.websiteUri || '', mapsUrl: pl.googleMapsUri || '',
       at: new Date().toISOString()
     }, photos: (pl.photos || []).map(function (x) { return x.name; }).filter(Boolean), reason: '' };
@@ -3298,6 +3300,7 @@ function applyPlacesData(l, data) {
   l.google = Object.assign({}, l.google || {}, data);
   if (!l.phone && data.phone) l.phone = data.phone;      // fill only empty fields — never overwrite what a rep typed
   if (!l.website && data.website) l.website = data.website;
+  if (!l.description && data.description) l.description = data.description;   // Google editorial summary
   if (!l.zip && data.address) { const _zm = String(data.address).match(/\b(\d{5})(?:-\d{4})?\b/); if (_zm) l.zip = _zm[1]; }
   return true;
 }
@@ -3693,17 +3696,46 @@ app.post('/api/company/:id/find-locations', express.json(), async (req, res) => 
     const gkey = loadGmapsKey();
     let photos = 0;
     if (gkey && created.length) { for (const l of created.slice(0, 40)) { try { const pr = await pullPhotosForLocation(gkey, l); if (pr.added) photos++; } catch (e) {} } }
-    // While we're pulling info from the concept's website, also grab its logo (clearbit)
-    // and set it as the concept logo — but only if the concept doesn't already have one.
+    // While we're pulling info from the concept's website, try to grab its logo too —
+    // but only if the concept has no logo yet AND a real logo is actually found (we verify
+    // the clearbit URL returns an image rather than a 404, so we never store a dead link).
     let logoSet = false;
     let cptObj = null;
     if (b.conceptId) cptObj = (c.concepts || []).find(x => x.id === b.conceptId);
     if (!cptObj && concept) cptObj = (c.concepts || []).find(x => String(x.name || '').toLowerCase() === concept.toLowerCase());
-    if (cptObj && website && !String(cptObj.logo || '').trim()) { const lg = logoFromWebsite(website); if (lg) { cptObj.logo = lg; logoSet = true; } }
+    if (cptObj && website && !String(cptObj.logo || '').trim()) {
+      const lg = logoFromWebsite(website);
+      if (lg) { try { const lr = await fetch(lg); if (lr && lr.ok) { cptObj.logo = lg; logoSet = true; } } catch (e) {} }
+    }
+    // Set the concept's price point from Google (rounded average of the units' price
+    // levels), only when the concept doesn't already have one.
+    if (cptObj && !String(cptObj.pricePoint || '').trim()) {
+      const lvls = created.map(l => (l.google && typeof l.google.priceLevel === 'number') ? l.google.priceLevel : null).filter(n => n != null && n >= 1);
+      if (lvls.length) { const lvl = Math.max(1, Math.min(4, Math.round(lvls.reduce((a, b) => a + b, 0) / lvls.length))); cptObj.pricePoint = PRICE_POINTS[lvl - 1]; }
+    }
     c.updatedAt = now; saveCompanies(arr);
     res.json({ ok: true, created: created.length, locations: c.locations, concepts: c.concepts, logoSet, note: result.note || '', photos });
   } catch (e) {
     console.error('find-locations error:', e && e.message);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
+});
+// Given just a concept name, use AI web search to resolve the official website, concept
+// type, cuisine, and price point. Returned values are validated against the allowed lists.
+app.post('/api/company/:id/concept-resolve', express.json(), async (req, res) => {
+  try {
+    const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+    if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+    const b = req.body || {};
+    const name = String(b.name || '').trim();
+    if (!name) return res.status(400).json({ ok: false, error: 'A concept name is required.' });
+    const r = await locationgen.resolveConcept({ name, market: String(b.market || '').trim(), conceptTypes: CONCEPT_TYPES, cuisines: effCuisineTypes() });
+    const ct = (CONCEPT_TYPES.indexOf(r.conceptType) >= 0) ? r.conceptType : '';
+    const cu = (effCuisineTypes().indexOf(r.cuisine) >= 0) ? r.cuisine : '';
+    const pp = (PRICE_POINTS.indexOf(r.pricePoint) >= 0) ? r.pricePoint : '';
+    res.json({ ok: true, profile: { website: r.website, conceptType: ct, cuisine: cu, pricePoint: pp, note: r.note } });
+  } catch (e) {
+    console.error('concept-resolve error:', e && e.message);
     res.status(500).json({ ok: false, error: String((e && e.message) || e) });
   }
 });

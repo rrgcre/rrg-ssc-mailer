@@ -391,9 +391,9 @@ function openConceptForm(cpt){
     +'<div><label class="fld">Price point</label><select id="cp_price">'+priceOpts+'</select></div>'
     +'<div class="wide"><label class="fld">Logo</label>'+logoCtl+'</div>'
     +'<div class="wide" style="display:none"><label class="fld">Markets</label><div class="servegrid">'+mboxes+'</div></div>'
-    +'<div class="wide findlocwrap"><div class="findtool"><div class="findtoolhd"><span class="aitag">✨ AI tool</span>Auto-find locations from the web</div>'
-      +'<div class="findtoolsub">Confirm the website above, then '+esc(ASSISTANT)+' searches the web and adds a location record — address &amp; phone — for each unit it finds. Review and edit them after.</div>'
-      +'<div class="findloc"><input id="cp_findcount" class="findcount" placeholder="Approx. # (optional)"><button type="button" class="findbtn" id="cp_find">✨ Find locations</button></div></div></div>'
+    +'<div class="wide findlocwrap"><div class="findtool"><div class="findtoolhd"><span class="aitag">✨ AI tool</span>Auto-build this concept from its name</div>'
+      +'<div class="findtoolsub">Enter the concept name above, then '+esc(ASSISTANT)+' searches the web to fill the website, type, cuisine &amp; price, pull the logo, and find its locations. Review and edit after.</div>'
+      +'<div class="findloc"><input id="cp_findcount" class="findcount" placeholder="Approx. # (optional)"><button type="button" class="findbtn" id="cp_build">✨ Build from name</button><button type="button" class="mfadd" id="cp_find">Just find locations</button></div></div></div>'
     +'</div><div class="cbtns">'+(isEdit?'<button class="sbtn" id="cp_done">Done</button>':'<button class="sbtn" id="cp_save">Add concept</button>')+'<button class="cbtn" id="cp_cancel">Cancel</button><span id="cp_msg" class="findmsg"></span></div></div>';
   f.removeAttribute('hidden'); expandCardOf(f);
   function drawLogoPrev(){ var u=document.getElementById('cp_logo').value.trim(); var p=document.getElementById('cp_logoprev'); p.innerHTML=u?('<img src="'+esc(u)+'" onerror="this.style.display=\'none\'">'):('<span class="cptlogo-mono" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">'+esc((document.getElementById('cp_name').value||'?').charAt(0).toUpperCase())+'</span>'); }
@@ -511,6 +511,7 @@ function openLocForm(l,presetConcept){
     +'<div><label class="fld">Concept / brand</label>'+conceptSelectHtml('lo_concept',selName)+'</div>'
     +'<div><label class="fld">Status</label><select id="lo_status">'+ssel+'</select></div>'
     +'<div><label class="fld">Location name</label><input id="lo_name" value="'+esc(l.name||'')+'" placeholder="e.g. Downtown, Airport, Unit 2"></div>'
+    +'<div class="wide"><label class="fld">General description</label><input id="lo_desc" value="'+esc(l.description||'')+'" placeholder="Short description — auto-fills from Google during Find locations"></div>'
     +'<div class="wide"><label class="fld">Address</label><input id="lo_address" value="'+esc(l.address||'')+'" placeholder="Street address"></div>'
     +'<div><label class="fld">City / market</label><input id="lo_city" value="'+esc(l.city||'')+'" placeholder="City"></div>'
     +'<div><label class="fld">State</label><input id="lo_state" maxlength="2" oninput="this.value=this.value.toUpperCase()" value="'+esc(l.state||'')+'" placeholder="TX"></div>'
@@ -544,7 +545,7 @@ function openLocForm(l,presetConcept){
   f.querySelectorAll('.phsetmain[data-phmain]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); setMainPhoto(l.id,b.getAttribute('data-phmain')); }); });
   // Autosave an existing location on leaving a field (change/blur) or a ~1s typing pause.
   if(l.id){ var _lAS=null; function _lcommit(){ if(_lAS){ clearTimeout(_lAS); _lAS=null; } saveLoc(l.id,true); } function _lpause(){ if(_lAS) clearTimeout(_lAS); _lAS=setTimeout(_lcommit,1000); }
-    ['lo_concept','lo_status','lo_name','lo_sitetype','lo_address','lo_city','lo_state','lo_zip','lo_phone','lo_opened','lo_closed','lo_tenure','lo_sf','lo_lstart','lo_lexp','lo_notes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',_lpause); el.addEventListener('change',_lcommit); });
+    ['lo_concept','lo_status','lo_name','lo_desc','lo_sitetype','lo_address','lo_city','lo_state','lo_zip','lo_phone','lo_opened','lo_closed','lo_tenure','lo_sf','lo_lstart','lo_lexp','lo_notes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',_lpause); el.addEventListener('change',_lcommit); });
     ['lo_flag','lo_comm'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener('change',_lcommit); });
     var _sa=document.getElementById('sv_all'); if(_sa) _sa.addEventListener('change',_lcommit); f.querySelectorAll('.sv_one').forEach(function(el){ el.addEventListener('change',_lcommit); });
   }
@@ -616,7 +617,7 @@ function saveLoc(id,silent){
   var comm=document.getElementById('lo_comm').checked;
   var servesAll=false, serves=[];
   if(comm){ var sa=document.getElementById('sv_all'); servesAll=!!(sa&&sa.checked); if(!servesAll){ document.querySelectorAll('.sv_one:checked').forEach(function(x){ serves.push(x.value); }); } }
-  var body={ name:document.getElementById('lo_name').value.trim(), concept:document.getElementById('lo_concept').value, siteType:document.getElementById('lo_sitetype').value, tenure:document.getElementById('lo_tenure').value, sf:document.getElementById('lo_sf').value.trim(), address:document.getElementById('lo_address').value.trim(), city:document.getElementById('lo_city').value.trim(), state:document.getElementById('lo_state').value.trim(), zip:document.getElementById('lo_zip').value.trim(), phone:document.getElementById('lo_phone').value.trim(), opened:document.getElementById('lo_opened').value, leaseStart:document.getElementById('lo_lstart').value, leaseExpires:document.getElementById('lo_lexp').value, closedDate:document.getElementById('lo_closed').value, status:document.getElementById('lo_status').value, notes:document.getElementById('lo_notes').value.trim(), flagship:document.getElementById('lo_flag').checked, commissary:comm, servesAll:servesAll, serves:serves };
+  var body={ name:document.getElementById('lo_name').value.trim(), concept:document.getElementById('lo_concept').value, siteType:document.getElementById('lo_sitetype').value, tenure:document.getElementById('lo_tenure').value, sf:document.getElementById('lo_sf').value.trim(), address:document.getElementById('lo_address').value.trim(), city:document.getElementById('lo_city').value.trim(), state:document.getElementById('lo_state').value.trim(), zip:document.getElementById('lo_zip').value.trim(), phone:document.getElementById('lo_phone').value.trim(), opened:document.getElementById('lo_opened').value, leaseStart:document.getElementById('lo_lstart').value, leaseExpires:document.getElementById('lo_lexp').value, closedDate:document.getElementById('lo_closed').value, status:document.getElementById('lo_status').value, notes:document.getElementById('lo_notes').value.trim(), description:(document.getElementById('lo_desc')||{}).value||'', flagship:document.getElementById('lo_flag').checked, commissary:comm, servesAll:servesAll, serves:serves };
   if(id) body.id=id;
   if(!body.name && !body.address){ if(silent) return; document.getElementById('lo_name').focus(); return; }
   var b=document.getElementById('lo_save'); var ind=document.getElementById('lo_saved');
