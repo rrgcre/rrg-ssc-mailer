@@ -52,6 +52,8 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 .cltoggle{color:var(--muted);font-size:12px;cursor:pointer;user-select:none;}
 .clbody{padding:0 13px 12px 42px;color:#42506b;font-size:12.5px;line-height:1.55;display:none;}
 .clause.exp .clbody{display:block;}
+.clausescroll{max-height:360px;overflow-y:auto;padding-right:4px;}
+.clausescroll::-webkit-scrollbar{width:8px;} .clausescroll::-webkit-scrollbar-thumb{background:#d3dae5;border-radius:8px;}
 .actions{display:flex;align-items:center;gap:12px;margin-top:4px;flex-wrap:wrap;}
 .gen{background:var(--red);color:#fff;border:none;border-radius:10px;padding:13px 26px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;}
 .gen:disabled{opacity:.6;cursor:default;}
@@ -146,7 +148,7 @@ function render(){
     '<div class="card"><div class="ch"><b>LOI Builder</b>'+adminLink+'</div><div class="cb"><div class="typerow">'+typebtns+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Key info</b></div><div class="cb"><div class="grid">'+info+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Key terms</b><span class="hint">Blanks become fill-in lines in the draft</span></div><div class="cb"><div class="grid">'+terms+'</div></div></div>'
-    +'<div class="card"><div class="ch"><b>Optional sections</b><span class="hint">Check the ones this deal needs</span><span class="selcount" style="margin-left:auto">'+selN+' selected</span></div><div class="cb">'+(clauses||'<div class="msg">No sections in the library yet.</div>')+'</div></div>'
+    +'<div class="card"><div class="ch"><b>Optional sections</b><span class="hint">Check the ones this deal needs</span><span class="selcount" style="margin-left:auto">'+selN+' selected</span></div><div class="cb"><div class="clausescroll">'+(clauses||'<div class="msg">No sections in the library yet.</div>')+'</div></div></div>'
     +'<div class="card"><div class="cb"><div class="actions"><button class="gen" id="genBtn">Build LOI →</button><span class="msg" id="genMsg"></span></div><div class="note">Assembles an editable, on-screen letter with your logo at the top. Edit anything in place, then Print / Save as PDF — or download an editable .rtf. Blank terms show as fill-in lines.</div></div></div>';
   wire();
 }
@@ -238,6 +240,7 @@ fetch('/api/loi',{credentials:'same-origin'}).then(function(r){return r.json();}
   VALUES.date=todayStr(); if(REP) VALUES.rep=REP;
   loadReps(); loadParties(); loadLois();
 }).catch(function(){ document.getElementById('wrap').innerHTML='<div class="card"><div class="cb"><div class="msg">Could not load the LOI Builder.</div></div></div>'; });
+try{ loadLois(); }catch(e){}
 </script>
 </body>
 </html>
