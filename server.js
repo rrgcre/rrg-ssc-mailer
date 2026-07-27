@@ -3530,7 +3530,7 @@ app.get('/api/company/:id', (req, res) => {
 function newConceptId() { return 'cpt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function domainOf(u) { try { let s = String(u || '').trim(); if (!s) return ''; if (!/^https?:\/\//i.test(s)) s = 'https://' + s; return new URL(s).hostname.replace(/^www\./, ''); } catch (e) { return ''; } }
 // Auto logo from a brand's domain (Clearbit logo service; the client falls back to a monogram if it 404s).
-function logoFromWebsite(w) { const d = domainOf(w); return d ? ('https://logo.clearbit.com/' + d) : ''; }
+function logoFromWebsite(w) { const d = domainOf(w); return d ? ('https://www.google.com/s2/favicons?sz=128&domain=' + encodeURIComponent(d)) : ''; }
 app.post('/api/company/:id/concept', express.json(), (req, res) => {
   const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });

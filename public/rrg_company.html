@@ -70,6 +70,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .aiworkorb:after{content:"✨";position:absolute;inset:7px;display:flex;align-items:center;justify-content:center;font-size:23px;background:#fff;border-radius:50%;}
 .aiworktitle{font-weight:800;color:var(--navy);font-size:16px;position:relative;z-index:1;}
 .aiworkmsg{color:#5a6478;font-size:13px;margin-top:7px;line-height:1.5;min-height:18px;position:relative;z-index:1;}
+.aiworktimer{font-variant-numeric:tabular-nums;font-weight:800;font-size:22px;color:#5b46b8;margin-top:12px;letter-spacing:.02em;position:relative;z-index:1;}
 .aiworkcancel{margin-top:18px;background:#fff;border:1px solid #d5dbe6;border-radius:9px;padding:8px 18px;font:inherit;font-size:13px;font-weight:600;color:#5a6478;cursor:pointer;position:relative;z-index:1;} .aiworkcancel:hover{background:#f4f7fb;}
 .findloctip{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:8px;max-width:640px;}
 .cb{padding:6px 0 4px;}
@@ -456,11 +457,12 @@ function conceptFind(cpt,isEdit){
     .catch(function(e){ if(e&&e.name==='AbortError'){ aiHide(); if(btn){ btn.disabled=false; btn.textContent='✨ Find locations'; } return; } fail('Could not reach the server.'); });
 }
 // ---- Colorful "AI is working" popup (lazily created) ----
-var AIWORK={onCancel:null};
-function _aiEnsure(){ var o=document.getElementById('aiwork'); if(o) return o; o=document.createElement('div'); o.className='aiwork'; o.id='aiwork'; o.hidden=true; o.innerHTML='<div class="aiworkbox"><div class="aiworkorb"></div><div class="aiworktitle" id="aiworktitle">Working…</div><div class="aiworkmsg" id="aiworkmsg"></div><button type="button" class="aiworkcancel" id="aiworkcancel">Cancel</button></div>'; document.body.appendChild(o); var cb=o.querySelector('#aiworkcancel'); if(cb) cb.addEventListener('click',function(){ var f=AIWORK.onCancel; aiHide(); if(typeof f==='function'){ try{f();}catch(e){} } }); return o; }
-function aiShow(msg,onCancel){ _aiEnsure(); document.getElementById('aiworktitle').textContent='✨ '+ASSISTANT+' is working…'; document.getElementById('aiworkmsg').textContent=msg||''; AIWORK.onCancel=onCancel||null; var cb=document.getElementById('aiworkcancel'); if(cb) cb.style.display=onCancel?'':'none'; document.getElementById('aiwork').hidden=false; }
+var AIWORK={onCancel:null,t0:0,timer:null};
+function _aiFmt(ms){ var s=Math.max(0,Math.floor(ms/1000)); var m=Math.floor(s/60); s=s%60; return m+':'+(s<10?'0':'')+s; }
+function _aiEnsure(){ var o=document.getElementById('aiwork'); if(o) return o; o=document.createElement('div'); o.className='aiwork'; o.id='aiwork'; o.hidden=true; o.innerHTML='<div class="aiworkbox"><div class="aiworkorb"></div><div class="aiworktitle" id="aiworktitle">Working…</div><div class="aiworkmsg" id="aiworkmsg"></div><div class="aiworktimer" id="aiworktimer">0:00</div><button type="button" class="aiworkcancel" id="aiworkcancel">Cancel</button></div>'; document.body.appendChild(o); var cb=o.querySelector('#aiworkcancel'); if(cb) cb.addEventListener('click',function(){ var f=AIWORK.onCancel; aiHide(); if(typeof f==='function'){ try{f();}catch(e){} } }); return o; }
+function aiShow(msg,onCancel){ _aiEnsure(); document.getElementById('aiworktitle').textContent='✨ '+ASSISTANT+' is working…'; document.getElementById('aiworkmsg').textContent=msg||''; AIWORK.onCancel=onCancel||null; var cb=document.getElementById('aiworkcancel'); if(cb) cb.style.display=onCancel?'':'none'; AIWORK.t0=Date.now(); var tm=document.getElementById('aiworktimer'); if(tm) tm.textContent='0:00'; if(AIWORK.timer) clearInterval(AIWORK.timer); AIWORK.timer=setInterval(function(){ var t=document.getElementById('aiworktimer'); if(t) t.textContent=_aiFmt(Date.now()-AIWORK.t0); },1000); document.getElementById('aiwork').hidden=false; }
 function aiSetMsg(msg){ var m=document.getElementById('aiworkmsg'); if(m) m.textContent=msg||''; }
-function aiHide(){ var o=document.getElementById('aiwork'); if(o) o.hidden=true; AIWORK.onCancel=null; }
+function aiHide(){ var o=document.getElementById('aiwork'); if(o) o.hidden=true; AIWORK.onCancel=null; if(AIWORK.timer){ clearInterval(AIWORK.timer); AIWORK.timer=null; } }
 // ---- Build ONE concept from its name (fills website/type/cuisine/price, then finds locations) ----
 function conceptBuildFromName(cpt,isEdit){
   var name=document.getElementById('cp_name').value.trim();
