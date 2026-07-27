@@ -36,7 +36,8 @@ tr:hover td{background:#fbfcfe;}
 .pdot{width:12px;height:12px;border-radius:50%;background:#e2e7ef;border:1.5px solid #d3dae5;position:relative;}
 .pdot.done{background:var(--green);border-color:var(--green);}
 .pdot.pend{background:#fff;border-color:var(--amber);box-shadow:inset 0 0 0 3px var(--amber);}
-.plabel{font-size:8px;color:#aab3c2;font-weight:800;letter-spacing:.02em;text-transform:uppercase;}
+.plabel{font-size:6.5px;color:#aab3c2;font-weight:800;letter-spacing:.02em;text-transform:uppercase;}
+.stagesel{font:inherit;font-size:12.5px;padding:7px 9px;border:1px solid #dbe1ea;border-radius:8px;background:#fff;cursor:pointer;margin-left:8px;}
 .pnode.act .plabel{color:#4a5568;}
 .pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid;}
 .pill.New{background:#eef2fb;color:#2647b0;border-color:#d3ddf3;}
@@ -81,7 +82,7 @@ tr:hover td{background:#fbfcfe;}
 <div class="wrap">
   <div class="tiles" id="tiles"></div>
   <div class="card">
-    <div class="hd"><b>Listings</b><span class="cnt" id="cnt"></span><button id="newDealBtn" class="newdeal">+ New listing</button><input id="search" placeholder="Search business, market, contact…" oninput="applyFilters()"></div>
+    <div class="hd"><b>Listings</b><span class="cnt" id="cnt"></span><button id="newDealBtn" class="newdeal">+ New listing</button><input id="search" placeholder="Search business, market, contact…" oninput="applyFilters()"><select id="stageFilter" class="stagesel" onchange="setStageFilter(this.value)"><option value="">All stages</option><option value="call">Call</option><option value="questionnaire">VQ</option><option value="bov">BOV</option><option value="pack">Pack</option><option value="lease">Lease</option><option value="attack">MAP</option><option value="room">Room</option></select></div>
     <div id="body"></div>
   </div>
 </div>
@@ -103,6 +104,7 @@ tr:hover td{background:#fbfcfe;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 var ALL=[], CTL=null, FILTER='';
+var STAGEFILTER='';
 var STAGES=[['call','Call'],['questionnaire','VQ'],['bov','BOV'],['pack','Pack'],['lease','Lease'],['attack','MAP'],['room','Room']];
 function pipeCell(a){
   return '<div class="pipe">'+STAGES.map(function(s){ var st=a.stages[s[0]]; var cls=!st?'':(st.done?'done':'pend'); return '<div class="pnode'+(st?' act':'')+'"><div class="pdot '+cls+'" title="'+esc(s[1])+(st?(st.done?' — done':' — in progress'):' — not started')+'"></div><div class="plabel">'+esc(s[1])+'</div></div>'; }).join('')+'</div>';
@@ -120,6 +122,8 @@ function expiresCell(a){
   return '<span class="exppill '+cls+'">'+esc(txt)+'</span>'+renew+'<div class="meta">'+esc(fmt(a.listingExpires))+'</div>';
 }
 function stageCount(a){ return STAGES.filter(function(s){ return a.stages[s[0]]; }).length; }
+function currentStageKey(a){ var last=''; STAGES.forEach(function(s){ if(a.stages && a.stages[s[0]]) last=s[0]; }); return last; }
+function setStageFilter(v){ STAGEFILTER=v||''; applyFilters(); }
 function renderTiles(){
   var by={New:0,Active:0,'Under Contract':0,Closed:0,other:0};
   ALL.forEach(function(a){ if(by[a.status]!=null) by[a.status]++; else by.other++; });
@@ -131,6 +135,7 @@ function applyFilters(){
   var q=(document.getElementById('search').value||'').toLowerCase().trim();
   var list=ALL.filter(function(a){
     if(FILTER && a.status!==FILTER) return false;
+    if(STAGEFILTER && currentStageKey(a)!==STAGEFILTER) return false;
     if(q){ var hay=(a.business+' '+a.market+' '+a.contact+' '+a.owner).toLowerCase(); if(hay.indexOf(q)<0) return false; }
     return true;
   });

@@ -90,7 +90,7 @@ function ownsDeal(req, d) {
 const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
 const PERSON_TYPES = ['Buyer', 'Seller', 'Investor', 'Broker', 'Referral Source', 'Other'];
 const LEAD_SOURCES = ['Referral', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
-const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'LOI', 'Diligence', 'Note', 'To-Do'];
+const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'LOI Sent', 'LOI Received', 'Diligence', 'Note', 'To-Do'];
 const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Burgers', 'BBQ', 'Steakhouse', 'Seafood', 'Chinese', 'Japanese / Sushi', 'Thai', 'Vietnamese', 'Korean', 'Indian', 'Mediterranean', 'Greek', 'Southern / Soul', 'Breakfast / Brunch', 'Coffee / Cafe', 'Hawaiian', 'Desserts', 'Bar / Lounge'];
 function loadPeople() { try { return JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')); } catch (e) { return []; } }
 function savePeople(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PEOPLE_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
@@ -5828,8 +5828,8 @@ By: ______________________________   Date: __________
 Broker: {{rep}}, Restaurant Realty Group, LLC`,
       info: [
         { key: 'date', label: 'Date' },
-        { key: 'tenant', label: 'Tenant (entity)' },
-        { key: 'landlord', label: 'Landlord' },
+        { key: 'tenant', label: 'Tenant (entity)', type: 'party' },
+        { key: 'landlord', label: 'Landlord', type: 'party' },
         { key: 'property', label: 'Property / building address' },
         { key: 'rep', label: 'RRG rep' }
       ],
@@ -5909,8 +5909,8 @@ By: ______________________________   Date: __________
 Broker: {{rep}}, Restaurant Realty Group, LLC`,
       info: [
         { key: 'date', label: 'Date' },
-        { key: 'buyer', label: 'Buyer (entity)' },
-        { key: 'seller', label: 'Seller' },
+        { key: 'buyer', label: 'Buyer (entity)', type: 'party' },
+        { key: 'seller', label: 'Seller', type: 'party' },
         { key: 'business', label: 'Business / concept' },
         { key: 'rep', label: 'RRG rep' }
       ],
@@ -5997,14 +5997,18 @@ app.post('/api/loi/save', express.json(), (req, res) => {
   const lois = loadLois();
   const rec = { id: newLoiId(), type: b.type || 'tenant_rep', property: (b.values && b.values.property) || '', tenant: b.tenant || null, landlord: b.landlord || null, values: b.values || {}, clauses: Array.isArray(b.clauses) ? b.clauses : [], createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
   lois.push(rec); saveLois(lois);
-  const label = 'LOI ' + (rec.type === 'business_sale' ? '(Business Sale)' : '(Tenant Rep)') + (rec.property ? (' - ' + rec.property) : '');
+  const label = (rec.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep') + (rec.property ? (' - ' + rec.property) : '');
   const logged = [];
   [b.tenant, b.landlord].forEach(function (party) {
     if (party && party.kind === 'contact' && party.id) {
-      try { const arr = loadPeople(); const p = arr.find(x => x.id === party.id); if (p) { logActivity(p, 'LOI', label, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(arr); logged.push(p.name || party.name || ''); } } catch (e) {}
+      try { const arr = loadPeople(); const p = arr.find(x => x.id === party.id); if (p) { logActivity(p, 'LOI Sent', label, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(arr); logged.push(p.name || party.name || ''); } } catch (e) {}
     }
   });
   res.json({ ok: true, id: rec.id, logged: logged });
+});
+app.get('/api/lois', (req, res) => {
+  const lois = loadLois().slice().reverse().map(function (l) { return { id: l.id, type: l.type || 'tenant_rep', typeName: (l.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep'), property: l.property || '', tenant: (l.tenant && l.tenant.name) || '', tenantId: (l.tenant && l.tenant.id) || '', tenantKind: (l.tenant && l.tenant.kind) || '', landlord: (l.landlord && l.landlord.name) || '', landlordId: (l.landlord && l.landlord.id) || '', landlordKind: (l.landlord && l.landlord.kind) || '', createdAt: l.createdAt || '', by: l.by || '' }; });
+  res.json({ ok: true, lois: lois });
 });
 app.post('/api/loi/generate', express.json(), (req, res) => {
   const b = req.body || {};
