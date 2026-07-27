@@ -28,6 +28,14 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 .f input,.f select{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;background:#fff;}
 .f select:focus{outline:none;border-color:var(--gold);}
 .fhint{text-transform:none;letter-spacing:0;color:#b58a2a;font-weight:600;font-size:10px;margin-left:6px;}
+.rowin{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.ux{color:var(--muted);font-size:12.5px;font-weight:600;white-space:nowrap;}
+.numin{display:flex;align-items:center;gap:7px;}
+.numin input{flex:1;}
+.numsm{max-width:96px;}
+.pgboy{max-width:210px;}
+.ckl{display:inline-flex;gap:6px;align-items:center;font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;}
+.ckl input{width:auto;}
 .f input:focus{outline:none;border-color:var(--gold);}
 .clause{border:1px solid var(--line);border-radius:10px;margin-bottom:9px;overflow:hidden;}
 .clause.on{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold);}
@@ -44,6 +52,17 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 .adminlink{margin-left:auto;font-size:12.5px;color:var(--gold);font-weight:700;text-decoration:none;}
 .selcount{font-size:12px;color:var(--muted);}
 .note{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;}
+.btn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;}
+.btn.ghost{background:#fff;color:var(--navy);border:1px solid #cfd6e2;}
+.docbar{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+.doc{background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:0 6px 24px rgba(10,20,50,.08);padding:56px 64px;max-width:8.5in;margin:0 auto;font-family:Georgia,'Times New Roman',serif;font-size:15px;line-height:1.6;color:#1a2236;}
+.doc:focus{outline:none;}
+.doc .dochdr{text-align:center;margin-bottom:26px;border-bottom:2px solid #222;padding-bottom:14px;}
+.doc .doclogo{max-height:78px;max-width:70%;object-fit:contain;}
+.doc .docname{font-size:22px;font-weight:800;letter-spacing:.02em;color:#111;}
+.doc h3.dochead{font-size:14px;font-weight:800;margin:18px 0 4px;color:#111;}
+.doc p{margin:0 0 11px;} .doc .docterm{margin:2px 0;}
+@media print{ #rrgnav,#rrgtop,.top,#wrap,.docbar{display:none !important;} #docview{display:block !important;max-width:none;margin:0;padding:0;} .doc{border:none !important;box-shadow:none !important;padding:0 !important;max-width:none;font-size:12pt;} body{background:#fff !important;} }
 </style>
 </head>
 <body>
@@ -53,19 +72,37 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
   <div class="sub">Pick the LOI type, fill the key info and terms, choose the sections this deal needs, and download an editable Word (.rtf) draft to finish up.</div>
 </div></div>
 <div class="wrap" id="wrap"><div class="card"><div class="cb"><div class="msg">Loading…</div></div></div></div>
+<div class="wrap" id="docview" style="display:none"></div>
 
 <script>
 var CFG=null, TYPES=[], IS_ADMIN=false, REP='', TYPE='tenant_rep', VALUES={}, SEL={};
+var LOGOURL='', APPNAME='';
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function todayStr(){ try{ return new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}); }catch(e){ return ''; } }
 
 function curType(){ return CFG&&CFG[TYPE]?CFG[TYPE]:{info:[],terms:[],clauses:[]}; }
 
+function loiFmtTerm(f,vals){
+  var t=f.type;
+  if(t==='number'){ var raw=vals[f.key]; if(raw==null) return ''; raw=String(raw).trim(); if(!raw) return ''; var out=raw; var d=raw.replace(/[^0-9.-]/g,''); if(f.comma&&d!==''&&!isNaN(Number(d))) out=Number(d).toLocaleString('en-US'); var u=f.unit||''; var c0=u.charAt(0); var sp=(u&&(c0==='/'||c0==='%'))?'':' '; return (f.prefix||'')+out+(u?sp+u:''); }
+  if(t==='renewal'){ var c=(vals.renewal_count!=null?String(vals.renewal_count):'').trim(); var y=(vals.renewal_years!=null?String(vals.renewal_years):'').trim(); if(!c&&!y) return ''; return (c||'____')+' option'+(c==='1'?'':'s')+' to renew, each '+(y||'____')+' years'; }
+  if(t==='guaranty'){ var gy=(vals.pg_years!=null?String(vals.pg_years):'').trim(); var bo=!!vals.pg_burnoff; var boy=(vals.pg_burnoff_years!=null?String(vals.pg_burnoff_years):'').trim(); if(!gy&&!bo&&!boy) return ''; var g=(gy?('Personal guaranty of '+gy+' years'):'Personal guaranty'); if(bo) g+= boy?(', burning off after '+boy+' years'):', with burn-off'; return g; }
+  var v=vals[f.key]; return (v!=null?String(v):'');
+}
 function fieldHtml(f){
+  if(f.type==='renewal'){
+    var rc=VALUES.renewal_count!=null?VALUES.renewal_count:''; var ry=VALUES.renewal_years!=null?VALUES.renewal_years:'';
+    return '<div class="f"><label class="fld">'+esc(f.label)+'</label><div class="rowin"><input data-k="renewal_count" inputmode="numeric" placeholder="#" value="'+esc(rc)+'" class="numsm"><span class="ux">option(s) of</span><input data-k="renewal_years" inputmode="numeric" placeholder="#" value="'+esc(ry)+'" class="numsm"><span class="ux">years each</span></div></div>';
+  }
+  if(f.type==='guaranty'){
+    var gy=VALUES.pg_years!=null?VALUES.pg_years:''; var bo=!!VALUES.pg_burnoff; var boy=VALUES.pg_burnoff_years!=null?VALUES.pg_burnoff_years:'';
+    return '<div class="f"><label class="fld">'+esc(f.label)+'</label><div class="rowin"><input data-k="pg_years" inputmode="numeric" placeholder="#" value="'+esc(gy)+'" class="numsm"><span class="ux">years</span><label class="ckl"><input type="checkbox" data-k="pg_burnoff"'+(bo?' checked':'')+'> Burn-off</label><input data-k="pg_burnoff_years" inputmode="numeric" placeholder="after N yrs / rolling" value="'+esc(boy)+'" class="pgboy"'+(bo?'':' style="display:none"')+'></div></div>';
+  }
   var v=VALUES[f.key]!=null?VALUES[f.key]:'';
   var hint=f.hint?' <span class="fhint">'+esc(f.hint)+'</span>':'';
   var ctrl;
-  if(f.type==='select'&&f.options&&f.options.length){ ctrl='<select data-k="'+esc(f.key)+'"><option value="">\u2014 select \u2014</option>'+f.options.map(function(op){return '<option'+(String(v)===String(op)?' selected':'')+'>'+esc(op)+'</option>';}).join('')+'</select>'; }
+  if(f.type==='select'&&f.options&&f.options.length){ ctrl='<select data-k="'+esc(f.key)+'"><option value="">— select —</option>'+f.options.map(function(op){return '<option'+(String(v)===String(op)?' selected':'')+'>'+esc(op)+'</option>';}).join('')+'</select>'; }
+  else if(f.type==='number'){ ctrl='<div class="numin">'+(f.prefix?'<span class="ux">'+esc(f.prefix)+'</span>':'')+'<input data-k="'+esc(f.key)+'" inputmode="decimal" value="'+esc(v)+'">'+(f.unit?'<span class="ux">'+esc(f.unit)+'</span>':'')+'</div>'; }
   else { ctrl='<input data-k="'+esc(f.key)+'" value="'+esc(v)+'">'; }
   return '<div class="f"><label class="fld">'+esc(f.label)+hint+'</label>'+ctrl+'</div>';
 }
@@ -85,15 +122,15 @@ function render(){
     +'<div class="card"><div class="ch"><b>Key info</b></div><div class="cb"><div class="grid">'+info+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Key terms</b><span class="hint">Blanks become fill-in lines in the draft</span></div><div class="cb"><div class="grid">'+terms+'</div></div></div>'
     +'<div class="card"><div class="ch"><b>Optional sections</b><span class="hint">Check the ones this deal needs</span><span class="selcount" style="margin-left:auto">'+selN+' selected</span></div><div class="cb">'+(clauses||'<div class="msg">No sections in the library yet.</div>')+'</div></div>'
-    +'<div class="card"><div class="cb"><div class="actions"><button class="gen" id="genBtn">Generate LOI (.rtf)</button><span class="msg" id="genMsg"></span></div><div class="note">The draft downloads as a Word-compatible .rtf — open it in Word or Google Docs to finish up. Any blank term prints as a fill-in line.</div></div></div>';
+    +'<div class="card"><div class="cb"><div class="actions"><button class="gen" id="genBtn">Build LOI →</button><span class="msg" id="genMsg"></span></div><div class="note">Assembles an editable, on-screen letter with your logo at the top. Edit anything in place, then Print / Save as PDF — or download an editable .rtf. Blank terms show as fill-in lines.</div></div></div>';
   wire();
 }
 function collect(){
-  document.querySelectorAll('#wrap [data-k]').forEach(function(i){ VALUES[i.getAttribute('data-k')]=i.value; });
+  document.querySelectorAll('#wrap [data-k]').forEach(function(i){ VALUES[i.getAttribute('data-k')]=(i.type==='checkbox')?i.checked:i.value; });
 }
 function wire(){
   document.querySelectorAll('.typebtn').forEach(function(b){ b.addEventListener('click',function(){ collect(); TYPE=b.getAttribute('data-type'); SEL={}; render(); }); });
-  document.querySelectorAll('#wrap [data-k]').forEach(function(i){ var ev=i.tagName==='SELECT'?'change':'input'; i.addEventListener(ev,function(){ VALUES[i.getAttribute('data-k')]=i.value; }); });
+  document.querySelectorAll('#wrap [data-k]').forEach(function(i){ var ev=(i.tagName==='SELECT'||i.type==='checkbox')?'change':'input'; i.addEventListener(ev,function(){ VALUES[i.getAttribute('data-k')]=(i.type==='checkbox')?i.checked:i.value; if(i.getAttribute('data-k')==='pg_burnoff'){ var b=document.querySelector('.pgboy'); if(b) b.style.display=i.checked?'':'none'; } }); });
   document.querySelectorAll('.clause').forEach(function(cl){
     var cid=cl.getAttribute('data-cid');
     var ck=cl.querySelector('.clck');
@@ -101,20 +138,36 @@ function wire(){
     cl.querySelector('.cltoggle').addEventListener('click',function(e){ e.stopPropagation(); cl.classList.toggle('exp'); });
     cl.querySelector('.cltitle').addEventListener('click',function(){ ck.checked=!ck.checked; ck.dispatchEvent(new Event('change')); });
   });
-  var g=document.getElementById('genBtn'); if(g) g.addEventListener('click',generate);
+  var g=document.getElementById('genBtn'); if(g) g.addEventListener('click',buildDoc);
+}
+function fillC(text){ return String(text==null?'':text).replace(/\{\{(\w+)\}\}/g,function(_,k){ var v=VALUES[k]; return (v!=null&&String(v).trim()!=='')?String(v):'____________'; }); }
+function docParas(txt){ return fillC(txt).split(/\n{2,}/).map(function(p){ return '<p>'+esc(p).split('\n').join('<br>')+'</p>'; }).join(''); }
+function buildDoc(){
+  collect(); var t=curType(); var selIds=Object.keys(SEL).filter(function(k){return SEL[k];});
+  var hdr=LOGOURL?('<img class="doclogo" src="'+esc(LOGOURL)+'" alt="">'):('<div class="docname">'+esc(APPNAME||'')+'</div>');
+  var body='<div class="dochdr">'+hdr+'</div>'+docParas(t.top);
+  var trows=(t.terms||[]).map(function(f){ var disp=loiFmtTerm(f,VALUES); return (disp&&String(disp).trim()!=='')?('<div class="docterm"><b>'+esc(f.label)+':</b> '+esc(String(disp))+'</div>'):''; }).filter(Boolean).join('');
+  if(trows) body+='<h3 class="dochead">KEY TERMS</h3>'+trows;
+  (t.clauses||[]).slice().sort(function(a,b){return (a.order||0)-(b.order||0);}).filter(function(c){return selIds.indexOf(c.id)>=0;}).forEach(function(c){ body+='<h3 class="dochead">'+esc(c.title)+'</h3>'+docParas(c.body); });
+  body+=docParas(t.bottom);
+  var dv=document.getElementById('docview');
+  dv.innerHTML='<div class="docbar"><button class="btn ghost" id="docBack">\u2190 Back to edit</button><button class="btn" id="docPrint">Print / Save PDF</button><button class="btn ghost" id="docRtf">Download .rtf</button><span class="msg" id="docMsg" style="margin-left:6px">Click into the document to edit, then print.</span></div><div class="doc" id="thedoc" contenteditable="true">'+body+'</div>';
+  document.getElementById('wrap').style.display='none'; dv.style.display=''; window.scrollTo(0,0);
+  document.getElementById('docBack').addEventListener('click',function(){ dv.style.display='none'; document.getElementById('wrap').style.display=''; });
+  document.getElementById('docPrint').addEventListener('click',function(){ window.print(); });
+  document.getElementById('docRtf').addEventListener('click',generate);
 }
 function generate(){
-  collect();
-  var g=document.getElementById('genBtn'), m=document.getElementById('genMsg');
+  collect(); var g=document.getElementById('docRtf'), m=document.getElementById('docMsg');
   var clauses=Object.keys(SEL).filter(function(k){return SEL[k];});
-  g.disabled=true; g.textContent='Generating…'; if(m) m.textContent='';
+  if(g){ g.disabled=true; g.textContent='Generating\u2026'; } if(m) m.textContent='';
   fetch('/api/loi/generate',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:TYPE,values:VALUES,clauses:clauses})})
-    .then(function(r){ if(!r.ok) throw new Error('Server error'); var cd=r.headers.get('Content-Disposition')||''; var mm=cd.match(/filename="([^"]+)"/); var name=mm?mm[1]:'LOI.rtf'; return r.blob().then(function(bl){ return {bl:bl,name:name}; }); })
-    .then(function(o){ var url=URL.createObjectURL(o.bl); var a=document.createElement('a'); a.href=url; a.download=o.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(url);},1500); g.disabled=false; g.textContent='Generate LOI (.rtf)'; if(m) m.textContent='Downloaded '+o.name; })
-    .catch(function(){ g.disabled=false; g.textContent='Generate LOI (.rtf)'; if(m) m.textContent='Could not generate — try again.'; });
+    .then(function(r){ if(!r.ok) throw new Error('err'); var cd=r.headers.get('Content-Disposition')||''; var mm=cd.match(/filename="([^"]+)"/); var name=mm?mm[1]:'LOI.rtf'; return r.blob().then(function(bl){ return {bl:bl,name:name}; }); })
+    .then(function(res){ var url=URL.createObjectURL(res.bl); var a=document.createElement('a'); a.href=url; a.download=res.name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function(){URL.revokeObjectURL(url);},1500); if(g){ g.disabled=false; g.textContent='Download .rtf'; } if(m) m.textContent='Downloaded '+res.name; })
+    .catch(function(){ if(g){ g.disabled=false; g.textContent='Download .rtf'; } if(m) m.textContent='Could not download.'; });
 }
 fetch('/api/loi',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-  CFG=(j&&j.config)||{}; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&j.isAdmin); REP=(j&&j.rep)||'';
+  CFG=(j&&j.config)||{}; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&j.isAdmin); REP=(j&&j.rep)||''; LOGOURL=(j&&j.logoUrl)||''; APPNAME=(j&&j.appName)||'';
   if(TYPES.length && !CFG[TYPE]) TYPE=TYPES[0].key;
   VALUES.date=todayStr(); if(REP) VALUES.rep=REP;
   render();

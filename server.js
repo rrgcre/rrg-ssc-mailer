@@ -5796,10 +5796,7 @@ function defaultLoiConfig() {
   return {
     tenant_rep: {
       name: 'Tenant Rep (Lease)',
-      top: `RESTAURANT REALTY GROUP, LLC
-Austin  |  Dallas  |  Houston  |  San Antonio
-
-{{date}}
+      top: `{{date}}
 
 {{landlord}}
 RE: Letter of Intent to Lease - {{property}}
@@ -5813,7 +5810,7 @@ Confidentiality. The parties shall keep the terms of this Letter of Intent confi
 
 Governing Law. This Letter of Intent shall be governed by the laws of the State of Texas.
 
-Expiration. This Letter of Intent shall expire if not accepted in writing on or before {{expiration}}.
+Expiration. This Letter of Intent shall expire if not accepted in writing within {{expiration}} days of the date above.
 
 Accepted and Agreed:
 
@@ -5835,20 +5832,20 @@ Broker: {{rep}}, Restaurant Realty Group, LLC`,
       ],
       terms: [
         { key: 'premises', label: 'Premises / Suite' },
-        { key: 'rsf', label: 'Rentable Square Feet' },
+        { key: 'rsf', label: 'Rentable Square Feet', type: 'number', unit: 'SF', comma: true },
         { key: 'use', label: 'Permitted Use' },
-        { key: 'term', label: 'Lease Term' },
-        { key: 'commencement', label: 'Commencement / Delivery' },
+        { key: 'term', label: 'Lease Term', type: 'number', unit: 'years' },
+        { key: 'commencement', label: 'Commencement / Delivery', type: 'number', unit: 'days' },
         { key: 'base_rent', label: 'Base Rent ($/SF/yr)' },
         { key: 'rent_structure', label: 'Rent Structure', type: 'select', options: ['NNN (Triple Net)', 'Modified Gross', 'Full-Service Gross', 'Industrial Gross', 'Absolute Net', 'Percentage Rent'] },
         { key: 'escalations', label: 'Annual Escalations' },
-        { key: 'free_rent', label: 'Free Rent / Abatement' },
-        { key: 'ti', label: 'TI Allowance' },
-        { key: 'delivery_condition', label: 'Delivery Condition' },
-        { key: 'options', label: 'Renewal Options' },
+        { key: 'free_rent', label: 'Free Rent / Abatement', type: 'number', unit: 'months' },
+        { key: 'ti', label: 'TI Allowance', type: 'number', prefix: '$', unit: '/SF' },
+        { key: 'delivery_condition', label: 'Delivery Condition', type: 'select', options: ['Warm shell', 'Cold / dark shell', 'Vanilla box', 'As-is', 'Turnkey (Landlord build-out)', 'Second-generation restaurant (as-is)'] },
+        { key: 'options', label: 'Renewal Options', type: 'renewal' },
         { key: 'security', label: 'Security Deposit' },
-        { key: 'guaranty', label: 'Personal Guaranty' },
-        { key: 'expiration', label: 'LOI Expiration' }
+        { key: 'guaranty', label: 'Personal Guaranty', type: 'guaranty' },
+        { key: 'expiration', label: 'LOI Expiration', type: 'number', unit: 'days' }
       ],
       clauses: [
         { id: 'c_patio', order: 0, title: 'Patio / Outdoor Seating', body: `Tenant shall have the exclusive right to use the outdoor/patio area adjacent to the Premises for seating and service at no additional base rent. Landlord shall deliver the patio area in a condition suitable for restaurant use, including any required railings, drainage, and utility connections, and shall reasonably cooperate with Tenant in obtaining any municipal permits required for outdoor service.` },
@@ -5863,15 +5860,24 @@ Broker: {{rep}}, Restaurant Realty Group, LLC`,
         { id: 'c_assign', order: 9, title: 'Assignment & Subletting', body: `Tenant shall have the right to assign the lease or sublet the Premises to an affiliate, franchisee, or in connection with the sale of substantially all of Tenant's business without Landlord's consent, and otherwise with Landlord's consent, not to be unreasonably withheld, conditioned, or delayed.` },
         { id: 'c_snda', order: 10, title: 'SNDA / Non-Subordination', body: `The lease shall not be subordinate to any current or future mortgage unless the holder delivers to Tenant a commercially reasonable Subordination, Non-Disturbance and Attornment Agreement recognizing Tenant's rights under the lease so long as Tenant is not in default.` },
         { id: 'c_ada', order: 11, title: 'ADA & Compliance', body: `Landlord shall deliver the Premises and all common areas in compliance with all applicable laws, including the Americans with Disabilities Act, and free of hazardous materials. Any compliance work required as of delivery that is not the result of Tenant's specific improvements shall be Landlord's responsibility and expense.` },
-        { id: 'c_delay', order: 12, title: 'Delivery Delay / Outside Date', body: `If Landlord is unable to deliver the Premises in the required condition by the target delivery date, base rent and the rent commencement date shall be postponed day-for-day, and if delivery is delayed beyond {{outside_date}}, Tenant may terminate this transaction without penalty.` }
+        { id: 'c_delay', order: 12, title: 'Delivery Delay / Outside Date', body: `If Landlord is unable to deliver the Premises in the required condition by the target delivery date, base rent and the rent commencement date shall be postponed day-for-day, and if delivery is delayed beyond {{outside_date}}, Tenant may terminate this transaction without penalty.` },
+        { id: 'c_indoormusic', order: 13, title: 'Amplified & Live Music (Interior)', body: `Tenant may play recorded, amplified, and live music inside the Premises during operating hours. No lease provision or association rule shall restrict interior sound levels or entertainment except as required by applicable law.` },
+        { id: 'c_outdoormusic', order: 14, title: 'Outdoor Music & Entertainment', body: `Tenant may provide recorded, amplified, and live music and entertainment on the patio/outdoor area during operating hours, subject only to the applicable municipal noise ordinance; Landlord shall not impose sound limits stricter than the applicable code.` },
+        { id: 'c_staffparking', order: 15, title: 'Employee / Staff Parking', body: `Landlord shall provide not fewer than {{staff_spaces}} spaces for Tenant's employees at no additional charge, available during all prep, operating, and closing hours, and shall not restrict staff parking on the site.` },
+        { id: 'c_delivery', order: 16, title: 'Delivery, Takeout & Curbside', body: `Tenant may operate takeout, curbside, and third-party delivery services, including designated short-term pickup parking and a reasonable staging area for delivery drivers near the Premises.` },
+        { id: 'c_drivethru', order: 17, title: 'Drive-Thru', body: `Landlord shall permit, and reasonably cooperate in permitting, a drive-thru lane serving the Premises — including vehicle stacking, directional signage, and a menu/order board — subject to applicable governmental approvals.` },
+        { id: 'c_trash', order: 18, title: 'Trash, Grease & Dumpster Enclosure', body: `Landlord shall provide a dedicated, screened trash and grease enclosure of adequate size within reasonable proximity to the Premises, with unobstructed access for Tenant's waste and grease haulers.` },
+        { id: 'c_utilcap', order: 19, title: 'Utility Capacity (Gas & Electric)', body: `Landlord shall deliver electrical service of not less than {{electric_service}} and natural gas service adequate for a full-service commercial kitchen, or provide a corresponding allowance to upgrade the service to the Premises.` },
+        { id: 'c_earlyaccess', order: 20, title: 'Early Access / Fixturing Period', body: `Landlord shall deliver possession not fewer than {{fixturing_days}} days before the Rent Commencement Date for Tenant's fixturing, equipment installation, and staff training, with no base rent or additional rent accruing during that period.` },
+        { id: 'c_godark', order: 21, title: 'Go-Dark Rights (No Continuous Operation)', body: `Tenant shall have the right to cease operations without being in default, provided Tenant continues to pay rent. No continuous-operation covenant shall require Tenant to remain open, and recapture shall be Landlord's sole remedy.` },
+        { id: 'c_relocation', order: 22, title: 'No Relocation', body: `Landlord shall have no right to relocate the Premises during the initial Term or any extension.` },
+        { id: 'c_rofr', order: 23, title: 'Right of First Refusal (Expansion)', body: `Tenant shall have an ongoing right of first refusal to lease any adjacent or contiguous space that becomes available during the Term, on the same terms Landlord is prepared to offer a third party.` },
+        { id: 'c_valet', order: 24, title: 'Valet Parking', body: `Tenant shall have the right to operate or arrange valet parking serving the Premises, with Landlord's reasonable cooperation regarding staging, drop-off, and queuing areas.` }
       ]
     },
     business_sale: {
       name: 'Business Sale',
-      top: `RESTAURANT REALTY GROUP, LLC
-Austin  |  Dallas  |  Houston  |  San Antonio
-
-{{date}}
+      top: `{{date}}
 
 {{seller}}
 RE: Letter of Intent to Purchase - {{business}}
@@ -5885,7 +5891,7 @@ Confidentiality. The parties shall keep the existence and terms of this Letter o
 
 Governing Law. This Letter of Intent shall be governed by the laws of the State of Texas.
 
-Expiration. This Letter of Intent shall expire if not accepted in writing on or before {{expiration}}.
+Expiration. This Letter of Intent shall expire if not accepted in writing within {{expiration}} days of the date above.
 
 Accepted and Agreed:
 
@@ -5914,7 +5920,7 @@ Broker: {{rep}}, Restaurant Realty Group, LLC`,
         { key: 'dd_period', label: 'Due Diligence Period' },
         { key: 'closing', label: 'Target Closing' },
         { key: 'lease', label: 'Lease Assignment / New Lease' },
-        { key: 'expiration', label: 'LOI Expiration' }
+        { key: 'expiration', label: 'LOI Expiration', type: 'number', unit: 'days' }
       ],
       clauses: [
         { id: 'b_sellerfin', order: 0, title: 'Seller Financing', body: `A portion of the Purchase Price in the amount of {{seller_note}} shall be seller-financed under a promissory note bearing interest at {{note_rate}} per annum, amortized over {{note_term}}, secured by the assets sold and personally guaranteed by Buyer's principals.` },
@@ -5932,6 +5938,31 @@ function loadLoiConfig() { const s = loadSettings(); return (s.loi && s.loi.tena
 function saveLoiConfig(cfg) { const s = loadSettings(); s.loi = cfg; saveSettings(s); }
 
 function loiFill(text, vals) { return String(text == null ? '' : text).replace(/\{\{(\w+)\}\}/g, function (_, k) { var v = vals[k]; return (v != null && String(v).trim() !== '') ? String(v) : '____________'; }); }
+function loiFmtTerm(f, vals) {
+  var t = f.type;
+  if (t === 'number') {
+    var raw = vals[f.key]; if (raw == null) return ''; raw = String(raw).trim(); if (!raw) return '';
+    var out = raw; var digits = raw.replace(/[^0-9.\-]/g, '');
+    if (f.comma && digits !== '' && !isNaN(Number(digits))) out = Number(digits).toLocaleString('en-US');
+    var u = f.unit || ''; var sp = (u && /^[\/%]/.test(u)) ? '' : ' ';
+    return (f.prefix || '') + out + (u ? sp + u : '');
+  }
+  if (t === 'renewal') {
+    var c = (vals.renewal_count != null ? String(vals.renewal_count) : '').trim();
+    var y = (vals.renewal_years != null ? String(vals.renewal_years) : '').trim();
+    if (!c && !y) return '';
+    return (c || '____') + ' option' + (c === '1' ? '' : 's') + ' to renew, each ' + (y || '____') + ' years';
+  }
+  if (t === 'guaranty') {
+    var gy = (vals.pg_years != null ? String(vals.pg_years) : '').trim();
+    var bo = !!vals.pg_burnoff; var boy = (vals.pg_burnoff_years != null ? String(vals.pg_burnoff_years) : '').trim();
+    if (!gy && !bo && !boy) return '';
+    var g = 'Personal guaranty' + (gy ? (' of ' + gy + ' years') : '');
+    if (bo) g += boy ? (', burning off after ' + boy + ' years') : ', with burn-off';
+    return g;
+  }
+  var v = vals[f.key]; return (v != null ? String(v) : '');
+}
 function loiRtfEsc(s) {
   s = String(s == null ? '' : s);
   s = s.replace(/\\/g, '\\\\').replace(/\{/g, '\\{').replace(/\}/g, '\\}');
@@ -5941,7 +5972,7 @@ function loiRtfEsc(s) {
 }
 
 app.get('/api/loi', (req, res) => {
-  res.json({ ok: true, types: LOI_TYPES, config: loadLoiConfig(), isAdmin: !!(req.user && isSuper(req.user)), rep: (req.user && req.user.name) || '' });
+  res.json({ ok: true, types: LOI_TYPES, config: loadLoiConfig(), isAdmin: !!(req.user && isSuper(req.user)), rep: (req.user && req.user.name) || '', logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), appName: loadAppName() });
 });
 app.post('/api/loi/generate', express.json(), (req, res) => {
   const b = req.body || {};
@@ -5954,7 +5985,7 @@ app.post('/api/loi/generate', express.json(), (req, res) => {
   const parts = ['{\\rtf1\\ansi\\ansicpg1252\\deff0{\\fonttbl{\\f0\\froman Times New Roman;}}\\paperw12240\\paperh15840\\margl1440\\margr1440\\margt1440\\margb1440\\f0\\fs22 '];
   parts.push(loiRtfEsc(loiFill(t.top, vals)) + '\\par \\par ');
   parts.push('{\\b\\fs24 KEY TERMS}\\par ');
-  (t.terms || []).forEach(function (f) { var v = vals[f.key]; if (v != null && String(v).trim() !== '') parts.push('{\\b ' + loiRtfEsc(f.label) + ': }' + loiRtfEsc(String(v)) + '\\par '); });
+  (t.terms || []).forEach(function (f) { var disp = loiFmtTerm(f, vals); if (disp && String(disp).trim() !== '') parts.push('{\\b ' + loiRtfEsc(f.label) + ': }' + loiRtfEsc(String(disp)) + '\\par '); });
   parts.push('\\par ');
   (t.clauses || []).filter(function (c) { return sel.indexOf(c.id) >= 0; }).sort(function (a, c) { return (a.order || 0) - (c.order || 0); }).forEach(function (c) {
     parts.push('{\\b ' + loiRtfEsc(c.title) + '}\\par ');
@@ -5980,7 +6011,7 @@ app.post('/api/loi/terms', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const cfg = loadLoiConfig(); const t = cfg[b.type];
   if (!t) return res.status(400).json({ ok: false, error: 'Unknown LOI type.' });
   if (Array.isArray(b.terms)) {
-    t.terms = b.terms.map(function (f) { const o = { key: String(f.key || '').slice(0, 40), label: String(f.label || '').slice(0, 80) }; if (f.type === 'select') { o.type = 'select'; o.options = (Array.isArray(f.options) ? f.options : []).map(x => String(x).slice(0, 80)).filter(Boolean).slice(0, 24); } if (f.hint) o.hint = String(f.hint).slice(0, 80); return o; }).filter(f => f.key && f.label);
+    t.terms = b.terms.map(function (f) { const o = { key: String(f.key || '').slice(0, 40), label: String(f.label || '').slice(0, 80) }; const ty = f.type; if (ty === 'select') { o.type = 'select'; o.options = (Array.isArray(f.options) ? f.options : []).map(x => String(x).slice(0, 80)).filter(Boolean).slice(0, 24); } else if (ty === 'number') { o.type = 'number'; if (f.unit) o.unit = String(f.unit).slice(0, 20); if (f.prefix) o.prefix = String(f.prefix).slice(0, 8); if (f.comma) o.comma = true; } else if (ty === 'renewal' || ty === 'guaranty') { o.type = ty; } if (f.hint) o.hint = String(f.hint).slice(0, 80); return o; }).filter(f => f.key && f.label);
   }
   saveLoiConfig(cfg); res.json({ ok: true, config: cfg });
 });
