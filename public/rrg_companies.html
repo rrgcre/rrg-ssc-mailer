@@ -195,12 +195,13 @@ function createCompany(){
   var ctype=document.getElementById('m_type').value;
   var findGrp=!!(document.getElementById('m_findgrp')&&document.getElementById('m_findgrp').checked&&ctype==='Restaurant Group');
   var _stash=findGrp?{findGroup:true,metro:metro}:(conceptNames.length?{names:conceptNames,metro:metro}:null);
+  var _pts=PERSONTYPES||[]; var contactType=(_pts.indexOf(ctype)>=0)?ctype:(_pts.indexOf('Restaurant Owner')>=0?'Restaurant Owner':(_pts.indexOf('Seller')>=0?'Seller':(_pts[0]||'Seller')));
   function J(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}); }
   J('/api/company',{name:name,type:document.getElementById('m_type').value,leadSource:(document.getElementById('m_lead')||{}).value||''})
     .then(function(j){
       if(!(j&&j.ok&&j.company)){ if(j&&j.existingId){ b.textContent='Create company'; if(confirm((j.error||'That company already exists.')+'\n\nOpen it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(j.existingId); else b.disabled=false; } else { b.disabled=false;b.textContent='Create company'; alert((j&&j.error)||'Could not create the company.'); } return; }
       var id=j.company.id; var chain=Promise.resolve();
-      if(cfirst&&clast){ chain=chain.then(function(){ var _cbody={firstName:cfirst,lastName:clast,nickname:cnick,title:ctitle,phone:cphone,email:cemail,type:ctype}; return J('/api/company/'+encodeURIComponent(id)+'/contact',_cbody).then(function(cj){ if(cj&&!cj.ok){ alert('Company created, but the contact was not added: '+((cj&&cj.error)||'unknown error')); } return cj; }); }); }
+      if(cfirst&&clast){ chain=chain.then(function(){ var _cbody={firstName:cfirst,lastName:clast,nickname:cnick,title:ctitle,phone:cphone,email:cemail,type:contactType}; return J('/api/company/'+encodeURIComponent(id)+'/contact',_cbody).then(function(cj){ if(cj&&!cj.ok){ alert('Company created, but the contact was not added: '+((cj&&cj.error)||'unknown error')); } return cj; }); }); }
       chain.then(function(){ if(_stash){ try{ localStorage.setItem('rrg_build_'+id, JSON.stringify(_stash)); }catch(e){} } location.href='./rrg_company.html?id='+encodeURIComponent(id); }, function(){ if(_stash){ try{ localStorage.setItem('rrg_build_'+id, JSON.stringify(_stash)); }catch(e){} } location.href='./rrg_company.html?id='+encodeURIComponent(id); });
     })
     .catch(function(){ b.disabled=false;b.textContent='Create company'; alert('Could not reach the server.'); });
