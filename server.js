@@ -886,11 +886,40 @@ app.use((req, res, next) => {
   next();
 });
 
+// ---- AI usage meter (per-org billing groundwork) ----
+const AI_USAGE_FILE = path.join(BOV_DATA_DIR, 'ai_usage.json');
+function loadAiUsage() { try { return JSON.parse(fs.readFileSync(AI_USAGE_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveAiUsage(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(AI_USAGE_FILE, JSON.stringify(a.slice(-8000), null, 2)); } catch (e) {} }
+// Rough $ estimate per AI action (web-search actions cost far more than a small text call).
+const AI_FEATURE_COST = { 'build-concepts': 0.22, 'find-locations': 0.09, 'find-concepts': 0.07, 'concept-resolve': 0.03, 'brief': 0.04, 'loi-review': 0.03, 'loi-suggest': 0.02, 'loi-parse': 0.02, 'loi-counter': 0.02, 'enrich-company': 0.02, 'enrich-contact': 0.02, 'contact-prep': 0.02, 'concept': 0.02, 'site-read': 0.02, 'calc-summary': 0.01, 'placer': 0.01, 'space-intake': 0.02, 'space-match': 0.02 };
+function aiMeterFeature(p) {
+  p = String(p || '');
+  var m = p.match(/^\/api\/ai\/([\w-]+)/); if (m) return m[1];
+  if (/^\/api\/space\/ai-intake/.test(p)) return 'space-intake';
+  if (/^\/api\/spaces\/ai-match/.test(p)) return 'space-match';
+  if (/^\/api\/loi\/ai-parse/.test(p)) return 'loi-parse';
+  var m2 = p.match(/\/(build-concepts|find-locations|find-concepts|concept-resolve)$/); if (m2) return m2[1];
+  return null;
+}
+function logAiCall(feature, req) {
+  try {
+    var list = loadAiUsage();
+    var cost = (AI_FEATURE_COST[feature] != null) ? AI_FEATURE_COST[feature] : 0.02;
+    list.push({ ts: new Date().toISOString(), username: (req && req.user && req.user.username) || '', name: (req && req.user && req.user.name) || '', feature: feature, estCost: cost });
+    saveAiUsage(list);
+  } catch (e) {}
+}
 // Gate every AI endpoint by role (open when enforcement is off).
 app.use((req, res, next) => {
   if (/^\/api\/(ai\/|space\/ai-intake|spaces\/ai-match|loi\/ai-parse)/.test(req.path)) {
     if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'You do not have access to AI features. Ask an admin to enable it for your role.' });
   }
+  next();
+});
+// Meter every AI call that actually succeeds (covers /api/ai/* and the locationgen concept/location routes).
+app.use((req, res, next) => {
+  const feat = aiMeterFeature(req.path);
+  if (feat) { res.on('finish', function () { try { if (res.statusCode < 400) logAiCall(feat, req); } catch (e) {} }); }
   next();
 });
 
