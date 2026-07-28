@@ -91,6 +91,7 @@ tr:hover td{background:#fbfcfe;}
     <label class="mfld">Company name</label><input id="m_name" autocomplete="off" placeholder="e.g. Blue Agave Restaurant Group">
     <div id="m_dupe" class="dupe" hidden></div>
     <label class="mfld">Type</label><select id="m_type"></select>
+    <label class="mfld">Lead source</label><input id="m_lead" list="leadsrclist" autocomplete="off" placeholder="Referral, CoStar, event…">
     <div class="mgrp">First contact <span class="mopt">— optional; most operators have just one</span></div>
     <div class="mrow2"><div><label class="mfld">First name</label><input id="m_cfirst" autocomplete="off"></div><div><label class="mfld">Last name</label><input id="m_clast" autocomplete="off"></div></div>
     <div class="mrow2"><div><label class="mfld">Nickname</label><input id="m_cnick" autocomplete="off"></div><div><label class="mfld">Title</label><input id="m_ctitle" list="titlelist" autocomplete="off"></div></div>
@@ -101,7 +102,7 @@ tr:hover td{background:#fbfcfe;}
     <label class="mfld">Concept name(s)</label><textarea id="m_concepts" rows="4" placeholder="One concept per line" style="width:100%;padding:9px 11px;border:1px solid #d5dbe6;border-radius:9px;font:inherit;font-size:13px;resize:vertical"></textarea><div id="m_concept_msg" style="font-size:12px;color:#DA2B1F;margin-top:5px"></div>
     <label class="mfld">Major metro they operate in</label><input id="m_metro" list="metrolist" autocomplete="off" placeholder="e.g. Dallas — helps the AI find the right brand">
     <div style="font-size:11.5px;color:#6b7488;margin-top:6px;line-height:1.5">On <b>Create</b>, ✨ your AI agent builds each concept — website, type, cuisine, price, logo &amp; summary — and finds its locations with photos.</div>
-    <datalist id="metrolist"></datalist><datalist id="citylist"></datalist><datalist id="titlelist"></datalist><datalist id="taglist"></datalist>
+    <datalist id="metrolist"></datalist><datalist id="citylist"></datalist><datalist id="titlelist"></datalist><datalist id="taglist"></datalist><datalist id="leadsrclist"></datalist>
   </div>
   <div class="modalf"><button id="m_cancel" class="mbtn ghost">Cancel</button><button id="m_create" class="mbtn">Create company</button></div>
 </div></div>

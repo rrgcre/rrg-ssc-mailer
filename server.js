@@ -2562,7 +2562,7 @@ app.get('/api/assignments', (req, res) => {
   const isAdmin = req.user && isSuper(req.user);
   const list = Object.values(deals).filter(d => isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d)).map(d => assignmentView(d, overlay));
   list.sort((a, b) => String(b.lastActivity).localeCompare(String(a.lastActivity)));
-  res.json({ ok: true, isAdmin: !!isAdmin, statuses: ASSIGN_STATUSES, assignments: list });
+  res.json({ ok: true, isAdmin: !!isAdmin, statuses: ASSIGN_STATUSES, metros: RRG_METROS, assignments: list });
 });
 app.get('/api/assignment/:key', (req, res) => {
   const deals = assignmentsIndex(), overlay = loadAssignOverlay();
@@ -2807,7 +2807,7 @@ app.get('/api/people', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const cos = {}, coMain = {}; loadCompanies().forEach(c => { cos[c.id] = c.name; coMain[c.id] = c.mainContactId || ''; });
   const people = loadPeople().filter(p => !restrictToOwn(req) || permOwnerMatch(req, p.by)).map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '', isMainContact: !!(p.companyId && coMain[p.companyId] === p.id) }));
-  res.json({ ok: true, people: people, canDelete: canDelete(req), types: effPersonTypes(), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, people: people, canDelete: canDelete(req), types: effPersonTypes(), leadSources: effLeadSources(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 app.post('/api/person', express.json(), (req, res) => {
   const b = req.body || {};
@@ -4073,6 +4073,7 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   const b = req.body || {};
   const business = String(b.business || '').trim();
   if (!business) return res.status(400).json({ ok: false, error: 'A business / deal name is required.' });
+  if (!String(b.contact || '').trim() && !String(b.contactEmail || '').trim()) return res.status(400).json({ ok: false, error: 'A client contact is required — every listing must be linked to a contact.' });
   const rec = {
     id: newDealId(), business: business.slice(0, 120), market: String(b.market || '').slice(0, 80), contact: String(b.contact || '').slice(0, 120),
     screenId: '', roomId: '', contactPersonId: '', companyId: '', createdAt: new Date().toISOString(),

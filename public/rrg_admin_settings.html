@@ -69,7 +69,7 @@ var MAXPULL=20; var DEFSTATE='TX'; var ASSISTANT='Claude'; var CONCEPTL='Concept
 
 function tagListHtml(kind,arr){
   return '<div class="tagbox" id="tb_'+kind+'">'+(arr.length?arr.map(function(t,i){ return '<span class="tagchip"><button type="button" class="tmv" data-mv="'+kind+'" data-i="'+i+'" data-d="-1" title="Move earlier">‹</button><span class="tglbl">'+esc(t)+'</span><button type="button" class="tmv" data-mv="'+kind+'" data-i="'+i+'" data-d="1" title="Move later">›</button><button type="button" class="tgx" data-rm="'+kind+'" data-val="'+esc(t)+'" title="Remove">×</button></span>'; }).join(''):'<span class="note" style="margin:4px">None — add one below.</span>')+'</div>'
-    +'<div class="addrow"><input id="add_'+kind+'" placeholder="Add a value and press Enter"><button class="btn ghost" type="button" data-add="'+kind+'">Add</button></div>';
+    +'<div class="addrow"><input id="add_'+kind+'" placeholder="Add a value and press Enter"><button class="btn ghost" type="button" data-add="'+kind+'">Add</button><button class="btn ghost" type="button" data-sort="'+kind+'" title="Sort this list A \u2192 Z">A\u2013Z</button></div>';
 }
 function renderTypes(){
   document.getElementById('typesBox').innerHTML=
@@ -86,6 +86,7 @@ function renderTypes(){
     +'<div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)"><label style="display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--navy);cursor:pointer"><input type="checkbox" id="showribbon"'+(SHOWRIBBON?' checked':'')+'> Show the open-requests ribbon on the dashboard</label><div class="note" style="margin-top:6px">When on, the dashboard shows a ribbon summarizing open requests. Turn off to hide it for everyone.</div></div>';
   document.querySelectorAll('[data-rm]').forEach(function(b){ b.addEventListener('click',function(){ var k=b.getAttribute('data-rm'), v=b.getAttribute('data-val'); TYPES[k]=TYPES[k].filter(function(x){return x!==v;}); renderTypes(); }); });
   document.querySelectorAll('[data-mv]').forEach(function(b){ b.addEventListener('click',function(){ var k=b.getAttribute('data-mv'), i=+b.getAttribute('data-i'), d=+b.getAttribute('data-d'), j=i+d; if(j<0||j>=TYPES[k].length) return; var t=TYPES[k][i]; TYPES[k][i]=TYPES[k][j]; TYPES[k][j]=t; renderTypes(); }); });
+  document.querySelectorAll('[data-sort]').forEach(function(b){ b.addEventListener('click',function(){ var k=b.getAttribute('data-sort'); TYPES[k]=(TYPES[k]||[]).slice().sort(function(a,c){ return String(a).toLowerCase().localeCompare(String(c).toLowerCase()); }); renderTypes(); }); });
   document.querySelectorAll('[data-add]').forEach(function(b){ b.addEventListener('click',function(){ addType(b.getAttribute('data-add')); }); });
   ['personTypes','companyTypes','ticketCategories','leadSources','activityTypes','cuisineTypes'].forEach(function(k){ var inp=document.getElementById('add_'+k); if(inp) inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); addType(k); } }); });
 }
