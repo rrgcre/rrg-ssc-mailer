@@ -4962,7 +4962,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
           <span class="sub2">or upload:</span>
-          <input type="file" id="logoFile" accept=".png,.jpg,.jpeg,.svg,.gif,.webp,image/*" style="font:inherit;font-size:13px">
+          <input type="file" id="logoFile" accept=".png,.jpg,.jpeg,.svg,.gif,.webp,image/*" onchange="uploadLogo()" style="font:inherit;font-size:13px">
           <button class="primary" onclick="uploadLogo()">Upload logo</button>
           <button onclick="clearLogo()">Remove</button>
           <span id="logomsg" class="sub2"></span>
@@ -4978,7 +4978,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         </div>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
           <span class="sub2">or upload:</span>
-          <input type="file" id="favFile" accept=".ico,.png,.svg,.gif,.webp,image/*" style="font:inherit;font-size:13px">
+          <input type="file" id="favFile" accept=".ico,.png,.svg,.gif,.webp,image/*" onchange="uploadFavicon()" style="font:inherit;font-size:13px">
           <button class="primary" onclick="uploadFavicon()">Upload favicon</button>
           <button onclick="clearFavicon()">Remove</button>
           <span id="favmsg" class="sub2"></span>
@@ -5201,7 +5201,7 @@ app.get('/admin', requireAdmin, (req, res) => {
     <script>
       /* visible proof the inline admin script executed (diagnostic) */
       try{ var _eb=document.querySelector('.expandbar'); if(_eb){ _eb.insertAdjacentHTML('beforeend','<span style="margin-left:auto;color:#8a93a8;font-size:11px">admin ${esc(ADMIN_BUILD)} · script loaded ✓</span>'); } }catch(e){}
-      function post(action, data){ return fetch(action,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json()); }
+      function post(action, data){ return fetch(action,{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(r=>r.json()); }
       function au(f){ post('/api/admin/add-user',{firstName:f.firstName.value,lastName:f.lastName.value,username:f.username.value,email:f.email.value,password:f.password.value,role:f.role.value,title:f.title.value,phone:f.phone.value}).then(j=>{ if(j.ok){location.reload();} else alert(j.error||'Failed'); }); return false; }
       function rp(f){ var p=prompt('New password for '+f.username.value+' (min 6):'); if(!p) return false; post('/api/admin/reset',{username:f.username.value,password:p}).then(j=>{ alert(j.ok?'Password reset.':(j.error||'Failed')); }); return false; }
       function saveLinks(){ var links=[]; document.querySelectorAll('.lrow').forEach(function(r){ var n=r.querySelector('.ln').value.trim(), u=r.querySelector('.lu').value.trim(), a=r.querySelector('.la').checked; if(n&&u) links.push({name:n,url:u,default:a}); }); post('/api/admin/links',{links:links}).then(function(j){ var m=document.getElementById('lmsg'); if(j.ok){ m.textContent='Saved '+(j.links.length)+' link(s) ✓'; } else { m.textContent=j.error||'Failed'; } }); }
@@ -5232,7 +5232,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         if(f.size>4*1024*1024){ m.textContent='Image too large (max 4 MB).'; return; }
         m.textContent='Uploading…';
         var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''), i=s.indexOf(','), b64=(i>=0?s.slice(i+1):s);
-          post('/api/admin/logo',{filename:f.name, dataB64:b64}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; fi.value=''; renderLogo(true); } else { m.textContent=(j&&j.error)||'Upload failed'; } }).catch(function(){ m.textContent='Upload failed — try again.'; }); };
+          post('/api/admin/logo',{filename:f.name, dataB64:b64}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — new logo is live.'; fi.value=''; renderLogo(true); try{ var _hb=document.getElementById('rrgbrand'); if(_hb) _hb.innerHTML='<img src="/api/brand/logo?v='+Date.now()+'" class="rrgbrandimg" alt="">'; }catch(e){} } else { m.textContent=(j&&j.error)||'Upload failed'; } }).catch(function(){ m.textContent='Upload failed — try again.'; }); };
         rd.onerror=function(){ m.textContent='Could not read that image.'; };
         rd.readAsDataURL(f); }
       function clearLogo(){ if(!confirm('Remove the company logo? Marketing Packs will fall back to the built-in RRG wordmark.')) return; post('/api/admin/logo/clear',{}).then(function(j){ if(j&&j.ok){ renderLogo(false); document.getElementById('logomsg').textContent='Removed.'; } }); }
