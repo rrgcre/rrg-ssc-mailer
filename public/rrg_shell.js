@@ -17,11 +17,12 @@
       { ic: '◱', label: 'Activity Feed', href: 'rrg_feed.html' },
       { ic: '✔', label: 'My Tasks', href: 'rrg_tasks.html' }
     ] },
-    { grp: 'Records', color: '#7ea6d8', items: [
+    { grp: 'Book of Business', color: '#7ea6d8', items: [
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
       { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
       { ic: '◆', label: 'Listings', href: 'rrg_assignments.html' },
-      { ic: '◈', label: 'Deals', href: 'rrg_deals.html' }
+      { ic: '◈', label: 'Deals', href: 'rrg_deals.html' },
+      { ic: '⚖', label: 'Agreements', href: 'rrg_agreements.html', color: '#8b5cf6' }
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [
       { ic: '☎', label: 'Qualification Calls', href: 'rrg_screening_queue.html' },
@@ -41,7 +42,6 @@
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
       { ic: '✉', label: 'Requests', href: 'rrg_tickets.html' },
-      { ic: '⚖', label: 'Agreements', href: 'rrg_agreements.html', color: '#8b5cf6' },
       { ic: '∑', label: 'Cap Rate', href: 'rrg_cap_rate_calculator.html' },
       { ic: '＄', label: 'Sale Commission', href: 'rrg_commission_calculator.html' },
       { ic: '＄', label: 'Lease Commission', href: 'rrg_lease_commission_calculator.html' }

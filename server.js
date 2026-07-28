@@ -2786,20 +2786,72 @@ app.post('/api/bizbuysell/import', express.json({ limit: '2mb' }), (req, res) =>
   res.json(importBbsLeads(req, leads));
 });
 // Pull BizBuySell buyer-lead emails from the user's connected Gmail and import them.
+// ---- BizBuySell Gmail auto-pull (shared by the manual button and the background poller) ----
+const BBSPOLL_FILE = path.join(BOV_DATA_DIR, 'bbspoll.json');
+function loadBbsPoll() { try { return JSON.parse(fs.readFileSync(BBSPOLL_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
+function saveBbsPoll(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BBSPOLL_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+async function bbsGmailPull(username, name, opts) {
+  opts = opts || {};
+  if (!gmail.statusFor(username).connected) return { ok: false, error: 'Gmail not connected.' };
+  const q = '(from:bizbuysell.com OR bizbuysell) newer_than:180d';
+  const msgs = await gmail.searchLeadBodies(username, q, 50);
+  const store = loadBbsPoll(); const rec = store[username] || {};
+  const seen = Array.isArray(rec.seen) ? rec.seen : [];
+  const seenSet = {}; seen.forEach(id => seenSet[id] = 1);
+  const fresh = opts.all ? msgs : msgs.filter(m => !seenSet[m.id]);
+  let leads = [];
+  fresh.forEach(m => { const found = parseBizBuySellLeads(m.body || ''); if (found.length) leads = leads.concat(found); });
+  const byEmail = {}; leads = leads.filter(l => { const k = String(l.email || l.phone || '').toLowerCase(); if (!k || byEmail[k]) return false; byEmail[k] = 1; return true; });
+  // Mark EVERY fetched message id as seen (even non-lead ones) so nothing is re-scanned / re-tasked.
+  rec.seen = seen.concat(msgs.map(m => m.id)).filter((v, i, a) => a.indexOf(v) === i).slice(-3000);
+  rec.lastRun = new Date().toISOString();
+  let out = { ok: true, imported: 0, matched: 0, unmatched: 0, dupes: 0, results: [], scanned: msgs.length, fresh: fresh.length };
+  if (leads.length) { out = Object.assign(importBbsLeads({ user: { username: username, name: name || username } }, leads), { scanned: msgs.length, fresh: fresh.length }); }
+  rec.lastCount = out.imported || 0; store[username] = rec; saveBbsPoll(store);
+  return out;
+}
 app.post('/api/bizbuysell/gmail', express.json(), async (req, res) => {
   try {
     const u = (req.user && req.user.username) || '';
     if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Gmail first — open any contact, Email tab, Connect Gmail.' });
-    const q = '(from:bizbuysell.com OR bizbuysell) newer_than:180d';
-    const msgs = await gmail.searchLeadBodies(u, q, 50);
-    if (!msgs.length) return res.json({ ok: true, imported: 0, matched: 0, unmatched: 0, dupes: 0, results: [], note: 'No BizBuySell lead emails found in the last 180 days.' });
-    let leads = [];
-    msgs.forEach(m => { const found = parseBizBuySellLeads(m.body || ''); if (found.length) leads = leads.concat(found); });
-    const seen = {}; leads = leads.filter(l => { const k = String(l.email || l.phone || '').toLowerCase(); if (!k || seen[k]) return false; seen[k] = 1; return true; });
-    if (!leads.length) return res.json({ ok: true, imported: 0, matched: 0, unmatched: 0, dupes: 0, results: [], note: 'Found ' + msgs.length + ' BizBuySell email(s), but could not read the lead fields automatically — use Paste or CSV, or send me a sample and I will tune the reader.' });
-    res.json(importBbsLeads(req, leads));
+    const out = await bbsGmailPull(u, (req.user && req.user.name) || u, { all: !!(req.body && req.body.all) });
+    if (out.ok && !out.imported) out.note = out.scanned ? ('Scanned ' + out.scanned + ' BizBuySell email(s)' + (out.fresh === 0 ? ' — all already imported.' : ', but could not read lead fields automatically. Use Paste or CSV, or send me a sample to tune the reader.')) : 'No BizBuySell lead emails found in the last 180 days.';
+    res.json(out);
   } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
+app.get('/api/bizbuysell/poll', (req, res) => {
+  const u = (req.user && req.user.username) || ''; const rec = (loadBbsPoll()[u]) || {};
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0 });
+});
+app.post('/api/bizbuysell/poll', express.json(), (req, res) => {
+  const u = (req.user && req.user.username) || ''; if (!u) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const b = req.body || {}; const store = loadBbsPoll(); const rec = store[u] || {};
+  if (typeof b.enabled === 'boolean') rec.enabled = b.enabled;
+  if (b.intervalMin != null) { const m = parseInt(b.intervalMin, 10); rec.intervalMin = (isFinite(m) && m >= 5) ? Math.min(m, 720) : 15; }
+  store[u] = rec; saveBbsPoll(store);
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15 });
+});
+// Background poller — checks each enabled+connected user's Gmail when their interval is due.
+let _bbsPolling = false;
+async function bbsPollTick() {
+  if (_bbsPolling) return; _bbsPolling = true;
+  try {
+    if (gmail.isConfigured()) {
+      const store = loadBbsPoll(); const users = auth.loadUsers(); const now = Date.now();
+      for (const uname of Object.keys(store)) {
+        const rec = store[uname]; if (!rec || !rec.enabled) continue;
+        if (!gmail.statusFor(uname).connected) continue;
+        const iv = (rec.intervalMin || 15) * 60 * 1000;
+        const last = rec.lastRun ? Date.parse(rec.lastRun) : 0;
+        if (now - last < iv) continue;
+        const prof = (users || []).find(x => x.username === uname) || {};
+        try { const r = await bbsGmailPull(uname, prof.name || uname, {}); if (r && r.imported) console.log('BizBuySell poll: imported ' + r.imported + ' lead(s) for ' + uname); } catch (e) { console.error('bbs poll error ' + uname + ':', e && e.message); }
+      }
+    }
+  } catch (e) { console.error('bbs poll tick:', e && e.message); }
+  _bbsPolling = false;
+}
+setInterval(bbsPollTick, 60 * 1000);
 // Add / update / remove an inquiry on a listing (manual entry + status changes).
 app.post('/api/assignment/:key/inquiry', express.json(), (req, res) => {
   const deals = assignmentsIndex(); const d = deals[req.params.key];
