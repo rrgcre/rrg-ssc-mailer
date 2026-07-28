@@ -300,7 +300,8 @@ function aiWorking(title){
 function aiCancel(){ if(AIREQ){ try{ if(AIREQ.ctrl) AIREQ.ctrl.abort(); }catch(e){} if(AIREQ.btn) AIREQ.btn.disabled=false; AIREQ=null; } document.getElementById('airov').hidden=true; }
 function aiBegin(btn,title){ var ctrl=window.AbortController?new AbortController():null; AIREQ={ctrl:ctrl,btn:btn}; if(btn) btn.disabled=true; aiWorking(title); return AIREQ; }
 function aiActive(req){ if(AIREQ!==req) return false; if(req.btn) req.btn.disabled=false; AIREQ=null; return true; } // false ⇒ user cancelled; don't render
-function loiSuggest(){ var btn=document.getElementById('sugBtn'); var req=aiBegin(btn,'Suggested sections');
+function loiSuggest(){ if(window.rrgAiConfirm){ window.rrgAiConfirm({actionKey:"loi-suggest",title:"Suggest LOI sections with "+(window.__rrgAssistant||"AI"),body:"This reviews the deal and recommends which LOI sections and clauses to include. It runs an AI call — a metered action.",onProceed:function(){ _doLoiSuggest(); }}); return; } _doLoiSuggest(); }
+function _doLoiSuggest(){ var btn=document.getElementById('sugBtn'); var req=aiBegin(btn,'Suggested sections');
   fetch('/api/ai/loi-suggest',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:TYPE,dealInfo:VALUES}),signal:req.ctrl?req.ctrl.signal:undefined})
    .then(function(r){return r.json();}).then(function(j){ if(!aiActive(req)) return;
      if(!j||!j.ok){ showAiResult('Suggested sections',esc((j&&j.error)||'Could not suggest.')); return; }
@@ -312,6 +313,8 @@ function loiSuggest(){ var btn=document.getElementById('sugBtn'); var req=aiBegi
    }).catch(function(e){ if(e&&e.name==='AbortError') return; if(!aiActive(req)) return; showAiResult('Suggested sections','Network error.'); });
 }
 function loiReview(){ var dv=document.getElementById('docview'); var txt=(dv&&dv.textContent||'').trim(); if(!txt){ showAiResult('Review draft','Build the LOI first (click <b>Build LOI →</b>), then run the review.'); return; }
+  if(window.rrgAiConfirm){ window.rrgAiConfirm({actionKey:"loi-review",title:"Review this LOI with "+(window.__rrgAssistant||"AI"),body:"This reads your drafted LOI and flags risks, weak terms and anything missing. It runs an AI call — a metered action.",onProceed:function(){ _doLoiReviewRun(txt); }}); return; } _doLoiReviewRun(txt); }
+function _doLoiReviewRun(txt){
   var btn=document.getElementById('revBtn'); var req=aiBegin(btn,'Review draft');
   fetch('/api/ai/loi-review',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:txt}),signal:req.ctrl?req.ctrl.signal:undefined})
    .then(function(r){return r.json();}).then(function(j){ if(!aiActive(req)) return;

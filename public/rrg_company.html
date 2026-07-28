@@ -429,6 +429,10 @@ function openConceptForm(cpt){
 }
 // Save the concept (create or update) and then search the web for its locations — replaces the old per-row Find button.
 function conceptFind(cpt,isEdit){
+  if(window.rrgAiConfirm){ window.rrgAiConfirm({actionKey:"find-locations",title:"Find locations with "+(window.__rrgAssistant||"AI"),body:"This reads the concept’s website and maps listings to find every location it operates. It runs an AI web search — a metered action.",onProceed:function(){ _doConceptFind(cpt,isEdit); }}); return; }
+  _doConceptFind(cpt,isEdit);
+}
+function _doConceptFind(cpt,isEdit){
   if(_cpSaveTimer){ clearTimeout(_cpSaveTimer); _cpSaveTimer=null; }
   var name=document.getElementById('cp_name').value.trim();
   var website=document.getElementById('cp_site').value.trim();
@@ -465,6 +469,10 @@ function aiSetMsg(msg){ var m=document.getElementById('aiworkmsg'); if(m) m.text
 function aiHide(){ var o=document.getElementById('aiwork'); if(o) o.hidden=true; AIWORK.onCancel=null; if(AIWORK.timer){ clearInterval(AIWORK.timer); AIWORK.timer=null; } }
 // ---- Build ONE concept from its name (fills website/type/cuisine/price, then finds locations) ----
 function conceptBuildFromName(cpt,isEdit){
+  if(window.rrgAiConfirm){ window.rrgAiConfirm({actionKey:"concept-build",title:"Build this concept with "+(window.__rrgAssistant||"AI"),body:"This searches the web for the brand’s website, type, cuisine and price, then finds its locations. It runs AI web searches — a metered action.",onProceed:function(){ _doConceptBuildFromName(cpt,isEdit); }}); return; }
+  _doConceptBuildFromName(cpt,isEdit);
+}
+function _doConceptBuildFromName(cpt,isEdit){
   var name=document.getElementById('cp_name').value.trim();
   var msg=document.getElementById('cp_msg');
   if(!name){ document.getElementById('cp_name').focus(); if(msg) msg.textContent='Enter the concept name first.'; return; }
@@ -480,7 +488,7 @@ function conceptBuildFromName(cpt,isEdit){
       var pp=document.getElementById('cp_price'); if(pp&&p.pricePoint) pp.value=p.pricePoint;
       if(!p.website){ aiHide(); if(msg) msg.textContent=ASSISTANT+' could not confirm a website — add it, then use Find locations.'; return; }
       aiSetMsg('Found the site. Now finding '+name+'’s locations…');
-      conceptFind(cpt,isEdit);
+      _doConceptFind(cpt,isEdit);
     }).catch(function(e){ if(e&&e.name==='AbortError'){ aiHide(); return; } aiHide(); if(msg) msg.textContent='Could not reach the server.'; });
 }
 // ---- Bulk: enter several concept names and build them all ----
@@ -504,6 +512,10 @@ function openConceptBuilder(){
 }
 var _cbStop=false;
 function findGroupConcepts(){
+  if(window.rrgAiConfirm){ window.rrgAiConfirm({actionKey:"find-concepts",title:"Find this group’s concepts with "+(window.__rrgAssistant||"AI"),body:"This searches the web for every brand this group operates and builds each one. It runs AI web searches — a metered action.",onProceed:function(){ _doFindGroupConcepts(); }}); return; }
+  _doFindGroupConcepts();
+}
+function _doFindGroupConcepts(){
   var msg=document.getElementById('cb_msg'); var btn=document.getElementById('cb_findgroup');
   if(btn) btn.disabled=true; if(msg) msg.textContent=(window.__rrgAssistant||ASSISTANT||'AI')+' is finding this group’s concepts…';
   fetch('/api/company/'+encodeURIComponent(ID)+'/find-concepts',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){

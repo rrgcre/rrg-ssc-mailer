@@ -68,6 +68,8 @@ var CTRL=null, BRIEF_TIMER=null, ASSISTANT='the assistant';
 function stopTimer(){ if(BRIEF_TIMER){ clearInterval(BRIEF_TIMER); BRIEF_TIMER=null; } }
 function cancelled(){ stopTimer(); var out=document.getElementById('out'); out.innerHTML='<div class="state">Cancelled. <a href="#" class="retrylink" id="retryLink">Run the brief →</a></div>'; var rl=document.getElementById('retryLink'); if(rl) rl.addEventListener('click',function(e){ e.preventDefault(); load(); }); }
 function load(){
+  if(window.rrgAiConfirm){ window.rrgAiConfirm({actionKey:"brief",title:"Run your "+(window.__rrgAssistant||"AI")+" brief",body:"This reads your whole pipeline — listings, deals, agreements, tasks — and writes today’s priorities. It runs an AI call — a metered action.",onProceed:function(){ _doLoad(); }}); return; } _doLoad(); }
+function _doLoad(){
   var out=document.getElementById('out');
   if(CTRL){ try{CTRL.abort();}catch(e){} }
   stopTimer();
@@ -99,7 +101,7 @@ function render(j){
   out.innerHTML=h;
 }
 document.getElementById('refresh').addEventListener('click',load);
-fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.assistant) ASSISTANT=j.assistant; }).catch(function(){}).then(function(){ load(); });
+fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.assistant) ASSISTANT=j.assistant; }).catch(function(){}).then(function(){ _doLoad(); });
 </script>
 <script src="/rrg_brand.js"></script>
 </body>

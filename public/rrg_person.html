@@ -692,7 +692,8 @@ load();
   function e2(s){var d=document.createElement("div");d.textContent=s==null?"":String(s);return d.innerHTML;}
   function ctx(){ try{ return { name:P.name, type:P.type, company:(typeof CO!=="undefined"&&CO&&CO.name)||P.company||"", title:P.title, phone:P.phone, email:P.email, tags:P.tags, notes:P.notes, lastContacted:P.lastContacted, vip:P.vip, leadSource:P.leadSource, activities:(typeof ACTIVITIES!=="undefined"?ACTIVITIES:[]).slice(0,15), listings:(typeof DEALS!=="undefined"?DEALS:[]).map(function(d){return {business:d.business,market:d.market,role:d.role};}), agreements:(typeof AGREEMENTS!=="undefined"?AGREEMENTS:[]).map(function(a){return {type:a.type,status:a.status,expires:a.expires};}) }; }catch(e){ return {}; } }
   function showPrep(html){ document.getElementById("prepbody").innerHTML=html; document.getElementById("prepov").hidden=false; }
-  function prepCall(){ if(typeof P==="undefined"||!P) return; showPrep("<div style=\"color:#6b7488\">"+e2(window.__rrgAssistant||"AI")+" is reviewing the record…</div>");
+  function prepCall(){ if(typeof P==="undefined"||!P) return; if(window.rrgAiConfirm){ window.rrgAiConfirm({actionKey:"contact-prep",title:"Call prep with "+(window.__rrgAssistant||"AI"),body:"This reviews the full contact record — activities, listings, agreements — and drafts talking points. It runs an AI call — a metered action.",onProceed:function(){ _doPrepCall(); }}); return; } _doPrepCall(); }
+  function _doPrepCall(){ showPrep("<div style=\"color:#6b7488\">"+e2(window.__rrgAssistant||"AI")+" is reviewing the record…</div>");
     fetch("/api/ai/contact-prep",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({person:ctx()})})
      .then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ showPrep("<div style=\"color:#a5352c\">"+e2((j&&j.error)||"Could not build the prep.")+"</div>"); return; }
        var b=j.result||{}; var h="";
