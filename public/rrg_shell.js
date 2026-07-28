@@ -41,6 +41,7 @@
       { ic: '⚙', label: 'LOI Settings', href: 'rrg_admin_loi.html', need: 'loi' }
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
+      { ic: '⚑', label: 'Feedback', href: 'rrg_feedback.html' },
       { ic: '✉', label: 'Requests', href: 'rrg_tickets.html' },
       { ic: '∑', label: 'Cap Rate', href: 'rrg_cap_rate_calculator.html' },
       { ic: '＄', label: 'Sale Commission', href: 'rrg_commission_calculator.html' },

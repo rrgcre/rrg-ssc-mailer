@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Feedback & Requests</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
+.top{background:var(--navy);color:#fff;padding:26px 0 22px;} .top-in{max-width:1180px;margin:0 auto;padding:0 24px;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;} .bar{width:0;} .wm{display:none;}
+.kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:12px 0 4px;}
+h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:720px;}
+.wrap{max-width:1180px;margin:20px auto;padding:0 24px 60px;}
+.tiles{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:16px;}
+.tile{background:#fff;border:1px solid var(--line);border-radius:11px;padding:9px 14px;cursor:pointer;min-width:78px;transition:border-color .12s,box-shadow .12s;}
+.tile.on{border-color:var(--navy);box-shadow:0 0 0 1px var(--navy);}
+.tile .n{font-size:18px;font-weight:800;color:var(--navy);} .tile .l{font-size:11px;color:var(--soft);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-top:1px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
+.hd{display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);gap:11px;flex-wrap:wrap;}
+.hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
+.hd input.srch{margin-left:auto;border:1px solid var(--line);border-radius:9px;padding:8px 13px;font:inherit;font-size:13px;min-width:200px;}
+.hd select{border:1px solid var(--line);border-radius:9px;padding:8px 11px;font:inherit;font-size:12.5px;color:var(--ink);background:#fff;}
+.newbtn{background:var(--red);color:#fff;border:none;border-radius:9px;padding:9px 15px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
+#body{min-height:60px;}
+.pill{display:inline-block;font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px;white-space:nowrap;}
+.ttl{font-weight:600;color:var(--navy);font-size:13.5px;} .det{color:var(--muted);font-size:12px;margin-top:2px;max-width:520px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.who{color:var(--soft);font-size:11.5px;}
+.vote{display:inline-flex;align-items:center;gap:6px;} .voteb{border:1px solid var(--line);background:#fff;border-radius:8px;width:26px;height:24px;cursor:pointer;font-weight:800;color:var(--navy);} .voteb:hover{background:var(--wash);}
+.votec{font-variant-numeric:tabular-nums;font-weight:800;color:var(--navy);}
+.fbdel{border:1px solid #f0cfca;background:#fff5f4;color:var(--red);border-radius:8px;padding:5px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;}
+.empty{text-align:center;color:var(--muted);padding:50px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
+.foot{max-width:1180px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+.modal{position:fixed;inset:0;background:rgba(6,14,32,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;} .modal[hidden]{display:none!important;}
+.modalcard{background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;}
+.modalh{padding:17px 22px;font-size:16px;font-weight:800;color:var(--navy);border-bottom:1px solid var(--line);}
+.modalb{padding:18px 22px;} .mfld{display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:12px 0 6px;} .modalb .mfld:first-child{margin-top:0;}
+.modalb input,.modalb select,.modalb textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;background:#fff;}
+.mrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.modalf{display:flex;gap:9px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line);}
+.mbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 17px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;} .mbtn.ghost{background:#fff;color:var(--muted);border-color:var(--line);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="./index.html" class="rrg-back" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span></span>
+  <div class="kicker">Product</div>
+  <h1>Feedback &amp; Requests</h1>
+  <div class="sub">Send a feature request or report a bug. We rank each one and keep its status updated so nothing gets lost.</div>
+</div></div>
+<div class="wrap">
+  <div class="tiles" id="tiles"></div>
+  <div class="card">
+    <div class="hd"><b>Requests</b><span class="cnt" id="cnt"></span><button class="newbtn" id="newBtn">+ New request</button>
+      <select id="typeFilter"><option value="">All types</option></select>
+      <input class="srch" id="search" placeholder="Search title, detail, person…" oninput="applyFilter()">
+    </div>
+    <div id="body"><div class="empty">Loading…</div></div>
+  </div>
+</div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<div id="fbModal" class="modal" hidden><div class="modalcard">
+  <div class="modalh">New request</div>
+  <div class="modalb">
+    <label class="mfld">Title *</label><input id="f_title" placeholder="Short summary — e.g. Add a column for BBS #">
+    <div class="mrow"><div><label class="mfld">Type</label><select id="f_type"></select></div><div><label class="mfld">Priority</label><select id="f_priority"></select></div></div>
+    <label class="mfld">Details</label><textarea id="f_detail" rows="5" placeholder="What you want, why, steps to reproduce a bug, screenshots you'll follow up with…"></textarea>
+    <div id="f_msg" style="font-size:12.5px;color:#b23a2c;margin-top:8px"></div>
+  </div>
+  <div class="modalf"><button class="mbtn ghost" id="f_cancel">Cancel</button><button class="mbtn" id="f_save">Submit request</button></div>
+</div></div>
+<script src="/rrg_list.js"></script>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function fmtDate(d){ if(!d) return ''; var x=String(d).slice(0,10).split('-'); if(x.length!==3) return String(d); return x[1]+'/'+x[2]+'/'+x[0]; }
+var ALL=[], TYPES=[], STATUSES=[], PRIORITIES=[], CAN_DELETE=false, IS_ADMIN=false, CTL=null, FSTATUS='';
+var PCOLOR={'Critical':['#fdeceb','#DA2B1F'],'High':['#fdf1df','#b5641a'],'Medium':['#e8f0fd','#2f6fd0'],'Low':['#eef1f6','#6b7488']};
+var SCOLOR={'New':['#e8f0fd','#2f6fd0'],'Under review':['#f3edfb','#7a4fd0'],'Planned':['#fdf1df','#b5791f'],'In progress':['#e7f5ee','#1f8a5b'],'Done':['#e7f5ee','#1f8a5b'],'Declined':['#f3f4f7','#98a1b5']};
+function pill(map,v){ var c=map[v]||['#eef1f6','#6b7488']; return '<span class="pill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(v||'—')+'</span>'; }
+function save(id,field,val){ return fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:id,[field]:val})}).then(function(r){return r.json();}); }
+
+function tiles(){
+  var counts={}; ALL.forEach(function(x){ counts[x.status]=(counts[x.status]||0)+1; });
+  var open=ALL.filter(function(x){return x.status!=='Done'&&x.status!=='Declined';}).length;
+  var h='<div class="tile'+(FSTATUS===''?' on':'')+'" data-st=""><div class="n">'+ALL.length+'</div><div class="l">All</div></div>';
+  h+='<div class="tile'+(FSTATUS==='__open'?' on':'')+'" data-st="__open"><div class="n">'+open+'</div><div class="l">Open</div></div>';
+  STATUSES.forEach(function(st){ h+='<div class="tile'+(FSTATUS===st?' on':'')+'" data-st="'+esc(st)+'"><div class="n">'+(counts[st]||0)+'</div><div class="l">'+esc(st)+'</div></div>'; });
+  document.getElementById('tiles').innerHTML=h;
+  document.querySelectorAll('#tiles .tile').forEach(function(t){ t.addEventListener('click',function(){ FSTATUS=t.getAttribute('data-st'); tiles(); applyFilter(); }); });
+}
+function applyFilter(){
+  var q=(document.getElementById('search').value||'').toLowerCase().trim();
+  var tf=document.getElementById('typeFilter').value;
+  var list=ALL.filter(function(x){
+    if(FSTATUS==='__open'){ if(x.status==='Done'||x.status==='Declined') return false; }
+    else if(FSTATUS){ if(x.status!==FSTATUS) return false; }
+    if(tf && x.type!==tf) return false;
+    if(q){ var hay=((x.title||'')+' '+(x.detail||'')+' '+(x.submittedByName||'')+' '+(x.type||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+    return true;
+  });
+  document.getElementById('cnt').textContent=list.length+(list.length===1?' request':' requests');
+  render(list);
+}
+function render(list){
+  if(!list.length){ document.getElementById('body').innerHTML='<div class="empty"><b>Nothing here yet.</b>Click <b style="display:inline">+ New request</b> to add the first one.</div>'; CTL=null; return; }
+  var pOrder=function(v){ var i=PRIORITIES.indexOf(v); return i<0?99:i; };
+  var sOrder=function(v){ var i=STATUSES.indexOf(v); return i<0?99:i; };
+  var cfg={ mount:'#body', data:list, key:'feedback', rowId:function(x){return x.id;}, defaultSort:2, defaultDir:1,
+    bulk: CAN_DELETE?[{ label:'Delete', danger:true, min:1, fn:bulkDelete }]:null,
+    columns:[
+      { label:'Request', sort:function(a,b){ return RRGList.cmp(a.title,b.title); }, cell:function(x){
+        return '<div class="ttl">'+esc(x.title||'—')+'</div>'+(x.detail?('<div class="det">'+esc(x.detail)+'</div>'):'')+'<div class="who">'+esc(x.submittedByName||'—')+' · '+esc(fmtDate(x.createdAt))+'</div>'; } },
+      { label:'Type', sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, edit:{ type:'select', options:function(){return TYPES;}, get:function(x){return x.type||'';}, save:function(x,val){ return save(x.id,'type',val).then(function(j){ if(j&&j.ok){x.type=val;return true;} throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(x){ return '<span style="font-size:12.5px;color:var(--ink)">'+esc(x.type||'—')+'</span>'; } },
+      { label:'Priority', sort:function(a,b){ return pOrder(a.priority)-pOrder(b.priority); }, edit:{ type:'select', options:function(){return PRIORITIES;}, get:function(x){return x.priority||'';}, save:function(x,val){ return save(x.id,'priority',val).then(function(j){ if(j&&j.ok){x.priority=val;return true;} throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(x){ return pill(PCOLOR,x.priority); } },
+      { label:'Status', sort:function(a,b){ return sOrder(a.status)-sOrder(b.status); }, edit:{ type:'select', options:function(){return STATUSES;}, get:function(x){return x.status||'';}, save:function(x,val){ return save(x.id,'status',val).then(function(j){ if(j&&j.ok){x.status=val;return true;} throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(x){ return pill(SCOLOR,x.status); } },
+      { label:'Votes', align:'right', sort:function(a,b){ return (b.votes||0)-(a.votes||0); }, cell:function(x){ return '<span class="vote"><button class="voteb" data-vote="'+esc(x.id)+'" title="Upvote">▲</button><span class="votec">'+(x.votes||0)+'</span></span>'; } },
+      { label:'', align:'right', sortable:false, cell:function(x){ return CAN_DELETE?('<button class="fbdel" data-del="'+esc(x.id)+'">Delete</button>'):''; } }
+    ]
+  };
+  if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
+}
+function bulkDelete(ids, done){
+  if(!confirm('Delete '+ids.length+' request'+(ids.length>1?'s':'')+'? This cannot be undone.')) return;
+  Promise.all(ids.map(function(id){ return fetch('/api/feedback/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}); }))
+    .then(function(){ ALL=ALL.filter(function(x){return ids.indexOf(x.id)<0;}); if(done) done(); tiles(); applyFilter(); });
+}
+document.addEventListener('click',function(e){
+  var v=e.target.closest&&e.target.closest('.voteb[data-vote]');
+  if(v){ var id=v.getAttribute('data-vote'); fetch('/api/feedback/'+encodeURIComponent(id)+'/vote',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({dir:'up'})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var it=ALL.find(function(x){return x.id===id;}); if(it){ it.votes=j.votes; applyFilter(); } } }); return; }
+  var d=e.target.closest&&e.target.closest('.fbdel[data-del]');
+  if(d){ var did=d.getAttribute('data-del'); if(!confirm('Delete this request?')) return; fetch('/api/feedback/'+encodeURIComponent(did),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ALL=ALL.filter(function(x){return x.id!==did;}); tiles(); applyFilter(); } else alert((j&&j.error)||'Could not delete.'); }); return; }
+});
+// New-request modal
+function openModal(){ document.getElementById('f_title').value=''; document.getElementById('f_detail').value=''; document.getElementById('f_msg').textContent=''; var pr=document.getElementById('f_priority'); if(pr) pr.value='Medium'; document.getElementById('fbModal').removeAttribute('hidden'); setTimeout(function(){document.getElementById('f_title').focus();},30); }
+function closeModal(){ document.getElementById('fbModal').setAttribute('hidden',''); }
+function submitReq(){ var title=document.getElementById('f_title').value.trim(); var msg=document.getElementById('f_msg'); if(!title){ msg.textContent='Give it a short title.'; return; } var b=document.getElementById('f_save'); b.disabled=true; b.textContent='Submitting…';
+  fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({title:title,type:document.getElementById('f_type').value,priority:document.getElementById('f_priority').value,detail:document.getElementById('f_detail').value})})
+   .then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent='Submit request'; if(j&&j.ok&&j.item){ ALL.unshift(j.item); closeModal(); tiles(); applyFilter(); } else { msg.textContent=(j&&j.error)||'Could not submit.'; } })
+   .catch(function(){ b.disabled=false; b.textContent='Submit request'; msg.textContent='Could not reach the server.'; }); }
+document.getElementById('newBtn').addEventListener('click',openModal);
+document.getElementById('f_cancel').addEventListener('click',closeModal);
+document.getElementById('f_save').addEventListener('click',submitReq);
+document.getElementById('typeFilter').addEventListener('change',applyFilter);
+
+function load(){
+  fetch('/api/feedback',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ document.getElementById('body').innerHTML='<div class="empty">Could not load feedback.</div>'; return; }
+    ALL=(j.items||[]).slice().sort(function(a,b){return String(b.createdAt).localeCompare(String(a.createdAt));});
+    TYPES=j.types||[]; STATUSES=j.statuses||[]; PRIORITIES=j.priorities||[]; CAN_DELETE=!!j.canDelete; IS_ADMIN=!!j.isAdmin;
+    document.getElementById('f_type').innerHTML=TYPES.map(function(t){return '<option'+(t==='Feature request'?' selected':'')+'>'+esc(t)+'</option>';}).join('');
+    document.getElementById('f_priority').innerHTML=PRIORITIES.map(function(p){return '<option'+(p==='Medium'?' selected':'')+'>'+esc(p)+'</option>';}).join('');
+    document.getElementById('typeFilter').innerHTML='<option value="">All types</option>'+TYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
+    tiles(); applyFilter();
+  }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not reach the server.</div>'; });
+}
+load();
+window.addEventListener('pageshow',function(e){ if(e.persisted) load(); });
+</script>
+</body>
+</html>

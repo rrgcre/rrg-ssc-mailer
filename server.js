@@ -5716,6 +5716,53 @@ function taskVisible(t, req) {
   const u = req.user && req.user.username;
   return t.assignee === u || t.createdBy === u;
 }
+// ---- Feedback tracker (feature requests / bugs, ranked, with status) ----
+const FEEDBACK_FILE = path.join(BOV_DATA_DIR, 'feedback.json');
+function loadFeedback() { try { return JSON.parse(fs.readFileSync(FEEDBACK_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveFeedback(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(FEEDBACK_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newFeedbackId() { return 'fb_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+const FEEDBACK_TYPES = ['Feature request', 'Bug', 'Improvement', 'Question', 'Other'];
+const FEEDBACK_STATUSES = ['New', 'Under review', 'Planned', 'In progress', 'Done', 'Declined'];
+const FEEDBACK_PRIORITIES = ['Critical', 'High', 'Medium', 'Low'];
+app.get('/api/feedback', (req, res) => {
+  res.json({ ok: true, items: loadFeedback(), types: FEEDBACK_TYPES, statuses: FEEDBACK_STATUSES, priorities: FEEDBACK_PRIORITIES, isAdmin: !!(req.user && isSuper(req.user)), canDelete: canDelete(req), me: (req.user && req.user.username) || '' });
+});
+app.post('/api/feedback', express.json(), (req, res) => {
+  const b = req.body || {}; const all = loadFeedback(); const now = new Date().toISOString();
+  const meU = (req.user && req.user.username) || '', meN = (req.user && req.user.name) || '';
+  let it;
+  if (b.id) {
+    it = all.find(x => x.id === b.id);
+    if (!it) return res.status(404).json({ ok: false, error: 'Item not found.' });
+    if (typeof b.title === 'string' && b.title.trim()) it.title = b.title.trim().slice(0, 200);
+    if (typeof b.detail === 'string') it.detail = b.detail.slice(0, 6000);
+    if (typeof b.type === 'string' && FEEDBACK_TYPES.indexOf(b.type) >= 0) it.type = b.type;
+    if (typeof b.status === 'string' && FEEDBACK_STATUSES.indexOf(b.status) >= 0) it.status = b.status;
+    if (typeof b.priority === 'string' && FEEDBACK_PRIORITIES.indexOf(b.priority) >= 0) it.priority = b.priority;
+    if (typeof b.adminNotes === 'string') it.adminNotes = b.adminNotes.slice(0, 4000);
+    it.updatedAt = now; saveFeedback(all);
+    return res.json({ ok: true, item: it });
+  }
+  const title = String(b.title || '').trim().slice(0, 200);
+  if (!title) return res.status(400).json({ ok: false, error: 'A short title is required.' });
+  it = { id: newFeedbackId(), title: title, type: (FEEDBACK_TYPES.indexOf(b.type) >= 0 ? b.type : 'Feature request'), detail: String(b.detail || '').slice(0, 6000), status: 'New', priority: (FEEDBACK_PRIORITIES.indexOf(b.priority) >= 0 ? b.priority : 'Medium'), votes: 0, submittedBy: meU, submittedByName: meN, adminNotes: '', createdAt: now, updatedAt: now };
+  all.push(it); saveFeedback(all);
+  res.json({ ok: true, item: it });
+});
+app.post('/api/feedback/:id/vote', express.json(), (req, res) => {
+  const all = loadFeedback(); const it = all.find(x => x.id === req.params.id);
+  if (!it) return res.status(404).json({ ok: false, error: 'Not found.' });
+  it.votes = (it.votes || 0) + ((req.body && req.body.dir === 'down') ? -1 : 1); if (it.votes < 0) it.votes = 0;
+  it.updatedAt = new Date().toISOString(); saveFeedback(all);
+  res.json({ ok: true, votes: it.votes });
+});
+app.delete('/api/feedback/:id', (req, res) => {
+  if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete.' });
+  const all = loadFeedback(); const i = all.findIndex(x => x.id === req.params.id);
+  if (i < 0) return res.status(404).json({ ok: false, error: 'Not found.' });
+  all.splice(i, 1); saveFeedback(all);
+  res.json({ ok: true });
+});
 app.get('/api/tasks', (req, res) => {
   const all = loadTasks();
   const mine = all.filter(t => taskVisible(t, req));
