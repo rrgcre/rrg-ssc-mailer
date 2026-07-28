@@ -31,6 +31,7 @@ h1{font-size:26px;font-weight:800;margin:5px 0 0;}
 .lk{color:var(--navy);text-decoration:none;font-weight:600;} .lk:hover{text-decoration:underline;}
 .meta{color:var(--muted);font-size:12px;}
 .empty{padding:40px 20px;text-align:center;color:var(--muted);font-size:13.5px;}
+.ndl{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;font-weight:700;margin:12px 0 6px;}.ndi{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:inherit;font-size:14px;}.ndrow{display:flex;gap:12px;}.ndrow>div{flex:1;}.ndbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 17px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}.ndbtn.ghost{background:#fff;color:#6b7488;border-color:var(--line);}.newdealbtn{margin-left:auto;background:var(--red,#DA2B1F);color:#fff;border:none;border-radius:9px;padding:8px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -41,7 +42,22 @@ h1{font-size:26px;font-weight:800;margin:5px 0 0;}
 </div></div>
 <div class="wrap">
   <div class="tiles" id="tiles"></div>
-  <div class="card"><div class="hd"><b>Deals</b><span class="meta" id="cnt"></span></div><div class="cb"><div id="list"><div class="empty">Loading…</div></div></div></div>
+  <div class="card"><div class="hd"><b>Deals</b><span class="meta" id="cnt"></span><button id="newDealBtn" class="newdealbtn">+ New deal</button></div><div class="cb"><div id="list"><div class="empty">Loading…</div></div></div></div>
+</div>
+<div id="ndModal" style="position:fixed;inset:0;background:rgba(6,14,32,.55);display:none;align-items:flex-start;justify-content:center;z-index:200;padding:28px 20px;overflow:auto">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:560px;box-shadow:0 24px 60px rgba(0,0,0,.35)">
+    <div style="padding:18px 22px;font-size:16px;font-weight:800;color:var(--navy);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center">New deal<button type="button" id="nd_x" style="background:none;border:none;font-size:24px;color:#8a94a6;cursor:pointer">×</button></div>
+    <div style="padding:18px 22px">
+      <label class="ndl">Listing (business under contract) *</label><select id="nd_key" class="ndi"></select>
+      <div class="ndrow"><div><label class="ndl">Buyer</label><input id="nd_buyer" class="ndi" placeholder="Buyer name or group"></div><div><label class="ndl">Buyer email</label><input id="nd_bemail" class="ndi" placeholder="links the buyer to the deal"></div></div>
+      <div class="ndrow"><div><label class="ndl">Price</label><input id="nd_price" class="ndi" placeholder="$ sale price"></div><div><label class="ndl">Status</label><select id="nd_status" class="ndi"></select></div></div>
+      <div class="ndrow"><div><label class="ndl">Expected close</label><input type="date" id="nd_close" class="ndi"></div><div><label class="ndl">Commission rate</label><input id="nd_crate" class="ndi" placeholder="e.g. 10%"></div></div>
+      <div class="ndrow"><div><label class="ndl">Commission due</label><input id="nd_cdue" class="ndi" placeholder="$"></div><div><label class="ndl">Commission status</label><select id="nd_cstatus" class="ndi"></select></div></div>
+      <label class="ndl">Terms / notes</label><textarea id="nd_notes" class="ndi" rows="2" placeholder="Contingencies, financing, close timeline, earnest money…"></textarea>
+      <div id="nd_msg" style="color:#DA2B1F;font-size:12.5px;margin-top:8px"></div>
+    </div>
+    <div style="display:flex;gap:9px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line)"><button type="button" id="nd_cancel" class="ndbtn ghost">Cancel</button><button type="button" id="nd_save" class="ndbtn">Create deal</button></div>
+  </div>
 </div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -50,7 +66,7 @@ function stColor(s){ var m={'LOI':['#eef2fb','#2647b0'],'Under Contract':['#fff4
 function commColor(s){ var m={'Unpaid':['#fdeceb','#DA2B1F'],'Invoiced':['#fff4e6','#b9761a'],'Partial':['#fff7e0','#9a7400'],'Paid':['#e7f5ee','#1f8a5b']}; return m[s]||['#eef1f6','#5b6472']; }
 function pill(s,c){ if(!s) return '<span class="meta">—</span>'; return '<span class="pill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(s)+'</span>'; }
 
-var ALL=[], FILTER='', CTL=null;
+var ALL=[], FILTER='', CTL=null; var STATUSES=[], COMMSTATUSES=[], LISTINGS=[];
 var DEFS=[
   ['', 'All deals', function(){return true;}],
   ['uc', 'Under contract', function(d){return d.status==='Under Contract';}],
@@ -80,9 +96,20 @@ function cfg(data){ return { mount:'#list', data:data, key:'dealsboard',
   ]
 }; }
 function applyFilter(){ var data=ALL.filter(filterFn()); document.getElementById('cnt').textContent=data.length?(data.length+' deal'+(data.length===1?'':'s')):''; if(CTL) CTL.refresh(data); else CTL=RRGList.create(cfg(data)); }
-fetch('/api/deals',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-  ALL=(j&&j.deals)||[]; renderTiles(); applyFilter();
-}).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not load deals.</div>'; });
+function reloadDeals(){ return fetch('/api/deals',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.deals)||[]; if(j&&j.statuses) STATUSES=j.statuses; if(j&&j.commStatuses) COMMSTATUSES=j.commStatuses; renderTiles(); applyFilter(); }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not load deals.</div>'; }); }
+function openNewDeal(){ var m=document.getElementById('ndModal'); m.style.display='flex'; document.getElementById('nd_msg').textContent=''; ['nd_buyer','nd_bemail','nd_price','nd_close','nd_crate','nd_cdue','nd_notes'].forEach(function(id){var e=document.getElementById(id); if(e)e.value='';});
+  document.getElementById('nd_status').innerHTML=(STATUSES.length?STATUSES:['LOI','Under Contract','Due Diligence','Financing','Closing','Closed','Dead']).map(function(x){return '<option>'+esc(x)+'</option>';}).join('');
+  document.getElementById('nd_cstatus').innerHTML='<option value="">—</option>'+(COMMSTATUSES.length?COMMSTATUSES:['Unpaid','Invoiced','Partial','Paid']).map(function(x){return '<option>'+esc(x)+'</option>';}).join('');
+  var have={}; ALL.forEach(function(d){have[d.key]=1;});
+  var sel=document.getElementById('nd_key'); sel.innerHTML='<option value="">Loading listings…</option>';
+  fetch('/api/assignments',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ LISTINGS=((j&&j.assignments)||[]).filter(function(a){return !have[a.key];}); if(!LISTINGS.length){ sel.innerHTML='<option value="">— no listings without a deal yet (create a listing first) —</option>'; } else { sel.innerHTML=LISTINGS.map(function(a){return '<option value="'+esc(a.key)+'">'+esc(a.business||a.key)+(a.market?(' — '+esc(a.market)):'')+'</option>';}).join(''); } }).catch(function(){ sel.innerHTML='<option value="">— could not load listings —</option>'; }); }
+function closeNewDeal(){ document.getElementById('ndModal').style.display='none'; }
+function createDeal(){ var key=document.getElementById('nd_key').value; var msg=document.getElementById('nd_msg'); if(!key){ msg.textContent='Pick the listing this buyer is under contract on.'; return; } var body={ buyer:document.getElementById('nd_buyer').value.trim(), buyerEmail:document.getElementById('nd_bemail').value.trim(), price:document.getElementById('nd_price').value.trim(), status:document.getElementById('nd_status').value, expectedClose:document.getElementById('nd_close').value, commissionRate:document.getElementById('nd_crate').value.trim(), commissionDue:document.getElementById('nd_cdue').value.trim(), commissionStatus:document.getElementById('nd_cstatus').value, terms:document.getElementById('nd_notes').value.trim() }; var b=document.getElementById('nd_save'); b.disabled=true; b.textContent='Creating…'; fetch('/api/assignment/'+encodeURIComponent(key)+'/deal',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent='Create deal'; if(j&&j.ok){ closeNewDeal(); reloadDeals(); } else msg.textContent=(j&&j.error)||'Could not create the deal.'; }).catch(function(){ b.disabled=false; b.textContent='Create deal'; msg.textContent='Could not reach the server.'; }); }
+document.getElementById('newDealBtn').addEventListener('click',openNewDeal);
+document.getElementById('nd_cancel').addEventListener('click',closeNewDeal);
+document.getElementById('nd_x').addEventListener('click',closeNewDeal);
+document.getElementById('ndModal').addEventListener('click',function(e){ if(e.target===document.getElementById('ndModal')) closeNewDeal(); });
+reloadDeals();
 </script>
 </body>
 </html>

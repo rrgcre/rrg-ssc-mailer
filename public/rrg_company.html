@@ -535,6 +535,10 @@ function buildAllConcepts(){
 var _cbAbort=null;
 function runBuildConcepts(names,metro,count,website){
   names=(names||[]).slice(0,50); if(!names.length) return;
+  if(window.rrgAiConfirm){ window.rrgAiConfirm({ actionKey:'build-concepts', title:'Build '+names.length+' '+((names.length===1)?(typeof CLABEL!=='undefined'?CLABEL:'concept'):(typeof CLABELP!=='undefined'?CLABELP:'concepts')).toLowerCase()+' with AI', body:(window.__rrgAssistant||'AI')+' will search the web for each brand \u2014 website, type, cuisine, price, logo \u2014 and pull its locations. This runs AI and may take a minute.', onProceed:function(){ _doRunBuildConcepts(names,metro,count,website); } }); return; }
+  _doRunBuildConcepts(names,metro,count,website);
+}
+function _doRunBuildConcepts(names,metro,count,website){
   _cbStop=false;
   try{ _cbAbort=new AbortController(); }catch(e){ _cbAbort=null; }
   var _lbl=(names.length===1?(typeof CLABEL!=='undefined'?CLABEL:'concept').toLowerCase():(typeof CLABELP!=='undefined'?CLABELP:'concepts').toLowerCase());
