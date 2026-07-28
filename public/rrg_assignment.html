@@ -38,6 +38,17 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .fact .v.big{font-size:19px;color:var(--navy);font-weight:800;letter-spacing:-.01em;}
 /* pipeline */
 .track{padding:8px 20px 18px;}
+.hpipe{display:flex;gap:0;overflow-x:auto;padding:10px 6px 6px;}
+.hpstep{flex:1 0 82px;min-width:82px;display:flex;flex-direction:column;align-items:center;text-align:center;text-decoration:none;position:relative;padding:4px 4px 6px;background:none;border:none;cursor:default;font:inherit;}
+a.hpstep,button.hpstep{cursor:pointer;}
+.hpstep:not(:last-child):after{content:'';position:absolute;top:19px;left:50%;width:100%;height:2px;background:var(--line);z-index:0;}
+.hpstep.done:not(:last-child):after{background:var(--green);}
+.hpdot{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;background:#eef1f6;border:2px solid #dbe1ea;color:#aab3c2;z-index:1;position:relative;}
+.hpdot.done{background:var(--green);border-color:var(--green);color:#fff;}
+.hpdot.pend{background:#fff;border-color:var(--amber);color:var(--amber);}
+.hpname{font-size:10px;font-weight:800;color:var(--navy);margin-top:6px;letter-spacing:.03em;text-transform:uppercase;line-height:1.2;}
+.hpstat{font-size:9.5px;color:var(--soft);margin-top:2px;}
+a.hpstep:hover .hpname,button.hpstep:hover .hpname{color:var(--red);}
 .step{display:flex;gap:14px;align-items:flex-start;padding:14px 0;border-bottom:1px solid var(--line);}
 .step:last-child{border-bottom:none;}
 .rail{display:flex;flex-direction:column;align-items:center;position:relative;}
@@ -271,20 +282,14 @@ function render(){
     +'</div>';
 
   var steps=STAGES.map(function(d){
-    if(d.manual){ return manualStepHtml(d); }
-    var st=s[d.k];
-    var cls=!st?'absent':(st.done?'done':'pend');
-    var mark=!st?'':(st.done?'✓':'…');
-    var right;
-    if(!st){ right='<span class="snone">Not started</span>'; }
-    else {
-      var tag='<span class="stag '+(st.done?'done':'pend')+'">'+(st.done?'Done':'In progress')+'</span>';
-      right=tag+'<a class="slink'+(st.done?'':' ghost')+'" href="'+d.href(st)+'">'+esc(d.open)+' →</a>';
-    }
-    return '<div class="step"><div class="rail"><div class="dot '+cls+'">'+mark+'</div><div class="line"></div></div>'
-      +'<div class="sinfo"><div class="sname">'+esc(d.name)+'<span class="lbl">'+esc(d.lbl)+'</span></div>'
-      +'<div class="smeta">'+(st?esc(stageMeta(d.k,st)):'This stage hasn’t been created for this deal yet.')+'</div></div>'
-      +'<div class="sact">'+right+'</div></div>';
+    var manual=d.manual, st, cls, mark;
+    if(manual){ var on=!!mf[d.k]; cls=on?'done':'absent'; mark=on?'\u2713':''; st=on; }
+    else { st=s[d.k]; cls=!st?'absent':(st.done?'done':'pend'); mark=!st?'':(st.done?'\u2713':'\u2026'); }
+    var statTxt=manual?(st?'Done':'Not yet'):(!st?'\u2014':(st.done?'Done':'In progress'));
+    var inner='<div class="hpdot '+cls+'">'+mark+'</div><div class="hpname">'+esc(d.lbl||d.name)+'</div><div class="hpstat">'+statTxt+'</div>';
+    if(manual){ return '<button type="button" class="hpstep hpman'+((mf[d.k])?' on done':'')+'" data-mstage="'+d.k+'" title="'+esc(d.name)+' \u2014 click to toggle">'+inner+'</button>'; }
+    if(st){ return '<a class="hpstep'+(st.done?' done':'')+'" href="'+d.href(st)+'" title="'+esc(d.name)+' \u2014 open">'+inner+'</a>'; }
+    return '<div class="hpstep" title="'+esc(d.name)+' \u2014 not started">'+inner+'</div>';
   }).join('');
 
   var opts=STATUSES.map(function(x){ return '<option'+(A.status===x?' selected':'')+'>'+esc(x)+'</option>'; }).join('');
@@ -293,7 +298,8 @@ function render(){
   document.getElementById('root').innerHTML=
     '<div class="main">'
     + '<div class="card"><div class="ch"><b>Listing facts</b><span>'+done+' of '+STAGES.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
-    + '<div class="card"><div class="ch"><b>Pipeline</b><span>'+started+' of '+STAGES.length+' started</span></div><div class="track">'+steps+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Pipeline</b><span>'+started+' of '+STAGES.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
+    + inquiriesCard()
     + dealCard()
     + ndasCard()
     + toursCard()
@@ -317,6 +323,11 @@ function render(){
         + '<label class="autorow"><input type="checkbox" id="f_lauto"'+(A.autoRenew?' checked':'')+'> Auto-renews</label>'
         + '<div class="expnote" id="expNote"></div>'
       + '</div>'
+      + '<div class="listingbox"><div class="listinghd">BizBuySell match</div>'
+        + '<div class="fldrow2"><div><label class="fld">Ref ID</label><input class="owner" id="f_bbsref" value="'+esc(A.bbsRef||'')+'" placeholder="e.g. ItsItalian"></div>'
+        + '<div><label class="fld">Listing #</label><input class="owner" id="f_bbsnum" value="'+esc(A.bbsNumber||'')+'" placeholder="e.g. 2502434"></div></div>'
+        + '<div class="expnote">Set these so imported BizBuySell buyer leads auto-attach to this listing.</div>'
+      + '</div>'
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="f_notes" placeholder="Private notes on this listing — next steps, seller temperature, key dates…">'+esc(A.notes||'')+'</textarea></div>'
       + '<button class="savebtn" id="savebtn" disabled>Save changes</button>'
       + '<div class="saved" id="saved">Saved ✓</div>'
@@ -324,13 +335,13 @@ function render(){
     + '</div></div></div>'
     + peopleDatalistHTML();
 
-  ['f_status','f_owner','f_refby','f_refpct','f_biz','f_notes','f_lstart','f_lexp','f_llive','f_lauto'].forEach(function(id){
+  ['f_status','f_owner','f_refby','f_refpct','f_biz','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum'].forEach(function(id){
     var el=document.getElementById(id); if(!el) return;
     var ev=(el.tagName==='SELECT'||el.type==='checkbox'||el.type==='date')?'change':'input';
     el.addEventListener(ev,function(){ setDirty(true); if(id==='f_lexp'||id==='f_lauto') updateExpNote(); });
   });
   // Autosave: save on leaving a field (change/blur) or after a ~1s pause while typing.
-  (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_refby','f_refpct','f_biz','f_notes','f_lstart','f_lexp','f_llive','f_lauto'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
+  (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_refby','f_refpct','f_biz','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
   updateExpNote();
   document.getElementById('savebtn').addEventListener('click',save);
   var sdb=document.getElementById('startDealBtn'); if(sdb) sdb.addEventListener('click',startDeal);
@@ -470,6 +481,26 @@ function offerCardHTML(o){
     +'<div class="oanalysis" data-oid="'+esc(o.id)+'"'+(hasA?'':' hidden')+'>'+(hasA?analysisHTML(o.analysis):'')+'</div>'
   +'</div>';
 }
+var INQUIRIES=[], INQ_STATUSES=['New','Contacted','NDA Sent','Toured','Offer','Passed','Dead'];
+function inquiriesCard(){
+  var body;
+  if(!INQUIRIES.length){ body='<div class="noev" style="padding:18px 20px">No buyer leads yet. Import them from BizBuySell (the \u2b07 Import leads button on the Listings page), or add one manually. Each lead is a tracked buyer inquiry you can move through the funnel.</div>'; }
+  else { var sorted=INQUIRIES.slice().sort(function(a,b){ return String(b.createdAt||'').localeCompare(String(a.createdAt||'')); }); body='<div class="olist">'+sorted.map(inquiryHTML).join('')+'</div>'; }
+  return '<div class="card"><div class="ch" style="display:flex"><b>Buyer Leads</b><span style="margin-left:12px">'+INQUIRIES.length+' logged</span><button class="addoffer" id="addInqBtn" style="margin-left:auto">+ Add lead</button></div><div class="cb offers"><div id="inqForm" hidden></div>'+body+'</div></div>';
+}
+function inquiryHTML(q){
+  var ssel=INQ_STATUSES.map(function(x){return '<option'+((q.status||'New')===x?' selected':'')+'>'+esc(x)+'</option>';}).join('');
+  var who=q.name||q.email||'Buyer';
+  var contact=[q.email,q.phone].filter(Boolean).map(esc).join(' \u00b7 ');
+  var src=q.source?('<span class="stag pend" style="margin-left:6px">'+esc(q.source)+'</span>'):'';
+  var plink=q.personId?('<a class="slink ghost" href="./rrg_person.html?id='+encodeURIComponent(q.personId)+'">Open contact \u2192</a>'):'';
+  return '<div class="orow" style="display:flex;gap:12px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line)"><div style="flex:1;min-width:0"><div style="font-weight:800;color:var(--navy)">'+esc(who)+src+'</div><div class="meta" style="color:#8a94a6;font-size:12px">'+contact+(q.date?(' \u00b7 '+esc(q.date)):'')+'</div></div><select class="inqstat" data-inq="'+esc(q.id)+'" style="padding:6px 8px;border:1px solid #cfd6e2;border-radius:8px;font:inherit;font-size:12.5px">'+ssel+'</select>'+plink+'<button class="crm" data-inqdel="'+esc(q.id)+'" title="Remove lead">\u00d7</button></div>';
+}
+function saveInquiry(payload, cb){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/inquiry',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ INQUIRIES=j.inquiries||INQUIRIES; if(A) A.inquiries=INQUIRIES; if(cb)cb(j); else render(); } else alert((j&&j.error)||'Could not save the lead.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+function removeInquiry(id){ if(!confirm('Remove this buyer lead from the listing? The contact stays in your registry.')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/inquiry/'+encodeURIComponent(id)+'/remove',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ INQUIRIES=j.inquiries||[]; if(A) A.inquiries=INQUIRIES; render(); } }); }
+function openInqForm(){ var f=document.getElementById('inqForm'); if(!f) return; if(!f.hidden){ f.hidden=true; f.innerHTML=''; return; } f.innerHTML='<div class="ofgrid"><div class="off"><label class="fld">Name</label><input id="iq_name" list="peopleList" placeholder="Buyer name"></div><div class="off"><label class="fld">Email</label><input id="iq_email" placeholder="buyer@email.com"></div><div class="off"><label class="fld">Phone</label><input id="iq_phone" placeholder="(555) 555-5555"></div><div class="off wide"><label class="fld">Note</label><input id="iq_note" placeholder="Where they came from, interest, listing they asked about\u2026"></div></div><div class="ofbtns"><button class="savebtn2" id="iq_save">Add lead</button><button class="cancelbtn" id="iq_cancel">Cancel</button></div>'; f.hidden=false; var sv=document.getElementById('iq_save'); if(sv) sv.addEventListener('click',function(){ var nm=document.getElementById('iq_name').value.trim(), em=document.getElementById('iq_email').value.trim(); if(!nm&&!em){ alert('Enter a name or email.'); return; } saveInquiry({name:nm,email:em,phone:document.getElementById('iq_phone').value.trim(),note:document.getElementById('iq_note').value.trim(),source:'Manual'}); }); var cn=document.getElementById('iq_cancel'); if(cn) cn.addEventListener('click',function(){ f.hidden=true; f.innerHTML=''; }); }
+document.addEventListener('click',function(e){ if(!e.target.closest) return; if(e.target.closest('#addInqBtn')){ openInqForm(); return; } var d=e.target.closest('[data-inqdel]'); if(d){ removeInquiry(d.getAttribute('data-inqdel')); return; } });
+document.addEventListener('change',function(e){ if(!e.target.closest) return; var st=e.target.closest('.inqstat'); if(st){ saveInquiry({id:st.getAttribute('data-inq'),status:st.value}, function(){}); } });
 function offersCard(){
   var body;
   if(!OFFERS.length){
@@ -722,11 +753,11 @@ function updateExpNote(){
 function save(){
   var b=document.getElementById('savebtn'); b.disabled=true; b.textContent='Saving…';
   var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value,
-    referredBy:document.getElementById('f_refby').value, referralPct:document.getElementById('f_refpct').value, listingLive:document.getElementById('f_llive').value, listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked };
+    referredBy:document.getElementById('f_refby').value, referralPct:document.getElementById('f_refpct').value, listingLive:document.getElementById('f_llive').value, listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked, bbsRef:(document.getElementById('f_bbsref')||{}).value||'', bbsNumber:(document.getElementById('f_bbsnum')||{}).value||'' };
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){
       b.textContent='Save changes';
-      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew;
+      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew; A.bbsRef=body.bbsRef; A.bbsNumber=body.bbsNumber;
         document.getElementById('subline').querySelector('.hpill').textContent=body.status;
         if(body.businessOverride){ A.business=body.businessOverride; document.getElementById('h1').textContent=body.businessOverride; document.getElementById('crumb').textContent=body.businessOverride; }
         var s=document.getElementById('saved'); s.classList.add('show'); setTimeout(function(){ s.classList.remove('show'); },2200);
@@ -795,7 +826,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; render(); loadPeople(); })
+  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; render(); loadPeople(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();
