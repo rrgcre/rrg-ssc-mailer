@@ -145,7 +145,7 @@ function paint(){
   else if(VIEW==='advanced') list=list.filter(function(s){ return s.processed; });
   else if(VIEW==='passed') list=list.filter(function(s){ return s.decision==='passed'; });
   var q=(((document.getElementById('q')||{}).value)||'').trim().toLowerCase();
-  if(q) list=list.filter(function(s){ return ((s.business||'')+' '+(s.contact||'')+' '+(s.market||'')).toLowerCase().indexOf(q)>=0; });
+  if(q) list=list.filter(function(s){ var hay=((s.business||'')+' '+(s.contact||'')+' '+(s.market||'')).toLowerCase(); return window.rrgFuzzy?window.rrgFuzzy(hay,q):hay.indexOf(q)>=0; });
   list.sort(function(a,b){ return new Date(b.createdAt||0).getTime()-new Date(a.createdAt||0).getTime(); });
   CURRENT=list;
   render(list);

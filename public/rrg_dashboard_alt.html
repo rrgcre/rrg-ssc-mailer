@@ -59,6 +59,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function rrgFuzzy(hay,q){ hay=String(hay==null?'':hay).toLowerCase(); q=String(q==null?'':q).toLowerCase().trim(); if(!q) return true; return q.split(/\s+/).every(function(t){ if(!t) return true; if(hay.indexOf(t)>=0) return true; var i=0; for(var j=0;j<hay.length&&i<t.length;j++){ if(hay.charAt(j)===t.charAt(i)) i++; } return i===t.length; }); }
 var CATS=[{key:'all',label:'All tools'},{key:'book',label:'Book of Business'},{key:'pipeline',label:'Business Sales'},{key:'tenant',label:'Tenant Representation'}];
 var CATLBL={book:'Book of Business',pipeline:'Business Sales',tenant:'Tenant Representation'};
 var CATNOTE={book:'companies, contacts & deals',pipeline:'screen → value → market → close',tenant:'find, fit, tour, close the lease'};
@@ -115,7 +116,7 @@ function draw(){
   var q=(document.getElementById('q').value||'').toLowerCase().trim();
   var list=TOOLS.filter(function(t){
     if(CAT!=='all' && t.cat!==CAT) return false;
-    if(q){ if((t.name+' '+t.desc+' '+t.tag).toLowerCase().indexOf(q)<0) return false; }
+    if(q){ if(!rrgFuzzy((t.name+' '+t.desc+' '+t.tag),q)) return false; }
     return true;
   });
   var box=document.getElementById('results');

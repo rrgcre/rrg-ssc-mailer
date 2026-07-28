@@ -136,7 +136,7 @@ function applyFilters(){
   var list=ALL.filter(function(a){
     if(FILTER && a.status!==FILTER) return false;
     if(STAGEFILTER && currentStageKey(a)!==STAGEFILTER) return false;
-    if(q){ var hay=(a.business+' '+a.market+' '+a.contact+' '+a.owner).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+    if(q){ var hay=(a.business+' '+a.market+' '+a.contact+' '+a.owner).toLowerCase(); if(!(window.rrgFuzzy?window.rrgFuzzy(hay,q):(hay.indexOf(q)>=0))) return false; }
     return true;
   });
   renderList(list);

@@ -7,6 +7,10 @@
     if(typeof a==='number'&&typeof b==='number') return a-b;
     return String(a).localeCompare(String(b), undefined, {numeric:true, sensitivity:'base'}); }
   function slug(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,''); }
+  // Shared fuzzy matcher: each whitespace-separated term must appear in the haystack
+  // either as a substring OR as an in-order subsequence (so "brq" matches "Barrio Cantina").
+  function rrgFuzzy(hay,q){ hay=String(hay==null?'':hay).toLowerCase(); q=String(q==null?'':q).toLowerCase().trim(); if(!q) return true; return q.split(/\s+/).every(function(t){ if(!t) return true; if(hay.indexOf(t)>=0) return true; var i=0; for(var j=0;j<hay.length&&i<t.length;j++){ if(hay.charAt(j)===t.charAt(i)) i++; } return i===t.length; }); }
+  try{ if(typeof window!=='undefined') window.rrgFuzzy=rrgFuzzy; }catch(e){}
 
   var STYLE_ID='rrglist-style';
   function injectStyle(){ if(document.getElementById(STYLE_ID)) return;
@@ -140,7 +144,7 @@
       var keys=Object.keys(state.filters||{}).filter(function(k){ return String(state.filters[k]||'').trim()!==''; });
       if(!keys.length) return state.data.slice();
       var mm={}; metaAll().forEach(function(m){ mm[m.key]=m; });
-      return state.data.filter(function(it){ return keys.every(function(k){ var m=mm[k]; if(!m) return true; var v=String(state.filters[k]).toLowerCase(); var txt=(m.c.filterVal?String(m.c.filterVal(it)||''):cellText(m.c,it)).toLowerCase(); return txt.indexOf(v)>=0; }); });
+      return state.data.filter(function(it){ return keys.every(function(k){ var m=mm[k]; if(!m) return true; var v=String(state.filters[k]).toLowerCase(); var txt=(m.c.filterVal?String(m.c.filterVal(it)||''):cellText(m.c,it)).toLowerCase(); return rrgFuzzy(txt,v); }); });
     }
     function sortedData(){
       var d = filteredData();

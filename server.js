@@ -3983,6 +3983,71 @@ app.post('/api/company/:id/contact/:personId/remove', (req, res) => {
   const contacts = arr.filter(x => x.companyId === c.id).map(companyContactRow);
   res.json({ ok: true, contacts });
 });
+app.post('/api/company/merge', express.json(), (req, res) => {
+  const u = req.user || {};
+  const canMerge = isSuper(u) || (permsEnabled() && effectivePerms(u).delete);
+  if (!canMerge) return res.status(403).json({ ok: false, error: 'You do not have permission to merge companies.' });
+  const b = req.body || {};
+  const keepId = String(b.keepId || '');
+  let mergeIds = Array.isArray(b.mergeIds) ? b.mergeIds.map(String).filter(Boolean) : [];
+  mergeIds = mergeIds.filter(id => id && id !== keepId);
+  const companies = loadCompanies();
+  const keep = companies.find(c => c.id === keepId);
+  if (!keep) return res.status(404).json({ ok: false, error: 'Surviving company not found.' });
+  const losers = mergeIds.map(id => companies.find(c => c.id === id)).filter(Boolean);
+  if (!losers.length) return res.status(400).json({ ok: false, error: 'Pick at least one other company to merge in.' });
+  const loserIds = losers.map(c => c.id);
+  const now = new Date().toISOString();
+  const _lk = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+
+  // Concepts — union, dedupe by normalized name
+  keep.concepts = Array.isArray(keep.concepts) ? keep.concepts : [];
+  const cptSeen = {}; keep.concepts.forEach(cp => { cptSeen[normKey(cp.name)] = true; });
+  losers.forEach(l => (l.concepts || []).forEach(cp => { const k = normKey(cp.name); if (!cptSeen[k]) { cptSeen[k] = true; keep.concepts.push(cp); } }));
+
+  // Locations — union, dedupe by concept + address / name-in-city
+  keep.locations = Array.isArray(keep.locations) ? keep.locations : [];
+  losers.forEach(l => (l.locations || []).forEach(loc => {
+    const dup = keep.locations.some(x => {
+      if ((x.concept || '') !== (loc.concept || '')) return false;
+      const ax = _lk(x.address), al = _lk(loc.address); if (ax && al && ax === al) return true;
+      const nx = _lk(x.name), nl = _lk(loc.name), cx = _lk(x.city), cl = _lk(loc.city); if (nx && nl && nx === nl && cx === cl) return true;
+      return false;
+    });
+    if (!dup) keep.locations.push(loc);
+  }));
+
+  // Fill blank scalar fields from the first loser that has them
+  ['market', 'type', 'leadSource', 'logo'].forEach(f => { if (!String(keep[f] || '').trim()) { for (const l of losers) { if (String(l[f] || '').trim()) { keep[f] = l[f]; break; } } } });
+  // Office — fill blank subfields
+  keep.office = keep.office || {};
+  losers.forEach(l => { const o = l.office || {}; ['address', 'city', 'state', 'phone', 'email', 'website'].forEach(k => { if (!String(keep.office[k] || '').trim() && String(o[k] || '').trim()) keep.office[k] = o[k]; }); });
+  // Main contact — keep keeper's; else adopt the first loser's
+  if (!String(keep.mainContactId || '').trim()) { for (const l of losers) { if (String(l.mainContactId || '').trim()) { keep.mainContactId = l.mainContactId; break; } } }
+
+  // Tags union
+  const tg = Array.isArray(keep.tags) ? keep.tags.slice() : [];
+  losers.forEach(l => (Array.isArray(l.tags) ? l.tags : []).forEach(t => { if (tg.indexOf(t) < 0) tg.push(t); }));
+  keep.tags = tg.slice(0, 30);
+
+  // Notes merge
+  const baseNote = String(keep.notes || '').trim();
+  const extra = losers.map(l => String(l.notes || '').trim()).filter(n => n && n !== baseNote);
+  if (extra.length) keep.notes = [baseNote].concat(extra).filter(Boolean).join('\n\n---\n').slice(0, 8000);
+
+  keep.updatedAt = now;
+
+  // Drop losers, save companies (keeper mutations included)
+  saveCompanies(companies.filter(c => loserIds.indexOf(c.id) < 0));
+
+  const inLosers = id => id && loserIds.indexOf(id) >= 0;
+  // Reassign every reference from a loser to the keeper
+  try { const people = loadPeople(); let ch = false; people.forEach(p => { if (inLosers(p.companyId)) { p.companyId = keepId; if (p.company) p.company = keep.name; ch = true; } }); if (ch) savePeople(people); } catch (e) {}
+  try { const deals = loadDeals(); let ch = false; deals.forEach(d => { if (inLosers(d.companyId)) { d.companyId = keepId; ch = true; } }); if (ch) saveDeals(deals); } catch (e) {}
+  try { const ags = loadAgreements(); let ch = false; ags.forEach(a => { if (a.companyId && inLosers(a.companyId)) { a.companyId = keepId; ch = true; } }); if (ch) saveAgreements(ags); } catch (e) {}
+
+  res.json({ ok: true, keepId: keepId, merged: loserIds.length });
+});
 app.delete('/api/company/:id', (req, res) => {
   if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete companies.' });
   const id = req.params.id;

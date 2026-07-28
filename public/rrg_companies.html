@@ -128,11 +128,11 @@ function renderList(list){
   var cfg={ mount:'#body', data:list, key:'companies', countEl:'#cnt',
     empty:'<div class="empty"><b>No companies yet.</b>Companies are created automatically when you start a deal — the business name opens its company file.</div>',
     rowId:function(c){ return c.id; }, defaultSort:0, defaultDir:1,
+    bulk: (function(){ var _b=[]; if(IS_ADMIN) _b.push({ label:'Merge\u2026', min:2, fn:openCompanyMergePicker }); if(CAN_DELETE) _b.push({ label:'Delete', danger:true, min:1, fn:bulkDeleteCompanies }); return _b.length?_b:null; })(),
     columns:[
       { label:'Company', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, edit:{ type:'text', get:function(c){return c.name||'';}, save:function(c,val){ val=(val||'').trim(); if(!val) return Promise.reject(new Error('Name is required.')); return fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:c.id,name:val})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ c.name=val; return true; } throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(c){ var mk=(c.markets||[]).join(' · '); var tags=(c.tags&&c.tags.length)?('<div class="meta">'+esc(c.tags.join(', '))+'</div>'):''; var lg=(c.logo||c.logoAuto||''); var lt=esc((c.name||'?').charAt(0).toUpperCase()); var av=lg?('<span class="colistlogo"><span>'+lt+'</span><img src="'+esc(lg)+'" onerror="this.remove()"></span>'):('<span class="colistlogo"><span>'+lt+'</span></span>'); return '<div class="cowho">'+av+'<div class="cowhotext"><div class="nm"><a class="nmlink" href="./rrg_company.html?id='+encodeURIComponent(c.id)+'">'+esc(c.name)+'</a></div>'+(mk?('<div class="meta">'+esc(mk)+'</div>'):'')+tags+'</div></div>'; } },
       { label:'Type', sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, edit:{ type:'select', options:function(){return CTYPES;}, get:function(c){return c.type||'';}, save:function(c,val){ return fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:c.id,type:val})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ c.type=val; return true; } throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(c){ return esc(c.type||'Seller'); } },
       { label:'Main contact', sort:function(a,b){ return RRGList.cmp(a.mainContact,b.mainContact); }, cell:function(c){ return c.mainContact?('<a href="./rrg_person.html?id='+encodeURIComponent(c.mainContactId)+'" style="color:var(--navy);text-decoration:none;font-weight:500">'+esc(c.mainContact)+'</a>'):'<span class="meta">—</span>'; } },
-      { label:'Preferred', sortable:false, cell:function(c){ return c.preferredContact?esc(c.preferredContact):'<span class="meta">—</span>'; } },
       { label:'Concepts', align:'left', sort:function(a,b){ return (a.concepts||0)-(b.concepts||0); }, cell:function(c){ return '<span class="count">'+(c.concepts||0)+' <span>concept'+((c.concepts===1)?'':'s')+'</span></span>'; } },
       { label:'Contacts', align:'left', sort:function(a,b){ return (a.contacts||0)-(b.contacts||0); }, cell:function(c){ return '<span class="count">'+(c.contacts||0)+' <span>contact'+((c.contacts===1)?'':'s')+'</span></span>'; } },
       { label:'Locations', align:'left', sort:function(a,b){ return (a.locations||0)-(b.locations||0); }, cell:function(c){ return '<span class="count">'+(c.locations||0)+' <span>location'+((c.locations===1)?'':'s')+'</span></span>'; } },
@@ -225,6 +225,33 @@ function createCompany(){
       chain.then(function(){ if(_stash){ try{ localStorage.setItem('rrg_build_'+id, JSON.stringify(_stash)); }catch(e){} } location.href='./rrg_company.html?id='+encodeURIComponent(id); }, function(){ if(_stash){ try{ localStorage.setItem('rrg_build_'+id, JSON.stringify(_stash)); }catch(e){} } location.href='./rrg_company.html?id='+encodeURIComponent(id); });
     })
     .catch(function(){ b.disabled=false;b.textContent='Create company'; alert('Could not reach the server.'); });
+}
+function bulkDeleteCompanies(ids, done){
+  if(!ids||!ids.length) return;
+  if(!confirm('Delete '+ids.length+' compan'+(ids.length===1?'y':'ies')+' and ALL their associated records (concepts, locations, photos, and listings)? Contacts are kept. This cannot be undone.')) return;
+  var idset={}; ids.forEach(function(id){ idset[id]=1; });
+  ALL=ALL.filter(function(c){ return !idset[c.id]; }); applyFilter();
+  Promise.all(ids.map(function(id){ return fetch('/api/company/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).catch(function(){ return {ok:false}; }); }))
+    .then(function(res){ var fail=res.filter(function(x){ return !x||!x.ok; }).length; if(done) done(); reloadCompanies().then(function(){ if(fail) alert(fail+' of '+ids.length+' could not be deleted.'); }); });
+}
+function openCompanyMergePicker(ids, done){
+  var cos=ids.map(function(id){ return (ALL||[]).find(function(c){return c.id===id;}); }).filter(Boolean);
+  if(cos.length<2){ alert('Select at least two companies to merge.'); return; }
+  var rows=cos.map(function(c,i){ var sub=[(c.markets||[]).join(', '), (c.type||''), ((c.concepts||0)+' concept'+((c.concepts===1)?'':'s'))].filter(Boolean).join(' \u00b7 '); return '<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e6ebf3;border-radius:10px;margin-bottom:7px;cursor:pointer;font-size:14px"><input type="radio" name="cmgkeep" value="'+esc(c.id)+'"'+(i===0?' checked':'')+' style="width:auto"><span style="font-weight:700;color:#1f2a3d">'+esc(c.name||'Company')+'</span>'+(sub?'<span style="color:#8a94a6;font-size:12px">'+esc(sub)+'</span>':'')+'</label>'; }).join('');
+  var ov=document.createElement('div'); ov.className='modal'; ov.id='cmergeModal'; ov.removeAttribute&&ov.removeAttribute('hidden');
+  ov.innerHTML='<div class="modalcard" style="max-width:540px"><div class="modalh">Merge '+cos.length+' companies</div><div class="modalb"><div style="font-size:12.5px;color:#5b6472;line-height:1.5;margin-bottom:12px">Pick the record to <b>keep</b>. The others merge into it \u2014 concepts, locations, tags, notes and every linked contact, listing and agreement move over (duplicate concepts &amp; locations are skipped), then the extra companies are removed. This cannot be undone.</div>'+rows+'<div id="cmg_msg" style="color:var(--red,#DA2B1F);font-size:12.5px;margin-top:8px"></div></div><div class="modalf"><button class="mbtn ghost" id="cmg_cancel">Cancel</button><button class="mbtn" id="cmg_go">Merge companies</button></div></div>';
+  document.body.appendChild(ov);
+  function close(){ ov.remove(); }
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  ov.querySelector('#cmg_cancel').addEventListener('click',close);
+  ov.querySelector('#cmg_go').addEventListener('click',function(){
+    var keep=ov.querySelector('input[name=cmgkeep]:checked'); if(!keep) return;
+    var keepId=keep.value; var mergeIds=ids.filter(function(id){ return id!==keepId; });
+    var gb=ov.querySelector('#cmg_go'); gb.disabled=true; gb.textContent='Merging\u2026';
+    fetch('/api/company/merge',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({keepId:keepId,mergeIds:mergeIds})})
+      .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ close(); if(done) done(); reloadCompanies(); } else { gb.disabled=false; gb.textContent='Merge companies'; ov.querySelector('#cmg_msg').textContent=(j&&j.error)||'Could not merge.'; } })
+      .catch(function(){ gb.disabled=false; gb.textContent='Merge companies'; ov.querySelector('#cmg_msg').textContent='Could not reach the server.'; });
+  });
 }
 function deleteCompany(id,name,deals){
   var dn=deals>0?(' This also deletes '+deals+' linked deal'+(deals===1?'':'s')+' and everything in them.'):'';
