@@ -481,7 +481,7 @@ function offerCardHTML(o){
     +'<div class="oanalysis" data-oid="'+esc(o.id)+'"'+(hasA?'':' hidden')+'>'+(hasA?analysisHTML(o.analysis):'')+'</div>'
   +'</div>';
 }
-var INQUIRIES=[], INQ_STATUSES=['New','Contacted','NDA Sent','Toured','Offer','Passed','Dead'];
+var INQUIRIES=[], INQ_STATUSES=['Unqualified','Contacted','Qualified','NDA Sent','Toured','Offer','Passed','Dead'];
 function inquiriesCard(){
   var body;
   if(!INQUIRIES.length){ body='<div class="noev" style="padding:18px 20px">No buyer leads yet. Import them from BizBuySell (the \u2b07 Import leads button on the Listings page), or add one manually. Each lead is a tracked buyer inquiry you can move through the funnel.</div>'; }

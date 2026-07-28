@@ -159,7 +159,7 @@ function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/
 function personPhotoUrl(){ return (P&&P.photoExt)?('/api/personphoto/'+encodeURIComponent(ID)+'.'+P.photoExt+'?v='+(P.updatedAt?encodeURIComponent(P.updatedAt):Date.now())):''; }
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 function money(v){ if(v==null||v==='') return ''; var n=Number(String(v).replace(/[^0-9.\-]/g,'')); if(!isFinite(n)||n===0) return esc(String(v)); return '$'+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
-var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], AGREEMENTS=[], ATYPES=[], PTYPES=['Buyer'], LEADSOURCES=[], ALLTAGS=[], CURTAGS=[], SAVET=null, EMAILREADY=false, COMPANIESLIST=[], ACTIVITIES=[], ACTTYPES=[], TEMPLATES=[], IS_ADMIN=false, CAN_DELETE=false, DIRTY=false, GMAIL=[], GMAILCONN=false, GMAILEMAIL='', GMAILLOADED=false, PENDING_AGR_FILE=null;
+var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], INTERESTED=[], AGREEMENTS=[], ATYPES=[], PTYPES=['Buyer'], LEADSOURCES=[], ALLTAGS=[], CURTAGS=[], SAVET=null, EMAILREADY=false, COMPANIESLIST=[], ACTIVITIES=[], ACTTYPES=[], TEMPLATES=[], IS_ADMIN=false, CAN_DELETE=false, DIRTY=false, GMAIL=[], GMAILCONN=false, GMAILEMAIL='', GMAILLOADED=false, PENDING_AGR_FILE=null;
 function deletePerson(){
   if(!confirm('Delete “'+((P&&P.name)||'this contact')+'” from your registry? Their name stays on any past offers, tours, and NDAs. This cannot be undone.')) return;
   var b=document.getElementById('p_delete'); b.disabled=true; b.textContent='Deleting…';
@@ -485,6 +485,30 @@ function saveTour(){
   fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { b.disabled=false; m.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ b.disabled=false; m.textContent='Could not reach the server.'; });
 }
 function companyRail(){ if(!(CO&&CO.id)) return '<div class="card"><div class="ch"><b>Company</b></div><div class="cb"><div class="empty">Not linked to a company.</div></div></div>'; return '<div class="card"><div class="ch"><b>Company</b></div><div class="cb"><a class="raillink" href="./rrg_company.html?id='+encodeURIComponent(CO.id)+'"><div class="cav" style="width:36px;height:36px;border-radius:8px;background:#eef1f6;color:#6b7488;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:12px">'+esc(initials(CO.name))+'</div><div><div style="font-weight:600;color:var(--ink)">'+esc(CO.name)+'</div><div style="font-size:12.5px;color:var(--muted);margin-top:1px">'+esc(CO.type||'Company')+' →</div></div></a></div></div>'; }
+function interestedCard(){
+  var body = (INTERESTED&&INTERESTED.length) ? INTERESTED.map(function(x){
+    var st=x.status||'Unqualified';
+    var bg=(st==='Unqualified')?'#fdeceb':(st==='Qualified'?'#e7f5ee':((st==='Dead'||st==='Passed')?'#eef1f6':'#eef2fb'));
+    var fg=(st==='Unqualified')?'#b23a2c':(st==='Qualified'?'#1f8a5b':((st==='Dead'||st==='Passed')?'#8a94a6':'#2647b0'));
+    return '<div class="row" style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)"><a href="./rrg_assignment.html?key='+encodeURIComponent(x.key)+'" style="flex:1;min-width:0;font-weight:600;color:var(--navy);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(x.business||'Listing')+'</a><span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:'+bg+';color:'+fg+'">'+esc(st)+'</span><button type="button" data-unlink="'+esc(x.key)+'" title="Unlink this listing" style="border:none;background:none;color:#b23a2c;cursor:pointer;font-size:17px;line-height:1;padding:0 2px">\u00d7</button></div>';
+  }).join('') : '<div class="empty">No listings linked yet \u2014 link the listings this buyer is interested in.</div>';
+  return '<div class="card"><div class="ch" style="display:flex;align-items:center"><b>Interested Listings</b><span>'+(INTERESTED?INTERESTED.length:0)+'</span><button type="button" class="mfadd" id="linkListingBtn" style="margin-left:auto;padding:4px 10px;font-size:11.5px">+ Link listing</button></div><div id="linkPickerWrap"></div><div>'+body+'</div></div>';
+}
+function openLinkPicker(){
+  var wrap=document.getElementById('linkPickerWrap'); if(!wrap) return;
+  if(wrap.getAttribute('data-open')==='1'){ wrap.setAttribute('data-open','0'); wrap.innerHTML=''; return; }
+  wrap.setAttribute('data-open','1'); wrap.innerHTML='<div style="padding:8px 0;color:var(--muted);font-size:12.5px">Loading listings\u2026</div>';
+  fetch('/api/assignments',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    var all=(j&&j.assignments)||[]; var linked={}; (INTERESTED||[]).forEach(function(x){linked[x.key]=1;});
+    var opts=all.filter(function(a){return !linked[a.key];}).map(function(a){ return '<option value="'+esc(a.key)+'">'+esc(a.business||a.key)+(a.market?(' \u2014 '+esc(a.market)):'')+'</option>'; }).join('');
+    if(!opts){ wrap.innerHTML='<div style="padding:8px 0;color:var(--muted);font-size:12.5px">No other listings to link.</div>'; return; }
+    wrap.innerHTML='<div style="display:flex;gap:8px;padding:10px 0"><select id="linkSel" style="flex:1;border:1px solid #cfd6e2;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px">'+opts+'</select><button type="button" class="mfadd" id="linkGo">Link</button></div>';
+    var g=document.getElementById('linkGo'); if(g) g.addEventListener('click',function(){ var key=document.getElementById('linkSel').value; if(key) linkListing(key); });
+  }).catch(function(){ wrap.innerHTML='<div style="padding:8px 0;color:#b23a2c;font-size:12.5px">Could not load listings.</div>'; });
+}
+function linkListing(key){ fetch('/api/person/'+encodeURIComponent(ID)+'/link-listing',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({key:key})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ INTERESTED=j.interested||[]; render(); } else alert((j&&j.error)||'Could not link the listing.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+function unlinkListing(key){ if(!confirm('Unlink this listing from the buyer? (Removes the inquiry from that listing.)')) return; fetch('/api/person/'+encodeURIComponent(ID)+'/unlink-listing',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({key:key})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ INTERESTED=j.interested||[]; render(); } }).catch(function(){}); }
+document.addEventListener('click',function(e){ if(!e.target.closest) return; if(e.target.closest('#linkListingBtn')){ e.preventDefault(); openLinkPicker(); return; } var u=e.target.closest('[data-unlink]'); if(u){ e.preventDefault(); unlinkListing(u.getAttribute('data-unlink')); return; } });
 function render(){
   document.getElementById('crumb').textContent=P.name||'Contact';
   document.getElementById('h1').textContent=P.name||'Contact';
@@ -535,7 +559,7 @@ function render(){
       + '<div class="saved" id="p_saved"></div><div id="p_msg" style="font-size:12.5px;color:#b23a2c;margin-top:8px"></div>'
       + (CAN_DELETE?('<div class="pdangerz"><button class="pdelbtn" id="p_delete">Delete contact</button><div class="pdangernote">Removes this person from the registry. Their name stays on any past offers and tours. Cannot be undone.</div></div>'):'')
     + '</div></div></div>'
-    + '<div class="mid">'+statTiles()+activityCard()+'</div>'
+    + '<div class="mid">'+statTiles()+interestedCard()+activityCard()+'</div>'
     + '<div class="rail">'+companyRail()+relatedRail()+agreementsCard()+'</div>';
   var root=document.getElementById('root');
   var pd=document.getElementById('p_delete'); if(pd) pd.addEventListener('click',deletePerson);
@@ -617,7 +641,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No contact selected. <a href="./rrg_people.html">Back to contacts →</a></div>'; return; }
   fetch('/api/person/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ P=j.person; CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; render(); loadGmail(); })
+    .then(function(j){ P=j.person; CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; INTERESTED=j.interested||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; render(); loadGmail(); })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this contact.')+'<br><br><a href="./rrg_people.html" style="color:#000E31;font-weight:700">← Back to contacts</a></div>'; });
 }
 fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ COMPANIESLIST=(j&&j.companies)||[]; }).catch(function(){});
