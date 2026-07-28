@@ -922,6 +922,17 @@ app.use((req, res, next) => {
   if (feat) { res.on('finish', function () { try { if (res.statusCode < 400) logAiCall(feat, req); } catch (e) {} }); }
   next();
 });
+// Admin — AI usage rollup: brokerage total + per-user + per-feature, this month and all-time.
+app.get('/api/admin/ai-usage', requireAdmin, (req, res) => {
+  const all = loadAiUsage();
+  const ym = new Date().toISOString().slice(0, 7);
+  const month = all.filter(x => String(x.ts || '').slice(0, 7) === ym);
+  function agg(list, keyFn) { const m = {}; list.forEach(x => { const k = keyFn(x) || '—'; if (!m[k]) m[k] = { key: k, calls: 0, cost: 0 }; m[k].calls++; m[k].cost += (x.estCost || 0); }); return Object.keys(m).map(k => m[k]).sort((a, b) => b.cost - a.cost); }
+  const r2 = n => Math.round(n * 100) / 100;
+  const byUser = agg(month, x => (x.name || x.username)).map(r => ({ name: r.key, calls: r.calls, cost: r2(r.cost) }));
+  const byFeature = agg(month, x => x.feature).map(r => ({ feature: r.key, calls: r.calls, cost: r2(r.cost) }));
+  res.json({ ok: true, month: ym, total: { calls: month.length, cost: r2(month.reduce((s, x) => s + (x.estCost || 0), 0)) }, allTime: { calls: all.length, cost: r2(all.reduce((s, x) => s + (x.estCost || 0), 0)) }, byUser: byUser, byFeature: byFeature });
+});
 
 // Log which tool a signed-in rep opens (dashboard + any *.html tool page).
 app.use((req, res, next) => {

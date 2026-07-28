@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — AI Usage</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 28px 60px;}
+.pgh{font-size:26px;font-weight:800;color:var(--navy);margin:6px 0 2px;}
+.pgs{color:var(--muted);font-size:13.5px;margin-bottom:20px;}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+@media(max-width:720px){.tiles{grid-template-columns:1fr 1fr;}}
+.tile{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;}
+.tile .n{font-size:24px;font-weight:800;color:var(--navy);}
+.tile .n.green{color:var(--green);}
+.tile .l{font-size:12px;color:var(--soft);margin-top:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:20px;overflow:hidden;}
+.ch{padding:15px 20px;border-bottom:1px solid var(--line);font-weight:800;color:var(--navy);font-size:15px;}
+table{width:100%;border-collapse:collapse;}
+th,td{text-align:left;padding:11px 20px;font-size:13.5px;border-top:1px solid #eef1f6;}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;border-top:none;}
+td.r,th.r{text-align:right;font-variant-numeric:tabular-nums;}
+.empty{color:var(--soft);font-size:13.5px;padding:26px 20px;text-align:center;}
+.note{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.5;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="pgh">AI Usage</h1>
+  <div class="pgs">What your brokerage is spending on AI this month — the metering behind SaaS billing. Estimated cost is per-action (web-search actions cost more than small text calls).</div>
+  <div class="tiles" id="tiles"></div>
+  <div class="card"><div class="ch">By rep — this month</div><div id="byUser"><div class="empty">Loading…</div></div></div>
+  <div class="card"><div class="ch">By feature — this month</div><div id="byFeature"><div class="empty">Loading…</div></div></div>
+  <div class="note">Estimates are per-action approximations for planning; exact token-level metering can be layered on later. All-time totals are shown in the tiles.</div>
+</div>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function money(n){ return '$'+(Number(n||0)).toFixed(2); }
+fetch('/api/admin/ai-usage',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+  if(!j||!j.ok){ document.getElementById('tiles').innerHTML='<div class="empty">Could not load usage (admin only).</div>'; return; }
+  document.getElementById('tiles').innerHTML=
+    '<div class="tile"><div class="n">'+j.total.calls+'</div><div class="l">AI actions · this month</div></div>'
+    +'<div class="tile"><div class="n green">'+money(j.total.cost)+'</div><div class="l">Est. cost · this month</div></div>'
+    +'<div class="tile"><div class="n">'+j.allTime.calls+'</div><div class="l">AI actions · all time</div></div>'
+    +'<div class="tile"><div class="n green">'+money(j.allTime.cost)+'</div><div class="l">Est. cost · all time</div></div>';
+  var bu=j.byUser||[];
+  document.getElementById('byUser').innerHTML = bu.length ? ('<table><thead><tr><th>Rep</th><th class="r">AI actions</th><th class="r">Est. cost</th></tr></thead><tbody>'+bu.map(function(u){ return '<tr><td>'+esc(u.name)+'</td><td class="r">'+u.calls+'</td><td class="r">'+money(u.cost)+'</td></tr>'; }).join('')+'</tbody></table>') : '<div class="empty">No AI usage yet this month.</div>';
+  var bf=j.byFeature||[];
+  document.getElementById('byFeature').innerHTML = bf.length ? ('<table><thead><tr><th>Feature</th><th class="r">AI actions</th><th class="r">Est. cost</th></tr></thead><tbody>'+bf.map(function(f){ return '<tr><td>'+esc(f.feature)+'</td><td class="r">'+f.calls+'</td><td class="r">'+money(f.cost)+'</td></tr>'; }).join('')+'</tbody></table>') : '<div class="empty">No AI usage yet this month.</div>';
+}).catch(function(){ document.getElementById('tiles').innerHTML='<div class="empty">Could not reach the server.</div>'; });
+</script>
+</body>
+</html>
