@@ -1102,6 +1102,8 @@
     for(var i=0;i<ls.length;i++){ var t=ls[i].textContent.replace('*','').trim().toLowerCase();
       if(labels.indexOf(t)>=0){ var inp=ls[i].parentElement.querySelector('input,textarea,select'); if(inp){ if(inp.tagName==='SELECT') ensureOption(inp,val); inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); } return; } }
   }
+  // Prefill a NEW call from a contact (opened via the contact's Actions → Start Qualification Call).
+  (function(){ var q=new URLSearchParams(location.search); var pn=q.get('sellerName'), pc=q.get('company')||q.get('business'); if(!id && (pn||pc)){ repsReady.then(function(){ if(pc) setByLabel(['business name'], pc); if(pn) setByLabel(['seller contact name'], pn); }); } })();
   Promise.all([repsReady, fetch(API+'/api/screening/'+encodeURIComponent(id)).then(function(r){return r.json();}).catch(function(){return null;})]).then(function(res){
     var j=res[1]; if(!j||!j.ok||!j.screening) return;
     var s=j.screening, d=s.data||{};

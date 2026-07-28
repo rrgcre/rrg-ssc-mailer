@@ -125,6 +125,9 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .agrx:hover{color:var(--red);}
 .rrempty{font-size:12.5px;color:var(--soft);padding:8px 18px;}
 .abtn{background:#fff;border:1px solid #e3e8f0;color:var(--ink);border-radius:8px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
+.actionsbar{display:flex;gap:9px;flex-wrap:wrap;margin-top:16px;}
+.hact{background:#fff;color:var(--navy,#000E31);border:none;border-radius:9px;padding:9px 15px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;box-shadow:0 2px 10px rgba(0,0,0,.18);transition:background .12s,transform .06s;}
+.hact:hover{background:#eef2fb;} .hact:active{transform:translateY(1px);} .hact .hi{font-size:13px;line-height:1;}
 .abtn:hover{background:#f2f4f8;}
 .feed{max-height:560px;overflow-y:auto;margin:2px -2px 0;padding:0 2px;}
 .feedrow{display:flex;gap:11px;align-items:flex-start;padding:9px 2px;border-top:1px solid #eef1f6;}
@@ -149,6 +152,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
   <div class="crumb"><a href="./rrg_people.html">Contacts</a> &nbsp;›&nbsp; <span id="crumb">Contact</span></div>
   <h1 id="h1">Contact</h1>
   <div class="subline" id="subline"></div>
+  <div class="actionsbar" id="actionsBar"></div>
 </div></div>
 <div id="root" class="loading">Loading the contact…</div>
 <div id="nlModal" style="position:fixed;inset:0;background:rgba(6,14,32,.55);display:none;align-items:center;justify-content:center;z-index:200;padding:20px">
@@ -168,6 +172,11 @@ function openNewListing(){ if(typeof P==='undefined'||!P) return; document.getEl
 function closeNewListing(){ document.getElementById('nlModal').style.display='none'; }
 function createNewListing(){ var biz=document.getElementById('nl_biz').value.trim(); var msg=document.getElementById('nl_msg'); if(!biz){ msg.textContent='Enter the business / listing name.'; return; } var b=document.getElementById('nl_save'); b.disabled=true; b.textContent='Creating…'; fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:biz,market:document.getElementById('nl_market').value.trim(),contact:(P&&P.name)||'',contactEmail:(P&&P.email)||''})}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent='Create listing'; if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else msg.textContent=(j&&j.error)||'Could not create the listing.'; }).catch(function(){ b.disabled=false; b.textContent='Create listing'; msg.textContent='Could not reach the server.'; }); }
 document.addEventListener('click',function(e){ if(e.target.closest && e.target.closest('#newListingBtn')){ e.preventDefault(); openNewListing(); } });
+document.addEventListener('click',function(e){ var t=e.target.closest&&e.target.closest('#actSQC,#actAgr,#actList'); if(!t) return; e.preventDefault();
+  if(t.id==='actList'){ openNewListing(); return; }
+  if(t.id==='actAgr'){ if(typeof openSendModal==='function'){ openSendModal(); } else { alert('Agreements are still loading — try again in a moment.'); } return; }
+  if(t.id==='actSQC'){ var nm=encodeURIComponent((typeof P!=='undefined'&&P&&P.name)||''); var co=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''); location.href='./seller_screening.html?sellerName='+nm+'&company='+co; return; }
+});
 (function(){ var c=document.getElementById('nl_cancel'); if(c) c.addEventListener('click',closeNewListing); var x=document.getElementById('nl_x'); if(x) x.addEventListener('click',closeNewListing); var sv=document.getElementById('nl_save'); if(sv) sv.addEventListener('click',createNewListing); var m=document.getElementById('nlModal'); if(m) m.addEventListener('click',function(e){ if(e.target===m) closeNewListing(); }); })();
 </script>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
@@ -541,6 +550,7 @@ function render(){
   if(P.prefContact&&P.prefContact.length) sub.push('<span>Prefers: '+P.prefContact.map(function(x){return esc(x);}).join(' / ')+'</span>');
   if(P.tags&&P.tags.length) sub.push('<span>'+P.tags.map(function(t){return '<span class="hpill" style="text-transform:none;letter-spacing:.02em">'+esc(t)+'</span>';}).join(' ')+'</span>');
   document.getElementById('subline').innerHTML=sub.join('');
+  var _ab=document.getElementById('actionsBar'); if(_ab) _ab.innerHTML='<button type="button" class="hact" id="actSQC"><span class="hi">\u260e</span> Start Qualification Call</button><button type="button" class="hact" id="actAgr"><span class="hi">\u270d</span> Send an Agreement</button><button type="button" class="hact" id="actList"><span class="hi">\u25c6</span> Start a Listing</button>';
   var dealsCard = listCard('Listings (as client)', DEALS, function(d){ return dealLink(d.key,d.business,{tag:esc(d.role||'Client')}); }, 'Not the client on any listing.');
   var offersCard = listCard('Offers made', OFFERS, function(o){ return dealLink(o.key,o.business,{meta:esc((o.type||'')+' · '+(o.status||''))+(o.received?(' · '+fmt(o.received)):''), tag:(o.amount?money(o.amount):'')}); }, 'No offers logged from this contact.');
   var toursCard = listCard('Tours', TOURS, function(t){ return dealLink(t.key,t.business,{meta:(t.date?fmt(t.date):''), tag:esc(t.interest||'')}); }, 'No tours logged for this contact.');
