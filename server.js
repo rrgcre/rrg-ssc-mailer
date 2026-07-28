@@ -3571,7 +3571,19 @@ app.post('/api/company/:id/concept', express.json(), (req, res) => {
     // keep the locations' concept label in sync with a rename
     if (oldName && oldName !== cpt.name) (c.locations || []).forEach(l => { if ((l.concept || '') === oldName) l.concept = cpt.name; });
   } else {
-    if (c.concepts.some(x => normKey(x.name) === normKey(name))) return res.status(400).json({ ok: false, error: 'That concept already exists.' });
+    const _dup = c.concepts.find(x => normKey(x.name) === normKey(name));
+    if (_dup) {
+      // Idempotent: re-running the AI (or re-adding) must never create a second copy.
+      // Fill in only blanks from the incoming data; never clobber values already on file.
+      if (!String(_dup.website || '').trim() && typeof b.website === 'string' && b.website.trim()) _dup.website = b.website.slice(0, 300);
+      if (!String(_dup.conceptType || '').trim() && typeof b.conceptType === 'string' && CONCEPT_TYPES.indexOf(b.conceptType) >= 0) _dup.conceptType = b.conceptType;
+      if (!String(_dup.pricePoint || '').trim() && typeof b.pricePoint === 'string' && PRICE_POINTS.indexOf(b.pricePoint) >= 0) _dup.pricePoint = b.pricePoint;
+      if (!String(_dup.cuisine || '').trim() && typeof b.cuisine === 'string' && effCuisineTypes().indexOf(b.cuisine) >= 0) _dup.cuisine = b.cuisine;
+      if (Array.isArray(b.markets) && b.markets.length) { const _mk = {}; (_dup.markets || []).forEach(m => { if (m) _mk[normKey(m)] = m; }); b.markets.map(x => titleCaseMarket(String(x || '').slice(0, 80))).filter(Boolean).forEach(m => { if (!_mk[normKey(m)]) _mk[normKey(m)] = m; }); _dup.markets = Object.values(_mk).slice(0, 30); }
+      _dup.updatedAt = now;
+      c.updatedAt = now; saveCompanies(arr);
+      return res.json({ ok: true, concepts: c.concepts, locations: c.locations || [], concept: _dup, existed: true });
+    }
     const website = String(b.website || '').slice(0, 300);
     cpt = { id: newConceptId(), name: name.slice(0, 120), website: website, logo: (typeof b.logo === 'string' && b.logo) ? b.logo.slice(0, 400) : '', markets: Array.isArray(b.markets) ? b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30) : [], conceptType: (typeof b.conceptType === 'string' && CONCEPT_TYPES.indexOf(b.conceptType) >= 0) ? b.conceptType : '', pricePoint: (typeof b.pricePoint === 'string' && PRICE_POINTS.indexOf(b.pricePoint) >= 0) ? b.pricePoint : '', cuisine: (typeof b.cuisine === 'string' && effCuisineTypes().indexOf(b.cuisine) >= 0) ? b.cuisine : '', createdAt: now };
     c.concepts.push(cpt);
@@ -3707,7 +3719,15 @@ app.post('/api/company/:id/find-locations', express.json(), async (req, res) => 
     const created = [];
     (result.locations || []).slice(0, effMaxPullLocations()).forEach(l => {
       // Skip obvious duplicates (same concept + address already present).
-      const dupe = c.locations.some(x => (x.concept || '') === concept && normKey(x.address || '') && normKey(x.address || '') === normKey(l.address || ''));
+      const _lk = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const dupe = c.locations.some(x => {
+        if ((x.concept || '') !== concept) return false;
+        const ax = _lk(x.address), al = _lk(l.address); if (ax && al && ax === al) return true;      // same street address
+        const px = _lk(x.phone), pl = _lk(l.phone);   if (px && pl && px === pl) return true;         // same phone
+        const nx = _lk(x.name), nl = _lk(l.name), cx = _lk(x.city), cl = _lk(l.city);
+        if (nx && nl && nx === nl && cx === cl) return true;                                          // same name in same city
+        return false;
+      });
       if (dupe) return;
       const rec = { id: newLocationId(), name: l.name || '', concept, address: l.address || '', city: l.city || '', state: l.state || '', phone: l.phone || '', website, opened: '', status: 'Operating', notes: '', photos: [], source: 'ai-web', createdAt: now };
       c.locations.push(rec); created.push(rec);
