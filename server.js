@@ -5720,10 +5720,26 @@ app.post('/api/agreements', express.json(), (req, res) => {
   // No activity is logged when an agreement is merely created — only when it is actually sent or signed.
   res.json({ ok: true, agreement: agreementBrief(a) });
 });
+// Executed-agreements roll-up — real agreements tied to clients & deals (for the Agreements page).
+app.get('/api/agreements/executed', (req, res) => {
+  const seeAll = isSuper(req.user) || !restrictToOwn(req);
+  const uname = (req.user && req.user.username) || '';
+  const nameById = {}; loadPeople().forEach(p => nameById[p.id] = p.name || '');
+  const coById = {}; loadCompanies().forEach(c => coById[c.id] = c.name || '');
+  let bizByKey = {};
+  try { const idx = assignmentsIndex(), ov = loadAssignOverlay(); for (const k in idx) { try { bizByKey[k] = assignmentView(idx[k], ov).business; } catch (e) {} } } catch (e) {}
+  let all = loadAgreements().filter(a => seeAll || a.createdBy === uname);
+  all = all.map(a => Object.assign(agreementBrief(a), {
+    personName: a.personName || nameById[a.personId] || '',
+    companyName: coById[a.companyId] || '',
+    dealName: bizByKey[a.dealKey] || '',
+  })).sort((x, y) => String(x.expires || '9999').localeCompare(String(y.expires || '9999')));
+  res.json({ ok: true, agreements: all, types: AGREEMENT_TYPES, canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+});
 app.delete('/api/agreements/:id', (req, res) => {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
-  if (!(req.user && isSuper(req.user)) && a.createdBy !== (req.user && req.user.username)) return res.status(403).json({ ok: false, error: 'Only the creator or an admin can delete this.' });
+  if (!canDelete(req) && a.createdBy !== (req.user && req.user.username)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete this agreement.' });
   saveAgreements(all.filter(x => x.id !== a.id)); res.json({ ok: true });
 });
 

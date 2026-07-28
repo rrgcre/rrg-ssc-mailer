@@ -57,11 +57,27 @@ thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(
       <button data-s="soon">Expiring ≤60d</button>
       <button data-s="expired">Expired</button>
     </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:10px"><button id="newAgrBtn" style="background:var(--navy,#000E31);color:#fff;border:none;border-radius:9px;padding:9px 15px;font:inherit;font-size:13px;font-weight:700;cursor:pointer">+ New agreement</button></div>
     <div id="list"><div class="empty">Loading…</div></div>
   </div>
 </div>
+<datalist id="agrPeopleList"></datalist>
+<div id="agrModal" hidden style="position:fixed;inset:0;background:rgba(6,14,32,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px">
+  <div style="background:#fff;border-radius:16px;width:100%;max-width:460px;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden">
+    <div style="padding:18px 22px;font-size:16px;font-weight:800;color:var(--navy);border-bottom:1px solid var(--line)">New agreement</div>
+    <div style="padding:18px 22px">
+      <label style="display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:0 0 6px">Type</label><select id="ag_type" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></select>
+      <label style="display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:12px 0 6px">Party (contact)</label><input id="ag_party" list="agrPeopleList" autocomplete="off" placeholder="Start typing a contact…" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px">
+      <div style="display:flex;gap:10px"><div style="flex:1"><label style="display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:12px 0 6px">Effective</label><input id="ag_eff" type="date" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div><div style="flex:1"><label style="display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:12px 0 6px">Expires</label><input id="ag_exp" type="date" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div></div>
+      <label style="display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:12px 0 6px">Notes</label><textarea id="ag_notes" rows="2" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;resize:vertical"></textarea>
+      <div style="font-size:12px;color:#8a94a6;margin-top:8px">Attach the signed document and send for signature from the contact\u2019s page after creating.</div>
+      <div id="ag_msg" style="color:#DA2B1F;font-size:12.5px;margin-top:8px"></div>
+    </div>
+    <div style="display:flex;gap:9px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line)"><button id="ag_cancel" style="background:#fff;color:var(--muted);border:1px solid var(--line);border-radius:9px;padding:10px 17px;font:inherit;font-size:13px;font-weight:700;cursor:pointer">Cancel</button><button id="ag_save" style="background:var(--navy,#000E31);color:#fff;border:none;border-radius:9px;padding:10px 17px;font:inherit;font-size:13px;font-weight:700;cursor:pointer">Create agreement</button></div>
+  </div>
+</div>
 <script>
-var AGR=[], TYPES=[], FT='all', FS='all'; var ACTL=null;
+var AGR=[], TYPES=[], FT='all', FS='all'; var ACTL=null; var CAN_DELETE=false, IS_ADMIN=false, PEOPLE=[];
 var COLORS={ NDA:{bg:'#eef2fb',fg:'#2647b0'}, CA:{bg:'#e6f5f3',fg:'#0f766e'}, ETRA:{bg:'#f1ebfb',fg:'#6d28d9'}, Referral:{bg:'#fdf1df',fg:'#b5791f'}, Listing:{bg:'#fdeceb',fg:'#DA2B1F'} };
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function fmt(d){ if(!d) return '—'; var p=d.split('-'); if(p.length!==3) return d; return p[1]+'/'+p[2]+'/'+p[0]; }
@@ -70,9 +86,10 @@ function daysUntil(d){ if(!d) return null; var t=new Date(d+'T00:00:00'); if(isN
 function label(k){ for(var i=0;i<TYPES.length;i++){ if(TYPES[i].key===k) return TYPES[i].label; } return k; }
 function statusOf(a){ var today=todayStr(); if(a.status==='terminated') return 'expired'; if(a.expires&&a.expires<today) return 'expired'; var du=daysUntil(a.expires); if(a.expires&&du!=null&&du<=60) return 'soon'; return 'active'; }
 function load(){
-  fetch('/api/agreements',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(!j||!j.ok) return; AGR=j.agreements||[]; TYPES=j.types||[]; buildTypeFilters(); render();
+  fetch('/api/agreements/executed',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok) return; AGR=j.agreements||[]; TYPES=j.types||[]; CAN_DELETE=!!j.canDelete; IS_ADMIN=!!j.isAdmin; buildTypeFilters(); render();
   });
+  fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('agrPeopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.companyName||p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){});
 }
 function buildTypeFilters(){
   var el=document.getElementById('typeFilters');
@@ -89,7 +106,7 @@ function render(){
     +'<div class="stat"><div class="n amber">'+soon+'</div><div class="l">Expiring ≤60 days</div></div>'
     +'<div class="stat"><div class="n red">'+expired+'</div><div class="l">Expired</div></div>';
   var rows=AGR.filter(function(a){ if(FT!=='all'&&a.type!==FT) return false; if(FS!=='all'&&statusOf(a)!==FS) return false; return true; });
-  var cfg={ mount:'#list', data:rows, key:'agreements', empty:'<div class="empty">No agreements match.</div>', rowId:function(a){return a.id;}, defaultSort:5, defaultDir:1,
+  var cfg={ mount:'#list', data:rows, key:'agreements', empty:'<div class="empty">No agreements match.</div>', rowId:function(a){return a.id;}, defaultSort:5, defaultDir:1, bulk:(CAN_DELETE?[{label:'Delete',danger:true,min:1,fn:bulkDeleteAgreements}]:null),
     columns:[
       { label:'Type', sort:function(a,b){return RRGList.cmp(label(a.type),label(b.type));}, cell:function(a){ return esc(label(a.type)); } },
       { label:'Party', sort:function(a,b){return RRGList.cmp(a.personName,b.personName);}, cell:function(a){ return a.personId?('<a class="lk" href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'">'+esc(a.personName||'Contact')+'</a>'):esc(a.personName||'—'); } },
@@ -99,12 +116,22 @@ function render(){
       { label:'Expires', sort:function(a,b){return RRGList.cmp(a.expires||'9999',b.expires||'9999');}, cell:function(a){ var st=statusOf(a); var cls=st==='expired'?'exp red':(st==='soon'?'exp amber':''); return '<span class="'+cls+'">'+esc(fmt(a.expires))+'</span>'; } },
       { label:'Status', sort:function(a,b){return RRGList.cmp(statusOf(a),statusOf(b));}, cell:function(a){ var st=statusOf(a); var du=daysUntil(a.expires); var txt=st==='expired'?'Expired':(st==='soon'?('Expiring'+(du!=null?' '+du+'d':'')):'Active'); return '<span class="stpill '+st+'">'+txt+'</span>'; } },
       { label:'Signature', sort:function(a,b){return RRGList.cmp(a.signStatus,b.signStatus);}, cell:function(a){ return a.signStatus==='signed'?('<span class="sigp signed">Signed'+(a.signedDate?(' '+fmt(a.signedDate)):'')+'</span>'):(a.signStatus==='sent'?'<span class="sigp sent">Sent</span>':'<span class="sigp">—</span>'); } },
-      { label:'Notes', defaultHidden:true, sortable:false, cell:function(a){ return a.notes?esc(a.notes):'<span class="meta">—</span>'; } }
+      { label:'Notes', defaultHidden:true, sortable:false, cell:function(a){ return a.notes?esc(a.notes):'<span class="meta">—</span>'; } },
+      { label:'', align:'right', sortable:false, cell:function(a){ return CAN_DELETE?('<button class="agdel" data-del="'+esc(a.id)+'" style="border:1px solid #f0c9c6;background:#fff;color:#DA2B1F;border-radius:7px;padding:4px 10px;font:inherit;font-size:12px;font-weight:600;cursor:pointer">Delete</button>'):'<span class="meta">—</span>'; } }
     ]
   };
   if(ACTL) ACTL.refresh(rows); else ACTL=RRGList.create(cfg);
 }
+function deleteAgreement(id){ if(!confirm('Delete this agreement? This removes the record and its uploaded document. Cannot be undone.')) return; AGR=AGR.filter(function(a){return a.id!==id;}); render(); fetch('/api/agreements/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ alert((j&&j.error)||'Could not delete.'); load(); } }).catch(function(){ load(); }); }
+function bulkDeleteAgreements(ids, done){ if(!ids||!ids.length) return; if(!confirm('Delete '+ids.length+' agreement'+(ids.length>1?'s':'')+'? Cannot be undone.')) return; var set={}; ids.forEach(function(x){set[x]=1;}); AGR=AGR.filter(function(a){return !set[a.id];}); render(); Promise.all(ids.map(function(id){ return fetch('/api/agreements/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).catch(function(){return {ok:false};}); })).then(function(res){ var fail=res.filter(function(x){return !x||!x.ok;}).length; if(done)done(); if(fail) alert(fail+' could not be deleted.'); load(); }); }
+function openAgrModal(){ var m=document.getElementById('agrModal'); if(!m) return; var tsel=document.getElementById('ag_type'); if(tsel) tsel.innerHTML='<option value="">\u2014 type \u2014</option>'+TYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join(''); ['ag_party','ag_eff','ag_exp','ag_notes'].forEach(function(id){var el=document.getElementById(id); if(el) el.value='';}); document.getElementById('ag_msg').textContent=''; m.removeAttribute('hidden'); }
+function closeAgrModal(){ var m=document.getElementById('agrModal'); if(m) m.setAttribute('hidden',''); }
+function createAgreement(){ var type=(document.getElementById('ag_type').value||''); var msg=document.getElementById('ag_msg'); if(!type){ msg.textContent='Pick an agreement type.'; return; } var party=(document.getElementById('ag_party').value||'').trim(); var pid=''; for(var i=0;i<PEOPLE.length;i++){ if((PEOPLE[i].name||'').toLowerCase()===party.toLowerCase()){ pid=PEOPLE[i].id; break; } } var body={ type:type, effective:document.getElementById('ag_eff').value, expires:document.getElementById('ag_exp').value, notes:document.getElementById('ag_notes').value }; if(pid) body.personId=pid; else if(party) body.name=party; var btn=document.getElementById('ag_save'); btn.disabled=true; btn.textContent='Creating\u2026'; fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; btn.textContent='Create agreement'; if(j&&j.ok){ closeAgrModal(); load(); } else msg.textContent=(j&&j.error)||'Could not create.'; }).catch(function(){ btn.disabled=false; btn.textContent='Create agreement'; msg.textContent='Could not reach the server.'; }); }
+document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.agdel[data-del]'); if(b){ e.preventDefault(); deleteAgreement(b.getAttribute('data-del')); } });
 document.querySelectorAll('.filters [data-s]').forEach(function(b){ b.addEventListener('click',function(){ FS=b.getAttribute('data-s'); document.querySelectorAll('.filters [data-s]').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); render(); }); });
+var _nab=document.getElementById('newAgrBtn'); if(_nab) _nab.addEventListener('click',openAgrModal);
+var _agc=document.getElementById('ag_cancel'); if(_agc) _agc.addEventListener('click',closeAgrModal);
+var _ags=document.getElementById('ag_save'); if(_ags) _ags.addEventListener('click',createAgreement);
 load();
 </script>
 <script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>

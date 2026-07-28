@@ -11,13 +11,13 @@
 *{box-sizing:border-box;} html,body{margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);}
 .top{background:radial-gradient(115% 130% at 50% 0%, #182a54 0%, #0d1b3d 55%, #04091d 100%);color:#fff;padding:20px 0;}
-.top-inner{max-width:1000px;margin:0 auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.top-inner{max-width:1320px;margin:0 auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
 .brand{display:inline-flex;align-items:center;gap:11px;}
 .brand .disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font-family:'Arial Black',Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;}
 .brand .wm{font-weight:800;font-size:15px;}
 .top a.back{color:#c3ccdf;text-decoration:none;font-weight:600;font-size:13px;border:1px solid rgba(255,255,255,.2);padding:7px 13px;border-radius:8px;}
 .top a.back:hover{border-color:#fff;color:#fff;}
-.wrap{max-width:1000px;margin:0 auto;padding:24px 28px 60px;}
+.wrap{max-width:1320px;margin:0 auto;padding:24px 28px 60px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:20px;}
 .card h2{font-size:14px;color:var(--navy);margin:0 0 4px;}
 .subline{font-size:12px;color:var(--muted);margin:0 0 14px;}
@@ -54,6 +54,12 @@ textarea{min-height:56px;resize:vertical;}
 .tacts button{background:none;border:1px solid #d3d9e6;border-radius:7px;padding:5px 9px;font:inherit;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;}
 .tacts button:hover{border-color:var(--red);color:var(--red);}
 .empty{color:var(--muted);font-size:13px;padding:18px 4px;}
+.tmodal{position:fixed;inset:0;background:rgba(6,14,32,.55);display:flex;align-items:flex-start;justify-content:center;z-index:200;padding:28px 20px;overflow:auto;}
+.tmodal[hidden]{display:none!important;}
+.tmodalcard{background:#fff;border-radius:16px;width:100%;max-width:780px;box-shadow:0 24px 60px rgba(0,0,0,.35);padding:22px;}
+.tmodalh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+.tmx{background:none;border:none;font-size:24px;line-height:1;color:#8a94a6;cursor:pointer;padding:0 4px;}
+.newtaskbtn{background:var(--red);color:#fff;border:none;border-radius:9px;padding:9px 15px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -62,8 +68,8 @@ textarea{min-height:56px;resize:vertical;}
   <a class="back" href="./index.html">← Dashboard</a>
 </div></div>
 <div class="wrap">
-  <div class="card">
-    <h2 id="formTitle">New task</h2>
+  <div id="taskModal" class="tmodal" hidden><div class="tmodalcard">
+    <div class="tmodalh"><h2 id="formTitle" style="margin:0;font-size:18px">New task</h2><button type="button" id="taskClose" class="tmx" aria-label="Close">×</button></div>
     <div class="subline">Tasks are assigned to you. Optionally link one to a contact or a project, and set a reminder.</div>
     <div class="grid">
       <div><label class="fld">Task</label><input id="t_title" placeholder="What needs doing?"></div>
@@ -83,8 +89,9 @@ textarea{min-height:56px;resize:vertical;}
       <button class="btn ghost" id="cancelEdit" style="display:none">Cancel edit</button>
       <span class="msg" id="msg"></span>
     </div>
-  </div>
+  </div></div>
   <div class="card">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px"><b style="font-size:16px;color:var(--navy)">My Tasks</b><span class="meta" id="tcount"></span><button id="newTaskBtn" class="newtaskbtn" style="margin-left:auto">+ New task</button></div>
     <div class="filters">
       <button data-s="open" class="on" id="sOpen">Open</button>
       <button data-s="done" id="sDone">Done</button>
@@ -137,7 +144,7 @@ function visibleTasks(){
 }
 function render(){
   var today=todayStr();
-  var list=visibleTasks();
+  var list=visibleTasks(); var _tc=document.getElementById('tcount'); if(_tc) _tc.textContent=list.length+' task'+(list.length===1?'':'s');
   var cfg={ mount:'#list', data:list, key:'tasks', empty:'<div class="empty">No tasks here.</div>',
     rowId:function(t){return t.id;}, defaultSort:5, defaultDir:1,
     columns:[
@@ -183,7 +190,7 @@ function save(silent){
   fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ msg.textContent='Saved ✓';
       if(silent){ var _t=TASKS.filter(function(x){return x.id===EDITID;})[0]; if(_t){ _t.title=body.title; _t.due=body.due; _t.priority=body.priority; _t.type=body.type; _t.reminder=body.reminder; _t.remChannels=body.remChannels; _t.linkType=body.linkType; _t.linkId=body.linkId; _t.linkLabel=body.linkLabel; _t.notes=body.notes; } render(); setTimeout(function(){msg.textContent='';},1500); return; }
-      clearForm(); load(); setTimeout(function(){msg.textContent='';},1500); } else { msg.textContent=(j&&j.error)||'Failed'; } });
+      clearForm(); closeTaskModal(); load(); setTimeout(function(){msg.textContent='';},1500); } else { msg.textContent=(j&&j.error)||'Failed'; } });
 }
 function startEdit(id){
   var t=TASKS.filter(function(x){return x.id===id;})[0]; if(!t) return;
@@ -193,12 +200,17 @@ function startEdit(id){
   document.getElementById('t_linktype').value=t.linkType||''; fillTargets(t.linkType||'',t.linkId||'');
   EDITID=id; document.getElementById('formTitle').textContent='Edit task';
   document.getElementById('addBtn').textContent='Save changes'; document.getElementById('cancelEdit').style.display='';
-  window.scrollTo({top:0,behavior:'smooth'});
+  openTaskModal();
 }
 function toggle(id){ fetch('/api/tasks/'+encodeURIComponent(id)+'/toggle',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var t=TASKS.filter(function(x){return x.id===id;})[0]; if(t){t.status=j.task.status;t.doneAt=j.task.doneAt;} render(); } }); }
 function del(id){ if(!confirm('Delete this task?')) return; fetch('/api/tasks/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TASKS=TASKS.filter(function(x){return x.id!==id;}); render(); } else alert((j&&j.error)||'Could not delete.'); }); }
+function openTaskModal(){ var m=document.getElementById('taskModal'); if(m) m.removeAttribute('hidden'); var t=document.getElementById('t_title'); if(t) setTimeout(function(){try{t.focus();}catch(e){}},30); }
+function closeTaskModal(){ var m=document.getElementById('taskModal'); if(m) m.setAttribute('hidden',''); }
 document.getElementById('addBtn').addEventListener('click',function(){ save(); });
-document.getElementById('cancelEdit').addEventListener('click',clearForm);
+document.getElementById('cancelEdit').addEventListener('click',function(){ clearForm(); closeTaskModal(); });
+var _nt=document.getElementById('newTaskBtn'); if(_nt) _nt.addEventListener('click',function(){ clearForm(); openTaskModal(); });
+var _tc2=document.getElementById('taskClose'); if(_tc2) _tc2.addEventListener('click',function(){ clearForm(); closeTaskModal(); });
+var _tm=document.getElementById('taskModal'); if(_tm) _tm.addEventListener('click',function(e){ if(e.target===_tm){ /* backdrop: keep open to avoid losing input */ } });
 // Autosave while EDITING an existing task (change/blur or ~1s pause). New-task entry stays explicit.
 (function(){ var _tAS=null; function commit(){ if(_tAS){ clearTimeout(_tAS); _tAS=null; } if(EDITID) save(true); } function pause(){ if(_tAS) clearTimeout(_tAS); _tAS=setTimeout(commit,1000); }
   ['t_title','t_due','t_priority','t_type','t_remsel','t_reminder','t_notes','t_linktype','t_linktarget'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); });

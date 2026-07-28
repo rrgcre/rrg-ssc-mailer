@@ -14,7 +14,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);overflow:hidden;}
 .feedrow{display:flex;gap:12px;align-items:flex-start;padding:15px 20px;border-top:1px solid #eef1f6;text-decoration:none;color:inherit;}
 .feedrow:first-child{border-top:none;} .feedrow:hover{background:#fbfcfe;}
-.fchip{flex:none;font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:4px 8px;border-radius:999px;min-width:58px;text-align:center;line-height:1.1;}
+.fchipcol{flex:none;width:104px;}
+.fchip{display:inline-block;font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:4px 8px;border-radius:999px;text-align:center;line-height:1.15;white-space:normal;max-width:100%;}
+.fby{font-size:12px;color:#5b6472;font-weight:700;}
 .fmain{flex:1;min-width:0;}
 .ftop{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap;}
 .fwho{font-size:14px;font-weight:600;color:var(--ink);}
@@ -48,7 +50,7 @@ function load(){
   if(!items.length){ el.innerHTML='<div class="empty">No activity logged across your contacts yet. Log a call, tour, or note on a contact and it shows up here.</div>'; return; }
   el.innerHTML=items.map(function(a){
     var c=actColor(a.type);
-    return '<a class="feedrow" href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'"><span class="fchip" style="background:'+c[0]+';color:'+c[1]+'">'+esc(a.type)+'</span><div class="fmain"><div class="ftop"><span class="fwho">'+esc(a.personName)+'</span>'+(a.company?('<span class="fco">'+esc(a.company)+'</span>'):'')+'<span class="fwhen">'+esc(fmt(a.at))+(a.by?(' · '+esc(a.by)):'')+'</span></div>'+(a.note?('<div class="fnote">'+esc(a.note)+'</div>'):'')+'</div></a>';
+    return '<a class="feedrow" href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'"><span class="fchipcol"><span class="fchip" style="background:'+c[0]+';color:'+c[1]+'">'+esc(a.type)+'</span></span><div class="fmain"><div class="ftop"><span class="fwho">'+esc(a.personName)+'</span>'+(a.company?('<span class="fco">'+esc(a.company)+'</span>'):'')+(a.by?('<span class="fby">· '+esc(a.by)+'</span>'):'')+'<span class="fwhen">'+esc(fmt(a.at))+'</span></div>'+(a.note?('<div class="fnote">'+esc(a.note)+'</div>'):'')+'</div></a>';
   }).join('');
 }).catch(function(){ document.getElementById('feed').innerHTML='<div class="empty">Could not load the feed.</div>'; });
 }
