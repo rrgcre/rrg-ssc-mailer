@@ -4952,13 +4952,6 @@ app.get('/admin', requireAdmin, (req, res) => {
         </div>
       </div>
 
-      <h2 style="margin-top:34px">AI Confirmations <span class="sub2">— AI actions are metered (billable). When on, reps see a quick “this uses AI” confirm before heavy actions (find locations, build concepts, RRG Brief, LOI review). Turn off to let AI run without the prompt.</span></h2>
-      <div class="links">
-        <label style="display:inline-flex;align-items:center;gap:9px;font:inherit;font-size:14px;color:var(--navy);cursor:pointer"><input type="checkbox" id="aiConfirmOn" onchange="saveAiConfirm()" style="width:17px;height:17px"> Show the AI confirmation before heavy actions</label>
-        <div class="sub2" id="aiConfirmState" style="margin-top:8px">Loading…</div>
-        <span id="aiConfirmMsg" class="sub2"></span>
-      </div>
-
       <h2 style="margin-top:34px">Header Announcement <span class="sub2">— a short message shown across the top of everyone's dashboard, next to the logo. Use it for notices, reminders, or a rallying line. Leave blank to hide it.</span></h2>
       <div class="links">
         <input type="text" id="hdrMsg" maxlength="160" placeholder="e.g. Q3 push — get your listings loaded by Friday. New: auto-find locations on any concept." style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy)">
@@ -5272,10 +5265,6 @@ app.get('/admin', requireAdmin, (req, res) => {
       function resetAppName(){ post('/api/admin/app-name',{name:''}).then(function(j){ if(j&&j.ok){ document.getElementById('appName').value=j.name||''; document.getElementById('appnMsg').textContent='Reset ✓'; _appnState(j); } }); }
       try{ loadFavicon(); }catch(e){}
       try{ loadAppName(); }catch(e){}
-      function _aiCfState(on){ var s=document.getElementById("aiConfirmState"); if(s) s.textContent = on ? "On — reps confirm before heavy AI actions run." : "Off — heavy AI actions run immediately, no prompt."; }
-      function loadAiConfirm(){ fetch("/api/admin/ai-confirm").then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById("aiConfirmOn").checked=(j.on!==false); _aiCfState(j.on!==false); } }).catch(function(){}); }
-      function saveAiConfirm(){ var on=document.getElementById("aiConfirmOn").checked, m=document.getElementById("aiConfirmMsg"); if(m) m.textContent="Saving…"; post("/api/admin/ai-confirm",{on:on}).then(function(j){ if(j&&j.ok){ if(m) m.textContent="Saved \u2713"; _aiCfState(j.on!==false); } else { if(m) m.textContent=(j&&j.error)||"Failed"; } }); }
-      try{ loadAiConfirm(); }catch(e){}
       function loadHdrMsg(){ fetch('/api/admin/header-msg').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('hdrMsg').value=j.msg||''; document.getElementById('hdrMsgOn').checked=(j.on!==false); } }).catch(function(){}); }
       function saveHdrMsg(){ var v=document.getElementById('hdrMsg').value, on=document.getElementById('hdrMsgOn').checked, m=document.getElementById('hdrMsgMsg'); m.textContent='Saving…'; post('/api/admin/header-msg',{msg:v,on:on}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — reps see it on their next dashboard load.'; } else { m.textContent=(j&&j.error)||'Failed'; } }); }
       function clearHdrMsg(){ document.getElementById('hdrMsg').value=''; post('/api/admin/header-msg',{msg:'',on:document.getElementById('hdrMsgOn').checked}).then(function(j){ if(j&&j.ok) document.getElementById('hdrMsgMsg').textContent='Cleared.'; }); }

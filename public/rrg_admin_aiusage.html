@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — AI Usage</title>
+<title>FullServe — AI Usage</title>
 <style>
-:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--blue:#2f6fe0;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
 .wrap{max-width:1100px;margin:0 auto;padding:24px 28px 60px;}
 .pgh{font-size:26px;font-weight:800;color:var(--navy);margin:6px 0 2px;}
-.pgs{color:var(--muted);font-size:13.5px;margin-bottom:20px;}
+.pgs{color:var(--muted);font-size:13.5px;margin-bottom:20px;max-width:760px;}
 .tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
 @media(max-width:720px){.tiles{grid-template-columns:1fr 1fr;}}
 .tile{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;}
@@ -18,39 +18,119 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .tile .n.green{color:var(--green);}
 .tile .l{font-size:12px;color:var(--soft);margin-top:3px;text-transform:uppercase;letter-spacing:.04em;font-weight:700;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;margin-bottom:20px;overflow:hidden;}
-.ch{padding:15px 20px;border-bottom:1px solid var(--line);font-weight:800;color:var(--navy);font-size:15px;}
+.ch{padding:15px 20px;border-bottom:1px solid var(--line);font-weight:800;color:var(--navy);font-size:15px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.ch .sp{margin-left:auto;display:flex;align-items:center;gap:8px;}
 table{width:100%;border-collapse:collapse;}
 th,td{text-align:left;padding:11px 20px;font-size:13.5px;border-top:1px solid #eef1f6;}
 th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;border-top:none;}
 td.r,th.r{text-align:right;font-variant-numeric:tabular-nums;}
 .empty{color:var(--soft);font-size:13.5px;padding:26px 20px;text-align:center;}
 .note{color:var(--muted);font-size:12px;margin-top:10px;line-height:1.5;}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;}
+.seg button{font:inherit;font-size:12px;font-weight:700;padding:6px 12px;border:none;background:#fff;color:var(--muted);cursor:pointer;}
+.seg button.on{background:var(--navy);color:#fff;}
+.btn{font:inherit;font-size:12.5px;font-weight:700;padding:7px 14px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--navy);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.btn:hover{background:#f4f7fb;}
+/* gate toggle */
+.gate{display:flex;align-items:center;gap:16px;padding:16px 20px;flex-wrap:wrap;}
+.gate .txt{flex:1;min-width:240px;}
+.gate .txt b{color:var(--navy);font-size:14.5px;}
+.gate .txt .d{color:var(--muted);font-size:12.5px;margin-top:3px;line-height:1.5;}
+.gate .state{font-size:12.5px;font-weight:700;}
+.sw{position:relative;width:50px;height:28px;flex:none;cursor:pointer;}
+.sw input{opacity:0;width:0;height:0;position:absolute;}
+.sw .tr{position:absolute;inset:0;background:#c7cdd8;border-radius:999px;transition:.15s;}
+.sw .kn{position:absolute;top:3px;left:3px;width:22px;height:22px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.sw input:checked + .tr{background:var(--green);}
+.sw input:checked + .tr + .kn{transform:translateX(22px);}
+/* chart */
+.chartwrap{padding:16px 20px 8px;}
+.chart{display:flex;align-items:flex-end;gap:2px;height:170px;border-bottom:1px solid var(--line);}
+.bar{flex:1;min-width:2px;background:var(--blue);border-radius:3px 3px 0 0;transition:background .1s;position:relative;}
+.bar.cost{background:var(--green);}
+.bar:hover{background:var(--navy);}
+.xaxis{display:flex;justify-content:space-between;font-size:11px;color:var(--soft);padding:6px 0 2px;}
+.leg{font-size:11.5px;color:var(--muted);padding:0 20px 14px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
 <div class="wrap">
   <h1 class="pgh">AI Usage</h1>
-  <div class="pgs">What your brokerage is spending on AI this month — the metering behind SaaS billing. Estimated cost is per-action (web-search actions cost more than small text calls).</div>
+  <div class="pgs">What your brokerage is spending on AI — the metering behind SaaS billing — and how usage is trending. Estimated cost is per-action (web-search actions cost more than small text calls).</div>
+
+  <div class="card">
+    <div class="ch">AI cost control</div>
+    <div class="gate">
+      <label class="sw"><input type="checkbox" id="gateOn"><span class="tr"></span><span class="kn"></span></label>
+      <div class="txt"><b>Confirm before heavy AI actions</b><div class="d">When on, reps see a quick “this uses AI — continue?” confirm before metered actions (find locations, build concepts, RRG Brief, LOI review). Turn off to let AI run instantly with no prompt. Metering below keeps counting either way.</div></div>
+      <div class="state" id="gateState">…</div>
+    </div>
+  </div>
+
   <div class="tiles" id="tiles"></div>
+
+  <div class="card">
+    <div class="ch">Daily usage
+      <span class="sp">
+        <span class="seg" id="metricSeg"><button data-m="calls" class="on">Actions</button><button data-m="cost">Est. cost</button></span>
+        <span class="seg" id="rangeSeg"><button data-r="30" class="on">30 days</button><button data-r="90">90 days</button></span>
+        <a class="btn" id="csvBtn" href="/api/admin/ai-usage.csv">⤓ CSV</a>
+      </span>
+    </div>
+    <div class="chartwrap">
+      <div class="chart" id="chart"></div>
+      <div class="xaxis" id="xaxis"></div>
+    </div>
+    <div class="leg" id="chartLeg"></div>
+  </div>
+
   <div class="card"><div class="ch">By rep — this month</div><div id="byUser"><div class="empty">Loading…</div></div></div>
   <div class="card"><div class="ch">By feature — this month</div><div id="byFeature"><div class="empty">Loading…</div></div></div>
-  <div class="note">Estimates are per-action approximations for planning; exact token-level metering can be layered on later. All-time totals are shown in the tiles.</div>
+  <div class="note">Estimates are per-action approximations for planning; exact token-level metering can be layered on later. The trend chart reads the timestamped usage log (last 90 days); use CSV for deeper analysis.</div>
 </div>
 <script>
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function money(n){ return '$'+(Number(n||0)).toFixed(2); }
+function fdate(d){ try{ var p=String(d).split('-'); return p[1]+'/'+p[2]; }catch(e){ return d; } }
+var DAILY=[], METRIC='calls', RANGE=30;
+
+/* ---- gate toggle ---- */
+function setGateState(on){ var s=document.getElementById('gateState'); if(s){ s.textContent = on?'On':'Off'; s.style.color = on?'var(--green)':'var(--soft)'; } }
+fetch('/api/admin/ai-confirm',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ var on=!(j&&j.on===false); document.getElementById('gateOn').checked=on; setGateState(on); }).catch(function(){ setGateState(true); });
+document.getElementById('gateOn').addEventListener('change',function(){ var on=this.checked; setGateState(on);
+  fetch('/api/admin/ai-confirm',{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:on})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) setGateState(j.on!==false); }).catch(function(){});
+});
+
+/* ---- chart ---- */
+function renderChart(){
+  var data=DAILY.slice(-RANGE);
+  var vals=data.map(function(d){ return METRIC==='cost'?(d.cost||0):(d.calls||0); });
+  var max=Math.max.apply(null, vals.concat([1]));
+  var chart=document.getElementById('chart');
+  chart.innerHTML=data.map(function(d){ var v=METRIC==='cost'?(d.cost||0):(d.calls||0); var h=Math.max(2, Math.round(v/max*100)); var tip=d.date+' — '+d.calls+' action'+(d.calls===1?'':'s')+', '+money(d.cost); return '<div class="bar'+(METRIC==='cost'?' cost':'')+'" style="height:'+h+'%" title="'+esc(tip)+'"></div>'; }).join('');
+  var xa=document.getElementById('xaxis');
+  if(data.length){ var mid=Math.floor(data.length/2); xa.innerHTML='<span>'+fdate(data[0].date)+'</span><span>'+fdate(data[mid].date)+'</span><span>'+fdate(data[data.length-1].date)+'</span>'; }
+  var totC=data.reduce(function(s,d){return s+(d.calls||0);},0), totCost=data.reduce(function(s,d){return s+(d.cost||0);},0);
+  document.getElementById('chartLeg').textContent='Last '+RANGE+' days: '+totC+' AI action'+(totC===1?'':'s')+' · '+money(totCost)+' est. · peak '+(METRIC==='cost'?money(max):(max+' /day'));
+}
+document.getElementById('metricSeg').addEventListener('click',function(e){ var b=e.target.closest('button[data-m]'); if(!b) return; METRIC=b.getAttribute('data-m'); this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);}); renderChart(); });
+document.getElementById('rangeSeg').addEventListener('click',function(e){ var b=e.target.closest('button[data-r]'); if(!b) return; RANGE=+b.getAttribute('data-r'); this.querySelectorAll('button').forEach(function(x){x.classList.toggle('on',x===b);}); renderChart(); });
+
+/* ---- usage rollups ---- */
 fetch('/api/admin/ai-usage',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.ok){ document.getElementById('tiles').innerHTML='<div class="empty">Could not load usage (admin only).</div>'; return; }
+  var w=j.windows||{};
   document.getElementById('tiles').innerHTML=
-    '<div class="tile"><div class="n">'+j.total.calls+'</div><div class="l">AI actions · this month</div></div>'
+    '<div class="tile"><div class="n">'+j.total.calls+'</div><div class="l">Actions · this month</div></div>'
     +'<div class="tile"><div class="n green">'+money(j.total.cost)+'</div><div class="l">Est. cost · this month</div></div>'
-    +'<div class="tile"><div class="n">'+j.allTime.calls+'</div><div class="l">AI actions · all time</div></div>'
-    +'<div class="tile"><div class="n green">'+money(j.allTime.cost)+'</div><div class="l">Est. cost · all time</div></div>';
+    +'<div class="tile"><div class="n">'+(w.last7||0)+'</div><div class="l">Actions · last 7 days</div></div>'
+    +'<div class="tile"><div class="n green">'+money(j.allTime.cost)+'</div><div class="l">Est. cost · all time ('+j.allTime.calls+')</div></div>';
+  DAILY=Array.isArray(j.daily)?j.daily:[]; renderChart();
   var bu=j.byUser||[];
-  document.getElementById('byUser').innerHTML = bu.length ? ('<table><thead><tr><th>Rep</th><th class="r">AI actions</th><th class="r">Est. cost</th></tr></thead><tbody>'+bu.map(function(u){ return '<tr><td>'+esc(u.name)+'</td><td class="r">'+u.calls+'</td><td class="r">'+money(u.cost)+'</td></tr>'; }).join('')+'</tbody></table>') : '<div class="empty">No AI usage yet this month.</div>';
+  document.getElementById('byUser').innerHTML = bu.length ? ('<table><thead><tr><th>Rep</th><th class="r">Actions</th><th class="r">Est. cost</th></tr></thead><tbody>'+bu.map(function(u){ return '<tr><td>'+esc(u.name)+'</td><td class="r">'+u.calls+'</td><td class="r">'+money(u.cost)+'</td></tr>'; }).join('')+'</tbody></table>') : '<div class="empty">No AI usage yet this month.</div>';
   var bf=j.byFeature||[];
-  document.getElementById('byFeature').innerHTML = bf.length ? ('<table><thead><tr><th>Feature</th><th class="r">AI actions</th><th class="r">Est. cost</th></tr></thead><tbody>'+bf.map(function(f){ return '<tr><td>'+esc(f.feature)+'</td><td class="r">'+f.calls+'</td><td class="r">'+money(f.cost)+'</td></tr>'; }).join('')+'</tbody></table>') : '<div class="empty">No AI usage yet this month.</div>';
+  document.getElementById('byFeature').innerHTML = bf.length ? ('<table><thead><tr><th>Feature</th><th class="r">Actions</th><th class="r">Est. cost</th></tr></thead><tbody>'+bf.map(function(f){ return '<tr><td>'+esc(f.feature)+'</td><td class="r">'+f.calls+'</td><td class="r">'+money(f.cost)+'</td></tr>'; }).join('')+'</tbody></table>') : '<div class="empty">No AI usage yet this month.</div>';
 }).catch(function(){ document.getElementById('tiles').innerHTML='<div class="empty">Could not reach the server.</div>'; });
 </script>
 </body>
