@@ -514,7 +514,7 @@ function findGroupConcepts(){
     var ta=document.getElementById('cb_names'); if(ta) ta.value=names.join('\n');
     var metro=(document.getElementById('cb_metro').value||'').trim(); var count=(document.getElementById('cb_count').value||'').trim();
     if(msg) msg.textContent='Found '+names.length+' concept'+(names.length===1?'':'s')+' — building…';
-    runBuildConcepts(names,metro,count);
+    runBuildConcepts(names,metro,count,(j&&j.groupWebsite)||'');
   }).catch(function(){ if(btn) btn.disabled=false; if(msg) msg.textContent='Network error.'; });
 }
 function autoFindGroup(metro){
@@ -522,7 +522,7 @@ function autoFindGroup(metro){
   fetch('/api/company/'+encodeURIComponent(ID)+'/find-concepts',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){
     var names=(j&&j.ok&&j.concepts)?j.concepts.map(function(x){return x.name;}).filter(Boolean):[];
     if(!names.length){ if(typeof aiHide==='function') aiHide(); alert((j&&j.error)||('Could not auto-find '+CLABELP.toLowerCase()+'. Add them with “+ Add '+CLABEL.toLowerCase()+'”.')); return; }
-    runBuildConcepts(names,metro||'','');
+    runBuildConcepts(names,metro||'','',(j&&j.groupWebsite)||'');
   }).catch(function(){ if(typeof aiHide==='function') aiHide(); alert('Could not reach the server.'); });
 }
 function buildAllConcepts(){
@@ -530,31 +530,27 @@ function buildAllConcepts(){
   var metro=(document.getElementById('cb_metro').value||'').trim();
   var count=(document.getElementById('cb_count').value||'').trim();
   if(!names.length){ document.getElementById('cb_names').focus(); var msg=document.getElementById('cb_msg'); if(msg) msg.textContent='Enter at least one concept name.'; return; }
-  runBuildConcepts(names,metro,count);
+  runBuildConcepts(names,metro,count,'');
 }
-function runBuildConcepts(names,metro,count){
+var _cbAbort=null;
+function runBuildConcepts(names,metro,count,website){
   names=(names||[]).slice(0,50); if(!names.length) return;
-  _cbStop=false; var i=0, ok=0, notes=[];
-  aiShow('Starting on '+names.length+' concept'+(names.length===1?'':'s')+'…', function(){ _cbStop=true; });
-  function J(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}); }
-  function done(){ aiHide(); var f=document.getElementById('conceptForm'); if(f){ f.setAttribute('hidden','');f.innerHTML=''; } render(); if(!_cbStop){ if(ok===0){ alert('No concepts were built. Make sure the AI key is set (Admin → API keys), then try again — or add a concept manually with “+ Add concept”.'); } else if(notes.length){ alert('Built '+ok+' concept'+(ok===1?'':'s')+'. Could not fully build: '+notes.join(', ')); } } }
-  function step(){
-    if(_cbStop || i>=names.length){ done(); return; }
-    var nm=names[i];
-    aiSetMsg('Building '+(i+1)+' of '+names.length+': '+nm+'  ·  searching the web…');
-    J('/api/company/'+encodeURIComponent(ID)+'/concept-resolve',{name:nm,market:metro}).then(function(rj){
-      var p=(rj&&rj.ok&&rj.profile)||{};
-      return J('/api/company/'+encodeURIComponent(ID)+'/concept',{name:nm,website:p.website||'',conceptType:p.conceptType||'',pricePoint:p.pricePoint||'',cuisine:p.cuisine||'',markets:metro?[metro]:[]}).then(function(cj){
-        if(cj&&cj.concepts) CONCEPTS=cj.concepts;
-        if(!cj||!cj.ok){ notes.push(nm); return; }
-        ok++;
-        if(!p.website){ return; }
-        aiSetMsg('Building '+(i+1)+' of '+names.length+': '+nm+'  ·  finding locations…');
-        return J('/api/company/'+encodeURIComponent(ID)+'/find-locations',{concept:nm,website:p.website,count:count}).then(function(fj){ if(fj&&fj.ok){ CONCEPTS=fj.concepts||CONCEPTS; LOCATIONS=fj.locations||LOCATIONS; } });
-      });
-    }).catch(function(){ notes.push(nm); }).then(function(){ i++; step(); });
-  }
-  step();
+  _cbStop=false;
+  try{ _cbAbort=new AbortController(); }catch(e){ _cbAbort=null; }
+  var _lbl=(names.length===1?(typeof CLABEL!=='undefined'?CLABEL:'concept').toLowerCase():(typeof CLABELP!=='undefined'?CLABELP:'concepts').toLowerCase());
+  aiShow((window.__rrgAssistant||(typeof ASSISTANT!=='undefined'?ASSISTANT:'AI'))+' is building '+names.length+' '+_lbl+' in parallel — searching the web for each…', function(){ _cbStop=true; if(_cbAbort){ try{_cbAbort.abort();}catch(e){} } aiHide(); });
+  var opt={method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({names:names,market:metro,count:count,website:website||''})};
+  if(_cbAbort) opt.signal=_cbAbort.signal;
+  fetch('/api/company/'+encodeURIComponent(ID)+'/build-concepts',opt)
+    .then(function(r){return r.json();}).then(function(j){
+      aiHide(); var f=document.getElementById('conceptForm'); if(f){ f.setAttribute('hidden','');f.innerHTML=''; }
+      if(!j||!j.ok){ if(!_cbStop) alert((j&&j.error)||'Could not build concepts.'); return; }
+      CONCEPTS=j.concepts||CONCEPTS; LOCATIONS=j.locations||LOCATIONS;
+      if(C){ if(j.logo) C.logo=j.logo; if(j.officeWebsite){ C.office=C.office||{}; if(!C.office.website) C.office.website=j.officeWebsite; } }
+      render();
+      if(j.noSite&&j.noSite.length){ var _cl=(typeof CLABELP!=='undefined'?CLABELP:'concepts').toLowerCase(); alert('Built '+(j.addedConcepts||0)+' new '+_cl+' and added '+(j.addedLocations||0)+' location'+((j.addedLocations===1)?'':'s')+'.\nNo website found for: '+j.noSite.join(', ')+' — add a site to those to pull their locations.'); }
+    })
+    .catch(function(err){ aiHide(); if(_cbStop||(err&&err.name==='AbortError')) return; alert('Could not reach the server.'); });
 }
 function cpVal(id){ var el=document.getElementById(id); return el?el.value:''; }
 function queueConceptSave(id){ var ind=document.getElementById('cp_saved'); if(ind) ind.textContent='…'; if(_cpSaveTimer) clearTimeout(_cpSaveTimer); _cpSaveTimer=setTimeout(function(){ conceptAutosave(id,false); },700); }
@@ -820,7 +816,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No company selected. <a href="./rrg_companies.html">Back to companies →</a></div>'; return; }
   fetch('/api/company/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; TITLES=j.titles||TITLES; LEADSOURCES=j.leadSources||LEADSOURCES; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; HASMAPS=!!j.hasMaps; render(); try{ var _pb=localStorage.getItem('rrg_build_'+ID); if(_pb){ localStorage.removeItem('rrg_build_'+ID); var _o=JSON.parse(_pb)||{}; if(_o.findGroup){ setTimeout(function(){ autoFindGroup(_o.metro||''); },500); } else if(_o.names&&_o.names.length){ setTimeout(function(){ runBuildConcepts(_o.names,_o.metro||'',''); },500); } } }catch(e){} })
+    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; TITLES=j.titles||TITLES; LEADSOURCES=j.leadSources||LEADSOURCES; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; HASMAPS=!!j.hasMaps; render(); try{ var _pb=localStorage.getItem('rrg_build_'+ID); if(_pb){ localStorage.removeItem('rrg_build_'+ID); var _o=JSON.parse(_pb)||{}; if(_o.findGroup){ setTimeout(function(){ autoFindGroup(_o.metro||''); },500); } else if(_o.names&&_o.names.length){ setTimeout(function(){ runBuildConcepts(_o.names,_o.metro||'','',_o.website||''); },500); } } }catch(e){} })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this company.')+'<br><br><a href="./rrg_companies.html" style="color:#000E31;font-weight:700">← Back to companies</a></div>'; });
 }
 var ASSISTANT='the RRG analyst'; var CLABEL='Concept', CLABELP='Concepts';

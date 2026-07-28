@@ -38,6 +38,8 @@ input,select{border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:in
 .permgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 22px;margin:6px 0 4px;} @media(max-width:720px){.permgrid{grid-template-columns:1fr;}}
 .permrow{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f1f3f7;font-size:13px;} .permrow .pn{flex:1;color:#2a3550;} .permrow .pn small{color:var(--soft);font-weight:600;}
 .seclbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);font-weight:800;margin:14px 0 4px;}
+.permcat{font-size:12px;font-weight:800;color:var(--navy);margin:12px 0 2px;padding-top:9px;border-top:1px dashed var(--line);}
+.permcat:first-child{border-top:none;padding-top:2px;}
 table{width:100%;border-collapse:collapse;font-size:13px;} th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);font-weight:800;padding:9px 10px;border-bottom:1px solid var(--line);} td{padding:9px 10px;border-bottom:1px solid #f1f3f7;vertical-align:middle;}
 .ovpanel{background:var(--wash);border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:8px;}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);}
@@ -61,7 +63,9 @@ function get(u){return fetch(u,{credentials:'same-origin'}).then(function(r){ret
 function post(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(b||{})}).then(function(r){return r.json();});}
 var ST=null, SELROLE='associate', OVUSER=null;
 
-function permRows(){ return ST.core.map(function(c){return {key:c.key,label:c.label,note:c.note||''};}).concat(ST.tools.map(function(t){return {key:'tool:'+t.file,label:t.name,note:'tool'};})); }
+function permRows(){ return (ST.core||[]).map(function(c){return {key:c.key,label:c.label,note:c.note||'',cat:c.cat||'Other'};}).concat((ST.tools||[]).map(function(t){return {key:'tool:'+t.file,label:t.name,note:'tool',cat:t.cat||'Other'};})); }
+function groupByCat(items){ var order=[],map={}; (items||[]).forEach(function(it){ var c=it.cat||'Other'; if(!map[c]){ map[c]=[]; order.push(c); } map[c].push(it); }); return order.map(function(c){ return {cat:c,items:map[c]}; }); }
+function permSwitchRow(key,label,note,on,disabled){ return '<div class="permrow"><span class="pn">'+esc(label)+((note&&note!=='tool')?(' <small>'+esc(note)+'</small>'):'')+'</span><label class="switch" style="width:44px;height:24px"><input type="checkbox" data-perm="'+esc(key)+'"'+(on?' checked':'')+(disabled?' disabled':'')+'><span class="slider"></span></label></div>'; }
 function roleByKey(k){ return (ST.roles||[]).filter(function(r){return r.key===k;})[0]; }
 
 function render(){
@@ -74,14 +78,14 @@ function render(){
   var role=roleByKey(SELROLE)||ST.roles[0];
   var isAdminRole=(role.key==='admin');
   var rows=permRows();
-  var coreHtml=ST.core.map(function(c){ var on=!!(role.perms&&role.perms[c.key]); return '<div class="permrow"><span class="pn">'+esc(c.label)+(c.note?(' <small>'+esc(c.note)+'</small>'):'')+'</span><label class="switch" style="width:44px;height:24px"><input type="checkbox" data-perm="'+esc(c.key)+'"'+(on?' checked':'')+(isAdminRole?' disabled':'')+'><span class="slider" style=""></span></label></div>'; }).join('');
-  var toolHtml=ST.tools.map(function(t){ var k='tool:'+t.file; var on=!!(role.perms&&role.perms[k]); return '<div class="permrow"><span class="pn">'+esc(t.name)+'</span><label class="switch" style="width:44px;height:24px"><input type="checkbox" data-perm="'+esc(k)+'"'+(on?' checked':'')+(isAdminRole?' disabled':'')+'><span class="slider"></span></label></div>'; }).join('');
+  var coreHtml=groupByCat(ST.core||[]).map(function(g){ return '<div class="permcat">'+esc(g.cat)+'</div><div class="permgrid">'+g.items.map(function(c){ var on=!!(role.perms&&role.perms[c.key]); return permSwitchRow(c.key,c.label,c.note,on,isAdminRole); }).join('')+'</div>'; }).join('');
+  var toolHtml=groupByCat((ST.tools||[]).map(function(t){return {key:'tool:'+t.file,label:t.name,cat:t.cat||'Other'};})).map(function(g){ return '<div class="permcat">'+esc(g.cat)+'</div><div class="permgrid">'+g.items.map(function(t){ var on=!!(role.perms&&role.perms[t.key]); return permSwitchRow(t.key,t.label,'',on,isAdminRole); }).join('')+'</div>'; }).join('');
   var rolesCard='<div class="card"><div class="ch"><b>Roles</b><span>bundles of switches you assign to users</span></div><div class="cb">'
     +'<div class="rolechips">'+chips+'</div>'
     +'<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px"><div><label class="fld">Role name</label><input id="roleName" value="'+esc(role.name)+'"'+(isAdminRole?' disabled':'')+' style="min-width:220px"></div>'
     +(isAdminRole?'<div class="note">The Admin role always has every permission.</div>':'<button class="btn red sm" id="roleSave">Save role</button>'+(role.builtin?'':'<button class="btn danger sm" id="roleDel">Delete role</button>')+'<span id="roleMsg" class="msg"></span>')+'</div>'
-    +'<div class="seclbl">Permissions</div><div class="permgrid"><div>'+coreHtml+'</div><div></div></div>'
-    +'<div class="seclbl">Tool access</div><div class="permgrid">'+toolHtml+'</div>'
+    +'<div class="seclbl">Permissions</div>'+coreHtml
+    +'<div class="seclbl">Tool access</div>'+toolHtml
     +'<div style="margin-top:16px;border-top:1px solid var(--line);padding-top:14px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div><label class="fld">Add a new role</label><input id="newRole" placeholder="e.g. Team Lead"></div><button class="btn sm" id="roleAdd">+ Add role</button><span id="addMsg" class="msg"></span></div>'
     +'</div></div>';
 
@@ -120,10 +124,11 @@ function render(){
 }
 
 function overridePanel(u){
-  var rows=permRows();
-  var body=rows.map(function(p){
-    var cur=(p.key in (u.perms||{}))?(u.perms[p.key]?'on':'off'):'def';
-    return '<div class="permrow"><span class="pn">'+esc(p.label)+(p.note==='tool'?' <small>(tool)</small>':'')+'</span><select data-ov="'+esc(p.key)+'" style="padding:5px 8px;font-size:12.5px"><option value="def"'+(cur==='def'?' selected':'')+'>Role default</option><option value="on"'+(cur==='on'?' selected':'')+'>Force ON</option><option value="off"'+(cur==='off'?' selected':'')+'>Force OFF</option></select></div>';
+  var body=groupByCat(permRows()).map(function(g){
+    return '<div class="permcat">'+esc(g.cat)+'</div><div class="permgrid">'+g.items.map(function(p){
+      var cur=(p.key in (u.perms||{}))?(u.perms[p.key]?'on':'off'):'def';
+      return '<div class="permrow"><span class="pn">'+esc(p.label)+(p.note==='tool'?' <small>(tool)</small>':'')+'</span><select data-ov="'+esc(p.key)+'" style="padding:5px 8px;font-size:12.5px"><option value="def"'+(cur==='def'?' selected':'')+'>Role default</option><option value="on"'+(cur==='on'?' selected':'')+'>Force ON</option><option value="off"'+(cur==='off'?' selected':'')+'>Force OFF</option></select></div>';
+    }).join('')+'</div>';
   }).join('');
   return '<div class="ovpanel"><div class="note" style="margin-bottom:8px">Overrides win over the role. Leave a switch on <b>Role default</b> to follow '+esc((roleByKey(u.role)||{}).name||u.role)+'.</div>'+body+'<div style="margin-top:12px"><button class="btn red sm" id="ovSave">Save overrides for '+esc(u.name)+'</button> <span id="ovMsg" class="msg"></span></div></div>';
 }

@@ -125,7 +125,7 @@ const GROUP_SYSTEM = `You are a diligence researcher for Restaurant Realty Group
 Start with the group's OWN official website — look for an \"Our Restaurants\", \"Our Concepts\", \"Brands\", \"Concepts\", or \"Portfolio\" page — and corroborate with press and directories.
 
 Return a SINGLE JSON object — no prose, no markdown fences — with EXACTLY this shape:
-{\"concepts\":[{\"name\":\"the brand's consumer-facing name\",\"website\":\"the brand's official site or empty\",\"cuisine\":\"short cuisine label or empty\",\"note\":\"one short line\"}]}
+{\"groupWebsite\":\"the GROUP's own official website (homepage URL) or empty\",\"concepts\":[{\"name\":\"the brand's consumer-facing name\",\"website\":\"the brand's official site or empty\",\"cuisine\":\"short cuisine label or empty\",\"note\":\"one short line\"}]}
 
 Rules:
 - List EVERY distinct brand you can confirm the group operates — a group usually has several.
@@ -147,7 +147,8 @@ async function findGroupConcepts({ name, website, market }) {
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
   const a = extractJson(text) || {};
   const arr = Array.isArray(a.concepts) ? a.concepts : [];
-  return arr.map(c => ({ name: String((c && c.name) || '').slice(0, 120).trim(), website: String((c && c.website) || '').slice(0, 300).trim(), cuisine: String((c && c.cuisine) || '').slice(0, 60).trim(), note: String((c && c.note) || '').slice(0, 200) })).filter(c => c.name);
+  const concepts = arr.map(c => ({ name: String((c && c.name) || '').slice(0, 120).trim(), website: String((c && c.website) || '').slice(0, 300).trim(), cuisine: String((c && c.cuisine) || '').slice(0, 60).trim(), note: String((c && c.note) || '').slice(0, 200) })).filter(c => c.name);
+  return { website: String((a && a.groupWebsite) || '').slice(0, 300).trim(), concepts: concepts };
 }
 
 function setModel(m){ if (m) MODEL = String(m); }

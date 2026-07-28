@@ -3763,7 +3763,7 @@ app.post('/api/company/:id/find-locations', express.json(), async (req, res) => 
 // Given just a concept name, use AI web search to resolve the official website, concept
 // type, cuisine, and price point. Returned values are validated against the allowed lists.
 app.post('/api/ai/find-concepts', express.json(), async (req, res) => {
-  try { const b = req.body || {}; const concepts = await locationgen.findGroupConcepts({ name: b.name || '', website: b.website || '', market: b.market || '' }); res.json({ ok: true, concepts: concepts }); }
+  try { const b = req.body || {}; const out = await locationgen.findGroupConcepts({ name: b.name || '', website: b.website || '', market: b.market || '' }); res.json({ ok: true, concepts: out.concepts, groupWebsite: out.website || '' }); }
   catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });
 app.post('/api/company/:id/find-concepts', express.json(), async (req, res) => {
@@ -3771,9 +3771,125 @@ app.post('/api/company/:id/find-concepts', express.json(), async (req, res) => {
     if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'You do not have access to AI features.' });
     const c = loadCompanies().find(function(x){ return x.id === req.params.id; });
     if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
-    const concepts = await locationgen.findGroupConcepts({ name: c.name || '', website: (c.office && c.office.website) || '' });
-    res.json({ ok: true, concepts: concepts });
+    const out = await locationgen.findGroupConcepts({ name: c.name || '', website: (c.office && c.office.website) || '' });
+    // Capture the group's own website + logo while we have it (only fill blanks).
+    if (out.website) {
+      const arr2 = loadCompanies(); const c2 = arr2.find(x => x.id === req.params.id);
+      if (c2) { c2.office = c2.office || {}; let ch = false;
+        if (!String(c2.office.website || '').trim()) { c2.office.website = out.website.slice(0, 200); ch = true; }
+        if (!String(c2.logo || '').trim()) { const lg = logoFromWebsite(out.website); if (lg) { c2.logo = lg; ch = true; } }
+        if (ch) { c2.updatedAt = new Date().toISOString(); saveCompanies(arr2); } }
+    }
+    res.json({ ok: true, concepts: out.concepts, groupWebsite: out.website || '' });
   } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
+});
+// Parallel batch build: resolve every brand and pull its locations CONCURRENTLY, then
+// write the company ONCE with dedup applied. Much faster than the per-concept chain and
+// safe from the save race (a single load/mutate/save at the end). Also sets the company
+// logo from the group's own website when the company doesn't already have one.
+app.post('/api/company/:id/build-concepts', express.json(), async (req, res) => {
+  try {
+    if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'You do not have access to AI features.' });
+    { const c0 = loadCompanies().find(x => x.id === req.params.id); if (!c0) return res.status(404).json({ ok: false, error: 'Company not found.' }); }
+    const b = req.body || {};
+    const market = titleCaseMarket(String(b.market || '').trim());
+    const count = String(b.count || '').trim();
+    let names = Array.isArray(b.names) ? b.names.map(n => String(n || '').trim()).filter(Boolean).slice(0, 50) : [];
+    { const seen = {}; names = names.filter(n => { const k = normKey(n); if (seen[k]) return false; seen[k] = 1; return true; }); }
+    if (!names.length) return res.status(400).json({ ok: false, error: 'No concept names provided.' });
+
+    const _cap = effMaxPullLocations();
+    const _rc = parseInt(count, 10);
+    const _useCount = String((isFinite(_rc) && _rc > 0) ? Math.min(_rc, _cap) : _cap);
+    const locPrompt = loadLocPromptCustom() || undefined;
+
+    // Phase 1 — resolve each brand's profile in parallel (read-only, no save).
+    const compName = (loadCompanies().find(x => x.id === req.params.id) || {}).name || '';
+    const resolved = await Promise.all(names.map(async (nm) => {
+      try {
+        const r = await locationgen.resolveConcept({ name: nm, market, conceptTypes: CONCEPT_TYPES, cuisines: effCuisineTypes() });
+        return { name: nm, website: String(r.website || '').trim(),
+          conceptType: (CONCEPT_TYPES.indexOf(r.conceptType) >= 0) ? r.conceptType : '',
+          cuisine: (effCuisineTypes().indexOf(r.cuisine) >= 0) ? r.cuisine : '',
+          pricePoint: (PRICE_POINTS.indexOf(r.pricePoint) >= 0) ? r.pricePoint : '' };
+      } catch (e) { return { name: nm, website: '', conceptType: '', cuisine: '', pricePoint: '', error: String((e && e.message) || e) }; }
+    }));
+
+    // Phase 2 — for brands with a website, find locations in parallel (read-only, no save).
+    const locResults = await Promise.all(resolved.map(async (r) => {
+      if (!r.website) return { name: r.name, locations: [] };
+      try { const fr = await locationgen.findLocations({ company: compName, concept: r.name, website: r.website, count: _useCount, systemPrompt: locPrompt }); return { name: r.name, locations: (fr.locations || []) }; }
+      catch (e) { return { name: r.name, locations: [], error: String((e && e.message) || e) }; }
+    }));
+    const locByName = {}; locResults.forEach(x => { locByName[normKey(x.name)] = x; });
+
+    // Phase 3 — merge into the company ONCE, with dedup. Reload fresh right before writing.
+    const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+    if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+    c.concepts = c.concepts || []; c.locations = c.locations || [];
+    const now = new Date().toISOString();
+    const _lk = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    let addedConcepts = 0, addedLocations = 0;
+    const newLocs = [];
+    resolved.forEach((r) => {
+      let cpt = c.concepts.find(x => normKey(x.name) === normKey(r.name));
+      if (cpt) {
+        if (!String(cpt.website || '').trim() && r.website) cpt.website = r.website.slice(0, 300);
+        if (!String(cpt.conceptType || '').trim() && r.conceptType) cpt.conceptType = r.conceptType;
+        if (!String(cpt.pricePoint || '').trim() && r.pricePoint) cpt.pricePoint = r.pricePoint;
+        if (!String(cpt.cuisine || '').trim() && r.cuisine) cpt.cuisine = r.cuisine;
+        if (!String(cpt.logo || '').trim() && r.website) { const lg = logoFromWebsite(r.website); if (lg) cpt.logo = lg; }
+        if (market) { const mk = {}; (cpt.markets || []).forEach(m => { if (m) mk[normKey(m)] = m; }); if (!mk[normKey(market)]) mk[normKey(market)] = market; cpt.markets = Object.values(mk).slice(0, 30); }
+        cpt.updatedAt = now;
+      } else {
+        cpt = { id: newConceptId(), name: r.name.slice(0, 120), website: r.website.slice(0, 300), logo: r.website ? logoFromWebsite(r.website) : '', markets: market ? [market] : [], conceptType: r.conceptType, pricePoint: r.pricePoint, cuisine: r.cuisine, createdAt: now };
+        c.concepts.push(cpt); addedConcepts++;
+      }
+      const lr = locByName[normKey(r.name)];
+      if (lr && lr.locations && lr.locations.length) {
+        lr.locations.slice(0, _cap).forEach((l) => {
+          const dupe = c.locations.some(x => {
+            if ((x.concept || '') !== cpt.name) return false;
+            const ax = _lk(x.address), al = _lk(l.address); if (ax && al && ax === al) return true;
+            const px = _lk(x.phone), pl = _lk(l.phone); if (px && pl && px === pl) return true;
+            const nx = _lk(x.name), nl = _lk(l.name), cx = _lk(x.city), cl = _lk(l.city); if (nx && nl && nx === nl && cx === cl) return true;
+            return false;
+          });
+          if (dupe) return;
+          const rec = { id: newLocationId(), name: l.name || '', concept: cpt.name, address: l.address || '', city: l.city || '', state: l.state || '', phone: l.phone || '', website: r.website, opened: '', status: 'Operating', notes: '', photos: [], source: 'ai-web', createdAt: now };
+          c.locations.push(rec); newLocs.push(rec); addedLocations++;
+        });
+      }
+    });
+
+    // Company logo from the GROUP's own website (only fill blanks).
+    const groupSite = String(b.website || '').trim() || String((c.office && c.office.website) || '').trim();
+    let companyLogoSet = false;
+    if (groupSite) {
+      c.office = c.office || {};
+      if (!String(c.office.website || '').trim()) c.office.website = groupSite.slice(0, 200);
+      if (!String(c.logo || '').trim()) { const lg = logoFromWebsite(groupSite); if (lg) { c.logo = lg; companyLogoSet = true; } }
+    }
+
+    c.updatedAt = now; saveCompanies(arr);
+
+    // Best-effort storefront photos for brand-new locations (only if a Google key is set).
+    const gkey = loadGmapsKey();
+    let photos = 0;
+    if (gkey && newLocs.length) {
+      const arr2 = loadCompanies(); const c2 = arr2.find(x => x.id === req.params.id);
+      for (const l of newLocs.slice(0, 60)) {
+        try { const live = c2 && (c2.locations || []).find(x => x.id === l.id); if (!live) continue; const pr = await pullPhotosForLocation(gkey, live); if (pr.added) photos++; } catch (e) {}
+      }
+      if (c2) { c2.updatedAt = new Date().toISOString(); saveCompanies(arr2); }
+    }
+
+    const finalC = loadCompanies().find(x => x.id === req.params.id) || c;
+    res.json({ ok: true, concepts: finalC.concepts || [], locations: finalC.locations || [], addedConcepts, addedLocations, photos, companyLogoSet, logo: finalC.logo || '', officeWebsite: (finalC.office && finalC.office.website) || '', noSite: resolved.filter(r => !r.website).map(r => r.name) });
+  } catch (e) {
+    console.error('build-concepts error:', e && e.message);
+    res.status(500).json({ ok: false, error: String((e && e.message) || e) });
+  }
 });
 app.post('/api/company/:id/concept-resolve', express.json(), async (req, res) => {
   try {
@@ -4299,6 +4415,8 @@ app.get('/admin', requireAdmin, (req, res) => {
   const links = auth.loadLinks();
   const lastLogin = auth.lastLoginMap();
   const adminOnlyTools = auth.loadToolAccess();
+  const _assignableRoles = loadRoles().filter(r => r.key !== 'creator');
+  const roleOptsHtml = _assignableRoles.map(r => '<option value="' + esc(r.key) + '"' + (r.key === 'associate' ? ' selected' : '') + '>' + esc(r.name) + '</option>').join('');
   const toolAccessRows = TOOL_LIST.map(t =>
     `<label class="tacc"><input type="checkbox" class="ta" value="${esc(t.file)}"${adminOnlyTools.indexOf(t.file) >= 0 ? ' checked' : ''}> ${esc(t.name)}</label>`
   ).join('');
@@ -4383,7 +4501,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         <input name="username" placeholder="username (lowercase)" required>
         <input name="email" placeholder="Email" required>
         <input name="password" placeholder="password (min 6)" required>
-        <select name="role"><option value="rep">Rep</option><option value="admin">Admin</option></select>
+        <select name="role" title="Role — sets this user’s permissions">${roleOptsHtml}</select>
         <input name="title" placeholder="Title (e.g. Associate)">
         <input name="phone" placeholder="Phone (for BOVs)">
         <input name="commissionSplit" placeholder="Commission split (e.g. 50%)">
@@ -4906,7 +5024,14 @@ app.get('/admin', requireAdmin, (req, res) => {
     </script>`));
 });
 app.post('/api/admin/add-user', requireAdmin, (req, res) => {
-  try { auth.addUser(req.body || {}); res.json({ ok: true }); } catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
+  try {
+    const b = req.body || {};
+    const validKeys = loadRoles().filter(r => r.key !== 'creator').map(r => r.key);
+    let role = String(b.role || '').trim().toLowerCase();
+    if (validKeys.indexOf(role) < 0) role = (validKeys.indexOf('associate') >= 0) ? 'associate' : 'rep';
+    auth.addUser(Object.assign({}, b, { role: role }));
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
 });
 app.post('/api/admin/reset', requireAdmin, (req, res) => {
   try { auth.resetPassword((req.body || {}).username, (req.body || {}).password); res.json({ ok: true }); } catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
@@ -5824,38 +5949,38 @@ function advancedSignPage(a, me, req) {
 
 // ==== Roles & permissions (admin-managed; enforced only when the master switch is ON) ====
 const PERM_CORE = [
-  { key: 'see_all', label: 'See all records', note: 'Off = only records they own' },
-  { key: 'edit_all', label: "Edit others' records" },
-  { key: 'delete', label: 'Delete records' },
-  { key: 'reassign', label: 'Reassign ownership' },
-  { key: 'export_data', label: 'Export & print lists', note: 'Off = cannot download CSV or print lists' },
-  { key: 'manage_loi', label: 'Manage LOI clause library' },
-  { key: 'use_ai', label: 'Use AI features', note: 'Space & LOI AI, call-prep, RRG Brief, enrichment' },
-  { key: 'admin_console', label: 'Open admin console / settings' },
-  { key: 'manage_users', label: 'Manage users & roles' },
-  { key: 'manage_templates', label: 'Manage agreement templates' },
-  { key: 'data_reset', label: 'Reset / back up data' },
+  { key: 'see_all', cat: 'Records', label: 'See all records', note: 'Off = only records they own' },
+  { key: 'edit_all', cat: 'Records', label: "Edit others' records" },
+  { key: 'delete', cat: 'Records', label: 'Delete records', note: 'Companies, contacts & other records' },
+  { key: 'reassign', cat: 'Records', label: 'Reassign ownership' },
+  { key: 'export_data', cat: 'Records', label: 'Export & print lists', note: 'Off = cannot download CSV or print lists' },
+  { key: 'manage_loi', cat: 'LOI', label: 'Manage LOI clause library' },
+  { key: 'use_ai', cat: 'AI', label: 'Use AI features', note: 'Space & LOI AI, call-prep, RRG Brief, enrichment' },
+  { key: 'admin_console', cat: 'Admin', label: 'Open admin console / settings' },
+  { key: 'manage_users', cat: 'Admin', label: 'Manage users & roles' },
+  { key: 'manage_templates', cat: 'Admin', label: 'Manage agreement templates' },
+  { key: 'data_reset', cat: 'Admin', label: 'Reset / back up data' },
 ];
 const GATEABLE_TOOLS = [
-  { file: 'rrg_companies.html', name: 'Companies' },
-  { file: 'rrg_people.html', name: 'Contacts' },
-  { file: 'rrg_assignments.html', name: 'Listings' },
-  { file: 'rrg_loi_builder.html', name: 'LOI Builder' },
-  { file: 'rrg_deals.html', name: 'Deals' },
-  { file: 'rrg_tasks.html', name: 'Tasks' },
-  { file: 'rrg_agreements.html', name: 'Agreements' },
-  { file: 'rrg_tickets.html', name: 'Requests' },
-  { file: 'rrg_screening_queue.html', name: 'Seller Qualification Calls' },
-  { file: 'rrg_questionnaire_queue.html', name: 'Valuation Questionnaires' },
-  { file: 'rrg_bov_queue.html', name: 'Business Valuations' },
-  { file: 'rrg_rooms_queue.html', name: 'Data Rooms' },
-  { file: 'rrg_cim_queue.html', name: 'Marketing Packs' },
-  { file: 'rrg_attack_queue.html', name: 'Market Attack Plans' },
-  { file: 'ssc_form.html', name: 'Site Selection Criteria' },
-  { file: 'rrg_site_fit.html', name: 'Site & Concept Fit' },
-  { file: 'rrg_tour_tracker.html', name: 'Tour Tracker' },
-  { file: 'rrg_lease_queue.html', name: 'Lease Abstracts' },
-  { file: 'rrg_tenant_attack_plan.html', name: 'Market Attack Plan (Tenant)' },
+  { file: 'rrg_companies.html', name: 'Companies', cat: 'CRM & Records' },
+  { file: 'rrg_people.html', name: 'Contacts', cat: 'CRM & Records' },
+  { file: 'rrg_assignments.html', name: 'Listings', cat: 'CRM & Records' },
+  { file: 'rrg_deals.html', name: 'Deals', cat: 'CRM & Records' },
+  { file: 'rrg_tasks.html', name: 'Tasks', cat: 'CRM & Records' },
+  { file: 'rrg_agreements.html', name: 'Agreements', cat: 'CRM & Records' },
+  { file: 'rrg_tickets.html', name: 'Requests', cat: 'CRM & Records' },
+  { file: 'rrg_screening_queue.html', name: 'Seller Qualification Calls', cat: 'Sell-Side' },
+  { file: 'rrg_questionnaire_queue.html', name: 'Valuation Questionnaires', cat: 'Sell-Side' },
+  { file: 'rrg_bov_queue.html', name: 'Business Valuations', cat: 'Sell-Side' },
+  { file: 'rrg_rooms_queue.html', name: 'Data Rooms', cat: 'Sell-Side' },
+  { file: 'rrg_cim_queue.html', name: 'Marketing Packs', cat: 'Sell-Side' },
+  { file: 'rrg_attack_queue.html', name: 'Market Attack Plans', cat: 'Sell-Side' },
+  { file: 'rrg_loi_builder.html', name: 'LOI Builder', cat: 'Tenant Rep' },
+  { file: 'ssc_form.html', name: 'Site Selection Criteria', cat: 'Tenant Rep' },
+  { file: 'rrg_site_fit.html', name: 'Site & Concept Fit', cat: 'Tenant Rep' },
+  { file: 'rrg_tour_tracker.html', name: 'Tour Tracker', cat: 'Tenant Rep' },
+  { file: 'rrg_lease_queue.html', name: 'Lease Abstracts', cat: 'Tenant Rep' },
+  { file: 'rrg_tenant_attack_plan.html', name: 'Market Attack Plan (Tenant)', cat: 'Tenant Rep' },
 ];
 function toolPermKey(file) { return 'tool:' + file; }
 const ALL_PERM_KEYS = PERM_CORE.map(p => p.key).concat(GATEABLE_TOOLS.map(t => toolPermKey(t.file)));
