@@ -1884,10 +1884,12 @@ app.post('/api/admin/logo/clear', requireAdmin, (req, res) => {
 // ---- App name (admin-set) — drives the browser tab title on every page ----
 const DEFAULT_APP_NAME = 'FullServe';
 function loadAppName() { const b = loadBrand(); return (b.appName && String(b.appName).trim()) || DEFAULT_APP_NAME; }
+// ---- AI action confirmations (admin master switch; default ON) ----
+function effAiConfirm() { const b = loadBrand(); return b.aiConfirm !== false; }
 const PALETTE_DEFAULT = { primary: '#000E31', accent: '#DA2B1F', sidebar: '#0b1a38', positive: '#1f8a5b' };
 function isHexColor(v) { return /^#[0-9a-fA-F]{6}$/.test(String(v || '')); }
 function effPalette() { const b = loadBrand(); const pl = (b.palette && typeof b.palette === 'object') ? b.palette : {}; return { primary: isHexColor(pl.primary) ? pl.primary : PALETTE_DEFAULT.primary, accent: isHexColor(pl.accent) ? pl.accent : PALETTE_DEFAULT.accent, sidebar: isHexColor(pl.sidebar) ? pl.sidebar : PALETTE_DEFAULT.sidebar, positive: isHexColor(pl.positive) ? pl.positive : PALETTE_DEFAULT.positive }; }
-app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), concept: effConceptLabel(), conceptPlural: effConceptLabelPlural(), palette: effPalette(), logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })() }));
+app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), concept: effConceptLabel(), conceptPlural: effConceptLabelPlural(), palette: effPalette(), aiConfirm: effAiConfirm(), logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })() }));
 app.get('/api/feed', (req, res) => {
   let people = loadPeople();
   if (restrictToOwn(req)) people = people.filter(p => permOwnerMatch(req, p.by));
@@ -1920,6 +1922,14 @@ app.post('/api/admin/app-name', requireAdmin, express.json(), (req, res) => {
   if (!n) { delete b.appName; } else { b.appName = n; }
   b.updatedAt = new Date().toISOString(); saveBrand(b);
   res.json({ ok: true, name: loadAppName(), isDefault: loadAppName() === DEFAULT_APP_NAME });
+});
+// ---- AI confirmation gate (admin master switch) ----
+app.get('/api/admin/ai-confirm', requireAdmin, (req, res) => res.json({ ok: true, on: effAiConfirm() }));
+app.post('/api/admin/ai-confirm', requireAdmin, express.json(), (req, res) => {
+  const b = loadBrand();
+  b.aiConfirm = !!(req.body && req.body.on);
+  b.updatedAt = new Date().toISOString(); saveBrand(b);
+  res.json({ ok: true, on: effAiConfirm() });
 });
 // ---- Favicon (admin-set) — served at /favicon.ico for every page ----
 const FAVICON_MIME = { ico: 'image/x-icon', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' };
@@ -4925,6 +4935,13 @@ app.get('/admin', requireAdmin, (req, res) => {
         </div>
       </div>
 
+      <h2 style="margin-top:34px">AI Confirmations <span class="sub2">— AI actions are metered (billable). When on, reps see a quick “this uses AI” confirm before heavy actions (find locations, build concepts, RRG Brief, LOI review). Turn off to let AI run without the prompt.</span></h2>
+      <div class="links">
+        <label style="display:inline-flex;align-items:center;gap:9px;font:inherit;font-size:14px;color:var(--navy);cursor:pointer"><input type="checkbox" id="aiConfirmOn" onchange="saveAiConfirm()" style="width:17px;height:17px"> Show the AI confirmation before heavy actions</label>
+        <div class="sub2" id="aiConfirmState" style="margin-top:8px">Loading…</div>
+        <span id="aiConfirmMsg" class="sub2"></span>
+      </div>
+
       <h2 style="margin-top:34px">Header Announcement <span class="sub2">— a short message shown across the top of everyone's dashboard, next to the logo. Use it for notices, reminders, or a rallying line. Leave blank to hide it.</span></h2>
       <div class="links">
         <input type="text" id="hdrMsg" maxlength="160" placeholder="e.g. Q3 push — get your listings loaded by Friday. New: auto-find locations on any concept." style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy)">
@@ -5238,6 +5255,10 @@ app.get('/admin', requireAdmin, (req, res) => {
       function resetAppName(){ post('/api/admin/app-name',{name:''}).then(function(j){ if(j&&j.ok){ document.getElementById('appName').value=j.name||''; document.getElementById('appnMsg').textContent='Reset ✓'; _appnState(j); } }); }
       try{ loadFavicon(); }catch(e){}
       try{ loadAppName(); }catch(e){}
+      function _aiCfState(on){ var s=document.getElementById("aiConfirmState"); if(s) s.textContent = on ? "On — reps confirm before heavy AI actions run." : "Off — heavy AI actions run immediately, no prompt."; }
+      function loadAiConfirm(){ fetch("/api/admin/ai-confirm").then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById("aiConfirmOn").checked=(j.on!==false); _aiCfState(j.on!==false); } }).catch(function(){}); }
+      function saveAiConfirm(){ var on=document.getElementById("aiConfirmOn").checked, m=document.getElementById("aiConfirmMsg"); if(m) m.textContent="Saving…"; post("/api/admin/ai-confirm",{on:on}).then(function(j){ if(j&&j.ok){ if(m) m.textContent="Saved \u2713"; _aiCfState(j.on!==false); } else { if(m) m.textContent=(j&&j.error)||"Failed"; } }); }
+      try{ loadAiConfirm(); }catch(e){}
       function loadHdrMsg(){ fetch('/api/admin/header-msg').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('hdrMsg').value=j.msg||''; document.getElementById('hdrMsgOn').checked=(j.on!==false); } }).catch(function(){}); }
       function saveHdrMsg(){ var v=document.getElementById('hdrMsg').value, on=document.getElementById('hdrMsgOn').checked, m=document.getElementById('hdrMsgMsg'); m.textContent='Saving…'; post('/api/admin/header-msg',{msg:v,on:on}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — reps see it on their next dashboard load.'; } else { m.textContent=(j&&j.error)||'Failed'; } }); }
       function clearHdrMsg(){ document.getElementById('hdrMsg').value=''; post('/api/admin/header-msg',{msg:'',on:document.getElementById('hdrMsgOn').checked}).then(function(j){ if(j&&j.ok) document.getElementById('hdrMsgMsg').textContent='Cleared.'; }); }

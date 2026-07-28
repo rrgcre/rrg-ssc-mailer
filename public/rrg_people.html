@@ -122,7 +122,7 @@ function renderList(list){
   var cfg={ mount:'#body', data:list, key:'contacts', countEl:'#cnt',
     empty:'<div class="empty"><b>No contacts yet.</b>Contacts are added as you log offers, tours, and NDAs, or from a company file.</div>',
     rowId:function(p){ return p.id; }, defaultSort:0, defaultDir:1,
-    bulk: (function(){ var _b=[]; if(IS_ADMIN) _b.push({ label:'Merge\u2026', min:2, fn:openMergePicker }); if(CAN_DELETE) _b.push({ label:'Delete', danger:true, min:1, fn:bulkDeletePeople }); return _b.length?_b:null; })(),
+    bulk: (function(){ var _b=[]; _b.push({ label:'New listing\u2026', min:1, fn:bulkNewListing }); if(IS_ADMIN) _b.push({ label:'Merge\u2026', min:2, fn:openMergePicker }); if(CAN_DELETE) _b.push({ label:'Delete', danger:true, min:1, fn:bulkDeletePeople }); return _b.length?_b:null; })(),
     columns:[
       { label:'Name', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(p){ var star=p.vip?'<span title="VIP" style="color:#e2b93a;font-weight:900;margin-right:4px">\u2605</span>':''; var nm=star+'<a class="nmlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">'+esc(p.name||'Contact')+'</a>'+(p.nickname?(' <span class="meta">“'+esc(p.nickname)+'”</span>'):''); return '<div class="who"><div class="av">'+esc(initials(p.name))+'</div><div><div class="nm">'+nm+'</div><div class="meta">'+esc(p.email||'')+'</div></div></div>'; } },
       { label:'Company', sort:function(a,b){ return RRGList.cmp(a.companyName||a.company,b.companyName||b.company); }, cell:function(p){ var cn=p.companyName||p.company||''; if(!cn) return '<span class="meta">—</span>'; return p.companyId?('<a class="colink" href="./rrg_company.html?id='+encodeURIComponent(p.companyId)+'">'+esc(cn)+'</a>'):esc(cn); } },
@@ -137,7 +137,7 @@ function renderList(list){
       { label:'Nickname', defaultHidden:true, sort:function(a,b){ return RRGList.cmp(a.nickname,b.nickname); }, cell:function(p){ return p.nickname?esc(p.nickname):'<span class="meta">—</span>'; } },
       { label:'Tags', defaultHidden:true, sortable:false, cell:function(p){ return (p.tags&&p.tags.length)?p.tags.map(function(t){return '<span style="font-size:10px;font-weight:700;color:#3a4c74;background:#eef2fb;border:1px solid #dbe4f5;border-radius:6px;padding:1px 6px;margin-right:3px">'+esc(t)+'</span>';}).join(''):'<span class="meta">—</span>'; } },
       { label:'Lead source', defaultHidden:true, sort:function(a,b){ return RRGList.cmp(a.leadSource,b.leadSource); }, cell:function(p){ return p.leadSource?esc(p.leadSource):'<span class="meta">—</span>'; } },
-      { label:'', align:'right', sortable:false, cell:function(p){ return CAN_DELETE?('<button class="pdel" data-del="'+esc(p.id)+'" data-name="'+esc(p.name||'')+'">Delete</button>'):'<span class="meta">—</span>'; } }
+      { label:'', align:'right', sortable:false, cell:function(p){ var nl='<button class="pnl" data-nl="'+esc(p.id)+'" title="Start a listing for this contact" style="font:inherit;font-size:12px;font-weight:700;padding:5px 10px;border-radius:7px;border:1px solid #cfd6e2;background:#fff;color:#0b1a3a;cursor:pointer">+ Listing</button>'; var del=CAN_DELETE?(' <button class="pdel" data-del="'+esc(p.id)+'" data-name="'+esc(p.name||'')+'">Delete</button>'):''; return nl+del; } }
     ]
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
@@ -216,6 +216,33 @@ function deletePerson(pid,name){
     .catch(function(){ alert('Could not reach the server.'); });
 }
 document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.pdel[data-del]'); if(b){ e.preventDefault(); deletePerson(b.getAttribute('data-del'),b.getAttribute('data-name')); } });
+document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.pnl[data-nl]'); if(b){ e.preventDefault(); openNewListingFor(b.getAttribute('data-nl')); } });
+function bulkNewListing(ids, done){ if(!ids||!ids.length) return; if(ids.length>1){ alert('Pick one contact to start a listing \u2014 a listing links to a single client.'); return; } openNewListingFor(ids[0], done); }
+function openNewListingFor(id, done){
+  var p=(ALL||[]).find(function(x){return x.id===id;}); if(!p){ alert('Contact not found.'); return; }
+  var ov=document.createElement('div'); ov.className='modal';
+  ov.innerHTML='<div class="modalcard" style="max-width:460px"><div class="modalh">New listing</div><div class="modalb">'
+    +'<div style="font-size:12.5px;color:#5b6472;margin-bottom:12px">Client: <b>'+esc(p.name||'this contact')+'</b>'+((p.companyName||p.company)?(' <span style="color:#8a94a6">\u00b7 '+esc(p.companyName||p.company)+'</span>'):'')+'</div>'
+    +'<label style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#6b7488">Business / listing name</label>'
+    +'<input id="nlp_biz" placeholder="e.g. Barrio Cantina \u2014 South Lamar" style="width:100%;box-sizing:border-box;margin:5px 0 12px;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px">'
+    +'<label style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#6b7488">Market <span style="font-weight:600;text-transform:none;letter-spacing:0;color:#9aa3b2">(optional \u2014 refine on the listing)</span></label>'
+    +'<input id="nlp_market" placeholder="e.g. Austin" style="width:100%;box-sizing:border-box;margin:5px 0 4px;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px">'
+    +'<div id="nlp_msg" style="color:var(--red,#DA2B1F);font-size:12.5px;margin-top:8px"></div></div>'
+    +'<div class="modalf"><button class="mbtn ghost" id="nlp_cancel">Cancel</button><button class="mbtn" id="nlp_go">Create listing</button></div></div>';
+  document.body.appendChild(ov);
+  function close(){ ov.remove(); }
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  ov.querySelector('#nlp_cancel').addEventListener('click',close);
+  var biz=ov.querySelector('#nlp_biz'); setTimeout(function(){ try{biz.focus();}catch(e){} },30);
+  biz.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); ov.querySelector('#nlp_go').click(); } });
+  ov.querySelector('#nlp_go').addEventListener('click',function(){
+    var b=biz.value.trim(); var msg=ov.querySelector('#nlp_msg'); if(!b){ msg.textContent='Enter the business / listing name.'; return; }
+    var gb=ov.querySelector('#nlp_go'); gb.disabled=true; gb.textContent='Creating\u2026';
+    fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:b,market:ov.querySelector('#nlp_market').value.trim(),contact:p.name||'',contactEmail:p.email||''})})
+      .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(done) done(); location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { gb.disabled=false; gb.textContent='Create listing'; msg.textContent=(j&&j.error)||'Could not create the listing.'; } })
+      .catch(function(){ gb.disabled=false; gb.textContent='Create listing'; msg.textContent='Could not reach the server.'; });
+  });
+}
 fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; TYPES=(j&&j.types)||[]; if(j&&j.leadSources&&j.leadSources.length) LEADSRC=j.leadSources; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); renderFilters(); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load contacts.</div>'; });
 window.reloadPeople=reloadPeople;
 document.addEventListener('visibilitychange',function(){ if(!document.hidden && window.reloadPeople) window.reloadPeople(); });

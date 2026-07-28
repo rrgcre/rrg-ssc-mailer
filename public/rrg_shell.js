@@ -209,7 +209,7 @@
   function setMsg(msg){ var m=document.getElementById('rrgaiwmsg'); if(m) m.textContent=msg||''; }
   function hide(){ var o=document.getElementById('rrgaiwork'); if(o) o.hidden=true; AIW.onCancel=null; if(AIW.timer){ clearInterval(AIW.timer); AIW.timer=null; } }
   window.rrgAiWork={show:show,setMsg:setMsg,hide:hide};
-  window.rrgAiConfirm=function(opts){ opts=opts||{}; var key='rrgai_skip_'+(opts.actionKey||'ai'); try{ if(localStorage.getItem(key)==='1'){ if(opts.onProceed) opts.onProceed(); return; } }catch(e){}
+  window.rrgAiConfirm=function(opts){ opts=opts||{}; if(window.__rrgAiConfirm===false){ if(opts.onProceed) opts.onProceed(); return; } var key='rrgai_skip_'+(opts.actionKey||'ai'); try{ if(localStorage.getItem(key)==='1'){ if(opts.onProceed) opts.onProceed(); return; } }catch(e){}
     injectCss(); var ov=document.createElement('div'); ov.className='rrgaiwork'; ov.style.zIndex='1001';
     ov.innerHTML='<div class="rrgaiwbox" style="text-align:left"><div class="rrgaicfhd">✨ '+esc(opts.title||('Run '+assistant()))+'</div><div class="rrgaicfbody">'+esc(opts.body||'This uses AI.')+'</div><label class="rrgaicfask"><input type="checkbox" id="rrgaidontask"> Don’t ask again for this</label><div class="rrgaicfbtns"><button type="button" class="rrgaicfcancel" id="rrgaicfcancel">Cancel</button><button type="button" class="rrgaicfgo" id="rrgaicfgo">Continue</button></div></div>';
     document.body.appendChild(ov); function close(){ ov.remove(); } ov.addEventListener('click',function(e){ if(e.target===ov) close(); });

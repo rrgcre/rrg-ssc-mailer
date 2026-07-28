@@ -42,6 +42,7 @@
       .then(function (j) {
         var n = (j && j.name) || 'FullServe';
         document.title = suffix ? (n + ' — ' + suffix) : n;
+        try { window.__rrgAiConfirm = (j && j.aiConfirm !== false); } catch (e) {}
         try { var de = document.documentElement, pal = (j && j.palette) || {}; if (pal.primary) de.style.setProperty('--navy', pal.primary); if (pal.accent) de.style.setProperty('--red', pal.accent); if (pal.sidebar) de.style.setProperty('--navbg', pal.sidebar); if (pal.positive) de.style.setProperty('--green', pal.positive); localStorage.setItem('rrg_pal', JSON.stringify(pal)); } catch (e) {}
         schedule((j && j.assistant) || 'Claude');
       })
