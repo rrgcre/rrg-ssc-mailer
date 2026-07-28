@@ -227,6 +227,18 @@ async function messageFull(username, id) {
   };
 }
 
+// Search the mailbox by a Gmail query and return decoded bodies (for lead parsing).
+async function searchLeadBodies(username, q, max) {
+  const lim = Math.min(max || 40, 60);
+  const u = 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=' + lim + '&q=' + encodeURIComponent(q || '');
+  const r = await gapi(username, u, {});
+  const j = await r.json();
+  if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail search failed.');
+  const ids = (j.messages || []).map(m => m.id).slice(0, lim);
+  const out = await Promise.all(ids.map(async id => { try { const m = await messageFull(username, id); return { id: m.id, subject: m.subject, from: m.from, date: m.date, body: m.body || '', snippet: m.snippet || '' }; } catch (e) { return null; } }));
+  return out.filter(Boolean);
+}
+
 // Send a plain-text message via the Gmail API. Optionally thread a reply.
 async function sendMessage(username, opts) {
   const tok = loadToken(username);
@@ -258,5 +270,5 @@ async function sendMessage(username, opts) {
 module.exports = {
   isConfigured, SCOPES, statusFor, redirectUri, authUrl, readState,
   connectFromCode, deleteToken, loadToken, statusForUser: statusFor,
-  messagesForContact, messageFull, sendMessage, TOK_DIR,
+  messagesForContact, messageFull, searchLeadBodies, sendMessage, TOK_DIR,
 };

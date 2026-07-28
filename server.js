@@ -2526,6 +2526,8 @@ function assignmentView(d, overlay) {
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
+    inquiries: Array.isArray(o.inquiries) ? o.inquiries : [],
+    bbsRef: o.bbsRef || '', bbsNumber: o.bbsNumber || '',
     transaction: (o.transaction && typeof o.transaction === 'object') ? o.transaction : null,
     value: (bov && (bov.targetText || bov.rangeText)) || '', basis: (bov && bov.basis) || '',
     stages, lastActivity, createdAt: created,
@@ -2596,6 +2598,8 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.listingStart === 'string') cur.listingStart = b.listingStart.slice(0, 10);
   if (typeof b.listingExpires === 'string') cur.listingExpires = b.listingExpires.slice(0, 10);
   if (typeof b.autoRenew === 'boolean') cur.autoRenew = b.autoRenew;
+  if (typeof b.bbsRef === 'string') cur.bbsRef = b.bbsRef.slice(0, 80);
+  if (typeof b.bbsNumber === 'string') cur.bbsNumber = b.bbsNumber.replace(/[^0-9A-Za-z-]/g, '').slice(0, 40);
   cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true });
@@ -2683,6 +2687,149 @@ app.post('/api/assignment/:key/offer', express.json(), (req, res) => {
   cur.offers = offers; cur.updatedAt = now;
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true, offers, people: loadPeople().map(personBrief) });
+});
+function newInquiryId() { return 'inq_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+// Parse pasted BizBuySell buyer-lead email blocks into structured leads.
+function parseBizBuySellLeads(text) {
+  const src = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  const lines = src.split('\n');
+  const LABELS = {
+    'date': 'date',
+    'listing': 'listingName', 'listing name': 'listingName', 'listing title': 'listingName',
+    'listing #': 'listingNumber', 'listing number': 'listingNumber', 'listing no': 'listingNumber', 'listing id': 'listingNumber', 'ad id': 'listingNumber', 'ad #': 'listingNumber',
+    'ref id': 'refId', 'ref': 'refId', 'ref #': 'refId', 'reference': 'refId', 'reference id': 'refId',
+    'name': 'name', 'buyer': 'name', 'buyer name': 'name', 'from': 'name',
+    'email': 'email', 'e-mail': 'email', 'email address': 'email',
+    'phone': 'phone', 'phone number': 'phone', 'tel': 'phone', 'telephone': 'phone', 'mobile': 'phone', 'cell': 'phone',
+  };
+  const leads = []; let cur = null;
+  function flush(){ if (cur && (cur.email || cur.phone)) leads.push(cur); cur = null; }
+  for (const raw of lines) {
+    const line = String(raw || '').trim();
+    if (!line) continue;
+    const m = line.match(/^([A-Za-z][A-Za-z #.\/\-]{0,24}?)\s*[:\t]\s*(.+)$/);
+    if (m) {
+      const key = m[1].trim().toLowerCase().replace(/\s+/g, ' ');
+      const field = LABELS[key];
+      if (field) {
+        const val = m[2].trim();
+        if (!cur) cur = {};
+        if (cur[field] != null && (field === 'email' || field === 'listingNumber' || field === 'date')) { flush(); cur = {}; }
+        cur[field] = val;
+        continue;
+      }
+    }
+    const em = line.match(/[\w.+\-]+@[\w.\-]+\.[A-Za-z]{2,}/);
+    if (em && cur && !cur.email) { cur.email = em[0]; continue; }
+  }
+  flush();
+  return leads.map(l => ({
+    date: String(l.date || '').slice(0, 80),
+    listingName: String(l.listingName || '').slice(0, 200),
+    listingNumber: String(l.listingNumber || '').replace(/[^0-9A-Za-z\-]/g, '').slice(0, 40),
+    refId: String(l.refId || '').slice(0, 80),
+    name: String(l.name || '').slice(0, 120),
+    email: String(l.email || '').slice(0, 160),
+    phone: String(l.phone || '').slice(0, 60),
+  })).filter(l => l.email || l.phone);
+}
+// Core importer: buyer contact (deduped) + inquiry on the matched listing + follow-up task.
+function importBbsLeads(req, leads) {
+  const overlay = loadAssignOverlay();
+  const idx = assignmentsIndex();
+  const byRef = {}, byNum = {};
+  Object.keys(overlay).forEach(k => { const o = overlay[k] || {}; if (o.bbsRef) byRef[String(o.bbsRef).toLowerCase().trim()] = k; if (o.bbsNumber) byNum[String(o.bbsNumber).toLowerCase().trim()] = k; });
+  const now = new Date().toISOString();
+  const due = (function(){ const d = new Date(); d.setDate(d.getDate() + 2); return d.toISOString().slice(0, 10); })();
+  const tasks = loadTasks();
+  let imported = 0, matched = 0, unmatched = 0, dupes = 0;
+  const results = [];
+  (leads || []).forEach(l => {
+    const email = String(l.email || '').trim();
+    const refKey = l.refId ? byRef[String(l.refId).toLowerCase().trim()] : null;
+    const numKey = l.listingNumber ? byNum[String(l.listingNumber).toLowerCase().trim()] : null;
+    const key = refKey || numKey || null;
+    const person = findOrCreatePerson(req, { name: l.name || '', email: email, phones: l.phone ? [l.phone] : [], type: (PERSON_TYPES.indexOf('Buyer') >= 0 ? 'Buyer' : 'Buyer') });
+    if (person) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === person.id); if (pp) { logActivity(pp, 'BizBuySell Lead', ('Inquired on ' + (l.listingName || 'a listing') + (l.refId ? (' \u00b7 Ref ' + l.refId) : (l.listingNumber ? (' \u00b7 #' + l.listingNumber) : ''))).slice(0, 300), { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
+    let listingLabel = l.listingName || '';
+    if (key) {
+      matched++;
+      const cur = overlay[key] || {};
+      const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
+      const isDup = email && inqs.some(x => String(x.email || '').toLowerCase() === email.toLowerCase());
+      if (isDup) { dupes++; }
+      else { inqs.push({ id: newInquiryId(), source: 'BizBuySell', name: l.name || '', email: email, phone: l.phone || '', personId: (person && person.id) || '', refId: l.refId || '', listingNumber: l.listingNumber || '', date: l.date || '', status: 'New', note: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); }
+      cur.inquiries = inqs; cur.updatedAt = now; overlay[key] = cur;
+      try { const dv = idx[key] ? assignmentView(idx[key], overlay) : null; if (dv && dv.business) listingLabel = dv.business; } catch (e) {}
+    } else { unmatched++; }
+    const noteLines = [];
+    if (l.phone) noteLines.push('Phone: ' + l.phone);
+    if (email) noteLines.push('Email: ' + email);
+    if (l.listingName) noteLines.push('Listing: ' + l.listingName);
+    if (!key && (l.refId || l.listingNumber)) noteLines.push('UNMATCHED \u2014 set BizBuySell Ref \u201c' + (l.refId || l.listingNumber) + '\u201d on the right listing, then this buyer can be attached.');
+    tasks.push({ id: newTaskId(), title: ('Follow up (BizBuySell): ' + (l.name || email || 'buyer') + (listingLabel ? (' \u2014 ' + listingLabel) : '')).slice(0, 300), notes: noteLines.join('\n').slice(0, 2000), assignee: (req.user && req.user.username) || '', assigneeName: (req.user && req.user.name) || '', due: due, reminder: due, priority: 'Normal', status: 'open', linkType: 'contact', linkId: (person && person.id) || '', linkLabel: (person && person.name) || l.name || email, createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', createdAt: now, updatedAt: now });
+    imported++;
+    results.push({ email: email, name: l.name || '', listing: listingLabel, matched: !!key, ref: l.refId || l.listingNumber || '' });
+  });
+  saveAssignOverlay(overlay); saveTasks(tasks);
+  return { ok: true, imported: imported, matched: matched, unmatched: unmatched, dupes: dupes, results: results };
+}
+// Preview a paste (no writes) so the import window can show what it found.
+app.post('/api/bizbuysell/parse', express.json({ limit: '1mb' }), (req, res) => {
+  res.json({ ok: true, leads: parseBizBuySellLeads((req.body || {}).text || '') });
+});
+// Import leads — accepts { text } (server parses) or { leads:[...] } (from a CSV parsed client-side).
+app.post('/api/bizbuysell/import', express.json({ limit: '2mb' }), (req, res) => {
+  const b = req.body || {};
+  let leads = Array.isArray(b.leads) ? b.leads.map(l => ({ date: String(l.date || '').slice(0, 80), listingName: String(l.listingName || l.listing || '').slice(0, 200), listingNumber: String(l.listingNumber || l.number || l['listing #'] || '').slice(0, 40), refId: String(l.refId || l.ref || l['ref id'] || '').slice(0, 80), name: String(l.name || l.buyer || '').slice(0, 120), email: String(l.email || '').slice(0, 160), phone: String(l.phone || '').slice(0, 60) })).filter(l => l.email || l.phone) : parseBizBuySellLeads(b.text || '');
+  if (!leads.length) return res.status(400).json({ ok: false, error: 'No buyer leads found to import — check the pasted text or file.' });
+  res.json(importBbsLeads(req, leads));
+});
+// Pull BizBuySell buyer-lead emails from the user's connected Gmail and import them.
+app.post('/api/bizbuysell/gmail', express.json(), async (req, res) => {
+  try {
+    const u = (req.user && req.user.username) || '';
+    if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Gmail first — open any contact, Email tab, Connect Gmail.' });
+    const q = '(from:bizbuysell.com OR bizbuysell) newer_than:180d';
+    const msgs = await gmail.searchLeadBodies(u, q, 50);
+    if (!msgs.length) return res.json({ ok: true, imported: 0, matched: 0, unmatched: 0, dupes: 0, results: [], note: 'No BizBuySell lead emails found in the last 180 days.' });
+    let leads = [];
+    msgs.forEach(m => { const found = parseBizBuySellLeads(m.body || ''); if (found.length) leads = leads.concat(found); });
+    const seen = {}; leads = leads.filter(l => { const k = String(l.email || l.phone || '').toLowerCase(); if (!k || seen[k]) return false; seen[k] = 1; return true; });
+    if (!leads.length) return res.json({ ok: true, imported: 0, matched: 0, unmatched: 0, dupes: 0, results: [], note: 'Found ' + msgs.length + ' BizBuySell email(s), but could not read the lead fields automatically — use Paste or CSV, or send me a sample and I will tune the reader.' });
+    res.json(importBbsLeads(req, leads));
+  } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// Add / update / remove an inquiry on a listing (manual entry + status changes).
+app.post('/api/assignment/:key/inquiry', express.json(), (req, res) => {
+  const deals = assignmentsIndex(); const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {};
+  const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
+  const b = req.body || {}; const now = new Date().toISOString();
+  const INQ_STATUS = ['New', 'Contacted', 'NDA Sent', 'Toured', 'Offer', 'Passed', 'Dead'];
+  let rec = b.id ? inqs.find(x => x.id === b.id) : null;
+  if (!rec) { rec = { id: newInquiryId(), source: b.source || 'Manual', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; inqs.push(rec); }
+  if (typeof b.name === 'string') rec.name = b.name.slice(0, 120);
+  if (typeof b.email === 'string') rec.email = b.email.slice(0, 160);
+  if (typeof b.phone === 'string') rec.phone = b.phone.slice(0, 60);
+  if (typeof b.note === 'string') rec.note = b.note.slice(0, 2000);
+  if (typeof b.status === 'string' && INQ_STATUS.indexOf(b.status) >= 0) rec.status = b.status;
+  if (!rec.status) rec.status = 'New';
+  if ((rec.name || rec.email) && !rec.personId) { const p = findOrCreatePerson(req, { name: rec.name || '', email: rec.email || '', phones: rec.phone ? [rec.phone] : [], type: 'Buyer' }); if (p) rec.personId = p.id; }
+  rec.updatedAt = now;
+  cur.inquiries = inqs; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, inquiries: inqs, statuses: INQ_STATUS });
+});
+app.post('/api/assignment/:key/inquiry/:id/remove', (req, res) => {
+  const deals = assignmentsIndex(); const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Assignment not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {};
+  cur.inquiries = (Array.isArray(cur.inquiries) ? cur.inquiries : []).filter(x => x.id !== req.params.id);
+  cur.updatedAt = new Date().toISOString(); overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, inquiries: cur.inquiries });
 });
 // Run the RRG analyst on one offer — scores it and returns a broker's assessment.
 app.post('/api/assignment/:key/offer/:offerId/analyze', express.json(), async (req, res) => {
