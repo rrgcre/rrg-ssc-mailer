@@ -64,14 +64,14 @@
     + ':root{--navbg:var(--navbg,#0b1a38);}'
     + 'body.rrg-shelled{padding-left:238px !important;padding-top:56px !important;}'
     + 'body.rrg-shelled .top,body.rrg-shelled .rrg-back{display:none !important;}'
-    + '#rrgnav{position:fixed;top:56px;left:0;bottom:0;width:238px;background:var(--navbg,#0b1a38);color:#c7d0e4;display:flex;flex-direction:column;z-index:60;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
-    + '#rrgnav .nt{display:flex;align-items:center;gap:9px;padding:10px 12px 6px;}'
+    + '#rrgnav{position:fixed;top:0;left:0;bottom:0;width:238px;background:var(--navbg,#0b1a38);color:#c7d0e4;display:flex;flex-direction:column;z-index:60;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
+    + '#rrgnav .nt{display:flex;align-items:center;gap:9px;padding:12px 14px 6px;}'
     + '#rrgnav .ws{display:flex;align-items:center;gap:9px;cursor:pointer;border-radius:9px;padding:5px 7px;flex:1;text-decoration:none;}'
     + '#rrgnav .ws:hover{background:rgba(255,255,255,.06);}'
     + '#rrgnav .disc{width:30px;height:30px;border-radius:8px;background:var(--red,#DA2B1F);color:#fff;font-family:"Arial Black",Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}'
     + '#rrgnav .wsn{font-weight:600;font-size:14.5px;color:#fff;}'
-    + '#rrgnav .rrgbrand{display:block;width:100%;font-weight:700;font-size:16px;color:#fff;line-height:1.1;}'
-    + '#rrgnav .rrgbrandimg{max-width:100%;max-height:52px;object-fit:contain;display:block;}'
+    + '#rrgnav .rrgbrand{display:block;width:100%;font-weight:700;font-size:18px;color:#fff;line-height:1.1;}'
+    + '#rrgnav .rrgbrandimg{max-width:100%;max-height:48px;object-fit:contain;display:block;}'
     + '#rrgtop .create{display:inline-flex;align-items:center;gap:6px;background:#fff;color:var(--red,#DA2B1F);border:1px solid var(--red,#DA2B1F);border-radius:9px;padding:8px 15px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .12s,color .12s;}'
     + '#rrgtop .create:hover{background:var(--red,#DA2B1F);color:#fff;}'
     + '#rrgtop .create .cplus{font-size:15px;font-weight:800;line-height:1;}'
@@ -91,7 +91,7 @@
     + '#rrgnav a.it .navbadge{margin-left:auto;background:var(--red,#DA2B1F);color:#fff;font-size:10.5px;font-weight:800;min-width:19px;height:18px;line-height:18px;text-align:center;border-radius:9px;padding:0 5px;box-shadow:0 1px 3px rgba(0,0,0,.25);}'
     + '#rrgnav a.it .aitag{margin-left:5px;font-size:11px;line-height:1;opacity:.85;}'
     + '#rrgnav .foot{border-top:1px solid rgba(255,255,255,.09);padding:8px 10px;}'
-    + '#rrgtop{position:fixed;top:0;left:0;right:0;height:56px;background:#fff;border-bottom:1px solid #e9edf3;display:flex;align-items:center;gap:18px;padding:0 22px;z-index:62;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
+    + '#rrgtop{position:fixed;top:0;left:238px;right:0;height:56px;background:#fff;border-bottom:1px solid #e9edf3;display:flex;align-items:center;gap:18px;padding:0 22px;z-index:59;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
     + '#rrgtop .rrgtoplogo{display:flex;align-items:center;height:100%;text-decoration:none;flex:none;margin-right:8px;max-width:224px;overflow:hidden;}'
     + '#rrgtop .rrgtoplogo .rrgbrandimg{max-height:40px;max-width:212px;object-fit:contain;display:block;}'
     + '#rrgtop .rrgtoplogo .rrgbrand{font-weight:800;font-size:18px;color:var(--navy,#000E31);letter-spacing:-.01em;white-space:nowrap;}'
@@ -111,6 +111,7 @@
   // ---------- nav markup ----------
   var appName = 'RRG';
   var navHtml = '';
+  navHtml += '<div class="nt"><a class="ws" href="index.html"><span class="rrgbrand" id="rrgbrand">RRG</span></a></div>';
   navHtml += '<div class="scroll">';
   NAV.forEach(function (g, gi) {
     var _sp = []; if (g.color) _sp.push('--gc:' + g.color); if (g.admin) _sp.push('display:none');
@@ -135,7 +136,6 @@
   if (!activeLabel) { var t = (document.title || '').split('—')[0].split(' - ')[0].trim(); activeLabel = t || 'RRG'; }
   var top = document.createElement('div'); top.id='rrgtop';
   top.innerHTML = ''
-    + '<a class="rrgtoplogo" href="index.html"><span class="rrgbrand" id="rrgbrand">RRG</span></a>'
     + '<div class="ic" id="rrgburger" style="display:none">≡</div>'
     + '<div class="srch"><span class="si">⌕</span><input placeholder="Search companies, contacts, listings…" id="rrgsearch"></div>'
     + '<div class="acts"><a class="create" href="rrg_companies.html"><span class="cplus">+</span> Create New</a><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><a class="ic" href="rrg_tasks.html" title="My Tasks">✔</a><div class="uav" id="rrguav">·</div></div>';

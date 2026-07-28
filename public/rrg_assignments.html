@@ -171,6 +171,7 @@ function renderList(list){
       { label:'Pipeline', sortable:false, cell:function(a){ return pipeCell(a); } },
       { label:'Value', sort:function(a,b){ return RRGList.cmp(a.value,b.value); }, cell:function(a){ return a.value?('<b style="color:var(--navy)">'+esc(a.value)+'</b>'+(a.basis?('<div class="meta">'+esc(a.basis)+'</div>'):'')):'<span class="meta">—</span>'; } },
       { label:'Status', sort:function(a,b){ return RRGList.cmp(a.status,b.status); }, cell:function(a){ return '<span class="pill '+statusClass(a.status)+'">'+esc(a.status)+'</span>'; } },
+      { label:'BBS #', sort:function(a,b){ return RRGList.cmp(a.bbsNumber,b.bbsNumber); }, cell:function(a){ return a.bbsNumber?('<span class="meta" style="color:var(--ink);font-variant-numeric:tabular-nums">'+esc(a.bbsNumber)+'</span>'):'<span class="meta">—</span>'; } },
       { label:'Listing expires', sort:function(a,b){ return expDays(a)-expDays(b); }, cell:function(a){ return expiresCell(a); } },
       { label:'Owner', sort:function(a,b){ return RRGList.cmp(a.owner,b.owner); }, cell:function(a){ return '<span class="meta" style="color:var(--ink)">'+esc(a.owner||'—')+'</span>'; } },
       { label:'Updated', sort:function(a,b){ return RRGList.cmp(a.lastActivity,b.lastActivity); }, cell:function(a){ return '<span class="meta">'+esc(fmt(a.lastActivity))+'</span>'; } },
