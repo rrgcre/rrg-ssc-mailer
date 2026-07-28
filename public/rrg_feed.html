@@ -38,7 +38,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return String(iso); return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
-function actColor(t){ var m={'Tour':['#eef2fb','#2647b0'],'Photo Shoot':['#f1ebfb','#6d28d9'],'Meal':['#fdf1df','#b5791f'],'Text':['#e6f5f3','#0f766e'],'Call':['#e7f5ee','#1f8a5b'],'Email':['#eef2fb','#3949ab'],'Form Submitted':['#eef1f6','#5b6472'],'Agreement Sent':['#fff4e6','#b9761a'],'Agreement Signed':['#fdeceb','#DA2B1F'],'LOI Sent':['#e9f1ff','#1d6fd6'],'LOI Received':['#eef7ee','#2f9e50'],'Diligence':['#eef2fb','#2647b0'],'Note':['#eef1f6','#5b6472'],'To-Do':['#fdeceb','#DA2B1F']}; return m[t]||['#eef1f6','#5b6472']; }
+function actColor(t){ var m={'Tour':['#eef2fb','#2647b0'],'Photo Shoot':['#f1ebfb','#6d28d9'],'Meal':['#fdf1df','#b5791f'],'Text':['#e6f5f3','#0f766e'],'Call':['#e7f5ee','#1f8a5b'],'Email':['#eef2fb','#3949ab'],'Form Submitted':['#eef1f6','#5b6472'],'Contact Added':['#e7f5ee','#1f8a5b'],'Agreement Sent':['#fff4e6','#b9761a'],'Agreement Signed':['#fdeceb','#DA2B1F'],'LOI Sent':['#e9f1ff','#1d6fd6'],'LOI Received':['#eef7ee','#2f9e50'],'Diligence':['#eef2fb','#2647b0'],'Note':['#eef1f6','#5b6472'],'To-Do':['#fdeceb','#DA2B1F']}; return m[t]||['#eef1f6','#5b6472']; }
 var SCOPE='all';
 function load(){
   fetch('/api/feed'+(SCOPE==='mine'?'?scope=mine':''),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){

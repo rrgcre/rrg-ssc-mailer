@@ -161,7 +161,7 @@ function findOrCreatePerson(req, info) {
     emails: emails, phones: phones, email: emails[0] || '', phone: phones[0] || '', type: type, notes: '',
     createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
-  arr.push(p); savePeople(arr);
+  arr.push(p); logContactAdded(p, req); savePeople(arr);
   return p;
 }
 function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', vip: !!p.vip, prefContact: Array.isArray(p.prefContact) ? p.prefContact : [], createdAt: p.createdAt || '', owner: p.by || '', lastContacted: p.lastContacted || '', hasPhoto: !!p.photoExt } : null; }
@@ -256,6 +256,15 @@ function logActivity(p, type, note, o) {
   if (type !== 'To-Do') { if (!p.lastContacted || date > p.lastContacted) p.lastContacted = date; }
   p.updatedAt = now;
   return e;
+}
+// System-generated feed entry logged when a new client / contact first enters the book.
+// (auto:true renders as a system activity in the feed.) Caller must savePeople afterward.
+function logContactAdded(p, req, extra) {
+  try {
+    const role = (p && p.type) ? (' as a ' + p.type) : '';
+    const where = extra ? (' · ' + extra) : (p && p.company ? (' · ' + p.company) : '');
+    logActivity(p, 'Contact Added', ('New contact added' + role + where).slice(0, 400), { auto: true, by: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '' });
+  } catch (e) {}
 }
 function effCompanyTypes() { const s = loadSettings(); return (Array.isArray(s.companyTypes) && s.companyTypes.length) ? s.companyTypes : COMPANY_TYPES; }
 function effTicketCategories() { const s = loadSettings(); return (Array.isArray(s.ticketCategories) && s.ticketCategories.length) ? s.ticketCategories : TICKET_CATEGORIES; }
@@ -2795,6 +2804,7 @@ app.delete('/api/assignment/:key/nda/:ndaId', (req, res) => {
 });
 // ---- People (global buyer registry) ----
 app.get('/api/people', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   const cos = {}, coMain = {}; loadCompanies().forEach(c => { cos[c.id] = c.name; coMain[c.id] = c.mainContactId || ''; });
   const people = loadPeople().filter(p => !restrictToOwn(req) || permOwnerMatch(req, p.by)).map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '', isMainContact: !!(p.companyId && coMain[p.companyId] === p.id) }));
   res.json({ ok: true, people: people, canDelete: canDelete(req), types: effPersonTypes(), isAdmin: !!(req.user && isSuper(req.user)) });
@@ -2840,6 +2850,7 @@ app.post('/api/person', express.json(), (req, res) => {
   if (b.vip !== undefined) p.vip = !!b.vip;
   if (b.tags !== undefined) p.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') p.notes = b.notes.slice(0, 4000);
+  if (isNew) logContactAdded(p, req);
   p.updatedAt = now; savePeople(arr);
   res.json({ ok: true, person: Object.assign({}, p, { emails: personEmails(p), phones: personPhones(p) }), people: arr.map(personBrief) });
 });
@@ -3182,6 +3193,7 @@ app.get('/api/personphoto/:name', (req, res) => {
 });
 // ---- Companies (account files) ----
 app.get('/api/companies', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
   const cos = loadCompanies().filter(c => !restrictToOwn(req) || permOwnerMatch(req, c.owner || c.by)), people = loadPeople(), deals = loadDeals();
   const rows = cos.map(c => {
     const mk = {}; (c.concepts || []).forEach(cp => (cp.markets || []).forEach(m => { if (m) mk[m] = 1; }));
