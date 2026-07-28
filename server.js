@@ -2758,7 +2758,7 @@ function importBbsLeads(req, leads) {
       const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
       const isDup = email && inqs.some(x => String(x.email || '').toLowerCase() === email.toLowerCase());
       if (isDup) { dupes++; }
-      else { inqs.push({ id: newInquiryId(), source: 'BizBuySell', name: l.name || '', email: email, phone: l.phone || '', personId: (person && person.id) || '', refId: l.refId || '', listingNumber: l.listingNumber || '', date: l.date || '', status: 'New', note: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); }
+      else { inqs.push({ id: newInquiryId(), source: 'BizBuySell', name: l.name || '', email: email, phone: l.phone || '', personId: (person && person.id) || '', refId: l.refId || '', listingNumber: l.listingNumber || '', date: l.date || '', status: 'Unqualified', note: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); }
       cur.inquiries = inqs; cur.updatedAt = now; overlay[key] = cur;
       try { const dv = idx[key] ? assignmentView(idx[key], overlay) : null; if (dv && dv.business) listingLabel = dv.business; } catch (e) {}
     } else { unmatched++; }
@@ -2860,7 +2860,7 @@ app.post('/api/assignment/:key/inquiry', express.json(), (req, res) => {
   const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {};
   const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
   const b = req.body || {}; const now = new Date().toISOString();
-  const INQ_STATUS = ['New', 'Contacted', 'NDA Sent', 'Toured', 'Offer', 'Passed', 'Dead'];
+  const INQ_STATUS = ['Unqualified', 'Contacted', 'Qualified', 'NDA Sent', 'Toured', 'Offer', 'Passed', 'Dead'];
   let rec = b.id ? inqs.find(x => x.id === b.id) : null;
   if (!rec) { rec = { id: newInquiryId(), source: b.source || 'Manual', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; inqs.push(rec); }
   if (typeof b.name === 'string') rec.name = b.name.slice(0, 120);
@@ -2868,7 +2868,7 @@ app.post('/api/assignment/:key/inquiry', express.json(), (req, res) => {
   if (typeof b.phone === 'string') rec.phone = b.phone.slice(0, 60);
   if (typeof b.note === 'string') rec.note = b.note.slice(0, 2000);
   if (typeof b.status === 'string' && INQ_STATUS.indexOf(b.status) >= 0) rec.status = b.status;
-  if (!rec.status) rec.status = 'New';
+  if (!rec.status) rec.status = 'Unqualified';
   if ((rec.name || rec.email) && !rec.personId) { const p = findOrCreatePerson(req, { name: rec.name || '', email: rec.email || '', phones: rec.phone ? [rec.phone] : [], type: 'Buyer' }); if (p) rec.personId = p.id; }
   rec.updatedAt = now;
   cur.inquiries = inqs; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
@@ -3052,6 +3052,34 @@ app.post('/api/person', express.json(), (req, res) => {
   if (isNew) logContactAdded(p, req);
   p.updatedAt = now; savePeople(arr);
   res.json({ ok: true, person: Object.assign({}, p, { emails: personEmails(p), phones: personPhones(p) }), people: arr.map(personBrief) });
+});
+// A buyer's interested listings (their inquiries across every listing) — the buyer-first view.
+function personInterested(personId) {
+  const overlay = loadAssignOverlay(); const idx = assignmentsIndex(); const out = [];
+  for (const key in overlay) {
+    const o = overlay[key] || {};
+    (Array.isArray(o.inquiries) ? o.inquiries : []).filter(x => x.personId === personId).forEach(x => {
+      let biz = ''; try { if (idx[key]) biz = assignmentView(idx[key], overlay).business; } catch (e) {}
+      out.push({ key: key, business: biz || key, status: x.status || 'Unqualified', inquiryId: x.id, date: x.date || x.createdAt || '' });
+    });
+  }
+  return out;
+}
+app.post('/api/person/:id/link-listing', express.json(), (req, res) => {
+  const p = personById(req.params.id); if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
+  const key = String((req.body || {}).key || ''); const idx = assignmentsIndex(); if (!idx[key]) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  const overlay = loadAssignOverlay(); const cur = overlay[key] || {}; const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
+  if (!inqs.some(x => x.personId === p.id)) {
+    inqs.push({ id: newInquiryId(), source: 'Linked', name: p.name || '', email: p.email || '', phone: p.phone || '', personId: p.id, status: 'Unqualified', note: '', createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' });
+  }
+  cur.inquiries = inqs; cur.updatedAt = new Date().toISOString(); overlay[key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, interested: personInterested(p.id) });
+});
+app.post('/api/person/:id/unlink-listing', express.json(), (req, res) => {
+  const p = personById(req.params.id); if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
+  const key = String((req.body || {}).key || ''); const overlay = loadAssignOverlay(); const cur = overlay[key];
+  if (cur) { cur.inquiries = (Array.isArray(cur.inquiries) ? cur.inquiries : []).filter(x => x.personId !== p.id); cur.updatedAt = new Date().toISOString(); overlay[key] = cur; saveAssignOverlay(overlay); }
+  res.json({ ok: true, interested: personInterested(p.id) });
 });
 app.delete('/api/person/:id', (req, res) => {
   if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete contacts.' });
@@ -3413,7 +3441,7 @@ app.get('/api/person/:id', (req, res) => {
   if (restrictToOwn(req) && !permOwnerMatch(req, p.by)) return res.status(403).json({ ok: false, error: 'You can only view your own contacts.' });
   const overlay = loadAssignOverlay(), idx = assignmentsIndex();
   const bizByKey = {}; for (const k in idx) { try { bizByKey[k] = assignmentView(idx[k], overlay).business; } catch (e) {} }
-  const deals = [], offers = [], tours = [], ndas = [];
+  const deals = [], offers = [], tours = [], ndas = [], interested = [];
   (Array.isArray(p.tours) ? p.tours : []).forEach(x => tours.push({ id: x.id, key: '', business: '', date: x.date, interest: x.interest, notes: x.notes, personLevel: true }));
   loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client' }); });
   for (const key in overlay) {
@@ -3421,8 +3449,9 @@ app.get('/api/person/:id', (req, res) => {
     (o.offers || []).filter(x => x.personId === p.id).forEach(x => offers.push({ key: key, business: biz, type: x.type, amount: x.amount, status: x.status, received: x.received }));
     (o.tours || []).filter(x => x.personId === p.id).forEach(x => tours.push({ id: x.id, key: key, business: biz, date: x.date, interest: x.interest }));
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
+    (o.inquiries || []).filter(x => x.personId === p.id).forEach(x => interested.push({ key: key, business: biz, status: x.status || 'New', inquiryId: x.id, date: x.date || x.createdAt || '' }));
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, interested, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
