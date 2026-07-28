@@ -889,7 +889,7 @@ app.use((req, res, next) => {
 // ---- AI usage meter (per-org billing groundwork) ----
 const AI_USAGE_FILE = path.join(BOV_DATA_DIR, 'ai_usage.json');
 function loadAiUsage() { try { return JSON.parse(fs.readFileSync(AI_USAGE_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveAiUsage(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(AI_USAGE_FILE, JSON.stringify(a.slice(-8000), null, 2)); } catch (e) {} }
+function saveAiUsage(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(AI_USAGE_FILE, JSON.stringify(a.slice(-20000), null, 2)); } catch (e) {} }
 // Rough $ estimate per AI action (web-search actions cost far more than a small text call).
 const AI_FEATURE_COST = { 'build-concepts': 0.22, 'find-locations': 0.09, 'find-concepts': 0.07, 'concept-resolve': 0.03, 'brief': 0.04, 'loi-review': 0.03, 'loi-suggest': 0.02, 'loi-parse': 0.02, 'loi-counter': 0.02, 'enrich-company': 0.02, 'enrich-contact': 0.02, 'contact-prep': 0.02, 'concept': 0.02, 'site-read': 0.02, 'calc-summary': 0.01, 'placer': 0.01, 'space-intake': 0.02, 'space-match': 0.02 };
 function aiMeterFeature(p) {
@@ -931,9 +931,26 @@ app.get('/api/admin/ai-usage', requireAdmin, (req, res) => {
   const r2 = n => Math.round(n * 100) / 100;
   const byUser = agg(month, x => (x.name || x.username)).map(r => ({ name: r.key, calls: r.calls, cost: r2(r.cost) }));
   const byFeature = agg(month, x => x.feature).map(r => ({ feature: r.key, calls: r.calls, cost: r2(r.cost) }));
-  res.json({ ok: true, month: ym, total: { calls: month.length, cost: r2(month.reduce((s, x) => s + (x.estCost || 0), 0)) }, allTime: { calls: all.length, cost: r2(all.reduce((s, x) => s + (x.estCost || 0), 0)) }, byUser: byUser, byFeature: byFeature });
+  // Daily time-series (last 90 days) for trend analysis, from the timestamped log.
+  const dayMap = {}; all.forEach(x => { const d = String(x.ts || '').slice(0, 10); if (!d) return; if (!dayMap[d]) dayMap[d] = { calls: 0, cost: 0 }; dayMap[d].calls++; dayMap[d].cost += (x.estCost || 0); });
+  const DAYS = 90; const daily = []; const _now = new Date();
+  for (let i = DAYS - 1; i >= 0; i--) { const dt = new Date(_now.getTime() - i * 86400000); const key = dt.toISOString().slice(0, 10); const e = dayMap[key]; daily.push({ date: key, calls: e ? e.calls : 0, cost: e ? r2(e.cost) : 0 }); }
+  const _since = ds => all.filter(x => String(x.ts || '') >= ds).length;
+  const _d7 = new Date(_now.getTime() - 7 * 86400000).toISOString(); const _d30 = new Date(_now.getTime() - 30 * 86400000).toISOString();
+  const windows = { last7: _since(_d7), last30: _since(_d30), firstTs: (all[0] && all[0].ts) || '', lastTs: (all[all.length - 1] && all[all.length - 1].ts) || '' };
+  res.json({ ok: true, month: ym, total: { calls: month.length, cost: r2(month.reduce((s, x) => s + (x.estCost || 0), 0)) }, allTime: { calls: all.length, cost: r2(all.reduce((s, x) => s + (x.estCost || 0), 0)) }, byUser: byUser, byFeature: byFeature, daily: daily, windows: windows });
 });
 
+// AI usage — CSV export of the raw timestamped log for offline trend analysis.
+app.get('/api/admin/ai-usage.csv', requireAdmin, (req, res) => {
+  const all = loadAiUsage();
+  const esc = v => { const s2 = String(v == null ? '' : v); return /[",\n]/.test(s2) ? '"' + s2.replace(/"/g, '""') + '"' : s2; };
+  const rows = [['timestamp', 'date', 'user', 'feature', 'est_cost_usd']];
+  all.forEach(x => rows.push([x.ts || '', String(x.ts || '').slice(0, 10), x.name || x.username || '', x.feature || '', x.estCost || 0]));
+  res.set('Content-Type', 'text/csv; charset=utf-8');
+  res.set('Content-Disposition', 'attachment; filename="ai-usage-' + new Date().toISOString().slice(0, 10) + '.csv"');
+  res.send(rows.map(r => r.map(esc).join(',')).join('\n'));
+});
 // Log which tool a signed-in rep opens (dashboard + any *.html tool page).
 app.use((req, res, next) => {
   try {
