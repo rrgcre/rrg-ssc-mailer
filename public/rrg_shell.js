@@ -64,7 +64,7 @@
     + ':root{--navbg:var(--navbg,#0b1a38);}'
     + 'body.rrg-shelled{padding-left:238px !important;padding-top:56px !important;}'
     + 'body.rrg-shelled .top,body.rrg-shelled .rrg-back{display:none !important;}'
-    + '#rrgnav{position:fixed;top:0;left:0;bottom:0;width:238px;background:var(--navbg,#0b1a38);color:#c7d0e4;display:flex;flex-direction:column;z-index:60;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
+    + '#rrgnav{position:fixed;top:56px;left:0;bottom:0;width:238px;background:var(--navbg,#0b1a38);color:#c7d0e4;display:flex;flex-direction:column;z-index:60;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
     + '#rrgnav .nt{display:flex;align-items:center;gap:9px;padding:10px 12px 6px;}'
     + '#rrgnav .ws{display:flex;align-items:center;gap:9px;cursor:pointer;border-radius:9px;padding:5px 7px;flex:1;text-decoration:none;}'
     + '#rrgnav .ws:hover{background:rgba(255,255,255,.06);}'
@@ -75,7 +75,7 @@
     + '#rrgtop .create{display:inline-flex;align-items:center;gap:6px;background:#fff;color:var(--red,#DA2B1F);border:1px solid var(--red,#DA2B1F);border-radius:9px;padding:8px 15px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .12s,color .12s;}'
     + '#rrgtop .create:hover{background:var(--red,#DA2B1F);color:#fff;}'
     + '#rrgtop .create .cplus{font-size:15px;font-weight:800;line-height:1;}'
-    + '#rrgnav .scroll{flex:1;overflow-y:auto;padding:2px 10px 14px;}'
+    + '#rrgnav .scroll{flex:1;overflow-y:auto;padding:10px 10px 14px;}'
     + '#rrgnav .scroll::-webkit-scrollbar{width:7px;}#rrgnav .scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:7px;}'
     + '#rrgnav .grp{margin-top:6px;}'
     + '#rrgnav .lbl{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:rgba(255,255,255,.34);font-weight:700;padding:2px 10px 2px;display:flex;align-items:center;gap:6px;cursor:pointer;border-radius:7px;}'
@@ -91,7 +91,10 @@
     + '#rrgnav a.it .navbadge{margin-left:auto;background:var(--red,#DA2B1F);color:#fff;font-size:10.5px;font-weight:800;min-width:19px;height:18px;line-height:18px;text-align:center;border-radius:9px;padding:0 5px;box-shadow:0 1px 3px rgba(0,0,0,.25);}'
     + '#rrgnav a.it .aitag{margin-left:5px;font-size:11px;line-height:1;opacity:.85;}'
     + '#rrgnav .foot{border-top:1px solid rgba(255,255,255,.09);padding:8px 10px;}'
-    + '#rrgtop{position:fixed;top:0;left:238px;right:0;height:56px;background:#fff;border-bottom:1px solid #e9edf3;display:flex;align-items:center;gap:18px;padding:0 22px;z-index:59;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
+    + '#rrgtop{position:fixed;top:0;left:0;right:0;height:56px;background:#fff;border-bottom:1px solid #e9edf3;display:flex;align-items:center;gap:18px;padding:0 22px;z-index:62;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
+    + '#rrgtop .rrgtoplogo{display:flex;align-items:center;height:100%;text-decoration:none;flex:none;margin-right:8px;max-width:224px;overflow:hidden;}'
+    + '#rrgtop .rrgtoplogo .rrgbrandimg{max-height:40px;max-width:212px;object-fit:contain;display:block;}'
+    + '#rrgtop .rrgtoplogo .rrgbrand{font-weight:800;font-size:18px;color:var(--navy,#000E31);letter-spacing:-.01em;white-space:nowrap;}'
     + '#rrgtop .pt{font-size:16.5px;font-weight:600;color:#1d2739;min-width:90px;}'
     + '#rrgtop .rrgback{display:inline-flex;align-items:center;gap:6px;color:#1d2739;text-decoration:none;font-size:13.5px;font-weight:500;padding:7px 13px;border:1px solid #e9edf3;border-radius:9px;background:#fff;white-space:nowrap;transition:background .12s;}'
     + '#rrgtop .rrgback:hover{background:#f2f4f8;}'
@@ -108,7 +111,6 @@
   // ---------- nav markup ----------
   var appName = 'RRG';
   var navHtml = '';
-  navHtml += '<div class="nt"><a class="ws" href="index.html" style="padding:2px 4px"><span class="rrgbrand" id="rrgbrand">RRG</span></a></div>';
   navHtml += '<div class="scroll">';
   NAV.forEach(function (g, gi) {
     var _sp = []; if (g.color) _sp.push('--gc:' + g.color); if (g.admin) _sp.push('display:none');
@@ -133,6 +135,7 @@
   if (!activeLabel) { var t = (document.title || '').split('—')[0].split(' - ')[0].trim(); activeLabel = t || 'RRG'; }
   var top = document.createElement('div'); top.id='rrgtop';
   top.innerHTML = ''
+    + '<a class="rrgtoplogo" href="index.html"><span class="rrgbrand" id="rrgbrand">RRG</span></a>'
     + '<div class="ic" id="rrgburger" style="display:none">≡</div>'
     + '<div class="srch"><span class="si">⌕</span><input placeholder="Search companies, contacts, listings…" id="rrgsearch"></div>'
     + '<div class="acts"><a class="create" href="rrg_companies.html"><span class="cplus">+</span> Create New</a><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><a class="ic" href="rrg_tasks.html" title="My Tasks">✔</a><div class="uav" id="rrguav">·</div></div>';
@@ -150,7 +153,7 @@
       // If we arrived here from another page inside the app, go back to THAT page
       // (e.g. the company you clicked from) rather than the list. Otherwise use the list.
       _bk.addEventListener('click',function(e){ try{ var rf=(document.referrer||'').split('#')[0], cur=location.href.split('#')[0]; if(rf && rf.indexOf(location.origin)===0 && rf!==cur && window.history.length>1){ e.preventDefault(); window.history.back(); } }catch(_e){} });
-      top.insertBefore(_bk, top.firstChild); } } } catch(e){}
+      var _lg=top.querySelector('.rrgtoplogo'); if(_lg&&_lg.nextSibling){ top.insertBefore(_bk,_lg.nextSibling); } else { top.insertBefore(_bk, top.firstChild); } } } } catch(e){}
     try { fetch('/api/counts',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var od=(j&&j.overdue)||{}; var NOUN={'rrg_tickets.html':'past-due request','rrg_tasks.html':'overdue task'}; Object.keys(od).forEach(function(href){ var c=od[href]||0; if(c<=0) return; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||tl.querySelector('.navbadge')) return; var noun=NOUN[href]||'item'; tl.title=c+' '+noun+(c===1?'':'s'); var b=document.createElement('span'); b.className='navbadge'; b.textContent=c>99?'99+':String(c); tl.appendChild(b); }); }).catch(function(){}); } catch(e){}
     // mobile burger
     var burger=document.getElementById('rrgburger'); if(window.innerWidth<=900){ burger.style.display='flex'; }
