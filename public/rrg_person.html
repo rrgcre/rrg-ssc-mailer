@@ -159,7 +159,7 @@ function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/
 function personPhotoUrl(){ return (P&&P.photoExt)?('/api/personphoto/'+encodeURIComponent(ID)+'.'+P.photoExt+'?v='+(P.updatedAt?encodeURIComponent(P.updatedAt):Date.now())):''; }
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 function money(v){ if(v==null||v==='') return ''; var n=Number(String(v).replace(/[^0-9.\-]/g,'')); if(!isFinite(n)||n===0) return esc(String(v)); return '$'+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
-var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], AGREEMENTS=[], ATYPES=[], PTYPES=['Buyer'], LEADSOURCES=[], ALLTAGS=[], CURTAGS=[], SAVET=null, EMAILREADY=false, COMPANIESLIST=[], ACTIVITIES=[], ACTTYPES=[], TEMPLATES=[], IS_ADMIN=false, DIRTY=false, GMAIL=[], GMAILCONN=false, GMAILEMAIL='', GMAILLOADED=false, PENDING_AGR_FILE=null;
+var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], AGREEMENTS=[], ATYPES=[], PTYPES=['Buyer'], LEADSOURCES=[], ALLTAGS=[], CURTAGS=[], SAVET=null, EMAILREADY=false, COMPANIESLIST=[], ACTIVITIES=[], ACTTYPES=[], TEMPLATES=[], IS_ADMIN=false, CAN_DELETE=false, DIRTY=false, GMAIL=[], GMAILCONN=false, GMAILEMAIL='', GMAILLOADED=false, PENDING_AGR_FILE=null;
 function deletePerson(){
   if(!confirm('Delete “'+((P&&P.name)||'this contact')+'” from your registry? Their name stays on any past offers, tours, and NDAs. This cannot be undone.')) return;
   var b=document.getElementById('p_delete'); b.disabled=true; b.textContent='Deleting…';
@@ -533,7 +533,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="p_notes" placeholder="Preferences, budget, concepts of interest, history…">'+esc(P.notes||'')+'</textarea></div>'
       + '</div></div>'
       + '<div class="saved" id="p_saved"></div><div id="p_msg" style="font-size:12.5px;color:#b23a2c;margin-top:8px"></div>'
-      + (IS_ADMIN?('<div class="pdangerz"><button class="pdelbtn" id="p_delete">Delete contact</button><div class="pdangernote">Admin only. Removes this person from the registry. Their name stays on any past offers and tours. Cannot be undone.</div></div>'):'')
+      + (CAN_DELETE?('<div class="pdangerz"><button class="pdelbtn" id="p_delete">Delete contact</button><div class="pdangernote">Removes this person from the registry. Their name stays on any past offers and tours. Cannot be undone.</div></div>'):'')
     + '</div></div></div>'
     + '<div class="mid">'+statTiles()+activityCard()+'</div>'
     + '<div class="rail">'+companyRail()+relatedRail()+agreementsCard()+'</div>';
@@ -617,7 +617,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No contact selected. <a href="./rrg_people.html">Back to contacts →</a></div>'; return; }
   fetch('/api/person/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ P=j.person; CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; IS_ADMIN=!!j.isAdmin; render(); loadGmail(); })
+    .then(function(j){ P=j.person; CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; render(); loadGmail(); })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this contact.')+'<br><br><a href="./rrg_people.html" style="color:#000E31;font-weight:700">← Back to contacts</a></div>'; });
 }
 fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ COMPANIESLIST=(j&&j.companies)||[]; }).catch(function(){});

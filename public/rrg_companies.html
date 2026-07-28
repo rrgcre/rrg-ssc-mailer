@@ -97,7 +97,7 @@ tr:hover td{background:#fbfcfe;}
 <script src="/rrg_list.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var ALL=[], CTL=null, IS_ADMIN=false;
+var ALL=[], CTL=null, IS_ADMIN=false, CAN_DELETE=false;
 function fuzzyMatch(hay,q){ hay=(hay||'').toLowerCase(); q=(q||'').toLowerCase().trim(); if(!q) return true; return q.split(/\s+/).every(function(t){ if(!t) return true; if(hay.indexOf(t)>=0) return true; var i=0; for(var j=0;j<hay.length&&i<t.length;j++){ if(hay.charAt(j)===t.charAt(i)) i++; } return i===t.length; }); }
 function applyFilter(){
   var q=(document.getElementById('search').value||'').trim();
@@ -122,7 +122,7 @@ function renderList(list){
       { label:'Tags', defaultHidden:true, sortable:false, cell:function(c){ return (c.tags&&c.tags.length)?esc(c.tags.join(', ')):'<span class="meta">—</span>'; } },
       { label:'Markets', defaultHidden:true, sortable:false, cell:function(c){ return (c.markets&&c.markets.length)?esc(c.markets.join(', ')):'<span class="meta">—</span>'; } },
       { label:'Created', defaultHidden:true, sort:function(a,b){ return RRGList.cmp(a.createdAt,b.createdAt); }, cell:function(c){ return c.createdAt?('<span class="meta">'+esc(String(c.createdAt).slice(0,10))+'</span>'):'<span class="meta">—</span>'; } },
-      { label:'', align:'right', sortable:false, cell:function(c){ return IS_ADMIN?('<button class="codel" data-del="'+esc(c.id)+'" data-name="'+esc(c.name)+'" data-deals="'+(c.deals||0)+'" title="Delete company">Delete</button>'):'<span class="meta">—</span>'; } }
+      { label:'', align:'right', sortable:false, cell:function(c){ return CAN_DELETE?('<button class="codel" data-del="'+esc(c.id)+'" data-name="'+esc(c.name)+'" data-deals="'+(c.deals||0)+'" title="Delete company">Delete</button>'):'<span class="meta">—</span>'; } }
     ]
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
@@ -132,6 +132,7 @@ var CUISINE=['American','Tex-Mex','Mexican','Italian','Pizza','Burgers','BBQ','S
 var DEFAULTSTATE='TX'; var PERSONTYPES=['Restaurant Owner'];
 var STOPWORDS={llc:1,inc:1,co:1,corp:1,corporation:1,company:1,ltd:1,the:1,a:1,an:1,of:1,and:1,restaurant:1,restaurants:1,group:1,grill:1,grille:1,kitchen:1,cafe:1,caf:1,bar:1,tavern:1,eatery:1,holdings:1,enterprises:1,hospitality:1,concepts:1,brands:1};
 function normName(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
+function titleCaseMarket(s){ s=String(s||'').trim(); if(!s) return ''; return s.replace(/[A-Za-z]+/g,function(w){ if(/[a-z]/.test(w)&&/[A-Z]/.test(w)) return w; var lw=w.toLowerCase(); return lw.charAt(0).toUpperCase()+lw.slice(1); }); }
 function coreTokens(s){ return normName(s).split(' ').filter(function(t){ return t && !STOPWORDS[t]; }); }
 function coreName(s){ return coreTokens(s).join(' '); }
 function lev(a,b){ if(a===b) return 0; var m=a.length,n=b.length; if(!m) return n; if(!n) return m; var prev=[],cur=[],i,j; for(j=0;j<=n;j++) prev[j]=j; for(i=1;i<=m;i++){ cur[0]=i; for(j=1;j<=n;j++){ var cost=a.charAt(i-1)===b.charAt(j-1)?0:1; cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+cost); } for(j=0;j<=n;j++) prev[j]=cur[j]; } return cur[n]; }
@@ -188,13 +189,13 @@ function createCompany(){
   var name=document.getElementById('m_name').value.trim(); if(!name){ document.getElementById('m_name').focus(); return; }
   var d=findDupe(name); if(d){ if(confirm('“'+d.name+'” is already in your book. Open it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(d.id); return; }
   var b=document.getElementById('m_create'); b.disabled=true; b.textContent='Creating…';
-  var conceptNames=((document.getElementById('m_concepts')||{}).value||'').split(/\n/).map(function(s){return s.trim();}).filter(Boolean).slice(0,6);
-  var metro=((document.getElementById('m_metro')||{}).value||'').trim();
+  var conceptNames=((document.getElementById('m_concepts')||{}).value||'').split(/\n/).map(function(s){return s.trim();}).filter(Boolean).slice(0,50);
+  var metro=titleCaseMarket(((document.getElementById('m_metro')||{}).value||'').trim());
   var cfirst=(document.getElementById('m_cfirst').value||'').trim(), clast=(document.getElementById('m_clast').value||'').trim();
   var cnick=(document.getElementById('m_cnick').value||'').trim(), ctitle=(document.getElementById('m_ctitle').value||'').trim(), cphone=(document.getElementById('m_cphone').value||'').trim(), cemail=(document.getElementById('m_cemail').value||'').trim();
   var ctype=document.getElementById('m_type').value;
   var findGrp=!!(document.getElementById('m_findgrp')&&document.getElementById('m_findgrp').checked&&ctype==='Restaurant Group');
-  if(findGrp){ b.textContent='Finding concepts…'; var _cmsg=document.getElementById('m_concept_msg'); if(_cmsg) _cmsg.textContent=''; fetch('/api/ai/find-concepts',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:name})}).then(function(r){return r.json();}).then(function(j){ var found=(j&&j.ok&&j.concepts)?j.concepts.map(function(c){return c.name;}).filter(Boolean).slice(0,12):[]; var ta=document.getElementById('m_concepts'); var cb=document.getElementById('m_findgrp'); if(cb) cb.checked=false; if(ta){ ta.disabled=false; ta.style.opacity=''; try{ta.dataset.auto='';}catch(e){} } b.disabled=false; b.textContent='Create company'; if(!found.length){ if(ta){ ta.value=''; ta.focus(); } if(_cmsg) _cmsg.textContent='Couldn’t find concepts for “'+name+'” — enter them below, one per line, then Create.'; return; } if(ta) ta.value=found.join('\n'); createCompany(); }).catch(function(){ var ta=document.getElementById('m_concepts'); var cb=document.getElementById('m_findgrp'); if(cb) cb.checked=false; if(ta){ ta.disabled=false; ta.style.opacity=''; ta.value=''; ta.focus(); } b.disabled=false; b.textContent='Create company'; if(_cmsg) _cmsg.textContent='Couldn’t reach the AI — enter the concepts below manually.'; }); return; }
+  if(findGrp){ b.textContent='Finding concepts…'; var _cmsg=document.getElementById('m_concept_msg'); if(_cmsg) _cmsg.textContent=''; fetch('/api/ai/find-concepts',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:name,market:metro})}).then(function(r){return r.json();}).then(function(j){ var found=(j&&j.ok&&j.concepts)?j.concepts.map(function(c){return c.name;}).filter(Boolean).slice(0,50):[]; var ta=document.getElementById('m_concepts'); var cb=document.getElementById('m_findgrp'); if(cb) cb.checked=false; if(ta){ ta.disabled=false; ta.style.opacity=''; try{ta.dataset.auto='';}catch(e){} } b.disabled=false; b.textContent='Create company'; if(!found.length){ if(ta){ ta.value=''; ta.focus(); } if(_cmsg) _cmsg.textContent='Couldn’t find concepts for “'+name+'” — enter them below, one per line, then Create.'; return; } if(ta) ta.value=found.join('\n'); createCompany(); }).catch(function(){ var ta=document.getElementById('m_concepts'); var cb=document.getElementById('m_findgrp'); if(cb) cb.checked=false; if(ta){ ta.disabled=false; ta.style.opacity=''; ta.value=''; ta.focus(); } b.disabled=false; b.textContent='Create company'; if(_cmsg) _cmsg.textContent='Couldn’t reach the AI — enter the concepts below manually.'; }); return; }
   var _stash=(conceptNames.length?{names:conceptNames,metro:metro}:null);
   var _pts=PERSONTYPES||[]; var contactType=(_pts.indexOf(ctype)>=0)?ctype:(_pts.indexOf('Restaurant Owner')>=0?'Restaurant Owner':(_pts.indexOf('Seller')>=0?'Seller':(_pts[0]||'Seller')));
   function J(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}); }
@@ -210,9 +211,15 @@ function createCompany(){
 function deleteCompany(id,name,deals){
   var dn=deals>0?(' This also deletes '+deals+' linked deal'+(deals===1?'':'s')+' and everything in them.'):'';
   if(!confirm('Delete “'+(name||'this company')+'” and ALL associated records?'+dn+'\n\nConcepts, locations, and photos go with it. Contacts are kept. Cannot be undone.')) return;
+  // Optimistic: drop it from the list the instant you confirm, so it disappears immediately
+  // even while the server takes a few seconds to purge linked deals, rooms and photos.
+  var _idx=-1, _backup=null;
+  for(var _i=0;_i<ALL.length;_i++){ if(ALL[_i].id===id){ _idx=_i; _backup=ALL[_i]; break; } }
+  if(_idx>=0){ ALL.splice(_idx,1); applyFilter(); }
+  function _restore(msg){ if(_backup){ ALL.splice(Math.min(_idx<0?ALL.length:_idx,ALL.length),0,_backup); applyFilter(); } if(msg) alert(msg); }
   fetch('/api/company/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ALL=ALL.filter(function(c){return c.id!==id;}); applyFilter(); } else alert((j&&j.error)||'Could not delete.'); })
-    .catch(function(){ alert('Could not reach the server.'); });
+    .then(function(r){return r.json();}).then(function(j){ if(!(j&&j.ok)) _restore((j&&j.error)||'Could not delete.'); })
+    .catch(function(){ _restore('Could not reach the server.'); });
 }
 document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.codel[data-del]'); if(b){ e.preventDefault(); deleteCompany(b.getAttribute('data-del'),b.getAttribute('data-name'),Number(b.getAttribute('data-deals'))||0); } });
 document.getElementById('newBtn').addEventListener('click',openModal);
@@ -227,7 +234,7 @@ document.getElementById('m_type').addEventListener('change',updateFindGrp);
 var _fgcb=document.getElementById('m_findgrp'); if(_fgcb) _fgcb.addEventListener('change',toggleConceptEntry);
 (function(){ var ti=document.getElementById('m_ctag'); if(ti){ ti.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===','){ e.preventDefault(); addMTag(ti.value); ti.value=''; } }); ti.addEventListener('change',function(){ if(ti.value){ addMTag(ti.value); ti.value=''; } }); } var ph=document.getElementById('m_cphone'); if(ph){ ph.addEventListener('input',function(){ ph.value=mfmtPhone(ph.value); }); } })();
 document.getElementById('modal').addEventListener('click',function(e){ /* clicking the backdrop no longer closes the window — prevents losing entered info. Use Cancel to close. */ });
-fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; CTYPES=(j&&j.types)||CTYPES; CUISINE=(j&&j.cuisineTypes)||CUISINE; CONCEPTTYPES=(j&&j.conceptTypes)||CONCEPTTYPES; LEADSOURCES=(j&&j.leadSources)||LEADSOURCES; DEFAULTSTATE=(j&&j.defaultState)||DEFAULTSTATE; PERSONTYPES=(j&&j.personTypes)||PERSONTYPES; CITIES=(j&&j.cities)||[]; TITLES=(j&&j.titles)||[]; ALLTAGS=(j&&j.allTags)||[]; METROS=(j&&j.metros)||[]; var _ml=document.getElementById('metrolist'); if(_ml) _ml.innerHTML=METROS.map(function(m){return '<option value="'+esc(m)+'">';}).join(''); IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load companies.</div>'; });
+fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; CTYPES=(j&&j.types)||CTYPES; CUISINE=(j&&j.cuisineTypes)||CUISINE; CONCEPTTYPES=(j&&j.conceptTypes)||CONCEPTTYPES; LEADSOURCES=(j&&j.leadSources)||LEADSOURCES; DEFAULTSTATE=(j&&j.defaultState)||DEFAULTSTATE; PERSONTYPES=(j&&j.personTypes)||PERSONTYPES; CAN_DELETE=!!(j&&j.canDelete); CITIES=(j&&j.cities)||[]; TITLES=(j&&j.titles)||[]; ALLTAGS=(j&&j.allTags)||[]; METROS=(j&&j.metros)||[]; var _ml=document.getElementById('metrolist'); if(_ml) _ml.innerHTML=METROS.map(function(m){return '<option value="'+esc(m)+'">';}).join(''); IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load companies.</div>'; });
 </script>
 <script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
 <script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>

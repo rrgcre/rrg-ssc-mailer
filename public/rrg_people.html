@@ -100,7 +100,7 @@ tr:hover td{background:#fbfcfe;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return (((p[0]||'')[0]||'')+((p[1]||'')[0]||'')).toUpperCase(); }
 function tclass(t){ return 't-'+String(t||'other').toLowerCase().replace(/[^a-z]+/g,''); }
-var ALL=[], CTL=null, FILTER='', TYPES=[], IS_ADMIN=false, VIPONLY=false;
+var ALL=[], CTL=null, FILTER='', TYPES=[], IS_ADMIN=false, CAN_DELETE=false, VIPONLY=false;
 function renderFilters(){
   var opts='<option value="">All types</option>'+TYPES.map(function(t){ return '<option'+(FILTER===t?' selected':'')+'>'+esc(t)+'</option>'; }).join('');
   document.getElementById('filters').innerHTML='<span class="flabel">Type</span><select id="typeFilter" class="fsel">'+opts+'</select>'+'<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:#8a6d10;cursor:pointer;margin-left:6px"><input type="checkbox" id="vipOnly"'+(VIPONLY?' checked':'')+' style="accent-color:#e2b93a"> \u2605 VIP only</label>';
@@ -122,7 +122,7 @@ function renderList(list){
   var cfg={ mount:'#body', data:list, key:'contacts', countEl:'#cnt',
     empty:'<div class="empty"><b>No contacts yet.</b>Contacts are added as you log offers, tours, and NDAs, or from a company file.</div>',
     rowId:function(p){ return p.id; }, defaultSort:0, defaultDir:1,
-    bulk: IS_ADMIN ? [ { label:'Merge\u2026', min:2, fn:openMergePicker }, { label:'Delete', danger:true, min:1, fn:bulkDeletePeople } ] : null,
+    bulk: (function(){ var _b=[]; if(IS_ADMIN) _b.push({ label:'Merge\u2026', min:2, fn:openMergePicker }); if(CAN_DELETE) _b.push({ label:'Delete', danger:true, min:1, fn:bulkDeletePeople }); return _b.length?_b:null; })(),
     columns:[
       { label:'Name', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(p){ var star=p.vip?'<span title="VIP" style="color:#e2b93a;font-weight:900;margin-right:4px">\u2605</span>':''; var nm=star+'<a class="nmlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">'+esc(p.name||'Contact')+'</a>'+(p.nickname?(' <span class="meta">“'+esc(p.nickname)+'”</span>'):''); return '<div class="who"><div class="av">'+esc(initials(p.name))+'</div><div><div class="nm">'+nm+'</div><div class="meta">'+esc(p.email||'')+'</div></div></div>'; } },
       { label:'Company', sort:function(a,b){ return RRGList.cmp(a.companyName||a.company,b.companyName||b.company); }, cell:function(p){ var cn=p.companyName||p.company||''; if(!cn) return '<span class="meta">—</span>'; return p.companyId?('<a class="colink" href="./rrg_company.html?id='+encodeURIComponent(p.companyId)+'">'+esc(cn)+'</a>'):esc(cn); } },
@@ -138,7 +138,7 @@ function renderList(list){
       { label:'Tags', defaultHidden:true, sortable:false, cell:function(p){ return (p.tags&&p.tags.length)?p.tags.map(function(t){return '<span style="font-size:10px;font-weight:700;color:#3a4c74;background:#eef2fb;border:1px solid #dbe4f5;border-radius:6px;padding:1px 6px;margin-right:3px">'+esc(t)+'</span>';}).join(''):'<span class="meta">—</span>'; } },
       { label:'Lead source', defaultHidden:true, sort:function(a,b){ return RRGList.cmp(a.leadSource,b.leadSource); }, cell:function(p){ return p.leadSource?esc(p.leadSource):'<span class="meta">—</span>'; } },
       { label:'Preferred', defaultHidden:true, sortable:false, cell:function(p){ return (p.prefContact&&p.prefContact.length)?esc(p.prefContact.join(', ')):'<span class="meta">—</span>'; } },
-      { label:'', align:'right', sortable:false, cell:function(p){ return IS_ADMIN?('<button class="pdel" data-del="'+esc(p.id)+'" data-name="'+esc(p.name||'')+'">Delete</button>'):'<span class="meta">—</span>'; } }
+      { label:'', align:'right', sortable:false, cell:function(p){ return CAN_DELETE?('<button class="pdel" data-del="'+esc(p.id)+'" data-name="'+esc(p.name||'')+'">Delete</button>'):'<span class="meta">—</span>'; } }
     ]
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
@@ -184,7 +184,7 @@ document.getElementById('newBtn').addEventListener('click',openModal);
 document.getElementById('m_cancel').addEventListener('click',closeModal);
 document.getElementById('m_create').addEventListener('click',createContact);
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target.id==='modal') closeModal(); });
-function reloadPeople(){ return fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; if(j&&j.types) TYPES=j.types; IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }); }
+function reloadPeople(){ return fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; if(j&&j.types) TYPES=j.types; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); applyFilter(); }); }
 function bulkDeletePeople(ids, done){
   if(!ids||!ids.length) return;
   if(!confirm('Delete '+ids.length+' contact'+(ids.length>1?'s':'')+' from your registry? Their names stay on any past offers, tours and NDAs. This cannot be undone.')) return;
@@ -217,7 +217,7 @@ function deletePerson(pid,name){
     .catch(function(){ alert('Could not reach the server.'); });
 }
 document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.pdel[data-del]'); if(b){ e.preventDefault(); deletePerson(b.getAttribute('data-del'),b.getAttribute('data-name')); } });
-fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&j.isAdmin); renderFilters(); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load contacts.</div>'; });
+fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; TYPES=(j&&j.types)||[]; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); renderFilters(); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load contacts.</div>'; });
 </script>
 <script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
 <script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>

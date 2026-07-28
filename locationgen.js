@@ -140,7 +140,7 @@ async function findGroupConcepts({ name, website, market }) {
   const resp = await fetch(API_URL, {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: MODEL, max_tokens: 1500, temperature: 0.1, system: [{ type: 'text', text: GROUP_SYSTEM }], tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 6 }], messages: [{ role: 'user', content: ask }] }),
+    body: JSON.stringify({ model: MODEL, max_tokens: 1500, temperature: 0.1, system: [{ type: 'text', text: GROUP_SYSTEM }], tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 10 }], messages: [{ role: 'user', content: ask }] }),
   });
   if (!resp.ok) { const t = await resp.text().catch(() => ''); throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 400)); }
   const data = await resp.json();

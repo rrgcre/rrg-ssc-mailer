@@ -195,7 +195,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
-var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], CUISINE_TYPES=[], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], LOGOAUTO='', TITLES=[], LEADSOURCES=[], CO_AGR_FILE=null, DIRTY=false;
+var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], CUISINE_TYPES=[], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, CAN_DELETE=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], LOGOAUTO='', TITLES=[], LEADSOURCES=[], CO_AGR_FILE=null, DIRTY=false;
 var EXPANDED={};
 function conceptById(id){ return CONCEPTS.filter(function(x){return x.id===id;})[0]||null; }
 function normUrl(u){ u=String(u||'').trim(); if(!u) return ''; return /^https?:\/\//i.test(u)?u:('https://'+u); }
@@ -349,7 +349,7 @@ function render(){
         + '<div class="fldrow"><label class="fld">Website</label><input id="o_website" value="'+esc((C.office&&C.office.website)||'')+'"></div>'
       + '</div>'
       + '<button class="savebtn" id="c_save" disabled>Save changes</button><div class="saved" id="c_saved">Saved ✓</div>'
-      + (IS_ADMIN?('<div class="dangerz"><button class="delco" id="c_delete">Delete company</button><div class="dangernote">Admin only. Permanently removes this company, its concepts, all locations &amp; photos, and every listing tied to it — records, data rooms, and files. Contacts are kept. Cannot be undone.</div></div>'):'')
+      + (CAN_DELETE?('<div class="dangerz"><button class="delco" id="c_delete">Delete company</button><div class="dangernote">Permanently removes this company, its concepts, all locations &amp; photos, and every listing tied to it — records, data rooms, and files. Contacts are kept. Cannot be undone.</div></div>'):'')
     + '</div></div></div>';
   ['c_name','c_type','c_lead','c_tags','c_notes','o_address','o_city','o_state','o_phone','o_email','o_website'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener(el.tagName==='SELECT'?'change':'input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; }); });
   // Autosave: save on leaving a field (change/blur) or after a ~1s pause while typing.
@@ -533,7 +533,7 @@ function buildAllConcepts(){
   runBuildConcepts(names,metro,count);
 }
 function runBuildConcepts(names,metro,count){
-  names=(names||[]).slice(0,12); if(!names.length) return;
+  names=(names||[]).slice(0,50); if(!names.length) return;
   _cbStop=false; var i=0, ok=0, notes=[];
   aiShow('Starting on '+names.length+' concept'+(names.length===1?'':'s')+'…', function(){ _cbStop=true; });
   function J(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}); }
@@ -820,7 +820,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No company selected. <a href="./rrg_companies.html">Back to companies →</a></div>'; return; }
   fetch('/api/company/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; TITLES=j.titles||TITLES; LEADSOURCES=j.leadSources||LEADSOURCES; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; HASMAPS=!!j.hasMaps; render(); try{ var _pb=localStorage.getItem('rrg_build_'+ID); if(_pb){ localStorage.removeItem('rrg_build_'+ID); var _o=JSON.parse(_pb)||{}; if(_o.findGroup){ setTimeout(function(){ autoFindGroup(_o.metro||''); },500); } else if(_o.names&&_o.names.length){ setTimeout(function(){ runBuildConcepts(_o.names,_o.metro||'',''); },500); } } }catch(e){} })
+    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; TITLES=j.titles||TITLES; LEADSOURCES=j.leadSources||LEADSOURCES; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; HASMAPS=!!j.hasMaps; render(); try{ var _pb=localStorage.getItem('rrg_build_'+ID); if(_pb){ localStorage.removeItem('rrg_build_'+ID); var _o=JSON.parse(_pb)||{}; if(_o.findGroup){ setTimeout(function(){ autoFindGroup(_o.metro||''); },500); } else if(_o.names&&_o.names.length){ setTimeout(function(){ runBuildConcepts(_o.names,_o.metro||'',''); },500); } } }catch(e){} })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this company.')+'<br><br><a href="./rrg_companies.html" style="color:#000E31;font-weight:700">← Back to companies</a></div>'; });
 }
 var ASSISTANT='the RRG analyst'; var CLABEL='Concept', CLABELP='Concepts';

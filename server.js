@@ -382,11 +382,11 @@ function findOrCreateCompany(req, info) {
   const arr = loadCompanies();
   let c = arr.find(x => normKey(x.name) === normKey(name));
   if (c) {
-    if (info.market && !c.market) { c.market = String(info.market).slice(0, 80); c.updatedAt = new Date().toISOString(); saveCompanies(arr); }
+    if (info.market && !c.market) { c.market = titleCaseMarket(String(info.market).slice(0, 80)); c.updatedAt = new Date().toISOString(); saveCompanies(arr); }
     return c;
   }
   const type = (info && COMPANY_TYPES.indexOf(info.type) >= 0) ? info.type : 'Seller';
-  c = { id: newCompanyId(), name: name.slice(0, 160), market: String((info && info.market) || '').slice(0, 80), type: type, notes: '', createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+  c = { id: newCompanyId(), name: name.slice(0, 160), market: titleCaseMarket(String((info && info.market) || '').slice(0, 80)), type: type, notes: '', createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
   arr.push(c); saveCompanies(arr);
   return c;
 }
@@ -773,6 +773,18 @@ function isSuper(u) { if (!u) return false; var r = u.role; return r === 'admin'
 function manageLoiOk(req) { return isSuper(req.user) || (permsEnabled() && !!effectivePerms(req.user).manage_loi); }
 function requireManageLoi(req, res, next) { if (manageLoiOk(req)) return next(); return res.status(403).json({ ok: false, error: 'You do not have permission to manage the LOI library.' }); }
 function aiAllowed(req) { return isSuper(req.user) || !permsEnabled() || !!effectivePerms(req.user).use_ai; }
+function canDelete(req) { return isSuper(req.user) || (permsEnabled() && !!effectivePerms(req.user).delete); }
+// Smart title-case for market / city names typed by a rep: fixes "san antonio" -> "San Antonio"
+// but leaves intentionally mixed-case names alone (McAllen, DeSoto, LaGrange).
+function titleCaseMarket(s) {
+  s = String(s || '').trim();
+  if (!s) return '';
+  return s.replace(/[A-Za-z]+/g, function (w) {
+    if (/[a-z]/.test(w) && /[A-Z]/.test(w)) return w;
+    var lw = w.toLowerCase();
+    return lw.charAt(0).toUpperCase() + lw.slice(1);
+  });
+}
 function requireAdmin(req, res, next) {
   if (req.user && isSuper(req.user)) return next();
   if (req.path.startsWith('/api/')) return res.status(403).json({ ok: false, error: 'Admin only.' });
@@ -2785,7 +2797,7 @@ app.delete('/api/assignment/:key/nda/:ndaId', (req, res) => {
 app.get('/api/people', (req, res) => {
   const cos = {}, coMain = {}; loadCompanies().forEach(c => { cos[c.id] = c.name; coMain[c.id] = c.mainContactId || ''; });
   const people = loadPeople().filter(p => !restrictToOwn(req) || permOwnerMatch(req, p.by)).map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '', isMainContact: !!(p.companyId && coMain[p.companyId] === p.id) }));
-  res.json({ ok: true, people: people, types: effPersonTypes(), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, people: people, canDelete: canDelete(req), types: effPersonTypes(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 app.post('/api/person', express.json(), (req, res) => {
   const b = req.body || {};
@@ -2832,7 +2844,7 @@ app.post('/api/person', express.json(), (req, res) => {
   res.json({ ok: true, person: Object.assign({}, p, { emails: personEmails(p), phones: personPhones(p) }), people: arr.map(personBrief) });
 });
 app.delete('/api/person/:id', (req, res) => {
-  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
+  if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete contacts.' });
   const arr = loadPeople().filter(p => p.id !== req.params.id);
   savePeople(arr);
   res.json({ ok: true, people: arr.map(personBrief) });
@@ -3180,7 +3192,7 @@ app.get('/api/companies', (req, res) => {
     return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, contacts: _cp.length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, mainContactId: (_main && _main.id) || '', mainContact: (_main && _main.name) || '', preferredContact: _pref, createdAt: c.createdAt };
   });
   const _cities = {}; cos.forEach(c => { if (c.office && c.office.city) _cities[c.office.city] = 1; (c.locations || []).forEach(l => { if (l.city) _cities[l.city] = 1; }); }); const _titles = {}; people.forEach(pp => { if (pp.title) _titles[pp.title] = 1; });
-  res.json({ ok: true, companies: rows, types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: CONCEPT_TYPES, leadSources: effLeadSources(), defaultState: effDefaultState(), personTypes: effPersonTypes(), metros: RRG_METROS, cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, companies: rows, canDelete: canDelete(req), types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: CONCEPT_TYPES, leadSources: effLeadSources(), defaultState: effDefaultState(), personTypes: effPersonTypes(), metros: RRG_METROS, cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // A person's full cross-book view: their company, the deals where they're the client,
 // and every offer / tour / NDA they're linked to across all deals.
@@ -3199,7 +3211,7 @@ app.get('/api/person/:id', (req, res) => {
     (o.tours || []).filter(x => x.personId === p.id).forEach(x => tours.push({ id: x.id, key: key, business: biz, date: x.date, interest: x.interest }));
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
@@ -3528,7 +3540,7 @@ app.get('/api/company/:id', (req, res) => {
   const _pn = {}; loadPeople().forEach(p => { _pn[p.id] = p.name; });
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
-  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), hasMaps: !!loadGmapsKey(), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), hasMaps: !!loadGmapsKey(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // ---- Concepts — a company runs one or more concepts (brands); locations attach to a concept. ----
 function newConceptId() { return 'cpt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -3549,7 +3561,7 @@ app.post('/api/company/:id/concept', express.json(), (req, res) => {
     const oldName = cpt.name;
     cpt.name = name.slice(0, 120);
     if (typeof b.website === 'string') cpt.website = b.website.slice(0, 300);
-    if (Array.isArray(b.markets)) cpt.markets = b.markets.map(x => String(x || '').slice(0, 80)).filter(Boolean).slice(0, 30);
+    if (Array.isArray(b.markets)) cpt.markets = b.markets.map(x => titleCaseMarket(String(x || '').slice(0, 80))).filter(Boolean).slice(0, 30);
     if (typeof b.conceptType === 'string') cpt.conceptType = CONCEPT_TYPES.indexOf(b.conceptType) >= 0 ? b.conceptType : '';
     if (typeof b.pricePoint === 'string') cpt.pricePoint = PRICE_POINTS.indexOf(b.pricePoint) >= 0 ? b.pricePoint : '';
     if (typeof b.cuisine === 'string') cpt.cuisine = effCuisineTypes().indexOf(b.cuisine) >= 0 ? b.cuisine : '';
@@ -3824,7 +3836,7 @@ app.post('/api/company/:id/contact/:personId/remove', (req, res) => {
   res.json({ ok: true, contacts });
 });
 app.delete('/api/company/:id', (req, res) => {
-  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
+  if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete companies.' });
   const id = req.params.id;
   const companies = loadCompanies();
   const c = companies.find(x => x.id === id);
