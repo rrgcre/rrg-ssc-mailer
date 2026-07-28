@@ -51,7 +51,8 @@
       { ic: '◫', label: 'Departments', href: 'rrg_departments.html' },
       { ic: '☺', label: 'Users', href: 'rrg_roles.html' },
       { ic: '◔', label: 'Roles', href: 'rrg_roles.html' },
-      { ic: '⚙', label: 'Settings', href: 'rrg_admin_settings.html' }
+      { ic: '⚙', label: 'Settings', href: 'rrg_admin_settings.html' },
+      { ic: '∿', label: 'AI Usage', href: 'rrg_admin_aiusage.html' }
     ] }
   ];
 
@@ -176,4 +177,42 @@
       }).catch(function(){});
     } catch(e){}
   }
+})();
+
+/* ---- Shared AI UX: one canonical working box (rrgAiWork) + pre-flight confirm (rrgAiConfirm) ---- */
+(function(){
+  function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+  function assistant(){ return window.__rrgAssistant||'AI'; }
+  function injectCss(){ if(document.getElementById('rrgaiwork-css')) return; var st=document.createElement('style'); st.id='rrgaiwork-css';
+    st.textContent='.rrgaiwork{position:fixed;inset:0;background:rgba(10,10,30,.55);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;}'
+    +'.rrgaiwork[hidden]{display:none!important;}'
+    +'.rrgaiwbox{background:#fff;border-radius:18px;padding:32px 34px 26px;max-width:460px;width:100%;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.42);position:relative;overflow:hidden;}'
+    +'.rrgaiwbox:before{content:"";position:absolute;top:-45%;left:-45%;width:190%;height:190%;background:conic-gradient(from 0deg,#5b46b8,#8b5cf6,#ec4899,#f59e0b,#22c55e,#3b82f6,#5b46b8);opacity:.13;animation:rrgaispin 7s linear infinite;}'
+    +'@keyframes rrgaispin{to{transform:rotate(360deg);}}'
+    +'.rrgaiworb{width:64px;height:64px;border-radius:50%;margin:0 auto 16px;background:conic-gradient(from 0deg,#5b46b8,#8b5cf6,#ec4899,#f59e0b,#22c55e,#3b82f6,#5b46b8);animation:rrgaispin 1.6s linear infinite;position:relative;z-index:1;}'
+    +'.rrgaiworb:after{content:"\\2728";position:absolute;inset:7px;display:flex;align-items:center;justify-content:center;font-size:23px;background:#fff;border-radius:50%;}'
+    +'.rrgaiwtitle{font-weight:800;color:#0b1a38;font-size:16px;position:relative;z-index:1;}'
+    +'.rrgaiwmsg{color:#5a6478;font-size:13px;margin-top:7px;line-height:1.5;min-height:18px;position:relative;z-index:1;}'
+    +'.rrgaiwtimer{font-variant-numeric:tabular-nums;font-weight:800;font-size:22px;color:#5b46b8;margin-top:12px;position:relative;z-index:1;}'
+    +'.rrgaiwcancel{margin-top:18px;background:#fff;border:1px solid #d5dbe6;border-radius:9px;padding:8px 18px;font:inherit;font-size:13px;font-weight:600;color:#5a6478;cursor:pointer;position:relative;z-index:1;}'
+    +'.rrgaicfhd{font-weight:800;color:#0b1a38;font-size:17px;position:relative;z-index:1;}'
+    +'.rrgaicfbody{color:#5a6478;font-size:13.5px;margin-top:8px;line-height:1.55;position:relative;z-index:1;}'
+    +'.rrgaicfask{display:flex;align-items:center;gap:7px;font-size:12.5px;color:#5a6478;margin-top:14px;position:relative;z-index:1;cursor:pointer;}'
+    +'.rrgaicfbtns{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;position:relative;z-index:1;}'
+    +'.rrgaicfcancel{background:#fff;border:1px solid #d5dbe6;border-radius:9px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;color:#5a6478;cursor:pointer;}'
+    +'.rrgaicfgo{background:#5b46b8;border:1px solid #5b46b8;border-radius:9px;padding:9px 18px;font:inherit;font-size:13px;font-weight:700;color:#fff;cursor:pointer;}';
+    document.head.appendChild(st); }
+  var AIW={onCancel:null,t0:0,timer:null};
+  function fmt(ms){ var s=Math.max(0,Math.floor(ms/1000)); var m=Math.floor(s/60); s=s%60; return m+':'+(s<10?'0':'')+s; }
+  function ensure(){ var o=document.getElementById('rrgaiwork'); if(o) return o; injectCss(); o=document.createElement('div'); o.className='rrgaiwork'; o.id='rrgaiwork'; o.hidden=true; o.innerHTML='<div class="rrgaiwbox"><div class="rrgaiworb"></div><div class="rrgaiwtitle" id="rrgaiwtitle">Working…</div><div class="rrgaiwmsg" id="rrgaiwmsg"></div><div class="rrgaiwtimer" id="rrgaiwtimer">0:00</div><button type="button" class="rrgaiwcancel" id="rrgaiwcancel">Cancel</button></div>'; document.body.appendChild(o); o.querySelector('#rrgaiwcancel').addEventListener('click',function(){ var f=AIW.onCancel; hide(); if(typeof f==="function"){try{f();}catch(e){}} }); return o; }
+  function show(msg,onCancel){ ensure(); document.getElementById('rrgaiwtitle').textContent='✨ '+assistant()+' is working…'; document.getElementById('rrgaiwmsg').textContent=msg||''; AIW.onCancel=onCancel||null; var cb=document.getElementById('rrgaiwcancel'); if(cb) cb.style.display=onCancel?'':'none'; AIW.t0=Date.now(); if(AIW.timer) clearInterval(AIW.timer); AIW.timer=setInterval(function(){ var t=document.getElementById('rrgaiwtimer'); if(t) t.textContent=fmt(Date.now()-AIW.t0); },1000); document.getElementById('rrgaiwtimer').textContent='0:00'; document.getElementById('rrgaiwork').hidden=false; }
+  function setMsg(msg){ var m=document.getElementById('rrgaiwmsg'); if(m) m.textContent=msg||''; }
+  function hide(){ var o=document.getElementById('rrgaiwork'); if(o) o.hidden=true; AIW.onCancel=null; if(AIW.timer){ clearInterval(AIW.timer); AIW.timer=null; } }
+  window.rrgAiWork={show:show,setMsg:setMsg,hide:hide};
+  window.rrgAiConfirm=function(opts){ opts=opts||{}; var key='rrgai_skip_'+(opts.actionKey||'ai'); try{ if(localStorage.getItem(key)==='1'){ if(opts.onProceed) opts.onProceed(); return; } }catch(e){}
+    injectCss(); var ov=document.createElement('div'); ov.className='rrgaiwork'; ov.style.zIndex='1001';
+    ov.innerHTML='<div class="rrgaiwbox" style="text-align:left"><div class="rrgaicfhd">✨ '+esc(opts.title||('Run '+assistant()))+'</div><div class="rrgaicfbody">'+esc(opts.body||'This uses AI.')+'</div><label class="rrgaicfask"><input type="checkbox" id="rrgaidontask"> Don’t ask again for this</label><div class="rrgaicfbtns"><button type="button" class="rrgaicfcancel" id="rrgaicfcancel">Cancel</button><button type="button" class="rrgaicfgo" id="rrgaicfgo">Continue</button></div></div>';
+    document.body.appendChild(ov); function close(){ ov.remove(); } ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+    ov.querySelector('#rrgaicfcancel').addEventListener('click',close);
+    ov.querySelector('#rrgaicfgo').addEventListener('click',function(){ if(document.getElementById('rrgaidontask').checked){ try{localStorage.setItem(key,'1');}catch(e){} } close(); if(opts.onProceed) opts.onProceed(); }); };
 })();
