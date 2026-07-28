@@ -2768,6 +2768,12 @@ function parseBizBuySellLeads(text) {
     'name': 'name', 'buyer': 'name', 'buyer name': 'name', 'from': 'name',
     'email': 'email', 'e-mail': 'email', 'email address': 'email',
     'phone': 'phone', 'phone number': 'phone', 'tel': 'phone', 'telephone': 'phone', 'mobile': 'phone', 'cell': 'phone',
+    'first name': 'firstName', 'first': 'firstName', 'fname': 'firstName',
+    'last name': 'lastName', 'last': 'lastName', 'lname': 'lastName', 'surname': 'lastName',
+    'message': 'message', 'comments': 'message', 'comment': 'message', 'buyer message': 'message', 'inquiry': 'message',
+    'zip': 'zip', 'zip code': 'zip', 'zipcode': 'zip', 'postal code': 'zip', 'postal': 'zip',
+    'available funds': 'funds', 'funds': 'funds', 'funds available': 'funds', 'available capital': 'funds', 'capital': 'funds', 'liquid capital': 'funds', 'cash available': 'funds',
+    'time frame': 'timeframe', 'timeframe': 'timeframe', 'timeline': 'timeframe', 'purchase timeframe': 'timeframe', 'buying timeframe': 'timeframe',
   };
   const leads = []; let cur = null;
   function flush(){ if (cur && (cur.email || cur.phone)) leads.push(cur); cur = null; }
@@ -2798,6 +2804,12 @@ function parseBizBuySellLeads(text) {
     name: String(l.name || '').slice(0, 120),
     email: String(l.email || '').slice(0, 160),
     phone: String(l.phone || '').slice(0, 60),
+    firstName: String(l.firstName || '').slice(0, 80),
+    lastName: String(l.lastName || '').slice(0, 80),
+    message: String(l.message || '').replace(/\s+/g, ' ').slice(0, 2000),
+    zip: String(l.zip || '').replace(/[^0-9A-Za-z \-]/g, '').slice(0, 20),
+    funds: String(l.funds || '').slice(0, 80),
+    timeframe: String(l.timeframe || '').slice(0, 120),
   })).filter(l => l.email || l.phone);
 }
 // Core importer: buyer contact (deduped) + inquiry on the matched listing + follow-up task.
@@ -2816,8 +2828,9 @@ function importBbsLeads(req, leads) {
     const refKey = l.refId ? byRef[String(l.refId).toLowerCase().trim()] : null;
     const numKey = l.listingNumber ? byNum[String(l.listingNumber).toLowerCase().trim()] : null;
     const key = refKey || numKey || null;
-    const person = findOrCreatePerson(req, { name: l.name || '', email: email, phones: l.phone ? [l.phone] : [], type: (PERSON_TYPES.indexOf('Buyer') >= 0 ? 'Buyer' : 'Buyer') });
-    if (person) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === person.id); if (pp) { logActivity(pp, 'BizBuySell Lead', ('Inquired on ' + (l.listingName || 'a listing') + (l.refId ? (' \u00b7 Ref ' + l.refId) : (l.listingNumber ? (' \u00b7 #' + l.listingNumber) : ''))).slice(0, 300), { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
+    const qualBits = []; if (l.funds) qualBits.push('Funds: ' + l.funds); if (l.timeframe) qualBits.push('Timeframe: ' + l.timeframe); if (l.zip) qualBits.push('Zip: ' + l.zip); const qualLine = qualBits.join(' \u00b7 ');
+    const person = findOrCreatePerson(req, { name: l.name || '', firstName: l.firstName || '', lastName: l.lastName || '', email: email, phones: l.phone ? [l.phone] : [], type: (PERSON_TYPES.indexOf('Buyer') >= 0 ? 'Buyer' : 'Buyer') });
+    if (person) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === person.id); if (pp) { logActivity(pp, 'BizBuySell Lead', ('Inquired on ' + (l.listingName || 'a listing') + (l.refId ? (' \u00b7 Ref ' + l.refId) : (l.listingNumber ? (' \u00b7 #' + l.listingNumber) : '')) + (qualLine ? (' \u00b7 ' + qualLine) : '') + (l.message ? (' \u2014 \u201c' + String(l.message).slice(0,140) + '\u201d') : '')).slice(0, 300), { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
     let listingLabel = l.listingName || '';
     if (key) {
       matched++;
@@ -2825,7 +2838,7 @@ function importBbsLeads(req, leads) {
       const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
       const isDup = email && inqs.some(x => String(x.email || '').toLowerCase() === email.toLowerCase());
       if (isDup) { dupes++; }
-      else { inqs.push({ id: newInquiryId(), source: 'BizBuySell', name: l.name || '', email: email, phone: l.phone || '', personId: (person && person.id) || '', refId: l.refId || '', listingNumber: l.listingNumber || '', date: l.date || '', status: 'Unqualified', note: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); }
+      else { inqs.push({ id: newInquiryId(), source: 'BizBuySell', name: l.name || '', email: email, phone: l.phone || '', personId: (person && person.id) || '', refId: l.refId || '', listingNumber: l.listingNumber || '', date: l.date || '', zip: l.zip || '', funds: l.funds || '', timeframe: l.timeframe || '', message: l.message || '', status: 'Unqualified', note: [qualLine, (l.message ? ('\u201c' + l.message + '\u201d') : '')].filter(Boolean).join(' \u2014 ').slice(0, 2000), createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); }
       cur.inquiries = inqs; cur.updatedAt = now; overlay[key] = cur;
       try { const dv = idx[key] ? assignmentView(idx[key], overlay) : null; if (dv && dv.business) listingLabel = dv.business; } catch (e) {}
     } else { unmatched++; }
@@ -2833,6 +2846,10 @@ function importBbsLeads(req, leads) {
     if (l.phone) noteLines.push('Phone: ' + l.phone);
     if (email) noteLines.push('Email: ' + email);
     if (l.listingName) noteLines.push('Listing: ' + l.listingName);
+    if (l.funds) noteLines.push('Available funds: ' + l.funds);
+    if (l.timeframe) noteLines.push('Time frame: ' + l.timeframe);
+    if (l.zip) noteLines.push('Zip: ' + l.zip);
+    if (l.message) noteLines.push('Message: ' + l.message);
     if (!key && (l.refId || l.listingNumber)) noteLines.push('UNMATCHED \u2014 set BizBuySell Ref \u201c' + (l.refId || l.listingNumber) + '\u201d on the right listing, then this buyer can be attached.');
     tasks.push({ id: newTaskId(), title: ('Follow up (BizBuySell): ' + (l.name || email || 'buyer') + (listingLabel ? (' \u2014 ' + listingLabel) : '')).slice(0, 300), notes: noteLines.join('\n').slice(0, 2000), assignee: (req.user && req.user.username) || '', assigneeName: (req.user && req.user.name) || '', due: due, reminder: due, priority: 'Normal', status: 'open', linkType: 'contact', linkId: (person && person.id) || '', linkLabel: (person && person.name) || l.name || email, createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', createdAt: now, updatedAt: now });
     imported++;
