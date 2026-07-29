@@ -6666,7 +6666,7 @@ app.post('/api/consult', express.json({ limit: '256kb' }), async (req, res) => {
   const b = req.body || {}; const q = String(b.question || '').trim();
   if (!q) return res.status(400).json({ ok: false, error: 'Ask a question.' });
   try {
-    const out = await aiassist.consult({ question: q, snapshot: consultSnapshot(), history: Array.isArray(b.history) ? b.history : [], agentName: 'Consult' });
+    const out = await aiassist.consult({ question: q, snapshot: consultSnapshot(), history: Array.isArray(b.history) ? b.history : [], agentName: 'Consultant' });
     res.json({ ok: true, result: out });
   } catch (e) { console.error('consult:', e && e.message); res.status(500).json({ ok: false, error: (e && e.message) || 'Consult could not answer that.' }); }
 });
@@ -6683,11 +6683,12 @@ const DASH_MODULES = [
   { k: 'activity', label: 'Recent Activity', desc: 'Latest across the book', live: true, w: 'half' },
   { k: 'markets', label: 'Listings by Market', desc: 'Where your listings are', live: true, w: 'half' },
   { k: 'agreements', label: 'Agreements Out', desc: 'Awaiting signature', live: true, w: 'half' },
-  { k: 'dealstatus', label: 'Deal Status', desc: 'Active / under contract / closed', live: false, w: 'half' },
-  { k: 'expiring', label: 'Expiring Listings', desc: 'Coming due soon', live: false, w: 'half' },
+  { k: 'dealstatus', label: 'Deal Status', desc: 'Active / under contract / closed', live: true, w: 'half' },
+  { k: 'contacts_type', label: 'Book Composition', desc: 'Contacts by type', live: true, w: 'half' },
+  { k: 'expiring', label: 'Expiring Listings', desc: 'Coming due within 90 days', live: true, w: 'half' },
   { k: 'quicklinks', label: 'Quick Links', desc: 'Sites the team uses', live: false, w: 'half' }
 ];
-const DASH_DEFAULT = ['consult', 'kpis', 'tasks', 'pipeline', 'activity'];
+const DASH_DEFAULT = ['consult', 'kpis', 'pipeline', 'dealstatus', 'markets', 'contacts_type', 'tasks', 'activity', 'expiring'];
 function _dmoney(v) { const m = String(v == null ? '' : v).replace(/[^0-9.\-]/g, ''); const n = Number(m); return isFinite(n) ? n : 0; }
 function dashboardData(req) {
   const people = loadPeople(), companies = loadCompanies();
@@ -6696,10 +6697,27 @@ function dashboardData(req) {
   const activeListings = listings.filter(l => ['Active', 'New', 'Under Contract', 'On Hold'].indexOf(l.status) >= 0).length;
   const pipelineValue = listings.reduce((s2, l) => s2 + _dmoney(l.value), 0);
   const agreementsOut = loadAgreements().filter(a => ['sent', 'awaiting_countersign', 'partial'].indexOf(a.signStatus) >= 0).length;
+  const underContract = listings.filter(l => l.status === 'Under Contract').length;
+  const closed = listings.filter(l => l.status === 'Closed').length;
+  const buyers = people.filter(p => p.type === 'Buyer').length;
+  const sellers = people.filter(p => p.type === 'Seller').length;
+  const statusOrder = ['New', 'Active', 'Under Contract', 'On Hold', 'Closed', 'Lost'];
+  const dstat = {}; listings.forEach(l => { const st = l.status || 'New'; dstat[st] = (dstat[st] || 0) + 1; });
+  const dealStatus = statusOrder.filter(st => dstat[st]).map(st => ({ label: st, value: dstat[st] }));
+  const ptype = {}; people.forEach(p => { const t = p.type || 'Other'; ptype[t] = (ptype[t] || 0) + 1; });
+  const contactsByType = Object.keys(ptype).map(t => ({ label: t, value: ptype[t] })).sort((a, b) => b.value - a.value).slice(0, 8);
+  const _today = new Date().toISOString().slice(0, 10);
+  const _soon = new Date(Date.now() + 90 * 86400000).toISOString().slice(0, 10);
+  const expiring = [];
+  for (const k in idx) { const o = ov[k] || {}; const exp = o.listingExpires || ''; if (exp && exp <= _soon) { let biz = ''; try { biz = assignmentView(idx[k], ov).business; } catch (e) {} expiring.push({ business: biz || k, expires: exp, overdue: exp < _today }); } }
+  expiring.sort((a, b) => String(a.expires).localeCompare(String(b.expires)));
   const kpis = [
     { k: 'listings', label: 'Active Listings', value: activeListings, fmt: 'num' },
     { k: 'pipeline', label: 'Pipeline Value', value: pipelineValue, fmt: 'money' },
+    { k: 'uc', label: 'Under Contract', value: underContract, fmt: 'num' },
+    { k: 'closed', label: 'Closed', value: closed, fmt: 'num' },
     { k: 'contacts', label: 'Contacts', value: people.length, fmt: 'num' },
+    { k: 'buyers', label: 'Active Buyers', value: buyers, fmt: 'num' },
     { k: 'companies', label: 'Companies', value: companies.length, fmt: 'num' },
     { k: 'agreements', label: 'Agreements Out', value: agreementsOut, fmt: 'num' }
   ];
@@ -6713,7 +6731,7 @@ function dashboardData(req) {
   acts.sort((a, b) => String(b.at).localeCompare(String(a.at))); acts = acts.slice(0, 8);
   const mk = {}; listings.forEach(l => { const m = l.market || '-'; mk[m] = (mk[m] || 0) + 1; });
   const markets = Object.keys(mk).map(m => ({ label: m, value: mk[m] })).sort((a, b) => b.value - a.value).slice(0, 6);
-  return { kpis, pipeline, tasks, activity: acts, markets, agreementsOut, listingsTotal: listings.length };
+  return { kpis, pipeline, tasks, activity: acts, markets, dealStatus, contactsByType, expiring: expiring.slice(0, 7), expiringTotal: expiring.length, agreementsOut, listingsTotal: listings.length };
 }
 app.get('/api/dashboard', (req, res) => {
   const u = req.user || {}; const cfgs = loadDashCfgs(); const mine = cfgs[u.username];
