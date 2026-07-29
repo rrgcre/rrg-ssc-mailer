@@ -3090,6 +3090,39 @@ setInterval(function () { automationTick(); }, 5 * 60 * 1000);
 setTimeout(function () { automationTick(); }, 20000);
 
 // ---- Automations API ----
+// ---- Email templates (personal / shared, reusable in composer + automations) ----
+const EMAIL_TPL_FILE = path.join(BOV_DATA_DIR, 'email_templates.json');
+function loadEmailTpls() { try { return JSON.parse(fs.readFileSync(EMAIL_TPL_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveEmailTpls(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(EMAIL_TPL_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), updatedAt: t.updatedAt || '' }; }
+app.get('/api/email-templates', (req, res) => {
+  const u = req.user || {}; const all = loadEmailTpls();
+  const vis = all.filter(t => t.scope === 'shared' || t.ownerUser === u.username || isSuper(u));
+  vis.sort((a, b) => String(a.name || '').toLowerCase().localeCompare(String(b.name || '').toLowerCase()));
+  res.json({ ok: true, templates: vis.map(t => emailTplBrief(t, u)) });
+});
+app.post('/api/email-templates', express.json({ limit: '256kb' }), (req, res) => {
+  const u = req.user || {}; const b = req.body || {}; const all = loadEmailTpls();
+  const name = String(b.name || '').trim().slice(0, 120); if (!name) return res.status(400).json({ ok: false, error: 'Name the template.' });
+  let t;
+  if (b.id) { t = all.find(x => x.id === b.id); if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' }); if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: 'You can only edit your own templates.' }); }
+  else { t = { id: newEmailTplId(), ownerUser: u.username || '', ownerName: u.name || '', createdAt: new Date().toISOString() }; all.push(t); }
+  t.name = name;
+  if (b.subject !== undefined) t.subject = String(b.subject || '').slice(0, 300);
+  if (b.body !== undefined) t.body = String(b.body || '').slice(0, 20000);
+  if (b.scope !== undefined) t.scope = (b.scope === 'shared' ? 'shared' : 'personal');
+  t.updatedAt = new Date().toISOString(); saveEmailTpls(all);
+  res.json({ ok: true, template: emailTplBrief(t, u) });
+});
+app.delete('/api/email-templates/:id', (req, res) => {
+  const u = req.user || {}; let all = loadEmailTpls(); const t = all.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: 'You can only delete your own templates.' });
+  all = all.filter(x => x.id !== req.params.id); saveEmailTpls(all);
+  res.json({ ok: true });
+});
+
 app.get('/api/automations', (req, res) => { res.json({ ok: true, automations: loadAutomations().map(automationBrief), isAdmin: !!(req.user && isSuper(req.user)) }); });
 app.post('/api/admin/automations', requireAdmin, express.json({ limit: '1mb' }), (req, res) => {
   const b = req.body || {}; const all = loadAutomations();

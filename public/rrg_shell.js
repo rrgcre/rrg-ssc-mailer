@@ -43,6 +43,7 @@
     { grp: 'Tools', color: '#a99be0', items: [
       { ic: '⚑', label: 'Feedback', href: 'rrg_feedback.html' },
       { ic: '✉', label: 'Requests', href: 'rrg_tickets.html' },
+      { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
       { ic: '∑', label: 'Cap Rate', href: 'rrg_cap_rate_calculator.html' },
       { ic: '＄', label: 'Sale Commission', href: 'rrg_commission_calculator.html' },
       { ic: '＄', label: 'Lease Commission', href: 'rrg_lease_commission_calculator.html' }

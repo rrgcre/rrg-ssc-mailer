@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Email Templates</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--blue:#2f6fe0;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 28px 60px;}
+.pgh{font-size:26px;font-weight:800;color:var(--navy);margin:6px 0 2px;}
+.pgs{color:var(--muted);font-size:13.5px;margin-bottom:20px;max-width:780px;line-height:1.5;}
+.cols{display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;}
+@media(max-width:840px){.cols{grid-template-columns:1fr;}}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+.side .sh{padding:13px 16px;border-bottom:1px solid var(--line);font-weight:800;color:var(--navy);font-size:13px;text-transform:uppercase;letter-spacing:.04em;}
+.grp{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#9aa4b6;padding:10px 14px 4px;}
+.pl{list-style:none;margin:0;padding:0 6px 6px;}
+.pl li{padding:10px 12px;border-radius:9px;cursor:pointer;margin-bottom:2px;}
+.pl li:hover{background:var(--wash);}
+.pl li.on{background:#eaf1fb;}
+.pl li .nm{font-weight:700;font-size:14px;color:var(--ink);}
+.pl li .mt{font-size:11.5px;color:var(--soft);margin-top:2px;}
+.side .sf{padding:10px 12px;border-top:1px solid var(--line);}
+.btn{font:inherit;font-size:12.5px;font-weight:700;padding:8px 14px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--navy);cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.btn:hover{background:#f4f7fb;}
+.btn.pri{background:var(--navy);color:#fff;border-color:var(--navy);} .btn.pri:hover{background:#0a1a44;}
+.btn.dng{color:var(--red);border-color:#f0cdca;} .btn.dng:hover{background:#fdf2f1;}
+.btn.full{width:100%;justify-content:center;}
+.main .mh{padding:15px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.main .mh .t{font-weight:800;color:var(--navy);font-size:16px;}
+.main .mh .sp{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.body{padding:20px;}
+.fld{margin-bottom:14px;}
+.fld label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;margin-bottom:6px;}
+.fld input[type=text],.fld textarea{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;width:100%;color:var(--ink);background:#fff;}
+.fld textarea{min-height:220px;resize:vertical;line-height:1.55;}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;}
+.seg label{font-size:12.5px;font-weight:700;padding:8px 14px;cursor:pointer;color:var(--muted);background:#fff;}
+.seg label.on{background:var(--navy);color:#fff;}
+.seg input{display:none;}
+.tokens{font-size:11.5px;color:var(--soft);margin-top:6px;}
+.tokens code{background:#f2f4f8;border-radius:4px;padding:1px 5px;font-size:11px;color:#5b6472;}
+.msg{font-size:12.5px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.empty{color:var(--soft);font-size:13.5px;padding:40px 20px;text-align:center;}
+.ro{color:var(--muted);font-size:12.5px;background:#f7f9fc;border:1px solid var(--line);border-radius:9px;padding:9px 12px;margin-bottom:12px;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="pgh">Email Templates</h1>
+  <div class="pgs">Write your go-to emails once and reuse them — in the send composer on a contact and in automation steps. Mark a template <b>Personal</b> (only you see it) or <b>Shared</b> (available to the whole team). Personalize with tokens like <code>{{first_name}}</code>.</div>
+  <div id="root"></div>
+</div>
+<script>
+var TPLS=[], CUR=null, SCOPE='personal', DEL_ARM=false;
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json().then(function(j){j._s=r.status;return j;});});}
+function load(){ api('GET','/api/email-templates').then(function(j){ TPLS=j.templates||[]; if(CUR!=='__new__' && CUR && !TPLS.some(function(t){return t.id===CUR;})) CUR=null; render(); }); }
+function cur(){ if(CUR==='__new__') return {id:'',name:'',subject:'',body:'',scope:SCOPE,mine:true}; return TPLS.find(function(t){return t.id===CUR;})||null; }
+function render(){
+  var root=document.getElementById('root');
+  root.innerHTML='<div class="cols"><div class="card side"><div class="sh">Templates</div><div id="lists"></div><div class="sf"><button class="btn full" id="newBtn">+ New template</button></div></div><div class="card main" id="main"></div></div>';
+  var mine=TPLS.filter(function(t){return t.scope==='personal'&&t.mine;});
+  var shared=TPLS.filter(function(t){return t.scope==='shared';});
+  function liList(arr){ return '<ul class="pl">'+(arr.length?arr.map(function(t){ return '<li data-id="'+esc(t.id)+'"'+((t.id===CUR)?' class="on"':'')+'><div class="nm">'+esc(t.name)+'</div><div class="mt">'+(t.scope==='shared'?('Shared'+(t.ownerName?(' · '+esc(t.ownerName)):'')):'Personal')+'</div></li>'; }).join(''):'<li style="cursor:default;color:#8a93a8">None yet.</li>')+'</ul>'; }
+  document.getElementById('lists').innerHTML='<div class="grp">My personal</div>'+liList(mine)+'<div class="grp">Shared with the team</div>'+liList(shared);
+  Array.prototype.forEach.call(document.querySelectorAll('#lists li[data-id]'),function(li){ li.onclick=function(){ CUR=li.getAttribute('data-id'); DEL_ARM=false; render(); }; });
+  document.getElementById('newBtn').onclick=function(){ CUR='__new__'; SCOPE='personal'; DEL_ARM=false; render(); };
+  renderEditor();
+}
+function renderEditor(){
+  var main=document.getElementById('main'); var t=cur();
+  if(!t){ main.innerHTML='<div class="empty">Pick a template, or create a new one.</div>'; return; }
+  if(CUR==='__new__') SCOPE=SCOPE||'personal'; else SCOPE=(t.scope==='shared'?'shared':'personal');
+  var ro=!t.mine;
+  main.innerHTML='<div class="mh"><span class="t">'+(ro?'View template':(t.id?'Edit template':'New template'))+'</span><span class="sp"><span class="msg" id="msg"></span>'+((t.id&&t.mine)?'<button class="btn dng" id="delBtn">Delete</button>':'')+(ro?'':'<button class="btn pri" id="saveBtn">Save</button>')+'</span></div>'
+    +'<div class="body">'
+    +(ro?'<div class="ro">Shared template'+(t.ownerName?(' by <b>'+esc(t.ownerName)+'</b>'):'')+' — view only. Use + New template to make your own copy.</div>':'')
+    +'<div class="fld"><label>Template name</label><input type="text" id="tName" value="'+esc(t.name||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. New buyer intro"></div>'
+    +'<div class="fld"><label>Visibility</label><div class="seg" id="scopeSeg"><label id="sc_p"'+((SCOPE==='personal')?' class="on"':'')+'><input type="radio" name="sc" value="personal"'+((SCOPE==='personal')?' checked':'')+(ro?' disabled':'')+'>Personal</label><label id="sc_s"'+((SCOPE==='shared')?' class="on"':'')+'><input type="radio" name="sc" value="shared"'+((SCOPE==='shared')?' checked':'')+(ro?' disabled':'')+'>Shared</label></div><div class="tokens">Personal = only you. Shared = the whole team can use it.</div></div>'
+    +'<div class="fld"><label>Subject</label><input type="text" id="tSubject" value="'+esc(t.subject||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. Great connecting, {{first_name}}"></div>'
+    +'<div class="fld"><label>Body</label><textarea id="tBody"'+(ro?' readonly':'')+' placeholder="Write your email… use {{first_name}}, {{name}}, {{company}} to personalize.">'+esc(t.body||'')+'</textarea><div class="tokens">Tokens: <code>{{first_name}}</code> <code>{{name}}</code> <code>{{company}}</code></div></div>'
+    +'</div>';
+  if(!ro){
+    var seg=document.getElementById('scopeSeg');
+    Array.prototype.forEach.call(seg.querySelectorAll('input'),function(r){ r.onchange=function(){ SCOPE=r.value; document.getElementById('sc_p').classList.toggle('on',SCOPE==='personal'); document.getElementById('sc_s').classList.toggle('on',SCOPE==='shared'); }; });
+    document.getElementById('saveBtn').onclick=save;
+    var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
+  }
+}
+function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
+function save(){
+  var name=(document.getElementById('tName').value||'').trim(); if(!name){ msg('Name the template.','err'); return; }
+  var body={ name:name, scope:SCOPE, subject:document.getElementById('tSubject').value, body:document.getElementById('tBody').value };
+  var t=cur(); if(t&&t.id) body.id=t.id;
+  var btn=document.getElementById('saveBtn'); btn.disabled=true;
+  api('POST','/api/email-templates',body).then(function(j){ btn.disabled=false; if(!j.ok){ msg(j.error||'Save failed.','err'); return; } CUR=(j.template&&j.template.id)||CUR; load(); msg('Saved','ok'); });
+}
+function onDelete(){
+  var t=cur(); if(!t||!t.id) return;
+  if(!DEL_ARM){ DEL_ARM=true; var b=document.getElementById('delBtn'); b.textContent='Really delete?'; b.classList.add('pri'); setTimeout(function(){ if(DEL_ARM){ DEL_ARM=false; var x=document.getElementById('delBtn'); if(x){x.textContent='Delete';x.classList.remove('pri');} } },3500); return; }
+  DEL_ARM=false;
+  api('DELETE','/api/email-templates/'+encodeURIComponent(t.id)).then(function(j){ if(!j.ok){ msg(j.error||'Delete failed.','err'); return; } CUR=null; load(); });
+}
+load();
+</script>
+</body>
+</html>
