@@ -352,8 +352,21 @@ function smOnTpl(){
   document.getElementById('sm_signerswrap').hidden=!adv;
   document.getElementById('sm_simplewrap').hidden=(adv||!v);
   if(adv) document.getElementById('sm_signerswrap').innerHTML=smSignerRows(tpl);
-  var fw=document.getElementById('sm_fields'); if(fw){ if(!adv && tpl && tpl.signFields && tpl.signFields.length){ fw.innerHTML='<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#8a94a6;margin:10px 0 4px">Fill in before sending</div>'+tpl.signFields.map(function(fld,i){ return '<label class="fld">'+esc(fld.label)+(fld.required?' *':'')+'</label><input class="sm_fld" data-i="'+i+'" data-req="'+(fld.required?'1':'')+'" value="'+esc(smPrefill(fld))+'">'; }).join(''); } else { fw.innerHTML=''; } }
+  var fw=document.getElementById('sm_fields'); if(fw){ if(!adv && tpl && tpl.signFields && tpl.signFields.length){ fw.innerHTML='<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#8a94a6;margin:10px 0 4px">Fill in before sending</div>'+tpl.signFields.map(function(fld,i){ return '<label class="fld">'+esc(fld.label)+(fld.required?' *':'')+'</label>'+smInput(fld,i); }).join(''); } else { fw.innerHTML=''; } }
+  smApplyMsg(tpl);
 }
+var _smAutoMsg='';
+function smInput(fld,i){
+  var t=String(fld.type||'text').toLowerCase(); var v=smPrefill(fld);
+  var base='class="sm_fld" data-i="'+i+'" data-type="'+t+'" data-req="'+(fld.required?'1':'')+'"';
+  if(t==='date') return '<input type="date" '+base+' value="'+esc(v)+'">';
+  if(t==='time') return '<input type="time" '+base+' value="'+esc(v)+'">';
+  if(t==='number') return '<input type="text" inputmode="numeric" '+base+' value="'+esc(v)+'" placeholder="0">';
+  if(t==='currency') return '<input type="text" inputmode="decimal" '+base+' value="'+esc(v)+'" placeholder="$0.00">';
+  if(t==='email') return '<input type="email" '+base+' value="'+esc(v)+'">';
+  return '<input type="text" '+base+' value="'+esc(v)+'">';
+}
+function smApplyMsg(tpl){ var box=document.getElementById('sm_msg'); if(!box) return; var def=(tpl&&tpl.emailMessage)||''; if(box.value===''||box.value===_smAutoMsg){ box.value=def; _smAutoMsg=def; } }
 function smPrefill(fld){ var k=String(fld.autofill||'').toLowerCase(), L=String(fld.label||'').toLowerCase(); var party=(typeof P!=='undefined'&&P&&P.name)||''; var co=(typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''; var today=(typeof todayStr==='function')?todayStr():''; if(k==='party_name'||k==='name'||(!k&&/\bname\b/.test(L))) return party; if(k==='company'||k==='title'||(!k&&/(company|firm|title)/.test(L))) return co; if(k==='date'||(!k&&/date/.test(L))) return today; if(k==='email'||(!k&&/email/.test(L))) return (typeof P!=='undefined'&&P&&(P.preferredEmail||P.email||(P.emails&&P.emails[0])))||''; return ''; }
 function openSendModal(){
   var tplOpts='<option value="">— Choose a template —</option>'+TEMPLATES.filter(function(t){return t.fileExt;}).map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+((t.pdfFields&&t.pdfFields.length)?(' (in-PDF, '+(t.signerCount===2?'2 signers':'1 signer')+')'):'')+'</option>';}).join('')+'<option value="__file">None — attach my own file</option>';
