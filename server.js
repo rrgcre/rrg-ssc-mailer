@@ -3785,14 +3785,15 @@ app.get('/api/gmail/contacts/scan', async (req, res) => {
   const u = (req.user && req.user.username) || '';
   if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Gmail first (Account -> Gmail).' });
   try {
-    const people = await gmail.listCorrespondents(u, req.query.max ? parseInt(req.query.max, 10) : 200);
+    const result = await gmail.listCorrespondents(u, req.query.months ? parseInt(req.query.months, 10) : 12, 2500);
+    const people = result.people;
     const existing = {}; loadPeople().forEach(p => (personEmails(p) || []).forEach(e => { existing[String(e).toLowerCase()] = true; }));
     const out = people.map(pc => {
       const dom = (pc.email.split('@')[1] || '').toLowerCase();
       const personal = PERSONAL_DOMAINS.has(dom);
       return { name: pc.name || '', email: pc.email, domain: dom, count: pc.count, suggestedCompany: personal ? 'No Company' : companyNameFromDomain(dom), existing: !!existing[pc.email] };
     });
-    res.json({ ok: true, contacts: out });
+    res.json({ ok: true, contacts: out, scanned: result.scanned, capped: result.capped });
   } catch (e) { console.error('gmail contacts scan:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/gmail/contacts/import', express.json({ limit: '3mb' }), (req, res) => {

@@ -296,16 +296,24 @@ function parseAddrs(str) {
   });
   return out;
 }
-async function listCorrespondents(username, maxMsgs) {
-  const lim = Math.min(Math.max(parseInt(maxMsgs, 10) || 200, 1), 400);
-  const u = 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=' + lim + '&q=' + encodeURIComponent('newer_than:2y');
-  const r = await gapi(username, u, {});
-  const j = await r.json();
-  if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail list failed.');
-  const ids = (j.messages || []).map(m => m.id);
+async function listCorrespondents(username, months, maxMsgs) {
+  const mo = Math.min(Math.max(parseInt(months, 10) || 12, 1), 120);
+  const cap = Math.min(Math.max(parseInt(maxMsgs, 10) || 2000, 1), 5000);
+  const q = 'newer_than:' + mo + 'm';
+  let ids = []; let pageToken = '';
+  do {
+    const u = 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=500&q=' + encodeURIComponent(q) + (pageToken ? ('&pageToken=' + encodeURIComponent(pageToken)) : '');
+    const r = await gapi(username, u, {});
+    const j = await r.json();
+    if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail list failed.');
+    (j.messages || []).forEach(m => ids.push(m.id));
+    pageToken = j.nextPageToken || '';
+  } while (pageToken && ids.length < cap);
+  const capped = !!(pageToken && ids.length >= cap);
+  ids = ids.slice(0, cap);
   const me = ((loadToken(username) || {}).email || '').toLowerCase();
   const map = {};
-  const CHUNK = 8;
+  const CHUNK = 12;
   for (let i = 0; i < ids.length; i += CHUNK) {
     const batch = ids.slice(i, i + CHUNK);
     await Promise.all(batch.map(async function (id) {
@@ -324,7 +332,8 @@ async function listCorrespondents(username, maxMsgs) {
       } catch (e) {}
     }));
   }
-  return Object.keys(map).map(k => map[k]).sort((a, b) => b.count - a.count);
+  const people = Object.keys(map).map(k => map[k]).sort((a, b) => b.count - a.count);
+  return { people: people, scanned: ids.length, capped: capped };
 }
 
 module.exports = {

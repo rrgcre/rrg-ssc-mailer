@@ -43,18 +43,20 @@ td input.co{font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--l
   <div class="pgs">A quick way to get your book started. This scans your connected Gmail for everyone you've corresponded with, shows them here, and lets you pick who to add. Each accepted contact is filed under their company (matched or created from their email domain) — anyone on a personal address lands under a permanent <b>No Company</b> bucket you can sort later.</div>
   <div class="card">
     <div class="bar"><b>Gmail contacts</b><span class="msg" id="cnt"></span><span class="sp"></span><button class="btn" id="selAll" style="display:none">Select all</button><button class="btn" id="selNone" style="display:none">Clear</button><button class="btn pri" id="importBtn" style="display:none">Import selected</button></div>
-    <div id="root"><div class="scan"><div class="big">Ready when you are</div><p>Click below to scan your Gmail. It looks at your recent mail (last 2 years, up to ~200 messages) and pulls out the people you've emailed with. Nothing is added until you review and choose.</p><button class="btn pri" id="scanBtn">Scan my Gmail</button><div class="msg" id="scanMsg" style="margin-top:12px"></div></div></div>
+    <div id="root"><div class="scan"><div class="big">Ready when you are</div><p>Choose how far back to look, then scan. It reads message headers only — names and email addresses — and pulls out the people you've corresponded with. Nothing is added until you review and choose.</p><div style="margin-bottom:16px;font-size:14px;color:#3a4560;font-weight:600">Look back <input type="number" id="monthsBack" value="12" min="1" max="120" style="width:68px;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:14px;text-align:center"> months</div><button class="btn pri" id="scanBtn">Scan my Gmail</button><div class="msg" id="scanMsg" style="margin-top:12px"></div></div></div>
   </div>
   <div class="note">Heads up: this reads message headers only (names + email addresses), never the contents of your emails. Pulling street addresses or restaurant concepts from signatures is coming later — for now this handles the contact and their company.</div>
 </div>
 <script>
-var ROWS=[];
+var ROWS=[], SCANNED=0, CAPPED=false;
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function scan(){
-  var b=document.getElementById('scanBtn'); if(b){b.disabled=true;b.textContent='Scanning your Gmail…';}
-  var m=document.getElementById('scanMsg'); if(m) m.textContent='This can take a minute on a full inbox.';
-  fetch('/api/gmail/contacts/scan',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+  var mb=document.getElementById('monthsBack'); var months=mb?(parseInt(mb.value,10)||12):12;
+  var b=document.getElementById('scanBtn'); if(b){b.disabled=true;b.textContent='Scanning '+months+' months…';}
+  var m=document.getElementById('scanMsg'); if(m) m.textContent='This can take a minute or two on a busy inbox — hang tight.';
+  fetch('/api/gmail/contacts/scan?months='+months,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ if(m) m.textContent=(j&&j.error)||'Could not scan Gmail.'; if(b){b.disabled=false;b.textContent='Scan my Gmail';} return; }
+    SCANNED=j.scanned||0; CAPPED=!!j.capped;
     ROWS=(j.contacts||[]).map(function(c){ return {name:c.name,email:c.email,company:c.suggestedCompany,existing:c.existing,count:c.count,sel:!c.existing}; });
     renderList();
   }).catch(function(){ if(m) m.textContent='Could not reach the server.'; if(b){b.disabled=false;b.textContent='Scan my Gmail';} });
@@ -77,7 +79,7 @@ function renderList(){
   root.querySelectorAll('.co').forEach(function(el){ el.oninput=function(){ ROWS[+el.getAttribute('data-i')].company=el.value; }; });
   updateCount();
 }
-function updateCount(){ var n=ROWS.filter(function(c){return c.sel;}).length; document.getElementById('cnt').textContent=ROWS.length+' found · '+n+' selected'; }
+function updateCount(){ var n=ROWS.filter(function(c){return c.sel;}).length; document.getElementById('cnt').textContent=ROWS.length+' found · '+n+' selected'+(SCANNED?(' · scanned '+SCANNED+' emails'):'')+(CAPPED?' · hit the scan cap — narrow the months if you need older ones':''); }
 function doImport(){
   var picks=ROWS.filter(function(c){return c.sel;}).map(function(c){ return {name:c.name,email:c.email,company:(c.company||'').trim()}; });
   if(!picks.length){ document.getElementById('cnt').textContent='Select at least one contact.'; return; }
