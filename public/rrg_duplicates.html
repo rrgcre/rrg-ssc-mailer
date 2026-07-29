@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Find Duplicates</title>
+<style>
+:root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2f6fd0;--green:#1f8a5b;--red:#DA2B1F;--amber:#B7791F;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px;}
+.top-in{max-width:1180px;margin:0 auto;padding:0 24px;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:14px 0 4px;}
+h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:760px;line-height:1.5;}
+.wrap{max-width:1180px;margin:20px auto;padding:0 24px 80px;}
+.tabs{display:flex;gap:8px;margin-bottom:16px;}
+.tab{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 18px;font:inherit;font-size:13px;font-weight:700;color:var(--dim);cursor:pointer;box-shadow:0 1px 2px rgba(16,32,70,.04);}
+.tab.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;box-shadow:0 1px 2px rgba(16,32,70,.04);}
+.bar .cnt{font-size:13px;color:var(--dim);font-weight:600;} .bar .cnt b{color:var(--navy);}
+.bar .sp{margin-left:auto;display:flex;gap:9px;align-items:center;}
+.btn{background:#fff;color:var(--navy);border:1px solid #cdd6e6;border-radius:9px;padding:9px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;} .btn:hover{background:#f4f7fb;}
+.btn.green{background:var(--green);color:#fff;border-color:var(--green);} .btn.green:hover{background:#186f48;}
+.btn.amber{background:var(--amber);color:#fff;border-color:var(--amber);} .btn.amber:hover{background:#95610f;}
+.btn.ghost{background:transparent;border-color:transparent;color:var(--dim);} .btn.ghost:hover{color:var(--ink);background:#eef1f7;}
+.btn:disabled{opacity:.5;cursor:default;}
+.grp{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px 18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(16,32,70,.05);}
+.grp.gone{display:none;}
+.ghead{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.ghead .lbl{font-weight:800;font-size:13.5px;color:var(--navy);}
+.ghead .why{font-size:11px;color:var(--faint);font-weight:600;}
+.ghead .gsp{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.mrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;}
+.mc{border:1.5px solid #e3e8f1;border-radius:12px;padding:13px 14px;position:relative;transition:.12s;background:#fbfcff;}
+.mc.keep{border-color:var(--green);background:#f2fbf6;box-shadow:0 0 0 2px rgba(31,138,91,.14);}
+.mc.drop{border-color:#e3e8f1;background:#fff;opacity:.9;}
+.mc .pick{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:pointer;color:var(--dim);margin-bottom:9px;}
+.mc.keep .pick{color:var(--green);}
+.mc .radio{width:17px;height:17px;border-radius:50%;border:2px solid #cdd6e6;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.mc.keep .radio{border-color:var(--green);} .mc.keep .radio::after{content:'';width:8px;height:8px;border-radius:50%;background:var(--green);}
+.mc .nm{font-weight:800;font-size:15px;color:var(--ink);line-height:1.2;}
+.mc .logo{width:30px;height:30px;border-radius:7px;object-fit:contain;background:#f2f5fa;border:1px solid #eef1f6;vertical-align:middle;margin-right:8px;}
+.mc .fld{font-size:12px;color:var(--dim);margin-top:5px;line-height:1.35;word-break:break-word;}
+.mc .fld b{color:var(--ink);font-weight:600;}
+.mc .badge{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:20px;background:#eef1f7;color:var(--dim);margin:6px 5px 0 0;}
+.mc .badge.hot{background:#eaf4ec;color:var(--green);}
+.mc .keepflag{position:absolute;top:11px;right:12px;font-size:10px;font-weight:800;letter-spacing:.06em;color:var(--green);text-transform:uppercase;display:none;}
+.mc.keep .keepflag{display:block;}
+.empty{text-align:center;color:var(--dim);padding:64px 20px;background:#fff;border:1px solid var(--line);border-radius:14px;} .empty b{color:var(--navy);display:block;font-size:17px;margin-bottom:7px;}
+.msg{font-size:12.5px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid #cdd6e6;border-top-color:var(--navy);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:7px;}
+@keyframes sp{to{transform:rotate(360deg);}}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="./index.html" class="rrg-back" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <span class="disc" onclick="location.href='./index.html'">RRG</span>
+  <div class="kicker">Data Hygiene</div>
+  <h1>Find Duplicates</h1>
+  <div class="sub">We scan your book for likely duplicate records — matched on fuzzy name, shared website domain, and shared phone. Pick the record to keep in each group; the others fold into it. <b>Every contact, deal, agreement, concept and location moves to the keeper.</b> Nothing merges until you approve it.</div>
+</div></div>
+<div id="root" class="wrap"><div class="gate">Checking access…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function initials(s){ s=String(s||'').trim(); if(!s) return '?'; var p=s.split(/\s+/); return ((p[0]||'')[0]||'').toUpperCase()+((p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
+var TYPE='companies', DATA={companies:null,contacts:null}, KEEP={}, ARMED={};
+
+function build(){
+  var root=document.getElementById('root'); root.className='wrap';
+  root.innerHTML=''
+   +'<div class="tabs"><button class="tab on" data-t="companies">Companies</button><button class="tab" data-t="contacts">Contacts</button></div>'
+   +'<div class="bar"><span class="cnt" id="cnt">Scanning…</span><div class="sp"><button class="btn" id="rescan">Rescan</button></div></div>'
+   +'<div id="list"></div>';
+  document.querySelectorAll('.tab').forEach(function(t){ t.addEventListener('click',function(){ if(t.classList.contains('on'))return; document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on');}); t.classList.add('on'); TYPE=t.getAttribute('data-t'); show(); }); });
+  document.getElementById('rescan').addEventListener('click',function(){ DATA[TYPE]=null; load(); });
+  load();
+}
+function show(){ if(DATA[TYPE]) render(DATA[TYPE]); else load(); }
+function load(){
+  document.getElementById('cnt').innerHTML='<span class="spin"></span>Scanning your '+TYPE+'…';
+  document.getElementById('list').innerHTML='';
+  fetch('/api/admin/duplicates?type='+TYPE,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ document.getElementById('list').innerHTML='<div class="empty">Could not scan. Try again.</div>'; document.getElementById('cnt').textContent=''; return; }
+    DATA[TYPE]=j; render(j);
+  }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; });
+}
+function fld(label,val){ if(!val) return ''; return '<div class="fld"><b>'+esc(label)+':</b> '+esc(val)+'</div>'; }
+function memberCard(g,m){
+  var keep = KEEP[g.key]===m.id;
+  var h='<div class="mc'+(keep?' keep':' drop')+'" data-g="'+esc(g.key)+'" data-id="'+esc(m.id)+'">';
+  h+='<span class="keepflag">Keeping</span>';
+  h+='<div class="pick"><span class="radio"></span>'+(keep?'Keep this record':'Keep this one')+'</div>';
+  if(TYPE==='companies'){
+    var logo = m.logo? '<img class="logo" src="'+esc(m.logo)+'" referrerpolicy="no-referrer" onerror="this.style.display=\'none\'">':'';
+    h+='<div class="nm">'+logo+esc(m.name||'(no name)')+'</div>';
+    h+=fld('Website', m.website);
+    h+=fld('Phone', m.phone);
+    h+=fld('Location', [m.city,m.state].filter(Boolean).join(', ')||m.market);
+    h+=fld('Type', m.type);
+    var b='';
+    if(m.contacts) b+='<span class="badge hot">'+m.contacts+' contact'+(m.contacts===1?'':'s')+'</span>';
+    if(m.deals) b+='<span class="badge hot">'+m.deals+' deal'+(m.deals===1?'':'s')+'</span>';
+    if(m.concepts) b+='<span class="badge">'+m.concepts+' concept'+(m.concepts===1?'':'s')+'</span>';
+    if(m.locations) b+='<span class="badge">'+m.locations+' location'+(m.locations===1?'':'s')+'</span>';
+    if(b) h+='<div>'+b+'</div>';
+  } else {
+    h+='<div class="nm">'+esc(m.name||'(no name)')+'</div>';
+    if(m.title||m.company) h+=fld('', [m.title,m.company].filter(Boolean).join(' · '));
+    (m.emails||[]).slice(0,3).forEach(function(e){ h+=fld('Email', e); });
+    (m.phones||[]).slice(0,3).forEach(function(p){ h+=fld('Phone', p); });
+    h+=fld('Type', m.type);
+    if((m.tags||[]).length) h+='<div>'+m.tags.slice(0,4).map(function(t){return '<span class="badge">'+esc(t)+'</span>';}).join('')+'</div>';
+  }
+  h+='</div>';
+  return h;
+}
+function groupCard(g){
+  var why = TYPE==='companies' ? 'fuzzy name / domain / phone match' : 'shared email, phone, or name match';
+  var h='<div class="grp" id="grp_'+esc(g.key)+'" data-g="'+esc(g.key)+'">';
+  h+='<div class="ghead"><span class="lbl">Possible duplicate</span><span class="why">'+g.size+' records · '+why+'</span>'
+    +'<span class="gsp">'
+    +'<button class="btn ghost" data-skip="'+esc(g.key)+'">Not a duplicate</button>'
+    +'<button class="btn '+(ARMED[g.key]?'amber':'green')+'" data-merge="'+esc(g.key)+'">'+(ARMED[g.key]?'Confirm merge':'Merge '+(g.size-1)+' into keeper')+'</button>'
+    +'<span class="msg" id="gmsg_'+esc(g.key)+'"></span>'
+    +'</span></div>';
+  h+='<div class="mrow">'+g.members.map(function(m){return memberCard(g,m);}).join('')+'</div>';
+  h+='</div>';
+  return h;
+}
+function render(j){
+  var groups=j.groups||[];
+  var c=document.getElementById('cnt');
+  if(!groups.length){ document.getElementById('list').innerHTML='<div class="empty"><b>No duplicates found.</b>Your '+TYPE+' look clean — scanned '+j.total+' records. Import more data, then rescan anytime.</div>'; c.textContent=''; return; }
+  var recs=j.dupeRecords||0;
+  c.innerHTML='<b>'+groups.length+'</b> possible duplicate group'+(groups.length===1?'':'s')+' · <b>'+recs+'</b> records · scanned '+j.total;
+  groups.forEach(function(g){ if(KEEP[g.key]==null) KEEP[g.key]=g.primaryId; });
+  document.getElementById('list').innerHTML=groups.map(groupCard).join('');
+  wire();
+}
+function wire(){
+  document.querySelectorAll('.mc[data-g]').forEach(function(el){
+    el.addEventListener('click',function(){ var gk=el.getAttribute('data-g'); KEEP[gk]=el.getAttribute('data-id'); ARMED[gk]=false; repaint(gk); });
+  });
+  document.querySelectorAll('[data-skip]').forEach(function(b){ b.addEventListener('click',function(){ var gk=b.getAttribute('data-skip'); var g=document.getElementById('grp_'+gk); if(g) g.classList.add('gone'); afterRemove(gk); }); });
+  document.querySelectorAll('[data-merge]').forEach(function(b){ b.addEventListener('click',function(){ doMerge(b.getAttribute('data-merge')); }); });
+}
+function repaint(gk){
+  var g=grpData(gk); if(!g) return;
+  var box=document.getElementById('grp_'+gk); if(!box) return;
+  box.querySelector('.mrow').innerHTML=g.members.map(function(m){return memberCard(g,m);}).join('');
+  box.querySelectorAll('.mc[data-g]').forEach(function(el){ el.addEventListener('click',function(){ KEEP[gk]=el.getAttribute('data-id'); ARMED[gk]=false; repaint(gk); }); });
+  var mb=box.querySelector('[data-merge]'); if(mb){ mb.className='btn '+(ARMED[gk]?'amber':'green'); mb.textContent=ARMED[gk]?'Confirm merge':'Merge '+(g.size-1)+' into keeper'; }
+}
+function grpData(gk){ var j=DATA[TYPE]; if(!j)return null; return (j.groups||[]).filter(function(x){return x.key===gk;})[0]; }
+function doMerge(gk){
+  if(!ARMED[gk]){ ARMED[gk]=true; repaint(gk); var m=document.getElementById('gmsg_'+gk); if(m){m.className='msg';m.textContent='Click again to confirm — this can’t be undone.';} return; }
+  var g=grpData(gk); if(!g) return;
+  var keepId=KEEP[gk]; var mergeIds=g.members.map(function(m){return m.id;}).filter(function(id){return id!==keepId;});
+  var url = TYPE==='companies' ? '/api/company/merge' : '/api/person/merge';
+  var box=document.getElementById('grp_'+gk); var btn=box?box.querySelector('[data-merge]'):null; if(btn){btn.disabled=true;btn.textContent='Merging…';}
+  var msg=document.getElementById('gmsg_'+gk);
+  fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({keepId:keepId,mergeIds:mergeIds})})
+   .then(function(r){return r.json();}).then(function(j){
+     if(j&&j.ok){ if(msg){msg.className='msg ok';msg.textContent='Merged '+(j.merged||mergeIds.length)+' ✓';} setTimeout(function(){ if(box) box.classList.add('gone'); afterRemove(gk); },700); }
+     else { if(btn){btn.disabled=false;} if(msg){msg.className='msg err';msg.textContent=(j&&j.error)||'Merge failed.';} ARMED[gk]=false; repaint(gk); }
+   }).catch(function(){ if(btn){btn.disabled=false;} if(msg){msg.className='msg err';msg.textContent='Could not reach the server.';} });
+}
+function afterRemove(gk){
+  var j=DATA[TYPE]; if(!j) return; j.groups=(j.groups||[]).filter(function(x){return x.key!==gk;});
+  var left=j.groups.length; var recs=j.groups.reduce(function(s,g){return s+g.size;},0);
+  var c=document.getElementById('cnt');
+  if(!left){ document.getElementById('list').innerHTML='<div class="empty"><b>All clear.</b>No more duplicate groups in your '+TYPE+'. Nicely done. Rescan anytime.</div>'; c.textContent=''; }
+  else if(c){ c.innerHTML='<b>'+left+'</b> possible duplicate group'+(left===1?'':'s')+' · <b>'+recs+'</b> records'; }
+}
+fetch('/api/feedback',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+  if(!j||!j.isAdmin){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to run duplicate cleanup.</div>'; return; }
+  build();
+}).catch(function(){ build(); });
+</script>
+</body>
+</html>

@@ -6688,6 +6688,113 @@ app.post('/api/admin/apply-logos', requireAdmin, express.json({ limit: '2mb' }),
   res.json({ ok: true, applied });
 });
 
+
+// ===== Duplicate finder (fuzzy) — companies & contacts =====
+function _dfNorm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
+function _dfCompanyKey(s){
+  let t = String(s||'').toLowerCase();
+  t = t.replace(/&/g,' and ');
+  t = t.replace(/[^a-z0-9 ]+/g,' ');
+  const stop = {llc:1,inc:1,incorporated:1,corp:1,corporation:1,co:1,company:1,ltd:1,lp:1,llp:1,pllc:1,the:1,and:1,of:1,group:1,holdings:1,holding:1,enterprises:1,enterprise:1,restaurant:1,restaurants:1,bar:1,grill:1,cafe:1,kitchen:1,eatery:1,tavern:1,pub:1};
+  const toks = t.split(/\s+/).filter(w=>w && !stop[w]);
+  return toks.join('');
+}
+function _dfPhone(s){ const d = String(s||'').replace(/\D/g,''); return d.length>=10 ? d.slice(-10) : ''; }
+function _dfLev(a,b){
+  a=a||''; b=b||''; if(a===b) return 0; if(!a.length) return b.length; if(!b.length) return a.length;
+  const m=a.length,n=b.length; let prev=new Array(n+1),cur=new Array(n+1);
+  for(let j=0;j<=n;j++) prev[j]=j;
+  for(let i=1;i<=m;i++){ cur[0]=i; for(let j=1;j<=n;j++){ const cost=a.charCodeAt(i-1)===b.charCodeAt(j-1)?0:1; cur[j]=Math.min(prev[j]+1,cur[j-1]+1,prev[j-1]+cost); } const t=prev; prev=cur; cur=t; }
+  return prev[n];
+}
+function _dfSim(a,b){ if(!a||!b) return 0; const L=Math.max(a.length,b.length); if(!L) return 0; return 1-(_dfLev(a,b)/L); }
+function _dfUF(n){ const p=new Array(n); for(let i=0;i<n;i++) p[i]=i; function f(x){ while(p[x]!==x){ p[x]=p[p[x]]; x=p[x]; } return x; } return { find:f, union:function(a,b){ const ra=f(a),rb=f(b); if(ra!==rb) p[ra]=rb; } }; }
+
+app.get('/api/admin/duplicates', requireAdmin, (req, res) => {
+  const type = String(req.query.type||'companies');
+  if (type === 'contacts') {
+    const people = loadPeople();
+    const N = people.length;
+    const uf = _dfUF(N);
+    const emailMap = {}, phoneMap = {};
+    const keys = people.map(p => _dfNorm((personFirst(p)||'') + (personLast(p)||'') || p.name || ''));
+    const comps = people.map(p => _dfNorm(p.company || ''));
+    for (let i=0;i<N;i++){
+      const p = people[i];
+      personEmails(p).forEach(e => { const k = String(e||'').toLowerCase().trim(); if(!k) return; if(emailMap[k]!=null) uf.union(i, emailMap[k]); else emailMap[k]=i; });
+      personPhones(p).forEach(ph => { const k = _dfPhone(ph); if(!k) return; if(phoneMap[k]!=null) uf.union(i, phoneMap[k]); else phoneMap[k]=i; });
+    }
+    for (let i=0;i<N;i++){
+      if(!keys[i] || keys[i].length<3) continue;
+      for (let j=i+1;j<N;j++){
+        if(!keys[j] || keys[j].length<3) continue;
+        if(uf.find(i)===uf.find(j)) continue;
+        if(Math.abs(keys[i].length-keys[j].length)>4) continue;
+        const sameName = keys[i]===keys[j] || _dfSim(keys[i],keys[j])>=0.88;
+        if(!sameName) continue;
+        const pi=people[i], pj=people[j];
+        const sameCo = (pi.companyId && pi.companyId===pj.companyId) || (comps[i] && comps[i]===comps[j]);
+        const bothNoCo = !comps[i] && !comps[j] && !pi.companyId && !pj.companyId;
+        if(keys[i]===keys[j] && (sameCo || bothNoCo)) uf.union(i,j);
+        else if(sameCo && _dfSim(keys[i],keys[j])>=0.9) uf.union(i,j);
+      }
+    }
+    const groups = {};
+    for (let i=0;i<N;i++){ const r=uf.find(i); (groups[r]=groups[r]||[]).push(i); }
+    const out = [];
+    Object.keys(groups).forEach(r => {
+      const idxs = groups[r]; if(idxs.length<2) return;
+      const members = idxs.map(i => {
+        const p = people[i];
+        return { id:p.id, name:p.name||((personFirst(p)+' '+personLast(p)).trim()), emails:personEmails(p), phones:personPhones(p), company:p.company||'', companyId:p.companyId||'', title:p.title||'', type:p.type||'', tags:personTags(p), createdAt:p.createdAt||'',
+          _score: (personEmails(p).length?2:0)+(personPhones(p).length?1:0)+(p.company?1:0)+(p.title?1:0)+(p.type?1:0)+(personTags(p).length?1:0)+(String(p.notes||'').trim()?1:0) };
+      });
+      members.sort((a,b)=> b._score-a._score || String(a.createdAt).localeCompare(String(b.createdAt)));
+      out.push({ key:'c'+r, size:members.length, primaryId:members[0].id, members });
+    });
+    out.sort((a,b)=> b.size-a.size);
+    return res.json({ ok:true, type:'contacts', total:N, groups: out, dupeRecords: out.reduce((s,g)=>s+g.size,0), groupCount: out.length });
+  }
+  const companies = loadCompanies();
+  const N = companies.length;
+  const uf = _dfUF(N);
+  const keys = companies.map(c => _dfCompanyKey(c.name||''));
+  const domMap = {}, phoneMap = {};
+  for (let i=0;i<N;i++){
+    const c = companies[i]; const o = c.office||{};
+    const dom = domainOf(o.website || ((c.concepts&&c.concepts[0]&&c.concepts[0].website)||'')); if(dom){ const dk=dom.toLowerCase(); if(domMap[dk]!=null) uf.union(i,domMap[dk]); else domMap[dk]=i; }
+    const ph = _dfPhone(o.phone); if(ph){ if(phoneMap[ph]!=null) uf.union(i,phoneMap[ph]); else phoneMap[ph]=i; }
+  }
+  for (let i=0;i<N;i++){
+    if(!keys[i] || keys[i].length<3) continue;
+    for (let j=i+1;j<N;j++){
+      if(!keys[j] || keys[j].length<3) continue;
+      if(uf.find(i)===uf.find(j)) continue;
+      if(Math.abs(keys[i].length-keys[j].length)>5) continue;
+      if(keys[i]===keys[j] || _dfSim(keys[i],keys[j])>=0.88) uf.union(i,j);
+    }
+  }
+  const groups = {};
+  for (let i=0;i<N;i++){ const r=uf.find(i); (groups[r]=groups[r]||[]).push(i); }
+  const people = loadPeople(); const deals = loadDeals();
+  const contactCount = {}; people.forEach(p=>{ if(p.companyId) contactCount[p.companyId]=(contactCount[p.companyId]||0)+1; });
+  const dealCount = {}; deals.forEach(d=>{ if(d.companyId) dealCount[d.companyId]=(dealCount[d.companyId]||0)+1; });
+  const out = [];
+  Object.keys(groups).forEach(r => {
+    const idxs = groups[r]; if(idxs.length<2) return;
+    const members = idxs.map(i => {
+      const c = companies[i]; const o=c.office||{};
+      return { id:c.id, name:c.name||'', market:c.market||o.city||'', type:c.type||'', website:o.website||'', phone:o.phone||'', city:o.city||'', state:o.state||'', logo:c.logo||'', concepts:(c.concepts||[]).length, locations:(c.locations||[]).length, tags:Array.isArray(c.tags)?c.tags:[], createdAt:c.createdAt||'',
+        contacts: contactCount[c.id]||0, deals: dealCount[c.id]||0,
+        _score:(contactCount[c.id]||0)*2+(dealCount[c.id]||0)*3+((c.concepts||[]).length)+((c.locations||[]).length)+(c.logo?1:0)+(o.website?1:0)+(o.phone?1:0)+(String(c.notes||'').trim()?1:0) };
+    });
+    members.sort((a,b)=> b._score-a._score || String(a.createdAt).localeCompare(String(b.createdAt)));
+    out.push({ key:'c'+r, size:members.length, primaryId:members[0].id, members });
+  });
+  out.sort((a,b)=> b.size-a.size);
+  res.json({ ok:true, type:'companies', total:N, groups: out, dupeRecords: out.reduce((s,g)=>s+g.size,0), groupCount: out.length });
+});
+
 // ===== Personal Dashboard (per-user modular home) =====
 const DASH_FILE = path.join(BOV_DATA_DIR, 'dashboards.json');
 function loadDashCfgs() { try { return JSON.parse(fs.readFileSync(DASH_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
