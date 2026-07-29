@@ -327,6 +327,7 @@ function sendModalHtml(){
     +'<div id="sm_typewrap" hidden><label class="fld">Type</label><select id="sm_type">'+typeOpts+'</select></div>'
     +'<div id="sm_filewrap" hidden><label class="fld">Document</label><label class="mfadd" style="cursor:pointer">📎 Attach a PDF or Word file<input type="file" id="sm_file" accept=".pdf,.doc,.docx" hidden></label> <span id="sm_filename" style="font-size:12px;color:#1f8a5b"></span></div>'
     +'<div id="sm_simplewrap"><label class="fld">Send to</label><input id="sm_to" placeholder="name@email.com"></div>'
+    +'<div id="sm_fields" style="margin-top:4px"></div>'
     +'<div id="sm_signerswrap" class="smsigners" hidden></div>'
     +'<label class="fld" style="margin-top:10px">Message (optional)</label><textarea id="sm_msg" rows="3" placeholder="A short note to include in the email…"></textarea>'
     +'<div class="agrmodalbtns"><button type="button" class="savebtn" id="sm_send" style="width:auto;padding:9px 18px">Send agreement</button><button type="button" class="mfadd" id="sm_cancel">Cancel</button><span id="sm_msgout" style="font-size:12px;color:#DA2B1F"></span></div>'
@@ -351,7 +352,9 @@ function smOnTpl(){
   document.getElementById('sm_signerswrap').hidden=!adv;
   document.getElementById('sm_simplewrap').hidden=(adv||!v);
   if(adv) document.getElementById('sm_signerswrap').innerHTML=smSignerRows(tpl);
+  var fw=document.getElementById('sm_fields'); if(fw){ if(!adv && tpl && tpl.signFields && tpl.signFields.length){ fw.innerHTML='<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#8a94a6;margin:10px 0 4px">Fill in before sending</div>'+tpl.signFields.map(function(fld,i){ return '<label class="fld">'+esc(fld.label)+(fld.required?' *':'')+'</label><input class="sm_fld" data-i="'+i+'" data-req="'+(fld.required?'1':'')+'" value="'+esc(smPrefill(fld))+'">'; }).join(''); } else { fw.innerHTML=''; } }
 }
+function smPrefill(fld){ var k=String(fld.autofill||'').toLowerCase(), L=String(fld.label||'').toLowerCase(); var party=(typeof P!=='undefined'&&P&&P.name)||''; var co=(typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''; var today=(typeof todayStr==='function')?todayStr():''; if(k==='party_name'||k==='name'||(!k&&/\bname\b/.test(L))) return party; if(k==='company'||k==='title'||(!k&&/(company|firm|title)/.test(L))) return co; if(k==='date'||(!k&&/date/.test(L))) return today; if(k==='email'||(!k&&/email/.test(L))) return (typeof P!=='undefined'&&P&&(P.preferredEmail||P.email||(P.emails&&P.emails[0])))||''; return ''; }
 function openSendModal(){
   var tplOpts='<option value="">— Choose a template —</option>'+TEMPLATES.filter(function(t){return t.fileExt;}).map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+((t.pdfFields&&t.pdfFields.length)?(' (in-PDF, '+(t.signerCount===2?'2 signers':'1 signer')+')'):'')+'</option>';}).join('')+'<option value="__file">None — attach my own file</option>';
   var stpl=document.getElementById('sm_tpl'); stpl.innerHTML=tplOpts;
@@ -371,6 +374,8 @@ function doSendAgreement(){
   if(!v){ out.textContent='Pick a template, or choose to attach your own file.'; return; }
   var tpl=(v!=='__file')?TEMPLATES.filter(function(t){return t.id===v;})[0]:null;
   var adv=!!(tpl&&tpl.pdfFields&&tpl.pdfFields.length);
+  var repVals=[];
+  if(!adv && tpl && tpl.signFields && tpl.signFields.length){ var _vok=true; document.querySelectorAll('#sm_fields .sm_fld').forEach(function(el){ var vv=el.value.trim(); if(el.getAttribute('data-req')&&!vv){ _vok=false; el.style.borderColor='#DA2B1F'; } repVals.push(vv); }); if(!_vok){ out.textContent='Fill the required fields before sending.'; return; } }
   var msg=document.getElementById('sm_msg').value.trim();
   var type=tpl?(tpl.type||'NDA'):(document.getElementById('sm_type').value||'NDA');
   var btn=document.getElementById('sm_send'); btn.disabled=true; out.style.color='#6b7488'; out.textContent='Creating…';
@@ -391,7 +396,7 @@ function doSendAgreement(){
         return fetch('/api/agreements/'+encodeURIComponent(id)+'/signers',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({signers:signers})}).then(function(r){return r.json();}).then(function(){ return fetch('/api/agreements/'+encodeURIComponent(id)+'/send-adv',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({message:msg||undefined})}).then(function(r){return r.json();}); });
       } else {
         var to=document.getElementById('sm_to').value.trim();
-        return fetch('/api/agreements/'+encodeURIComponent(id)+'/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({to:to||undefined,message:msg||undefined})}).then(function(r){return r.json();});
+        return fetch('/api/agreements/'+encodeURIComponent(id)+'/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({to:to||undefined,message:msg||undefined,values:repVals})}).then(function(r){return r.json();});
       }
     }).then(function(js){
       if(!(js&&js.ok)) throw new Error((js&&js.error)||'Could not send.');

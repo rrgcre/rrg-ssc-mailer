@@ -20,9 +20,9 @@
     { grp: 'Book of Business', color: '#7ea6d8', items: [
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
       { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
+      { ic: '⚖︎', label: 'Agreements', href: 'rrg_agreements.html' },
       { ic: '◆', label: 'Listings', href: 'rrg_assignments.html' },
-      { ic: '◈', label: 'Deals', href: 'rrg_deals.html' },
-      { ic: '⚖︎', label: 'Agreements', href: 'rrg_agreements.html' }
+      { ic: '◈', label: 'Deals', href: 'rrg_deals.html' }
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [
       { ic: '☎', label: 'Qualification Calls', href: 'rrg_screening_queue.html' },

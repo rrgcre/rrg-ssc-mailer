@@ -6001,7 +6001,7 @@ app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   if (a.docExt) { try { const buf = fs.readFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); attachments.push({ filename: a.docName || ('agreement.' + a.docExt), content: buf }); } catch (e) {} }
   try { await buildTransport().sendMail({ from: mailFrom(), to, subject, text: message, attachments }); }
   catch (e) { console.error('agreement send:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
-  const now = new Date().toISOString(); a.signStatus = 'sent'; a.sentAt = now; a.sentTo = to; a.updatedAt = now; saveAgreements(all);
+  const now = new Date().toISOString(); a.signStatus = 'sent'; a.sentAt = now; a.sentTo = to; if (Array.isArray(b.values)) a.fieldValues = b.values.map(function(v){return String(v==null?'':v).slice(0,500);}); a.updatedAt = now; saveAgreements(all);
   if (p) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === p.id); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + to, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
   res.json({ ok: true, agreement: agreementBrief(a), to });
 });
@@ -6033,7 +6033,8 @@ app.get('/sign/:token', (req, res) => {
   const _coName = a.companyId ? ((companyById(a.companyId) || {}).name || '') : '';
   const _today = new Date().toISOString().slice(0, 10);
   function prefillFor(fld) { const k = String(fld.autofill || '').toLowerCase(); const L = String(fld.label || '').toLowerCase(); if (k === 'party_name' || k === 'name' || (!k && /\bname\b/.test(L))) return _party; if (k === 'company' || k === 'title' || (!k && /(company|firm|title)/.test(L))) return _coName; if (k === 'date' || (!k && /date/.test(L))) return _today; if (k === 'email' || (!k && /email/.test(L))) return (p ? preferredEmailOf(p) : ''); return ''; }
-  const fieldHtml = fields.map((fld, i) => `<div style="margin-bottom:14px"><label style="display:block;font-size:12px;font-weight:700;color:#3a4560;margin-bottom:5px">${esc(fld.label)}${fld.required ? ' *' : ''}</label><input data-sf="${i}" data-req="${fld.required ? '1' : ''}" value="${esc(prefillFor(fld))}" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:15px"></div>`).join('');
+  const _vals = Array.isArray(a.fieldValues) ? a.fieldValues : [];
+  const fieldHtml = '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin:4px 0 8px">Agreement details</div>'+fields.map(function(fld, i){ var val=(_vals[i]!=null && String(_vals[i])!=='')?_vals[i]:prefillFor(fld); return '<div style="display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid #eef1f6"><span style="font-size:12.5px;font-weight:700;color:#8a93a8">'+esc(fld.label)+'</span><span style="font-size:14.5px;color:#1a2236;font-weight:600;text-align:right">'+esc(String(val||'\u2014'))+'</span></div>'; }).join('');
   const docLink = a.docExt ? `<div style="margin-bottom:16px"><a href="/sign/${esc(a.signToken)}/doc" target="_blank" rel="noopener" style="color:#2647b0;font-weight:700;text-decoration:none">📎 Review the ${esc(label)} document →</a></div>` : '';
   const note = a.notes ? `<div style="color:#55607a;font-size:13.5px;margin-bottom:16px;white-space:pre-wrap">${esc(a.notes)}</div>` : '';
   const body = `<div class="card"><div style="padding:22px">${note}${docLink}${fieldHtml}<label style="display:block;font-size:12px;font-weight:700;color:#3a4560;margin:6px 0 6px">Signature *</label><div style="border:1px solid #cfd6e2;border-radius:9px;background:#fff;overflow:hidden"><canvas id="sigpad" style="width:100%;height:180px;touch-action:none;display:block"></canvas></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span style="font-size:11.5px;color:#98a1b5">Draw your signature above</span><button type="button" id="sigclear" style="background:none;border:none;color:#DA2B1F;font-weight:700;cursor:pointer;font-size:12.5px">Clear</button></div><label style="display:flex;align-items:flex-start;gap:8px;margin:16px 0;font-size:12.5px;color:#3a4560"><input type="checkbox" id="sigagree" style="margin-top:2px"> I agree this electronic signature is legally binding and equivalent to my handwritten signature.</label><button type="button" id="sigsubmit" style="width:100%;background:#000E31;color:#fff;border:none;border-radius:10px;padding:14px;font:inherit;font-size:15px;font-weight:700;cursor:pointer">Sign &amp; submit</button><div id="sigmsg" style="text-align:center;font-size:13px;color:#DA2B1F;margin-top:10px"></div></div></div>
@@ -6056,7 +6057,7 @@ app.get('/sign/:token', (req, res) => {
     if(!ok){m.textContent='Please fill the required fields.';return;}
     if(!dirty){m.textContent='Please draw your signature.';return;}
     if(!document.getElementById('sigagree').checked){m.textContent='Please check the agreement box.';return;}
-    var nameEl=document.querySelectorAll('[data-sf]')[0];var name=nameEl?nameEl.value:'';
+    var name=${JSON.stringify(_party||"")};
     var btn=document.getElementById('sigsubmit');btn.disabled=true;btn.textContent='Submitting…';
     fetch('/api/sign/'+encodeURIComponent(${JSON.stringify(a.signToken)}),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,responses:flds,signature:c.toDataURL('image/png')})})
       .then(function(r){return r.json();}).then(function(j){
@@ -6082,12 +6083,11 @@ app.post('/api/sign/:token', express.json({ limit: '8mb' }), async (req, res) =>
   const sig = String(b.signature || '');
   if (!/^data:image\/png;base64,/.test(sig)) return res.status(400).json({ ok: false, error: 'A signature is required.' });
   const fields = (Array.isArray(a.signFields) && a.signFields.length) ? a.signFields : defaultSignFields();
-  const responses = {};
-  (Array.isArray(b.responses) ? b.responses : []).forEach((v, i) => { if (fields[i]) responses[fields[i].label] = String(v || '').slice(0, 500); });
-  for (let i = 0; i < fields.length; i++) { if (fields[i].required && !String(responses[fields[i].label] || '').trim()) return res.status(400).json({ ok: false, error: 'Please complete: ' + fields[i].label }); }
+  const _vals = Array.isArray(a.fieldValues) ? a.fieldValues : [];
+  const responses = {}; fields.forEach(function(fld, i){ responses[fld.label] = String((_vals[i] != null ? _vals[i] : (Array.isArray(b.responses) ? b.responses[i] : '')) || '').slice(0, 500); });
   const now = new Date().toISOString();
   try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); const buf = Buffer.from(sig.replace(/^data:image\/png;base64,/, ''), 'base64'); if (buf.length > 3 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Signature too large.' }); fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, 'sig_' + a.id + '.png'), buf); a.hasSignature = true; } catch (e) {}
-  a.signStatus = 'signed'; a.signedDate = now.slice(0, 10); a.signedAt = now; a.signedName = String(b.name || responses['Full name'] || '').slice(0, 160); a.signedResponses = responses; a.signedIp = req.ip; a.status = 'active'; a.updatedAt = now;
+  a.signStatus = 'signed'; a.signedDate = now.slice(0, 10); a.signedAt = now; a.signedName = String(b.name || a.personName || responses['Full name'] || '').slice(0, 160); a.signedResponses = responses; a.signedIp = req.ip; a.status = 'active'; a.updatedAt = now;
   saveAgreements(all);
   if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Signed', agreementTypeLabel(a.type) + ' signed by ' + (a.signedName || 'contact'), { auto: true, date: a.signedDate }); savePeople(ppl); } } catch (e) {} }
   res.json({ ok: true });
