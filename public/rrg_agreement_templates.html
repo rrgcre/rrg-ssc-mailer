@@ -140,7 +140,7 @@ function renderEditor(){
   host.innerHTML='<div class="card"><div class="ch"><b>'+(e.id?'Edit template':'New template')+'</b><span class="sp"></span><button class="btn ghost sm" id="t_close">Close</button></div><div class="cb">'+
     '<div class="grid2"><div><label class="fld">Template name</label><input id="t_name" value="'+esc(e.name||'')+'" placeholder="e.g. Standard Tenant Rep Agreement"></div>'+
     '<div><label class="fld">Category / type</label><select id="t_type">'+typeOpts+'</select></div></div>'+
-    '<div style="margin-top:16px"><label class="fld">Signer fields</label><div id="t_fieldrows"></div>'+
+    '<div style="margin-top:16px"><label class="fld">Fields to complete before sending</label><div id="t_fieldrows"></div>'+
       '<button type="button" class="btn ghost sm" id="t_addfield">+ Add field</button>'+
       '<div class="note">Give each field a name and a type. <b>Date</b>, <b>time</b>, <b>number</b> and <b>currency</b> fields format automatically across the system. Fields named like <b>name</b>, <b>company/title</b>, <b>date</b> or <b>email</b> auto-fill from the contact. The rep fills these in before sending; the signer only signs.</div></div>'+
     '<div style="margin-top:16px"><label class="fld">Email message (sent with the signing link)</label>'+
