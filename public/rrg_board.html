@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Pipeline Board</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
+.top{max-width:100%;padding:20px 26px 10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.pgh{font-size:22px;font-weight:800;color:var(--navy);margin:0;}
+.psel{font:inherit;font-size:13.5px;font-weight:700;color:var(--navy);border:1px solid var(--line);border-radius:9px;padding:8px 12px;background:#fff;cursor:pointer;}
+.tot{font-size:12.5px;color:var(--muted);font-weight:600;}
+.board{display:flex;gap:14px;padding:8px 26px 30px;overflow-x:auto;align-items:flex-start;min-height:70vh;}
+.col{flex:0 0 288px;background:#f1f3f8;border:1px solid var(--line);border-radius:13px;display:flex;flex-direction:column;max-height:calc(100vh - 150px);}
+.col.dragover{background:#e7eefb;border-color:#9fb6e6;box-shadow:inset 0 0 0 2px #9fb6e6;}
+.colh{padding:12px 14px 8px;border-bottom:1px solid #e4e8f0;position:sticky;top:0;background:#f1f3f8;border-radius:13px 13px 0 0;z-index:2;}
+.colh .nm{font-size:12.5px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;gap:8px;}
+.colh .cnt{font-size:11px;font-weight:800;color:#6b7488;background:#e2e6ef;border-radius:100px;padding:1px 8px;}
+.colh .sum{font-size:12px;color:var(--green);font-weight:700;margin-top:4px;}
+.colb{padding:10px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:9px;}
+.cardx{background:#fff;border:1px solid var(--line);border-radius:11px;padding:11px 12px;box-shadow:0 1px 2px rgba(16,24,40,.05);cursor:grab;text-decoration:none;color:inherit;display:block;}
+.cardx:hover{border-color:#cfd6e2;box-shadow:0 4px 14px rgba(16,24,40,.09);}
+.cardx.dragging{opacity:.4;}
+.cardx .t{font-size:13.5px;font-weight:700;color:var(--navy);line-height:1.3;margin-bottom:6px;}
+.cardx .r{display:flex;align-items:center;gap:6px;font-size:12px;color:#5b6472;margin-top:3px;}
+.cardx .r .ic{width:13px;text-align:center;color:#9aa4b6;flex:none;}
+.cardx .val{color:var(--navy);font-weight:700;}
+.cardx .ft{display:flex;align-items:center;justify-content:space-between;margin-top:9px;padding-top:8px;border-top:1px solid #f0f2f7;}
+.cardx .dt{font-size:11px;color:#98a1b5;}
+.cardx .av{width:22px;height:22px;border-radius:50%;background:#6d28d9;color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+.empty{padding:16px 8px;text-align:center;color:#a7b0c0;font-size:12px;}
+.colempty{color:#a7b0c0;font-size:12px;text-align:center;padding:14px 6px;}
+.gate{max-width:520px;margin:70px auto;text-align:center;color:var(--muted);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="top">
+  <h1 class="pgh">Pipeline Board</h1>
+  <select class="psel" id="psel"></select>
+  <span class="tot" id="tot"></span>
+</div>
+<div id="root"><div class="gate">Loading…</div></div>
+<script>
+var DATA=null, PID='', DRAGKEY='';
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function money(v){ var m=String(v==null?'':v).replace(/[, ]/g,'').match(/-?\d+(\.\d+)?/); return m?parseFloat(m[0]):0; }
+function fmtMoney(n){ if(!n) return ''; return '$'+Math.round(n).toLocaleString('en-US'); }
+function fmtDate(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return String(iso).slice(0,10); return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
+function initials(s){ s=String(s||'').trim(); if(!s) return '?'; var p=s.split(/\s+/); return ((p[0]||'')[0]||'').toUpperCase()+((p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
+function load(){
+  fetch('/api/board'+(PID?('?pipelineId='+encodeURIComponent(PID)):''),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load the board.</div>'; return; }
+    DATA=j; PID=j.pipelineId;
+    var sel=document.getElementById('psel');
+    sel.innerHTML=(j.pipelines||[]).map(function(p){ return '<option value="'+esc(p.id)+'"'+(p.id===PID?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
+    render();
+  }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+}
+function render(){
+  var stages=DATA.stages||[]; var cards=DATA.cards||[];
+  var byStage={}; stages.forEach(function(s){ byStage[s]=[]; });
+  cards.forEach(function(c){ (byStage[c.stage]||(byStage[c.stage]=[])).push(c); });
+  var totalVal=cards.reduce(function(a,c){return a+money(c.value);},0);
+  document.getElementById('tot').textContent=cards.length+' opportunit'+(cards.length===1?'y':'ies')+' · '+fmtMoney(totalVal);
+  if(!stages.length){ document.getElementById('root').innerHTML='<div class="gate">This pipeline has no stages yet. Add stages in <b>Admin → Pipelines</b>.</div>'; return; }
+  var cols=stages.map(function(st){
+    var list=byStage[st]||[]; var sum=list.reduce(function(a,c){return a+money(c.value);},0);
+    var cardsHtml=list.length?list.map(cardHtml).join(''):'<div class="colempty">Drop deals here</div>';
+    return '<div class="col" data-stage="'+esc(st)+'"><div class="colh"><div class="nm">'+esc(st)+' <span class="cnt">'+list.length+'</span></div>'+(sum?('<div class="sum">'+fmtMoney(sum)+'</div>'):'')+'</div><div class="colb" data-stage="'+esc(st)+'">'+cardsHtml+'</div></div>';
+  }).join('');
+  document.getElementById('root').innerHTML='<div class="board">'+cols+'</div>';
+  wireDnD();
+}
+function cardHtml(c){
+  return '<a class="cardx" draggable="true" data-key="'+esc(c.key)+'" href="./rrg_assignment.html?key='+encodeURIComponent(c.key)+'">'
+    +'<div class="t">'+esc(c.business||'Listing')+'</div>'
+    +(c.contact?('<div class="r"><span class="ic">○</span>'+esc(c.contact)+'</div>'):'')
+    +(c.value?('<div class="r"><span class="ic">$</span><span class="val">'+esc(c.value)+'</span></div>'):'')
+    +(c.market?('<div class="r"><span class="ic">◎</span>'+esc(c.market)+'</div>'):'')
+    +'<div class="ft"><span class="dt">'+(c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+(c.owner?('<span class="av" title="'+esc(c.owner)+'">'+esc(initials(c.owner))+'</span>'):'')+'</div>'
+    +'</a>';
+}
+function wireDnD(){
+  document.querySelectorAll('.cardx').forEach(function(el){
+    el.addEventListener('dragstart',function(e){ DRAGKEY=el.getAttribute('data-key'); el.classList.add('dragging'); try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',DRAGKEY); }catch(_){}});
+    el.addEventListener('dragend',function(){ el.classList.remove('dragging'); document.querySelectorAll('.col.dragover').forEach(function(c){c.classList.remove('dragover');}); });
+    el.addEventListener('click',function(e){ /* allow navigation unless a drag just happened handled by browser */ });
+  });
+  document.querySelectorAll('.col').forEach(function(col){
+    col.addEventListener('dragover',function(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; col.classList.add('dragover'); });
+    col.addEventListener('dragleave',function(e){ if(!col.contains(e.relatedTarget)) col.classList.remove('dragover'); });
+    col.addEventListener('drop',function(e){ e.preventDefault(); col.classList.remove('dragover'); var stage=col.getAttribute('data-stage'); if(DRAGKEY&&stage){ moveCard(DRAGKEY,stage); } DRAGKEY=''; });
+  });
+}
+function moveCard(key,stage){
+  var card=(DATA.cards||[]).filter(function(c){return c.key===key;})[0];
+  if(!card || card.stage===stage) return;
+  card.stage=stage; render();
+  fetch('/api/assignment/'+encodeURIComponent(key)+'/stage',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({stage:stage})})
+    .then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ load(); } }).catch(function(){ load(); });
+}
+document.getElementById('psel').addEventListener('change',function(){ PID=this.value; load(); });
+load();
+</script>
+</body>
+</html>

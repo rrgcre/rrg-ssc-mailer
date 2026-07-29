@@ -23,6 +23,7 @@
       { ic: '⚖︎', label: 'Agreements', href: 'rrg_agreements.html' },
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [
+      { ic: '⊞', label: 'Pipeline Board', href: 'rrg_board.html' },
       { ic: '☎', label: 'Qualification Calls', href: 'rrg_screening_queue.html' },
       { ic: '▤', label: 'Valuations', href: 'rrg_bov_queue.html' },
       { ic: '◆', label: 'Listings', href: 'rrg_assignments.html' },

@@ -3026,6 +3026,7 @@ async function bbsPollTick() {
 setInterval(bbsPollTick, 60 * 1000);
 try { bizBuySellCompany(); noCompanyCompany(); backlinkBbsLeads(); } catch (e) { console.error('bbs company init:', e && e.message); }
 try { seedEmailTemplates(); } catch (e) { console.error('seed email tpl:', e && e.message); }
+try { seedBizSalesStages(); } catch (e) { console.error('seed biz sales:', e && e.message); }
 
 // ================= Automations (email / task drip sequences) =================
 const AUTOMATIONS_FILE = path.join(BOV_DATA_DIR, 'automations.json');
@@ -3286,6 +3287,56 @@ app.delete('/api/email-templates/:id', (req, res) => {
   if (!t) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!(t.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: 'You can only delete your own templates.' });
   all = all.filter(x => x.id !== req.params.id); saveEmailTpls(all);
+  res.json({ ok: true });
+});
+
+// ===== Expenses (Accounting) =====
+const EXPENSES_FILE = path.join(BOV_DATA_DIR, 'expenses.json');
+const EXPENSE_CATEGORIES = ['Advertising & Marketing','Meals & Entertainment','Travel & Mileage','Signage','Photography & Media','Dues & Subscriptions','Licenses & Fees','Professional Services','Software & Tools','Office & Supplies','Client Gifts','Other'];
+const EXPENSE_METHODS = ['Card','Check','Cash','ACH / Transfer','Other'];
+const EXPENSE_STATUSES = ['Unpaid','Paid','Reimbursed'];
+function loadExpenses() { try { return JSON.parse(fs.readFileSync(EXPENSES_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveExpenses(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(EXPENSES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newExpenseId() { return 'exp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function _expNum(v) { const n = Number(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : 0; }
+function expenseBrief(x, user) {
+  return { id: x.id, date: x.date || '', vendor: x.vendor || '', category: x.category || '', method: x.method || '',
+    amount: _expNum(x.amount), status: EXPENSE_STATUSES.indexOf(x.status) >= 0 ? x.status : 'Unpaid',
+    listingKey: x.listingKey || '', listingLabel: x.listingLabel || '', reimbursable: !!x.reimbursable,
+    notes: x.notes || '', receipt: x.receipt || '', ownerUser: x.ownerUser || '', ownerName: x.ownerName || '',
+    mine: !!(user && (x.ownerUser === user.username || isSuper(user))), createdAt: x.createdAt || '', updatedAt: x.updatedAt || '' };
+}
+app.get('/api/expenses', (req, res) => {
+  const u = req.user || {}; const admin = isSuper(u); const all = loadExpenses();
+  const vis = all.filter(x => admin || x.ownerUser === u.username);
+  vis.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  res.json({ ok: true, isAdmin: !!admin, categories: EXPENSE_CATEGORIES, methods: EXPENSE_METHODS, statuses: EXPENSE_STATUSES, expenses: vis.map(x => expenseBrief(x, u)) });
+});
+app.post('/api/expenses', express.json({ limit: '256kb' }), (req, res) => {
+  const u = req.user || {}; const b = req.body || {}; const all = loadExpenses();
+  let x;
+  if (b.id) { x = all.find(e => e.id === b.id); if (!x) return res.status(404).json({ ok: false, error: 'Expense not found.' });
+    if (!(x.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: 'You can only edit your own expenses.' }); }
+  else { x = { id: newExpenseId(), ownerUser: u.username || '', ownerName: u.name || '', createdAt: new Date().toISOString() }; all.push(x); }
+  if (b.date !== undefined) x.date = String(b.date || '').slice(0, 10);
+  if (b.vendor !== undefined) x.vendor = String(b.vendor || '').slice(0, 160);
+  if (b.category !== undefined) x.category = String(b.category || '').slice(0, 60);
+  if (b.method !== undefined) x.method = String(b.method || '').slice(0, 40);
+  if (b.amount !== undefined) x.amount = _expNum(b.amount);
+  if (b.status !== undefined) x.status = EXPENSE_STATUSES.indexOf(b.status) >= 0 ? b.status : 'Unpaid';
+  if (b.listingKey !== undefined) x.listingKey = String(b.listingKey || '').slice(0, 80);
+  if (b.listingLabel !== undefined) x.listingLabel = String(b.listingLabel || '').slice(0, 160);
+  if (b.reimbursable !== undefined) x.reimbursable = !!b.reimbursable;
+  if (b.notes !== undefined) x.notes = String(b.notes || '').slice(0, 4000);
+  if (b.receipt !== undefined) x.receipt = String(b.receipt || '').slice(0, 600);
+  x.updatedAt = new Date().toISOString(); saveExpenses(all);
+  res.json({ ok: true, expense: expenseBrief(x, u) });
+});
+app.delete('/api/expenses/:id', (req, res) => {
+  const u = req.user || {}; let all = loadExpenses(); const x = all.find(e => e.id === req.params.id);
+  if (!x) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!(x.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: 'You can only delete your own expenses.' });
+  all = all.filter(e => e.id !== req.params.id); saveExpenses(all);
   res.json({ ok: true });
 });
 
@@ -6278,8 +6329,61 @@ function defaultPipelines() {
 function loadPipelines() { try { const a = JSON.parse(fs.readFileSync(PIPELINES_FILE, 'utf8')); if (Array.isArray(a) && a.length) return a; } catch (e) {} const d = defaultPipelines(); try { savePipelines(d); } catch (e) {} return d; }
 function savePipelines(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PIPELINES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newPipelineId() { return 'pl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function seedBizSalesStages() {
+  try {
+    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
+    const marker = path.join(BOV_DATA_DIR, 'bizsales_stages_seeded.flag');
+    if (fs.existsSync(marker)) return;
+    const all = loadPipelines();
+    const names = ['Lead Received', 'Qualification Call', 'Valuation Call', 'Alignment & Agreement', 'Marketing', 'Prospecting - Active', 'Prospecting - Not Active', 'Offers', 'Due Diligence', 'Close'];
+    const steps = names.map((n, i) => ({ name: n, number: i + 1, targetDays: 7 }));
+    let p = all.find(x => x.id === 'p_bizsales');
+    if (p) { p.name = 'Biz Sales'; p.area = 'Business Sales'; p.stages = steps; }
+    else { all.push({ id: 'p_bizsales', name: 'Biz Sales', area: 'Business Sales', stages: steps }); }
+    savePipelines(all);
+    fs.writeFileSync(marker, new Date().toISOString());
+    console.log('Seeded Biz Sales pipeline (10 stages).');
+  } catch (e) { console.error('seedBizSalesStages:', e && e.message); }
+}
 function cleanStages(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 40).map(function(st, i){ return { name: String((st && st.name) || '').slice(0, 80) || ('Stage ' + (i + 1)), number: i + 1, targetDays: Math.max(0, Math.min(3650, parseInt((st && st.targetDays), 10) || 0)) }; }).filter(function(st){ return st.name; }); }
 app.get('/api/pipelines', (req, res) => { res.json({ ok: true, pipelines: loadPipelines(), isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.get('/api/board', (req, res) => {
+  const pipelines = loadPipelines();
+  const pid = String(req.query.pipelineId || '') || ((pipelines[0] && pipelines[0].id) || 'p_bizsales');
+  const pipe = pipelines.find(p => p.id === pid) || pipelines[0] || { id: pid, name: '', stages: [] };
+  const stageNames = (pipe.stages || []).map(s => s.name);
+  const overlay = loadAssignOverlay(), idx = assignmentsIndex();
+  const isAdmin = req.user && isSuper(req.user);
+  const cards = [];
+  Object.values(idx).forEach(d => {
+    if (!(isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d))) return;
+    const o = overlay[d.key] || {};
+    const lp = o.pipelineId || 'p_bizsales';
+    if (lp !== pid) return;
+    let v; try { v = assignmentView(d, overlay); } catch (e) { return; }
+    let stage = o.pipelineStage || '';
+    if (stageNames.indexOf(stage) < 0) {
+      try { const ss = listingStageSummary(d, overlay); const si = Math.max(0, Math.min((ss.done || 0), stageNames.length - 1)); stage = stageNames[si] || stageNames[0] || ''; }
+      catch (e) { stage = stageNames[0] || ''; }
+    }
+    cards.push({ key: d.key, business: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', bbsNumber: v.bbsNumber || '', stage: stage });
+  });
+  res.json({ ok: true, pipelines: pipelines.map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, cards: cards, isAdmin: !!isAdmin });
+});
+app.post('/api/assignment/:key/stage', express.json(), (req, res) => {
+  const deals = assignmentsIndex(); const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay(); const cur = overlay[d.key] || {};
+  const pipelines = loadPipelines(); const pid = cur.pipelineId || 'p_bizsales';
+  const pipe = pipelines.find(p => p.id === pid);
+  const stage = String((req.body || {}).stage || '');
+  if (pipe && (pipe.stages || []).map(s => s.name).indexOf(stage) < 0) return res.status(400).json({ ok: false, error: 'Unknown stage for this pipeline.' });
+  cur.pipelineStage = stage; cur.updatedAt = new Date().toISOString();
+  overlay[d.key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true });
+});
+
 app.post('/api/admin/pipelines', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const all = loadPipelines();
   const name = String(b.name || '').trim().slice(0, 80); if (!name) return res.status(400).json({ ok: false, error: 'Pipeline name is required.' });
