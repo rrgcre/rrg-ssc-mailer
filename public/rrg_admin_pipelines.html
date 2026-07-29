@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Pipelines</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--blue:#2f6fe0;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
+.wrap{max-width:1100px;margin:0 auto;padding:24px 28px 60px;}
+.pgh{font-size:26px;font-weight:800;color:var(--navy);margin:6px 0 2px;}
+.pgs{color:var(--muted);font-size:13.5px;margin-bottom:20px;max-width:760px;line-height:1.5;}
+.cols{display:grid;grid-template-columns:262px 1fr;gap:20px;align-items:start;}
+@media(max-width:820px){.cols{grid-template-columns:1fr;}}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+.side .sh{padding:13px 16px;border-bottom:1px solid var(--line);font-weight:800;color:var(--navy);font-size:13px;text-transform:uppercase;letter-spacing:.04em;}
+.pl{list-style:none;margin:0;padding:6px;}
+.pl li{padding:11px 12px;border-radius:9px;cursor:pointer;margin-bottom:2px;}
+.pl li:hover{background:var(--wash);}
+.pl li.on{background:#eaf1fb;}
+.pl li .nm{font-weight:700;font-size:14px;color:var(--ink);}
+.pl li .mt{font-size:11.5px;color:var(--soft);margin-top:2px;}
+.side .sf{padding:10px 12px;border-top:1px solid var(--line);}
+.btn{font:inherit;font-size:12.5px;font-weight:700;padding:8px 14px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--navy);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;}
+.btn:hover{background:#f4f7fb;}
+.btn.pri{background:var(--navy);color:#fff;border-color:var(--navy);}
+.btn.pri:hover{background:#0a1a44;}
+.btn.dng{color:var(--red);border-color:#f0cdca;}
+.btn.dng:hover{background:#fdf2f1;}
+.btn.full{width:100%;justify-content:center;}
+.main .mh{padding:15px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.main .mh .t{font-weight:800;color:var(--navy);font-size:16px;}
+.main .mh .sp{margin-left:auto;display:flex;gap:8px;}
+.body{padding:20px;}
+.fld{margin-bottom:16px;}
+.fld label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;margin-bottom:6px;}
+.fld input[type=text],.fld select{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;width:100%;max-width:420px;color:var(--ink);background:#fff;}
+.frow{display:flex;gap:14px;flex-wrap:wrap;}
+.frow .fld{flex:1;min-width:200px;}
+.stgh{display:flex;align-items:center;margin:22px 0 8px;}
+.stgh b{font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--navy);font-weight:800;}
+.stgh .c{margin-left:8px;font-size:12px;color:var(--soft);font-weight:600;}
+table.stg{width:100%;border-collapse:collapse;}
+table.stg th{text-align:left;padding:6px 8px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;}
+table.stg td{padding:4px 8px;border-top:1px solid #f0f2f7;vertical-align:middle;}
+table.stg td.num{width:34px;color:var(--soft);font-weight:800;font-variant-numeric:tabular-nums;text-align:center;}
+table.stg input.nm{font:inherit;font-size:14px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;width:100%;}
+table.stg input.days{font:inherit;font-size:14px;padding:8px 8px;border:1px solid var(--line);border-radius:8px;width:80px;text-align:right;font-variant-numeric:tabular-nums;}
+table.stg td.days{width:96px;}
+table.stg td.act{width:96px;white-space:nowrap;text-align:right;}
+.ib{border:1px solid var(--line);background:#fff;border-radius:7px;width:28px;height:28px;font-size:14px;cursor:pointer;color:var(--muted);line-height:1;padding:0;margin-left:3px;}
+.ib:hover{background:var(--wash);color:var(--ink);}
+.ib.x:hover{color:var(--red);border-color:#f0cdca;background:#fdf2f1;}
+.ib:disabled{opacity:.3;cursor:default;}
+.msg{font-size:12.5px;font-weight:700;margin-left:4px;}
+.msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.empty{color:var(--soft);font-size:13.5px;padding:40px 20px;text-align:center;}
+.days-note{font-size:11.5px;color:var(--soft);margin-top:2px;}
+.notadmin{background:#fff;border:1px solid var(--line);border-radius:14px;padding:30px;text-align:center;color:var(--muted);font-size:14px;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="pgh">Pipelines</h1>
+  <div class="pgs">Build and manage the deal pipelines your reps work. Each pipeline is a named set of stages, in order, with a target number of days a deal should sit in each stage before it needs attention. Business Sales, Tenant Rep, and Landlord Rep can each run their own.</div>
+  <div id="root"></div>
+</div>
+
+<script>
+var PIPES=[], CUR=null, IS_ADMIN=false, DEL_ARM=false, DRAFT=null;
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json().then(function(j){j._status=r.status;return j;});});}
+
+function load(){
+  api('GET','/api/pipelines').then(function(j){
+    IS_ADMIN=!!j.isAdmin; PIPES=(j.pipelines||[]);
+    if(!IS_ADMIN){ document.getElementById('root').innerHTML='<div class="notadmin">Pipeline settings are admin-only. Ask a FullServe administrator if you need a stage added or a target changed.</div>'; return; }
+    if(CUR && !PIPES.some(function(p){return p.id===CUR;})) CUR=null;
+    if(!CUR && PIPES.length) CUR=PIPES[0].id;
+    render();
+  });
+}
+
+function render(){
+  var root=document.getElementById('root');
+  root.innerHTML='<div class="cols">'
+    +'<div class="card side"><div class="sh">Pipelines</div><ul class="pl" id="pl"></ul>'
+      +'<div class="sf"><button class="btn full" id="newBtn">+ New pipeline</button></div></div>'
+    +'<div class="card main" id="main"></div>'
+  +'</div>';
+  var pl=document.getElementById('pl');
+  pl.innerHTML=PIPES.map(function(p){
+    var n=(p.stages||[]).length;
+    return '<li data-id="'+esc(p.id)+'"'+(p.id===CUR?' class="on"':'')+'><div class="nm">'+esc(p.name)+'</div><div class="mt">'+(p.area?esc(p.area)+' · ':'')+n+' stage'+(n===1?'':'s')+'</div></li>';
+  }).join('') || '<li style="cursor:default;color:#8a93a8">No pipelines yet.</li>';
+  Array.prototype.forEach.call(pl.querySelectorAll('li[data-id]'),function(li){ li.onclick=function(){ CUR=li.getAttribute('data-id'); DEL_ARM=false; render(); }; });
+  document.getElementById('newBtn').onclick=newBlank;
+  renderEditor();
+}
+
+function curPipe(){ if(CUR==='__new__') return DRAFT; return PIPES.find(function(p){return p.id===CUR;}); }
+
+function renderEditor(){
+  var main=document.getElementById('main');
+  var p=curPipe();
+  if(!p){ main.innerHTML='<div class="empty">Select a pipeline on the left, or create a new one.</div>'; return; }
+  var areas=['Business Sales','Tenant Rep','Landlord Rep','General'];
+  if(p.area && areas.indexOf(p.area)<0) areas.unshift(p.area);
+  var stages=(p.stages||[]);
+  main.innerHTML='<div class="mh"><span class="t">'+(p.id?'Edit pipeline':'New pipeline')+'</span>'
+    +'<span class="sp"><span class="msg" id="msg"></span>'
+    +(p.id?'<button class="btn dng" id="delBtn">Delete</button>':'')
+    +'<button class="btn pri" id="saveBtn">Save</button></span></div>'
+    +'<div class="body">'
+      +'<div class="frow">'
+        +'<div class="fld"><label>Pipeline name</label><input type="text" id="pName" value="'+esc(p.name||'')+'" placeholder="e.g. Business Sales"></div>'
+        +'<div class="fld"><label>Practice area</label><select id="pArea">'+areas.map(function(a){return '<option'+(a===(p.area||'General')?' selected':'')+'>'+esc(a)+'</option>';}).join('')+'</select></div>'
+      +'</div>'
+      +'<div class="stgh"><b>Stages</b><span class="c" id="stgCount"></span></div>'
+      +'<table class="stg"><thead><tr><th>#</th><th>Stage name</th><th>Target days</th><th></th></tr></thead><tbody id="stgBody"></tbody></table>'
+      +'<div class="days-note">Target days = how long a deal should stay in that stage before FullServe flags it as stalled. Set 0 for no target.</div>'
+      +'<div style="margin-top:14px"><button class="btn" id="addStg">+ Add stage</button></div>'
+    +'</div>';
+  renderStages(stages);
+  document.getElementById('saveBtn').onclick=save;
+  document.getElementById('addStg').onclick=function(){ var s=gatherStages(); s.push({name:'',targetDays:(curPipe().stages&&curPipe().stages[0]?curPipe().stages[0].targetDays:7)}); curPipe().stages=s; renderStages(s); setTimeout(function(){var rows=document.querySelectorAll('#stgBody input.nm');if(rows.length)rows[rows.length-1].focus();},0); };
+  var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
+}
+
+function renderStages(stages){
+  var tb=document.getElementById('stgBody');
+  document.getElementById('stgCount').textContent=stages.length+' stage'+(stages.length===1?'':'s');
+  tb.innerHTML=stages.map(function(st,i){
+    return '<tr>'
+      +'<td class="num">'+(i+1)+'</td>'
+      +'<td><input class="nm" data-i="'+i+'" value="'+esc(st.name||'')+'" placeholder="Stage name"></td>'
+      +'<td class="days"><input class="days" type="number" min="0" data-i="'+i+'" value="'+(st.targetDays==null?'':st.targetDays)+'"></td>'
+      +'<td class="act">'
+        +'<button class="ib up" data-i="'+i+'"'+(i===0?' disabled':'')+' title="Move up">↑</button>'
+        +'<button class="ib dn" data-i="'+i+'"'+(i===stages.length-1?' disabled':'')+' title="Move down">↓</button>'
+        +'<button class="ib x" data-i="'+i+'" title="Remove">✕</button>'
+      +'</td></tr>';
+  }).join('') || '<tr><td colspan="4" class="empty" style="padding:24px">No stages yet — add your first stage below.</td></tr>';
+  Array.prototype.forEach.call(tb.querySelectorAll('.ib.up'),function(b){b.onclick=function(){move(+b.getAttribute('data-i'),-1);};});
+  Array.prototype.forEach.call(tb.querySelectorAll('.ib.dn'),function(b){b.onclick=function(){move(+b.getAttribute('data-i'),1);};});
+  Array.prototype.forEach.call(tb.querySelectorAll('.ib.x'),function(b){b.onclick=function(){removeStage(+b.getAttribute('data-i'));};});
+}
+
+function gatherStages(){
+  var names=document.querySelectorAll('#stgBody input.nm');
+  var days=document.querySelectorAll('#stgBody input.days');
+  var out=[];
+  for(var i=0;i<names.length;i++){ out.push({name:names[i].value,targetDays:(days[i].value===''?0:Math.max(0,parseInt(days[i].value,10)||0))}); }
+  return out;
+}
+function move(i,d){ var s=gatherStages(); var j=i+d; if(j<0||j>=s.length)return; var t=s[i];s[i]=s[j];s[j]=t; curPipe().stages=s; renderStages(s); }
+function removeStage(i){ var s=gatherStages(); s.splice(i,1); curPipe().stages=s; renderStages(s); }
+
+function newBlank(){
+  DRAFT={id:'',name:'',area:'Business Sales',stages:[{name:'',targetDays:7}]};
+  CUR='__new__'; DEL_ARM=false; render();
+}
+
+function msg(t,cls){ var m=document.getElementById('msg'); if(!m)return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
+
+function save(){
+  var p=curPipe(); if(!p)return;
+  var name=document.getElementById('pName').value.trim();
+  if(!name){ msg('Name the pipeline first.','err'); document.getElementById('pName').focus(); return; }
+  var area=document.getElementById('pArea').value;
+  var stages=gatherStages().filter(function(s){return s.name.trim();});
+  if(!stages.length){ msg('Add at least one stage.','err'); return; }
+  var body={name:name,area:area,stages:stages}; if(p.id) body.id=p.id;
+  var btn=document.getElementById('saveBtn'); btn.disabled=true;
+  api('POST','/api/admin/pipelines',body).then(function(j){
+    btn.disabled=false;
+    if(!j.ok){ msg(j.error||'Save failed.','err'); return; }
+    PIPES=j.pipelines||PIPES; CUR=(j.pipeline&&j.pipeline.id)||CUR;
+    render(); msg('Saved','ok');
+  });
+}
+
+function onDelete(){
+  var p=curPipe(); if(!p||!p.id)return;
+  if(!DEL_ARM){ DEL_ARM=true; var b=document.getElementById('delBtn'); b.textContent='Really delete?'; b.classList.add('pri'); setTimeout(function(){ if(DEL_ARM){DEL_ARM=false; if(document.getElementById('delBtn')){document.getElementById('delBtn').textContent='Delete';document.getElementById('delBtn').classList.remove('pri');}} },3500); return; }
+  DEL_ARM=false;
+  api('DELETE','/api/admin/pipelines/'+encodeURIComponent(p.id)).then(function(j){
+    if(!j.ok){ msg(j.error||'Delete failed.','err'); return; }
+    PIPES=j.pipelines||[]; CUR=PIPES.length?PIPES[0].id:null; render();
+  });
+}
+
+load();
+</script>
+</body>
+</html>

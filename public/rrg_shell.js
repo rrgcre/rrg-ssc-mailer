@@ -22,14 +22,14 @@
       { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
       { ic: '⚖︎', label: 'Agreements', href: 'rrg_agreements.html' },
       { ic: '◆', label: 'Listings', href: 'rrg_assignments.html' },
-      { ic: '◈', label: 'Deals', href: 'rrg_deals.html' }
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [
       { ic: '☎', label: 'Qualification Calls', href: 'rrg_screening_queue.html' },
       { ic: '▤', label: 'Valuations', href: 'rrg_bov_queue.html' },
       { ic: '▧', label: 'Marketing Packs', href: 'rrg_cim_queue.html' },
       { ic: '➤', label: 'Attack Plans', href: 'rrg_attack_queue.html' },
-      { ic: '▥', label: 'Data Rooms', href: 'rrg_rooms_queue.html' }
+      { ic: '▥', label: 'Data Rooms', href: 'rrg_rooms_queue.html' },
+      { ic: '◈', label: 'Deals', href: 'rrg_deals.html' }
     ] },
     { grp: 'Tenant Rep', color: '#dfa937', items: [
       { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
@@ -53,6 +53,7 @@
       { ic: '☺', label: 'Users', href: 'rrg_roles.html' },
       { ic: '◔', label: 'Roles', href: 'rrg_roles.html' },
       { ic: '⚙', label: 'Settings', href: 'rrg_admin_settings.html' },
+      { ic: '⑃', label: 'Pipelines', href: 'rrg_admin_pipelines.html' },
       { ic: '∿', label: 'AI Usage', href: 'rrg_admin_aiusage.html' }
     ] }
   ];

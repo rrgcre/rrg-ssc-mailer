@@ -2589,7 +2589,7 @@ function assignmentView(d, overlay) {
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', owner: o.owner || by, businessOverride: o.businessOverride || '',
-    stageFlags: o.stageFlags || {}, referredBy: o.referredBy || '', referralPct: o.referralPct || '', listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew,
+    stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', referredBy: o.referredBy || '', referralPct: o.referralPct || '', listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew,
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
@@ -2640,7 +2640,7 @@ app.get('/api/assignment/:key', (req, res) => {
   if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const origin = req.protocol + '://' + req.get('host');
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: AGREEMENT_TYPES, roomActivity: roomActivityFor(d, origin) });
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: AGREEMENT_TYPES, pipelines: loadPipelines(), roomActivity: roomActivityFor(d, origin) });
 });
 app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   const deals = assignmentsIndex();
@@ -2656,7 +2656,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (b.stageFlags && typeof b.stageFlags === 'object') {
     const allowedStages = ['outreach','agreed','offers','dd','closing'];
     const sf = {};
-    allowedStages.forEach(k => { if (b.stageFlags[k]) sf[k] = true; });
+    Object.keys(b.stageFlags).forEach(k => { if (b.stageFlags[k] && (allowedStages.indexOf(k) >= 0 || /^g\d+$/.test(k))) sf[k] = true; });
     cur.stageFlags = sf;
   }
   if (typeof b.referredBy === 'string') cur.referredBy = b.referredBy.slice(0, 120);
@@ -2667,6 +2667,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.autoRenew === 'boolean') cur.autoRenew = b.autoRenew;
   if (typeof b.bbsRef === 'string') cur.bbsRef = b.bbsRef.slice(0, 80);
   if (typeof b.bbsNumber === 'string') cur.bbsNumber = b.bbsNumber.replace(/[^0-9A-Za-z-]/g, '').slice(0, 40);
+  if (typeof b.pipelineId === 'string') cur.pipelineId = b.pipelineId.slice(0, 40);
   cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true });
@@ -5740,6 +5741,37 @@ function taskVisible(t, req) {
   const u = req.user && req.user.username;
   return t.assignee === u || t.createdBy === u;
 }
+// ---- Pipelines (admin-defined; multi-pipeline) ----
+const PIPELINES_FILE = path.join(BOV_DATA_DIR, 'pipelines.json');
+function _seedPipeline(id, name, area, names, days) { return { id: id, name: name, area: area, stages: names.map(function(n, i){ return { name: n, number: i + 1, targetDays: days }; }) }; }
+function defaultPipelines() {
+  return [
+    _seedPipeline('p_bizsales', 'Business Sales', 'Business Sales', ['Data Room','Outreach','Seller Qualification Call','Valuation Questionnaire','BOV','Agreed','Marketing Pack','Market Attack Plan','Lease Abstract','Offers','Due Diligence','Closing'], 7),
+    _seedPipeline('p_tenantrep', 'Tenant Rep', 'Tenant Rep', ['Needs Analysis','Site Search','Tours','LOI Out','Lease Negotiation','Build-out','Open'], 14),
+    _seedPipeline('p_llrep', 'Landlord Rep', 'Landlord Rep', ['Listing Setup','Marketing','Tours','LOI Received','Lease Negotiation','Executed'], 14)
+  ];
+}
+function loadPipelines() { try { const a = JSON.parse(fs.readFileSync(PIPELINES_FILE, 'utf8')); if (Array.isArray(a) && a.length) return a; } catch (e) {} const d = defaultPipelines(); try { savePipelines(d); } catch (e) {} return d; }
+function savePipelines(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PIPELINES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newPipelineId() { return 'pl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function cleanStages(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 40).map(function(st, i){ return { name: String((st && st.name) || '').slice(0, 80) || ('Stage ' + (i + 1)), number: i + 1, targetDays: Math.max(0, Math.min(3650, parseInt((st && st.targetDays), 10) || 0)) }; }).filter(function(st){ return st.name; }); }
+app.get('/api/pipelines', (req, res) => { res.json({ ok: true, pipelines: loadPipelines(), isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.post('/api/admin/pipelines', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const all = loadPipelines();
+  const name = String(b.name || '').trim().slice(0, 80); if (!name) return res.status(400).json({ ok: false, error: 'Pipeline name is required.' });
+  let p;
+  if (b.id) { p = all.find(x => x.id === b.id); if (!p) return res.status(404).json({ ok: false, error: 'Pipeline not found.' }); }
+  else { p = { id: newPipelineId() }; all.push(p); }
+  p.name = name; p.area = String(b.area || '').slice(0, 60); p.stages = cleanStages(b.stages);
+  savePipelines(all);
+  res.json({ ok: true, pipeline: p, pipelines: all });
+});
+app.delete('/api/admin/pipelines/:id', requireAdmin, (req, res) => {
+  let all = loadPipelines(); const before = all.length; all = all.filter(x => x.id !== req.params.id);
+  if (all.length === before) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!all.length) return res.status(400).json({ ok: false, error: 'Keep at least one pipeline.' });
+  savePipelines(all); res.json({ ok: true, pipelines: all });
+});
 // ---- Saved searches (per-list, per-user, shareable) ----
 const SAVED_SEARCH_FILE = path.join(BOV_DATA_DIR, 'saved_searches.json');
 function loadSavedSearches() { try { return JSON.parse(fs.readFileSync(SAVED_SEARCH_FILE, 'utf8')) || []; } catch (e) { return []; } }
