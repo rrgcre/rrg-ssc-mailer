@@ -39,6 +39,11 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
 .mrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .modalf{display:flex;gap:9px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line);}
 .mbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 17px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;} .mbtn.ghost{background:#fff;color:var(--muted);border-color:var(--line);}
+.crline{color:#1f8a5b;font-size:12px;margin-top:3px;font-weight:600;line-height:1.4;}
+.idchip{font-size:10px;color:#98a1b5;font-weight:700;background:#f2f4f8;border-radius:5px;padding:1px 6px;font-variant-numeric:tabular-nums;}
+.fbappr{border:1px solid #bfe6d0;background:#eafaf0;color:#0e7a53;border-radius:8px;padding:5px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;}
+.fbappr:hover{background:#dff3e8;}
+#send_body,#paste_body{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.5;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -48,12 +53,12 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span></span>
   <div class="kicker">Product</div>
   <h1>Feedback &amp; Requests</h1>
-  <div class="sub">Send a feature request or report a bug. We rank each one and keep its status updated so nothing gets lost.</div>
+  <div class="sub">Log a feature request or bug. Approve the ones you want built, send them to Claude in one click, and track each from Approved → Sent → In progress → Shipped. Claude&rsquo;s replies show right on the request.</div>
 </div></div>
 <div class="wrap">
   <div class="tiles" id="tiles"></div>
   <div class="card">
-    <div class="hd"><b>Requests</b><span class="cnt" id="cnt"></span><button class="newbtn" id="newBtn">+ New request</button>
+    <div class="hd"><b>Requests</b><span class="cnt" id="cnt"></span><button class="newbtn" id="newBtn">+ New request</button><button class="newbtn" id="sendBtn" style="background:#0e8a5f;display:none">✈ Send to Claude</button><button class="newbtn" id="pasteBtn" style="background:#000E31;display:none">⇤ Paste Claude update</button>
       <select id="typeFilter"><option value="">All types</option></select>
       <input class="srch" id="search" placeholder="Search title, detail, person…" oninput="applyFilter()">
     </div>
@@ -71,19 +76,21 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
   </div>
   <div class="modalf"><button class="mbtn ghost" id="f_cancel">Cancel</button><button class="mbtn" id="f_save">Submit request</button></div>
 </div></div>
+<div id="sendModal" class="modal" hidden><div class="modalcard" style="max-width:640px"><div class="modalh">Send approved requests to Claude</div><div class="modalb"><div id="send_note" style="font-size:12.5px;color:#6b7488;margin-bottom:10px"></div><textarea id="send_body" rows="14" readonly style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 12px"></textarea></div><div class="modalf"><button class="mbtn ghost" id="send_close">Close</button><button class="mbtn ghost" id="send_copy">Copy</button><button class="mbtn" id="send_mark">Mark as sent</button></div></div></div>
+<div id="pasteModal" class="modal" hidden><div class="modalcard" style="max-width:640px"><div class="modalh">Paste Claude&rsquo;s update</div><div class="modalb"><div id="paste_note" style="font-size:12.5px;color:#6b7488;margin-bottom:10px"></div><textarea id="paste_body" rows="12" placeholder="fb_abc123 | Shipped | Built the expense tracker&#10;fb_def456 | In progress | Started, need your input" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 12px"></textarea></div><div class="modalf"><button class="mbtn ghost" id="paste_close">Close</button><button class="mbtn" id="paste_apply">Apply updates</button></div></div></div>
 <script src="/rrg_list.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmtDate(d){ if(!d) return ''; var x=String(d).slice(0,10).split('-'); if(x.length!==3) return String(d); return x[1]+'/'+x[2]+'/'+x[0]; }
 var ALL=[], TYPES=[], STATUSES=[], PRIORITIES=[], CAN_DELETE=false, IS_ADMIN=false, CTL=null, FSTATUS='';
 var PCOLOR={'Critical':['#fdeceb','#DA2B1F'],'High':['#fdf1df','#b5641a'],'Medium':['#e8f0fd','#2f6fd0'],'Low':['#eef1f6','#6b7488']};
-var SCOLOR={'New':['#e8f0fd','#2f6fd0'],'Under review':['#f3edfb','#7a4fd0'],'Planned':['#fdf1df','#b5791f'],'In progress':['#e7f5ee','#1f8a5b'],'Done':['#e7f5ee','#1f8a5b'],'Declined':['#f3f4f7','#98a1b5']};
+var SCOLOR={'New':['#e8f0fd','#2f6fd0'],'Approved':['#fdf1df','#b5791f'],'Sent to Claude':['#f3edfb','#7a4fd0'],'In progress':['#e7f0ff','#2f4fd0'],'Shipped':['#e7f5ee','#1f8a5b'],'Declined':['#f3f4f7','#98a1b5']};
 function pill(map,v){ var c=map[v]||['#eef1f6','#6b7488']; return '<span class="pill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(v||'—')+'</span>'; }
 function save(id,field,val){ return fetch('/api/feedback',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:id,[field]:val})}).then(function(r){return r.json();}); }
 
 function tiles(){
   var counts={}; ALL.forEach(function(x){ counts[x.status]=(counts[x.status]||0)+1; });
-  var open=ALL.filter(function(x){return x.status!=='Done'&&x.status!=='Declined';}).length;
+  var open=ALL.filter(function(x){return x.status!=='Shipped'&&x.status!=='Declined';}).length;
   var h='<div class="tile'+(FSTATUS===''?' on':'')+'" data-st=""><div class="n">'+ALL.length+'</div><div class="l">All</div></div>';
   h+='<div class="tile'+(FSTATUS==='__open'?' on':'')+'" data-st="__open"><div class="n">'+open+'</div><div class="l">Open</div></div>';
   STATUSES.forEach(function(st){ h+='<div class="tile'+(FSTATUS===st?' on':'')+'" data-st="'+esc(st)+'"><div class="n">'+(counts[st]||0)+'</div><div class="l">'+esc(st)+'</div></div>'; });
@@ -94,7 +101,7 @@ function applyFilter(){
   var q=(document.getElementById('search').value||'').toLowerCase().trim();
   var tf=document.getElementById('typeFilter').value;
   var list=ALL.filter(function(x){
-    if(FSTATUS==='__open'){ if(x.status==='Done'||x.status==='Declined') return false; }
+    if(FSTATUS==='__open'){ if(x.status==='Shipped'||x.status==='Declined') return false; }
     else if(FSTATUS){ if(x.status!==FSTATUS) return false; }
     if(tf && x.type!==tf) return false;
     if(q){ var hay=((x.title||'')+' '+(x.detail||'')+' '+(x.submittedByName||'')+' '+(x.type||'')).toLowerCase(); if(hay.indexOf(q)<0) return false; }
@@ -111,12 +118,12 @@ function render(list){
     bulk: CAN_DELETE?[{ label:'Delete', danger:true, min:1, fn:bulkDelete }]:null,
     columns:[
       { label:'Request', sort:function(a,b){ return RRGList.cmp(a.title,b.title); }, cell:function(x){
-        return '<div class="ttl">'+esc(x.title||'—')+'</div>'+(x.detail?('<div class="det">'+esc(x.detail)+'</div>'):'')+'<div class="who">'+esc(x.submittedByName||'—')+' · '+esc(fmtDate(x.createdAt))+'</div>'; } },
+        var cr=x.claudeResponse?('<div class="crline">↩ Claude: '+esc(x.claudeResponse)+'</div>'):''; var meta=[]; if(x.approvedAt) meta.push('approved '+fmtDate(x.approvedAt)); if(x.sentAt) meta.push('sent '+fmtDate(x.sentAt)); return '<div class="ttl">'+esc(x.title||'—')+' <span class="idchip">'+esc(x.id)+'</span></div>'+(x.detail?('<div class="det">'+esc(x.detail)+'</div>'):'')+cr+'<div class="who">'+esc(x.submittedByName||'—')+' · '+esc(fmtDate(x.createdAt))+(meta.length?(' · '+esc(meta.join(' · '))):'')+'</div>'; } },
       { label:'Type', sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, edit:{ type:'select', options:function(){return TYPES;}, get:function(x){return x.type||'';}, save:function(x,val){ return save(x.id,'type',val).then(function(j){ if(j&&j.ok){x.type=val;return true;} throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(x){ return '<span style="font-size:12.5px;color:var(--ink)">'+esc(x.type||'—')+'</span>'; } },
       { label:'Priority', sort:function(a,b){ return pOrder(a.priority)-pOrder(b.priority); }, edit:{ type:'select', options:function(){return PRIORITIES;}, get:function(x){return x.priority||'';}, save:function(x,val){ return save(x.id,'priority',val).then(function(j){ if(j&&j.ok){x.priority=val;return true;} throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(x){ return pill(PCOLOR,x.priority); } },
       { label:'Status', sort:function(a,b){ return sOrder(a.status)-sOrder(b.status); }, edit:{ type:'select', options:function(){return STATUSES;}, get:function(x){return x.status||'';}, save:function(x,val){ return save(x.id,'status',val).then(function(j){ if(j&&j.ok){x.status=val;return true;} throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(x){ return pill(SCOLOR,x.status); } },
       { label:'Votes', align:'right', sort:function(a,b){ return (b.votes||0)-(a.votes||0); }, cell:function(x){ return '<span class="vote"><button class="voteb" data-vote="'+esc(x.id)+'" title="Upvote">▲</button><span class="votec">'+(x.votes||0)+'</span></span>'; } },
-      { label:'', align:'right', sortable:false, cell:function(x){ return CAN_DELETE?('<button class="fbdel" data-del="'+esc(x.id)+'">Delete</button>'):''; } }
+      { label:'', align:'right', sortable:false, cell:function(x){ var s2=''; if(IS_ADMIN&&x.status==='New') s2+='<button class="fbappr" data-appr="'+esc(x.id)+'">Approve</button> '; else if(IS_ADMIN&&x.status==='Approved') s2+='<button class="fbappr" data-unappr="'+esc(x.id)+'" style="background:#fff;color:#6b7488;border-color:#e0e5ee">Unapprove</button> '; s2+=CAN_DELETE?('<button class="fbdel" data-del="'+esc(x.id)+'">Delete</button>'):''; return s2; } }
     ]
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
@@ -144,11 +151,48 @@ document.getElementById('f_cancel').addEventListener('click',closeModal);
 document.getElementById('f_save').addEventListener('click',submitReq);
 document.getElementById('typeFilter').addEventListener('change',applyFilter);
 
+function buildBrief(items){
+  var lines=['RRG FullServe — Requests for Claude ('+items.length+')',''];
+  items.forEach(function(x){
+    lines.push('['+x.id+'] ('+(x.type||'?')+' · '+(x.priority||'?')+') '+(x.title||''));
+    if(x.detail) lines.push('   '+String(x.detail).replace(/\s+/g,' ').trim());
+    lines.push('');
+  });
+  lines.push('--- When each is handled, reply with one line per item:');
+  lines.push('    fb_id | status | short note      (status = Approved / Sent to Claude / In progress / Shipped / Declined)');
+  return lines.join('\n');
+}
+function openSend(){
+  var appr=ALL.filter(function(x){return x.status==='Approved';});
+  var m=document.getElementById('sendModal'); var body=document.getElementById('send_body'); var mk=document.getElementById('send_mark');
+  if(!appr.length){ body.value=''; document.getElementById('send_note').textContent='Nothing is approved yet. Approve the requests you want built, then send.'; mk.style.display='none'; }
+  else { body.value=buildBrief(appr); document.getElementById('send_note').textContent=appr.length+' approved request'+(appr.length===1?'':'s')+' ready. Copy this, paste it to Claude, then mark them sent.'; mk.style.display=''; mk.setAttribute('data-ids',appr.map(function(x){return x.id;}).join(',')); }
+  m.removeAttribute('hidden');
+}
+function copySend(){ var t=document.getElementById('send_body'); if(!t.value){ return; } t.select(); try{ navigator.clipboard.writeText(t.value); }catch(e){ try{document.execCommand('copy');}catch(e2){} } var n=document.getElementById('send_note'); var old=n.textContent; n.textContent='Copied ✓ — paste it into Claude.'; setTimeout(function(){ n.textContent=old; },2500); }
+function markSent(){ var mk=document.getElementById('send_mark'); var ids=(mk.getAttribute('data-ids')||'').split(',').filter(Boolean); if(!ids.length) return; mk.disabled=true; fetch('/api/feedback/send-batch',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ids:ids})}).then(function(r){return r.json();}).then(function(j){ mk.disabled=false; if(j&&j.ok){ if(j.items){ ALL=j.items.slice().sort(function(a,b){return String(b.createdAt).localeCompare(String(a.createdAt));}); } document.getElementById('sendModal').setAttribute('hidden',''); tiles(); applyFilter(); } else { alert((j&&j.error)||'Could not mark sent.'); } }).catch(function(){ mk.disabled=false; alert('Could not reach the server.'); }); }
+function openPaste(){ document.getElementById('paste_body').value=''; document.getElementById('paste_note').textContent='Paste the status lines Claude replied with (one per line: fb_id | status | note).'; document.getElementById('pasteModal').removeAttribute('hidden'); setTimeout(function(){document.getElementById('paste_body').focus();},30); }
+function applyPaste(){ var t=document.getElementById('paste_body').value||''; if(!t.trim()){ document.getElementById('paste_note').textContent='Paste at least one update line first.'; return; } var b=document.getElementById('paste_apply'); b.disabled=true; fetch('/api/feedback/apply-updates',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:t})}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ if(j.items){ ALL=j.items.slice().sort(function(a,b){return String(b.createdAt).localeCompare(String(a.createdAt));}); } var msg='Updated '+j.updated+' request'+(j.updated===1?'':'s')+'.'; if(j.unknown&&j.unknown.length) msg+=' Not found: '+j.unknown.join(', ')+'.'; document.getElementById('paste_note').textContent=msg; tiles(); applyFilter(); if(!(j.unknown&&j.unknown.length)) setTimeout(function(){ document.getElementById('pasteModal').setAttribute('hidden',''); },1200); } else { document.getElementById('paste_note').textContent=(j&&j.error)||'Could not apply.'; } }).catch(function(){ b.disabled=false; document.getElementById('paste_note').textContent='Could not reach the server.'; }); }
+function approveItem(id,un){ fetch('/api/feedback/'+encodeURIComponent(id)+'/approve',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(un?{unapprove:true}:{})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.item){ ALL=ALL.map(function(x){return x.id===id?j.item:x;}); tiles(); applyFilter(); } else alert((j&&j.error)||'Could not update.'); }); }
+document.addEventListener('click',function(e){
+  if(!e.target.closest) return;
+  var ap=e.target.closest('[data-appr]'); if(ap){ approveItem(ap.getAttribute('data-appr'),false); return; }
+  var un=e.target.closest('[data-unappr]'); if(un){ approveItem(un.getAttribute('data-unappr'),true); return; }
+});
+
+document.getElementById('sendBtn').addEventListener('click',openSend);
+document.getElementById('pasteBtn').addEventListener('click',openPaste);
+document.getElementById('send_copy').addEventListener('click',copySend);
+document.getElementById('send_mark').addEventListener('click',markSent);
+document.getElementById('send_close').addEventListener('click',function(){document.getElementById('sendModal').setAttribute('hidden','');});
+document.getElementById('paste_apply').addEventListener('click',applyPaste);
+document.getElementById('paste_close').addEventListener('click',function(){document.getElementById('pasteModal').setAttribute('hidden','');});
 function load(){
   fetch('/api/feedback',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ document.getElementById('body').innerHTML='<div class="empty">Could not load feedback.</div>'; return; }
     ALL=(j.items||[]).slice().sort(function(a,b){return String(b.createdAt).localeCompare(String(a.createdAt));});
     TYPES=j.types||[]; STATUSES=j.statuses||[]; PRIORITIES=j.priorities||[]; CAN_DELETE=!!j.canDelete; IS_ADMIN=!!j.isAdmin;
+    if(IS_ADMIN){ var _sb=document.getElementById('sendBtn'), _pb=document.getElementById('pasteBtn'); if(_sb) _sb.style.display=''; if(_pb) _pb.style.display=''; }
     document.getElementById('f_type').innerHTML=TYPES.map(function(t){return '<option'+(t==='Feature request'?' selected':'')+'>'+esc(t)+'</option>';}).join('');
     document.getElementById('f_priority').innerHTML=PRIORITIES.map(function(p){return '<option'+(p==='Medium'?' selected':'')+'>'+esc(p)+'</option>';}).join('');
     document.getElementById('typeFilter').innerHTML='<option value="">All types</option>'+TYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');

@@ -54,6 +54,7 @@
       { ic: '⊟', label: 'Expenses', href: 'rrg_expenses.html' }
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
+      { ic: '★', label: 'Features', href: 'rrg_features.html' },
       { ic: '⚑', label: 'Feedback', href: 'rrg_feedback.html' },
       { ic: '✉', label: 'Requests', href: 'rrg_tickets.html' },
       { ic: '∑', label: 'Cap Rate', href: 'rrg_cap_rate_calculator.html' },
