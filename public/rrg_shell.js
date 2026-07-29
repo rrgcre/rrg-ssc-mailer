@@ -13,7 +13,7 @@
 
   var NAV = [
     { color: '#8fa2c4', items: [
-      { ic: '◉', label: 'Consultant', href: 'rrg_consult.html', ai: true, color: '#12a594' },
+      { ic: '◉', label: 'Consult', href: 'rrg_consult.html', ai: true, color: '#12a594' },
       { ic: '✦', label: 'RRG Brief', href: 'rrg_brief.html', ai: true },
       { ic: '◱', label: 'Activity Feed', href: 'rrg_feed.html' },
       { ic: '✔', label: 'My Tasks', href: 'rrg_tasks.html' }

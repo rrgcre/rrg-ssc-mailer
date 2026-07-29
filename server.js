@@ -5486,7 +5486,7 @@ app.get('/log', (_req, res) => {
 
 /* ================= ADMIN CONSOLE ================= */
 const SERVER_BOOT = new Date();
-const ADMIN_BUILD = 'v4 · executive dashboard + Consultant';
+const ADMIN_BUILD = 'v4 · executive dashboard + Consult';
 app.get('/admin', requireAdmin, (req, res) => {
   const users = auth.loadUsers();
   const logins = auth.readLogins().slice(-300).reverse();
@@ -6666,7 +6666,7 @@ app.post('/api/consult', express.json({ limit: '256kb' }), async (req, res) => {
   const b = req.body || {}; const q = String(b.question || '').trim();
   if (!q) return res.status(400).json({ ok: false, error: 'Ask a question.' });
   try {
-    const out = await aiassist.consult({ question: q, snapshot: consultSnapshot(), history: Array.isArray(b.history) ? b.history : [], agentName: 'Consultant' });
+    const out = await aiassist.consult({ question: q, snapshot: consultSnapshot(), history: Array.isArray(b.history) ? b.history : [], agentName: 'Consult' });
     res.json({ ok: true, result: out });
   } catch (e) { console.error('consult:', e && e.message); res.status(500).json({ ok: false, error: (e && e.message) || 'Consult could not answer that.' }); }
 });
@@ -6736,7 +6736,7 @@ function dashboardData(req) {
 app.get('/api/dashboard', (req, res) => {
   const u = req.user || {}; const cfgs = loadDashCfgs(); const mine = cfgs[u.username];
   const layout = (mine && Array.isArray(mine.mods) && mine.mods.length) ? mine.mods.filter(k => DASH_MODULES.some(m => m.k === k)) : DASH_DEFAULT.slice();
-  res.json({ ok: true, modules: DASH_MODULES, layout, data: dashboardData(req), name: u.name || '', isAdmin: !!(req.user && isSuper(req.user)), build: ADMIN_BUILD, booted: SERVER_BOOT.toISOString() });
+  res.json({ ok: true, modules: DASH_MODULES, layout, data: dashboardData(req), name: u.name || '', isAdmin: !!(req.user && isSuper(req.user)), assistant: effAssistantName(), build: ADMIN_BUILD, booted: SERVER_BOOT.toISOString() });
 });
 app.post('/api/dashboard', express.json(), (req, res) => {
   const u = req.user || {}; if (!u.username) return res.status(401).json({ ok: false, error: 'Not signed in.' });
