@@ -9,13 +9,13 @@
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
 .top{color:#fff;padding:28px 0 30px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
-.top-in{max-width:960px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.top-in{max-width:1080px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
 .brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
 .bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
 .kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
 h1{font-size:29px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:680px;}
-.wrap{max-width:960px;margin:22px auto;padding:0 24px 70px;}
+.wrap{max-width:1080px;margin:22px auto;padding:0 24px 70px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:20px;}
 .ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);} .ch b{color:var(--navy);font-size:14px;} .ch span{color:var(--muted);font-size:11.5px;} .ch .sp{margin-left:auto;}
 .cb{padding:18px 20px;}
@@ -34,7 +34,7 @@ textarea{min-height:92px;resize:vertical;line-height:1.5;}
 .status.on{background:#eafaf0;color:#0e7a53;border:1px solid #b9e6cd;} .status.off{background:#f2f4f8;color:#6b7488;border:1px solid #e0e5ee;}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;} @media(max-width:720px){.grid2{grid-template-columns:1fr;}}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);}
-.foot{max-width:960px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+.foot{max-width:1080px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .trow{display:flex;align-items:center;gap:12px;padding:13px 20px;border-top:1px solid var(--line);}
 .trow:first-child{border-top:none;}
 .trow .tn{font-weight:700;color:var(--navy);font-size:14px;}
@@ -49,7 +49,7 @@ textarea{min-height:92px;resize:vertical;line-height:1.5;}
 
 .lk{color:var(--navy);text-decoration:none;font-weight:600;} .lk:hover{text-decoration:underline;}
 .meta{color:var(--muted);font-size:12px;}
-.acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+.acts{display:flex;gap:6px;flex-wrap:nowrap;justify-content:flex-end;white-space:nowrap;}
 .fldrow{display:grid;grid-template-columns:1fr 132px auto auto;gap:8px;align-items:center;margin-bottom:8px;}
 .ff_reql{display:flex;align-items:center;gap:5px;font-size:12px;color:#55607a;white-space:nowrap;font-weight:600;} .ff_reql input{width:auto;}
 .rl-filtbtn{display:none!important;}
@@ -75,7 +75,8 @@ function post(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type'
 function del(url){ return fetch(url,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}); }
 
 var TPLS=[], TYPES=[], EDIT=null, TFIELDS=[], CTL=null, BUILT=false;
-var FIELD_TYPES=[['text','Text'],['date','Date'],['time','Time'],['number','Number'],['currency','Currency'],['email','Email']];
+var FIELD_TYPES=[['text','Text'],['autofill','Auto-fill'],['date','Date'],['time','Time'],['number','Number'],['currency','Currency'],['email','Email']];
+var AUTOFILL_SRC=[['party_name','Contact name'],['company','Company / firm'],['email','Contact email'],['date','Today\u2019s date']];
 var DEFAULT_EMAIL_MSG='Please review and sign using the secure link above. Everything has been completed for you — the only thing you need to do is add your signature. Thank you, Restaurant Realty Group.';
 var LIST_SHELL='<div class="card"><div class="ch"><b>Template library</b><span id="tcount"></span><span class="sp"></span><button class="btn sm" id="t_new">+ New template</button></div><div class="cb" style="padding:6px 8px 10px"><div id="tlist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';
 
@@ -83,27 +84,36 @@ function typeLabel(k){ for(var i=0;i<TYPES.length;i++){ if(TYPES[i].key===k) ret
 function typeName(t){ for(var i=0;i<FIELD_TYPES.length;i++){ if(FIELD_TYPES[i][0]===t) return FIELD_TYPES[i][1]; } return 'Text'; }
 
 function initFields(){
-  if(EDIT&&EDIT.signFields&&EDIT.signFields.length){ TFIELDS=EDIT.signFields.map(function(f){ return {label:f.label||'',required:!!f.required,type:(f.type||'text')}; }); }
+  if(EDIT&&EDIT.signFields&&EDIT.signFields.length){ TFIELDS=EDIT.signFields.map(function(f){ return {label:f.label||'',required:!!f.required,type:(f.type||'text'),autofill:(f.autofill||'')}; }); }
   else if(EDIT&&EDIT.id){ TFIELDS=[]; }
-  else { TFIELDS=[{label:'Full name',required:true,type:'text'},{label:'Effective date',required:false,type:'date'}]; }
+  else { TFIELDS=[{label:'Full name',required:true,type:'autofill',autofill:'party_name'},{label:'Effective date',required:false,type:'date'}]; }
 }
 function renderFieldRows(){
   var box=document.getElementById('t_fieldrows'); if(!box) return;
   if(!TFIELDS.length){ box.innerHTML='<div class="note" style="margin:0 0 10px">No fields yet — add the items the rep fills in before sending (names, dates, amounts).</div>'; return; }
   box.innerHTML=TFIELDS.map(function(f,i){
-    var opts=FIELD_TYPES.map(function(o){ return '<option value="'+o[0]+'"'+((f.type||'text')===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
-    return '<div class="fldrow" data-fi="'+i+'"><input class="ff_name" value="'+esc(f.label||'')+'" placeholder="Field name (e.g. Effective date)"><select class="ff_type">'+opts+'</select><label class="ff_reql"><input type="checkbox" class="ff_req"'+(f.required?' checked':'')+'> Req</label><button type="button" class="btn ghost sm" data-field-del="'+i+'" title="Remove field">✕</button></div>';
+    var ty=(f.type||'text');
+    var opts=FIELD_TYPES.map(function(o){ return '<option value="'+o[0]+'"'+(ty===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
+    var third;
+    if(ty==='autofill'){
+      var sopts=AUTOFILL_SRC.map(function(o){ return '<option value="'+o[0]+'"'+(((f.autofill||'party_name')===o[0])?' selected':'')+'>'+o[1]+'</option>'; }).join('');
+      third='<select class="ff_src" title="Where this value comes from">'+sopts+'</select>';
+    } else {
+      third='<label class="ff_reql"><input type="checkbox" class="ff_req"'+(f.required?' checked':'')+'> Req</label>';
+    }
+    return '<div class="fldrow" data-fi="'+i+'"><input class="ff_name" value="'+esc(f.label||'')+'" placeholder="Field name (e.g. Effective date)"><select class="ff_type">'+opts+'</select>'+third+'<button type="button" class="btn ghost sm" data-field-del="'+i+'" title="Remove field">✕</button></div>';
   }).join('');
 }
 function collectFieldRows(){
   var box=document.getElementById('t_fieldrows'); if(!box) return;
   var out=[]; box.querySelectorAll('[data-fi]').forEach(function(r){
-    var nm=(r.querySelector('.ff_name')||{}).value||''; var ty=(r.querySelector('.ff_type')||{}).value||'text'; var rq=!!(r.querySelector('.ff_req')&&r.querySelector('.ff_req').checked);
-    out.push({label:nm,type:ty,required:rq});
+    var nm=(r.querySelector('.ff_name')||{}).value||''; var ty=(r.querySelector('.ff_type')||{}).value||'text';
+    var srcEl=r.querySelector('.ff_src'); var reqEl=r.querySelector('.ff_req');
+    out.push({label:nm,type:ty,required:reqEl?!!reqEl.checked:false,autofill:(ty==='autofill'&&srcEl)?srcEl.value:''});
   });
   TFIELDS=out;
 }
-function addField(){ collectFieldRows(); TFIELDS.push({label:'',required:false,type:'text'}); renderFieldRows(); var box=document.getElementById('t_fieldrows'); if(box){ var ins=box.querySelectorAll('.ff_name'); if(ins.length) ins[ins.length-1].focus(); } }
+function addField(){ collectFieldRows(); TFIELDS.push({label:'',required:false,type:'text',autofill:''}); renderFieldRows(); var box=document.getElementById('t_fieldrows'); if(box){ var ins=box.querySelectorAll('.ff_name'); if(ins.length) ins[ins.length-1].focus(); } }
 function removeField(i){ collectFieldRows(); TFIELDS.splice(i,1); renderFieldRows(); }
 
 function fieldsCell(t){ if(t.pdfFields&&t.pdfFields.length) return esc(t.pdfFields.length+' placed'); var n=(t.signFields||[]).length; return n?esc(n+' field'+(n===1?'':'s')):'<span class="meta">—</span>'; }
@@ -142,7 +152,7 @@ function renderEditor(){
     '<div><label class="fld">Category / type</label><select id="t_type">'+typeOpts+'</select></div></div>'+
     '<div style="margin-top:16px"><label class="fld">Fields to complete before sending</label><div id="t_fieldrows"></div>'+
       '<button type="button" class="btn ghost sm" id="t_addfield">+ Add field</button>'+
-      '<div class="note">Give each field a name and a type. <b>Date</b>, <b>time</b>, <b>number</b> and <b>currency</b> fields format automatically across the system. Fields named like <b>name</b>, <b>company/title</b>, <b>date</b> or <b>email</b> auto-fill from the contact. The rep fills these in before sending; the signer only signs.</div></div>'+
+      '<div class="note">Give each field a name and a type. <b>Auto-fill</b> pulls straight from the record (contact name, company, email, or today\u2019s date) \u2014 no typing needed. <b>Date</b>, <b>time</b>, <b>number</b> and <b>currency</b> format automatically across the system. The rep completes these before sending; the signer only signs.</div></div>'+
     '<div style="margin-top:16px"><label class="fld">Email message (sent with the signing link)</label>'+
       '<textarea id="t_emailmsg" placeholder="'+esc(DEFAULT_EMAIL_MSG)+'">'+esc(e.emailMessage||'')+'</textarea>'+
       '<div class="note">Default note the signer gets with their link. The rep can tweak it per send. Leave blank to use the system default.</div></div>'+
@@ -170,6 +180,7 @@ function openEdit(id){ var t=TPLS.filter(function(x){return x.id===id;})[0]; if(
 function newTpl(){ EDIT={active:true}; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
 function closeEditor(){ EDIT=null; renderEditor(); }
 
+document.addEventListener('change',function(ev){ var t=ev.target; if(t&&t.classList&&t.classList.contains('ff_type')){ collectFieldRows(); renderFieldRows(); } });
 document.addEventListener('click',function(ev){
   var t=ev.target; if(!t||!t.closest) return;
   var ed=t.closest('[data-edit]'); if(ed){ ev.preventDefault(); openEdit(ed.getAttribute('data-edit')); return; }

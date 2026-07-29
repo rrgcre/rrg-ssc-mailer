@@ -5922,7 +5922,7 @@ const AGREEMENT_TYPES = [
 ];
 const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
 function agreementBrief(a) {
-  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: a.signerCount === 2 ? 2 : 1, hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
+  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: a.signerCount === 2 ? 2 : 1, hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
 }
 app.get('/api/agreements', (req, res) => {
   let all = loadAgreements();
@@ -6056,8 +6056,12 @@ app.get('/sign/:token', (req, res) => {
   const label = agreementTypeLabel(a.type);
   const p = a.personId ? personById(a.personId) : null;
   const head = `<div class="kick">Signature Request</div><h1>${esc(label)}</h1><div class="sub">Provided by Restaurant Realty Group${p ? (' for ' + esc(p.name)) : ''}</div>`;
-  if (a.signStatus === 'signed') {
-    return res.send(roomShell(label + ' — Signed', { head, body: `<div class="card"><div style="padding:22px"><b>This ${esc(label)} has already been signed${a.signedDate ? (' on ' + esc(a.signedDate)) : ''}.</b><div style="color:#6b7488;margin-top:8px">Thank you — no further action is needed.</div></div></div>` }));
+  if (a.signStatus === 'signed' || a.signStatus === 'awaiting_countersign' || a.signStatus === 'executed') {
+    const _done = a.signStatus === 'executed' || a.signStatus === 'signed';
+    const _msg = _done ? ('This ' + esc(label) + ' is fully executed' + (a.signedDate ? (' \u2014 signed ' + esc(a.signedDate)) : '') + '.') : ('You have signed this ' + esc(label) + (a.signedDate ? (' on ' + esc(a.signedDate)) : '') + '. It has been sent back to Restaurant Realty Group for the final signature; you will receive the fully executed copy by email.');
+    const _dl = a.docExt ? ('<div style="margin-top:14px"><a href="/sign/' + esc(a.signToken) + '/doc" target="_blank" rel="noopener" style="color:#2647b0;font-weight:700;text-decoration:none">View the ' + esc(label) + ' document \u2192</a></div>') : '';
+    const _sigs = _done ? ('<div style="margin-top:18px;display:flex;gap:26px;flex-wrap:wrap">' + (a.hasSignature ? ('<div><div style="font-size:11px;color:#8a93a8;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Signer</div><img src="/api/agreements/' + esc(a.id) + '/signature" style="height:56px;max-width:220px"><div style="font-size:12.5px;color:#1a2236;margin-top:3px">' + esc(a.signedName || '') + (a.signedDate ? (' \u00b7 ' + esc(a.signedDate)) : '') + '</div></div>') : '') + (a.hasCountersign ? ('<div><div style="font-size:11px;color:#8a93a8;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px">Restaurant Realty Group</div><img src="/api/agreements/' + esc(a.id) + '/countersignature" style="height:56px;max-width:220px"><div style="font-size:12.5px;color:#1a2236;margin-top:3px">' + esc(a.repSignedName || '') + (a.repSignedAt ? (' \u00b7 ' + esc(String(a.repSignedAt).slice(0,10))) : '') + '</div></div>') : '') + '</div>') : '';
+    return res.send(roomShell(label + (_done ? ' — Executed' : ' — Signed'), { head, body: '<div class="card"><div style="padding:22px"><b>' + _msg + '</b><div style="color:#6b7488;margin-top:8px">Thank you — no further action is needed.</div>' + _dl + _sigs + '</div></div>' }));
   }
   const fields = (Array.isArray(a.signFields) && a.signFields.length) ? a.signFields : defaultSignFields();
   const _party = p ? p.name : (a.personName || '');
@@ -6065,7 +6069,7 @@ app.get('/sign/:token', (req, res) => {
   const _today = new Date().toISOString().slice(0, 10);
   function prefillFor(fld) { const k = String(fld.autofill || '').toLowerCase(); const L = String(fld.label || '').toLowerCase(); if (k === 'party_name' || k === 'name' || (!k && /\bname\b/.test(L))) return _party; if (k === 'company' || k === 'title' || (!k && /(company|firm|title)/.test(L))) return _coName; if (k === 'date' || (!k && /date/.test(L))) return _today; if (k === 'email' || (!k && /email/.test(L))) return (p ? preferredEmailOf(p) : ''); return ''; }
   const _vals = Array.isArray(a.fieldValues) ? a.fieldValues : [];
-  const fieldHtml = '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin:4px 0 8px">Agreement details</div>'+fields.map(function(fld, i){ var val=(_vals[i]!=null && String(_vals[i])!=='')?_vals[i]:prefillFor(fld); return '<div style="display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid #eef1f6"><span style="font-size:12.5px;font-weight:700;color:#8a93a8">'+esc(fld.label)+'</span><span style="font-size:14.5px;color:#1a2236;font-weight:600;text-align:right">'+esc(fmtSignVal(fld.type, val)||'\u2014')+'</span></div>'; }).join('');
+  const fieldHtml = '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin:4px 0 8px">Agreement details</div>'+fields.map(function(fld, i){ var val=(_vals[i]!=null && String(_vals[i])!=='')?_vals[i]:prefillFor(fld); return '<div style="display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid #eef1f6"><span style="font-size:12.5px;font-weight:700;color:#8a93a8">'+esc(fld.label)+'</span><span style="font-size:14.5px;color:#1a2236;font-weight:600;text-align:right">'+esc(fmtSignVal(fld.type==='autofill'?(fld.autofill||'text'):fld.type, val)||'\u2014')+'</span></div>'; }).join('');
   const docLink = (function(){ if(!a.docExt) return ''; var src='/sign/'+esc(a.signToken)+'/doc'; var open='<div style="text-align:right;margin-top:8px"><a href="'+src+'" target="_blank" rel="noopener" style="color:#2647b0;font-weight:700;font-size:12.5px;text-decoration:none">Open full document ↗</a></div>'; var hdr='<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin:4px 0 10px">Document preview</div>'; if(a.docExt==='pdf') return hdr+'<div style="border:1px solid #e6e9f0;border-radius:10px;overflow:hidden;background:#f5f7fb"><iframe src="'+src+'#view=FitH" title="Agreement document" style="width:100%;height:540px;border:0;display:block"></iframe></div>'+open; if(a.docExt==='png'||a.docExt==='jpg') return hdr+'<div style="border:1px solid #e6e9f0;border-radius:10px;overflow:hidden;background:#f5f7fb;text-align:center"><img src="'+src+'" alt="Agreement document" style="max-width:100%;display:block;margin:0 auto"></div>'+open; return hdr+'<a href="'+src+'" target="_blank" rel="noopener" style="display:block;text-align:center;border:1px dashed #cfd6e2;border-radius:10px;padding:18px;color:#2647b0;font-weight:700;text-decoration:none;background:#f8fafc">Open the '+esc(label)+' document to review →</a>'; })();
   const note = a.notes ? `<div style="color:#55607a;font-size:13.5px;margin-bottom:16px;white-space:pre-wrap">${esc(a.notes)}</div>` : '';
   const body = `<div class="card"><div style="padding:22px">${note}${docLink}${fieldHtml}<label style="display:block;font-size:12px;font-weight:700;color:#3a4560;margin:6px 0 6px">Signature *</label><div style="border:1px solid #cfd6e2;border-radius:9px;background:#fff;overflow:hidden"><canvas id="sigpad" style="width:100%;height:180px;touch-action:none;display:block"></canvas></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span style="font-size:11.5px;color:#98a1b5">Draw your signature above</span><button type="button" id="sigclear" style="background:none;border:none;color:#DA2B1F;font-weight:700;cursor:pointer;font-size:12.5px">Clear</button></div><label style="display:block;font-size:12px;font-weight:700;color:#3a4560;margin:16px 0 6px">Date signed <span style="color:#98a1b5;font-weight:600">(autofilled &amp; time stamped)</span></label><input type="text" value="${_today}" readonly style="width:100%;background:#f5f7fb;border:1px solid #cfd6e2;border-radius:9px;padding:12px;font:inherit;font-size:14px;color:#1a2236;font-weight:600"><label style="display:flex;align-items:flex-start;gap:8px;margin:16px 0;font-size:12.5px;color:#3a4560"><input type="checkbox" id="sigagree" style="margin-top:2px"> I agree this electronic signature is legally binding and equivalent to my handwritten signature.</label><button type="button" id="sigsubmit" style="width:100%;background:#000E31;color:#fff;border:none;border-radius:10px;padding:14px;font:inherit;font-size:15px;font-weight:700;cursor:pointer">Sign &amp; submit</button><div id="sigmsg" style="text-align:center;font-size:13px;color:#DA2B1F;margin-top:10px"></div></div></div>
@@ -6109,7 +6113,7 @@ app.post('/api/sign/:token', express.json({ limit: '8mb' }), async (req, res) =>
   const all = loadAgreements(); const _f = findAgrByToken(all, req.params.token); const a = _f ? _f.a : null;
   if (!a) return res.status(404).json({ ok: false, error: 'Invalid signing link.' });
   if (_f.signer && Array.isArray(a.pdfFields) && a.pdfFields.length) return submitAdvancedSign(req, res, all, a, _f.signer);
-  if (a.signStatus === 'signed') return res.status(400).json({ ok: false, error: 'This agreement has already been signed.' });
+  if (['signed','awaiting_countersign','executed'].indexOf(a.signStatus) >= 0) return res.status(400).json({ ok: false, error: 'This agreement has already been signed.' });
   const b = req.body || {};
   const sig = String(b.signature || '');
   if (!/^data:image\/png;base64,/.test(sig)) return res.status(400).json({ ok: false, error: 'A signature is required.' });
@@ -6118,15 +6122,56 @@ app.post('/api/sign/:token', express.json({ limit: '8mb' }), async (req, res) =>
   const responses = {}; fields.forEach(function(fld, i){ responses[fld.label] = String((_vals[i] != null ? _vals[i] : (Array.isArray(b.responses) ? b.responses[i] : '')) || '').slice(0, 500); });
   const now = new Date().toISOString();
   try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); const buf = Buffer.from(sig.replace(/^data:image\/png;base64,/, ''), 'base64'); if (buf.length > 3 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Signature too large.' }); fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, 'sig_' + a.id + '.png'), buf); a.hasSignature = true; } catch (e) {}
-  a.signStatus = 'signed'; a.signedDate = now.slice(0, 10); a.signedAt = now; a.signedName = String(b.name || a.personName || responses['Full name'] || '').slice(0, 160); a.signedResponses = responses; a.signedIp = req.ip; a.status = 'active'; a.updatedAt = now;
+  a.signStatus = 'awaiting_countersign'; a.signedDate = now.slice(0, 10); a.signedAt = now; a.signedName = String(b.name || a.personName || responses['Full name'] || '').slice(0, 160); a.signedResponses = responses; a.signedIp = req.ip; a.status = 'active'; a.updatedAt = now;
   saveAgreements(all);
-  if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Signed', agreementTypeLabel(a.type) + ' signed by ' + (a.signedName || 'contact'), { auto: true, date: a.signedDate }); savePeople(ppl); } } catch (e) {} }
+  if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Signed', agreementTypeLabel(a.type) + ' signed by ' + (a.signedName || 'contact') + ' \u2014 awaiting your countersignature', { auto: true, date: a.signedDate }); savePeople(ppl); } } catch (e) {} }
   res.json({ ok: true });
 });
 app.get('/api/agreements/:id/signature', (req, res) => {
   const a = loadAgreements().find(x => x.id === req.params.id);
   if (!a || !a.hasSignature) return res.status(404).end();
   try { const buf = fs.readFileSync(path.join(AGREEMENT_DOC_DIR, 'sig_' + a.id + '.png')); res.set('Content-Type', 'image/png'); res.send(buf); } catch (e) { res.status(404).end(); }
+});
+app.post('/api/agreements/:id/countersign', express.json({ limit: '8mb' }), (req, res) => {
+  const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  if (!(a.signStatus === 'awaiting_countersign' || a.signStatus === 'signed')) return res.status(400).json({ ok: false, error: 'This agreement is not awaiting your signature yet.' });
+  const b = req.body || {};
+  const sig = String(b.signature || '');
+  if (!/^data:image\/png;base64,/.test(sig)) return res.status(400).json({ ok: false, error: 'Draw your signature to countersign.' });
+  const now = new Date().toISOString();
+  try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); const buf = Buffer.from(sig.replace(/^data:image\/png;base64,/, ''), 'base64'); if (buf.length > 3 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Signature too large.' }); fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, 'countersig_' + a.id + '.png'), buf); a.hasCountersign = true; } catch (e) {}
+  a.repSignedName = String(b.name || (req.user && req.user.name) || '').slice(0, 160);
+  a.repSignedAt = now; a.executedAt = now; a.signStatus = 'executed'; a.signedDate = a.signedDate || now.slice(0, 10); a.status = 'active'; a.updatedAt = now;
+  saveAgreements(all);
+  const label = agreementTypeLabel(a.type);
+  if (a.personId) {
+    try {
+      const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId);
+      if (pp) { logActivity(pp, 'Agreement Executed', label + ' fully executed \u2014 countersigned by ' + (a.repSignedName || 'RRG'), { auto: true, date: now.slice(0, 10), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); }
+    } catch (e) {}
+  }
+  try {
+    if (isEmailConfigured()) {
+      const origin = reqOrigin(req);
+      const link = a.signToken ? (origin + '/sign/' + a.signToken) : '';
+      const p = a.personId ? personById(a.personId) : null;
+      const signerTo = a.sentTo || (p ? preferredEmailOf(p) : '');
+      const repTo = (req.user && req.user.email) || mailFrom();
+      const list = [signerTo, repTo].filter(x => x && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x));
+      const uniq = list.filter((x, i) => list.indexOf(x) === i);
+      const attachments = [];
+      if (a.docExt === 'pdf') { try { attachments.push({ filename: a.docName || 'agreement.pdf', content: fs.readFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)) }); } catch (e) {} }
+      const text = 'Good news \u2014 your ' + label + ' is now fully executed by all parties.\n\nView the executed agreement here:\n' + link + '\n\nThank you,\nRestaurant Realty Group';
+      uniq.forEach(to => { buildTransport().sendMail({ from: mailFrom(), to, subject: label + ' \u2014 fully executed', text, attachments }).catch(() => {}); });
+    }
+  } catch (e) {}
+  res.json({ ok: true, agreement: agreementBrief(a) });
+});
+app.get('/api/agreements/:id/countersignature', (req, res) => {
+  const a = loadAgreements().find(x => x.id === req.params.id);
+  if (!a || !a.hasCountersign) return res.status(404).end();
+  try { const buf = fs.readFileSync(path.join(AGREEMENT_DOC_DIR, 'countersig_' + a.id + '.png')); res.set('Content-Type', 'image/png'); res.send(buf); } catch (e) { res.status(404).end(); }
 });
 
 // ---- Reusable agreement templates (admin-managed library) ----
@@ -6136,7 +6181,7 @@ function loadTemplates() { try { return JSON.parse(fs.readFileSync(TEMPLATES_FIL
 function saveTemplates(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(TEMPLATES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newTemplateId() { return 'tpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function _cleanFieldType(t) { t = String(t || 'text').toLowerCase(); return ['text','date','time','number','currency','email'].indexOf(t) >= 0 ? t : 'text'; }
-function cleanSignFields(arr) { if (!Array.isArray(arr)) return []; return arr.map(f => ({ label: String((f && f.label) || '').slice(0, 80), required: !!(f && f.required), type: _cleanFieldType(f && f.type) })).filter(f => f.label).slice(0, 12); }
+function cleanSignFields(arr) { if (!Array.isArray(arr)) return []; return arr.map(f => ({ label: String((f && f.label) || '').slice(0, 80), required: !!(f && f.required), type: _cleanFieldType(f && f.type), autofill: String((f && f.autofill) || '').slice(0, 20) })).filter(f => f.label).slice(0, 12); }
 function fmtSignVal(type, val) {
   val = String(val == null ? '' : val); if (!val) return '';
   type = String(type || 'text').toLowerCase();

@@ -78,7 +78,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .actnote{font-size:13px;color:#3a4560;margin-top:3px;white-space:pre-wrap;} .acttask{font-size:11.5px;color:#2647b0;margin-top:3px;font-weight:600;}
 .actdel{flex:none;border:none;background:transparent;color:#c3ccdf;font-size:16px;cursor:pointer;line-height:1;padding:2px 4px;} .actdel:hover{color:#DA2B1F;}
 .agrsig{margin-top:12px;border-top:1px solid #e6e9f0;padding-top:10px;} .agrsighd{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;font-weight:800;display:flex;align-items:center;gap:8px;} .agrsigrow{margin:8px 0;} .agrdoc{font-size:12.5px;color:#3a4560;} .agrsigbtns{display:flex;gap:8px;align-items:center;flex-wrap:wrap;} .agrsignote{font-size:12px;color:#98a1b5;}
-.sigpill{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:20px;background:#eef1f6;color:#6b7488;} .sigpill.sent{background:#fff4e6;color:#b5791f;} .sigpill.signed{background:#e7f5ee;color:#1f8a5b;} .agrsignedinfo{font-size:12.5px;color:#3a4560;margin:8px 0;} .agrsignedinfo a{color:#2647b0;font-weight:700;text-decoration:none;} .agrlinkrow{display:flex;gap:6px;align-items:center;margin-top:10px;} .agrlinkrow input{flex:1;min-width:0;border:1px solid #d5dbe6;border-radius:8px;padding:6px 9px;font:inherit;font-size:12px;color:#3a4560;background:#f7f9fc;} .agrlinkrow .mfadd{white-space:nowrap;} .agrtplrow{display:flex;align-items:center;gap:6px;margin:8px 0;flex-wrap:wrap;} .agrtplrow select{border:1px solid #d5dbe6;border-radius:8px;padding:6px 9px;font:inherit;font-size:12.5px;color:#3a4560;background:#fff;max-width:100%;} .agrtplrow .fld{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;font-weight:800;} .advsigners{display:flex;flex-direction:column;gap:8px;margin:8px 0;} .advsrow{display:grid;gap:5px;border:1px solid #e6e9f0;border-radius:9px;padding:9px 10px;background:#fbfcfe;} .advslbl{font-size:12px;font-weight:700;color:#3a4560;display:flex;align-items:center;gap:7px;} .advname,.advemail{border:1px solid #d5dbe6;border-radius:7px;padding:6px 9px;font:inherit;font-size:12.5px;} .advsrow input:disabled{background:#eef1f6;color:#98a1b5;}
+.sigpill{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:20px;background:#eef1f6;color:#6b7488;} .sigpill.sent{background:#fff4e6;color:#b5791f;} .sigpill.signed{background:#e7f5ee;color:#1f8a5b;} .sigpill.await{background:#eaf1fb;color:#2647b0;} .agrsignedinfo{font-size:12.5px;color:#3a4560;margin:8px 0;} .agrsignedinfo a{color:#2647b0;font-weight:700;text-decoration:none;} .agrlinkrow{display:flex;gap:6px;align-items:center;margin-top:10px;} .agrlinkrow input{flex:1;min-width:0;border:1px solid #d5dbe6;border-radius:8px;padding:6px 9px;font:inherit;font-size:12px;color:#3a4560;background:#f7f9fc;} .agrlinkrow .mfadd{white-space:nowrap;} .agrtplrow{display:flex;align-items:center;gap:6px;margin:8px 0;flex-wrap:wrap;} .agrtplrow select{border:1px solid #d5dbe6;border-radius:8px;padding:6px 9px;font:inherit;font-size:12.5px;color:#3a4560;background:#fff;max-width:100%;} .agrtplrow .fld{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;font-weight:800;} .advsigners{display:flex;flex-direction:column;gap:8px;margin:8px 0;} .advsrow{display:grid;gap:5px;border:1px solid #e6e9f0;border-radius:9px;padding:9px 10px;background:#fbfcfe;} .advslbl{font-size:12px;font-weight:700;color:#3a4560;display:flex;align-items:center;gap:7px;} .advname,.advemail{border:1px solid #d5dbe6;border-radius:7px;padding:6px 9px;font:inherit;font-size:12.5px;} .advsrow input:disabled{background:#eef1f6;color:#98a1b5;}
 .agrmodal{position:fixed;inset:0;background:rgba(6,16,41,.5);z-index:80;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
 .agrmodal[hidden]{display:none}
 .agrmodalbox{background:#fff;border-radius:14px;padding:20px 22px;width:min(520px,96vw);box-shadow:0 20px 60px rgba(0,0,0,.3)}
@@ -117,6 +117,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .rchip.bad{background:#fdeceb;color:#DA2B1F;}
 .rchip.exec{background:#e7f5ee;color:#1f8a5b;}
 .rchip.sent{background:#fff4e6;color:#b5791f;}
+.rchip.await{background:#eaf1fb;color:#2647b0;}
 .agrrow.agrexec{background:#f4fbf7;}
 .agrthumb{width:30px;height:30px;border-radius:6px;background-size:cover;background-position:center;flex:none;border:1px solid var(--line);}
 .agrbtn{background:#fff;border:1px solid #cdd6e6;color:var(--navy);border-radius:8px;padding:9px 15px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
@@ -221,9 +222,10 @@ function agrChip(a){
 function agrRow(a){
   var today=todayStr(); var expired=(a.status==='terminated')||(a.expires&&a.expires<today);
   var du=daysUntil(a.expires); var soon=a.expires&&!expired&&du<=60;
-  var signed=(a.signStatus==='signed');
-  var right = signed?'\u2713 Executed':(a.signStatus==='sent'?'Sent':(a.status==='terminated'?'Terminated':(a.expires?(expired?'Expired':(soon?(du+'d'):'Active')):'Active')));
-  var chipCls = signed?' exec':(a.signStatus==='sent'?' sent':(expired?' bad':''));
+  var _exec=(a.signStatus==='executed'||a.signStatus==='signed'); var _await=(a.signStatus==='awaiting_countersign');
+  var signed=_exec;
+  var right = _exec?'\u2713 Executed':(_await?'Needs sign':(a.signStatus==='sent'?'Sent':(a.status==='terminated'?'Terminated':(a.expires?(expired?'Expired':(soon?(du+'d'):'Active')):'Active'))));
+  var chipCls = _exec?' exec':(_await?' await':(a.signStatus==='sent'?' sent':(expired?' bad':'')));
   var title=a.name||atypeLabel(a.type);
   var meta=atypeLabel(a.type)+(a.expires?(' \u00b7 exp '+fmt(a.expires)):'')+(a.docExt?' \u00b7 \ud83d\udcce':'');
   var isImg=a.docExt&&/^(png|jpe?g|gif|webp)$/i.test(a.docExt);
@@ -264,19 +266,21 @@ function openAgrForm(a){
   if(a&&a.id&&a.pdfFieldCount>0){ renderAdvSig(a); return; }
   if(a&&a.id){
     var docLine=a.docExt?('<span class="agrdoc">📎 '+esc(a.docName||'document')+' <a href="/api/agreements/'+encodeURIComponent(a.id)+'/doc" target="_blank" rel="noopener">view</a> · <a href="#" data-agrdocclear="1">remove</a></span>'):('<label class="mfadd" style="cursor:pointer">Attach document<input type="file" id="agr_docfile" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label>');
-    var st=a.signStatus==='signed'?('<span class="sigpill signed">Signed'+(a.signedDate?(' '+fmt(a.signedDate)):'')+'</span>'):(a.signStatus==='sent'?('<span class="sigpill sent">Sent'+(a.sentAt?(' '+fmt(a.sentAt)):'')+(a.sentTo?(' to '+esc(a.sentTo)):'')+'</span>'):'<span class="sigpill">Not sent</span>');
+    var _exec=(a.signStatus==='executed'||a.signStatus==='signed'); var _await=(a.signStatus==='awaiting_countersign');
+    var st=_exec?('<span class="sigpill signed">Executed'+(a.signedDate?(' '+fmt(a.signedDate)):'')+'</span>'):(_await?('<span class="sigpill await">Awaiting your signature</span>'):(a.signStatus==='sent'?('<span class="sigpill sent">Sent'+(a.sentAt?(' '+fmt(a.sentAt)):'')+(a.sentTo?(' to '+esc(a.sentTo)):'')+'</span>'):'<span class="sigpill">Not sent</span>'));
     var signUrl=a.signToken?(location.origin+'/sign/'+a.signToken):'';
-    var signedInfo=(a.signStatus==='signed'&&(a.signedName||a.hasSignature))?('<div class="agrsignedinfo">Signed by <b>'+esc(a.signedName||'contact')+'</b>'+(a.signedDate?(' on '+fmt(a.signedDate)):'')+(a.hasSignature?(' · <a href="/api/agreements/'+encodeURIComponent(a.id)+'/signature" target="_blank" rel="noopener">view signature</a>'):'')+'</div>'):'';
-    var linkRow=(signUrl&&a.signStatus!=='signed')?('<div class="agrlinkrow"><input id="agr_link" readonly value="'+esc(signUrl)+'"><button type="button" class="mfadd" id="agr_copylink">Copy link</button><a class="mfadd" href="'+esc(signUrl)+'" target="_blank" rel="noopener">Open</a></div>'):'';
+    var signedInfo=((_exec||_await)&&(a.signedName||a.hasSignature))?('<div class="agrsignedinfo">Signed by <b>'+esc(a.signedName||'contact')+'</b>'+(a.signedDate?(' on '+fmt(a.signedDate)):'')+(a.hasSignature?(' · <a href="/api/agreements/'+encodeURIComponent(a.id)+'/signature" target="_blank" rel="noopener">view signature</a>'):'')+'</div>'):'';
+    if(_exec&&a.hasCountersign){ signedInfo+='<div class="agrsignedinfo">Countersigned by <b>'+esc(a.repSignedName||'RRG')+'</b>'+(a.repSignedAt?(' on '+fmt(String(a.repSignedAt).slice(0,10))):'')+' · <a href="/api/agreements/'+encodeURIComponent(a.id)+'/countersignature" target="_blank" rel="noopener">view signature</a></div>'; }
+    var linkRow=(signUrl&&!_exec&&!_await)?('<div class="agrlinkrow"><input id="agr_link" readonly value="'+esc(signUrl)+'"><button type="button" class="mfadd" id="agr_copylink">Copy link</button><a class="mfadd" href="'+esc(signUrl)+'" target="_blank" rel="noopener">Open</a></div>'):'';
     var tplOpts=TEMPLATES.filter(function(t){return t.fileExt;}).map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>';}).join('');
-    var tplRow=(tplOpts&&a.signStatus!=='signed')?('<div class="agrtplrow"><span class="fld">Start from template</span><select id="agr_tpl"><option value="">— choose —</option>'+tplOpts+'</select>'+(a.templateName?(' <span style="font-size:11.5px;color:#1f8a5b;font-weight:700">✓ '+esc(a.templateName)+'</span>'):'')+'</div>'):'';
-    var _isSigned=(a.signStatus==='signed');
-    var _btns=_isSigned?'':'<button type="button" class="agrbtn primary" id="agr_signed">✓ Fully Executed</button><button type="button" class="agrbtn" id="agr_send">✉ Send for signature</button>';
+    var tplRow=(tplOpts&&!_exec&&!_await)?('<div class="agrtplrow"><span class="fld">Start from template</span><select id="agr_tpl"><option value="">— choose —</option>'+tplOpts+'</select>'+(a.templateName?(' <span style="font-size:11.5px;color:#1f8a5b;font-weight:700">✓ '+esc(a.templateName)+'</span>'):'')+'</div>'):'';
+    var _btns=_exec?'':(_await?'<button type="button" class="agrbtn primary" id="agr_counter">✍ Countersign &amp; execute</button>':'<button type="button" class="agrbtn primary" id="agr_signed">✓ Fully Executed</button><button type="button" class="agrbtn" id="agr_send">✉ Send for signature</button>');
     sig.innerHTML='<div class="agrsighd">Signature '+st+'</div>'+signedInfo+tplRow+'<div class="agrsigrow">'+docLine+'</div><div class="agrsigbtns">'+_btns+'<span id="agr_sigmsg" style="font-size:12px;color:#6b7488"></span></div>'+linkRow;
     var df=document.getElementById('agr_docfile'); if(df) df.addEventListener('change',function(){ if(df.files&&df.files[0]) uploadAgrDoc(a.id,df.files[0]); });
     var dc=sig.querySelector('[data-agrdocclear]'); if(dc) dc.addEventListener('click',function(e){ e.preventDefault(); clearAgrDoc(a.id); });
     var _se=document.getElementById('agr_send'); if(_se) _se.addEventListener('click',function(){ sendAgrForSig(a.id); });
     var _sg=document.getElementById('agr_signed'); if(_sg) _sg.addEventListener('click',function(){ markAgrSigned(a.id); });
+    var _ct=document.getElementById('agr_counter'); if(_ct) _ct.addEventListener('click',function(){ openCountersign(a.id); });
     var ts=document.getElementById('agr_tpl'); if(ts) ts.addEventListener('change',function(){ if(ts.value) applyTemplate(a.id, ts.value); });
     var cl=document.getElementById('agr_copylink'); if(cl) cl.addEventListener('click',function(){ var i=document.getElementById('agr_link'); if(i){ i.select(); try{ navigator.clipboard.writeText(i.value); }catch(e){ try{document.execCommand('copy');}catch(e2){} } var m=document.getElementById('agr_sigmsg'); if(m)m.textContent='Link copied.'; } });
   } else { sig.innerHTML='<div class="agrsigrow"><label class="mfadd" style="cursor:pointer">📎 Attach agreement document<input type="file" id="agr_docfile_new" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label> <span id="agr_docnew_name" style="font-size:11.5px;color:#1f8a5b;font-weight:600"></span></div><div class="agrsignote" style="margin-top:6px">Attach the signed or existing agreement now, or save first and send for signature.</div>'; var dfn=document.getElementById('agr_docfile_new'); if(dfn) dfn.addEventListener('change',function(){ PENDING_AGR_FILE=(dfn.files&&dfn.files[0])||null; var nm=document.getElementById('agr_docnew_name'); if(nm) nm.textContent=PENDING_AGR_FILE?('✓ '+PENDING_AGR_FILE.name):''; }); }
@@ -317,6 +321,41 @@ function uploadAgrDoc(id,file){ if(file.size>20*1024*1024){ alert('File too larg
 function clearAgrDoc(id){ if(!confirm('Remove the attached document?')) return; fetch('/api/agreements/'+encodeURIComponent(id)+'/doc/clear',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) refreshAgr(j.agreement); }); }
 function sendAgrForSig(id){ if(!EMAILREADY){ alert('Email is not set up yet (Admin → Email).'); return; } if(!confirm('Email this agreement to the contact for signature?')) return; var m=document.getElementById('agr_sigmsg'); if(m)m.textContent='Sending…'; fetch('/api/agreements/'+encodeURIComponent(id)+'/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { if(m)m.textContent=(j&&j.error)||'Send failed.'; alert((j&&j.error)||'Send failed.'); } }).catch(function(){ if(m)m.textContent='Could not reach the server.'; }); }
 function applyTemplate(id,tplId){ var m=document.getElementById('agr_sigmsg'); if(m)m.textContent='Loading template…'; fetch('/api/agreements/'+encodeURIComponent(id)+'/apply-template',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({templateId:tplId})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ refreshAgr(j.agreement); } else { if(m)m.textContent=(j&&j.error)||'Could not apply template.'; alert((j&&j.error)||'Could not apply template.'); } }).catch(function(){ if(m)m.textContent='Could not reach the server.'; }); }
+function openCountersign(id){
+  var ov=document.createElement('div');
+  ov.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.55);display:flex;align-items:center;justify-content:center;z-index:600;padding:20px';
+  ov.innerHTML='<div style="background:#fff;border-radius:16px;padding:22px 24px;width:100%;max-width:440px;box-shadow:0 24px 60px rgba(0,0,0,.4)">'
+    +'<div style="font-weight:800;color:#000E31;font-size:16px;margin-bottom:4px">Countersign &amp; execute</div>'
+    +'<div style="font-size:12.5px;color:#6b7488;margin-bottom:12px">The signer has signed. Add your signature to fully execute — both parties get the executed copy by email.</div>'
+    +'<label style="display:block;font-size:11px;color:#6b7488;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Your signature</label>'
+    +'<div style="border:1px solid #cfd6e2;border-radius:9px;background:#fff;overflow:hidden"><canvas id="_cspad" style="width:100%;height:170px;touch-action:none;display:block"></canvas></div>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px"><span style="font-size:11.5px;color:#98a1b5">Draw your signature above</span><button type="button" id="_csclear" style="background:none;border:none;color:#DA2B1F;font-weight:700;cursor:pointer;font-size:12.5px">Clear</button></div>'
+    +'<div style="display:flex;gap:9px;justify-content:flex-end;margin-top:16px"><button type="button" id="_cscancel" class="mfadd">Cancel</button><button type="button" id="_csgo" class="savebtn" style="width:auto;padding:9px 18px">Countersign &amp; execute</button></div>'
+    +'<div id="_csmsg" style="text-align:right;font-size:12.5px;color:#DA2B1F;margin-top:8px"></div></div>';
+  document.body.appendChild(ov);
+  var c=document.getElementById('_cspad'),ctx=c.getContext('2d');
+  function fit(){var r=c.getBoundingClientRect();c.width=r.width*2;c.height=r.height*2;ctx.scale(2,2);ctx.lineWidth=2.2;ctx.lineCap='round';ctx.strokeStyle='#0b1a3a';}
+  fit();
+  var draw=false,last=null,dirty=false;
+  function pos(e){var r=c.getBoundingClientRect();var t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top};}
+  function dn(e){draw=true;last=pos(e);e.preventDefault();}
+  function mv(e){if(!draw)return;var q=pos(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(q.x,q.y);ctx.stroke();last=q;dirty=true;e.preventDefault();}
+  function up(){draw=false;}
+  c.addEventListener('mousedown',dn);c.addEventListener('mousemove',mv);window.addEventListener('mouseup',up);
+  c.addEventListener('touchstart',dn,{passive:false});c.addEventListener('touchmove',mv,{passive:false});c.addEventListener('touchend',up);
+  function close(){ ov.remove(); }
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  document.getElementById('_cscancel').addEventListener('click',close);
+  document.getElementById('_csclear').addEventListener('click',function(){ ctx.clearRect(0,0,c.width,c.height); dirty=false; });
+  document.getElementById('_csgo').addEventListener('click',function(){
+    var m=document.getElementById('_csmsg');
+    if(!dirty){ m.textContent='Draw your signature first.'; return; }
+    var btn=document.getElementById('_csgo'); btn.disabled=true; btn.textContent='Executing…';
+    fetch('/api/agreements/'+encodeURIComponent(id)+'/countersign',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({signature:c.toDataURL('image/png')})})
+      .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ close(); load(); } else { btn.disabled=false; btn.textContent='Countersign & execute'; m.textContent=(j&&j.error)||'Could not execute.'; } })
+      .catch(function(){ btn.disabled=false; btn.textContent='Countersign & execute'; m.textContent='Could not reach the server.'; });
+  });
+}
 function markAgrSigned(id){ var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.5);display:flex;align-items:center;justify-content:center;z-index:500;padding:20px'; ov.innerHTML='<div style="background:#fff;border-radius:14px;padding:20px 22px;width:100%;max-width:340px;box-shadow:0 20px 60px rgba(0,0,0,.35)"><div style="font-weight:800;color:#000E31;font-size:15px;margin-bottom:12px">Mark agreement signed</div><label style="display:block;font-size:11px;color:#6b7488;font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">Signed on</label><input type="date" id="_sgd" value="'+todayStr()+'" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"><div style="display:flex;gap:9px;justify-content:flex-end;margin-top:16px"><button type="button" class="mfadd" id="_sgc">Cancel</button><button type="button" class="savebtn" id="_sgo" style="width:auto;padding:8px 16px">Mark signed</button></div></div>'; document.body.appendChild(ov); function close(){ ov.remove(); } ov.addEventListener('click',function(e){ if(e.target===ov) close(); }); ov.querySelector('#_sgc').addEventListener('click',close); ov.querySelector('#_sgo').addEventListener('click',function(){ var d=ov.querySelector('#_sgd').value; close(); fetch('/api/agreements/'+encodeURIComponent(id)+'/sign',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({date:(d||'').trim()})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) load(); else alert((j&&j.error)||'Failed.'); }); }); }
 function sendModalHtml(){
   var typeOpts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
@@ -363,6 +402,7 @@ function smInput(fld,i){
   if(t==='time') return '<input type="time" '+base+' value="'+esc(v)+'">';
   if(t==='number') return '<input type="text" inputmode="numeric" '+base+' value="'+esc(v)+'" placeholder="0">';
   if(t==='currency') return '<input type="text" inputmode="decimal" '+base+' value="'+esc(v)+'" placeholder="$0.00">';
+  if(t==='autofill') return '<input type="text" '+base+' value="'+esc(v)+'" readonly style="background:#f5f7fb;color:#55607a">';
   if(t==='email') return '<input type="email" '+base+' value="'+esc(v)+'">';
   return '<input type="text" '+base+' value="'+esc(v)+'">';
 }
