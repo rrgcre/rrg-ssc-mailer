@@ -179,7 +179,7 @@ function renderList(list){
     rowId:function(a){ return a.key; }, defaultSort:6, defaultDir:1,
     columns:[
       { label:'Business', sort:function(a,b){ return RRGList.cmp(a.business,b.business); },
-        cell:function(a){ var meta=[a.market,a.contact].filter(Boolean).map(esc).join(' · '); return '<div class="biz">'+esc(a.business)+'</div><div class="meta">'+meta+'</div>'; } },
+        cell:function(a){ var meta=[a.market,a.contact].filter(Boolean).map(esc).join(' · '); var badge=a.needsSetup?' <span title="Created from a BizBuySell lead \u2014 finish setup" style="font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#b5791f;background:#fff4e6;border:1px solid #f0d9b5;border-radius:5px;padding:1px 6px;vertical-align:middle;white-space:nowrap">Needs setup</span>':''; return '<div class="biz">'+esc(a.business)+badge+'</div><div class="meta">'+meta+'</div>'; } },
       { label:'Pipeline', sortable:false, cell:function(a){ return pipeCell(a); } },
       { label:'Value', sort:function(a,b){ return RRGList.cmp(a.value,b.value); }, cell:function(a){ return a.value?('<b style="color:var(--navy)">'+esc(a.value)+'</b>'+(a.basis?('<div class="meta">'+esc(a.basis)+'</div>'):'')):'<span class="meta">—</span>'; } },
       { label:'Status', sort:function(a,b){ return RRGList.cmp(a.status,b.status); }, cell:function(a){ return '<span class="pill '+statusClass(a.status)+'">'+esc(a.status)+'</span>'; } },

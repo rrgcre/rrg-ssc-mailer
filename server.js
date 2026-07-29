@@ -757,7 +757,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/rrg_brand.js', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/')) return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/')) return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -982,6 +982,14 @@ function loadEmailConfig() {
 function saveEmailConfig(c) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(EMAIL_CFG_FILE, JSON.stringify(c, null, 2)); } catch (e) {} }
 function isEmailConfigured() { const c = loadEmailConfig(); return !!(c.enabled && c.host); }
 function mailFrom() { return loadEmailConfig().from; }
+function newOpenToken() { return 'eo_' + crypto.randomBytes(16).toString('base64url'); }
+function _escHtmlBody(x) { return String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function trackedEmailHtml(body, origin, token) {
+  const htmlBody = _escHtmlBody(body).split('\n').join('<br>');
+  const pixel = (origin && token) ? ('<img src="' + origin + '/eo/' + token + '" width="1" height="1" alt="" style="display:block;max-height:1px;max-width:1px;overflow:hidden;opacity:0">') : '';
+  return '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;font-size:14px;line-height:1.5;color:#1a2236">' + htmlBody + '</div>' + pixel;
+}
+const _OPEN_GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 function buildTransport() {
   const c = loadEmailConfig();
   return nodemailer.createTransport({ host: c.host, port: c.port, secure: c.secure, auth: (c.user || c.pass) ? { user: c.user, pass: c.pass } : undefined });
@@ -2589,7 +2597,7 @@ function assignmentView(d, overlay) {
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
     status: o.status || 'New', notes: o.notes || '', owner: o.owner || by, businessOverride: o.businessOverride || '',
-    stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', referredBy: o.referredBy || '', referralPct: o.referralPct || '', listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew,
+    stageFlags: o.stageFlags || {}, pipelineId: o.pipelineId || '', needsSetup: !!o.needsSetup, fromBbs: !!o.fromBbs, referredBy: o.referredBy || '', referralPct: o.referralPct || '', listingLive: o.listingLive || '', listingStart: o.listingStart || '', listingExpires: o.listingExpires || '', autoRenew: !!o.autoRenew,
     offers: Array.isArray(o.offers) ? o.offers : [],
     tours: Array.isArray(o.tours) ? o.tours : [],
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
@@ -2822,16 +2830,28 @@ function importBbsLeads(req, leads) {
   const now = new Date().toISOString();
   const due = (function(){ const d = new Date(); d.setDate(d.getDate() + 2); return d.toISOString().slice(0, 10); })();
   const tasks = loadTasks();
-  let imported = 0, matched = 0, unmatched = 0, dupes = 0;
+  let imported = 0, matched = 0, unmatched = 0, dupes = 0, createdListings = 0;
   const results = [];
   (leads || []).forEach(l => {
     const email = String(l.email || '').trim();
     const refKey = l.refId ? byRef[String(l.refId).toLowerCase().trim()] : null;
     const numKey = l.listingNumber ? byNum[String(l.listingNumber).toLowerCase().trim()] : null;
-    const key = refKey || numKey || null;
+    let key = refKey || numKey || null; let createdStub = false;
     const qualBits = []; if (l.funds) qualBits.push('Funds: ' + l.funds); if (l.timeframe) qualBits.push('Timeframe: ' + l.timeframe); if (l.zip) qualBits.push('Zip: ' + l.zip); const qualLine = qualBits.join(' \u00b7 ');
     const person = findOrCreatePerson(req, { name: l.name || '', firstName: l.firstName || '', lastName: l.lastName || '', email: email, phones: l.phone ? [l.phone] : [], type: (PERSON_TYPES.indexOf('Buyer') >= 0 ? 'Buyer' : 'Buyer') });
     if (person) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === person.id); if (pp) { logActivity(pp, 'BizBuySell Lead', ('Inquired on ' + (l.listingName || 'a listing') + (l.refId ? (' \u00b7 Ref ' + l.refId) : (l.listingNumber ? (' \u00b7 #' + l.listingNumber) : '')) + (qualLine ? (' \u00b7 ' + qualLine) : '') + (l.message ? (' \u2014 \u201c' + String(l.message).slice(0,140) + '\u201d') : '')).slice(0, 300), { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
+    if (!key && (l.refId || l.listingNumber)) {
+      const stub = { id: newDealId(), business: (l.listingName || ('BizBuySell ' + (l.refId || l.listingNumber))).slice(0, 120), market: '', contact: '', screenId: '', roomId: '', contactPersonId: '', companyId: '', createdAt: now, fromBizBuySell: true, needsSetup: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+      const _da = loadDeals(); _da.push(stub); saveDeals(_da);
+      key = 'd_' + stub.id; createdStub = true;
+      const c0 = overlay[key] || {};
+      if (l.refId) c0.bbsRef = l.refId;
+      if (l.listingNumber) c0.bbsNumber = String(l.listingNumber);
+      c0.status = c0.status || 'New'; c0.fromBbs = true; c0.needsSetup = true; c0.updatedAt = now;
+      overlay[key] = c0;
+      if (l.refId) byRef[String(l.refId).toLowerCase().trim()] = key;
+      if (l.listingNumber) byNum[String(l.listingNumber).toLowerCase().trim()] = key;
+    }
     let listingLabel = l.listingName || '';
     if (key) {
       matched++;
@@ -2851,13 +2871,13 @@ function importBbsLeads(req, leads) {
     if (l.timeframe) noteLines.push('Time frame: ' + l.timeframe);
     if (l.zip) noteLines.push('Zip: ' + l.zip);
     if (l.message) noteLines.push('Message: ' + l.message);
-    if (!key && (l.refId || l.listingNumber)) noteLines.push('UNMATCHED \u2014 set BizBuySell Ref \u201c' + (l.refId || l.listingNumber) + '\u201d on the right listing, then this buyer can be attached.');
+    if (createdStub) { createdListings++; noteLines.push('Created a stub listing from BizBuySell \u2014 finish setting it up on the listing page.'); }
     tasks.push({ id: newTaskId(), title: ('Follow up (BizBuySell): ' + (l.name || email || 'buyer') + (listingLabel ? (' \u2014 ' + listingLabel) : '')).slice(0, 300), notes: noteLines.join('\n').slice(0, 2000), assignee: (req.user && req.user.username) || '', assigneeName: (req.user && req.user.name) || '', due: due, reminder: due, priority: 'Normal', status: 'open', linkType: 'contact', linkId: (person && person.id) || '', linkLabel: (person && person.name) || l.name || email, createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', createdAt: now, updatedAt: now });
     imported++;
     results.push({ email: email, name: l.name || '', listing: listingLabel, matched: !!key, ref: l.refId || l.listingNumber || '' });
   });
   saveAssignOverlay(overlay); saveTasks(tasks);
-  return { ok: true, imported: imported, matched: matched, unmatched: unmatched, dupes: dupes, results: results };
+  return { ok: true, imported: imported, matched: matched, unmatched: unmatched, dupes: dupes, createdListings: createdListings, results: results };
 }
 // Preview a paste (no writes) so the import window can show what it found.
 app.post('/api/bizbuysell/parse', express.json({ limit: '1mb' }), (req, res) => {
@@ -3339,6 +3359,35 @@ app.post('/api/person/merge', express.json(), (req, res) => {
 });
 // ---- Contact photo (optional headshot / logo) ----
 const PERSONPHOTO_DIR = path.join(BOV_DATA_DIR, 'personphotos');
+app.get('/eo/:token', (req, res) => {
+  try {
+    const token = String(req.params.token || '').replace(/\.(png|gif|jpg)$/i, '');
+    if (token) {
+      const ip = (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim();
+      const ua = String(req.headers['user-agent'] || '').slice(0, 300);
+      const arr = loadPeople(); let changed = false;
+      for (const p of arr) {
+        const log = Array.isArray(p.emailLog) ? p.emailLog : [];
+        const e = log.find(x => x && x.openToken === token);
+        if (!e) continue;
+        const nowIso = new Date().toISOString();
+        const sentMs = Date.parse(e.sentAt || 0) || 0;
+        const isSender = !!(e.senderIp && ip && e.senderIp === ip);
+        const tooSoon = !!(sentMs && (Date.now() - sentMs < 20000));
+        const counted = !(isSender || tooSoon);
+        e.openHits = Array.isArray(e.openHits) ? e.openHits : [];
+        e.openHits.push({ at: nowIso, ip: ip, ua: ua, counted: counted }); e.openHits = e.openHits.slice(-50);
+        if (counted) { e.opens = (e.opens || 0) + 1; e.lastOpen = nowIso; if (!e.firstOpen) e.firstOpen = nowIso; }
+        changed = true; break;
+      }
+      if (changed) savePeople(arr);
+    }
+  } catch (e) {}
+  res.set('Content-Type', 'image/gif');
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.set('Pragma', 'no-cache'); res.set('Expires', '0');
+  res.end(_OPEN_GIF);
+});
 app.post('/api/person/:id/email', express.json({ limit: '256kb' }), async (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
@@ -3350,10 +3399,11 @@ app.post('/api/person/:id/email', express.json({ limit: '256kb' }), async (req, 
   const body = String(b.body || '').slice(0, 20000);
   if (!subject.trim() && !body.trim()) return res.status(400).json({ ok: false, error: 'Add a subject or a message.' });
   try {
-    const info = await buildTransport().sendMail({ from: mailFrom(), to, subject: subject || '(no subject)', text: body });
+    const _origin = reqOrigin(req); const _tok = newOpenToken();
+    const info = await buildTransport().sendMail({ from: mailFrom(), to, subject: subject || '(no subject)', text: body, html: trackedEmailHtml(body, _origin, _tok) });
     const now = new Date().toISOString();
     p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
-    const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', messageId: (info && info.messageId) || '' };
+    const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', messageId: (info && info.messageId) || '', openToken: _tok, opens: 0, senderIp: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() };
     p.emailLog.unshift(entry); p.emailLog = p.emailLog.slice(0, 100);
     logActivity(p, 'Email', subject || '(no subject)', { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' });
     p.lastContacted = now.slice(0, 10); p.updatedAt = now;
@@ -3413,12 +3463,13 @@ app.post('/api/gmail/send', express.json({ limit: '256kb' }), async (req, res) =
   const body = String(b.body || '').slice(0, 20000);
   if (!subject.trim() && !body.trim()) return res.status(400).json({ ok: false, error: 'Add a subject or a message.' });
   try {
-    const sent = await gmail.sendMessage(u, { to, subject, body, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '' });
+    const _tok = p ? newOpenToken() : ''; const _origin = reqOrigin(req);
+    const sent = await gmail.sendMessage(u, { to, subject, body, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '', html: _tok ? trackedEmailHtml(body, _origin, _tok) : '' });
     let emailLog = null, lastContacted = null;
     if (p) {
       const now = new Date().toISOString();
       p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
-      const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: u, messageId: sent.id, via: 'gmail' };
+      const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: u, messageId: sent.id, via: 'gmail', openToken: _tok, opens: 0, senderIp: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() };
       p.emailLog.unshift(entry); p.emailLog = p.emailLog.slice(0, 100);
       logActivity(p, 'Email', subject || '(no subject)', { auto: true, by: (req.user && req.user.name) || '', byUser: u });
       p.lastContacted = now.slice(0, 10); p.updatedAt = now; savePeople(arr);
@@ -4867,10 +4918,36 @@ app.get('/admin', requireAdmin, (req, res) => {
   const lrows = logins.map(l =>
     `<tr><td class="ts">${fmtWhen(l.timestamp)}</td><td class="mono">${esc(l.username) || '—'}</td><td>${l.result === 'success' ? '<span class="tag ok">Success</span>' : '<span class="tag off">Failed</span>'}</td><td class="mono">${esc(l.ip)}</td></tr>`
   ).join('') || '<tr><td colspan="4" class="empty">No logins recorded yet.</td></tr>';
+  // ---- Who's on now (active in the last 15 min, from login + tool-open logs) ----
+  const _act = {};
+  function _bump(user, tsRaw, tool, ip) { const t = Date.parse(tsRaw || 0) || 0; if (!user || !t) return; if (!_act[user] || t > _act[user].t) _act[user] = { t: t, ts: tsRaw, tool: tool, ip: ip || '' }; }
+  usageAll.forEach(u => _bump(u.username, u.timestamp, u.tool || '', u.ip));
+  logins.forEach(l => { if (l.result === 'success') _bump(l.username, l.timestamp, '(signed in)', l.ip); });
+  const _nameOf = {}; users.forEach(u => { _nameOf[u.username] = u.name || u.username; });
+  const _nowMs = Date.now();
+  const _onNow = Object.keys(_act).map(u => ({ user: u, name: _nameOf[u] || u, t: _act[u].t, ts: _act[u].ts, tool: _act[u].tool, ip: _act[u].ip })).filter(x => _nowMs - x.t < 15 * 60 * 1000).sort((a, b) => b.t - a.t);
+  const whoRows = _onNow.length ? _onNow.map(x => `<tr>`
+      + `<td style="padding:9px 18px;font-weight:700;color:#0b1a3a">${esc(x.name)}</td>`
+      + `<td style="padding:9px 10px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;color:#3a4560">${esc(x.user)}</td>`
+      + `<td style="padding:9px 10px;color:#3a4560">${esc(x.tool)}</td>`
+      + `<td style="padding:9px 10px;color:#6b7488;font-size:12.5px;white-space:nowrap">${esc(fmtWhen(x.ts))}</td>`
+      + `<td style="padding:9px 18px;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#6b7488">${esc(x.ip)}</td></tr>`).join('')
+    : `<tr><td colspan="5" style="padding:18px;text-align:center;color:#8a94a6;font-size:13px">No one active in the last 15 minutes.</td></tr>`;
+  const whoCard = `
+    <div style="padding:8px 28px 0"><div style="background:#fff;border:1px solid #e9edf3;border-radius:12px;overflow:hidden">
+      <div style="padding:12px 18px;border-bottom:1px solid #eef1f6;display:flex;align-items:center;gap:10px"><span style="width:9px;height:9px;border-radius:50%;background:${_onNow.length ? '#1f8a5b' : '#c7cede'};display:inline-block;box-shadow:${_onNow.length ? '0 0 0 3px rgba(31,138,91,.15)' : 'none'}"></span><b style="color:#000E31;font-size:14px">Who&#39;s on now</b><span style="font-size:11.5px;color:#6b7488">active in the last 15 minutes</span><span style="margin-left:auto;font-size:12px;font-weight:800;color:${_onNow.length ? '#1f8a5b' : '#8a94a6'}">${_onNow.length} online</span></div>
+      <table style="width:100%;border-collapse:collapse"><thead><tr>
+        <th style="text-align:left;padding:8px 18px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#8a94a6">User</th>
+        <th style="text-align:left;padding:8px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#8a94a6">Username</th>
+        <th style="text-align:left;padding:8px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#8a94a6">Last page</th>
+        <th style="text-align:left;padding:8px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#8a94a6">When</th>
+        <th style="text-align:left;padding:8px 18px;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#8a94a6">IP</th>
+      </tr></thead><tbody>${whoRows}</tbody></table>
+    </div></div>`;
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.set('Content-Type', 'text/html; charset=utf-8').send(shell('Admin Console', `
     <div class="bar"><span class="stat"><b>${users.length}</b> users</span><span class="stat"><b>${logins.filter(l=>l.result==='success').length}</b> logins shown</span><span class="stat"><b>${usageAll.length}</b> tool opens</span><span class="stat" title="Version and when the running server last started. After you push and Render redeploys, refresh this page — if the boot time doesn't update to just now, the new code isn't live yet."><b>${esc(ADMIN_BUILD)}</b> · booted ${esc(SERVER_BOOT.toLocaleString('en-US',{timeZone:'America/Chicago'}))} CT</span>
-      <span class="dl"><a href="/index.html" style="background:#DA2B1F;color:#fff;padding:6px 13px;border-radius:8px;font-weight:800;text-decoration:none">Switch to user view →</a> <a href="/log">Submissions</a> <a href="/admin/logins.csv">Login CSV</a> <a href="/admin/usage.csv">Usage CSV</a> <a href="/logout">Sign out</a></span></div>
+      <span class="dl"><a href="/index.html" style="background:#DA2B1F;color:#fff;padding:6px 13px;border-radius:8px;font-weight:800;text-decoration:none">Switch to user view →</a> <a href="/log">Submissions</a> <a href="/admin/logins.csv">Login CSV</a> <a href="/admin/usage.csv">Usage CSV</a> <a href="/logout">Sign out</a></span></div>${whoCard}
     <style>
       .expandbar{display:none!important;}
       .userscroll{max-height:390px;overflow-y:auto;border:1px solid #e9edf3;border-radius:11px;}

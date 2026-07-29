@@ -247,15 +247,32 @@ async function sendMessage(username, opts) {
   const to = String(opts.to || '').trim();
   if (!to) throw new Error('A recipient is required.');
   const subject = String(opts.subject || '(no subject)');
-  const lines = [
-    'From: ' + from,
-    'To: ' + to,
-    'Subject: ' + subject,
-    'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset="UTF-8"',
-  ];
-  if (opts.inReplyTo) { lines.push('In-Reply-To: ' + opts.inReplyTo); lines.push('References: ' + (opts.references || opts.inReplyTo)); }
-  const raw = lines.join('\r\n') + '\r\n\r\n' + String(opts.body || '');
+  const extra = [];
+  if (opts.inReplyTo) { extra.push('In-Reply-To: ' + opts.inReplyTo); extra.push('References: ' + (opts.references || opts.inReplyTo)); }
+  let raw;
+  if (opts.html) {
+    const boundary = 'rrgb_' + crypto.randomBytes(9).toString('hex');
+    const head = [
+      'From: ' + from, 'To: ' + to, 'Subject: ' + subject, 'MIME-Version: 1.0',
+      'Content-Type: multipart/alternative; boundary="' + boundary + '"',
+    ].concat(extra).join('\r\n');
+    const parts = [
+      '--' + boundary,
+      'Content-Type: text/plain; charset="UTF-8"', 'Content-Transfer-Encoding: 8bit', '',
+      String(opts.body || ''), '',
+      '--' + boundary,
+      'Content-Type: text/html; charset="UTF-8"', 'Content-Transfer-Encoding: 8bit', '',
+      String(opts.html), '',
+      '--' + boundary + '--', '',
+    ].join('\r\n');
+    raw = head + '\r\n\r\n' + parts;
+  } else {
+    const head = [
+      'From: ' + from, 'To: ' + to, 'Subject: ' + subject, 'MIME-Version: 1.0',
+      'Content-Type: text/plain; charset="UTF-8"',
+    ].concat(extra).join('\r\n');
+    raw = head + '\r\n\r\n' + String(opts.body || '');
+  }
   const encoded = Buffer.from(raw).toString('base64url');
   const payload = { raw: encoded };
   if (opts.threadId) payload.threadId = opts.threadId;
