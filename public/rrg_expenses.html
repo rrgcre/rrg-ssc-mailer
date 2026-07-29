@@ -4,29 +4,149 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FullServe — Expenses</title>
+<style>.rl-filtbtn{display:none!important;}</style>
+<script src="/rrg_list.js"></script>
 <style>
-:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--teal:#4fb0a6;}
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--teal:#4fb0a6;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
-.wrap{max-width:1000px;margin:0 auto;padding:26px 28px 60px;}
+.wrap{max-width:1160px;margin:0 auto;padding:24px 28px 60px;}
 .pgh{font-size:26px;font-weight:800;color:var(--navy);margin:6px 0 2px;}
-.pgs{color:var(--muted);font-size:13.5px;margin-bottom:22px;max-width:720px;line-height:1.5;}
-.soon{background:#fff;border:1px solid var(--line);border-radius:16px;padding:46px 30px;text-align:center;box-shadow:0 6px 24px rgba(10,20,50,.05);}
-.soon .badge{display:inline-block;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);background:#e6f6f4;border:1px solid #bce6e0;border-radius:100px;padding:5px 14px;margin-bottom:16px;}
-.soon h2{font-size:20px;font-weight:800;color:var(--navy);margin:0 0 8px;}
-.soon p{color:var(--muted);font-size:14px;line-height:1.6;max-width:520px;margin:0 auto;}
+.pgs{color:var(--muted);font-size:13.5px;margin-bottom:18px;max-width:820px;line-height:1.5;}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px;}
+.stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;box-shadow:0 4px 16px rgba(10,20,50,.04);min-width:130px;}
+.stat .k{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;}
+.stat .v{font-size:20px;font-weight:800;color:var(--navy);margin-top:3px;}
+.stat.amber .v{color:#b7791f;} .stat.green .v{color:var(--green);}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:20px;}
+.hd{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;}
+.hd b{color:var(--navy);font-size:15px;} .hd .sp{margin-left:auto;}
+.cb{padding:6px 8px 10px;}
+.lk{color:var(--navy);text-decoration:none;font-weight:600;} .lk:hover{text-decoration:underline;}
+.meta{color:var(--muted);font-size:12px;}
+.amt{font-variant-numeric:tabular-nums;font-weight:700;color:var(--ink);}
+.acts{display:flex;gap:6px;flex-wrap:nowrap;justify-content:flex-end;white-space:nowrap;}
+.badge{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:5px;padding:2px 8px;white-space:nowrap;}
+.badge.unpaid{color:#a15c00;background:#fdf3e2;border:1px solid #f0d9ab;}
+.badge.paid{color:#1f6f4e;background:#e7f5ee;border:1px solid #bce3cd;}
+.badge.reimb{color:#2647b0;background:#eef2fb;border:1px solid #d6e0f5;}
+.rflag{display:inline-block;font-size:10px;font-weight:800;color:var(--teal);border:1px solid #bce6e0;background:#e6f6f4;border-radius:5px;padding:2px 6px;margin-left:6px;}
+.btn{font:inherit;font-size:12.5px;font-weight:700;padding:8px 13px;border:1px solid #cdd6e6;border-radius:9px;background:#fff;color:var(--navy);cursor:pointer;white-space:nowrap;}
+.btn:hover{background:#f4f7fb;}
+.btn.sm{padding:6px 11px;font-size:12px;}
+.btn.pri{background:var(--navy);color:#fff;border-color:var(--navy);} .btn.pri:hover{background:#0a1a44;}
+.btn.red{background:var(--red);color:#fff;border-color:var(--red);}
+.btn.ghost{background:#fff;} .btn.danger{color:var(--red);border-color:#f0c9c6;} .btn.danger:hover{background:#fdeceb;}
+.btn:disabled{opacity:.5;cursor:default;}
+.ch{padding:15px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;} .ch b{color:var(--navy);font-size:16px;} .ch .sp{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.body{padding:20px;}
+.grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.grid .full{grid-column:1 / -1;}
+.grid .two{grid-column:span 2;}
+@media(max-width:760px){.grid{grid-template-columns:1fr;}.grid .full,.grid .two{grid-column:auto;}}
+.fld{margin-bottom:2px;}
+.fld label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:700;margin-bottom:6px;}
+.fld input[type=text],.fld input[type=date],.fld input[type=number],.fld select,.fld textarea{font:inherit;font-size:14px;padding:9px 11px;border:1px solid var(--line);border-radius:9px;width:100%;color:var(--ink);background:#fff;}
+.fld textarea{min-height:80px;resize:vertical;line-height:1.5;}
+.money-in{position:relative;} .money-in span{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--soft);font-size:14px;font-weight:700;} .money-in input{padding-left:24px !important;}
+.chkrow{display:flex;align-items:center;gap:9px;padding:9px 0;} .chkrow input{width:17px;height:17px;} .chkrow label{font-size:13.5px;font-weight:600;color:var(--ink);text-transform:none;letter-spacing:0;margin:0;}
+.hint{font-size:11.5px;color:var(--soft);margin-top:5px;}
+.msg{font-size:12.5px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.empty{padding:34px 20px;text-align:center;color:var(--soft);font-size:13.5px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
 <div class="wrap">
   <h1 class="pgh">Expenses</h1>
-  <div class="pgs">Log deal and business expenses, categorize them, and tie them back to listings.</div>
-  <div class="soon">
-    <div class="badge">Coming soon</div>
-    <h2>Expenses are on the way</h2>
-    <p>This is the placeholder for the Expenses section of Accounting. The layout, fields, and workflow are being built — nothing here is live yet.</p>
-  </div>
+  <div class="pgs">Log deal and business expenses, tag them to a category and (optionally) a listing, and track what's been paid or reimbursed. Your list is private to you; admins see the whole team's ledger.</div>
+  <div class="stats" id="stats"></div>
+  <div id="root"></div>
 </div>
+<script>
+var ROWS=[], CTL=null, BUILT=false, EDIT=null, DEL_ARM=false;
+var CATS=[], METHODS=[], STATUSES=[], IS_ADMIN=false, LISTINGS=[];
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function fmtDate(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]+'/'+x[0].slice(2); }
+function money(n){ n=Number(n||0); return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function todayISO(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
+function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
+var LIST_SHELL='<div class="card"><div class="hd"><b>Expense Ledger</b><span class="meta" id="ecount"></span><span class="sp"></span><button class="btn sm pri" id="e_new">+ New expense</button></div><div class="cb"><div id="elist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';
+function statusBadge(x){ var c=x.status==='Paid'?'paid':(x.status==='Reimbursed'?'reimb':'unpaid'); return '<span class="badge '+c+'">'+esc(x.status)+'</span>'+(x.reimbursable?'<span class="rflag" title="Marked reimbursable">R</span>':''); }
+function actionsCell(x){ var s=''; if(x.mine){ s+='<button class="btn ghost sm" data-edit="'+esc(x.id)+'">Edit</button>'; s+='<button class="btn danger sm" data-del="'+esc(x.id)+'">Delete</button>'; } else { s+='<button class="btn ghost sm" data-edit="'+esc(x.id)+'">View</button>'; } return '<div class="acts">'+s+'</div>'; }
+function listCfg(){ var cols=[
+    { label:'Date', sort:function(a,b){return RRGList.cmp(a.date,b.date);}, cell:function(x){ return '<a class="lk" href="#" data-edit="'+esc(x.id)+'">'+esc(fmtDate(x.date)||'—')+'</a>'; } },
+    { label:'Vendor / Payee', sort:function(a,b){return RRGList.cmp(a.vendor,b.vendor);}, cell:function(x){ return x.vendor?esc(x.vendor):'<span class="meta">—</span>'; } },
+    { label:'Category', sort:function(a,b){return RRGList.cmp(a.category,b.category);}, cell:function(x){ return x.category?('<span class="meta" style="color:var(--ink)">'+esc(x.category)+'</span>'):'<span class="meta">—</span>'; } },
+    { label:'Listing', sort:function(a,b){return RRGList.cmp(a.listingLabel,b.listingLabel);}, cell:function(x){ return x.listingLabel?esc(x.listingLabel):'<span class="meta">—</span>'; } },
+    { label:'Method', sort:function(a,b){return RRGList.cmp(a.method,b.method);}, cell:function(x){ return x.method?('<span class="meta">'+esc(x.method)+'</span>'):'<span class="meta">—</span>'; }, defaultHidden:true },
+    { label:'Amount', align:'right', sort:function(a,b){return RRGList.cmp(Number(a.amount||0),Number(b.amount||0));}, cell:function(x){ return '<span class="amt">'+money(x.amount)+'</span>'; } },
+    { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, cell:statusBadge } ];
+  if(IS_ADMIN) cols.push({ label:'Logged by', sort:function(a,b){return RRGList.cmp(a.ownerName,b.ownerName);}, cell:function(x){ return x.mine?'You':(x.ownerName?esc(x.ownerName):'<span class="meta">—</span>'); } });
+  cols.push({ label:'', sortable:false, cell:actionsCell });
+  return { mount:'#elist', data:ROWS, key:'expenses',
+    empty:'<div class="empty">No expenses logged yet. Click <b>+ New expense</b> to add your first.</div>',
+    rowId:function(x){return x.id;}, defaultSort:0, defaultDir:-1, columns:cols }; }
+function refreshList(){ if(CTL) CTL.refresh(ROWS); else CTL=RRGList.create(listCfg()); var c=document.getElementById('ecount'); if(c) c.textContent=ROWS.length+(ROWS.length===1?' expense':' expenses'); renderStats(); }
+function renderStats(){
+  var host=document.getElementById('stats'); if(!host) return;
+  var total=0, unpaid=0, reimb=0;
+  ROWS.forEach(function(x){ var a=Number(x.amount||0); total+=a; if(x.status==='Unpaid') unpaid+=a; if(x.reimbursable && x.status!=='Reimbursed') reimb+=a; });
+  host.innerHTML='<div class="stat"><div class="k">Total logged</div><div class="v">'+money(total)+'</div></div>'
+    +'<div class="stat amber"><div class="k">Unpaid</div><div class="v">'+money(unpaid)+'</div></div>'
+    +'<div class="stat green"><div class="k">Reimbursable open</div><div class="v">'+money(reimb)+'</div></div>';
+}
+function curById(id){ return ROWS.filter(function(x){return x.id===id;})[0]||null; }
+function opt(list,val){ return list.map(function(o){ return '<option value="'+esc(o)+'"'+(o===val?' selected':'')+'>'+esc(o)+'</option>'; }).join(''); }
+function listingOpts(val){ var s='<option value="">— None —</option>'; LISTINGS.forEach(function(l){ s+='<option value="'+esc(l.key)+'"'+(l.key===val?' selected':'')+'>'+esc(l.business||l.key)+'</option>'; }); return s; }
+function renderEditor(){
+  var host=document.getElementById('editor'); if(!host) return;
+  if(!EDIT){ host.innerHTML=''; return; }
+  var x=EDIT; var ro=(x.id&&!x.mine);
+  host.innerHTML='<div class="card"><div class="ch"><b>'+(ro?'View expense':(x.id?'Edit expense':'New expense'))+'</b><span class="sp"><span class="msg" id="msg"></span>'+((x.id&&x.mine)?'<button class="btn danger sm" id="delBtn">Delete</button>':'')+'<button class="btn ghost sm" id="closeBtn">Close</button>'+(ro?'':'<button class="btn red" id="saveBtn">Save expense</button>')+'</span></div><div class="body"><div class="grid">'
+    +'<div class="fld"><label>Date</label><input type="date" id="f_date" value="'+esc(x.date||'')+'"'+(ro?' disabled':'')+'></div>'
+    +'<div class="fld two"><label>Vendor / Payee</label><input type="text" id="f_vendor" value="'+esc(x.vendor||'')+'"'+(ro?' readonly':'')+' placeholder="e.g. LoopNet, Staples, City of ___"></div>'
+    +'<div class="fld"><label>Category</label><select id="f_cat"'+(ro?' disabled':'')+'><option value="">— Select —</option>'+opt(CATS,x.category||'')+'</select></div>'
+    +'<div class="fld"><label>Amount</label><div class="money-in"><span>$</span><input type="number" step="0.01" min="0" id="f_amt" value="'+(x.amount?esc(x.amount):'')+'"'+(ro?' readonly':'')+' placeholder="0.00"></div></div>'
+    +'<div class="fld"><label>Payment method</label><select id="f_method"'+(ro?' disabled':'')+'><option value="">— Select —</option>'+opt(METHODS,x.method||'')+'</select></div>'
+    +'<div class="fld"><label>Status</label><select id="f_status"'+(ro?' disabled':'')+'>'+opt(STATUSES,x.status||'Unpaid')+'</select></div>'
+    +'<div class="fld two"><label>Listing (optional)</label><select id="f_listing"'+(ro?' disabled':'')+'>'+listingOpts(x.listingKey||'')+'</select><div class="hint">Tie this expense to a deal so it shows up in that listing’s costs.</div></div>'
+    +'<div class="fld"><label>&nbsp;</label><div class="chkrow"><input type="checkbox" id="f_reimb"'+(x.reimbursable?' checked':'')+(ro?' disabled':'')+'><label for="f_reimb">Reimbursable / billable</label></div></div>'
+    +'<div class="fld full"><label>Receipt link or reference (optional)</label><input type="text" id="f_receipt" value="'+esc(x.receipt||'')+'"'+(ro?' readonly':'')+' placeholder="Drive/Dropbox link, check #, or note"></div>'
+    +'<div class="fld full"><label>Notes</label><textarea id="f_notes"'+(ro?' readonly':'')+' placeholder="What was this for?">'+esc(x.notes||'')+'</textarea></div>'
+    +'</div></div></div>';
+  document.getElementById('closeBtn').onclick=function(){ EDIT=null; renderEditor(); };
+  if(!ro){ document.getElementById('saveBtn').onclick=save; var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete; }
+}
+function render(){ var root=document.getElementById('root'); if(!BUILT){ root.innerHTML=LIST_SHELL; BUILT=true; document.getElementById('e_new').onclick=newExp; } refreshList(); renderEditor(); }
+function openEdit(id){ var x=curById(id); if(!x) return; EDIT=JSON.parse(JSON.stringify(x)); renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
+function newExp(){ EDIT={id:'',date:todayISO(),vendor:'',category:'',method:'',amount:'',status:'Unpaid',listingKey:'',reimbursable:false,receipt:'',notes:'',mine:true}; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
+function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
+function save(){
+  var amt=Number(document.getElementById('f_amt').value||0);
+  var lk=document.getElementById('f_listing').value||'';
+  var ll=''; if(lk){ var m=LISTINGS.filter(function(l){return l.key===lk;})[0]; ll=m?(m.business||''):''; }
+  var body={ date:document.getElementById('f_date').value, vendor:document.getElementById('f_vendor').value,
+    category:document.getElementById('f_cat').value, method:document.getElementById('f_method').value,
+    amount:amt, status:document.getElementById('f_status').value, listingKey:lk, listingLabel:ll,
+    reimbursable:document.getElementById('f_reimb').checked, receipt:document.getElementById('f_receipt').value,
+    notes:document.getElementById('f_notes').value };
+  if(!body.date){ msg('Pick a date.','err'); return; }
+  if(!(amt>0)){ msg('Enter an amount.','err'); return; }
+  if(EDIT&&EDIT.id) body.id=EDIT.id;
+  var btn=document.getElementById('saveBtn'); btn.disabled=true;
+  api('POST','/api/expenses',body).then(function(j){ btn.disabled=false; if(!j.ok){ msg(j.error||'Save failed.','err'); return; } EDIT=null; load(); }).catch(function(){ btn.disabled=false; msg('Save failed.','err'); });
+}
+function onDelete(){
+  if(!EDIT||!EDIT.id) return;
+  if(!DEL_ARM){ DEL_ARM=true; var b=document.getElementById('delBtn'); b.textContent='Really delete?'; b.classList.add('red'); setTimeout(function(){ if(DEL_ARM){ DEL_ARM=false; var x=document.getElementById('delBtn'); if(x){x.textContent='Delete';x.classList.remove('red');} } },3500); return; }
+  DEL_ARM=false;
+  api('DELETE','/api/expenses/'+encodeURIComponent(EDIT.id)).then(function(j){ if(!j.ok){ msg(j.error||'Delete failed.','err'); return; } EDIT=null; load(); });
+}
+document.addEventListener('click',function(e){ if(!e.target.closest) return; var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); openEdit(ed.getAttribute('data-edit')); return; } var dl=e.target.closest('[data-del]'); if(dl){ e.preventDefault(); var _x=curById(dl.getAttribute('data-del')); if(_x && confirm('Delete this '+money(_x.amount)+' expense'+(_x.vendor?(' to '+_x.vendor):'')+'?')){ api('DELETE','/api/expenses/'+encodeURIComponent(_x.id)).then(function(j){ if(j&&j.ok){ if(EDIT&&EDIT.id===_x.id) EDIT=null; load(); } else alert((j&&j.error)||'Delete failed.'); }); } return; } });
+function loadListings(){ return api('GET','/api/assignments').then(function(j){ LISTINGS=(j&&j.assignments)?j.assignments.map(function(a){return {key:a.key,business:a.business};}):[]; }).catch(function(){ LISTINGS=[]; }); }
+function load(){ api('GET','/api/expenses').then(function(j){ ROWS=j.expenses||[]; CATS=j.categories||[]; METHODS=j.methods||[]; STATUSES=j.statuses||[]; IS_ADMIN=!!j.isAdmin; render(); }); }
+loadListings().then(load);
+</script>
 </body>
 </html>
