@@ -284,8 +284,51 @@ async function sendMessage(username, opts) {
   return { id: j.id, threadId: j.threadId, from: from, to: to, subject: subject };
 }
 
+function parseAddrs(str) {
+  const out = [];
+  String(str || '').split(',').forEach(function (part) {
+    part = part.trim(); if (!part) return;
+    let name = '', email = '';
+    const m = part.match(/^(.*?)<([^>]+)>\s*$/);
+    if (m) { name = m[1].trim().replace(/^["']+|["']+$/g, ''); email = m[2].trim(); }
+    else if (part.indexOf('@') >= 0) { email = part.trim(); }
+    if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) out.push({ name: name, email: email.toLowerCase() });
+  });
+  return out;
+}
+async function listCorrespondents(username, maxMsgs) {
+  const lim = Math.min(Math.max(parseInt(maxMsgs, 10) || 200, 1), 400);
+  const u = 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=' + lim + '&q=' + encodeURIComponent('newer_than:2y');
+  const r = await gapi(username, u, {});
+  const j = await r.json();
+  if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail list failed.');
+  const ids = (j.messages || []).map(m => m.id);
+  const me = ((loadToken(username) || {}).email || '').toLowerCase();
+  const map = {};
+  const CHUNK = 8;
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const batch = ids.slice(i, i + CHUNK);
+    await Promise.all(batch.map(async function (id) {
+      try {
+        const mu = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + id + '?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Cc';
+        const mr = await gapi(username, mu, {}); const mj = await mr.json(); if (!mr.ok) return;
+        const H = mj.payload && mj.payload.headers;
+        ['From', 'To', 'Cc'].forEach(function (hn) {
+          parseAddrs(hdr(H, hn)).forEach(function (a) {
+            if (!a.email || a.email === me) return;
+            if (!map[a.email]) map[a.email] = { name: a.name || '', email: a.email, count: 0 };
+            map[a.email].count++;
+            if (!map[a.email].name && a.name) map[a.email].name = a.name;
+          });
+        });
+      } catch (e) {}
+    }));
+  }
+  return Object.keys(map).map(k => map[k]).sort((a, b) => b.count - a.count);
+}
+
 module.exports = {
   isConfigured, SCOPES, statusFor, redirectUri, authUrl, readState,
   connectFromCode, deleteToken, loadToken, statusForUser: statusFor,
-  messagesForContact, messageFull, searchLeadBodies, sendMessage, TOK_DIR,
+  messagesForContact, messageFull, searchLeadBodies, listCorrespondents, sendMessage, TOK_DIR,
 };

@@ -40,10 +40,18 @@
       { ic: '§', label: 'LOI Builder', href: 'rrg_loi_builder.html' },
       { ic: '⚙', label: 'LOI Settings', href: 'rrg_admin_loi.html', need: 'loi' }
     ] },
+    { grp: 'Marketing', color: '#c77dc0', items: [
+      { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
+      { ic: '⟳', label: 'Automations', href: 'rrg_admin_automations.html', admin: true }
+    ] },
+    { grp: 'Accounting', admin: true, color: '#4fb0a6', items: [
+      { ic: '❏', label: 'Invoices', href: 'rrg_invoices.html' },
+      { ic: '＄', label: 'Payments', href: 'rrg_payments.html' },
+      { ic: '⊟', label: 'Expenses', href: 'rrg_expenses.html' }
+    ] },
     { grp: 'Tools', color: '#a99be0', items: [
       { ic: '⚑', label: 'Feedback', href: 'rrg_feedback.html' },
       { ic: '✉', label: 'Requests', href: 'rrg_tickets.html' },
-      { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
       { ic: '∑', label: 'Cap Rate', href: 'rrg_cap_rate_calculator.html' },
       { ic: '＄', label: 'Sale Commission', href: 'rrg_commission_calculator.html' },
       { ic: '＄', label: 'Lease Commission', href: 'rrg_lease_commission_calculator.html' }
@@ -55,7 +63,6 @@
       { ic: '◔', label: 'Roles', href: 'rrg_roles.html' },
       { ic: '⚙', label: 'Settings', href: 'rrg_admin_settings.html' },
       { ic: '⑃', label: 'Pipelines', href: 'rrg_admin_pipelines.html' },
-      { ic: '⟳', label: 'Automations', href: 'rrg_admin_automations.html' },
       { ic: '∿', label: 'AI Usage', href: 'rrg_admin_aiusage.html' }
     ] }
   ];
@@ -123,7 +130,7 @@
     navHtml += '<div class="grp"' + cls + '>';
     if (g.grp) navHtml += '<div class="lbl" data-grp="' + esc(g.grp) + '"><span>' + esc(g.grp) + '</span><span class="gcv">\u25be</span></div>';
     g.items.forEach(function (it) {
-      var _na = it.need ? (' data-need="' + esc(it.need) + '" style="display:none"') : '';
+      var _na = it.need ? (' data-need="' + esc(it.need) + '" style="display:none"') : (it.admin ? ' data-adminit="1" style="display:none"' : '');
       var _ai = it.ai ? ' data-ai=""' : '';
       navHtml += '<a class="it' + (sameFile(it.href) ? ' on' : '') + '"' + _na + _ai + ' href="' + esc(it.href) + '"><span class="i"' + (it.color ? (' style="color:' + it.color + '"') : '') + '>' + it.ic + '</span>' + esc(it.label) + '</a>';
     });
@@ -163,8 +170,11 @@
     var burger=document.getElementById('rrgburger'); if(window.innerWidth<=900){ burger.style.display='flex'; }
     burger && burger.addEventListener('click', function(){ nav.classList.toggle('open'); });
     // collapsible nav groups (remembered)
-    var _coll={}; try{ _coll=JSON.parse(localStorage.getItem('rrg_navcoll')||'{}')||{}; }catch(e){}
-    nav.querySelectorAll('.lbl[data-grp]').forEach(function(l){ var g=l.getAttribute('data-grp'); if(_coll[g]){ var grp=l.closest('.grp'); if(grp) grp.classList.add('collapsed'); } l.addEventListener('click',function(){ var grp=l.closest('.grp'); if(!grp) return; var on=grp.classList.toggle('collapsed'); try{ var c=JSON.parse(localStorage.getItem('rrg_navcoll')||'{}')||{}; if(on) c[g]=1; else delete c[g]; localStorage.setItem('rrg_navcoll',JSON.stringify(c)); }catch(e){} }); });
+    var _CK='rrg_navcoll_v2';
+    var _coll={}, _hadState=false;
+    try{ var _raw=localStorage.getItem(_CK); if(_raw!=null){ _hadState=true; _coll=JSON.parse(_raw)||{}; } }catch(e){}
+    if(!_hadState){ nav.querySelectorAll('.lbl[data-grp]').forEach(function(l){ _coll[l.getAttribute('data-grp')]=1; }); try{ localStorage.setItem(_CK, JSON.stringify(_coll)); }catch(e){} }
+    nav.querySelectorAll('.lbl[data-grp]').forEach(function(l){ var g=l.getAttribute('data-grp'); if(_coll[g]){ var grp=l.closest('.grp'); if(grp) grp.classList.add('collapsed'); } l.addEventListener('click',function(){ var grp=l.closest('.grp'); if(!grp) return; var on=grp.classList.toggle('collapsed'); try{ var c=JSON.parse(localStorage.getItem(_CK)||'{}')||{}; if(on) c[g]=1; else delete c[g]; localStorage.setItem(_CK,JSON.stringify(c)); }catch(e){} }); });
     // search → companies search (simple v1)
     var si=document.getElementById('rrgsearch');
     si && si.addEventListener('input', function(){ if(typeof window.rrgLiveSearch==='function') window.rrgLiveSearch(si.value); });
@@ -176,7 +186,7 @@
       }).catch(function(){});
       fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){
         try{ window.__rrgSession=s; window.__rrgAssistant=(s&&s.assistant)||'the assistant'; document.dispatchEvent(new CustomEvent('rrg:session',{detail:s})); }catch(e){}
-        if(s&&(s.role==='admin'||s.role==='creator')){ var g=nav.querySelector('[data-admingrp]'); if(g) g.style.display=''; }
+        if(s&&(s.role==='admin'||s.role==='creator')){ nav.querySelectorAll('[data-admingrp]').forEach(function(g){ g.style.display=''; }); nav.querySelectorAll('[data-adminit]').forEach(function(el){ el.style.display=''; }); }
         if(s&&s.canManageLoi){ nav.querySelectorAll('a.it[data-need="loi"]').forEach(function(el){ el.style.display=''; }); }
         if(s&&!s.canUseAi){ var aist=document.createElement('style'); aist.textContent='[data-ai]{display:none !important;}'; document.head.appendChild(aist); }
         var nm=(s&&(s.name||s.username))||''; var uav=document.getElementById('rrguav'); if(uav&&nm){ var parts=nm.trim().split(/\s+/); uav.textContent=((parts[0]||'')[0]||'')+((parts[1]||'')[0]||'')||nm[0].toUpperCase(); }

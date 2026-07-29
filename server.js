@@ -185,6 +185,21 @@ function bizBuySellCompany() {
   }
   return c;
 }
+function companyNameFromDomain(dom) {
+  dom = String(dom || '').replace(/^www\./, '');
+  let base = dom.split('.')[0] || dom;
+  base = base.replace(/[-_]+/g, ' ').trim();
+  return base.split(' ').map(w => w ? (w.charAt(0).toUpperCase() + w.slice(1)) : w).join(' ');
+}
+function noCompanyCompany() {
+  const arr = loadCompanies();
+  let c = arr.find(x => x.system === 'nocompany');
+  if (!c) {
+    c = { id: newCompanyId(), name: 'No Company', type: '', market: '', system: 'nocompany', locked: true, notes: 'Catch-all for contacts with no business affiliation. Permanent \u2014 cannot be deleted.', createdAt: new Date().toISOString(), by: 'System', byUser: 'system' };
+    arr.push(c); saveCompanies(arr);
+  }
+  return c;
+}
 function backlinkBbsLeads() {
   try {
     const cid = bizBuySellCompany().id;
@@ -2988,7 +3003,8 @@ async function bbsPollTick() {
   _bbsPolling = false;
 }
 setInterval(bbsPollTick, 60 * 1000);
-try { bizBuySellCompany(); backlinkBbsLeads(); } catch (e) { console.error('bbs company init:', e && e.message); }
+try { bizBuySellCompany(); noCompanyCompany(); backlinkBbsLeads(); } catch (e) { console.error('bbs company init:', e && e.message); }
+try { seedEmailTemplates(); } catch (e) { console.error('seed email tpl:', e && e.message); }
 
 // ================= Automations (email / task drip sequences) =================
 const AUTOMATIONS_FILE = path.join(BOV_DATA_DIR, 'automations.json');
@@ -3096,6 +3112,125 @@ function loadEmailTpls() { try { return JSON.parse(fs.readFileSync(EMAIL_TPL_FIL
 function saveEmailTpls(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(EMAIL_TPL_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), updatedAt: t.updatedAt || '' }; }
+const DEFAULT_SALES_TEMPLATES = [
+  { name: 'Buyer — first response (inquiry)', subject: 'Thanks for your interest, {{first_name}}', body: `Hi {{first_name}},
+
+Thanks for reaching out about the listing — glad it caught your eye.
+
+I represent a range of restaurant and bar businesses for sale, and I want to point you toward the right fit. When you have a minute:
+
+- What type of concept and size are you after?
+- Which markets or neighborhoods are you focused on?
+- What's your timeline, and how are you planning to fund the purchase?
+
+Once I understand what you're looking for, I'll send the details on this one and flag anything else in my inventory that matches.
+
+Best,
+Restaurant Realty Group` },
+  { name: 'Buyer — follow-up (day 5)', subject: 'Still looking, {{first_name}}?', body: `Hi {{first_name}},
+
+Circling back on the listing you inquired about. I'd hate for you to miss it if it's the right fit — these move.
+
+If you can tell me your concept, market, and budget, I'll line up the best matches and get you the numbers. Happy to hop on a quick call too.
+
+Best,
+Restaurant Realty Group` },
+  { name: 'Buyer — last note', subject: 'Closing the loop, {{first_name}}', body: `Hi {{first_name}},
+
+I haven't heard back, so I'll assume the timing isn't right — no problem at all.
+
+I'll keep you on my list and reach out when something that fits comes across my desk. If anything changes on your end, just reply here and we'll pick it right back up.
+
+Best,
+Restaurant Realty Group` },
+  { name: 'Buyer — NDA & qualification', subject: 'Next step on {{company}} — NDA & a couple details', body: `Hi {{first_name}},
+
+Happy to get you the full package on this one. Before I release the confidential details (financials, lease, and the story behind the sale), I just need two quick things:
+
+1. A signed NDA — I'll send it over for a quick e-signature.
+2. A sense of your funding — cash, financing, or SBA — and your timeline.
+
+This protects the seller's confidentiality and makes sure we're both spending time well. Once that's in, I'll open the full data room for you.
+
+Best,
+Restaurant Realty Group` },
+  { name: 'Seller — exploring a sale', subject: 'Thinking about selling, {{first_name}}?', body: `Hi {{first_name}},
+
+I work exclusively with restaurant and bar owners on the sale of their businesses, and I wanted to reach out.
+
+Whether you're ready now or just want to understand what your business could be worth, it costs nothing to have the conversation. I can walk you through what the market is paying for concepts like yours, what buyers are looking for, and how a confidential sale actually works.
+
+Would you be open to a short, no-obligation call this week?
+
+Best,
+Restaurant Realty Group` },
+  { name: 'Seller — after the qualification call', subject: 'Great talking, {{first_name}} — next steps', body: `Hi {{first_name}},
+
+Really enjoyed our conversation about {{company}}. To recap where we landed and keep this moving, here's the next step:
+
+I'll send over a short valuation questionnaire. It captures the numbers and details I need to build your Broker's Opinion of Value — what your business should realistically sell for in today's market.
+
+Once I have that back, I'll turn the valuation around and we'll review it together. No commitment on your end yet — this just gets us to a real number.
+
+Best,
+Restaurant Realty Group` },
+  { name: 'Seller — valuation questionnaire request', subject: 'The details I need to value {{company}}', body: `Hi {{first_name}},
+
+Ready to put together your valuation. To do it right, I need a clear picture of the business — revenue, cash flow, lease terms, and a few operating details.
+
+I'll send the questionnaire over; it takes most owners about 20 minutes. The more complete and accurate it is, the sharper your valuation will be. Everything you share stays strictly confidential.
+
+Reply here with any questions and I'll walk you through it.
+
+Best,
+Restaurant Realty Group` },
+  { name: 'Seller — your Broker’s Opinion of Value', subject: 'Your valuation is ready, {{first_name}}', body: `Hi {{first_name}},
+
+I've finished the Broker's Opinion of Value for {{company}} — it's ready for you to review.
+
+Inside you'll see the value range, how I arrived at it, and the comparable sales that support it. It also flags a few things we can do before going to market to strengthen your position and your number.
+
+Let's set up 20 minutes to walk through it together and talk about whether now is the right time to sell.
+
+Best,
+Restaurant Realty Group` },
+  { name: 'Seller — ready to go to market', subject: 'Let’s take {{company}} to market', body: `Hi {{first_name}},
+
+Based on where we landed on value, I think {{company}} is well positioned to sell. Here's how I'd take it out:
+
+- A confidential marketing package that tells your story without exposing the business
+- Targeted outreach to my active buyer list and the major marketplaces
+- A structured process so we control who sees what, and when
+
+The first step is the listing agreement, which puts me to work for you. I'll send it over for a quick e-signature, and we can launch as soon as this week.
+
+Best,
+Restaurant Realty Group` },
+  { name: 'Seller — we have an offer', subject: 'Offer in on {{company}}', body: `Hi {{first_name}},
+
+Good news — we have an offer on {{company}}, and I want to walk you through it.
+
+I'll lay out the price, terms, contingencies, and the buyer's ability to close so you can see the full picture — not just the number. Then we'll talk strategy: accept, counter, or use it to bring other interested buyers to the table.
+
+When are you free today or tomorrow to review? This is where having a plan pays off.
+
+Best,
+Restaurant Realty Group` }
+];
+function seedEmailTemplates() {
+  try {
+    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
+    const marker = path.join(BOV_DATA_DIR, 'email_templates_seeded.flag');
+    if (fs.existsSync(marker)) return;
+    const all = loadEmailTpls();
+    const now = new Date().toISOString();
+    DEFAULT_SALES_TEMPLATES.forEach(function (t) { all.push({ id: newEmailTplId(), name: t.name, subject: t.subject, body: t.body, scope: 'shared', ownerUser: 'system', ownerName: 'RRG', createdAt: now, updatedAt: now }); });
+    saveEmailTpls(all);
+    fs.writeFileSync(marker, now);
+    console.log('Seeded ' + DEFAULT_SALES_TEMPLATES.length + ' business-sales email templates.');
+  } catch (e) { console.error('seedEmailTemplates:', e && e.message); }
+}
+
 app.get('/api/email-templates', (req, res) => {
   const u = req.user || {}; const all = loadEmailTpls();
   const vis = all.filter(t => t.scope === 'shared' || t.ownerUser === u.username || isSuper(u));
@@ -3645,6 +3780,40 @@ app.get('/api/gmail/callback', async (req, res) => {
     res.redirect('/rrg_account.html?gmail=connected');
   } catch (e) { console.error('gmail callback:', e && e.message); res.redirect('/rrg_account.html?gmail=error'); }
 });
+const PERSONAL_DOMAINS = new Set(['gmail.com','googlemail.com','yahoo.com','ymail.com','yahoo.co.uk','hotmail.com','hotmail.co.uk','outlook.com','live.com','msn.com','icloud.com','me.com','mac.com','aol.com','proton.me','protonmail.com','pm.me','gmx.com','gmx.net','comcast.net','sbcglobal.net','att.net','verizon.net','bellsouth.net','cox.net','mail.com','zoho.com']);
+app.get('/api/gmail/contacts/scan', async (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Gmail first (Account -> Gmail).' });
+  try {
+    const people = await gmail.listCorrespondents(u, req.query.max ? parseInt(req.query.max, 10) : 200);
+    const existing = {}; loadPeople().forEach(p => (personEmails(p) || []).forEach(e => { existing[String(e).toLowerCase()] = true; }));
+    const out = people.map(pc => {
+      const dom = (pc.email.split('@')[1] || '').toLowerCase();
+      const personal = PERSONAL_DOMAINS.has(dom);
+      return { name: pc.name || '', email: pc.email, domain: dom, count: pc.count, suggestedCompany: personal ? 'No Company' : companyNameFromDomain(dom), existing: !!existing[pc.email] };
+    });
+    res.json({ ok: true, contacts: out });
+  } catch (e) { console.error('gmail contacts scan:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/gmail/contacts/import', express.json({ limit: '3mb' }), (req, res) => {
+  const b = req.body || {}; const list = Array.isArray(b.contacts) ? b.contacts : [];
+  if (!list.length) return res.status(400).json({ ok: false, error: 'No contacts selected.' });
+  const noCo = noCompanyCompany();
+  let imported = 0;
+  list.forEach(c => {
+    const email = String(c.email || '').trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+    const name = String(c.name || '').trim() || email;
+    const coName = String(c.company || '').trim();
+    let companyId = '';
+    if (!coName || coName.toLowerCase() === 'no company') companyId = noCo.id;
+    else { const co = findOrCreateCompany(req, { name: coName }); if (co) companyId = co.id; }
+    const p = findOrCreatePerson(req, { name: name, email: email, companyId: companyId, type: 'Other' });
+    if (p) imported++;
+  });
+  res.json({ ok: true, imported: imported });
+});
+
 app.post('/api/gmail/disconnect', (req, res) => {
   const u = (req.user && req.user.username) || '';
   gmail.deleteToken(u);
