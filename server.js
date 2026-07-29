@@ -164,7 +164,7 @@ function findOrCreatePerson(req, info) {
   arr.push(p); logContactAdded(p, req); savePeople(arr);
   return p;
 }
-function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', vip: !!p.vip, prefContact: Array.isArray(p.prefContact) ? p.prefContact : [], createdAt: p.createdAt || '', owner: p.by || '', lastContacted: p.lastContacted || '', hasPhoto: !!p.photoExt } : null; }
+function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', vip: !!p.vip, caution: !!p.caution, prefContact: Array.isArray(p.prefContact) ? p.prefContact : [], createdAt: p.createdAt || '', owner: p.by || '', lastContacted: p.lastContacted || '', hasPhoto: !!p.photoExt } : null; }
 // One contact row as shown on a company file.
 function companyContactRow(p) { return { id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', emails: personEmails(p), phones: personPhones(p), email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', title: p.title || '', tags: personTags(p), leadSource: p.leadSource || '', hasPhoto: !!p.photoExt }; }
 
@@ -3131,6 +3131,7 @@ app.post('/api/person', express.json(), (req, res) => {
   if (typeof b.lastContacted === 'string') p.lastContacted = b.lastContacted.slice(0, 10);
   if (typeof b.url === 'string') p.url = b.url.slice(0, 300);
   if (b.vip !== undefined) p.vip = !!b.vip;
+  if (b.caution !== undefined) p.caution = !!b.caution;
   if (b.tags !== undefined) p.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') p.notes = b.notes.slice(0, 4000);
   if (isNew) logContactAdded(p, req);
@@ -3298,6 +3299,7 @@ app.post('/api/person/merge', express.json(), (req, res) => {
     if (!String(keep[f] || '').trim()) { for (const l of losers) { if (String(l[f] || '').trim()) { keep[f] = l[f]; break; } } }
   });
   keep.vip = !!(keep.vip || losers.some(l => l.vip));
+  keep.caution = !!(keep.caution || losers.some(l => l.caution));
 
   // Union tags + preferred-contact
   const tg = personTags(keep).slice();
@@ -5738,6 +5740,34 @@ function taskVisible(t, req) {
   const u = req.user && req.user.username;
   return t.assignee === u || t.createdBy === u;
 }
+// ---- Saved searches (per-list, per-user, shareable) ----
+const SAVED_SEARCH_FILE = path.join(BOV_DATA_DIR, 'saved_searches.json');
+function loadSavedSearches() { try { return JSON.parse(fs.readFileSync(SAVED_SEARCH_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveSavedSearches(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SAVED_SEARCH_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newSearchId() { return 'ss_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+app.get('/api/saved-searches', (req, res) => {
+  const list = String(req.query.list || '').slice(0, 40);
+  const meU = (req.user && req.user.username) || '';
+  const rows = loadSavedSearches().filter(x => (!list || x.list === list) && (x.shared || x.owner === meU));
+  res.json({ ok: true, searches: rows.map(x => ({ id: x.id, list: x.list, name: x.name, shared: !!x.shared, mine: x.owner === meU, ownerName: x.ownerName || '', payload: x.payload || {} })) });
+});
+app.post('/api/saved-searches', express.json(), (req, res) => {
+  const b = req.body || {}; const meU = (req.user && req.user.username) || '', meN = (req.user && req.user.name) || '';
+  const name = String(b.name || '').trim().slice(0, 80); const list = String(b.list || '').slice(0, 40);
+  if (!name || !list) return res.status(400).json({ ok: false, error: 'Name and list are required.' });
+  const all = loadSavedSearches(); let it;
+  if (b.id) { it = all.find(x => x.id === b.id); if (!it) return res.status(404).json({ ok: false, error: 'Not found.' }); if (it.owner !== meU && !(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Not yours.' }); }
+  else { it = { id: newSearchId(), list: list, owner: meU, ownerName: meN, createdAt: new Date().toISOString() }; all.push(it); }
+  it.name = name; it.shared = !!b.shared; it.payload = (b.payload && typeof b.payload === 'object') ? b.payload : {};
+  saveSavedSearches(all);
+  res.json({ ok: true, id: it.id });
+});
+app.delete('/api/saved-searches/:id', (req, res) => {
+  const meU = (req.user && req.user.username) || ''; const all = loadSavedSearches(); const i = all.findIndex(x => x.id === req.params.id);
+  if (i < 0) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (all[i].owner !== meU && !(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  all.splice(i, 1); saveSavedSearches(all); res.json({ ok: true });
+});
 // ---- Feedback tracker (feature requests / bugs, ranked, with status) ----
 const FEEDBACK_FILE = path.join(BOV_DATA_DIR, 'feedback.json');
 function loadFeedback() { try { return JSON.parse(fs.readFileSync(FEEDBACK_FILE, 'utf8')) || []; } catch (e) { return []; } }
