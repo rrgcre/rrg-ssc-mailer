@@ -6667,7 +6667,7 @@ const DASH_MODULES = [
   { k: 'expiring', label: 'Expiring Listings', desc: 'Coming due soon', live: false, w: 'half' },
   { k: 'quicklinks', label: 'Quick Links', desc: 'Sites the team uses', live: false, w: 'half' }
 ];
-const DASH_DEFAULT = ['kpis', 'consult', 'tasks', 'pipeline', 'activity'];
+const DASH_DEFAULT = ['consult', 'kpis', 'tasks', 'pipeline', 'activity'];
 function _dmoney(v) { const m = String(v == null ? '' : v).replace(/[^0-9.\-]/g, ''); const n = Number(m); return isFinite(n) ? n : 0; }
 function dashboardData(req) {
   const people = loadPeople(), companies = loadCompanies();
