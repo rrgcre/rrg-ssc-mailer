@@ -2895,10 +2895,14 @@ app.post('/api/bizbuysell/import', express.json({ limit: '2mb' }), (req, res) =>
 const BBSPOLL_FILE = path.join(BOV_DATA_DIR, 'bbspoll.json');
 function loadBbsPoll() { try { return JSON.parse(fs.readFileSync(BBSPOLL_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
 function saveBbsPoll(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BBSPOLL_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+const BBS_CFG_FILE = path.join(BOV_DATA_DIR, 'bbs_config.json');
+function loadBbsCfg() { try { return JSON.parse(fs.readFileSync(BBS_CFG_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
+function saveBbsCfg(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BBS_CFG_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+function bbsLookbackDays() { const d = parseInt(loadBbsCfg().lookbackDays, 10); return (isFinite(d) && d >= 1 && d <= 365) ? d : 60; }
 async function bbsGmailPull(username, name, opts) {
   opts = opts || {};
   if (!gmail.statusFor(username).connected) return { ok: false, error: 'Gmail not connected.' };
-  const q = '(from:bizbuysell.com OR bizbuysell) newer_than:180d';
+  const q = '(from:bizbuysell.com OR bizbuysell) newer_than:' + bbsLookbackDays() + 'd';
   const msgs = await gmail.searchLeadBodies(username, q, 50);
   const store = loadBbsPoll(); const rec = store[username] || {};
   const seen = Array.isArray(rec.seen) ? rec.seen : [];
@@ -2926,7 +2930,7 @@ app.post('/api/bizbuysell/gmail', express.json(), async (req, res) => {
 });
 app.get('/api/bizbuysell/poll', (req, res) => {
   const u = (req.user && req.user.username) || ''; const rec = (loadBbsPoll()[u]) || {};
-  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0 });
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0, lookbackDays: bbsLookbackDays(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 app.post('/api/bizbuysell/poll', express.json(), (req, res) => {
   const u = (req.user && req.user.username) || ''; if (!u) return res.status(401).json({ ok: false, error: 'Sign in required.' });
@@ -2934,7 +2938,8 @@ app.post('/api/bizbuysell/poll', express.json(), (req, res) => {
   if (typeof b.enabled === 'boolean') rec.enabled = b.enabled;
   if (b.intervalMin != null) { const m = parseInt(b.intervalMin, 10); rec.intervalMin = (isFinite(m) && m >= 5) ? Math.min(m, 720) : 15; }
   store[u] = rec; saveBbsPoll(store);
-  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15 });
+  if (b.lookbackDays != null && req.user && isSuper(req.user)) { const d = parseInt(b.lookbackDays, 10); if (isFinite(d)) { const cfg = loadBbsCfg(); cfg.lookbackDays = Math.max(1, Math.min(365, d)); saveBbsCfg(cfg); } }
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, lookbackDays: bbsLookbackDays() });
 });
 // Background poller — checks each enabled+connected user's Gmail when their interval is due.
 let _bbsPolling = false;
