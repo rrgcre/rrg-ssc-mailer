@@ -5486,7 +5486,9 @@ app.get('/log', (_req, res) => {
 
 /* ================= ADMIN CONSOLE ================= */
 const SERVER_BOOT = new Date();
-const ADMIN_BUILD = 'v4 · executive dashboard + Consult';
+const APP_VERSION = '4.1.0';
+const BUILD_META = (function(){ try { const cp=require('child_process'); const opt={cwd:__dirname,stdio:['ignore','pipe','ignore']}; const sha=cp.execSync('git rev-parse --short HEAD',opt).toString().trim(); const cnt=cp.execSync('git rev-list --count HEAD',opt).toString().trim(); return { sha:sha, build:(cnt?Number(cnt):null) }; } catch(e){ return { sha:'', build:null }; } })();
+const ADMIN_BUILD = 'v' + APP_VERSION + (BUILD_META.build!=null?(' \u00b7 build ' + BUILD_META.build):'') + (BUILD_META.sha?(' \u00b7 ' + BUILD_META.sha):'');
 app.get('/admin', requireAdmin, (req, res) => {
   const users = auth.loadUsers();
   const logins = auth.readLogins().slice(-300).reverse();
@@ -6814,6 +6816,28 @@ const DASH_MODULES = [
 ];
 const DASH_DEFAULT = ['consult', 'kpis', 'pipeline', 'dealstatus', 'markets', 'contacts_type', 'tasks', 'activity', 'expiring'];
 function _dmoney(v) { const m = String(v == null ? '' : v).replace(/[^0-9.\-]/g, ''); const n = Number(m); return isFinite(n) ? n : 0; }
+const KPIHIST_FILE = path.join(BOV_DATA_DIR, 'kpi_history.json');
+function loadKpiHist(){ try { return JSON.parse(fs.readFileSync(KPIHIST_FILE,'utf8'))||[]; } catch(e){ return []; } }
+function saveKpiHist(a){ try { if(!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR,{recursive:true}); fs.writeFileSync(KPIHIST_FILE, JSON.stringify(a)); } catch(e){} }
+function kpiEnrich(kpis){
+  const today = new Date().toISOString().slice(0,10);
+  let hist = loadKpiHist();
+  const todayV = {}; kpis.forEach(k=>{ todayV[k.k]=k.value; });
+  let prior = null; for(let i=hist.length-1;i>=0;i--){ if(hist[i] && hist[i].date < today){ prior = hist[i]; break; } }
+  if(hist.length && hist[hist.length-1].date===today){ hist[hist.length-1].v = todayV; }
+  else { hist.push({date:today, v:todayV}); }
+  if(hist.length>140) hist = hist.slice(-140);
+  saveKpiHist(hist);
+  const series = hist.slice(-14);
+  kpis.forEach(k=>{
+    const pv = (prior && prior.v && prior.v[k.k]!=null) ? prior.v[k.k] : null;
+    k.prev = pv;
+    k.delta = (pv==null? null : (k.value - pv));
+    k.priorDate = prior ? prior.date : '';
+    k.spark = series.map(x => (x.v && x.v[k.k]!=null) ? x.v[k.k] : 0);
+  });
+  return kpis;
+}
 function dashboardData(req) {
   const people = loadPeople(), companies = loadCompanies();
   const ov = loadAssignOverlay(), idx = assignmentsIndex();
@@ -6845,6 +6869,7 @@ function dashboardData(req) {
     { k: 'companies', label: 'Companies', value: companies.length, fmt: 'num' },
     { k: 'agreements', label: 'Agreements Out', value: agreementsOut, fmt: 'num' }
   ];
+  kpiEnrich(kpis);
   const pipe = loadPipelines().find(p => p.id === 'p_bizsales') || { stages: [] };
   const stageNames = (pipe.stages || []).map(x => x.name);
   const counts = {}; stageNames.forEach(n => counts[n] = 0);
@@ -6860,7 +6885,7 @@ function dashboardData(req) {
 app.get('/api/dashboard', (req, res) => {
   const u = req.user || {}; const cfgs = loadDashCfgs(); const mine = cfgs[u.username];
   const layout = (mine && Array.isArray(mine.mods) && mine.mods.length) ? mine.mods.filter(k => DASH_MODULES.some(m => m.k === k)) : DASH_DEFAULT.slice();
-  res.json({ ok: true, modules: DASH_MODULES, layout, data: dashboardData(req), name: u.name || '', isAdmin: !!(req.user && isSuper(req.user)), assistant: effAssistantName(), build: ADMIN_BUILD, booted: SERVER_BOOT.toISOString() });
+  res.json({ ok: true, modules: DASH_MODULES, layout, data: dashboardData(req), name: u.name || '', isAdmin: !!(req.user && isSuper(req.user)), assistant: effAssistantName(), build: ADMIN_BUILD, version: APP_VERSION, buildNo: BUILD_META.build, sha: BUILD_META.sha, booted: SERVER_BOOT.toISOString() });
 });
 app.post('/api/dashboard', express.json(), (req, res) => {
   const u = req.user || {}; if (!u.username) return res.status(401).json({ ok: false, error: 'Not signed in.' });

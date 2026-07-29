@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — System Status</title>
+<style>
+:root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2f6fd0;--teal:#12a594;--amber:#c9812a;--red:#DA2B1F;--green:#1f8a5b;}
+*{box-sizing:border-box;margin:0;padding:0;} html,body{background:var(--bg);}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:24px 0 22px;}
+.top-in{max-width:1180px;margin:0 auto;padding:0 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font-family:'Arial Black',Arial;font-weight:900;font-size:12px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;flex:none;}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;}
+h1{margin:2px 0 0;font-size:24px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:4px;max-width:640px;line-height:1.5;}
+.hstat{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:11.5px;font-weight:800;letter-spacing:.05em;color:#37d9a0;text-transform:uppercase;} .hstat .d{width:8px;height:8px;border-radius:50%;background:#37d9a0;box-shadow:0 0 0 0 rgba(55,217,160,.6);animation:pl 2s infinite;} @keyframes pl{0%{box-shadow:0 0 0 0 rgba(55,217,160,.5)}70%{box-shadow:0 0 0 8px rgba(55,217,160,0)}100%{box-shadow:0 0 0 0 rgba(55,217,160,0)}}
+.wrap{max-width:1180px;margin:18px auto;padding:0 24px 70px;}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px rgba(16,32,70,.04);margin-bottom:15px;}
+.ph{display:flex;align-items:center;gap:9px;margin-bottom:14px;} .ph b{font-size:14px;} .ph .tag{margin-left:auto;font-size:11px;color:var(--faint);font-weight:600;}
+.grid2{display:grid;grid-template-columns:1.4fr 1fr;gap:15px;} @media(max-width:980px){.grid2{grid-template-columns:1fr;}}
+.mapwrap{position:relative;height:360px;}
+.node{position:absolute;transform:translate(-50%,-50%);text-align:center;}
+.node .orb{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:20px;background:#fff;border:1px solid var(--line);margin:0 auto 6px;box-shadow:0 2px 8px rgba(16,32,70,.07);transition:.25s;}
+.node .nm{font-size:10.5px;font-weight:700;color:var(--dim);white-space:nowrap;} .node .ct{font-size:10px;font-weight:800;color:var(--blue);margin-top:1px;}
+.node.clk .orb{cursor:pointer;} .node.clk:hover .orb{transform:translateY(-2px);box-shadow:0 6px 16px rgba(16,32,70,.12);}
+.node.active .orb{border-color:var(--navy);box-shadow:0 5px 18px rgba(22,52,110,.2);} .node.active .nm{color:var(--navy);}
+.node.dim{opacity:.34;} .node.core .nm{color:var(--navy);font-weight:800;font-size:11.5px;}
+.tracehead{font-size:12.5px;color:var(--dim);margin-bottom:12px;} .tracehead b{color:var(--navy);font-size:14px;}
+.tracechain{display:flex;align-items:stretch;gap:0;flex-wrap:wrap;row-gap:10px;}
+.tchip{display:flex;align-items:center;gap:10px;background:#fbfcff;border:1px solid var(--line);border-radius:11px;padding:10px 13px;min-width:150px;animation:pop .4s ease both;} @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.tchip .ti{width:34px;height:34px;border-radius:9px;background:#eef3fb;border:1px solid #dbe6f6;display:flex;align-items:center;justify-content:center;font-size:15px;flex:none;}
+.tchip small{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:700;} .tchip b{display:block;font-size:13px;color:var(--ink);margin:1px 0;} .tchip span{display:block;font-size:11px;color:var(--dim);}
+.tconn{flex:0 0 34px;align-self:center;height:2px;background:linear-gradient(90deg,#cfd8e8,var(--blue));position:relative;border-radius:2px;margin:0 2px;} .tconn:after{content:'';position:absolute;top:-3px;left:-4px;width:6px;height:6px;border-radius:50%;background:var(--blue);animation:flow 1.5s linear infinite;} @keyframes flow{0%{left:-4px;opacity:0}20%{opacity:1}80%{opacity:1}100%{left:34px;opacity:0}}
+.tracehint{color:var(--dim);font-size:13px;padding:6px 0;line-height:1.5;} .tracehint b{color:var(--navy);}
+.modgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;} @media(max-width:900px){.modgrid{grid-template-columns:repeat(2,1fr);}}
+.modcard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 15px;box-shadow:0 1px 2px rgba(16,32,70,.04);}
+.modcard .mh{display:flex;align-items:center;gap:9px;} .modcard .mi{width:34px;height:34px;border-radius:9px;background:#eef3fb;display:flex;align-items:center;justify-content:center;font-size:16px;flex:none;} .modcard .mn{font-size:13px;font-weight:700;}
+.modcard .mv{font-size:22px;font-weight:800;margin-top:10px;letter-spacing:-.01em;} .modcard .ms{font-size:11px;color:var(--green);font-weight:800;text-transform:uppercase;letter-spacing:.04em;margin-top:3px;display:flex;align-items:center;gap:6px;} .modcard .ms .d{width:6px;height:6px;border-radius:50%;background:var(--green);}
+.buildstamp{text-align:center;color:var(--faint);font-size:11px;margin-top:14px;font-variant-numeric:tabular-nums;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="./index.html" class="rrg-back" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span style="font-size:14px;line-height:1">←</span> Command</a>
+<div class="top"><div class="top-in">
+  <span class="disc" onclick="location.href='./index.html'">RRG</span>
+  <div><div class="kicker">System Status</div><h1>The connected system, live.</h1><div class="sub">Every module runs on one linked database — a company, its listings, agreements and invoices are the same record seen from different angles. Tap any module to trace a record across the whole system.</div></div>
+  <span class="hstat"><span class="d"></span>All systems operational</span>
+</div></div>
+<div id="root" class="wrap"><div class="gate">Loading system map…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function num(n){ return Number(n||0).toLocaleString('en-US'); }
+var DATA={};
+var MODS=[['Contacts','👥'],['Companies','🏢'],['Listings','🍽'],['Agreements','✍'],['Marketing','📣'],['Accounting','＄'],['Data Rooms','🔐'],['Consult','◉']];
+var CHAINS={
+  'Contacts':[['👥','Contacts','Maria Chen','Seller'],['🏢','Companies','Copper Fork Holdings','owner entity'],['🍽','Listings','The Copper Fork','Deep Ellum'],['✍','Agreements','Listing Agreement','executed'],['＄','Accounting','INV-1043','$27,500 · paid']],
+  'Companies':[['🏢','Companies','Lakeway Rest. Group',''],['👥','Contacts','4 people',''],['🍽','Listings','Lakeway Cantina','$2.1M'],['✍','Agreements','ETRA','active']],
+  'Listings':[['🍽','Listings','The Copper Fork',''],['👥','Contacts','Seller + 6 leads',''],['🔐','Data Rooms','12 docs · 4 buyers',''],['✍','Agreements','2 NDAs + Listing',''],['＄','Accounting','INV-1043','$27,500']],
+  'Agreements':[['✍','Agreements','Tenant Rep','ready'],['👥','Contacts','Sarah Chen','Buyer'],['🏢','Companies','Chen Hospitality','']],
+  'Marketing':[['📣','Marketing','Attack Plan',''],['🍽','Listings','The Copper Fork',''],['👥','Contacts','34 buyers','']],
+  'Accounting':[['＄','Accounting','INV-1043','$27,500'],['🍽','Listings','The Copper Fork',''],['🏢','Companies','Copper Fork Holdings',''],['👥','Contacts','Maria Chen','Seller']],
+  'Data Rooms':[['🔐','Data Rooms','Copper Fork Room','12 docs'],['🍽','Listings','The Copper Fork',''],['👥','Contacts','4 buyers tracked','']],
+  'Consult':[['◉','Consult','Reads everything','live'],['👥','Contacts','all contacts',''],['🍽','Listings','all listings',''],['✍','Agreements','staged',''],['＄','Accounting','pipeline','']]
+};
+function kval(k){ var a=(DATA.kpis||[]); for(var i=0;i<a.length;i++){ if(a[i].k===k) return a[i].value; } return null; }
+function modCount(name){
+  if(name==='Contacts') return kval('contacts');
+  if(name==='Companies') return kval('companies');
+  if(name==='Listings') return (DATA.listingsTotal!=null?DATA.listingsTotal:kval('listings'));
+  if(name==='Agreements') return kval('agreements');
+  return null;
+}
+function renderMap(){
+  var box=document.getElementById('map'); if(!box) return; var W=box.clientWidth||520,H=360,cx=W/2,cy=H/2,R=Math.min(W,H)/2-52;
+  var svg='<svg width="'+W+'" height="'+H+'" style="position:absolute;inset:0" viewBox="0 0 '+W+' '+H+'">';
+  MODS.forEach(function(m,i){ var ang=(i/MODS.length)*2*Math.PI-Math.PI/2, x=cx+R*Math.cos(ang), y=cy+R*Math.sin(ang);
+    svg+='<path d="M'+cx+','+cy+' L'+x.toFixed(1)+','+y.toFixed(1)+'" stroke="#d3dcec" stroke-width="1.2" fill="none"/>';
+    svg+='<circle r="2.3" fill="#2f6fd0" opacity=".85"><animateMotion dur="'+(2.6+i*0.24)+'s" repeatCount="indefinite" path="M'+cx+','+cy+' L'+x.toFixed(1)+','+y.toFixed(1)+'"/></circle>'; });
+  svg+='</svg>';
+  var spokes='',ring=''; for(var s=0;s<8;s++){ var sa=(s/8)*2*Math.PI, sx=52+33*Math.cos(sa), sy=52+33*Math.sin(sa); spokes+='<line x1="52" y1="52" x2="'+sx.toFixed(1)+'" y2="'+sy.toFixed(1)+'" stroke="#c5d1e6" stroke-width="1"/>'; ring+='<circle cx="'+sx.toFixed(1)+'" cy="'+sy.toFixed(1)+'" r="2.2" fill="#2f6fd0" opacity=".7"/>'; }
+  var coreSVG='<svg width="100" height="100" viewBox="0 0 104 104"><defs><radialGradient id="cgp" cx="50%" cy="38%" r="65%"><stop offset="0%" stop-color="#3a5aa0"/><stop offset="55%" stop-color="#1e3f7d"/><stop offset="100%" stop-color="#16346e"/></radialGradient></defs>'
+    +'<circle cx="52" cy="52" r="49" fill="none" stroke="#c9d3e4" stroke-width="1.2" stroke-dasharray="4 9" opacity=".9"><animateTransform attributeName="transform" type="rotate" from="0 52 52" to="360 52 52" dur="22s" repeatCount="indefinite"/></circle>'
+    +'<circle cx="52" cy="52" r="41" fill="none" stroke="#DA2B1F" stroke-width="1.3" stroke-dasharray="1.5 8" opacity=".6"><animateTransform attributeName="transform" type="rotate" from="360 52 52" to="0 52 52" dur="14s" repeatCount="indefinite"/></circle>'
+    +'<g opacity=".7">'+spokes+'</g>'+ring+'<circle cx="52" cy="52" r="27" fill="url(#cgp)"/><circle cx="52" cy="52" r="27" fill="none" stroke="#fff" stroke-width="1" opacity=".25"/>'
+    +'<text x="52" y="50" text-anchor="middle" font-size="15" font-weight="900" fill="#fff">FS</text><text x="52" y="63" text-anchor="middle" font-size="7" font-weight="700" fill="#a9bde0" letter-spacing="2">CORE</text></svg>';
+  var nodes='<div class="node core" style="left:'+cx+'px;top:'+cy+'px"><div>'+coreSVG+'</div><div class="nm">FullServe</div></div>';
+  MODS.forEach(function(m,i){ var ang=(i/MODS.length)*2*Math.PI-Math.PI/2, x=cx+R*Math.cos(ang), y=cy+R*Math.sin(ang); var c=modCount(m[0]); nodes+='<div class="node clk" data-mod="'+m[0]+'" style="left:'+x+'px;top:'+y+'px"><div class="orb">'+m[1]+'</div><div class="nm">'+m[0]+'</div>'+(c!=null?'<div class="ct">'+num(c)+'</div>':'')+'</div>'; });
+  box.innerHTML=svg+nodes;
+  box.querySelectorAll('[data-mod]').forEach(function(n){ n.addEventListener('click',function(){ traceModule(n.getAttribute('data-mod')); }); });
+  var core=box.querySelector('.node.core'); if(core){ core.style.cursor='pointer'; core.addEventListener('click',resetTrace); }
+}
+function tchip(c){ return '<div class="tchip"><span class="ti">'+c[0]+'</span><div><small>'+c[1]+'</small><b>'+c[2]+'</b>'+(c[3]?'<span>'+c[3]+'</span>':'<span>&nbsp;</span>')+'</div></div>'; }
+function traceModule(mod){ var chain=CHAINS[mod]; if(!chain){ resetTrace(); return; } var rel={}; chain.forEach(function(c){ rel[c[1]]=1; });
+  document.querySelectorAll('#map [data-mod]').forEach(function(n){ var mm=n.getAttribute('data-mod'); n.classList.remove('active','dim'); if(mm===mod||rel[mm]) n.classList.add('active'); else n.classList.add('dim'); });
+  var html=chain.map(function(c,i){ return tchip(c)+(i<chain.length-1?'<div class="tconn"></div>':''); }).join('');
+  document.getElementById('tracebody').innerHTML='<div class="tracehead">Live trace · <b>'+mod+'</b></div><div class="tracechain">'+html+'</div>'; }
+function resetTrace(){ document.querySelectorAll('#map [data-mod]').forEach(function(n){ n.classList.remove('active','dim'); }); document.getElementById('tracebody').innerHTML='<div class="tracehint">Every record is linked to the others. Tap any module in the map to trace one record across the system — company, listing, agreement, invoice.</div>'; }
+function modCards(){
+  return MODS.map(function(m){ var c=modCount(m[0]); return '<div class="modcard"><div class="mh"><span class="mi">'+m[1]+'</span><span class="mn">'+esc(m[0])+'</span></div><div class="mv">'+(c!=null?num(c):'—')+'</div><div class="ms"><span class="d"></span>Operational</div></div>'; }).join('');
+}
+function render(){
+  var bft=''; try{ if(DATA._booted) bft=new Date(DATA._booted).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){}
+  document.getElementById('root').innerHTML=''
+    +'<div class="grid2"><div class="panel"><div class="ph"><b>System Map</b><span class="tag">tap a module to trace</span></div><div class="mapwrap" id="map"></div></div>'
+    +'<div class="panel"><div class="ph"><b>Connection Trace</b><span class="tag">everything is linked</span></div><div id="tracebody"></div></div></div>'
+    +'<div class="panel"><div class="ph"><b>Modules</b><span class="tag">live record counts</span></div><div class="modgrid">'+modCards()+'</div></div>'
+    +'<div class="buildstamp">'+esc(DATA._build||'')+(bft?(' · booted '+esc(bft)):'')+'</div>';
+  resetTrace(); renderMap(); window.addEventListener('resize',renderMap);
+}
+fetch('/api/dashboard',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load system status.</div>'; return; }
+  DATA=j.data||{}; DATA._build=j.build||''; DATA._booted=j.booted||''; render();
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+</script>
+</body>
+</html>
