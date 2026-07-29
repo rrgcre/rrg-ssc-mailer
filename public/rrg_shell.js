@@ -13,7 +13,7 @@
 
   var NAV = [
     { color: '#8fa2c4', items: [
-      { ic: '<span class="navorb"></span>', label: 'Consult', href: 'rrg_consult.html', ai: true },
+      { ic: '<svg viewBox="0 0 20 20" width="14" height="14" style="vertical-align:-2px" fill="none"><path d="M10 2.7c-4.1 0-7.5 2.7-7.5 6.1 0 1.8 1 3.5 2.5 4.6-.1 1-.5 1.9-1.1 2.7 1.2-.2 2.4-.7 3.4-1.3.9.3 1.7.4 2.7.4 4.1 0 7.5-2.7 7.5-6.1S14.1 2.7 10 2.7Z" fill="currentColor"/><path d="M10 5.7l.7 1.8 1.8.7-1.8.7L10 10.7l-.7-1.8-1.8-.7 1.8-.7L10 5.7Z" fill="#fff"/></svg>', label: 'Consult', href: 'rrg_consult.html', ai: true, color: '#3fb3a2' },
       { ic: '✦', label: 'RRG Brief', href: 'rrg_brief.html', ai: true },
       { ic: '◱', label: 'Activity Feed', href: 'rrg_feed.html' },
       { ic: '✔', label: 'My Tasks', href: 'rrg_tasks.html' }
@@ -108,8 +108,8 @@
     + '#rrgnav a.it:hover{background:rgba(255,255,255,.07);color:#fff;}'
     + '#rrgnav a.it.on{background:rgba(255,255,255,.12);color:#fff;font-weight:600;}'
     + '#rrgnav a.it .i{width:17px;text-align:center;color:var(--gc,rgba(255,255,255,.5));font-size:13.5px;flex:none;}'
-    + '#rrgnav a.it .navorb{display:inline-block;width:15px;height:15px;border-radius:50%;background:conic-gradient(from 0deg,#5b46b8,#8b5cf6,#ec4899,#f59e0b,#22c55e,#3b82f6,#5b46b8);box-shadow:0 0 7px rgba(139,92,246,.6);animation:navorbspin 2s linear infinite;vertical-align:middle;}'
-    + '@keyframes navorbspin{to{transform:rotate(360deg)}}'
+    + ''
+    + ''
     + '#rrgnav a.it.on .i{color:#fff;}'
     + '#rrgnav a.it .navbadge{margin-left:auto;background:var(--red,#DA2B1F);color:#fff;font-size:10.5px;font-weight:800;min-width:19px;height:18px;line-height:18px;text-align:center;border-radius:9px;padding:0 5px;box-shadow:0 1px 3px rgba(0,0,0,.25);}'
     + '#rrgnav a.it .aitag{margin-left:5px;font-size:11px;line-height:1;opacity:.85;}'
@@ -144,7 +144,7 @@
     g.items.forEach(function (it) {
       var _na = it.need ? (' data-need="' + esc(it.need) + '" style="display:none"') : (it.admin ? ' data-adminit="1" style="display:none"' : '');
       var _ai = it.ai ? ' data-ai=""' : '';
-      navHtml += '<a class="it' + (sameFile(it.href) ? ' on' : '') + '"' + _na + _ai + ' href="' + esc(it.href) + '"><span class="i"' + (it.color ? (' style="color:' + it.color + '"') : '') + '>' + it.ic + '</span>' + esc(it.label) + '</a>';
+      navHtml += '<a class="it' + (sameFile(it.href) ? ' on' : '') + '"' + _na + _ai + ' href="' + esc(it.href) + '"><span class="i"' + (it.color ? (' style="color:' + it.color + '"') : '') + '>' + it.ic + '</span><span class="itlbl">' + esc(it.label) + '</span></a>';
     });
     navHtml += '</div>';
   });
@@ -161,7 +161,7 @@
   top.innerHTML = ''
     + '<div class="ic" id="rrgburger" style="display:none">≡</div>'
     + '<div class="srch"><span class="si">⌕</span><input placeholder="Search companies, contacts, listings…" id="rrgsearch"></div>'
-    + '<div class="acts"><a class="create" href="rrg_companies.html"><span class="cplus">+</span> Create New</a><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><a class="ic" href="rrg_tasks.html" title="My Tasks">✔</a><div class="uav" id="rrguav">·</div></div>';
+    + '<div class="acts"><a class="create" href="rrg_companies.html"><span class="cplus">+</span> Create New</a><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><div class="uav" id="rrguav">·</div></div>';
 
   document.addEventListener('DOMContentLoaded', mount);
   if (document.readyState !== 'loading') mount();
@@ -197,7 +197,7 @@
         var brand=document.getElementById('rrgbrand'); if(brand){ if(j&&j.logoUrl){ brand.innerHTML='<img src="'+j.logoUrl+'" alt="" class="rrgbrandimg">'; } else if(j&&j.name){ brand.textContent=j.name; } }
       }).catch(function(){});
       fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){
-        try{ window.__rrgSession=s; window.__rrgAssistant=(s&&s.assistant)||'the assistant'; document.dispatchEvent(new CustomEvent('rrg:session',{detail:s})); }catch(e){}
+        try{ window.__rrgSession=s; window.__rrgAssistant=(s&&s.assistant)||'the assistant'; document.dispatchEvent(new CustomEvent('rrg:session',{detail:s})); }catch(e){} try{ if(s&&s.assistant){ var _cl=nav.querySelector('a.it[href="rrg_consult.html"] .itlbl'); if(_cl) _cl.textContent='Consult '+s.assistant; } }catch(e){}
         if(s&&(s.role==='admin'||s.role==='creator')){ nav.querySelectorAll('[data-admingrp]').forEach(function(g){ g.style.display=''; }); nav.querySelectorAll('[data-adminit]').forEach(function(el){ el.style.display=''; }); }
         if(s&&s.canManageLoi){ nav.querySelectorAll('a.it[data-need="loi"]').forEach(function(el){ el.style.display=''; }); }
         (function(){ var _role=(s&&s.role)||''; var _owner=(_role==='admin'||_role==='creator'); var _nv=(s&&s.navVis)||{}; if(!_owner){ nav.querySelectorAll('.lbl[data-grp]').forEach(function(l){ var gg=l.getAttribute('data-grp'); var allow=_nv[gg]; if(allow&&allow.length&&allow.indexOf(_role)<0){ var grp=l.closest('.grp'); if(grp) grp.style.display='none'; } }); } })();
