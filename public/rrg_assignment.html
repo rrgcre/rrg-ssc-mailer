@@ -186,7 +186,7 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return '—'; var d=new Date(iso); if(isNaN(d.getTime())) return '—'; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
-var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], AGR=[], ATYPES=[];
+var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], AGR=[], ATYPES=[], PIPES=[];
 var OFFER_TYPES=['IOI','LOI'], OFFER_STATUSES=['Received','Under review','Countered','Accepted','Rejected','Withdrawn'];
 var TXN=null, TXNSTAT=['LOI','Under Contract','Due Diligence','Financing','Closing','Closed','Dead'];
 var TXNCOMM=['Unpaid','Invoiced','Partial','Paid'];
@@ -209,6 +209,12 @@ var STAGES=[
   { k:'dd', name:'Due Diligence', lbl:'DD', manual:true },
   { k:'closing', name:'Closing', lbl:'Closing', manual:true }
 ];
+var TOOLPIPE='p_bizsales';
+function activePipe(){ return PIPES.filter(function(p){return p.id===(A&&A.pipelineId||'');})[0]||null; }
+function usingGeneric(){ return !!(A&&A.pipelineId && A.pipelineId!==TOOLPIPE && activePipe()); }
+function shortLbl(n){ n=String(n||''); if(n.length<=11) return n; var w=n.split(/\s+/); if(w.length>1){ return w.map(function(x){return x[0];}).join('').toUpperCase().slice(0,5); } return n.slice(0,10); }
+function genericStages(){ var p=activePipe(); if(!p) return []; return (p.stages||[]).map(function(st,i){ return {k:'g'+i, name:st.name, lbl:shortLbl(st.name), manual:true, targetDays:st.targetDays}; }); }
+function activeStages(){ return usingGeneric()? genericStages() : STAGES; }
 function domDays(){ if(!A||!A.listingLive) return ''; var d=new Date(A.listingLive+'T00:00:00'); if(isNaN(d)) return ''; var n=Math.floor((Date.now()-d.getTime())/86400000); return n>=0?(n+' day'+(n===1?'':'s')):''; }
 function manualStepHtml(d){
   var mf=A.stageFlags||{}; var mdone=!!mf[d.k];
@@ -222,7 +228,7 @@ function wireManualStages(){
   document.querySelectorAll('[data-mstage]').forEach(function(b){
     b.addEventListener('click',function(){
       var k=b.getAttribute('data-mstage'); A.stageFlags=A.stageFlags||{}; A.stageFlags[k]=!A.stageFlags[k];
-      fetch('/api/assignment/'+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({stageFlags:A.stageFlags})})
+      fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({stageFlags:A.stageFlags})})
         .then(function(r){return r.json();}).then(function(){ render(); }).catch(function(){ render(); });
     });
   });
@@ -257,6 +263,7 @@ function agreementsCardDeal(){
 }
 function render(){
   var s=A.stages||{};
+  var ST=activeStages();
   document.getElementById('crumb').textContent=A.business||'Deal file';
   document.getElementById('h1').textContent=A.business||'Deal';
   var sub=[];
@@ -269,8 +276,8 @@ function render(){
   document.getElementById('subline').innerHTML=sub.join('');
 
   var mf=A.stageFlags||{};
-  var done=STAGES.filter(function(d){return d.manual?mf[d.k]:(s[d.k]&&s[d.k].done);}).length;
-  var started=STAGES.filter(function(d){return d.manual?mf[d.k]:s[d.k];}).length;
+  var done=ST.filter(function(d){return d.manual?mf[d.k]:(s[d.k]&&s[d.k].done);}).length;
+  var started=ST.filter(function(d){return d.manual?mf[d.k]:s[d.k];}).length;
 
   var facts='<div class="facts">'
     +'<div class="fact"><div class="k">Estimated value</div><div class="v big">'+(A.value?esc(A.value):'—')+'</div></div>'
@@ -281,7 +288,7 @@ function render(){
     +'<div class="fact"><div class="k">Last activity</div><div class="v">'+esc(fmt(A.lastActivity))+'</div></div>'
     +'</div>';
 
-  var steps=STAGES.map(function(d){
+  var steps=ST.map(function(d){
     var manual=d.manual, st, cls, mark;
     if(manual){ var on=!!mf[d.k]; cls=on?'done':'absent'; mark=on?'\u2713':''; st=on; }
     else { st=s[d.k]; cls=!st?'absent':(st.done?'done':'pend'); mark=!st?'':(st.done?'\u2713':'\u2026'); }
@@ -293,12 +300,14 @@ function render(){
   }).join('');
 
   var opts=STATUSES.map(function(x){ return '<option'+(A.status===x?' selected':'')+'>'+esc(x)+'</option>'; }).join('');
+  var curPid=(A.pipelineId&&PIPES.some(function(p){return p.id===A.pipelineId;}))?A.pipelineId:TOOLPIPE;
+  var pipeOpts=PIPES.map(function(p){ return '<option value="'+esc(p.id)+'"'+(p.id===curPid?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
 
   document.getElementById('root').className='wrap';
   document.getElementById('root').innerHTML=
     '<div class="main">'
-    + '<div class="card"><div class="ch"><b>Listing facts</b><span>'+done+' of '+STAGES.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
-    + '<div class="card"><div class="ch"><b>Pipeline</b><span>'+started+' of '+STAGES.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
+    + '<div class="card"><div class="ch"><b>Listing facts</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Pipeline</b><span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
     + inquiriesCard()
     + dealCard()
     + ndasCard()
@@ -310,6 +319,7 @@ function render(){
     + '<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
       + (A.canStart?('<button class="startdeal" id="startDealBtn">Start the listing →</button><div class="startnote">Opens a Seller Qualification Call and drops this listing into the pipeline.</div>'):'')
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
+      + (PIPES.length?('<div class="fldrow"><label class="fld">Pipeline</label><select id="f_pipeline">'+pipeOpts+'</select></div>'):'')
       + '<div class="fldrow"><label class="fld">Owner</label><input class="owner" id="f_owner" value="'+esc(A.owner||'')+'" placeholder="Assigned rep"></div>'
       + '<div class="fldrow"><label class="fld">Referred by</label><input class="owner" id="f_refby" list="peopleList" value="'+esc(A.referredBy||'')+'" placeholder="Contact who referred this"></div>'
       + '<div class="fldrow"><label class="fld">Referral %</label><input class="owner" id="f_refpct" value="'+esc(A.referralPct||'')+'" placeholder="e.g. 10" inputmode="decimal" style="max-width:130px"></div>'
@@ -343,7 +353,8 @@ function render(){
   // Autosave: save on leaving a field (change/blur) or after a ~1s pause while typing.
   (function(){ var _aAS=null; function commit(){ if(_aAS){ clearTimeout(_aAS); _aAS=null; } if(DIRTY) save(); } function pause(){ if(_aAS) clearTimeout(_aAS); _aAS=setTimeout(commit,1000); } ['f_status','f_owner','f_refby','f_refpct','f_biz','f_notes','f_lstart','f_lexp','f_llive','f_lauto','f_bbsref','f_bbsnum'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
   updateExpNote();
-  document.getElementById('savebtn').addEventListener('click',save);
+  document.getElementById('savebtn').addEventListener('click',function(){save();});
+  var pipeEl=document.getElementById('f_pipeline'); if(pipeEl) pipeEl.addEventListener('change',function(){ A.pipelineId=pipeEl.value; setDirty(true); save(true); });
   var sdb=document.getElementById('startDealBtn'); if(sdb) sdb.addEventListener('click',startDeal);
   var ddb=document.getElementById('delDealBtn'); if(ddb) ddb.addEventListener('click',deleteDeal);
   wireRoomActivity();
@@ -750,14 +761,14 @@ function updateExpNote(){
   if(auto) txt+=' · auto-renews';
   el.textContent=txt; el.className=cls;
 }
-function save(){
+function save(rerender){
   var b=document.getElementById('savebtn'); b.disabled=true; b.textContent='Saving…';
   var body={ status:document.getElementById('f_status').value, owner:document.getElementById('f_owner').value, notes:document.getElementById('f_notes').value, businessOverride:document.getElementById('f_biz').value,
-    referredBy:document.getElementById('f_refby').value, referralPct:document.getElementById('f_refpct').value, listingLive:document.getElementById('f_llive').value, listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked, bbsRef:(document.getElementById('f_bbsref')||{}).value||'', bbsNumber:(document.getElementById('f_bbsnum')||{}).value||'' };
+    referredBy:document.getElementById('f_refby').value, referralPct:document.getElementById('f_refpct').value, listingLive:document.getElementById('f_llive').value, listingStart:document.getElementById('f_lstart').value, listingExpires:document.getElementById('f_lexp').value, autoRenew:document.getElementById('f_lauto').checked, bbsRef:(document.getElementById('f_bbsref')||{}).value||'', bbsNumber:(document.getElementById('f_bbsnum')||{}).value||'', pipelineId:(document.getElementById('f_pipeline')||{}).value||(A.pipelineId||'') };
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/save',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){
       b.textContent='Save changes';
-      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew; A.bbsRef=body.bbsRef; A.bbsNumber=body.bbsNumber;
+      if(j&&j.ok){ DIRTY=false; A.status=body.status; A.owner=body.owner; A.notes=body.notes; A.businessOverride=body.businessOverride; A.referredBy=body.referredBy; A.referralPct=body.referralPct; A.listingLive=body.listingLive; A.listingStart=body.listingStart; A.listingExpires=body.listingExpires; A.autoRenew=body.autoRenew; A.bbsRef=body.bbsRef; A.bbsNumber=body.bbsNumber; A.pipelineId=body.pipelineId; if(rerender===true){ render(); return; }
         document.getElementById('subline').querySelector('.hpill').textContent=body.status;
         if(body.businessOverride){ A.business=body.businessOverride; document.getElementById('h1').textContent=body.businessOverride; document.getElementById('crumb').textContent=body.businessOverride; }
         var s=document.getElementById('saved'); s.classList.add('show'); setTimeout(function(){ s.classList.remove('show'); },2200);
@@ -826,7 +837,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; render(); loadPeople(); })
+  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; render(); loadPeople(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();
