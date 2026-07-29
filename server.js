@@ -3846,9 +3846,13 @@ app.post('/api/admin/tool-labels', requireAdmin, express.json(), (req, res) => {
 
 
 // ---- Admin: reset the whole book (companies + concepts + locations). Contacts & deals are kept. ----
-app.post('/api/admin/reset-book', requireAdmin, express.json(), (req, res) => {
+app.post('/api/admin/reset-book', requireAdmin, express.json(), async (req, res) => {
   const b = req.body || {};
   if (String(b.confirm || '') !== 'RESET') return res.status(400).json({ ok: false, error: 'Type RESET to confirm.' });
+  // Safety: take a full backup of ALL data BEFORE deleting anything. If the backup fails, abort the reset.
+  let backupName = '';
+  try { backupName = await makeSnapshot('before-reset-' + backupStampFull()); }
+  catch (e) { console.error('reset-book backup failed:', e && e.message); return res.status(500).json({ ok: false, error: 'Backup failed \u2014 reset aborted so your data stays safe. (' + String((e && e.message) || e) + ')' }); }
   const companies = loadCompanies();
   companies.forEach(c => {
     (c.concepts || []).forEach(cp => { if (cp.logoExt) { try { fs.unlinkSync(path.join(CPTLOGO_DIR, cp.id + '.' + cp.logoExt)); } catch (e) {} } });
@@ -3857,7 +3861,7 @@ app.post('/api/admin/reset-book', requireAdmin, express.json(), (req, res) => {
   const count = companies.length;
   saveCompanies([]);
   const people = loadPeople(); let ch = false; people.forEach(p => { if (p.companyId) { p.companyId = ''; ch = true; } }); if (ch) savePeople(people);
-  res.json({ ok: true, cleared: count });
+  res.json({ ok: true, cleared: count, backup: backupName });
 });
 // Pull a photo for one location on demand.
 app.post('/api/company/:id/location/:locId/pull-photo', express.json(), async (req, res) => {
