@@ -5486,7 +5486,7 @@ app.get('/log', (_req, res) => {
 
 /* ================= ADMIN CONSOLE ================= */
 const SERVER_BOOT = new Date();
-const ADMIN_BUILD = 'v3 · groups + prompts open by default';
+const ADMIN_BUILD = 'v4 · executive dashboard + Consultant';
 app.get('/admin', requireAdmin, (req, res) => {
   const users = auth.loadUsers();
   const logins = auth.readLogins().slice(-300).reverse();
@@ -6736,7 +6736,7 @@ function dashboardData(req) {
 app.get('/api/dashboard', (req, res) => {
   const u = req.user || {}; const cfgs = loadDashCfgs(); const mine = cfgs[u.username];
   const layout = (mine && Array.isArray(mine.mods) && mine.mods.length) ? mine.mods.filter(k => DASH_MODULES.some(m => m.k === k)) : DASH_DEFAULT.slice();
-  res.json({ ok: true, modules: DASH_MODULES, layout, data: dashboardData(req), name: u.name || '', isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, modules: DASH_MODULES, layout, data: dashboardData(req), name: u.name || '', isAdmin: !!(req.user && isSuper(req.user)), build: ADMIN_BUILD, booted: SERVER_BOOT.toISOString() });
 });
 app.post('/api/dashboard', express.json(), (req, res) => {
   const u = req.user || {}; if (!u.username) return res.status(401).json({ ok: false, error: 'Not signed in.' });
