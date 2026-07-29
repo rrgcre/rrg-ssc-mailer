@@ -46,7 +46,16 @@ textarea{min-height:92px;resize:vertical;line-height:1.5;}
 .uprow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;}
 .filelabel{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px dashed #cdd6e6;border-radius:9px;padding:9px 14px;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;}
 .chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);font-weight:600;margin-top:6px;} .chk input{width:auto;}
+
+.lk{color:var(--navy);text-decoration:none;font-weight:600;} .lk:hover{text-decoration:underline;}
+.meta{color:var(--muted);font-size:12px;}
+.acts{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+.fldrow{display:grid;grid-template-columns:1fr 132px auto auto;gap:8px;align-items:center;margin-bottom:8px;}
+.ff_reql{display:flex;align-items:center;gap:5px;font-size:12px;color:#55607a;white-space:nowrap;font-weight:600;} .ff_reql input{width:auto;}
+.rl-filtbtn{display:none!important;}
+@media(max-width:600px){.fldrow{grid-template-columns:1fr auto auto;}}
 </style>
+<script src="/rrg_list.js"></script>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
@@ -65,70 +74,116 @@ function get(url){ return fetch(url,{credentials:'same-origin'}).then(function(r
 function post(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body||{})}).then(function(r){return r.json();}); }
 function del(url){ return fetch(url,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}); }
 
-var TPLS=[], TYPES=[], EDIT=null;
+var TPLS=[], TYPES=[], EDIT=null, TFIELDS=[], CTL=null, BUILT=false;
+var FIELD_TYPES=[['text','Text'],['date','Date'],['time','Time'],['number','Number'],['currency','Currency'],['email','Email']];
+var DEFAULT_EMAIL_MSG='Please review and sign using the secure link above. Everything has been completed for you — the only thing you need to do is add your signature. Thank you, Restaurant Realty Group.';
+var LIST_SHELL='<div class="card"><div class="ch"><b>Template library</b><span id="tcount"></span><span class="sp"></span><button class="btn sm" id="t_new">+ New template</button></div><div class="cb" style="padding:6px 8px 10px"><div id="tlist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';
 
 function typeLabel(k){ for(var i=0;i<TYPES.length;i++){ if(TYPES[i].key===k) return TYPES[i].label; } return k||''; }
-function fieldsToText(arr){ return (arr||[]).map(function(f){ return f.label+(f.required?' *':''); }).join('\n'); }
-function textToFields(t){ return String(t||'').split('\n').map(function(l){ l=l.trim(); if(!l) return null; var req=/\*\s*$/.test(l); return { label:l.replace(/\s*\*\s*$/,'').trim(), required:req }; }).filter(Boolean); }
+function typeName(t){ for(var i=0;i<FIELD_TYPES.length;i++){ if(FIELD_TYPES[i][0]===t) return FIELD_TYPES[i][1]; } return 'Text'; }
 
+function initFields(){
+  if(EDIT&&EDIT.signFields&&EDIT.signFields.length){ TFIELDS=EDIT.signFields.map(function(f){ return {label:f.label||'',required:!!f.required,type:(f.type||'text')}; }); }
+  else if(EDIT&&EDIT.id){ TFIELDS=[]; }
+  else { TFIELDS=[{label:'Full name',required:true,type:'text'},{label:'Effective date',required:false,type:'date'}]; }
+}
+function renderFieldRows(){
+  var box=document.getElementById('t_fieldrows'); if(!box) return;
+  if(!TFIELDS.length){ box.innerHTML='<div class="note" style="margin:0 0 10px">No fields yet — add the items the rep fills in before sending (names, dates, amounts).</div>'; return; }
+  box.innerHTML=TFIELDS.map(function(f,i){
+    var opts=FIELD_TYPES.map(function(o){ return '<option value="'+o[0]+'"'+((f.type||'text')===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('');
+    return '<div class="fldrow" data-fi="'+i+'"><input class="ff_name" value="'+esc(f.label||'')+'" placeholder="Field name (e.g. Effective date)"><select class="ff_type">'+opts+'</select><label class="ff_reql"><input type="checkbox" class="ff_req"'+(f.required?' checked':'')+'> Req</label><button type="button" class="btn ghost sm" data-field-del="'+i+'" title="Remove field">✕</button></div>';
+  }).join('');
+}
+function collectFieldRows(){
+  var box=document.getElementById('t_fieldrows'); if(!box) return;
+  var out=[]; box.querySelectorAll('[data-fi]').forEach(function(r){
+    var nm=(r.querySelector('.ff_name')||{}).value||''; var ty=(r.querySelector('.ff_type')||{}).value||'text'; var rq=!!(r.querySelector('.ff_req')&&r.querySelector('.ff_req').checked);
+    out.push({label:nm,type:ty,required:rq});
+  });
+  TFIELDS=out;
+}
+function addField(){ collectFieldRows(); TFIELDS.push({label:'',required:false,type:'text'}); renderFieldRows(); var box=document.getElementById('t_fieldrows'); if(box){ var ins=box.querySelectorAll('.ff_name'); if(ins.length) ins[ins.length-1].focus(); } }
+function removeField(i){ collectFieldRows(); TFIELDS.splice(i,1); renderFieldRows(); }
+
+function fieldsCell(t){ if(t.pdfFields&&t.pdfFields.length) return esc(t.pdfFields.length+' placed'); var n=(t.signFields||[]).length; return n?esc(n+' field'+(n===1?'':'s')):'<span class="meta">—</span>'; }
+function docCell(t){ return t.fileExt?('<span class="file-ok">'+esc(String(t.fileExt).toUpperCase())+'</span>'):'<span class="meta">—</span>'; }
+function actionsCell(t){
+  var s='';
+  if(t.fileExt){ s+='<a class="btn ghost sm" href="/api/agreement-templates/'+esc(t.id)+'/file" target="_blank" rel="noopener">View</a><button class="btn ghost sm" data-print="'+esc(t.id)+'">Print</button>'; }
+  if(t.fileExt==='pdf'){ s+='<a class="btn ghost sm" href="/rrg_sign_designer.html?template='+esc(t.id)+'">Design</a>'; }
+  s+='<button class="btn ghost sm" data-edit="'+esc(t.id)+'">Edit</button><button class="btn danger sm" data-del="'+esc(t.id)+'">Delete</button>';
+  return '<div class="acts">'+s+'</div>';
+}
+function listCfg(){
+  return { mount:'#tlist', data:TPLS, key:'agrtemplates',
+    empty:'<div class="empty">No templates yet. Click <b>+ New template</b> to create your first standard agreement.</div>',
+    rowId:function(t){return t.id;}, defaultSort:0, defaultDir:1,
+    columns:[
+      { label:'Template', sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(t){ return '<a class="lk" href="#" data-edit="'+esc(t.id)+'">'+esc(t.name||'Untitled')+'</a>'; } },
+      { label:'Category', sort:function(a,b){return RRGList.cmp(typeLabel(a.type),typeLabel(b.type));}, cell:function(t){ return t.type?esc(typeLabel(t.type)):'<span class="meta">—</span>'; } },
+      { label:'Document', sort:function(a,b){return RRGList.cmp(a.fileExt,b.fileExt);}, cell:docCell },
+      { label:'Fields', sort:function(a,b){return RRGList.cmp((a.signFields||[]).length,(b.signFields||[]).length);}, cell:fieldsCell },
+      { label:'Status', sort:function(a,b){return RRGList.cmp(a.active===false?1:0,b.active===false?1:0);}, cell:function(t){ return t.active===false?'<span class="status off">Inactive</span>':'<span class="status on">Active</span>'; } },
+      { label:'', sortable:false, cell:actionsCell }
+    ]
+  };
+}
+function refreshList(){ if(CTL) CTL.refresh(TPLS); else CTL=RRGList.create(listCfg()); var c=document.getElementById('tcount'); if(c) c.textContent=TPLS.length+' total'; }
+
+function renderEditor(){
+  var host=document.getElementById('editor'); if(!host) return;
+  if(!EDIT){ host.innerHTML=''; return; }
+  initFields();
+  var e=EDIT;
+  var typeOpts='<option value="">— none —</option>'+TYPES.map(function(t){ return '<option value="'+esc(t.key)+'"'+((e.type||'')===t.key?' selected':'')+'>'+esc(t.label)+'</option>'; }).join('');
+  host.innerHTML='<div class="card"><div class="ch"><b>'+(e.id?'Edit template':'New template')+'</b><span class="sp"></span><button class="btn ghost sm" id="t_close">Close</button></div><div class="cb">'+
+    '<div class="grid2"><div><label class="fld">Template name</label><input id="t_name" value="'+esc(e.name||'')+'" placeholder="e.g. Standard Tenant Rep Agreement"></div>'+
+    '<div><label class="fld">Category / type</label><select id="t_type">'+typeOpts+'</select></div></div>'+
+    '<div style="margin-top:16px"><label class="fld">Signer fields</label><div id="t_fieldrows"></div>'+
+      '<button type="button" class="btn ghost sm" id="t_addfield">+ Add field</button>'+
+      '<div class="note">Give each field a name and a type. <b>Date</b>, <b>time</b>, <b>number</b> and <b>currency</b> fields format automatically across the system. Fields named like <b>name</b>, <b>company/title</b>, <b>date</b> or <b>email</b> auto-fill from the contact. The rep fills these in before sending; the signer only signs.</div></div>'+
+    '<div style="margin-top:16px"><label class="fld">Email message (sent with the signing link)</label>'+
+      '<textarea id="t_emailmsg" placeholder="'+esc(DEFAULT_EMAIL_MSG)+'">'+esc(e.emailMessage||'')+'</textarea>'+
+      '<div class="note">Default note the signer gets with their link. The rep can tweak it per send. Leave blank to use the system default.</div></div>'+
+    '<div class="chk"><input type="checkbox" id="t_active"'+((e.active===false)?'':' checked')+'> Active (reps can pick this template)</div>'+
+    '<div style="margin-top:16px"><label class="fld">Template document (PDF or Word)</label><div class="uprow">'+
+      (e.fileExt?('<span class="file-ok">📎 '+esc(e.fileName||'document')+'</span> <a class="btn ghost sm" href="/api/agreement-templates/'+esc(e.id)+'/file" target="_blank" rel="noopener">View</a>'):'<span id="t_fname" class="file-no">No file chosen yet</span>')+
+      '<label class="filelabel">⤒ '+(e.fileExt?'Replace file':'Choose file')+'<input type="file" id="t_file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label>'+
+      (e.fileExt==='pdf'?(' <a class="btn sm" style="background:#0e8a5f;border-color:#0e8a5f" href="/rrg_sign_designer.html?template='+esc(e.id)+'">✍ Design fields on the PDF</a>'):'')+
+      '</div><div class="note">Choose the file here — it saves together when you click '+(e.id?'Save changes':'Create template')+'. PDF or Word, up to 20 MB.</div></div>'+
+    '<div class="btnrow"><button class="btn red" id="t_save">'+(e.id?'Save changes':'Create template')+'</button><span class="msg" id="t_msg"></span></div>'+
+    '</div></div>';
+  if(document.getElementById('t_type')) document.getElementById('t_type').value=e.type||'';
+  renderFieldRows();
+  document.getElementById('t_save').addEventListener('click',saveTpl);
+  document.getElementById('t_close').addEventListener('click',closeEditor);
+  var fi=document.getElementById('t_file'); if(fi) fi.addEventListener('change',function(){ var fn=document.getElementById('t_fname'); if(fn&&fi.files&&fi.files[0]) fn.textContent=fi.files[0].name; });
+}
 function render(){
   var root=document.getElementById('root');
-  var typeOpts='<option value="">— none —</option>'+TYPES.map(function(t){ return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>'; }).join('');
-  var e=EDIT||{};
-  var editing=!!EDIT;
-  var form=''+
-    '<div class="card"><div class="ch"><b>'+(e.id?'Edit template':'New template')+'</b><span class="sp"></span>'+(editing?'<button class="btn ghost sm" id="t_close">Close</button>':'')+'</div><div class="cb">'+
-      '<div class="grid2">'+
-        '<div><label class="fld">Template name</label><input id="t_name" value="'+esc(e.name||'')+'" placeholder="e.g. Standard Tenant Rep Agreement"></div>'+
-        '<div><label class="fld">Category / type</label><select id="t_type">'+typeOpts+'</select></div>'+
-      '</div>'+
-      '<div style="margin-top:14px"><label class="fld">Signer fields — one per line, add * for required</label>'+
-        '<textarea id="t_fields" placeholder="Full name *&#10;Title / Company&#10;Date">'+esc(fieldsToText(e.signFields)|| '')+'</textarea>'+
-        '<div class="note">Fields whose label contains <b>name</b>, <b>company/title</b>, <b>date</b>, or <b>email</b> auto-fill from the linked contact on the signing page. The signer can edit them, then draws their signature.</div>'+
-      '</div>'+
-      '<div class="chk"><input type="checkbox" id="t_active"'+((e.active===false)?'':' checked')+'> Active (reps can pick this template)</div>'+
-      '<div style="margin-top:16px"><label class="fld">Template document (PDF or Word)</label><div class="uprow">'+
-          (e.fileExt?('<span class="file-ok">📎 '+esc(e.fileName||'document')+'</span> <a class="btn ghost sm" href="/api/agreement-templates/'+esc(e.id)+'/file" target="_blank" rel="noopener">View</a>'):'<span id="t_fname" class="file-no">No file chosen yet</span>')+
-          '<label class="filelabel">⤒ '+(e.fileExt?'Replace file':'Choose file')+'<input type="file" id="t_file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label>'+
-          (e.fileExt==='pdf'?(' <a class="btn sm" style="background:#0e8a5f;border-color:#0e8a5f" href="/rrg_sign_designer.html?template='+esc(e.id)+'">✍ Design fields on the PDF</a>'):'')+
-        '</div><div class="note">Choose the file here — it saves together when you click '+(e.id?'Save changes':'Create template')+'. PDF or Word, up to 20 MB.</div></div>'+
-      '<div class="btnrow"><button class="btn red" id="t_save">'+(e.id?'Save changes':'Create template')+'</button><span class="msg" id="t_msg"></span></div>'+
-    '</div></div>';
-
-  var listRows = TPLS.length ? TPLS.map(function(t){
-    var meta=[];
-    if(t.type) meta.push(esc(typeLabel(t.type)));
-    meta.push(t.fileExt?('📎 '+String(t.fileExt).toUpperCase()):'no file');
-    if(t.pdfFields&&t.pdfFields.length) meta.push(t.pdfFields.length+' placed fields · '+(t.signerCount===2?'2 signers':'1 signer'));
-    else if((t.signFields||[]).length) meta.push((t.signFields||[]).length+' fields');
-    return '<div class="trow"><div style="min-width:0;flex:1"><div class="tn">'+esc(t.name)+(t.active?'':' <span class="status off">Inactive</span>')+'</div>'+
-      '<div class="tmeta">'+meta.join(' &nbsp;·&nbsp; ')+'</div></div><span class="sp"></span><div class="acts">'+
-      (t.fileExt?('<a class="btn ghost sm" href="/api/agreement-templates/'+esc(t.id)+'/file" target="_blank" rel="noopener">View</a><button class="btn ghost sm" data-print="'+esc(t.id)+'">Print</button>'):'')+
-      (t.fileExt==='pdf'?('<a class="btn ghost sm" href="/rrg_sign_designer.html?template='+esc(t.id)+'">Design fields</a>'):'')+
-      '<button class="btn ghost sm" data-edit="'+esc(t.id)+'">Edit</button>'+
-      '<button class="btn danger sm" data-del="'+esc(t.id)+'">Delete</button></div></div>';
-  }).join('') : '<div class="empty">No templates yet. Create your first standard agreement above.</div>';
-
-  var list='<div class="card"><div class="ch"><b>Template library</b><span>'+TPLS.length+' total</span><span class="sp"></span>'+(editing?'':'<button class="btn sm" id="t_new">+ New template</button>')+'</div>'+listRows+'</div>';
-
-  root.innerHTML = form + list;
-
-  if(document.getElementById('t_type')) document.getElementById('t_type').value = e.type||'';
-
-  var nb=document.getElementById('t_new'); if(nb) nb.addEventListener('click',function(){ EDIT={active:true}; render(); window.scrollTo(0,0); });
-  var cb=document.getElementById('t_close'); if(cb) cb.addEventListener('click',function(){ EDIT=null; render(); });
-  document.getElementById('t_save').addEventListener('click',saveTpl);
-  var fi=document.getElementById('t_file'); if(fi) fi.addEventListener('change',function(){ var fn=document.getElementById('t_fname'); if(fn&&fi.files&&fi.files[0]) fn.textContent=fi.files[0].name; });
-  root.querySelectorAll('[data-edit]').forEach(function(b){ b.addEventListener('click',function(){ var t=TPLS.filter(function(x){return x.id===b.getAttribute('data-edit');})[0]; if(t){ EDIT=JSON.parse(JSON.stringify(t)); render(); window.scrollTo(0,0);} }); });
-  root.querySelectorAll('[data-del]').forEach(function(b){ b.addEventListener('click',function(){ delTpl(b.getAttribute('data-del')); }); });
-  root.querySelectorAll('[data-print]').forEach(function(b){ b.addEventListener('click',function(){ printTpl(b.getAttribute('data-print')); }); });
+  if(!BUILT){ root.innerHTML=LIST_SHELL; BUILT=true; var nb=document.getElementById('t_new'); if(nb) nb.addEventListener('click',newTpl); }
+  refreshList();
+  renderEditor();
 }
+function openEdit(id){ var t=TPLS.filter(function(x){return x.id===id;})[0]; if(!t) return; EDIT=JSON.parse(JSON.stringify(t)); renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
+function newTpl(){ EDIT={active:true}; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
+function closeEditor(){ EDIT=null; renderEditor(); }
+
+document.addEventListener('click',function(ev){
+  var t=ev.target; if(!t||!t.closest) return;
+  var ed=t.closest('[data-edit]'); if(ed){ ev.preventDefault(); openEdit(ed.getAttribute('data-edit')); return; }
+  var dl=t.closest('[data-del]'); if(dl){ ev.preventDefault(); delTpl(dl.getAttribute('data-del')); return; }
+  var pr=t.closest('[data-print]'); if(pr){ ev.preventDefault(); printTpl(pr.getAttribute('data-print')); return; }
+  var fd=t.closest('[data-field-del]'); if(fd){ ev.preventDefault(); removeField(parseInt(fd.getAttribute('data-field-del'),10)); return; }
+  var af=t.closest('#t_addfield'); if(af){ ev.preventDefault(); addField(); return; }
+});
 
 function saveTpl(){
   var name=(document.getElementById('t_name').value||'').trim();
   var msg=document.getElementById('t_msg');
   if(!name){ document.getElementById('t_name').focus(); if(msg){msg.textContent='Name the template first.';msg.className='msg err';} return; }
-  var body={ name:name, type:document.getElementById('t_type').value, signFields:textToFields(document.getElementById('t_fields').value), active:document.getElementById('t_active').checked };
+  var body={ name:name, type:document.getElementById('t_type').value, signFields:(collectFieldRows(),TFIELDS.filter(function(f){return (f.label||'').trim();})), emailMessage:((document.getElementById('t_emailmsg')||{}).value||''), active:document.getElementById('t_active').checked };
   if(EDIT&&EDIT.id) body.id=EDIT.id;
   var fileEl=document.getElementById('t_file'); var file=(fileEl&&fileEl.files&&fileEl.files[0])||null;
   if(file&&file.size>20*1024*1024){ if(msg){msg.textContent='File too large (max 20 MB).';msg.className='msg err';} return; }
