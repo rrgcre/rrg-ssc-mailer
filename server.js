@@ -2703,7 +2703,7 @@ app.get('/api/assignment/:key', (req, res) => {
   if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const origin = req.protocol + '://' + req.get('host');
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: AGREEMENT_TYPES, pipelines: loadPipelines(), roomActivity: roomActivityFor(d, origin) });
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: AGREEMENT_TYPES, pipelines: loadPipelines(), expenses: dealExpenseRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin) });
 });
 app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   const deals = assignmentsIndex();
@@ -3305,6 +3305,13 @@ function expenseBrief(x, user) {
     listingKey: x.listingKey || '', listingLabel: x.listingLabel || '', reimbursable: !!x.reimbursable,
     notes: x.notes || '', receipt: x.receipt || '', ownerUser: x.ownerUser || '', ownerName: x.ownerName || '',
     mine: !!(user && (x.ownerUser === user.username || isSuper(user))), createdAt: x.createdAt || '', updatedAt: x.updatedAt || '' };
+}
+function dealExpenseRollup(key, user) {
+  const rows = loadExpenses().filter(x => x.listingKey === key);
+  rows.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  let total = 0, unpaid = 0, reimb = 0;
+  const items = rows.map(x => { const a = _expNum(x.amount); total += a; if (x.status === 'Unpaid') unpaid += a; if (x.reimbursable && x.status !== 'Reimbursed') reimb += a; return expenseBrief(x, user); });
+  return { items, total, unpaid, reimbursable: reimb, count: items.length, categories: EXPENSE_CATEGORIES, methods: EXPENSE_METHODS, statuses: EXPENSE_STATUSES };
 }
 app.get('/api/expenses', (req, res) => {
   const u = req.user || {}; const admin = isSuper(u); const all = loadExpenses();
