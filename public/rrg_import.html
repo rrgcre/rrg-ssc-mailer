@@ -76,6 +76,8 @@ var FIELDS={
   companies:[
     {k:'name',label:'Company name',req:true,alias:['company name','name','account name','organization name','organization','company','account']},
     {k:'type',label:'Type',alias:['contact type','company type','type','category']},
+    {k:'concept',label:'Concept / brand',hint:'defaults to the company name',alias:['concept','brand','dba','trade name','doing business as']},
+    {k:'cuisine',label:'Cuisine',alias:['cuisine','food type','fare']},
     {k:'market',label:'Market / metro',alias:['market','metro','city','region','territory']},
     {k:'phone',label:'Phone',multi:true,alias:['phone','phones','phone number','telephone','work phone','main phone','company phone']},
     {k:'website',label:'Website',alias:['website','websites','url','web','domain','company domain','email domain']},
@@ -176,7 +178,7 @@ function doImport(){
   var objs=ROWS.map(rowObj).filter(function(o){ return MODE==='companies'?o.name:(o.firstName||o.lastName||o.name); });
   if(!objs.length){ setMsg('Nothing to import — map the name column first.','err'); return; }
   var url=MODE==='companies'?'/api/admin/import/companies':'/api/admin/import/people';
-  var body={rows:objs}; if(MODE==='contacts'){ body.defaultType=document.getElementById('deftype').value; }
+  var body={rows:objs}; if(MODE==='contacts'){ body.defaultType=document.getElementById('deftype').value; } else { body.makeConcept=document.getElementById('opt_concept').checked; body.makeLocation=document.getElementById('opt_location').checked; }
   var btn=document.getElementById('importBtn'); btn.disabled=true; setMsg('Importing '+objs.length+' rows…','');
   var pl=document.getElementById('prog'); if(pl){ pl.parentElement.classList.remove('hide'); pl.style.width='70%'; }
   fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
@@ -188,7 +190,7 @@ function doImport(){
 function renderResult(j){
   var host=document.getElementById('resbox'); if(!host) return;
   var cards, tip;
-  if(MODE==='companies'){ cards='<div class="rc g"><div class="n">'+j.created+'</div><div class="l">Created</div></div><div class="rc"><div class="n">'+j.updated+'</div><div class="l">Updated</div></div><div class="rc a"><div class="n">'+j.skipped+'</div><div class="l">Skipped · no name</div></div>'; tip='Companies are in <b>Book of Business → Companies</b>. Next, switch to <b>Contacts</b> above and import your people file — they&rsquo;ll auto-link to these companies by name.'; }
+  if(MODE==='companies'){ cards='<div class="rc g"><div class="n">'+j.created+'</div><div class="l">Created</div></div><div class="rc"><div class="n">'+j.updated+'</div><div class="l">Updated</div></div>'+((j.conceptsCreated!=null)?('<div class="rc g"><div class="n">'+j.conceptsCreated+'</div><div class="l">Concepts</div></div>'):'')+((j.locationsCreated!=null)?('<div class="rc g"><div class="n">'+j.locationsCreated+'</div><div class="l">Locations</div></div>'):'')+'<div class="rc a"><div class="n">'+j.skipped+'</div><div class="l">Skipped · no name</div></div>'; tip='Companies are in <b>Book of Business → Companies</b>. Next, switch to <b>Contacts</b> above and import your people file — they&rsquo;ll auto-link to these companies by name.'; }
   else { cards='<div class="rc g"><div class="n">'+j.created+'</div><div class="l">Contacts added</div></div><div class="rc a"><div class="n">'+j.dupe+'</div><div class="l">Skipped · email exists</div></div><div class="rc a"><div class="n">'+j.noname+'</div><div class="l">Skipped · no name</div></div>'; tip='Contacts are in <b>Book of Business → Contacts</b>, each linked to its company. Duplicates were skipped by email so nothing already in FullServe got overwritten.'; }
   host.innerHTML='<div style="font-size:15px;font-weight:800;color:var(--navy);margin-bottom:10px">Import complete ✓</div><div class="res">'+cards+'</div><div class="note">'+tip+'</div><div style="margin-top:14px"><button class="btn ghost" id="againBtn">Import another file</button></div>';
   host.classList.remove('hide'); host.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -210,7 +212,7 @@ function build(){
     '</div></div>'+
     '<div class="card hide" id="step2"><div class="ch"><span class="st">Step 2</span><b>Map the columns</b><span class="hint">auto-detected — adjust anything</span></div><div class="cb">'+
       '<div id="mapbox"></div>'+
-      '<div class="deftype" id="deftypewrap"><span style="font-size:12.5px;font-weight:700">Contact type when the source type doesn&rsquo;t match one of ours:</span><select id="deftype"></select></div>'+
+      '<div class="deftype" id="deftypewrap"><span style="font-size:12.5px;font-weight:700">Contact type when the source type doesn&rsquo;t match one of ours:</span><select id="deftype"></select></div><div class="deftype" id="coptswrap" style="flex-direction:column;align-items:flex-start;gap:9px"><label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="opt_concept" checked style="width:16px;height:16px"> Create a <b>concept</b> for each company (named after the company)</label><label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="opt_location" checked style="width:16px;height:16px"> Create a <b>location</b> from the address, linked to the concept</label></div>'+
       '<div class="note">Green rows auto-combine every matching column — handy for Email 1 / Email 2 or multiple phone fields. Contacts dedupe by email; companies dedupe by name.</div>'+
     '</div></div>'+
     '<div class="card hide" id="step3"><div class="ch"><span class="st">Step 3</span><b>Preview &amp; import</b></div><div class="cb">'+
@@ -226,7 +228,7 @@ function build(){
   ['dragover','dragenter'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add('over'); }); });
   ['dragleave'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove('over'); }); });
   drop.addEventListener('drop',function(e){ e.preventDefault(); drop.classList.remove('over'); if(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
-  function setMode(m){ MODE=m; document.getElementById('m_contacts').classList.toggle('on',m==='contacts'); document.getElementById('m_companies').classList.toggle('on',m==='companies'); document.getElementById('deftypewrap').style.display=(m==='contacts')?'':'none'; resetUpload(); }
+  function setMode(m){ MODE=m; document.getElementById('m_contacts').classList.toggle('on',m==='contacts'); document.getElementById('m_companies').classList.toggle('on',m==='companies'); document.getElementById('deftypewrap').style.display=(m==='contacts')?'':'none'; var _co=document.getElementById('coptswrap'); if(_co) _co.style.display=(m==='companies')?'':'none'; resetUpload(); }
   document.getElementById('m_contacts').addEventListener('click',function(){ setMode('contacts'); });
   document.getElementById('m_companies').addEventListener('click',function(){ setMode('companies'); });
   document.getElementById('importBtn').addEventListener('click',doImport);

@@ -6578,7 +6578,8 @@ app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16m
   const rows = Array.isArray((req.body || {}).rows) ? req.body.rows : [];
   const arr = loadCompanies(); const byKey = {}; arr.forEach(c => { byKey[normKey(c.name)] = c; });
   const cts = effCompanyTypes(); const now = new Date().toISOString();
-  let created = 0, updated = 0, skipped = 0;
+  const mkConcept = (req.body || {}).makeConcept !== false; const mkLocation = (req.body || {}).makeLocation !== false;
+  let created = 0, updated = 0, skipped = 0, conceptsCreated = 0, locationsCreated = 0;
   rows.forEach(r => {
     const name = _impStr(r.name, 160); if (!name) { skipped++; return; }
     let c = byKey[normKey(name)]; const isNew = !c;
@@ -6590,11 +6591,30 @@ app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16m
     fill('leadSource', _impStr(r.leadSource, 160));
     if (r.tags) { const tg = _impTags(r.tags); if (tg.length && (isNew || !(c.tags && c.tags.length))) c.tags = tg; }
     const office = c.office || {}; ['address', 'city', 'state', 'phone', 'website', 'email'].forEach(k => { if (r[k] != null && r[k] !== '' && (isNew || !office[k])) office[k] = _impStr(r[k], 200); }); c.office = office;
+    if (mkConcept) {
+      const cname = _impStr(r.concept, 120) || name;
+      if (cname) {
+        c.concepts = c.concepts || [];
+        let cpt = c.concepts.find(x => normKey(x.name) === normKey(cname));
+        if (!cpt) {
+          cpt = { id: newConceptId(), name: cname.slice(0, 120), website: _impStr(r.website, 300) || (c.office && c.office.website) || '', logo: '', markets: (c.market ? [c.market] : []), conceptType: '', pricePoint: '', cuisine: (r.cuisine && effCuisineTypes().indexOf(_impStr(r.cuisine, 40)) >= 0 ? _impStr(r.cuisine, 40) : ''), createdAt: now };
+          c.concepts.push(cpt); conceptsCreated++;
+        }
+        if (mkLocation) {
+          const addr = _impStr(r.address, 200), city = _impStr(r.city, 120), state = _impStr(r.state, 80);
+          if (addr || city) {
+            c.locations = c.locations || [];
+            const dup = c.locations.find(l => normKey(l.address || '') === normKey(addr) && normKey(l.city || '') === normKey(city));
+            if (!dup) { c.locations.push({ id: newLocationId(), name: '', concept: cpt.name, address: addr, city: city, state: state, phone: _impStr(r.phone, 60), opened: '', status: 'Operating', notes: '', photos: [], createdAt: now }); locationsCreated++; }
+          }
+        }
+      }
+    }
     c.updatedAt = now;
     if (isNew) created++; else updated++;
   });
   saveCompanies(arr);
-  res.json({ ok: true, created, updated, skipped, total: rows.length });
+  res.json({ ok: true, created, updated, skipped, conceptsCreated, locationsCreated, total: rows.length });
 });
 app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' }), (req, res) => {
   const b = req.body || {}; const rows = Array.isArray(b.rows) ? b.rows : [];
