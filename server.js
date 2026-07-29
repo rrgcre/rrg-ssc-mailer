@@ -6549,10 +6549,14 @@ function loadFeedback() { try { return JSON.parse(fs.readFileSync(FEEDBACK_FILE,
 function saveFeedback(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(FEEDBACK_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newFeedbackId() { return 'fb_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const FEEDBACK_TYPES = ['Feature request', 'Bug', 'Improvement', 'Question', 'Other'];
-const FEEDBACK_STATUSES = ['New', 'Under review', 'Planned', 'In progress', 'Done', 'Declined'];
+const FEEDBACK_STATUSES = ['New', 'Approved', 'Sent to Claude', 'In progress', 'Shipped', 'Declined'];
+const FEEDBACK_STATUS_LEGACY = { 'Under review': 'New', 'Planned': 'Approved', 'Done': 'Shipped', 'Sent': 'Sent to Claude', 'Done ': 'Shipped' };
+function normFbStatus(v) { v = String(v || 'New'); if (FEEDBACK_STATUSES.indexOf(v) >= 0) return v; if (FEEDBACK_STATUS_LEGACY[v]) return FEEDBACK_STATUS_LEGACY[v]; return 'New'; }
+function matchFbStatus(v) { v = String(v || '').trim(); for (const s2 of FEEDBACK_STATUSES) { if (s2.toLowerCase() === v.toLowerCase()) return s2; } if (FEEDBACK_STATUS_LEGACY[v]) return FEEDBACK_STATUS_LEGACY[v]; const low = v.toLowerCase(); if (low === 'done' || low === 'complete' || low === 'completed' || low === 'ship' || low === 'shipped') return 'Shipped'; if (low === 'wip' || low === 'in-progress' || low === 'progress' || low === 'started') return 'In progress'; if (low === 'sent') return 'Sent to Claude'; if (low === 'approve' || low === 'approved') return 'Approved'; if (low === 'decline' || low === 'declined' || low === 'rejected' || low === 'wontfix' || low === "won't do") return 'Declined'; return ''; }
+function fbView(it) { return Object.assign({}, it, { status: normFbStatus(it.status), approvedBy: it.approvedBy || '', approvedByName: it.approvedByName || '', approvedAt: it.approvedAt || '', sentAt: it.sentAt || '', claudeResponse: it.claudeResponse || '', claudeUpdatedAt: it.claudeUpdatedAt || '' }); }
 const FEEDBACK_PRIORITIES = ['Critical', 'High', 'Medium', 'Low'];
 app.get('/api/feedback', (req, res) => {
-  res.json({ ok: true, items: loadFeedback(), types: FEEDBACK_TYPES, statuses: FEEDBACK_STATUSES, priorities: FEEDBACK_PRIORITIES, isAdmin: !!(req.user && isSuper(req.user)), canDelete: canDelete(req), me: (req.user && req.user.username) || '' });
+  res.json({ ok: true, items: loadFeedback().map(fbView), types: FEEDBACK_TYPES, statuses: FEEDBACK_STATUSES, priorities: FEEDBACK_PRIORITIES, isAdmin: !!(req.user && isSuper(req.user)), canDelete: canDelete(req), me: (req.user && req.user.username) || '' });
 });
 app.post('/api/feedback', express.json(), (req, res) => {
   const b = req.body || {}; const all = loadFeedback(); const now = new Date().toISOString();
@@ -6564,17 +6568,58 @@ app.post('/api/feedback', express.json(), (req, res) => {
     if (typeof b.title === 'string' && b.title.trim()) it.title = b.title.trim().slice(0, 200);
     if (typeof b.detail === 'string') it.detail = b.detail.slice(0, 6000);
     if (typeof b.type === 'string' && FEEDBACK_TYPES.indexOf(b.type) >= 0) it.type = b.type;
-    if (typeof b.status === 'string' && FEEDBACK_STATUSES.indexOf(b.status) >= 0) it.status = b.status;
+    if (typeof b.status === 'string') { const ns = matchFbStatus(b.status); if (ns) it.status = ns; }
+    if (typeof b.claudeResponse === 'string' && req.user && isSuper(req.user)) { it.claudeResponse = b.claudeResponse.slice(0, 6000); it.claudeUpdatedAt = now; }
     if (typeof b.priority === 'string' && FEEDBACK_PRIORITIES.indexOf(b.priority) >= 0) it.priority = b.priority;
     if (typeof b.adminNotes === 'string') it.adminNotes = b.adminNotes.slice(0, 4000);
     it.updatedAt = now; saveFeedback(all);
-    return res.json({ ok: true, item: it });
+    return res.json({ ok: true, item: fbView(it) });
   }
   const title = String(b.title || '').trim().slice(0, 200);
   if (!title) return res.status(400).json({ ok: false, error: 'A short title is required.' });
-  it = { id: newFeedbackId(), title: title, type: (FEEDBACK_TYPES.indexOf(b.type) >= 0 ? b.type : 'Feature request'), detail: String(b.detail || '').slice(0, 6000), status: 'New', priority: (FEEDBACK_PRIORITIES.indexOf(b.priority) >= 0 ? b.priority : 'Medium'), votes: 0, submittedBy: meU, submittedByName: meN, adminNotes: '', createdAt: now, updatedAt: now };
+  it = { id: newFeedbackId(), title: title, type: (FEEDBACK_TYPES.indexOf(b.type) >= 0 ? b.type : 'Feature request'), detail: String(b.detail || '').slice(0, 6000), status: 'New', priority: (FEEDBACK_PRIORITIES.indexOf(b.priority) >= 0 ? b.priority : 'Medium'), votes: 0, submittedBy: meU, submittedByName: meN, adminNotes: '', approvedBy: '', approvedByName: '', approvedAt: '', sentAt: '', claudeResponse: '', claudeUpdatedAt: '', createdAt: now, updatedAt: now };
   all.push(it); saveFeedback(all);
-  res.json({ ok: true, item: it });
+  res.json({ ok: true, item: fbView(it) });
+});
+app.post('/api/feedback/:id/approve', express.json(), (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
+  const all = loadFeedback(); const it = all.find(x => x.id === req.params.id);
+  if (!it) return res.status(404).json({ ok: false, error: 'Not found.' });
+  const now = new Date().toISOString();
+  const b = req.body || {};
+  if (b.unapprove) { it.status = 'New'; it.approvedBy = ''; it.approvedByName = ''; it.approvedAt = ''; }
+  else { it.status = 'Approved'; it.approvedBy = (req.user && req.user.username) || ''; it.approvedByName = (req.user && req.user.name) || ''; it.approvedAt = now; }
+  it.updatedAt = now; saveFeedback(all);
+  res.json({ ok: true, item: fbView(it) });
+});
+app.post('/api/feedback/send-batch', express.json(), (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
+  const all = loadFeedback(); const now = new Date().toISOString();
+  const ids = Array.isArray((req.body || {}).ids) ? req.body.ids : null;
+  let sent = 0;
+  all.forEach(it => { const st = normFbStatus(it.status); const pick = ids ? (ids.indexOf(it.id) >= 0) : (st === 'Approved'); if (pick && st !== 'Declined') { it.status = 'Sent to Claude'; it.sentAt = now; it.updatedAt = now; sent++; } });
+  saveFeedback(all);
+  res.json({ ok: true, sent, items: all.map(fbView) });
+});
+app.post('/api/feedback/apply-updates', express.json({ limit: '256kb' }), (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
+  const all = loadFeedback(); const now = new Date().toISOString();
+  const text = String((req.body || {}).text || '');
+  const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  let updated = 0; const unknown = [];
+  lines.forEach(line => {
+    const parts = line.split('|').map(p => p.trim());
+    let id = parts[0] || ''; id = id.replace(/^\[/, '').replace(/\]$/, '').replace(/^#/, '');
+    if (!id) return;
+    const it = all.find(x => x.id === id);
+    if (!it) { unknown.push(id); return; }
+    const st = matchFbStatus(parts[1] || '');
+    if (st) it.status = st;
+    if (parts.length > 2 && parts[2]) { it.claudeResponse = parts.slice(2).join(' | ').slice(0, 6000); it.claudeUpdatedAt = now; }
+    it.updatedAt = now; updated++;
+  });
+  saveFeedback(all);
+  res.json({ ok: true, updated, unknown, items: all.map(fbView) });
 });
 app.post('/api/feedback/:id/vote', express.json(), (req, res) => {
   const all = loadFeedback(); const it = all.find(x => x.id === req.params.id);
@@ -7097,11 +7142,13 @@ app.get('/api/sign/:token/data', (req, res) => {
   if (!found || !found.signer) return res.status(404).json({ ok: false, error: 'Invalid link.' });
   const a = found.a, me = found.signer;
   const fields = (a.pdfFields || []).map(f => {
-    const mine = (f.signer === me.order);
+    const isSig = (f.type === 'signature' || f.type === 'initials');
     const signerObj = (a.signers || []).find(s => s.order === f.signer);
-    const locked = !!(signerObj && signerObj.status === 'signed');
+    const mine = isSig && (f.signer === me.order);
+    const locked = !isSig || !!(signerObj && signerObj.status === 'signed');
     let value = (a.fieldValues && a.fieldValues[f.id]) || '';
-    if (mine && !value) value = signerFieldPrefill(a, f);
+    if (!isSig && !value) value = signerFieldPrefill(a, f);
+    if (!isSig) value = fmtSignVal(f.type, value);
     return { id: f.id, page: f.page, x: f.x, y: f.y, w: f.w, h: f.h, type: f.type, label: f.label, required: f.required, mine, locked, value };
   });
   res.json({ ok: true, label: agreementTypeLabel(a.type), notes: a.notes || '', signerLabel: me.label, signerName: me.name, order: me.order, already: (me.status === 'signed'), fields });
@@ -7117,6 +7164,31 @@ app.get('/api/agreements/:id/final', (req, res) => {
   const a = loadAgreements().find(x => x.id === req.params.id);
   if (!a || !a.hasFinal) return res.status(404).end();
   try { const buf = fs.readFileSync(path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf')); res.set('Content-Type', 'application/pdf'); res.set('Content-Disposition', 'inline; filename="signed-agreement.pdf"'); res.send(buf); } catch (e) { res.status(404).end(); }
+});
+
+function repFillableFields(a) { return (a.pdfFields || []).filter(f => f.type !== 'signature' && f.type !== 'initials'); }
+app.get('/api/agreements/:id/fill', (req, res) => {
+  const a = loadAgreements().find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  const fields = repFillableFields(a).map(f => {
+    let v = (a.fieldValues && a.fieldValues[f.id]);
+    if (v == null || v === '') v = signerFieldPrefill(a, f);
+    return { id: f.id, page: f.page, type: f.type, label: f.label || '', required: !!f.required, autofill: f.autofill || '', value: v || '' };
+  });
+  res.json({ ok: true, label: agreementTypeLabel(a.type), hasPlaced: Array.isArray(a.pdfFields) && a.pdfFields.length > 0, fields });
+});
+app.post('/api/agreements/:id/fill', express.json({ limit: '256kb' }), (req, res) => {
+  const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  const vals = (req.body && req.body.values && typeof req.body.values === 'object') ? req.body.values : {};
+  a.fieldValues = a.fieldValues || {};
+  repFillableFields(a).forEach(f => {
+    if (!(f.id in vals)) return;
+    if (f.type === 'checkbox') { a.fieldValues[f.id] = vals[f.id] ? '1' : ''; }
+    else { a.fieldValues[f.id] = String(vals[f.id] || '').slice(0, 500); }
+  });
+  a.updatedAt = new Date().toISOString(); saveAgreements(all);
+  res.json({ ok: true });
 });
 
 async function burnFinalPdf(a) {
@@ -7136,7 +7208,7 @@ async function burnFinalPdf(a) {
     } else if (f.type === 'checkbox') {
       const v = (a.fieldValues && a.fieldValues[f.id]); if (v === '1' || v === true || v === 'true') { const s = Math.min(bw, bh); page.drawText('X', { x: bx + Math.max(1, (bw - s * 0.6) / 2), y: byBottom + Math.max(1, (bh - s * 0.72) / 2), size: s * 0.9, font: bold, color: rgb(0.05, 0.09, 0.2) }); }
     } else {
-      const v = String((a.fieldValues && a.fieldValues[f.id]) || ''); if (v) { const size = Math.max(7, Math.min(12, bh * 0.62)); page.drawText(v.slice(0, 120), { x: bx + 2, y: byBottom + Math.max(2, (bh - size) / 2), size, font, color: rgb(0.05, 0.09, 0.2) }); }
+      const v = fmtSignVal(f.type, String((a.fieldValues && a.fieldValues[f.id]) || '')); if (v) { const size = Math.max(7, Math.min(12, bh * 0.62)); page.drawText(v.slice(0, 120), { x: bx + 2, y: byBottom + Math.max(2, (bh - size) / 2), size, font, color: rgb(0.05, 0.09, 0.2) }); }
     }
   }
   const ap = pdf.addPage(); const asz = ap.getSize(); const ah = asz.height; let y = ah - 60;
@@ -7159,7 +7231,7 @@ function submitAdvancedSign(req, res, all, a, me) {
   const b = req.body || {};
   const values = (b.values && typeof b.values === 'object') ? b.values : {};
   const sigs = (b.sigs && typeof b.sigs === 'object') ? b.sigs : {};
-  const myFields = (a.pdfFields || []).filter(f => f.signer === me.order);
+  const myFields = (a.pdfFields || []).filter(f => f.signer === me.order && (f.type === 'signature' || f.type === 'initials'));
   for (const f of myFields) {
     if (f.type === 'signature' || f.type === 'initials') { if (f.required && !sigs[f.id] && !fs.existsSync(sigFieldPath(a, f.id))) return res.status(400).json({ ok: false, error: 'Please complete: ' + (f.label || 'Signature') }); }
     else if (f.type === 'checkbox') {} 

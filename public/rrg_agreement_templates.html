@@ -64,7 +64,7 @@ textarea{min-height:92px;resize:vertical;line-height:1.5;}
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Admin</div>
   <h1>Agreement Templates</h1>
-  <div class="sub">Your standard agreements, stored once and reused. Reps pick a template on any contact's Agreements section — the document attaches and the signer's fields auto-fill from the record, ready to send for signature. Admin only.</div>
+  <div class="sub">Your standard agreements, stored once and reused. Upload the signable PDF, then place the signature, date and text fields right on the document. The rep fills every detail before sending — the signer only signs. Admin only.</div>
 </div></div>
 <div id="root" class="wrap"><div class="gate">Loading…</div></div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
@@ -150,18 +150,20 @@ function renderEditor(){
   host.innerHTML='<div class="card"><div class="ch"><b>'+(e.id?'Edit template':'New template')+'</b><span class="sp"></span><button class="btn ghost sm" id="t_close">Close</button></div><div class="cb">'+
     '<div class="grid2"><div><label class="fld">Template name</label><input id="t_name" value="'+esc(e.name||'')+'" placeholder="e.g. Standard Tenant Rep Agreement"></div>'+
     '<div><label class="fld">Category / type</label><select id="t_type">'+typeOpts+'</select></div></div>'+
-    '<div style="margin-top:16px"><label class="fld">Fields to complete before sending</label><div id="t_fieldrows"></div>'+
-      '<button type="button" class="btn ghost sm" id="t_addfield">+ Add field</button>'+
-      '<div class="note">Give each field a name and a type. <b>Auto-fill</b> pulls straight from the record (contact name, company, email, or today\u2019s date) \u2014 no typing needed. <b>Date</b>, <b>time</b>, <b>number</b> and <b>currency</b> format automatically across the system. The rep completes these before sending; the signer only signs.</div></div>'+
+    '<div style="margin-top:16px"><label class="fld">Template document — the agreement itself</label><div class="uprow">'+
+      (e.fileExt?('<span class="file-ok">📎 '+esc(e.fileName||'document')+'</span> <a class="btn ghost sm" href="/api/agreement-templates/'+esc(e.id)+'/file" target="_blank" rel="noopener">View</a>'):'<span id="t_fname" class="file-no">No file chosen yet</span>')+
+      '<label class="filelabel">⤒ '+(e.fileExt?'Replace file':'Choose file')+'<input type="file" id="t_file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label>'+
+      '</div><div class="note">Upload the signable PDF (or Word), up to 20 MB — it saves when you click '+(e.id?'Save changes':'Create template')+'.</div>'+
+      (e.fileExt==='pdf'?('<div style="margin-top:12px;padding:14px 16px;background:#eaf7f0;border:1px solid #bfe6d0;border-radius:12px">'+'<div style="font-weight:800;color:#0e6b47;font-size:13.5px;margin-bottom:3px">'+((e.pdfFields&&e.pdfFields.length)?('✓ '+e.pdfFields.length+' field'+(e.pdfFields.length===1?'':'s')+' placed on the document'):'Place the fields on the document')+'</div>'+'<div style="font-size:12px;color:#3f6b56;margin-bottom:11px;line-height:1.5">Drop signature, date and text fields exactly where they go, and assign who signs. The rep fills every detail before sending — the signer only signs, and the values print right on the page.</div>'+'<a class="btn sm" style="background:#0e8a5f;border-color:#0e8a5f;font-size:13px;padding:9px 16px" href="/rrg_sign_designer.html?template='+esc(e.id)+'">✍ '+((e.pdfFields&&e.pdfFields.length)?'Edit placed fields':'Design fields on the PDF')+'</a></div>'):(e.fileExt?('<div class="note" style="color:#b5791f;margin-top:8px">Field placement needs a <b>PDF</b>. This file is .'+esc(e.fileExt)+' — upload a PDF version to place fields on it.</div>'):(e.id?'<div class="note" style="margin-top:8px">Upload a PDF above, then place fields on it.</div>':'<div class="note" style="margin-top:8px">Save the template, then upload the PDF and place fields.</div>')))+
+      '</div>'+
     '<div style="margin-top:16px"><label class="fld">Email message (sent with the signing link)</label>'+
       '<textarea id="t_emailmsg" placeholder="'+esc(DEFAULT_EMAIL_MSG)+'">'+esc(e.emailMessage||'')+'</textarea>'+
       '<div class="note">Default note the signer gets with their link. The rep can tweak it per send. Leave blank to use the system default.</div></div>'+
     '<div class="chk"><input type="checkbox" id="t_active"'+((e.active===false)?'':' checked')+'> Active (reps can pick this template)</div>'+
-    '<div style="margin-top:16px"><label class="fld">Template document (PDF or Word)</label><div class="uprow">'+
-      (e.fileExt?('<span class="file-ok">📎 '+esc(e.fileName||'document')+'</span> <a class="btn ghost sm" href="/api/agreement-templates/'+esc(e.id)+'/file" target="_blank" rel="noopener">View</a>'):'<span id="t_fname" class="file-no">No file chosen yet</span>')+
-      '<label class="filelabel">⤒ '+(e.fileExt?'Replace file':'Choose file')+'<input type="file" id="t_file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label>'+
-      (e.fileExt==='pdf'?(' <a class="btn sm" style="background:#0e8a5f;border-color:#0e8a5f" href="/rrg_sign_designer.html?template='+esc(e.id)+'">✍ Design fields on the PDF</a>'):'')+
-      '</div><div class="note">Choose the file here — it saves together when you click '+(e.id?'Save changes':'Create template')+'. PDF or Word, up to 20 MB.</div></div>'+
+    '<details style="margin-top:18px"><summary style="cursor:pointer;font-size:12px;color:#8a93a8;font-weight:700;padding:4px 0">Legacy: simple field list (optional — not placed on the document)</summary>'+
+      '<div style="margin-top:10px"><div class="note" style="margin:0 0 10px">Older method — these values are captured but are <b>not</b> stamped onto the document. For anything a client signs, use <b>Design fields on the PDF</b> above instead.</div>'+
+      '<div id="t_fieldrows"></div>'+
+      '<button type="button" class="btn ghost sm" id="t_addfield">+ Add field</button></div></details>'+
     '<div class="btnrow"><button class="btn red" id="t_save">'+(e.id?'Save changes':'Create template')+'</button><span class="msg" id="t_msg"></span></div>'+
     '</div></div>';
   if(document.getElementById('t_type')) document.getElementById('t_type').value=e.type||'';

@@ -300,14 +300,42 @@ function renderAdvSig(a){
   var sentAlready=signers.some(function(s){return s.status!=='pending';});
   var btnLabel=(sentAlready?'Resend to ':'Send to ')+(pend?esc(pend.label||('Signer '+pend.order)):'signer');
   sig.innerHTML='<div class="agrsighd">In-PDF signing · '+esc(String(a.pdfFieldCount))+' field'+(a.pdfFieldCount===1?'':'s')+' · '+(a.signerCount===2?'2 signers (sequential)':'1 signer')+'</div>'+
-    '<div class="advsigners">'+rows+'</div>'+
+    '<div id="advfill"></div>'+'<div class="advsigners">'+rows+'</div>'+
     (doneAll?'<div class="agrsignedinfo">✓ Fully signed — the finished PDF with signatures and audit trail is ready.</div>':'')+
     '<div class="agrsigbtns" style="margin-top:10px">'+(doneAll?'':'<button type="button" class="mfadd" id="adv_send">✉ '+btnLabel+'</button>')+finalLink+'<span id="adv_msg" style="font-size:12px;color:#6b7488"></span></div>'+
     '<div style="font-size:11.5px;color:#98a1b5;margin-top:8px">Fields are placed on the template PDF (Admin → Agreement templates → Design fields).</div>';
   function saveSigners(){ var out={}; sig.querySelectorAll('.advname').forEach(function(n){ var o=+n.getAttribute('data-o'); out[o]=out[o]||{order:o}; out[o].name=n.value; }); sig.querySelectorAll('.advemail').forEach(function(e){ var o=+e.getAttribute('data-o'); out[o]=out[o]||{order:o}; out[o].email=e.value; }); var arr=Object.keys(out).map(function(k){return out[k];}); return fetch('/api/agreements/'+encodeURIComponent(a.id)+'/signers',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({signers:arr})}).then(function(r){return r.json();}); }
+  loadFillSection(a);
   sig.querySelectorAll('.advname,.advemail').forEach(function(el){ el.addEventListener('change',function(){ saveSigners(); }); });
-  var sb=document.getElementById('adv_send'); if(sb) sb.addEventListener('click',function(){ if(!EMAILREADY){ alert('Email is not set up yet (Admin → Email).'); return; } var m=document.getElementById('adv_msg'); m.textContent='Saving…'; saveSigners().then(function(){ m.textContent='Sending…'; return fetch('/api/agreements/'+encodeURIComponent(a.id)+'/send-adv',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}); }).then(function(j){ if(j&&j.ok){ load(); } else { m.textContent=(j&&j.error)||'Send failed.'; alert((j&&j.error)||'Send failed.'); } }).catch(function(){ m.textContent='Could not reach the server.'; }); });
+  var sb=document.getElementById('adv_send'); if(sb) sb.addEventListener('click',function(){ if(!EMAILREADY){ alert('Email is not set up yet (Admin → Email).'); return; } var m=document.getElementById('adv_msg'); m.textContent='Saving…'; saveFillSilent(a).then(function(){ return saveSigners(); }).then(function(){ m.textContent='Sending…'; return fetch('/api/agreements/'+encodeURIComponent(a.id)+'/send-adv',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}); }).then(function(j){ if(j&&j.ok){ load(); } else { m.textContent=(j&&j.error)||'Send failed.'; alert((j&&j.error)||'Send failed.'); } }).catch(function(){ m.textContent='Could not reach the server.'; }); });
 }
+function loadFillSection(a){
+  var host=document.getElementById('advfill'); if(!host) return;
+  fetch('/api/agreements/'+encodeURIComponent(a.id)+'/fill',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok||!j.fields||!j.fields.length){ host.innerHTML=''; return; }
+    var rows=j.fields.map(function(f){
+      var lab=esc(f.label||'Field')+(f.required?' <span style="color:#DA2B1F">*</span>':'');
+      var inp;
+      if(f.type==='checkbox'){ inp='<label style="display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:#1a2236"><input type="checkbox" data-ff="'+esc(f.id)+'"'+((f.value==='1'||f.value===true)?' checked':'')+' style="width:16px;height:16px"> Yes</label>'; }
+      else if(f.type==='date'){ inp='<input type="date" data-ff="'+esc(f.id)+'" value="'+esc(f.value||'')+'" style="width:100%;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:13px">'; }
+      else { inp='<input type="text" data-ff="'+esc(f.id)+'" value="'+esc(f.value||'')+'" placeholder="'+esc(f.label||'')+'" style="width:100%;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:13px">'; }
+      return '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:9px"><label style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;font-weight:700">'+lab+'</label>'+inp+'</div>';
+    }).join('');
+    host.innerHTML='<div style="background:#f7f9fc;border:1px solid #e6ebf3;border-radius:11px;padding:13px 14px;margin:2px 0 12px">'
+      +'<div style="font-size:12.5px;font-weight:800;color:#000E31;margin-bottom:2px">Fill in the details</div>'
+      +'<div style="font-size:11.5px;color:#6b7488;margin-bottom:11px">You complete these before sending. The signer only adds their signature.</div>'
+      +rows
+      +'<div style="display:flex;align-items:center;gap:10px;margin-top:4px"><button type="button" class="mfadd" id="advfill_save">Save details</button><span id="advfill_msg" style="font-size:12px;color:#1f8a5b;font-weight:700"></span></div></div>';
+    var sv=document.getElementById('advfill_save'); if(sv) sv.addEventListener('click',function(){ saveFill(a); });
+  }).catch(function(){ host.innerHTML=''; });
+}
+function collectFill(){ var host=document.getElementById('advfill'); var vals={}; if(!host) return vals; host.querySelectorAll('[data-ff]').forEach(function(el){ var id=el.getAttribute('data-ff'); vals[id]=(el.type==='checkbox')?(el.checked?'1':''):el.value; }); return vals; }
+function saveFill(a){
+  var m=document.getElementById('advfill_msg'); if(m){m.textContent='Saving…';m.style.color='#6b7488';}
+  fetch('/api/agreements/'+encodeURIComponent(a.id)+'/fill',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({values:collectFill()})}).then(function(r){return r.json();}).then(function(j){ if(m){ if(j&&j.ok){m.style.color='#1f8a5b';m.textContent='Saved ✓';} else {m.style.color='#DA2B1F';m.textContent='Save failed';} setTimeout(function(){ if(m) m.textContent=''; },2500); } }).catch(function(){ if(m){m.style.color='#DA2B1F';m.textContent='Save failed';} });
+}
+function saveFillSilent(a){ var host=document.getElementById('advfill'); if(!host||!host.querySelector('[data-ff]')) return Promise.resolve(); return fetch('/api/agreements/'+encodeURIComponent(a.id)+'/fill',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({values:collectFill()})}).then(function(r){return r.json();}).catch(function(){}); }
+
 function finishAgrSave(ag){ if(ag){ var found=false; AGREEMENTS=AGREEMENTS.map(function(x){ if(x.id===ag.id){found=true;return ag;} return x; }); if(!found) AGREEMENTS.push(ag); } var f=document.getElementById('agrForm'); if(f) f.setAttribute('hidden',''); render(); }
 function saveAgreement(){
   var msg=document.getElementById('agrMsg');
