@@ -139,7 +139,7 @@ function saveKey(){
 }
 function clearKey(){ if(!confirm('Clear the saved Claude API key? The environment key (if any) is used after the next restart.')) return; post('/api/admin/anthropic-key',{clear:true}).then(function(j){ renderKey(j); document.getElementById('keyMsg').textContent=(j&&j.note)||'Cleared.'; document.getElementById('keyMsg').className='msg ok'; }); }
 
-function saveBbsWindow(){ var m=document.getElementById('bbsMsg'); var d=parseInt(document.getElementById('bbsBack').value,10); if(!(d>=1&&d<=365)){ m.textContent='Enter a number of days between 1 and 365.'; m.className='msg err'; return; } m.textContent='Saving\u2026'; m.className='msg'; post('/api/bizbuysell/poll',{lookbackDays:d}).then(function(j){ if(j&&j.ok){ m.textContent='Saved \u2014 scans now look back '+(j.lookbackDays||d)+' days.'; m.className='msg ok'; } else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; } }); }
+function saveBbsWindow(){ var m=document.getElementById('bbsMsg'); var d=parseInt(document.getElementById('bbsBack').value,10); var o=parseInt(document.getElementById('bbsBackOn').value,10); if(!(d>=1&&d<=365)){ m.textContent='First scan: enter 1\u2013365 days.'; m.className='msg err'; return; } if(!(o>=1&&o<=365)){ m.textContent='Ongoing scans: enter 1\u2013365 days.'; m.className='msg err'; return; } m.textContent='Saving\u2026'; m.className='msg'; post('/api/bizbuysell/poll',{lookbackDays:d,lookbackDaysOngoing:o}).then(function(j){ if(j&&j.ok){ m.textContent='Saved \u2014 first scan '+(j.lookbackDays||d)+' days, then '+(j.lookbackDaysOngoing||o)+' days each time.'; m.className='msg ok'; } else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; } }); }
 function resetBook(){
   var m=document.getElementById('resetMsg'), v=document.getElementById('resetConfirm').value.trim();
   if(v!=='RESET'){ m.textContent='Type RESET (all caps) to confirm.'; m.className='msg err'; return; }
@@ -185,9 +185,10 @@ function build(){
     +'<div class="note">A key saved here is stored on the server data disk and overrides the ANTHROPIC_API_KEY environment variable. For security the current key is never shown back.</div>'
     +'</div></div>'
     +'<div class="card"><div class="ch"><b>BizBuySell auto-import</b><span>\u2014 how far back the Gmail lead scan looks</span></div><div class="cb">'
-    +'<label class="fld">Look-back window (days)</label><input id="bbsBack" type="number" min="1" max="365" placeholder="60" style="max-width:140px">'
-    +'<div class="btnrow"><button class="btn" id="bbsSave">Save window</button><span class="msg" id="bbsMsg"></span></div>'
-    +'<div class="note">Every Gmail scan (the manual Pull from Gmail and the periodic auto-check) imports BizBuySell leads from the last this-many days. Default 60. This applies system-wide to all reps.</div>'
+    +'<label class="fld">First scan \u2014 days back</label><input id="bbsBack" type="number" min="1" max="365" placeholder="60" style="max-width:140px">'
+    +'<label class="fld" style="margin-top:12px">Every scan after \u2014 days back</label><input id="bbsBackOn" type="number" min="1" max="365" placeholder="7" style="max-width:140px">'
+    +'<div class="btnrow"><button class="btn" id="bbsSave">Save windows</button><span class="msg" id="bbsMsg"></span></div>'
+    +'<div class="note">The very first Gmail scan reaches back the first number to catch history; every scan after only looks back the second, to grab what is new. Applies system-wide to all reps.</div>'
     +'</div></div>'
     +'<div class="sectionhd">Danger zone</div>'
     +'<div class="card danger"><div class="ch"><b>Reset the book</b><span>— permanent, no undo</span></div><div class="cb">'
@@ -209,7 +210,7 @@ function build(){
   document.getElementById('keyClear').addEventListener('click',clearKey);
   document.getElementById('resetBtn').addEventListener('click',resetBook);
   document.getElementById('bbsSave').addEventListener('click',saveBbsWindow);
-  get('/api/bizbuysell/poll').then(function(j){ if(j&&j.ok&&j.lookbackDays){ var _e=document.getElementById('bbsBack'); if(_e) _e.value=j.lookbackDays; } });
+  get('/api/bizbuysell/poll').then(function(j){ if(j&&j.ok){ var _e=document.getElementById('bbsBack'); if(_e&&j.lookbackDays) _e.value=j.lookbackDays; var _o=document.getElementById('bbsBackOn'); if(_o&&j.lookbackDaysOngoing) _o.value=j.lookbackDaysOngoing; } });
   // load current values
   get('/api/admin/types').then(function(j){ if(j&&j.ok){ TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[], leadSources:j.leadSources||[], activityTypes:j.activityTypes||[], cuisineTypes:j.cuisineTypes||[] }; MAXPULL=(j.maxPullLocations!=null?j.maxPullLocations:MAXPULL); DEFSTATE=(j.defaultState!=null?j.defaultState:DEFSTATE); ASSISTANT=(j.assistantName!=null?j.assistantName:ASSISTANT); CONCEPTL=(j.conceptLabel!=null?j.conceptLabel:CONCEPTL); CONCEPTLP=(j.conceptLabelPlural!=null?j.conceptLabelPlural:CONCEPTLP); SHOWRIBBON=(j.showRequestRibbon!=null?j.showRequestRibbon:SHOWRIBBON); renderTypes(); } });
   get('/api/admin/tool-labels').then(function(j){ if(j&&j.ok){ TOOLDEFS=j.tools||[]; TOOLLABELS=j.labels||{}; renderToolLabels(); } });
