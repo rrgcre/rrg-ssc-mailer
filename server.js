@@ -3573,6 +3573,31 @@ app.get('/api/companies', (req, res) => {
 });
 // A person's full cross-book view: their company, the deals where they're the client,
 // and every offer / tour / NDA they're linked to across all deals.
+const BIZ_PIPE = [
+  { k: 'room', name: 'Data Room', manual: false }, { k: 'outreach', name: 'Outreach', manual: true },
+  { k: 'call', name: 'Qualification Call', manual: false }, { k: 'questionnaire', name: 'Valuation Questionnaire', manual: false },
+  { k: 'bov', name: 'BOV', manual: false }, { k: 'agreed', name: 'Agreed', manual: true },
+  { k: 'pack', name: 'Marketing Pack', manual: false }, { k: 'attack', name: 'Attack Plan', manual: false },
+  { k: 'lease', name: 'Lease Abstract', manual: false }, { k: 'offers', name: 'Offers', manual: true },
+  { k: 'dd', name: 'Due Diligence', manual: true }, { k: 'closing', name: 'Closing', manual: true },
+];
+function listingStageSummary(d, overlay) {
+  try {
+    const o = overlay[d.key] || {}; const mf = o.stageFlags || {};
+    let stages = null;
+    if (o.pipelineId && o.pipelineId !== 'p_bizsales') {
+      const p = loadPipelines().find(x => x.id === o.pipelineId);
+      if (p && Array.isArray(p.stages) && p.stages.length) stages = p.stages.map((st, i) => ({ k: 'g' + i, name: st.name, manual: true }));
+    }
+    if (!stages) stages = BIZ_PIPE;
+    let auto = {}; try { auto = (assignmentView(d, overlay).stages) || {}; } catch (e) {}
+    const isDone = s => s.manual ? !!mf[s.k] : !!(auto[s.k] && auto[s.k].done);
+    const total = stages.length; const done = stages.filter(isDone).length;
+    let cur = stages.findIndex(s => !isDone(s)); const allDone = cur < 0;
+    if (cur < 0) cur = total - 1;
+    return { label: allDone ? 'Complete' : (stages[cur] ? stages[cur].name : ''), done: done, total: total };
+  } catch (e) { return { label: '', done: 0, total: 0 }; }
+}
 app.get('/api/person/:id', (req, res) => {
   const p = personById(req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
@@ -3582,13 +3607,14 @@ app.get('/api/person/:id', (req, res) => {
   const _pEmails = personEmails(p).map(e => String(e || '').toLowerCase()).filter(Boolean);
   const deals = [], offers = [], tours = [], ndas = [], interested = [];
   (Array.isArray(p.tours) ? p.tours : []).forEach(x => tours.push({ id: x.id, key: '', business: '', date: x.date, interest: x.interest, notes: x.notes, personLevel: true }));
-  loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client' }); });
+  loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); const _st = idx[key] ? listingStageSummary(idx[key], overlay) : null; deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client', stage: _st ? _st.label : '', stageDone: _st ? _st.done : 0, stageTotal: _st ? _st.total : 0 }); });
   for (const key in overlay) {
     const o = overlay[key], biz = bizByKey[key] || '(deal)';
+    const _keyStage = idx[key] ? listingStageSummary(idx[key], overlay) : null;
     (o.offers || []).filter(x => x.personId === p.id).forEach(x => offers.push({ key: key, business: biz, type: x.type, amount: x.amount, status: x.status, received: x.received }));
     (o.tours || []).filter(x => x.personId === p.id).forEach(x => tours.push({ id: x.id, key: key, business: biz, date: x.date, interest: x.interest }));
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
-    (o.inquiries || []).forEach(x => { const _m = (x.personId && x.personId === p.id) || (x.email && _pEmails.indexOf(String(x.email).toLowerCase()) >= 0); if (_m && !interested.some(it => it.key === key)) interested.push({ key: key, business: biz, status: x.status || 'New', inquiryId: x.id, date: x.date || x.createdAt || '', source: x.source || '' }); });
+    (o.inquiries || []).forEach(x => { const _m = (x.personId && x.personId === p.id) || (x.email && _pEmails.indexOf(String(x.email).toLowerCase()) >= 0); if (_m && !interested.some(it => it.key === key)) interested.push({ key: key, business: biz, status: x.status || 'New', inquiryId: x.id, date: x.date || x.createdAt || '', source: x.source || '', stage: _keyStage ? _keyStage.label : '', stageDone: _keyStage ? _keyStage.done : 0, stageTotal: _keyStage ? _keyStage.total : 0 }); });
   }
   res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, interested, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
