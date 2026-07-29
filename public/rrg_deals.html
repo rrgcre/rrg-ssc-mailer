@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RRG — Deals</title>
 <script src="/rrg_brand.js"></script>
+<style>.rl-filtbtn{display:none!important;}</style>
 <script src="/rrg_list.js"></script>
+<script src="/rrg_filters.js"></script>
 <style>
 :root{ --navy:#000E31; --red:#DA2B1F; --ink:#1a2236; --muted:#6b7488; --line:#e6e9f0; --wash:#f5f7fb; --bg:#eef1f6; --green:#1f8a5b; }
 *{box-sizing:border-box;} html,body{margin:0;padding:0;}
@@ -42,7 +44,7 @@ h1{font-size:26px;font-weight:800;margin:5px 0 0;}
 </div></div>
 <div class="wrap">
   <div class="tiles" id="tiles"></div>
-  <div class="card"><div class="hd"><b>Deals</b><span class="meta" id="cnt"></span><button id="newDealBtn" class="newdealbtn">+ New deal</button></div><div class="cb"><div id="list"><div class="empty">Loading…</div></div></div></div>
+  <div class="card"><div class="hd"><b>Deals</b><span class="meta" id="cnt"></span><button id="filterBtn" class="rlf-btn">⚙ Filters</button><button id="newDealBtn" class="newdealbtn">+ New deal</button></div><div class="cb"><div id="list"><div class="empty">Loading…</div></div></div></div>
 </div>
 <div id="ndModal" style="position:fixed;inset:0;background:rgba(6,14,32,.55);display:none;align-items:flex-start;justify-content:center;z-index:200;padding:28px 20px;overflow:auto">
   <div style="background:#fff;border-radius:16px;width:100%;max-width:560px;box-shadow:0 24px 60px rgba(0,0,0,.35)">
@@ -66,7 +68,13 @@ function stColor(s){ var m={'LOI':['#eef2fb','#2647b0'],'Under Contract':['#fff4
 function commColor(s){ var m={'Unpaid':['#fdeceb','#DA2B1F'],'Invoiced':['#fff4e6','#b9761a'],'Partial':['#fff7e0','#9a7400'],'Paid':['#e7f5ee','#1f8a5b']}; return m[s]||['#eef1f6','#5b6472']; }
 function pill(s,c){ if(!s) return '<span class="meta">—</span>'; return '<span class="pill" style="background:'+c[0]+';color:'+c[1]+'">'+esc(s)+'</span>'; }
 
-var ALL=[], FILTER='', CTL=null; var STATUSES=[], COMMSTATUSES=[], LISTINGS=[];
+var ALL=[], FILTER='', CTL=null, IS_ADMIN=false; var STATUSES=[], COMMSTATUSES=[], LISTINGS=[];
+function dDistinct(key){ var m={}; (ALL||[]).forEach(function(d){ var v=d[key]; if(v) m[v]=1; }); return Object.keys(m).sort(); }
+var CF=(window.RRGFilters&&document.getElementById('filterBtn'))?RRGFilters.create({ list:'deals', title:'deals', button:document.getElementById('filterBtn'), isAdmin:function(){return IS_ADMIN;}, fields:[
+  { key:'status', label:'Status', type:'multi', options:function(){return STATUSES.length?STATUSES:dDistinct('status');}, get:function(d){return d.status||'';} },
+  { key:'commissionStatus', label:'Commission', type:'multi', options:function(){return COMMSTATUSES.length?COMMSTATUSES:dDistinct('commissionStatus');}, get:function(d){return d.commissionStatus||'';} },
+  { key:'close', label:'Close', type:'daterange', get:function(d){return d.closedDate||d.expectedClose||'';} }
+], onChange:applyFilter }):null;
 var DEFS=[
   ['', 'All deals', function(){return true;}],
   ['uc', 'Under contract', function(d){return d.status==='Under Contract';}],
@@ -95,8 +103,8 @@ function cfg(data){ return { mount:'#list', data:data, key:'dealsboard',
     { label:'Rate', defaultHidden:true, sortable:false, cell:function(d){ return d.commissionRate?esc(d.commissionRate):'<span class="meta">—</span>'; } }
   ]
 }; }
-function applyFilter(){ var data=ALL.filter(filterFn()); document.getElementById('cnt').textContent=data.length?(data.length+' deal'+(data.length===1?'':'s')):''; if(CTL) CTL.refresh(data); else CTL=RRGList.create(cfg(data)); }
-function reloadDeals(){ return fetch('/api/deals',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.deals)||[]; if(j&&j.statuses) STATUSES=j.statuses; if(j&&j.commStatuses) COMMSTATUSES=j.commStatuses; renderTiles(); applyFilter(); }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not load deals.</div>'; }); }
+function applyFilter(){ var base=(typeof CF!=='undefined'&&CF)?CF.filter(ALL):ALL; var data=base.filter(filterFn()); if(typeof CF!=='undefined'&&CF) CF.updateBtn(); var _x=data; document.getElementById('cnt').textContent=data.length?(data.length+' deal'+(data.length===1?'':'s')):''; if(CTL) CTL.refresh(data); else CTL=RRGList.create(cfg(data)); }
+function reloadDeals(){ return fetch('/api/deals',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.deals)||[]; if(j&&j.statuses) STATUSES=j.statuses; if(j&&j.commStatuses) COMMSTATUSES=j.commStatuses; IS_ADMIN=!!(j&&j.isAdmin); renderTiles(); applyFilter(); }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not load deals.</div>'; }); }
 function openNewDeal(){ var m=document.getElementById('ndModal'); m.style.display='flex'; document.getElementById('nd_msg').textContent=''; ['nd_buyer','nd_bemail','nd_price','nd_close','nd_crate','nd_cdue','nd_notes'].forEach(function(id){var e=document.getElementById(id); if(e)e.value='';});
   document.getElementById('nd_status').innerHTML=(STATUSES.length?STATUSES:['LOI','Under Contract','Due Diligence','Financing','Closing','Closed','Dead']).map(function(x){return '<option>'+esc(x)+'</option>';}).join('');
   document.getElementById('nd_cstatus').innerHTML='<option value="">—</option>'+(COMMSTATUSES.length?COMMSTATUSES:['Unpaid','Invoiced','Partial','Paid']).map(function(x){return '<option>'+esc(x)+'</option>';}).join('');

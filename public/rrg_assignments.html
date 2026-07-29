@@ -84,7 +84,7 @@ tr:hover td{background:#fbfcfe;}
 <div class="wrap">
   <div class="tiles" id="tiles"></div>
   <div class="card">
-    <div class="hd"><b>Listings</b><span class="cnt" id="cnt"></span><button id="newDealBtn" class="newdeal">+ New listing</button><input id="search" placeholder="Search business, market, contact…" oninput="applyFilters()"><select id="stageFilter" class="stagesel" onchange="setStageFilter(this.value)"><option value="">All stages</option><option value="call">Call</option><option value="questionnaire">VQ</option><option value="bov">BOV</option><option value="pack">Pack</option><option value="lease">Lease</option><option value="attack">MAP</option><option value="room">Room</option></select></div>
+    <div class="hd"><b>Listings</b><span class="cnt" id="cnt"></span><button id="newDealBtn" class="newdeal">+ New listing</button><button id="filterBtn" class="rlf-btn" style="margin-left:8px">⚙ Filters</button><input id="search" placeholder="Search business, market, contact…" oninput="applyFilters()"><select id="stageFilter" class="stagesel" onchange="setStageFilter(this.value)"><option value="">All stages</option><option value="call">Call</option><option value="questionnaire">VQ</option><option value="bov">BOV</option><option value="pack">Pack</option><option value="lease">Lease</option><option value="attack">MAP</option><option value="room">Room</option></select></div>
     <div id="body"></div>
   </div>
 </div>
@@ -120,11 +120,20 @@ tr:hover td{background:#fbfcfe;}
   </div>
   <div class="modalf"><button id="imp_cancel" class="mbtn ghost">Close</button><button id="imp_go" class="mbtn" disabled>Import</button></div>
 </div></div>
+<style>.rl-filtbtn{display:none!important;}</style>
 <script src="/rrg_list.js"></script>
+<script src="/rrg_filters.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
-var ALL=[], CTL=null, FILTER='', CAN_DELETE=false;
+var ALL=[], CTL=null, FILTER='', CAN_DELETE=false, IS_ADMIN=false;
+function laDistinct(key){ var m={}; (ALL||[]).forEach(function(a){ var v=a[key]; if(v) m[v]=1; }); return Object.keys(m).sort(); }
+var CF=(window.RRGFilters&&document.getElementById('filterBtn'))?RRGFilters.create({ list:'listings', title:'listings', button:document.getElementById('filterBtn'), isAdmin:function(){return IS_ADMIN;}, fields:[
+  { key:'status', label:'Status', type:'multi', options:function(){return laDistinct('status');}, get:function(a){return a.status||'';} },
+  { key:'market', label:'Market', type:'multi', options:function(){return laDistinct('market');}, get:function(a){return a.market||'';} },
+  { key:'owner', label:'Owner', type:'multi', options:function(){return laDistinct('owner');}, get:function(a){return a.owner||'';} },
+  { key:'updated', label:'Updated', type:'daterange', get:function(a){return a.lastActivity||'';} }
+], onChange:applyFilters }):null;
 var STAGEFILTER='';
 var STAGES=[['call','Call'],['questionnaire','VQ'],['bov','BOV'],['pack','Pack'],['lease','Lease'],['attack','MAP'],['room','Room']];
 function pipeCell(a){
@@ -154,13 +163,14 @@ function renderTiles(){
 function setStatusFilter(s){ FILTER=(FILTER===s?'':s); renderTiles(); applyFilters(); }
 function applyFilters(){
   var q=(document.getElementById('search').value||'').toLowerCase().trim();
-  var list=ALL.filter(function(a){
+  var base=(typeof CF!=='undefined'&&CF)?CF.filter(ALL):ALL;
+  var list=base.filter(function(a){
     if(FILTER && a.status!==FILTER) return false;
     if(STAGEFILTER && currentStageKey(a)!==STAGEFILTER) return false;
     if(q){ var hay=(a.business+' '+a.market+' '+a.contact+' '+a.owner).toLowerCase(); if(!(window.rrgFuzzy?window.rrgFuzzy(hay,q):(hay.indexOf(q)>=0))) return false; }
     return true;
   });
-  renderList(list);
+  renderList(list); if(typeof CF!=='undefined'&&CF) CF.updateBtn();
 }
 function renderList(list){
   var cfg={
@@ -216,7 +226,7 @@ document.getElementById('dealModal').addEventListener('click',function(e){ /* cl
 loadPeople();
 function load(){
   fetch('/api/assignments',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    ALL=(j&&j.assignments)||[]; CAN_DELETE=!!(j&&j.canDelete); if(j&&j.metros){ var _mdl=document.getElementById('ndmetrolist'); if(_mdl) _mdl.innerHTML=j.metros.map(function(m){return '<option value="'+esc(m)+'">';}).join(''); } renderTiles(); applyFilters();
+    ALL=(j&&j.assignments)||[]; CAN_DELETE=!!(j&&j.canDelete); IS_ADMIN=!!(j&&j.isAdmin); if(j&&j.metros){ var _mdl=document.getElementById('ndmetrolist'); if(_mdl) _mdl.innerHTML=j.metros.map(function(m){return '<option value="'+esc(m)+'">';}).join(''); } renderTiles(); applyFilters();
   }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load listings.</div>'; });
 }
 load();

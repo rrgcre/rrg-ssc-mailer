@@ -80,7 +80,7 @@ tr:hover td{background:#fbfcfe;}
 </div></div>
 <div class="wrap">
   <div class="card">
-    <div class="hd"><b>Companies</b><span class="cnt" id="cnt"></span><button id="newBtn" class="newbtn">+ New company</button><input id="search" placeholder="Search name or market…" oninput="applyFilter()"></div>
+    <div class="hd"><b>Companies</b><span class="cnt" id="cnt"></span><button id="newBtn" class="newbtn">+ New company</button><button id="filterBtn" class="rlf-btn" style="margin-left:8px">⚙ Filters</button><input id="search" placeholder="Search name or market…" oninput="applyFilter()"></div>
     <div id="body"></div>
   </div>
 </div>
@@ -106,7 +106,9 @@ tr:hover td{background:#fbfcfe;}
   </div>
   <div class="modalf"><button id="m_cancel" class="mbtn ghost">Cancel</button><button id="m_create" class="mbtn">Create company</button></div>
 </div></div>
+<style>.rl-filtbtn{display:none!important;}</style>
 <script src="/rrg_list.js"></script>
+<script src="/rrg_filters.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function typeColor(t){ var m={'Seller':['#e8f0fd','#2f6fd0'],'Buyer':['#e7f5ee','#1f8a5b'],'Restaurant Group':['#f3edfb','#7a4fd0'],'Landlord':['#fdf1df','#b5791f'],'Investor':['#f3edfb','#7a4fd0'],'Other':['#eef1f6','#6b7488']}; if(m[t]) return m[t]; var pal=[['#e8f0fd','#2f6fd0'],['#e7f5ee','#1f8a5b'],['#f3edfb','#7a4fd0'],['#fdf1df','#b5791f'],['#fdeef4','#b83280'],['#e6f5f3','#0f766e']]; var h=0; for(var i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return pal[h%pal.length]; }
@@ -118,11 +120,24 @@ function aiShow(msg,onCancel){ _aiEnsure(); document.getElementById('aiworktitle
 function aiSetMsg(msg){ var m=document.getElementById('aiworkmsg'); if(m) m.textContent=msg||''; }
 function aiHide(){ var o=document.getElementById('aiwork'); if(o) o.hidden=true; AIWORK.onCancel=null; if(AIWORK.timer){ clearInterval(AIWORK.timer); AIWORK.timer=null; } }
 var ALL=[], CTL=null, IS_ADMIN=false, CAN_DELETE=false, _foundGroupSite='';
+function coOwners(){ var m={}; (ALL||[]).forEach(function(c){ if(c.owner) m[c.owner]=1; }); return Object.keys(m).sort(); }
+function coLeads(){ var m={}; (ALL||[]).forEach(function(c){ if(c.leadSource) m[c.leadSource]=1; }); return Object.keys(m).sort(); }
+function coMarkets(){ var m={}; (ALL||[]).forEach(function(c){ (c.markets||[]).forEach(function(x){ if(x) m[x]=1; }); }); return Object.keys(m).sort(); }
+function coTags(){ var m={}; (ALL||[]).forEach(function(c){ (c.tags||[]).forEach(function(x){ if(x) m[x]=1; }); }); return Object.keys(m).sort(); }
+var CF=(window.RRGFilters&&document.getElementById('filterBtn'))?RRGFilters.create({ list:'companies', title:'companies', button:document.getElementById('filterBtn'), isAdmin:function(){return IS_ADMIN;}, fields:[
+  { key:'types', label:'Type', type:'multi', options:function(){return CTYPES;}, get:function(c){return c.type||'';} },
+  { key:'markets', label:'Market', type:'multiany', options:coMarkets, get:function(c){return c.markets||[];} },
+  { key:'owners', label:'Owner', type:'multi', options:coOwners, get:function(c){return c.owner||'';} },
+  { key:'leadSources', label:'Lead source', type:'multi', options:coLeads, get:function(c){return c.leadSource||'';} },
+  { key:'tags', label:'Tags', type:'tags', options:coTags, get:function(c){return c.tags||[];} },
+  { key:'created', label:'Created', type:'daterange', get:function(c){return c.createdAt||'';} }
+], onChange:applyFilter }):null;
 function fuzzyMatch(hay,q){ hay=(hay||'').toLowerCase(); q=(q||'').toLowerCase().trim(); if(!q) return true; return q.split(/\s+/).every(function(t){ if(!t) return true; if(hay.indexOf(t)>=0) return true; var i=0; for(var j=0;j<hay.length&&i<t.length;j++){ if(hay.charAt(j)===t.charAt(i)) i++; } return i===t.length; }); }
 function applyFilter(){
   var q=(document.getElementById('search').value||'').trim();
-  var list=ALL.filter(function(c){ if(!q) return true; var hay=(c.name||'')+' '+((c.markets||[]).join(' '))+' '+(c.type||'')+' '+((c.tags||[]).join(' '))+' '+(c.mainContact||''); return fuzzyMatch(hay,q); });
-  renderList(list);
+  var base=(typeof CF!=='undefined'&&CF)?CF.filter(ALL):ALL;
+  var list=base.filter(function(c){ if(!q) return true; var hay=(c.name||'')+' '+((c.markets||[]).join(' '))+' '+(c.type||'')+' '+((c.tags||[]).join(' '))+' '+(c.mainContact||''); return fuzzyMatch(hay,q); });
+  renderList(list); if(typeof CF!=='undefined'&&CF) CF.updateBtn();
 }
 window.rrgLiveSearch=function(q){ var el=document.getElementById('search'); if(el && el.value!==q){ el.value=q; } applyFilter(); };
 (function(){ try{ var qp=new URLSearchParams(location.search).get('q'); if(qp){ var el=document.getElementById('search'); if(el) el.value=qp; } }catch(e){} })();
