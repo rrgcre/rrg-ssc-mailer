@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Import Data</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--indigo:#4a5cd0;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#22346a 0%,#152752 40%,#0b1636 72%,#060f26 100%);color:#fff;padding:28px 0 26px;position:relative;overflow:hidden;}
+.top:after{content:"";position:absolute;right:-60px;top:-40px;width:280px;height:280px;background:radial-gradient(circle,rgba(74,92,208,.28),transparent 62%);}
+.top-in{max-width:1080px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
+.kicker{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:14px 0 4px;}
+h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.01em;} .sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:720px;line-height:1.55;}
+.srcrow{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
+.srcchip{display:inline-flex;align-items:center;gap:7px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.16);color:#dfe6f5;border-radius:100px;padding:6px 13px;font-size:12px;font-weight:700;cursor:pointer;transition:.12s;}
+.srcchip:hover{background:rgba(255,255,255,.14);} .srcchip.on{background:#fff;color:var(--navy);border-color:#fff;}
+.srcchip .dot{width:9px;height:9px;border-radius:50%;}
+.wrap{max-width:1080px;margin:22px auto;padding:0 24px 80px;}
+.stepper{display:flex;align-items:center;gap:0;margin-bottom:20px;}
+.step{display:flex;align-items:center;gap:9px;color:var(--soft);font-size:12.5px;font-weight:700;}
+.step .num{width:26px;height:26px;border-radius:50%;background:#fff;border:1.5px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--soft);}
+.step.on{color:var(--navy);} .step.on .num{background:var(--navy);border-color:var(--navy);color:#fff;}
+.step.done .num{background:var(--green);border-color:var(--green);color:#fff;}
+.stepline{flex:1;height:2px;background:var(--line);margin:0 12px;min-width:20px;}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff;margin-bottom:18px;}
+.seg button{font:inherit;font-size:13px;font-weight:700;padding:10px 20px;border:none;background:#fff;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:8px;}
+.seg button.on{background:var(--navy);color:#fff;}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;box-shadow:0 8px 28px rgba(10,20,50,.07);margin-bottom:18px;overflow:hidden;}
+.ch{padding:15px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:11px;} .ch b{color:var(--navy);font-size:15px;} .ch .st{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#fff;background:var(--navy);border-radius:100px;padding:3px 10px;} .ch .hint{margin-left:auto;font-size:12px;color:var(--soft);}
+.cb{padding:20px;}
+.drop{border:2px dashed #cbd4e4;border-radius:14px;padding:38px 24px;text-align:center;color:var(--muted);cursor:pointer;transition:.14s;background:linear-gradient(180deg,#fbfcff,#f6f8fd);}
+.drop:hover,.drop.over{border-color:var(--indigo);background:#eef2fe;transform:translateY(-1px);}
+.drop .ic{font-size:30px;margin-bottom:8px;} .drop b{color:var(--navy);display:block;font-size:16px;margin-bottom:4px;} .drop span{font-size:12.5px;}
+.filepill{display:inline-flex;align-items:center;gap:9px;background:#eef7f1;border:1px solid #bfe6d0;border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;color:#0e6b47;margin-top:12px;}
+.btn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:10px;padding:11px 19px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;transition:.12s;} .btn:hover{filter:brightness(1.08);} .btn.ghost{background:#fff;color:var(--navy);border-color:#cdd6e6;} .btn.green{background:var(--green);border-color:var(--green);} .btn.big{padding:13px 24px;font-size:14.5px;} .btn:disabled{opacity:.5;cursor:default;}
+.maprow{display:grid;grid-template-columns:190px 1fr 150px;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid #f2f4f9;}
+.maprow:last-child{border-bottom:none;}
+.maprow .lbl{font-size:13px;font-weight:700;color:var(--ink);} .maprow .lbl .req{color:var(--red);} .maprow .lbl .hint{display:block;font-size:11px;color:var(--soft);font-weight:500;margin-top:1px;}
+.maprow select{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:inherit;font-size:13px;background:#fff;}
+.maprow.auto select{background:#eef7f1;border-color:#bfe6d0;} .maprow.unset select{color:var(--soft);}
+.sample{font-size:11.5px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .sample b{color:var(--ink);font-weight:600;}
+.deftype{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line);flex-wrap:wrap;}
+.deftype select{border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:inherit;font-size:13px;}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:11px;}
+table{border-collapse:collapse;width:100%;font-size:12px;} th,td{border-bottom:1px solid #eef1f6;padding:8px 11px;text-align:left;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;} th{background:#fbfcfe;color:#6b7488;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;font-weight:800;} tbody tr:hover td{background:#fafbff;}
+.note{font-size:12px;color:var(--muted);line-height:1.55;margin-top:10px;} .note b{color:var(--ink);}
+.res{display:flex;gap:14px;flex-wrap:wrap;margin:4px 0 2px;}
+.rc{background:linear-gradient(180deg,#fff,#f7f9fd);border:1px solid var(--line);border-radius:13px;padding:14px 18px;min-width:120px;} .rc .n{font-size:26px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;} .rc .l{font-size:11px;color:var(--soft);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-top:2px;} .rc.g .n{color:var(--green);} .rc.a .n{color:#b5791f;}
+.msg{font-size:13px;font-weight:700;} .msg.err{color:var(--red);} .msg.ok{color:var(--green);}
+.bar{position:sticky;bottom:0;background:linear-gradient(180deg,rgba(255,255,255,0),#fff 40%);padding:14px 0 2px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);}
+.hide{display:none!important;}
+.progline{height:6px;background:#eef1f6;border-radius:100px;overflow:hidden;margin-top:12px;} .progline i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--indigo),var(--green));transition:width .3s;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="./index.html" class="rrg-back" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <span class="disc" onclick="location.href='./index.html'">RRG</span>
+  <div class="kicker">Data Migration</div>
+  <h1>Import your data</h1>
+  <div class="sub">Bring your companies and contacts in from any CRM in three steps. Export a spreadsheet, drop it here, and FullServe auto-detects the columns, dedupes, and links every contact to its company. Works with Copper, HubSpot, Salesforce, Pipedrive — or any CSV / Excel file.</div>
+  <div class="srcrow" id="srcrow"></div>
+</div></div>
+<div id="root" class="wrap"><div class="gate">Checking access…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var MODE='contacts', SOURCE='copper', HEADERS=[], ROWS=[], MAP={};
+var PERSON_TYPES=['Buyer','Seller','Tenant','Investor','Broker','Referral Source','Internal Personnel','Other'];
+var SOURCES=[{k:'copper',n:'Copper',c:'#f2792b'},{k:'hubspot',n:'HubSpot',c:'#ff7a59'},{k:'salesforce',n:'Salesforce',c:'#00a1e0'},{k:'pipedrive',n:'Pipedrive',c:'#26292c'},{k:'other',n:'Any CSV / Excel',c:'#6b7488'}];
+var FIELDS={
+  companies:[
+    {k:'name',label:'Company name',req:true,alias:['company name','name','account name','organization name','organization','company','account']},
+    {k:'type',label:'Type',alias:['contact type','company type','type','category']},
+    {k:'market',label:'Market / metro',alias:['market','metro','city','region','territory']},
+    {k:'phone',label:'Phone',multi:true,alias:['phone','phones','phone number','telephone','work phone','main phone','company phone']},
+    {k:'website',label:'Website',alias:['website','websites','url','web','domain','company domain','email domain']},
+    {k:'email',label:'Email',multi:true,alias:['email','emails','e-mail','email address','company email']},
+    {k:'address',label:'Street address',alias:['address','street','street address','address 1','address line 1','mailing street','billing street']},
+    {k:'city',label:'City',alias:['city','town','mailing city','billing city']},
+    {k:'state',label:'State',alias:['state','province','mailing state','billing state']},
+    {k:'tags',label:'Tags',alias:['tags','tag','labels','lists','groups','segments']},
+    {k:'notes',label:'Notes',alias:['details','notes','description','note','comments','about','background']}
+  ],
+  contacts:[
+    {k:'firstName',label:'First name',alias:['first name','first','firstname','given name','fname']},
+    {k:'lastName',label:'Last name',alias:['last name','last','lastname','surname','family name','lname']},
+    {k:'name',label:'Full name',hint:'used if first/last are not split',alias:['name','full name','contact name','person','display name']},
+    {k:'type',label:'Contact type',alias:['contact type','type','category','role','lead type']},
+    {k:'email',label:'Email(s)',multi:true,alias:['email','emails','e-mail','email address','work email','other email','primary email','email 1']},
+    {k:'phone',label:'Phone(s)',multi:true,alias:['phone','phones','phone number','mobile','mobile phone','work phone','cell','telephone','primary phone','phone 1']},
+    {k:'companyName',label:'Company',alias:['company','company name','account','account name','organization','organization name','employer']},
+    {k:'title',label:'Title',alias:['title','job title','position','role']},
+    {k:'tags',label:'Tags',alias:['tags','tag','labels','lists','groups','segments']},
+    {k:'leadSource',label:'Lead source',alias:['lead source','source','origin','original source']},
+    {k:'url',label:'Website',alias:['website','websites','url','web','linkedin','linkedin url']},
+    {k:'notes',label:'Notes',alias:['details','notes','description','note','comments','about','background']}
+  ]
+};
+function norm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
+function matchCols(f){ var out=[]; HEADERS.forEach(function(h,i){ var nh=norm(h); if(f.alias.some(function(a){return nh===norm(a)||nh.indexOf(norm(a))>=0;})) out.push(i); }); return out; }
+function autodetect(){
+  MAP={};
+  FIELDS[MODE].forEach(function(f){
+    if(f.multi){ var mc=matchCols(f); MAP[f.k]=mc.length?'__auto__':-1; }
+    else { var best=-1; HEADERS.forEach(function(h,i){ if(best<0 && f.alias.some(function(a){return norm(h)===norm(a);})) best=i; }); if(best<0) HEADERS.forEach(function(h,i){ if(best<0 && f.alias.some(function(a){return norm(h).indexOf(norm(a))>=0;})) best=i; }); MAP[f.k]=best; }
+  });
+}
+function sampleVal(idx){ for(var i=0;i<ROWS.length&&i<5;i++){ var v=ROWS[i][idx]; if(v!=null&&String(v).trim()!=='') return String(v).trim(); } return ''; }
+function renderMapping(){
+  var host=document.getElementById('mapbox'); if(!host) return;
+  host.innerHTML=FIELDS[MODE].map(function(f){
+    var cur=MAP[f.k];
+    var opts='';
+    if(f.multi){ var mc=matchCols(f); opts+='<option value="__auto__"'+(cur==='__auto__'?' selected':'')+'>Auto — combine '+(mc.length||0)+' column'+(mc.length===1?'':'s')+'</option>'; }
+    opts+='<option value="-1"'+(cur===-1?' selected':'')+'>— none —</option>';
+    HEADERS.forEach(function(h,i){ opts+='<option value="'+i+'"'+((''+cur)===(''+i)?' selected':'')+'>'+esc(h)+'</option>'; });
+    var samp=''; if(typeof cur==='number'&&cur>=0){ var sv=sampleVal(cur); if(sv) samp='<span class="sample">e.g. <b>'+esc(sv.slice(0,40))+'</b></span>'; } else if(cur==='__auto__'){ var mc2=matchCols(f); samp='<span class="sample">'+mc2.map(function(i){return esc(HEADERS[i]);}).join(' + ')+'</span>'; }
+    var cls=(cur==='__auto__')?' auto':((cur===-1||cur===undefined)?' unset':'');
+    return '<div class="maprow'+cls+'"><div class="lbl">'+esc(f.label)+(f.req?' <span class="req">*</span>':'')+(f.hint?'<span class="hint">'+esc(f.hint)+'</span>':'')+'</div><select data-fk="'+f.k+'">'+opts+'</select>'+(samp||'<span class="sample"></span>')+'</div>';
+  }).join('');
+  host.querySelectorAll('select[data-fk]').forEach(function(sel){ sel.addEventListener('change',function(){ var v=sel.value; MAP[sel.getAttribute('data-fk')]=(v==='__auto__')?'__auto__':parseInt(v,10); renderMapping(); renderPreview(); updateStepper(); }); });
+}
+function rowObj(row){
+  var o={};
+  FIELDS[MODE].forEach(function(f){ var m=MAP[f.k];
+    if(m==='__auto__'){ var vals=matchCols(f).map(function(i){return row[i];}).filter(function(v){return v!=null&&String(v).trim()!=='';}); if(vals.length) o[f.k]=vals.join('; '); }
+    else if(typeof m==='number' && m>=0){ var v=row[m]; if(v!=null&&String(v).trim()!=='') o[f.k]=String(v).trim(); }
+  });
+  return o;
+}
+function nameMapped(){ return MODE==='companies' ? (typeof MAP.name==='number'&&MAP.name>=0) : ((typeof MAP.firstName==='number'&&MAP.firstName>=0)||(typeof MAP.lastName==='number'&&MAP.lastName>=0)||(typeof MAP.name==='number'&&MAP.name>=0)); }
+function renderPreview(){
+  var host=document.getElementById('prevbox'); if(!host) return;
+  var objs=ROWS.slice(0,8).map(rowObj);
+  var cols=FIELDS[MODE].filter(function(f){ return MAP[f.k]==='__auto__' || (typeof MAP[f.k]==='number'&&MAP[f.k]>=0); });
+  if(!cols.length){ host.innerHTML='<div class="note">Map at least the name column to preview.</div>'; return; }
+  var th='<tr>'+cols.map(function(f){return '<th>'+esc(f.label)+'</th>';}).join('')+'</tr>';
+  var tr=objs.map(function(o){ return '<tr>'+cols.map(function(f){return '<td>'+esc(o[f.k]||'')+'</td>';}).join('')+'</tr>'; }).join('');
+  host.innerHTML='<div class="tblwrap"><table><thead>'+th+'</thead><tbody>'+tr+'</tbody></table></div><div class="note">Previewing '+objs.length+' of <b>'+ROWS.length+'</b> rows.</div>';
+}
+function updateStepper(){
+  var s1=ROWS.length>0, s2=s1&&nameMapped();
+  ['s1','s2','s3'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.remove('on','done'); });
+  var e1=document.getElementById('s1'), e2=document.getElementById('s2'), e3=document.getElementById('s3');
+  if(!s1){ e1.classList.add('on'); }
+  else if(!s2){ e1.classList.add('done'); e2.classList.add('on'); }
+  else { e1.classList.add('done'); e2.classList.add('done'); e3.classList.add('on'); }
+}
+function handleFile(file){
+  var rd=new FileReader();
+  document.getElementById('fmsg').textContent='';
+  rd.onload=function(e){
+    try{
+      var wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      var ws=wb.Sheets[wb.SheetNames[0]];
+      var grid=XLSX.utils.sheet_to_json(ws,{header:1,defval:'',raw:false,blankrows:false});
+      if(!grid.length){ document.getElementById('fmsg').textContent='That file looks empty.'; return; }
+      HEADERS=(grid[0]||[]).map(function(h){return String(h||'').trim();});
+      ROWS=grid.slice(1).filter(function(r){ return r.some(function(c){return String(c||'').trim()!=='';}); });
+      document.getElementById('filepill').innerHTML='✓ '+esc(file.name)+' &nbsp;·&nbsp; '+ROWS.length+' rows &nbsp;·&nbsp; '+HEADERS.length+' columns';
+      document.getElementById('filepill').classList.remove('hide');
+      autodetect(); renderMapping(); renderPreview(); updateStepper();
+      document.getElementById('step2').classList.remove('hide'); document.getElementById('step3').classList.remove('hide');
+      document.getElementById('step3').scrollIntoView({behavior:'smooth',block:'nearest'});
+      document.getElementById('resbox').classList.add('hide'); setMsg('','');
+    }catch(err){ document.getElementById('fmsg').textContent='Could not read that file. Export it as .xlsx or .csv and try again.'; }
+  };
+  rd.readAsArrayBuffer(file);
+}
+function doImport(){
+  var objs=ROWS.map(rowObj).filter(function(o){ return MODE==='companies'?o.name:(o.firstName||o.lastName||o.name); });
+  if(!objs.length){ setMsg('Nothing to import — map the name column first.','err'); return; }
+  var url=MODE==='companies'?'/api/admin/import/companies':'/api/admin/import/people';
+  var body={rows:objs}; if(MODE==='contacts'){ body.defaultType=document.getElementById('deftype').value; }
+  var btn=document.getElementById('importBtn'); btn.disabled=true; setMsg('Importing '+objs.length+' rows…','');
+  var pl=document.getElementById('prog'); if(pl){ pl.parentElement.classList.remove('hide'); pl.style.width='70%'; }
+  fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ btn.disabled=false; if(pl){ pl.style.width='100%'; setTimeout(function(){ pl.parentElement.classList.add('hide'); pl.style.width='0'; },600); }
+      if(!j||!j.ok){ setMsg((j&&j.error)||'Import failed.','err'); return; }
+      renderResult(j); setMsg('','');
+    }).catch(function(){ btn.disabled=false; if(pl){pl.parentElement.classList.add('hide');pl.style.width='0';} setMsg('Could not reach the server.','err'); });
+}
+function renderResult(j){
+  var host=document.getElementById('resbox'); if(!host) return;
+  var cards, tip;
+  if(MODE==='companies'){ cards='<div class="rc g"><div class="n">'+j.created+'</div><div class="l">Created</div></div><div class="rc"><div class="n">'+j.updated+'</div><div class="l">Updated</div></div><div class="rc a"><div class="n">'+j.skipped+'</div><div class="l">Skipped · no name</div></div>'; tip='Companies are in <b>Book of Business → Companies</b>. Next, switch to <b>Contacts</b> above and import your people file — they&rsquo;ll auto-link to these companies by name.'; }
+  else { cards='<div class="rc g"><div class="n">'+j.created+'</div><div class="l">Contacts added</div></div><div class="rc a"><div class="n">'+j.dupe+'</div><div class="l">Skipped · email exists</div></div><div class="rc a"><div class="n">'+j.noname+'</div><div class="l">Skipped · no name</div></div>'; tip='Contacts are in <b>Book of Business → Contacts</b>, each linked to its company. Duplicates were skipped by email so nothing already in FullServe got overwritten.'; }
+  host.innerHTML='<div style="font-size:15px;font-weight:800;color:var(--navy);margin-bottom:10px">Import complete ✓</div><div class="res">'+cards+'</div><div class="note">'+tip+'</div><div style="margin-top:14px"><button class="btn ghost" id="againBtn">Import another file</button></div>';
+  host.classList.remove('hide'); host.scrollIntoView({behavior:'smooth',block:'nearest'});
+  var ab=document.getElementById('againBtn'); if(ab) ab.addEventListener('click',resetUpload);
+}
+function resetUpload(){ HEADERS=[];ROWS=[];MAP={}; document.getElementById('filepill').classList.add('hide'); document.getElementById('step2').classList.add('hide'); document.getElementById('step3').classList.add('hide'); document.getElementById('resbox').classList.add('hide'); setMsg('',''); updateStepper(); window.scrollTo({top:0,behavior:'smooth'}); }
+function setMsg(t,c){ var m=document.getElementById('importMsg'); if(m){ m.textContent=t; m.className='msg '+(c||''); } }
+function build(){
+  var root=document.getElementById('root'); root.className='wrap';
+  document.getElementById('srcrow').innerHTML=SOURCES.map(function(s){ return '<span class="srcchip'+(s.k===SOURCE?' on':'')+'" data-src="'+s.k+'"><span class="dot" style="background:'+s.c+'"></span>'+esc(s.n)+'</span>'; }).join('');
+  document.querySelectorAll('#srcrow .srcchip').forEach(function(ch){ ch.addEventListener('click',function(){ SOURCE=ch.getAttribute('data-src'); document.querySelectorAll('#srcrow .srcchip').forEach(function(x){x.classList.toggle('on',x===ch);}); }); });
+  root.innerHTML=''+
+    '<div class="stepper"><div class="step on" id="s1"><span class="num">1</span>Upload file</div><div class="stepline"></div><div class="step" id="s2"><span class="num">2</span>Map columns</div><div class="stepline"></div><div class="step" id="s3"><span class="num">3</span>Preview &amp; import</div></div>'+
+    '<div class="seg"><button id="m_contacts" class="on">👤 Contacts (People)</button><button id="m_companies">🏢 Companies</button></div>'+
+    '<div class="card"><div class="ch"><span class="st">Step 1</span><b>Upload your export</b><span class="hint">.xlsx or .csv</span></div><div class="cb">'+
+      '<div class="drop" id="drop"><div class="ic">⤓</div><b>Drop your file here, or click to browse</b><span>Export from your CRM, then drop the spreadsheet here</span></div>'+
+      '<input type="file" id="file" accept=".csv,.xlsx,.xls" class="hide">'+
+      '<span class="filepill hide" id="filepill"></span><div id="fmsg" class="msg err" style="margin-top:8px"></div>'+
+    '</div></div>'+
+    '<div class="card hide" id="step2"><div class="ch"><span class="st">Step 2</span><b>Map the columns</b><span class="hint">auto-detected — adjust anything</span></div><div class="cb">'+
+      '<div id="mapbox"></div>'+
+      '<div class="deftype" id="deftypewrap"><span style="font-size:12.5px;font-weight:700">Contact type when the source type doesn&rsquo;t match one of ours:</span><select id="deftype"></select></div>'+
+      '<div class="note">Green rows auto-combine every matching column — handy for Email 1 / Email 2 or multiple phone fields. Contacts dedupe by email; companies dedupe by name.</div>'+
+    '</div></div>'+
+    '<div class="card hide" id="step3"><div class="ch"><span class="st">Step 3</span><b>Preview &amp; import</b></div><div class="cb">'+
+      '<div id="prevbox"></div>'+
+      '<div class="progline hide"><i id="prog"></i></div>'+
+      '<div class="bar"><button class="btn green big" id="importBtn">Import into FullServe</button><span class="msg" id="importMsg"></span></div>'+
+      '<div id="resbox" class="hide"></div>'+
+    '</div></div>';
+  document.getElementById('deftype').innerHTML=PERSON_TYPES.map(function(t){return '<option'+(t==='Other'?' selected':'')+'>'+esc(t)+'</option>';}).join('');
+  var drop=document.getElementById('drop'), fileEl=document.getElementById('file');
+  drop.addEventListener('click',function(){ fileEl.click(); });
+  fileEl.addEventListener('change',function(){ if(fileEl.files&&fileEl.files[0]) handleFile(fileEl.files[0]); });
+  ['dragover','dragenter'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add('over'); }); });
+  ['dragleave'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove('over'); }); });
+  drop.addEventListener('drop',function(e){ e.preventDefault(); drop.classList.remove('over'); if(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
+  function setMode(m){ MODE=m; document.getElementById('m_contacts').classList.toggle('on',m==='contacts'); document.getElementById('m_companies').classList.toggle('on',m==='companies'); document.getElementById('deftypewrap').style.display=(m==='contacts')?'':'none'; resetUpload(); }
+  document.getElementById('m_contacts').addEventListener('click',function(){ setMode('contacts'); });
+  document.getElementById('m_companies').addEventListener('click',function(){ setMode('companies'); });
+  document.getElementById('importBtn').addEventListener('click',doImport);
+  updateStepper();
+}
+fetch('/api/feedback',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+  if(!j||!j.isAdmin){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to run the data import.</div>'; return; }
+  build();
+}).catch(function(){ build(); });
+</script>
+</body>
+</html>

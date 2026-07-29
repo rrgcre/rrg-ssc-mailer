@@ -54,6 +54,7 @@
       { ic: '⊟', label: 'Expenses', href: 'rrg_expenses.html' }
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
+      { ic: '◉', label: 'Consult', href: 'rrg_consult.html', ai: true },
       { ic: '★', label: 'Features', href: 'rrg_features.html' },
       { ic: '⚑', label: 'Feedback', href: 'rrg_feedback.html' },
       { ic: '✉', label: 'Requests', href: 'rrg_tickets.html' },
@@ -62,6 +63,7 @@
       { ic: '＄', label: 'Lease Commission', href: 'rrg_lease_commission_calculator.html' }
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
+      { ic: '⤓', label: 'Import Data', href: 'rrg_import.html' },
       { ic: '▤', label: 'Admin console', href: 'admin' },
       { ic: '◫', label: 'Departments', href: 'rrg_departments.html' },
       { ic: '☺', label: 'Users', href: 'rrg_roles.html' },

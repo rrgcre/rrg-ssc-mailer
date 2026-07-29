@@ -169,4 +169,25 @@ async function findGroupConcepts({ name, website }) {
   const j = extractJson(out); return (j && Array.isArray(j.concepts)) ? j.concepts : [];
 }
 
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts };
+
+// Consult — natural-language data analyst over the book of business. Answers ONLY from the snapshot.
+async function consult({ question, snapshot, history, agentName }) {
+  const name = agentName || 'Consult';
+  const sys = 'You are ' + name + ', the built-in data analyst inside FullServe, the CRM for Restaurant Realty Group, a brokerage that sells restaurants and bars. Answer the user question using ONLY the DATA SNAPSHOT in the message. Never invent contacts, companies, listings, or numbers. If the snapshot is capped or lacks what is needed, say so plainly and answer what you can. Think like a seasoned restaurant and bar broker: direct, lead with the number or the name, no fluff. Keep the answer to 1 to 4 short sentences. Offer a chart only when a breakdown or comparison genuinely helps. Return ONLY a JSON object and nothing else: {"answer":"plain text, no markdown","bullets":["0 to 6 short supporting lines"],"chart":{"type":"bar|pie|none","title":"","data":[{"label":"","value":0}]},"followups":["2 to 3 natural next questions"]}';
+  const parts = [];
+  parts.push('=== DATA SNAPSHOT (the only data you may use) ===\n' + JSON.stringify(snapshot).slice(0, 140000));
+  if (Array.isArray(history) && history.length) parts.push('=== Recent conversation (oldest first) ===\n' + JSON.stringify(history.slice(-6)).slice(0, 8000));
+  parts.push('=== The user asks ===\n' + String(question || '').slice(0, 1200) + '\n\nAnswer now as the JSON object only.');
+  const text = await callClaude(sys, parts.join('\n\n'), 1500);
+  const r = extractJson(text) || { answer: (text || 'I could not read a result.').slice(0, 800), chart: { type: 'none' } };
+  if (!r.answer) r.answer = 'I could not find that in your data.';
+  if (!r.chart || ['bar','pie','none'].indexOf(r.chart.type) < 0) r.chart = { type: 'none' };
+  if (r.chart && Array.isArray(r.chart.data)) r.chart.data = r.chart.data.filter(d => d && d.label != null).slice(0, 12).map(d => ({ label: String(d.label).slice(0,40), value: Number(d.value) || 0 }));
+  if (!Array.isArray(r.bullets)) r.bullets = [];
+  r.bullets = r.bullets.slice(0, 6).map(x => String(x).slice(0, 200));
+  if (!Array.isArray(r.followups)) r.followups = [];
+  r.followups = r.followups.slice(0, 3).map(x => String(x).slice(0, 120));
+  return r;
+}
+
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult };

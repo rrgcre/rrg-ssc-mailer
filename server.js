@@ -6543,6 +6543,114 @@ app.delete('/api/saved-searches/:id', (req, res) => {
   if (all[i].owner !== meU && !(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   all.splice(i, 1); saveSavedSearches(all); res.json({ ok: true });
 });
+// ===== Copper / CSV import (companies + contacts) =====
+function _impStr(v, n) { return String(v == null ? '' : v).trim().slice(0, n || 200); }
+function _impList(v, max, len) {
+  if (Array.isArray(v)) return v.map(x => _impStr(x, len)).filter(Boolean).slice(0, max || 10);
+  return String(v == null ? '' : v).split(/[;,\n\r\/|]+/).map(x => x.trim()).filter(Boolean).slice(0, max || 10);
+}
+function _impTags(v) {
+  if (Array.isArray(v)) return v.map(x => String(x).trim()).filter(Boolean).slice(0, 30);
+  return String(v == null ? '' : v).split(/[;,\n\r|]+/).map(x => x.trim()).filter(Boolean).slice(0, 30);
+}
+function _impSplitName(full) {
+  full = String(full || '').trim();
+  if (!full) return { first: '', last: '' };
+  if (full.indexOf(',') >= 0) { const p = full.split(','); return { last: p[0].trim(), first: (p[1] || '').trim() }; }
+  const parts = full.split(/\s+/);
+  if (parts.length === 1) return { first: '', last: parts[0] };
+  return { first: parts.slice(0, -1).join(' '), last: parts[parts.length - 1] };
+}
+function _matchPersonType(v) {
+  const types = effPersonTypes(); const raw = String(v || '').trim(); const low = raw.toLowerCase();
+  for (const t of types) { if (t.toLowerCase() === low) return t; }
+  const has = n => types.indexOf(n) >= 0 ? n : '';
+  if (/buyer|prospect|\blead\b|potential|purchaser/.test(low)) return has('Buyer');
+  if (/seller|owner|vendor/.test(low)) return has('Seller');
+  if (/tenant|lessee/.test(low)) return has('Tenant');
+  if (/investor|capital|equity/.test(low)) return has('Investor');
+  if (/broker|agent|realtor/.test(low)) return has('Broker');
+  if (/referr|source|partner/.test(low)) return has('Referral Source');
+  if (/staff|internal|employee|\bteam\b|colleague/.test(low)) return has('Internal Personnel');
+  return '';
+}
+app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16mb' }), (req, res) => {
+  const rows = Array.isArray((req.body || {}).rows) ? req.body.rows : [];
+  const arr = loadCompanies(); const byKey = {}; arr.forEach(c => { byKey[normKey(c.name)] = c; });
+  const cts = effCompanyTypes(); const now = new Date().toISOString();
+  let created = 0, updated = 0, skipped = 0;
+  rows.forEach(r => {
+    const name = _impStr(r.name, 160); if (!name) { skipped++; return; }
+    let c = byKey[normKey(name)]; const isNew = !c;
+    if (!c) { c = { id: newCompanyId(), name: name, market: '', type: 'Seller', notes: '', tags: [], office: {}, createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(c); byKey[normKey(name)] = c; }
+    const fill = (k, val) => { if (val == null || val === '') return; if (isNew || !c[k]) c[k] = val; };
+    if (r.type) { const m = cts.find(x => x.toLowerCase() === String(r.type).toLowerCase()); if (m) fill('type', m); }
+    fill('market', _impStr(r.market, 80));
+    fill('notes', _impStr(r.notes, 6000));
+    fill('leadSource', _impStr(r.leadSource, 160));
+    if (r.tags) { const tg = _impTags(r.tags); if (tg.length && (isNew || !(c.tags && c.tags.length))) c.tags = tg; }
+    const office = c.office || {}; ['address', 'city', 'state', 'phone', 'website', 'email'].forEach(k => { if (r[k] != null && r[k] !== '' && (isNew || !office[k])) office[k] = _impStr(r[k], 200); }); c.office = office;
+    c.updatedAt = now;
+    if (isNew) created++; else updated++;
+  });
+  saveCompanies(arr);
+  res.json({ ok: true, created, updated, skipped, total: rows.length });
+});
+app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' }), (req, res) => {
+  const b = req.body || {}; const rows = Array.isArray(b.rows) ? b.rows : [];
+  const defType = (typeof b.defaultType === 'string' && effPersonTypes().indexOf(b.defaultType) >= 0) ? b.defaultType : 'Other';
+  const ppl = loadPeople(); const cos = loadCompanies();
+  const coByKey = {}; cos.forEach(c => { coByKey[normKey(c.name)] = c; });
+  const emailIdx = {}; ppl.forEach(p => personEmails(p).forEach(e => { emailIdx[e.toLowerCase()] = p; }));
+  const now = new Date().toISOString();
+  let created = 0, dupe = 0, noname = 0; let cosDirty = false;
+  rows.forEach(r => {
+    let first = _impStr(r.firstName, 80), last = _impStr(r.lastName, 80);
+    if ((!first && !last) && r.name) { const sN = _impSplitName(r.name); first = sN.first; last = sN.last; }
+    if (!first && !last) { noname++; return; }
+    const emails = _impList(r.emails !== undefined ? r.emails : r.email, 10, 160).filter(e => /@/.test(e));
+    let clash = false; for (const e of emails) { if (emailIdx[e.toLowerCase()]) { clash = true; break; } }
+    if (clash) { dupe++; return; }
+    const phones = _impList(r.phones !== undefined ? r.phones : r.phone, 10, 60);
+    const type = _matchPersonType(r.type) || defType;
+    const p = { id: newPersonId(), firstName: first, lastName: last, name: composeName(first, last), type: type, emails: emails, phones: phones, preferredEmail: '', preferredPhone: '', createdAt: now, updatedAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', leadSource: 'Copper import' };
+    p.email = preferredEmailOf(p); p.phone = preferredPhoneOf(p);
+    if (r.title) p.title = _impStr(r.title, 120);
+    if (r.leadSource) p.leadSource = _impStr(r.leadSource, 160);
+    if (r.notes) p.notes = _impStr(r.notes, 4000);
+    if (r.url) p.url = _impStr(r.url, 300);
+    if (r.tags) { const tg = _impTags(r.tags); if (tg.length) p.tags = tg; }
+    const coName = _impStr(r.companyName || r.company, 160);
+    if (coName) { let c = coByKey[normKey(coName)]; if (!c) { c = { id: newCompanyId(), name: coName, market: '', type: 'Seller', notes: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; cos.push(c); coByKey[normKey(coName)] = c; cosDirty = true; } p.companyId = c.id; p.company = c.name; }
+    ppl.push(p); emails.forEach(e => { emailIdx[e.toLowerCase()] = p; }); created++;
+  });
+  if (cosDirty) saveCompanies(cos);
+  savePeople(ppl);
+  res.json({ ok: true, created, dupe, noname, total: rows.length, defaultType: defType });
+});
+
+// ===== Consult — AI data analyst over the book of business =====
+function consultSnapshot() {
+  const cap = (arr, n) => arr.slice(0, n);
+  const companies = loadCompanies().map(c => ({ name: c.name, type: c.type || '', market: c.market || (c.office && c.office.city) || '', tags: (c.tags || []).slice(0, 8) }));
+  const people = loadPeople().map(p => ({ name: p.name, type: p.type || '', company: p.company || '', hasEmail: !!p.email, hasPhone: !!p.phone, lastContacted: p.lastContacted || '', leadSource: p.leadSource || '', vip: !!p.vip, tags: (p.tags || []).slice(0, 6) }));
+  const ov = loadAssignOverlay(), idx = assignmentsIndex(); const listings = [];
+  for (const k in idx) { try { const v = assignmentView(idx[k], ov); listings.push({ business: v.business, market: v.market || '', value: v.value || '', status: v.status || '', contact: v.contact || '', owner: v.owner || '', expires: v.listingExpires || '', createdAt: v.createdAt || '' }); } catch (e) {} }
+  const byN = (arr, key) => { const m = {}; arr.forEach(x => { const val = String(x[key] || '-'); m[val] = (m[val] || 0) + 1; }); return m; };
+  const aggregates = { contacts_total: people.length, companies_total: companies.length, listings_total: listings.length, contacts_by_type: byN(people, 'type'), companies_by_type: byN(companies, 'type'), listings_by_status: byN(listings, 'status'), listings_by_market: byN(listings, 'market'), contacts_by_lead_source: byN(people, 'leadSource') };
+  return { today: new Date().toISOString().slice(0, 10), aggregates, companies: cap(companies, 500), companiesCapped: companies.length > 500, contacts: cap(people, 900), contactsCapped: people.length > 900, listings: cap(listings, 500), listingsCapped: listings.length > 500, personTypes: effPersonTypes() };
+}
+app.post('/api/consult', express.json({ limit: '256kb' }), async (req, res) => {
+  if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'AI features are turned off for your role.' });
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(400).json({ ok: false, error: 'AI is not configured yet — add the Anthropic key in Admin.' });
+  const b = req.body || {}; const q = String(b.question || '').trim();
+  if (!q) return res.status(400).json({ ok: false, error: 'Ask a question.' });
+  try {
+    const out = await aiassist.consult({ question: q, snapshot: consultSnapshot(), history: Array.isArray(b.history) ? b.history : [], agentName: 'Consult' });
+    res.json({ ok: true, result: out });
+  } catch (e) { console.error('consult:', e && e.message); res.status(500).json({ ok: false, error: (e && e.message) || 'Consult could not answer that.' }); }
+});
+
 // ---- Feedback tracker (feature requests / bugs, ranked, with status) ----
 const FEEDBACK_FILE = path.join(BOV_DATA_DIR, 'feedback.json');
 function loadFeedback() { try { return JSON.parse(fs.readFileSync(FEEDBACK_FILE, 'utf8')) || []; } catch (e) { return []; } }
