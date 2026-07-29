@@ -176,6 +176,25 @@ function loadCompanies() { try { return JSON.parse(fs.readFileSync(COMPANIES_FIL
 function saveCompanies(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(COMPANIES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
 function newCompanyId() { return 'co_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function companyById(id) { if (!id) return null; return loadCompanies().find(c => c.id === id) || null; }
+function bizBuySellCompany() {
+  const arr = loadCompanies();
+  let c = arr.find(x => x.system === 'bizbuysell');
+  if (!c) {
+    c = { id: newCompanyId(), name: 'BizBuySell', type: '', market: '', system: 'bizbuysell', locked: true, notes: 'Permanent home for BizBuySell buyer leads. Created and protected by the system \u2014 cannot be deleted.', createdAt: new Date().toISOString(), by: 'System', byUser: 'system' };
+    arr.push(c); saveCompanies(arr);
+  }
+  return c;
+}
+function backlinkBbsLeads() {
+  try {
+    const cid = bizBuySellCompany().id;
+    const overlay = loadAssignOverlay(); const bbsIds = new Set();
+    Object.keys(overlay).forEach(k => ((overlay[k] || {}).inquiries || []).forEach(x => { if (x && x.source === 'BizBuySell' && x.personId) bbsIds.add(x.personId); }));
+    const ppl = loadPeople(); let ch = false;
+    ppl.forEach(p => { const isBbs = bbsIds.has(p.id) || (Array.isArray(p.activities) && p.activities.some(a => a.type === 'BizBuySell Lead')); if (isBbs && !p.companyId) { p.companyId = cid; ch = true; } });
+    if (ch) savePeople(ppl);
+  } catch (e) { console.error('backlinkBbsLeads:', e && e.message); }
+}
 function companyBrief(c) { return c ? { id: c.id, name: c.name || '', market: c.market || '', type: c.type || '' } : null; }
 
 // ---- Tickets — reps open requests to the brokerage office; office works & resolves them ----
@@ -2830,6 +2849,7 @@ function importBbsLeads(req, leads) {
   const now = new Date().toISOString();
   const due = (function(){ const d = new Date(); d.setDate(d.getDate() + 2); return d.toISOString().slice(0, 10); })();
   const tasks = loadTasks();
+  const _bbsCoId = bizBuySellCompany().id;
   let imported = 0, matched = 0, unmatched = 0, dupes = 0, createdListings = 0;
   const results = [];
   (leads || []).forEach(l => {
@@ -2838,7 +2858,7 @@ function importBbsLeads(req, leads) {
     const numKey = l.listingNumber ? byNum[String(l.listingNumber).toLowerCase().trim()] : null;
     let key = refKey || numKey || null; let createdStub = false;
     const qualBits = []; if (l.funds) qualBits.push('Funds: ' + l.funds); if (l.timeframe) qualBits.push('Timeframe: ' + l.timeframe); if (l.zip) qualBits.push('Zip: ' + l.zip); const qualLine = qualBits.join(' \u00b7 ');
-    const person = findOrCreatePerson(req, { name: l.name || '', firstName: l.firstName || '', lastName: l.lastName || '', email: email, phones: l.phone ? [l.phone] : [], type: (PERSON_TYPES.indexOf('Buyer') >= 0 ? 'Buyer' : 'Buyer') });
+    const person = findOrCreatePerson(req, { name: l.name || '', firstName: l.firstName || '', lastName: l.lastName || '', email: email, phones: l.phone ? [l.phone] : [], type: 'Buyer', companyId: _bbsCoId });
     if (person) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === person.id); if (pp) { logActivity(pp, 'BizBuySell Lead', ('Inquired on ' + (l.listingName || 'a listing') + (l.refId ? (' \u00b7 Ref ' + l.refId) : (l.listingNumber ? (' \u00b7 #' + l.listingNumber) : '')) + (qualLine ? (' \u00b7 ' + qualLine) : '') + (l.message ? (' \u2014 \u201c' + String(l.message).slice(0,140) + '\u201d') : '')).slice(0, 300), { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
     if (!key && (l.refId || l.listingNumber)) {
       const stub = { id: newDealId(), business: (l.listingName || ('BizBuySell ' + (l.refId || l.listingNumber))).slice(0, 120), market: '', contact: '', screenId: '', roomId: '', contactPersonId: '', companyId: '', createdAt: now, fromBizBuySell: true, needsSetup: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
@@ -2962,6 +2982,7 @@ async function bbsPollTick() {
   _bbsPolling = false;
 }
 setInterval(bbsPollTick, 60 * 1000);
+try { bizBuySellCompany(); backlinkBbsLeads(); } catch (e) { console.error('bbs company init:', e && e.message); }
 // Add / update / remove an inquiry on a listing (manual entry + status changes).
 app.post('/api/assignment/:key/inquiry', express.json(), (req, res) => {
   const deals = assignmentsIndex(); const d = deals[req.params.key];
@@ -3858,9 +3879,10 @@ app.post('/api/admin/reset-book', requireAdmin, express.json(), async (req, res)
     (c.concepts || []).forEach(cp => { if (cp.logoExt) { try { fs.unlinkSync(path.join(CPTLOGO_DIR, cp.id + '.' + cp.logoExt)); } catch (e) {} } });
     (c.locations || []).forEach(l => { (l.photos || []).forEach(ph => { try { fs.unlinkSync(path.join(LOCPHOTO_DIR, ph.id + '.' + ph.ext)); } catch (e) {} }); });
   });
-  const count = companies.length;
-  saveCompanies([]);
-  const people = loadPeople(); let ch = false; people.forEach(p => { if (p.companyId) { p.companyId = ''; ch = true; } }); if (ch) savePeople(people);
+  const keep = companies.filter(c => c.system || c.locked); const keepIds = new Set(keep.map(c => c.id));
+  const count = companies.length - keep.length;
+  saveCompanies(keep);
+  const people = loadPeople(); let ch = false; people.forEach(p => { if (p.companyId && !keepIds.has(p.companyId)) { p.companyId = ''; ch = true; } }); if (ch) savePeople(people);
   res.json({ ok: true, cleared: count, backup: backupName });
 });
 // Pull a photo for one location on demand.
@@ -4456,6 +4478,7 @@ app.delete('/api/company/:id', (req, res) => {
   const companies = loadCompanies();
   const c = companies.find(x => x.id === id);
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  if (c.system || c.locked) return res.status(400).json({ ok: false, error: 'BizBuySell is a protected lead-source company and cannot be deleted.' });
   // 1) Delete every deal tied to this company, with its full record chain + files.
   const deals = loadDeals();
   const linkedDeals = deals.filter(d => d.companyId === id);
