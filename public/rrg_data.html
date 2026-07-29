@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Data Enrichment</title>
+<style>
+:root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2f6fd0;--teal:#12a594;--green:#1f8a5b;--amber:#B7791F;--red:#DA2B1F;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px;}
+.top-in{max-width:1140px;margin:0 auto;padding:0 24px;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:14px 0 4px;}
+h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:720px;line-height:1.5;}
+.wrap{max-width:1140px;margin:22px auto;padding:0 24px 80px;}
+.strip{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
+.stat{flex:1;min-width:150px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 16px;box-shadow:0 1px 2px rgba(16,32,70,.04);}
+.stat .n{font-size:23px;font-weight:800;color:var(--navy);letter-spacing:-.01em;} .stat .l{font-size:11px;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:15px;}
+.tool{background:#fff;border:1px solid var(--line);border-radius:15px;padding:19px 20px;box-shadow:0 1px 3px rgba(16,32,70,.05);display:flex;flex-direction:column;position:relative;transition:.14s;}
+.tool:hover{border-color:#cdd6e6;box-shadow:0 6px 20px rgba(16,32,70,.09);transform:translateY(-1px);}
+.tool.soon{opacity:.72;} .tool.soon:hover{transform:none;box-shadow:0 1px 3px rgba(16,32,70,.05);}
+.tool .ic{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;background:#eef3fb;margin-bottom:13px;}
+.tool.g .ic{background:#eaf5ef;} .tool.p .ic{background:#f2eefb;} .tool.a .ic{background:#fbf3e7;}
+.tool h3{margin:0;font-size:16px;font-weight:800;color:var(--ink);}
+.tool p{margin:6px 0 0;font-size:12.5px;color:var(--dim);line-height:1.5;flex:1;}
+.tool .stat2{font-size:12.5px;font-weight:700;color:var(--navy);margin-top:12px;min-height:18px;}
+.tool .stat2 b{color:var(--red);} .tool .stat2.clean{color:var(--green);}
+.tool .foot{margin-top:15px;display:flex;align-items:center;gap:9px;}
+.go{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:9px 16px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;} .go:hover{filter:brightness(1.1);}
+.go.green{background:var(--green);}
+.soonbadge{position:absolute;top:16px;right:16px;font-size:10px;font-weight:800;letter-spacing:.06em;color:#fff;background:linear-gradient(135deg,var(--teal),var(--blue));border-radius:100px;padding:3px 10px;text-transform:uppercase;}
+.needkey{position:absolute;top:16px;right:16px;font-size:10px;font-weight:800;letter-spacing:.05em;color:var(--amber);background:#fbf3e7;border-radius:100px;padding:3px 10px;text-transform:uppercase;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="./index.html" class="rrg-back" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <span class="disc" onclick="location.href='./index.html'">RRG</span>
+  <div class="kicker">Admin · Data Enrichment</div>
+  <h1>Make your data work harder.</h1>
+  <div class="sub">Every tool that cleans, fills, links, and enriches your book — in one place. Import once, then run these to turn a flat contact list into a live restaurant &amp; bar intelligence database.</div>
+</div></div>
+<div id="root" class="wrap"><div class="gate">Checking access…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function n(v){return Number(v||0).toLocaleString('en-US');}
+function render(S){
+  var root=document.getElementById('root'); root.className='wrap';
+  var strip=''
+    +'<div class="stat"><div class="n">'+n(S.companies)+'</div><div class="l">Companies</div></div>'
+    +'<div class="stat"><div class="n">'+n(S.contacts)+'</div><div class="l">Contacts</div></div>'
+    +'<div class="stat"><div class="n">'+n(S.locations)+'</div><div class="l">Locations</div></div>'
+    +'<div class="stat"><div class="n">'+n(S.locationsEnriched)+'</div><div class="l">Enriched w/ Google</div></div>'
+    +'<div class="stat"><div class="n">'+n(S.missingLogo)+'</div><div class="l">Missing a logo</div></div>';
+  var tools=[];
+  // Enrich from Google
+  var gStat = S.locationsToEnrich>0 ? ('<b>'+n(S.locationsToEnrich)+'</b> of '+n(S.locations)+' locations not yet pulled from Google') : (S.locations? 'All '+n(S.locations)+' locations enriched':'No locations yet — import some first');
+  tools.push('<div class="tool g">'+(S.hasKey?'':'<span class="needkey">Needs key</span>')+'<div class="ic">🌐</div><h3>Enrich from Google</h3><p>Operating status (open / dark / closed), star rating, review count, price point, phone, website and map coordinates — pulled live onto every location.</p><div class="stat2'+(S.locationsToEnrich>0?'':' clean')+'">'+gStat+'</div><div class="foot"><a class="go green" href="rrg_enrich.html">Open →</a></div></div>');
+  // Find Logos
+  var lStat = S.missingLogo>0 ? ('<b>'+n(S.missingLogo)+'</b> companies missing a logo') : 'Every company has a logo';
+  tools.push('<div class="tool"><div class="ic">◐</div><h3>Find Logos</h3><p>Auto-pull a brand logo for every company with a website. Review the grid, approve the good ones, apply.</p><div class="stat2'+(S.missingLogo>0?'':' clean')+'">'+lStat+'</div><div class="foot"><a class="go" href="rrg_logos.html">Open →</a></div></div>');
+  // Find Duplicates
+  tools.push('<div class="tool"><div class="ic">⧉</div><h3>Find Duplicates</h3><p>Fuzzy-match companies and contacts by name, website domain and phone. Approve each merge — every linked record moves to the keeper.</p><div class="stat2">Scan '+n(S.companies)+' companies &amp; '+n(S.contacts)+' contacts</div><div class="foot"><a class="go" href="rrg_duplicates.html">Open →</a></div></div>');
+  // Import
+  tools.push('<div class="tool"><div class="ic">⤓</div><h3>Import Data</h3><p>Bring companies and contacts in from Copper, HubSpot, Salesforce, Pipedrive — or any CSV / Excel. Auto-maps columns, dedupes, links people to companies.</p><div class="stat2">Add more records anytime</div><div class="foot"><a class="go" href="rrg_import.html">Open →</a></div></div>');
+  // Concept Intelligence (soon)
+  var cStat = S.conceptsIncomplete>0 ? ('<b>'+n(S.conceptsIncomplete)+'</b> concepts missing cuisine / type / price') : (S.concepts?'All concepts classified':'No concepts yet');
+  tools.push('<div class="tool p soon"><span class="soonbadge">Soon</span><div class="ic">✦</div><h3>Concept Intelligence (AI)</h3><p>Consult reads each concept name and fills cuisine, concept type and price point — plus flags multi-unit operators. The fields that make this a restaurant CRM.</p><div class="stat2">'+cStat+'</div><div class="foot"><a class="go" style="opacity:.55;pointer-events:none">Coming soon</a></div></div>');
+  // Cleanup (soon)
+  tools.push('<div class="tool a soon"><span class="soonbadge">Soon</span><div class="ic">✎</div><h3>Cleanup &amp; Standardize</h3><p>Title-case names and companies, standardize state codes, validate emails, normalize websites, and auto-assign market / submarket from city. Runs on every import.</p><div class="stat2">Deterministic · no AI cost</div><div class="foot"><a class="go" style="opacity:.55;pointer-events:none">Coming soon</a></div></div>');
+  root.innerHTML='<div class="strip">'+strip+'</div><div class="grid">'+tools.join('')+'</div>';
+}
+fetch('/api/admin/enrichment-summary',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load enrichment tools.</div>'; return; }
+  render(j);
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to run data enrichment.</div>'; });
+</script>
+</body>
+</html>

@@ -6691,6 +6691,74 @@ app.post('/api/admin/apply-logos', requireAdmin, express.json({ limit: '2mb' }),
 });
 
 
+
+// ===== Google enrichment (operating status, rating, price, geocode) — locations =====
+function placeStatusToLoc(bs){ if(bs==='OPERATIONAL') return 'Operating'; if(bs==='CLOSED_TEMPORARILY') return 'Dark'; if(bs==='CLOSED_PERMANENTLY') return 'Closed'; return ''; }
+app.get('/api/admin/enrich-candidates', requireAdmin, (req, res) => {
+  const key = loadGmapsKey();
+  const companies = loadCompanies();
+  const out = [];
+  companies.forEach(c => { (c.locations || []).forEach(l => {
+    const canQuery = (l.name || l.address) && (l.address || l.city);
+    if (!canQuery) return;
+    const g = l.google || {};
+    out.push({ companyId: c.id, companyName: c.name || '', locId: l.id, name: l.name || '', concept: l.concept || '', address: l.address || '', city: l.city || '', state: l.state || '', status: l.status || '', hasGoogle: !!g.placeId, rating: (g.rating != null ? g.rating : null), reviews: (g.reviews != null ? g.reviews : null) });
+  }); });
+  res.json({ ok: true, hasKey: !!key, candidates: out, total: out.length, enriched: out.filter(x => x.hasGoogle).length });
+});
+app.post('/api/admin/enrich-run', requireAdmin, express.json(), async (req, res) => {
+  const key = loadGmapsKey(); if (!key) return res.status(400).json({ ok: false, error: 'No Google key set. Add one in Admin → Settings.' });
+  const items = Array.isArray((req.body || {}).items) ? req.body.items.slice(0, 30) : [];
+  const companies = loadCompanies();
+  const results = [];
+  for (const it of items) {
+    const c = companies.find(x => x.id === it.companyId); if (!c) { results.push({ companyId: it.companyId, locId: it.locId, reason: 'company gone' }); continue; }
+    const l = (c.locations || []).find(x => x.id === it.locId); if (!l) { results.push({ companyId: it.companyId, locId: it.locId, reason: 'location gone' }); continue; }
+    const query = [l.concept, l.name, l.address, l.city, l.state].filter(Boolean).join(' ');
+    let en; try { en = await placesSearchNew(key, query); } catch (e) { en = { data: null, reason: 'request failed' }; }
+    if (!en.data) { results.push({ companyId: c.id, companyName: c.name || '', locId: l.id, name: l.name || '', address: l.address || '', city: l.city || '', reason: en.reason || 'no match' }); continue; }
+    const d = en.data;
+    const cpt = (c.concepts || []).find(cp => normKey(cp.name) === normKey(l.concept));
+    const proposedPrice = (d.priceLevel != null && d.priceLevel >= 1) ? (PRICE_POINTS[d.priceLevel - 1] || '') : '';
+    results.push({ companyId: c.id, companyName: c.name || '', locId: l.id, name: l.name || '', concept: l.concept || '', address: l.address || '', city: l.city || '', state: l.state || '',
+      current: { status: l.status || '', phone: l.phone || '', website: l.website || '', pricePoint: (cpt ? (cpt.pricePoint || '') : '') },
+      proposed: { status: placeStatusToLoc(d.businessStatus), businessStatus: d.businessStatus || '', rating: d.rating, reviews: d.reviews, priceLevel: d.priceLevel, pricePoint: proposedPrice, phone: d.phone || '', website: d.website || '', lat: d.lat, lng: d.lng, address: d.address || '', mapsUrl: d.mapsUrl || '', placeId: d.placeId || '' },
+      reason: '' });
+  }
+  res.json({ ok: true, results });
+});
+app.post('/api/admin/enrich-apply', requireAdmin, express.json({ limit: '3mb' }), (req, res) => {
+  const items = Array.isArray((req.body || {}).items) ? req.body.items : [];
+  const companies = loadCompanies(); const now = new Date().toISOString(); let applied = 0;
+  const byCo = {}; items.forEach(it => { (byCo[it.companyId] = byCo[it.companyId] || []).push(it); });
+  Object.keys(byCo).forEach(cid => {
+    const c = companies.find(x => x.id === cid); if (!c) return;
+    byCo[cid].forEach(it => {
+      const l = (c.locations || []).find(x => x.id === it.locId); if (!l) return;
+      const a = it.apply || {};
+      if (a.google && a.google.placeId) l.google = Object.assign({}, l.google || {}, a.google, { at: now });
+      if (a.status && LOCATION_STATUSES.indexOf(a.status) >= 0) l.status = a.status;
+      if (a.phone && !l.phone) l.phone = String(a.phone).slice(0, 40);
+      if (a.website && !l.website) l.website = String(a.website).slice(0, 200);
+      if (a.pricePoint && PRICE_POINTS.indexOf(a.pricePoint) >= 0) { const cpt = (c.concepts || []).find(cp => normKey(cp.name) === normKey(l.concept)); if (cpt && !String(cpt.pricePoint || '').trim()) cpt.pricePoint = a.pricePoint; }
+      applied++;
+    });
+    c.updatedAt = now;
+  });
+  saveCompanies(companies);
+  res.json({ ok: true, applied });
+});
+
+app.get('/api/admin/enrichment-summary', requireAdmin, (req, res) => {
+  const companies = loadCompanies(); const people = loadPeople();
+  let locs = 0, locsEnriched = 0;
+  companies.forEach(c => { (c.locations || []).forEach(l => { locs++; if (l.google && l.google.placeId) locsEnriched++; }); });
+  let conceptsTotal = 0, conceptsIncomplete = 0;
+  companies.forEach(c => { (c.concepts || []).forEach(cp => { conceptsTotal++; if (!cp.conceptType || !cp.pricePoint || !cp.cuisine) conceptsIncomplete++; }); });
+  const missingLogo = companies.filter(c => !c.logo).length;
+  res.json({ ok: true, hasKey: !!loadGmapsKey(), companies: companies.length, contacts: people.length, missingLogo: missingLogo, locations: locs, locationsEnriched: locsEnriched, locationsToEnrich: locs - locsEnriched, concepts: conceptsTotal, conceptsIncomplete: conceptsIncomplete });
+});
+
 // ===== Duplicate finder (fuzzy) — companies & contacts =====
 function _dfNorm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
 function _dfCompanyKey(s){
