@@ -13,7 +13,7 @@
 
   var NAV = [
     { color: '#8fa2c4', items: [
-      { ic: '◉', label: 'Consult', href: 'rrg_consult.html', ai: true, color: '#12a594' },
+      { ic: '<span class="navorb"></span>', label: 'Consult', href: 'rrg_consult.html', ai: true },
       { ic: '✦', label: 'RRG Brief', href: 'rrg_brief.html', ai: true },
       { ic: '◱', label: 'Activity Feed', href: 'rrg_feed.html' },
       { ic: '✔', label: 'My Tasks', href: 'rrg_tasks.html' }
@@ -106,6 +106,8 @@
     + '#rrgnav a.it:hover{background:rgba(255,255,255,.07);color:#fff;}'
     + '#rrgnav a.it.on{background:rgba(255,255,255,.12);color:#fff;font-weight:600;}'
     + '#rrgnav a.it .i{width:17px;text-align:center;color:var(--gc,rgba(255,255,255,.5));font-size:13.5px;flex:none;}'
+    + '#rrgnav a.it .navorb{display:inline-block;width:15px;height:15px;border-radius:50%;background:conic-gradient(from 0deg,#5b46b8,#8b5cf6,#ec4899,#f59e0b,#22c55e,#3b82f6,#5b46b8);box-shadow:0 0 7px rgba(139,92,246,.6);animation:navorbspin 2s linear infinite;vertical-align:middle;}'
+    + '@keyframes navorbspin{to{transform:rotate(360deg)}}'
     + '#rrgnav a.it.on .i{color:#fff;}'
     + '#rrgnav a.it .navbadge{margin-left:auto;background:var(--red,#DA2B1F);color:#fff;font-size:10.5px;font-weight:800;min-width:19px;height:18px;line-height:18px;text-align:center;border-radius:9px;padding:0 5px;box-shadow:0 1px 3px rgba(0,0,0,.25);}'
     + '#rrgnav a.it .aitag{margin-left:5px;font-size:11px;line-height:1;opacity:.85;}'
