@@ -235,7 +235,7 @@ function agrRowCo(a){
 }
 function agreementsCardCo(){
   var inner=AGREEMENTS.length?('<div class="agrlistco">'+AGREEMENTS.map(agrRowCo).join('')+'</div>'):'<div class="empty">No agreements linked to this company yet.</div>';
-  return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGREEMENTS.length+'</span><button class="addbtn" id="addAgrBtn">+ Add agreement</button></div><div class="cb"><div id="coAgrForm" hidden></div>'+inner+'</div></div>';
+  return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGREEMENTS.length+'</span></div><div class="cb"><div id="coAgrForm" hidden></div>'+inner+'</div></div>';
 }
 // When an inline form opens inside a card, make sure that card is expanded —
 // otherwise the form renders inside a collapsed (display:none) card body and

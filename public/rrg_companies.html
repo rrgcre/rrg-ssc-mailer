@@ -97,10 +97,10 @@ tr:hover td{background:#fbfcfe;}
     <div class="mrow2"><div><label class="mfld">Nickname</label><input id="m_cnick" autocomplete="off"></div><div><label class="mfld">Title</label><input id="m_ctitle" list="titlelist" autocomplete="off"></div></div>
     <label class="mfld">Phone</label><input id="m_cphone" autocomplete="off" inputmode="numeric">
     <label class="mfld">Email</label><input id="m_cemail" autocomplete="off">
+    <label class="mfld">Major metro</label><input id="m_metro" list="metrolist" autocomplete="off" placeholder="e.g. Dallas, Austin">
     <div class="mgrp">Concepts <span class="mopt">— up to 6, one per line</span></div>
     <label class="mfld" id="m_findgrp_wrap" style="display:none;background:#f6f4ff;border:1px solid #e2dcf6;border-radius:9px;padding:9px 11px"><input type="checkbox" id="m_findgrp"> ✨ Restaurant group — let AI find every concept (skip typing them)</label>
     <label class="mfld">Concept name(s)</label><textarea id="m_concepts" rows="4" placeholder="One concept per line" style="width:100%;padding:9px 11px;border:1px solid #d5dbe6;border-radius:9px;font:inherit;font-size:13px;resize:vertical"></textarea><div id="m_concept_msg" style="font-size:12px;color:#DA2B1F;margin-top:5px"></div>
-    <label class="mfld">Major metro they operate in</label><input id="m_metro" list="metrolist" autocomplete="off" placeholder="e.g. Dallas — helps the AI find the right brand">
     <div style="font-size:11.5px;color:#6b7488;margin-top:6px;line-height:1.5">On <b>Create</b>, ✨ your AI agent builds each concept — website, type, cuisine, price, logo &amp; summary — and finds its locations with photos.</div>
     <datalist id="metrolist"></datalist><datalist id="citylist"></datalist><datalist id="titlelist"></datalist><datalist id="taglist"></datalist><datalist id="leadsrclist"></datalist>
   </div>
@@ -211,7 +211,7 @@ function setupCReferral(){
 }
 function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=CTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join(''); try{updateFindGrp();}catch(e){}
   var cu=document.getElementById('m_cuisine'); if(cu) cu.innerHTML='<option value="">— cuisine (optional) —</option>'+CUISINE.map(function(m){return '<option>'+esc(m)+'</option>';}).join(''); var cty=document.getElementById('m_conctype'); if(cty) cty.innerHTML='<option value="">— concept type (optional) —</option>'+CONCEPTTYPES.map(function(m){return '<option>'+esc(m)+'</option>';}).join(''); var lsd=document.getElementById('leadsrclist'); if(lsd) lsd.innerHTML=(LEADSOURCES||[]).map(function(m){return '<option value="'+esc(m)+'">';}).join('');
-  var mcs0=document.getElementById('m_concepts'); if(mcs0){ mcs0.dataset.auto='1'; }
+  var mcs0=document.getElementById('m_concepts'); if(mcs0){ mcs0.dataset.auto=''; }
   ['m_concepts','m_metro','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   var ct=document.getElementById('m_ctype'); if(ct) ct.innerHTML='<option value="">— select —</option>'+PERSONTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
   function fillDL(id,arr){ var el=document.getElementById(id); if(el) el.innerHTML=(arr||[]).map(function(v){return '<option value="'+esc(v)+'"></option>';}).join(''); }
