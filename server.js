@@ -6671,6 +6671,23 @@ app.post('/api/consult', express.json({ limit: '256kb' }), async (req, res) => {
   } catch (e) { console.error('consult:', e && e.message); res.status(500).json({ ok: false, error: (e && e.message) || 'Consult could not answer that.' }); }
 });
 
+// ===== Find Logos (post-import enrichment, approval-gated) =====
+function clearbitLogo(w) { const d = domainOf(w); return d ? ('https://logo.clearbit.com/' + d) : ''; }
+app.get('/api/admin/logo-candidates', requireAdmin, (req, res) => {
+  const all = loadCompanies(); const wantAll = req.query.all === '1';
+  const cands = all.filter(c => { const site = (c.office && c.office.website) || ''; if (!site) return false; if (!wantAll && c.logo) return false; return true; })
+    .map(c => { const site = (c.office && c.office.website) || ''; return { id: c.id, name: c.name || '', website: site, domain: domainOf(site), proposed: clearbitLogo(site), favicon: logoFromWebsite(site), hasLogo: !!c.logo }; });
+  const withSite = all.filter(c => (c.office && c.office.website)).length;
+  res.json({ ok: true, candidates: cands, total: all.length, withSite: withSite, missing: all.filter(c => !c.logo).length });
+});
+app.post('/api/admin/apply-logos', requireAdmin, express.json({ limit: '2mb' }), (req, res) => {
+  const items = Array.isArray((req.body || {}).items) ? req.body.items : [];
+  const all = loadCompanies(); const now = new Date().toISOString(); let applied = 0;
+  items.forEach(it => { const c = all.find(x => x.id === it.id); if (c && typeof it.logo === 'string' && it.logo) { c.logo = it.logo.slice(0, 400); c.updatedAt = now; applied++; } });
+  saveCompanies(all);
+  res.json({ ok: true, applied });
+});
+
 // ===== Personal Dashboard (per-user modular home) =====
 const DASH_FILE = path.join(BOV_DATA_DIR, 'dashboards.json');
 function loadDashCfgs() { try { return JSON.parse(fs.readFileSync(DASH_FILE, 'utf8')) || {}; } catch (e) { return {}; } }

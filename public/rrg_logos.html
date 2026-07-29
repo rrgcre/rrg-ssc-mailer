@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Find Logos</title>
+<style>
+:root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2f6fd0;--green:#1f8a5b;--red:#DA2B1F;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px;}
+.top-in{max-width:1120px;margin:0 auto;padding:0 24px;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:14px 0 4px;}
+h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:720px;line-height:1.5;}
+.wrap{max-width:1120px;margin:20px auto;padding:0 24px 70px;}
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;box-shadow:0 1px 2px rgba(16,32,70,.04);}
+.bar .cnt{font-size:13px;color:var(--dim);font-weight:600;}
+.btn{background:#fff;color:var(--navy);border:1px solid #cdd6e6;border-radius:9px;padding:9px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;} .btn:hover{background:#f4f7fb;} .btn.green{background:var(--green);color:#fff;border-color:var(--green);} .btn.green:hover{background:#186f48;} .btn:disabled{opacity:.5;cursor:default;}
+.bar .sp{margin-left:auto;display:flex;gap:9px;align-items:center;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+.lc{background:#fff;border:1px solid var(--line);border-radius:13px;padding:14px;box-shadow:0 1px 2px rgba(16,32,70,.04);cursor:pointer;transition:.12s;position:relative;}
+.lc:hover{border-color:#cdd6e6;} .lc.on{border-color:var(--green);box-shadow:0 0 0 2px rgba(31,138,91,.18);} .lc.dead{opacity:.55;}
+.lc .logobox{height:76px;display:flex;align-items:center;justify-content:center;background:#f7f9fc;border:1px solid #eef1f6;border-radius:10px;margin-bottom:11px;overflow:hidden;}
+.lc .logobox img{max-width:88%;max-height:60px;object-fit:contain;}
+.lc .ph{width:48px;height:48px;border-radius:11px;background:#e7ecf5;color:#8a96ab;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;}
+.lc .nm{font-weight:700;font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lc .ws{font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+.lc .chk{position:absolute;top:11px;right:11px;width:22px;height:22px;border-radius:6px;border:1.5px solid #cdd6e6;background:#fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;}
+.lc.on .chk{background:var(--green);border-color:var(--green);}
+.empty{text-align:center;color:var(--dim);padding:50px 20px;} .empty b{color:var(--navy);display:block;font-size:16px;margin-bottom:6px;}
+.msg{font-size:13px;font-weight:700;} .msg.ok{color:var(--green);}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="./index.html" class="rrg-back" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <span class="disc" onclick="location.href='./index.html'">RRG</span>
+  <div class="kicker">Enrichment</div>
+  <h1>Find Company Logos</h1>
+  <div class="sub">We fetch a logo for every company that has a website. Review them below — <b>approve the good ones, skip the rest</b> — then apply. Nothing changes until you hit Apply.</div>
+</div></div>
+<div id="root" class="wrap"><div class="gate">Checking access…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var CANDS=[], STATE={};
+function initials(s){ s=String(s||'').trim(); if(!s) return '?'; var p=s.split(/\s+/); return ((p[0]||'')[0]||'').toUpperCase()+((p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
+function build(){
+  var root=document.getElementById('root'); root.className='wrap';
+  root.innerHTML='<div class="bar"><span class="cnt" id="cnt"></span><div class="sp"><button class="btn" id="all">Select all</button><button class="btn" id="none">Select none</button><button class="btn green" id="apply">Apply approved logos</button><span class="msg ok" id="msg"></span></div></div><div class="grid" id="grid"></div>';
+  document.getElementById('all').addEventListener('click',function(){ CANDS.forEach(function(c){ if(STATE[c.id]!=='dead') STATE[c.id]='on'; }); paint(); });
+  document.getElementById('none').addEventListener('click',function(){ CANDS.forEach(function(c){ if(STATE[c.id]!=='dead') STATE[c.id]='off'; }); paint(); });
+  document.getElementById('apply').addEventListener('click',apply);
+  loadCands();
+}
+function loadCands(){
+  fetch('/api/admin/logo-candidates',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ document.getElementById('grid').innerHTML='<div class="empty">Could not load companies.</div>'; return; }
+    CANDS=j.candidates||[];
+    if(!CANDS.length){ document.getElementById('grid').innerHTML='<div class="empty"><b>All set.</b>Every company with a website already has a logo (or none have websites to pull from). Import companies with websites, then come back.</div>'; document.getElementById('cnt').textContent=''; return; }
+    CANDS.forEach(function(c){ STATE[c.id]='on'; });
+    render();
+  }).catch(function(){ document.getElementById('grid').innerHTML='<div class="empty">Could not reach the server.</div>'; });
+}
+function render(){
+  document.getElementById('grid').innerHTML=CANDS.map(function(c){
+    return '<div class="lc'+(STATE[c.id]==='on'?' on':'')+'" data-id="'+esc(c.id)+'"><div class="chk">✓</div><div class="logobox"><img data-cid="'+esc(c.id)+'" src="'+esc(c.proposed||c.favicon)+'" alt="" referrerpolicy="no-referrer"></div><div class="nm">'+esc(c.name)+'</div><div class="ws">'+esc(c.domain||c.website)+'</div></div>';
+  }).join('');
+  document.querySelectorAll('.logobox img[data-cid]').forEach(function(img){
+    var c=CANDS.filter(function(x){return x.id===img.getAttribute('data-cid');})[0]; if(!c) return;
+    img.setAttribute('data-step','0');
+    img.onerror=function(){ var st=img.getAttribute('data-step'); if(st==='0' && c.favicon && img.src!==c.favicon){ img.setAttribute('data-step','1'); img.src=c.favicon; } else { markDead(c.id, img); } };
+  });
+  document.querySelectorAll('.lc[data-id]').forEach(function(el){ el.addEventListener('click',function(){ var id=el.getAttribute('data-id'); if(STATE[id]==='dead') return; STATE[id]=(STATE[id]==='on')?'off':'on'; el.classList.toggle('on',STATE[id]==='on'); count(); }); });
+  paint(); count();
+}
+function markDead(id,img){ STATE[id]='dead'; var box=img.closest('.logobox'); if(box){ var c=CANDS.filter(function(x){return x.id===id;})[0]; box.innerHTML='<div class="ph">'+esc(initials(c&&c.name))+'</div>'; } var card=document.querySelector('.lc[data-id="'+id+'"]'); if(card){ card.classList.remove('on'); card.classList.add('dead'); } count(); }
+function paint(){ document.querySelectorAll('.lc[data-id]').forEach(function(el){ var id=el.getAttribute('data-id'); el.classList.toggle('on',STATE[id]==='on'); el.classList.toggle('dead',STATE[id]==='dead'); }); count(); }
+function count(){ var on=CANDS.filter(function(c){return STATE[c.id]==='on';}).length; var c=document.getElementById('cnt'); if(c) c.textContent=on+' of '+CANDS.length+' approved'; }
+function apply(){
+  var items=[]; CANDS.forEach(function(c){ if(STATE[c.id]==='on'){ var img=document.querySelector('.logobox img[data-cid="'+c.id+'"]'); var src=img?img.src:(c.proposed||c.favicon); items.push({id:c.id,logo:src}); } });
+  if(!items.length){ document.getElementById('msg').textContent=''; alert('Nothing approved to apply.'); return; }
+  var b=document.getElementById('apply'); b.disabled=true;
+  fetch('/api/admin/apply-logos',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
+    b.disabled=false; if(j&&j.ok){ document.getElementById('msg').textContent='Applied '+j.applied+' logo'+(j.applied===1?'':'s')+' ✓'; setTimeout(loadCands,900); } else { alert((j&&j.error)||'Could not apply.'); }
+  }).catch(function(){ b.disabled=false; alert('Could not reach the server.'); });
+}
+fetch('/api/feedback',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+  if(!j||!j.isAdmin){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to run logo enrichment.</div>'; return; }
+  build();
+}).catch(function(){ build(); });
+</script>
+</body>
+</html>

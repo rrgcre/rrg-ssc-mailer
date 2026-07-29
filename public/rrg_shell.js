@@ -64,6 +64,8 @@
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
       { ic: '⤓', label: 'Import Data', href: 'rrg_import.html' },
+      { ic: '◐', label: 'Find Logos', href: 'rrg_logos.html' },
+      { ic: '⧉', label: 'Find Duplicates', href: 'rrg_duplicates.html' },
       { ic: '▤', label: 'Admin console', href: 'admin' },
       { ic: '◫', label: 'Departments', href: 'rrg_departments.html' },
       { ic: '☺', label: 'Users', href: 'rrg_roles.html' },
