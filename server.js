@@ -871,6 +871,7 @@ app.get('/api/session', (req, res) => res.json({
   toolLabels: effToolLabels(),
   logoUrl: (function () { const b = loadBrand(); return b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(b.updatedAt || '')) : ''; })(),
   headerMsg: (function () { const b = loadBrand(); return (b.headerMsg && b.headerMsgOn !== false) ? String(b.headerMsg) : ''; })(),
+  navVis: loadNavVis(),
   build: BUILD,
 }));
 // Admin-settable header announcement (shown across the top of the dashboard).
@@ -1990,6 +1991,26 @@ app.post('/api/admin/ai-confirm', requireAdmin, express.json(), (req, res) => {
   b.updatedAt = new Date().toISOString(); saveBrand(b);
   res.json({ ok: true, on: effAiConfirm() });
 });
+// ---- Nav visibility: which roles see which toolbar groups (owner/admin always see all) ----
+const NAV_VIS_FILE = path.join(BOV_DATA_DIR, 'nav_visibility.json');
+const NAV_GATEABLE_GROUPS = ['Book of Business', 'Business Sales', 'Tenant Rep', 'Landlord Rep', 'Marketing', 'Tools', 'Accounting'];
+function loadNavVis() { try { const o = JSON.parse(fs.readFileSync(NAV_VIS_FILE, 'utf8')); return (o && typeof o === 'object') ? o : {}; } catch (e) { return {}; } }
+function saveNavVis(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(NAV_VIS_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+app.get('/api/admin/nav-visibility', requireAdmin, (req, res) => {
+  res.json({ ok: true, groups: NAV_GATEABLE_GROUPS, roles: loadRoles().filter(r => r.key !== 'creator').map(r => ({ key: r.key, name: r.name })), visibility: loadNavVis() });
+});
+app.post('/api/admin/nav-visibility', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const vis = {};
+  if (b.visibility && typeof b.visibility === 'object') {
+    Object.keys(b.visibility).forEach(function (g) {
+      if (NAV_GATEABLE_GROUPS.indexOf(g) < 0) return;
+      const arr = Array.isArray(b.visibility[g]) ? b.visibility[g].filter(x => typeof x === 'string').slice(0, 40) : [];
+      if (arr.length) vis[g] = arr;
+    });
+  }
+  saveNavVis(vis);
+  res.json({ ok: true, visibility: vis });
+});
 // ---- Favicon (admin-set) — served at /favicon.ico for every page ----
 const FAVICON_MIME = { ico: 'image/x-icon', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' };
 const FAVICON_EXT = /^(ico|png|jpe?g|gif|webp|svg)$/i;
@@ -3014,12 +3035,13 @@ function newAutomationId() { return 'auto_' + Date.now().toString(36) + Math.ran
 function newEnrollId() { return 'enr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function cleanAutoSteps(arr) {
   return (Array.isArray(arr) ? arr : []).slice(0, 30).map(function (st, i) {
-    const type = (st && st.type === 'task') ? 'task' : 'email';
+    const type = ['task', 'notification'].indexOf(st && st.type) >= 0 ? st.type : 'email';
     const o = { type: type, delayDays: Math.max(0, Math.min(3650, parseInt((st && st.delayDays), 10) || 0)) };
     if (type === 'email') { o.subject = String((st && st.subject) || '').slice(0, 300); o.body = String((st && st.body) || '').slice(0, 20000); }
-    else { o.taskTitle = String((st && st.taskTitle) || '').slice(0, 300); o.taskNote = String((st && st.taskNote) || '').slice(0, 2000); }
+    else if (type === 'task') { o.taskTitle = String((st && st.taskTitle) || '').slice(0, 300); o.taskNote = String((st && st.taskNote) || '').slice(0, 2000); }
+    else { o.message = String((st && st.message) || '').slice(0, 2000); o.notifyEmail = String((st && st.notifyEmail) || '').slice(0, 160); }
     return o;
-  }).filter(function (st) { return st.type === 'task' ? st.taskTitle : (st.subject || st.body); });
+  }).filter(function (st) { return st.type === 'task' ? st.taskTitle : (st.type === 'notification' ? st.message : (st.subject || st.body)); });
 }
 function mergeTokens(t, p) {
   const first = personFirst(p) || '', last = personLast(p) || '', name = p.name || (first + ' ' + last).trim(), co = p.company || '';
@@ -3044,6 +3066,15 @@ function enrollPerson(p, plan, opts) {
   return en;
 }
 async function runAutomationStep(p, en, step) {
+  if (step.type === 'notification') {
+    const to = (step.notifyEmail && step.notifyEmail.trim()) || en.replyTo || mailFrom();
+    if (!to) return 'skipped: no notify recipient';
+    if (!isEmailConfigured()) return 'skipped: email not configured';
+    const link = String(process.env.APP_URL || '').replace(/\/$/, '') + '/rrg_person.html?id=' + encodeURIComponent(p.id);
+    const text = mergeTokens(step.message, p) + '\n\nContact: ' + (p.name || '') + (p.company ? (' (' + p.company + ')') : '') + (p.email ? ('\n' + p.email) : '') + (link ? ('\n' + link) : '') + '\n\n\u2014 FullServe automation (' + (en.automationName || '') + ')';
+    try { await sendNotifyMail(to, 'Automation follow-up: ' + (p.name || 'a contact'), text); logActivity(p, 'Note', 'Automation notification sent to ' + to, { auto: true, by: 'Automation' }); return 'notification sent to ' + to; }
+    catch (e) { return 'notify error: ' + (e && e.message); }
+  }
   if (step.type === 'task') {
     try {
       const tasks = loadTasks(); const now = new Date().toISOString();

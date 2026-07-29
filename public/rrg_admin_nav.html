@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Menu Access</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
+.wrap{max-width:1040px;margin:0 auto;padding:24px 28px 60px;}
+.pgh{font-size:26px;font-weight:800;color:var(--navy);margin:6px 0 2px;}
+.pgs{color:var(--muted);font-size:13.5px;margin-bottom:20px;max-width:820px;line-height:1.5;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;}
+.ch{padding:15px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;} .ch b{color:var(--navy);font-size:15px;} .ch .sp{margin-left:auto;display:flex;gap:8px;align-items:center;}
+.tbl{width:100%;border-collapse:collapse;}
+.tbl th,.tbl td{padding:11px 14px;border-top:1px solid #eef1f6;font-size:13.5px;text-align:center;}
+.tbl th{background:#f6f8fb;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);font-weight:700;border-top:none;position:sticky;top:0;}
+.tbl td.grp,.tbl th.grp{text-align:left;font-weight:700;color:var(--navy);white-space:nowrap;}
+.tbl td.ev{font-size:11.5px;color:var(--green);font-weight:700;}
+.tbl input[type=checkbox]{width:17px;height:17px;cursor:pointer;accent-color:var(--red);}
+.btn{font:inherit;font-size:12.5px;font-weight:700;padding:9px 15px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--navy);cursor:pointer;} .btn:hover{background:#f4f7fb;}
+.btn.pri{background:var(--navy);color:#fff;border-color:var(--navy);} .btn.pri:hover{background:#0a1a44;}
+.msg{font-size:12.5px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.note{color:var(--muted);font-size:12.5px;line-height:1.6;margin-top:14px;}
+.empty{padding:34px 20px;text-align:center;color:var(--soft);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="pgh">Menu Access</h1>
+  <div class="pgs">Control which roles see which sections of the toolbar. Leave a row blank to show that section to <b>everyone</b>. Check one or more roles to restrict a section to only those roles. <b>Owners and admins always see every section</b>, regardless of what's set here.</div>
+  <div id="root"><div class="card"><div class="empty">Loading…</div></div></div>
+</div>
+<script>
+var GROUPS=[], ROLES=[], VIS={};
+function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function load(){
+  fetch('/api/admin/nav-visibility',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="card"><div class="empty">Admins only.</div></div>'; return; }
+    GROUPS=j.groups||[]; ROLES=j.roles||[]; VIS=j.visibility||{}; render();
+  }).catch(function(){ document.getElementById('root').innerHTML='<div class="card"><div class="empty">Could not load.</div></div>'; });
+}
+function render(){
+  var head='<tr><th class="grp">Section</th>'+ROLES.map(function(r){return '<th>'+esc(r.name)+'</th>';}).join('')+'<th>Access</th></tr>';
+  var rows=GROUPS.map(function(g){
+    var allow=VIS[g]||[];
+    var cells=ROLES.map(function(r){ var on=allow.indexOf(r.key)>=0; return '<td><input type="checkbox" class="nv" data-g="'+esc(g)+'" data-r="'+esc(r.key)+'"'+(on?' checked':'')+'></td>'; }).join('');
+    var acc=allow.length?('<span style="font-size:11.5px;color:#b5791f;font-weight:700">'+allow.length+' role'+(allow.length===1?'':'s')+'</span>'):'<span class="ev">Everyone</span>';
+    return '<tr><td class="grp">'+esc(g)+'</td>'+cells+'<td>'+acc+'</td></tr>';
+  }).join('');
+  document.getElementById('root').innerHTML='<div class="card"><div class="ch"><b>Toolbar sections</b><span class="sp"><span class="msg" id="msg"></span><button class="btn pri" id="saveBtn">Save</button></span></div><div style="overflow-x:auto"><table class="tbl"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div><div class="note" style="padding:0 20px 18px">A section with no roles checked is visible to everyone. Checking roles limits it — for example, check only <b>Marketing</b> roles on the Marketing section so brokers do not see it. The Admin section is always owner/admin-only and is not listed here.</div></div>';
+  document.querySelectorAll('.nv').forEach(function(el){ el.onchange=function(){ var g=el.getAttribute('data-g'), r=el.getAttribute('data-r'); VIS[g]=VIS[g]||[]; if(el.checked){ if(VIS[g].indexOf(r)<0) VIS[g].push(r); } else { VIS[g]=VIS[g].filter(function(x){return x!==r;}); } if(!VIS[g].length) delete VIS[g]; render(); }; });
+  document.getElementById('saveBtn').onclick=save;
+}
+function save(){
+  var m=document.getElementById('msg'); m.textContent='Saving…'; m.className='msg';
+  fetch('/api/admin/nav-visibility',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({visibility:VIS})}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok){ VIS=j.visibility||{}; m.textContent='Saved ✓ — users see the change next time they load.'; m.className='msg ok'; }
+    else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; }
+  }).catch(function(){ m.textContent='Could not reach the server.'; m.className='msg err'; });
+}
+load();
+</script>
+</body>
+</html>

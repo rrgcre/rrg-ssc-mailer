@@ -84,16 +84,18 @@ function curById(id){ return PLANS.filter(function(p){return p.id===id;})[0]||nu
 
 function initSteps(){
   var p=EDIT;
-  STEPS=(p&&p.steps&&p.steps.length)?p.steps.map(function(s){ return {type:(s.type==='task'?'task':'email'),delayDays:(s.delayDays||0),subject:s.subject||'',body:s.body||'',taskTitle:s.taskTitle||'',taskNote:s.taskNote||''}; }):((p&&p.id)?[]:[{type:'email',delayDays:0,subject:'',body:'',taskTitle:'',taskNote:''}]);
+  STEPS=(p&&p.steps&&p.steps.length)?p.steps.map(function(s){ return {type:(['task','notification'].indexOf(s.type)>=0?s.type:'email'),delayDays:(s.delayDays||0),subject:s.subject||'',body:s.body||'',taskTitle:s.taskTitle||'',taskNote:s.taskNote||'',message:s.message||'',notifyEmail:s.notifyEmail||''}; }):((p&&p.id)?[]:[{type:'email',delayDays:0,subject:'',body:'',taskTitle:'',taskNote:''}]);
 }
 function renderSteps(){
   var box=document.getElementById('stepBox'); if(!box) return;
   if(!STEPS.length){ box.innerHTML='<div class="note" style="margin:0 0 6px">No steps yet — add an email or task step below.</div>'; return; }
   box.innerHTML=STEPS.map(function(s,i){
     var waitLabel=(i===0)?'when enrolled (wait':'wait';
-    var typeSel='<select class="st-type" data-i="'+i+'"><option value="email"'+(s.type==='email'?' selected':'')+'>Send email</option><option value="task"'+(s.type==='task'?' selected':'')+'>Create task</option></select>';
+    var typeSel='<select class="st-type" data-i="'+i+'"><option value="email"'+(s.type==='email'?' selected':'')+'>Send email</option><option value="task"'+(s.type==='task'?' selected':'')+'>Create task</option><option value="notification"'+(s.type==='notification'?' selected':'')+'>Send notification</option></select>';
     var content;
-    if(s.type==='task'){
+    if(s.type==='notification'){
+      content='<div class="stx"><label>Notify who? (email — leave blank to alert the enrolling rep)</label><input type="text" class="st-notifyemail" data-i="'+i+'" value="'+esc(s.notifyEmail||'')+'" placeholder="teammate@rrgcre.com"><label>Notification message</label><textarea class="st-message" data-i="'+i+'" placeholder="e.g. {{first_name}} is a hot buyer — give them a personal call today.">'+esc(s.message||'')+'</textarea></div>';
+    } else if(s.type==='task'){
       content='<div class="stx"><label>Task title</label><input type="text" class="st-tasktitle" data-i="'+i+'" value="'+esc(s.taskTitle||'')+'" placeholder="e.g. Call {{first_name}} about their search"><label>Task note (optional)</label><textarea class="st-tasknote" data-i="'+i+'" placeholder="Details for the rep…">'+esc(s.taskNote||'')+'</textarea></div>';
     } else {
       content='<div class="stx">'+((ETPLS&&ETPLS.length)?('<label>Start from a template</label><select class="st-tplpick" data-i="'+i+'" style="font:inherit;font-size:13px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;width:100%;max-width:340px;margin-bottom:2px"><option value="">— choose a template —</option>'+ETPLS.map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+(t.scope==='shared'?' (shared)':'')+'</option>';}).join('')+'</select>'):'')+'<label>Subject</label><input type="text" class="st-subject" data-i="'+i+'" value="'+esc(s.subject||'')+'" placeholder="e.g. Great to connect, {{first_name}}"><label>Body</label><textarea class="st-body" data-i="'+i+'" placeholder="Write the email… use {{first_name}} to personalize.">'+esc(s.body||'')+'</textarea></div>';
@@ -118,6 +120,8 @@ function collectSteps(){
     var bod=row.querySelector('.st-body'); if(bod) s.body=bod.value;
     var tt=row.querySelector('.st-tasktitle'); if(tt) s.taskTitle=tt.value;
     var tn=row.querySelector('.st-tasknote'); if(tn) s.taskNote=tn.value;
+    var nm=row.querySelector('.st-message'); if(nm) s.message=nm.value;
+    var ne=row.querySelector('.st-notifyemail'); if(ne) s.notifyEmail=ne.value;
   });
 }
 function moveStep(i,d){ collectSteps(); var j=i+d; if(j<0||j>=STEPS.length) return; var t=STEPS[i]; STEPS[i]=STEPS[j]; STEPS[j]=t; renderSteps(); }
@@ -131,14 +135,15 @@ function renderEditor(){
     +'<label class="chk"><input type="checkbox" id="pActive"'+((p.active===false)?'':' checked')+'> Active (reps can apply it; the default runs)</label>'
     +'<div class="stephd"><b>Steps</b><span class="tokens" style="margin-left:10px">Tokens: <code>{{first_name}}</code> <code>{{name}}</code> <code>{{company}}</code></span></div>'
     +'<div id="stepBox"></div>'
-    +'<div style="margin-top:6px;display:flex;gap:8px"><button type="button" class="btn" id="addEmail">+ Email step</button><button type="button" class="btn" id="addTask">+ Task step</button></div>'
+    +'<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="addEmail">+ Email step</button><button type="button" class="btn" id="addTask">+ Task step</button><button type="button" class="btn" id="addNotify">+ Notify step</button></div>'
     +'<div class="note">The first step fires when a contact is enrolled (set its wait to 0 days). Each later step waits that many days after the previous one. Emails only go to contacts with a valid email; if email isn’t set up or a contact has none, that step is skipped and noted — the sequence keeps going.</div>'
     +'</div></div>';
   renderSteps();
   document.getElementById('saveBtn').onclick=save;
   document.getElementById('closeBtn').onclick=function(){ EDIT=null; renderEditor(); };
-  document.getElementById('addEmail').onclick=function(){ collectSteps(); STEPS.push({type:'email',delayDays:(STEPS.length?5:0),subject:'',body:'',taskTitle:'',taskNote:''}); renderSteps(); };
-  document.getElementById('addTask').onclick=function(){ collectSteps(); STEPS.push({type:'task',delayDays:(STEPS.length?5:0),subject:'',body:'',taskTitle:'',taskNote:''}); renderSteps(); };
+  document.getElementById('addEmail').onclick=function(){ collectSteps(); STEPS.push({type:'email',delayDays:(STEPS.length?5:0),subject:'',body:'',taskTitle:'',taskNote:'',message:'',notifyEmail:''}); renderSteps(); };
+  document.getElementById('addTask').onclick=function(){ collectSteps(); STEPS.push({type:'task',delayDays:(STEPS.length?5:0),subject:'',body:'',taskTitle:'',taskNote:'',message:'',notifyEmail:''}); renderSteps(); };
+  document.getElementById('addNotify').onclick=function(){ collectSteps(); STEPS.push({type:'notification',delayDays:(STEPS.length?3:0),subject:'',body:'',taskTitle:'',taskNote:'',message:'',notifyEmail:''}); renderSteps(); };
   var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
 }
 function render(){

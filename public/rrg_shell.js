@@ -38,6 +38,9 @@
       { ic: '§', label: 'LOI Builder', href: 'rrg_loi_builder.html' },
       { ic: '⚙', label: 'LOI Settings', href: 'rrg_admin_loi.html', need: 'loi' }
     ] },
+    { grp: 'Landlord Rep', color: '#c98a5e', items: [
+      { ic: '⌂', label: 'Overview', href: 'rrg_landlord_rep.html' }
+    ] },
     { grp: 'Marketing', color: '#c77dc0', items: [
       { ic: '▧', label: 'Marketing Packs', href: 'rrg_cim_queue.html' },
       { ic: '➤', label: 'Market Attack Plans', href: 'rrg_attack_queue.html' },
@@ -63,6 +66,7 @@
       { ic: '◔', label: 'Roles', href: 'rrg_roles.html' },
       { ic: '⚙', label: 'Settings', href: 'rrg_admin_settings.html' },
       { ic: '⑃', label: 'Pipelines', href: 'rrg_admin_pipelines.html' },
+      { ic: '☰', label: 'Menu Access', href: 'rrg_admin_nav.html' },
       { ic: '∿', label: 'AI Usage', href: 'rrg_admin_aiusage.html' }
     ] }
   ];
@@ -188,6 +192,7 @@
         try{ window.__rrgSession=s; window.__rrgAssistant=(s&&s.assistant)||'the assistant'; document.dispatchEvent(new CustomEvent('rrg:session',{detail:s})); }catch(e){}
         if(s&&(s.role==='admin'||s.role==='creator')){ nav.querySelectorAll('[data-admingrp]').forEach(function(g){ g.style.display=''; }); nav.querySelectorAll('[data-adminit]').forEach(function(el){ el.style.display=''; }); }
         if(s&&s.canManageLoi){ nav.querySelectorAll('a.it[data-need="loi"]').forEach(function(el){ el.style.display=''; }); }
+        (function(){ var _role=(s&&s.role)||''; var _owner=(_role==='admin'||_role==='creator'); var _nv=(s&&s.navVis)||{}; if(!_owner){ nav.querySelectorAll('.lbl[data-grp]').forEach(function(l){ var gg=l.getAttribute('data-grp'); var allow=_nv[gg]; if(allow&&allow.length&&allow.indexOf(_role)<0){ var grp=l.closest('.grp'); if(grp) grp.style.display='none'; } }); } })();
         if(s&&!s.canUseAi){ var aist=document.createElement('style'); aist.textContent='[data-ai]{display:none !important;}'; document.head.appendChild(aist); }
         var nm=(s&&(s.name||s.username))||''; var uav=document.getElementById('rrguav'); if(uav&&nm){ var parts=nm.trim().split(/\s+/); uav.textContent=((parts[0]||'')[0]||'')+((parts[1]||'')[0]||'')||nm[0].toUpperCase(); }
         var ac=document.getElementById('rrgacct'); if(ac&&nm) ac.textContent=nm.split(/\s+/)[0];
