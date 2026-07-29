@@ -186,7 +186,7 @@ textarea{min-height:120px;resize:vertical;line-height:1.5;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return '—'; var d=new Date(iso); if(isNaN(d.getTime())) return '—'; return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
-var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], AGR=[], ATYPES=[], PIPES=[];
+var KEY=qs('key'), A=null, STATUSES=['New','Active','Under Contract','Closed','On Hold','Lost'], DIRTY=false, RA=null, OFFERS=[], TOURS=[], NDAS=[], PEOPLE=[], AGR=[], ATYPES=[], PIPES=[], EXP=null, INVX=null;
 var OFFER_TYPES=['IOI','LOI'], OFFER_STATUSES=['Received','Under review','Countered','Accepted','Rejected','Withdrawn'];
 var TXN=null, TXNSTAT=['LOI','Under Contract','Due Diligence','Financing','Closing','Closed','Dead'];
 var TXNCOMM=['Unpaid','Invoiced','Partial','Paid'];
@@ -261,6 +261,89 @@ function agreementsCardDeal(){
   if(!AGR.length) return '';
   return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGR.length+'</span></div><div class="cb" style="padding:14px 20px"><div class="jbeans">'+AGR.map(agrChipDeal).join('')+'</div></div></div>';
 }
+function expMoney(n){ n=Number(n||0); return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function expDate(iso){ if(!iso) return '—'; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return esc(iso); return x[1]+'/'+x[2]+'/'+x[0].slice(2); }
+function expBadge(st){ var m={'Paid':['#1f6f4e','#e7f5ee','#bce3cd'],'Reimbursed':['#2647b0','#eef2fb','#d6e0f5'],'Unpaid':['#a15c00','#fdf3e2','#f0d9ab']}; var c=m[st]||m['Unpaid']; return '<span style="display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:5px;padding:2px 8px;color:'+c[0]+';background:'+c[1]+';border:1px solid '+c[2]+'">'+esc(st)+'</span>'; }
+function expRow(x){
+  var del = x.mine ? '<button class="oedit" data-expdel="'+esc(x.id)+'" title="Delete expense" style="color:#DA2B1F">Delete</button>' : '';
+  var who = x.ownerName?('<span style="color:#8a93a8"> · '+esc(x.ownerName)+'</span>'):'';
+  var cat = x.category?('<span style="color:#6b7488"> · '+esc(x.category)+'</span>'):'';
+  var rf = x.reimbursable?' <span style="font-size:10px;font-weight:800;color:#4fb0a6;border:1px solid #bce6e0;background:#e6f6f4;border-radius:5px;padding:1px 5px">R</span>':'';
+  return '<div class="exprow" style="display:flex;align-items:center;gap:10px;padding:9px 4px;border-bottom:1px solid #eef1f6">'
+    +'<div style="width:60px;color:#6b7488;font-size:12.5px;font-variant-numeric:tabular-nums">'+expDate(x.date)+'</div>'
+    +'<div style="flex:1;min-width:0"><div style="font-weight:600;color:#1a2236">'+(x.vendor?esc(x.vendor):'<span style="color:#8a93a8">(no vendor)</span>')+rf+'</div><div style="font-size:12px;margin-top:2px">'+expBadge(x.status)+cat+who+'</div></div>'
+    +'<div style="font-weight:800;color:#1a2236;font-variant-numeric:tabular-nums">'+expMoney(x.amount)+'</div>'
+    +'<div style="width:64px;text-align:right">'+del+'</div></div>';
+}
+function expensesCardDeal(){
+  var E=EXP||{items:[],total:0,unpaid:0,reimbursable:0,count:0,categories:[],statuses:[]};
+  var items=E.items||[];
+  var rows=items.length?items.map(expRow).join(''):'<div style="color:#8a93a8;padding:14px 4px;font-size:13px">No expenses logged against this listing yet.</div>';
+  var totals='<div style="display:flex;gap:22px;flex-wrap:wrap;padding:12px 4px 14px;border-bottom:1px solid #eef1f6;margin-bottom:4px">'
+    +'<div><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;font-weight:700">Total</div><div style="font-size:19px;font-weight:800;color:#000E31">'+expMoney(E.total)+'</div></div>'
+    +'<div><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;font-weight:700">Unpaid</div><div style="font-size:19px;font-weight:800;color:#b7791f">'+expMoney(E.unpaid)+'</div></div>'
+    +'<div><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;font-weight:700">Reimbursable open</div><div style="font-size:19px;font-weight:800;color:#1f8a5b">'+expMoney(E.reimbursable)+'</div></div>'
+    +'</div>';
+  return '<div class="card"><div class="ch" style="display:flex"><b>Deal Expenses</b><span style="margin-left:12px">'+E.count+' logged</span><button class="addoffer" id="addExpBtn" style="margin-left:auto">+ Add expense</button></div>'
+    +'<div class="cb" style="padding:8px 20px 16px"><div id="expForm" hidden></div>'+totals+rows+'</div></div>';
+}
+function openExpForm(){
+  var f=document.getElementById('expForm'); if(!f) return;
+  if(!f.hidden){ f.hidden=true; f.innerHTML=''; return; }
+  var E=EXP||{}; var cats=(E.categories||[]); var stats=(E.statuses||['Unpaid','Paid','Reimbursed']);
+  var catOpts='<option value="">— Category —</option>'+cats.map(function(c){return '<option>'+esc(c)+'</option>';}).join('');
+  var statOpts=stats.map(function(sx){return '<option'+(sx==='Unpaid'?' selected':'')+'>'+esc(sx)+'</option>';}).join('');
+  f.innerHTML='<div class="ofgrid"><div class="off"><label class="fld">Date</label><input type="date" id="ex_date" value="'+agrToday()+'"></div>'
+    +'<div class="off"><label class="fld">Vendor / Payee</label><input id="ex_vendor" placeholder="e.g. LoopNet, printer"></div>'
+    +'<div class="off"><label class="fld">Amount</label><input id="ex_amt" inputmode="decimal" placeholder="0.00"></div>'
+    +'<div class="off"><label class="fld">Category</label><select id="ex_cat">'+catOpts+'</select></div>'
+    +'<div class="off"><label class="fld">Status</label><select id="ex_status">'+statOpts+'</select></div>'
+    +'<div class="off"><label class="fld">&nbsp;</label><label style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;padding:9px 0"><input type="checkbox" id="ex_reimb" style="width:16px;height:16px">Reimbursable</label></div>'
+    +'<div class="off wide"><label class="fld">Notes</label><input id="ex_notes" placeholder="What was this for?"></div></div>'
+    +'<div class="ofbtns"><button class="savebtn2" id="ex_save">Add expense</button><button class="cancelbtn" id="ex_cancel">Cancel</button></div>';
+  f.hidden=false;
+  document.getElementById('ex_save').addEventListener('click',saveExpense);
+  document.getElementById('ex_cancel').addEventListener('click',function(){ f.hidden=true; f.innerHTML=''; });
+}
+function saveExpense(){
+  var amt=Number((document.getElementById('ex_amt').value||'').replace(/[^0-9.\-]/g,''));
+  if(!(amt>0)){ alert('Enter an amount.'); return; }
+  var body={ date:document.getElementById('ex_date').value, vendor:document.getElementById('ex_vendor').value.trim(),
+    category:document.getElementById('ex_cat').value, amount:amt, status:document.getElementById('ex_status').value,
+    reimbursable:document.getElementById('ex_reimb').checked, notes:document.getElementById('ex_notes').value.trim(),
+    listingKey:KEY, listingLabel:(A&&A.business)||'' };
+  var b=document.getElementById('ex_save'); if(b){b.disabled=true;b.textContent='Adding…';}
+  fetch('/api/expenses',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { if(b){b.disabled=false;b.textContent='Add expense';} alert((j&&j.error)||'Could not save the expense.'); } })
+    .catch(function(){ if(b){b.disabled=false;b.textContent='Add expense';} alert('Could not reach the server.'); });
+}
+function delExpense(id){ if(!confirm('Delete this expense?')) return; fetch('/api/expenses/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert((j&&j.error)||'Could not delete.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+function wireExpenses(){ var b=document.getElementById('addExpBtn'); if(b) b.addEventListener('click',openExpForm); document.querySelectorAll('[data-expdel]').forEach(function(el){ el.addEventListener('click',function(){ delExpense(el.getAttribute('data-expdel')); }); }); }
+
+function invMoney(n){ n=Number(n||0); return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function invBadge(st){ var m={'Paid':['#1f6f4e','#e7f5ee','#bce3cd'],'Partial':['#a15c00','#fdf3e2','#f0d9ab'],'Sent':['#2647b0','#eef2fb','#d6e0f5'],'Void':['#a1352f','#fdeceb','#f0c9c6'],'Draft':['#5b6472','#eef1f6','#d9e0ea']}; var c=m[st]||m['Draft']; return '<span style="display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:5px;padding:2px 8px;color:'+c[0]+';background:'+c[1]+';border:1px solid '+c[2]+'">'+esc(st)+'</span>'; }
+function invRow(x){
+  var bal=Number(x.balance||0);
+  return '<a class="invrow" href="./rrg_invoices.html?open='+encodeURIComponent(x.id)+'" style="display:flex;align-items:center;gap:12px;padding:10px 4px;border-bottom:1px solid #eef1f6;text-decoration:none;color:inherit">'
+    +'<div style="width:78px;font-weight:700;color:#000E31">'+esc(x.number||'—')+'</div>'
+    +'<div style="flex:1;min-width:0"><div style="font-weight:600;color:#1a2236">'+(x.billTo?esc(x.billTo):'<span style="color:#8a93a8">(no bill-to)</span>')+'</div><div style="font-size:12px;margin-top:2px">'+invBadge(x.status)+(x.issueDate?('<span style="color:#8a93a8"> · '+esc(fmt(x.issueDate))+'</span>'):'')+'</div></div>'
+    +'<div style="text-align:right"><div style="font-weight:800;color:#1a2236;font-variant-numeric:tabular-nums">'+invMoney(x.total)+'</div>'+(bal>0.005?('<div style="font-size:11.5px;color:#DA2B1F;font-weight:700">'+invMoney(bal)+' due</div>'):'<div style="font-size:11.5px;color:#1f8a5b;font-weight:700">Paid</div>')+'</div></a>';
+}
+function invoicesCardDeal(){
+  var E=INVX||{items:[],billed:0,collected:0,outstanding:0,count:0};
+  var items=E.items||[];
+  var rows=items.length?items.map(invRow).join(''):'<div style="color:#8a93a8;padding:14px 4px;font-size:13px">No invoices for this transaction yet.</div>';
+  var totals='<div style="display:flex;gap:22px;flex-wrap:wrap;padding:12px 4px 14px;border-bottom:1px solid #eef1f6;margin-bottom:4px">'
+    +'<div><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;font-weight:700">Billed</div><div style="font-size:19px;font-weight:800;color:#000E31">'+invMoney(E.billed)+'</div></div>'
+    +'<div><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;font-weight:700">Collected</div><div style="font-size:19px;font-weight:800;color:#1f8a5b">'+invMoney(E.collected)+'</div></div>'
+    +'<div><div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;font-weight:700">Outstanding</div><div style="font-size:19px;font-weight:800;color:#b7791f">'+invMoney(E.outstanding)+'</div></div>'
+    +'</div>';
+  var billto=(A&&A.contact)?('&billto='+encodeURIComponent(A.contact)):'';
+  var newHref='./rrg_invoices.html?deal='+encodeURIComponent(KEY)+billto;
+  return '<div class="card"><div class="ch" style="display:flex"><b>Invoices</b><span style="margin-left:12px">'+E.count+' invoice'+(E.count===1?'':'s')+'</span><a class="addoffer" href="'+newHref+'" style="margin-left:auto;text-decoration:none">+ New invoice</a></div>'
+    +'<div class="cb" style="padding:8px 20px 16px">'+totals+rows+'</div></div>';
+}
+
 function render(){
   var s=A.stages||{};
   var ST=activeStages();
@@ -314,6 +397,8 @@ function render(){
     + toursCard()
     + offersCard()
     + agreementsCardDeal()
+    + expensesCardDeal()
+    + invoicesCardDeal()
     + roomActivityCard()
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
@@ -363,6 +448,7 @@ function render(){
   wireNdas();
   wireDeal();
   wireManualStages();
+  wireExpenses();
   setupAccordion();
 }
 function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){}); }
@@ -837,7 +923,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; render(); loadPeople(); })
+  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();

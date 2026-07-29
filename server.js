@@ -2703,7 +2703,7 @@ app.get('/api/assignment/:key', (req, res) => {
   if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const origin = req.protocol + '://' + req.get('host');
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: AGREEMENT_TYPES, pipelines: loadPipelines(), expenses: dealExpenseRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin) });
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: AGREEMENT_TYPES, pipelines: loadPipelines(), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin) });
 });
 app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   const deals = assignmentsIndex();
@@ -3345,6 +3345,114 @@ app.delete('/api/expenses/:id', (req, res) => {
   if (!(x.ownerUser === u.username || isSuper(u))) return res.status(403).json({ ok: false, error: 'You can only delete your own expenses.' });
   all = all.filter(e => e.id !== req.params.id); saveExpenses(all);
   res.json({ ok: true });
+});
+
+// ===== Invoices & Payments (Accounting) =====
+const INVOICES_FILE = path.join(BOV_DATA_DIR, 'invoices.json');
+const INVOICE_STATUSES = ['Draft', 'Sent', 'Void'];
+const PAYMENT_METHODS = ['Check', 'ACH / Wire', 'Card', 'Cash', 'Other'];
+function loadInvoices() { try { return JSON.parse(fs.readFileSync(INVOICES_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveInvoices(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(INVOICES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newInvoiceId() { return 'inv_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function newPaymentId() { return 'pay_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function nextInvoiceNumber(all) { let mx = 1000; all.forEach(x => { const n = parseInt(String(x.number || '').replace(/\D/g, ''), 10); if (isFinite(n) && n > mx) mx = n; }); return 'INV-' + (mx + 1); }
+function cleanLineItems(arr) { if (!Array.isArray(arr)) return []; return arr.map(li => ({ desc: String((li && li.desc) || '').slice(0, 300), amount: _expNum(li && li.amount) })).filter(li => li.desc || li.amount).slice(0, 60); }
+function cleanPayments(arr) { if (!Array.isArray(arr)) return []; return arr.map(p => ({ id: p.id || newPaymentId(), date: String((p && p.date) || '').slice(0, 10), amount: _expNum(p && p.amount), method: String((p && p.method) || '').slice(0, 40), reference: String((p && p.reference) || '').slice(0, 120), notes: String((p && p.notes) || '').slice(0, 600), createdAt: p.createdAt || new Date().toISOString() })); }
+function invoiceStatusDisplay(x, total, paid) {
+  if (x.status === 'Void') return 'Void';
+  if (total > 0 && paid >= total - 0.005) return 'Paid';
+  if (paid > 0) return 'Partial';
+  return x.status === 'Sent' ? 'Sent' : 'Draft';
+}
+function invoiceBrief(x, user, opts) {
+  opts = opts || {};
+  const items = Array.isArray(x.lineItems) ? x.lineItems : [];
+  const total = items.reduce((s2, li) => s2 + _expNum(li.amount), 0);
+  const pays = Array.isArray(x.payments) ? x.payments : [];
+  const paid = pays.reduce((s2, p) => s2 + _expNum(p.amount), 0);
+  const b = { id: x.id, number: x.number || '', listingKey: x.listingKey || '', listingLabel: x.listingLabel || '',
+    billTo: x.billTo || '', billToEmail: x.billToEmail || '', issueDate: x.issueDate || '', dueDate: x.dueDate || '',
+    baseStatus: INVOICE_STATUSES.indexOf(x.status) >= 0 ? x.status : 'Draft', total: total, paid: paid, balance: total - paid,
+    status: invoiceStatusDisplay(x, total, paid), notes: x.notes || '', terms: x.terms || '',
+    paymentCount: pays.length, ownerUser: x.ownerUser || '', ownerName: x.ownerName || '',
+    mine: !!(user && (x.ownerUser === user.username || isSuper(user))), createdAt: x.createdAt || '', updatedAt: x.updatedAt || '' };
+  if (opts.full) { b.lineItems = items.map(li => ({ desc: li.desc || '', amount: _expNum(li.amount) }));
+    b.payments = pays.slice().sort((p, q) => String(q.date || '').localeCompare(String(p.date || ''))).map(p => ({ id: p.id, date: p.date || '', amount: _expNum(p.amount), method: p.method || '', reference: p.reference || '', notes: p.notes || '' })); }
+  return b;
+}
+function dealInvoiceRollup(key, user) {
+  const rows = loadInvoices().filter(x => x.listingKey === key).map(x => invoiceBrief(x, user, { full: true }));
+  rows.sort((a, b) => String(b.issueDate || '').localeCompare(String(a.issueDate || '')) || String(b.number).localeCompare(String(a.number)));
+  let billed = 0, collected = 0;
+  rows.forEach(r => { if (r.baseStatus !== 'Void') { billed += r.total; collected += r.paid; } });
+  return { items: rows, billed: billed, collected: collected, outstanding: billed - collected, count: rows.length, statuses: INVOICE_STATUSES, methods: PAYMENT_METHODS };
+}
+function _invCanEdit(x, u) { return !!(x.ownerUser === u.username || isSuper(u)); }
+app.get('/api/invoices', (req, res) => {
+  const u = req.user || {}; const admin = isSuper(u); const all = loadInvoices();
+  const filt = req.query.listingKey ? all.filter(x => x.listingKey === req.query.listingKey) : all;
+  const vis = filt.filter(x => admin || x.ownerUser === u.username);
+  const rows = vis.map(x => invoiceBrief(x, u)).sort((a, b) => String(b.issueDate || '').localeCompare(String(a.issueDate || '')) || String(b.number).localeCompare(String(a.number)));
+  res.json({ ok: true, isAdmin: !!admin, statuses: INVOICE_STATUSES, methods: PAYMENT_METHODS, invoices: rows });
+});
+app.get('/api/invoices/:id', (req, res) => {
+  const u = req.user || {}; const x = loadInvoices().find(e => e.id === req.params.id);
+  if (!x) return res.status(404).json({ ok: false, error: 'Invoice not found.' });
+  if (!(isSuper(u) || x.ownerUser === u.username)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  res.json({ ok: true, statuses: INVOICE_STATUSES, methods: PAYMENT_METHODS, invoice: invoiceBrief(x, u, { full: true }) });
+});
+app.post('/api/invoices', express.json({ limit: '512kb' }), (req, res) => {
+  const u = req.user || {}; const b = req.body || {}; const all = loadInvoices();
+  let x;
+  if (b.id) { x = all.find(e => e.id === b.id); if (!x) return res.status(404).json({ ok: false, error: 'Invoice not found.' });
+    if (!_invCanEdit(x, u)) return res.status(403).json({ ok: false, error: 'You can only edit your own invoices.' }); }
+  else { x = { id: newInvoiceId(), number: nextInvoiceNumber(all), payments: [], ownerUser: u.username || '', ownerName: u.name || '', createdAt: new Date().toISOString() }; all.push(x); }
+  if (b.listingKey !== undefined) x.listingKey = String(b.listingKey || '').slice(0, 80);
+  if (b.listingLabel !== undefined) x.listingLabel = String(b.listingLabel || '').slice(0, 160);
+  if (b.billTo !== undefined) x.billTo = String(b.billTo || '').slice(0, 160);
+  if (b.billToEmail !== undefined) x.billToEmail = String(b.billToEmail || '').slice(0, 160);
+  if (b.issueDate !== undefined) x.issueDate = String(b.issueDate || '').slice(0, 10);
+  if (b.dueDate !== undefined) x.dueDate = String(b.dueDate || '').slice(0, 10);
+  if (b.status !== undefined) x.status = INVOICE_STATUSES.indexOf(b.status) >= 0 ? b.status : 'Draft';
+  if (b.lineItems !== undefined) x.lineItems = cleanLineItems(b.lineItems);
+  if (b.notes !== undefined) x.notes = String(b.notes || '').slice(0, 4000);
+  if (b.terms !== undefined) x.terms = String(b.terms || '').slice(0, 600);
+  x.updatedAt = new Date().toISOString(); saveInvoices(all);
+  res.json({ ok: true, invoice: invoiceBrief(x, u, { full: true }) });
+});
+app.delete('/api/invoices/:id', (req, res) => {
+  const u = req.user || {}; let all = loadInvoices(); const x = all.find(e => e.id === req.params.id);
+  if (!x) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!_invCanEdit(x, u)) return res.status(403).json({ ok: false, error: 'You can only delete your own invoices.' });
+  all = all.filter(e => e.id !== req.params.id); saveInvoices(all);
+  res.json({ ok: true });
+});
+app.post('/api/invoices/:id/payment', express.json({ limit: '128kb' }), (req, res) => {
+  const u = req.user || {}; const b = req.body || {}; const all = loadInvoices(); const x = all.find(e => e.id === req.params.id);
+  if (!x) return res.status(404).json({ ok: false, error: 'Invoice not found.' });
+  if (!_invCanEdit(x, u)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const amt = _expNum(b.amount); if (!(amt > 0)) return res.status(400).json({ ok: false, error: 'Enter a payment amount.' });
+  if (!Array.isArray(x.payments)) x.payments = [];
+  x.payments.push({ id: newPaymentId(), date: String(b.date || '').slice(0, 10), amount: amt, method: String(b.method || '').slice(0, 40), reference: String(b.reference || '').slice(0, 120), notes: String(b.notes || '').slice(0, 600), createdAt: new Date().toISOString() });
+  x.updatedAt = new Date().toISOString(); saveInvoices(all);
+  res.json({ ok: true, invoice: invoiceBrief(x, u, { full: true }) });
+});
+app.delete('/api/invoices/:id/payment/:pid', (req, res) => {
+  const u = req.user || {}; const all = loadInvoices(); const x = all.find(e => e.id === req.params.id);
+  if (!x) return res.status(404).json({ ok: false, error: 'Invoice not found.' });
+  if (!_invCanEdit(x, u)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  x.payments = (x.payments || []).filter(p => p.id !== req.params.pid);
+  x.updatedAt = new Date().toISOString(); saveInvoices(all);
+  res.json({ ok: true, invoice: invoiceBrief(x, u, { full: true }) });
+});
+app.get('/api/payments', (req, res) => {
+  const u = req.user || {}; const admin = isSuper(u); const all = loadInvoices();
+  const vis = all.filter(x => admin || x.ownerUser === u.username);
+  const rows = [];
+  vis.forEach(x => { (x.payments || []).forEach(p => { rows.push({ id: p.id, invoiceId: x.id, number: x.number || '', listingKey: x.listingKey || '', listingLabel: x.listingLabel || '', billTo: x.billTo || '', date: p.date || '', amount: _expNum(p.amount), method: p.method || '', reference: p.reference || '', ownerName: x.ownerName || '', mine: !!(u && (x.ownerUser === u.username || admin)) }); }); });
+  rows.sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')));
+  const total = rows.reduce((s2, p) => s2 + _expNum(p.amount), 0);
+  res.json({ ok: true, isAdmin: !!admin, methods: PAYMENT_METHODS, total: total, payments: rows });
 });
 
 app.get('/api/automations', (req, res) => { res.json({ ok: true, automations: loadAutomations().map(automationBrief), isAdmin: !!(req.user && isSuper(req.user)) }); });
