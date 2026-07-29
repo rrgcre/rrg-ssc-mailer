@@ -13,6 +13,7 @@
 
   var NAV = [
     { color: '#8fa2c4', items: [
+      { ic: '◉', label: 'Consult', href: 'rrg_consult.html', ai: true, color: '#12a594' },
       { ic: '✦', label: 'RRG Brief', href: 'rrg_brief.html', ai: true },
       { ic: '◱', label: 'Activity Feed', href: 'rrg_feed.html' },
       { ic: '✔', label: 'My Tasks', href: 'rrg_tasks.html' }
@@ -54,7 +55,6 @@
       { ic: '⊟', label: 'Expenses', href: 'rrg_expenses.html' }
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
-      { ic: '◉', label: 'Consult', href: 'rrg_consult.html', ai: true },
       { ic: '★', label: 'Features', href: 'rrg_features.html' },
       { ic: '⚑', label: 'Feedback', href: 'rrg_feedback.html' },
       { ic: '✉', label: 'Requests', href: 'rrg_tickets.html' },

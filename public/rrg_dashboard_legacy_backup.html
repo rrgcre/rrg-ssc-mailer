@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG Associate Dashboard</title>
+<style>
+:root{
+  --navy:#000E31; --red:#DA2B1F; --ink:#1a2236; --muted:#6b7488;
+  --line:#e6e9f0; --wash:#f5f7fb; --bg:#eef1f6;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;}
+
+/* ---- header band ---- */
+.top{
+  color:#fff;padding:40px 0 46px;position:relative;overflow:hidden;
+  background:radial-gradient(115% 130% at 50% 0%, #182a54 0%, #0d1b3d 44%, #080f2b 72%, #04091d 100%);
+}
+.top-inner{max-width:1080px;margin:0 auto;padding:0 32px;position:relative;z-index:2;}
+/* giant outlined RRG monogram — centered as a symmetric watermark, bleeds both edges */
+.mono{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:1;
+  font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:370px;line-height:.72;
+  letter-spacing:-.05em;color:transparent;-webkit-text-stroke:2px rgba(218,43,31,.20);pointer-events:none;user-select:none;white-space:nowrap;}
+.rule{position:relative;z-index:2;width:64px;height:4px;background:var(--red);border-radius:3px;margin:18px 0 14px;}
+.tagline{position:relative;z-index:2;margin-top:6px;font-size:15px;font-weight:800;color:#fff;white-space:nowrap;letter-spacing:-.01em;}
+.tagline .r{color:var(--red);}
+@media(max-width:820px){ .mono{font-size:230px;} }
+.topnav{position:absolute;top:0;right:32px;display:flex;align-items:center;gap:8px;font-size:12.5px;z-index:6;}
+.topnav .who{color:#c3ccdf;font-weight:600;margin-right:4px;}
+.topnav .navlinks{display:flex;align-items:center;gap:8px;}
+.topnav a{color:#c3ccdf;text-decoration:none;font-weight:600;border:1px solid rgba(255,255,255,.2);padding:6px 12px;border-radius:8px;white-space:nowrap;}
+.topnav a:hover{border-color:#fff;color:#fff;}
+.topnav a.out{border-color:transparent;}
+/* hamburger (hidden on desktop) */
+.topnav .hamb{display:none;flex-direction:column;justify-content:center;align-items:center;gap:4px;
+  width:40px;height:36px;padding:0;cursor:pointer;background:rgba(255,255,255,.07);
+  border:1px solid rgba(255,255,255,.2);border-radius:9px;}
+.topnav .hamb span{display:block;width:18px;height:2px;background:#dfe6f4;border-radius:2px;transition:.2s;}
+.topnav.open .hamb span:nth-child(1){transform:translateY(6px) rotate(45deg);}
+.topnav.open .hamb span:nth-child(2){opacity:0;}
+.topnav.open .hamb span:nth-child(3){transform:translateY(-6px) rotate(-45deg);}
+@media(max-width:820px){
+  .topnav{right:20px;}
+  .topnav .hamb{display:flex;}
+  .topnav .navlinks{display:none;position:absolute;top:46px;right:0;flex-direction:column;align-items:stretch;gap:6px;
+    background:#0e1c40;border:1px solid rgba(255,255,255,.16);border-radius:12px;padding:12px;min-width:190px;
+    box-shadow:0 18px 46px rgba(0,0,0,.55);}
+  .topnav.open .navlinks{display:flex;}
+  .topnav .navlinks .who{margin:2px 4px 6px;}
+  .topnav .navlinks a{border-color:rgba(255,255,255,.16);padding:9px 12px;}
+  .topnav .navlinks a.out{border-color:rgba(255,255,255,.16);color:#f2a9a3;}
+}
+/* ABC-style two-tone sweep: a huge dark circle whose top-left edge is the arc */
+.orbs{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+.orb{position:absolute;border-radius:50%;}
+.orb1{width:1600px;height:1600px;right:-430px;top:112px;
+  background:radial-gradient(circle at 34% 30%, #0b1430 0%, #08112a 48%, #050c22 82%);
+  border:1px solid rgba(120,150,220,.10);}
+.orb2{width:540px;height:540px;left:14%;top:-60%;
+  background:radial-gradient(circle, rgba(62,90,172,.32) 0%, transparent 66%);filter:blur(8px);}
+.brand{display:inline-flex;align-items:center;position:relative;z-index:2;}
+.brand .disc{background:var(--red);color:#fff;border-radius:50%;width:46px;height:46px;font-family:'Arial Black',Arial,Helvetica,sans-serif;font-weight:900;font-size:15px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;box-shadow:0 0 0 7px rgba(218,43,31,.12), 0 8px 26px rgba(218,43,31,.32);}
+.brand .bar{background:#fff;width:3px;height:34px;margin:0 13px;}
+.brand .wm{font-weight:800;color:#fff;font-size:15px;text-transform:uppercase;line-height:.95;letter-spacing:.01em;}
+.kicker{position:relative;z-index:2;margin:30px 0 4px;color:var(--red);font-weight:700;letter-spacing:.32em;font-size:11px;text-transform:uppercase;}
+h1{position:relative;z-index:2;font-size:34px;font-weight:800;letter-spacing:-.01em;margin:0;color:#fff;}
+.sub{position:relative;z-index:2;color:#aeb8cf;font-size:13.5px;margin-top:8px;}
+.prop{position:relative;z-index:2;margin-top:16px;font-size:9px;letter-spacing:.05em;color:#7f8bab;text-transform:uppercase;}
+
+/* ---- grid ---- */
+.wrap{max-width:1080px;margin:0 auto;padding:30px 32px 60px;}
+.sectionlabel{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:8px 2px 14px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:18px;}
+
+/* ---- track groups ---- */
+.trackhead{display:flex;align-items:baseline;gap:12px;margin:30px 2px 14px;flex-wrap:wrap;}
+.trackhead:first-child{margin-top:6px;}
+.trackhead .tl{font-size:15px;font-weight:800;color:var(--navy);letter-spacing:-.01em;}
+.trackhead .tn{font-size:12px;color:var(--muted);font-weight:500;}
+.grid.flow .card{border-top:3px solid var(--red);}
+.stepbadge{position:absolute;top:12px;right:14px;z-index:3;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--red);background:#fdeceb;border-radius:20px;padding:3px 9px;}
+.card.hasstep .tag{display:none;}
+.card.hasstep .cardtop{justify-content:flex-start;}
+.card{display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:14px;padding:22px 22px 20px;text-decoration:none;color:inherit;position:relative;overflow:hidden;transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease;}
+.card::before{content:"";position:absolute;left:0;top:0;height:4px;width:100%;background:var(--red);transform:scaleX(0);transform-origin:left;transition:transform .18s ease;}
+.card:hover{transform:translateY(-3px);box-shadow:0 12px 30px rgba(10,20,50,.12);border-color:#d3d9e6;}
+.card:hover::before{transform:scaleX(1);}
+.cardtop{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px;}
+.icon{width:46px;height:46px;flex:none;}
+.tag{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:4px 10px;border-radius:20px;white-space:nowrap;}
+.tag.buyer{background:#eaf0ff;color:#2647b0;}
+.tag.seller{background:#fdeceb;color:var(--red);}
+.tag.deal{background:#fdf1df;color:#b5791f;}
+.tag.value{background:#e7f5ee;color:#1f8a5b;}
+.tag.tenant{background:#eaf0ff;color:#2647b0;}
+.card h2{font-size:18px;font-weight:800;color:var(--navy);margin:0 0 6px;letter-spacing:-.01em;}
+.card p{font-size:13px;line-height:1.5;color:var(--muted);margin:0 0 18px;flex:1;}
+.open{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:13px;color:var(--navy);}
+.cardfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.guidebtn{display:inline-flex;align-items:center;gap:5px;background:none;border:none;cursor:pointer;color:#98a1b5;font:inherit;font-size:12px;font-weight:700;padding:4px 0;}
+.guidebtn:hover{color:var(--red);}
+.guidebtn .ic{display:inline-flex;width:15px;height:15px;border:1.5px solid currentColor;border-radius:50%;align-items:center;justify-content:center;font-size:10px;font-style:italic;font-weight:800;font-family:Georgia,'Times New Roman',serif;}
+/* how-to-use modal */
+.gmodal{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(7,16,41,.6);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);}
+.gmodal.show{display:flex;}
+.gcard{background:#fff;border-radius:16px;max-width:470px;width:100%;box-shadow:0 24px 70px rgba(4,10,30,.5);padding:26px 28px 24px;position:relative;max-height:88vh;overflow:auto;}
+.gx{position:absolute;top:12px;right:15px;background:none;border:none;font-size:25px;line-height:1;color:#9aa3b5;cursor:pointer;}
+.gx:hover{color:var(--navy);}
+.ghead{display:flex;align-items:center;gap:14px;margin-bottom:4px;padding-right:24px;}
+.ghead .gi{width:46px;height:46px;flex:none;border-radius:11px;background:#f2f5fb;display:flex;align-items:center;justify-content:center;}
+.ghead .gi .icon{width:26px;height:26px;}
+.gtag{font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);font-weight:800;}
+.gcard h3{margin:2px 0 0;font-size:20px;font-weight:800;color:var(--navy);letter-spacing:-.01em;}
+.glabel{margin:18px 0 5px;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8a93a8;font-weight:800;}
+.gcard p{margin:0;font-size:13.5px;line-height:1.55;color:#3a4256;}
+.gcard ol{margin:0;padding-left:20px;} .gcard ol li{font-size:13.5px;line-height:1.5;color:#3a4256;margin:5px 0;}
+.gtip{margin-top:16px;background:#fff5f4;border:1px solid #f6d4d0;border-radius:10px;padding:12px 14px;font-size:13px;line-height:1.5;color:#7a2b25;}
+.gtip b{color:var(--red);}
+.gopen{margin-top:20px;display:inline-block;background:var(--navy);color:#fff;text-decoration:none;border-radius:10px;padding:11px 22px;font-size:14px;font-weight:700;}
+.gopen:hover{background:#0b1a3a;}
+.open .arw{transition:transform .16s ease;}
+.card:hover .open .arw{transform:translateX(4px);}
+.open .arw svg{display:block;}
+
+/* ---- add-tool hint ---- */
+.addcard{border:1.5px dashed #c7cfdd;background:transparent;border-radius:14px;padding:22px;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;color:var(--muted);min-height:180px;}
+.addcard .plus{width:38px;height:38px;border-radius:50%;border:1.5px dashed #b9c2d4;display:flex;align-items:center;justify-content:center;font-size:22px;color:#9aa4bd;margin-bottom:10px;font-weight:400;}
+.addcard .t{font-weight:700;color:var(--ink);font-size:13.5px;}
+.addcard .s{font-size:11.5px;margin-top:4px;}
+
+.foot{max-width:1080px;margin:0 auto;padding:0 32px 40px;color:var(--muted);font-size:11.5px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.foot b{color:var(--navy);}
+@media(max-width:560px){ .top{padding:26px 22px;} h1{font-size:26px;} .wrap{padding:24px 18px 40px;} }
+
+/* ---- Agreements ---- */
+/* ---- Quick Links (compact pills) ---- */
+.ql{display:flex;flex-wrap:wrap;gap:8px;}
+.qlcard{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 11px;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s;}
+.qlcard:hover{border-color:#c9d2e2;transform:translateY(-1px);}
+.qlcard .qi{width:19px;height:19px;flex:none;border-radius:5px;background:#eaf0ff;color:#2647b0;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:10.5px;}
+.qlcard .qn{font-weight:700;color:var(--navy);font-size:12px;line-height:1;white-space:nowrap;}
+.qlcard .qu{display:none;}
+
+.agr{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px;}
+.agrcard{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;text-decoration:none;color:inherit;transition:border-color .15s,transform .15s;}
+.agrcard:hover{border-color:#c9d2e2;transform:translateY(-2px);}
+.agrcard .di{width:30px;height:36px;flex:none;}
+.agrcard .an{font-weight:700;color:var(--navy);font-size:13px;line-height:1.25;display:block;}
+.agrcard .at{font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.04em;margin-top:2px;display:block;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+
+<div class="top">
+  <div class="mono">RRG</div>
+  <div class="top-inner">
+    <div class="topnav" id="topnav"></div>
+    <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <div class="kicker">Internal Toolkit</div>
+    <h1>The RRG <span style="color:var(--red)">Toolkit</span></h1>
+    <div class="rule"></div>
+    <div class="sub">Every intake, valuation, and go-to-market tool in one place.</div>
+    <div class="tagline">Restaurant Transactions. <span class="r">Done Right.</span></div>
+  </div>
+</div>
+
+<div class="wrap">
+  <a href="./rrg_consult.html" style="display:flex;align-items:center;gap:16px;text-decoration:none;background:radial-gradient(120% 170% at 15% 10%,#22346a,#0d1526 62%);border:1px solid #24344f;border-radius:16px;padding:18px 20px;margin-bottom:26px;box-shadow:0 12px 34px rgba(8,16,40,.20);position:relative;overflow:hidden"><span style="position:absolute;right:-40px;top:-30px;width:180px;height:180px;background:radial-gradient(circle,rgba(55,224,200,.22),transparent 62%)"></span><span style="width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,#6d7cff,#37e0c8);display:flex;align-items:center;justify-content:center;font-size:23px;color:#08122a;flex:none;box-shadow:0 0 26px rgba(55,224,200,.4);position:relative;z-index:2">◉</span><span style="flex:1;min-width:0;position:relative;z-index:2"><span style="display:block;color:#fff;font-weight:800;font-size:17px">Consult <span style="font-size:10.5px;font-weight:800;color:#0a1120;background:linear-gradient(135deg,#37e0c8,#6d7cff);border-radius:100px;padding:2px 9px;margin-left:7px;vertical-align:middle;text-transform:uppercase;letter-spacing:.05em">AI</span></span><span style="display:block;color:#aeb8cf;font-size:13px;margin-top:3px">Ask your book anything — by voice or type. Live answers from your companies, contacts, and listings.</span></span><span style="color:#37e0c8;font-weight:800;font-size:14px;white-space:nowrap;flex:none;position:relative;z-index:2">Open →</span></a>
+  <div id="qlWrap" style="display:none">
+    <div class="sectionlabel">Quick Links <span style="font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted);font-size:11px;margin-left:6px">— sites the team uses</span></div>
+    <div class="ql" id="qlGrid" style="margin-bottom:30px"></div>
+  </div>
+  <div class="sectionlabel" id="lbl"></div>
+  <div id="grid"></div>
+  <div class="sectionlabel" style="margin-top:32px">Agreements, Documents &amp; Training <span style="font-weight:500;letter-spacing:0;text-transform:none;color:var(--muted);font-size:11px;margin-left:6px">— open or download</span></div>
+  <div class="agr" id="agrGrid"></div>
+</div>
+
+<div class="foot">
+  <span>Restaurant Realty Group, LLC &nbsp;·&nbsp; <b>Restaurant Transactions. Done Right.</b></span>
+  <span id="count"></span>
+</div>
+
+<div class="gmodal" id="gmodal" onclick="if(event.target===this)closeGuide()">
+  <div class="gcard">
+    <button class="gx" type="button" onclick="closeGuide()" aria-label="Close">&times;</button>
+    <div class="ghead"><span class="gi" id="gGi"></span><div><div class="gtag" id="gGtag"></div><h3 id="gGtitle"></h3></div></div>
+    <div id="gGbody"></div>
+  </div>
+</div>
+
+<script>
+/* =========================================================================
+   RRG TOOLKIT — tool registry.
+   To add a tool later, add one entry below (name, tag, file, desc, icon).
+   icon options: 'target' | 'funnel' | 'gauge' | 'doc'   (add more in ICONS)
+   ========================================================================= */
+var TOOLS = [
+  /* ---- Business Sales pipeline (ordered by step) ---- */
+  { name:'Seller Qualification Call', tag:'Seller', file:'rrg_screening_queue.html', icon:'funnel', track:'pipeline', step:1,
+    desc:"Every seller call we've made — log a new call, screen it, then pass or advance the strong leads to the Valuation Questionnaire." },
+  { name:'Valuation Questionnaire', tag:'Seller', file:'rrg_questionnaire_queue.html', icon:'gauge', track:'pipeline', step:2,
+    desc:"Your questionnaire log — start a deep listing profile, then build the BOV from it. Operations, financials, lease, and the off-book factors that move value." },
+  { name:'Build a BOV (AI)', tag:'Value', file:'rrg_bov_generate.html', icon:'spark', track:'pipeline', sort:2.7,
+    desc:"Upload the financials, Valuation Questionnaire, and lease — RRG's analyst drafts the full BOV for you to review, edit, and print. No form-filling." },
+  { name:'CIM Builder', tag:'Value', file:'rrg_cim_builder.html', icon:'book', track:'pipeline', step:4,
+    desc:"Build the full confidential offering book in the RRG format — edit in place, pull the valuation from the BOV, and print a client-ready 18-page PDF." },
+  { name:'Market Attack Plan', tag:'Seller', file:'rrg_seller_attack_plan.html', icon:'megaphone', track:'pipeline', step:5,
+    desc:"The go-to-market campaign — segmented buyer target list, the confidential marketing sequence, and the competitive-tension strategy that drives the CIM into the market." },
+  { name:'Commission Forecaster', tag:'Deal', file:'rrg_commission_calculator.html', icon:'calc', track:'pipeline', step:6,
+    desc:"Close and get paid — business-sale commission on RRG's tiered rate card. Enter price and split, see gross, blended rate, and the agent / house breakdown." },
+  { name:'Closing Transfer List', tag:'Seller', file:'docs/rrg-closing-transfer-list.pdf', icon:'checklist', track:'pipeline', sort:7, pdf:true,
+    desc:"At closing — the account-transfer checklist: every utility, license, permit, and vendor account the seller hands to the buyer for a clean handover." },
+
+  /* ---- Tenant Representation ---- */
+  { name:'Site Selection Criteria', tag:'Tenant', file:'ssc_form.html', icon:'target', track:'tenant',
+    desc:"Define a tenant's target — markets, space, economics, and timeline. The blueprint before any site search begins." },
+  { name:'Market Attack Plan', tag:'Tenant', file:'rrg_tenant_attack_plan.html', icon:'flag', track:'tenant',
+    desc:"The site-acquisition campaign — ranked submarkets, the target property & landlord hit list, the canvass, and the leverage strategy that wins terms." },
+  { name:'Site & Concept Fit', tag:'Tenant', file:'rrg_site_fit.html', icon:'compass', track:'tenant',
+    desc:"Score a specific space for a specific concept — projected sales, the occupancy-cost test, a weighted fit scorecard, and a go / no-go call." },
+  { name:'Tour Tracker', tag:'Tenant', file:'rrg_tour_tracker.html', icon:'tour', track:'tenant',
+    desc:"Log every space you show a tenant — date, size, asking rent, their reaction, and a 1–5 rating. Rank the shortlist." },
+  { name:'Lease Commission', tag:'Deal', file:'rrg_lease_commission_calculator.html', icon:'building', track:'tenant',
+    desc:"Close the lease — commission on total consideration. SF, rent, escalation, and term, with step-down schedules and the agent / house split." },
+];
+
+var TRACKS = [
+  { key:'pipeline', label:'Business Sales', note:'the deal pipeline — screen → value → opine → offer → close', flow:true },
+  { key:'tenant',   label:'Tenant Representation', note:'find the space, prove the fit, track the tour, close the lease' },
+];
+
+/* Per-tool background + how-to (the "How to use" button). Keyed by file. Edit freely. */
+var GUIDES = {
+  'rrg_screening_queue.html':{
+    background:"Your seller call screening log — every call you make, in one place. Four views control the list: All (every call you've ever made), Waiting (still needs a pass-or-advance decision), Advanced (moved to the Valuation Questionnaire), and Passed. Admins can view the whole team.",
+    when:"Any time you take a call with a prospective seller, or when you're ready to work through your list.",
+    how:["Click “+ New Call” to log a fresh call.","Screen it, then use the row buttons: Advance to Questionnaire, Pass, Edit, or Remove.","Switch views (All / Waiting / Advanced / Passed) and use search, sort, Print, or Export CSV to work the log.","Advancing opens the Valuation Questionnaire pre-filled with the basics."],
+    tip:"Motivation is the whole ballgame. A seller who “might sell for the right number” is a different lead than one with a health, partnership, or burnout issue — note it on the call, because it drives which leads you advance first."
+  },
+  'seller_screening.html':{
+    background:"The first-call qualifier itself. It captures who the seller is, why they're selling, what the business does, and whether this is a lead worth RRG's time. Submitting it drops the lead into the Screening Queue.",
+    when:"On or right after your first real conversation with a prospective seller.",
+    how:["Enter the business, seller contact, market, and call date.","Work through motivation, financials, and expectations as you talk.","Mark the lead outcome, then submit — it saves and enters the Screening Queue."],
+    tip:"Motivation is the whole ballgame. Note whether it's a “right number” seller or a health / partnership / burnout exit — that read drives urgency, price, and everything downstream."
+  },
+  'rrg_questionnaire_queue.html':{
+    background:"Your Valuation Questionnaire log — every deep listing profile in one place. A questionnaire lands here automatically when you advance a qualified call from the Seller Qualification Call log. Views: All, Waiting (needs completing), Advanced (moved to a BOV). Admins see the whole team; reps see their own.",
+    when:"Any time you're working an advanced call toward a value opinion. You don't create questionnaires here — they arrive from the Call log.",
+    how:["Open a Waiting questionnaire (the amber “Complete Questionnaire →” button) and fill it in — it autosaves as you go, so there's no Save button, just Close.","A gold “Complete Questionnaire →” means required fields are still open; once it's complete the button turns navy “Advance to BOV →”.","Click “Advance to BOV →” to carry the profile into the BOV. Use Delete to drop a questionnaire, or the tabs, search, sort, Print, and Export CSV to work the list.","The Valuation Factors section is filled by the system, not the rep — the questionnaire feeds it."],
+    tip:"Completeness is the whole game here: the questionnaire is the factual basis the BOV stands on. A thorough, complete profile is what lets you defend the number."
+  },
+  'valuation_questionnaire.html':{
+    background:"The deep listing profile. It gathers the operating detail, financials, lease terms, and the off-book factors an accurate valuation depends on.",
+    when:"Once a seller is qualified and engaged — before you build the BOV.",
+    how:["Complete each section with the seller: operations, financials, lease, facility.","Capture every add-back and anything that doesn't show on the books.","Save / print to PDF — this is the input the BOV is built from."],
+    tip:"Chase the add-backs hard. Owner salary, personal auto, one-time legal, above-market rent — every clean, documentable add-back raises adjusted earnings and the sale price. If you can't document it, don't count it."
+  },
+  'rrg_bov_builder.html':{
+    background:"The manual BOV builder in RRG's format — add-back bridge, multiple selection, valuation matrix, and go-to-market, all computed live.",
+    when:"When you want to build or fine-tune a BOV by hand, or edit one the AI drafted.",
+    how:["Enter trailing revenue and the add-back bridge to reach adjusted EBITDA.","Set the low / base / high multiple — the matrix and range update live.","Write the narrative sections, then print the client-ready BOV."],
+    tip:"The number lives and dies on the multiple. Anchor it to real comps for this concept and size, and be ready to defend the high end with exactly what supports it — brand, lease, growth, management depth."
+  },
+  'rrg_bov_generate.html':{
+    background:"The fast path. Upload the deal's documents and RRG's analyst drafts the full BOV — adjusted EBITDA, the multiple, the valuation matrix, and the narrative — for you to review.",
+    when:"When you have the financials and questionnaire in hand and want a defensible first draft in a minute, not an hour.",
+    how:["Upload the financials and the Valuation Questionnaire (add the lease if the business leases its space).","Click Build the BOV and give it ~30–60 seconds.","Review and edit the draft, then it's saved to your BOV Queue."],
+    tip:"It's a sharp first draft, not gospel. Always eyeball the add-backs and the multiple before you put your name on it — you're the broker, the AI is the analyst."
+  },
+  'rrg_bov_queue.html':{
+    background:"Your library of saved BOVs. Reopen any one, or promote it straight into a CIM with the valuation carried over.",
+    when:"Any time you need to find, revisit, or advance a BOV you've already built.",
+    how:["Find the BOV under My BOVs (admins see the whole team and can filter by rep).","Open to edit, or “Turn into CIM” to start the offering book.","Remove ones you no longer need."],
+    tip:"Promote to CIM the moment a seller signs the listing — the valuation flows straight over, so you're building the marketing book instead of re-keying the numbers."
+  },
+  'rrg_cim_builder.html':{
+    background:"The confidential offering book buyers actually read. It pulls the valuation from the BOV; you add the story, the photos, and the proof.",
+    when:"After the BOV, once you have a signed listing and you're taking the business to market.",
+    how:["Start from the BOV so the numbers carry over.","Add the concept story, packed-house and food photos, financial exhibits, and press.","Edit in place and print the client-ready PDF."],
+    tip:"Buyers buy the story and the upside, not just the EBITDA. Lead with what makes this concept hard to replicate — location, brand, lease, systems — then let the numbers confirm it."
+  },
+  'rrg_seller_attack_plan.html':{
+    background:"The go-to-market campaign for a listing — segmented buyer targets, the confidential marketing sequence, and the competitive-tension strategy.",
+    when:"Once the CIM is ready and you're driving the business into the market.",
+    how:["Build the segmented buyer target list: strategics, operators, PE / family offices, individuals.","Lay out the outreach sequence and timeline.","Set the tension strategy — how you'll create and hold competition."],
+    tip:"Competition is your only real leverage. Line up enough qualified buyers that no single one believes they're the only game — that's what moves both price and terms."
+  },
+  'rrg_commission_calculator.html':{
+    background:"The business-sale commission calculator on RRG's tiered rate card.",
+    when:"When you're modeling a deal's economics or confirming your payout at closing.",
+    how:["Enter the sale price and your split.","Read the gross, the blended rate, and the agent / house breakdown."],
+    tip:"Run it before you set the fee, not after. Knowing your blended rate at each price point keeps you sharp — and honest — in the listing conversation."
+  },
+  'docs/rrg-closing-transfer-list.pdf':{
+    background:"The closing checklist — every utility, license, permit, and vendor account the seller transfers to the buyer for a clean handover.",
+    when:"As the deal approaches closing, to run the operational handoff.",
+    how:["Open the PDF and work it line by line with buyer and seller.","Confirm each account is transferred, closed, or reassigned before funding."],
+    tip:"This is where sloppy deals lose goodwill. A buyer whose liquor license or POS lapses on day one remembers who dropped it — own this checklist and you protect the whole close."
+  },
+  'ssc_form.html':{
+    background:"The tenant's target blueprint — markets, space, economics, and timeline. The spec you build before any site search begins.",
+    when:"At the start of a tenant-rep engagement, before you tour anything.",
+    how:["Define the target markets and trade areas.","Set space size, condition, and the economic parameters.","Capture timeline and dealbreakers, then send / save the SSC."],
+    tip:"Nail the non-negotiables early. Knowing the hard no's — no second-gen space, must have a patio, must have a hood — saves everyone weeks of touring the wrong boxes."
+  },
+  'rrg_tenant_attack_plan.html':{
+    background:"The site-acquisition campaign — ranked submarkets, the target property and landlord hit list, the canvass, and the leverage strategy.",
+    when:"After the SSC, when you're actively hunting space for a tenant.",
+    how:["Rank submarkets against the SSC.","Build the target property and landlord list, including off-market.","Run the canvass and set your negotiating leverage."],
+    tip:"The best space is often not listed. Work the landlord hit list and the direct canvass — that's where you find deals before they ever hit the open market."
+  },
+  'rrg_site_fit.html':{
+    background:"Scores a specific space for a specific concept — projected sales, the occupancy-cost test, a weighted fit scorecard, and a go / no-go call.",
+    when:"When you have a real space in play and need to prove it works before writing an LOI.",
+    how:["Enter the space (size, rent, terms) and the concept's sales assumptions.","Review projected sales and the occupancy-cost ratio.","Read the fit score and the go / no-go."],
+    tip:"Occupancy cost is the guardrail. If rent + NNN blows past the healthy percentage of projected sales for the concept, the space is a trap no matter how pretty it shows."
+  },
+  'rrg_tour_tracker.html':{
+    background:"The record of every space you show a tenant — size, asking rent, their reaction, and a rating — so the shortlist ranks itself.",
+    when:"Throughout a tenant tour, logging each space as you see it.",
+    how:["Add each space with date, size, and asking rent.","Note the tenant's reaction and rate it 1–5.","Sort to surface the leaders."],
+    tip:"Log reactions in the tenant's own words. “Kitchen's too small” beats a bare 3/5 when you're steering them to a decision two weeks later."
+  },
+  'rrg_lease_commission_calculator.html':{
+    background:"The lease commission calculator — commission on total consideration across the full term.",
+    when:"When you're modeling a lease deal's payout or confirming it at signing.",
+    how:["Enter SF, rent, escalation, and term.","Apply any step-down schedule and your split.","Read total consideration and the agent / house breakdown."],
+    tip:"Escalations compound your fee. Model the full term with the bumps in — the back years of a long lease are where the commission actually adds up."
+  }
+};
+
+var ICONS = {
+  spark:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M24 7l3.2 9.6L37 20l-9.8 3.4L24 33l-3.2-9.6L11 20l9.8-3.4L24 7Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><path d="M37 30l1.3 3.7L42 35l-3.7 1.3L37 40l-1.3-3.7L32 35l3.7-1.3L37 30Z" fill="#DA2B1F" stroke="#DA2B1F" stroke-width="1" stroke-linejoin="round"/></svg>',
+  queue:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M24 6 8 14l16 8 16-8-16-8Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 24l16 8 16-8" stroke="#DA2B1F" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 32l16 8 16-8" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/></svg>',
+  checklist:'<svg class="icon" viewBox="0 0 48 48" fill="none"><rect x="11" y="8" width="26" height="34" rx="3" stroke="#000E31" stroke-width="1.6"/><path d="M17 16l2 2 3.5-3.5" stroke="#DA2B1F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 25l2 2 3.5-3.5" stroke="#DA2B1F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><path d="M17 34l2 2 3.5-3.5" stroke="#DA2B1F" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/><line x1="27" y1="17" x2="32" y2="17" stroke="#000E31" stroke-width="1.4"/><line x1="27" y1="26" x2="32" y2="26" stroke="#000E31" stroke-width="1.4"/><line x1="27" y1="35" x2="32" y2="35" stroke="#000E31" stroke-width="1.4"/></svg>',
+  megaphone:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M10 20v8l4 1 2 8h4l-1.5-7L34 36V12L18.5 19H12a2 2 0 0 0-2 2Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><path d="M34 16c3 1.5 4.5 4 4.5 8s-1.5 6.5-4.5 8" stroke="#DA2B1F" stroke-width="1.6" stroke-linecap="round" fill="none"/></svg>',
+  flag:'<svg class="icon" viewBox="0 0 48 48" fill="none"><line x1="14" y1="6" x2="14" y2="42" stroke="#000E31" stroke-width="1.8" stroke-linecap="round"/><path d="M14 9h20l-4 6 4 6H14" stroke="#DA2B1F" stroke-width="1.6" stroke-linejoin="round" fill="none"/><circle cx="14" cy="6" r="2" fill="#000E31"/></svg>',
+  book:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M24 12c-3-2.4-7-3.4-11-3v24c4-.4 8 .6 11 3 3-2.4 7-3.4 11-3V9c-4-.4-8 .6-11 3Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><line x1="24" y1="12" x2="24" y2="36" stroke="#000E31" stroke-width="1.4"/><line x1="12" y1="18" x2="19" y2="17" stroke="#DA2B1F" stroke-width="1.4"/><line x1="12" y1="24" x2="19" y2="23" stroke="#DA2B1F" stroke-width="1.4"/></svg>',
+  compass:'<svg class="icon" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="19" stroke="#000E31" stroke-width="1.6"/><path d="M31 17l-4 10-10 4 4-10 10-4Z" stroke="#DA2B1F" stroke-width="1.6" stroke-linejoin="round"/><circle cx="24" cy="24" r="2.2" fill="#000E31"/></svg>',
+  seal:'<svg class="icon" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="20" r="13" stroke="#000E31" stroke-width="1.6"/><path d="M18 30l-3 12 9-5 9 5-3-12" stroke="#DA2B1F" stroke-width="1.6" stroke-linejoin="round"/><path d="M20 20l3 3 6-6" stroke="#DA2B1F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  tour:'<svg class="icon" viewBox="0 0 48 48" fill="none"><rect x="12" y="8" width="24" height="34" rx="3" stroke="#000E31" stroke-width="1.6"/><rect x="18" y="5" width="12" height="6" rx="2" stroke="#000E31" stroke-width="1.5"/><path d="M18 20l3 3 5-6" stroke="#DA2B1F" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><line x1="18" y1="30" x2="32" y2="30" stroke="#000E31" stroke-width="1.4"/><line x1="18" y1="35" x2="28" y2="35" stroke="#000E31" stroke-width="1.4"/></svg>',
+  building:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M9 42V16l15-8 15 8v26" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><line x1="6" y1="42" x2="42" y2="42" stroke="#000E31" stroke-width="1.6"/><rect x="20" y="30" width="8" height="12" stroke="#DA2B1F" stroke-width="1.5"/><circle cx="18" cy="22" r="1.5" fill="#000E31"/><circle cx="30" cy="22" r="1.5" fill="#000E31"/></svg>',
+  calc:'<svg class="icon" viewBox="0 0 48 48" fill="none"><rect x="11" y="6" width="26" height="36" rx="4" stroke="#000E31" stroke-width="1.6"/><rect x="16" y="11" width="16" height="6" rx="1.5" stroke="#000E31" stroke-width="1.4"/><circle cx="18" cy="25" r="1.6" fill="#000E31"/><circle cx="24" cy="25" r="1.6" fill="#000E31"/><circle cx="30" cy="25" r="1.6" fill="#DA2B1F"/><circle cx="18" cy="32" r="1.6" fill="#000E31"/><circle cx="24" cy="32" r="1.6" fill="#000E31"/><circle cx="30" cy="32" r="1.6" fill="#DA2B1F"/></svg>',
+  target:'<svg class="icon" viewBox="0 0 48 48" fill="none"><circle cx="24" cy="24" r="20" stroke="#000E31" stroke-width="1.6"/><circle cx="24" cy="24" r="12.5" stroke="#000E31" stroke-width="1.6"/><circle cx="24" cy="24" r="5" fill="#DA2B1F"/></svg>',
+  funnel:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M8 11h32L28 27v9l-8 4V27L8 11Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><line x1="14" y1="18" x2="34" y2="18" stroke="#DA2B1F" stroke-width="1.6"/><circle cx="24" cy="44" r="2.6" fill="#DA2B1F"/></svg>',
+  gauge:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M8 33a16 16 0 0 1 32 0" stroke="#000E31" stroke-width="1.6" stroke-linecap="round"/><line x1="24" y1="33" x2="33" y2="22" stroke="#DA2B1F" stroke-width="1.8" stroke-linecap="round"/><circle cx="24" cy="33" r="3" fill="#000E31"/></svg>',
+  doc:'<svg class="icon" viewBox="0 0 48 48" fill="none"><path d="M13 6h15l7 7v29H13V6Z" stroke="#000E31" stroke-width="1.6" stroke-linejoin="round"/><line x1="18" y1="22" x2="30" y2="22" stroke="#000E31" stroke-width="1.6"/><line x1="18" y1="28" x2="30" y2="28" stroke="#000E31" stroke-width="1.6"/><line x1="18" y1="34" x2="26" y2="34" stroke="#DA2B1F" stroke-width="1.8"/></svg>'
+};
+var ARROW='<span class="arw"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="#DA2B1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
+
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+
+var grid=document.getElementById('grid');
+
+function cardEl(t){
+  var a=document.createElement('a');
+  a.className='card'+(t.step?' hasstep':'');
+  a.href='./'+t.file;
+  if(t.pdf){ a.target='_blank'; a.rel='noopener'; }
+  var tagclass = (t.tag||'').toLowerCase();
+  var step = t.step ? '<span class="stepbadge">Step '+t.step+'</span>' : '';
+  var cta = t.pdf ? 'Open PDF' : 'Open tool';
+  a.innerHTML =
+    step+
+    '<div class="cardtop">'+(ICONS[t.icon]||ICONS.doc)+'<span class="tag '+tagclass+'">'+esc(t.tag)+'</span></div>'+
+    '<h2>'+esc(t.name)+'</h2>'+
+    '<p>'+esc(t.desc)+'</p>'+
+    '<div class="cardfoot"><span class="open">'+cta+' '+ARROW+'</span>'+
+      '<button class="guidebtn" type="button"><span class="ic">i</span> How to use</button></div>';
+  var gb=a.querySelector('.guidebtn');
+  if(gb) gb.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); openGuide(t); });
+  return a;
+}
+function openGuide(t){
+  var g=GUIDES[t.file]||{};
+  document.getElementById('gGi').innerHTML=ICONS[t.icon]||ICONS.doc;
+  document.getElementById('gGtag').textContent=t.tag||'';
+  document.getElementById('gGtitle').textContent=t.name;
+  var html='';
+  html+='<div class="glabel">Background</div><p>'+esc(g.background||t.desc||'')+'</p>';
+  if(g.when){ html+='<div class="glabel">When to use it</div><p>'+esc(g.when)+'</p>'; }
+  if(g.how&&g.how.length){ html+='<div class="glabel">How to run it</div><ol>'+g.how.map(function(s){return '<li>'+esc(s)+'</li>';}).join('')+'</ol>'; }
+  if(g.tip){ html+='<div class="gtip"><b>Pro tip — </b>'+esc(g.tip)+'</div>'; }
+  var cta=t.pdf?'Open PDF':'Open tool';
+  html+='<a class="gopen" href="./'+t.file+'"'+(t.pdf?' target="_blank" rel="noopener"':'')+'>'+cta+' →</a>';
+  document.getElementById('gGbody').innerHTML=html;
+  document.getElementById('gmodal').classList.add('show');
+}
+function closeGuide(){ document.getElementById('gmodal').classList.remove('show'); }
+document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeGuide(); });
+
+function buildTiles(isAdmin, adminOnly){
+  adminOnly = adminOnly || [];
+  function visible(t){ return isAdmin || adminOnly.indexOf(t.file)<0; }
+  grid.innerHTML='';
+  TRACKS.forEach(function(tr){
+    var items=TOOLS.filter(function(t){return t.track===tr.key && visible(t);});
+    if(!items.length) return;
+    if(tr.flow) items.sort(function(a,b){return (a.step||a.sort||0)-(b.step||b.sort||0);});
+    var head=document.createElement('div');
+    head.className='trackhead';
+    head.innerHTML='<span class="tl">'+esc(tr.label)+'</span><span class="tn">'+esc(tr.note)+'</span>';
+    grid.appendChild(head);
+    var g=document.createElement('div');
+    g.className='grid'+(tr.flow?' flow':'');
+    items.forEach(function(t){ g.appendChild(cardEl(t)); });
+    if(tr.key==='tenant'){
+      var add=document.createElement('div');
+      add.className='addcard';
+      add.innerHTML='<div class="plus">+</div><div class="t">More tools coming</div><div class="s">This toolkit grows as RRG adds forms.</div>';
+      g.appendChild(add);
+    }
+    grid.appendChild(g);
+  });
+  var shown=TOOLS.filter(visible).length;
+  document.getElementById('lbl').textContent = shown+' tools · '+TRACKS.length+' tracks';
+  document.getElementById('count').textContent = shown+' tools · updated live';
+}
+
+/* ---- server origin (used to auto-list agreements) ---- */
+window.RRG_API = window.RRG_API || (String(location.protocol).indexOf('http')===0 ? location.origin : '');
+
+/* ---- role-aware: hide admin-only tools from reps ---- */
+(function(){
+  var api=window.RRG_API||'';
+  if(!api){ buildTiles(true, []); return; }   // standalone/file preview shows all
+  fetch(api.replace(/\/$/,'')+'/api/session').then(function(r){return r.json();}).then(function(s){
+    buildTiles(s&&(s.role==='admin'||s.role==='creator'), (s&&s.adminOnlyTools)||[]);
+    renderTopNav(s);
+  }).catch(function(){ buildTiles(true, []); });
+})();
+function renderTopNav(s){
+  var nav=document.getElementById('topnav'); if(!nav) return;
+  var isAdmin=s&&(s.role==='admin'||s.role==='creator');
+  var links='';
+  links+='<a href="./rrg_account.html">Account</a>';
+  if(isAdmin) links+='<a href="/admin">Admin</a>';
+  links+='<a class="out" href="/logout">Sign out</a>';
+  nav.innerHTML=
+    '<button class="hamb" type="button" aria-label="Menu" onclick="document.getElementById(\'topnav\').classList.toggle(\'open\')">'
+    +'<span></span><span></span><span></span></button>'
+    +'<div class="navlinks">'+links+'</div>';
+  // close the mobile menu when tapping outside it
+  document.addEventListener('click',function(e){ if(!nav.contains(e.target)) nav.classList.remove('open'); });
+}
+
+/* ---- Quick Links — admin-managed, fetched from the server ---- */
+function renderQuickLinks(list){
+  list = (list||[]).filter(function(l){ return l && l.name && l.url; });
+  var wrap=document.getElementById('qlWrap'), grid=document.getElementById('qlGrid');
+  if(!list.length){ wrap.style.display='none'; return; }
+  grid.innerHTML=''; wrap.style.display='';
+  list.forEach(function(l){
+    var url=String(l.url); if(!/^https?:\/\//i.test(url)) url='https://'+url;
+    var host=''; try{ host=new URL(url).hostname.replace(/^www\./,''); }catch(e){ host=url; }
+    var initial=(l.name||'?').trim().charAt(0).toUpperCase();
+    var a=document.createElement('a'); a.className='qlcard'; a.href=url; a.target='_blank'; a.rel='noopener';
+    a.innerHTML='<span class="qi">'+esc(initial)+'</span><span style="min-width:0"><span class="qn">'+esc(l.name)+'</span><span class="qu">'+esc(host)+'</span></span>';
+    grid.appendChild(a);
+  });
+}
+(function(){
+  var api=window.RRG_API||''; if(!api){ renderQuickLinks([]); return; }
+  fetch(api.replace(/\/$/,'')+'/api/links').then(function(r){return r.json();})
+    .then(function(j){ renderQuickLinks(j&&j.links||[]); }).catch(function(){ renderQuickLinks([]); });
+})();
+
+/* ---- Agreements — auto-listed from the server's /agreements folder (frequently updated; more added anytime) ---- */
+var AGREEMENTS=[
+  {name:'Exclusive Tenant Representation Agreement', file:'agreements/exclusive-tenant-rep.pdf', type:'PDF'},
+  {name:'Exclusive Business Seller Representation Agreement', file:'agreements/exclusive-seller-rep.pdf', type:'PDF'},
+  {name:'Mutual NDA', file:'agreements/mutual-nda.pdf', type:'PDF'}
+];
+/* Training & reference PDFs — always shown, independent of the agreements folder.
+   Drop the file at public/training/ and update the filename here if it differs. */
+var TRAINING=[
+  {name:'RRG Training Course', file:'training/rrg-training-course.pdf', type:'Training · PDF'}
+];
+var DOCICON='<svg class="di" viewBox="0 0 30 36" fill="none"><path d="M2 2h18l8 8v24H2V2Z" stroke="#000E31" stroke-width="1.4" stroke-linejoin="round"/><path d="M20 2v8h8" stroke="#000E31" stroke-width="1.4" stroke-linejoin="round"/><line x1="7" y1="20" x2="23" y2="20" stroke="#DA2B1F" stroke-width="1.6"/><line x1="7" y1="26" x2="18" y2="26" stroke="#000E31" stroke-width="1.4"/></svg>';
+function _fmtDate(ms){ if(!ms) return ''; var d=new Date(ms); return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
+function renderAgreements(list){
+  var ag=document.getElementById('agrGrid'); ag.innerHTML='';
+  list.forEach(function(d){
+    var a=document.createElement('a'); a.className='agrcard'; a.href='./'+d.file; a.target='_blank'; a.rel='noopener';
+    var meta=esc(d.type)+(d.updated?(' \u00b7 Updated '+_fmtDate(d.updated)):'');
+    a.innerHTML=DOCICON+'<span><span class="an">'+esc(d.name)+'</span><span class="at">'+meta+'</span></span>';
+    ag.appendChild(a);
+  });
+}
+(function(){
+  var api=window.RRG_API||'';
+  if(api){
+    fetch(api.replace(/\/$/,'')+'/api/agreements').then(function(r){return r.json();}).then(function(j){
+      var base=(j&&j.ok&&j.agreements&&j.agreements.length ? j.agreements : AGREEMENTS);
+      renderAgreements(base.concat(TRAINING));
+    }).catch(function(){ renderAgreements(AGREEMENTS.concat(TRAINING)); });
+  } else { renderAgreements(AGREEMENTS.concat(TRAINING)); }
+})();
+</script>
+</body>
+</html>

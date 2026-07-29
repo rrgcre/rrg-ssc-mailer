@@ -6651,6 +6651,62 @@ app.post('/api/consult', express.json({ limit: '256kb' }), async (req, res) => {
   } catch (e) { console.error('consult:', e && e.message); res.status(500).json({ ok: false, error: (e && e.message) || 'Consult could not answer that.' }); }
 });
 
+// ===== Personal Dashboard (per-user modular home) =====
+const DASH_FILE = path.join(BOV_DATA_DIR, 'dashboards.json');
+function loadDashCfgs() { try { return JSON.parse(fs.readFileSync(DASH_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
+function saveDashCfgs(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(DASH_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+const DASH_MODULES = [
+  { k: 'kpis', label: 'Key Numbers', desc: 'Live counts & dollars across your book', live: true, w: 'full' },
+  { k: 'consult', label: 'Consult', desc: 'Ask your book anything, by voice', live: true, w: 'full' },
+  { k: 'tasks', label: 'My Tasks', desc: 'Your open tasks & reminders', live: true, w: 'half' },
+  { k: 'pipeline', label: 'Pipeline Snapshot', desc: 'Deals by stage', live: true, w: 'half' },
+  { k: 'activity', label: 'Recent Activity', desc: 'Latest across the book', live: true, w: 'half' },
+  { k: 'markets', label: 'Listings by Market', desc: 'Where your listings are', live: true, w: 'half' },
+  { k: 'agreements', label: 'Agreements Out', desc: 'Awaiting signature', live: true, w: 'half' },
+  { k: 'dealstatus', label: 'Deal Status', desc: 'Active / under contract / closed', live: false, w: 'half' },
+  { k: 'expiring', label: 'Expiring Listings', desc: 'Coming due soon', live: false, w: 'half' },
+  { k: 'quicklinks', label: 'Quick Links', desc: 'Sites the team uses', live: false, w: 'half' }
+];
+const DASH_DEFAULT = ['kpis', 'consult', 'tasks', 'pipeline', 'activity'];
+function _dmoney(v) { const m = String(v == null ? '' : v).replace(/[^0-9.\-]/g, ''); const n = Number(m); return isFinite(n) ? n : 0; }
+function dashboardData(req) {
+  const people = loadPeople(), companies = loadCompanies();
+  const ov = loadAssignOverlay(), idx = assignmentsIndex();
+  const listings = []; for (const k in idx) { try { listings.push(assignmentView(idx[k], ov)); } catch (e) {} }
+  const activeListings = listings.filter(l => ['Active', 'New', 'Under Contract', 'On Hold'].indexOf(l.status) >= 0).length;
+  const pipelineValue = listings.reduce((s2, l) => s2 + _dmoney(l.value), 0);
+  const agreementsOut = loadAgreements().filter(a => ['sent', 'awaiting_countersign', 'partial'].indexOf(a.signStatus) >= 0).length;
+  const kpis = [
+    { k: 'listings', label: 'Active Listings', value: activeListings, fmt: 'num' },
+    { k: 'pipeline', label: 'Pipeline Value', value: pipelineValue, fmt: 'money' },
+    { k: 'contacts', label: 'Contacts', value: people.length, fmt: 'num' },
+    { k: 'companies', label: 'Companies', value: companies.length, fmt: 'num' },
+    { k: 'agreements', label: 'Agreements Out', value: agreementsOut, fmt: 'num' }
+  ];
+  const pipe = loadPipelines().find(p => p.id === 'p_bizsales') || { stages: [] };
+  const stageNames = (pipe.stages || []).map(x => x.name);
+  const counts = {}; stageNames.forEach(n => counts[n] = 0);
+  Object.keys(idx).forEach(k => { const o = ov[k] || {}; if ((o.pipelineId || 'p_bizsales') !== 'p_bizsales') return; let st = o.pipelineStage; if (stageNames.indexOf(st) < 0) { try { const ss = listingStageSummary(idx[k], ov); const si = Math.max(0, Math.min(ss.done || 0, stageNames.length - 1)); st = stageNames[si] || stageNames[0]; } catch (e) { st = stageNames[0]; } } if (st) counts[st] = (counts[st] || 0) + 1; });
+  const pipeline = stageNames.map(n => ({ name: n, count: counts[n] || 0 }));
+  let tasks = []; try { tasks = loadTasks().filter(t => taskVisible(t, req) && t.status !== 'done').sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999'))).slice(0, 7).map(t => ({ title: t.title, due: t.due || '', priority: t.priority || '', link: t.linkLabel || '' })); } catch (e) {}
+  let acts = []; people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { acts.push({ who: p.name, type: a.type || 'Note', text: String(a.text || a.note || '').slice(0, 160), at: a.at || a.date || a.createdAt || '' }); }); });
+  acts.sort((a, b) => String(b.at).localeCompare(String(a.at))); acts = acts.slice(0, 8);
+  const mk = {}; listings.forEach(l => { const m = l.market || '-'; mk[m] = (mk[m] || 0) + 1; });
+  const markets = Object.keys(mk).map(m => ({ label: m, value: mk[m] })).sort((a, b) => b.value - a.value).slice(0, 6);
+  return { kpis, pipeline, tasks, activity: acts, markets, agreementsOut, listingsTotal: listings.length };
+}
+app.get('/api/dashboard', (req, res) => {
+  const u = req.user || {}; const cfgs = loadDashCfgs(); const mine = cfgs[u.username];
+  const layout = (mine && Array.isArray(mine.mods) && mine.mods.length) ? mine.mods.filter(k => DASH_MODULES.some(m => m.k === k)) : DASH_DEFAULT.slice();
+  res.json({ ok: true, modules: DASH_MODULES, layout, data: dashboardData(req), name: u.name || '', isAdmin: !!(req.user && isSuper(req.user)) });
+});
+app.post('/api/dashboard', express.json(), (req, res) => {
+  const u = req.user || {}; if (!u.username) return res.status(401).json({ ok: false, error: 'Not signed in.' });
+  const b = req.body || {}; const mods = Array.isArray(b.mods) ? b.mods.filter(k => DASH_MODULES.some(m => m.k === k)).slice(0, 20) : DASH_DEFAULT.slice();
+  const cfgs = loadDashCfgs(); cfgs[u.username] = { mods, updatedAt: new Date().toISOString() }; saveDashCfgs(cfgs);
+  res.json({ ok: true, layout: mods });
+});
+
 // ---- Feedback tracker (feature requests / bugs, ranked, with status) ----
 const FEEDBACK_FILE = path.join(BOV_DATA_DIR, 'feedback.json');
 function loadFeedback() { try { return JSON.parse(fs.readFileSync(FEEDBACK_FILE, 'utf8')) || []; } catch (e) { return []; } }
