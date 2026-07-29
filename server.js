@@ -2850,6 +2850,7 @@ function importBbsLeads(req, leads) {
   const due = (function(){ const d = new Date(); d.setDate(d.getDate() + 2); return d.toISOString().slice(0, 10); })();
   const tasks = loadTasks();
   const _bbsCoId = bizBuySellCompany().id;
+  const _bbsPlan = loadAutomations().find(a => a.bbsDefault && a.active !== false) || null;
   let imported = 0, matched = 0, unmatched = 0, dupes = 0, createdListings = 0;
   const results = [];
   (leads || []).forEach(l => {
@@ -2860,6 +2861,7 @@ function importBbsLeads(req, leads) {
     const qualBits = []; if (l.funds) qualBits.push('Funds: ' + l.funds); if (l.timeframe) qualBits.push('Timeframe: ' + l.timeframe); if (l.zip) qualBits.push('Zip: ' + l.zip); const qualLine = qualBits.join(' \u00b7 ');
     const person = findOrCreatePerson(req, { name: l.name || '', firstName: l.firstName || '', lastName: l.lastName || '', email: email, phones: l.phone ? [l.phone] : [], type: 'Buyer', companyId: _bbsCoId });
     if (person) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === person.id); if (pp) { logActivity(pp, 'BizBuySell Lead', ('Inquired on ' + (l.listingName || 'a listing') + (l.refId ? (' \u00b7 Ref ' + l.refId) : (l.listingNumber ? (' \u00b7 #' + l.listingNumber) : '')) + (qualLine ? (' \u00b7 ' + qualLine) : '') + (l.message ? (' \u2014 \u201c' + String(l.message).slice(0,140) + '\u201d') : '')).slice(0, 300), { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
+    if (person && _bbsPlan) { try { const ppl2 = loadPeople(); const pp2 = ppl2.find(x => x.id === person.id); if (pp2 && enrollPerson(pp2, _bbsPlan, { byName: 'BizBuySell auto-import', byUser: 'system' })) savePeople(ppl2); } catch (e) {} }
     if (!key && (l.refId || l.listingNumber)) {
       const stub = { id: newDealId(), business: (l.listingName || ('BizBuySell ' + (l.refId || l.listingNumber))).slice(0, 120), market: '', contact: '', screenId: '', roomId: '', contactPersonId: '', companyId: '', createdAt: now, fromBizBuySell: true, needsSetup: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
       const _da = loadDeals(); _da.push(stub); saveDeals(_da);
@@ -2919,10 +2921,13 @@ const BBS_CFG_FILE = path.join(BOV_DATA_DIR, 'bbs_config.json');
 function loadBbsCfg() { try { return JSON.parse(fs.readFileSync(BBS_CFG_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
 function saveBbsCfg(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BBS_CFG_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
 function bbsLookbackDays() { const d = parseInt(loadBbsCfg().lookbackDays, 10); return (isFinite(d) && d >= 1 && d <= 365) ? d : 60; }
+function bbsLookbackOngoing() { const d = parseInt(loadBbsCfg().lookbackDaysOngoing, 10); return (isFinite(d) && d >= 1 && d <= 365) ? d : 7; }
 async function bbsGmailPull(username, name, opts) {
   opts = opts || {};
   if (!gmail.statusFor(username).connected) return { ok: false, error: 'Gmail not connected.' };
-  const q = '(from:bizbuysell.com OR bizbuysell) newer_than:' + bbsLookbackDays() + 'd';
+  const _firstRun = !((loadBbsPoll()[username] || {}).lastRun);
+  const _lookDays = (opts.all || _firstRun) ? bbsLookbackDays() : bbsLookbackOngoing();
+  const q = '(from:bizbuysell.com OR bizbuysell) newer_than:' + _lookDays + 'd';
   const msgs = await gmail.searchLeadBodies(username, q, 50);
   const store = loadBbsPoll(); const rec = store[username] || {};
   const seen = Array.isArray(rec.seen) ? rec.seen : [];
@@ -2950,7 +2955,7 @@ app.post('/api/bizbuysell/gmail', express.json(), async (req, res) => {
 });
 app.get('/api/bizbuysell/poll', (req, res) => {
   const u = (req.user && req.user.username) || ''; const rec = (loadBbsPoll()[u]) || {};
-  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0, lookbackDays: bbsLookbackDays(), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0, lookbackDays: bbsLookbackDays(), lookbackDaysOngoing: bbsLookbackOngoing(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 app.post('/api/bizbuysell/poll', express.json(), (req, res) => {
   const u = (req.user && req.user.username) || ''; if (!u) return res.status(401).json({ ok: false, error: 'Sign in required.' });
@@ -2959,7 +2964,8 @@ app.post('/api/bizbuysell/poll', express.json(), (req, res) => {
   if (b.intervalMin != null) { const m = parseInt(b.intervalMin, 10); rec.intervalMin = (isFinite(m) && m >= 5) ? Math.min(m, 720) : 15; }
   store[u] = rec; saveBbsPoll(store);
   if (b.lookbackDays != null && req.user && isSuper(req.user)) { const d = parseInt(b.lookbackDays, 10); if (isFinite(d)) { const cfg = loadBbsCfg(); cfg.lookbackDays = Math.max(1, Math.min(365, d)); saveBbsCfg(cfg); } }
-  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, lookbackDays: bbsLookbackDays() });
+  if (b.lookbackDaysOngoing != null && req.user && isSuper(req.user)) { const d = parseInt(b.lookbackDaysOngoing, 10); if (isFinite(d)) { const cfg = loadBbsCfg(); cfg.lookbackDaysOngoing = Math.max(1, Math.min(365, d)); saveBbsCfg(cfg); } }
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, lookbackDays: bbsLookbackDays(), lookbackDaysOngoing: bbsLookbackOngoing() });
 });
 // Background poller — checks each enabled+connected user's Gmail when their interval is due.
 let _bbsPolling = false;
@@ -2983,6 +2989,154 @@ async function bbsPollTick() {
 }
 setInterval(bbsPollTick, 60 * 1000);
 try { bizBuySellCompany(); backlinkBbsLeads(); } catch (e) { console.error('bbs company init:', e && e.message); }
+
+// ================= Automations (email / task drip sequences) =================
+const AUTOMATIONS_FILE = path.join(BOV_DATA_DIR, 'automations.json');
+function loadAutomations() { try { return JSON.parse(fs.readFileSync(AUTOMATIONS_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveAutomations(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(AUTOMATIONS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newAutomationId() { return 'auto_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function newEnrollId() { return 'enr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function cleanAutoSteps(arr) {
+  return (Array.isArray(arr) ? arr : []).slice(0, 30).map(function (st, i) {
+    const type = (st && st.type === 'task') ? 'task' : 'email';
+    const o = { type: type, delayDays: Math.max(0, Math.min(3650, parseInt((st && st.delayDays), 10) || 0)) };
+    if (type === 'email') { o.subject = String((st && st.subject) || '').slice(0, 300); o.body = String((st && st.body) || '').slice(0, 20000); }
+    else { o.taskTitle = String((st && st.taskTitle) || '').slice(0, 300); o.taskNote = String((st && st.taskNote) || '').slice(0, 2000); }
+    return o;
+  }).filter(function (st) { return st.type === 'task' ? st.taskTitle : (st.subject || st.body); });
+}
+function mergeTokens(t, p) {
+  const first = personFirst(p) || '', last = personLast(p) || '', name = p.name || (first + ' ' + last).trim(), co = p.company || '';
+  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company)\s*\}\}/gi, function (_, k) {
+    k = k.toLowerCase();
+    if (k === 'first_name' || k === 'firstname') return first;
+    if (k === 'last_name' || k === 'lastname') return last;
+    if (k === 'name') return name;
+    if (k === 'company') return co;
+    return '';
+  });
+}
+function automationBrief(a) { return { id: a.id, name: a.name || '', bbsDefault: !!a.bbsDefault, active: a.active !== false, steps: Array.isArray(a.steps) ? a.steps : [], stepCount: (a.steps || []).length, updatedAt: a.updatedAt || '' }; }
+function enrollPerson(p, plan, opts) {
+  opts = opts || {};
+  if (!p || !plan || !Array.isArray(plan.steps) || !plan.steps.length) return null;
+  p.enrollments = Array.isArray(p.enrollments) ? p.enrollments : [];
+  if (p.enrollments.some(function (e) { return e.automationId === plan.id && e.status === 'active'; })) return null;
+  const now = Date.now();
+  const en = { eid: newEnrollId(), automationId: plan.id, automationName: plan.name || '', startedAt: new Date(now).toISOString(), stepIndex: 0, nextAt: new Date(now + (plan.steps[0].delayDays || 0) * 86400000).toISOString(), status: 'active', enrolledBy: opts.byName || '', enrolledByUser: opts.byUser || '', replyTo: opts.replyTo || '', history: [] };
+  p.enrollments.push(en);
+  return en;
+}
+async function runAutomationStep(p, en, step) {
+  if (step.type === 'task') {
+    try {
+      const tasks = loadTasks(); const now = new Date().toISOString();
+      tasks.push({ id: newTaskId(), title: mergeTokens(step.taskTitle, p).slice(0, 300), notes: mergeTokens(step.taskNote || '', p).slice(0, 2000), assignee: en.enrolledByUser || '', assigneeName: en.enrolledBy || '', due: now.slice(0, 10), reminder: now.slice(0, 10), priority: 'Normal', status: 'open', linkType: 'contact', linkId: p.id, linkLabel: p.name || '', createdBy: 'automation', createdByName: 'Automation (' + (en.automationName || '') + ')', createdAt: now, updatedAt: now });
+      saveTasks(tasks);
+      logActivity(p, 'To-Do', 'Automation created a task: ' + mergeTokens(step.taskTitle, p), { auto: true, by: 'Automation' });
+      return 'task created';
+    } catch (e) { return 'task error: ' + (e && e.message); }
+  }
+  if (!isEmailConfigured()) return 'skipped: email not configured';
+  const to = preferredEmailOf(p);
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return 'skipped: no valid email';
+  const subject = mergeTokens(step.subject, p).slice(0, 300) || '(no subject)';
+  const body = mergeTokens(step.body, p).slice(0, 20000);
+  const tok = newOpenToken();
+  const origin = String(process.env.APP_URL || '').replace(/\/$/, '');
+  try {
+    await buildTransport().sendMail({ from: mailFrom(), to: to, subject: subject, text: body, html: trackedEmailHtml(body, origin, tok), replyTo: en.replyTo || undefined });
+    const now = new Date().toISOString();
+    p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
+    p.emailLog.unshift({ id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to: to, subject: subject, body: body.slice(0, 6000), sentAt: now, by: 'Automation (' + (en.automationName || '') + ')', byUser: 'automation', openToken: tok, opens: 0, senderIp: '', via: 'automation' });
+    p.emailLog = p.emailLog.slice(0, 100);
+    logActivity(p, 'Email', subject, { auto: true, by: 'Automation' });
+    p.lastContacted = now.slice(0, 10);
+    return 'email sent to ' + to;
+  } catch (e) { return 'email error: ' + (e && e.message); }
+}
+let _autoRunning = false;
+async function automationTick() {
+  if (_autoRunning) return; _autoRunning = true;
+  try {
+    const plans = loadAutomations(); const byId = {}; plans.forEach(function (a) { byId[a.id] = a; });
+    const ppl = loadPeople(); let ch = false; const now = Date.now();
+    for (const p of ppl) {
+      const ens = Array.isArray(p.enrollments) ? p.enrollments : [];
+      for (const en of ens) {
+        if (en.status !== 'active') continue;
+        const plan = byId[en.automationId];
+        if (!plan || !Array.isArray(plan.steps) || !plan.steps.length) continue;
+        let guard = 0;
+        while (en.status === 'active' && en.stepIndex < plan.steps.length && en.nextAt && Date.parse(en.nextAt) <= now && guard < 30) {
+          guard++;
+          const step = plan.steps[en.stepIndex];
+          let result = ''; try { result = await runAutomationStep(p, en, step); } catch (e) { result = 'error: ' + (e && e.message); }
+          en.history = Array.isArray(en.history) ? en.history : [];
+          en.history.push({ stepIndex: en.stepIndex, at: new Date().toISOString(), type: step.type, result: result });
+          if (en.history.length > 100) en.history = en.history.slice(-100);
+          en.stepIndex++;
+          if (en.stepIndex >= plan.steps.length) { en.status = 'done'; en.nextAt = ''; }
+          else { en.nextAt = new Date(now + (plan.steps[en.stepIndex].delayDays || 0) * 86400000).toISOString(); }
+          ch = true;
+        }
+      }
+    }
+    if (ch) savePeople(ppl);
+  } catch (e) { console.error('automationTick:', e && e.message); }
+  _autoRunning = false;
+}
+setInterval(function () { automationTick(); }, 5 * 60 * 1000);
+setTimeout(function () { automationTick(); }, 20000);
+
+// ---- Automations API ----
+app.get('/api/automations', (req, res) => { res.json({ ok: true, automations: loadAutomations().map(automationBrief), isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.post('/api/admin/automations', requireAdmin, express.json({ limit: '1mb' }), (req, res) => {
+  const b = req.body || {}; const all = loadAutomations();
+  const name = String(b.name || '').trim().slice(0, 120); if (!name) return res.status(400).json({ ok: false, error: 'Name the automation.' });
+  let a;
+  if (b.id) { a = all.find(x => x.id === b.id); if (!a) return res.status(404).json({ ok: false, error: 'Automation not found.' }); }
+  else { a = { id: newAutomationId(), createdAt: new Date().toISOString(), active: true }; all.push(a); }
+  a.name = name;
+  if (b.steps !== undefined) a.steps = cleanAutoSteps(b.steps);
+  if (b.active !== undefined) a.active = !!b.active;
+  if (b.bbsDefault !== undefined) { if (b.bbsDefault) all.forEach(x => { x.bbsDefault = false; }); a.bbsDefault = !!b.bbsDefault; }
+  a.updatedAt = new Date().toISOString(); saveAutomations(all);
+  res.json({ ok: true, automation: automationBrief(a), automations: all.map(automationBrief) });
+});
+app.delete('/api/admin/automations/:id', requireAdmin, (req, res) => {
+  let all = loadAutomations(); const before = all.length; all = all.filter(x => x.id !== req.params.id);
+  if (all.length === before) return res.status(404).json({ ok: false, error: 'Not found.' });
+  saveAutomations(all); res.json({ ok: true, automations: all.map(automationBrief) });
+});
+app.post('/api/person/:id/enroll', express.json(), (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
+  const plan = loadAutomations().find(x => x.id === String((req.body || {}).automationId || ''));
+  if (!plan) return res.status(404).json({ ok: false, error: 'Automation not found.' });
+  if (plan.active === false) return res.status(400).json({ ok: false, error: 'That automation is inactive.' });
+  const en = enrollPerson(p, plan, { byName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', replyTo: (req.user && req.user.email) || '' });
+  if (!en) return res.status(400).json({ ok: false, error: 'This contact is already active in that automation.' });
+  logActivity(p, 'Note', 'Enrolled in automation: ' + plan.name, { auto: true, by: (req.user && req.user.name) || '' });
+  p.updatedAt = new Date().toISOString(); savePeople(arr);
+  res.json({ ok: true, enrollments: p.enrollments });
+});
+app.post('/api/person/:id/enroll/:eid/:action', (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
+  const en = (Array.isArray(p.enrollments) ? p.enrollments : []).find(x => x.eid === req.params.eid);
+  if (!en) return res.status(404).json({ ok: false, error: 'Enrollment not found.' });
+  const act = req.params.action;
+  if (act === 'pause') { en.status = 'paused'; }
+  else if (act === 'resume') { if (en.status === 'paused') { en.status = 'active'; if (!en.nextAt || Date.parse(en.nextAt) < Date.now()) en.nextAt = new Date().toISOString(); } }
+  else if (act === 'stop') { en.status = 'stopped'; en.nextAt = ''; }
+  else if (act === 'remove') { p.enrollments = (p.enrollments || []).filter(x => x.eid !== req.params.eid); }
+  else return res.status(400).json({ ok: false, error: 'Unknown action.' });
+  p.updatedAt = new Date().toISOString(); savePeople(arr);
+  res.json({ ok: true, enrollments: p.enrollments || [] });
+});
+
+
 // Add / update / remove an inquiry on a listing (manual entry + status changes).
 app.post('/api/assignment/:key/inquiry', express.json(), (req, res) => {
   const deals = assignmentsIndex(); const d = deals[req.params.key];
@@ -3642,7 +3796,7 @@ app.get('/api/person/:id', (req, res) => {
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
     (o.inquiries || []).forEach(x => { const _m = (x.personId && x.personId === p.id) || (x.email && _pEmails.indexOf(String(x.email).toLowerCase()) >= 0); if (_m && !interested.some(it => it.key === key)) interested.push({ key: key, business: biz, status: x.status || 'New', inquiryId: x.id, date: x.date || x.createdAt || '', source: x.source || '', stage: _keyStage ? _keyStage.label : '', stageDone: _keyStage ? _keyStage.done : 0, stageTotal: _keyStage ? _keyStage.total : 0 }); });
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, interested, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, interested, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: loadAutomations().filter(a => a.active !== false).map(automationBrief), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];

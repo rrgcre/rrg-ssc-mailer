@@ -54,6 +54,7 @@
       { ic: '◔', label: 'Roles', href: 'rrg_roles.html' },
       { ic: '⚙', label: 'Settings', href: 'rrg_admin_settings.html' },
       { ic: '⑃', label: 'Pipelines', href: 'rrg_admin_pipelines.html' },
+      { ic: '⟳', label: 'Automations', href: 'rrg_admin_automations.html' },
       { ic: '∿', label: 'AI Usage', href: 'rrg_admin_aiusage.html' }
     ] }
   ];
