@@ -6481,7 +6481,7 @@ app.get('/api/board', (req, res) => {
       try { const ss = listingStageSummary(d, overlay); const si = Math.max(0, Math.min((ss.done || 0), stageNames.length - 1)); stage = stageNames[si] || stageNames[0] || ''; }
       catch (e) { stage = stageNames[0] || ''; }
     }
-    cards.push({ key: d.key, business: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', bbsNumber: v.bbsNumber || '', stage: stage });
+    cards.push({ key: d.key, business: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: o.status || 'New', bbsNumber: v.bbsNumber || '', stage: stage });
   });
   res.json({ ok: true, pipelines: pipelines.map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, cards: cards, isAdmin: !!isAdmin });
 });
