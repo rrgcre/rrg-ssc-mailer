@@ -89,7 +89,7 @@ function ownsDeal(req, d) {
 // tours, NDAs, and data-room buyers all link back to a person by personId, so the same
 // buyer connects across every deal they touch.
 const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
-const PERSON_TYPES = ['Buyer', 'Seller', 'Tenant', 'Investor', 'Broker', 'Referral Source', 'Other'];
+const PERSON_TYPES = ['Buyer', 'Seller', 'Tenant', 'Investor', 'Broker', 'Referral Source', 'Internal Personnel', 'Other'];
 const LEAD_SOURCES = ['Referral', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
 const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'LOI Sent', 'LOI Received', 'LOI Countered', 'LOI Accepted', 'Diligence', 'Note', 'To-Do'];
 const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Burgers', 'BBQ', 'Steakhouse', 'Seafood', 'Chinese', 'Japanese / Sushi', 'Thai', 'Vietnamese', 'Korean', 'Indian', 'Mediterranean', 'Greek', 'Southern / Soul', 'Breakfast / Brunch', 'Coffee / Cafe', 'Hawaiian', 'Desserts', 'Bar / Lounge'];
@@ -2631,7 +2631,7 @@ app.get('/api/assignments', (req, res) => {
   const isAdmin = req.user && isSuper(req.user);
   const list = Object.values(deals).filter(d => isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d)).map(d => assignmentView(d, overlay));
   list.sort((a, b) => String(b.lastActivity).localeCompare(String(a.lastActivity)));
-  res.json({ ok: true, isAdmin: !!isAdmin, statuses: ASSIGN_STATUSES, metros: RRG_METROS, assignments: list });
+  res.json({ ok: true, isAdmin: !!isAdmin, canDelete: canDelete(req), statuses: ASSIGN_STATUSES, metros: RRG_METROS, assignments: list });
 });
 app.get('/api/assignment/:key', (req, res) => {
   const deals = assignmentsIndex(), overlay = loadAssignOverlay();
@@ -4477,6 +4477,28 @@ app.delete('/api/deal/:id', (req, res) => {
   if (!ownsDeal(req, rec)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   purgeDealRecords(rec);
   saveDeals(arr.filter(x => x.id !== rec.id));
+  res.json({ ok: true });
+});
+app.delete('/api/assignment/:key', (req, res) => {
+  const key = req.params.key;
+  const idx = assignmentsIndex();
+  const d = idx[key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete listings.' });
+  if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  try {
+    if (d.deal) { const arr = loadDeals(); purgeDealRecords(d.deal); saveDeals(arr.filter(x => x.id !== d.deal.id)); }
+    else {
+      if (d.bov) saveBovs(loadBovs().filter(x => x.id !== d.bov.id));
+      if (d.cim) saveCims(loadCims().filter(x => x.id !== d.cim.id));
+      if (d.map) saveMaps(loadMaps().filter(x => x.id !== d.map.id));
+      if (d.lease) saveLeases(loadLeases().filter(x => x.id !== d.lease.id));
+      if (d.room) { const rooms = loadRooms(); const rm = rooms.find(r => r.id === d.room.id); if (rm) { (rm.docs || []).forEach(dd => { try { fs.unlinkSync(path.join(ROOMS_DIR, dd.id + '.' + dd.ext)); } catch (e) {} }); } saveRooms(rooms.filter(r => r.id !== d.room.id)); }
+      if (d.quest) saveQuests(loadQuests().filter(x => x.id !== d.quest.id));
+      if (d.screen) saveScreens(loadScreens().filter(x => x.id !== d.screen.id));
+    }
+    const ov = loadAssignOverlay(); if (ov[key]) { delete ov[key]; saveAssignOverlay(ov); }
+  } catch (e) { return res.status(500).json({ ok: false, error: 'Could not delete the listing.' }); }
   res.json({ ok: true });
 });
 // ---- Tickets — reps open requests to the brokerage office; an AI office assistant works each one ----

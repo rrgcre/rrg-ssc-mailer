@@ -20,6 +20,7 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .tabs a.on{background:#fff;color:var(--navy);border-color:#fff;}
 .wrap{max-width:none;margin:20px 0;padding:0 28px 56px;}
 .filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px;}
+.typechip{display:inline-block;font-size:11px;font-weight:700;padding:3px 10px;border-radius:999px;white-space:nowrap;}
 .flabel{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;}
 .fsel{border:1px solid var(--line);border-radius:9px;padding:8px 30px 8px 12px;font:inherit;font-size:13px;font-weight:600;color:var(--ink);background:#fff;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%236b7488' stroke-width='1.6' fill='none' stroke-linecap='round'/></svg>");background-repeat:no-repeat;background-position:right 10px center;}
 .typetxt{font-weight:600;color:var(--ink);}
@@ -118,14 +119,12 @@ tr:hover td{background:#fbfcfe;}
 <script src="/rrg_list.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function typeColor(t){ var m={'Buyer':['#e7f5ee','#1f8a5b'],'Seller':['#e8f0fd','#2f6fd0'],'Tenant':['#e6f5f3','#0f766e'],'Investor':['#f3edfb','#7a4fd0'],'Broker':['#fdf1df','#b5791f'],'Referral Source':['#fdeef4','#b83280'],'Internal Personnel':['#eaeef5','#3a4a66'],'Other':['#eef1f6','#6b7488']}; if(m[t]) return m[t]; var pal=[['#e7f5ee','#1f8a5b'],['#e8f0fd','#2f6fd0'],['#f3edfb','#7a4fd0'],['#fdf1df','#b5791f'],['#fdeef4','#b83280'],['#e6f5f3','#0f766e']]; var h=0; for(var i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return pal[h%pal.length]; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return (((p[0]||'')[0]||'')+((p[1]||'')[0]||'')).toUpperCase(); }
 function tclass(t){ return 't-'+String(t||'other').toLowerCase().replace(/[^a-z]+/g,''); }
 var ALL=[], CTL=null, FILTER='', TYPES=[], IS_ADMIN=false, CAN_DELETE=false, VIPONLY=false;
 function renderFilters(){
-  var opts='<option value="">All types</option>'+TYPES.map(function(t){ return '<option'+(FILTER===t?' selected':'')+'>'+esc(t)+'</option>'; }).join('');
-  document.getElementById('filters').innerHTML='<span class="flabel">Type</span><select id="typeFilter" class="fsel">'+opts+'</select>'+'<label style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:#8a6d10;cursor:pointer;margin-left:6px"><input type="checkbox" id="vipOnly"'+(VIPONLY?' checked':'')+' style="accent-color:#e2b93a"> \u2605 VIP only</label>';
-  var sel=document.getElementById('typeFilter'); if(sel) sel.addEventListener('change',function(){ FILTER=sel.value; applyFilter(); });
-  var vo=document.getElementById('vipOnly'); if(vo) vo.addEventListener('change',function(){ VIPONLY=vo.checked; applyFilter(); });
+  var _fl=document.getElementById('filters'); if(_fl) _fl.innerHTML='';
 }
 function applyFilter(){
   var q=(document.getElementById('search').value||'').toLowerCase().trim();
@@ -140,13 +139,13 @@ function applyFilter(){
 function fmtDate(d){ if(!d) return ''; var x=String(d).slice(0,10).split('-'); if(x.length!==3) return String(d); return x[1]+'/'+x[2]+'/'+x[0]; }
 function renderList(list){
   var cfg={ mount:'#body', data:list, key:'contacts', countEl:'#cnt',
-    empty:'<div class="empty"><b>No contacts yet.</b>Contacts are added as you log offers, tours, and NDAs, or from a company file.</div>',
+    empty:'<div class="empty"><b>No contacts yet.</b>Add one with + New contact, or bring buyers in with Import BizBuySell.</div>',
     rowId:function(p){ return p.id; }, defaultSort:0, defaultDir:1,
     bulk: (function(){ var _b=[]; _b.push({ label:'New listing\u2026', min:1, fn:bulkNewListing }); if(IS_ADMIN) _b.push({ label:'Merge\u2026', min:2, fn:openMergePicker }); if(CAN_DELETE) _b.push({ label:'Delete', danger:true, min:1, fn:bulkDeletePeople }); return _b.length?_b:null; })(),
     columns:[
       { label:'Name', sort:function(a,b){ return RRGList.cmp(a.name,b.name); }, cell:function(p){ var star=p.vip?'<span title="VIP" style="color:#e2b93a;font-weight:900;margin-right:4px">\u2605</span>':''; var nm=star+'<a class="nmlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">'+esc(p.name||'Contact')+'</a>'+(p.nickname?(' <span class="meta">“'+esc(p.nickname)+'”</span>'):''); return '<div class="who"><div class="av">'+esc(initials(p.name))+'</div><div><div class="nm">'+nm+'</div><div class="meta">'+esc(p.email||'')+'</div></div></div>'; } },
       { label:'Company', sort:function(a,b){ return RRGList.cmp(a.companyName||a.company,b.companyName||b.company); }, cell:function(p){ var cn=p.companyName||p.company||''; if(!cn) return '<span class="meta">—</span>'; return p.companyId?('<a class="colink" href="./rrg_company.html?id='+encodeURIComponent(p.companyId)+'">'+esc(cn)+'</a>'):esc(cn); } },
-      { label:'Type', sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, edit:{ type:'select', allowBlank:true, options:function(){return TYPES.length?TYPES:['Buyer','Seller'];}, get:function(p){return p.type||'';}, save:function(p,val){ return fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:p.id,type:val})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ p.type=val; return true; } throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(p){ return p.type?('<span class="typetxt">'+esc(p.type)+'</span>'):'<span class="meta">—</span>'; } },
+      { label:'Type', sort:function(a,b){ return RRGList.cmp(a.type,b.type); }, edit:{ type:'select', allowBlank:true, options:function(){return TYPES.length?TYPES:['Buyer','Seller'];}, get:function(p){return p.type||'';}, save:function(p,val){ return fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:p.id,type:val})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ p.type=val; return true; } throw new Error((j&&j.error)||'Save failed'); }); } }, cell:function(p){ if(!p.type) return '<span class="meta">—</span>'; var c=typeColor(p.type); return '<span class="typechip" style="background:'+c[0]+';color:'+c[1]+'">'+esc(p.type)+'</span>'; } },
       { label:'Primary', sort:function(a,b){ return (b.isMainContact?1:0)-(a.isMainContact?1:0); }, cell:function(p){ if(!p.companyId) return '<span class="meta">—</span>'; return '<input type="checkbox" class="primchk" data-pid="'+esc(p.id)+'" data-cid="'+esc(p.companyId)+'"'+(p.isMainContact?' checked':'')+' style="cursor:pointer" title="Primary contact for their company">'; } },
       { label:'Phone', width:160, sortable:false, cell:function(p){ var ph=p.phone||(p.phones&&p.phones[0])||''; var extra=(p.phones&&p.phones.length>1)?(' <span class="meta">+'+(p.phones.length-1)+'</span>'):''; return ph?(esc(ph)+extra):'<span class="meta">—</span>'; } },
       { label:'Email', sortable:false, cell:function(p){ var em=p.email||(p.emails&&p.emails[0])||''; var extra=(p.emails&&p.emails.length>1)?(' <span class="meta">+'+(p.emails.length-1)+'</span>'):''; return em?('<a class="emlink" href="mailto:'+esc(em)+'" title="Email '+esc(em)+'">'+esc(em)+'</a>'+extra):'<span class="meta">—</span>'; } },
