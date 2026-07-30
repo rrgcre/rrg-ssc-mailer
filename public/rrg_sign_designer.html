@@ -41,6 +41,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
 .f.sel{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--navy);z-index:5;}
 .f .rz{position:absolute;right:-5px;bottom:-5px;width:12px;height:12px;background:#fff;border:1.5px solid var(--navy);border-radius:3px;cursor:nwse-resize;}
 .f .rq{position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;font-size:9px;font-weight:800;border-radius:20px;padding:0 4px;line-height:14px;}
+.f .fx{position:absolute;top:-9px;left:-9px;width:18px;height:18px;background:var(--red);color:#fff;font-size:13px;font-weight:800;line-height:16px;text-align:center;border-radius:50%;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.3);z-index:6;}
 .loading{text-align:center;color:var(--muted);padding:60px;font-size:14px;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -84,7 +85,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
       <div id="s2wrap" style="display:none"><label class="fld">Signer 2 label</label><input id="s2label" value="Signer 2"></div>
       <div id="s3wrap" style="display:none"><label class="fld">Signer 3 label</label><input id="s3label" value="Signer 3"></div>
     </div>
-    <div class="hint">Pick a field type, then click where it goes on the page. Drag to move, use the corner to resize. Blue = Signer 1, green = Signer 2, amber = Signer 3. Save when done.</div>
+    <div class="hint">Pick a field type, then click where it goes on the page. Drag to move, use the corner to resize. Blue = Signer 1, green = Signer 2, amber = Signer 3. Click a field then the × (or press Delete) to remove it. Save when done.</div>
   </div>
   <div class="stage" id="stage"><div class="loading">Loading document…</div></div>
 </div>
@@ -132,6 +133,7 @@ function drawFields(){
     el.addEventListener('mousedown',function(e){ if(e.target===rz) return; startDrag(e,f,el); });
     el.addEventListener('click',function(e){ e.stopPropagation(); SELECTED=f.id; drawFields(); openPanel(); });
     rz.addEventListener('mousedown',function(e){ startResize(e,f,el); });
+    if(SELECTED===f.id){ var fx=document.createElement('div'); fx.className='fx'; fx.textContent='\u00d7'; fx.title='Delete field'; el.appendChild(fx); fx.addEventListener('mousedown',function(e){ e.stopPropagation(); e.preventDefault(); }); fx.addEventListener('click',function(e){ e.stopPropagation(); FIELDS=FIELDS.filter(function(x){return x.id!==f.id;}); SELECTED=null; drawFields(); openPanel(); }); }
   });
 }
 var DRAG=null;
@@ -161,6 +163,7 @@ document.getElementById('f_auto').addEventListener('change',function(){ var f=cu
 document.getElementById('f_req').addEventListener('change',function(){ var f=cur(); if(f){ f.required=this.checked; drawFields(); } });
 document.getElementById('f_del').addEventListener('click',function(){ var f=cur(); if(f){ FIELDS=FIELDS.filter(function(x){return x.id!==f.id;}); SELECTED=null; drawFields(); openPanel(); } });
 function cur(){ return FIELDS.filter(function(x){return x.id===SELECTED;})[0]; }
+document.addEventListener('keydown',function(e){ if(e.key==='Delete'||e.key==='Backspace'){ var t=e.target; if(t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable)) return; if(SELECTED){ e.preventDefault(); FIELDS=FIELDS.filter(function(x){return x.id!==SELECTED;}); SELECTED=null; drawFields(); openPanel(); } } });
 
 function save(){
   var body={ pdfFields:FIELDS, signerCount:sigCount(), signer1Label:document.getElementById('s1label').value||'Signer 1', signer2Label:document.getElementById('s2label').value||'Signer 2', signer3Label:document.getElementById('s3label').value||'Signer 3' };
