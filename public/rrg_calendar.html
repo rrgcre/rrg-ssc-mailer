@@ -79,7 +79,7 @@ textarea{min-height:64px;resize:vertical;}
     <span class="mtitle" id="mtitle"></span>
     <span class="sp"></span>
     <span class="seg"><button id="vmonth" class="on">Month</button><button id="vagenda">Agenda</button></span>
-    <span class="seg"><button id="sall" class="on">Everyone</button><button id="smine">My meetings</button></span>
+    <span class="seg" id="scopeSeg"><button id="sall" class="on">Everyone</button><button id="smine">My meetings</button></span><select id="userFilter" style="display:none;font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff;max-width:200px"></select>
     <button class="btn red" id="newbtn">+ New meeting</button>
   </div>
   <div id="cal"></div>
@@ -117,7 +117,7 @@ textarea{min-height:64px;resize:vertical;}
 
 <script>
 var APPTS=[],CONTACTS=[],USERS=[],TYPES=[],ME='',EMAILREADY=false;
-var VIEW='month',SCOPE='all',EDIT=null;
+var VIEW='month',SCOPE='all',EDIT=null,CANSEEALL=false,USERSEL='';
 var CUR=(function(){var d=new Date();return new Date(d.getFullYear(),d.getMonth(),1);})();
 var MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
 var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -129,10 +129,10 @@ function timeOf(iso){ var m=String(iso||'').match(/T(\d{2}):(\d{2})/); return m?
 function monthRange(){ var y=CUR.getFullYear(),mo=CUR.getMonth(); var start=new Date(y,mo,1); var gridStart=new Date(y,mo,1-start.getDay()); var gridEnd=new Date(gridStart); gridEnd.setDate(gridEnd.getDate()+41); return {from:ymd(gridStart)+'T00:00',to:ymd(gridEnd)+'T23:59',gridStart:gridStart}; }
 function load(){
   var q; if(VIEW==='month'){ var r=monthRange(); q='from='+r.from+'&to='+r.to; } else { var t=new Date(); q='from='+ymd(t)+'T00:00'; }
-  if(SCOPE==='mine') q+='&scope=mine';
+  if(SCOPE==='mine') q+='&scope=mine'; else if(USERSEL) q+='&user='+encodeURIComponent(USERSEL);
   fetch('/api/appointments?'+q,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok) return;
-    APPTS=j.appointments||[]; CONTACTS=j.contacts||[]; USERS=j.users||[]; TYPES=j.types||[]; ME=j.me||''; EMAILREADY=!!j.emailReady;
+    APPTS=j.appointments||[]; CONTACTS=j.contacts||[]; USERS=j.users||[]; TYPES=j.types||[]; ME=j.me||''; EMAILREADY=!!j.emailReady; CANSEEALL=!!j.canSeeAll; setupScope();
     document.getElementById('contactList').innerHTML=CONTACTS.map(function(c){return '<option value="'+esc(c.name)+'"></option>';}).join('');
     render();
   });
@@ -229,6 +229,9 @@ function del(){
   if(!EDIT) return; if(!confirm('Delete this meeting?')) return;
   fetch('/api/appointments/'+encodeURIComponent(EDIT.id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ closeForm(); load(); } else alert((j&&j.error)||'Could not delete.'); });
 }
+function fillUserFilter(){ var el=document.getElementById('userFilter'); if(!el) return; var cur=(SCOPE==='mine')?'__mine':(USERSEL||'__all'); el.innerHTML='<option value="__all">Everyone’s calendar</option><option value="__mine">Just my meetings</option>'+USERS.map(function(u){return '<option value="'+esc(u.username)+'">'+esc(u.name)+'</option>';}).join(''); el.value=cur; }
+function setupScope(){ var seg=document.getElementById('scopeSeg'), uf=document.getElementById('userFilter'); if(CANSEEALL){ if(seg) seg.style.display='none'; if(uf){ uf.style.display=''; fillUserFilter(); } } else { if(seg) seg.style.display='none'; if(uf) uf.style.display='none'; } }
+document.getElementById('userFilter').addEventListener('change',function(){ var v=this.value; if(v==='__all'){ SCOPE='all'; USERSEL=''; } else if(v==='__mine'){ SCOPE='mine'; USERSEL=''; } else { SCOPE='all'; USERSEL=v; } load(); });
 document.getElementById('prev').addEventListener('click',function(){ CUR=new Date(CUR.getFullYear(),CUR.getMonth()-1,1); load(); });
 document.getElementById('next').addEventListener('click',function(){ CUR=new Date(CUR.getFullYear(),CUR.getMonth()+1,1); load(); });
 document.getElementById('today').addEventListener('click',function(){ var d=new Date(); CUR=new Date(d.getFullYear(),d.getMonth(),1); load(); });

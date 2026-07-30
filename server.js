@@ -7592,16 +7592,19 @@ async function sendInviteMail(to, subject, text, ics) {
 }
 app.get('/api/appointments', (req, res) => {
   const u = req.user || {};
-  const from = String(req.query.from || ''), to = String(req.query.to || ''), cid = String(req.query.contactId || ''), scope = String(req.query.scope || '');
+  const from = String(req.query.from || ''), to = String(req.query.to || ''), cid = String(req.query.contactId || ''), scope = String(req.query.scope || ''), who = String(req.query.user || '');
+  const canAll = isSuper(u) || !permsEnabled() || !!effectivePerms(u).view_calendars;
   let list = loadAppts().filter(a => a.status !== 'deleted');
   if (cid) list = list.filter(a => a.contactPersonId === cid);
-  if (scope === 'mine') list = list.filter(a => a.byUser === u.username);
+  if (!canAll) { list = list.filter(a => a.byUser === u.username); }
+  else if (scope === 'mine') { list = list.filter(a => a.byUser === u.username); }
+  else if (who) { list = list.filter(a => a.byUser === who); }
   if (from) list = list.filter(a => String(a.start || '') >= from || (a.end && String(a.end) >= from));
   if (to) list = list.filter(a => String(a.start || '') <= to);
   list.sort((a, b) => String(a.start || '').localeCompare(String(b.start || '')));
   const contacts = loadPeople().map(p => ({ id: p.id, name: p.name, email: (typeof preferredEmailOf === 'function' ? (preferredEmailOf(p) || '') : (p.email || '')) })).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   const users = auth.loadUsers().filter(x => !x.disabled).map(x => ({ username: x.username, name: x.name || x.username }));
-  res.json({ ok: true, appointments: list.map(apptBrief), contacts, users, types: APPT_TYPES, me: u.username || '', emailReady: isEmailConfigured() });
+  res.json({ ok: true, appointments: list.map(apptBrief), contacts, users, types: APPT_TYPES, me: u.username || '', canSeeAll: canAll, emailReady: isEmailConfigured() });
 });
 app.post('/api/appointments', express.json(), (req, res) => {
   const u = req.user || {}; const b = req.body || {}; const all = loadAppts(); const now = new Date().toISOString();
@@ -8336,6 +8339,7 @@ const PERM_CORE = [
   { key: 'delete', cat: 'Records', label: 'Delete records', note: 'Companies, contacts & other records' },
   { key: 'reassign', cat: 'Records', label: 'Reassign ownership' },
   { key: 'export_data', cat: 'Records', label: 'Export & print lists', note: 'Off = cannot download CSV or print lists' },
+  { key: 'view_calendars', cat: 'Calendar', label: "See other users' calendars", note: 'Off = only their own meetings' },
   { key: 'manage_loi', cat: 'LOI', label: 'Manage LOI clause library' },
   { key: 'use_ai', cat: 'AI', label: 'Use AI features', note: 'Space & LOI AI, call-prep, RRG Brief, enrichment' },
   { key: 'admin_console', cat: 'Admin', label: 'Open admin console / settings' },
