@@ -81,7 +81,7 @@ tr:hover td{background:#fbfcfe;}
 <div class="wrap">
   <div class="card">
     <div class="hd"><b>Companies</b><span class="cnt" id="cnt"></span><button id="newBtn" class="newbtn">+ New company</button><button id="filterBtn" class="rlf-btn" style="margin-left:8px">⚙ Filters</button><input id="search" placeholder="Search name or market…" oninput="applyFilter()"></div>
-    <div id="body"></div>
+    <style>.listloading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:72px 20px;color:#6b7488;font-size:14px;font-weight:600;gap:15px}.listspin{width:38px;height:38px;border-radius:50%;border:3px solid #e6e9f0;border-top-color:#DA2B1F;animation:listspin .8s linear infinite}@keyframes listspin{to{transform:rotate(360deg)}}</style><div id="body"><div class="listloading"><div class="listspin"></div>Loading companies…</div></div>
   </div>
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>

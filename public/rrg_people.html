@@ -90,7 +90,7 @@ tr:hover td{background:#fbfcfe;}
   <div class="filters" id="filters"></div>
   <div class="card">
     <div class="hd"><b>Contacts</b><span class="cnt" id="cnt"></span><button id="newBtn" class="newbtn">+ New contact</button><button id="importBtn" title="Import BizBuySell buyer leads" style="margin-left:8px;background:#fff;border:1px solid var(--line,#e6e9f0);color:var(--muted,#6b7488);border-radius:9px;padding:8px 12px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer">⬇ Import BizBuySell</button><button id="gmailImpBtn" title="Import your contacts from Gmail" onclick="location.href='./rrg_gmail_import.html'" style="margin-left:6px;background:#fff;border:1px solid var(--line,#e6e9f0);color:var(--muted,#6b7488);border-radius:9px;padding:8px 12px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer">⤓ Gmail Contacts</button><button id="filterBtn" class="fbtn" onclick="openFilters()">⚙ Filters</button><input id="search" placeholder="Search name, company, email…" oninput="applyFilter()"></div>
-    <div id="body"></div>
+    <style>.listloading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:72px 20px;color:#6b7488;font-size:14px;font-weight:600;gap:15px}.listspin{width:38px;height:38px;border-radius:50%;border:3px solid #e6e9f0;border-top-color:#DA2B1F;animation:listspin .8s linear infinite}@keyframes listspin{to{transform:rotate(360deg)}}</style><div id="body"><div class="listloading"><div class="listspin"></div>Loading your contacts…</div></div>
   </div>
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
