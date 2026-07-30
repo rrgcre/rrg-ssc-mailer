@@ -6834,7 +6834,7 @@ app.post('/api/admin/enrich-run', requireAdmin, express.json(), async (req, res)
     const d = en.data;
     const cpt = (c.concepts || []).find(cp => normKey(cp.name) === normKey(l.concept));
     const proposedPrice = (d.priceLevel != null && d.priceLevel >= 1) ? (PRICE_POINTS[d.priceLevel - 1] || '') : '';
-    results.push({ companyId: c.id, companyName: c.name || '', locId: l.id, name: l.name || '', concept: l.concept || '', address: l.address || '', city: l.city || '', state: l.state || '', companyHasLogo: !!c.logo, companyWebsite: (c.office && c.office.website) || '',
+    results.push({ companyId: c.id, companyName: c.name || '', locId: l.id, name: l.name || '', concept: l.concept || '', address: l.address || '', city: l.city || '', state: l.state || '', companyHasLogo: !!c.logo, companyLogo: c.logo || '', companyWebsite: (c.office && c.office.website) || '',
       current: { status: l.status || '', phone: l.phone || '', website: l.website || '', pricePoint: (cpt ? (cpt.pricePoint || '') : '') },
       proposed: { status: placeStatusToLoc(d.businessStatus), businessStatus: d.businessStatus || '', rating: d.rating, reviews: d.reviews, priceLevel: d.priceLevel, pricePoint: proposedPrice, phone: d.phone || '', website: d.website || '', lat: d.lat, lng: d.lng, address: d.address || '', mapsUrl: d.mapsUrl || '', placeId: d.placeId || '' },
       reason: '' });

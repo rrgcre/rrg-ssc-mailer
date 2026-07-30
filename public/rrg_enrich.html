@@ -27,6 +27,9 @@ h1{margin:0;font-size:26px;font-weight:800;display:inline-block;vertical-align:m
 .ec.on{border-color:var(--green);box-shadow:0 0 0 2px rgba(31,138,91,.16);} .ec.dead{opacity:.5;}
 .ec .chk{position:absolute;top:13px;right:13px;width:22px;height:22px;border-radius:6px;border:1.5px solid #cdd6e6;background:#fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;cursor:pointer;} .ec.on .chk{background:var(--green);border-color:var(--green);}
 .ec .nm{font-weight:800;font-size:14.5px;padding-right:30px;line-height:1.25;} .ec .ad{font-size:11.5px;color:var(--dim);margin-top:2px;}
+.echd{display:flex;gap:10px;align-items:flex-start;} .echdx{flex:1;min-width:0;}
+.eclogo{width:36px;height:36px;border-radius:8px;overflow:hidden;background:#eef2f8;display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#8a93a8;border:1px solid var(--line);flex:none;position:relative;}
+.eclogo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff;}
 .ec .co{font-size:11px;color:var(--faint);margin-top:1px;}
 .stat{display:flex;align-items:center;gap:8px;margin:11px 0 9px;font-size:12px;}
 .pill{font-size:11px;font-weight:800;padding:3px 9px;border-radius:100px;background:#eef1f7;color:var(--dim);} .pill.op{background:#e7f5ec;color:var(--green);} .pill.dark{background:#fbf3e7;color:var(--amber);} .pill.cl{background:#fdeceb;color:var(--red);}
@@ -113,9 +116,10 @@ function addRow(r){
   count();
 }
 function cssq(k){ return String(k).replace(/"/g,'\\"'); }
+function ecLogo(r){ var lg=r.companyLogo||''; var lt=esc(String(r.companyName||r.name||'?').charAt(0).toUpperCase()); return '<span class="eclogo"><span>'+lt+'</span>'+(lg?('<img src="'+esc(lg)+'" onerror="this.remove()">'):'')+'</span>'; }
 function cardHtml(k){
   var r=ROWS[k];
-  if(!r.proposed){ return '<div class="ec dead" data-k="'+esc(k)+'"><div class="nm">'+esc(r.name||r.companyName||'Location')+'</div><div class="ad">'+esc([r.address,r.city].filter(Boolean).join(', '))+'</div><div class="deadmsg">No Google match — '+esc(r.reason||'not found')+'</div></div>'; }
+  if(!r.proposed){ return '<div class="ec dead" data-k="'+esc(k)+'"><div class="echd">'+ecLogo(r)+'<div class="echdx"><div class="nm">'+esc(r.name||r.companyName||'Location')+'</div></div></div><div class="ad">'+esc([r.address,r.city].filter(Boolean).join(', '))+'</div><div class="deadmsg">No Google match — '+esc(r.reason||'not found')+'</div></div>'; }
   var p=r.proposed, cur=r.current||{};
   var meta='';
   if(p.rating!=null) meta+='<span class="tag">★ '+esc(p.rating)+(p.reviews!=null?(' · '+esc(p.reviews)+' reviews'):'')+'</span>';
@@ -126,8 +130,7 @@ function cardHtml(k){
   if(p.lat!=null) meta+='<span class="tag a">📍 mapped</span>';
   var statLine = (p.status&&p.status!==cur.status) ? (statusPill(cur.status)+'<span class="arw">→</span>'+statusPill(p.status,p.businessStatus)) : statusPill(cur.status||p.status,p.businessStatus);
   return '<div class="ec'+(STATE[k]==='on'?' on':'')+'" data-k="'+esc(k)+'"><div class="chk">✓</div>'
-    +'<div class="nm">'+esc(r.name||r.companyName||'Location')+'</div>'
-    +'<div class="co">'+esc(r.companyName||'')+(r.concept?(' · '+esc(r.concept)):'')+'</div>'
+    +'<div class="echd">'+ecLogo(r)+'<div class="echdx"><div class="nm">'+esc(r.name||r.companyName||'Location')+'</div><div class="co">'+esc(r.companyName||'')+(r.concept?(' · '+esc(r.concept)):'')+'</div></div></div>'
     +'<div class="ad">'+esc([r.address,r.city,r.state].filter(Boolean).join(', '))+'</div>'
     +'<div class="stat">'+statLine+'</div>'
     +'<div class="meta">'+(meta||'<span class="tag a">verified on Google</span>')+'</div></div>';
