@@ -6621,7 +6621,7 @@ app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16m
   saveCompanies(arr);
   const _newLS = Object.values(_newLSmap);
   if (_newLS.length) { const _s = loadSettings(); const _cur = (Array.isArray(_s.leadSources) && _s.leadSources.length) ? _s.leadSources.slice() : LEAD_SOURCES.slice(); const _low = _cur.map(function(x){return x.toLowerCase();}); _newLS.forEach(function(v){ if (_low.indexOf(v.toLowerCase()) < 0) { _cur.push(v); _low.push(v.toLowerCase()); } }); _s.leadSources = _cur; saveSettings(_s); }
-  res.json({ ok: true, created, updated, skipped, conceptsCreated, locationsCreated, total: rows.length, newLeadSources: _newLS });
+  res.json({ ok: true, created, updated, skipped, conceptsCreated, locationsCreated, total: rows.length, newLeadSources: _newLS, allLeadSources: effLeadSources() });
   } catch (e) { console.error('import companies:', e && e.message); res.status(500).json({ ok: false, error: 'Import failed: ' + ((e && e.message) || 'server error') }); }
 });
 app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' }), (req, res) => {
@@ -6659,7 +6659,7 @@ app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' 
   savePeople(ppl);
   const _newLS = Object.values(_newLSmap);
   if (_newLS.length) { const _s = loadSettings(); const _cur = (Array.isArray(_s.leadSources) && _s.leadSources.length) ? _s.leadSources.slice() : LEAD_SOURCES.slice(); const _low = _cur.map(function(x){return x.toLowerCase();}); _newLS.forEach(function(v){ if (_low.indexOf(v.toLowerCase()) < 0) { _cur.push(v); _low.push(v.toLowerCase()); } }); _s.leadSources = _cur; saveSettings(_s); }
-  res.json({ ok: true, created, dupe, noname, total: rows.length, defaultType: defType, newLeadSources: _newLS });
+  res.json({ ok: true, created, dupe, noname, total: rows.length, defaultType: defType, newLeadSources: _newLS, allLeadSources: effLeadSources() });
   } catch (e) { console.error('import people:', e && e.message); res.status(500).json({ ok: false, error: 'Import failed: ' + ((e && e.message) || 'server error') }); }
 });
 
@@ -6893,6 +6893,23 @@ app.post('/api/admin/cleanup-apply', requireAdmin, express.json({ limit: '4mb' }
     applied++; }); p.updatedAt = now; });
   saveCompanies(companies); savePeople(people);
   res.json({ ok: true, applied });
+});
+
+app.post('/api/admin/leadsources/resolve', requireAdmin, express.json(), (req, res) => {
+  const actions = Array.isArray((req.body || {}).actions) ? req.body.actions : [];
+  if (!actions.length) return res.json({ ok: true, reassigned: 0 });
+  const s = loadSettings();
+  let list = (Array.isArray(s.leadSources) && s.leadSources.length) ? s.leadSources.slice() : LEAD_SOURCES.slice();
+  const companies = loadCompanies(), people = loadPeople(); let reassigned = 0;
+  function reassign(from, to) { const fl = from.toLowerCase(); companies.forEach(c => { if (String(c.leadSource || '').toLowerCase() === fl) { c.leadSource = to; reassigned++; } }); people.forEach(p => { if (String(p.leadSource || '').toLowerCase() === fl) { p.leadSource = to; reassigned++; } }); }
+  actions.forEach(a => {
+    const name = String(a.name || '').trim(); if (!name) return;
+    if (a.action === 'rename') { const to = String(a.to || '').trim(); if (!to || to === name) return; const idx = list.map(x => x.toLowerCase()).indexOf(name.toLowerCase()); if (idx >= 0) list[idx] = to; else if (list.map(x => x.toLowerCase()).indexOf(to.toLowerCase()) < 0) list.push(to); reassign(name, to); }
+    else if (a.action === 'merge') { const to = String(a.to || '').trim(); if (!to) return; list = list.filter(x => x.toLowerCase() !== name.toLowerCase()); if (list.map(x => x.toLowerCase()).indexOf(to.toLowerCase()) < 0) list.push(to); reassign(name, to); }
+  });
+  const seen = {}, out = []; list.forEach(x => { const l = x.toLowerCase(); if (!seen[l]) { seen[l] = 1; out.push(x); } });
+  s.leadSources = out; saveSettings(s); saveCompanies(companies); savePeople(people);
+  res.json({ ok: true, reassigned, leadSources: out });
 });
 
 // ===== Duplicate finder (fuzzy) — companies & contacts =====
