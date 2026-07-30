@@ -5628,13 +5628,17 @@ app.get('/admin', requireAdmin, (req, res) => {
       <span class="dl"><a href="/index.html" style="background:#DA2B1F;color:#fff;padding:6px 13px;border-radius:8px;font-weight:800;text-decoration:none">Switch to user view →</a> <a href="/log">Submissions</a> <a href="/admin/logins.csv">Login CSV</a> <a href="/admin/usage.csv">Usage CSV</a> <a href="/logout">Sign out</a></span></div>${whoCard}
     <style>
       .expandbar{display:none!important;}
-      .userscroll{max-height:390px;overflow-y:auto;border:1px solid #e9edf3;border-radius:11px;}
+      .userscroll{max-height:calc(100vh - 220px);min-height:440px;overflow-y:auto;border:1px solid #e9edf3;border-radius:11px;}
       .userscroll table{margin:0;}
       .uacts{display:flex;gap:6px;flex-wrap:nowrap;justify-content:flex-end;}
       .uacts .ubtn{font:inherit;font-size:12px;padding:6px 10px;border:1px solid #cfd6e2;border-radius:7px;background:#fff;color:#0b1a3a;cursor:pointer;white-space:nowrap;}
       .uacts .ubtn:hover{background:#f2f4f8;}
       .uacts .ubtn.danger{color:#b3261e;border-color:#e6b8b4;}
       .userscroll thead th{position:sticky;top:0;z-index:2;background:#f6f8fb;box-shadow:inset 0 -1px 0 #e9edf3;}
+      .userscroll td{padding:4px 10px!important;font-size:12.5px;line-height:1.2;vertical-align:middle;}
+      .userscroll th{padding-top:7px!important;padding-bottom:7px!important;}
+      .userscroll .mono,.userscroll .ts{font-size:11.5px;}
+      .uacts .ubtn{padding:3px 8px;font-size:11px;}
       .userscroll::-webkit-scrollbar{width:10px;} .userscroll::-webkit-scrollbar-thumb{background:#cfd6e2;border-radius:8px;border:2px solid #fff;}
       .bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:18px 28px 2px;}
       .bar .stat{background:#f6f8fb;border:1px solid #e9edf3;border-radius:11px;padding:8px 14px;font-size:10.5px;color:#6b7488;font-weight:700;text-transform:uppercase;letter-spacing:.04em;line-height:1.3;}
