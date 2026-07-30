@@ -709,6 +709,19 @@ function openLinkPicker(){
 function linkListing(key){ fetch('/api/person/'+encodeURIComponent(ID)+'/link-listing',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({key:key})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ INTERESTED=j.interested||[]; render(); } else alert((j&&j.error)||'Could not link the listing.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 function unlinkListing(key){ if(!confirm('Unlink this listing from the buyer? (Removes the inquiry from that listing.)')) return; fetch('/api/person/'+encodeURIComponent(ID)+'/unlink-listing',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({key:key})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ INTERESTED=j.interested||[]; render(); } }).catch(function(){}); }
 document.addEventListener('click',function(e){ if(!e.target.closest) return; if(e.target.closest('#linkListingBtn')){ e.preventDefault(); openLinkPicker(); return; } var u=e.target.closest('[data-unlink]'); if(u){ e.preventDefault(); unlinkListing(u.getAttribute('data-unlink')); return; } });
+var _railDrag=null;
+function _railChildren(rail){ return Array.prototype.filter.call(rail.children,function(c){ return c.classList&&c.classList.contains('card'); }); }
+function _railKey(card){ var b=card.querySelector('.ch b'); var t=b?b.textContent.trim():''; return t||''; }
+function applyRailOrder(){
+  var rail=document.querySelector('.rail'); if(!rail) return;
+  _railChildren(rail).forEach(function(c){ var k=_railKey(c); if(k) c.setAttribute('data-rk',k); });
+  var order=[]; try{ order=JSON.parse(localStorage.getItem('rrgRailOrder')||'[]'); }catch(e){}
+  if(order&&order.length){ order.forEach(function(k){ if(!k) return; var c=rail.querySelector('.card[data-rk="'+String(k).replace(/["\\]/g,'')+'"]'); if(c&&c.parentNode===rail) rail.appendChild(c); }); }
+  _railChildren(rail).forEach(function(c){ var h=c.querySelector('.ch'); if(h&&!h._railwired){ h._railwired=true; h.style.cursor='grab'; h.style.touchAction='none'; h.title='Drag to reorder'; h.addEventListener('pointerdown',_railDown); } });
+}
+function _railDown(e){ if(e.button!=null&&e.button!==0) return; if(e.target.closest&&e.target.closest('button,a,input,select,textarea')) return; var card=e.currentTarget.closest('.card'); if(!card) return; e.preventDefault(); _railDrag=card; card.style.opacity='.55'; e.currentTarget.style.cursor='grabbing'; document.addEventListener('pointermove',_railMove); document.addEventListener('pointerup',_railUp,{once:true}); }
+function _railMove(e){ if(!_railDrag) return; var rail=_railDrag.parentNode; if(!rail) return; var after=null; _railChildren(rail).forEach(function(c){ if(c===_railDrag) return; var r=c.getBoundingClientRect(); if(e.clientY > r.top + r.height/2) after=c; }); if(after){ if(after.nextSibling!==_railDrag) rail.insertBefore(_railDrag, after.nextSibling); } else if(rail.firstChild!==_railDrag){ rail.insertBefore(_railDrag, rail.firstChild); } }
+function _railUp(){ document.removeEventListener('pointermove',_railMove); if(_railDrag){ _railDrag.style.opacity=''; var h=_railDrag.querySelector('.ch'); if(h) h.style.cursor='grab'; var rail=_railDrag.parentNode; if(rail){ var order=_railChildren(rail).map(function(c){ return c.getAttribute('data-rk'); }).filter(Boolean); try{ localStorage.setItem('rrgRailOrder',JSON.stringify(order)); }catch(e){} } } _railDrag=null; }
 function render(){
   document.getElementById('crumb').textContent=P.name||'Contact';
   document.getElementById('h1').textContent=P.name||'Contact';
@@ -780,6 +793,7 @@ function render(){
   wireAgreements();
   wireEmail();
   wireActivity();
+  applyRailOrder();
   document.querySelectorAll('[data-rsec] .rsechd').forEach(function(h){ h.addEventListener('click',function(){ h.parentNode.classList.toggle('collapsed'); }); });
 }
 function mfHtml(cls,values,ph){ values=(values&&values.length)?values:['']; var rows=values.map(function(v){ return '<div class="mfrow"><input class="'+cls+'" value="'+esc(v)+'" placeholder="'+esc(ph)+'"><button type="button" class="mfrm">×</button></div>'; }).join(''); return '<div class="mfwrap">'+rows+'<button type="button" class="mfadd" data-cls="'+cls+'" data-ph="'+esc(ph)+'">+ Add another</button></div>'; }
