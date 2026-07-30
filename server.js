@@ -6892,6 +6892,7 @@ const _CITY_METRO = (function(){ const m={}; const add=(metro,cities)=>cities.fo
   return m; })();
 function _cityMetro(city){ return _CITY_METRO[String(city||'').trim().toLowerCase()] || ''; }
 function _emailOk(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e||'').trim()); }
+function _fmtPhone(s){ let d = String(s || '').replace(/\D/g, ''); if (d.length === 11 && d[0] === '1') d = d.slice(1); if (d.length !== 10) return null; return '(' + d.slice(0, 3) + ') ' + d.slice(3, 6) + '-' + d.slice(6); }
 function _isDecisionMaker(title){ return /\b(owner|founder|co-?founder|president|principal|partner|proprietor|ceo|coo|cfo|chief|managing (member|partner|director)|franchis(ee|or)|director of (real estate|development|operations))\b/i.test(String(title||'')); }
 
 app.get('/api/admin/cleanup-scan', requireAdmin, (req, res) => {
@@ -6904,12 +6905,15 @@ app.get('/api/admin/cleanup-scan', requireAdmin, (req, res) => {
     if (o.state) { const st = _stateCode(o.state); if (st && st !== o.state) ch.push({ field: 'office.state', kind: 'state', from: o.state, to: st }); }
     if (o.website) { const w = domainOf(o.website) ? ('https://' + domainOf(o.website)) : ''; if (w && w.toLowerCase().replace(/\/$/, '') !== String(o.website).toLowerCase().replace(/\/$/, '')) ch.push({ field: 'office.website', kind: 'website', from: o.website, to: w }); }
     if (!String(c.market || '').trim() && o.city) { const mm = _cityMetro(o.city); if (mm) ch.push({ field: 'market', kind: 'market', from: '', to: mm }); }
+    if (o.phone) { const _pf = _fmtPhone(o.phone); if (_pf && _pf !== o.phone) ch.push({ field: 'office.phone', kind: 'phone', from: o.phone, to: _pf }); }
+    (c.locations || []).forEach(l => { if (l.phone) { const _lpf = _fmtPhone(l.phone); if (_lpf && _lpf !== l.phone) ch.push({ field: 'location.phone', kind: 'phone', locId: l.id, from: l.phone, to: _lpf }); } });
     if (ch.length) coOut.push({ id: c.id, name: c.name || '', changes: ch });
   });
   people.forEach(p => {
     const ch = [];
     const nm = p.name || ''; if (_needsCase(nm)) { const t = _titleCase(nm); if (t && t !== nm) ch.push({ field: 'name', kind: 'case', from: nm, to: t }); }
     const em = personEmails(p); em.forEach((e, i) => { const le = String(e || '').trim().toLowerCase(); if (le && le !== e) ch.push({ field: 'email', kind: 'email', idx: i, from: e, to: le }); });
+    const ph = personPhones(p); ph.forEach((x, i) => { const _pf = _fmtPhone(x); if (_pf && _pf !== x) ch.push({ field: 'phone', kind: 'phone', idx: i, from: x, to: _pf }); });
     if (_isDecisionMaker(p.title) && personTags(p).indexOf('Decision Maker') < 0) ch.push({ field: 'tag', kind: 'dm', from: p.title || '', to: 'Decision Maker' });
     if (ch.length) pOut.push({ id: p.id, name: p.name || '', title: p.title || '', company: p.company || '', changes: ch });
   });
@@ -6926,11 +6930,14 @@ app.post('/api/admin/cleanup-apply', requireAdmin, express.json({ limit: '4mb' }
     else if (ch.field === 'office.state') { c.office = c.office || {}; c.office.state = ch.to; }
     else if (ch.field === 'office.website') { c.office = c.office || {}; c.office.website = ch.to; }
     else if (ch.field === 'market') { c.market = ch.to; }
+    else if (ch.field === 'office.phone') { c.office = c.office || {}; c.office.phone = ch.to; }
+    else if (ch.field === 'location.phone') { const _l = (c.locations || []).find(x => x.id === ch.locId); if (_l) _l.phone = ch.to; }
     applied++; }); c.updatedAt = now; });
   const pById = {}; people.forEach(p => pById[p.id] = p);
   pItems.forEach(it => { const p = pById[it.id]; if (!p) return; (it.changes || []).forEach(ch => { if (kinds[ch.kind] === false) return;
     if (ch.field === 'name') { p.name = ch.to; if (p.firstName != null || p.lastName != null) { const parts = String(ch.to).trim().split(/\s+/); p.firstName = parts[0] || ''; p.lastName = parts.slice(1).join(' '); } }
     else if (ch.field === 'email') { if (Array.isArray(p.emails) && p.emails[ch.idx] != null) p.emails[ch.idx] = ch.to; else if (p.email) p.email = ch.to; if (p.preferredEmail && String(p.preferredEmail).toLowerCase() === String(ch.from).toLowerCase()) p.preferredEmail = ch.to; }
+    else if (ch.field === 'phone') { const _fk = String(ch.from).replace(/\D/g,''); if (Array.isArray(p.phones) && p.phones[ch.idx] != null) p.phones[ch.idx] = ch.to; if (p.phone && String(p.phone).replace(/\D/g,'') === _fk) p.phone = ch.to; if (p.preferredPhone && String(p.preferredPhone).replace(/\D/g,'') === _fk) p.preferredPhone = ch.to; }
     else if (ch.field === 'tag') { p.tags = Array.isArray(p.tags) ? p.tags : []; if (p.tags.indexOf(ch.to) < 0) p.tags.push(ch.to); }
     applied++; }); p.updatedAt = now; });
   saveCompanies(companies); savePeople(people);

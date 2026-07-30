@@ -29,7 +29,7 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#b6d4cf;font-size:13px;m
 .ec .chk{position:absolute;top:12px;right:12px;width:21px;height:21px;border-radius:6px;border:1.5px solid #cdd6e6;background:#fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;} .ec.on .chk{background:var(--teal);border-color:var(--teal);}
 .ec .nm{font-weight:800;font-size:14px;padding-right:28px;line-height:1.25;} .ec .co{font-size:11px;color:var(--faint);margin-top:1px;}
 .chg{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.5;display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
-.chg .kk{font-size:9px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;color:#fff;background:var(--blue);border-radius:100px;padding:1px 6px;} .chg .kk.state{background:#6d7c9c;} .chg .kk.website{background:var(--teal);} .chg .kk.market{background:var(--amber);} .chg .kk.email{background:#4a5cd0;} .chg .kk.dm{background:var(--green);}
+.chg .kk{font-size:9px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;color:#fff;background:var(--blue);border-radius:100px;padding:1px 6px;} .chg .kk.state{background:#6d7c9c;} .chg .kk.website{background:var(--teal);} .chg .kk.market{background:var(--amber);} .chg .kk.email{background:#4a5cd0;} .chg .kk.phone{background:#2f6fd0;} .chg .kk.dm{background:var(--green);}
 .chg .fr{color:var(--faint);text-decoration:line-through;} .chg .to{color:var(--ink);font-weight:700;} .chg .ar{color:var(--faint);}
 .empty{text-align:center;color:var(--dim);padding:54px 20px;} .empty b{color:var(--green);display:block;font-size:17px;margin-bottom:6px;}
 .msg{font-size:13px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
@@ -47,7 +47,7 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#b6d4cf;font-size:13px;m
   <span class="disc" onclick="location.href='./index.html'">RRG</span>
   <div class="kicker">Data Enrichment</div>
   <h1>Cleanup &amp; Standardize</h1>
-  <div class="sub">Fix the messy stuff imports leave behind — <b>ALL-CAPS names</b> title-cased, <b>state names</b> to codes, <b>websites</b> normalized, <b>emails</b> lowercased, <b>markets</b> assigned from city, and <b>decision-makers</b> tagged from their title. Deterministic — no AI cost. Review, tick, apply.</div>
+  <div class="sub">Fix the messy stuff imports leave behind — <b>ALL-CAPS names</b> title-cased, <b>state names</b> to codes, <b>websites</b> normalized, <b>emails</b> lowercased, <b>phones</b> formatted, <b>markets</b> assigned from city, and <b>decision-makers</b> tagged from their title. Deterministic — no AI cost. Review, tick, apply.</div>
 </div></div>
 <div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_data.html">Data Enrichment</a><span>›</span>Cleanup &amp; Standardize</div>
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
@@ -55,7 +55,7 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#b6d4cf;font-size:13px;m
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 var AIW = {show:function(m,c){try{return window.rrgAiWork&&window.rrgAiWork.show(m,c);}catch(e){}},setMsg:function(m){try{return window.rrgAiWork&&window.rrgAiWork.setMsg(m);}catch(e){}},hide:function(){try{return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
 var DATA={companies:[],people:[]}, STATE={};
-function fieldsOn(){ return { case:document.getElementById('f_case').checked, state:document.getElementById('f_state').checked, website:document.getElementById('f_web').checked, email:document.getElementById('f_email').checked, market:document.getElementById('f_market').checked, dm:document.getElementById('f_dm').checked }; }
+function fieldsOn(){ return { case:document.getElementById('f_case').checked, state:document.getElementById('f_state').checked, website:document.getElementById('f_web').checked, email:document.getElementById('f_email').checked, phone:document.getElementById('f_phone').checked, market:document.getElementById('f_market').checked, dm:document.getElementById('f_dm').checked }; }
 function build(){
   var root=document.getElementById('root'); root.className='wrap';
   root.innerHTML=''
@@ -64,6 +64,7 @@ function build(){
    +'<label><input type="checkbox" id="f_state" checked> State codes</label>'
    +'<label><input type="checkbox" id="f_web" checked> Websites</label>'
    +'<label><input type="checkbox" id="f_email" checked> Emails</label>'
+   +'<label><input type="checkbox" id="f_phone" checked> Phone format</label>'
    +'<label><input type="checkbox" id="f_market" checked> Market from city</label>'
    +'<label><input type="checkbox" id="f_dm" checked> Decision-maker tags</label></div>'
    +'<div class="bar"><span class="cnt" id="cnt"><span class="spin"></span>Scanning your book…</span><div class="sp"><button class="btn" id="all">Select all</button><button class="btn" id="none">Select none</button><button class="btn green" id="apply">Apply approved</button><span class="msg" id="msg"></span></div></div>'
@@ -88,7 +89,7 @@ function scan(){
   }).catch(function(){ AIW.hide(); document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; });
 }
 function chgLine(ch){
-  var lbl={case:'Name',state:'State',website:'Website',market:'Market',email:'Email',dm:'Tag'}[ch.kind]||ch.kind;
+  var lbl={case:'Name',state:'State',website:'Website',market:'Market',email:'Email',phone:'Phone',dm:'Tag'}[ch.kind]||ch.kind;
   var to = ch.kind==='dm' ? ('<span class="to">+ '+esc(ch.to)+'</span>') : ((ch.from?('<span class="fr">'+esc(ch.from)+'</span><span class="ar">→</span>'):'')+'<span class="to">'+esc(ch.to)+'</span>');
   return '<div class="chg"><span class="kk '+ch.kind+'">'+esc(lbl)+'</span> '+to+'</div>';
 }
