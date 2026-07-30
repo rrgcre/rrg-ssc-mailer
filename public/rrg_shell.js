@@ -61,7 +61,7 @@
       { ic: '★', label: 'Features', href: 'rrg_features.html' },
       { ic: '⊛', label: 'System Status', href: 'rrg_status.html' },
       { ic: '⚑', label: 'Feedback', href: 'rrg_feedback.html' },
-      { ic: '✉', label: 'Requests', href: 'rrg_tickets.html' },
+      { ic: '✉', label: 'Admin Requests', href: 'rrg_tickets.html' },
       { ic: '∑', label: 'Cap Rate', href: 'rrg_cap_rate_calculator.html' },
       { ic: '＄', label: 'Sale Commission', href: 'rrg_commission_calculator.html' },
       { ic: '＄', label: 'Lease Commission', href: 'rrg_lease_commission_calculator.html' }
