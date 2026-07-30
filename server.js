@@ -6847,6 +6847,37 @@ app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' 
   } catch (e) { console.error('import people:', e && e.message); res.status(500).json({ ok: false, error: 'Import failed: ' + ((e && e.message) || 'server error') }); }
 });
 
+app.post('/api/admin/import/tasks', requireAdmin, express.json({ limit: '24mb' }), (req, res) => {
+  try {
+  const b = req.body || {}; const rows = Array.isArray(b.rows) ? b.rows : [];
+  const ppl = loadPeople();
+  const emailIdx = {}, nameIdx = {};
+  ppl.forEach(p => { personEmails(p).forEach(e => { if (e) emailIdx[e.toLowerCase()] = p; }); const nm = normKey(p.name || ''); if (nm && !nameIdx[nm]) nameIdx[nm] = p; });
+  const tasks = loadTasks();
+  const _batch = nextImportBatch();
+  const now = new Date().toISOString();
+  const PRI = ['Low', 'Normal', 'High'];
+  let created = 0, linked = 0, notitle = 0;
+  rows.forEach(r => {
+    const title = _impStr(r.title, 300);
+    if (!title) { notitle++; return; }
+    let person = null;
+    const ce = _impStr(r.contactEmail, 160).toLowerCase();
+    if (ce && emailIdx[ce]) person = emailIdx[ce];
+    if (!person) { const cn = normKey(_impStr(r.contactName, 160)); if (cn && nameIdx[cn]) person = nameIdx[cn]; }
+    const due = /^\d{4}-\d{2}-\d{2}/.test(String(r.dueDate || '')) ? String(r.dueDate).slice(0, 10) : '';
+    let pri = _impStr(r.priority, 20); pri = PRI.find(x => x.toLowerCase() === pri.toLowerCase()) || 'Normal';
+    let st = _impStr(r.status, 20).toLowerCase(); st = (st === 'done' || st === 'closed' || st === 'complete' || st === 'completed') ? 'done' : 'open';
+    const t = { id: newTaskId(), title: title, notes: _impStr(r.notes, 2000), assignee: (req.user && req.user.username) || '', assigneeName: (req.user && req.user.name) || '', due: due, reminder: due, priority: pri, status: st, linkType: person ? 'contact' : '', linkId: person ? person.id : '', linkLabel: person ? (person.name || '') : '', createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', createdAt: now, updatedAt: now, importBatch: _batch, importBatchAt: now };
+    if (person) linked++;
+    tasks.push(t); created++;
+  });
+  saveTasks(tasks);
+  logSysEvent(req, 'Import', 'Imported ' + created + ' task' + (created === 1 ? '' : 's') + ' (' + linked + ' linked to a contact) — batch #' + _batch, { tool: 'import', kind: 'tasks', batch: _batch, created: created, count: created });
+  res.json({ ok: true, created, linked, notitle, total: rows.length, batch: _batch });
+  } catch (e) { console.error('import tasks:', e && e.message); res.status(500).json({ ok: false, error: 'Import failed: ' + ((e && e.message) || 'server error') }); }
+});
+
 // ===== Consult — AI data analyst over the book of business =====
 function consultSnapshot() {
   const cap = (arr, n) => arr.slice(0, n);

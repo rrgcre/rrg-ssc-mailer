@@ -101,6 +101,15 @@ var FIELDS={
     {k:'leadSource',label:'Lead source',alias:['lead source','source','origin','original source']},
     {k:'url',label:'Website',alias:['website','websites','url','web','linkedin','linkedin url']},
     {k:'notes',label:'Notes',alias:['details','notes','description','note','comments','about','background']}
+  ],
+  tasks:[
+    {k:'title',label:'Task title',req:true,alias:['title','task','task name','subject','name','summary','activity']},
+    {k:'contactName',label:'Contact name',hint:'links the task to this contact',alias:['contact','contact name','related to','person','client','who','assigned contact']},
+    {k:'contactEmail',label:'Contact email',hint:'preferred match',alias:['contact email','email','e-mail','email address']},
+    {k:'dueDate',label:'Due date',alias:['due','due date','date','deadline','follow up','follow-up date','reminder']},
+    {k:'priority',label:'Priority',alias:['priority','importance','urgency']},
+    {k:'status',label:'Status',alias:['status','state','done','complete','completed']},
+    {k:'notes',label:'Notes',alias:['details','notes','description','note','comments']}
   ]
 };
 function norm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,' ').trim(); }
@@ -135,7 +144,7 @@ function rowObj(row){
   });
   return o;
 }
-function nameMapped(){ return MODE==='companies' ? (typeof MAP.name==='number'&&MAP.name>=0) : ((typeof MAP.firstName==='number'&&MAP.firstName>=0)||(typeof MAP.lastName==='number'&&MAP.lastName>=0)||(typeof MAP.name==='number'&&MAP.name>=0)); }
+function nameMapped(){ if(MODE==='companies') return (typeof MAP.name==='number'&&MAP.name>=0); if(MODE==='tasks') return (typeof MAP.title==='number'&&MAP.title>=0); return ((typeof MAP.firstName==='number'&&MAP.firstName>=0)||(typeof MAP.lastName==='number'&&MAP.lastName>=0)||(typeof MAP.name==='number'&&MAP.name>=0)); }
 function renderPreview(){
   var host=document.getElementById('prevbox'); if(!host) return;
   var objs=ROWS.slice(0,8).map(rowObj);
@@ -175,9 +184,9 @@ function handleFile(file){
   rd.readAsArrayBuffer(file);
 }
 function doImport(){
-  var objs=ROWS.map(rowObj).filter(function(o){ return MODE==='companies'?o.name:(o.firstName||o.lastName||o.name); });
-  if(!objs.length){ setMsg('Nothing to import — map the name column first.','err'); return; }
-  var url=MODE==='companies'?'/api/admin/import/companies':'/api/admin/import/people';
+  var objs=ROWS.map(rowObj).filter(function(o){ return MODE==='companies'?o.name:(MODE==='tasks'?o.title:(o.firstName||o.lastName||o.name)); });
+  if(!objs.length){ setMsg('Nothing to import — map the '+(MODE==='tasks'?'title':'name')+' column first.','err'); return; }
+  var url=MODE==='companies'?'/api/admin/import/companies':(MODE==='tasks'?'/api/admin/import/tasks':'/api/admin/import/people');
   var body={rows:objs}; if(MODE==='contacts'){ body.defaultType=document.getElementById('deftype').value; } else { body.makeConcept=document.getElementById('opt_concept').checked; body.makeLocation=document.getElementById('opt_location').checked; }
   var btn=document.getElementById('importBtn'); btn.disabled=true; setMsg('Importing '+objs.length+' rows…','');
   var pl=document.getElementById('prog'); if(pl){ pl.parentElement.classList.remove('hide'); pl.style.width='70%'; }
@@ -226,6 +235,7 @@ function renderResult(j){
   var host=document.getElementById('resbox'); if(!host) return;
   var cards, tip;
   if(MODE==='companies'){ cards='<div class="rc g"><div class="n">'+j.created+'</div><div class="l">Created</div></div><div class="rc"><div class="n">'+j.updated+'</div><div class="l">Matched (deduped)</div></div>'+((j.conceptsCreated!=null)?('<div class="rc g"><div class="n">'+j.conceptsCreated+'</div><div class="l">Concepts</div></div>'):'')+((j.locationsCreated!=null)?('<div class="rc g"><div class="n">'+j.locationsCreated+'</div><div class="l">Locations</div></div>'):'')+'<div class="rc a"><div class="n">'+j.skipped+'</div><div class="l">Skipped · no name</div></div>'; tip='Companies are in <b>Book of Business → Companies</b>. Next, switch to <b>Contacts</b> above and import your people file — they&rsquo;ll auto-link to these companies by name.'; }
+  else if(MODE==='tasks'){ cards='<div class="rc g"><div class="n">'+j.created+'</div><div class="l">Tasks added</div></div><div class="rc g"><div class="n">'+(j.linked||0)+'</div><div class="l">Linked to a contact</div></div><div class="rc a"><div class="n">'+(j.notitle||0)+'</div><div class="l">Skipped · no title</div></div>'; tip='Tasks are in <b>Tasks</b> on the toolbar. Each row matched to a contact by email or name is linked to that contact.'; }
   else { cards='<div class="rc g"><div class="n">'+j.created+'</div><div class="l">Contacts added</div></div><div class="rc a"><div class="n">'+j.dupe+'</div><div class="l">Skipped · email exists</div></div><div class="rc a"><div class="n">'+j.noname+'</div><div class="l">Skipped · no name</div></div>'; tip='Contacts are in <b>Book of Business → Contacts</b>, each linked to its company. Duplicates were skipped by email so nothing already in FullServe got overwritten.'; }
   var logoCta=(MODE==='companies'&&((j.created||0)+(j.updated||0))>0)?'<a class="btn green" href="rrg_logos.html" style="text-decoration:none;margin-right:9px;display:inline-block">◐ Find logos (AI)</a>':'';
   var logoNote=(MODE==='companies')?' <b>Tip:</b> tap <b>Find logos (AI)</b> to auto-pull a logo for every company with a website — you approve each one before it&rsquo;s applied.':'';
@@ -242,7 +252,7 @@ function build(){
   document.querySelectorAll('#srcrow .srcchip').forEach(function(ch){ ch.addEventListener('click',function(){ SOURCE=ch.getAttribute('data-src'); document.querySelectorAll('#srcrow .srcchip').forEach(function(x){x.classList.toggle('on',x===ch);}); }); });
   root.innerHTML=''+
     '<div class="stepper"><div class="step on" id="s1"><span class="num">1</span>Upload file</div><div class="stepline"></div><div class="step" id="s2"><span class="num">2</span>Map columns</div><div class="stepline"></div><div class="step" id="s3"><span class="num">3</span>Preview &amp; import</div></div>'+
-    '<div class="seg"><button id="m_contacts" class="on">👤 Contacts (People)</button><button id="m_companies">🏢 Companies</button></div>'+
+    '<div class="seg"><button id="m_contacts" class="on">👤 Contacts (People)</button><button id="m_companies">🏢 Companies</button><button id="m_tasks">✔ Tasks</button></div>'+
     '<div class="card"><div class="ch"><span class="st">Step 1</span><b>Upload your export</b><span class="hint">.xlsx or .csv</span></div><div class="cb">'+
       '<div class="drop" id="drop"><div class="ic">⤓</div><b>Drop your file here, or click to browse</b><span>Export from your CRM, then drop the spreadsheet here</span></div>'+
       '<input type="file" id="file" accept=".csv,.xlsx,.xls" class="hide">'+
@@ -266,9 +276,10 @@ function build(){
   ['dragover','dragenter'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add('over'); }); });
   ['dragleave'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove('over'); }); });
   drop.addEventListener('drop',function(e){ e.preventDefault(); drop.classList.remove('over'); if(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
-  function setMode(m){ MODE=m; document.getElementById('m_contacts').classList.toggle('on',m==='contacts'); document.getElementById('m_companies').classList.toggle('on',m==='companies'); document.getElementById('deftypewrap').style.display=(m==='contacts')?'':'none'; var _co=document.getElementById('coptswrap'); if(_co) _co.style.display=(m==='companies')?'':'none'; resetUpload(); }
+  function setMode(m){ MODE=m; document.getElementById('m_contacts').classList.toggle('on',m==='contacts'); document.getElementById('m_companies').classList.toggle('on',m==='companies'); var _mt=document.getElementById('m_tasks'); if(_mt) _mt.classList.toggle('on',m==='tasks'); document.getElementById('deftypewrap').style.display=(m==='contacts')?'':'none'; var _co=document.getElementById('coptswrap'); if(_co) _co.style.display=(m==='companies')?'':'none'; resetUpload(); }
   document.getElementById('m_contacts').addEventListener('click',function(){ setMode('contacts'); });
   document.getElementById('m_companies').addEventListener('click',function(){ setMode('companies'); });
+  var _mtb=document.getElementById('m_tasks'); if(_mtb) _mtb.addEventListener('click',function(){ setMode('tasks'); });
   document.getElementById('importBtn').addEventListener('click',doImport);
   updateStepper();
 }
