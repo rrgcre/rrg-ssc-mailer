@@ -77,7 +77,7 @@ function del(url){ return fetch(url,{method:'DELETE',credentials:'same-origin'})
 
 var TPLS=[], TYPES=[], EDIT=null, TFIELDS=[], CTL=null, BUILT=false;
 var FIELD_TYPES=[['text','Text'],['autofill','Auto-fill'],['date','Date'],['time','Time'],['number','Number'],['currency','Currency'],['email','Email']];
-var AUTOFILL_SRC=[['party_name','Client — full name'],['first_name','Client — first name'],['last_name','Client — last name'],['title','Client — title'],['email','Client — email'],['phone','Client — phone'],['company','Company / firm'],['my_name','You — name'],['my_title','You — title'],['my_email','You — email'],['my_phone','You — phone'],['date','Today\u2019s date']];
+var AUTOFILL_SRC=[['email','Client — email'],['first_name','Client — first name'],['party_name','Client — full name'],['last_name','Client — last name'],['phone','Client — phone'],['title','Client — title'],['company','Company / firm'],['my_email','Me — email'],['my_name','Me — name'],['my_phone','Me — phone'],['my_title','Me — title'],['date','Today\u2019s date']];
 var DEFAULT_EMAIL_MSG='Please review and sign using the secure link above. Everything has been completed for you — the only thing you need to do is add your signature. Thank you, Restaurant Realty Group.';
 var LIST_SHELL='<div class="card"><div class="ch"><b>Template library</b><span id="tcount"></span><span class="sp"></span><button class="btn sm" id="t_new">+ New template</button></div><div class="cb" style="padding:6px 8px 10px"><div id="tlist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';
 
