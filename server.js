@@ -1121,6 +1121,20 @@ function buildTransport() {
   const c = loadEmailConfig();
   return nodemailer.createTransport({ host: c.host, port: c.port, secure: c.secure, auth: (c.user || c.pass) ? { user: c.user, pass: c.pass } : undefined });
 }
+// Swap the RRG wordmark for the configured brokerage name in any outbound text — no-op until a brokerage is set.
+function whiteLabelText(v) {
+  try { const o = effOrg(); const nm = o.name || o.legalName; if (!nm) return v; if (v == null) return v;
+    return String(v).replace(/Restaurant Realty Group,\s*LLC/g, o.legalName || nm).replace(/Restaurant Realty Group/g, o.name || nm);
+  } catch (e) { return v; }
+}
+// White-labeling wrapper around the mail transport — every outbound email routes through here.
+function sendMailWL(opts) {
+  opts = opts || {};
+  if (opts.text) opts.text = whiteLabelText(opts.text);
+  if (opts.subject) opts.subject = whiteLabelText(opts.subject);
+  if (opts.html) opts.html = whiteLabelText(opts.html);
+  return buildTransport().sendMail(opts);
+}
 app.get('/api/admin/email', requireAdmin, (req, res) => {
   const c = loadEmailConfig();
   res.json({ ok: true, host: c.host, port: c.port, secure: c.secure, user: c.user, from: c.from, enabled: c.enabled, hasPass: !!c.pass, configured: isEmailConfigured() });
@@ -1146,7 +1160,7 @@ app.post('/api/admin/email/test', requireAdmin, express.json(), async (req, res)
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'Enter a valid destination email.' });
   if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: 'Save your email settings first (host + enabled on).' });
   try {
-    const info = await buildTransport().sendMail({ from: mailFrom(), to, subject: 'RRG toolkit — test email', text: 'This is a test from your RRG toolkit. If you got this, outbound email is working.' });
+    const info = await sendMailWL({ from: mailFrom(), to, subject: 'RRG toolkit — test email', text: 'This is a test from your RRG toolkit. If you got this, outbound email is working.' });
     res.json({ ok: true, id: info.messageId });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
@@ -1156,7 +1170,7 @@ async function sendNotifyMail(to, subject, text) {
     if (!isEmailConfigured()) return { ok: false, skipped: true };
     const list = (Array.isArray(to) ? to : [to]).filter(Boolean).join(', ');
     if (!list) return { ok: false, skipped: true };
-    const info = await buildTransport().sendMail({
+    const info = await sendMailWL({
       from: mailFrom(),
       to: list, subject: String(subject || '').slice(0, 200), text: String(text || ''),
     });
@@ -3283,7 +3297,7 @@ async function runAutomationStep(p, en, step) {
   const tok = newOpenToken();
   const origin = String(process.env.APP_URL || '').replace(/\/$/, '');
   try {
-    await buildTransport().sendMail({ from: mailFrom(), to: to, subject: subject, text: body, html: trackedEmailHtml(body, origin, tok), replyTo: en.replyTo || undefined });
+    await sendMailWL({ from: mailFrom(), to: to, subject: subject, text: body, html: trackedEmailHtml(body, origin, tok), replyTo: en.replyTo || undefined });
     const now = new Date().toISOString();
     p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
     p.emailLog.unshift({ id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to: to, subject: subject, body: body.slice(0, 6000), sentAt: now, by: 'Automation (' + (en.automationName || '') + ')', byUser: 'automation', openToken: tok, opens: 0, senderIp: '', via: 'automation' });
@@ -4160,7 +4174,7 @@ app.post('/api/person/:id/email', express.json({ limit: '256kb' }), async (req, 
   if (!subject.trim() && !body.trim()) return res.status(400).json({ ok: false, error: 'Add a subject or a message.' });
   try {
     const _origin = reqOrigin(req); const _tok = newOpenToken();
-    const info = await buildTransport().sendMail({ from: mailFrom(), to, subject: subject || '(no subject)', text: body, html: trackedEmailHtml(body, _origin, _tok) });
+    const info = await sendMailWL({ from: mailFrom(), to, subject: subject || '(no subject)', text: body, html: trackedEmailHtml(body, _origin, _tok) });
     const now = new Date().toISOString();
     p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
     const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', messageId: (info && info.messageId) || '', openToken: _tok, opens: 0, senderIp: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() };
@@ -7957,7 +7971,7 @@ async function sendInviteMail(to, subject, text, ics) {
     if (!isEmailConfigured()) return { ok: false, skipped: true };
     const list = (Array.isArray(to) ? to : [to]).filter(Boolean).join(', ');
     if (!list) return { ok: false, skipped: true };
-    const info = await buildTransport().sendMail({ from: mailFrom(), to: list, subject: String(subject || '').slice(0, 200), text: String(text || ''), icalEvent: ics ? { method: 'REQUEST', content: ics } : undefined, attachments: ics ? [{ filename: 'invite.ics', content: ics, contentType: 'text/calendar; method=REQUEST' }] : undefined });
+    const info = await sendMailWL({ from: mailFrom(), to: list, subject: String(subject || '').slice(0, 200), text: String(text || ''), icalEvent: ics ? { method: 'REQUEST', content: ics } : undefined, attachments: ics ? [{ filename: 'invite.ics', content: ics, contentType: 'text/calendar; method=REQUEST' }] : undefined });
     return { ok: true, id: info.messageId };
   } catch (e) { console.error('invite mail error:', e && e.message); return { ok: false, error: String((e && e.message) || e) }; }
 }
@@ -8144,7 +8158,7 @@ app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   const subject = String(b.subject || (label + ' for your signature')).slice(0, 300);
   const message = String(b.message || ('Please review and sign your ' + label + ' online here:\n' + signUrl + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
   // The signing page now shows an inline preview of the document, so the email is a clean link only (no heavy attachment).
-  try { await buildTransport().sendMail({ from: mailFrom(), to, subject, text: message }); }
+  try { await sendMailWL({ from: mailFrom(), to, subject, text: message }); }
   catch (e) { console.error('agreement send:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   const now = new Date().toISOString(); a.signStatus = 'sent'; a.sentAt = now; a.sentTo = to; if (Array.isArray(b.values)) a.fieldValues = b.values.map(function(v){return String(v==null?'':v).slice(0,500);}); a.updatedAt = now; saveAgreements(all);
   if (p) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === p.id); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + to, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
@@ -8277,7 +8291,7 @@ app.post('/api/agreements/:id/countersign', express.json({ limit: '8mb' }), (req
       const attachments = [];
       if (a.docExt === 'pdf') { try { attachments.push({ filename: a.docName || 'agreement.pdf', content: fs.readFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)) }); } catch (e) {} }
       const text = 'Good news \u2014 your ' + label + ' is now fully executed by all parties.\n\nView the executed agreement here:\n' + link + '\n\nThank you,\n' + orgDisplayName();
-      uniq.forEach(to => { buildTransport().sendMail({ from: mailFrom(), to, subject: label + ' \u2014 fully executed', text, attachments }).catch(() => {}); });
+      uniq.forEach(to => { sendMailWL({ from: mailFrom(), to, subject: label + ' \u2014 fully executed', text, attachments }).catch(() => {}); });
     }
   } catch (e) {}
   res.json({ ok: true, agreement: agreementBrief(a) });
@@ -8483,7 +8497,7 @@ app.post('/api/agreements/:id/send-adv', express.json(), async (req, res) => {
   const label = agreementTypeLabel(a.type); const signUrl = reqOrigin(req) + '/sign/' + next.token;
   const subject = String((req.body || {}).subject || (label + ' for your signature')).slice(0, 300);
   const message = String((req.body || {}).message || ('Please review and sign your ' + label + ' online here:\n' + signUrl + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
-  try { await buildTransport().sendMail({ from: mailFrom(), to: next.email, subject, text: message }); }
+  try { await sendMailWL({ from: mailFrom(), to: next.email, subject, text: message }); }
   catch (e) { console.error('send-adv:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + (next.label || '') + ' ' + next.email, { auto: true }); savePeople(ppl); } } catch (e) {} }
   res.json({ ok: true, agreement: agreementBrief(a), to: next.email, signer: next.label });
@@ -8606,11 +8620,11 @@ function submitAdvancedSign(req, res, all, a, me) {
       try { await burnFinalPdf(a); } catch (e) { console.error('burnFinalPdf:', e && e.message); }
       a.signStatus = 'signed'; a.signedDate = now.slice(0, 10); a.signedAt = now; a.status = 'active'; a.updatedAt = now; saveAgreements(all);
       if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Signed', agreementTypeLabel(a.type) + ' fully signed', { auto: true, date: a.signedDate }); savePeople(ppl); } } catch (e) {} }
-      try { if (isEmailConfigured() && a.hasFinal) { const fp = path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'); (a.signers || []).map(s => s.email).filter(Boolean).forEach(to => { buildTransport().sendMail({ from: mailFrom(), to, subject: agreementTypeLabel(a.type) + ' - fully signed', text: 'All parties have signed. A copy is attached.', attachments: [{ filename: 'signed-agreement.pdf', path: fp }] }).catch(() => {}); }); } } catch (e) {}
+      try { if (isEmailConfigured() && a.hasFinal) { const fp = path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'); (a.signers || []).map(s => s.email).filter(Boolean).forEach(to => { sendMailWL({ from: mailFrom(), to, subject: agreementTypeLabel(a.type) + ' - fully signed', text: 'All parties have signed. A copy is attached.', attachments: [{ filename: 'signed-agreement.pdf', path: fp }] }).catch(() => {}); }); } } catch (e) {}
       return res.json({ ok: true, done: true });
     } else {
       if (!next.token) next.token = newSignToken(); next.status = 'sent'; a.signStatus = 'partial'; a.updatedAt = now; saveAgreements(all);
-      try { if (isEmailConfigured()) { const url = reqOrigin(req) + '/sign/' + next.token; buildTransport().sendMail({ from: mailFrom(), to: next.email, subject: agreementTypeLabel(a.type) + ' for your signature', text: 'Please review and sign your ' + agreementTypeLabel(a.type) + ' online here:\n' + url + '\n\nThank you,\n' + orgDisplayName() }).catch(() => {}); } } catch (e) {}
+      try { if (isEmailConfigured()) { const url = reqOrigin(req) + '/sign/' + next.token; sendMailWL({ from: mailFrom(), to: next.email, subject: agreementTypeLabel(a.type) + ' for your signature', text: 'Please review and sign your ' + agreementTypeLabel(a.type) + ' online here:\n' + url + '\n\nThank you,\n' + orgDisplayName() }).catch(() => {}); } } catch (e) {}
       return res.json({ ok: true, done: false, next: next.label });
     }
   })();
@@ -8870,7 +8884,7 @@ function runReminderSender() {
         const to = u && u.email;
         if (ch.indexOf('email') >= 0 && to && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
           const link = (process.env.APP_URL || '') + '/rrg_tasks.html';
-          buildTransport().sendMail({ from: mailFrom(), to, subject: 'Reminder: ' + t.title, text: 'Task reminder from Restaurant Realty Group:\n\n' + t.title + (t.due ? ('\nDue: ' + t.due) : '') + (t.linkLabel ? ('\nRe: ' + t.linkLabel) : '') + '\n\nYour tasks: ' + link }).catch(() => {});
+          sendMailWL({ from: mailFrom(), to, subject: 'Reminder: ' + t.title, text: 'Task reminder from Restaurant Realty Group:\n\n' + t.title + (t.due ? ('\nDue: ' + t.due) : '') + (t.linkLabel ? ('\nRe: ' + t.linkLabel) : '') + '\n\nYour tasks: ' + link }).catch(() => {});
         }
         if (ch.indexOf('sms') >= 0 && isSmsConfigured() && u && u.phone) { sendSms(u.phone, 'Reminder: ' + t.title + (t.due ? (' (due ' + t.due + ')') : '')).catch(() => {}); }
         t.remSent = true; changed = true;
@@ -8893,7 +8907,7 @@ async function sendSms(to, body) {
   if (!(c.enabled && c.sid && c.token && c.from)) throw new Error('SMS is not configured.');
   const num = formatE164(to); if (!num) throw new Error('Invalid phone number.');
   const url = 'https://api.twilio.com/2010-04-01/Accounts/' + encodeURIComponent(c.sid) + '/Messages.json';
-  const params = new URLSearchParams(); params.append('To', num); params.append('From', c.from); params.append('Body', String(body || '').slice(0, 1500));
+  const params = new URLSearchParams(); params.append('To', num); params.append('From', c.from); params.append('Body', whiteLabelText(String(body || '')).slice(0, 1500));
   const authb = Buffer.from(c.sid + ':' + c.token).toString('base64');
   const r = await fetch(url, { method: 'POST', headers: { 'Authorization': 'Basic ' + authb, 'Content-Type': 'application/x-www-form-urlencoded' }, body: params.toString() });
   const j = await r.json().catch(() => ({}));
