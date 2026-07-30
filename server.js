@@ -52,6 +52,8 @@ function brandLogoObj() { try { const b = loadBrand(); if (!b.logoExt) return nu
 // Brokerage / organization profile — legal name, address, contact — used for white-label documents.
 function effOrg() { const b = loadBrand(); const o = (b && b.org) || {}; return { name: o.name || '', legalName: o.legalName || '', address: o.address || '', city: o.city || '', state: o.state || '', zip: o.zip || '', phone: o.phone || '', email: o.email || '', website: o.website || '', license: o.license || '' }; }
 function orgOneLine() { const o = effOrg(); const loc = [o.city, o.state].filter(Boolean).join(', ') + (o.zip ? (' ' + o.zip) : ''); return [o.name || o.legalName, o.address, loc, o.phone].filter(Boolean).join(' · '); }
+function orgDisplayName() { const o = effOrg(); return o.name || o.legalName || loadAppName(); }
+function orgLegalName() { const o = effOrg(); return o.legalName || o.name || loadAppName(); }
 // ---- CIM store (Confidential Information Memorandums) — mirrors the BOV store ----
 const CIMS_FILE = path.join(BOV_DATA_DIR, 'cims.json');
 function loadCims() { try { return JSON.parse(fs.readFileSync(CIMS_FILE, 'utf8')); } catch (e) { return []; } }
@@ -2530,7 +2532,7 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 <div class="top"><div class="in"><span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
 ${inner.head}</div></div>
 <div class="wrap">${inner.body}</div>
-<div class="foot">Confidential &amp; proprietary. Access to this data room is provided under a non-disclosure agreement to a qualified, identified party for the sole purpose of evaluating a potential acquisition. Do not copy, forward, or distribute. All inquiries route exclusively through Restaurant Realty Group, LLC · rrgcre.com</div>
+<div class="foot">Confidential &amp; proprietary. Access to this data room is provided under a non-disclosure agreement to a qualified, identified party for the sole purpose of evaluating a potential acquisition. Do not copy, forward, or distribute. All inquiries route exclusively through ${esc(orgLegalName())}${effOrg().website?(' · '+esc(effOrg().website)):''}</div>
 </body></html>`;
 }
 function roomPublicPage(r, grant) {
@@ -2541,7 +2543,7 @@ function roomPublicPage(r, grant) {
   const visCount = docs.filter(d => catLevel(d.category || 'Other') !== 'none').length;
   const lvlLabel = grant ? (editCats.length ? 'You can view, download & upload in some folders' : 'Folder-level access set by RRG') : '';
   const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · ${esc(lvlLabel)} · session ends after 15 min idle</div>` : '';
-  const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${visCount} document${visCount === 1 ? '' : 's'} · Provided by Restaurant Realty Group under NDA</div>${who}`;
+  const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${visCount} document${visCount === 1 ? '' : 's'} · Provided by ${esc(orgDisplayName())} under NDA</div>${who}`;
   let body = '';
   if (editCats.length) {
     body += `<div class="card"><div class="chd">Add a document</div><div style="padding:14px 20px">` +
@@ -3260,7 +3262,7 @@ async function runAutomationStep(p, en, step) {
     if (!to) return 'skipped: no notify recipient';
     if (!isEmailConfigured()) return 'skipped: email not configured';
     const link = String(process.env.APP_URL || '').replace(/\/$/, '') + '/rrg_person.html?id=' + encodeURIComponent(p.id);
-    const text = mergeTokens(step.message, p) + '\n\nContact: ' + (p.name || '') + (p.company ? (' (' + p.company + ')') : '') + (p.email ? ('\n' + p.email) : '') + (link ? ('\n' + link) : '') + '\n\n\u2014 FullServe automation (' + (en.automationName || '') + ')';
+    const text = mergeTokens(step.message, p) + '\n\nContact: ' + (p.name || '') + (p.company ? (' (' + p.company + ')') : '') + (p.email ? ('\n' + p.email) : '') + (link ? ('\n' + link) : '') + '\n\n\u2014 ' + orgDisplayName() + ' automation (' + (en.automationName || '') + ')';
     try { await sendNotifyMail(to, 'Automation follow-up: ' + (p.name || 'a contact'), text); logActivity(p, 'Note', 'Automation notification sent to ' + to, { auto: true, by: 'Automation' }); return 'notification sent to ' + to; }
     catch (e) { return 'notify error: ' + (e && e.message); }
   }

@@ -33,6 +33,12 @@
       if (document.body) walk(document.body);
     } catch (e) {}
   }
+  function applyOrg(org){ if(!org||!org.name) return; try{
+    var legal=org.legalName||org.name, name=org.name;
+    function walk(node){ for(var c=node.firstChild;c;c=c.nextSibling){ if(c.nodeType===3){ var t=c.nodeValue; if(t && t.indexOf('Restaurant Realty Group')>-1){ var nt=t.replace(/Restaurant Realty Group,\s*LLC/g, legal).replace(/Restaurant Realty Group/g, name); if(nt!==t) c.nodeValue=nt; } } else if(c.nodeType===1){ var tag=c.tagName; if(tag==='SCRIPT'||tag==='STYLE'||tag==='TEXTAREA'||tag==='INPUT'||tag==='SELECT'||tag==='CODE'||tag==='PRE') continue; walk(c); } } }
+    if(document.body) walk(document.body);
+  }catch(e){} }
+  function scheduleOrg(org){ if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ applyOrg(org); }); else applyOrg(org); setTimeout(function(){ applyOrg(org); },1500); }
   function schedule(n) {
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { applyName(n); });
     else applyName(n);
@@ -55,6 +61,7 @@
         try { window.__rrgAiConfirm = (j && j.aiConfirm !== false); } catch (e) {}
         try { var de = document.documentElement, pal = (j && j.palette) || {}; if (pal.primary) de.style.setProperty('--navy', pal.primary); if (pal.accent) de.style.setProperty('--red', pal.accent); if (pal.sidebar) de.style.setProperty('--navbg', pal.sidebar); if (pal.positive) de.style.setProperty('--green', pal.positive); localStorage.setItem('rrg_pal', JSON.stringify(pal)); } catch (e) {}
         schedule((j && j.assistant) || 'Claude');
+        try { if (j && j.org && j.org.name) scheduleOrg(j.org); } catch (e) {}
       })
       .catch(function () {});
   } catch (e) {}
