@@ -52,10 +52,7 @@ thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(
     <div class="filters" id="typeFilters"></div>
     <div class="filters">
       <span class="lbl">Status</span>
-      <button data-s="all" class="on">All</button>
-      <button data-s="active">Active</button>
-      <button data-s="soon">Expiring ≤60d</button>
-      <button data-s="expired">Expired</button>
+      <select id="statusSel" style="font:inherit;font-size:12px;font-weight:700;border:1px solid #cfd6e2;border-radius:20px;padding:6px 12px;background:#fff;color:var(--muted);cursor:pointer"><option value="all">All statuses</option><option value="active">Active</option><option value="soon">Expiring ≤60d</option><option value="expired">Expired</option></select>
     </div>
     
     <div id="list"><div class="empty">Loading…</div></div>
@@ -94,8 +91,8 @@ function load(){
 }
 function buildTypeFilters(){
   var el=document.getElementById('typeFilters');
-  el.innerHTML='<span class="lbl">Type</span><button data-t="all" class="on">All</button>'+TYPES.map(function(t){return '<button data-t="'+esc(t.key)+'">'+esc(t.label)+'</button>';}).join('');
-  el.querySelectorAll('[data-t]').forEach(function(b){ b.addEventListener('click',function(){ FT=b.getAttribute('data-t'); el.querySelectorAll('[data-t]').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); render(); }); });
+  el.innerHTML='<span class="lbl">Type</span><select id="typeSel" style="font:inherit;font-size:12px;font-weight:700;border:1px solid #cfd6e2;border-radius:20px;padding:6px 12px;background:#fff;color:var(--muted);cursor:pointer"><option value="all">All types</option>'+TYPES.map(function(t){return '<option value="'+esc(t.key)+'"'+(t.key===FT?' selected':'')+'>'+esc(t.label)+'</option>';}).join('')+'</select>';
+  var _ts=document.getElementById('typeSel'); if(_ts) _ts.addEventListener('change',function(){ FT=_ts.value; render(); });
 }
 function render(){
   var stats=document.getElementById('stats');
@@ -109,7 +106,7 @@ function render(){
   var rows=AGR.filter(function(a){ if(FT!=='all'&&a.type!==FT) return false; if(FS!=='all'&&statusOf(a)!==FS) return false; return true; });
   var cfg={ mount:'#list', data:rows, key:'agreements', empty:'<div class="empty">No agreements match.</div>', rowId:function(a){return a.id;}, defaultSort:5, defaultDir:1, bulk:(CAN_DELETE?[{label:'Delete',danger:true,min:1,fn:bulkDeleteAgreements}]:null),
     columns:[
-      { label:'Type', sort:function(a,b){return RRGList.cmp(label(a.type),label(b.type));}, edit:{ type:'select', options:function(){ return (TYPES||[]).map(function(t){return {value:t.key,label:t.label};}); }, get:function(a){return a.type;}, save:function(a,v){ return agrSaveField(a,{type:v}); } }, cell:function(a){ return esc(label(a.type)); } },
+      { label:'Type', sort:function(a,b){return RRGList.cmp(label(a.type),label(b.type));}, edit:{ type:'select', options:function(){ return (TYPES||[]).map(function(t){return {value:t.key,label:t.label};}); }, get:function(a){return a.type;}, save:function(a,v){ return agrSaveField(a,{type:v}); } }, cell:function(a){ var c=COLORS[a.type]||{bg:'#eef1f6',fg:'#5b6472'}; return '<span class="jbean" style="background:'+c.bg+';color:'+c.fg+'">'+esc(label(a.type))+'</span>'; } },
       { label:'Party', sort:function(a,b){return RRGList.cmp(a.personName,b.personName);}, cell:function(a){ return a.personId?('<a class="lk" href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'">'+esc(a.personName||'Contact')+'</a>'):esc(a.personName||'—'); } },
       { label:'Company', sort:function(a,b){return RRGList.cmp(a.companyName,b.companyName);}, cell:function(a){ return (a.companyId&&a.companyName)?('<a class="lk" href="./rrg_company.html?id='+encodeURIComponent(a.companyId)+'">'+esc(a.companyName)+'</a>'):'<span class="meta">—</span>'; } },
       { label:'Listing', sort:function(a,b){return RRGList.cmp(a.dealName,b.dealName);}, cell:function(a){ return a.dealKey?('<a class="lk" href="./rrg_assignment.html?key='+encodeURIComponent(a.dealKey)+'">'+esc(a.dealName||'listing')+'</a>'):'<span class="meta">—</span>'; } },
@@ -129,7 +126,7 @@ function openAgrModal(){ var m=document.getElementById('agrModal'); if(!m) retur
 function closeAgrModal(){ var m=document.getElementById('agrModal'); if(m) m.style.display='none'; }
 function createAgreement(){ var type=(document.getElementById('ag_type').value||''); var msg=document.getElementById('ag_msg'); if(!type){ msg.textContent='Pick an agreement type.'; return; } var party=(document.getElementById('ag_party').value||'').trim(); var pid=''; for(var i=0;i<PEOPLE.length;i++){ if((PEOPLE[i].name||'').toLowerCase()===party.toLowerCase()){ pid=PEOPLE[i].id; break; } } var body={ type:type, effective:document.getElementById('ag_eff').value, expires:document.getElementById('ag_exp').value, notes:document.getElementById('ag_notes').value }; if(pid) body.personId=pid; else if(party) body.name=party; var btn=document.getElementById('ag_save'); btn.disabled=true; btn.textContent='Creating\u2026'; fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; btn.textContent='Create agreement'; if(j&&j.ok){ closeAgrModal(); load(); } else msg.textContent=(j&&j.error)||'Could not create.'; }).catch(function(){ btn.disabled=false; btn.textContent='Create agreement'; msg.textContent='Could not reach the server.'; }); }
 document.addEventListener('click',function(e){ var b=e.target.closest&&e.target.closest('.agdel[data-del]'); if(b){ e.preventDefault(); deleteAgreement(b.getAttribute('data-del')); } });
-document.querySelectorAll('.filters [data-s]').forEach(function(b){ b.addEventListener('click',function(){ FS=b.getAttribute('data-s'); document.querySelectorAll('.filters [data-s]').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); render(); }); });
+var _ss=document.getElementById('statusSel'); if(_ss) _ss.addEventListener('change',function(){ FS=_ss.value; render(); });
 var _nab=document.getElementById('newAgrBtn'); if(_nab) _nab.addEventListener('click',openAgrModal);
 var _agc=document.getElementById('ag_cancel'); if(_agc) _agc.addEventListener('click',closeAgrModal);
 var _agx=document.getElementById('ag_x'); if(_agx) _agx.addEventListener('click',closeAgrModal);
