@@ -191,9 +191,9 @@
   var st = document.createElement('style'); st.id='rrgshellcss'; st.textContent=css; document.head.appendChild(st);
 
   // ---------- nav markup ----------
-  var appName = 'RRG';
+  var _cachedName = (function(){ try { return localStorage.getItem('rrg_appname') || ''; } catch(e){ return ''; } })();
   var navHtml = '';
-  navHtml += '<div class="nt"><a class="ws" href="index.html"><span class="rrgbrand" id="rrgbrand">RRG</span></a></div>';
+  navHtml += '<div class="nt"><a class="ws" href="index.html"><span class="rrgbrand" id="rrgbrand">'+esc(_cachedName)+'</span></a></div>';
   navHtml += '<div class="scroll">';
   NAV.forEach(function (g, gi) {
     var _sp = []; if (g.color) _sp.push('--gc:' + g.color); if (g.admin) _sp.push('display:none');
@@ -215,7 +215,7 @@
   // ---------- top bar ----------
   var activeLabel = '';
   NAV.forEach(function (g) { g.items.forEach(function (it) { if (isActive(it)) activeLabel = it.label; }); });
-  if (!activeLabel) { var t = (document.title || '').split('—')[0].split(' - ')[0].trim(); activeLabel = t || 'RRG'; }
+  if (!activeLabel) { var t = (document.title || '').split('—')[0].split(' - ')[0].trim(); activeLabel = t || _cachedName || ''; }
   var top = document.createElement('div'); top.id='rrgtop';
   top.innerHTML = ''
     + '<div class="ic" id="rrgburger" style="display:none">≡</div>'

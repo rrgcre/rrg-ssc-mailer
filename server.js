@@ -49,6 +49,9 @@ const LOGO_MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif
 function loadBrand() { try { return JSON.parse(fs.readFileSync(BRAND_FILE, 'utf8')); } catch (e) { return {}; } }
 function saveBrand(b) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BRAND_FILE, JSON.stringify(b, null, 2)); } catch (e) {} }
 function brandLogoObj() { try { const b = loadBrand(); if (!b.logoExt) return null; const buf = fs.readFileSync(path.join(BOV_DATA_DIR, 'brand_logo.' + b.logoExt)); return { dataB64: buf.toString('base64'), type: b.logoType || LOGO_MIME[b.logoExt] || 'image/png' }; } catch (e) { return null; } }
+// Brokerage / organization profile — legal name, address, contact — used for white-label documents.
+function effOrg() { const b = loadBrand(); const o = (b && b.org) || {}; return { name: o.name || '', legalName: o.legalName || '', address: o.address || '', city: o.city || '', state: o.state || '', zip: o.zip || '', phone: o.phone || '', email: o.email || '', website: o.website || '', license: o.license || '' }; }
+function orgOneLine() { const o = effOrg(); const loc = [o.city, o.state].filter(Boolean).join(', ') + (o.zip ? (' ' + o.zip) : ''); return [o.name || o.legalName, o.address, loc, o.phone].filter(Boolean).join(' · '); }
 // ---- CIM store (Confidential Information Memorandums) — mirrors the BOV store ----
 const CIMS_FILE = path.join(BOV_DATA_DIR, 'cims.json');
 function loadCims() { try { return JSON.parse(fs.readFileSync(CIMS_FILE, 'utf8')); } catch (e) { return []; } }
@@ -2060,7 +2063,7 @@ function effAiConfirm() { const b = loadBrand(); return b.aiConfirm !== false; }
 const PALETTE_DEFAULT = { primary: '#000E31', accent: '#DA2B1F', sidebar: '#0b1a38', positive: '#1f8a5b' };
 function isHexColor(v) { return /^#[0-9a-fA-F]{6}$/.test(String(v || '')); }
 function effPalette() { const b = loadBrand(); const pl = (b.palette && typeof b.palette === 'object') ? b.palette : {}; return { primary: isHexColor(pl.primary) ? pl.primary : PALETTE_DEFAULT.primary, accent: isHexColor(pl.accent) ? pl.accent : PALETTE_DEFAULT.accent, sidebar: isHexColor(pl.sidebar) ? pl.sidebar : PALETTE_DEFAULT.sidebar, positive: isHexColor(pl.positive) ? pl.positive : PALETTE_DEFAULT.positive }; }
-app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), concept: effConceptLabel(), conceptPlural: effConceptLabelPlural(), palette: effPalette(), aiConfirm: effAiConfirm(), logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })() }));
+app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), concept: effConceptLabel(), conceptPlural: effConceptLabelPlural(), palette: effPalette(), aiConfirm: effAiConfirm(), logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), org: effOrg() }));
 app.get('/api/feed', (req, res) => {
   let people = loadPeople();
   if (restrictToOwn(req)) people = people.filter(p => permOwnerMatch(req, p.by));
@@ -2094,6 +2097,13 @@ app.post('/api/admin/app-name', requireAdmin, express.json(), (req, res) => {
   if (!n) { delete b.appName; } else { b.appName = n; }
   b.updatedAt = new Date().toISOString(); saveBrand(b);
   res.json({ ok: true, name: loadAppName(), isDefault: loadAppName() === DEFAULT_APP_NAME });
+});
+app.get('/api/admin/org', requireAdmin, (req, res) => res.json({ ok: true, org: effOrg() }));
+app.post('/api/admin/org', requireAdmin, express.json(), (req, res) => {
+  const b = loadBrand(); const x = req.body || {}; const S = (v, n) => String(v == null ? '' : v).trim().slice(0, n);
+  b.org = { name: S(x.name, 120), legalName: S(x.legalName, 160), address: S(x.address, 200), city: S(x.city, 80), state: S(x.state, 20), zip: S(x.zip, 20), phone: S(x.phone, 40), email: S(x.email, 160), website: S(x.website, 200), license: S(x.license, 60) };
+  b.updatedAt = new Date().toISOString(); saveBrand(b);
+  res.json({ ok: true, org: effOrg() });
 });
 // ---- AI confirmation gate (admin master switch) ----
 app.get('/api/admin/ai-confirm', requireAdmin, (req, res) => res.json({ ok: true, on: effAiConfirm() }));
