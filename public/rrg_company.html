@@ -335,7 +335,7 @@ function render(){
     + '<div class="card"><div class="ch"><b>'+esc(CLABELP)+', Their Locations &amp; Commissaries</b><span>'+CONCEPTS.length+' '+(CONCEPTS.length===1?esc(CLABEL.toLowerCase()):esc(CLABELP.toLowerCase()))+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn">+ Commissary</button><button class="addbtn" id="addConceptBtn">+ Add '+esc(CLABEL.toLowerCase())+'</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
     + '</div>'
     + '<div class="rail">'
-    + '<div class="card"><div class="ch"><b>Listings</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Assignments</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
     + agreementsCardCo()
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Company</b><span style="margin-left:auto;font-size:11px;color:var(--soft);font-weight:600">Autosaves</span></div><div class="cb">'
