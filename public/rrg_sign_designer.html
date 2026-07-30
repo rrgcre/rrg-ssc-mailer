@@ -94,8 +94,8 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
         <div style="height:1px;background:var(--line);margin:10px 0"></div>
         <label class="fld">Font</label>
         <select id="f_font"><option value="">Helvetica (default)</option><option value="Arial">Arial</option><option value="Helvetica">Helvetica</option><option value="Times New Roman">Times New Roman</option><option value="Palatino">Palatino</option><option value="Calibri">Calibri</option><option value="Courier">Courier</option></select>
-        <div style="display:flex;gap:8px"><div style="flex:1"><label class="fld">Text size (pt)</label><input id="f_size" type="number" min="5" max="48" step="1" placeholder="auto"></div><div style="flex:1"><label class="fld">Height (pt)</label><input id="f_height" type="number" min="6" max="200" step="1" placeholder="auto"></div></div>
-        <button class="applyall" id="f_applyall">Apply font, size &amp; height to all fields</button>
+        <div style="display:flex;gap:8px"><div style="flex:1"><label class="fld">Text size (pt)</label><input id="f_size" type="number" min="5" max="48" step="1" placeholder="auto"></div><div style="flex:1"><label class="fld">Width (pt)</label><input id="f_width" type="number" min="8" max="700" step="1" placeholder="auto"></div><div style="flex:1"><label class="fld">Height (pt)</label><input id="f_height" type="number" min="6" max="300" step="1" placeholder="auto"></div></div>
+        <button class="applyall" id="f_applyall">Apply font, size, width &amp; height to all fields</button>
         <div style="height:1px;background:var(--line);margin:10px 0"></div>
         <button class="btnsm" id="f_del">Delete field</button>
       </div>
@@ -129,13 +129,13 @@ document.getElementById('sg2').addEventListener('click',function(){ if(sigCount(
 document.getElementById('sg3').addEventListener('click',function(){ if(sigCount()<3){ alert('Set the number of signers to 3 first.'); return; } setSigner(3); });
 document.getElementById('signerCount').addEventListener('change',function(){ var c=sigCount(); document.getElementById('s2wrap').style.display=c>=2?'':'none'; document.getElementById('s3wrap').style.display=c>=3?'':'none'; if(SIGNER>c) setSigner(1); scheduleSave(); });
 
-function uid(){ return 'f'+Math.random().toString(36).slice(2,8); }
+var _uidc=0; function uid(){ _uidc++; return 'f'+Date.now().toString(36)+'_'+_uidc.toString(36)+Math.random().toString(36).slice(2,5); }
 
 function addField(page,xf,yf){
   if(!TOOL) return;
   var d=DEF[TOOL]||DEF.text;
   var f={id:uid(),page:page,x:Math.max(0,Math.min(1-d.w,xf)),y:Math.max(0,Math.min(1-d.h,yf)),w:d.w,h:d.h,type:TOOL,signer:SIGNER,label:defaultLabel(TOOL),required:(TOOL==='signature'),autofill:autoFor(TOOL),font:'',fontSize:''};
-  FIELDS.push(f); SELECTED=f.id; MULTI=[f.id]; drawFields(); openPanel(); scheduleSave();
+  FIELDS.push(f); SELECTED=f.id; MULTI=[f.id]; setTool(''); drawFields(); openPanel(); scheduleSave();
 }
 function defaultLabel(t){ return t==='signature'?'Signature':t==='initials'?'Initials':t==='date'?'Date':t==='checkbox'?'':'Text'; }
 function autoFor(t){ return t==='date'?'date':''; }
@@ -159,7 +159,7 @@ function drawFields(){
 }
 var DRAG=null;
 function _snap(v){ return SNAP?Math.round(v/0.01)*0.01:v; }
-function startDrag(e,f,el){ e.preventDefault(); if(MULTI.indexOf(f.id)<0){ SELECTED=f.id; MULTI=[f.id]; drawFields(); } else { SELECTED=f.id; } openPanel(); var ov=el.parentNode; var W=ov.clientWidth,H=ov.clientHeight; var grp=(MULTI.length>1)?MULTI.map(function(id){var g=fieldById(id);return g?{f:g,ox:g.x,oy:g.y}:null;}).filter(Boolean):null; DRAG={f:f,el:el,ov:ov,W:W,H:H,sx:e.clientX,sy:e.clientY,ox:f.x,oy:f.y,mode:'move',grp:grp,moved:false}; }
+function startDrag(e,f,el){ if(e.shiftKey){ return; } e.preventDefault(); if(MULTI.indexOf(f.id)<0){ SELECTED=f.id; MULTI=[f.id]; drawFields(); } else { SELECTED=f.id; } openPanel(); var ov=el.parentNode; var W=ov.clientWidth,H=ov.clientHeight; var grp=(MULTI.length>1)?MULTI.map(function(id){var g=fieldById(id);return g?{f:g,ox:g.x,oy:g.y}:null;}).filter(Boolean):null; DRAG={f:f,el:el,ov:ov,W:W,H:H,sx:e.clientX,sy:e.clientY,ox:f.x,oy:f.y,mode:'move',grp:grp,moved:false}; }
 function startResize(e,f,el){ e.preventDefault(); e.stopPropagation(); var ov=el.parentNode; var W=ov.clientWidth,H=ov.clientHeight; DRAG={f:f,el:el,ov:ov,W:W,H:H,sx:e.clientX,sy:e.clientY,ow:f.w,oh:f.h,mode:'resize',moved:false}; }
 window.addEventListener('mousemove',function(e){
   if(!DRAG) return; DRAG.moved=true;
@@ -180,6 +180,7 @@ function openPanel(){
   document.getElementById('f_req').checked=!!f.required;
   document.getElementById('f_font').value=f.font||'';
   document.getElementById('f_size').value=f.fontSize||'';
+  document.getElementById('f_width').value=(PAGEPT.w?Math.round(f.w*PAGEPT.w):'');
   document.getElementById('f_height').value=(PAGEPT.h?Math.round(f.h*PAGEPT.h):'');
   var isTxt=(f.type==='text'||f.type==='date');
   document.getElementById('f_auto').parentNode.style.opacity=isTxt?'1':'.4';
@@ -191,13 +192,14 @@ document.getElementById('f_del').addEventListener('click',function(){ var f=cur(
 function cur(){ return FIELDS.filter(function(x){return x.id===SELECTED;})[0]; }
 function fieldById(id){ return FIELDS.filter(function(x){return x.id===id;})[0]; }
 function toggleMulti(id){ var i=MULTI.indexOf(id); if(i>=0){ MULTI.splice(i,1); if(SELECTED===id) SELECTED=MULTI[MULTI.length-1]||null; } else { MULTI.push(id); SELECTED=id; } }
-function align(mode){ if(MULTI.length<2) return; var an=fieldById(SELECTED)||fieldById(MULTI[0]); if(!an) return; MULTI.forEach(function(id){ if(id===an.id) return; var g=fieldById(id); if(!g) return; if(mode==='left') g.x=an.x; else if(mode==='right') g.x=Math.max(0,an.x+an.w-g.w); else if(mode==='hcenter') g.x=Math.max(0,an.x+(an.w-g.w)/2); else if(mode==='top') g.y=an.y; else if(mode==='bottom') g.y=Math.max(0,an.y+an.h-g.h); else if(mode==='vcenter') g.y=Math.max(0,an.y+(an.h-g.h)/2); else if(mode==='samew') g.w=Math.min(1-g.x,an.w); else if(mode==='sameh') g.h=Math.min(1-g.y,an.h); g.x=Math.max(0,Math.min(1-g.w,g.x)); g.y=Math.max(0,Math.min(1-g.h,g.y)); }); drawFields(); openPanel(); scheduleSave(); }
+function align(mode){ if(MULTI.length<2){ var _am=document.getElementById('msg'); if(_am) _am.textContent='Shift-click 2 or more fields first, then align.'; return; } var an=fieldById(SELECTED)||fieldById(MULTI[0]); if(!an) return; MULTI.forEach(function(id){ if(id===an.id) return; var g=fieldById(id); if(!g) return; if(mode==='left') g.x=an.x; else if(mode==='right') g.x=Math.max(0,an.x+an.w-g.w); else if(mode==='hcenter') g.x=Math.max(0,an.x+(an.w-g.w)/2); else if(mode==='top') g.y=an.y; else if(mode==='bottom') g.y=Math.max(0,an.y+an.h-g.h); else if(mode==='vcenter') g.y=Math.max(0,an.y+(an.h-g.h)/2); else if(mode==='samew') g.w=Math.min(1-g.x,an.w); else if(mode==='sameh') g.h=Math.min(1-g.y,an.h); g.x=Math.max(0,Math.min(1-g.w,g.x)); g.y=Math.max(0,Math.min(1-g.h,g.y)); }); drawFields(); openPanel(); scheduleSave(); }
 Array.prototype.forEach.call(document.querySelectorAll('.algn'),function(b){ b.addEventListener('click',function(){ align(b.getAttribute('data-al')); }); });
 document.getElementById('snapGrid').addEventListener('change',function(){ SNAP=this.checked; });
 document.getElementById('f_font').addEventListener('change',function(){ var f=cur(); if(f){ f.font=this.value; drawFields(); scheduleSave(); } });
 document.getElementById('f_size').addEventListener('input',function(){ var f=cur(); if(f){ var n=parseFloat(this.value); f.fontSize=(isFinite(n)&&n>0)?n:''; scheduleSave(); } });
 document.getElementById('f_height').addEventListener('input',function(){ var f=cur(); if(f&&PAGEPT.h){ var pt=parseFloat(this.value); if(isFinite(pt)&&pt>0){ f.h=Math.max(0.005,Math.min(1-f.y, pt/PAGEPT.h)); drawFields(); scheduleSave(); } } });
-document.getElementById('f_applyall').addEventListener('click',function(){ var f=cur(); if(!f) return; FIELDS.forEach(function(g){ g.font=f.font; g.fontSize=f.fontSize; g.h=Math.min(1-g.y,f.h); }); drawFields(); scheduleSave(); var m=document.getElementById('msg'); if(m) m.textContent='Applied to all ✓'; });
+document.getElementById('f_width').addEventListener('input',function(){ var f=cur(); if(f&&PAGEPT.w){ var pt=parseFloat(this.value); if(isFinite(pt)&&pt>0){ f.w=Math.max(0.01,Math.min(1-f.x, pt/PAGEPT.w)); drawFields(); scheduleSave(); } } });
+document.getElementById('f_applyall').addEventListener('click',function(){ var f=cur(); if(!f) return; FIELDS.forEach(function(g){ g.font=f.font; g.fontSize=f.fontSize; g.w=Math.min(1-g.x,f.w); g.h=Math.min(1-g.y,f.h); }); drawFields(); scheduleSave(); var m=document.getElementById('msg'); if(m) m.textContent='Applied to all ✓'; });
 document.addEventListener('keydown',function(e){
   var t=e.target; var typing=t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable);
   if(e.key==='Delete'||e.key==='Backspace'){ if(typing) return; if(MULTI.length){ e.preventDefault(); FIELDS=FIELDS.filter(function(x){return MULTI.indexOf(x.id)<0;}); MULTI=[]; SELECTED=null; drawFields(); openPanel(); scheduleSave(); } return; }
@@ -250,6 +252,7 @@ function boot(){
     document.getElementById('tName').textContent=TPL.name;
     document.getElementById('tSub').textContent='Place fields, assign signers, save';
     FIELDS=(TPL.pdfFields||[]).map(function(f){return JSON.parse(JSON.stringify(f));});
+    (function(){ var seen={}, fixed=false; FIELDS.forEach(function(f){ if(!f.id||seen[f.id]){ f.id=uid(); fixed=true; } seen[f.id]=1; }); if(fixed){ setTimeout(function(){ doSave(false); }, 400); } })();
     var _sc=(TPL.signerCount===3?3:(TPL.signerCount===2?2:1));
     document.getElementById('signerCount').value=String(_sc); document.getElementById('s2wrap').style.display=_sc>=2?'':'none'; document.getElementById('s3wrap').style.display=_sc>=3?'':'none';
     document.getElementById('s1label').value=TPL.signer1Label||'Signer 1';

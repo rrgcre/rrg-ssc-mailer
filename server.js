@@ -7796,8 +7796,13 @@ function clamp01(v) { v = parseFloat(v); if (!isFinite(v)) return 0; return Math
 function cleanPdfFields(arr) {
   if (!Array.isArray(arr)) return [];
   const T = ['text', 'signature', 'checkbox', 'date', 'initials'];
-  return arr.slice(0, 200).map(f => ({
-    id: String((f && f.id) || ('f' + Math.random().toString(36).slice(2, 8))).slice(0, 40),
+  const _seen = {};
+  return arr.slice(0, 200).map(f => {
+    let _id = String((f && f.id) || ('f' + Math.random().toString(36).slice(2, 8))).slice(0, 40);
+    while (_seen[_id]) { _id = 'f' + Math.random().toString(36).slice(2, 8); }
+    _seen[_id] = 1;
+    return {
+    id: _id,
     page: Math.max(0, Math.min(999, parseInt((f && f.page) || 0, 10) || 0)),
     x: clamp01(f && f.x), y: clamp01(f && f.y), w: clamp01(f && f.w) || 0.18, h: clamp01(f && f.h) || 0.03,
     type: T.indexOf(String(f && f.type)) >= 0 ? String(f.type) : 'text',
@@ -7807,7 +7812,7 @@ function cleanPdfFields(arr) {
     autofill: String((f && f.autofill) || '').slice(0, 20),
     font: String((f && f.font) || '').slice(0, 30),
     fontSize: (function(){ var n = parseFloat(f && f.fontSize); return (isFinite(n) && n > 0) ? Math.max(5, Math.min(48, n)) : ''; })()
-  }));
+  }; });
 }
 app.post('/api/admin/agreement-templates/:id/fields', requireAdmin, express.json({ limit: '1mb' }), (req, res) => {
   const all = loadTemplates(); const t = all.find(x => x.id === req.params.id);
