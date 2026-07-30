@@ -246,12 +246,13 @@ function agreementsCard(){
       +'<div><label class="fld">Status</label><select id="agr_status"><option value="active">Active</option><option value="terminated">Terminated</option></select></div></div>'
       +'<div class="fldrow2"><div><label class="fld">Effective</label><input type="date" id="agr_eff"></div>'
       +'<div><label class="fld">Expires</label><input type="date" id="agr_exp"></div></div>'
-      +'<div class="fldrow"><label class="fld">Link to listing (optional)</label><select id="agr_deal"><option value="">— none —</option>'+DEALS.map(function(d){return '<option value="'+esc(d.key)+'">'+esc(d.business||d.key)+'</option>';}).join('')+'</select></div>'
+      +'<div class="fldrow"><label class="fld">Link to listing / project (optional)</label><input id="agr_deal_q" list="agrDealsList" placeholder="Type a listing name to search…" autocomplete="off" oninput="agrDealPick(this)"><datalist id="agrDealsList">'+DEALS.map(function(d){return '<option value="'+esc(d.business||d.key)+'"></option>';}).join('')+'</datalist><input type="hidden" id="agr_deal"></div>'
       +'<div class="fldrow"><label class="fld">Notes</label><input id="agr_notes" placeholder="Counterparty, terms, reference…"></div>'
       +'<div id="agr_sig" class="agrsig"></div>'
       +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button type="button" class="savebtn" id="agrSave" style="width:auto;padding:8px 16px">Save agreement</button><button type="button" class="mfadd" id="agrCancel">Cancel</button><span id="agrMsg" style="font-size:12px;color:#6b7488"></span></div>'
     +'</div>'+sendModalHtml()+'</div></div>';
 }
+function agrDealPick(inp){ var v=String(inp.value||'').trim().toLowerCase(); var d=DEALS.filter(function(x){ return String(x.business||x.key||'').trim().toLowerCase()===v; })[0]; var h=document.getElementById('agr_deal'); if(h) h.value=d?d.key:''; }
 function openAgrForm(a){
   var f=document.getElementById('agrForm'); f.removeAttribute('hidden'); PENDING_AGR_FILE=null;
   document.getElementById('agr_id').value=a?a.id:'';
@@ -259,7 +260,7 @@ function openAgrForm(a){
   document.getElementById('agr_status').value=a?(a.status==='terminated'?'terminated':'active'):'active';
   document.getElementById('agr_eff').value=a?(a.effective||''):'';
   document.getElementById('agr_exp').value=a?(a.expires||''):'';
-  document.getElementById('agr_deal').value=a?(a.dealKey||''):'';
+  (function(){ var _dk=a?(a.dealKey||''):''; document.getElementById('agr_deal').value=_dk; var _q=document.getElementById('agr_deal_q'); if(_q){ var _d=DEALS.filter(function(x){return x.key===_dk;})[0]; _q.value=_d?(_d.business||_d.key):''; } })();
   document.getElementById('agr_notes').value=a?(a.notes||''):'';
   document.getElementById('agr_name').value=a?(a.name||''):'';
   document.getElementById('agrMsg').textContent='';
