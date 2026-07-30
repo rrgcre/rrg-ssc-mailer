@@ -53,7 +53,7 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#c3bce0;font-size:13px;m
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var AIW = {show:function(m,c){try{return window.rrgAiWork&&window.rrgAiWork.show(m,c);}catch(e){}},setMsg:function(m){try{return window.rrgAiWork&&window.rrgAiWork.setMsg(m);}catch(e){}},hide:function(){try{return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
+var AIW = {_p:null,_iv:null,show:function(m,c){try{if(window.rrgAiWork){this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork.show(m,c);}this._p={m:m,c:c};var s=this,t=0;if(this._iv)clearInterval(this._iv);this._iv=setInterval(function(){t++;if(window.rrgAiWork){clearInterval(s._iv);s._iv=null;if(s._p){window.rrgAiWork.show(s._p.m,s._p.c);}}else if(t>150){clearInterval(s._iv);s._iv=null;}},50);}catch(e){}},setMsg:function(m){try{if(window.rrgAiWork)window.rrgAiWork.setMsg(m);else if(this._p)this._p.m=m;}catch(e){}},hide:function(){try{this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
 var CANDS=[], ROWS={}, ORDER=[], STATE={}, SCANNED=0, ONLYNEEDS=true, CPTCANCEL=false;
 function fieldsOn(){ return { cuisine:document.getElementById('f_cuisine').checked, type:document.getElementById('f_type').checked, price:document.getElementById('f_price').checked, mu:document.getElementById('f_mu').checked }; }
 function build(aiReady){

@@ -71,7 +71,7 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function initials(s){ s=String(s||'').trim(); if(!s) return '?'; var p=s.split(/\s+/); return ((p[0]||'')[0]||'').toUpperCase()+((p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
-var AIW = {show:function(m,c){try{return window.rrgAiWork&&window.rrgAiWork.show(m,c);}catch(e){}},setMsg:function(m){try{return window.rrgAiWork&&window.rrgAiWork.setMsg(m);}catch(e){}},hide:function(){try{return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
+var AIW = {_p:null,_iv:null,show:function(m,c){try{if(window.rrgAiWork){this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork.show(m,c);}this._p={m:m,c:c};var s=this,t=0;if(this._iv)clearInterval(this._iv);this._iv=setInterval(function(){t++;if(window.rrgAiWork){clearInterval(s._iv);s._iv=null;if(s._p){window.rrgAiWork.show(s._p.m,s._p.c);}}else if(t>150){clearInterval(s._iv);s._iv=null;}},50);}catch(e){}},setMsg:function(m){try{if(window.rrgAiWork)window.rrgAiWork.setMsg(m);else if(this._p)this._p.m=m;}catch(e){}},hide:function(){try{this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
 var TYPE='companies', DATA={companies:null,contacts:null}, KEEP={}, ARMED={};
 
 function build(){
@@ -85,15 +85,18 @@ function build(){
   load();
 }
 function show(){ if(DATA[TYPE]) render(DATA[TYPE]); else load(); }
+var _dupeAbort=null;
 function load(){
-  AIW.show('Scanning your '+TYPE+' for duplicates…');
+  if(_dupeAbort){ try{_dupeAbort.abort();}catch(e){} }
+  _dupeAbort=('AbortController' in window)?new AbortController():null;
+  AIW.show('Scanning your '+TYPE+' for duplicates… on a large book this can take a minute — you can keep it running or cancel.', function(){ if(_dupeAbort){ try{_dupeAbort.abort();}catch(e){} } AIW.hide(); document.getElementById('cnt').textContent=''; document.getElementById('list').innerHTML='<div class="empty"><b>Scan cancelled.</b> <a href="#" id="_rescanlink">Run it again</a> whenever you\'re ready.</div>'; var rl=document.getElementById('_rescanlink'); if(rl) rl.addEventListener('click',function(e){ e.preventDefault(); load(); }); });
   document.getElementById('cnt').innerHTML='<span class="spin"></span>Scanning your '+TYPE+'…';
   document.getElementById('list').innerHTML='';
-  fetch('/api/admin/duplicates?type='+TYPE,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+  fetch('/api/admin/duplicates?type='+TYPE,{credentials:'same-origin',signal:_dupeAbort?_dupeAbort.signal:undefined}).then(function(r){return r.json();}).then(function(j){
     AIW.hide();
     if(!j||!j.ok){ document.getElementById('list').innerHTML='<div class="empty">Could not scan. Try again.</div>'; document.getElementById('cnt').textContent=''; return; }
     DATA[TYPE]=j; render(j);
-  }).catch(function(){ AIW.hide(); document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; });
+  }).catch(function(e){ if(e&&e.name==='AbortError') return; AIW.hide(); document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; });
 }
 function fld(label,val){ if(!val) return ''; return '<div class="fld"><b>'+esc(label)+':</b> '+esc(val)+'</div>'; }
 function memberCard(g,m){
