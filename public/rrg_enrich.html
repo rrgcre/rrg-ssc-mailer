@@ -64,11 +64,12 @@ function build(hasKey){
    +'<label><input type="checkbox" id="f_price" checked> Price point</label>'
    +'<label><input type="checkbox" id="f_fills" checked> Fill blank phone / website</label>'
    +'<span style="color:var(--faint)">· rating, reviews &amp; map coordinates are always saved</span></div>'
-   +'<div class="bar"><span class="cnt" id="cnt"></span><div class="sp"><button class="btn" id="all">Select all</button><button class="btn" id="none">Select none</button><button class="btn navy" id="scan">Scan with Google</button><button class="btn green" id="apply">Apply approved</button><span class="msg" id="msg"></span></div></div>'
+   +'<div class="bar"><span class="cnt" id="cnt"></span><div class="sp"><button class="btn" id="all">Select all</button><button class="btn" id="none">Select none</button><button class="btn" id="testkey">Test key</button><button class="btn navy" id="scan">Scan with Google</button><button class="btn green" id="apply">Apply approved</button><span class="msg" id="msg"></span></div></div>'
    +'<div class="grid" id="grid"></div>';
   document.getElementById('all').addEventListener('click',function(){ ORDER.forEach(function(k){ if(STATE[k]!=='dead' && ROWS[k]&&ROWS[k].proposed) STATE[k]='on'; }); paint(); });
   document.getElementById('none').addEventListener('click',function(){ ORDER.forEach(function(k){ if(STATE[k]!=='dead') STATE[k]='off'; }); paint(); });
   document.getElementById('scan').addEventListener('click',scan);
+  var _tk=document.getElementById('testkey'); if(_tk) _tk.addEventListener('click',function(){ var m=document.getElementById('msg'); m.className='msg'; m.textContent='Testing…'; fetch('/api/admin/gmaps-key/test',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ m.className='msg ok'; m.textContent='Key works \u2713'; } else { m.className='msg err'; m.textContent='Test failed: '+((j&&j.error)||'unknown'); } }).catch(function(){ m.className='msg err'; m.textContent='Could not reach the server.'; }); });
   document.getElementById('apply').addEventListener('click',apply);
   loadCands();
 }
