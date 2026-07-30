@@ -16,7 +16,7 @@
       { ic: '<svg viewBox="0 0 20 20" width="14" height="14" style="vertical-align:-2px" fill="none"><path d="M10 2.7c-4.1 0-7.5 2.7-7.5 6.1 0 1.8 1 3.5 2.5 4.6-.1 1-.5 1.9-1.1 2.7 1.2-.2 2.4-.7 3.4-1.3.9.3 1.7.4 2.7.4 4.1 0 7.5-2.7 7.5-6.1S14.1 2.7 10 2.7Z" fill="currentColor"/><path d="M10 5.7l.7 1.8 1.8.7-1.8.7L10 10.7l-.7-1.8-1.8-.7 1.8-.7L10 5.7Z" fill="#fff"/></svg>', label: 'Consult', href: 'rrg_consult.html', ai: true },
       { ic: '✦', label: 'RRG Brief', href: 'rrg_brief.html', ai: true },
       { ic: '◱', label: 'Activity Feed', href: 'rrg_feed.html' },
-      { ic: '✔', label: 'My Tasks', href: 'rrg_tasks.html' },
+      { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' },
       { ic: '◫', label: 'Calendar', href: 'rrg_calendar.html' }
     ] },
     { grp: 'Book of Business', color: '#7ea6d8', items: [
@@ -27,12 +27,13 @@
     { grp: 'Business Sales', color: '#6bbf95', items: [
       { ic: '☎', label: 'Qualification Calls', href: 'rrg_screening_queue.html' },
       { ic: '▤', label: 'Valuations', href: 'rrg_bov_queue.html' },
-      { ic: '◆', label: 'Listings', href: 'rrg_assignments.html' },
+      { ic: '◆', label: 'Listings', href: 'rrg_assignments.html?type=listing' },
       { ic: '▥', label: 'Data Rooms', href: 'rrg_rooms_queue.html' },
       { ic: '◈', label: 'Deals', href: 'rrg_deals.html' },
       { ic: '⊞', label: 'Pipeline Board', href: 'rrg_board.html' }
     ] },
     { grp: 'Tenant Rep', color: '#dfa937', items: [
+      { ic: '◆', label: 'Assignments', href: 'rrg_assignments.html?type=tenant_rep' },
       { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
       { ic: '✚', label: 'Site & Concept Fit', href: 'rrg_site_fit.html' },
       { ic: '⊡', label: 'Space Tracker', href: 'rrg_space_tracker.html' },
@@ -220,7 +221,7 @@
       _srSel(0);
     }
     function _srSearch(q){ q=String(q||'').trim(); if(q.length<2){ _srHide(); _sres=[]; return; } fetch('/api/search?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(String(si.value||'').trim().length<2){ _srHide(); return; } _srRender((j&&j.results)||[], q); }).catch(function(){ _srHide(); }); }
-    si && si.addEventListener('input', function(){ if(_sqt) clearTimeout(_sqt); var v=si.value; _sqt=setTimeout(function(){ _srSearch(v); },180); });
+    si && si.addEventListener('input', function(){ var v=si.value; try{ if(typeof window.rrgLiveSearch==='function') window.rrgLiveSearch(v); }catch(e){} if(_sqt) clearTimeout(_sqt); _sqt=setTimeout(function(){ _srSearch(v); },180); });
     si && si.addEventListener('keydown', function(e){
       if(e.key==='ArrowDown'){ if(_sres.length){ e.preventDefault(); _srSel(Math.min(_sres.length-1,_ssel+1)); var el=sr.querySelector('a.sel'); if(el) el.scrollIntoView({block:'nearest'}); } return; }
       if(e.key==='ArrowUp'){ if(_sres.length){ e.preventDefault(); _srSel(Math.max(0,_ssel-1)); var el2=sr.querySelector('a.sel'); if(el2) el2.scrollIntoView({block:'nearest'}); } return; }

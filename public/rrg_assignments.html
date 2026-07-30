@@ -127,6 +127,8 @@ tr:hover td{background:#fbfcfe;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 var ALL=[], CTL=null, FILTER='', CAN_DELETE=false, IS_ADMIN=false;
+var VIEWTYPE=(function(){try{return new URLSearchParams(location.search).get('type')||'';}catch(e){return '';}})();
+var TR=(VIEWTYPE==='tenant_rep');
 function laDistinct(key){ var m={}; (ALL||[]).forEach(function(a){ var v=a[key]; if(v) m[v]=1; }); return Object.keys(m).sort(); }
 var CF=(window.RRGFilters&&document.getElementById('filterBtn'))?RRGFilters.create({ list:'listings', title:'listings', button:document.getElementById('filterBtn'), isAdmin:function(){return IS_ADMIN;}, fields:[
   { key:'status', label:'Status', type:'multi', options:function(){return laDistinct('status');}, get:function(a){return a.status||'';} },
@@ -165,6 +167,7 @@ function applyFilters(){
   var q=(document.getElementById('search').value||'').toLowerCase().trim();
   var base=(typeof CF!=='undefined'&&CF)?CF.filter(ALL):ALL;
   var list=base.filter(function(a){
+    if(VIEWTYPE && (a.assignmentType||'listing')!==VIEWTYPE) return false;
     if(FILTER && a.status!==FILTER) return false;
     if(STAGEFILTER && currentStageKey(a)!==STAGEFILTER) return false;
     if(q){ var hay=(a.business+' '+a.market+' '+a.contact+' '+a.owner).toLowerCase(); if(!(window.rrgFuzzy?window.rrgFuzzy(hay,q):(hay.indexOf(q)>=0))) return false; }
@@ -172,6 +175,7 @@ function applyFilters(){
   });
   renderList(list); if(typeof CF!=='undefined'&&CF) CF.updateBtn();
 }
+window.rrgLiveSearch=function(q){ var el=document.getElementById('search'); if(el && el.value!==q){ el.value=q; } applyFilters(); };
 function renderList(list){
   var cfg={
     mount:'#body', data:list, key:'assignments', countEl:'#cnt',
@@ -214,10 +218,12 @@ function createDeal(){
   var contact=document.getElementById('nd_contact').value.trim();
   if(!contact){ document.getElementById('nd_contact').focus(); var _h=document.getElementById('clientHint'); if(_h) _h.innerHTML='<b style="color:var(--red,#DA2B1F)">A client contact is required — every listing must be linked to a contact.</b>'; return; }
   var btn=document.getElementById('nd_create'); btn.disabled=true; btn.textContent='Creating…';
-  fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,market:document.getElementById('nd_market').value.trim(),contact:contact})})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { btn.disabled=false; btn.textContent='Create listing'; alert((j&&j.error)||'Could not create the listing.'); } })
-    .catch(function(){ btn.disabled=false; btn.textContent='Create listing'; alert('Could not reach the server.'); });
+  fetch('/api/deal/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:business,market:document.getElementById('nd_market').value.trim(),contact:contact,type:VIEWTYPE})})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { btn.disabled=false; btn.textContent=TR?'Create assignment':'Create listing'; alert((j&&j.error)||('Could not create the '+(TR?'assignment':'listing')+'.')); } })
+    .catch(function(){ btn.disabled=false; btn.textContent=TR?'Create assignment':'Create listing'; alert('Could not reach the server.'); });
 }
+function applyViewType(){ if(!VIEWTYPE) return; var lbl=TR?'Tenant Rep Assignments':'Listings'; var one=TR?'assignment':'listing'; try{document.title='RRG — '+lbl;}catch(e){} var h1=document.querySelector('h1'); if(h1) h1.textContent=lbl; var hdb=document.querySelector('.hd b'); if(hdb) hdb.textContent=lbl; var nb=document.getElementById('newDealBtn'); if(nb) nb.textContent='+ New '+one; var mh=document.querySelector('.modalh'); if(mh) mh.textContent='New '+one; var cb=document.getElementById('nd_create'); if(cb) cb.textContent='Create '+one; }
+applyViewType();
 document.getElementById('newDealBtn').addEventListener('click',openDealModal);
 document.getElementById('nd_cancel').addEventListener('click',closeDealModal);
 document.getElementById('nd_create').addEventListener('click',createDeal);

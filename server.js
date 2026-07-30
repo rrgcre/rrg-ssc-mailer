@@ -2669,6 +2669,7 @@ function assignmentsIndex() {
   leases.forEach(l => slot(l, 'lease'));
   return deals;
 }
+function _cleanCriteria(c){ c=c||{}; var S=function(v,n){return String(v==null?'':v).slice(0,n);}; return { markets:S(c.markets,400), useType:S(c.useType,120), sizeMin:S(c.sizeMin,20), sizeMax:S(c.sizeMax,20), budget:S(c.budget,80), termYears:S(c.termYears,20), timeline:S(c.timeline,120), parking:S(c.parking,80), features:S(c.features,1000), notes:S(c.notes,4000) }; }
 function assignmentView(d, overlay) {
   const o = overlay[d.key] || {};
   const deal = d.deal || null;
@@ -2704,6 +2705,7 @@ function assignmentView(d, overlay) {
     ndas: Array.isArray(o.ndas) ? o.ndas : [],
     inquiries: Array.isArray(o.inquiries) ? o.inquiries : [],
     bbsRef: o.bbsRef || '', bbsNumber: o.bbsNumber || '', costarNo: o.costarNo || '', crexiNo: o.crexiNo || '', leadAutomationId: o.leadAutomationId || '',
+    assignmentType: (o.assignmentType === 'tenant_rep') ? 'tenant_rep' : 'listing', criteria: (o.criteria && typeof o.criteria === 'object') ? o.criteria : {},
     transaction: (o.transaction && typeof o.transaction === 'object') ? o.transaction : null,
     value: (bov && (bov.targetText || bov.rangeText)) || '', basis: (bov && bov.basis) || '',
     stages, lastActivity, createdAt: created,
@@ -2779,6 +2781,8 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.costarNo === 'string') cur.costarNo = b.costarNo.replace(/[^0-9A-Za-z-]/g, '').slice(0, 40);
   if (typeof b.crexiNo === 'string') cur.crexiNo = b.crexiNo.replace(/[^0-9A-Za-z-]/g, '').slice(0, 40);
   if (typeof b.leadAutomationId === 'string') cur.leadAutomationId = b.leadAutomationId.slice(0, 40);
+  if (typeof b.assignmentType === 'string') cur.assignmentType = (b.assignmentType === 'tenant_rep') ? 'tenant_rep' : 'listing';
+  if (b.criteria && typeof b.criteria === 'object') cur.criteria = _cleanCriteria(b.criteria);
   if (typeof b.pipelineId === 'string') cur.pipelineId = b.pipelineId.slice(0, 40);
   cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
@@ -5163,7 +5167,8 @@ app.post('/api/deal/new', express.json(), (req, res) => {
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
   // Onboarding: open the company file for the subject business...
-  const company = findOrCreateCompany(req, { name: rec.business, market: rec.market, type: 'Seller' });
+  const _isTR = String(b.type || '') === 'tenant_rep';
+  const company = findOrCreateCompany(req, { name: rec.business, market: rec.market, type: _isTR ? 'Buyer' : 'Seller' });
   if (company) rec.companyId = company.id;
   // ...and locate the existing client, or onboard them, associated with that company.
   if (rec.contact || b.contactEmail) { const p = findOrCreatePerson(req, { name: rec.contact, email: b.contactEmail, type: 'Client', companyId: rec.companyId }); if (p) { rec.contactPersonId = p.id; if (!rec.contact) rec.contact = p.name; } }
@@ -5171,6 +5176,7 @@ app.post('/api/deal/new', express.json(), (req, res) => {
   const room = ensureRoomForDeal(req, rec);   // auto-build its structured data room
   if (room) rec.roomId = room.id;
   saveDeals(arr);
+  if (_isTR) { try { const _ov = loadAssignOverlay(); const _k = 'd_' + rec.id; _ov[_k] = Object.assign(_ov[_k] || {}, { assignmentType: 'tenant_rep' }); saveAssignOverlay(_ov); } catch (e) {} }
   res.json({ ok: true, id: rec.id, key: 'd_' + rec.id, roomId: rec.roomId, contactPersonId: rec.contactPersonId, people: loadPeople().map(personBrief) });
 });
 app.post('/api/deal/:id', express.json(), (req, res) => {

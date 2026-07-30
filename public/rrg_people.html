@@ -159,6 +159,7 @@ function applyFilter(){
   });
   renderList(list); updateFilterBtn();
 }
+window.rrgLiveSearch=function(q){ var el=document.getElementById('search'); if(el && el.value!==q){ el.value=q; } applyFilter(); };
 function fmtDate(d){ if(!d) return ''; var x=String(d).slice(0,10).split('-'); if(x.length!==3) return String(d); return x[1]+'/'+x[2]+'/'+x[0]; }
 function renderList(list){
   var cfg={ mount:'#body', data:list, key:'contacts', countEl:'#cnt',
