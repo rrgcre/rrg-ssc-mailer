@@ -6577,8 +6577,10 @@ function _matchPersonType(v) {
   return '';
 }
 app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16mb' }), (req, res) => {
+  try {
   const rows = Array.isArray((req.body || {}).rows) ? req.body.rows : [];
   const arr = loadCompanies(); const byKey = {}; arr.forEach(c => { byKey[normKey(c.name)] = c; });
+  const _lsExisting = {}; effLeadSources().forEach(function(x){ _lsExisting[x.toLowerCase()] = x; }); const _newLSmap = {};
   const cts = effCompanyTypes(); const now = new Date().toISOString();
   const mkConcept = (req.body || {}).makeConcept !== false; const mkLocation = (req.body || {}).makeLocation !== false;
   let created = 0, updated = 0, skipped = 0, conceptsCreated = 0, locationsCreated = 0;
@@ -6591,6 +6593,7 @@ app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16m
     fill('market', _impStr(r.market, 80));
     fill('notes', _impStr(r.notes, 6000));
     fill('leadSource', _impStr(r.leadSource, 160));
+    { const _ls = _impStr(r.leadSource, 160); if (_ls) { const _lk = _ls.toLowerCase(); if (!_lsExisting[_lk]) { _lsExisting[_lk] = _ls; _newLSmap[_lk] = _ls; } } }
     if (r.tags) { const tg = _impTags(r.tags); if (tg.length && (isNew || !(c.tags && c.tags.length))) c.tags = tg; }
     const office = c.office || {}; ['address', 'city', 'state', 'phone', 'website', 'email'].forEach(k => { if (r[k] != null && r[k] !== '' && (isNew || !office[k])) office[k] = _impStr(r[k], 200); }); c.office = office;
     if (mkConcept) {
@@ -6616,11 +6619,16 @@ app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16m
     if (isNew) created++; else updated++;
   });
   saveCompanies(arr);
-  res.json({ ok: true, created, updated, skipped, conceptsCreated, locationsCreated, total: rows.length });
+  const _newLS = Object.values(_newLSmap);
+  if (_newLS.length) { const _s = loadSettings(); const _cur = (Array.isArray(_s.leadSources) && _s.leadSources.length) ? _s.leadSources.slice() : LEAD_SOURCES.slice(); const _low = _cur.map(function(x){return x.toLowerCase();}); _newLS.forEach(function(v){ if (_low.indexOf(v.toLowerCase()) < 0) { _cur.push(v); _low.push(v.toLowerCase()); } }); _s.leadSources = _cur; saveSettings(_s); }
+  res.json({ ok: true, created, updated, skipped, conceptsCreated, locationsCreated, total: rows.length, newLeadSources: _newLS });
+  } catch (e) { console.error('import companies:', e && e.message); res.status(500).json({ ok: false, error: 'Import failed: ' + ((e && e.message) || 'server error') }); }
 });
 app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' }), (req, res) => {
+  try {
   const b = req.body || {}; const rows = Array.isArray(b.rows) ? b.rows : [];
   const defType = (typeof b.defaultType === 'string' && effPersonTypes().indexOf(b.defaultType) >= 0) ? b.defaultType : 'Other';
+  const _lsExisting = {}; effLeadSources().forEach(function(x){ _lsExisting[x.toLowerCase()] = x; }); const _newLSmap = {};
   const ppl = loadPeople(); const cos = loadCompanies();
   const coByKey = {}; cos.forEach(c => { coByKey[normKey(c.name)] = c; });
   const emailIdx = {}; ppl.forEach(p => personEmails(p).forEach(e => { emailIdx[e.toLowerCase()] = p; }));
@@ -6644,11 +6652,15 @@ app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' 
     if (r.tags) { const tg = _impTags(r.tags); if (tg.length) p.tags = tg; }
     const coName = _impStr(r.companyName || r.company, 160);
     if (coName) { let c = coByKey[normKey(coName)]; if (!c) { c = { id: newCompanyId(), name: coName, market: '', type: 'Seller', notes: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; cos.push(c); coByKey[normKey(coName)] = c; cosDirty = true; } p.companyId = c.id; p.company = c.name; }
+    if (p.leadSource) { const _lk = String(p.leadSource).toLowerCase(); if (!_lsExisting[_lk]) { _lsExisting[_lk] = p.leadSource; _newLSmap[_lk] = p.leadSource; } }
     ppl.push(p); emails.forEach(e => { emailIdx[e.toLowerCase()] = p; }); created++;
   });
   if (cosDirty) saveCompanies(cos);
   savePeople(ppl);
-  res.json({ ok: true, created, dupe, noname, total: rows.length, defaultType: defType });
+  const _newLS = Object.values(_newLSmap);
+  if (_newLS.length) { const _s = loadSettings(); const _cur = (Array.isArray(_s.leadSources) && _s.leadSources.length) ? _s.leadSources.slice() : LEAD_SOURCES.slice(); const _low = _cur.map(function(x){return x.toLowerCase();}); _newLS.forEach(function(v){ if (_low.indexOf(v.toLowerCase()) < 0) { _cur.push(v); _low.push(v.toLowerCase()); } }); _s.leadSources = _cur; saveSettings(_s); }
+  res.json({ ok: true, created, dupe, noname, total: rows.length, defaultType: defType, newLeadSources: _newLS });
+  } catch (e) { console.error('import people:', e && e.message); res.status(500).json({ ok: false, error: 'Import failed: ' + ((e && e.message) || 'server error') }); }
 });
 
 // ===== Consult — AI data analyst over the book of business =====
