@@ -33,6 +33,7 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);}
 .lc .aibadge{position:absolute;top:11px;left:11px;font-size:9px;font-weight:800;letter-spacing:.05em;color:#fff;background:linear-gradient(135deg,#6d5bc0,#2f6fd0);border-radius:100px;padding:2px 7px;}
 .crumb{font-size:12px;color:#9fb0d0;font-weight:600;margin-bottom:12px;} .crumb a{color:#c7d3ea;text-decoration:none;} .crumb a:hover{color:#fff;text-decoration:underline;} .crumb span{color:#6a7ba0;margin:0 7px;}
+.navcrumb{display:none;max-width:1180px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:#66738f;font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:#2f6fd0;text-decoration:none;} .navcrumb a:hover{text-decoration:underline;} .navcrumb span{color:#93a0ba;margin:0 7px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -45,10 +46,11 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
   <h1>Find Company Logos</h1>
   <div class="sub">We fetch a logo for every company that has a website. Review them below — <b>approve the good ones, skip the rest</b> — then apply. Nothing changes until you hit Apply.</div>
 </div></div>
+<div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_data.html">Data Enrichment</a><span>›</span>Find Logos</div>
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var AIW = window.rrgAiWork || {show:function(){},setMsg:function(){},hide:function(){}};
+var AIW = {show:function(m,c){try{return window.rrgAiWork&&window.rrgAiWork.show(m,c);}catch(e){}},setMsg:function(m){try{return window.rrgAiWork&&window.rrgAiWork.setMsg(m);}catch(e){}},hide:function(){try{return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
 var LOGOCANCEL=false;
 var CANDS=[], STATE={};
 function initials(s){ s=String(s||'').trim(); if(!s) return '?'; var p=s.split(/\s+/); return ((p[0]||'')[0]||'').toUpperCase()+((p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
@@ -76,8 +78,10 @@ function render(){
   }).join('');
   document.querySelectorAll('.logobox img[data-cid]').forEach(function(img){
     var c=CANDS.filter(function(x){return x.id===img.getAttribute('data-cid');})[0]; if(!c) return;
-    img.setAttribute('data-step','0');
-    img.onerror=function(){ var st=img.getAttribute('data-step'); if(st==='0' && c.favicon && img.src!==c.favicon){ img.setAttribute('data-step','1'); img.src=c.favicon; } else { markDead(c.id, img); } };
+    var srcs=[c.proposed,c.apple,c.clearbit,c.favicon].filter(function(u){return !!u;});
+    if(!srcs.length){ markDead(c.id,img); return; }
+    var step=0; img.src=srcs[0];
+    img.onerror=function(){ step++; while(step<srcs.length && (!srcs[step]||srcs[step]===img.src)){ step++; } if(step<srcs.length){ img.src=srcs[step]; } else { markDead(c.id,img); } };
   });
   document.querySelectorAll('.lc[data-id]').forEach(function(el){ el.addEventListener('click',function(){ var id=el.getAttribute('data-id'); if(STATE[id]==='dead') return; STATE[id]=(STATE[id]==='on')?'off':'on'; el.classList.toggle('on',STATE[id]==='on'); count(); }); });
   paint(); count();
@@ -99,7 +103,7 @@ function aiFind(){
       AIW.setMsg('Reading brands — '+Math.min(ci*15,pool.length)+'/'+pool.length+'…');
       fetch('/api/admin/logo-ai-domains',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:chunks[ci].map(function(c){return {id:c.id};})})}).then(function(r){return r.json();}).then(function(jj){
         if(LOGOCANCEL) return;
-        if(jj&&jj.ok){ (jj.results||[]).forEach(function(x){ if(CANDS.some(function(c){return c.id===x.id;})) return; CANDS.push({id:x.id,name:x.name,website:x.website,domain:x.domain,proposed:x.proposed,favicon:x.favicon,ai:true}); STATE[x.id]='on'; found++; }); render(); }
+        if(jj&&jj.ok){ (jj.results||[]).forEach(function(x){ if(CANDS.some(function(c){return c.id===x.id;})) return; CANDS.push({id:x.id,name:x.name,website:x.website,domain:x.domain,proposed:x.proposed,apple:x.apple,clearbit:x.clearbit,favicon:x.favicon,ai:true}); STATE[x.id]='on'; found++; }); render(); }
         ci++; next();
       }).catch(function(){ done(''); });
     }
@@ -109,10 +113,10 @@ function aiFind(){
 function apply(){
   var items=[]; CANDS.forEach(function(c){ if(STATE[c.id]==='on'){ var img=document.querySelector('.logobox img[data-cid="'+c.id+'"]'); var src=img?img.src:(c.proposed||c.favicon); var _it={id:c.id,logo:src}; if(c.website) _it.website=c.website; items.push(_it); } });
   if(!items.length){ document.getElementById('msg').textContent=''; alert('Nothing approved to apply.'); return; }
-  var b=document.getElementById('apply'); b.disabled=true;
+  var b=document.getElementById('apply'); b.disabled=true; AIW.show('Fetching &amp; saving logos…');
   fetch('/api/admin/apply-logos',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
-    b.disabled=false; if(j&&j.ok){ document.getElementById('msg').textContent='Applied '+j.applied+' logo'+(j.applied===1?'':'s')+' ✓'; setTimeout(loadCands,900); } else { alert((j&&j.error)||'Could not apply.'); }
-  }).catch(function(){ b.disabled=false; alert('Could not reach the server.'); });
+    AIW.hide(); b.disabled=false; if(j&&j.ok){ document.getElementById('msg').textContent='Applied '+j.applied+' logo'+(j.applied===1?'':'s')+' ✓'; setTimeout(loadCands,900); } else { alert((j&&j.error)||'Could not apply.'); }
+  }).catch(function(){ AIW.hide(); b.disabled=false; alert('Could not reach the server.'); });
 }
 fetch('/api/feedback',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.isAdmin){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to run logo enrichment.</div>'; return; }

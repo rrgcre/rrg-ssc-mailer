@@ -34,6 +34,7 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
 .needkey{position:absolute;top:16px;right:16px;font-size:10px;font-weight:800;letter-spacing:.05em;color:var(--amber);background:#fbf3e7;border-radius:100px;padding:3px 10px;text-transform:uppercase;}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);}
 .crumb{font-size:12px;color:#9fb0d0;font-weight:600;margin-bottom:12px;} .crumb a{color:#c7d3ea;text-decoration:none;} .crumb a:hover{color:#fff;text-decoration:underline;} .crumb span{color:#6a7ba0;margin:0 7px;}
+.navcrumb{display:none;max-width:1180px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:#66738f;font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:#2f6fd0;text-decoration:none;} .navcrumb a:hover{text-decoration:underline;} .navcrumb span{color:#93a0ba;margin:0 7px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -46,6 +47,7 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
   <h1>Make your data work harder.</h1>
   <div class="sub">Every tool that cleans, fills, links, and enriches your book — in one place. Import once, then run these to turn a flat contact list into a live restaurant &amp; bar intelligence database.</div>
 </div></div>
+<div class="navcrumb"><a href="./index.html">Command</a><span>›</span>Data Enrichment</div>
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -73,7 +75,7 @@ function render(S){
   var cStat = S.conceptsIncomplete>0 ? ('<b>'+n(S.conceptsIncomplete)+'</b> concepts missing cuisine / type / price') : (S.concepts?'All concepts classified':'No concepts yet');
   tools.push('<div class="tool p"><div class="ic">✦</div><h3>Concept Intelligence (AI)</h3><p>Consult reads each concept name and fills cuisine, concept type and price point — plus flags multi-unit operators. The fields that make this a restaurant CRM.</p><div class="stat2">'+cStat+'</div><div class="foot"><a class="go" style="background:#6d5bc0" href="rrg_concepts.html">Open →</a></div></div>');
   // Cleanup (soon)
-  tools.push('<div class="tool a"><div class="ic">✎</div><h3>Cleanup &amp; Standardize</h3><p>Title-case names and companies, standardize state codes, validate emails, normalize websites, and auto-assign market / submarket from city. Runs on every import.</p><div class="stat2">Deterministic · no AI cost</div><div class="foot"><a class="go" style="background:#12a594" href="rrg_cleanup.html">Open →</a></div></div>');
+  tools.push('<div class="tool a"><div class="ic">✎</div><h3>Cleanup &amp; Standardize</h3><p>Title-case names and companies, standardize state codes, validate emails, normalize websites, and auto-assign market / submarket from city. Run it anytime — ideal right after an import.</p><div class="stat2">Deterministic · no AI cost</div><div class="foot"><a class="go" style="background:#12a594" href="rrg_cleanup.html">Open →</a></div></div>');
   root.innerHTML='<div class="strip">'+strip+'</div><div class="grid">'+tools.join('')+'</div>';
 }
 fetch('/api/admin/enrichment-summary',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){

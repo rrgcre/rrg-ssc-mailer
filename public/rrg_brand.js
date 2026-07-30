@@ -1,6 +1,15 @@
 /* Rewrites the browser tab title to the admin-set app name (preserving each page's
    section label after the — ), and renames the AI assistant site-wide to the admin-set
    name (default "Claude"). Loaded on every page. */
+/* Pre-apply the shelled layout before first paint so navigating doesn't flash the un-shelled page. */
+(function(){ try{
+  if(/\/(login|sign)\b/.test(location.pathname)) return;
+  if(document.querySelector('meta[name="rrg-noshell"]')) return;
+  var st=document.createElement('style'); st.id='rrg-preshell';
+  st.textContent='body{padding-top:56px;}@media(min-width:901px){body{padding-left:238px;}}body .top,body .rrg-back{display:none !important;}';
+  (document.head||document.documentElement).appendChild(st);
+}catch(e){} })();
+
 (function () {
   function applyName(n) {
     if (!n) return;

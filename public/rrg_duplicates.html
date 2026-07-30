@@ -53,6 +53,7 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
 .spin{display:inline-block;width:15px;height:15px;border:2px solid #cdd6e6;border-top-color:var(--navy);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:7px;}
 @keyframes sp{to{transform:rotate(360deg);}}
 .crumb{font-size:12px;color:#9fb0d0;font-weight:600;margin-bottom:12px;} .crumb a{color:#c7d3ea;text-decoration:none;} .crumb a:hover{color:#fff;text-decoration:underline;} .crumb span{color:#6a7ba0;margin:0 7px;}
+.navcrumb{display:none;max-width:1180px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:#66738f;font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:#2f6fd0;text-decoration:none;} .navcrumb a:hover{text-decoration:underline;} .navcrumb span{color:#93a0ba;margin:0 7px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -65,11 +66,12 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
   <h1>Find Duplicates</h1>
   <div class="sub">We scan your book for likely duplicate records — matched on fuzzy name, shared website domain, and shared phone. Pick the record to keep in each group; the others fold into it. <b>Every contact, deal, agreement, concept and location moves to the keeper.</b> Nothing merges until you approve it.</div>
 </div></div>
+<div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_data.html">Data Enrichment</a><span>›</span>Find Duplicates</div>
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function initials(s){ s=String(s||'').trim(); if(!s) return '?'; var p=s.split(/\s+/); return ((p[0]||'')[0]||'').toUpperCase()+((p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
-var AIW = window.rrgAiWork || {show:function(){},setMsg:function(){},hide:function(){}};
+var AIW = {show:function(m,c){try{return window.rrgAiWork&&window.rrgAiWork.show(m,c);}catch(e){}},setMsg:function(m){try{return window.rrgAiWork&&window.rrgAiWork.setMsg(m);}catch(e){}},hide:function(){try{return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
 var TYPE='companies', DATA={companies:null,contacts:null}, KEEP={}, ARMED={};
 
 function build(){

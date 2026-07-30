@@ -954,6 +954,10 @@ app.use((req, res, next) => {
   }
   next();
 });
+// Lightweight presence — who's active right now (in-memory, resets on restart).
+const PRESENCE = {};
+function onlineUsers() { const now = Date.now(); return Object.keys(PRESENCE).filter(u => now - PRESENCE[u].ts < 15 * 60000).map(u => ({ username: u, name: PRESENCE[u].name || u, minsAgo: Math.floor((now - PRESENCE[u].ts) / 60000) })).sort((a, b) => a.minsAgo - b.minsAgo).slice(0, 30); }
+app.use((req, res, next) => { try { if (req.user && req.user.username) PRESENCE[req.user.username] = { name: req.user.name || req.user.username, ts: Date.now() }; } catch (e) {} next(); });
 // Meter every AI call that actually succeeds (covers /api/ai/* and the locationgen concept/location routes).
 app.use((req, res, next) => {
   const feat = aiMeterFeature(req.path);
@@ -5490,8 +5494,9 @@ app.get('/log', (_req, res) => {
 /* ================= ADMIN CONSOLE ================= */
 const SERVER_BOOT = new Date();
 const APP_VERSION = '4.1.0';
-const BUILD_META = (function(){ try { const cp=require('child_process'); const opt={cwd:__dirname,stdio:['ignore','pipe','ignore']}; const sha=cp.execSync('git rev-parse --short HEAD',opt).toString().trim(); const cnt=cp.execSync('git rev-list --count HEAD',opt).toString().trim(); return { sha:sha, build:(cnt?Number(cnt):null) }; } catch(e){ return { sha:'', build:null }; } })();
-const ADMIN_BUILD = 'v' + APP_VERSION + (BUILD_META.build!=null?(' \u00b7 build ' + BUILD_META.build):'') + (BUILD_META.sha?(' \u00b7 ' + BUILD_META.sha):'');
+const BUILD_META = (function(){ try { const cp=require('child_process'); const opt={cwd:__dirname,stdio:['ignore','pipe','ignore']}; const sha=cp.execSync('git rev-parse --short HEAD',opt).toString().trim(); const cnt=cp.execSync('git rev-list --count HEAD',opt).toString().trim(); const cd=cp.execSync('git log -1 --format=%cI',opt).toString().trim(); return { sha:sha, build:(cnt?Number(cnt):null), commitDate:(cd||'') }; } catch(e){ return { sha:'', build:null, commitDate:'' }; } })();
+const BUILD_TS = BUILD_META.commitDate ? new Date(BUILD_META.commitDate) : SERVER_BOOT;
+const ADMIN_BUILD = BUILD_TS.toLocaleString('en-US',{ timeZone:'America/Chicago', month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }) + ' CT';
 app.get('/admin', requireAdmin, (req, res) => {
   const users = auth.loadUsers();
   const logins = auth.readLogins().slice(-300).reverse();
@@ -6690,19 +6695,52 @@ app.post('/api/consult', express.json({ limit: '256kb' }), async (req, res) => {
 
 // ===== Find Logos (post-import enrichment, approval-gated) =====
 function clearbitLogo(w) { const d = domainOf(w); return d ? ('https://logo.clearbit.com/' + d) : ''; }
+function faviconHiRes(w) { const d = domainOf(w); return d ? ('https://t2.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=' + encodeURIComponent('https://' + d) + '&size=256') : ''; }
+function appleTouchIcon(w) { const d = domainOf(w); return d ? ('https://' + d + '/apple-touch-icon.png') : ''; }
+const COMPANY_LOGO_DIR = path.join(BOV_DATA_DIR, 'companylogos');
+async function downloadAndStoreCompanyLogo(company, url) {
+  if (!url || typeof url !== 'string' || url.indexOf('/api/company-logo/') === 0) return false;
+  try {
+    const r = await fetch(url, { signal: AbortSignal.timeout(6000) });
+    if (!r.ok) return false;
+    const ct = r.headers.get('content-type') || ''; if (!/image\//.test(ct)) return false;
+    const buf = Buffer.from(await r.arrayBuffer()); if (buf.length < 500) return false;
+    const ext = ct.includes('svg') ? 'svg' : (ct.includes('png') ? 'png' : (ct.includes('webp') ? 'webp' : (ct.includes('x-icon') || ct.includes('microsoft.icon') ? 'ico' : (ct.includes('gif') ? 'gif' : 'jpg'))));
+    if (!fs.existsSync(COMPANY_LOGO_DIR)) fs.mkdirSync(COMPANY_LOGO_DIR, { recursive: true });
+    ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif', 'ico'].forEach(e => { if (e !== ext) { try { fs.unlinkSync(path.join(COMPANY_LOGO_DIR, company.id + '.' + e)); } catch (_) {} } });
+    fs.writeFileSync(path.join(COMPANY_LOGO_DIR, company.id + '.' + ext), buf);
+    company.logoExt = ext; company.logo = '/api/company-logo/' + company.id + '?v=' + Date.now().toString(36);
+    return true;
+  } catch (e) { return false; }
+}
+app.get('/api/company-logo/:id', (req, res) => {
+  const id = String(req.params.id || '').replace(/[^a-zA-Z0-9_-]/g, '');
+  const exts = ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif', 'ico'];
+  for (const e of exts) { const p = path.join(COMPANY_LOGO_DIR, id + '.' + e); if (fs.existsSync(p)) { try { res.set('Content-Type', LOGO_MIME[e] || 'image/png'); res.set('Cache-Control', 'public, max-age=86400'); return res.send(fs.readFileSync(p)); } catch (_) {} } }
+  res.status(404).end();
+});
 app.get('/api/admin/logo-candidates', requireAdmin, (req, res) => {
   const all = loadCompanies(); const wantAll = req.query.all === '1';
   const cands = all.filter(c => { const site = (c.office && c.office.website) || ''; if (!site) return false; if (!wantAll && c.logo) return false; return true; })
-    .map(c => { const site = (c.office && c.office.website) || ''; return { id: c.id, name: c.name || '', website: site, domain: domainOf(site), proposed: clearbitLogo(site), favicon: logoFromWebsite(site), hasLogo: !!c.logo }; });
+    .map(c => { const site = (c.office && c.office.website) || ''; return { id: c.id, name: c.name || '', website: site, domain: domainOf(site), proposed: faviconHiRes(site), apple: appleTouchIcon(site), clearbit: clearbitLogo(site), favicon: logoFromWebsite(site), hasLogo: !!c.logo }; });
   const withSite = all.filter(c => (c.office && c.office.website)).length;
   res.json({ ok: true, candidates: cands, total: all.length, withSite: withSite, missing: all.filter(c => !c.logo).length });
 });
-app.post('/api/admin/apply-logos', requireAdmin, express.json({ limit: '2mb' }), (req, res) => {
+app.post('/api/admin/apply-logos', requireAdmin, express.json({ limit: '2mb' }), async (req, res) => {
   const items = Array.isArray((req.body || {}).items) ? req.body.items : [];
-  const all = loadCompanies(); const now = new Date().toISOString(); let applied = 0;
-  items.forEach(it => { const c = all.find(x => x.id === it.id); if (!c) return; let did = false; if (typeof it.logo === 'string' && it.logo) { c.logo = it.logo.slice(0, 400); did = true; } if (typeof it.website === 'string' && it.website && !(c.office && c.office.website)) { c.office = c.office || {}; c.office.website = it.website.slice(0, 200); did = true; } if (did) { c.updatedAt = now; applied++; } });
+  const all = loadCompanies(); const now = new Date().toISOString(); let applied = 0, stored = 0;
+  for (const it of items) {
+    const c = all.find(x => x.id === it.id); if (!c) continue; let did = false;
+    if (typeof it.website === 'string' && it.website && !(c.office && c.office.website)) { c.office = c.office || {}; c.office.website = it.website.slice(0, 200); did = true; }
+    if (typeof it.logo === 'string' && it.logo) {
+      const ok = await downloadAndStoreCompanyLogo(c, it.logo);
+      if (ok) { stored++; } else { c.logo = it.logo.slice(0, 400); }
+      did = true;
+    }
+    if (did) { c.updatedAt = now; applied++; }
+  }
   saveCompanies(all);
-  res.json({ ok: true, applied });
+  res.json({ ok: true, applied, stored });
 });
 
 
@@ -6756,7 +6794,7 @@ app.post('/api/admin/enrich-apply', requireAdmin, express.json({ limit: '3mb' })
       if (a.phone && !l.phone) l.phone = String(a.phone).slice(0, 40);
       if (a.website && !l.website) l.website = String(a.website).slice(0, 200);
       if (a.pricePoint && PRICE_POINTS.indexOf(a.pricePoint) >= 0) { const cpt = (c.concepts || []).find(cp => normKey(cp.name) === normKey(l.concept)); if (cpt && !String(cpt.pricePoint || '').trim()) cpt.pricePoint = a.pricePoint; }
-      if (!c.logo) { const _site = a.website || l.website || (c.office && c.office.website) || (a.google && a.google.website) || ''; if (_site) { const _lg = logoFromWebsite(_site); if (_lg) { c.logo = _lg; c.updatedAt = now; } } }
+      if (!c.logo) { const _site = a.website || l.website || (c.office && c.office.website) || (a.google && a.google.website) || ''; if (_site) { const _lg = faviconHiRes(_site) || logoFromWebsite(_site); if (_lg) { c.logo = _lg; c.updatedAt = now; } } }
       applied++;
     });
     c.updatedAt = now;
@@ -6931,7 +6969,7 @@ app.post('/api/admin/logo-ai-domains', requireAdmin, express.json(), async (req,
   try { dom = await aiassist.inferDomains({ items: resolved.map(r => ({ name: r.name, city: r.city, state: r.state })) }); }
   catch (e) { return res.status(500).json({ ok: false, error: String((e && e.message) || 'AI request failed') }); }
   const byIdx = {}; dom.forEach(x => { if (isFinite(x.i)) byIdx[x.i] = x.domain; });
-  const results = resolved.map((r, i) => { const d = byIdx[i] || ''; const w = d ? ('https://' + d) : ''; return { id: r.id, name: r.name, domain: d, website: w, proposed: d ? clearbitLogo(w) : '', favicon: d ? logoFromWebsite(w) : '' }; }).filter(x => x.domain);
+  const results = resolved.map((r, i) => { const d = byIdx[i] || ''; const w = d ? ('https://' + d) : ''; return { id: r.id, name: r.name, domain: d, website: w, proposed: d ? faviconHiRes(w) : '', apple: d ? appleTouchIcon(w) : '', clearbit: d ? clearbitLogo(w) : '', favicon: d ? logoFromWebsite(w) : '' }; }).filter(x => x.domain);
   res.json({ ok: true, results });
 });
 
@@ -7129,7 +7167,7 @@ function dashboardData(req) {
 app.get('/api/dashboard', (req, res) => {
   const u = req.user || {}; const cfgs = loadDashCfgs(); const mine = cfgs[u.username];
   const layout = (mine && Array.isArray(mine.mods) && mine.mods.length) ? mine.mods.filter(k => DASH_MODULES.some(m => m.k === k)) : DASH_DEFAULT.slice();
-  res.json({ ok: true, modules: DASH_MODULES, layout, data: dashboardData(req), name: u.name || '', isAdmin: !!(req.user && isSuper(req.user)), assistant: effAssistantName(), build: ADMIN_BUILD, version: APP_VERSION, buildNo: BUILD_META.build, sha: BUILD_META.sha, booted: SERVER_BOOT.toISOString() });
+  res.json({ ok: true, modules: DASH_MODULES, layout, data: dashboardData(req), name: u.name || '', isAdmin: !!(req.user && isSuper(req.user)), assistant: effAssistantName(), build: ADMIN_BUILD, version: APP_VERSION, buildNo: BUILD_META.build, sha: BUILD_META.sha, booted: SERVER_BOOT.toISOString(), online: onlineUsers() });
 });
 app.post('/api/dashboard', express.json(), (req, res) => {
   const u = req.user || {}; if (!u.username) return res.status(401).json({ ok: false, error: 'Not signed in.' });

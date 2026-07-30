@@ -37,6 +37,7 @@ h1{margin:0;font-size:26px;font-weight:800;display:inline-block;vertical-align:m
 .setup{max-width:600px;margin:20px auto;text-align:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:34px 28px;} .setup b{display:block;font-size:17px;color:var(--navy);margin-bottom:8px;} .setup p{color:var(--dim);font-size:13.5px;line-height:1.6;margin:0 0 16px;}
 .msg{font-size:13px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);}
+.navcrumb{display:none;max-width:1180px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:#66738f;font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:#2f6fd0;text-decoration:none;} .navcrumb a:hover{text-decoration:underline;} .navcrumb span{color:#93a0ba;margin:0 7px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -47,10 +48,11 @@ h1{margin:0;font-size:26px;font-weight:800;display:inline-block;vertical-align:m
   <span class="disc" onclick="location.href='./index.html'">RRG</span><h1>Enrich from Google</h1>
   <div class="sub">Pulls live business data onto your locations — <b>operating status</b> (open / dark / closed), rating, review count, price point, phone, website, map coordinates — and grabs a <b>logo</b> for any company without one. Review, tick, apply. Nothing changes until you hit Apply.</div>
 </div></div>
+<div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_data.html">Data Enrichment</a><span>›</span>Enrich from Google</div>
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var AIW = window.rrgAiWork || {show:function(){},setMsg:function(){},hide:function(){}};
+var AIW = {show:function(m,c){try{return window.rrgAiWork&&window.rrgAiWork.show(m,c);}catch(e){}},setMsg:function(m){try{return window.rrgAiWork&&window.rrgAiWork.setMsg(m);}catch(e){}},hide:function(){try{return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
 var CANDS=[], ROWS={}, ORDER=[], STATE={}, SCANNED=0, CANCELLED=false, INCLUDE_ALL=false;
 function statusPill(s,bs){ var cls='pill',lbl=s||bs||'—'; if(s==='Operating'){cls='pill op';} else if(s==='Dark'){cls='pill dark';} else if(s==='Closed'){cls='pill cl';} return '<span class="'+cls+'">'+esc(lbl)+'</span>'; }
 function fieldsOn(){ return { status:document.getElementById('f_status').checked, price:document.getElementById('f_price').checked, fills:document.getElementById('f_fills').checked }; }

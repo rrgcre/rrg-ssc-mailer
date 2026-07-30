@@ -36,6 +36,7 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#c3bce0;font-size:13px;m
 .spin{display:inline-block;width:15px;height:15px;border:2px solid #cdd6e6;border-top-color:var(--purple);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:7px;} @keyframes sp{to{transform:rotate(360deg)}}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);}
 .crumb{font-size:12px;color:#9fb0d0;font-weight:600;margin-bottom:12px;} .crumb a{color:#c7d3ea;text-decoration:none;} .crumb a:hover{color:#fff;text-decoration:underline;} .crumb span{color:#6a7ba0;margin:0 7px;}
+.navcrumb{display:none;max-width:1180px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:#66738f;font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:#2f6fd0;text-decoration:none;} .navcrumb a:hover{text-decoration:underline;} .navcrumb span{color:#93a0ba;margin:0 7px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -48,10 +49,11 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#c3bce0;font-size:13px;m
   <h1>Concept Intelligence</h1>
   <div class="sub">Consult reads each concept name and fills what Copper never captured — <b>cuisine, concept type, and price point</b> — and flags <b>multi-unit operators</b>. The fields that turn a contact list into a restaurant &amp; bar database. Review, tick, apply.</div>
 </div></div>
+<div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_data.html">Data Enrichment</a><span>›</span>Concept Intelligence</div>
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var AIW = window.rrgAiWork || {show:function(){},setMsg:function(){},hide:function(){}};
+var AIW = {show:function(m,c){try{return window.rrgAiWork&&window.rrgAiWork.show(m,c);}catch(e){}},setMsg:function(m){try{return window.rrgAiWork&&window.rrgAiWork.setMsg(m);}catch(e){}},hide:function(){try{return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
 var CANDS=[], ROWS={}, ORDER=[], STATE={}, SCANNED=0, ONLYNEEDS=true, CPTCANCEL=false;
 function fieldsOn(){ return { cuisine:document.getElementById('f_cuisine').checked, type:document.getElementById('f_type').checked, price:document.getElementById('f_price').checked, mu:document.getElementById('f_mu').checked }; }
 function build(aiReady){

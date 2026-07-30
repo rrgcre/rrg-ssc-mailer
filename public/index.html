@@ -17,6 +17,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .topline .rmeta{margin-left:auto;display:flex;align-items:center;gap:14px;}
 .topline .hclock{color:var(--dim);font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;}
 .topline .buildmini{font-size:10.5px;color:var(--faint);font-weight:700;font-variant-numeric:tabular-nums;}
+.online{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:-2px 0 14px;font-size:12px;} .online .ttl{font-weight:800;text-transform:uppercase;letter-spacing:.05em;font-size:10px;color:var(--faint);} .online .who{display:inline-flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:100px;padding:4px 11px;font-weight:600;color:var(--ink);box-shadow:0 1px 2px rgba(16,32,70,.04);} .online .who .d{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(31,138,91,.5);animation:pl 2s infinite;}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:14px;} @media(max-width:900px){.kpis{grid-template-columns:repeat(2,1fr);}}
 .kpi{background:var(--card);border:1px solid var(--line);border-top:3px solid var(--a,var(--blue));border-radius:12px;padding:15px 16px;box-shadow:0 1px 2px rgba(16,32,70,.04);}
 .kpi .ktop{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;}
@@ -100,8 +101,11 @@ function render(){
   var tasks=(dd.tasks&&dd.tasks.length)?dd.tasks.map(function(t){ var pc=(String(t.priority).toLowerCase()==='high'?'high':(String(t.priority).toLowerCase()==='medium'?'med':'')); return '<div class="fitem"><span class="fico">✔</span><span class="ftxt"><b>'+esc(t.title||'')+'</b>'+(t.link?(' · '+esc(t.link)):'')+'</span>'+(t.priority?'<span class="pri '+pc+'">'+esc(t.priority)+'</span>':'')+'<span class="ftime">'+esc(fmtDate(t.due))+'</span></div>'; }).join(''):'<div class="empty">No open tasks — you’re clear.</div>';
   var expiring=(dd.expiring&&dd.expiring.length)?dd.expiring.map(function(x){return '<div class="fitem"><span class="fico" style="background:'+(x.overdue?'#fdeeee':'#fbf3e7')+'">⏰</span><span class="ftxt">'+esc(x.business)+'</span><span class="ftime" style="'+(x.overdue?'color:var(--red);font-weight:700':'')+'">'+esc(fmtDate(x.expires))+'</span></div>';}).join(''):'<div class="empty">Nothing expiring soon.</div>';
   var bft=''; try{ if(dd._booted) bft=new Date(dd._booted).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){}
+  var online=(dd.online||[]);
+  var onlineHtml = online.length ? ('<div class="online"><span class="ttl">Online now</span>'+online.map(function(o){return '<span class="who"><span class="d"></span>'+esc(o.name)+(o.minsAgo>1?(' <span style="color:var(--faint);font-weight:500">'+o.minsAgo+'m</span>'):'')+'</span>';}).join('')+'</div>') : '';
   document.getElementById('root').innerHTML=''
     +'<div class="topline"><b>Command</b><span class="tsub">Business Overview</span><span class="live"><span class="d"></span>Live</span><span class="rmeta"><span class="buildmini" id="buildmini" title="'+esc((dd._build||'')+(bft?(' · booted '+bft):''))+'"></span><span class="hclock" id="hclock"></span></span></div>'
+    +onlineHtml
     +'<div class="kpis">'+kpis+'</div>'
     +'<div class="grid2"><div class="panel"><div class="ph"><b>Biz Sales Pipeline</b><a class="more" href="./rrg_board.html">Board →</a></div>'+funnel+'</div>'
     +'<div class="panel"><div class="ph"><b>Pipeline Value · Trend</b><span class="tag">last 14 checks</span></div>'+trendHtml+'</div></div>'
