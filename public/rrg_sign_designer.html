@@ -170,7 +170,7 @@ document.getElementById('saveBtn').addEventListener('click',save);
 
 function renderPages(){
   var stage=document.getElementById('stage'); stage.innerHTML='';
-  var url='/api/agreement-templates/'+encodeURIComponent(TID)+'/file';
+  var url='/api/agreement-templates/'+encodeURIComponent(TID)+'/file?v='+Date.now();
   fetch(url,{credentials:'same-origin'}).then(function(r){ if(!r.ok) throw new Error('no file'); return r.arrayBuffer(); }).then(function(buf){
     return pdfjsLib.getDocument({data:buf}).promise;
   }).then(function(pdf){

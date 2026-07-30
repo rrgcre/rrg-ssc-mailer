@@ -7700,7 +7700,7 @@ app.post('/api/admin/agreement-templates/:id/file', requireAdmin, express.json({
 app.get('/api/agreement-templates/:id/file', (req, res) => {
   const t = loadTemplates().find(x => x.id === req.params.id);
   if (!t || !t.fileExt) return res.status(404).end();
-  try { const buf = fs.readFileSync(path.join(AGREEMENT_TPL_DIR, t.id + '.' + t.fileExt)); res.set('Content-Type', agreementDocMime(t.fileExt)); res.set('Content-Disposition', 'inline; filename="' + String(t.fileName || ('template.' + t.fileExt)).replace(/[^\w.\- ]+/g, '') + '"'); res.send(buf); }
+  try { const buf = fs.readFileSync(path.join(AGREEMENT_TPL_DIR, t.id + '.' + t.fileExt)); res.set('Content-Type', agreementDocMime(t.fileExt)); res.set('Cache-Control', 'no-store, max-age=0'); res.set('Content-Disposition', 'inline; filename="' + String(t.fileName || ('template.' + t.fileExt)).replace(/[^\w.\- ]+/g, '') + '"'); res.send(buf); }
   catch (e) { res.status(404).end(); }
 });
 app.delete('/api/admin/agreement-templates/:id', requireAdmin, (req, res) => {
