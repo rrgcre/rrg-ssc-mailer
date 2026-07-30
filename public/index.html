@@ -89,14 +89,17 @@ var dragK=null;
 function renderModules(anim){
   var grid=document.getElementById('modgrid'); if(!grid) return;
   grid.innerHTML=LAYOUT.map(function(k){ var mi=modInfo(k); var body=(MODBODY[k]?MODBODY[k]():'<div class="empty">—</div>'); return '<div class="mod '+(mi.w==='full'?'full':'half')+'" draggable="true" data-k="'+esc(k)+'"><div class="modh"><span class="drag">⠿</span><b>'+esc(mi.label)+'</b><span class="modsp"></span><button class="modx" title="Remove" data-x="'+esc(k)+'">×</button></div><div class="modb">'+body+'</div></div>'; }).join('');
+  grid.querySelectorAll('.mod a, .mod img').forEach(function(a){ a.setAttribute('draggable','false'); });
   grid.querySelectorAll('.mod[data-k]').forEach(function(el){
-    el.addEventListener('dragstart',function(e){ if(e.target.closest('a,button,input,select,textarea')){ e.preventDefault(); return; } dragK=el.getAttribute('data-k'); el.classList.add('dragging'); try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',dragK);}catch(_){} });
-    el.addEventListener('dragend',function(){ el.classList.remove('dragging'); grid.querySelectorAll('.mod.over').forEach(function(x){x.classList.remove('over');}); dragK=null; });
-    el.addEventListener('dragover',function(e){ e.preventDefault(); if(dragK&&el.getAttribute('data-k')!==dragK) el.classList.add('over'); try{e.dataTransfer.dropEffect='move';}catch(_){} });
-    el.addEventListener('dragleave',function(){ el.classList.remove('over'); });
-    el.addEventListener('drop',function(e){ e.preventDefault(); el.classList.remove('over'); var target=el.getAttribute('data-k'); if(!dragK||dragK===target) return; var from=LAYOUT.indexOf(dragK); if(from<0) return; LAYOUT.splice(from,1); var to=LAYOUT.indexOf(target); LAYOUT.splice(to,0,dragK); saveLayout(); renderModules(false); });
+    el.addEventListener('dragstart',function(e){ if(e.target.closest('button,input,select,textarea')){ e.preventDefault(); return; } dragK=el.getAttribute('data-k'); setTimeout(function(){ el.classList.add('dragging'); },0); try{e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',dragK);}catch(_){} });
+    el.addEventListener('dragend',function(){ dragK=null; grid.querySelectorAll('.mod').forEach(function(x){x.classList.remove('dragging','over');}); });
   });
-  grid.querySelectorAll('.modx[data-x]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); LAYOUT=LAYOUT.filter(function(x){return x!==b.getAttribute('data-x');}); saveLayout(); renderModules(false); }); });
+  if(!grid._dndWired){ grid._dndWired=true;
+    grid.addEventListener('dragover',function(e){ if(!dragK) return; e.preventDefault(); try{e.dataTransfer.dropEffect='move';}catch(_){} var t=e.target&&e.target.closest?e.target.closest('.mod'):null; grid.querySelectorAll('.mod.over').forEach(function(x){x.classList.remove('over');}); if(t&&t.getAttribute('data-k')!==dragK) t.classList.add('over'); });
+    grid.addEventListener('dragleave',function(e){ if(e.target&&e.target.closest){ var t=e.target.closest('.mod'); if(t) t.classList.remove('over'); } });
+    grid.addEventListener('drop',function(e){ if(!dragK) return; e.preventDefault(); var dk=dragK; dragK=null; grid.querySelectorAll('.mod.over').forEach(function(x){x.classList.remove('over');}); var from=LAYOUT.indexOf(dk); if(from<0) return; var tEl=e.target&&e.target.closest?e.target.closest('.mod'):null; if(!tEl||tEl.getAttribute('data-k')===dk){ LAYOUT.splice(from,1); LAYOUT.push(dk); saveLayout(); renderModules(false); return; } var target=tEl.getAttribute('data-k'); var rect=tEl.getBoundingClientRect(); var after=(e.clientY > rect.top+rect.height/2); LAYOUT.splice(from,1); var ti=LAYOUT.indexOf(target); if(ti<0) ti=LAYOUT.length; LAYOUT.splice(after?ti+1:ti,0,dk); saveLayout(); renderModules(false); });
+  }
+  grid.querySelectorAll('.modx[data-x]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); e.preventDefault(); LAYOUT=LAYOUT.filter(function(x){return x!==b.getAttribute('data-x');}); saveLayout(); renderModules(false); }); });
   if(anim!==false) animate();
 }
 function animate(){
