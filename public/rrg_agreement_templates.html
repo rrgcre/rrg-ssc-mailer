@@ -81,13 +81,14 @@ var AUTOFILL_SRC=[['email','Client — email'],['first_name','Client — first n
 var DEFAULT_EMAIL_MSG='Please review and sign using the secure link above. Everything has been completed for you — the only thing you need to do is add your signature. Thank you, Restaurant Realty Group.';
 var LIST_SHELL='<div class="card"><div class="ch"><b>Template library</b><span id="tcount"></span><span class="sp"></span><button class="btn sm" id="t_new">+ New template</button></div><div class="cb" style="padding:6px 8px 10px"><div id="tlist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';
 
+function dcell(v){ if(!v) return '<span class="meta">—</span>'; var x=String(v).slice(0,10).split('-'); return x.length===3?(x[1]+'/'+x[2]+'/'+x[0]):esc(String(v).slice(0,10)); }
 function typeLabel(k){ for(var i=0;i<TYPES.length;i++){ if(TYPES[i].key===k) return TYPES[i].label; } return k||''; }
 function typeName(t){ for(var i=0;i<FIELD_TYPES.length;i++){ if(FIELD_TYPES[i][0]===t) return FIELD_TYPES[i][1]; } return 'Text'; }
 
 function initFields(){
   if(EDIT&&EDIT.signFields&&EDIT.signFields.length){ TFIELDS=EDIT.signFields.map(function(f){ return {label:f.label||'',required:!!f.required,type:(f.type||'text'),autofill:(f.autofill||'')}; }); }
   else if(EDIT&&EDIT.id){ TFIELDS=[]; }
-  else { TFIELDS=[{label:'Full name',required:true,type:'autofill',autofill:'party_name'},{label:'Effective date',required:false,type:'date'}]; }
+  else { TFIELDS=[]; }
 }
 function renderFieldRows(){
   var box=document.getElementById('t_fieldrows'); if(!box) return;
@@ -121,8 +122,8 @@ function fieldsCell(t){ if(t.pdfFields&&t.pdfFields.length) return esc(t.pdfFiel
 function docCell(t){ return t.fileExt?('<span class="file-ok">'+esc(String(t.fileExt).toUpperCase())+'</span>'):'<span class="meta">—</span>'; }
 function actionsCell(t){
   var s='';
-  if(t.fileExt){ s+='<a class="btn ghost sm" href="/api/agreement-templates/'+esc(t.id)+'/file?v='+encodeURIComponent(t.updatedAt||'')+'" target="_blank" rel="noopener">View</a><button class="btn ghost sm" data-print="'+esc(t.id)+'">Print</button>'; }
   if(t.fileExt==='pdf'){ s+='<a class="btn ghost sm" href="/rrg_sign_designer.html?template='+esc(t.id)+'">Design</a>'; }
+  if(t.fileExt){ s+='<a class="btn ghost sm" href="/api/agreement-templates/'+esc(t.id)+'/file?v='+encodeURIComponent(t.updatedAt||'')+'" target="_blank" rel="noopener">View</a><button class="btn ghost sm" data-print="'+esc(t.id)+'">Print</button>'; }
   s+='<button class="btn ghost sm" data-edit="'+esc(t.id)+'">Edit</button><button class="btn danger sm" data-del="'+esc(t.id)+'">Delete</button>';
   return '<div class="acts">'+s+'</div>';
 }
@@ -133,9 +134,11 @@ function listCfg(){
     columns:[
       { label:'Template', sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(t){ return '<a class="lk" href="#" data-edit="'+esc(t.id)+'">'+esc(t.name||'Untitled')+'</a>'; } },
       { label:'Category', sort:function(a,b){return RRGList.cmp(typeLabel(a.type),typeLabel(b.type));}, cell:function(t){ return t.type?esc(typeLabel(t.type)):'<span class="meta">—</span>'; } },
-      { label:'Document', sort:function(a,b){return RRGList.cmp(a.fileExt,b.fileExt);}, cell:docCell },
-      { label:'Fields', sort:function(a,b){return RRGList.cmp((a.signFields||[]).length,(b.signFields||[]).length);}, cell:fieldsCell },
-      { label:'Status', sort:function(a,b){return RRGList.cmp(a.active===false?1:0,b.active===false?1:0);}, cell:function(t){ return t.active===false?'<span class="status off">Inactive</span>':'<span class="status on">Active</span>'; } },
+      { label:'Fields', sort:function(a,b){return RRGList.cmp((a.pdfFields||[]).length,(b.pdfFields||[]).length);}, cell:fieldsCell },
+      { label:'Added', sort:function(a,b){return RRGList.cmp(a.createdAt||'',b.createdAt||'');}, cell:function(t){ return dcell(t.createdAt); } },
+      { label:'Last used', sort:function(a,b){return RRGList.cmp(a.lastUsedAt||'',b.lastUsedAt||'');}, cell:function(t){ return dcell(t.lastUsedAt); } },
+      { label:'Times used', sort:function(a,b){return RRGList.cmp(a.useCount||0,b.useCount||0);}, cell:function(t){ return (t.useCount||0)?esc(String(t.useCount)):'<span class="meta">—</span>'; } },
+      { label:'Status', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.active===false?1:0,b.active===false?1:0);}, cell:function(t){ return t.active===false?'<span class="status off">Inactive</span>':'<span class="status on">Active</span>'; } },
       { label:'', sortable:false, cell:actionsCell }
     ]
   };
@@ -155,17 +158,13 @@ function renderEditor(){
       (e.fileExt?('<span class="file-ok">📎 '+esc(e.fileName||'document')+'</span> <a class="btn ghost sm" href="/api/agreement-templates/'+esc(e.id)+'/file?v='+encodeURIComponent(e.updatedAt||'')+'" target="_blank" rel="noopener">View</a>'):'<span id="t_fname" class="file-no">No file chosen yet</span>')+
       '<label class="filelabel">⤒ '+(e.fileExt?'Replace file':'Choose file')+'<input type="file" id="t_file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label><span id="t_picked" style="margin-left:9px;font-size:12px;color:var(--green);font-weight:700"></span>'+
       '</div><div class="note">Upload the signable PDF (or Word), up to 20 MB — it saves when you click '+(e.id?'Save changes':'Create template')+'.</div>'+
-      (e.fileExt==='pdf'?('<div style="margin-top:12px;padding:14px 16px;background:#eaf7f0;border:1px solid #bfe6d0;border-radius:12px">'+'<div style="font-weight:800;color:#0e6b47;font-size:13.5px;margin-bottom:3px">'+((e.pdfFields&&e.pdfFields.length)?('✓ '+e.pdfFields.length+' field'+(e.pdfFields.length===1?'':'s')+' placed on the document'):'Place the fields on the document')+'</div>'+'<div style="font-size:12px;color:#3f6b56;margin-bottom:11px;line-height:1.5">Drop signature, date and text fields exactly where they go, and assign who signs. The rep fills every detail before sending — the signer only signs, and the values print right on the page.</div>'+'<a class="btn sm" style="background:#0e8a5f;border-color:#0e8a5f;font-size:13px;padding:9px 16px" href="/rrg_sign_designer.html?template='+esc(e.id)+'">✍ '+((e.pdfFields&&e.pdfFields.length)?'Edit placed fields':'Design fields on the PDF')+'</a></div>'):(e.fileExt?('<div class="note" style="color:#b5791f;margin-top:8px">Field placement needs a <b>PDF</b>. This file is .'+esc(e.fileExt)+' — upload a PDF version to place fields on it.</div>'):(e.id?'<div class="note" style="margin-top:8px">Upload a PDF above, then place fields on it.</div>':'<div class="note" style="margin-top:8px">Save the template, then upload the PDF and place fields.</div>')))+
+      (e.fileExt==='pdf'?'':(e.fileExt?('<div class="note" style="color:#b5791f;margin-top:8px">Field placement needs a <b>PDF</b>. This file is .'+esc(e.fileExt)+' — upload a PDF version to place fields on it.</div>'):(e.id?'<div class="note" style="margin-top:8px">Upload a PDF above, then place fields on it.</div>':'<div class="note" style="margin-top:8px">Save the template, then upload the PDF and place fields.</div>')))+
       '</div>'+
     '<div style="margin-top:16px"><label class="fld">Email message (sent with the signing link)</label>'+
       '<textarea id="t_emailmsg" placeholder="'+esc(DEFAULT_EMAIL_MSG)+'">'+esc(e.emailMessage||'')+'</textarea>'+
       '<div class="note">Default note the signer gets with their link. The rep can tweak it per send. Leave blank to use the system default.</div></div>'+
     '<div class="chk"><input type="checkbox" id="t_active"'+((e.active===false)?'':' checked')+'> Active (reps can pick this template)</div>'+
-    '<details style="margin-top:18px"><summary style="cursor:pointer;font-size:12px;color:#8a93a8;font-weight:700;padding:4px 0">Legacy: simple field list (optional — not placed on the document)</summary>'+
-      '<div style="margin-top:10px"><div class="note" style="margin:0 0 10px">Older method — these values are captured but are <b>not</b> stamped onto the document. For anything a client signs, use <b>Design fields on the PDF</b> above instead.</div>'+
-      '<div id="t_fieldrows"></div>'+
-      '<button type="button" class="btn ghost sm" id="t_addfield">+ Add field</button></div></details>'+
-    '<div class="btnrow"><button class="btn red" id="t_save">'+(e.id?'Save changes':'Create template')+'</button><span class="msg" id="t_msg"></span></div>'+
+    '<div class="btnrow">'+((e.fileExt==='pdf')?('<a class="btn ghost" href="/rrg_sign_designer.html?template='+esc(e.id)+'">✍ '+((e.pdfFields&&e.pdfFields.length)?('Edit placed fields ('+e.pdfFields.length+')'):'Design fields on the PDF')+'</a>'):'')+'<button class="btn red" id="t_save">'+(e.id?'Save changes':'Create template')+'</button><span class="msg" id="t_msg"></span></div>'+
     '</div></div>';
   if(document.getElementById('t_type')) document.getElementById('t_type').value=e.type||'';
   renderFieldRows();

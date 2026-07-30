@@ -242,7 +242,7 @@ function openMergePicker(ids, done){
   ov.innerHTML='<div class="modalcard" style="max-width:520px"><div class="modalh">Merge '+people.length+' contacts</div><div class="modalb"><div style="font-size:12.5px;color:#5b6472;line-height:1.5;margin-bottom:12px">Pick the record to <b>keep</b>. The others merge into it \u2014 emails, phones, tags, notes, tours and any linked deals or agreements move over, then the extra records are removed. This cannot be undone.</div>'+rows+'<div id="mg_msg" style="color:var(--red,#DA2B1F);font-size:12.5px;margin-top:8px"></div></div><div class="modalf"><button class="mbtn ghost" id="mg_cancel">Cancel</button><button class="mbtn" id="mg_go">Merge contacts</button></div></div>';
   document.body.appendChild(ov);
   function close(){ ov.remove(); }
-  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  ov.addEventListener('click',function(e){ if(e.target===ov){ /* stay open */ } });
   ov.querySelector('#mg_cancel').addEventListener('click',close);
   ov.querySelector('#mg_go').addEventListener('click',function(){
     var keep=ov.querySelector('input[name=mgkeep]:checked'); if(!keep) return;
@@ -275,7 +275,7 @@ function openNewListingFor(id, done){
     +'<div class="modalf"><button class="mbtn ghost" id="nlp_cancel">Cancel</button><button class="mbtn" id="nlp_go">Create listing</button></div></div>';
   document.body.appendChild(ov);
   function close(){ ov.remove(); }
-  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  ov.addEventListener('click',function(e){ if(e.target===ov){ /* stay open */ } });
   ov.querySelector('#nlp_cancel').addEventListener('click',close);
   var biz=ov.querySelector('#nlp_biz'); setTimeout(function(){ try{biz.focus();}catch(e){} },30);
   biz.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); ov.querySelector('#nlp_go').click(); } });
@@ -328,7 +328,7 @@ function openFilters(){
    +'</div>';
   document.body.appendChild(ov);
   function close(){ ov.remove(); }
-  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  ov.addEventListener('click',function(e){ if(e.target===ov){ /* stay open */ } });
   ov.querySelector('#f_cancel').addEventListener('click',close);
   function collect(){ ['types','owners','leadSources'].forEach(function(g){ var arr=[]; ov.querySelectorAll('[data-fg="'+g+'"] input:checked').forEach(function(c){ arr.push(c.value); }); FILTERS[g]=arr; }); FILTERS.tags=(ov.querySelector('#f_tags').value||'').split(',').map(function(x){return x.trim();}).filter(Boolean); FILTERS.vip=ov.querySelector('#f_vip').checked; FILTERS.caution=ov.querySelector('#f_caution').checked; FILTERS.primary=ov.querySelector('#f_primary').checked; FILTERS.createdFrom=ov.querySelector('#f_cfrom').value; FILTERS.createdTo=ov.querySelector('#f_cto').value; FILTERS.contactedFrom=ov.querySelector('#f_lfrom').value; FILTERS.contactedTo=ov.querySelector('#f_lto').value; }
   ov.querySelector('#f_clear').addEventListener('click',function(){ FILTERS=emptyFilters(); close(); applyFilter(); });

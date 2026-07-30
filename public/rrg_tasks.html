@@ -70,12 +70,13 @@ textarea{min-height:56px;resize:vertical;}
 <div class="wrap">
   <div id="taskModal" class="tmodal" hidden><div class="tmodalcard">
     <div class="tmodalh"><h2 id="formTitle" style="margin:0;font-size:18px">New task</h2><button type="button" id="taskClose" class="tmx" aria-label="Close">×</button></div>
-    <div class="subline">Tasks are assigned to you. Optionally link one to a contact or a project, and set a reminder.</div>
+    <div class="subline">Assign to yourself or a teammate, set a due date and time, link it to a contact or project, and add a reminder.</div>
     <div class="grid">
-      <div><label class="fld">Task</label><input id="t_title" placeholder="What needs doing?"></div>
+      <div><label class="fld">Task</label><input id="t_title" list="titleList" autocomplete="off" placeholder="What needs doing?"><datalist id="titleList"></datalist></div>
       <div><label class="fld">Due (date &amp; time)</label><input type="datetime-local" id="t_due"></div>
       <div><label class="fld">Priority</label><select id="t_priority"></select></div>
       <div><label class="fld">Type</label><select id="t_type"></select></div>
+      <div><label class="fld">Assign to</label><select id="t_assignee"></select></div>
     </div>
     <div class="grid2">
       <div><label class="fld">Link to</label><select id="t_linktype"><option value="">— Nothing —</option><option value="contact">Contact</option><option value="deal">Project / deal</option></select></div>
@@ -103,7 +104,7 @@ textarea{min-height:56px;resize:vertical;}
   </div>
 </div>
 <script>
-var TASKS=[], CONTACTS=[], DEALS=[], PRIORITIES=['Low','Normal','High'], ACTTYPES=[], EMAILREADY=false, SMSREADY=false, ME='', ISADMIN=false, EDITID='';
+var TASKS=[], CONTACTS=[], DEALS=[], USERS=[], TITLESUG=[], PRIORITIES=['Low','Normal','High'], ACTTYPES=[], EMAILREADY=false, SMSREADY=false, ME='', ISADMIN=false, EDITID='';
 var SHOW='open', SCOPE='mine'; var TCTL=null;
 document.addEventListener('change',function(e){ var c=e.target.closest?e.target.closest('[data-toggle]'):null; if(c){ toggle(c.getAttribute('data-toggle')); } });
 document.addEventListener('click',function(e){ if(!e.target.closest) return; var ed=e.target.closest('[data-edit]'); if(ed){ startEdit(ed.getAttribute('data-edit')); return; } var dl=e.target.closest('[data-del]'); if(dl){ del(dl.getAttribute('data-del')); } });
@@ -113,7 +114,7 @@ function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMo
 function load(){
   fetch('/api/tasks',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok) return;
-    TASKS=j.tasks||[]; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; PRIORITIES=j.priorities||['Low','Normal','High']; ACTTYPES=j.activityTypes||[]; EMAILREADY=!!j.emailReady; SMSREADY=!!j.smsReady; ME=j.me||''; ISADMIN=!!j.isAdmin;
+    TASKS=j.tasks||[]; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; USERS=j.users||[]; TITLESUG=j.titleSuggestions||[]; PRIORITIES=j.priorities||['Low','Normal','High']; ACTTYPES=j.activityTypes||[]; EMAILREADY=!!j.emailReady; SMSREADY=!!j.smsReady; ME=j.me||''; ISADMIN=!!j.isAdmin;
     if(ISADMIN) document.getElementById('scAll').style.display='';
     fillSelects(); render();
   });
@@ -122,6 +123,8 @@ function fillSelects(){
   var p=document.getElementById('t_priority');
   p.innerHTML=PRIORITIES.map(function(x){return '<option'+(x==='Normal'?' selected':'')+'>'+esc(x)+'</option>';}).join('');
   var ty=document.getElementById('t_type'); if(ty) ty.innerHTML='<option value="">— none —</option>'+ACTTYPES.map(function(x){return '<option>'+esc(x)+'</option>';}).join('');
+  var asg=document.getElementById('t_assignee'); if(asg){ var _cur=asg.value; asg.innerHTML=(USERS.length?USERS:[{username:ME,name:'Me'}]).map(function(u){return '<option value="'+esc(u.username)+'">'+esc(u.name)+(u.username===ME?' (me)':'')+'</option>';}).join(''); asg.value=_cur||ME; }
+  var dl=document.getElementById('titleList'); if(dl){ dl.innerHTML=TITLESUG.map(function(t){return '<option value="'+esc(t)+'"></option>';}).join(''); }
 }
 function fillTargets(type,selId){
   var sel=document.getElementById('t_linktarget');
@@ -167,7 +170,7 @@ function collect(){
   var linkId=lt?tgt.value:''; var linkLabel='';
   if(linkId){ var opt=tgt.options[tgt.selectedIndex]; linkLabel=opt?opt.text:''; }
   return { title:document.getElementById('t_title').value.trim(),
-    due:document.getElementById('t_due').value, priority:document.getElementById('t_priority').value, type:(document.getElementById('t_type')||{}).value||'',
+    due:document.getElementById('t_due').value, priority:document.getElementById('t_priority').value, type:(document.getElementById('t_type')||{}).value||'', assignee:(document.getElementById('t_assignee')||{}).value||'',
     reminder:reminderVal(), remChannels:channelVals(), linkType:lt, linkId:linkId, linkLabel:linkLabel,
     notes:document.getElementById('t_notes').value.trim() };
 }
@@ -178,7 +181,7 @@ function clearForm(){
   document.getElementById('t_title').value=''; document.getElementById('t_due').value=todayStr()+'T09:00';
   var _rs=document.getElementById('t_remsel'); if(_rs)_rs.value=''; var _rr=document.getElementById('t_reminder'); _rr.style.display='none'; _rr.value=''; document.querySelectorAll('.t_chan').forEach(function(cb){ cb.checked=(cb.value==='popup'||cb.value==='email'); }); applyChannelAvail(); document.getElementById('t_notes').value='';
   document.getElementById('t_linktype').value=''; fillTargets('','');
-  fillSelects(); EDITID=''; document.getElementById('formTitle').textContent='New task';
+  fillSelects(); var _asg=document.getElementById('t_assignee'); if(_asg) _asg.value=ME; EDITID=''; document.getElementById('formTitle').textContent='New task';
   document.getElementById('addBtn').textContent='Add task'; document.getElementById('cancelEdit').style.display='none';
 }
 function save(silent){
@@ -189,14 +192,14 @@ function save(silent){
   msg.textContent='Saving…';
   fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ msg.textContent='Saved ✓';
-      if(silent){ var _t=TASKS.filter(function(x){return x.id===EDITID;})[0]; if(_t){ _t.title=body.title; _t.due=body.due; _t.priority=body.priority; _t.type=body.type; _t.reminder=body.reminder; _t.remChannels=body.remChannels; _t.linkType=body.linkType; _t.linkId=body.linkId; _t.linkLabel=body.linkLabel; _t.notes=body.notes; } render(); setTimeout(function(){msg.textContent='';},1500); return; }
+      if(silent){ var _t=TASKS.filter(function(x){return x.id===EDITID;})[0]; if(_t){ _t.title=body.title; _t.due=body.due; _t.priority=body.priority; _t.type=body.type; _t.assignee=body.assignee; _t.reminder=body.reminder; _t.remChannels=body.remChannels; _t.linkType=body.linkType; _t.linkId=body.linkId; _t.linkLabel=body.linkLabel; _t.notes=body.notes; } render(); setTimeout(function(){msg.textContent='';},1500); return; }
       clearForm(); closeTaskModal(); load(); setTimeout(function(){msg.textContent='';},1500); } else { msg.textContent=(j&&j.error)||'Failed'; } });
 }
 function startEdit(id){
   var t=TASKS.filter(function(x){return x.id===id;})[0]; if(!t) return;
   document.getElementById('t_title').value=t.title||''; document.getElementById('t_due').value=(t.due?(t.due.length>10?t.due.slice(0,16):t.due+'T09:00'):'');
   var _es=document.getElementById('t_remsel'); if(_es)_es.value=t.reminder?'custom':''; var _er=document.getElementById('t_reminder'); _er.style.display=t.reminder?'block':'none'; _er.value=t.reminder?t.reminder.slice(0,16):''; var chs=(t.remChannels&&t.remChannels.length)?t.remChannels:(t.remChannel==='email'?['email']:t.remChannel==='popup'?['popup']:['popup','email']); document.querySelectorAll('.t_chan').forEach(function(cb){ cb.checked=chs.indexOf(cb.value)>=0; }); applyChannelAvail(); document.getElementById('t_notes').value=t.notes||'';
-  fillSelects(); document.getElementById('t_priority').value=t.priority||'Normal'; var _ty=document.getElementById('t_type'); if(_ty) _ty.value=t.type||'';
+  fillSelects(); document.getElementById('t_priority').value=t.priority||'Normal'; var _ty=document.getElementById('t_type'); if(_ty) _ty.value=t.type||''; var _asg=document.getElementById('t_assignee'); if(_asg) _asg.value=t.assignee||ME;
   document.getElementById('t_linktype').value=t.linkType||''; fillTargets(t.linkType||'',t.linkId||'');
   EDITID=id; document.getElementById('formTitle').textContent='Edit task';
   document.getElementById('addBtn').textContent='Save changes'; document.getElementById('cancelEdit').style.display='';
@@ -213,7 +216,7 @@ var _tc2=document.getElementById('taskClose'); if(_tc2) _tc2.addEventListener('c
 var _tm=document.getElementById('taskModal'); if(_tm) _tm.addEventListener('click',function(e){ if(e.target===_tm){ /* backdrop: keep open to avoid losing input */ } });
 // Autosave while EDITING an existing task (change/blur or ~1s pause). New-task entry stays explicit.
 (function(){ var _tAS=null; function commit(){ if(_tAS){ clearTimeout(_tAS); _tAS=null; } if(EDITID) save(true); } function pause(){ if(_tAS) clearTimeout(_tAS); _tAS=setTimeout(commit,1000); }
-  ['t_title','t_due','t_priority','t_type','t_remsel','t_reminder','t_notes','t_linktype','t_linktarget'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); });
+  ['t_title','t_due','t_priority','t_type','t_assignee','t_remsel','t_reminder','t_notes','t_linktype','t_linktarget'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); });
   document.querySelectorAll('.t_chan').forEach(function(cb){ cb.addEventListener('change',commit); });
 })();
 document.getElementById('t_linktype').addEventListener('change',function(){ fillTargets(this.value,''); });

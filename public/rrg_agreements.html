@@ -132,7 +132,7 @@ document.querySelectorAll('.filters [data-s]').forEach(function(b){ b.addEventLi
 var _nab=document.getElementById('newAgrBtn'); if(_nab) _nab.addEventListener('click',openAgrModal);
 var _agc=document.getElementById('ag_cancel'); if(_agc) _agc.addEventListener('click',closeAgrModal);
 var _agx=document.getElementById('ag_x'); if(_agx) _agx.addEventListener('click',closeAgrModal);
-var _agm=document.getElementById('agrModal'); if(_agm) _agm.addEventListener('click',function(e){ if(e.target===_agm) closeAgrModal(); });
+var _agm=document.getElementById('agrModal'); if(_agm) _agm.addEventListener('click',function(e){ if(e.target===_agm){ /* stay open */ } });
 var _ags=document.getElementById('ag_save'); if(_ags) _ags.addEventListener('click',createAgreement);
 load();
 </script>

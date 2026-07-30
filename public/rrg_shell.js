@@ -113,6 +113,8 @@
     + ''
     + '#rrgnav a.it.on .i{color:#fff;}'
     + '#rrgnav a.it .navbadge{margin-left:auto;background:var(--red,#DA2B1F);color:#fff;font-size:10.5px;font-weight:800;min-width:19px;height:18px;line-height:18px;text-align:center;border-radius:9px;padding:0 5px;box-shadow:0 1px 3px rgba(0,0,0,.25);}'
+    + '#rrgnav a.it .navbadge.gold{background:#d99a1c;}'
+    + '#rrgnav a.it .navbadge + .navbadge{margin-left:4px;}'
     + '#rrgnav a.it .aitag{margin-left:5px;font-size:11px;line-height:1;opacity:.85;}'
     + '#rrgnav .foot{border-top:1px solid rgba(255,255,255,.09);padding:8px 10px;}'
     + '#rrgtop{position:fixed;top:0;left:238px;right:0;height:56px;background:#fff;border-bottom:1px solid #e9edf3;display:flex;align-items:center;gap:18px;padding:0 22px;z-index:59;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
@@ -178,7 +180,7 @@
       // (e.g. the company you clicked from) rather than the list. Otherwise use the list.
       _bk.addEventListener('click',function(e){ try{ var rf=(document.referrer||'').split('#')[0], cur=location.href.split('#')[0]; if(rf && rf.indexOf(location.origin)===0 && rf!==cur && window.history.length>1){ e.preventDefault(); window.history.back(); } }catch(_e){} });
       var _lg=top.querySelector('.rrgtoplogo'); if(_lg&&_lg.nextSibling){ top.insertBefore(_bk,_lg.nextSibling); } else { top.insertBefore(_bk, top.firstChild); } } } } catch(e){}
-    try { fetch('/api/counts',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var od=(j&&j.overdue)||{}; var NOUN={'rrg_tickets.html':'past-due request','rrg_tasks.html':'overdue task'}; Object.keys(od).forEach(function(href){ var c=od[href]||0; if(c<=0) return; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||tl.querySelector('.navbadge')) return; var noun=NOUN[href]||'item'; tl.title=c+' '+noun+(c===1?'':'s'); var b=document.createElement('span'); b.className='navbadge'; b.textContent=c>99?'99+':String(c); tl.appendChild(b); }); }).catch(function(){}); } catch(e){}
+    try { fetch('/api/counts',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var od=(j&&j.overdue)||{}; var NOUN={'rrg_tickets.html':'past-due request','rrg_tasks.html':'overdue task'}; Object.keys(od).forEach(function(href){ var c=od[href]||0; if(c<=0) return; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||tl.querySelector('.navbadge')) return; var noun=NOUN[href]||'item'; tl.title=c+' '+noun+(c===1?'':'s'); var b=document.createElement('span'); b.className='navbadge'; b.textContent=c>99?'99+':String(c); tl.appendChild(b); }); var dt=(j&&j.dueToday)||{}; Object.keys(dt).forEach(function(href){ var c=dt[href]||0; if(c<=0) return; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||tl.querySelector('.navbadge.gold')) return; var g=document.createElement('span'); g.className='navbadge gold'; g.textContent=c>99?'99+':String(c); g.title=c+' task'+(c===1?'':'s')+' due today'; tl.appendChild(g); }); }).catch(function(){}); } catch(e){}
     // mobile burger
     var burger=document.getElementById('rrgburger'); if(window.innerWidth<=900){ burger.style.display='flex'; }
     burger && burger.addEventListener('click', function(){ nav.classList.toggle('open'); });

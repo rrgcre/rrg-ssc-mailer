@@ -116,7 +116,7 @@ function createDeal(){ var key=document.getElementById('nd_key').value; var msg=
 document.getElementById('newDealBtn').addEventListener('click',openNewDeal);
 document.getElementById('nd_cancel').addEventListener('click',closeNewDeal);
 document.getElementById('nd_x').addEventListener('click',closeNewDeal);
-document.getElementById('ndModal').addEventListener('click',function(e){ if(e.target===document.getElementById('ndModal')) closeNewDeal(); });
+document.getElementById('ndModal').addEventListener('click',function(e){ if(e.target===document.getElementById('ndModal')){ /* stay open */ } });
 reloadDeals();
 </script>
 </body>

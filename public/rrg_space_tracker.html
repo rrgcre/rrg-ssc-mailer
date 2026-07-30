@@ -262,12 +262,12 @@ document.getElementById('pl_go').addEventListener('click',plParse);
 document.getElementById('matchBtn').addEventListener('click',openMatch);
 document.getElementById('mmx').addEventListener('click',function(){ document.getElementById('mov').hidden=true; });
 document.getElementById('mgo').addEventListener('click',aiMatch);
-document.getElementById('mov').addEventListener('click',function(e){ if(e.target===this) this.hidden=true; });
+document.getElementById('mov').addEventListener('click',function(e){ if(e.target===this){ /* stay open */ } });
 document.getElementById('addBtn').addEventListener('click',function(){ openForm(null); });
 document.getElementById('mx').addEventListener('click',closeForm);
 document.getElementById('mcancel').addEventListener('click',closeForm);
 document.getElementById('msave').addEventListener('click',function(){ saveSpace(); });
-document.getElementById('ov').addEventListener('click',function(e){ if(e.target===this) closeForm(); });
+document.getElementById('ov').addEventListener('click',function(e){ if(e.target===this){ /* stay open */ } });
 // Autosave while EDITING an existing space (change/blur or ~1s pause). Adding a new space stays explicit.
 (function(){ var _sAS=null; function commit(){ if(_sAS){ clearTimeout(_sAS); _sAS=null; } if(EDIT&&EDIT.id) saveSpace(true); } function pause(){ if(_sAS) clearTimeout(_sAS); _sAS=setTimeout(commit,1000); }
   ['f_address','f_center','f_market','f_name','f_size','f_rent','f_nnn','f_type','f_status','f_landlord','f_url','f_notes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); });

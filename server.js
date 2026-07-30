@@ -3047,9 +3047,28 @@ function cleanAutoSteps(arr) {
     const o = { type: type, delayDays: Math.max(0, Math.min(3650, parseInt((st && st.delayDays), 10) || 0)) };
     if (type === 'email') { o.subject = String((st && st.subject) || '').slice(0, 300); o.body = String((st && st.body) || '').slice(0, 20000); }
     else if (type === 'task') { o.taskTitle = String((st && st.taskTitle) || '').slice(0, 300); o.taskNote = String((st && st.taskNote) || '').slice(0, 2000); }
-    else { o.message = String((st && st.message) || '').slice(0, 2000); o.notifyEmail = String((st && st.notifyEmail) || '').slice(0, 160); }
+    else { o.message = String((st && st.message) || '').slice(0, 2000); o.notifyEmail = String((st && st.notifyEmail) || '').slice(0, 160); o.channel = (st && st.channel === 'text') ? 'text' : 'email'; }
     return o;
   }).filter(function (st) { return st.type === 'task' ? st.taskTitle : (st.type === 'notification' ? st.message : (st.subject || st.body)); });
+}
+function personPrimaryListing(p) {
+  try {
+    if (!p) return null;
+    const deals = loadDeals(); if (!Array.isArray(deals) || !deals.length) return null;
+    let best = null, bestScore = -1;
+    for (const d of deals) {
+      let sc = -1;
+      if (d.contactPersonId && d.contactPersonId === p.id) sc = 3;
+      else if (p.companyId && d.companyId && d.companyId === p.companyId) sc = 2;
+      if (sc < 0) continue;
+      let num = d.bbsNumber || d.listingNumber || '';
+      if (!num) { try { const ov = loadAssignOverlay(); const o = ov && ov['d_' + d.id]; if (o) num = o.bbsNumber || o.listingNumber || ''; } catch (e) {} }
+      if (num) sc += 1;
+      if (d.fromBizBuySell) sc += 0.5;
+      if (sc > bestScore) { bestScore = sc; best = { name: d.business || d.name || '', number: String(num || '') }; }
+    }
+    return best;
+  } catch (e) { return null; }
 }
 function mergeTokens(t, p, user) {
   p = p || {}; user = user || {};
@@ -3058,7 +3077,9 @@ function mergeTokens(t, p, user) {
   const phone = (typeof preferredPhoneOf === 'function' ? (preferredPhoneOf(p) || '') : (p.phone || '')) || (personPhones(p)[0] || '');
   const title = p.title || '';
   let today = ''; try { today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); } catch (e) {}
-  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|email|phone|my_name|my_title|my_phone|my_email|today)\s*\}\}/gi, function (_, k) {
+  let _lst = null, _lstDone = false;
+  function _listing() { if (!_lstDone) { _lstDone = true; try { _lst = (p && (p._listing || null)) || personPrimaryListing(p); } catch (e) { _lst = null; } } return _lst || { name: '', number: '' }; }
+  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|email|phone|my_name|my_title|my_phone|my_email|today|listing_name|listing_number|listing_no|listing)\s*\}\}/gi, function (_, k) {
     k = k.toLowerCase();
     if (k === 'first_name' || k === 'firstname') return first;
     if (k === 'last_name' || k === 'lastname') return last;
@@ -3072,10 +3093,13 @@ function mergeTokens(t, p, user) {
     if (k === 'my_phone') return user.phone || '';
     if (k === 'my_email') return user.email || '';
     if (k === 'today') return today;
+    if (k === 'listing_name' || k === 'listing') return _listing().name || '';
+    if (k === 'listing_number' || k === 'listing_no') return _listing().number || '';
     return '';
   });
 }
-function automationBrief(a) { return { id: a.id, name: a.name || '', bbsDefault: !!a.bbsDefault, active: a.active !== false, steps: Array.isArray(a.steps) ? a.steps : [], stepCount: (a.steps || []).length, updatedAt: a.updatedAt || '' }; }
+function smsNotifyEnabled() { const s = loadSettings(); return s.smsNotifyEnabled === true; }
+function automationBrief(a, user) { return { id: a.id, name: a.name || '', bbsDefault: !!a.bbsDefault, active: a.active !== false, scope: (a.scope === 'private' ? 'private' : 'shared'), ownerUser: a.ownerUser || '', ownerName: a.ownerName || '', mine: !!(user && (a.ownerUser === user.username || isSuper(user))), steps: Array.isArray(a.steps) ? a.steps : [], stepCount: (a.steps || []).length, updatedAt: a.updatedAt || '' }; }
 function enrollPerson(p, plan, opts) {
   opts = opts || {};
   if (!p || !plan || !Array.isArray(plan.steps) || !plan.steps.length) return null;
@@ -3088,6 +3112,14 @@ function enrollPerson(p, plan, opts) {
 }
 async function runAutomationStep(p, en, step) {
   if (step.type === 'notification') {
+    if (step.channel === 'text') {
+      if (!smsNotifyEnabled() || !isSmsConfigured()) return 'skipped: text notifications not enabled';
+      let ph = ''; try { const _u = auth.loadUsers().find(function (u) { return u.username === en.enrolledByUser; }); ph = _u && _u.phone ? _u.phone : ''; } catch (e) {}
+      if (!ph) return 'skipped: rep has no mobile number for text';
+      const _lnk = String(process.env.APP_URL || '').replace(/\/+$/, '') + '/rrg_person.html?id=' + encodeURIComponent(p.id);
+      const smsBody = (mergeTokens(step.message, p) + ' — ' + (p.name || 'a contact') + (p.company ? (' (' + p.company + ')') : '') + ' ' + _lnk).slice(0, 600);
+      try { await sendSms(ph, smsBody); logActivity(p, 'Note', 'Automation text notification sent to rep', { auto: true, by: 'Automation' }); return 'notification texted to ' + ph; } catch (e) { return 'notify text error: ' + (e && e.message); }
+    }
     const to = (step.notifyEmail && step.notifyEmail.trim()) || en.replyTo || mailFrom();
     if (!to) return 'skipped: no notify recipient';
     if (!isEmailConfigured()) return 'skipped: email not configured';
@@ -3475,24 +3507,28 @@ app.get('/api/payments', (req, res) => {
   res.json({ ok: true, isAdmin: !!admin, methods: PAYMENT_METHODS, total: total, payments: rows });
 });
 
-app.get('/api/automations', (req, res) => { res.json({ ok: true, automations: loadAutomations().map(automationBrief), isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.get('/api/automations', (req, res) => { const u = req.user || {}; const vis = loadAutomations().filter(a => (a.scope !== 'private') || a.ownerUser === u.username || isSuper(u)); res.json({ ok: true, automations: vis.map(a => automationBrief(a, u)), isAdmin: !!(req.user && isSuper(req.user)), smsNotify: smsNotifyEnabled(), smsReady: isSmsConfigured(), me: u.username || '' }); });
+app.get('/api/admin/automation-sms', requireAdmin, (req, res) => res.json({ ok: true, enabled: smsNotifyEnabled(), configured: isSmsConfigured() }));
+app.post('/api/admin/automation-sms', requireAdmin, express.json(), (req, res) => { const s = loadSettings(); s.smsNotifyEnabled = !!(req.body && req.body.enabled); saveSettings(s); res.json({ ok: true, enabled: smsNotifyEnabled(), configured: isSmsConfigured() }); });
 app.post('/api/admin/automations', requireAdmin, express.json({ limit: '1mb' }), (req, res) => {
-  const b = req.body || {}; const all = loadAutomations();
+  const u = req.user || {}; const b = req.body || {}; const all = loadAutomations();
   const name = String(b.name || '').trim().slice(0, 120); if (!name) return res.status(400).json({ ok: false, error: 'Name the automation.' });
   let a;
   if (b.id) { a = all.find(x => x.id === b.id); if (!a) return res.status(404).json({ ok: false, error: 'Automation not found.' }); }
-  else { a = { id: newAutomationId(), createdAt: new Date().toISOString(), active: true }; all.push(a); }
+  else { a = { id: newAutomationId(), createdAt: new Date().toISOString(), active: true, ownerUser: u.username || '', ownerName: u.name || u.username || '', scope: 'shared' }; all.push(a); }
+  if (!a.ownerUser) { a.ownerUser = u.username || ''; a.ownerName = u.name || u.username || ''; }
   a.name = name;
   if (b.steps !== undefined) a.steps = cleanAutoSteps(b.steps);
   if (b.active !== undefined) a.active = !!b.active;
-  if (b.bbsDefault !== undefined) { if (b.bbsDefault) all.forEach(x => { x.bbsDefault = false; }); a.bbsDefault = !!b.bbsDefault; }
+  if (b.scope !== undefined) a.scope = (b.scope === 'private' ? 'private' : 'shared');
+  if (b.bbsDefault !== undefined) { if (b.bbsDefault) { if (a.scope === 'private') a.scope = 'shared'; all.forEach(x => { x.bbsDefault = false; }); } a.bbsDefault = !!b.bbsDefault; }
   a.updatedAt = new Date().toISOString(); saveAutomations(all);
-  res.json({ ok: true, automation: automationBrief(a), automations: all.map(automationBrief) });
+  res.json({ ok: true, automation: automationBrief(a, u), automations: all.map(x => automationBrief(x, u)) });
 });
 app.delete('/api/admin/automations/:id', requireAdmin, (req, res) => {
   let all = loadAutomations(); const before = all.length; all = all.filter(x => x.id !== req.params.id);
   if (all.length === before) return res.status(404).json({ ok: false, error: 'Not found.' });
-  saveAutomations(all); res.json({ ok: true, automations: all.map(automationBrief) });
+  saveAutomations(all); res.json({ ok: true, automations: all.map(x => automationBrief(x, req.user || {})) });
 });
 app.post('/api/person/:id/enroll', express.json(), (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
@@ -4216,7 +4252,7 @@ app.get('/api/person/:id', (req, res) => {
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
     (o.inquiries || []).forEach(x => { const _m = (x.personId && x.personId === p.id) || (x.email && _pEmails.indexOf(String(x.email).toLowerCase()) >= 0); if (_m && !interested.some(it => it.key === key)) interested.push({ key: key, business: biz, status: x.status || 'New', inquiryId: x.id, date: x.date || x.createdAt || '', source: x.source || '', stage: _keyStage ? _keyStage.label : '', stageDone: _keyStage ? _keyStage.done : 0, stageTotal: _keyStage ? _keyStage.total : 0 }); });
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, interested, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: loadAutomations().filter(a => a.active !== false).map(automationBrief), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, interested, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === (req.user && req.user.username) || (req.user && isSuper(req.user)))).map(a => automationBrief(a, req.user || {})), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
@@ -5353,7 +5389,10 @@ app.get('/api/counts', (req, res) => {
   const _rnow = Date.now(); const _sla = { Urgent: 1, High: 2, Normal: 4 };
   loadTickets().forEach(t => { if (!canSeeTicket(req, t)) return; const st = t.status || 'Open'; if (st === 'Closed' || st === 'Answered') return; const created = Date.parse(t.createdAt || t.at || '') || 0; if (!created) return; const ageDays = (_rnow - created) / 86400000; const sla = (_sla[t.priority] != null) ? _sla[t.priority] : 4; if (ageDays > sla) reqOverdue++; });
   const overdue = { 'rrg_tasks.html': tasksOverdue, 'rrg_tickets.html': reqOverdue };
-  res.json({ ok: true, counts, active, expiring, overdue });
+  let tasksToday = 0;
+  loadTasks().forEach(t => { if (t.status === 'open' && taskVisible(t, req) && t.due && String(t.due).slice(0, 10) === _ts) tasksToday++; });
+  const dueToday = { 'rrg_tasks.html': tasksToday };
+  res.json({ ok: true, counts, active, expiring, overdue, dueToday });
 });
 // ---- Command Center — management + prospecting intelligence across the book & pipeline ----
 function daysUntil(dateStr) {
@@ -7229,15 +7268,39 @@ function dashboardData(req) {
   const markets = Object.keys(mk).map(m => ({ label: m, value: mk[m] })).sort((a, b) => b.value - a.value).slice(0, 6);
   return { kpis, pipeline, tasks, activity: acts, markets, dealStatus, contactsByType, expiring: expiring.slice(0, 7), expiringTotal: expiring.length, agreementsOut, listingsTotal: listings.length };
 }
+function dashboardPipeline(req, pid) {
+  const ov = loadAssignOverlay(), idx = assignmentsIndex();
+  const pipes = loadPipelines();
+  const pipe = pipes.find(p => p.id === pid) || pipes.find(p => p.id === 'p_bizsales') || pipes[0] || { id: pid, name: '', stages: [] };
+  pid = pipe.id;
+  const stageNames = (pipe.stages || []).map(x => x.name);
+  const counts = {}; stageNames.forEach(n => counts[n] = 0);
+  let value = 0;
+  Object.keys(idx).forEach(k => {
+    const o = ov[k] || {};
+    if ((o.pipelineId || 'p_bizsales') !== pid) return;
+    let st = o.pipelineStage;
+    if (stageNames.indexOf(st) < 0) { try { const ss = listingStageSummary(idx[k], ov); const si = Math.max(0, Math.min(ss.done || 0, stageNames.length - 1)); st = stageNames[si] || stageNames[0]; } catch (e) { st = stageNames[0]; } }
+    if (st) counts[st] = (counts[st] || 0) + 1;
+    try { value += _dmoney(assignmentView(idx[k], ov).value); } catch (e) {}
+  });
+  return { id: pid, name: pipe.name || '', stages: stageNames.map(n => ({ name: n, count: counts[n] || 0 })), value };
+}
+app.get('/api/dashboard/pipeline', (req, res) => { try { res.json(Object.assign({ ok: true }, dashboardPipeline(req, String(req.query.pipelineId || '')))); } catch (e) { res.status(500).json({ ok: false, error: 'Could not load pipeline.' }); } });
+app.get('/api/online', (req, res) => { res.json({ ok: true, online: onlineUsers() }); });
 app.get('/api/dashboard', (req, res) => {
   const u = req.user || {}; const cfgs = loadDashCfgs(); const mine = cfgs[u.username];
   const layout = (mine && Array.isArray(mine.mods) && mine.mods.length) ? mine.mods.filter(k => DASH_MODULES.some(m => m.k === k)) : DASH_DEFAULT.slice();
-  res.json({ ok: true, modules: DASH_MODULES, layout, data: dashboardData(req), name: u.name || '', isAdmin: !!(req.user && isSuper(req.user)), assistant: effAssistantName(), build: ADMIN_BUILD, version: APP_VERSION, buildNo: BUILD_META.build, sha: BUILD_META.sha, booted: SERVER_BOOT.toISOString(), online: onlineUsers() });
+  res.json({ ok: true, modules: DASH_MODULES, layout, data: dashboardData(req), name: u.name || '', isAdmin: !!(req.user && isSuper(req.user)), assistant: effAssistantName(), build: ADMIN_BUILD, version: APP_VERSION, buildNo: BUILD_META.build, sha: BUILD_META.sha, booted: SERVER_BOOT.toISOString(), online: onlineUsers(), pipelines: loadPipelines().map(p => ({ id: p.id, name: p.name })), pipelineSel: (mine && mine.pipelineSel) || {}, onlineRefresh: (mine && mine.onlineRefresh) || null });
 });
 app.post('/api/dashboard', express.json(), (req, res) => {
   const u = req.user || {}; if (!u.username) return res.status(401).json({ ok: false, error: 'Not signed in.' });
-  const b = req.body || {}; const mods = Array.isArray(b.mods) ? b.mods.filter(k => DASH_MODULES.some(m => m.k === k)).slice(0, 20) : DASH_DEFAULT.slice();
-  const cfgs = loadDashCfgs(); cfgs[u.username] = { mods, updatedAt: new Date().toISOString() }; saveDashCfgs(cfgs);
+  const b = req.body || {}; const cfgs = loadDashCfgs(); const prev = cfgs[u.username] || {};
+  const mods = Array.isArray(b.mods) ? b.mods.filter(k => DASH_MODULES.some(m => m.k === k)).slice(0, 20) : ((Array.isArray(prev.mods) && prev.mods.length) ? prev.mods : DASH_DEFAULT.slice());
+  const pipelineSel = (b.pipelineSel && typeof b.pipelineSel === 'object') ? b.pipelineSel : (prev.pipelineSel || {});
+  let onlineRefresh = prev.onlineRefresh || null;
+  if (b.onlineRefresh && typeof b.onlineRefresh === 'object') { onlineRefresh = { on: !!b.onlineRefresh.on, secs: Math.max(5, Math.min(600, parseInt(b.onlineRefresh.secs, 10) || 30)) }; }
+  cfgs[u.username] = { mods, pipelineSel, onlineRefresh, updatedAt: new Date().toISOString() }; saveDashCfgs(cfgs);
   res.json({ ok: true, layout: mods });
 });
 
@@ -7340,7 +7403,11 @@ app.get('/api/tasks', (req, res) => {
   const deals = [];
   try { const ov = loadAssignOverlay(), idx = assignmentsIndex(); for (const k in idx) { try { deals.push({ key: k, business: assignmentView(idx[k], ov).business }); } catch (e) {} } } catch (e) {}
   deals.sort((a, b) => String(a.business || '').localeCompare(String(b.business || '')));
-  res.json({ ok: true, tasks: mine, contacts, deals, priorities: TASK_PRIORITIES, activityTypes: effActivityTypes(), emailReady: isEmailConfigured(), smsReady: isSmsConfigured(), isAdmin: !!(req.user && isSuper(req.user)), me: (req.user && req.user.username) || '' });
+  const users = auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name)));
+  const _tcnt = {}; all.forEach(t => { const x = String(t.title || '').trim(); if (x) _tcnt[x] = (_tcnt[x] || 0) + 1; });
+  const _seedTitles = ['Call', 'Email', 'Follow up with', 'Send listing agreement to', 'Send NDA to', 'Send CIM to', 'Schedule tour with', 'Confirm tour with', 'Prepare BOV for', 'Send BOV to', 'Check in with', 'Send offer to', 'Review offer from', 'Draft LOI for', 'Collect financials from', 'Request P&L from', 'Update seller on', 'Circle back with'];
+  const titleSuggestions = Array.from(new Set(Object.keys(_tcnt).sort((a, b) => _tcnt[b] - _tcnt[a]).concat(_seedTitles))).slice(0, 60);
+  res.json({ ok: true, tasks: mine, contacts, deals, users, titleSuggestions, priorities: TASK_PRIORITIES, activityTypes: effActivityTypes(), emailReady: isEmailConfigured(), smsReady: isSmsConfigured(), isAdmin: !!(req.user && isSuper(req.user)), me: (req.user && req.user.username) || '' });
 });
 app.post('/api/tasks', express.json(), (req, res) => {
   const b = req.body || {}; const all = loadTasks(); const now = new Date().toISOString();
@@ -7364,7 +7431,8 @@ app.post('/api/tasks', express.json(), (req, res) => {
   if (typeof b.priority === 'string') t.priority = TASK_PRIORITIES.indexOf(b.priority) >= 0 ? b.priority : (t.priority || 'Normal');
   if (typeof b.type === 'string') t.type = effActivityTypes().indexOf(b.type) >= 0 ? b.type : (b.type === '' ? '' : (t.type || ''));
   if (!t.priority) t.priority = 'Normal';
-  t.assignee = t.createdBy || meU || ''; t.assigneeName = t.assigneeName || t.createdByName || (req.user && req.user.name) || '';
+  if (typeof b.assignee === 'string' && b.assignee && findUser(b.assignee)) { const _au = findUser(b.assignee); t.assignee = _au.username; t.assigneeName = _au.name || _au.username; }
+  else if (!t.assignee) { t.assignee = t.createdBy || meU || ''; t.assigneeName = t.createdByName || (req.user && req.user.name) || ''; }
   if (typeof b.status === 'string' && ['open', 'done'].indexOf(b.status) >= 0) { t.status = b.status; t.doneAt = b.status === 'done' ? now : ''; }
   if (typeof b.linkType === 'string') t.linkType = ['contact', 'deal', ''].indexOf(b.linkType) >= 0 ? b.linkType : (t.linkType || '');
   if (typeof b.linkId === 'string') t.linkId = b.linkId.slice(0, 60);
@@ -7677,7 +7745,7 @@ function fmtSignVal(type, val) {
   if (type === 'currency') { const raw = val.replace(/[^0-9.\-]/g, ''); const c = Number(raw); return (raw !== '' && isFinite(c)) ? ('$' + c.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : val; }
   return val;
 }
-function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], emailMessage: t.emailMessage || '', pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: _clampSigners(t.signerCount), signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', signer3Label: t.signer3Label || 'Signer 3', active: t.active !== false, updatedAt: t.updatedAt || '', createdAt: t.createdAt || '' }; }
+function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], emailMessage: t.emailMessage || '', pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: _clampSigners(t.signerCount), signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', signer3Label: t.signer3Label || 'Signer 3', active: t.active !== false, updatedAt: t.updatedAt || '', createdAt: t.createdAt || '', lastUsedAt: t.lastUsedAt || '', useCount: t.useCount || 0 }; }
 app.get('/api/agreement-templates', (req, res) => {
   const isAdmin = !!(req.user && isSuper(req.user));
   let all = loadTemplates().map(templateBrief);
@@ -7733,10 +7801,12 @@ function cleanPdfFields(arr) {
     page: Math.max(0, Math.min(999, parseInt((f && f.page) || 0, 10) || 0)),
     x: clamp01(f && f.x), y: clamp01(f && f.y), w: clamp01(f && f.w) || 0.18, h: clamp01(f && f.h) || 0.03,
     type: T.indexOf(String(f && f.type)) >= 0 ? String(f.type) : 'text',
-    signer: (parseInt((f && f.signer), 10) === 2) ? 2 : 1,
+    signer: (function(){ var n = parseInt((f && f.signer), 10); return (n === 2 || n === 3) ? n : 1; })(),
     label: String((f && f.label) || '').slice(0, 80),
     required: !!(f && f.required),
-    autofill: String((f && f.autofill) || '').slice(0, 20)
+    autofill: String((f && f.autofill) || '').slice(0, 20),
+    font: String((f && f.font) || '').slice(0, 30),
+    fontSize: (function(){ var n = parseFloat(f && f.fontSize); return (isFinite(n) && n > 0) ? Math.max(5, Math.min(48, n)) : ''; })()
   }));
 }
 app.post('/api/admin/agreement-templates/:id/fields', requireAdmin, express.json({ limit: '1mb' }), (req, res) => {
@@ -7765,6 +7835,7 @@ app.post('/api/agreements/:id/apply-template', express.json(), (req, res) => {
   } catch (e) { return res.status(500).json({ ok: false, error: 'Could not copy the template document.' }); }
   a.docExt = t.fileExt; a.docName = t.fileName || ('template.' + t.fileExt);
   a.templateId = t.id; a.templateName = t.name || '';
+  try { const _tpls = loadTemplates(); const _tp = _tpls.find(x => x.id === t.id); if (_tp) { _tp.useCount = (_tp.useCount || 0) + 1; _tp.lastUsedAt = new Date().toISOString(); saveTemplates(_tpls); } } catch (e) {}
   a.pdfFields = Array.isArray(t.pdfFields) ? t.pdfFields : [];
   a.signerCount = _clampSigners(t.signerCount);
   a.signer1Label = t.signer1Label || 'Signer 1';
@@ -7912,6 +7983,9 @@ async function burnFinalPdf(a) {
   const pdf = await PDFDocument.load(bytes);
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const times = await pdf.embedFont(StandardFonts.TimesRoman);
+  const courier = await pdf.embedFont(StandardFonts.Courier);
+  const _fontFor = function (nm) { nm = String(nm || '').toLowerCase(); if (nm.indexOf('times') >= 0 || nm.indexOf('palatino') >= 0 || nm.indexOf('georgia') >= 0 || nm.indexOf('serif') >= 0) return times; if (nm.indexOf('courier') >= 0 || nm.indexOf('mono') >= 0) return courier; return font; };
   const pages = pdf.getPages();
   for (const f of (a.pdfFields || [])) {
     const page = pages[f.page]; if (!page) continue;
@@ -7923,7 +7997,7 @@ async function burnFinalPdf(a) {
     } else if (f.type === 'checkbox') {
       const v = (a.fieldValues && a.fieldValues[f.id]); if (v === '1' || v === true || v === 'true') { const s = Math.min(bw, bh); page.drawText('X', { x: bx + Math.max(1, (bw - s * 0.6) / 2), y: byBottom + Math.max(1, (bh - s * 0.72) / 2), size: s * 0.9, font: bold, color: rgb(0.05, 0.09, 0.2) }); }
     } else {
-      const v = fmtSignVal(f.type, String((a.fieldValues && a.fieldValues[f.id]) || '')); if (v) { const size = Math.max(7, Math.min(12, bh * 0.62)); page.drawText(v.slice(0, 120), { x: bx + 2, y: byBottom + Math.max(2, (bh - size) / 2), size, font, color: rgb(0.05, 0.09, 0.2) }); }
+      const v = fmtSignVal(f.type, String((a.fieldValues && a.fieldValues[f.id]) || '')); if (v) { const _fsz = parseFloat(f.fontSize); const size = (isFinite(_fsz) && _fsz > 0) ? Math.max(5, Math.min(48, _fsz)) : Math.max(7, Math.min(12, bh * 0.62)); const _ff = _fontFor(f.font); page.drawText(v.slice(0, 120), { x: bx + 2, y: byBottom + Math.max(2, (bh - size) / 2), size, font: _ff, color: rgb(0.05, 0.09, 0.2) }); }
     }
   }
   const ap = pdf.addPage(); const asz = ap.getSize(); const ah = asz.height; let y = ah - 60;

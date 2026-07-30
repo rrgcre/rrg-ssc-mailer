@@ -53,6 +53,7 @@ textarea{resize:vertical;min-height:80px;line-height:1.5;}
 .notadmin{background:#fff;border:1px solid var(--line);border-radius:14px;padding:30px;text-align:center;color:var(--muted);font-size:14px;}
 .waitrow{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#5b6472;font-weight:600;}
 </style>
+<style>.tokbar{display:flex;flex-wrap:wrap;gap:5px;margin:2px 0 12px}.tokchip{background:#eef3fb;border:1px solid #d3e2f6;color:#2f6fd0;border-radius:100px;padding:3px 10px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer}.tokchip:hover{background:#e2eefb}.chanrow{display:flex;align-items:center;gap:8px;margin-bottom:6px}.chanrow select{font:inherit;font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:8px;background:#fff}</style>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
@@ -62,11 +63,15 @@ textarea{resize:vertical;min-height:80px;line-height:1.5;}
   <div id="root"></div>
 </div>
 <script>
-var PLANS=[], CTL=null, BUILT=false, IS_ADMIN=false, EDIT=null, STEPS=[], DEL_ARM=false, ETPLS=[];
+var PLANS=[], CTL=null, BUILT=false, IS_ADMIN=false, EDIT=null, STEPS=[], DEL_ARM=false, ETPLS=[], SMSNOTIFY=false, SMSREADY=false, ME='';
+var TOKENS=[['{{first_name}}','First name'],['{{last_name}}','Last name'],['{{name}}','Full name'],['{{company}}','Company'],['{{title}}','Title'],['{{email}}','Email'],['{{phone}}','Phone'],['{{listing_name}}','Listing name'],['{{listing_number}}','Listing #'],['{{my_name}}','My name'],['{{my_email}}','My email'],['{{my_phone}}','My phone'],['{{today}}','Today']];
+var LASTFLD=null;
+function tokBar(){ return '<div class="tokbar">'+TOKENS.map(function(t){return '<button type="button" class="tokchip" data-tok="'+t[0]+'">'+esc(t[1])+'</button>';}).join('')+'</div>'; }
+function insTok(tok){ var el=LASTFLD; if(!el){ return; } var st=el.selectionStart||0,en=el.selectionEnd||0,v=el.value; el.value=v.slice(0,st)+tok+v.slice(en); var np=st+tok.length; el.focus(); try{el.setSelectionRange(np,np);}catch(e){} collectSteps(); }
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function fmt(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]+'/'+x[0]; }
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
-var LIST_SHELL='<div class="card"><div class="hd"><b>Automations</b><span class="meta" id="tcount"></span><span class="sp"></span><button class="btn sm pri" id="t_new">+ New automation</button></div><div class="cb"><div id="tlist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';
+var LIST_SHELL='<div class="card" id="smsCard" style="display:none;margin-bottom:12px"><div class="cb" style="padding:12px 14px"><label class="chk" style="margin:0"><input type="checkbox" id="smsToggle"> Allow <b style="margin:0 4px">text (SMS)</b> notifications in automations</label><div class="note" id="smsHint" style="margin:6px 0 0"></div></div></div><div class="card"><div class="hd"><b>Automations</b><span class="meta" id="tcount"></span><span class="sp"></span><button class="btn sm pri" id="t_new">+ New automation</button></div><div class="cb"><div id="tlist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';
 function actionsCell(p){ return '<div class="acts"><button class="btn ghost sm" data-edit="'+esc(p.id)+'">Edit</button><button class="btn danger sm" data-del="'+esc(p.id)+'">Delete</button></div>'; }
 function listCfg(){ return { mount:'#tlist', data:PLANS, key:'automations',
   empty:'<div class="empty">No automations yet. Click <b>+ New automation</b> to build your first sequence.</div>',
@@ -75,6 +80,7 @@ function listCfg(){ return { mount:'#tlist', data:PLANS, key:'automations',
     { label:'Automation', sort:function(a,b){return RRGList.cmp(a.name,b.name);}, cell:function(p){ return '<a class="lk" href="#" data-edit="'+esc(p.id)+'">'+esc(p.name||'Untitled')+'</a>'; } },
     { label:'BizBuySell', sort:function(a,b){return (b.bbsDefault?1:0)-(a.bbsDefault?1:0);}, cell:function(p){ return p.bbsDefault?'<span class="badge bbs">BBS default</span>':'<span class="meta">—</span>'; } },
     { label:'Status', sort:function(a,b){return (a.active===false?1:0)-(b.active===false?1:0);}, cell:function(p){ return p.active===false?'<span class="badge off">Off</span>':'<span class="badge on">Active</span>'; } },
+    { label:'Visibility', sort:function(a,b){return RRGList.cmp(a.scope||'shared',b.scope||'shared');}, cell:function(p){ var who=p.ownerName?(' <span class="meta">· '+esc(p.ownerName)+'</span>'):''; return (p.scope==='private'?'<span class="badge off">Private</span>':'<span class="badge on">Shared</span>')+who; } },
     { label:'Steps', sort:function(a,b){return RRGList.cmp(a.stepCount,b.stepCount);}, cell:function(p){ var n=p.stepCount||0; return n?esc(n+' step'+(n===1?'':'s')):'<span class="meta">—</span>'; } },
     { label:'Updated', sort:function(a,b){return RRGList.cmp(a.updatedAt,b.updatedAt);}, cell:function(p){ return '<span class="meta">'+esc(fmt(p.updatedAt))+'</span>'; } },
     { label:'', sortable:false, cell:actionsCell }
@@ -84,7 +90,7 @@ function curById(id){ return PLANS.filter(function(p){return p.id===id;})[0]||nu
 
 function initSteps(){
   var p=EDIT;
-  STEPS=(p&&p.steps&&p.steps.length)?p.steps.map(function(s){ return {type:(['task','notification'].indexOf(s.type)>=0?s.type:'email'),delayDays:(s.delayDays||0),subject:s.subject||'',body:s.body||'',taskTitle:s.taskTitle||'',taskNote:s.taskNote||'',message:s.message||'',notifyEmail:s.notifyEmail||''}; }):((p&&p.id)?[]:[{type:'email',delayDays:0,subject:'',body:'',taskTitle:'',taskNote:''}]);
+  STEPS=(p&&p.steps&&p.steps.length)?p.steps.map(function(s){ return {type:(['task','notification'].indexOf(s.type)>=0?s.type:'email'),delayDays:(s.delayDays||0),subject:s.subject||'',body:s.body||'',taskTitle:s.taskTitle||'',taskNote:s.taskNote||'',message:s.message||'',notifyEmail:s.notifyEmail||'',channel:(s.channel==='text'?'text':'email')}; }):((p&&p.id)?[]:[{type:'email',delayDays:0,subject:'',body:'',taskTitle:'',taskNote:''}]);
 }
 function renderSteps(){
   var box=document.getElementById('stepBox'); if(!box) return;
@@ -94,7 +100,10 @@ function renderSteps(){
     var typeSel='<select class="st-type" data-i="'+i+'"><option value="email"'+(s.type==='email'?' selected':'')+'>Send email</option><option value="task"'+(s.type==='task'?' selected':'')+'>Create task</option><option value="notification"'+(s.type==='notification'?' selected':'')+'>Send notification</option></select>';
     var content;
     if(s.type==='notification'){
-      content='<div class="stx"><label>Notify who? (email — leave blank to alert the enrolling rep)</label><input type="text" class="st-notifyemail" data-i="'+i+'" value="'+esc(s.notifyEmail||'')+'" placeholder="teammate@rrgcre.com"><label>Notification message</label><textarea class="st-message" data-i="'+i+'" placeholder="e.g. {{first_name}} is a hot buyer — give them a personal call today.">'+esc(s.message||'')+'</textarea></div>';
+      var _txAvail=(SMSNOTIFY&&SMSREADY);
+      var _chanOpts='<option value="email"'+(s.channel!=='text'?' selected':'')+'>Email</option>'+(_txAvail?('<option value="text"'+(s.channel==='text'?' selected':'')+'>Text (SMS) to the rep</option>'):'');
+      var _emailBlock=(s.channel==='text'&&_txAvail)?'<div class="note" style="margin:0 0 6px">Texts the enrolling rep on their mobile number.</div>':('<label>Notify who? (email — leave blank to alert the enrolling rep)</label><input type="text" class="st-notifyemail" data-i="'+i+'" value="'+esc(s.notifyEmail||'')+'" placeholder="teammate@rrgcre.com">');
+      content='<div class="stx"><div class="chanrow"><label style="margin:0">Send as</label><select class="st-channel" data-i="'+i+'">'+_chanOpts+'</select></div>'+_emailBlock+'<label>Notification message</label><textarea class="st-message" data-i="'+i+'" placeholder="e.g. {{first_name}} is a hot buyer — give them a personal call today.">'+esc(s.message||'')+'</textarea></div>';
     } else if(s.type==='task'){
       content='<div class="stx"><label>Task title</label><input type="text" class="st-tasktitle" data-i="'+i+'" value="'+esc(s.taskTitle||'')+'" placeholder="e.g. Call {{first_name}} about their search"><label>Task note (optional)</label><textarea class="st-tasknote" data-i="'+i+'" placeholder="Details for the rep…">'+esc(s.taskNote||'')+'</textarea></div>';
     } else {
@@ -106,6 +115,8 @@ function renderSteps(){
       +content+'</div>';
   }).join('');
   Array.prototype.forEach.call(box.querySelectorAll('.st-type'),function(el){ el.onchange=function(){ collectSteps(); STEPS[+el.getAttribute('data-i')].type=el.value; renderSteps(); }; });
+  Array.prototype.forEach.call(box.querySelectorAll('.st-channel'),function(el){ el.onchange=function(){ collectSteps(); STEPS[+el.getAttribute('data-i')].channel=el.value; renderSteps(); }; });
+  Array.prototype.forEach.call(box.querySelectorAll('.st-subject,.st-body,.st-message,.st-tasktitle,.st-tasknote'),function(el){ el.addEventListener('focus',function(){ LASTFLD=el; }); });
   Array.prototype.forEach.call(box.querySelectorAll('.st-tplpick'),function(el){ el.onchange=function(){ if(!el.value) return; var t=(ETPLS||[]).filter(function(x){return x.id===el.value;})[0]; if(!t) return; collectSteps(); var i=+el.getAttribute('data-i'); STEPS[i].subject=t.subject||''; STEPS[i].body=t.body||''; renderSteps(); }; });
   Array.prototype.forEach.call(box.querySelectorAll('.ib.up'),function(b){ b.onclick=function(){ moveStep(+b.getAttribute('data-i'),-1); }; });
   Array.prototype.forEach.call(box.querySelectorAll('.ib.dn'),function(b){ b.onclick=function(){ moveStep(+b.getAttribute('data-i'),1); }; });
@@ -122,6 +133,7 @@ function collectSteps(){
     var tn=row.querySelector('.st-tasknote'); if(tn) s.taskNote=tn.value;
     var nm=row.querySelector('.st-message'); if(nm) s.message=nm.value;
     var ne=row.querySelector('.st-notifyemail'); if(ne) s.notifyEmail=ne.value;
+    var ch=row.querySelector('.st-channel'); if(ch) s.channel=ch.value;
   });
 }
 function moveStep(i,d){ collectSteps(); var j=i+d; if(j<0||j>=STEPS.length) return; var t=STEPS[i]; STEPS[i]=STEPS[j]; STEPS[j]=t; renderSteps(); }
@@ -133,36 +145,39 @@ function renderEditor(){
     +'<div class="fld" style="margin-bottom:14px"><label>Automation name</label><input type="text" id="pName" value="'+esc(p.name||'')+'" placeholder="e.g. BizBuySell buyer nurture" style="max-width:460px"></div>'
     +'<label class="chk"><input type="checkbox" id="pBbs"'+(p.bbsDefault?' checked':'')+'> Make this the <b style="margin:0 4px">BizBuySell default</b> — every imported BBS lead auto-enrolls</label>'
     +'<label class="chk"><input type="checkbox" id="pActive"'+((p.active===false)?'':' checked')+'> Active (reps can apply it; the default runs)</label>'
-    +'<div class="stephd"><b>Steps</b><span class="tokens" style="margin-left:10px">Tokens: <code>{{first_name}}</code> <code>{{name}}</code> <code>{{company}}</code></span></div>'
+    +'<div class="fld" style="margin:6px 0 4px"><label>Visibility</label><select id="pScope" style="max-width:340px"><option value="shared"'+((p.scope!=='private')?' selected':'')+'>Shared — everyone on the team can use it</option><option value="private"'+((p.scope==='private')?' selected':'')+'>Private — only you (and admins)</option></select></div>'
+    +'<div class="stephd"><b>Steps</b></div><div class="note" style="margin:2px 0 8px">Click a token to drop it into the field you last clicked:</div>'+tokBar()
     +'<div id="stepBox"></div>'
     +'<div style="margin-top:6px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn" id="addEmail">+ Email step</button><button type="button" class="btn" id="addTask">+ Task step</button><button type="button" class="btn" id="addNotify">+ Notify step</button></div>'
     +'<div class="note">The first step fires when a contact is enrolled (set its wait to 0 days). Each later step waits that many days after the previous one. Emails only go to contacts with a valid email; if email isn’t set up or a contact has none, that step is skipped and noted — the sequence keeps going.</div>'
     +'</div></div>';
   renderSteps();
   document.getElementById('saveBtn').onclick=save;
+  Array.prototype.forEach.call(host.querySelectorAll('.tokchip'),function(c){ c.onclick=function(){ insTok(c.getAttribute('data-tok')); }; });
   document.getElementById('closeBtn').onclick=function(){ EDIT=null; renderEditor(); };
-  document.getElementById('addEmail').onclick=function(){ collectSteps(); STEPS.push({type:'email',delayDays:(STEPS.length?5:0),subject:'',body:'',taskTitle:'',taskNote:'',message:'',notifyEmail:''}); renderSteps(); };
-  document.getElementById('addTask').onclick=function(){ collectSteps(); STEPS.push({type:'task',delayDays:(STEPS.length?5:0),subject:'',body:'',taskTitle:'',taskNote:'',message:'',notifyEmail:''}); renderSteps(); };
-  document.getElementById('addNotify').onclick=function(){ collectSteps(); STEPS.push({type:'notification',delayDays:(STEPS.length?3:0),subject:'',body:'',taskTitle:'',taskNote:'',message:'',notifyEmail:''}); renderSteps(); };
+  document.getElementById('addEmail').onclick=function(){ collectSteps(); STEPS.push({type:'email',delayDays:(STEPS.length?5:0),subject:'',body:'',taskTitle:'',taskNote:'',message:'',notifyEmail:'',channel:'email'}); renderSteps(); };
+  document.getElementById('addTask').onclick=function(){ collectSteps(); STEPS.push({type:'task',delayDays:(STEPS.length?5:0),subject:'',body:'',taskTitle:'',taskNote:'',message:'',notifyEmail:'',channel:'email'}); renderSteps(); };
+  document.getElementById('addNotify').onclick=function(){ collectSteps(); STEPS.push({type:'notification',delayDays:(STEPS.length?3:0),subject:'',body:'',taskTitle:'',taskNote:'',message:'',notifyEmail:'',channel:'email'}); renderSteps(); };
   var db=document.getElementById('delBtn'); if(db) db.onclick=onDelete;
 }
 function render(){
   var root=document.getElementById('root');
   if(!IS_ADMIN){ root.innerHTML='<div class="notadmin">Automations are admin-only. Ask a FullServe administrator to set up a plan.</div>'; return; }
   if(!BUILT){ root.innerHTML=LIST_SHELL; BUILT=true; document.getElementById('t_new').onclick=newPlan; }
+  var sc=document.getElementById('smsCard'); if(sc){ sc.style.display=IS_ADMIN?'':'none'; var tg=document.getElementById('smsToggle'); if(tg){ tg.checked=SMSNOTIFY; tg.disabled=!SMSREADY; if(!tg._wired){ tg._wired=true; tg.onchange=function(){ api('POST','/api/admin/automation-sms',{enabled:tg.checked}).then(function(j){ if(j&&j.ok){ SMSNOTIFY=!!j.enabled; if(EDIT&&document.getElementById('stepBox')) renderSteps(); } }); }; } var h=document.getElementById('smsHint'); if(h) h.innerHTML=SMSREADY?'When on, a notification step can text the enrolling rep instead of emailing. Each rep needs a mobile number on file.':'Set up SMS (Twilio) in Admin → SMS first, then you can enable texting here.'; } }
   refreshList(); renderEditor();
 }
 function openEdit(id){ var p=curById(id); if(!p) return; EDIT=JSON.parse(JSON.stringify(p)); renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
-function newPlan(){ EDIT={id:'',name:'',active:true,bbsDefault:false,steps:[]}; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
+function newPlan(){ EDIT={id:'',name:'',active:true,bbsDefault:false,scope:'shared',steps:[]}; renderEditor(); var ed=document.getElementById('editor'); if(ed) ed.scrollIntoView({behavior:'smooth',block:'start'}); }
 function msg(t,cls){ var m=document.getElementById('msg'); if(!m) return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
-function load(){ api('GET','/api/automations').then(function(j){ IS_ADMIN=!!j.isAdmin; PLANS=j.automations||[]; render(); }); }
+function load(){ api('GET','/api/automations').then(function(j){ IS_ADMIN=!!j.isAdmin; PLANS=j.automations||[]; SMSNOTIFY=!!j.smsNotify; SMSREADY=!!j.smsReady; ME=j.me||''; render(); }); }
 function loadTpls(){ api('GET','/api/email-templates').then(function(j){ ETPLS=(j&&j.templates)||[]; if(document.getElementById('stepBox')) renderSteps(); }); }
 function save(){
   var name=(document.getElementById('pName').value||'').trim(); if(!name){ msg('Name the automation first.','err'); document.getElementById('pName').focus(); return; }
   collectSteps();
   var steps=STEPS.filter(function(s){ return s.type==='task'?(s.taskTitle||'').trim():((s.subject||'').trim()||(s.body||'').trim()); });
   if(!steps.length){ msg('Add at least one step.','err'); return; }
-  var body={ name:name, active:document.getElementById('pActive').checked, bbsDefault:document.getElementById('pBbs').checked, steps:steps };
+  var _sc=document.getElementById('pScope'); var body={ name:name, active:document.getElementById('pActive').checked, bbsDefault:document.getElementById('pBbs').checked, scope:(_sc?_sc.value:'shared'), steps:steps };
   if(EDIT&&EDIT.id) body.id=EDIT.id;
   var btn=document.getElementById('saveBtn'); btn.disabled=true;
   api('POST','/api/admin/automations',body).then(function(j){ btn.disabled=false; if(!j.ok){ msg(j.error||'Save failed.','err'); return; } PLANS=j.automations||PLANS; EDIT=j.automation||EDIT; load(); msg('Saved','ok'); });

@@ -286,7 +286,7 @@ function aiLoiParse(){
       m.textContent='Pulled '+filled+' field'+(filled===1?'':'s')+' into the builder — review, then close.';
     }).catch(function(){ btn.disabled=false; m.textContent='Network error.'; });
 }
-(function(){ var x=document.getElementById('aip_x'); if(x) x.addEventListener('click',function(){ document.getElementById('aiov').hidden=true; }); var g=document.getElementById('aip_go'); if(g) g.addEventListener('click',aiLoiParse); var ov=document.getElementById('aiov'); if(ov) ov.addEventListener('click',function(e){ if(e.target===this) this.hidden=true; }); })();
+(function(){ var x=document.getElementById('aip_x'); if(x) x.addEventListener('click',function(){ document.getElementById('aiov').hidden=true; }); var g=document.getElementById('aip_go'); if(g) g.addEventListener('click',aiLoiParse); var ov=document.getElementById('aiov'); if(ov) ov.addEventListener('click',function(e){ if(e.target===this){ /* stay open */ } }); })();
 function showAiResult(title,html){ document.getElementById('airtitle').textContent=title; document.getElementById('airbody').innerHTML=html; document.getElementById('airov').hidden=false; }
 // ---- Shared AI run state: shows a spinner + Cancel, lets the user abort, and
 // prevents a late response from re-opening a modal the user already closed. ----
@@ -326,7 +326,7 @@ function _doLoiReviewRun(txt){
      showAiResult('Review draft', h||'<div style="color:#1f8a5b;font-weight:600">✓ No issues flagged — looks clean.</div>');
    }).catch(function(e){ if(e&&e.name==='AbortError') return; if(!aiActive(req)) return; showAiResult('Review draft','Network error.'); });
 }
-(function(){ var x=document.getElementById('airx'); if(x) x.addEventListener('click',aiCancel); var ov=document.getElementById('airov'); if(ov) ov.addEventListener('click',function(e){ if(e.target===this) aiCancel(); }); })();
+(function(){ var x=document.getElementById('airx'); if(x) x.addEventListener('click',aiCancel); var ov=document.getElementById('airov'); if(ov) ov.addEventListener('click',function(e){ if(e.target===this){ /* stay open */ } }); })();
 function negoPill(st){ st=st||'Draft'; var c=({Draft:['#eef1f6','#6b7488'],Sent:['#e8f0fd','#2f6fd0'],Countered:['#fdf1df','#b5791f'],Negotiating:['#f3edfb','#7a4fd0'],Accepted:['#e7f5ee','#1f8a5b'],Dead:['#f3f4f7','#98a1b5']})[st]||['#eef1f6','#6b7488']; return '<span style="background:'+c[0]+';color:'+c[1]+';font-size:11px;font-weight:800;padding:3px 10px;border-radius:999px">'+esc(st)+'</span>'; }
 function termColor(st){ return ({Open:['#eef1f6','#6b7488'],Proposed:['#e8f0fd','#2f6fd0'],Accepted:['#e7f5ee','#1f8a5b'],Countered:['#fdf1df','#b5791f'],Rejected:['#fdeceb','#DA2B1F']})[st||'Open']||['#eef1f6','#6b7488']; }
 function openNego(id){ var body=document.getElementById('negoBody'); body.innerHTML='<div style="color:#6b7488;padding:20px">Loading…</div>'; document.getElementById('negov').hidden=false; fetch('/api/loi/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ body.innerHTML='<div style="color:#a5352c;padding:20px">'+esc((j&&j.error)||'Could not load.')+'</div>'; return; } NEGO={id:id,loi:j.loi||{},terms:j.terms||[],statuses:j.statuses||['Draft','Sent','Countered','Negotiating','Accepted','Dead'],termStates:j.termStates||['Open','Proposed','Accepted','Countered','Rejected']}; var l=NEGO.loi; document.getElementById('negoTitle').textContent=(l.type==='business_sale'?'Business Sale':'Tenant Rep')+(l.property?(' — '+l.property):'')+' · Negotiation'; renderNego(); }).catch(function(){ body.innerHTML='<div style="color:#a5352c;padding:20px">Network error.</div>'; }); }
@@ -356,7 +356,7 @@ function negoAnalyze(){ var t=document.getElementById('negoCounter').value; var 
   res.innerHTML=h; var ap=document.getElementById('negoApply'); if(ap) ap.onclick=function(){ negoApply(ch,rr.summary); };
  }).catch(function(){ btn.disabled=false; m.textContent='Network error.'; }); }
 function negoApply(changes,summary){ var patch={}; var chgList=[]; (changes||[]).forEach(function(x){ if(x&&x.key){ var st=(x.status||'').charAt(0).toUpperCase()+(x.status||'').slice(1); if(NEGO.termStates.indexOf(st)<0) st='Countered'; patch[x.key]=st; chgList.push({key:x.key,label:x.label||x.key,to:(x.to||st),status:st}); } }); saveNego({termStatus:patch,status:'Countered',round:{direction:'received',note:(summary||'Counter received'),changes:chgList},logActivity:'Countered'}); }
-document.addEventListener('click',function(e){ var mg=e.target.closest('[data-loimanage]'); if(mg){ openNego(mg.getAttribute('data-loimanage')); return; } if(e.target.closest('#negoX')){ document.getElementById('negov').hidden=true; return; } var ov=document.getElementById('negov'); if(e.target===ov){ ov.hidden=true; } });
+document.addEventListener('click',function(e){ var mg=e.target.closest('[data-loimanage]'); if(mg){ openNego(mg.getAttribute('data-loimanage')); return; } if(e.target.closest('#negoX')){ document.getElementById('negov').hidden=true; return; } var ov=document.getElementById('negov'); if(e.target===ov){ /* stay open */ } });
 
 (function(){ var nb=document.getElementById('newLoiBtn'); if(nb) nb.addEventListener('click',function(){ showBuilder(); }); })();
 </script>

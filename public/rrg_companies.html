@@ -259,7 +259,7 @@ function openCompanyMergePicker(ids, done){
   ov.innerHTML='<div class="modalcard" style="max-width:540px"><div class="modalh">Merge '+cos.length+' companies</div><div class="modalb"><div style="font-size:12.5px;color:#5b6472;line-height:1.5;margin-bottom:12px">Pick the record to <b>keep</b>. The others merge into it \u2014 concepts, locations, tags, notes and every linked contact, listing and agreement move over (duplicate concepts &amp; locations are skipped), then the extra companies are removed. This cannot be undone.</div>'+rows+'<div id="cmg_msg" style="color:var(--red,#DA2B1F);font-size:12.5px;margin-top:8px"></div></div><div class="modalf"><button class="mbtn ghost" id="cmg_cancel">Cancel</button><button class="mbtn" id="cmg_go">Merge companies</button></div></div>';
   document.body.appendChild(ov);
   function close(){ ov.remove(); }
-  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  ov.addEventListener('click',function(e){ if(e.target===ov){ /* stay open */ } });
   ov.querySelector('#cmg_cancel').addEventListener('click',close);
   ov.querySelector('#cmg_go').addEventListener('click',function(){
     var keep=ov.querySelector('input[name=cmgkeep]:checked'); if(!keep) return;

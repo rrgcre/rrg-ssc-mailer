@@ -76,7 +76,7 @@ function listCfg(){ return { mount:'#tlist', data:TPLS, key:'emailtpls',
   ] }; }
 function refreshList(){ if(CTL) CTL.refresh(TPLS); else CTL=RRGList.create(listCfg()); var c=document.getElementById('tcount'); if(c) c.textContent=TPLS.length+' total'; }
 function curById(id){ return TPLS.filter(function(t){return t.id===id;})[0]||null; }
-var PAL_FIELDS=[['Contact',[['{{first_name}}','First name'],['{{last_name}}','Last name'],['{{name}}','Full name'],['{{company}}','Company'],['{{title}}','Title'],['{{email}}','Email'],['{{phone}}','Phone']]],['You (sender)',[['{{my_name}}','My name'],['{{my_title}}','My title'],['{{my_phone}}','My phone'],['{{my_email}}','My email']]],['Other',[['{{today}}','Today\u2019s date']]]];
+var PAL_FIELDS=[['Contact',[['{{first_name}}','First name'],['{{last_name}}','Last name'],['{{name}}','Full name'],['{{company}}','Company'],['{{title}}','Title'],['{{email}}','Email'],['{{phone}}','Phone']]],['You (sender)',[['{{my_name}}','My name'],['{{my_title}}','My title'],['{{my_phone}}','My phone'],['{{my_email}}','My email']]],['Listing',[['{{listing_name}}','Listing name'],['{{listing_number}}','Listing #']]],['Other',[['{{today}}','Today\u2019s date']]]];
 function palHtml(){ return PAL_FIELDS.map(function(g){ return '<div class="palgrp"><span class="palgl">'+esc(g[0])+'</span>'+g[1].map(function(f){ return '<button type="button" class="tokchip" data-tok="'+esc(f[0])+'" title="'+esc(f[0])+'">'+esc(f[1])+'</button>'; }).join('')+'</div>'; }).join(''); }
 function renderEditor(){
   var host=document.getElementById('editor'); if(!host) return;
