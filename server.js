@@ -6735,7 +6735,7 @@ app.post('/api/admin/enrich-run', requireAdmin, express.json(), async (req, res)
     const d = en.data;
     const cpt = (c.concepts || []).find(cp => normKey(cp.name) === normKey(l.concept));
     const proposedPrice = (d.priceLevel != null && d.priceLevel >= 1) ? (PRICE_POINTS[d.priceLevel - 1] || '') : '';
-    results.push({ companyId: c.id, companyName: c.name || '', locId: l.id, name: l.name || '', concept: l.concept || '', address: l.address || '', city: l.city || '', state: l.state || '',
+    results.push({ companyId: c.id, companyName: c.name || '', locId: l.id, name: l.name || '', concept: l.concept || '', address: l.address || '', city: l.city || '', state: l.state || '', companyHasLogo: !!c.logo, companyWebsite: (c.office && c.office.website) || '',
       current: { status: l.status || '', phone: l.phone || '', website: l.website || '', pricePoint: (cpt ? (cpt.pricePoint || '') : '') },
       proposed: { status: placeStatusToLoc(d.businessStatus), businessStatus: d.businessStatus || '', rating: d.rating, reviews: d.reviews, priceLevel: d.priceLevel, pricePoint: proposedPrice, phone: d.phone || '', website: d.website || '', lat: d.lat, lng: d.lng, address: d.address || '', mapsUrl: d.mapsUrl || '', placeId: d.placeId || '' },
       reason: '' });
@@ -6756,6 +6756,7 @@ app.post('/api/admin/enrich-apply', requireAdmin, express.json({ limit: '3mb' })
       if (a.phone && !l.phone) l.phone = String(a.phone).slice(0, 40);
       if (a.website && !l.website) l.website = String(a.website).slice(0, 200);
       if (a.pricePoint && PRICE_POINTS.indexOf(a.pricePoint) >= 0) { const cpt = (c.concepts || []).find(cp => normKey(cp.name) === normKey(l.concept)); if (cpt && !String(cpt.pricePoint || '').trim()) cpt.pricePoint = a.pricePoint; }
+      if (!c.logo) { const _site = a.website || l.website || (c.office && c.office.website) || (a.google && a.google.website) || ''; if (_site) { const _lg = logoFromWebsite(_site); if (_lg) { c.logo = _lg; c.updatedAt = now; } } }
       applied++;
     });
     c.updatedAt = now;
