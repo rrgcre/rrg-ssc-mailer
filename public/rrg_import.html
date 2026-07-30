@@ -265,7 +265,7 @@ function build(){
   document.querySelectorAll('#srcrow .srcchip').forEach(function(ch){ ch.addEventListener('click',function(){ SOURCE=ch.getAttribute('data-src'); document.querySelectorAll('#srcrow .srcchip').forEach(function(x){x.classList.toggle('on',x===ch);}); }); });
   root.innerHTML=''+
     '<div class="stepper"><div class="step on" id="s1"><span class="num">1</span>Upload file</div><div class="stepline"></div><div class="step" id="s2"><span class="num">2</span>Map columns</div><div class="stepline"></div><div class="step" id="s3"><span class="num">3</span>Preview &amp; import</div></div>'+
-    '<div class="seg"><button id="m_contacts" class="on">👤 Contacts (People)</button><button id="m_companies">🏢 Companies</button><button id="m_tasks">✔ Tasks</button></div>'+
+    '<div class="seg"><button id="m_contacts" class="on">👤 Contacts (People)</button><button id="m_companies">▦ Companies</button><button id="m_tasks">✔ Tasks</button></div>'+
     '<div class="card"><div class="ch"><span class="st">Step 1</span><b>Upload your export</b><span class="hint">.xlsx or .csv</span></div><div class="cb">'+
       '<div class="drop" id="drop"><div class="ic">⤓</div><b>Drop your file here, or click to browse</b><span>Export from your CRM, then drop the spreadsheet here</span></div>'+
       '<input type="file" id="file" accept=".csv,.xlsx,.xls" class="hide">'+

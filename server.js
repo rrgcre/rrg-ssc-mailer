@@ -1489,7 +1489,7 @@ app.get('/api/cim/:id', (req, res) => {
   const c = loadCims().find(x => x.id === req.params.id);
   if (!c) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!ownsCim(req, c)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  res.json({ ok: true, cim: c });
+  res.json({ ok: true, cim: Object.assign({}, c, { occupancy: cimOccupancy(req, c) }) });
 });
 app.delete('/api/cim/:id', (req, res) => {
   const arr = loadCims();
@@ -1622,6 +1622,30 @@ function leaseForDeal(req, cim) {
   let l = cim.srcBovId ? arr.find(x => x.srcBovId && x.srcBovId === cim.srcBovId && ownsLease(req, x)) : null;
   if (!l && cim.srcQuestId) l = arr.find(x => x.srcQuestId && x.srcQuestId === cim.srcQuestId && ownsLease(req, x));
   return l || null;
+}
+// Buyer-safe Occupancy & Lease Summary for the CIM, sourced from the deal's lease abstract.
+function cimOccupancy(req, cim) {
+  const l = leaseForDeal(req, cim);
+  if (!l || l.pending || !l.state || !l.state.parties) return null;
+  const st = l.state;
+  const redL = st.redactLandlord !== false, redT = st.redactTenant !== false;
+  const pr = st.premises || {}, tm = st.term || {}, rt = st.rent || {}, op = st.options || {}, ch = st.charges || {}, asg = st.assignment || {}, gu = st.guaranty || {}, pa = st.parties || {};
+  const rows = [];
+  const V = v => String(v == null ? '' : v).trim();
+  const add = (label, val) => { const v = V(val); if (v && !/^none$/i.test(v)) rows.push({ label, value: v }); };
+  add('Premises', pr.description); add('Rentable SF', pr.squareFeet); add('Suite / Unit', pr.suite);
+  if (!redL) add('Landlord', pa.landlord);
+  if (!redT) add('Tenant', pa.tenant);
+  add('Lease structure', ch.structure);
+  add('Commencement', tm.commencement); add('Expiration', tm.expiration); add('Original term', tm.originalTerm); add('Remaining term', tm.remainingTerm);
+  add('Current base rent', rt.current); add('Rent per SF', rt.perSF); add('Escalations', rt.escalation); add('Percentage rent', rt.percentageRent);
+  add('NNN / CAM', ch.cam); add('Real estate taxes', ch.taxes); add('Insurance', ch.insurance);
+  add('Renewal options', op.renewalOptions); add('Renewal notice', op.renewalNotice); add('Option rent', op.renewalRent);
+  add('Assignment & subletting', asg.assignmentSublet); add('Consent standard', asg.consentStandard); add('Change of control', asg.changeOfControl);
+  add('Guaranty', gu.type);
+  const schedule = Array.isArray(rt.schedule) ? rt.schedule.filter(x => x && (x.period || x.monthlyRent || x.annualRent)).slice(0, 12).map(x => ({ period: V(x.period), monthly: V(x.monthlyRent), annual: V(x.annualRent) })) : [];
+  if (!rows.length && !schedule.length) return null;
+  return { leaseId: l.id, address: l.propertyAddress || (st.header && st.header.propertyAddress) || '', rows, schedule, redactLandlord: redL, redactTenant: redT };
 }
 // Does this pack's deal have a lease abstract? (for the Lease Abstract view in the builder)
 app.get('/api/cim/:id/lease', (req, res) => {

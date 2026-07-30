@@ -114,6 +114,11 @@ body.editing .ed:hover{background:rgba(120,150,220,.10);border-radius:3px;}
   body.pmail #emails .emailcard{box-shadow:none;border:1px solid #d7dce6;break-inside:avoid;}
   body.pmail #emails .ehead{font-size:20px;}
 }
+.occtbl{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px;}
+.occtbl td{padding:8px 10px;border-bottom:1px solid #e6e9f0;vertical-align:top;}
+.occtbl td.ol{width:38%;font-weight:700;color:#33415c;}
+.occtbl.schd th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#6b7488;padding:6px 10px;border-bottom:2px solid #e6e9f0;}
+.occtbl.schd td{font-variant-numeric:tabular-nums;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -278,6 +283,16 @@ function renderCim(s){
   if(vl.calloutTitle||vl.calloutBody) out+='<div class="callout">'+ed('div','ct','value.calloutTitle',vl.calloutTitle||'')+ed('div','cb','value.calloutBody',vl.calloutBody||'')+'</div>';
   out+=foot(++pg)+'</div>';
 
+  // REAL ESTATE & OCCUPANCY (sourced from the deal's lease abstract; read-only)
+  if(CIM && CIM.occupancy && ((CIM.occupancy.rows&&CIM.occupancy.rows.length)||(CIM.occupancy.schedule&&CIM.occupancy.schedule.length))){
+    var oc=CIM.occupancy;
+    out+='<div class="page"><div class="kick red">The Real Estate</div><h2 class="sect serif">Occupancy &amp; Lease Summary</h2><hr class="rule">';
+    if(oc.address) out+='<p class="body" style="margin-top:0"><b>Premises:</b> '+esc(oc.address)+'</p>';
+    out+='<table class="occtbl">'+(oc.rows||[]).map(function(r){ return '<tr><td class="ol">'+esc(r.label)+'</td><td class="ov">'+esc(r.value)+'</td></tr>'; }).join('')+'</table>';
+    if(oc.schedule&&oc.schedule.length){ out+='<h3 class="serif" style="margin:20px 0 6px;font-size:15px">Base Rent Schedule</h3><table class="occtbl schd"><tr><th>Period</th><th>Monthly</th><th>Annual</th></tr>'+oc.schedule.map(function(r){ return '<tr><td>'+esc(r.period)+'</td><td>'+esc(r.monthly)+'</td><td>'+esc(r.annual)+'</td></tr>'; }).join('')+'</table>'; }
+    out+='<p class="fine" style="margin-top:16px;color:#6b7488;font-size:11.5px">Summarized from the lease abstract that accompanies this package'+((oc.redactLandlord||oc.redactTenant)?'; landlord/tenant identities are withheld in buyer copies':'')+'. Buyers should rely on the underlying lease and amendments during diligence.</p>';
+    out+=foot(++pg)+'</div>';
+  }
   // RISKS
   out+='<div class="page"><div class="kick red">Full Transparency</div><h2 class="sect serif">Risk Factors &amp; Considerations</h2><hr class="rule">'
     +(s.risks||[]).map(function(rk,i){ var no=('0'+(i+1)).slice(-2); return '<div class="rk"><div class="rh"><span class="no">'+no+'</span><span class="ed" contenteditable data-k="risks.'+i+'.title">'+esc(rk.title||'')+'</span></div>'+ed('p','','risks.'+i+'.body',rk.body||'')+'</div>'; }).join('')
