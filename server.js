@@ -7811,6 +7811,7 @@ function cleanPdfFields(arr) {
     required: !!(f && f.required),
     autofill: String((f && f.autofill) || '').slice(0, 20),
     font: String((f && f.font) || '').slice(0, 30),
+    align: (['center', 'right'].indexOf(String(f && f.align)) >= 0) ? String(f.align) : 'left',
     fontSize: (function(){ var n = parseFloat(f && f.fontSize); return (isFinite(n) && n > 0) ? Math.max(5, Math.min(48, n)) : ''; })()
   }; });
 }
@@ -8002,7 +8003,7 @@ async function burnFinalPdf(a) {
     } else if (f.type === 'checkbox') {
       const v = (a.fieldValues && a.fieldValues[f.id]); if (v === '1' || v === true || v === 'true') { const s = Math.min(bw, bh); page.drawText('X', { x: bx + Math.max(1, (bw - s * 0.6) / 2), y: byBottom + Math.max(1, (bh - s * 0.72) / 2), size: s * 0.9, font: bold, color: rgb(0.05, 0.09, 0.2) }); }
     } else {
-      const v = fmtSignVal(f.type, String((a.fieldValues && a.fieldValues[f.id]) || '')); if (v) { const _fsz = parseFloat(f.fontSize); const size = (isFinite(_fsz) && _fsz > 0) ? Math.max(5, Math.min(48, _fsz)) : Math.max(7, Math.min(12, bh * 0.62)); const _ff = _fontFor(f.font); page.drawText(v.slice(0, 120), { x: bx + 2, y: byBottom + Math.max(2, (bh - size) / 2), size, font: _ff, color: rgb(0.05, 0.09, 0.2) }); }
+      const v = fmtSignVal(f.type, String((a.fieldValues && a.fieldValues[f.id]) || '')); if (v) { const _fsz = parseFloat(f.fontSize); const size = (isFinite(_fsz) && _fsz > 0) ? Math.max(5, Math.min(48, _fsz)) : Math.max(7, Math.min(12, bh * 0.62)); const _ff = _fontFor(f.font); const _txt = v.slice(0, 120); let _tx = bx + 2; try { const _tw = _ff.widthOfTextAtSize(_txt, size); const _al = String(f.align || 'left'); if (_al === 'center') _tx = bx + Math.max(2, (bw - _tw) / 2); else if (_al === 'right') _tx = bx + Math.max(2, bw - _tw - 2); } catch (e) {} page.drawText(_txt, { x: _tx, y: byBottom + Math.max(2, (bh - size) / 2), size, font: _ff, color: rgb(0.05, 0.09, 0.2) }); }
     }
   }
   const ap = pdf.addPage(); const asz = ap.getSize(); const ah = asz.height; let y = ah - 60;

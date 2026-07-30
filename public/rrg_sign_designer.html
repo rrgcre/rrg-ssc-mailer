@@ -44,7 +44,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
 .f .fx{position:absolute;top:-9px;left:-9px;width:18px;height:18px;background:var(--red);color:#fff;font-size:13px;font-weight:800;line-height:16px;text-align:center;border-radius:50%;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.3);z-index:6;}
 .loading{text-align:center;color:var(--muted);padding:60px;font-size:14px;}
 </style>
-<style>.algrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.algn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 4px;font:inherit;font-size:13px;font-weight:800;color:var(--muted);cursor:pointer}.algn:hover{background:var(--wash);color:var(--ink)}.f.msel{outline:2px dashed #2647b0;outline-offset:1px}.applyall{width:100%;font:inherit;font-size:12px;font-weight:700;border-radius:7px;padding:7px 10px;cursor:pointer;border:1px solid #bcd;color:#2647b0;background:#fff;margin-top:2px}.applyall:hover{background:#eef3fb}</style>
+<style>.algrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.algn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 4px;font:inherit;font-size:13px;font-weight:800;color:var(--muted);cursor:pointer}.algn:hover{background:var(--wash);color:var(--ink)}.f.msel{outline:2px dashed #2647b0;outline-offset:1px}.applyall{width:100%;font:inherit;font-size:12px;font-weight:700;border-radius:7px;padding:7px 10px;cursor:pointer;border:1px solid #bcd;color:#2647b0;background:#fff;margin-top:2px}.applyall:hover{background:#eef3fb}.algnseg{display:flex;gap:4px;margin-bottom:8px}.algnseg button{flex:1;border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 4px;font:inherit;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer}.algnseg button.on{background:#2647b0;border-color:#2647b0;color:#fff}</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
@@ -88,13 +88,17 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
       <div class="plbl">Selected field</div>
       <div class="selbox">
         <label class="fld">Label</label><input id="f_label" placeholder="e.g. Tenant name">
+        <label class="fld">Assigned signer</label>
+        <select id="f_signer"></select>
         <label class="fld">Auto-fill from record</label>
         <select id="f_auto"><option value="">— none —</option><option value="email">Client — email</option><option value="first_name">Client — first name</option><option value="party_name">Client — full name</option><option value="last_name">Client — last name</option><option value="phone">Client — phone</option><option value="title">Client — title</option><option value="company">Company / firm</option><option value="my_email">Me — email</option><option value="my_name">Me — name</option><option value="my_phone">Me — phone</option><option value="my_title">Me — title</option><option value="date">Today's date</option></select>
         <label class="chk"><input type="checkbox" id="f_req"> Required</label>
         <div style="height:1px;background:var(--line);margin:10px 0"></div>
         <label class="fld">Font</label>
         <select id="f_font"><option value="">Helvetica (default)</option><option value="Arial">Arial</option><option value="Helvetica">Helvetica</option><option value="Times New Roman">Times New Roman</option><option value="Palatino">Palatino</option><option value="Calibri">Calibri</option><option value="Courier">Courier</option></select>
-        <div style="display:flex;gap:8px"><div style="flex:1"><label class="fld">Text size (pt)</label><input id="f_size" type="number" min="5" max="48" step="1" placeholder="auto"></div><div style="flex:1"><label class="fld">Width (pt)</label><input id="f_width" type="number" min="8" max="700" step="1" placeholder="auto"></div><div style="flex:1"><label class="fld">Height (pt)</label><input id="f_height" type="number" min="6" max="300" step="1" placeholder="auto"></div></div>
+        <label class="fld">Text alignment</label>
+        <div class="algnseg" id="f_align"><button type="button" data-a="left" class="on">Left</button><button type="button" data-a="center">Center</button><button type="button" data-a="right">Right</button></div>
+        <div style="display:flex;gap:8px"><div style="flex:1"><label class="fld">Width (pt)</label><input id="f_width" type="number" min="8" max="2000" step="1" placeholder="auto"></div><div style="flex:1"><label class="fld">Height (pt)</label><input id="f_height" type="number" min="6" max="2000" step="1" placeholder="auto"></div></div><div style="margin-top:2px"><label class="fld">Text size (pt)</label><input id="f_size" type="number" min="5" max="72" step="1" placeholder="auto"></div>
         <button class="applyall" id="f_applyall">Apply font, size, width &amp; height to all fields</button>
         <div style="height:1px;background:var(--line);margin:10px 0"></div>
         <button class="btnsm" id="f_del">Delete field</button>
@@ -147,6 +151,7 @@ function drawFields(){
     var W=ov.clientWidth, H=ov.clientHeight;
     var el=document.createElement('div'); el.className='f'+(f.signer===2?' s2':(f.signer===3?' s3':''))+(SELECTED===f.id?' sel':'')+((MULTI.indexOf(f.id)>=0&&f.id!==SELECTED)?' msel':''); el.setAttribute('data-id',f.id);
     el.style.left=(f.x*W)+'px'; el.style.top=(f.y*H)+'px'; el.style.width=(f.w*W)+'px'; el.style.height=(f.h*H)+'px';
+    if(f.type==='text'||f.type==='date'){ var _al=f.align||'left'; el.style.justifyContent=(_al==='center'?'center':(_al==='right'?'flex-end':'flex-start')); el.style.textAlign=_al; el.style.paddingLeft=(_al==='left'?'3px':'0'); el.style.paddingRight=(_al==='right'?'3px':'0'); }
     el.textContent=f.label||TYPELBL[f.type]||f.type;
     if(f.required){ var rq=document.createElement('span'); rq.className='rq'; rq.textContent='*'; el.appendChild(rq); }
     var rz=document.createElement('div'); rz.className='rz'; el.appendChild(rz);
@@ -178,9 +183,11 @@ function openPanel(){
   document.getElementById('f_label').value=f.label||'';
   document.getElementById('f_auto').value=f.autofill||'';
   document.getElementById('f_req').checked=!!f.required;
+  (function(){ var _sc=sigCount(); var fs=document.getElementById('f_signer'); if(fs){ var h=''; for(var i=1;i<=_sc;i++){ var _lb=(document.getElementById('s'+i+'label')||{}).value||('Signer '+i); h+='<option value="'+i+'">'+i+' — '+esc(_lb)+'</option>'; } fs.innerHTML=h; fs.value=String((f.signer===2||f.signer===3)?f.signer:1); } })();
   document.getElementById('f_font').value=f.font||'';
   document.getElementById('f_size').value=f.fontSize||'';
   document.getElementById('f_width').value=(PAGEPT.w?Math.round(f.w*PAGEPT.w):'');
+  (function(){ var _tx=(f.type==='text'||f.type==='date'); var _al=_tx?(f.align||'left'):'left'; var seg=document.getElementById('f_align'); if(seg){ seg.style.opacity=_tx?'1':'.4'; Array.prototype.forEach.call(seg.querySelectorAll('button'),function(b){ b.classList.toggle('on', b.getAttribute('data-a')===_al); }); } })();
   document.getElementById('f_height').value=(PAGEPT.h?Math.round(f.h*PAGEPT.h):'');
   var isTxt=(f.type==='text'||f.type==='date');
   document.getElementById('f_auto').parentNode.style.opacity=isTxt?'1':'.4';
@@ -199,7 +206,9 @@ document.getElementById('f_font').addEventListener('change',function(){ var f=cu
 document.getElementById('f_size').addEventListener('input',function(){ var f=cur(); if(f){ var n=parseFloat(this.value); f.fontSize=(isFinite(n)&&n>0)?n:''; scheduleSave(); } });
 document.getElementById('f_height').addEventListener('input',function(){ var f=cur(); if(f&&PAGEPT.h){ var pt=parseFloat(this.value); if(isFinite(pt)&&pt>0){ f.h=Math.max(0.005,Math.min(1-f.y, pt/PAGEPT.h)); drawFields(); scheduleSave(); } } });
 document.getElementById('f_width').addEventListener('input',function(){ var f=cur(); if(f&&PAGEPT.w){ var pt=parseFloat(this.value); if(isFinite(pt)&&pt>0){ f.w=Math.max(0.01,Math.min(1-f.x, pt/PAGEPT.w)); drawFields(); scheduleSave(); } } });
-document.getElementById('f_applyall').addEventListener('click',function(){ var f=cur(); if(!f) return; FIELDS.forEach(function(g){ g.font=f.font; g.fontSize=f.fontSize; g.w=Math.min(1-g.x,f.w); g.h=Math.min(1-g.y,f.h); }); drawFields(); scheduleSave(); var m=document.getElementById('msg'); if(m) m.textContent='Applied to all ✓'; });
+(function(){ var seg=document.getElementById('f_align'); if(seg){ Array.prototype.forEach.call(seg.querySelectorAll('button'),function(b){ b.addEventListener('click',function(){ var f=cur(); if(!f||(f.type!=='text'&&f.type!=='date')) return; f.align=b.getAttribute('data-a'); Array.prototype.forEach.call(seg.querySelectorAll('button'),function(x){x.classList.remove('on');}); b.classList.add('on'); drawFields(); scheduleSave(); }); }); } })();
+(function(){ var fs=document.getElementById('f_signer'); if(fs){ fs.addEventListener('change',function(){ var f=cur(); if(!f) return; var n=parseInt(fs.value,10); f.signer=(n===2||n===3)?n:1; drawFields(); scheduleSave(); }); } })();
+document.getElementById('f_applyall').addEventListener('click',function(){ var f=cur(); if(!f) return; FIELDS.forEach(function(g){ g.font=f.font; g.fontSize=f.fontSize; g.align=f.align; g.w=Math.min(1-g.x,f.w); g.h=Math.min(1-g.y,f.h); }); drawFields(); scheduleSave(); var m=document.getElementById('msg'); if(m) m.textContent='Applied to all ✓'; });
 document.addEventListener('keydown',function(e){
   var t=e.target; var typing=t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable);
   if(e.key==='Delete'||e.key==='Backspace'){ if(typing) return; if(MULTI.length){ e.preventDefault(); FIELDS=FIELDS.filter(function(x){return MULTI.indexOf(x.id)<0;}); MULTI=[]; SELECTED=null; drawFields(); openPanel(); scheduleSave(); } return; }
