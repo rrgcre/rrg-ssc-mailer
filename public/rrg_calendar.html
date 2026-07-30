@@ -1,0 +1,248 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Calendar — RRG</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--blue:#2f6fd0;}
+*{box-sizing:border-box;}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#fbfcfe;}
+.wrap{max-width:none;margin:18px 0;padding:0 26px 60px;}
+.pgh{font-size:22px;font-weight:800;color:var(--navy);margin:0 0 3px;}
+.pgs{color:var(--muted);font-size:13px;margin-bottom:14px;}
+.calbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;}
+.calbar .mtitle{font-size:17px;font-weight:800;color:var(--navy);min-width:180px;}
+.btn{font:inherit;font-size:13px;font-weight:700;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:8px 13px;cursor:pointer;}
+.btn:hover{background:var(--wash);}
+.btn.red{background:var(--red);border-color:var(--red);color:#fff;}
+.btn.on{background:#eef2fb;border-color:#c9d8f2;color:var(--navy);}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+.seg button{border:none;border-right:1px solid var(--line);background:#fff;font:inherit;font-size:12.5px;font-weight:700;padding:7px 12px;cursor:pointer;color:var(--muted);}
+.seg button:last-child{border-right:none;}
+.seg button.on{background:#eef2fb;color:var(--navy);}
+.sp{flex:1;}
+.cal{background:#fff;border:1px solid var(--line);border-radius:13px;overflow:hidden;box-shadow:0 6px 22px rgba(10,20,50,.05);}
+.dow{display:grid;grid-template-columns:repeat(7,1fr);background:#f6f8fb;border-bottom:1px solid var(--line);}
+.dow div{padding:8px 10px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);}
+.day{min-height:112px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:5px 6px;cursor:pointer;position:relative;}
+.day:nth-child(7n){border-right:none;}
+.day.oom{background:#fafbfd;}
+.day.oom .dn{color:#c3cbd8;}
+.day .dn{font-size:12px;font-weight:700;color:var(--muted);}
+.day.today .dn{background:var(--red);color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;}
+.day:hover{background:#f4f8ff;}
+.chip{display:block;margin-top:3px;font-size:11px;font-weight:700;padding:2px 6px;border-radius:5px;background:#eaf1fb;color:#1f4c9c;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border-left:3px solid var(--blue);}
+.chip.mine{background:#eaf7f0;color:#14603f;border-left-color:var(--green);}
+.chip.cancelled{text-decoration:line-through;opacity:.55;}
+.chip .t{opacity:.7;font-weight:800;margin-right:3px;}
+.morelink{font-size:10.5px;color:var(--muted);font-weight:700;margin-top:2px;display:inline-block;}
+.agenda{background:#fff;border:1px solid var(--line);border-radius:13px;overflow:hidden;}
+.agday{padding:10px 16px;border-bottom:1px solid var(--line);}
+.agday:last-child{border-bottom:none;}
+.agday .ah{font-size:12px;font-weight:800;color:var(--navy);margin-bottom:7px;text-transform:uppercase;letter-spacing:.04em;}
+.agitem{display:flex;gap:12px;align-items:flex-start;padding:8px 0;border-top:1px solid #f0f3f8;cursor:pointer;}
+.agitem:first-of-type{border-top:none;}
+.agitem .atime{font-size:12.5px;font-weight:800;color:var(--navy);min-width:120px;}
+.agitem .abody b{font-size:13.5px;color:var(--ink);}
+.agitem .abody .ameta{font-size:12px;color:var(--muted);margin-top:1px;}
+.empty{padding:40px;text-align:center;color:var(--muted);font-size:13.5px;}
+.modal{position:fixed;inset:0;background:rgba(6,14,32,.5);display:flex;align-items:center;justify-content:center;z-index:500;padding:18px;}
+.modal[hidden]{display:none;}
+.mcard{background:#fff;border-radius:15px;width:100%;max-width:560px;max-height:calc(100vh - 40px);overflow:auto;box-shadow:0 24px 70px rgba(0,0,0,.4);}
+.mhd{display:flex;align-items:center;padding:16px 20px;border-bottom:1px solid var(--line);}
+.mhd b{font-size:16px;color:var(--navy);}
+.mx{margin-left:auto;background:none;border:none;font-size:22px;color:var(--soft);cursor:pointer;line-height:1;}
+.mbd{padding:16px 20px;}
+.fld{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:800;margin:10px 0 5px;}
+.fld:first-child{margin-top:0;}
+input,select,textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:inherit;font-size:14px;color:var(--ink);background:#fff;}
+textarea{min-height:64px;resize:vertical;}
+.row2{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;}
+.attrow{display:grid;grid-template-columns:1fr 1fr auto;gap:7px;margin-bottom:6px;align-items:center;}
+.attrow input{font-size:13px;padding:7px 9px;}
+.axr{background:#fff;border:1px solid #f0c9c6;color:var(--red);border-radius:7px;width:32px;height:32px;font-size:15px;cursor:pointer;}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-top:10px;}
+.chk input{width:auto;}
+.mft{display:flex;align-items:center;gap:10px;padding:14px 20px;border-top:1px solid var(--line);}
+.msg{font-size:12.5px;font-weight:700;}
+.msg.err{color:var(--red);} .msg.ok{color:var(--green);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1 class="pgh">Calendar</h1>
+  <div class="pgs">Schedule meetings — with your contacts or anyone outside the group — and see everything in one place. Add attendee emails and send a calendar invite in a click.</div>
+  <div class="calbar">
+    <button class="btn" id="prev" title="Previous">‹</button>
+    <button class="btn" id="today">Today</button>
+    <button class="btn" id="next" title="Next">›</button>
+    <span class="mtitle" id="mtitle"></span>
+    <span class="sp"></span>
+    <span class="seg"><button id="vmonth" class="on">Month</button><button id="vagenda">Agenda</button></span>
+    <span class="seg"><button id="sall" class="on">Everyone</button><button id="smine">My meetings</button></span>
+    <button class="btn red" id="newbtn">+ New meeting</button>
+  </div>
+  <div id="cal"></div>
+</div>
+
+<div class="modal" id="modal" hidden><div class="mcard">
+  <div class="mhd"><b id="mtitle2">New meeting</b><button class="mx" id="mclose" aria-label="Close">×</button></div>
+  <div class="mbd">
+    <label class="fld">Title</label><input id="f_title" placeholder="e.g. Listing walk-through">
+    <label class="fld">Contact (optional)</label>
+    <input id="f_contactq" list="contactList" autocomplete="off" placeholder="Type a contact name…" oninput="onContactPick(this)">
+    <datalist id="contactList"></datalist><input type="hidden" id="f_contact">
+    <div class="row2">
+      <div><label class="fld">Type</label><select id="f_type"></select></div>
+      <div><label class="fld">Date</label><input type="date" id="f_date"></div>
+      <div><label class="fld">Time</label><input type="time" id="f_start"></div>
+    </div>
+    <div class="row2">
+      <div><label class="fld">End</label><input type="time" id="f_end"></div>
+      <div style="grid-column:span 2"><label class="fld">Location</label><input id="f_loc" placeholder="Address, video link, or phone"></div>
+    </div>
+    <label class="fld">Attendees (name &amp; email — for people outside the group)</label>
+    <div id="f_atts"></div>
+    <button type="button" class="btn" id="addatt" style="font-size:12px;padding:6px 10px">+ Add attendee</button>
+    <label class="fld">Notes</label><textarea id="f_notes" placeholder="Agenda, prep, anything to remember…"></textarea>
+    <label class="chk" id="invwrap"><input type="checkbox" id="f_invite"> Email a calendar invite to attendees now</label>
+  </div>
+  <div class="mft">
+    <button class="btn red" id="save">Save meeting</button>
+    <button class="btn" id="del" style="display:none;color:var(--red);border-color:#f0c9c6">Delete</button>
+    <button class="btn" id="sendinv" style="display:none">Send invite</button>
+    <span class="msg" id="mmsg"></span>
+  </div>
+</div></div>
+
+<script>
+var APPTS=[],CONTACTS=[],USERS=[],TYPES=[],ME='',EMAILREADY=false;
+var VIEW='month',SCOPE='all',EDIT=null;
+var CUR=(function(){var d=new Date();return new Date(d.getFullYear(),d.getMonth(),1);})();
+var MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
+var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function p2(n){return String(n).padStart(2,'0');}
+function ymd(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate());}
+function fmtTime(hm){ if(!hm)return''; var p=String(hm).split(':'); var h=parseInt(p[0],10)||0,m=p[1]||'00'; var ap=h>=12?'p':'a',h12=((h%12)||12); return h12+(m==='00'?'':(':'+m))+ap; }
+function timeOf(iso){ var m=String(iso||'').match(/T(\d{2}):(\d{2})/); return m?(m[1]+':'+m[2]):''; }
+function monthRange(){ var y=CUR.getFullYear(),mo=CUR.getMonth(); var start=new Date(y,mo,1); var gridStart=new Date(y,mo,1-start.getDay()); var gridEnd=new Date(gridStart); gridEnd.setDate(gridEnd.getDate()+41); return {from:ymd(gridStart)+'T00:00',to:ymd(gridEnd)+'T23:59',gridStart:gridStart}; }
+function load(){
+  var q; if(VIEW==='month'){ var r=monthRange(); q='from='+r.from+'&to='+r.to; } else { var t=new Date(); q='from='+ymd(t)+'T00:00'; }
+  if(SCOPE==='mine') q+='&scope=mine';
+  fetch('/api/appointments?'+q,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok) return;
+    APPTS=j.appointments||[]; CONTACTS=j.contacts||[]; USERS=j.users||[]; TYPES=j.types||[]; ME=j.me||''; EMAILREADY=!!j.emailReady;
+    document.getElementById('contactList').innerHTML=CONTACTS.map(function(c){return '<option value="'+esc(c.name)+'"></option>';}).join('');
+    render();
+  });
+}
+function render(){ document.getElementById('mtitle').textContent = VIEW==='month' ? (MON[CUR.getMonth()]+' '+CUR.getFullYear()) : 'Upcoming'; if(VIEW==='month') renderMonth(); else renderAgenda(); }
+function apptsOn(dstr){ return APPTS.filter(function(a){return String(a.start||'').slice(0,10)===dstr;}).sort(function(a,b){return String(a.start).localeCompare(String(b.start));}); }
+function chip(a){ var cls='chip'+(a.byUser===ME?' mine':'')+(a.status==='cancelled'?' cancelled':''); return '<span class="'+cls+'" data-appt="'+esc(a.id)+'" title="'+esc(a.title)+(a.contactName?(' · '+esc(a.contactName)):'')+'"><span class="t">'+esc(fmtTime(timeOf(a.start)))+'</span>'+esc(a.title)+'</span>'; }
+function renderMonth(){
+  var r=monthRange(); var today=ymd(new Date()); var html='<div class="cal"><div class="dow">'+DOW.map(function(d){return '<div>'+d+'</div>';}).join('')+'</div><div class="grid">';
+  var d=new Date(r.gridStart);
+  for(var i=0;i<42;i++){
+    var ds=ymd(d); var oom=d.getMonth()!==CUR.getMonth(); var list=apptsOn(ds);
+    html+='<div class="day'+(oom?' oom':'')+(ds===today?' today':'')+'" data-day="'+ds+'"><span class="dn">'+d.getDate()+'</span>';
+    list.slice(0,4).forEach(function(a){ html+=chip(a); });
+    if(list.length>4) html+='<span class="morelink">+'+(list.length-4)+' more</span>';
+    html+='</div>';
+    d.setDate(d.getDate()+1);
+  }
+  html+='</div></div>';
+  document.getElementById('cal').innerHTML=html;
+  wireGrid();
+}
+function renderAgenda(){
+  var days={},order=[];
+  APPTS.slice().sort(function(a,b){return String(a.start).localeCompare(String(b.start));}).forEach(function(a){ var k=String(a.start||'').slice(0,10); if(!days[k]){days[k]=[];order.push(k);} days[k].push(a); });
+  if(!order.length){ document.getElementById('cal').innerHTML='<div class="agenda"><div class="empty">No upcoming meetings. Click <b>+ New meeting</b> to schedule one.</div></div>'; return; }
+  var html='<div class="agenda">'+order.map(function(k){
+    var dt=new Date(k+'T00:00'); var hd=DOW[dt.getDay()]+', '+MON[dt.getMonth()]+' '+dt.getDate();
+    return '<div class="agday"><div class="ah">'+esc(hd)+'</div>'+days[k].map(function(a){
+      return '<div class="agitem" data-appt="'+esc(a.id)+'"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('–'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>';
+    }).join('')+'</div>';
+  }).join('')+'</div>';
+  document.getElementById('cal').innerHTML=html;
+  wireGrid();
+}
+function wireGrid(){
+  document.querySelectorAll('[data-appt]').forEach(function(el){ el.addEventListener('click',function(e){ e.stopPropagation(); var a=APPTS.filter(function(x){return x.id===el.getAttribute('data-appt');})[0]; if(a) openForm(a); }); });
+  document.querySelectorAll('.day[data-day]').forEach(function(el){ el.addEventListener('click',function(){ openForm(null,el.getAttribute('data-day')); }); });
+}
+function onContactPick(inp){ var v=String(inp.value||'').trim().toLowerCase(); var c=CONTACTS.filter(function(x){return String(x.name||'').trim().toLowerCase()===v;})[0]; var h=document.getElementById('f_contact'); if(h) h.value=c?c.id:''; }
+function attRow(a){ a=a||{}; return '<div class="attrow"><input class="att_n" placeholder="Name" value="'+esc(a.name||'')+'"><input class="att_e" placeholder="email@example.com" value="'+esc(a.email||'')+'"><button type="button" class="axr" title="Remove">×</button></div>'; }
+function renderAtts(list){ var box=document.getElementById('f_atts'); box.innerHTML=(list&&list.length?list:[{}]).map(attRow).join(''); box.querySelectorAll('.axr').forEach(function(b){ b.addEventListener('click',function(){ b.closest('.attrow').remove(); if(!box.querySelector('.attrow')) box.innerHTML=attRow({}); box.querySelectorAll('.axr').forEach(function(x){}); wireAttX(); }); }); wireAttX(); }
+function wireAttX(){ document.getElementById('f_atts').querySelectorAll('.axr').forEach(function(b){ b.onclick=function(){ var box=document.getElementById('f_atts'); b.closest('.attrow').remove(); if(!box.querySelector('.attrow')) box.innerHTML=attRow({}); }; }); }
+function collectAtts(){ var out=[]; document.getElementById('f_atts').querySelectorAll('.attrow').forEach(function(r){ var n=(r.querySelector('.att_n')||{}).value||''; var e=(r.querySelector('.att_e')||{}).value||''; if(n.trim()||e.trim()) out.push({name:n.trim(),email:e.trim()}); }); return out; }
+function fillTypes(){ document.getElementById('f_type').innerHTML=TYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join(''); }
+function openForm(a,presetDate){
+  EDIT=a||null; fillTypes();
+  document.getElementById('mtitle2').textContent=a?'Edit meeting':'New meeting';
+  document.getElementById('f_title').value=a?a.title:'';
+  var cq=document.getElementById('f_contactq'); cq.value=a?(a.contactName||''):''; document.getElementById('f_contact').value=a?(a.contactPersonId||''):'';
+  document.getElementById('f_type').value=a?(a.type||'Meeting'):'Meeting';
+  var date=a?String(a.start||'').slice(0,10):(presetDate||ymd(new Date()));
+  document.getElementById('f_date').value=date;
+  document.getElementById('f_start').value=a?timeOf(a.start):'09:00';
+  document.getElementById('f_end').value=a?timeOf(a.end):'09:30';
+  document.getElementById('f_loc').value=a?(a.location||''):'';
+  document.getElementById('f_notes').value=a?(a.notes||''):'';
+  renderAtts(a?a.attendees:[]);
+  document.getElementById('f_invite').checked=false;
+  document.getElementById('invwrap').style.display=EMAILREADY?'flex':'none';
+  document.getElementById('del').style.display=(a&&(a.byUser===ME))?'':'none';
+  document.getElementById('sendinv').style.display=(a&&EMAILREADY)?'':'none';
+  document.getElementById('mmsg').textContent='';
+  document.getElementById('modal').removeAttribute('hidden');
+  setTimeout(function(){try{document.getElementById('f_title').focus();}catch(e){}},30);
+}
+function closeForm(){ document.getElementById('modal').setAttribute('hidden',''); EDIT=null; }
+function bodyFromForm(){
+  var date=document.getElementById('f_date').value; var st=document.getElementById('f_start').value||'09:00'; var en=document.getElementById('f_end').value||st;
+  return { id:EDIT?EDIT.id:undefined, title:document.getElementById('f_title').value.trim(), contactPersonId:document.getElementById('f_contact').value||'', contactName:document.getElementById('f_contactq').value.trim(), type:document.getElementById('f_type').value, start:date?(date+'T'+st):'', end:date?(date+'T'+en):'', location:document.getElementById('f_loc').value.trim(), notes:document.getElementById('f_notes').value.trim(), attendees:collectAtts() };
+}
+function save(){
+  var body=bodyFromForm(); var m=document.getElementById('mmsg');
+  if(!body.title){ m.className='msg err'; m.textContent='Add a title.'; return; }
+  if(!body.start){ m.className='msg err'; m.textContent='Pick a date.'; return; }
+  m.className='msg'; m.textContent='Saving…';
+  fetch('/api/appointments',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){
+      if(!(j&&j.ok)){ m.className='msg err'; m.textContent=(j&&j.error)||'Could not save.'; return; }
+      var wantInvite=document.getElementById('f_invite').checked && (j.appointment.attendees||[]).some(function(x){return x.email;});
+      if(wantInvite){ m.textContent='Saved — sending invite…'; sendInvite(j.appointment.id,true); }
+      else { m.className='msg ok'; m.textContent='Saved ✓'; setTimeout(function(){ closeForm(); load(); },500); }
+    }).catch(function(){ m.className='msg err'; m.textContent='Could not reach the server.'; });
+}
+function sendInvite(id,thenClose){
+  var m=document.getElementById('mmsg');
+  fetch('/api/appointments/'+encodeURIComponent(id)+'/invite',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ m.className='msg ok'; m.textContent='Invite sent ✓'; if(thenClose) setTimeout(function(){ closeForm(); load(); },700); }
+      else { m.className='msg err'; m.textContent=(j&&j.error)||'Invite failed.'; }
+    }).catch(function(){ m.className='msg err'; m.textContent='Could not reach the server.'; });
+}
+function del(){
+  if(!EDIT) return; if(!confirm('Delete this meeting?')) return;
+  fetch('/api/appointments/'+encodeURIComponent(EDIT.id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ closeForm(); load(); } else alert((j&&j.error)||'Could not delete.'); });
+}
+document.getElementById('prev').addEventListener('click',function(){ CUR=new Date(CUR.getFullYear(),CUR.getMonth()-1,1); load(); });
+document.getElementById('next').addEventListener('click',function(){ CUR=new Date(CUR.getFullYear(),CUR.getMonth()+1,1); load(); });
+document.getElementById('today').addEventListener('click',function(){ var d=new Date(); CUR=new Date(d.getFullYear(),d.getMonth(),1); load(); });
+document.getElementById('vmonth').addEventListener('click',function(){ VIEW='month'; this.classList.add('on'); document.getElementById('vagenda').classList.remove('on'); load(); });
+document.getElementById('vagenda').addEventListener('click',function(){ VIEW='agenda'; this.classList.add('on'); document.getElementById('vmonth').classList.remove('on'); load(); });
+document.getElementById('sall').addEventListener('click',function(){ SCOPE='all'; this.classList.add('on'); document.getElementById('smine').classList.remove('on'); load(); });
+document.getElementById('smine').addEventListener('click',function(){ SCOPE='mine'; this.classList.add('on'); document.getElementById('sall').classList.remove('on'); load(); });
+document.getElementById('newbtn').addEventListener('click',function(){ openForm(null,null); });
+document.getElementById('mclose').addEventListener('click',closeForm);
+document.getElementById('save').addEventListener('click',save);
+document.getElementById('del').addEventListener('click',del);
+document.getElementById('sendinv').addEventListener('click',function(){ if(EDIT) sendInvite(EDIT.id,false); });
+document.getElementById('addatt').addEventListener('click',function(){ var box=document.getElementById('f_atts'); box.insertAdjacentHTML('beforeend',attRow({})); wireAttX(); });
+document.getElementById('modal').addEventListener('click',function(e){ if(e.target===this){ /* stay open */ } });
+load();
+</script>
+</body></html>

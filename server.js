@@ -4254,7 +4254,7 @@ app.get('/api/person/:id', (req, res) => {
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
     (o.inquiries || []).forEach(x => { const _m = (x.personId && x.personId === p.id) || (x.email && _pEmails.indexOf(String(x.email).toLowerCase()) >= 0); if (_m && !interested.some(it => it.key === key)) interested.push({ key: key, business: biz, status: x.status || 'New', inquiryId: x.id, date: x.date || x.createdAt || '', source: x.source || '', stage: _keyStage ? _keyStage.label : '', stageDone: _keyStage ? _keyStage.done : 0, stageTotal: _keyStage ? _keyStage.total : 0 }); });
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, interested, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === (req.user && req.user.username) || (req.user && isSuper(req.user)))).map(a => automationBrief(a, req.user || {})), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, interested, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, appointments: loadAppts().filter(x => x.contactPersonId === p.id && x.status !== "deleted").map(apptBrief).sort((m,n)=>String(m.start||"").localeCompare(String(n.start||""))), apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === (req.user && req.user.username) || (req.user && isSuper(req.user)))).map(a => automationBrief(a, req.user || {})), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
@@ -7466,6 +7466,83 @@ app.delete('/api/tasks/:id', (req, res) => {
   if (!t) return res.status(404).json({ ok: false, error: 'Task not found.' });
   if (!(req.user && isSuper(req.user)) && t.createdBy !== (req.user && req.user.username)) return res.status(403).json({ ok: false, error: 'Only the creator or an admin can delete this.' });
   saveTasks(all.filter(x => x.id !== t.id)); res.json({ ok: true });
+});
+
+
+// ================= Appointments / Calendar =================
+const APPTS_FILE = path.join(BOV_DATA_DIR, 'appointments.json');
+function loadAppts() { try { return JSON.parse(fs.readFileSync(APPTS_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveAppts(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(APPTS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newApptId() { return 'ap_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+const APPT_TYPES = ['Meeting', 'Call', 'Tour', 'Listing Presentation', 'Closing', 'Follow-up', 'Other'];
+function _cleanAttendees(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 20).map(function (x) { return { name: String((x && x.name) || '').slice(0, 120), email: String((x && x.email) || '').slice(0, 160).trim() }; }).filter(function (x) { return x.name || x.email; }); }
+function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', invitedAt: a.invitedAt || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
+function apptIcs(a) {
+  function e(s) { return String(s || '').replace(/([,;\\])/g, '\\$1').replace(/\r?\n/g, '\\n'); }
+  function dt(s) { var m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); return m ? (m[1] + m[2] + m[3] + 'T' + m[4] + m[5] + '00') : ''; }
+  var start = dt(a.start), end = dt(a.end) || start;
+  var org = mailFrom() || 'no-reply@rrgcre.com';
+  var att = (a.attendees || []).filter(function (x) { return x.email; }).map(function (x) { return 'ATTENDEE;CN=' + e(x.name || x.email) + ':mailto:' + x.email; }).join('\r\n');
+  var stamp = dt(new Date().toISOString());
+  var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//RRG//FullServe//EN', 'CALSCALE:GREGORIAN', 'METHOD:REQUEST', 'BEGIN:VEVENT', 'UID:' + a.id + '@rrgcre', 'DTSTAMP:' + stamp + 'Z', 'DTSTART:' + start, 'DTEND:' + end, 'SUMMARY:' + e(a.title || 'Meeting'), (a.location ? 'LOCATION:' + e(a.location) : ''), (a.notes ? 'DESCRIPTION:' + e(a.notes) : ''), 'ORGANIZER:mailto:' + org, att, 'STATUS:CONFIRMED', 'END:VEVENT', 'END:VCALENDAR'].filter(Boolean);
+  return lines.join('\r\n');
+}
+async function sendInviteMail(to, subject, text, ics) {
+  try {
+    if (!isEmailConfigured()) return { ok: false, skipped: true };
+    const list = (Array.isArray(to) ? to : [to]).filter(Boolean).join(', ');
+    if (!list) return { ok: false, skipped: true };
+    const info = await buildTransport().sendMail({ from: mailFrom(), to: list, subject: String(subject || '').slice(0, 200), text: String(text || ''), icalEvent: ics ? { method: 'REQUEST', content: ics } : undefined, attachments: ics ? [{ filename: 'invite.ics', content: ics, contentType: 'text/calendar; method=REQUEST' }] : undefined });
+    return { ok: true, id: info.messageId };
+  } catch (e) { console.error('invite mail error:', e && e.message); return { ok: false, error: String((e && e.message) || e) }; }
+}
+app.get('/api/appointments', (req, res) => {
+  const u = req.user || {};
+  const from = String(req.query.from || ''), to = String(req.query.to || ''), cid = String(req.query.contactId || ''), scope = String(req.query.scope || '');
+  let list = loadAppts().filter(a => a.status !== 'deleted');
+  if (cid) list = list.filter(a => a.contactPersonId === cid);
+  if (scope === 'mine') list = list.filter(a => a.byUser === u.username);
+  if (from) list = list.filter(a => String(a.start || '') >= from || (a.end && String(a.end) >= from));
+  if (to) list = list.filter(a => String(a.start || '') <= to);
+  list.sort((a, b) => String(a.start || '').localeCompare(String(b.start || '')));
+  const contacts = loadPeople().map(p => ({ id: p.id, name: p.name, email: (typeof preferredEmailOf === 'function' ? (preferredEmailOf(p) || '') : (p.email || '')) })).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+  const users = auth.loadUsers().filter(x => !x.disabled).map(x => ({ username: x.username, name: x.name || x.username }));
+  res.json({ ok: true, appointments: list.map(apptBrief), contacts, users, types: APPT_TYPES, me: u.username || '', emailReady: isEmailConfigured() });
+});
+app.post('/api/appointments', express.json(), (req, res) => {
+  const u = req.user || {}; const b = req.body || {}; const all = loadAppts(); const now = new Date().toISOString();
+  const title = String(b.title || '').trim().slice(0, 200); if (!title) return res.status(400).json({ ok: false, error: 'A meeting title is required.' });
+  const start = String(b.start || '').slice(0, 16); if (!start) return res.status(400).json({ ok: false, error: 'A start date & time is required.' });
+  let a;
+  if (b.id) { a = all.find(x => x.id === b.id); if (!a) return res.status(404).json({ ok: false, error: 'Appointment not found.' }); if (!(isSuper(u) || a.byUser === u.username)) return res.status(403).json({ ok: false, error: 'You can only edit your own appointments.' }); }
+  else { a = { id: newApptId(), byUser: u.username || '', byName: u.name || u.username || '', createdAt: now, status: 'scheduled' }; all.push(a); }
+  a.title = title; a.start = start;
+  a.end = String(b.end || '').slice(0, 16) || start; a.allDay = !!b.allDay;
+  a.location = String(b.location || '').slice(0, 200); a.type = (APPT_TYPES.indexOf(b.type) >= 0 ? b.type : (a.type || 'Meeting'));
+  a.notes = String(b.notes || '').slice(0, 4000);
+  if (typeof b.contactPersonId === 'string') { a.contactPersonId = b.contactPersonId.slice(0, 60); const p = a.contactPersonId ? personById(a.contactPersonId) : null; a.contactName = p ? p.name : (String(b.contactName || '').slice(0, 160)); a.companyId = p ? (p.companyId || '') : (a.companyId || ''); }
+  if (Array.isArray(b.attendees)) a.attendees = _cleanAttendees(b.attendees);
+  if (typeof b.status === 'string' && ['scheduled', 'cancelled'].indexOf(b.status) >= 0) a.status = b.status;
+  a.updatedAt = now; saveAppts(all);
+  try { if (a.contactPersonId) { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.contactPersonId); if (pp) { logActivity(pp, 'Meeting', (b.id ? 'Updated' : 'Scheduled') + ' meeting: ' + title + ' — ' + start.replace('T', ' '), { by: u.name || '', byUser: u.username || '' }); savePeople(ppl); } } } catch (e) {}
+  res.json({ ok: true, appointment: apptBrief(a) });
+});
+app.post('/api/appointments/:id/invite', express.json(), async (req, res) => {
+  const all = loadAppts(); const a = all.find(x => x.id === req.params.id); if (!a) return res.status(404).json({ ok: false, error: 'Appointment not found.' });
+  if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: 'Email is not set up (Admin → Email).' });
+  const to = (a.attendees || []).map(x => x.email).filter(Boolean);
+  if (!to.length) return res.status(400).json({ ok: false, error: 'Add at least one attendee email first.' });
+  const when = String(a.start || '').replace('T', ' at ') + (a.end ? (' – ' + String(a.end).replace(/^.*T/, '')) : '');
+  const text = 'You are invited: ' + (a.title || 'Meeting') + '\n\nWhen: ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + (a.notes ? ('\n\n' + a.notes) : '') + '\n\n— ' + (a.byName || 'Restaurant Realty Group');
+  const r = await sendInviteMail(to, 'Invitation: ' + (a.title || 'Meeting'), text, apptIcs(a));
+  if (!r.ok) return res.status(500).json({ ok: false, error: r.error || 'Could not send the invite.' });
+  a.invitedAt = new Date().toISOString(); saveAppts(all);
+  res.json({ ok: true, sentTo: to });
+});
+app.delete('/api/appointments/:id', (req, res) => {
+  const u = req.user || {}; const all = loadAppts(); const a = all.find(x => x.id === req.params.id); if (!a) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!(isSuper(u) || a.byUser === u.username)) return res.status(403).json({ ok: false, error: 'You can only delete your own appointments.' });
+  saveAppts(all.filter(x => x.id !== a.id)); res.json({ ok: true });
 });
 
 // ================= Agreements =================
