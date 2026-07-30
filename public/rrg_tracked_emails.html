@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Tracked Emails</title>
+<script src="/rrg_brand.js"></script>
+<script src="/rrg_list.js"></script>
+<style>
+:root{ --navy:#000E31; --red:#DA2B1F; --ink:#1a2236; --muted:#6b7488; --soft:#8a94a6; --line:#e6e9f0; --wash:#f5f7fb; --bg:#eef1f6; --green:#1f8a5b; }
+*{box-sizing:border-box;} html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);}
+.top{background:radial-gradient(115% 130% at 50% 0%, #182a54 0%, #0d1b3d 55%, #04091d 100%);color:#fff;padding:20px 0;}
+.top-inner{max-width:1320px;margin:0 auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.brand{display:inline-flex;align-items:center;gap:11px;}
+.brand .disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font-family:'Arial Black',Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;}
+.brand .wm{font-weight:800;font-size:15px;}
+.top a.back{color:#c3ccdf;text-decoration:none;font-weight:600;font-size:13px;border:1px solid rgba(255,255,255,.2);padding:7px 13px;border-radius:8px;}
+.top a.back:hover{border-color:#fff;color:#fff;}
+.wrap{max-width:none;margin:20px 0;padding:8px 28px 56px;}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:18px;}
+.stat{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 18px;flex:1;min-width:120px;}
+.stat .n{font-size:26px;font-weight:800;color:var(--navy);} .stat .n.green{color:var(--green);} .stat .n.amber{color:#b5791f;}
+.stat .l{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin-top:2px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;}
+table{width:100%;border-collapse:collapse;font-size:13.5px;}
+th,td{padding:11px 10px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top;}
+thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);}
+.lk{color:var(--navy);text-decoration:none;font-weight:600;} .lk:hover{text-decoration:underline;}
+.meta{color:var(--soft);}
+.subj{font-weight:600;color:var(--ink);max-width:320px;}
+.opill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:800;padding:3px 10px;border-radius:20px;white-space:nowrap;background:#eef1f6;color:#8a94a6;}
+.opill.opened{background:#e7f5ee;color:var(--green);}
+.opill.unopened{background:#f4f6fa;color:#98a1b5;}
+.viap{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 7px;border-radius:5px;background:#eef2fb;color:#2647b0;}
+.viap.automation{background:#f1ebfb;color:#6d28d9;}
+.empty{color:var(--muted);font-size:13.5px;padding:26px 4px;text-align:center;}
+.note{color:var(--muted);font-size:12.5px;}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-inner">
+  <span class="brand"><span class="disc">RRG</span><span class="wm">Tracked Emails</span></span>
+  <a class="back" href="./index.html">← Dashboard</a>
+</div></div>
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+  <div class="card">
+    <div class="note" style="margin-bottom:12px">Every email sent from a contact's page or by an automation, with open tracking. Opens are counted when the recipient loads the message; opens from the sending device in the first 20 seconds are ignored.</div>
+    <div id="list"><div class="empty">Loading…</div></div>
+  </div>
+</div>
+<script>
+var EMAILS=[], TBL=null;
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function fmtDT(iso){ if(!iso) return '—'; var t=Date.parse(iso); if(isNaN(t)) return '—'; var d=new Date(t); return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2)+' '+d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
+function ago(iso){ if(!iso) return ''; var t=Date.parse(iso); if(isNaN(t)) return ''; var s=Math.max(0,(Date.now()-t)/1000); if(s<60) return 'just now'; var m=Math.floor(s/60); if(m<60) return m+'m ago'; var h=Math.floor(m/60); if(h<24) return h+'h ago'; var d=Math.floor(h/24); return d+'d ago'; }
+function load(){
+  fetch('/api/tracked-emails',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ document.getElementById('list').innerHTML='<div class="empty">Could not load tracked emails.</div>'; return; }
+    EMAILS=j.emails||[]; render();
+  }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; });
+}
+function render(){
+  var total=EMAILS.length;
+  var opened=EMAILS.filter(function(e){return (e.opens||0)>0;}).length;
+  var totalOpens=EMAILS.reduce(function(a,e){return a+(e.opens||0);},0);
+  var rate= total? Math.round(opened/total*100):0;
+  document.getElementById('stats').innerHTML=
+    '<div class="stat"><div class="n">'+total+'</div><div class="l">Emails sent</div></div>'
+    +'<div class="stat"><div class="n green">'+opened+'</div><div class="l">Opened</div></div>'
+    +'<div class="stat"><div class="n amber">'+rate+'%</div><div class="l">Open rate</div></div>'
+    +'<div class="stat"><div class="n">'+totalOpens+'</div><div class="l">Total opens</div></div>';
+  var cfg={ mount:'#list', data:EMAILS, key:'trackedEmails', empty:'<div class="empty">No tracked emails yet. Send an email from a contact’s page and it will show up here.</div>', rowId:function(e){return e.id;},
+    defaultSort:0, defaultDir:1,
+    columns:[
+      { label:'Sent', sort:function(a,b){return RRGList.cmp(a.sentAt,b.sentAt);}, cell:function(e){ return '<span title="'+esc(e.sentAt)+'">'+esc(fmtDT(e.sentAt))+'</span>'; } },
+      { label:'Subject', sort:function(a,b){return RRGList.cmp(a.subject,b.subject);}, cell:function(e){ return '<div class="subj">'+esc(e.subject||'(no subject)')+'</div>'; } },
+      { label:'Contact', sort:function(a,b){return RRGList.cmp(a.personName,b.personName);}, cell:function(e){ return e.personId?('<a class="lk" href="./rrg_person.html?id='+encodeURIComponent(e.personId)+'">'+esc(e.personName||'Contact')+'</a>'):esc(e.personName||'—'); } },
+      { label:'Company', sort:function(a,b){return RRGList.cmp(a.company,b.company);}, cell:function(e){ return e.company?esc(e.company):'<span class="meta">—</span>'; } },
+      { label:'To', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.to,b.to);}, cell:function(e){ return '<span class="meta">'+esc(e.to||'—')+'</span>'; } },
+      { label:'Opens', sort:function(a,b){return (a.opens||0)-(b.opens||0);}, cell:function(e){ var o=e.opens||0; if(!e.tracked) return '<span class="opill" title="No tracking pixel on this send">not tracked</span>'; return o>0?('<span class="opill opened">'+o+' open'+(o===1?'':'s')+'</span>'):'<span class="opill unopened">unopened</span>'; } },
+      { label:'Last opened', sort:function(a,b){return RRGList.cmp(a.lastOpen||'',b.lastOpen||'');}, cell:function(e){ return e.lastOpen?('<span title="'+esc(e.lastOpen)+'">'+esc(ago(e.lastOpen))+'</span>'):'<span class="meta">—</span>'; } },
+      { label:'Sent by', sort:function(a,b){return RRGList.cmp(a.by,b.by);}, cell:function(e){ var via=e.via?('<span class="viap '+(e.via==='automation'?'automation':'')+'">'+esc(e.via)+'</span> '):''; return via+'<span class="meta">'+esc(e.by||'—')+'</span>'; } }
+    ]
+  };
+  if(TBL) TBL.refresh(EMAILS); else TBL=RRGList.create(cfg);
+}
+load();
+</script>
+</body>
+</html>

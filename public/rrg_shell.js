@@ -49,6 +49,7 @@
       { ic: '▧', label: 'Marketing Packs', href: 'rrg_cim_queue.html' },
       { ic: '➤', label: 'Market Attack Plans', href: 'rrg_attack_queue.html' },
       { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
+      { ic: '◉', label: 'Tracked Emails', href: 'rrg_tracked_emails.html' },
       { ic: '⟳', label: 'Automations', href: 'rrg_admin_automations.html', admin: true }
     ] },
     { grp: 'Accounting', admin: true, color: '#4fb0a6', items: [

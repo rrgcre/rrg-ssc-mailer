@@ -4041,6 +4041,23 @@ app.get('/eo/:token', (req, res) => {
   res.set('Pragma', 'no-cache'); res.set('Expires', '0');
   res.end(_OPEN_GIF);
 });
+// ---- Tracked Emails: every sent email with open counts, newest first. Reps see their own; admins see all. ----
+app.get('/api/tracked-emails', (req, res) => {
+  const restrict = restrictToOwn(req);
+  const uname = (req.user && req.user.username) || '';
+  const people = loadPeople();
+  const coName = {}; loadCompanies().forEach(c => { coName[c.id] = c.name || ''; });
+  const out = [];
+  people.forEach(p => {
+    (Array.isArray(p.emailLog) ? p.emailLog : []).forEach(e => {
+      if (!e) return;
+      if (restrict && e.byUser && e.byUser !== uname) return;
+      out.push({ id: e.id || '', personId: p.id, personName: p.name || 'Contact', company: (p.companyId && coName[p.companyId]) || p.company || '', to: e.to || '', subject: e.subject || '', sentAt: e.sentAt || '', by: e.by || '', byUser: e.byUser || '', via: e.via || '', opens: e.opens || 0, firstOpen: e.firstOpen || '', lastOpen: e.lastOpen || '', tracked: !!e.openToken });
+    });
+  });
+  out.sort((a, b) => String(b.sentAt || '').localeCompare(String(a.sentAt || '')));
+  res.json({ ok: true, emails: out.slice(0, 500), isAdmin: !!(req.user && isSuper(req.user)), canSeeAll: !restrict });
+});
 app.post('/api/person/:id/email', express.json({ limit: '256kb' }), async (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
