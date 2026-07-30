@@ -8,6 +8,45 @@
   if (/\/login/.test(path) || file === 'login' ) return;
   if (document.querySelector('meta[name="rrg-noshell"]')) return;
   window.__rrgShell = true;
+  // Branded in-app notifications — replaces the native alert() popup (which leaked the backend domain) app-wide.
+  try {
+    var _rrgToastWrap = null;
+    function _rrgToastCss() {
+      if (document.getElementById('rrgtoast-css')) return;
+      var st = document.createElement('style'); st.id = 'rrgtoast-css';
+      st.textContent =
+        '#rrgtoastwrap{position:fixed;top:14px;right:14px;z-index:2000;display:flex;flex-direction:column;gap:10px;max-width:380px;pointer-events:none;}'
+        + '.rrgtoast{pointer-events:auto;display:flex;align-items:flex-start;gap:10px;background:#0f1b3d;color:#fff;border-radius:11px;padding:13px 14px;box-shadow:0 12px 34px rgba(6,14,32,.34);font:600 13.5px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;transform:translateX(120%);opacity:0;transition:transform .26s cubic-bezier(.2,.8,.2,1),opacity .26s;}'
+        + '.rrgtoast.show{transform:translateX(0);opacity:1;}'
+        + '.rrgtoast.err{background:#7a1f1a;}'
+        + '.rrgtoast .rrgtico{flex:none;width:20px;height:20px;border-radius:50%;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;margin-top:1px;}'
+        + '.rrgtoast .rrgtmsg{flex:1;min-width:0;white-space:pre-wrap;}'
+        + '.rrgtoast .rrgtx{flex:none;background:none;border:none;color:rgba(255,255,255,.7);font-size:17px;line-height:1;cursor:pointer;padding:0 2px;}'
+        + '.rrgtoast .rrgtx:hover{color:#fff;}';
+      document.head.appendChild(st);
+    }
+    function rrgToast(msg, type) {
+      msg = String(msg == null ? '' : msg); if (!msg) return;
+      _rrgToastCss();
+      if (!_rrgToastWrap || !document.body.contains(_rrgToastWrap)) { _rrgToastWrap = document.createElement('div'); _rrgToastWrap.id = 'rrgtoastwrap'; document.body.appendChild(_rrgToastWrap); }
+      var isErr = type === 'error' || /could not|couldn.t|couldn't|failed|error|not reach|unable|invalid|not yours|already exists|denied/i.test(msg);
+      var card = document.createElement('div'); card.className = 'rrgtoast' + (isErr ? ' err' : '');
+      var ico = document.createElement('span'); ico.className = 'rrgtico'; ico.textContent = isErr ? '!' : '✓';
+      var m = document.createElement('span'); m.className = 'rrgtmsg'; m.textContent = msg;
+      var x = document.createElement('button'); x.className = 'rrgtx'; x.setAttribute('aria-label', 'Dismiss'); x.textContent = '×';
+      card.appendChild(ico); card.appendChild(m); card.appendChild(x);
+      _rrgToastWrap.appendChild(card);
+      requestAnimationFrame(function () { card.classList.add('show'); });
+      var t = setTimeout(dismiss, isErr ? 7000 : 4500);
+      function dismiss() { clearTimeout(t); card.classList.remove('show'); setTimeout(function () { if (card.parentNode) card.parentNode.removeChild(card); }, 260); }
+      x.addEventListener('click', dismiss);
+      return dismiss;
+    }
+    window.rrgToast = rrgToast;
+    // Route native alert() through the branded toast — non-blocking, no domain, no leaked brand.
+    window.alert = function (mm) { try { rrgToast(mm); } catch (e) {} };
+  } catch (e) {}
+
   // Global phone formatting — any phone field, 10 digits -> (xxx) xxx-xxxx
   try { document.addEventListener("input", function(e){ var t=e.target; if(!t||t.tagName!=="INPUT") return; var key=((t.id||"")+" "+(t.name||"")+" "+(t.className||"")).toLowerCase(); if(t.type==="tel" || /phone/.test(key)){ var d=String(t.value||"").replace(/\D/g,"").slice(0,10); var f = d.length<4 ? d : (d.length<7 ? "("+d.slice(0,3)+") "+d.slice(3) : "("+d.slice(0,3)+") "+d.slice(3,6)+"-"+d.slice(6)); if(f!==t.value){ t.value=f; } } }); } catch(e){}
 
