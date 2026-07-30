@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Cleanup & Standardize</title>
+<style>
+:root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2f6fd0;--teal:#12a594;--green:#1f8a5b;--amber:#B7791F;--red:#DA2B1F;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#1c4a44,#123a37 42%,#0c2320 72%,#08110f 100%);color:#fff;padding:26px 0 24px;}
+.top-in{max-width:1140px;margin:0 auto;padding:0 24px;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fd0c4;font-weight:800;margin:14px 0 4px;}
+h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#b6d4cf;font-size:13px;margin-top:6px;max-width:740px;line-height:1.5;}
+.wrap{max-width:1140px;margin:20px auto;padding:0 24px 80px;}
+.bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 16px;box-shadow:0 1px 2px rgba(16,32,70,.04);}
+.bar .cnt{font-size:13px;color:var(--dim);font-weight:600;} .bar .cnt b{color:var(--navy);}
+.bar .sp{margin-left:auto;display:flex;gap:9px;align-items:center;flex-wrap:wrap;}
+.btn{background:#fff;color:var(--navy);border:1px solid #cdd6e6;border-radius:9px;padding:9px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;} .btn:hover{background:#f4f7fb;} .btn.teal{background:var(--teal);color:#fff;border-color:var(--teal);} .btn.teal:hover{filter:brightness(1.06);} .btn.green{background:var(--green);color:#fff;border-color:var(--green);} .btn.green:hover{background:#186f48;} .btn:disabled{opacity:.5;cursor:default;}
+.fields{display:flex;gap:15px;flex-wrap:wrap;align-items:center;background:#f6f8fc;border:1px solid var(--line);border-radius:11px;padding:11px 15px;margin-bottom:16px;font-size:12.5px;}
+.fields .ttl{font-weight:800;text-transform:uppercase;letter-spacing:.05em;font-size:10.5px;color:var(--faint);}
+.fields label{display:inline-flex;align-items:center;gap:7px;font-weight:600;color:var(--ink);cursor:pointer;}
+.fields input{width:16px;height:16px;accent-color:var(--teal);cursor:pointer;}
+.sec{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:20px 0 11px;display:flex;align-items:center;gap:9px;} .sec:before{content:'';flex:0 0 20px;height:2px;background:var(--line);} .sec:after{content:'';flex:1;height:1px;background:var(--line);}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;}
+.ec{background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 15px;box-shadow:0 1px 2px rgba(16,32,70,.04);position:relative;transition:.12s;cursor:pointer;}
+.ec.on{border-color:var(--teal);box-shadow:0 0 0 2px rgba(18,165,148,.16);} .ec.dead{opacity:.5;}
+.ec .chk{position:absolute;top:12px;right:12px;width:21px;height:21px;border-radius:6px;border:1.5px solid #cdd6e6;background:#fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;} .ec.on .chk{background:var(--teal);border-color:var(--teal);}
+.ec .nm{font-weight:800;font-size:14px;padding-right:28px;line-height:1.25;} .ec .co{font-size:11px;color:var(--faint);margin-top:1px;}
+.chg{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.5;display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
+.chg .kk{font-size:9px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;color:#fff;background:var(--blue);border-radius:100px;padding:1px 6px;} .chg .kk.state{background:#6d7c9c;} .chg .kk.website{background:var(--teal);} .chg .kk.market{background:var(--amber);} .chg .kk.email{background:#4a5cd0;} .chg .kk.dm{background:var(--green);}
+.chg .fr{color:var(--faint);text-decoration:line-through;} .chg .to{color:var(--ink);font-weight:700;} .chg .ar{color:var(--faint);}
+.empty{text-align:center;color:var(--dim);padding:54px 20px;} .empty b{color:var(--green);display:block;font-size:17px;margin-bottom:6px;}
+.msg{font-size:13px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid #cdd6e6;border-top-color:var(--teal);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:7px;} @keyframes sp{to{transform:rotate(360deg)}}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="./rrg_data.html" class="rrg-back" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span style="font-size:14px;line-height:1">←</span> Data Enrichment</a>
+<div class="top"><div class="top-in">
+  <span class="disc" onclick="location.href='./index.html'">RRG</span>
+  <div class="kicker">Data Enrichment</div>
+  <h1>Cleanup &amp; Standardize</h1>
+  <div class="sub">Fix the messy stuff imports leave behind — <b>ALL-CAPS names</b> title-cased, <b>state names</b> to codes, <b>websites</b> normalized, <b>emails</b> lowercased, <b>markets</b> assigned from city, and <b>decision-makers</b> tagged from their title. Deterministic — no AI cost. Review, tick, apply.</div>
+</div></div>
+<div id="root" class="wrap"><div class="gate">Checking access…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var DATA={companies:[],people:[]}, STATE={};
+function fieldsOn(){ return { case:document.getElementById('f_case').checked, state:document.getElementById('f_state').checked, website:document.getElementById('f_web').checked, email:document.getElementById('f_email').checked, market:document.getElementById('f_market').checked, dm:document.getElementById('f_dm').checked }; }
+function build(){
+  var root=document.getElementById('root'); root.className='wrap';
+  root.innerHTML=''
+   +'<div class="fields"><span class="ttl">Apply</span>'
+   +'<label><input type="checkbox" id="f_case" checked> Name casing</label>'
+   +'<label><input type="checkbox" id="f_state" checked> State codes</label>'
+   +'<label><input type="checkbox" id="f_web" checked> Websites</label>'
+   +'<label><input type="checkbox" id="f_email" checked> Emails</label>'
+   +'<label><input type="checkbox" id="f_market" checked> Market from city</label>'
+   +'<label><input type="checkbox" id="f_dm" checked> Decision-maker tags</label></div>'
+   +'<div class="bar"><span class="cnt" id="cnt"><span class="spin"></span>Scanning your book…</span><div class="sp"><button class="btn" id="all">Select all</button><button class="btn" id="none">Select none</button><button class="btn green" id="apply">Apply approved</button><span class="msg" id="msg"></span></div></div>'
+   +'<div id="list"></div>';
+  document.getElementById('all').addEventListener('click',function(){ Object.keys(STATE).forEach(function(k){ if(STATE[k]!=='dead') STATE[k]='on'; }); paint(); });
+  document.getElementById('none').addEventListener('click',function(){ Object.keys(STATE).forEach(function(k){ if(STATE[k]!=='dead') STATE[k]='off'; }); paint(); });
+  document.getElementById('apply').addEventListener('click',apply);
+  scan();
+}
+function scan(){
+  fetch('/api/admin/cleanup-scan',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ document.getElementById('list').innerHTML='<div class="empty">Could not scan.</div>'; document.getElementById('cnt').textContent=''; return; }
+    DATA={companies:j.companies||[],people:j.people||[]};
+    var tot=DATA.companies.length+DATA.people.length;
+    if(!tot){ document.getElementById('list').innerHTML='<div class="empty"><b>Everything looks clean.</b>No casing, state, website, email, market or role fixes needed right now.</div>'; document.getElementById('cnt').textContent=''; return; }
+    STATE={};
+    DATA.companies.forEach(function(c){ STATE['c|'+c.id]='on'; });
+    DATA.people.forEach(function(p){ STATE['p|'+p.id]='on'; });
+    render();
+  }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; });
+}
+function chgLine(ch){
+  var lbl={case:'Name',state:'State',website:'Website',market:'Market',email:'Email',dm:'Tag'}[ch.kind]||ch.kind;
+  var to = ch.kind==='dm' ? ('<span class="to">+ '+esc(ch.to)+'</span>') : ((ch.from?('<span class="fr">'+esc(ch.from)+'</span><span class="ar">→</span>'):'')+'<span class="to">'+esc(ch.to)+'</span>');
+  return '<div class="chg"><span class="kk '+ch.kind+'">'+esc(lbl)+'</span> '+to+'</div>';
+}
+function card(kind,rec){
+  var k=(kind==='c'?'c|':'p|')+rec.id;
+  var sub = kind==='p' ? [rec.title,rec.company].filter(Boolean).join(' · ') : '';
+  return '<div class="ec'+(STATE[k]==='on'?' on':'')+'" data-k="'+esc(k)+'"><div class="chk">✓</div>'
+    +'<div class="nm">'+esc(rec.name||'(no name)')+'</div>'
+    +(sub?('<div class="co">'+esc(sub)+'</div>'):'')
+    +rec.changes.map(chgLine).join('')+'</div>';
+}
+function render(){
+  var html='';
+  if(DATA.companies.length){ html+='<div class="sec">Companies · '+DATA.companies.length+'</div><div class="grid">'+DATA.companies.map(function(c){return card('c',c);}).join('')+'</div>'; }
+  if(DATA.people.length){ html+='<div class="sec">Contacts · '+DATA.people.length+'</div><div class="grid">'+DATA.people.map(function(p){return card('p',p);}).join('')+'</div>'; }
+  document.getElementById('list').innerHTML=html;
+  document.querySelectorAll('.ec[data-k]').forEach(function(el){ el.addEventListener('click',function(){ var k=el.getAttribute('data-k'); if(STATE[k]==='dead')return; STATE[k]=(STATE[k]==='on')?'off':'on'; el.classList.toggle('on',STATE[k]==='on'); count(); }); });
+  count();
+}
+function paint(){ document.querySelectorAll('.ec[data-k]').forEach(function(el){ var k=el.getAttribute('data-k'); el.classList.toggle('on',STATE[k]==='on'); }); count(); }
+function count(){ var on=Object.keys(STATE).filter(function(k){return STATE[k]==='on';}).length; var c=document.getElementById('cnt'); if(c) c.innerHTML='<b>'+(DATA.companies.length+DATA.people.length)+'</b> records with fixes · <b>'+on+'</b> selected'; var ap=document.getElementById('apply'); if(ap) ap.textContent='Apply approved'+(on?(' ('+on+')'):''); }
+function apply(){
+  var kinds=fieldsOn();
+  var cos=DATA.companies.filter(function(c){return STATE['c|'+c.id]==='on';}).map(function(c){return {id:c.id,changes:c.changes};});
+  var ppl=DATA.people.filter(function(p){return STATE['p|'+p.id]==='on';}).map(function(p){return {id:p.id,changes:p.changes};});
+  if(!cos.length&&!ppl.length){ alert('Tick at least one record.'); return; }
+  var b=document.getElementById('apply'); b.disabled=true; var msg=document.getElementById('msg'); msg.className='msg'; msg.innerHTML='<span class="spin"></span>Applying…';
+  fetch('/api/admin/cleanup-apply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({companies:cos,people:ppl,kinds:kinds})}).then(function(r){return r.json();}).then(function(j){
+    b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Applied '+j.applied+' fix'+(j.applied===1?'':'es')+' ✓'; [].concat(cos.map(function(c){return 'c|'+c.id;}),ppl.map(function(p){return 'p|'+p.id;})).forEach(function(k){ STATE[k]='dead'; var el=document.querySelector('.ec[data-k="'+String(k).replace(/"/g,'\\"')+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } }); count(); }
+    else { msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
+  }).catch(function(){ b.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
+}
+fetch('/api/admin/cleanup-scan',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
+  build();
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to run cleanup.</div>'; });
+</script>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Concept Intelligence</title>
+<style>
+:root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2f6fd0;--teal:#12a594;--green:#1f8a5b;--purple:#6d5bc0;--amber:#B7791F;--red:#DA2B1F;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#2a2260,#1c1b47 42%,#0f1030 72%,#080a22 100%);color:#fff;padding:26px 0 24px;}
+.top-in{max-width:1140px;margin:0 auto;padding:0 24px;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#a99be0;font-weight:800;margin:14px 0 4px;}
+h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#c3bce0;font-size:13px;margin-top:6px;max-width:740px;line-height:1.5;}
+.wrap{max-width:1140px;margin:20px auto;padding:0 24px 80px;}
+.bar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:16px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 16px;box-shadow:0 1px 2px rgba(16,32,70,.04);}
+.bar .cnt{font-size:13px;color:var(--dim);font-weight:600;} .bar .cnt b{color:var(--navy);}
+.bar .sp{margin-left:auto;display:flex;gap:9px;align-items:center;flex-wrap:wrap;}
+.btn{background:#fff;color:var(--navy);border:1px solid #cdd6e6;border-radius:9px;padding:9px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;} .btn:hover{background:#f4f7fb;} .btn.purple{background:var(--purple);color:#fff;border-color:var(--purple);} .btn.purple:hover{filter:brightness(1.08);} .btn.green{background:var(--green);color:#fff;border-color:var(--green);} .btn.green:hover{background:#186f48;} .btn:disabled{opacity:.5;cursor:default;}
+.fields{display:flex;gap:16px;flex-wrap:wrap;align-items:center;background:#f6f8fc;border:1px solid var(--line);border-radius:11px;padding:11px 15px;margin-bottom:16px;font-size:12.5px;}
+.fields .ttl{font-weight:800;text-transform:uppercase;letter-spacing:.05em;font-size:10.5px;color:var(--faint);}
+.fields label{display:inline-flex;align-items:center;gap:7px;font-weight:600;color:var(--ink);cursor:pointer;}
+.fields input{width:16px;height:16px;accent-color:var(--purple);cursor:pointer;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:13px;}
+.ec{background:#fff;border:1px solid var(--line);border-radius:13px;padding:14px 15px;box-shadow:0 1px 2px rgba(16,32,70,.04);position:relative;transition:.12s;}
+.ec.on{border-color:var(--purple);box-shadow:0 0 0 2px rgba(109,91,192,.16);} .ec.dead{opacity:.5;}
+.ec .chk{position:absolute;top:13px;right:13px;width:22px;height:22px;border-radius:6px;border:1.5px solid #cdd6e6;background:#fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;cursor:pointer;} .ec.on .chk{background:var(--purple);border-color:var(--purple);}
+.ec .nm{font-weight:800;font-size:14.5px;padding-right:30px;line-height:1.25;} .ec .co{font-size:11px;color:var(--faint);margin-top:1px;}
+.meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px;} .tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:100px;background:#f2eefb;color:var(--purple);} .tag.set{background:#eef1f7;color:var(--dim);} .tag.mu{background:#eef7f1;color:var(--green);} .tag.none{background:#faf1f0;color:var(--faint);}
+.lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:800;margin-right:3px;}
+.deadmsg{font-size:11.5px;color:var(--faint);margin-top:9px;}
+.empty{text-align:center;color:var(--dim);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:16px;margin-bottom:6px;}
+.setup{max-width:600px;margin:20px auto;text-align:center;background:#fff;border:1px solid var(--line);border-radius:14px;padding:34px 28px;} .setup b{display:block;font-size:17px;color:var(--navy);margin-bottom:8px;} .setup p{color:var(--dim);font-size:13.5px;line-height:1.6;margin:0 0 16px;}
+.msg{font-size:13px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid #cdd6e6;border-top-color:var(--purple);border-radius:50%;animation:sp .7s linear infinite;vertical-align:-3px;margin-right:7px;} @keyframes sp{to{transform:rotate(360deg)}}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="./rrg_data.html" class="rrg-back" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span style="font-size:14px;line-height:1">←</span> Data Enrichment</a>
+<div class="top"><div class="top-in">
+  <span class="disc" onclick="location.href='./index.html'">RRG</span>
+  <div class="kicker">Data Enrichment · AI</div>
+  <h1>Concept Intelligence</h1>
+  <div class="sub">Consult reads each concept name and fills what Copper never captured — <b>cuisine, concept type, and price point</b> — and flags <b>multi-unit operators</b>. The fields that turn a contact list into a restaurant &amp; bar database. Review, tick, apply.</div>
+</div></div>
+<div id="root" class="wrap"><div class="gate">Checking access…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var CANDS=[], ROWS={}, ORDER=[], STATE={}, SCANNED=0, ONLYNEEDS=true;
+function fieldsOn(){ return { cuisine:document.getElementById('f_cuisine').checked, type:document.getElementById('f_type').checked, price:document.getElementById('f_price').checked, mu:document.getElementById('f_mu').checked }; }
+function build(aiReady){
+  var root=document.getElementById('root'); root.className='wrap';
+  if(!aiReady){ root.innerHTML='<div class="setup"><b>Turn on AI first</b><p>Concept Intelligence uses Consult (your Anthropic key). Save your key under <b>Admin → Settings</b>, then come back.</p><a class="btn purple" href="rrg_admin_settings.html" style="text-decoration:none;color:#fff">Open Settings</a></div>'; return; }
+  root.innerHTML=''
+   +'<div class="fields"><span class="ttl">Apply</span>'
+   +'<label><input type="checkbox" id="f_cuisine" checked> Cuisine</label>'
+   +'<label><input type="checkbox" id="f_type" checked> Concept type</label>'
+   +'<label><input type="checkbox" id="f_price" checked> Price point</label>'
+   +'<label><input type="checkbox" id="f_mu" checked> Tag multi-unit operators</label>'
+   +'<label style="margin-left:auto"><input type="checkbox" id="f_only" checked> Only concepts missing data</label></div>'
+   +'<div class="bar"><span class="cnt" id="cnt"></span><div class="sp"><button class="btn" id="all">Select all</button><button class="btn" id="none">Select none</button><button class="btn purple" id="scan">Classify with AI</button><button class="btn green" id="apply">Apply approved</button><span class="msg" id="msg"></span></div></div>'
+   +'<div class="grid" id="grid"></div>';
+  document.getElementById('all').addEventListener('click',function(){ ORDER.forEach(function(k){ if(STATE[k]!=='dead'&&ROWS[k].proposed) STATE[k]='on'; }); paint(); });
+  document.getElementById('none').addEventListener('click',function(){ ORDER.forEach(function(k){ if(STATE[k]!=='dead') STATE[k]='off'; }); paint(); });
+  document.getElementById('scan').addEventListener('click',scan);
+  document.getElementById('apply').addEventListener('click',apply);
+  document.getElementById('f_only').addEventListener('change',function(){ ONLYNEEDS=this.checked; });
+  loadCands();
+}
+function loadCands(){
+  fetch('/api/admin/concepts-candidates',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ document.getElementById('grid').innerHTML='<div class="empty">Could not load concepts.</div>'; return; }
+    CANDS=j.candidates||[];
+    if(!CANDS.length){ document.getElementById('grid').innerHTML='<div class="empty"><b>No concepts yet.</b>Import companies (concepts are created from them), then come back.</div>'; document.getElementById('cnt').textContent=''; return; }
+    document.getElementById('cnt').innerHTML='<b>'+CANDS.length+'</b> concepts · <b>'+j.needing+'</b> missing cuisine / type / price · press <b>Classify with AI</b>';
+  }).catch(function(){ document.getElementById('grid').innerHTML='<div class="empty">Could not reach the server.</div>'; });
+}
+function scan(){
+  var btn=document.getElementById('scan'); btn.disabled=true; SCANNED=0; ROWS={}; ORDER=[]; STATE={};
+  document.getElementById('grid').innerHTML='';
+  var pool=CANDS.filter(function(c){ return ONLYNEEDS? c.needs : true; });
+  if(!pool.length){ btn.disabled=false; document.getElementById('cnt').textContent='Nothing to classify — every concept already has cuisine, type and price.'; return; }
+  var chunks=[]; for(var i=0;i<pool.length;i+=12) chunks.push(pool.slice(i,i+12));
+  var ci=0;
+  function next(){
+    if(ci>=chunks.length){ btn.disabled=false; document.getElementById('cnt').innerHTML='<b>'+ORDER.filter(function(k){return ROWS[k].proposed;}).length+'</b> classified · scanned '+SCANNED; return; }
+    var items=chunks[ci].map(function(c){ return {companyId:c.companyId, conceptId:c.conceptId}; });
+    document.getElementById('cnt').innerHTML='<span class="spin"></span>Classifying '+(SCANNED+1)+'–'+Math.min(SCANNED+items.length,pool.length)+' of '+pool.length+'…';
+    fetch('/api/admin/concepts-classify',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ (j.results||[]).forEach(addRow); } else { document.getElementById('msg').className='msg err'; document.getElementById('msg').textContent=(j&&j.error)||'AI error'; }
+      SCANNED+=items.length; ci++; next();
+    }).catch(function(){ btn.disabled=false; document.getElementById('msg').className='msg err'; document.getElementById('msg').textContent='Scan stopped — server error.'; });
+  }
+  next();
+}
+function addRow(r){
+  var k=r.companyId+'|'+r.conceptId; ROWS[k]=r; ORDER.push(k);
+  var p=r.proposed||{}; var cur=r.current||{};
+  var hasNew=(p.cuisine&&!cur.cuisine)||(p.conceptType&&!cur.conceptType)||(p.pricePoint&&!cur.pricePoint)||p.multiUnit;
+  STATE[k]=hasNew?'on':'off';
+  document.getElementById('grid').insertAdjacentHTML('beforeend',cardHtml(k));
+  var el=document.querySelector('.ec[data-k="'+cssq(k)+'"]'); if(el){ el.addEventListener('click',function(){ STATE[k]=(STATE[k]==='on')?'off':'on'; el.classList.toggle('on',STATE[k]==='on'); count(); }); }
+  count();
+}
+function cssq(k){ return String(k).replace(/"/g,'\\"'); }
+function valTag(lbl,cur,prop){ if(prop&&!cur) return '<span class="tag"><span class="lbl">'+lbl+'</span>'+esc(prop)+'</span>'; if(cur) return '<span class="tag set"><span class="lbl">'+lbl+'</span>'+esc(cur)+'</span>'; if(prop&&cur) return '<span class="tag set"><span class="lbl">'+lbl+'</span>'+esc(cur)+'</span>'; return '<span class="tag none"><span class="lbl">'+lbl+'</span>—</span>'; }
+function cardHtml(k){
+  var r=ROWS[k], p=r.proposed||{}, cur=r.current||{};
+  var meta=valTag('Cuisine',cur.cuisine,p.cuisine)+valTag('Type',cur.conceptType,p.conceptType)+valTag('Price',cur.pricePoint,p.pricePoint);
+  if(p.multiUnit) meta+='<span class="tag mu">Multi-Unit Operator</span>';
+  return '<div class="ec'+(STATE[k]==='on'?' on':'')+'" data-k="'+esc(k)+'"><div class="chk">✓</div>'
+    +'<div class="nm">'+esc(r.name||'Concept')+'</div>'
+    +'<div class="co">'+esc(r.companyName||'')+'</div>'
+    +'<div class="meta">'+meta+'</div></div>';
+}
+function paint(){ ORDER.forEach(function(k){ var el=document.querySelector('.ec[data-k="'+cssq(k)+'"]'); if(el) el.classList.toggle('on',STATE[k]==='on'); }); count(); }
+function count(){ var on=ORDER.filter(function(k){return STATE[k]==='on';}).length; var ap=document.getElementById('apply'); if(ap) ap.textContent='Apply approved'+(on?(' ('+on+')'):''); }
+function apply(){
+  var f=fieldsOn(); var items=[];
+  ORDER.forEach(function(k){ if(STATE[k]!=='on') return; var r=ROWS[k], p=r.proposed; if(!p) return;
+    var a={};
+    if(f.cuisine&&p.cuisine) a.cuisine=p.cuisine;
+    if(f.type&&p.conceptType) a.conceptType=p.conceptType;
+    if(f.price&&p.pricePoint) a.pricePoint=p.pricePoint;
+    if(f.mu&&p.multiUnit) a.multiUnit=true;
+    items.push({ companyId:r.companyId, conceptId:r.conceptId, apply:a });
+  });
+  if(!items.length){ alert('Tick at least one concept to apply.'); return; }
+  var b=document.getElementById('apply'); b.disabled=true; var msg=document.getElementById('msg'); msg.className='msg'; msg.innerHTML='<span class="spin"></span>Applying…';
+  fetch('/api/admin/concepts-apply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
+    b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Classified '+j.applied+' concept'+(j.applied===1?'':'s')+(j.tagged?(' · '+j.tagged+' tagged multi-unit'):'')+' ✓'; items.forEach(function(it){ var k=it.companyId+'|'+it.conceptId; STATE[k]='off'; var el=document.querySelector('.ec[data-k="'+cssq(k)+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } }); count(); }
+    else { msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
+  }).catch(function(){ b.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
+}
+fetch('/api/admin/concepts-candidates',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
+  build(!!(j&&j.aiReady));
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to run Concept Intelligence.</div>'; });
+</script>
+</body>
+</html>

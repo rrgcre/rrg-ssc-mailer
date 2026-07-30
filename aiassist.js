@@ -190,4 +190,19 @@ async function consult({ question, snapshot, history, agentName }) {
   return r;
 }
 
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult };
+async function classifyConcepts({ items, conceptTypes, pricePoints, cuisines }) {
+  const sys = 'You are a restaurant-industry analyst inside FullServe, the CRM for Restaurant Realty Group (a brokerage that sells restaurants and bars). For each concept/brand name, classify it using ONLY the allowed values. Use your knowledge of well-known chains; for local or independent names, infer sensibly from the words in the name. If a field is genuinely unclear, return an empty string for it — do not guess wildly. '
+    + 'Allowed conceptType: ' + JSON.stringify(conceptTypes) + '. '
+    + 'Allowed pricePoint: ' + JSON.stringify(pricePoints) + ' where "$" is cheap and "$$$$" is high-end. '
+    + 'Allowed cuisine: ' + JSON.stringify(cuisines) + '. '
+    + 'multiUnit = true only if the name is a known multi-location chain or franchise. '
+    + 'Return ONLY a JSON object: {"results":[{"i":<index>,"cuisine":"","conceptType":"","pricePoint":"","multiUnit":false}]}. Include every index exactly once, values chosen strictly from the allowed lists.';
+  const userText = 'Classify these concepts:\n' + items.map((it, i) => i + ': ' + String(it.name || '') + (it.website ? (' (' + it.website + ')') : '')).join('\n') + '\n\nReturn the JSON object now.';
+  const text = await callClaude(sys, userText, Math.min(4000, 300 + items.length * 60));
+  let r = extractJson(text) || {};
+  if (!Array.isArray(r.results)) { const a = text ? text.indexOf('{') : -1; r = {}; }
+  const out = Array.isArray(r.results) ? r.results : [];
+  return out.map(x => ({ i: Number(x.i), cuisine: String(x.cuisine || ''), conceptType: String(x.conceptType || ''), pricePoint: String(x.pricePoint || ''), multiUnit: !!x.multiUnit }));
+}
+
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts };

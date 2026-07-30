@@ -6759,6 +6759,130 @@ app.get('/api/admin/enrichment-summary', requireAdmin, (req, res) => {
   res.json({ ok: true, hasKey: !!loadGmapsKey(), companies: companies.length, contacts: people.length, missingLogo: missingLogo, locations: locs, locationsEnriched: locsEnriched, locationsToEnrich: locs - locsEnriched, concepts: conceptsTotal, conceptsIncomplete: conceptsIncomplete });
 });
 
+
+// ===== Concept Intelligence (AI) — classify cuisine / type / price, flag multi-unit =====
+function conceptNeedsClass(cp){ return !String(cp.cuisine||'').trim() || !String(cp.conceptType||'').trim() || !String(cp.pricePoint||'').trim(); }
+app.get('/api/admin/concepts-candidates', requireAdmin, (req, res) => {
+  const companies = loadCompanies(); const out = [];
+  companies.forEach(c => { (c.concepts || []).forEach(cp => {
+    const locs = (c.locations || []).filter(l => normKey(l.concept) === normKey(cp.name)).length;
+    out.push({ companyId: c.id, conceptId: cp.id, name: cp.name || '', website: cp.website || (c.office && c.office.website) || '', locations: locs, needs: conceptNeedsClass(cp), current: { cuisine: cp.cuisine || '', conceptType: cp.conceptType || '', pricePoint: cp.pricePoint || '' } });
+  }); });
+  res.json({ ok: true, aiReady: !!process.env.ANTHROPIC_API_KEY, candidates: out, total: out.length, needing: out.filter(x => x.needs).length });
+});
+app.post('/api/admin/concepts-classify', requireAdmin, express.json(), async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(400).json({ ok: false, error: 'AI is not configured — set the Anthropic API key in Admin → Settings.' });
+  const wanted = Array.isArray((req.body || {}).items) ? req.body.items.slice(0, 25) : [];
+  const companies = loadCompanies();
+  const resolved = [];
+  wanted.forEach(it => { const c = companies.find(x => x.id === it.companyId); if (!c) return; const cp = (c.concepts || []).find(x => x.id === it.conceptId); if (!cp) return; resolved.push({ companyId: c.id, companyName: c.name || '', conceptId: cp.id, name: cp.name || '', website: cp.website || (c.office && c.office.website) || '', current: { cuisine: cp.cuisine || '', conceptType: cp.conceptType || '', pricePoint: cp.pricePoint || '' } }); });
+  if (!resolved.length) return res.json({ ok: true, results: [] });
+  const cuisines = effCuisineTypes();
+  let cls = [];
+  try { cls = await aiassist.classifyConcepts({ items: resolved.map(r => ({ name: r.name, website: r.website })), conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisines: cuisines }); }
+  catch (e) { return res.status(500).json({ ok: false, error: String((e && e.message) || 'AI request failed') }); }
+  const byIdx = {}; cls.forEach(x => { if (isFinite(x.i)) byIdx[x.i] = x; });
+  const results = resolved.map((r, i) => {
+    const g = byIdx[i] || {};
+    const cuisine = (cuisines.indexOf(g.cuisine) >= 0) ? g.cuisine : '';
+    const conceptType = (CONCEPT_TYPES.indexOf(g.conceptType) >= 0) ? g.conceptType : '';
+    const pricePoint = (PRICE_POINTS.indexOf(g.pricePoint) >= 0) ? g.pricePoint : '';
+    return { companyId: r.companyId, companyName: r.companyName, conceptId: r.conceptId, name: r.name, current: r.current, proposed: { cuisine: cuisine, conceptType: conceptType, pricePoint: pricePoint, multiUnit: !!g.multiUnit } };
+  });
+  res.json({ ok: true, results });
+});
+app.post('/api/admin/concepts-apply', requireAdmin, express.json({ limit: '2mb' }), (req, res) => {
+  const items = Array.isArray((req.body || {}).items) ? req.body.items : [];
+  const companies = loadCompanies(); const now = new Date().toISOString(); let applied = 0, tagged = 0;
+  const byCo = {}; items.forEach(it => { (byCo[it.companyId] = byCo[it.companyId] || []).push(it); });
+  Object.keys(byCo).forEach(cid => {
+    const c = companies.find(x => x.id === cid); if (!c) return;
+    byCo[cid].forEach(it => {
+      const cp = (c.concepts || []).find(x => x.id === it.conceptId); if (!cp) return;
+      const a = it.apply || {};
+      if (a.cuisine && effCuisineTypes().indexOf(a.cuisine) >= 0 && !String(cp.cuisine || '').trim()) cp.cuisine = a.cuisine;
+      if (a.conceptType && CONCEPT_TYPES.indexOf(a.conceptType) >= 0 && !String(cp.conceptType || '').trim()) cp.conceptType = a.conceptType;
+      if (a.pricePoint && PRICE_POINTS.indexOf(a.pricePoint) >= 0 && !String(cp.pricePoint || '').trim()) cp.pricePoint = a.pricePoint;
+      if (a.multiUnit) { c.tags = Array.isArray(c.tags) ? c.tags : []; if (c.tags.indexOf('Multi-Unit Operator') < 0) { c.tags.push('Multi-Unit Operator'); tagged++; } }
+      applied++;
+    });
+    c.updatedAt = now;
+  });
+  saveCompanies(companies);
+  res.json({ ok: true, applied, tagged });
+});
+
+
+// ===== Cleanup & Standardize (deterministic) — companies & contacts =====
+const _US_STATES = { alabama:'AL',alaska:'AK',arizona:'AZ',arkansas:'AR',california:'CA',colorado:'CO',connecticut:'CT',delaware:'DE','district of columbia':'DC',florida:'FL',georgia:'GA',hawaii:'HI',idaho:'ID',illinois:'IL',indiana:'IN',iowa:'IA',kansas:'KS',kentucky:'KY',louisiana:'LA',maine:'ME',maryland:'MD',massachusetts:'MA',michigan:'MI',minnesota:'MN',mississippi:'MS',missouri:'MO',montana:'MT',nebraska:'NE',nevada:'NV','new hampshire':'NH','new jersey':'NJ','new mexico':'NM','new york':'NY','north carolina':'NC','north dakota':'ND',ohio:'OH',oklahoma:'OK',oregon:'OR',pennsylvania:'PA','rhode island':'RI','south carolina':'SC','south dakota':'SD',tennessee:'TN',texas:'TX',utah:'UT',vermont:'VT',virginia:'VA',washington:'WA','west virginia':'WV',wisconsin:'WI',wyoming:'WY' };
+function _stateCode(s){ const t=String(s||'').trim(); if(!t) return ''; if(/^[A-Za-z]{2}$/.test(t)) return t.toUpperCase(); const c=_US_STATES[t.toLowerCase()]; return c||''; }
+const _UP_TOKENS = { llc:'LLC',inc:'Inc',corp:'Corp',lp:'LP',llp:'LLP',pllc:'PLLC',bbq:'BBQ',usa:'USA',ii:'II',iii:'III',iv:'IV',ny:'NY',la:'LA',dfw:'DFW',tx:'TX',us:'US',ceo:'CEO' };
+const _LOW_TOKENS = { and:1,or:1,the:1,of:1,'&':0,a:1,an:1,to:1,at:1,in:1,on:1,by:1 };
+function _titleWord(w, first){
+  if(!w) return w;
+  const bare = w.replace(/[^A-Za-z]/g,'').toLowerCase();
+  if(_UP_TOKENS[bare]) return w.replace(/[A-Za-z]+/, _UP_TOKENS[bare]);
+  if(!first && _LOW_TOKENS[bare]===1) return bare;
+  // handle hyphen and apostrophe segments
+  return w.replace(/[A-Za-z]+/g, function(seg, off){ const c=seg.charAt(0).toUpperCase()+seg.slice(1).toLowerCase(); return c; });
+}
+function _titleCase(s){ const parts=String(s||'').split(/(\s+)/); let wi=0; return parts.map(function(p){ if(/^\s+$/.test(p)) return p; const r=_titleWord(p, wi===0); wi++; return r; }).join(''); }
+function _needsCase(s){ const t=String(s||''); if(!/[A-Za-z]/.test(t)) return false; return t===t.toUpperCase() || t===t.toLowerCase(); }
+const _CITY_METRO = (function(){ const m={}; const add=(metro,cities)=>cities.forEach(c=>{ m[c.toLowerCase()]=metro; });
+  add('Dallas',['Dallas','Fort Worth','Plano','Arlington','Irving','Frisco','McKinney','Denton','Garland','Richardson','Allen','Grapevine','Southlake','Addison','Carrollton','Lewisville','Mesquite','Rockwall']);
+  add('Houston',['Houston','Katy','Sugar Land','The Woodlands','Pearland','Spring','Cypress','Conroe','Pasadena','Baytown','League City','Humble','Missouri City','Galveston']);
+  add('Austin',['Austin','Round Rock','Cedar Park','Georgetown','Pflugerville','Leander','San Marcos','Kyle','Buda','Bee Cave','Lakeway','Dripping Springs']);
+  add('San Antonio',['San Antonio','New Braunfels','Schertz','Boerne','Selma','Converse','Universal City']);
+  add('Rio Grande Valley',['McAllen','Brownsville','Harlingen','Edinburg','Mission','Pharr','Weslaco','San Juan','Los Fresnos']);
+  add('Central Texas',['Waco','Killeen','Temple','Belton','Copperas Cove','Harker Heights','Bryan','College Station']);
+  return m; })();
+function _cityMetro(city){ return _CITY_METRO[String(city||'').trim().toLowerCase()] || ''; }
+function _emailOk(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e||'').trim()); }
+function _isDecisionMaker(title){ return /\b(owner|founder|co-?founder|president|principal|partner|proprietor|ceo|coo|cfo|chief|managing (member|partner|director)|franchis(ee|or)|director of (real estate|development|operations))\b/i.test(String(title||'')); }
+
+app.get('/api/admin/cleanup-scan', requireAdmin, (req, res) => {
+  const companies = loadCompanies(), people = loadPeople();
+  const coOut = [], pOut = [];
+  companies.forEach(c => {
+    const ch = [];
+    const nm = c.name || ''; if (_needsCase(nm)) { const t = _titleCase(nm); if (t && t !== nm) ch.push({ field: 'name', kind: 'case', from: nm, to: t }); }
+    const o = c.office || {};
+    if (o.state) { const st = _stateCode(o.state); if (st && st !== o.state) ch.push({ field: 'office.state', kind: 'state', from: o.state, to: st }); }
+    if (o.website) { const w = domainOf(o.website) ? ('https://' + domainOf(o.website)) : ''; if (w && w.toLowerCase().replace(/\/$/, '') !== String(o.website).toLowerCase().replace(/\/$/, '')) ch.push({ field: 'office.website', kind: 'website', from: o.website, to: w }); }
+    if (!String(c.market || '').trim() && o.city) { const mm = _cityMetro(o.city); if (mm) ch.push({ field: 'market', kind: 'market', from: '', to: mm }); }
+    if (ch.length) coOut.push({ id: c.id, name: c.name || '', changes: ch });
+  });
+  people.forEach(p => {
+    const ch = [];
+    const nm = p.name || ''; if (_needsCase(nm)) { const t = _titleCase(nm); if (t && t !== nm) ch.push({ field: 'name', kind: 'case', from: nm, to: t }); }
+    const em = personEmails(p); em.forEach((e, i) => { const le = String(e || '').trim().toLowerCase(); if (le && le !== e) ch.push({ field: 'email', kind: 'email', idx: i, from: e, to: le }); });
+    if (_isDecisionMaker(p.title) && personTags(p).indexOf('Decision Maker') < 0) ch.push({ field: 'tag', kind: 'dm', from: p.title || '', to: 'Decision Maker' });
+    if (ch.length) pOut.push({ id: p.id, name: p.name || '', title: p.title || '', company: p.company || '', changes: ch });
+  });
+  res.json({ ok: true, companies: coOut, people: pOut, companyCount: coOut.length, peopleCount: pOut.length });
+});
+app.post('/api/admin/cleanup-apply', requireAdmin, express.json({ limit: '4mb' }), (req, res) => {
+  const b = req.body || {}; const kinds = b.kinds || {};
+  const coItems = Array.isArray(b.companies) ? b.companies : [];
+  const pItems = Array.isArray(b.people) ? b.people : [];
+  const companies = loadCompanies(), people = loadPeople(); const now = new Date().toISOString(); let applied = 0;
+  const coById = {}; companies.forEach(c => coById[c.id] = c);
+  coItems.forEach(it => { const c = coById[it.id]; if (!c) return; (it.changes || []).forEach(ch => { if (kinds[ch.kind] === false) return;
+    if (ch.field === 'name') c.name = ch.to;
+    else if (ch.field === 'office.state') { c.office = c.office || {}; c.office.state = ch.to; }
+    else if (ch.field === 'office.website') { c.office = c.office || {}; c.office.website = ch.to; }
+    else if (ch.field === 'market') { c.market = ch.to; }
+    applied++; }); c.updatedAt = now; });
+  const pById = {}; people.forEach(p => pById[p.id] = p);
+  pItems.forEach(it => { const p = pById[it.id]; if (!p) return; (it.changes || []).forEach(ch => { if (kinds[ch.kind] === false) return;
+    if (ch.field === 'name') { p.name = ch.to; if (p.firstName != null || p.lastName != null) { const parts = String(ch.to).trim().split(/\s+/); p.firstName = parts[0] || ''; p.lastName = parts.slice(1).join(' '); } }
+    else if (ch.field === 'email') { if (Array.isArray(p.emails) && p.emails[ch.idx] != null) p.emails[ch.idx] = ch.to; else if (p.email) p.email = ch.to; if (p.preferredEmail && String(p.preferredEmail).toLowerCase() === String(ch.from).toLowerCase()) p.preferredEmail = ch.to; }
+    else if (ch.field === 'tag') { p.tags = Array.isArray(p.tags) ? p.tags : []; if (p.tags.indexOf(ch.to) < 0) p.tags.push(ch.to); }
+    applied++; }); p.updatedAt = now; });
+  saveCompanies(companies); savePeople(people);
+  res.json({ ok: true, applied });
+});
+
 // ===== Duplicate finder (fuzzy) — companies & contacts =====
 function _dfNorm(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
 function _dfCompanyKey(s){
