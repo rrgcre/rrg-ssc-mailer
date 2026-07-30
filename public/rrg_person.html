@@ -453,7 +453,7 @@ function sendModalHtml(){
     +'<div id="sm_fields" style="margin-top:4px"></div>'
     +'<div id="sm_signerswrap" class="smsigners" hidden></div>'
     +'<label class="fld" style="margin-top:10px">Message (optional)</label><textarea id="sm_msg" rows="3" placeholder="A short note to include in the email…"></textarea>'
-    +'<div class="agrmodalbtns"><button type="button" class="savebtn" id="sm_send" style="width:auto;padding:9px 18px">Send agreement</button><button type="button" class="mfadd" id="sm_cancel">Cancel</button><span id="sm_msgout" style="font-size:12px;color:#DA2B1F"></span></div>'
+    +'<div class="agrmodalbtns"><button type="button" class="savebtn" id="sm_send" style="width:auto;padding:9px 18px">Send agreement</button><button type="button" class="mfadd" id="sm_copylink" style="padding:9px 14px">🔗 Copy signing link</button><button type="button" class="mfadd" id="sm_cancel">Cancel</button><span id="sm_msgout" style="font-size:12px;color:#DA2B1F;flex-basis:100%;word-break:break-all"></span></div>'
     +'</div></div>';
 }
 function smSignerRows(tpl){
@@ -542,12 +542,36 @@ function doSendAgreement(){
       alert('Agreement sent'+(js.to?(' to '+js.to):(js.signer?(' to '+js.signer):''))+'.');
     }).catch(function(e){ btn.disabled=false; out.style.color='#DA2B1F'; out.textContent=(e&&e.message)||'Something went wrong.'; });
 }
+function doCopyLink(){
+  var out=document.getElementById('sm_msgout');
+  var v=document.getElementById('sm_tpl').value;
+  if(!v){ out.style.color='#DA2B1F'; out.textContent='Pick a template, or choose to attach your own file.'; return; }
+  var tpl=(v!=='__file')?TEMPLATES.filter(function(t){return t.id===v;})[0]:null;
+  var adv=!!(tpl&&tpl.pdfFields&&tpl.pdfFields.length);
+  var type=tpl?(tpl.type||'NDA'):(document.getElementById('sm_type').value||'NDA');
+  var cb=document.getElementById('sm_copylink'), sb=document.getElementById('sm_send'); if(cb) cb.disabled=true; if(sb) sb.disabled=true; out.style.color='#6b7488'; out.textContent='Creating link…';
+  fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({personId:ID,type:type})}).then(function(r){return r.json();}).then(function(j){
+    if(!(j&&j.ok)) throw new Error((j&&j.error)||'Could not create the agreement.');
+    var id=j.agreement.id; var step;
+    if(tpl){ step=fetch('/api/agreements/'+encodeURIComponent(id)+'/apply-template',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({templateId:tpl.id})}).then(function(r){return r.json();}); }
+    else { var fi=document.getElementById('sm_file'); if(!(fi&&fi.files&&fi.files[0])) return Promise.reject(new Error('Attach a document first.')); step=new Promise(function(res,rej){ var rd=new FileReader(); rd.onload=function(){ fetch('/api/agreements/'+encodeURIComponent(id)+'/doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:fi.files[0].name,dataB64:String(rd.result||'')})}).then(function(r){return r.json();}).then(res,rej); }; rd.readAsDataURL(fi.files[0]); }); }
+    return step.then(function(j2){ if(!(j2&&j2.ok)) throw new Error((j2&&j2.error)||'Could not attach the document.'); return id; });
+  }).then(function(id){
+    return fetch('/api/agreements/'+encodeURIComponent(id)+'/sign-link',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();});
+  }).then(function(j){
+    if(!(j&&j.ok&&j.url)) throw new Error((j&&j.error)||'Could not create the link.');
+    var url=j.url; try{ if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(url); }catch(e){}
+    out.style.color='#1f8a5b'; out.innerHTML='✓ Link copied — paste it to the signer:<br><a href="'+esc(url)+'" target="_blank" rel="noopener" style="color:#2647b0;word-break:break-all;font-weight:700">'+esc(url)+'</a>';
+    load(); if(cb) cb.disabled=false;
+  }).catch(function(e){ if(cb) cb.disabled=false; if(sb) sb.disabled=false; out.style.color='#DA2B1F'; out.textContent=(e&&e.message)||'Something went wrong.'; });
+}
 function wireAgreements(){
   var add=document.getElementById('agrAddBtn'); if(add) add.addEventListener('click',function(){ openAgrForm(null); });
   var sbtn=document.getElementById('agrSendBtn'); if(sbtn) sbtn.addEventListener('click',openSendModal);
   var sc=document.getElementById('sm_cancel'); if(sc) sc.addEventListener('click',function(){ document.getElementById('sendModal').setAttribute('hidden',''); });
   var stp=document.getElementById('sm_tpl'); if(stp) stp.addEventListener('change',smOnTpl);
   var ssd=document.getElementById('sm_send'); if(ssd) ssd.addEventListener('click',doSendAgreement);
+  var scl=document.getElementById('sm_copylink'); if(scl) scl.addEventListener('click',doCopyLink);
   var smf=document.getElementById('sm_file'); if(smf) smf.addEventListener('change',function(){ document.getElementById('sm_filename').textContent=(smf.files&&smf.files[0])?smf.files[0].name:''; });
   var sv=document.getElementById('agrSave'); if(sv) sv.addEventListener('click',saveAgreement);
   var cn=document.getElementById('agrCancel'); if(cn) cn.addEventListener('click',function(){ document.getElementById('agrForm').setAttribute('hidden',''); });

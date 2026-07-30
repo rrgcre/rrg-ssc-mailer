@@ -8113,6 +8113,12 @@ app.post('/api/agreements/:id/doc/clear', (req, res) => {
   a.docExt = ''; a.docName = ''; a.updatedAt = new Date().toISOString(); saveAgreements(all);
   res.json({ ok: true, agreement: agreementBrief(a) });
 });
+app.post('/api/agreements/:id/sign-link', express.json(), (req, res) => {
+  const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  if (!a.signToken) { a.signToken = newSignToken(); a.updatedAt = new Date().toISOString(); saveAgreements(all); }
+  res.json({ ok: true, url: reqOrigin(req) + '/sign/' + a.signToken });
+});
 app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
