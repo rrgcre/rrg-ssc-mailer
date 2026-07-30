@@ -105,6 +105,7 @@ textarea{min-height:56px;resize:vertical;}
 </div>
 <script>
 var TASKS=[], CONTACTS=[], DEALS=[], USERS=[], TITLESUG=[], PRIORITIES=['Low','Normal','High'], ACTTYPES=[], EMAILREADY=false, SMSREADY=false, ME='', ISADMIN=false, EDITID='';
+function taskSave(t, body){ return fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(Object.assign({id:t.id,title:t.title},body))}).then(function(r){return r.json();}).then(function(j){ if(!(j&&j.ok)) throw new Error((j&&j.error)||'Could not save.'); Object.assign(t,body); if(window.rrgToast) rrgToast('Saved'); return j; }); }
 var SHOW='open', SCOPE='mine'; var TCTL=null;
 document.addEventListener('change',function(e){ var c=e.target.closest?e.target.closest('[data-toggle]'):null; if(c){ toggle(c.getAttribute('data-toggle')); } });
 document.addEventListener('click',function(e){ if(!e.target.closest) return; var ed=e.target.closest('[data-edit]'); if(ed){ startEdit(ed.getAttribute('data-edit')); return; } var dl=e.target.closest('[data-del]'); if(dl){ del(dl.getAttribute('data-del')); } });
@@ -152,11 +153,11 @@ function render(){
     rowId:function(t){return t.id;}, defaultSort:5, defaultDir:1,
     columns:[
       { label:'', width:38, sortable:false, cell:function(t){ return '<input type="checkbox" class="tchk" data-toggle="'+esc(t.id)+'"'+(t.status==='done'?' checked':'')+'>'; } },
-      { label:'Task', sort:function(a,b){return RRGList.cmp(a.title,b.title);}, cell:function(t){ return '<div class="ttitle'+(t.status==='done'?' done':'')+'">'+esc(t.title)+'</div>'+(t.notes?('<div class="tnotes">'+esc(t.notes)+'</div>'):''); } },
-      { label:'Priority', sort:function(a,b){return RRGList.cmp(a.priority,b.priority);}, cell:function(t){ return '<span class="pill '+esc(t.priority||'Normal')+'">'+esc(t.priority||'Normal')+'</span>'; } },
+      { label:'Task', sort:function(a,b){return RRGList.cmp(a.title,b.title);}, edit:{ type:'text', get:function(t){return t.title||'';}, save:function(t,v){ if(!(v||'').trim()) return Promise.reject(new Error('Title is required.')); return taskSave(t,{title:v}); } }, cell:function(t){ return '<div class="ttitle'+(t.status==='done'?' done':'')+'">'+esc(t.title)+'</div>'+(t.notes?('<div class="tnotes">'+esc(t.notes)+'</div>'):''); } },
+      { label:'Priority', sort:function(a,b){return RRGList.cmp(a.priority,b.priority);}, edit:{ type:'select', options:function(){return PRIORITIES;}, get:function(t){return t.priority||'Normal';}, save:function(t,v){ return taskSave(t,{priority:v}); } }, cell:function(t){ return '<span class="pill '+esc(t.priority||'Normal')+'">'+esc(t.priority||'Normal')+'</span>'; } },
       { label:'Type', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.type,b.type);}, cell:function(t){ return t.type?esc(t.type):'<span class="meta">—</span>'; } },
       { label:'Link', sortable:false, cell:function(t){ var c=linkChip(t); return c||'<span class="meta">—</span>'; } },
-      { label:'Due', sort:function(a,b){return RRGList.cmp(a.due||'9999',b.due||'9999');}, cell:function(t){ var over=(t.status==='open'&&t.due&&t.due<today); return t.due?('<span class="due-lbl'+(over?' over':'')+'">'+(over?'Overdue ':'')+esc(fmt(t.due))+'</span>'):'<span class="meta">—</span>'; } },
+      { label:'Due', sort:function(a,b){return RRGList.cmp(a.due||'9999',b.due||'9999');}, edit:{ type:'date', get:function(t){return (t.due||'').slice(0,10);}, save:function(t,v){ return taskSave(t,{due:v}); } }, cell:function(t){ var over=(t.status==='open'&&t.due&&t.due<today); return t.due?('<span class="due-lbl'+(over?' over':'')+'">'+(over?'Overdue ':'')+esc(fmt(t.due))+'</span>'):'<span class="meta">—</span>'; } },
       { label:'Reminder', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.reminder||'',b.reminder||'');}, cell:function(t){ return t.reminder?('⏰ '+esc(fmt(t.reminder))):'<span class="meta">—</span>'; } },
       { label:'Assignee', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.assigneeName,b.assigneeName);}, cell:function(t){ return t.assigneeName?esc(t.assigneeName):'<span class="meta">—</span>'; } },
       { label:'', align:'right', sortable:false, cell:function(t){ return '<button class="tbtn" data-edit="'+esc(t.id)+'">Edit</button>'+((ISADMIN||t.createdBy===ME)?(' <button class="tbtn" data-del="'+esc(t.id)+'">Delete</button>'):''); } }
