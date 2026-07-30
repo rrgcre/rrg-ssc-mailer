@@ -36,6 +36,14 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Hel
 .chip .t{opacity:.7;font-weight:800;margin-right:3px;}
 .morelink{font-size:10.5px;color:var(--muted);font-weight:700;margin-top:2px;display:inline-block;}
 .agenda{background:#fff;border:1px solid var(--line);border-radius:13px;overflow:hidden;}
+.weekgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:13px;overflow:hidden;}
+.weekgrid .wcol{background:#fff;min-height:440px;padding:7px 6px;}
+.weekgrid .wcol.today{background:#fbfdff;}
+.weekgrid .wch{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;text-align:center;padding-bottom:7px;border-bottom:1px solid var(--line);margin-bottom:7px;}
+.weekgrid .wch .wd{display:block;font-size:17px;color:var(--ink);font-weight:800;margin-top:2px;}
+.weekgrid .wcol.today .wch .wd{color:var(--red);}
+.weekgrid .wempty{color:#c7cedb;font-size:12px;text-align:center;margin-top:12px;}
+#viewSeg button{white-space:nowrap;}
 .agday{padding:10px 16px;border-bottom:1px solid var(--line);}
 .agday:last-child{border-bottom:none;}
 .agday .ah{font-size:12px;font-weight:800;color:var(--navy);margin-bottom:7px;text-transform:uppercase;letter-spacing:.04em;}
@@ -78,7 +86,7 @@ textarea{min-height:64px;resize:vertical;}
     <button class="btn" id="next" title="Next">›</button>
     <span class="mtitle" id="mtitle"></span>
     <span class="sp"></span>
-    <span class="seg"><button id="vmonth" class="on">Month</button><button id="vagenda">Agenda</button></span>
+    <span class="seg" id="viewSeg"><button id="vday">Day</button><button id="vweek">Week</button><button id="vmonth" class="on">Month</button><button id="vagenda">Agenda</button></span>
     <span class="seg" id="scopeSeg"><button id="sall" class="on">Everyone</button><button id="smine">My meetings</button></span><select id="userFilter" style="display:none;font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff;max-width:200px"></select>
     <button class="btn red" id="newbtn">+ New meeting</button>
   </div>
@@ -118,7 +126,7 @@ textarea{min-height:64px;resize:vertical;}
 <script>
 var APPTS=[],CONTACTS=[],USERS=[],TYPES=[],ME='',EMAILREADY=false;
 var VIEW='month',SCOPE='all',EDIT=null,CANSEEALL=false,USERSEL='';
-var CUR=(function(){var d=new Date();return new Date(d.getFullYear(),d.getMonth(),1);})();
+var CUR=(function(){var d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate());})();
 var MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
 var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -127,8 +135,9 @@ function ymd(d){return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate()
 function fmtTime(hm){ if(!hm)return''; var p=String(hm).split(':'); var h=parseInt(p[0],10)||0,m=p[1]||'00'; var ap=h>=12?'p':'a',h12=((h%12)||12); return h12+(m==='00'?'':(':'+m))+ap; }
 function timeOf(iso){ var m=String(iso||'').match(/T(\d{2}):(\d{2})/); return m?(m[1]+':'+m[2]):''; }
 function monthRange(){ var y=CUR.getFullYear(),mo=CUR.getMonth(); var start=new Date(y,mo,1); var gridStart=new Date(y,mo,1-start.getDay()); var gridEnd=new Date(gridStart); gridEnd.setDate(gridEnd.getDate()+41); return {from:ymd(gridStart)+'T00:00',to:ymd(gridEnd)+'T23:59',gridStart:gridStart}; }
+function weekRange(){ var start=new Date(CUR.getFullYear(),CUR.getMonth(),CUR.getDate()-CUR.getDay()); var end=new Date(start); end.setDate(end.getDate()+6); return {from:ymd(start)+'T00:00',to:ymd(end)+'T23:59',start:start,end:end}; }
 function load(){
-  var q; if(VIEW==='month'){ var r=monthRange(); q='from='+r.from+'&to='+r.to; } else { var t=new Date(); q='from='+ymd(t)+'T00:00'; }
+  var q; if(VIEW==='month'){ var r=monthRange(); q='from='+r.from+'&to='+r.to; } else if(VIEW==='week'){ var w=weekRange(); q='from='+w.from+'&to='+w.to; } else if(VIEW==='day'){ q='from='+ymd(CUR)+'T00:00&to='+ymd(CUR)+'T23:59'; } else { var t=new Date(); q='from='+ymd(t)+'T00:00'; }
   if(SCOPE==='mine') q+='&scope=mine'; else if(USERSEL) q+='&user='+encodeURIComponent(USERSEL);
   fetch('/api/appointments?'+q,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok) return;
@@ -137,9 +146,20 @@ function load(){
     render();
   });
 }
-function render(){ document.getElementById('mtitle').textContent = VIEW==='month' ? (MON[CUR.getMonth()]+' '+CUR.getFullYear()) : 'Upcoming'; if(VIEW==='month') renderMonth(); else renderAgenda(); }
+function render(){ var t; if(VIEW==='month'){ t=MON[CUR.getMonth()]+' '+CUR.getFullYear(); } else if(VIEW==='day'){ t=DOW[CUR.getDay()]+', '+MON[CUR.getMonth()]+' '+CUR.getDate()+', '+CUR.getFullYear(); } else if(VIEW==='week'){ var w=weekRange(),e=w.end; t=MON[w.start.getMonth()].slice(0,3)+' '+w.start.getDate()+' - '+MON[e.getMonth()].slice(0,3)+' '+e.getDate()+', '+e.getFullYear(); } else { t='Upcoming'; } document.getElementById('mtitle').textContent=t; if(VIEW==='month') renderMonth(); else if(VIEW==='week') renderWeek(); else if(VIEW==='day') renderDay(); else renderAgenda(); }
 function apptsOn(dstr){ return APPTS.filter(function(a){return String(a.start||'').slice(0,10)===dstr;}).sort(function(a,b){return String(a.start).localeCompare(String(b.start));}); }
 function chip(a){ var cls='chip'+(a.byUser===ME?' mine':'')+(a.status==='cancelled'?' cancelled':''); return '<span class="'+cls+'" data-appt="'+esc(a.id)+'" title="'+esc(a.title)+(a.contactName?(' · '+esc(a.contactName)):'')+'"><span class="t">'+esc(fmtTime(timeOf(a.start)))+'</span>'+esc(a.title)+'</span>'; }
+function renderDay(){
+  var ds=ymd(CUR); var list=apptsOn(ds);
+  if(!list.length){ document.getElementById('cal').innerHTML='<div class="agenda"><div class="empty">No meetings on this day. Click <b>+ New meeting</b> to schedule one.</div></div>'; return; }
+  var html='<div class="agenda"><div class="agday"><div class="ah">'+esc(DOW[CUR.getDay()]+', '+MON[CUR.getMonth()]+' '+CUR.getDate())+'</div>'+list.map(function(a){ return '<div class="agitem" data-appt="'+esc(a.id)+'"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('-'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>'; }).join('')+'</div></div>';
+  document.getElementById('cal').innerHTML=html; wireGrid();
+}
+function renderWeek(){
+  var w=weekRange(); var today=ymd(new Date()); var d=new Date(w.start); var html='<div class="weekgrid">';
+  for(var i=0;i<7;i++){ var ds=ymd(d); var list=apptsOn(ds); html+='<div class="wcol'+(ds===today?' today':'')+'" data-day="'+ds+'"><div class="wch">'+DOW[d.getDay()]+'<span class="wd">'+d.getDate()+'</span></div>'+list.map(chip).join('')+(list.length?'':'<div class="wempty">—</div>')+'</div>'; d.setDate(d.getDate()+1); }
+  html+='</div>'; document.getElementById('cal').innerHTML=html; wireGrid();
+}
 function renderMonth(){
   var r=monthRange(); var today=ymd(new Date()); var html='<div class="cal"><div class="dow">'+DOW.map(function(d){return '<div>'+d+'</div>';}).join('')+'</div><div class="grid">';
   var d=new Date(r.gridStart);
@@ -232,11 +252,11 @@ function del(){
 function fillUserFilter(){ var el=document.getElementById('userFilter'); if(!el) return; var cur=(SCOPE==='mine')?'__mine':(USERSEL||'__all'); el.innerHTML='<option value="__all">Everyone’s calendar</option><option value="__mine">Just my meetings</option>'+USERS.map(function(u){return '<option value="'+esc(u.username)+'">'+esc(u.name)+'</option>';}).join(''); el.value=cur; }
 function setupScope(){ var seg=document.getElementById('scopeSeg'), uf=document.getElementById('userFilter'); if(CANSEEALL){ if(seg) seg.style.display='none'; if(uf){ uf.style.display=''; fillUserFilter(); } } else { if(seg) seg.style.display='none'; if(uf) uf.style.display='none'; } }
 document.getElementById('userFilter').addEventListener('change',function(){ var v=this.value; if(v==='__all'){ SCOPE='all'; USERSEL=''; } else if(v==='__mine'){ SCOPE='mine'; USERSEL=''; } else { SCOPE='all'; USERSEL=v; } load(); });
-document.getElementById('prev').addEventListener('click',function(){ CUR=new Date(CUR.getFullYear(),CUR.getMonth()-1,1); load(); });
-document.getElementById('next').addEventListener('click',function(){ CUR=new Date(CUR.getFullYear(),CUR.getMonth()+1,1); load(); });
-document.getElementById('today').addEventListener('click',function(){ var d=new Date(); CUR=new Date(d.getFullYear(),d.getMonth(),1); load(); });
-document.getElementById('vmonth').addEventListener('click',function(){ VIEW='month'; this.classList.add('on'); document.getElementById('vagenda').classList.remove('on'); load(); });
-document.getElementById('vagenda').addEventListener('click',function(){ VIEW='agenda'; this.classList.add('on'); document.getElementById('vmonth').classList.remove('on'); load(); });
+function stepDate(dir){ if(VIEW==='day'){ CUR=new Date(CUR.getFullYear(),CUR.getMonth(),CUR.getDate()+dir); } else if(VIEW==='week'){ CUR=new Date(CUR.getFullYear(),CUR.getMonth(),CUR.getDate()+7*dir); } else { CUR=new Date(CUR.getFullYear(),CUR.getMonth()+dir,1); } load(); }
+document.getElementById('prev').addEventListener('click',function(){ stepDate(-1); });
+document.getElementById('next').addEventListener('click',function(){ stepDate(1); });
+document.getElementById('today').addEventListener('click',function(){ var d=new Date(); CUR=new Date(d.getFullYear(),d.getMonth(),d.getDate()); load(); });
+['vday','vweek','vmonth','vagenda'].forEach(function(id){ var b=document.getElementById(id); if(b) b.addEventListener('click',function(){ VIEW=id.slice(1); document.querySelectorAll('#viewSeg button').forEach(function(x){ x.classList.toggle('on', x.id===id); }); load(); }); });
 document.getElementById('sall').addEventListener('click',function(){ SCOPE='all'; this.classList.add('on'); document.getElementById('smine').classList.remove('on'); load(); });
 document.getElementById('smine').addEventListener('click',function(){ SCOPE='mine'; this.classList.add('on'); document.getElementById('sall').classList.remove('on'); load(); });
 document.getElementById('newbtn').addEventListener('click',function(){ openForm(null,null); });
