@@ -42,6 +42,16 @@ h1{margin:0;font-size:28px;font-weight:800;letter-spacing:-.01em;} .sub{color:#a
 .maprow.auto select{background:#eef7f1;border-color:#bfe6d0;} .maprow.unset select{color:var(--soft);}
 .sample{font-size:11.5px;color:var(--soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} .sample b{color:var(--ink);font-weight:600;}
 .deftype{display:flex;align-items:center;gap:10px;margin-top:16px;padding-top:16px;border-top:1px solid var(--line);flex-wrap:wrap;}
+.pastrow{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid #eef1f6;}
+.pastrow:first-child{border-top:0;}
+.pastmain{flex:1;min-width:0;}
+.pastmain b{font-size:13.5px;color:var(--ink);}
+.pastmeta{font-size:12px;color:var(--muted);margin-top:2px;}
+.pastrevert{background:#fff;border:1px solid #f0c9c6;color:var(--red);border-radius:8px;padding:6px 13px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;flex:none;}
+.pastrevert:hover{background:#fdf1f0;}
+.pastrevert:disabled{opacity:.6;cursor:default;}
+ul.tips{margin:0;padding-left:18px;}
+ul.tips li{font-size:13px;color:var(--ink);margin:6px 0;line-height:1.5;}
 .deftype select{border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:inherit;font-size:13px;}
 .tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:11px;}
 table{border-collapse:collapse;width:100%;font-size:12px;} th,td{border-bottom:1px solid #eef1f6;padding:8px 11px;text-align:left;white-space:nowrap;max-width:220px;overflow:hidden;text-overflow:ellipsis;} th{background:#fbfcfe;color:#6b7488;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;font-weight:800;} tbody tr:hover td{background:#fafbff;}
@@ -246,6 +256,9 @@ function renderResult(j){
 }
 function resetUpload(){ HEADERS=[];ROWS=[];MAP={}; document.getElementById('filepill').classList.add('hide'); document.getElementById('step2').classList.add('hide'); document.getElementById('step3').classList.add('hide'); document.getElementById('resbox').classList.add('hide'); setMsg('',''); updateStepper(); window.scrollTo({top:0,behavior:'smooth'}); }
 function setMsg(t,c){ var m=document.getElementById('importMsg'); if(m){ m.textContent=t; m.className='msg '+(c||''); } }
+function fmtWhen(iso){ if(!iso) return ''; var t=Date.parse(iso); if(isNaN(t)) return ''; var d=new Date(t); return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear()+' '+d.toLocaleTimeString([], {hour:'numeric',minute:'2-digit'}); }
+function loadImports(){ var host=document.getElementById('pastbox'); if(!host) return; fetch('/api/admin/imports',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok||!j.imports||!j.imports.length){ host.innerHTML='<div class="note">No imports yet. Imports will show up here so you can review or revert them.</div>'; return; } host.innerHTML=j.imports.map(function(im){ var kl=im.kind==='people'?'Contacts':(im.kind==='companies'?'Companies':(im.kind==='tasks'?'Tasks':im.kind)); var when=fmtWhen(im.at); return '<div class="pastrow"><div class="pastmain"><b>'+esc(kl)+' · batch #'+esc(im.batch)+'</b><div class="pastmeta">'+esc(im.created)+' record'+(im.created===1?'':'s')+(im.by?(' · by '+esc(im.by)):'')+(when?(' · '+esc(when)):'')+'</div></div><button class="pastrevert" data-batch="'+esc(im.batch)+'" data-kind="'+esc(im.kind)+'" data-n="'+esc(im.created)+'">Revert Import</button></div>'; }).join(''); host.querySelectorAll('.pastrevert').forEach(function(b){ b.addEventListener('click',function(){ revertImport(b.getAttribute('data-batch'),b.getAttribute('data-kind'),b.getAttribute('data-n'),b); }); }); }).catch(function(){ host.innerHTML='<div class="note">Could not load past imports.</div>'; }); }
+function revertImport(batch,kind,n,btn){ if(!confirm('Revert import batch #'+batch+'? This permanently removes the '+n+' record'+(n==='1'?'':'s')+' this import added. Cannot be undone.')) return; btn.disabled=true; btn.textContent='Reverting…'; fetch('/api/admin/import/revert',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({batch:parseInt(batch,10),kind:kind})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ btn.textContent='Reverted ('+j.removed+')'; setTimeout(loadImports,700); } else { btn.disabled=false; btn.textContent='Revert Import'; alert((j&&j.error)||'Could not revert.'); } }).catch(function(){ btn.disabled=false; btn.textContent='Revert Import'; alert('Could not reach the server.'); }); }
 function build(){
   var root=document.getElementById('root'); root.className='wrap';
   document.getElementById('srcrow').innerHTML=SOURCES.map(function(s){ return '<span class="srcchip'+(s.k===SOURCE?' on':'')+'" data-src="'+s.k+'"><span class="dot" style="background:'+s.c+'"></span>'+esc(s.n)+'</span>'; }).join('');
@@ -268,7 +281,18 @@ function build(){
       '<div class="progline hide"><i id="prog"></i></div>'+
       '<div class="bar"><button class="btn green big" id="importBtn">Import into FullServe</button><span class="msg" id="importMsg"></span></div>'+
       '<div id="resbox" class="hide"></div>'+
-    '</div></div>';
+    '</div></div>'+
+    '<div class="card"><div class="ch"><b>Past Imports</b><span class="hint">revert removes only the rows that import added</span></div><div class="cb"><div id="pastbox"><div class="note">Loading…</div></div></div></div>'+
+    '<div class="card"><div class="ch"><b>Tips For a Smooth Import</b></div><div class="cb"><ul class="tips">'+
+      '<li>Import <b>Companies</b> first, then <b>Contacts</b>, then <b>Tasks</b> — importing in this order links records correctly.</li>'+
+      '<li>The <b>first row</b> of your file must be the column headers you want to import.</li>'+
+      '<li>Use <b>.xlsx</b> or <b>.csv</b>. For a very large file, split it into a few smaller files.</li>'+
+      '<li>Do a quick test with a small file first to confirm your columns map correctly.</li>'+
+      '<li>Set up your <b>contact types</b> and <b>lead sources</b> before importing so rows map to them.</li>'+
+      '<li>If a column has data but no header, that column will not import.</li>'+
+      '<li>Keep individual tags under 50 characters — a longer tag can fail that row.</li>'+
+      '<li>Contacts dedupe by <b>email</b>, companies by <b>name</b>; tasks link to a contact by email or name.</li>'+
+    '</ul></div></div>';
   document.getElementById('deftype').innerHTML=PERSON_TYPES.map(function(t){return '<option'+(t==='Other'?' selected':'')+'>'+esc(t)+'</option>';}).join('');
   var drop=document.getElementById('drop'), fileEl=document.getElementById('file');
   drop.addEventListener('click',function(){ fileEl.click(); });
@@ -279,6 +303,7 @@ function build(){
   function setMode(m){ MODE=m; document.getElementById('m_contacts').classList.toggle('on',m==='contacts'); document.getElementById('m_companies').classList.toggle('on',m==='companies'); var _mt=document.getElementById('m_tasks'); if(_mt) _mt.classList.toggle('on',m==='tasks'); document.getElementById('deftypewrap').style.display=(m==='contacts')?'':'none'; var _co=document.getElementById('coptswrap'); if(_co) _co.style.display=(m==='companies')?'':'none'; resetUpload(); }
   document.getElementById('m_contacts').addEventListener('click',function(){ setMode('contacts'); });
   document.getElementById('m_companies').addEventListener('click',function(){ setMode('companies'); });
+  loadImports();
   var _mtb=document.getElementById('m_tasks'); if(_mtb) _mtb.addEventListener('click',function(){ setMode('tasks'); });
   document.getElementById('importBtn').addEventListener('click',doImport);
   updateStepper();

@@ -6878,6 +6878,23 @@ app.post('/api/admin/import/tasks', requireAdmin, express.json({ limit: '24mb' }
   } catch (e) { console.error('import tasks:', e && e.message); res.status(500).json({ ok: false, error: 'Import failed: ' + ((e && e.message) || 'server error') }); }
 });
 
+app.get('/api/admin/imports', requireAdmin, (req, res) => {
+  const evs = loadSysEvents().filter(e => e && e.type === 'Import' && e.batch != null && e.kind !== 'revert');
+  const out = evs.slice(0, 80).map(e => ({ id: e.id, at: e.at, by: e.by || '', kind: e.kind || 'records', batch: e.batch, created: (e.created != null ? e.created : (e.count || 0)), note: e.note || '' }));
+  res.json({ ok: true, imports: out });
+});
+app.post('/api/admin/import/revert', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const batch = parseInt(b.batch, 10);
+  if (!(batch > 0)) return res.status(400).json({ ok: false, error: 'A valid import batch is required.' });
+  const kind = String(b.kind || '').toLowerCase();
+  let removed = 0;
+  if (!kind || kind === 'people' || kind === 'contacts') { const ppl = loadPeople(); const before = ppl.length; const keep = ppl.filter(p => p.importBatch !== batch); if (keep.length !== before) { removed += before - keep.length; savePeople(keep); } }
+  if (!kind || kind === 'companies') { const cos = loadCompanies(); const before = cos.length; const keep = cos.filter(c => c.importBatch !== batch); if (keep.length !== before) { removed += before - keep.length; saveCompanies(keep); } }
+  if (!kind || kind === 'tasks') { const tk = loadTasks(); const before = tk.length; const keep = tk.filter(t => t.importBatch !== batch); if (keep.length !== before) { removed += before - keep.length; saveTasks(keep); } }
+  logSysEvent(req, 'Import', 'Reverted import batch #' + batch + ' — removed ' + removed + ' record' + (removed === 1 ? '' : 's'), { tool: 'import', kind: 'revert', batch: batch, count: removed });
+  res.json({ ok: true, removed, batch });
+});
+
 // ===== Consult — AI data analyst over the book of business =====
 function consultSnapshot() {
   const cap = (arr, n) => arr.slice(0, n);
