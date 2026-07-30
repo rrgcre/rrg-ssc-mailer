@@ -7408,7 +7408,7 @@ const AGREEMENT_TYPES = [
 ];
 const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
 function agreementBrief(a) {
-  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: a.signerCount === 2 ? 2 : 1, hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
+  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
 }
 app.get('/api/agreements', (req, res) => {
   let all = loadAgreements();
@@ -7677,7 +7677,7 @@ function fmtSignVal(type, val) {
   if (type === 'currency') { const raw = val.replace(/[^0-9.\-]/g, ''); const c = Number(raw); return (raw !== '' && isFinite(c)) ? ('$' + c.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : val; }
   return val;
 }
-function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], emailMessage: t.emailMessage || '', pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: t.signerCount === 2 ? 2 : 1, signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', active: t.active !== false, updatedAt: t.updatedAt || '', createdAt: t.createdAt || '' }; }
+function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], emailMessage: t.emailMessage || '', pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: _clampSigners(t.signerCount), signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', signer3Label: t.signer3Label || 'Signer 3', active: t.active !== false, updatedAt: t.updatedAt || '', createdAt: t.createdAt || '' }; }
 app.get('/api/agreement-templates', (req, res) => {
   const isAdmin = !!(req.user && isSuper(req.user));
   let all = loadTemplates().map(templateBrief);
@@ -7744,9 +7744,10 @@ app.post('/api/admin/agreement-templates/:id/fields', requireAdmin, express.json
   if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' });
   const b = req.body || {};
   if (b.pdfFields !== undefined) t.pdfFields = cleanPdfFields(b.pdfFields);
-  if (b.signerCount !== undefined) t.signerCount = (parseInt(b.signerCount, 10) === 2) ? 2 : 1;
+  if (b.signerCount !== undefined) t.signerCount = _clampSigners(b.signerCount);
   if (typeof b.signer1Label === 'string') t.signer1Label = b.signer1Label.slice(0, 60);
   if (typeof b.signer2Label === 'string') t.signer2Label = b.signer2Label.slice(0, 60);
+  if (typeof b.signer3Label === 'string') t.signer3Label = b.signer3Label.slice(0, 60);
   t.updatedAt = new Date().toISOString(); saveTemplates(all);
   res.json({ ok: true, template: templateBrief(t) });
 });
@@ -7765,9 +7766,10 @@ app.post('/api/agreements/:id/apply-template', express.json(), (req, res) => {
   a.docExt = t.fileExt; a.docName = t.fileName || ('template.' + t.fileExt);
   a.templateId = t.id; a.templateName = t.name || '';
   a.pdfFields = Array.isArray(t.pdfFields) ? t.pdfFields : [];
-  a.signerCount = t.signerCount === 2 ? 2 : 1;
+  a.signerCount = _clampSigners(t.signerCount);
   a.signer1Label = t.signer1Label || 'Signer 1';
   a.signer2Label = t.signer2Label || 'Signer 2';
+  a.signer3Label = t.signer3Label || 'Signer 3';
   if (Array.isArray(t.signFields) && t.signFields.length) a.signFields = t.signFields;
   if (t.type && AGREEMENT_TYPE_KEYS.indexOf(t.type) >= 0) a.type = t.type;
   a.updatedAt = new Date().toISOString(); saveAgreements(all);
@@ -7783,11 +7785,13 @@ function findAgrByToken(list, token) {
   }
   return null;
 }
+function _clampSigners(v){ var n=parseInt(v,10); return (n===2||n===3)?n:1; }
 function ensureSigners(a) {
-  const n = a.signerCount === 2 ? 2 : 1;
+  const n = _clampSigners(a.signerCount);
+  const labels = [a.signer1Label || 'Signer 1', a.signer2Label || 'Signer 2', a.signer3Label || 'Signer 3'];
   if (!Array.isArray(a.signers) || !a.signers.length) {
     a.signers = [];
-    for (let i = 1; i <= n; i++) a.signers.push({ order: i, role: 's' + i, label: (i === 1 ? (a.signer1Label || 'Signer 1') : (a.signer2Label || 'Signer 2')), name: '', email: '', status: 'pending', token: '', signedAt: '', ip: '' });
+    for (let i = 1; i <= n; i++) a.signers.push({ order: i, role: 's' + i, label: labels[i - 1], name: '', email: '', status: 'pending', token: '', signedAt: '', ip: '' });
   }
   return a.signers;
 }

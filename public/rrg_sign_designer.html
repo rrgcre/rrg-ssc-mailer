@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RRG — Field Designer</title>
 <style>
-:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--s1:#2647b0;--s2:#0e8a5f;}
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--s1:#2647b0;--s2:#0e8a5f;--s3:#b7791f;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;height:100%;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;display:flex;flex-direction:column;height:100vh;}
 .bar{display:flex;align-items:center;gap:14px;padding:10px 18px;background:var(--navy);color:#fff;flex:0 0 auto;}
@@ -23,7 +23,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .tool .ti{width:20px;text-align:center;}
 .segs{display:flex;gap:6px;margin-bottom:8px;}
 .seg{flex:1;border:1px solid var(--line);background:#fff;border-radius:8px;padding:7px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;text-align:center;color:var(--muted);}
-.seg.on1{border-color:var(--s1);background:#eef1fb;color:var(--s1);} .seg.on2{border-color:var(--s2);background:#e9f7f0;color:var(--s2);}
+.seg.on1{border-color:var(--s1);background:#eef1fb;color:var(--s1);} .seg.on2{border-color:var(--s2);background:#e9f7f0;color:var(--s2);} .seg.on3{border-color:var(--s3);background:#fbf3e7;color:var(--s3);}
 input,select{width:100%;border:1px solid #cfd6e2;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;color:var(--ink);background:#fff;margin-bottom:8px;}
 label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:2px 0 5px;}
 .chk{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;margin-bottom:8px;} .chk input{width:auto;margin:0;}
@@ -37,6 +37,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
 .pnum{position:absolute;top:-18px;left:0;font-size:11px;color:var(--muted);font-weight:700;}
 .f{position:absolute;border:1.5px solid var(--s1);background:rgba(38,71,176,.10);border-radius:4px;cursor:move;font-size:10.5px;font-weight:700;color:var(--s1);display:flex;align-items:center;justify-content:center;overflow:hidden;user-select:none;padding:0 3px;text-align:center;line-height:1.05;}
 .f.s2{border-color:var(--s2);background:rgba(14,138,95,.10);color:var(--s2);}
+.f.s3{border-color:var(--s3);background:rgba(183,121,31,.10);color:var(--s3);}
 .f.sel{box-shadow:0 0 0 2px #fff,0 0 0 4px var(--navy);z-index:5;}
 .f .rz{position:absolute;right:-5px;bottom:-5px;width:12px;height:12px;background:#fff;border:1.5px solid var(--navy);border-radius:3px;cursor:nwse-resize;}
 .f .rq{position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;font-size:9px;font-weight:800;border-radius:20px;padding:0 4px;line-height:14px;}
@@ -56,7 +57,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
 <div class="body">
   <div class="palette">
     <div class="psec"><div class="plbl">Assign to</div>
-      <div class="segs"><div class="seg on1" id="sg1" data-s="1">Signer 1</div><div class="seg" id="sg2" data-s="2">Signer 2</div></div>
+      <div class="segs"><div class="seg on1" id="sg1" data-s="1">Signer 1</div><div class="seg" id="sg2" data-s="2">Signer 2</div><div class="seg" id="sg3" data-s="3">Signer 3</div></div>
       <div class="hint" id="s2hint" style="display:none">Signer 2 is off. Turn on two signers below to place their fields.</div>
     </div>
     <div class="psec"><div class="plbl">Add field (click a spot on the page)</div>
@@ -78,11 +79,12 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
       </div>
     </div>
     <div class="psec"><div class="plbl">Signers</div>
-      <label class="chk"><input type="checkbox" id="twoSigners"> Two signers (sequential)</label>
+      <label class="fld">Number of signers</label><select id="signerCount" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font:inherit;margin-bottom:8px"><option value="1">1 — client only</option><option value="2">2 — sequential</option><option value="3">3 — sequential</option></select>
       <label class="fld">Signer 1 label</label><input id="s1label" value="Signer 1">
       <div id="s2wrap" style="display:none"><label class="fld">Signer 2 label</label><input id="s2label" value="Signer 2"></div>
+      <div id="s3wrap" style="display:none"><label class="fld">Signer 3 label</label><input id="s3label" value="Signer 3"></div>
     </div>
-    <div class="hint">Pick a field type, then click where it goes on the page. Drag to move, use the corner to resize. Blue = Signer 1, green = Signer 2. Save when done.</div>
+    <div class="hint">Pick a field type, then click where it goes on the page. Drag to move, use the corner to resize. Blue = Signer 1, green = Signer 2, amber = Signer 3. Save when done.</div>
   </div>
   <div class="stage" id="stage"><div class="loading">Loading document…</div></div>
 </div>
@@ -96,12 +98,14 @@ var TYPELBL={text:'Text',signature:'✍ Sign',initials:'Init',date:'Date',checkb
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 function setTool(t){ TOOL=t; document.querySelectorAll('.tool').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-tool')===t); }); }
-function setSigner(n){ SIGNER=n; document.getElementById('sg1').className='seg'+(n===1?' on1':''); document.getElementById('sg2').className='seg'+(n===2?' on2':''); }
+function sigCount(){ return parseInt(document.getElementById('signerCount').value,10)||1; }
+function setSigner(n){ SIGNER=n; document.getElementById('sg1').className='seg'+(n===1?' on1':''); document.getElementById('sg2').className='seg'+(n===2?' on2':''); document.getElementById('sg3').className='seg'+(n===3?' on3':''); }
 
 document.querySelectorAll('.tool').forEach(function(b){ b.addEventListener('click',function(){ setTool(b.getAttribute('data-tool')); }); });
 document.getElementById('sg1').addEventListener('click',function(){ setSigner(1); });
-document.getElementById('sg2').addEventListener('click',function(){ if(!document.getElementById('twoSigners').checked){ alert('Turn on "Two signers" first.'); return; } setSigner(2); });
-document.getElementById('twoSigners').addEventListener('change',function(){ var on=this.checked; document.getElementById('s2wrap').style.display=on?'':'none'; document.getElementById('s2hint').style.display=on?'none':'none'; if(!on){ setSigner(1); } });
+document.getElementById('sg2').addEventListener('click',function(){ if(sigCount()<2){ alert('Set the number of signers to 2 or more first.'); return; } setSigner(2); });
+document.getElementById('sg3').addEventListener('click',function(){ if(sigCount()<3){ alert('Set the number of signers to 3 first.'); return; } setSigner(3); });
+document.getElementById('signerCount').addEventListener('change',function(){ var c=sigCount(); document.getElementById('s2wrap').style.display=c>=2?'':'none'; document.getElementById('s3wrap').style.display=c>=3?'':'none'; if(SIGNER>c) setSigner(1); });
 
 function uid(){ return 'f'+Math.random().toString(36).slice(2,8); }
 
@@ -119,7 +123,7 @@ function drawFields(){
   FIELDS.forEach(function(f){
     var ov=document.getElementById('ov'+f.page); if(!ov) return;
     var W=ov.clientWidth, H=ov.clientHeight;
-    var el=document.createElement('div'); el.className='f'+(f.signer===2?' s2':'')+(SELECTED===f.id?' sel':''); el.setAttribute('data-id',f.id);
+    var el=document.createElement('div'); el.className='f'+(f.signer===2?' s2':(f.signer===3?' s3':''))+(SELECTED===f.id?' sel':''); el.setAttribute('data-id',f.id);
     el.style.left=(f.x*W)+'px'; el.style.top=(f.y*H)+'px'; el.style.width=(f.w*W)+'px'; el.style.height=(f.h*H)+'px';
     el.textContent=f.label||TYPELBL[f.type]||f.type;
     if(f.required){ var rq=document.createElement('span'); rq.className='rq'; rq.textContent='*'; el.appendChild(rq); }
@@ -159,7 +163,7 @@ document.getElementById('f_del').addEventListener('click',function(){ var f=cur(
 function cur(){ return FIELDS.filter(function(x){return x.id===SELECTED;})[0]; }
 
 function save(){
-  var body={ pdfFields:FIELDS, signerCount:document.getElementById('twoSigners').checked?2:1, signer1Label:document.getElementById('s1label').value||'Signer 1', signer2Label:document.getElementById('s2label').value||'Signer 2' };
+  var body={ pdfFields:FIELDS, signerCount:sigCount(), signer1Label:document.getElementById('s1label').value||'Signer 1', signer2Label:document.getElementById('s2label').value||'Signer 2', signer3Label:document.getElementById('s3label').value||'Signer 3' };
   var m=document.getElementById('msg'); m.textContent='Saving…';
   var btn=document.getElementById('saveBtn'); btn.disabled=true;
   fetch('/api/admin/agreement-templates/'+encodeURIComponent(TID)+'/fields',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
@@ -200,10 +204,11 @@ function boot(){
     document.getElementById('tName').textContent=TPL.name;
     document.getElementById('tSub').textContent='Place fields, assign signers, save';
     FIELDS=(TPL.pdfFields||[]).map(function(f){return JSON.parse(JSON.stringify(f));});
-    var two=(TPL.signerCount===2);
-    document.getElementById('twoSigners').checked=two; document.getElementById('s2wrap').style.display=two?'':'none';
+    var _sc=(TPL.signerCount===3?3:(TPL.signerCount===2?2:1));
+    document.getElementById('signerCount').value=String(_sc); document.getElementById('s2wrap').style.display=_sc>=2?'':'none'; document.getElementById('s3wrap').style.display=_sc>=3?'':'none';
     document.getElementById('s1label').value=TPL.signer1Label||'Signer 1';
     document.getElementById('s2label').value=TPL.signer2Label||'Signer 2';
+    document.getElementById('s3label').value=TPL.signer3Label||'Signer 3';
     renderPages();
   }).catch(function(){ document.getElementById('stage').innerHTML='<div class="loading">Could not reach the server.</div>'; });
 }
