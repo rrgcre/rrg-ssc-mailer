@@ -202,6 +202,17 @@ function noCompanyCompany() {
   }
   return c;
 }
+// System placeholder contact — where tasks (and other records) with no real contact are parked. Permanent.
+function noContactPerson() {
+  const co = noCompanyCompany();
+  const arr = loadPeople();
+  let p = arr.find(x => x.system === 'nocontact');
+  if (!p) {
+    p = { id: newPersonId(), firstName: 'No', lastName: 'Contact', name: 'No Contact', type: 'Other', system: 'nocontact', locked: true, companyId: co.id, company: co.name, emails: [], phones: [], notes: 'Catch-all for tasks and records not tied to a real contact. Permanent — cannot be deleted.', createdAt: new Date().toISOString(), by: 'System', byUser: 'system' };
+    arr.push(p); savePeople(arr);
+  }
+  return p;
+}
 function backlinkBbsLeads() {
   try {
     const cid = bizBuySellCompany().id;
@@ -3116,7 +3127,7 @@ async function bbsPollTick() {
   _bbsPolling = false;
 }
 setInterval(bbsPollTick, 60 * 1000);
-try { bizBuySellCompany(); noCompanyCompany(); backlinkBbsLeads(); } catch (e) { console.error('bbs company init:', e && e.message); }
+try { bizBuySellCompany(); noCompanyCompany(); noContactPerson(); backlinkBbsLeads(); } catch (e) { console.error('bbs company init:', e && e.message); }
 try { seedEmailTemplates(); } catch (e) { console.error('seed email tpl:', e && e.message); }
 try { seedBizSalesStages(); } catch (e) { console.error('seed biz sales:', e && e.message); }
 
@@ -3875,6 +3886,8 @@ app.post('/api/person/:id/unlink-listing', express.json(), (req, res) => {
 });
 app.delete('/api/person/:id', (req, res) => {
   if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete contacts.' });
+  const _t = loadPeople().find(p => p.id === req.params.id);
+  if (_t && (_t.system || _t.locked)) return res.status(400).json({ ok: false, error: 'This is a protected system contact and cannot be deleted.' });
   const arr = loadPeople().filter(p => p.id !== req.params.id);
   savePeople(arr);
   res.json({ ok: true, people: arr.map(personBrief) });
@@ -7761,6 +7774,33 @@ app.post('/api/tasks', express.json(), (req, res) => {
   t.updatedAt = now;
   saveTasks(all);
   res.json({ ok: true, task: t });
+});
+app.get('/api/tasks/unlinked', (req, res) => {
+  const batch = parseInt(req.query.batch, 10);
+  let list = loadTasks().filter(t => taskVisible(t, req) && (t.linkType !== 'contact' || !t.linkId));
+  if (batch > 0) list = list.filter(t => t.importBatch === batch);
+  list.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  const contacts = loadPeople().filter(p => !p.system).map(p => ({ id: p.id, name: p.name, company: p.company || '', email: (typeof preferredEmailOf === 'function' ? (preferredEmailOf(p) || '') : (p.email || '')) })).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+  const nc = noContactPerson();
+  res.json({ ok: true, tasks: list.map(t => ({ id: t.id, title: t.title, due: t.due || '', priority: t.priority || 'Normal', notes: t.notes || '' })), contacts, noContactId: nc.id });
+});
+app.post('/api/tasks/assign-nocontact', express.json(), (req, res) => {
+  const b = req.body || {}; const batch = parseInt(b.batch, 10);
+  const nc = noContactPerson();
+  const all = loadTasks(); let n = 0; const now = new Date().toISOString();
+  all.forEach(t => { if (!taskVisible(t, req)) return; if (t.linkType === 'contact' && t.linkId) return; if (batch > 0 && t.importBatch !== batch) return; t.linkType = 'contact'; t.linkId = nc.id; t.linkLabel = nc.name; t.updatedAt = now; n++; });
+  if (n) saveTasks(all);
+  res.json({ ok: true, assigned: n, noContactId: nc.id });
+});
+app.post('/api/tasks/:id/link', express.json(), (req, res) => {
+  const all = loadTasks(); const t = all.find(x => x.id === req.params.id);
+  if (!t) return res.status(404).json({ ok: false, error: 'Task not found.' });
+  if (!taskVisible(t, req)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const b = req.body || {};
+  if (!b.contactId) { t.linkType = ''; t.linkId = ''; t.linkLabel = ''; }
+  else { const p = personById(String(b.contactId)); if (!p) return res.status(400).json({ ok: false, error: 'Contact not found.' }); t.linkType = 'contact'; t.linkId = p.id; t.linkLabel = p.name || ''; }
+  t.updatedAt = new Date().toISOString(); saveTasks(all);
+  res.json({ ok: true, task: { id: t.id, linkType: t.linkType, linkId: t.linkId, linkLabel: t.linkLabel } });
 });
 app.post('/api/tasks/:id/toggle', (req, res) => {
   const all = loadTasks(); const t = all.find(x => x.id === req.params.id);

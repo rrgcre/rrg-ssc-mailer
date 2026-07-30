@@ -775,7 +775,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="p_notes" placeholder="Preferences, budget, concepts of interest, history…">'+esc(P.notes||'')+'</textarea></div>'
       + '</div></div>'
       + '<div class="saved" id="p_saved"></div><div id="p_msg" style="font-size:12.5px;color:#b23a2c;margin-top:8px"></div>'
-      + (CAN_DELETE?('<div class="pdangerz"><button class="pdelbtn" id="p_delete">Delete contact</button><div class="pdangernote">Removes this person from the registry. Their name stays on any past offers and tours. Cannot be undone.</div></div>'):'')
+      + ((P.system||P.locked)?('<div class="pdangerz"><div class="pdangernote">🔒 System-required record — permanent and cannot be deleted.</div></div>'):(CAN_DELETE?('<div class="pdangerz"><button class="pdelbtn" id="p_delete">Delete contact</button><div class="pdangernote">Removes this person from the registry. Their name stays on any past offers and tours. Cannot be undone.</div></div>'):''))
     + '</div></div></div>'
     + '<div class="mid">'+statTiles()+interestedCard()+activityCard()+'</div>'
     + '<div class="rail">'+companyRail()+relatedRail()+automationsCard()+agreementsCard()+appointmentsCard()+'</div>';
