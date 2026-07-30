@@ -153,7 +153,7 @@ function renderEditor(){
     '<div><label class="fld">Category / type</label><select id="t_type">'+typeOpts+'</select></div></div>'+
     '<div style="margin-top:16px"><label class="fld">Template document — the agreement itself</label><div class="uprow">'+
       (e.fileExt?('<span class="file-ok">📎 '+esc(e.fileName||'document')+'</span> <a class="btn ghost sm" href="/api/agreement-templates/'+esc(e.id)+'/file?v='+encodeURIComponent(e.updatedAt||'')+'" target="_blank" rel="noopener">View</a>'):'<span id="t_fname" class="file-no">No file chosen yet</span>')+
-      '<label class="filelabel">⤒ '+(e.fileExt?'Replace file':'Choose file')+'<input type="file" id="t_file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label>'+
+      '<label class="filelabel">⤒ '+(e.fileExt?'Replace file':'Choose file')+'<input type="file" id="t_file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label><span id="t_picked" style="margin-left:9px;font-size:12px;color:var(--green);font-weight:700"></span>'+
       '</div><div class="note">Upload the signable PDF (or Word), up to 20 MB — it saves when you click '+(e.id?'Save changes':'Create template')+'.</div>'+
       (e.fileExt==='pdf'?('<div style="margin-top:12px;padding:14px 16px;background:#eaf7f0;border:1px solid #bfe6d0;border-radius:12px">'+'<div style="font-weight:800;color:#0e6b47;font-size:13.5px;margin-bottom:3px">'+((e.pdfFields&&e.pdfFields.length)?('✓ '+e.pdfFields.length+' field'+(e.pdfFields.length===1?'':'s')+' placed on the document'):'Place the fields on the document')+'</div>'+'<div style="font-size:12px;color:#3f6b56;margin-bottom:11px;line-height:1.5">Drop signature, date and text fields exactly where they go, and assign who signs. The rep fills every detail before sending — the signer only signs, and the values print right on the page.</div>'+'<a class="btn sm" style="background:#0e8a5f;border-color:#0e8a5f;font-size:13px;padding:9px 16px" href="/rrg_sign_designer.html?template='+esc(e.id)+'">✍ '+((e.pdfFields&&e.pdfFields.length)?'Edit placed fields':'Design fields on the PDF')+'</a></div>'):(e.fileExt?('<div class="note" style="color:#b5791f;margin-top:8px">Field placement needs a <b>PDF</b>. This file is .'+esc(e.fileExt)+' — upload a PDF version to place fields on it.</div>'):(e.id?'<div class="note" style="margin-top:8px">Upload a PDF above, then place fields on it.</div>':'<div class="note" style="margin-top:8px">Save the template, then upload the PDF and place fields.</div>')))+
       '</div>'+
@@ -171,7 +171,7 @@ function renderEditor(){
   renderFieldRows();
   document.getElementById('t_save').addEventListener('click',saveTpl);
   document.getElementById('t_close').addEventListener('click',closeEditor);
-  var fi=document.getElementById('t_file'); if(fi) fi.addEventListener('change',function(){ var fn=document.getElementById('t_fname'); if(fn&&fi.files&&fi.files[0]) fn.textContent=fi.files[0].name; });
+  var fi=document.getElementById('t_file'); if(fi) fi.addEventListener('change',function(){ var f=fi.files&&fi.files[0]; if(!f) return; var pk=document.getElementById('t_picked'); if(pk) pk.textContent='✓ '+f.name+' — press Save to upload'; var fn=document.getElementById('t_fname'); if(fn) fn.textContent=f.name; });
 }
 function render(){
   var root=document.getElementById('root');

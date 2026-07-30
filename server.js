@@ -3051,14 +3051,27 @@ function cleanAutoSteps(arr) {
     return o;
   }).filter(function (st) { return st.type === 'task' ? st.taskTitle : (st.type === 'notification' ? st.message : (st.subject || st.body)); });
 }
-function mergeTokens(t, p) {
+function mergeTokens(t, p, user) {
+  p = p || {}; user = user || {};
   const first = personFirst(p) || '', last = personLast(p) || '', name = p.name || (first + ' ' + last).trim(), co = p.company || '';
-  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company)\s*\}\}/gi, function (_, k) {
+  const email = (typeof preferredEmailOf === 'function' ? (preferredEmailOf(p) || '') : (p.email || '')) || (personEmails(p)[0] || '');
+  const phone = (typeof preferredPhoneOf === 'function' ? (preferredPhoneOf(p) || '') : (p.phone || '')) || (personPhones(p)[0] || '');
+  const title = p.title || '';
+  let today = ''; try { today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); } catch (e) {}
+  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|email|phone|my_name|my_title|my_phone|my_email|today)\s*\}\}/gi, function (_, k) {
     k = k.toLowerCase();
     if (k === 'first_name' || k === 'firstname') return first;
     if (k === 'last_name' || k === 'lastname') return last;
     if (k === 'name') return name;
     if (k === 'company') return co;
+    if (k === 'title') return title;
+    if (k === 'email') return email;
+    if (k === 'phone') return phone;
+    if (k === 'my_name') return user.name || '';
+    if (k === 'my_title') return user.title || '';
+    if (k === 'my_phone') return user.phone || '';
+    if (k === 'my_email') return user.email || '';
+    if (k === 'today') return today;
     return '';
   });
 }
