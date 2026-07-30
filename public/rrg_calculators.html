@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Calculators</title>
+<script src="/rrg_brand.js"></script>
+<style>
+:root{ --navy:#000E31; --red:#DA2B1F; --ink:#1a2236; --muted:#6b7488; --soft:#8a94a6; --line:#e6e9f0; --wash:#f5f7fb; --bg:#eef1f6; }
+*{box-sizing:border-box;} html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);}
+.top{background:radial-gradient(115% 130% at 50% 0%, #182a54 0%, #0d1b3d 55%, #04091d 100%);color:#fff;padding:20px 0;}
+.top-inner{max-width:1100px;margin:0 auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.brand{display:inline-flex;align-items:center;gap:11px;}
+.brand .disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font-family:'Arial Black',Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;}
+.brand .wm{font-weight:800;font-size:15px;}
+.top a.back{color:#c3ccdf;text-decoration:none;font-weight:600;font-size:13px;border:1px solid rgba(255,255,255,.2);padding:7px 13px;border-radius:8px;}
+.top a.back:hover{border-color:#fff;color:#fff;}
+.wrap{max-width:1100px;margin:20px auto;padding:0 28px 40px;}
+.tabbar{display:flex;gap:6px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:6px;margin-bottom:16px;flex-wrap:wrap;}
+.tab{flex:1;min-width:150px;background:none;border:none;border-radius:9px;padding:12px 14px;font:inherit;font-size:14px;font-weight:700;color:var(--muted);cursor:pointer;transition:background .12s,color .12s;}
+.tab:hover{background:var(--wash);}
+.tab.on{background:var(--navy);color:#fff;}
+.frameCard{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;}
+iframe{width:100%;border:0;display:block;min-height:760px;height:calc(100vh - 210px);}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-inner">
+  <span class="brand"><span class="disc">RRG</span><span class="wm">Calculators</span></span>
+  <a class="back" href="./index.html">← Dashboard</a>
+</div></div>
+<div class="wrap">
+  <div class="tabbar" id="tabbar">
+    <button class="tab on" data-src="./rrg_cap_rate_calculator.html?embed=1">Cap Rate</button>
+    <button class="tab" data-src="./rrg_commission_calculator.html?embed=1">Sale Commission</button>
+    <button class="tab" data-src="./rrg_lease_commission_calculator.html?embed=1">Lease Commission</button>
+  </div>
+  <div class="frameCard"><iframe id="calcFrame" src="./rrg_cap_rate_calculator.html?embed=1" title="Calculator"></iframe></div>
+</div>
+<script>
+(function(){
+  var bar=document.getElementById('tabbar'), frame=document.getElementById('calcFrame');
+  bar.addEventListener('click',function(e){
+    var b=e.target.closest('.tab'); if(!b) return;
+    bar.querySelectorAll('.tab').forEach(function(x){ x.classList.toggle('on', x===b); });
+    frame.src=b.getAttribute('data-src');
+  });
+})();
+</script>
+</body>
+</html>

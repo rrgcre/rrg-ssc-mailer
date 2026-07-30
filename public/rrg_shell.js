@@ -13,9 +13,8 @@
 
   var NAV = [
     { color: '#8fa2c4', items: [
-      { ic: '<svg viewBox="0 0 20 20" width="14" height="14" style="vertical-align:-2px" fill="none"><path d="M10 2.7c-4.1 0-7.5 2.7-7.5 6.1 0 1.8 1 3.5 2.5 4.6-.1 1-.5 1.9-1.1 2.7 1.2-.2 2.4-.7 3.4-1.3.9.3 1.7.4 2.7.4 4.1 0 7.5-2.7 7.5-6.1S14.1 2.7 10 2.7Z" fill="currentColor"/><path d="M10 5.7l.7 1.8 1.8.7-1.8.7L10 10.7l-.7-1.8-1.8-.7 1.8-.7L10 5.7Z" fill="#fff"/></svg>', label: 'Consult', href: 'rrg_consult.html', ai: true },
-      { ic: '✦', label: 'RRG Brief', href: 'rrg_brief.html', ai: true },
-      { ic: '◱', label: 'Activity Feed', href: 'rrg_feed.html' },
+      { ic: '✦', label: 'Daily Brief', href: 'rrg_brief.html', ai: true },
+      { ic: '◱', label: 'Feed', href: 'rrg_feed.html' },
       { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' },
       { ic: '◫', label: 'Calendar', href: 'rrg_calendar.html' }
     ] },
@@ -58,13 +57,12 @@
       { ic: '⊟', label: 'Expenses', href: 'rrg_expenses.html' }
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
+      { ic: '<svg viewBox="0 0 20 20" width="14" height="14" style="vertical-align:-2px" fill="none"><path d="M10 2.7c-4.1 0-7.5 2.7-7.5 6.1 0 1.8 1 3.5 2.5 4.6-.1 1-.5 1.9-1.1 2.7 1.2-.2 2.4-.7 3.4-1.3.9.3 1.7.4 2.7.4 4.1 0 7.5-2.7 7.5-6.1S14.1 2.7 10 2.7Z" fill="currentColor"/><path d="M10 5.7l.7 1.8 1.8.7-1.8.7L10 10.7l-.7-1.8-1.8-.7 1.8-.7L10 5.7Z" fill="#fff"/></svg>', label: 'Consult', href: 'rrg_consult.html', ai: true },
       { ic: '★', label: 'Features', href: 'rrg_features.html' },
       { ic: '⊛', label: 'System Status', href: 'rrg_status.html' },
       { ic: '⚑', label: 'Feedback', href: 'rrg_feedback.html' },
       { ic: '✉', label: 'Admin Requests', href: 'rrg_tickets.html' },
-      { ic: '∑', label: 'Cap Rate', href: 'rrg_cap_rate_calculator.html' },
-      { ic: '＄', label: 'Sale Commission', href: 'rrg_commission_calculator.html' },
-      { ic: '＄', label: 'Lease Commission', href: 'rrg_lease_commission_calculator.html' }
+      { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' }
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
       { ic: '☺', label: 'Users', href: 'rrg_roles.html' },
