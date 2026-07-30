@@ -695,7 +695,7 @@ function interestedCard(){
     var fg=(st==='Unqualified')?'#b23a2c':(st==='Qualified'?'#1f8a5b':((st==='Dead'||st==='Passed')?'#8a94a6':'#2647b0'));
     return '<div class="row" style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)"><div style="flex:1;min-width:0"><a href="./rrg_assignment.html?key='+encodeURIComponent(x.key)+'" style="display:block;font-weight:600;color:var(--navy);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(x.business||'Listing')+'</a>'+(x.stage?('<div style="font-size:11px;color:#8a94a6;margin-top:1px">Listing stage: <b style="color:#5b6472;font-weight:700">'+esc(x.stage)+'</b>'+(x.stageTotal?(' \u00b7 '+x.stageDone+'/'+x.stageTotal):'')+'</div>'):'')+'</div>'+(x.source?'<span style="font-size:10px;font-weight:700;color:#6b7488;background:#eef1f6;border-radius:5px;padding:2px 6px;white-space:nowrap">'+esc(x.source)+'</span>':'')+(x.date?'<span style="font-size:11px;color:#8a94a6;white-space:nowrap">'+esc(fmt(x.date))+'</span>':'')+'<span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:'+bg+';color:'+fg+'">'+esc(st)+'</span><button type="button" data-unlink="'+esc(x.key)+'" title="Unlink this listing" style="border:none;background:none;color:#b23a2c;cursor:pointer;font-size:17px;line-height:1;padding:0 2px">\u00d7</button></div>';
   }).join('') : '<div class="empty">No listings inquired on or linked yet \u2014 link a listing this buyer is interested in.</div>';
-  return '<div class="card"><div class="ch" style="display:flex;align-items:center"><b>Interested Listings</b><span>'+(INTERESTED?INTERESTED.length:0)+'</span><button type="button" class="mfadd" id="linkListingBtn" style="margin-left:auto;padding:4px 10px;font-size:11.5px">+ Link listing</button></div><div id="linkPickerWrap"></div><div>'+body+'</div></div>';
+  return '<div class="card"><div class="ch" style="display:flex;align-items:center"><b>Inquiries</b><span>'+(INTERESTED?INTERESTED.length:0)+'</span><button type="button" class="mfadd" id="linkListingBtn" style="margin-left:auto;padding:4px 10px;font-size:11.5px">+ Link listing</button></div><div id="linkPickerWrap"></div><div>'+body+'</div></div>';
 }
 function openLinkPicker(){
   var wrap=document.getElementById('linkPickerWrap'); if(!wrap) return;
@@ -776,8 +776,8 @@ function render(){
       + '<div class="saved" id="p_saved"></div><div id="p_msg" style="font-size:12.5px;color:#b23a2c;margin-top:8px"></div>'
       + ((P.system||P.locked)?('<div class="pdangerz"><div class="pdangernote">🔒 System-required record — permanent and cannot be deleted.</div></div>'):(CAN_DELETE?('<div class="pdangerz"><button class="pdelbtn" id="p_delete">Delete contact</button><div class="pdangernote">Removes this person from the registry. Their name stays on any past offers and tours. Cannot be undone.</div></div>'):''))
     + '</div></div></div>'
-    + '<div class="mid">'+statTiles()+interestedCard()+activityCard()+'</div>'
-    + '<div class="rail">'+companyRail()+relatedRail()+automationsCard()+agreementsCard()+appointmentsCard()+'</div>';
+    + '<div class="mid">'+statTiles()+activityCard()+'</div>'
+    + '<div class="rail">'+companyRail()+relatedRail()+interestedCard()+automationsCard()+agreementsCard()+appointmentsCard()+'</div>';
   var root=document.getElementById('root');
   var pd=document.getElementById('p_delete'); if(pd) pd.addEventListener('click',deletePerson);
   ['p_first','p_last','p_type','p_nick','p_company','p_lead','p_url','p_lastcontact','p_notes'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener(el.tagName==='SELECT'?'change':'input',queueSave); });
