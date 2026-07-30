@@ -110,6 +110,24 @@ function composeName(f, l) { return [String(f || '').trim(), String(l || '').tri
 function personFirst(p) { return (p && p.firstName != null) ? p.firstName : splitName(p && p.name).first; }
 function personLast(p) { return (p && p.lastName != null) ? p.lastName : splitName(p && p.name).last; }
 // Multiple emails / phones per contact — normalize to a clean, de-duplicated list.
+// Pull a clean email out of messy header/import values like 'Name <mailto:x@y.com>' or 'x@y.com<mailto:x@y.com>'.
+function cleanEmailAddr(s) {
+  s = String(s == null ? '' : s).trim(); if (!s) return '';
+  s = s.replace(/mailto:/gi, '');
+  const ang = s.match(/<([^<>]+)>/g);
+  if (ang && ang.length) { const last = ang[ang.length - 1].replace(/[<>]/g, '').trim(); if (last.indexOf('@') >= 0) s = last; }
+  s = s.replace(/[<>"']/g, ' ').trim();
+  if (/\s/.test(s)) { const tok = s.split(/\s+/).filter(t => t.indexOf('@') >= 0); if (tok.length) s = tok[0]; }
+  s = s.replace(/[,;]/g, '').trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? s : '';
+}
+// Clean a display name that may contain <mailto:...> or angle-bracket junk.
+function cleanPersonName(s) {
+  s = String(s == null ? '' : s).trim(); if (!s) return '';
+  s = s.replace(/mailto:/gi, '').replace(/<[^<>]*>/g, ' ').replace(/[<>"]/g, ' ').replace(/\s+/g, ' ').trim();
+  s = s.replace(/^['\s]+|['\s]+$/g, '').trim();
+  return s;
+}
 function cleanList(a, max, len) {
   if (!Array.isArray(a)) a = (a != null && a !== '') ? [a] : [];
   const seen = {}, out = [];
@@ -135,9 +153,9 @@ function personById(id) { if (!id) return null; return loadPeople().find(p => p.
 function findOrCreatePerson(req, info) {
   const first = String((info && info.firstName) || '').trim();
   const last = String((info && info.lastName) || '').trim();
-  let name = String((info && info.name) || '').trim();
+  let name = cleanPersonName(String((info && info.name) || ''));
   if ((first || last) && !name) name = composeName(first, last);
-  const email = String((info && info.email) || '').trim();
+  const email = cleanEmailAddr(String((info && info.email) || ''));
   const company = String((info && info.company) || '').trim();
   if (!name && !email) return null;
   const arr = loadPeople();
@@ -155,7 +173,7 @@ function findOrCreatePerson(req, info) {
   const type = (info && PERSON_TYPES.indexOf(info.type) >= 0) ? info.type : 'Buyer';
   const fullName = (name.slice(0, 160) || email.slice(0, 160));
   const sp = splitName(fullName);
-  const emails = cleanList((info && info.emails) || (email ? [email] : []), 10, 160);
+  const emails = cleanList(((info && info.emails) || (email ? [email] : [])).map(cleanEmailAddr).filter(Boolean), 10, 160);
   const phones = cleanList((info && info.phones) || [], 10, 60);
   p = {
     id: newPersonId(), name: fullName, firstName: (first || sp.first).slice(0, 80), lastName: (last || sp.last).slice(0, 80),
@@ -3127,7 +3145,19 @@ async function bbsPollTick() {
   _bbsPolling = false;
 }
 setInterval(bbsPollTick, 60 * 1000);
-try { bizBuySellCompany(); noCompanyCompany(); noContactPerson(); backlinkBbsLeads(); } catch (e) { console.error('bbs company init:', e && e.message); }
+function cleanupPeopleAddrs() {
+  try {
+    const arr = loadPeople(); let ch = false;
+    arr.forEach(p => {
+      const junk = (v) => { v = String(v || ''); return /mailto:|[<>]/.test(v); };
+      if (junk(p.name)) { const nn = cleanPersonName(p.name); if (nn && nn !== p.name) { p.name = nn; ch = true; } }
+      if (junk(p.email)) { const ne = cleanEmailAddr(p.email); if (ne !== p.email) { p.email = ne; ch = true; } }
+      if (Array.isArray(p.emails) && p.emails.some(junk)) { const ne = []; p.emails.forEach(e => { const c = cleanEmailAddr(e); if (c && ne.indexOf(c) < 0) ne.push(c); }); p.emails = ne; if (!p.email && ne[0]) p.email = ne[0]; ch = true; }
+    });
+    if (ch) savePeople(arr);
+  } catch (e) { console.error('addr cleanup:', e && e.message); }
+}
+try { bizBuySellCompany(); noCompanyCompany(); noContactPerson(); backlinkBbsLeads(); cleanupPeopleAddrs(); } catch (e) { console.error('bbs company init:', e && e.message); }
 try { seedEmailTemplates(); } catch (e) { console.error('seed email tpl:', e && e.message); }
 try { seedBizSalesStages(); } catch (e) { console.error('seed biz sales:', e && e.message); }
 
@@ -4163,7 +4193,7 @@ app.get('/api/gmail/contacts/scan', async (req, res) => {
       const personal = PERSONAL_DOMAINS.has(dom);
       return { name: pc.name || '', email: pc.email, domain: dom, count: pc.count, suggestedCompany: personal ? 'No Company' : companyNameFromDomain(dom), existing: !!existing[pc.email] };
     });
-    res.json({ ok: true, contacts: out, scanned: result.scanned, capped: result.capped });
+    res.json({ ok: true, contacts: out, scanned: result.scanned, capped: result.capped, aiAvailable: !!process.env.ANTHROPIC_API_KEY });
   } catch (e) { console.error('gmail contacts scan:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/gmail/contacts/import', express.json({ limit: '3mb' }), (req, res) => {

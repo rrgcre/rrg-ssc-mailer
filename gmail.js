@@ -294,6 +294,8 @@ function parseAddrs(str) {
     const m = part.match(/^(.*?)<([^>]+)>\s*$/);
     if (m) { name = m[1].trim().replace(/^["']+|["']+$/g, ''); email = m[2].trim(); }
     else if (part.indexOf('@') >= 0) { email = part.trim(); }
+    email = email.replace(/mailto:/gi, '').replace(/[<>]/g, '').trim();
+    name = name.replace(/mailto:/gi, '').replace(/<[^<>]*>/g, '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
     if (email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) out.push({ name: name, email: email.toLowerCase() });
   });
   return out;
