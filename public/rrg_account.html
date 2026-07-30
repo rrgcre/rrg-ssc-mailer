@@ -86,6 +86,14 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
   </div>
 
   <div class="card">
+    <h2>Google Sync</h2>
+    <div class="desc">Two-way sync your contacts with <b>Google Contacts</b> and your meetings with <b>Google Calendar</b>. Uses the same Google connection as Gmail above — if you just enabled this, click <b>Connect Gmail</b> once more to approve Contacts &amp; Calendar access. New Google items come in; items you create here go out.</div>
+    <div id="gsState" class="desc" style="margin-bottom:12px">Checking…</div>
+    <div id="gsRows"></div>
+    <span class="msg" id="gsmsg"></span>
+  </div>
+
+  <div class="card">
     <h2>Change password</h2>
     <div class="desc">Choose something only you know — at least 6 characters.</div>
     <label class="fl">Current password</label>
@@ -187,7 +195,11 @@ function renderGmail(){
 function gmConnect(){ window.location.href=API+'/api/gmail/connect'; }
 function gmDisconnect(){ if(!confirm('Disconnect Gmail? Your emails will stop showing on contact records and sending will fall back to the app\u2019s email settings.')) return; fetch(API+'/api/gmail/disconnect',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(){ setMsg('gmmsg','ok','Disconnected.'); renderGmail(); }).catch(function(){ setMsg('gmmsg','err','Could not reach the server.'); }); }
 (function(){ var m=new URLSearchParams(location.search).get('gmail'); if(m){ var map={connected:['ok','Gmail connected ✓'],denied:['err','You declined access.'],error:['err','Something went wrong connecting Gmail — try again.'],badstate:['err','That link expired — try connecting again.']}; var t=map[m]; if(t){ setMsg('gmmsg',t[0],t[1]); } try{ history.replaceState({},'',location.pathname); }catch(e){} } })();
+function renderGSync(){ var st=document.getElementById('gsState'), rows=document.getElementById('gsRows'); if(!st) return; fetch(API+'/api/google/sync/status',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.configured){ st.innerHTML='<span style="color:#a05a00">Google isn’t set up on the server yet.</span>'; rows.innerHTML=''; return; } if(!j.connected){ st.innerHTML='Not connected — connect Gmail above first, approving Contacts &amp; Calendar.'; rows.innerHTML=''; return; } st.innerHTML='Connected as <b>'+esc(j.email||'your Google account')+'</b>.'; rows.innerHTML=gsRow('contacts','Contacts')+gsRow('calendar','Calendar'); }).catch(function(){ st.textContent='Could not check Google status.'; }); }
+function gsRow(kind,label){ return '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><b style="min-width:78px">'+label+'</b><button class="save" onclick="gsSync(&#39;'+kind+'&#39;,&#39;both&#39;,this)">Sync two-way</button><button class="save" style="background:#eef1f6;color:#33415c" onclick="gsSync(&#39;'+kind+'&#39;,&#39;pull&#39;,this)">Pull</button><button class="save" style="background:#eef1f6;color:#33415c" onclick="gsSync(&#39;'+kind+'&#39;,&#39;push&#39;,this)">Push</button><span class="msg" id="gs_'+kind+'"></span></div>'; }
+function gsSync(kind,dir,btn){ var out=document.getElementById('gs_'+kind); out.className='msg'; out.textContent='Syncing…'; btn.disabled=true; fetch(API+'/api/google/sync/'+kind,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({direction:dir})}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; if(j&&j.ok){ out.className='msg ok'; out.textContent='Done — '+j.pulledNew+' new, '+j.pulledUpdated+' updated in, '+j.pushed+' out.'; } else { out.className='msg err'; out.textContent=(j&&j.error)||'Sync failed.'; } }).catch(function(){ btn.disabled=false; out.className='msg err'; out.textContent='Could not reach the server.'; }); }
 renderGmail();
+renderGSync();
 </script>
 </body>
 </html>

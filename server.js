@@ -4148,6 +4148,127 @@ app.post('/api/gmail/contacts/import', express.json({ limit: '3mb' }), (req, res
   res.json({ ok: true, imported: imported });
 });
 
+// ===== Google two-way sync — Contacts (People API) + Calendar (Calendar API) =====
+const GSYNC_TZ = 'America/Chicago';
+function _gErr(e) { const m = (e && e.message) || 'Sync failed.'; if (e && (e.status === 403 || e.status === 401 || /insufficient|scope|permission|forbidden/i.test(m))) return 'Google has not granted Contacts/Calendar access yet — reconnect your Google account (Account → Gmail → Connect) to approve the new permissions, then try again.'; return m; }
+function _gLocal(dt) { const m = String(dt || '').match(/(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/); if (m) return m[1] + 'T' + m[2]; const d = String(dt || '').match(/^(\d{4}-\d{2}-\d{2})$/); return d ? (d[1] + 'T00:00') : ''; }
+function _gDT(s) { s = String(s || ''); return s.length === 16 ? (s + ':00') : s; }
+async function googleContactsPull(req) {
+  const u = (req.user && req.user.username) || '';
+  const ppl = loadPeople();
+  const emailIdx = {}; ppl.forEach(p => personEmails(p).forEach(e => { if (e) emailIdx[e.toLowerCase()] = p; }));
+  const resIdx = {}; ppl.forEach(p => { if (p.googleResourceName) resIdx[p.googleResourceName] = p; });
+  let created = 0, updated = 0, pageToken = '', pages = 0; const now = new Date().toISOString();
+  do {
+    const url = 'https://people.googleapis.com/v1/people/me/connections?personFields=names,emailAddresses,phoneNumbers,organizations&pageSize=500' + (pageToken ? ('&pageToken=' + encodeURIComponent(pageToken)) : '');
+    const j = await gmail.gapiJSON(u, url, {});
+    (j.connections || []).forEach(gc => {
+      const emails = (gc.emailAddresses || []).map(e => String(e.value || '').trim()).filter(Boolean);
+      const phones = (gc.phoneNumbers || []).map(e => String(e.value || '').trim()).filter(Boolean);
+      const nm = (gc.names && gc.names[0]) || {};
+      const first = nm.givenName || '', last = nm.familyName || '', full = nm.displayName || composeName(first, last);
+      if (!emails.length && !full) return;
+      let p = resIdx[gc.resourceName];
+      if (!p) { for (const e of emails) { if (emailIdx[e.toLowerCase()]) { p = emailIdx[e.toLowerCase()]; break; } } }
+      if (p) {
+        let ch = false;
+        if (p.googleResourceName !== gc.resourceName) { p.googleResourceName = gc.resourceName; ch = true; }
+        p.googleEtag = gc.etag || '';
+        if (!p.firstName && first) { p.firstName = first; ch = true; }
+        if (!p.lastName && last) { p.lastName = last; ch = true; }
+        if (!p.name && full) { p.name = full; ch = true; }
+        const eset = {}; personEmails(p).forEach(x => eset[x.toLowerCase()] = 1); emails.forEach(e => { if (!eset[e.toLowerCase()]) { p.emails = (Array.isArray(p.emails) ? p.emails : personEmails(p)); p.emails.push(e); eset[e.toLowerCase()] = 1; ch = true; } });
+        const pset = {}; personPhones(p).forEach(x => pset[x.replace(/\D/g, '')] = 1); phones.forEach(ph => { const k = ph.replace(/\D/g, ''); if (k && !pset[k]) { p.phones = (Array.isArray(p.phones) ? p.phones : personPhones(p)); p.phones.push(ph); pset[k] = 1; ch = true; } });
+        if (ch) { p.updatedAt = now; updated++; }
+      } else {
+        const np = { id: newPersonId(), firstName: first, lastName: last, name: full || composeName(first, last), type: 'Other', emails: emails, phones: phones, createdAt: now, updatedAt: now, by: (req.user && req.user.name) || '', byUser: u, leadSource: 'Google Contacts', googleResourceName: gc.resourceName, googleEtag: gc.etag || '' };
+        np.email = preferredEmailOf(np); np.phone = preferredPhoneOf(np);
+        ppl.push(np); emails.forEach(e => emailIdx[e.toLowerCase()] = np); resIdx[gc.resourceName] = np; created++;
+      }
+    });
+    pageToken = j.nextPageToken || ''; pages++;
+  } while (pageToken && pages < 20);
+  savePeople(ppl);
+  return { created, updated };
+}
+async function googleContactsPush(req) {
+  const u = (req.user && req.user.username) || '';
+  const ppl = loadPeople(); let pushed = 0, failed = 0; const now = new Date().toISOString();
+  for (const p of ppl) {
+    if (p.googleResourceName) continue;
+    const emails = personEmails(p); if (!emails.length && !p.name) continue;
+    const body = { names: [{ givenName: personFirst(p) || '', familyName: personLast(p) || '' }], emailAddresses: emails.map(e => ({ value: e })), phoneNumbers: personPhones(p).map(ph => ({ value: ph })) };
+    try {
+      const j = await gmail.gapiJSON(u, 'https://people.googleapis.com/v1/people:createContact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (j && j.resourceName) { p.googleResourceName = j.resourceName; p.googleEtag = j.etag || ''; p.updatedAt = now; pushed++; }
+    } catch (e) { failed++; if (e && (e.status === 403 || e.status === 401)) throw e; }
+  }
+  savePeople(ppl);
+  return { pushed, failed };
+}
+async function googleCalendarPull(req) {
+  const u = (req.user && req.user.username) || '';
+  const appts = loadAppts();
+  const evIdx = {}; appts.forEach(a => { if (a.googleEventId) evIdx[a.googleEventId] = a; });
+  const tmin = new Date(Date.now() - 30 * 86400000).toISOString(), tmax = new Date(Date.now() + 180 * 86400000).toISOString();
+  let created = 0, updated = 0, pageToken = '', pages = 0; const now = new Date().toISOString();
+  do {
+    const url = 'https://www.googleapis.com/calendar/v3/calendars/primary/events?singleEvents=true&orderBy=startTime&maxResults=250&timeMin=' + encodeURIComponent(tmin) + '&timeMax=' + encodeURIComponent(tmax) + (pageToken ? ('&pageToken=' + encodeURIComponent(pageToken)) : '');
+    const j = await gmail.gapiJSON(u, url, {});
+    (j.items || []).forEach(ev => {
+      if (ev.status === 'cancelled') return;
+      const start = _gLocal((ev.start && (ev.start.dateTime || ev.start.date)) || ''), end = _gLocal((ev.end && (ev.end.dateTime || ev.end.date)) || '');
+      const atts = (ev.attendees || []).map(x => ({ name: x.displayName || '', email: x.email || '' })).filter(x => x.email);
+      let a = evIdx[ev.id];
+      if (a) { let ch = false; if (start && a.start !== start) { a.start = start; ch = true; } if (end && a.end !== end) { a.end = end; ch = true; } if ((ev.summary || '') && a.title !== ev.summary) { a.title = ev.summary; ch = true; } if ((ev.location || '') !== (a.location || '')) { a.location = ev.location || ''; ch = true; } if (ch) { a.updatedAt = now; updated++; } }
+      else { const na = { id: newApptId(), title: ev.summary || '(no title)', contactPersonId: '', contactName: '', companyId: '', start: start, end: end, allDay: !!(ev.start && ev.start.date && !ev.start.dateTime), location: ev.location || '', type: 'Meeting', notes: ev.description || '', attendees: atts, byUser: u, byName: (req.user && req.user.name) || '', status: 'scheduled', createdAt: now, updatedAt: now, googleEventId: ev.id, googleCalId: 'primary' }; appts.push(na); evIdx[ev.id] = na; created++; }
+    });
+    pageToken = j.nextPageToken || ''; pages++;
+  } while (pageToken && pages < 10);
+  saveAppts(appts);
+  return { created, updated };
+}
+async function googleCalendarPush(req) {
+  const u = (req.user && req.user.username) || '';
+  const appts = loadAppts(); let pushed = 0, failed = 0; const now = new Date().toISOString();
+  for (const a of appts) {
+    if (a.googleEventId || a.status === 'deleted' || !a.start) continue;
+    const body = { summary: a.title || 'Meeting', location: a.location || '', description: a.notes || '', start: { dateTime: _gDT(a.start), timeZone: GSYNC_TZ }, end: { dateTime: _gDT(a.end || a.start), timeZone: GSYNC_TZ }, attendees: (a.attendees || []).filter(x => x.email).map(x => ({ email: x.email })) };
+    try { const j = await gmail.gapiJSON(u, 'https://www.googleapis.com/calendar/v3/calendars/primary/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (j && j.id) { a.googleEventId = j.id; a.googleCalId = 'primary'; a.updatedAt = now; pushed++; } } catch (e) { failed++; if (e && (e.status === 403 || e.status === 401)) throw e; }
+  }
+  saveAppts(appts);
+  return { pushed, failed };
+}
+app.get('/api/google/sync/status', (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  const st = gmail.statusFor(u);
+  res.json({ ok: true, configured: st.configured, connected: st.connected, email: st.email || '' });
+});
+app.post('/api/google/sync/contacts', express.json(), async (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Google account first (Account → Gmail).' });
+  const dir = String((req.body && req.body.direction) || 'both');
+  try {
+    let pull = { created: 0, updated: 0 }, push = { pushed: 0 };
+    if (dir === 'pull' || dir === 'both') pull = await googleContactsPull(req);
+    if (dir === 'push' || dir === 'both') push = await googleContactsPush(req);
+    logSysEvent(req, 'Google Sync', 'Contacts sync (' + dir + ') — ' + pull.created + ' new, ' + pull.updated + ' updated, ' + push.pushed + ' pushed', { tool: 'google-sync', kind: 'contacts' });
+    res.json({ ok: true, pulledNew: pull.created, pulledUpdated: pull.updated, pushed: push.pushed });
+  } catch (e) { console.error('gsync contacts:', e && e.message); res.status(502).json({ ok: false, error: _gErr(e) }); }
+});
+app.post('/api/google/sync/calendar', express.json(), async (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Google account first (Account → Gmail).' });
+  const dir = String((req.body && req.body.direction) || 'both');
+  try {
+    let pull = { created: 0, updated: 0 }, push = { pushed: 0 };
+    if (dir === 'pull' || dir === 'both') pull = await googleCalendarPull(req);
+    if (dir === 'push' || dir === 'both') push = await googleCalendarPush(req);
+    logSysEvent(req, 'Google Sync', 'Calendar sync (' + dir + ') — ' + pull.created + ' new, ' + pull.updated + ' updated, ' + push.pushed + ' pushed', { tool: 'google-sync', kind: 'calendar' });
+    res.json({ ok: true, pulledNew: pull.created, pulledUpdated: pull.updated, pushed: push.pushed });
+  } catch (e) { console.error('gsync calendar:', e && e.message); res.status(502).json({ ok: false, error: _gErr(e) }); }
+});
+
 app.post('/api/gmail/disconnect', (req, res) => {
   const u = (req.user && req.user.username) || '';
   gmail.deleteToken(u);

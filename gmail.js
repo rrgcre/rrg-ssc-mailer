@@ -17,6 +17,8 @@ const SCOPES = [
   'email',
   'https://www.googleapis.com/auth/gmail.readonly',
   'https://www.googleapis.com/auth/gmail.send',
+  'https://www.googleapis.com/auth/contacts',
+  'https://www.googleapis.com/auth/calendar.events',
 ];
 
 function isConfigured() { return !!(CLIENT_ID() && CLIENT_SECRET()); }
@@ -336,8 +338,16 @@ async function listCorrespondents(username, months, maxMsgs) {
   return { people: people, scanned: ids.length, capped: capped };
 }
 
+// Generic authenticated Google API JSON call (People, Calendar, etc.).
+async function gapiJSON(username, url, opts) {
+  const r = await gapi(username, url, opts || {});
+  let j = null; try { j = await r.json(); } catch (e) {}
+  if (!r.ok) { const msg = (j && j.error && j.error.message) || ('HTTP ' + r.status); const err = new Error(msg); err.status = r.status; err.body = j; throw err; }
+  return j;
+}
 module.exports = {
   isConfigured, SCOPES, statusFor, redirectUri, authUrl, readState,
   connectFromCode, deleteToken, loadToken, statusForUser: statusFor,
   messagesForContact, messageFull, searchLeadBodies, listCorrespondents, sendMessage, TOK_DIR,
+  gapi, gapiJSON, accessToken,
 };
