@@ -7553,7 +7553,7 @@ app.get('/sign/:token', (req, res) => {
   const _party = p ? p.name : (a.personName || '');
   const _coName = a.companyId ? ((companyById(a.companyId) || {}).name || '') : '';
   const _today = new Date().toISOString().slice(0, 10);
-  function prefillFor(fld) { const k = String(fld.autofill || '').toLowerCase(); const L = String(fld.label || '').toLowerCase(); if (k === 'party_name' || k === 'name' || (!k && /\bname\b/.test(L))) return _party; if (k === 'company' || k === 'title' || (!k && /(company|firm|title)/.test(L))) return _coName; if (k === 'date' || (!k && /date/.test(L))) return _today; if (k === 'email' || (!k && /email/.test(L))) return (p ? preferredEmailOf(p) : ''); return ''; }
+  function prefillFor(fld) { const k = String(fld.autofill || '').toLowerCase(); const L = String(fld.label || '').toLowerCase(); const _rep = repUserForAgreement(a); if (k === 'party_name' || k === 'name' || (!k && /\bname\b/.test(L))) return _party; if (k === 'first_name') return p ? (personFirst(p) || '') : ''; if (k === 'last_name') return p ? (personLast(p) || '') : ''; if (k === 'title') return p ? (p.title || '') : ''; if (k === 'phone') return p ? preferredPhoneOf(p) : ''; if (k === 'company' || (!k && /(company|firm)/.test(L))) return _coName; if (k === 'my_name') return _rep.name; if (k === 'my_title') return _rep.title; if (k === 'my_email') return _rep.email; if (k === 'my_phone') return _rep.phone; if (k === 'date' || (!k && /date/.test(L))) return _today; if (k === 'email' || (!k && /email/.test(L))) return (p ? preferredEmailOf(p) : ''); return ''; }
   const _vals = Array.isArray(a.fieldValues) ? a.fieldValues : [];
   const fieldHtml = '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin:4px 0 8px">Agreement details</div>'+fields.map(function(fld, i){ var val=(_vals[i]!=null && String(_vals[i])!=='')?_vals[i]:prefillFor(fld); return '<div style="display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid #eef1f6"><span style="font-size:12.5px;font-weight:700;color:#8a93a8">'+esc(fld.label)+'</span><span style="font-size:14.5px;color:#1a2236;font-weight:600;text-align:right">'+esc(fmtSignVal(fld.type==='autofill'?(fld.autofill||'text'):fld.type, val)||'\u2014')+'</span></div>'; }).join('');
   const docLink = (function(){ if(!a.docExt) return ''; var src='/sign/'+esc(a.signToken)+'/doc'; var open='<div style="text-align:right;margin-top:8px"><a href="'+src+'" target="_blank" rel="noopener" style="color:#2647b0;font-weight:700;font-size:12.5px;text-decoration:none">Open full document ↗</a></div>'; var hdr='<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin:4px 0 10px">Document preview</div>'; if(a.docExt==='pdf') return hdr+'<div style="border:1px solid #e6e9f0;border-radius:10px;overflow:hidden;background:#f5f7fb"><iframe src="'+src+'#view=FitH" title="Agreement document" style="width:100%;height:540px;border:0;display:block"></iframe></div>'+open; if(a.docExt==='png'||a.docExt==='jpg') return hdr+'<div style="border:1px solid #e6e9f0;border-radius:10px;overflow:hidden;background:#f5f7fb;text-align:center"><img src="'+src+'" alt="Agreement document" style="max-width:100%;display:block;margin:0 auto"></div>'+open; return hdr+'<a href="'+src+'" target="_blank" rel="noopener" style="display:block;text-align:center;border:1px dashed #cfd6e2;border-radius:10px;padding:18px;color:#2647b0;font-weight:700;text-decoration:none;background:#f8fafc">Open the '+esc(label)+' document to review →</a>'; })();
@@ -7791,13 +7791,26 @@ function ensureSigners(a) {
   }
   return a.signers;
 }
+function repUserForAgreement(a) {
+  try { const u = (auth.loadUsers() || []).find(x => x.username === ((a && a.byUser) || '')) || {}; return { name: u.name || (a && a.by) || '', title: u.title || '', email: u.email || '', phone: u.phone || '' }; }
+  catch (e) { return { name: (a && a.by) || '', title: '', email: '', phone: '' }; }
+}
 function signerFieldPrefill(a, fld) {
   const p = a.personId ? personById(a.personId) : null;
   const k = String(fld.autofill || '').toLowerCase();
-  if (k === 'party_name') return p ? p.name : (a.personName || '');
-  if (k === 'company') return a.companyId ? ((companyById(a.companyId) || {}).name || '') : '';
-  if (k === 'date') return new Date().toISOString().slice(0, 10);
+  const rep = repUserForAgreement(a);
+  if (k === 'party_name') return p ? (p.name || '') : (a.personName || '');
+  if (k === 'first_name') return p ? (personFirst(p) || '') : '';
+  if (k === 'last_name') return p ? (personLast(p) || '') : '';
+  if (k === 'title') return p ? (p.title || '') : '';
   if (k === 'email') return p ? preferredEmailOf(p) : '';
+  if (k === 'phone') return p ? preferredPhoneOf(p) : '';
+  if (k === 'company') return a.companyId ? ((companyById(a.companyId) || {}).name || '') : (a.companyName || '');
+  if (k === 'my_name') return rep.name;
+  if (k === 'my_title') return rep.title;
+  if (k === 'my_email') return rep.email;
+  if (k === 'my_phone') return rep.phone;
+  if (k === 'date') return new Date().toISOString().slice(0, 10);
   return '';
 }
 function sigFieldPath(a, fid) { return path.join(AGREEMENT_DOC_DIR, 'fld_' + a.id + '_' + String(fid).replace(/[^a-z0-9]/gi, '') + '.png'); }
