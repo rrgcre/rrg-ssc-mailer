@@ -926,7 +926,7 @@ const AI_USAGE_FILE = path.join(BOV_DATA_DIR, 'ai_usage.json');
 function loadAiUsage() { try { return JSON.parse(fs.readFileSync(AI_USAGE_FILE, 'utf8')) || []; } catch (e) { return []; } }
 function saveAiUsage(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(AI_USAGE_FILE, JSON.stringify(a.slice(-20000), null, 2)); } catch (e) {} }
 // Rough $ estimate per AI action (web-search actions cost far more than a small text call).
-const AI_FEATURE_COST = { 'build-concepts': 0.22, 'find-locations': 0.09, 'find-concepts': 0.07, 'concept-resolve': 0.03, 'brief': 0.04, 'loi-review': 0.03, 'loi-suggest': 0.02, 'loi-parse': 0.02, 'loi-counter': 0.02, 'enrich-company': 0.02, 'enrich-contact': 0.02, 'contact-prep': 0.02, 'concept': 0.02, 'site-read': 0.02, 'calc-summary': 0.01, 'placer': 0.01, 'space-intake': 0.02, 'space-match': 0.02 };
+const AI_FEATURE_COST = { 'build-concepts': 0.22, 'find-locations': 0.09, 'find-concepts': 0.07, 'concept-resolve': 0.03, 'brief': 0.04, 'loi-review': 0.03, 'loi-suggest': 0.02, 'loi-parse': 0.02, 'loi-counter': 0.02, 'enrich-company': 0.02, 'enrich-contact': 0.02, 'contact-prep': 0.02, 'concept': 0.02, 'site-read': 0.02, 'calc-summary': 0.01, 'placer': 0.01, 'space-intake': 0.02, 'space-match': 0.02, 'consult': 0.02, 'concept-intel': 0.03, 'logo-ai': 0.02 };
 function aiMeterFeature(p) {
   p = String(p || '');
   var m = p.match(/^\/api\/ai\/([\w-]+)/); if (m) return m[1];
@@ -934,6 +934,9 @@ function aiMeterFeature(p) {
   if (/^\/api\/spaces\/ai-match/.test(p)) return 'space-match';
   if (/^\/api\/loi\/ai-parse/.test(p)) return 'loi-parse';
   var m2 = p.match(/\/(build-concepts|find-locations|find-concepts|concept-resolve)$/); if (m2) return m2[1];
+  if (/^\/api\/consult$/.test(p)) return 'consult';
+  if (/^\/api\/admin\/concepts-classify$/.test(p)) return 'concept-intel';
+  if (/^\/api\/admin\/logo-ai-domains$/.test(p)) return 'logo-ai';
   return null;
 }
 function logAiCall(feature, req) {
