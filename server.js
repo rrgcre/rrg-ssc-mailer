@@ -7469,6 +7469,50 @@ app.delete('/api/tasks/:id', (req, res) => {
 });
 
 
+
+// ================= Global search =================
+function _sScore(hay, toks, q) {
+  hay = String(hay || '').toLowerCase(); if (!hay) return 0;
+  let sc = 0;
+  const wi = hay.indexOf(q);
+  if (wi >= 0) sc += (wi === 0 ? 8 : 5);
+  toks.forEach(function (t) {
+    const i = hay.indexOf(t);
+    if (i >= 0) { sc += (i === 0 ? 3 : 2); }
+    else if (t.length >= 3) { let k = 0; for (let j = 0; j < hay.length && k < t.length; j++) { if (hay[j] === t[k]) k++; } if (k === t.length) sc += 1; }
+  });
+  return sc;
+}
+app.get('/api/search', (req, res) => {
+  const q = String(req.query.q || '').trim().toLowerCase();
+  if (q.length < 2) return res.json({ ok: true, q: q, results: [] });
+  const toks = q.split(/\s+/).filter(Boolean);
+  const results = [];
+  try {
+    loadPeople().forEach(function (p) {
+      const hay = [p.name, personEmails(p).join(' '), personPhones(p).join(' '), p.company, p.title, personTags(p).join(' '), p.notes].join(' ');
+      const sc = _sScore(hay, toks, q); if (sc > 0) results.push({ type: 'contact', id: p.id, title: p.name || '(no name)', sub: [p.title, p.company].filter(Boolean).join(' · '), url: '/rrg_person.html?id=' + encodeURIComponent(p.id), score: sc + (String(p.name || '').toLowerCase().indexOf(q) === 0 ? 4 : 0) });
+    });
+  } catch (e) {}
+  try {
+    loadCompanies().forEach(function (c) {
+      const o = c.office || {};
+      const hay = [c.name, c.market, o.city, o.state, o.website, o.phone, (Array.isArray(c.tags) ? c.tags.join(' ') : ''), (c.concepts || []).map(function (x) { return x.name; }).join(' ')].join(' ');
+      const sc = _sScore(hay, toks, q); if (sc > 0) results.push({ type: 'company', id: c.id, title: c.name || '(no name)', sub: [c.type, c.market || o.city].filter(Boolean).join(' · '), url: '/rrg_company.html?id=' + encodeURIComponent(c.id), score: sc + (String(c.name || '').toLowerCase().indexOf(q) === 0 ? 4 : 0) });
+    });
+  } catch (e) {}
+  try {
+    const ov = loadAssignOverlay(), idx = assignmentsIndex();
+    Object.keys(idx).forEach(function (k) {
+      let v; try { v = assignmentView(idx[k], ov); } catch (e) { return; }
+      const hay = [v.business, v.market, v.contact, v.status].join(' ');
+      const sc = _sScore(hay, toks, q); if (sc > 0) results.push({ type: 'listing', id: k, title: v.business || 'Listing', sub: [v.market, v.status].filter(Boolean).join(' · '), url: '/rrg_assignment.html?key=' + encodeURIComponent(k), score: sc });
+    });
+  } catch (e) {}
+  results.sort(function (a, b) { return b.score - a.score || String(a.title).localeCompare(String(b.title)); });
+  res.json({ ok: true, q: q, results: results.slice(0, 24) });
+});
+
 // ================= Appointments / Calendar =================
 const APPTS_FILE = path.join(BOV_DATA_DIR, 'appointments.json');
 function loadAppts() { try { return JSON.parse(fs.readFileSync(APPTS_FILE, 'utf8')) || []; } catch (e) { return []; } }

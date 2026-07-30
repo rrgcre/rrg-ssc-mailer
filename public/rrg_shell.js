@@ -128,6 +128,16 @@
     + '#rrgtop .srch{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:46%;max-width:560px;}'
     + '#rrgtop .srch input{width:100%;border:1px solid #e9edf3;background:#f7f9fc;border-radius:10px;padding:9px 12px 9px 36px;font:inherit;font-size:13.5px;color:#1d2739;}'
     + '#rrgtop .srch .si{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#98a1b5;}'
+    + '#rrgtop .srch{position:relative;}'
+    + '.rrgsr{position:absolute;top:calc(100% + 6px);left:0;right:0;background:#fff;border:1px solid #e1e6ef;border-radius:11px;box-shadow:0 14px 44px rgba(10,20,50,.18);z-index:120;max-height:70vh;overflow:auto;padding:5px;}'
+    + '.rrgsr[hidden]{display:none;}'
+    + '.rrgsr .grp{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#9aa4b6;padding:9px 11px 4px;}'
+    + '.rrgsr a{display:flex;gap:10px;align-items:center;padding:8px 11px;border-radius:8px;text-decoration:none;color:#1d2739;}'
+    + '.rrgsr a:hover,.rrgsr a.sel{background:#eef3fb;}'
+    + '.rrgsr a .rt{font-size:13.5px;font-weight:700;}'
+    + '.rrgsr a .rs{font-size:12px;color:#6b7488;font-weight:500;margin-left:4px;}'
+    + '.rrgsr .ric{width:26px;height:26px;border-radius:7px;background:#f1f4f9;display:flex;align-items:center;justify-content:center;font-size:13px;color:#6b7488;flex:none;}'
+    + '.rrgsr .rnone{padding:15px 12px;color:#8a93a8;font-size:13px;}'
     + '#rrgtop .acts{display:flex;align-items:center;gap:10px;margin-left:auto;}'
     + '#rrgtop .ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#6b7488;cursor:pointer;text-decoration:none;}'
     + '#rrgtop .ic:hover{background:#f2f4f8;color:#1d2739;}'
@@ -164,7 +174,7 @@
   var top = document.createElement('div'); top.id='rrgtop';
   top.innerHTML = ''
     + '<div class="ic" id="rrgburger" style="display:none">≡</div>'
-    + '<div class="srch"><span class="si">⌕</span><input placeholder="Search companies, contacts, listings…" id="rrgsearch"></div>'
+    + '<div class="srch"><span class="si">⌕</span><input placeholder="Search contacts, companies, listings…" id="rrgsearch" autocomplete="off"><div class="rrgsr" id="rrgsr" hidden></div></div>'
     + '<div class="acts"><a class="create" href="rrg_companies.html"><span class="cplus">+</span> Create New</a><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><div class="uav" id="rrguav">·</div></div>';
 
   document.addEventListener('DOMContentLoaded', mount);
@@ -193,8 +203,31 @@
     nav.querySelectorAll('.lbl[data-grp]').forEach(function(l){ var g=l.getAttribute('data-grp'); if(_coll[g]){ var grp=l.closest('.grp'); if(grp) grp.classList.add('collapsed'); } l.addEventListener('click',function(){ var grp=l.closest('.grp'); if(!grp) return; var on=grp.classList.toggle('collapsed'); try{ var c=JSON.parse(localStorage.getItem(_CK)||'{}')||{}; if(on) c[g]=1; else delete c[g]; localStorage.setItem(_CK,JSON.stringify(c)); }catch(e){} }); });
     // search → companies search (simple v1)
     var si=document.getElementById('rrgsearch');
-    si && si.addEventListener('input', function(){ if(typeof window.rrgLiveSearch==='function') window.rrgLiveSearch(si.value); });
-    si && si.addEventListener('keydown', function(e){ if(e.key==='Enter'){ var q=si.value.trim(); if(typeof window.rrgLiveSearch==='function'){ window.rrgLiveSearch(q); return; } location.href='rrg_companies.html'+(q?('?q='+encodeURIComponent(q)):''); } });
+    var sr=document.getElementById('rrgsr');
+    var _sqt=null, _ssel=-1, _sres=[];
+    function _sesc(x){ return String(x==null?'':x).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+    function _srHide(){ if(sr){ sr.hidden=true; } _ssel=-1; }
+    function _srSel(i){ _ssel=i; Array.prototype.forEach.call(sr.querySelectorAll('a'),function(a){ a.classList.toggle('sel', parseInt(a.getAttribute('data-i'),10)===i); }); }
+    function _srRender(res,q){
+      _sres=res||[];
+      if(!_sres.length){ sr.innerHTML='<div class="rnone">No matches for “'+_sesc(q)+'”.</div>'; sr.hidden=false; _ssel=-1; return; }
+      var ic={contact:'◑',company:'▦',listing:'⌂'}, lbl={contact:'Contacts',company:'Companies',listing:'Listings'}, order=['contact','company','listing'];
+      var html='';
+      order.forEach(function(ty){ var g=_sres.filter(function(r){return r.type===ty;}); if(!g.length) return; html+='<div class="grp">'+lbl[ty]+'</div>'; g.forEach(function(r){ var gi=_sres.indexOf(r); html+='<a href="'+r.url+'" data-i="'+gi+'"><span class="ric">'+(ic[ty]||'•')+'</span><span><span class="rt">'+_sesc(r.title)+'</span>'+(r.sub?('<span class="rs">'+_sesc(r.sub)+'</span>'):'')+'</span></a>'; }); });
+      sr.innerHTML=html; sr.hidden=false;
+      Array.prototype.forEach.call(sr.querySelectorAll('a'),function(a){ a.addEventListener('mousemove',function(){ _srSel(parseInt(a.getAttribute('data-i'),10)); }); });
+      _srSel(0);
+    }
+    function _srSearch(q){ q=String(q||'').trim(); if(q.length<2){ _srHide(); _sres=[]; return; } fetch('/api/search?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(String(si.value||'').trim().length<2){ _srHide(); return; } _srRender((j&&j.results)||[], q); }).catch(function(){ _srHide(); }); }
+    si && si.addEventListener('input', function(){ if(_sqt) clearTimeout(_sqt); var v=si.value; _sqt=setTimeout(function(){ _srSearch(v); },180); });
+    si && si.addEventListener('keydown', function(e){
+      if(e.key==='ArrowDown'){ if(_sres.length){ e.preventDefault(); _srSel(Math.min(_sres.length-1,_ssel+1)); var el=sr.querySelector('a.sel'); if(el) el.scrollIntoView({block:'nearest'}); } return; }
+      if(e.key==='ArrowUp'){ if(_sres.length){ e.preventDefault(); _srSel(Math.max(0,_ssel-1)); var el2=sr.querySelector('a.sel'); if(el2) el2.scrollIntoView({block:'nearest'}); } return; }
+      if(e.key==='Enter'){ e.preventDefault(); if(_sres.length && _ssel>=0){ location.href=_sres[_ssel].url; } else { _srSearch(si.value); } return; }
+      if(e.key==='Escape'){ _srHide(); si.blur(); return; }
+    });
+    si && si.addEventListener('focus', function(){ if(String(si.value||'').trim().length>=2 && _sres.length){ sr.hidden=false; } });
+    document.addEventListener('click', function(e){ if(sr && !sr.hidden && e.target && e.target.closest && !e.target.closest('.srch')){ _srHide(); } });
     // hydrate app name, role, user
     try {
       fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
