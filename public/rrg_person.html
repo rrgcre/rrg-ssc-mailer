@@ -326,7 +326,7 @@ function openAgrForm(a){
     var st=_exec?('<span class="sigpill signed">Executed'+(a.signedDate?(' '+fmt(a.signedDate)):'')+'</span>'):(_await?('<span class="sigpill await">Awaiting your signature</span>'):(a.signStatus==='sent'?('<span class="sigpill sent">Sent'+(a.sentAt?(' '+fmt(a.sentAt)):'')+(a.sentTo?(' to '+esc(a.sentTo)):'')+'</span>'):'<span class="sigpill">Not sent</span>'));
     var signUrl=a.signToken?(location.origin+'/sign/'+a.signToken):'';
     var signedInfo=((_exec||_await)&&(a.signedName||a.hasSignature))?('<div class="agrsignedinfo">Signed by <b>'+esc(a.signedName||'contact')+'</b>'+(a.signedDate?(' on '+fmt(a.signedDate)):'')+(a.hasSignature?(' · <a href="/api/agreements/'+encodeURIComponent(a.id)+'/signature" target="_blank" rel="noopener">view signature</a>'):'')+'</div>'):'';
-    if(_exec&&a.hasCountersign){ signedInfo+='<div class="agrsignedinfo">Countersigned by <b>'+esc(a.repSignedName||'RRG')+'</b>'+(a.repSignedAt?(' on '+fmt(String(a.repSignedAt).slice(0,10))):'')+' · <a href="/api/agreements/'+encodeURIComponent(a.id)+'/countersignature" target="_blank" rel="noopener">view signature</a></div>'; }
+    if(_exec&&a.hasCountersign){ signedInfo+='<div class="agrsignedinfo">Countersigned by <b>'+esc(a.repSignedName||(window.__rrgSession&&window.__rrgSession.name)||'the broker')+'</b>'+(a.repSignedAt?(' on '+fmt(String(a.repSignedAt).slice(0,10))):'')+' · <a href="/api/agreements/'+encodeURIComponent(a.id)+'/countersignature" target="_blank" rel="noopener">view signature</a></div>'; }
     var linkRow=(signUrl&&!_exec&&!_await)?('<div class="agrlinkrow"><input id="agr_link" readonly value="'+esc(signUrl)+'"><button type="button" class="mfadd" id="agr_copylink">Copy link</button><a class="mfadd" href="'+esc(signUrl)+'" target="_blank" rel="noopener">Open</a></div>'):'';
     var tplOpts=TEMPLATES.filter(function(t){return t.fileExt;}).map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+'</option>';}).join('');
     var tplRow=(tplOpts&&!_exec&&!_await)?('<div class="agrtplrow"><span class="fld">Start from template</span><select id="agr_tpl"><option value="">— choose —</option>'+tplOpts+'</select>'+(a.templateName?(' <span style="font-size:11.5px;color:#1f8a5b;font-weight:700">✓ '+esc(a.templateName)+'</span>'):'')+'</div>'):'';
@@ -460,8 +460,9 @@ function smSignerRows(tpl){
   var n=tpl.signerCount===2?2:1, rows='';
   for(var i=1;i<=n;i++){
     var lbl=i===1?(tpl.signer1Label||'Signer 1'):(tpl.signer2Label||'Signer 2');
-    var nm=i===1?(P.name||''):'';
-    var em=i===1?(P.preferredEmail||(P.emails&&P.emails[0])||P.email||''):'';
+    var _S=window.__rrgSession||{};
+    var nm=i===1?(P.name||''):(_S.name||'');
+    var em=i===1?(P.preferredEmail||(P.emails&&P.emails[0])||P.email||''):(_S.email||'');
     rows+='<div class="smsrow"><div class="fld">'+esc(lbl)+'</div><input class="sm_sname" data-o="'+i+'" placeholder="Full name" value="'+esc(nm)+'"><input class="sm_semail" data-o="'+i+'" placeholder="email@company.com" value="'+esc(em)+'"></div>';
   }
   return rows;
