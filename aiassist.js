@@ -190,6 +190,15 @@ async function consult({ question, snapshot, history, agentName }) {
   return r;
 }
 
+async function inferDomains({ items }) {
+  const sys = 'You match U.S. restaurant and bar businesses to their official website domain. For each business name (with city/state if given), return the most likely official website DOMAIN only — e.g. "whataburger.com" — no http, no www, no path. Use the real domain for known chains; for local independents give your single best guess, or an empty string if you truly cannot infer one. Never invent an obviously fake domain. Return ONLY JSON: {"results":[{"i":<index>,"domain":""}]} with every index exactly once.';
+  const userText = 'Businesses:\n' + items.map((it, i) => i + ': ' + String(it.name || '') + ([it.city, it.state].filter(Boolean).length ? (' — ' + [it.city, it.state].filter(Boolean).join(', ')) : '')).join('\n') + '\n\nReturn the JSON now.';
+  const text = await callClaude(sys, userText, Math.min(3000, 200 + items.length * 40));
+  const r = extractJson(text) || {};
+  const out = Array.isArray(r.results) ? r.results : [];
+  return out.map(x => ({ i: Number(x.i), domain: String(x.domain || '').trim().toLowerCase().replace(/^https?:\/\//, '').replace(/^www\./, '').replace(/\/.*$/, '') }));
+}
+
 async function classifyConcepts({ items, conceptTypes, pricePoints, cuisines }) {
   const sys = 'You are a restaurant-industry analyst inside FullServe, the CRM for Restaurant Realty Group (a brokerage that sells restaurants and bars). For each concept/brand name, classify it using ONLY the allowed values. Use your knowledge of well-known chains; for local or independent names, infer sensibly from the words in the name. If a field is genuinely unclear, return an empty string for it — do not guess wildly. '
     + 'Allowed conceptType: ' + JSON.stringify(conceptTypes) + '. '
@@ -205,4 +214,4 @@ async function classifyConcepts({ items, conceptTypes, pricePoints, cuisines }) 
   return out.map(x => ({ i: Number(x.i), cuisine: String(x.cuisine || ''), conceptType: String(x.conceptType || ''), pricePoint: String(x.pricePoint || ''), multiUnit: !!x.multiUnit }));
 }
 
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts };
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains };

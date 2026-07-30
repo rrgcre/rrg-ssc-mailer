@@ -6697,7 +6697,7 @@ app.get('/api/admin/logo-candidates', requireAdmin, (req, res) => {
 app.post('/api/admin/apply-logos', requireAdmin, express.json({ limit: '2mb' }), (req, res) => {
   const items = Array.isArray((req.body || {}).items) ? req.body.items : [];
   const all = loadCompanies(); const now = new Date().toISOString(); let applied = 0;
-  items.forEach(it => { const c = all.find(x => x.id === it.id); if (c && typeof it.logo === 'string' && it.logo) { c.logo = it.logo.slice(0, 400); c.updatedAt = now; applied++; } });
+  items.forEach(it => { const c = all.find(x => x.id === it.id); if (!c) return; let did = false; if (typeof it.logo === 'string' && it.logo) { c.logo = it.logo.slice(0, 400); did = true; } if (typeof it.website === 'string' && it.website && !(c.office && c.office.website)) { c.office = c.office || {}; c.office.website = it.website.slice(0, 200); did = true; } if (did) { c.updatedAt = now; applied++; } });
   saveCompanies(all);
   res.json({ ok: true, applied });
 });
@@ -6910,6 +6910,25 @@ app.post('/api/admin/leadsources/resolve', requireAdmin, express.json(), (req, r
   const seen = {}, out = []; list.forEach(x => { const l = x.toLowerCase(); if (!seen[l]) { seen[l] = 1; out.push(x); } });
   s.leadSources = out; saveSettings(s); saveCompanies(companies); savePeople(people);
   res.json({ ok: true, reassigned, leadSources: out });
+});
+
+app.get('/api/admin/logo-nowebsite', requireAdmin, (req, res) => {
+  const all = loadCompanies();
+  const list = all.filter(c => { const site = (c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''); return !site && !c.logo; }).map(c => ({ id: c.id, name: c.name || '', city: (c.office && c.office.city) || '', state: (c.office && c.office.state) || '' }));
+  res.json({ ok: true, aiReady: !!process.env.ANTHROPIC_API_KEY, companies: list, total: list.length });
+});
+app.post('/api/admin/logo-ai-domains', requireAdmin, express.json(), async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(400).json({ ok: false, error: 'AI is not configured — set the Anthropic API key in Admin → Settings.' });
+  const wanted = Array.isArray((req.body || {}).items) ? req.body.items.slice(0, 25) : [];
+  const all = loadCompanies();
+  const resolved = wanted.map(it => { const c = all.find(x => x.id === it.id); return c ? { id: c.id, name: c.name || '', city: (c.office && c.office.city) || '', state: (c.office && c.office.state) || '' } : null; }).filter(Boolean);
+  if (!resolved.length) return res.json({ ok: true, results: [] });
+  let dom = [];
+  try { dom = await aiassist.inferDomains({ items: resolved.map(r => ({ name: r.name, city: r.city, state: r.state })) }); }
+  catch (e) { return res.status(500).json({ ok: false, error: String((e && e.message) || 'AI request failed') }); }
+  const byIdx = {}; dom.forEach(x => { if (isFinite(x.i)) byIdx[x.i] = x.domain; });
+  const results = resolved.map((r, i) => { const d = byIdx[i] || ''; const w = d ? ('https://' + d) : ''; return { id: r.id, name: r.name, domain: d, website: w, proposed: d ? clearbitLogo(w) : '', favicon: d ? logoFromWebsite(w) : '' }; }).filter(x => x.domain);
+  res.json({ ok: true, results });
 });
 
 // ===== Duplicate finder (fuzzy) — companies & contacts =====

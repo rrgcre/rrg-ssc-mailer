@@ -187,6 +187,41 @@ function doImport(){
       renderResult(j); setMsg('','');
     }).catch(function(){ btn.disabled=false; if(pl){pl.parentElement.classList.add('hide');pl.style.width='0';} setMsg('Could not reach the server.','err'); });
 }
+function buildLS(j){
+  var nw=(j.newLeadSources||[]); if(!nw.length) return '';
+  var all=(j.allLeadSources||[]); var lowNew=nw.map(function(x){return x.toLowerCase();});
+  var existing=all.filter(function(x){return lowNew.indexOf(x.toLowerCase())<0;});
+  var rows=nw.map(function(nm,i){
+    var opts=existing.map(function(e){return '<option value="'+esc(e)+'">'+esc(e)+'</option>';}).join('');
+    return '<div class="lsrow" data-nm="'+esc(nm)+'" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 0;border-top:1px solid #e3e8f1">'
+      +'<b style="min-width:150px;font-size:13px">'+esc(nm)+'</b>'
+      +'<label style="font-size:12.5px;display:inline-flex;align-items:center;gap:5px"><input type="radio" name="ls_'+i+'" value="keep" checked> Keep</label>'
+      +'<label style="font-size:12.5px;display:inline-flex;align-items:center;gap:5px"><input type="radio" name="ls_'+i+'" value="rename"> Rename <input type="text" class="lsren" placeholder="new name" style="font:inherit;font-size:12.5px;padding:5px 8px;border:1px solid #cdd6e6;border-radius:7px;width:130px"></label>'
+      +(existing.length?('<label style="font-size:12.5px;display:inline-flex;align-items:center;gap:5px"><input type="radio" name="ls_'+i+'" value="merge"> Merge into <select class="lsmerge" style="font:inherit;font-size:12.5px;padding:5px 8px;border:1px solid #cdd6e6;border-radius:7px">'+opts+'</select></label>'):'')
+      +'</div>';
+  }).join('');
+  return '<div id="lsbox" style="margin-top:18px;background:#f8fafd;border:1px solid #e3e8f1;border-radius:12px;padding:15px 17px">'
+    +'<div style="font-size:14px;font-weight:800;color:#16346e">New lead sources found</div>'
+    +'<div style="font-size:12.5px;color:#66738f;margin:5px 0 4px">We added '+nw.length+' lead source'+(nw.length===1?'':'s')+' from your file. Keep them, rename, or merge into one you already use.</div>'
+    +rows
+    +'<div style="margin-top:13px"><button class="btn green" id="lsApply">Apply lead-source changes</button> <span id="lsMsg" style="font-size:12.5px;font-weight:700;margin-left:8px"></span></div></div>';
+}
+function wireLS(j){
+  var box=document.getElementById('lsbox'); if(!box) return; var ap=document.getElementById('lsApply'); if(!ap) return;
+  ap.addEventListener('click',function(){
+    var actions=[]; box.querySelectorAll('.lsrow').forEach(function(row){
+      var nm=row.getAttribute('data-nm'); var sel=row.querySelector('input[type=radio]:checked'); var act=sel?sel.value:'keep';
+      if(act==='rename'){ var v=(row.querySelector('.lsren').value||'').trim(); if(v) actions.push({name:nm,action:'rename',to:v}); }
+      else if(act==='merge'){ var mv=row.querySelector('.lsmerge'); if(mv&&mv.value) actions.push({name:nm,action:'merge',to:mv.value}); }
+    });
+    if(!actions.length){ document.getElementById('lsMsg').textContent='Kept as is.'; return; }
+    ap.disabled=true; document.getElementById('lsMsg').textContent='Applying…';
+    fetch('/api/admin/leadsources/resolve',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({actions:actions})}).then(function(r){return r.json();}).then(function(jj){
+      ap.disabled=false; if(jj&&jj.ok){ document.getElementById('lsMsg').textContent='Updated \u2713 ('+jj.reassigned+' records reassigned)'; box.querySelectorAll('.lsrow').forEach(function(row){ var sel=row.querySelector('input[type=radio]:checked'); if(sel&&sel.value!=='keep') row.style.opacity='.5'; }); }
+      else { document.getElementById('lsMsg').textContent=(jj&&jj.error)||'Could not apply.'; }
+    }).catch(function(){ ap.disabled=false; document.getElementById('lsMsg').textContent='Could not reach the server.'; });
+  });
+}
 function renderResult(j){
   var host=document.getElementById('resbox'); if(!host) return;
   var cards, tip;
@@ -194,9 +229,10 @@ function renderResult(j){
   else { cards='<div class="rc g"><div class="n">'+j.created+'</div><div class="l">Contacts added</div></div><div class="rc a"><div class="n">'+j.dupe+'</div><div class="l">Skipped · email exists</div></div><div class="rc a"><div class="n">'+j.noname+'</div><div class="l">Skipped · no name</div></div>'; tip='Contacts are in <b>Book of Business → Contacts</b>, each linked to its company. Duplicates were skipped by email so nothing already in FullServe got overwritten.'; }
   var logoCta=(MODE==='companies'&&((j.created||0)+(j.updated||0))>0)?'<a class="btn green" href="rrg_logos.html" style="text-decoration:none;margin-right:9px;display:inline-block">◐ Find logos (AI)</a>':'';
   var logoNote=(MODE==='companies')?' <b>Tip:</b> tap <b>Find logos (AI)</b> to auto-pull a logo for every company with a website — you approve each one before it&rsquo;s applied.':'';
-  host.innerHTML='<div style="font-size:15px;font-weight:800;color:var(--navy);margin-bottom:10px">Import complete ✓</div><div class="res">'+cards+'</div><div class="note">'+tip+logoNote+'</div><div style="margin-top:14px">'+logoCta+'<button class="btn ghost" id="againBtn">Import another file</button></div>';
+  host.innerHTML='<div style="font-size:15px;font-weight:800;color:var(--navy);margin-bottom:10px">Import complete ✓</div><div class="res">'+cards+'</div><div class="note">'+tip+logoNote+'</div><div style="margin-top:14px">'+logoCta+'<button class="btn ghost" id="againBtn">Import another file</button></div>'+buildLS(j);
   host.classList.remove('hide'); host.scrollIntoView({behavior:'smooth',block:'nearest'});
   var ab=document.getElementById('againBtn'); if(ab) ab.addEventListener('click',resetUpload);
+  wireLS(j);
 }
 function resetUpload(){ HEADERS=[];ROWS=[];MAP={}; document.getElementById('filepill').classList.add('hide'); document.getElementById('step2').classList.add('hide'); document.getElementById('step3').classList.add('hide'); document.getElementById('resbox').classList.add('hide'); setMsg('',''); updateStepper(); window.scrollTo({top:0,behavior:'smooth'}); }
 function setMsg(t,c){ var m=document.getElementById('importMsg'); if(m){ m.textContent=t; m.className='msg '+(c||''); } }
