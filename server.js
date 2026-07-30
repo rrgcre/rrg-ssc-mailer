@@ -291,6 +291,44 @@ function logActivity(p, type, note, o) {
   p.updatedAt = now;
   return e;
 }
+// ---- System event log (enrichment, imports, merges) + auto-numbering import batch ----
+const SYSEVENTS_FILE = path.join(BOV_DATA_DIR, 'system_events.json');
+function loadSysEvents() { try { return JSON.parse(fs.readFileSync(SYSEVENTS_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveSysEvents(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SYSEVENTS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function logSysEvent(req, type, note, meta) {
+  try {
+    const all = loadSysEvents(); const now = new Date().toISOString();
+    const e = Object.assign({ id: 'ev_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), at: now, type: String(type || 'System'), note: String(note || '').slice(0, 500), by: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '' }, meta || {});
+    all.unshift(e); saveSysEvents(all.slice(0, 5000));
+    return e;
+  } catch (e) { return null; }
+}
+function nextImportBatch() { try { const s = loadSettings(); const n = (parseInt(s.importBatchSeq, 10) || 0) + 1; s.importBatchSeq = n; saveSettings(s); return n; } catch (e) { return 0; } }
+function _sysToolLabel(p) {
+  const map = { 'enrich-apply': 'Google enrichment', 'concepts-apply': 'Concept Intelligence', 'cleanup-apply': 'Cleanup & Standardize', 'apply-logos': 'Find Logos', 'emaildomain-apply': 'Email-domain matching' };
+  const m = String(p || '').match(/^\/api\/admin\/([a-z0-9-]+)$/);
+  if (m && (map[m[1]] || /-apply$|^apply-/.test(m[1]))) return map[m[1]] || m[1].replace(/-/g, ' ');
+  if (p === '/api/person/merge') return 'Duplicate merge (contacts)';
+  if (p === '/api/company/merge') return 'Duplicate merge (companies)';
+  return null;
+}
+// Records a system activity whenever an enrichment / merge tool runs — covers future *-apply tools automatically.
+app.use(function (req, res, next) {
+  if (req.method !== 'POST') return next();
+  const tool = _sysToolLabel(req.path); if (!tool) return next();
+  const _json = res.json.bind(res);
+  res.json = function (body) {
+    try {
+      if (body && body.ok) {
+        const n = (body.applied != null) ? body.applied : (body.merged != null ? body.merged : (body.count != null ? body.count : null));
+        logSysEvent(req, 'Enrichment', tool + (n != null ? (' — ' + n + ' record' + (n === 1 ? '' : 's') + ' affected') : ' run'), { tool: req.path, count: (n != null ? n : undefined) });
+      }
+    } catch (e) {}
+    return _json(body);
+  };
+  next();
+});
+
 // System-generated feed entry logged when a new client / contact first enters the book.
 // (auto:true renders as a system activity in the feed.) Caller must savePeople afterward.
 function logContactAdded(p, req, extra) {
@@ -1962,6 +2000,7 @@ app.get('/api/feed', (req, res) => {
   if (restrictToOwn(req)) people = people.filter(p => permOwnerMatch(req, p.by));
   const items = [];
   people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { items.push({ type: a.type || 'Note', note: a.note || '', at: a.date || a.at || '', by: a.by || '', byUser: a.byUser || '', auto: !!a.auto, personId: p.id, personName: p.name || 'Contact', company: p.company || '' }); }); });
+  try { loadSysEvents().forEach(function(e){ items.push({ type: e.type || 'System', note: e.note || '', at: e.at || e.at || '', by: e.by || '', byUser: e.byUser || '', auto: true, system: true, personId: '', personName: '', company: '' }); }); } catch(e){}
   const canScope = !restrictToOwn(req);
   const mine = req.query.scope === 'mine';
   let out = items;
@@ -6653,6 +6692,7 @@ app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16m
   const cts = effCompanyTypes(); const now = new Date().toISOString();
   const mkConcept = (req.body || {}).makeConcept !== false; const mkLocation = (req.body || {}).makeLocation !== false;
   let created = 0, updated = 0, skipped = 0, conceptsCreated = 0, locationsCreated = 0;
+  const _batch = nextImportBatch();
   rows.forEach(r => {
     const name = _impStr(r.name, 160); if (!name) { skipped++; return; }
     let c = byKey[normKey(name)]; const isNew = !c;
@@ -6685,12 +6725,14 @@ app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16m
       }
     }
     c.updatedAt = now;
+    if (isNew || !c.importBatch) { c.importBatch = _batch; c.importBatchAt = now; }
     if (isNew) created++; else updated++;
   });
   saveCompanies(arr);
   const _newLS = Object.values(_newLSmap);
   if (_newLS.length) { const _s = loadSettings(); const _cur = (Array.isArray(_s.leadSources) && _s.leadSources.length) ? _s.leadSources.slice() : LEAD_SOURCES.slice(); const _low = _cur.map(function(x){return x.toLowerCase();}); _newLS.forEach(function(v){ if (_low.indexOf(v.toLowerCase()) < 0) { _cur.push(v); _low.push(v.toLowerCase()); } }); _s.leadSources = _cur; saveSettings(_s); }
-  res.json({ ok: true, created, updated, skipped, conceptsCreated, locationsCreated, total: rows.length, newLeadSources: _newLS, allLeadSources: effLeadSources() });
+  logSysEvent(req, 'Import', 'Imported ' + created + ' compan' + (created === 1 ? 'y' : 'ies') + (updated ? (' · ' + updated + ' updated') : '') + ' — batch #' + _batch, { tool: 'import', kind: 'companies', batch: _batch, created: created, updated: updated, count: created });
+  res.json({ ok: true, created, updated, skipped, conceptsCreated, locationsCreated, total: rows.length, batch: _batch, newLeadSources: _newLS, allLeadSources: effLeadSources() });
   } catch (e) { console.error('import companies:', e && e.message); res.status(500).json({ ok: false, error: 'Import failed: ' + ((e && e.message) || 'server error') }); }
 });
 app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' }), (req, res) => {
@@ -6699,6 +6741,7 @@ app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' 
   const defType = (typeof b.defaultType === 'string' && effPersonTypes().indexOf(b.defaultType) >= 0) ? b.defaultType : 'Other';
   const _lsExisting = {}; effLeadSources().forEach(function(x){ _lsExisting[x.toLowerCase()] = x; }); const _newLSmap = {};
   const ppl = loadPeople(); const cos = loadCompanies();
+  const _batch = nextImportBatch();
   const coByKey = {}; cos.forEach(c => { coByKey[normKey(c.name)] = c; });
   const emailIdx = {}; ppl.forEach(p => personEmails(p).forEach(e => { emailIdx[e.toLowerCase()] = p; }));
   const now = new Date().toISOString();
@@ -6714,6 +6757,7 @@ app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' 
     const type = _matchPersonType(r.type) || defType;
     const p = { id: newPersonId(), firstName: first, lastName: last, name: composeName(first, last), type: type, emails: emails, phones: phones, preferredEmail: '', preferredPhone: '', createdAt: now, updatedAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', leadSource: 'Copper import' };
     p.email = preferredEmailOf(p); p.phone = preferredPhoneOf(p);
+    p.importBatch = _batch; p.importBatchAt = now;
     if (r.title) p.title = _impStr(r.title, 120);
     if (r.leadSource) p.leadSource = _impStr(r.leadSource, 160);
     if (r.notes) p.notes = _impStr(r.notes, 4000);
@@ -6728,7 +6772,8 @@ app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' 
   savePeople(ppl);
   const _newLS = Object.values(_newLSmap);
   if (_newLS.length) { const _s = loadSettings(); const _cur = (Array.isArray(_s.leadSources) && _s.leadSources.length) ? _s.leadSources.slice() : LEAD_SOURCES.slice(); const _low = _cur.map(function(x){return x.toLowerCase();}); _newLS.forEach(function(v){ if (_low.indexOf(v.toLowerCase()) < 0) { _cur.push(v); _low.push(v.toLowerCase()); } }); _s.leadSources = _cur; saveSettings(_s); }
-  res.json({ ok: true, created, dupe, noname, total: rows.length, defaultType: defType, newLeadSources: _newLS, allLeadSources: effLeadSources() });
+  logSysEvent(req, 'Import', 'Imported ' + created + ' contact' + (created === 1 ? '' : 's') + ' — batch #' + _batch, { tool: 'import', kind: 'people', batch: _batch, created: created, count: created });
+  res.json({ ok: true, created, dupe, noname, total: rows.length, batch: _batch, defaultType: defType, newLeadSources: _newLS, allLeadSources: effLeadSources() });
   } catch (e) { console.error('import people:', e && e.message); res.status(500).json({ ok: false, error: 'Import failed: ' + ((e && e.message) || 'server error') }); }
 });
 

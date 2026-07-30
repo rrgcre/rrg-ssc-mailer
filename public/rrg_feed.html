@@ -53,6 +53,7 @@ function load(){
   if(!items.length){ el.innerHTML='<div class="empty">No activity logged across your contacts yet. Log a call, tour, or note on a contact and it shows up here.</div>'; return; }
   el.innerHTML=items.map(function(a){
     var c=actColor(a.type);
+    if(a.system||!a.personId){ return '<div class="feedrow" style="cursor:default"><span class="fchipcol"><span class="fdot" style="background:'+c[1]+'"></span><span class="ftype">'+esc(a.type)+'</span></span><div class="fmain"><div class="ftop"><span class="fwho">'+esc(a.note||a.type)+'</span>'+(a.by?('<span class="fby">· '+esc(a.by)+'</span>'):'')+'<span class="fwhen">'+esc(fmt(a.at))+'</span></div></div></div>'; }
     return '<a class="feedrow" href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'"><span class="fchipcol"><span class="fdot" style="background:'+c[1]+'"></span><span class="ftype">'+esc(a.type)+'</span></span><div class="fmain"><div class="ftop"><span class="fwho">'+esc(a.personName)+'</span>'+(a.company?('<span class="fco">'+esc(a.company)+'</span>'):'')+(a.by?('<span class="fby">· '+esc(a.by)+'</span>'):'')+'<span class="fwhen">'+esc(fmt(a.at))+'</span></div>'+(a.note?('<div class="fnote">'+esc(a.note)+'</div>'):'')+'</div></a>';
   }).join('');
 }).catch(function(){ document.getElementById('feed').innerHTML='<div class="empty">Could not load the feed.</div>'; });
