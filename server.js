@@ -8142,7 +8142,7 @@ app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   if (!a.signToken) a.signToken = newSignToken();
   const signUrl = reqOrigin(req) + '/sign/' + a.signToken;
   const subject = String(b.subject || (label + ' for your signature')).slice(0, 300);
-  const message = String(b.message || ('Please review and sign your ' + label + ' online here:\n' + signUrl + '\n\nThank you,\nRestaurant Realty Group')).slice(0, 20000);
+  const message = String(b.message || ('Please review and sign your ' + label + ' online here:\n' + signUrl + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
   // The signing page now shows an inline preview of the document, so the email is a clean link only (no heavy attachment).
   try { await buildTransport().sendMail({ from: mailFrom(), to, subject, text: message }); }
   catch (e) { console.error('agreement send:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
@@ -8276,7 +8276,7 @@ app.post('/api/agreements/:id/countersign', express.json({ limit: '8mb' }), (req
       const uniq = list.filter((x, i) => list.indexOf(x) === i);
       const attachments = [];
       if (a.docExt === 'pdf') { try { attachments.push({ filename: a.docName || 'agreement.pdf', content: fs.readFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)) }); } catch (e) {} }
-      const text = 'Good news \u2014 your ' + label + ' is now fully executed by all parties.\n\nView the executed agreement here:\n' + link + '\n\nThank you,\nRestaurant Realty Group';
+      const text = 'Good news \u2014 your ' + label + ' is now fully executed by all parties.\n\nView the executed agreement here:\n' + link + '\n\nThank you,\n' + orgDisplayName();
       uniq.forEach(to => { buildTransport().sendMail({ from: mailFrom(), to, subject: label + ' \u2014 fully executed', text, attachments }).catch(() => {}); });
     }
   } catch (e) {}
@@ -8482,7 +8482,7 @@ app.post('/api/agreements/:id/send-adv', express.json(), async (req, res) => {
   a.signStatus = a.signers.some(s => s.status === 'signed') ? 'partial' : 'sent'; a.sentAt = now; a.updatedAt = now; saveAgreements(all);
   const label = agreementTypeLabel(a.type); const signUrl = reqOrigin(req) + '/sign/' + next.token;
   const subject = String((req.body || {}).subject || (label + ' for your signature')).slice(0, 300);
-  const message = String((req.body || {}).message || ('Please review and sign your ' + label + ' online here:\n' + signUrl + '\n\nThank you,\nRestaurant Realty Group')).slice(0, 20000);
+  const message = String((req.body || {}).message || ('Please review and sign your ' + label + ' online here:\n' + signUrl + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
   try { await buildTransport().sendMail({ from: mailFrom(), to: next.email, subject, text: message }); }
   catch (e) { console.error('send-adv:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + (next.label || '') + ' ' + next.email, { auto: true }); savePeople(ppl); } } catch (e) {} }
@@ -8610,7 +8610,7 @@ function submitAdvancedSign(req, res, all, a, me) {
       return res.json({ ok: true, done: true });
     } else {
       if (!next.token) next.token = newSignToken(); next.status = 'sent'; a.signStatus = 'partial'; a.updatedAt = now; saveAgreements(all);
-      try { if (isEmailConfigured()) { const url = reqOrigin(req) + '/sign/' + next.token; buildTransport().sendMail({ from: mailFrom(), to: next.email, subject: agreementTypeLabel(a.type) + ' for your signature', text: 'Please review and sign your ' + agreementTypeLabel(a.type) + ' online here:\n' + url + '\n\nThank you,\nRestaurant Realty Group' }).catch(() => {}); } } catch (e) {}
+      try { if (isEmailConfigured()) { const url = reqOrigin(req) + '/sign/' + next.token; buildTransport().sendMail({ from: mailFrom(), to: next.email, subject: agreementTypeLabel(a.type) + ' for your signature', text: 'Please review and sign your ' + agreementTypeLabel(a.type) + ' online here:\n' + url + '\n\nThank you,\n' + orgDisplayName() }).catch(() => {}); } } catch (e) {}
       return res.json({ ok: true, done: false, next: next.label });
     }
   })();
