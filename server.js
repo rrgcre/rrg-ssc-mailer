@@ -213,6 +213,17 @@ function backlinkBbsLeads() {
   } catch (e) { console.error('backlinkBbsLeads:', e && e.message); }
 }
 function companyBrief(c) { return c ? { id: c.id, name: c.name || '', market: c.market || '', type: c.type || '' } : null; }
+// Company activity feed: this company's own logged activity + every contact's activity, newest first.
+function companyActivityFeed(c) {
+  if (!c) return [];
+  const people = loadPeople().filter(p => p.companyId === c.id);
+  const acts = [];
+  people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { acts.push({ id: a.id || '', type: a.type || 'Note', note: a.note || '', at: a.date || a.at || '', by: a.by || '', auto: !!a.auto, personId: p.id, personName: p.name || 'Contact', companyLevel: false }); }); });
+  (Array.isArray(c.activities) ? c.activities : []).forEach(a => { acts.push({ id: a.id || '', type: a.type || 'Note', note: a.note || '', at: a.date || a.at || '', by: a.by || '', auto: !!a.auto, personId: '', personName: '', companyLevel: true }); });
+  if (c.createdAt) acts.push({ id: 'co_created', type: 'Company Added', note: 'Company record created', at: c.createdAt, by: c.by || '', auto: true, personId: '', personName: '', companyLevel: true });
+  acts.sort((x, y) => String(y.at || '').localeCompare(String(x.at || '')));
+  return acts.slice(0, 200);
+}
 
 // ---- Tickets — reps open requests to the brokerage office; office works & resolves them ----
 const TICKETS_FILE = path.join(BOV_DATA_DIR, 'tickets.json');
@@ -4656,14 +4667,35 @@ app.get('/api/company/:id', (req, res) => {
   const _pn = {}; loadPeople().forEach(p => { _pn[p.id] = p.name; });
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
-  // Company activity feed — aggregate every contact's activity for this company, newest first.
-  const _coPeople = loadPeople().filter(p => p.companyId === c.id);
-  const _coActs = [];
-  _coPeople.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { _coActs.push({ id: a.id || '', type: a.type || 'Note', note: a.note || '', at: a.date || a.at || '', by: a.by || '', auto: !!a.auto, personId: p.id, personName: p.name || 'Contact' }); }); });
-  if (c.createdAt) _coActs.push({ id: 'co_created', type: 'Company Added', note: 'Company record created', at: c.createdAt, by: c.by || '', auto: true, personId: '', personName: '' });
-  _coActs.sort((x, y) => String(y.at || '').localeCompare(String(x.at || '')));
-  const companyActivity = _coActs.slice(0, 120);
-  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, activity: companyActivity, locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), hasMaps: !!loadGmapsKey(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  const companyActivity = companyActivityFeed(c);
+  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, activity: companyActivity, activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), hasMaps: !!loadGmapsKey(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+});
+// ---- Company-level activity: notes / calls / meetings logged against the company itself. ----
+app.post('/api/company/:id/activity', express.json(), (req, res) => {
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const b = req.body || {};
+  const type = String(b.type || '').trim();
+  if (effActivityTypes().indexOf(type) < 0) return res.status(400).json({ ok: false, error: 'Pick an activity type.' });
+  let task = null;
+  const entry = logActivity(c, type, b.note, { date: b.date, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', auto: false });
+  if (type === 'To-Do') {
+    try {
+      const tasks = loadTasks(); const tnow = new Date().toISOString();
+      const due = (typeof b.date === 'string' ? b.date : '').slice(0, 10);
+      task = { id: newTaskId(), title: (String(b.note || '').trim() || ('Follow up: ' + (c.name || 'company'))).slice(0, 300), notes: '', assignee: (req.user && req.user.username) || '', assigneeName: (req.user && req.user.name) || '', due: due, reminder: due, priority: 'Normal', status: 'open', linkType: 'company', linkId: c.id, linkLabel: c.name || '', createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', createdAt: tnow, updatedAt: tnow };
+      tasks.push(task); saveTasks(tasks); entry.taskId = task.id;
+    } catch (e) {}
+  }
+  saveCompanies(arr);
+  res.json({ ok: true, activity: companyActivityFeed(c), task });
+});
+app.delete('/api/company/:id/activity/:aid', (req, res) => {
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  c.activities = (Array.isArray(c.activities) ? c.activities : []).filter(a => a.id !== req.params.aid);
+  c.updatedAt = new Date().toISOString(); saveCompanies(arr);
+  res.json({ ok: true, activity: companyActivityFeed(c) });
 });
 // ---- Concepts — a company runs one or more concepts (brands); locations attach to a concept. ----
 function newConceptId() { return 'cpt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
