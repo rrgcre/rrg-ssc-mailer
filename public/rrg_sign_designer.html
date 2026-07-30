@@ -58,7 +58,9 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
 </div>
 <div class="body">
   <div class="palette">
-    <div class="psec"><div class="plbl">Assign to</div>
+    <div class="psec"><div class="plbl">Number of signers</div>
+      <select id="signerCount" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font:inherit;margin-bottom:12px"><option value="1">1 — client only</option><option value="2">2 — sequential</option><option value="3">3 — sequential</option></select>
+      <div class="plbl">Signer for the selected / next field</div>
       <div class="segs"><div class="seg on1" id="sg1" data-s="1">Signer 1</div><div class="seg" id="sg2" data-s="2">Signer 2</div><div class="seg" id="sg3" data-s="3">Signer 3</div></div>
       <div class="hint" id="s2hint" style="display:none">Signer 2 is off. Turn on two signers below to place their fields.</div>
     </div>
@@ -88,8 +90,6 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
       <div class="plbl">Selected field</div>
       <div class="selbox">
         <label class="fld">Label</label><input id="f_label" placeholder="e.g. Tenant name">
-        <label class="fld">Assigned signer</label>
-        <select id="f_signer"></select>
         <label class="fld">Auto-fill from record</label>
         <select id="f_auto"><option value="">— none —</option><option value="email">Client — email</option><option value="first_name">Client — first name</option><option value="party_name">Client — full name</option><option value="last_name">Client — last name</option><option value="phone">Client — phone</option><option value="title">Client — title</option><option value="company">Company / firm</option><option value="my_email">Me — email</option><option value="my_name">Me — name</option><option value="my_phone">Me — phone</option><option value="my_title">Me — title</option><option value="date">Today's date</option></select>
         <label class="chk"><input type="checkbox" id="f_req"> Required</label>
@@ -104,8 +104,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
         <button class="btnsm" id="f_del">Delete field</button>
       </div>
     </div>
-    <div class="psec"><div class="plbl">Signers</div>
-      <label class="fld">Number of signers</label><select id="signerCount" style="width:100%;padding:7px 9px;border:1px solid var(--line);border-radius:8px;font:inherit;margin-bottom:8px"><option value="1">1 — client only</option><option value="2">2 — sequential</option><option value="3">3 — sequential</option></select>
+    <div class="psec"><div class="plbl">Signer labels</div>
       <label class="fld">Signer 1 label</label><input id="s1label" value="Signer 1">
       <div id="s2wrap" style="display:none"><label class="fld">Signer 2 label</label><input id="s2label" value="Signer 2"></div>
       <div id="s3wrap" style="display:none"><label class="fld">Signer 3 label</label><input id="s3label" value="Signer 3"></div>
@@ -128,9 +127,10 @@ function sigCount(){ return parseInt(document.getElementById('signerCount').valu
 function setSigner(n){ SIGNER=n; document.getElementById('sg1').className='seg'+(n===1?' on1':''); document.getElementById('sg2').className='seg'+(n===2?' on2':''); document.getElementById('sg3').className='seg'+(n===3?' on3':''); }
 
 document.querySelectorAll('.tool').forEach(function(b){ b.addEventListener('click',function(){ setTool(b.getAttribute('data-tool')); }); });
-document.getElementById('sg1').addEventListener('click',function(){ setSigner(1); });
-document.getElementById('sg2').addEventListener('click',function(){ if(sigCount()<2){ alert('Set the number of signers to 2 or more first.'); return; } setSigner(2); });
-document.getElementById('sg3').addEventListener('click',function(){ if(sigCount()<3){ alert('Set the number of signers to 3 first.'); return; } setSigner(3); });
+function pickSigner(n){ setSigner(n); if(MULTI.length){ MULTI.forEach(function(id){ var g=fieldById(id); if(g) g.signer=n; }); drawFields(); scheduleSave(); } }
+document.getElementById('sg1').addEventListener('click',function(){ pickSigner(1); });
+document.getElementById('sg2').addEventListener('click',function(){ if(sigCount()<2){ alert('Set the number of signers to 2 or more first.'); return; } pickSigner(2); });
+document.getElementById('sg3').addEventListener('click',function(){ if(sigCount()<3){ alert('Set the number of signers to 3 first.'); return; } pickSigner(3); });
 document.getElementById('signerCount').addEventListener('change',function(){ var c=sigCount(); document.getElementById('s2wrap').style.display=c>=2?'':'none'; document.getElementById('s3wrap').style.display=c>=3?'':'none'; if(SIGNER>c) setSigner(1); scheduleSave(); });
 
 var _uidc=0; function uid(){ _uidc++; return 'f'+Date.now().toString(36)+'_'+_uidc.toString(36)+Math.random().toString(36).slice(2,5); }
@@ -157,14 +157,14 @@ function drawFields(){
     var rz=document.createElement('div'); rz.className='rz'; el.appendChild(rz);
     ov.appendChild(el);
     el.addEventListener('mousedown',function(e){ if(e.target===rz) return; startDrag(e,f,el); });
-    el.addEventListener('click',function(e){ e.stopPropagation(); if(e.shiftKey){ toggleMulti(f.id); } else { SELECTED=f.id; MULTI=[f.id]; } drawFields(); openPanel(); });
+    el.addEventListener('click',function(e){ e.stopPropagation(); if(e.shiftKey){ toggleMulti(f.id); } else { SELECTED=f.id; MULTI=[f.id]; setSigner(f.signer||1); } drawFields(); openPanel(); });
     rz.addEventListener('mousedown',function(e){ startResize(e,f,el); });
     if(SELECTED===f.id){ var fx=document.createElement('div'); fx.className='fx'; fx.textContent='\u00d7'; fx.title='Delete field'; el.appendChild(fx); fx.addEventListener('mousedown',function(e){ e.stopPropagation(); e.preventDefault(); }); fx.addEventListener('click',function(e){ e.stopPropagation(); FIELDS=FIELDS.filter(function(x){return x.id!==f.id;}); MULTI=MULTI.filter(function(x){return x!==f.id;}); SELECTED=null; drawFields(); openPanel(); scheduleSave(); }); }
   });
 }
 var DRAG=null;
 function _snap(v){ return SNAP?Math.round(v/0.01)*0.01:v; }
-function startDrag(e,f,el){ if(e.shiftKey){ return; } e.preventDefault(); if(MULTI.indexOf(f.id)<0){ SELECTED=f.id; MULTI=[f.id]; drawFields(); } else { SELECTED=f.id; } openPanel(); var ov=el.parentNode; var W=ov.clientWidth,H=ov.clientHeight; var grp=(MULTI.length>1)?MULTI.map(function(id){var g=fieldById(id);return g?{f:g,ox:g.x,oy:g.y}:null;}).filter(Boolean):null; DRAG={f:f,el:el,ov:ov,W:W,H:H,sx:e.clientX,sy:e.clientY,ox:f.x,oy:f.y,mode:'move',grp:grp,moved:false}; }
+function startDrag(e,f,el){ if(e.shiftKey){ return; } e.preventDefault(); if(MULTI.indexOf(f.id)<0){ SELECTED=f.id; MULTI=[f.id]; setSigner(f.signer||1); drawFields(); } else { SELECTED=f.id; } openPanel(); var ov=el.parentNode; var W=ov.clientWidth,H=ov.clientHeight; var grp=(MULTI.length>1)?MULTI.map(function(id){var g=fieldById(id);return g?{f:g,ox:g.x,oy:g.y}:null;}).filter(Boolean):null; DRAG={f:f,el:el,ov:ov,W:W,H:H,sx:e.clientX,sy:e.clientY,ox:f.x,oy:f.y,mode:'move',grp:grp,moved:false}; }
 function startResize(e,f,el){ e.preventDefault(); e.stopPropagation(); var ov=el.parentNode; var W=ov.clientWidth,H=ov.clientHeight; DRAG={f:f,el:el,ov:ov,W:W,H:H,sx:e.clientX,sy:e.clientY,ow:f.w,oh:f.h,mode:'resize',moved:false}; }
 window.addEventListener('mousemove',function(e){
   if(!DRAG) return; DRAG.moved=true;
@@ -183,7 +183,6 @@ function openPanel(){
   document.getElementById('f_label').value=f.label||'';
   document.getElementById('f_auto').value=f.autofill||'';
   document.getElementById('f_req').checked=!!f.required;
-  (function(){ var _sc=sigCount(); var fs=document.getElementById('f_signer'); if(fs){ var h=''; for(var i=1;i<=_sc;i++){ var _lb=(document.getElementById('s'+i+'label')||{}).value||('Signer '+i); h+='<option value="'+i+'">'+i+' — '+esc(_lb)+'</option>'; } fs.innerHTML=h; fs.value=String((f.signer===2||f.signer===3)?f.signer:1); } })();
   document.getElementById('f_font').value=f.font||'';
   document.getElementById('f_size').value=f.fontSize||'';
   document.getElementById('f_width').value=(PAGEPT.w?Math.round(f.w*PAGEPT.w):'');
@@ -207,7 +206,6 @@ document.getElementById('f_size').addEventListener('input',function(){ var f=cur
 document.getElementById('f_height').addEventListener('input',function(){ var f=cur(); if(f&&PAGEPT.h){ var pt=parseFloat(this.value); if(isFinite(pt)&&pt>0){ f.h=Math.max(0.005,Math.min(1-f.y, pt/PAGEPT.h)); drawFields(); scheduleSave(); } } });
 document.getElementById('f_width').addEventListener('input',function(){ var f=cur(); if(f&&PAGEPT.w){ var pt=parseFloat(this.value); if(isFinite(pt)&&pt>0){ f.w=Math.max(0.01,Math.min(1-f.x, pt/PAGEPT.w)); drawFields(); scheduleSave(); } } });
 (function(){ var seg=document.getElementById('f_align'); if(seg){ Array.prototype.forEach.call(seg.querySelectorAll('button'),function(b){ b.addEventListener('click',function(){ var f=cur(); if(!f||(f.type!=='text'&&f.type!=='date')) return; f.align=b.getAttribute('data-a'); Array.prototype.forEach.call(seg.querySelectorAll('button'),function(x){x.classList.remove('on');}); b.classList.add('on'); drawFields(); scheduleSave(); }); }); } })();
-(function(){ var fs=document.getElementById('f_signer'); if(fs){ fs.addEventListener('change',function(){ var f=cur(); if(!f) return; var n=parseInt(fs.value,10); f.signer=(n===2||n===3)?n:1; drawFields(); scheduleSave(); }); } })();
 document.getElementById('f_applyall').addEventListener('click',function(){ var f=cur(); if(!f) return; FIELDS.forEach(function(g){ g.font=f.font; g.fontSize=f.fontSize; g.align=f.align; g.w=Math.min(1-g.x,f.w); g.h=Math.min(1-g.y,f.h); }); drawFields(); scheduleSave(); var m=document.getElementById('msg'); if(m) m.textContent='Applied to all ✓'; });
 document.addEventListener('keydown',function(e){
   var t=e.target; var typing=t&&(t.tagName==='INPUT'||t.tagName==='TEXTAREA'||t.tagName==='SELECT'||t.isContentEditable);

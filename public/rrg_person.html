@@ -238,7 +238,7 @@ function agreementsCard(){
   var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
   return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGREEMENTS.length+'</span></div>'
     +'<div class="cb"><div class="agrlist">'+chips+'</div>'
-    +'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="mfadd" id="agrAddBtn">+ Add agreement</button><button type="button" class="mfadd" id="agrSendBtn">✉ Send agreement</button></div>'
+    +'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="mfadd" id="agrSendBtn" style="border:1px solid var(--navy)">✉ Send agreement</button><button type="button" class="mfadd" id="agrAddBtn">+ Add agreement</button></div>'
     +'<div id="agrForm" hidden style="margin-top:12px;border-top:1px solid #e6e9f0;padding-top:12px">'
       +'<input type="hidden" id="agr_id">'
       +'<div class="fldrow"><label class="fld">Agreement name</label><input id="agr_name" placeholder="e.g. Mutual NDA — Cane Rosso"></div>'

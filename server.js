@@ -6167,7 +6167,7 @@ app.get('/admin', requireAdmin, (req, res) => {
         nav.innerHTML='<div class="snlabel">Admin</div>';
         var main=document.createElement('main'); main.className='apanels';
         groups.forEach(function(g,i){
-          var id='apanel-'+i;
+          var id='ap-'+((g.label||'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/(^-|-$)/g,'')||('n'+i));
           var a=document.createElement('a'); a.className='snav'+(i===0?' on':''); a.setAttribute('data-target',id);
           a.innerHTML='<span class="si"></span>'+g.label; nav.appendChild(a);
           var panel=document.createElement('section'); panel.className='apanel'+(i===0?' show':''); panel.id=id;
@@ -6178,10 +6178,11 @@ app.get('/admin', requireAdmin, (req, res) => {
         box.appendChild(nav); box.appendChild(main);
         wrap.innerHTML=''; wrap.appendChild(box); wrap.classList.add('is-console');
         var navs=[].slice.call(nav.querySelectorAll('.snav')), panels=[].slice.call(main.querySelectorAll('.apanel'));
-        function show(id){ panels.forEach(function(p){ p.classList.toggle('show',p.id===id); }); navs.forEach(function(n){ n.classList.toggle('on',n.getAttribute('data-target')===id); }); try{ localStorage.setItem('rrgadm_panel',id); }catch(e){} window.scrollTo(0,0); }
+        function show(id){ panels.forEach(function(p){ p.classList.toggle('show',p.id===id); }); navs.forEach(function(n){ n.classList.toggle('on',n.getAttribute('data-target')===id); }); try{ localStorage.setItem('rrgadm_panel',id); }catch(e){} try{ if(history&&history.replaceState){ history.replaceState(null,'','#'+id); } else { location.hash=id; } }catch(e){} window.scrollTo(0,0); }
         navs.forEach(function(n){ n.addEventListener('click',function(e){ e.preventDefault(); show(n.getAttribute('data-target')); }); });
-        var saved=null; try{ saved=localStorage.getItem('rrgadm_panel'); }catch(e){}
+        var saved=null; try{ var _h=(location.hash||'').replace(/^#/,''); saved=(_h&&document.getElementById(_h))?_h:localStorage.getItem('rrgadm_panel'); }catch(e){}
         if(saved && document.getElementById(saved)) show(saved);
+        window.addEventListener('hashchange',function(){ var h=(location.hash||'').replace(/^#/,''); if(h && document.getElementById(h)) show(h); });
         var moreA=document.createElement('a'); moreA.className='snav'; moreA.href='/rrg_admin_settings.html'; moreA.style.marginTop='12px'; moreA.style.borderTop='1px solid #e9edf3'; moreA.style.paddingTop='15px'; moreA.innerHTML='<span class="si"></span>More settings →'; nav.appendChild(moreA);
         var tplA=document.createElement('a'); tplA.className='snav'; tplA.href='/rrg_agreement_templates.html'; tplA.innerHTML='<span class="si"></span>Agreement templates →'; nav.appendChild(tplA);
         var rolesA=document.createElement('a'); rolesA.className='snav'; rolesA.href='/rrg_roles.html'; rolesA.innerHTML='<span class="si"></span>Roles & permissions →'; nav.appendChild(rolesA);
