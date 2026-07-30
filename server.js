@@ -7144,9 +7144,11 @@ const DASH_MODULES = [
   { k: 'dealstatus', label: 'Deal Status', desc: 'Active / under contract / closed', live: true, w: 'half' },
   { k: 'contacts_type', label: 'Book Composition', desc: 'Contacts by type', live: true, w: 'half' },
   { k: 'expiring', label: 'Expiring Listings', desc: 'Coming due within 90 days', live: true, w: 'half' },
+  { k: 'online', label: 'Who\u2019s Online', desc: 'Team members active right now', live: true, w: 'half' },
+  { k: 'trend', label: 'Pipeline Trend', desc: 'Pipeline value over recent checks', live: true, w: 'half' },
   { k: 'quicklinks', label: 'Quick Links', desc: 'Sites the team uses', live: false, w: 'half' }
 ];
-const DASH_DEFAULT = ['consult', 'kpis', 'pipeline', 'dealstatus', 'markets', 'contacts_type', 'tasks', 'activity', 'expiring'];
+const DASH_DEFAULT = ['kpis', 'pipeline', 'trend', 'dealstatus', 'contacts_type', 'markets', 'activity', 'tasks', 'expiring', 'online', 'agreements'];
 function _dmoney(v) { const m = String(v == null ? '' : v).replace(/[^0-9.\-]/g, ''); const n = Number(m); return isFinite(n) ? n : 0; }
 const KPIHIST_FILE = path.join(BOV_DATA_DIR, 'kpi_history.json');
 function loadKpiHist(){ try { return JSON.parse(fs.readFileSync(KPIHIST_FILE,'utf8'))||[]; } catch(e){ return []; } }
