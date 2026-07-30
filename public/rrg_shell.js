@@ -67,16 +67,16 @@
       { ic: '＄', label: 'Lease Commission', href: 'rrg_lease_commission_calculator.html' }
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
-      { ic: '⤓', label: 'Import Data', href: 'rrg_import.html' },
+      { ic: '☺', label: 'Users', href: 'rrg_roles.html' },
+      { ic: '◔', label: 'Roles', href: 'rrg_roles.html' },
+      { ic: '◫', label: 'Departments', href: 'rrg_departments.html' },
+      { ic: '⑃', label: 'Pipelines', href: 'rrg_admin_pipelines.html' },
       { ic: '⚗', label: 'Data Enrichment', href: 'rrg_data.html' },
       { ic: '▤', label: 'Admin console', href: 'admin' },
       { ic: '⊹', label: 'AI Usage', href: 'rrg_ai_usage.html' },
-      { ic: '◫', label: 'Departments', href: 'rrg_departments.html' },
-      { ic: '☺', label: 'Users', href: 'rrg_roles.html' },
-      { ic: '◔', label: 'Roles', href: 'rrg_roles.html' },
       { ic: '⚙', label: 'Settings', href: 'rrg_admin_settings.html' },
-      { ic: '⑃', label: 'Pipelines', href: 'rrg_admin_pipelines.html' },
-      { ic: '☰', label: 'Menu Access', href: 'rrg_admin_nav.html' }
+      { ic: '☰', label: 'Menu Access', href: 'rrg_admin_nav.html' },
+      { ic: '⤓', label: 'Import Data', href: 'rrg_import.html' }
     ] }
   ];
 
