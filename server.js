@@ -3895,6 +3895,7 @@ app.post('/api/ai/loi-suggest', express.json({ limit: '256kb' }), async (req, re
   } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });
 app.post('/api/person/merge', express.json(), (req, res) => {
+ try {
   const u = req.user || {};
   const canMerge = isSuper(u) || (permsEnabled() && effectivePerms(u).delete);
   if (!canMerge) return res.status(403).json({ ok: false, error: 'You do not have permission to merge contacts.' });
@@ -3957,6 +3958,7 @@ app.post('/api/person/merge', express.json(), (req, res) => {
   try { const ov = loadAssignOverlay(); let ch = false; Object.keys(ov).forEach(k => { const cur = ov[k]; if (!cur) return; ['offers', 'tours', 'ndas'].forEach(coll => { if (Array.isArray(cur[coll])) cur[coll].forEach(r => { if (inLosers(r.personId)) { r.personId = keepId; ch = true; } }); }); }); if (ch) saveAssignOverlay(ov); } catch (e) {}
 
   res.json({ ok: true, keepId: keepId, merged: loserIds.length, people: loadPeople().map(personBrief) });
+ } catch (e) { console.error('person merge failed:', e); return res.status(500).json({ ok: false, error: 'Merge failed: ' + ((e && e.message) || 'server error') }); }
 });
 // ---- Contact photo (optional headshot / logo) ----
 const PERSONPHOTO_DIR = path.join(BOV_DATA_DIR, 'personphotos');
@@ -5018,6 +5020,7 @@ app.post('/api/company/:id/contact/:personId/remove', (req, res) => {
   res.json({ ok: true, contacts });
 });
 app.post('/api/company/merge', express.json(), (req, res) => {
+ try {
   const u = req.user || {};
   const canMerge = isSuper(u) || (permsEnabled() && effectivePerms(u).delete);
   if (!canMerge) return res.status(403).json({ ok: false, error: 'You do not have permission to merge companies.' });
@@ -5081,6 +5084,7 @@ app.post('/api/company/merge', express.json(), (req, res) => {
   try { const ags = loadAgreements(); let ch = false; ags.forEach(a => { if (a.companyId && inLosers(a.companyId)) { a.companyId = keepId; ch = true; } }); if (ch) saveAgreements(ags); } catch (e) {}
 
   res.json({ ok: true, keepId: keepId, merged: loserIds.length });
+ } catch (e) { console.error('company merge failed:', e); return res.status(500).json({ ok: false, error: 'Merge failed: ' + ((e && e.message) || 'server error') }); }
 });
 app.delete('/api/company/:id', (req, res) => {
   if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete companies.' });

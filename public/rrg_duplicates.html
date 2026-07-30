@@ -171,10 +171,10 @@ function doMerge(gk){
   var box=document.getElementById('grp_'+gk); var btn=box?box.querySelector('[data-merge]'):null; if(btn){btn.disabled=true;btn.textContent='Merging…';}
   var msg=document.getElementById('gmsg_'+gk);
   fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({keepId:keepId,mergeIds:mergeIds})})
-   .then(function(r){return r.json();}).then(function(j){
+   .then(function(r){ var st=r.status; return r.text().then(function(t){ var j=null; try{ j=JSON.parse(t); }catch(e){} return {status:st, j:j, raw:t}; }); }).then(function(rr){ var j=rr.j;
      if(j&&j.ok){ if(msg){msg.className='msg ok';msg.textContent='Merged '+(j.merged||mergeIds.length)+' ✓';} setTimeout(function(){ if(box) box.classList.add('gone'); afterRemove(gk); },700); }
-     else { if(btn){btn.disabled=false;} if(msg){msg.className='msg err';msg.textContent=(j&&j.error)||'Merge failed.';} ARMED[gk]=false; repaint(gk); }
-   }).catch(function(){ if(btn){btn.disabled=false;} if(msg){msg.className='msg err';msg.textContent='Could not reach the server.';} });
+     else { var em=(j&&j.error)||('Server error '+rr.status+(rr.raw?(' — '+String(rr.raw).replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim().slice(0,140)):'')); if(btn){btn.disabled=false;} if(msg){msg.className='msg err';msg.textContent=em;} alert('Merge did not complete.\n\n'+em); ARMED[gk]=false; repaint(gk); }
+   }).catch(function(err){ if(btn){btn.disabled=false;} if(msg){msg.className='msg err';msg.textContent='Could not reach the server.';} alert('Merge request failed to reach the server: '+(err&&err.message||err)); });
 }
 function afterRemove(gk){
   var j=DATA[TYPE]; if(!j) return; j.groups=(j.groups||[]).filter(function(x){return x.key!==gk;});
