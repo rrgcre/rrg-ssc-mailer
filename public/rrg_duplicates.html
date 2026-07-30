@@ -69,6 +69,7 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function initials(s){ s=String(s||'').trim(); if(!s) return '?'; var p=s.split(/\s+/); return ((p[0]||'')[0]||'').toUpperCase()+((p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
+var AIW = window.rrgAiWork || {show:function(){},setMsg:function(){},hide:function(){}};
 var TYPE='companies', DATA={companies:null,contacts:null}, KEEP={}, ARMED={};
 
 function build(){
@@ -83,12 +84,14 @@ function build(){
 }
 function show(){ if(DATA[TYPE]) render(DATA[TYPE]); else load(); }
 function load(){
+  AIW.show('Scanning your '+TYPE+' for duplicates…');
   document.getElementById('cnt').innerHTML='<span class="spin"></span>Scanning your '+TYPE+'…';
   document.getElementById('list').innerHTML='';
   fetch('/api/admin/duplicates?type='+TYPE,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    AIW.hide();
     if(!j||!j.ok){ document.getElementById('list').innerHTML='<div class="empty">Could not scan. Try again.</div>'; document.getElementById('cnt').textContent=''; return; }
     DATA[TYPE]=j; render(j);
-  }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; });
+  }).catch(function(){ AIW.hide(); document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; });
 }
 function fld(label,val){ if(!val) return ''; return '<div class="fld"><b>'+esc(label)+':</b> '+esc(val)+'</div>'; }
 function memberCard(g,m){

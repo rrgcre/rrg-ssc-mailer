@@ -51,7 +51,8 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#c3bce0;font-size:13px;m
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var CANDS=[], ROWS={}, ORDER=[], STATE={}, SCANNED=0, ONLYNEEDS=true;
+var AIW = window.rrgAiWork || {show:function(){},setMsg:function(){},hide:function(){}};
+var CANDS=[], ROWS={}, ORDER=[], STATE={}, SCANNED=0, ONLYNEEDS=true, CPTCANCEL=false;
 function fieldsOn(){ return { cuisine:document.getElementById('f_cuisine').checked, type:document.getElementById('f_type').checked, price:document.getElementById('f_price').checked, mu:document.getElementById('f_mu').checked }; }
 function build(aiReady){
   var root=document.getElementById('root'); root.className='wrap';
@@ -85,16 +86,19 @@ function scan(){
   document.getElementById('grid').innerHTML='';
   var pool=CANDS.filter(function(c){ return ONLYNEEDS? c.needs : true; });
   if(!pool.length){ btn.disabled=false; document.getElementById('cnt').textContent='Nothing to classify — every concept already has cuisine, type and price.'; return; }
+  CPTCANCEL=false; AIW.show('Classifying your concepts with AI…', function(){ CPTCANCEL=true; AIW.hide(); location.href='rrg_data.html'; });
   var chunks=[]; for(var i=0;i<pool.length;i+=12) chunks.push(pool.slice(i,i+12));
   var ci=0;
   function next(){
-    if(ci>=chunks.length){ btn.disabled=false; document.getElementById('cnt').innerHTML='<b>'+ORDER.filter(function(k){return ROWS[k].proposed;}).length+'</b> classified · scanned '+SCANNED; return; }
+    if(CPTCANCEL) return;
+    if(ci>=chunks.length){ AIW.hide(); btn.disabled=false; document.getElementById('cnt').innerHTML='<b>'+ORDER.filter(function(k){return ROWS[k].proposed;}).length+'</b> classified · scanned '+SCANNED; return; }
     var items=chunks[ci].map(function(c){ return {companyId:c.companyId, conceptId:c.conceptId}; });
-    document.getElementById('cnt').innerHTML='<span class="spin"></span>Classifying '+(SCANNED+1)+'–'+Math.min(SCANNED+items.length,pool.length)+' of '+pool.length+'…';
+    AIW.setMsg('Classifying '+(SCANNED+1)+'–'+Math.min(SCANNED+items.length,pool.length)+' of '+pool.length+'…'); document.getElementById('cnt').innerHTML='<span class="spin"></span>Classifying… '+SCANNED+'/'+pool.length;
     fetch('/api/admin/concepts-classify',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
+      if(CPTCANCEL) return;
       if(j&&j.ok){ (j.results||[]).forEach(addRow); } else { document.getElementById('msg').className='msg err'; document.getElementById('msg').textContent=(j&&j.error)||'AI error'; }
       SCANNED+=items.length; ci++; next();
-    }).catch(function(){ btn.disabled=false; document.getElementById('msg').className='msg err'; document.getElementById('msg').textContent='Scan stopped — server error.'; });
+    }).catch(function(){ if(CPTCANCEL) return; AIW.hide(); btn.disabled=false; document.getElementById('msg').className='msg err'; document.getElementById('msg').textContent='Scan stopped — server error.'; });
   }
   next();
 }
@@ -131,11 +135,11 @@ function apply(){
     items.push({ companyId:r.companyId, conceptId:r.conceptId, apply:a });
   });
   if(!items.length){ alert('Tick at least one concept to apply.'); return; }
-  var b=document.getElementById('apply'); b.disabled=true; var msg=document.getElementById('msg'); msg.className='msg'; msg.innerHTML='<span class="spin"></span>Applying…';
+  var b=document.getElementById('apply'); b.disabled=true; var msg=document.getElementById('msg'); msg.className='msg'; msg.textContent=''; AIW.show('Applying classifications…');
   fetch('/api/admin/concepts-apply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
-    b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Classified '+j.applied+' concept'+(j.applied===1?'':'s')+(j.tagged?(' · '+j.tagged+' tagged multi-unit'):'')+' ✓'; items.forEach(function(it){ var k=it.companyId+'|'+it.conceptId; STATE[k]='off'; var el=document.querySelector('.ec[data-k="'+cssq(k)+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } }); count(); }
+    AIW.hide(); b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Classified '+j.applied+' concept'+(j.applied===1?'':'s')+(j.tagged?(' · '+j.tagged+' tagged multi-unit'):'')+' ✓'; items.forEach(function(it){ var k=it.companyId+'|'+it.conceptId; STATE[k]='off'; var el=document.querySelector('.ec[data-k="'+cssq(k)+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } }); count(); }
     else { msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
-  }).catch(function(){ b.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
+  }).catch(function(){ AIW.hide(); b.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
 }
 fetch('/api/admin/concepts-candidates',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
   build(!!(j&&j.aiReady));

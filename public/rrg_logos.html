@@ -48,6 +48,8 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var AIW = window.rrgAiWork || {show:function(){},setMsg:function(){},hide:function(){}};
+var LOGOCANCEL=false;
 var CANDS=[], STATE={};
 function initials(s){ s=String(s||'').trim(); if(!s) return '?'; var p=s.split(/\s+/); return ((p[0]||'')[0]||'').toUpperCase()+((p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
 function build(){
@@ -84,17 +86,19 @@ function markDead(id,img){ STATE[id]='dead'; var box=img.closest('.logobox'); if
 function paint(){ document.querySelectorAll('.lc[data-id]').forEach(function(el){ var id=el.getAttribute('data-id'); el.classList.toggle('on',STATE[id]==='on'); el.classList.toggle('dead',STATE[id]==='dead'); }); count(); }
 function count(){ var on=CANDS.filter(function(c){return STATE[c.id]==='on';}).length; var c=document.getElementById('cnt'); if(c) c.textContent=on+' of '+CANDS.length+' approved'; }
 function aiFind(){
-  var b=document.getElementById('aibtn'); if(!b) return; b.disabled=true; b.textContent='Finding…';
-  function done(msg){ b.disabled=false; b.textContent='🤖 No-website logos (AI)'; if(msg){ var m=document.getElementById('msg'); m.className='msg ok'; m.textContent=msg; } }
+  var b=document.getElementById('aibtn'); if(!b) return; b.disabled=true; b.textContent='Finding…'; LOGOCANCEL=false; AIW.show('Finding logos with AI…', function(){ LOGOCANCEL=true; AIW.hide(); location.href='rrg_data.html'; });
+  function done(msg){ AIW.hide(); b.disabled=false; b.textContent='🤖 No-website logos (AI)'; if(msg){ var m=document.getElementById('msg'); m.className='msg ok'; m.textContent=msg; } }
   fetch('/api/admin/logo-nowebsite',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ done(''); return; }
     if(!j.aiReady){ alert('Set your Anthropic key in Admin → Settings to use AI.'); done(''); return; }
     var pool=j.companies||[]; if(!pool.length){ alert('Every company already has a website or a logo.'); done(''); return; }
     var chunks=[]; for(var i=0;i<pool.length;i+=15) chunks.push(pool.slice(i,i+15)); var ci=0, found=0;
     function next(){
+      if(LOGOCANCEL) return;
       if(ci>=chunks.length){ done('AI found '+found+' new logo candidate'+(found===1?'':'s')+' — review the ✦ AI cards and apply.'); return; }
-      b.textContent='Finding… '+Math.min(ci*15,pool.length)+'/'+pool.length;
+      AIW.setMsg('Reading brands — '+Math.min(ci*15,pool.length)+'/'+pool.length+'…');
       fetch('/api/admin/logo-ai-domains',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:chunks[ci].map(function(c){return {id:c.id};})})}).then(function(r){return r.json();}).then(function(jj){
+        if(LOGOCANCEL) return;
         if(jj&&jj.ok){ (jj.results||[]).forEach(function(x){ if(CANDS.some(function(c){return c.id===x.id;})) return; CANDS.push({id:x.id,name:x.name,website:x.website,domain:x.domain,proposed:x.proposed,favicon:x.favicon,ai:true}); STATE[x.id]='on'; found++; }); render(); }
         ci++; next();
       }).catch(function(){ done(''); });

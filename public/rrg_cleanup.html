@@ -51,6 +51,7 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#b6d4cf;font-size:13px;m
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var AIW = window.rrgAiWork || {show:function(){},setMsg:function(){},hide:function(){}};
 var DATA={companies:[],people:[]}, STATE={};
 function fieldsOn(){ return { case:document.getElementById('f_case').checked, state:document.getElementById('f_state').checked, website:document.getElementById('f_web').checked, email:document.getElementById('f_email').checked, market:document.getElementById('f_market').checked, dm:document.getElementById('f_dm').checked }; }
 function build(){
@@ -71,7 +72,9 @@ function build(){
   scan();
 }
 function scan(){
+  AIW.show('Scanning your book for fixes…');
   fetch('/api/admin/cleanup-scan',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    AIW.hide();
     if(!j||!j.ok){ document.getElementById('list').innerHTML='<div class="empty">Could not scan.</div>'; document.getElementById('cnt').textContent=''; return; }
     DATA={companies:j.companies||[],people:j.people||[]};
     var tot=DATA.companies.length+DATA.people.length;
@@ -80,7 +83,7 @@ function scan(){
     DATA.companies.forEach(function(c){ STATE['c|'+c.id]='on'; });
     DATA.people.forEach(function(p){ STATE['p|'+p.id]='on'; });
     render();
-  }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; });
+  }).catch(function(){ AIW.hide(); document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; });
 }
 function chgLine(ch){
   var lbl={case:'Name',state:'State',website:'Website',market:'Market',email:'Email',dm:'Tag'}[ch.kind]||ch.kind;
@@ -110,11 +113,11 @@ function apply(){
   var cos=DATA.companies.filter(function(c){return STATE['c|'+c.id]==='on';}).map(function(c){return {id:c.id,changes:c.changes};});
   var ppl=DATA.people.filter(function(p){return STATE['p|'+p.id]==='on';}).map(function(p){return {id:p.id,changes:p.changes};});
   if(!cos.length&&!ppl.length){ alert('Tick at least one record.'); return; }
-  var b=document.getElementById('apply'); b.disabled=true; var msg=document.getElementById('msg'); msg.className='msg'; msg.innerHTML='<span class="spin"></span>Applying…';
+  var b=document.getElementById('apply'); b.disabled=true; var msg=document.getElementById('msg'); msg.className='msg'; msg.textContent=''; AIW.show('Applying fixes…');
   fetch('/api/admin/cleanup-apply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({companies:cos,people:ppl,kinds:kinds})}).then(function(r){return r.json();}).then(function(j){
-    b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Applied '+j.applied+' fix'+(j.applied===1?'':'es')+' ✓'; [].concat(cos.map(function(c){return 'c|'+c.id;}),ppl.map(function(p){return 'p|'+p.id;})).forEach(function(k){ STATE[k]='dead'; var el=document.querySelector('.ec[data-k="'+String(k).replace(/"/g,'\\"')+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } }); count(); }
+    AIW.hide(); b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Applied '+j.applied+' fix'+(j.applied===1?'':'es')+' ✓'; [].concat(cos.map(function(c){return 'c|'+c.id;}),ppl.map(function(p){return 'p|'+p.id;})).forEach(function(k){ STATE[k]='dead'; var el=document.querySelector('.ec[data-k="'+String(k).replace(/"/g,'\\"')+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } }); count(); }
     else { msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
-  }).catch(function(){ b.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
+  }).catch(function(){ AIW.hide(); b.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
 }
 fetch('/api/admin/cleanup-scan',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
   build();
