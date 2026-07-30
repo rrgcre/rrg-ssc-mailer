@@ -66,20 +66,24 @@
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
       { ic: '☺', label: 'Users', href: 'rrg_roles.html' },
-      { ic: '◔', label: 'Roles', href: 'rrg_roles.html' },
+      { ic: '◔', label: 'Roles', href: 'rrg_roles.html#roles' },
       { ic: '◫', label: 'Departments', href: 'rrg_departments.html' },
       { ic: '⑃', label: 'Pipelines', href: 'rrg_admin_pipelines.html' },
-      { ic: '⚗', label: 'Data Enrichment', href: 'rrg_data.html' },
       { ic: '▤', label: 'Admin console', href: 'admin' },
       { ic: '⊹', label: 'AI Usage', href: 'rrg_ai_usage.html' },
       { ic: '⚙', label: 'Settings', href: 'rrg_admin_settings.html' },
       { ic: '☰', label: 'Menu Access', href: 'rrg_admin_nav.html' },
-      { ic: '⤓', label: 'Import Data', href: 'rrg_import.html' }
+      { ic: '⤓', label: 'Import Data', href: 'rrg_import.html' },
+      { ic: '⚗', label: 'Data Enrichment', href: 'rrg_data.html' }
     ] }
   ];
 
   function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
-  function sameFile(href){ var f=(href||'').split('/').pop().toLowerCase(); return f===file || (href==='admin' && (file==='admin'||path==='/admin')); }
+  function sameFile(href){ var f=(href||'').split('/').pop().split('#')[0].split('?')[0].toLowerCase(); return f===file || (href==='admin' && (file==='admin'||path==='/admin')); }
+  var curHash=(location.hash||'').toLowerCase();
+  function hrefHash(href){ var i=(href||'').indexOf('#'); return i>=0?(href.slice(i).toLowerCase()):''; }
+  var _hashMatch=false; NAV.forEach(function(g){ (g.items||[]).forEach(function(it){ if(sameFile(it.href)){ var h=hrefHash(it.href); if(h && h===curHash) _hashMatch=true; } }); });
+  function isActive(it){ if(!sameFile(it.href)) return false; var h=hrefHash(it.href); return h ? (h===curHash) : (!_hashMatch); }
 
   // ---------- styles ----------
   var css = ''
@@ -159,7 +163,7 @@
     g.items.forEach(function (it) {
       var _na = it.need ? (' data-need="' + esc(it.need) + '" style="display:none"') : (it.admin ? ' data-adminit="1" style="display:none"' : '');
       var _ai = it.ai ? ' data-ai=""' : '';
-      navHtml += '<a class="it' + (sameFile(it.href) ? ' on' : '') + '"' + _na + _ai + ' href="' + esc(it.href) + '"><span class="i"' + (it.color ? (' style="color:' + it.color + '"') : '') + '>' + it.ic + '</span><span class="itlbl">' + esc(it.label) + '</span></a>';
+      navHtml += '<a class="it' + (isActive(it) ? ' on' : '') + '"' + _na + _ai + ' href="' + esc(it.href) + '"><span class="i"' + (it.color ? (' style="color:' + it.color + '"') : '') + '>' + it.ic + '</span><span class="itlbl">' + esc(it.label) + '</span></a>';
     });
     navHtml += '</div>';
   });
@@ -170,7 +174,7 @@
 
   // ---------- top bar ----------
   var activeLabel = '';
-  NAV.forEach(function (g) { g.items.forEach(function (it) { if (sameFile(it.href)) activeLabel = it.label; }); });
+  NAV.forEach(function (g) { g.items.forEach(function (it) { if (isActive(it)) activeLabel = it.label; }); });
   if (!activeLabel) { var t = (document.title || '').split('—')[0].split(' - ')[0].trim(); activeLabel = t || 'RRG'; }
   var top = document.createElement('div'); top.id='rrgtop';
   top.innerHTML = ''

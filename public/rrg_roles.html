@@ -80,7 +80,7 @@ function render(){
   var rows=permRows();
   var coreHtml=groupByCat(ST.core||[]).map(function(g){ return '<div class="permcat">'+esc(g.cat)+'</div><div class="permgrid">'+g.items.map(function(c){ var on=!!(role.perms&&role.perms[c.key]); return permSwitchRow(c.key,c.label,c.note,on,isAdminRole); }).join('')+'</div>'; }).join('');
   var toolHtml=groupByCat((ST.tools||[]).map(function(t){return {key:'tool:'+t.file,label:t.name,cat:t.cat||'Other'};})).map(function(g){ return '<div class="permcat">'+esc(g.cat)+'</div><div class="permgrid">'+g.items.map(function(t){ var on=!!(role.perms&&role.perms[t.key]); return permSwitchRow(t.key,t.label,'',on,isAdminRole); }).join('')+'</div>'; }).join('');
-  var rolesCard='<div class="card"><div class="ch"><b>Roles</b><span>bundles of switches you assign to users</span></div><div class="cb">'
+  var rolesCard='<div class="card" id="rolesSection"><div class="ch"><b>Roles</b><span>bundles of switches you assign to users</span></div><div class="cb">'
     +'<div class="rolechips">'+chips+'</div>'
     +'<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:12px"><div><label class="fld">Role name</label><input id="roleName" value="'+esc(role.name)+'"'+(isAdminRole?' disabled':'')+' style="min-width:220px"></div>'
     +(isAdminRole?'<div class="note">The Admin role always has every permission.</div>':'<button class="btn red sm" id="roleSave">Save role</button>'+(role.builtin?'':'<button class="btn danger sm" id="roleDel">Delete role</button>')+'<span id="roleMsg" class="msg"></span>')+'</div>'
@@ -100,13 +100,13 @@ function render(){
       +'<td style="text-align:right"><button class="btn ghost sm" data-ovuser="'+esc(u.username)+'">'+(OVUSER===u.username?'Close':'Overrides')+'</button></td></tr>'
       +(OVUSER===u.username?('<tr><td colspan="5">'+overridePanel(u)+'</td></tr>'):'');
   }).join('');
-  var usersCard='<div class="card"><div class="ch"><b>Users</b><span>assign a role, or override individual switches per person</span></div><div class="cb"><table><thead><tr><th>User</th><th>Role</th><th>Split</th><th>Overrides</th><th></th></tr></thead><tbody>'+urows+'</tbody></table></div></div>';
+  var usersCard='<div class="card" id="usersSection"><div class="ch"><b>Users</b><span>'+((ST.users||[]).length)+' · assign a role, or override individual switches per person</span></div><div class="cb"><div class="userscroll" style="max-height:62vh;overflow:auto"><table><thead><tr><th>User</th><th>Role</th><th>Split</th><th>Overrides</th><th></th></tr></thead><tbody>'+urows+'</tbody></table></div></div></div>';
 
   // reassign
   var repOpts='<option value="">— pick —</option>'+(ST.users||[]).map(function(u){return '<option value="'+esc(u.username)+'">'+esc(u.name)+'</option>';}).join('');
   var reassign='<div class="card"><div class="ch"><b>Reassign accounts</b><span>hand one rep\'s contacts &amp; companies to another</span></div><div class="cb"><div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div><label class="fld">From</label><select id="raFrom">'+repOpts+'</select></div><div><label class="fld">To</label><select id="raTo">'+repOpts+'</select></div><button class="btn sm" id="raGo">Reassign</button><span id="raMsg" class="msg"></span></div><div class="note" style="margin-top:8px">Moves ownership of every contact and company owned by the first rep to the second. Useful when someone leaves or hands off a book.</div></div></div>';
 
-  root.innerHTML=master+rolesCard+usersCard+reassign;
+  root.innerHTML=master+usersCard+rolesCard+reassign; if((location.hash||'').toLowerCase()==='#roles'){ setTimeout(function(){ var el=document.getElementById('rolesSection'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },80); }
 
   // set user role dropdown values
   (ST.users||[]).forEach(function(u){ var el=document.querySelector('[data-urole="'+u.username+'"]'); if(el) el.value=u.role||'associate'; });
