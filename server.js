@@ -4155,7 +4155,7 @@ app.get('/api/gmail/contacts/scan', async (req, res) => {
   const u = (req.user && req.user.username) || '';
   if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Gmail first (Account -> Gmail).' });
   try {
-    const result = await gmail.listCorrespondents(u, req.query.months ? parseInt(req.query.months, 10) : 12, 2500);
+    const result = await gmail.listCorrespondents(u, req.query.months ? parseInt(req.query.months, 10) : 12, 5000);
     const people = result.people;
     const existing = {}; loadPeople().forEach(p => (personEmails(p) || []).forEach(e => { existing[String(e).toLowerCase()] = true; }));
     const out = people.map(pc => {
@@ -4304,6 +4304,34 @@ app.post('/api/google/sync/calendar', express.json(), async (req, res) => {
     logSysEvent(req, 'Google Sync', 'Calendar sync (' + dir + ') — ' + pull.created + ' new, ' + pull.updated + ' updated, ' + push.pushed + ' pushed', { tool: 'google-sync', kind: 'calendar' });
     res.json({ ok: true, pulledNew: pull.created, pulledUpdated: pull.updated, pushed: push.pushed });
   } catch (e) { console.error('gsync calendar:', e && e.message); res.status(502).json({ ok: false, error: _gErr(e) }); }
+});
+
+// AI pass over scanned Gmail correspondents — flag the obvious personal / automated (non-business) ones.
+app.post('/api/gmail/contacts/classify', express.json({ limit: '2mb' }), async (req, res) => {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) return res.status(400).json({ ok: false, error: 'AI is not set up yet — add a Claude API key in Admin → Settings.' });
+  const list = Array.isArray(req.body && req.body.contacts) ? req.body.contacts.slice(0, 800) : [];
+  if (!list.length) return res.json({ ok: true, personal: [] });
+  const lines = list.map((c, i) => i + '\t' + String(c.name || '').slice(0, 80) + '\t' + String(c.email || '').slice(0, 120)).join('\n');
+  const sys = 'You are cleaning a contact list that was scraped from the Gmail inbox of a commercial real estate broker who sells and leases restaurants and bars. The broker wants to keep BUSINESS contacts (restaurant/bar owners, operators, buyers, sellers, landlords, tenants, brokers, lenders, attorneys, vendors, franchise reps, and other professional/networking contacts) and remove the OBVIOUS non-business ones. Flag a row as personal/remove ONLY when it clearly is NOT a business networking contact: (1) automated or system senders — no-reply, notifications, receipts, newsletters, marketing blasts, calendar invites, alerts, support/ticket bots, do-not-reply; or (2) clearly personal — family or friends, personal listservs, and the like. When in doubt, KEEP it (do not flag). Judge from the name and the email address/domain. Return ONLY a JSON object of the form {"remove":[<row indexes to remove>]} with no other text.';
+  const content = 'Here is the list, one per line as "index<TAB>name<TAB>email":\n\n' + lines + '\n\nReturn the JSON object now.';
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model: loadAiModel(), max_tokens: 4000, temperature: 0, system: sys, messages: [{ role: 'user', content }] }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) return res.status(502).json({ ok: false, error: (data && data.error && data.error.message) || 'AI request failed.' });
+    let text = '';
+    try { text = (data.content || []).map(x => x.text || '').join(''); } catch (e) {}
+    let parsed = null;
+    try { parsed = JSON.parse(text); } catch (e) { const a = text.indexOf('{'), b = text.lastIndexOf('}'); if (a >= 0 && b > a) { try { parsed = JSON.parse(text.slice(a, b + 1)); } catch (e2) {} } }
+    const idx = (parsed && Array.isArray(parsed.remove)) ? parsed.remove : [];
+    const emails = [];
+    idx.forEach(i => { const c = list[i]; if (c && c.email) emails.push(String(c.email).toLowerCase()); });
+    res.json({ ok: true, removeEmails: emails, count: emails.length });
+  } catch (e) { console.error('gmail classify:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
 app.post('/api/gmail/disconnect', (req, res) => {
