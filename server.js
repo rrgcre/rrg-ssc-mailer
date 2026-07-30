@@ -7012,10 +7012,11 @@ app.post('/api/admin/import/tasks', requireAdmin, express.json({ limit: '24mb' }
   const emailIdx = {}, nameIdx = {};
   ppl.forEach(p => { personEmails(p).forEach(e => { if (e) emailIdx[e.toLowerCase()] = p; }); const nm = normKey(p.name || ''); if (nm && !nameIdx[nm]) nameIdx[nm] = p; });
   const tasks = loadTasks();
+  const nc = noContactPerson();
   const _batch = nextImportBatch();
   const now = new Date().toISOString();
   const PRI = ['Low', 'Normal', 'High'];
-  let created = 0, linked = 0, notitle = 0;
+  let created = 0, linked = 0, noContact = 0, notitle = 0;
   rows.forEach(r => {
     const title = _impStr(r.title, 300);
     if (!title) { notitle++; return; }
@@ -7026,13 +7027,14 @@ app.post('/api/admin/import/tasks', requireAdmin, express.json({ limit: '24mb' }
     const due = /^\d{4}-\d{2}-\d{2}/.test(String(r.dueDate || '')) ? String(r.dueDate).slice(0, 10) : '';
     let pri = _impStr(r.priority, 20); pri = PRI.find(x => x.toLowerCase() === pri.toLowerCase()) || 'Normal';
     let st = _impStr(r.status, 20).toLowerCase(); st = (st === 'done' || st === 'closed' || st === 'complete' || st === 'completed') ? 'done' : 'open';
-    const t = { id: newTaskId(), title: title, notes: _impStr(r.notes, 2000), assignee: (req.user && req.user.username) || '', assigneeName: (req.user && req.user.name) || '', due: due, reminder: due, priority: pri, status: st, linkType: person ? 'contact' : '', linkId: person ? person.id : '', linkLabel: person ? (person.name || '') : '', createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', createdAt: now, updatedAt: now, importBatch: _batch, importBatchAt: now };
-    if (person) linked++;
+    const linkP = person || nc;
+    const t = { id: newTaskId(), title: title, notes: _impStr(r.notes, 2000), assignee: (req.user && req.user.username) || '', assigneeName: (req.user && req.user.name) || '', due: due, reminder: due, priority: pri, status: st, linkType: 'contact', linkId: linkP.id, linkLabel: linkP.name || '', createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', createdAt: now, updatedAt: now, importBatch: _batch, importBatchAt: now };
+    if (person) linked++; else noContact++;
     tasks.push(t); created++;
   });
   saveTasks(tasks);
-  logSysEvent(req, 'Import', 'Imported ' + created + ' task' + (created === 1 ? '' : 's') + ' (' + linked + ' linked to a contact) — batch #' + _batch, { tool: 'import', kind: 'tasks', batch: _batch, created: created, count: created });
-  res.json({ ok: true, created, linked, notitle, total: rows.length, batch: _batch });
+  logSysEvent(req, 'Import', 'Imported ' + created + ' task' + (created === 1 ? '' : 's') + ' (' + linked + ' linked to a contact, ' + noContact + ' parked on No Contact) — batch #' + _batch, { tool: 'import', kind: 'tasks', batch: _batch, created: created, count: created });
+  res.json({ ok: true, created, linked, noContact, notitle, total: rows.length, batch: _batch });
   } catch (e) { console.error('import tasks:', e && e.message); res.status(500).json({ ok: false, error: 'Import failed: ' + ((e && e.message) || 'server error') }); }
 });
 
@@ -7777,7 +7779,8 @@ app.post('/api/tasks', express.json(), (req, res) => {
 });
 app.get('/api/tasks/unlinked', (req, res) => {
   const batch = parseInt(req.query.batch, 10);
-  let list = loadTasks().filter(t => taskVisible(t, req) && (t.linkType !== 'contact' || !t.linkId));
+  const _nc = noContactPerson();
+  let list = loadTasks().filter(t => taskVisible(t, req) && (t.linkType !== 'contact' || !t.linkId || t.linkId === _nc.id));
   if (batch > 0) list = list.filter(t => t.importBatch === batch);
   list.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
   const contacts = loadPeople().filter(p => !p.system).map(p => ({ id: p.id, name: p.name, company: p.company || '', email: (typeof preferredEmailOf === 'function' ? (preferredEmailOf(p) || '') : (p.email || '')) })).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
