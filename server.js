@@ -782,7 +782,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos') return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply') return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -6971,6 +6971,49 @@ app.post('/api/admin/logo-ai-domains', requireAdmin, express.json(), async (req,
   const byIdx = {}; dom.forEach(x => { if (isFinite(x.i)) byIdx[x.i] = x.domain; });
   const results = resolved.map((r, i) => { const d = byIdx[i] || ''; const w = d ? ('https://' + d) : ''; return { id: r.id, name: r.name, domain: d, website: w, proposed: d ? faviconHiRes(w) : '', apple: d ? appleTouchIcon(w) : '', clearbit: d ? clearbitLogo(w) : '', favicon: d ? logoFromWebsite(w) : '' }; }).filter(x => x.domain);
   res.json({ ok: true, results });
+});
+
+
+// ===== Email-domain -> company matcher (keyed on domain, never on name) =====
+const _GENERIC_EMAIL_DOMAINS = new Set(['gmail.com','googlemail.com','yahoo.com','ymail.com','rocketmail.com','hotmail.com','hotmail.co.uk','outlook.com','live.com','msn.com','aol.com','icloud.com','me.com','mac.com','comcast.net','sbcglobal.net','att.net','verizon.net','bellsouth.net','cox.net','charter.net','earthlink.net','frontier.com','windstream.net','protonmail.com','proton.me','gmx.com','gmx.us','mail.com','zoho.com','yandex.com','aim.com','fastmail.com','hey.com','pm.me']);
+function emailDomain(e){ const m = String(e || '').toLowerCase().trim().match(/@([^@\s]+)$/); return m ? m[1].replace(/^www\./, '') : ''; }
+function isGenericEmailDomain(d){ return _GENERIC_EMAIL_DOMAINS.has(String(d || '').toLowerCase()); }
+function companyDomainIndex(companies){
+  const idx = {};
+  companies.forEach(c => {
+    const doms = [];
+    const w = (c.office && c.office.website) || ''; if (w) doms.push(domainOf(w));
+    (c.concepts || []).forEach(cp => { if (cp.website) doms.push(domainOf(cp.website)); });
+    doms.forEach(d => { if (d && !isGenericEmailDomain(d) && !idx[d]) idx[d] = c; });
+  });
+  return idx;
+}
+app.get('/api/admin/emaildomain-scan', requireAdmin, (req, res) => {
+  const companies = loadCompanies(), people = loadPeople();
+  const idx = companyDomainIndex(companies);
+  const out = [];
+  people.forEach(p => {
+    const emails = personEmails(p); let matched = null, dom = '';
+    for (const e of emails) { const d = emailDomain(e); if (d && !isGenericEmailDomain(d) && idx[d]) { matched = idx[d]; dom = d; break; } }
+    if (!matched) return;
+    const cur = p.companyId || '';
+    if (cur === matched.id) return;
+    out.push({ personId: p.id, name: p.name || '', email: (emails.find(e => emailDomain(e) === dom) || ''), domain: dom, currentCompany: p.company || '', currentCompanyId: cur, proposedCompany: matched.name || '', proposedCompanyId: matched.id, kind: cur ? 'relink' : 'link' });
+  });
+  const links = out.filter(x => x.kind === 'link').length;
+  res.json({ ok: true, matches: out, total: out.length, links: links, relinks: out.length - links, companiesWithDomain: Object.keys(idx).length });
+});
+app.post('/api/admin/emaildomain-apply', requireAdmin, express.json({ limit: '3mb' }), (req, res) => {
+  const items = Array.isArray((req.body || {}).items) ? req.body.items : [];
+  const people = loadPeople(), companies = loadCompanies(); const now = new Date().toISOString(); let applied = 0;
+  const coById = {}; companies.forEach(c => coById[c.id] = c);
+  const pById = {}; people.forEach(p => pById[p.id] = p);
+  items.forEach(it => {
+    const p = pById[it.personId]; const c = coById[it.companyId]; if (!p || !c) return;
+    p.companyId = c.id; p.company = c.name || ''; p.updatedAt = now; applied++;
+  });
+  savePeople(people);
+  res.json({ ok: true, applied });
 });
 
 // ===== Duplicate finder (fuzzy) — companies & contacts =====

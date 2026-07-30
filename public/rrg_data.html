@@ -69,6 +69,7 @@ function render(S){
   tools.push('<div class="tool"><div class="ic">◐</div><h3>Find Logos</h3><p>Auto-pull a brand logo for every company with a website. Review the grid, approve the good ones, apply.</p><div class="stat2'+(S.missingLogo>0?'':' clean')+'">'+lStat+'</div><div class="foot"><a class="go" href="rrg_logos.html">Open →</a></div></div>');
   // Find Duplicates
   tools.push('<div class="tool"><div class="ic">⧉</div><h3>Find Duplicates</h3><p>Fuzzy-match companies and contacts by name, website domain and phone. Approve each merge — every linked record moves to the keeper.</p><div class="stat2">Scan '+n(S.companies)+' companies &amp; '+n(S.contacts)+' contacts</div><div class="foot"><a class="go" href="rrg_duplicates.html">Open →</a></div></div>');
+  tools.push('<div class="tool"><div class="ic">✉</div><h3>Match by Email Domain</h3><p>Link contacts to the right company by their email domain — reliable, never name-based. Personal domains (gmail, yahoo…) are ignored.</p><div class="stat2">Connect '+n(S.contacts)+' contacts to companies</div><div class="foot"><a class="go" href="rrg_emailmatch.html">Open →</a></div></div>');
   // Import
   tools.push('<div class="tool"><div class="ic">⤓</div><h3>Import Data</h3><p>Bring companies and contacts in from Copper, HubSpot, Salesforce, Pipedrive — or any CSV / Excel. Auto-maps columns, dedupes, links people to companies.</p><div class="stat2">Add more records anytime</div><div class="foot"><a class="go" href="rrg_import.html">Open →</a></div></div>');
   // Concept Intelligence (soon)
