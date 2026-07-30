@@ -49,7 +49,7 @@ function load(){
   fetch('/api/feed'+(SCOPE==='mine'?'?scope=mine':''),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   if(j&&j.canScope){ document.querySelectorAll('#scoperow [data-scope]').forEach(function(b){ b.style.display=''; }); }
   var el=document.getElementById('feed');
-  var items=((j&&j.items)||[]).filter(function(a){ return HIDE_SYSTEM?!a.auto:true; });
+  var items=((j&&j.items)||[]).filter(function(a){ return HIDE_SYSTEM?!a.system:true; });
   if(!items.length){ el.innerHTML='<div class="empty">No activity logged across your contacts yet. Log a call, tour, or note on a contact and it shows up here.</div>'; return; }
   el.innerHTML=items.map(function(a){
     var c=actColor(a.type);
