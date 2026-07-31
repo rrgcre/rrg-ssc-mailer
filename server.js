@@ -2109,10 +2109,14 @@ app.get('/api/feed', (req, res) => {
   try { loadSysEvents().forEach(function(e){ items.push({ type: e.type || 'System', note: e.note || '', at: e.at || e.at || '', by: e.by || '', byUser: e.byUser || '', auto: true, system: true, personId: '', personName: '', company: '' }); }); } catch(e){}
   const canScope = !restrictToOwn(req);
   const mine = req.query.scope === 'mine';
+  const wantUser = canScope ? String(req.query.user || '').trim() : '';
+  const _umap = {}; items.forEach(it => { if (it.byUser) { _umap[it.byUser] = it.by || it.byUser; } });
+  const users = Object.keys(_umap).map(u => ({ username: u, name: _umap[u] })).sort((a, b) => String(a.name).localeCompare(String(b.name)));
   let out = items;
-  if (mine) { const u = req.user || {}; out = items.filter(it => (it.byUser && it.byUser === u.username) || (it.by && it.by === u.name)); }
+  if (wantUser) { out = items.filter(it => it.byUser && it.byUser === wantUser); }
+  else if (mine) { const u = req.user || {}; out = items.filter(it => (it.byUser && it.byUser === u.username) || (it.by && it.by === u.name)); }
   out.sort((x, y) => String(y.at).localeCompare(String(x.at)));
-  res.json({ ok: true, items: out.slice(0, 200), scope: mine ? 'mine' : 'all', canScope: canScope });
+  res.json({ ok: true, items: out.slice(0, 200), scope: wantUser ? 'user' : (mine ? 'mine' : 'all'), user: wantUser, users: users, canScope: canScope });
 });
 app.get('/api/admin/palette', requireAdmin, (req, res) => res.json({ ok: true, palette: effPalette(), defaults: PALETTE_DEFAULT }));
 app.post('/api/admin/palette', requireAdmin, express.json(), (req, res) => {
