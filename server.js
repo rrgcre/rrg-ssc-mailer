@@ -1111,10 +1111,21 @@ function isEmailConfigured() { const c = loadEmailConfig(); return !!(c.enabled 
 function mailFrom() { return loadEmailConfig().from; }
 function newOpenToken() { return 'eo_' + crypto.randomBytes(16).toString('base64url'); }
 function _escHtmlBody(x) { return String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
-function trackedEmailHtml(body, origin, token) {
+function trackedEmailHtml(body, origin, token, sigHtml) {
   const htmlBody = _escHtmlBody(body).split('\n').join('<br>');
   const pixel = (origin && token) ? ('<img src="' + origin + '/eo/' + token + '" width="1" height="1" alt="" style="display:block;max-height:1px;max-width:1px;overflow:hidden;opacity:0">') : '';
-  return '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;font-size:14px;line-height:1.5;color:#1a2236">' + htmlBody + '</div>' + pixel;
+  return '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;font-size:14px;line-height:1.5;color:#1a2236">' + htmlBody + (sigHtml || '') + '</div>' + pixel;
+}
+// Per-user email signature (HTML with optional embedded logo) appended to messages the user sends.
+function userSignatureHtml(username) {
+  try { const s = auth.getSignature(username); if (!s || !String(s).trim()) return '';
+    return '<div style="margin-top:22px;padding-top:14px;border-top:1px solid #e6e9f0;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;font-size:13px;line-height:1.5;color:#1a2236">' + s + '</div>';
+  } catch (e) { return ''; }
+}
+function userSignatureText(username) {
+  try { const s = auth.getSignature(username); if (!s) return '';
+    return String(s).replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|tr)>/gi, '\n').replace(/<img[^>]*>/gi, '').replace(/<[^>]+>/g, '').replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>').replace(/\n{3,}/g, '\n\n').trim();
+  } catch (e) { return ''; }
 }
 const _OPEN_GIF = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64');
 function buildTransport() {
@@ -1973,6 +1984,14 @@ app.get('/api/me/links', (req, res) => {
 });
 app.post('/api/me/links', express.json({ limit: '256kb' }), (req, res) => {
   try { const saved = auth.setUserLinks(req.user.username, (req.body || {}).links || []); res.json({ ok: true, links: saved }); }
+  catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.get('/api/me/signature', (req, res) => {
+  try { res.json({ ok: true, signature: auth.getSignature(req.user.username) }); }
+  catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/me/signature', express.json({ limit: '2mb' }), (req, res) => {
+  try { const sig = auth.setSignature(req.user.username, (req.body || {}).signature || ''); res.json({ ok: true, signature: sig }); }
   catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
@@ -4174,7 +4193,9 @@ app.post('/api/person/:id/email', express.json({ limit: '256kb' }), async (req, 
   if (!subject.trim() && !body.trim()) return res.status(400).json({ ok: false, error: 'Add a subject or a message.' });
   try {
     const _origin = reqOrigin(req); const _tok = newOpenToken();
-    const info = await sendMailWL({ from: mailFrom(), to, subject: subject || '(no subject)', text: body, html: trackedEmailHtml(body, _origin, _tok) });
+    const _sigHtml = userSignatureHtml(req.user && req.user.username); const _sigTxt = userSignatureText(req.user && req.user.username);
+    const _textOut = body + (_sigTxt ? ('\n\n' + _sigTxt) : '');
+    const info = await sendMailWL({ from: mailFrom(), to, subject: subject || '(no subject)', text: _textOut, html: trackedEmailHtml(body, _origin, _tok, _sigHtml) });
     const now = new Date().toISOString();
     p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
     const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', messageId: (info && info.messageId) || '', openToken: _tok, opens: 0, senderIp: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() };
@@ -8156,7 +8177,9 @@ app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   if (!a.signToken) a.signToken = newSignToken();
   const signUrl = reqOrigin(req) + '/sign/' + a.signToken;
   const subject = String(b.subject || (label + ' for your signature')).slice(0, 300);
-  const message = String(b.message || ('Please review and sign your ' + label + ' online here:\n' + signUrl + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
+  const _note = String(b.message || '').trim();
+  const _linkBlock = 'Review and sign your ' + label + ' online here:\n' + signUrl;
+  const message = ((_note && _note.indexOf('/sign/') !== -1) ? _note : ((_note ? _note + '\n\n' : '') + _linkBlock + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
   // The signing page now shows an inline preview of the document, so the email is a clean link only (no heavy attachment).
   try { await sendMailWL({ from: mailFrom(), to, subject, text: message }); }
   catch (e) { console.error('agreement send:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
@@ -8496,7 +8519,9 @@ app.post('/api/agreements/:id/send-adv', express.json(), async (req, res) => {
   a.signStatus = a.signers.some(s => s.status === 'signed') ? 'partial' : 'sent'; a.sentAt = now; a.updatedAt = now; saveAgreements(all);
   const label = agreementTypeLabel(a.type); const signUrl = reqOrigin(req) + '/sign/' + next.token;
   const subject = String((req.body || {}).subject || (label + ' for your signature')).slice(0, 300);
-  const message = String((req.body || {}).message || ('Please review and sign your ' + label + ' online here:\n' + signUrl + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
+  const _noteA = String((req.body || {}).message || '').trim();
+  const _linkBlockA = 'Review and sign your ' + label + ' online here:\n' + signUrl;
+  const message = ((_noteA && _noteA.indexOf('/sign/') !== -1) ? _noteA : ((_noteA ? _noteA + '\n\n' : '') + _linkBlockA + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
   try { await sendMailWL({ from: mailFrom(), to: next.email, subject, text: message }); }
   catch (e) { console.error('send-adv:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + (next.label || '') + ' ' + next.email, { auto: true }); savePeople(ppl); } } catch (e) {} }

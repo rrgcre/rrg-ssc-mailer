@@ -40,6 +40,14 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
 .lkrow input.f{flex:1;} .lkrow input.lkname{flex:0 0 34%;}
 .lkrow .rm{flex:0 0 auto;background:#fbeceb;color:var(--red);border:1px solid #f0c9c6;border-radius:8px;width:34px;height:38px;font-size:17px;line-height:1;cursor:pointer;}
 .addlink{margin-top:12px;background:#eef1f7;color:var(--navy);border:1px solid var(--line);border-radius:9px;padding:9px 15px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.sigbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;}
+.sigb{border:1px solid #e6e9f0;background:#f5f7fb;border-radius:8px;padding:6px 11px;font:inherit;font-size:12.5px;font-weight:700;color:#33415c;cursor:pointer;}
+.sigb:hover{background:#eaeef6;}
+.sigbox{min-height:120px;border:1px solid #cfd6e2;border-radius:10px;padding:12px 14px;font-size:14px;line-height:1.5;color:#1a2236;background:#fff;overflow:auto;}
+.sigbox:focus{outline:none;border-color:#7f8db0;box-shadow:0 0 0 3px rgba(0,14,49,.08);}
+.sigbox:empty:before{content:attr(data-ph);color:#9aa3b5;}
+.sigbox img{max-width:240px;max-height:100px;height:auto;}
+.sighint{font-size:11px;color:#9aa3b5;margin-top:5px;text-align:right;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -67,6 +75,21 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
     <input class="f" id="email" autocomplete="email" placeholder="e.g. you@rrgcre.com">
     <div class="prev"><div class="pl">Appears on BOVs / CIMs as</div><div class="pv" id="prev">—</div></div>
     <div><button class="save" id="saveProfile" onclick="saveProfile()">Save contact info</button><span class="msg" id="pmsg"></span></div>
+  </div>
+
+  <div class="card">
+    <h2>Email signature</h2>
+    <p class="desc">Appended to the bottom of every email you send from a contact’s page. Type your sign-off and drop your logo right into the same box.</p>
+    <div class="sigbar">
+      <button type="button" class="sigb" onmousedown="return false" onclick="sigCmd('bold')" title="Bold"><b>B</b></button>
+      <button type="button" class="sigb" onmousedown="return false" onclick="sigCmd('italic')" title="Italic"><i>I</i></button>
+      <button type="button" class="sigb" onclick="document.getElementById('sigLogo').click()">🖼 Insert logo</button>
+      <button type="button" class="sigb" onclick="sigClear()">Clear</button>
+      <input type="file" id="sigLogo" accept="image/*" hidden onchange="sigInsertLogo(this)">
+    </div>
+    <div class="sigbox" id="sigBox" contenteditable="true" data-ph="Best regards, Your Name — Your Brokerage"></div>
+    <div class="sighint" id="sigHint"></div>
+    <div style="margin-top:12px"><button class="save" id="saveSig" onclick="saveSig()">Save signature</button><span class="msg" id="sigmsg"></span></div>
   </div>
 
   <div class="card">
@@ -157,6 +180,31 @@ function saveLinks(){
     .catch(function(){ b.disabled=false; setMsg('lkmsg','err','Could not reach the server.'); });
 }
 loadLinks();
+
+/* ---- Email signature ---- */
+function sigCmd(c){ document.execCommand(c,false,null); $('sigBox').focus(); }
+function sigClear(){ $('sigBox').innerHTML=''; sigSize(); $('sigBox').focus(); }
+function sigInsertLogo(inp){
+  var f=inp.files&&inp.files[0]; inp.value=''; if(!f) return;
+  if(!/^image\//.test(f.type||'')){ setMsg('sigmsg','err','Pick an image file for the logo.'); return; }
+  if(f.size>800*1024){ setMsg('sigmsg','err','That logo is '+Math.round(f.size/1024)+'KB — please use one under 800KB.'); return; }
+  var rd=new FileReader();
+  rd.onload=function(){ $('sigBox').focus(); document.execCommand('insertHTML',false,'<img src="'+rd.result+'" alt="logo"><br>'); sigSize(); };
+  rd.readAsDataURL(f);
+}
+function sigSize(){ var n=($('sigBox').innerHTML||'').length; $('sigHint').textContent=n>1200?(Math.round(n/1024)+' KB'):''; }
+function loadSig(){ fetch(API+'/api/me/signature').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ $('sigBox').innerHTML=j.signature||''; sigSize(); } }).catch(function(){}); }
+function saveSig(){
+  var html=$('sigBox').innerHTML;
+  if(html==='<br>'||html==='<div><br></div>') html='';
+  if(html.length>1400000){ setMsg('sigmsg','err','Signature is too large — use a smaller logo.'); return; }
+  var b=$('saveSig'); b.disabled=true; setMsg('sigmsg','','Saving…');
+  fetch(API+'/api/me/signature',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({signature:html})})
+    .then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok) setMsg('sigmsg','ok','Saved ✓'); else setMsg('sigmsg','err',(j&&j.error)||'Could not save.'); })
+    .catch(function(){ b.disabled=false; setMsg('sigmsg','err','Could not reach the server.'); });
+}
+$('sigBox').addEventListener('input',sigSize);
+loadSig();
 
 function saveProfile(){
   var b=$('saveProfile'); b.disabled=true; setMsg('pmsg','','Saving…');
