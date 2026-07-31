@@ -54,7 +54,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
   <span class="sp"></span>
   <span class="msg" id="msg"></span>
   <button class="back" onclick="location.href='/rrg_agreement_templates.html'">← Templates</button>
-  <button class="save" id="saveBtn">Save &amp; close</button>
+  <label class="back" id="repdfLabel" style="cursor:pointer" title="Upload a corrected PDF and keep every placed field exactly where it is">⤴ Replace PDF<input type="file" id="repdfFile" accept="application/pdf,.pdf" hidden></label><button class="save" id="saveBtn">Save &amp; close</button>
 </div>
 <div class="body">
   <div class="palette">
@@ -271,6 +271,7 @@ function boot(){
     renderPages();
   }).catch(function(){ document.getElementById('stage').innerHTML='<div class="loading">Could not reach the server.</div>'; });
 }
+(function(){ var fi=document.getElementById('repdfFile'); if(!fi) return; fi.addEventListener('change',function(){ var f=fi.files&&fi.files[0]; if(!f) return; if(f.type!=='application/pdf' && !/\.pdf$/i.test(f.name)){ var m0=document.getElementById('msg'); if(m0) m0.textContent='Please choose a PDF file.'; fi.value=''; return; } var msg=document.getElementById('msg'); if(msg) msg.textContent='Uploading new PDF\u2026'; var lbl=document.getElementById('repdfLabel'); if(lbl) lbl.style.opacity='.5'; var rd=new FileReader(); rd.onload=function(){ fetch('/api/admin/agreement-templates/'+encodeURIComponent(TID)+'/file',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:String(rd.result||'')})}).then(function(r){return r.json();}).then(function(j){ if(lbl) lbl.style.opacity=''; if(j&&j.ok){ if(TPL) TPL.fileExt='pdf'; if(msg) msg.textContent='PDF replaced \u2014 '+FIELDS.length+' field'+(FIELDS.length===1?'':'s')+' kept in place.'; renderPages(); } else { if(msg) msg.textContent=(j&&j.error)||'Could not replace the PDF.'; } fi.value=''; }).catch(function(){ if(lbl) lbl.style.opacity=''; if(msg) msg.textContent='Could not reach the server.'; fi.value=''; }); }; rd.readAsDataURL(f); }); })();
 boot();
 </script>
 </body>
