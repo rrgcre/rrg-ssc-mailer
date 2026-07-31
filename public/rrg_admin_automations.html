@@ -152,8 +152,8 @@ function renderEditor(){
   initSteps(); var p=EDIT;
   host.innerHTML='<div class="card"><div class="ch"><b>'+(p.id?'Edit automation':'New automation')+'</b><span class="sp"><span class="msg" id="msg"></span>'+(p.id?'<button class="btn dng sm" id="delBtn">Delete</button>':'')+'<button class="btn ghost sm" id="closeBtn">Close</button><button class="btn red" id="saveBtn">Save</button></span></div><div class="body">'
     +'<div class="fld" style="margin-bottom:14px"><label>Automation name</label><input type="text" id="pName" value="'+esc(p.name||'')+'" placeholder="e.g. BizBuySell buyer nurture" style="max-width:460px"></div>'
-    +'<label class="chk"><input type="checkbox" id="pBbs"'+(p.bbsDefault?' checked':'')+'> Make this the <b style="margin:0 4px">BizBuySell default</b> — every imported BBS lead auto-enrolls</label>'
-    +'<label class="chk"><input type="checkbox" id="pExec"'+(p.execDefault?' checked':'')+'> Make this the post-execution automation (runs when any agreement linked to an assignment is fully executed)</label>'+'<label class="chk"><input type="checkbox" id="pActive"'+((p.active===false)?'':' checked')+'> Active (reps can apply it; the default runs)</label>'
+    
+    +'<label class="chk"><input type="checkbox" id="pActive"'+((p.active===false)?'':' checked')+'> Active (reps can apply it; the default runs)</label>'
     +'<div class="fld" style="margin:6px 0 4px"><label>Visibility</label><select id="pScope" style="max-width:340px"><option value="shared"'+((p.scope!=='private')?' selected':'')+'>Shared — everyone on the team can use it</option><option value="private"'+((p.scope==='private')?' selected':'')+'>Private — only you (and admins)</option></select></div>'
     +'<div class="stephd"><b>Steps</b></div><div class="note" style="margin:2px 0 8px">Click a token to drop it into the field you last clicked:</div>'+tokBar()
     +'<div id="stepBox"></div>'
@@ -188,7 +188,7 @@ function save(){
   collectSteps();
   var steps=STEPS.filter(function(s){ if(s.type==='logactivity'||s.type==='assignment') return true; return s.type==='task'?(s.taskTitle||'').trim():((s.subject||'').trim()||(s.body||'').trim()); });
   if(!steps.length){ msg('Add at least one step.','err'); return; }
-  var _sc=document.getElementById('pScope'); var body={ name:name, active:document.getElementById('pActive').checked, bbsDefault:document.getElementById('pBbs').checked, execDefault:((document.getElementById('pExec')||{}).checked||false), scope:(_sc?_sc.value:'shared'), steps:steps };
+  var _sc=document.getElementById('pScope'); var body={ name:name, active:document.getElementById('pActive').checked, bbsDefault:((document.getElementById('pBbs')||{}).checked||false), execDefault:((document.getElementById('pExec')||{}).checked||false), scope:(_sc?_sc.value:'shared'), steps:steps };
   if(EDIT&&EDIT.id) body.id=EDIT.id;
   var btn=document.getElementById('saveBtn'); btn.disabled=true;
   api('POST','/api/admin/automations',body).then(function(j){ btn.disabled=false; if(!j.ok){ msg(j.error||'Save failed.','err'); return; } PLANS=j.automations||PLANS; EDIT=j.automation||EDIT; load(); msg('Saved','ok'); });
