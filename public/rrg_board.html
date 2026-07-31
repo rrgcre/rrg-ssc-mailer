@@ -56,8 +56,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .showmore{margin-top:2px;font:inherit;font-size:12px;font-weight:700;color:var(--navy);background:#e7ebf4;border:none;border-radius:8px;padding:7px;cursor:pointer;} .showmore:hover{background:#dde3ef;}
 .colempty{color:#a7b0c0;font-size:12px;text-align:center;padding:14px 6px;}
 .gate{max-width:520px;margin:70px auto;text-align:center;color:var(--muted);}
+.vtog{display:inline-flex;border:1px solid #cfd6e2;border-radius:8px;overflow:hidden;margin-right:2px;}
+.vbtn{background:#fff;border:none;padding:7px 12px;font:inherit;font-size:12.5px;font-weight:700;color:#6b7488;cursor:pointer;}
+.vbtn.on{background:var(--navy,#000E31);color:#fff;}
+.listwrap{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin:0 20px;}
+.lstage{display:inline-block;font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;background:#eef2fb;color:#2647b0;}
 </style>
 <script src="/rrg_brand.js"></script>
+<script src="/rrg_list.js"></script>
 </head>
 <body>
 <div class="top">
@@ -70,6 +76,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <div id="root"><div class="gate">Loading…</div></div>
 <script>
 var DATA=null, PID='', DRAGKEY='';
+var VIEW=(function(){ try{ return localStorage.getItem('rrg_board_view')||'board'; }catch(e){ return 'board'; } })(), LTBL=null;
 var TB={ q:'', owner:'', market:'', status:'', min:'', max:'', sort:'act_desc', per:25 };
 var FILTER_OPEN=false, SAVE_OPEN=false, EXPANDED={};
 var SORTS=[['act_desc','Newest activity'],['act_asc','Oldest activity'],['val_desc','Value: high → low'],['val_asc','Value: low → high'],['name_asc','Name: A → Z'],['created_desc','Newest listing']];
@@ -121,6 +128,7 @@ function renderToolbar(){
   var vc=activeFilterCount();
   var perLabel=function(p){ return p===0?'All':String(p); };
   var html='<div class="tb">'
+    +'<div class="vtog"><button class="vbtn'+(VIEW==='board'?' on':'')+'" data-view="board">\u25a4 Board</button><button class="vbtn'+(VIEW==='list'?' on':'')+'" data-view="list">\u2630 List</button></div>'
     +'<div class="search"><span class="mag">⌕</span><input id="tb_q" placeholder="Search deals…" value="'+esc(TB.q)+'"></div>'
     +'<button class="tbtn'+(FILTER_OPEN?' on':'')+'" id="tb_filter">☰ Filters'+(vc?(' <span class="pip">'+vc+'</span>'):'')+'</button>'
     +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_saved">★ Saved views ▾</button><div id="savemenu"></div></div>'
@@ -135,6 +143,7 @@ function renderToolbar(){
   document.getElementById('tb_sort').addEventListener('change',function(){ TB.sort=this.value; saveTB(); render(); });
   document.getElementById('tb_per').addEventListener('change',function(){ TB.per=Number(this.value); saveTB(); EXPANDED={}; render(); });
   document.getElementById('tb_saved').addEventListener('click',function(e){ e.stopPropagation(); SAVE_OPEN=!SAVE_OPEN; renderSaveMenu(); });
+  document.querySelectorAll('.vbtn[data-view]').forEach(function(b){ b.addEventListener('click',function(){ VIEW=b.getAttribute('data-view'); try{localStorage.setItem('rrg_board_view',VIEW);}catch(e){} renderToolbar(); render(); }); });
 }
 function renderFilterPanel(){
   var host=document.getElementById('filterpanel');
@@ -166,6 +175,26 @@ function renderSaveMenu(){
 function applyView(name){ var v=savedViews()[name]; if(!v) return; TB=Object.assign(TB,{q:v.q||'',owner:v.owner||'',market:v.market||'',status:v.status||'',min:v.min||'',max:v.max||'',sort:v.sort||'act_desc'}); saveTB(); SAVE_OPEN=false; FILTER_OPEN=true; EXPANDED={}; renderToolbar(); render(); }
 document.addEventListener('click',function(e){ if(SAVE_OPEN){ var m=document.getElementById('savemenu'); var b=document.getElementById('tb_saved'); if(m && !m.contains(e.target) && e.target!==b){ SAVE_OPEN=false; renderSaveMenu(); } } });
 var _rt=null; function debouncedRender(){ if(_rt) clearTimeout(_rt); _rt=setTimeout(render,140); }
+function renderList(cards){
+  var root=document.getElementById('root');
+  if(!document.getElementById('boardlist')){ root.innerHTML='<div class="listwrap"><div id="boardlist"></div></div>'; LTBL=null; }
+  var cfg={ mount:'#boardlist', data:cards, key:'boardlist', rowId:function(c){return c.key;},
+    empty:'<div style="padding:26px;text-align:center;color:#8a94a6">No deals match your filters.</div>',
+    columns:[
+      { label:'Deal', sort:function(a,b){return RRGList.cmp(a.business,b.business);}, cell:function(c){ return '<a href="./rrg_assignment.html?key='+encodeURIComponent(c.key)+'" style="color:var(--navy,#000E31);font-weight:700;text-decoration:none">'+esc(c.business||'Listing')+'</a>'; } },
+      { label:'Stage', sort:function(a,b){return RRGList.cmp(a.stage,b.stage);}, cell:function(c){ return '<span class="lstage">'+esc(c.stage||'—')+'</span>'; } },
+      { label:'Contact', sort:function(a,b){return RRGList.cmp(a.contact,b.contact);}, cell:function(c){ return c.contact?esc(c.contact):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Market', sort:function(a,b){return RRGList.cmp(a.market,b.market);}, cell:function(c){ return c.market?esc(c.market):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Value', sort:function(a,b){return money(a.value)-money(b.value);}, cell:function(c){ return c.value?esc(String(c.value)):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Status', sort:function(a,b){return RRGList.cmp(a.status,b.status);}, cell:function(c){ return c.status?('<span class="lstage" style="background:#eef1f6;color:#5b6472">'+esc(c.status)+'</span>'):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'BBS #', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.bbsNumber,b.bbsNumber);}, cell:function(c){ return c.bbsNumber?esc(c.bbsNumber):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Owner', sort:function(a,b){return RRGList.cmp(a.owner,b.owner);}, cell:function(c){ return c.owner?esc(c.owner):'<span style="color:#b0b8c6">—</span>'; } },
+      { label:'Last activity', sort:function(a,b){return RRGList.cmp(a.lastActivity||'',b.lastActivity||'');}, cell:function(c){ return c.lastActivity?esc(fmtDate(c.lastActivity)):'<span style="color:#b0b8c6">—</span>'; } }
+    ]
+  };
+  if(LTBL) LTBL.refresh(cards); else LTBL=RRGList.create(cfg);
+}
+
 function render(){
   if(!DATA){ return; }
   var stages=DATA.stages||[]; var all=(DATA.cards||[]);
