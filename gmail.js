@@ -57,8 +57,10 @@ function deleteToken(username) { try { fs.unlinkSync(tokFile(username)); } catch
 
 function statusFor(username) {
   const t = loadToken(username);
-  return { configured: isConfigured(), connected: !!(t && t.refresh_token), email: (t && t.email) || '' };
+  const sc = (t && t.scope) || '';
+  return { configured: isConfigured(), connected: !!(t && t.refresh_token), email: (t && t.email) || '', hasContacts: /auth\/contacts/.test(sc), hasCalendar: /auth\/calendar/.test(sc), scope: sc };
 }
+function grantedScopes(username) { const t = loadToken(username); return (t && t.scope) || ''; }
 
 // --- OAuth URLs ---
 function redirectUri(req) {
@@ -388,7 +390,7 @@ async function gapiJSON(username, url, opts) {
   return j;
 }
 module.exports = {
-  isConfigured, SCOPES, statusFor, redirectUri, authUrl, readState,
+  isConfigured, SCOPES, statusFor, grantedScopes, redirectUri, authUrl, readState,
   connectFromCode, deleteToken, loadToken, statusForUser: statusFor,
   messagesForContact, messageFull, searchLeadBodies, listCorrespondents, sendMessage, TOK_DIR,
   gapi, gapiJSON, accessToken, parseAddrs, listAgreementCandidates, getAttachment,

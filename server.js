@@ -4266,7 +4266,7 @@ app.post('/api/gmail/contacts/import', express.json({ limit: '3mb' }), (req, res
 
 // ===== Google two-way sync — Contacts (People API) + Calendar (Calendar API) =====
 const GSYNC_TZ = 'America/Chicago';
-function _gErr(e) { const m = (e && e.message) || 'Sync failed.'; if (e && (e.status === 403 || e.status === 401 || /insufficient|scope|permission|forbidden/i.test(m))) return 'Google has not granted Contacts/Calendar access yet — reconnect your Google account (Account → Gmail → Connect) to approve the new permissions, then try again.'; return m; }
+function _gErr(e) { const m = (e && e.message) || 'Sync failed.'; if (/api has not been used|accessNotConfigured|is disabled|enable it by visiting|SERVICE_DISABLED|has not been enabled/i.test(m)) return 'The server\u2019s Google project needs the People API (Contacts) and Calendar API enabled. An admin must enable both in Google Cloud Console for this OAuth app, then reconnect.'; if (e && (e.status === 403 || e.status === 401 || /insufficient|scope|permission|forbidden|invalid_grant|unauthorized/i.test(m))) return 'Google hasn\u2019t granted Contacts/Calendar access. Click Reconnect on the Gmail card (Account → Gmail) and approve the Contacts and Calendar permissions on Google\u2019s screen. If it still fails, the server\u2019s Google project needs the People API and Calendar API enabled in Google Cloud Console.'; return m; }
 function _gLocal(dt) { const m = String(dt || '').match(/(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/); if (m) return m[1] + 'T' + m[2]; const d = String(dt || '').match(/^(\d{4}-\d{2}-\d{2})$/); return d ? (d[1] + 'T00:00') : ''; }
 function _gDT(s) { s = String(s || ''); return s.length === 16 ? (s + ':00') : s; }
 async function googleContactsPull(req) {
@@ -4358,11 +4358,11 @@ async function googleCalendarPush(req) {
 app.get('/api/google/sync/status', (req, res) => {
   const u = (req.user && req.user.username) || '';
   const st = gmail.statusFor(u);
-  res.json({ ok: true, configured: st.configured, connected: st.connected, email: st.email || '' });
+  res.json({ ok: true, configured: st.configured, connected: st.connected, email: st.email || '', hasContacts: !!st.hasContacts, hasCalendar: !!st.hasCalendar });
 });
 app.post('/api/google/sync/contacts', express.json(), async (req, res) => {
   const u = (req.user && req.user.username) || '';
-  if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Google account first (Account → Gmail).' });
+  { const _st = gmail.statusFor(u); if (!_st.connected) return res.status(400).json({ ok: false, error: 'Connect your Google account first (Account → Gmail).' }); if (!_st.hasContacts) return res.status(400).json({ ok: false, error: 'Contacts permission was not granted. Click Reconnect on the Gmail card and check the Contacts box on Google\u2019s consent screen. (If it keeps failing, the server\u2019s Google project needs the People API enabled.)' }); }
   const dir = String((req.body && req.body.direction) || 'both');
   try {
     let pull = { created: 0, updated: 0 }, push = { pushed: 0 };
@@ -4374,7 +4374,7 @@ app.post('/api/google/sync/contacts', express.json(), async (req, res) => {
 });
 app.post('/api/google/sync/calendar', express.json(), async (req, res) => {
   const u = (req.user && req.user.username) || '';
-  if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Google account first (Account → Gmail).' });
+  { const _st = gmail.statusFor(u); if (!_st.connected) return res.status(400).json({ ok: false, error: 'Connect your Google account first (Account → Gmail).' }); if (!_st.hasCalendar) return res.status(400).json({ ok: false, error: 'Calendar permission was not granted. Click Reconnect on the Gmail card and check the Calendar box on Google\u2019s consent screen. (If it keeps failing, the server\u2019s Google project needs the Calendar API enabled.)' }); }
   const dir = String((req.body && req.body.direction) || 'both');
   try {
     let pull = { created: 0, updated: 0 }, push = { pushed: 0 };
