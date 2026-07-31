@@ -388,7 +388,7 @@ function render(){
     var li=document.getElementById('c_logo'); if(li) li.addEventListener('input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
     var la=document.getElementById('c_logoauto'); if(la) la.addEventListener('click',function(){ var d=(document.getElementById('o_website').value||'').replace(/^https?:\/\//,'').replace(/^www\./,'').split('/')[0]; document.getElementById('c_logo').value=d?('https://logo.clearbit.com/'+d):''; DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
     var lup=document.getElementById('c_logoup'), lf=document.getElementById('c_logofile');
-    var lprev=document.getElementById('c_logoprev'); if(lprev&&lf){ lprev.addEventListener('click',function(){ var has=(document.getElementById('c_logo').value||'').trim(); if(has){ if(!confirm('Remove this logo?')) return; document.getElementById('c_logo').value=''; C.logo=''; DIRTY=true; document.getElementById('c_save').disabled=false; draw(); } else { lf.click(); } }); }
+    var lprev=document.getElementById('c_logoprev'); if(lprev&&lf){ lprev.addEventListener('click',async function(){ var has=(document.getElementById('c_logo').value||'').trim(); if(has){ if(!await rrgConfirm('Remove this logo?')) return; document.getElementById('c_logo').value=''; C.logo=''; DIRTY=true; document.getElementById('c_save').disabled=false; draw(); } else { lf.click(); } }); }
     if(lf){ lf.addEventListener('change',function(){ var f=lf.files&&lf.files[0]; if(!f) return; if(f.size>6*1024*1024){ alert('Image is over 6 MB — please use a smaller file.'); lf.value=''; return; } var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s); fetch('/api/company/'+encodeURIComponent(ID)+'/logo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:b64})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.logo){ C.logo=j.logo; document.getElementById('c_logo').value=j.logo; draw(); } else { alert((j&&j.error)||'Could not upload the logo.'); } lf.value=''; }).catch(function(){ alert('Could not reach the server.'); lf.value=''; }); }; rd.readAsDataURL(f); }); }
     draw();
   })();
@@ -462,7 +462,7 @@ function openConceptForm(cpt){
   document.getElementById('cp_site').addEventListener('input',function(){ if(isEdit) queueConceptSave(cpt.id); });
   document.getElementById('cp_logo').addEventListener('input',function(){ drawLogoPrev(); if(isEdit) queueConceptSave(cpt.id); });
   drawLogoPrev();
-  var _cpp=document.getElementById('cp_logoprev'); if(_cpp){ _cpp.title='Click to remove the logo'; _cpp.addEventListener('click',function(){ var lg=document.getElementById('cp_logo'); var has=(lg&&lg.value||'').trim(); if(has){ if(!confirm('Remove this logo?')) return; lg.value=''; try{ lg.dataset.auto=''; }catch(e){} drawLogoPrev(); if(isEdit) queueConceptSave(cpt.id); } else { var f2=document.getElementById('cp_logofile'); if(f2) f2.click(); } }); }
+  var _cpp=document.getElementById('cp_logoprev'); if(_cpp){ _cpp.title='Click to remove the logo'; _cpp.addEventListener('click',async function(){ var lg=document.getElementById('cp_logo'); var has=(lg&&lg.value||'').trim(); if(has){ if(!await rrgConfirm('Remove this logo?')) return; lg.value=''; try{ lg.dataset.auto=''; }catch(e){} drawLogoPrev(); if(isEdit) queueConceptSave(cpt.id); } else { var f2=document.getElementById('cp_logofile'); if(f2) f2.click(); } }); }
   var _ul=document.getElementById('cp_uselogo'); if(_ul) _ul.addEventListener('click',function(){ var cl=(C&&(C.logo||''))||LOGOAUTO||''; if(!cl){ var m=document.getElementById('cp_msg'); if(m) m.textContent='Add a company logo first (top of the page).'; return; } var lg=document.getElementById('cp_logo'); lg.value=cl; drawLogoPrev(); if(isEdit) queueConceptSave(cpt.id); });
   if(isEdit){
     document.getElementById('cp_name').addEventListener('input',function(){ queueConceptSave(cpt.id); });
@@ -649,9 +649,9 @@ function saveConcept(id){
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CONCEPTS=j.concepts||CONCEPTS; LOCATIONS=j.locations||LOCATIONS; render(); } else { b.disabled=false;b.textContent='Add concept'; document.getElementById('cp_msg').textContent=(j&&j.error)||'Could not save.'; } })
     .catch(function(){ b.disabled=false;b.textContent='Add concept'; document.getElementById('cp_msg').textContent='Could not reach the server.'; });
 }
-function removeConcept(id){
+async function removeConcept(id){
   var c=conceptById(id); if(!c) return;
-  if(!confirm('Remove the concept “'+c.name+'”? Its locations are kept and shown as Unassigned — you can reassign or delete them.')) return;
+  if(!await rrgConfirm('Remove the concept “'+c.name+'”? Its locations are kept and shown as Unassigned — you can reassign or delete them.')) return;
   fetch('/api/company/'+encodeURIComponent(ID)+'/concept/'+encodeURIComponent(id)+'/remove',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CONCEPTS=j.concepts||[]; LOCATIONS=j.locations||LOCATIONS; render(); } else alert((j&&j.error)||'Could not remove.'); })
     .catch(function(){ alert('Could not reach the server.'); });
@@ -852,7 +852,7 @@ function saveContact(){
   var body={ firstName:first, lastName:last, type:type, title:document.getElementById('ct_title').value.trim(), nickname:document.getElementById('ct_nick').value.trim(), leadSource:document.getElementById('ct_lead').value.trim(), tags:tags, prefContact:pref, emails:collectMulti(f,'ct_email'), phones:collectMulti(f,'ct_phone') };
   var b=document.getElementById('ct_save'); b.disabled=true; b.textContent='Saving…';
   fetch('/api/company/'+encodeURIComponent(ID)+'/contact',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CONTACTS=j.contacts||[]; render(); } else if(j&&j.existingId){ b.disabled=false;b.textContent='Save'; if(confirm((j.error||'That email already exists.')+'\n\nOpen that contact?')) location.href='./rrg_person.html?id='+encodeURIComponent(j.existingId); } else { b.disabled=false;b.textContent='Save'; msg.textContent=(j&&j.error)||'Could not add the contact.'; } })
+    .then(async function(r){return r.json();}).then(async function(j){ if(j&&j.ok){ CONTACTS=j.contacts||[]; render(); } else if(j&&j.existingId){ b.disabled=false;b.textContent='Save'; if(await rrgConfirm((j.error||'That email already exists.')+'\n\nOpen that contact?')) location.href='./rrg_person.html?id='+encodeURIComponent(j.existingId); } else { b.disabled=false;b.textContent='Save'; msg.textContent=(j&&j.error)||'Could not add the contact.'; } })
     .catch(function(){ b.disabled=false;b.textContent='Save'; msg.textContent='Could not reach the server.'; });
 }
 function setMainContact(pid){ var nv=(C.mainContactId===pid)?'':pid; fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:ID,mainContactId:nv})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ C=j.company; render(); } else alert((j&&j.error)||'Could not set the main contact.'); }).catch(function(){ alert('Could not reach the server.'); }); }
@@ -862,11 +862,11 @@ async function removeContact(pid){
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CONTACTS=j.contacts||[]; render(); } else alert((j&&j.error)||'Could not remove.'); })
     .catch(function(){ alert('Could not reach the server.'); });
 }
-function deleteCompany(){
+async function deleteCompany(){
   var n=(C&&C.name)||'this company';
   var dealNote=DEALS.length?(' This will also delete '+DEALS.length+' linked listing'+(DEALS.length===1?'':'s')+' and everything in them.'):'';
-  if(!confirm('Delete “'+n+'” and ALL associated records?'+dealNote+'\n\nConcepts, locations, and photos go with it. Contacts are kept in your registry. This cannot be undone.')) return;
-  if(!confirm('Final check — permanently delete “'+n+'”? Type-safe confirm: this is irreversible.')) return;
+  if(!await rrgConfirm('Delete “'+n+'” and ALL associated records?'+dealNote+'\n\nConcepts, locations, and photos go with it. Contacts are kept in your registry. This cannot be undone.')) return;
+  if(!await rrgConfirm('Final check — permanently delete “'+n+'”? Type-safe confirm: this is irreversible.')) return;
   var b=document.getElementById('c_delete'); b.disabled=true; b.textContent='Deleting…';
   fetch('/api/company/'+encodeURIComponent(ID),{method:'DELETE',credentials:'same-origin'})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ alert('Deleted “'+n+'”'+(j.deletedDeals?(' and '+j.deletedDeals+' listing'+(j.deletedDeals===1?'':'s')):'')+'.'); location.href='./rrg_companies.html'; } else { b.disabled=false;b.textContent='Delete company'; alert((j&&j.error)||'Could not delete.'); } })

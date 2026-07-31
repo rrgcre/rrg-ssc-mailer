@@ -172,14 +172,14 @@ function addPayment(){
   var b=document.getElementById('addPay'); b.disabled=true;
   api('POST','/api/invoices/'+encodeURIComponent(EDIT.id)+'/payment',body).then(function(j){ b.disabled=false; if(!j.ok){ msg(j.error||'Could not record payment.','err'); return; } EDIT=j.invoice; loadKeepEditor(); msg('Payment recorded','ok'); }).catch(function(){ b.disabled=false; msg('Could not record payment.','err'); });
 }
-function removePayment(pid){ if(!EDIT||!EDIT.id) return; if(!confirm('Remove this payment?')) return; api('DELETE','/api/invoices/'+encodeURIComponent(EDIT.id)+'/payment/'+encodeURIComponent(pid)).then(function(j){ if(!j.ok){ msg(j.error||'Could not remove.','err'); return; } EDIT=j.invoice; loadKeepEditor(); }); }
+async function removePayment(pid){ if(!EDIT||!EDIT.id) return; if(!await rrgConfirm('Remove this payment?')) return; api('DELETE','/api/invoices/'+encodeURIComponent(EDIT.id)+'/payment/'+encodeURIComponent(pid)).then(function(j){ if(!j.ok){ msg(j.error||'Could not remove.','err'); return; } EDIT=j.invoice; loadKeepEditor(); }); }
 function onDelete(){
   if(!EDIT||!EDIT.id) return;
   if(!DEL_ARM){ DEL_ARM=true; var b=document.getElementById('delBtn'); b.textContent='Really delete?'; b.classList.add('red'); setTimeout(function(){ if(DEL_ARM){ DEL_ARM=false; var x=document.getElementById('delBtn'); if(x){x.textContent='Delete';x.classList.remove('red');} } },3500); return; }
   DEL_ARM=false;
   api('DELETE','/api/invoices/'+encodeURIComponent(EDIT.id)).then(function(j){ if(!j.ok){ msg(j.error||'Delete failed.','err'); return; } EDIT=null; load(); });
 }
-document.addEventListener('click',function(e){ if(!e.target.closest) return; var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); openEdit(ed.getAttribute('data-edit')); return; } var dl=e.target.closest('[data-del]'); if(dl){ e.preventDefault(); var _x=curById(dl.getAttribute('data-del')); if(_x && confirm('Delete invoice '+(_x.number||'')+'? This removes its payments too.')){ api('DELETE','/api/invoices/'+encodeURIComponent(_x.id)).then(function(j){ if(j&&j.ok){ if(EDIT&&EDIT.id===_x.id) EDIT=null; load(); } else alert((j&&j.error)||'Delete failed.'); }); } return; } });
+document.addEventListener('click',async function(e){ if(!e.target.closest) return; var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); openEdit(ed.getAttribute('data-edit')); return; } var dl=e.target.closest('[data-del]'); if(dl){ e.preventDefault(); var _x=curById(dl.getAttribute('data-del')); if(_x && await rrgConfirm('Delete invoice '+(_x.number||'')+'? This removes its payments too.')){ api('DELETE','/api/invoices/'+encodeURIComponent(_x.id)).then(function(j){ if(j&&j.ok){ if(EDIT&&EDIT.id===_x.id) EDIT=null; load(); } else alert((j&&j.error)||'Delete failed.'); }); } return; } });
 function loadListings(){ return api('GET','/api/assignments').then(function(j){ LISTINGS=(j&&j.assignments)?j.assignments.map(function(a){return {key:a.key,business:a.business};}):[]; }).catch(function(){ LISTINGS=[]; }); }
 function applyList(j){ ROWS=j.invoices||[]; if(j.methods) METHODS=j.methods; if(j.statuses) STATUSES=j.statuses; IS_ADMIN=!!j.isAdmin; }
 function load(){ api('GET','/api/invoices').then(function(j){ applyList(j); render(); }); }

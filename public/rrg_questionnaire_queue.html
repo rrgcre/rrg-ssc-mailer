@@ -219,8 +219,8 @@ async function del(id,btn){
     .then(function(res){ if(res.ok && res.j && res.j.ok){ load(); } else { if(btn){btn.disabled=false;btn.textContent='Delete';} alert((res.j&&res.j.error)||'Could not delete.'); } })
     .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Delete';} alert('Could not reach the server to delete.'); });
 }
-function decide(id,decision){
-  if(decision==='passed' && !confirm('Reject this questionnaire? It won’t move to a BOV.')) return;
+async function decide(id,decision){
+  if(decision==='passed' && !await rrgConfirm('Reject this questionnaire? It won’t move to a BOV.')) return;
   fetch('/api/questionnaire/'+encodeURIComponent(id)+'/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:decision})})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not update.'); }).catch(function(){ alert('Could not update.'); });
 }
@@ -230,10 +230,10 @@ function requestBov(id,btn){
   if(btn){ btn.disabled=true; btn.textContent='Requesting…'; }
   fetch('/api/questionnaire/'+encodeURIComponent(id)+'/advance',{method:'POST',credentials:'same-origin'})
     .then(function(r){ return r.text().then(function(t){ var j=null; try{j=JSON.parse(t);}catch(e){} return {ok:r.ok,j:j}; }); })
-    .then(function(res){
+    .then(async function(res){
       if(res.ok && res.j && res.j.ok && res.j.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(res.j.bovId); return; }
       if(btn){btn.disabled=false;btn.textContent='Request BOV';}
-      if(res.j && res.j.incomplete){ if(confirm('This questionnaire isn’t complete yet — open it to finish the required fields? The missing ones will be highlighted for you.')) location.href='./valuation_questionnaire.html?q='+encodeURIComponent(id)+'&finish=1'; return; }
+      if(res.j && res.j.incomplete){ if(await rrgConfirm('This questionnaire isn’t complete yet — open it to finish the required fields? The missing ones will be highlighted for you.')) location.href='./valuation_questionnaire.html?q='+encodeURIComponent(id)+'&finish=1'; return; }
       alert((res.j&&res.j.error)||'Could not request the BOV.');
     })
     .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Request BOV';} alert('Could not reach the server to request the BOV.'); });

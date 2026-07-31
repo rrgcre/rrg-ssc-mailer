@@ -145,8 +145,8 @@ function addRole(){
   var perms={}; (ST.tools||[]).forEach(function(t){ perms['tool:'+t.file]=true; }); // new role: tools on, core off
   post('/api/admin/roles',{name:name,perms:perms}).then(function(j){ if(j&&j.ok){ ST.roles=j.roles; var added=j.roles[j.roles.length-1]; SELROLE=added?added.key:SELROLE; render(); } else if(m){ m.textContent=(j&&j.error)||'Failed'; m.className='msg err'; } });
 }
-function delRole(){
-  var role=roleByKey(SELROLE); if(!confirm('Delete the "'+role.name+'" role? Users on it move to Associate.')) return;
+async function delRole(){
+  var role=roleByKey(SELROLE); if(!await rrgConfirm('Delete the "'+role.name+'" role? Users on it move to Associate.')) return;
   post('/api/admin/roles/delete',{key:role.key}).then(function(j){ if(j&&j.ok){ ST.roles=j.roles; SELROLE='associate'; reload(); } else alert((j&&j.error)||'Failed'); });
 }
 function saveUserRole(username,role){ post('/api/admin/user-access',{username:username,role:role}).then(function(j){ if(j&&j.ok){ reload(); } else alert((j&&j.error)||'Could not change role.'); }); }
@@ -156,10 +156,10 @@ function saveOverrides(username){
   var u=(ST.users||[]).filter(function(x){return x.username===username;})[0];
   post('/api/admin/user-access',{username:username,role:(u?u.role:undefined),perms:perms}).then(function(j){ var m=document.getElementById('ovMsg'); if(j&&j.ok){ if(m){m.textContent='Saved ✓';m.className='msg ok';} reload(); } else if(m){ m.textContent=(j&&j.error)||'Failed'; m.className='msg err'; } });
 }
-function doReassign(){
+async function doReassign(){
   var from=document.getElementById('raFrom').value, to=document.getElementById('raTo').value, m=document.getElementById('raMsg');
   if(!from||!to){ if(m){m.textContent='Pick both.';m.className='msg err';} return; }
-  if(!confirm('Reassign all contacts & companies from '+from+' to '+to+'?')) return;
+  if(!await rrgConfirm('Reassign all contacts & companies from '+from+' to '+to+'?')) return;
   if(m){m.textContent='Working…';m.className='msg';}
   post('/api/admin/reassign',{from:from,to:to}).then(function(j){ if(j&&j.ok){ if(m){m.textContent='Reassigned '+j.people+' contacts and '+j.companies+' companies.';m.className='msg ok';} } else if(m){ m.textContent=(j&&j.error)||'Failed'; m.className='msg err'; } });
 }

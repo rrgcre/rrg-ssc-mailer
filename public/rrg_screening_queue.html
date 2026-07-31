@@ -231,10 +231,10 @@ async function del(id,btn){
 // intro=true (Begin Questionnaire) shows the priming screen; Reopen omits it.
 function advanceCall(id, intro){
   fetch('/api/screening/'+encodeURIComponent(id)+'/advance',{method:'POST'})
-    .then(function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});}).then(function(res){
+    .then(async function(r){return r.json().then(function(j){return {ok:r.ok,j:j};});}).then(async function(res){
       var j=res.j||{};
       if(!res.ok || !j.ok){
-        if(j.incomplete){ if(confirm('This screening isn’t complete yet. Open it to finish the required fields?')) location.href='./seller_screening.html?screening='+encodeURIComponent(id); return; }
+        if(j.incomplete){ if(await rrgConfirm('This screening isn’t complete yet. Open it to finish the required fields?')) location.href='./seller_screening.html?screening='+encodeURIComponent(id); return; }
         alert((j&&j.error)||'Could not advance this call.'); return;
       }
       var qid=j.questionnaireId||'', tail=intro?'&intro=1':'';
@@ -242,8 +242,8 @@ function advanceCall(id, intro){
                           : ('./valuation_questionnaire.html?screening='+encodeURIComponent(id)+tail);
     }).catch(function(){ alert('Could not advance this call — please try again.'); });
 }
-function decide(id,decision){
-  if(decision==='passed' && !confirm('Reject this lead? It won’t move to the Valuation Questionnaire.')) return;
+async function decide(id,decision){
+  if(decision==='passed' && !await rrgConfirm('Reject this lead? It won’t move to the Valuation Questionnaire.')) return;
   fetch('/api/screening/'+encodeURIComponent(id)+'/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:decision})})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not update.'); }).catch(function(){ alert('Could not update.'); });
 }

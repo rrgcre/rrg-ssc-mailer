@@ -245,8 +245,8 @@ function sendInvite(id,thenClose){
       else { m.className='msg err'; m.textContent=(j&&j.error)||'Invite failed.'; }
     }).catch(function(){ m.className='msg err'; m.textContent='Could not reach the server.'; });
 }
-function del(){
-  if(!EDIT) return; if(!confirm('Delete this meeting?')) return;
+async function del(){
+  if(!EDIT) return; if(!await rrgConfirm('Delete this meeting?')) return;
   fetch('/api/appointments/'+encodeURIComponent(EDIT.id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ closeForm(); load(); } else alert((j&&j.error)||'Could not delete.'); });
 }
 function fillUserFilter(){ var el=document.getElementById('userFilter'); if(!el) return; var cur=(SCOPE==='mine')?'__mine':(USERSEL||'__all'); el.innerHTML='<option value="__all">Everyone’s calendar</option><option value="__mine">Just my meetings</option>'+USERS.map(function(u){return '<option value="'+esc(u.username)+'">'+esc(u.name)+'</option>';}).join(''); el.value=cur; }

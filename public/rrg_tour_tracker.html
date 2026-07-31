@@ -251,15 +251,15 @@ tr.top .rank-badge{background:var(--red);color:#fff;}
   window.switchClient=function(id){ DB.active=id; var sel=document.getElementById('clientSel'); if(sel) sel.value=id; loadActiveIntoUI(); save(); };
   window.newClient=function(){ var cl=blankClient(''); DB.clients.push(cl); DB.active=cl.id; renderClientSel(); loadActiveIntoUI(); var t=document.getElementById('tenant'); t.focus(); t.select(); save(); };
   window.loadSampleClient=function(){ var cl=sampleClient(); DB.clients.push(cl); DB.active=cl.id; renderClientSel(); loadActiveIntoUI(); save(); };
-  window.deleteClient=function(){
+  window.deleteClient=async function(){
     if(DB.clients.length<=1){ alert('This is your only client — use “Clear this client” to empty it instead.'); return; }
-    var cl=AC(); if(!confirm('Delete client “'+((cl&&cl.name)||'')+'” and its entire tour log?')) return;
+    var cl=AC(); if(!await rrgConfirm('Delete client “'+((cl&&cl.name)||'')+'” and its entire tour log?')) return;
     DB.clients=DB.clients.filter(function(x){return x.id!==DB.active;});
     DB.active=DB.clients[0].id; renderClientSel(); loadActiveIntoUI(); save();
   };
-  window.clearActive=function(){
+  window.clearActive=async function(){
     var cl=AC(); if(!cl) return;
-    if((cl.rows&&cl.rows.length>1) && !confirm('Clear this client’s tour log?')) return;
+    if((cl.rows&&cl.rows.length>1) && !await rrgConfirm('Clear this client’s tour log?')) return;
     cl.rows=[blankRow()]; cl.overall=''; document.getElementById('overall').value=''; renderRows(); renderClientSel(); save();
   };
 

@@ -123,7 +123,7 @@ function onDelete(){
   DEL_ARM=false;
   api('DELETE','/api/email-templates/'+encodeURIComponent(EDIT.id)).then(function(j){ if(!j.ok){ msg(j.error||'Delete failed.','err'); return; } EDIT=null; load(); });
 }
-document.addEventListener('click',function(e){ if(!e.target.closest) return; var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); openEdit(ed.getAttribute('data-edit')); return; } var dl=e.target.closest('[data-del]'); if(dl){ e.preventDefault(); var _t=curById(dl.getAttribute('data-del')); if(_t && confirm('Delete "'+(_t.name||'this template')+'"?')){ api('DELETE','/api/email-templates/'+encodeURIComponent(_t.id)).then(function(j){ if(j&&j.ok){ if(EDIT&&EDIT.id===_t.id) EDIT=null; load(); } else alert((j&&j.error)||'Delete failed.'); }); } return; } });
+document.addEventListener('click',async function(e){ if(!e.target.closest) return; var ed=e.target.closest('[data-edit]'); if(ed){ e.preventDefault(); openEdit(ed.getAttribute('data-edit')); return; } var dl=e.target.closest('[data-del]'); if(dl){ e.preventDefault(); var _t=curById(dl.getAttribute('data-del')); if(_t && await rrgConfirm('Delete "'+(_t.name||'this template')+'"?')){ api('DELETE','/api/email-templates/'+encodeURIComponent(_t.id)).then(function(j){ if(j&&j.ok){ if(EDIT&&EDIT.id===_t.id) EDIT=null; load(); } else alert((j&&j.error)||'Delete failed.'); }); } return; } });
 load();
 </script>
 </body>

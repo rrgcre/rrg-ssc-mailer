@@ -208,9 +208,9 @@ function saveSpace(silent){
     .then(function(r){return r.json();}).then(function(j){ if(!silent) btn.disabled=false; if(j&&j.ok){ SPACES=j.spaces||SPACES; if(silent){ mmsg.textContent='Saved ✓'; renderTiles(); draw(); setTimeout(function(){ if(mmsg.textContent==='Saved ✓') mmsg.textContent=''; },1500); return; } closeForm(); renderTiles(); draw(); } else { mmsg.textContent=(j&&j.error)||'Save failed.'; } })
     .catch(function(){ if(!silent) btn.disabled=false; mmsg.textContent=silent?'':'Network error.'; });
 }
-function delSpace(id){
+async function delSpace(id){
   var sp=SPACES.filter(function(s){return s.id===id;})[0]; if(!sp) return;
-  if(!confirm('Delete '+((sp.name||sp.address)||'this space')+'? This cannot be undone.')) return;
+  if(!await rrgConfirm('Delete '+((sp.name||sp.address)||'this space')+'? This cannot be undone.')) return;
   fetch('/api/space/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ SPACES=j.spaces||[]; renderTiles(); draw(); } else alert((j&&j.error)||'Delete failed.'); })
     .catch(function(){ alert('Network error.'); });

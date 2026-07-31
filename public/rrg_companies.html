@@ -220,9 +220,9 @@ function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=C
   var _cl=document.getElementById('m_clead'); if(_cl) _cl.value=''; setupCReferral();
   document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_name').focus(); }
 function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_name','m_concept','m_website','m_addr','m_city','m_state','m_zip','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes','m_clead','m_crefby','m_lead'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); var _cc=document.getElementById('crefbyCell'); if(_cc) _cc.style.display='none'; var box=document.getElementById('m_dupe'); box.setAttribute('hidden','');box.innerHTML=''; document.getElementById('m_create').disabled=false; document.getElementById('m_create').textContent='Create company'; MTAGS=[]; if(typeof renderMTags==='function') renderMTags(); }
-function createCompany(){
+async function createCompany(){
   var name=document.getElementById('m_name').value.trim(); if(!name){ document.getElementById('m_name').focus(); return; }
-  var d=findDupe(name); if(d){ if(confirm('“'+d.name+'” is already in your book. Open it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(d.id); return; }
+  var d=findDupe(name); if(d){ if(await rrgConfirm('“'+d.name+'” is already in your book. Open it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(d.id); return; }
   var b=document.getElementById('m_create'); b.disabled=true; b.textContent='Creating…';
   var conceptNames=((document.getElementById('m_concepts')||{}).value||'').split(/\n/).map(function(s){return s.trim();}).filter(Boolean).slice(0,50);
   var metro=titleCaseMarket(((document.getElementById('m_metro')||{}).value||'').trim());
@@ -235,17 +235,17 @@ function createCompany(){
   var _pts=PERSONTYPES||[]; var contactType=(_pts.indexOf(ctype)>=0)?ctype:(_pts.indexOf('Restaurant Owner')>=0?'Restaurant Owner':(_pts.indexOf('Seller')>=0?'Seller':(_pts[0]||'Seller')));
   function J(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}); }
   J('/api/company',{name:name,type:document.getElementById('m_type').value,leadSource:(document.getElementById('m_lead')||{}).value||''})
-    .then(function(j){
-      if(!(j&&j.ok&&j.company)){ if(j&&j.existingId){ b.textContent='Create company'; if(confirm((j.error||'That company already exists.')+'\n\nOpen it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(j.existingId); else b.disabled=false; } else { b.disabled=false;b.textContent='Create company'; alert((j&&j.error)||'Could not create the company.'); } return; }
+    .then(async function(j){
+      if(!(j&&j.ok&&j.company)){ if(j&&j.existingId){ b.textContent='Create company'; if(await rrgConfirm((j.error||'That company already exists.')+'\n\nOpen it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(j.existingId); else b.disabled=false; } else { b.disabled=false;b.textContent='Create company'; alert((j&&j.error)||'Could not create the company.'); } return; }
       var id=j.company.id; var chain=Promise.resolve();
       if(cfirst&&clast){ chain=chain.then(function(){ var _cbody={firstName:cfirst,lastName:clast,nickname:cnick,title:ctitle,phone:cphone,email:cemail,type:contactType}; return J('/api/company/'+encodeURIComponent(id)+'/contact',_cbody).then(function(cj){ if(cj&&!cj.ok){ alert('Company created, but the contact was not added: '+((cj&&cj.error)||'unknown error')); } return cj; }); }); }
       chain.then(function(){ if(_stash){ try{ localStorage.setItem('rrg_build_'+id, JSON.stringify(_stash)); }catch(e){} } location.href='./rrg_company.html?id='+encodeURIComponent(id); }, function(){ if(_stash){ try{ localStorage.setItem('rrg_build_'+id, JSON.stringify(_stash)); }catch(e){} } location.href='./rrg_company.html?id='+encodeURIComponent(id); });
     })
     .catch(function(){ b.disabled=false;b.textContent='Create company'; alert('Could not reach the server.'); });
 }
-function bulkDeleteCompanies(ids, done){
+async function bulkDeleteCompanies(ids, done){
   if(!ids||!ids.length) return;
-  if(!confirm('Delete '+ids.length+' compan'+(ids.length===1?'y':'ies')+' and ALL their associated records (concepts, locations, photos, and listings)? Contacts are kept. This cannot be undone.')) return;
+  if(!await rrgConfirm('Delete '+ids.length+' compan'+(ids.length===1?'y':'ies')+' and ALL their associated records (concepts, locations, photos, and listings)? Contacts are kept. This cannot be undone.')) return;
   var idset={}; ids.forEach(function(id){ idset[id]=1; });
   ALL=ALL.filter(function(c){ return !idset[c.id]; }); applyFilter();
   Promise.all(ids.map(function(id){ return fetch('/api/company/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).catch(function(){ return {ok:false}; }); }))
@@ -270,9 +270,9 @@ function openCompanyMergePicker(ids, done){
       .catch(function(){ gb.disabled=false; gb.textContent='Merge companies'; ov.querySelector('#cmg_msg').textContent='Could not reach the server.'; });
   });
 }
-function deleteCompany(id,name,deals){
+async function deleteCompany(id,name,deals){
   var dn=deals>0?(' This also deletes '+deals+' linked deal'+(deals===1?'':'s')+' and everything in them.'):'';
-  if(!confirm('Delete “'+(name||'this company')+'” and ALL associated records?'+dn+'\n\nConcepts, locations, and photos go with it. Contacts are kept. Cannot be undone.')) return;
+  if(!await rrgConfirm('Delete “'+(name||'this company')+'” and ALL associated records?'+dn+'\n\nConcepts, locations, and photos go with it. Contacts are kept. Cannot be undone.')) return;
   // Optimistic: drop it from the list the instant you confirm, so it disappears immediately
   // even while the server takes a few seconds to purge linked deals, rooms and photos.
   var _idx=-1, _backup=null;

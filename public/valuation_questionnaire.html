@@ -364,7 +364,7 @@
 <div class="toolbar">
   <div class="tt">RRG Valuation Questionnaire <span>Fill in, then Submit &amp; Email</span></div>
   <div class="actions">
-    <button class="btn clear" onclick="if(confirm('Clear all fields?')){document.getElementById('sscform').reset();document.dispatchEvent(new Event('input',{bubbles:true}));if(window.rrgClearDraft)window.rrgClearDraft();}">Clear form</button>
+    <button class="btn clear" onclick="rrgConfirm('Clear all fields?').then(function(o){if(!o)return;document.getElementById('sscform').reset();document.dispatchEvent(new Event('input',{bubbles:true}));if(window.rrgClearDraft)window.rrgClearDraft();}">Clear form</button>
     <button class="btn blank" onclick="printBlank()">Print blank copy</button>
     <button class="btn blank" onclick="validateAndPrint()">Print</button>
     <button class="btn save" onclick="qClose()">Close</button>
@@ -976,10 +976,10 @@
   function _kit(row, txt){ var g=_grpS('Kitchen'); if(!g) return; var sr=Array.prototype.slice.call(g.querySelectorAll('.subrow')).find(function(r){return r.querySelector('.srk').textContent.trim().toLowerCase()===row.toLowerCase();}); if(!sr) return; var o=Array.prototype.slice.call(sr.querySelectorAll('.opt')).find(function(l){return l.textContent.trim().toLowerCase()===txt.toLowerCase();}); if(o) o.querySelector('input').checked=true; }
   function _set(lbl, val){ var lb=Array.prototype.slice.call(document.querySelectorAll('#sscform label.k')).find(function(l){return l.textContent.replace('*','').trim().toLowerCase()===lbl.toLowerCase();}); if(!lb) return; var inp=lb.parentElement.querySelector('input,textarea,select'); if(!inp) return; inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); inp.dispatchEvent(new Event('change',{bubbles:true})); }
   function _setInline(lab, val){ var s=Array.prototype.slice.call(document.querySelectorAll('#sscform .inl .lab')).find(function(x){return x.textContent.trim().toLowerCase()===lab.toLowerCase();}); if(!s) return; var inp=s.parentElement.querySelector('input'); inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); }
-  window.loadSample=function(){
+  window.loadSample=async function(){
     var form=document.getElementById('sscform');
     var dirty=Array.prototype.slice.call(form.querySelectorAll('input,textarea')).some(function(el){ return (el.type==='checkbox'||el.type==='radio')?el.checked:el.value.trim(); });
-    if(dirty && !confirm('Load the Kesos Tacos sample profile? This replaces the current entries.')) return;
+    if(dirty && !await rrgConfirm('Load the Kesos Tacos sample profile? This replaces the current entries.')) return;
     form.reset();
     _set("Restaurant Name", "Kesos Tacos");
     _set("Street Address", "600 W Martin Luther King Jr Blvd");

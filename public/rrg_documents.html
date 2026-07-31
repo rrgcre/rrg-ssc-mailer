@@ -117,7 +117,7 @@ function uploadDoc(){
   rd.onerror=function(){ m.textContent='Could not read that file.'; };
   rd.readAsDataURL(f);
 }
-function delDoc(ev,id,name){ ev.preventDefault(); ev.stopPropagation(); if(!confirm('Remove “'+(name||'this document')+'” from the library?')) return;
+async function delDoc(ev,id,name){ ev.preventDefault(); ev.stopPropagation(); if(!await rrgConfirm('Remove “'+(name||'this document')+'” from the library?')) return;
   fetch(window.RRG_API.replace(/\/$/,'')+'/api/admin/delete-doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:id})})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) loadDocs(); else alert((j&&j.error)||'Could not remove.'); }).catch(function(){ alert('Could not reach the server.'); });
 }

@@ -133,11 +133,11 @@ async function bulkDelete(ids, done){
   Promise.all(ids.map(function(id){ return fetch('/api/feedback/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}); }))
     .then(function(){ ALL=ALL.filter(function(x){return ids.indexOf(x.id)<0;}); if(done) done(); tiles(); applyFilter(); });
 }
-document.addEventListener('click',function(e){
+document.addEventListener('click',async function(e){
   var v=e.target.closest&&e.target.closest('.voteb[data-vote]');
   if(v){ var id=v.getAttribute('data-vote'); fetch('/api/feedback/'+encodeURIComponent(id)+'/vote',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({dir:'up'})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var it=ALL.find(function(x){return x.id===id;}); if(it){ it.votes=j.votes; applyFilter(); } } }); return; }
   var d=e.target.closest&&e.target.closest('.fbdel[data-del]');
-  if(d){ var did=d.getAttribute('data-del'); if(!confirm('Delete this request?')) return; fetch('/api/feedback/'+encodeURIComponent(did),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ALL=ALL.filter(function(x){return x.id!==did;}); tiles(); applyFilter(); } else alert((j&&j.error)||'Could not delete.'); }); return; }
+  if(d){ var did=d.getAttribute('data-del'); if(!await rrgConfirm('Delete this request?')) return; fetch('/api/feedback/'+encodeURIComponent(did),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ALL=ALL.filter(function(x){return x.id!==did;}); tiles(); applyFilter(); } else alert((j&&j.error)||'Could not delete.'); }); return; }
 });
 // New-request modal
 function openModal(){ document.getElementById('f_title').value=''; document.getElementById('f_detail').value=''; document.getElementById('f_msg').textContent=''; var pr=document.getElementById('f_priority'); if(pr) pr.value='Medium'; document.getElementById('fbModal').removeAttribute('hidden'); setTimeout(function(){document.getElementById('f_title').focus();},30); }

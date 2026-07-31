@@ -144,11 +144,11 @@ function saveKey(){
 async function clearKey(){ if(!await rrgConfirm('Clear the saved Claude API key? The environment key (if any) is used after the next restart.')) return; post('/api/admin/anthropic-key',{clear:true}).then(function(j){ renderKey(j); document.getElementById('keyMsg').textContent=(j&&j.note)||'Cleared.'; document.getElementById('keyMsg').className='msg ok'; }); }
 
 function saveBbsWindow(){ var m=document.getElementById('bbsMsg'); var d=parseInt(document.getElementById('bbsBack').value,10); var o=parseInt(document.getElementById('bbsBackOn').value,10); if(!(d>=1&&d<=365)){ m.textContent='First scan: enter 1\u2013365 days.'; m.className='msg err'; return; } if(!(o>=1&&o<=365)){ m.textContent='Ongoing scans: enter 1\u2013365 days.'; m.className='msg err'; return; } m.textContent='Saving\u2026'; m.className='msg'; post('/api/bizbuysell/poll',{lookbackDays:d,lookbackDaysOngoing:o}).then(function(j){ if(j&&j.ok){ m.textContent='Saved \u2014 first scan '+(j.lookbackDays||d)+' days, then '+(j.lookbackDaysOngoing||o)+' days each time.'; m.className='msg ok'; } else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; } }); }
-function resetBook(){
+async function resetBook(){
   var m=document.getElementById('resetMsg'), v=document.getElementById('resetConfirm').value.trim();
   if(v!=='RESET'){ m.textContent='Type RESET (all caps) to confirm.'; m.className='msg err'; return; }
-  if(!confirm('CHECK 1 of 2 — This permanently deletes ALL companies, concepts, and locations (and their photos). Contacts and deals are kept. Continue?')) return;
-  if(!confirm('CHECK 2 of 2 — Are you absolutely sure? A full backup of everything will be saved first, but this wipes the book of companies and cannot be undone. Click OK only if you are certain.')) { m.textContent='Cancelled — nothing was deleted.'; m.className='msg'; return; }
+  if(!await rrgConfirm('CHECK 1 of 2 — This permanently deletes ALL companies, concepts, and locations (and their photos). Contacts and deals are kept. Continue?')) return;
+  if(!await rrgConfirm('CHECK 2 of 2 — Are you absolutely sure? A full backup of everything will be saved first, but this wipes the book of companies and cannot be undone. Click OK only if you are certain.')) { m.textContent='Cancelled — nothing was deleted.'; m.className='msg'; return; }
   m.textContent='Backing up, then resetting…'; m.className='msg';
   post('/api/admin/reset-book',{confirm:'RESET'}).then(function(j){ if(j&&j.ok){ document.getElementById('resetConfirm').value=''; m.textContent='Done — backed up to '+(j.backup||'a snapshot')+', then cleared '+(j.cleared||0)+' company record'+((j.cleared===1)?'':'s')+'. Restore it from Admin → Backups if needed.'; m.className='msg ok'; } else { m.textContent=(j&&j.error)||'Could not reset.'; m.className='msg err'; } });
 }

@@ -234,9 +234,9 @@ function uploadFile(id,file){
   }).catch(function(){ if(msg){msg.textContent='Upload failed.';msg.className='msg err';} }); };
   rd.readAsDataURL(file);
 }
-function delTpl(id){
+async function delTpl(id){
   var t=TPLS.filter(function(x){return x.id===id;})[0];
-  if(!confirm('Delete "'+((t&&t.name)||'this template')+'"? This removes the template and its document. Agreements already created from it are not affected.')) return;
+  if(!await rrgConfirm('Delete "'+((t&&t.name)||'this template')+'"? This removes the template and its document. Agreements already created from it are not affected.')) return;
   del('/api/admin/agreement-templates/'+encodeURIComponent(id)).then(function(j){ if(j&&j.ok){ TPLS=TPLS.filter(function(x){return x.id!==id;}); if(EDIT&&EDIT.id===id) EDIT=null; render(); } else alert((j&&j.error)||'Could not delete.'); });
 }
 function upsert(t){ var found=false; TPLS=TPLS.map(function(x){ if(x.id===t.id){found=true; return t;} return x; }); if(!found) TPLS.push(t); TPLS.sort(function(a,b){return String(a.name).localeCompare(String(b.name));}); }
