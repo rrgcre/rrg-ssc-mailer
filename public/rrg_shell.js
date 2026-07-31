@@ -154,12 +154,12 @@
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
       { ic: '▤', label: 'Admin console', href: 'admin' },
+      { ic: '⚙', label: 'Settings', href: 'rrg_admin_settings.html' },
       { ic: '☺', label: 'Users', href: 'rrg_roles.html' },
       { ic: '◔', label: 'Roles', href: 'rrg_roles.html#roles' },
       { ic: '◫', label: 'Departments', href: 'rrg_departments.html' },
       { ic: '⑃', label: 'Pipelines', href: 'rrg_admin_pipelines.html' },
       { ic: '⊹', label: 'AI Usage', href: 'rrg_ai_usage.html' },
-      { ic: '⚙', label: 'Settings', href: 'rrg_admin_settings.html' },
       { ic: '⚖︎', label: 'Agreement Templates', href: 'rrg_agreement_templates.html' },
       { ic: '☰', label: 'Menu Access', href: 'rrg_admin_nav.html' },
       { ic: '⤓', label: 'Import Data', href: 'rrg_import.html' },

@@ -2864,7 +2864,7 @@ app.get('/api/assignment/:key', (req, res) => {
   if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const origin = req.protocol + '://' + req.get('host');
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: AGREEMENT_TYPES, pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin) });
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin) });
 });
 app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   const deals = assignmentsIndex();
@@ -4457,7 +4457,7 @@ app.get('/api/gmail/agreements/scan', async (req, res) => {
       });
     });
     out.sort((a, b) => b.ts - a.ts);
-    res.json({ ok: true, candidates: out.slice(0, 120), types: AGREEMENT_TYPES });
+    res.json({ ok: true, candidates: out.slice(0, 120), types: effAgreementTypes() });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/gmail/agreements/import', express.json({ limit: '1mb' }), async (req, res) => {
@@ -4469,7 +4469,7 @@ app.post('/api/gmail/agreements/import', express.json({ limit: '1mb' }), async (
   let created = 0, failed = 0; const errs = [];
   for (const it of items) {
     try {
-      const type = AGREEMENT_TYPE_KEYS.indexOf(it.type) >= 0 ? it.type : (guessAgreementType((it.subject || '') + ' ' + (it.filename || '')) || 'NDA');
+      const type = agreementTypeKeys().indexOf(it.type) >= 0 ? it.type : (guessAgreementType((it.subject || '') + ' ' + (it.filename || '')) || 'NDA');
       const buf = await gmail.getAttachment(uname, it.messageId, it.attachmentId);
       if (!buf || !buf.length) { failed++; errs.push((it.filename || 'file') + ': empty download'); continue; }
       if (buf.length > 20 * 1024 * 1024) { failed++; errs.push((it.filename || 'file') + ': too large'); continue; }
@@ -4683,7 +4683,7 @@ app.get('/api/person/:id', (req, res) => {
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
     (o.inquiries || []).forEach(x => { const _m = (x.personId && x.personId === p.id) || (x.email && _pEmails.indexOf(String(x.email).toLowerCase()) >= 0); if (_m && !interested.some(it => it.key === key)) interested.push({ key: key, business: biz, status: x.status || 'New', inquiryId: x.id, date: x.date || x.createdAt || '', source: x.source || '', stage: _keyStage ? _keyStage.label : '', stageDone: _keyStage ? _keyStage.done : 0, stageTotal: _keyStage ? _keyStage.total : 0 }); });
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, interested, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, appointments: loadAppts().filter(x => x.contactPersonId === p.id && x.status !== "deleted").map(apptBrief).sort((m,n)=>String(m.start||"").localeCompare(String(n.start||""))), apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === (req.user && req.user.username) || (req.user && isSuper(req.user)))).map(a => automationBrief(a, req.user || {})), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, interested, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: effAgreementTypes(), appointments: loadAppts().filter(x => x.contactPersonId === p.id && x.status !== "deleted").map(apptBrief).sort((m,n)=>String(m.start||"").localeCompare(String(n.start||""))), apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === (req.user && req.user.username) || (req.user && isSuper(req.user)))).map(a => automationBrief(a, req.user || {})), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
@@ -4845,20 +4845,32 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks(),
-    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, cuisineTypes: CUISINE_TYPES },
-    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), cuisineTypes: Array.isArray(s.cuisineTypes) },
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks(),
+    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, cuisineTypes: CUISINE_TYPES, agreementTypes: AGREEMENT_TYPES },
+    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), cuisineTypes: Array.isArray(s.cuisineTypes), agreementTypes: Array.isArray(s.agreementTypes) },
     systemRequired: { leadSources: SYSTEM_LEAD_SOURCES },
   });
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.showQuickLinks; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.showQuickLinks; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() }); }
   if (b.personTypes !== undefined) s.personTypes = cleanStrList(b.personTypes, 40, 60) || [];
   if (b.companyTypes !== undefined) s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || [];
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
   if (b.leadSources !== undefined) { s.leadSources = cleanStrList(b.leadSources, 40, 60) || []; SYSTEM_LEAD_SOURCES.forEach(function(rq){ if (!s.leadSources.some(function(x){ return String(x).toLowerCase() === rq.toLowerCase(); })) s.leadSources.unshift(rq); }); }
   if (b.activityTypes !== undefined) s.activityTypes = cleanStrList(b.activityTypes, 40, 60) || [];
+  if (b.agreementTypes !== undefined) {
+    const seen = {}; const out = [];
+    (Array.isArray(b.agreementTypes) ? b.agreementTypes : []).forEach(function(t){
+      if (!t) return;
+      const label = String((t.label != null ? t.label : t)).trim().slice(0, 60); if (!label) return;
+      let key = String((t.key || '')).trim().replace(/[^A-Za-z0-9_]+/g, '').slice(0, 40);
+      if (!key) key = label.replace(/[^A-Za-z0-9]+/g, '').slice(0, 24) || ('type' + out.length);
+      let uk = key; let n = 2; while (seen[uk.toLowerCase()]) { uk = key + n; n++; }
+      seen[uk.toLowerCase()] = 1; out.push({ key: uk, label: label });
+    });
+    if (out.length) s.agreementTypes = out.slice(0, 40); else delete s.agreementTypes;
+  }
   if (b.cuisineTypes !== undefined) s.cuisineTypes = cleanStrList(b.cuisineTypes, 40, 60) || [];
   if (b.maxPullLocations !== undefined) { const n = parseInt(b.maxPullLocations, 10); s.maxPullLocations = (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
   if (typeof b.defaultState === 'string') s.defaultState = b.defaultState.trim().slice(0, 20);
@@ -4868,7 +4880,7 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   if (b.showRequestRibbon !== undefined) s.showRequestRibbon = !!b.showRequestRibbon;
   if (b.showQuickLinks !== undefined) s.showQuickLinks = !!b.showQuickLinks;
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
@@ -5019,7 +5031,7 @@ app.get('/api/company/:id', (req, res) => {
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
   const companyActivity = companyActivityFeed(c);
-  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, activity: companyActivity, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), hasMaps: !!loadGmapsKey(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: effAgreementTypes(), activity: companyActivity, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), hasMaps: !!loadGmapsKey(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // ---- Company-level activity: notes / calls / meetings logged against the company itself. ----
 app.post('/api/company/:id/activity', express.json(), (req, res) => {
@@ -8153,6 +8165,8 @@ const AGREEMENT_TYPES = [
   { key: 'AssocBroker', label: 'Associate Broker Agreement' }
 ];
 const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
+function effAgreementTypes() { const s = loadSettings(); if (Array.isArray(s.agreementTypes) && s.agreementTypes.length) { const out = s.agreementTypes.filter(t => t && t.key && t.label).map(t => ({ key: String(t.key), label: String(t.label) })); if (out.length) return out; } return AGREEMENT_TYPES; }
+function agreementTypeKeys() { return effAgreementTypes().map(t => t.key); }
 function agreementBrief(a) {
   return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
 }
@@ -8166,12 +8180,12 @@ app.get('/api/agreements', (req, res) => {
   if (restrictToOwn(req)) all = all.filter(a => permOwnerMatch(req, a.createdBy));
   all = all.map(a => Object.assign(agreementBrief(a), { personName: a.personName || nameById[a.personId] || '', companyName: coNameById[a.companyId] || '', dealName: bizByKey[a.dealKey] || '' }));
   all.sort((x, y) => String(x.expires || '9999').localeCompare(String(y.expires || '9999')));
-  res.json({ ok: true, agreements: all, types: AGREEMENT_TYPES, isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, agreements: all, types: effAgreementTypes(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 app.post('/api/agreements', express.json(), (req, res) => {
   const b = req.body || {}; const all = loadAgreements(); const now = new Date().toISOString();
   const type = String(b.type || '').trim();
-  if (AGREEMENT_TYPE_KEYS.indexOf(type) < 0) return res.status(400).json({ ok: false, error: 'Pick an agreement type.' });
+  if (agreementTypeKeys().indexOf(type) < 0) return res.status(400).json({ ok: false, error: 'Pick an agreement type.' });
   let a;
   if (b.id) {
     a = all.find(x => x.id === b.id);
@@ -8210,7 +8224,7 @@ app.get('/api/agreements/executed', (req, res) => {
     companyName: coById[a.companyId] || '',
     dealName: bizByKey[a.dealKey] || '',
   })).sort((x, y) => String(x.expires || '9999').localeCompare(String(y.expires || '9999')));
-  res.json({ ok: true, agreements: all, types: AGREEMENT_TYPES, canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, agreements: all, types: effAgreementTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 app.delete('/api/agreements/:id', (req, res) => {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
@@ -8221,7 +8235,7 @@ app.delete('/api/agreements/:id', (req, res) => {
 
 // ---- Agreement documents + send-for-signature ----
 const AGREEMENT_DOC_DIR = path.join(BOV_DATA_DIR, 'agreedocs');
-function agreementTypeLabel(k) { const t = AGREEMENT_TYPES.find(x => x.key === k); return t ? t.label : (k || 'Agreement'); }
+function agreementTypeLabel(k) { const t = effAgreementTypes().find(x => x.key === k); return t ? t.label : (k || 'Agreement'); }
 function agreementDocExt(n) { const m = String(n || '').toLowerCase().match(/\.(pdf|docx|doc|png|jpe?g)$/); return m ? (m[1] === 'jpeg' ? 'jpg' : m[1]) : 'pdf'; }
 function agreementDocMime(ext) { return ({ pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', png: 'image/png', jpg: 'image/jpeg' })[ext] || 'application/octet-stream'; }
 app.post('/api/agreements/:id/doc', express.json({ limit: '28mb' }), (req, res) => {
@@ -8437,7 +8451,7 @@ app.get('/api/agreement-templates', (req, res) => {
   let all = loadTemplates().map(templateBrief);
   if (!isAdmin) all = all.filter(t => t.active);
   all.sort((x, y) => String(x.name).localeCompare(String(y.name)));
-  res.json({ ok: true, templates: all, types: AGREEMENT_TYPES, isAdmin });
+  res.json({ ok: true, templates: all, types: effAgreementTypes(), isAdmin });
 });
 app.post('/api/admin/agreement-templates', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const all = loadTemplates(); const now = new Date().toISOString();
@@ -8447,7 +8461,7 @@ app.post('/api/admin/agreement-templates', requireAdmin, express.json(), (req, r
   if (b.id) { t = all.find(x => x.id === b.id); if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' }); }
   else { t = { id: newTemplateId(), createdAt: now, active: true }; all.push(t); }
   t.name = name.slice(0, 120);
-  if (typeof b.type === 'string') t.type = AGREEMENT_TYPE_KEYS.indexOf(b.type) >= 0 ? b.type : '';
+  if (typeof b.type === 'string') t.type = agreementTypeKeys().indexOf(b.type) >= 0 ? b.type : '';
   if (b.signFields !== undefined) t.signFields = cleanSignFields(b.signFields);
   if (b.emailMessage !== undefined) t.emailMessage = String(b.emailMessage || '').slice(0, 4000);
   if (b.active !== undefined) t.active = !!b.active;
@@ -8534,7 +8548,7 @@ app.post('/api/agreements/:id/apply-template', express.json(), (req, res) => {
   a.signer2Label = t.signer2Label || 'Signer 2';
   a.signer3Label = t.signer3Label || 'Signer 3';
   if (Array.isArray(t.signFields) && t.signFields.length) a.signFields = t.signFields;
-  if (t.type && AGREEMENT_TYPE_KEYS.indexOf(t.type) >= 0) a.type = t.type;
+  if (t.type && agreementTypeKeys().indexOf(t.type) >= 0) a.type = t.type;
   a.updatedAt = new Date().toISOString(); saveAgreements(all);
   res.json({ ok: true, agreement: agreementBrief(a) });
 });
