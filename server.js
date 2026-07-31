@@ -3221,7 +3221,7 @@ function newEnrollId() { return 'enr_' + Date.now().toString(36) + Math.random()
 function cleanAutoSteps(arr) {
   return (Array.isArray(arr) ? arr : []).slice(0, 30).map(function (st, i) {
     const type = ['task', 'notification', 'logactivity', 'assignment'].indexOf(st && st.type) >= 0 ? st.type : 'email';
-    const o = { type: type, delayDays: Math.max(0, Math.min(3650, parseInt((st && st.delayDays), 10) || 0)), name: String((st && st.name) || '').slice(0, 80) };
+    const o = { type: type, delayDays: Math.max(0, Math.min(3650, parseInt((st && st.delayDays), 10) || 0)), delayHours: Math.max(0, Math.min(23, parseInt((st && st.delayHours), 10) || 0)), delayMinutes: Math.max(0, Math.min(59, parseInt((st && st.delayMinutes), 10) || 0)), name: String((st && st.name) || '').slice(0, 80) };
     if (type === 'email') { o.subject = String((st && st.subject) || '').slice(0, 300); o.body = String((st && st.body) || '').slice(0, 20000); }
     else if (type === 'task') { o.taskTitle = String((st && st.taskTitle) || '').slice(0, 300); o.taskNote = String((st && st.taskNote) || '').slice(0, 2000); }
     else if (type === 'notification') { o.message = String((st && st.message) || '').slice(0, 2000); o.notifyEmail = String((st && st.notifyEmail) || '').slice(0, 160); o.channel = (st && st.channel === 'text') ? 'text' : 'email'; }
@@ -3279,13 +3279,14 @@ function mergeTokens(t, p, user) {
 }
 function smsNotifyEnabled() { const s = loadSettings(); return s.smsNotifyEnabled === true; }
 function automationBrief(a, user) { return { id: a.id, name: a.name || '', bbsDefault: !!a.bbsDefault, execDefault: !!a.execDefault, active: a.active !== false, scope: (a.scope === 'private' ? 'private' : 'shared'), ownerUser: a.ownerUser || '', ownerName: a.ownerName || '', mine: !!(user && (a.ownerUser === user.username || isSuper(user))), steps: Array.isArray(a.steps) ? a.steps : [], stepCount: (a.steps || []).length, updatedAt: a.updatedAt || '' }; }
+function stepDelayMs(st) { if (!st) return 0; const d = Math.max(0, parseInt(st.delayDays, 10) || 0); const h = Math.max(0, parseInt(st.delayHours, 10) || 0); const m = Math.max(0, parseInt(st.delayMinutes, 10) || 0); return d * 86400000 + h * 3600000 + m * 60000; }
 function enrollPerson(p, plan, opts) {
   opts = opts || {};
   if (!p || !plan || !Array.isArray(plan.steps) || !plan.steps.length) return null;
   p.enrollments = Array.isArray(p.enrollments) ? p.enrollments : [];
   if (p.enrollments.some(function (e) { return e.automationId === plan.id && e.status === 'active'; })) return null;
   const now = Date.now();
-  const en = { eid: newEnrollId(), automationId: plan.id, automationName: plan.name || '', startedAt: new Date(now).toISOString(), stepIndex: 0, nextAt: new Date(now + (plan.steps[0].delayDays || 0) * 86400000).toISOString(), status: 'active', enrolledBy: opts.byName || '', enrolledByUser: opts.byUser || '', replyTo: opts.replyTo || '', dealKey: opts.dealKey || '', history: [] };
+  const en = { eid: newEnrollId(), automationId: plan.id, automationName: plan.name || '', startedAt: new Date(now).toISOString(), stepIndex: 0, nextAt: new Date(now + stepDelayMs(plan.steps[0])).toISOString(), status: 'active', enrolledBy: opts.byName || '', enrolledByUser: opts.byUser || '', replyTo: opts.replyTo || '', dealKey: opts.dealKey || '', history: [] };
   p.enrollments.push(en);
   return en;
 }
@@ -3358,7 +3359,7 @@ async function automationTick() {
           if (en.history.length > 100) en.history = en.history.slice(-100);
           en.stepIndex++;
           if (en.stepIndex >= plan.steps.length) { en.status = 'done'; en.nextAt = ''; }
-          else { en.nextAt = new Date(now + (plan.steps[en.stepIndex].delayDays || 0) * 86400000).toISOString(); }
+          else { en.nextAt = new Date(now + stepDelayMs(plan.steps[en.stepIndex])).toISOString(); }
           ch = true;
         }
       }
@@ -5040,7 +5041,7 @@ app.get('/api/company/:id', (req, res) => {
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
   const companyActivity = companyActivityFeed(c);
-  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: effAgreementTypes(), activity: companyActivity, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), hasMaps: !!loadGmapsKey(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: effAgreementTypes(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), activity: companyActivity, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), hasMaps: !!loadGmapsKey(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // ---- Company-level activity: notes / calls / meetings logged against the company itself. ----
 app.post('/api/company/:id/activity', express.json(), (req, res) => {
@@ -8196,7 +8197,7 @@ const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
 function effAgreementTypes() { const s = loadSettings(); if (Array.isArray(s.agreementTypes) && s.agreementTypes.length) { const out = s.agreementTypes.filter(t => t && t.key && t.label).map(t => ({ key: String(t.key), label: String(t.label) })); if (out.length) return out; } return AGREEMENT_TYPES; }
 function agreementTypeKeys() { return effAgreementTypes().map(t => t.key); }
 function agreementBrief(a) {
-  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', startOnExec: !!a.startOnExec, termYears: a.termYears || 0, status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
+  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
 }
 app.get('/api/agreements', (req, res) => {
   let all = loadAgreements();
@@ -8232,6 +8233,7 @@ app.post('/api/agreements', express.json(), (req, res) => {
   if (typeof b.expires === 'string') a.expires = b.expires.slice(0, 10);
   if (typeof b.startOnExec === 'boolean') a.startOnExec = b.startOnExec;
   if (b.termYears !== undefined) { const _ty = parseInt(b.termYears, 10); a.termYears = (isFinite(_ty) && _ty > 0 && _ty <= 99) ? _ty : 0; }
+  if (typeof b.execAuto === 'string') a.execAuto = b.execAuto.slice(0, 40);
   if (typeof b.status === 'string' && ['active', 'expired', 'terminated'].indexOf(b.status) >= 0) a.status = b.status;
   if (!a.status) a.status = 'active';
   if (typeof b.notes === 'string') a.notes = b.notes.slice(0, 2000);
@@ -8750,6 +8752,7 @@ function runPostExecution(a, req) {
     if (!a) return;
     const now = new Date().toISOString();
     try { if (a.startOnExec || a.termYears) { const ags = loadAgreements(); const aa = ags.find(x => x.id === a.id); if (aa) { if (aa.startOnExec) aa.effective = now.slice(0, 10); if (aa.termYears) { const _b = (aa.effective || now.slice(0, 10)); const _d = new Date(_b + 'T00:00:00'); if (!isNaN(_d.getTime())) { _d.setFullYear(_d.getFullYear() + aa.termYears); aa.expires = _d.toISOString().slice(0, 10); } } aa.updatedAt = now; a.effective = aa.effective; a.expires = aa.expires; saveAgreements(ags); } } } catch (e) {}
+    try { if (a.execAuto && a.personId) { const _pp = loadPeople(); const _p = _pp.find(x => x.id === a.personId); if (_p) { const _plan = loadAutomations().find(x => x.id === a.execAuto && x.active !== false); if (_plan) { enrollPerson(_p, _plan, { byName: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '', dealKey: a.dealKey || '' }); savePeople(_pp); } } } } catch (e) {}
     if (!a.dealKey) return;
     try { const ov = loadAssignOverlay(); const cur = ov[a.dealKey] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Active'; cur.stageFlags = cur.stageFlags || {}; cur.stageFlags.agreed = true; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[a.dealKey] = cur; saveAssignOverlay(ov); } catch (e) {}
     if (a.personId) {
