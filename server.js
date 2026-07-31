@@ -8548,8 +8548,8 @@ function ensureSigners(a) {
   return a.signers;
 }
 function repUserForAgreement(a) {
-  try { const u = (auth.loadUsers() || []).find(x => x.username === ((a && a.byUser) || '')) || {}; return { name: u.name || (a && a.by) || '', title: u.title || '', email: u.email || '', phone: u.phone || '' }; }
-  catch (e) { return { name: (a && a.by) || '', title: '', email: '', phone: '' }; }
+  try { const key = (a && (a.byUser || a.createdBy)) || ''; const u = (auth.loadUsers() || []).find(x => x.username === key) || {}; return { name: u.name || (a && (a.by || a.createdByName)) || '', title: u.title || '', email: u.email || '', phone: u.phone || '' }; }
+  catch (e) { return { name: (a && (a.by || a.createdByName)) || '', title: '', email: '', phone: '' }; }
 }
 function signerFieldPrefill(a, fld) {
   const p = a.personId ? personById(a.personId) : null;
