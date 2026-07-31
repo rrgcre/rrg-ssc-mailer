@@ -49,10 +49,9 @@ thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(
 <div class="wrap">
   <div class="stats" id="stats"></div>
   <div class="card">
-    <div class="filters" id="typeFilters"></div>
     <div class="filters">
-      <span class="lbl">Status</span>
-      <select id="statusSel" style="font:inherit;font-size:12px;font-weight:700;border:1px solid #cfd6e2;border-radius:20px;padding:6px 12px;background:#fff;color:var(--muted);cursor:pointer"><option value="all">All statuses</option><option value="active">Active</option><option value="soon">Expiring ≤60d</option><option value="expired">Expired</option></select>
+      <span id="typeFilters" style="display:inline-flex;align-items:center;gap:8px"></span>
+      <span style="display:inline-flex;align-items:center;gap:8px;margin-left:12px"><span class="lbl">Status</span><select id="statusSel" style="font:inherit;font-size:12px;font-weight:700;border:1px solid #cfd6e2;border-radius:20px;padding:6px 12px;background:#fff;color:var(--muted);cursor:pointer"><option value="all">All statuses</option><option value="active">Active</option><option value="soon">Expiring ≤60d</option><option value="expired">Expired</option></select></span>
     </div>
     
     <div id="list"><div class="empty">Loading…</div></div>
