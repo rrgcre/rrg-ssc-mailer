@@ -7013,8 +7013,8 @@ function seedBizSalesStages() {
     console.log('Seeded Biz Sales pipeline (10 stages).');
   } catch (e) { console.error('seedBizSalesStages:', e && e.message); }
 }
-function cleanStages(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 40).map(function(st, i){ return { name: String((st && st.name) || '').slice(0, 80) || ('Stage ' + (i + 1)), number: i + 1, targetDays: Math.max(0, Math.min(3650, parseInt((st && st.targetDays), 10) || 0)) }; }).filter(function(st){ return st.name; }); }
-app.get('/api/pipelines', (req, res) => { res.json({ ok: true, pipelines: loadPipelines(), isAdmin: !!(req.user && isSuper(req.user)) }); });
+function cleanStages(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 40).map(function(st, i){ return { name: String((st && st.name) || '').slice(0, 80) || ('Stage ' + (i + 1)), number: i + 1, targetDays: Math.max(0, Math.min(3650, parseInt((st && st.targetDays), 10) || 0)), onAssignAuto: String((st && st.onAssignAuto) || '').slice(0, 40), onUnassignAuto: String((st && st.onUnassignAuto) || '').slice(0, 40) }; }).filter(function(st){ return st.name; }); }
+app.get('/api/pipelines', (req, res) => { res.json({ ok: true, pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), isAdmin: !!(req.user && isSuper(req.user)) }); });
 app.get('/api/board', (req, res) => {
   const pipelines = loadPipelines();
   const pid = String(req.query.pipelineId || '') || ((pipelines[0] && pipelines[0].id) || 'p_bizsales');
@@ -7038,6 +7038,23 @@ app.get('/api/board', (req, res) => {
   });
   res.json({ ok: true, pipelines: pipelines.map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, cards: cards, isAdmin: !!isAdmin });
 });
+function _fireStageAutos(pipe, d, oldStage, newStage, req) {
+  try {
+    if (!pipe || oldStage === newStage) return;
+    const pid = d.contactPersonId || d.personId || '';
+    if (!pid) return;
+    const stages = pipe.stages || [];
+    const _find = function (nm) { return stages.filter(function (s) { return s.name === nm; })[0]; };
+    const jobs = [];
+    const _o = _find(oldStage); if (_o && _o.onUnassignAuto) jobs.push(_o.onUnassignAuto);
+    const _n = _find(newStage); if (_n && _n.onAssignAuto) jobs.push(_n.onAssignAuto);
+    if (!jobs.length) return;
+    const ppl = loadPeople(); const pp = ppl.find(function (x) { return x.id === pid; }); if (!pp) return;
+    let changed = false;
+    jobs.forEach(function (aid) { const plan = loadAutomations().find(function (x) { return x.id === aid && x.active !== false; }); if (plan) { enrollPerson(pp, plan, { byName: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '', dealKey: d.key }); changed = true; } });
+    if (changed) savePeople(ppl);
+  } catch (e) { console.error('_fireStageAutos:', e && e.message); }
+}
 app.post('/api/assignment/:key/stage', express.json(), (req, res) => {
   const deals = assignmentsIndex(); const d = deals[req.params.key];
   if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
@@ -7047,8 +7064,10 @@ app.post('/api/assignment/:key/stage', express.json(), (req, res) => {
   const pipe = pipelines.find(p => p.id === pid);
   const stage = String((req.body || {}).stage || '');
   if (pipe && (pipe.stages || []).map(s => s.name).indexOf(stage) < 0) return res.status(400).json({ ok: false, error: 'Unknown stage for this pipeline.' });
+  const _oldStage = cur.pipelineStage || '';
   cur.pipelineStage = stage; cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
+  try { _fireStageAutos(pipe, d, _oldStage, stage, req); } catch (e) {}
   res.json({ ok: true });
 });
 
