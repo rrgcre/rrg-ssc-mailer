@@ -8585,17 +8585,26 @@ app.post('/api/agreements/:id/self-sign-return', express.json({ limit: '8mb' }),
     const pdf = await PDFDocument.load(fs.readFileSync(src));
     const png = await pdf.embedPng(Buffer.from(sig.replace(/^data:image\/png;base64,/, ''), 'base64'));
     const _sfont = await pdf.embedFont(StandardFonts.Helvetica);
-    const pages = pdf.getPages(); const pg = pages[pages.length - 1]; const sz = pg.getSize();
-    const w = Math.min(200, png.width); const scl = w / png.width; const h = png.height * scl;
-    const _sigX = Math.max(20, sz.width - w - 50);
     const _nm = String(b.stampName || '').trim().slice(0, 120);
     const _ti = String(b.stampTitle || '').trim().slice(0, 120);
     const _dt = String(b.stampDate || '').trim().slice(0, 40);
-    const _lines = []; if (_nm) _lines.push('Name: ' + _nm); if (_ti) _lines.push('Title: ' + _ti); if (_dt) _lines.push('Date: ' + _dt);
-    const _lh = 13, _fsz = 10, _mb = 40; const _tbh = _lines.length * _lh;
-    const _sigY = _mb + _tbh + (_lines.length ? 6 : 0);
-    pg.drawImage(png, { x: _sigX, y: _sigY, width: w, height: h });
-    _lines.forEach((ln, i) => { pg.drawText(ln, { x: _sigX, y: _mb + _tbh - (i + 1) * _lh, size: _fsz, font: _sfont, color: rgb(0.1, 0.13, 0.2) }); });
+    const pages = pdf.getPages();
+    const _P = (b.placements && typeof b.placements === 'object') ? b.placements : null;
+    const _hasP = !!(_P && (_P.signature || _P.name || _P.title || _P.date));
+    const _drawTxt = (e, txt) => { if (!e || !txt) return; const page = pages[e.page]; if (!page) return; const s2 = page.getSize(); const pw = s2.width, ph = s2.height; const bx = e.x * pw, bh = e.h * ph, byTop = e.y * ph; const byBottom = ph - (byTop + bh); const size = Math.max(7, Math.min(14, bh * 0.72)); page.drawText(String(txt).slice(0, 160), { x: bx + 2, y: byBottom + Math.max(2, (bh - size) / 2), size, font: _sfont, color: rgb(0.06, 0.09, 0.2) }); };
+    if (_hasP) {
+      if (_P.signature) { const e = _P.signature; const page = pages[e.page]; if (page) { const s2 = page.getSize(); const pw = s2.width, ph = s2.height; const bx = e.x * pw, bw = e.w * pw, bh = e.h * ph, byTop = e.y * ph; const byBottom = ph - (byTop + bh); const scl = Math.min(bw / png.width, bh / png.height); const dw = png.width * scl, dh = png.height * scl; page.drawImage(png, { x: bx + (bw - dw) / 2, y: byBottom + (bh - dh) / 2, width: dw, height: dh }); } }
+      _drawTxt(_P.name, _nm); _drawTxt(_P.title, _ti); _drawTxt(_P.date, _dt);
+    } else {
+      const pg = pages[pages.length - 1]; const sz = pg.getSize();
+      const w = Math.min(200, png.width); const scl = w / png.width; const h = png.height * scl;
+      const _sigX = Math.max(20, sz.width - w - 50);
+      const _lines = []; if (_nm) _lines.push('Name: ' + _nm); if (_ti) _lines.push('Title: ' + _ti); if (_dt) _lines.push('Date: ' + _dt);
+      const _lh = 13, _fsz = 10, _mb = 40; const _tbh = _lines.length * _lh;
+      const _sigY = _mb + _tbh + (_lines.length ? 6 : 0);
+      pg.drawImage(png, { x: _sigX, y: _sigY, width: w, height: h });
+      _lines.forEach((ln, i) => { pg.drawText(ln, { x: _sigX, y: _mb + _tbh - (i + 1) * _lh, size: _fsz, font: _sfont, color: rgb(0.1, 0.13, 0.2) }); });
+    }
     const out = await pdf.save(); fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'), Buffer.from(out));
     const now = new Date().toISOString();
     a.hasFinal = true; a.signStatus = 'executed'; a.entryMethod = 'signreturn'; a.executedAt = now; a.signedDate = _dt || a.signedDate || now.slice(0, 10); a.repSignedName = _nm || (req.user && req.user.name) || ''; a.repSignedTitle = _ti || a.repSignedTitle || ''; a.repSignedAt = now; a.status = 'active'; a.updatedAt = now;
