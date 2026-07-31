@@ -300,6 +300,46 @@ function parseAddrs(str) {
   });
   return out;
 }
+// Walk a message payload and collect downloadable file attachments.
+function collectAttachments(payload) {
+  const out = [];
+  (function walk(part) {
+    if (!part) return;
+    if (part.filename && part.body && part.body.attachmentId) out.push({ filename: part.filename, attachmentId: part.body.attachmentId, mimeType: part.mimeType || '', size: (part.body && part.body.size) || 0 });
+    if (part.parts) part.parts.forEach(walk);
+  })(payload);
+  return out;
+}
+// Search the mailbox for messages that likely carry an agreement document; return candidates with attachment metadata.
+async function listAgreementCandidates(username, max) {
+  const lim = Math.min(max || 40, 60);
+  const q = 'has:attachment (filename:pdf OR filename:doc OR filename:docx) (agreement OR NDA OR "non-disclosure" OR "non disclosure" OR LOI OR "letter of intent" OR listing OR "tenant rep" OR representation OR referral OR ETRA OR confidentiality OR "co-broke" OR broker)';
+  const u = 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=' + lim + '&q=' + encodeURIComponent(q);
+  const r = await gapi(username, u, {});
+  const j = await r.json();
+  if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail search failed.');
+  const ids = (j.messages || []).map(m => m.id);
+  const out = await Promise.all(ids.map(async id => {
+    try {
+      const mr = await gapi(username, 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + id + '?format=full', {});
+      const mj = await mr.json();
+      if (!mr.ok) return null;
+      const H = mj.payload && mj.payload.headers;
+      const atts = collectAttachments(mj.payload).filter(a => /\.(pdf|docx?)$/i.test(a.filename));
+      if (!atts.length) return null;
+      return { id: mj.id, threadId: mj.threadId, from: hdr(H, 'From'), to: hdr(H, 'To'), subject: hdr(H, 'Subject'), date: hdr(H, 'Date') || (mj.internalDate ? new Date(Number(mj.internalDate)).toISOString() : ''), ts: mj.internalDate ? Number(mj.internalDate) : 0, snippet: mj.snippet || '', attachments: atts };
+    } catch (e) { return null; }
+  }));
+  return out.filter(Boolean).sort((a, b) => b.ts - a.ts);
+}
+// Download a single attachment; returns a Buffer.
+async function getAttachment(username, messageId, attachmentId) {
+  const u = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + encodeURIComponent(messageId) + '/attachments/' + encodeURIComponent(attachmentId);
+  const r = await gapi(username, u, {});
+  const j = await r.json();
+  if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Attachment download failed.');
+  return Buffer.from(String(j.data || ''), 'base64url');
+}
 async function listCorrespondents(username, months, maxMsgs) {
   const mo = Math.min(Math.max(parseInt(months, 10) || 12, 1), 120);
   const cap = Math.min(Math.max(parseInt(maxMsgs, 10) || 2000, 1), 5000);
@@ -351,5 +391,5 @@ module.exports = {
   isConfigured, SCOPES, statusFor, redirectUri, authUrl, readState,
   connectFromCode, deleteToken, loadToken, statusForUser: statusFor,
   messagesForContact, messageFull, searchLeadBodies, listCorrespondents, sendMessage, TOK_DIR,
-  gapi, gapiJSON, accessToken,
+  gapi, gapiJSON, accessToken, parseAddrs, listAgreementCandidates, getAttachment,
 };

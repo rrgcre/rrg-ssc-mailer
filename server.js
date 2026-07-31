@@ -4411,6 +4411,73 @@ app.post('/api/gmail/contacts/classify', express.json({ limit: '2mb' }), async (
   } catch (e) { console.error('gmail classify:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
+// ---- Import old agreements straight from the connected Gmail mailbox ----
+function guessAgreementType(text) {
+  const s = String(text || '').toLowerCase();
+  if (/tenant\s*rep|tenant\s*representation/.test(s)) return 'TenantRep';
+  if (/associate\s*broker/.test(s)) return 'AssocBroker';
+  if (/referral/.test(s)) return 'Referral';
+  if (/exclusive.*listing|listing\s*agreement|business\s*listing/.test(s)) return 'Listing';
+  if (/business\s*seller|seller\s*(rep|agreement)|representation\s*agreement/.test(s)) return 'BizSeller';
+  if (/\betra\b/.test(s)) return 'ETRA';
+  if (/non[-\s]?disclosure|\bnda\b/.test(s)) return 'NDA';
+  if (/confidential/.test(s)) return 'CA';
+  return '';
+}
+app.get('/api/gmail/agreements/scan', async (req, res) => {
+  const uname = req.user && req.user.username;
+  if (!uname) return res.status(401).json({ ok: false, error: 'Not signed in.' });
+  try {
+    const st = gmail.statusForUser ? gmail.statusForUser(uname) : null;
+    if (st && st.connected === false) return res.status(400).json({ ok: false, error: 'Connect Gmail first (Account → Gmail).' });
+    const cands = await gmail.listAgreementCandidates(uname, 50);
+    const people = loadPeople();
+    const idx = {};
+    people.forEach(p => { personEmails(p).forEach(e => { const k = String(e || '').toLowerCase(); if (k && !idx[k]) idx[k] = { id: p.id, name: p.name || '', companyId: p.companyId || '' }; }); });
+    const myEmail = ((gmail.loadToken(uname) || {}).email || '').toLowerCase();
+    const out = [];
+    cands.forEach(c => {
+      const parts = gmail.parseAddrs(c.from).concat(gmail.parseAddrs(c.to));
+      const others = parts.map(a => ({ email: (a.email || '').toLowerCase(), name: a.name || '' })).filter(a => a.email && a.email !== myEmail);
+      let match = null, cpEmail = '', cpName = '';
+      for (const a of others) { if (idx[a.email]) { match = idx[a.email]; cpEmail = a.email; cpName = a.name; break; } if (!cpEmail) { cpEmail = a.email; cpName = a.name; } }
+      c.attachments.filter(a => /\.(pdf|docx?)$/i.test(a.filename)).forEach(a => {
+        out.push({ key: c.id + '::' + a.attachmentId, messageId: c.id, attachmentId: a.attachmentId, filename: a.filename, size: a.size || 0, subject: c.subject || '', from: c.from || '', date: c.date || '', ts: c.ts || 0, guessType: guessAgreementType((c.subject || '') + ' ' + a.filename + ' ' + (c.snippet || '')), personId: match ? match.id : '', personName: match ? match.name : (cpName || ''), counterpartyEmail: cpEmail });
+      });
+    });
+    out.sort((a, b) => b.ts - a.ts);
+    res.json({ ok: true, candidates: out.slice(0, 120), types: AGREEMENT_TYPES });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/gmail/agreements/import', express.json({ limit: '1mb' }), async (req, res) => {
+  const uname = req.user && req.user.username;
+  if (!uname) return res.status(401).json({ ok: false, error: 'Not signed in.' });
+  const items = Array.isArray((req.body || {}).items) ? req.body.items.slice(0, 60) : [];
+  if (!items.length) return res.status(400).json({ ok: false, error: 'Nothing selected to import.' });
+  const all = loadAgreements(); const now = new Date().toISOString();
+  let created = 0, failed = 0; const errs = [];
+  for (const it of items) {
+    try {
+      const type = AGREEMENT_TYPE_KEYS.indexOf(it.type) >= 0 ? it.type : (guessAgreementType((it.subject || '') + ' ' + (it.filename || '')) || 'NDA');
+      const buf = await gmail.getAttachment(uname, it.messageId, it.attachmentId);
+      if (!buf || !buf.length) { failed++; errs.push((it.filename || 'file') + ': empty download'); continue; }
+      if (buf.length > 20 * 1024 * 1024) { failed++; errs.push((it.filename || 'file') + ': too large'); continue; }
+      const ext = agreementDocExt(it.filename);
+      const a = { id: newAgreementId(), type, createdBy: uname, createdByName: (req.user && req.user.name) || '', createdAt: now, updatedAt: now, status: 'active', imported: true, importedFrom: 'gmail' };
+      if (it.personId) { const p = personById(it.personId); if (p) { a.personId = p.id; a.personName = p.name || ''; if (p.companyId) a.companyId = p.companyId; } }
+      if (!a.personName && it.personName) a.personName = String(it.personName).slice(0, 160);
+      if (it.date) { const d = new Date(it.date); if (!isNaN(d.getTime())) a.effective = d.toISOString().slice(0, 10); }
+      if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true });
+      fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + ext), buf);
+      a.docExt = ext; a.docName = String(it.filename || ('agreement.' + ext)).slice(0, 200);
+      all.push(a); created++;
+      if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Note', agreementTypeLabel(type) + ' imported from email (' + a.docName + ')', { auto: true, by: (req.user && req.user.name) || '', byUser: uname }); savePeople(ppl); } } catch (e) {} }
+    } catch (e) { failed++; errs.push(String((e && e.message) || e)); }
+  }
+  saveAgreements(all);
+  res.json({ ok: true, created, failed, errors: errs.slice(0, 6) });
+});
+
 app.post('/api/gmail/disconnect', (req, res) => {
   const u = (req.user && req.user.username) || '';
   gmail.deleteToken(u);

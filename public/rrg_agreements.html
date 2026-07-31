@@ -52,9 +52,29 @@ thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(
     <div class="filters">
       <span id="typeFilters" style="display:inline-flex;align-items:center;gap:8px"></span>
       <span style="display:inline-flex;align-items:center;gap:8px;margin-left:12px"><span class="lbl">Status</span><select id="statusSel" style="font:inherit;font-size:12px;font-weight:700;border:1px solid #cfd6e2;border-radius:20px;padding:6px 12px;background:#fff;color:var(--muted);cursor:pointer"><option value="all">All statuses</option><option value="active">Active</option><option value="soon">Expiring ≤60d</option><option value="expired">Expired</option></select></span>
+      <button type="button" id="importEmailBtn" style="margin-left:auto;font:inherit;font-size:12px;font-weight:700;border:none;border-radius:20px;padding:7px 15px;background:var(--navy);color:#fff;cursor:pointer">⤓ Import from email</button>
     </div>
     
     <div id="list"><div class="empty">Loading…</div></div>
+  </div>
+</div>
+<div id="impModal" style="position:fixed;inset:0;background:rgba(6,14,32,.55);display:none;align-items:center;justify-content:center;z-index:200;padding:20px">
+  <div style="background:#fff;border-radius:14px;max-width:920px;width:100%;max-height:88vh;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(0,0,0,.4);overflow:hidden">
+    <div style="padding:16px 22px;border-bottom:1px solid var(--line);display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+      <div><div style="font-size:16px;font-weight:800;color:var(--navy)">Import agreements from email</div><div style="font-size:12.5px;color:var(--muted);margin-top:2px;max-width:640px">Scans your connected Gmail for messages with an agreement document attached (PDF or Word). Pick which ones to bring in, set the type, and import. Great for loading your back catalog.</div></div>
+      <button type="button" id="imp_x" aria-label="Close" style="background:none;border:none;font-size:24px;line-height:1;color:#8a94a6;cursor:pointer;padding:0 2px">×</button>
+    </div>
+    <div style="padding:11px 22px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <button type="button" class="savebtn" id="imp_scan" style="width:auto;padding:8px 16px">🔎 Scan email</button>
+      <label style="font-size:12.5px;color:var(--muted);display:inline-flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" id="imp_all"> Select all</label>
+      <span id="imp_count" style="font-size:12.5px;color:var(--muted);font-weight:700"></span>
+      <span id="imp_msg" style="font-size:12.5px;color:var(--muted);margin-left:auto"></span>
+    </div>
+    <div id="imp_list" style="overflow:auto;padding:6px 22px 12px;flex:1"><div class="empty">Click &ldquo;Scan email&rdquo; to look for agreements in your inbox.</div></div>
+    <div style="padding:13px 22px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;align-items:center">
+      <button type="button" class="mfadd" id="imp_cancel" style="background:#eef1f6;border:1px solid #d5dbe6;border-radius:9px;padding:9px 16px;font:inherit;font-weight:700;color:#33415c;cursor:pointer">Close</button>
+      <button type="button" class="savebtn" id="imp_do" style="width:auto;padding:9px 18px" disabled>Import selected</button>
+    </div>
   </div>
 </div>
 <datalist id="agrPeopleList"></datalist>
@@ -131,6 +151,70 @@ var _agc=document.getElementById('ag_cancel'); if(_agc) _agc.addEventListener('c
 var _agx=document.getElementById('ag_x'); if(_agx) _agx.addEventListener('click',closeAgrModal);
 var _agm=document.getElementById('agrModal'); if(_agm) _agm.addEventListener('click',function(e){ if(e.target===_agm){ /* stay open */ } });
 var _ags=document.getElementById('ag_save'); if(_ags) _ags.addEventListener('click',createAgreement);
+/* ---- Import agreements from email ---- */
+var IMPCANDS=[], IMPTYPES=[];
+function openImportModal(){ var m=document.getElementById('impModal'); if(!m) return; m.style.display='flex'; document.getElementById('imp_msg').textContent=''; }
+function closeImportModal(){ var m=document.getElementById('impModal'); if(m) m.style.display='none'; }
+function impTypeOptions(sel){ var ts=IMPTYPES.length?IMPTYPES:(TYPES||[]); return '<option value="">— type —</option>'+ts.map(function(t){return '<option value="'+esc(t.key)+'"'+(t.key===sel?' selected':'')+'>'+esc(t.label)+'</option>';}).join(''); }
+function impFmt(d){ if(!d) return ''; var t=Date.parse(d); if(isNaN(t)) return esc(String(d).slice(0,16)); var x=new Date(t); return (x.getMonth()+1)+'/'+x.getDate()+'/'+String(x.getFullYear()).slice(2); }
+function impShort(s,n){ s=String(s||''); return esc(s.length>n?(s.slice(0,n-1)+'…'):s); }
+function scanEmails(){
+  var b=document.getElementById('imp_scan'), list=document.getElementById('imp_list'), msg=document.getElementById('imp_msg');
+  b.disabled=true; b.textContent='Scanning…'; msg.textContent='';
+  list.innerHTML='<div class="empty">Searching your inbox for agreements… this can take a moment.</div>';
+  fetch('/api/gmail/agreements/scan',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    b.disabled=false; b.textContent='🔎 Rescan';
+    if(!j||!j.ok){ list.innerHTML='<div class="empty">'+esc((j&&j.error)||'Could not scan email.')+'</div>'; return; }
+    IMPCANDS=j.candidates||[]; IMPTYPES=j.types||IMPTYPES;
+    renderCands();
+  }).catch(function(){ b.disabled=false; b.textContent='🔎 Scan email'; list.innerHTML='<div class="empty">Could not reach the server.</div>'; });
+}
+function renderCands(){
+  var list=document.getElementById('imp_list');
+  if(!IMPCANDS.length){ list.innerHTML='<div class="empty">No agreement attachments found in your inbox. Try sending them to yourself first, or add one manually.</div>'; updateImpCount(); return; }
+  list.innerHTML=IMPCANDS.map(function(c){
+    var contact = c.personId ? ('<span style="color:var(--green,#1f8a5b);font-weight:700">✓ '+impShort(c.personName,26)+'</span>') : (c.counterpartyEmail ? ('<span style="color:#8a94a6">'+impShort(c.counterpartyEmail,26)+'<br><span style="font-size:11px">no match — will import unlinked</span></span>') : '<span style="color:#8a94a6">—</span>');
+    return '<div class="improw" data-key="'+esc(c.key)+'" style="display:flex;gap:11px;align-items:flex-start;padding:11px 2px;border-bottom:1px solid #eef1f6">'
+      +'<input type="checkbox" class="impchk" checked style="margin-top:4px;width:16px;height:16px;cursor:pointer">'
+      +'<div style="flex:1;min-width:0">'
+        +'<div style="font-weight:700;color:var(--ink);font-size:13.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">📎 '+impShort(c.filename,60)+'</div>'
+        +'<div style="font-size:12px;color:var(--muted);margin-top:1px">'+impShort(c.subject||'(no subject)',70)+'</div>'
+        +'<div style="font-size:11px;color:#98a1b5;margin-top:1px">'+impShort(c.from,44)+' · '+impFmt(c.date)+'</div>'
+      +'</div>'
+      +'<select class="imptype" style="font:inherit;font-size:12.5px;padding:6px 9px;border:1px solid #cfd6e2;border-radius:8px;background:#fff;color:var(--ink);align-self:center">'+impTypeOptions(c.guessType)+'</select>'
+      +'<div style="min-width:150px;font-size:12.5px;align-self:center">'+contact+'</div>'
+      +'</div>';
+  }).join('');
+  list.querySelectorAll('.impchk').forEach(function(cb){ cb.addEventListener('change',updateImpCount); });
+  updateImpCount();
+}
+function updateImpCount(){
+  var rows=document.querySelectorAll('#imp_list .improw');
+  var n=0; rows.forEach(function(r){ if(r.querySelector('.impchk') && r.querySelector('.impchk').checked) n++; });
+  var cnt=document.getElementById('imp_count'); if(cnt) cnt.textContent=IMPCANDS.length?(n+' of '+IMPCANDS.length+' selected'):'';
+  var doBtn=document.getElementById('imp_do'); if(doBtn){ doBtn.disabled=(n===0); doBtn.textContent='Import '+(n?(n+' '):'')+'selected'; }
+  var all=document.getElementById('imp_all'); if(all){ all.checked=(rows.length>0 && n===rows.length); }
+}
+function doImportSelected(){
+  var rows=document.querySelectorAll('#imp_list .improw'); var items=[];
+  rows.forEach(function(r){ var cb=r.querySelector('.impchk'); if(!cb||!cb.checked) return; var key=r.getAttribute('data-key'); var c=IMPCANDS.filter(function(x){return x.key===key;})[0]; if(!c) return; var ty=(r.querySelector('.imptype')||{}).value||c.guessType||''; items.push({ messageId:c.messageId, attachmentId:c.attachmentId, filename:c.filename, subject:c.subject, date:c.date, personId:c.personId, personName:c.personName, type:ty }); });
+  if(!items.length) return;
+  var doBtn=document.getElementById('imp_do'), msg=document.getElementById('imp_msg');
+  doBtn.disabled=true; doBtn.textContent='Importing…'; msg.textContent='';
+  fetch('/api/gmail/agreements/import',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok){ msg.style.color='var(--green,#1f8a5b)'; msg.textContent='Imported '+j.created+(j.failed?(' · '+j.failed+' failed'):'')+'.'; load(); setTimeout(closeImportModal,1200); }
+    else { doBtn.disabled=false; updateImpCount(); msg.style.color='#DA2B1F'; msg.textContent=(j&&j.error)||'Import failed.'; }
+  }).catch(function(){ doBtn.disabled=false; updateImpCount(); msg.style.color='#DA2B1F'; msg.textContent='Could not reach the server.'; });
+}
+(function(){
+  var ib=document.getElementById('importEmailBtn'); if(ib) ib.addEventListener('click',openImportModal);
+  var x=document.getElementById('imp_x'); if(x) x.addEventListener('click',closeImportModal);
+  var cx=document.getElementById('imp_cancel'); if(cx) cx.addEventListener('click',closeImportModal);
+  var sc=document.getElementById('imp_scan'); if(sc) sc.addEventListener('click',scanEmails);
+  var dd=document.getElementById('imp_do'); if(dd) dd.addEventListener('click',doImportSelected);
+  var all=document.getElementById('imp_all'); if(all) all.addEventListener('change',function(){ document.querySelectorAll('#imp_list .impchk').forEach(function(cb){ cb.checked=all.checked; }); updateImpCount(); });
+  var m=document.getElementById('impModal'); if(m) m.addEventListener('click',function(e){ if(e.target===m) closeImportModal(); });
+})();
 load();
 </script>
 <script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
