@@ -236,7 +236,7 @@ function renderGmail(){
   var st=$('gmState'), ac=$('gmActions');
   fetch(API+'/api/gmail/status',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.configured){ st.innerHTML='<span style="color:#a05a00">Gmail isn’t set up on the server yet — an admin needs to add the Google credentials.</span>'; ac.innerHTML=''; return; }
-    if(j.connected){ st.innerHTML='Connected as <b>'+esc(j.email||'your Gmail')+'</b>.'; ac.innerHTML='<button class="save" style="background:#b3261e" onclick="gmDisconnect()">Disconnect Gmail</button>'; }
+    if(j.connected){ st.innerHTML='Connected as <b>'+esc(j.email||'your Gmail')+'</b>.'; ac.innerHTML='<button class="save" onclick="gmConnect()">Reconnect &amp; approve Contacts + Calendar</button> <button class="save" style="background:#eef1f6;color:#b3261e;border:1px solid #f0c9c6" onclick="gmDisconnect()">Disconnect Gmail</button><div class="desc" style="margin-top:8px">Already connected? If Contacts/Calendar sync says access isn\u2019t granted, click <b>Reconnect</b> above and approve the extra permissions on Google\u2019s screen.</div>'; }
     else { st.innerHTML='Not connected yet.'; ac.innerHTML='<button class="save" onclick="gmConnect()">Connect Gmail</button>'; }
   }).catch(function(){ st.textContent='Could not check Gmail status.'; });
 }
