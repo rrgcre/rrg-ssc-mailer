@@ -61,6 +61,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .vbtn.on{background:var(--navy,#000E31);color:#fff;}
 .listwrap{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 16px;margin:0 20px;}
 .lstage{display:inline-block;font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;background:#eef2fb;color:#2647b0;}
+.dbtn{background:#fff;border:none;padding:7px 11px;font:inherit;font-size:12.5px;font-weight:700;color:#6b7488;cursor:pointer;}
+.dbtn.on{background:var(--navy,#000E31);color:#fff;}
+.cardx .chd{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.cardx.compact{cursor:pointer;}
+.cardx.compact .t{margin-bottom:0;}
+.cardx.compact .cbody{display:none;margin-top:8px;padding-top:8px;border-top:1px solid #f0f2f7;}
+.cardx.compact.expanded .cbody{display:block;}
+.cardx .opendeal{font-size:11px;font-weight:700;color:var(--navy,#000E31);text-decoration:none;white-space:nowrap;}
+.cardx .opendeal:hover{text-decoration:underline;}
+.cfrow{display:flex;align-items:center;gap:7px;padding:5px 9px;font-size:13px;color:#26324a;cursor:pointer;border-radius:7px;}
+.cfrow:hover{background:#f4f7fb;}
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_list.js"></script>
@@ -79,6 +90,9 @@ var DATA=null, PID='', DRAGKEY='';
 var VIEW=(function(){ try{ return localStorage.getItem('rrg_board_view')||'board'; }catch(e){ return 'board'; } })(), LTBL=null;
 var TB={ q:'', owner:'', market:'', status:'', min:'', max:'', sort:'act_desc', per:25 };
 var FILTER_OPEN=false, SAVE_OPEN=false, EXPANDED={};
+var DENSITY=(function(){try{return localStorage.getItem('rrg_board_density')||'full';}catch(e){return 'full';}})();
+var CARDF=(function(){var d={contact:true,value:true,market:true,status:false,bbs:false,activity:true};try{var o=JSON.parse(localStorage.getItem('rrg_board_cardf')||'null');if(o&&typeof o==='object')return Object.assign(d,o);}catch(e){}return d;})();
+var CARDF_OPEN=false, EXPCARD={};
 var SORTS=[['act_desc','Newest activity'],['act_asc','Oldest activity'],['val_desc','Value: high → low'],['val_asc','Value: low → high'],['name_asc','Name: A → Z'],['created_desc','Newest listing']];
 var PER_OPTS=[10,25,50,0];
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -134,6 +148,8 @@ function renderToolbar(){
     +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_saved">★ Saved views ▾</button><div id="savemenu"></div></div>'
     +'<span class="tblabel">Sort</span><select class="tbsel" id="tb_sort">'+SORTS.map(function(o){return '<option value="'+o[0]+'"'+(TB.sort===o[0]?' selected':'')+'>'+esc(o[1])+'</option>';}).join('')+'</select>'
     +'<span class="tblabel">Per column</span><select class="tbsel" id="tb_per">'+PER_OPTS.map(function(p){return '<option value="'+p+'"'+(TB.per===p?' selected':'')+'>'+perLabel(p)+'</option>';}).join('')+'</select>'
+    +'<span class="tblabel">Cards</span><div class="vtog"><button class="dbtn'+(DENSITY==='full'?' on':'')+'" data-density="full">Full</button><button class="dbtn'+(DENSITY==='compact'?' on':'')+'" data-density="compact">Compact</button></div>'
+    +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_cardf">\u2699 Card fields \u25be</button><div id="cardfmenu"></div></div>'
     +'</div>';
   document.getElementById('toolbar').innerHTML=html;
   renderFilterPanel();
@@ -144,6 +160,8 @@ function renderToolbar(){
   document.getElementById('tb_per').addEventListener('change',function(){ TB.per=Number(this.value); saveTB(); EXPANDED={}; render(); });
   document.getElementById('tb_saved').addEventListener('click',function(e){ e.stopPropagation(); SAVE_OPEN=!SAVE_OPEN; renderSaveMenu(); });
   document.querySelectorAll('.vbtn[data-view]').forEach(function(b){ b.addEventListener('click',function(){ VIEW=b.getAttribute('data-view'); try{localStorage.setItem('rrg_board_view',VIEW);}catch(e){} renderToolbar(); render(); }); });
+  document.querySelectorAll('.dbtn[data-density]').forEach(function(b){ b.addEventListener('click',function(){ DENSITY=b.getAttribute('data-density'); try{localStorage.setItem('rrg_board_density',DENSITY);}catch(e){} renderToolbar(); render(); }); });
+  var _cf=document.getElementById('tb_cardf'); if(_cf) _cf.addEventListener('click',function(e){ e.stopPropagation(); CARDF_OPEN=!CARDF_OPEN; renderCardfMenu(); });
 }
 function renderFilterPanel(){
   var host=document.getElementById('filterpanel');
@@ -174,6 +192,7 @@ function renderSaveMenu(){
 }
 function applyView(name){ var v=savedViews()[name]; if(!v) return; TB=Object.assign(TB,{q:v.q||'',owner:v.owner||'',market:v.market||'',status:v.status||'',min:v.min||'',max:v.max||'',sort:v.sort||'act_desc'}); saveTB(); SAVE_OPEN=false; FILTER_OPEN=true; EXPANDED={}; renderToolbar(); render(); }
 document.addEventListener('click',function(e){ if(SAVE_OPEN){ var m=document.getElementById('savemenu'); var b=document.getElementById('tb_saved'); if(m && !m.contains(e.target) && e.target!==b){ SAVE_OPEN=false; renderSaveMenu(); } } });
+document.addEventListener('click',function(e){ if(CARDF_OPEN){ var m=document.getElementById('cardfmenu'); var b=document.getElementById('tb_cardf'); if(m && !m.contains(e.target) && e.target!==b && !(b&&b.contains(e.target))){ CARDF_OPEN=false; renderCardfMenu(); } } });
 var _rt=null; function debouncedRender(){ if(_rt) clearTimeout(_rt); _rt=setTimeout(render,140); }
 function renderList(cards){
   var root=document.getElementById('root');
@@ -217,20 +236,47 @@ function render(){
   document.querySelectorAll('[data-more]').forEach(function(el){ el.addEventListener('click',function(ev){ ev.preventDefault(); EXPANDED[el.getAttribute('data-more')]=true; render(); }); });
   wireDnD();
 }
+var CARDF_FIELDS=[['contact','Contact'],['value','Value'],['market','Market'],['status','Status'],['bbs','BBS #'],['activity','Last activity']];
+function saveCARDF(){ try{ localStorage.setItem('rrg_board_cardf',JSON.stringify(CARDF)); }catch(e){} }
+function renderCardfMenu(){
+  var host=document.getElementById('cardfmenu'); if(!host) return;
+  if(!CARDF_OPEN){ host.innerHTML=''; host.className=''; return; }
+  host.className='savemenu';
+  host.innerHTML='<div class="shd">Show on cards</div>'+CARDF_FIELDS.map(function(f){ return '<label class="cfrow"><input type="checkbox" data-cf="'+f[0]+'"'+(CARDF[f[0]]?' checked':'')+'> '+esc(f[1])+'</label>'; }).join('');
+  host.querySelectorAll('input[data-cf]').forEach(function(cb){ cb.addEventListener('change',function(){ CARDF[cb.getAttribute('data-cf')]=cb.checked; saveCARDF(); render(); }); });
+}
+function cardOwner(c){ return c.owner?('<span class="av" title="'+esc(c.owner)+'">'+esc(initials(c.owner))+'</span>'):''; }
+function cardFieldsHtml(c){
+  var h='';
+  if(CARDF.contact && c.contact) h+='<div class="r"><span class="ic">○</span>'+esc(c.contact)+'</div>';
+  if(CARDF.value && c.value) h+='<div class="r"><span class="ic">$</span><span class="val">'+esc(c.value)+'</span></div>';
+  if(CARDF.market && c.market) h+='<div class="r"><span class="ic">◎</span>'+esc(c.market)+'</div>';
+  if(CARDF.status && c.status) h+='<div class="r"><span class="ic">◈</span>'+esc(c.status)+'</div>';
+  if(CARDF.bbs && c.bbsNumber) h+='<div class="r"><span class="ic">#</span>'+esc(c.bbsNumber)+'</div>';
+  return h;
+}
 function cardHtml(c){
-  return '<a class="cardx" draggable="true" data-key="'+esc(c.key)+'" href="./rrg_assignment.html?key='+encodeURIComponent(c.key)+'">'
-    +'<div class="t">'+esc(c.business||'Listing')+'</div>'
-    +(c.contact?('<div class="r"><span class="ic">○</span>'+esc(c.contact)+'</div>'):'')
-    +(c.value?('<div class="r"><span class="ic">$</span><span class="val">'+esc(c.value)+'</span></div>'):'')
-    +(c.market?('<div class="r"><span class="ic">◎</span>'+esc(c.market)+'</div>'):'')
-    +'<div class="ft"><span class="dt">'+(c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+(c.owner?('<span class="av" title="'+esc(c.owner)+'">'+esc(initials(c.owner))+'</span>'):'')+'</div>'
-    +'</a>';
+  var open='./rrg_assignment.html?key='+encodeURIComponent(c.key);
+  if(DENSITY==='compact'){
+    var exp=!!EXPCARD[c.key];
+    return '<div class="cardx compact'+(exp?' expanded':'')+'" draggable="true" data-key="'+esc(c.key)+'">'
+      +'<div class="chd"><span class="t">'+esc(c.business||'Listing')+'</span>'+cardOwner(c)+'</div>'
+      +'<div class="cbody">'+(cardFieldsHtml(c)||'<div class="r" style="color:#98a1b5">No extra details</div>')
+        +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span><a class="opendeal" href="'+open+'">Open deal →</a></div>'
+      +'</div></div>';
+  }
+  return '<div class="cardx" draggable="true" data-key="'+esc(c.key)+'">'
+    +'<a class="t" href="'+open+'">'+esc(c.business||'Listing')+'</a>'
+    +cardFieldsHtml(c)
+    +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+cardOwner(c)+'</div>'
+    +'</div>';
 }
 function wireDnD(){
   document.querySelectorAll('.cardx').forEach(function(el){
-    el.addEventListener('dragstart',function(e){ DRAGKEY=el.getAttribute('data-key'); el.classList.add('dragging'); try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',DRAGKEY); }catch(_){}});
-    el.addEventListener('dragend',function(){ el.classList.remove('dragging'); document.querySelectorAll('.col.dragover').forEach(function(c){c.classList.remove('dragover');}); });
+    el.addEventListener('dragstart',function(e){ DRAGKEY=el.getAttribute('data-key'); el.__drag=true; el.classList.add('dragging'); try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',DRAGKEY); }catch(_){}});
+    el.addEventListener('dragend',function(){ el.classList.remove('dragging'); setTimeout(function(){el.__drag=false;},260); document.querySelectorAll('.col.dragover').forEach(function(c){c.classList.remove('dragover');}); });
   });
+  document.querySelectorAll('.cardx.compact').forEach(function(el){ el.addEventListener('click',function(e){ if(el.__drag) return; if(e.target.closest('a')) return; var k=el.getAttribute('data-key'); EXPCARD[k]=!EXPCARD[k]; el.classList.toggle('expanded',!!EXPCARD[k]); }); });
   document.querySelectorAll('.col').forEach(function(col){
     col.addEventListener('dragover',function(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; col.classList.add('dragover'); });
     col.addEventListener('dragleave',function(e){ if(!col.contains(e.relatedTarget)) col.classList.remove('dragover'); });
