@@ -175,8 +175,8 @@ function sectionsCard(){
   html+='</div></div>';
   return html;
 }
-function delClause(type,cid){
-  if(!confirm('Delete this section from the library?')) return;
+async function delClause(type,cid){
+  if(!await rrgConfirm('Delete this section from the library?')) return;
   fetch('/api/loi/clause/'+encodeURIComponent(type)+'/'+encodeURIComponent(cid),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CFG=j.config; render(); } else alert((j&&j.error)||'Could not delete.'); });
 }
 function addClause(){

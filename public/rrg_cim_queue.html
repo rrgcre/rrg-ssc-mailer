@@ -136,16 +136,16 @@ function load(){
     renderList((j&&j.cims)||[]);
   }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load Marketing Packs.</div>'; });
 }
-function bulkDelCims(ids,done){
-  if(!confirm('Delete '+ids.length+' Marketing Pack'+(ids.length>1?'s':'')+'? This removes them from the log.')) return;
+async function bulkDelCims(ids,done){
+  if(!await rrgConfirm('Delete '+ids.length+' Marketing Pack'+(ids.length>1?'s':'')+'? This removes them from the log.')) return;
   var n=0; ids.forEach(function(id){
     fetch('/api/cim/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
       .then(function(){ if(++n===ids.length){ if(done)done(); load(); } })
       .catch(function(){ if(++n===ids.length){ if(done)done(); load(); } });
   });
 }
-function delCim(id,btn){
-  if(!confirm('Delete this Marketing Pack? This removes it from the log.')) return;
+async function delCim(id,btn){
+  if(!await rrgConfirm('Delete this Marketing Pack? This removes it from the log.')) return;
   if(btn){ btn.disabled=true; btn.textContent='Deleting…'; }
   fetch('/api/cim/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
     .then(function(j){ if(j&&j.ok){ load(); } else { if(btn){btn.disabled=false;btn.textContent='Delete';} alert((j&&j.error)||'Could not delete.'); } })

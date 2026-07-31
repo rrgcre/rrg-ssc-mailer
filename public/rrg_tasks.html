@@ -207,7 +207,7 @@ function startEdit(id){
   openTaskModal();
 }
 function toggle(id){ fetch('/api/tasks/'+encodeURIComponent(id)+'/toggle',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var t=TASKS.filter(function(x){return x.id===id;})[0]; if(t){t.status=j.task.status;t.doneAt=j.task.doneAt;} render(); } }); }
-function del(id){ if(!confirm('Delete this task?')) return; fetch('/api/tasks/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TASKS=TASKS.filter(function(x){return x.id!==id;}); render(); } else alert((j&&j.error)||'Could not delete.'); }); }
+async function del(id){ if(!await rrgConfirm('Delete this task?')) return; fetch('/api/tasks/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TASKS=TASKS.filter(function(x){return x.id!==id;}); render(); } else alert((j&&j.error)||'Could not delete.'); }); }
 function openTaskModal(){ var m=document.getElementById('taskModal'); if(m) m.removeAttribute('hidden'); var t=document.getElementById('t_title'); if(t) setTimeout(function(){try{t.focus();}catch(e){}},30); }
 function closeTaskModal(){ var m=document.getElementById('taskModal'); if(m) m.setAttribute('hidden',''); }
 document.getElementById('addBtn').addEventListener('click',function(){ save(); });

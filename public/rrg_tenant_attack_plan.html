@@ -316,8 +316,8 @@ var t;
 function save(){ try{ localStorage.setItem(K, JSON.stringify(state)); }catch(e){} var c=document.getElementById('savechip'); c.classList.add('show'); clearTimeout(t); t=setTimeout(function(){c.classList.remove('show');},1200); }
 function load(){ try{ var s=localStorage.getItem(K); if(s){ var o=JSON.parse(s); state.vals=o.vals||{}; state.checks=o.checks||{}; state.rows=o.rows||{sub:[],tgt:[],tl:[]}; } }catch(e){} }
 
-function clearAll(){
-  if(!confirm('Clear this attack plan?')) return;
+async function clearAll(){
+  if(!await rrgConfirm('Clear this attack plan?')) return;
   var pb=state.vals.preparedBy;
   state={vals:{preparedBy:pb||'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com'}, checks:{}, rows:{sub:[{}],tgt:[{}],tl:[{}]}};
   document.querySelectorAll('[data-k]').forEach(function(el){ el.value=(el.getAttribute('data-k')==='preparedBy')?state.vals.preparedBy:''; });

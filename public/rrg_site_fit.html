@@ -492,8 +492,8 @@ function save(){
 function load(){
   try{ var s=localStorage.getItem(K); if(s){ var o=JSON.parse(s); state.vals=o.vals||{}; state.ratings=o.ratings||{}; } }catch(e){}
 }
-function clearAll(){
-  if(!confirm('Clear this analysis?')) return;
+async function clearAll(){
+  if(!await rrgConfirm('Clear this analysis?')) return;
   state={vals:{}, ratings:{}};
   document.querySelectorAll('[data-k]').forEach(function(el){ if(el.tagName==='SELECT')el.selectedIndex=0; else el.value=(el.getAttribute('data-k')==='preparedBy')?el.value:''; });
   // keep prepared-by default

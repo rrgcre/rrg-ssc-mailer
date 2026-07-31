@@ -45,6 +45,56 @@
     window.rrgToast = rrgToast;
     // Route native alert() through the branded toast — non-blocking, no domain, no leaked brand.
     window.alert = function (mm) { try { rrgToast(mm); } catch (e) {} };
+
+    // Branded confirm modal — replaces the native confirm() popup (which leaked the backend domain) app-wide.
+    window.__nativeConfirm = window.confirm;
+    function rrgConfirm(message, opts){
+      opts = opts || {};
+      return new Promise(function(resolve){
+        try{
+          var msg = String(message==null?'':message);
+          var danger = (opts.danger!=null) ? !!opts.danger : /\b(delete|deleting|remove|removing|permanent|permanently|cannot be undone|can.t be undone|discard|revert|wipe|erase|unlink|disable)\b/i.test(msg);
+          var appName='';
+          try{ appName = window.__rrgAppName || localStorage.getItem('rrg_appname') || ''; }catch(e){}
+          var title = opts.title || appName || 'Please confirm';
+          if(!document.getElementById('rrgconfirm-css')){
+            var st=document.createElement('style'); st.id='rrgconfirm-css';
+            st.textContent='#rrgcfm-ov{position:fixed;inset:0;background:rgba(6,14,32,.5);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;opacity:0;transition:opacity .14s;}'
+              +'#rrgcfm-ov.show{opacity:1;}'
+              +'#rrgcfm-bx{background:#fff;border-radius:14px;max-width:400px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.4);overflow:hidden;transform:translateY(8px) scale(.985);transition:transform .16s cubic-bezier(.2,.8,.2,1);}'
+              +'#rrgcfm-ov.show #rrgcfm-bx{transform:none;}'
+              +'#rrgcfm-bx .h{font-weight:800;color:#0b1a38;font-size:15px;padding:18px 20px 5px;}'
+              +'#rrgcfm-bx .m{color:#3a4560;font-size:13.5px;line-height:1.5;padding:0 20px 18px;white-space:pre-wrap;}'
+              +'#rrgcfm-bx .b{display:flex;gap:9px;justify-content:flex-end;padding:0 18px 18px;}'
+              +'#rrgcfm-bx button{font:inherit;font-size:13.5px;font-weight:700;border-radius:9px;padding:9px 16px;cursor:pointer;border:1px solid #d5dbe6;background:#eef1f6;color:#33415c;}'
+              +'#rrgcfm-bx button:hover{background:#e4e9f1;}'
+              +'#rrgcfm-bx button.ok{border:none;background:#0b1a38;color:#fff;}'
+              +'#rrgcfm-bx button.ok:hover{filter:brightness(1.12);}'
+              +'#rrgcfm-bx button.ok.danger{background:#DA2B1F;}';
+            document.head.appendChild(st);
+          }
+          var ov=document.createElement('div'); ov.id='rrgcfm-ov';
+          var bx=document.createElement('div'); bx.id='rrgcfm-bx';
+          var h=document.createElement('div'); h.className='h'; h.textContent=title;
+          var m=document.createElement('div'); m.className='m'; m.textContent=msg;
+          var b=document.createElement('div'); b.className='b';
+          var cancel=document.createElement('button'); cancel.type='button'; cancel.textContent=opts.cancelText||'Cancel';
+          var ok=document.createElement('button'); ok.type='button'; ok.className='ok'+(danger?' danger':''); ok.textContent=opts.okText||(danger?'Delete':'OK');
+          b.appendChild(cancel); b.appendChild(ok); bx.appendChild(h); bx.appendChild(m); bx.appendChild(b); ov.appendChild(bx);
+          document.body.appendChild(ov);
+          requestAnimationFrame(function(){ ov.classList.add('show'); });
+          var done=false;
+          function close(val){ if(done) return; done=true; ov.classList.remove('show'); document.removeEventListener('keydown',onKey,true); setTimeout(function(){ if(ov.parentNode) ov.parentNode.removeChild(ov); },160); resolve(val); }
+          function onKey(e){ if(e.key==='Escape'){ e.preventDefault(); close(false); } else if(e.key==='Enter'){ e.preventDefault(); close(true); } }
+          cancel.addEventListener('click',function(){ close(false); });
+          ok.addEventListener('click',function(){ close(true); });
+          ov.addEventListener('click',function(e){ if(e.target===ov) close(false); });
+          document.addEventListener('keydown',onKey,true);
+          setTimeout(function(){ try{ ok.focus(); }catch(e){} },30);
+        }catch(e){ try{ resolve(window.__nativeConfirm ? window.__nativeConfirm(message) : true); }catch(_){ resolve(true); } }
+      });
+    }
+    window.rrgConfirm = rrgConfirm;
   } catch (e) {}
 
   // Global phone formatting — any phone field, 10 digits -> (xxx) xxx-xxxx
@@ -104,11 +154,11 @@
       { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' }
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
+      { ic: '▤', label: 'Admin console', href: 'admin' },
       { ic: '☺', label: 'Users', href: 'rrg_roles.html' },
       { ic: '◔', label: 'Roles', href: 'rrg_roles.html#roles' },
       { ic: '◫', label: 'Departments', href: 'rrg_departments.html' },
       { ic: '⑃', label: 'Pipelines', href: 'rrg_admin_pipelines.html' },
-      { ic: '▤', label: 'Admin console', href: 'admin' },
       { ic: '⊹', label: 'AI Usage', href: 'rrg_ai_usage.html' },
       { ic: '⚙', label: 'Settings', href: 'rrg_admin_settings.html' },
       { ic: '⚖︎', label: 'Agreement Templates', href: 'rrg_agreement_templates.html' },

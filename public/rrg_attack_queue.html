@@ -82,15 +82,15 @@ function load(){
     renderList((j&&j.maps)||[]);
   }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load Market Attack Plans.</div>'; });
 }
-function bulkDel(ids,done){
-  if(!confirm('Delete '+ids.length+' Market Attack Plan'+(ids.length>1?'s':'')+'?')) return;
+async function bulkDel(ids,done){
+  if(!await rrgConfirm('Delete '+ids.length+' Market Attack Plan'+(ids.length>1?'s':'')+'?')) return;
   var n=0; ids.forEach(function(id){
     fetch('/api/map/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
       .then(function(){ if(++n===ids.length){ if(done)done(); load(); } }).catch(function(){ if(++n===ids.length){ if(done)done(); load(); } });
   });
 }
-function delMap(id,btn){
-  if(!confirm('Delete this Market Attack Plan?')) return;
+async function delMap(id,btn){
+  if(!await rrgConfirm('Delete this Market Attack Plan?')) return;
   if(btn){ btn.disabled=true; btn.textContent='Deleting…'; }
   fetch('/api/map/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
     .then(function(j){ if(j&&j.ok){ load(); } else { if(btn){btn.disabled=false;btn.textContent='Delete';} alert((j&&j.error)||'Could not delete.'); } })

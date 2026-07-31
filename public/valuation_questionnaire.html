@@ -1437,7 +1437,7 @@
     var bar=document.createElement('div'); bar.style.cssText='background:#DA2B1F;color:#fff;font:600 13px/1.3 -apple-system,Segoe UI,Roboto,sans-serif;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;';
     bar.innerHTML='<span>Restored your saved draft'+(when?(' from '+when):'')+'.</span>';
     var f=document.createElement('button'); f.type='button'; f.textContent='Start fresh'; f.style.cssText='background:#fff;color:#DA2B1F;border:0;border-radius:6px;padding:6px 12px;font-weight:700;cursor:pointer;';
-    f.onclick=function(){ if(confirm('Discard the saved draft and start a blank form?')){ window.rrgClearDraft(); form.reset(); document.dispatchEvent(new Event('input',{bubbles:true})); bar.remove(); } };
+    f.onclick=async function(){ if(await rrgConfirm('Discard the saved draft and start a blank form?')){ window.rrgClearDraft(); form.reset(); document.dispatchEvent(new Event('input',{bubbles:true})); bar.remove(); } };
     var k=document.createElement('button'); k.type='button'; k.textContent='Keep editing'; k.style.cssText='background:transparent;color:#fff;border:1px solid rgba(255,255,255,.7);border-radius:6px;padding:6px 12px;font-weight:600;cursor:pointer;';
     k.onclick=function(){ bar.remove(); };
     bar.appendChild(f); bar.appendChild(k); bar.className='rrg-noprint'; document.body.insertBefore(bar, document.body.firstChild);

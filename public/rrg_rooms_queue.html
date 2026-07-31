@@ -85,15 +85,15 @@ function load(){
     renderList((j&&j.rooms)||[]);
   }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load data rooms.</div>'; });
 }
-function bulkDel(ids,done){
-  if(!confirm('Delete '+ids.length+' data room'+(ids.length>1?'s':'')+'? This removes the room and its files.')) return;
+async function bulkDel(ids,done){
+  if(!await rrgConfirm('Delete '+ids.length+' data room'+(ids.length>1?'s':'')+'? This removes the room and its files.')) return;
   var n=0; ids.forEach(function(id){
     fetch('/api/room/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
       .then(function(){ if(++n===ids.length){ if(done)done(); load(); } }).catch(function(){ if(++n===ids.length){ if(done)done(); load(); } });
   });
 }
-function delRoom(id,btn){
-  if(!confirm('Delete this data room? This removes the room and all its files. The buyer link will stop working.')) return;
+async function delRoom(id,btn){
+  if(!await rrgConfirm('Delete this data room? This removes the room and all its files. The buyer link will stop working.')) return;
   if(btn){ btn.disabled=true; btn.textContent='Deleting…'; }
   fetch('/api/room/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
     .then(function(j){ if(j&&j.ok){ load(); } else { if(btn){btn.disabled=false;btn.textContent='Delete';} alert((j&&j.error)||'Could not delete.'); } })

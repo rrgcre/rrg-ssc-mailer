@@ -128,8 +128,8 @@ function render(list){
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
 }
-function bulkDelete(ids, done){
-  if(!confirm('Delete '+ids.length+' request'+(ids.length>1?'s':'')+'? This cannot be undone.')) return;
+async function bulkDelete(ids, done){
+  if(!await rrgConfirm('Delete '+ids.length+' request'+(ids.length>1?'s':'')+'? This cannot be undone.')) return;
   Promise.all(ids.map(function(id){ return fetch('/api/feedback/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}); }))
     .then(function(){ ALL=ALL.filter(function(x){return ids.indexOf(x.id)<0;}); if(done) done(); tiles(); applyFilter(); });
 }

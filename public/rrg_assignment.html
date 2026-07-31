@@ -317,7 +317,7 @@ function saveExpense(){
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { if(b){b.disabled=false;b.textContent='Add expense';} alert((j&&j.error)||'Could not save the expense.'); } })
     .catch(function(){ if(b){b.disabled=false;b.textContent='Add expense';} alert('Could not reach the server.'); });
 }
-function delExpense(id){ if(!confirm('Delete this expense?')) return; fetch('/api/expenses/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert((j&&j.error)||'Could not delete.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+async function delExpense(id){ if(!await rrgConfirm('Delete this expense?')) return; fetch('/api/expenses/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert((j&&j.error)||'Could not delete.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 function wireExpenses(){ var b=document.getElementById('addExpBtn'); if(b) b.addEventListener('click',openExpForm); document.querySelectorAll('[data-expdel]').forEach(function(el){ el.addEventListener('click',function(){ delExpense(el.getAttribute('data-expdel')); }); }); }
 
 function invMoney(n){ n=Number(n||0); return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
@@ -472,7 +472,7 @@ function render(){
 }
 function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){}); }
 function startDeal(){ var b=document.getElementById('startDealBtn'); if(b){b.disabled=true;b.textContent='Starting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId)+'/start',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { if(b){b.disabled=false;b.textContent='Start the listing →';} alert((j&&j.error)||'Could not start the deal.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Start the listing →';} alert('Could not reach the server.'); }); }
-function deleteDeal(){ if(!confirm('Delete this listing and everything in it — records, data room, and all uploaded files? This cannot be undone.')) return; var b=document.getElementById('delDealBtn'); if(b){b.disabled=true;b.textContent='Deleting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignments.html'; } else { if(b){b.disabled=false;b.textContent='Delete listing';} alert((j&&j.error)||'Could not delete the listing.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Delete listing';} alert('Could not reach the server.'); }); }
+async function deleteDeal(){ if(!await rrgConfirm('Delete this listing and everything in it — records, data room, and all uploaded files? This cannot be undone.')) return; var b=document.getElementById('delDealBtn'); if(b){b.disabled=true;b.textContent='Deleting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignments.html'; } else { if(b){b.disabled=false;b.textContent='Delete listing';} alert((j&&j.error)||'Could not delete the listing.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Delete listing';} alert('Could not reach the server.'); }); }
 function fmtDT(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; var h=d.getHours(),m=d.getMinutes(),ap=h<12?'AM':'PM',hh=(h%12)||12; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2)+' '+hh+':'+String(m).padStart(2,'0')+' '+ap; }
 /* ---------- Accordion (collapsible sections on the deal file) ---------- */
 var ACC_STATE={}, ACC_INIT=false;
@@ -613,7 +613,7 @@ function inquiryHTML(q){
   return '<div class="orow" style="display:flex;gap:12px;align-items:center;padding:12px 20px;border-bottom:1px solid var(--line)"><div style="flex:1;min-width:0"><div style="font-weight:800;color:var(--navy)">'+esc(who)+src+'</div><div class="meta" style="color:#8a94a6;font-size:12px">'+contact+(q.date?(' \u00b7 '+esc(q.date)):'')+'</div></div><select class="inqstat" data-inq="'+esc(q.id)+'" style="padding:6px 8px;border:1px solid #cfd6e2;border-radius:8px;font:inherit;font-size:12.5px">'+ssel+'</select>'+plink+'<button class="crm" data-inqdel="'+esc(q.id)+'" title="Remove lead">\u00d7</button></div>';
 }
 function saveInquiry(payload, cb){ fetch('/api/assignment/'+encodeURIComponent(KEY)+'/inquiry',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ INQUIRIES=j.inquiries||INQUIRIES; if(A) A.inquiries=INQUIRIES; if(cb)cb(j); else render(); } else alert((j&&j.error)||'Could not save the lead.'); }).catch(function(){ alert('Could not reach the server.'); }); }
-function removeInquiry(id){ if(!confirm('Remove this buyer lead from the listing? The contact stays in your registry.')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/inquiry/'+encodeURIComponent(id)+'/remove',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ INQUIRIES=j.inquiries||[]; if(A) A.inquiries=INQUIRIES; render(); } }); }
+async function removeInquiry(id){ if(!await rrgConfirm('Remove this buyer lead from the listing? The contact stays in your registry.')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/inquiry/'+encodeURIComponent(id)+'/remove',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ INQUIRIES=j.inquiries||[]; if(A) A.inquiries=INQUIRIES; render(); } }); }
 function openInqForm(){ var f=document.getElementById('inqForm'); if(!f) return; if(!f.hidden){ f.hidden=true; f.innerHTML=''; return; } f.innerHTML='<div class="ofgrid"><div class="off"><label class="fld">Name</label><input id="iq_name" list="peopleList" placeholder="Buyer name"></div><div class="off"><label class="fld">Email</label><input id="iq_email" placeholder="buyer@email.com"></div><div class="off"><label class="fld">Phone</label><input id="iq_phone" placeholder="(555) 555-5555"></div><div class="off wide"><label class="fld">Note</label><input id="iq_note" placeholder="Where they came from, interest, listing they asked about\u2026"></div></div><div class="ofbtns"><button class="savebtn2" id="iq_save">Add lead</button><button class="cancelbtn" id="iq_cancel">Cancel</button></div>'; f.hidden=false; var sv=document.getElementById('iq_save'); if(sv) sv.addEventListener('click',function(){ var nm=document.getElementById('iq_name').value.trim(), em=document.getElementById('iq_email').value.trim(); if(!nm&&!em){ alert('Enter a name or email.'); return; } saveInquiry({name:nm,email:em,phone:document.getElementById('iq_phone').value.trim(),note:document.getElementById('iq_note').value.trim(),source:'Manual'}); }); var cn=document.getElementById('iq_cancel'); if(cn) cn.addEventListener('click',function(){ f.hidden=true; f.innerHTML=''; }); }
 document.addEventListener('click',function(e){ if(!e.target.closest) return; if(e.target.closest('#addInqBtn')){ openInqForm(); return; } var d=e.target.closest('[data-inqdel]'); if(d){ removeInquiry(d.getAttribute('data-inqdel')); return; } });
 document.addEventListener('change',function(e){ if(!e.target.closest) return; var st=e.target.closest('.inqstat'); if(st){ saveInquiry({id:st.getAttribute('data-inq'),status:st.value}, function(){}); } });
@@ -667,8 +667,8 @@ function saveOffer(id){
       else { if(btn){btn.disabled=false;btn.textContent='Add offer';} alert((j&&j.error)||'Could not save the offer.'); }
     }).catch(function(){ if(btn){btn.disabled=false;btn.textContent='Add offer';} alert('Could not reach the server.'); });
 }
-function delOffer(id){
-  if(!confirm('Delete this offer? This cannot be undone.')) return;
+async function delOffer(id){
+  if(!await rrgConfirm('Delete this offer? This cannot be undone.')) return;
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/offer/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ OFFERS=j.offers||[]; if(A) A.offers=OFFERS; rerenderOffers(); } else alert((j&&j.error)||'Could not delete.'); })
     .catch(function(){ alert('Could not reach the server.'); });
@@ -695,8 +695,8 @@ function postOffer(body,onok,onerr){
     }).catch(function(){ if(onerr)onerr(); alert('Could not reach the server.'); });
 }
 function setRating(id,r){ var o=offerById(id); var next=(o&&o.rating===r)?'':r; postOffer({id:id,rating:next}); }
-function acceptOffer(id){ if(!confirm('Mark this offer ACCEPTED? Set the others to Rejected/Withdrawn separately if needed.')) return; postOffer({id:id,status:'Accepted'}); }
-function rejectOffer(id){ if(!confirm('Reject this offer?')) return; postOffer({id:id,status:'Rejected'}); }
+async function acceptOffer(id){ if(!await rrgConfirm('Mark this offer ACCEPTED? Set the others to Rejected/Withdrawn separately if needed.')) return; postOffer({id:id,status:'Accepted'}); }
+async function rejectOffer(id){ if(!await rrgConfirm('Reject this offer?')) return; postOffer({id:id,status:'Rejected'}); }
 function counterOffer(id){
   var o=offerById(id)||{};
   var pre=(o.analysis&&o.analysis.suggestedCounter)||'';
@@ -788,8 +788,8 @@ function saveTour(id){
       else { if(btn){btn.disabled=false;btn.textContent='Log tour';} alert((j&&j.error)||'Could not save the tour.'); }
     }).catch(function(){ if(btn){btn.disabled=false;btn.textContent='Log tour';} alert('Could not reach the server.'); });
 }
-function delTour(id){
-  if(!confirm('Delete this tour record?')) return;
+async function delTour(id){
+  if(!await rrgConfirm('Delete this tour record?')) return;
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/tour/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TOURS=j.tours||[]; if(A) A.tours=TOURS; rerenderTours(); } else alert((j&&j.error)||'Could not delete.'); })
     .catch(function(){ alert('Could not reach the server.'); });
@@ -848,7 +848,7 @@ function saveNda(id){ var body=collectNda(); if(id) body.id=id; var btn=document
   fetch('/api/assignment/'+encodeURIComponent(KEY)+'/nda',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ NDAS=j.ndas||[]; if(A) A.ndas=NDAS; if(j.people) PEOPLE=j.people; rerenderNdas(); } else { if(btn){btn.disabled=false;btn.textContent='Log NDA';} alert((j&&j.error)||'Could not save the NDA.'); } })
     .catch(function(){ if(btn){btn.disabled=false;btn.textContent='Log NDA';} alert('Could not reach the server.'); }); }
-function delNda(id){ if(!confirm('Delete this NDA record?')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/nda/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ NDAS=j.ndas||[]; if(A) A.ndas=NDAS; rerenderNdas(); } else alert((j&&j.error)||'Could not delete.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+async function delNda(id){ if(!await rrgConfirm('Delete this NDA record?')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/nda/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ NDAS=j.ndas||[]; if(A) A.ndas=NDAS; rerenderNdas(); } else alert((j&&j.error)||'Could not delete.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 function rerenderNdas(){ var main=document.querySelector('.main'); if(!main) return; var tmp=document.createElement('div'); tmp.innerHTML=ndasCard(); var ex=main.querySelector('.ndas'); if(ex){ ex.closest('.card').replaceWith(tmp.firstChild); } wireNdas(); setupAccordion(); }
 function ndaById(id){ return NDAS.filter(function(x){return x.id===id;})[0]; }
 function wireNdas(){ var add=document.getElementById('addNdaBtn'); if(add) add.addEventListener('click',function(){ openNdaForm(null); }); document.querySelectorAll('.nedit').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); var n=ndaById(b.getAttribute('data-nid')); if(n) openNdaForm(n); }); }); document.querySelectorAll('.ndel').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); delNda(b.getAttribute('data-nid')); }); }); }
@@ -933,7 +933,7 @@ function saveDeal(){
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TXN=j.transaction||null; if(A) A.transaction=TXN; if(j.people) PEOPLE=j.people; rerenderDeal(); } else { if(b){b.disabled=false;b.textContent='Save deal';} alert((j&&j.error)||'Could not save the deal.'); } })
     .catch(function(){ if(b){b.disabled=false;b.textContent='Save deal';} alert('Could not reach the server.'); });
 }
-function removeDeal(){ if(!confirm('Remove the deal from this listing? The listing itself stays.')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/deal',{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TXN=null; if(A) A.transaction=null; rerenderDeal(); } else alert((j&&j.error)||'Could not remove the deal.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+async function removeDeal(){ if(!await rrgConfirm('Remove the deal from this listing? The listing itself stays.')) return; fetch('/api/assignment/'+encodeURIComponent(KEY)+'/deal',{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TXN=null; if(A) A.transaction=null; rerenderDeal(); } else alert((j&&j.error)||'Could not remove the deal.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 function rerenderDeal(){ var main=document.querySelector('.main'); if(!main) return; var existing=null; main.querySelectorAll('.card .ch b').forEach(function(bb){ if(bb.textContent==='Deal') existing=bb.closest('.card'); }); if(!existing) return; var tmp=document.createElement('div'); tmp.innerHTML=dealCard(); existing.parentNode.replaceChild(tmp.firstChild,existing); wireDeal(); }
 function wireDeal(){ var a=document.getElementById('dealAdd'); if(a) a.addEventListener('click',openDealForm); var e=document.getElementById('dealEdit'); if(e) e.addEventListener('click',openDealForm); var d=document.getElementById('dealDel'); if(d) d.addEventListener('click',removeDeal); }
 

@@ -506,8 +506,8 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     q('multLow').value='4.0'; q('multBase').value='4.5'; q('multHigh').value='5.0';
     renderAll();
   }
-  window.clearAll=function(){
-    if(!confirm('Clear this BOV?')) return;
+  window.clearAll=async function(){
+    if(!await rrgConfirm('Clear this BOV?')) return;
     resetBlank(); try{localStorage.removeItem(KEY);}catch(e){}
   };
 

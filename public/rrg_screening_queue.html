@@ -215,16 +215,16 @@ function render(list){
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
 }
-function bulkDelScreen(ids,done){
-  if(!confirm('Remove '+ids.length+' call'+(ids.length>1?'s':'')+' from the log?')) return;
+async function bulkDelScreen(ids,done){
+  if(!await rrgConfirm('Remove '+ids.length+' call'+(ids.length>1?'s':'')+' from the log?')) return;
   var n=0; ids.forEach(function(id){
     fetch('/api/screening/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
       .then(function(){ if(++n===ids.length){ if(done)done(); load(); } })
       .catch(function(){ if(++n===ids.length){ if(done)done(); load(); } });
   });
 }
-function del(id,btn){
-  if(!confirm('Remove this call from the log?')) return;
+async function del(id,btn){
+  if(!await rrgConfirm('Remove this call from the log?')) return;
   fetch('/api/screening/'+encodeURIComponent(id),{method:'DELETE'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not remove.'); }).catch(function(){ alert('Could not remove.'); });
 }
 // Advance a call: create its questionnaire server-side (reliable), then open it.

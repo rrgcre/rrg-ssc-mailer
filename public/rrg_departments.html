@@ -103,7 +103,7 @@ function save(){
   }).catch(function(){ m.textContent='Could not reach the server.'; m.className='msg err'; });
 }
 
-function resetDepts(){ if(!confirm('Reset departments back to the built-in defaults? This clears members and custom departments.')) return; post('/api/admin/departments',{reset:true}).then(function(j){ if(j&&j.ok){ DEPTS=j.departments||[]; render(); var m=document.getElementById('depMsg'); m.textContent='Reset to defaults ✓'; m.className='msg ok'; } }); }
+async function resetDepts(){ if(!await rrgConfirm('Reset departments back to the built-in defaults? This clears members and custom departments.')) return; post('/api/admin/departments',{reset:true}).then(function(j){ if(j&&j.ok){ DEPTS=j.departments||[]; render(); var m=document.getElementById('depMsg'); m.textContent='Reset to defaults ✓'; m.className='msg ok'; } }); }
 
 function build(){
   document.getElementById('root').innerHTML=

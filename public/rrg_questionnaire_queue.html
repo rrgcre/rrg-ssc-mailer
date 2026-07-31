@@ -203,16 +203,16 @@ function render(list){
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
 }
-function bulkDelQ(ids,done){
-  if(!confirm('Delete '+ids.length+' questionnaire'+(ids.length>1?'s':'')+'? This removes them from the log.')) return;
+async function bulkDelQ(ids,done){
+  if(!await rrgConfirm('Delete '+ids.length+' questionnaire'+(ids.length>1?'s':'')+'? This removes them from the log.')) return;
   var n=0; ids.forEach(function(id){
     fetch('/api/questionnaire/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
       .then(function(){ if(++n===ids.length){ if(done)done(); load(); } })
       .catch(function(){ if(++n===ids.length){ if(done)done(); load(); } });
   });
 }
-function del(id,btn){
-  if(!confirm('Delete this questionnaire? This removes it from the log.')) return;
+async function del(id,btn){
+  if(!await rrgConfirm('Delete this questionnaire? This removes it from the log.')) return;
   if(btn){ btn.disabled=true; btn.textContent='Deleting…'; }
   fetch('/api/questionnaire/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'})
     .then(function(r){ return r.text().then(function(t){ var j=null; try{j=JSON.parse(t);}catch(e){} return {ok:r.ok,j:j}; }); })

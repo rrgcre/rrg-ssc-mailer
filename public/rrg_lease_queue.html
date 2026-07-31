@@ -92,15 +92,15 @@ function newAbstract(btn){
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id){ location.href='./rrg_lease_generate.html?lease='+encodeURIComponent(j.id); } else { if(btn){btn.disabled=false;btn.textContent='+ New abstract';} alert((j&&j.error)||'Could not start.'); } })
     .catch(function(){ if(btn){btn.disabled=false;btn.textContent='+ New abstract';} alert('Could not reach the server.'); });
 }
-function bulkDel(ids,done){
-  if(!confirm('Delete '+ids.length+' lease abstract'+(ids.length>1?'s':'')+'?')) return;
+async function bulkDel(ids,done){
+  if(!await rrgConfirm('Delete '+ids.length+' lease abstract'+(ids.length>1?'s':'')+'?')) return;
   var n=0; ids.forEach(function(id){
     fetch('/api/lease/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
       .then(function(){ if(++n===ids.length){ if(done)done(); load(); } }).catch(function(){ if(++n===ids.length){ if(done)done(); load(); } });
   });
 }
-function delLease(id,btn){
-  if(!confirm('Delete this lease abstract?')) return;
+async function delLease(id,btn){
+  if(!await rrgConfirm('Delete this lease abstract?')) return;
   if(btn){ btn.disabled=true; btn.textContent='Deleting…'; }
   fetch('/api/lease/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
     .then(function(j){ if(j&&j.ok){ load(); } else { if(btn){btn.disabled=false;btn.textContent='Delete';} alert((j&&j.error)||'Could not delete.'); } })

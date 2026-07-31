@@ -140,8 +140,8 @@ function render(bovs){
   };
   if(CTL) CTL.refresh(bovs); else CTL=RRGList.create(cfg);
 }
-function bulkDelBovs(ids,done){
-  if(!confirm('Delete '+ids.length+' valuation'+(ids.length>1?'s':'')+'? This removes them from the list.')) return;
+async function bulkDelBovs(ids,done){
+  if(!await rrgConfirm('Delete '+ids.length+' valuation'+(ids.length>1?'s':'')+'? This removes them from the list.')) return;
   var n=0; ids.forEach(function(id){
     fetch('/api/bov/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
       .then(function(){ if(++n===ids.length){ if(done)done(); load(); } })
@@ -163,8 +163,8 @@ function load(){
     buildUserFilter(); paint();
   });
 }
-function del(id,btn){
-  if(!confirm('Delete this valuation? This removes it from the list.')) return;
+async function del(id,btn){
+  if(!await rrgConfirm('Delete this valuation? This removes it from the list.')) return;
   if(btn){ btn.disabled=true; btn.textContent='Deleting…'; }
   fetch('/api/bov/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else { if(btn){btn.disabled=false;btn.textContent='Delete';} alert('Could not delete.'); } }).catch(function(){ if(btn){btn.disabled=false;btn.textContent='Delete';} alert('Could not delete.'); });
 }
