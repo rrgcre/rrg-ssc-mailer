@@ -3221,7 +3221,7 @@ function newEnrollId() { return 'enr_' + Date.now().toString(36) + Math.random()
 function cleanAutoSteps(arr) {
   return (Array.isArray(arr) ? arr : []).slice(0, 30).map(function (st, i) {
     const type = ['task', 'notification', 'logactivity', 'assignment'].indexOf(st && st.type) >= 0 ? st.type : 'email';
-    const o = { type: type, delayDays: Math.max(0, Math.min(3650, parseInt((st && st.delayDays), 10) || 0)) };
+    const o = { type: type, delayDays: Math.max(0, Math.min(3650, parseInt((st && st.delayDays), 10) || 0)), name: String((st && st.name) || '').slice(0, 80) };
     if (type === 'email') { o.subject = String((st && st.subject) || '').slice(0, 300); o.body = String((st && st.body) || '').slice(0, 20000); }
     else if (type === 'task') { o.taskTitle = String((st && st.taskTitle) || '').slice(0, 300); o.taskNote = String((st && st.taskNote) || '').slice(0, 2000); }
     else if (type === 'notification') { o.message = String((st && st.message) || '').slice(0, 2000); o.notifyEmail = String((st && st.notifyEmail) || '').slice(0, 160); o.channel = (st && st.channel === 'text') ? 'text' : 'email'; }

@@ -90,8 +90,10 @@ function curById(id){ return PLANS.filter(function(p){return p.id===id;})[0]||nu
 
 function initSteps(){
   var p=EDIT;
-  STEPS=(p&&p.steps&&p.steps.length)?p.steps.map(function(s){ return {type:(['task','notification','logactivity','assignment'].indexOf(s.type)>=0?s.type:'email'),delayDays:(s.delayDays||0),subject:s.subject||'',body:s.body||'',taskTitle:s.taskTitle||'',taskNote:s.taskNote||'',message:s.message||'',notifyEmail:s.notifyEmail||'',channel:(s.channel==='text'?'text':'email'),actType:s.actType||'Note',actNote:s.actNote||'',setStatus:s.setStatus||'',advanceStage:s.advanceStage||'',markLive:!!s.markLive}; }):((p&&p.id)?[]:[{type:'email',delayDays:0,subject:'',body:'',taskTitle:'',taskNote:''}]);
+  STEPS=(p&&p.steps&&p.steps.length)?p.steps.map(function(s){ return {type:(['task','notification','logactivity','assignment'].indexOf(s.type)>=0?s.type:'email'),delayDays:(s.delayDays||0),name:s.name||'',subject:s.subject||'',body:s.body||'',taskTitle:s.taskTitle||'',taskNote:s.taskNote||'',message:s.message||'',notifyEmail:s.notifyEmail||'',channel:(s.channel==='text'?'text':'email'),actType:s.actType||'Note',actNote:s.actNote||'',setStatus:s.setStatus||'',advanceStage:s.advanceStage||'',markLive:!!s.markLive}; }):((p&&p.id)?[]:[{type:'email',delayDays:0,subject:'',body:'',taskTitle:'',taskNote:''}]);
 }
+function _stepTypeLabel(t){ return ({email:'Send email',task:'Create task',notification:'Send notification',logactivity:'Log activity',assignment:'Update assignment'})[t]||t; }
+function _stepSummaryHtml(){ if(!STEPS.length) return ''; var cum=0; var rows=STEPS.map(function(s,i){ var gap=parseInt(s.delayDays,10)||0; cum+=gap; var nm=((s.name||'').trim())||_stepTypeLabel(s.type); var right=(i===0)?('day '+cum):('+'+gap+'d \u00b7 day '+cum); return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:4px 0;border-top:1px solid #eef1f6"><span><b style="color:#000E31">'+(i+1)+'.</b> '+esc(nm)+' <span style="color:#9aa4b6">('+_stepTypeLabel(s.type)+')</span></span><span style="color:#6b7488;white-space:nowrap">'+right+'</span></div>'; }).join(''); return '<div style="margin-top:14px;border:1px solid #e6e9f0;border-radius:11px;padding:12px 14px;background:#fbfcfe"><div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin-bottom:2px">Process timeline</div>'+rows+'<div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:2px solid #e6e9f0;font-size:13px;font-weight:800;color:#000E31"><span>Total process length</span><span>'+cum+' day'+(cum===1?'':'s')+'</span></div><div style="font-size:11px;color:#9aa4b6;margin-top:4px">Compare this against how long the process actually takes in practice.</div></div>'; }
 function renderSteps(){
   var box=document.getElementById('stepBox'); if(!box) return;
   if(!STEPS.length){ box.innerHTML='<div class="note" style="margin:0 0 6px">No steps yet — add an email or task step below.</div>'; return; }
@@ -116,9 +118,10 @@ function renderSteps(){
     return '<div class="step" data-si="'+i+'"><div class="sr"><span class="sn">'+(i+1)+'</span>'+typeSel
       +'<span class="waitrow">'+waitLabel+' <input type="number" min="0" max="3650" class="days st-delay" data-i="'+i+'" value="'+(s.delayDays==null?0:s.delayDays)+'"> day'+((s.delayDays===1)?'':'s')+(i===0?')':' after the previous step')+'</span>'
       +'<span class="sp"><button type="button" class="ib up" data-i="'+i+'"'+(i===0?' disabled':'')+' title="Move up">↑</button><button type="button" class="ib dn" data-i="'+i+'"'+(i===STEPS.length-1?' disabled':'')+' title="Move down">↓</button><button type="button" class="ib x" data-i="'+i+'" title="Remove step">✕</button></span></div>'
-      +content+'</div>';
-  }).join('');
+      +'<input type="text" class="st-name" data-i="'+i+'" placeholder="Step name (optional)" value="'+esc(s.name||'')+'" style="width:100%;box-sizing:border-box;margin:2px 0 8px;border:1px solid var(--line,#e6e9f0);border-radius:8px;padding:7px 10px;font:inherit;font-size:13px;font-weight:600">'+content+'</div>';
+  }).join('') + _stepSummaryHtml();
   Array.prototype.forEach.call(box.querySelectorAll('.st-type'),function(el){ el.onchange=function(){ collectSteps(); STEPS[+el.getAttribute('data-i')].type=el.value; renderSteps(); }; });
+  Array.prototype.forEach.call(box.querySelectorAll('.st-delay,.st-name'),function(el){ el.addEventListener('change',function(){ collectSteps(); renderSteps(); }); });
   Array.prototype.forEach.call(box.querySelectorAll('.st-channel'),function(el){ el.onchange=function(){ collectSteps(); STEPS[+el.getAttribute('data-i')].channel=el.value; renderSteps(); }; });
   Array.prototype.forEach.call(box.querySelectorAll('.st-subject,.st-body,.st-message,.st-tasktitle,.st-tasknote'),function(el){ el.addEventListener('focus',function(){ LASTFLD=el; }); });
   Array.prototype.forEach.call(box.querySelectorAll('.st-tplpick'),function(el){ el.onchange=function(){ if(!el.value) return; var t=(ETPLS||[]).filter(function(x){return x.id===el.value;})[0]; if(!t) return; collectSteps(); var i=+el.getAttribute('data-i'); STEPS[i].subject=t.subject||''; STEPS[i].body=t.body||''; renderSteps(); }; });
@@ -131,6 +134,7 @@ function collectSteps(){
   box.querySelectorAll('.step').forEach(function(row){
     var i=+row.getAttribute('data-si'); var s=STEPS[i]; if(!s) return;
     var d=row.querySelector('.st-delay'); if(d) s.delayDays=Math.max(0,parseInt(d.value,10)||0);
+    var _snm=row.querySelector('.st-name'); if(_snm) s.name=_snm.value;
     var sub=row.querySelector('.st-subject'); if(sub) s.subject=sub.value;
     var bod=row.querySelector('.st-body'); if(bod) s.body=bod.value;
     var tt=row.querySelector('.st-tasktitle'); if(tt) s.taskTitle=tt.value;
