@@ -125,13 +125,15 @@ if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudf
 function setTool(t){ TOOL=t; document.querySelectorAll('.tool').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-tool')===t); }); }
 function sigCount(){ return parseInt(document.getElementById('signerCount').value,10)||1; }
 function setSigner(n){ SIGNER=n; document.getElementById('sg1').className='seg'+(n===1?' on1':''); document.getElementById('sg2').className='seg'+(n===2?' on2':''); document.getElementById('sg3').className='seg'+(n===3?' on3':''); }
+function _segTxt(id,def){ var e=document.getElementById(id); var v=((e&&e.value)||'').trim(); return (v||def).toUpperCase(); }
+function syncSegs(){ var c=sigCount(); var g1=document.getElementById('sg1'),g2=document.getElementById('sg2'),g3=document.getElementById('sg3'); if(g1) g1.textContent=_segTxt('s1label','Signer 1'); if(g2){ g2.textContent=_segTxt('s2label','Signer 2'); g2.style.display=c>=2?'':'none'; } if(g3){ g3.textContent=_segTxt('s3label','Signer 3'); g3.style.display=c>=3?'':'none'; } }
 
 document.querySelectorAll('.tool').forEach(function(b){ b.addEventListener('click',function(){ setTool(b.getAttribute('data-tool')); }); });
 function pickSigner(n){ setSigner(n); if(MULTI.length){ MULTI.forEach(function(id){ var g=fieldById(id); if(g) g.signer=n; }); drawFields(); scheduleSave(); } }
 document.getElementById('sg1').addEventListener('click',function(){ pickSigner(1); });
 document.getElementById('sg2').addEventListener('click',function(){ if(sigCount()<2){ alert('Set the number of signers to 2 or more first.'); return; } pickSigner(2); });
 document.getElementById('sg3').addEventListener('click',function(){ if(sigCount()<3){ alert('Set the number of signers to 3 first.'); return; } pickSigner(3); });
-document.getElementById('signerCount').addEventListener('change',function(){ var c=sigCount(); document.getElementById('s2wrap').style.display=c>=2?'':'none'; document.getElementById('s3wrap').style.display=c>=3?'':'none'; if(SIGNER>c) setSigner(1); scheduleSave(); });
+document.getElementById('signerCount').addEventListener('change',function(){ var c=sigCount(); document.getElementById('s2wrap').style.display=c>=2?'':'none'; document.getElementById('s3wrap').style.display=c>=3?'':'none'; if(SIGNER>c) setSigner(1); syncSegs(); scheduleSave(); });
 
 var _uidc=0; function uid(){ _uidc++; return 'f'+Date.now().toString(36)+'_'+_uidc.toString(36)+Math.random().toString(36).slice(2,5); }
 
@@ -225,7 +227,7 @@ function doSave(close){
     .catch(function(){ if(close) btn.disabled=false; if(m) m.textContent=''; alert('Could not reach the server.'); });
 }
 document.getElementById('saveBtn').addEventListener('click',function(){ doSave(true); });
-['s1label','s2label','s3label'].forEach(function(id){ var e=document.getElementById(id); if(e) e.addEventListener('input',scheduleSave); });
+['s1label','s2label','s3label'].forEach(function(id){ var e=document.getElementById(id); if(e) e.addEventListener('input',function(){ syncSegs(); scheduleSave(); }); });
 
 function renderPages(){
   var stage=document.getElementById('stage'); stage.innerHTML='';
@@ -265,6 +267,7 @@ function boot(){
     document.getElementById('s1label').value=TPL.signer1Label||'Signer 1';
     document.getElementById('s2label').value=TPL.signer2Label||'Signer 2';
     document.getElementById('s3label').value=TPL.signer3Label||'Signer 3';
+    syncSegs();
     renderPages();
   }).catch(function(){ document.getElementById('stage').innerHTML='<div class="loading">Could not reach the server.</div>'; });
 }
