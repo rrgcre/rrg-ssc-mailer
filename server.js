@@ -8273,6 +8273,7 @@ app.post('/api/agreements/:id/sign-link', express.json(), (req, res) => {
   if (!a.signToken) { a.signToken = newSignToken(); a.updatedAt = new Date().toISOString(); saveAgreements(all); }
   res.json({ ok: true, url: reqOrigin(req) + '/sign/' + a.signToken });
 });
+function agrGreetingLine(style, name){ style = String(style || 'none'); var first = String(name || '').trim().split(/\s+/)[0] || ''; if (!first || style === 'none') return ''; if (style === 'dear') return 'Dear ' + first + ','; if (style === 'hi') return 'Hi ' + first + ','; if (style === 'first') return first + ','; return ''; }
 app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
@@ -8286,7 +8287,8 @@ app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   const subject = String(b.subject || (label + ' for your signature')).slice(0, 300);
   const _note = String(b.message || '').trim();
   const _linkBlock = 'Review and sign your ' + label + ' online here:\n' + signUrl;
-  const message = ((_note && _note.indexOf('/sign/') !== -1) ? _note : ((_note ? _note + '\n\n' : '') + _linkBlock + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
+  const _greet = agrGreetingLine(a.greeting, a.personName);
+  const message = ((_note && _note.indexOf('/sign/') !== -1) ? _note : ((_greet ? _greet + '\n\n' : '') + (_note ? _note + '\n\n' : '') + _linkBlock + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
   // The signing page now shows an inline preview of the document, so the email is a clean link only (no heavy attachment).
   try { await sendMailWL({ from: mailFrom(), to, subject, text: message }); }
   catch (e) { console.error('agreement send:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
@@ -8449,7 +8451,7 @@ function fmtSignVal(type, val) {
   if (type === 'currency') { const raw = val.replace(/[^0-9.\-]/g, ''); const c = Number(raw); return (raw !== '' && isFinite(c)) ? ('$' + c.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : val; }
   return val;
 }
-function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], emailMessage: t.emailMessage || '', pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: _clampSigners(t.signerCount), signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', signer3Label: t.signer3Label || 'Signer 3', active: t.active !== false, updatedAt: t.updatedAt || '', createdAt: t.createdAt || '', lastUsedAt: t.lastUsedAt || '', useCount: t.useCount || 0 }; }
+function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], greeting: t.greeting || 'none', emailMessage: t.emailMessage || '', pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: _clampSigners(t.signerCount), signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', signer3Label: t.signer3Label || 'Signer 3', active: t.active !== false, updatedAt: t.updatedAt || '', createdAt: t.createdAt || '', lastUsedAt: t.lastUsedAt || '', useCount: t.useCount || 0 }; }
 app.get('/api/agreement-templates', (req, res) => {
   const isAdmin = !!(req.user && isSuper(req.user));
   let all = loadTemplates().map(templateBrief);
@@ -8468,6 +8470,7 @@ app.post('/api/admin/agreement-templates', requireAdmin, express.json(), (req, r
   if (typeof b.type === 'string') t.type = agreementTypeKeys().indexOf(b.type) >= 0 ? b.type : '';
   if (b.signFields !== undefined) t.signFields = cleanSignFields(b.signFields);
   if (b.emailMessage !== undefined) t.emailMessage = String(b.emailMessage || '').slice(0, 4000);
+  if (b.greeting !== undefined) t.greeting = (['dear','hi','first','none'].indexOf(String(b.greeting)) >= 0) ? String(b.greeting) : 'none';
   if (b.active !== undefined) t.active = !!b.active;
   t.updatedAt = now; saveTemplates(all);
   res.json({ ok: true, template: templateBrief(t) });
@@ -8551,6 +8554,7 @@ app.post('/api/agreements/:id/apply-template', express.json(), (req, res) => {
   a.signer1Label = t.signer1Label || 'Signer 1';
   a.signer2Label = t.signer2Label || 'Signer 2';
   a.signer3Label = t.signer3Label || 'Signer 3';
+  a.greeting = t.greeting || 'none';
   if (Array.isArray(t.signFields) && t.signFields.length) a.signFields = t.signFields;
   if (t.type && agreementTypeKeys().indexOf(t.type) >= 0) a.type = t.type;
   a.updatedAt = new Date().toISOString(); saveAgreements(all);
@@ -8628,7 +8632,8 @@ app.post('/api/agreements/:id/send-adv', express.json(), async (req, res) => {
   const subject = String((req.body || {}).subject || (label + ' for your signature')).slice(0, 300);
   const _noteA = String((req.body || {}).message || '').trim();
   const _linkBlockA = 'Review and sign your ' + label + ' online here:\n' + signUrl;
-  const message = ((_noteA && _noteA.indexOf('/sign/') !== -1) ? _noteA : ((_noteA ? _noteA + '\n\n' : '') + _linkBlockA + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
+  const _greetA = agrGreetingLine(a.greeting, (next && next.name) || a.personName);
+  const message = ((_noteA && _noteA.indexOf('/sign/') !== -1) ? _noteA : ((_greetA ? _greetA + '\n\n' : '') + (_noteA ? _noteA + '\n\n' : '') + _linkBlockA + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
   try { await sendMailWL({ from: mailFrom(), to: next.email, subject, text: message }); }
   catch (e) { console.error('send-adv:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + (next.label || '') + ' ' + next.email, { auto: true }); savePeople(ppl); } } catch (e) {} }

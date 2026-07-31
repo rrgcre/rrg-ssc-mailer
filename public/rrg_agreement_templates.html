@@ -161,7 +161,7 @@ function renderEditor(){
       (e.fileExt==='pdf'?'':(e.fileExt?('<div class="note" style="color:#b5791f;margin-top:8px">Field placement needs a <b>PDF</b>. This file is .'+esc(e.fileExt)+' — upload a PDF version to place fields on it.</div>'):(e.id?'<div class="note" style="margin-top:8px">Upload a PDF above, then place fields on it.</div>':'<div class="note" style="margin-top:8px">Save the template, then upload the PDF and place fields.</div>')))+
       '</div>'+
     '<div style="margin-top:16px"><label class="fld">Email message (sent with the signing link)</label>'+
-      '<textarea id="t_emailmsg" placeholder="'+esc(DEFAULT_EMAIL_MSG)+'">'+esc(e.emailMessage||'')+'</textarea>'+
+      '<textarea id="t_emailmsg" placeholder="'+esc(DEFAULT_EMAIL_MSG)+'">'+esc(e.emailMessage||'')+'</textarea>'+'<div style="margin-top:12px"><label class="fld">Greeting (added to the top of the send email)</label><select id="t_greeting"><option value="none"'+((e.greeting||'none')==='none'?' selected':'')+'>No greeting</option><option value="dear"'+(e.greeting==='dear'?' selected':'')+'>Dear {first name},</option><option value="hi"'+(e.greeting==='hi'?' selected':'')+'>Hi {first name},</option><option value="first"'+(e.greeting==='first'?' selected':'')+'>{first name},</option></select></div>'+
       '<div class="note">Default note the signer gets with their link. The rep can tweak it per send. Leave blank to use the system default.</div></div>'+
     '<div class="chk"><input type="checkbox" id="t_active"'+((e.active===false)?'':' checked')+'> Active (reps can pick this template)</div>'+
     '<div class="btnrow">'+((e.fileExt==='pdf')?('<a class="btn ghost" href="/rrg_sign_designer.html?template='+esc(e.id)+'">✍ '+((e.pdfFields&&e.pdfFields.length)?('Edit placed fields ('+e.pdfFields.length+')'):'Design fields on the PDF')+'</a>'):'')+'<button class="btn red" id="t_save">'+(e.id?'Save changes':'Create template')+'</button><span class="msg" id="t_msg"></span></div>'+
@@ -196,7 +196,7 @@ function saveTpl(){
   var name=(document.getElementById('t_name').value||'').trim();
   var msg=document.getElementById('t_msg');
   if(!name){ document.getElementById('t_name').focus(); if(msg){msg.textContent='Name the template first.';msg.className='msg err';} return; }
-  var body={ name:name, type:document.getElementById('t_type').value, signFields:(collectFieldRows(),TFIELDS.filter(function(f){return (f.label||'').trim();})), emailMessage:((document.getElementById('t_emailmsg')||{}).value||''), active:document.getElementById('t_active').checked };
+  var body={ name:name, type:document.getElementById('t_type').value, signFields:(collectFieldRows(),TFIELDS.filter(function(f){return (f.label||'').trim();})), emailMessage:((document.getElementById('t_emailmsg')||{}).value||''), greeting:((document.getElementById('t_greeting')||{}).value||'none'), active:document.getElementById('t_active').checked };
   if(EDIT&&EDIT.id) body.id=EDIT.id;
   var fileEl=document.getElementById('t_file'); var file=(fileEl&&fileEl.files&&fileEl.files[0])||null;
   if(file&&file.size>20*1024*1024){ if(msg){msg.textContent='File too large (max 20 MB).';msg.className='msg err';} return; }
