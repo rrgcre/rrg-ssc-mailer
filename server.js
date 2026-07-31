@@ -8579,16 +8579,25 @@ app.post('/api/agreements/:id/self-sign-return', express.json({ limit: '8mb' }),
   if (!/^data:image\/png;base64,/.test(sig)) return res.status(400).json({ ok: false, error: 'Signature is required.' });
   if ((a.docExt || 'pdf') !== 'pdf') return res.status(400).json({ ok: false, error: 'The uploaded document must be a PDF to sign.' });
   try {
-    const { PDFDocument } = require('pdf-lib');
+    const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
     const src = path.join(AGREEMENT_DOC_DIR, a.id + '.' + (a.docExt || 'pdf'));
     const pdf = await PDFDocument.load(fs.readFileSync(src));
     const png = await pdf.embedPng(Buffer.from(sig.replace(/^data:image\/png;base64,/, ''), 'base64'));
+    const _sfont = await pdf.embedFont(StandardFonts.Helvetica);
     const pages = pdf.getPages(); const pg = pages[pages.length - 1]; const sz = pg.getSize();
     const w = Math.min(200, png.width); const scl = w / png.width; const h = png.height * scl;
-    pg.drawImage(png, { x: Math.max(20, sz.width - w - 50), y: 50, width: w, height: h });
+    const _sigX = Math.max(20, sz.width - w - 50);
+    const _nm = String(b.stampName || '').trim().slice(0, 120);
+    const _ti = String(b.stampTitle || '').trim().slice(0, 120);
+    const _dt = String(b.stampDate || '').trim().slice(0, 40);
+    const _lines = []; if (_nm) _lines.push('Name: ' + _nm); if (_ti) _lines.push('Title: ' + _ti); if (_dt) _lines.push('Date: ' + _dt);
+    const _lh = 13, _fsz = 10, _mb = 40; const _tbh = _lines.length * _lh;
+    const _sigY = _mb + _tbh + (_lines.length ? 6 : 0);
+    pg.drawImage(png, { x: _sigX, y: _sigY, width: w, height: h });
+    _lines.forEach((ln, i) => { pg.drawText(ln, { x: _sigX, y: _mb + _tbh - (i + 1) * _lh, size: _fsz, font: _sfont, color: rgb(0.1, 0.13, 0.2) }); });
     const out = await pdf.save(); fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'), Buffer.from(out));
     const now = new Date().toISOString();
-    a.hasFinal = true; a.signStatus = 'executed'; a.executedAt = now; a.signedDate = a.signedDate || now.slice(0, 10); a.repSignedName = (req.user && req.user.name) || ''; a.repSignedAt = now; a.status = 'active'; a.updatedAt = now;
+    a.hasFinal = true; a.signStatus = 'executed'; a.executedAt = now; a.signedDate = _dt || a.signedDate || now.slice(0, 10); a.repSignedName = _nm || (req.user && req.user.name) || ''; a.repSignedTitle = _ti || a.repSignedTitle || ''; a.repSignedAt = now; a.status = 'active'; a.updatedAt = now;
     saveAgreements(all);
     try { if (to && isEmailConfigured()) { sendMailWL({ from: mailFrom(), to: to, subject: (a.name || agreementTypeLabel(a.type)) + ' - signed', text: (String(b.note || '').trim() || ('Please find the signed ' + agreementTypeLabel(a.type) + ' attached.')) + '\n\nThank you,\n' + orgDisplayName(), attachments: [{ filename: 'signed-agreement.pdf', path: path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf') }] }).catch(() => {}); } } catch (e) {}
     if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Signed', (a.name || agreementTypeLabel(a.type)) + ' signed and returned' + (to ? (' to ' + to) : ''), { auto: true, date: a.signedDate, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
