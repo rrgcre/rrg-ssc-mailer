@@ -8177,7 +8177,7 @@ const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
 function effAgreementTypes() { const s = loadSettings(); if (Array.isArray(s.agreementTypes) && s.agreementTypes.length) { const out = s.agreementTypes.filter(t => t && t.key && t.label).map(t => ({ key: String(t.key), label: String(t.label) })); if (out.length) return out; } return AGREEMENT_TYPES; }
 function agreementTypeKeys() { return effAgreementTypes().map(t => t.key); }
 function agreementBrief(a) {
-  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
+  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', startOnExec: !!a.startOnExec, termYears: a.termYears || 0, status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
 }
 app.get('/api/agreements', (req, res) => {
   let all = loadAgreements();
@@ -8211,6 +8211,8 @@ app.post('/api/agreements', express.json(), (req, res) => {
   if (!a.companyId && a.personId) { const pp = personById(a.personId); if (pp && pp.companyId) a.companyId = pp.companyId; }
   if (typeof b.effective === 'string') a.effective = b.effective.slice(0, 10);
   if (typeof b.expires === 'string') a.expires = b.expires.slice(0, 10);
+  if (typeof b.startOnExec === 'boolean') a.startOnExec = b.startOnExec;
+  if (b.termYears !== undefined) { const _ty = parseInt(b.termYears, 10); a.termYears = (isFinite(_ty) && _ty > 0 && _ty <= 99) ? _ty : 0; }
   if (typeof b.status === 'string' && ['active', 'expired', 'terminated'].indexOf(b.status) >= 0) a.status = b.status;
   if (!a.status) a.status = 'active';
   if (typeof b.notes === 'string') a.notes = b.notes.slice(0, 2000);
@@ -8702,8 +8704,10 @@ app.post('/api/agreements/:id/fill', express.json({ limit: '256kb' }), (req, res
 
 function runPostExecution(a, req) {
   try {
-    if (!a || !a.dealKey) return;
+    if (!a) return;
     const now = new Date().toISOString();
+    try { if (a.startOnExec || a.termYears) { const ags = loadAgreements(); const aa = ags.find(x => x.id === a.id); if (aa) { if (aa.startOnExec) aa.effective = now.slice(0, 10); if (aa.termYears) { const _b = (aa.effective || now.slice(0, 10)); const _d = new Date(_b + 'T00:00:00'); if (!isNaN(_d.getTime())) { _d.setFullYear(_d.getFullYear() + aa.termYears); aa.expires = _d.toISOString().slice(0, 10); } } aa.updatedAt = now; a.effective = aa.effective; a.expires = aa.expires; saveAgreements(ags); } } } catch (e) {}
+    if (!a.dealKey) return;
     try { const ov = loadAssignOverlay(); const cur = ov[a.dealKey] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Active'; cur.stageFlags = cur.stageFlags || {}; cur.stageFlags.agreed = true; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[a.dealKey] = cur; saveAssignOverlay(ov); } catch (e) {}
     if (a.personId) {
       try {
