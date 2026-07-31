@@ -253,9 +253,9 @@ function agrRowCo(a){
   var right=signed?'\u2713 Executed':(a.signStatus==='sent'?'Sent':(a.status==='terminated'?'Terminated':(a.expires?(expired?'Expired':(soon?(du+'d'):'Active')):'Active')));
   var chipCls=signed?' exec':(a.signStatus==='sent'?' sent':(expired?' bad':''));
   var title=a.name||agrTypeLabel(a.type);
-  var meta=agrTypeLabel(a.type)+(a.personName?(' \u00b7 '+a.personName):'')+(a.expires?(' \u00b7 exp '+agrFmt(a.expires)):'');
+  var dstr=a.effective?agrFmt(a.effective):(a.expires?agrFmt(a.expires):'');
   var open=a.personId?(' onclick="location.href=&quot;./rrg_person.html?id='+encodeURIComponent(a.personId)+'&quot;" style="cursor:pointer"'):'';
-  return '<div class="rrow"'+open+'><div class="rrmain"><div class="rnm">'+esc(title)+'</div><div class="rrmt">'+esc(meta)+'</div></div><span class="rchip'+chipCls+'">'+esc(right)+'</span></div>';
+  return '<div class="rrow"'+open+'><div class="rrmain" style="min-width:0"><div style="font-size:13px;font-weight:400;color:#1d2739;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(dstr?('<span style="color:#8a93a8">'+esc(dstr)+'</span> &middot; '):'')+esc(title)+'</div></div><span class="rchip'+chipCls+'">'+esc(right)+'</span></div>';
 }
 function agreementsCardCo(){
   var inner=AGREEMENTS.length?('<div class="agrlistco">'+AGREEMENTS.map(agrRowCo).join('')+'</div>'):'<div class="empty">No agreements linked to this company yet.</div>';

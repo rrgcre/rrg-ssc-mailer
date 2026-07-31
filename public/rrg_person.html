@@ -234,10 +234,10 @@ function agrRow(a){
   var right = _exec?'\u2713 Executed':(_await?'Needs sign':(a.signStatus==='sent'?'Sent':(a.status==='terminated'?'Terminated':(a.expires?(expired?'Expired':(soon?(du+'d'):'Active')):'Active'))));
   var chipCls = _exec?' exec':(_await?' await':(a.signStatus==='sent'?' sent':(expired?' bad':'')));
   var title=a.name||atypeLabel(a.type);
-  var meta=atypeLabel(a.type)+(a.expires?(' \u00b7 exp '+fmt(a.expires)):'')+(a.docExt?' \u00b7 \ud83d\udcce':'');
+  var dstr=a.effective?fmt(a.effective):(a.expires?fmt(a.expires):'');
   var isImg=a.docExt&&/^(png|jpe?g|gif|webp)$/i.test(a.docExt);
   var thumb=isImg?('<span class="agrthumb" style="background-image:url(/api/agreements/'+encodeURIComponent(a.id)+'/doc)"></span>'):'';
-  return '<div class="rrow agrrow'+(signed?' agrexec':'')+'" data-agr="'+esc(a.id)+'" title="Click to edit">'+thumb+'<div class="rrmain"><div class="rrnm">'+esc(title)+'</div><div class="rrmt">'+esc(meta)+'</div></div><span class="rchip'+chipCls+'">'+esc(right)+'</span><button class="agrx" data-agrdel="'+esc(a.id)+'" title="Delete">\u00d7</button></div>';
+  return '<div class="rrow agrrow'+(signed?' agrexec':'')+'" data-agr="'+esc(a.id)+'" title="Click to edit"><div class="rrmain" style="min-width:0"><div style="font-size:13px;font-weight:400;color:#1d2739;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(dstr?('<span style="color:#8a93a8">'+esc(dstr)+'</span> &middot; '):'')+esc(title)+'</div></div><span class="rchip'+chipCls+'">'+esc(right)+'</span><button class="agrx" data-agrdel="'+esc(a.id)+'" title="Delete">\u00d7</button></div>';
 }
 function apptFmtDT(sv){ if(!sv) return ''; var d=String(sv).slice(0,10).split('-'); var t=String(sv).slice(11,16); var out=d.length===3?(d[1]+'/'+d[2]+'/'+d[0]):String(sv); if(t){ var hh=parseInt(t.slice(0,2),10)||0,mm=t.slice(3,5); out+=' '+((hh%12)||12)+(mm==='00'?'':(':'+mm))+(hh>=12?'p':'a'); } return out; }
 function appointmentsCard(){
@@ -514,7 +514,7 @@ function smInput(fld,i){
 function smApplyMsg(tpl){ var box=document.getElementById('sm_msg'); if(!box) return; var def=(tpl&&tpl.emailMessage)||''; if(box.value===''||box.value===_smAutoMsg){ box.value=def; _smAutoMsg=def; } }
 function smPrefill(fld){ var k=String(fld.autofill||'').toLowerCase(), L=String(fld.label||'').toLowerCase(); var P_=(typeof P!=='undefined'&&P)||{}; var co=(typeof CO!=='undefined'&&CO&&CO.name)||P_.company||''; var today=(typeof todayStr==='function')?todayStr():''; var S=window.__rrgSession||{}; var email=(P_.preferredEmail||P_.email||(P_.emails&&P_.emails[0]))||''; var phone=(P_.preferredPhone||P_.phone||(P_.phones&&P_.phones[0]))||''; var first=(P_.firstName||((P_.name||'').split(' ')[0]))||''; var last=(P_.lastName||'')||''; if(k==='party_name'||k==='name'||(!k&&/\bname\b/.test(L))) return P_.name||''; if(k==='first_name') return first; if(k==='last_name') return last; if(k==='title') return P_.title||''; if(k==='phone') return phone; if(k==='company'||(!k&&/(company|firm)/.test(L))) return co; if(k==='my_name') return S.name||''; if(k==='my_title') return S.title||''; if(k==='my_email') return S.email||''; if(k==='my_phone') return S.phone||''; if(k==='date'||(!k&&/date/.test(L))) return today; if(k==='email'||(!k&&/email/.test(L))) return email; return ''; }
 function openSendModal(){
-  var tplOpts='<option value="">— Choose a template —</option>'+TEMPLATES.filter(function(t){return t.fileExt;}).map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+((t.pdfFields&&t.pdfFields.length)?(' (in-PDF, '+(t.signerCount===2?'2 signers':'1 signer')+')'):'')+'</option>';}).join('')+'<option value="__file">None — attach my own file</option>';
+  var tplOpts='<option value="">— Choose a template —</option>'+TEMPLATES.filter(function(t){return t.fileExt;}).map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+((t.pdfFields&&t.pdfFields.length)?(' (in-PDF, '+(t.signerCount===2?'2 signers':'1 signer')+')'):'')+'</option>';}).join('');
   var stpl=document.getElementById('sm_tpl'); stpl.innerHTML=tplOpts;
   document.getElementById('sm_to').value=_pEmail();
   document.getElementById('sm_msg').value='';
