@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Net Effective Rent Calculator</title>
+<style>
+html.embedmode .top{display:none!important;} html.embedmode .wrap{padding-top:14px!important;margin-top:0!important;} html.embedmode body{background:#fff;}
+
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:#e9edf3;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+
+.toolbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);}
+.tb-inner{max-width:940px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.toolbar .tt{font-weight:800;color:var(--navy);font-size:14px;}
+.toolbar .tt span{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px;}
+.actions{display:flex;gap:8px;flex-wrap:wrap;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:8px;cursor:pointer;}
+.btn:hover{border-color:#9fb0cc;}
+.btn.print{background:var(--navy);color:#fff;border-color:var(--navy);}
+
+.wrap{max-width:940px;margin:22px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(10,20,50,.08);}
+
+.band{color:#fff;padding:38px 44px 34px;position:relative;overflow:hidden;
+  background:radial-gradient(96% 130% at 27% 12%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.band > *{position:relative;z-index:2;}
+.band::after{content:"";position:absolute;z-index:0;width:1200px;height:1200px;right:-360px;top:110px;border-radius:50%;
+  background:radial-gradient(circle at 34% 30%, #0b1430 0%, #08112a 48%, #050c22 82%);border:1px solid rgba(120,150,220,.10);pointer-events:none;}
+.rrg{display:inline-flex;align-items:center;}
+.rrg .disc{background:var(--red);color:#fff;border-radius:50%;width:46px;height:46px;font-weight:800;font-size:15px;display:flex;align-items:center;justify-content:center;letter-spacing:-.02em;}
+.rrg .bar{background:#fff;width:3px;height:34px;margin:0 12px;}
+.rrg .wm{font-weight:800;font-size:15px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:30px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+.band h1{font-size:31px;font-weight:800;letter-spacing:-.01em;margin:0;}
+.accent{width:60px;height:5px;background:var(--red);border-radius:3px;margin:16px 0 0;}
+.band .sub{color:#aeb8cf;font-size:13px;margin-top:10px;}
+
+.inner{padding:26px 40px 34px;}
+.seclabel{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--red);font-weight:700;margin:26px 0 12px;display:flex;align-items:center;gap:10px;}
+.seclabel:first-child{margin-top:6px;}
+.seclabel::after{content:"";flex:1;height:1px;background:var(--line);}
+.seclabel small{font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted);font-size:11px;}
+
+.inputs{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+.inputs.four{grid-template-columns:repeat(4,1fr);}
+.field.wide{grid-column:span 1;}
+.field label{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;margin-bottom:5px;}
+.field input{width:100%;border:1.5px solid var(--red);border-radius:9px;padding:11px 12px;font-size:15px;font-weight:600;color:var(--navy);font-family:inherit;background:#fffdfd;}
+.field.opt input{border-color:var(--inp);background:#fff;}
+.field .adorn{position:relative;}
+.field .adorn .pre{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;}
+.field .adorn.pre input{padding-left:22px;}
+.field .adorn .suf{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:600;}
+.field .adorn.suf input{padding-right:26px;}
+.field .hint{font-size:10.5px;color:var(--muted);margin-top:5px;font-weight:500;}
+
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;}
+.scard{border:1px solid var(--line);border-radius:12px;padding:15px 16px;background:var(--wash);}
+.scard.hero{background:var(--navy);border-color:var(--navy);}
+.scard .k{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.scard.hero .k{color:#9fb0cc;}
+.scard .v{font-weight:800;font-size:22px;color:var(--navy);margin-top:7px;letter-spacing:-.01em;line-height:1;}
+.scard.hero .v{color:#fff;}
+.scard.agent{background:#fdeceb;border-color:#f6cfcb;}
+.scard.agent .v{color:var(--red);}
+.scard .s{font-size:10.5px;color:var(--muted);margin-top:5px;}
+.scard.hero .s{color:#8b98b8;}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+th,td{padding:8px 12px;text-align:right;border-bottom:1px solid var(--line);}
+th{font-size:9.6px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;background:var(--wash);}
+th:first-child,td:first-child{text-align:left;}
+tbody td.comm{font-weight:700;color:var(--red);}
+tbody tr.step td.rate{color:var(--red);font-weight:700;}
+tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);border-bottom:none;padding-top:10px;font-size:13px;}
+.yr-badge{display:inline-flex;min-width:20px;height:20px;padding:0 5px;border-radius:6px;background:var(--wash);color:var(--muted);font-size:10.5px;font-weight:800;align-items:center;justify-content:center;}
+
+.note{margin-top:22px;font-size:11px;line-height:1.6;color:var(--muted);border-left:3px solid var(--line);padding:2px 0 2px 14px;}
+.foot{margin-top:26px;border-top:1px solid var(--line);padding-top:12px;display:flex;justify-content:space-between;font-size:10px;color:var(--muted);flex-wrap:wrap;gap:6px;}
+.foot b{color:var(--navy);}
+
+@media(max-width:720px){ .inputs,.inputs.four{grid-template-columns:1fr 1fr;} .summary{grid-template-columns:1fr 1fr;} .inner{padding:22px;} .band{padding:28px 24px;} }
+
+@media print{
+  @page{size:Letter;margin:0.5in 0.55in;}
+  body{background:#fff;}
+  .toolbar,.rrg-noprint{display:none!important;}
+  .wrap{max-width:none;margin:0;box-shadow:none;border-radius:0;}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .band{border-radius:0;}
+  .scard,.summary{break-inside:avoid;}
+  thead{display:table-header-group;}
+}
+</style>
+<script>if(/[?&]embed=1/.test(location.search)){document.write('<meta name="rrg-noshell">');document.documentElement.className+=' embedmode';}</script>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to dashboard" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)"><span style="font-size:14px;line-height:1">←</span> Dashboard</a><style>@media print{.rrg-back{display:none!important}}@media(max-width:560px){.rrg-back{left:12px;bottom:12px;padding:9px 13px}}</style>
+
+<div class="toolbar"><div class="tb-inner">
+  <div class="tt">RRG Net Effective Rent Calculator <span>What the tenant really pays</span></div>
+  <div class="actions">
+    <button class="btn" onclick="loadSample()">Load sample</button>
+    <button class="btn" onclick="resetAll()">Reset</button>
+    <button class="btn print" onclick="window.print()">Print</button>
+  </div>
+</div></div>
+
+<div class="wrap" id="sheet">
+  <div class="band">
+    <span class="rrg" onclick="location.href='./index.html'" title="Back to dashboard" style="cursor:pointer"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+    <div class="kicker">Net Effective Rent Calculator</div>
+    <h1 id="hdrName">Net Effective Rent</h1>
+    <div class="accent"></div>
+    <div class="sub" id="hdrSub">The tenant’s true average rent after free rent, TI, and escalations.</div>
+  </div>
+
+  <div class="inner">
+    <div class="seclabel">Lease Terms</div>
+    <div class="inputs">
+      <div class="field"><label>Property / Deal</label><input type="text" id="deal" placeholder="Deal name"></div>
+      <div class="field"><label>Square Feet</label><input type="text" id="sf" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label>Base Rent ($/SF/Yr)</label><span class="adorn pre"><span class="pre">$</span><input type="text" id="rent" inputmode="decimal" placeholder="0"></span></div>
+      <div class="field"><label>Annual Escalation</label><span class="adorn suf"><input type="text" id="esc" inputmode="decimal" placeholder="0"><span class="suf">%</span></span></div>
+      <div class="field"><label>Lease Term (Years)</label><input type="text" id="term" inputmode="numeric" placeholder="0"></div>
+      <div class="field"><label>Free Rent (Months)</label><input type="text" id="free" inputmode="numeric" placeholder="0"></div>
+    </div>
+
+    <div class="seclabel">Concessions &amp; Costs <small>&nbsp;— optional</small></div>
+    <div class="inputs">
+      <div class="field opt"><label>TI Allowance ($/SF)</label><span class="adorn pre"><span class="pre">$</span><input type="text" id="ti" inputmode="decimal" placeholder="0"></span><div class="hint">Landlord contribution</div></div>
+      <div class="field opt"><label>NNN / Op-Ex ($/SF/Yr)</label><span class="adorn pre"><span class="pre">$</span><input type="text" id="nnn" inputmode="decimal" placeholder="0"></span><div class="hint">For gross occupancy cost</div></div>
+      <div class="field opt"><label>Free Rent Basis</label><input type="text" value="Abated at lease start" readonly style="background:#f5f7fb;color:#6b7488;border-color:var(--inp)"><div class="hint">Months off the top</div></div>
+    </div>
+
+    <div class="seclabel">Net Effective Rent</div>
+    <div class="summary">
+      <div class="scard hero"><div class="k">Net Effective Rent</div><div class="v" id="sNer">$0</div><div class="s">Per SF / year</div></div>
+      <div class="scard"><div class="k">Face Rent (Avg)</div><div class="v" id="sFace">$0</div><div class="s">Straight-line base</div></div>
+      <div class="scard agent"><div class="k">Effective Discount</div><div class="v" id="sDisc">—</div><div class="s">Value of concessions</div></div>
+      <div class="scard"><div class="k">NER / Month</div><div class="v" id="sMo">$0</div><div class="s">Per SF / month</div></div>
+    </div>
+
+    <div class="seclabel">Deal Economics</div>
+    <div class="summary">
+      <div class="scard"><div class="k">Total Base Rent</div><div class="v" id="sBase">$0</div><div class="s">Over the full term</div></div>
+      <div class="scard"><div class="k">Free Rent Value</div><div class="v" id="sFree">$0</div><div class="s" id="sFreeS">None</div></div>
+      <div class="scard"><div class="k">TI Allowance</div><div class="v" id="sTi">$0</div><div class="s">Landlord funded</div></div>
+      <div class="scard"><div class="k">Effective Annual Rent</div><div class="v" id="sEff">$0</div><div class="s">NER × square feet</div></div>
+    </div>
+
+    <div class="seclabel" id="occLabel" style="display:none">Gross Occupancy Cost</div>
+    <div class="summary" id="occRow" style="display:none;grid-template-columns:repeat(3,1fr)">
+      <div class="scard hero"><div class="k">Effective Gross Rent</div><div class="v" id="sGross">$0</div><div class="s">NER + NNN, per SF/yr</div></div>
+      <div class="scard"><div class="k">Effective Gross / Month</div><div class="v" id="sGrossMo">$0</div><div class="s">Per SF / month</div></div>
+      <div class="scard"><div class="k">Total Annual Occupancy</div><div class="v" id="sOcc">$0</div><div class="s">(NER + NNN) × SF</div></div>
+    </div>
+
+    <div class="seclabel">Rent Schedule</div>
+    <table>
+      <thead><tr><th>Year</th><th>Rent $/SF</th><th>Free Mo.</th><th>Annual Base Rent</th><th>Rent Paid</th></tr></thead>
+      <tbody id="schedBody"></tbody>
+      <tfoot><tr><td colspan="3">Total base rent</td><td id="tBase">$0</td><td id="tPaid">$0</td></tr></tfoot>
+    </table>
+
+    <div class="note" id="noteText"></div>
+
+    <div class="foot">
+      <span>Restaurant Realty Group, LLC &nbsp;·&nbsp; <b>Restaurant Transactions. Done Right.</b></span>
+      <span>Proprietary &amp; Confidential · Internal RRG Use Only</span>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var MAXYEARS=40;
+  function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.]/g,''))||0; }
+  function money(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
+  function money2(n){ return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function pct(n){ return String(+(n*100).toFixed(1))+'%'; }
+  function grp(s){ s=String(s).replace(/[^0-9]/g,''); return s?Number(s).toLocaleString('en-US'):''; }
+  var el={}; ['deal','sf','rent','esc','term','free','ti','nnn'].forEach(function(id){ el[id]=document.getElementById(id); });
+
+  function recompute(){
+    var sf=num(el.sf.value), rent0=num(el.rent.value), esc=num(el.esc.value)/100;
+    var term=Math.min(MAXYEARS, Math.round(num(el.term.value)));
+    var freeM=Math.round(num(el.free.value)), ti=num(el.ti.value), nnn=num(el.nnn.value);
+
+    var rows=[], baseSF=0, freeSF=0, rentSF=rent0, freeLeft=freeM;
+    for(var y=1;y<=term;y++){
+      if(y>1) rentSF=rentSF*(1+esc);
+      var freeThis=Math.max(0,Math.min(12,freeLeft)); freeLeft-=freeThis;
+      baseSF+=rentSF; freeSF+=rentSF*freeThis/12;
+      rows.push({y:y,rentSF:rentSF,free:freeThis,annual:sf*rentSF,paid:sf*rentSF*(12-freeThis)/12});
+    }
+    var netSF=baseSF-freeSF-ti;
+    var ner=term>0?netSF/term:0, face=term>0?baseSF/term:0;
+    var disc=face>0?(face-ner)/face:0;
+    var totalBase=baseSF*sf, freeVal=freeSF*sf, tiVal=ti*sf, effAnnual=ner*sf;
+
+    document.getElementById('sNer').textContent=money2(ner);
+    document.getElementById('sFace').textContent=money2(face);
+    document.getElementById('sDisc').textContent=face>0?pct(disc):'—';
+    document.getElementById('sMo').textContent=money2(ner/12);
+    document.getElementById('sBase').textContent=money(totalBase);
+    document.getElementById('sFree').textContent=money(freeVal);
+    document.getElementById('sFreeS').textContent=freeM>0?(freeM+' month'+(freeM===1?'':'s')+' abated'):'None';
+    document.getElementById('sTi').textContent=money(tiVal);
+    document.getElementById('sEff').textContent=money(effAnnual);
+
+    var showOcc=nnn>0;
+    document.getElementById('occLabel').style.display=showOcc?'':'none';
+    document.getElementById('occRow').style.display=showOcc?'grid':'none';
+    if(showOcc){
+      document.getElementById('sGross').textContent=money2(ner+nnn);
+      document.getElementById('sGrossMo').textContent=money2((ner+nnn)/12);
+      document.getElementById('sOcc').textContent=money((ner+nnn)*sf);
+    }
+
+    var tb=document.getElementById('schedBody'); tb.innerHTML='';
+    rows.forEach(function(r){
+      var tr=document.createElement('tr'); if(r.free>0) tr.className='step';
+      tr.innerHTML='<td><span class="yr-badge">'+r.y+'</span></td>'+
+        '<td>'+money2(r.rentSF)+'</td>'+
+        '<td class="rate">'+(r.free>0?r.free:'—')+'</td>'+
+        '<td>'+money(r.annual)+'</td>'+
+        '<td class="comm">'+money(r.paid)+'</td>';
+      tb.appendChild(tr);
+    });
+    document.getElementById('tBase').textContent=money(totalBase);
+    document.getElementById('tPaid').textContent=money(totalBase-freeVal);
+
+    var nm=(el.deal.value||'').trim();
+    document.getElementById('hdrName').textContent=nm||'Net Effective Rent';
+    document.getElementById('hdrSub').textContent=(sf>0&&term>0)
+      ? (sf.toLocaleString()+' SF · '+term+'-yr term · Net effective '+money2(ner)+'/SF · Face '+money2(face)+'/SF · '+(face>0?pct(disc):'—')+' concession')
+      : 'The tenant’s true average rent after free rent, TI, and escalations.';
+    document.getElementById('noteText').innerHTML='<b>How it works.</b> Net effective rent straight-lines the tenant’s real cost — total base rent over the term, minus '+(freeM>0?(freeM+' months of free rent'):'free rent')+' and the TI allowance, divided by the term. Face rent (straight-line base) is '+money2(face)+'/SF; net effective is '+money2(ner)+'/SF — a '+(face>0?pct(disc):'0%')+' concession.'+(nnn>0?(' With NNN of '+money2(nnn)+'/SF, effective gross occupancy is '+money2(ner+nnn)+'/SF.'):'')+' Free rent is abated from lease start; TI is treated as a straight rent offset (not amortized with interest). Percentage rent is not included.';
+  }
+
+  el.sf.addEventListener('input', function(){ el.sf.value=grp(el.sf.value); recompute(); });
+  ['rent','esc','term','free','ti','nnn'].forEach(function(id){ el[id].addEventListener('input', function(){ el[id].value=el[id].value.replace(/[^0-9.]/g,''); recompute(); }); });
+  el.deal.addEventListener('input', recompute);
+
+  window.loadSample=function(){
+    el.deal.value='Sample — 3,000 SF 2nd-gen restaurant';
+    el.sf.value='3,000'; el.rent.value='38'; el.esc.value='3'; el.term.value='10'; el.free.value='6'; el.ti.value='45'; el.nnn.value='9';
+    recompute();
+  };
+  window.resetAll=function(){ ['deal','sf','rent','esc','term','free','ti','nnn'].forEach(function(id){ el[id].value=''; }); recompute(); };
+  loadSample();
+})();
+</script>
+</body>
+</html>
