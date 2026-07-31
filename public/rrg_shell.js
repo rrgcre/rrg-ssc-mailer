@@ -103,11 +103,11 @@
   var NAV = [
     { color: '#8fa2c4', items: [
       { ic: '✦', label: 'Daily Brief', href: 'rrg_brief.html', ai: true },
+      { ic: '◱', label: 'Feed', href: 'rrg_feed.html' },
       { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' },
       { ic: '◫', label: 'Calendar', href: 'rrg_calendar.html' }
     ] },
     { grp: 'Book of Business', color: '#7ea6d8', items: [
-      { ic: '◱', label: 'Feed', href: 'rrg_feed.html' },
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
       { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
       { ic: '⚖︎', label: 'Agreements', href: 'rrg_agreements.html' },
