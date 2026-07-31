@@ -291,6 +291,12 @@ function openAgrViewCo(id){
   ov.querySelector('#agrvDone').addEventListener('click',close);
   var oc=ov.querySelector('#agrvOpenContact'); if(oc) oc.addEventListener('click',function(){ location.href='./rrg_person.html?id='+encodeURIComponent(a.personId); });
 }
+function agrEntryIcon(a){
+  var m=a.entryMethod||'recorded';
+  var map={ sent:['\u2709','Sent for e-signature'], recorded:['\uD83D\uDDC4','Recorded \u2014 executed outside FullServe'], signreturn:['\u270D','Signed \u0026 returned'] };
+  var it=map[m]||map.recorded;
+  return '<span class="agrsrc" title="'+esc(it[1])+'" style="font-size:13px;line-height:1;color:#8a93a8;flex:none;margin:0 2px 0 4px">'+it[0]+'</span>';
+}
 function agrRowCo(a){
   var today=agrToday(); var expired=(a.status==='terminated')||(a.expires&&a.expires<today);
   var du=agrDays(a.expires); var soon=a.expires&&!expired&&du<=60; var signed=(a.signStatus==='signed');
@@ -299,7 +305,7 @@ function agrRowCo(a){
   var title=a.name||agrTypeLabel(a.type);
   var dstr=a.effective?agrFmt(a.effective):(a.expires?agrFmt(a.expires):'');
   var open=' onclick="openAgrViewCo(&quot;'+esc(a.id)+'&quot;)" style="cursor:pointer"';
-  return '<div class="rrow"'+open+'><div class="rrmain" style="min-width:0"><div style="font-size:13px;font-weight:400;color:#1d2739;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(dstr?('<span style="color:#8a93a8">'+esc(dstr)+'</span> &middot; '):'')+esc(title)+'</div></div><span class="rchip'+chipCls+'">'+esc(right)+'</span></div>';
+  return '<div class="rrow"'+open+'><div class="rrmain" style="min-width:0"><div style="font-size:13px;font-weight:400;color:#1d2739;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(dstr?('<span style="color:#8a93a8">'+esc(dstr)+'</span> &middot; '):'')+esc(title)+'</div></div><span class="rchip'+chipCls+'">'+esc(right)+'</span>'+agrEntryIcon(a)+'</div>';
 }
 function agreementsCardCo(){
   var inner=AGREEMENTS.length?('<div class="agrlistco">'+AGREEMENTS.map(agrRowCo).join('')+'</div>'):'<div class="empty">No agreements linked to this company yet.</div>';
