@@ -90,5 +90,25 @@
     }
   } catch (e) {}
 })();
+/* pre-paint shell skeleton: reserve the nav + top-bar space and paint matching
+   placeholder strips BEFORE first paint, so moving between pages no longer flashes
+   an un-shelled full-width layout that then jumps when the real shell mounts.
+   Mirrors rrg_shell.js opt-outs (login pages, <meta name=rrg-noshell>). */
+(function(){ try{
+  var path=(location.pathname||'').toLowerCase();
+  var file=path.split('/').pop()||'index.html';
+  if(/\/login/.test(path)||file==='login') return;
+  if(document.querySelector('meta[name="rrg-noshell"]')) return;
+  if(document.getElementById('rrgshell-preload')) return;
+  var st=document.createElement('style'); st.id='rrgshell-preload';
+  st.textContent=''
+    +'body{padding-left:238px;padding-top:56px;}'
+    +'body::before{content:"";position:fixed;top:0;left:0;bottom:0;width:238px;background:var(--navbg,#0b1a38);z-index:1;pointer-events:none;}'
+    +'body::after{content:"";position:fixed;top:0;left:238px;right:0;height:56px;background:#fff;border-bottom:1px solid #e9edf3;z-index:1;pointer-events:none;}'
+    +'.top,.rrg-back{display:none !important;}'
+    +'body.rrg-shelled::before,body.rrg-shelled::after{display:none !important;}'
+    +'@media(max-width:900px){body{padding-left:0;}body::before{display:none;}body::after{left:0;}}';
+  (document.head||document.documentElement).appendChild(st);
+}catch(e){} })();
 /* load the app shell (persistent nav + top bar) on every page */
 (function(){ try{ if(!document.querySelector('script[src="/rrg_shell.js"]')){ var sc=document.createElement('script'); sc.src='/rrg_shell.js'; sc.defer=true; (document.head||document.documentElement).appendChild(sc); } }catch(e){} })();
