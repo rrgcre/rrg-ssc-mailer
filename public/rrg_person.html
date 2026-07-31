@@ -565,7 +565,7 @@ function doCopyLink(){
     if(!(j&&j.ok&&j.url)) throw new Error((j&&j.error)||'Could not create the link.');
     var url=j.url; try{ if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(url); }catch(e){}
     out.style.color='#1f8a5b'; out.innerHTML='✓ Link copied — paste it to the signer:<br><a href="'+esc(url)+'" target="_blank" rel="noopener" style="color:#2647b0;word-break:break-all;font-weight:700">'+esc(url)+'</a>';
-    load(); if(cb) cb.disabled=false;
+    if(cb) cb.disabled=false;
   }).catch(function(e){ if(cb) cb.disabled=false; if(sb) sb.disabled=false; out.style.color='#DA2B1F'; out.textContent=(e&&e.message)||'Something went wrong.'; });
 }
 function wireAgreements(){
