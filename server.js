@@ -8811,12 +8811,12 @@ function advancedSignPage(a, me, req) {
   document.getElementById('submitBtn').onclick=function(){
     var err=document.getElementById('err'); err.textContent='';
     if(!document.getElementById('agree').checked){err.textContent='Please check the agreement box.';return;}
-    var miss=null;
+    var miss=null, missId=null;
     (DATA.fields||[]).filter(function(f){return f.mine&&f.required;}).forEach(function(f){
-      if(f.type==='signature'||f.type==='initials'){ if(!SIGS[f.id]) miss=miss||(f.label||'Signature'); }
-      else if(f.type==='checkbox'){} else { if(!String(VALS[f.id]||'').trim()) miss=miss||(f.label||'a field'); }
+      var empty=(f.type==='signature'||f.type==='initials')?!SIGS[f.id]:(f.type==='checkbox'?false:!String(VALS[f.id]||'').trim());
+      if(empty&&!missId){ miss=f.label||((f.type==='signature'||f.type==='initials')?'Signature':'a field'); missId=f.id; }
     });
-    if(miss){err.textContent='Please complete: '+miss;return;}
+    if(miss){ err.textContent='Please complete: '+miss; var _mb=document.querySelector('[data-fid="'+missId+'"]'); if(_mb){ try{ _mb.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} _mb.style.boxShadow='0 0 0 3px rgba(218,43,31,.55)'; setTimeout(function(){ _mb.style.boxShadow=''; },2400); } return; }
     var btn=document.getElementById('submitBtn'); btn.disabled=true; btn.textContent='Submitting...';
     fetch('/api/sign/'+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({values:VALS,sigs:SIGS})}).then(function(r){return r.json();}).then(function(j){
       if(j&&j.ok){ var done=j.done; document.querySelector('.wrap').innerHTML='<div class="card"><div style="padding:26px;text-align:center"><div style="font-size:40px">&#10003;</div><b style="font-size:17px;color:#000E31">Signed - thank you.</b><div style="color:#6b7488;margin-top:8px">'+(done?'All parties have signed. A copy has been recorded.':'Your part is complete. We have sent it to the next signer.')+'</div></div></div>'; window.scrollTo(0,0); }
