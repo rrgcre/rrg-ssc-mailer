@@ -8680,7 +8680,7 @@ async function burnFinalPdf(a) {
     } else if (f.type === 'checkbox') {
       const v = (a.fieldValues && a.fieldValues[f.id]); if (v === '1' || v === true || v === 'true') { const s = Math.min(bw, bh); page.drawText('X', { x: bx + Math.max(1, (bw - s * 0.6) / 2), y: byBottom + Math.max(1, (bh - s * 0.72) / 2), size: s * 0.9, font: bold, color: rgb(0.05, 0.09, 0.2) }); }
     } else {
-      const v = fmtSignVal(f.type, String((a.fieldValues && a.fieldValues[f.id]) || '')); if (v) { const _fsz = parseFloat(f.fontSize); const size = (isFinite(_fsz) && _fsz > 0) ? Math.max(5, Math.min(48, _fsz)) : Math.max(7, Math.min(12, bh * 0.62)); const _ff = _fontFor(f.font); const _txt = v.slice(0, 120); let _tx = bx + 2; try { const _tw = _ff.widthOfTextAtSize(_txt, size); const _al = String(f.align || 'left'); if (_al === 'center') _tx = bx + Math.max(2, (bw - _tw) / 2); else if (_al === 'right') _tx = bx + Math.max(2, bw - _tw - 2); } catch (e) {} page.drawText(_txt, { x: _tx, y: byBottom + Math.max(2, (bh - size) / 2), size, font: _ff, color: rgb(0.05, 0.09, 0.2) }); }
+      let _rawv = (a.fieldValues && a.fieldValues[f.id]); if (_rawv == null || _rawv === '') { try { _rawv = signerFieldPrefill(a, f) || ''; } catch (e) { _rawv = ''; } } const v = fmtSignVal(f.type, String(_rawv || '')); if (v) { const _fsz = parseFloat(f.fontSize); const size = (isFinite(_fsz) && _fsz > 0) ? Math.max(5, Math.min(48, _fsz)) : Math.max(7, Math.min(12, bh * 0.62)); const _ff = _fontFor(f.font); const _txt = v.slice(0, 120); let _tx = bx + 2; try { const _tw = _ff.widthOfTextAtSize(_txt, size); const _al = String(f.align || 'left'); if (_al === 'center') _tx = bx + Math.max(2, (bw - _tw) / 2); else if (_al === 'right') _tx = bx + Math.max(2, bw - _tw - 2); } catch (e) {} page.drawText(_txt, { x: _tx, y: byBottom + Math.max(2, (bh - size) / 2), size, font: _ff, color: rgb(0.05, 0.09, 0.2) }); }
     }
   }
   const ap = pdf.addPage(); const asz = ap.getSize(); const ah = asz.height; let y = ah - 60;
@@ -8703,7 +8703,7 @@ function submitAdvancedSign(req, res, all, a, me) {
   const b = req.body || {};
   const values = (b.values && typeof b.values === 'object') ? b.values : {};
   const sigs = (b.sigs && typeof b.sigs === 'object') ? b.sigs : {};
-  const myFields = (a.pdfFields || []).filter(f => f.signer === me.order && (f.type === 'signature' || f.type === 'initials'));
+  const myFields = (a.pdfFields || []).filter(f => f.signer === me.order);
   for (const f of myFields) {
     if (f.type === 'signature' || f.type === 'initials') { if (f.required && !sigs[f.id] && !fs.existsSync(sigFieldPath(a, f.id))) return res.status(400).json({ ok: false, error: 'Please complete: ' + (f.label || 'Signature') }); }
     else if (f.type === 'checkbox') {} 
