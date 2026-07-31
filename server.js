@@ -8561,6 +8561,30 @@ app.post('/api/admin/agreement-templates/:id/fields', requireAdmin, express.json
   t.updatedAt = new Date().toISOString(); saveTemplates(all);
   res.json({ ok: true, template: templateBrief(t) });
 });
+app.post('/api/agreements/:id/self-sign-return', express.json({ limit: '8mb' }), async (req, res) => {
+  const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
+  const b = req.body || {}; const sig = String(b.signature || ''); const to = String(b.to || '').trim();
+  if (!/^data:image\/png;base64,/.test(sig)) return res.status(400).json({ ok: false, error: 'Signature is required.' });
+  if ((a.docExt || 'pdf') !== 'pdf') return res.status(400).json({ ok: false, error: 'The uploaded document must be a PDF to sign.' });
+  try {
+    const { PDFDocument } = require('pdf-lib');
+    const src = path.join(AGREEMENT_DOC_DIR, a.id + '.' + (a.docExt || 'pdf'));
+    const pdf = await PDFDocument.load(fs.readFileSync(src));
+    const png = await pdf.embedPng(Buffer.from(sig.replace(/^data:image\/png;base64,/, ''), 'base64'));
+    const pages = pdf.getPages(); const pg = pages[pages.length - 1]; const sz = pg.getSize();
+    const w = Math.min(200, png.width); const scl = w / png.width; const h = png.height * scl;
+    pg.drawImage(png, { x: Math.max(20, sz.width - w - 50), y: 50, width: w, height: h });
+    const out = await pdf.save(); fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'), Buffer.from(out));
+    const now = new Date().toISOString();
+    a.hasFinal = true; a.signStatus = 'executed'; a.executedAt = now; a.signedDate = a.signedDate || now.slice(0, 10); a.repSignedName = (req.user && req.user.name) || ''; a.repSignedAt = now; a.status = 'active'; a.updatedAt = now;
+    saveAgreements(all);
+    try { if (to && isEmailConfigured()) { sendMailWL({ from: mailFrom(), to: to, subject: (a.name || agreementTypeLabel(a.type)) + ' - signed', text: (String(b.note || '').trim() || ('Please find the signed ' + agreementTypeLabel(a.type) + ' attached.')) + '\n\nThank you,\n' + orgDisplayName(), attachments: [{ filename: 'signed-agreement.pdf', path: path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf') }] }).catch(() => {}); } } catch (e) {}
+    if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Signed', (a.name || agreementTypeLabel(a.type)) + ' signed and returned' + (to ? (' to ' + to) : ''), { auto: true, date: a.signedDate, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
+    try { runPostExecution(a, req); } catch (e) {}
+    res.json({ ok: true });
+  } catch (e) { res.status(500).json({ ok: false, error: 'Could not sign the document: ' + (e && e.message) }); }
+});
 app.post('/api/agreements/:id/apply-template', express.json(), (req, res) => {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
