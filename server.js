@@ -3220,13 +3220,15 @@ function newAutomationId() { return 'auto_' + Date.now().toString(36) + Math.ran
 function newEnrollId() { return 'enr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function cleanAutoSteps(arr) {
   return (Array.isArray(arr) ? arr : []).slice(0, 30).map(function (st, i) {
-    const type = ['task', 'notification'].indexOf(st && st.type) >= 0 ? st.type : 'email';
+    const type = ['task', 'notification', 'logactivity', 'assignment'].indexOf(st && st.type) >= 0 ? st.type : 'email';
     const o = { type: type, delayDays: Math.max(0, Math.min(3650, parseInt((st && st.delayDays), 10) || 0)) };
     if (type === 'email') { o.subject = String((st && st.subject) || '').slice(0, 300); o.body = String((st && st.body) || '').slice(0, 20000); }
     else if (type === 'task') { o.taskTitle = String((st && st.taskTitle) || '').slice(0, 300); o.taskNote = String((st && st.taskNote) || '').slice(0, 2000); }
-    else { o.message = String((st && st.message) || '').slice(0, 2000); o.notifyEmail = String((st && st.notifyEmail) || '').slice(0, 160); o.channel = (st && st.channel === 'text') ? 'text' : 'email'; }
+    else if (type === 'notification') { o.message = String((st && st.message) || '').slice(0, 2000); o.notifyEmail = String((st && st.notifyEmail) || '').slice(0, 160); o.channel = (st && st.channel === 'text') ? 'text' : 'email'; }
+    else if (type === 'logactivity') { o.actType = String((st && st.actType) || 'Note').slice(0, 40); o.actNote = String((st && st.actNote) || '').slice(0, 2000); }
+    else if (type === 'assignment') { o.setStatus = String((st && st.setStatus) || '').slice(0, 40); o.advanceStage = String((st && st.advanceStage) || '').slice(0, 20); o.markLive = !!(st && st.markLive); }
     return o;
-  }).filter(function (st) { return st.type === 'task' ? st.taskTitle : (st.type === 'notification' ? st.message : (st.subject || st.body)); });
+  }).filter(function (st) { return (st.type === 'logactivity' || st.type === 'assignment') ? true : (st.type === 'task' ? st.taskTitle : (st.type === 'notification' ? st.message : (st.subject || st.body))); });
 }
 function personPrimaryListing(p) {
   try {
@@ -3276,18 +3278,20 @@ function mergeTokens(t, p, user) {
   });
 }
 function smsNotifyEnabled() { const s = loadSettings(); return s.smsNotifyEnabled === true; }
-function automationBrief(a, user) { return { id: a.id, name: a.name || '', bbsDefault: !!a.bbsDefault, active: a.active !== false, scope: (a.scope === 'private' ? 'private' : 'shared'), ownerUser: a.ownerUser || '', ownerName: a.ownerName || '', mine: !!(user && (a.ownerUser === user.username || isSuper(user))), steps: Array.isArray(a.steps) ? a.steps : [], stepCount: (a.steps || []).length, updatedAt: a.updatedAt || '' }; }
+function automationBrief(a, user) { return { id: a.id, name: a.name || '', bbsDefault: !!a.bbsDefault, execDefault: !!a.execDefault, active: a.active !== false, scope: (a.scope === 'private' ? 'private' : 'shared'), ownerUser: a.ownerUser || '', ownerName: a.ownerName || '', mine: !!(user && (a.ownerUser === user.username || isSuper(user))), steps: Array.isArray(a.steps) ? a.steps : [], stepCount: (a.steps || []).length, updatedAt: a.updatedAt || '' }; }
 function enrollPerson(p, plan, opts) {
   opts = opts || {};
   if (!p || !plan || !Array.isArray(plan.steps) || !plan.steps.length) return null;
   p.enrollments = Array.isArray(p.enrollments) ? p.enrollments : [];
   if (p.enrollments.some(function (e) { return e.automationId === plan.id && e.status === 'active'; })) return null;
   const now = Date.now();
-  const en = { eid: newEnrollId(), automationId: plan.id, automationName: plan.name || '', startedAt: new Date(now).toISOString(), stepIndex: 0, nextAt: new Date(now + (plan.steps[0].delayDays || 0) * 86400000).toISOString(), status: 'active', enrolledBy: opts.byName || '', enrolledByUser: opts.byUser || '', replyTo: opts.replyTo || '', history: [] };
+  const en = { eid: newEnrollId(), automationId: plan.id, automationName: plan.name || '', startedAt: new Date(now).toISOString(), stepIndex: 0, nextAt: new Date(now + (plan.steps[0].delayDays || 0) * 86400000).toISOString(), status: 'active', enrolledBy: opts.byName || '', enrolledByUser: opts.byUser || '', replyTo: opts.replyTo || '', dealKey: opts.dealKey || '', history: [] };
   p.enrollments.push(en);
   return en;
 }
 async function runAutomationStep(p, en, step) {
+  if (step.type === 'logactivity') { try { logActivity(p, (step.actType || 'Note'), mergeTokens(step.actNote || '', p) || 'Logged by automation', { auto: true, by: 'Automation' }); return 'activity logged'; } catch (e) { return 'activity error: ' + (e && e.message); } }
+  if (step.type === 'assignment') { if (!en.dealKey) return 'skipped: no linked assignment'; try { const ov = loadAssignOverlay(); const cur = ov[en.dealKey] || {}; if (step.setStatus && ASSIGN_STATUSES.indexOf(step.setStatus) >= 0) cur.status = step.setStatus; if (step.advanceStage && ['outreach','agreed','offers','dd','closing'].indexOf(step.advanceStage) >= 0) { cur.stageFlags = cur.stageFlags || {}; cur.stageFlags[step.advanceStage] = true; } if (step.markLive && !cur.listingStart) cur.listingStart = new Date().toISOString().slice(0, 10); cur.updatedAt = new Date().toISOString(); ov[en.dealKey] = cur; saveAssignOverlay(ov); logActivity(p, 'Note', 'Automation updated the linked assignment', { auto: true, by: 'Automation' }); return 'assignment updated'; } catch (e) { return 'assignment error: ' + (e && e.message); } }
   if (step.type === 'notification') {
     if (step.channel === 'text') {
       if (!smsNotifyEnabled() || !isSmsConfigured()) return 'skipped: text notifications not enabled';
@@ -3699,6 +3703,7 @@ app.post('/api/admin/automations', requireAdmin, express.json({ limit: '1mb' }),
   if (b.active !== undefined) a.active = !!b.active;
   if (b.scope !== undefined) a.scope = (b.scope === 'private' ? 'private' : 'shared');
   if (b.bbsDefault !== undefined) { if (b.bbsDefault) { if (a.scope === 'private') a.scope = 'shared'; all.forEach(x => { x.bbsDefault = false; }); } a.bbsDefault = !!b.bbsDefault; }
+  if (b.execDefault !== undefined) { if (b.execDefault) { if (a.scope === 'private') a.scope = 'shared'; all.forEach(x => { x.execDefault = false; }); } a.execDefault = !!b.execDefault; }
   a.updatedAt = new Date().toISOString(); saveAutomations(all);
   res.json({ ok: true, automation: automationBrief(a, u), automations: all.map(x => automationBrief(x, u)) });
 });
@@ -8300,7 +8305,7 @@ app.post('/api/agreements/:id/sign', express.json(), (req, res) => {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
   const now = new Date().toISOString(); const b = req.body || {};
-  a.signStatus = 'signed'; a.signedDate = (typeof b.date === 'string' && b.date) ? b.date.slice(0, 10) : now.slice(0, 10); a.status = 'active'; a.updatedAt = now; saveAgreements(all);
+  a.signStatus = 'signed'; a.signedDate = (typeof b.date === 'string' && b.date) ? b.date.slice(0, 10) : now.slice(0, 10); a.status = 'active'; a.updatedAt = now; saveAgreements(all); runPostExecution(a, req);
   if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Signed', agreementTypeLabel(a.type) + ' signed', { auto: true, date: a.signedDate, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
   res.json({ ok: true, agreement: agreementBrief(a) });
 });
@@ -8404,6 +8409,7 @@ app.post('/api/agreements/:id/countersign', express.json({ limit: '8mb' }), (req
   a.repSignedName = String(b.name || (req.user && req.user.name) || '').slice(0, 160);
   a.repSignedAt = now; a.executedAt = now; a.signStatus = 'executed'; a.signedDate = a.signedDate || now.slice(0, 10); a.status = 'active'; a.updatedAt = now;
   saveAgreements(all);
+  runPostExecution(a, req);
   const label = agreementTypeLabel(a.type);
   if (a.personId) {
     try {
@@ -8694,6 +8700,23 @@ app.post('/api/agreements/:id/fill', express.json({ limit: '256kb' }), (req, res
   res.json({ ok: true });
 });
 
+function runPostExecution(a, req) {
+  try {
+    if (!a || !a.dealKey) return;
+    const now = new Date().toISOString();
+    try { const ov = loadAssignOverlay(); const cur = ov[a.dealKey] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Active'; cur.stageFlags = cur.stageFlags || {}; cur.stageFlags.agreed = true; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[a.dealKey] = cur; saveAssignOverlay(ov); } catch (e) {}
+    if (a.personId) {
+      try {
+        const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId);
+        if (pp) {
+          logActivity(pp, 'Note', agreementTypeLabel(a.type) + ' fully executed \u2014 listing set to Active', { auto: true, by: 'Automation' });
+          try { const plan = loadAutomations().find(x => x.execDefault && x.active !== false); if (plan) enrollPerson(pp, plan, { byName: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '', dealKey: a.dealKey }); } catch (e) {}
+          savePeople(ppl);
+        }
+      } catch (e) {}
+    }
+  } catch (e) { console.error('runPostExecution:', e && e.message); }
+}
 async function burnFinalPdf(a) {
   const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
   const bytes = fs.readFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.pdf'));
@@ -8754,7 +8777,7 @@ function submitAdvancedSign(req, res, all, a, me) {
   (async () => {
     if (!next) {
       try { await burnFinalPdf(a); } catch (e) { console.error('burnFinalPdf:', e && e.message); }
-      a.signStatus = 'signed'; a.signedDate = now.slice(0, 10); a.signedAt = now; a.status = 'active'; a.updatedAt = now; saveAgreements(all);
+      a.signStatus = 'signed'; a.signedDate = now.slice(0, 10); a.signedAt = now; a.status = 'active'; a.updatedAt = now; saveAgreements(all); runPostExecution(a, req);
       if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Signed', agreementTypeLabel(a.type) + ' fully signed', { auto: true, date: a.signedDate }); savePeople(ppl); } } catch (e) {} }
       try { if (isEmailConfigured() && a.hasFinal) { const fp = path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'); (a.signers || []).map(s => s.email).filter(Boolean).forEach(to => { sendMailWL({ from: mailFrom(), to, subject: agreementTypeLabel(a.type) + ' - fully signed', text: 'All parties have signed. A copy is attached.', attachments: [{ filename: 'signed-agreement.pdf', path: fp }] }).catch(() => {}); }); } } catch (e) {}
       return res.json({ ok: true, done: true });
