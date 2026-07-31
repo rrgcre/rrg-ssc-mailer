@@ -816,7 +816,10 @@ function render(){
   var pd=document.getElementById('p_delete'); if(pd) pd.addEventListener('click',deletePerson);
   ['p_first','p_last','p_type','p_nick','p_company','p_lead','p_url','p_lastcontact','p_notes'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener(el.tagName==='SELECT'?'change':'input',queueSave); });
   document.querySelectorAll('.p_prefchk').forEach(function(c){ c.addEventListener('change', queueSave); });
-  root.querySelectorAll('input.p_email,input.p_phone').forEach(function(el){ el.addEventListener('input',function(){ if(el.classList.contains('p_phone')) el.value=fmtPhoneVal(el.value); queueSave(); }); });
+  root.querySelectorAll('input.p_email,input.p_phone').forEach(function(el){
+    el.addEventListener('input',function(){ if(el.classList.contains('p_phone')) el.value=fmtPhoneVal(el.value); _autoPref(el); queueSave(); });
+    el.addEventListener('change',function(){ _autoPref(el); if(SAVET){ clearTimeout(SAVET); SAVET=null; } autoSave(); });
+  });
   root.querySelectorAll('input[name="prefemail"],input[name="prefphone"]').forEach(function(el){ el.addEventListener('change',queueSave); });
   wireMulti(root);
   root.querySelectorAll('.p_phone').forEach(function(el){ el.setAttribute('inputmode','numeric'); el.setAttribute('maxlength','14'); el.value=fmtPhoneVal(el.value); });
@@ -848,6 +851,7 @@ document.addEventListener('input',function(e){ if(e.target&&e.target.classList&&
 function renderTagChips(){ var box=document.getElementById('p_tagedit'); if(!box) return; box.innerHTML=CURTAGS.length?CURTAGS.map(function(t){ return '<span class="jbean tagbean">'+esc(t)+'<button type="button" class="jrm" data-tagrm="'+esc(t)+'">×</button></span>'; }).join(''):'<span class="tagempty">No tags yet</span>'; box.querySelectorAll('[data-tagrm]').forEach(function(b){ b.addEventListener('click',function(){ var t=b.getAttribute('data-tagrm'); CURTAGS=CURTAGS.filter(function(x){return x!==t;}); renderTagChips(); if(typeof savePerson==='function'){savePerson(true);}else{queueSave();} }); }); }
 function addTag(v){ v=(v||'').replace(/,+$/,'').trim(); if(!v) return; if(CURTAGS.map(function(x){return x.toLowerCase();}).indexOf(v.toLowerCase())<0){ CURTAGS.push(v); renderTagChips(); if(typeof savePerson==='function'){savePerson(true);}else{queueSave();} } }
 function wireTagEditor(){ var inp=document.getElementById('p_taginput'); if(!inp) return; inp.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===','){ e.preventDefault(); addTag(inp.value); inp.value=''; } }); inp.addEventListener('change',function(){ if(inp.value){ addTag(inp.value); inp.value=''; } }); renderTagChips(); }
+function _autoPref(el){ if(!el||!el.value.trim()) return; var grp=el.classList.contains('p_email')?'prefemail':'prefphone'; var wrap=el.closest('.mfwrap'); if(!wrap) return; var ck=wrap.querySelector('input[name="'+grp+'"]:checked'); var ckInp=ck?ck.closest('.mfrow').querySelector('input.p_email,input.p_phone'):null; if(!ck||(ckInp&&!ckInp.value.trim())){ var row=el.closest('.mfrow'); var rad=row&&row.querySelector('input[type=radio]'); if(rad&&!rad.checked){ rad.checked=true; } } }
 function wireMulti(scope){
   scope.querySelectorAll('.mfadd').forEach(function(b){ b.addEventListener('click',function(){
     var cls=b.getAttribute('data-cls'),ph=b.getAttribute('data-ph'),grp=b.getAttribute('data-grp'),isPhone=b.getAttribute('data-phone');
@@ -856,7 +860,7 @@ function wireMulti(scope){
     row.innerHTML=radio+'<input class="'+cls+'"'+(isPhone?' inputmode="numeric" maxlength="14"':'')+' placeholder="'+esc(ph)+'"><button type="button" class="mfrm">×</button>';
     b.parentNode.insertBefore(row,b);
     row.querySelector('.mfrm').addEventListener('click',function(){ row.remove(); queueSave(); });
-    var inp=row.querySelector('input.'+cls); inp.addEventListener('input',function(){ if(isPhone) this.value=fmtPhoneVal(this.value); queueSave(); });
+    var inp=row.querySelector('input.'+cls); inp.addEventListener('input',function(){ if(isPhone) this.value=fmtPhoneVal(this.value); _autoPref(inp); queueSave(); }); inp.addEventListener('change',function(){ _autoPref(inp); if(SAVET){ clearTimeout(SAVET); SAVET=null; } autoSave(); });
     var rad=row.querySelector('input[type=radio]'); if(rad) rad.addEventListener('change',queueSave);
     inp.focus();
   }); });

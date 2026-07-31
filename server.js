@@ -3909,10 +3909,10 @@ app.post('/api/person', express.json(), (req, res) => {
   p.type = typeIn;
   p.emails = emails; p.phones = phones;
   // Preferred email / phone — the value the app shows first (falls back to the first entry).
-  if (typeof b.preferredEmail === 'string') p.preferredEmail = emails.indexOf(b.preferredEmail.trim()) >= 0 ? b.preferredEmail.trim() : '';
-  else if (p.preferredEmail && emails.indexOf(p.preferredEmail) < 0) p.preferredEmail = '';
-  if (typeof b.preferredPhone === 'string') p.preferredPhone = phones.indexOf(b.preferredPhone.trim()) >= 0 ? b.preferredPhone.trim() : '';
-  else if (p.preferredPhone && phones.indexOf(p.preferredPhone) < 0) p.preferredPhone = '';
+  if (typeof b.preferredEmail === 'string' && emails.indexOf(b.preferredEmail.trim()) >= 0) p.preferredEmail = b.preferredEmail.trim();
+  else if (!(p.preferredEmail && emails.indexOf(p.preferredEmail) >= 0)) p.preferredEmail = emails[0] || '';
+  if (typeof b.preferredPhone === 'string' && phones.indexOf(b.preferredPhone.trim()) >= 0) p.preferredPhone = b.preferredPhone.trim();
+  else if (!(p.preferredPhone && phones.indexOf(p.preferredPhone) >= 0)) p.preferredPhone = phones[0] || '';
   p.email = preferredEmailOf(p); p.phone = preferredPhoneOf(p);
   if (typeof b.company === 'string') p.company = b.company.slice(0, 160);
   if (typeof b.companyId === 'string') p.companyId = b.companyId.slice(0, 40);
