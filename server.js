@@ -8732,7 +8732,6 @@ function submitAdvancedSign(req, res, all, a, me) {
   for (const f of myFields) {
     if (f.type === 'signature' || f.type === 'initials') { if (f.required && !sigs[f.id] && !fs.existsSync(sigFieldPath(a, f.id))) return res.status(400).json({ ok: false, error: 'Please complete: ' + (f.label || 'Signature') }); }
     else if (f.type === 'checkbox') {} 
-    else { if (f.required && !String(values[f.id] || '').trim()) return res.status(400).json({ ok: false, error: 'Please complete: ' + (f.label || 'a required field') }); }
   }
   a.fieldValues = a.fieldValues || {};
   try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); } catch (e) {}
