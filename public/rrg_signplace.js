@@ -56,8 +56,11 @@
         var p = placements[fl.key]; if (!p) return; var pg = PAGES[p.page]; if (!pg) return;
         var W = pg.ovEl.clientWidth, H = pg.ovEl.clientHeight;
         var el = document.createElement('div'); el.className = 'rspf';
-        el.style.cssText = 'position:absolute;left:' + (p.x * W) + 'px;top:' + (p.y * H) + 'px;width:' + (p.w * W) + 'px;height:' + (p.h * H) + 'px;background:rgba(218,43,31,.12);border:1.5px solid #DA2B1F;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#DA2B1F;cursor:move;overflow:hidden;user-select:none';
-        el.textContent = fl.label;
+        el.style.cssText = 'position:absolute;left:' + (p.x * W) + 'px;top:' + (p.y * H) + 'px;width:' + (p.w * W) + 'px;height:' + (p.h * H) + 'px;background:rgba(218,43,31,.10);border:1.6px solid #DA2B1F;border-radius:3px;cursor:move;user-select:none;box-sizing:border-box';
+        var _nearTop = (p.y * H) < 24;
+        var lab = document.createElement('div'); lab.textContent = fl.label;
+        lab.style.cssText = 'position:absolute;left:-1.6px;' + (_nearTop ? 'top:100%;margin-top:2px;' : 'bottom:100%;margin-bottom:2px;') + 'background:#DA2B1F;color:#fff;font-size:11px;font-weight:700;line-height:1;padding:3px 7px;border-radius:4px;white-space:nowrap;pointer-events:none;box-shadow:0 1px 3px rgba(0,0,0,.3)';
+        el.appendChild(lab);
         var x = document.createElement('div'); x.textContent = '×';
         x.style.cssText = 'position:absolute;top:-9px;right:-9px;width:18px;height:18px;border-radius:50%;background:#DA2B1F;color:#fff;font-size:12px;line-height:18px;text-align:center;cursor:pointer';
         x.onclick = function (e) { e.stopPropagation(); delete placements[fl.key]; drawMarkers(); refreshBtns(); };
