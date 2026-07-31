@@ -71,6 +71,16 @@ function daily(){
   var first=arr[0]?arr[0].date:'', last=arr[arr.length-1]?arr[arr.length-1].date:'';
   return '<div class="panel"><div class="ph"><b>By day</b><span class="tag">'+(SPAN===1?'today':(SPAN===7?'this week':('last '+SPAN+' days')))+' · '+METRIC+'</span></div><div class="dchart">'+bars+'</div><div class="dax"><span>'+esc(first)+'</span><span>'+esc(last)+'</span></div></div>';
 }
+function hourly(){
+  var b=[]; for(var i=0;i<24;i++) b.push({calls:0,cost:0});
+  var now=new Date(), y=now.getFullYear(), mo=now.getMonth(), da=now.getDate();
+  (DATA.recent||[]).forEach(function(e){ var t=new Date(e.ts); if(isNaN(t.getTime())) return; if(t.getFullYear()===y&&t.getMonth()===mo&&t.getDate()===da){ var h=t.getHours(); b[h].calls++; b[h].cost+=(e.cost||0); } });
+  var mx=Math.max.apply(null,b.map(val).concat([1]));
+  var totC=0,totCost=0; b.forEach(function(o){ totC+=o.calls; totCost+=o.cost; });
+  function hl(h){ return h===0?'12a':(h<12?h+'a':(h===12?'12p':(h-12)+'p')); }
+  var bars=b.map(function(o,h){ var v=val(o); var ht=Math.max(0,Math.round(v/mx*100)); return '<div class="dbar'+(v?'':' z')+'" style="height:'+(v?Math.max(3,ht):2)+'%" title="'+hl(h)+' \u00b7 '+n(o.calls)+' calls \u00b7 '+money(o.cost)+'"></div>'; }).join('');
+  return '<div class="panel"><div class="ph"><b>By hour</b><span class="tag">today \u00b7 '+METRIC+' \u00b7 '+n(totC)+' calls'+(totCost?(' \u00b7 '+money(totCost)):'')+'</span></div><div class="dchart">'+bars+'</div><div class="dax"><span>12 AM</span><span>Noon</span><span>11 PM</span></div></div>';
+}
 function rows(list, keyName){
   if(!list.length) return '<div class="empty">No AI usage yet this month.</div>';
   var mx=Math.max.apply(null,list.map(val).concat([1]));
@@ -82,7 +92,7 @@ function render(){
     +'<div class="bar2"><div class="seg" id="mseg"><button data-m="calls" class="'+(METRIC==='calls'?'on':'')+'">Calls</button><button data-m="cost" class="'+(METRIC==='cost'?'on':'')+'">Est. cost</button></div>'
     +'<div class="seg" id="sseg"><button data-s="1" class="'+(SPAN===1?'on':'')+'">Today</button><button data-s="7" class="'+(SPAN===7?'on':'')+'">This week</button><button data-s="30" class="'+(SPAN===30?'on':'')+'">30 days</button><button data-s="90" class="'+(SPAN===90?'on':'')+'">90 days</button></div>'
     +'<span class="sp"></span><a class="btn" href="/api/admin/ai-usage.csv">Export CSV</a></div>'
-    +daily()
+    +(SPAN===1?hourly():daily())
     +'<div class="grid2"><div class="panel"><div class="ph"><b>By rep</b><span class="tag">this month</span></div>'+rows(DATA.byUser||[],'user')+'</div>'
     +'<div class="panel"><div class="ph"><b>By feature</b><span class="tag">this month</span></div>'+rows(DATA.byFeature||[],'feature')+'</div></div>';
   document.querySelectorAll('#mseg button').forEach(function(b){ b.addEventListener('click',function(){ METRIC=b.getAttribute('data-m'); render(); }); });

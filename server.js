@@ -1065,7 +1065,9 @@ app.get('/api/admin/ai-usage', requireAdmin, (req, res) => {
   const _since = ds => all.filter(x => String(x.ts || '') >= ds).length;
   const _d7 = new Date(_now.getTime() - 7 * 86400000).toISOString(); const _d30 = new Date(_now.getTime() - 30 * 86400000).toISOString();
   const windows = { last7: _since(_d7), last30: _since(_d30), firstTs: (all[0] && all[0].ts) || '', lastTs: (all[all.length - 1] && all[all.length - 1].ts) || '' };
-  res.json({ ok: true, month: ym, total: { calls: month.length, cost: r2(month.reduce((s, x) => s + (x.estCost || 0), 0)) }, allTime: { calls: all.length, cost: r2(all.reduce((s, x) => s + (x.estCost || 0), 0)) }, byUser: byUser, byFeature: byFeature, daily: daily, windows: windows });
+  const _cut = new Date(_now.getTime() - 36 * 3600 * 1000).toISOString();
+  const recent = all.filter(x => String(x.ts || '') >= _cut).map(x => ({ ts: x.ts, cost: r2(x.estCost || 0), feature: x.feature || '' }));
+  res.json({ ok: true, month: ym, total: { calls: month.length, cost: r2(month.reduce((s, x) => s + (x.estCost || 0), 0)) }, allTime: { calls: all.length, cost: r2(all.reduce((s, x) => s + (x.estCost || 0), 0)) }, byUser: byUser, byFeature: byFeature, daily: daily, recent: recent, windows: windows });
 });
 
 // AI usage — CSV export of the raw timestamped log for offline trend analysis.
