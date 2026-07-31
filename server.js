@@ -8197,7 +8197,7 @@ const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
 function effAgreementTypes() { const s = loadSettings(); if (Array.isArray(s.agreementTypes) && s.agreementTypes.length) { const out = s.agreementTypes.filter(t => t && t.key && t.label).map(t => ({ key: String(t.key), label: String(t.label) })); if (out.length) return out; } return AGREEMENT_TYPES; }
 function agreementTypeKeys() { return effAgreementTypes().map(t => t.key); }
 function agreementBrief(a) {
-  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
+  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
 }
 app.get('/api/agreements', (req, res) => {
   let all = loadAgreements();
@@ -8312,7 +8312,7 @@ app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   const label = agreementTypeLabel(a.type);
   if (!a.signToken) a.signToken = newSignToken();
   const signUrl = reqOrigin(req) + '/sign/' + a.signToken;
-  const subject = String(b.subject || (label + ' for your signature')).slice(0, 300);
+  const subject = (function(){ var _s = String(b.subject || a.emailSubject || (label + ' for your signature')); try { if (p) _s = mergeTokens(_s, p); } catch (e) {} return _s.slice(0, 300); })();
   const _note = String(b.message || '').trim();
   const _linkBlock = 'Review and sign your ' + label + ' online here:\n' + signUrl;
   const _greet = agrGreetingLine(a.greeting, a.personName);
@@ -8321,7 +8321,7 @@ app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   try { await sendMailWL({ from: mailFrom(), to, subject, text: message }); }
   catch (e) { console.error('agreement send:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   const now = new Date().toISOString(); a.signStatus = 'sent'; a.sentAt = now; a.sentTo = to; if (Array.isArray(b.values)) a.fieldValues = b.values.map(function(v){return String(v==null?'':v).slice(0,500);}); a.updatedAt = now; saveAgreements(all);
-  if (p) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === p.id); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + to, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
+  if (p) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === p.id); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + to, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); if (a.sendAuto && !a.sendAutoFired) { try { const _sp = loadAutomations().find(x => x.id === a.sendAuto && x.active !== false); if (_sp) { enrollPerson(pp, _sp, { byName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', dealKey: a.dealKey || '' }); a.sendAutoFired = true; try { saveAgreements(all); } catch (e) {} } } catch (e) {} } savePeople(ppl); } } catch (e) {} }
   res.json({ ok: true, agreement: agreementBrief(a), to });
 });
 app.post('/api/agreements/:id/sign', express.json(), (req, res) => {
@@ -8480,13 +8480,13 @@ function fmtSignVal(type, val) {
   if (type === 'currency') { const raw = val.replace(/[^0-9.\-]/g, ''); const c = Number(raw); return (raw !== '' && isFinite(c)) ? ('$' + c.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })) : val; }
   return val;
 }
-function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], greeting: t.greeting || 'none', emailMessage: t.emailMessage || '', pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: _clampSigners(t.signerCount), signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', signer3Label: t.signer3Label || 'Signer 3', active: t.active !== false, updatedAt: t.updatedAt || '', createdAt: t.createdAt || '', lastUsedAt: t.lastUsedAt || '', useCount: t.useCount || 0 }; }
+function templateBrief(t) { return { id: t.id, name: t.name || '', type: t.type || '', fileExt: t.fileExt || '', fileName: t.fileName || '', signFields: Array.isArray(t.signFields) ? t.signFields : [], greeting: t.greeting || 'none', emailSubject: t.emailSubject || '', emailMessage: t.emailMessage || '', sendAuto: t.sendAuto || '', execAuto: t.execAuto || '', pdfFields: Array.isArray(t.pdfFields) ? t.pdfFields : [], signerCount: _clampSigners(t.signerCount), signer1Label: t.signer1Label || 'Signer 1', signer2Label: t.signer2Label || 'Signer 2', signer3Label: t.signer3Label || 'Signer 3', active: t.active !== false, updatedAt: t.updatedAt || '', createdAt: t.createdAt || '', lastUsedAt: t.lastUsedAt || '', useCount: t.useCount || 0 }; }
 app.get('/api/agreement-templates', (req, res) => {
   const isAdmin = !!(req.user && isSuper(req.user));
   let all = loadTemplates().map(templateBrief);
   if (!isAdmin) all = all.filter(t => t.active);
   all.sort((x, y) => String(x.name).localeCompare(String(y.name)));
-  res.json({ ok: true, templates: all, types: effAgreementTypes(), isAdmin });
+  res.json({ ok: true, templates: all, types: effAgreementTypes(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), isAdmin });
 });
 app.post('/api/admin/agreement-templates', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const all = loadTemplates(); const now = new Date().toISOString();
@@ -8500,6 +8500,9 @@ app.post('/api/admin/agreement-templates', requireAdmin, express.json(), (req, r
   if (b.signFields !== undefined) t.signFields = cleanSignFields(b.signFields);
   if (b.emailMessage !== undefined) t.emailMessage = String(b.emailMessage || '').slice(0, 4000);
   if (b.greeting !== undefined) t.greeting = (['dear','hi','first','none'].indexOf(String(b.greeting)) >= 0) ? String(b.greeting) : 'none';
+  if (b.emailSubject !== undefined) t.emailSubject = String(b.emailSubject || '').slice(0, 300);
+  if (b.sendAuto !== undefined) t.sendAuto = String(b.sendAuto || '').slice(0, 40);
+  if (b.execAuto !== undefined) t.execAuto = String(b.execAuto || '').slice(0, 40);
   if (b.active !== undefined) t.active = !!b.active;
   t.updatedAt = now; saveTemplates(all);
   res.json({ ok: true, template: templateBrief(t) });
@@ -8608,6 +8611,9 @@ app.post('/api/agreements/:id/apply-template', express.json(), (req, res) => {
   a.signer2Label = t.signer2Label || 'Signer 2';
   a.signer3Label = t.signer3Label || 'Signer 3';
   a.greeting = t.greeting || 'none';
+  a.emailSubject = t.emailSubject || '';
+  a.sendAuto = t.sendAuto || '';
+  a.execAuto = t.execAuto || a.execAuto || '';
   if (Array.isArray(t.signFields) && t.signFields.length) a.signFields = t.signFields;
   if (t.type && agreementTypeKeys().indexOf(t.type) >= 0) a.type = t.type;
   a.updatedAt = new Date().toISOString(); saveAgreements(all);
@@ -8682,14 +8688,14 @@ app.post('/api/agreements/:id/send-adv', express.json(), async (req, res) => {
   const now = new Date().toISOString();
   a.signStatus = a.signers.some(s => s.status === 'signed') ? 'partial' : 'sent'; a.sentAt = now; a.updatedAt = now; saveAgreements(all);
   const label = agreementTypeLabel(a.type); const signUrl = reqOrigin(req) + '/sign/' + next.token;
-  const subject = String((req.body || {}).subject || (label + ' for your signature')).slice(0, 300);
+  const subject = (function(){ var _s = String((req.body || {}).subject || a.emailSubject || (label + ' for your signature')); try { var _pp = a.personId ? personById(a.personId) : null; if (_pp) _s = mergeTokens(_s, _pp); } catch (e) {} return _s.slice(0, 300); })();
   const _noteA = String((req.body || {}).message || '').trim();
   const _linkBlockA = 'Review and sign your ' + label + ' online here:\n' + signUrl;
   const _greetA = agrGreetingLine(a.greeting, (next && next.name) || a.personName);
   const message = ((_noteA && _noteA.indexOf('/sign/') !== -1) ? _noteA : ((_greetA ? _greetA + '\n\n' : '') + (_noteA ? _noteA + '\n\n' : '') + _linkBlockA + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
   try { await sendMailWL({ from: mailFrom(), to: next.email, subject, text: message }); }
   catch (e) { console.error('send-adv:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
-  if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + (next.label || '') + ' ' + next.email, { auto: true }); savePeople(ppl); } } catch (e) {} }
+  if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + (next.label || '') + ' ' + next.email, { auto: true }); if (a.sendAuto && !a.sendAutoFired) { try { const _sp = loadAutomations().find(x => x.id === a.sendAuto && x.active !== false); if (_sp) { enrollPerson(pp, _sp, { byName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', dealKey: a.dealKey || '' }); a.sendAutoFired = true; try { saveAgreements(all); } catch (e) {} } } catch (e) {} } savePeople(ppl); } } catch (e) {} }
   res.json({ ok: true, agreement: agreementBrief(a), to: next.email, signer: next.label });
 });
 
