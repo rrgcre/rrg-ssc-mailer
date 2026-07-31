@@ -156,7 +156,7 @@ function applyFilter(){
     if(F.tags.length){ var pt=(p.tags||[]).map(function(x){return String(x).toLowerCase();}); if(!F.tags.every(function(t){ return pt.indexOf(String(t).toLowerCase())>=0; })) return false; }
     var cr=(p.createdAt||'').slice(0,10); if(F.createdFrom && (!cr || cr<F.createdFrom)) return false; if(F.createdTo && cr && cr>F.createdTo) return false;
     var lc=(p.lastContacted||'').slice(0,10); if(F.contactedFrom && (!lc || lc<F.contactedFrom)) return false; if(F.contactedTo && lc && lc>F.contactedTo) return false;
-    if(q){ var hay=((p.name||'')+' '+(p.nickname||'')+' '+(p.companyName||p.company||'')+' '+((p.emails||[p.email||'']).join(' '))+' '+((p.phones||[]).join(' '))+' '+((p.tags||[]).join(' '))+' '+(p.leadSource||'')).toLowerCase(); if(!(window.rrgFuzzy?window.rrgFuzzy(hay,q):(hay.indexOf(q)>=0))) return false; }
+    if(q){ var hay=((p.name||'')+' '+(p.nickname||'')+' '+(p.companyName||p.company||'')+' '+((p.emails||[p.email||'']).join(' '))+' '+((p.phones||[]).join(' '))+' '+((p.tags||[]).join(' '))+' '+(p.leadSource||'')).toLowerCase(); var _qt=q.split(/\s+/).filter(Boolean); if(!_qt.every(function(t){ return hay.indexOf(t)>=0; })) return false; }
     return true;
   });
   renderList(list); updateFilterBtn();

@@ -460,13 +460,30 @@ function sendModalHtml(){
 }
 function _pEmail(){ return (typeof P!=='undefined'&&P&&(P.preferredEmail||(P.emails&&P.emails[0])||P.email))||''; }
 function smSignerRows(tpl){
-  var n=tpl.signerCount===2?2:1, rows='';
-  for(var i=1;i<=n;i++){
-    var lbl=i===1?(tpl.signer1Label||'Signer 1'):(tpl.signer2Label||'Signer 2');
-    var _S=window.__rrgSession||{};
-    var nm=i===1?(P.name||''):(_S.name||'');
-    var em=i===1?_pEmail():(_S.email||'');
-    rows+='<div class="smsrow"><div class="fld">'+esc(lbl)+'</div><input class="sm_sname" data-o="'+i+'" placeholder="Full name" value="'+esc(nm)+'"><input class="sm_semail" data-o="'+i+'" placeholder="email@company.com" value="'+esc(em)+'"></div>';
+  var n=Math.min(3,Math.max(1,parseInt(tpl.signerCount,10)||1));
+  var _S=window.__rrgSession||{};
+  var labels=[]; for(var i=1;i<=n;i++){ labels.push((i===1?tpl.signer1Label:(i===2?tpl.signer2Label:tpl.signer3Label))||('Signer '+i)); }
+  var repRe=/\b(broker|agent|rep|realtor|realty|rrg|salesperson|associate|listing|landlord\s*rep)\b/i;
+  var repIdx=-1; labels.forEach(function(l,idx){ if(repIdx<0 && repRe.test(l)) repIdx=idx; });
+  var assign=[];
+  if(repIdx>=0){
+    var clientDone=false;
+    for(var k=0;k<n;k++){
+      if(k===repIdx){ assign[k]={name:_S.name||'',email:_S.email||''}; }
+      else if(!clientDone){ assign[k]={name:(P&&P.name)||'',email:_pEmail()}; clientDone=true; }
+      else { assign[k]={name:'',email:''}; }
+    }
+  } else {
+    for(var k2=0;k2<n;k2++){
+      if(k2===0){ assign[k2]={name:(P&&P.name)||'',email:_pEmail()}; }
+      else if(k2===n-1){ assign[k2]={name:_S.name||'',email:_S.email||''}; }
+      else { assign[k2]={name:'',email:''}; }
+    }
+  }
+  var rows='';
+  for(var j=0;j<n;j++){
+    var a=assign[j];
+    rows+='<div class="smsrow"><div class="fld">'+esc(labels[j])+'</div><input class="sm_sname" data-o="'+(j+1)+'" placeholder="Full name" value="'+esc(a.name)+'"><input class="sm_semail" data-o="'+(j+1)+'" placeholder="email@company.com" value="'+esc(a.email)+'"></div>';
   }
   return rows;
 }
