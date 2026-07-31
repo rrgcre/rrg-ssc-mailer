@@ -57,6 +57,19 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .rechero .rhmeta{font-size:13px;color:var(--muted);margin-top:2px;}
 .rrow{display:flex;align-items:center;gap:10px;padding:9px 20px;text-decoration:none;color:inherit;}
 .rrow:hover{background:#fbfcfe;}
+.agrvmodal{position:fixed;inset:0;background:rgba(6,16,41,.5);z-index:120;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.agrvbox{background:#fff;border-radius:14px;padding:20px 22px;width:min(720px,96vw);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.agrvhd{font-size:17px;font-weight:800;color:#000E31}.agrvsub{font-size:12.5px;color:#6b7488;margin:4px 0 2px}
+.agrvpill{display:inline-block;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;background:#eef1f6;color:#5b6472}
+.agrvpill.signed{background:#e7f5ee;color:#1f8a5b}.agrvpill.sent{background:#fff4e6;color:#b5791f}.agrvpill.await{background:#eef3ff;color:#2647b0}
+.agrvmeta{display:flex;gap:18px;font-size:12.5px;color:#4a5568;margin:10px 0 4px;flex-wrap:wrap}
+.agrvsec{margin:12px 0 0;border-top:1px solid #eef1f6;padding-top:10px}
+.agrvlbl{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;font-weight:800;margin-bottom:6px}
+.agrvsigner{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:3px 0}
+.agrvst{font-size:11px;font-weight:700;color:#8a93a8}.agrvst.ok{color:#1f8a5b}
+.agrvdoc{border:1px solid #e6e9f0;border-radius:10px;overflow:hidden;background:#f5f7fb;margin-top:10px}.agrvdoc iframe{width:100%;height:460px;border:0;display:block}
+.agrvnodoc{color:#8a93a8;font-size:13px;text-align:center;padding:20px;border:1px dashed #cfd6e2;border-radius:10px;margin-top:10px}
+.agrvbtns{display:flex;gap:9px;justify-content:flex-end;align-items:center;margin-top:16px}
 .rric{width:28px;height:28px;border-radius:7px;background:#eef1f6;color:#3f8a63;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex:none;}
 .rrmain{flex:1;min-width:0;}
 .rrnm{font-size:13.5px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
@@ -247,6 +260,37 @@ function agrChipCo(a){
   if(a.personId) return '<a class="jbean" href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'" style="text-decoration:none;'+st+'">'+inner+'</a>';
   return '<span class="jbean" style="'+st+'">'+inner+'</span>';
 }
+function openAgrViewCo(id){
+  var a=(AGREEMENTS||[]).filter(function(x){return x.id===id;})[0]; if(!a) return;
+  var _exec=(a.signStatus==='executed'||a.signStatus==='signed');
+  var statusTxt=_exec?'Executed':(a.signStatus==='sent'?'Sent for signature':(a.status==='terminated'?'Terminated':'Active'));
+  var statusCls=_exec?'signed':(a.signStatus==='sent'?'sent':'');
+  var title=esc(a.name||agrTypeLabel(a.type));
+  var fmtRO=function(d){ return d?agrFmt(d):'\u2014'; };
+  var signersHtml='';
+  if(a.signers&&a.signers.length){ signersHtml='<div class="agrvsec"><div class="agrvlbl">Signers</div>'+a.signers.map(function(sg){ var ok=sg.status==='signed'; return '<div class="agrvsigner"><span>'+esc(sg.label||('Signer '+sg.order))+': <b>'+esc(sg.name||'\u2014')+'</b></span><span class="agrvst'+(ok?' ok':'')+'">'+(ok?('Signed'+(sg.signedAt?(' '+agrFmt(String(sg.signedAt).slice(0,10))):'')):'Pending')+'</span></div>'; }).join('')+'</div>'; }
+  else if(a.signedName){ signersHtml='<div class="agrvsec"><div class="agrvlbl">Signed by</div><div style="font-size:13px">'+esc(a.signedName)+(a.signedDate?(' on '+agrFmt(a.signedDate)):'')+'</div></div>'; }
+  var docUrl=a.hasFinal?('/api/agreements/'+encodeURIComponent(a.id)+'/final'):((a.docExt||a.pdfFieldCount>0)?('/api/agreements/'+encodeURIComponent(a.id)+'/doc'):'');
+  var isImg=a.docExt&&/^(png|jpe?g|gif|webp)$/i.test(a.docExt);
+  var docHtml;
+  if(!docUrl){ docHtml='<div class="agrvnodoc">No document attached to this agreement yet.</div>'; }
+  else if(a.hasFinal||a.docExt==='pdf'||(!a.docExt&&a.pdfFieldCount>0)){ docHtml='<div class="agrvsec"><div class="agrvlbl">Document</div><div class="agrvdoc"><iframe src="'+docUrl+'#view=FitH" title="Agreement document"></iframe></div><div style="text-align:right;margin-top:6px"><a href="'+docUrl+'" target="_blank" rel="noopener" class="mfadd">Open document \u2197</a></div></div>'; }
+  else if(isImg){ docHtml='<div class="agrvsec"><div class="agrvlbl">Document</div><div class="agrvdoc"><img src="'+docUrl+'" alt="Agreement" style="max-width:100%;display:block;margin:0 auto"></div></div>'; }
+  else { docHtml='<div class="agrvsec"><div class="agrvlbl">Document</div><div style="text-align:center;padding:8px"><a href="'+docUrl+'" target="_blank" rel="noopener" class="mfadd">Open '+esc(a.docName||'document')+' \u2197</a></div></div>'; }
+  var onC=a.personId?('<button type="button" class="mfadd" id="agrvOpenContact">Open on contact page</button>'):'';
+  var ov=document.createElement('div'); ov.className='agrvmodal';
+  ov.innerHTML='<div class="agrvbox"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px"><div><div class="agrvhd">'+title+'</div><div class="agrvsub">'+esc(agrTypeLabel(a.type))+' \u00b7 <span class="agrvpill '+statusCls+'">'+esc(statusTxt)+'</span></div></div><button type="button" id="agrvClose" title="Close" style="background:none;border:none;font-size:22px;line-height:1;color:#8a94a6;cursor:pointer;padding:0 2px">\u00d7</button></div>'
+    +'<div class="agrvmeta"><span><b>Effective:</b> '+fmtRO(a.effective)+'</span><span><b>Expires:</b> '+fmtRO(a.expires)+'</span>'+(a.personName?('<span><b>Contact:</b> '+esc(a.personName)+'</span>'):'')+'</div>'
+    +signersHtml+docHtml
+    +'<div class="agrvbtns">'+onC+'<button type="button" class="savebtn" id="agrvDone" style="width:auto;padding:9px 18px">Close</button></div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  function close(){ try{ document.body.removeChild(ov); }catch(e){} }
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  ov.querySelector('#agrvClose').addEventListener('click',close);
+  ov.querySelector('#agrvDone').addEventListener('click',close);
+  var oc=ov.querySelector('#agrvOpenContact'); if(oc) oc.addEventListener('click',function(){ location.href='./rrg_person.html?id='+encodeURIComponent(a.personId); });
+}
 function agrRowCo(a){
   var today=agrToday(); var expired=(a.status==='terminated')||(a.expires&&a.expires<today);
   var du=agrDays(a.expires); var soon=a.expires&&!expired&&du<=60; var signed=(a.signStatus==='signed');
@@ -254,7 +298,7 @@ function agrRowCo(a){
   var chipCls=signed?' exec':(a.signStatus==='sent'?' sent':(expired?' bad':''));
   var title=a.name||agrTypeLabel(a.type);
   var dstr=a.effective?agrFmt(a.effective):(a.expires?agrFmt(a.expires):'');
-  var open=a.personId?(' onclick="location.href=&quot;./rrg_person.html?id='+encodeURIComponent(a.personId)+'&quot;" style="cursor:pointer"'):'';
+  var open=' onclick="openAgrViewCo(&quot;'+esc(a.id)+'&quot;)" style="cursor:pointer"';
   return '<div class="rrow"'+open+'><div class="rrmain" style="min-width:0"><div style="font-size:13px;font-weight:400;color:#1d2739;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(dstr?('<span style="color:#8a93a8">'+esc(dstr)+'</span> &middot; '):'')+esc(title)+'</div></div><span class="rchip'+chipCls+'">'+esc(right)+'</span></div>';
 }
 function agreementsCardCo(){

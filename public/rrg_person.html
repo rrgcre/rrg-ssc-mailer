@@ -81,6 +81,14 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .sigpill{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:20px;background:#eef1f6;color:#6b7488;} .sigpill.sent{background:#fff4e6;color:#b5791f;} .sigpill.signed{background:#e7f5ee;color:#1f8a5b;} .sigpill.await{background:#eaf1fb;color:#2647b0;} .agrsignedinfo{font-size:12.5px;color:#3a4560;margin:8px 0;} .agrsignedinfo a{color:#2647b0;font-weight:700;text-decoration:none;} .agrlinkrow{display:flex;gap:6px;align-items:center;margin-top:10px;} .agrlinkrow input{flex:1;min-width:0;border:1px solid #d5dbe6;border-radius:8px;padding:6px 9px;font:inherit;font-size:12px;color:#3a4560;background:#f7f9fc;} .agrlinkrow .mfadd{white-space:nowrap;} .agrtplrow{display:flex;align-items:center;gap:6px;margin:8px 0;flex-wrap:wrap;} .agrtplrow select{border:1px solid #d5dbe6;border-radius:8px;padding:6px 9px;font:inherit;font-size:12.5px;color:#3a4560;background:#fff;max-width:100%;} .agrtplrow .fld{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;font-weight:800;} .advsigners{display:flex;flex-direction:column;gap:8px;margin:8px 0;} .advsrow{display:grid;gap:5px;border:1px solid #e6e9f0;border-radius:9px;padding:9px 10px;background:#fbfcfe;} .advslbl{font-size:12px;font-weight:700;color:#3a4560;display:flex;align-items:center;gap:7px;} .advname,.advemail{border:1px solid #d5dbe6;border-radius:7px;padding:6px 9px;font:inherit;font-size:12.5px;} .advsrow input:disabled{background:#eef1f6;color:#98a1b5;}
 .agrmodal{position:fixed;inset:0;background:rgba(6,16,41,.5);z-index:80;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
 .agrmodal[hidden]{display:none}
+.agrvmeta{display:flex;gap:18px;font-size:12.5px;color:#4a5568;margin:8px 0 4px;flex-wrap:wrap}
+.agrvsec{margin:12px 0 0;border-top:1px solid #eef1f6;padding-top:10px}
+.agrvlbl{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;font-weight:800;margin-bottom:6px}
+.agrvsigner{display:flex;justify-content:space-between;gap:10px;font-size:13px;padding:3px 0}
+.agrvst{font-size:11px;font-weight:700;color:#8a93a8}.agrvst.ok{color:#1f8a5b}
+.agrvdoc{border:1px solid #e6e9f0;border-radius:10px;overflow:hidden;background:#f5f7fb;margin-top:10px}
+.agrvdoc iframe{width:100%;height:460px;border:0;display:block}
+.agrvnodoc{color:#8a93a8;font-size:13px;text-align:center;padding:20px;border:1px dashed #cfd6e2;border-radius:10px;margin-top:10px}
 .agrmodalbox{background:#fff;border-radius:14px;padding:20px 22px;width:min(520px,96vw);box-shadow:0 20px 60px rgba(0,0,0,.3)}
 .agrmodalhd{font-size:17px;font-weight:800;color:#000E31}
 .agrmodalsub{font-size:12.5px;color:#6b7488;margin:4px 0 14px;line-height:1.5}
@@ -309,6 +317,35 @@ function agreementsCard(){
     +'</div>'+sendModalHtml()+'</div></div>';
 }
 function agrDealPick(inp){ var v=String(inp.value||'').trim().toLowerCase(); var d=DEALS.filter(function(x){ return String(x.business||x.key||'').trim().toLowerCase()===v; })[0]; var h=document.getElementById('agr_deal'); if(h) h.value=d?d.key:''; }
+function openAgrView(a){
+  var _exec=(a.signStatus==='executed'||a.signStatus==='signed'); var _await=(a.signStatus==='awaiting_countersign');
+  var statusTxt=_exec?'Executed':(_await?'Awaiting your signature':(a.signStatus==='sent'?'Sent for signature':(a.status==='terminated'?'Terminated':'Active')));
+  var statusCls=_exec?'signed':(_await?'await':(a.signStatus==='sent'?'sent':''));
+  var title=esc(a.name||atypeLabel(a.type));
+  var fmtRO=function(d){ return d?fmt(d):'\u2014'; };
+  var signersHtml='';
+  if(a.signers&&a.signers.length){ signersHtml='<div class="agrvsec"><div class="agrvlbl">Signers</div>'+a.signers.map(function(sg){ var ok=sg.status==='signed'; return '<div class="agrvsigner"><span>'+esc(sg.label||('Signer '+sg.order))+': <b>'+esc(sg.name||'\u2014')+'</b></span><span class="agrvst'+(ok?' ok':'')+'">'+(ok?('Signed'+(sg.signedAt?(' '+fmt(String(sg.signedAt).slice(0,10))):'')):'Pending')+'</span></div>'; }).join('')+'</div>'; }
+  else if(a.signedName||a.hasSignature){ signersHtml='<div class="agrvsec"><div class="agrvlbl">Signed by</div><div style="font-size:13px">'+esc(a.signedName||'contact')+(a.signedDate?(' on '+fmt(a.signedDate)):'')+(a.hasCountersign?('<br>Countersigned by '+esc(a.repSignedName||'the broker')+(a.repSignedAt?(' on '+fmt(String(a.repSignedAt).slice(0,10))):'')):'')+'</div></div>'; }
+  var docUrl=a.hasFinal?('/api/agreements/'+encodeURIComponent(a.id)+'/final'):((a.docExt||a.pdfFieldCount>0)?('/api/agreements/'+encodeURIComponent(a.id)+'/doc'):'');
+  var isImg=a.docExt&&/^(png|jpe?g|gif|webp)$/i.test(a.docExt);
+  var docHtml;
+  if(!docUrl){ docHtml='<div class="agrvnodoc">No document attached to this agreement yet.</div>'; }
+  else if(a.hasFinal||a.docExt==='pdf'||(!a.docExt&&a.pdfFieldCount>0)){ docHtml='<div class="agrvsec"><div class="agrvlbl">Document</div><div class="agrvdoc"><iframe src="'+docUrl+'#view=FitH" title="Agreement document"></iframe></div><div style="text-align:right;margin-top:6px"><a href="'+docUrl+'" target="_blank" rel="noopener" class="mfadd">Open document \u2197</a></div></div>'; }
+  else if(isImg){ docHtml='<div class="agrvsec"><div class="agrvlbl">Document</div><div class="agrvdoc"><img src="'+docUrl+'" alt="Agreement" style="max-width:100%;display:block;margin:0 auto"></div></div>'; }
+  else { docHtml='<div class="agrvsec"><div class="agrvlbl">Document</div><div style="text-align:center;padding:8px"><a href="'+docUrl+'" target="_blank" rel="noopener" class="mfadd">Open '+esc(a.docName||'document')+' \u2197</a></div></div>'; }
+  var ov=document.createElement('div'); ov.className='agrmodal';
+  ov.innerHTML='<div class="agrmodalbox" style="width:min(720px,96vw)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px"><div><div class="agrmodalhd">'+title+'</div><div class="agrmodalsub">'+esc(atypeLabel(a.type))+' \u00b7 <span class="sigpill '+statusCls+'">'+esc(statusTxt)+'</span></div></div><button type="button" id="agrvClose" title="Close" style="background:none;border:none;font-size:22px;line-height:1;color:#8a94a6;cursor:pointer;padding:0 2px">\u00d7</button></div>'
+    +'<div class="agrvmeta"><span><b>Effective:</b> '+fmtRO(a.effective)+'</span><span><b>Expires:</b> '+fmtRO(a.expires)+'</span></div>'
+    +signersHtml+docHtml
+    +'<div class="agrmodalbtns" style="justify-content:flex-end"><button type="button" class="mfadd" id="agrvEdit">Edit details</button><button type="button" class="savebtn" id="agrvDone" style="width:auto;padding:9px 18px">Close</button></div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  function close(){ try{ document.body.removeChild(ov); }catch(e){} }
+  ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
+  ov.querySelector('#agrvClose').addEventListener('click',close);
+  ov.querySelector('#agrvDone').addEventListener('click',close);
+  ov.querySelector('#agrvEdit').addEventListener('click',function(){ close(); openAgrForm(a); });
+}
 function openAgrForm(a){
   var f=document.getElementById('agrForm'); f.removeAttribute('hidden'); PENDING_AGR_FILE=null;
   document.getElementById('agr_id').value=a?a.id:'';
@@ -596,7 +633,7 @@ function wireAgreements(){
   var smf=document.getElementById('sm_file'); if(smf) smf.addEventListener('change',function(){ document.getElementById('sm_filename').textContent=(smf.files&&smf.files[0])?smf.files[0].name:''; });
   var sv=document.getElementById('agrSave'); if(sv) sv.addEventListener('click',saveAgreement);
   var cn=document.getElementById('agrCancel'); if(cn) cn.addEventListener('click',function(){ document.getElementById('agrForm').setAttribute('hidden',''); });
-  document.querySelectorAll('.agrrow[data-agr]').forEach(function(b){ b.addEventListener('click',function(e){ if(e.target.closest('button')) return; var a=AGREEMENTS.filter(function(x){return x.id===b.getAttribute('data-agr');})[0]; if(a) openAgrForm(a); }); });
+  document.querySelectorAll('.agrrow[data-agr]').forEach(function(b){ b.addEventListener('click',function(e){ if(e.target.closest('button')) return; var a=AGREEMENTS.filter(function(x){return x.id===b.getAttribute('data-agr');})[0]; if(a) openAgrView(a); }); });
   document.querySelectorAll('[data-agrdel]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); delAgreement(b.getAttribute('data-agrdel')); }); });
   var atb=document.getElementById('addTourBtn'); if(atb) atb.addEventListener('click',openTourForm);
 }
