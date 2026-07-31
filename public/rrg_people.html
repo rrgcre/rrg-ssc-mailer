@@ -150,6 +150,18 @@ function emptyFilters(){ return {types:[],owners:[],leadSources:[],tags:[],vip:f
 function renderFilters(){
   var _fl=document.getElementById('filters'); if(_fl) _fl.innerHTML='';
 }
+var RECENCY_DAYS=90, RECENCY_SHOWALL=false;
+function recencyCutoff(days){ try{ return new Date(Date.now()-(days*86400000)).toISOString(); }catch(e){ return ''; } }
+function recencyNote(noun, active, shown, total){
+  var host=document.getElementById('body'); if(!host||!host.parentNode) return;
+  var note=document.getElementById('recencynote');
+  if(!(active && RECENCY_DAYS>0)){ if(note) note.style.display='none'; return; }
+  if(!note){ note=document.createElement('div'); note.id='recencynote'; note.style.cssText='padding:8px 14px;margin:0 0 10px;background:#f5f7fb;border:1px solid #e6e9f0;border-radius:9px;font-size:12.5px;color:#6b7488;font-weight:600'; host.parentNode.insertBefore(note,host); }
+  note.style.display='';
+  var bstyle='background:none;border:none;color:#2647b0;font-weight:700;cursor:pointer;font:inherit;font-size:12.5px;padding:0;text-decoration:underline';
+  if(RECENCY_SHOWALL){ note.innerHTML='Showing all '+total+' '+noun+'. <button type="button" style="'+bstyle+'" onclick="RECENCY_SHOWALL=false;applyFilter();">Show only recently active</button>'; }
+  else { var hidden=total-shown; if(hidden<0) hidden=0; note.innerHTML='Showing '+shown+' '+noun+' active in the last '+RECENCY_DAYS+' days'+(hidden>0?(' \u00b7 '+hidden+' hidden'):'')+'. <button type="button" style="'+bstyle+'" onclick="RECENCY_SHOWALL=true;applyFilter();">Show all '+total+'</button>'; }
+}
 function applyFilter(){
   var q=(document.getElementById('search').value||'').toLowerCase().trim(); var F=FILTERS;
   var list=ALL.filter(function(p){
@@ -166,6 +178,9 @@ function applyFilter(){
     return true;
   });
   var _sx=document.getElementById('searchx'); if(_sx) _sx.classList.toggle('show', !!q);
+  var _noFilter=(!q && filterActiveCount()===0);
+  if(_noFilter && !RECENCY_SHOWALL && RECENCY_DAYS>0){ var _cut=recencyCutoff(RECENCY_DAYS); list=list.filter(function(p){ return String(p.lastActiveAt||'')>=_cut; }); }
+  recencyNote('contacts', _noFilter, list.length, ALL.length);
   renderList(list); updateFilterBtn();
 }
 window.rrgLiveSearch=function(q){ var el=document.getElementById('search'); if(el && el.value!==q){ el.value=q; } applyFilter(); };
@@ -237,7 +252,7 @@ document.getElementById('newBtn').addEventListener('click',openModal);
 document.getElementById('m_cancel').addEventListener('click',closeModal);
 document.getElementById('m_create').addEventListener('click',createContact);
 document.getElementById('modal').addEventListener('click',function(e){ /* clicking the backdrop no longer closes the window — prevents losing entered info. Use Cancel to close. */ });
-function reloadPeople(){ return fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; if(j&&j.types) TYPES=j.types; if(j&&j.leadSources&&j.leadSources.length) LEADSRC=j.leadSources; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); applyFilter(); }); }
+function reloadPeople(){ return fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; if(j&&j.recencyDays!=null) RECENCY_DAYS=j.recencyDays; if(j&&j.types) TYPES=j.types; if(j&&j.leadSources&&j.leadSources.length) LEADSRC=j.leadSources; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); applyFilter(); }); }
 async function bulkDeletePeople(ids, done){
   if(!ids||!ids.length) return;
   if(!await rrgConfirm('Delete '+ids.length+' contact'+(ids.length>1?'s':'')+' from your registry? Their names stay on any past offers, tours and NDAs. This cannot be undone.')) return;
@@ -297,7 +312,7 @@ function openNewListingFor(id, done){
       .catch(function(){ gb.disabled=false; gb.textContent='Create listing'; msg.textContent='Could not reach the server.'; });
   });
 }
-fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; TYPES=(j&&j.types)||[]; if(j&&j.leadSources&&j.leadSources.length) LEADSRC=j.leadSources; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); try{ var _qt=new URLSearchParams(location.search).get('type'); if(_qt){ FILTERS.types=[_qt]; var _sb=document.getElementById('search'); } }catch(e){} renderFilters(); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load contacts.</div>'; });
+fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; if(j&&j.recencyDays!=null) RECENCY_DAYS=j.recencyDays; TYPES=(j&&j.types)||[]; if(j&&j.leadSources&&j.leadSources.length) LEADSRC=j.leadSources; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); try{ var _qt=new URLSearchParams(location.search).get('type'); if(_qt){ FILTERS.types=[_qt]; var _sb=document.getElementById('search'); } }catch(e){} renderFilters(); applyFilter(); }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load contacts.</div>'; });
 var IMP_LEADS=[];
 function openImport(){ document.getElementById('importModal').removeAttribute('hidden'); document.getElementById('imp_msg').textContent=''; var _g=document.getElementById('imp_go'); if(_g){ _g.disabled=false; _g.textContent='Import'; } document.getElementById('imp_text').focus(); loadPoll(); }
 function loadPoll(){ fetch('/api/bizbuysell/poll',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return; var on=document.getElementById('imp_pollon'), mn=document.getElementById('imp_pollmin'), msg=document.getElementById('imp_pollmsg'); if(on) on.checked=!!j.enabled; if(mn&&j.intervalMin) mn.value=j.intervalMin; var _bk=document.getElementById('imp_pollback'), _bo=document.getElementById('imp_pollbackon'), _bw=document.getElementById('imp_pollbackwrap'); if(_bk&&j.lookbackDays) _bk.value=j.lookbackDays; if(_bo&&j.lookbackDaysOngoing) _bo.value=j.lookbackDaysOngoing; if(_bw) _bw.style.display=j.isAdmin?'inline':'none'; if(msg){ if(!j.configured){ msg.textContent='Gmail isn\u2019t configured on the server yet \u2014 an admin sets it up to enable auto-import.'; } else if(!j.connected){ msg.textContent='Connect your Gmail (open any contact \u2192 Email \u2192 Connect Gmail) to enable auto-import.'; } else { msg.textContent=j.enabled?('On \u2014 last check '+(j.lastRun?fmtDate(j.lastRun):'pending')+(j.lastCount?(' \u00b7 '+j.lastCount+' imported'):'')+'.'):'Off \u2014 turn on to auto-import new leads.'; } } }).catch(function(){}); }

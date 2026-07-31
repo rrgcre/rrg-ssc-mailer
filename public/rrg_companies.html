@@ -139,12 +139,27 @@ var CF=(window.RRGFilters&&document.getElementById('filterBtn'))?RRGFilters.crea
   { key:'created', label:'Created', type:'daterange', get:function(c){return c.createdAt||'';} }
 ], onChange:applyFilter }):null;
 function fuzzyMatch(hay,q){ hay=(hay||'').toLowerCase(); q=(q||'').toLowerCase().trim(); if(!q) return true; return q.split(/\s+/).every(function(t){ if(!t) return true; if(hay.indexOf(t)>=0) return true; var i=0; for(var j=0;j<hay.length&&i<t.length;j++){ if(hay.charAt(j)===t.charAt(i)) i++; } return i===t.length; }); }
+var RECENCY_DAYS=90, RECENCY_SHOWALL=false;
+function recencyCutoff(days){ try{ return new Date(Date.now()-(days*86400000)).toISOString(); }catch(e){ return ''; } }
+function recencyNote(noun, active, shown, total){
+  var host=document.getElementById('body'); if(!host||!host.parentNode) return;
+  var note=document.getElementById('recencynote');
+  if(!(active && RECENCY_DAYS>0)){ if(note) note.style.display='none'; return; }
+  if(!note){ note=document.createElement('div'); note.id='recencynote'; note.style.cssText='padding:8px 14px;margin:0 0 10px;background:#f5f7fb;border:1px solid #e6e9f0;border-radius:9px;font-size:12.5px;color:#6b7488;font-weight:600'; host.parentNode.insertBefore(note,host); }
+  note.style.display='';
+  var bstyle='background:none;border:none;color:#2647b0;font-weight:700;cursor:pointer;font:inherit;font-size:12.5px;padding:0;text-decoration:underline';
+  if(RECENCY_SHOWALL){ note.innerHTML='Showing all '+total+' '+noun+'. <button type="button" style="'+bstyle+'" onclick="RECENCY_SHOWALL=false;applyFilter();">Show only recently active</button>'; }
+  else { var hidden=total-shown; if(hidden<0) hidden=0; note.innerHTML='Showing '+shown+' '+noun+' active in the last '+RECENCY_DAYS+' days'+(hidden>0?(' \u00b7 '+hidden+' hidden'):'')+'. <button type="button" style="'+bstyle+'" onclick="RECENCY_SHOWALL=true;applyFilter();">Show all '+total+'</button>'; }
+}
 function applyFilter(){
   var q=(document.getElementById('search').value||'').trim();
   var base=(typeof CF!=='undefined'&&CF)?CF.filter(ALL):ALL;
   var _qt=q.toLowerCase().split(/\s+/).filter(Boolean);
   var list=base.filter(function(c){ if(!_qt.length) return true; var hay=((c.name||'')+' '+((c.markets||[]).join(' '))+' '+(c.type||'')+' '+((c.tags||[]).join(' '))+' '+(c.mainContact||'')).toLowerCase(); return _qt.every(function(t){return hay.indexOf(t)>=0;}); });
   var _sx=document.getElementById('searchx'); if(_sx) _sx.classList.toggle('show', !!(q&&q.trim()));
+  var _noFilter=(!_qt.length && !(typeof CF!=='undefined'&&CF&&CF.activeCount&&CF.activeCount()>0));
+  if(_noFilter && !RECENCY_SHOWALL && RECENCY_DAYS>0){ var _cut=recencyCutoff(RECENCY_DAYS); list=list.filter(function(c){ return String(c.lastActiveAt||'')>=_cut; }); }
+  recencyNote('companies', _noFilter, list.length, ALL.length);
   renderList(list); if(typeof CF!=='undefined'&&CF) CF.updateBtn();
 }
 window.rrgLiveSearch=function(q){ var el=document.getElementById('search'); if(el && el.value!==q){ el.value=q; } applyFilter(); };
@@ -304,7 +319,7 @@ document.getElementById('m_type').addEventListener('change',updateFindGrp);
 var _fgcb=document.getElementById('m_findgrp'); if(_fgcb) _fgcb.addEventListener('change',toggleConceptEntry);
 (function(){ var ti=document.getElementById('m_ctag'); if(ti){ ti.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===','){ e.preventDefault(); addMTag(ti.value); ti.value=''; } }); ti.addEventListener('change',function(){ if(ti.value){ addMTag(ti.value); ti.value=''; } }); } var ph=document.getElementById('m_cphone'); if(ph){ ph.addEventListener('input',function(){ ph.value=mfmtPhone(ph.value); }); } })();
 document.getElementById('modal').addEventListener('click',function(e){ /* clicking the backdrop no longer closes the window — prevents losing entered info. Use Cancel to close. */ });
-function reloadCompanies(){ return fetch('/api/companies',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; CTYPES=(j&&j.types)||CTYPES; CUISINE=(j&&j.cuisineTypes)||CUISINE; CONCEPTTYPES=(j&&j.conceptTypes)||CONCEPTTYPES; LEADSOURCES=(j&&j.leadSources)||LEADSOURCES; DEFAULTSTATE=(j&&j.defaultState)||DEFAULTSTATE; PERSONTYPES=(j&&j.personTypes)||PERSONTYPES; CAN_DELETE=!!(j&&j.canDelete); CITIES=(j&&j.cities)||[]; TITLES=(j&&j.titles)||[]; ALLTAGS=(j&&j.allTags)||[]; METROS=(j&&j.metros)||[]; var _ml=document.getElementById('metrolist'); if(_ml) _ml.innerHTML=METROS.map(function(m){return '<option value="'+esc(m)+'">';}).join(''); IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }).catch(function(){ if(!ALL.length){ var _b=document.getElementById('body'); if(_b) _b.innerHTML='<div class="empty">Could not load companies.</div>'; } }); }
+function reloadCompanies(){ return fetch('/api/companies',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; if(j&&j.recencyDays!=null) RECENCY_DAYS=j.recencyDays; CTYPES=(j&&j.types)||CTYPES; CUISINE=(j&&j.cuisineTypes)||CUISINE; CONCEPTTYPES=(j&&j.conceptTypes)||CONCEPTTYPES; LEADSOURCES=(j&&j.leadSources)||LEADSOURCES; DEFAULTSTATE=(j&&j.defaultState)||DEFAULTSTATE; PERSONTYPES=(j&&j.personTypes)||PERSONTYPES; CAN_DELETE=!!(j&&j.canDelete); CITIES=(j&&j.cities)||[]; TITLES=(j&&j.titles)||[]; ALLTAGS=(j&&j.allTags)||[]; METROS=(j&&j.metros)||[]; var _ml=document.getElementById('metrolist'); if(_ml) _ml.innerHTML=METROS.map(function(m){return '<option value="'+esc(m)+'">';}).join(''); IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }).catch(function(){ if(!ALL.length){ var _b=document.getElementById('body'); if(_b) _b.innerHTML='<div class="empty">Could not load companies.</div>'; } }); }
 window.reloadCompanies=reloadCompanies;
 reloadCompanies();
 document.addEventListener('visibilitychange',function(){ if(!document.hidden) reloadCompanies(); });

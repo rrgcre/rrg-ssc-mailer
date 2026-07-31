@@ -292,6 +292,7 @@ function effCuisineTypes() { const s = loadSettings(); return (Array.isArray(s.c
 function effMaxPullLocations() { const s = loadSettings(); const n = parseInt(s.maxPullLocations, 10); return (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
 function effDefaultState() { const s = loadSettings(); const v = String(s.defaultState || '').trim(); return v ? v.slice(0, 20) : 'TX'; }
 function effAssistantName() { const s = loadSettings(); const v = String(s.assistantName || '').trim(); return v ? v.slice(0, 40) : 'Claude'; }
+function effListRecencyDays() { const s = loadSettings(); const n = parseInt(s.listRecencyDays, 10); return (isFinite(n) && n > 0) ? Math.min(3650, n) : 90; }
 function effConceptLabel() { const s = loadSettings(); const v = String(s.conceptLabel || '').trim(); return v ? v.slice(0, 30) : 'Concept'; }
 function effConceptLabelPlural() { const s = loadSettings(); const v = String(s.conceptLabelPlural || '').trim(); return v ? v.slice(0, 30) : (effConceptLabel() + 's'); }
 function effShowRequestRibbon() { const s = loadSettings(); return s.showRequestRibbon !== false; }
@@ -3891,11 +3892,14 @@ app.delete('/api/assignment/:key/nda/:ndaId', (req, res) => {
   res.json({ ok: true, ndas });
 });
 // ---- People (global buyer registry) ----
+function _maxStr(){ let t=''; for (let i=0;i<arguments.length;i++){ const x=String(arguments[i]||''); if (x>t) t=x; } return t; }
+function _personLastActive(p){ if(!p) return ''; let t=_maxStr(p.updatedAt, p.createdAt, p.lastContacted?String(p.lastContacted).slice(0,10):''); if(Array.isArray(p.activities)) p.activities.forEach(a=>{ const x=String((a&&(a.date||a.at))||''); if(x>t) t=x; }); return t; }
+function _companyLastActive(c, contactMax){ if(!c) return ''; let t=_maxStr(c.updatedAt, c.createdAt, contactMax||''); if(Array.isArray(c.activities)) c.activities.forEach(a=>{ const x=String((a&&(a.at||a.date))||''); if(x>t) t=x; }); return t; }
 app.get('/api/people', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const cos = {}, coMain = {}; loadCompanies().forEach(c => { cos[c.id] = c.name; coMain[c.id] = c.mainContactId || ''; });
-  const people = loadPeople().filter(p => !restrictToOwn(req) || permOwnerMatch(req, p.by)).map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '', isMainContact: !!(p.companyId && coMain[p.companyId] === p.id) }));
-  res.json({ ok: true, people: people, canDelete: canDelete(req), types: effPersonTypes(), leadSources: effLeadSources(), isAdmin: !!(req.user && isSuper(req.user)) });
+  const people = loadPeople().filter(p => !restrictToOwn(req) || permOwnerMatch(req, p.by)).map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '', isMainContact: !!(p.companyId && coMain[p.companyId] === p.id), lastActiveAt: _personLastActive(p) }));
+  res.json({ ok: true, people: people, canDelete: canDelete(req), types: effPersonTypes(), leadSources: effLeadSources(), recencyDays: effListRecencyDays(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 app.post('/api/person', express.json(), (req, res) => {
   const b = req.body || {};
@@ -4637,16 +4641,17 @@ app.get('/api/personphoto/:name', (req, res) => {
 app.get('/api/companies', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const cos = loadCompanies().filter(c => !restrictToOwn(req) || permOwnerMatch(req, c.owner || c.by)), people = loadPeople(), deals = loadDeals();
+  const _coActMax = {}; people.forEach(p => { if (!p.companyId) return; const _t = _personLastActive(p); if (_t > (_coActMax[p.companyId] || '')) _coActMax[p.companyId] = _t; });
   const rows = cos.map(c => {
     const mk = {}; (c.concepts || []).forEach(cp => (cp.markets || []).forEach(m => { if (m) mk[m] = 1; }));
     const _cp = people.filter(p => p.companyId === c.id);
     let _main = c.mainContactId ? _cp.find(p => p.id === c.mainContactId) : null;
     if (!_main && _cp.length === 1) _main = _cp[0];   // only one contact → treat it as the main/preferred
     const _pref = (_main && Array.isArray(_main.prefContact) && _main.prefContact.length) ? _main.prefContact.map(x => String(x).charAt(0).toUpperCase() + String(x).slice(1)).join(', ') : '';
-    return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, contacts: _cp.length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, mainContactId: (_main && _main.id) || '', mainContact: (_main && _main.name) || '', preferredContact: _pref, createdAt: c.createdAt, owner: c.by || '', leadSource: c.leadSource || '' };
+    return { id: c.id, name: c.name, markets: Object.keys(mk), type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, contacts: _cp.length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, mainContactId: (_main && _main.id) || '', mainContact: (_main && _main.name) || '', preferredContact: _pref, createdAt: c.createdAt, owner: c.by || '', leadSource: c.leadSource || '', lastActiveAt: _companyLastActive(c, _coActMax[c.id] || '') };
   });
   const _cities = {}; cos.forEach(c => { if (c.office && c.office.city) _cities[c.office.city] = 1; (c.locations || []).forEach(l => { if (l.city) _cities[l.city] = 1; }); }); const _titles = {}; people.forEach(pp => { if (pp.title) _titles[pp.title] = 1; });
-  res.json({ ok: true, companies: rows, canDelete: canDelete(req), types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: CONCEPT_TYPES, leadSources: effLeadSources(), defaultState: effDefaultState(), personTypes: effPersonTypes(), metros: RRG_METROS, cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, companies: rows, recencyDays: effListRecencyDays(), canDelete: canDelete(req), types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: CONCEPT_TYPES, leadSources: effLeadSources(), defaultState: effDefaultState(), personTypes: effPersonTypes(), metros: RRG_METROS, cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // A person's full cross-book view: their company, the deals where they're the client,
 // and every offer / tour / NDA they're linked to across all deals.
@@ -4855,7 +4860,7 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks(),
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks(),
     defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, cuisineTypes: CUISINE_TYPES, agreementTypes: AGREEMENT_TYPES },
     isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), cuisineTypes: Array.isArray(s.cuisineTypes), agreementTypes: Array.isArray(s.agreementTypes) },
     systemRequired: { leadSources: SYSTEM_LEAD_SOURCES },
@@ -4863,7 +4868,7 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.showQuickLinks; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.showQuickLinks; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() }); }
   if (b.personTypes !== undefined) s.personTypes = cleanStrList(b.personTypes, 40, 60) || [];
   if (b.companyTypes !== undefined) s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || [];
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
@@ -4885,12 +4890,13 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   if (b.maxPullLocations !== undefined) { const n = parseInt(b.maxPullLocations, 10); s.maxPullLocations = (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
   if (typeof b.defaultState === 'string') s.defaultState = b.defaultState.trim().slice(0, 20);
   if (typeof b.assistantName === 'string') s.assistantName = b.assistantName.trim().slice(0, 40);
+  if (b.listRecencyDays !== undefined) { const n = parseInt(b.listRecencyDays, 10); s.listRecencyDays = (isFinite(n) && n > 0) ? Math.min(3650, n) : 90; }
   if (typeof b.conceptLabel === 'string') s.conceptLabel = b.conceptLabel.trim().slice(0, 30);
   if (typeof b.conceptLabelPlural === 'string') s.conceptLabelPlural = b.conceptLabelPlural.trim().slice(0, 30);
   if (b.showRequestRibbon !== undefined) s.showRequestRibbon = !!b.showRequestRibbon;
   if (b.showQuickLinks !== undefined) s.showQuickLinks = !!b.showQuickLinks;
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
