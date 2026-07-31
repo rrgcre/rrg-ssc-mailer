@@ -51,7 +51,7 @@ thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(
   <div class="card">
     <div class="filters">
       <span id="typeFilters" style="display:inline-flex;align-items:center;gap:8px"></span>
-      <span style="display:inline-flex;align-items:center;gap:8px;margin-left:12px"><span class="lbl">Status</span><select id="statusSel" style="font:inherit;font-size:12px;font-weight:700;border:1px solid #cfd6e2;border-radius:20px;padding:6px 12px;background:#fff;color:var(--muted);cursor:pointer"><option value="all">All statuses</option><option value="active">Active</option><option value="soon">Expiring ≤60d</option><option value="expired">Expired</option></select></span>
+      <span style="display:inline-flex;align-items:center;gap:8px;margin-left:12px"><span class="lbl">Status</span><select id="statusSel" style="font:inherit;font-size:12px;font-weight:700;border:1px solid #cfd6e2;border-radius:20px;padding:6px 12px;background:#fff;color:var(--muted);cursor:pointer"><option value="all">All statuses</option><option value="active">Active</option><option value="soon">Expiring ≤60d</option><option value="expired">Expired</option></select></span><span style="display:inline-flex;align-items:center;gap:8px;margin-left:12px"><span class="lbl">RRG Sender</span><select id="signerSel" style="font:inherit;font-size:12px;font-weight:700;border:1px solid #cfd6e2;border-radius:20px;padding:6px 12px;background:#fff;color:var(--muted);cursor:pointer"><option value="all">All senders</option></select></span>
     </div>
     
     <div id="list"><div class="empty">Loading…</div></div>
@@ -92,7 +92,7 @@ thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(
   </div>
 </div>
 <script>
-var AGR=[], TYPES=[], FT='all', FS='all'; var ACTL=null; var CAN_DELETE=false, IS_ADMIN=false, PEOPLE=[];
+var AGR=[], TYPES=[], FT='all', FS='all', FSG='all'; var ACTL=null; var CAN_DELETE=false, IS_ADMIN=false, PEOPLE=[];
 var COLORS={ NDA:{bg:'#eef2fb',fg:'#2647b0'}, CA:{bg:'#e6f5f3',fg:'#0f766e'}, ETRA:{bg:'#f1ebfb',fg:'#6d28d9'}, Referral:{bg:'#fdf1df',fg:'#b5791f'}, Listing:{bg:'#fdeceb',fg:'#DA2B1F'} };
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function fmt(d){ if(!d) return '—'; var p=d.split('-'); if(p.length!==3) return d; return p[1]+'/'+p[2]+'/'+p[0]; }
@@ -103,10 +103,11 @@ function agrSaveField(item, body){ return fetch('/api/agreements',{method:'POST'
 function statusOf(a){ var today=todayStr(); if(a.status==='terminated') return 'expired'; if(a.expires&&a.expires<today) return 'expired'; var du=daysUntil(a.expires); if(a.expires&&du!=null&&du<=60) return 'soon'; return 'active'; }
 function load(){
   fetch('/api/agreements/executed',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
-    if(!j||!j.ok) return; AGR=j.agreements||[]; TYPES=j.types||[]; CAN_DELETE=!!j.canDelete; IS_ADMIN=!!j.isAdmin; buildTypeFilters(); render();
+    if(!j||!j.ok) return; AGR=j.agreements||[]; TYPES=j.types||[]; CAN_DELETE=!!j.canDelete; IS_ADMIN=!!j.isAdmin; buildTypeFilters(); buildSignerFilter(); render();
   });
   fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('agrPeopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.companyName||p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){});
 }
+function buildSignerFilter(){ var sel=document.getElementById('signerSel'); if(!sel) return; var seen={}, names=[]; AGR.forEach(function(a){ var nm=a.repSignedName||a.createdByName||''; if(nm && !seen[nm]){ seen[nm]=1; names.push(nm); } }); names.sort(function(x,y){return x.toLowerCase().localeCompare(y.toLowerCase());}); sel.innerHTML='<option value="all">All senders</option>'+names.map(function(n){return '<option value="'+esc(n)+'"'+(n===FSG?' selected':'')+'>'+esc(n)+'</option>';}).join(''); if(!sel._wired){ sel._wired=true; sel.addEventListener('change',function(){ FSG=sel.value; render(); }); } }
 function buildTypeFilters(){
   var el=document.getElementById('typeFilters');
   el.innerHTML='<span class="lbl">Type</span><select id="typeSel" style="font:inherit;font-size:12px;font-weight:700;border:1px solid #cfd6e2;border-radius:20px;padding:6px 12px;background:#fff;color:var(--muted);cursor:pointer"><option value="all">All types</option>'+TYPES.map(function(t){return '<option value="'+esc(t.key)+'"'+(t.key===FT?' selected':'')+'>'+esc(t.label)+'</option>';}).join('')+'</select>';
@@ -121,7 +122,7 @@ function render(){
     +'<div class="stat"><div class="n">'+active+'</div><div class="l">Active</div></div>'
     +'<div class="stat"><div class="n amber">'+soon+'</div><div class="l">Expiring ≤60 days</div></div>'
     +'<div class="stat"><div class="n red">'+expired+'</div><div class="l">Expired</div></div>';
-  var rows=AGR.filter(function(a){ if(FT!=='all'&&a.type!==FT) return false; if(FS!=='all'&&statusOf(a)!==FS) return false; return true; });
+  var rows=AGR.filter(function(a){ if(FT!=='all'&&a.type!==FT) return false; if(FS!=='all'&&statusOf(a)!==FS) return false; if(FSG!=='all'&&(a.repSignedName||a.createdByName||'')!==FSG) return false; return true; });
   var cfg={ mount:'#list', data:rows, key:'agreements', empty:'<div class="empty">No agreements match.</div>', rowId:function(a){return a.id;}, defaultSort:5, defaultDir:1, bulk:(CAN_DELETE?[{label:'Delete',danger:true,min:1,fn:bulkDeleteAgreements}]:null),
     columns:[
       { label:'Type', sort:function(a,b){return RRGList.cmp(label(a.type),label(b.type));}, edit:{ type:'select', options:function(){ return (TYPES||[]).map(function(t){return {value:t.key,label:t.label};}); }, get:function(a){return a.type;}, save:function(a,v){ return agrSaveField(a,{type:v}); } }, cell:function(a){ var c=COLORS[a.type]||{bg:'#eef1f6',fg:'#5b6472'}; return '<span class="jbean" style="background:'+c.bg+';color:'+c.fg+'">'+esc(label(a.type))+'</span>'; } },
