@@ -199,7 +199,7 @@ function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/
 function personPhotoUrl(){ return (P&&P.photoExt)?('/api/personphoto/'+encodeURIComponent(ID)+'.'+P.photoExt+'?v='+(P.updatedAt?encodeURIComponent(P.updatedAt):Date.now())):''; }
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 function money(v){ if(v==null||v==='') return ''; var n=Number(String(v).replace(/[^0-9.\-]/g,'')); if(!isFinite(n)||n===0) return esc(String(v)); return '$'+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
-var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], INTERESTED=[], AGREEMENTS=[], ATYPES=[], PTYPES=['Buyer'], LEADSOURCES=[], ALLTAGS=[], CURTAGS=[], SAVET=null, EMAILREADY=false, COMPANIESLIST=[], ACTIVITIES=[], ACTTYPES=[], TEMPLATES=[], IS_ADMIN=false, CAN_DELETE=false, DIRTY=false, GMAIL=[], GMAILCONN=false, GMAILEMAIL='', GMAILLOADED=false, PENDING_AGR_FILE=null, AUTOMATIONS=[], EMAILTPLS=[];
+var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], INTERESTED=[], AGREEMENTS=[], ATYPES=[], PTYPES=['Buyer'], LEADSOURCES=[], ALLTAGS=[], CURTAGS=[], SAVET=null, EMAILREADY=false, COMPANIESLIST=[], ACTIVITIES=[], ACTTYPES=[], USERS=[], TEMPLATES=[], IS_ADMIN=false, CAN_DELETE=false, DIRTY=false, GMAIL=[], GMAILCONN=false, GMAILEMAIL='', GMAILLOADED=false, PENDING_AGR_FILE=null, AUTOMATIONS=[], EMAILTPLS=[];
 function deletePerson(){
   if(!confirm('Delete “'+((P&&P.name)||'this contact')+'” from your registry? Their name stays on any past offers, tours, and NDAs. This cannot be undone.')) return;
   var b=document.getElementById('p_delete'); b.disabled=true; b.textContent='Deleting…';
@@ -596,6 +596,8 @@ function addrLabel(s){ s=String(s||''); var m=s.match(/<([^>]+)>/); var nm=s.rep
 function loadGmail(){ if(!ID) return; fetch('/api/gmail/status',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ GMAILCONN=!!(j&&j.connected); GMAILEMAIL=(j&&j.email)||''; if(GMAILCONN){ return fetch('/api/person/'+encodeURIComponent(ID)+'/gmail',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(g){ GMAIL=(g&&g.messages)||[]; }); } }).then(function(){ GMAILLOADED=true; if(P) render(); }).catch(function(){ GMAILLOADED=true; }); }
 function activityCard(){
   var opts=ACTTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
+  function _defOwner(){ return (P&&P.byUser)||((window.__rrgSession&&window.__rrgSession.username)||''); }
+  window.actOwnerOpts=function(){ var def=_defOwner(); return (USERS||[]).map(function(u){ return '<option value="'+esc(u.username)+'"'+(u.username===def?' selected':'')+'>'+esc(u.name)+'</option>'; }).join(''); };
   var d=new Date(); var td=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   var to=P.email||((P.emails&&P.emails[0])||'');
   var items=[];
@@ -616,7 +618,7 @@ function activityCard(){
   return '<div class="card actcard"><div class="ch"><b>Activity</b><span>'+items.length+'</span>'
     +'<div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><select id="actFilter" class="actfsel">'+actFilterOpts+'</select><label class="actcond"><input type="checkbox" id="actCondensed"> Condensed</label><button type="button" class="abtn" id="act_show">+ Log activity</button><button type="button" class="abtn" id="prepBtn" data-ai="">✨ Prep for call</button><button type="button" class="abtn" id="em_show">✉ Send email</button></div></div>'
     +'<div class="cb">'
-    +'<div id="actComposer" hidden style="margin-bottom:14px"><div class="actadd"><select id="act_type">'+opts+'</select><input type="date" id="act_date" value="'+td+'"><textarea id="act_note" rows="2" placeholder="Note — for a To-Do this becomes the task" style="flex:1;min-width:150px;resize:vertical;font:inherit;font-size:13px;padding:8px 10px;border:1px solid #d5dbe6;border-radius:8px;line-height:1.4"></textarea><button type="button" class="savebtn" id="act_add" style="width:auto;padding:8px 16px">Log</button></div></div>'
+    +'<div id="actComposer" hidden style="margin-bottom:14px"><div class="actadd"><select id="act_type">'+opts+'</select><select id="act_owner" class="actownsel" title="Task owner" hidden style="max-width:150px;font:inherit;font-size:13px;padding:8px 10px;border:1px solid #d5dbe6;border-radius:8px">'+actOwnerOpts()+'</select><input type="date" id="act_date" value="'+td+'"><textarea id="act_note" rows="2" placeholder="Note — for a To-Do this becomes the task" style="flex:1;min-width:150px;resize:vertical;font:inherit;font-size:13px;padding:8px 10px;border:1px solid #d5dbe6;border-radius:8px;line-height:1.4"></textarea><button type="button" class="savebtn" id="act_add" style="width:auto;padding:8px 16px">Log</button></div></div>'
     +'<div id="emailComposer" hidden style="margin-bottom:14px">'+emComposer+'</div>'
     +'<div class="feed">'+feed+'</div></div></div>';
 }
@@ -626,10 +628,14 @@ function wireActivity(){
   function _tog(showEl,hideEl){ if(!showEl)return; var h=showEl.hasAttribute('hidden'); if(h){ showEl.removeAttribute('hidden'); if(hideEl) hideEl.setAttribute('hidden',''); var f=showEl.querySelector('input,select,textarea'); if(f) try{f.focus();}catch(e){} } else showEl.setAttribute('hidden',''); }
   if(_as) _as.addEventListener('click',function(){ _tog(_ac,_ec); });
   if(_es) _es.addEventListener('click',function(){ _tog(_ec,_ac); });
+  var _at=document.getElementById('act_type'), _ao=document.getElementById('act_owner');
+  function _syncOwner(){ if(_ao) _ao.hidden=(_at&&_at.value!=='To-Do'); }
+  if(_at){ _at.addEventListener('change',_syncOwner); _syncOwner(); }
   var b=document.getElementById('act_add'); if(b) b.addEventListener('click',function(){
     var type=document.getElementById('act_type').value, date=document.getElementById('act_date').value, note=document.getElementById('act_note').value.trim();
+    var _body={type:type,date:date,note:note}; if(type==='To-Do'&&_ao&&_ao.value) _body.assignee=_ao.value;
     b.disabled=true;
-    fetch('/api/person/'+encodeURIComponent(ID)+'/activity',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:type,date:date,note:note})})
+    fetch('/api/person/'+encodeURIComponent(ID)+'/activity',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(_body)})
       .then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ ACTIVITIES=j.activities||ACTIVITIES; if(j.lastContacted) P.lastContacted=j.lastContacted; render(); } else { alert((j&&j.error)||'Could not log.'); } })
       .catch(function(){ b.disabled=false; });
   });
@@ -884,7 +890,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No contact selected. <a href="./rrg_people.html">Back to contacts →</a></div>'; return; }
   fetch('/api/person/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ P=j.person; CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; INTERESTED=j.interested||[]; AUTOMATIONS=j.automations||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; render(); loadGmail(); loadEmailTpls2(); })
+    .then(function(j){ P=j.person; CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; INTERESTED=j.interested||[]; AUTOMATIONS=j.automations||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; USERS=j.users||[]; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; render(); loadGmail(); loadEmailTpls2(); })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this contact.')+'<br><br><a href="./rrg_people.html" style="color:#000E31;font-weight:700">← Back to contacts</a></div>'; });
 }
 fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ COMPANIESLIST=(j&&j.companies)||[]; }).catch(function(){});

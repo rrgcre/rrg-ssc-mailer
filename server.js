@@ -4458,6 +4458,15 @@ app.post('/api/gmail/send', express.json({ limit: '256kb' }), async (req, res) =
   } catch (e) { console.error('gmail send:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
+// Resolve who a task belongs to: an explicit pick wins, else the record's owning broker, else the current user.
+function resolveTaskOwner(pick, recOwnerUser, recOwnerName, req) {
+  const users = auth.loadUsers();
+  const p = String(pick || '').trim();
+  const u = p && users.find(x => x.username === p && !x.disabled);
+  if (u) return { assignee: u.username, assigneeName: u.name || u.username };
+  if (recOwnerUser) { const o = users.find(x => x.username === recOwnerUser); return { assignee: recOwnerUser, assigneeName: (o && o.name) || recOwnerName || recOwnerUser }; }
+  return { assignee: (req.user && req.user.username) || '', assigneeName: (req.user && req.user.name) || '' };
+}
 app.post('/api/person/:id/activity', express.json(), (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
@@ -4470,7 +4479,8 @@ app.post('/api/person/:id/activity', express.json(), (req, res) => {
     try {
       const tasks = loadTasks(); const tnow = new Date().toISOString();
       const due = (typeof b.date === 'string' ? b.date : '').slice(0, 10);
-      task = { id: newTaskId(), title: (String(b.note || '').trim() || ('Follow up: ' + (p.name || 'contact'))).slice(0, 300), notes: '', assignee: (req.user && req.user.username) || '', assigneeName: (req.user && req.user.name) || '', due: due, reminder: due, priority: 'Normal', status: 'open', linkType: 'contact', linkId: p.id, linkLabel: p.name || '', createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', createdAt: tnow, updatedAt: tnow };
+      const _own = resolveTaskOwner(b.assignee, p.byUser, p.by, req);
+      task = { id: newTaskId(), title: (String(b.note || '').trim() || ('Follow up: ' + (p.name || 'contact'))).slice(0, 300), notes: '', assignee: _own.assignee, assigneeName: _own.assigneeName, due: due, reminder: due, priority: 'Normal', status: 'open', linkType: 'contact', linkId: p.id, linkLabel: p.name || '', createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', createdAt: tnow, updatedAt: tnow };
       tasks.push(task); saveTasks(tasks); entry.taskId = task.id;
     } catch (e) { console.error('activity->task error:', e && e.message); }
   }
@@ -4595,7 +4605,7 @@ app.get('/api/person/:id', (req, res) => {
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
     (o.inquiries || []).forEach(x => { const _m = (x.personId && x.personId === p.id) || (x.email && _pEmails.indexOf(String(x.email).toLowerCase()) >= 0); if (_m && !interested.some(it => it.key === key)) interested.push({ key: key, business: biz, status: x.status || 'New', inquiryId: x.id, date: x.date || x.createdAt || '', source: x.source || '', stage: _keyStage ? _keyStage.label : '', stageDone: _keyStage ? _keyStage.done : 0, stageTotal: _keyStage ? _keyStage.total : 0 }); });
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, interested, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, appointments: loadAppts().filter(x => x.contactPersonId === p.id && x.status !== "deleted").map(apptBrief).sort((m,n)=>String(m.start||"").localeCompare(String(n.start||""))), apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === (req.user && req.user.username) || (req.user && isSuper(req.user)))).map(a => automationBrief(a, req.user || {})), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, interested, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: AGREEMENT_TYPES, appointments: loadAppts().filter(x => x.contactPersonId === p.id && x.status !== "deleted").map(apptBrief).sort((m,n)=>String(m.start||"").localeCompare(String(n.start||""))), apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === (req.user && req.user.username) || (req.user && isSuper(req.user)))).map(a => automationBrief(a, req.user || {})), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
@@ -4931,7 +4941,7 @@ app.get('/api/company/:id', (req, res) => {
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
   const companyActivity = companyActivityFeed(c);
-  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, activity: companyActivity, activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), hasMaps: !!loadGmapsKey(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: AGREEMENT_TYPES, activity: companyActivity, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), hasMaps: !!loadGmapsKey(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // ---- Company-level activity: notes / calls / meetings logged against the company itself. ----
 app.post('/api/company/:id/activity', express.json(), (req, res) => {
@@ -4946,7 +4956,8 @@ app.post('/api/company/:id/activity', express.json(), (req, res) => {
     try {
       const tasks = loadTasks(); const tnow = new Date().toISOString();
       const due = (typeof b.date === 'string' ? b.date : '').slice(0, 10);
-      task = { id: newTaskId(), title: (String(b.note || '').trim() || ('Follow up: ' + (c.name || 'company'))).slice(0, 300), notes: '', assignee: (req.user && req.user.username) || '', assigneeName: (req.user && req.user.name) || '', due: due, reminder: due, priority: 'Normal', status: 'open', linkType: 'company', linkId: c.id, linkLabel: c.name || '', createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', createdAt: tnow, updatedAt: tnow };
+      const _own = resolveTaskOwner(b.assignee, c.byUser, c.by, req);
+      task = { id: newTaskId(), title: (String(b.note || '').trim() || ('Follow up: ' + (c.name || 'company'))).slice(0, 300), notes: '', assignee: _own.assignee, assigneeName: _own.assigneeName, due: due, reminder: due, priority: 'Normal', status: 'open', linkType: 'company', linkId: c.id, linkLabel: c.name || '', createdBy: (req.user && req.user.username) || '', createdByName: (req.user && req.user.name) || '', createdAt: tnow, updatedAt: tnow };
       tasks.push(task); saveTasks(tasks); entry.taskId = task.id;
     } catch (e) {}
   }
