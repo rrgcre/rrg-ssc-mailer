@@ -183,7 +183,7 @@ function renderList(list){
       { label:'Nickname', defaultHidden:true, sort:function(a,b){ return RRGList.cmp(a.nickname,b.nickname); }, cell:function(p){ return p.nickname?esc(p.nickname):'<span class="meta">—</span>'; } },
       { label:'Tags', defaultHidden:true, sortable:false, cell:function(p){ return (p.tags&&p.tags.length)?p.tags.map(function(t){return '<span style="font-size:10px;font-weight:700;color:#3a4c74;background:#eef2fb;border:1px solid #dbe4f5;border-radius:6px;padding:1px 6px;margin-right:3px">'+esc(t)+'</span>';}).join(''):'<span class="meta">—</span>'; } },
       { label:'Lead source', defaultHidden:true, sort:function(a,b){ return RRGList.cmp(a.leadSource,b.leadSource); }, cell:function(p){ return p.leadSource?esc(p.leadSource):'<span class="meta">—</span>'; } },
-      { label:'', align:'right', sortable:false, cell:function(p){ var open='<a class="popen" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">Open</a>'; var del=CAN_DELETE?('<button class="pdel" data-del="'+esc(p.id)+'" data-name="'+esc(p.name||'')+'">Delete</button>'):''; return '<div class="rowacts">'+open+del+'</div>'; } }
+      { label:'', align:'right', sortable:false, cell:function(p){ var open='<a class="popen" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'&agr=1" title="Send an agreement to this contact">⚖ Send agreement</a>'; var del=CAN_DELETE?('<button class="pdel" data-del="'+esc(p.id)+'" data-name="'+esc(p.name||'')+'">Delete</button>'):''; return '<div class="rowacts">'+open+del+'</div>'; } }
     ]
   };
   if(CTL) CTL.refresh(list); else CTL=RRGList.create(cfg);
