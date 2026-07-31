@@ -4269,6 +4269,8 @@ const GSYNC_TZ = 'America/Chicago';
 function _gErr(e) { const m = (e && e.message) || 'Sync failed.'; if (/api has not been used|accessNotConfigured|is disabled|enable it by visiting|SERVICE_DISABLED|has not been enabled/i.test(m)) return 'The server\u2019s Google project needs the People API (Contacts) and Calendar API enabled. An admin must enable both in Google Cloud Console for this OAuth app, then reconnect.'; if (e && (e.status === 403 || e.status === 401 || /insufficient|scope|permission|forbidden|invalid_grant|unauthorized/i.test(m))) return 'Google hasn\u2019t granted Contacts/Calendar access. Click Reconnect on the Gmail card (Account → Gmail) and approve the Contacts and Calendar permissions on Google\u2019s screen. If it still fails, the server\u2019s Google project needs the People API and Calendar API enabled in Google Cloud Console.'; return m; }
 function _gLocal(dt) { const m = String(dt || '').match(/(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/); if (m) return m[1] + 'T' + m[2]; const d = String(dt || '').match(/^(\d{4}-\d{2}-\d{2})$/); return d ? (d[1] + 'T00:00') : ''; }
 function _gDT(s) { s = String(s || ''); return s.length === 16 ? (s + ':00') : s; }
+const _gsCancel = new Set();
+function _gsSleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
 async function googleContactsPull(req) {
   const u = (req.user && req.user.username) || '';
   const ppl = loadPeople();
@@ -4309,18 +4311,22 @@ async function googleContactsPull(req) {
 }
 async function googleContactsPush(req) {
   const u = (req.user && req.user.username) || '';
-  const ppl = loadPeople(); let pushed = 0, failed = 0; const now = new Date().toISOString();
+  const ppl = loadPeople(); let pushed = 0, failed = 0, remaining = 0; const now = new Date().toISOString();
+  const CAP = 400; let cancelled = false;
   for (const p of ppl) {
     if (p.googleResourceName) continue;
     const emails = personEmails(p); if (!emails.length && !p.name) continue;
+    if (_gsCancel.has(u)) { cancelled = true; remaining++; continue; }
+    if (pushed >= CAP) { remaining++; continue; }
     const body = { names: [{ givenName: personFirst(p) || '', familyName: personLast(p) || '' }], emailAddresses: emails.map(e => ({ value: e })), phoneNumbers: personPhones(p).map(ph => ({ value: ph })) };
     try {
       const j = await gmail.gapiJSON(u, 'https://people.googleapis.com/v1/people:createContact', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       if (j && j.resourceName) { p.googleResourceName = j.resourceName; p.googleEtag = j.etag || ''; p.updatedAt = now; pushed++; }
     } catch (e) { failed++; if (e && (e.status === 403 || e.status === 401)) throw e; }
+    await _gsSleep(110);
   }
   savePeople(ppl);
-  return { pushed, failed };
+  return { pushed, failed, remaining, cancelled };
 }
 async function googleCalendarPull(req) {
   const u = (req.user && req.user.username) || '';
@@ -4363,18 +4369,20 @@ app.get('/api/google/sync/status', (req, res) => {
 app.post('/api/google/sync/contacts', express.json(), async (req, res) => {
   const u = (req.user && req.user.username) || '';
   { const _st = gmail.statusFor(u); if (!_st.connected) return res.status(400).json({ ok: false, error: 'Connect your Google account first (Account → Gmail).' }); if (!_st.hasContacts) return res.status(400).json({ ok: false, error: 'Contacts permission was not granted. Click Reconnect on the Gmail card and check the Contacts box on Google\u2019s consent screen. (If it keeps failing, the server\u2019s Google project needs the People API enabled.)' }); }
+  _gsCancel.delete(u);
   const dir = String((req.body && req.body.direction) || 'both');
   try {
     let pull = { created: 0, updated: 0 }, push = { pushed: 0 };
     if (dir === 'pull' || dir === 'both') pull = await googleContactsPull(req);
     if (dir === 'push' || dir === 'both') push = await googleContactsPush(req);
     logSysEvent(req, 'Google Sync', 'Contacts sync (' + dir + ') — ' + pull.created + ' new, ' + pull.updated + ' updated, ' + push.pushed + ' pushed', { tool: 'google-sync', kind: 'contacts' });
-    res.json({ ok: true, pulledNew: pull.created, pulledUpdated: pull.updated, pushed: push.pushed });
+    res.json({ ok: true, pulledNew: pull.created, pulledUpdated: pull.updated, pushed: push.pushed, pushRemaining: (push && push.remaining) || 0, cancelled: !!(push && push.cancelled) });
   } catch (e) { console.error('gsync contacts:', e && e.message); res.status(502).json({ ok: false, error: _gErr(e) }); }
 });
 app.post('/api/google/sync/calendar', express.json(), async (req, res) => {
   const u = (req.user && req.user.username) || '';
   { const _st = gmail.statusFor(u); if (!_st.connected) return res.status(400).json({ ok: false, error: 'Connect your Google account first (Account → Gmail).' }); if (!_st.hasCalendar) return res.status(400).json({ ok: false, error: 'Calendar permission was not granted. Click Reconnect on the Gmail card and check the Calendar box on Google\u2019s consent screen. (If it keeps failing, the server\u2019s Google project needs the Calendar API enabled.)' }); }
+  _gsCancel.delete(u);
   const dir = String((req.body && req.body.direction) || 'both');
   try {
     let pull = { created: 0, updated: 0 }, push = { pushed: 0 };
@@ -4384,6 +4392,7 @@ app.post('/api/google/sync/calendar', express.json(), async (req, res) => {
     res.json({ ok: true, pulledNew: pull.created, pulledUpdated: pull.updated, pushed: push.pushed });
   } catch (e) { console.error('gsync calendar:', e && e.message); res.status(502).json({ ok: false, error: _gErr(e) }); }
 });
+app.post('/api/google/sync/cancel', (req, res) => { const u = (req.user && req.user.username) || ''; if (u) _gsCancel.add(u); res.json({ ok: true }); });
 
 // AI pass over scanned Gmail correspondents — flag the obvious personal / automated (non-business) ones.
 app.post('/api/gmail/contacts/classify', express.json({ limit: '2mb' }), async (req, res) => {
