@@ -67,7 +67,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 var DATA={}, ASSIST='';
 function num(n){ return Number(n||0).toLocaleString('en-US'); }
-function money(n){ n=Number(n||0); if(n>=1e6) return '$'+(Math.round(n/1e5)/10)+'M'; if(n>=1e3) return '$'+Math.round(n/1e3)+'k'; return '$'+num(n); }
+function money(n){ n=Number(n||0); if(n>=1e6) return (window.RRG_CCYSYM||String.fromCharCode(36))+(Math.round(n/1e5)/10)+'M'; if(n>=1e3) return (window.RRG_CCYSYM||String.fromCharCode(36))+Math.round(n/1e3)+'k'; return (window.RRG_CCYSYM||String.fromCharCode(36))+num(n); }
 function fmtDate(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]; }
 function dcol(i){ return ['#16346e','#2f6fd0','#12a594','#c9812a','#DA2B1F','#6d7c9c','#4a5cd0','#3a7a5e'][i%8]; }
 function kacc(i){ return ['#2f6fd0','#16346e','#c9812a','#12a594','#6d7c9c','#1f8a5b','#4a5cd0','#DA2B1F'][i%8]; }

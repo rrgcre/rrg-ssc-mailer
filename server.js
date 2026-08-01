@@ -2327,7 +2327,10 @@ function ensureRoomForCim(req, cim) {
 }
 function roomPublic(r, origin) {
   const base = (origin || '') + '/room/' + r.token;
-  return { id: r.id, business: r.business, token: r.token, link: base, docCount: (r.docs || []).length, gated: roomIsGated(r), buyerCount: (r.grants || []).filter(g => g.active).length, srcCimId: r.srcCimId || '', createdAt: r.createdAt, builtAt: r.builtAt || '', by: r.by };
+  const _acc = Array.isArray(r.access) ? r.access : [];
+  const _dls = _acc.reduce(function(n,x){ return n + (x.event === 'download' ? 1 : 0); }, 0);
+  let _last = null; for (const x of _acc) { if (!_last || String(x.at) > String(_last.at)) _last = x; }
+  return { id: r.id, business: r.business, token: r.token, link: base, docCount: (r.docs || []).length, gated: roomIsGated(r), buyerCount: (r.grants || []).filter(g => g.active).length, srcCimId: r.srcCimId || '', createdAt: r.createdAt, builtAt: r.builtAt || '', by: r.by, downloads: _dls, lastAccessAt: _last ? _last.at : '', lastAccessBy: _last ? (_last.who || 'Buyer') : '' };
 }
 app.get('/api/rooms', (req, res) => {
   const isAdmin = req.user && isSuper(req.user);

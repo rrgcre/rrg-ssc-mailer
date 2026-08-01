@@ -70,7 +70,7 @@ tr.base td{background:#fdf1df;font-weight:800;color:var(--navy);}
 </div>
 <script>
 var SOLVE='value';
-function money(n){ if(!isFinite(n)||n===null) return '—'; return '$'+Math.round(n).toLocaleString('en-US'); }
+function money(n){ if(!isFinite(n)||n===null) return '—'; return (window.RRG_CCYSYM||String.fromCharCode(36))+Math.round(n).toLocaleString('en-US'); }
 function num(id){ var v=parseFloat((document.getElementById(id)||{}).value); return isFinite(v)?v:NaN; }
 function fields(){
   var f={

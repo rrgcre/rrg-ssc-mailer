@@ -123,7 +123,7 @@ tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);bord
     <div class="inputs">
       <div class="field"><label>Property / Deal</label><input type="text" id="deal" placeholder="Deal name"></div>
       <div class="field"><label>Square Feet</label><input type="text" id="sf" inputmode="numeric" placeholder="0"></div>
-      <div class="field"><label>Base Rent ($/SF/Yr)</label><span class="adorn pre"><span class="pre">$</span><input type="text" id="rent" inputmode="decimal" placeholder="0"></span></div>
+      <div class="field"><label>Base Rent ($/SF/Yr)</label><span class="adorn pre"><span class="pre ccysym">$</span><input type="text" id="rent" inputmode="decimal" placeholder="0"></span></div>
       <div class="field"><label>Annual Escalation</label><span class="adorn suf"><input type="text" id="esc" inputmode="decimal" placeholder="0"><span class="suf">%</span></span></div>
       <div class="field"><label>Lease Term (Years)</label><input type="text" id="term" inputmode="numeric" placeholder="0"></div>
       <div class="field"><label>Commission Rate</label><span class="adorn suf"><input type="text" id="comm" inputmode="decimal" placeholder="0"><span class="suf">%</span></span></div>
@@ -175,8 +175,8 @@ tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);bord
 (function(){
   var MAXYEARS=40;
   function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.]/g,''))||0; }
-  function money(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
-  function money2(n){ return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function money(n){ return (window.RRG_CCYSYM||String.fromCharCode(36))+Math.round(n).toLocaleString('en-US'); }
+  function money2(n){ return (window.RRG_CCYSYM||String.fromCharCode(36))+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
   function pct(n){ return String(+(n*100).toFixed(2))+'%'; }
   function grp(s){ s=String(s).replace(/[^0-9]/g,''); return s?Number(s).toLocaleString('en-US'):''; }
 

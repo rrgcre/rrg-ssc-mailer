@@ -100,7 +100,7 @@
   // Global phone formatting — any phone field, 10 digits -> (xxx) xxx-xxxx
   try { document.addEventListener("input", function(e){ var t=e.target; if(!t||t.tagName!=="INPUT") return; var key=((t.id||"")+" "+(t.name||"")+" "+(t.className||"")).toLowerCase(); if(t.type==="tel" || /phone/.test(key)){ var d=String(t.value||"").replace(/\D/g,"").slice(0,10); var f = d.length<4 ? d : (d.length<7 ? "("+d.slice(0,3)+") "+d.slice(3) : "("+d.slice(0,3)+") "+d.slice(3,6)+"-"+d.slice(6)); if(f!==t.value){ t.value=f; } } }); } catch(e){}
 
-  try { (function(){ var _sym='$'; window.RRG_CCYSYM=_sym; window.rrgMoney=function(n){ n=Number(n); if(!isFinite(n)) n=0; return window.RRG_CCYSYM + n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }; fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(ss){ if(ss&&ss.currencySymbol){ window.RRG_CCYSYM=ss.currencySymbol; } }).catch(function(){}); })(); } catch(e){}
+  try { (function(){ var _sym='$'; window.RRG_CCYSYM=_sym; window.rrgMoney=function(n){ n=Number(n); if(!isFinite(n)) n=0; return window.RRG_CCYSYM + n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }; fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(ss){ if(ss&&ss.currencySymbol){ window.RRG_CCYSYM=ss.currencySymbol; try{ document.querySelectorAll('.ccysym').forEach(function(el){ el.textContent=window.RRG_CCYSYM; }); }catch(e){} } }).catch(function(){}); })(); } catch(e){}
 
   var NAV = [
     { color: '#8fa2c4', items: [

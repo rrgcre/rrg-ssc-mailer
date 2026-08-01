@@ -68,7 +68,7 @@ var ROWS=[], CTL=null, BUILT=false, EDIT=null, DEL_ARM=false;
 var CATS=[], METHODS=[], STATUSES=[], IS_ADMIN=false, LISTINGS=[];
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function fmtDate(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]+'/'+x[0].slice(2); }
-function money(n){ n=Number(n||0); return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function money(n){ n=Number(n||0); return (window.RRG_CCYSYM||String.fromCharCode(36))+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function todayISO(){ var d=new Date(); return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); }
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json();});}
 var LIST_SHELL='<div class="card"><div class="hd"><b>Expense Ledger</b><span class="meta" id="ecount"></span><span class="sp"></span><button class="btn sm pri" id="e_new">+ New expense</button></div><div class="cb"><div id="elist"><div class="empty">Loading…</div></div></div></div><div id="editor"></div>';

@@ -261,7 +261,7 @@ function agreementsCardDeal(){
   if(!AGR.length) return '';
   return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGR.length+'</span></div><div class="cb" style="padding:14px 20px"><div class="jbeans">'+AGR.map(agrChipDeal).join('')+'</div></div></div>';
 }
-function expMoney(n){ n=Number(n||0); return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function expMoney(n){ n=Number(n||0); return (window.RRG_CCYSYM||String.fromCharCode(36))+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function expDate(iso){ if(!iso) return '—'; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return esc(iso); return x[1]+'/'+x[2]+'/'+x[0].slice(2); }
 function expBadge(st){ var m={'Paid':['#1f6f4e','#e7f5ee','#bce3cd'],'Reimbursed':['#2647b0','#eef2fb','#d6e0f5'],'Unpaid':['#a15c00','#fdf3e2','#f0d9ab']}; var c=m[st]||m['Unpaid']; return '<span style="display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:5px;padding:2px 8px;color:'+c[0]+';background:'+c[1]+';border:1px solid '+c[2]+'">'+esc(st)+'</span>'; }
 function expRow(x){
@@ -320,7 +320,7 @@ function saveExpense(){
 async function delExpense(id){ if(!await rrgConfirm('Delete this expense?')) return; fetch('/api/expenses/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert((j&&j.error)||'Could not delete.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 function wireExpenses(){ var b=document.getElementById('addExpBtn'); if(b) b.addEventListener('click',openExpForm); document.querySelectorAll('[data-expdel]').forEach(function(el){ el.addEventListener('click',function(){ delExpense(el.getAttribute('data-expdel')); }); }); }
 
-function invMoney(n){ n=Number(n||0); return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function invMoney(n){ n=Number(n||0); return (window.RRG_CCYSYM||String.fromCharCode(36))+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function invBadge(st){ var m={'Paid':['#1f6f4e','#e7f5ee','#bce3cd'],'Partial':['#a15c00','#fdf3e2','#f0d9ab'],'Sent':['#2647b0','#eef2fb','#d6e0f5'],'Void':['#a1352f','#fdeceb','#f0c9c6'],'Draft':['#5b6472','#eef1f6','#d9e0ea']}; var c=m[st]||m['Draft']; return '<span style="display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:5px;padding:2px 8px;color:'+c[0]+';background:'+c[1]+';border:1px solid '+c[2]+'">'+esc(st)+'</span>'; }
 function invRow(x){
   var bal=Number(x.balance||0);
@@ -548,7 +548,7 @@ function wireRoomActivity(){
 }
 /* ---------- Offers: LOIs & IOIs ---------- */
 var RATINGS=['Strong','Good','Fair','Weak'];
-function money(v){ if(v==null||v==='') return ''; var n=Number(String(v).replace(/[^0-9.\-]/g,'')); if(!isFinite(n)||n===0) return esc(String(v)); return '$'+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
+function money(v){ if(v==null||v==='') return ''; var n=Number(String(v).replace(/[^0-9.\-]/g,'')); if(!isFinite(n)||n===0) return esc(String(v)); return (window.RRG_CCYSYM||String.fromCharCode(36))+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
 function offerStatusClass(s){ return 'os-'+String(s||'Received').toLowerCase().replace(/[^a-z]+/g,''); }
 function scoreClass(n){ n=Number(n); return n>=75?'s-hi':(n>=55?'s-mid':'s-lo'); }
 function analysisHTML(a){

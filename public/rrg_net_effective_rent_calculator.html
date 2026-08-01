@@ -123,7 +123,7 @@ tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);bord
     <div class="inputs">
       <div class="field"><label>Property / Deal</label><input type="text" id="deal" placeholder="Deal name"></div>
       <div class="field"><label>Square Feet</label><input type="text" id="sf" inputmode="numeric" placeholder="0"></div>
-      <div class="field"><label>Base Rent ($/SF/Yr)</label><span class="adorn pre"><span class="pre">$</span><input type="text" id="rent" inputmode="decimal" placeholder="0"></span></div>
+      <div class="field"><label>Base Rent ($/SF/Yr)</label><span class="adorn pre"><span class="pre ccysym">$</span><input type="text" id="rent" inputmode="decimal" placeholder="0"></span></div>
       <div class="field"><label>Annual Escalation</label><span class="adorn suf"><input type="text" id="esc" inputmode="decimal" placeholder="0"><span class="suf">%</span></span></div>
       <div class="field"><label>Lease Term (Years)</label><input type="text" id="term" inputmode="numeric" placeholder="0"></div>
       <div class="field"><label>Free Rent (Months)</label><input type="text" id="free" inputmode="numeric" placeholder="0"></div>
@@ -131,8 +131,8 @@ tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);bord
 
     <div class="seclabel">Concessions &amp; Costs <small>&nbsp;— optional</small></div>
     <div class="inputs">
-      <div class="field opt"><label>TI Allowance ($/SF)</label><span class="adorn pre"><span class="pre">$</span><input type="text" id="ti" inputmode="decimal" placeholder="0"></span><div class="hint">Landlord contribution</div></div>
-      <div class="field opt"><label>NNN / Op-Ex ($/SF/Yr)</label><span class="adorn pre"><span class="pre">$</span><input type="text" id="nnn" inputmode="decimal" placeholder="0"></span><div class="hint">For gross occupancy cost</div></div>
+      <div class="field opt"><label>TI Allowance ($/SF)</label><span class="adorn pre"><span class="pre ccysym">$</span><input type="text" id="ti" inputmode="decimal" placeholder="0"></span><div class="hint">Landlord contribution</div></div>
+      <div class="field opt"><label>NNN / Op-Ex ($/SF/Yr)</label><span class="adorn pre"><span class="pre ccysym">$</span><input type="text" id="nnn" inputmode="decimal" placeholder="0"></span><div class="hint">For gross occupancy cost</div></div>
       <div class="field opt"><label>Free Rent Basis</label><input type="text" value="Abated at lease start" readonly style="background:#f5f7fb;color:#6b7488;border-color:var(--inp)"><div class="hint">Months off the top</div></div>
     </div>
 
@@ -179,8 +179,8 @@ tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--navy);bord
 (function(){
   var MAXYEARS=40;
   function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.]/g,''))||0; }
-  function money(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
-  function money2(n){ return '$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
+  function money(n){ return (window.RRG_CCYSYM||String.fromCharCode(36))+Math.round(n).toLocaleString('en-US'); }
+  function money2(n){ return (window.RRG_CCYSYM||String.fromCharCode(36))+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); }
   function pct(n){ return String(+(n*100).toFixed(1))+'%'; }
   function grp(s){ s=String(s).replace(/[^0-9]/g,''); return s?Number(s).toLocaleString('en-US'):''; }
   var el={}; ['deal','sf','rent','esc','term','free','ti','nnn'].forEach(function(id){ el[id]=document.getElementById(id); });

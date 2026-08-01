@@ -127,7 +127,7 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
     <div class="seclabel">Deal Inputs</div>
     <div class="inputs">
       <div class="field"><label>Deal / Business</label><input type="text" id="dealName" placeholder="Deal name"></div>
-      <div class="field"><label>Sale Price</label><span class="adorn pre"><span class="pre">$</span><input type="text" id="price" inputmode="numeric" placeholder="0"></span></div>
+      <div class="field"><label>Sale Price</label><span class="adorn pre"><span class="pre ccysym">$</span><input type="text" id="price" inputmode="numeric" placeholder="0"></span></div>
       <div class="field"><label>Agent Share</label><span class="adorn suf"><input type="text" id="share" inputmode="decimal" placeholder="50"><span class="suf">%</span></span><div class="hint">House keeps the remainder</div></div>
       <div class="field"><label>Referral Fee</label><span class="adorn suf"><input type="text" id="refPct" inputmode="decimal" placeholder="0"><span class="suf">%</span></span><div class="hint">Owed off the top (% of gross)</div></div>
       <div class="field"><label>Referred by (optional)</label><input type="text" id="refTo" placeholder="Broker / source owed the fee"></div>
@@ -180,7 +180,7 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
   var SCEN = [1000000, 2500000, 5000000, 15000000, 40000000];
 
   function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.]/g,''))||0; }
-  function money(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
+  function money(n){ return (window.RRG_CCYSYM||String.fromCharCode(36))+Math.round(n).toLocaleString('en-US'); }
   function pct(n){ return String(+(n*100).toFixed(2))+'%'; }
   function grp(s){ s=String(s).replace(/[^0-9]/g,''); return s?Number(s).toLocaleString('en-US'):''; }
   function ratefmt(r){ return String(+(r*100).toFixed(3)); }
