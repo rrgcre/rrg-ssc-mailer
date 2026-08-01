@@ -115,6 +115,7 @@
     { grp: 'Business Sales', color: '#6bbf95', items: [
       { ic: '☎', label: 'Qualification Calls', href: 'rrg_screening_queue.html' },
       { ic: '▤', label: 'Valuations', href: 'rrg_bov_queue.html' },
+      { ic: '❏', label: 'Confidential Information Memos', href: 'rrg_cim_queue.html' },
       { ic: '◆', label: 'Listings', href: 'rrg_assignments.html?type=listing' },
       { ic: '▥', label: 'Data Rooms', href: 'rrg_rooms_queue.html' },
       { ic: '◈', label: 'Deals', href: 'rrg_deals.html' },
