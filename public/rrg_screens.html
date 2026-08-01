@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Screens & Sound</title>
+<style>
+:root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2f6fd0;--teal:#12a594;--green:#1f8a5b;--amber:#B7791F;--red:#DA2B1F;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px;}
+.top-in{max-width:1140px;margin:0 auto;padding:0 24px;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:14px 0 4px;}
+h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:720px;line-height:1.5;}
+.crumb{font-size:12px;color:#9fb0d0;font-weight:600;margin-bottom:12px;} .crumb a{color:#c7d3ea;text-decoration:none;} .crumb a:hover{color:#fff;text-decoration:underline;} .crumb span{color:#6a7ba0;margin:0 7px;}
+.navcrumb{display:none;max-width:1180px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:#66738f;font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:#2f6fd0;text-decoration:none;} .navcrumb a:hover{text-decoration:underline;} .navcrumb span{color:#93a0ba;margin:0 7px;}
+.wrap{max-width:1140px;margin:22px auto;padding:0 24px 80px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:22px 24px;box-shadow:0 1px 3px rgba(16,32,70,.05);margin-bottom:16px;}
+.card h2{margin:0 0 3px;font-size:16px;font-weight:800;color:var(--ink);}
+.card .cs{display:block;margin:0 0 14px;font-size:12.5px;color:var(--dim);line-height:1.55;max-width:760px;}
+label.lb{display:block;font-size:12px;color:var(--dim);font-weight:600;margin-bottom:5px;} label.lb .lite{font-weight:400;}
+input.txt{border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;width:130px;}
+textarea.ta{width:100%;min-height:190px;border:1px solid #cfd6e2;border-radius:10px;padding:11px 13px;font:inherit;font-size:13.5px;line-height:1.5;resize:vertical;}
+.row{margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.btn{border:none;border-radius:9px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.btn.primary{background:var(--navy);color:#fff;} .btn.primary:hover{filter:brightness(1.12);}
+.btn.ghost{background:#f2f5fb;color:var(--navy);border:1px solid #dfe6f2;} .btn.ghost:hover{background:#e9eff8;}
+.msg{font-size:12.5px;color:var(--dim);min-height:16px;}
+.prevbtn{border:1px solid #cfd6e2;background:#fff;border-radius:8px;padding:6px 13px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);} .gate h2{color:#000E31;}
+.rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<a href="./index.html" class="rrg-back"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <div class="crumb"><a href="./index.html">Command</a><span>›</span>Screens &amp; Sound</div>
+  <span class="disc" onclick="location.href='./index.html'">RRG</span>
+  <div class="kicker">Admin · Customization</div>
+  <h1>Screens &amp; Sound</h1>
+  <div class="sub">The priming screens your reps see before a questionnaire or a build, how long the “ready” screen holds, and the ambience that plays while the engine works.</div>
+</div></div>
+<div class="navcrumb"><a href="./index.html">Command</a><span>›</span>Screens &amp; Sound</div>
+<div id="root" class="wrap">
+
+  <div class="card">
+    <h2>Questionnaire Intro Screen</h2>
+    <span class="cs">The “Before you begin” priming screen a rep sees when starting a questionnaire.</span>
+    <label class="lb">Seconds on screen (default 10; 0 = off)</label>
+    <input id="introSeconds" class="txt" inputmode="numeric" placeholder="10">
+    <div class="row"><button class="btn primary" onclick="saveIntroSeconds()">Save duration</button> <span id="ismsg" class="msg"></span></div>
+    <label class="lb" style="margin-top:18px">Message shown on the screen <span class="lite">— blank lines separate paragraphs; a line starting with “- ” becomes a checklist item</span></label>
+    <textarea id="introMessage" class="ta" spellcheck="true"></textarea>
+    <div class="row"><button class="btn primary" onclick="saveIntroMessage()">Save message</button> <button class="btn ghost" onclick="resetIntroMessage()">Reset to default</button> <span id="immsg" class="msg"></span></div>
+  </div>
+
+  <div class="card">
+    <h2>Marketing Pack Intro Screen</h2>
+    <span class="cs">The “what’s about to happen” screen a rep sees on the Build a Marketing Pack page, before generating the CIM and email campaign.</span>
+    <label class="lb">Seconds on screen (default 20; 0 = off)</label>
+    <input id="packIntroSeconds" class="txt" inputmode="numeric" placeholder="20">
+    <div class="row"><button class="btn primary" onclick="savePackIntroSeconds()">Save duration</button> <span id="pismsg" class="msg"></span></div>
+    <label class="lb" style="margin-top:18px">Message shown on the screen <span class="lite">— blank lines separate paragraphs; a line starting with “- ” becomes a checklist item</span></label>
+    <textarea id="packIntroMessage" class="ta" spellcheck="true"></textarea>
+    <div class="row"><button class="btn primary" onclick="savePackIntroMessage()">Save message</button> <button class="btn ghost" onclick="resetPackIntroMessage()">Reset to default</button> <span id="pimmsg" class="msg"></span></div>
+  </div>
+
+  <div class="card">
+    <h2>BOV Ready Screen</h2>
+    <span class="cs">How long the “your BOV is ready” screen (with the completion sound) stays up before the finished draft opens.</span>
+    <label class="lb">Seconds on screen (default 2)</label>
+    <input id="doneSeconds" class="txt" inputmode="decimal" placeholder="2">
+    <div class="row"><button class="btn primary" onclick="saveDoneSeconds()">Save duration</button> <span id="dsmsg" class="msg"></span></div>
+  </div>
+
+  <div class="card">
+    <h2>Build Sound</h2>
+    <span class="cs">The ambience that plays on every build screen: Business Valuations, Marketing Packs, and Lease Abstracts. Tap Preview to sample, pick one, then Save.</span>
+    <div id="soundList"></div>
+    <div class="row"><button class="btn primary" onclick="saveAmbience()">Save sound</button> <button class="btn ghost" onclick="stopPreview()">Stop preview</button> <span id="sndmsg" class="msg"></span></div>
+  </div>
+
+</div>
+<script src="/rrg_ambience.js?v=3"></script>
+<script>
+function post(url,body){ return fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json();}); }
+var INTRO_DEFAULT_MSG='', PACK_INTRO_DEFAULT_MSG='';
+function loadBovConfig(){ fetch('/api/admin/bov-config',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){ if(!j||!j.ok){ throw 0; }
+  var is=document.getElementById('introSeconds'); if(is) is.value=(j.introSeconds!=null?j.introSeconds:10);
+  INTRO_DEFAULT_MSG=j.defaultIntroMessage||''; var im=document.getElementById('introMessage'); if(im) im.value=j.introMessage||j.defaultIntroMessage||'';
+  var pis=document.getElementById('packIntroSeconds'); if(pis) pis.value=(j.packIntroSeconds!=null?j.packIntroSeconds:20);
+  PACK_INTRO_DEFAULT_MSG=j.defaultPackIntroMessage||''; var pim=document.getElementById('packIntroMessage'); if(pim) pim.value=j.packIntroMessage||j.defaultPackIntroMessage||'';
+  var ds=document.getElementById('doneSeconds'); if(ds) ds.value=(j.doneSeconds!=null?j.doneSeconds:2);
+  renderSounds(j.ambienceId||'analyst');
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2>Admins only</h2>Ask an administrator to manage screens &amp; sound.</div>'; }); }
+
+function renderSounds(sel){ var el=document.getElementById('soundList'); if(!el) return;
+  if(!window.RRG_AMBIENCE){ el.innerHTML='<div class="msg">Loading sounds…</div>'; setTimeout(function(){ renderSounds(sel); }, 400); return; }
+  el.innerHTML=RRG_AMBIENCE.sounds.map(function(s){ return '<label style="display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid #eef1f6">'
+    +'<input type="radio" name="ambience" value="'+s.id+'"'+(s.id===sel?' checked':'')+'>'
+    +'<span style="flex:1"><b style="color:#0b1a3a">'+s.name+'</b> <span class="msg">&mdash; '+s.desc+'</span></span>'
+    +'<button type="button" class="prevbtn" data-sound="'+s.id+'">Preview</button>'
+    +'</label>'; }).join('');
+  [].slice.call(el.querySelectorAll('.prevbtn')).forEach(function(btn){ btn.onclick=function(){ togglePreview(btn.getAttribute('data-sound'), btn); }; });
+}
+var PREV=null;
+function stopPreview(){ if(!PREV) return; var P=PREV; PREV=null; try{ var t=P.ctx.currentTime; P.master.gain.cancelScheduledValues(t); P.master.gain.setValueAtTime(Math.max(P.master.gain.value,0.0001),t); P.master.gain.exponentialRampToValueAtTime(0.0001,t+0.4); }catch(e){} if(P.timer) clearTimeout(P.timer); if(P.handle&&P.handle.stop) P.handle.stop(); setTimeout(function(){ try{ P.ctx.close(); }catch(e){} }, 1300); var all=document.querySelectorAll('#soundList .prevbtn'); for(var i=0;i<all.length;i++) all[i].textContent='Preview'; }
+function previewSound(id, btn){ stopPreview(); try{ var C=window.AudioContext||window.webkitAudioContext; var ctx=new C(); if(ctx.state==='suspended') ctx.resume(); var master=ctx.createGain(); master.gain.value=0.0001; master.connect(ctx.destination); master.gain.exponentialRampToValueAtTime(0.09, ctx.currentTime+0.6); var handle=RRG_AMBIENCE.play(ctx, master, id); var timer=setTimeout(stopPreview, 9000); PREV={ctx:ctx, master:master, handle:handle, timer:timer, id:id}; if(btn) btn.textContent='◼ Stop'; }catch(e){} }
+function togglePreview(id, btn){ if(PREV && PREV.id===id){ stopPreview(); } else { previewSound(id, btn); } }
+function saveAmbience(){ var r=document.querySelector('#soundList input[name=ambience]:checked'); var id=r?r.value:'orb'; var m=document.getElementById('sndmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{ambienceId:id}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — plays on the next build (all build screens)'; } else m.textContent=(j&&j.error)||'Failed'; }); }
+function saveDoneSeconds(){ var v=(document.getElementById('doneSeconds').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('dsmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{doneSeconds:v}).then(function(j){ if(j&&j.ok){ document.getElementById('doneSeconds').value=(j.doneSeconds!=null?j.doneSeconds:2); m.textContent='Saved — '+j.doneSeconds+'s ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
+function saveIntroSeconds(){ var v=(document.getElementById('introSeconds').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('ismsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{introSeconds:v}).then(function(j){ if(j&&j.ok){ document.getElementById('introSeconds').value=(j.introSeconds!=null?j.introSeconds:10); m.textContent=(Number(j.introSeconds)===0?'Saved — intro screen off ✓':('Saved — '+j.introSeconds+'s ✓')); } else m.textContent=(j&&j.error)||'Failed'; }); }
+function saveIntroMessage(){ var v=document.getElementById('introMessage').value||''; var m=document.getElementById('immsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{introMessage:v}).then(function(j){ if(j&&j.ok){ document.getElementById('introMessage').value=j.introMessage||''; m.textContent='Saved ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
+function resetIntroMessage(){ if(!confirm('Reset the intro message to the RRG default?')) return; var m=document.getElementById('immsg'); m.textContent='Resetting…'; post('/api/admin/bov-config',{introMessage:''}).then(function(j){ if(j&&j.ok){ document.getElementById('introMessage').value=j.introMessage||INTRO_DEFAULT_MSG; m.textContent='Reset to default ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
+function savePackIntroSeconds(){ var v=(document.getElementById('packIntroSeconds').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('pismsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{packIntroSeconds:v}).then(function(j){ if(j&&j.ok){ document.getElementById('packIntroSeconds').value=(j.packIntroSeconds!=null?j.packIntroSeconds:20); m.textContent=(Number(j.packIntroSeconds)===0?'Saved — intro screen off ✓':('Saved — '+j.packIntroSeconds+'s ✓')); } else m.textContent=(j&&j.error)||'Failed'; }); }
+function savePackIntroMessage(){ var v=document.getElementById('packIntroMessage').value||''; var m=document.getElementById('pimmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{packIntroMessage:v}).then(function(j){ if(j&&j.ok){ document.getElementById('packIntroMessage').value=j.packIntroMessage||''; m.textContent='Saved ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
+function resetPackIntroMessage(){ if(!confirm('Reset the Marketing Pack intro message to the RRG default?')) return; var m=document.getElementById('pimmsg'); m.textContent='Resetting…'; post('/api/admin/bov-config',{packIntroMessage:''}).then(function(j){ if(j&&j.ok){ document.getElementById('packIntroMessage').value=j.packIntroMessage||PACK_INTRO_DEFAULT_MSG; m.textContent='Reset to default ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
+try{ loadBovConfig(); }catch(e){}
+</script>
+</body>
+</html>

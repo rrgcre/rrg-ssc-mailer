@@ -157,7 +157,7 @@
       { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' }
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
-      { ic: '▤', label: 'Admin console', href: 'admin' },
+      { ic: '▤', label: 'Settings (old)', href: 'admin' },
       { ic: '⚙', label: 'Settings', href: 'rrg_settings.html' },
       { ic: '⤓', label: 'Import', href: 'rrg_import.html', admin: true },
       { ic: '⤒', label: 'Export', href: 'rrg_export.html', admin: true },
