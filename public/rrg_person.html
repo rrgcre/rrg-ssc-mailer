@@ -268,6 +268,16 @@ function appointmentsCard(){
     '<div style="flex:1"><b style="font-size:13.5px'+(a.status==="cancelled"?";text-decoration:line-through;opacity:.6":"")+'">'+esc(a.title)+'</b>'+(a.type?(' <span style="font-size:10.5px;font-weight:800;color:#8a93a8;text-transform:uppercase;letter-spacing:.04em">'+esc(a.type)+'</span>'):'')+(a.location?('<div style="font-size:12px;color:#6b7488;margin-top:1px">'+esc(a.location)+'</div>'):'')+'</div></div>'; }).join(''):'<div class="rrempty">No meetings scheduled with this contact.</div>';
   return '<div class="card"><div class="ch"><b>Appointments</b><span>'+A.length+'</span><button type="button" class="mfadd" id="apptAddBtn" title="Schedule an appointment" style="margin-left:auto;width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb">'+rows+'</div></div>';
 }
+function gcalFromAppt(body){
+  function z(v){ v=String(v||'').replace(/[-:]/g,''); return /T\d{4}$/.test(v)?(v+'00'):v; }
+  var u='https://calendar.google.com/calendar/u/0/r/eventedit?text='+encodeURIComponent(body.title||'Meeting');
+  var s=z(body.start), e=z(body.end); if(s&&e) u+='&dates='+s+'/'+e;
+  var em=(body.attendees&&body.attendees[0]&&body.attendees[0].email)||''; if(em) u+='&add='+encodeURIComponent(em);
+  if(body.location) u+='&location='+encodeURIComponent(body.location);
+  if(body.notes) u+='&details='+encodeURIComponent(body.notes);
+  try{ var tz=Intl.DateTimeFormat().resolvedOptions().timeZone; if(tz) u+='&ctz='+encodeURIComponent(tz); }catch(e){}
+  return u;
+}
 function openApptModal(a){
   var TYPES=(typeof P!=='undefined'&&P&&P.apptTypes)||['Meeting','Call','Tour','Follow-up','Other'];
   var pName=(typeof P!=='undefined'&&P&&P.name)||''; var pEmail=(typeof P!=='undefined'&&P&&(P.preferredEmail||P.email||(P.emails&&P.emails[0])))||'';
@@ -293,6 +303,7 @@ function openApptModal(a){
   document.body.appendChild(ov);
   function close(){ ov.remove(); }
   ov.addEventListener('click',function(e){ if(e.target===ov){ /* stay open */ } });
+  if(!a && typeof GMAILCONN!=='undefined' && GMAILCONN){ var _sb=ov.querySelector('#_apsave'); if(_sb) _sb.textContent='Save & open Google Calendar'; }
   ov.querySelector('#_apx').addEventListener('click',close);
   var delb=ov.querySelector('#_apdel'); if(delb) delb.addEventListener('click',async function(){ if(!await rrgConfirm('Delete this meeting?'))return; fetch('/api/appointments/'+encodeURIComponent(a.id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ close(); load(); } else alert((j&&j.error)||'Could not delete.'); }); });
   ov.querySelector('#_apsave').addEventListener('click',function(){
@@ -302,6 +313,7 @@ function openApptModal(a){
     var msg=ov.querySelector('#_apmsg');
     if(!body.title){ msg.style.color='#DA2B1F'; msg.textContent='Add a title.'; return; }
     if(!body.start){ msg.style.color='#DA2B1F'; msg.textContent='Pick a date.'; return; }
+    if(!a && typeof GMAILCONN!=='undefined' && GMAILCONN){ try{ window.open(gcalFromAppt(body),'_blank','noopener'); }catch(e){} }
     msg.style.color='#6b7488'; msg.textContent='Saving…';
     fetch('/api/appointments',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){
       if(!(j&&j.ok)){ msg.style.color='#DA2B1F'; msg.textContent=(j&&j.error)||'Could not save.'; return; }
@@ -1051,27 +1063,13 @@ load();
 
 <script>
 (function(){
-  function gcalSchedule(){
-    var nm=(typeof P!=='undefined'&&P&&P.name)||'';
-    var em=(typeof P!=='undefined'&&P&&P.email)||'';
-    var co=(typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||'';
-    var title='Meeting with '+(nm||'contact');
-    var det=[];
-    if(typeof P!=='undefined'&&P&&P.phone) det.push('Phone: '+P.phone);
-    if(co) det.push('Company: '+co);
-    try{ if(typeof ID!=='undefined'&&ID) det.push('FullServe contact: '+location.origin+'/rrg_person.html?id='+encodeURIComponent(ID)); }catch(e){}
-    var u='https://calendar.google.com/calendar/u/0/r/eventedit?text='+encodeURIComponent(title);
-    if(em) u+='&add='+encodeURIComponent(em);
-    if(det.length) u+='&details='+encodeURIComponent(det.join('\n'));
-    window.open(u,'_blank','noopener');
-  }
   var ACTIONS=[
     {t:'Add Agreement', f:function(){ if(typeof openAgrChooser==='function') openAgrChooser(); }},
     {t:'Send Email', f:function(){ if(typeof openSendModal==='function') openSendModal(); }},
     {t:'Start Site-Criteria Call', f:function(){ location.href='./ssc_form.html?contact='+encodeURIComponent(ID); }},
     {t:'Start Buyer Qualification Call', f:function(){ location.href='./valuation_questionnaire.html?contact='+encodeURIComponent(ID); }},
     {t:'Start Seller Screening', f:function(){ var nm=encodeURIComponent((typeof P!=='undefined'&&P&&P.name)||''); var co=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''); location.href='./seller_screening.html?sellerName='+nm+'&company='+co; }},
-    {t:'Schedule Appointment', f:function(){ gcalSchedule(); }},
+    {t:'Schedule Appointment', f:function(){ if(typeof openApptModal==='function') openApptModal(null); else { var b=document.getElementById('apptAddBtn'); if(b) b.click(); } }},
     {t:'Schedule Tour', f:function(){ if(typeof openTourForm==='function') openTourForm(); }},
     {t:'Schedule Task', f:function(){ var t=document.getElementById('act_type'); if(t){ t.value='To-Do'; try{ t.dispatchEvent(new Event('change')); }catch(e){} } var c=document.querySelector('.actcomposer'); if(c) c.scrollIntoView({behavior:'smooth',block:'center'}); var n=document.getElementById('act_note'); if(n) setTimeout(function(){ try{ n.focus(); }catch(e){} },220); }}
   ];
