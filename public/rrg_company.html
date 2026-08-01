@@ -389,19 +389,24 @@ function render(){
     if(l.commissary){ serves=l.servesAll?'Serves all concepts':((l.serves&&l.serves.length)?('Serves '+l.serves.map(esc).join(', ')):'Serves — set which concepts'); serves='<div class="servesline">'+serves+'</div>'; }
     return '<div class="crow"><div class="locthumbwrap">'+locThumb(l)+'</div><div class="cinfo"><div class="cname"><span class="lnameedit" data-le="'+esc(l.id)+'" title="Click to edit this location">'+esc(l.name||l.address||'Location')+'</span> '+flag+' '+comm+' '+((l.google&&/CLOSED/.test(l.google.businessStatus||'')&&['Closed','Dark'].indexOf(l.status)<0)?'<span class="gclosed" title="Google Places shows this as '+esc(l.google.businessStatus||'')+'">⚠ Google: may be closed</span>':'')+' '+badge+'</div><div class="csub">'+line+serves+(l.notes?('<div class="locnote">'+esc(l.notes)+'</div>'):'')+'</div></div><span class="ctype '+locStatusClass(l.status)+'">'+esc(l.status||'Open')+'</span><button class="ledit" data-le="'+esc(l.id)+'">Edit</button><button class="crm" data-lrm="'+esc(l.id)+'">Remove</button></div>';
   }
+  function locNameRow(l){
+    var st=l.status||'Open';
+    var comm=l.commissary?' <span class="commtag" title="Commissary / central kitchen">Commissary</span>':'';
+    return '<div class="crow locnamerow"><div class="cinfo" style="min-width:0"><div class="cname"><span class="lnameedit" data-le="'+esc(l.id)+'" title="Open location details">'+esc(l.name||l.address||'Location')+'</span>'+comm+'</div></div><span class="ctype '+locStatusClass(st)+'">'+esc(st)+'</span><button class="crm" data-lrm="'+esc(l.id)+'" title="Remove location">\u2212</button></div>';
+  }
   function conceptBlock(cpt){
     var mine=LOCATIONS.filter(function(l){ return (l.concept||'')===cpt.name && !l.commissary; });
     var tp=[]; if(cpt.conceptType) tp.push(esc(cpt.conceptType)); if(cpt.pricePoint) tp.push(esc(cpt.pricePoint));
     var tpbadge=tp.length?('<span class="cpttype">'+tp.join(' · ')+'</span>'):'';
     var mkts=(cpt.markets&&cpt.markets.length)?('<span class="cptmkts">'+cpt.markets.map(esc).join(' · ')+'</span>'):'';
-    var rows=mine.length?mine.map(locRow).join(''):'<div class="cptempty">No locations yet — add one with <b>+ Location</b>, or open <b>Edit</b> to find them from the web.</div>';
+    var rows=mine.length?mine.map(locNameRow).join(''):'<div class="cptempty">No locations yet — add one with <b>+ Location</b>, or open <b>Edit</b> to find them from the web.</div>';
     var open=!!EXPANDED[cpt.id];
     var mletter=(cpt.name||'?').charAt(0).toUpperCase();
     var mono='<span class="cptlogo cptlogo-mono">'+esc(mletter)+'</span>';
     var logo=cpt.logo?('<img class="cptlogo" src="'+esc(cpt.logo)+'" alt="" data-mono="'+esc(mletter)+'" onerror="cptLogoFail(this)">'):mono;
     return '<div class="cptblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="'+esc(cpt.id)+'"><span class="cptchev">▶</span>'+logo
       + '<div class="cptname"><span class="cptnm cptnameedit" data-editc="'+esc(cpt.id)+'" title="Click to edit this concept">'+esc(cpt.name)+'</span><span class="cptcount">'+mine.length+' loc'+(mine.length===1?'':'s')+'</span>'+tpbadge+mkts+'</div>'
-      + '<div class="cptacts"><button class="mini" data-addloc="'+esc(cpt.id)+'">+ Location</button>'+(HASMAPS?'<button class="mini" data-photos="'+esc(cpt.name)+'">Photos</button>':'')+'<button class="mini" data-editc="'+esc(cpt.id)+'">Edit</button><button class="mini danger" data-rmc="'+esc(cpt.id)+'">Remove</button></div></div>'
+      + '<div class="cptacts"><button class="mini" data-addloc="'+esc(cpt.id)+'">+ Location</button>'+(HASMAPS?'<button class="mini" data-photos="'+esc(cpt.name)+'">Photos</button>':'')+'<button class="mini" data-editc="'+esc(cpt.id)+'">Edit</button><button class="mini danger" data-rmc="'+esc(cpt.id)+'" title="Remove concept">\u2212 Remove</button></div></div>'
       + '<div class="cptlocs">'+rows+'</div></div>';
   }
   var known={}; CONCEPTS.forEach(function(x){known[x.name]=1;});
@@ -409,7 +414,7 @@ function render(){
   var orphans=LOCATIONS.filter(function(l){ return (!l.concept || !known[l.concept]) && !l.commissary; });
   function commissaryBlock(){
     var open=!!EXPANDED['__commissary__'];
-    var rows=commissaries.map(locRow).join('');
+    var rows=commissaries.map(locNameRow).join('');
     return '<div class="cptblock commblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="__commissary__"><span class="cptchev">▶</span><span class="cptlogo cptlogo-mono" style="background:#fdf0e6;color:#b5641a">⛏</span><div class="cptname">Commissaries &amp; shared kitchens <span class="cptcount">'+commissaries.length+'</span><span class="cptmkts">serve across concepts</span></div><div class="cptacts"><button class="mini" data-addcomm="1">+ Commissary</button></div></div><div class="cptlocs">'+rows+'</div></div>';
   }
   var locs;
@@ -417,7 +422,7 @@ function render(){
   else {
     locs=CONCEPTS.map(conceptBlock).join('');
     if(commissaries.length) locs+=commissaryBlock();
-    if(orphans.length){ var oOpen=!!EXPANDED['__orphan__']; locs+='<div class="cptblock'+(oOpen?' open':'')+'"><div class="cptbar" data-cpt="__orphan__"><span class="cptchev">▶</span><div class="cptname">Unassigned <span class="cptcount">'+orphans.length+' loc'+(orphans.length===1?'':'s')+'</span></div></div><div class="cptlocs">'+orphans.map(locRow).join('')+'</div></div>'; }
+    if(orphans.length){ var oOpen=!!EXPANDED['__orphan__']; locs+='<div class="cptblock'+(oOpen?' open':'')+'"><div class="cptbar" data-cpt="__orphan__"><span class="cptchev">▶</span><div class="cptname">Unassigned <span class="cptcount">'+orphans.length+' loc'+(orphans.length===1?'':'s')+'</span></div></div><div class="cptlocs">'+orphans.map(locNameRow).join('')+'</div></div>'; }
     var allOpen=CONCEPTS.length&&CONCEPTS.every(function(c){return EXPANDED[c.id];});
     locs+='<div class="cpttotal"><span class="expall" id="cptExpand">'+(allOpen?'Collapse all':'Expand all')+'</span></div>';
   }
@@ -435,7 +440,7 @@ function render(){
     + '</div>'
     + '<div class="rail">'
     + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="addContactBtn" title="Add contact" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
-    + '<div class="card"><div class="ch"><b>'+esc(CLABELP)+', Their Locations &amp; Commissaries</b><span>'+CONCEPTS.length+' '+(CONCEPTS.length===1?esc(CLABEL.toLowerCase()):esc(CLABELP.toLowerCase()))+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn" title="Add commissary" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button><button class="addbtn" id="addConceptBtn" title="Add '+esc(CLABEL.toLowerCase())+'" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
+    + '<div class="card"><div class="ch"><b>'+esc(CLABELP)+'</b><span>'+CONCEPTS.length+' '+(CONCEPTS.length===1?esc(CLABEL.toLowerCase()):esc(CLABELP.toLowerCase()))+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn" title="Add commissary" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button><button class="addbtn" id="addConceptBtn" title="Add '+esc(CLABEL.toLowerCase())+'" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
     + '<div class="card"><div class="ch"><b>Assignments</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
     + agreementsCardCo()
     + '</div>'
