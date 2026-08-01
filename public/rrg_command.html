@@ -6,7 +6,7 @@
 <title>RRG — Command Center</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
-*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f7;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
 .top{color:#fff;padding:24px 0 0;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
 .top-in{max-width:1180px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
@@ -15,17 +15,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .kicker{margin:16px 0 3px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:10.5px;text-transform:uppercase;}
 h1{font-size:27px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:680px;}
-.tabs{margin-top:18px;display:flex;gap:4px;}
-.tabs button{background:none;border:none;cursor:pointer;font:inherit;color:#aeb8cf;font-size:13px;font-weight:700;padding:11px 18px;border-bottom:3px solid transparent;}
-.tabs button.on{color:#fff;border-bottom-color:var(--red);}
+.tabs{margin-top:20px;display:inline-flex;gap:3px;background:rgba(255,255,255,.07);padding:4px;border-radius:12px;border:1px solid rgba(255,255,255,.10);}
+.tabs button{background:none;border:none;cursor:pointer;font:inherit;color:#c2ccdf;font-size:13px;font-weight:700;padding:9px 18px;border-radius:9px;transition:.15s;}
+.tabs button:hover{color:#fff;}
+.tabs button.on{color:var(--navy);background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.20);}
 .wrap{max-width:1180px;margin:22px auto;padding:0 24px 70px;}
 .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px;}
-.kpi{background:#fff;border:1px solid var(--line);border-radius:13px;padding:15px 17px;box-shadow:0 5px 18px rgba(10,20,50,.05);}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px rgba(16,32,70,.04);transition:.15s;}
+.kpi:hover{border-color:#dbe2ee;box-shadow:0 8px 22px rgba(16,32,70,.08);transform:translateY(-1px);}
 .kpi .n{font-size:26px;font-weight:800;color:var(--navy);letter-spacing:-.02em;line-height:1;}
 .kpi .l{font-size:11.5px;color:var(--muted);font-weight:600;margin-top:6px;}
 .kpi.hot .n{color:var(--red);} .kpi.good .n{color:var(--green);}
-.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.05);margin-bottom:20px;}
-.ch{display:flex;align-items:center;gap:10px;padding:14px 20px;border-bottom:1px solid var(--line);} .ch b{color:var(--navy);font-size:14px;} .ch .cs{color:var(--muted);font-size:12px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(16,32,70,.05);margin-bottom:18px;transition:box-shadow .15s,border-color .15s;}
+.card:hover{border-color:#dbe2ee;box-shadow:0 8px 26px rgba(16,32,70,.07);}
+.ch{display:flex;align-items:center;gap:10px;padding:16px 20px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#fbfcff,#fff);} .ch b{color:var(--navy);font-size:14px;} .ch .cs{color:var(--muted);font-size:12px;}
 .buckets{display:flex;flex-wrap:wrap;gap:8px;padding:14px 20px;}
 .bk{background:var(--wash);border:1px solid var(--line);border-radius:11px;padding:10px 14px;cursor:pointer;min-width:96px;}
 .bk.on{border-color:var(--navy);box-shadow:0 0 0 2px rgba(0,14,49,.08);}
