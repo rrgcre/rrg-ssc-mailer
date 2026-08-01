@@ -5,7 +5,7 @@
 (function(){ try{
   if(/\/(login|sign)\b/.test(location.pathname)) return;
   if(document.querySelector('meta[name="rrg-noshell"]')) return;
-  if(/[?&]embed=1/.test(location.search)){ try{ var _e=document.createElement('style'); _e.id='rrg-embed'; _e.textContent='body{padding-left:0!important;padding-top:0!important;background:#fff!important;}.top,.band,.rrg-back,.rrgback{display:none!important;}body::before,body::after{display:none!important;}'; (document.head||document.documentElement).appendChild(_e);}catch(e){} return; }
+  if((/[?&]embed=1/.test(location.search)||(function(){try{return window.top!==window.self;}catch(e){return true;}})())){ try{ var _e=document.createElement('style'); _e.id='rrg-embed'; _e.textContent='body{padding-left:0!important;padding-top:0!important;background:#fff!important;}.top,.band,.rrg-back,.rrgback{display:none!important;}body::before,body::after{display:none!important;}'; (document.head||document.documentElement).appendChild(_e);}catch(e){} return; }
   var st=document.createElement('style'); st.id='rrg-preshell';
   st.textContent='body{padding-top:56px;}@media(min-width:901px){body{padding-left:238px;}}body .top,body .rrg-back{display:none !important;}';
   (document.head||document.documentElement).appendChild(st);
@@ -112,4 +112,4 @@
   (document.head||document.documentElement).appendChild(st);
 }catch(e){} })();
 /* load the app shell (persistent nav + top bar) on every page */
-(function(){ try{ if(!document.querySelector('script[src="/rrg_shell.js"]')){ if(/[?&]embed=1/.test(location.search)) return; var sc=document.createElement('script'); sc.src='/rrg_shell.js'; sc.defer=true; (document.head||document.documentElement).appendChild(sc); } }catch(e){} })();
+(function(){ try{ if(!document.querySelector('script[src="/rrg_shell.js"]')){ if((/[?&]embed=1/.test(location.search)||(function(){try{return window.top!==window.self;}catch(e){return true;}})())) return; var sc=document.createElement('script'); sc.src='/rrg_shell.js'; sc.defer=true; (document.head||document.documentElement).appendChild(sc); } }catch(e){} })();

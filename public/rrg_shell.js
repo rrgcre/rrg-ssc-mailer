@@ -6,7 +6,7 @@
   var path = (location.pathname || '').toLowerCase();
   var file = path.split('/').pop() || 'index.html';
   if (/\/login/.test(path) || file === 'login' ) return;
-  if (/[?&]embed=1/.test(location.search)) return;
+  if ((/[?&]embed=1/.test(location.search)||(function(){try{return window.top!==window.self;}catch(e){return true;}})())) return;
   if (document.querySelector('meta[name="rrg-noshell"]')) return;
   window.__rrgShell = true;
   // Branded in-app notifications — replaces the native alert() popup (which leaked the backend domain) app-wide.
