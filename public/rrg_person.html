@@ -906,7 +906,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Preferred contact method</label><div id="p_pref" style="display:flex;gap:16px;font-size:13px;padding-top:2px">'+['phone','text','email'].map(function(k){ var pc=Array.isArray(P.prefContact)?P.prefContact:[]; return '<label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="p_prefchk" value="'+k+'"'+(pc.indexOf(k)>=0?' checked':'')+'> '+k.charAt(0).toUpperCase()+k.slice(1)+'</label>'; }).join('')+'</div></div>'
       + '</div></div>'
       + '<div class="rsec" data-rsec><div class="rsechd">Details <span class="cv">▾</span></div><div class="rsecbody">'
-      + '<div class="fldrow2"><div><label class="fld">Last contacted</label><input type="date" id="p_lastcontact" value="'+esc(P.lastContacted||'')+'"></div><div style="display:flex;align-items:flex-end"><button type="button" class="mfadd" id="p_ctToday" style="margin-bottom:1px">Contacted today</button></div></div>'
+      + '<div class="fldrow"><label class="fld">Last contacted</label><input type="date" id="p_lastcontact" value="'+esc(P.lastContacted||'')+'"></div>'
       + '<div class="fldrow"><label class="fld">Tags</label><div class="tagedit" id="p_tagedit"></div><input id="p_taginput" list="alltagslist" placeholder="Type a tag, Enter to add" autocomplete="off" style="margin-top:7px">'+tagDatalist+'</div>'
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="p_notes" placeholder="Preferences, budget, concepts of interest, history…">'+esc(P.notes||'')+'</textarea></div>'
       + '</div></div>'
@@ -929,7 +929,6 @@ function render(){
   wireTagEditor();
   try{document.querySelectorAll('.p_phone').forEach(function(i){i.value=fmtPhone(i.value);});}catch(e){}
   wireCompanyAuto();
-  var ct=document.getElementById('p_ctToday'); if(ct) ct.addEventListener('click',function(){ var d=new Date(); document.getElementById('p_lastcontact').value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); queueSave(); });
   var pf=document.getElementById('p_photofile'); if(pf) pf.addEventListener('change',function(){ if(pf.files&&pf.files[0]) uploadPhoto(pf.files[0]); });
   var ppp=document.getElementById('p_photoprev'); if(ppp&&pf) ppp.addEventListener('click',async function(){ if(P.photoExt){ if(await rrgConfirm('Remove this photo?')) clearPhoto(); } else { pf.click(); } });
   var pc=document.getElementById('p_photoclear'); if(pc) pc.addEventListener('click',clearPhoto);
