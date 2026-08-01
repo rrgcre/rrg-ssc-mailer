@@ -8268,7 +8268,7 @@ app.get('/api/agreements/executed', (req, res) => {
 app.delete('/api/agreements/:id', (req, res) => {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
-  if (!canDelete(req) && a.createdBy !== (req.user && req.user.username)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete this agreement.' });
+  if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete this agreement.' });
   saveAgreements(all.filter(x => x.id !== a.id)); res.json({ ok: true });
 });
 

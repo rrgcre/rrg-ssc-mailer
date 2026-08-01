@@ -40,7 +40,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .actadd textarea{flex:1;min-width:150px;resize:vertical;font:inherit;font-size:13px;padding:8px 10px;border:1px solid #d5dbe6;border-radius:8px;line-height:1.4;}
 .rail .card .ch .rchev{background:none;border:none;color:#98a1b5;font-size:11px;line-height:1;cursor:pointer;padding:2px 4px;margin-right:2px;transition:transform .15s;flex:none;}
 .rail .card .ch .rchev:hover{color:var(--navy);}
-.rail .card.railcollapsed .ch .rchev{transform:rotate(-90deg);}
+.rail .card.railcollapsed .ch .rchev{transform:rotate(-90deg);} .rail .card .ch{gap:4px;} .rail .card .ch .rchev{margin-right:0;padding-left:2px;padding-right:3px;}
 .rail .card.railcollapsed > .cb, .rail .card.railcollapsed > .railbody{display:none;}
 .side{order:-1;} .side,.mid,.rail{min-width:0;}
 .cobacktop{grid-column:1/-1;order:-2;justify-self:start;display:inline-flex;align-items:center;gap:6px;color:var(--navy);text-decoration:none;font-size:13px;font-weight:500;padding:7px 13px;border:1px solid var(--line);border-radius:8px;background:#fff;} .cobacktop:hover{background:#f4f7fb;border-color:#9fb0cc;}
@@ -171,7 +171,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .mfwrap{display:flex;flex-direction:column;gap:6px;} .mfrow{display:flex;gap:6px;align-items:center;}
 .mfrow input{flex:1;} .mfrm{background:#fff;border:1px solid #f0c9c6;color:var(--red);border-radius:7px;width:30px;height:30px;flex:none;font-size:15px;line-height:1;cursor:pointer;}
 .mfadd{align-self:flex-start;background:#fff;border:1px dashed #cdd6e6;color:var(--navy);border-radius:7px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;margin-top:2px;}
-a.crowlink{text-decoration:none;color:inherit;} a.crowlink:hover{background:#fbfcfe;}
+a.crowlink{text-decoration:none;color:inherit;} a.crowlink:hover{background:#fbfcfe;} a.crowlink .cname,a.crowlink .csub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .cptmkts{font-size:11px;color:var(--muted);font-weight:600;}
 .dangerz{margin-top:16px;padding-top:14px;border-top:1px solid #f1d6d3;}
 .sysbadge{margin-left:8px;background:#e7dfc2;color:#7a6414;border-radius:5px;padding:2px 7px;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;}
@@ -371,7 +371,7 @@ function render(){
   document.getElementById('crumb').textContent=C.name||'Company';
   var contacts = CONTACTS.length ? CONTACTS.map(function(p){
     var sub=[p.title].concat(p.emails||(p.email?[p.email]:[])).concat(p.phones||(p.phone?[p.phone]:[])).filter(Boolean).map(esc).join(' · ');
-    return '<a class="crow crowlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'"><div class="cav">'+esc(initials(p.name).toUpperCase())+'</div><div class="cinfo"><div class="cname">'+esc(p.name||'Contact')+'</div><div class="csub">'+sub+'</div></div><button class="cmain'+(p.id===C.mainContactId?' on':'')+'" data-main="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();" title="'+(p.id===C.mainContactId?'Main contact':'Set as main contact')+'">'+(p.id===C.mainContactId?'\u2605':'\u2606')+'</button><span class="ctype">'+esc(p.type||'')+'</span><button class="crm" data-rm="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();">Remove</button></a>';
+    return '<a class="crow crowlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'"><div class="cav">'+esc(initials(p.name).toUpperCase())+'</div><div class="cinfo"><div class="cname">'+esc(p.name||'Contact')+'</div><div class="csub">'+sub+'</div></div><button class="cmain'+(p.id===C.mainContactId?' on':'')+'" data-main="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();" title="'+(p.id===C.mainContactId?'Main contact':'Set as main contact')+'">'+(p.id===C.mainContactId?'\u2605':'\u2606')+'</button><button class="crm" data-rm="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();">Remove</button></a>';
   }).join('') : '<div class="empty">No contacts yet. Add the owner, partners, or advisors tied to this company.</div>';
   function locThumb(l){
     var p=(l.photos||[])[0];
