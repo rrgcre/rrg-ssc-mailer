@@ -7678,27 +7678,35 @@ app.get('/api/admin/duplicates', requireAdmin, (req, res) => {
     const people = loadPeople();
     const N = people.length;
     const uf = _dfUF(N);
-    const emailMap = {}, phoneMap = {};
+    const emailMap = {};
     const keys = people.map(p => _dfNorm((personFirst(p)||'') + (personLast(p)||'') || p.name || ''));
     const comps = people.map(p => _dfNorm(p.company || ''));
+    // Precompute normalized phone sets per person (used only to corroborate a name match).
+    const phonesArr = people.map(function(p){ var st={}; personPhones(p).forEach(function(ph){ var k=_dfPhone(ph); if(k) st[k]=1; }); return st; });
+    // Exact shared email is a strong duplicate signal on its own.
     for (let i=0;i<N;i++){
       const p = people[i];
       personEmails(p).forEach(e => { const k = String(e||'').toLowerCase().trim(); if(!k) return; if(emailMap[k]!=null) uf.union(i, emailMap[k]); else emailMap[k]=i; });
-      personPhones(p).forEach(ph => { const k = _dfPhone(ph); if(!k) return; if(phoneMap[k]!=null) uf.union(i, phoneMap[k]); else phoneMap[k]=i; });
     }
+    function _sharePhone(a,b){ for(var k in a){ if(b[k]) return true; } return false; }
+    // Name-based matching. A shared phone number alone is NOT enough — two contacts whose
+    // names AND emails both differ are never treated as duplicates (shared office lines, etc.).
     for (let i=0;i<N;i++){
       if(!keys[i] || keys[i].length<3) continue;
       for (let j=i+1;j<N;j++){
         if(!keys[j] || keys[j].length<3) continue;
         if(uf.find(i)===uf.find(j)) continue;
         if(Math.abs(keys[i].length-keys[j].length)>4) continue;
-        const sameName = keys[i]===keys[j] || _dfSim(keys[i],keys[j])>=0.88;
-        if(!sameName) continue;
+        const nameSim = keys[i]===keys[j] ? 1 : _dfSim(keys[i],keys[j]);
+        if(nameSim < 0.88) continue;
         const pi=people[i], pj=people[j];
+        const exactName = keys[i]===keys[j];
         const sameCo = (pi.companyId && pi.companyId===pj.companyId) || (comps[i] && comps[i]===comps[j]);
         const bothNoCo = !comps[i] && !comps[j] && !pi.companyId && !pj.companyId;
-        if(keys[i]===keys[j] && (sameCo || bothNoCo)) uf.union(i,j);
-        else if(sameCo && _dfSim(keys[i],keys[j])>=0.9) uf.union(i,j);
+        const samePhone = _sharePhone(phonesArr[i], phonesArr[j]);
+        if(exactName && (sameCo || bothNoCo || samePhone)) uf.union(i,j);
+        else if(sameCo && nameSim>=0.9) uf.union(i,j);
+        else if(samePhone && nameSim>=0.9) uf.union(i,j);
       }
     }
     const groups = {};

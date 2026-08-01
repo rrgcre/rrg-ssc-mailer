@@ -78,10 +78,11 @@ function build(){
   var root=document.getElementById('root'); root.className='wrap';
   root.innerHTML=''
    +'<div class="tabs"><button class="tab on" data-t="companies">Companies</button><button class="tab" data-t="contacts">Contacts</button></div>'
-   +'<div class="bar"><span class="cnt" id="cnt">Scanning…</span><div class="sp"><button class="btn" id="rescan">Rescan</button></div></div>'
+   +'<div class="bar"><span class="cnt" id="cnt">Scanning…</span><div class="sp"><button class="btn amber" id="mergeall" style="display:none">Merge all</button><button class="btn" id="rescan">Rescan</button></div></div>'
    +'<div id="list"></div>';
   document.querySelectorAll('.tab').forEach(function(t){ t.addEventListener('click',function(){ if(t.classList.contains('on'))return; document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on');}); t.classList.add('on'); TYPE=t.getAttribute('data-t'); show(); }); });
   document.getElementById('rescan').addEventListener('click',function(){ DATA[TYPE]=null; load(); });
+  document.getElementById('mergeall').addEventListener('click',mergeAll);
   load();
 }
 function show(){ if(DATA[TYPE]) render(DATA[TYPE]); else load(); }
@@ -146,9 +147,11 @@ function render(j){
   var c=document.getElementById('cnt');
   if(!groups.length){ document.getElementById('list').innerHTML='<div class="empty"><b>No duplicates found.</b>Your '+TYPE+' look clean — scanned '+j.total+' records. Import more data, then rescan anytime.</div>'; c.textContent=''; return; }
   var recs=j.dupeRecords||0;
+  groups.sort(function(a,b){ return (b.size||0)-(a.size||0); });
   c.innerHTML='<b>'+groups.length+'</b> possible duplicate group'+(groups.length===1?'':'s')+' · <b>'+recs+'</b> records · scanned '+j.total;
   groups.forEach(function(g){ if(KEEP[g.key]==null) KEEP[g.key]=g.primaryId; });
   document.getElementById('list').innerHTML=groups.map(groupCard).join('');
+  var ma=document.getElementById('mergeall'); if(ma) ma.style.display=groups.length?'':'none';
   wire();
 }
 function wire(){
@@ -183,8 +186,46 @@ function afterRemove(gk){
   var j=DATA[TYPE]; if(!j) return; j.groups=(j.groups||[]).filter(function(x){return x.key!==gk;});
   var left=j.groups.length; var recs=j.groups.reduce(function(s,g){return s+g.size;},0);
   var c=document.getElementById('cnt');
+  var _ma=document.getElementById('mergeall'); if(_ma) _ma.style.display=left?'':'none';
   if(!left){ document.getElementById('list').innerHTML='<div class="empty"><b>All clear.</b>No more duplicate groups in your '+TYPE+'. Nicely done. Rescan anytime.</div>'; c.textContent=''; }
   else if(c){ c.innerHTML='<b>'+left+'</b> possible duplicate group'+(left===1?'':'s')+' · <b>'+recs+'</b> records'; }
+}
+function mergeAll(){
+  var j=DATA[TYPE]; if(!j||!j.groups||!j.groups.length) return;
+  var groups=j.groups.slice();
+  var totalMerge=groups.reduce(function(s,g){return s+((g.size||1)-1);},0);
+  var okConfirm=window.confirm('Merge ALL '+groups.length+' duplicate group'+(groups.length===1?'':'s')+' now?\n\nThis folds '+totalMerge+' record'+(totalMerge===1?'':'s')+' into their keepers. For each group the highlighted keeper is retained and every other record merges into it \u2014 all contacts, deals, agreements, concepts and locations move to the keeper.\n\nThis can\u2019t be undone. Click OK to merge everything.');
+  if(!okConfirm) return;
+  var mab=document.getElementById('mergeall'); if(mab){mab.disabled=true;mab.textContent='Merging\u2026';}
+  var rb=document.getElementById('rescan'); if(rb) rb.disabled=true;
+  var url = TYPE==='companies' ? '/api/company/merge' : '/api/person/merge';
+  var i=0, ok=0, fail=0;
+  function next(){
+    if(i>=groups.length){ finishMergeAll(ok,fail); return; }
+    var g=groups[i++]; var gk=g.key;
+    var keepId=(KEEP[gk]!=null)?KEEP[gk]:g.primaryId;
+    var mergeIds=g.members.map(function(m){return m.id;}).filter(function(id){return id!==keepId;});
+    var box=document.getElementById('grp_'+gk);
+    var msg=document.getElementById('gmsg_'+gk); if(msg){msg.className='msg';msg.textContent='Merging\u2026';}
+    if(mab) mab.textContent='Merging '+i+' / '+groups.length+'\u2026';
+    if(!mergeIds.length){ ok++; if(box) box.classList.add('gone'); next(); return; }
+    fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({keepId:keepId,mergeIds:mergeIds})})
+     .then(function(r){ return r.text().then(function(t){ var jj=null; try{ jj=JSON.parse(t); }catch(e){} return jj; }); })
+     .then(function(jj){ if(jj&&jj.ok){ ok++; if(box) box.classList.add('gone'); } else { fail++; if(msg){msg.className='msg err';msg.textContent=(jj&&jj.error)||'Could not merge';} } next(); })
+     .catch(function(){ fail++; if(msg){msg.className='msg err';msg.textContent='Server unreachable';} next(); });
+  }
+  next();
+}
+function finishMergeAll(ok,fail){
+  var j=DATA[TYPE];
+  if(j){ var remain=[]; (j.groups||[]).forEach(function(g){ var box=document.getElementById('grp_'+g.key); if(!(box&&box.classList.contains('gone'))) remain.push(g); }); j.groups=remain; }
+  var mab=document.getElementById('mergeall'); if(mab){mab.disabled=false;mab.textContent='Merge all';}
+  var rb=document.getElementById('rescan'); if(rb) rb.disabled=false;
+  var left=(j&&j.groups)?j.groups.length:0;
+  var c=document.getElementById('cnt');
+  if(mab) mab.style.display=left?'':'none';
+  if(!left){ document.getElementById('list').innerHTML='<div class="empty"><b>All clear.</b>Merged '+ok+' group'+(ok===1?'':'s')+(fail?(' \u00b7 '+fail+' could not merge (see messages above)'):'')+'. No more duplicate groups in your '+TYPE+'.</div>'; if(c) c.textContent=''; }
+  else if(c){ var recs=j.groups.reduce(function(s,g){return s+g.size;},0); c.innerHTML='<b>'+left+'</b> possible duplicate group'+(left===1?'':'s')+' \u00b7 <b>'+recs+'</b> records'+(fail?(' \u00b7 '+fail+' could not merge'):''); }
 }
 fetch('/api/feedback',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.isAdmin){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to run duplicate cleanup.</div>'; return; }
