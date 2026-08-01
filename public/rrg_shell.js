@@ -193,6 +193,8 @@
     + '#rrgnav a.it:hover{background:rgba(255,255,255,.07);color:#fff;}'
     + '#rrgnav a.it.on{background:rgba(255,255,255,.12);color:#fff;font-weight:600;}'
     + '#rrgnav a.it .i{width:17px;text-align:center;color:var(--gc,rgba(255,255,255,.5));font-size:13.5px;flex:none;}'
+    + '#rrgnav a.it[data-ai] .i{background:conic-gradient(from 0deg,#5b46b8,#8b5cf6,#ec4899,#f59e0b,#22c55e,#3b82f6,#5b46b8);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;font-weight:800;}'
+    + '#rrgnav a.it[data-ai].on .i,#rrgnav a.it[data-ai]:hover .i{-webkit-text-fill-color:transparent;}'
     + ''
     + ''
     + '#rrgnav a.it.on .i{color:#fff;}'
