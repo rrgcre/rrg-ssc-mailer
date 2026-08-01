@@ -100,6 +100,8 @@
   // Global phone formatting — any phone field, 10 digits -> (xxx) xxx-xxxx
   try { document.addEventListener("input", function(e){ var t=e.target; if(!t||t.tagName!=="INPUT") return; var key=((t.id||"")+" "+(t.name||"")+" "+(t.className||"")).toLowerCase(); if(t.type==="tel" || /phone/.test(key)){ var d=String(t.value||"").replace(/\D/g,"").slice(0,10); var f = d.length<4 ? d : (d.length<7 ? "("+d.slice(0,3)+") "+d.slice(3) : "("+d.slice(0,3)+") "+d.slice(3,6)+"-"+d.slice(6)); if(f!==t.value){ t.value=f; } } }); } catch(e){}
 
+  try { (function(){ var _sym='$'; window.RRG_CCYSYM=_sym; window.rrgMoney=function(n){ n=Number(n); if(!isFinite(n)) n=0; return window.RRG_CCYSYM + n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); }; fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(ss){ if(ss&&ss.currencySymbol){ window.RRG_CCYSYM=ss.currencySymbol; } }).catch(function(){}); })(); } catch(e){}
+
   var NAV = [
     { color: '#8fa2c4', items: [
       { ic: '✦', label: 'Daily Brief', href: 'rrg_brief.html', ai: true },
@@ -151,8 +153,7 @@
       { ic: '⊛', label: 'System Status', href: 'rrg_status.html' },
       { ic: '⚑', label: 'Feedback', href: 'rrg_feedback.html' },
       { ic: '✉', label: 'Admin Requests', href: 'rrg_tickets.html' },
-      { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' },
-      { ic: '<svg viewBox="0 0 20 20" width="14" height="14" style="vertical-align:-2px" fill="currentColor"><rect x="3" y="10" width="3" height="7" rx="1"></rect><rect x="8.5" y="6" width="3" height="11" rx="1"></rect><rect x="14" y="3" width="3" height="14" rx="1"></rect></svg>', label: 'Reports', href: 'rrg_reports.html', admin: true }
+      { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' }
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
       { ic: '▤', label: 'Admin console', href: 'admin' },
@@ -166,7 +167,8 @@
       { ic: '☰', label: 'Menu Access', href: 'rrg_admin_nav.html' },
       { ic: '⤓', label: 'Import Data', href: 'rrg_import.html' },
       { ic: '⤒', label: 'Export Data', href: 'rrg_export.html' },
-      { ic: '⚗', label: 'Data Enrichment', href: 'rrg_data.html' }
+      { ic: '⚗', label: 'Data Enrichment', href: 'rrg_data.html' },
+      { ic: '<svg viewBox="0 0 20 20" width="14" height="14" style="vertical-align:-2px" fill="currentColor"><rect x="3" y="10" width="3" height="7" rx="1"></rect><rect x="8.5" y="6" width="3" height="11" rx="1"></rect><rect x="14" y="3" width="3" height="14" rx="1"></rect></svg>', label: 'Reports', href: 'rrg_reports.html', admin: true }
     ] }
   ];
 

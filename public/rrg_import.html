@@ -79,6 +79,12 @@ table{border-collapse:collapse;width:100%;font-size:12px;} th,td{border-bottom:1
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);}
 .hide{display:none!important;}
 .progline{height:6px;background:#eef1f6;border-radius:100px;overflow:hidden;margin-top:12px;} .progline i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--indigo),var(--green));transition:width .3s;}
+.tiles{display:flex;flex-wrap:wrap;gap:24px 40px;}
+.tile{display:flex;flex-direction:column;align-items:center;gap:13px;width:170px;}
+.tile .ic{width:60px;height:60px;color:#9aa4b6;display:flex;align-items:center;justify-content:center;}
+.tile .ic svg{width:50px;height:50px;fill:currentColor;}
+.xbtn{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.xbtn:hover{background:#0a1a44;} .xbtn.on{background:var(--red);}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="/rrg_brand.js"></script>
@@ -287,7 +293,11 @@ function build(){
   document.querySelectorAll('#srcrow .srcchip').forEach(function(ch){ ch.addEventListener('click',function(){ SOURCE=ch.getAttribute('data-src'); document.querySelectorAll('#srcrow .srcchip').forEach(function(x){x.classList.toggle('on',x===ch);}); }); });
   root.innerHTML=''+
     '<div class="stepper"><div class="step on" id="s1"><span class="num">1</span>Upload file</div><div class="stepline"></div><div class="step" id="s2"><span class="num">2</span>Map columns</div><div class="stepline"></div><div class="step" id="s3"><span class="num">3</span>Preview &amp; import</div></div>'+
-    '<div class="seg"><button id="m_contacts" class="on">👤 Contacts (People)</button><button id="m_companies">▦ Companies</button><button id="m_tasks">✔ Tasks</button></div>'+
+    '<div class="card"><div class="ch"><b>Start a New Import</b><span class="hint">choose what you\u2019re importing, then upload the file below</span></div><div class="cb"><div class="tiles">'+
+      '<div class="tile"><div class="ic"><svg viewBox="0 0 24 24"><path d="M3 21V8l7-3v3l7-3v16H3zm3-3h2v-2H6v2zm0-4h2v-2H6v2zm0-4h2V8H6v2zm5 8h2v-2h-2v2zm0-4h2v-2h-2v2zm0-4h2V8h-2v2zm4 8h2v-2h-2v2zm0-4h2v-2h-2v2z"/></svg></div><button id="m_companies" class="xbtn">Import Companies</button></div>'+
+      '<div class="tile"><div class="ic"><svg viewBox="0 0 24 24"><circle cx="12" cy="7.5" r="4"/><path d="M12 14c-4.4 0-8 2.6-8 5.8V21h16v-1.2c0-3.2-3.6-5.8-8-5.8z"/></svg></div><button id="m_contacts" class="xbtn on">Import Contacts</button></div>'+
+      '<div class="tile"><div class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M8 12.5l2.5 2.5L16 9" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></div><button id="m_tasks" class="xbtn">Import Tasks</button></div>'+
+      '</div></div></div>'+
     '<div class="card"><div class="ch"><span class="st">Step 1</span><b>Upload your export</b><span class="hint">.xlsx or .csv</span></div><div class="cb">'+
       '<div class="drop" id="drop"><div class="ic">⤓</div><b>Drop your file here, or click to browse</b><span>Export from your CRM, then drop the spreadsheet here</span></div>'+
       '<input type="file" id="file" accept=".csv,.xlsx,.xls" class="hide">'+
