@@ -236,7 +236,7 @@ function agrChip(a){
 }
 function agrEntryIcon(a){
   var m=a.entryMethod||'recorded';
-  var lbl={ sent:'Sent for e-signature', recorded:'Recorded \u2014 executed outside FullServe', signreturn:'Signed \u0026 returned' };
+  var lbl={ sent:'Sent for e-signature', recorded:'Recorded \u2014 executed outside '+(window.__rrgAppName||'the system')+'', signreturn:'Signed \u0026 returned' };
   var svg={ sent:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"></rect><path d="M3 7l9 6 9-6"></path></svg>', recorded:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3v4a1 1 0 0 0 1 1h4"></path><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2z"></path></svg>', signreturn:'<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>' };
   var g=svg[m]||svg.recorded;
   return '<span class="agrsrc" title="'+esc(lbl[m]||lbl.recorded)+'" style="display:inline-flex;align-items:center;color:#6b7488;flex:none;margin:0 2px 0 4px">'+g+'</span>';
@@ -248,13 +248,13 @@ function agrRow(a){
   var du=daysUntil(a.expires); var soon=a.expires&&!expired&&du<=60;
   var _exec=(a.signStatus==='executed'||a.signStatus==='signed'); var _await=(a.signStatus==='awaiting_countersign');
   var signed=_exec;
-  var right = _exec?'\u2713 Executed':(_await?'Needs sign':(a.signStatus==='sent'?'Sent':(a.status==='terminated'?'Terminated':'Active')));
-  var chipCls = _exec?' exec':(_await?' await':(a.signStatus==='sent'?' sent':''));
   var title=a.name||atypeLabel(a.type);
-  var dstr=a.effective?fmt(a.effective):(a.expires?fmt(a.expires):'');
+  var lead;
+  if(_exec){ var ed=fmt(a.signedDate||a.executedAt||a.effective||''); lead=ed?('<span style="color:#8a93a8">'+esc(ed)+'</span> &middot; '):''; }
+  else { var lc=_await?'await':(a.signStatus==='sent'?'sent':(a.status==='terminated'?'bad':'')); var lt=_await?'Needs sign':(a.signStatus==='sent'?'Sent':(a.status==='terminated'?'Terminated':'Draft')); lead='<span class="rchip '+lc+'" style="margin-right:7px">'+lt+'</span>'; }
   var isImg=a.docExt&&/^(png|jpe?g|gif|webp)$/i.test(a.docExt);
   var thumb=isImg?('<span class="agrthumb" style="background-image:url(/api/agreements/'+encodeURIComponent(a.id)+'/doc)"></span>'):'';
-  return '<div class="rrow agrrow'+(signed?' agrexec':'')+'" data-agr="'+esc(a.id)+'" title="Open the document"><div class="rrmain" style="min-width:0"><div style="font-size:13px;font-weight:400;color:#1d2739;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+(dstr?('<span style="color:#8a93a8">'+esc(dstr)+'</span> &middot; '):'')+esc(title)+'</div></div><span class="rchip'+chipCls+'">'+esc(right)+'</span>'+expChip(a)+agrEntryIcon(a)+'</div>';
+  return '<div class="rrow agrrow'+(signed?' agrexec':'')+'" data-agr="'+esc(a.id)+'" title="Open the document"><div class="rrmain" style="min-width:0"><div style="font-size:13px;font-weight:400;color:#1d2739;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+lead+esc(title)+'</div></div>'+expChip(a)+agrEntryIcon(a)+'</div>';
 }
 function apptFmtDT(sv){ if(!sv) return ''; var d=String(sv).slice(0,10).split('-'); var t=String(sv).slice(11,16); var out=d.length===3?(d[1]+'/'+d[2]+'/'+d[0]):String(sv); if(t){ var hh=parseInt(t.slice(0,2),10)||0,mm=t.slice(3,5); out+=' '+((hh%12)||12)+(mm==='00'?'':(':'+mm))+(hh>=12?'p':'a'); } return out; }
 function appointmentsCard(){
@@ -358,6 +358,8 @@ function openAgrView(a){
 }
 function openAgrForm(a){
   var f=document.getElementById('agrForm'); f.removeAttribute('hidden'); PENDING_AGR_FILE=null;
+  try{ f.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){}
+  if(!a){ setTimeout(function(){ var _n=document.getElementById('agr_name'); if(_n) try{ _n.focus(); }catch(e){} }, 60); }
   document.getElementById('agr_id').value=a?a.id:'';
   document.getElementById('agr_type').value=a?a.type:((ATYPES[0]&&ATYPES[0].key)||'NDA');
   (function(){ var _ea=document.getElementById('agr_execauto'); if(_ea) _ea.value=a?(a.execAuto||''):''; })();
@@ -565,7 +567,7 @@ function smPrefill(fld){ var k=String(fld.autofill||'').toLowerCase(), L=String(
 function _agrOverlay(inner,w){ var ov=document.createElement('div'); ov.className='agrmodal'; ov.innerHTML='<div class="agrmodalbox" style="width:min('+(w||'480px')+',96vw)">'+inner+'</div>'; document.body.appendChild(ov); ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); }); return ov; }
 function openAgrChooser(){
   var C=function(c,t,d){ return '<button type="button" class="agrchoice" data-c="'+c+'" style="text-align:left;border:1px solid #e6e9f0;background:#fff;border-radius:11px;padding:13px 15px;cursor:pointer"><div style="font-weight:800;color:#000E31;font-size:14px">'+t+'</div><div style="font-size:12.5px;color:#6b7488;margin-top:3px">'+d+'</div></button>'; };
-  var ov=_agrOverlay('<div class="agrmodalhd">Add an agreement</div><div class="agrmodalsub">How is this agreement coming in?</div><div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">'+C('send','\u2709 Send an agreement','Send one of your templates to this contact for e-signature.')+C('record','Record a signed agreement','Store an agreement that was fully executed outside FullServe.')+C('signret','\u270D Sign &amp; return','Upload an agreement sent to you, sign it, and send it back to the originator.')+'</div><div class="agrmodalbtns" style="justify-content:flex-end"><button type="button" class="mfadd" id="_agc_cancel">Cancel</button></div>','460px');
+  var ov=_agrOverlay('<div class="agrmodalhd">Add an agreement</div><div class="agrmodalsub">How is this agreement coming in?</div><div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">'+C('send','\u2709 Send an agreement','Send one of your templates to this contact for e-signature.')+C('record','Record a signed agreement','Store an agreement that was fully executed outside '+(window.__rrgAppName||'the system')+'.')+C('signret','\u270D Sign &amp; return','Upload an agreement sent to you, sign it, and send it back to the originator.')+'</div><div class="agrmodalbtns" style="justify-content:flex-end"><button type="button" class="mfadd" id="_agc_cancel">Cancel</button></div>','460px');
   ov.querySelector('#_agc_cancel').addEventListener('click',function(){ ov.remove(); });
   Array.prototype.forEach.call(ov.querySelectorAll('.agrchoice'),function(b){ b.addEventListener('click',function(){ var c=b.getAttribute('data-c'); ov.remove(); if(c==='send'){ if(typeof openSendModal==='function') openSendModal(); } else if(c==='record'){ openAgrForm(null); } else { openSignReturn(); } }); });
 }
@@ -872,7 +874,7 @@ function render(){
   var pphones=(P.phones&&P.phones.length?P.phones:(P.phone?[P.phone]:[]));
   var pemailOpts='<option value="">First on the list</option>'+pemails.map(function(e){return '<option'+((P.preferredEmail||'')===e?' selected':'')+'>'+esc(e)+'</option>';}).join('');
   var pphoneOpts='<option value="">First on the list</option>'+pphones.map(function(e){return '<option'+((P.preferredPhone||'')===e?' selected':'')+'>'+esc(e)+'</option>';}).join('');
-  var photoInner=P.photoExt?('<img src="'+personPhotoUrl()+'" alt="">'):('<span class="phinit">'+esc(initials(P.name))+'</span>');
+  var photoInner=P.photoExt?('<img src="'+personPhotoUrl()+'" alt="">'):('<svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#8a93a8" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>');
   CURTAGS=(P.tags&&P.tags.length)?P.tags.slice():[];
   document.getElementById('root').className='wrap';
   var leadOpts='<option value="">— none —</option>'+LEADSOURCES.map(function(x){return '<option'+((P.leadSource||'')===x?' selected':'')+'>'+esc(x)+'</option>';}).join('');
