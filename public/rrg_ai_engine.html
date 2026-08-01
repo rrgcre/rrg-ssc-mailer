@@ -55,15 +55,30 @@ input.model{flex:1;min-width:260px;border:1px solid #cfd6e2;border-radius:9px;pa
     </div>
     <div class="foot-note">Takes effect immediately for new AI runs. If a saved id isn’t valid at your provider, AI features will error until it’s corrected — reset to default to recover.</div>
   </div>
+  <div class="card">
+    <h2>Claude API key</h2>
+    <span class="cs">The credential that powers every AI generator — valuations, marketing packs, attack plans, the location finder, and the Requests office. A key saved here is stored on the server and overrides the ANTHROPIC_API_KEY environment variable; the current key is never shown back.</span>
+    <div class="state" id="keyStatus">Loading…</div>
+    <div class="inrow">
+      <input type="password" id="keyInput" class="model" placeholder="sk-ant-…" autocomplete="off">
+      <button class="btn primary" onclick="saveKey()">Save key</button>
+      <button class="btn ghost" onclick="clearKey()">Clear saved key</button>
+      <span id="keyMsg" class="msg"></span>
+    </div>
+  </div>
 </div>
 <script>
 function post(url,body){ return fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json();}); }
 function _aimState(j){ var s=document.getElementById('aimstate'); if(s) s.textContent = j.isDefault ? ('Using the default model ('+j.default+').') : ('Using a custom model ('+j.model+'). Default is '+j.default+'.'); }
 function saveAiModel(){ var v=document.getElementById('aiModel').value.trim(), m=document.getElementById('aimmsg'); m.textContent='Saving…'; post('/api/admin/ai-model',{model:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; _aimState(j); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
 function resetAiModel(){ if(!confirm('Reset the AI model to the default?')) return; post('/api/admin/ai-model',{reset:true}).then(function(j){ if(j&&j.ok){ document.getElementById('aiModel').value=j.model||''; document.getElementById('aimmsg').textContent='Reset ✓'; _aimState(j); } }); }
+function renderKey(j){ var s=document.getElementById('keyStatus'); if(!s) return; if(j&&j.set){ s.textContent='Status: '+(j.fromFile?'Set (saved here)':(j.fromEnv?'Set (from environment)':'Set')); s.style.color='#0e7a53'; } else { s.textContent='Status: Not set'; s.style.color='#b5641a'; } }
+function saveKey(){ var m=document.getElementById('keyMsg'), k=document.getElementById('keyInput').value.trim(); if(!k){ m.textContent='Paste a key first.'; return; } m.textContent='Saving…'; post('/api/admin/anthropic-key',{key:k}).then(function(j){ if(j&&j.ok){ document.getElementById('keyInput').value=''; renderKey(j); m.textContent='Saved ✓'; } else { m.textContent=(j&&j.error)||'Could not save.'; } }); }
+function clearKey(){ if(!confirm('Clear the saved Claude API key? The environment key (if any) is used after the next restart.')) return; post('/api/admin/anthropic-key',{clear:true}).then(function(j){ renderKey(j); document.getElementById('keyMsg').textContent=(j&&j.note)||'Cleared.'; }); }
 fetch('/api/admin/ai-model',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
   if(!j||!j.ok){ throw 0; }
   document.getElementById('aiModel').value=j.model||''; _aimState(j);
+  fetch('/api/admin/anthropic-key',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(k){ if(k&&k.ok) renderKey(k); }).catch(function(){});
 }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2>Admins only</h2>Ask an administrator to manage the AI engine.</div>'; });
 </script>
 </body>
