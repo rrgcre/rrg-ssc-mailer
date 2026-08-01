@@ -324,7 +324,29 @@
     </div>
 
 <div id="sscBody"></div>
-    <script>try{document.getElementById("sscBody").innerHTML=RRG_FORMS.render(RRG_FORMS.seller);}catch(e){console.error("form render",e);}</script>
+    <script>
+    (function(){
+      var slot=document.getElementById("sscBody");
+      function draw(schema){ try{ slot.innerHTML=RRG_FORMS.render(schema); window.RRG_ACTIVE_FORM=schema; }catch(e){ console.error("form render",e); } }
+      // Render the built-in default immediately so the page is usable and all field wiring binds.
+      draw(RRG_FORMS.seller);
+      // Then honor the admin's assigned Seller-Screening form (Settings > Call Questionnaires).
+      // If a custom form is assigned, swap it in. Autosave delegates on the <form>, so re-rendered fields still persist.
+      try {
+        window.RRG_FORM_READY = fetch("/api/forms",{credentials:"same-origin"})
+          .then(function(r){return r.json();})
+          .then(function(j){
+            if(!j||!j.ok) return;
+            var id=(j.assign&&j.assign.seller)||"";
+            var meta=(j.forms||[]).find(function(f){return f.id===id;});
+            if(!meta || meta.builtIn) return; // built-in default already rendered
+            return fetch("/api/form/"+encodeURIComponent(id),{credentials:"same-origin"})
+              .then(function(r){return r.json();})
+              .then(function(k){ if(k&&k.ok&&k.form) draw(k.form); });
+          }).catch(function(){});
+      } catch(e){}
+    })();
+    </script>
 
     <div style="display:flex;gap:12px;justify-content:center;margin:34px 0 6px;flex-wrap:wrap">
       <button type="button" onclick="submitScreen()" style="background:#DA2B1F;color:#fff;border:none;border-radius:10px;padding:13px 32px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 3px 12px rgba(218,43,31,.28)">Submit Screening</button>

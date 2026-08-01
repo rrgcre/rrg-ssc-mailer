@@ -700,6 +700,12 @@ function ensureBovForQuest(q) {
 }
 
 // ---- Screening queue store (seller screenings awaiting a questionnaire) ----
+const FORMS_FILE = path.join(BOV_DATA_DIR, 'forms.json');
+function loadForms(){ try { return JSON.parse(fs.readFileSync(FORMS_FILE,'utf8'))||[]; } catch(e){ return []; } }
+function saveForms(a){ return writeJsonGuarded(FORMS_FILE, a, 'saveForms'); }
+function _formQCount(f){ return (Array.isArray(f.header)?f.header.length:0) + (Array.isArray(f.categories)?f.categories.reduce(function(n,c){ return n + ((c.questions||[]).filter(function(q){return q.type;}).length); },0):0); }
+function ensureSeedForms(){ try { const arr=loadForms(); let seeds=[]; try{ seeds=JSON.parse(fs.readFileSync(path.join(__dirname,'form_seeds.json'),'utf8'))||[]; }catch(e){} let ch=false; seeds.forEach(function(sd){ if(sd && sd.id && !arr.find(function(f){return f.id===sd.id;})){ arr.push(Object.assign({ createdAt:new Date().toISOString() }, sd)); ch=true; } }); if(ch) saveForms(arr); } catch(e){} }
+try { ensureSeedForms(); } catch(e){}
 const SCREEN_FILE = path.join(BOV_DATA_DIR, 'screenings.json');
 function loadScreens() { try { return JSON.parse(fs.readFileSync(SCREEN_FILE, 'utf8')); } catch (e) { return []; } }
 function saveScreens(a) { return writeJsonGuarded(SCREEN_FILE, a, 'saveScreens'); }
@@ -1319,6 +1325,31 @@ app.post('/api/questionnaire-save', express.json({ limit: '2mb' }), (req, res) =
 });
 
 // ---- Screening queue ----
+app.get('/api/forms', (req, res) => {
+  const forms = loadForms(); const assign = (loadSettings().callForms) || {};
+  res.json({ ok:true, isAdmin: !!(req.user && isSuper(req.user)), forms: forms.map(function(f){ return { id:f.id, name:f.name||'(untitled)', callType:f.callType||'', builtIn:!!f.builtIn, questions:_formQCount(f), updatedAt:f.updatedAt||f.createdAt||'' }; }), assign: assign });
+});
+app.get('/api/form/:id', (req, res) => {
+  const f = loadForms().find(function(x){ return x.id===req.params.id; });
+  if(!f) return res.status(404).json({ ok:false, error:'Form not found.' });
+  res.json({ ok:true, form:f });
+});
+app.post('/api/form', requireAdmin, express.json({ limit:'3mb' }), (req, res) => {
+  const b = req.body || {}; if(!b.name && !b.id) return res.status(400).json({ ok:false, error:'A form name is required.' });
+  const arr = loadForms(); const now = new Date().toISOString();
+  let f = b.id ? arr.find(function(x){ return x.id===b.id; }) : null;
+  const clean = { name:String(b.name||'Untitled form').slice(0,120), callType:String(b.callType||'').slice(0,40), kicker:String(b.kicker||'').slice(0,120), header:Array.isArray(b.header)?b.header:[], categories:Array.isArray(b.categories)?b.categories:[] };
+  if(f){ if(f.builtIn){ return res.status(400).json({ ok:false, error:'The built-in form is read-only \u2014 duplicate it to customize.' }); } Object.assign(f, clean); f.updatedAt=now; }
+  else { f = Object.assign({ id:'form_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), builtIn:false, createdAt:now, updatedAt:now }, clean); arr.push(f); }
+  saveForms(arr);
+  try { logSysEvent(req,'Forms',(b.id?'Updated':'Created')+' questionnaire \u201c'+f.name+'\u201d',{ tool:'forms', kind:(b.id?'update':'create'), id:f.id }); } catch(e){}
+  res.json({ ok:true, form:f });
+});
+app.post('/api/call-forms', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const s = loadSettings(); s.callForms = Object.assign({}, s.callForms, (b.assign||{})); saveSettings(s);
+  try { logSysEvent(req,'Forms','Updated call-form assignments',{ tool:'forms', kind:'assign' }); } catch(e){}
+  res.json({ ok:true, assign:s.callForms });
+});
 app.get('/api/screenings', (req, res) => {
   const isAdmin = req.user && isSuper(req.user);
   const list = loadScreens().slice().reverse().filter(s => isAdmin || ownsScreen(req, s));

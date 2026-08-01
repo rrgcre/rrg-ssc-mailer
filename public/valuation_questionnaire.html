@@ -1479,6 +1479,25 @@
 })();
 </script>
 <script>
+/* Prefill from a contact (opened via the contact's Actions › Start Seller Valuation Call). */
+(function(){
+  var p=new URLSearchParams(location.search);
+  if(p.get('q')||p.get('screening')) return; // those flows own the prefill
+  var company=p.get('company')||'', seller=p.get('sellerName')||'', market=p.get('market')||'';
+  if(market) window.__qMarket=market;
+  var name=company||seller; if(!name) return;
+  var ls=[].slice.call(document.querySelectorAll('label.k'));
+  for(var i=0;i<ls.length;i++){
+    var t=ls[i].textContent.replace('*','').trim().toLowerCase();
+    if(t==='restaurant name'||t==='business name'||t==='concept name'){
+      var inp=ls[i].parentElement.querySelector('input,textarea');
+      if(inp&&!inp.value){ inp.value=name; try{ inp.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){} }
+      break;
+    }
+  }
+})();
+</script>
+<script>
 /* Edit-load a saved questionnaire from the Questionnaire Log (?q=ID). */
 (function(){
   var id=new URLSearchParams(location.search).get('q');

@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Call Questionnaires</title>
+<style>
+:root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2f6fd0;--teal:#12a594;--green:#1f8a5b;--amber:#B7791F;--red:#DA2B1F;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px;}
+.top-in{max-width:1140px;margin:0 auto;padding:0 24px;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:14px 0 4px;}
+h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:720px;line-height:1.5;}
+.crumb{font-size:12px;color:#9fb0d0;font-weight:600;margin-bottom:12px;} .crumb a{color:#c7d3ea;text-decoration:none;} .crumb a:hover{color:#fff;text-decoration:underline;} .crumb span{color:#6a7ba0;margin:0 7px;}
+.navcrumb{display:none;max-width:1180px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:#66738f;font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:#2f6fd0;text-decoration:none;} .navcrumb a:hover{text-decoration:underline;} .navcrumb span{color:#93a0ba;margin:0 7px;}
+body.rrg-shelled .top{display:none;} body.rrg-shelled .rrg-back{display:none;}
+.wrap{max-width:1140px;margin:22px auto;padding:0 24px 90px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:20px 22px;box-shadow:0 1px 3px rgba(16,32,70,.05);margin-bottom:14px;}
+.ct{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;}
+.ct .info{flex:1;min-width:260px;}
+.ct h2{margin:0 0 3px;font-size:16px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:9px;}
+.ct .tag{font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);background:#eef2f9;border:1px solid #e0e7f3;border-radius:100px;padding:2px 9px;}
+.ct p{margin:0;font-size:12.5px;color:var(--dim);line-height:1.5;max-width:560px;}
+.ct .pick{min-width:280px;}
+.lbl{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin:0 0 5px;display:block;}
+select{width:100%;font:inherit;font-size:13px;font-weight:600;color:var(--ink);background:#fff;border:1px solid #d7deec;border-radius:10px;padding:10px 12px;cursor:pointer;}
+select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(47,111,208,.14);}
+.meta{font-size:11.5px;color:var(--dim);margin-top:7px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
+.meta a{color:var(--blue);text-decoration:none;font-weight:700;} .meta a:hover{text-decoration:underline;}
+.badge{display:inline-flex;align-items:center;gap:5px;font-weight:700;}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;}
+.savebar{position:sticky;bottom:0;background:linear-gradient(0deg,#eef1f7 62%,rgba(238,241,247,0));padding:16px 0 6px;margin-top:6px;display:flex;gap:12px;align-items:center;}
+.btn{border:none;border-radius:10px;padding:11px 20px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:8px;}
+.btn.primary{background:var(--navy);color:#fff;} .btn.primary:hover{filter:brightness(1.12);} .btn:disabled{opacity:.55;cursor:default;}
+.btn.ghost{background:#f2f5fb;color:var(--navy);border:1px solid #dfe6f2;} .btn.ghost:hover{background:#e9eff8;}
+.msg{font-size:12.5px;color:var(--dim);min-height:18px;font-weight:600;}
+.msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.hint{font-size:12px;color:var(--dim);background:#f6f8fc;border:1px solid #e6ecf6;border-radius:12px;padding:13px 15px;line-height:1.55;margin-bottom:16px;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);} .gate h2{color:#000E31;}
+.rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);}
+/* preview modal */
+.pvwrap{position:fixed;inset:0;background:rgba(6,15,38,.55);z-index:100000;display:none;align-items:flex-start;justify-content:center;padding:5vh 16px;}
+.pvwrap.on{display:flex;}
+.pv{background:#fff;border-radius:16px;max-width:640px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 24px 60px rgba(6,15,38,.4);}
+.pv h3{margin:0;padding:18px 22px 6px;font-size:17px;font-weight:800;}
+.pv .pvsub{padding:0 22px 14px;font-size:12px;color:var(--dim);border-bottom:1px solid #eef1f7;}
+.pv .pvcat{padding:14px 22px 2px;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);}
+.pv .pvq{padding:5px 22px;font-size:13px;color:var(--ink);line-height:1.45;border-bottom:1px solid #f4f6fb;}
+.pv .pvq .req{color:var(--red);font-weight:800;}
+.pv .pvfoot{padding:14px 22px 18px;text-align:right;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<a href="./index.html" class="rrg-back"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <div class="crumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_settings.html">Settings</a><span>›</span>Call Questionnaires</div>
+  <span class="disc" onclick="location.href='./index.html'">RRG</span>
+  <div class="kicker">Admin · Customization</div>
+  <h1>Pick the questions your reps run on each call.</h1>
+  <div class="sub">Assign a questionnaire to every call type. When a rep starts a Seller Screening or any other call, FullServe loads the form you choose here — same questions, same order, every time.</div>
+</div></div>
+<div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_settings.html">Settings</a><span>›</span>Call Questionnaires</div>
+<div id="root" class="wrap"><div class="gate">Loading…</div></div>
+
+<div class="pvwrap" id="pvwrap"><div class="pv" id="pv"></div></div>
+
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function post(url,body){ return fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json();}); }
+
+/* Call types the system supports. Order = display order. */
+var CALLTYPES=[
+  {key:'seller', label:'Seller Screening', tag:'SSC', desc:'Runs when a rep qualifies an owner who wants to sell their restaurant or bar — the full Seller Screening Call.'},
+  {key:'buyer',  label:'Buyer Qualification', tag:'Buyer', desc:'Runs when qualifying a buyer or investor looking to acquire a concept, lease, or location.'},
+  {key:'site',   label:'Site-Criteria Screening', tag:'Site', desc:'Runs when capturing an operator’s site requirements — trade area, size, budget, and deal-breakers.'}
+];
+
+var STATE={ forms:[], assign:{}, isAdmin:false, dirty:{} };
+
+function formsFor(key){
+  return STATE.forms.filter(function(f){ return !f.callType || f.callType===key; });
+}
+function currentAssigned(key){
+  var a=STATE.assign[key];
+  if(a && STATE.forms.find(function(f){return f.id===a;})) return a;
+  var list=formsFor(key);
+  var b=list.find(function(f){return f.builtIn;}); if(b) return b.id;
+  return list.length?list[0].id:'';
+}
+
+function renderCard(ct){
+  var list=formsFor(ct.key);
+  var sel=currentAssigned(ct.key);
+  var opts;
+  if(!list.length){
+    opts='<option value="">No form built yet</option>';
+  } else {
+    opts=list.map(function(f){
+      return '<option value="'+esc(f.id)+'"'+(f.id===sel?' selected':'')+'>'+esc(f.name)+(f.builtIn?' — built-in':'')+' ('+f.questions+' questions)</option>';
+    }).join('');
+  }
+  var chosen=list.find(function(f){return f.id===sel;});
+  var meta = chosen
+    ? '<span class="badge"><span class="dot"></span>'+chosen.questions+' questions</span>'
+      +(chosen.builtIn?'<span>Built-in RRG default</span>':'<span>Custom form</span>')
+      +'<a href="#" data-pv="'+esc(chosen.id)+'">Preview questions</a>'
+    : '<span>Assign a form once one is built for this call type.</span>';
+  var disabled = STATE.isAdmin && list.length ? '' : ' disabled';
+  return '<div class="card"><div class="ct">'
+    +'<div class="info"><h2>'+esc(ct.label)+' <span class="tag">'+esc(ct.tag)+'</span></h2><p>'+esc(ct.desc)+'</p></div>'
+    +'<div class="pick"><label class="lbl" for="sel_'+ct.key+'">Questionnaire used</label>'
+    +'<select id="sel_'+ct.key+'" data-ct="'+ct.key+'"'+disabled+'>'+opts+'</select>'
+    +'<div class="meta" id="meta_'+ct.key+'">'+meta+'</div></div>'
+    +'</div></div>';
+}
+
+function render(){
+  var h='';
+  h+='<div class="hint">Every rep runs the <b>same</b> questionnaire on the same call type. Change the form here and it takes effect on the next call — no rebuild, nothing to redeploy. The <b>built-in RRG default</b> is always available as a fallback.'
+    + (STATE.isAdmin?'':' <b>You are viewing only</b> — an administrator can change these assignments.')+'</div>';
+  h+=CALLTYPES.map(renderCard).join('');
+  if(STATE.isAdmin){
+    h+='<div class="savebar"><button class="btn primary" id="saveBtn">Save assignments</button><span class="msg" id="msg"></span></div>';
+  }
+  var root=document.getElementById('root'); root.innerHTML=h;
+
+  root.querySelectorAll('select[data-ct]').forEach(function(s){
+    s.addEventListener('change',function(){
+      var ct=s.getAttribute('data-ct'); STATE.assign[ct]=s.value; STATE.dirty[ct]=true;
+      var chosen=STATE.forms.find(function(f){return f.id===s.value;});
+      var m=document.getElementById('meta_'+ct);
+      if(m&&chosen){ m.innerHTML='<span class="badge"><span class="dot"></span>'+chosen.questions+' questions</span>'
+        +(chosen.builtIn?'<span>Built-in RRG default</span>':'<span>Custom form</span>')
+        +'<a href="#" data-pv="'+esc(chosen.id)+'">Preview questions</a>';
+        m.querySelector('[data-pv]').addEventListener('click',pvHandler);
+      }
+      var msg=document.getElementById('msg'); if(msg){ msg.className='msg'; msg.textContent='Unsaved changes.'; }
+    });
+  });
+  root.querySelectorAll('[data-pv]').forEach(function(a){ a.addEventListener('click',pvHandler); });
+  var sb=document.getElementById('saveBtn'); if(sb) sb.addEventListener('click',saveAll);
+}
+
+function pvHandler(e){ e.preventDefault(); openPreview(this.getAttribute('data-pv')); }
+
+function openPreview(id){
+  var pv=document.getElementById('pv'); var wrap=document.getElementById('pvwrap');
+  pv.innerHTML='<h3>Loading…</h3>'; wrap.classList.add('on');
+  fetch('/api/form/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ pv.innerHTML='<h3>Could not load form</h3><div class="pvfoot"><button class="btn ghost" onclick="closePreview()">Close</button></div>'; return; }
+    var f=j.form; var h='<h3>'+esc(f.name||'Questionnaire')+'</h3><div class="pvsub">'+esc((f.categories||[]).length)+' sections · '+(f.callType?esc(f.callType):'general')+(f.builtIn?' · built-in':'')+'</div>';
+    (f.header&&f.header.length?[{title:'Call header',questions:f.header}]:[]).concat(f.categories||[]).forEach(function(c){
+      h+='<div class="pvcat">'+esc(c.title||'Section')+'</div>';
+      (c.questions||[]).filter(function(q){return q.type;}).forEach(function(q){
+        h+='<div class="pvq">'+esc(q.label||q.id||'')+(q.required?' <span class="req">*</span>':'')+'</div>';
+      });
+    });
+    h+='<div class="pvfoot"><button class="btn ghost" onclick="closePreview()">Close</button></div>';
+    pv.innerHTML=h;
+  }).catch(function(){ pv.innerHTML='<h3>Could not load form</h3><div class="pvfoot"><button class="btn ghost" onclick="closePreview()">Close</button></div>'; });
+}
+function closePreview(){ document.getElementById('pvwrap').classList.remove('on'); }
+document.getElementById('pvwrap').addEventListener('click',function(e){ if(e.target===this) closePreview(); });
+
+function saveAll(){
+  var btn=document.getElementById('saveBtn'); var msg=document.getElementById('msg');
+  var assign={}; CALLTYPES.forEach(function(ct){ var s=document.getElementById('sel_'+ct.key); if(s&&s.value) assign[ct.key]=s.value; });
+  btn.disabled=true; btn.textContent='Saving…'; msg.className='msg'; msg.textContent='';
+  post('/api/call-forms',{assign:assign}).then(function(j){
+    btn.disabled=false; btn.textContent='Save assignments';
+    if(j&&j.ok){ STATE.assign=j.assign||assign; STATE.dirty={}; msg.className='msg ok'; msg.textContent='✓ Saved. Reps will use these on their next call.'; setTimeout(function(){ if(msg.textContent.indexOf('Saved')>=0) msg.textContent=''; },5000); }
+    else { msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not save.'; }
+  }).catch(function(){ btn.disabled=false; btn.textContent='Save assignments'; msg.className='msg err'; msg.textContent='Network error — not saved.'; });
+}
+
+fetch('/api/forms',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate"><h2>Could not load</h2>Try reloading this page.</div>'; return; }
+  STATE.forms=j.forms||[]; STATE.assign=j.assign||{}; STATE.isAdmin=!!j.isAdmin;
+  render();
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2>Could not load</h2>Check your connection and reload.</div>'; });
+</script>
+</body>
+</html>
