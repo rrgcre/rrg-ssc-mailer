@@ -767,6 +767,8 @@
       market: header['metro']||header['market']||'',
       address: header['business address']||'',
       date: header['call date']||'',
+      startedAt: window.__sscStarted||'',
+      finishedAt: new Date().toISOString(),
       repEmail: (document.getElementById('clientEmail').value||'').trim(),
       sections: sections
     };
@@ -801,6 +803,7 @@
   window.smClose=function(){ document.getElementById('smodal').classList.remove('show'); };
 
   window._collectData=_collectData;
+(function(){ var f=document.getElementById('sscform'); if(!f) return; function mark(e){ if(e&&e.isTrusted&&!window.__sscStarted){ window.__sscStarted=new Date().toISOString(); } } f.addEventListener('input',mark,true); f.addEventListener('change',mark,true); })();
   // Read a response defensively — never let an HTML error page (e.g. a 404 or a
   // login redirect) blow up on JSON.parse and show a rep a raw "Unexpected token" error.
   function _readResp(r){

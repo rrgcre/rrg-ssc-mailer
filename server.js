@@ -837,6 +837,11 @@ function ownsScreen(req, s) {
 }
 // Create or update a screening-queue record. Dedups by formId within the same
 // user, so printing and submitting the same screening make ONE record.
+function _stampTimes(rec, data){
+  if (data && data.startedAt && !rec.startedAt) rec.startedAt = String(data.startedAt).slice(0, 40);
+  if (rec.completed && !rec.completedAt) rec.completedAt = String((data && data.finishedAt) || new Date().toISOString()).slice(0, 40);
+  rec.durationSeconds = (rec.startedAt && rec.completedAt) ? Math.max(0, Math.round((Date.parse(rec.completedAt) - Date.parse(rec.startedAt)) / 1000)) : (rec.durationSeconds || null);
+}
 function upsertScreening(req, data) {
   const arr = loadScreens();
   const fid = String((data && data.formId) || '').slice(0, 48);
@@ -857,11 +862,13 @@ function upsertScreening(req, data) {
   const existing = fid ? arr.find(s => s.formId === fid && mine(s)) : null;
   if (existing) {
     Object.assign(existing, fields);
+    _stampTimes(existing, data);
     existing.updatedAt = new Date().toISOString();
     saveScreens(arr);
     return existing;
   }
   const rec = Object.assign({ id: newScreenId(), formId: fid, processed: false, processedAt: '', createdAt: new Date().toISOString() }, fields);
+  _stampTimes(rec, data);
   arr.push(rec); saveScreens(arr);
   return rec;
 }
@@ -1317,7 +1324,7 @@ app.get('/api/screenings', (req, res) => {
   const list = loadScreens().slice().reverse().filter(s => isAdmin || ownsScreen(req, s));
   res.json({
     ok: true, isAdmin: !!isAdmin,
-    screenings: list.map(s => ({ id: s.id, business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, decision: s.decision || '', completed: !!s.completed, completePct: (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0)), processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt })),
+    screenings: list.map(s => ({ id: s.id, business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, decision: s.decision || '', completed: !!s.completed, completePct: (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0)), processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt, startedAt: s.startedAt || '', completedAt: s.completedAt || '', durationSeconds: (typeof s.durationSeconds === 'number' ? s.durationSeconds : null) })),
   });
 });
 app.get('/api/screening/:id', (req, res) => {
@@ -1369,7 +1376,7 @@ app.get('/api/questionnaires', (req, res) => {
   const list = loadQuests().slice().reverse().filter(s => isAdmin || ownsQuest(req, s));
   res.json({
     ok: true, isAdmin: !!isAdmin,
-    questionnaires: list.map(s => ({ id: s.id, business: s.business, market: s.market, decision: s.decision || '', completed: !!s.completed, completePct: (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0)), processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt })),
+    questionnaires: list.map(s => ({ id: s.id, business: s.business, market: s.market, decision: s.decision || '', completed: !!s.completed, completePct: (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0)), processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt, startedAt: s.startedAt || '', completedAt: s.completedAt || '', durationSeconds: (typeof s.durationSeconds === 'number' ? s.durationSeconds : null) })),
   });
 });
 app.get('/api/questionnaire/:id', (req, res) => {
