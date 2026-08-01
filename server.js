@@ -884,7 +884,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply') return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/backup/restore' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply') return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -6991,6 +6991,53 @@ app.get('/api/admin/backup/file/:name', (req, res) => {
   if (!fp.startsWith(BACKUP_DIR) || !fs.existsSync(fp)) return res.status(404).json({ ok: false, error: 'Snapshot not found.' });
   res.download(fp, name);
 });
+// Restore the entire data directory from a saved snapshot or an uploaded backup zip.
+// DESTRUCTIVE: overwrites current stores. A safety snapshot of the current data is
+// taken first, so a restore can itself be rolled back.
+app.post('/api/admin/backup/restore', express.json({ limit: '256mb' }), async (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
+  const b = req.body || {};
+  if (b.confirm !== 'RESTORE') return res.status(400).json({ ok: false, error: 'Confirmation required.' });
+  let AdmZip; try { AdmZip = require('adm-zip'); } catch (e) { return res.status(500).json({ ok: false, error: 'Restore support is not installed on this server yet — it activates on the next deploy.' }); }
+  let zip;
+  try {
+    if (b.name) {
+      const nm = path.basename(String(b.name));
+      if (!/^rrg-backup-[\w.\-]+\.zip$/.test(nm)) return res.status(400).json({ ok: false, error: 'Bad backup name.' });
+      const p = path.join(BACKUP_DIR, nm);
+      if (!fs.existsSync(p)) return res.status(404).json({ ok: false, error: 'That snapshot is not on the server.' });
+      zip = new AdmZip(p);
+    } else if (b.dataB64) {
+      let buf; try { buf = Buffer.from(String(b.dataB64), 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the uploaded file.' }); }
+      if (!buf.length) return res.status(400).json({ ok: false, error: 'The uploaded file is empty.' });
+      zip = new AdmZip(buf);
+    } else {
+      return res.status(400).json({ ok: false, error: 'Choose a snapshot or upload a backup .zip.' });
+    }
+  } catch (e) { return res.status(400).json({ ok: false, error: 'That file is not a readable .zip backup.' }); }
+
+  let entries; try { entries = zip.getEntries(); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the backup archive.' }); }
+  const jsonCount = entries.filter(e => !e.isDirectory && /\.json$/i.test(e.entryName)).length;
+  if (!jsonCount) return res.status(400).json({ ok: false, error: 'That zip does not look like an RRG backup (no data files inside).' });
+
+  let safety = '';
+  try { safety = await makeSnapshot('pre-restore_' + backupStampFull()); } catch (e) {}
+
+  const base = path.resolve(BOV_DATA_DIR);
+  let restored = 0, skipped = 0;
+  entries.forEach(e => {
+    if (e.isDirectory) return;
+    const name = String(e.entryName || '').replace(/\\/g, '/');
+    if (!name || name.indexOf('..') >= 0 || name.charAt(0) === '/') { skipped++; return; }
+    if (name === 'backups' || name.indexOf('backups/') === 0) { skipped++; return; }
+    if (name === 'session.key' || /\.key$/.test(name) || name === 'gmail' || name.indexOf('gmail/') === 0) { skipped++; return; }
+    const dest = path.resolve(base, name);
+    if (dest !== base && dest.indexOf(base + path.sep) !== 0) { skipped++; return; }
+    try { fs.mkdirSync(path.dirname(dest), { recursive: true }); fs.writeFileSync(dest, e.getData()); restored++; } catch (err) { skipped++; }
+  });
+  res.json({ ok: true, restored, skipped, safety });
+});
+
 app.post('/api/admin/ticket-prompt', requireAdmin, (req, res) => {
   const b = req.body || {};
   const def = String(ticketgen.DEFAULT_SYSTEM || '');
