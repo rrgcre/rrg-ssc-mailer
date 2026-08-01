@@ -100,7 +100,7 @@ const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
 const PERSON_TYPES = ['Buyer', 'Seller', 'Tenant', 'Investor', 'Broker', 'Referral Source', 'Internal Personnel', 'Other'];
 const LEAD_SOURCES = ['Referral', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
 // System-required lead sources: cannot be deleted in admin — referral tracking / attribution depends on them.
-const SYSTEM_LEAD_SOURCES = ['Referral'];
+const SYSTEM_LEAD_SOURCES = LEAD_SOURCES.slice();
 const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'LOI Sent', 'LOI Received', 'LOI Countered', 'LOI Accepted', 'Diligence', 'Note', 'To-Do'];
 const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Burgers', 'BBQ', 'Steakhouse', 'Seafood', 'Chinese', 'Japanese / Sushi', 'Thai', 'Vietnamese', 'Korean', 'Indian', 'Mediterranean', 'Greek', 'Southern / Soul', 'Breakfast / Brunch', 'Coffee / Cafe', 'Hawaiian', 'Desserts', 'Bar / Lounge'];
 function loadPeople() { try { return JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')); } catch (e) { return []; } }
@@ -289,10 +289,16 @@ function cleanStrList(a, max, len) {
   a.forEach(v => { v = String(v == null ? '' : v).trim().slice(0, len || 60); if (!v) return; const k = v.toLowerCase(); if (seen[k]) return; seen[k] = 1; out.push(v); });
   return out.slice(0, max || 40);
 }
-function effPersonTypes() { const s = loadSettings(); return (Array.isArray(s.personTypes) && s.personTypes.length) ? s.personTypes : PERSON_TYPES; }
+const SYSTEM_PERSON_TYPES = PERSON_TYPES.slice();
+const SYSTEM_COMPANY_TYPES = COMPANY_TYPES.slice();
+const SYSTEM_TICKET_CATEGORIES = TICKET_CATEGORIES.slice();
+const SYSTEM_ACTIVITY_TYPES = ACTIVITY_TYPES.slice();
+const SYSTEM_CUISINE_TYPES = CUISINE_TYPES.slice();
+function _mergeRequired(list, req){ const out = Array.isArray(list) ? list.slice() : []; (req||[]).forEach(function(rq){ if (!out.some(function(x){ return String(x).toLowerCase() === String(rq).toLowerCase(); })) out.push(rq); }); return out; }
+function effPersonTypes() { const s = loadSettings(); return _mergeRequired((Array.isArray(s.personTypes) && s.personTypes.length) ? s.personTypes : PERSON_TYPES, SYSTEM_PERSON_TYPES); }
 function effLeadSources() { const s = loadSettings(); let list = (Array.isArray(s.leadSources) && s.leadSources.length) ? s.leadSources.slice() : LEAD_SOURCES.slice(); SYSTEM_LEAD_SOURCES.forEach(function(rq){ if (!list.some(function(x){ return String(x).toLowerCase() === rq.toLowerCase(); })) list.unshift(rq); }); return list; }
-function effActivityTypes() { const s = loadSettings(); return (Array.isArray(s.activityTypes) && s.activityTypes.length) ? s.activityTypes : ACTIVITY_TYPES; }
-function effCuisineTypes() { const s = loadSettings(); return (Array.isArray(s.cuisineTypes) && s.cuisineTypes.length) ? s.cuisineTypes : CUISINE_TYPES; }
+function effActivityTypes() { const s = loadSettings(); return _mergeRequired((Array.isArray(s.activityTypes) && s.activityTypes.length) ? s.activityTypes : ACTIVITY_TYPES, SYSTEM_ACTIVITY_TYPES); }
+function effCuisineTypes() { const s = loadSettings(); return _mergeRequired((Array.isArray(s.cuisineTypes) && s.cuisineTypes.length) ? s.cuisineTypes : CUISINE_TYPES, SYSTEM_CUISINE_TYPES); }
 function effMaxPullLocations() { const s = loadSettings(); const n = parseInt(s.maxPullLocations, 10); return (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
 function effDefaultState() { const s = loadSettings(); const v = String(s.defaultState || '').trim(); return v ? v.slice(0, 20) : 'TX'; }
 function effAssistantName() { const s = loadSettings(); const v = String(s.assistantName || '').trim(); return v ? v.slice(0, 40) : 'Claude'; }
@@ -396,8 +402,8 @@ function logContactAdded(p, req, extra) {
     logActivity(p, 'Contact Added', ('New contact added' + role + where).slice(0, 400), { auto: true, by: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '' });
   } catch (e) {}
 }
-function effCompanyTypes() { const s = loadSettings(); return (Array.isArray(s.companyTypes) && s.companyTypes.length) ? s.companyTypes : COMPANY_TYPES; }
-function effTicketCategories() { const s = loadSettings(); return (Array.isArray(s.ticketCategories) && s.ticketCategories.length) ? s.ticketCategories : TICKET_CATEGORIES; }
+function effCompanyTypes() { const s = loadSettings(); return _mergeRequired((Array.isArray(s.companyTypes) && s.companyTypes.length) ? s.companyTypes : COMPANY_TYPES, SYSTEM_COMPANY_TYPES); }
+function effTicketCategories() { const s = loadSettings(); return _mergeRequired((Array.isArray(s.ticketCategories) && s.ticketCategories.length) ? s.ticketCategories : TICKET_CATEGORIES, SYSTEM_TICKET_CATEGORIES); }
 // ---- Departments: route requests to a team; only that team's members (plus the
 // requester) can see them. Departments own request categories, so a category maps
 // to the department that handles it. Members + emails receive the notification. ----
@@ -5028,17 +5034,17 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
     personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(),
     defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, cuisineTypes: CUISINE_TYPES, agreementTypes: AGREEMENT_TYPES },
     isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), cuisineTypes: Array.isArray(s.cuisineTypes), agreementTypes: Array.isArray(s.agreementTypes) },
-    systemRequired: { leadSources: SYSTEM_LEAD_SOURCES },
+    systemRequired: { leadSources: SYSTEM_LEAD_SOURCES, personTypes: SYSTEM_PERSON_TYPES, companyTypes: SYSTEM_COMPANY_TYPES, ticketCategories: SYSTEM_TICKET_CATEGORIES, activityTypes: SYSTEM_ACTIVITY_TYPES, cuisineTypes: SYSTEM_CUISINE_TYPES, agreementTypes: AGREEMENT_TYPES.map(function(t){ return t.label; }) },
   });
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
   if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency() }); }
-  if (b.personTypes !== undefined) s.personTypes = cleanStrList(b.personTypes, 40, 60) || [];
-  if (b.companyTypes !== undefined) s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || [];
-  if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
+  if (b.personTypes !== undefined) { s.personTypes = cleanStrList(b.personTypes, 40, 60) || []; s.personTypes = _mergeRequired(s.personTypes, SYSTEM_PERSON_TYPES); }
+  if (b.companyTypes !== undefined) { s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || []; s.companyTypes = _mergeRequired(s.companyTypes, SYSTEM_COMPANY_TYPES); }
+  if (b.ticketCategories !== undefined) { s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || []; s.ticketCategories = _mergeRequired(s.ticketCategories, SYSTEM_TICKET_CATEGORIES); }
   if (b.leadSources !== undefined) { s.leadSources = cleanStrList(b.leadSources, 40, 60) || []; SYSTEM_LEAD_SOURCES.forEach(function(rq){ if (!s.leadSources.some(function(x){ return String(x).toLowerCase() === rq.toLowerCase(); })) s.leadSources.unshift(rq); }); }
-  if (b.activityTypes !== undefined) s.activityTypes = cleanStrList(b.activityTypes, 40, 60) || [];
+  if (b.activityTypes !== undefined) { s.activityTypes = cleanStrList(b.activityTypes, 40, 60) || []; s.activityTypes = _mergeRequired(s.activityTypes, SYSTEM_ACTIVITY_TYPES); }
   if (b.agreementTypes !== undefined) {
     const seen = {}; const out = [];
     (Array.isArray(b.agreementTypes) ? b.agreementTypes : []).forEach(function(t){
@@ -5049,9 +5055,10 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
       let uk = key; let n = 2; while (seen[uk.toLowerCase()]) { uk = key + n; n++; }
       seen[uk.toLowerCase()] = 1; out.push({ key: uk, label: label });
     });
+    AGREEMENT_TYPES.forEach(function(rt){ if (!out.some(function(x){ return x.key === rt.key; })) out.push({ key: rt.key, label: rt.label }); });
     if (out.length) s.agreementTypes = out.slice(0, 40); else delete s.agreementTypes;
   }
-  if (b.cuisineTypes !== undefined) s.cuisineTypes = cleanStrList(b.cuisineTypes, 40, 60) || [];
+  if (b.cuisineTypes !== undefined) { s.cuisineTypes = cleanStrList(b.cuisineTypes, 40, 60) || []; s.cuisineTypes = _mergeRequired(s.cuisineTypes, SYSTEM_CUISINE_TYPES); }
   if (b.maxPullLocations !== undefined) { const n = parseInt(b.maxPullLocations, 10); s.maxPullLocations = (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
   if (typeof b.defaultState === 'string') s.defaultState = b.defaultState.trim().slice(0, 20);
   if (typeof b.assistantName === 'string') s.assistantName = b.assistantName.trim().slice(0, 40);
@@ -8377,7 +8384,7 @@ const AGREEMENT_TYPES = [
   { key: 'AssocBroker', label: 'Associate Broker Agreement' }
 ];
 const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
-function effAgreementTypes() { const s = loadSettings(); if (Array.isArray(s.agreementTypes) && s.agreementTypes.length) { const out = s.agreementTypes.filter(t => t && t.key && t.label).map(t => ({ key: String(t.key), label: String(t.label) })); if (out.length) return out; } return AGREEMENT_TYPES; }
+function effAgreementTypes() { const s = loadSettings(); let list = (Array.isArray(s.agreementTypes) && s.agreementTypes.length) ? s.agreementTypes.filter(t => t && t.key && t.label).map(t => ({ key: String(t.key), label: String(t.label) })) : AGREEMENT_TYPES.slice(); if (!list.length) list = AGREEMENT_TYPES.slice(); AGREEMENT_TYPES.forEach(function(rt){ if (!list.some(function(x){ return x.key === rt.key; })) list.push({ key: rt.key, label: rt.label }); }); return list; }
 function agreementTypeKeys() { return effAgreementTypes().map(t => t.key); }
 function agreementStatus(a){
   a = a || {};
