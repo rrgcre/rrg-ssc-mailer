@@ -91,10 +91,14 @@ function tile(x){
     +'<div class="tbody">'+badge+'<div class="tacts">'+actHtml+'</div></div>'
   +'</div>';
 }
-document.getElementById('gridNative').innerHTML=NATIVE.map(tile).join('');
-document.getElementById('gridExt').innerHTML=EXT.map(tile).join('');
-document.getElementById('ctNative').textContent=NATIVE.length;
-document.getElementById('ctExt').textContent=EXT.length;
+var _nat=NATIVE.filter(function(x){return !x.act.soon;});
+var _ext=EXT.filter(function(x){return !x.act.soon;});
+document.getElementById('gridNative').innerHTML=_nat.map(tile).join('');
+document.getElementById('gridExt').innerHTML=_ext.map(tile).join('');
+document.getElementById('ctNative').textContent=_nat.length;
+document.getElementById('ctExt').textContent=_ext.length;
+if(!_ext.length){ var _ce=document.getElementById('ctExt'); if(_ce&&_ce.parentNode) _ce.parentNode.style.display='none'; var _ge=document.getElementById('gridExt'); if(_ge) _ge.style.display='none'; }
+if(!_nat.length){ var _cn=document.getElementById('ctNative'); if(_cn&&_cn.parentNode) _cn.parentNode.style.display='none'; var _gn=document.getElementById('gridNative'); if(_gn) _gn.style.display='none'; }
 </script>
 </body>
 </html>
