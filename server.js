@@ -3175,6 +3175,30 @@ app.post('/api/bizbuysell/gmail', express.json(), async (req, res) => {
     res.json(out);
   } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
+app.get('/api/bbs/stats', (req, res) => {
+  try {
+    const people = loadPeople();
+    const now = new Date();
+    const today = now.toISOString().slice(0,10);
+    const ws = new Date(now); ws.setDate(now.getDate() - now.getDay()); const weekStart = ws.toISOString().slice(0,10);
+    const monthStart = today.slice(0,7) + '-01';
+    const ytdStart = today.slice(0,4) + '-01-01';
+    const yearAgo = new Date(now.getTime() - 365*86400000).toISOString().slice(0,10);
+    let total=0, dToday=0, dWeek=0, dMonth=0, dYtd=0, dYear=0;
+    people.forEach(function(p){ (Array.isArray(p.activities)?p.activities:[]).forEach(function(a){
+      if (a.type !== 'BizBuySell Lead') return;
+      const d = (a.date && /^\d{4}-\d{2}-\d{2}$/.test(a.date)) ? a.date : String(a.at||'').slice(0,10);
+      if (!d) return;
+      total++;
+      if (d === today) dToday++;
+      if (d >= weekStart) dWeek++;
+      if (d >= monthStart) dMonth++;
+      if (d >= ytdStart) dYtd++;
+      if (d >= yearAgo) dYear++;
+    }); });
+    res.json({ ok:true, total:total, today:dToday, week:dWeek, month:dMonth, ytd:dYtd, year:dYear });
+  } catch (e) { res.status(500).json({ ok:false, error:String((e&&e.message)||e) }); }
+});
 app.get('/api/bizbuysell/poll', (req, res) => {
   const u = (req.user && req.user.username) || ''; const rec = (loadBbsPoll()[u]) || {};
   res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0, lookbackDays: bbsLookbackDays(), lookbackDaysOngoing: bbsLookbackOngoing(), isAdmin: !!(req.user && isSuper(req.user)) });
