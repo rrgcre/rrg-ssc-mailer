@@ -246,6 +246,7 @@
     #printview .band{ margin:0; }
   }
 .coauto2{position:relative;} .cosug2{position:absolute;left:0;right:0;top:100%;z-index:40;background:#fff;border:1px solid #cfd6e2;border-radius:9px;box-shadow:0 10px 26px rgba(10,20,50,.14);margin-top:3px;max-height:230px;overflow:auto;} .cosug2row{padding:8px 11px;font-size:13px;cursor:pointer;color:#1a2236;} .cosug2row:hover{background:#f5f7fb;} .cosug2new{border-top:1px solid #eef1f6;} .cosug2new:hover{background:#eef7f0;color:#1f8a5b;} .co2new{color:#1f8a5b;font-weight:800;}
+.rangewrap{display:flex;align-items:center;gap:10px;} .rangewrap .madorn{flex:1;} .rangeto{color:#6b7488;font-size:13px;font-weight:600;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -476,9 +477,9 @@
     <div class="sec brk"><div class="num">4</div><h2>Lease &amp; Occupancy</h2><div class="flex"></div></div>
     <div class="subhead">If the Business Leases Its Space</div>
     <div class="grid three">
-      <div class="field"><label class="k">Base Term Remaining</label><input type="text" placeholder="e.g. 3 yrs"></div>
-      <div class="field"><label class="k">Option Periods</label><input type="text" placeholder="e.g. 2 × 5 yrs"></div>
-      <div class="field"><label class="k">Total Remaining (incl. Options)</label><input type="text" placeholder="e.g. 13 yrs"></div>
+      <div class="field"><label class="k">Base Term Remaining (months)</label><input type="number" min="0" step="1" id="leaseBase" placeholder="months"></div>
+      <div class="field"><label class="k">Option Period (months)</label><input type="number" min="0" step="1" id="leaseOption" placeholder="months"></div>
+      <div class="field"><label class="k">Total Remaining (incl. Options)</label><input type="text" id="leaseTotal" readonly placeholder="auto-calculated" style="background:#f7f9fc"></div>
     </div>
     <div class="grid rowgap">
       <div class="field"><label class="k">Current Monthly Rent</label><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"></span></div>
@@ -486,7 +487,7 @@
         <div class="optcols c3">
           <label class="opt"><input type="checkbox">Current</label>
           <label class="opt"><input type="checkbox">Behind</label>
-          <label class="opt"><input type="checkbox">In Negotiation</label>
+          <label class="opt"><input type="checkbox">Negotiating</label>
         </div>
       </div>
     </div>
@@ -520,7 +521,7 @@
         <label class="opt"><input type="checkbox">Has Had a Formal Appraisal</label>
       </div>
     </div>
-    <div class="field full rowgap"><label class="k">Valuation Expectation (Amount or Range)</label><input type="text"></div>
+    <div class="field full rowgap rangefield"><label class="k">Valuation Expectation</label><div class="rangewrap"><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric" placeholder="Amount / low"></span><span class="rangeto">to</span><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric" placeholder="High (optional)"></span></div></div>
     <div class="oset full single rowgap" data-req="1"><label class="k">Expectations Realistic? (Rep’s Assessment)<span class="req-star">*</span></label>
       <div class="optcols c3">
         <label class="opt"><input type="checkbox">Realistic</label>
@@ -541,9 +542,9 @@
     <div class="grid rowgap">
       <div class="oset single" data-req="1"><label class="k">Confidentiality Importance<span class="req-star">*</span></label>
         <div class="optcols c3">
-          <label class="opt"><input type="checkbox">High (Staff &amp; Landlord Unaware)</label>
-          <label class="opt"><input type="checkbox">Medium (Some People Know)</label>
-          <label class="opt"><input type="checkbox">Low (Not a Concern)</label>
+          <label class="opt"><input type="checkbox">High</label>
+          <label class="opt"><input type="checkbox">Medium</label>
+          <label class="opt"><input type="checkbox">Low</label>
         </div>
       </div>
       <div class="oset single"><label class="k">Speaking With Other Brokers?</label>
@@ -733,6 +734,7 @@
       } else if(el.classList.contains('field')){
         var lb=el.querySelector('label.k'), inp=el.querySelector('input,textarea,select'); if(!lb||!inp) return;
         var label=_labelText(lb), value=inp.value.trim();
+        if(el.classList.contains('rangefield')){ var _vs=Array.prototype.slice.call(el.querySelectorAll('input')).map(function(x){return x.value.trim();}).filter(Boolean); value=(_vs.length? (_vs.length>1?('$'+_vs[0]+' \u2013 $'+_vs[1]):('$'+_vs[0])) : ''); }
         if(cur) cur.groups.push({kind:'field',label:label,value:value}); else header[label.toLowerCase()]=value;
       } else if(el.classList.contains('oset')){
         var lb2=el.querySelector('label.k'); if(!lb2) return; var label2=_labelText(lb2);
@@ -804,6 +806,7 @@
 
   window._collectData=_collectData;
 (function(){ var f=document.getElementById('sscform'); if(!f) return; function mark(e){ if(e&&e.isTrusted&&!window.__sscStarted){ window.__sscStarted=new Date().toISOString(); } } f.addEventListener('input',mark,true); f.addEventListener('change',mark,true); })();
+(function(){ var b=document.getElementById('leaseBase'), o=document.getElementById('leaseOption'), t=document.getElementById('leaseTotal'); if(!b||!t) return; function calc(){ var bm=parseInt(b.value,10)||0, om=o?(parseInt(o.value,10)||0):0, tot=bm+om; if(!tot){ t.value=''; return; } var yr=Math.floor(tot/12), mo=tot%12; var parts=[]; if(yr) parts.push(yr+' yr'+(yr===1?'':'s')); if(mo) parts.push(mo+' mo'); t.value=tot+' months ('+(parts.join(' ')||'0 mo')+')'; } b.addEventListener('input',calc); if(o) o.addEventListener('input',calc); calc(); })();
   // Read a response defensively — never let an HTML error page (e.g. a 404 or a
   // login redirect) blow up on JSON.parse and show a rep a raw "Unexpected token" error.
   function _readResp(r){
@@ -935,8 +938,8 @@
     _check('Debt, Liens','Yes');
     _set('Debt / Lien / Lawsuit Details','Small equipment lease, roughly $18K remaining, current and transferable to a buyer.');
     // Section 4 Lease & Occupancy
-    _set('Base Term Remaining','4 yrs');
-    _set('Option Periods','2 × 5 yrs');
+    _set('Base Term Remaining (months)','48');
+    _set('Option Period (months)','120');
     _set('Total Remaining (incl. Options)','14 yrs');
     _set('Current Monthly Rent','14500');
     _check('Current on Rent','Current');
@@ -945,7 +948,7 @@
     _set('Lease Notes','NNN lease. Assignment allowed with landlord consent, not to be unreasonably withheld. Landlord not yet aware of the sale.');
     // Section 4 - Valuation & Expectations
     _check('Has a Valuation Expectation','Yes (Specific');
-    _set('Valuation Expectation (Amount or Range)','$500,000');
+    _set('Valuation Expectation','500,000');
     _check('Expectations Realistic','Realistic');
     _check('Prior Broker or Sale Attempt','No (First');
     // Section 5 - Process & Confidentiality
