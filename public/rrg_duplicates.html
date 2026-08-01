@@ -13,7 +13,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
 .kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:14px 0 4px;}
 h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:760px;line-height:1.5;}
-.wrap{max-width:1180px;margin:20px auto;padding:0 24px 80px;}
+.wrap{max-width:1180px;margin:28px auto;padding:0 24px 80px;}
+body.rrg-shelled .wrap{margin-top:40px;}
 .tabs{display:flex;gap:8px;margin-bottom:16px;}
 .tab{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 18px;font:inherit;font-size:13px;font-weight:700;color:var(--dim);cursor:pointer;box-shadow:0 1px 2px rgba(16,32,70,.04);}
 .tab.on{background:var(--navy);color:#fff;border-color:var(--navy);}
@@ -24,7 +25,7 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
 .btn.green{background:var(--green);color:#fff;border-color:var(--green);} .btn.green:hover{background:#186f48;}
 .btn.amber{background:var(--amber);color:#fff;border-color:var(--amber);} .btn.amber:hover{background:#95610f;}
 .btn.ghost{background:transparent;border-color:transparent;color:var(--dim);} .btn.ghost:hover{color:var(--ink);background:#eef1f7;}
-.btn:disabled{opacity:.5;cursor:default;}
+.btn:disabled{opacity:.5;cursor:default;} .btn:active:not(:disabled){transform:translateY(1px);}
 .grp{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px 18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(16,32,70,.05);}
 .grp.gone{display:none;}
 .ghead{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
@@ -211,12 +212,25 @@ function doSkip(gk){
    }).catch(function(){ if(sb){sb.disabled=false;} if(msg){msg.className='msg err';msg.textContent='Server unreachable.';} });
 }
 function ignoreNote(j){ var n=(j&&j.ignored)||0; if(!n) return ''; return ' · <span style="color:#8a93a8">'+n+' remembered as not-a-duplicate · <a href="#" id="_dupreset" style="color:#2647b0;text-decoration:underline">reset</a></span>'; }
-function wireReset(){ var r=document.getElementById('_dupreset'); if(!r) return; r.addEventListener('click',function(e){ e.preventDefault(); var n=(DATA[TYPE]&&DATA[TYPE].ignored)||0; window.rrgConfirm('Clear the '+n+' pair'+(n===1?'':'s')+' you marked as not-a-duplicate? They will be eligible to show up again on the next scan.',{title:'Reset remembered marks?',okText:'Reset'}).then(function(ok){ if(!ok) return; fetch('/api/admin/duplicates/ignore/reset',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:TYPE})}).then(function(r){return r.json();}).then(function(){ load(); }); }); }); }
+function wireReset(){ var r=document.getElementById('_dupreset'); if(!r) return; r.addEventListener('click',function(e){ e.preventDefault(); var n=(DATA[TYPE]&&DATA[TYPE].ignored)||0; dupConfirm('Clear the '+n+' pair'+(n===1?'':'s')+' you marked as not-a-duplicate? They will be eligible to show up again on the next scan.',{title:'Reset remembered marks?',okText:'Reset'}).then(function(ok){ if(!ok) return; fetch('/api/admin/duplicates/ignore/reset',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:TYPE})}).then(function(r){return r.json();}).then(function(){ load(); }); }); }); }
+function dupConfirm(msg,opts){
+  if(window.rrgConfirm) return window.rrgConfirm(msg,opts);
+  opts=opts||{};
+  return new Promise(function(resolve){
+    var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(10,16,34,.5);display:flex;align-items:center;justify-content:center;z-index:1002';
+    ov.innerHTML='<div style="background:#fff;border-radius:14px;padding:22px 24px;width:410px;max-width:92vw;box-shadow:0 18px 60px rgba(0,0,0,.35)"><div style="font-weight:800;color:#000E31;font-size:16px">'+esc(opts.title||'Please confirm')+'</div><div style="color:#5a6478;font-size:13.5px;margin-top:9px;line-height:1.5">'+esc(msg||'')+'</div><div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px"><button type="button" id="_dcx" style="background:#fff;border:1px solid #d5dbe6;border-radius:9px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;color:#5a6478;cursor:pointer">'+esc(opts.cancelText||'Cancel')+'</button><button type="button" id="_dcok" style="background:'+(opts.danger?'#DA2B1F':'#000E31')+';border:none;border-radius:9px;padding:9px 18px;font:inherit;font-size:13px;font-weight:700;color:#fff;cursor:pointer">'+esc(opts.okText||'OK')+'</button></div></div>';
+    document.body.appendChild(ov);
+    function done(v){ if(ov.parentNode) ov.parentNode.removeChild(ov); resolve(v); }
+    ov.querySelector('#_dcx').addEventListener('click',function(){ done(false); });
+    ov.querySelector('#_dcok').addEventListener('click',function(){ done(true); });
+    ov.addEventListener('click',function(e){ if(e.target===ov) done(false); });
+  });
+}
 function mergeAll(){
   var j=DATA[TYPE]; if(!j||!j.groups||!j.groups.length) return;
   var groups=j.groups.slice();
   var totalMerge=groups.reduce(function(s,g){return s+((g.size||1)-1);},0);
-  window.rrgConfirm('This folds '+totalMerge+' record'+(totalMerge===1?'':'s')+' into their keepers across '+groups.length+' group'+(groups.length===1?'':'s')+'. For each group the highlighted keeper is retained and every other record merges into it — all links, deals, agreements and history move to the keeper. This can’t be undone.',{title:'Merge all '+groups.length+' group'+(groups.length===1?'':'s')+'?',okText:'Merge all',danger:true}).then(function(okConfirm){
+  dupConfirm('This folds '+totalMerge+' record'+(totalMerge===1?'':'s')+' into their keepers across '+groups.length+' group'+(groups.length===1?'':'s')+'. For each group the highlighted keeper is retained and every other record merges into it — all links, deals, agreements and history move to the keeper. This can’t be undone.',{title:'Merge all '+groups.length+' group'+(groups.length===1?'':'s')+'?',okText:'Merge all',danger:true}).then(function(okConfirm){
    if(!okConfirm) return;
    var mab=document.getElementById('mergeall'); if(mab){mab.disabled=true;mab.textContent='Merging…';}
    var rb=document.getElementById('rescan'); if(rb) rb.disabled=true;
