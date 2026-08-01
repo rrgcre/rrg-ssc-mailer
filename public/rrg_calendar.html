@@ -20,10 +20,10 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Hel
 .seg button.on{background:#eef2fb;color:var(--navy);}
 .sp{flex:1;}
 .cal{background:#fff;border:1px solid var(--line);border-radius:13px;overflow:hidden;box-shadow:0 6px 22px rgba(10,20,50,.05);}
-.dow{display:grid;grid-template-columns:repeat(7,1fr);background:#f6f8fb;border-bottom:1px solid var(--line);}
+.dow{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));background:#f6f8fb;border-bottom:1px solid var(--line);}
 .dow div{padding:8px 10px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);}
-.grid{display:grid;grid-template-columns:repeat(7,1fr);}
-.day{min-height:112px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:5px 6px;cursor:pointer;position:relative;}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));}
+.day{min-height:112px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:5px 6px;cursor:pointer;position:relative;overflow:hidden;}
 .day:nth-child(7n){border-right:none;}
 .day.oom{background:#fafbfd;}
 .day.oom .dn{color:#c3cbd8;}

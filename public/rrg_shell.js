@@ -6,6 +6,7 @@
   var path = (location.pathname || '').toLowerCase();
   var file = path.split('/').pop() || 'index.html';
   if (/\/login/.test(path) || file === 'login' ) return;
+  if (/[?&]embed=1/.test(location.search)) return;
   if (document.querySelector('meta[name="rrg-noshell"]')) return;
   window.__rrgShell = true;
   // Branded in-app notifications — replaces the native alert() popup (which leaked the backend domain) app-wide.
@@ -157,17 +158,7 @@
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
       { ic: '▤', label: 'Admin console', href: 'admin' },
-      { ic: '⚙', label: 'Settings', href: 'rrg_admin_settings.html' },
-      { ic: '☺', label: 'Users', href: 'rrg_users.html' },
-      { ic: '◔', label: 'Roles', href: 'rrg_roles.html' },
-      { ic: '◫', label: 'Departments', href: 'rrg_departments.html' },
-      { ic: '⑃', label: 'Pipelines', href: 'rrg_admin_pipelines.html' },
-      { ic: '⊹', label: 'AI Usage', href: 'rrg_ai_usage.html' },
-      { ic: '⚖︎', label: 'Agreement Templates', href: 'rrg_agreement_templates.html' },
-      { ic: '☰', label: 'Menu Access', href: 'rrg_admin_nav.html' },
-      { ic: '⤓', label: 'Import Data', href: 'rrg_import.html' },
-      { ic: '⤒', label: 'Export Data', href: 'rrg_export.html' },
-      { ic: '⚗', label: 'Data Enrichment', href: 'rrg_data.html' },
+      { ic: '⚙', label: 'Settings', href: 'rrg_settings.html' },
       { ic: '<svg viewBox="0 0 20 20" width="14" height="14" style="vertical-align:-2px" fill="currentColor"><rect x="3" y="10" width="3" height="7" rx="1"></rect><rect x="8.5" y="6" width="3" height="11" rx="1"></rect><rect x="14" y="3" width="3" height="14" rx="1"></rect></svg>', label: 'Reports', href: 'rrg_reports.html', admin: true }
     ] }
   ];

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Settings</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f6f8fb;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
+.shub{display:flex;height:calc(100vh - 56px);min-height:520px;background:#fff;}
+.srail{width:250px;flex:0 0 250px;border-right:1px solid var(--line);background:#fbfcfe;overflow-y:auto;padding:14px 0 30px;}
+.srail .sh{font-size:18px;font-weight:800;color:var(--navy);padding:8px 20px 12px;}
+.sgrp{font-size:10.5px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--soft);padding:16px 20px 6px;}
+.sitem{display:flex;align-items:center;gap:10px;padding:8px 20px;font-size:13.5px;color:#33415c;cursor:pointer;text-decoration:none;border-left:3px solid transparent;}
+.sitem:hover{background:#eef2f9;}
+.sitem.on{background:#eef2fb;color:var(--navy);font-weight:700;border-left-color:var(--red);}
+.sitem .d{width:6px;height:6px;border-radius:50%;background:#c2cbdb;flex:none;}
+.sitem.on .d{background:var(--red);}
+.spanelwrap{flex:1;min-width:0;position:relative;background:#fff;}
+.spanel{width:100%;height:100%;border:0;display:block;}
+.sload{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13.5px;background:#fff;}
+.sload.hide{display:none;}
+@media(max-width:860px){ .shub{flex-direction:column;height:auto;} .srail{width:100%;flex:none;border-right:0;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;padding:8px;} .srail .sh,.sgrp{width:100%;} .sitem{border-left:0;border-radius:8px;} .spanelwrap{height:78vh;} }
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="shub">
+  <div class="srail" id="srail"></div>
+  <div class="spanelwrap"><div class="sload" id="sload">Loading…</div><iframe class="spanel" id="spanel" title="Settings panel"></iframe></div>
+</div>
+<script>
+var GROUPS=[
+ { title:'', items:[ {k:'general', label:'General Settings', src:'rrg_admin_settings.html'} ] },
+ { title:'Personal', items:[
+   {k:'account', label:'My Account', src:'rrg_account.html'},
+   {k:'emailtpl', label:'Email Templates', src:'rrg_email_templates.html'}
+ ]},
+ { title:'Users & Access', items:[
+   {k:'users', label:'Users', src:'rrg_users.html'},
+   {k:'roles', label:'Roles & Permissions', src:'rrg_roles.html'},
+   {k:'departments', label:'Departments', src:'rrg_departments.html'}
+ ]},
+ { title:'Customization', items:[
+   {k:'pipelines', label:'Pipelines & Stages', src:'rrg_admin_pipelines.html'},
+   {k:'automations', label:'Automations', src:'rrg_admin_automations.html'},
+   {k:'agrtemplates', label:'Agreement Templates', src:'rrg_agreement_templates.html'},
+   {k:'menu', label:'Menu Access', src:'rrg_admin_nav.html'}
+ ]},
+ { title:'Data', items:[
+   {k:'import', label:'Import Data', src:'rrg_import.html'},
+   {k:'export', label:'Export Data', src:'rrg_export.html'},
+   {k:'enrich', label:'Data Enrichment', src:'rrg_data.html'}
+ ]},
+ { title:'Insights', items:[
+   {k:'aiusage', label:'AI Usage', src:'rrg_ai_usage.html'}
+ ]}
+];
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var ALL={}; GROUPS.forEach(function(g){ g.items.forEach(function(it){ ALL[it.k]=it; }); });
+function buildRail(){
+  var h='<div class="sh">Settings</div>';
+  GROUPS.forEach(function(g){ if(g.title) h+='<div class="sgrp">'+esc(g.title)+'</div>'; h+=g.items.map(function(it){ return '<a class="sitem" data-k="'+esc(it.k)+'"><span class="d"></span>'+esc(it.label)+'</a>'; }).join(''); });
+  var rail=document.getElementById('srail'); rail.innerHTML=h;
+  rail.querySelectorAll('.sitem').forEach(function(a){ a.addEventListener('click',function(){ open(a.getAttribute('data-k')); }); });
+}
+function open(k){
+  var it=ALL[k]||ALL['general']; if(!it) return;
+  document.querySelectorAll('.sitem').forEach(function(a){ a.classList.toggle('on', a.getAttribute('data-k')===it.k); });
+  var f=document.getElementById('spanel'); var ld=document.getElementById('sload'); if(ld) ld.classList.remove('hide');
+  f.onload=function(){ if(ld) ld.classList.add('hide'); };
+  f.src=it.src+'?embed=1';
+  try{ history.replaceState({},'', location.pathname+'?tab='+encodeURIComponent(it.k)); }catch(e){}
+}
+buildRail();
+var _t=''; try{ _t=new URLSearchParams(location.search).get('tab')||''; }catch(e){}
+open(ALL[_t]?_t:'general');
+</script>
+</body>
+</html>
