@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Activity & Logs</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy2:#16346e;--line:#e3e8f1;--wash:#f5f7fb;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f7;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px;}
+.top-in{max-width:1140px;margin:0 auto;padding:0 24px;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:14px 0 4px;}
+h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:720px;line-height:1.5;}
+.crumb{font-size:12px;color:#9fb0d0;font-weight:600;margin-bottom:12px;} .crumb a{color:#c7d3ea;text-decoration:none;} .crumb span{color:#6a7ba0;margin:0 7px;}
+.navcrumb{display:none;max-width:1180px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:#66738f;font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:#2f6fd0;text-decoration:none;} .navcrumb span{color:#93a0ba;margin:0 7px;}
+.wrap{max-width:1140px;margin:22px auto;padding:0 24px 80px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:15px;box-shadow:0 1px 3px rgba(16,32,70,.05);margin-bottom:16px;overflow:hidden;}
+.card>h2{margin:0;padding:16px 20px 4px;font-size:16px;font-weight:800;color:var(--ink);}
+.card>.cs{display:block;padding:0 20px 12px;font-size:12.5px;color:var(--dim);}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:0;} @media(max-width:720px){.cols{grid-template-columns:1fr;}}
+.cols>div{padding:0 20px 18px;} .cols h3{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:800;margin:6px 0 8px;}
+table.sum{width:100%;border-collapse:collapse;font-size:13px;} table.sum td,table.sum th{text-align:left;padding:7px 10px;border-bottom:1px solid #eef1f7;} table.sum th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:800;} table.sum td:last-child,table.sum th:last-child{text-align:right;font-variant-numeric:tabular-nums;}
+.nm{font-weight:700;color:var(--navy2);} .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#3a4560;} .ts{font-size:12px;color:#3a4560;white-space:nowrap;}
+.tag{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;} .tag.ok{background:#eaf5ef;color:#1f8a5b;border:1px solid #c7e6d6;} .tag.off{background:#fdeceb;color:var(--red);border:1px solid #f3cfc9;}
+.empty{text-align:center;color:var(--dim);padding:24px;font-size:13px;}
+.mounted{padding:6px 12px 14px;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);} .gate h2{color:#000E31;}
+.rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);}
+.rl-filtbtn{display:none!important;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<a href="./index.html" class="rrg-back"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <div class="crumb"><a href="./index.html">Command</a><span>›</span>Activity &amp; Logs</div>
+  <span class="disc" onclick="location.href='./index.html'">RRG</span>
+  <div class="kicker">Admin · Activity</div>
+  <h1>Activity &amp; Logs</h1>
+  <div class="sub">What your team is using and who's signing in — tool opens by person and tool, plus the recent tool activity and login history.</div>
+</div></div>
+<div class="navcrumb"><a href="./index.html">Command</a><span>›</span>Activity &amp; Logs</div>
+<div id="root" class="wrap"><div class="empty">Loading…</div></div>
+<script src="/rrg_list.js"></script>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function sumRows(rows,keyName){ if(!rows||!rows.length) return '<tr><td colspan="2" class="empty">None yet.</td></tr>'; return rows.map(function(r){ var lbl=r[keyName]||'—'; var cls=(keyName==='tool')?'nm':'mono'; return '<tr><td class="'+cls+'">'+esc(lbl)+'</td><td>'+r.count+'</td></tr>'; }).join(''); }
+function tsCmp(a,b){ return RRGList.cmp(a.ts,b.ts); }
+function render(j){
+  var root=document.getElementById('root');
+  root.innerHTML=''
+    +'<div class="card"><h2>Tool usage</h2><span class="cs">Opens by tool and by user, all time.</span>'
+      +'<div class="cols">'
+        +'<div><h3>By tool</h3><table class="sum"><thead><tr><th>Tool</th><th>Opens</th></tr></thead><tbody>'+sumRows(j.byTool,'tool')+'</tbody></table></div>'
+        +'<div><h3>By user</h3><table class="sum"><thead><tr><th>User</th><th>Opens</th></tr></thead><tbody>'+sumRows(j.byUser,'user')+'</tbody></table></div>'
+      +'</div>'
+    +'</div>'
+    +'<div class="card"><h2>Recent tool activity</h2><span class="cs">Newest first · last 500 opens.</span><div class="mounted" id="usagelist"></div></div>'
+    +'<div class="card"><h2>Login activity</h2><span class="cs">Newest first · last 300 sign-in attempts.</span><div class="mounted" id="loginlist"></div></div>';
+  RRGList.create({ mount:'#usagelist', data:j.usage||[], key:'adminusage', rowId:function(r){return r.ts+'|'+r.user+'|'+r.tool;}, defaultSort:0, defaultDir:-1, per:50,
+    empty:'<div class="empty">No tool activity yet.</div>',
+    columns:[
+      {label:'When (CT)', width:180, sort:tsCmp, cell:function(r){return '<span class="ts">'+esc(r.when)+'</span>';}},
+      {label:'User', sort:function(a,b){return RRGList.cmp(a.user,b.user);}, cell:function(r){return '<span class="mono">'+(esc(r.user)||'—')+'</span>';}},
+      {label:'Tool', sort:function(a,b){return RRGList.cmp(a.tool,b.tool);}, cell:function(r){return '<span class="nm">'+esc(r.tool)+'</span>';}},
+      {label:'IP', sort:function(a,b){return RRGList.cmp(a.ip,b.ip);}, cell:function(r){return '<span class="mono">'+esc(r.ip)+'</span>';}}
+    ] });
+  RRGList.create({ mount:'#loginlist', data:j.logins||[], key:'adminlogins', rowId:function(r){return r.ts+'|'+r.user+'|'+r.ip;}, defaultSort:0, defaultDir:-1, per:50,
+    empty:'<div class="empty">No sign-ins recorded yet.</div>',
+    columns:[
+      {label:'When (CT)', width:180, sort:tsCmp, cell:function(r){return '<span class="ts">'+esc(r.when)+'</span>';}},
+      {label:'Username', sort:function(a,b){return RRGList.cmp(a.user,b.user);}, cell:function(r){return '<span class="mono">'+(esc(r.user)||'—')+'</span>';}},
+      {label:'Result', sort:function(a,b){return RRGList.cmp(a.result,b.result);}, cell:function(r){return r.result==='success'?'<span class="tag ok">Success</span>':'<span class="tag off">Failed</span>';}},
+      {label:'IP', sort:function(a,b){return RRGList.cmp(a.ip,b.ip);}, cell:function(r){return '<span class="mono">'+esc(r.ip)+'</span>';}}
+    ] });
+}
+fetch('/api/admin/activity',{credentials:'same-origin',cache:'no-store'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
+  if(!j||!j.ok){ throw 0; }
+  if(window.RRGList){ render(j); } else { var t=setInterval(function(){ if(window.RRGList){ clearInterval(t); render(j); } },40); }
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2>Admins only</h2>Ask an administrator to view activity &amp; logs.</div>'; });
+</script>
+</body>
+</html>

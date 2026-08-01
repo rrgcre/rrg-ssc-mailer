@@ -5015,6 +5015,17 @@ function loadAnthropicKeyFile() { try { const t = fs.readFileSync(ANTHROPIC_KEY_
 function saveAnthropicKey(k) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(ANTHROPIC_KEY_FILE, String(k || '').trim()); } catch (e) {} }
 // At boot, a saved key file overrides the environment so the generators pick it up.
 (function () { const k = loadAnthropicKeyFile(); if (k) process.env.ANTHROPIC_API_KEY = k; })();
+app.get('/api/admin/activity', requireAdmin, (req, res) => {
+  const logins = auth.readLogins().slice(-300).reverse();
+  const usageAll = auth.readUsage();
+  const byTool = {}, byUser = {};
+  usageAll.forEach(u => { byTool[u.tool] = (byTool[u.tool]||0)+1; byUser[u.username] = (byUser[u.username]||0)+1; });
+  const byToolOut = Object.entries(byTool).sort((a,b)=>b[1]-a[1]).map(x=>({ tool:x[0]||'', count:x[1] }));
+  const byUserOut = Object.entries(byUser).sort((a,b)=>b[1]-a[1]).map(x=>({ user:x[0]||'', count:x[1] }));
+  const usage = usageAll.slice(-500).reverse().map(u => ({ when: fmtWhen(u.timestamp), ts: u.timestamp||'', user: u.username||'', tool: u.tool||'', ip: u.ip||'' }));
+  const loginsOut = logins.map(l => ({ when: fmtWhen(l.timestamp), ts: l.timestamp||'', user: l.username||'', result: l.result||'', ip: l.ip||'' }));
+  res.json({ ok:true, byTool: byToolOut, byUser: byUserOut, usage, logins: loginsOut });
+});
 app.get('/api/admin/anthropic-key', requireAdmin, (req, res) => res.json({ ok: true, set: !!process.env.ANTHROPIC_API_KEY, fromFile: !!loadAnthropicKeyFile(), fromEnv: !loadAnthropicKeyFile() && !!process.env.ANTHROPIC_API_KEY }));
 app.post('/api/admin/anthropic-key', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {};
