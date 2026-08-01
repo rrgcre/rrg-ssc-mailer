@@ -203,6 +203,26 @@
     + '#rrgnav a.it .aitag{margin-left:5px;font-size:11px;line-height:1;opacity:.85;}'
     + '#rrgnav .foot{border-top:1px solid rgba(255,255,255,.09);padding:8px 8px;display:flex;align-items:center;gap:4px;}#rrgnav .foot a.it{flex:none;padding:6px 9px;}#rrgnav .foot a.it:first-child{flex:1;min-width:0;}#rrgnav .foot a.it:first-child #rrgacct{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
     + '#rrgtop{position:fixed;top:0;left:238px;right:0;height:56px;background:#fff;border-bottom:1px solid #e9edf3;display:flex;align-items:center;gap:18px;padding:0 22px;z-index:59;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
+    + '#rrgnav{transition:width .16s ease;} #rrgtop{transition:left .16s ease;} body.rrg-shelled{transition:padding-left .16s ease;}'
+    + '.rrgcol{margin-left:auto;flex:none;background:rgba(255,255,255,.08);border:none;color:#c7d0e4;cursor:pointer;border-radius:6px;width:26px;height:26px;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;}'
+    + '.rrgcol:hover{background:rgba(255,255,255,.16);color:#fff;}'
+    + '#rrgnav a.it{position:relative;}'
+    + 'body.rrg-collapsed.rrg-shelled{padding-left:60px !important;}'
+    + 'body.rrg-collapsed #rrgnav{width:60px;}'
+    + 'body.rrg-collapsed #rrgtop{left:60px;}'
+    + 'body.rrg-collapsed #rrgnav .itlbl{display:none;}'
+    + 'body.rrg-collapsed #rrgnav .grp .lbl{display:none;}'
+    + 'body.rrg-collapsed #rrgnav .grp{margin-top:2px;}'
+    + 'body.rrg-collapsed #rrgnav .nt .rrgbrand{display:none;}'
+    + 'body.rrg-collapsed #rrgnav .nt{justify-content:center;padding:12px 6px 6px;}'
+    + 'body.rrg-collapsed .rrgcol{margin-left:0;}'
+    + 'body.rrg-collapsed #rrgnav a.it{justify-content:center;padding-left:0;padding-right:0;gap:0;}'
+    + 'body.rrg-collapsed #rrgnav a.it .aitag{display:none;}'
+    + 'body.rrg-collapsed #rrgnav a.it .navbadge{position:absolute;top:1px;right:5px;transform:scale(.85);margin:0;}'
+    + 'body.rrg-collapsed #rrgnav .foot{flex-direction:column;gap:2px;padding:8px 4px;}'
+    + 'body.rrg-collapsed #rrgnav .foot a.it{flex:none;font-size:0;justify-content:center;}'
+    + 'body.rrg-collapsed #rrgnav .foot a.it .i{font-size:13.5px;}'
+    + 'body.rrg-collapsed #rrgnav .foot #rrgacct{display:none;}'
     + '#rrgtop .rrgtoplogo{display:flex;align-items:center;height:100%;text-decoration:none;flex:none;margin-right:8px;max-width:224px;overflow:hidden;}'
     + '#rrgtop .rrgtoplogo .rrgbrandimg{max-height:40px;max-width:212px;object-fit:contain;display:block;}'
     + '#rrgtop .rrgtoplogo .rrgbrand{font-weight:800;font-size:18px;color:var(--navy,#000E31);letter-spacing:-.01em;white-space:nowrap;}'
@@ -231,7 +251,7 @@
   // ---------- nav markup ----------
   var _cachedName = (function(){ try { return localStorage.getItem('rrg_appname') || ''; } catch(e){ return ''; } })();
   var navHtml = '';
-  navHtml += '<div class="nt"><a class="ws" href="index.html"><span class="rrgbrand" id="rrgbrand">'+esc(_cachedName)+'</span></a></div>';
+  navHtml += '<div class="nt"><a class="ws" href="index.html"><span class="rrgbrand" id="rrgbrand">'+esc(_cachedName)+'</span></a><button class="rrgcol" id="rrgcollapse" title="Collapse sidebar" aria-label="Collapse sidebar">\u00ab</button></div>';
   navHtml += '<div class="scroll">';
   NAV.forEach(function (g, gi) {
     var _sp = []; if (g.color) _sp.push('--gc:' + g.color); if (g.admin) _sp.push('display:none');
@@ -241,7 +261,7 @@
     g.items.forEach(function (it) {
       var _na = it.need ? (' data-need="' + esc(it.need) + '" style="display:none"') : (it.admin ? ' data-adminit="1" style="display:none"' : '');
       var _ai = it.ai ? ' data-ai=""' : '';
-      navHtml += '<a class="it' + (isActive(it) ? ' on' : '') + '"' + _na + _ai + ' href="' + esc(it.href) + '"><span class="i"' + (it.color ? (' style="color:' + it.color + '"') : '') + '>' + it.ic + '</span><span class="itlbl">' + esc(it.label) + '</span></a>';
+      navHtml += '<a class="it' + (isActive(it) ? ' on' : '') + '"' + _na + _ai + ' title="' + esc(it.label) + '" href="' + esc(it.href) + '"><span class="i"' + (it.color ? (' style="color:' + it.color + '"') : '') + '>' + it.ic + '</span><span class="itlbl">' + esc(it.label) + '</span></a>';
     });
     navHtml += '</div>';
   });
@@ -267,6 +287,8 @@
     document.body.insertBefore(nav, document.body.firstChild);
     document.body.insertBefore(top, document.body.firstChild);
     document.body.classList.add('rrg-shelled');
+    try{ if(localStorage.getItem('rrg_nav_collapsed')==='1') document.body.classList.add('rrg-collapsed'); }catch(e){}
+    (function(){ var _cb=document.getElementById('rrgcollapse'); if(!_cb) return; function _sync(){ var on=document.body.classList.contains('rrg-collapsed'); _cb.textContent=on?'\u00bb':'\u00ab'; _cb.title=on?'Expand sidebar':'Collapse sidebar'; } _sync(); _cb.addEventListener('click',function(e){ e.preventDefault(); var on=document.body.classList.toggle('rrg-collapsed'); try{ localStorage.setItem('rrg_nav_collapsed',on?'1':'0'); }catch(_e){} _sync(); }); })();
     // Contextual back button in the header's left slot — pages opt in with
     // <meta name="rrg-back" content="rrg_companies.html|Companies">.
     try { var _mb=document.querySelector('meta[name="rrg-back"]'); if(_mb){ var _p=String(_mb.getAttribute('content')||'').split('|'); var _href=(_p[0]||'').trim(), _lbl=(_p[1]||'Back').trim(); if(_href){ var _bk=document.createElement('a'); _bk.className='rrgback'; _bk.href=_href; _bk.innerHTML='<span style="font-size:15px;line-height:1">←</span> '+esc(_lbl);
