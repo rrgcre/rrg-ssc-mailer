@@ -77,13 +77,12 @@ var TYPE='companies', DATA={companies:null,contacts:null}, KEEP={}, ARMED={};
 function build(){
   var root=document.getElementById('root'); root.className='wrap';
   root.innerHTML=''
-   +'<div class="tabs"><button class="tab on" data-t="companies">Companies</button><button class="tab" data-t="contacts">Contacts</button></div>'
-   +'<div class="bar"><span class="cnt" id="cnt">Scanning…</span><div class="sp"><button class="btn amber" id="mergeall" style="display:none">Merge all</button><button class="btn" id="rescan">Rescan</button></div></div>'
-   +'<div id="list"></div>';
+   +'<div class="tabs"><button class="tab" data-t="companies">Companies</button><button class="tab" data-t="contacts">Contacts</button></div>'
+   +'<div class="bar"><span class="cnt" id="cnt"></span><div class="sp"><button class="btn amber" id="mergeall" style="display:none">Merge all</button><button class="btn" id="rescan" style="display:none">Rescan</button></div></div>'
+   +'<div id="list"><div class="empty"><b>Choose what to scan.</b>Press <b>Companies</b> or <b>Contacts</b> above and we\u2019ll scan your book for duplicate records to review.</div></div>';
   document.querySelectorAll('.tab').forEach(function(t){ t.addEventListener('click',function(){ if(t.classList.contains('on'))return; document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on');}); t.classList.add('on'); TYPE=t.getAttribute('data-t'); show(); }); });
   document.getElementById('rescan').addEventListener('click',function(){ DATA[TYPE]=null; load(); });
   document.getElementById('mergeall').addEventListener('click',mergeAll);
-  load();
 }
 function show(){ if(DATA[TYPE]) render(DATA[TYPE]); else load(); }
 var _dupeAbort=null;
@@ -100,6 +99,7 @@ function load(){
   _dupeAbort=('AbortController' in window)?new AbortController():null;
   PROG.show('Scanning your '+TYPE+' for duplicates… on a large book this can take a minute — you can keep it running or cancel.', function(){ if(_dupeAbort){ try{_dupeAbort.abort();}catch(e){} } PROG.hide(); document.getElementById('cnt').textContent=''; document.getElementById('list').innerHTML='<div class="empty"><b>Scan cancelled.</b> <a href="#" id="_rescanlink">Run it again</a> whenever you\'re ready.</div>'; var rl=document.getElementById('_rescanlink'); if(rl) rl.addEventListener('click',function(e){ e.preventDefault(); load(); }); });
   document.getElementById('cnt').innerHTML='<span class="spin"></span>Scanning your '+TYPE+'…';
+  var _rb=document.getElementById('rescan'); if(_rb) _rb.style.display='';
   document.getElementById('list').innerHTML='';
   fetch('/api/admin/duplicates?type='+TYPE,{credentials:'same-origin',signal:_dupeAbort?_dupeAbort.signal:undefined}).then(function(r){return r.json();}).then(function(j){
     PROG.hide();
