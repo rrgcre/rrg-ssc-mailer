@@ -245,6 +245,7 @@
     #printview .page{ width:auto; min-height:auto; padding:0; }
     #printview .band{ margin:0; }
   }
+.coauto2{position:relative;} .cosug2{position:absolute;left:0;right:0;top:100%;z-index:40;background:#fff;border:1px solid #cfd6e2;border-radius:9px;box-shadow:0 10px 26px rgba(10,20,50,.14);margin-top:3px;max-height:230px;overflow:auto;} .cosug2row{padding:8px 11px;font-size:13px;cursor:pointer;color:#1a2236;} .cosug2row:hover{background:#f5f7fb;} .cosug2new{border-top:1px solid #eef1f6;} .cosug2new:hover{background:#eef7f0;color:#1f8a5b;} .co2new{color:#1f8a5b;font-weight:800;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -320,7 +321,8 @@
     </div>
 
     <div class="grid rowgap">
-      <div class="field"><label class="k">Business Name<span class="req-star">*</span></label><input type="text" class="req"></div>
+      <div class="field"><label class="k">Company Name<span class="req-star">*</span></label><div class="coauto2"><input type="text" class="req" id="sscCompany" autocomplete="off"><div class="cosug2" id="sscCosug" hidden></div></div></div>
+      <div class="field"><label class="k">Concept</label><div class="coauto2"><input type="text" id="sscConcept" autocomplete="off" placeholder="Pick or add a concept"><div class="cosug2" id="sscConceptSug" hidden></div></div></div>
       <div class="field"><label class="k">Seller Contact Name<span class="req-star">*</span></label><input type="text" class="req"></div>
       <div class="field"><label class="k">RRG Rep<span class="req-star">*</span></label><select class="req" id="repSelect"><option value="">Select…</option></select></div>
       <div class="field"><label class="k">Call Date<span class="req-star">*</span></label><input type="date" class="req" id="callDate"></div>
@@ -758,7 +760,8 @@
         document.querySelectorAll('#sscform input.req, #sscform textarea.req, #sscform select.req').forEach(function(el){ total++; var ok=!!el.value.trim(); if(ok && el.classList.contains('email')) ok=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim()); if(ok) done++; });
         document.querySelectorAll('#sscform .oset[data-req]').forEach(function(os){ total++; if(Array.prototype.slice.call(os.querySelectorAll('input')).some(function(i){return i.checked;})) done++; });
         return total ? Math.round(done/total*100) : 100; })(),
-      concept: header['business name']||'Seller',
+      concept: header['concept']||header['company name']||'Seller',
+      company: header['company name']||'',
       contact: header['seller contact name']||'',
       preparedBy: header['rrg rep']||'',
       market: header['metro']||header['market']||'',
@@ -900,7 +903,7 @@
     if(dirty && !await rrgConfirm('Load the sample seller screening? This replaces the current entries.')) return;
     form.reset();
     // Call & contact
-    _set('Business Name',"Hale's Kitchen & Tap");
+    _set('Company Name',"Hale's Kitchen & Tap");
     _set('Seller Contact Name','Marcus Hale');
     _set('RRG Rep','Avery');
     _set('Call Date','2026-07-14');
@@ -1001,13 +1004,39 @@
     var concept='', market='';
     var lbls=document.querySelectorAll('#sscform label.k');
     for(var i=0;i<lbls.length;i++){ var t=_labelText(lbls[i]); var inp=lbls[i].parentElement.querySelector('input,textarea');
-      if(t==='Business Name'&&inp) concept=inp.value.trim();
+      if(t==='Company Name'&&inp) concept=concept||inp.value.trim();
+      if(t==='Concept'&&inp&&inp.value.trim()) concept=inp.value.trim();
       if(t==='Metro'&&inp) market=inp.value.trim(); }
     hc.textContent = concept || 'New Seller Screening';
     ht.textContent = market ? ('Market: '+market) : 'Business and market appear here as you complete the screen.';
   }
   document.addEventListener('input', _updateHeader);
   document.addEventListener('change', _updateHeader);
+(function(){
+  var API2=(typeof API!=='undefined'?API:'');
+  function e2(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function ck(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
+  var LIST=[], SSC={coId:'',concepts:[]};
+  function match(q){ var k=ck(q); if(k.length<2) return []; var out=[]; LIST.forEach(function(c){ var cc=ck(c.name); if(!cc) return; if(cc.indexOf(k)>=0||k.indexOf(cc)>=0) out.push({c:c,s:(cc===k?0:(cc.indexOf(k)>=0?1:2)+Math.abs(cc.length-k.length)/50)}); }); out.sort(function(a,b){return a.s-b.s;}); return out.slice(0,7).map(function(x){return x.c;}); }
+  fetch(API2+'/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ LIST=(j&&j.companies)||[]; }).catch(function(){});
+
+  var ci=document.getElementById('sscCompany'), cs=document.getElementById('sscCosug');
+  function cclose(){ if(cs){ cs.setAttribute('hidden',''); cs.innerHTML=''; } }
+  if(ci&&cs){
+    ci.addEventListener('input',function(){ SSC.coId=''; SSC.concepts=[]; if(document.activeElement!==ci){ cclose(); return; } var q=ci.value.trim(); var ms=q?match(q):[]; if(!ms.length){ cclose(); return; } cs.innerHTML=ms.map(function(c){ return '<div class="cosug2row" data-id="'+e2(c.id)+'" data-nm="'+e2(c.name)+'">'+e2(c.name)+'</div>'; }).join(''); cs.removeAttribute('hidden'); cs.querySelectorAll('.cosug2row').forEach(function(r){ r.addEventListener('mousedown',function(ev){ ev.preventDefault(); ci.value=r.getAttribute('data-nm'); SSC.coId=r.getAttribute('data-id'); var co=LIST.filter(function(x){return x.id===SSC.coId;})[0]; SSC.concepts=(co&&co.conceptNames)||[]; cclose(); ci.dispatchEvent(new Event('input',{bubbles:true})); var pin=document.getElementById('sscConcept'); if(pin){ pin.placeholder=SSC.concepts.length?('Pick or add a concept ('+SSC.concepts.length+' on file)'):'Add a concept'; } }); }); });
+    ci.addEventListener('blur',function(){ setTimeout(cclose,160); });
+  }
+
+  var pi=document.getElementById('sscConcept'), ps=document.getElementById('sscConceptSug');
+  function pclose(){ if(ps){ ps.setAttribute('hidden',''); ps.innerHTML=''; } }
+  function conceptMatch(q){ var k=ck(q); return (SSC.concepts||[]).filter(function(n){ var nk=ck(n); return !k || nk.indexOf(k)>=0; }).slice(0,8); }
+  if(pi&&ps){
+    function openConcept(){ if(document.activeElement!==pi){ pclose(); return; } var q=pi.value.trim(); var ms=conceptMatch(q); var kq=ck(q); var exact=ms.some(function(n){return ck(n)===kq;}); var rows=ms.map(function(n){ return '<div class="cosug2row" data-cn="'+e2(n)+'">'+e2(n)+'</div>'; }); if(q&&!exact&&SSC.coId){ rows.push('<div class="cosug2row cosug2new" data-add="'+e2(q)+'"><span class="co2new">+ Add concept:</span> "'+e2(q)+'"</div>'); } if(!rows.length){ pclose(); return; } ps.innerHTML=rows.join(''); ps.removeAttribute('hidden'); ps.querySelectorAll('.cosug2row').forEach(function(r){ r.addEventListener('mousedown',function(ev){ ev.preventDefault(); var addn=r.getAttribute('data-add'); if(addn){ pi.value=addn; pclose(); if(SSC.coId){ fetch(API2+'/api/company/'+encodeURIComponent(SSC.coId)+'/concept',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:addn})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(SSC.concepts.indexOf(addn)<0) SSC.concepts.push(addn); var co=LIST.filter(function(x){return x.id===SSC.coId;})[0]; if(co){ co.conceptNames=co.conceptNames||[]; if(co.conceptNames.indexOf(addn)<0) co.conceptNames.push(addn); } } }).catch(function(){}); } } else { pi.value=r.getAttribute('data-cn'); pclose(); } pi.dispatchEvent(new Event('input',{bubbles:true})); }); }); }
+    pi.addEventListener('input',openConcept);
+    pi.addEventListener('focus',openConcept);
+    pi.addEventListener('blur',function(){ setTimeout(pclose,160); });
+  }
+})();
   _updateHeader();
 
   (function(){
@@ -1104,14 +1133,14 @@
       if(labels.indexOf(t)>=0){ var inp=ls[i].parentElement.querySelector('input,textarea,select'); if(inp){ if(inp.tagName==='SELECT') ensureOption(inp,val); inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); } return; } }
   }
   // Prefill a NEW call from a contact (opened via the contact's Actions → Start Qualification Call).
-  (function(){ var q=new URLSearchParams(location.search); var pn=q.get('sellerName'), pc=q.get('company')||q.get('business'), pm=q.get('market'), pa=q.get('address'); if(!id && (pn||pc||pm||pa)){ repsReady.then(function(){ if(pc) setByLabel(['business name'], pc); if(pn) setByLabel(['seller contact name'], pn); if(pa) setByLabel(['business address'], pa); if(pm){ var ms=document.getElementById('metroSelect'); if(ms){ var opt=[].slice.call(ms.options).filter(function(o){return o.value.toLowerCase()===String(pm).toLowerCase();})[0]; ms.value=opt?opt.value:'Other'; ms.dispatchEvent(new Event('change',{bubbles:true})); } } }); } })();
+  (function(){ var q=new URLSearchParams(location.search); var pn=q.get('sellerName'), pc=q.get('company')||q.get('business'), pm=q.get('market'), pa=q.get('address'); if(!id && (pn||pc||pm||pa)){ repsReady.then(function(){ if(pc) setByLabel(['company name'], pc); if(pn) setByLabel(['seller contact name'], pn); if(pa) setByLabel(['business address'], pa); if(pm){ var ms=document.getElementById('metroSelect'); if(ms){ var opt=[].slice.call(ms.options).filter(function(o){return o.value.toLowerCase()===String(pm).toLowerCase();})[0]; ms.value=opt?opt.value:'Other'; ms.dispatchEvent(new Event('change',{bubbles:true})); } } }); } })();
   Promise.all([repsReady, fetch(API+'/api/screening/'+encodeURIComponent(id)).then(function(r){return r.json();}).catch(function(){return null;})]).then(function(res){
     var j=res[1]; if(!j||!j.ok||!j.screening) return;
     var s=j.screening, d=s.data||{};
     if(s.formId) window.RRG_FORM_ID=s.formId;
     if(d.snapshot && window.rrgRestore){ window.rrgRestore(d.snapshot); }
     else {
-      setByLabel(['business name'], s.business);
+      setByLabel(['company name'], s.business);
       setByLabel(['seller contact name'], s.contact);
       setByLabel(['metro','market'], s.market);
       setByLabel(['call date'], s.date);
