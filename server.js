@@ -8465,9 +8465,9 @@ app.get('/api/documents', (req, res) => {
   const out = [];
   let ag = loadAgreements();
   if (restrictToOwn(req)) ag = ag.filter(a => permOwnerMatch(req, a.createdBy));
-  ag.forEach(a => { const br = agreementBrief(a); out.push({ id:a.id, kind:'agreement', title:(a.name || 'Agreement'), typeLabel:'Agreement', companyId:a.companyId||'', companyName: coNameById[a.companyId]||'', personName: a.personName || nameById[a.personId] || '', dealName: bizByKey[a.dealKey]||'', status: br.statusLabel||'', statusKey: br.statusKey||'', owner: a.createdByName || a.createdBy || '', createdAt: a.createdAt||'', openUrl: a.docExt ? ('/api/agreements/'+a.id+'/doc') : 'rrg_agreements.html', downloadUrl: a.docExt ? ('/api/agreements/'+a.id+'/doc') : '' }); });
+  ag.forEach(a => { const br = agreementBrief(a); out.push({ id:a.id, kind:'agreement', title:(a.name || 'Agreement'), typeLabel:'Agreement', agrType: agreementTypeLabel(a.type), effective: a.effective||'', expires: a.expires||'', companyId:a.companyId||'', companyName: coNameById[a.companyId]||'', personName: a.personName || nameById[a.personId] || '', dealName: bizByKey[a.dealKey]||'', status: br.statusLabel||'', statusKey: br.statusKey||'', owner: a.createdByName || a.createdBy || '', createdAt: a.createdAt||'', openUrl: a.docExt ? ('/api/agreements/'+a.id+'/doc') : 'rrg_agreements.html', downloadUrl: a.docExt ? ('/api/agreements/'+a.id+'/doc') : '' }); });
   let bv = loadBovs().filter(b => isAdmin || ownsBov(req, b));
-  bv.forEach(b => { out.push({ id:b.id, kind:'valuation', title: b.business || 'Valuation', typeLabel:'Valuation', companyId:'', companyName:'', personName:'', dealName:'', status: b.pending ? 'Requested' : 'Built', statusKey: b.pending ? 'pending' : 'built', owner: b.by || b.byUser || '', createdAt: b.createdAt || '', openUrl: (b.pending ? 'rrg_bov_generate.html?bov=' : 'rrg_bov_builder.html?bov=') + encodeURIComponent(b.id), downloadUrl:'' }); });
+  bv.forEach(b => { out.push({ id:b.id, kind:'valuation', title: b.business || 'Valuation', typeLabel:'Valuation', valueText: (b.targetText||b.rangeText||b.sdeText||''), basis: b.basis||'', companyId:'', companyName:'', personName:'', dealName:'', status: b.pending ? 'Requested' : 'Built', statusKey: b.pending ? 'pending' : 'built', owner: b.by || b.byUser || '', createdAt: b.createdAt || '', openUrl: (b.pending ? 'rrg_bov_generate.html?bov=' : 'rrg_bov_builder.html?bov=') + encodeURIComponent(b.id), downloadUrl:'' }); });
   let cm = loadCims().filter(c => isAdmin || ownsCim(req, c));
   cm.forEach(c => { out.push({ id:c.id, kind:'marketingpack', title: c.business || 'Marketing Pack', typeLabel:'Marketing Pack', companyId:'', companyName: c.market||'', personName:'', dealName:'', status: c.pending ? 'Draft' : 'Built', statusKey: c.pending ? 'pending' : 'built', owner: c.by || c.byUser || '', createdAt: c.createdAt || '', openUrl: (c.pending ? 'rrg_cim_generate.html?cim=' : 'rrg_cim_builder.html?cim=') + encodeURIComponent(c.id), downloadUrl:'' }); });
   let uf = loadUserFiles();
@@ -8478,27 +8478,44 @@ app.get('/api/documents', (req, res) => {
     if (restrictToOwn(req)) sscs = sscs.filter(r => permOwnerMatch(req, r.rep));
     sscs.forEach(r => { out.push({ id: r.timestamp, kind:'ssc', title: r.name || 'Site Criteria', typeLabel:'Site Criteria', companyId:'', companyName: r.market||'', personName:'', dealName:'', relatesToName:'', status: r.highlights || '', statusKey:'ssc', owner: r.rep || '', createdAt: r.timestamp || '', openUrl: '/api/ssc/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
   } catch (e) {}
+  try {
+    let sellers = store.readAll().filter(r => r.form === 'seller');
+    if (restrictToOwn(req)) sellers = sellers.filter(r => permOwnerMatch(req, r.rep));
+    sellers.forEach(r => { out.push({ id: r.timestamp, kind:'seller', title: r.name || 'Seller Screening', typeLabel:'Seller Screening', companyId:'', companyName: r.market||'', personName:'', dealName:'', relatesToName:'', status: r.highlights || '', statusKey:'seller', owner: r.rep || '', createdAt: r.timestamp || '', openUrl: '/api/seller/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
+  } catch (e) {}
+  try {
+    let lois = loadLois();
+    if (restrictToOwn(req)) lois = lois.filter(l => permOwnerMatch(req, l.byUser || l.by));
+    lois.forEach(l => { const tn = (l.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep'); const party = [(l.tenant&&l.tenant.name)||'', (l.landlord&&l.landlord.name)||''].filter(Boolean).join(' / '); out.push({ id: l.id, kind:'loi', title: (l.property || party || (tn+' LOI')), typeLabel:'LOI', dealType: tn, property: l.property||'', parties: party, companyId:'', companyName: party, personName:'', dealName:'', relatesToName:'', status: l.status || '', statusKey: (l.status||'').toLowerCase().replace(/[^a-z]+/g,''), owner: l.by || l.byUser || '', createdAt: l.createdAt || '', openUrl: '/api/loi/'+encodeURIComponent(l.id)+'/view', downloadUrl:'' }); });
+  } catch (e) {}
   out.sort((x,y) => String(y.createdAt||'').localeCompare(String(x.createdAt||'')));
   res.json({ ok:true, isAdmin, documents: out });
 });
 
-app.get('/api/ssc/:key/view', (req, res) => {
-  const key = String(req.params.key || '');
-  const rec = store.readAll().filter(r => r.form === 'ssc' && r.timestamp === key)[0];
-  if (!rec) return res.status(404).send('Not found.');
-  if (restrictToOwn(req) && !permOwnerMatch(req, rec.rep)) return res.status(403).send('Not authorized.');
+function intakeGrpVal(g){ if (g.kind === 'options') return (g.selected || []).join(', '); if (g.kind === 'field') return g.value || ''; return (g.value != null ? String(g.value) : ((g.selected||[]).join(', '))); }
+function intakeViewHtml(rec, kicker) {
   const d = rec.data || {};
   const secs = Array.isArray(d.sections) ? d.sections : [];
-  function grpVal(g){ if (g.kind === 'options') return (g.selected || []).join(', '); if (g.kind === 'field') return g.value || ''; return (g.value != null ? String(g.value) : ((g.selected||[]).join(', '))); }
   const secHtml = secs.map(sec => {
     const groups = Array.isArray(sec.groups) ? sec.groups : [];
-    const rows = groups.map(g => { const v = grpVal(g); if (!g.label && !v) return ''; return `<tr><td class="lb">${esc(g.label||'')}</td><td class="vl">${esc(v) || '<span class=\'dim\'>\u2014</span>'}</td></tr>`; }).join('');
+    const rows = groups.map(g => { const v = intakeGrpVal(g); if (!g.label && !v) return ''; return `<tr><td class="lb">${esc(g.label||'')}</td><td class="vl">${esc(v) || '<span class=\'dim\'>—</span>'}</td></tr>`; }).join('');
     if (!rows) return '';
     return `<div class="card"><div class="ch">${esc(sec.title||'Details')}</div><table>${rows}</table></div>`;
   }).join('') || '<div class="card"><div class="ch">Submission</div><div style="padding:16px 18px;color:#6b7488;font-size:13px">No structured fields were captured on this submission.</div></div>';
   const when = (function(){ try { return new Date(rec.timestamp).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}); } catch(e){ return rec.timestamp||''; } })();
-  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Site Criteria \u2014 ${esc(rec.name||'')}</title><style>*{box-sizing:border-box}body{margin:0;background:#eef1f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#14213d}.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px}.top-in{max-width:900px;margin:0 auto;padding:0 24px}.kick{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin-bottom:5px}h1{margin:0;font-size:24px;font-weight:800}.meta{color:#aeb8cf;font-size:12.5px;margin-top:8px;line-height:1.6}.wrap{max-width:900px;margin:22px auto;padding:0 24px 70px}.card{background:#fff;border:1px solid #e3e8f1;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(16,32,70,.05);margin-bottom:16px}.ch{padding:13px 18px;border-bottom:1px solid #eef1f7;font-weight:800;color:#16346e;font-size:14px;background:linear-gradient(180deg,#fbfcff,#fff)}table{width:100%;border-collapse:collapse}td{padding:11px 18px;border-bottom:1px solid #f1f3f8;font-size:13px;vertical-align:top}tr:last-child td{border-bottom:none}.lb{width:34%;color:#66738f;font-weight:600}.vl{color:#14213d;font-weight:500}.dim{color:#aab2c2}</style></head><body><div class="top"><div class="top-in"><div class="kick">Site &amp; Concept Criteria</div><h1>${esc(rec.name||'Untitled Criteria')}</h1><div class="meta">${rec.market?('Market: <b>'+esc(rec.market)+'</b> &nbsp;\u00b7&nbsp; '):''}Prepared by <b>${esc(rec.rep||'\u2014')}</b> &nbsp;\u00b7&nbsp; ${esc(when)}${rec.highlights?('<br>'+esc(rec.highlights)):''}</div></div></div><div class="wrap">${secHtml}</div></body></html>`;
-  res.set('Content-Type','text/html; charset=utf-8').send(html);
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(kicker)} — ${esc(rec.name||'')}</title><style>*{box-sizing:border-box}body{margin:0;background:#eef1f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#14213d}.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px}.top-in{max-width:900px;margin:0 auto;padding:0 24px}.kick{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin-bottom:5px}h1{margin:0;font-size:24px;font-weight:800}.meta{color:#aeb8cf;font-size:12.5px;margin-top:8px;line-height:1.6}.wrap{max-width:900px;margin:22px auto;padding:0 24px 70px}.card{background:#fff;border:1px solid #e3e8f1;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(16,32,70,.05);margin-bottom:16px}.ch{padding:13px 18px;border-bottom:1px solid #eef1f7;font-weight:800;color:#16346e;font-size:14px;background:linear-gradient(180deg,#fbfcff,#fff)}table{width:100%;border-collapse:collapse}td{padding:11px 18px;border-bottom:1px solid #f1f3f8;font-size:13px;vertical-align:top}tr:last-child td{border-bottom:none}.lb{width:34%;color:#66738f;font-weight:600}.vl{color:#14213d;font-weight:500}.dim{color:#aab2c2}</style></head><body><div class="top"><div class="top-in"><div class="kick">${esc(kicker)}</div><h1>${esc(rec.name||'Untitled')}</h1><div class="meta">${rec.market?('Market: <b>'+esc(rec.market)+'</b> &nbsp;·&nbsp; '):''}Prepared by <b>${esc(rec.rep||'—')}</b> &nbsp;·&nbsp; ${esc(when)}${rec.highlights?('<br>'+esc(rec.highlights)):''}</div></div></div><div class="wrap">${secHtml}</div></body></html>`;
+}
+app.get('/api/ssc/:key/view', (req, res) => {
+  const rec = store.readAll().filter(r => r.form === 'ssc' && r.timestamp === String(req.params.key||''))[0];
+  if (!rec) return res.status(404).send('Not found.');
+  if (restrictToOwn(req) && !permOwnerMatch(req, rec.rep)) return res.status(403).send('Not authorized.');
+  res.set('Content-Type','text/html; charset=utf-8').send(intakeViewHtml(rec, 'Site & Concept Criteria'));
+});
+app.get('/api/seller/:key/view', (req, res) => {
+  const rec = store.readAll().filter(r => r.form === 'seller' && r.timestamp === String(req.params.key||''))[0];
+  if (!rec) return res.status(404).send('Not found.');
+  if (restrictToOwn(req) && !permOwnerMatch(req, rec.rep)) return res.status(403).send('Not authorized.');
+  res.set('Content-Type','text/html; charset=utf-8').send(intakeViewHtml(rec, 'Seller Screening'));
 });
 
 app.get('/api/agreements', (req, res) => {
@@ -9828,6 +9845,35 @@ app.get('/api/lois', (req, res) => {
   const lois = loadLois().slice().reverse().map(function (l) { return { id: l.id, type: l.type || 'tenant_rep', typeName: (l.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep'), property: l.property || '', tenant: (l.tenant && l.tenant.name) || '', tenantId: (l.tenant && l.tenant.id) || '', tenantKind: (l.tenant && l.tenant.kind) || '', landlord: (l.landlord && l.landlord.name) || '', landlordId: (l.landlord && l.landlord.id) || '', landlordKind: (l.landlord && l.landlord.kind) || '', createdAt: l.createdAt || '', by: l.by || '', status: l.status || '', updatedAt: l.updatedAt || '', rounds: Array.isArray(l.rounds) ? l.rounds.length : 0 }; });
   res.json({ ok: true, lois: lois });
 });
+function loiViewHtml(l, terms) {
+  const tn = (l.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep');
+  const vals = l.values || {};
+  const when = (function(){ try { return new Date(l.createdAt).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}); } catch(e){ return l.createdAt||''; } })();
+  const dealRows = [
+    ['Type', tn + ' LOI'],
+    ['Property', l.property || ''],
+    ['Tenant / Buyer', (l.tenant && l.tenant.name) || ''],
+    ['Landlord / Seller', (l.landlord && l.landlord.name) || ''],
+    ['Status', l.status || 'Draft'],
+    ['Prepared by', l.by || ''],
+  ].filter(r => r[1]).map(r => `<tr><td class="lb">${esc(r[0])}</td><td class="vl">${esc(r[1])}</td></tr>`).join('');
+  const termRows = (terms || []).map(t => { const v = vals[t.key]; if (v == null || String(v).trim() === '') return ''; return `<tr><td class="lb">${esc(t.label || t.key)}</td><td class="vl">${esc(String(v))}</td></tr>`; }).join('');
+  const clauses = Array.isArray(l.clauses) ? l.clauses : [];
+  const clHtml = clauses.map(c => { const it = (typeof c === 'string') ? { title: '', body: c } : (c || {}); const title = it.title || it.label || ''; const body = it.body || it.text || ''; if (!title && !body) return ''; return `<div style="padding:12px 18px;border-bottom:1px solid #f1f3f8">${title?('<div style="font-weight:800;color:#16346e;font-size:13px;margin-bottom:3px">'+esc(title)+'</div>'):''}<div style="font-size:12.5px;color:#3a4560;line-height:1.55;white-space:pre-wrap">${esc(body)}</div></div>`; }).join('');
+  const cards = `<div class="card"><div class="ch">Deal &amp; Parties</div><table>${dealRows||'<tr><td class="vl" style="color:#aab2c2">No deal details.</td></tr>'}</table></div>`
+    + (termRows ? `<div class="card"><div class="ch">Terms</div><table>${termRows}</table></div>` : '')
+    + (clHtml ? `<div class="card"><div class="ch">Sections</div>${clHtml}</div>` : '');
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>LOI — ${esc(l.property || tn)}</title><style>*{box-sizing:border-box}body{margin:0;background:#eef1f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#14213d}.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px}.top-in{max-width:900px;margin:0 auto;padding:0 24px}.kick{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin-bottom:5px}h1{margin:0;font-size:24px;font-weight:800}.meta{color:#aeb8cf;font-size:12.5px;margin-top:8px;line-height:1.6}.wrap{max-width:900px;margin:22px auto;padding:0 24px 70px}.card{background:#fff;border:1px solid #e3e8f1;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(16,32,70,.05);margin-bottom:16px}.ch{padding:13px 18px;border-bottom:1px solid #eef1f7;font-weight:800;color:#16346e;font-size:14px;background:linear-gradient(180deg,#fbfcff,#fff)}table{width:100%;border-collapse:collapse}td{padding:11px 18px;border-bottom:1px solid #f1f3f8;font-size:13px;vertical-align:top}tr:last-child td{border-bottom:none}.lb{width:34%;color:#66738f;font-weight:600}.vl{color:#14213d;font-weight:500}</style></head><body><div class="top"><div class="top-in"><div class="kick">Letter of Intent · ${esc(tn)}</div><h1>${esc(l.property || ((l.tenant&&l.tenant.name)||'') || 'Letter of Intent')}</h1><div class="meta">Prepared by <b>${esc(l.by||'—')}</b> &nbsp;·&nbsp; ${esc(when)}${l.status?(' &nbsp;·&nbsp; '+esc(l.status)):''}</div></div></div><div class="wrap">${cards}</div></body></html>`;
+}
+app.get('/api/loi/:id/view', (req, res) => {
+  const l = loadLois().find(x => x.id === String(req.params.id||''));
+  if (!l) return res.status(404).send('Not found.');
+  if (restrictToOwn(req) && !permOwnerMatch(req, l.byUser || l.by)) return res.status(403).send('Not authorized.');
+  const cfg = loadLoiConfig(); const tkey = (l.type === 'business_sale') ? 'business_sale' : 'tenant_rep';
+  const terms = ((cfg[tkey] && cfg[tkey].terms) || []).map(t => ({ key: t.key, label: t.label }));
+  res.set('Content-Type','text/html; charset=utf-8').send(loiViewHtml(l, terms));
+});
+
 app.post('/api/loi/defaults', requireManageLoi, express.json(), (req, res) => {
   const b = req.body || {}; const cfg = loadLoiConfig(); const tkey = (b.type === 'business_sale') ? 'business_sale' : 'tenant_rep';
   const t = cfg[tkey]; if (!t) return res.status(400).json({ ok: false, error: 'Bad type.' });

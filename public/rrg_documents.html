@@ -30,10 +30,10 @@ th{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--di
 tbody tr{cursor:pointer;} tbody tr:hover td{background:#fbfcfe;}
 .nm{font-weight:800;color:var(--navy);display:flex;align-items:center;gap:9px;}
 .kico{width:26px;height:26px;border-radius:7px;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;color:#fff;}
-.k-agreement{background:#2647b0;} .k-valuation{background:#1f8a5b;} .k-marketingpack{background:#b9761a;} .k-file{background:#5a3d9e;} .k-ssc{background:#0b7285;}
+.k-agreement{background:#2647b0;} .k-valuation{background:#1f8a5b;} .k-marketingpack{background:#b9761a;} .k-file{background:#5a3d9e;} .k-ssc{background:#0b7285;} .k-loi{background:#b5364f;} .k-seller{background:#4b6b2f;}
 .mt{color:var(--dim);font-size:11.5px;margin-top:1px;}
 .tp{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 9px;border-radius:999px;background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;white-space:nowrap;}
-.tp.t-valuation{background:#eef7f0;color:#1f8a5b;border-color:#bfe6d1;} .tp.t-marketingpack{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;} .tp.t-file{background:#efe9f7;color:#5a3d9e;border-color:#d9cdf0;} .tp.t-ssc{background:#e6f4f7;color:#0b7285;border-color:#bfe3ea;}
+.tp.t-valuation{background:#eef7f0;color:#1f8a5b;border-color:#bfe6d1;} .tp.t-marketingpack{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;} .tp.t-file{background:#efe9f7;color:#5a3d9e;border-color:#d9cdf0;} .tp.t-ssc{background:#e6f4f7;color:#0b7285;border-color:#bfe3ea;} .tp.t-loi{background:#fdecef;color:#b5364f;border-color:#f4ccd5;} .tp.t-seller{background:#eef5e6;color:#4b6b2f;border-color:#d3e5bf;}
 .st{display:inline-block;font-size:10px;font-weight:800;padding:2px 9px;border-radius:999px;background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;white-space:nowrap;}
 .st.s-built,.st.s-active,.st.s-executed{background:#eef7f0;color:#1f8a5b;border-color:#bfe6d1;}
 .st.s-pending,.st.s-awaiting,.st.s-soon{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;}
@@ -111,8 +111,8 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function fmtDate(iso){ if(!iso) return ''; try{ var d=new Date(iso); return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }catch(e){ return ''; } }
 function fmtSize(n){ if(!n) return ''; if(n<1024) return n+' B'; if(n<1024*1024) return (n/1024).toFixed(0)+' KB'; return (n/1024/1024).toFixed(1)+' MB'; }
 var DOCS=[], FILTER='all', Q='', OWNER='', SORT='new';
-var TYPES=[['all','All'],['agreement','Agreements'],['valuation','Valuations'],['marketingpack','Marketing Packs'],['ssc','Site Criteria'],['file','Files']];
-var KICON={agreement:'§',valuation:'▤',marketingpack:'❏',ssc:'◎',file:'▦'};
+var TYPES=[['all','All'],['agreement','Agreements'],['loi','LOIs'],['valuation','Valuations'],['marketingpack','Marketing Packs'],['ssc','Site Criteria'],['seller','Seller Screening'],['file','Files']];
+var KICON={agreement:'§',loi:'✎',valuation:'▤',marketingpack:'❏',ssc:'◎',seller:'⊚',file:'▦'};
 
 function renderChips(){
   var counts={all:DOCS.length}; DOCS.forEach(function(d){ counts[d.kind]=(counts[d.kind]||0)+1; });
@@ -137,21 +137,36 @@ function rows(){
   else list.sort(function(a,b){ return String(b.createdAt||'').localeCompare(String(a.createdAt||'')); });
   return list;
 }
+function _muted(){ return '<span class="mt">—</span>'; }
+function cName(d){ var sub=''; if(d.kind==='file') sub='<div class="mt">'+esc((d.ext||'').toUpperCase())+(d.size?(' · '+fmtSize(d.size)):'')+'</div>'; return '<div class="nm"><span class="kico k-'+d.kind+'">'+(KICON[d.kind]||'▦')+'</span><span>'+esc(d.title)+sub+'</span></div>'; }
+function cType(d){ return '<span class="tp t-'+d.kind+'">'+esc(d.typeLabel)+'</span>'; }
+function cLinked(d){ return linkedText(d); }
+function cOwner(d){ return d.owner?esc(d.owner):_muted(); }
+function cDate(v){ return (v&&String(v).trim())?esc(fmtDate(v)):_muted(); }
+function cStatus(d){ return d.status?('<span class="st '+stCls(d.statusKey||d.status)+'">'+esc(d.status)+'</span>'):_muted(); }
+function cText(v){ return (v&&String(v).trim())?esc(v):_muted(); }
+function cDocType(d){ return '<span class="tp t-file">'+esc(d.docType||d.typeLabel)+'</span>'; }
+var COLUMNS={
+ all:[{h:'Name',c:cName},{h:'Type',c:cType},{h:'Linked to',c:cLinked},{h:'Owner',c:cOwner},{h:'Created',c:function(d){return cDate(d.createdAt);}},{h:'Status',c:cStatus}],
+ agreement:[{h:'Name',c:cName},{h:'Agreement type',c:function(d){return cText(d.agrType);}},{h:'Party / Company',c:cLinked},{h:'Effective',c:function(d){return cDate(d.effective);}},{h:'Expires',c:function(d){return cDate(d.expires);}},{h:'Status',c:cStatus}],
+ loi:[{h:'Property',c:function(d){return cText(d.property||d.title);}},{h:'Parties',c:function(d){return cText(d.parties||d.companyName);}},{h:'Deal type',c:function(d){return cText(d.dealType);}},{h:'Created',c:function(d){return cDate(d.createdAt);}},{h:'Status',c:cStatus}],
+ valuation:[{h:'Business',c:cName},{h:'Value',c:function(d){return cText(d.valueText);}},{h:'Basis',c:function(d){return cText(d.basis);}},{h:'Created',c:function(d){return cDate(d.createdAt);}},{h:'Status',c:cStatus}],
+ marketingpack:[{h:'Business',c:cName},{h:'Market',c:function(d){return cText(d.companyName);}},{h:'Created',c:function(d){return cDate(d.createdAt);}},{h:'Status',c:cStatus}],
+ ssc:[{h:'Concept',c:cName},{h:'Market',c:function(d){return cText(d.companyName);}},{h:'Rep',c:cOwner},{h:'Submitted',c:function(d){return cDate(d.createdAt);}},{h:'Highlights',c:function(d){return cText(d.status);}}],
+ seller:[{h:'Concept',c:cName},{h:'Market',c:function(d){return cText(d.companyName);}},{h:'Rep',c:cOwner},{h:'Submitted',c:function(d){return cDate(d.createdAt);}},{h:'Highlights',c:function(d){return cText(d.status);}}],
+ file:[{h:'Name',c:cName},{h:'Document type',c:cDocType},{h:'Relates to',c:cLinked},{h:'Uploaded by',c:cOwner},{h:'Date',c:function(d){return cDate(d.createdAt);}},{h:'Notes',c:function(d){return cText(d.status);}}]
+};
+function currentCols(){ return COLUMNS[FILTER]||COLUMNS.all; }
 function renderList(){
   var list=rows();
   var fc=document.getElementById('fcount'); if(fc) fc.textContent=list.length+' shown';
   var host=document.getElementById('body');
   if(!list.length){ host.innerHTML='<div class="empty">No documents'+(Q?' match your search':(FILTER!=='all'?' of this type yet':' yet'))+'. Click <b>Upload</b> to add one.</div>'; return; }
-  var h='<table><thead><tr><th>Name</th><th>Type</th><th>Linked to</th><th>Owner</th><th>Created</th><th>Status</th><th></th></tr></thead><tbody>';
+  var cols=currentCols();
+  var h='<table><thead><tr>'+cols.map(function(col){return '<th>'+esc(col.h)+'</th>';}).join('')+'<th></th></tr></thead><tbody>';
   list.forEach(function(d){
-    var sizeNote = d.kind==='file' ? ('<div class="mt">'+esc(d.typeLabel)+(d.size?(' · '+fmtSize(d.size)):'')+'</div>') : '';
     h+='<tr data-id="'+esc(d.id)+'" data-kind="'+esc(d.kind)+'">'
-      +'<td><div class="nm"><span class="kico k-'+d.kind+'">'+(KICON[d.kind]||'▦')+'</span><span>'+esc(d.title)+sizeNote+'</span></div></td>'
-      +'<td><span class="tp t-'+d.kind+'">'+esc(d.typeLabel)+'</span></td>'
-      +'<td>'+linkedText(d)+'</td>'
-      +'<td>'+(d.owner?esc(d.owner):'<span class="mt">—</span>')+'</td>'
-      +'<td>'+esc(fmtDate(d.createdAt))+'</td>'
-      +'<td>'+(d.status?('<span class="st '+stCls(d.statusKey||d.status)+'">'+esc(d.status)+'</span>'):'<span class="mt">—</span>')+'</td>'
+      +cols.map(function(col){ return '<td>'+col.c(d)+'</td>'; }).join('')
       +'<td style="text-align:right">'+(d.kind==='file'?'<button class="trash" title="Remove" data-del="'+esc(d.id)+'">🗑</button>':'')+'</td>'
       +'</tr>';
   });
