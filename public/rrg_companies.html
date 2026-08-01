@@ -140,6 +140,9 @@ var CF=(window.RRGFilters&&document.getElementById('filterBtn'))?RRGFilters.crea
 ], onChange:applyFilter }):null;
 function fuzzyMatch(hay,q){ hay=(hay||'').toLowerCase(); q=(q||'').toLowerCase().trim(); if(!q) return true; return q.split(/\s+/).every(function(t){ if(!t) return true; if(hay.indexOf(t)>=0) return true; var i=0; for(var j=0;j<hay.length&&i<t.length;j++){ if(hay.charAt(j)===t.charAt(i)) i++; } return i===t.length; }); }
 var RECENCY_DAYS=90, RECENCY_SHOWALL=false;
+var VIEWKEY='rrgview_companies_v1';
+function saveView(){ try{ var q=(document.getElementById('search')||{}).value||''; localStorage.setItem(VIEWKEY, JSON.stringify({q:q,showAll:RECENCY_SHOWALL})); }catch(e){} }
+function loadView(){ try{ var raw=localStorage.getItem(VIEWKEY); if(!raw) return false; var v=JSON.parse(raw)||{}; var s=document.getElementById('search'); if(s && typeof v.q==='string' && !s.value) s.value=v.q; RECENCY_SHOWALL=!!v.showAll; return true; }catch(e){ return false; } }
 function recencyCutoff(days){ try{ return new Date(Date.now()-(days*86400000)).toISOString(); }catch(e){ return ''; } }
 function recencyNote(noun, active, shown, total){
   var host=document.getElementById('body'); if(!host||!host.parentNode) return;
@@ -160,7 +163,7 @@ function applyFilter(){
   var _noFilter=(!_qt.length && !(typeof CF!=='undefined'&&CF&&CF.activeCount&&CF.activeCount()>0));
   if(_noFilter && !RECENCY_SHOWALL && RECENCY_DAYS>0){ var _cut=recencyCutoff(RECENCY_DAYS); list=list.filter(function(c){ return String(c.lastActiveAt||'')>=_cut; }); }
   recencyNote('companies', _noFilter, list.length, ALL.length);
-  renderList(list); if(typeof CF!=='undefined'&&CF) CF.updateBtn();
+  renderList(list); if(typeof CF!=='undefined'&&CF) CF.updateBtn(); saveView();
 }
 window.rrgLiveSearch=function(q){ var el=document.getElementById('search'); if(el && el.value!==q){ el.value=q; } applyFilter(); };
 (function(){ try{ var qp=new URLSearchParams(location.search).get('q'); if(qp){ var el=document.getElementById('search'); if(el) el.value=qp; } }catch(e){} })();
@@ -321,6 +324,7 @@ var _fgcb=document.getElementById('m_findgrp'); if(_fgcb) _fgcb.addEventListener
 document.getElementById('modal').addEventListener('click',function(e){ /* clicking the backdrop no longer closes the window — prevents losing entered info. Use Cancel to close. */ });
 function reloadCompanies(){ return fetch('/api/companies',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.companies)||[]; if(j&&j.recencyDays!=null) RECENCY_DAYS=j.recencyDays; CTYPES=(j&&j.types)||CTYPES; CUISINE=(j&&j.cuisineTypes)||CUISINE; CONCEPTTYPES=(j&&j.conceptTypes)||CONCEPTTYPES; LEADSOURCES=(j&&j.leadSources)||LEADSOURCES; DEFAULTSTATE=(j&&j.defaultState)||DEFAULTSTATE; PERSONTYPES=(j&&j.personTypes)||PERSONTYPES; CAN_DELETE=!!(j&&j.canDelete); CITIES=(j&&j.cities)||[]; TITLES=(j&&j.titles)||[]; ALLTAGS=(j&&j.allTags)||[]; METROS=(j&&j.metros)||[]; var _ml=document.getElementById('metrolist'); if(_ml) _ml.innerHTML=METROS.map(function(m){return '<option value="'+esc(m)+'">';}).join(''); IS_ADMIN=!!(j&&j.isAdmin); applyFilter(); }).catch(function(){ if(!ALL.length){ var _b=document.getElementById('body'); if(_b) _b.innerHTML='<div class="empty">Could not load companies.</div>'; } }); }
 window.reloadCompanies=reloadCompanies;
+(function(){ try{ if(!loadView()) RECENCY_SHOWALL=true; }catch(e){} })();
 reloadCompanies();
 document.addEventListener('visibilitychange',function(){ if(!document.hidden) reloadCompanies(); });
 </script>
