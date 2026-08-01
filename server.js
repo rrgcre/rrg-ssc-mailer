@@ -7680,7 +7680,7 @@ app.get('/api/admin/duplicates', requireAdmin, (req, res) => {
     const uf = _dfUF(N);
     const emailMap = {};
     const keys = people.map(p => _dfNorm((personFirst(p)||'') + (personLast(p)||'') || p.name || ''));
-    const comps = people.map(p => _dfNorm(p.company || ''));
+    const comps = people.map(p => { const nm = String(p.company||''); return nm.length>100 ? '' : _dfNorm(nm); });
     // Precompute normalized phone sets per person (used only to corroborate a name match).
     const phonesArr = people.map(function(p){ var st={}; personPhones(p).forEach(function(ph){ var k=_dfPhone(ph); if(k) st[k]=1; }); return st; });
     // Exact shared email is a strong duplicate signal on its own.
@@ -7728,7 +7728,7 @@ app.get('/api/admin/duplicates', requireAdmin, (req, res) => {
   const companies = loadCompanies();
   const N = companies.length;
   const uf = _dfUF(N);
-  const keys = companies.map(c => _dfCompanyKey(c.name||''));
+  const keys = companies.map(c => { const nm = String(c.name||''); return nm.length>100 ? '' : _dfCompanyKey(nm); });
   const domMap = {}, phoneMap = {};
   for (let i=0;i<N;i++){
     const c = companies[i]; const o = c.office||{};
