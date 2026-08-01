@@ -264,6 +264,7 @@
   </div>
 </div>
 
+<div id="scrStatus" style="position:sticky;z-index:45;background:#0b1636;color:#cdd6e6;font-size:12.5px;font-weight:600;padding:8px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.08)"><span id="scrStatusTxt">Not started</span><div style="flex:1;min-width:120px;max-width:340px;height:5px;background:rgba(255,255,255,.14);border-radius:99px;overflow:hidden"><div id="scrBar" style="height:100%;width:0;background:#3b82f6;transition:width .25s"></div></div></div>
 <div id="vbanner" class="vbanner"></div>
 <div id="emodal" class="emodal">
   <div class="emodal-box">
@@ -813,6 +814,19 @@
 (function(){ var f=document.getElementById('sscform'); if(!f) return; function mark(e){ if(e&&e.isTrusted&&!window.__sscStarted){ window.__sscStarted=new Date().toISOString(); } } f.addEventListener('input',mark,true); f.addEventListener('change',mark,true); })();
 (function(){ var b=document.getElementById('leaseBase'), o=document.getElementById('leaseOption'), t=document.getElementById('leaseTotal'); if(!b||!t) return; function calc(){ var bm=parseInt(b.value,10)||0, om=o?(parseInt(o.value,10)||0):0, tot=bm+om; if(!tot){ t.value=''; return; } var yr=Math.floor(tot/12), mo=tot%12; var parts=[]; if(yr) parts.push(yr+' yr'+(yr===1?'':'s')); if(mo) parts.push(mo+' mo'); t.value=tot+' months ('+(parts.join(' ')||'0 mo')+')'; } b.addEventListener('input',calc); if(o) o.addEventListener('input',calc); calc(); })();
 (function(){ var btn=document.getElementById('draftBtn'), ta=document.getElementById('callNotes'); if(!btn||!ta) return; var API=String(window.RRG_API||'').replace(/\/$/,''); btn.addEventListener('click',function(){ var orig=btn.textContent; btn.disabled=true; btn.textContent='✨ Drafting…'; if(window.rrgAiWork) window.rrgAiWork.show('Drafting the call summary from your answers…'); var data=(window._collectData?window._collectData():{}); data.formType='seller'; fetch(API+'/api/ai/screening-summary',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json();}).then(function(j){ if(window.rrgAiWork) window.rrgAiWork.hide(); btn.disabled=false; btn.textContent=orig; if(j&&j.ok&&j.result&&j.result.summary){ ta.value=j.result.summary; ta.dispatchEvent(new Event('input',{bubbles:true})); ta.focus(); } else { if(window.__scrBanner) window.__scrBanner((j&&j.error)||'Could not draft — set the Anthropic API key in Admin, then try again.'); } }).catch(function(){ if(window.rrgAiWork) window.rrgAiWork.hide(); btn.disabled=false; btn.textContent=orig; if(window.__scrBanner) window.__scrBanner('Could not reach the AI to draft the summary.'); }); }); })();
+(function(){
+  var box=document.getElementById('scrStatus'), txt=document.getElementById('scrStatusTxt'), bar=document.getElementById('scrBar'), tb=document.querySelector('.toolbar'); if(!box||!txt) return;
+  function fixTop(){ if(tb) box.style.top=(tb.offsetHeight||52)+'px'; }
+  fixTop(); window.addEventListener('resize',fixTop);
+  function prog(){ var total=0, done=0;
+    document.querySelectorAll('#sscform .field').forEach(function(f){ var inp=f.querySelector('input,textarea,select'); if(!inp||inp.readOnly) return; total++; var any=Array.prototype.slice.call(f.querySelectorAll('input,textarea,select')).some(function(x){return !x.readOnly && String(x.value||'').trim(); }); if(any) done++; });
+    document.querySelectorAll('#sscform .oset').forEach(function(o){ total++; var ck=o.querySelector('input[type=checkbox]:checked,input[type=radio]:checked'); var inl=Array.prototype.slice.call(o.querySelectorAll('.inl input')).some(function(x){return String(x.value||'').trim();}); if(ck||inl) done++; });
+    return {done:done,total:total};
+  }
+  function mmss(ms){ var s=Math.max(0,Math.floor(ms/1000)); var m=Math.floor(s/60); s=s%60; return m+':'+(s<10?'0':'')+s; }
+  function upd(){ var p=prog(); var left=Math.max(0,p.total-p.done); var pct=p.total?Math.round(p.done/p.total*100):0; var t=window.__sscStarted?mmss(Date.now()-Date.parse(window.__sscStarted)):null; txt.innerHTML='<b>'+p.done+'</b> of '+p.total+' answered \u00b7 <b>'+left+'</b> left'+(t?(' \u00b7 \u23f1 '+t+' on call'):' \u00b7 not started'); if(bar) bar.style.width=pct+'%'; }
+  document.addEventListener('input',upd); document.addEventListener('change',upd); setInterval(upd,1000); upd();
+})();
   // Read a response defensively — never let an HTML error page (e.g. a 404 or a
   // login redirect) blow up on JSON.parse and show a rep a raw "Unexpected token" error.
   function _readResp(r){
