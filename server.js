@@ -4185,6 +4185,7 @@ app.post('/api/ai/loi-review', express.json({ limit: '256kb' }), aiRoute(b => ai
 app.post('/api/ai/concept', express.json({ limit: '256kb' }), aiRoute(b => aiassist.conceptPositioning({ concept: b.concept || {}, locations: b.locations || [] })));
 app.post('/api/ai/site-read', express.json({ limit: '256kb' }), aiRoute(b => aiassist.locationSiteRead({ location: b.location || {} })));
 app.post('/api/ai/calc-summary', express.json({ limit: '256kb' }), aiRoute(b => aiassist.calcSummary({ kind: b.kind || '', inputs: b.inputs || {}, outputs: b.outputs || {} })));
+app.post('/api/ai/screening-summary', express.json({ limit: '256kb' }), aiRoute(b => aiassist.draftScreeningSummary({ data: b || {} })));
 app.post('/api/ai/placer', express.json({ limit: '256kb' }), aiRoute(b => aiassist.parsePlacer({ text: b.text || '' })));
 app.post('/api/ai/loi-suggest', express.json({ limit: '256kb' }), async (req, res) => {
   try {

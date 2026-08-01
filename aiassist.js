@@ -214,4 +214,10 @@ async function classifyConcepts({ items, conceptTypes, pricePoints, cuisines }) 
   return out.map(x => ({ i: Number(x.i), cuisine: String(x.cuisine || ''), conceptType: String(x.conceptType || ''), pricePoint: String(x.pricePoint || ''), multiUnit: !!x.multiUnit }));
 }
 
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains };
+async function draftScreeningSummary({ data }) {
+  const sys = 'You are an experienced restaurant and bar business broker at Restaurant Realty Group writing the internal call summary right after screening a potential seller. In 3-4 tight sentences, in a direct broker voice, cover: the operator and business; their motivation and timeline; the financial picture; their valuation expectation and how realistic it is; and your read on whether this is a real lead worth pursuing. Use only the captured answers - do not invent numbers. No preamble, no bullet points, no headers. Return only the paragraph.';
+  const payload = { concept: (data && data.concept) || '', company: (data && data.company) || '', contact: (data && data.contact) || '', market: (data && data.market) || '', sections: (data && data.sections) || [] };
+  const out = await callClaude(sys, 'SCREENING ANSWERS (JSON):\n' + JSON.stringify(payload).slice(0, 16000), 500);
+  return { summary: String(out || '').trim() };
+}
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary };
