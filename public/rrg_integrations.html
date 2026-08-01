@@ -110,6 +110,29 @@ input.key{flex:1;min-width:260px;border:1px solid #cfd6e2;border-radius:9px;padd
     </div>
     <div class="hint">Get credentials at twilio.com (Console). Leave the token blank when saving to keep the current one.</div>
   </div>
+  <div class="card">
+    <h2>Gmail sent-mail sync</h2>
+    <span class="cs">Auto-logs emails reps send from Gmail onto the matching contact. Runs in the background for every rep who has connected Gmail (Account → Gmail); each sent email is matched to a contact by address and added to Tracked Emails. Reps can also pull on demand from the Tracked Emails page.</span>
+    <div class="state" id="ssState">Loading…</div>
+    <label class="chk" style="margin-bottom:12px"><input type="checkbox" id="ssEnabled"> Automatically pull sent mail from each connected rep’s Gmail</label>
+    <div class="inrow">
+      <div><label class="lb">Check every — minutes</label><input id="ssInterval" class="f" style="max-width:150px" type="number" min="2" max="720" placeholder="10"></div>
+      <button class="btn primary" onclick="saveSentSync()">Save sync settings</button>
+      <span id="ssMsg" class="msg"></span>
+    </div>
+  </div>
+  <div class="card">
+    <h2>BizBuySell auto-import</h2>
+    <span class="cs">How far back the Gmail lead scan looks. The very first scan reaches back the first number to catch history; every scan after only looks back the second, to grab what’s new. Applies system-wide to all reps.</span>
+    <div class="grid2" style="max-width:440px">
+      <div><label class="lb">First scan — days back</label><input id="bbsBack" class="f" type="number" min="1" max="365" placeholder="60"></div>
+      <div><label class="lb">Every scan after — days back</label><input id="bbsBackOn" class="f" type="number" min="1" max="365" placeholder="7"></div>
+    </div>
+    <div class="inrow" style="margin-top:12px">
+      <button class="btn primary" onclick="saveBbsWindow()">Save windows</button>
+      <span id="bbsMsg" class="msg"></span>
+    </div>
+  </div>
 
 </div>
 <script>
@@ -131,9 +154,13 @@ function loadSms(){ fetch('/api/admin/sms',{credentials:'same-origin'}).then(fun
 function saveSms(){ var m=document.getElementById('smsMsg'); m.textContent='Saving…'; var body={ sid:document.getElementById('sms_sid').value.trim(), from:document.getElementById('sms_from').value.trim(), enabled:document.getElementById('sms_enabled').checked }; var tk=document.getElementById('sms_token').value; if(tk) body.token=tk; post('/api/admin/sms',body).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; document.getElementById('sms_token').value=''; loadSms(); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
 function testSms(){ var to=document.getElementById('sms_test').value.trim(), m=document.getElementById('smsMsg'); if(!to){ m.textContent='Enter a mobile number for the test.'; return; } m.textContent='Sending test…'; post('/api/admin/sms/test',{to:to}).then(function(j){ if(j&&j.ok){ m.textContent='Test sent ✓ — check that phone.'; } else { m.textContent='Test failed: '+((j&&j.error)||'unknown'); } }); }
 
+function _ssState(en,iv){ var s=document.getElementById('ssState'); if(!s) return; s.textContent=en?('On — checking every '+iv+' min.'):'Off — automatic sync paused.'; }
+function saveSentSync(){ var m=document.getElementById('ssMsg'); var en=document.getElementById('ssEnabled').checked; var iv=parseInt(document.getElementById('ssInterval').value,10); if(!(iv>=2&&iv<=720)){ m.textContent='Enter 2–720 minutes.'; return; } m.textContent='Saving…'; post('/api/admin/types',{sentSyncEnabled:en,sentSyncIntervalMin:iv}).then(function(j){ if(j&&j.ok){ var _iv=(j.sentSyncIntervalMin||iv); m.textContent=en?('On — every '+_iv+' min ✓'):'Off — paused ✓'; _ssState(en,_iv); } else { m.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ m.textContent='Could not reach the server.'; }); }
+function saveBbsWindow(){ var m=document.getElementById('bbsMsg'); var d=parseInt(document.getElementById('bbsBack').value,10); var o=parseInt(document.getElementById('bbsBackOn').value,10); if(!(d>=1&&d<=365)){ m.textContent='First scan: enter 1–365 days.'; return; } if(!(o>=1&&o<=365)){ m.textContent='Ongoing scans: enter 1–365 days.'; return; } m.textContent='Saving…'; post('/api/bizbuysell/poll',{lookbackDays:d,lookbackDaysOngoing:o}).then(function(j){ if(j&&j.ok){ m.textContent='Saved — first scan '+(j.lookbackDays||d)+' days, then '+(j.lookbackDaysOngoing||o)+' days each ✓'; } else { m.textContent=(j&&j.error)||'Could not save.'; } }); }
+function loadGmailSync(){ fetch('/api/admin/types',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var en=(j.sentSyncEnabled!==false); var iv=(j.sentSyncIntervalMin!=null?j.sentSyncIntervalMin:10); var _e=document.getElementById('ssEnabled'); if(_e) _e.checked=en; var _i=document.getElementById('ssInterval'); if(_i) _i.value=iv; _ssState(en,iv); } }).catch(function(){}); fetch('/api/bizbuysell/poll',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var _b=document.getElementById('bbsBack'); if(_b&&j.lookbackDays) _b.value=j.lookbackDays; var _o=document.getElementById('bbsBackOn'); if(_o&&j.lookbackDaysOngoing) _o.value=j.lookbackDaysOngoing; } }).catch(function(){}); }
 fetch('/api/admin/gmaps-key',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
   if(!j||!j.ok){ gate(); return; }
-  _gmState(j); loadEmail(); loadSms();
+  _gmState(j); loadEmail(); loadSms(); loadGmailSync();
 }).catch(function(){ gate(); });
 </script>
 </body>

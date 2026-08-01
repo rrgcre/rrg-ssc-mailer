@@ -57,7 +57,7 @@ input,textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10p
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Admin</div>
   <h1>Settings</h1>
-  <div class="sub">Editable type lists, request notifications, the Claude API key, and data reset. Admin only.</div>
+  <div class="sub">Editable type lists, request notifications, and data reset. Admin only.</div>
 </div></div>
 <div id="root" class="wrap"><div class="gate">Loading…</div></div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
@@ -219,24 +219,6 @@ function build(){
     +'<div class="btnrow"><button class="btn" id="svcSave">Save recipients</button><span class="msg" id="svcMsg"></span></div>'
     +'<div class="note">Comma-separated. A new request emails all of these (requires server email/SMTP to be configured).</div>'
     +'</div></div>'
-    +'<div class="card"><div class="ch"><b>Claude API key</b><span>— powers the AI generators (BOV, CIM, attack plans, find-locations, office assistant)</span></div><div class="cb">'
-    +'<div style="margin-bottom:10px">Status: <span id="keyStatus" class="status off">…</span></div>'
-    +'<label class="fld">Set / replace key</label><input id="keyInput" type="password" placeholder="sk-ant-…" autocomplete="off">'
-    +'<div class="btnrow"><button class="btn" id="keySave">Save key</button><button class="btn ghost" id="keyClear">Clear saved key</button><span class="msg" id="keyMsg"></span></div>'
-    +'<div class="note">A key saved here is stored on the server data disk and overrides the ANTHROPIC_API_KEY environment variable. For security the current key is never shown back.</div>'
-    +'</div></div>'
-    +'<div class="card"><div class="ch"><b>BizBuySell auto-import</b><span>\u2014 how far back the Gmail lead scan looks</span></div><div class="cb">'
-    +'<label class="fld">First scan \u2014 days back</label><input id="bbsBack" type="number" min="1" max="365" placeholder="60" style="max-width:140px">'
-    +'<label class="fld" style="margin-top:12px">Every scan after \u2014 days back</label><input id="bbsBackOn" type="number" min="1" max="365" placeholder="7" style="max-width:140px">'
-    +'<div class="btnrow"><button class="btn" id="bbsSave">Save windows</button><span class="msg" id="bbsMsg"></span></div>'
-    +'<div class="note">The very first Gmail scan reaches back the first number to catch history; every scan after only looks back the second, to grab what is new. Applies system-wide to all reps.</div>'
-    +'</div></div>'
-    +'<div class="card"><div class="ch"><b>Gmail sent-mail sync</b><span>\u2014 auto-logs emails reps send from Gmail onto the matching contact</span></div><div class="cb">'
-    +'<label style="display:flex;align-items:center;gap:10px;font-size:13.5px;color:#2a3550;margin-bottom:12px"><input type="checkbox" id="ssEnabled"> Automatically pull sent mail from each connected rep\u2019s Gmail</label>'
-    +'<label class="fld">Check every \u2014 minutes</label><input id="ssInterval" type="number" min="2" max="720" placeholder="10" style="max-width:140px">'
-    +'<div class="btnrow"><button class="btn" id="ssSave">Save sync settings</button><span class="msg" id="ssMsg"></span></div>'
-    +'<div class="note">Runs in the background for every rep who has connected Gmail (Account \u2192 Gmail). Each sent email is matched to a contact by email address and added to Tracked Emails. Reps can also pull on demand from the Tracked Emails page.</div>'
-    +'</div></div>'
     +'<div class="sectionhd">Danger zone</div>'
     +'<div class="card danger"><div class="ch"><b>Reset the book</b><span>— permanent, no undo</span></div><div class="cb">'
     +'<div class="note" style="margin-top:0">Permanently deletes <b>all companies, concepts, and locations</b> and their photos. Contacts and deals are kept. There is no undo.</div>'
@@ -254,18 +236,13 @@ function build(){
   document.getElementById('tlSave').addEventListener('click',saveToolLabels);
   document.getElementById('tlReset').addEventListener('click',resetToolLabels);
   document.getElementById('svcSave').addEventListener('click',saveServices);
-  document.getElementById('keySave').addEventListener('click',saveKey);
-  document.getElementById('keyClear').addEventListener('click',clearKey);
   document.getElementById('resetBtn').addEventListener('click',resetBook);
-  document.getElementById('bbsSave').addEventListener('click',saveBbsWindow);
   var _ccs=document.getElementById('ccySave'); if(_ccs) _ccs.addEventListener('click',saveCurrency);
-  var _sss=document.getElementById('ssSave'); if(_sss) _sss.addEventListener('click',saveSentSync);
   get('/api/bizbuysell/poll').then(function(j){ if(j&&j.ok){ var _e=document.getElementById('bbsBack'); if(_e&&j.lookbackDays) _e.value=j.lookbackDays; var _o=document.getElementById('bbsBackOn'); if(_o&&j.lookbackDaysOngoing) _o.value=j.lookbackDaysOngoing; } });
   // load current values
   get('/api/admin/types').then(function(j){ if(j&&j.ok){ SYSREQ=j.systemRequired||SYSREQ; TYPES={ personTypes:j.personTypes||[], companyTypes:j.companyTypes||[], ticketCategories:j.ticketCategories||[], leadSources:j.leadSources||[], activityTypes:j.activityTypes||[], cuisineTypes:j.cuisineTypes||[], agreementTypes:j.agreementTypes||[] }; MAXPULL=(j.maxPullLocations!=null?j.maxPullLocations:MAXPULL); DEFSTATE=(j.defaultState!=null?j.defaultState:DEFSTATE); ASSISTANT=(j.assistantName!=null?j.assistantName:ASSISTANT); RECENCY=(j.listRecencyDays!=null?j.listRecencyDays:RECENCY); CONCEPTL=(j.conceptLabel!=null?j.conceptLabel:CONCEPTL); CONCEPTLP=(j.conceptLabelPlural!=null?j.conceptLabelPlural:CONCEPTLP); SHOWRIBBON=(j.showRequestRibbon!=null?j.showRequestRibbon:SHOWRIBBON); RECENCYON=(j.listRecencyEnabled!==false); var _ron=document.getElementById('recencyon'); if(_ron) _ron.checked=RECENCYON; recencyToggle(); var _sse=document.getElementById('ssEnabled'); if(_sse) _sse.checked=(j.sentSyncEnabled!==false); var _ssi=document.getElementById('ssInterval'); if(_ssi) _ssi.value=(j.sentSyncIntervalMin!=null?j.sentSyncIntervalMin:10); var _ccl=document.getElementById('ccySel'); if(_ccl&&j.currency) _ccl.value=j.currency; renderTypes(); } });
   get('/api/admin/tool-labels').then(function(j){ if(j&&j.ok){ TOOLDEFS=j.tools||[]; TOOLLABELS=j.labels||{}; renderToolLabels(); } });
   get('/api/admin/services-email').then(function(j){ if(j&&j.ok){ document.getElementById('svcEmails').value=(j.emails||[]).join(', '); } });
-  get('/api/admin/anthropic-key').then(function(j){ if(j&&j.ok) renderKey(j); });
 }
 
 get('/api/session').then(function(s){
