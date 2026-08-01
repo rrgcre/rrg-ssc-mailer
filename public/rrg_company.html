@@ -282,13 +282,14 @@ function openAgrViewCo(id){
   ov.innerHTML='<div class="agrvbox"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px"><div><div class="agrvhd">'+title+'</div><div class="agrvsub">'+esc(agrTypeLabel(a.type))+' \u00b7 <span class="agrvpill '+statusCls+'">'+esc(statusTxt)+'</span></div></div><button type="button" id="agrvClose" title="Close" style="background:none;border:none;font-size:22px;line-height:1;color:#8a94a6;cursor:pointer;padding:0 2px">\u00d7</button></div>'
     +'<div class="agrvmeta"><span><b>Effective:</b> '+fmtRO(a.effective)+'</span><span><b>Expires:</b> '+fmtRO(a.expires)+'</span>'+(a.personName?('<span><b>Contact:</b> '+esc(a.personName)+'</span>'):'')+'</div>'
     +signersHtml+docHtml
-    +'<div class="agrvbtns">'+onC+'<button type="button" class="savebtn" id="agrvDone" style="width:auto;padding:9px 18px">Close</button></div>'
+    +'<div class="agrvbtns">'+onC+(a.statusKey==='awaiting'?'<button type="button" class="mfadd" id="agrvCancelSig" style="color:#DA2B1F;border-color:#f0cdca;margin-right:auto">Cancel signing</button>':'')+'<button type="button" class="savebtn" id="agrvDone" style="width:auto;padding:9px 18px">Close</button></div>'
     +'</div>';
   document.body.appendChild(ov);
   function close(){ try{ document.body.removeChild(ov); }catch(e){} }
   ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
   ov.querySelector('#agrvClose').addEventListener('click',close);
   ov.querySelector('#agrvDone').addEventListener('click',close);
+  var _cs=ov.querySelector('#agrvCancelSig'); if(_cs) _cs.addEventListener('click',function(){ if(!confirm('Cancel this agreement? It will be marked Canceled and can no longer be signed.')) return; fetch('/api/agreements/'+encodeURIComponent(a.id)+'/cancel',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ close(); load(); } else alert((j&&j.error)||'Could not cancel.'); }); });
   var oc=ov.querySelector('#agrvOpenContact'); if(oc) oc.addEventListener('click',function(){ location.href='./rrg_person.html?id='+encodeURIComponent(a.personId); });
 }
 function agrEntryIcon(a){

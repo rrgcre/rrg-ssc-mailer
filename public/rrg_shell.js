@@ -105,8 +105,7 @@
       { ic: '✦', label: 'Daily Brief', href: 'rrg_brief.html', ai: true },
       { ic: '◱', label: 'Feed', href: 'rrg_feed.html' },
       { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' },
-      { ic: '◫', label: 'Calendar', href: 'rrg_calendar.html' },
-      { ic: '<svg viewBox="0 0 20 20" width="14" height="14" style="vertical-align:-2px" fill="currentColor"><rect x="3" y="10" width="3" height="7" rx="1"></rect><rect x="8.5" y="6" width="3" height="11" rx="1"></rect><rect x="14" y="3" width="3" height="14" rx="1"></rect></svg>', label: 'Reports', href: 'rrg_reports.html', admin: true }
+      { ic: '◫', label: 'Calendar', href: 'rrg_calendar.html' }
     ] },
     { grp: 'Book of Business', color: '#7ea6d8', items: [
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
@@ -152,7 +151,8 @@
       { ic: '⊛', label: 'System Status', href: 'rrg_status.html' },
       { ic: '⚑', label: 'Feedback', href: 'rrg_feedback.html' },
       { ic: '✉', label: 'Admin Requests', href: 'rrg_tickets.html' },
-      { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' }
+      { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' },
+      { ic: '<svg viewBox="0 0 20 20" width="14" height="14" style="vertical-align:-2px" fill="currentColor"><rect x="3" y="10" width="3" height="7" rx="1"></rect><rect x="8.5" y="6" width="3" height="11" rx="1"></rect><rect x="14" y="3" width="3" height="14" rx="1"></rect></svg>', label: 'Reports', href: 'rrg_reports.html', admin: true }
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
       { ic: '▤', label: 'Admin console', href: 'admin' },

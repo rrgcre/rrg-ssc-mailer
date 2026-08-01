@@ -254,7 +254,7 @@ function agrRow(a){
   var signed=_exec;
   var title=a.name||atypeLabel(a.type);
   var lead;
-  if(_exec){ var _pendr=(a.effective && a.effective>todayStr()); if(_pendr){ lead='<span class="rchip await" title="Fully executed \u2014 commences '+esc(fmt(a.effective))+'" style="margin-right:7px">Commences '+esc(fmt(a.effective))+'</span>'; } else { var ed=fmt(a.signedDate||a.executedAt||a.effective||''); lead=ed?('<span style="color:#8a93a8">'+esc(ed)+'</span> &middot; '):''; } }
+  if(_exec){ var _pendr=(a.effective && a.effective>todayStr()); if(_pendr){ lead='<span class="rchip await" title="Fully executed — commences '+esc(fmt(a.effective))+'" style="margin-right:7px">Commences '+esc(fmt(a.effective))+'</span>'; } else { var ed=fmt(a.signedDate||a.executedAt||a.effective||''); lead=ed?('<span style="color:#8a93a8">'+esc(ed)+'</span> &middot; '):''; } }
   else { var lc=_await?'await':(a.signStatus==='sent'?'sent':(a.status==='terminated'?'bad':'')); var lt=_await?'Needs sign':(a.signStatus==='sent'?'Sent':(a.status==='terminated'?'Terminated':'Draft')); lead='<span class="rchip '+lc+'" style="margin-right:7px">'+lt+'</span>'; }
   var isImg=a.docExt&&/^(png|jpe?g|gif|webp)$/i.test(a.docExt);
   var thumb=isImg?('<span class="agrthumb" style="background-image:url(/api/agreements/'+encodeURIComponent(a.id)+'/doc)"></span>'):'';
@@ -333,9 +333,8 @@ function agreementsCard(){
 function agrDealPick(inp){ var v=String(inp.value||'').trim().toLowerCase(); var d=DEALS.filter(function(x){ return String(x.business||x.key||'').trim().toLowerCase()===v; })[0]; var h=document.getElementById('agr_deal'); if(h) h.value=d?d.key:''; }
 function openAgrView(a){
   var _exec=(a.signStatus==='executed'||a.signStatus==='signed'); var _await=(a.signStatus==='awaiting_countersign');
-  var _pend=(_exec && a.effective && a.effective>todayStr());
-  var statusTxt=_exec?(_pend?'Executed \u00b7 not yet commenced':'Executed'):(_await?'Awaiting your signature':(a.signStatus==='sent'?'Sent for signature':(a.status==='terminated'?'Terminated':'Active')));
-  var statusCls=_exec?(_pend?'await':'signed'):(_await?'await':(a.signStatus==='sent'?'sent':''));
+  var statusTxt=a.statusLabel||'Active';
+  var statusCls=_agrCls(a.statusKey);
   var title=esc(a.name||atypeLabel(a.type));
   var fmtRO=function(d){ return d?fmt(d):'\u2014'; };
   var signersHtml='';
@@ -352,7 +351,7 @@ function openAgrView(a){
   ov.innerHTML='<div class="agrmodalbox" style="width:min(720px,96vw)"><div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px"><div><div class="agrmodalhd">'+title+'</div><div class="agrmodalsub">'+esc(atypeLabel(a.type))+' \u00b7 <span class="sigpill '+statusCls+'">'+esc(statusTxt)+'</span></div></div><button type="button" id="agrvClose" title="Close" style="background:none;border:none;font-size:22px;line-height:1;color:#8a94a6;cursor:pointer;padding:0 2px">\u00d7</button></div>'
     +'<div class="agrvmeta"><span><b>Effective:</b> '+fmtRO(a.effective)+'</span><span><b>Expires:</b> '+fmtRO(a.expires)+'</span></div>'
     +signersHtml+docHtml
-    +'<div class="agrmodalbtns" style="justify-content:flex-end"><button type="button" class="mfadd" id="agrvEdit">Edit details</button><button type="button" class="savebtn" id="agrvDone" style="width:auto;padding:9px 18px">Close</button></div>'
+    +'<div class="agrmodalbtns" style="justify-content:flex-end">'+((a.statusKey==='awaiting')?'<button type="button" class="mfadd" id="agrvCancelSig" style="color:#DA2B1F;border-color:#f0cdca;margin-right:auto">Cancel signing</button>':'')+'<button type="button" class="mfadd" id="agrvEdit">Edit details</button><button type="button" class="savebtn" id="agrvDone" style="width:auto;padding:9px 18px">Close</button></div>'
     +'</div>';
   document.body.appendChild(ov);
   function close(){ try{ document.body.removeChild(ov); }catch(e){} }
@@ -360,6 +359,7 @@ function openAgrView(a){
   ov.querySelector('#agrvClose').addEventListener('click',close);
   ov.querySelector('#agrvDone').addEventListener('click',close);
   ov.querySelector('#agrvEdit').addEventListener('click',function(){ close(); openAgrForm(a); });
+  var _cs=ov.querySelector('#agrvCancelSig'); if(_cs) _cs.addEventListener('click',function(){ if(!confirm('Cancel this agreement? It will be marked Canceled and can no longer be signed.')) return; fetch('/api/agreements/'+encodeURIComponent(a.id)+'/cancel',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ close(); load(); } else alert((j&&j.error)||'Could not cancel.'); }); });
 }
 function openAgrForm(a){
   var f=document.getElementById('agrForm'); f.removeAttribute('hidden'); PENDING_AGR_FILE=null;
@@ -381,7 +381,7 @@ function openAgrForm(a){
   if(a&&a.id){
     var docLine=a.docExt?('<span class="agrdoc">📎 '+esc(a.docName||'document')+' <a href="/api/agreements/'+encodeURIComponent(a.id)+'/doc" target="_blank" rel="noopener">view</a> · <a href="#" data-agrdocclear="1">remove</a></span>'):('<label class="mfadd" style="cursor:pointer">Attach document<input type="file" id="agr_docfile" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label>');
     var _exec=(a.signStatus==='executed'||a.signStatus==='signed'); var _await=(a.signStatus==='awaiting_countersign');
-    var _pendf=(_exec && a.effective && a.effective>todayStr()); var st=_exec?('<span class="sigpill '+(_pendf?'await':'signed')+'">Executed'+(a.signedDate?(' '+fmt(a.signedDate)):'')+(_pendf?(' \u00b7 commences '+fmt(a.effective)):'')+'</span>'):(_await?('<span class="sigpill await">Awaiting your signature</span>'):(a.signStatus==='sent'?('<span class="sigpill sent">Sent'+(a.sentAt?(' '+fmt(a.sentAt)):'')+(a.sentTo?(' to '+esc(a.sentTo)):'')+'</span>'):'<span class="sigpill">Not sent</span>'));
+    var st='<span class="sigpill '+_agrCls(a.statusKey)+'">'+esc(a.statusLabel||'Active')+(((a.statusKey==='executed'||a.statusKey==='active')&&a.signedDate)?(' '+fmt(a.signedDate)):'')+'</span>';
     var signUrl=a.signToken?(location.origin+'/sign/'+a.signToken):'';
     var signedInfo=((_exec||_await)&&(a.signedName||a.hasSignature))?('<div class="agrsignedinfo">Signed by <b>'+esc(a.signedName||'contact')+'</b>'+(a.signedDate?(' on '+fmt(a.signedDate)):'')+(a.hasSignature?(' · <a href="/api/agreements/'+encodeURIComponent(a.id)+'/signature" target="_blank" rel="noopener">view signature</a>'):'')+'</div>'):'';
     if(_exec&&a.hasCountersign){ signedInfo+='<div class="agrsignedinfo">Countersigned by <b>'+esc(a.repSignedName||(window.__rrgSession&&window.__rrgSession.name)||'the broker')+'</b>'+(a.repSignedAt?(' on '+fmt(String(a.repSignedAt).slice(0,10))):'')+' · <a href="/api/agreements/'+encodeURIComponent(a.id)+'/countersignature" target="_blank" rel="noopener">view signature</a></div>'; }

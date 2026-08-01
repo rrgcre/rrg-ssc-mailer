@@ -124,7 +124,7 @@ function render(){
   // set user role dropdown values
   (ST.users||[]).forEach(function(u){ var el=document.querySelector('[data-urole="'+u.username+'"]'); if(el) el.value=u.role||'associate'; });
 
-  document.getElementById('master').addEventListener('change',function(){ var on=this.checked; post('/api/admin/permissions/toggle',{enabled:on}).then(function(j){ var m=document.getElementById('masterMsg'); if(j&&j.ok){ ST.enabled=j.enabled; m.textContent=j.enabled?'Enforcement is ON.':'Enforcement is OFF.'; m.className='msg ok'; render(); } else { m.textContent='Could not change.'; m.className='msg err'; } }); });
+  var _mtog=document.getElementById('master'); if(_mtog) _mtog.addEventListener('change',function(){ var on=this.checked; post('/api/admin/permissions/toggle',{enabled:on}).then(function(j){ var m=document.getElementById('masterMsg'); if(j&&j.ok){ ST.enabled=j.enabled; m.textContent=j.enabled?'Enforcement is ON.':'Enforcement is OFF.'; m.className='msg ok'; render(); } else { m.textContent='Could not change.'; m.className='msg err'; } }); });
   document.querySelectorAll('[data-role]').forEach(function(b){ b.addEventListener('click',function(){ SELROLE=b.getAttribute('data-role'); render(); }); });
   var rs=document.getElementById('roleSave'); if(rs) rs.addEventListener('click',saveRole);
   var rd=document.getElementById('roleDel'); if(rd) rd.addEventListener('click',delRole);
