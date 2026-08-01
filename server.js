@@ -164,7 +164,8 @@ function findOrCreatePerson(req, info) {
   let name = cleanPersonName(String((info && info.name) || ''));
   if ((first || last) && !name) name = composeName(first, last);
   const email = cleanEmailAddr(String((info && info.email) || ''));
-  const company = String((info && info.company) || '').trim();
+  let company = String((info && info.company) || '').trim();
+  if (company.length > 100) company = ''; // 100+ char "company" is import junk, not a real name
   if (!name && !email) return null;
   const arr = loadPeople();
   let p = null;
@@ -510,7 +511,7 @@ async function ensureDailyBackup() {
 }
 function findOrCreateCompany(req, info) {
   const name = String((info && info.name) || '').trim();
-  if (!name) return null;
+  if (!name || name.length > 100) return null; // 100+ char company name is import junk
   const arr = loadCompanies();
   let c = arr.find(x => normKey(x.name) === normKey(name));
   if (c) {
@@ -7166,7 +7167,7 @@ app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16m
   let created = 0, updated = 0, skipped = 0, conceptsCreated = 0, locationsCreated = 0;
   const _batch = nextImportBatch();
   rows.forEach(r => {
-    const name = _impStr(r.name, 160); if (!name) { skipped++; return; }
+    const name = _impStr(r.name, 160); if (!name || name.length > 100) { skipped++; return; } // skip junk 100+ char names
     let c = byKey[normKey(name)]; const isNew = !c;
     if (!c) { c = { id: newCompanyId(), name: name, market: '', type: 'Seller', notes: '', tags: [], office: {}, createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(c); byKey[normKey(name)] = c; }
     const fill = (k, val) => { if (val == null || val === '') return; if (isNew || !c[k]) c[k] = val; };
@@ -7236,7 +7237,7 @@ app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' 
     if (r.url) p.url = _impStr(r.url, 300);
     if (r.tags) { const tg = _impTags(r.tags); if (tg.length) p.tags = tg; }
     const coName = _impStr(r.companyName || r.company, 160);
-    if (coName) { let c = coByKey[normKey(coName)]; if (!c) { c = { id: newCompanyId(), name: coName, market: '', type: 'Seller', notes: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; cos.push(c); coByKey[normKey(coName)] = c; cosDirty = true; } p.companyId = c.id; p.company = c.name; }
+    if (coName && coName.length <= 100) { let c = coByKey[normKey(coName)]; if (!c) { c = { id: newCompanyId(), name: coName, market: '', type: 'Seller', notes: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; cos.push(c); coByKey[normKey(coName)] = c; cosDirty = true; } p.companyId = c.id; p.company = c.name; }
     if (p.leadSource) { const _lk = String(p.leadSource).toLowerCase(); if (!_lsExisting[_lk]) { _lsExisting[_lk] = p.leadSource; _newLSmap[_lk] = p.leadSource; } }
     ppl.push(p); emails.forEach(e => { emailIdx[e.toLowerCase()] = p; }); created++;
   });
