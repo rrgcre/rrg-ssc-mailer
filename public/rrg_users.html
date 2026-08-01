@@ -45,6 +45,12 @@ table{width:100%;border-collapse:collapse;font-size:13px;} th{text-align:left;fo
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);}
 .foot{max-width:1000px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .uav{width:34px;height:34px;border-radius:50%;background:#eef1f6;border:1px solid var(--line);overflow:hidden;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;margin-right:10px;background-size:cover;background-position:center;font-size:12px;font-weight:800;color:#8a93a8;flex:0 0 auto;} .uname{display:flex;align-items:center;}
+.uchip{display:inline-block;font-size:11.5px;font-weight:700;padding:4px 11px;border-radius:7px;background:#eef2fb;color:#3355aa;}
+.uchip.active{background:#e7f5ee;color:#1f8a5b;}
+.uchip.former{background:#f2f4f8;color:#8a93a8;}
+.urole{border:1px solid #dde3ee;border-radius:7px;padding:5px 10px;font:inherit;font-size:12.5px;font-weight:700;color:#3a4560;background:#f5f7fb;cursor:pointer;}
+.urole:hover{background:#eef2f9;}
+table td{vertical-align:middle;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -94,16 +100,20 @@ function render(){
 
   // users
   var roleOpts=(ST.roles||[]).map(function(r){return '<option value="'+esc(r.key)+'">'+esc(r.name)+'</option>';}).join('');
-  var urows=(ST.users||[]).map(function(u){
+  function userRow(u){
     var ovcount=Object.keys(u.perms||{}).length;
-    return '<tr><td><div class="uname">'+uAvatar(u)+'<div><b>'+esc(u.name)+'</b><div style="font-size:11.5px;color:#98a1b5">'+esc(u.username)+(u.disabled?' · disabled':'')+'</div></div></div></td>'
-      +'<td><select data-urole="'+esc(u.username)+'">'+roleOpts+'</select></td>'
-      +'<td><input class="splitin" data-usplit="'+esc(u.username)+'" value="'+esc(u.commissionSplit||'')+'" placeholder="—" style="width:74px;border:1px solid #cfd6e2;border-radius:7px;padding:5px 8px;font:inherit;font-size:13px"></td>'
-      +'<td>'+(ovcount?('<span class="pill on" style="text-transform:none">'+ovcount+' override'+(ovcount===1?'':'s')+'</span>'):'<span style="color:#98a1b5">—</span>')+'</td>'
+    var status=u.disabled?'<span class="uchip former">Former</span>':'<span class="uchip active">Active</span>';
+    return '<tr><td><div class="uname">'+uAvatar(u)+'<div><b>'+esc(u.name)+'</b><div style="font-size:11.5px;color:#98a1b5">'+esc(u.username)+'</div></div></div></td>'
+      +'<td>'+status+'</td>'
+      +'<td><select class="urole" data-urole="'+esc(u.username)+'">'+roleOpts+'</select></td>'
+      +'<td><input class="splitin" data-usplit="'+esc(u.username)+'" value="'+esc(u.commissionSplit||'')+'" placeholder="\u2014" style="width:74px;border:1px solid #cfd6e2;border-radius:7px;padding:5px 8px;font:inherit;font-size:13px"></td>'
+      +'<td>'+(ovcount?('<span class="pill on" style="text-transform:none">'+ovcount+' override'+(ovcount===1?'':'s')+'</span>'):'<span style="color:#98a1b5">\u2014</span>')+'</td>'
       +'<td style="text-align:right"><button class="btn ghost sm" data-ovuser="'+esc(u.username)+'">'+(OVUSER===u.username?'Close':'Overrides')+'</button></td></tr>'
-      +(OVUSER===u.username?('<tr><td colspan="5">'+overridePanel(u)+'</td></tr>'):'');
-  }).join('');
-  var usersCard='<div class="card" id="usersSection"><div class="ch"><b>Users</b><span>'+((ST.users||[]).length)+' · assign a role, or override individual switches per person</span></div><div class="cb"><div class="userscroll" style="max-height:62vh;overflow:auto"><table><thead><tr><th>User</th><th>Role</th><th>Split</th><th>Overrides</th><th></th></tr></thead><tbody>'+urows+'</tbody></table></div></div></div>';
+      +(OVUSER===u.username?('<tr><td colspan="6">'+overridePanel(u)+'</td></tr>'):'');
+  }
+  var _allU=(ST.users||[]); var _curU=_allU.filter(function(u){return !u.disabled;}); var _formerU=_allU.filter(function(u){return u.disabled;});
+  var _thead='<thead><tr><th>Name</th><th>Status</th><th>Role</th><th>Split</th><th>Overrides</th><th></th></tr></thead>';
+  var usersCard='<div class="card" id="usersSection"><div class="ch"><b>Current Users</b><span>'+_curU.length+' \u00b7 assign a role, set split, or override switches per person</span></div><div class="cb"><div class="userscroll" style="max-height:60vh;overflow:auto"><table>'+_thead+'<tbody>'+_curU.map(userRow).join('')+'</tbody></table></div></div></div>'+(_formerU.length?('<div class="card"><div class="ch"><b>Former Users</b><span>'+_formerU.length+' \u00b7 disabled accounts</span></div><div class="cb"><div style="max-height:40vh;overflow:auto"><table>'+_thead+'<tbody>'+_formerU.map(userRow).join('')+'</tbody></table></div></div></div>'):'');
 
   // reassign
   var repOpts='<option value="">— pick —</option>'+(ST.users||[]).map(function(u){return '<option value="'+esc(u.username)+'">'+esc(u.name)+'</option>';}).join('');
