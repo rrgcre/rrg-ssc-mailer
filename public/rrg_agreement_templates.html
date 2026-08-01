@@ -77,7 +77,7 @@ function del(url){ return fetch(url,{method:'DELETE',credentials:'same-origin'})
 
 var TPLS=[], TYPES=[], AUTOS=[], EDIT=null, TFIELDS=[], CTL=null, BUILT=false;
 function autoOpts(sel){ return (AUTOS||[]).map(function(a){ return '<option value="'+esc(a.id)+'"'+(a.id===sel?' selected':'')+'>'+esc(a.name||'Automation')+'</option>'; }).join(''); }
-var AUTOICON='<span title="Runs an automation" style="display:inline-flex;align-items:center;vertical-align:-2px;margin-left:5px;color:#b5791f"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z"></path></svg></span>';
+var AUTOICON='<span title="Runs an automation" style="display:inline-flex;align-items:center;vertical-align:-2px;margin-left:2px;color:#b5791f"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M13 2 4 14h6l-1 8 9-12h-6z"></path></svg></span>';
 var FIELD_TYPES=[['text','Text'],['autofill','Auto-fill'],['date','Date'],['time','Time'],['number','Number'],['currency','Currency'],['email','Email']];
 var AUTOFILL_SRC=[['email','Client — email'],['first_name','Client — first name'],['party_name','Client — full name'],['last_name','Client — last name'],['phone','Client — phone'],['title','Client — title'],['company','Company / firm'],['my_email','Me — email'],['my_name','Me — name'],['my_phone','Me — phone'],['my_title','Me — title'],['date','Today\u2019s date']];
 var DEFAULT_EMAIL_MSG='Please review and sign using the secure link above. Everything has been completed for you — the only thing you need to do is add your signature. Thank you, Restaurant Realty Group.';
