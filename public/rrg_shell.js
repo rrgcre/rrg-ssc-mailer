@@ -216,7 +216,7 @@
     + '#rrgnav a.it .navbadge.gold{background:#d99a1c;}'
     + '#rrgnav a.it .navbadge + .navbadge{margin-left:4px;}'
     + '#rrgnav a.it .aitag{margin-left:5px;font-size:11px;line-height:1;opacity:.85;}'
-    + '#rrgnav .foot{border-top:1px solid rgba(255,255,255,.09);padding:8px 10px;}'
+    + '#rrgnav .foot{border-top:1px solid rgba(255,255,255,.09);padding:8px 8px;display:flex;align-items:center;gap:4px;}#rrgnav .foot a.it{flex:none;padding:6px 9px;}#rrgnav .foot a.it:first-child{flex:1;min-width:0;}#rrgnav .foot a.it:first-child #rrgacct{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}'
     + '#rrgtop{position:fixed;top:0;left:238px;right:0;height:56px;background:#fff;border-bottom:1px solid #e9edf3;display:flex;align-items:center;gap:18px;padding:0 22px;z-index:59;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
     + '#rrgtop .rrgtoplogo{display:flex;align-items:center;height:100%;text-decoration:none;flex:none;margin-right:8px;max-width:224px;overflow:hidden;}'
     + '#rrgtop .rrgtoplogo .rrgbrandimg{max-height:40px;max-width:212px;object-fit:contain;display:block;}'
