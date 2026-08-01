@@ -6442,46 +6442,6 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div style="margin-top:10px"><button class="primary" onclick="saveAssetSaleMessage()">Save message</button> <button onclick="resetAssetSaleMessage()">Reset to default</button> <span id="asmmsg" class="sub2"></span></div>
       </div>
 
-      <div class="grp">Activity &amp; Logs</div>
-      <h2 style="margin-top:20px">Tool Usage <span class="sub2">— what your team is using</span></h2>
-      <div class="cols">
-        <div><h3>By tool</h3><table><thead><tr><th>Tool</th><th>Opens</th></tr></thead><tbody>${toolSummary}</tbody></table></div>
-        <div><h3>By user</h3><table><thead><tr><th>User</th><th>Opens</th></tr></thead><tbody>${userSummary}</tbody></table></div>
-      </div>
-      <h3 style="margin-top:22px">Recent tool activity <span class="sub2">— newest first, last 200</span></h3>
-      <div id="usagelist"></div>
-      <h2 style="margin-top:34px">Login Activity <span class="sub2">— newest first, last 300</span></h2>
-      <div id="loginlist"></div>
-      <script type="application/json" id="usagedata">${JSON.stringify(usageData).replace(/</g, String.fromCharCode(92)+'u003c')}</script>
-      <script type="application/json" id="logindata">${JSON.stringify(loginData).replace(/</g, String.fromCharCode(92)+'u003c')}</script>
-      <script src="/rrg_list.js"></script>
-      <script>
-      (function(){
-        function lesc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-        function pj(id){ try{ return JSON.parse(document.getElementById(id).textContent)||[]; }catch(e){ return []; } }
-        var USAGE=pj('usagedata'), LOGINS=pj('logindata');
-        function tsCmp(a,b){ return RRGList.cmp(a.ts,b.ts); }
-        function go(){
-          if(document.getElementById('usagelist')) RRGList.create({ mount:'#usagelist', data:USAGE, key:'adminusage', rowId:function(r){return r.ts+'|'+r.user+'|'+r.tool;}, defaultSort:0, defaultDir:-1, per:50,
-            columns:[
-              {label:'When (CT)', width:180, sort:tsCmp, cell:function(r){return '<span class="ts">'+lesc(r.when)+'</span>';}},
-              {label:'User', sort:function(a,b){return RRGList.cmp(a.user,b.user);}, cell:function(r){return '<span class="mono">'+(lesc(r.user)||'—')+'</span>';}},
-              {label:'Tool', sort:function(a,b){return RRGList.cmp(a.tool,b.tool);}, cell:function(r){return '<span class="nm">'+lesc(r.tool)+'</span>';}},
-              {label:'IP', sort:function(a,b){return RRGList.cmp(a.ip,b.ip);}, cell:function(r){return '<span class="mono">'+lesc(r.ip)+'</span>';}}
-            ]
-          });
-          if(document.getElementById('loginlist')) RRGList.create({ mount:'#loginlist', data:LOGINS, key:'adminlogins', rowId:function(r){return r.ts+'|'+r.user+'|'+r.ip;}, defaultSort:0, defaultDir:-1, per:50,
-            columns:[
-              {label:'When (CT)', width:180, sort:tsCmp, cell:function(r){return '<span class="ts">'+lesc(r.when)+'</span>';}},
-              {label:'Username', sort:function(a,b){return RRGList.cmp(a.user,b.user);}, cell:function(r){return '<span class="mono">'+(lesc(r.user)||'—')+'</span>';}},
-              {label:'Result', sort:function(a,b){return RRGList.cmp(a.result,b.result);}, cell:function(r){return r.result==='success'?'<span class="tag ok">Success</span>':'<span class="tag off">Failed</span>';}},
-              {label:'IP', sort:function(a,b){return RRGList.cmp(a.ip,b.ip);}, cell:function(r){return '<span class="mono">'+lesc(r.ip)+'</span>';}}
-            ]
-          });
-        }
-        if(window.RRGList){ go(); } else { var t=setInterval(function(){ if(window.RRGList){ clearInterval(t); go(); } },40); }
-      })();
-      </script>
     </div>
     <script src="/rrg_ambience.js?v=3"></script>
     <script>
