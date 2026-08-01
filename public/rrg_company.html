@@ -61,7 +61,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .agrvbox{background:#fff;border-radius:14px;padding:20px 22px;width:min(720px,96vw);box-shadow:0 20px 60px rgba(0,0,0,.3)}
 .agrvhd{font-size:17px;font-weight:800;color:#000E31}.agrvsub{font-size:12.5px;color:#6b7488;margin:4px 0 2px}
 .agrvpill{display:inline-block;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;background:#eef1f6;color:#5b6472}
-.agrvpill.signed{background:#e7f5ee;color:#1f8a5b}.agrvpill.sent{background:#fff4e6;color:#b5791f}.agrvpill.await{background:#eef3ff;color:#2647b0}
+.agrvpill.signed{background:#e7f5ee;color:#1f8a5b}.agrvpill.sent{background:#fff4e6;color:#b5791f}.agrvpill.await{background:#eef3ff;color:#2647b0}.agrvpill.bad{background:#fdeceb;color:#DA2B1F}.agrvpill.mut{background:#f2f4f8;color:#8a93a8}
 .agrvmeta{display:flex;gap:18px;font-size:12.5px;color:#4a5568;margin:10px 0 4px;flex-wrap:wrap}
 .agrvsec{margin:12px 0 0;border-top:1px solid #eef1f6;padding-top:10px}
 .agrvlbl{font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;font-weight:800;margin-bottom:6px}
@@ -263,8 +263,8 @@ function agrChipCo(a){
 function openAgrViewCo(id){
   var a=(AGREEMENTS||[]).filter(function(x){return x.id===id;})[0]; if(!a) return;
   var _exec=(a.signStatus==='executed'||a.signStatus==='signed');
-  var statusTxt=_exec?'Executed':(a.signStatus==='sent'?'Sent for signature':(a.status==='terminated'?'Terminated':'Active'));
-  var statusCls=_exec?'signed':(a.signStatus==='sent'?'sent':'');
+  var statusTxt=a.statusLabel||'Active';
+  var statusCls=_agrCls(a.statusKey);
   var title=esc(a.name||agrTypeLabel(a.type));
   var fmtRO=function(d){ return d?agrFmt(d):'\u2014'; };
   var signersHtml='';
@@ -300,6 +300,7 @@ function agrEntryIcon(a){
 }
 function agrOpenDocCo(id){ var a=(AGREEMENTS||[]).filter(function(x){return x.id===id;})[0]; if(!a) return; var url=a.hasFinal?('/api/agreements/'+encodeURIComponent(id)+'/final'):(a.docExt?('/api/agreements/'+encodeURIComponent(id)+'/doc'):''); if(url){ window.open(url,'_blank','noopener'); } else { openAgrViewCo(id); } }
 function expChip(a){ if(a.status==='terminated'||!a.expires) return ''; var du=agrDays(a.expires); if(du<0) return '<span class="rchip bad" title="Expired '+esc(agrFmt(a.expires))+'">'+Math.abs(du)+'d ago</span>'; return '<span class="rchip'+(du<=60?' sent':'')+'" title="Expires '+esc(agrFmt(a.expires))+'">'+du+'d left</span>'; }
+function _agrCls(k){ return ({active:'signed',executed:'await',soon:'sent',awaiting:'await',expired:'bad',declined:'bad',terminated:'mut',canceled:'mut',draft:'mut'})[k]||''; }
 function agrRowCo(a){
   var _exec=(a.signStatus==='executed'||a.signStatus==='signed'); var _await=(a.signStatus==='awaiting_countersign'); var signed=_exec;
   var title=a.name||agrTypeLabel(a.type);

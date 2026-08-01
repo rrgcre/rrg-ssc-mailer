@@ -165,6 +165,7 @@
       { ic: '⚖︎', label: 'Agreement Templates', href: 'rrg_agreement_templates.html' },
       { ic: '☰', label: 'Menu Access', href: 'rrg_admin_nav.html' },
       { ic: '⤓', label: 'Import Data', href: 'rrg_import.html' },
+      { ic: '⤒', label: 'Export Data', href: 'rrg_export.html' },
       { ic: '⚗', label: 'Data Enrichment', href: 'rrg_data.html' }
     ] }
   ];

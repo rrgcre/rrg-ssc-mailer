@@ -8345,8 +8345,32 @@ const AGREEMENT_TYPES = [
 const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
 function effAgreementTypes() { const s = loadSettings(); if (Array.isArray(s.agreementTypes) && s.agreementTypes.length) { const out = s.agreementTypes.filter(t => t && t.key && t.label).map(t => ({ key: String(t.key), label: String(t.label) })); if (out.length) return out; } return AGREEMENT_TYPES; }
 function agreementTypeKeys() { return effAgreementTypes().map(t => t.key); }
+function agreementStatus(a){
+  a = a || {};
+  var today = new Date().toISOString().slice(0,10);
+  var ss = String(a.signStatus || '');
+  if (ss === 'declined') return { key:'declined', label:'Declined' };
+  if (ss === 'canceled' || ss === 'cancelled') return { key:'canceled', label:'Canceled' };
+  var executed = (ss === 'executed' || ss === 'signed');
+  if (!executed) {
+    if (a.status === 'terminated') return { key:'terminated', label:'Terminated' };
+    if (ss === 'sent' || ss === 'partial' || ss === 'awaiting_countersign') return { key:'awaiting', label:'Awaiting Signatures' };
+    return { key:'draft', label:'Draft' };
+  }
+  if (a.status === 'terminated') return { key:'terminated', label:'Terminated' };
+  var eff = String(a.effective || '').slice(0,10);
+  if (eff && eff > today) return { key:'executed', label:'Fully Executed' };
+  var exp = String(a.expires || '').slice(0,10);
+  if (exp) {
+    if (exp < today) return { key:'expired', label:'Expired' };
+    var du = Math.ceil((Date.parse(exp) - Date.parse(today)) / 86400000);
+    if (du <= 60) return { key:'soon', label:'Expiring Soon' };
+  }
+  return { key:'active', label:'Active' };
+}
 function agreementBrief(a) {
-  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0 };
+  var _as = agreementStatus(a);
+  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0, statusKey: _as.key, statusLabel: _as.label };
 }
 app.get('/api/agreements', (req, res) => {
   let all = loadAgreements();
@@ -9223,6 +9247,44 @@ app.get('/api/reports/summary', requireAdmin, (req, res) => {
       activityByUser, activityTypes: actTypes, typeTotals,
       leadsByUser: Object.keys(leadsByUser).map(k => leadsByUser[k]).sort((a, b) => b.count - a.count) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+function canExportData(req){ return !!(req.user && (isSuper(req.user) || (permsEnabled() && effectivePerms(req.user).export_data))); }
+function _csvCell(v){ var s = String(v == null ? '' : v); return /[",\n\r]/.test(s) ? ('"' + s.replace(/"/g, '""') + '"') : s; }
+function _sendCsv(res, name, header, rows){ var out = [header].concat(rows).map(function(r){ return r.map(_csvCell).join(','); }).join('\r\n'); res.setHeader('Content-Type', 'text/csv; charset=utf-8'); res.setHeader('Content-Disposition', 'attachment; filename="' + name + '-' + new Date().toISOString().slice(0,10) + '.csv"'); res.send('\ufeff' + out); }
+app.get('/api/export/:kind', (req, res) => {
+  if (!canExportData(req)) return res.status(403).send('Export not permitted. Ask an admin for export access.');
+  var kind = String(req.params.kind || '').toLowerCase();
+  var restrict = restrictToOwn(req); var uname = (req.user && req.user.username) || '';
+  try {
+    if (kind === 'contacts' || kind === 'people') {
+      var ppl = loadPeople(); if (restrict) ppl = ppl.filter(function(p){ return (p.byUser || '') === uname; });
+      var coName = {}; loadCompanies().forEach(function(c){ coName[c.id] = c.name || ''; });
+      var rows = ppl.map(function(p){ return [p.id, p.name || '', personFirst(p), personLast(p), preferredEmailOf(p), preferredPhoneOf(p), (p.companyId && coName[p.companyId]) || p.company || '', p.type || '', p.title || '', p.leadSource || '', (personTags(p) || []).join('; '), String(p.createdAt || '').slice(0,10)]; });
+      return _sendCsv(res, 'contacts', ['ID','Name','First','Last','Email','Phone','Company','Type','Title','Lead Source','Tags','Created'], rows);
+    }
+    if (kind === 'companies') {
+      var cos = loadCompanies(); if (restrict) cos = cos.filter(function(c){ return (c.byUser || '') === uname; });
+      var rows2 = cos.map(function(c){ var o = c.office || {}; return [c.id, c.name || '', c.type || '', (c.markets || []).join('; '), o.website || '', o.phone || '', o.city || '', o.state || '', (Array.isArray(c.tags) ? c.tags : []).join('; '), (c.concepts || []).length, (c.locations || []).length, String(c.createdAt || '').slice(0,10)]; });
+      return _sendCsv(res, 'companies', ['ID','Name','Type','Markets','Website','Phone','City','State','Tags','Concepts','Locations','Created'], rows2);
+    }
+    if (kind === 'deals' || kind === 'pipeline') {
+      var deals = loadDeals(); if (restrict) deals = deals.filter(function(d){ return (d.byUser || '') === uname; });
+      var coName2 = {}; loadCompanies().forEach(function(c){ coName2[c.id] = c.name || ''; });
+      var rows3 = deals.map(function(d){ return [d.id, d.business || '', (d.companyId && coName2[d.companyId]) || d.company || '', d.contact || d.contactName || '', d.status || d.stage || '', d.price || d.salePrice || '', d.commission || '', String(d.createdAt || '').slice(0,10)]; });
+      return _sendCsv(res, 'pipeline', ['ID','Business','Company','Contact','Status','Price','Commission','Created'], rows3);
+    }
+    if (kind === 'automations' || kind === 'processes') {
+      var au = loadAutomations();
+      var rows4 = au.map(function(a){ return [a.id, a.name || '', (a.active === false ? 'Inactive' : 'Active'), a.scope || 'shared', (a.steps || []).length, String(a.createdAt || '').slice(0,10)]; });
+      return _sendCsv(res, 'processes', ['ID','Name','Status','Visibility','Steps','Created'], rows4);
+    }
+    if (kind === 'tasks') {
+      var ts = loadTasks(); if (restrict) ts = ts.filter(function(t){ return (t.assignee || '') === uname; });
+      var rows5 = ts.map(function(t){ return [t.id, t.title || '', t.assigneeName || t.assignee || '', String(t.due || '').slice(0,10), t.status || '', t.priority || '', t.linkLabel || '', String(t.createdAt || '').slice(0,10)]; });
+      return _sendCsv(res, 'tasks', ['ID','Title','Assignee','Due','Status','Priority','Linked To','Created'], rows5);
+    }
+    return res.status(400).send('Unknown export type.');
+  } catch (e) { console.error('export ' + kind + ':', e && e.message); res.status(500).send('Export failed.'); }
 });
 app.get('/api/admin/permissions', requireAdmin, (req, res) => {
   res.json({
