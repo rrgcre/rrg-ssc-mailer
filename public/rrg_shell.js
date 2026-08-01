@@ -116,8 +116,7 @@
       { ic: '❐', label: 'Documents', href: 'rrg_documents.html' },
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [
-      { ic: '⊞', label: 'Pipelines', href: 'rrg_board.html' },
-      { ic: '◆', label: 'Listings', href: 'rrg_assignments.html?type=listing' },
+      { ic: '⊞', label: 'Listings', href: 'rrg_board.html' },
       { ic: '◈', label: 'Deals', href: 'rrg_deals.html' },
       { ic: '▥', label: 'Data Rooms', href: 'rrg_rooms_queue.html' }
     ] },
@@ -129,7 +128,6 @@
       { ic: '⊚', label: 'Tour Tracker', href: 'rrg_tour_tracker.html' },
       { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' },
       { ic: '§', label: 'LOI Builder', href: 'rrg_loi_builder.html' },
-      { ic: '⚙', label: 'LOI Settings', href: 'rrg_admin_loi.html', need: 'loi' }
     ] },
     { grp: 'Landlord Rep', color: '#c98a5e', items: [
       { ic: '⌂', label: 'Overview', href: 'rrg_landlord_rep.html' }

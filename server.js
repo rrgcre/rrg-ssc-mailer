@@ -6407,61 +6407,6 @@ app.get('/admin', requireAdmin, (req, res) => {
         <div id="docList" style="margin-top:14px"></div>
       </div>
 
-      <div class="grp">Brand</div>
-      <h2 style="margin-top:20px">App Name <span class="sub2">— the product name shown in the browser tab on every page. Change it here to rebrand the whole app.</span></h2>
-      <div class="links">
-        <div class="sub2" id="appnState" style="margin:0 0 8px">Loading…</div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <input type="text" id="appName" maxlength="60" placeholder="FullServe" style="flex:1;min-width:220px;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy)">
-          <button class="primary" onclick="saveAppName()">Save name</button>
-          <button onclick="resetAppName()">Reset to default</button>
-          <span id="appnMsg" class="sub2"></span>
-        </div>
-      </div>
-
-      <h2 style="margin-top:34px">Header Announcement <span class="sub2">— a short message shown across the top of everyone's dashboard, next to the logo. Use it for notices, reminders, or a rallying line. Leave blank to hide it.</span></h2>
-      <div class="links">
-        <input type="text" id="hdrMsg" maxlength="160" placeholder="e.g. Q3 push — get your listings loaded by Friday. New: auto-find locations on any concept." style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy)">
-        <div style="margin-top:10px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-          <button class="primary" onclick="saveHdrMsg()">Save message</button>
-          <button onclick="clearHdrMsg()">Clear</button>
-          <label class="sub2" style="display:inline-flex;align-items:center;gap:7px"><input type="checkbox" id="hdrMsgOn" checked> Show on dashboard</label>
-          <span id="hdrMsgMsg" class="sub2"></span>
-        </div>
-      </div>
-
-      <h2 style="margin-top:34px">Company Logo <span class="sub2">— your firm's logo. Used as the default on Marketing Packs (reps can still override per pack). PNG, JPG, SVG, GIF or WEBP, up to 4&nbsp;MB.</span></h2>
-      <div class="links">
-        <div id="logoPreview" style="margin-bottom:12px"></div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <input type="text" id="logoUrl" placeholder="Auto-pull from a website (e.g. rrgcre.com)" style="flex:1;min-width:220px;border:1px solid #cfd6e2;border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;color:var(--navy)">
-          <button onclick="pullLogo()">Pull from website</button>
-        </div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
-          <span class="sub2">or upload:</span>
-          <input type="file" id="logoFile" accept=".png,.jpg,.jpeg,.svg,.gif,.webp,image/*" onchange="uploadLogo()" style="font:inherit;font-size:13px">
-          <button class="primary" onclick="uploadLogo()">Upload logo</button>
-          <button onclick="clearLogo()">Remove</button>
-          <span id="logomsg" class="sub2"></span>
-        </div>
-      </div>
-
-      <h2 style="margin-top:34px">Favicon <span class="sub2">— the little icon in the browser tab. Use a square image (ICO, PNG or SVG), ideally 32×32 or larger, up to 1&nbsp;MB. Applies across every page.</span></h2>
-      <div class="links">
-        <div id="favPreview" style="margin-bottom:12px"></div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <input type="text" id="favUrl" placeholder="Auto-pull from a website (e.g. rrgcre.com)" style="flex:1;min-width:220px;border:1px solid #cfd6e2;border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;color:var(--navy)">
-          <button onclick="pullFavicon()">Pull from website</button>
-        </div>
-        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">
-          <span class="sub2">or upload:</span>
-          <input type="file" id="favFile" accept=".ico,.png,.svg,.gif,.webp,image/*" onchange="uploadFavicon()" style="font:inherit;font-size:13px">
-          <button class="primary" onclick="uploadFavicon()">Upload favicon</button>
-          <button onclick="clearFavicon()">Remove</button>
-          <span id="favmsg" class="sub2"></span>
-        </div>
-      </div>
-
       <div class="grp">Valuation Rules</div>
       <h2 style="margin-top:20px">BOV Valuation Basis <span class="sub2">— deals with trailing sales BELOW this value are concluded on SDE; at or above it, on Adjusted EBITDA.</span></h2>
       <div class="links">
@@ -6484,153 +6429,6 @@ app.get('/admin', requireAdmin, (req, res) => {
         <label class="sub2" style="display:block;margin:18px 0 4px">Notice shown on the BOV when a deal falls at or below the floor</label>
         <textarea id="assetSaleMessage" spellcheck="true" style="width:100%;min-height:110px;border:1px solid #cfd6e2;border-radius:8px;padding:11px 13px;font:inherit;font-size:13.5px;line-height:1.5;resize:vertical"></textarea>
         <div style="margin-top:10px"><button class="primary" onclick="saveAssetSaleMessage()">Save message</button> <button onclick="resetAssetSaleMessage()">Reset to default</button> <span id="asmmsg" class="sub2"></span></div>
-      </div>
-
-      <div class="grp">Screens &amp; Sound</div>
-      <h2 style="margin-top:20px">Questionnaire Intro Screen <span class="sub2">— the "Before you begin" priming screen a rep sees when starting a questionnaire.</span></h2>
-      <div class="links">
-        <label class="sub2" style="display:block;margin-bottom:4px">Seconds on screen (default 10; 0 = off)</label>
-        <input id="introSeconds" inputmode="numeric" style="border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;width:120px" placeholder="10">
-        <div style="margin-top:10px"><button class="primary" onclick="saveIntroSeconds()">Save duration</button> <span id="ismsg" class="sub2"></span></div>
-        <label class="sub2" style="display:block;margin:18px 0 4px">Message shown on the screen <span style="font-weight:400">— blank lines separate paragraphs; a line starting with &ldquo;- &rdquo; becomes a checklist item</span></label>
-        <textarea id="introMessage" spellcheck="true" style="width:100%;min-height:200px;border:1px solid #cfd6e2;border-radius:8px;padding:11px 13px;font:inherit;font-size:13.5px;line-height:1.5;resize:vertical"></textarea>
-        <div style="margin-top:10px"><button class="primary" onclick="saveIntroMessage()">Save message</button> <button onclick="resetIntroMessage()">Reset to default</button> <span id="immsg" class="sub2"></span></div>
-      </div>
-
-      <h2 style="margin-top:34px">Marketing Pack Intro Screen <span class="sub2">— the "what's about to happen" screen a rep sees on the Build a Marketing Pack page, before generating the CIM and email campaign.</span></h2>
-      <div class="links">
-        <label class="sub2" style="display:block;margin-bottom:4px">Seconds on screen (default 20; 0 = off)</label>
-        <input id="packIntroSeconds" inputmode="numeric" style="border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;width:120px" placeholder="20">
-        <div style="margin-top:10px"><button class="primary" onclick="savePackIntroSeconds()">Save duration</button> <span id="pismsg" class="sub2"></span></div>
-        <label class="sub2" style="display:block;margin:18px 0 4px">Message shown on the screen <span style="font-weight:400">— blank lines separate paragraphs; a line starting with &ldquo;- &rdquo; becomes a checklist item</span></label>
-        <textarea id="packIntroMessage" spellcheck="true" style="width:100%;min-height:200px;border:1px solid #cfd6e2;border-radius:8px;padding:11px 13px;font:inherit;font-size:13.5px;line-height:1.5;resize:vertical"></textarea>
-        <div style="margin-top:10px"><button class="primary" onclick="savePackIntroMessage()">Save message</button> <button onclick="resetPackIntroMessage()">Reset to default</button> <span id="pimmsg" class="sub2"></span></div>
-      </div>
-
-      <h2 style="margin-top:34px">BOV Ready Screen <span class="sub2">— how long the "your BOV is ready" screen (with the completion sound) stays up before the finished draft opens.</span></h2>
-      <div class="links">
-        <label class="sub2" style="display:block;margin-bottom:4px">Seconds on screen (default 2)</label>
-        <input id="doneSeconds" inputmode="decimal" style="border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;width:120px" placeholder="2">
-        <div style="margin-top:10px"><button class="primary" onclick="saveDoneSeconds()">Save duration</button> <span id="dsmsg" class="sub2"></span></div>
-      </div>
-
-      <h2 style="margin-top:34px">Build Sound <span class="sub2">— the ambience that plays on every build screen: Business Valuations, Marketing Packs, and Lease Abstracts. Tap Preview to sample, pick one, then Save.</span></h2>
-      <div class="links">
-        <div id="soundList"></div>
-        <div style="margin-top:10px"><button class="primary" onclick="saveAmbience()">Save sound</button> <button onclick="stopPreview()">Stop preview</button> <span id="sndmsg" class="sub2"></span></div>
-      </div>
-
-      <div class="grp">AI Prompts</div>
-      <h2 style="margin-top:20px" data-open="1">BOV Analyst Prompt <span class="sub2">— the instructions the RRG analyst follows when drafting a BOV. Edit to change how valuations are written; keep the JSON output block at the end intact so the BOV still builds. Reset any time to restore the RRG default.</span></h2>
-      <div class="links">
-        <div class="sub2" id="bpstate" style="margin:0 0 8px">Loading…</div>
-        <textarea id="bovPrompt" class="bovprompt" spellcheck="false"></textarea>
-        <div style="margin-top:10px"><button class="primary" onclick="saveBovPrompt()">Save prompt</button> <button onclick="resetBovPrompt()">Reset to RRG default</button> <span id="bpmsg" class="sub2"></span></div>
-      </div>
-
-      <h2 style="margin-top:34px" data-open="1">Marketing Pack Prompt <span class="sub2">— the instructions the RRG analyst follows when drafting the Confidential Information Memorandum inside a Marketing Pack. Keep the JSON output block intact so the pack still builds. Reset any time to restore the RRG default.</span></h2>
-      <div class="links">
-        <div class="sub2" id="cpstate" style="margin:0 0 8px">Loading…</div>
-        <textarea id="cimPrompt" class="bovprompt" spellcheck="false"></textarea>
-        <div style="margin-top:10px"><button class="primary" onclick="saveCimPrompt()">Save prompt</button> <button onclick="resetCimPrompt()">Reset to RRG default</button> <span id="cpmsg" class="sub2"></span></div>
-      </div>
-
-      <h2 style="margin-top:34px" data-open="1">Market Attack Plan Prompt <span class="sub2">— the instructions the RRG analyst follows when drafting the sell-side Market Attack Plan advanced from a Marketing Pack. Keep the JSON output block intact so the plan still builds. Reset any time to restore the RRG default.</span></h2>
-      <div class="links">
-        <div class="sub2" id="mpstate" style="margin:0 0 8px">Loading…</div>
-        <textarea id="mapPrompt" class="bovprompt" spellcheck="false"></textarea>
-        <div style="margin-top:10px"><button class="primary" onclick="saveMapPrompt()">Save prompt</button> <button onclick="resetMapPrompt()">Reset to RRG default</button> <span id="mpmsg" class="sub2"></span></div>
-      </div>
-
-      <h2 style="margin-top:34px" data-open="1">Brokerage Office (Requests) Prompt <span class="sub2">— the instructions the AI office assistant follows when it answers rep <b>Requests</b>. This is the office persona: what it can resolve directly, what it flags as an action for the office, and how it asks for missing info. Keep the JSON output block intact so replies still build. Reset any time to restore the RRG default.</span></h2>
-      <div class="links">
-        <div class="sub2" id="tkstate" style="margin:0 0 8px">Loading…</div>
-        <textarea id="ticketPrompt" class="bovprompt" spellcheck="false"></textarea>
-        <div style="margin-top:10px"><button class="primary" onclick="saveTicketPrompt()">Save prompt</button> <button onclick="resetTicketPrompt()">Reset to RRG default</button> <span id="tkmsg" class="sub2"></span></div>
-      </div>
-
-      <div class="grp">AI Engine</div>
-      <h2 style="margin-top:20px">AI Model <span class="sub2">— the model powering every AI feature (valuations, marketing packs, attack plans, offer analysis, the location finder, and the Requests office). Change it here to move to a newer model without a redeploy. Enter the exact model id from your AI provider.</span></h2>
-      <div class="links">
-        <div class="sub2" id="aimstate" style="margin:0 0 8px">Loading…</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <input type="text" id="aiModel" placeholder="e.g. claude-sonnet-4-5" style="flex:1;min-width:260px;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy)">
-          <button class="primary" onclick="saveAiModel()">Save model</button>
-          <button onclick="resetAiModel()">Reset to default</button>
-          <span id="aimmsg" class="sub2"></span>
-        </div>
-        <div class="sub2" style="margin-top:8px">Takes effect immediately for new AI runs. If a saved id isn't valid at your provider, AI features will error until it's corrected — reset to default to recover.</div>
-      </div>
-
-      <div class="grp">Integrations</div>
-      <h2 style="margin-top:20px">Google Maps API key <span class="sub2">— powers automatic location photos (Street View storefronts + Google Places business photos). Create a key in Google Cloud with the <b>Street View Static</b> and <b>Places</b> APIs enabled, then paste it here. The key is stored on the server only and is never sent to browsers or included in backups.</span></h2>
-      <div class="links">
-        <div class="sub2" id="gmstate" style="margin:0 0 8px">Loading…</div>
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <input type="password" id="gmapsKey" placeholder="Paste Google Maps API key" autocomplete="off" style="flex:1;min-width:260px;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy)">
-          <button class="primary" onclick="saveGmapsKey()">Save key</button>
-          <button onclick="testGmaps()">Test key</button>
-          <button onclick="clearGmapsKey()">Remove</button>
-          <span id="gmmsg" class="sub2"></span>
-        </div>
-        <div class="sub2" style="margin-top:8px">Once set, a “Pull photo” button appears on every location and the location finder auto-fetches a storefront for each unit it adds.</div>
-      </div>
-
-      <h2 style="margin-top:34px">Email (SMTP) <span class="sub2">— outbound email for the app: contact emails, document sends, and alert digests. Enter your mail provider's SMTP details (Gmail, SendGrid, etc.). Stored on the server only and excluded from backups. Use the test button to confirm it works before relying on it.</span></h2>
-      <div class="links">
-        <div class="sub2" id="emState" style="margin:0 0 8px">Loading…</div>
-        <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px">
-          <div><label class="sub2">SMTP host</label><input id="em_host" placeholder="smtp.gmail.com" autocomplete="off" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
-          <div><label class="sub2">Port</label><input id="em_port" placeholder="587" autocomplete="off" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
-          <div><label class="sub2">Security</label><select id="em_secure" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;background:#fff"><option value="false">STARTTLS (587)</option><option value="true">SSL/TLS (465)</option></select></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px">
-          <div><label class="sub2">Username</label><input id="em_user" placeholder="van@rrgcre.com" autocomplete="off" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
-          <div><label class="sub2">Password / app password</label><input type="password" id="em_pass" placeholder="app password" autocomplete="new-password" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:14px;margin-top:10px;align-items:end">
-          <div><label class="sub2">From address</label><input id="em_from" placeholder="Restaurant Realty Group &lt;van@rrgcre.com&gt;" autocomplete="off" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
-          <label class="sub2" style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding-bottom:10px"><input type="checkbox" id="em_enabled" checked> Email enabled</label>
-        </div>
-        <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <button class="primary" onclick="saveEmail()">Save email settings</button>
-          <input id="em_test" placeholder="send test to you@email.com" autocomplete="off" style="border:1px solid #cfd6e2;border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;min-width:220px">
-          <button onclick="testEmail()">Send test</button>
-          <span id="emMsg" class="sub2"></span>
-        </div>
-        <div class="sub2" style="margin-top:8px">Gmail: use an <b>app password</b> (myaccount.google.com/apppasswords), host <b>smtp.gmail.com</b>, port <b>587</b>. Leave the password blank when saving to keep the current one.</div>
-      </div>
-
-      <h2 style="margin-top:34px">SMS (Twilio) <span class="sub2">— outbound text messages for task reminders. Create a Twilio account, then paste your Account SID, Auth Token, and a Twilio phone number. Stored on the server only and excluded from backups. Reps are texted at the phone number on their user profile. Reminders only offer SMS once this is configured.</span></h2>
-      <div class="links">
-        <div class="sub2" id="smsState" style="margin:0 0 8px">Loading…</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <div><label class="sub2">Account SID</label><input id="sms_sid" placeholder="ACxxxxxxxxxxxx" autocomplete="off" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
-          <div><label class="sub2">Auth Token</label><input type="password" id="sms_token" placeholder="auth token" autocomplete="new-password" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr auto;gap:14px;margin-top:10px;align-items:end">
-          <div><label class="sub2">From number (Twilio)</label><input id="sms_from" placeholder="+15125551234" autocomplete="off" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px"></div>
-          <label class="sub2" style="display:inline-flex;align-items:center;gap:7px;white-space:nowrap;padding-bottom:10px"><input type="checkbox" id="sms_enabled" checked> SMS enabled</label>
-        </div>
-        <div style="margin-top:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-          <button class="primary" onclick="saveSms()">Save SMS settings</button>
-          <input id="sms_test" placeholder="send test to +1512..." autocomplete="off" style="border:1px solid #cfd6e2;border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;min-width:200px">
-          <button onclick="testSms()">Send test</button>
-          <span id="smsMsg" class="sub2"></span>
-        </div>
-        <div class="sub2" style="margin-top:8px">Get credentials at twilio.com (Console). Leave the token blank when saving to keep the current one.</div>
-      </div>
-
-      <div class="grp">Data Backup</div>
-      <h2 style="margin-top:20px" data-open="1">Backups <span class="sub2">— a full copy of everything the team has created: deals, companies, contacts, requests, calls, valuations, marketing packs, and every uploaded data-room file. The server writes an automatic snapshot once a day (kept ${BACKUP_KEEP} days). Download one any time to keep an off-site copy in Drive or Dropbox.</span></h2>
-      <div class="links">
-        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
-          <a class="primary" href="/api/admin/backup" style="text-decoration:none;display:inline-block">⬇ Download full backup now</a>
-          <style>.bkspin{display:inline-block;width:12px;height:12px;border:2px solid #cfd6e2;border-top-color:#DA2B1F;border-radius:50%;animation:bkspin .7s linear infinite;vertical-align:-1px;margin-right:5px}@keyframes bkspin{to{transform:rotate(360deg)}}</style><button id="bkbtn" onclick="runBackup()">Save a snapshot on the server</button>
-          <span id="bkmsg" class="sub2"></span>
-        </div>
-        <div class="sub2" id="bkoffsite" style="margin:2px 0 10px"></div>
-        <div id="bklist" class="sub2">Loading saved snapshots…</div>
       </div>
 
       <div class="grp">Activity &amp; Logs</div>
@@ -6730,20 +6528,20 @@ app.get('/admin', requireAdmin, (req, res) => {
       function loadAppName(){ fetch('/api/admin/app-name').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('appName').value=j.name||''; _appnState(j); } }).catch(function(){}); }
       function saveAppName(){ var v=document.getElementById('appName').value.trim(), m=document.getElementById('appnMsg'); m.textContent='Saving…'; post('/api/admin/app-name',{name:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — reload to see the tab title.'; _appnState(j); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
       function resetAppName(){ post('/api/admin/app-name',{name:''}).then(function(j){ if(j&&j.ok){ document.getElementById('appName').value=j.name||''; document.getElementById('appnMsg').textContent='Reset ✓'; _appnState(j); } }); }
-      try{ loadFavicon(); }catch(e){}
-      try{ loadAppName(); }catch(e){}
+
+
       function loadHdrMsg(){ fetch('/api/admin/header-msg').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('hdrMsg').value=j.msg||''; document.getElementById('hdrMsgOn').checked=(j.on!==false); } }).catch(function(){}); }
       function saveHdrMsg(){ var v=document.getElementById('hdrMsg').value, on=document.getElementById('hdrMsgOn').checked, m=document.getElementById('hdrMsgMsg'); m.textContent='Saving…'; post('/api/admin/header-msg',{msg:v,on:on}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — reps see it on their next dashboard load.'; } else { m.textContent=(j&&j.error)||'Failed'; } }); }
       function clearHdrMsg(){ document.getElementById('hdrMsg').value=''; post('/api/admin/header-msg',{msg:'',on:document.getElementById('hdrMsgOn').checked}).then(function(j){ if(j&&j.ok) document.getElementById('hdrMsgMsg').textContent='Cleared.'; }); }
       loadDocList();
-      loadLogo();
-      loadHdrMsg();
+
+
       function saveToolAccess(){ var t=[]; document.querySelectorAll('.ta:checked').forEach(function(c){ t.push(c.value); }); post('/api/admin/tool-access',{adminOnly:t}).then(function(j){ var m=document.getElementById('tmsg'); if(j.ok){ m.textContent='Saved — '+j.adminOnly.length+' tool(s) admin-only ✓'; } else { m.textContent=j.error||'Failed'; } }); }
       function _bpState(isDefault){ var s=document.getElementById('bpstate'); if(s) s.textContent = isDefault ? 'Currently using the RRG default prompt.' : 'Currently using a custom prompt.'; }
       function loadBovPrompt(){ fetch('/api/admin/bov-prompt').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('bovPrompt').value=j.prompt||''; _bpState(j.isDefault); } }).catch(function(){ var s=document.getElementById('bpstate'); if(s) s.textContent='Could not load the prompt.'; }); }
       function saveBovPrompt(){ var v=document.getElementById('bovPrompt').value; var m=document.getElementById('bpmsg'); m.textContent='Saving…'; post('/api/admin/bov-prompt',{prompt:v}).then(function(j){ if(j.ok){ m.textContent = j.isDefault ? 'Saved — matches the default, so the default is in use ✓' : 'Saved custom prompt ✓'; document.getElementById('bovPrompt').value=j.prompt||v; _bpState(j.isDefault); } else m.textContent=j.error||'Failed'; }); }
       function resetBovPrompt(){ if(!confirm('Reset the BOV prompt to the RRG default? Your custom prompt will be discarded.')) return; post('/api/admin/bov-prompt',{reset:true}).then(function(j){ if(j.ok){ document.getElementById('bovPrompt').value=j.prompt||''; document.getElementById('bpmsg').textContent='Reset to default ✓'; _bpState(true); } }); }
-      try{ loadBovPrompt(); }catch(e){}
+
       function _cpState(isDefault){ var s=document.getElementById('cpstate'); if(s) s.textContent = isDefault ? 'Currently using the RRG default CIM prompt.' : 'Currently using a custom CIM prompt.'; }
       function loadCimPrompt(){ fetch('/api/admin/cim-prompt').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('cimPrompt').value=j.prompt||''; _cpState(j.isDefault); } }).catch(function(){ var s=document.getElementById('cpstate'); if(s) s.textContent='Could not load the prompt.'; }); }
       function saveCimPrompt(){ var v=document.getElementById('cimPrompt').value; var m=document.getElementById('cpmsg'); m.textContent='Saving…'; post('/api/admin/cim-prompt',{prompt:v}).then(function(j){ if(j.ok){ m.textContent = j.isDefault ? 'Saved — matches the default ✓' : 'Saved custom prompt ✓'; document.getElementById('cimPrompt').value=j.prompt||v; _cpState(j.isDefault); } else m.textContent=j.error||'Failed'; }); }
@@ -6756,9 +6554,9 @@ app.get('/admin', requireAdmin, (req, res) => {
       function loadTicketPrompt(){ fetch('/api/admin/ticket-prompt').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('ticketPrompt').value=j.prompt||''; _tkState(j.isDefault); } }).catch(function(){ var s=document.getElementById('tkstate'); if(s) s.textContent='Could not load the prompt.'; }); }
       function saveTicketPrompt(){ var v=document.getElementById('ticketPrompt').value; var m=document.getElementById('tkmsg'); m.textContent='Saving…'; post('/api/admin/ticket-prompt',{prompt:v}).then(function(j){ if(j.ok){ m.textContent = j.isDefault ? 'Saved — matches the default ✓' : 'Saved custom prompt ✓'; document.getElementById('ticketPrompt').value=j.prompt||v; _tkState(j.isDefault); } else m.textContent=j.error||'Failed'; }); }
       function resetTicketPrompt(){ if(!confirm('Reset the Brokerage Office prompt to the RRG default? Your custom prompt will be discarded.')) return; post('/api/admin/ticket-prompt',{reset:true}).then(function(j){ if(j.ok){ document.getElementById('ticketPrompt').value=j.prompt||''; document.getElementById('tkmsg').textContent='Reset to default ✓'; _tkState(true); } }); }
-      try{ loadMapPrompt(); }catch(e){}
-      try{ loadCimPrompt(); }catch(e){}
-      try{ loadTicketPrompt(); }catch(e){}
+
+
+
       function _bkSize(n){ if(!n) return '0 KB'; if(n<1024*1024) return (n/1024).toFixed(0)+' KB'; return (n/1024/1024).toFixed(1)+' MB'; }
       function _bkDate(iso){ try{ var d=new Date(iso); return d.toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){ return ''; } }
       function loadBackups(){ fetch('/api/admin/backups').then(function(r){return r.json();}).then(function(j){
@@ -6775,7 +6573,7 @@ app.get('/admin', requireAdmin, (req, res) => {
       function loadAiModel(){ fetch('/api/admin/ai-model').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('aiModel').value=j.model||''; _aimState(j); } }).catch(function(){ var s=document.getElementById('aimstate'); if(s) s.textContent='Could not load the model setting.'; }); }
       function saveAiModel(){ var v=document.getElementById('aiModel').value.trim(), m=document.getElementById('aimmsg'); m.textContent='Saving…'; post('/api/admin/ai-model',{model:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; _aimState(j); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
       function resetAiModel(){ if(!confirm('Reset the AI model to the default?')) return; post('/api/admin/ai-model',{reset:true}).then(function(j){ if(j&&j.ok){ document.getElementById('aiModel').value=j.model||''; document.getElementById('aimmsg').textContent='Reset ✓'; _aimState(j); } }); }
-      try{ loadAiModel(); }catch(e){}
+
       function _gmState(j){ var s=document.getElementById('gmstate'); if(s) s.textContent = j.set ? (j.fromEnv?'A key is set from the server environment.':'A key is saved. Photo pulls are enabled.') : 'No key set — automatic location photos are off.'; }
       function loadGmapsKey(){ fetch('/api/admin/gmaps-key').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ _gmState(j); } }).catch(function(){ var s=document.getElementById('gmstate'); if(s) s.textContent='Could not load the key status.'; }); }
       function saveGmapsKey(){ var v=document.getElementById('gmapsKey').value.trim(), m=document.getElementById('gmmsg'); if(!v){ m.textContent='Paste a key first.'; return; } m.textContent='Saving…'; post('/api/admin/gmaps-key',{key:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; document.getElementById('gmapsKey').value=''; _gmState(j); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
@@ -6789,10 +6587,10 @@ app.get('/admin', requireAdmin, (req, res) => {
       function loadSms(){ fetch('/api/admin/sms').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sms_sid').value=j.sid||''; document.getElementById('sms_from').value=j.from||''; document.getElementById('sms_enabled').checked=(j.enabled!==false); document.getElementById('sms_token').placeholder=j.hasToken?'leave blank to keep current':'auth token'; _smsState(j); } }).catch(function(){ var s=document.getElementById('smsState'); if(s) s.textContent='Could not load SMS settings.'; }); }
       function saveSms(){ var m=document.getElementById('smsMsg'); m.textContent='Saving…'; var body={ sid:document.getElementById('sms_sid').value.trim(), from:document.getElementById('sms_from').value.trim(), enabled:document.getElementById('sms_enabled').checked }; var tk=document.getElementById('sms_token').value; if(tk) body.token=tk; post('/api/admin/sms',body).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; document.getElementById('sms_token').value=''; loadSms(); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
       function testSms(){ var to=document.getElementById('sms_test').value.trim(), m=document.getElementById('smsMsg'); if(!to){ m.textContent='Enter a mobile number for the test.'; return; } m.textContent='Sending test…'; post('/api/admin/sms/test',{to:to}).then(function(j){ if(j&&j.ok){ m.textContent='Test sent ✓ — check that phone.'; } else { m.textContent='Test failed: '+((j&&j.error)||'unknown'); } }); }
-      try{ loadGmapsKey(); }catch(e){}
-      try{ loadEmail(); }catch(e){}
-      try{ loadSms(); }catch(e){}
-      try{ loadBackups(); }catch(e){}
+
+
+
+
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
       var INTRO_DEFAULT_MSG='', PACK_INTRO_DEFAULT_MSG='';
       function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); var is=document.getElementById('introSeconds'); if(is) is.value=(j.introSeconds!=null?j.introSeconds:10); INTRO_DEFAULT_MSG=j.defaultIntroMessage||''; var im=document.getElementById('introMessage'); if(im) im.value=j.introMessage||j.defaultIntroMessage||''; var ds=document.getElementById('doneSeconds'); if(ds) ds.value=(j.doneSeconds!=null?j.doneSeconds:2); var nt=document.getElementById('noTtmMessage'); if(nt) nt.value=j.noTtmMessage||j.defaultNoTtmMessage||''; var af=document.getElementById('assetSaleFloor'); if(af) af.value=fmtNum(j.assetSaleFloor!=null?j.assetSaleFloor:(j.defaultAssetSaleFloor!=null?j.defaultAssetSaleFloor:25000)); var am=document.getElementById('assetSaleMessage'); if(am) am.value=j.assetSaleMessage||j.defaultAssetSaleMessage||''; var pis=document.getElementById('packIntroSeconds'); if(pis) pis.value=(j.packIntroSeconds!=null?j.packIntroSeconds:20); PACK_INTRO_DEFAULT_MSG=j.defaultPackIntroMessage||''; var pim=document.getElementById('packIntroMessage'); if(pim) pim.value=j.packIntroMessage||j.defaultPackIntroMessage||''; renderSounds(j.ambienceId||'analyst'); } }).catch(function(){ renderSounds('analyst'); }); }
