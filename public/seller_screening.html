@@ -247,6 +247,7 @@
   }
 .coauto2{position:relative;} .cosug2{position:absolute;left:0;right:0;top:100%;z-index:40;background:#fff;border:1px solid #cfd6e2;border-radius:9px;box-shadow:0 10px 26px rgba(10,20,50,.14);margin-top:3px;max-height:230px;overflow:auto;} .cosug2row{padding:8px 11px;font-size:13px;cursor:pointer;color:#1a2236;} .cosug2row:hover{background:#f5f7fb;} .cosug2new{border-top:1px solid #eef1f6;} .cosug2new:hover{background:#eef7f0;color:#1f8a5b;} .co2new{color:#1f8a5b;font-weight:800;}
 .rangewrap{display:flex;align-items:center;gap:10px;} .rangewrap .madorn{flex:1;} .rangeto{color:#6b7488;font-size:13px;font-weight:600;}
+.decisionsec h2{color:#DA2B1F;} .decisionnote{background:#fdf1ef;border:1px solid #f3c9c4;border-left:4px solid #DA2B1F;border-radius:0 10px 10px 0;padding:13px 17px;margin:0 0 8px;font-size:14px;color:#8a2e26;line-height:1.5;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -254,13 +255,12 @@
 <!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to dashboard" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)"><span style="font-size:14px;line-height:1">←</span> Dashboard</a><style>@media print{.rrg-back{display:none!important}}@media(max-width:560px){.rrg-back{left:12px;bottom:12px;padding:9px 13px}}</style>
 
 <div class="toolbar">
-  <div class="tt">RRG Seller Screening <span>Fill in, then Submit &amp; Email</span></div>
+  <div class="tt">RRG Seller Screening <span>Fill in, then Submit</span></div>
   <div class="actions">
     <button class="btn clear" onclick="rrgConfirm('Clear all fields?').then(function(o){if(!o)return;document.getElementById('sscform').reset();document.dispatchEvent(new Event('input',{bubbles:true}));if(window.rrgClearDraft)window.rrgClearDraft();}">Clear form</button>
-    <button class="btn blank" onclick="printBlank()">Print blank</button>
     <button class="btn blank" onclick="validateAndPrint()">Print</button>
     <button class="btn save" onclick="screenClose()">Close</button>
-    <button class="btn print" onclick="emailSSC()">Submit &amp; Email</button>
+    <button class="btn print" onclick="submitScreen()">Submit</button>
   </div>
 </div>
 
@@ -574,7 +574,8 @@
       </div>
     </div>
     <!-- SECTION 6: CALL OUTCOME & NOTES -->
-    <div class="sec brk"><div class="num">6</div><h2>Call Outcome &amp; Notes</h2><div class="flex"></div></div>
+    <div class="sec brk decisionsec"><div class="num">6</div><h2>Call Outcome &amp; Notes</h2><div class="flex"></div></div>
+    <div class="decisionnote"><b>Decision point.</b> Based on everything above \u2014 do we move forward with this seller, or not?</div>
     <div class="subhead">Lead Outcome</div>
     <div class="oset full single rowgap" data-req="1"><label class="k">Lead Status<span class="req-star">*</span></label>
       <div class="optcols">
@@ -587,6 +588,10 @@
     <div class="subhead">Call Summary</div>
     <div class="field full rowgap"><label class="k">Call Notes<span class="req-star">*</span></label><textarea class="req" placeholder="3–4 sentences in your own words: motivation, financial picture, expectations, and your read on the lead. This goes directly into the contact's record in FullServe."></textarea></div>
 
+    <div style="display:flex;gap:12px;justify-content:center;margin:34px 0 6px;flex-wrap:wrap">
+      <button type="button" onclick="submitScreen()" style="background:#DA2B1F;color:#fff;border:none;border-radius:10px;padding:13px 32px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;box-shadow:0 3px 12px rgba(218,43,31,.28)">Submit Screening</button>
+      <button type="button" onclick="window.scrollTo({top:0,behavior:'smooth'})" style="background:#fff;color:#000E31;border:1px solid #cdd6e6;border-radius:10px;padding:13px 24px;font:inherit;font-size:14px;font-weight:700;cursor:pointer">↑ Back to top</button>
+    </div>
     <div class="foot">
       <span>Restaurant Realty Group, LLC &nbsp;·&nbsp; <b>Restaurant Transactions. Done Right.</b></span>
       <span>Proprietary &amp; Confidential · Internal RRG Use Only</span>
@@ -837,6 +842,16 @@
     return true;
   }
 
+  window.submitScreen=function(){
+    var m=_validate();
+    if(m.length){ _showBanner('Complete '+m.length+' required field'+(m.length>1?'s':'')+' (marked *) before submitting.'); m[0].scrollIntoView({behavior:'smooth',block:'center'}); return false; }
+    _hideBanner();
+    var doIt=function(ok){ if(!ok) return; var data=_collectData(); data.formType='seller'; data.submitted=true;
+      fetch(_apiBase()+'/api/screening-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json();}).then(function(){ var b=document.getElementById('vbanner'); if(b){ b.textContent='Screening submitted \u2713 \u2014 recorded to the queue.'; b.style.display='block'; b.style.background='#e7f5ee'; b.style.color='#1f8a5b'; b.style.borderColor='#b7e0c7'; } }).catch(function(){ _showBanner('Could not reach the server to submit. Try again.'); });
+    };
+    if(window.rrgConfirm){ window.rrgConfirm('Submit this screening? This records your decision on whether to move forward with this seller.',{title:'Submit screening?',okText:'Submit'}).then(doIt); } else { doIt(window.confirm('Submit this screening?')); }
+    return false;
+  };
   window.emailSSC=function(){
     var m=_validate();
     if(m.length){ _showBanner('Complete '+m.length+' required field'+(m.length>1?'s':'')+' (marked *) before emailing.'); m[0].scrollIntoView({behavior:'smooth',block:'center'}); return false; }
