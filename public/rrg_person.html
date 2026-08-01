@@ -198,7 +198,7 @@ document.addEventListener('click',function(e){ if(e.target.closest && e.target.c
 document.addEventListener('click',function(e){ var t=e.target.closest&&e.target.closest('#actSQC,#actAgr,#actList'); if(!t) return; e.preventDefault();
   if(t.id==='actList'){ openNewListing(); return; }
   if(t.id==='actAgr'){ if(typeof openSendModal==='function'){ openSendModal(); } else { alert('Agreements are still loading — try again in a moment.'); } return; }
-  if(t.id==='actSQC'){ var nm=encodeURIComponent((typeof P!=='undefined'&&P&&P.name)||''); var co=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''); location.href='./seller_screening.html?sellerName='+nm+'&company='+co; return; }
+  if(t.id==='actSQC'){ var nm=encodeURIComponent((typeof P!=='undefined'&&P&&P.name)||''); var co=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''); var mk=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.market)||''); var ad=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.address)||''); location.href='./seller_screening.html?sellerName='+nm+'&company='+co+'&market='+mk+'&address='+ad; return; }
 });
 (function(){ var c=document.getElementById('nl_cancel'); if(c) c.addEventListener('click',closeNewListing); var x=document.getElementById('nl_x'); if(x) x.addEventListener('click',closeNewListing); var sv=document.getElementById('nl_save'); if(sv) sv.addEventListener('click',createNewListing); var m=document.getElementById('nlModal'); if(m) m.addEventListener('click',function(e){ if(e.target===m){ /* stay open */ } }); })();
 </script>
@@ -1068,7 +1068,7 @@ load();
     {t:'Send Email', f:function(){ if(typeof openSendModal==='function') openSendModal(); }},
     {t:'Start Site-Criteria Call', f:function(){ location.href='./ssc_form.html?contact='+encodeURIComponent(ID); }},
     {t:'Start Buyer Qualification Call', f:function(){ location.href='./valuation_questionnaire.html?contact='+encodeURIComponent(ID); }},
-    {t:'Start Seller Screening', f:function(){ var nm=encodeURIComponent((typeof P!=='undefined'&&P&&P.name)||''); var co=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''); location.href='./seller_screening.html?sellerName='+nm+'&company='+co; }},
+    {t:'Start Seller Screening', f:function(){ var nm=encodeURIComponent((typeof P!=='undefined'&&P&&P.name)||''); var co=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''); var mk=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.market)||''); var ad=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.address)||''); location.href='./seller_screening.html?sellerName='+nm+'&company='+co+'&market='+mk+'&address='+ad; }},
     {t:'Schedule Appointment', f:function(){ if(typeof openApptModal==='function') openApptModal(null); else { var b=document.getElementById('apptAddBtn'); if(b) b.click(); } }},
     {t:'Schedule Tour', f:function(){ if(typeof openTourForm==='function') openTourForm(); }},
     {t:'Schedule Task', f:function(){ var t=document.getElementById('act_type'); if(t){ t.value='To-Do'; try{ t.dispatchEvent(new Event('change')); }catch(e){} } var c=document.querySelector('.actcomposer'); if(c) c.scrollIntoView({behavior:'smooth',block:'center'}); var n=document.getElementById('act_note'); if(n) setTimeout(function(){ try{ n.focus(); }catch(e){} },220); }}

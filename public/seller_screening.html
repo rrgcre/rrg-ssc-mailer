@@ -1104,7 +1104,7 @@
       if(labels.indexOf(t)>=0){ var inp=ls[i].parentElement.querySelector('input,textarea,select'); if(inp){ if(inp.tagName==='SELECT') ensureOption(inp,val); inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); } return; } }
   }
   // Prefill a NEW call from a contact (opened via the contact's Actions → Start Qualification Call).
-  (function(){ var q=new URLSearchParams(location.search); var pn=q.get('sellerName'), pc=q.get('company')||q.get('business'); if(!id && (pn||pc)){ repsReady.then(function(){ if(pc) setByLabel(['business name'], pc); if(pn) setByLabel(['seller contact name'], pn); }); } })();
+  (function(){ var q=new URLSearchParams(location.search); var pn=q.get('sellerName'), pc=q.get('company')||q.get('business'), pm=q.get('market'), pa=q.get('address'); if(!id && (pn||pc||pm||pa)){ repsReady.then(function(){ if(pc) setByLabel(['business name'], pc); if(pn) setByLabel(['seller contact name'], pn); if(pa) setByLabel(['business address'], pa); if(pm){ var ms=document.getElementById('metroSelect'); if(ms){ var opt=[].slice.call(ms.options).filter(function(o){return o.value.toLowerCase()===String(pm).toLowerCase();})[0]; ms.value=opt?opt.value:'Other'; ms.dispatchEvent(new Event('change',{bubbles:true})); } } }); } })();
   Promise.all([repsReady, fetch(API+'/api/screening/'+encodeURIComponent(id)).then(function(r){return r.json();}).catch(function(){return null;})]).then(function(res){
     var j=res[1]; if(!j||!j.ok||!j.screening) return;
     var s=j.screening, d=s.data||{};

@@ -310,7 +310,7 @@ function backlinkBbsLeads() {
     if (ch) savePeople(ppl);
   } catch (e) { console.error('backlinkBbsLeads:', e && e.message); }
 }
-function companyBrief(c) { return c ? { id: c.id, name: c.name || '', market: c.market || '', type: c.type || '' } : null; }
+function companyBrief(c) { return c ? { id: c.id, name: c.name || '', market: c.market || '', type: c.type || '', address: (c.office && [c.office.address, c.office.city, c.office.state].filter(Boolean).join(', ')) || '' } : null; }
 // Company activity feed: this company's own logged activity + every contact's activity, newest first.
 function companyActivityFeed(c) {
   if (!c) return [];
