@@ -80,6 +80,7 @@ a.lk{color:#2647b0;text-decoration:none;font-weight:700;} a.lk:hover{text-decora
 </div></div>
 <div class="wrap">
   <div class="gen" id="gen"></div>
+  <div id="bbscard"></div>
   <div id="view"></div>
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
@@ -213,6 +214,31 @@ function renderPortfolio(){
 document.querySelectorAll('#tabs button').forEach(function(b){ b.addEventListener('click',function(){ TAB=b.getAttribute('data-t'); document.querySelectorAll('#tabs button').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); render(); }); });
 render();
 fetch('/api/command',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ DATA=j; try{ document.getElementById('gen').textContent='Updated '+new Date(j.generatedAt).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})+(j.isAdmin?' · whole team':' · your book'); }catch(e){} render(); } else { document.getElementById('view').innerHTML='<div class="empty">Could not load the Command Center.</div>'; } }).catch(function(){ document.getElementById('view').innerHTML='<div class="empty">Could not reach the server.</div>'; });
+(function(){
+  var style=document.createElement('style');
+  style.textContent='.bbsW{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border:1px solid #e6e9f0;border-radius:14px;padding:16px 20px;margin:0 0 14px;box-shadow:0 1px 2px rgba(16,24,40,.04)}'
+    +'.bbsW .bbsK{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#6b7488}'
+    +'.bbsW .bbsNum{font-size:40px;font-weight:800;line-height:1.05;color:#000E31}'
+    +'.bbsW .bbsSub{font-size:12px;color:#8a93a8;margin-top:2px}'
+    +'.bbsW select{font:inherit;font-size:13px;font-weight:600;color:#12224e;background:#f5f7fb;border:1px solid #dfe3ec;border-radius:9px;padding:8px 12px;cursor:pointer}';
+  document.head.appendChild(style);
+  var card=document.getElementById('bbscard'); if(!card) return;
+  card.innerHTML='<div class="bbsW"><div><div class="bbsK">BizBuySell leads imported</div><div class="bbsNum" id="bbsNum">\u2014</div><div class="bbsSub" id="bbsSub">&nbsp;</div></div>'
+    +'<select id="bbsPeriod">'
+    +'<option value="today">Today</option>'
+    +'<option value="week">This week</option>'
+    +'<option value="month" selected>This month</option>'
+    +'<option value="ytd">Year to date</option>'
+    +'<option value="year">Last 12 months</option>'
+    +'<option value="total">All time</option>'
+    +'</select></div>';
+  var LABELS={today:'imported today',week:'imported this week',month:'imported this month',ytd:'imported year-to-date',year:'imported in the last 12 months',total:'imported all time'};
+  var STATS=null;
+  function paint(){ var p=document.getElementById('bbsPeriod').value; var n=(STATS&&typeof STATS[p]==='number')?STATS[p]:null; document.getElementById('bbsNum').textContent=(n==null?'\u2014':n.toLocaleString('en-US')); document.getElementById('bbsSub').textContent=STATS?(LABELS[p]||''):'loading\u2026'; }
+  function pull(){ fetch('/api/bbs/stats',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ STATS=j; paint(); } }).catch(function(){}); }
+  document.getElementById('bbsPeriod').addEventListener('change',paint);
+  paint(); pull(); setInterval(pull,60000);
+})();
 </script>
 </body>
 </html>
