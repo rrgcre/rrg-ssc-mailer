@@ -99,6 +99,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .smsrow .fld{margin:0 0 3px}
 .agrmodalbtns{display:flex;gap:9px;align-items:center;margin-top:16px}
 .autobtn{font:inherit;font-size:11.5px;font-weight:700;padding:4px 9px;border:1px solid #cfd6e2;border-radius:7px;background:#fff;color:#0b1a3a;cursor:pointer}.autobtn:hover{background:#f2f4f8}
+.rrgrt{border:1px solid #cfd6e2;border-radius:9px;overflow:hidden;background:#fff;} .rrgrt-bar{display:flex;gap:2px;align-items:center;padding:5px 7px;border-bottom:1px solid #e6e9f0;background:#f7f9fc;} .rrgrt-bar button{background:none;border:1px solid transparent;border-radius:6px;min-width:28px;height:26px;padding:0 7px;cursor:pointer;font-size:13px;color:#3a4560;line-height:1;} .rrgrt-bar button:hover{background:#eef3fb;border-color:#dbe3f0;} .rrgrt-sep{width:1px;height:16px;background:#dbe1ea;margin:0 4px;} .rrgrt-ed{min-height:80px;max-height:240px;overflow:auto;padding:9px 11px;font:inherit;font-size:13.5px;line-height:1.5;color:#1d2739;outline:none;} .rrgrt-ed:empty:before{content:attr(data-ph);color:#9aa4b6;}
 </style>
 <style>
 .wrap{max-width:none;margin:16px 0 0;padding:0 24px 60px;display:grid;grid-template-columns:340px minmax(0,1fr) 360px;gap:20px;align-items:start;}
@@ -505,7 +506,7 @@ function sendModalHtml(){
     +'<div id="sm_simplewrap"><label class="fld">Send to</label><input id="sm_to" placeholder="name@email.com"></div>'
     +'<div id="sm_fields" style="margin-top:4px"></div>'
     +'<div id="sm_signerswrap" class="smsigners" hidden></div>'
-    +'<label class="fld" style="margin-top:10px">Message (optional)</label><textarea id="sm_msg" rows="3" placeholder="A short note to include in the email…"></textarea>'
+    +'<label class="fld" style="margin-top:10px">Message (optional)</label>'+rrgRT('sm_msg','','A short note to include in the email…')
     +'<div class="agrmodalbtns"><button type="button" class="savebtn" id="sm_send" style="width:auto;padding:9px 18px">Send agreement</button><button type="button" class="mfadd" id="sm_cancel">Cancel</button><span id="sm_msgout" style="font-size:12px;color:#DA2B1F;flex-basis:100%;word-break:break-all"></span></div>'
     +'</div></div>';
 }
@@ -562,7 +563,12 @@ function smInput(fld,i){
   if(t==='email') return '<input type="email" '+base+' value="'+esc(v)+'">';
   return '<input type="text" '+base+' value="'+esc(v)+'">';
 }
-function smApplyMsg(tpl){ var box=document.getElementById('sm_msg'); if(!box) return; var def=(tpl&&tpl.emailMessage)||''; if(box.value===''||box.value===_smAutoMsg){ box.value=def; _smAutoMsg=def; } }
+function _msgToHtml(m){ m=String(m||''); if(m.indexOf('<')<0) return esc(m).split('\n').join('<br>'); return m; }
+function rrgRT(id,html,ph){ return '<div class="rrgrt"><div class="rrgrt-bar"><button type="button" data-cmd="bold" title="Bold"><b>B</b></button><button type="button" data-cmd="italic" title="Italic"><i>I</i></button><button type="button" data-cmd="underline" title="Underline"><u>U</u></button><span class="rrgrt-sep"></span><button type="button" data-cmd="insertUnorderedList" title="Bulleted list">\u2022</button><button type="button" data-cmd="insertOrderedList" title="Numbered list">1.</button></div><div class="rrgrt-ed" id="'+id+'" contenteditable="true" data-ph="'+esc(ph||'')+'">'+(html||'')+'</div></div>'; }
+function rrgRTWire(root){ (root||document).querySelectorAll('.rrgrt-bar button[data-cmd]').forEach(function(b){ if(b._rt) return; b._rt=1; b.addEventListener('mousedown',function(e){ e.preventDefault(); }); b.addEventListener('click',function(e){ e.preventDefault(); var rt=b.closest('.rrgrt'); var ed=rt&&rt.querySelector('.rrgrt-ed'); if(ed) ed.focus(); try{ document.execCommand(b.getAttribute('data-cmd'),false,null); }catch(err){} }); }); }
+function rrgRTGet(id){ var el=document.getElementById(id); return el?el.innerHTML.trim():''; }
+function rrgRTText(id){ var el=document.getElementById(id); return el?(el.innerText||el.textContent||'').trim():''; }
+function smApplyMsg(tpl){ var box=document.getElementById('sm_msg'); if(!box) return; var def=_msgToHtml((tpl&&tpl.emailMessage)||''); var cur=box.innerHTML.trim(); if(cur===''||cur===_smAutoMsg){ box.innerHTML=def; _smAutoMsg=def; } }
 function smPrefill(fld){ var k=String(fld.autofill||'').toLowerCase(), L=String(fld.label||'').toLowerCase(); var P_=(typeof P!=='undefined'&&P)||{}; var co=(typeof CO!=='undefined'&&CO&&CO.name)||P_.company||''; var today=(typeof todayStr==='function')?todayStr():''; var S=window.__rrgSession||{}; var email=(P_.preferredEmail||P_.email||(P_.emails&&P_.emails[0]))||''; var phone=(P_.preferredPhone||P_.phone||(P_.phones&&P_.phones[0]))||''; var first=(P_.firstName||((P_.name||'').split(' ')[0]))||''; var last=(P_.lastName||'')||''; if(k==='party_name'||k==='name'||(!k&&/\bname\b/.test(L))) return P_.name||''; if(k==='first_name') return first; if(k==='last_name') return last; if(k==='title') return P_.title||''; if(k==='phone') return phone; if(k==='company'||(!k&&/(company|firm)/.test(L))) return co; if(k==='my_name') return S.name||''; if(k==='my_title') return S.title||''; if(k==='my_email') return S.email||''; if(k==='my_phone') return S.phone||''; if(k==='date'||(!k&&/date/.test(L))) return today; if(k==='email'||(!k&&/email/.test(L))) return email; return ''; }
 function _agrOverlay(inner,w){ var ov=document.createElement('div'); ov.className='agrmodal'; ov.innerHTML='<div class="agrmodalbox" style="width:min('+(w||'480px')+',96vw)">'+inner+'</div>'; document.body.appendChild(ov); ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); }); return ov; }
 function openAgrChooser(){
@@ -592,7 +598,7 @@ function openSendModal(){
   var tplOpts='<option value="">— Choose a template —</option>'+TEMPLATES.filter(function(t){return t.fileExt;}).map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+((t.pdfFields&&t.pdfFields.length)?(' (in-PDF, '+(t.signerCount===2?'2 signers':'1 signer')+')'):'')+'</option>';}).join('');
   var stpl=document.getElementById('sm_tpl'); stpl.innerHTML=tplOpts;
   document.getElementById('sm_to').value=_pEmail();
-  document.getElementById('sm_msg').value='';
+  (function(){ var _m=document.getElementById('sm_msg'); if(_m) _m.innerHTML=''; _smAutoMsg=''; })(); rrgRTWire();
   var sf=document.getElementById('sm_file'); if(sf) sf.value='';
   document.getElementById('sm_filename').textContent='';
   document.getElementById('sm_msgout').textContent='';
@@ -609,7 +615,7 @@ function doSendAgreement(){
   var adv=!!(tpl&&tpl.pdfFields&&tpl.pdfFields.length);
   var repVals=[];
   if(!adv && tpl && tpl.signFields && tpl.signFields.length){ var _vok=true; document.querySelectorAll('#sm_fields .sm_fld').forEach(function(el){ var vv=el.value.trim(); if(el.getAttribute('data-req')&&!vv){ _vok=false; el.style.borderColor='#DA2B1F'; } repVals.push(vv); }); if(!_vok){ out.textContent='Fill the required fields before sending.'; return; } }
-  var msg=document.getElementById('sm_msg').value.trim();
+  var msg=rrgRTText('sm_msg'); var msgHtml=rrgRTGet('sm_msg');
   var type=tpl?(tpl.type||'NDA'):(document.getElementById('sm_type').value||'NDA');
   var btn=document.getElementById('sm_send'); btn.disabled=true; out.style.color='#6b7488'; out.textContent='Creating…';
   fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({personId:ID,type:type})})
@@ -626,10 +632,10 @@ function doSendAgreement(){
         var signers=[];
         document.querySelectorAll('#sm_signerswrap .sm_sname').forEach(function(n){ signers.push({order:+n.getAttribute('data-o'),name:n.value}); });
         document.querySelectorAll('#sm_signerswrap .sm_semail').forEach(function(e){ var o=+e.getAttribute('data-o'); var r=signers.filter(function(x){return x.order===o;})[0]; if(r) r.email=e.value; });
-        return fetch('/api/agreements/'+encodeURIComponent(id)+'/signers',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({signers:signers})}).then(function(r){return r.json();}).then(function(){ return fetch('/api/agreements/'+encodeURIComponent(id)+'/send-adv',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({message:msg||undefined})}).then(function(r){return r.json();}); });
+        return fetch('/api/agreements/'+encodeURIComponent(id)+'/signers',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({signers:signers})}).then(function(r){return r.json();}).then(function(){ return fetch('/api/agreements/'+encodeURIComponent(id)+'/send-adv',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({message:msg||undefined,messageHtml:msgHtml||undefined})}).then(function(r){return r.json();}); });
       } else {
         var to=document.getElementById('sm_to').value.trim();
-        return fetch('/api/agreements/'+encodeURIComponent(id)+'/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({to:to||undefined,message:msg||undefined,values:repVals})}).then(function(r){return r.json();});
+        return fetch('/api/agreements/'+encodeURIComponent(id)+'/send',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({to:to||undefined,message:msg||undefined,messageHtml:msgHtml||undefined,values:repVals})}).then(function(r){return r.json();});
       }
     }).then(function(js){
       if(!(js&&js.ok)) throw new Error((js&&js.error)||'Could not send.');

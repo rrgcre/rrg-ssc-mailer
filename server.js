@@ -8312,6 +8312,8 @@ app.post('/api/agreements/:id/sign-link', express.json(), (req, res) => {
   res.json({ ok: true, url: reqOrigin(req) + '/sign/' + a.signToken });
 });
 function agrGreetingLine(style, name){ style = String(style || 'none'); var first = String(name || '').trim().split(/\s+/)[0] || ''; if (!first || style === 'none') return ''; if (style === 'dear') return 'Dear ' + first + ','; if (style === 'hi') return 'Hi ' + first + ','; if (style === 'first') return first + ','; return ''; }
+
+function agrEmailHtml(greet, bodyHtml, label, signUrl){ var P=[]; P.push('<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#1a2236">'); if(greet) P.push('<p style="margin:0 0 14px">'+esc(greet)+'</p>'); if(bodyHtml) P.push('<div style="margin:0 0 14px">'+String(bodyHtml)+'</div>'); P.push('<p style="margin:0 0 14px">Review and sign your '+esc(label)+' online here:<br><a href="'+esc(signUrl)+'" style="color:#2647b0;font-weight:700;text-decoration:none">'+esc(signUrl)+'</a></p>'); P.push('<p style="margin:0">Thank you,<br>'+esc(orgDisplayName())+'</p>'); P.push('</div>'); return P.join(''); }
 app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
@@ -8328,7 +8330,9 @@ app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   const _greet = agrGreetingLine(a.greeting, a.personName);
   const message = ((_note && _note.indexOf('/sign/') !== -1) ? _note : ((_greet ? _greet + '\n\n' : '') + (_note ? _note + '\n\n' : '') + _linkBlock + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
   // The signing page now shows an inline preview of the document, so the email is a clean link only (no heavy attachment).
-  try { await sendMailWL({ from: mailFrom(), to, subject, text: message }); }
+  var _bodyHtml = String(b.messageHtml||'').trim() || (_note ? esc(_note).replace(/\n/g,'<br>') : '');
+  var _html = (_note && _note.indexOf('/sign/') !== -1) ? '' : agrEmailHtml(_greet, _bodyHtml, label, signUrl);
+  try { await sendMailWL({ from: mailFrom(), to, subject, text: message, html: _html || undefined }); }
   catch (e) { console.error('agreement send:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   const now = new Date().toISOString(); a.signStatus = 'sent'; a.sentAt = now; a.sentTo = to; a.entryMethod = a.entryMethod || 'sent'; if (Array.isArray(b.values)) a.fieldValues = b.values.map(function(v){return String(v==null?'':v).slice(0,500);}); a.updatedAt = now; saveAgreements(all);
   if (p) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === p.id); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + to, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); if (a.sendAuto && !a.sendAutoFired) { try { const _sp = loadAutomations().find(x => x.id === a.sendAuto && x.active !== false); if (_sp) { enrollPerson(pp, _sp, { byName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', dealKey: a.dealKey || '' }); a.sendAutoFired = true; try { saveAgreements(all); } catch (e) {} } } catch (e) {} } savePeople(ppl); } } catch (e) {} }
@@ -8721,7 +8725,9 @@ app.post('/api/agreements/:id/send-adv', express.json(), async (req, res) => {
   const _linkBlockA = 'Review and sign your ' + label + ' online here:\n' + signUrl;
   const _greetA = agrGreetingLine(a.greeting, (next && next.name) || a.personName);
   const message = ((_noteA && _noteA.indexOf('/sign/') !== -1) ? _noteA : ((_greetA ? _greetA + '\n\n' : '') + (_noteA ? _noteA + '\n\n' : '') + _linkBlockA + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
-  try { await sendMailWL({ from: mailFrom(), to: next.email, subject, text: message }); }
+  var _bodyHtmlA = String((req.body||{}).messageHtml||'').trim() || (_noteA ? esc(_noteA).replace(/\n/g,'<br>') : '');
+  var _htmlA = (_noteA && _noteA.indexOf('/sign/') !== -1) ? '' : agrEmailHtml(_greetA, _bodyHtmlA, label, signUrl);
+  try { await sendMailWL({ from: mailFrom(), to: next.email, subject, text: message, html: _htmlA || undefined }); }
   catch (e) { console.error('send-adv:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + (next.label || '') + ' ' + next.email, { auto: true }); if (a.sendAuto && !a.sendAutoFired) { try { const _sp = loadAutomations().find(x => x.id === a.sendAuto && x.active !== false); if (_sp) { enrollPerson(pp, _sp, { byName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', dealKey: a.dealKey || '' }); a.sendAutoFired = true; try { saveAgreements(all); } catch (e) {} } } catch (e) {} } savePeople(ppl); } } catch (e) {} }
   res.json({ ok: true, agreement: agreementBrief(a), to: next.email, signer: next.label });
