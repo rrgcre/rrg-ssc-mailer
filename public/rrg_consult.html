@@ -11,7 +11,9 @@ body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSys
 .mono{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;}
 .app{max-width:820px;margin:0 auto;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;position:relative;background:var(--bg);}
 .hdr{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:12px;padding:15px 20px;background:radial-gradient(120% 220% at 20% 0%,#22346a,#152752 55%,#0b1636);color:#fff;box-shadow:0 2px 14px rgba(11,22,54,.18);}
-.logo{width:34px;height:34px;border-radius:50%;background:radial-gradient(circle at 38% 30%,#d4efe9,#3fb3a2 46%,#2f4f8c 100%);box-shadow:0 0 14px 1px rgba(63,179,162,.4),0 2px 9px rgba(6,14,40,.5);animation:logoglow 3s ease-in-out infinite;flex:none;}
+.logo{width:34px;height:34px;border-radius:50%;background:conic-gradient(from 0deg,#5b46b8,#8b5cf6,#ec4899,#f59e0b,#22c55e,#3b82f6,#5b46b8);box-shadow:0 0 12px 1px rgba(91,70,184,.30),0 2px 9px rgba(6,14,40,.5);flex:none;position:relative;}
+.logo:after{content:'\2728';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:15px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.45));}
+.logo.spin{animation:aiworkspin 1.4s linear infinite;}
 @keyframes logoglow{0%,100%{box-shadow:0 0 12px 1px rgba(63,179,162,.35),0 2px 9px rgba(6,14,40,.5)}50%{box-shadow:0 0 20px 4px rgba(63,179,162,.5),0 2px 11px rgba(6,14,40,.55)}}
 .htxt b{font-size:15.5px;letter-spacing:.01em;color:#fff;} .htxt .s{font-size:10px;color:#9fb0d0;letter-spacing:.15em;text-transform:uppercase;margin-top:2px;font-weight:700;}
 .pulse{width:8px;height:8px;border-radius:50%;background:#39d98a;box-shadow:0 0 0 0 rgba(57,217,138,.6);animation:pl 2.2s infinite;} @keyframes pl{0%{box-shadow:0 0 0 0 rgba(57,217,138,.5)}70%{box-shadow:0 0 0 7px rgba(57,217,138,0)}100%{box-shadow:0 0 0 0 rgba(57,217,138,0)}}
@@ -149,16 +151,16 @@ function aiShow(msg){ _aiEnsure(); var mm=document.getElementById('aiworkmsg'); 
 function aiHide(){ var o=document.getElementById('aiwork'); if(o) o.hidden=true; if(AIWORK.timer){ clearInterval(AIWORK.timer); AIWORK.timer=null; } }
 function ask(text){
   text=String(text||'').trim(); if(!text||BUSY) return;
-  BUSY=true; var turn=addQ(text); var node=thinkingInto(turn);
+  BUSY=true; var _lg=document.querySelector('.logo'); if(_lg) _lg.classList.add('spin'); var turn=addQ(text); var node=thinkingInto(turn);
   document.getElementById('q').value='';
   var _slow=setTimeout(function(){ aiShow('Reading your book \u2014 companies, contacts & listings\u2026'); },5000);
   fetch('/api/consult',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({question:text,history:HISTORY.slice(-6)})})
     .then(function(r){return r.json();}).then(function(j){
-      BUSY=false; clearTimeout(_slow); aiHide();
+      BUSY=false; clearTimeout(_slow); aiHide(); if(_lg) _lg.classList.remove('spin');
       if(!j||!j.ok){ node.innerHTML='<div class="err">'+esc((j&&j.error)||'Consult could not answer that.')+'</div>'; return; }
       renderAnswer(node,j.result||{});
       HISTORY.push({q:text,a:(j.result&&j.result.answer||'').slice(0,300)});
-    }).catch(function(){ BUSY=false; clearTimeout(_slow); aiHide(); node.innerHTML='<div class="err">Could not reach the server.</div>'; });
+    }).catch(function(){ BUSY=false; clearTimeout(_slow); aiHide(); if(_lg) _lg.classList.remove('spin'); node.innerHTML='<div class="err">Could not reach the server.</div>'; });
 }
 // voice input
 function setupMic(){
