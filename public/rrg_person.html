@@ -1051,13 +1051,27 @@ load();
 
 <script>
 (function(){
+  function gcalSchedule(){
+    var nm=(typeof P!=='undefined'&&P&&P.name)||'';
+    var em=(typeof P!=='undefined'&&P&&P.email)||'';
+    var co=(typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||'';
+    var title='Meeting with '+(nm||'contact');
+    var det=[];
+    if(typeof P!=='undefined'&&P&&P.phone) det.push('Phone: '+P.phone);
+    if(co) det.push('Company: '+co);
+    try{ if(typeof ID!=='undefined'&&ID) det.push('FullServe contact: '+location.origin+'/rrg_person.html?id='+encodeURIComponent(ID)); }catch(e){}
+    var u='https://calendar.google.com/calendar/u/0/r/eventedit?text='+encodeURIComponent(title);
+    if(em) u+='&add='+encodeURIComponent(em);
+    if(det.length) u+='&details='+encodeURIComponent(det.join('\n'));
+    window.open(u,'_blank','noopener');
+  }
   var ACTIONS=[
     {t:'Add Agreement', f:function(){ if(typeof openAgrChooser==='function') openAgrChooser(); }},
     {t:'Send Email', f:function(){ if(typeof openSendModal==='function') openSendModal(); }},
     {t:'Start Site-Criteria Call', f:function(){ location.href='./ssc_form.html?contact='+encodeURIComponent(ID); }},
     {t:'Start Buyer Qualification Call', f:function(){ location.href='./valuation_questionnaire.html?contact='+encodeURIComponent(ID); }},
     {t:'Start Seller Screening', f:function(){ var nm=encodeURIComponent((typeof P!=='undefined'&&P&&P.name)||''); var co=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''); location.href='./seller_screening.html?sellerName='+nm+'&company='+co; }},
-    {t:'Schedule Appointment', f:function(){ if(typeof openApptModal==='function') openApptModal(null); else { var b=document.getElementById('apptAddBtn'); if(b) b.click(); } }},
+    {t:'Schedule Appointment', f:function(){ gcalSchedule(); }},
     {t:'Schedule Tour', f:function(){ if(typeof openTourForm==='function') openTourForm(); }},
     {t:'Schedule Task', f:function(){ var t=document.getElementById('act_type'); if(t){ t.value='To-Do'; try{ t.dispatchEvent(new Event('change')); }catch(e){} } var c=document.querySelector('.actcomposer'); if(c) c.scrollIntoView({behavior:'smooth',block:'center'}); var n=document.getElementById('act_note'); if(n) setTimeout(function(){ try{ n.focus(); }catch(e){} },220); }}
   ];
