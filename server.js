@@ -301,6 +301,8 @@ function effConceptLabel() { const s = loadSettings(); const v = String(s.concep
 function effConceptLabelPlural() { const s = loadSettings(); const v = String(s.conceptLabelPlural || '').trim(); return v ? v.slice(0, 30) : (effConceptLabel() + 's'); }
 function effShowRequestRibbon() { const s = loadSettings(); return s.showRequestRibbon !== false; }
 function effShowQuickLinks() { const s = loadSettings(); return s.showQuickLinks !== false; }
+function effSentSyncEnabled() { const s = loadSettings(); return s.sentSyncEnabled !== false; }
+function effSentSyncInterval() { const s = loadSettings(); const n = parseInt(s.sentSyncIntervalMin, 10); return (isFinite(n) && n >= 2) ? Math.min(720, n) : 10; }
 // ---- Tool label overrides: admins can rename any tool (e.g. call "Contacts" "People").
 // Stored as { file: customLabel }; the dashboard applies them when rendering. ----
 const TOOL_DEFS = [
@@ -4201,6 +4203,58 @@ app.get('/api/tracked-emails', (req, res) => {
   out.sort((a, b) => String(b.sentAt || '').localeCompare(String(a.sentAt || '')));
   res.json({ ok: true, emails: out.slice(0, 500), isAdmin: !!(req.user && isSuper(req.user)), canSeeAll: !restrict });
 });
+async function gmailSentImportForUser(username, days) {
+  const msgs = await gmail.sentMessages(username, days, 250);
+  const arr = loadPeople();
+  const byEmail = {}; arr.forEach(p => personEmails(p).forEach(e => { const k = String(e || '').toLowerCase().trim(); if (k) byEmail[k] = p; }));
+  const uname = ((auth.findUser(username) || {}).name) || username;
+  let imported = 0; const touched = {};
+  msgs.forEach(m => {
+    const recips = (String(m.to || '') + ',' + String(m.cc || '')).split(',').map(x => { const mm = String(x).match(/[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+/); return mm ? mm[0].toLowerCase() : ''; }).filter(Boolean);
+    const seen = {};
+    recips.forEach(em => {
+      if (seen[em]) return; seen[em] = 1;
+      const p = byEmail[em]; if (!p) return;
+      p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
+      if (p.emailLog.some(e => e && e.messageId === m.id)) return;
+      p.emailLog.unshift({ id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to: em, subject: m.subject || '(no subject)', body: String(m.snippet || '').slice(0, 6000), sentAt: m.sentAt || new Date().toISOString(), by: uname, byUser: username, messageId: m.id, via: 'gmail', opens: 0 });
+      imported++; touched[p.id] = 1;
+    });
+  });
+  if (imported) savePeople(arr);
+  return { imported, scanned: msgs.length, contacts: Object.keys(touched).length };
+}
+const SENTSYNC_FILE = path.join(BOV_DATA_DIR, 'sentsync.json');
+function loadSentSyncState() { try { return JSON.parse(fs.readFileSync(SENTSYNC_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
+function saveSentSyncState(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SENTSYNC_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+let _sentSyncing = false;
+async function sentSyncTick() {
+  if (_sentSyncing) return; _sentSyncing = true;
+  try {
+    if (gmail.isConfigured() && effSentSyncEnabled()) {
+      const st = loadSentSyncState(); const now = Date.now();
+      const iv = effSentSyncInterval() * 60 * 1000;
+      const last = st.lastRun ? Date.parse(st.lastRun) : 0;
+      if (now - last >= iv) {
+        const users = auth.loadUsers(); let total = 0;
+        for (const usr of users) { if (usr.disabled) continue; if (!gmail.statusFor(usr.username).connected) continue; try { const r = await gmailSentImportForUser(usr.username, 7); total += (r.imported || 0); if (r.imported) console.log('Gmail sent sync: +' + r.imported + ' for ' + usr.username); } catch (e) { console.error('sent sync error ' + usr.username + ':', e && e.message); } }
+        st.lastRun = new Date().toISOString(); st.lastCount = total; saveSentSyncState(st);
+      }
+    }
+  } catch (e) { console.error('sent sync tick:', e && e.message); }
+  _sentSyncing = false;
+}
+setInterval(sentSyncTick, 60 * 1000);
+app.post('/api/gmail/sent/import', express.json(), async (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  const _st = gmail.statusFor(u); if (!_st.connected) return res.status(400).json({ ok: false, error: 'Connect your Gmail first (Account \u2192 Gmail).' });
+  const days = Math.max(1, Math.min(365, parseInt((req.body && req.body.days) || 90, 10) || 90));
+  try {
+    const r = await gmailSentImportForUser(u, days);
+    logSysEvent(req, 'Gmail Sync', 'Imported ' + r.imported + ' sent email(s) from Gmail', { tool: 'gmail', kind: 'sent-import' });
+    res.json({ ok: true, imported: r.imported, scanned: r.scanned, contacts: r.contacts });
+  } catch (e) { console.error('gmail sent import:', e && e.message); res.status(502).json({ ok: false, error: _gErr(e) }); }
+});
 app.post('/api/person/:id/email', express.json({ limit: '256kb' }), async (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
@@ -4939,7 +4993,7 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks(),
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(),
     defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, cuisineTypes: CUISINE_TYPES, agreementTypes: AGREEMENT_TYPES },
     isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), cuisineTypes: Array.isArray(s.cuisineTypes), agreementTypes: Array.isArray(s.agreementTypes) },
     systemRequired: { leadSources: SYSTEM_LEAD_SOURCES },
@@ -4947,7 +5001,7 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.showQuickLinks; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval() }); }
   if (b.personTypes !== undefined) s.personTypes = cleanStrList(b.personTypes, 40, 60) || [];
   if (b.companyTypes !== undefined) s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || [];
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
@@ -4974,8 +5028,10 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   if (typeof b.conceptLabelPlural === 'string') s.conceptLabelPlural = b.conceptLabelPlural.trim().slice(0, 30);
   if (b.showRequestRibbon !== undefined) s.showRequestRibbon = !!b.showRequestRibbon;
   if (b.showQuickLinks !== undefined) s.showQuickLinks = !!b.showQuickLinks;
+  if (b.sentSyncEnabled !== undefined) s.sentSyncEnabled = !!b.sentSyncEnabled;
+  if (b.sentSyncIntervalMin !== undefined) { const n = parseInt(b.sentSyncIntervalMin, 10); s.sentSyncIntervalMin = (isFinite(n) && n >= 2) ? Math.min(720, n) : 10; }
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
@@ -9140,7 +9196,7 @@ function permOwnerMatch(req, owner) { if (!owner) return true; const u = req.use
 function restrictToOwn(req) { if (!permsEnabled()) return false; if (req.user && isSuper(req.user)) return false; return !effectivePerms(req.user).see_all; }
 function canSeeAllDeals(req) { if (req.user && isSuper(req.user)) return true; return permsEnabled() && !!effectivePerms(req.user).see_all; }
 
-app.get('/api/reports/summary', (req, res) => {
+app.get('/api/reports/summary', requireAdmin, (req, res) => {
   try {
     const days = Math.max(1, Math.min(3650, parseInt(req.query.days, 10) || 30));
     const now = new Date();

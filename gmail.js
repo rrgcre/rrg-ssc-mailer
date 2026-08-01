@@ -196,6 +196,24 @@ async function messagesForContact(username, emails, max) {
   return out.filter(Boolean).sort((a, b) => b.ts - a.ts);
 }
 
+// List the user's recently SENT messages (for logging Gmail sends into contact records).
+async function sentMessages(username, days, max) {
+  const lim = Math.min(max || 200, 500);
+  const q = 'in:sent newer_than:' + (days || 30) + 'd';
+  const listUrl = 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=' + lim + '&q=' + encodeURIComponent(q);
+  const list = await gapiJSON(username, listUrl, {});
+  const ids = (list.messages || []).map(function(m){ return m.id; });
+  const out = [];
+  for (const id of ids) {
+    try {
+      const mu = 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + id + '?format=metadata&metadataHeaders=To&metadataHeaders=Cc&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=From';
+      const mj = await gapiJSON(username, mu, {});
+      const H = (mj.payload && mj.payload.headers) || [];
+      out.push({ id: mj.id, threadId: mj.threadId || '', to: hdr(H, 'To'), cc: hdr(H, 'Cc'), from: hdr(H, 'From'), subject: hdr(H, 'Subject'), sentAt: (mj.internalDate ? new Date(Number(mj.internalDate)).toISOString() : (hdr(H, 'Date') ? new Date(hdr(H, 'Date')).toISOString() : '')), snippet: mj.snippet || '' });
+    } catch (e) {}
+  }
+  return out;
+}
 function decodeBody(payload) {
   if (!payload) return '';
   function walk(part) {
@@ -394,4 +412,5 @@ module.exports = {
   connectFromCode, deleteToken, loadToken, statusForUser: statusFor,
   messagesForContact, messageFull, searchLeadBodies, listCorrespondents, sendMessage, TOK_DIR,
   gapi, gapiJSON, accessToken, parseAddrs, listAgreementCandidates, getAttachment,
+  sentMessages,
 };

@@ -46,7 +46,8 @@ thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(
 <div class="wrap">
   <div class="stats" id="stats"></div>
   <div class="card">
-    <div class="note" style="margin-bottom:12px">Every email sent from a contact's page or by an automation, with open tracking. Opens are counted when the recipient loads the message; opens from the sending device in the first 20 seconds are ignored.</div>
+    <div class="note" style="margin-bottom:10px">Every email sent from a contact's page, by an automation, or straight from your Gmail — matched to the contact by email address. Opens are tracked on app sends (opens from the sending device in the first 20 seconds are ignored); Gmail sends show as <b>not tracked</b>.</div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px"><button id="gmSync" onclick="syncGmail(this)" style="background:#000E31;color:#fff;border:none;border-radius:9px;padding:9px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer">⟳ Sync sent from Gmail</button><span class="note" id="gmMsg"></span></div>
     <div id="list"><div class="empty">Loading…</div></div>
   </div>
 </div>
@@ -55,6 +56,7 @@ var EMAILS=[], TBL=null;
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function fmtDT(iso){ if(!iso) return '—'; var t=Date.parse(iso); if(isNaN(t)) return '—'; var d=new Date(t); return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2)+' '+d.toLocaleTimeString([], {hour:'numeric', minute:'2-digit'}); }
 function ago(iso){ if(!iso) return ''; var t=Date.parse(iso); if(isNaN(t)) return ''; var s=Math.max(0,(Date.now()-t)/1000); if(s<60) return 'just now'; var m=Math.floor(s/60); if(m<60) return m+'m ago'; var h=Math.floor(m/60); if(h<24) return h+'h ago'; var d=Math.floor(h/24); return d+'d ago'; }
+function syncGmail(btn){ var m=document.getElementById("gmMsg"); m.style.color="#6b7488"; m.textContent="Reading your Gmail Sent mail…"; btn.disabled=true; fetch("/api/gmail/sent/import",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({days:90})}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; if(j&&j.ok){ m.style.color="#1f8a5b"; m.textContent="Added "+j.imported+" Gmail email"+(j.imported===1?"":"s")+" to "+j.contacts+" contact"+(j.contacts===1?"":"s")+" (scanned "+j.scanned+")."; load(); } else { m.style.color="#DA2B1F"; m.textContent=(j&&j.error)||"Sync failed."; } }).catch(function(){ btn.disabled=false; m.style.color="#DA2B1F"; m.textContent="Could not reach the server."; }); }
 function load(){
   fetch('/api/tracked-emails',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ document.getElementById('list').innerHTML='<div class="empty">Could not load tracked emails.</div>'; return; }

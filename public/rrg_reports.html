@@ -137,7 +137,7 @@ function load(){
   var root=document.getElementById('root');
   var prev=root.innerHTML; render();
   fetch(API+'/api/reports/summary?days='+RANGE,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(!j||!j.ok){ root.innerHTML='<div class="gate">Could not build reports. <a href="/admin">Back</a></div>'; return; }
+    if(!j||!j.ok){ var _adm=(j&&/admin/i.test(j.error||'')); root.innerHTML='<div class="gate">'+(_adm?'<h2 style="color:#000E31">Admins only</h2>Reports are limited to administrators. Ask an admin for access.':'Could not build reports.')+' <a href="/index.html">Back</a></div>'; return; }
     DATA=j; render();
   }).catch(function(){ root.innerHTML='<div class="gate">Could not reach the server.</div>'; });
 }
