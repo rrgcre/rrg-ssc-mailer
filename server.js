@@ -34,7 +34,31 @@ const BUILD = new Date().toISOString();
 const BOV_DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const BOVS_FILE = path.join(BOV_DATA_DIR, 'bovs.json');
 function loadBovs() { try { return JSON.parse(fs.readFileSync(BOVS_FILE, 'utf8')); } catch (e) { return []; } }
-function saveBovs(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BOVS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+// ---- Shared guarded JSON writer: atomic (tmp+rename) + empty-overwrite protection ----
+// Prevents a transient bad read or a full disk (ENOSPC mid-write) from truncating/wiping a data file.
+function writeJsonGuarded(file, data, label) {
+  try {
+    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
+    const _emptyArr = Array.isArray(data) && data.length === 0;
+    const _emptyObj = data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0;
+    if (_emptyArr || _emptyObj) {
+      try {
+        const _cur = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
+        const _n = Array.isArray(_cur) ? _cur.length : ((_cur && typeof _cur === 'object') ? Object.keys(_cur).length : 0);
+        if (_n >= 2) {
+          try { fs.writeFileSync(file + '.rescue-' + Date.now() + '.json', JSON.stringify(_cur, null, 2)); } catch (e) {}
+          console.error('[DATA GUARD] ' + (label || file) + ' BLOCKED: refused to overwrite ' + _n + ' records with empty data. Rescue copy written.');
+          return false;
+        }
+      } catch (e) {}
+    }
+    const _tmp = file + '.tmp';
+    fs.writeFileSync(_tmp, JSON.stringify(data, null, 2));
+    fs.renameSync(_tmp, file);
+    return true;
+  } catch (e) { return false; }
+}
+function saveBovs(a) { return writeJsonGuarded(BOVS_FILE, a, 'saveBovs'); }
 function newBovId() { return 'bov_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 // ---- Brand (org logo, admin-managed) ----
@@ -50,7 +74,7 @@ const BRAND_FILE = path.join(BOV_DATA_DIR, 'brand.json');
 const LOGO_EXT = /^(png|jpe?g|gif|webp|svg)$/i;
 const LOGO_MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml' };
 function loadBrand() { try { return JSON.parse(fs.readFileSync(BRAND_FILE, 'utf8')); } catch (e) { return {}; } }
-function saveBrand(b) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BRAND_FILE, JSON.stringify(b, null, 2)); } catch (e) {} }
+function saveBrand(b) { return writeJsonGuarded(BRAND_FILE, b, 'saveBrand'); }
 function brandLogoObj() { try { const b = loadBrand(); if (!b.logoExt) return null; const buf = fs.readFileSync(path.join(BOV_DATA_DIR, 'brand_logo.' + b.logoExt)); return { dataB64: buf.toString('base64'), type: b.logoType || LOGO_MIME[b.logoExt] || 'image/png' }; } catch (e) { return null; } }
 // Brokerage / organization profile — legal name, address, contact — used for white-label documents.
 function effOrg() { const b = loadBrand(); const o = (b && b.org) || {}; return { name: o.name || '', legalName: o.legalName || '', address: o.address || '', city: o.city || '', state: o.state || '', zip: o.zip || '', phone: o.phone || '', email: o.email || '', website: o.website || '', license: o.license || '' }; }
@@ -60,12 +84,12 @@ function orgLegalName() { const o = effOrg(); return o.legalName || o.name || lo
 // ---- CIM store (Confidential Information Memorandums) — mirrors the BOV store ----
 const CIMS_FILE = path.join(BOV_DATA_DIR, 'cims.json');
 function loadCims() { try { return JSON.parse(fs.readFileSync(CIMS_FILE, 'utf8')); } catch (e) { return []; } }
-function saveCims(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(CIMS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveCims(a) { return writeJsonGuarded(CIMS_FILE, a, 'saveCims'); }
 function newCimId() { return 'cim_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 // Lease abstracts (standalone or attached to a deal).
 const LEASES_FILE = path.join(BOV_DATA_DIR, 'leases.json');
 function loadLeases() { try { return JSON.parse(fs.readFileSync(LEASES_FILE, 'utf8')); } catch (e) { return []; } }
-function saveLeases(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(LEASES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveLeases(a) { return writeJsonGuarded(LEASES_FILE, a, 'saveLeases'); }
 function newLeaseId() { return 'lse_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 const LEASE_PROMPT_FILE = path.join(BOV_DATA_DIR, 'lease_prompt.txt');
 function loadLeasePromptCustom() { try { const t = fs.readFileSync(LEASE_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
@@ -74,7 +98,7 @@ function clearLeasePromptCustom() { try { fs.unlinkSync(LEASE_PROMPT_FILE); } ca
 // Market Attack Plans (MAP) — the sell-side go-to-market strategy, advanced from a Marketing Pack (CIM).
 const MAPS_FILE = path.join(BOV_DATA_DIR, 'maps.json');
 function loadMaps() { try { return JSON.parse(fs.readFileSync(MAPS_FILE, 'utf8')); } catch (e) { return []; } }
-function saveMaps(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(MAPS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveMaps(a) { return writeJsonGuarded(MAPS_FILE, a, 'saveMaps'); }
 function newMapId() { return 'map_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 const MAP_PROMPT_FILE = path.join(BOV_DATA_DIR, 'map_prompt.txt');
 function loadMapPromptCustom() { try { const t = fs.readFileSync(MAP_PROMPT_FILE, 'utf8'); return (t && t.trim()) ? t : ''; } catch (e) { return ''; } }
@@ -85,7 +109,7 @@ function clearMapPromptCustom() { try { fs.unlinkSync(MAP_PROMPT_FILE); } catch 
 // room), then "started" to promote it into a Seller Qualification Call and the pipeline.
 const DEALS_FILE = path.join(BOV_DATA_DIR, 'deals.json');
 function loadDeals() { try { return JSON.parse(fs.readFileSync(DEALS_FILE, 'utf8')); } catch (e) { return []; } }
-function saveDeals(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(DEALS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveDeals(a) { return writeJsonGuarded(DEALS_FILE, a, 'saveDeals'); }
 function newDealId() { return 'deal_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function ownsDeal(req, d) {
   if (req.user && isSuper(req.user)) return true;
@@ -104,11 +128,29 @@ const SYSTEM_LEAD_SOURCES = ['Referral'];
 const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'LOI Sent', 'LOI Received', 'LOI Countered', 'LOI Accepted', 'Diligence', 'Note', 'To-Do'];
 const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Burgers', 'BBQ', 'Steakhouse', 'Seafood', 'Chinese', 'Japanese / Sushi', 'Thai', 'Vietnamese', 'Korean', 'Indian', 'Mediterranean', 'Greek', 'Southern / Soul', 'Breakfast / Brunch', 'Coffee / Cafe', 'Hawaiian', 'Desserts', 'Bar / Lounge'];
 function loadPeople() { try { return JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')); } catch (e) { return []; } }
-function savePeople(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PEOPLE_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function savePeople(a) {
+  try {
+    if (!Array.isArray(a)) return;
+    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
+    if (a.length === 0) {
+      try {
+        const _cur = fs.existsSync(PEOPLE_FILE) ? JSON.parse(fs.readFileSync(PEOPLE_FILE, 'utf8')) : [];
+        if (Array.isArray(_cur) && _cur.length >= 2) {
+          try { fs.writeFileSync(PEOPLE_FILE + '.rescue-' + Date.now() + '.json', JSON.stringify(_cur, null, 2)); } catch (e) {}
+          console.error('[DATA GUARD] savePeople BLOCKED: refused to overwrite ' + _cur.length + ' contacts with an empty list. Rescue copy written next to people.json.');
+          return;
+        }
+      } catch (e) {}
+    }
+    const _tmp = PEOPLE_FILE + '.tmp';
+    fs.writeFileSync(_tmp, JSON.stringify(a, null, 2));
+    fs.renameSync(_tmp, PEOPLE_FILE);
+  } catch (e) {}
+}
 function newPersonId() { return 'per_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 const SPACES_FILE = path.join(BOV_DATA_DIR, 'spaces.json');
 function loadSpaces() { try { return JSON.parse(fs.readFileSync(SPACES_FILE, 'utf8')); } catch (e) { return []; } }
-function saveSpaces(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SPACES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveSpaces(a) { return writeJsonGuarded(SPACES_FILE, a, 'saveSpaces'); }
 function newSpaceId() { return 'spc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 const SPACE_TYPES = ['End cap', 'Inline', 'Pad / Outparcel', 'Freestanding'];
 const SPACE_STATUS = ['Available', 'Toured', 'LOI Out', 'Leased', 'Passed'];
@@ -202,7 +244,25 @@ function companyContactRow(p) { return { id: p.id, name: p.name, firstName: pers
 const COMPANIES_FILE = path.join(BOV_DATA_DIR, 'companies.json');
 const COMPANY_TYPES = ['Seller', 'Buyer', 'Tenant', 'Restaurant Group'];
 function loadCompanies() { try { return JSON.parse(fs.readFileSync(COMPANIES_FILE, 'utf8')); } catch (e) { return []; } }
-function saveCompanies(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(COMPANIES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveCompanies(a) {
+  try {
+    if (!Array.isArray(a)) return;
+    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
+    if (a.length === 0) {
+      try {
+        const _cur = fs.existsSync(COMPANIES_FILE) ? JSON.parse(fs.readFileSync(COMPANIES_FILE, 'utf8')) : [];
+        if (Array.isArray(_cur) && _cur.length >= 2) {
+          try { fs.writeFileSync(COMPANIES_FILE + '.rescue-' + Date.now() + '.json', JSON.stringify(_cur, null, 2)); } catch (e) {}
+          console.error('[DATA GUARD] saveCompanies BLOCKED: refused to overwrite ' + _cur.length + ' companies with an empty list. Rescue copy written next to companies.json.');
+          return;
+        }
+      } catch (e) {}
+    }
+    const _tmp = COMPANIES_FILE + '.tmp';
+    fs.writeFileSync(_tmp, JSON.stringify(a, null, 2));
+    fs.renameSync(_tmp, COMPANIES_FILE);
+  } catch (e) {}
+}
 function newCompanyId() { return 'co_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function companyById(id) { if (!id) return null; return loadCompanies().find(c => c.id === id) || null; }
 function bizBuySellCompany() {
@@ -269,7 +329,7 @@ const TICKET_STATUSES = ['Open', 'Answered', 'Action Needed', 'Info Needed', 'Cl
 const TICKET_PRIORITIES = ['Normal', 'High', 'Urgent'];
 const TICKET_CATEGORIES = ['Marketing', 'Signage & Riders', 'Photography', 'Listings', 'Legal / Compliance', 'IT / Software', 'Supplies', 'Accounting', 'Other'];
 function loadTickets() { try { return JSON.parse(fs.readFileSync(TICKETS_FILE, 'utf8')); } catch (e) { return []; } }
-function saveTickets(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(TICKETS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveTickets(a) { return writeJsonGuarded(TICKETS_FILE, a, 'saveTickets'); }
 function newTicketId() { return 'tkt_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function ownsTicket(req, t) { if (req.user && isSuper(req.user)) return true; return t.byUser && t.byUser === (req.user && req.user.username); }
 function ticketNo(t) { return t.num ? ('#' + String(t.num)) : ('#' + String(t.id).slice(-5)); }
@@ -282,7 +342,7 @@ function loadTicketPrompt() { return loadTicketPromptCustom() || undefined; }
 // ---- Admin-editable app settings (custom type lists, request-services email, etc.) ----
 const SETTINGS_FILE = path.join(BOV_DATA_DIR, 'settings.json');
 function loadSettings() { try { return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
-function saveSettings(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SETTINGS_FILE, JSON.stringify(o || {}, null, 2)); } catch (e) {} }
+function saveSettings(o) { return writeJsonGuarded(SETTINGS_FILE, o || {}, 'saveSettings'); }
 function cleanStrList(a, max, len) {
   if (!Array.isArray(a)) return null;
   const seen = {}, out = [];
@@ -358,7 +418,7 @@ function logActivity(p, type, note, o) {
 // ---- System event log (enrichment, imports, merges) + auto-numbering import batch ----
 const SYSEVENTS_FILE = path.join(BOV_DATA_DIR, 'system_events.json');
 function loadSysEvents() { try { return JSON.parse(fs.readFileSync(SYSEVENTS_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveSysEvents(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SYSEVENTS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveSysEvents(a) { return writeJsonGuarded(SYSEVENTS_FILE, a, 'saveSysEvents'); }
 function logSysEvent(req, type, note, meta) {
   try {
     const all = loadSysEvents(); const now = new Date().toISOString();
@@ -642,13 +702,13 @@ function ensureBovForQuest(q) {
 // ---- Screening queue store (seller screenings awaiting a questionnaire) ----
 const SCREEN_FILE = path.join(BOV_DATA_DIR, 'screenings.json');
 function loadScreens() { try { return JSON.parse(fs.readFileSync(SCREEN_FILE, 'utf8')); } catch (e) { return []; } }
-function saveScreens(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SCREEN_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveScreens(a) { return writeJsonGuarded(SCREEN_FILE, a, 'saveScreens'); }
 function newScreenId() { return 'scr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 // ---- Questionnaire queue store (valuation questionnaires awaiting a BOV) ----
 const QUEST_FILE = path.join(BOV_DATA_DIR, 'questionnaires.json');
 function loadQuests() { try { return JSON.parse(fs.readFileSync(QUEST_FILE, 'utf8')); } catch (e) { return []; } }
-function saveQuests(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(QUEST_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveQuests(a) { return writeJsonGuarded(QUEST_FILE, a, 'saveQuests'); }
 
 // ---- Deleted-questionnaire tombstones ----
 // When a rep deletes a questionnaire that was auto-created from an advanced
@@ -656,7 +716,7 @@ function saveQuests(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BO
 // it on the next Q-Log load. Re-advancing the source call clears the tombstone.
 const QUEST_TOMB_FILE = path.join(BOV_DATA_DIR, 'questionnaires_deleted.json');
 function loadQuestTombs() { try { return JSON.parse(fs.readFileSync(QUEST_TOMB_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveQuestTombs(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(QUEST_TOMB_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveQuestTombs(a) { return writeJsonGuarded(QUEST_TOMB_FILE, a, 'saveQuestTombs'); }
 function addQuestTomb(fid) { if (!fid) return; const a = loadQuestTombs(); if (a.indexOf(fid) < 0) { a.push(fid); saveQuestTombs(a); } }
 function removeQuestTomb(fid) { if (!fid) return; const a = loadQuestTombs(); const b = a.filter(x => x !== fid); if (b.length !== a.length) saveQuestTombs(b); }
 // Flatten a stored questionnaire into readable "Section / Label: value" text so it
@@ -1027,7 +1087,7 @@ app.use((req, res, next) => {
 // ---- AI usage meter (per-org billing groundwork) ----
 const AI_USAGE_FILE = path.join(BOV_DATA_DIR, 'ai_usage.json');
 function loadAiUsage() { try { return JSON.parse(fs.readFileSync(AI_USAGE_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveAiUsage(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(AI_USAGE_FILE, JSON.stringify(a.slice(-20000), null, 2)); } catch (e) {} }
+function saveAiUsage(a) { return writeJsonGuarded(AI_USAGE_FILE, a.slice(-20000), 'saveAiUsage'); }
 // Rough $ estimate per AI action (web-search actions cost far more than a small text call).
 const AI_FEATURE_COST = { 'build-concepts': 0.22, 'find-locations': 0.09, 'find-concepts': 0.07, 'concept-resolve': 0.03, 'brief': 0.04, 'loi-review': 0.03, 'loi-suggest': 0.02, 'loi-parse': 0.02, 'loi-counter': 0.02, 'enrich-company': 0.02, 'enrich-contact': 0.02, 'contact-prep': 0.02, 'concept': 0.02, 'site-read': 0.02, 'calc-summary': 0.01, 'placer': 0.01, 'space-intake': 0.02, 'space-match': 0.02, 'consult': 0.02, 'concept-intel': 0.03, 'logo-ai': 0.02 };
 function aiMeterFeature(p) {
@@ -1126,7 +1186,7 @@ function loadEmailConfig() {
     enabled: (c.enabled != null ? !!c.enabled : true),
   };
 }
-function saveEmailConfig(c) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(EMAIL_CFG_FILE, JSON.stringify(c, null, 2)); } catch (e) {} }
+function saveEmailConfig(c) { return writeJsonGuarded(EMAIL_CFG_FILE, c, 'saveEmailConfig'); }
 function isEmailConfigured() { const c = loadEmailConfig(); return !!(c.enabled && c.host); }
 function mailFrom() { return loadEmailConfig().from; }
 function newOpenToken() { return 'eo_' + crypto.randomBytes(16).toString('base64url'); }
@@ -2019,7 +2079,7 @@ app.post('/api/me/signature', express.json({ limit: '2mb' }), (req, res) => {
 const DOCS_DIR = path.join(BOV_DATA_DIR, 'documents');
 const DOCS_FILE = path.join(BOV_DATA_DIR, 'documents.json');
 function loadDocs() { try { return JSON.parse(fs.readFileSync(DOCS_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveDocs(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(DOCS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveDocs(a) { return writeJsonGuarded(DOCS_FILE, a, 'saveDocs'); }
 function newDocId() { return 'doc_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
 function prettyName(f) { return String(f || '').replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
 
@@ -2176,7 +2236,7 @@ app.post('/api/admin/ai-confirm', requireAdmin, express.json(), (req, res) => {
 const NAV_VIS_FILE = path.join(BOV_DATA_DIR, 'nav_visibility.json');
 const NAV_GATEABLE_GROUPS = ['Book of Business', 'Business Sales', 'Tenant Rep', 'Landlord Rep', 'Marketing', 'Tools', 'Accounting'];
 function loadNavVis() { try { const o = JSON.parse(fs.readFileSync(NAV_VIS_FILE, 'utf8')); return (o && typeof o === 'object') ? o : {}; } catch (e) { return {}; } }
-function saveNavVis(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(NAV_VIS_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+function saveNavVis(o) { return writeJsonGuarded(NAV_VIS_FILE, o, 'saveNavVis'); }
 app.get('/api/admin/nav-visibility', requireAdmin, (req, res) => {
   res.json({ ok: true, groups: NAV_GATEABLE_GROUPS, roles: loadRoles().filter(r => r.key !== 'creator').map(r => ({ key: r.key, name: r.name })), visibility: loadNavVis() });
 });
@@ -2263,7 +2323,7 @@ app.get('/doc/:name', (req, res) => {
 const ROOMS_FILE = path.join(BOV_DATA_DIR, 'rooms.json');
 const ROOMS_DIR = path.join(BOV_DATA_DIR, 'rooms');
 function loadRooms() { try { return JSON.parse(fs.readFileSync(ROOMS_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveRooms(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(ROOMS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveRooms(a) { return writeJsonGuarded(ROOMS_FILE, a, 'saveRooms'); }
 function newRoomId() { return 'room_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function newRoomDocId() { return 'rd_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
 function newRoomToken() { try { return crypto.randomBytes(16).toString('hex'); } catch (e) { return (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 28); } }
@@ -2642,7 +2702,7 @@ function roomNotFoundPage() {
 // to the same root, plus an editable overlay (status, notes, owner) persisted here.
 const ASSIGN_FILE = path.join(BOV_DATA_DIR, 'assignments.json');
 function loadAssignOverlay() { try { return JSON.parse(fs.readFileSync(ASSIGN_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
-function saveAssignOverlay(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(ASSIGN_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+function saveAssignOverlay(o) { return writeJsonGuarded(ASSIGN_FILE, o, 'saveAssignOverlay'); }
 const ASSIGN_STATUSES = ['New', 'Active', 'Under Contract', 'Closed', 'On Hold', 'Lost'];
 const TXN_STATUSES = ['LOI', 'Under Contract', 'Due Diligence', 'Financing', 'Closing', 'Closed', 'Dead'];
 const TXN_COMM_STATUS = ['Unpaid', 'Invoiced', 'Partial', 'Paid'];
@@ -3145,10 +3205,10 @@ app.post('/api/bizbuysell/import', express.json({ limit: '2mb' }), (req, res) =>
 // ---- BizBuySell Gmail auto-pull (shared by the manual button and the background poller) ----
 const BBSPOLL_FILE = path.join(BOV_DATA_DIR, 'bbspoll.json');
 function loadBbsPoll() { try { return JSON.parse(fs.readFileSync(BBSPOLL_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
-function saveBbsPoll(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BBSPOLL_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+function saveBbsPoll(o) { return writeJsonGuarded(BBSPOLL_FILE, o, 'saveBbsPoll'); }
 const BBS_CFG_FILE = path.join(BOV_DATA_DIR, 'bbs_config.json');
 function loadBbsCfg() { try { return JSON.parse(fs.readFileSync(BBS_CFG_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
-function saveBbsCfg(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(BBS_CFG_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+function saveBbsCfg(o) { return writeJsonGuarded(BBS_CFG_FILE, o, 'saveBbsCfg'); }
 function bbsLookbackDays() { const d = parseInt(loadBbsCfg().lookbackDays, 10); return (isFinite(d) && d >= 1 && d <= 365) ? d : 60; }
 function bbsLookbackOngoing() { const d = parseInt(loadBbsCfg().lookbackDaysOngoing, 10); return (isFinite(d) && d >= 1 && d <= 365) ? d : 7; }
 async function bbsGmailPull(username, name, opts) {
@@ -3260,7 +3320,7 @@ try { seedBizSalesStages(); } catch (e) { console.error('seed biz sales:', e && 
 // ================= Automations (email / task drip sequences) =================
 const AUTOMATIONS_FILE = path.join(BOV_DATA_DIR, 'automations.json');
 function loadAutomations() { try { return JSON.parse(fs.readFileSync(AUTOMATIONS_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveAutomations(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(AUTOMATIONS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveAutomations(a) { return writeJsonGuarded(AUTOMATIONS_FILE, a, 'saveAutomations'); }
 function newAutomationId() { return 'auto_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function newEnrollId() { return 'enr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function cleanAutoSteps(arr) {
@@ -3420,7 +3480,7 @@ setTimeout(function () { automationTick(); }, 20000);
 // ---- Email templates (personal / shared, reusable in composer + automations) ----
 const EMAIL_TPL_FILE = path.join(BOV_DATA_DIR, 'email_templates.json');
 function loadEmailTpls() { try { return JSON.parse(fs.readFileSync(EMAIL_TPL_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveEmailTpls(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(EMAIL_TPL_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveEmailTpls(a) { return writeJsonGuarded(EMAIL_TPL_FILE, a, 'saveEmailTpls'); }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), updatedAt: t.updatedAt || '' }; }
 const DEFAULT_SALES_TEMPLATES = [
@@ -3575,7 +3635,7 @@ const EXPENSE_CATEGORIES = ['Advertising & Marketing','Meals & Entertainment','T
 const EXPENSE_METHODS = ['Card','Check','Cash','ACH / Transfer','Other'];
 const EXPENSE_STATUSES = ['Unpaid','Paid','Reimbursed'];
 function loadExpenses() { try { return JSON.parse(fs.readFileSync(EXPENSES_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveExpenses(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(EXPENSES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveExpenses(a) { return writeJsonGuarded(EXPENSES_FILE, a, 'saveExpenses'); }
 function newExpenseId() { return 'exp_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function _expNum(v) { const n = Number(String(v == null ? '' : v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : 0; }
 function expenseBrief(x, user) {
@@ -3631,7 +3691,7 @@ const INVOICES_FILE = path.join(BOV_DATA_DIR, 'invoices.json');
 const INVOICE_STATUSES = ['Draft', 'Sent', 'Void'];
 const PAYMENT_METHODS = ['Check', 'ACH / Wire', 'Card', 'Cash', 'Other'];
 function loadInvoices() { try { return JSON.parse(fs.readFileSync(INVOICES_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveInvoices(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(INVOICES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveInvoices(a) { return writeJsonGuarded(INVOICES_FILE, a, 'saveInvoices'); }
 function newInvoiceId() { return 'inv_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function newPaymentId() { return 'pay_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function nextInvoiceNumber(all) { let mx = 1000; all.forEach(x => { const n = parseInt(String(x.number || '').replace(/\D/g, ''), 10); if (isFinite(n) && n > mx) mx = n; }); return 'INV-' + (mx + 1); }
@@ -4193,6 +4253,67 @@ app.post('/api/person/merge', express.json(), (req, res) => {
   res.json({ ok: true, keepId: keepId, merged: loserIds.length, people: loadPeople().map(personBrief) });
  } catch (e) { console.error('person merge failed:', e); return res.status(500).json({ ok: false, error: 'Merge failed: ' + ((e && e.message) || 'server error') }); }
 });
+app.post('/api/person/merge-bulk', express.json({ limit: '8mb' }), (req, res) => {
+ try {
+  const u = req.user || {};
+  const canMerge = isSuper(u) || (permsEnabled() && effectivePerms(u).delete);
+  if (!canMerge) return res.status(403).json({ ok: false, error: 'You do not have permission to merge contacts.' });
+  const groupsIn = Array.isArray((req.body || {}).groups) ? req.body.groups : [];
+  if (!groupsIn.length) return res.status(400).json({ ok: false, error: 'No groups provided.' });
+  const people = loadPeople();
+  const byId = {}; people.forEach(p => { byId[p.id] = p; });
+  const now = new Date().toISOString();
+  const remap = {}; const keeperName = {};
+  let mergedGroups = 0, mergedRecords = 0; const skipped = [];
+  groupsIn.forEach(g => {
+    const keepId = String((g && g.keepId) || '');
+    if (remap[keepId]) return;
+    const keep = byId[keepId];
+    if (!keep) { skipped.push(keepId); return; }
+    let mergeIds = Array.isArray(g.mergeIds) ? g.mergeIds.map(String).filter(x => x && x !== keepId) : [];
+    const losers = mergeIds.map(id => byId[id]).filter(l => l && !remap[l.id] && l.id !== keepId);
+    if (!losers.length) return;
+    const em = personEmails(keep).slice();
+    losers.forEach(l => personEmails(l).forEach(e => { if (em.map(x => String(x).toLowerCase()).indexOf(String(e).toLowerCase()) < 0) em.push(e); }));
+    const ph = personPhones(keep).slice();
+    losers.forEach(l => personPhones(l).forEach(x => { if (ph.indexOf(x) < 0) ph.push(x); }));
+    keep.emails = em.slice(0, 10); keep.phones = ph.slice(0, 10);
+    ['company', 'companyId', 'title', 'nickname', 'leadSource', 'referredBy', 'referredById', 'url', 'lastContacted'].forEach(f => {
+      if (!String(keep[f] || '').trim()) { for (const l of losers) { if (String(l[f] || '').trim()) { keep[f] = l[f]; break; } } }
+    });
+    keep.vip = !!(keep.vip || losers.some(l => l.vip));
+    keep.caution = !!(keep.caution || losers.some(l => l.caution));
+    const tg = personTags(keep).slice();
+    losers.forEach(l => personTags(l).forEach(t => { if (tg.indexOf(t) < 0) tg.push(t); }));
+    keep.tags = tg.slice(0, 30);
+    const pc = Array.isArray(keep.prefContact) ? keep.prefContact.slice() : [];
+    losers.forEach(l => (Array.isArray(l.prefContact) ? l.prefContact : []).forEach(x => { if (pc.indexOf(x) < 0) pc.push(x); }));
+    keep.prefContact = pc;
+    let tours = Array.isArray(keep.tours) ? keep.tours.slice() : [];
+    let acts = Array.isArray(keep.activities) ? keep.activities.slice() : [];
+    losers.forEach(l => { if (Array.isArray(l.tours)) tours = tours.concat(l.tours); if (Array.isArray(l.activities)) acts = acts.concat(l.activities); });
+    keep.tours = tours; keep.activities = acts;
+    const baseNote = String(keep.notes || '').trim();
+    const extra = losers.map(l => String(l.notes || '').trim()).filter(n => n && n !== baseNote);
+    if (extra.length) keep.notes = [baseNote].concat(extra).filter(Boolean).join('\n\n---\n').slice(0, 8000);
+    keep.email = preferredEmailOf(keep); keep.phone = preferredPhoneOf(keep);
+    keep.updatedAt = now;
+    losers.forEach(l => { remap[l.id] = keepId; });
+    keeperName[keepId] = keep.name;
+    mergedGroups++; mergedRecords += losers.length;
+  });
+  if (!mergedRecords) return res.json({ ok: true, mergedGroups: 0, mergedRecords: 0, skipped: skipped });
+  const isLoser = id => id && remap[id];
+  savePeople(people.filter(p => !remap[p.id]));
+  try { const deals = loadDeals(); let ch = false; deals.forEach(d => { if (isLoser(d.contactPersonId)) { d.contactPersonId = remap[d.contactPersonId]; ch = true; } }); if (ch) saveDeals(deals); } catch (e) {}
+  try { const ags = loadAgreements(); let ch = false; ags.forEach(a => { if (isLoser(a.personId)) { const k = remap[a.personId]; a.personId = k; a.personName = keeperName[k] || a.personName; ch = true; } }); if (ch) saveAgreements(ags); } catch (e) {}
+  try { const cos = loadCompanies(); let ch = false; cos.forEach(c => { if (isLoser(c.mainContactId)) { c.mainContactId = remap[c.mainContactId]; ch = true; } }); if (ch) saveCompanies(cos); } catch (e) {}
+  try { const pp = loadPeople(); let ch = false; pp.forEach(p => { if (isLoser(p.referredById)) { const k = remap[p.referredById]; p.referredById = k; p.referredBy = keeperName[k] || p.referredBy; ch = true; } }); if (ch) savePeople(pp); } catch (e) {}
+  try { const ov = loadAssignOverlay(); let ch = false; Object.keys(ov).forEach(k => { const cur = ov[k]; if (!cur) return; ['offers', 'tours', 'ndas'].forEach(coll => { if (Array.isArray(cur[coll])) cur[coll].forEach(r => { if (isLoser(r.personId)) { r.personId = remap[r.personId]; ch = true; } }); }); }); if (ch) saveAssignOverlay(ov); } catch (e) {}
+  try { logSysEvent(req, 'Duplicates', 'Bulk-merged ' + mergedRecords + ' contact' + (mergedRecords === 1 ? '' : 's') + ' into ' + mergedGroups + ' keeper' + (mergedGroups === 1 ? '' : 's'), { tool: 'duplicates', kind: 'merge-bulk', type: 'contacts', groups: mergedGroups, records: mergedRecords }); } catch (e) {}
+  res.json({ ok: true, mergedGroups: mergedGroups, mergedRecords: mergedRecords, skipped: skipped });
+ } catch (e) { console.error('person merge-bulk failed:', e); return res.status(500).json({ ok: false, error: 'Bulk merge failed: ' + ((e && e.message) || 'server error') }); }
+});
 // ---- Contact photo (optional headshot / logo) ----
 const PERSONPHOTO_DIR = path.join(BOV_DATA_DIR, 'personphotos');
 app.get('/eo/:token', (req, res) => {
@@ -4264,7 +4385,7 @@ async function gmailSentImportForUser(username, days) {
 }
 const SENTSYNC_FILE = path.join(BOV_DATA_DIR, 'sentsync.json');
 function loadSentSyncState() { try { return JSON.parse(fs.readFileSync(SENTSYNC_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
-function saveSentSyncState(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SENTSYNC_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+function saveSentSyncState(o) { return writeJsonGuarded(SENTSYNC_FILE, o, 'saveSentSyncState'); }
 let _sentSyncing = false;
 async function sentSyncTick() {
   if (_sentSyncing) return; _sentSyncing = true;
@@ -5760,6 +5881,65 @@ app.post('/api/company/merge', express.json(), (req, res) => {
   res.json({ ok: true, keepId: keepId, merged: loserIds.length });
  } catch (e) { console.error('company merge failed:', e); return res.status(500).json({ ok: false, error: 'Merge failed: ' + ((e && e.message) || 'server error') }); }
 });
+app.post('/api/company/merge-bulk', express.json({ limit: '8mb' }), (req, res) => {
+ try {
+  const u = req.user || {};
+  const canMerge = isSuper(u) || (permsEnabled() && effectivePerms(u).delete);
+  if (!canMerge) return res.status(403).json({ ok: false, error: 'You do not have permission to merge companies.' });
+  const groupsIn = Array.isArray((req.body || {}).groups) ? req.body.groups : [];
+  if (!groupsIn.length) return res.status(400).json({ ok: false, error: 'No groups provided.' });
+  const companies = loadCompanies();
+  const byId = {}; companies.forEach(c => { byId[c.id] = c; });
+  const now = new Date().toISOString();
+  const _lk = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const remap = {}; const keeperName = {};
+  let mergedGroups = 0, mergedRecords = 0; const skipped = [];
+  groupsIn.forEach(g => {
+    const keepId = String((g && g.keepId) || '');
+    if (remap[keepId]) return;
+    const keep = byId[keepId];
+    if (!keep) { skipped.push(keepId); return; }
+    let mergeIds = Array.isArray(g.mergeIds) ? g.mergeIds.map(String).filter(x => x && x !== keepId) : [];
+    const losers = mergeIds.map(id => byId[id]).filter(l => l && !remap[l.id] && l.id !== keepId);
+    if (!losers.length) return;
+    keep.concepts = Array.isArray(keep.concepts) ? keep.concepts : [];
+    const cptSeen = {}; keep.concepts.forEach(cp => { cptSeen[normKey(cp.name)] = true; });
+    losers.forEach(l => (l.concepts || []).forEach(cp => { const k = normKey(cp.name); if (!cptSeen[k]) { cptSeen[k] = true; keep.concepts.push(cp); } }));
+    keep.locations = Array.isArray(keep.locations) ? keep.locations : [];
+    losers.forEach(l => (l.locations || []).forEach(loc => {
+      const dup = keep.locations.some(x => {
+        if ((x.concept || '') !== (loc.concept || '')) return false;
+        const ax = _lk(x.address), al = _lk(loc.address); if (ax && al && ax === al) return true;
+        const nx = _lk(x.name), nl = _lk(loc.name), cx = _lk(x.city), cl = _lk(loc.city); if (nx && nl && nx === nl && cx === cl) return true;
+        return false;
+      });
+      if (!dup) keep.locations.push(loc);
+    }));
+    ['market', 'type', 'leadSource', 'logo'].forEach(f => { if (!String(keep[f] || '').trim()) { for (const l of losers) { if (String(l[f] || '').trim()) { keep[f] = l[f]; break; } } } });
+    keep.office = keep.office || {};
+    losers.forEach(l => { const o = l.office || {}; ['address', 'city', 'state', 'phone', 'email', 'website'].forEach(k => { if (!String(keep.office[k] || '').trim() && String(o[k] || '').trim()) keep.office[k] = o[k]; }); });
+    if (!String(keep.mainContactId || '').trim()) { for (const l of losers) { if (String(l.mainContactId || '').trim()) { keep.mainContactId = l.mainContactId; break; } } }
+    const tg = Array.isArray(keep.tags) ? keep.tags.slice() : [];
+    losers.forEach(l => (Array.isArray(l.tags) ? l.tags : []).forEach(t => { if (tg.indexOf(t) < 0) tg.push(t); }));
+    keep.tags = tg.slice(0, 30);
+    const baseNote = String(keep.notes || '').trim();
+    const extra = losers.map(l => String(l.notes || '').trim()).filter(n => n && n !== baseNote);
+    if (extra.length) keep.notes = [baseNote].concat(extra).filter(Boolean).join('\n\n---\n').slice(0, 8000);
+    keep.updatedAt = now;
+    losers.forEach(l => { remap[l.id] = keepId; });
+    keeperName[keepId] = keep.name;
+    mergedGroups++; mergedRecords += losers.length;
+  });
+  if (!mergedRecords) return res.json({ ok: true, mergedGroups: 0, mergedRecords: 0, skipped: skipped });
+  const isLoser = id => id && remap[id];
+  saveCompanies(companies.filter(c => !remap[c.id]));
+  try { const people = loadPeople(); let ch = false; people.forEach(p => { if (isLoser(p.companyId)) { const k = remap[p.companyId]; p.companyId = k; if (p.company) p.company = keeperName[k] || p.company; ch = true; } }); if (ch) savePeople(people); } catch (e) {}
+  try { const deals = loadDeals(); let ch = false; deals.forEach(d => { if (isLoser(d.companyId)) { d.companyId = remap[d.companyId]; ch = true; } }); if (ch) saveDeals(deals); } catch (e) {}
+  try { const ags = loadAgreements(); let ch = false; ags.forEach(a => { if (a.companyId && isLoser(a.companyId)) { a.companyId = remap[a.companyId]; ch = true; } }); if (ch) saveAgreements(ags); } catch (e) {}
+  try { logSysEvent(req, 'Duplicates', 'Bulk-merged ' + mergedRecords + ' compan' + (mergedRecords === 1 ? 'y' : 'ies') + ' into ' + mergedGroups + ' keeper' + (mergedGroups === 1 ? '' : 's'), { tool: 'duplicates', kind: 'merge-bulk', type: 'companies', groups: mergedGroups, records: mergedRecords }); } catch (e) {}
+  res.json({ ok: true, mergedGroups: mergedGroups, mergedRecords: mergedRecords, skipped: skipped });
+ } catch (e) { console.error('company merge-bulk failed:', e); return res.status(500).json({ ok: false, error: 'Bulk merge failed: ' + ((e && e.message) || 'server error') }); }
+});
 app.delete('/api/company/:id', (req, res) => {
   if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete companies.' });
   const id = req.params.id;
@@ -6975,7 +7155,7 @@ setInterval(() => { ensureDailyBackup(); }, 60 * 60 * 1000);
 // ================= User Tasks =================
 const TASKS_FILE = path.join(BOV_DATA_DIR, 'tasks.json');
 function loadTasks() { try { return JSON.parse(fs.readFileSync(TASKS_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveTasks(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(TASKS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveTasks(a) { return writeJsonGuarded(TASKS_FILE, a, 'saveTasks'); }
 function newTaskId() { return 'tsk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const TASK_PRIORITIES = ['Low', 'Normal', 'High'];
 function taskVisible(t, req) {
@@ -6994,7 +7174,7 @@ function defaultPipelines() {
   ];
 }
 function loadPipelines() { try { const a = JSON.parse(fs.readFileSync(PIPELINES_FILE, 'utf8')); if (Array.isArray(a) && a.length) return a; } catch (e) {} const d = defaultPipelines(); try { savePipelines(d); } catch (e) {} return d; }
-function savePipelines(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(PIPELINES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function savePipelines(a) { return writeJsonGuarded(PIPELINES_FILE, a, 'savePipelines'); }
 function newPipelineId() { return 'pl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function seedBizSalesStages() {
   try {
@@ -7089,7 +7269,7 @@ app.delete('/api/admin/pipelines/:id', requireAdmin, (req, res) => {
 // ---- Saved searches (per-list, per-user, shareable) ----
 const SAVED_SEARCH_FILE = path.join(BOV_DATA_DIR, 'saved_searches.json');
 function loadSavedSearches() { try { return JSON.parse(fs.readFileSync(SAVED_SEARCH_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveSavedSearches(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SAVED_SEARCH_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveSavedSearches(a) { return writeJsonGuarded(SAVED_SEARCH_FILE, a, 'saveSavedSearches'); }
 function newSearchId() { return 'ss_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 app.get('/api/saved-searches', (req, res) => {
   const list = String(req.query.list || '').slice(0, 40);
@@ -7661,12 +7841,19 @@ function _dfLev(a,b){
 function _dfSim(a,b){ if(!a||!b) return 0; const L=Math.max(a.length,b.length); if(!L) return 0; return 1-(_dfLev(a,b)/L); }
 function _dfUF(n){ const p=new Array(n); for(let i=0;i<n;i++) p[i]=i; function f(x){ while(p[x]!==x){ p[x]=p[p[x]]; x=p[x]; } return x; } return { find:f, union:function(a,b){ const ra=f(a),rb=f(b); if(ra!==rb) p[ra]=rb; } }; }
 
+const DUP_IGNORE_FILE = path.join(BOV_DATA_DIR, 'dup_ignore.json');
+function loadDupIgnore(){ try { const o = JSON.parse(fs.readFileSync(DUP_IGNORE_FILE,'utf8'))||{}; return { contacts:(o.contacts&&typeof o.contacts==='object')?o.contacts:{}, companies:(o.companies&&typeof o.companies==='object')?o.companies:{} }; } catch(e){ return { contacts:{}, companies:{} }; } }
+function saveDupIgnore(o){ return writeJsonGuarded(DUP_IGNORE_FILE, o, 'saveDupIgnore'); }
+function _dupPairKey(a,b){ a=String(a||''); b=String(b||''); return a<b ? (a+'|'+b) : (b+'|'+a); }
 app.get('/api/admin/duplicates', requireAdmin, (req, res) => {
   const type = String(req.query.type||'companies');
   if (type === 'contacts') {
     const people = loadPeople();
     const N = people.length;
     const uf = _dfUF(N);
+    const _ids = people.map(function(p){return p.id;});
+    const _ign = loadDupIgnore().contacts;
+    const U = function(a,b){ if(a===b) return; if(_ign[_dupPairKey(_ids[a],_ids[b])]) return; uf.union(a,b); };
     const emailMap = {};
     const keys = people.map(p => _dfNorm((personFirst(p)||'') + (personLast(p)||'') || p.name || ''));
     const comps = people.map(p => { const nm = String(p.company||''); return nm.length>100 ? '' : _dfNorm(nm); });
@@ -7675,7 +7862,7 @@ app.get('/api/admin/duplicates', requireAdmin, (req, res) => {
     // Exact shared email is a strong duplicate signal on its own.
     for (let i=0;i<N;i++){
       const p = people[i];
-      personEmails(p).forEach(e => { const k = String(e||'').toLowerCase().trim(); if(!k) return; if(emailMap[k]!=null) uf.union(i, emailMap[k]); else emailMap[k]=i; });
+      personEmails(p).forEach(e => { const k = String(e||'').toLowerCase().trim(); if(!k) return; if(emailMap[k]!=null) U(i, emailMap[k]); else emailMap[k]=i; });
     }
     function _sharePhone(a,b){ for(var k in a){ if(b[k]) return true; } return false; }
     // Name-based matching. A shared phone number alone is NOT enough — two contacts whose
@@ -7693,9 +7880,9 @@ app.get('/api/admin/duplicates', requireAdmin, (req, res) => {
         const sameCo = (pi.companyId && pi.companyId===pj.companyId) || (comps[i] && comps[i]===comps[j]);
         const bothNoCo = !comps[i] && !comps[j] && !pi.companyId && !pj.companyId;
         const samePhone = _sharePhone(phonesArr[i], phonesArr[j]);
-        if(exactName && (sameCo || bothNoCo || samePhone)) uf.union(i,j);
-        else if(sameCo && nameSim>=0.9) uf.union(i,j);
-        else if(samePhone && nameSim>=0.9) uf.union(i,j);
+        if(exactName && (sameCo || bothNoCo || samePhone)) U(i,j);
+        else if(sameCo && nameSim>=0.9) U(i,j);
+        else if(samePhone && nameSim>=0.9) U(i,j);
       }
     }
     const groups = {};
@@ -7712,17 +7899,20 @@ app.get('/api/admin/duplicates', requireAdmin, (req, res) => {
       out.push({ key:'c'+r, size:members.length, primaryId:members[0].id, members });
     });
     out.sort((a,b)=> b.size-a.size);
-    return res.json({ ok:true, type:'contacts', total:N, groups: out, dupeRecords: out.reduce((s,g)=>s+g.size,0), groupCount: out.length });
+    return res.json({ ok:true, type:'contacts', total:N, groups: out, dupeRecords: out.reduce((s,g)=>s+g.size,0), groupCount: out.length, ignored: Object.keys(_ign).length });
   }
   const companies = loadCompanies();
   const N = companies.length;
   const uf = _dfUF(N);
+  const _ids = companies.map(function(c){return c.id;});
+  const _ign = loadDupIgnore().companies;
+  const U = function(a,b){ if(a===b) return; if(_ign[_dupPairKey(_ids[a],_ids[b])]) return; uf.union(a,b); };
   const keys = companies.map(c => { const nm = String(c.name||''); return nm.length>100 ? '' : _dfCompanyKey(nm); });
   const domMap = {}, phoneMap = {};
   for (let i=0;i<N;i++){
     const c = companies[i]; const o = c.office||{};
-    const dom = domainOf(o.website || ((c.concepts&&c.concepts[0]&&c.concepts[0].website)||'')); if(dom){ const dk=dom.toLowerCase(); if(domMap[dk]!=null) uf.union(i,domMap[dk]); else domMap[dk]=i; }
-    const ph = _dfPhone(o.phone); if(ph){ if(phoneMap[ph]!=null) uf.union(i,phoneMap[ph]); else phoneMap[ph]=i; }
+    const dom = domainOf(o.website || ((c.concepts&&c.concepts[0]&&c.concepts[0].website)||'')); if(dom){ const dk=dom.toLowerCase(); if(domMap[dk]!=null) U(i,domMap[dk]); else domMap[dk]=i; }
+    const ph = _dfPhone(o.phone); if(ph){ if(phoneMap[ph]!=null) U(i,phoneMap[ph]); else phoneMap[ph]=i; }
   }
   for (let i=0;i<N;i++){
     if(!keys[i] || keys[i].length<3) continue;
@@ -7730,7 +7920,7 @@ app.get('/api/admin/duplicates', requireAdmin, (req, res) => {
       if(!keys[j] || keys[j].length<3) continue;
       if(uf.find(i)===uf.find(j)) continue;
       if(Math.abs(keys[i].length-keys[j].length)>5) continue;
-      if(keys[i]===keys[j] || _dfSim(keys[i],keys[j])>=0.88) uf.union(i,j);
+      if(keys[i]===keys[j] || _dfSim(keys[i],keys[j])>=0.88) U(i,j);
     }
   }
   const groups = {};
@@ -7751,13 +7941,32 @@ app.get('/api/admin/duplicates', requireAdmin, (req, res) => {
     out.push({ key:'c'+r, size:members.length, primaryId:members[0].id, members });
   });
   out.sort((a,b)=> b.size-a.size);
-  res.json({ ok:true, type:'companies', total:N, groups: out, dupeRecords: out.reduce((s,g)=>s+g.size,0), groupCount: out.length });
+  res.json({ ok:true, type:'companies', total:N, groups: out, dupeRecords: out.reduce((s,g)=>s+g.size,0), groupCount: out.length, ignored: Object.keys(_ign).length });
+});
+
+app.post('/api/admin/duplicates/ignore', requireAdmin, express.json({ limit:'4mb' }), (req, res) => {
+  const b = req.body||{};
+  const type = (b.type==='contacts') ? 'contacts' : 'companies';
+  const ids = Array.isArray(b.ids) ? Array.from(new Set(b.ids.map(x=>String(x||'')).filter(Boolean))) : [];
+  if(ids.length<2) return res.status(400).json({ ok:false, error:'Need at least two records to remember as not-a-duplicate.' });
+  const store = loadDupIgnore(); const m = store[type]; let added=0;
+  for(let i=0;i<ids.length;i++) for(let j=i+1;j<ids.length;j++){ const k=_dupPairKey(ids[i],ids[j]); if(!m[k]){ m[k]=1; added++; } }
+  saveDupIgnore(store);
+  try { logSysEvent(req,'Duplicates','Marked '+ids.length+' '+type+' as not a duplicate \u2014 '+added+' pair'+(added===1?'':'s')+' remembered',{ tool:'duplicates', kind:'ignore', type:type, count:ids.length, added:added }); } catch(e){}
+  res.json({ ok:true, added:added, ignored:Object.keys(m).length });
+});
+app.post('/api/admin/duplicates/ignore/reset', requireAdmin, express.json(), (req, res) => {
+  const b = req.body||{}; const store = loadDupIgnore();
+  if(b.type==='contacts'||b.type==='companies'){ store[b.type]={}; } else { store.contacts={}; store.companies={}; }
+  saveDupIgnore(store);
+  try { logSysEvent(req,'Duplicates','Reset remembered not-a-duplicate marks'+(b.type?(' ('+b.type+')'):''),{ tool:'duplicates', kind:'ignore-reset', type:(b.type||'all') }); } catch(e){}
+  res.json({ ok:true, ignored:{ contacts:Object.keys(store.contacts).length, companies:Object.keys(store.companies).length } });
 });
 
 // ===== Personal Dashboard (per-user modular home) =====
 const DASH_FILE = path.join(BOV_DATA_DIR, 'dashboards.json');
 function loadDashCfgs() { try { return JSON.parse(fs.readFileSync(DASH_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
-function saveDashCfgs(o) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(DASH_FILE, JSON.stringify(o, null, 2)); } catch (e) {} }
+function saveDashCfgs(o) { return writeJsonGuarded(DASH_FILE, o, 'saveDashCfgs'); }
 const DASH_MODULES = [
   { k: 'kpis', label: 'Key Numbers', desc: 'Live counts & dollars across your book', live: true, w: 'full' },
   { k: 'consult', label: 'Consult', desc: 'Ask your book anything, by voice', live: true, w: 'full' },
@@ -7777,7 +7986,7 @@ const DASH_DEFAULT = ['kpis', 'pipeline', 'trend', 'dealstatus', 'contacts_type'
 function _dmoney(v) { const m = String(v == null ? '' : v).replace(/[^0-9.\-]/g, ''); const n = Number(m); return isFinite(n) ? n : 0; }
 const KPIHIST_FILE = path.join(BOV_DATA_DIR, 'kpi_history.json');
 function loadKpiHist(){ try { return JSON.parse(fs.readFileSync(KPIHIST_FILE,'utf8'))||[]; } catch(e){ return []; } }
-function saveKpiHist(a){ try { if(!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR,{recursive:true}); fs.writeFileSync(KPIHIST_FILE, JSON.stringify(a)); } catch(e){} }
+function saveKpiHist(a){ return writeJsonGuarded(KPIHIST_FILE, a, 'saveKpiHist'); }
 function kpiEnrich(kpis){
   const today = new Date().toISOString().slice(0,10);
   let hist = loadKpiHist();
@@ -7880,7 +8089,7 @@ app.post('/api/dashboard', express.json(), (req, res) => {
 // ---- Feedback tracker (feature requests / bugs, ranked, with status) ----
 const FEEDBACK_FILE = path.join(BOV_DATA_DIR, 'feedback.json');
 function loadFeedback() { try { return JSON.parse(fs.readFileSync(FEEDBACK_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveFeedback(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(FEEDBACK_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveFeedback(a) { return writeJsonGuarded(FEEDBACK_FILE, a, 'saveFeedback'); }
 function newFeedbackId() { return 'fb_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const FEEDBACK_TYPES = ['Feature request', 'Bug', 'Improvement', 'Question', 'Other'];
 const FEEDBACK_STATUSES = ['New', 'Approved', 'Sent to Claude', 'In progress', 'Shipped', 'Declined'];
@@ -8108,7 +8317,7 @@ app.get('/api/search', (req, res) => {
 // ================= Appointments / Calendar =================
 const APPTS_FILE = path.join(BOV_DATA_DIR, 'appointments.json');
 function loadAppts() { try { return JSON.parse(fs.readFileSync(APPTS_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveAppts(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(APPTS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveAppts(a) { return writeJsonGuarded(APPTS_FILE, a, 'saveAppts'); }
 function newApptId() { return 'ap_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const APPT_TYPES = ['Meeting', 'Call', 'Tour', 'Listing Presentation', 'Closing', 'Follow-up', 'Other'];
 function _cleanAttendees(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 20).map(function (x) { return { name: String((x && x.name) || '').slice(0, 120), email: String((x && x.email) || '').slice(0, 160).trim() }; }).filter(function (x) { return x.name || x.email; }); }
@@ -8187,7 +8396,7 @@ app.delete('/api/appointments/:id', (req, res) => {
 // ================= Agreements =================
 const AGREEMENTS_FILE = path.join(BOV_DATA_DIR, 'agreements.json');
 function loadAgreements() { try { return JSON.parse(fs.readFileSync(AGREEMENTS_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveAgreements(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(AGREEMENTS_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveAgreements(a) { return writeJsonGuarded(AGREEMENTS_FILE, a, 'saveAgreements'); }
 function newAgreementId() { return 'agr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const AGREEMENT_TYPES = [
   { key: 'NDA', label: 'NDA' },
@@ -8233,7 +8442,7 @@ function agreementBrief(a) {
 const USERDOCS_DIR = path.join(BOV_DATA_DIR, 'userdocs');
 const USERFILES_FILE = path.join(BOV_DATA_DIR, 'userfiles.json');
 function loadUserFiles() { try { return JSON.parse(fs.readFileSync(USERFILES_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveUserFiles(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(USERFILES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveUserFiles(a) { return writeJsonGuarded(USERFILES_FILE, a, 'saveUserFiles'); }
 function newFileId() { return 'file_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const USERFILE_MIME = { pdf:'application/pdf', doc:'application/msword', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt:'application/vnd.ms-powerpoint', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', webp:'image/webp', txt:'text/plain', csv:'text/csv', zip:'application/zip' };
 function userFileMime(ext) { return USERFILE_MIME[String(ext||'').toLowerCase()] || 'application/octet-stream'; }
@@ -8632,7 +8841,7 @@ app.get('/api/agreements/:id/countersignature', (req, res) => {
 const TEMPLATES_FILE = path.join(BOV_DATA_DIR, 'agreement_templates.json');
 const AGREEMENT_TPL_DIR = path.join(BOV_DATA_DIR, 'agreetemplates');
 function loadTemplates() { try { return JSON.parse(fs.readFileSync(TEMPLATES_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveTemplates(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(TEMPLATES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function saveTemplates(a) { return writeJsonGuarded(TEMPLATES_FILE, a, 'saveTemplates'); }
 function newTemplateId() { return 'tpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function _cleanFieldType(t) { t = String(t || 'text').toLowerCase(); return ['text','date','time','number','currency','email'].indexOf(t) >= 0 ? t : 'text'; }
 function cleanSignFields(arr) { if (!Array.isArray(arr)) return []; return arr.map(f => ({ label: String((f && f.label) || '').slice(0, 80), required: !!(f && f.required), type: _cleanFieldType(f && f.type), autofill: String((f && f.autofill) || '').slice(0, 20) })).filter(f => f.label).slice(0, 12); }
@@ -9365,7 +9574,7 @@ setInterval(runReminderSender, 60000);
 const SMS_CFG_FILE = path.join(BOV_DATA_DIR, 'sms.key');
 function rawSmsCfg() { try { return JSON.parse(fs.readFileSync(SMS_CFG_FILE, 'utf8')) || {}; } catch (e) { return {}; } }
 function loadSmsConfig() { const c = rawSmsCfg(); return { sid: c.sid || process.env.TWILIO_SID || '', token: (c.token != null && c.token !== '') ? c.token : (process.env.TWILIO_TOKEN || ''), from: c.from || process.env.TWILIO_FROM || '', enabled: c.enabled != null ? !!c.enabled : true }; }
-function saveSmsConfig(c) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(SMS_CFG_FILE, JSON.stringify(c, null, 2)); } catch (e) {} }
+function saveSmsConfig(c) { return writeJsonGuarded(SMS_CFG_FILE, c, 'saveSmsConfig'); }
 function isSmsConfigured() { const c = loadSmsConfig(); return !!(c.enabled && c.sid && c.token && c.from); }
 function formatE164(p) { const raw = String(p || '').trim(); let d = raw.replace(/[^0-9]/g, ''); if (!d) return ''; if (raw[0] === '+') return '+' + d; if (d.length === 10) return '+1' + d; if (d.length === 11 && d[0] === '1') return '+' + d; return d.length >= 10 ? '+' + d : ''; }
 async function sendSms(to, body) {
@@ -9642,7 +9851,7 @@ app.get('/api/loi', (req, res) => {
 });
 const LOIS_FILE = path.join(BOV_DATA_DIR, 'lois.json');
 function loadLois() { try { return JSON.parse(fs.readFileSync(LOIS_FILE, 'utf8')) || []; } catch (e) { return []; } }
-function saveLois(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(LOIS_FILE, JSON.stringify(a || [], null, 2)); } catch (e) {} }
+function saveLois(a) { return writeJsonGuarded(LOIS_FILE, a || [], 'saveLois'); }
 function newLoiId() { return 'loi_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 app.get('/api/loi/parties', (req, res) => {
   const out = [];

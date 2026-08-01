@@ -87,17 +87,25 @@ function build(){
 }
 function show(){ if(DATA[TYPE]) render(DATA[TYPE]); else load(); }
 var _dupeAbort=null;
+var _mergeAllCancel=false;
+var PROG={onCancel:null,
+ _css:function(){ if(document.getElementById('dupprogcss')) return; var st=document.createElement('style'); st.id='dupprogcss'; st.textContent='@keyframes dupspin{to{transform:rotate(360deg)}}'; document.head.appendChild(st); },
+ show:function(title,onCancel,showBar){ this.onCancel=onCancel||null; this._css(); var o=document.getElementById('dupprog'); if(!o){ o=document.createElement('div'); o.id='dupprog'; o.style.cssText='position:fixed;inset:0;background:rgba(10,16,34,.45);display:flex;align-items:center;justify-content:center;z-index:1000'; o.innerHTML='<div style="background:#fff;border-radius:14px;padding:22px 24px;width:360px;max-width:90vw;box-shadow:0 18px 60px rgba(0,0,0,.3)"><div style="display:flex;align-items:center;gap:10px"><span style="width:15px;height:15px;border:2px solid #cdd6e6;border-top-color:#000E31;border-radius:50%;display:inline-block;animation:dupspin .8s linear infinite"></span><span id="dupprog_t" style="font-weight:700;color:#000E31;font-size:15px"></span></div><div id="dupprog_bw" style="background:#eef1f6;border-radius:999px;height:8px;margin:14px 0 8px;overflow:hidden;display:none"><div id="dupprog_bar" style="background:#000E31;height:100%;width:0;transition:width .2s"></div></div><div id="dupprog_m" style="color:#6b7488;font-size:12.5px;min-height:16px;margin-top:10px"></div><div style="text-align:right;margin-top:14px"><button type="button" id="dupprog_c" style="background:#fff;border:1px solid #d5dbe6;border-radius:9px;padding:8px 16px;font:inherit;font-size:13px;color:#5a6478;cursor:pointer">Cancel</button></div></div>'; document.body.appendChild(o); o.querySelector('#dupprog_c').addEventListener('click',function(){ var f=PROG.onCancel; if(typeof f==="function"){try{f();}catch(e){}} }); } document.getElementById('dupprog_bw').style.display=showBar?'':'none'; var cb=document.getElementById('dupprog_c'); if(cb) cb.style.display=onCancel?'':'none'; document.getElementById('dupprog_t').textContent=title||'Working…'; document.getElementById('dupprog_bar').style.width='0'; document.getElementById('dupprog_m').textContent=''; o.style.display='flex'; },
+ set:function(pct,msg){ var b=document.getElementById('dupprog_bar'); if(b&&pct!=null) b.style.width=Math.max(0,Math.min(100,pct))+'%'; var m=document.getElementById('dupprog_m'); if(m&&msg!=null) m.textContent=msg; },
+ setMsg:function(msg){ this.set(null,msg); },
+ hide:function(){ var o=document.getElementById('dupprog'); if(o) o.style.display='none'; this.onCancel=null; }
+};
 function load(){
   if(_dupeAbort){ try{_dupeAbort.abort();}catch(e){} }
   _dupeAbort=('AbortController' in window)?new AbortController():null;
-  AIW.show('Scanning your '+TYPE+' for duplicates… on a large book this can take a minute — you can keep it running or cancel.', function(){ if(_dupeAbort){ try{_dupeAbort.abort();}catch(e){} } AIW.hide(); document.getElementById('cnt').textContent=''; document.getElementById('list').innerHTML='<div class="empty"><b>Scan cancelled.</b> <a href="#" id="_rescanlink">Run it again</a> whenever you\'re ready.</div>'; var rl=document.getElementById('_rescanlink'); if(rl) rl.addEventListener('click',function(e){ e.preventDefault(); load(); }); });
+  PROG.show('Scanning your '+TYPE+' for duplicates… on a large book this can take a minute — you can keep it running or cancel.', function(){ if(_dupeAbort){ try{_dupeAbort.abort();}catch(e){} } PROG.hide(); document.getElementById('cnt').textContent=''; document.getElementById('list').innerHTML='<div class="empty"><b>Scan cancelled.</b> <a href="#" id="_rescanlink">Run it again</a> whenever you\'re ready.</div>'; var rl=document.getElementById('_rescanlink'); if(rl) rl.addEventListener('click',function(e){ e.preventDefault(); load(); }); });
   document.getElementById('cnt').innerHTML='<span class="spin"></span>Scanning your '+TYPE+'…';
   document.getElementById('list').innerHTML='';
   fetch('/api/admin/duplicates?type='+TYPE,{credentials:'same-origin',signal:_dupeAbort?_dupeAbort.signal:undefined}).then(function(r){return r.json();}).then(function(j){
-    AIW.hide();
+    PROG.hide();
     if(!j||!j.ok){ document.getElementById('list').innerHTML='<div class="empty">Could not scan. Try again.</div>'; document.getElementById('cnt').textContent=''; return; }
     DATA[TYPE]=j; render(j);
-  }).catch(function(e){ if(e&&e.name==='AbortError') return; AIW.hide(); document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; });
+  }).catch(function(e){ if(e&&e.name==='AbortError') return; PROG.hide(); document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; });
 }
 function fld(label,val){ if(!val) return ''; return '<div class="fld"><b>'+esc(label)+':</b> '+esc(val)+'</div>'; }
 function memberCard(g,m){
@@ -148,17 +156,17 @@ function render(j){
   if(!groups.length){ document.getElementById('list').innerHTML='<div class="empty"><b>No duplicates found.</b>Your '+TYPE+' look clean — scanned '+j.total+' records. Import more data, then rescan anytime.</div>'; c.textContent=''; return; }
   var recs=j.dupeRecords||0;
   groups.sort(function(a,b){ return (b.size||0)-(a.size||0); });
-  c.innerHTML='<b>'+groups.length+'</b> possible duplicate group'+(groups.length===1?'':'s')+' · <b>'+recs+'</b> records · scanned '+j.total;
+  c.innerHTML='<b>'+groups.length+'</b> possible duplicate group'+(groups.length===1?'':'s')+' · <b>'+recs+'</b> records · scanned '+j.total+ignoreNote(j);
   groups.forEach(function(g){ if(KEEP[g.key]==null) KEEP[g.key]=g.primaryId; });
   document.getElementById('list').innerHTML=groups.map(groupCard).join('');
   var ma=document.getElementById('mergeall'); if(ma) ma.style.display=groups.length?'':'none';
-  wire();
+  wire(); wireReset();
 }
 function wire(){
   document.querySelectorAll('.mc[data-g]').forEach(function(el){
     el.addEventListener('click',function(){ var gk=el.getAttribute('data-g'); KEEP[gk]=el.getAttribute('data-id'); ARMED[gk]=false; repaint(gk); });
   });
-  document.querySelectorAll('[data-skip]').forEach(function(b){ b.addEventListener('click',function(){ var gk=b.getAttribute('data-skip'); var g=document.getElementById('grp_'+gk); if(g) g.classList.add('gone'); afterRemove(gk); }); });
+  document.querySelectorAll('[data-skip]').forEach(function(b){ b.addEventListener('click',function(){ doSkip(b.getAttribute('data-skip')); }); });
   document.querySelectorAll('[data-merge]').forEach(function(b){ b.addEventListener('click',function(){ doMerge(b.getAttribute('data-merge')); }); });
 }
 function repaint(gk){
@@ -188,44 +196,61 @@ function afterRemove(gk){
   var c=document.getElementById('cnt');
   var _ma=document.getElementById('mergeall'); if(_ma) _ma.style.display=left?'':'none';
   if(!left){ document.getElementById('list').innerHTML='<div class="empty"><b>All clear.</b>No more duplicate groups in your '+TYPE+'. Nicely done. Rescan anytime.</div>'; c.textContent=''; }
-  else if(c){ c.innerHTML='<b>'+left+'</b> possible duplicate group'+(left===1?'':'s')+' · <b>'+recs+'</b> records'; }
+  else if(c){ c.innerHTML='<b>'+left+'</b> possible duplicate group'+(left===1?'':'s')+' · <b>'+recs+'</b> records'+ignoreNote(j); wireReset(); }
 }
+function doSkip(gk){
+  var g=grpData(gk); if(!g) return;
+  var ids=g.members.map(function(m){return m.id;});
+  var box=document.getElementById('grp_'+gk); var msg=document.getElementById('gmsg_'+gk);
+  var sb=box?box.querySelector('[data-skip]'):null; if(sb){sb.disabled=true;}
+  if(msg){msg.className='msg';msg.textContent='Remembering…';}
+  fetch('/api/admin/duplicates/ignore',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:TYPE,ids:ids})})
+   .then(function(r){return r.json();}).then(function(j){
+     if(j&&j.ok){ if(DATA[TYPE]) DATA[TYPE].ignored=j.ignored; if(box) box.classList.add('gone'); afterRemove(gk); }
+     else { if(sb){sb.disabled=false;} if(msg){msg.className='msg err';msg.textContent=(j&&j.error)||'Could not save.';} }
+   }).catch(function(){ if(sb){sb.disabled=false;} if(msg){msg.className='msg err';msg.textContent='Server unreachable.';} });
+}
+function ignoreNote(j){ var n=(j&&j.ignored)||0; if(!n) return ''; return ' · <span style="color:#8a93a8">'+n+' remembered as not-a-duplicate · <a href="#" id="_dupreset" style="color:#2647b0;text-decoration:underline">reset</a></span>'; }
+function wireReset(){ var r=document.getElementById('_dupreset'); if(!r) return; r.addEventListener('click',function(e){ e.preventDefault(); var n=(DATA[TYPE]&&DATA[TYPE].ignored)||0; window.rrgConfirm('Clear the '+n+' pair'+(n===1?'':'s')+' you marked as not-a-duplicate? They will be eligible to show up again on the next scan.',{title:'Reset remembered marks?',okText:'Reset'}).then(function(ok){ if(!ok) return; fetch('/api/admin/duplicates/ignore/reset',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({type:TYPE})}).then(function(r){return r.json();}).then(function(){ load(); }); }); }); }
 function mergeAll(){
   var j=DATA[TYPE]; if(!j||!j.groups||!j.groups.length) return;
   var groups=j.groups.slice();
   var totalMerge=groups.reduce(function(s,g){return s+((g.size||1)-1);},0);
-  var okConfirm=window.confirm('Merge ALL '+groups.length+' duplicate group'+(groups.length===1?'':'s')+' now?\n\nThis folds '+totalMerge+' record'+(totalMerge===1?'':'s')+' into their keepers. For each group the highlighted keeper is retained and every other record merges into it \u2014 all contacts, deals, agreements, concepts and locations move to the keeper.\n\nThis can\u2019t be undone. Click OK to merge everything.');
-  if(!okConfirm) return;
-  var mab=document.getElementById('mergeall'); if(mab){mab.disabled=true;mab.textContent='Merging\u2026';}
-  var rb=document.getElementById('rescan'); if(rb) rb.disabled=true;
-  var url = TYPE==='companies' ? '/api/company/merge' : '/api/person/merge';
-  var i=0, ok=0, fail=0;
-  function next(){
-    if(i>=groups.length){ finishMergeAll(ok,fail); return; }
-    var g=groups[i++]; var gk=g.key;
-    var keepId=(KEEP[gk]!=null)?KEEP[gk]:g.primaryId;
-    var mergeIds=g.members.map(function(m){return m.id;}).filter(function(id){return id!==keepId;});
-    var box=document.getElementById('grp_'+gk);
-    var msg=document.getElementById('gmsg_'+gk); if(msg){msg.className='msg';msg.textContent='Merging\u2026';}
-    if(mab) mab.textContent='Merging '+i+' / '+groups.length+'\u2026';
-    if(!mergeIds.length){ ok++; if(box) box.classList.add('gone'); next(); return; }
-    fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({keepId:keepId,mergeIds:mergeIds})})
-     .then(function(r){ return r.text().then(function(t){ var jj=null; try{ jj=JSON.parse(t); }catch(e){} return jj; }); })
-     .then(function(jj){ if(jj&&jj.ok){ ok++; if(box) box.classList.add('gone'); } else { fail++; if(msg){msg.className='msg err';msg.textContent=(jj&&jj.error)||'Could not merge';} } next(); })
-     .catch(function(){ fail++; if(msg){msg.className='msg err';msg.textContent='Server unreachable';} next(); });
-  }
-  next();
+  window.rrgConfirm('This folds '+totalMerge+' record'+(totalMerge===1?'':'s')+' into their keepers across '+groups.length+' group'+(groups.length===1?'':'s')+'. For each group the highlighted keeper is retained and every other record merges into it — all links, deals, agreements and history move to the keeper. This can’t be undone.',{title:'Merge all '+groups.length+' group'+(groups.length===1?'':'s')+'?',okText:'Merge all',danger:true}).then(function(okConfirm){
+   if(!okConfirm) return;
+   var mab=document.getElementById('mergeall'); if(mab){mab.disabled=true;mab.textContent='Merging…';}
+   var rb=document.getElementById('rescan'); if(rb) rb.disabled=true;
+   var url = TYPE==='companies' ? '/api/company/merge-bulk' : '/api/person/merge-bulk';
+   var payload=groups.map(function(g){ var keepId=(KEEP[g.key]!=null)?KEEP[g.key]:g.primaryId; var mergeIds=g.members.map(function(m){return m.id;}).filter(function(id){return id!==keepId;}); return {key:g.key,keepId:keepId,mergeIds:mergeIds}; }).filter(function(x){return x.mergeIds.length;});
+   if(!payload.length){ finishBulk(0,0,0,false); return; }
+   var CH=50; var chunks=[]; for(var k=0;k<payload.length;k+=CH) chunks.push(payload.slice(k,k+CH));
+   _mergeAllCancel=false;
+   PROG.show('Merging '+payload.length+' group'+(payload.length===1?'':'s')+'…', function(){ _mergeAllCancel=true; PROG.setMsg('Finishing this batch, then stopping…'); }, true);
+   var ci=0, okGroups=0, okRecords=0, fail=0, done=0;
+   function nextChunk(){
+     if(_mergeAllCancel){ finishBulk(okGroups,okRecords,fail, ci<chunks.length); return; }
+     if(ci>=chunks.length){ finishBulk(okGroups,okRecords,fail,false); return; }
+     var chunk=chunks[ci++];
+     PROG.set(Math.round((done/payload.length)*100), 'Merged '+done+' / '+payload.length+' groups'+(fail?(' · '+fail+' failed'):''));
+     fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({groups:chunk.map(function(x){return {keepId:x.keepId,mergeIds:x.mergeIds};})})})
+      .then(function(r){ return r.text().then(function(t){ var jj=null; try{ jj=JSON.parse(t); }catch(e){} return jj; }); })
+      .then(function(jj){ if(jj&&jj.ok){ okGroups+=jj.mergedGroups||0; okRecords+=jj.mergedRecords||0; chunk.forEach(function(x){ var box=document.getElementById('grp_'+x.key); if(box) box.classList.add('gone'); }); } else { fail+=chunk.length; } done+=chunk.length; PROG.set(Math.round((done/payload.length)*100), 'Merged '+done+' / '+payload.length+' groups'+(fail?(' · '+fail+' failed'):'')); nextChunk(); })
+      .catch(function(){ fail+=chunk.length; done+=chunk.length; nextChunk(); });
+   }
+   nextChunk();
+  });
 }
-function finishMergeAll(ok,fail){
-  var j=DATA[TYPE];
-  if(j){ var remain=[]; (j.groups||[]).forEach(function(g){ var box=document.getElementById('grp_'+g.key); if(!(box&&box.classList.contains('gone'))) remain.push(g); }); j.groups=remain; }
+function finishBulk(okGroups,okRecords,fail,cancelled){
+  PROG.hide();
   var mab=document.getElementById('mergeall'); if(mab){mab.disabled=false;mab.textContent='Merge all';}
   var rb=document.getElementById('rescan'); if(rb) rb.disabled=false;
+  var j=DATA[TYPE];
+  if(j){ var remain=[]; (j.groups||[]).forEach(function(g){ var box=document.getElementById('grp_'+g.key); if(!(box&&box.classList.contains('gone'))) remain.push(g); }); j.groups=remain; }
   var left=(j&&j.groups)?j.groups.length:0;
   var c=document.getElementById('cnt');
   if(mab) mab.style.display=left?'':'none';
-  if(!left){ document.getElementById('list').innerHTML='<div class="empty"><b>All clear.</b>Merged '+ok+' group'+(ok===1?'':'s')+(fail?(' \u00b7 '+fail+' could not merge (see messages above)'):'')+'. No more duplicate groups in your '+TYPE+'.</div>'; if(c) c.textContent=''; }
-  else if(c){ var recs=j.groups.reduce(function(s,g){return s+g.size;},0); c.innerHTML='<b>'+left+'</b> possible duplicate group'+(left===1?'':'s')+' \u00b7 <b>'+recs+'</b> records'+(fail?(' \u00b7 '+fail+' could not merge'):''); }
+  if(!left){ document.getElementById('list').innerHTML='<div class="empty"><b>All clear.</b>Merged '+okRecords+' record'+(okRecords===1?'':'s')+' into '+okGroups+' keeper'+(okGroups===1?'':'s')+(fail?(' · '+fail+' group'+(fail===1?'':'s')+' could not merge'):'')+'. Rescan anytime.</div>'; if(c) c.textContent=''; }
+  else if(c){ var recs=j.groups.reduce(function(s,g){return s+g.size;},0); c.innerHTML=(cancelled?('<b>Stopped.</b> Merged '+okRecords+' record'+(okRecords===1?'':'s')+' · '):'')+'<b>'+left+'</b> possible duplicate group'+(left===1?'':'s')+' · <b>'+recs+'</b> records'+(fail?(' · '+fail+' could not merge'):'')+ignoreNote(j); wireReset(); }
 }
 fetch('/api/feedback',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.isAdmin){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to run duplicate cleanup.</div>'; return; }
