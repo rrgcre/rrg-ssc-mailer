@@ -983,7 +983,7 @@ app.get('/api/users-list', (req, res) => {
 });
 
 // ---- Self-service account: view/edit own contact info + change own password ----
-app.get('/api/me', (req, res) => res.json({ ok: true, profile: auth.profileOf(auth.findUser(req.user.username)) }));
+app.get('/api/me', (req, res) => { const prof = auth.profileOf(auth.findUser(req.user.username)); if (prof && prof.photoExt) { prof.photoUrl = '/api/userphoto/' + String(req.user.username).replace(/[^a-z0-9_.-]/gi,'_') + '.' + prof.photoExt; } res.json({ ok: true, profile: prof }); });
 
 app.post('/api/me/profile', express.json(), (req, res) => {
   try {
@@ -4379,6 +4379,46 @@ async function googleCalendarPush(req) {
   saveAppts(appts);
   return { pushed, failed };
 }
+function reminderCalName(){ try { var n = (typeof loadAppName === 'function') ? loadAppName() : ''; return (n || 'RRG') + ' Reminders'; } catch (e) { return 'RRG Reminders'; } }
+async function ensureReminderCalendar(u){
+  const name = reminderCalName();
+  let pageToken = '', found = '';
+  do {
+    const j = await gmail.gapiJSON(u, 'https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250' + (pageToken ? ('&pageToken=' + encodeURIComponent(pageToken)) : ''), {});
+    (j.items || []).forEach(function(it){ if (!found && String(it.summary || '') === name) found = it.id; });
+    pageToken = j.nextPageToken || '';
+  } while (pageToken && !found);
+  if (found) return found;
+  const created = await gmail.gapiJSON(u, 'https://www.googleapis.com/calendar/v3/calendars', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ summary: name, timeZone: GSYNC_TZ }) });
+  return created && created.id;
+}
+function _remNextDay(d){ const dt = new Date(String(d).slice(0,10) + 'T00:00:00Z'); dt.setUTCDate(dt.getUTCDate() + 1); return dt.toISOString().slice(0,10); }
+async function googleTaskReminderPush(req){
+  const u = (req.user && req.user.username) || '';
+  const calId = await ensureReminderCalendar(u);
+  if (!calId) throw new Error('Could not create the reminders calendar.');
+  const tasks = loadTasks(); let pushed = 0, failed = 0; const now = new Date().toISOString();
+  for (const t of tasks) {
+    if (t.googleReminderEventId) continue;
+    if (t.status && t.status !== 'open') continue;
+    if (t.assignee !== u) continue;
+    const due = String(t.due || '').slice(0,10); if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) continue;
+    const body = { summary: '\u23f0 ' + String(t.title || 'Task').slice(0,240), description: String(t.notes || '').slice(0,1000), start: { date: due }, end: { date: _remNextDay(due) } };
+    try { const j = await gmail.gapiJSON(u, 'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(calId) + '/events', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); if (j && j.id) { t.googleReminderEventId = j.id; t.googleReminderCalId = calId; t.updatedAt = now; pushed++; } }
+    catch (e) { failed++; if (e && (e.status === 403 || e.status === 401)) throw e; }
+  }
+  saveTasks(tasks);
+  return { pushed, failed, calendar: reminderCalName() };
+}
+app.post('/api/google/sync/reminders', express.json(), async (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  { const _st = gmail.statusFor(u); if (!_st.connected) return res.status(400).json({ ok: false, error: 'Connect your Google account first (Account \u2192 Gmail).' }); if (!_st.hasCalendar) return res.status(400).json({ ok: false, error: 'Calendar permission was not granted. Click Reconnect on the Gmail card and check the Calendar box on Google\u2019s consent screen.' }); }
+  try {
+    const push = await googleTaskReminderPush(req);
+    logSysEvent(req, 'Google Sync', 'Task reminders push \u2014 ' + push.pushed + ' added to ' + push.calendar, { tool: 'google-sync', kind: 'reminders' });
+    res.json({ ok: true, pushed: push.pushed, failed: push.failed, calendar: push.calendar });
+  } catch (e) { console.error('gsync reminders:', e && e.message); res.status(502).json({ ok: false, error: _gErr(e) }); }
+});
 app.get('/api/google/sync/status', (req, res) => {
   const u = (req.user && req.user.username) || '';
   const st = gmail.statusFor(u);
@@ -4738,6 +4778,41 @@ function applyLocationFields(l, b) {
 // Location photos — a couple of images per location, stored on the data disk.
 const LOCPHOTO_DIR = path.join(BOV_DATA_DIR, 'locphotos');
 const LOCPHOTO_MAX = 5;
+const USERPHOTO_DIR = path.join(BOV_DATA_DIR, 'userphotos');
+function userPhotoFile(username, ext){ return path.join(USERPHOTO_DIR, String(username).replace(/[^a-z0-9_.-]/gi,'_') + '.' + ext); }
+app.post('/api/me/photo', express.json({ limit: '8mb' }), (req, res) => {
+  const uname = req.user && req.user.username; if (!uname) return res.status(401).json({ ok:false, error:'Not signed in.' });
+  const dataB64 = String((req.body && req.body.dataB64) || '').replace(/^data:[^,]*,/, '');
+  if (!dataB64) return res.status(400).json({ ok:false, error:'No image data.' });
+  const ext = photoExtFromName((req.body && req.body.filename) || '');
+  const buf = Buffer.from(dataB64, 'base64');
+  if (buf.length > 6 * 1024 * 1024) return res.status(400).json({ ok:false, error:'Image too large (max 6 MB).' });
+  try {
+    if (!fs.existsSync(USERPHOTO_DIR)) fs.mkdirSync(USERPHOTO_DIR, { recursive: true });
+    const cur = auth.profileOf(auth.findUser(uname));
+    if (cur && cur.photoExt && cur.photoExt !== ext) { try { fs.unlinkSync(userPhotoFile(uname, cur.photoExt)); } catch (e) {} }
+    fs.writeFileSync(userPhotoFile(uname, ext), buf);
+  } catch (e) { return res.status(500).json({ ok:false, error:'Could not save the photo.' }); }
+  try { auth.setUserPhoto(uname, ext); } catch (e) { return res.status(500).json({ ok:false, error:String((e && e.message) || e) }); }
+  res.json({ ok:true, hasPhoto:true, photoUrl:'/api/userphoto/' + String(uname).replace(/[^a-z0-9_.-]/gi,'_') + '.' + ext + '?v=' + Date.now() });
+});
+app.post('/api/me/photo/clear', (req, res) => {
+  const uname = req.user && req.user.username; if (!uname) return res.status(401).json({ ok:false });
+  const cur = auth.profileOf(auth.findUser(uname));
+  if (cur && cur.photoExt) { try { fs.unlinkSync(userPhotoFile(uname, cur.photoExt)); } catch (e) {} }
+  try { auth.clearUserPhoto(uname); } catch (e) {}
+  res.json({ ok:true, hasPhoto:false });
+});
+app.get('/api/userphoto/:name', (req, res) => {
+  const name = path.basename(String(req.params.name || ''));
+  if (!/^[a-z0-9_.-]+\.(png|jpg|jpeg|webp|gif)$/i.test(name)) return res.status(400).end();
+  const fp = path.join(USERPHOTO_DIR, name);
+  if (!fp.startsWith(USERPHOTO_DIR) || !fs.existsSync(fp)) return res.status(404).end();
+  const ext = name.split('.').pop().toLowerCase();
+  res.setHeader('Content-Type', ext==='png'?'image/png':(ext==='webp'?'image/webp':(ext==='gif'?'image/gif':'image/jpeg')));
+  res.setHeader('Cache-Control', 'no-cache');
+  try { res.send(fs.readFileSync(fp)); } catch (e) { res.status(404).end(); }
+});
 function photoExtFromName(n) { const m = String(n || '').toLowerCase().match(/\.(png|jpg|jpeg|webp|gif)$/); return m ? (m[1] === 'jpeg' ? 'jpg' : m[1]) : 'jpg'; }
 // ---- Google Maps integration (Street View + Places photos) — key stays server-side ----
 // Stored as *.key so it is excluded from data backups.
@@ -9065,10 +9140,38 @@ function permOwnerMatch(req, owner) { if (!owner) return true; const u = req.use
 function restrictToOwn(req) { if (!permsEnabled()) return false; if (req.user && isSuper(req.user)) return false; return !effectivePerms(req.user).see_all; }
 function canSeeAllDeals(req) { if (req.user && isSuper(req.user)) return true; return permsEnabled() && !!effectivePerms(req.user).see_all; }
 
+app.get('/api/reports/summary', (req, res) => {
+  try {
+    const days = Math.max(1, Math.min(3650, parseInt(req.query.days, 10) || 30));
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - (days - 1) * 86400000).toISOString().slice(0, 10);
+    const people = loadPeople();
+    const companies = loadCompanies();
+    const users = auth.loadUsers();
+    const userName = {}, userPhoto = {}; users.forEach(u => { userName[u.username] = u.name || u.username; userPhoto[u.username] = u.photoExt || ''; });
+    const inPeriod = d => { d = String(d || '').slice(0, 10); return d && d >= cutoff; };
+    const newContacts = people.filter(p => inPeriod(p.createdAt));
+    const newCompanies = companies.filter(c => inPeriod(c.createdAt));
+    const bySource = {}; newContacts.forEach(p => { const k = (p.leadSource || 'Unknown'); bySource[k] = (bySource[k] || 0) + 1; });
+    const dayCounts = {}; newContacts.forEach(p => { const d = String(p.createdAt).slice(0, 10); dayCounts[d] = (dayCounts[d] || 0) + 1; });
+    const leadsSeries = []; for (let i = days - 1; i >= 0; i--) { const d = new Date(now.getTime() - i * 86400000).toISOString().slice(0, 10); leadsSeries.push({ date: d, count: dayCounts[d] || 0 }); }
+    const actTypes = effActivityTypes();
+    const byUser = {};
+    people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { const d = (a.date && /^\d{4}-\d{2}-\d{2}$/.test(a.date)) ? a.date : String(a.at || '').slice(0, 10); if (!(d && d >= cutoff)) return; const uu = a.byUser || '(unassigned)'; if (!byUser[uu]) byUser[uu] = { user: uu, name: userName[uu] || uu, photoExt: userPhoto[uu] || '', total: 0, counts: {} }; const ty = String(a.type || 'Note'); byUser[uu].counts[ty] = (byUser[uu].counts[ty] || 0) + 1; byUser[uu].total++; }); });
+    const activityByUser = Object.keys(byUser).map(k => byUser[k]).sort((a, b) => b.total - a.total);
+    const typeTotals = {}; activityByUser.forEach(u => { Object.keys(u.counts).forEach(t => { typeTotals[t] = (typeTotals[t] || 0) + u.counts[t]; }); });
+    const leadsByUser = {}; newContacts.forEach(p => { const uu = p.byUser || '(unassigned)'; if (!leadsByUser[uu]) leadsByUser[uu] = { user: uu, name: userName[uu] || uu, count: 0 }; leadsByUser[uu].count++; });
+    res.json({ ok: true, days, cutoff, generatedAt: now.toISOString(),
+      totals: { newContacts: newContacts.length, newCompanies: newCompanies.length, totalContacts: people.length, totalCompanies: companies.length, activities: activityByUser.reduce((sm, u) => sm + u.total, 0) },
+      leadsSeries, leadsBySource: bySource,
+      activityByUser, activityTypes: actTypes, typeTotals,
+      leadsByUser: Object.keys(leadsByUser).map(k => leadsByUser[k]).sort((a, b) => b.count - a.count) });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 app.get('/api/admin/permissions', requireAdmin, (req, res) => {
   res.json({
     ok: true, enabled: permsEnabled(), core: PERM_CORE, tools: GATEABLE_TOOLS, roles: loadRoles(),
-    users: auth.loadUsers().map(u => ({ username: u.username, name: u.name || u.username, role: u.role || 'associate', perms: (u.perms && typeof u.perms === 'object') ? u.perms : {}, commissionSplit: u.commissionSplit || '', disabled: !!u.disabled })),
+    users: auth.loadUsers().map(u => ({ username: u.username, name: u.name || u.username, role: u.role || 'associate', perms: (u.perms && typeof u.perms === 'object') ? u.perms : {}, commissionSplit: u.commissionSplit || '', disabled: !!u.disabled, photoExt: u.photoExt || '' })),
   });
 });
 app.post('/api/admin/permissions/toggle', requireAdmin, express.json(), (req, res) => {

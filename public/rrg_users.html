@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — Roles &amp; Permissions</title>
+<title>RRG — Users</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
@@ -44,6 +44,7 @@ table{width:100%;border-collapse:collapse;font-size:13px;} th{text-align:left;fo
 .ovpanel{background:var(--wash);border:1px solid var(--line);border-radius:10px;padding:14px;margin-top:8px;}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);}
 .foot{max-width:1000px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+.uav{width:34px;height:34px;border-radius:50%;background:#eef1f6;border:1px solid var(--line);overflow:hidden;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;margin-right:10px;background-size:cover;background-position:center;font-size:12px;font-weight:800;color:#8a93a8;flex:0 0 auto;} .uname{display:flex;align-items:center;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -52,13 +53,15 @@ table{width:100%;border-collapse:collapse;font-size:13px;} th{text-align:left;fo
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Admin</div>
-  <h1>Roles &amp; Permissions</h1>
-  <div class="sub">Define roles, assign them to users, and override individual switches per user. Nothing is restricted until you turn on <b>Enforce permissions</b>. Admin only.</div>
+  <h1>Users</h1>
+  <div class="sub">Everyone with access to FullServe. Assign each person a role, set their commission split, override individual switches, or hand a book off to another rep. Admin only.</div>
 </div></div>
 <div id="root" class="wrap"><div class="gate">Loading…</div></div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function uInit(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'').toUpperCase()+((p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
+function uAvatar(u){ var un=String(u.username||'').replace(/[^a-z0-9_.-]/gi,'_'); if(u.photoExt){ return '<span class="uav" style="background-image:url(/api/userphoto/'+un+'.'+esc(u.photoExt)+')"></span>'; } return '<span class="uav">'+esc(uInit(u.name))+'</span>'; }
 function get(u){return fetch(u,{credentials:'same-origin'}).then(function(r){return r.json();});}
 function post(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(b||{})}).then(function(r){return r.json();});}
 var ST=null, SELROLE='associate', OVUSER=null;
@@ -93,7 +96,7 @@ function render(){
   var roleOpts=(ST.roles||[]).map(function(r){return '<option value="'+esc(r.key)+'">'+esc(r.name)+'</option>';}).join('');
   var urows=(ST.users||[]).map(function(u){
     var ovcount=Object.keys(u.perms||{}).length;
-    return '<tr><td><b>'+esc(u.name)+'</b><div style="font-size:11.5px;color:#98a1b5">'+esc(u.username)+(u.disabled?' · disabled':'')+'</div></td>'
+    return '<tr><td><div class="uname">'+uAvatar(u)+'<div><b>'+esc(u.name)+'</b><div style="font-size:11.5px;color:#98a1b5">'+esc(u.username)+(u.disabled?' · disabled':'')+'</div></div></div></td>'
       +'<td><select data-urole="'+esc(u.username)+'">'+roleOpts+'</select></td>'
       +'<td><input class="splitin" data-usplit="'+esc(u.username)+'" value="'+esc(u.commissionSplit||'')+'" placeholder="—" style="width:74px;border:1px solid #cfd6e2;border-radius:7px;padding:5px 8px;font:inherit;font-size:13px"></td>'
       +'<td>'+(ovcount?('<span class="pill on" style="text-transform:none">'+ovcount+' override'+(ovcount===1?'':'s')+'</span>'):'<span style="color:#98a1b5">—</span>')+'</td>'
@@ -106,7 +109,7 @@ function render(){
   var repOpts='<option value="">— pick —</option>'+(ST.users||[]).map(function(u){return '<option value="'+esc(u.username)+'">'+esc(u.name)+'</option>';}).join('');
   var reassign='<div class="card"><div class="ch"><b>Reassign accounts</b><span>hand one rep\'s contacts &amp; companies to another</span></div><div class="cb"><div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div><label class="fld">From</label><select id="raFrom">'+repOpts+'</select></div><div><label class="fld">To</label><select id="raTo">'+repOpts+'</select></div><button class="btn sm" id="raGo">Reassign</button><span id="raMsg" class="msg"></span></div><div class="note" style="margin-top:8px">Moves ownership of every contact and company owned by the first rep to the second. Useful when someone leaves or hands off a book.</div></div></div>';
 
-  root.innerHTML=master+rolesCard; if((location.hash||'').toLowerCase()==='#roles'){ setTimeout(function(){ var el=document.getElementById('rolesSection'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },80); }
+  root.innerHTML=usersCard+reassign; if((location.hash||'').toLowerCase()==='#roles'){ setTimeout(function(){ var el=document.getElementById('rolesSection'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },80); }
 
   // set user role dropdown values
   (ST.users||[]).forEach(function(u){ var el=document.querySelector('[data-urole="'+u.username+'"]'); if(el) el.value=u.role||'associate'; });

@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Reports</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:26px 0 28px;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1180px;margin:0 auto;padding:0 24px;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;}
+.bar{background:#fff;width:3px;height:28px;margin:0 12px;} .wm{font-weight:800;font-size:13px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:18px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+h1{font-size:27px;font-weight:800;margin:0;color:#fff;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:720px;}
+.wrap{max-width:1180px;margin:22px auto;padding:0 24px 70px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);margin-bottom:20px;overflow:hidden;}
+.ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);} .ch b{color:var(--navy);font-size:15px;} .ch span{color:var(--muted);font-size:12px;} .ch .sp{margin-left:auto;}
+.cb{padding:18px 20px;}
+.ctlbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:18px;}
+.rbtn{background:#fff;border:1px solid #cdd6e6;border-radius:9px;padding:8px 14px;font:inherit;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer;}
+.rbtn.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.gen{margin-left:auto;color:var(--muted);font-size:12px;}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:6px;} @media(max-width:820px){.kpis{grid-template-columns:repeat(2,1fr);}}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 6px 24px rgba(10,20,50,.06);}
+.kpi .n{font-size:30px;font-weight:800;color:var(--navy);line-height:1;} .kpi .l{font-size:12px;color:var(--muted);margin-top:7px;font-weight:600;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;} @media(max-width:820px){.grid2{grid-template-columns:1fr;}}
+.legend{display:flex;flex-wrap:wrap;gap:10px 16px;margin:2px 0 14px;} .legend .lg{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink);} .legend .sw{width:12px;height:12px;border-radius:3px;display:inline-block;}
+table{width:100%;border-collapse:collapse;font-size:13px;} th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);font-weight:800;padding:9px 10px;border-bottom:1px solid var(--line);} td{padding:9px 10px;border-bottom:1px solid #f1f3f7;} th.num,td.num{text-align:right;}
+.uc{display:flex;align-items:center;gap:10px;} .uav{width:30px;height:30px;border-radius:50%;background:#eef1f6;border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:#8a93a8;background-size:cover;background-position:center;flex:0 0 auto;}
+.barrow{display:flex;align-items:center;gap:12px;margin:9px 0;} .barrow .lbl{width:150px;flex:0 0 auto;font-size:12.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} .barrow .track{flex:1;height:22px;background:#f3f5f9;border-radius:6px;overflow:hidden;display:flex;} .barrow .tot{width:44px;text-align:right;font-size:12.5px;font-weight:800;color:var(--navy);}
+.seg{height:100%;} 
+.srcrow{display:flex;align-items:center;gap:12px;margin:8px 0;} .srcrow .lbl{width:160px;flex:0 0 auto;font-size:12.5px;color:var(--ink);} .srcrow .track{flex:1;height:16px;background:#f3f5f9;border-radius:5px;overflow:hidden;} .srcrow .fill{height:100%;background:#4a6fc4;border-radius:5px;} .srcrow .v{width:36px;text-align:right;font-size:12.5px;font-weight:700;color:var(--navy);}
+.linkbtn{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid #cdd6e6;border-radius:9px;padding:9px 14px;font:inherit;font-size:13px;font-weight:700;color:var(--navy);text-decoration:none;margin:4px 8px 4px 0;}
+.gate{max-width:520px;margin:70px auto;text-align:center;color:var(--muted);}
+.empty{color:var(--muted);font-size:13px;padding:14px 4px;}
+.foot{max-width:1180px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+svg{display:block;max-width:100%;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="./index.html" class="rrg-back" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span style="font-size:14px;line-height:1">←</span> Dashboard</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Analytics</div>
+  <h1>Reports</h1>
+  <div class="sub">Leads, pipeline growth and team activity at a glance. Pick a time window; every chart and table below updates to that period.</div>
+</div></div>
+<div id="root" class="wrap"><div class="gate">Loading…</div></div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<script>
+var API=(String(location.protocol).indexOf('http')===0?location.origin:'');
+var RANGE=30, DATA=null;
+var PALETTE=['#4a6fc4','#6bbf95','#dfa937','#c77dc0','#e07a5f','#4fb0a6','#8a7fd0','#d98aa8','#5b8def','#9bb04a','#c98a5e','#7ea6d8','#b56db0','#59b06b','#d0a24a','#6f6fb0'];
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function initials(n){ n=String(n||'').trim(); if(!n||n==='(unassigned)') return '—'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'').toUpperCase()+((p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
+function colorFor(list){ var m={}; list.forEach(function(t,i){ m[t]=PALETTE[i%PALETTE.length]; }); return m; }
+
+function ctlbar(){
+  var opts=[[7,'7 days'],[30,'30 days'],[90,'90 days'],[365,'12 months']];
+  var b=opts.map(function(o){ return '<button class="rbtn'+(RANGE===o[0]?' on':'')+'" data-r="'+o[0]+'">'+o[1]+'</button>'; }).join('');
+  var gen=DATA?('Generated '+new Date(DATA.generatedAt).toLocaleString()):'';
+  return '<div class="ctlbar">'+b+'<span class="gen">'+esc(gen)+'</span></div>';
+}
+function kpis(t){
+  function card(n,l){ return '<div class="kpi"><div class="n">'+n+'</div><div class="l">'+esc(l)+'</div></div>'; }
+  return '<div class="kpis">'+card(t.newContacts,'New leads (contacts)')+card(t.newCompanies,'New companies')+card(t.activities,'Activities logged')+card(t.totalContacts,'Total contacts')+'</div>';
+}
+function bucket(series){
+  // aggregate daily series into at most ~40 buckets
+  var n=series.length, maxB=40; if(n<=maxB) return series.map(function(x){ return {label:x.date.slice(5), count:x.count, date:x.date}; });
+  var size=Math.ceil(n/maxB), out=[];
+  for(var i=0;i<n;i+=size){ var slice=series.slice(i,i+size); var c=slice.reduce(function(s,x){return s+x.count;},0); out.push({label:slice[0].date.slice(5), count:c, date:slice[0].date}); }
+  return out;
+}
+function leadsChart(series){
+  var data=bucket(series); if(!data.length) return '<div class="empty">No data.</div>';
+  var W=1100, H=240, padL=34, padB=34, padT=12, iw=W-padL-8, ih=H-padB-padT;
+  var max=Math.max(1,Math.max.apply(null,data.map(function(d){return d.count;})));
+  var bw=iw/data.length, bar=Math.max(2,Math.min(30,bw*0.7));
+  var bars=data.map(function(d,i){ var h=Math.round(ih*(d.count/max)); var x=padL+i*bw+(bw-bar)/2; var y=padT+ih-h; return '<rect x="'+x.toFixed(1)+'" y="'+y+'" width="'+bar.toFixed(1)+'" height="'+h+'" rx="2" fill="#4a6fc4"><title>'+esc(d.date)+': '+d.count+'</title></rect>'+(d.count?('<text x="'+(x+bar/2).toFixed(1)+'" y="'+(y-3)+'" text-anchor="middle" font-size="9" fill="#6b7488">'+d.count+'</text>'):''); }).join('');
+  var step=Math.ceil(data.length/12);
+  var labels=data.map(function(d,i){ if(i%step!==0) return ''; var x=padL+i*bw+bw/2; return '<text x="'+x.toFixed(1)+'" y="'+(H-12)+'" text-anchor="middle" font-size="9.5" fill="#8a93a8">'+esc(d.label)+'</text>'; }).join('');
+  var axis='<line x1="'+padL+'" y1="'+(padT+ih)+'" x2="'+(W-8)+'" y2="'+(padT+ih)+'" stroke="#e6e9f0"/>';
+  return '<svg viewBox="0 0 '+W+' '+H+'" width="100%">'+axis+bars+labels+'</svg>';
+}
+function activityChart(rows,types,cmap){
+  if(!rows.length) return '<div class="empty">No activity logged in this window.</div>';
+  var max=Math.max(1,Math.max.apply(null,rows.map(function(r){return r.total;})));
+  var body=rows.map(function(r){
+    var segs=types.map(function(t){ var v=r.counts[t]||0; if(!v) return ''; var pct=(v/max)*100; return '<div class="seg" style="width:'+pct.toFixed(2)+'%;background:'+cmap[t]+'" title="'+esc(t)+': '+v+'"></div>'; }).join('');
+    return '<div class="barrow"><span class="lbl" title="'+esc(r.name)+'">'+esc(r.name)+'</span><div class="track">'+segs+'</div><span class="tot">'+r.total+'</span></div>';
+  }).join('');
+  return body;
+}
+function activityTable(rows,types){
+  var head='<tr><th>Rep</th>'+types.map(function(t){return '<th class="num">'+esc(t)+'</th>';}).join('')+'<th class="num">Total</th></tr>';
+  var body=rows.map(function(r){
+    var un=String(r.user||'').replace(/[^a-z0-9_.-]/gi,'_');
+    var av=r.photoExt?('<span class="uav" style="background-image:url('+API+'/api/userphoto/'+un+'.'+esc(r.photoExt)+')"></span>'):('<span class="uav">'+esc(initials(r.name))+'</span>');
+    return '<tr><td><div class="uc">'+av+'<span>'+esc(r.name)+'</span></div></td>'+types.map(function(t){var v=r.counts[t]||0;return '<td class="num">'+(v||'<span style=\"color:#c2c9d6\">–</span>')+'</td>';}).join('')+'<td class="num"><b>'+r.total+'</b></td></tr>';
+  }).join('');
+  return '<div style="overflow:auto"><table><thead>'+head+'</thead><tbody>'+body+'</tbody></table></div>';
+}
+function sourceChart(bySource){
+  var arr=Object.keys(bySource).map(function(k){return {k:k,v:bySource[k]};}).sort(function(a,b){return b.v-a.v;});
+  if(!arr.length) return '<div class="empty">No new leads in this window.</div>';
+  var max=Math.max.apply(null,arr.map(function(x){return x.v;}));
+  return arr.map(function(x){ var pct=(x.v/max)*100; return '<div class="srcrow"><span class="lbl" title="'+esc(x.k)+'">'+esc(x.k)+'</span><div class="track"><div class="fill" style="width:'+pct.toFixed(1)+'%"></div></div><span class="v">'+x.v+'</span></div>'; }).join('');
+}
+function repLeads(rows){
+  if(!rows.length) return '<div class="empty">No new leads in this window.</div>';
+  var max=Math.max.apply(null,rows.map(function(x){return x.count;}));
+  return rows.map(function(x){ var pct=(x.count/max)*100; return '<div class="srcrow"><span class="lbl" title="'+esc(x.name)+'">'+esc(x.name)+'</span><div class="track"><div class="fill" style="width:'+pct.toFixed(1)+'%;background:#6bbf95"></div></div><span class="v">'+x.count+'</span></div>'; }).join('');
+}
+
+function render(){
+  var root=document.getElementById('root');
+  if(!DATA){ root.innerHTML=ctlbar()+'<div class="empty">Loading…</div>'; wireCtl(); return; }
+  var types=(DATA.activityTypes||[]).filter(function(t){ return (DATA.typeTotals||{})[t]; });
+  if(!types.length) types=Object.keys(DATA.typeTotals||{});
+  var cmap=colorFor(types);
+  var legend='<div class="legend">'+types.map(function(t){return '<span class="lg"><span class="sw" style="background:'+cmap[t]+'"></span>'+esc(t)+'</span>';}).join('')+'</div>';
+  var html=ctlbar()+kpis(DATA.totals)
+    +'<div class="card"><div class="ch"><b>Leads generated over time</b><span>new contacts added per day</span></div><div class="cb">'+leadsChart(DATA.leadsSeries)+'</div></div>'
+    +'<div class="card"><div class="ch"><b>Activity by user</b><span>calls, emails, tours &amp; more from the activity log</span></div><div class="cb">'+legend+activityChart(DATA.activityByUser,types,cmap)+'<div style="margin-top:18px">'+activityTable(DATA.activityByUser,types)+'</div></div></div>'
+    +'<div class="grid2"><div class="card"><div class="ch"><b>Leads by source</b></div><div class="cb">'+sourceChart(DATA.leadsBySource)+'</div></div>'
+    +'<div class="card"><div class="ch"><b>New leads by rep</b></div><div class="cb">'+repLeads(DATA.leadsByUser)+'</div></div></div>'
+    +'<div class="card"><div class="ch"><b>Full lists</b><span>open the complete book; filter and export from there</span></div><div class="cb"><a class="linkbtn" href="./rrg_people.html">◑ All contacts →</a><a class="linkbtn" href="./rrg_companies.html">▦ All companies →</a><a class="linkbtn" href="./rrg_agreements.html">⚖︎ Agreements →</a></div></div>';
+  root.innerHTML=html; wireCtl();
+}
+function wireCtl(){ document.querySelectorAll('[data-r]').forEach(function(b){ b.addEventListener('click',function(){ RANGE=parseInt(b.getAttribute('data-r'),10); load(); }); }); }
+function load(){
+  var root=document.getElementById('root');
+  var prev=root.innerHTML; render();
+  fetch(API+'/api/reports/summary?days='+RANGE,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ root.innerHTML='<div class="gate">Could not build reports. <a href="/admin">Back</a></div>'; return; }
+    DATA=j; render();
+  }).catch(function(){ root.innerHTML='<div class="gate">Could not reach the server.</div>'; });
+}
+load();
+</script>
+</body>
+</html>
