@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — API Keys & Integrations</title>
+<style>
+:root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2f6fd0;--teal:#12a594;--green:#1f8a5b;--amber:#B7791F;--red:#DA2B1F;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px;}
+.top-in{max-width:1140px;margin:0 auto;padding:0 24px;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:14px 0 4px;}
+h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:720px;line-height:1.5;}
+.crumb{font-size:12px;color:#9fb0d0;font-weight:600;margin-bottom:12px;} .crumb a{color:#c7d3ea;text-decoration:none;} .crumb a:hover{color:#fff;text-decoration:underline;} .crumb span{color:#6a7ba0;margin:0 7px;}
+.navcrumb{display:none;max-width:1180px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:#66738f;font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:#2f6fd0;text-decoration:none;} .navcrumb a:hover{text-decoration:underline;} .navcrumb span{color:#93a0ba;margin:0 7px;}
+.wrap{max-width:1140px;margin:22px auto;padding:0 24px 80px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:22px 24px;box-shadow:0 1px 3px rgba(16,32,70,.05);margin-bottom:16px;}
+.card h2{margin:0 0 3px;font-size:16px;font-weight:800;color:var(--ink);}
+.card .cs{display:block;margin:0 0 12px;font-size:12.5px;color:var(--dim);line-height:1.55;max-width:840px;}
+.card .cs b{color:var(--ink);}
+.state{font-size:12px;color:var(--dim);margin:0 0 8px;font-weight:600;}
+.inrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.grid3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:10px;} .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;} .gridEnd{display:grid;grid-template-columns:1fr auto;gap:14px;align-items:end;}
+@media(max-width:640px){.grid3,.grid2,.gridEnd{grid-template-columns:1fr;}}
+label.lb{display:block;font-size:12px;color:var(--dim);font-weight:600;margin-bottom:4px;}
+input.f,select.f{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;color:var(--navy);background:#fff;}
+input.key{flex:1;min-width:260px;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;color:var(--navy);}
+.btn{border:none;border-radius:9px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.btn.primary{background:var(--navy);color:#fff;} .btn.primary:hover{filter:brightness(1.12);}
+.btn.ghost{background:#f2f5fb;color:var(--navy);border:1px solid #dfe6f2;} .btn.ghost:hover{background:#e9eff8;}
+.msg{font-size:12.5px;color:var(--dim);min-height:16px;}
+.hint{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.5;} .hint b{color:var(--ink);}
+.chk{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--dim);font-weight:600;white-space:nowrap;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);} .gate h2{color:#000E31;}
+.rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<a href="./index.html" class="rrg-back"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <div class="crumb"><a href="./index.html">Command</a><span>›</span>API Keys &amp; Integrations</div>
+  <span class="disc" onclick="location.href='./index.html'">RRG</span>
+  <div class="kicker">Admin · Integrations</div>
+  <h1>API Keys &amp; Integrations</h1>
+  <div class="sub">Connect FullServe to the outside services it leans on — Google for location photos, your mail provider for outbound email, and Twilio for text reminders. Keys and secrets are stored on the server only, never sent to browsers or included in backups.</div>
+</div></div>
+<div class="navcrumb"><a href="./index.html">Command</a><span>›</span>API Keys &amp; Integrations</div>
+<div id="root" class="wrap">
+
+  <div class="card">
+    <h2>Google Maps API key</h2>
+    <span class="cs">Powers automatic location photos (Street View storefronts + Google Places business photos). Create a key in Google Cloud with the <b>Street View Static</b> and <b>Places</b> APIs enabled, then paste it here.</span>
+    <div class="state" id="gmstate">Loading…</div>
+    <div class="inrow">
+      <input type="password" id="gmapsKey" class="key" placeholder="Paste Google Maps API key" autocomplete="off">
+      <button class="btn primary" onclick="saveGmapsKey()">Save key</button>
+      <button class="btn ghost" onclick="testGmaps()">Test key</button>
+      <button class="btn ghost" onclick="clearGmapsKey()">Remove</button>
+      <span id="gmmsg" class="msg"></span>
+    </div>
+    <div class="hint">Once set, a “Pull photo” button appears on every location and the location finder auto-fetches a storefront for each unit it adds.</div>
+  </div>
+
+  <div class="card">
+    <h2>Email (SMTP)</h2>
+    <span class="cs">Outbound email for the app: contact emails, document sends, and alert digests. Enter your mail provider’s SMTP details (Gmail, SendGrid, etc.). Use the test button to confirm it works before relying on it.</span>
+    <div class="state" id="emState">Loading…</div>
+    <div class="grid3">
+      <div><label class="lb">SMTP host</label><input id="em_host" class="f" placeholder="smtp.gmail.com" autocomplete="off"></div>
+      <div><label class="lb">Port</label><input id="em_port" class="f" placeholder="587" autocomplete="off"></div>
+      <div><label class="lb">Security</label><select id="em_secure" class="f"><option value="false">STARTTLS (587)</option><option value="true">SSL/TLS (465)</option></select></div>
+    </div>
+    <div class="grid2" style="margin-top:10px">
+      <div><label class="lb">Username</label><input id="em_user" class="f" placeholder="van@rrgcre.com" autocomplete="off"></div>
+      <div><label class="lb">Password / app password</label><input type="password" id="em_pass" class="f" placeholder="app password" autocomplete="new-password"></div>
+    </div>
+    <div class="gridEnd" style="margin-top:10px">
+      <div><label class="lb">From address</label><input id="em_from" class="f" placeholder="Restaurant Realty Group &lt;van@rrgcre.com&gt;" autocomplete="off"></div>
+      <label class="chk" style="padding-bottom:10px"><input type="checkbox" id="em_enabled" checked> Email enabled</label>
+    </div>
+    <div class="inrow" style="margin-top:12px">
+      <button class="btn primary" onclick="saveEmail()">Save email settings</button>
+      <input id="em_test" class="f" style="min-width:220px;flex:0 1 auto" placeholder="send test to you@email.com" autocomplete="off">
+      <button class="btn ghost" onclick="testEmail()">Send test</button>
+      <span id="emMsg" class="msg"></span>
+    </div>
+    <div class="hint">Gmail: use an <b>app password</b> (myaccount.google.com/apppasswords), host <b>smtp.gmail.com</b>, port <b>587</b>. Leave the password blank when saving to keep the current one.</div>
+  </div>
+
+  <div class="card">
+    <h2>SMS (Twilio)</h2>
+    <span class="cs">Outbound text messages for task reminders. Create a Twilio account, then paste your Account SID, Auth Token, and a Twilio phone number. Reps are texted at the phone number on their user profile.</span>
+    <div class="state" id="smsState">Loading…</div>
+    <div class="grid2">
+      <div><label class="lb">Account SID</label><input id="sms_sid" class="f" placeholder="ACxxxxxxxxxxxx" autocomplete="off"></div>
+      <div><label class="lb">Auth Token</label><input type="password" id="sms_token" class="f" placeholder="auth token" autocomplete="new-password"></div>
+    </div>
+    <div class="gridEnd" style="margin-top:10px">
+      <div><label class="lb">From number (Twilio)</label><input id="sms_from" class="f" placeholder="+15125551234" autocomplete="off"></div>
+      <label class="chk" style="padding-bottom:10px"><input type="checkbox" id="sms_enabled" checked> SMS enabled</label>
+    </div>
+    <div class="inrow" style="margin-top:12px">
+      <button class="btn primary" onclick="saveSms()">Save SMS settings</button>
+      <input id="sms_test" class="f" style="min-width:200px;flex:0 1 auto" placeholder="send test to +1512..." autocomplete="off">
+      <button class="btn ghost" onclick="testSms()">Send test</button>
+      <span id="smsMsg" class="msg"></span>
+    </div>
+    <div class="hint">Get credentials at twilio.com (Console). Leave the token blank when saving to keep the current one.</div>
+  </div>
+
+</div>
+<script>
+function post(url,body){ return fetch(url,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json();}); }
+function gate(){ document.getElementById('root').innerHTML='<div class="gate"><h2>Admins only</h2>Ask an administrator to manage integrations.</div>'; }
+
+function _gmState(j){ var s=document.getElementById('gmstate'); if(s) s.textContent = j.set ? (j.fromEnv?'A key is set from the server environment.':'A key is saved. Photo pulls are enabled.') : 'No key set — automatic location photos are off.'; }
+function saveGmapsKey(){ var v=document.getElementById('gmapsKey').value.trim(), m=document.getElementById('gmmsg'); if(!v){ m.textContent='Paste a key first.'; return; } m.textContent='Saving…'; post('/api/admin/gmaps-key',{key:v}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; document.getElementById('gmapsKey').value=''; _gmState(j); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
+function testGmaps(){ var m=document.getElementById('gmmsg'); m.textContent='Testing…'; post('/api/admin/gmaps-key/test',{}).then(function(j){ if(j&&j.ok){ m.textContent='Key works ✓'; } else { m.textContent='Test failed: '+((j&&j.error)||'unknown'); } }); }
+function clearGmapsKey(){ if(!confirm('Remove the Google Maps API key? Automatic location photos will turn off.')) return; post('/api/admin/gmaps-key',{clear:true}).then(function(j){ if(j&&j.ok){ document.getElementById('gmmsg').textContent='Removed.'; _gmState(j); } }); }
+
+function _emState(j){ var s=document.getElementById('emState'); if(!s) return; if(j&&j.configured){ s.innerHTML='<b style="color:#0e7a53">Email is on</b> — sending as '+(j.from||'')+' via '+(j.host||''); } else { s.textContent=(j&&j.host)?'Configured but disabled — turn on Email enabled and save.':'Not configured yet. Enter your SMTP details below.'; } }
+function loadEmail(){ fetch('/api/admin/email',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('em_host').value=j.host||''; document.getElementById('em_port').value=j.port||587; document.getElementById('em_secure').value=j.secure?'true':'false'; document.getElementById('em_user').value=j.user||''; document.getElementById('em_from').value=j.from||''; document.getElementById('em_enabled').checked=(j.enabled!==false); document.getElementById('em_pass').placeholder=j.hasPass?'leave blank to keep current':'app password'; _emState(j); } }).catch(function(){ var s=document.getElementById('emState'); if(s) s.textContent='Could not load email settings.'; }); }
+function saveEmail(){ var m=document.getElementById('emMsg'); m.textContent='Saving…'; var body={ host:document.getElementById('em_host').value.trim(), port:document.getElementById('em_port').value.trim(), secure:document.getElementById('em_secure').value==='true', user:document.getElementById('em_user').value.trim(), from:document.getElementById('em_from').value.trim(), enabled:document.getElementById('em_enabled').checked }; var pw=document.getElementById('em_pass').value; if(pw) body.pass=pw; post('/api/admin/email',body).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; document.getElementById('em_pass').value=''; loadEmail(); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
+function testEmail(){ var to=document.getElementById('em_test').value.trim(), m=document.getElementById('emMsg'); if(!to){ m.textContent='Enter a destination email for the test.'; return; } m.textContent='Sending test…'; post('/api/admin/email/test',{to:to}).then(function(j){ if(j&&j.ok){ m.textContent='Test sent ✓ — check that inbox.'; } else { m.textContent='Test failed: '+((j&&j.error)||'unknown'); } }); }
+
+function _smsState(j){ var s=document.getElementById('smsState'); if(!s) return; if(j&&j.configured){ s.innerHTML='<b style="color:#0e7a53">SMS is on</b> — texting from '+(j.from||''); } else { s.textContent=(j&&j.sid)?'Configured but incomplete or disabled — fill all fields, turn on, and save.':'Not configured yet. Enter your Twilio details below.'; } }
+function loadSms(){ fetch('/api/admin/sms',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sms_sid').value=j.sid||''; document.getElementById('sms_from').value=j.from||''; document.getElementById('sms_enabled').checked=(j.enabled!==false); document.getElementById('sms_token').placeholder=j.hasToken?'leave blank to keep current':'auth token'; _smsState(j); } }).catch(function(){ var s=document.getElementById('smsState'); if(s) s.textContent='Could not load SMS settings.'; }); }
+function saveSms(){ var m=document.getElementById('smsMsg'); m.textContent='Saving…'; var body={ sid:document.getElementById('sms_sid').value.trim(), from:document.getElementById('sms_from').value.trim(), enabled:document.getElementById('sms_enabled').checked }; var tk=document.getElementById('sms_token').value; if(tk) body.token=tk; post('/api/admin/sms',body).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; document.getElementById('sms_token').value=''; loadSms(); } else { m.textContent=(j&&j.error)||'Failed'; } }); }
+function testSms(){ var to=document.getElementById('sms_test').value.trim(), m=document.getElementById('smsMsg'); if(!to){ m.textContent='Enter a mobile number for the test.'; return; } m.textContent='Sending test…'; post('/api/admin/sms/test',{to:to}).then(function(j){ if(j&&j.ok){ m.textContent='Test sent ✓ — check that phone.'; } else { m.textContent='Test failed: '+((j&&j.error)||'unknown'); } }); }
+
+fetch('/api/admin/gmaps-key',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
+  if(!j||!j.ok){ gate(); return; }
+  _gmState(j); loadEmail(); loadSms();
+}).catch(function(){ gate(); });
+</script>
+</body>
+</html>
