@@ -8473,8 +8473,32 @@ app.get('/api/documents', (req, res) => {
   let uf = loadUserFiles();
   if (restrictToOwn(req)) uf = uf.filter(fr => permOwnerMatch(req, fr.createdBy));
   uf.forEach(fr => { out.push({ id:fr.id, kind:'file', title: fr.name || fr.originalName || 'File', docType: fr.docType||'', typeLabel: fr.docType || (fr.ext||'file').toUpperCase(), companyId:fr.companyId||'', companyName: coNameById[fr.companyId]||'', personName: nameById[fr.personId]||'', dealName: bizByKey[fr.dealKey]||'', relatesToName: fr.relatesToName||'', status: fr.note || '', statusKey:'file', owner: fr.by || fr.byUser || '', createdAt: fr.uploadedAt || '', openUrl: '/api/files/'+fr.id+'/download', downloadUrl: '/api/files/'+fr.id+'/download', ext: fr.ext, size: fr.size }); });
+  try {
+    let sscs = store.readAll().filter(r => r.form === 'ssc');
+    if (restrictToOwn(req)) sscs = sscs.filter(r => permOwnerMatch(req, r.rep));
+    sscs.forEach(r => { out.push({ id: r.timestamp, kind:'ssc', title: r.name || 'Site Criteria', typeLabel:'Site Criteria', companyId:'', companyName: r.market||'', personName:'', dealName:'', relatesToName:'', status: r.highlights || '', statusKey:'ssc', owner: r.rep || '', createdAt: r.timestamp || '', openUrl: '/api/ssc/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
+  } catch (e) {}
   out.sort((x,y) => String(y.createdAt||'').localeCompare(String(x.createdAt||'')));
   res.json({ ok:true, isAdmin, documents: out });
+});
+
+app.get('/api/ssc/:key/view', (req, res) => {
+  const key = String(req.params.key || '');
+  const rec = store.readAll().filter(r => r.form === 'ssc' && r.timestamp === key)[0];
+  if (!rec) return res.status(404).send('Not found.');
+  if (restrictToOwn(req) && !permOwnerMatch(req, rec.rep)) return res.status(403).send('Not authorized.');
+  const d = rec.data || {};
+  const secs = Array.isArray(d.sections) ? d.sections : [];
+  function grpVal(g){ if (g.kind === 'options') return (g.selected || []).join(', '); if (g.kind === 'field') return g.value || ''; return (g.value != null ? String(g.value) : ((g.selected||[]).join(', '))); }
+  const secHtml = secs.map(sec => {
+    const groups = Array.isArray(sec.groups) ? sec.groups : [];
+    const rows = groups.map(g => { const v = grpVal(g); if (!g.label && !v) return ''; return `<tr><td class="lb">${esc(g.label||'')}</td><td class="vl">${esc(v) || '<span class=\'dim\'>\u2014</span>'}</td></tr>`; }).join('');
+    if (!rows) return '';
+    return `<div class="card"><div class="ch">${esc(sec.title||'Details')}</div><table>${rows}</table></div>`;
+  }).join('') || '<div class="card"><div class="ch">Submission</div><div style="padding:16px 18px;color:#6b7488;font-size:13px">No structured fields were captured on this submission.</div></div>';
+  const when = (function(){ try { return new Date(rec.timestamp).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}); } catch(e){ return rec.timestamp||''; } })();
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Site Criteria \u2014 ${esc(rec.name||'')}</title><style>*{box-sizing:border-box}body{margin:0;background:#eef1f7;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#14213d}.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px}.top-in{max-width:900px;margin:0 auto;padding:0 24px}.kick{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin-bottom:5px}h1{margin:0;font-size:24px;font-weight:800}.meta{color:#aeb8cf;font-size:12.5px;margin-top:8px;line-height:1.6}.wrap{max-width:900px;margin:22px auto;padding:0 24px 70px}.card{background:#fff;border:1px solid #e3e8f1;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(16,32,70,.05);margin-bottom:16px}.ch{padding:13px 18px;border-bottom:1px solid #eef1f7;font-weight:800;color:#16346e;font-size:14px;background:linear-gradient(180deg,#fbfcff,#fff)}table{width:100%;border-collapse:collapse}td{padding:11px 18px;border-bottom:1px solid #f1f3f8;font-size:13px;vertical-align:top}tr:last-child td{border-bottom:none}.lb{width:34%;color:#66738f;font-weight:600}.vl{color:#14213d;font-weight:500}.dim{color:#aab2c2}</style></head><body><div class="top"><div class="top-in"><div class="kick">Site &amp; Concept Criteria</div><h1>${esc(rec.name||'Untitled Criteria')}</h1><div class="meta">${rec.market?('Market: <b>'+esc(rec.market)+'</b> &nbsp;\u00b7&nbsp; '):''}Prepared by <b>${esc(rec.rep||'\u2014')}</b> &nbsp;\u00b7&nbsp; ${esc(when)}${rec.highlights?('<br>'+esc(rec.highlights)):''}</div></div></div><div class="wrap">${secHtml}</div></body></html>`;
+  res.set('Content-Type','text/html; charset=utf-8').send(html);
 });
 
 app.get('/api/agreements', (req, res) => {
