@@ -6,6 +6,9 @@ const express = require('express');
 const cors = require('cors');
 const nodemailer = require('nodemailer');
 const { sendSsc } = require('./mailer.js');
+// Resilience: never let one unhandled async error crash the whole server.
+process.on('uncaughtException', function (e) { try { console.error('[uncaughtException]', (e && e.stack) || e); } catch (_) {} });
+process.on('unhandledRejection', function (e) { try { console.error('[unhandledRejection]', (e && e.stack) || e); } catch (_) {} });
 const store = require('./store.js');
 const auth = require('./auth.js');
 const gmail = require('./gmail.js');
