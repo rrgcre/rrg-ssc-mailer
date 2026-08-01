@@ -878,7 +878,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply') return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply') return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -8406,6 +8406,77 @@ function agreementBrief(a) {
   var _as = agreementStatus(a);
   return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0, statusKey: _as.key, statusLabel: _as.label };
 }
+// ---------------- Uploaded documents (general file storage) ----------------
+const USERDOCS_DIR = path.join(BOV_DATA_DIR, 'userdocs');
+const USERFILES_FILE = path.join(BOV_DATA_DIR, 'userfiles.json');
+function loadUserFiles() { try { return JSON.parse(fs.readFileSync(USERFILES_FILE, 'utf8')) || []; } catch (e) { return []; } }
+function saveUserFiles(a) { try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); fs.writeFileSync(USERFILES_FILE, JSON.stringify(a, null, 2)); } catch (e) {} }
+function newFileId() { return 'file_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+const USERFILE_MIME = { pdf:'application/pdf', doc:'application/msword', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt:'application/vnd.ms-powerpoint', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', webp:'image/webp', txt:'text/plain', csv:'text/csv', zip:'application/zip' };
+function userFileMime(ext) { return USERFILE_MIME[String(ext||'').toLowerCase()] || 'application/octet-stream'; }
+
+app.post('/api/files', express.json({ limit: '28mb' }), (req, res) => {
+  const b = req.body || {};
+  const orig = String(b.filename || '').trim();
+  const m = orig.match(/\.([a-z0-9]+)$/i); const ext = m ? m[1].toLowerCase() : '';
+  if (!/^(pdf|docx?|xlsx?|pptx?|png|jpe?g|gif|webp|txt|csv|zip)$/i.test(ext)) return res.status(400).json({ ok:false, error:'Unsupported file type. Allowed: PDF, Word, Excel, PowerPoint, images, TXT, CSV, ZIP.' });
+  const data = String(b.dataB64 || ''); if (!data) return res.status(400).json({ ok:false, error:'No file data received.' });
+  let buf; try { buf = Buffer.from(data, 'base64'); } catch (e) { return res.status(400).json({ ok:false, error:'Could not read the file data.' }); }
+  if (!buf.length) return res.status(400).json({ ok:false, error:'The file appears to be empty.' });
+  if (buf.length > 25 * 1024 * 1024) return res.status(400).json({ ok:false, error:'File too large (max 25 MB).' });
+  try { if (!fs.existsSync(USERDOCS_DIR)) fs.mkdirSync(USERDOCS_DIR, { recursive: true }); } catch (e) { return res.status(500).json({ ok:false, error:'Could not create the documents folder.' }); }
+  const id = newFileId();
+  try { fs.writeFileSync(path.join(USERDOCS_DIR, id + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok:false, error:'Could not save the file.' }); }
+  const files = loadUserFiles();
+  const rt = String(b.relatesToType||''); const rid = String(b.relatesToId||'');
+  let _co=String(b.companyId||''), _pe=String(b.personId||''), _dk=String(b.dealKey||'');
+  if (rt==='company' && rid) _co=rid; else if (rt==='contact' && rid) _pe=rid; else if (rt==='listing' && rid) _dk=rid;
+  const rec = { id, name: (String(b.title||'').trim().slice(0,160) || prettyName(orig) || orig), originalName: orig, ext, size: buf.length,
+    docType: String(b.docType||'').slice(0,40),
+    companyId: _co, personId: _pe, dealKey: _dk,
+    relatesToType: rt, relatesToName: String(b.relatesToName||'').slice(0,160),
+    note: String(b.note||'').slice(0,400),
+    by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdBy: (req.user && req.user.username) || '', uploadedAt: new Date().toISOString() };
+  files.push(rec); saveUserFiles(files);
+  res.json({ ok:true, file: rec });
+});
+app.get('/api/files/:id/download', (req, res) => {
+  const fRec = loadUserFiles().find(x => x.id === req.params.id);
+  if (!fRec) return res.status(404).json({ ok:false, error:'Not found.' });
+  if (restrictToOwn(req) && !permOwnerMatch(req, fRec.createdBy)) return res.status(403).json({ ok:false, error:'Not yours.' });
+  try { const buf = fs.readFileSync(path.join(USERDOCS_DIR, fRec.id + '.' + fRec.ext)); res.set('Content-Type', userFileMime(fRec.ext)); res.set('Content-Disposition', 'inline; filename="' + String(fRec.originalName||('file.'+fRec.ext)).replace(/[^\w.\- ]+/g,'') + '"'); res.send(buf); }
+  catch (e) { res.status(404).json({ ok:false, error:'File missing.' }); }
+});
+app.delete('/api/files/:id', (req, res) => {
+  const files = loadUserFiles(); const fRec = files.find(x => x.id === req.params.id);
+  if (!fRec) return res.status(404).json({ ok:false, error:'Not found.' });
+  if (restrictToOwn(req) && !permOwnerMatch(req, fRec.createdBy)) return res.status(403).json({ ok:false, error:'Not yours.' });
+  try { fs.unlinkSync(path.join(USERDOCS_DIR, fRec.id + '.' + fRec.ext)); } catch (e) {}
+  saveUserFiles(files.filter(x => x.id !== req.params.id));
+  res.json({ ok:true });
+});
+
+// Unified documents repository — merges agreements, valuations, marketing packs, and uploaded files.
+app.get('/api/documents', (req, res) => {
+  const isAdmin = !!(req.user && isSuper(req.user));
+  const nameById = {}; loadPeople().forEach(p => { nameById[p.id] = p.name; });
+  const coNameById = {}; loadCompanies().forEach(c => { coNameById[c.id] = c.name; });
+  let bizByKey = {}; try { const ov = loadAssignOverlay(), idx = assignmentsIndex(); for (const k in idx) { try { bizByKey[k] = assignmentView(idx[k], ov).business; } catch (e) {} } } catch (e) {}
+  const out = [];
+  let ag = loadAgreements();
+  if (restrictToOwn(req)) ag = ag.filter(a => permOwnerMatch(req, a.createdBy));
+  ag.forEach(a => { const br = agreementBrief(a); out.push({ id:a.id, kind:'agreement', title:(a.name || 'Agreement'), typeLabel:'Agreement', companyId:a.companyId||'', companyName: coNameById[a.companyId]||'', personName: a.personName || nameById[a.personId] || '', dealName: bizByKey[a.dealKey]||'', status: br.statusLabel||'', statusKey: br.statusKey||'', owner: a.createdByName || a.createdBy || '', createdAt: a.createdAt||'', openUrl: a.docExt ? ('/api/agreements/'+a.id+'/doc') : 'rrg_agreements.html', downloadUrl: a.docExt ? ('/api/agreements/'+a.id+'/doc') : '' }); });
+  let bv = loadBovs().filter(b => isAdmin || ownsBov(req, b));
+  bv.forEach(b => { out.push({ id:b.id, kind:'valuation', title: b.business || 'Valuation', typeLabel:'Valuation', companyId:'', companyName:'', personName:'', dealName:'', status: b.pending ? 'Requested' : 'Built', statusKey: b.pending ? 'pending' : 'built', owner: b.by || b.byUser || '', createdAt: b.createdAt || '', openUrl: (b.pending ? 'rrg_bov_generate.html?bov=' : 'rrg_bov_builder.html?bov=') + encodeURIComponent(b.id), downloadUrl:'' }); });
+  let cm = loadCims().filter(c => isAdmin || ownsCim(req, c));
+  cm.forEach(c => { out.push({ id:c.id, kind:'marketingpack', title: c.business || 'Marketing Pack', typeLabel:'Marketing Pack', companyId:'', companyName: c.market||'', personName:'', dealName:'', status: c.pending ? 'Draft' : 'Built', statusKey: c.pending ? 'pending' : 'built', owner: c.by || c.byUser || '', createdAt: c.createdAt || '', openUrl: (c.pending ? 'rrg_cim_generate.html?cim=' : 'rrg_cim_builder.html?cim=') + encodeURIComponent(c.id), downloadUrl:'' }); });
+  let uf = loadUserFiles();
+  if (restrictToOwn(req)) uf = uf.filter(fr => permOwnerMatch(req, fr.createdBy));
+  uf.forEach(fr => { out.push({ id:fr.id, kind:'file', title: fr.name || fr.originalName || 'File', docType: fr.docType||'', typeLabel: fr.docType || (fr.ext||'file').toUpperCase(), companyId:fr.companyId||'', companyName: coNameById[fr.companyId]||'', personName: nameById[fr.personId]||'', dealName: bizByKey[fr.dealKey]||'', relatesToName: fr.relatesToName||'', status: fr.note || '', statusKey:'file', owner: fr.by || fr.byUser || '', createdAt: fr.uploadedAt || '', openUrl: '/api/files/'+fr.id+'/download', downloadUrl: '/api/files/'+fr.id+'/download', ext: fr.ext, size: fr.size }); });
+  out.sort((x,y) => String(y.createdAt||'').localeCompare(String(x.createdAt||'')));
+  res.json({ ok:true, isAdmin, documents: out });
+});
+
 app.get('/api/agreements', (req, res) => {
   let all = loadAgreements();
   const pid = req.query.personId;

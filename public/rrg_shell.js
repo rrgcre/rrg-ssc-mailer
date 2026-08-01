@@ -121,6 +121,7 @@
       { ic: '❏', label: 'CIMs', href: 'rrg_cim_queue.html' },
       { ic: '◆', label: 'Listings', href: 'rrg_assignments.html?type=listing' },
       { ic: '▥', label: 'Data Rooms', href: 'rrg_rooms_queue.html' },
+      { ic: '❐', label: 'Documents', href: 'rrg_documents.html' },
       { ic: '◈', label: 'Deals', href: 'rrg_deals.html' },
       { ic: '⊞', label: 'Pipeline Board', href: 'rrg_board.html' }
     ] },
@@ -151,7 +152,6 @@
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
       { ic: '<svg viewBox="0 0 20 20" width="14" height="14" style="vertical-align:-2px" fill="none"><path d="M10 2.7c-4.1 0-7.5 2.7-7.5 6.1 0 1.8 1 3.5 2.5 4.6-.1 1-.5 1.9-1.1 2.7 1.2-.2 2.4-.7 3.4-1.3.9.3 1.7.4 2.7.4 4.1 0 7.5-2.7 7.5-6.1S14.1 2.7 10 2.7Z" fill="currentColor"/><path d="M10 5.7l.7 1.8 1.8.7-1.8.7L10 10.7l-.7-1.8-1.8-.7 1.8-.7L10 5.7Z" fill="#fff"/></svg>', label: 'Consult', href: 'rrg_consult.html', ai: true },
-      { ic: '⊛', label: 'System Status', href: 'rrg_status.html' },
       { ic: '⚑', label: 'Feedback', href: 'rrg_feedback.html' },
       { ic: '✉', label: 'Admin Requests', href: 'rrg_tickets.html' },
       { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' }
@@ -159,8 +159,6 @@
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
       { ic: '▤', label: 'Settings (old)', href: 'admin' },
       { ic: '⚙', label: 'Settings', href: 'rrg_settings.html' },
-      { ic: '⤓', label: 'Import', href: 'rrg_import.html', admin: true },
-      { ic: '⤒', label: 'Export', href: 'rrg_export.html', admin: true },
       { ic: '<svg viewBox="0 0 20 20" width="14" height="14" style="vertical-align:-2px" fill="currentColor"><rect x="3" y="10" width="3" height="7" rx="1"></rect><rect x="8.5" y="6" width="3" height="11" rx="1"></rect><rect x="14" y="3" width="3" height="14" rx="1"></rect></svg>', label: 'Reports', href: 'rrg_reports.html', admin: true }
     ] }
   ];
