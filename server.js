@@ -954,6 +954,7 @@ function upsertScreening(req, data) {
   _stampTimes(rec, data);
   fireScreeningAutomation(req, rec, data);
   arr.push(rec); saveScreens(arr);
+  assignScreenPipeline(rec.id, 'businessSale');   // starting a call routes it into the Business Sales pipeline
   return rec;
 }
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -6203,6 +6204,7 @@ app.post('/api/deal/:id/start', express.json(), (req, res) => {
   // tours, NDAs, notes) across so nothing logged before starting is orphaned.
   const overlay = loadAssignOverlay(); const oldKey = 'd_' + rec.id, newKey = 's_' + screen.id;
   if (overlay[oldKey] && !overlay[newKey]) { overlay[newKey] = overlay[oldKey]; delete overlay[oldKey]; saveAssignOverlay(overlay); }
+  assignScreenPipeline(screen.id, 'businessSale');   // route the started call into the Business Sales pipeline (keeps any existing routing)
   res.json({ ok: true, key: 's_' + screen.id, screenId: screen.id });
 });
 // Delete a deal and everything linked to it (records, data room, uploaded files).
@@ -7010,6 +7012,53 @@ function seedBizSalesStages() {
 }
 function cleanStages(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 40).map(function(st, i){ return { name: String((st && st.name) || '').slice(0, 80) || ('Stage ' + (i + 1)), number: i + 1, targetDays: Math.max(0, Math.min(3650, parseInt((st && st.targetDays), 10) || 0)), onAssignAuto: String((st && st.onAssignAuto) || '').slice(0, 40), onUnassignAuto: String((st && st.onUnassignAuto) || '').slice(0, 40) }; }).filter(function(st){ return st.name; }); }
 app.get('/api/pipelines', (req, res) => { res.json({ ok: true, pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), isAdmin: !!(req.user && isSuper(req.user)) }); });
+
+// ---- Deal-type → pipeline routing --------------------------------------
+// Which pipeline each kind of deal enters. A started seller screening call
+// drops into the Business Sales pipeline (see assignScreenPipeline).
+const PIPELINE_CATEGORIES = [
+  { key: 'businessSale',  label: 'Business Sales',  fallback: 'p_bizsales' },
+  { key: 'assetSale',     label: 'Asset Sales',     fallback: 'p_bizsales' },
+  { key: 'tenantRep',     label: 'Tenant Rep',      fallback: 'p_tenantrep' },
+  { key: 'landlordSale',  label: 'Landlord Sale',   fallback: 'p_llrep' },
+  { key: 'landlordLease', label: 'Landlord Lease',  fallback: 'p_llrep' },
+];
+function loadPipelineMap() {
+  const raw = loadSettings().pipelineMap; const src = (raw && typeof raw === 'object') ? raw : {};
+  const out = {}; PIPELINE_CATEGORIES.forEach(c => { out[c.key] = (typeof src[c.key] === 'string') ? src[c.key] : ''; });
+  return out;
+}
+function pipelineForCategory(key) {
+  const m = loadPipelineMap(); const pls = loadPipelines(); const has = id => pls.some(p => p.id === id);
+  const cat = PIPELINE_CATEGORIES.find(c => c.key === key);
+  if (m[key] && has(m[key])) return m[key];
+  if (cat && has(cat.fallback)) return cat.fallback;
+  return (pls[0] && pls[0].id) || 'p_bizsales';
+}
+// Drop a just-started screening call onto its pipeline (default Business Sales),
+// only if the assignment isn't already routed somewhere.
+function assignScreenPipeline(screenId, categoryKey) {
+  try {
+    if (!screenId) return;
+    const pid = pipelineForCategory(categoryKey || 'businessSale'); if (!pid) return;
+    const ov = loadAssignOverlay(); const k = 's_' + screenId; const cur = ov[k] || {};
+    if (cur.pipelineId) return;
+    cur.pipelineId = pid; cur.updatedAt = new Date().toISOString();
+    ov[k] = cur; saveAssignOverlay(ov);
+  } catch (e) { console.error('assignScreenPipeline:', e && e.message); }
+}
+app.get('/api/admin/pipeline-map', requireAdmin, (req, res) => {
+  res.json({ ok: true, map: loadPipelineMap(),
+    categories: PIPELINE_CATEGORIES.map(c => ({ key: c.key, label: c.label })),
+    pipelines: loadPipelines().map(p => ({ id: p.id, name: p.name, area: p.area || '' })) });
+});
+app.post('/api/admin/pipeline-map', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const incoming = (b.map && typeof b.map === 'object') ? b.map : b;
+  const pls = loadPipelines(); const has = id => pls.some(p => p.id === id);
+  const clean = {}; PIPELINE_CATEGORIES.forEach(c => { const v = String(incoming[c.key] || '').slice(0, 40); clean[c.key] = (v && has(v)) ? v : ''; });
+  const s = loadSettings(); s.pipelineMap = clean; saveSettings(s);
+  res.json({ ok: true, map: clean });
+});
 app.get('/api/board', (req, res) => {
   const pipelines = loadPipelines();
   const pid = String(req.query.pipelineId || '') || ((pipelines[0] && pipelines[0].id) || 'p_bizsales');

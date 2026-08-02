@@ -69,7 +69,7 @@ table.stg td.act{width:96px;white-space:nowrap;text-align:right;}
 </div>
 
 <script>
-var PIPES=[], CUR=null, IS_ADMIN=false, DEL_ARM=false, DRAFT=null, AUTOS=[];
+var PIPES=[], CUR=null, IS_ADMIN=false, DEL_ARM=false, DRAFT=null, AUTOS=[], MAP={}, MAP_CATS=[];
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function api(m,u,b){return fetch(u,{method:m,credentials:'same-origin',headers:b?{'Content-Type':'application/json'}:undefined,body:b?JSON.stringify(b):undefined}).then(function(r){return r.json().then(function(j){j._status=r.status;return j;});});}
 
@@ -77,19 +77,44 @@ function load(){
   api('GET','/api/pipelines').then(function(j){
     IS_ADMIN=!!j.isAdmin; PIPES=(j.pipelines||[]); AUTOS=(j.automations||[]);
     if(!IS_ADMIN){ document.getElementById('root').innerHTML='<div class="notadmin">Pipeline settings are admin-only. Ask a FullServe administrator if you need a stage added or a target changed.</div>'; return; }
-    if(CUR && !PIPES.some(function(p){return p.id===CUR;})) CUR=null;
-    if(!CUR && PIPES.length) CUR=PIPES[0].id;
-    render();
+    api('GET','/api/admin/pipeline-map').then(function(m){
+      if(m&&m.ok){ MAP=m.map||{}; MAP_CATS=m.categories||[]; }
+      if(CUR && !PIPES.some(function(p){return p.id===CUR;})) CUR=null;
+      if(!CUR && PIPES.length) CUR=PIPES[0].id;
+      render();
+    });
+  });
+}
+
+function routingCardHtml(){
+  if(!MAP_CATS.length) return '';
+  var opts=function(sel){ return '<option value="">— not set —</option>'+PIPES.map(function(p){return '<option value="'+esc(p.id)+'"'+(sel===p.id?' selected':'')+'>'+esc(p.name)+(p.area?(' ('+esc(p.area)+')'):'')+'</option>';}).join(''); };
+  var flds=MAP_CATS.map(function(c){ return '<div class="fld"><label>'+esc(c.label)+'</label><select id="map_'+esc(c.key)+'">'+opts(MAP[c.key]||'')+'</select></div>'; }).join('');
+  return '<div class="card" style="margin-bottom:20px"><div class="mh"><span class="t">Deal-type routing</span>'
+    +'<span class="sp"><span class="msg" id="mapMsg"></span><button class="btn pri" id="mapSave">Save routing</button></span></div>'
+    +'<div class="body"><div class="pgs" style="margin:0 0 14px">Choose which pipeline each kind of deal enters. When a rep <b>starts a seller screening call</b>, that call drops straight into the <b>Business Sales</b> pipeline you pick here. The rest are used as each deal type gets routed.</div>'
+    +'<div class="frow">'+flds+'</div></div></div>';
+}
+function mapMsg(t,cls){ var m=document.getElementById('mapMsg'); if(!m)return; m.textContent=t; m.className='msg '+(cls||''); if(t){ setTimeout(function(){ if(m.textContent===t){m.textContent='';m.className='msg';} },3000); } }
+function saveMap(){
+  var body={map:{}}; MAP_CATS.forEach(function(c){ var el=document.getElementById('map_'+c.key); body.map[c.key]=el?el.value:''; });
+  var b=document.getElementById('mapSave'); if(b) b.disabled=true;
+  api('POST','/api/admin/pipeline-map',body).then(function(j){
+    if(b) b.disabled=false;
+    if(!j.ok){ mapMsg(j.error||'Save failed.','err'); return; }
+    MAP=j.map||MAP; mapMsg('Saved','ok');
   });
 }
 
 function render(){
   var root=document.getElementById('root');
-  root.innerHTML='<div class="cols">'
+  root.innerHTML=routingCardHtml()
+    +'<div class="cols">'
     +'<div class="card side"><div class="sh">Pipelines</div><ul class="pl" id="pl"></ul>'
       +'<div class="sf"><button class="btn full" id="newBtn">+ New pipeline</button></div></div>'
     +'<div class="card main" id="main"></div>'
   +'</div>';
+  var _ms=document.getElementById('mapSave'); if(_ms) _ms.onclick=saveMap;
   var pl=document.getElementById('pl');
   pl.innerHTML=PIPES.map(function(p){
     var n=(p.stages||[]).length;
