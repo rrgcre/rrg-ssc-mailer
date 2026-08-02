@@ -2610,8 +2610,11 @@ app.post('/api/room/:id/grant', express.json(), (req, res) => {
   const email = String(b.email || '').trim().slice(0, 120);
   if (!name && !email) return res.status(400).json({ ok: false, error: 'Add a name or email for this buyer.' });
   r.grants = r.grants || [];
-  r.locked = true;   // adding a buyer locks the room — a code is now required
-  const g = { id: newGrantId(), name, email, code: newGrantCode(), level: cleanRoomLevel(b.level, 'download'), active: true, createdAt: new Date().toISOString(), lastSeen: '', views: 0, downloads: 0, by: (req.user && req.user.name) || '' };
+  r.locked = true;   // authorizing a buyer locks the room — a code is now required
+  // Default starting level is 'none': a newly authorized buyer sees nothing until the
+  // rep grants specific folders in the grid. (Accepts none/view/download/edit.)
+  const startLevel = (ROOM_CELL_LEVELS.indexOf(String(b.level)) >= 0) ? String(b.level) : 'none';
+  const g = { id: newGrantId(), name, email, code: newGrantCode(), level: startLevel, active: true, createdAt: new Date().toISOString(), lastSeen: '', views: 0, downloads: 0, by: (req.user && req.user.name) || '' };
   r.grants.push(g); saveRooms(arr);
   res.json({ ok: true, grants: r.grants, gated: true });
 });
@@ -2784,6 +2787,7 @@ app.get('/roomfile/:token/:docid', (req, res) => {
   const asDownload = wantDl && level !== 'view';   // view-only buyers can preview but never download
   const fnameSafe = String(d.title || d.originalName || d.id).replace(/[^\w.\- ]+/g, '_') + '.' + d.ext;
   if (asDownload && grant) { grant.downloads = (grant.downloads || 0) + 1; }
+  if (asDownload) { d.downloads = (d.downloads || 0) + 1; d.lastDownloadAt = new Date().toISOString(); }   // per-file download tracking
   logRoomAccess(r, req, asDownload ? 'download' : 'view', d.title || d.originalName, grant); saveRooms(arr);
   res.setHeader('Content-Disposition', (asDownload ? 'attachment' : 'inline') + '; filename="' + fnameSafe + '"');
   res.sendFile(fp);
@@ -2961,7 +2965,7 @@ function addFileToRoom(room, file, opts) {
     else if (typeof file.text === 'string' && file.text) { buf = Buffer.from(file.text, 'utf8'); if (!ext) ext = 'txt'; }
     if (!buf || !buf.length) return null;
     if (!ROOM_EXT.test(ext)) return null;
-    if (buf.length > 20 * 1024 * 1024) return null;
+    if (buf.length > 25 * 1024 * 1024) return null;
     room.docs = room.docs || [];
     const source = opts.source || '';
     const category = opts.category || categoryForUploadLabel(file.label);

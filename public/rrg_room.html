@@ -63,12 +63,12 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 
   <div class="card"><div class="cbody">
     <h2>Buyers &amp; access</h2>
-    <div class="h">Give each buyer their own access code, then set exactly what they can do <b>in each folder</b> using the grid below &mdash; no access, view, download, or upload. The level you pick here is their starting point for every folder; fine-tune per folder after adding. Adding a buyer locks the room so a personal code is required &mdash; the shared link alone stops working.</div>
+    <div class="h">Authorize each buyer individually. They get their own <b>access code — the password they’ll need to open the room</b>. New buyers start with <b>no folder access</b>: grant exactly the folders they should see in the grid below (no access, view, download, or upload). Authorizing the first buyer locks the room, so the shared link alone stops working and a code is required.</div>
     <div class="up">
       <div class="fld"><label>Buyer name</label><input type="text" id="bName" placeholder="e.g. Jane Smith / ABC Capital"></div>
       <div class="fld"><label>Email (optional)</label><input type="text" id="bEmail" placeholder="jane@abccapital.com"></div>
-      <div class="fld"><label>Starting access</label><select id="bLevel"><option value="view">View only</option><option value="download" selected>View &amp; download</option><option value="edit">View, download &amp; upload</option></select></div>
-      <div class="fld"><button class="btn green" onclick="addBuyer()">Add buyer</button></div>
+      <div class="fld"><label>Starting access</label><select id="bLevel"><option value="none" selected>No access — choose folders</option><option value="view">View only</option><option value="download">View &amp; download</option><option value="edit">View, download &amp; upload</option></select></div>
+      <div class="fld"><button class="btn green" onclick="addBuyer()">Authorize access</button></div>
     </div>
     <div class="umsg" id="bmsg"></div>
     <div id="buyerList"></div>
@@ -76,7 +76,7 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 
   <div class="card"><div class="cbody">
     <h2>Add a document</h2>
-    <div class="h">PDF, Word, Excel, CSV, PowerPoint, images, or text — up to 20 MB each. Give it a clear name and drop it in the right section.</div>
+    <div class="h">PDF, Word, Excel, CSV, PowerPoint, images, or text — up to <b>25 MB</b> each. Give it a clear name and drop it in the right section.</div>
     <div class="up">
       <div class="fld"><label>Document name</label><input type="text" id="docTitle" placeholder="e.g. 2023 Profit &amp; Loss"></div>
       <div class="fld"><label>Section</label><select id="docCategory"></select></div>
@@ -115,7 +115,7 @@ function renderDocs(){
   var el=document.getElementById('docList'), cats=ROOM.categories||[], docs=ROOM.docs||[];
   el.innerHTML=cats.map(function(cat){
     var inCat=docs.filter(function(d){ return (d.category||'Other')===cat; });
-    var rows=inCat.length? inCat.map(function(d){ return '<div class="docrow"><span class="ext">'+esc(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' · added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' · '+esc(d.by)):'')+'</div></div><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }).join('') : '<div class="catempty">No files in this section yet.</div>';
+    var rows=inCat.length? inCat.map(function(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' · '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+esc(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' · added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' · '+esc(d.by)):'')+dlTxt+'</div></div><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }).join('') : '<div class="catempty">No files in this section yet.</div>';
     return '<div class="cat"><div class="cathd">'+esc(cat)+'<span class="n">'+inCat.length+'</span></div>'+rows+'</div>';
   }).join('');
 }
@@ -156,9 +156,9 @@ function cycleCell(gid,ci,cur){
 function addBuyer(){
   var name=document.getElementById('bName').value.trim(), email=document.getElementById('bEmail').value.trim(), level=document.getElementById('bLevel').value, m=document.getElementById('bmsg');
   if(!name&&!email){ m.textContent='Add a name or email for this buyer.'; return; }
-  m.textContent='Adding…';
+  m.textContent='Authorizing…';
   fetch('/api/room/'+encodeURIComponent(RID)+'/grant',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:name,email:email,level:level})})
-   .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; document.getElementById('bName').value=''; document.getElementById('bEmail').value=''; renderGrants(); m.textContent='Buyer added ✓ — share their code from the list below.'; } else { m.textContent=(j&&j.error)||'Could not add the buyer.'; } })
+   .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; document.getElementById('bName').value=''; document.getElementById('bEmail').value=''; renderGrants(); m.textContent='Access authorized ✓ — share their access code (their password) from the grid below, and grant the folders they should see.'; } else { m.textContent=(j&&j.error)||'Could not authorize this buyer.'; } })
    .catch(function(){ m.textContent='Could not reach the server.'; });
 }
 function setLevel(id,level){
@@ -179,7 +179,7 @@ function load(){
 function uploadDoc(){
   var fi=document.getElementById('docFile'), f=fi&&fi.files&&fi.files[0], m=document.getElementById('umsg');
   if(!f){ return; }
-  if(f.size>20*1024*1024){ m.textContent='That file is over 20 MB — please add a smaller file.'; fi.value=''; return; }
+  if(f.size>25*1024*1024){ m.textContent='That file is over 25 MB — please add a smaller file.'; fi.value=''; return; }
   m.textContent='Uploading “'+f.name+'”…';
   var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''), i=s.indexOf(','), b64=(i>=0?s.slice(i+1):s);
     fetch('/api/room-upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({roomId:RID, filename:f.name, dataB64:b64, title:document.getElementById('docTitle').value, category:document.getElementById('docCategory').value})})
