@@ -705,7 +705,7 @@
     if(m.length){ _showBanner('Complete '+m.length+' required field'+(m.length>1?'s':'')+' (marked *) before submitting.'); m[0].scrollIntoView({behavior:'smooth',block:'center'}); return false; }
     _hideBanner();
     var doIt=function(ok){ if(!ok) return; var data=_collectData(); data.formType='seller'; data.submitted=true;
-      fetch(_apiBase()+'/api/screening-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json();}).then(function(){ var b=document.getElementById('vbanner'); if(b){ b.textContent='Screening submitted \u2713 \u2014 recorded to the queue.'; b.style.display='block'; b.style.background='#e7f5ee'; b.style.color='#1f8a5b'; b.style.borderColor='#b7e0c7'; } }).catch(function(){ _showBanner('Could not reach the server to submit. Try again.'); });
+      fetch(_apiBase()+'/api/screening-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json();}).then(function(j){ var b=document.getElementById('vbanner'); if(b){ b.textContent='Screening submitted \u2713 \u2014 recorded to the queue.'; b.style.display='block'; b.style.background='#e7f5ee'; b.style.color='#1f8a5b'; b.style.borderColor='#b7e0c7'; } if(j&&j.actions&&j.actions.listingStatus&&window.__lsSummary){ window.__lsSummary(j.actions); } }).catch(function(){ _showBanner('Could not reach the server to submit. Try again.'); });
     };
     if(window.rrgConfirm){ window.rrgConfirm('Submit this screening? This records your decision on whether to move forward with this seller.',{title:'Submit screening?',okText:'Submit'}).then(doIt); } else { doIt(window.confirm('Submit this screening?')); }
     return false;
@@ -721,7 +721,7 @@
     var doIt=function(ok){ if(!ok){ cb(false,'cancel'); return; }
       var data=_collectData(); data.formType='seller'; data.submitted=true;
       fetch(_apiBase()+'/api/screening-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
-        .then(function(r){return r.json();}).then(function(){ cb(true); })
+        .then(function(r){return r.json();}).then(function(j){ cb(true,'ok',0,(j&&j.actions)||null); })
         .catch(function(){ cb(false,'error'); }); };
     if(window.rrgConfirm){ window.rrgConfirm('Submit this screening? This records your decision on whether to move forward with this seller.',{title:'Submit screening?',okText:'Submit'}).then(doIt); } else { doIt(window.confirm('Submit this screening?')); }
   };
@@ -1295,13 +1295,38 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
   function cgSubmit(btn){
     if(!window.__scrSubmit){ finish(); return; }
     if(btn) btn.disabled=true;
-    window.__scrSubmit(function(ok,reason,count){
+    window.__scrSubmit(function(ok,reason,count,actions){
       if(btn) btn.disabled=false;
-      if(ok){ if(window.rrgClearDraft) window.rrgClearDraft(); ov.style.display='none'; active=false; fab.style.display='block'; if(window.rrgToast) window.rrgToast('Screening submitted \u2713 \u2014 recorded to the queue.'); return; }
+      if(ok){ if(window.rrgClearDraft) window.rrgClearDraft(); ov.style.display='none'; active=false; fab.style.display='block';
+        if(actions && actions.listingStatus){ showListingSummary(actions); }
+        else if(window.rrgToast){ window.rrgToast('Screening submitted \u2713 \u2014 recorded to the queue.'); }
+        return; }
       if(reason==='invalid'){ ov.style.display='none'; active=false; fab.style.display='block'; if(window.rrgToast) window.rrgToast('Finish the required field'+(count>1?'s':'')+' on the form, then submit.'); return; }
       if(reason==='error' && window.rrgToast){ window.rrgToast('Could not submit \u2014 check your connection and try again.'); }
     });
   }
+  // Confirmation of everything the Business Sale outcome just did: listing, data room, pipeline.
+  function showListingSummary(a){
+    if(!a){ return; }
+    var folders=(a.folders||[]).map(function(f){return _deEsc(f);}).join(', ');
+    var lines='<div style="display:flex;gap:10px;align-items:flex-start"><span style="color:#1f8a5b;font-weight:900">\u2713</span><div><b>Live Listing created</b><div style="color:#6b7488;font-size:12.5px;margin-top:1px">'+_deEsc(a.business||'This seller')+' is now a live listing'+(a.pipeline?(' in the <b>'+_deEsc(a.pipeline)+'</b> pipeline'):'')+'.</div></div></div>';
+    if(a.roomId){ lines+='<div style="display:flex;gap:10px;align-items:flex-start;margin-top:13px"><span style="color:#1f8a5b;font-weight:900">\u2713</span><div><b>Data room '+(a.roomCreated?'created':'ready')+'</b>'+(folders?('<div style="color:#6b7488;font-size:12.5px;margin-top:1px">Folders: '+folders+'.</div>'):'')+'</div></div>'; }
+    var btns='';
+    if(a.roomId){ btns+='<a class="lsbtn" href="./rrg_room.html?room='+encodeURIComponent(a.roomId)+'">Open data room \u2192</a>'; }
+    if(a.dealKey){ btns+='<a class="lsbtn" href="./rrg_assignment.html?key='+encodeURIComponent(a.dealKey)+'">Open listing \u2192</a>'; }
+    var wrap=document.createElement('div'); wrap.id='lsModal';
+    wrap.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.55);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px';
+    wrap.innerHTML='<div style="background:#fff;border-radius:16px;max-width:440px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden">'
+      +'<div style="padding:18px 22px;border-bottom:1px solid #eef0f5;display:flex;align-items:center;gap:11px"><span style="width:34px;height:34px;border-radius:50%;background:#eaf5ef;color:#1f8a5b;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none">\u2713</span><b style="color:#000E31;font-size:16px">Business sale \u2014 you\u2019re live</b></div>'
+      +'<div style="padding:18px 22px">'+lines+'</div>'
+      +'<div style="padding:14px 22px;border-top:1px solid #eef0f5;display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap">'+btns+'<button class="lsbtn lsclose" style="background:#000E31;color:#fff;border-color:#000E31">Done</button></div>'
+      +'</div>';
+    var st=document.createElement('style'); st.textContent='#lsModal .lsbtn{display:inline-flex;align-items:center;text-decoration:none;font:inherit;font-size:12.5px;font-weight:700;color:#000E31;border:1px solid #cfd6e2;border-radius:9px;padding:8px 14px;cursor:pointer;background:#fff}#lsModal .lsbtn:hover{filter:brightness(.97)}';
+    wrap.appendChild(st); document.body.appendChild(wrap);
+    wrap.querySelector('.lsclose').addEventListener('click',function(){ wrap.remove(); });
+    wrap.addEventListener('click',function(e){ if(e.target===wrap) wrap.remove(); });
+  }
+  window.__lsSummary=showListingSummary;
   function _deEsc(s){ var d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
   // Live 'deal read' from the answers: temperature (weighted options), deal-killer alerts, and
   // follow-up nudges. Reads data-wt / data-kill / data-nudge the engine stamps from the builder.

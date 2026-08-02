@@ -947,14 +947,16 @@ function upsertScreening(req, data) {
     _stampTimes(existing, data);
     existing.updatedAt = new Date().toISOString();
     fireScreeningAutomation(req, existing, data);
-    maybeCreateBizSaleRoom(req, existing);   // Business Sale → stand up the data room
+    const _actsE = applyBizSaleOutcome(req, existing);   // Business Sale → listing + room + pipeline
+    if (_actsE) Object.defineProperty(existing, 'lastActions', { value: _actsE, enumerable: false, configurable: true });
     saveScreens(arr);
     return existing;
   }
   const rec = Object.assign({ id: newScreenId(), formId: fid, processed: false, processedAt: '', createdAt: new Date().toISOString() }, fields);
   _stampTimes(rec, data);
   fireScreeningAutomation(req, rec, data);
-  maybeCreateBizSaleRoom(req, rec);   // Business Sale → stand up the data room
+  const _actsN = applyBizSaleOutcome(req, rec);   // Business Sale → listing + room + pipeline
+  if (_actsN) Object.defineProperty(rec, 'lastActions', { value: _actsN, enumerable: false, configurable: true });
   arr.push(rec); saveScreens(arr);
   assignScreenPipeline(rec.id, 'businessSale');   // starting a call routes it into the Business Sales pipeline
   return rec;
@@ -1397,7 +1399,7 @@ app.post('/api/log', (req, res) => {
 
 // Print / Save PDF also files the record to the queue (no email, no submission log).
 app.post('/api/screening-save', express.json({ limit: '2mb' }), (req, res) => {
-  try { const s = upsertScreening(req, req.body || {}); res.json({ ok: true, id: s.id }); }
+  try { const s = upsertScreening(req, req.body || {}); res.json({ ok: true, id: s.id, actions: s.lastActions || null }); }
   catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.post('/api/questionnaire-save', express.json({ limit: '2mb' }), (req, res) => {
@@ -1498,7 +1500,7 @@ app.get('/api/screenings', (req, res) => {
   const list = loadScreens().slice().reverse().filter(s => isAdmin || ownsScreen(req, s));
   res.json({
     ok: true, isAdmin: !!isAdmin,
-    screenings: list.map(s => ({ id: s.id, personId: s.personId || '', companyId: s.companyId || '', callState: s.callState || '', business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, decision: s.decision || '', completed: !!s.completed, completePct: (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0)), processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt, startedAt: s.startedAt || '', completedAt: s.completedAt || '', durationSeconds: (typeof s.durationSeconds === 'number' ? s.durationSeconds : null) })),
+    screenings: list.map(s => ({ id: s.id, personId: s.personId || '', companyId: s.companyId || '', callState: s.callState || '', becameListing: !!s.becameListing, listingStatus: s.listingStatus || '', business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, decision: s.decision || '', completed: !!s.completed, completePct: (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0)), processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt, startedAt: s.startedAt || '', completedAt: s.completedAt || '', durationSeconds: (typeof s.durationSeconds === 'number' ? s.durationSeconds : null) })),
   });
 });
 app.get('/api/screening/:id', (req, res) => {
@@ -3003,14 +3005,52 @@ function ensureRoomForScreen(req, rec) {
   arr.push(nr); saveRooms(arr); rec.roomId = nr.id;
   return nr;
 }
-// When the seller call is submitted as a Business Sale, stand up its data room
-// (Financials, Tax Returns, Lease, Equipment & FF&E, Licenses & Permits, Legal & Corporate, …).
-function maybeCreateBizSaleRoom(req, rec) {
+// When the seller call is submitted as a Business Sale: stand up its data room
+// (Financials, Tax Returns, Lease, Equipment & FF&E, Licenses & Permits, Legal &
+// Corporate, Menus & Marketing, Other), turn the call into a Live Listing, and route
+// it to the admin's Business Sales pipeline. Returns a summary of what it did (once).
+function applyBizSaleOutcome(req, rec) {
   try {
-    if (!rec || rec.callState !== 'complete' || rec.roomId) return;
-    if (_dealCallKey(rec.statusText || '') !== 'businessSale') return;
-    ensureRoomForScreen(req, rec);
-  } catch (e) { console.error('biz-sale room:', e && e.message); }
+    if (!rec || rec.callState !== 'complete') return null;
+    if (_dealCallKey(rec.statusText || '') !== 'businessSale') return null;
+    if (rec.becameListing) return null;   // apply once
+
+    // 1) The listing IS a deal record (reuse the existing model) — so it shows in the
+    //    listing lists on the contact & company detail pages (they filter deals by
+    //    contactPersonId / companyId). Key becomes s_<screenId>, merging call + listing.
+    const deals = loadDeals();
+    let deal = deals.find(d => d.screenId === rec.id) || null;
+    let listingCreated = false;
+    if (!deal) {
+      deal = {
+        id: newDealId(), business: rec.business || 'Seller', market: rec.market || '', contact: rec.contact || '',
+        screenId: rec.id, roomId: '', contactPersonId: rec.personId || '', companyId: rec.companyId || '',
+        createdAt: new Date().toISOString(), startedAt: new Date().toISOString(),
+        by: rec.by || ((req.user && req.user.name) || ''), byUser: rec.byUser || ((req.user && req.user.username) || ''),
+      };
+      deals.push(deal); saveDeals(deals); listingCreated = true;
+    }
+
+    // 2) Stand up its data room (folders = ROOM_CATEGORIES).
+    const hadRoom = !!(rec.roomId || roomForDeal(deal));
+    const room = ensureRoomForScreen(req, rec);
+    if (deal && room) { const dd = loadDeals(); const d2 = dd.find(x => x.id === deal.id); if (d2 && d2.roomId !== room.id) { d2.roomId = room.id; saveDeals(dd); } }
+
+    // 3) Route into the admin Business Sales pipeline.
+    assignScreenPipeline(rec.id, 'businessSale');
+    let pipeName = '';
+    try { const pid = pipelineForCategory('businessSale'); const p = loadPipelines().find(x => x.id === pid); pipeName = p ? (p.name || '') : ''; } catch (e) {}
+
+    // 4) Turn the call into a Live Listing.
+    rec.becameListing = true; rec.listingStatus = 'Live Listing'; rec.listingDealId = deal.id;
+    if (!rec.listingAt) rec.listingAt = new Date().toISOString();
+
+    return {
+      listing: listingCreated, listingStatus: 'Live Listing',
+      roomCreated: !!(room && !hadRoom), roomId: room ? room.id : '', roomToken: room ? room.token : '',
+      folders: ROOM_CATEGORIES.slice(), pipeline: pipeName, business: rec.business || '', dealKey: 's_' + rec.id,
+    };
+  } catch (e) { console.error('applyBizSaleOutcome:', e && e.message); return null; }
 }
 // Map a BOV upload label to a room category.
 function categoryForUploadLabel(label) {
@@ -8481,8 +8521,8 @@ app.get('/api/documents', (req, res) => {
         companyName: coNameById[s.companyId] || s.market || '',
         personName: nameById[s.personId] || s.contact || '',
         dealName:'', relatesToName:'',
-        status: (s.callState === 'complete' || s.completed) ? 'Complete' : (s.callState === 'pending' ? 'Pending' : 'Live Call'),
-        statusKey: (s.callState === 'complete' || s.completed) ? 'complete' : (s.callState === 'pending' ? 'pending' : 'live'),
+        status: s.becameListing ? 'Live Listing' : ((s.callState === 'complete' || s.completed) ? 'Complete' : (s.callState === 'pending' ? 'Pending' : 'Live Call')),
+        statusKey: s.becameListing ? 'livelisting' : ((s.callState === 'complete' || s.completed) ? 'complete' : (s.callState === 'pending' ? 'pending' : 'live')),
         owner: s.by || s.byUser || '', createdAt: s.createdAt || '',
         completePct: pct, completed: !!s.completed,
         openUrl: '/api/screening/' + encodeURIComponent(s.id) + '/view', editUrl: 'seller_screening.html?screening=' + encodeURIComponent(s.id), deleteUrl: '/api/screening/' + encodeURIComponent(s.id), downloadUrl:'' });
