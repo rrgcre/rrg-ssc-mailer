@@ -82,7 +82,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
   function renderOptions(q){
     var cls='oset'+(q.full?' full':'')+(q.multi?'':' single')+' rowgap'+(q.required?'" data-req="1':'');
     var h='<div class="'+cls+'">'+lab(q)+'<div class="'+optcls(q)+'">';
-    (q.options||[]).forEach(function(o){ h+='<label class="opt"><input type="checkbox">'+esc(o)+'</label>'; });
+    var om=q.optMeta||[]; (q.options||[]).forEach(function(o,i){ var m=om[i]||{}; var da=(m.k?' data-kill="1"':'')+(m.w?(' data-wt="'+m.w+'"'):'')+(m.n?(' data-nudge="'+esc(m.n)+'"'):''); h+='<label class="opt"><input type="checkbox"'+da+'>'+esc(o)+'</label>'; });
     return h+'</div></div>';
   }
   function renderField(q){
