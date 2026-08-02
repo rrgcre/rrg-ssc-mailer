@@ -122,6 +122,7 @@ function questionFromRow(row){
     if(qs('.q-req',row).checked) g.required=true;
     var gc=qs('.g-cols',row); if(gc&&gc.value) g.cols=parseInt(gc.value,10);
     var gp=qs('.q-prompt',row); if(gp&&gp.value.trim()) g.prompt=gp.value.trim();
+    var gh=qs('.q-hint',row); if(gh&&gh.value.trim()) g.hint=gh.value.trim();
     g.id=slug(label); return g;
   }
   if(!label && bt!=='readonly') return null;
@@ -138,6 +139,7 @@ function questionFromRow(row){
     var c=qs('.q-cols',row).value; if(c) q.cols=parseInt(c,10);
   }
   var pr=qs('.q-prompt',row); if(pr && pr.value.trim()) q.prompt=pr.value.trim();
+  var hn=qs('.q-hint',row); if(hn && hn.value.trim()) q.hint=hn.value.trim();
   q.id=slug(label)||('q'+Math.random().toString(36).slice(2,6));
   return q;
 }
@@ -179,6 +181,7 @@ function qrow(q){
     +'<div class="groupwrap"><span class="lbl">Parts \u2014 each becomes a field on the same card / flashcard</span><div class="plist">'+(q.parts||[]).map(partRow).join('')+'</div>'
     +'<div style="display:flex;gap:9px;margin-top:7px;align-items:center;flex-wrap:wrap"><button type="button" class="mini" onclick="addPart(this)">+ Add part</button><span class="lbl" style="margin:0">Layout</span><select class="g-cols" style="width:130px"><option value="2"'+((q.cols==2||!q.cols)?' selected':'')+'>2 columns</option><option value="3"'+(q.cols==3?' selected':'')+'>3 columns</option><option value="1"'+(q.cols==1?' selected':'')+'>Stacked</option></select></div></div>'
     +'<input type="text" class="q-prompt" placeholder="Ask-out-loud prompt for Call Mode (optional)" value="'+esc(q.prompt||'')+'">'
+    +'<input type="text" class="q-hint" placeholder="Coaching note shown to the rep on the card (optional)" value="'+esc(q.hint||'')+'">'
     +'<div class="qact"><button type="button" class="mini" onclick="move(this,-1)">↑</button><button type="button" class="mini" onclick="move(this,1)">↓</button><button type="button" class="mini danger" onclick="del(this)">Remove</button></div></div>';
 }
 

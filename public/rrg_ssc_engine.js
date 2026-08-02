@@ -118,7 +118,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     var parts=(q.parts||[]).map(function(p,i){ return '<div class="gpart"><label class="gk">'+esc(p.label||'')+'</label>'+partInput(p, gid+'_'+i)+'</div>'; }).join('');
     return '<div class="field group full rowgap">'+lab(q)+'<div class="groupgrid'+cc+'">'+parts+'</div></div>';
   }
-  function injectPrompt(html,q){ return (q&&q.prompt) ? html.replace('<div ', '<div data-prompt="'+esc(q.prompt)+'" ') : html; }
+  function injectPrompt(html,q){ if(!q) return html; var a=''; if(q.prompt) a+='data-prompt="'+esc(q.prompt)+'" '; if(q.hint) a+='data-hint="'+esc(q.hint)+'" '; return a ? html.replace('<div ', '<div '+a) : html; }
   function renderCat(cat){
     var h='<div class="sec brk'+(cat.decision?' decisionsec':'')+'"><div class="num">'+esc(cat.n)+'</div><h2>'+esc(cat.title)+'</h2><div class="flex"></div></div>';
     if(cat.decision) h+='<div class="decisionnote"><b>Decision point.</b> Based on everything above — do we move forward with this seller, or not?</div>';
