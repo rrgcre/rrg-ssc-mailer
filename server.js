@@ -1495,7 +1495,7 @@ app.get('/api/screenings', (req, res) => {
   const list = loadScreens().slice().reverse().filter(s => isAdmin || ownsScreen(req, s));
   res.json({
     ok: true, isAdmin: !!isAdmin,
-    screenings: list.map(s => ({ id: s.id, business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, decision: s.decision || '', completed: !!s.completed, completePct: (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0)), processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt, startedAt: s.startedAt || '', completedAt: s.completedAt || '', durationSeconds: (typeof s.durationSeconds === 'number' ? s.durationSeconds : null) })),
+    screenings: list.map(s => ({ id: s.id, personId: s.personId || '', companyId: s.companyId || '', callState: s.callState || '', business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, decision: s.decision || '', completed: !!s.completed, completePct: (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0)), processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt, startedAt: s.startedAt || '', completedAt: s.completedAt || '', durationSeconds: (typeof s.durationSeconds === 'number' ? s.durationSeconds : null) })),
   });
 });
 app.get('/api/screening/:id', (req, res) => {
