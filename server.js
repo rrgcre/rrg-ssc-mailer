@@ -858,7 +858,7 @@ function leadStatusOf(data) {
     for (var i = 0; i < secs.length; i++) {
       var gs = secs[i].groups || [];
       for (var j = 0; j < gs.length; j++) {
-        if (gs[j].kind === 'options' && /lead status/i.test(gs[j].label || '')) {
+        if (gs[j].kind === 'options' && /deal call|lead status/i.test(gs[j].label || '')) {
           return (gs[j].selected && gs[j].selected[0]) || '';
         }
       }
@@ -868,6 +868,8 @@ function leadStatusOf(data) {
 }
 function statusCode(txt) {
   txt = String(txt || '');
+  if (/business sale|asset sale/i.test(txt)) return 'advance';
+  if (/decline/i.test(txt)) return 'pass';
   if (/^advance/i.test(txt)) return 'advance';
   if (/^nurture/i.test(txt)) return 'nurture';
   if (/^pass/i.test(txt)) return 'pass';
@@ -885,6 +887,38 @@ function _stampTimes(rec, data){
   if (data && data.startedAt && !rec.startedAt) rec.startedAt = String(data.startedAt).slice(0, 40);
   if (rec.completed && !rec.completedAt) rec.completedAt = String((data && data.finishedAt) || new Date().toISOString()).slice(0, 40);
   rec.durationSeconds = (rec.startedAt && rec.completedAt) ? Math.max(0, Math.round((Date.parse(rec.completedAt) - Date.parse(rec.startedAt)) / 1000)) : (rec.durationSeconds || null);
+}
+function _dealCallKey(txt) {
+  txt = String(txt || '').toLowerCase();
+  if (/business sale/.test(txt)) return 'businessSale';
+  if (/asset sale/.test(txt)) return 'assetSale';
+  if (/nurture/.test(txt)) return 'nurture';
+  if (/decline|pass/.test(txt)) return 'decline';
+  return '';
+}
+// On submit, fire the questionnaire's automation mapped to the deal call, enrolling the seller.
+function fireScreeningAutomation(req, rec, data) {
+  try {
+    if (!rec || rec.callState !== 'complete' || rec.automationFired) return;
+    const outcome = _dealCallKey(rec.statusText || '');
+    if (!outcome) return;
+    let form = null;
+    const fqid = data && data.formQId;
+    if (fqid) form = loadForms().find(f => f.id === fqid);
+    if (!form) { try { const asg = (loadSettings().callForms || {}).seller; if (asg) form = loadForms().find(f => f.id === asg); } catch (e) {} }
+    const autoId = form && form.automations && form.automations[outcome];
+    if (!autoId) { rec.automationFired = true; return; }
+    const pid = rec.personId;
+    if (!pid) { rec.automationFired = true; return; }
+    const ppl = loadPeople(); const person = ppl.find(p => p.id === pid);
+    const plan = loadAutomations().find(a => a.id === autoId && a.active !== false);
+    if (person && plan) {
+      const en = enrollPerson(person, plan, { byName: (req.user && req.user.name) || 'Screening outcome', byUser: (req.user && req.user.username) || '' });
+      if (en) savePeople(ppl);
+      try { logSysEvent(req, 'Automations', 'Screening outcome \u201c' + (rec.statusText || outcome) + '\u201d enrolled ' + (person.name || 'a contact') + ' in \u201c' + (plan.name || 'an automation') + '\u201d', { tool: 'screening', kind: 'auto-enroll', id: rec.id }); } catch (e) {}
+    }
+    rec.automationFired = true;
+  } catch (e) { console.error('screening automation error:', e); }
 }
 function upsertScreening(req, data) {
   const arr = loadScreens();
@@ -912,11 +946,13 @@ function upsertScreening(req, data) {
     if (_wasComplete && fields.callState !== 'complete') existing.callState = 'complete';
     _stampTimes(existing, data);
     existing.updatedAt = new Date().toISOString();
+    fireScreeningAutomation(req, existing, data);
     saveScreens(arr);
     return existing;
   }
   const rec = Object.assign({ id: newScreenId(), formId: fid, processed: false, processedAt: '', createdAt: new Date().toISOString() }, fields);
   _stampTimes(rec, data);
+  fireScreeningAutomation(req, rec, data);
   arr.push(rec); saveScreens(arr);
   return rec;
 }

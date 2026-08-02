@@ -67,9 +67,7 @@ window.RRG_FORMS.seller = {
     { n:'6', title:'Call Outcome & Notes', decision:true, questions:[
       {sub:'Call Summary', draft:true},
       {type:'textarea', full:true, id:'callNotes', label:'Call Notes', required:true, placeholder:"3–4 sentences: motivation, financial picture, expectations, and your read on the lead. This goes into the contact's record in FullServe.", prompt:"Give me your 3–4 sentence summary — or hit Draft to generate one.", hint:"Write it so another broker could pick this lead up cold. Or hit Draft from answers and edit what comes back — never send it unread."},
-      {type:'readonly', full:true, id:'recPath', label:'Suggested Action', placeholder:'Hit “✨ Draft from answers” — business sale, asset sale, or pass', hint:"The AI's read of the answers, not your decision. You still set the Lead Status yourself on the next card."},
-      {sub:'Lead Outcome'},
-      {type:'options', label:'Lead Status', required:true, full:true, cols:2, options:['Advance (Strong Lead, Financials Requested)','Nurture (Interested, Not Ready)','Pass (Not a Fit)','Refer Out (Wrong Market or Type)'], prompt:"Your call — do we advance, nurture, pass, or refer this out?", hint:"Your decision, not the AI's. Advance means you asked for financials on this call — if you didn't, it's a nurture."}
+      {type:'options', full:true, cols:2, required:true, label:'Deal Call', options:['Business Sale','Asset Sale','Nurture','Decline'], prompt:"Your call — business sale, asset sale, nurture, or decline?", hint:"Business Sale = going concern with transferable earnings. Asset Sale = the value is in the buildout, FF&E or license, not the earnings. Nurture = real but not ready. Decline = we can't deliver it or it's not worth our time. The AI pre-fills its read; you own the final call."}
     ]}
   ]
 };

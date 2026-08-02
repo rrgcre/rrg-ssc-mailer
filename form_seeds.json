@@ -529,30 +529,19 @@
             "hint": "Capture the story: WHY they're selling, WHAT the financials show, WHAT they expect, and YOUR gut on deal viability. This is what someone reads six months from now."
           },
           {
-            "type": "readonly",
-            "full": true,
-            "id": "recPath",
-            "label": "Recommended Path",
-            "placeholder": "Hit “✨ Draft from answers” — business sale, asset sale, or pass",
-            "hint": "The AI's read, not your decision. You still pick the Lead Status on the next card."
-          },
-          {
-            "sub": "Lead Outcome"
-          },
-          {
             "type": "options",
-            "label": "Lead Status",
-            "required": true,
             "full": true,
             "cols": 2,
+            "required": true,
+            "label": "Deal Call",
             "options": [
-              "Advance (Strong Lead, Financials Requested)",
-              "Nurture (Interested, Not Ready)",
-              "Pass (Not a Fit)",
-              "Refer Out (Wrong Market or Type)"
+              "Business Sale",
+              "Asset Sale",
+              "Nurture",
+              "Decline"
             ],
-            "prompt": "Your call — do we advance, nurture, pass, or refer this out?",
-            "hint": "Advance = move to next step. Nurture = stay in touch, revisit timeline. Pass = wrong deal. Refer Out = wrong geography/concept but solid operator elsewhere."
+            "prompt": "Your call — business sale, asset sale, nurture, or decline?",
+            "hint": "Business Sale = going concern with transferable earnings. Asset Sale = value is in the buildout, FF&E or license, not the earnings. Nurture = real but not ready. Decline = can’t deliver it or not worth our time. The AI pre-fills its read; you own the final call."
           }
         ]
       }
