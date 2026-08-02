@@ -6,3 +6,4 @@ _to_delete/
 *.bak
 *.bak-*
 .fuse_hidden*
+*.backup
