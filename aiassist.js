@@ -230,4 +230,26 @@ async function draftScreeningSummary({ data }) {
   const rec = SCREEN_RECS.find(a => a.toLowerCase() === String(j.recommendation || '').trim().toLowerCase()) || '';
   return { summary: String(j.summary || out || '').trim(), recommendation: rec, why: String(j.why || '').trim() };
 }
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary };
+// Build a call questionnaire from pasted text or an uploaded document. Returns the
+// app's form schema (categories of questions); every question carries a rep-facing
+// prompt AND an auto-written coaching hint the advisor can edit from there.
+async function buildQuestionnaire({ text, callType }) {
+  const sys = 'You are building a call questionnaire for Restaurant Realty Group, a brokerage that works only with restaurants and bars. '
+    + 'Convert the source questionnaire the user provides into the app\'s JSON schema. '
+    + 'Return ONLY a JSON object of the form: '
+    + '{"name":"","kicker":"","categories":[{"n":"1","title":"","questions":[{"type":"text|options","label":"","required":true,"prompt":"","hint":"","options":["",""],"cols":2}]}]}. '
+    + 'Rules: '
+    + '- Use only two question types: "text" for open answers, and "options" for a fixed set of choices. For yes/no questions use "options" with options ["Yes","No"]. '
+    + '- Every "options" question must include an "options" array of 2-8 short choices and "cols" (2 or 3). Omit options/cols on "text" questions. '
+    + '- EVERY question must have: a short "label" (the field name), a "prompt" written in the second person that the rep reads aloud to the operator, and a "hint" - ONE sentence of coaching telling the rep what a good answer sounds like or how to probe. The hint is REQUIRED on every question; write it like a seasoned broker briefing a junior. '
+    + '- Set "required":true only for the essentials. '
+    + '- Group questions into logical sections; give each a sequential "n" (as a string) and a short "title". '
+    + '- Preserve the substance and ordering of the source but tighten wording. Do not invent whole sections the source does not imply. '
+    + '- Do NOT include header/identity fields (company, contact, rep, date, market) - those are added automatically. Start with the substantive questions. '
+    + 'Output JSON only, no prose.';
+  const out = await callClaude(sys, 'CALL TYPE: ' + (callType || 'seller') + '\n\nSOURCE QUESTIONNAIRE:\n' + String(text || '').slice(0, 60000), 4000);
+  const j = extractJson(out) || {};
+  return { name: String(j.name || '').trim(), kicker: String(j.kicker || '').trim(), categories: Array.isArray(j.categories) ? j.categories : [] };
+}
+
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire };

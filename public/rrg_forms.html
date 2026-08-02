@@ -128,7 +128,7 @@ function render(){
   var h='';
   h+='<div class="hint">Every rep runs the <b>same</b> questionnaire on the same call type. Change the form here and it takes effect on the next call — no rebuild, nothing to redeploy. The <b>built-in RRG default</b> is always available as a fallback.'
     + (STATE.isAdmin?'':' <b>You are viewing only</b> — an administrator can change these assignments.')+'</div>';
-  if(STATE.isAdmin){ h+='<div style="margin:2px 0 14px"><button class="btn ghost" onclick="newForm()">\uFF0B Build a new questionnaire</button></div>'; }
+  if(STATE.isAdmin){ h+='<div style="margin:2px 0 14px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost" onclick="newForm()">\uFF0B Build a new questionnaire</button><button class="btn ghost" onclick="openUploadQn()">\u2B06 Upload questionnaire</button></div>'; }
   h+=CALLTYPES.map(renderCard).join('');
   h+=renderFormsList();
   if(STATE.isAdmin){
@@ -156,6 +156,58 @@ function render(){
 }
 function nav(u){ try{ (window.top||window).location.href=u; }catch(e){ location.href=u; } }
 function newForm(){ nav('rrg_form_builder.html?new=1'); }
+
+// ---- Upload / paste a questionnaire; the system builds it (with a hint per question) ----
+function _qnOrb(show,msg){
+  var o=document.getElementById('qnOrb');
+  if(show){
+    if(!o){ o=document.createElement('div'); o.id='qnOrb'; o.style.cssText='position:fixed;inset:0;z-index:4000;background:rgba(10,10,30,.6);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center';
+      o.innerHTML='<div style="text-align:center;color:#fff;font-family:inherit"><div class="qnorb"></div><div id="qnOrbMsg" style="margin-top:18px;font-size:15px;font-weight:700">Building your questionnaire…</div><div style="margin-top:6px;font-size:12.5px;color:#aeb8cf">Reading it, shaping the sections, and writing a coaching hint for every question.</div><div id="qnOrbT" style="margin-top:10px;font-size:12px;color:#DA2B1F;font-weight:700">0:00</div></div>';
+      var st=document.createElement('style'); st.textContent='.qnorb{width:64px;height:64px;margin:0 auto;border-radius:50%;background:conic-gradient(from 0deg,#DA2B1F,#000E31,#DA2B1F);-webkit-mask:radial-gradient(closest-side,transparent 62%,#000 64%);mask:radial-gradient(closest-side,transparent 62%,#000 64%);animation:qnspin 1s linear infinite}@keyframes qnspin{to{transform:rotate(360deg)}}'; o.appendChild(st);
+      document.body.appendChild(o);
+    }
+    if(msg){ var m=document.getElementById('qnOrbMsg'); if(m) m.textContent=msg; }
+    o.style.display='flex';
+    var t0=Date.now(); if(window.__qnT) clearInterval(window.__qnT);
+    window.__qnT=setInterval(function(){ var e=document.getElementById('qnOrbT'); if(e){ var s=Math.floor((Date.now()-t0)/1000); e.textContent=Math.floor(s/60)+':'+((s%60)<10?'0':'')+(s%60); } },1000);
+  } else if(o){ o.style.display='none'; if(window.__qnT){ clearInterval(window.__qnT); window.__qnT=null; } }
+}
+function openUploadQn(){
+  var picked=null;
+  var mask=document.createElement('div'); mask.style.cssText='position:fixed;inset:0;z-index:3900;background:rgba(6,14,32,.55);display:flex;align-items:center;justify-content:center;padding:20px';
+  mask.innerHTML='<div style="background:#fff;border-radius:16px;width:100%;max-width:560px;max-height:calc(100vh - 40px);display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(0,0,0,.35)">'
+    +'<div style="padding:17px 21px;font-size:16px;font-weight:800;color:#000E31;border-bottom:1px solid #e6e9f0">Upload a questionnaire</div>'
+    +'<div style="padding:17px 21px;overflow-y:auto">'
+    +'<p style="margin:0 0 13px;font-size:13px;color:#5a6478;line-height:1.5">Paste your questionnaire, or upload a PDF, Word doc, or text file. It is turned into a call questionnaire — sections, questions, and a coaching hint on every question — then you land in the editor to refine it.</p>'
+    +'<label style="display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;font-weight:700;margin:0 0 6px">Paste text</label>'
+    +'<textarea id="qnText" placeholder="Paste the questions here…" style="width:100%;min-height:150px;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:13.5px;resize:vertical"></textarea>'
+    +'<div style="text-align:center;color:#8a93a8;font-size:12px;margin:12px 0">— or —</div>'
+    +'<div id="qnDrop" style="border:2px dashed #cfd6e2;border-radius:11px;padding:16px;text-align:center;color:#6b7488;font-size:12.5px;cursor:pointer;background:#f5f7fb">Click to choose a PDF, Word (.docx), text or CSV file (max 25 MB)</div>'
+    +'<input type="file" id="qnFile" style="display:none" accept=".pdf,.docx,.txt,.md,.csv,.tsv,.json">'
+    +'</div>'
+    +'<div style="display:flex;gap:9px;justify-content:flex-end;align-items:center;padding:13px 21px;border-top:1px solid #e6e9f0"><span id="qnMsg" style="font-size:12px;color:#DA2B1F;margin-right:auto"></span><button type="button" class="btn ghost" id="qnCancel">Cancel</button><button type="button" class="btn primary" id="qnBuild">Build questionnaire</button></div>'
+    +'</div>';
+  document.body.appendChild(mask);
+  var fi=mask.querySelector('#qnFile'), dp=mask.querySelector('#qnDrop'), msg=mask.querySelector('#qnMsg');
+  function close(){ mask.remove(); }
+  dp.addEventListener('click',function(){ fi.click(); });
+  fi.addEventListener('change',function(){ var f=fi.files&&fi.files[0]; if(!f) return; if(f.size>25*1024*1024){ msg.textContent='File too large (max 25 MB).'; fi.value=''; return; } picked=f; dp.textContent='✓ '+f.name; dp.style.borderColor='#1f8a5b'; dp.style.color='#1f8a5b'; });
+  mask.querySelector('#qnCancel').addEventListener('click',close);
+  mask.addEventListener('click',function(e){ if(e.target===mask) close(); });
+  mask.querySelector('#qnBuild').addEventListener('click',function(){
+    var text=(mask.querySelector('#qnText').value||'').trim();
+    if(!text && !picked){ msg.textContent='Paste some text or choose a file first.'; return; }
+    var go=function(body){ close(); _qnOrb(true);
+      fetch('/api/form/build',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+        .then(function(r){ return r.json(); }).then(function(j){ _qnOrb(false);
+          if(j&&j.ok&&j.form){ nav('rrg_form_builder.html?form='+encodeURIComponent(j.form.id)); }
+          else { alert((j&&j.error)||'Could not build the questionnaire.'); } })
+        .catch(function(){ _qnOrb(false); alert('Could not reach the server.'); }); };
+    if(picked){ var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s); go({ filename:picked.name, dataB64:b64 }); }; rd.onerror=function(){ msg.textContent='Could not read that file.'; }; rd.readAsDataURL(picked); }
+    else { go({ text:text }); }
+  });
+}
+
 function editForm(id, builtIn){ nav('rrg_form_builder.html?form='+encodeURIComponent(id)+(builtIn?'&dup=1':'')); }
 var CTLABEL={seller:'Seller Screening',buyer:'Buyer Qualification',site:'Site-Criteria',other:'General'};
 function renderFormsList(){

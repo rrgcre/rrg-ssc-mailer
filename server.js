@@ -996,7 +996,7 @@ app.use(cors({ origin: process.env.ALLOW_ORIGIN || '*' }));
 // The document-upload endpoints declare their own larger JSON limits below.
 // Exempt them here so this 1 MB global cap doesn't 413 real uploads first.
 app.use((req, res, next) => {
-  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/backup/restore' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply') return next();
+  if (req.path === '/api/generate-bov' || req.path === '/api/generate-cim' || req.path === '/api/generate-lease' || req.path === '/api/generate-map' || req.path === '/api/valuation-factors' || req.path === '/api/admin/backup/restore' || req.path === '/api/admin/upload-doc' || req.path === '/api/admin/logo' || req.path === '/api/admin/favicon' || req.path === '/api/files' || req.path === '/api/form/build' || req.path === '/api/room-upload' || /^\/api\/company\/[^/]+\/location\/[^/]+\/photo$/.test(req.path) || /^\/api\/company\/[^/]+\/concept\/[^/]+\/logo$/.test(req.path) || /^\/api\/company\/[^/]+\/logo$/.test(req.path) || /^\/api\/agreements\/[^/]+\/doc$/.test(req.path) || /^\/api\/admin\/agreement-templates\/[^/]+\/file$/.test(req.path) || /^\/api\/sign\/[^/]+$/.test(req.path) || req.path.indexOf('/api/admin/import/') === 0 || req.path === '/api/admin/enrich-apply' || req.path === '/api/admin/concepts-apply' || req.path === '/api/admin/cleanup-apply' || req.path === '/api/admin/apply-logos' || req.path === '/api/admin/emaildomain-apply') return next();
   express.json({ limit: '1mb' })(req, res, next);
 });
 app.use(express.urlencoded({ extended: false }));
@@ -1388,6 +1388,58 @@ app.post('/api/call-forms', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings(); s.callForms = Object.assign({}, s.callForms, (b.assign||{})); saveSettings(s);
   try { logSysEvent(req,'Forms','Updated call-form assignments',{ tool:'forms', kind:'assign' }); } catch(e){}
   res.json({ ok:true, assign:s.callForms });
+});
+// Extract plain text from a pasted string or an uploaded questionnaire (PDF / Word / text).
+async function extractQuestionnaireText(filename, dataB64) {
+  const ext = ((String(filename || '').match(/\.([a-z0-9]+)$/i) || [])[1] || '').toLowerCase();
+  const buf = Buffer.from(String(dataB64 || '').replace(/^data:[^,]*,/, ''), 'base64');
+  if (!buf.length) throw new Error('The file appears to be empty.');
+  if (['txt', 'md', 'markdown', 'csv', 'tsv', 'json', 'text'].indexOf(ext) >= 0) return buf.toString('utf8');
+  if (ext === 'docx') { let mammoth; try { mammoth = require('mammoth'); } catch (e) { throw new Error('Word parsing is unavailable on the server — paste the text instead.'); } const r = await mammoth.extractRawText({ buffer: buf }); return (r && r.value) || ''; }
+  if (ext === 'pdf') { let pdf; try { pdf = require('pdf-parse'); } catch (e) { throw new Error('PDF parsing is unavailable on the server — paste the text instead.'); } const r = await pdf(buf); return (r && r.text) || ''; }
+  if (ext === 'doc') throw new Error('Old .doc files are not supported — save as .docx or PDF, or paste the text.');
+  throw new Error('Unsupported file — upload a PDF, Word (.docx), text or CSV file, or paste the questionnaire text.');
+}
+
+// Build a questionnaire from pasted text or an uploaded document, save it as a new
+// (editable) form, and hand back its id so the admin can review it in the builder.
+const _QN_STD_HEADER = [
+  { id: 'company', type: 'company', label: 'Company Name', required: true, prompt: "What's the name of the company or business?", hint: "If there's a parent company or operating entity, get the exact legal name." },
+  { id: 'concept', type: 'concept', label: 'Concept', prompt: 'What concept or brand are we talking about?' },
+  { id: 'contact', type: 'text', label: 'Contact Name', required: true, prompt: 'Who are we speaking with?', hint: 'Get their full name and role (owner, operator, broker).' },
+  { id: 'rep', type: 'rep', label: 'RRG Rep', required: true, prompt: 'Which RRG rep is running this call?' },
+  { id: 'calldate', type: 'date', label: 'Call Date', required: true, prompt: "What's today's date?" },
+  { id: 'metro', type: 'metro', label: 'Metro', required: true, prompt: 'Which market or metro is this in?' },
+];
+app.post('/api/form/build', requireAdmin, express.json({ limit: '28mb' }), async (req, res) => {
+  const b = req.body || {};
+  let text = String(b.text || '').trim();
+  if (!text && b.dataB64) { try { text = String(await extractQuestionnaireText(b.filename, b.dataB64) || '').trim(); } catch (e) { return res.status(400).json({ ok: false, error: String(e.message || e) }); } }
+  if (!text || text.length < 20) return res.status(400).json({ ok: false, error: 'Paste the questionnaire text or upload a file with enough content to build from.' });
+  let built;
+  try { built = await aiassist.buildQuestionnaire({ text: text.slice(0, 60000), callType: b.callType || '' }); }
+  catch (e) { return res.status(502).json({ ok: false, error: String(e.message || e) }); }
+  const cats = Array.isArray(built.categories) ? built.categories : [];
+  const categories = cats.map(function (c, i) {
+    return {
+      n: String(c.n || (i + 1)),
+      title: String(c.title || ('Section ' + (i + 1))).slice(0, 120),
+      questions: (Array.isArray(c.questions) ? c.questions : []).map(function (q) {
+        const type = (q && q.type === 'options') ? 'options' : 'text';
+        const out = { type: type, label: String((q && q.label) || '').slice(0, 160), required: !!(q && q.required), prompt: String((q && q.prompt) || '').slice(0, 400), hint: String((q && q.hint) || '').slice(0, 400) };
+        if (type === 'options') { out.options = (Array.isArray(q.options) ? q.options : []).map(function (o) { return String(o).slice(0, 80); }).filter(Boolean).slice(0, 12); out.cols = (q && q.cols === 3) ? 3 : 2; }
+        return out;
+      }).filter(function (q) { return q.label; })
+    };
+  }).filter(function (c) { return c.questions.length; });
+  if (!categories.length) return res.status(422).json({ ok: false, error: 'Could not build a questionnaire from that — add more detail or paste the questions directly.' });
+  const arr = loadForms(); const now = new Date().toISOString();
+  const f = { id: 'form_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), builtIn: false, createdAt: now, updatedAt: now,
+    name: String(built.name || 'Imported Questionnaire').slice(0, 120), callType: String(b.callType || '').slice(0, 40),
+    kicker: String(built.kicker || 'Imported').slice(0, 120), header: _QN_STD_HEADER, categories: categories };
+  arr.push(f); saveForms(arr);
+  try { logSysEvent(req, 'Forms', 'Built questionnaire from upload “' + f.name + '”', { tool: 'forms', kind: 'ai-build', id: f.id }); } catch (e) {}
+  res.json({ ok: true, form: f, questions: _formQCount(f) });
 });
 app.post('/api/form/:id/delete', requireAdmin, (req, res) => {
   const arr = loadForms(); const f = arr.find(function(x){ return x.id===req.params.id; });
