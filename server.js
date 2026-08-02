@@ -41,16 +41,23 @@ function loadBovs() { try { return rj(BOVS_FILE); } catch (e) { return []; } }
 // writer (atomic tmp+rename + empty-overwrite guard) lives in ./datasafe.js and is the
 // fallback here; the SQLite writer carries the same guard (see db.js).
 const { writeJsonGuarded: _fileWriteGuarded } = require('./datasafe');
+// SQLite is behind an env switch (USE_SQLITE=1) while we confirm the native module
+// runs on Render. A native crash cannot be caught by try/catch, so when the switch is
+// off we never even require('./db') — the app runs on JSON files exactly as before.
 let _db = null, DB_OK = false;
-try {
-  _db = require('./db');
-  _db.init(BOV_DATA_DIR);
-  const _imp = _db.importFromFiles(BOV_DATA_DIR);
-  DB_OK = true;
-  if (_imp && _imp.length) console.log('[DB] first-boot migration imported ' + _imp.length + ' store(s): ' + _imp.join(', '));
-  console.log('[DB] SQLite data layer active at ' + path.join(BOV_DATA_DIR, 'fullserve.db'));
-} catch (e) {
-  console.error('[DB] SQLite unavailable — running on JSON files. Reason: ' + (e && e.message));
+if (process.env.USE_SQLITE === '1') {
+  try {
+    _db = require('./db');
+    _db.init(BOV_DATA_DIR);
+    const _imp = _db.importFromFiles(BOV_DATA_DIR);
+    DB_OK = true;
+    if (_imp && _imp.length) console.log('[DB] first-boot migration imported ' + _imp.length + ' store(s): ' + _imp.join(', '));
+    console.log('[DB] SQLite data layer active at ' + path.join(BOV_DATA_DIR, 'fullserve.db'));
+  } catch (e) {
+    console.error('[DB] SQLite unavailable — running on JSON files. Reason: ' + (e && e.message));
+  }
+} else {
+  console.log('[DB] SQLite disabled (set USE_SQLITE=1 to enable). Running on JSON files.');
 }
 function writeJsonGuarded(file, data, label) {
   if (DB_OK) return _db.writeStore(path.basename(file), data, label);
