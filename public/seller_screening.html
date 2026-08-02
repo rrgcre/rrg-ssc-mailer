@@ -929,6 +929,7 @@
     Promise.all([repsReady, fetch(API+'/api/session').then(function(r){return r.json();}).catch(function(){return null;})]).then(function(res){
       var s=res[1]; if(s && s.ok && s.name && repSel && !repSel.value){ ensureOption(repSel,s.name); repSel.value=s.name; repSel.dispatchEvent(new Event('change',{bubbles:true})); }
     });
+    prefillFromRecord();
     return;
   }
 
@@ -938,8 +939,39 @@
     for(var i=0;i<ls.length;i++){ var t=ls[i].textContent.replace('*','').trim().toLowerCase();
       if(labels.indexOf(t)>=0){ var inp=ls[i].parentElement.querySelector('input,textarea,select'); if(inp){ if(inp.tagName==='SELECT') ensureOption(inp,val); inp.value=val; inp.dispatchEvent(new Event('input',{bubbles:true})); } return; } }
   }
-  // Prefill a NEW call from a contact (opened via the contact's Actions → Start Qualification Call).
-  (function(){ var q=new URLSearchParams(location.search); var pn=q.get('sellerName'), pc=q.get('company')||q.get('business'), pm=q.get('market'), pa=q.get('address'), contactId=q.get('contactId'); if(!id){ repsReady.then(function(){ var fill=function(){ if(pc) setByLabel(['company name'], pc); if(pn) setByLabel(['seller contact name'], pn); if(pa) setByLabel(['business address'], pa); if(pm){ var ms=document.getElementById('metroSelect'); if(ms){ var opt=[].slice.call(ms.options).filter(function(o){return o.value.toLowerCase()===String(pm).toLowerCase();})[0]; ms.value=opt?opt.value:'Other'; ms.dispatchEvent(new Event('change',{bubbles:true})); } } }; if(contactId && !pn){ fetch(API+'/api/contact/'+encodeURIComponent(contactId),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.contact){ pn=j.contact.firstName+' '+(j.contact.lastName||''); if(!pc && j.contact.company) pc=j.contact.company; fill(); } else { fill(); } }).catch(function(){ fill(); }); } else { fill(); } }); } })();
+  // Prefill a NEW call from the contact / company record it was opened from.
+  // (Contact page -> Actions -> Start Qualification Call passes these on the URL.)
+  // Runs after the questionnaire has finished rendering so a custom form can't wipe it.
+  function prefillFromRecord(){
+    var q=new URLSearchParams(location.search);
+    var pn=q.get('sellerName')||'', pc=q.get('company')||q.get('business')||'',
+        pm=q.get('market')||'', pa=q.get('address')||'',
+        contactId=q.get('contactId')||q.get('contact')||'';
+    if(!pn && !pc && !pm && !pa && !contactId) return;
+    function fill(){
+      if(pc) setByLabel(['company name','business name','company'], pc);
+      if(pn) setByLabel(['seller contact name','contact name','seller name'], pn);
+      if(pa) setByLabel(['business address','address'], pa);
+      if(pm){
+        var ms=document.getElementById('metroSelect');
+        if(ms){ var opt=[].slice.call(ms.options).filter(function(o){return String(o.value).toLowerCase()===String(pm).toLowerCase();})[0];
+                ms.value=opt?opt.value:'Other'; ms.dispatchEvent(new Event('change',{bubbles:true})); }
+        else setByLabel(['metro','market'], pm);
+      }
+      window.__sscPrefill={company:pc,contact:pn,market:pm,address:pa};
+    }
+    Promise.all([repsReady, Promise.resolve(window.RRG_FORM_READY).catch(function(){})]).then(function(){
+      if(contactId && (!pn || !pc)){
+        fetch(API+'/api/contact/'+encodeURIComponent(contactId),{credentials:'same-origin'})
+          .then(function(r){return r.json();})
+          .then(function(j){ var c=j&&j.ok&&j.contact;
+            if(c){ if(!pn) pn=(((c.firstName||'')+' '+(c.lastName||'')).trim())||c.name||'';
+                   if(!pc) pc=c.company||''; }
+            fill(); })
+          .catch(fill);
+      } else { fill(); }
+    });
+  }
   Promise.all([repsReady, fetch(API+'/api/screening/'+encodeURIComponent(id)).then(function(r){return r.json();}).catch(function(){return null;})]).then(function(res){
     var j=res[1]; if(!j||!j.ok||!j.screening) return;
     var s=j.screening, d=s.data||{};
@@ -1026,12 +1058,20 @@
   function norm(s){ return String(s||'').replace(/[*]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
   function labelOf(el){ var l=el.querySelector('label.k'); if(!l) return ''; var c=l.cloneNode(true); c.querySelectorAll('.req-star,.hint,button').forEach(function(x){x.remove();}); return c.textContent.trim(); }
   var steps=Array.prototype.slice.call(form.querySelectorAll('.field, .oset')).filter(function(el){ var inp=el.querySelector('input,textarea,select'); if(!inp) return false; if(el.classList.contains('field')){ var editable=Array.prototype.slice.call(el.querySelectorAll('input,textarea,select')).some(function(x){return !x.readOnly && x.type!=='hidden';}); if(!editable) return false; } return true; });
-  var idx=0, active=false;
+  var idx=0, active=false, known=[];
+  // A question we already have an answer for (prefilled from the contact/company record,
+  // the session, or today's date) is not a question -- don't read it to the seller.
+  function hasVal(el){ var ins=el.querySelectorAll('input,textarea,select');
+    for(var i=0;i<ins.length;i++){ var x=ins[i]; if(x.type==='hidden') continue;
+      if(x.type==='checkbox'||x.type==='radio'){ if(x.checked) return true; }
+      else if(x.value && String(x.value).trim()!=='') return true; }
+    return false; }
+  function seek(i,dir){ while(i>=0 && i<steps.length && known[i]) i+=dir; return i; }
   var st=document.createElement('style'); st.textContent='#cgSlot label.k{display:none !important;} #cgSlot .field,#cgSlot .oset{margin:0 !important;} #cgSlot input,#cgSlot textarea,#cgSlot select{font-size:16px;} #cgSlot textarea{min-height:120px;}'; document.head.appendChild(st);
   var ov=document.createElement('div'); ov.id='callGuide'; ov.style.cssText='position:fixed;inset:0;z-index:1200;background:#0b1636;display:none;align-items:flex-start;justify-content:center;padding:34px 18px;overflow:auto;';
-  ov.innerHTML='<div style="background:#fff;border-radius:18px;max-width:640px;width:100%;box-shadow:0 30px 90px rgba(0,0,0,.5);padding:22px 26px 24px"><div style="display:flex;align-items:center;gap:12px;font-size:12px;color:#6b7488;font-weight:700"><span id="cgProg">Question 1</span><div style="flex:1;height:5px;background:#eef1f6;border-radius:99px;overflow:hidden"><div id="cgBar" style="height:100%;width:0;background:#3b82f6;transition:width .25s"></div></div><span id="cgTimer" style="color:#DA2B1F">0:00</span><button type="button" id="cgExit" style="background:none;border:none;color:#6b7488;font-size:12px;font-weight:700;cursor:pointer">Exit to form</button></div><div id="cgQ" style="font-size:23px;font-weight:800;color:#000E31;margin:18px 0 10px;line-height:1.3"></div><div id="cgHint" style="display:none;font-size:13.5px;color:#5a6478;background:#f5f7fb;border-left:3px solid #DA2B1F;border-radius:0 8px 8px 0;padding:9px 12px;margin:0 0 16px;line-height:1.5"></div><div id="cgSlot" style="min-height:44px"></div><div style="display:flex;gap:10px;justify-content:space-between;margin-top:24px"><button type="button" id="cgBack" style="background:#fff;border:1px solid #cdd6e6;color:#000E31;border-radius:10px;padding:11px 20px;font:inherit;font-weight:700;cursor:pointer">← Back</button><div style="display:flex;gap:10px"><button type="button" id="cgSkip" style="background:#fff;border:1px solid #cdd6e6;color:#6b7488;border-radius:10px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer">Skip</button><button type="button" id="cgNext" style="background:#DA2B1F;border:none;color:#fff;border-radius:10px;padding:11px 28px;font:inherit;font-weight:800;cursor:pointer">Next →</button></div></div></div>';
+  ov.innerHTML='<div style="background:#fff;border-radius:18px;max-width:640px;width:100%;box-shadow:0 30px 90px rgba(0,0,0,.5);padding:22px 26px 24px"><div style="display:flex;align-items:center;gap:12px;font-size:12px;color:#6b7488;font-weight:700"><span id="cgProg">Question 1</span><div style="flex:1;height:5px;background:#eef1f6;border-radius:99px;overflow:hidden"><div id="cgBar" style="height:100%;width:0;background:#3b82f6;transition:width .25s"></div></div><span id="cgTimer" style="color:#DA2B1F">0:00</span><button type="button" id="cgExit" tabindex="-1" style="background:none;border:none;color:#6b7488;font-size:12px;font-weight:700;cursor:pointer">Exit to form</button></div><div id="cgPre" style="display:none;font-size:12.5px;color:#31527a;background:#eef4ff;border:1px solid #d6e4ff;border-radius:10px;padding:8px 12px;margin-top:14px;line-height:1.45"></div><div id="cgQ" style="font-size:23px;font-weight:800;color:#000E31;margin:18px 0 10px;line-height:1.3"></div><div id="cgHint" style="display:none;font-size:13.5px;color:#5a6478;background:#f5f7fb;border-left:3px solid #DA2B1F;border-radius:0 8px 8px 0;padding:9px 12px;margin:0 0 16px;line-height:1.5"></div><div id="cgSlot" style="min-height:44px"></div><div style="display:flex;gap:10px;justify-content:space-between;margin-top:24px"><button type="button" id="cgBack" tabindex="-1" style="background:#fff;border:1px solid #cdd6e6;color:#000E31;border-radius:10px;padding:11px 20px;font:inherit;font-weight:700;cursor:pointer">← Back</button><div style="display:flex;gap:10px"><button type="button" id="cgSkip" tabindex="-1" style="background:#fff;border:1px solid #cdd6e6;color:#6b7488;border-radius:10px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer">Skip</button><button type="button" id="cgNext" style="background:#DA2B1F;border:none;color:#fff;border-radius:10px;padding:11px 28px;font:inherit;font-weight:800;cursor:pointer">Next →</button></div></div></div>';
   document.body.appendChild(ov);
-  var slot=ov.querySelector('#cgSlot'), cgQ=ov.querySelector('#cgQ'), cgHint=ov.querySelector('#cgHint'), cgProg=ov.querySelector('#cgProg'), cgBar=ov.querySelector('#cgBar'), cgBack=ov.querySelector('#cgBack');
+  var slot=ov.querySelector('#cgSlot'), cgQ=ov.querySelector('#cgQ'), cgHint=ov.querySelector('#cgHint'), cgPre=ov.querySelector('#cgPre'), cgProg=ov.querySelector('#cgProg'), cgBar=ov.querySelector('#cgBar'), cgBack=ov.querySelector('#cgBack');
   var fab=document.createElement('button'); fab.type='button'; fab.textContent='▶ Call mode'; fab.style.cssText='position:fixed;right:16px;bottom:16px;z-index:1150;background:#DA2B1F;color:#fff;border:none;border-radius:100px;padding:11px 18px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3);display:none'; document.body.appendChild(fab);
   var homeMarker=null, homeEl=null;
   function parkCurrent(){ if(homeEl && homeMarker && homeMarker.parentNode){ homeMarker.parentNode.insertBefore(homeEl, homeMarker); homeMarker.parentNode.removeChild(homeMarker); } homeEl=null; homeMarker=null; slot.innerHTML=''; }
@@ -1040,18 +1080,26 @@
   function mmss(ms){ var s=Math.max(0,Math.floor(ms/1000)); var m=Math.floor(s/60); s=s%60; return m+':'+(s<10?'0':'')+s; }
   function show(i){ if(i<0)i=0; if(i>=steps.length){ finish(); return; } parkCurrent(); idx=i; var el=steps[i]; pull(el);
     if(el.querySelector('#callNotes')){ var db=document.createElement('button'); db.type='button'; db.textContent='✨ Draft from answers'; db.style.cssText='margin-top:12px;background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:8px 14px;font:inherit;font-size:13px;font-weight:700;color:#5b46b8;cursor:pointer'; db.addEventListener('click',function(){ var o=document.getElementById('draftBtn'); if(o) o.click(); }); slot.appendChild(db); }
-    var lb=labelOf(el); var q=(el.getAttribute&&el.getAttribute('data-prompt'))||QMAP[norm(lb)]||(lb.replace(/\?+$/,'')+'?'); cgQ.textContent=q; var hn=(el.getAttribute&&el.getAttribute('data-hint'))||''; if(cgHint){ cgHint.textContent=hn; cgHint.style.display=hn?'block':'none'; } cgProg.textContent='Question '+(i+1)+' of '+steps.length; cgBar.style.width=Math.round(i/steps.length*100)+'%'; cgBack.style.visibility=i>0?'visible':'hidden'; ov.scrollTop=0; setTimeout(function(){ focusStep(el); },80); }
+    var lb=labelOf(el); var q=(el.getAttribute&&el.getAttribute('data-prompt'))||QMAP[norm(lb)]||(lb.replace(/\?+$/,'')+'?'); cgQ.textContent=q; var hn=(el.getAttribute&&el.getAttribute('data-hint'))||''; if(cgHint){ cgHint.textContent=hn; cgHint.style.display=hn?'block':'none'; } var total=0,pos=0; for(var k=0;k<steps.length;k++){ if(!known[k]) total++; if(k<=i && !known[k]) pos++; } if(!total){ total=steps.length; pos=i+1; }
+    cgProg.textContent='Question '+pos+' of '+total; cgBar.style.width=Math.round((pos-1)/Math.max(1,total)*100)+'%'; cgBack.style.visibility=(seek(i-1,-1)>=0)?'visible':'hidden';
+    if(cgPre) cgPre.style.display=(pos<=1 && cgPre.getAttribute('data-has')==='1')?'block':'none'; ov.scrollTop=0; setTimeout(function(){ focusStep(el); },80); }
   function finish(){ parkCurrent(); ov.style.display='none'; active=false; fab.style.display='block'; var d=document.getElementById('callNotes'); if(d){ d.scrollIntoView({behavior:'smooth',block:'center'}); } if(window.rrgToast) window.rrgToast('Call complete — review the summary and Submit.'); }
-  function start(){ active=true; fab.style.display='none'; ov.style.display='flex'; if(!window.__sscStarted) window.__sscStarted=new Date().toISOString(); show(0); }
+  function start(){ active=true; fab.style.display='none'; ov.style.display='flex'; if(!window.__sscStarted) window.__sscStarted=new Date().toISOString();
+    known=steps.map(function(el){ return hasVal(el); });
+    if(seek(0,1)>=steps.length) known=[];            // everything answered -> ask normally rather than end the call
+    var pre=[]; for(var k=0;k<steps.length;k++){ if(known[k]){ var L=labelOf(steps[k]); if(L) pre.push(L); } }
+    if(cgPre){ if(pre.length){ cgPre.textContent='Already on file: '+pre.join('  \u00b7  ')+'  \u2014 skipped. Hit \u201cExit to form\u201d to change any of it.'; cgPre.setAttribute('data-has','1'); }
+               else { cgPre.setAttribute('data-has','0'); cgPre.style.display='none'; } }
+    show(seek(0,1)); }
   window.startCall=start;
-  ov.querySelector('#cgNext').addEventListener('click',function(){ show(idx+1); });
-  cgBack.addEventListener('click',function(){ show(idx-1); });
-  ov.querySelector('#cgSkip').addEventListener('click',function(){ show(idx+1); });
+  ov.querySelector('#cgNext').addEventListener('click',function(){ show(seek(idx+1,1)); });
+  cgBack.addEventListener('click',function(){ var b=seek(idx-1,-1); if(b>=0) show(b); });
+  ov.querySelector('#cgSkip').addEventListener('click',function(){ show(seek(idx+1,1)); });
   ov.querySelector('#cgExit').addEventListener('click',function(){ var hasData=function(){ var form=document.getElementById('sscform'); if(!form) return false; var inputs=form.querySelectorAll('input,textarea,select'); for(var i=0;i<inputs.length;i++){ var inp=inputs[i]; if(inp.type==='checkbox'||inp.type==='radio'){ if(inp.checked) return true; } else if(inp.value && inp.value.trim()!=='') return true; } return false; }(); if(hasData){ var d=document.createElement('div'); d.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.6);display:flex;align-items:center;justify-content:center;z-index:1400;padding:20px'; d.innerHTML='<div style="background:#fff;border-radius:16px;max-width:440px;width:100%;padding:26px 26px 22px;box-shadow:0 24px 70px rgba(0,0,0,.4);text-align:center"><div style="font-weight:800;color:#000E31;font-size:19px">Cancel this call?</div><div style="color:#5a6478;font-size:14px;margin-top:10px;line-height:1.5">You have unsaved answers. Exit to the form to save them, or cancel to discard them and go back.</div><div style="display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap"><button type="button" id="cancelKeep" style="background:#fff;border:1px solid #cdd6e6;color:#000E31;border-radius:10px;padding:11px 18px;font:inherit;font-size:14px;font-weight:700;cursor:pointer">Exit to form (save)</button><button type="button" id="cancelDiscard" style="background:#DA2B1F;border:none;color:#fff;border-radius:10px;padding:11px 24px;font:inherit;font-size:14px;font-weight:800;cursor:pointer">Discard & go back</button></div></div>'; document.body.appendChild(d); d.querySelector('#cancelKeep').addEventListener('click',function(){ d.remove(); finish(); }); d.querySelector('#cancelDiscard').addEventListener('click',function(){ d.remove(); parkCurrent(); ov.style.display='none'; active=false; fab.style.display='block'; location.href='./index.html'; }); } else { finish(); } });
   fab.addEventListener('click',start);
   setInterval(function(){ if(!active) return; var e=document.getElementById('cgTimer'); if(e) e.textContent=window.__sscStarted?mmss(Date.now()-Date.parse(window.__sscStarted)):'0:00'; },1000);
   var isEdit=/[?&]screening=/.test(location.search);
-  function ask(){ if(isEdit){ fab.style.display='block'; return; } var d=document.createElement('div'); d.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.6);display:flex;align-items:center;justify-content:center;z-index:1300;padding:20px'; d.innerHTML='<div style="background:#fff;border-radius:16px;max-width:440px;width:100%;padding:26px 26px 22px;box-shadow:0 24px 70px rgba(0,0,0,.4);text-align:center"><div style="font-weight:800;color:#000E31;font-size:19px">Ready to start the call?</div><div style="color:#5a6478;font-size:14px;margin-top:10px;line-height:1.5">I’ll walk you through it one question at a time — read each prompt to the seller and capture the answer. You can exit to the full form anytime.</div><div style="display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap"><button type="button" id="cgFill" style="background:#fff;border:1px solid #cdd6e6;color:#000E31;border-radius:10px;padding:11px 18px;font:inherit;font-size:14px;font-weight:700;cursor:pointer">Cancel</button><button type="button" id="cgStart" style="background:#DA2B1F;border:none;color:#fff;border-radius:10px;padding:11px 24px;font:inherit;font-size:15px;font-weight:800;cursor:pointer">Start call</button></div></div>'; document.body.appendChild(d); d.querySelector('#cgFill').addEventListener('click',function(){ d.remove(); fab.style.display='block'; }); d.querySelector('#cgStart').addEventListener('click',function(){ d.remove(); start(); }); }
+  function ask(){ if(isEdit){ fab.style.display='block'; return; } var d=document.createElement('div'); d.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.6);display:flex;align-items:center;justify-content:center;z-index:1300;padding:20px'; d.innerHTML='<div style="background:#fff;border-radius:16px;max-width:440px;width:100%;padding:26px 26px 22px;box-shadow:0 24px 70px rgba(0,0,0,.4);text-align:center"><div style="font-weight:800;color:#000E31;font-size:19px">Ready to start the call?</div><div style="color:#5a6478;font-size:14px;margin-top:10px;line-height:1.5">I’ll walk you through it one question at a time — read each prompt to the seller and capture the answer. You can exit to the full form anytime.</div><div style="display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap"><button type="button" id="cgCancel" style="background:#fff;border:1px solid #cdd6e6;color:#000E31;border-radius:10px;padding:11px 18px;font:inherit;font-size:14px;font-weight:700;cursor:pointer">Cancel</button><button type="button" id="cgStart" style="background:#DA2B1F;border:none;color:#fff;border-radius:10px;padding:11px 24px;font:inherit;font-size:15px;font-weight:800;cursor:pointer">Start call</button></div></div>'; document.body.appendChild(d); d.querySelector('#cgCancel').addEventListener('click',function(){ d.remove(); if(history.length>1){ history.back(); } else { location.href='./index.html'; } }); d.querySelector('#cgStart').addEventListener('click',function(){ d.remove(); start(); }); }
   setTimeout(ask, 500);
 })();
 </script>
