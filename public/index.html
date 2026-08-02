@@ -8,7 +8,25 @@
 :root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2f6fd0;--teal:#12a594;--amber:#c9812a;--red:#DA2B1F;--slate:#6d7c9c;--green:#1f8a5b;}
 *{box-sizing:border-box;margin:0;padding:0;} html,body{background:var(--bg);}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.wrap{max-width:1280px;margin:0 auto;padding:16px 24px 44px;}
+.wrap{max-width:1280px;margin:0 auto;padding:20px 24px 44px;}
+.top{color:#fff;padding:26px 0 26px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1280px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:13px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.top .bar{background:#fff;width:3px;height:28px;margin:0 12px;} .wm{font-weight:800;font-size:13px;text-transform:uppercase;line-height:.95;color:#fff;}
+.kicker{margin:18px 0 4px;color:#ff6a5e;font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+.top h1{font-size:28px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.top .sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:680px;}
+.cmdbar{margin-top:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;}
+.cmdbar .addbtn{background:#fff;color:var(--navy);border:none;border-radius:9px;padding:8px 15px;font:inherit;font-size:12.5px;font-weight:800;cursor:pointer;} .cmdbar .addbtn:hover{filter:brightness(.94);}
+.cmdbar .live{color:#7fe0aa;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;display:inline-flex;align-items:center;gap:6px;}
+.cmdbar .live .d{width:7px;height:7px;border-radius:50%;background:#3ea06a;box-shadow:0 0 0 0 rgba(62,160,106,.5);animation:pl 2s infinite;}
+.cmdbar .hclock{color:#aeb8cf;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;}
+.cmdbar .buildmini{font-size:10.5px;color:#6f7ea0;font-weight:700;font-variant-numeric:tabular-nums;}
+.kstrip{display:flex;align-items:stretch;background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:16px;flex-wrap:wrap;}
+.kstrip .ks{flex:1 1 130px;padding:13px 18px;border-left:1px solid var(--line);min-width:118px;} .kstrip .ks:first-child{border-left:none;}
+.kstrip .ks .kl{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--dim);} .kstrip .ks .kv{font-size:22px;font-weight:800;color:var(--navy);margin-top:4px;letter-spacing:-.01em;}
+.kstrip .kmore{display:flex;align-items:center;gap:6px;padding:0 20px;background:var(--navy);color:#fff;font-weight:800;font-size:12.5px;text-decoration:none;white-space:nowrap;} .kstrip .kmore:hover{filter:brightness(1.15);}
+@media(max-width:720px){.kstrip .kmore{flex:1 1 100%;justify-content:center;padding:12px}}
 .topline{display:flex;align-items:center;gap:11px;padding:2px 2px 14px;flex-wrap:wrap;}
 .topline>b{font-size:19px;font-weight:800;color:var(--ink);letter-spacing:-.01em;}
 .topline .tsub{font-size:11px;color:var(--faint);font-weight:800;text-transform:uppercase;letter-spacing:.1em;}
@@ -20,7 +38,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .addbtn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;} .addbtn:hover{filter:brightness(1.1);}
 .hint{font-size:11.5px;color:var(--faint);font-weight:600;margin:0 0 12px 2px;}
 .modgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;} @media(max-width:900px){.modgrid{grid-template-columns:1fr;}}
-.mod{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(16,32,70,.04);overflow:hidden;transition:box-shadow .15s,opacity .15s;}
+.mod{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.05);overflow:hidden;transition:box-shadow .15s,opacity .15s;}
 .mod.full{grid-column:1 / -1;}
 .mod.dragging{opacity:.45;} .mod.over{box-shadow:0 0 0 2px var(--blue);}
 .modh{display:flex;align-items:center;gap:9px;padding:11px 14px 10px;border-bottom:1px solid var(--line);cursor:grab;touch-action:none;} .modh b{font-size:13.5px;color:var(--ink);} .modh:active{cursor:grabbing;}
@@ -57,7 +75,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
-<div class="wrap" id="root"><div class="gate">Loading your command center…</div></div>
+<div id="root"><div class="gate">Loading your command center…</div></div>
 <div class="libov" id="libov" hidden><div class="libbox"><div class="libhd"><b>Add a module</b><button class="x" id="libx">×</button></div><div class="libbd" id="libbd"></div></div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -149,13 +167,36 @@ function animate(){
 }
 function openLibrary(){ document.getElementById('libbd').innerHTML=(MODS||[]).map(function(m){ var used=LAYOUT.indexOf(m.k)>=0; return '<div class="libitem'+(used?' used':'')+'"><div><b>'+esc(m.label)+'</b><small>'+esc(m.desc||'')+'</small></div>'+(used?'<span class="libused">On dashboard</span>':'<button class="btn" data-add="'+esc(m.k)+'">+ Add</button>')+'</div>'; }).join('')||'<div class="empty" style="padding:24px 0;text-align:center">No modules available.</div>'; document.getElementById('libbd').querySelectorAll('[data-add]').forEach(function(b){ b.addEventListener('click',function(){ LAYOUT.push(b.getAttribute('data-add')); saveLayout(); document.getElementById('libov').hidden=true; renderModules(true); }); }); document.getElementById('libov').hidden=false; }
 function render(){
-  var dd=DATA; var bft=''; try{ if(BOOTED) bft=new Date(BOOTED).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){}
+  var bft=''; try{ if(BOOTED) bft=new Date(BOOTED).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){}
   document.getElementById('root').innerHTML=''
-    +'<div class="topline"><b>Command</b><span class="tsub">Business Overview</span><span class="live"><span class="d"></span>Live</span><span class="rmeta"><button class="addbtn" id="addmod">+ Add module</button><span class="buildmini" id="buildmini" title="'+esc(BUILD+(bft?(' · booted '+bft):''))+'">'+esc(BUILD)+'</span><span class="hclock" id="hclock"></span></span></div>'
+    +'<div class="top"><div class="top-in">'
+    +'<span class="brand" onclick="location.href=\'./index.html\'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>'
+    +'<div class="kicker">Command</div>'
+    +'<h1>Your book at a glance</h1>'
+    +'<div class="sub">Pipeline, activity, and today’s priorities in one place. Drag any card by its header to make it yours.</div>'
+    +'<div class="cmdbar"><button class="addbtn" id="addmod">+ Add module</button><span class="live"><span class="d"></span>Live</span><span class="hclock" id="hclock"></span><span class="buildmini" id="buildmini" title="'+esc(BUILD+(bft?(' · booted '+bft):''))+'">'+esc(BUILD)+'</span></div>'
+    +'</div></div>'
+    +'<div class="wrap">'
+    +'<div id="kstrip" class="kstrip" style="display:none"></div>'
     +'<div class="hint">Drag any module by its header to rearrange · × to remove · “+ Add module” for the library.</div>'
-    +'<div class="modgrid" id="modgrid"></div>';
+    +'<div class="modgrid" id="modgrid"></div>'
+    +'</div>';
   document.getElementById('addmod').addEventListener('click',openLibrary);
   renderModules(true); tickClock(); if(!window._clk) window._clk=setInterval(tickClock,1000);
+  loadScoreStrip();
+}
+var KSTRIP_LBL={bizClosed:'Business sales',assetClosed:'Asset sales',spacesLeased:'Spaces leased',ndaRecv:'NDAs received',bbsLeads:'BizBuySell leads'};
+function loadScoreStrip(){
+  fetch('/api/kpis?days=30',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    var el=document.getElementById('kstrip'); if(!el) return;
+    if(!j||!j.ok||!Array.isArray(j.tiles)){ el.style.display='none'; return; }
+    var by={}; j.tiles.forEach(function(t){ by[t.key]=t; });
+    var order=['bizClosed','assetClosed','spacesLeased','ndaRecv','bbsLeads'];
+    var cells=order.map(function(k){ var t=by[k]; if(!t) return ''; var v=t.placeholder?'—':num(t.value); return '<div class="ks"><div class="kl">'+esc(KSTRIP_LBL[k]||t.label)+'</div><div class="kv">'+v+'</div></div>'; }).join('');
+    if(!cells){ el.style.display='none'; return; }
+    el.innerHTML=cells+'<a class="kmore" href="./rrg_kpis.html">Full scoreboard →</a>';
+    el.style.display='flex';
+  }).catch(function(){ var el=document.getElementById('kstrip'); if(el) el.style.display='none'; });
 }
 document.getElementById('libx').addEventListener('click',function(){ document.getElementById('libov').hidden=true; });
 document.getElementById('libov').addEventListener('click',function(e){ if(e.target===this){ /* stay open */ } });
