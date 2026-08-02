@@ -29,6 +29,7 @@ select{width:100%;font:inherit;font-size:13px;font-weight:600;color:var(--ink);b
 select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(47,111,208,.14);}
 .meta{font-size:11.5px;color:var(--dim);margin-top:7px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
 .meta a{color:var(--blue);text-decoration:none;font-weight:700;} .meta a:hover{text-decoration:underline;}
+.edlink{color:var(--navy)!important;}
 .badge{display:inline-flex;align-items:center;gap:5px;font-weight:700;}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;}
 .savebar{position:sticky;bottom:0;background:linear-gradient(0deg,#eef1f7 62%,rgba(238,241,247,0));padding:16px 0 6px;margin-top:6px;display:flex;gap:12px;align-items:center;}
@@ -105,6 +106,7 @@ function renderCard(ct){
     ? '<span class="badge"><span class="dot"></span>'+chosen.questions+' questions</span>'
       +(chosen.builtIn?'<span>Built-in RRG default</span>':'<span>Custom form</span>')
       +'<a href="#" class="pvlink" data-pv="'+esc(chosen.id)+'" data-ct="'+ct.key+'">Preview questions</a>'
+      +(STATE.isAdmin?('<a href="#" class="edlink" onclick="editForm(\''+esc(chosen.id)+'\','+(chosen.builtIn?1:0)+');return false;">'+(chosen.builtIn?'Duplicate &amp; edit':'Edit')+'</a>'):'')
     : '<span>Assign a form once one is built for this call type.</span>';
   var disabled = STATE.isAdmin && list.length ? '' : ' disabled';
   return '<div class="card"><div class="ct">'
@@ -119,6 +121,7 @@ function render(){
   var h='';
   h+='<div class="hint">Every rep runs the <b>same</b> questionnaire on the same call type. Change the form here and it takes effect on the next call — no rebuild, nothing to redeploy. The <b>built-in RRG default</b> is always available as a fallback.'
     + (STATE.isAdmin?'':' <b>You are viewing only</b> — an administrator can change these assignments.')+'</div>';
+  if(STATE.isAdmin){ h+='<div style="margin:2px 0 14px"><button class="btn ghost" onclick="newForm()">\uFF0B Build a new questionnaire</button></div>'; }
   h+=CALLTYPES.map(renderCard).join('');
   if(STATE.isAdmin){
     h+='<div class="savebar"><button class="btn primary" id="saveBtn">Save assignments</button><span class="msg" id="msg"></span></div>';
@@ -132,7 +135,8 @@ function render(){
       var m=document.getElementById('meta_'+ct);
       if(m&&chosen){ m.innerHTML='<span class="badge"><span class="dot"></span>'+chosen.questions+' questions</span>'
         +(chosen.builtIn?'<span>Built-in RRG default</span>':'<span>Custom form</span>')
-        +'<a href="#" class="pvlink" data-pv="'+esc(chosen.id)+'" data-ct="'+ct+'">Preview questions</a>';
+        +'<a href="#" class="pvlink" data-pv="'+esc(chosen.id)+'" data-ct="'+ct+'">Preview questions</a>'
+        +(STATE.isAdmin?('<a href="#" class="edlink" onclick="editForm(\''+esc(chosen.id)+'\','+(chosen.builtIn?1:0)+');return false;">'+(chosen.builtIn?'Duplicate &amp; edit':'Edit')+'</a>'):'');
         m.querySelector('[data-pv]').addEventListener('click',pvHandler);
       }
       var pil=document.getElementById('pvinline_'+ct); if(pil){ pil.style.display='none'; pil.innerHTML=''; pil.removeAttribute('data-for'); }
@@ -142,6 +146,9 @@ function render(){
   root.querySelectorAll('[data-pv]').forEach(function(a){ a.addEventListener('click',pvHandler); });
   var sb=document.getElementById('saveBtn'); if(sb) sb.addEventListener('click',saveAll);
 }
+function nav(u){ try{ (window.top||window).location.href=u; }catch(e){ location.href=u; } }
+function newForm(){ nav('rrg_form_builder.html?new=1'); }
+function editForm(id, builtIn){ nav('rrg_form_builder.html?form='+encodeURIComponent(id)+(builtIn?'&dup=1':'')); }
 
 function pvHandler(e){ e.preventDefault(); togglePreview(this.getAttribute('data-ct'), this.getAttribute('data-pv'), this); }
 

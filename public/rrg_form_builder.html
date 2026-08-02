@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Questionnaire Builder</title>
+<style>
+:root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2f6fd0;--teal:#12a594;--green:#1f8a5b;--amber:#B7791F;--red:#DA2B1F;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:22px 0 20px;}
+.top-in{max-width:900px;margin:0 auto;padding:0 24px;}
+.crumb{font-size:12px;color:#9fb0d0;font-weight:600;margin-bottom:10px;} .crumb a{color:#c7d3ea;text-decoration:none;cursor:pointer;} .crumb a:hover{color:#fff;text-decoration:underline;} .crumb span{color:#6a7ba0;margin:0 7px;}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:8px 0 4px;}
+h1{margin:0;font-size:23px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:5px;max-width:640px;line-height:1.5;}
+.wrap{max-width:900px;margin:20px auto;padding:0 24px 120px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:18px 20px;box-shadow:0 1px 3px rgba(16,32,70,.05);margin-bottom:14px;}
+.lbl{font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);margin:0 0 5px;display:block;}
+input[type=text],select,textarea{width:100%;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;border:1px solid #d7deec;border-radius:9px;padding:9px 11px;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(47,111,208,.14);}
+textarea{resize:vertical;min-height:60px;line-height:1.4;}
+.row2{display:flex;gap:12px;flex-wrap:wrap;} .row2>div{flex:1;min-width:180px;}
+.sechead{display:flex;align-items:center;gap:10px;justify-content:space-between;margin-bottom:12px;}
+.sechead .sn{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;font-weight:800;font-size:12px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.sechead input.sec-title{font-size:15px;font-weight:700;border:none;border-bottom:1px dashed #cfd8e8;border-radius:0;padding:5px 2px;}
+.sechead input.sec-title:focus{box-shadow:none;border-bottom-color:var(--blue);}
+.qrow{border:1px solid #e7ecf5;border-radius:11px;padding:11px 12px;margin-bottom:9px;background:#fbfcfe;}
+.qrow .qtop{display:flex;gap:9px;align-items:flex-start;flex-wrap:wrap;}
+.qrow .q-label{flex:1;min-width:200px;font-weight:600;}
+.qrow .q-type{width:170px;flex:0 0 auto;}
+.qrow .flags{display:flex;gap:14px;align-items:center;margin-top:9px;flex-wrap:wrap;font-size:12.5px;color:var(--dim);}
+.qrow .flags label{display:inline-flex;gap:5px;align-items:center;cursor:pointer;font-weight:600;}
+.qrow .flags input[type=checkbox]{width:auto;}
+.qrow .optwrap{margin-top:9px;display:none;gap:10px;}
+.qrow.is-opts .optwrap{display:flex;flex-wrap:wrap;}
+.qrow .optwrap .oleft{flex:1;min-width:220px;} .qrow .optwrap .oright{width:130px;flex:0 0 auto;}
+.qrow .q-prompt{margin-top:9px;font-size:12.5px;color:#54607a;}
+.qrow .qact{display:flex;gap:6px;margin-top:9px;justify-content:flex-end;}
+.qrow.sub-row{background:#f2f5fb;border-style:dashed;}
+.qrow.sub-row .qtop input{flex:1;font-weight:700;color:var(--navy);}
+.mini{border:1px solid #d7deec;background:#fff;border-radius:8px;padding:5px 9px;font:inherit;font-size:12px;font-weight:700;color:var(--navy);cursor:pointer;}
+.mini:hover{background:#eef3fb;} .mini.danger{color:var(--red);border-color:#f0c9c5;} .mini.danger:hover{background:#fdeceb;}
+.addbtns{display:flex;gap:9px;flex-wrap:wrap;margin-top:6px;}
+.btn{border:none;border-radius:10px;padding:10px 17px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;text-decoration:none;}
+.btn.primary{background:var(--navy);color:#fff;} .btn.primary:hover{filter:brightness(1.12);}
+.btn.ghost{background:#f2f5fb;color:var(--navy);border:1px solid #dfe6f2;} .btn.ghost:hover{background:#e9eff8;}
+.btn.add{background:#eef3fb;color:var(--navy);border:1px dashed #b9c9e6;} .btn.add:hover{background:#e3ecf9;}
+.btn:disabled{opacity:.55;cursor:default;}
+.savebar{position:fixed;left:0;right:0;bottom:0;background:rgba(255,255,255,.96);border-top:1px solid var(--line);padding:12px 24px;display:flex;gap:12px;align-items:center;justify-content:center;box-shadow:0 -4px 20px rgba(16,32,70,.06);z-index:50;}
+.savebar .inner{max-width:900px;width:100%;display:flex;gap:12px;align-items:center;}
+.msg{font-size:12.5px;font-weight:600;color:var(--dim);} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.banner{background:#fff7ed;border:1px solid #f4e2c7;color:#8a5a12;border-radius:11px;padding:11px 14px;font-size:12.5px;line-height:1.5;margin-bottom:14px;font-weight:600;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);} .gate h2{color:#000E31;}
+.decwrap{margin-top:8px;font-size:12.5px;color:var(--dim);font-weight:600;display:inline-flex;gap:6px;align-items:center;} .decwrap input{width:auto;}
+.hint{font-size:12px;color:var(--dim);margin-top:5px;line-height:1.45;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <div class="crumb"><a onclick="goBack()">Settings</a><span>&rsaquo;</span><a onclick="goBack()">Call Questionnaires</a><span>&rsaquo;</span>Builder</div>
+  <div class="kicker">Admin · Customization</div>
+  <h1 id="pageTitle">Questionnaire Builder</h1>
+  <div class="sub">Build the exact set of questions your reps run on a call — sections, questions, and answer choices. Save it, then assign it to a call type on the Call Questionnaires page.</div>
+</div></div>
+<div id="root" class="wrap"><div class="gate">Loading…</div></div>
+
+<script>
+var TYPES=[
+  {v:'text',label:'Short text'},
+  {v:'textarea',label:'Long text / notes'},
+  {v:'number',label:'Number'},
+  {v:'money',label:'Money ($)'},
+  {v:'range',label:'Dollar range'},
+  {v:'date',label:'Date'},
+  {v:'email',label:'Email'},
+  {v:'single',label:'Single choice'},
+  {v:'multi',label:'Multiple choice'},
+  {v:'readonly',label:'Auto-calculated (read-only)'},
+  {v:'company',label:'Company picker (header)'},
+  {v:'concept',label:'Concept (header)'},
+  {v:'rep',label:'RRG rep (header)'},
+  {v:'date-h',label:'Call date (header)'},
+  {v:'metro',label:'Market / metro (header)'}
+];
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function slug(s){return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'').slice(0,24)||'q';}
+function qs(sel,el){return (el||document).querySelector(sel);}
+function qsa(sel,el){return [].slice.call((el||document).querySelectorAll(sel));}
+
+var STATE={ form:{ id:'', name:'', callType:'seller', builtIn:false, header:[], categories:[] }, dup:false };
+
+/* ---- map a stored question object -> builder type value ---- */
+function typeOf(q){
+  if(q.type==='options') return q.multi?'multi':'single';
+  return q.type; // text, textarea, number, money, range, date, email, readonly, company, concept, rep, metro
+}
+/* ---- build a stored question object from a builder qrow's values ---- */
+function questionFromRow(row){
+  if(row.getAttribute('data-sub')==='1'){
+    var st=qs('.q-sub',row); var v=(st&&st.value||'').trim();
+    return v?{sub:v}:null;
+  }
+  var label=(qs('.q-label',row).value||'').trim();
+  var bt=qs('.q-type',row).value;
+  if(!label && bt!=='readonly') return null;
+  var q={};
+  if(bt==='single'||bt==='multi'){ q.type='options'; if(bt==='multi') q.multi=true; }
+  else if(bt==='date-h'){ q.type='date'; }
+  else q.type=bt;
+  q.label=label;
+  if(qs('.q-req',row).checked) q.required=true;
+  if(qs('.q-full',row) && qs('.q-full',row).checked) q.full=true;
+  if(q.type==='options'){
+    var opts=(qs('.q-options',row).value||'').split('\n').map(function(x){return x.trim();}).filter(Boolean);
+    q.options=opts;
+    var c=qs('.q-cols',row).value; if(c) q.cols=parseInt(c,10);
+  }
+  var pr=qs('.q-prompt',row); if(pr && pr.value.trim()) q.prompt=pr.value.trim();
+  q.id=slug(label)||('q'+Math.random().toString(36).slice(2,6));
+  return q;
+}
+/* ---- rebuild STATE.form from the current DOM ---- */
+function syncFromDom(){
+  STATE.form.name=(qs('#formName').value||'').trim();
+  STATE.form.callType=qs('#formType').value;
+  var hdr=qs('.card[data-header="1"]');
+  STATE.form.header=[];
+  if(hdr) qsa('.qrow',hdr).forEach(function(r){ var q=questionFromRow(r); if(q) STATE.form.header.push(q); });
+  STATE.form.categories=[];
+  qsa('.card[data-section="1"]').forEach(function(sc,i){
+    var cat={ n:i+1, title:(qs('.sec-title',sc).value||'').trim()||('Section '+(i+1)), questions:[] };
+    if(qs('.sec-decision',sc) && qs('.sec-decision',sc).checked) cat.decision=true;
+    qsa('.qrow',sc).forEach(function(r){ var q=questionFromRow(r); if(q) cat.questions.push(q); });
+    STATE.form.categories.push(cat);
+  });
+}
+
+function typeSelect(sel){
+  return '<select class="q-type">'+TYPES.map(function(t){ return '<option value="'+t.v+'"'+(t.v===sel?' selected':'')+'>'+esc(t.label)+'</option>'; }).join('')+'</select>';
+}
+function qrow(q){
+  q=q||{};
+  if(q.sub!==undefined){
+    return '<div class="qrow sub-row" data-sub="1"><div class="qtop"><input type="text" class="q-sub" placeholder="Subheading text" value="'+esc(q.sub)+'"></div>'
+      +'<div class="qact"><button type="button" class="mini" onclick="move(this,-1)">↑</button><button type="button" class="mini" onclick="move(this,1)">↓</button><button type="button" class="mini danger" onclick="del(this)">Remove</button></div></div>';
+  }
+  var bt=typeOf(q)||'text';
+  var isOpt=(bt==='single'||bt==='multi');
+  var opts=(q.options||[]).join('\n');
+  return '<div class="qrow'+(isOpt?' is-opts':'')+'">'
+    +'<div class="qtop"><input type="text" class="q-label" placeholder="Question (e.g. “Annual revenue?”)" value="'+esc(q.label||'')+'">'+typeSelect(bt)+'</div>'
+    +'<div class="flags"><label><input type="checkbox" class="q-req"'+(q.required?' checked':'')+'> Required</label>'
+    +'<label><input type="checkbox" class="q-full"'+(q.full?' checked':'')+'> Full width</label></div>'
+    +'<div class="optwrap"><div class="oleft"><span class="lbl">Answer choices (one per line)</span><textarea class="q-options" placeholder="Yes\nNo\nMaybe">'+esc(opts)+'</textarea></div>'
+    +'<div class="oright"><span class="lbl">Layout</span><select class="q-cols"><option value="">Stacked</option><option value="2"'+(q.cols==2?' selected':'')+'>2 columns</option><option value="3"'+(q.cols==3?' selected':'')+'>3 columns</option><option value="4"'+(q.cols==4?' selected':'')+'>4 columns</option></select></div></div>'
+    +'<input type="text" class="q-prompt" placeholder="Ask-out-loud prompt for Call Mode (optional)" value="'+esc(q.prompt||'')+'">'
+    +'<div class="qact"><button type="button" class="mini" onclick="move(this,-1)">↑</button><button type="button" class="mini" onclick="move(this,1)">↓</button><button type="button" class="mini danger" onclick="del(this)">Remove</button></div></div>';
+}
+
+function sectionCard(cat,idx){
+  var qhtml=(cat.questions||[]).map(function(q){return qrow(q);}).join('');
+  return '<div class="card" data-section="1"><div class="sechead">'
+    +'<span class="sn">'+(idx+1)+'</span>'
+    +'<input type="text" class="sec-title" placeholder="Section name (e.g. “Financials”)" value="'+esc(cat.title||'')+'" style="flex:1">'
+    +'<div style="display:flex;gap:6px"><button type="button" class="mini" onclick="moveSec(this,-1)">↑</button><button type="button" class="mini" onclick="moveSec(this,1)">↓</button><button type="button" class="mini danger" onclick="delSec(this)">Delete section</button></div>'
+    +'</div>'
+    +'<label class="decwrap"><input type="checkbox" class="sec-decision"'+(cat.decision?' checked':'')+'> This is the go / no-go decision section</label>'
+    +'<div class="qlist">'+qhtml+'</div>'
+    +'<div class="addbtns"><button type="button" class="btn add" onclick="addQ(this)">+ Add question</button><button type="button" class="btn add" onclick="addSub(this)">+ Add subheading</button></div>'
+    +'</div>';
+}
+
+function render(){
+  var f=STATE.form;
+  var h='';
+  if(STATE.dup) h+='<div class="banner">You’re editing a <b>copy</b> of a built-in questionnaire. Saving creates a new one you can customize — the original stays untouched.</div>';
+  else if(f.builtIn) h+='<div class="banner">This is the built-in questionnaire and is read-only. Use <b>Duplicate</b> on the Call Questionnaires page to make an editable copy.</div>';
+  // meta
+  h+='<div class="card"><div class="row2"><div><span class="lbl">Questionnaire name</span><input type="text" id="formName" value="'+esc(f.name||'')+'" placeholder="e.g. Seller Screening — Bars"></div>'
+    +'<div><span class="lbl">Used for which call type</span><select id="formType">'
+    +['seller','buyer','site','other'].map(function(t){var lbl={seller:'Seller Screening',buyer:'Buyer Qualification',site:'Site-Criteria',other:'Other / General'}[t];return '<option value="'+t+'"'+(f.callType===t?' selected':'')+'>'+lbl+'</option>';}).join('')
+    +'</select></div></div></div>';
+  // header
+  h+='<div class="card" data-header="1"><div class="sechead"><span class="sn" style="background:var(--teal)">＝</span><div style="flex:1"><div style="font-size:15px;font-weight:700">Call header</div><div class="hint">Fields that auto-fill at the top of the call (company, rep, date, market). These pull from the contact when the screening opens.</div></div></div>'
+    +'<div class="qlist">'+(f.header||[]).map(function(q){return qrow(q);}).join('')+'</div>'
+    +'<div class="addbtns"><button type="button" class="btn add" onclick="addQ(this)">+ Add header field</button></div></div>';
+  // sections
+  h+='<div id="sections">'+(f.categories||[]).map(function(c,i){return sectionCard(c,i);}).join('')+'</div>';
+  h+='<div class="addbtns" style="margin-top:2px"><button type="button" class="btn add" onclick="addSection()">+ Add section</button></div>';
+  qs('#root').innerHTML=h;
+  renderSaveBar();
+  bindTypeToggles();
+}
+function renderSaveBar(){
+  if(qs('#savebar')) return;
+  var b=document.createElement('div'); b.id='savebar'; b.className='savebar';
+  b.innerHTML='<div class="inner"><button type="button" class="btn ghost" onclick="goBack()">Cancel</button>'
+    +'<button type="button" class="btn primary" id="saveBtn" onclick="save()">Save questionnaire</button>'
+    +'<span class="msg" id="msg"></span></div>';
+  document.body.appendChild(b);
+}
+function bindTypeToggles(){
+  qsa('.q-type').forEach(function(sel){
+    sel.onchange=function(){ var row=sel.closest('.qrow'); var opt=(sel.value==='single'||sel.value==='multi'); row.classList.toggle('is-opts',opt); };
+  });
+}
+
+/* ---- structural ops (sync first so typing isn't lost) ---- */
+function addQ(btn){ syncFromDom(); var list=btn.closest('.card').querySelector('.qlist'); list.insertAdjacentHTML('beforeend', qrow({label:'',type:'text'})); bindTypeToggles(); list.lastElementChild.querySelector('.q-label').focus(); }
+function addSub(btn){ var list=btn.closest('.card').querySelector('.qlist'); list.insertAdjacentHTML('beforeend', qrow({sub:''})); list.lastElementChild.querySelector('.q-sub').focus(); }
+function del(btn){ btn.closest('.qrow').remove(); }
+function move(btn,dir){ var r=btn.closest('.qrow'); if(dir<0 && r.previousElementSibling) r.parentNode.insertBefore(r,r.previousElementSibling); if(dir>0 && r.nextElementSibling) r.parentNode.insertBefore(r.nextElementSibling,r); }
+function addSection(){ syncFromDom(); STATE.form.categories.push({title:'',questions:[]}); render(); window.scrollTo(0,document.body.scrollHeight); }
+function delSec(btn){ if(!confirm('Delete this whole section and its questions?')) return; syncFromDom(); var cards=qsa('.card[data-section="1"]'); var i=cards.indexOf(btn.closest('.card')); if(i>=0){ STATE.form.categories.splice(i,1); render(); } }
+function moveSec(btn,dir){ syncFromDom(); var cards=qsa('.card[data-section="1"]'); var i=cards.indexOf(btn.closest('.card')); var j=i+dir; if(j<0||j>=STATE.form.categories.length) return; var a=STATE.form.categories; var t=a[i]; a[i]=a[j]; a[j]=t; render(); }
+
+function goBack(){ try{ (window.top||window).location.href='rrg_settings.html?tab=callforms'; }catch(e){ location.href='rrg_settings.html?tab=callforms'; } }
+
+function save(){
+  syncFromDom();
+  var f=STATE.form; var msg=qs('#msg'); var btn=qs('#saveBtn');
+  if(!f.name){ msg.className='msg err'; msg.textContent='Give the questionnaire a name first.'; qs('#formName').focus(); return; }
+  var totalQ=(f.header||[]).length + (f.categories||[]).reduce(function(n,c){return n+(c.questions||[]).filter(function(q){return q.type;}).length;},0);
+  if(!totalQ){ msg.className='msg err'; msg.textContent='Add at least one question before saving.'; return; }
+  var payload={ name:f.name, callType:f.callType, header:f.header, categories:f.categories };
+  if(f.id && !STATE.dup) payload.id=f.id; // editing an existing custom form; dup/new omit id
+  btn.disabled=true; btn.textContent='Saving…'; msg.className='msg'; msg.textContent='';
+  fetch('/api/form',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      btn.disabled=false; btn.textContent='Save questionnaire';
+      if(j&&j.ok){ msg.className='msg ok'; msg.textContent='✓ Saved. Returning to Call Questionnaires…'; setTimeout(goBack,900); }
+      else { msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not save.'; }
+    }).catch(function(){ btn.disabled=false; btn.textContent='Save questionnaire'; msg.className='msg err'; msg.textContent='Network error — not saved.'; });
+}
+
+/* ---- boot ---- */
+(function(){
+  var p=new URLSearchParams(location.search);
+  var id=p.get('form'); var isNew=p.get('new')==='1'; var wantDup=p.get('dup')==='1';
+  var preType=p.get('callType');
+  function start(){
+    if(preType) STATE.form.callType=preType;
+    qs('#pageTitle').textContent = STATE.form.id && !STATE.dup ? 'Edit questionnaire' : (STATE.dup?'Duplicate & edit':'New questionnaire');
+    render();
+  }
+  if(isNew || !id){
+    STATE.form={ id:'', name:'', callType:preType||'seller', builtIn:false, header:[], categories:[{title:'',questions:[{label:'',type:'text'}]}] };
+    start(); return;
+  }
+  fetch('/api/form/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok||!j.form){ qs('#root').innerHTML='<div class="gate"><h2>Could not load</h2>That questionnaire wasn’t found.</div>'; return; }
+    var f=j.form;
+    STATE.form={ id:f.id, name:f.name||'', callType:f.callType||'seller', builtIn:!!f.builtIn, kicker:f.kicker||'', header:f.header||[], categories:f.categories||[] };
+    if(f.builtIn && wantDup){ STATE.dup=true; STATE.form.id=''; STATE.form.builtIn=false; STATE.form.name=(f.name||'Questionnaire')+' (copy)'; }
+    start();
+  }).catch(function(){ qs('#root').innerHTML='<div class="gate"><h2>Could not load</h2>Check your connection and reload.</div>'; });
+})();
+</script>
+</body>
+</html>
