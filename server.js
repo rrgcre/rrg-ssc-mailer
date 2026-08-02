@@ -6627,7 +6627,6 @@ app.get('/admin', requireAdmin, (req, res) => {
       })();
       </script>
 
-      <div style="margin-top:14px;padding:14px 16px;background:#f7f9fc;border:1px solid #e9edf3;border-radius:10px;display:flex;align-items:center;gap:14px;flex-wrap:wrap"><div style="flex:1;min-width:220px"><b style="color:var(--navy)">Roles &amp; permissions</b><div class="sub2" style="margin-top:3px">Assign each user a role (Admin, Senior Associate, Associate, or a custom role) and control exactly which tools and records they can use.</div></div><a href="/rrg_roles.html" class="primary" style="text-decoration:none;padding:10px 16px;border-radius:8px">Manage roles &rarr;</a></div>
 
       <h2 style="margin-top:34px">Tool Access <span class="sub2">— check a tool to make it admin-only (hidden from reps, and blocked by direct link)</span></h2>
       <div class="links">
@@ -6654,30 +6653,6 @@ app.get('/admin', requireAdmin, (req, res) => {
           <span id="docmsg" class="sub2"></span>
         </div>
         <div id="docList" style="margin-top:14px"></div>
-      </div>
-
-      <div class="grp">Valuation Rules</div>
-      <h2 style="margin-top:20px">BOV Valuation Basis <span class="sub2">— deals with trailing sales BELOW this value are concluded on SDE; at or above it, on Adjusted EBITDA.</span></h2>
-      <div class="links">
-        <label class="sub2" style="display:block;margin-bottom:4px">SDE threshold (annual sales, $)</label>
-        <input id="sdeThreshold" inputmode="numeric" style="border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;width:200px" placeholder="1200000">
-        <div style="margin-top:10px"><button class="primary" onclick="saveBovConfig()">Save threshold</button> <span id="bcmsg" class="sub2"></span></div>
-      </div>
-
-      <h2 style="margin-top:34px">No-TTM Notice <span class="sub2">— shown on a BOV when no trailing-twelve-month statement was provided and we're past Q1, so the valuation fell back to the previous fiscal year.</span></h2>
-      <div class="links">
-        <textarea id="noTtmMessage" spellcheck="true" style="width:100%;min-height:110px;border:1px solid #cfd6e2;border-radius:8px;padding:11px 13px;font:inherit;font-size:13.5px;line-height:1.5;resize:vertical"></textarea>
-        <div style="margin-top:10px"><button class="primary" onclick="saveNoTtmMessage()">Save message</button> <button onclick="resetNoTtmMessage()">Reset to default</button> <span id="ntmsg" class="sub2"></span></div>
-      </div>
-
-      <h2 style="margin-top:34px">Asset-Sale Floor <span class="sub2">— when trailing SDE is at or below this, the business has no going-concern value and is treated / marketed as an asset sale.</span></h2>
-      <div class="links">
-        <label class="sub2" style="display:block;margin-bottom:4px">SDE floor ($; default 25,000)</label>
-        <input id="assetSaleFloor" inputmode="numeric" style="border:1px solid #cfd6e2;border-radius:8px;padding:9px 12px;font:inherit;font-size:14px;width:180px" placeholder="25000">
-        <div style="margin-top:10px"><button class="primary" onclick="saveAssetSaleFloor()">Save floor</button> <span id="asfmsg" class="sub2"></span></div>
-        <label class="sub2" style="display:block;margin:18px 0 4px">Notice shown on the BOV when a deal falls at or below the floor</label>
-        <textarea id="assetSaleMessage" spellcheck="true" style="width:100%;min-height:110px;border:1px solid #cfd6e2;border-radius:8px;padding:11px 13px;font:inherit;font-size:13.5px;line-height:1.5;resize:vertical"></textarea>
-        <div style="margin-top:10px"><button class="primary" onclick="saveAssetSaleMessage()">Save message</button> <button onclick="resetAssetSaleMessage()">Reset to default</button> <span id="asmmsg" class="sub2"></span></div>
       </div>
 
     </div>
@@ -6802,7 +6777,7 @@ app.get('/admin', requireAdmin, (req, res) => {
 
       function fmtNum(n){ return Number(n||0).toLocaleString('en-US'); }
       var INTRO_DEFAULT_MSG='', PACK_INTRO_DEFAULT_MSG='';
-      function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); var is=document.getElementById('introSeconds'); if(is) is.value=(j.introSeconds!=null?j.introSeconds:10); INTRO_DEFAULT_MSG=j.defaultIntroMessage||''; var im=document.getElementById('introMessage'); if(im) im.value=j.introMessage||j.defaultIntroMessage||''; var ds=document.getElementById('doneSeconds'); if(ds) ds.value=(j.doneSeconds!=null?j.doneSeconds:2); var nt=document.getElementById('noTtmMessage'); if(nt) nt.value=j.noTtmMessage||j.defaultNoTtmMessage||''; var af=document.getElementById('assetSaleFloor'); if(af) af.value=fmtNum(j.assetSaleFloor!=null?j.assetSaleFloor:(j.defaultAssetSaleFloor!=null?j.defaultAssetSaleFloor:25000)); var am=document.getElementById('assetSaleMessage'); if(am) am.value=j.assetSaleMessage||j.defaultAssetSaleMessage||''; var pis=document.getElementById('packIntroSeconds'); if(pis) pis.value=(j.packIntroSeconds!=null?j.packIntroSeconds:20); PACK_INTRO_DEFAULT_MSG=j.defaultPackIntroMessage||''; var pim=document.getElementById('packIntroMessage'); if(pim) pim.value=j.packIntroMessage||j.defaultPackIntroMessage||''; renderSounds(j.ambienceId||'analyst'); } }).catch(function(){ renderSounds('analyst'); }); }
+      function loadBovConfig(){ fetch('/api/admin/bov-config').then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var st=document.getElementById('sdeThreshold'); if(st) st.value=fmtNum(j.sdeThreshold); var is=document.getElementById('introSeconds'); if(is) is.value=(j.introSeconds!=null?j.introSeconds:10); INTRO_DEFAULT_MSG=j.defaultIntroMessage||''; var im=document.getElementById('introMessage'); if(im) im.value=j.introMessage||j.defaultIntroMessage||''; var ds=document.getElementById('doneSeconds'); if(ds) ds.value=(j.doneSeconds!=null?j.doneSeconds:2); var nt=document.getElementById('noTtmMessage'); if(nt) nt.value=j.noTtmMessage||j.defaultNoTtmMessage||''; var af=document.getElementById('assetSaleFloor'); if(af) af.value=fmtNum(j.assetSaleFloor!=null?j.assetSaleFloor:(j.defaultAssetSaleFloor!=null?j.defaultAssetSaleFloor:25000)); var am=document.getElementById('assetSaleMessage'); if(am) am.value=j.assetSaleMessage||j.defaultAssetSaleMessage||''; var pis=document.getElementById('packIntroSeconds'); if(pis) pis.value=(j.packIntroSeconds!=null?j.packIntroSeconds:20); PACK_INTRO_DEFAULT_MSG=j.defaultPackIntroMessage||''; var pim=document.getElementById('packIntroMessage'); if(pim) pim.value=j.packIntroMessage||j.defaultPackIntroMessage||''; renderSounds(j.ambienceId||'analyst'); } }).catch(function(){ renderSounds('analyst'); }); }
       // ----- Build-sound picker (uses the shared RRG_AMBIENCE library) -----
       function renderSounds(sel){ var el=document.getElementById('soundList'); if(!el) return;
         if(!window.RRG_AMBIENCE){ el.innerHTML='<div class="sub2">Loading sounds...</div>'; setTimeout(function(){ renderSounds(sel); }, 400); return; }
@@ -6819,12 +6794,6 @@ app.get('/admin', requireAdmin, (req, res) => {
       function togglePreview(id, btn){ if(PREV && PREV.id===id){ stopPreview(); } else { previewSound(id, btn); } }
       function saveAmbience(){ var r=document.querySelector('#soundList input[name=ambience]:checked'); var id=r?r.value:'orb'; var m=document.getElementById('sndmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{ambienceId:id}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓ — plays on the next build (all build screens)'; } else m.textContent=(j&&j.error)||'Failed'; }); }
       function saveDoneSeconds(){ var v=(document.getElementById('doneSeconds').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('dsmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{doneSeconds:v}).then(function(j){ if(j&&j.ok){ document.getElementById('doneSeconds').value=(j.doneSeconds!=null?j.doneSeconds:2); m.textContent='Saved — '+j.doneSeconds+'s ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
-      function saveNoTtmMessage(){ var v=document.getElementById('noTtmMessage').value||''; var m=document.getElementById('ntmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{noTtmMessage:v}).then(function(j){ if(j&&j.ok){ document.getElementById('noTtmMessage').value=j.noTtmMessage||''; m.textContent='Saved ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
-      function resetNoTtmMessage(){ if(!confirm('Reset the no-TTM notice to the RRG default?')) return; var m=document.getElementById('ntmsg'); m.textContent='Resetting…'; post('/api/admin/bov-config',{noTtmMessage:''}).then(function(j){ if(j&&j.ok){ document.getElementById('noTtmMessage').value=j.noTtmMessage||''; m.textContent='Reset to default ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
-      function saveAssetSaleFloor(){ var v=(document.getElementById('assetSaleFloor').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('asfmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{assetSaleFloor:v}).then(function(j){ if(j&&j.ok){ document.getElementById('assetSaleFloor').value=fmtNum(j.assetSaleFloor); m.textContent='Saved — asset sale at/below $'+fmtNum(j.assetSaleFloor)+' SDE ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
-      function saveAssetSaleMessage(){ var v=document.getElementById('assetSaleMessage').value||''; var m=document.getElementById('asmmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{assetSaleMessage:v}).then(function(j){ if(j&&j.ok){ document.getElementById('assetSaleMessage').value=j.assetSaleMessage||''; m.textContent='Saved ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
-      function resetAssetSaleMessage(){ if(!confirm('Reset the asset-sale notice to the RRG default?')) return; var m=document.getElementById('asmmsg'); m.textContent='Resetting…'; post('/api/admin/bov-config',{assetSaleMessage:''}).then(function(j){ if(j&&j.ok){ document.getElementById('assetSaleMessage').value=j.assetSaleMessage||''; m.textContent='Reset to default ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
-      function saveBovConfig(){ var v=(document.getElementById('sdeThreshold').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('bcmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{sdeThreshold:v}).then(function(j){ if(j&&j.ok){ document.getElementById('sdeThreshold').value=fmtNum(j.sdeThreshold); m.textContent='Saved — SDE below $'+fmtNum(j.sdeThreshold)+' in sales ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
       function saveIntroSeconds(){ var v=(document.getElementById('introSeconds').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('ismsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{introSeconds:v}).then(function(j){ if(j&&j.ok){ document.getElementById('introSeconds').value=(j.introSeconds!=null?j.introSeconds:10); m.textContent=(Number(j.introSeconds)===0?'Saved — intro screen off ✓':('Saved — '+j.introSeconds+'s ✓')); } else m.textContent=(j&&j.error)||'Failed'; }); }
       function saveIntroMessage(){ var v=document.getElementById('introMessage').value||''; var m=document.getElementById('immsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{introMessage:v}).then(function(j){ if(j&&j.ok){ document.getElementById('introMessage').value=j.introMessage||''; m.textContent='Saved ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
       function resetIntroMessage(){ if(!confirm('Reset the intro message to the RRG default?')) return; var m=document.getElementById('immsg'); m.textContent='Resetting…'; post('/api/admin/bov-config',{introMessage:''}).then(function(j){ if(j&&j.ok){ document.getElementById('introMessage').value=j.introMessage||INTRO_DEFAULT_MSG; m.textContent='Reset to default ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
@@ -6864,8 +6833,6 @@ app.get('/admin', requireAdmin, (req, res) => {
         if(saved && document.getElementById(saved)) show(saved);
         window.addEventListener('hashchange',function(){ var h=(location.hash||'').replace(/^#/,''); if(h && document.getElementById(h)) show(h); });
         var moreA=document.createElement('a'); moreA.className='snav'; moreA.href='/rrg_admin_settings.html'; moreA.style.marginTop='12px'; moreA.style.borderTop='1px solid #e9edf3'; moreA.style.paddingTop='15px'; moreA.innerHTML='<span class="si"></span>More settings →'; nav.appendChild(moreA);
-        var tplA=document.createElement('a'); tplA.className='snav'; tplA.href='/rrg_agreement_templates.html'; tplA.innerHTML='<span class="si"></span>Agreement templates →'; nav.appendChild(tplA);
-        var rolesA=document.createElement('a'); rolesA.className='snav'; rolesA.href='/rrg_roles.html'; rolesA.innerHTML='<span class="si"></span>Roles & permissions →'; nav.appendChild(rolesA);
         var deptA=document.createElement('a'); deptA.className='snav'; deptA.href='/rrg_departments.html'; deptA.innerHTML='<span class="si"></span>Departments →'; nav.appendChild(deptA);
       })();
       function accAll(){}

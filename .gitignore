@@ -3,3 +3,6 @@ node_modules/
 *.log
 data/
 _to_delete/
+*.bak
+*.bak-*
+.fuse_hidden*
