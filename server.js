@@ -8235,10 +8235,43 @@ app.get('/api/documents', (req, res) => {
     if (restrictToOwn(req)) sscs = sscs.filter(r => permOwnerMatch(req, r.rep));
     sscs.forEach(r => { out.push({ id: r.timestamp, kind:'ssc', title: r.name || 'Site Criteria', typeLabel:'Site Criteria', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', dealName:'', relatesToName:'', status: r.highlights || '', statusKey:'ssc', owner: r.rep || '', createdAt: r.timestamp || '', openUrl: '/api/ssc/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
   } catch (e) {}
+  // ---- Seller screening calls ---------------------------------------------------------
+  // The row opens the CALL, not a rendering of it. A rep who spots a wrong number while
+  // scanning a contact's documents has to be able to fix it there and then, and the record
+  // that can be edited is the one in the screening queue: one per call, deduped by formId,
+  // carrying the party ids, the completion figure and the decision.
+  //
+  // The submission log is the wrong source for this list. It is append-only, so submitting
+  // or printing the same call twice put two identical rows on the contact; and it only
+  // gains a row at submit time, so a call in progress -- the one a rep is most likely to
+  // want back -- never appeared at all. Now it shows from the first answer.
+  //
+  // Legacy submissions from before the queue existed carry no formId, so nothing in the
+  // queue can represent them. Those keep their read-only rendered view; there is no
+  // editable record behind them to open.
   try {
-    let sellers = store.readAll().filter(r => r.form === 'seller');
+    const _seenFid = {};
+    let scr = loadScreens().filter(s => isAdmin || ownsScreen(req, s));
+    scr.forEach(s => {
+      const d = s.data || {};
+      if (s.formId) _seenFid[s.formId] = 1;
+      const pct = (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0));
+      const title = (s.business && s.business !== 'Seller') ? s.business : (d.company || s.contact || 'Seller Screening');
+      out.push({ id: s.id, kind:'seller', title: title, typeLabel:'Seller Screening',
+        matchNames:[s.business||'', d.company||'', s.contact||''],
+        personId: s.personId||'', companyId: s.companyId||'',
+        companyName: coNameById[s.companyId] || s.market || '',
+        personName: nameById[s.personId] || s.contact || '',
+        dealName:'', relatesToName:'',
+        status: s.completed ? (s.statusText || s.decision || 'Complete') : ('In progress \u2014 ' + pct + '%'),
+        statusKey: s.completed ? (statusCode(s.statusText) || 'complete') : 'progress',
+        owner: s.by || s.byUser || '', createdAt: s.createdAt || '',
+        completePct: pct, completed: !!s.completed,
+        openUrl: 'seller_screening.html?screening=' + encodeURIComponent(s.id), downloadUrl:'' });
+    });
+    let sellers = store.readAll().filter(r => r.form === 'seller' && !_seenFid[(r.data && r.data.formId) || '\u0000']);
     if (restrictToOwn(req)) sellers = sellers.filter(r => permOwnerMatch(req, r.rep));
-    sellers.forEach(r => { out.push({ id: r.timestamp, kind:'seller', title: r.name || 'Seller Screening', typeLabel:'Seller Screening', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', dealName:'', relatesToName:'', status: r.highlights || '', statusKey:'seller', owner: r.rep || '', createdAt: r.timestamp || '', openUrl: '/api/seller/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
+    sellers.forEach(r => { out.push({ id: r.timestamp, kind:'seller', title: r.name || 'Seller Screening', typeLabel:'Seller Screening', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', dealName:'', relatesToName:'', status: 'Submitted', statusKey:'seller', owner: r.rep || '', createdAt: r.timestamp || '', completePct: 100, completed: true, openUrl: '/api/seller/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
   } catch (e) {}
   try {
     let lois = loadLois();
