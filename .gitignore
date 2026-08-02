@@ -7,3 +7,7 @@ _to_delete/
 *.bak-*
 .fuse_hidden*
 *.backup
+
+# Patch-transfer scaffolding (Claude session scratch), never app code
+*.b64
+patch_*.py
