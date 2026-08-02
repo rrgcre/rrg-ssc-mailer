@@ -253,4 +253,29 @@ async function buildQuestionnaire({ text, callType }) {
   return { name: String(j.name || '').trim(), kicker: String(j.kicker || '').trim(), categories: Array.isArray(j.categories) ? j.categories : [] };
 }
 
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire };
+// Sort a batch of data-room documents into the room's fixed folders. Each item is
+// {name, snippet}; returns [{i, category}] with category strictly from `categories`.
+async function classifyRoomDocs({ items, categories }) {
+  const cats = Array.isArray(categories) ? categories : [];
+  const sys = 'You are a data-room filing assistant for Restaurant Realty Group, a brokerage that sells restaurants and bars. '
+    + 'Each item is a document uploaded to a deal data room; you get its file name and (sometimes) a short text excerpt. '
+    + 'File each document into exactly ONE of the allowed folders, using ONLY the allowed values. '
+    + 'Allowed folders: ' + JSON.stringify(cats) + '. '
+    + 'Guidance: profit & loss / income statements, balance sheets, sales or revenue reports, bank statements, SDE/add-backs → "Financials". '
+    + 'Federal/state tax returns, W-2, W-9, K-1, 1099 → "Tax Returns". '
+    + 'Lease, sublease, LOI, estoppel, rent roll, amendments → "Lease". '
+    + 'Equipment lists, FF&E schedules, asset inventories, appraisals of equipment → "Equipment & FF&E". '
+    + 'Business/liquor/health/food licenses, permits, certificates of occupancy → "Licenses & Permits". '
+    + 'Entity/operating agreements, bylaws, contracts, NDAs, corporate or legal filings → "Legal & Corporate". '
+    + 'Menus, marketing materials, photos, flyers, press → "Menus & Marketing". '
+    + 'Anything that does not clearly fit one of the above → "Other". '
+    + 'Return ONLY a JSON object: {"results":[{"i":<index>,"category":""}]} with every index exactly once and category chosen strictly from the allowed list.';
+  const userText = 'Documents:\n' + (items || []).map((it, i) => i + ': ' + String((it && it.name) || ('File ' + (i + 1))) + ((it && it.snippet) ? ('\n   excerpt: ' + String(it.snippet).replace(/\s+/g, ' ').slice(0, 600)) : '')).join('\n') + '\n\nReturn the JSON object now.';
+  const text = await callClaude(sys, userText, Math.min(4000, 300 + (items || []).length * 40));
+  const r = extractJson(text) || {};
+  const out = Array.isArray(r.results) ? r.results : [];
+  const allow = {}; cats.forEach(c => { allow[c] = true; });
+  return out.map(x => ({ i: Number(x.i), category: (allow[String(x.category)] ? String(x.category) : 'Other') }));
+}
+
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs };

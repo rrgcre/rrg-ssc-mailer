@@ -947,12 +947,14 @@ function upsertScreening(req, data) {
     _stampTimes(existing, data);
     existing.updatedAt = new Date().toISOString();
     fireScreeningAutomation(req, existing, data);
+    maybeCreateBizSaleRoom(req, existing);   // Business Sale → stand up the data room
     saveScreens(arr);
     return existing;
   }
   const rec = Object.assign({ id: newScreenId(), formId: fid, processed: false, processedAt: '', createdAt: new Date().toISOString() }, fields);
   _stampTimes(rec, data);
   fireScreeningAutomation(req, rec, data);
+  maybeCreateBizSaleRoom(req, rec);   // Business Sale → stand up the data room
   arr.push(rec); saveScreens(arr);
   assignScreenPipeline(rec.id, 'businessSale');   // starting a call routes it into the Business Sales pipeline
   return rec;
@@ -2689,7 +2691,7 @@ app.post('/api/room-upload', express.json({ limit: '40mb' }), (req, res) => {
   const data = String(b.dataB64 || ''); if (!data) return res.status(400).json({ ok: false, error: 'No file data received.' });
   let buf; try { buf = Buffer.from(data, 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the file data.' }); }
   if (!buf.length) return res.status(400).json({ ok: false, error: 'The file appears to be empty.' });
-  if (buf.length > 20 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 20 MB).' });
+  if (buf.length > 25 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 25 MB).' });
   const category = (ROOM_CATEGORIES.indexOf(b.category) >= 0) ? b.category : 'Other';
   const title = String(b.title || '').trim().slice(0, 140) || prettyName(orig);
   try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not create the rooms folder.' }); }
@@ -2700,6 +2702,34 @@ app.post('/api/room-upload', express.json({ limit: '40mb' }), (req, res) => {
   if (!r.builtAt) r.builtAt = new Date().toISOString();
   saveRooms(arr);
   res.json({ ok: true, docs: r.docs });
+});
+// Mass upload — Claude reads each file and files it into the right folder automatically.
+app.post('/api/room/:id/bulk-upload', express.json({ limit: '80mb' }), async (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const files = Array.isArray((req.body || {}).files) ? (req.body.files || []).slice(0, 40) : [];
+  if (!files.length) return res.status(400).json({ ok: false, error: 'No files received.' });
+  // Best-effort text excerpt per file for the classifier (images/xlsx/pptx classify by name only).
+  const items = [];
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i] || {}; let snippet = '';
+    try { snippet = String(await extractQuestionnaireText(f.filename, f.dataB64) || '').slice(0, 1200); } catch (e) { snippet = ''; }
+    items.push({ name: String(f.filename || ('File ' + (i + 1))), snippet });
+  }
+  let cls = [];
+  try { cls = await aiassist.classifyRoomDocs({ items, categories: ROOM_CATEGORIES }); } catch (e) { console.error('classifyRoomDocs:', e && e.message); cls = []; }
+  const byIdx = {}; cls.forEach(c => { if (Number.isInteger(c.i)) byIdx[c.i] = c.category; });
+  const results = []; let added = 0;
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i] || {}; const cat = ROOM_CATEGORIES.indexOf(byIdx[i]) >= 0 ? byIdx[i] : 'Other';
+    const doc = addFileToRoom(r, { name: f.filename, dataB64: f.dataB64 }, { category: cat, title: (String(f.title || '').trim() || prettyName(f.filename || '')), by: ((req.user && req.user.name) || '') + ' · AI-filed', source: 'bulk:' + Date.now() + ':' + i });
+    if (doc) { added++; results.push({ ok: true, name: f.filename || '', category: cat, id: doc.id }); }
+    else { results.push({ ok: false, name: f.filename || '', category: cat, error: 'Skipped — unsupported type, empty, or over 25 MB.' }); }
+  }
+  if (added) saveRooms(arr);
+  res.json({ ok: true, added, results, docs: r.docs || [] });
 });
 app.post('/api/room/:id/delete-doc', express.json(), (req, res) => {
   const arr = loadRooms();
@@ -2940,6 +2970,48 @@ function ensureRoomForDeal(req, deal) {
   arr.push(rec); saveRooms(arr);
   return rec;
 }
+// The data room that belongs to a screening call (its own roomId, else its srcScreenId link).
+function ensureRoomForScreen(req, rec) {
+  if (!rec) return null;
+  let rooms = loadRooms();
+  let room = (rec.roomId && rooms.find(r => r.id === rec.roomId)) || rooms.find(r => r.srcScreenId === rec.id) || null;
+  if (room) { rec.roomId = room.id; return room; }
+  // If the call was started from a deal, hang the room off that deal (and tag the screen link).
+  let deal = null;
+  try {
+    const m = String(rec.formId || '').match(/^dealstart_(.+)$/);
+    const deals = loadDeals();
+    deal = (m && deals.find(d => d.id === m[1])) || deals.find(d => d.screenId === rec.id) || null;
+  } catch (e) {}
+  if (deal) {
+    room = ensureRoomForDeal(req, deal);
+    if (room) {
+      const arr = loadRooms(); const rr = arr.find(x => x.id === room.id);
+      if (rr && rr.srcScreenId !== rec.id) { rr.srcScreenId = rec.id; saveRooms(arr); }
+      rec.roomId = room.id;
+    }
+    return room;
+  }
+  // Otherwise create a room bound directly to the screening.
+  const arr = loadRooms();
+  const nr = {
+    id: newRoomId(), srcScreenId: rec.id, srcDealId: '', srcCimId: '', srcBovId: '', token: newRoomToken(),
+    business: rec.business || 'Data Room',
+    by: (req && req.user && req.user.name) || rec.by || '', byUser: (req && req.user && req.user.username) || rec.byUser || '',
+    createdAt: new Date().toISOString(), docs: [], access: [], grants: [],
+  };
+  arr.push(nr); saveRooms(arr); rec.roomId = nr.id;
+  return nr;
+}
+// When the seller call is submitted as a Business Sale, stand up its data room
+// (Financials, Tax Returns, Lease, Equipment & FF&E, Licenses & Permits, Legal & Corporate, …).
+function maybeCreateBizSaleRoom(req, rec) {
+  try {
+    if (!rec || rec.callState !== 'complete' || rec.roomId) return;
+    if (_dealCallKey(rec.statusText || '') !== 'businessSale') return;
+    ensureRoomForScreen(req, rec);
+  } catch (e) { console.error('biz-sale room:', e && e.message); }
+}
 // Map a BOV upload label to a room category.
 function categoryForUploadLabel(label) {
   const l = String(label || '').toLowerCase();
@@ -3033,6 +3105,8 @@ function assignmentsIndex() {
     if (type === 'deal') return dealKeyOf(rec);
     // A room pre-created for a deal follows that deal's key (so it merges once started).
     if (type === 'room' && rec.srcDealId && dealById[rec.srcDealId]) return dealKeyOf(dealById[rec.srcDealId]);
+    // A room stood up for a screening call merges onto that screen's assignment.
+    if (type === 'room' && rec.srcScreenId) return 's_' + rec.srcScreenId;
     const qid = questIdOf(rec, type);
     const sid = (type === 'screen') ? rec.id : screenIdFor(qid);
     if (sid) return 's_' + sid;

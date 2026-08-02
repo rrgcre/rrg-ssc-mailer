@@ -159,7 +159,7 @@ function distinctDocTypes(){ var seen={},out=[]; DOCS.forEach(function(d){ if(d.
 
 function fillFilterBar(){
   var ow=document.getElementById('fOwner'); if(ow){ var cur=ow.value; ow.innerHTML='<option value="">All owners</option>'+distinctOwners().map(function(o){return '<option'+(o===cur?' selected':'')+'>'+esc(o)+'</option>';}).join(''); }
-  var dt=document.getElementById('fDocType'); if(dt){ var curd=dt.value; var ts=distinctDocTypes(); dt.innerHTML='<option value="">All document types</option>'+ts.map(function(o){return '<option'+(o===curd?' selected':'')+'>'+esc(o)+'</option>';}).join(''); dt.disabled=!ts.length; dt.style.opacity=ts.length?'1':'.5'; }
+  var dt=document.getElementById('fDocType'); if(dt){ var curd=dt.value; var ts=distinctDocTypes(); dt.innerHTML='<option value="">All document types</option>'+ts.map(function(o){return '<option'+(o===curd?' selected':'')+'>'+esc(o)+'</option>';}).join(''); dt.style.display=ts.length?'':'none'; if(!ts.length) dt.value=''; }
 }
 function createdOk(iso,mode){ if(!mode) return true; if(!iso) return false; var t=new Date(iso).getTime(); if(isNaN(t)) return false; if(mode==='ytd'){ var jan=new Date(new Date().getFullYear(),0,1).getTime(); return t>=jan; } var days=parseInt(mode,10); if(!days) return true; return t>=Date.now()-days*86400000; }
 function clearFilters(){ var ids=['fOwner','fDocType','fCreated']; ids.forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); applyFilter(); }
