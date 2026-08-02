@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Dashboard Quick Links</title>
+<style>
+:root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2f6fd0;--teal:#12a594;--green:#1f8a5b;--amber:#B7791F;--red:#DA2B1F;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px;}
+.top-in{max-width:1140px;margin:0 auto;padding:0 24px;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:14px 0 4px;}
+h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:760px;line-height:1.5;}
+.crumb{font-size:12px;color:#9fb0d0;font-weight:600;margin-bottom:12px;} .crumb a{color:#c7d3ea;text-decoration:none;} .crumb a:hover{color:#fff;text-decoration:underline;} .crumb span{color:#6a7ba0;margin:0 7px;}
+.navcrumb{display:none;max-width:1180px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:#66738f;font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:#2f6fd0;text-decoration:none;} .navcrumb a:hover{text-decoration:underline;} .navcrumb span{color:#93a0ba;margin:0 7px;}
+.wrap{max-width:1140px;margin:22px auto;padding:0 24px 80px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:22px 24px;box-shadow:0 1px 3px rgba(16,32,70,.05);margin-bottom:16px;}
+.card h2{margin:0 0 3px;font-size:16px;font-weight:800;color:var(--ink);}
+.card .cs{display:block;margin:0 0 12px;font-size:12.5px;color:var(--dim);line-height:1.55;max-width:840px;}
+.lbl{display:block;margin:0 0 5px;font-size:12px;color:var(--dim);font-weight:700;}
+.inrow{display:flex;gap:10px;flex-wrap:wrap;align-items:center;}
+.fld{border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:14px;color:var(--ink);background:#fff;}
+.btn{border:none;border-radius:9px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.btn.primary{background:var(--navy);color:#fff;} .btn.primary:hover{filter:brightness(1.12);}
+.btn.ghost{background:#f2f5fb;color:var(--navy);border:1px solid #dfe6f2;} .btn.ghost:hover{background:#e9eff8;}
+.btn.danger{background:#fff5f4;color:var(--red);border:1px solid #f0cfca;} .btn.danger:hover{background:#ffe9e6;}
+.btn.sm{padding:6px 12px;font-size:12px;}
+.msg{font-size:12.5px;color:var(--dim);min-height:16px;}
+.foot-note{font-size:12px;color:var(--dim);margin-top:10px;line-height:1.5;}
+table.t{width:100%;border-collapse:collapse;font-size:13px;}
+table.t th{text-align:left;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);font-weight:800;padding:0 10px 8px 0;border-bottom:1px solid var(--line);}
+table.t td{padding:10px 10px 10px 0;border-bottom:1px solid #f0f3f8;vertical-align:middle;}
+table.t tr:last-child td{border-bottom:none;}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;color:var(--dim);}
+.ts{font-size:12px;color:var(--dim);}
+.tag{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:100px;margin-left:6px;}
+.tag.admin{background:#eaf0fb;color:var(--navy);} .tag.off{background:#f6e9e7;color:var(--red);}
+.acts{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);} .gate h2{color:#000E31;}
+.rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<a href="./index.html" class="rrg-back"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <div class="crumb"><a href="./index.html">Command</a><span>›</span>Dashboard Quick Links</div>
+  <span class="disc" onclick="location.href='./index.html'">RRG</span>
+  <div class="kicker">Admin · Customization</div>
+  <h1>Dashboard Quick Links</h1>
+  <div class="sub">Up to 20 shortcuts. Mark one &ldquo;Default for all&rdquo; and it lands on every user&rsquo;s dashboard. Each user can still add their own on top of these.</div>
+</div></div>
+<div class="navcrumb"><a href="./index.html">Command</a><span>›</span>Dashboard Quick Links</div>
+<div id="root" class="wrap">
+  <div class="card">
+    <h2>Shortcuts</h2>
+    <span class="cs">Name it the way your team says it out loud &mdash; CoStar, LoopNet, the county appraiser. Blank rows are ignored. Check &ldquo;Default for all&rdquo; to pin it to every dashboard.</span>
+    <div id="rows" style="margin:14px 0 4px"><div class="ts">Loading…</div></div>
+    <div class="inrow" style="margin-top:14px">
+      <button class="btn primary" onclick="saveLinks()">Save links</button>
+      <button class="btn ghost" onclick="load()">Discard changes</button>
+      <span id="lmsg" class="msg"></span>
+    </div>
+  </div>
+</div>
+<script>
+function post(url,body){ return fetch(url,{method:'POST',credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},body:JSON.stringify(body||{})}).then(function(r){return r.json();}); }
+function esc(s){ var d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+var MAX=20;
+function render(j){
+  var links=j.links||[]; MAX=j.max||20;
+  var h='';
+  for(var i=0;i<MAX;i++){
+    var l=links[i]||{name:'',url:'',default:false};
+    h+='<div class="lrow" style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:8px">'
+      +'<input class="fld ln" placeholder="Name (e.g. CoStar)" value="'+esc(l.name)+'" style="flex:1;min-width:170px">'
+      +'<input class="fld lu" placeholder="https://…" value="'+esc(l.url)+'" style="flex:2;min-width:250px">'
+      +'<label style="display:flex;align-items:center;gap:7px;font-size:12.5px;color:#66738f;font-weight:700;white-space:nowrap"><input type="checkbox" class="la"'+(l.default?' checked':'')+'> Default for all</label>'
+      +'</div>';
+  }
+  document.getElementById('rows').innerHTML=h;
+}
+function saveLinks(){
+  var links=[];
+  document.querySelectorAll('.lrow').forEach(function(r){
+    var n=r.querySelector('.ln').value.trim(), u=r.querySelector('.lu').value.trim(), a=r.querySelector('.la').checked;
+    if(n&&u) links.push({name:n,url:u,default:a});
+  });
+  var m=document.getElementById('lmsg'); m.textContent='Saving…';
+  post('/api/admin/links',{links:links}).then(function(j){ if(j&&j.ok){ m.textContent='Saved '+(j.links||[]).length+' link(s) ✓'; render({links:j.links,max:MAX}); } else m.textContent=(j&&j.error)||'Failed'; }).catch(function(){ m.textContent='Failed'; });
+}
+function load(){
+  var m=document.getElementById('lmsg'); if(m) m.textContent='';
+  return fetch('/api/admin/links',{credentials:'same-origin',cache:'no-store'}).then(function(r){ if(r.status===403||r.status===401) throw 0; return r.json(); })
+    .then(function(j){ if(!j||!j.ok) throw 0; render(j); })
+    .catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2>Admins only</h2>Ask an administrator to manage dashboard links.</div>'; });
+}
+load();
+</script>
+</body>
+</html>
