@@ -339,7 +339,7 @@ function refreshDocList(){
 }
 function agreementsCard(){
   var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
-  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><span style="margin-left:auto;display:flex;gap:6px"><a href="./rrg_documents.html" title="Open the full document library" style="font-size:11px;font-weight:700;color:#8a93a8;text-decoration:none;align-self:center">Library</a><button type="button" class="mfadd" id="agrAddBtn" title="Add a document" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></span></div>'
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><span style="margin-left:auto;display:flex;gap:6px"><a href="./rrg_documents.html" title="Open the full document library" style="font-size:11px;font-weight:700;color:#8a93a8;text-decoration:none;align-self:center">Library</a><button type="button" class="mfadd" id="agrAddBtn" title="Upload a document (max 25 MB)" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></span></div>'
     +'<div class="cb"><div class="agrlist" id="docList">'+docListHtml()+'</div>'
     +'<div id="agrForm" hidden style="margin-top:12px;border-top:1px solid #e6e9f0;padding-top:12px">'
       +'<input type="hidden" id="agr_id">'
@@ -705,7 +705,7 @@ function doCopyLink(){
   }).catch(function(e){ if(cb) cb.disabled=false; if(sb) sb.disabled=false; out.style.color='#DA2B1F'; out.textContent=(e&&e.message)||'Something went wrong.'; });
 }
 function wireAgreements(){
-  var add=document.getElementById('agrAddBtn'); if(add) add.addEventListener('click',function(e){ e.stopPropagation(); if(window.RRGDocs) RRGDocs.menu(add,[['Upload a file',function(){ RRGDocs.upload(); }],['New agreement',function(){ openAgrChooser(); }]]); else openAgrChooser(); });
+  var add=document.getElementById('agrAddBtn'); if(add) add.addEventListener('click',function(e){ e.stopPropagation(); if(window.RRGDocs) RRGDocs.upload(); });
   var sbtn=document.getElementById('agrSendBtn'); if(sbtn) sbtn.addEventListener('click',openSendModal);
   var sc=document.getElementById('sm_cancel'); if(sc) sc.addEventListener('click',function(){ document.getElementById('sendModal').setAttribute('hidden',''); });
   var stp=document.getElementById('sm_tpl'); if(stp) stp.addEventListener('change',smOnTpl);

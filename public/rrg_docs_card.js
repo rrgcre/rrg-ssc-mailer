@@ -61,12 +61,15 @@
 
   function rowsHtml(){
     return DOCS.map(function(d){
+      var top=d.title||'Document';
       var sub=d.typeLabel||'';
-      if(d.kind==='file' && d.size) sub+=' · '+fmtSize(d.size);
-      if(d.createdAt) sub+=' · '+fmt(d.createdAt);
+      // Seller screening reads better with the call type on top and the concept + date beneath it.
+      if(d.kind==='seller'){ top=d.typeLabel||'Seller Screening'; sub=(d.title && d.title!==top)?d.title:''; }
+      if(d.kind==='file' && d.size) sub+=(sub?' · ':'')+fmtSize(d.size);
+      if(d.createdAt) sub+=(sub?' · ':'')+fmt(d.createdAt);
       return '<div class="rrow docrow" data-docurl="'+esc(d.openUrl||'')+'" data-dockind="'+esc(d.kind)+'" title="Open '+esc(d.title||'document')+'">'
         +'<span class="dico" style="background:'+(KCOL[d.kind]||'#6b7488')+'">'+(KICON[d.kind]||'▦')+'</span>'
-        +'<div class="rrmain" style="min-width:0"><div class="docttl">'+esc(d.title||'Document')+'</div><div class="docmeta">'+esc(sub)+'</div></div>'
+        +'<div class="rrmain" style="min-width:0"><div class="docttl">'+esc(top)+'</div><div class="docmeta">'+esc(sub)+'</div></div>'
         +'</div>';
     }).join('');
   }
