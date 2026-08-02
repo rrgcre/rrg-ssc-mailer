@@ -1182,7 +1182,11 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     for(var k=0;k<steps.length;k++){
       if(!vis(steps[k])) continue;
       var a=answerText(steps[k]); if(!a) continue; n++;
-      var row=document.createElement('div'); row.style.cssText='padding:9px 0;border-bottom:1px solid #f0f3f8';
+      var row=document.createElement('div'); row.style.cssText='padding:9px 8px;margin:0 -8px;border-radius:6px;border-bottom:1px solid #f0f3f8;cursor:pointer;transition:background .12s';
+      row.title='Jump back to this question'; row.setAttribute('data-cgjump',k);
+      (function(kk){ row.addEventListener('click',function(){ show(kk); }); })(k);
+      row.addEventListener('mouseenter',function(){ row.style.background='#f5f8fd'; });
+      row.addEventListener('mouseleave',function(){ row.style.background=''; });
       var qh=document.createElement('div'); qh.style.cssText='font-size:11px;font-weight:800;color:#8b93a5;text-transform:uppercase;letter-spacing:.03em';
       qh.textContent=labelOf(steps[k])||('Question '+(k+1));
       var av=document.createElement('div'); av.style.cssText='font-size:14px;color:#000E31;font-weight:600;margin-top:3px;white-space:pre-wrap;line-height:1.45';
