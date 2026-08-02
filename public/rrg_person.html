@@ -167,6 +167,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .feedrow .actdel:hover{color:var(--red);}
 </style>
 <script src="/rrg_brand.js"></script>
+<script src="/rrg_docs_card.js"></script>
 </head>
 <body>
 <!--rrgback--><a href="./rrg_people.html" class="rrg-back" aria-label="Back to contacts" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Contacts</a>
@@ -323,11 +324,23 @@ function openApptModal(a){
   });
 }
 document.addEventListener('click',function(e){ if(!e.target||!e.target.closest) return; var ab=e.target.closest('#apptAddBtn'); if(ab){ e.preventDefault(); openApptModal(null); return; } var ar=e.target.closest('[data-appt]'); if(ar){ var a=((typeof P!=='undefined'&&P&&P.appointments)||[]).filter(function(x){return x.id===ar.getAttribute('data-appt');})[0]; if(a) openApptModal(a); return; } });
+// Every document tied to this contact -- agreements from the record payload (they carry
+// the signature and expiry state), everything else from the shared document library.
+function docListHtml(){
+  var rows=AGREEMENTS.map(agrRow).join('')+(window.RRGDocs?RRGDocs.rowsHtml():'');
+  if(rows) return rows;
+  return '<div class="rrempty">'+((window.RRGDocs&&RRGDocs.ready())?'No documents on file for this contact yet.':'Loading documents\u2026')+'</div>';
+}
+function docCount(){ return AGREEMENTS.length+((window.RRGDocs&&RRGDocs.count())||0); }
+function refreshDocList(){
+  var host=document.getElementById('docList'); if(host) host.innerHTML=docListHtml();
+  var c=document.getElementById('docCount'); if(c) c.textContent=String(docCount());
+  wireAgrRows();
+}
 function agreementsCard(){
-  var chips=AGREEMENTS.length?AGREEMENTS.map(agrRow).join(''):'<div class="rrempty">No agreements on file for this contact.</div>';
   var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
-  return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGREEMENTS.length+'</span><span style="margin-left:auto;display:flex;gap:6px"><button type="button" class="mfadd" id="agrAddBtn" title="Add an agreement" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></span></div>'
-    +'<div class="cb"><div class="agrlist">'+chips+'</div>'
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><span style="margin-left:auto;display:flex;gap:6px"><a href="./rrg_documents.html" title="Open the full document library" style="font-size:11px;font-weight:700;color:#8a93a8;text-decoration:none;align-self:center">Library</a><button type="button" class="mfadd" id="agrAddBtn" title="Add a document" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></span></div>'
+    +'<div class="cb"><div class="agrlist" id="docList">'+docListHtml()+'</div>'
     +'<div id="agrForm" hidden style="margin-top:12px;border-top:1px solid #e6e9f0;padding-top:12px">'
       +'<input type="hidden" id="agr_id">'
       +'<div class="fldrow"><label class="fld">Agreement name</label><input id="agr_name" placeholder="e.g. Mutual NDA — Cane Rosso"></div>'
@@ -341,6 +354,14 @@ function agreementsCard(){
       +'<div id="agr_sig" class="agrsig"></div>'
       +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button type="button" class="savebtn" id="agrSave" style="width:auto;padding:8px 16px">Save agreement</button><button type="button" class="mfadd" id="agrCancel">Cancel</button><span id="agrMsg" style="font-size:12px;color:#6b7488"></span></div>'
     +'</div>'+sendModalHtml()+'</div></div>';
+}
+var _docsInit=false;
+function loadDocs(){
+  if(!window.RRGDocs) return;
+  var nm=((P&&((P.name)||([P.first,P.last].filter(Boolean).join(' '))))||'').trim();
+  if(_docsInit){ RRGDocs.reload(); return; }
+  _docsInit=true;
+  RRGDocs.init({ param:'personId', id:ID, name:nm, onChange:refreshDocList });
 }
 function agrDealPick(inp){ var v=String(inp.value||'').trim().toLowerCase(); var d=DEALS.filter(function(x){ return String(x.business||x.key||'').trim().toLowerCase()===v; })[0]; var h=document.getElementById('agr_deal'); if(h) h.value=d?d.key:''; }
 function openAgrView(a){
@@ -684,7 +705,7 @@ function doCopyLink(){
   }).catch(function(e){ if(cb) cb.disabled=false; if(sb) sb.disabled=false; out.style.color='#DA2B1F'; out.textContent=(e&&e.message)||'Something went wrong.'; });
 }
 function wireAgreements(){
-  var add=document.getElementById('agrAddBtn'); if(add) add.addEventListener('click',function(){ openAgrChooser(); });
+  var add=document.getElementById('agrAddBtn'); if(add) add.addEventListener('click',function(e){ e.stopPropagation(); if(window.RRGDocs) RRGDocs.menu(add,[['Upload a file',function(){ RRGDocs.upload(); }],['New agreement',function(){ openAgrChooser(); }]]); else openAgrChooser(); });
   var sbtn=document.getElementById('agrSendBtn'); if(sbtn) sbtn.addEventListener('click',openSendModal);
   var sc=document.getElementById('sm_cancel'); if(sc) sc.addEventListener('click',function(){ document.getElementById('sendModal').setAttribute('hidden',''); });
   var stp=document.getElementById('sm_tpl'); if(stp) stp.addEventListener('change',smOnTpl);
@@ -693,9 +714,13 @@ function wireAgreements(){
   var smf=document.getElementById('sm_file'); if(smf) smf.addEventListener('change',function(){ document.getElementById('sm_filename').textContent=(smf.files&&smf.files[0])?smf.files[0].name:''; });
   var sv=document.getElementById('agrSave'); if(sv) sv.addEventListener('click',saveAgreement);
   var cn=document.getElementById('agrCancel'); if(cn) cn.addEventListener('click',function(){ document.getElementById('agrForm').setAttribute('hidden',''); });
-  document.querySelectorAll('.agrrow[data-agr]').forEach(function(b){ b.addEventListener('click',function(e){ if(e.target.closest('button')) return; var a=AGREEMENTS.filter(function(x){return x.id===b.getAttribute('data-agr');})[0]; if(a) agrOpenDoc(a); }); });
-  document.querySelectorAll('[data-agrdel]').forEach(function(b){ b.addEventListener('click',function(e){ e.stopPropagation(); delAgreement(b.getAttribute('data-agrdel')); }); });
+  wireAgrRows();
   var atb=document.getElementById('addTourBtn'); if(atb) atb.addEventListener('click',openTourForm);
+}
+// Called again on every document-list refresh, so it must only ever touch rows.
+function wireAgrRows(){
+  document.querySelectorAll('.agrrow[data-agr]').forEach(function(b){ if(b._wired) return; b._wired=true; b.addEventListener('click',function(e){ if(e.target.closest('button')) return; var a=AGREEMENTS.filter(function(x){return x.id===b.getAttribute('data-agr');})[0]; if(a) agrOpenDoc(a); }); });
+  document.querySelectorAll('[data-agrdel]').forEach(function(b){ if(b._wired) return; b._wired=true; b.addEventListener('click',function(e){ e.stopPropagation(); delAgreement(b.getAttribute('data-agrdel')); }); });
 }
 function fmtPhoneVal(v){ var d=String(v==null?'':v).replace(/\D/g,'').slice(0,10); if(d.length>6) return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6); if(d.length>3) return '('+d.slice(0,3)+') '+d.slice(3); if(d.length>0) return '('+d; return ''; }
 document.addEventListener('input',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('p_phone')) t.value=fmtPhoneVal(t.value); });
@@ -1011,7 +1036,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No contact selected. <a href="./rrg_people.html">Back to contacts →</a></div>'; return; }
   fetch('/api/person/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ P=j.person; CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; INTERESTED=j.interested||[]; AUTOMATIONS=j.automations||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; USERS=j.users||[]; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; render(); _pReady=true; maybeAutoSend(); loadGmail(); loadEmailTpls2(); })
+    .then(function(j){ P=j.person; CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; INTERESTED=j.interested||[]; AUTOMATIONS=j.automations||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; USERS=j.users||[]; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; render(); _pReady=true; maybeAutoSend(); loadGmail(); loadEmailTpls2(); loadDocs(); })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this contact.')+'<br><br><a href="./rrg_people.html" style="color:#000E31;font-weight:700">← Back to contacts</a></div>'; });
 }
 fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ COMPANIESLIST=(j&&j.companies)||[]; }).catch(function(){});

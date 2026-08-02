@@ -223,6 +223,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .gpanel{background:#f5f7fb;border:1px solid #e6e9f0;border-radius:9px;padding:10px 12px;} .gphd{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#6b7488;font-weight:800;} .gphd a{font-size:11px;color:#2647b0;text-transform:none;letter-spacing:0;text-decoration:none;} .gpgrid{display:flex;flex-wrap:wrap;gap:5px 16px;margin-top:6px;font-size:12.5px;color:#3a4560;} .gpnote{font-size:11px;color:#98a1b5;margin-top:7px;}
 </style>
 <script src="/rrg_brand.js"></script>
+<script src="/rrg_docs_card.js"></script>
 </head>
 <body>
 <!--rrgback--><a href="./rrg_companies.html" class="rrg-back" aria-label="Back to companies" style="position:fixed;right:22px;bottom:22px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Companies</a>
@@ -310,10 +311,30 @@ function agrRowCo(a){
   else { var lc=_await?'await':(a.signStatus==='sent'?'sent':(a.status==='terminated'?'bad':'')); var lt=_await?'Needs sign':(a.signStatus==='sent'?'Sent':(a.status==='terminated'?'Terminated':'Draft')); lead='<span class="rchip '+lc+'" style="margin-right:7px">'+lt+'</span>'; }
   return '<div class="rrow agrrow'+(signed?' agrexec':'')+'" onclick="agrOpenDocCo(&quot;'+esc(a.id)+'&quot;)" style="cursor:pointer" title="Open the document"><div class="rrmain" style="min-width:0"><div style="font-size:13px;font-weight:400;color:#1d2739;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+lead+esc(title)+'</div></div>'+expChip(a)+agrEntryIcon(a)+'</div>';
 }
-function agreementsCardCo(){
-  var inner=AGREEMENTS.length?('<div class="agrlistco">'+AGREEMENTS.map(agrRowCo).join('')+'</div>'):'<div class="empty">No agreements linked to this company yet.</div>';
-  return '<div class="card"><div class="ch"><b>Agreements</b><span>'+AGREEMENTS.length+'</span></div><div class="cb"><div id="coAgrForm" hidden></div>'+inner+'</div></div>';
+// Every document tied to this company -- agreements from the record payload, everything
+// else (LOIs, valuations, marketing packs, screenings, uploads) from the document library.
+// Files filed under a contact who works here come through too.
+function docListHtmlCo(){
+  var rows=AGREEMENTS.map(agrRowCo).join('')+(window.RRGDocs?RRGDocs.rowsHtml():'');
+  if(rows) return rows;
+  return '<div class="rrempty">'+((window.RRGDocs&&RRGDocs.ready())?'No documents linked to this company yet.':'Loading documents\u2026')+'</div>';
 }
+function docCountCo(){ return AGREEMENTS.length+((window.RRGDocs&&RRGDocs.count())||0); }
+function refreshDocListCo(){
+  var host=document.getElementById('coDocList'); if(host) host.innerHTML=docListHtmlCo();
+  var c=document.getElementById('coDocCount'); if(c) c.textContent=String(docCountCo());
+}
+function agreementsCardCo(){
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="coDocCount">'+docCountCo()+'</span><span style="margin-left:auto;display:flex;gap:6px;align-items:center"><a href="./rrg_documents.html" title="Open the full document library" style="font-size:11px;font-weight:700;color:#8a93a8;text-decoration:none">Library</a><button type="button" class="addbtn" id="coDocAddBtn" title="Upload a document" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></span></div><div class="cb"><div id="coAgrForm" hidden></div><div class="agrlistco" id="coDocList">'+docListHtmlCo()+'</div></div></div>';
+}
+var _docsInitCo=false;
+function loadDocsCo(){
+  if(!window.RRGDocs) return;
+  if(_docsInitCo){ RRGDocs.reload(); return; }
+  _docsInitCo=true;
+  RRGDocs.init({ param:'companyId', id:ID, name:((C&&C.name)||''), onChange:refreshDocListCo });
+}
+document.addEventListener('click',function(e){ if(!e.target||!e.target.closest) return; var b=e.target.closest('#coDocAddBtn'); if(b){ e.preventDefault(); e.stopPropagation(); if(window.RRGDocs) RRGDocs.upload(); } });
 // When an inline form opens inside a card, make sure that card is expanded —
 // otherwise the form renders inside a collapsed (display:none) card body and
 // appears to do nothing. Also clears the card's saved collapsed state so the
@@ -966,7 +987,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No company selected. <a href="./rrg_companies.html">Back to companies →</a></div>'; return; }
   fetch('/api/company/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; TITLES=j.titles||TITLES; LEADSOURCES=j.leadSources||LEADSOURCES; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; AUTOMATIONS=j.automations||[]; ACTIVITY=j.activity||[]; ACTTYPES=j.activityTypes||ACTTYPES; USERS=j.users||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; HASMAPS=!!j.hasMaps; render(); try{ var _pb=localStorage.getItem('rrg_build_'+ID); if(_pb){ localStorage.removeItem('rrg_build_'+ID); var _o=JSON.parse(_pb)||{}; if(_o.findGroup){ setTimeout(function(){ autoFindGroup(_o.metro||''); },500); } else if(_o.names&&_o.names.length){ setTimeout(function(){ runBuildConcepts(_o.names,_o.metro||'','',_o.website||''); },500); } } }catch(e){} })
+    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; TITLES=j.titles||TITLES; LEADSOURCES=j.leadSources||LEADSOURCES; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; AUTOMATIONS=j.automations||[]; ACTIVITY=j.activity||[]; ACTTYPES=j.activityTypes||ACTTYPES; USERS=j.users||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; HASMAPS=!!j.hasMaps; render(); loadDocsCo(); try{ var _pb=localStorage.getItem('rrg_build_'+ID); if(_pb){ localStorage.removeItem('rrg_build_'+ID); var _o=JSON.parse(_pb)||{}; if(_o.findGroup){ setTimeout(function(){ autoFindGroup(_o.metro||''); },500); } else if(_o.names&&_o.names.length){ setTimeout(function(){ runBuildConcepts(_o.names,_o.metro||'','',_o.website||''); },500); } } }catch(e){} })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this company.')+'<br><br><a href="./rrg_companies.html" style="color:#000E31;font-weight:700">← Back to companies</a></div>'; });
 }
 var ASSISTANT='the RRG analyst'; var CLABEL='Concept', CLABELP='Concepts';
