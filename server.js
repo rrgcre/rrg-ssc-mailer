@@ -897,6 +897,7 @@ function upsertScreening(req, data) {
     date: String(data.date || '').slice(0, 40),
     statusText: String(statusTxt || '').slice(0, 90),
     status: statusCode(statusTxt),
+    callState: (data && (data.submitted || data.complete)) ? 'complete' : ((data && data.exited) ? 'pending' : 'live'),
     completed: !!(data && data.complete),
     completePct: (data && data.completePct != null) ? Math.max(0, Math.min(100, Math.round(Number(data.completePct) || 0))) : (data && data.complete ? 100 : 0),
     data: data,
@@ -906,7 +907,9 @@ function upsertScreening(req, data) {
   const mine = s => (s.byUser && s.byUser === fields.byUser) || (!s.byUser && s.by && s.by === fields.by);
   const existing = fid ? arr.find(s => s.formId === fid && mine(s)) : null;
   if (existing) {
+    const _wasComplete = existing.callState === 'complete';
     Object.assign(existing, fields);
+    if (_wasComplete && fields.callState !== 'complete') existing.callState = 'complete';
     _stampTimes(existing, data);
     existing.updatedAt = new Date().toISOString();
     saveScreens(arr);
@@ -8315,8 +8318,8 @@ app.get('/api/documents', (req, res) => {
         companyName: coNameById[s.companyId] || s.market || '',
         personName: nameById[s.personId] || s.contact || '',
         dealName:'', relatesToName:'',
-        status: s.completed ? (s.statusText || s.decision || 'Complete') : ('In progress \u2014 ' + pct + '%'),
-        statusKey: s.completed ? (statusCode(s.statusText) || 'complete') : 'progress',
+        status: (s.callState === 'complete' || s.completed) ? 'Complete' : (s.callState === 'pending' ? 'Pending' : 'Live Call'),
+        statusKey: (s.callState === 'complete' || s.completed) ? 'complete' : (s.callState === 'pending' ? 'pending' : 'live'),
         owner: s.by || s.byUser || '', createdAt: s.createdAt || '',
         completePct: pct, completed: !!s.completed,
         openUrl: '/api/screening/' + encodeURIComponent(s.id) + '/view', editUrl: 'seller_screening.html?screening=' + encodeURIComponent(s.id), deleteUrl: '/api/screening/' + encodeURIComponent(s.id), downloadUrl:'' });
