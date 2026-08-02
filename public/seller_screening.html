@@ -481,6 +481,7 @@
   function _collect(){
     var out=['RRG SELLER SCREENING',''];
     document.querySelectorAll('#sscform .sec, #sscform .subhead, #sscform .field, #sscform .oset').forEach(function(el){
+      if(!_live(el)) return;   // a branch the answers switched off is not part of this call
       if(el.classList.contains('sec')){ var h=el.querySelector('h2'); out.push(''); out.push('=== '+(h?h.textContent.trim().toUpperCase():'')+' ==='); }
       else if(el.classList.contains('subhead')){ out.push('- '+el.textContent.trim()+' -'); }
       else if(el.classList.contains('field')){
@@ -513,6 +514,7 @@
   function _collectData(){
     var header={}, sections=[], cur=null;
     document.querySelectorAll('#sscform .sec, #sscform .subhead, #sscform .field, #sscform .oset').forEach(function(el){
+      if(!_live(el)) return;   // a branch the answers switched off is not part of this call
       if(el.classList.contains('sec')){
         var h=el.querySelector('h2'), num=el.querySelector('.num');
         cur={n:num?num.textContent.trim():'', title:h?h.textContent.trim():'', groups:[]}; sections.push(cur);

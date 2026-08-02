@@ -183,12 +183,15 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     if(c.not) return !c.not.some(function(v){ return have.indexOf(cnorm(v))>=0; });
     return true;
   }
-  function condClear(el){
-    [].slice.call(el.querySelectorAll('input,textarea,select')).forEach(function(x){
-      if(x.type==='checkbox'||x.type==='radio') x.checked=false;
-      else if(!x.readOnly) x.value='';
-      x.classList.remove('missing');
-    });
+  // A branch that switches off KEEPS its answers. The rep may have captured them before a
+  // later answer routed the call elsewhere, and a mis-click on a trigger must not cost them
+  // the work. "Hidden" means "does not apply", not "deleted": the readers on the form skip
+  // hidden blocks, so a branch that is off contributes nothing to the record, the email or
+  // the PDF -- and switching it back on hands the rep exactly what they had.
+  // All this does is drop the red "missing" flag, since a question nobody is being asked
+  // cannot be unanswered.
+  function condRelease(el){
+    [].slice.call(el.querySelectorAll('.missing')).forEach(function(x){ x.classList.remove('missing'); });
     el.classList.remove('missing');
   }
   function applyConditionals(){
@@ -198,7 +201,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
       var c; try{ c=JSON.parse(el.getAttribute('data-showif')); }catch(e){ return; }
       var ok=condMet(c), wasVisible=!el.hasAttribute('hidden');
       if(ok){ el.removeAttribute('hidden'); return; }
-      if(wasVisible) condClear(el);
+      if(wasVisible) condRelease(el);
       el.setAttribute('hidden','');
     });
   }
