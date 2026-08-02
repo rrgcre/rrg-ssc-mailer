@@ -103,6 +103,22 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     return '<div class="field'+(q.full?' full rowgap':'')+'">'+lab(q)+'<input type="text" class="'+((q.required?'req':'')+extra).trim()+'"'+id+(q.placeholder?(' placeholder="'+esc(q.placeholder)+'"'):'')+'></div>';
   }
   function renderSub(q){ var extra=q.draft?' <button type="button" id="draftBtn" style="margin-left:10px;background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:4px 11px;font:inherit;font-size:12px;font-weight:700;color:#5b46b8;cursor:pointer">✨ Draft from answers</button>':''; return '<div class="subhead">'+esc(q.sub)+extra+'</div>'; }
+  function partInput(p, id){
+    var t=p.type||'text';
+    if(t==='textarea') return '<textarea'+(id?(' id="'+id+'"'):'')+'></textarea>';
+    if(t==='number') return '<input type="number" min="0" step="1"'+(id?(' id="'+id+'"'):'')+'>';
+    if(t==='money') return '<span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"'+(id?(' id="'+id+'"'):'')+'></span>';
+    if(t==='date') return '<input type="date"'+(id?(' id="'+id+'"'):'')+'>';
+    if(t==='email') return '<input type="text" class="email"'+(id?(' id="'+id+'"'):'')+'>';
+    return '<input type="text"'+(id?(' id="'+id+'"'):'')+'>';
+  }
+  function renderGroup(q){
+    var gid=q.id||('grp'+Math.round((q.label||'').length));
+    var cols=q.cols||2, cc=cols>=3?' c3':(cols<=1?' c1':'');
+    var parts=(q.parts||[]).map(function(p,i){ return '<div class="gpart"><label class="gk">'+esc(p.label||'')+'</label>'+partInput(p, gid+'_'+i)+'</div>'; }).join('');
+    return '<div class="field group full rowgap">'+lab(q)+'<div class="groupgrid'+cc+'">'+parts+'</div></div>';
+  }
+  function injectPrompt(html,q){ return (q&&q.prompt) ? html.replace('<div ', '<div data-prompt="'+esc(q.prompt)+'" ') : html; }
   function renderCat(cat){
     var h='<div class="sec brk'+(cat.decision?' decisionsec':'')+'"><div class="num">'+esc(cat.n)+'</div><h2>'+esc(cat.title)+'</h2><div class="flex"></div></div>';
     if(cat.decision) h+='<div class="decisionnote"><b>Decision point.</b> Based on everything above — do we move forward with this seller, or not?</div>';
@@ -111,14 +127,15 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     function flush(){ if(grid.length){ h+='<div class="grid rowgap">'+grid.join('')+'</div>'; grid=[]; } }
     (cat.questions||[]).forEach(function(q){
       if(q.sub){ flush(); h+=renderSub(q); return; }
-      if(q.type==='options'||q.type==='textarea'||q.type==='range'||q.full){ flush(); h+= q.type==='options'?renderOptions(q):renderField(q); }
-      else grid.push(renderField(q));
+      if(q.type==='group'){ flush(); h+=injectPrompt(renderGroup(q),q); return; }
+      if(q.type==='options'||q.type==='textarea'||q.type==='range'||q.full){ flush(); h+= injectPrompt(q.type==='options'?renderOptions(q):renderField(q), q); }
+      else grid.push(injectPrompt(renderField(q), q));
     });
     flush();
     return h;
   }
   window.RRG_FORMS.render=function(f){
-    var h='<div class="grid rowgap">'+f.header.map(renderField).join('')+'</div>';
+    var h='<div class="grid rowgap">'+f.header.map(function(q){return injectPrompt(renderField(q),q);}).join('')+'</div>';
     f.categories.forEach(function(c){ h+=renderCat(c); });
     return h;
   };

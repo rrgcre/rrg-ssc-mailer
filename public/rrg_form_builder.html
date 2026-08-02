@@ -33,6 +33,12 @@ textarea{resize:vertical;min-height:60px;line-height:1.4;}
 .qrow .flags input[type=checkbox]{width:auto;}
 .qrow .optwrap{margin-top:9px;display:none;gap:10px;}
 .qrow.is-opts .optwrap{display:flex;flex-wrap:wrap;}
+.qrow .groupwrap{margin-top:9px;display:none;}
+.qrow.is-group .groupwrap{display:block;}
+.qrow.is-group .optwrap{display:none!important;}
+.gpart-row{display:flex;gap:8px;align-items:center;margin-bottom:6px;}
+.gpart-row .gp-label{flex:1;}
+.gpart-row .gp-type{width:140px;flex:0 0 auto;}
 .qrow .optwrap .oleft{flex:1;min-width:220px;} .qrow .optwrap .oright{width:130px;flex:0 0 auto;}
 .qrow .q-prompt{margin-top:9px;font-size:12.5px;color:#54607a;}
 .qrow .qact{display:flex;gap:6px;margin-top:9px;justify-content:flex-end;}
@@ -76,6 +82,7 @@ var TYPES=[
   {v:'email',label:'Email'},
   {v:'single',label:'Single choice'},
   {v:'multi',label:'Multiple choice'},
+  {v:'group',label:'Multipart group (one card)'},
   {v:'readonly',label:'Auto-calculated (read-only)'},
   {v:'company',label:'Company picker (header)'},
   {v:'concept',label:'Concept (header)'},
@@ -96,6 +103,11 @@ function typeOf(q){
   return q.type; // text, textarea, number, money, range, date, email, readonly, company, concept, rep, metro
 }
 /* ---- build a stored question object from a builder qrow's values ---- */
+var PART_TYPES=[{v:'text',label:'Text'},{v:'number',label:'Number'},{v:'money',label:'Money ($)'},{v:'date',label:'Date'},{v:'email',label:'Email'},{v:'textarea',label:'Long text'}];
+function partTypeSel(sel){ return '<select class="gp-type">'+PART_TYPES.map(function(t){return '<option value="'+t.v+'"'+(t.v===sel?' selected':'')+'>'+esc(t.label)+'</option>';}).join('')+'</select>'; }
+function partRow(p){ p=p||{}; return '<div class="gpart-row"><input type="text" class="gp-label" placeholder="Part label (e.g. Base term \u2014 months)" value="'+esc(p.label||'')+'">'+partTypeSel(p.type||'text')+'<button type="button" class="mini danger" onclick="delPart(this)">\u00d7</button></div>'; }
+function addPart(btn){ var list=btn.closest('.groupwrap').querySelector('.plist'); list.insertAdjacentHTML('beforeend', partRow({label:'',type:'text'})); list.lastElementChild.querySelector('.gp-label').focus(); }
+function delPart(btn){ btn.closest('.gpart-row').remove(); }
 function questionFromRow(row){
   if(row.getAttribute('data-sub')==='1'){
     var st=qs('.q-sub',row); var v=(st&&st.value||'').trim();
@@ -103,6 +115,15 @@ function questionFromRow(row){
   }
   var label=(qs('.q-label',row).value||'').trim();
   var bt=qs('.q-type',row).value;
+  if(bt==='group'){
+    var parts=[]; qsa('.gpart-row',row).forEach(function(pr){ var pl=(qs('.gp-label',pr).value||'').trim(); if(pl) parts.push({label:pl,type:qs('.gp-type',pr).value}); });
+    if(!label || !parts.length) return null;
+    var g={type:'group',label:label,parts:parts};
+    if(qs('.q-req',row).checked) g.required=true;
+    var gc=qs('.g-cols',row); if(gc&&gc.value) g.cols=parseInt(gc.value,10);
+    var gp=qs('.q-prompt',row); if(gp&&gp.value.trim()) g.prompt=gp.value.trim();
+    g.id=slug(label); return g;
+  }
   if(!label && bt!=='readonly') return null;
   var q={};
   if(bt==='single'||bt==='multi'){ q.type='options'; if(bt==='multi') q.multi=true; }
@@ -147,13 +168,16 @@ function qrow(q){
   }
   var bt=typeOf(q)||'text';
   var isOpt=(bt==='single'||bt==='multi');
+  var isGroup=(bt==='group');
   var opts=(q.options||[]).join('\n');
-  return '<div class="qrow'+(isOpt?' is-opts':'')+'">'
+  return '<div class="qrow'+(isOpt?' is-opts':'')+(isGroup?' is-group':'')+'">'
     +'<div class="qtop"><input type="text" class="q-label" placeholder="Question (e.g. “Annual revenue?”)" value="'+esc(q.label||'')+'">'+typeSelect(bt)+'</div>'
     +'<div class="flags"><label><input type="checkbox" class="q-req"'+(q.required?' checked':'')+'> Required</label>'
     +'<label><input type="checkbox" class="q-full"'+(q.full?' checked':'')+'> Full width</label></div>'
     +'<div class="optwrap"><div class="oleft"><span class="lbl">Answer choices (one per line)</span><textarea class="q-options" placeholder="Yes\nNo\nMaybe">'+esc(opts)+'</textarea></div>'
     +'<div class="oright"><span class="lbl">Layout</span><select class="q-cols"><option value="">Stacked</option><option value="2"'+(q.cols==2?' selected':'')+'>2 columns</option><option value="3"'+(q.cols==3?' selected':'')+'>3 columns</option><option value="4"'+(q.cols==4?' selected':'')+'>4 columns</option></select></div></div>'
+    +'<div class="groupwrap"><span class="lbl">Parts \u2014 each becomes a field on the same card / flashcard</span><div class="plist">'+(q.parts||[]).map(partRow).join('')+'</div>'
+    +'<div style="display:flex;gap:9px;margin-top:7px;align-items:center;flex-wrap:wrap"><button type="button" class="mini" onclick="addPart(this)">+ Add part</button><span class="lbl" style="margin:0">Layout</span><select class="g-cols" style="width:130px"><option value="2"'+((q.cols==2||!q.cols)?' selected':'')+'>2 columns</option><option value="3"'+(q.cols==3?' selected':'')+'>3 columns</option><option value="1"'+(q.cols==1?' selected':'')+'>Stacked</option></select></div></div>'
     +'<input type="text" class="q-prompt" placeholder="Ask-out-loud prompt for Call Mode (optional)" value="'+esc(q.prompt||'')+'">'
     +'<div class="qact"><button type="button" class="mini" onclick="move(this,-1)">↑</button><button type="button" class="mini" onclick="move(this,1)">↓</button><button type="button" class="mini danger" onclick="del(this)">Remove</button></div></div>';
 }
@@ -202,7 +226,7 @@ function renderSaveBar(){
 }
 function bindTypeToggles(){
   qsa('.q-type').forEach(function(sel){
-    sel.onchange=function(){ var row=sel.closest('.qrow'); var opt=(sel.value==='single'||sel.value==='multi'); row.classList.toggle('is-opts',opt); };
+    sel.onchange=function(){ var row=sel.closest('.qrow'); var v=sel.value; row.classList.toggle('is-opts', v==='single'||v==='multi'); row.classList.toggle('is-group', v==='group'); };
   });
 }
 
