@@ -252,6 +252,7 @@ function render(){
   filtered.forEach(function(c){ (byStage[c.stage]||(byStage[c.stage]=[])).push(c); });
   var totalVal=filtered.reduce(function(a,c){return a+money(c.value);},0);
   document.getElementById('tot').textContent=filtered.length+' of '+all.length+' · '+fmtMoney(totalVal);
+  if(VIEW==='list'){ renderList(filtered); return; }   // List toggle → full scrolling list (like Contacts/Companies)
   if(!stages.length){ document.getElementById('root').innerHTML='<div class="gate">This pipeline has no stages yet. Add stages in <b>Admin → Pipelines</b>.</div>'; return; }
   var per=TB.per;
   var cols=stages.map(function(st){
