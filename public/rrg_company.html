@@ -474,7 +474,7 @@ function render(){
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Company</b>'+((C.system||C.locked)?'<span class="sysbadge" title="System-required record — permanent">System · permanent</span>':'')+'<span style="margin-left:auto;font-size:11px;color:var(--soft);font-weight:600">Autosaves</span></div><div class="cb">'
       + '<div class="fldrow"><label class="fld">Logo</label><div class="logorow2"><div class="logoprev2" id="c_logoprev" title="Click to upload \u2014 click again to remove"></div><input type="hidden" id="c_logo" value="'+esc(C.logo||'')+'"><input type="file" id="c_logofile" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" style="display:none"></div></div>'
-      + '<div class="fldrow"><label class="fld">Name</label><input id="c_name" value="'+esc(C.name||'')+'"></div>'
+      + '<div class="fldrow"><label class="fld">Name</label><input id="c_name" value="'+esc(C.name||'')+'" style="font-weight:'+((C.name||'').trim()?'700':'400')+'" oninput="this.style.fontWeight=this.value.trim()?&quot;700&quot;:&quot;400&quot;"></div>'
       + '<div class="fldrow"><label class="fld">Type</label><select id="c_type">'+ctsel+'</select></div>'
       + '<div class="fldrow"><label class="fld">Lead source</label><input id="c_lead" list="c_leadlist" autocomplete="off" value="'+esc(C.leadSource||'')+'" placeholder="Referral, CoStar, event"><datalist id="c_leadlist">'+(LEADSOURCES||[]).map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist></div>'
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="c_notes" placeholder="Ownership, history, relationships, anything worth remembering…">'+esc(C.notes||'')+'</textarea></div>'
