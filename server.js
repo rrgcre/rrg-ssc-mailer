@@ -690,6 +690,31 @@ function saveAmbienceId(t) { saveCfg({ ambienceId: String(t == null ? '' : t).tr
 // "waiting BOV" into the queue — the same pattern as advancing a seller call.
 // Each request creates a NEW valuation record, so a business can be valued more
 // than once (re-runs, updated scenarios). Delete the ones you don't need.
+// ---- Party link -----------------------------------------------------------------
+// Who a record belongs to is an id, not a name. Restaurants rename, DBAs change, the
+// same owner runs three concepts -- matching on text was always a stopgap. Every record
+// that can land on a contact or company Documents card now carries personId/companyId
+// stamped at creation, and every record created FROM another one inherits it, so the
+// call -> questionnaire -> valuation -> pack -> lease chain stays attached to the party
+// end to end. Records written before this shipped have no ids; /api/documents still
+// name-matches those, and only those.
+function partyLink(src) {
+  const o = {};
+  if (!src) return o;
+  const s48 = v => String(v == null ? '' : v).trim().slice(0, 48);
+  const p = s48(src.personId || src.contactId), c = s48(src.companyId || src.coId);
+  if (p) o.personId = p;
+  if (c) o.companyId = c;
+  return o;
+}
+// Carry the link forward. Never overwrite an id already on the record -- a rep who
+// re-pointed a valuation at the right company should not have it silently reverted.
+function inheritLink(rec, src) {
+  if (!rec || !src) return rec;
+  if (!rec.personId && src.personId) rec.personId = String(src.personId);
+  if (!rec.companyId && src.companyId) rec.companyId = String(src.companyId);
+  return rec;
+}
 function ensureBovForQuest(q) {
   if (!q) return null;
   const arr = loadBovs();
@@ -700,6 +725,7 @@ function ensureBovForQuest(q) {
   if (existing) return existing;
   const rec = {
     id: newBovId(), srcFormId: 'bovfromq_' + q.id, srcQuestId: q.id, pending: true,
+    personId: q.personId || '', companyId: q.companyId || '',
     business: q.business || 'Business', market: q.market || '', date: '',
     rangeText: '', targetText: '', multText: '', ebitdaText: '',
     by: q.by || '', byUser: q.byUser || '', createdAt: new Date().toISOString(),
@@ -776,6 +802,7 @@ function upsertQuest(req, data) {
     data: data,
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
+  Object.assign(fields, partyLink(data));   // absent from the payload = leave what's on file
   const mine = s => (s.byUser && s.byUser === fields.byUser) || (!s.byUser && s.by && s.by === fields.by);
   const existing = fid ? arr.find(s => s.formId === fid && mine(s)) : null;
   if (existing) { Object.assign(existing, fields); existing.updatedAt = new Date().toISOString(); saveQuests(arr); return existing; }
@@ -795,6 +822,7 @@ function ensureQuestForScreening(s) {
     id: newQuestId(), formId: fid, processed: false, processedAt: '', decision: '', completed: false,
     business: s.business || 'Business', market: s.market || '',
     data: { formId: fid, concept: s.business || '', market: s.market || '', address: d.address || '' },
+    personId: s.personId || '', companyId: s.companyId || '',
     by: s.by || '', byUser: s.byUser || '', createdAt: new Date().toISOString(),
   };
   arr.push(rec); saveQuests(arr);
@@ -815,6 +843,7 @@ function backfillQuests() {
         id: newQuestId(), formId: fid, processed: false, processedAt: '', decision: '', completed: false,
         business: s.business || 'Business', market: s.market || '',
         data: { formId: fid, concept: s.business || '', market: s.market || '', address: d.address || '' },
+        personId: s.personId || '', companyId: s.companyId || '',
         by: s.by || '', byUser: s.byUser || '', createdAt: new Date().toISOString(),
       });
       have.add(fid); added = true;
@@ -873,6 +902,7 @@ function upsertScreening(req, data) {
     data: data,
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
+  Object.assign(fields, partyLink(data));   // absent from the payload = leave what's on file
   const mine = s => (s.byUser && s.byUser === fields.byUser) || (!s.byUser && s.by && s.by === fields.by);
   const existing = fid ? arr.find(s => s.formId === fid && mine(s)) : null;
   if (existing) {
@@ -1545,6 +1575,7 @@ function ensureCimForBov(req, bov) {
   if (existing) { ensureLeaseForCim(req, existing); return existing; }
   const rec = {
     id: newCimId(), srcBovId: bov.id, srcQuestId: bov.srcQuestId || '', pending: true,
+    personId: bov.personId || '', companyId: bov.companyId || '',
     business: bov.business || 'Business', market: bov.market || '',
     by: (req.user && req.user.name) || bov.by || '', byUser: (req.user && req.user.username) || bov.byUser || '',
     createdAt: new Date().toISOString(),
@@ -1566,6 +1597,7 @@ function ensureLeaseForCim(req, cim) {
   const rec = {
     id: newLeaseId(), business: String(cim.business || 'Lease Abstract').slice(0, 120), propertyAddress: '',
     pending: true, srcQuestId: cim.srcQuestId || '', srcBovId: cim.srcBovId || '',
+    personId: cim.personId || '', companyId: cim.companyId || '',
     by: (req.user && req.user.name) || cim.by || '', byUser: (req.user && req.user.username) || cim.byUser || '',
     createdAt: new Date().toISOString(),
     state: null,   // awaiting the lease document; redactions default ON everywhere state is null
@@ -1641,6 +1673,7 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
     const rec = (target && bovs.find(x => x.id === target.id)) || {
       id: newBovId(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: new Date().toISOString(),
     };
+    inheritLink(rec, partyLink(req.body));
     rec.business = String(out.business || rec.business || 'Untitled').slice(0, 120);
     rec.date = String(out.date || '').slice(0, 40);
     rec.rangeText = out.summary.rangeText; rec.targetText = out.summary.targetText;
@@ -1808,6 +1841,7 @@ app.post('/api/lease/new', express.json(), (req, res) => {
     pending: true, srcQuestId: '', srcBovId: '', by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
     createdAt: new Date().toISOString(), state: null,
   };
+  inheritLink(rec, partyLink(b));
   const arr = loadLeases(); arr.push(rec); saveLeases(arr);
   res.json({ ok: true, id: rec.id });
 });
@@ -1868,6 +1902,7 @@ app.post('/api/cim/:id/lease/new', express.json(), (req, res) => {
   const rec = {
     id: newLeaseId(), business: String(cim.business || 'Lease Abstract').slice(0, 120), propertyAddress: '',
     pending: true, srcQuestId: cim.srcQuestId || '', srcBovId: cim.srcBovId || '',
+    personId: cim.personId || '', companyId: cim.companyId || '',
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
     createdAt: new Date().toISOString(), state: null,
   };
@@ -1936,6 +1971,7 @@ function ensureMapForCim(req, cim) {
   if (existing) return existing;
   const rec = {
     id: newMapId(), srcCimId: cim.id, srcBovId: cim.srcBovId || '', srcQuestId: cim.srcQuestId || '', pending: true,
+    personId: cim.personId || '', companyId: cim.companyId || '',
     business: cim.business || 'Business', market: cim.market || '',
     by: (req.user && req.user.name) || cim.by || '', byUser: (req.user && req.user.username) || cim.byUser || '',
     createdAt: new Date().toISOString(),
@@ -2064,11 +2100,12 @@ app.post('/api/bov', (req, res) => {
     if (existing) {
       if (!ownsBov(req, existing)) return res.status(403).json({ ok: false, error: 'Not yours.' });
       Object.assign(existing, fields, { pending: false, updatedAt: new Date().toISOString() });
+      inheritLink(existing, partyLink(b));
       saveBovs(bovs);
       return res.json({ ok: true, id: existing.id });
     }
   }
-  const rec = Object.assign({ id: newBovId() }, fields, {
+  const rec = Object.assign({ id: newBovId() }, fields, partyLink(b), {
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
     createdAt: new Date().toISOString(),
   });
@@ -8187,21 +8224,21 @@ app.get('/api/documents', (req, res) => {
   if (restrictToOwn(req)) ag = ag.filter(a => permOwnerMatch(req, a.createdBy));
   ag.forEach(a => { const br = agreementBrief(a); out.push({ id:a.id, kind:'agreement', title:(a.name || 'Agreement'), typeLabel:'Agreement', agrType: agreementTypeLabel(a.type), effective: a.effective||'', expires: a.expires||'', signStatus:a.signStatus||'', docExt:a.docExt||'', hasFinal:!!a.hasFinal, entryMethod:a.entryMethod||'', personId:a.personId||'', dealKey:a.dealKey||'', companyId:a.companyId||'', companyName: coNameById[a.companyId]||'', personName: a.personName || nameById[a.personId] || '', dealName: bizByKey[a.dealKey]||'', status: br.statusLabel||'', statusKey: br.statusKey||'', owner: a.createdByName || a.createdBy || '', createdAt: a.createdAt||'', openUrl: a.docExt ? ('/api/agreements/'+a.id+'/doc') : 'rrg_agreements.html', downloadUrl: a.docExt ? ('/api/agreements/'+a.id+'/doc') : '' }); });
   let bv = loadBovs().filter(b => isAdmin || ownsBov(req, b));
-  bv.forEach(b => { out.push({ id:b.id, kind:'valuation', title: b.business || 'Valuation', typeLabel:'Valuation', matchNames:[b.business||''], valueText: (b.targetText||b.rangeText||b.sdeText||''), basis: b.basis||'', companyId:'', companyName:'', personName:'', dealName:'', status: b.pending ? 'Requested' : 'Built', statusKey: b.pending ? 'pending' : 'built', owner: b.by || b.byUser || '', createdAt: b.createdAt || '', openUrl: (b.pending ? 'rrg_bov_generate.html?bov=' : 'rrg_bov_builder.html?bov=') + encodeURIComponent(b.id), downloadUrl:'' }); });
+  bv.forEach(b => { out.push({ id:b.id, kind:'valuation', title: b.business || 'Valuation', typeLabel:'Valuation', matchNames:[b.business||''], valueText: (b.targetText||b.rangeText||b.sdeText||''), basis: b.basis||'', personId:b.personId||'', companyId:b.companyId||'', companyName: coNameById[b.companyId]||'', personName: nameById[b.personId]||'', dealName:'', status: b.pending ? 'Requested' : 'Built', statusKey: b.pending ? 'pending' : 'built', owner: b.by || b.byUser || '', createdAt: b.createdAt || '', openUrl: (b.pending ? 'rrg_bov_generate.html?bov=' : 'rrg_bov_builder.html?bov=') + encodeURIComponent(b.id), downloadUrl:'' }); });
   let cm = loadCims().filter(c => isAdmin || ownsCim(req, c));
-  cm.forEach(c => { out.push({ id:c.id, kind:'marketingpack', title: c.business || 'Marketing Pack', typeLabel:'Marketing Pack', matchNames:[c.business||''], companyId:'', companyName: c.market||'', personName:'', dealName:'', status: c.pending ? 'Draft' : 'Built', statusKey: c.pending ? 'pending' : 'built', owner: c.by || c.byUser || '', createdAt: c.createdAt || '', openUrl: (c.pending ? 'rrg_cim_generate.html?cim=' : 'rrg_cim_builder.html?cim=') + encodeURIComponent(c.id), downloadUrl:'' }); });
+  cm.forEach(c => { out.push({ id:c.id, kind:'marketingpack', title: c.business || 'Marketing Pack', typeLabel:'Marketing Pack', matchNames:[c.business||''], personId:c.personId||'', companyId:c.companyId||'', companyName: coNameById[c.companyId] || c.market||'', personName: nameById[c.personId]||'', dealName:'', status: c.pending ? 'Draft' : 'Built', statusKey: c.pending ? 'pending' : 'built', owner: c.by || c.byUser || '', createdAt: c.createdAt || '', openUrl: (c.pending ? 'rrg_cim_generate.html?cim=' : 'rrg_cim_builder.html?cim=') + encodeURIComponent(c.id), downloadUrl:'' }); });
   let uf = loadUserFiles();
   if (restrictToOwn(req)) uf = uf.filter(fr => permOwnerMatch(req, fr.createdBy));
   uf.forEach(fr => { out.push({ id:fr.id, kind:'file', title: fr.name || fr.originalName || 'File', docType: fr.docType||'', typeLabel: fr.docType || (fr.ext||'file').toUpperCase(), personId:fr.personId||'', dealKey:fr.dealKey||'', companyId:fr.companyId||'', companyName: coNameById[fr.companyId]||'', personName: nameById[fr.personId]||'', dealName: bizByKey[fr.dealKey]||'', relatesToName: fr.relatesToName||'', status: fr.note || '', statusKey:'file', owner: fr.by || fr.byUser || '', createdAt: fr.uploadedAt || '', openUrl: '/api/files/'+fr.id+'/download', downloadUrl: '/api/files/'+fr.id+'/download', ext: fr.ext, size: fr.size }); });
   try {
     let sscs = store.readAll().filter(r => r.form === 'ssc');
     if (restrictToOwn(req)) sscs = sscs.filter(r => permOwnerMatch(req, r.rep));
-    sscs.forEach(r => { out.push({ id: r.timestamp, kind:'ssc', title: r.name || 'Site Criteria', typeLabel:'Site Criteria', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], companyId:'', companyName: r.market||'', personName:'', dealName:'', relatesToName:'', status: r.highlights || '', statusKey:'ssc', owner: r.rep || '', createdAt: r.timestamp || '', openUrl: '/api/ssc/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
+    sscs.forEach(r => { out.push({ id: r.timestamp, kind:'ssc', title: r.name || 'Site Criteria', typeLabel:'Site Criteria', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', dealName:'', relatesToName:'', status: r.highlights || '', statusKey:'ssc', owner: r.rep || '', createdAt: r.timestamp || '', openUrl: '/api/ssc/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
   } catch (e) {}
   try {
     let sellers = store.readAll().filter(r => r.form === 'seller');
     if (restrictToOwn(req)) sellers = sellers.filter(r => permOwnerMatch(req, r.rep));
-    sellers.forEach(r => { out.push({ id: r.timestamp, kind:'seller', title: r.name || 'Seller Screening', typeLabel:'Seller Screening', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], companyId:'', companyName: r.market||'', personName:'', dealName:'', relatesToName:'', status: r.highlights || '', statusKey:'seller', owner: r.rep || '', createdAt: r.timestamp || '', openUrl: '/api/seller/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
+    sellers.forEach(r => { out.push({ id: r.timestamp, kind:'seller', title: r.name || 'Seller Screening', typeLabel:'Seller Screening', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', dealName:'', relatesToName:'', status: r.highlights || '', statusKey:'seller', owner: r.rep || '', createdAt: r.timestamp || '', openUrl: '/api/seller/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
   } catch (e) {}
   try {
     let lois = loadLois();
@@ -8210,10 +8247,10 @@ app.get('/api/documents', (req, res) => {
   } catch (e) {}
   out.sort((x,y) => String(y.createdAt||'').localeCompare(String(x.createdAt||'')));
   // Optional scoping for the Documents card on a contact or company record.
-  // Agreements, uploaded files and LOIs carry a real id link. Valuations, marketing
-  // packs and screening submissions do not -- nothing writes one at creation time -- so
-  // those fall back to an exact match on the business/contact name the record itself
-  // captured. That is the only honest link available until the id is written upstream.
+  // Every kind now carries a real id link written at creation time (see partyLink).
+  // Name matching survives only for records created before that shipped, and only for
+  // records that carry NO id at all -- otherwise a valuation on "Barrio Cantina" owned
+  // by one company would surface on every other company that ever used the name.
   const _wantP = String((req.query && req.query.personId) || '').trim();
   const _wantC = String((req.query && req.query.companyId) || '').trim();
   if (_wantP || _wantC) {
@@ -8233,6 +8270,9 @@ app.get('/api/documents', (req, res) => {
         if (d.personId && _kin.indexOf(d.personId) >= 0) return true;
         if (lp.some(x => _kin.indexOf(x) >= 0)) return true;
       }
+      // Legacy only: a record that carries an id has already had its say above.
+      const linked = !!(d.personId || d.companyId || lp.length || lc.length);
+      if (linked) return false;
       return (d.matchNames || []).some(x => { const v = _nm(x); return !!v && _names.indexOf(v) >= 0; });
     };
     return res.json({ ok:true, isAdmin, scoped:true, documents: out.filter(_hit) });

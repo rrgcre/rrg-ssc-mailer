@@ -843,6 +843,11 @@
     });
     return {
       formId: (window.RRG_Q_FORM_ID || (window.RRG_Q_FORM_ID='q_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8))),
+      // Whose valuation this is. Passed on the URL when launched from a contact record;
+      // when the questionnaire was raised off a screening call the server already carries
+      // the link forward, and a blank here never overwrites what is on file.
+      personId: (function(){ var q=new URLSearchParams(location.search); return q.get('contactId')||q.get('contact')||''; })(),
+      companyId: (function(){ var q=new URLSearchParams(location.search); return q.get('companyId')||''; })(),
       snapshot: (window.rrgSerialize ? window.rrgSerialize() : null),
       complete: (function(){ var ok=true;
         document.querySelectorAll('#sscform input.req, #sscform textarea.req, #sscform select.req').forEach(function(el){ if(!el.value.trim()){ ok=false; } else if(el.classList.contains('email') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim())){ ok=false; } });

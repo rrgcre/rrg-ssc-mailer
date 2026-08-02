@@ -540,6 +540,8 @@
     });
     return {
       formId: window.RRG_FORM_ID,
+      personId: (window.RRG_PARTY&&window.RRG_PARTY.personId)||'',
+      companyId: (window.RRG_PARTY&&window.RRG_PARTY.companyId)||'',
       snapshot: (window.rrgSerialize ? window.rrgSerialize() : null),
       complete: (function(){ var ok=true;
         document.querySelectorAll('#sscform input.req, #sscform textarea.req, #sscform select.req').forEach(function(el){ if(!_live(el)) return; if(!el.value.trim()){ ok=false; } else if(el.classList.contains('email') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim())){ ok=false; } });
@@ -874,6 +876,20 @@
   }
   document.addEventListener('input', _updateHeader);
   document.addEventListener('change', _updateHeader);
+// ---- Party link ---------------------------------------------------------------------
+// A call belongs to a contact and a company, and the only durable way to say which is the
+// id. Restaurants rename, DBAs change, one owner runs three concepts -- matching on the
+// text typed into the header was always a stopgap. The ids arrive on the URL when the call
+// is launched from a record, get set when the rep picks a company off the autocomplete, and
+// are read back when a saved call is reopened. Everything the call produces downstream --
+// questionnaire, valuation, marketing pack, lease abstract -- inherits them from here.
+window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
+(function(){
+  var q=new URLSearchParams(location.search);
+  var p=q.get('contactId')||q.get('contact')||'', c=q.get('companyId')||q.get('coId')||'';
+  if(p) window.RRG_PARTY.personId=String(p);
+  if(c) window.RRG_PARTY.companyId=String(c);
+})();
 (function(){
   var API2=(typeof API!=='undefined'?API:'');
   function e2(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
@@ -885,7 +901,7 @@
   var ci=document.getElementById('sscCompany'), cs=document.getElementById('sscCosug');
   function cclose(){ if(cs){ cs.setAttribute('hidden',''); cs.innerHTML=''; } }
   if(ci&&cs){
-    ci.addEventListener('input',function(){ SSC.coId=''; SSC.concepts=[]; if(document.activeElement!==ci){ cclose(); return; } var q=ci.value.trim(); var ms=q?match(q):[]; if(!ms.length){ cclose(); return; } cs.innerHTML=ms.map(function(c){ return '<div class="cosug2row" data-id="'+e2(c.id)+'" data-nm="'+e2(c.name)+'">'+e2(c.name)+'</div>'; }).join(''); cs.removeAttribute('hidden'); cs.querySelectorAll('.cosug2row').forEach(function(r){ r.addEventListener('mousedown',function(ev){ ev.preventDefault(); ci.value=r.getAttribute('data-nm'); SSC.coId=r.getAttribute('data-id'); var co=LIST.filter(function(x){return x.id===SSC.coId;})[0]; SSC.concepts=(co&&co.conceptNames)||[]; if(co){ if(co.address) setByLabel(['business address'], co.address); var _md=co.market||(co.markets&&co.markets[0])||''; if(_md){ var _ms=document.getElementById('metroSelect'); if(_ms){ var _op=[].slice.call(_ms.options).filter(function(o){return o.value.toLowerCase()===String(_md).toLowerCase();})[0]; _ms.value=_op?_op.value:'Other'; _ms.dispatchEvent(new Event('change',{bubbles:true})); } } } cclose(); ci.dispatchEvent(new Event('input',{bubbles:true})); var pin=document.getElementById('sscConcept'); if(pin){ pin.placeholder=SSC.concepts.length?('Pick or add a concept ('+SSC.concepts.length+' on file)'):'Add a concept'; } }); }); });
+    ci.addEventListener('input',function(){ SSC.coId=''; window.RRG_PARTY.companyId=''; SSC.concepts=[]; if(document.activeElement!==ci){ cclose(); return; } var q=ci.value.trim(); var ms=q?match(q):[]; if(!ms.length){ cclose(); return; } cs.innerHTML=ms.map(function(c){ return '<div class="cosug2row" data-id="'+e2(c.id)+'" data-nm="'+e2(c.name)+'">'+e2(c.name)+'</div>'; }).join(''); cs.removeAttribute('hidden'); cs.querySelectorAll('.cosug2row').forEach(function(r){ r.addEventListener('mousedown',function(ev){ ev.preventDefault(); ci.value=r.getAttribute('data-nm'); SSC.coId=r.getAttribute('data-id'); window.RRG_PARTY.companyId=SSC.coId||''; var co=LIST.filter(function(x){return x.id===SSC.coId;})[0]; SSC.concepts=(co&&co.conceptNames)||[]; if(co){ if(co.address) setByLabel(['business address'], co.address); var _md=co.market||(co.markets&&co.markets[0])||''; if(_md){ var _ms=document.getElementById('metroSelect'); if(_ms){ var _op=[].slice.call(_ms.options).filter(function(o){return o.value.toLowerCase()===String(_md).toLowerCase();})[0]; _ms.value=_op?_op.value:'Other'; _ms.dispatchEvent(new Event('change',{bubbles:true})); } } } cclose(); ci.dispatchEvent(new Event('input',{bubbles:true})); var pin=document.getElementById('sscConcept'); if(pin){ pin.placeholder=SSC.concepts.length?('Pick or add a concept ('+SSC.concepts.length+' on file)'):'Add a concept'; } }); }); });
     ci.addEventListener('blur',function(){ setTimeout(cclose,160); });
   }
 
@@ -1015,6 +1031,10 @@
         else setByLabel(['metro','market'], pm);
       }
       window.__sscPrefill={company:pc,contact:pn,market:pm,address:pa};
+      // Filling the company field fires the autocomplete's input handler, which clears the
+      // picked-company id by design. The id the launcher handed us is still the right one.
+      var _c0=q.get('companyId')||'';
+      if(_c0) setTimeout(function(){ window.RRG_PARTY.companyId=String(_c0); },0);
     }
     Promise.all([repsReady, Promise.resolve(window.RRG_FORM_READY).catch(function(){})]).then(function(){
       if(contactId && (!pn || !pc)){
@@ -1023,7 +1043,8 @@
           .then(function(j){ var c=j&&j.ok&&j.contact;
             if(c){ if(!pn) pn=(((c.firstName||'')+' '+(c.lastName||'')).trim())||c.name||'';
                    if(!pc) pc=c.company||''; }
-            fill(); })
+            fill();
+            if(c && c.companyId) setTimeout(function(){ if(!window.RRG_PARTY.companyId) window.RRG_PARTY.companyId=String(c.companyId); },0); })
           .catch(fill);
       } else { fill(); }
     });
@@ -1040,6 +1061,10 @@
       setByLabel(['call date'], s.date);
     }
     if(d.preparedBy && repSel){ ensureOption(repSel,d.preparedBy); repSel.value=d.preparedBy; repSel.dispatchEvent(new Event('change',{bubbles:true})); }
+    // Reattach to the contact/company this call was created against. After the restore
+    // above, not before -- restoring the company field clears the picked-company id.
+    var _pp=String(s.personId||d.personId||''), _cc=String(s.companyId||d.companyId||'');
+    if(_pp||_cc) setTimeout(function(){ if(_pp) window.RRG_PARTY.personId=_pp; if(_cc) window.RRG_PARTY.companyId=_cc; },0);
     var b=document.createElement('div'); b.className='rrg-noprint';
     b.style.cssText='background:#0b1a3a;color:#fff;font:600 13px/1.3 -apple-system,Segoe UI,Roboto,sans-serif;padding:10px 16px;';
     b.textContent='Editing “'+(s.business||'call')+'”. Save or Submit to update this record in the log.';
