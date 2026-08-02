@@ -452,8 +452,15 @@
     fetch(_apiBase()+'/api/screening-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){ _flash(); }).catch(function(){});
   }
   function _svSchedule(){ if(_svT)clearTimeout(_svT); _svT=setTimeout(_serverSave,1300); }
+  // File the call to the log right now, no 1.3s wait. Call Mode uses this after each
+  // question so a dropped connection, a closed laptop or a dead battery costs the rep
+  // nothing: the answer they just took is already on the server before the next one is
+  // asked. Only safe to call when the form is whole -- Call Mode lifts the live question
+  // out of #sscform, and _collectData() only reads what is inside it, so the guide parks
+  // the question back first and then calls this.
+  window.__scrSaveNow=function(){ if(_svT){ clearTimeout(_svT); _svT=null; } _serverSave(); try{ if(window.rrgSaveDraft) window.rrgSaveDraft(); }catch(e){} };
   (function(){ var f=document.getElementById('sscform'); if(f){ f.addEventListener('input',_svSchedule); f.addEventListener('change',_svSchedule); } })();
-  window.addEventListener('beforeunload', function(){ try{ if(_CAN && _hasData() && navigator.sendBeacon){ var data=_collectData(); data.formType='seller'; navigator.sendBeacon(_apiBase()+'/api/screening-save', new Blob([JSON.stringify(data)],{type:'application/json'})); } }catch(e){} });
+  window.addEventListener('beforeunload', function(){ try{ if(window.__cgPark) window.__cgPark(); if(_CAN && _hasData() && navigator.sendBeacon){ var data=_collectData(); data.formType='seller'; navigator.sendBeacon(_apiBase()+'/api/screening-save', new Blob([JSON.stringify(data)],{type:'application/json'})); } }catch(e){} });
 
   window.screenClose=function(){
     var LOG='./rrg_screening_queue.html';
@@ -959,6 +966,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
   function schedule(){ if(saveTimer) clearTimeout(saveTimer); saveTimer=setTimeout(save,400); }
   window.rrgClearDraft=function(){ try{ localStorage.removeItem(KEY); }catch(e){} };
   window.rrgSerialize=serialize;
+  window.rrgSaveDraft=save;   // Call Mode saves the local draft on the same beat as the server
   window.rrgRestore=function(arr){ if(arr && arr.length){ restore({d:arr}); } };
   function restore(rec){ restoring=true; var list=els();
     rec.d.forEach(function(v,i){ var el=list[i]; if(!el) return; if(el.type==='checkbox'||el.type==='radio') el.checked=!!v; else el.value=v; });
@@ -1194,6 +1202,9 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
   var slot=ov.querySelector('#cgSlot'), cgQ=ov.querySelector('#cgQ'), cgHint=ov.querySelector('#cgHint'), cgPre=ov.querySelector('#cgPre'), cgRev=ov.querySelector('#cgRev'), cgRevWrap=ov.querySelector('#cgRevWrap'), cgRevBtn=ov.querySelector('#cgRevBtn'), cgProg=ov.querySelector('#cgProg'), cgBar=ov.querySelector('#cgBar'), cgBack=ov.querySelector('#cgBack'), cgReq=ov.querySelector('#cgReq'), cgReqTag=ov.querySelector('#cgReqTag');
   var fab=document.createElement('button'); fab.type='button'; fab.textContent='▶ Call mode'; fab.style.cssText='position:fixed;right:16px;bottom:16px;z-index:1150;background:#DA2B1F;color:#fff;border:none;border-radius:100px;padding:11px 18px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(16,24,40,.28);display:none'; document.body.appendChild(fab);
   var homeMarker=null, homeEl=null, extraMarker=null, extraEl=null;
+  // Parking puts the lifted question back where it belongs. Exposed because the unload
+  // beacon has to do it before it serializes the form.
+  function saveNow(){ try{ if(window.__scrSaveNow) window.__scrSaveNow(); }catch(e){} }
   function parkCurrent(){
     if(extraEl && extraMarker && extraMarker.parentNode){ extraMarker.parentNode.insertBefore(extraEl, extraMarker); extraMarker.parentNode.removeChild(extraMarker); }
     extraEl=null; extraMarker=null;
@@ -1230,7 +1241,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     try{ f.focus({preventScroll:true}); }catch(e){ try{ f.focus(); }catch(_){} }
     return false;
   }
-  function show(i){ if(i<0)i=0; if(i>=steps.length){ finish(); return; } parkCurrent(); idx=i; var el=steps[i]; pull(el);
+  function show(i){ if(i<0)i=0; if(i>=steps.length){ finish(); return; } parkCurrent(); saveNow(); idx=i; var el=steps[i]; pull(el);
     if(el.querySelector('#callNotes')){ var db=document.createElement('button'); db.type='button'; db.textContent='✨ Draft from answers'; db.style.cssText='margin-top:12px;background:#000E31;border:1px solid #000E31;border-radius:9px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;color:#fff;cursor:pointer'; db.addEventListener('click',function(){ if(window.rrgDraftSummary) window.rrgDraftSummary(db); }); slot.appendChild(db);
       var rp=document.getElementById('recPath'), rf=(rp&&rp.closest)?rp.closest('.field'):null;
       if(rf && rf!==el){ var cap=document.createElement('div'); cap.style.cssText='margin:20px 0 6px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8'; cap.textContent='Suggested Action'; slot.appendChild(cap); pullExtra(rf); } }
@@ -1242,7 +1253,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     var cnt=buildReview();
     if(!revAuto && total>1 && pos>=total){ revAuto=true; revOpen=true; }   // the decision card -- show the whole call
     setRev(revOpen,cnt); ov.scrollTop=0; setTimeout(function(){ focusStep(el); },80); }
-  function finish(){ parkCurrent(); ov.style.display='none'; active=false; fab.style.display='block'; var d=document.getElementById('callNotes'); if(d){ d.scrollIntoView({behavior:'smooth',block:'center'}); } if(window.rrgToast) window.rrgToast('Call complete — review the summary and Submit.'); }
+  function finish(){ parkCurrent(); saveNow(); ov.style.display='none'; active=false; fab.style.display='block'; var d=document.getElementById('callNotes'); if(d){ d.scrollIntoView({behavior:'smooth',block:'center'}); } if(window.rrgToast) window.rrgToast('Call complete — review the summary and Submit.'); }
   function start(){ active=true; fab.style.display='none'; ov.style.display='flex'; if(!window.__sscStarted) window.__sscStarted=new Date().toISOString();
     known=steps.map(function(el){ return hasVal(el); });
     if(seek(0,1)>=steps.length) known=[];            // everything answered -> ask normally rather than end the call
@@ -1251,6 +1262,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
                else { cgPre.setAttribute('data-has','0'); cgPre.style.display='none'; } }
     show(seek(0,1)); }
   window.startCall=start;
+  window.__cgPark=parkCurrent;
   ov.querySelector('#cgNext').addEventListener('click',function(){ if(!gateNext()) return; show(seek(idx+1,1)); });
   cgBack.addEventListener('click',function(){ var b=seek(idx-1,-1); if(b>=0) show(b); });
   if(cgRevBtn) cgRevBtn.addEventListener('click',function(){ setRev(!revOpen, buildReview()); });
