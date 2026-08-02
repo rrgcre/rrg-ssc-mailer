@@ -41,15 +41,14 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(47,
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);} .gate h2{color:#000E31;}
 .rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);}
 /* preview modal */
-.pvwrap{position:fixed;inset:0;background:rgba(6,15,38,.55);z-index:100000;display:none;align-items:flex-start;justify-content:center;padding:5vh 16px;}
-.pvwrap.on{display:flex;}
-.pv{background:#fff;border-radius:16px;max-width:640px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 24px 60px rgba(6,15,38,.4);}
-.pv h3{margin:0;padding:18px 22px 6px;font-size:17px;font-weight:800;}
-.pv .pvsub{padding:0 22px 14px;font-size:12px;color:var(--dim);border-bottom:1px solid #eef1f7;}
-.pv .pvcat{padding:14px 22px 2px;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);}
-.pv .pvq{padding:5px 22px;font-size:13px;color:var(--ink);line-height:1.45;border-bottom:1px solid #f4f6fb;}
-.pv .pvq .req{color:var(--red);font-weight:800;}
-.pv .pvfoot{padding:14px 22px 18px;text-align:right;}
+.pvinline{margin-top:11px;border:1px solid #e6ecf6;border-radius:12px;background:#f9fbfe;overflow:hidden;}
+.pvinline .pvsub{padding:11px 15px 9px;font-size:11.5px;color:var(--dim);border-bottom:1px solid #edf1f8;font-weight:600;}
+.pvinline .pvcat{padding:11px 15px 2px;font-size:10.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);}
+.pvinline .pvq{padding:5px 15px;font-size:12.5px;color:var(--ink);line-height:1.4;border-bottom:1px solid #eef2f9;}
+.pvinline .pvq:last-child{border-bottom:none;}
+.pvinline .pvq .req{color:var(--red);font-weight:800;}
+.pvinline .pvload{padding:14px 15px;font-size:12.5px;color:var(--dim);}
+.pvlink{cursor:pointer;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -65,7 +64,6 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(47,
 <div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_settings.html">Settings</a><span>›</span>Call Questionnaires</div>
 <div id="root" class="wrap"><div class="gate">Loading…</div></div>
 
-<div class="pvwrap" id="pvwrap"><div class="pv" id="pv"></div></div>
 
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -106,14 +104,14 @@ function renderCard(ct){
   var meta = chosen
     ? '<span class="badge"><span class="dot"></span>'+chosen.questions+' questions</span>'
       +(chosen.builtIn?'<span>Built-in RRG default</span>':'<span>Custom form</span>')
-      +'<a href="#" data-pv="'+esc(chosen.id)+'">Preview questions</a>'
+      +'<a href="#" class="pvlink" data-pv="'+esc(chosen.id)+'" data-ct="'+ct.key+'">Preview questions</a>'
     : '<span>Assign a form once one is built for this call type.</span>';
   var disabled = STATE.isAdmin && list.length ? '' : ' disabled';
   return '<div class="card"><div class="ct">'
     +'<div class="info"><h2>'+esc(ct.label)+' <span class="tag">'+esc(ct.tag)+'</span></h2><p>'+esc(ct.desc)+'</p></div>'
     +'<div class="pick"><label class="lbl" for="sel_'+ct.key+'">Questionnaire used</label>'
     +'<select id="sel_'+ct.key+'" data-ct="'+ct.key+'"'+disabled+'>'+opts+'</select>'
-    +'<div class="meta" id="meta_'+ct.key+'">'+meta+'</div></div>'
+    +'<div class="meta" id="meta_'+ct.key+'">'+meta+'</div><div class="pvinline" id="pvinline_'+ct.key+'" style="display:none"></div></div>'
     +'</div></div>';
 }
 
@@ -134,9 +132,10 @@ function render(){
       var m=document.getElementById('meta_'+ct);
       if(m&&chosen){ m.innerHTML='<span class="badge"><span class="dot"></span>'+chosen.questions+' questions</span>'
         +(chosen.builtIn?'<span>Built-in RRG default</span>':'<span>Custom form</span>')
-        +'<a href="#" data-pv="'+esc(chosen.id)+'">Preview questions</a>';
+        +'<a href="#" class="pvlink" data-pv="'+esc(chosen.id)+'" data-ct="'+ct+'">Preview questions</a>';
         m.querySelector('[data-pv]').addEventListener('click',pvHandler);
       }
+      var pil=document.getElementById('pvinline_'+ct); if(pil){ pil.style.display='none'; pil.innerHTML=''; pil.removeAttribute('data-for'); }
       var msg=document.getElementById('msg'); if(msg){ msg.className='msg'; msg.textContent='Unsaved changes.'; }
     });
   });
@@ -144,26 +143,28 @@ function render(){
   var sb=document.getElementById('saveBtn'); if(sb) sb.addEventListener('click',saveAll);
 }
 
-function pvHandler(e){ e.preventDefault(); openPreview(this.getAttribute('data-pv')); }
+function pvHandler(e){ e.preventDefault(); togglePreview(this.getAttribute('data-ct'), this.getAttribute('data-pv'), this); }
 
-function openPreview(id){
-  var pv=document.getElementById('pv'); var wrap=document.getElementById('pvwrap');
-  pv.innerHTML='<h3>Loading…</h3>'; wrap.classList.add('on');
+function togglePreview(ct, id, link){
+  var panel=document.getElementById('pvinline_'+ct); if(!panel || !id) return;
+  var isOpen = panel.style.display!=='none' && panel.getAttribute('data-for')===id;
+  if(isOpen){ panel.style.display='none'; if(link) link.textContent='Preview questions'; return; }
+  panel.setAttribute('data-for', id);
+  panel.style.display='block';
+  panel.innerHTML='<div class="pvload">Loading\u2026</div>';
+  if(link) link.textContent='Hide questions';
   fetch('/api/form/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(!j||!j.ok){ pv.innerHTML='<h3>Could not load form</h3><div class="pvfoot"><button class="btn ghost" onclick="closePreview()">Close</button></div>'; return; }
-    var f=j.form; var h='<h3>'+esc(f.name||'Questionnaire')+'</h3><div class="pvsub">'+esc((f.categories||[]).length)+' sections · '+(f.callType?esc(f.callType):'general')+(f.builtIn?' · built-in':'')+'</div>';
+    if(!j||!j.ok){ panel.innerHTML='<div class="pvload">Could not load this form.</div>'; return; }
+    var f=j.form; var h='<div class="pvsub">'+esc((f.categories||[]).length)+' sections \u00b7 '+(f.callType?esc(f.callType):'general')+(f.builtIn?' \u00b7 built-in':'')+'</div>';
     (f.header&&f.header.length?[{title:'Call header',questions:f.header}]:[]).concat(f.categories||[]).forEach(function(c){
       h+='<div class="pvcat">'+esc(c.title||'Section')+'</div>';
       (c.questions||[]).filter(function(q){return q.type;}).forEach(function(q){
         h+='<div class="pvq">'+esc(q.label||q.id||'')+(q.required?' <span class="req">*</span>':'')+'</div>';
       });
     });
-    h+='<div class="pvfoot"><button class="btn ghost" onclick="closePreview()">Close</button></div>';
-    pv.innerHTML=h;
-  }).catch(function(){ pv.innerHTML='<h3>Could not load form</h3><div class="pvfoot"><button class="btn ghost" onclick="closePreview()">Close</button></div>'; });
+    panel.innerHTML=h;
+  }).catch(function(){ panel.innerHTML='<div class="pvload">Could not load this form.</div>'; });
 }
-function closePreview(){ document.getElementById('pvwrap').classList.remove('on'); }
-document.getElementById('pvwrap').addEventListener('click',function(e){ if(e.target===this) closePreview(); });
 
 function saveAll(){
   var btn=document.getElementById('saveBtn'); var msg=document.getElementById('msg');
