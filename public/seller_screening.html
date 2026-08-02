@@ -714,6 +714,21 @@
     if(window.rrgConfirm){ window.rrgConfirm('Submit this screening? This records your decision on whether to move forward with this seller.',{title:'Submit screening?',okText:'Submit'}).then(doIt); } else { doIt(window.confirm('Submit this screening?')); }
     return false;
   };
+  // Submit reachable from Call Mode's decision card. Parks the lifted question so the form is
+  // whole, validates, confirms, and posts (submitted=true -> status Complete). Reports back via cb.
+  window.__scrSubmit=function(cb){
+    cb=cb||function(){};
+    if(window.__cgPark){ try{ window.__cgPark(); }catch(e){} }
+    var m=_validate();
+    if(m.length){ _showBanner('Complete '+m.length+' required field'+(m.length>1?'s':'')+' (marked *) before submitting.'); if(m[0]&&m[0].scrollIntoView) m[0].scrollIntoView({behavior:'smooth',block:'center'}); cb(false,'invalid',m.length); return; }
+    _hideBanner();
+    var doIt=function(ok){ if(!ok){ cb(false,'cancel'); return; }
+      var data=_collectData(); data.formType='seller'; data.submitted=true;
+      fetch(_apiBase()+'/api/screening-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+        .then(function(r){return r.json();}).then(function(){ cb(true); })
+        .catch(function(){ cb(false,'error'); }); };
+    if(window.rrgConfirm){ window.rrgConfirm('Submit this screening? This records your decision on whether to move forward with this seller.',{title:'Submit screening?',okText:'Submit'}).then(doIt); } else { doIt(window.confirm('Submit this screening?')); }
+  };
   window.emailSSC=function(){
     var m=_validate();
     if(m.length){ _showBanner('Complete '+m.length+' required field'+(m.length>1?'s':'')+' (marked *) before emailing.'); m[0].scrollIntoView({behavior:'smooth',block:'center'}); return false; }
@@ -1262,6 +1277,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
       if(rf && rf!==el){ var cap=document.createElement('div'); cap.style.cssText='margin:20px 0 6px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8'; cap.textContent='Suggested Action'; slot.appendChild(cap); pullExtra(rf); } }
     var lb=labelOf(el); var isInstr=!!(el.getAttribute&&el.getAttribute('data-instr')==='1'); var q=(el.getAttribute&&el.getAttribute('data-prompt'))||(isInstr?lb:(QMAP[norm(lb)]||(lb.replace(/\?+$/,'')+'?'))); cgQ.textContent=q; var hn=(el.getAttribute&&el.getAttribute('data-hint'))||''; if(cgHint){ cgHint.textContent=hn||'No coaching note on this question.'; cgHint.style.opacity=hn?'1':'.5'; } var total=0,pos=0; for(var k=0;k<steps.length;k++){ if(k!==i && skip(k)) continue; total++; if(k<=i) pos++; } if(!total){ total=steps.length; pos=i+1; }
     cgProg.textContent='Question '+pos+' of '+total; cgBar.style.width=Math.round((pos-1)/Math.max(1,total)*100)+'%'; cgBack.style.visibility=(seek(i-1,-1)>=0)?'visible':'hidden';
+    var _nx=ov.querySelector('#cgNext'); if(_nx){ if(seek(i+1,1)>=steps.length){ _nx.textContent='\u2713 Submit screening'; _nx.setAttribute('data-submit','1'); _nx.style.background='#1f8a5b'; _nx.style.borderColor='#1f8a5b'; } else { _nx.textContent='Next \u2192'; _nx.removeAttribute('data-submit'); _nx.style.background='#DA2B1F'; _nx.style.borderColor='#DA2B1F'; } }
     if(cgPre) cgPre.style.display=(pos<=1 && cgPre.getAttribute('data-has')==='1')?'block':'none';
     if(cgReq){ cgReq.style.display='none'; cgReq.textContent=''; }
     if(cgReqTag) cgReqTag.style.display=isRequired(el)?'inline-block':'none';
@@ -1279,9 +1295,20 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
   // Seller had to stop early: save everything captured so far and leave the call; the rep
   // resumes later from the Call mode button or the Documents list. Never gates on required.
   function exitSave(){ parkCurrent(); window.__scrExit=true; saveNow(); window.__scrExit=false; ov.style.display='none'; active=false; fab.style.display='block'; if(window.rrgToast) window.rrgToast('Saved \u2014 this call is now Pending; pick it back up whenever the seller is ready.'); }
+  // Submit right from the decision card -- no bouncing back to the legacy form.
+  function cgSubmit(btn){
+    if(!window.__scrSubmit){ finish(); return; }
+    if(btn) btn.disabled=true;
+    window.__scrSubmit(function(ok,reason,count){
+      if(btn) btn.disabled=false;
+      if(ok){ if(window.rrgClearDraft) window.rrgClearDraft(); ov.style.display='none'; active=false; fab.style.display='block'; if(window.rrgToast) window.rrgToast('Screening submitted \u2713 \u2014 recorded to the queue.'); return; }
+      if(reason==='invalid'){ ov.style.display='none'; active=false; fab.style.display='block'; if(window.rrgToast) window.rrgToast('Finish the required field'+(count>1?'s':'')+' on the form, then submit.'); return; }
+      if(reason==='error' && window.rrgToast){ window.rrgToast('Could not submit \u2014 check your connection and try again.'); }
+    });
+  }
   window.startCall=start;
   window.__cgPark=parkCurrent;
-  ov.querySelector('#cgNext').addEventListener('click',function(){ if(!gateNext()) return; show(seek(idx+1,1)); });
+  ov.querySelector('#cgNext').addEventListener('click',function(e){ var b=e.currentTarget; if(b && b.getAttribute('data-submit')==='1'){ cgSubmit(b); return; } if(!gateNext()) return; show(seek(idx+1,1)); });
   cgBack.addEventListener('click',function(){ var b=seek(idx-1,-1); if(b>=0) show(b); });
   if(cgRevBtn) cgRevBtn.addEventListener('click',function(){ setRev(!revOpen, buildReview()); });
   var cgExit=ov.querySelector('#cgExit'); if(cgExit) cgExit.addEventListener('click',exitSave);
