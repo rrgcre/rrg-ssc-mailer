@@ -339,7 +339,7 @@ function refreshDocList(){
 }
 function agreementsCard(){
   var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
-  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><span style="margin-left:auto;display:flex;gap:6px"><a href="./rrg_documents.html" title="Open the full document library" style="font-size:11px;font-weight:700;color:#8a93a8;text-decoration:none;align-self:center">Library</a><button type="button" class="mfadd" id="agrAddBtn" title="Upload a document (max 25 MB)" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></span></div>'
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><span style="margin-left:auto;display:flex;gap:6px"><a href="./rrg_documents.html" title="Open the full document library" style="font-size:11px;font-weight:700;color:#8a93a8;text-decoration:none;align-self:center">Library</a></span></div>'
     +'<div class="cb"><div class="agrlist" id="docList">'+docListHtml()+'</div>'
     +'<div id="agrForm" hidden style="margin-top:12px;border-top:1px solid #e6e9f0;padding-top:12px">'
       +'<input type="hidden" id="agr_id">'
@@ -355,13 +355,17 @@ function agreementsCard(){
       +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button type="button" class="savebtn" id="agrSave" style="width:auto;padding:8px 16px">Save agreement</button><button type="button" class="mfadd" id="agrCancel">Cancel</button><span id="agrMsg" style="font-size:12px;color:#6b7488"></span></div>'
     +'</div>'+sendModalHtml()+'</div></div>';
 }
+function filesCount(){ return (window.RRGDocs&&RRGDocs.filesCount&&RRGDocs.filesCount())||0; }
+function filesListHtml(){ var rows=(window.RRGDocs?RRGDocs.filesRowsHtml():''); if(rows) return rows; return '<div class="rrempty">'+((window.RRGDocs&&RRGDocs.ready())?'No files uploaded for this contact yet. Use + to add a lease, P&L, or other document.':'Loading files\u2026')+'</div>'; }
+function filesCard(){ return '<div class="card"><div class="ch"><b>Files</b><span id="filesCount">'+filesCount()+'</span><span style="margin-left:auto;display:flex;gap:6px"><button type="button" class="mfadd" id="filesAddBtn" title="Upload a file (max 25 MB)" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></span></div><div class="cb"><div class="agrlist" id="filesList">'+filesListHtml()+'</div></div></div>'; }
+function refreshFilesList(){ var host=document.getElementById('filesList'); if(host) host.innerHTML=filesListHtml(); var c=document.getElementById('filesCount'); if(c) c.textContent=String(filesCount()); }
 var _docsInit=false;
 function loadDocs(){
   if(!window.RRGDocs) return;
   var nm=((P&&((P.name)||([P.first,P.last].filter(Boolean).join(' '))))||'').trim();
   if(_docsInit){ RRGDocs.reload(); return; }
   _docsInit=true;
-  RRGDocs.init({ param:'personId', id:ID, name:nm, onChange:refreshDocList });
+  RRGDocs.init({ param:'personId', id:ID, name:nm, onChange:function(){ refreshDocList(); refreshFilesList(); } });
 }
 function agrDealPick(inp){ var v=String(inp.value||'').trim().toLowerCase(); var d=DEALS.filter(function(x){ return String(x.business||x.key||'').trim().toLowerCase()===v; })[0]; var h=document.getElementById('agr_deal'); if(h) h.value=d?d.key:''; }
 function openAgrView(a){
@@ -705,7 +709,7 @@ function doCopyLink(){
   }).catch(function(e){ if(cb) cb.disabled=false; if(sb) sb.disabled=false; out.style.color='#DA2B1F'; out.textContent=(e&&e.message)||'Something went wrong.'; });
 }
 function wireAgreements(){
-  var add=document.getElementById('agrAddBtn'); if(add) add.addEventListener('click',function(e){ e.stopPropagation(); if(window.RRGDocs) RRGDocs.upload(); });
+  var add=document.getElementById('filesAddBtn'); if(add) add.addEventListener('click',function(e){ e.stopPropagation(); if(window.RRGDocs) RRGDocs.upload(); });
   var sbtn=document.getElementById('agrSendBtn'); if(sbtn) sbtn.addEventListener('click',openSendModal);
   var sc=document.getElementById('sm_cancel'); if(sc) sc.addEventListener('click',function(){ document.getElementById('sendModal').setAttribute('hidden',''); });
   var stp=document.getElementById('sm_tpl'); if(stp) stp.addEventListener('change',smOnTpl);
@@ -951,7 +955,7 @@ function render(){
       + ((P.system||P.locked)?('<div class="pdangerz"><div class="pdangernote">🔒 System-required record — permanent and cannot be deleted.</div></div>'):(CAN_DELETE?('<div class="pdangerz"><button class="pdelbtn" id="p_delete">Delete contact</button><div class="pdangernote">Removes this person from the registry. Their name stays on any past offers and tours. Cannot be undone.</div></div>'):''))
     + '</div></div></div>'
     + '<div class="mid">'+statTiles()+activityCard()+'</div>'
-    + '<div class="rail">'+relatedRail()+interestedCard()+automationsCard()+agreementsCard()+appointmentsCard()+'</div>';
+    + '<div class="rail">'+relatedRail()+interestedCard()+automationsCard()+agreementsCard()+filesCard()+appointmentsCard()+'</div>';
   var root=document.getElementById('root');
   var pd=document.getElementById('p_delete'); if(pd) pd.addEventListener('click',deletePerson);
   ['p_first','p_last','p_type','p_nick','p_company','p_lead','p_url','p_lastcontact','p_notes'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener(el.tagName==='SELECT'?'change':'input',queueSave); });

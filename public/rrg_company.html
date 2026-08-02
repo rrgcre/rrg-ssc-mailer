@@ -325,16 +325,20 @@ function refreshDocListCo(){
   var c=document.getElementById('coDocCount'); if(c) c.textContent=String(docCountCo());
 }
 function agreementsCardCo(){
-  return '<div class="card"><div class="ch"><b>Documents</b><span id="coDocCount">'+docCountCo()+'</span><span style="margin-left:auto;display:flex;gap:6px;align-items:center"><a href="./rrg_documents.html" title="Open the full document library" style="font-size:11px;font-weight:700;color:#8a93a8;text-decoration:none">Library</a><button type="button" class="addbtn" id="coDocAddBtn" title="Upload a document (max 25 MB)" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></span></div><div class="cb"><div id="coAgrForm" hidden></div><div class="agrlistco" id="coDocList">'+docListHtmlCo()+'</div></div></div>';
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="coDocCount">'+docCountCo()+'</span><span style="margin-left:auto;display:flex;gap:6px;align-items:center"><a href="./rrg_documents.html" title="Open the full document library" style="font-size:11px;font-weight:700;color:#8a93a8;text-decoration:none">Library</a></span></div><div class="cb"><div id="coAgrForm" hidden></div><div class="agrlistco" id="coDocList">'+docListHtmlCo()+'</div></div></div>';
 }
+function filesCountCo(){ return (window.RRGDocs&&RRGDocs.filesCount&&RRGDocs.filesCount())||0; }
+function filesListHtmlCo(){ var rows=(window.RRGDocs?RRGDocs.filesRowsHtml():''); if(rows) return rows; return '<div class="rrempty">'+((window.RRGDocs&&RRGDocs.ready())?'No files uploaded for this company yet. Use + to add a lease, P&L, or other document.':'Loading files\u2026')+'</div>'; }
+function filesCardCo(){ return '<div class="card"><div class="ch"><b>Files</b><span id="coFilesCount">'+filesCountCo()+'</span><span style="margin-left:auto;display:flex;gap:6px;align-items:center"><button type="button" class="addbtn" id="filesAddBtn" title="Upload a file (max 25 MB)" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></span></div><div class="cb"><div class="agrlistco" id="coFilesList">'+filesListHtmlCo()+'</div></div></div>'; }
+function refreshFilesListCo(){ var host=document.getElementById('coFilesList'); if(host) host.innerHTML=filesListHtmlCo(); var c=document.getElementById('coFilesCount'); if(c) c.textContent=String(filesCountCo()); }
 var _docsInitCo=false;
 function loadDocsCo(){
   if(!window.RRGDocs) return;
   if(_docsInitCo){ RRGDocs.reload(); return; }
   _docsInitCo=true;
-  RRGDocs.init({ param:'companyId', id:ID, name:((C&&C.name)||''), onChange:refreshDocListCo });
+  RRGDocs.init({ param:'companyId', id:ID, name:((C&&C.name)||''), onChange:function(){ refreshDocListCo(); refreshFilesListCo(); } });
 }
-document.addEventListener('click',function(e){ if(!e.target||!e.target.closest) return; var b=e.target.closest('#coDocAddBtn'); if(b){ e.preventDefault(); e.stopPropagation(); if(window.RRGDocs) RRGDocs.upload(); } });
+document.addEventListener('click',function(e){ if(!e.target||!e.target.closest) return; var b=e.target.closest('#filesAddBtn'); if(b){ e.preventDefault(); e.stopPropagation(); if(window.RRGDocs) RRGDocs.upload(); } });
 // When an inline form opens inside a card, make sure that card is expanded —
 // otherwise the form renders inside a collapsed (display:none) card body and
 // appears to do nothing. Also clears the card's saved collapsed state so the
@@ -466,6 +470,7 @@ function render(){
     + '<div class="card"><div class="ch"><b>'+esc(CLABELP)+'</b><span>'+CONCEPTS.length+' '+(CONCEPTS.length===1?esc(CLABEL.toLowerCase()):esc(CLABELP.toLowerCase()))+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn" title="Add commissary" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button><button class="addbtn" id="addConceptBtn" title="Add '+esc(CLABEL.toLowerCase())+'" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
     + '<div class="card"><div class="ch"><b>Assignments</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
     + agreementsCardCo()
+    + filesCardCo()
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Company</b>'+((C.system||C.locked)?'<span class="sysbadge" title="System-required record — permanent">System · permanent</span>':'')+'<span style="margin-left:auto;font-size:11px;color:var(--soft);font-weight:600">Autosaves</span></div><div class="cb">'
       + '<div class="fldrow"><label class="fld">Logo</label><div class="logorow2"><div class="logoprev2" id="c_logoprev" title="Click to upload \u2014 click again to remove"></div><input type="hidden" id="c_logo" value="'+esc(C.logo||'')+'"><input type="file" id="c_logofile" accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml" style="display:none"></div></div>'

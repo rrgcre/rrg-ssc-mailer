@@ -38,7 +38,10 @@
       +'.dfoot{display:flex;gap:9px;justify-content:flex-end;align-items:center;padding:13px 21px;border-top:1px solid #e6e9f0;}'
       +'.dbtn{background:#000E31;color:#fff;border:1px solid #000E31;border-radius:9px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}'
       +'.dbtn.ghost{background:#fff;color:#6b7488;border-color:#e6e9f0;}'
-      +'.dchip{display:inline-flex;align-items:center;gap:7px;background:#eef2fb;border:1px solid #d3ddf3;color:#2647b0;border-radius:100px;padding:5px 12px;font-size:12.5px;font-weight:700;}';
+      +'.dchip{display:inline-flex;align-items:center;gap:7px;background:#eef2fb;border:1px solid #d3ddf3;color:#2647b0;border-radius:100px;padding:5px 12px;font-size:12.5px;font-weight:700;}'
+      +'.docdel{margin-left:auto;flex:none;background:none;border:none;color:#c2c9d6;font-size:13px;line-height:1;cursor:pointer;padding:4px 6px;border-radius:6px;opacity:0;transition:opacity .12s,background .12s,color .12s;}'
+      +'.docrow:hover .docdel{opacity:1;}'
+      +'.docdel:hover{background:#fdeceb;color:#DA2B1F;}';
     document.head.appendChild(st);
   }
 
@@ -56,29 +59,41 @@
         READY=true; ONCHANGE();
       }).catch(function(){ READY=true; ONCHANGE(); });
   }
-  function count(){ return DOCS.length; }
+  function count(){ return DOCS.filter(function(d){ return d.kind!=='file'; }).length; }
+  function filesCount(){ return DOCS.filter(function(d){ return d.kind==='file'; }).length; }
   function ready(){ return READY; }
 
-  function rowsHtml(){
-    return DOCS.map(function(d){
-      var top=d.title||'Document';
-      var sub=d.typeLabel||'';
-      // Seller screening reads better with the call type on top and the concept + date beneath it.
-      if(d.kind==='seller'){ top=d.typeLabel||'Seller Screening'; sub=(d.title && d.title!==top)?d.title:''; }
-      if(d.kind==='file' && d.size) sub+=(sub?' · ':'')+fmtSize(d.size);
-      if(d.createdAt) sub+=(sub?' · ':'')+fmt(d.createdAt);
-      return '<div class="rrow docrow" data-docurl="'+esc(d.openUrl||'')+'" data-dockind="'+esc(d.kind)+'" title="Open '+esc(d.title||'document')+'">'
-        +'<span class="dico" style="background:'+(KCOL[d.kind]||'#6b7488')+'">'+(KICON[d.kind]||'▦')+'</span>'
-        +'<div class="rrmain" style="min-width:0"><div class="docttl">'+esc(top)+'</div><div class="docmeta">'+esc(sub)+'</div></div>'
-        +'</div>';
-    }).join('');
+  function rowHtml(d){
+    var top=d.title||'Document';
+    var sub=d.typeLabel||'';
+    // Seller screening reads better with the call type on top and the concept + date beneath it.
+    if(d.kind==='seller'){ top=d.typeLabel||'Seller Screening'; sub=(d.title && d.title!==top)?d.title:''; }
+    if(d.kind==='file' && d.size) sub+=(sub?' · ':'')+fmtSize(d.size);
+    if(d.createdAt) sub+=(sub?' · ':'')+fmt(d.createdAt);
+    var del=d.deleteUrl?('<button type="button" class="docdel" data-docdel="'+esc(d.id)+'" title="Delete">\u2715</button>'):'';
+    return '<div class="rrow docrow" data-docurl="'+esc(d.openUrl||'')+'" data-dockind="'+esc(d.kind)+'" title="Open '+esc(d.title||'document')+'">'
+      +'<span class="dico" style="background:'+(KCOL[d.kind]||'#6b7488')+'">'+(KICON[d.kind]||'▦')+'</span>'
+      +'<div class="rrmain" style="min-width:0"><div class="docttl">'+esc(top)+'</div><div class="docmeta">'+esc(sub)+'</div></div>'
+      +del
+      +'</div>';
   }
+  function rowsHtml(){ return DOCS.filter(function(d){ return d.kind!=='file'; }).map(rowHtml).join(''); }
+  function filesRowsHtml(){ return DOCS.filter(function(d){ return d.kind==='file'; }).map(rowHtml).join(''); }
 
   function open(url){ if(!url) return; if(/^https?:|^\/api\//.test(url)) window.open(url,'_blank','noopener'); else location.href='./'+url; }
 
+  function delDoc(id){
+    var d=DOCS.find(function(x){ return x.id===id; }); if(!d||!d.deleteUrl) return;
+    var isCall=(d.kind==='seller');
+    var msg=isCall?('Delete the call "'+(d.title||'this call')+'"? This permanently removes the seller screening and its answers. This cannot be undone.'):('Remove "'+(d.title||'this file')+'"? This deletes the uploaded file for everyone.');
+    if(!confirm(msg)) return;
+    fetch(d.deleteUrl,{method:'DELETE',credentials:'same-origin'}).then(function(r){ return r.json(); }).then(function(j){ if(j&&j.ok){ load(); } else alert((j&&j.error)||'Could not delete.'); }).catch(function(){ alert('Could not reach the server.'); });
+  }
   // One delegated listener for the whole page -- survives every re-render of the card.
   document.addEventListener('click', function(e){
     if(!e.target||!e.target.closest) return;
+    var db=e.target.closest('[data-docdel]');
+    if(db){ e.preventDefault(); e.stopPropagation(); delDoc(db.getAttribute('data-docdel')); return; }
     var r=e.target.closest('.docrow[data-docurl]');
     if(r){ e.preventDefault(); open(r.getAttribute('data-docurl')); }
   });
@@ -140,5 +155,5 @@
     setTimeout(function(){ try{ mask.querySelector('#_dName').focus(); }catch(e){} },40);
   }
 
-  window.RRGDocs={ init:init, reload:load, count:count, ready:ready, rowsHtml:rowsHtml, upload:upload, menu:menu, open:open };
+  window.RRGDocs={ init:init, reload:load, count:count, filesCount:filesCount, ready:ready, rowsHtml:rowsHtml, filesRowsHtml:filesRowsHtml, upload:upload, menu:menu, open:open };
 })();
