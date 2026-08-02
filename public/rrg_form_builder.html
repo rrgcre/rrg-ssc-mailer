@@ -152,8 +152,12 @@ function questionFromRow(row){
   if(qs('.q-req',row).checked) q.required=true;
   if(qs('.q-full',row) && qs('.q-full',row).checked) q.full=true;
   if(q.type==='options'){
-    var opts=(qs('.q-options',row).value||'').split('\n').map(function(x){return x.trim();}).filter(Boolean);
+    var opts=[], meta=[], anyMeta=false;
+    qsa('.optrow',row).forEach(function(r){ var lb=(qs('.opt-label',r).value||'').trim(); if(!lb) return; opts.push(lb);
+      var mk=qs('.opt-k',r).checked, mw=parseInt(qs('.opt-w',r).value,10)||0, mn=(qs('.opt-nudge',r).value||'').trim();
+      var m={}; if(mk)m.k=1; if(mw)m.w=mw; if(mn)m.n=mn; meta.push(m); if(mk||mw||mn) anyMeta=true; });
     q.options=opts;
+    if(anyMeta) q.optMeta=meta;
     var c=qs('.q-cols',row).value; if(c) q.cols=parseInt(c,10);
   }
   var pr=qs('.q-prompt',row); if(pr && pr.value.trim()) q.prompt=pr.value.trim();
@@ -166,6 +170,7 @@ function syncFromDom(){
   STATE.form.name=(qs('#formName').value||'').trim();
   STATE.form.callType=qs('#formType').value;
   STATE.form.automations={}; qsa('.auto-sel').forEach(function(sel){ var oc=sel.getAttribute('data-outcome'); var v=(sel.value||'').trim(); if(v) STATE.form.automations[oc]=v; });
+  var _kg=qs('.known-guard'); STATE.form.knownSellerGuard=!!(_kg&&_kg.checked);
   var hdr=qs('.card[data-header="1"]');
   STATE.form.header=[];
   if(hdr) qsa('.qrow',hdr).forEach(function(r){ var q=questionFromRow(r); if(q) STATE.form.header.push(q); });
@@ -181,6 +186,10 @@ function syncFromDom(){
 function typeSelect(sel){
   return '<select class="q-type">'+TYPES.map(function(t){ return '<option value="'+t.v+'"'+(t.v===sel?' selected':'')+'>'+esc(t.label)+'</option>'; }).join('')+'</select>';
 }
+function optWeightSel(w){ w=w||0; var o=''; for(var x=-3;x<=3;x++){ o+='<option value="'+x+'"'+(x===w?' selected':'')+'>'+(x>0?('+'+x):(''+x))+'</option>'; } return o; }
+function optRowHtml(lbl,m){ m=m||{}; return '<div class="optrow" style="display:flex;gap:6px;align-items:center;margin:0 0 5px;flex-wrap:wrap">'+'<input type="text" class="opt-label" placeholder="Choice" value="'+esc(lbl||'')+'" style="flex:2;min-width:110px">'+'<label style="font-size:11.5px;white-space:nowrap;display:inline-flex;gap:4px;align-items:center"><input type="checkbox" class="opt-k"'+(m.k?' checked':'')+'>Deal-killer</label>'+'<select class="opt-w" title="Temperature weight (\u2212 colder / + warmer)" style="width:60px">'+optWeightSel(m.w||0)+'</select>'+'<input type="text" class="opt-nudge" placeholder="Follow-up nudge (optional)" value="'+esc(m.n||'')+'" style="flex:2;min-width:110px">'+'<button type="button" class="mini danger" onclick="delOpt(this)">\u00d7</button></div>'; }
+function addOpt(btn){ var list=btn.closest('.oleft').querySelector('.optlist'); list.insertAdjacentHTML('beforeend', optRowHtml('',{})); var l=list.lastElementChild.querySelector('.opt-label'); if(l) l.focus(); }
+function delOpt(btn){ btn.closest('.optrow').remove(); }
 function qrow(q){
   q=q||{};
   if(q.sub!==undefined){
@@ -191,13 +200,13 @@ function qrow(q){
   var isOpt=(bt==='single'||bt==='multi');
   var isGroup=(bt==='group');
   var isInstr=(bt==='instruction');
-  var opts=(q.options||[]).join('\n');
+  var _om=q.optMeta||[]; var optRows=(q.options||[]).map(function(o,i){return optRowHtml(o,_om[i]);}).join('')||optRowHtml('',{});
   return '<div class="qrow'+(isOpt?' is-opts':'')+(isGroup?' is-group':'')+(isInstr?' is-instr':'')+'">'
     +'<div class="qtop"><input type="text" class="q-label" placeholder="Question (e.g. “Annual revenue?”)" value="'+esc(q.label||'')+'">'+typeSelect(bt)+'</div>'
     +'<div class="instrwrap"><span class="lbl">Instruction text — shown on its own card with Back and Next, nothing to answer</span><textarea class="q-text" placeholder="e.g. Before you go further, confirm you are speaking with an owner and that this call is confidential.">'+esc(q.text||'')+'</textarea></div>'
     +'<div class="flags"><label><input type="checkbox" class="q-req"'+(q.required?' checked':'')+'> Required</label>'
     +'<label><input type="checkbox" class="q-full"'+(q.full?' checked':'')+'> Full width</label></div>'
-    +'<div class="optwrap"><div class="oleft"><span class="lbl">Answer choices (one per line)</span><textarea class="q-options" placeholder="Yes\nNo\nMaybe">'+esc(opts)+'</textarea></div>'
+    +'<div class="optwrap"><div class="oleft"><span class="lbl">Answer choices \u2014 tick deal-killers, set a temperature weight (\u2212 colder / + warmer), add an optional follow-up nudge</span><div class="optlist">'+optRows+'</div><button type="button" class="mini" onclick="addOpt(this)" style="margin-top:2px">+ Add choice</button></div>'
     +'<div class="oright"><span class="lbl">Layout</span><select class="q-cols"><option value="">Stacked</option><option value="2"'+(q.cols==2?' selected':'')+'>2 columns</option><option value="3"'+(q.cols==3?' selected':'')+'>3 columns</option><option value="4"'+(q.cols==4?' selected':'')+'>4 columns</option></select></div></div>'
     +'<div class="groupwrap"><span class="lbl">Parts \u2014 each becomes a field on the same card / flashcard</span><div class="plist">'+(q.parts||[]).map(partRow).join('')+'</div>'
     +'<div style="display:flex;gap:9px;margin-top:7px;align-items:center;flex-wrap:wrap"><button type="button" class="mini" onclick="addPart(this)">+ Add part</button><span class="lbl" style="margin:0">Layout</span><select class="g-cols" style="width:130px"><option value="2"'+((q.cols==2||!q.cols)?' selected':'')+'>2 columns</option><option value="3"'+(q.cols==3?' selected':'')+'>3 columns</option><option value="1"'+(q.cols==1?' selected':'')+'>Stacked</option></select></div></div>'
@@ -221,7 +230,7 @@ function sectionCard(cat,idx){
 
 var OUTCOMES=[['businessSale','Business Sale'],['assetSale','Asset Sale'],['nurture','Nurture'],['decline','Decline']];
 function autoOptions(selId){ var o='<option value="">\u2014 none \u2014</option>'; var seen=false; AUTOS.forEach(function(a){ if(a.id===selId) seen=true; o+='<option value="'+esc(a.id)+'"'+(a.id===selId?' selected':'')+'>'+esc(a.name||'Automation')+'</option>'; }); if(selId && !seen) o+='<option value="'+esc(selId)+'" selected>(saved automation)</option>'; return o; }
-function automationsCard(f){ var au=f.automations||{}; var rows=OUTCOMES.map(function(o){ return '<div><span class="lbl">'+esc(o[1])+'</span><select class="auto-sel" data-outcome="'+o[0]+'">'+autoOptions(au[o[0]]||'')+'</select></div>'; }).join(''); return '<div class="card"><div class="sechead"><span class="sn" style="background:#b5791f">\u26A1</span><div style="flex:1"><div style="font-size:15px;font-weight:700">Post-call automations</div><div class="hint">When the call is submitted, the rep\u2019s deal call fires the matching automation for the seller. All optional \u2014 leave any blank.</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px">'+rows+'</div></div>'; }
+function automationsCard(f){ var au=f.automations||{}; var rows=OUTCOMES.map(function(o){ return '<div><span class="lbl">'+esc(o[1])+'</span><select class="auto-sel" data-outcome="'+o[0]+'">'+autoOptions(au[o[0]]||'')+'</select></div>'; }).join(''); return '<div class="card"><div class="sechead"><span class="sn" style="background:#b5791f">\u26A1</span><div style="flex:1"><div style="font-size:15px;font-weight:700">Post-call automations</div><div class="hint">When the call is submitted, the rep\u2019s deal call fires the matching automation for the seller. All optional \u2014 leave any blank.</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px">'+rows+'</div><label style="display:inline-flex;gap:7px;align-items:center;margin-top:12px;font-size:13px;color:#1d2739;cursor:pointer"><input type="checkbox" class="known-guard"'+(f.knownSellerGuard?' checked':'')+'> Warn the rep at call start if this seller already has a call on file</label></div>'; }
 function render(){
   var f=STATE.form;
   var h='';
@@ -275,7 +284,7 @@ function save(){
   if(!f.name){ msg.className='msg err'; msg.textContent='Give the questionnaire a name first.'; qs('#formName').focus(); return; }
   var totalQ=(f.header||[]).length + (f.categories||[]).reduce(function(n,c){return n+(c.questions||[]).filter(function(q){return q.type;}).length;},0);
   if(!totalQ){ msg.className='msg err'; msg.textContent='Add at least one question before saving.'; return; }
-  var payload={ name:f.name, callType:f.callType, header:f.header, categories:f.categories, automations:f.automations||{} };
+  var payload={ name:f.name, callType:f.callType, header:f.header, categories:f.categories, automations:f.automations||{}, knownSellerGuard:!!f.knownSellerGuard };
   if(f.id && !STATE.dup) payload.id=f.id; // editing an existing custom form; dup/new omit id
   btn.disabled=true; btn.textContent='Saving…'; msg.className='msg'; msg.textContent='';
   fetch('/api/form',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
@@ -299,13 +308,13 @@ function save(){
     render();
   }
   if(isNew || !id){
-    STATE.form={ id:'', name:'', callType:preType||'seller', builtIn:false, header:[], categories:[{title:'',questions:[{label:'',type:'text'}]}], automations:{} };
+    STATE.form={ id:'', name:'', callType:preType||'seller', builtIn:false, header:[], categories:[{title:'',questions:[{label:'',type:'text'}]}], automations:{}, knownSellerGuard:false };
     start(); return;
   }
   fetch('/api/form/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok||!j.form){ qs('#root').innerHTML='<div class="gate"><h2>Could not load</h2>That questionnaire wasn’t found.</div>'; return; }
     var f=j.form;
-    STATE.form={ id:f.id, name:f.name||'', callType:f.callType||'seller', builtIn:!!f.builtIn, kicker:f.kicker||'', header:f.header||[], categories:f.categories||[], automations:f.automations||{} };
+    STATE.form={ id:f.id, name:f.name||'', callType:f.callType||'seller', builtIn:!!f.builtIn, kicker:f.kicker||'', header:f.header||[], categories:f.categories||[], automations:f.automations||{}, knownSellerGuard:!!f.knownSellerGuard };
     if(f.builtIn && wantDup){ STATE.dup=true; STATE.form.id=''; STATE.form.builtIn=false; STATE.form.name=(f.name||'Questionnaire')+' (copy)'; }
     start();
   }).catch(function(){ qs('#root').innerHTML='<div class="gate"><h2>Could not load</h2>Check your connection and reload.</div>'; });
