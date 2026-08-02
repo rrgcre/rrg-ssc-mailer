@@ -1359,6 +1359,16 @@ app.post('/api/call-forms', requireAdmin, express.json(), (req, res) => {
   try { logSysEvent(req,'Forms','Updated call-form assignments',{ tool:'forms', kind:'assign' }); } catch(e){}
   res.json({ ok:true, assign:s.callForms });
 });
+app.post('/api/form/:id/delete', requireAdmin, (req, res) => {
+  const arr = loadForms(); const f = arr.find(function(x){ return x.id===req.params.id; });
+  if(!f) return res.status(404).json({ ok:false, error:'Form not found.' });
+  if(f.builtIn) return res.status(400).json({ ok:false, error:'The built-in questionnaire cannot be deleted.' });
+  saveForms(arr.filter(function(x){ return x.id!==req.params.id; }));
+  const st = loadSettings();
+  if(st.callForms){ let ch=false; Object.keys(st.callForms).forEach(function(k){ if(st.callForms[k]===req.params.id){ delete st.callForms[k]; ch=true; } }); if(ch) saveSettings(st); }
+  try { logSysEvent(req,'Forms','Deleted questionnaire \u201c'+f.name+'\u201d',{ tool:'forms', kind:'delete', id:f.id }); } catch(e){}
+  res.json({ ok:true });
+});
 app.get('/api/screenings', (req, res) => {
   const isAdmin = req.user && isSuper(req.user);
   const list = loadScreens().slice().reverse().filter(s => isAdmin || ownsScreen(req, s));

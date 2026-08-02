@@ -30,6 +30,13 @@ select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(47,
 .meta{font-size:11.5px;color:var(--dim);margin-top:7px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;}
 .meta a{color:var(--blue);text-decoration:none;font-weight:700;} .meta a:hover{text-decoration:underline;}
 .edlink{color:var(--navy)!important;}
+.ftbl{width:100%;border-collapse:collapse;margin-top:2px;}
+.ftbl th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:800;padding:6px 10px;border-bottom:1px solid #eef1f7;}
+.ftbl td{padding:9px 10px;font-size:12.5px;border-bottom:1px solid #f2f5fb;vertical-align:middle;}
+.ftbl .ta-r{text-align:right;white-space:nowrap;}
+.ftbl a{color:var(--blue);text-decoration:none;font-weight:700;} .ftbl a:hover{text-decoration:underline;}
+.dellink{color:var(--red)!important;}
+.ftbl .tag{font-size:9.5px;}
 .badge{display:inline-flex;align-items:center;gap:5px;font-weight:700;}
 .dot{width:6px;height:6px;border-radius:50%;background:var(--green);display:inline-block;}
 .savebar{position:sticky;bottom:0;background:linear-gradient(0deg,#eef1f7 62%,rgba(238,241,247,0));padding:16px 0 6px;margin-top:6px;display:flex;gap:12px;align-items:center;}
@@ -123,6 +130,7 @@ function render(){
     + (STATE.isAdmin?'':' <b>You are viewing only</b> — an administrator can change these assignments.')+'</div>';
   if(STATE.isAdmin){ h+='<div style="margin:2px 0 14px"><button class="btn ghost" onclick="newForm()">\uFF0B Build a new questionnaire</button></div>'; }
   h+=CALLTYPES.map(renderCard).join('');
+  h+=renderFormsList();
   if(STATE.isAdmin){
     h+='<div class="savebar"><button class="btn primary" id="saveBtn">Save assignments</button><span class="msg" id="msg"></span></div>';
   }
@@ -149,6 +157,28 @@ function render(){
 function nav(u){ try{ (window.top||window).location.href=u; }catch(e){ location.href=u; } }
 function newForm(){ nav('rrg_form_builder.html?new=1'); }
 function editForm(id, builtIn){ nav('rrg_form_builder.html?form='+encodeURIComponent(id)+(builtIn?'&dup=1':'')); }
+var CTLABEL={seller:'Seller Screening',buyer:'Buyer Qualification',site:'Site-Criteria',other:'General'};
+function renderFormsList(){
+  if(!STATE.forms.length) return '';
+  var rows=STATE.forms.map(function(f){
+    var act='';
+    if(STATE.isAdmin){
+      act = f.builtIn
+        ? '<a href="#" onclick="editForm(\''+esc(f.id)+'\',1);return false;">Duplicate &amp; edit</a>'
+        : '<a href="#" onclick="editForm(\''+esc(f.id)+'\',0);return false;">Edit</a> &nbsp;\u00b7&nbsp; <a href="#" class="dellink" onclick="delForm(\''+esc(f.id)+'\',\''+esc((f.name||'').replace(/'/g,"\\'"))+'\');return false;">Delete</a>';
+    }
+    return '<tr><td><b>'+esc(f.name)+'</b>'+(f.builtIn?' <span class="tag">built-in</span>':'')+'</td><td>'+esc(CTLABEL[f.callType]||f.callType||'\u2014')+'</td><td>'+f.questions+'</td><td class="ta-r">'+act+'</td></tr>';
+  }).join('');
+  return '<div class="card"><h2 style="margin:0 0 3px;font-size:16px;font-weight:800">Your questionnaires</h2>'
+    +'<p style="margin:0 0 12px;font-size:12.5px;color:var(--dim)">Every questionnaire in the system. Edit the ones you built, or duplicate the built-in to start a new one.</p>'
+    +'<table class="ftbl"><thead><tr><th>Name</th><th>Call type</th><th>Questions</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+}
+function delForm(id,name){
+  if(!confirm('Delete the questionnaire \u201c'+name+'\u201d?\n\nThis removes it and unassigns it from any call type. This cannot be undone.')) return;
+  fetch('/api/form/'+encodeURIComponent(id)+'/delete',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok){ location.reload(); } else { alert((j&&j.error)||'Could not delete.'); }
+  }).catch(function(){ alert('Network error \u2014 not deleted.'); });
+}
 
 function pvHandler(e){ e.preventDefault(); togglePreview(this.getAttribute('data-ct'), this.getAttribute('data-pv'), this); }
 
