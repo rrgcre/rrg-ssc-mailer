@@ -36,28 +36,11 @@ const BOVS_FILE = path.join(BOV_DATA_DIR, 'bovs.json');
 function loadBovs() { try { return JSON.parse(fs.readFileSync(BOVS_FILE, 'utf8')); } catch (e) { return []; } }
 // ---- Shared guarded JSON writer: atomic (tmp+rename) + empty-overwrite protection ----
 // Prevents a transient bad read or a full disk (ENOSPC mid-write) from truncating/wiping a data file.
-function writeJsonGuarded(file, data, label) {
-  try {
-    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
-    const _emptyArr = Array.isArray(data) && data.length === 0;
-    const _emptyObj = data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0;
-    if (_emptyArr || _emptyObj) {
-      try {
-        const _cur = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
-        const _n = Array.isArray(_cur) ? _cur.length : ((_cur && typeof _cur === 'object') ? Object.keys(_cur).length : 0);
-        if (_n >= 2) {
-          try { fs.writeFileSync(file + '.rescue-' + Date.now() + '.json', JSON.stringify(_cur, null, 2)); } catch (e) {}
-          console.error('[DATA GUARD] ' + (label || file) + ' BLOCKED: refused to overwrite ' + _n + ' records with empty data. Rescue copy written.');
-          return false;
-        }
-      } catch (e) {}
-    }
-    const _tmp = file + '.tmp';
-    fs.writeFileSync(_tmp, JSON.stringify(data, null, 2));
-    fs.renameSync(_tmp, file);
-    return true;
-  } catch (e) { return false; }
-}
+// The safety-critical data writer lives in ./datasafe.js so it can be unit-tested
+// in isolation (see test/datasafe.test.js). Atomic tmp+rename write, plus a guard
+// that refuses to overwrite >=2 existing records with empty data (writing a rescue
+// copy first). This is what stands between a bug and losing the book of business.
+const { writeJsonGuarded } = require('./datasafe');
 function saveBovs(a) { return writeJsonGuarded(BOVS_FILE, a, 'saveBovs'); }
 function newBovId() { return 'bov_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
