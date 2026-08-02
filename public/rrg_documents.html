@@ -125,7 +125,7 @@ function cDate(v){ return (v&&String(v).trim())?('<span class="meta">'+esc(fmtDa
 function stCls(k){ return 's-'+String(k||'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
 function cStatus(d){ return d.status?('<span class="st '+stCls(d.statusKey||d.status)+'">'+esc(d.status)+'</span>'):_muted(); }
 function cText(v){ return (v&&String(v).trim())?esc(v):_muted(); }
-function cActions(d){ return d.kind==='file'?('<button class="codel" data-del="'+esc(d.id)+'">Remove</button>'):_muted(); }
+function cActions(d){ return (d.kind==='file'||d.deleteUrl)?('<button class="codel" data-del="'+esc(d.id)+'">'+(d.kind==='seller'?'Delete':'Remove')+'</button>'):_muted(); }
 function _s(field){ return function(a,b){ return cmp(a[field],b[field]); }; }
 
 var C_NAME={ label:'Name', sort:_s('title'), cell:cName };
@@ -189,8 +189,8 @@ if(window.RRGFilters && document.getElementById('filterBtn')){
 }
 
 document.addEventListener('click', function(e){ var b=e.target.closest?e.target.closest('[data-del]'):null; if(b){ e.preventDefault(); e.stopPropagation(); delFile(b.getAttribute('data-del')); } });
-function delFile(id){ var d=DOCS.find(function(x){return x.id===id;}); if(!d) return; if(!confirm('Remove "'+(d.title||'this file')+'"? This deletes the uploaded file for everyone.')) return;
-  fetch('/api/files/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert((j&&j.error)||'Could not remove.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+function delFile(id){ var d=DOCS.find(function(x){return x.id===id;}); if(!d) return; var isCall=(d.kind==='seller'); var url=d.deleteUrl||('/api/files/'+encodeURIComponent(id)); var msg=isCall?('Delete the call "'+(d.title||'this call')+'"? This permanently removes the seller screening and its answers. Cannot be undone.'):('Remove "'+(d.title||'this file')+'"? This deletes the uploaded file for everyone.'); if(!confirm(msg)) return;
+  fetch(url,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert((j&&j.error)||'Could not remove.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 
 var PICKED=null, REL=null, _relT=null;
 var DOCTYPES=['General','Agreement / Contract','Lease','Financials','Tax / W-9','Insurance / COI','Inspection','Exhibit / Addendum','Offer / LOI','Invoice / Receipt','Marketing','Legal / Entity','ID / License','Photo','Other'];

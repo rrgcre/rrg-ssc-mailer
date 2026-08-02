@@ -8267,7 +8267,7 @@ app.get('/api/documents', (req, res) => {
         statusKey: s.completed ? (statusCode(s.statusText) || 'complete') : 'progress',
         owner: s.by || s.byUser || '', createdAt: s.createdAt || '',
         completePct: pct, completed: !!s.completed,
-        openUrl: 'seller_screening.html?screening=' + encodeURIComponent(s.id), downloadUrl:'' });
+        openUrl: '/api/screening/' + encodeURIComponent(s.id) + '/view', editUrl: 'seller_screening.html?screening=' + encodeURIComponent(s.id), deleteUrl: '/api/screening/' + encodeURIComponent(s.id), downloadUrl:'' });
     });
     let sellers = store.readAll().filter(r => r.form === 'seller' && !_seenFid[(r.data && r.data.formId) || '\u0000']);
     if (restrictToOwn(req)) sellers = sellers.filter(r => permOwnerMatch(req, r.rep));
@@ -8337,6 +8337,19 @@ app.get('/api/seller/:key/view', (req, res) => {
   if (!rec) return res.status(404).send('Not found.');
   if (restrictToOwn(req) && !permOwnerMatch(req, rec.rep)) return res.status(403).send('Not authorized.');
   res.set('Content-Type','text/html; charset=utf-8').send(intakeViewHtml(rec, 'Seller Screening'));
+});
+
+// Read-only Q&A view of a seller screening call (opens from the document lists).
+app.get('/api/screening/:id/view', (req, res) => {
+  const s = (loadScreens() || []).find(x => x.id === req.params.id);
+  if (!s) return res.status(404).send('Not found.');
+  if (restrictToOwn(req) && !ownsScreen(req, s)) return res.status(403).send('Not authorized.');
+  const pct = (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0));
+  const rec = { data: s.data || {}, name: (s.business && s.business !== 'Seller') ? s.business : (s.contact || (s.data && s.data.company) || 'Seller Screening'), market: s.market || '', rep: s.by || s.byUser || '', timestamp: s.createdAt || '', highlights: s.completed ? (s.statusText || s.decision || 'Complete') : ('In progress \u2014 ' + pct + '%') };
+  let html = intakeViewHtml(rec, 'Seller Screening');
+  const edit = '<div style="position:fixed;right:16px;bottom:16px;z-index:50"><a href="/seller_screening.html?screening=' + encodeURIComponent(s.id) + '" style="background:#000E31;color:#fff;text-decoration:none;border-radius:9px;padding:10px 16px;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 6px 20px rgba(16,24,40,.28)">Edit this call</a></div>';
+  html = html.replace('</body>', edit + '</body>');
+  res.set('Content-Type', 'text/html; charset=utf-8').send(html);
 });
 
 app.get('/api/agreements', (req, res) => {
