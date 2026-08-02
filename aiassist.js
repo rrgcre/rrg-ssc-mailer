@@ -217,7 +217,11 @@ async function classifyConcepts({ items, conceptTypes, pricePoints, cuisines }) 
 const SCREEN_RECS = ['Business Sale', 'Asset Sale', 'Nurture', 'Decline'];
 async function draftScreeningSummary({ data }) {
   const sys = 'You are an experienced restaurant and bar business broker at Restaurant Realty Group, writing the internal call summary immediately after screening a potential seller. '
-    + 'FIRST, write 3-4 tight sentences in a direct broker voice covering: the operator and the business; their motivation and timeline; the financial picture; their valuation expectation and how realistic it is; and your read on whether this is a real lead. Use only the captured answers - never invent numbers. No preamble, no bullet points, no headers. '
+    + 'FIRST, write the call summary as TWO or THREE short paragraphs separated by a blank line (\\n\\n), in a direct broker voice: '
+    + 'paragraph 1 - the operator and the business, their motivation and their timeline; '
+    + 'paragraph 2 - the financial picture, and their valuation expectation with your read on how realistic it is; '
+    + 'paragraph 3 - your read on whether this is a real lead worth working. '
+    + 'Keep each paragraph 2-3 sentences. Use only the captured answers - never invent numbers. No preamble, no bullet points, no headers - just clean paragraphs separated by blank lines. '
     + 'SECOND, make the call. Choose exactly one of "Business Sale", "Asset Sale", "Nurture", or "Decline", applying these standards: '
     + 'BUSINESS SALE (going concern) when the operation carries real transferable earnings - positive or near-breakeven SDE/EBITDA that supports a multiple, financials a buyer can document, and a lease with enough remaining term plus assignability for a buyer to underwrite. '
     + 'ASSET SALE when the value is in the hard assets rather than the earnings - the operation loses money, is closed, or is trending hard down, or the numbers cannot be documented, but the buildout, FF&E, liquor license, or the lease itself is worth selling. '

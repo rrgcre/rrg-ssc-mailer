@@ -1114,5 +1114,28 @@ load();
   var tries=0; (function w(){ var c=document.querySelector("#rrgtop .create"); if(c){ install(c); return; } if(tries++<50) setTimeout(w,120); })();
 })();
 </script>
+<script>
+/* Confirmation banner when a seller call just became a Live Listing and returned here. */
+(function(){
+  var raw; try{ raw=sessionStorage.getItem('rrgListingCreated'); }catch(e){}
+  if(!raw) return;
+  try{ sessionStorage.removeItem('rrgListingCreated'); }catch(e){}
+  var a; try{ a=JSON.parse(raw); }catch(e){ return; }
+  if(!a || !a.listingStatus) return;
+  function esc(s){ var d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
+  function go(){
+    var b=document.createElement('div');
+    b.style.cssText='position:fixed;left:50%;top:14px;transform:translateX(-50%);z-index:100001;max-width:540px;width:calc(100% - 32px);background:#eaf5ef;border:1px solid #b7e0c7;color:#155e3b;border-radius:12px;padding:12px 15px;box-shadow:0 12px 34px rgba(16,32,70,.20);font:600 13px/1.45 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;display:flex;align-items:center;gap:11px';
+    b.innerHTML='<span style="font-size:17px;flex:none">✓</span><span style="flex:1"><b>'+esc(a.business||'Live Listing')+'</b> is now a Live Listing'+(a.roomCreated?' — data room created':(a.roomId?' — data room ready':''))+(a.pipeline?(' and added to the <b>'+esc(a.pipeline)+'</b> pipeline'):'')+'. It’s in the listings below.</span>'
+      +(a.roomId?('<a href="./rrg_room.html?room='+encodeURIComponent(a.roomId)+'" style="color:#0e7a53;font-weight:800;text-decoration:none;white-space:nowrap">Open room →</a>'):'')
+      +'<span title="Dismiss" style="cursor:pointer;color:#7aa78c;font-size:19px;line-height:1;padding:0 2px;flex:none">×</span>';
+    b.querySelector('span[title="Dismiss"]').addEventListener('click',function(){ b.remove(); });
+    document.body.appendChild(b);
+    setTimeout(function(){ if(b&&b.parentNode) b.remove(); }, 14000);
+    if(window.rrgToast){ try{ window.rrgToast('✓ Live Listing created for '+(a.business||'this seller')); }catch(e){} }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(go,450); }); else setTimeout(go,450);
+})();
+</script>
 </body>
 </html>

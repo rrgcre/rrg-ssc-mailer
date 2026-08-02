@@ -104,6 +104,7 @@
     background:#fff; outline:none; }
   input[type=text]{ height:36px; }
   textarea{ min-height:58px; resize:vertical; }
+  #callNotes{ min-height:150px; line-height:1.6; padding:13px 14px; }
   input[type=text]:focus, textarea:focus{ border-color:var(--red); box-shadow:0 0 0 3px rgba(218,43,31,.10); }
   .field select{ width:100%; height:36px; font-family:'Inter',sans-serif; font-size:13px; color:var(--navy); border:1px solid var(--inp); border-radius:7px; padding:7px 10px; background:#fff; outline:none; cursor:pointer; }
   .field select:focus{ border-color:var(--red); box-shadow:0 0 0 3px rgba(218,43,31,.10); }
@@ -705,7 +706,7 @@
     if(m.length){ _showBanner('Complete '+m.length+' required field'+(m.length>1?'s':'')+' (marked *) before submitting.'); m[0].scrollIntoView({behavior:'smooth',block:'center'}); return false; }
     _hideBanner();
     var doIt=function(ok){ if(!ok) return; var data=_collectData(); data.formType='seller'; data.submitted=true;
-      fetch(_apiBase()+'/api/screening-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json();}).then(function(j){ var b=document.getElementById('vbanner'); if(b){ b.textContent='Screening submitted \u2713 \u2014 recorded to the queue.'; b.style.display='block'; b.style.background='#e7f5ee'; b.style.color='#1f8a5b'; b.style.borderColor='#b7e0c7'; } if(j&&j.actions&&j.actions.listingStatus&&window.__lsSummary){ window.__lsSummary(j.actions); } }).catch(function(){ _showBanner('Could not reach the server to submit. Try again.'); });
+      fetch(_apiBase()+'/api/screening-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json();}).then(function(j){ var _cid=''; try{ _cid=(window.RRG_PARTY&&window.RRG_PARTY.personId)||new URLSearchParams(location.search).get('contactId')||''; }catch(e){} if(j&&j.actions&&j.actions.listingStatus){ try{ sessionStorage.setItem('rrgListingCreated', JSON.stringify(j.actions)); }catch(e){} } if(_cid){ location.href='./rrg_person.html?id='+encodeURIComponent(_cid); return; } var b=document.getElementById('vbanner'); if(b){ b.textContent='Screening submitted \u2713 \u2014 recorded to the queue.'; b.style.display='block'; b.style.background='#e7f5ee'; b.style.color='#1f8a5b'; b.style.borderColor='#b7e0c7'; } if(j&&j.actions&&j.actions.listingStatus&&window.__lsSummary){ window.__lsSummary(j.actions); } }).catch(function(){ _showBanner('Could not reach the server to submit. Try again.'); });
     };
     if(window.rrgConfirm){ window.rrgConfirm('Submit this screening? This records your decision on whether to move forward with this seller.',{title:'Submit screening?',okText:'Submit'}).then(doIt); } else { doIt(window.confirm('Submit this screening?')); }
     return false;
@@ -1297,7 +1298,11 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     if(btn) btn.disabled=true;
     window.__scrSubmit(function(ok,reason,count,actions){
       if(btn) btn.disabled=false;
-      if(ok){ if(window.rrgClearDraft) window.rrgClearDraft(); ov.style.display='none'; active=false; fab.style.display='block';
+      if(ok){ if(window.rrgClearDraft) window.rrgClearDraft();
+        var _cid=''; try{ _cid=(window.RRG_PARTY&&window.RRG_PARTY.personId)||new URLSearchParams(location.search).get('contactId')||''; }catch(e){}
+        if(actions && actions.listingStatus){ try{ sessionStorage.setItem('rrgListingCreated', JSON.stringify(actions)); }catch(e){} }
+        if(_cid){ location.href='./rrg_person.html?id='+encodeURIComponent(_cid); return; }   // no old form \u2014 back to the contact
+        ov.style.display='none'; active=false; fab.style.display='block';
         if(actions && actions.listingStatus){ showListingSummary(actions); }
         else if(window.rrgToast){ window.rrgToast('Screening submitted \u2713 \u2014 recorded to the queue.'); }
         return; }
