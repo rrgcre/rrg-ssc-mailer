@@ -17,7 +17,7 @@ window.RRG_FORMS.seller = {
       {type:'options', label:'Franchise or Independent?', required:true, cols:2, options:['Franchise','Independent'], prompt:"Is it a franchise, or your own independent concept?", hint:"A franchisor holds approval rights over any buyer — that's a third party who can kill your deal. If franchise, ask for the FDD and the remaining franchise term."},
       {type:'options', label:'Owner’s Role', cols:3, options:['Owner-Operator (Daily)','Semi-Absentee','Absentee / Manager-Run'], prompt:"How involved are you in the business day to day?", hint:"Owner-operator earnings include their own labor — a buyer has to pay to replace it. Absentee sells at a premium and to a much wider pool."},
       {type:'options', label:'Ownership Structure', cols:2, options:['Sole Owner','Partnership','LLC / Corporation','Family-Owned'], prompt:"How is the ownership set up — is it just you, or do you have partners?", hint:"Every partner is a signature you need at closing. Find out now if one of them isn't on board."},
-      {type:'options', label:'Real Estate', cols:3, options:['Owns Real Estate','Leases','Owns + Leases'], prompt:"Do you own the building, or do you lease the space?", hint:"If they own it you may have two deals. Ask whether they'd sell the real estate or lease it back to the buyer."},
+      {type:'options', id:'realEstate', required:true, label:'Real Estate', cols:3, options:['Owns Real Estate','Leases','Owns + Leases'], prompt:"Do you own the building, or do you lease the space?", hint:"If they own it you may have two deals. Ask whether they'd sell the real estate or lease it back to the buyer."},
       {type:'text', num:'dec2', label:'Years in Operation', required:true, prompt:"How long have you been operating?", hint:"Under three years is thin for SBA financing. Ten-plus under the same owner is a story worth telling buyers."},
       {type:'text', num:'int', label:'Number of Locations', required:true, prompt:"How many locations do you have?", hint:"Multi-unit changes the whole deal — allocation, shared overhead, and whether they're selling all of them or just one."},
       {type:'text', num:'int', label:'Approx. Employees', prompt:"Roughly how many people do you have on staff?", hint:"Listen for a key manager. If the business runs on one person who isn't the owner, ask whether that person stays."}
@@ -36,10 +36,10 @@ window.RRG_FORMS.seller = {
       {type:'options', label:'Earnings Basis', cols:3, options:['EBITDA','SDE','Owner’s Take'], prompt:"When you talk about what the business makes, do you mean SDE, EBITDA, or what you take home?", hint:"Most owners mean what they take home. Nail the basis down or the multiple you quote later is meaningless."},
       {type:'money', label:'Earnings Figure (Approx.)', prompt:"And roughly what is that number?", hint:"Capture it on the basis they just named — don't convert it in your head on the call."},
       {type:'options', label:'Earnings vs. Prior Year', cols:3, options:['Up','Flat','Down'], prompt:"And is that up or down from the year before?", hint:"Earnings trending down while sales hold flat usually means a cost problem a buyer can fix — which is an argument you can use."},
-      {type:'options', label:'Debt, Liens, Lawsuits, or Unusual Items?', cols:3, options:['Yes','No','Unsure'], prompt:"Is there any debt, any liens, or anything legal we'd need to clear at closing?", hint:"Ask it plainly and ask it early. A tax lien or an open suit can stop a transfer cold, and you'd rather find it now than in escrow."},
-      {type:'text', full:true, label:'Debt / Lien / Lawsuit Details', prompt:"Tell me a little more about that.", hint:"Amount, who holds it, and whether it can be paid off from the sale proceeds."}
+      {type:'options', id:'debtFlag', label:'Debt, Liens, Lawsuits, or Unusual Items?', cols:3, options:['Yes','No','Unsure'], prompt:"Is there any debt, any liens, or anything legal we'd need to clear at closing?", hint:"Ask it plainly and ask it early. A tax lien or an open suit can stop a transfer cold, and you'd rather find it now than in escrow."},
+      {type:'text', full:true, showIf:{q:'debtFlag', any:['Yes','Unsure']}, label:'Debt / Lien / Lawsuit Details', prompt:"Tell me a little more about that.", hint:"Amount, who holds it, and whether it can be paid off from the sale proceeds."}
     ]},
-    { n:'4', title:'Lease & Occupancy', sub:'If the Business Leases Its Space', questions:[
+    { n:'4', title:'Lease & Occupancy', sub:'If the Business Leases Its Space', showIf:{q:'realEstate', any:['Leases','Owns + Leases']}, questions:[
       {type:'number', id:'leaseBase', label:'Base Term Remaining (months)', prompt:"How many months are left on your base lease term?", hint:"This is a deal-killer field. Under five years of total secured term and most buyers can't get financing."},
       {type:'number', id:'leaseOption', label:'Option Period (months)', prompt:"And how much option time do you have after that?", hint:"Options only count toward a buyer's term if they survive assignment. Confirm against the actual lease, not memory."},
       {type:'readonly', id:'leaseTotal', label:'Total Remaining (incl. Options)', noprompt:true, hint:"Calculated for you — base plus options."},
@@ -51,12 +51,12 @@ window.RRG_FORMS.seller = {
     ]},
     { n:'5', title:'Expectations & Fit', questions:[
       {sub:'Valuation'},
-      {type:'options', label:'Has a Valuation Expectation?', cols:2, options:['Yes (Specific Number)','Yes (Rough Range)','No / Open to Guidance','Has Had a Formal Appraisal'], prompt:"Do you have a number in mind for the business?", hint:"Ask this before you offer any guidance. Whatever they say anchors the rest of the relationship."},
-      {type:'range', label:'Valuation Expectation', prompt:"What kind of number are you thinking?", hint:"Take the range, then stop talking. The silence after this question is where you learn how firm they are."},
+      {type:'options', id:'valExp', label:'Has a Valuation Expectation?', cols:2, options:['Yes (Specific Number)','Yes (Rough Range)','No / Open to Guidance','Has Had a Formal Appraisal'], prompt:"Do you have a number in mind for the business?", hint:"Ask this before you offer any guidance. Whatever they say anchors the rest of the relationship."},
+      {type:'range', showIf:{q:'valExp', not:['No / Open to Guidance']}, label:'Valuation Expectation', prompt:"What kind of number are you thinking?", hint:"Take the range, then stop talking. The silence after this question is where you learn how firm they are."},
       {type:'options', label:'Expectations Realistic? (Rep’s Assessment)', required:true, cols:3, options:['Realistic','Slightly High (Addressable)','Significantly Inflated'], prompt:"Your read — is that number anywhere near reality?", hint:"Your assessment, not theirs. Significantly inflated with no willingness to move is a pass, not a nurture."},
       {sub:'Prior Activity'},
-      {type:'options', label:'Prior Broker or Sale Attempt?', required:true, cols:3, options:['No (First Time)','Yes (With a Broker)','Yes (Tried Independently)'], prompt:"Have you had it on the market before — with a broker, or on your own?", hint:"A prior failed listing is free intelligence: the asking price, the buyer feedback, and why it died."},
-      {type:'textarea', full:true, label:'What Happened?', prompt:"What happened that time around?", hint:"Listen for whether it was price, financials, or the landlord. The same problem will bite you unless it's been fixed."},
+      {type:'options', id:'priorBroker', label:'Prior Broker or Sale Attempt?', required:true, cols:3, options:['No (First Time)','Yes (With a Broker)','Yes (Tried Independently)'], prompt:"Have you had it on the market before — with a broker, or on your own?", hint:"A prior failed listing is free intelligence: the asking price, the buyer feedback, and why it died."},
+      {type:'textarea', full:true, showIf:{q:'priorBroker', not:['No (First Time)']}, label:'What Happened?', prompt:"What happened that time around?", hint:"Listen for whether it was price, financials, or the landlord. The same problem will bite you unless it's been fixed."},
       {sub:'Process Fit'},
       {type:'options', label:'Confidentiality Importance', required:true, cols:3, options:['High','Medium','Low'], prompt:"How concerned are you about staff or customers finding out?", hint:"High confidentiality shapes how you market it — blind listing, NDA before the name. Set that expectation on this call."},
       {type:'options', label:'Speaking With Other Brokers?', cols:3, options:['No (First Conversation)','Yes (Shopping Around)','Unknown'], prompt:"Are you talking with anyone else about listing it?", hint:"Ask it straight. You'd much rather know you're in a beauty contest than find out after you've done the work."},
@@ -105,7 +105,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     var extra=q.num?(' '+q.num):''; // text with numeric class
     return '<div class="field'+(q.full?' full rowgap':'')+'">'+lab(q)+'<input type="text" class="'+((q.required?'req':'')+extra).trim()+'"'+id+(q.placeholder?(' placeholder="'+esc(q.placeholder)+'"'):'')+'></div>';
   }
-  function renderSub(q){ var extra=q.draft?' <button type="button" id="draftBtn" style="margin-left:10px;background:#000E31;border:1px solid #000E31;border-radius:9px;padding:6px 13px;font:inherit;font-size:12px;font-weight:700;color:#fff;cursor:pointer">✨ Draft from answers</button>':''; return '<div class="subhead">'+esc(q.sub)+extra+'</div>'; }
+  function renderSub(q,ca){ var extra=q.draft?' <button type="button" id="draftBtn" style="margin-left:10px;background:#000E31;border:1px solid #000E31;border-radius:9px;padding:6px 13px;font:inherit;font-size:12px;font-weight:700;color:#fff;cursor:pointer">✨ Draft from answers</button>':''; return '<div '+(ca||'')+'class="subhead">'+esc(q.sub)+extra+'</div>'; }
   function partInput(p, id){
     var t=p.type||'text';
     if(t==='textarea') return '<textarea'+(id?(' id="'+id+'"'):'')+'></textarea>';
@@ -121,23 +121,95 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     var parts=(q.parts||[]).map(function(p,i){ return '<div class="gpart"><label class="gk">'+esc(p.label||'')+'</label>'+partInput(p, gid+'_'+i)+'</div>'; }).join('');
     return '<div class="field group full rowgap">'+lab(q)+'<div class="groupgrid'+cc+'">'+parts+'</div></div>';
   }
-  function injectPrompt(html,q){ if(!q) return html; var a=''; if(q.prompt) a+='data-prompt="'+esc(q.prompt)+'" '; if(q.hint) a+='data-hint="'+esc(q.hint)+'" '; return a ? html.replace('<div ', '<div '+a) : html; }
+  function condAttr(c){ return c ? ('data-showif="'+esc(JSON.stringify(c))+'" ') : ''; }
+  function injectPrompt(html,q,cat){ if(!q) return html; var a='';
+    if(q.prompt) a+='data-prompt="'+esc(q.prompt)+'" ';
+    if(q.hint) a+='data-hint="'+esc(q.hint)+'" ';
+    if(q.id) a+='data-qid="'+esc(q.id)+'" ';
+    a+=condAttr(q.showIf || (cat && cat.showIf) || null);
+    return a ? html.replace('<div ', '<div '+a) : html; }
   function renderCat(cat){
-    var h='<div class="sec brk'+(cat.decision?' decisionsec':'')+'"><div class="num">'+esc(cat.n)+'</div><h2>'+esc(cat.title)+'</h2><div class="flex"></div></div>';
-    if(cat.decision) h+='<div class="decisionnote"><b>Decision point.</b> Based on everything above — do we move forward with this seller, or not?</div>';
-    if(cat.sub) h+='<div class="subhead">'+esc(cat.sub)+'</div>';
+    // A conditional category carries its condition on the section header, the subhead and
+    // every question inside it, so the whole block appears and disappears as one piece.
+    var ca=condAttr(cat.showIf);
+    var h='<div '+ca+'class="sec brk'+(cat.decision?' decisionsec':'')+'"><div class="num">'+esc(cat.n)+'</div><h2>'+esc(cat.title)+'</h2><div class="flex"></div></div>';
+    if(cat.decision) h+='<div '+ca+'class="decisionnote"><b>Decision point.</b> Based on everything above — do we move forward with this seller, or not?</div>';
+    if(cat.sub) h+='<div '+ca+'class="subhead">'+esc(cat.sub)+'</div>';
     var grid=[];
-    function flush(){ if(grid.length){ h+='<div class="grid rowgap">'+grid.join('')+'</div>'; grid=[]; } }
+    function flush(){ if(grid.length){ h+='<div '+ca+'class="grid rowgap">'+grid.join('')+'</div>'; grid=[]; } }
     (cat.questions||[]).forEach(function(q){
-      if(q.sub){ flush(); h+=renderSub(q); return; }
-      if(q.type==='group'){ flush(); h+=injectPrompt(renderGroup(q),q); return; }
-      if(q.type==='instruction'||q.type==='note'){ flush(); h+=injectPrompt(renderField(q),q); return; }
-      if(q.type==='options'||q.type==='textarea'||q.type==='range'||q.full){ flush(); h+= injectPrompt(q.type==='options'?renderOptions(q):renderField(q), q); }
-      else grid.push(injectPrompt(renderField(q), q));
+      if(q.sub){ flush(); h+=renderSub(q,ca); return; }
+      if(q.type==='group'){ flush(); h+=injectPrompt(renderGroup(q),q,cat); return; }
+      if(q.type==='instruction'||q.type==='note'){ flush(); h+=injectPrompt(renderField(q),q,cat); return; }
+      if(q.type==='options'||q.type==='textarea'||q.type==='range'||q.full){ flush(); h+= injectPrompt(q.type==='options'?renderOptions(q):renderField(q), q, cat); }
+      else grid.push(injectPrompt(renderField(q), q, cat));
     });
     flush();
     return h;
   }
+  /* ---- Conditional questions ----------------------------------------------------
+     A rep on a live call should never be reading lease questions to an owner who has no
+     lease. A dependent block carries data-showif={"q":<trigger id>,"any":[...]} (or
+     "not":[...]); the trigger block carries data-qid. Rules, in order:
+       - trigger not present in this form at all  -> show it (never suppress a question
+         we cannot evaluate; a custom form may not have the trigger)
+       - trigger present but unanswered           -> hide it (silence is not a yes)
+       - answered                                 -> match against any/not
+     Hiding clears the block. If a seller flips from Leases to Owns Real Estate, the lease
+     answers are wrong and must not ride along into the record. */
+  function condAnswers(qid){
+    var host=document.querySelector('[data-qid="'+qid+'"]');
+    if(!host) return null;                      // null = cannot evaluate
+    if(host.classList.contains('oset')){
+      return [].slice.call(host.querySelectorAll('label.opt')).filter(function(l){ var i=l.querySelector('input'); return i&&i.checked; })
+               .map(function(l){ return l.textContent.trim(); });
+    }
+    var out=[];
+    [].slice.call(host.querySelectorAll('input,textarea,select')).forEach(function(x){
+      if(x.type==='hidden') return;
+      if(x.type==='checkbox'||x.type==='radio'){ if(x.checked) out.push(String((x.parentNode&&x.parentNode.textContent)||'').trim()); }
+      else if(String(x.value||'').trim()) out.push(String(x.value).trim());
+    });
+    return out;
+  }
+  function cnorm(v){ return String(v==null?'':v).trim().toLowerCase(); }
+  function condMet(c){
+    if(!c||!c.q) return true;
+    var have=condAnswers(c.q);
+    if(have===null) return true;
+    have=have.map(cnorm).filter(Boolean);
+    if(!have.length) return false;
+    if(c.any) return c.any.some(function(v){ return have.indexOf(cnorm(v))>=0; });
+    if(c.not) return !c.not.some(function(v){ return have.indexOf(cnorm(v))>=0; });
+    return true;
+  }
+  function condClear(el){
+    [].slice.call(el.querySelectorAll('input,textarea,select')).forEach(function(x){
+      if(x.type==='checkbox'||x.type==='radio') x.checked=false;
+      else if(!x.readOnly) x.value='';
+      x.classList.remove('missing');
+    });
+    el.classList.remove('missing');
+  }
+  function applyConditionals(){
+    // Query the whole document, not just the form: Call Mode physically lifts the current
+    // question out into its own panel, so a trigger may not be inside the form right now.
+    [].slice.call(document.querySelectorAll('[data-showif]')).forEach(function(el){
+      var c; try{ c=JSON.parse(el.getAttribute('data-showif')); }catch(e){ return; }
+      var ok=condMet(c), wasVisible=!el.hasAttribute('hidden');
+      if(ok){ el.removeAttribute('hidden'); return; }
+      if(wasVisible) condClear(el);
+      el.setAttribute('hidden','');
+    });
+  }
+  window.RRG_FORMS.applyConditionals=applyConditionals;
+  window.RRG_FORMS.wireConditionals=function(){
+    applyConditionals();
+    if(window.__rrgCondWired) return;
+    window.__rrgCondWired=true;
+    document.addEventListener('change', applyConditionals);
+    document.addEventListener('input', applyConditionals);
+  };
   window.RRG_FORMS.render=function(f){
     var h='<div class="grid rowgap">'+f.header.map(function(q){return injectPrompt(renderField(q),q);}).join('')+'</div>';
     f.categories.forEach(function(c){ h+=renderCat(c); });

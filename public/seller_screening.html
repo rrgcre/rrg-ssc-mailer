@@ -112,6 +112,9 @@
 
   /* option set */
   .oset{ border:1px solid var(--line); border-radius:9px; padding:11px 13px; }
+  /* Conditional blocks: .sec and .grid set their own display, which beats the browser's
+     built-in [hidden] rule, so switched-off questions need this to actually disappear. */
+  .sec[hidden], .subhead[hidden], .decisionnote[hidden], .grid[hidden], .field[hidden], .oset[hidden]{ display:none !important; }
   .oset > .k{ margin-bottom:8px; }
   .optcols{ display:grid; grid-template-columns:repeat(2,1fr); gap:4px 16px; }
   .optcols.c3{ grid-template-columns:repeat(3,1fr); }
@@ -340,7 +343,7 @@
     <script>
     (function(){
       var slot=document.getElementById("sscBody");
-      function draw(schema){ try{ slot.innerHTML=RRG_FORMS.render(schema); window.RRG_ACTIVE_FORM=schema; }catch(e){ console.error("form render",e); } }
+      function draw(schema){ try{ slot.innerHTML=RRG_FORMS.render(schema); window.RRG_ACTIVE_FORM=schema; if(RRG_FORMS.wireConditionals) RRG_FORMS.wireConditionals(); }catch(e){ console.error("form render",e); } }
       // Render the built-in default immediately so the page is usable and all field wiring binds.
       draw(RRG_FORMS.seller);
       // Then honor the admin's assigned Seller-Screening form (Settings > Call Questionnaires).
@@ -398,16 +401,22 @@
 
   function _showBanner(msg){var b=document.getElementById('vbanner');b.textContent=msg;b.style.display='block';}
   function _hideBanner(){var b=document.getElementById('vbanner');if(b)b.style.display='none';}
+  // A field switched off by its trigger is not on the form as far as the rep is concerned,
+  // so it is never "missing" and it never counts toward completion.
+  function _live(el){ return !(el.closest && el.closest('[hidden]')); }
+  window.__scrLive=_live;
   function _validate(){
     var miss=[];
     document.querySelectorAll('input.req, textarea.req, select.req').forEach(function(el){
       el.classList.remove('missing');
+      if(!_live(el)) return;
       var bad=!el.value.trim();
       if(!bad && el.classList.contains('email')) bad=!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim());
       if(bad){ el.classList.add('missing'); miss.push(el); }
     });
     document.querySelectorAll('.oset[data-req]').forEach(function(os){
       os.classList.remove('missing');
+      if(!_live(os)) return;
       var any=Array.prototype.slice.call(os.querySelectorAll('input')).some(function(i){return i.checked;});
       if(!any){ os.classList.add('missing'); miss.push(os); }
     });
@@ -533,12 +542,12 @@
       formId: window.RRG_FORM_ID,
       snapshot: (window.rrgSerialize ? window.rrgSerialize() : null),
       complete: (function(){ var ok=true;
-        document.querySelectorAll('#sscform input.req, #sscform textarea.req, #sscform select.req').forEach(function(el){ if(!el.value.trim()){ ok=false; } else if(el.classList.contains('email') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim())){ ok=false; } });
-        document.querySelectorAll('#sscform .oset[data-req]').forEach(function(os){ if(!Array.prototype.slice.call(os.querySelectorAll('input')).some(function(i){return i.checked;})) ok=false; });
+        document.querySelectorAll('#sscform input.req, #sscform textarea.req, #sscform select.req').forEach(function(el){ if(!_live(el)) return; if(!el.value.trim()){ ok=false; } else if(el.classList.contains('email') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim())){ ok=false; } });
+        document.querySelectorAll('#sscform .oset[data-req]').forEach(function(os){ if(!_live(os)) return; if(!Array.prototype.slice.call(os.querySelectorAll('input')).some(function(i){return i.checked;})) ok=false; });
         return ok; })(),
       completePct: (function(){ var total=0, done=0;
-        document.querySelectorAll('#sscform input.req, #sscform textarea.req, #sscform select.req').forEach(function(el){ total++; var ok=!!el.value.trim(); if(ok && el.classList.contains('email')) ok=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim()); if(ok) done++; });
-        document.querySelectorAll('#sscform .oset[data-req]').forEach(function(os){ total++; if(Array.prototype.slice.call(os.querySelectorAll('input')).some(function(i){return i.checked;})) done++; });
+        document.querySelectorAll('#sscform input.req, #sscform textarea.req, #sscform select.req').forEach(function(el){ if(!_live(el)) return; total++; var ok=!!el.value.trim(); if(ok && el.classList.contains('email')) ok=/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(el.value.trim()); if(ok) done++; });
+        document.querySelectorAll('#sscform .oset[data-req]').forEach(function(os){ if(!_live(os)) return; total++; if(Array.prototype.slice.call(os.querySelectorAll('input')).some(function(i){return i.checked;})) done++; });
         return total ? Math.round(done/total*100) : 100; })(),
       concept: header['concept']||header['company name']||'Seller',
       company: header['company name']||'',
@@ -1113,7 +1122,11 @@
       if(x.type==='checkbox'||x.type==='radio'){ if(x.checked) return true; }
       else if(x.value && String(x.value).trim()!=='') return true; }
     return false; }
-  function seek(i,dir){ while(i>=0 && i<steps.length && known[i]) i+=dir; return i; }
+  // steps is built once, but which of them apply changes live as the seller answers.
+  // Re-check on every move rather than trusting the list we built at start.
+  function vis(el){ return !!el && !el.hasAttribute('hidden') && !(el.closest && el.closest('[hidden]')); }
+  function skip(i){ return known[i] || !vis(steps[i]); }
+  function seek(i,dir){ while(i>=0 && i<steps.length && skip(i)) i+=dir; return i; }
   // Running answer log -- the rep should be able to read back the whole call before
   // they decide business sale / asset sale / pass.
   function answerText(el){
@@ -1132,6 +1145,7 @@
     if(!cgRev) return 0;
     cgRev.innerHTML=''; var n=0;
     for(var k=0;k<steps.length;k++){
+      if(!vis(steps[k])) continue;
       var a=answerText(steps[k]); if(!a) continue; n++;
       var row=document.createElement('div'); row.style.cssText='padding:9px 0;border-bottom:1px solid #f0f3f8';
       var qh=document.createElement('div'); qh.style.cssText='font-size:11px;font-weight:800;color:#8b93a5;text-transform:uppercase;letter-spacing:.03em';
@@ -1193,7 +1207,7 @@
     if(el.querySelector('#callNotes')){ var db=document.createElement('button'); db.type='button'; db.textContent='✨ Draft from answers'; db.style.cssText='margin-top:12px;background:#000E31;border:1px solid #000E31;border-radius:9px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;color:#fff;cursor:pointer'; db.addEventListener('click',function(){ if(window.rrgDraftSummary) window.rrgDraftSummary(db); }); slot.appendChild(db);
       var rp=document.getElementById('recPath'), rf=(rp&&rp.closest)?rp.closest('.field'):null;
       if(rf && rf!==el){ var cap=document.createElement('div'); cap.style.cssText='margin:20px 0 6px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8'; cap.textContent='Suggested Action'; slot.appendChild(cap); pullExtra(rf); } }
-    var lb=labelOf(el); var isInstr=!!(el.getAttribute&&el.getAttribute('data-instr')==='1'); var q=(el.getAttribute&&el.getAttribute('data-prompt'))||(isInstr?lb:(QMAP[norm(lb)]||(lb.replace(/\?+$/,'')+'?'))); cgQ.textContent=q; var hn=(el.getAttribute&&el.getAttribute('data-hint'))||''; if(cgHint){ cgHint.textContent=hn||'No coaching note on this question.'; cgHint.style.opacity=hn?'1':'.5'; } var total=0,pos=0; for(var k=0;k<steps.length;k++){ if(!known[k]) total++; if(k<=i && !known[k]) pos++; } if(!total){ total=steps.length; pos=i+1; }
+    var lb=labelOf(el); var isInstr=!!(el.getAttribute&&el.getAttribute('data-instr')==='1'); var q=(el.getAttribute&&el.getAttribute('data-prompt'))||(isInstr?lb:(QMAP[norm(lb)]||(lb.replace(/\?+$/,'')+'?'))); cgQ.textContent=q; var hn=(el.getAttribute&&el.getAttribute('data-hint'))||''; if(cgHint){ cgHint.textContent=hn||'No coaching note on this question.'; cgHint.style.opacity=hn?'1':'.5'; } var total=0,pos=0; for(var k=0;k<steps.length;k++){ if(k!==i && skip(k)) continue; total++; if(k<=i) pos++; } if(!total){ total=steps.length; pos=i+1; }
     cgProg.textContent='Question '+pos+' of '+total; cgBar.style.width=Math.round((pos-1)/Math.max(1,total)*100)+'%'; cgBack.style.visibility=(seek(i-1,-1)>=0)?'visible':'hidden';
     if(cgPre) cgPre.style.display=(pos<=1 && cgPre.getAttribute('data-has')==='1')?'block':'none';
     if(cgReq){ cgReq.style.display='none'; cgReq.textContent=''; }
