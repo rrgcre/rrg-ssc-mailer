@@ -33,6 +33,10 @@ textarea{resize:vertical;min-height:60px;line-height:1.4;}
 .qrow .flags input[type=checkbox]{width:auto;}
 .qrow .optwrap{margin-top:9px;display:none;gap:10px;}
 .qrow.is-opts .optwrap{display:flex;flex-wrap:wrap;}
+.qrow .instrwrap{margin-top:9px;display:none;}
+.qrow.is-instr .instrwrap{display:block;}
+.qrow.is-instr .optwrap,.qrow.is-instr .groupwrap,.qrow.is-instr .flags{display:none!important;}
+.qrow .q-text{min-height:78px;}
 .qrow .groupwrap{margin-top:9px;display:none;}
 .qrow.is-group .groupwrap{display:block;}
 .qrow.is-group .optwrap{display:none!important;}
@@ -40,7 +44,10 @@ textarea{resize:vertical;min-height:60px;line-height:1.4;}
 .gpart-row .gp-label{flex:1;}
 .gpart-row .gp-type{width:140px;flex:0 0 auto;}
 .qrow .optwrap .oleft{flex:1;min-width:220px;} .qrow .optwrap .oright{width:130px;flex:0 0 auto;}
-.qrow .q-prompt{margin-top:9px;font-size:12.5px;color:#54607a;}
+.qrow .qfline{margin-top:10px;}
+.qrow .qfline .lbl{display:block;margin:0 0 3px;}
+.qrow .q-prompt,.qrow .q-hint{font-size:12.5px;color:#54607a;width:100%;}
+.qrow .q-hint{border-left:3px solid var(--red,#DA2B1F);background:#fbfcfe;}
 .qrow .qact{display:flex;gap:6px;margin-top:9px;justify-content:flex-end;}
 .qrow.sub-row{background:#f2f5fb;border-style:dashed;}
 .qrow.sub-row .qtop input{flex:1;font-weight:700;color:var(--navy);}
@@ -83,6 +90,7 @@ var TYPES=[
   {v:'single',label:'Single choice'},
   {v:'multi',label:'Multiple choice'},
   {v:'group',label:'Multipart group (one card)'},
+  {v:'instruction',label:'Instruction card (no answer)'},
   {v:'readonly',label:'Auto-calculated (read-only)'},
   {v:'company',label:'Company picker (header)'},
   {v:'concept',label:'Concept (header)'},
@@ -115,6 +123,15 @@ function questionFromRow(row){
   }
   var label=(qs('.q-label',row).value||'').trim();
   var bt=qs('.q-type',row).value;
+  if(bt==='instruction'){
+    var ib=qs('.q-text',row); var itxt=(ib&&ib.value||'').trim();
+    if(!label && !itxt) return null;
+    var iq={type:'instruction', label:label||'Please read', text:itxt, full:true};
+    var ip=qs('.q-prompt',row); if(ip&&ip.value.trim()) iq.prompt=ip.value.trim();
+    var ih=qs('.q-hint',row); if(ih&&ih.value.trim()) iq.hint=ih.value.trim();
+    iq.id=slug(label||'instruction')||('q'+Math.random().toString(36).slice(2,6));
+    return iq;
+  }
   if(bt==='group'){
     var parts=[]; qsa('.gpart-row',row).forEach(function(pr){ var pl=(qs('.gp-label',pr).value||'').trim(); if(pl) parts.push({label:pl,type:qs('.gp-type',pr).value}); });
     if(!label || !parts.length) return null;
@@ -171,17 +188,19 @@ function qrow(q){
   var bt=typeOf(q)||'text';
   var isOpt=(bt==='single'||bt==='multi');
   var isGroup=(bt==='group');
+  var isInstr=(bt==='instruction');
   var opts=(q.options||[]).join('\n');
-  return '<div class="qrow'+(isOpt?' is-opts':'')+(isGroup?' is-group':'')+'">'
+  return '<div class="qrow'+(isOpt?' is-opts':'')+(isGroup?' is-group':'')+(isInstr?' is-instr':'')+'">'
     +'<div class="qtop"><input type="text" class="q-label" placeholder="Question (e.g. “Annual revenue?”)" value="'+esc(q.label||'')+'">'+typeSelect(bt)+'</div>'
+    +'<div class="instrwrap"><span class="lbl">Instruction text — shown on its own card with Back and Next, nothing to answer</span><textarea class="q-text" placeholder="e.g. Before you go further, confirm you are speaking with an owner and that this call is confidential.">'+esc(q.text||'')+'</textarea></div>'
     +'<div class="flags"><label><input type="checkbox" class="q-req"'+(q.required?' checked':'')+'> Required</label>'
     +'<label><input type="checkbox" class="q-full"'+(q.full?' checked':'')+'> Full width</label></div>'
     +'<div class="optwrap"><div class="oleft"><span class="lbl">Answer choices (one per line)</span><textarea class="q-options" placeholder="Yes\nNo\nMaybe">'+esc(opts)+'</textarea></div>'
     +'<div class="oright"><span class="lbl">Layout</span><select class="q-cols"><option value="">Stacked</option><option value="2"'+(q.cols==2?' selected':'')+'>2 columns</option><option value="3"'+(q.cols==3?' selected':'')+'>3 columns</option><option value="4"'+(q.cols==4?' selected':'')+'>4 columns</option></select></div></div>'
     +'<div class="groupwrap"><span class="lbl">Parts \u2014 each becomes a field on the same card / flashcard</span><div class="plist">'+(q.parts||[]).map(partRow).join('')+'</div>'
     +'<div style="display:flex;gap:9px;margin-top:7px;align-items:center;flex-wrap:wrap"><button type="button" class="mini" onclick="addPart(this)">+ Add part</button><span class="lbl" style="margin:0">Layout</span><select class="g-cols" style="width:130px"><option value="2"'+((q.cols==2||!q.cols)?' selected':'')+'>2 columns</option><option value="3"'+(q.cols==3?' selected':'')+'>3 columns</option><option value="1"'+(q.cols==1?' selected':'')+'>Stacked</option></select></div></div>'
-    +'<input type="text" class="q-prompt" placeholder="Ask-out-loud prompt for Call Mode (optional)" value="'+esc(q.prompt||'')+'">'
-    +'<input type="text" class="q-hint" placeholder="Coaching note shown to the rep on the card (optional)" value="'+esc(q.hint||'')+'">'
+    +'<div class="qfline"><span class="lbl">Ask-out-loud prompt \u2014 what the rep reads to the seller in Call Mode</span><input type="text" class="q-prompt" placeholder="e.g. How long have you been operating?" value="'+esc(q.prompt||'')+'"></div>'
+    +'<div class="qfline"><span class="lbl">Hint \u2014 coaching note shown beside the question, seller never hears it</span><input type="text" class="q-hint" placeholder="e.g. Under three years is thin for SBA financing." value="'+esc(q.hint||'')+'"></div>'
     +'<div class="qact"><button type="button" class="mini" onclick="move(this,-1)">↑</button><button type="button" class="mini" onclick="move(this,1)">↓</button><button type="button" class="mini danger" onclick="del(this)">Remove</button></div></div>';
 }
 
@@ -229,7 +248,7 @@ function renderSaveBar(){
 }
 function bindTypeToggles(){
   qsa('.q-type').forEach(function(sel){
-    sel.onchange=function(){ var row=sel.closest('.qrow'); var v=sel.value; row.classList.toggle('is-opts', v==='single'||v==='multi'); row.classList.toggle('is-group', v==='group'); };
+    sel.onchange=function(){ var row=sel.closest('.qrow'); var v=sel.value; row.classList.toggle('is-opts', v==='single'||v==='multi'); row.classList.toggle('is-group', v==='group'); row.classList.toggle('is-instr', v==='instruction'); };
   });
 }
 

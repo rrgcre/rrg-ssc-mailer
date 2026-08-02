@@ -3,73 +3,73 @@ window.RRG_FORMS = window.RRG_FORMS || {};
 window.RRG_FORMS.seller = {
   id:'seller', name:'Seller Screening', kicker:'The RRG Screen',
   header:[
-    {id:'company', type:'company', label:'Company Name', required:true, prompt:"What's the name of the company or business?"},
-    {id:'concept', type:'concept', label:'Concept', prompt:"What concept or brand are we talking about?"},
-    {id:'contact', type:'text', label:'Seller Contact Name', required:true, prompt:"Who are we speaking with — the seller's name?"},
-    {id:'rep', type:'rep', label:'RRG Rep', required:true, prompt:"Which RRG rep is running this call?"},
-    {id:'calldate', type:'date', label:'Call Date', required:true, prompt:"What's today's date?"},
-    {id:'metro', type:'metro', label:'Metro', required:true, prompt:"Which market or metro is this in?"},
-    {id:'address', type:'text', label:'Business Address', prompt:"What's the business address?"}
+    {id:'company', type:'company', label:'Company Name', required:true, prompt:"What's the name of the business?", hint:"Legal entity name if they have one — it has to match the lease and the tax returns later."},
+    {id:'concept', type:'concept', label:'Concept', prompt:"And what's the concept called?", hint:"The name on the door. Often different from the LLC on the lease."},
+    {id:'contact', type:'text', label:'Seller Contact Name', required:true, prompt:"Who am I speaking with today?", hint:"Full name — and confirm they're an owner. If they're not on the operating agreement you're screening the wrong person."},
+    {id:'rep', type:'rep', label:'RRG Rep', required:true, prompt:"Which rep is running this call?", hint:"You. Auto-fills from your login — only change it if you're logging someone else's call."},
+    {id:'calldate', type:'date', label:'Call Date', required:true, prompt:"Today's date.", hint:"Auto-fills. Change it only if you're entering a call from an earlier day."},
+    {id:'metro', type:'metro', label:'Metro', required:true, prompt:"What market is the business in?", hint:"Drives the comps and the buyer list. Pick the metro, not the suburb."},
+    {id:'address', type:'text', label:'Business Address', prompt:"What's the street address?", hint:"If they're worried about confidentiality, don't read the address back out loud — confirm cross streets and fill it in after."}
   ],
   categories:[
     { n:'1', title:'Business Profile', questions:[
-      {type:'options', label:'Concept Type', required:true, cols:3, options:['Full Service Restaurant','Fast Casual','QSR','Bar / Beverage Forward','Café / Bakery','Nightclub / Entertainment','Other'], prompt:"What type of concept is it — quick service, full service, bar?"},
-      {type:'options', label:'Franchise or Independent?', required:true, cols:2, options:['Franchise','Independent'], prompt:"Is it a franchise or independent?"},
-      {type:'options', label:'Owner’s Role', cols:3, options:['Owner-Operator (Daily)','Semi-Absentee','Absentee / Manager-Run'], prompt:"How involved is the owner day to day?"},
-      {type:'options', label:'Ownership Structure', cols:2, options:['Sole Owner','Partnership','LLC / Corporation','Family-Owned'], prompt:"How is ownership structured — sole owner, partners?"},
-      {type:'options', label:'Real Estate', cols:3, options:['Owns Real Estate','Leases','Owns + Leases'], prompt:"Do they own the real estate, or lease the space?"},
-      {type:'text', num:'dec2', label:'Years in Operation', required:true, prompt:"How many years have they been in operation?"},
-      {type:'text', num:'int', label:'Number of Locations', required:true, prompt:"How many locations do they operate?"},
-      {type:'text', num:'int', label:'Approx. Employees', prompt:"Roughly how many employees do they have?"}
+      {type:'options', label:'Concept Type', required:true, cols:3, options:['Full Service Restaurant','Fast Casual','QSR','Bar / Beverage Forward','Café / Bakery','Nightclub / Entertainment','Other'], prompt:"How would you describe the concept — full service, fast casual, bar?", hint:"Let them answer before you read the list. How an owner self-describes tells you which buyer pool this belongs to."},
+      {type:'options', label:'Franchise or Independent?', required:true, cols:2, options:['Franchise','Independent'], prompt:"Is it a franchise, or your own independent concept?", hint:"A franchisor holds approval rights over any buyer — that's a third party who can kill your deal. If franchise, ask for the FDD and the remaining franchise term."},
+      {type:'options', label:'Owner’s Role', cols:3, options:['Owner-Operator (Daily)','Semi-Absentee','Absentee / Manager-Run'], prompt:"How involved are you in the business day to day?", hint:"Owner-operator earnings include their own labor — a buyer has to pay to replace it. Absentee sells at a premium and to a much wider pool."},
+      {type:'options', label:'Ownership Structure', cols:2, options:['Sole Owner','Partnership','LLC / Corporation','Family-Owned'], prompt:"How is the ownership set up — is it just you, or do you have partners?", hint:"Every partner is a signature you need at closing. Find out now if one of them isn't on board."},
+      {type:'options', label:'Real Estate', cols:3, options:['Owns Real Estate','Leases','Owns + Leases'], prompt:"Do you own the building, or do you lease the space?", hint:"If they own it you may have two deals. Ask whether they'd sell the real estate or lease it back to the buyer."},
+      {type:'text', num:'dec2', label:'Years in Operation', required:true, prompt:"How long have you been operating?", hint:"Under three years is thin for SBA financing. Ten-plus under the same owner is a story worth telling buyers."},
+      {type:'text', num:'int', label:'Number of Locations', required:true, prompt:"How many locations do you have?", hint:"Multi-unit changes the whole deal — allocation, shared overhead, and whether they're selling all of them or just one."},
+      {type:'text', num:'int', label:'Approx. Employees', prompt:"Roughly how many people do you have on staff?", hint:"Listen for a key manager. If the business runs on one person who isn't the owner, ask whether that person stays."}
     ]},
     { n:'2', title:'Motivation & Timeline', questions:[
-      {type:'options', label:'Primary Motivation for Selling', required:true, cols:3, options:['Retirement','Burnout / Lifestyle','New Venture','Health','Partnership Dispute','Financial Distress','Opportunistic','Other'], prompt:"What's their main reason for selling?"},
-      {type:'textarea', label:'Motivation (Rep’s Own Words)', prompt:"In your own words — what's really driving this sale?"},
-      {type:'options', label:'Timeline', required:true, cols:2, options:['Immediate (0–3 months)','Short (3–6 months)','Medium (6–12 months)','Exploratory / No Rush'], prompt:"What's their timeline to sell?"},
-      {type:'options', label:'Exit Type', cols:2, options:['Full Exit','Partial / Keep Equity','Sell + Stay On','Real Estate Only'], prompt:"What kind of exit are they after — full sale, partial, walk away?"}
+      {type:'options', label:'Primary Motivation for Selling', required:true, cols:3, options:['Retirement','Burnout / Lifestyle','New Venture','Health','Partnership Dispute','Financial Distress','Opportunistic','Other'], prompt:"What's got you thinking about selling?", hint:"Ask it open-ended and then stay quiet. Retirement, health and burnout are real motivation. 'Just seeing what it's worth' rarely moves on price."},
+      {type:'textarea', label:'Motivation (Rep’s Own Words)', prompt:"Your read — what's actually driving this sale?", hint:"Your note, not theirs. Write what you believe is going on, not what they told you."},
+      {type:'options', label:'Timeline', required:true, cols:2, options:['Immediate (0–3 months)','Short (3–6 months)','Medium (6–12 months)','Exploratory / No Rush'], prompt:"What kind of timeline are you working with?", hint:"'No rush' is not a listing. Ask what happens if it hasn't sold by their date — that's where the real deadline shows up."},
+      {type:'options', label:'Exit Type', cols:2, options:['Full Exit','Partial / Keep Equity','Sell + Stay On','Real Estate Only'], prompt:"Are you looking to walk away completely, or stay involved in some way?", hint:"A seller willing to stay on or keep equity can bridge a valuation gap. It also tells you whether they'd carry paper."}
     ]},
     { n:'3', title:'Financials', questions:[
-      {type:'options', label:'Profitability', required:true, cols:2, options:['Profitable','Break-Even','Declining','Losing Money'], prompt:"Is the business profitable right now?"},
-      {type:'options', label:'Financial Records Available?', cols:3, options:['Yes (P&Ls & Tax Returns Ready)','Partial','No / Disorganized'], prompt:"Do they have clean financial records available?"},
-      {type:'money', label:'Annual Revenue', required:true, prompt:"Roughly what are their annual sales?"},
-      {type:'options', label:'Sales vs. Prior Year', cols:3, options:['Up','Flat','Down'], prompt:"How are sales trending versus last year?"},
-      {type:'options', label:'Earnings Basis', cols:3, options:['EBITDA','SDE','Owner’s Take'], prompt:"What earnings basis are we using — SDE, EBITDA, cash flow?"},
-      {type:'money', label:'Earnings Figure (Approx.)', prompt:"Roughly what are the annual earnings on that basis?"},
-      {type:'options', label:'Earnings vs. Prior Year', cols:3, options:['Up','Flat','Down'], prompt:"How are earnings trending versus last year?"},
-      {type:'options', label:'Debt, Liens, Lawsuits, or Unusual Items?', cols:3, options:['Yes','No','Unsure'], prompt:"Any debt, liens, lawsuits, or anything unusual?"},
-      {type:'text', full:true, label:'Debt / Lien / Lawsuit Details', prompt:"Tell me more about that debt or legal item."}
+      {type:'options', label:'Profitability', required:true, cols:2, options:['Profitable','Break-Even','Declining','Losing Money'], prompt:"Is the business making money right now?", hint:"The single most important answer on this call. Losing money points straight at an asset sale, not a going-concern sale."},
+      {type:'options', label:'Financial Records Available?', cols:3, options:['Yes (P&Ls & Tax Returns Ready)','Partial','No / Disorganized'], prompt:"Do you have P&Ls and tax returns we could work from?", hint:"No documentable financials means no lender and no multiple. Ask for three years of returns and the last twelve months of P&Ls before you leave the call."},
+      {type:'money', label:'Annual Revenue', required:true, prompt:"Roughly what did you do in sales last year?", hint:"Ballpark is fine here — you'll verify against the returns. If they can't ballpark their own revenue, that's your answer on records."},
+      {type:'options', label:'Sales vs. Prior Year', cols:3, options:['Up','Flat','Down'], prompt:"How does that compare to the year before?", hint:"Trend beats the absolute number. A business trending down needs an explanation before it goes to market."},
+      {type:'options', label:'Earnings Basis', cols:3, options:['EBITDA','SDE','Owner’s Take'], prompt:"When you talk about what the business makes, do you mean SDE, EBITDA, or what you take home?", hint:"Most owners mean what they take home. Nail the basis down or the multiple you quote later is meaningless."},
+      {type:'money', label:'Earnings Figure (Approx.)', prompt:"And roughly what is that number?", hint:"Capture it on the basis they just named — don't convert it in your head on the call."},
+      {type:'options', label:'Earnings vs. Prior Year', cols:3, options:['Up','Flat','Down'], prompt:"And is that up or down from the year before?", hint:"Earnings trending down while sales hold flat usually means a cost problem a buyer can fix — which is an argument you can use."},
+      {type:'options', label:'Debt, Liens, Lawsuits, or Unusual Items?', cols:3, options:['Yes','No','Unsure'], prompt:"Is there any debt, any liens, or anything legal we'd need to clear at closing?", hint:"Ask it plainly and ask it early. A tax lien or an open suit can stop a transfer cold, and you'd rather find it now than in escrow."},
+      {type:'text', full:true, label:'Debt / Lien / Lawsuit Details', prompt:"Tell me a little more about that.", hint:"Amount, who holds it, and whether it can be paid off from the sale proceeds."}
     ]},
     { n:'4', title:'Lease & Occupancy', sub:'If the Business Leases Its Space', questions:[
-      {type:'number', id:'leaseBase', label:'Base Term Remaining (months)', prompt:"How many months are left on the base lease term?"},
-      {type:'number', id:'leaseOption', label:'Option Period (months)', prompt:"How many months of option periods do they have?"},
-      {type:'readonly', id:'leaseTotal', label:'Total Remaining (incl. Options)', noprompt:true},
-      {type:'money', label:'Current Monthly Rent', prompt:"What's their current monthly rent?"},
-      {type:'options', label:'Current on Rent?', cols:3, options:['Current','Behind','Negotiating'], prompt:"Are they current on rent, behind, or negotiating?"},
-      {type:'options', label:'Lease Assignable / Transferable?', cols:2, options:['Yes','With LL Consent','No','Unsure'], prompt:"Is the lease assignable or transferable to a buyer?"},
-      {type:'options', label:'Landlord Aware of Sale?', cols:3, options:['Yes','No','Unsure'], prompt:"Is the landlord aware they're planning to sell?"},
-      {type:'textarea', full:true, label:'Lease Notes', prompt:"Anything else important about the lease?"}
+      {type:'number', id:'leaseBase', label:'Base Term Remaining (months)', prompt:"How many months are left on your base lease term?", hint:"This is a deal-killer field. Under five years of total secured term and most buyers can't get financing."},
+      {type:'number', id:'leaseOption', label:'Option Period (months)', prompt:"And how much option time do you have after that?", hint:"Options only count toward a buyer's term if they survive assignment. Confirm against the actual lease, not memory."},
+      {type:'readonly', id:'leaseTotal', label:'Total Remaining (incl. Options)', noprompt:true, hint:"Calculated for you — base plus options."},
+      {type:'money', label:'Current Monthly Rent', prompt:"What's your rent right now?", hint:"Occupancy cost over roughly 10% of sales is something you'll have to explain to every buyer. Get base rent plus NNN if they know it."},
+      {type:'options', label:'Current on Rent?', cols:3, options:['Current','Behind','Negotiating'], prompt:"Are you current with the landlord?", hint:"Being behind hands the landlord leverage over your assignment. Find out before you list, not after."},
+      {type:'options', label:'Lease Assignable / Transferable?', cols:2, options:['Yes','With LL Consent','No','Unsure'], prompt:"Does your lease let you assign it to a buyer?", hint:"Get the actual lease document. 'I think so' is not something you can sell on — and a non-assignable lease is a pass."},
+      {type:'options', label:'Landlord Aware of Sale?', cols:3, options:['Yes','No','Unsure'], prompt:"Does your landlord know you're thinking about selling?", hint:"If not, make sure they don't find out from a buyer walking the space. Plan that conversation with the seller before you market it."},
+      {type:'textarea', full:true, label:'Lease Notes', prompt:"Anything else about the lease I should know about?", hint:"Percentage rent, personal guarantees, relocation or demolition clauses, CAM disputes, unpaid deferrals from 2020."}
     ]},
     { n:'5', title:'Expectations & Fit', questions:[
       {sub:'Valuation'},
-      {type:'options', label:'Has a Valuation Expectation?', cols:2, options:['Yes (Specific Number)','Yes (Rough Range)','No / Open to Guidance','Has Had a Formal Appraisal'], prompt:"Do they have a price or valuation in mind?"},
-      {type:'range', label:'Valuation Expectation', prompt:"What number or range are they expecting?"},
-      {type:'options', label:'Expectations Realistic? (Rep’s Assessment)', required:true, cols:3, options:['Realistic','Slightly High (Addressable)','Significantly Inflated'], prompt:"Your read — are their expectations realistic?"},
+      {type:'options', label:'Has a Valuation Expectation?', cols:2, options:['Yes (Specific Number)','Yes (Rough Range)','No / Open to Guidance','Has Had a Formal Appraisal'], prompt:"Do you have a number in mind for the business?", hint:"Ask this before you offer any guidance. Whatever they say anchors the rest of the relationship."},
+      {type:'range', label:'Valuation Expectation', prompt:"What kind of number are you thinking?", hint:"Take the range, then stop talking. The silence after this question is where you learn how firm they are."},
+      {type:'options', label:'Expectations Realistic? (Rep’s Assessment)', required:true, cols:3, options:['Realistic','Slightly High (Addressable)','Significantly Inflated'], prompt:"Your read — is that number anywhere near reality?", hint:"Your assessment, not theirs. Significantly inflated with no willingness to move is a pass, not a nurture."},
       {sub:'Prior Activity'},
-      {type:'options', label:'Prior Broker or Sale Attempt?', required:true, cols:3, options:['No (First Time)','Yes (With a Broker)','Yes (Tried Independently)'], prompt:"Have they listed with a broker or tried to sell before?"},
-      {type:'textarea', full:true, label:'What Happened?', prompt:"What happened with that prior attempt?"},
+      {type:'options', label:'Prior Broker or Sale Attempt?', required:true, cols:3, options:['No (First Time)','Yes (With a Broker)','Yes (Tried Independently)'], prompt:"Have you had it on the market before — with a broker, or on your own?", hint:"A prior failed listing is free intelligence: the asking price, the buyer feedback, and why it died."},
+      {type:'textarea', full:true, label:'What Happened?', prompt:"What happened that time around?", hint:"Listen for whether it was price, financials, or the landlord. The same problem will bite you unless it's been fixed."},
       {sub:'Process Fit'},
-      {type:'options', label:'Confidentiality Importance', required:true, cols:3, options:['High','Medium','Low'], prompt:"How important is confidentiality — high, medium, or low?"},
-      {type:'options', label:'Speaking With Other Brokers?', cols:3, options:['No (First Conversation)','Yes (Shopping Around)','Unknown'], prompt:"Are they talking to other brokers right now?"},
-      {type:'email', full:true, id:'clientEmail', label:'RRG Rep Email — screening copy sent here', required:true, prompt:"What email should the screening copy go to?"},
+      {type:'options', label:'Confidentiality Importance', required:true, cols:3, options:['High','Medium','Low'], prompt:"How concerned are you about staff or customers finding out?", hint:"High confidentiality shapes how you market it — blind listing, NDA before the name. Set that expectation on this call."},
+      {type:'options', label:'Speaking With Other Brokers?', cols:3, options:['No (First Conversation)','Yes (Shopping Around)','Unknown'], prompt:"Are you talking with anyone else about listing it?", hint:"Ask it straight. You'd much rather know you're in a beauty contest than find out after you've done the work."},
+      {type:'email', full:true, id:'clientEmail', label:'RRG Rep Email — screening copy sent here', required:true, prompt:"Where should the screening copy go?", hint:"Your address, not the seller's. This is the internal copy of the call."},
       {sub:'Objection Tracking'},
-      {type:'options', label:'Objections Raised on the Call', full:true, cols:3, options:['Not Ready Yet','Wants to Sell Themselves','Already Has a Buyer','Needs to Talk to Partner / Accountant','Talking to Other Brokers','Valuation / Price Gap','Confidentiality Concerns','Commission / Fees','None'], prompt:"What objections or hesitations did they raise?"}
+      {type:'options', label:'Objections Raised on the Call', full:true, cols:3, options:['Not Ready Yet','Wants to Sell Themselves','Already Has a Buyer','Needs to Talk to Partner / Accountant','Talking to Other Brokers','Valuation / Price Gap','Confidentiality Concerns','Commission / Fees','None'], prompt:"What did they push back on during the call?", hint:"Your notes, not a question to ask. Log it even if you handled it — the same objection comes back at listing."}
     ]},
     { n:'6', title:'Call Outcome & Notes', decision:true, questions:[
       {sub:'Call Summary', draft:true},
-      {type:'textarea', full:true, id:'callNotes', label:'Call Notes', required:true, placeholder:"3–4 sentences: motivation, financial picture, expectations, and your read on the lead. This goes into the contact's record in FullServe.", prompt:"Give me your 3–4 sentence summary — or hit Draft to generate one."},
-      {type:'readonly', full:true, id:'recPath', label:'Recommended Path', placeholder:'Hit “✨ Draft from answers” — business sale, asset sale, or pass'},
+      {type:'textarea', full:true, id:'callNotes', label:'Call Notes', required:true, placeholder:"3–4 sentences: motivation, financial picture, expectations, and your read on the lead. This goes into the contact's record in FullServe.", prompt:"Give me your 3–4 sentence summary — or hit Draft to generate one.", hint:"Write it so another broker could pick this lead up cold. Or hit Draft from answers and edit what comes back — never send it unread."},
+      {type:'readonly', full:true, id:'recPath', label:'Suggested Action', placeholder:'Hit “✨ Draft from answers” — business sale, asset sale, or pass', hint:"The AI's read of the answers, not your decision. You still set the Lead Status yourself on the next card."},
       {sub:'Lead Outcome'},
-      {type:'options', label:'Lead Status', required:true, full:true, cols:2, options:['Advance (Strong Lead, Financials Requested)','Nurture (Interested, Not Ready)','Pass (Not a Fit)','Refer Out (Wrong Market or Type)'], prompt:"Your call — do we advance, nurture, pass, or refer this out?"}
+      {type:'options', label:'Lead Status', required:true, full:true, cols:2, options:['Advance (Strong Lead, Financials Requested)','Nurture (Interested, Not Ready)','Pass (Not a Fit)','Refer Out (Wrong Market or Type)'], prompt:"Your call — do we advance, nurture, pass, or refer this out?", hint:"Your decision, not the AI's. Advance means you asked for financials on this call — if you didn't, it's a nurture."}
     ]}
   ]
 };
@@ -89,6 +89,8 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
   }
   function renderField(q){
     var t=q.type, id=q.id?(' id="'+q.id+'"'):'';
+    // Instruction card: script, disclosure or coaching copy the rep reads. No answer captured.
+    if(t==='instruction'||t==='note') return '<div class="field instrfield full rowgap" data-instr="1">'+lab(q)+'<div class="instrbody">'+esc(q.text||q.body||'').replace(/\n/g,'<br>')+'</div></div>';
     if(t==='company') return '<div class="field">'+lab(q)+'<div class="coauto2"><input type="text" class="req" id="sscCompany" autocomplete="off"><div class="cosug2" id="sscCosug" hidden></div></div></div>';
     if(t==='concept') return '<div class="field">'+lab(q)+'<div class="coauto2"><input type="text" id="sscConcept" autocomplete="off" placeholder="Pick or add a concept"><div class="cosug2" id="sscConceptSug" hidden></div></div></div>';
     if(t==='rep') return '<div class="field">'+lab(q)+'<select class="req" id="repSelect"><option value="">Select…</option></select></div>';
@@ -103,7 +105,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     var extra=q.num?(' '+q.num):''; // text with numeric class
     return '<div class="field'+(q.full?' full rowgap':'')+'">'+lab(q)+'<input type="text" class="'+((q.required?'req':'')+extra).trim()+'"'+id+(q.placeholder?(' placeholder="'+esc(q.placeholder)+'"'):'')+'></div>';
   }
-  function renderSub(q){ var extra=q.draft?' <button type="button" id="draftBtn" style="margin-left:10px;background:#5b46b8;border:1px solid #5b46b8;border-radius:8px;padding:6px 13px;font:inherit;font-size:12px;font-weight:700;color:#fff;cursor:pointer">✨ Draft from answers</button>':''; return '<div class="subhead">'+esc(q.sub)+extra+'</div>'; }
+  function renderSub(q){ var extra=q.draft?' <button type="button" id="draftBtn" style="margin-left:10px;background:#000E31;border:1px solid #000E31;border-radius:9px;padding:6px 13px;font:inherit;font-size:12px;font-weight:700;color:#fff;cursor:pointer">✨ Draft from answers</button>':''; return '<div class="subhead">'+esc(q.sub)+extra+'</div>'; }
   function partInput(p, id){
     var t=p.type||'text';
     if(t==='textarea') return '<textarea'+(id?(' id="'+id+'"'):'')+'></textarea>';
@@ -129,6 +131,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     (cat.questions||[]).forEach(function(q){
       if(q.sub){ flush(); h+=renderSub(q); return; }
       if(q.type==='group'){ flush(); h+=injectPrompt(renderGroup(q),q); return; }
+      if(q.type==='instruction'||q.type==='note'){ flush(); h+=injectPrompt(renderField(q),q); return; }
       if(q.type==='options'||q.type==='textarea'||q.type==='range'||q.full){ flush(); h+= injectPrompt(q.type==='options'?renderOptions(q):renderField(q), q); }
       else grid.push(injectPrompt(renderField(q), q));
     });
