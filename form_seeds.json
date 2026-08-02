@@ -1,10 +1,10 @@
 [
   {
     "id": "seller-default",
-    "name": "Seller Screening (RRG default)",
+    "name": "Seller Screening (Default)",
     "callType": "seller",
     "builtIn": true,
-    "kicker": "The RRG Screen",
+    "kicker": "Default Questionnaire",
     "header": [
       {
         "id": "company",
