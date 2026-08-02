@@ -158,6 +158,8 @@
 
     function render(){
       var all = sortedData();
+      // Persist the full filtered+sorted id order so detail pages can offer prev/next through this list.
+      try{ sessionStorage.setItem('rrgorder_'+(opts.key||'list'), JSON.stringify(all.map(function(it,i){ return String(rowId(it,i)); }))); }catch(e){}
       var total = all.length;
       var pc = pageCount(total);
       if(state.page>=pc) state.page=pc-1; if(state.page<0) state.page=0;

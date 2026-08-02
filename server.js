@@ -9337,6 +9337,78 @@ app.get('/api/reports/summary', requireAdmin, (req, res) => {
       leadsByUser: Object.keys(leadsByUser).map(k => leadsByUser[k]).sort((a, b) => b.count - a.count) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
+// ---- KPIs / leaderboard ---------------------------------------------------
+// Real numbers where the data model already supports them; honest placeholders
+// for modules we haven't wired yet (the front-end shows "Not tracked yet").
+const KPI_OPEN_TXN = { 'LOI': 1, 'Under Contract': 1, 'Due Diligence': 1, 'Financing': 1, 'Closing': 1 };
+app.get('/api/kpis', (req, res) => {
+  try {
+    const days = Math.max(1, Math.min(3650, parseInt(req.query.days, 10) || 30));
+    const now = new Date();
+    const cutoff = new Date(now.getTime() - (days - 1) * 86400000).toISOString().slice(0, 10);
+    const inPeriod = d => { d = String(d || '').slice(0, 10); return d && d >= cutoff; };
+    const restrict = restrictToOwn(req);
+    const me = (req.user && req.user.username) || '';
+    const mine = byUser => !restrict || (byUser || '') === me;
+
+    const users = auth.loadUsers();
+    const uName = {}, uPhoto = {}; users.forEach(u => { uName[u.username] = u.name || u.username; uPhoto[u.username] = u.photoExt || ''; });
+    const lb = {};
+    const rep = byUser => { const k = byUser || '(unassigned)'; if (!lb[k]) lb[k] = { user: k, name: uName[k] || (k === '(unassigned)' ? 'Unassigned' : k), photoExt: uPhoto[k] || '', bizClosed: 0, assetClosed: 0, spacesLeased: 0, ndas: 0, bbsLeads: 0, activeSales: 0, activeLeases: 0 }; return lb[k]; };
+
+    let bizClosed = 0, assetClosed = 0, activeBiz = 0, activeAsset = 0, activeLeases = 0, ndaRecv = 0, spacesLeased = 0, bbsLeads = 0;
+
+    const overlay = loadAssignOverlay();
+    const idx = assignmentsIndex();
+    Object.keys(idx).forEach(key => {
+      const d = idx[key];
+      const v = assignmentView(d, overlay);
+      const isLease = v.assignmentType === 'tenant_rep';
+      const isAsset = !!(d.bov && d.bov.assetSale);
+      // NDAs received within the period
+      (v.ndas || []).forEach(n => { if ((n.status || 'Received') === 'Received') { const dt = n.date || n.createdAt; if (inPeriod(dt) && mine(n.byUser)) { ndaRecv++; rep(n.byUser).ndas++; } } });
+      const t = v.transaction;
+      if (t) {
+        const owner = t.byUser || v.byUser;
+        if (t.status === 'Closed') {
+          if (inPeriod(t.closedDate) && mine(owner)) {
+            if (isLease) { spacesLeased++; rep(owner).spacesLeased++; }
+            else if (isAsset) { assetClosed++; rep(owner).assetClosed++; }
+            else { bizClosed++; rep(owner).bizClosed++; }
+          }
+        } else if (KPI_OPEN_TXN[t.status] && mine(owner)) {
+          if (isLease) { activeLeases++; rep(owner).activeLeases++; }
+          else if (isAsset) { activeAsset++; rep(owner).activeSales++; }
+          else { activeBiz++; rep(owner).activeSales++; }
+        }
+      }
+    });
+
+    // Spaces marked Leased in the Space Tracker (dated by last edit — no leasedAt field yet)
+    try { loadSpaces().forEach(s => { if (s.status === 'Leased' && inPeriod(s.updatedAt || s.createdAt) && mine(s.byUser)) { spacesLeased++; rep(s.byUser).spacesLeased++; } }); } catch (e) {}
+    // BizBuySell leads imported (person activities)
+    try { loadPeople().forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { if (a.type === 'BizBuySell Lead') { const dt = a.date || a.at; if (inPeriod(dt) && mine(a.byUser)) { bbsLeads++; rep(a.byUser).bbsLeads++; } } }); }); } catch (e) {}
+
+    const tiles = [
+      { key: 'bizClosed',    label: 'Business sales closed', value: bizClosed,   group: 'Sales',   period: true,  accent: 'green' },
+      { key: 'assetClosed',  label: 'Asset sales closed',    value: assetClosed, group: 'Sales',   period: true,  accent: 'green' },
+      { key: 'propsSold',    label: 'Properties sold',       value: null,        group: 'Sales',   period: true,  accent: 'green', placeholder: true, note: 'Not tracked yet — we’ll wire this when we build out the Sales module.' },
+      { key: 'spacesLeased', label: 'Spaces leased',         value: spacesLeased, group: 'Leasing', period: true,  accent: 'blue' },
+      { key: 'ndaRecv',      label: 'NDAs received',         value: ndaRecv,     group: 'Pipeline', period: true,  accent: 'purple' },
+      { key: 'bbsLeads',     label: 'BizBuySell leads imported', value: bbsLeads, group: 'Pipeline', period: true, accent: 'purple' },
+      { key: 'activeBiz',    label: 'Active business sales', value: activeBiz,   group: 'In progress', period: false, accent: 'navy' },
+      { key: 'activeAsset',  label: 'Active asset sales',    value: activeAsset, group: 'In progress', period: false, accent: 'navy' },
+      { key: 'activeLeases', label: 'Active leases',         value: activeLeases, group: 'In progress', period: false, accent: 'navy' },
+    ];
+
+    const leaderboard = Object.keys(lb).map(k => lb[k])
+      .map(r => Object.assign(r, { closed: r.bizClosed + r.assetClosed, active: r.activeSales + r.activeLeases, score: r.bizClosed + r.assetClosed + r.spacesLeased }))
+      .filter(r => (r.score + r.active + r.ndas + r.bbsLeads) > 0)
+      .sort((a, b) => b.score - a.score || b.active - a.active || (b.ndas + b.bbsLeads) - (a.ndas + a.bbsLeads) || a.name.localeCompare(b.name));
+
+    res.json({ ok: true, days, cutoff, generatedAt: now.toISOString(), scopedToOwn: restrict, canSeeAll: !restrict, tiles, leaderboard });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 function canExportData(req){ return !!(req.user && (isSuper(req.user) || (permsEnabled() && effectivePerms(req.user).export_data))); }
 function _csvCell(v){ var s = String(v == null ? '' : v); return /[",\n\r]/.test(s) ? ('"' + s.replace(/"/g, '""') + '"') : s; }
 function _sendCsv(res, name, header, rows){ var out = [header].concat(rows).map(function(r){ return r.map(_csvCell).join(','); }).join('\r\n'); res.setHeader('Content-Type', 'text/csv; charset=utf-8'); res.setHeader('Content-Disposition', 'attachment; filename="' + name + '-' + new Date().toISOString().slice(0,10) + '.csv"'); res.send('\ufeff' + out); }

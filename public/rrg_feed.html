@@ -25,18 +25,53 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .fwhen{font-size:12px;color:var(--soft);margin-left:auto;}
 .fnote{font-size:13px;color:var(--muted);margin-top:4px;line-height:1.5;}
 .empty{color:var(--soft);font-size:13.5px;padding:40px 20px;text-align:center;}
-.scoperow{display:flex;gap:8px;margin-bottom:14px;}
+.scoperow{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
 .scbtn{border:1px solid #cfd6e2;background:#fff;color:var(--ink);border-radius:100px;padding:6px 15px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
 .scbtn.on{background:var(--navy);border-color:var(--navy);color:#fff;}
+.feedshell{display:flex;gap:22px;align-items:flex-start;max-width:1180px;margin:22px auto;padding:0 24px 70px;}
+.rail{width:244px;flex:none;position:sticky;top:22px;}
+.railcard{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04);overflow:hidden;}
+.railh{padding:13px 15px;border-bottom:1px solid var(--line);font-size:12px;font-weight:800;color:var(--navy);letter-spacing:.04em;text-transform:uppercase;display:flex;align-items:center;justify-content:space-between;}
+.railh .rcnt{color:var(--soft);font-weight:700;font-size:11px;letter-spacing:0;}
+.savebtn{width:100%;text-align:left;background:#f7f9fc;border:none;border-bottom:1px solid var(--line);padding:11px 15px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;display:flex;align-items:center;gap:8px;}
+.savebtn:hover{background:#eef2f8;}
+.saveform{padding:11px 13px;border-bottom:1px solid var(--line);background:#f7f9fc;display:none;}
+.saveform.on{display:block;}
+.saveform input{width:100%;border:1px solid #cfd6e2;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;margin-bottom:8px;}
+.saveform .sfrow{display:flex;gap:7px;}
+.sfbtn{flex:1;border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:8px;padding:7px 10px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;}
+.sfbtn.ghost{background:#fff;color:var(--muted);border-color:#cfd6e2;}
+.viewitem{display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid #f0f3f8;cursor:pointer;}
+.viewitem:hover{background:#fbfcfe;} .viewitem.on{background:#f2f6ff;box-shadow:inset 3px 0 0 var(--navy);}
+.viewitem .vname{flex:1;min-width:0;} .viewitem .vname b{display:block;font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.viewitem .vsub{font-size:11px;color:var(--soft);font-weight:600;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.viewitem .vx{color:#c2c9d6;font-size:16px;line-height:1;flex:none;padding:0 2px;} .viewitem .vx:hover{color:var(--red);}
+.railempty{padding:15px;color:var(--soft);font-size:12px;line-height:1.55;}
+.railnote{margin-top:10px;font-size:11px;color:var(--soft);line-height:1.5;padding:0 4px;}
+@media(max-width:820px){ .feedshell{flex-direction:column;} .rail{width:100%;position:static;} }
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
-<div class="wrap">
-  <h1 class="pgh">Activity Feed</h1>
-  <div class="pgs">Everything happening across your book — the latest calls, tours, notes, emails and agreements, newest first.</div>
-  <div class="scoperow" id="scoperow"><button class="scbtn on" data-scope="all" style="display:none">All activity</button><button class="scbtn" data-scope="mine" style="display:none">My activity</button><button class="scbtn on" id="sysToggle" title="Show or hide automated system activity">System activity: On</button><select id="userFilter" style="display:none;margin-left:8px;font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line,#e6e9f0);border-radius:8px;padding:7px 10px;background:#fff;color:var(--ink);cursor:pointer"><option value="">All users</option></select><select id="typeFilter" style="margin-left:8px;font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line,#e6e9f0);border-radius:8px;padding:7px 10px;background:#fff;color:var(--ink);cursor:pointer"><option value="">All types</option></select></div>
-  <div class="card" id="feed"><div class="empty">Loading…</div></div>
+<div class="feedshell">
+  <aside class="rail">
+    <div class="railcard">
+      <div class="railh">Saved views <span class="rcnt" id="rcnt"></span></div>
+      <button class="savebtn" id="saveViewBtn">＋ Save this view</button>
+      <div class="saveform" id="saveForm">
+        <input type="text" id="viewName" placeholder="Name this view…" maxlength="40" autocomplete="off">
+        <div class="sfrow"><button class="sfbtn" id="sfSave">Save</button><button class="sfbtn ghost" id="sfCancel">Cancel</button></div>
+      </div>
+      <div id="viewList"></div>
+    </div>
+    <div class="railnote">Views remember your scope, activity type, user and system toggle. Saved on this browser.</div>
+  </aside>
+  <div class="wrap" style="margin:0;max-width:none;padding:0;flex:1;min-width:0">
+    <h1 class="pgh">Activity Feed</h1>
+    <div class="pgs">Everything happening across your book — the latest calls, tours, notes, emails and agreements, newest first.</div>
+    <div class="scoperow" id="scoperow"><button class="scbtn on" data-scope="all" style="display:none">All activity</button><button class="scbtn" data-scope="mine" style="display:none">My activity</button><button class="scbtn on" id="sysToggle" title="Show or hide automated system activity">System activity: On</button><select id="userFilter" style="display:none;margin-left:8px;font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line,#e6e9f0);border-radius:8px;padding:7px 10px;background:#fff;color:var(--ink);cursor:pointer"><option value="">All users</option></select><select id="typeFilter" style="margin-left:8px;font:inherit;font-size:13px;font-weight:600;border:1px solid var(--line,#e6e9f0);border-radius:8px;padding:7px 10px;background:#fff;color:var(--ink);cursor:pointer"><option value="">All types</option></select></div>
+    <div class="card" id="feed"><div class="empty">Loading…</div></div>
+  </div>
 </div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -64,7 +99,43 @@ function load(){
 document.querySelectorAll('.scbtn[data-scope]').forEach(function(b){ b.addEventListener('click',function(){ SCOPE=b.getAttribute('data-scope'); document.querySelectorAll('.scbtn[data-scope]').forEach(function(x){x.classList.toggle('on',x===b);}); load(); }); });
 var _st=document.getElementById('sysToggle'); if(_st) _st.addEventListener('click',function(){ HIDE_SYSTEM=!HIDE_SYSTEM; try{ localStorage.setItem('rrgFeedHideSystem',HIDE_SYSTEM?'1':'0'); }catch(e){} syncSysBtn(); load(); }); syncSysBtn();
 var _tf=document.getElementById('typeFilter'); if(_tf) _tf.addEventListener('change',function(){ TYPEF=_tf.value; load(); });
-var _uf2=document.getElementById('userFilter'); if(_uf2) _uf2.addEventListener('change',function(){ USERF=_uf2.value; load(); });
+var _uf2=document.getElementById('userFilter'); if(_uf2) _uf2.addEventListener('change',function(){ USERF=_uf2.value; renderViews(); load(); });
+
+/* ---- Saved views rail ---- */
+var VIEWS=[];
+try{ VIEWS=JSON.parse(localStorage.getItem('rrgFeedViews')||'[]')||[]; }catch(e){ VIEWS=[]; }
+if(!Array.isArray(VIEWS)) VIEWS=[];
+function saveViews(){ try{ localStorage.setItem('rrgFeedViews', JSON.stringify(VIEWS)); }catch(e){} }
+function curSig(){ return JSON.stringify({s:SCOPE,h:HIDE_SYSTEM,t:TYPEF,u:USERF}); }
+function viewSig(v){ return JSON.stringify({s:v.scope,h:v.hideSystem,t:v.type,u:v.user}); }
+function viewSub(v){ var p=[]; if(v.scope==='mine') p.push('My activity'); if(v.type) p.push(v.type); if(v.user) p.push('user'); p.push(v.hideSystem?'system off':'system on'); return p.join(' · '); }
+function reflectControls(){
+  document.querySelectorAll('.scbtn[data-scope]').forEach(function(x){ x.classList.toggle('on', x.getAttribute('data-scope')===SCOPE); });
+  syncSysBtn();
+  var tf=document.getElementById('typeFilter'); if(tf) tf.value=TYPEF;
+  var uf=document.getElementById('userFilter'); if(uf) uf.value=USERF;
+}
+function renderViews(){
+  var host=document.getElementById('viewList'); if(!host) return;
+  var rc=document.getElementById('rcnt'); if(rc) rc.textContent=VIEWS.length?String(VIEWS.length):'';
+  if(!VIEWS.length){ host.innerHTML='<div class="railempty">No saved views yet. Set the filters you like, then <b>Save this view</b> to jump back to it in one click.</div>'; return; }
+  var sig=curSig();
+  host.innerHTML=VIEWS.map(function(v){ return '<div class="viewitem'+(viewSig(v)===sig?' on':'')+'" data-id="'+esc(v.id)+'"><div class="vname"><b>'+esc(v.name)+'</b><div class="vsub">'+esc(viewSub(v))+'</div></div><span class="vx" data-del="'+esc(v.id)+'" title="Delete view">×</span></div>'; }).join('');
+  host.querySelectorAll('.viewitem').forEach(function(el){ el.addEventListener('click',function(e){ if(e.target.closest('[data-del]')) return; applyView(el.getAttribute('data-id')); }); });
+  host.querySelectorAll('[data-del]').forEach(function(x){ x.addEventListener('click',function(e){ e.stopPropagation(); delView(x.getAttribute('data-del')); }); });
+}
+function applyView(id){ var v=VIEWS.filter(function(x){return x.id===id;})[0]; if(!v) return; SCOPE=v.scope||'all'; HIDE_SYSTEM=!!v.hideSystem; TYPEF=v.type||''; USERF=v.user||''; try{ localStorage.setItem('rrgFeedHideSystem',HIDE_SYSTEM?'1':'0'); }catch(e){} reflectControls(); renderViews(); load(); }
+function delView(id){ VIEWS=VIEWS.filter(function(x){return x.id!==id;}); saveViews(); renderViews(); }
+function openSaveForm(){ var f=document.getElementById('saveForm'); if(!f) return; f.classList.add('on'); var i=document.getElementById('viewName'); if(i){ i.value=''; i.focus(); } }
+function closeSaveForm(){ var f=document.getElementById('saveForm'); if(f) f.classList.remove('on'); }
+function commitSave(){ var i=document.getElementById('viewName'); var nm=(i&&i.value||'').trim(); if(!nm){ if(i) i.focus(); return; } VIEWS.push({ id:'v'+Date.now()+Math.floor(Math.random()*1000), name:nm, scope:SCOPE, hideSystem:HIDE_SYSTEM, type:TYPEF, user:USERF }); saveViews(); closeSaveForm(); renderViews(); }
+(function(){ var b=document.getElementById('saveViewBtn'); if(b) b.addEventListener('click',openSaveForm); var s=document.getElementById('sfSave'); if(s) s.addEventListener('click',commitSave); var c=document.getElementById('sfCancel'); if(c) c.addEventListener('click',closeSaveForm); var i=document.getElementById('viewName'); if(i) i.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); commitSave(); } else if(e.key==='Escape'){ e.preventDefault(); closeSaveForm(); } }); })();
+renderViews();
+
+// keep the rail's active highlight + control mirror in sync when filters change directly
+var _origLoad=load;
+load=function(){ reflectControls(); renderViews(); return _origLoad.apply(this,arguments); };
+
 load();
 </script>
 </body>

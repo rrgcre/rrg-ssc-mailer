@@ -106,6 +106,7 @@
   var NAV = [
     { color: '#8fa2c4', items: [
       { ic: '☀︎', label: 'Daily Brief', href: 'rrg_brief.html', ai: true },
+      { ic: '★', label: 'Scoreboard', href: 'rrg_kpis.html' },
       { ic: '◱', label: 'Feed', href: 'rrg_feed.html' },
       { ic: '✔', label: 'Tasks', href: 'rrg_tasks.html' },
       { ic: '◫', label: 'Calendar', href: 'rrg_calendar.html' }

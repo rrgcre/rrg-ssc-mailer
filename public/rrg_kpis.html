@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Scoreboard</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--blue:#2647b0;--purple:#6d28d9;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:30px 0 30px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
+.top-in{max-width:1320px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
+.kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
+h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:680px;}
+.periodrow{margin-top:18px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+.pbtn{color:#aeb8cf;background:none;text-decoration:none;font:inherit;font-size:12.5px;font-weight:700;padding:7px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.2);cursor:pointer;}
+.pbtn.on{background:#fff;color:var(--navy);border-color:#fff;}
+.scopetag{margin-left:6px;font-size:11px;font-weight:700;color:#8ea0c4;letter-spacing:.02em;display:inline-flex;align-items:center;gap:6px;}
+.scopetag .dot{width:7px;height:7px;border-radius:50%;background:#3ea06a;}
+.wrap{max-width:1320px;margin:22px auto;padding:0 24px 60px;}
+.grouphead{display:flex;align-items:center;gap:10px;margin:22px 2px 12px;}
+.grouphead:first-child{margin-top:4px;}
+.grouphead b{font-size:12px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);}
+.grouphead .ln{flex:1;height:1px;background:var(--line);}
+.grouphead .pd{font-size:11px;font-weight:700;color:#a7afbe;}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;} @media(max-width:900px){.tiles{grid-template-columns:repeat(2,1fr);}} @media(max-width:560px){.tiles{grid-template-columns:1fr;}}
+.tile{background:#fff;border:1px solid var(--line);border-radius:14px;padding:17px 18px 16px;box-shadow:0 6px 24px rgba(10,20,50,.05);border-top:3px solid var(--a,var(--blue));position:relative;}
+.tile .tl{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);line-height:1.35;min-height:29px;}
+.tile .tv{font-size:34px;font-weight:800;letter-spacing:-.02em;margin-top:6px;color:var(--navy);}
+.tile.ph .tv{color:#c4cbd8;}
+.tile .tnote{font-size:11px;color:var(--soft);margin-top:6px;line-height:1.4;}
+.tile .badge{position:absolute;top:14px;right:14px;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:3px 8px;border-radius:100px;background:#eef2fb;color:var(--blue);}
+.tile .badge.soon{background:#fdf0e6;color:#b5641a;}
+.tile .badge.live{background:#eaf5ef;color:var(--green);}
+.a-green{--a:var(--green);} .a-blue{--a:var(--blue);} .a-purple{--a:var(--purple);} .a-navy{--a:var(--navy);}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);margin-top:6px;}
+.ch{display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line);gap:10px;}
+.ch b{color:var(--navy);font-size:15px;} .ch .cs{color:var(--muted);font-size:12px;margin-left:auto;}
+.lbtable{width:100%;border-collapse:collapse;}
+.lbtable th{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);text-align:right;padding:11px 14px;border-bottom:1px solid var(--line);white-space:nowrap;}
+.lbtable th.l{text-align:left;}
+.lbtable td{padding:12px 14px;border-bottom:1px solid #f0f3f8;font-size:14px;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink);}
+.lbtable td.l{text-align:left;}
+.lbtable tr:last-child td{border-bottom:none;}
+.lbtable tr:hover td{background:#fbfcfe;}
+.rankwrap{display:flex;align-items:center;gap:12px;}
+.rank{width:26px;height:26px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;background:#eef1f7;color:#6b7488;}
+.rank.g1{background:linear-gradient(135deg,#f6d365,#e6a817);color:#5a3e00;} .rank.g2{background:linear-gradient(135deg,#e2e8f0,#b9c2cf);color:#3a4557;} .rank.g3{background:linear-gradient(135deg,#f0c9a8,#cf9366);color:#5a3115;}
+.av{width:32px;height:32px;border-radius:50%;flex:none;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px;overflow:hidden;}
+.av img{width:100%;height:100%;object-fit:cover;}
+.repname{font-weight:600;color:var(--navy);}
+.strong{font-weight:800;color:var(--navy);}
+.z{color:#c4cbd8;}
+.empty{text-align:center;color:var(--muted);padding:44px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
+.foot{max-width:1320px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
+.listloading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:72px 20px;color:#6b7488;font-size:14px;font-weight:600;gap:15px}
+.listspin{width:38px;height:38px;border-radius:50%;border:3px solid #e6e9f0;border-top-color:#DA2B1F;animation:listspin .8s linear infinite}@keyframes listspin{to{transform:rotate(360deg)}}
+.rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<a href="./index.html" class="rrg-back"><span style="font-size:14px;line-height:1">←</span> Command</a>
+<div class="top"><div class="top-in">
+  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
+  <div class="kicker">Scoreboard</div>
+  <h1>Where the team stands</h1>
+  <div class="sub">Deals closed, spaces leased, pipeline moving, and who's putting points on the board. Pick a window — the sales, leasing and lead numbers cover it; the "in progress" tiles are live right now.</div>
+  <div class="periodrow" id="periodrow">
+    <button class="pbtn" data-d="7">7 days</button>
+    <button class="pbtn on" data-d="30">30 days</button>
+    <button class="pbtn" data-d="90">90 days</button>
+    <button class="pbtn" data-d="365">12 months</button>
+    <span class="scopetag" id="scopetag"></span>
+  </div>
+</div></div>
+<div class="wrap" id="wrap">
+  <div class="listloading"><div class="listspin"></div>Tallying the board…</div>
+</div>
+<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only. Numbers reflect what each module currently tracks — tiles marked <b>Coming soon</b> light up as we build those modules out.</div>
+
+<script>
+var DAYS=30, LOADING=false;
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function num(n){ return Number(n||0).toLocaleString('en-US'); }
+function initials(s){ s=String(s||'').trim(); if(!s) return '?'; var p=s.split(/\s+/); return ((p[0]||'')[0]||'').toUpperCase()+((p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
+function periodLabel(){ return DAYS===365?'last 12 months':('last '+DAYS+' days'); }
+
+function avatar(r){
+  if(r.photoExt){ var u='/api/userphoto/'+String(r.user).replace(/[^a-z0-9_.-]/gi,'_')+'.'+r.photoExt; return '<span class="av"><img src="'+esc(u)+'" onerror="this.remove()" alt="">'+esc(initials(r.name))+'</span>'; }
+  return '<span class="av">'+esc(initials(r.name))+'</span>';
+}
+function cell(v){ v=Number(v||0); return v>0?('<span class="strong">'+num(v)+'</span>'):'<span class="z">0</span>'; }
+
+function tileHtml(t){
+  var acc='a-'+(t.accent||'blue');
+  var badge = t.placeholder ? '<span class="badge soon">Coming soon</span>' : (t.period ? '<span class="badge">'+esc(periodLabel())+'</span>' : '<span class="badge live">Live now</span>');
+  var val = t.placeholder ? '—' : num(t.value);
+  var note = t.placeholder ? ('<div class="tnote">'+esc(t.note||'Not tracked yet.')+'</div>') : '';
+  return '<div class="tile '+acc+(t.placeholder?' ph':'')+'">'+badge+'<div class="tl">'+esc(t.label)+'</div><div class="tv">'+val+'</div>'+note+'</div>';
+}
+
+function groupHtml(title, tiles, periodNote){
+  if(!tiles.length) return '';
+  return '<div class="grouphead"><b>'+esc(title)+'</b><span class="ln"></span><span class="pd">'+esc(periodNote||'')+'</span></div><div class="tiles">'+tiles.map(tileHtml).join('')+'</div>';
+}
+
+function leaderboardHtml(rows){
+  if(!rows.length){ return '<div class="card"><div class="ch"><b>Leaderboard</b></div><div class="empty"><b>No points on the board yet for this window.</b>Close a sale, sign a lease, log an NDA or import leads — reps show up here ranked as soon as they do.</div></div>'; }
+  var body=rows.map(function(r,i){
+    var rk=i+1, g=rk<=3?(' g'+rk):'';
+    return '<tr>'
+      +'<td class="l"><div class="rankwrap"><span class="rank'+g+'">'+rk+'</span>'+avatar(r)+'<span class="repname">'+esc(r.name)+'</span></div></td>'
+      +'<td>'+cell(r.closed)+'</td>'
+      +'<td>'+cell(r.spacesLeased)+'</td>'
+      +'<td>'+cell(r.ndas)+'</td>'
+      +'<td>'+cell(r.bbsLeads)+'</td>'
+      +'<td>'+cell(r.active)+'</td>'
+      +'</tr>';
+  }).join('');
+  return '<div class="card"><div class="ch"><b>Leaderboard</b><span class="cs">Ranked by sales closed &amp; spaces leased · '+esc(periodLabel())+'</span></div>'
+    +'<table class="lbtable"><thead><tr>'
+    +'<th class="l">Rep</th><th>Sales closed</th><th>Spaces leased</th><th>NDAs</th><th>Leads</th><th>Active</th>'
+    +'</tr></thead><tbody>'+body+'</tbody></table></div>';
+}
+
+function render(j){
+  var groups={};
+  (j.tiles||[]).forEach(function(t){ (groups[t.group]=groups[t.group]||[]).push(t); });
+  var order=['Sales','Leasing','Pipeline','In progress'];
+  var html='';
+  order.forEach(function(g){ if(groups[g]){ var pn = (g==='In progress')?'Live now':('Over the '+periodLabel()); html+=groupHtml(g, groups[g], pn); delete groups[g]; } });
+  Object.keys(groups).forEach(function(g){ html+=groupHtml(g, groups[g], ''); });
+  html+='<div style="margin-top:26px"></div>'+leaderboardHtml(j.leaderboard||[]);
+  document.getElementById('wrap').innerHTML=html;
+  var st=document.getElementById('scopetag');
+  if(st){ st.innerHTML = j.scopedToOwn ? '<span class="dot"></span> Your numbers' : '<span class="dot"></span> Whole team'; }
+}
+
+function load(){
+  if(LOADING) return; LOADING=true;
+  document.getElementById('wrap').innerHTML='<div class="listloading"><div class="listspin"></div>Tallying the board…</div>';
+  fetch('/api/kpis?days='+DAYS,{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    LOADING=false;
+    if(!j||!j.ok){ document.getElementById('wrap').innerHTML='<div class="card"><div class="empty"><b>Could not load the scoreboard.</b>'+esc((j&&j.error)||'')+'</div></div>'; return; }
+    render(j);
+  }).catch(function(){ LOADING=false; document.getElementById('wrap').innerHTML='<div class="card"><div class="empty"><b>Could not reach the server.</b>Try again in a moment.</div></div>'; });
+}
+
+document.getElementById('periodrow').addEventListener('click',function(e){
+  var b=e.target.closest('.pbtn'); if(!b) return;
+  DAYS=parseInt(b.getAttribute('data-d'),10)||30;
+  [].slice.call(document.querySelectorAll('#periodrow .pbtn')).forEach(function(x){ x.classList.toggle('on', x===b); });
+  load();
+});
+load();
+window.addEventListener('pageshow',function(e){ if(e.persisted) load(); });
+</script>
+</body>
+</html>
