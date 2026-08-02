@@ -583,7 +583,52 @@
   window._collectData=_collectData;
 (function(){ var f=document.getElementById('sscform'); if(!f) return; function mark(e){ if(e&&e.isTrusted&&!window.__sscStarted){ window.__sscStarted=new Date().toISOString(); } } f.addEventListener('input',mark,true); f.addEventListener('change',mark,true); })();
 (function(){ var b=document.getElementById('leaseBase'), o=document.getElementById('leaseOption'), t=document.getElementById('leaseTotal'); if(!b||!t) return; function calc(){ var bm=parseInt(b.value,10)||0, om=o?(parseInt(o.value,10)||0):0, tot=bm+om; if(!tot){ t.value=''; return; } var yr=Math.floor(tot/12), mo=tot%12; var parts=[]; if(yr) parts.push(yr+' yr'+(yr===1?'':'s')); if(mo) parts.push(mo+' mo'); t.value=tot+' months ('+(parts.join(' ')||'0 mo')+')'; } b.addEventListener('input',calc); if(o) o.addEventListener('input',calc); calc(); })();
-(function(){ var btn=document.getElementById('draftBtn'), ta=document.getElementById('callNotes'); if(!btn||!ta) return; var API=String(window.RRG_API||'').replace(/\/$/,''); btn.addEventListener('click',function(){ var orig=btn.textContent; btn.disabled=true; btn.textContent='✨ Drafting…'; if(window.rrgAiWork) window.rrgAiWork.show('Drafting the call summary from your answers…'); var data=(window._collectData?window._collectData():{}); data.formType='seller'; fetch(API+'/api/ai/screening-summary',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(r){return r.json();}).then(function(j){ if(window.rrgAiWork) window.rrgAiWork.hide(); btn.disabled=false; btn.textContent=orig; if(j&&j.ok&&j.result&&j.result.summary){ ta.value=j.result.summary; ta.dispatchEvent(new Event('input',{bubbles:true})); ta.focus(); } else { if(window.__scrBanner) window.__scrBanner((j&&j.error)||'Could not draft — set the Anthropic API key in Admin, then try again.'); } }).catch(function(){ if(window.rrgAiWork) window.rrgAiWork.hide(); btn.disabled=false; btn.textContent=orig; if(window.__scrBanner) window.__scrBanner('Could not reach the AI to draft the summary.'); }); }); })();
+(function(){
+  var API=String(window.RRG_API||'').replace(/\/$/,'');
+  // One draft routine, driven from either button (the form's or the Call Mode card's).
+  // Whichever button was pressed carries the working state, so the rep always sees it run.
+  // Display-only verdict field. The AI calls it; the rep still owns Lead Status.
+  var REC={ 'Business Sale':{t:'Move forward \u2014 business sale (going concern)', c:'#1f8a5b', bg:'#eefaf3'},
+            'Asset Sale':   {t:'Move forward \u2014 asset sale',                    c:'#b26a00', bg:'#fff8ec'},
+            'Pass':         {t:'Pass on this one',                                  c:'#c02318', bg:'#fdf0ef'} };
+  window.rrgSetRecPath=function(rec,why){
+    var inp=document.getElementById('recPath'); if(!inp) return;
+    var m=REC[rec];
+    inp.value=m?m.t:String(rec||'');
+    inp.style.cssText='background:'+(m?m.bg:'#f7f9fc')+';color:'+(m?m.c:'#000E31')+';font-weight:800;'+(m?('border-left:4px solid '+m.c+';'):'');
+    var f=inp.closest?inp.closest('.field'):null; if(!f) return;
+    var w=f.querySelector('.recwhy');
+    if(!w){ w=document.createElement('div'); w.className='recwhy'; w.style.cssText='grid-column:1/-1;font-size:12.5px;color:#5a6478;margin-top:6px;line-height:1.5'; f.appendChild(w); }
+    w.textContent=String(why||''); w.style.display=why?'block':'none';
+    inp.dispatchEvent(new Event('input',{bubbles:true}));
+  };
+  window.rrgDraftSummary=function(btn){
+    var ta=document.getElementById('callNotes'); if(!ta) return;
+    var orig=btn?btn.textContent:'';
+    function busy(on){ if(!btn) return; btn.disabled=on; btn.textContent=on?'\u2728 Drafting\u2026':orig; }
+    function done(){ if(window.rrgAiWork) window.rrgAiWork.hide(); busy(false); }
+    function fail(m){ done(); if(window.__scrBanner) window.__scrBanner(m); }
+    busy(true);
+    if(window.rrgAiWork) window.rrgAiWork.show('Reading your answers, writing the summary, and calling the deal\u2026');
+    var data=(window._collectData?window._collectData():{}); data.formType='seller';
+    fetch(API+'/api/ai/screening-summary',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+      .then(function(r){return r.json();})
+      .then(function(j){
+        var res=j&&j.ok&&j.result;
+        if(!res||!res.summary){ fail((j&&j.error)||'Could not draft \u2014 set the Anthropic API key in Admin, then try again.'); return; }
+        done();
+        ta.value=String(res.summary).trim(); ta.dispatchEvent(new Event('input',{bubbles:true}));
+        window.rrgSetRecPath(res.recommendation, res.why);
+        ta.focus();
+      })
+      .catch(function(){ fail('Could not reach the AI to draft the summary.'); });
+  };
+  // Delegated so the button survives a custom assigned form re-rendering the questionnaire.
+  document.addEventListener('click',function(ev){
+    var t=ev.target; if(!t) return; t=(t.closest?t.closest('#draftBtn'):(t.id==='draftBtn'?t:null));
+    if(t){ ev.preventDefault(); window.rrgDraftSummary(t); }
+  });
+})();
 (function(){
   var box=document.getElementById('scrStatus'), txt=document.getElementById('scrStatusTxt'), bar=document.getElementById('scrBar'), tb=document.querySelector('.toolbar'); if(!box||!txt) return;
   function fixTop(){ if(tb) box.style.top=(tb.offsetHeight||52)+'px'; }
@@ -1067,22 +1112,63 @@
       else if(x.value && String(x.value).trim()!=='') return true; }
     return false; }
   function seek(i,dir){ while(i>=0 && i<steps.length && known[i]) i+=dir; return i; }
-  var st=document.createElement('style'); st.textContent='#cgSlot label.k{display:none !important;} #cgSlot .field,#cgSlot .oset{margin:0 !important;} #cgSlot input,#cgSlot textarea,#cgSlot select{font-size:16px;} #cgSlot textarea{min-height:120px;}'; document.head.appendChild(st);
+  // Running answer log -- the rep should be able to read back the whole call before
+  // they decide business sale / asset sale / pass.
+  function answerText(el){
+    if(el.classList.contains('oset')){
+      return [].slice.call(el.querySelectorAll('label.opt')).filter(function(l){ var i=l.querySelector('input'); return i&&i.checked; })
+               .map(function(l){ return l.textContent.trim(); }).join(', ');
+    }
+    var vals=[].slice.call(el.querySelectorAll('input,textarea,select')).filter(function(x){ return x.type!=='hidden'; }).map(function(x){
+      if(x.type==='checkbox'||x.type==='radio') return x.checked?'Yes':'';
+      if(x.tagName==='SELECT'){ var o=x.options[x.selectedIndex]; return o?o.textContent.trim():''; }
+      return String(x.value||'').trim();
+    }).filter(Boolean);
+    return vals.join(el.classList.contains('rangefield')?' to ':'  \u00b7  ');
+  }
+  function buildReview(){
+    if(!cgRev) return 0;
+    cgRev.innerHTML=''; var n=0;
+    for(var k=0;k<steps.length;k++){
+      var a=answerText(steps[k]); if(!a) continue; n++;
+      var row=document.createElement('div'); row.style.cssText='padding:8px 0;border-bottom:1px solid #f0f3f8';
+      var qh=document.createElement('div'); qh.style.cssText='font-size:11px;font-weight:800;color:#8b93a5;text-transform:uppercase;letter-spacing:.03em';
+      qh.textContent=labelOf(steps[k])||('Question '+(k+1));
+      var av=document.createElement('div'); av.style.cssText='font-size:14px;color:#000E31;font-weight:600;margin-top:3px;white-space:pre-wrap;line-height:1.45';
+      av.textContent=a;
+      row.appendChild(qh); row.appendChild(av); cgRev.appendChild(row);
+    }
+    if(!n){ var e=document.createElement('div'); e.style.cssText='font-size:13px;color:#8b93a5'; e.textContent='Nothing captured yet.'; cgRev.appendChild(e); }
+    return n;
+  }
+  var revOpen=false, revAuto=false;
+  function setRev(on,cnt){ revOpen=!!on; if(cgRevWrap) cgRevWrap.style.display=revOpen?'block':'none';
+    if(cgRevBtn) cgRevBtn.textContent=(revOpen?'Hide answers':'Review answers')+(cnt?(' ('+cnt+')'):''); }
+  var st=document.createElement('style'); st.textContent='.rrgaiwork{z-index:1500;} #cgSlot label.k{display:none !important;} #cgSlot .field,#cgSlot .oset{margin:0 !important;} #cgSlot input,#cgSlot textarea,#cgSlot select{font-size:16px;} #cgSlot textarea{min-height:120px;}'; document.head.appendChild(st);
   var ov=document.createElement('div'); ov.id='callGuide'; ov.style.cssText='position:fixed;inset:0;z-index:1200;background:#0b1636;display:none;align-items:flex-start;justify-content:center;padding:34px 18px;overflow:auto;';
-  ov.innerHTML='<div style="background:#fff;border-radius:18px;max-width:640px;width:100%;box-shadow:0 30px 90px rgba(0,0,0,.5);padding:22px 26px 24px"><div style="display:flex;align-items:center;gap:12px;font-size:12px;color:#6b7488;font-weight:700"><span id="cgProg">Question 1</span><div style="flex:1;height:5px;background:#eef1f6;border-radius:99px;overflow:hidden"><div id="cgBar" style="height:100%;width:0;background:#3b82f6;transition:width .25s"></div></div><span id="cgTimer" style="color:#DA2B1F">0:00</span><button type="button" id="cgExit" tabindex="-1" style="background:none;border:none;color:#6b7488;font-size:12px;font-weight:700;cursor:pointer">Exit to form</button></div><div id="cgPre" style="display:none;font-size:12.5px;color:#31527a;background:#eef4ff;border:1px solid #d6e4ff;border-radius:10px;padding:8px 12px;margin-top:14px;line-height:1.45"></div><div id="cgQ" style="font-size:23px;font-weight:800;color:#000E31;margin:18px 0 10px;line-height:1.3"></div><div id="cgHint" style="display:none;font-size:13.5px;color:#5a6478;background:#f5f7fb;border-left:3px solid #DA2B1F;border-radius:0 8px 8px 0;padding:9px 12px;margin:0 0 16px;line-height:1.5"></div><div id="cgSlot" style="min-height:44px"></div><div style="display:flex;gap:10px;justify-content:space-between;margin-top:24px"><button type="button" id="cgBack" tabindex="-1" style="background:#fff;border:1px solid #cdd6e6;color:#000E31;border-radius:10px;padding:11px 20px;font:inherit;font-weight:700;cursor:pointer">← Back</button><div style="display:flex;gap:10px"><button type="button" id="cgSkip" tabindex="-1" style="background:#fff;border:1px solid #cdd6e6;color:#6b7488;border-radius:10px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer">Skip</button><button type="button" id="cgNext" style="background:#DA2B1F;border:none;color:#fff;border-radius:10px;padding:11px 28px;font:inherit;font-weight:800;cursor:pointer">Next →</button></div></div></div>';
+  ov.innerHTML='<div style="background:#fff;border-radius:18px;max-width:640px;width:100%;box-shadow:0 30px 90px rgba(0,0,0,.5);padding:22px 26px 24px"><div style="display:flex;align-items:center;gap:12px;font-size:12px;color:#6b7488;font-weight:700"><span id="cgProg">Question 1</span><div style="flex:1;height:5px;background:#eef1f6;border-radius:99px;overflow:hidden"><div id="cgBar" style="height:100%;width:0;background:#3b82f6;transition:width .25s"></div></div><span id="cgTimer" style="color:#DA2B1F">0:00</span><button type="button" id="cgRevBtn" tabindex="-1" style="background:none;border:none;color:#5b46b8;font-size:12px;font-weight:800;cursor:pointer">Review answers</button><button type="button" id="cgExit" tabindex="-1" style="background:none;border:none;color:#6b7488;font-size:12px;font-weight:700;cursor:pointer">Exit to form</button></div><div id="cgPre" style="display:none;font-size:12.5px;color:#31527a;background:#eef4ff;border:1px solid #d6e4ff;border-radius:10px;padding:8px 12px;margin-top:14px;line-height:1.45"></div><div id="cgQ" style="font-size:23px;font-weight:800;color:#000E31;margin:18px 0 10px;line-height:1.3"></div><div id="cgHint" style="display:none;font-size:13.5px;color:#5a6478;background:#f5f7fb;border-left:3px solid #DA2B1F;border-radius:0 8px 8px 0;padding:9px 12px;margin:0 0 16px;line-height:1.5"></div><div id="cgSlot" style="min-height:44px"></div><div style="display:flex;gap:10px;justify-content:space-between;margin-top:24px"><button type="button" id="cgBack" tabindex="-1" style="background:#fff;border:1px solid #cdd6e6;color:#000E31;border-radius:10px;padding:11px 20px;font:inherit;font-weight:700;cursor:pointer">← Back</button><div style="display:flex;gap:10px"><button type="button" id="cgSkip" tabindex="-1" style="background:#fff;border:1px solid #cdd6e6;color:#6b7488;border-radius:10px;padding:11px 18px;font:inherit;font-weight:700;cursor:pointer">Skip</button><button type="button" id="cgNext" style="background:#DA2B1F;border:none;color:#fff;border-radius:10px;padding:11px 28px;font:inherit;font-weight:800;cursor:pointer">Next →</button></div></div><div id="cgRevWrap" style="display:none;margin-top:20px;border-top:1px solid #e6eaf2;padding-top:14px"><div style="font-size:11px;font-weight:800;color:#8b93a5;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px">Answers captured on this call</div><div id="cgRev" style="max-height:320px;overflow:auto"></div></div></div>';
   document.body.appendChild(ov);
-  var slot=ov.querySelector('#cgSlot'), cgQ=ov.querySelector('#cgQ'), cgHint=ov.querySelector('#cgHint'), cgPre=ov.querySelector('#cgPre'), cgProg=ov.querySelector('#cgProg'), cgBar=ov.querySelector('#cgBar'), cgBack=ov.querySelector('#cgBack');
+  var slot=ov.querySelector('#cgSlot'), cgQ=ov.querySelector('#cgQ'), cgHint=ov.querySelector('#cgHint'), cgPre=ov.querySelector('#cgPre'), cgRev=ov.querySelector('#cgRev'), cgRevWrap=ov.querySelector('#cgRevWrap'), cgRevBtn=ov.querySelector('#cgRevBtn'), cgProg=ov.querySelector('#cgProg'), cgBar=ov.querySelector('#cgBar'), cgBack=ov.querySelector('#cgBack');
   var fab=document.createElement('button'); fab.type='button'; fab.textContent='▶ Call mode'; fab.style.cssText='position:fixed;right:16px;bottom:16px;z-index:1150;background:#DA2B1F;color:#fff;border:none;border-radius:100px;padding:11px 18px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,.3);display:none'; document.body.appendChild(fab);
-  var homeMarker=null, homeEl=null;
-  function parkCurrent(){ if(homeEl && homeMarker && homeMarker.parentNode){ homeMarker.parentNode.insertBefore(homeEl, homeMarker); homeMarker.parentNode.removeChild(homeMarker); } homeEl=null; homeMarker=null; slot.innerHTML=''; }
+  var homeMarker=null, homeEl=null, extraMarker=null, extraEl=null;
+  function parkCurrent(){
+    if(extraEl && extraMarker && extraMarker.parentNode){ extraMarker.parentNode.insertBefore(extraEl, extraMarker); extraMarker.parentNode.removeChild(extraMarker); }
+    extraEl=null; extraMarker=null;
+    if(homeEl && homeMarker && homeMarker.parentNode){ homeMarker.parentNode.insertBefore(homeEl, homeMarker); homeMarker.parentNode.removeChild(homeMarker); }
+    homeEl=null; homeMarker=null; slot.innerHTML=''; }
+  function pullExtra(el){ extraMarker=document.createComment('cgextra'); el.parentNode.insertBefore(extraMarker, el); extraEl=el; slot.appendChild(el); }
   function pull(el){ homeMarker=document.createComment('cghome'); el.parentNode.insertBefore(homeMarker, el); homeEl=el; slot.appendChild(el); }
   function focusStep(el){ var f=el.querySelector('input:not([type=hidden]),textarea,select'); if(f){ try{ f.focus({preventScroll:true}); }catch(e){ try{f.focus();}catch(_){} } } }
   function mmss(ms){ var s=Math.max(0,Math.floor(ms/1000)); var m=Math.floor(s/60); s=s%60; return m+':'+(s<10?'0':'')+s; }
   function show(i){ if(i<0)i=0; if(i>=steps.length){ finish(); return; } parkCurrent(); idx=i; var el=steps[i]; pull(el);
-    if(el.querySelector('#callNotes')){ var db=document.createElement('button'); db.type='button'; db.textContent='✨ Draft from answers'; db.style.cssText='margin-top:12px;background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:8px 14px;font:inherit;font-size:13px;font-weight:700;color:#5b46b8;cursor:pointer'; db.addEventListener('click',function(){ var o=document.getElementById('draftBtn'); if(o) o.click(); }); slot.appendChild(db); }
+    if(el.querySelector('#callNotes')){ var db=document.createElement('button'); db.type='button'; db.textContent='✨ Draft from answers'; db.style.cssText='margin-top:12px;background:#5b46b8;border:1px solid #5b46b8;border-radius:8px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;color:#fff;cursor:pointer'; db.addEventListener('click',function(){ if(window.rrgDraftSummary) window.rrgDraftSummary(db); }); slot.appendChild(db);
+      var rp=document.getElementById('recPath'), rf=(rp&&rp.closest)?rp.closest('.field'):null; if(rf && rf!==el) pullExtra(rf); }
     var lb=labelOf(el); var q=(el.getAttribute&&el.getAttribute('data-prompt'))||QMAP[norm(lb)]||(lb.replace(/\?+$/,'')+'?'); cgQ.textContent=q; var hn=(el.getAttribute&&el.getAttribute('data-hint'))||''; if(cgHint){ cgHint.textContent=hn; cgHint.style.display=hn?'block':'none'; } var total=0,pos=0; for(var k=0;k<steps.length;k++){ if(!known[k]) total++; if(k<=i && !known[k]) pos++; } if(!total){ total=steps.length; pos=i+1; }
     cgProg.textContent='Question '+pos+' of '+total; cgBar.style.width=Math.round((pos-1)/Math.max(1,total)*100)+'%'; cgBack.style.visibility=(seek(i-1,-1)>=0)?'visible':'hidden';
-    if(cgPre) cgPre.style.display=(pos<=1 && cgPre.getAttribute('data-has')==='1')?'block':'none'; ov.scrollTop=0; setTimeout(function(){ focusStep(el); },80); }
+    if(cgPre) cgPre.style.display=(pos<=1 && cgPre.getAttribute('data-has')==='1')?'block':'none';
+    var cnt=buildReview();
+    if(!revAuto && total>1 && pos>=total){ revAuto=true; revOpen=true; }   // the decision card -- show the whole call
+    setRev(revOpen,cnt); ov.scrollTop=0; setTimeout(function(){ focusStep(el); },80); }
   function finish(){ parkCurrent(); ov.style.display='none'; active=false; fab.style.display='block'; var d=document.getElementById('callNotes'); if(d){ d.scrollIntoView({behavior:'smooth',block:'center'}); } if(window.rrgToast) window.rrgToast('Call complete — review the summary and Submit.'); }
   function start(){ active=true; fab.style.display='none'; ov.style.display='flex'; if(!window.__sscStarted) window.__sscStarted=new Date().toISOString();
     known=steps.map(function(el){ return hasVal(el); });
@@ -1095,6 +1181,7 @@
   ov.querySelector('#cgNext').addEventListener('click',function(){ show(seek(idx+1,1)); });
   cgBack.addEventListener('click',function(){ var b=seek(idx-1,-1); if(b>=0) show(b); });
   ov.querySelector('#cgSkip').addEventListener('click',function(){ show(seek(idx+1,1)); });
+  if(cgRevBtn) cgRevBtn.addEventListener('click',function(){ setRev(!revOpen, buildReview()); });
   ov.querySelector('#cgExit').addEventListener('click',function(){ var hasData=function(){ var form=document.getElementById('sscform'); if(!form) return false; var inputs=form.querySelectorAll('input,textarea,select'); for(var i=0;i<inputs.length;i++){ var inp=inputs[i]; if(inp.type==='checkbox'||inp.type==='radio'){ if(inp.checked) return true; } else if(inp.value && inp.value.trim()!=='') return true; } return false; }(); if(hasData){ var d=document.createElement('div'); d.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.6);display:flex;align-items:center;justify-content:center;z-index:1400;padding:20px'; d.innerHTML='<div style="background:#fff;border-radius:16px;max-width:440px;width:100%;padding:26px 26px 22px;box-shadow:0 24px 70px rgba(0,0,0,.4);text-align:center"><div style="font-weight:800;color:#000E31;font-size:19px">Cancel this call?</div><div style="color:#5a6478;font-size:14px;margin-top:10px;line-height:1.5">You have unsaved answers. Exit to the form to save them, or cancel to discard them and go back.</div><div style="display:flex;gap:10px;justify-content:center;margin-top:20px;flex-wrap:wrap"><button type="button" id="cancelKeep" style="background:#fff;border:1px solid #cdd6e6;color:#000E31;border-radius:10px;padding:11px 18px;font:inherit;font-size:14px;font-weight:700;cursor:pointer">Exit to form (save)</button><button type="button" id="cancelDiscard" style="background:#DA2B1F;border:none;color:#fff;border-radius:10px;padding:11px 24px;font:inherit;font-size:14px;font-weight:800;cursor:pointer">Discard & go back</button></div></div>'; document.body.appendChild(d); d.querySelector('#cancelKeep').addEventListener('click',function(){ d.remove(); finish(); }); d.querySelector('#cancelDiscard').addEventListener('click',function(){ d.remove(); parkCurrent(); ov.style.display='none'; active=false; fab.style.display='block'; location.href='./index.html'; }); } else { finish(); } });
   fab.addEventListener('click',start);
   setInterval(function(){ if(!active) return; var e=document.getElementById('cgTimer'); if(e) e.textContent=window.__sscStarted?mmss(Date.now()-Date.parse(window.__sscStarted)):'0:00'; },1000);

@@ -65,10 +65,11 @@ window.RRG_FORMS.seller = {
       {type:'options', label:'Objections Raised on the Call', full:true, cols:3, options:['Not Ready Yet','Wants to Sell Themselves','Already Has a Buyer','Needs to Talk to Partner / Accountant','Talking to Other Brokers','Valuation / Price Gap','Confidentiality Concerns','Commission / Fees','None'], prompt:"What objections or hesitations did they raise?"}
     ]},
     { n:'6', title:'Call Outcome & Notes', decision:true, questions:[
-      {sub:'Lead Outcome'},
-      {type:'options', label:'Lead Status', required:true, full:true, cols:2, options:['Advance (Strong Lead, Financials Requested)','Nurture (Interested, Not Ready)','Pass (Not a Fit)','Refer Out (Wrong Market or Type)'], prompt:"Your call — do we advance, nurture, pass, or refer this out?"},
       {sub:'Call Summary', draft:true},
-      {type:'textarea', full:true, id:'callNotes', label:'Call Notes', required:true, placeholder:"3–4 sentences: motivation, financial picture, expectations, and your read on the lead. This goes into the contact's record in FullServe.", prompt:"Give me your 3–4 sentence summary — or hit Draft to generate one."}
+      {type:'textarea', full:true, id:'callNotes', label:'Call Notes', required:true, placeholder:"3–4 sentences: motivation, financial picture, expectations, and your read on the lead. This goes into the contact's record in FullServe.", prompt:"Give me your 3–4 sentence summary — or hit Draft to generate one."},
+      {type:'readonly', full:true, id:'recPath', label:'Recommended Path', placeholder:'Hit “✨ Draft from answers” — business sale, asset sale, or pass'},
+      {sub:'Lead Outcome'},
+      {type:'options', label:'Lead Status', required:true, full:true, cols:2, options:['Advance (Strong Lead, Financials Requested)','Nurture (Interested, Not Ready)','Pass (Not a Fit)','Refer Out (Wrong Market or Type)'], prompt:"Your call — do we advance, nurture, pass, or refer this out?"}
     ]}
   ]
 };
@@ -93,7 +94,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     if(t==='rep') return '<div class="field">'+lab(q)+'<select class="req" id="repSelect"><option value="">Select…</option></select></div>';
     if(t==='date') return '<div class="field">'+lab(q)+'<input type="date" class="req" id="callDate"></div>';
     if(t==='metro') return '<div class="field">'+lab(q)+'<select class="req" id="metroSelect"><option value="">Select…</option><option>Austin</option><option>Dallas</option><option>Houston</option><option>San Antonio</option><option>RGV</option><option>Other</option></select></div>';
-    if(t==='readonly') return '<div class="field">'+lab(q)+'<input type="text"'+id+' readonly placeholder="auto-calculated" style="background:#f7f9fc"></div>';
+    if(t==='readonly') return '<div class="field'+(q.full?' full rowgap':'')+'">'+lab(q)+'<input type="text"'+id+' readonly placeholder="'+esc(q.placeholder||'auto-calculated')+'" style="background:#f7f9fc"></div>';
     if(t==='number') return '<div class="field">'+lab(q)+'<input type="number" min="0" step="1"'+id+' placeholder="months"></div>';
     if(t==='money') return '<div class="field'+(q.full?' full rowgap':'')+'">'+lab(q)+'<span class="madorn"><span class="ad-pre">$</span><input type="text" class="money'+(q.required?' req':'')+'" inputmode="numeric"'+id+'></span></div>';
     if(t==='range') return '<div class="field full rowgap rangefield">'+lab(q)+'<div class="rangewrap"><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric" placeholder="Amount / low"></span><span class="rangeto">to</span><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric" placeholder="High (optional)"></span></div></div>';
@@ -102,7 +103,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     var extra=q.num?(' '+q.num):''; // text with numeric class
     return '<div class="field'+(q.full?' full rowgap':'')+'">'+lab(q)+'<input type="text" class="'+((q.required?'req':'')+extra).trim()+'"'+id+(q.placeholder?(' placeholder="'+esc(q.placeholder)+'"'):'')+'></div>';
   }
-  function renderSub(q){ var extra=q.draft?' <button type="button" id="draftBtn" style="margin-left:10px;background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:4px 11px;font:inherit;font-size:12px;font-weight:700;color:#5b46b8;cursor:pointer">✨ Draft from answers</button>':''; return '<div class="subhead">'+esc(q.sub)+extra+'</div>'; }
+  function renderSub(q){ var extra=q.draft?' <button type="button" id="draftBtn" style="margin-left:10px;background:#5b46b8;border:1px solid #5b46b8;border-radius:8px;padding:6px 13px;font:inherit;font-size:12px;font-weight:700;color:#fff;cursor:pointer">✨ Draft from answers</button>':''; return '<div class="subhead">'+esc(q.sub)+extra+'</div>'; }
   function partInput(p, id){
     var t=p.type||'text';
     if(t==='textarea') return '<textarea'+(id?(' id="'+id+'"'):'')+'></textarea>';

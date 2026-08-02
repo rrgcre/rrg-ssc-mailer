@@ -214,10 +214,20 @@ async function classifyConcepts({ items, conceptTypes, pricePoints, cuisines }) 
   return out.map(x => ({ i: Number(x.i), cuisine: String(x.cuisine || ''), conceptType: String(x.conceptType || ''), pricePoint: String(x.pricePoint || ''), multiUnit: !!x.multiUnit }));
 }
 
+const SCREEN_RECS = ['Business Sale', 'Asset Sale', 'Pass'];
 async function draftScreeningSummary({ data }) {
-  const sys = 'You are an experienced restaurant and bar business broker at Restaurant Realty Group writing the internal call summary right after screening a potential seller. In 3-4 tight sentences, in a direct broker voice, cover: the operator and business; their motivation and timeline; the financial picture; their valuation expectation and how realistic it is; and your read on whether this is a real lead worth pursuing. Use only the captured answers - do not invent numbers. No preamble, no bullet points, no headers. Return only the paragraph.';
+  const sys = 'You are an experienced restaurant and bar business broker at Restaurant Realty Group, writing the internal call summary immediately after screening a potential seller. '
+    + 'FIRST, write 3-4 tight sentences in a direct broker voice covering: the operator and the business; their motivation and timeline; the financial picture; their valuation expectation and how realistic it is; and your read on whether this is a real lead. Use only the captured answers - never invent numbers. No preamble, no bullet points, no headers. '
+    + 'SECOND, make the call. Choose exactly one of "Business Sale", "Asset Sale", or "Pass", applying these standards: '
+    + 'BUSINESS SALE (going concern) when the operation carries real transferable earnings - positive or near-breakeven SDE/EBITDA that supports a multiple, financials a buyer can document, and a lease with enough remaining term plus assignability for a buyer to underwrite. '
+    + 'ASSET SALE when the value is in the hard assets rather than the earnings - the operation loses money, is closed, or is trending hard down, or the numbers cannot be documented, but the buildout, FF&E, liquor license, or the lease itself is worth selling. '
+    + 'PASS when the deal cannot be delivered or is not worth our time - the lease is not assignable or the landlord will not transfer it, debt, liens, or litigation block a clean transfer, our contact is not the decision maker or is not actually motivated, the price expectation is far off with no room to move, or it is the wrong market or property type for us. '
+    + 'THIRD, give one sentence of "why" naming the single fact that drove the call. '
+    + 'Return ONLY a JSON object: {"summary":"","recommendation":"Business Sale|Asset Sale|Pass","why":""}';
   const payload = { concept: (data && data.concept) || '', company: (data && data.company) || '', contact: (data && data.contact) || '', market: (data && data.market) || '', sections: (data && data.sections) || [] };
-  const out = await callClaude(sys, 'SCREENING ANSWERS (JSON):\n' + JSON.stringify(payload).slice(0, 16000), 500);
-  return { summary: String(out || '').trim() };
+  const out = await callClaude(sys, 'SCREENING ANSWERS (JSON):\n' + JSON.stringify(payload).slice(0, 16000), 800);
+  const j = extractJson(out) || {};
+  const rec = SCREEN_RECS.find(a => a.toLowerCase() === String(j.recommendation || '').trim().toLowerCase()) || '';
+  return { summary: String(j.summary || out || '').trim(), recommendation: rec, why: String(j.why || '').trim() };
 }
 module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary };

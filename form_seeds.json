@@ -529,6 +529,14 @@
             "hint": "Capture the story: WHY they're selling, WHAT the financials show, WHAT they expect, and YOUR gut on deal viability. This is what someone reads six months from now."
           },
           {
+            "type": "readonly",
+            "full": true,
+            "id": "recPath",
+            "label": "Recommended Path",
+            "placeholder": "Hit “✨ Draft from answers” — business sale, asset sale, or pass",
+            "hint": "The AI's read, not your decision. You still pick the Lead Status on the next card."
+          },
+          {
             "sub": "Lead Outcome"
           },
           {
