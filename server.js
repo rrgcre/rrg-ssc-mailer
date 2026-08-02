@@ -1380,7 +1380,7 @@ app.post('/api/form', requireAdmin, express.json({ limit:'3mb' }), (req, res) =>
   const b = req.body || {}; if(!b.name && !b.id) return res.status(400).json({ ok:false, error:'A form name is required.' });
   const arr = loadForms(); const now = new Date().toISOString();
   let f = b.id ? arr.find(function(x){ return x.id===b.id; }) : null;
-  const clean = { name:String(b.name||'Untitled form').slice(0,120), callType:String(b.callType||'').slice(0,40), kicker:String(b.kicker||'').slice(0,120), header:Array.isArray(b.header)?b.header:[], categories:Array.isArray(b.categories)?b.categories:[] };
+  const clean = { name:String(b.name||'Untitled form').slice(0,120), callType:String(b.callType||'').slice(0,40), kicker:String(b.kicker||'').slice(0,120), header:Array.isArray(b.header)?b.header:[], categories:Array.isArray(b.categories)?b.categories:[], automations:(function(a){ a=(a&&typeof a==='object')?a:{}; var o={}; ['businessSale','assetSale','nurture','decline'].forEach(function(k){ if(typeof a[k]==='string' && a[k]) o[k]=a[k].slice(0,60); }); return o; })(b.automations) };
   if(f){ if(f.builtIn){ return res.status(400).json({ ok:false, error:'The built-in form is read-only \u2014 duplicate it to customize.' }); } Object.assign(f, clean); f.updatedAt=now; }
   else { f = Object.assign({ id:'form_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), builtIn:false, createdAt:now, updatedAt:now }, clean); arr.push(f); }
   saveForms(arr);

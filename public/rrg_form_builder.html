@@ -104,6 +104,7 @@ function qs(sel,el){return (el||document).querySelector(sel);}
 function qsa(sel,el){return [].slice.call((el||document).querySelectorAll(sel));}
 
 var STATE={ form:{ id:'', name:'', callType:'seller', builtIn:false, header:[], categories:[] }, dup:false };
+var AUTOS=[];
 
 /* ---- map a stored question object -> builder type value ---- */
 function typeOf(q){
@@ -164,6 +165,7 @@ function questionFromRow(row){
 function syncFromDom(){
   STATE.form.name=(qs('#formName').value||'').trim();
   STATE.form.callType=qs('#formType').value;
+  STATE.form.automations={}; qsa('.auto-sel').forEach(function(sel){ var oc=sel.getAttribute('data-outcome'); var v=(sel.value||'').trim(); if(v) STATE.form.automations[oc]=v; });
   var hdr=qs('.card[data-header="1"]');
   STATE.form.header=[];
   if(hdr) qsa('.qrow',hdr).forEach(function(r){ var q=questionFromRow(r); if(q) STATE.form.header.push(q); });
@@ -217,6 +219,9 @@ function sectionCard(cat,idx){
     +'</div>';
 }
 
+var OUTCOMES=[['businessSale','Business Sale'],['assetSale','Asset Sale'],['nurture','Nurture'],['decline','Decline']];
+function autoOptions(selId){ var o='<option value="">\u2014 none \u2014</option>'; var seen=false; AUTOS.forEach(function(a){ if(a.id===selId) seen=true; o+='<option value="'+esc(a.id)+'"'+(a.id===selId?' selected':'')+'>'+esc(a.name||'Automation')+'</option>'; }); if(selId && !seen) o+='<option value="'+esc(selId)+'" selected>(saved automation)</option>'; return o; }
+function automationsCard(f){ var au=f.automations||{}; var rows=OUTCOMES.map(function(o){ return '<div><span class="lbl">'+esc(o[1])+'</span><select class="auto-sel" data-outcome="'+o[0]+'">'+autoOptions(au[o[0]]||'')+'</select></div>'; }).join(''); return '<div class="card"><div class="sechead"><span class="sn" style="background:#b5791f">\u26A1</span><div style="flex:1"><div style="font-size:15px;font-weight:700">Post-call automations</div><div class="hint">When the call is submitted, the rep\u2019s deal call fires the matching automation for the seller. All optional \u2014 leave any blank.</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px">'+rows+'</div></div>'; }
 function render(){
   var f=STATE.form;
   var h='';
@@ -227,6 +232,7 @@ function render(){
     +'<div><span class="lbl">Used for which call type</span><select id="formType">'
     +['seller','buyer','site','other'].map(function(t){var lbl={seller:'Seller Screening',buyer:'Buyer Qualification',site:'Site-Criteria',other:'Other / General'}[t];return '<option value="'+t+'"'+(f.callType===t?' selected':'')+'>'+lbl+'</option>';}).join('')
     +'</select></div></div></div>';
+   h+=automationsCard(f);
   // header
   h+='<div class="card" data-header="1"><div class="sechead"><span class="sn" style="background:var(--teal)">＝</span><div style="flex:1"><div style="font-size:15px;font-weight:700">Call header</div><div class="hint">Fields that auto-fill at the top of the call (company, rep, date, market). These pull from the contact when the screening opens.</div></div></div>'
     +'<div class="qlist">'+(f.header||[]).map(function(q){return qrow(q);}).join('')+'</div>'
@@ -269,7 +275,7 @@ function save(){
   if(!f.name){ msg.className='msg err'; msg.textContent='Give the questionnaire a name first.'; qs('#formName').focus(); return; }
   var totalQ=(f.header||[]).length + (f.categories||[]).reduce(function(n,c){return n+(c.questions||[]).filter(function(q){return q.type;}).length;},0);
   if(!totalQ){ msg.className='msg err'; msg.textContent='Add at least one question before saving.'; return; }
-  var payload={ name:f.name, callType:f.callType, header:f.header, categories:f.categories };
+  var payload={ name:f.name, callType:f.callType, header:f.header, categories:f.categories, automations:f.automations||{} };
   if(f.id && !STATE.dup) payload.id=f.id; // editing an existing custom form; dup/new omit id
   btn.disabled=true; btn.textContent='Saving…'; msg.className='msg'; msg.textContent='';
   fetch('/api/form',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
@@ -283,6 +289,7 @@ function save(){
 
 /* ---- boot ---- */
 (function(){
+  fetch('/api/automations',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ AUTOS=(j&&j.automations)||[]; if(qs('#formName')) render(); }).catch(function(){});
   var p=new URLSearchParams(location.search);
   var id=p.get('form'); var isNew=p.get('new')==='1'; var wantDup=p.get('dup')==='1';
   var preType=p.get('callType');
@@ -292,13 +299,13 @@ function save(){
     render();
   }
   if(isNew || !id){
-    STATE.form={ id:'', name:'', callType:preType||'seller', builtIn:false, header:[], categories:[{title:'',questions:[{label:'',type:'text'}]}] };
+    STATE.form={ id:'', name:'', callType:preType||'seller', builtIn:false, header:[], categories:[{title:'',questions:[{label:'',type:'text'}]}], automations:{} };
     start(); return;
   }
   fetch('/api/form/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok||!j.form){ qs('#root').innerHTML='<div class="gate"><h2>Could not load</h2>That questionnaire wasn’t found.</div>'; return; }
     var f=j.form;
-    STATE.form={ id:f.id, name:f.name||'', callType:f.callType||'seller', builtIn:!!f.builtIn, kicker:f.kicker||'', header:f.header||[], categories:f.categories||[] };
+    STATE.form={ id:f.id, name:f.name||'', callType:f.callType||'seller', builtIn:!!f.builtIn, kicker:f.kicker||'', header:f.header||[], categories:f.categories||[], automations:f.automations||{} };
     if(f.builtIn && wantDup){ STATE.dup=true; STATE.form.id=''; STATE.form.builtIn=false; STATE.form.name=(f.name||'Questionnaire')+' (copy)'; }
     start();
   }).catch(function(){ qs('#root').innerHTML='<div class="gate"><h2>Could not load</h2>Check your connection and reload.</div>'; });
