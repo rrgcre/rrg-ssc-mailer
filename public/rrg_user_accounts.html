@@ -112,6 +112,7 @@ function render(j){
       +'<td><span class="ts">'+(esc(x.created)||'—')+'</span></td>'
       +'<td><span class="ts">'+(esc(x.last)||'Never')+'</span></td>'
       +'<td><div class="acts">'
+        +'<button type="button" class="btn ghost sm" data-edit="'+esc(x.username)+'" data-name="'+esc(x.name||'')+'" data-email="'+esc(x.email||'')+'" data-phone="'+esc(x.phone||'')+'" data-title="'+esc(x.title||'')+'">Edit</button>'
         +'<button type="button" class="btn ghost sm" data-reset="'+esc(x.username)+'">Reset password</button>'
         +'<button type="button" class="btn ghost sm" data-toggle="'+esc(x.username)+'" data-dis="'+(x.disabled?'0':'1')+'">'+(x.disabled?'Enable':'Disable')+'</button>'
         +'<button type="button" class="btn danger sm" data-remove="'+esc(x.username)+'">Remove</button>'
@@ -119,8 +120,32 @@ function render(j){
   }).join('');
   wire();
 }
+function closeEditors(){ document.querySelectorAll('tr.editrow').forEach(function(r){ r.parentNode.removeChild(r); }); }
 function wire(){
   var m=document.getElementById('umsg');
+  document.querySelectorAll('[data-edit]').forEach(function(b){ b.onclick=function(){
+    var un=b.getAttribute('data-edit');
+    var row=b.closest('tr');
+    var open=row.nextSibling && row.nextSibling.classList && row.nextSibling.classList.contains('editrow');
+    closeEditors();
+    if(open) return;
+    var tr=document.createElement('tr'); tr.className='editrow';
+    tr.innerHTML='<td colspan="7"><div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;padding:4px 0">'
+      +'<div style="flex:1;min-width:160px"><label class="cs" style="display:block;margin-bottom:3px">Name</label><input class="fld e-name" style="width:100%" value="'+esc(b.getAttribute('data-name'))+'"></div>'
+      +'<div style="flex:1;min-width:190px"><label class="cs" style="display:block;margin-bottom:3px">Email</label><input class="fld e-email" type="email" style="width:100%" value="'+esc(b.getAttribute('data-email'))+'"></div>'
+      +'<div style="flex:1;min-width:150px"><label class="cs" style="display:block;margin-bottom:3px">Phone</label><input class="fld e-phone" style="width:100%" value="'+esc(b.getAttribute('data-phone'))+'"></div>'
+      +'<div style="flex:1;min-width:150px"><label class="cs" style="display:block;margin-bottom:3px">Title</label><input class="fld e-title" style="width:100%" value="'+esc(b.getAttribute('data-title'))+'"></div>'
+      +'<div style="display:flex;gap:8px"><button type="button" class="btn sm e-save">Save</button><button type="button" class="btn ghost sm e-cancel">Cancel</button></div>'
+      +'</div></td>';
+    row.parentNode.insertBefore(tr, row.nextSibling);
+    tr.querySelector('.e-cancel').onclick=closeEditors;
+    tr.querySelector('.e-save').onclick=function(){
+      m.textContent='Saving…';
+      post('/api/admin/update-user',{username:un,name:tr.querySelector('.e-name').value,email:tr.querySelector('.e-email').value,phone:tr.querySelector('.e-phone').value,title:tr.querySelector('.e-title').value})
+        .then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; load(); } else m.textContent=(j&&j.error)||'Failed'; })
+        .catch(function(){ m.textContent='Failed'; });
+    };
+  }; });
   document.querySelectorAll('[data-reset]').forEach(function(b){ b.onclick=function(){ var un=b.getAttribute('data-reset'); var p=prompt('New password for '+un+' (min 6):'); if(!p) return; m.textContent='Resetting…'; post('/api/admin/reset',{username:un,password:p}).then(function(j){ m.textContent=j.ok?('Password reset for '+un+' ✓'):(j.error||'Failed'); }); }; });
   document.querySelectorAll('[data-toggle]').forEach(function(b){ b.onclick=function(){ var un=b.getAttribute('data-toggle'); m.textContent='Saving…'; post('/api/admin/toggle',{username:un,disabled:b.getAttribute('data-dis')}).then(function(j){ if(j.ok){ m.textContent='Saved ✓'; load(); } else m.textContent=j.error||'Failed'; }); }; });
   document.querySelectorAll('[data-remove]').forEach(function(b){ b.onclick=function(){ var un=b.getAttribute('data-remove'); if(!confirm('Remove '+un+' completely? Disabling is usually the safer move.')) return; m.textContent='Removing…'; post('/api/admin/remove',{username:un}).then(function(j){ if(j.ok){ m.textContent='Removed ✓'; load(); } else m.textContent=j.error||'Failed'; }); }; });

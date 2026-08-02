@@ -6513,6 +6513,13 @@ app.post('/api/admin/toggle', requireAdmin, (req, res) => {
 app.post('/api/admin/remove', requireAdmin, (req, res) => {
   try { auth.removeUser((req.body || {}).username); res.json({ ok: true }); } catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
 });
+app.post('/api/admin/update-user', requireAdmin, (req, res) => {
+  try {
+    const b = req.body || {};
+    const p = auth.adminUpdateUser(b.username, { firstName: b.firstName, lastName: b.lastName, name: b.name, title: b.title, phone: b.phone, email: b.email });
+    res.json({ ok: true, profile: p });
+  } catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 app.post('/api/admin/links', requireAdmin, (req, res) => {
   try { const saved = auth.saveLinks((req.body || {}).links || []); res.json({ ok: true, links: saved }); }
   catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
