@@ -271,6 +271,8 @@ async function sendMessage(username, opts) {
   const subject = String(opts.subject || '(no subject)');
   const extra = [];
   if (opts.inReplyTo) { extra.push('In-Reply-To: ' + opts.inReplyTo); extra.push('References: ' + (opts.references || opts.inReplyTo)); }
+  if (opts.cc) extra.push('Cc: ' + String(opts.cc));
+  if (opts.bcc) extra.push('Bcc: ' + String(opts.bcc));
   let raw;
   if (opts.html) {
     const boundary = 'rrgb_' + crypto.randomBytes(9).toString('hex');

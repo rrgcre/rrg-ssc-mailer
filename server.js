@@ -4719,12 +4719,14 @@ app.post('/api/gmail/sent/import', express.json(), async (req, res) => {
     res.json({ ok: true, imported: r.imported, scanned: r.scanned, contacts: r.contacts });
   } catch (e) { console.error('gmail sent import:', e && e.message); res.status(502).json({ ok: false, error: _gErr(e) }); }
 });
+function cleanAddrList(v){ return String(v||'').split(/[;,]/).map(function(x){return x.trim();}).filter(function(x){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x);}).join(', '); }
 app.post('/api/person/:id/email', express.json({ limit: '256kb' }), async (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
   if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: "Email isn't set up. Configure it in Admin -> Email." });
   const b = req.body || {};
   const to = String(b.to || '').trim() || preferredEmailOf(p);
+  const cc = cleanAddrList(b.cc); const bcc = cleanAddrList(b.bcc);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'A valid recipient email is required.' });
   const subject = String(b.subject || '').slice(0, 300);
   const body = String(b.body || '').slice(0, 20000);
@@ -4733,10 +4735,10 @@ app.post('/api/person/:id/email', express.json({ limit: '256kb' }), async (req, 
     const _origin = reqOrigin(req); const _tok = newOpenToken();
     const _sigHtml = userSignatureHtml(req.user && req.user.username); const _sigTxt = userSignatureText(req.user && req.user.username);
     const _textOut = body + (_sigTxt ? ('\n\n' + _sigTxt) : '');
-    const info = await sendMailWL({ from: mailFrom(), to, subject: subject || '(no subject)', text: _textOut, html: trackedEmailHtml(body, _origin, _tok, _sigHtml) });
+    const info = await sendMailWL({ from: mailFrom(), to, cc: cc || undefined, bcc: bcc || undefined, subject: subject || '(no subject)', text: _textOut, html: trackedEmailHtml(body, _origin, _tok, _sigHtml) });
     const now = new Date().toISOString();
     p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
-    const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', messageId: (info && info.messageId) || '', openToken: _tok, opens: 0, senderIp: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() };
+    const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', messageId: (info && info.messageId) || '', cc, bcc, openToken: _tok, opens: 0, senderIp: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() };
     p.emailLog.unshift(entry); p.emailLog = p.emailLog.slice(0, 100);
     logActivity(p, 'Email', subject || '(no subject)', { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' });
     p.lastContacted = now.slice(0, 10); p.updatedAt = now;
@@ -5091,18 +5093,19 @@ app.post('/api/gmail/send', express.json({ limit: '256kb' }), async (req, res) =
   const b = req.body || {};
   const arr = loadPeople(); const p = b.personId ? arr.find(x => x.id === b.personId) : null;
   const to = String(b.to || '').trim() || (p ? preferredEmailOf(p) : '');
+  const cc = cleanAddrList(b.cc); const bcc = cleanAddrList(b.bcc);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'A valid recipient email is required.' });
   const subject = String(b.subject || '').slice(0, 300);
   const body = String(b.body || '').slice(0, 20000);
   if (!subject.trim() && !body.trim()) return res.status(400).json({ ok: false, error: 'Add a subject or a message.' });
   try {
     const _tok = p ? newOpenToken() : ''; const _origin = reqOrigin(req);
-    const sent = await gmail.sendMessage(u, { to, subject, body, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '', html: _tok ? trackedEmailHtml(body, _origin, _tok) : '' });
+    const sent = await gmail.sendMessage(u, { to, cc, bcc, subject, body, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '', html: _tok ? trackedEmailHtml(body, _origin, _tok) : '' });
     let emailLog = null, lastContacted = null;
     if (p) {
       const now = new Date().toISOString();
       p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
-      const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: u, messageId: sent.id, via: 'gmail', openToken: _tok, opens: 0, senderIp: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() };
+      const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: u, messageId: sent.id, via: 'gmail', cc, bcc, openToken: _tok, opens: 0, senderIp: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() };
       p.emailLog.unshift(entry); p.emailLog = p.emailLog.slice(0, 100);
       logActivity(p, 'Email', subject || '(no subject)', { auto: true, by: (req.user && req.user.name) || '', byUser: u });
       p.lastContacted = now.slice(0, 10); p.updatedAt = now; savePeople(arr);
