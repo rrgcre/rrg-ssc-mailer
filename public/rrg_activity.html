@@ -29,6 +29,12 @@ table.sum{width:100%;border-collapse:collapse;font-size:13px;} table.sum td,tabl
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);} .gate h2{color:#000E31;}
 .rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);}
 .rl-filtbtn{display:none!important;}
+.ufcard .cs{padding-bottom:8px;}
+.ufwrap{display:flex;flex-wrap:wrap;gap:8px;padding:2px 20px 6px;}
+.ufchip{border:1px solid var(--line);background:#fff;color:var(--navy2);font-family:inherit;font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;cursor:pointer;}
+.ufchip:hover{border-color:#9fb0cc;}
+.ufchip.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.ufscope{padding:2px 20px 16px;font-size:12px;color:var(--dim);font-weight:600;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -48,7 +54,51 @@ table.sum{width:100%;border-collapse:collapse;font-size:13px;} table.sum td,tabl
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function sumRows(rows,keyName){ if(!rows||!rows.length) return '<tr><td colspan="2" class="empty">None yet.</td></tr>'; return rows.map(function(r){ var lbl=r[keyName]||'—'; var cls=(keyName==='tool')?'nm':'mono'; return '<tr><td class="'+cls+'">'+esc(lbl)+'</td><td>'+r.count+'</td></tr>'; }).join(''); }
 function tsCmp(a,b){ return RRGList.cmp(a.ts,b.ts); }
+
+var DATA=null, SEL={};
+function userRoster(j){ var s={}; (j.byUser||[]).forEach(function(r){ if(r.user) s[r.user]=1; }); (j.usage||[]).forEach(function(r){ if(r.user) s[r.user]=1; }); (j.logins||[]).forEach(function(r){ if(r.user) s[r.user]=1; }); return Object.keys(s).sort(function(a,b){return RRGList.cmp(String(a).toLowerCase(),String(b).toLowerCase());}); }
+function selectedUsers(){ return Object.keys(SEL).filter(function(u){return SEL[u];}); }
+function filterByUser(rows){ var sel=selectedUsers(); if(!sel.length) return rows||[]; var set={}; sel.forEach(function(u){set[u]=1;}); return (rows||[]).filter(function(r){return set[r.user];}); }
+function usageList(data){
+  RRGList.create({ mount:'#usagelist', data:data, key:'adminusage', rowId:function(r){return r.ts+'|'+r.user+'|'+r.tool;}, defaultSort:0, defaultDir:-1, per:50,
+    empty:'<div class="empty">No tool activity for this selection.</div>',
+    columns:[
+      {label:'When (CT)', width:180, sort:tsCmp, cell:function(r){return '<span class="ts">'+esc(r.when)+'</span>';}},
+      {label:'User', sort:function(a,b){return RRGList.cmp(a.user,b.user);}, cell:function(r){return '<span class="mono">'+(esc(r.user)||'—')+'</span>';}},
+      {label:'Tool', sort:function(a,b){return RRGList.cmp(a.tool,b.tool);}, cell:function(r){return '<span class="nm">'+esc(r.tool)+'</span>';}},
+      {label:'IP', sort:function(a,b){return RRGList.cmp(a.ip,b.ip);}, cell:function(r){return '<span class="mono">'+esc(r.ip)+'</span>';}}
+    ] });
+}
+function loginList(data){
+  RRGList.create({ mount:'#loginlist', data:data, key:'adminlogins', rowId:function(r){return r.ts+'|'+r.user+'|'+r.ip;}, defaultSort:0, defaultDir:-1, per:50,
+    empty:'<div class="empty">No sign-ins for this selection.</div>',
+    columns:[
+      {label:'When (CT)', width:180, sort:tsCmp, cell:function(r){return '<span class="ts">'+esc(r.when)+'</span>';}},
+      {label:'Username', sort:function(a,b){return RRGList.cmp(a.user,b.user);}, cell:function(r){return '<span class="mono">'+(esc(r.user)||'—')+'</span>';}},
+      {label:'Result', sort:function(a,b){return RRGList.cmp(a.result,b.result);}, cell:function(r){return r.result==='success'?'<span class="tag ok">Success</span>':'<span class="tag off">Failed</span>';}},
+      {label:'IP', sort:function(a,b){return RRGList.cmp(a.ip,b.ip);}, cell:function(r){return '<span class="mono">'+esc(r.ip)+'</span>';}}
+    ] });
+}
+function chipsHtml(j){
+  var roster=userRoster(j);
+  var out='<button type="button" class="ufchip'+(selectedUsers().length?'':' on')+'" data-u="__all">All users</button>';
+  out+=roster.map(function(u){ return '<button type="button" class="ufchip'+(SEL[u]?' on':'')+'" data-u="'+esc(u)+'">'+esc(u)+'</button>'; }).join('');
+  return out;
+}
+function refreshChips(){ var wrap=document.getElementById('ufwrap'); if(!wrap) return; Array.prototype.forEach.call(wrap.querySelectorAll('.ufchip'),function(b){ var u=b.getAttribute('data-u'); var on=(u==='__all')?(selectedUsers().length===0):!!SEL[u]; b.classList.toggle('on',on); }); }
+function paint(){
+  var j=DATA; if(!j) return;
+  var usage=filterByUser(j.usage), logins=filterByUser(j.logins), sel=selectedUsers();
+  var scopeEl=document.getElementById('ufscope');
+  if(scopeEl) scopeEl.textContent = sel.length ? (sel.length+' selected: '+sel.join(', ')+' — '+usage.length+' tool opens, '+logins.length+' sign-ins') : ('All users — '+(j.usage||[]).length+' tool opens, '+(j.logins||[]).length+' sign-ins');
+  var host=document.getElementById('histcontent'); if(!host) return;
+  host.innerHTML=''
+    +'<div class="card"><h2>Recent tool activity</h2><span class="cs">Newest first · last 500 opens'+(sel.length?' · filtered':'')+'.</span><div class="mounted" id="usagelist"></div></div>'
+    +'<div class="card"><h2>Login activity</h2><span class="cs">Newest first · last 300 sign-in attempts'+(sel.length?' · filtered':'')+'.</span><div class="mounted" id="loginlist"></div></div>';
+  usageList(usage); loginList(logins);
+}
 function render(j){
+  DATA=j;
   var root=document.getElementById('root');
   root.innerHTML=''
     +'<div class="card"><h2>Tool usage</h2><span class="cs">Opens by tool and by user, all time.</span>'
@@ -57,24 +107,18 @@ function render(j){
         +'<div><h3>By user</h3><table class="sum"><thead><tr><th>User</th><th>Opens</th></tr></thead><tbody>'+sumRows(j.byUser,'user')+'</tbody></table></div>'
       +'</div>'
     +'</div>'
-    +'<div class="card"><h2>Recent tool activity</h2><span class="cs">Newest first · last 500 opens.</span><div class="mounted" id="usagelist"></div></div>'
-    +'<div class="card"><h2>Login activity</h2><span class="cs">Newest first · last 300 sign-in attempts.</span><div class="mounted" id="loginlist"></div></div>';
-  RRGList.create({ mount:'#usagelist', data:j.usage||[], key:'adminusage', rowId:function(r){return r.ts+'|'+r.user+'|'+r.tool;}, defaultSort:0, defaultDir:-1, per:50,
-    empty:'<div class="empty">No tool activity yet.</div>',
-    columns:[
-      {label:'When (CT)', width:180, sort:tsCmp, cell:function(r){return '<span class="ts">'+esc(r.when)+'</span>';}},
-      {label:'User', sort:function(a,b){return RRGList.cmp(a.user,b.user);}, cell:function(r){return '<span class="mono">'+(esc(r.user)||'—')+'</span>';}},
-      {label:'Tool', sort:function(a,b){return RRGList.cmp(a.tool,b.tool);}, cell:function(r){return '<span class="nm">'+esc(r.tool)+'</span>';}},
-      {label:'IP', sort:function(a,b){return RRGList.cmp(a.ip,b.ip);}, cell:function(r){return '<span class="mono">'+esc(r.ip)+'</span>';}}
-    ] });
-  RRGList.create({ mount:'#loginlist', data:j.logins||[], key:'adminlogins', rowId:function(r){return r.ts+'|'+r.user+'|'+r.ip;}, defaultSort:0, defaultDir:-1, per:50,
-    empty:'<div class="empty">No sign-ins recorded yet.</div>',
-    columns:[
-      {label:'When (CT)', width:180, sort:tsCmp, cell:function(r){return '<span class="ts">'+esc(r.when)+'</span>';}},
-      {label:'Username', sort:function(a,b){return RRGList.cmp(a.user,b.user);}, cell:function(r){return '<span class="mono">'+(esc(r.user)||'—')+'</span>';}},
-      {label:'Result', sort:function(a,b){return RRGList.cmp(a.result,b.result);}, cell:function(r){return r.result==='success'?'<span class="tag ok">Success</span>':'<span class="tag off">Failed</span>';}},
-      {label:'IP', sort:function(a,b){return RRGList.cmp(a.ip,b.ip);}, cell:function(r){return '<span class="mono">'+esc(r.ip)+'</span>';}}
-    ] });
+    +'<div class="card ufcard"><h2>Filter history by user</h2><span class="cs">Scope the tool-activity and login history below to one or more people. Click to toggle; the summary above stays all-time.</span>'
+      +'<div class="ufwrap" id="ufwrap">'+chipsHtml(j)+'</div>'
+      +'<div class="ufscope" id="ufscope"></div>'
+    +'</div>'
+    +'<div id="histcontent"></div>';
+  document.getElementById('ufwrap').addEventListener('click',function(e){
+    var b=e.target.closest('.ufchip'); if(!b) return;
+    var u=b.getAttribute('data-u');
+    if(u==='__all'){ SEL={}; } else { if(SEL[u]) delete SEL[u]; else SEL[u]=true; }
+    refreshChips(); paint();
+  });
+  paint();
 }
 fetch('/api/admin/activity',{credentials:'same-origin',cache:'no-store'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
   if(!j||!j.ok){ throw 0; }

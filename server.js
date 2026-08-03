@@ -161,6 +161,13 @@ const SPACES_FILE = path.join(BOV_DATA_DIR, 'spaces.json');
 function loadSpaces() { try { return rj(SPACES_FILE); } catch (e) { return []; } }
 function saveSpaces(a) { return writeJsonGuarded(SPACES_FILE, a, 'saveSpaces'); }
 function newSpaceId() { return 'spc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+const CENTERS_FILE = path.join(BOV_DATA_DIR, 'centers.json');
+const CENTER_PHOTO_DIR = path.join(BOV_DATA_DIR, 'centerphotos');
+function loadCenters() { try { return rj(CENTERS_FILE); } catch (e) { return []; } }
+function saveCenters(a) { return writeJsonGuarded(CENTERS_FILE, a, 'saveCenters'); }
+function newCenterId() { return 'ctr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+const CENTER_TYPES = ['Grocery-anchored', 'Power / big-box', 'Lifestyle / mixed-use', 'Strip / unanchored', 'Freestanding pad', 'Downtown / street retail', 'Mall / food court', 'Entertainment / hospitality node', 'Other'];
+function centerBrief(c, spaces) { const linked = (spaces || loadSpaces()).filter(x => x.centerId === c.id); return Object.assign({}, c, { hasPhoto: !!c.photoExt, spaceCount: linked.length }); }
 const SPACE_TYPES = ['End cap', 'Inline', 'Pad / Outparcel', 'Freestanding'];
 const SPACE_STATUS = ['Available', 'Toured', 'LOI Out', 'Leased', 'Passed'];
 const SPACE_FEATURES = ['Drive-thru', 'Hood / exhaust', 'Grease trap', 'Gas service', 'Walk-in cooler', 'Bar built-out', 'Patio', 'Fire suppression', '3-phase power', 'Restrooms (ADA)', '2nd-gen restaurant'];
@@ -4434,7 +4441,7 @@ app.delete('/api/person/:id', (req, res) => {
 });
 // ---------- Space Tracker: available-space inventory ----------
 app.get('/api/spaces', (req, res) => {
-  res.json({ ok: true, spaces: loadSpaces(), types: SPACE_TYPES, statuses: SPACE_STATUS, features: SPACE_FEATURES });
+  res.json({ ok: true, spaces: loadSpaces(), types: SPACE_TYPES, statuses: SPACE_STATUS, features: SPACE_FEATURES, centers: loadCenters().map(function(c){ return { id: c.id, name: c.name || '', market: c.market || c.city || '', centerType: c.centerType || '' }; }) });
 });
 app.post('/api/space', express.json(), (req, res) => {
   const b = req.body || {};
@@ -4446,6 +4453,7 @@ app.post('/api/space', express.json(), (req, res) => {
   if (typeof b.name === 'string') sp.name = b.name.slice(0, 160);
   if (typeof b.address === 'string') sp.address = b.address.slice(0, 200);
   if (typeof b.center === 'string') sp.center = b.center.slice(0, 160);
+  if (typeof b.centerId === 'string') { sp.centerId = b.centerId.slice(0, 40); if (sp.centerId) { const _ctr = loadCenters().find(x => x.id === sp.centerId); if (_ctr) sp.center = _ctr.name || sp.center; } }
   if (typeof b.market === 'string') sp.market = b.market.slice(0, 120);
   if (typeof b.spaceType === 'string') sp.spaceType = SPACE_TYPES.indexOf(b.spaceType) >= 0 ? b.spaceType : (sp.spaceType || '');
   if (b.size !== undefined) sp.size = num(b.size);
@@ -4467,6 +4475,66 @@ app.delete('/api/space/:id', (req, res) => {
   const arr = loadSpaces().filter(x => x.id !== req.params.id);
   saveSpaces(arr);
   res.json({ ok: true, spaces: arr });
+});
+
+// ---- Shopping Centers (one center -> many spaces) ----
+app.get('/api/centers', (req, res) => {
+  const spaces = loadSpaces();
+  const centers = loadCenters().map(c => centerBrief(c, spaces));
+  res.json({ ok: true, centers, types: CENTER_TYPES, canDelete: !!(req.user && isSuper(req.user)) });
+});
+app.post('/api/center', express.json(), (req, res) => {
+  const b = req.body || {};
+  if (!b.id && !(typeof b.name === 'string' && b.name.trim())) return res.status(400).json({ ok: false, error: 'A center name is required.' });
+  const arr = loadCenters();
+  const now = new Date().toISOString();
+  const num = (v) => { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : null; };
+  let c = b.id ? arr.find(x => x.id === b.id) : null;
+  if (!c) { c = { id: newCenterId(), createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(c); }
+  if (typeof b.name === 'string' && b.name.trim()) c.name = b.name.slice(0, 160);
+  if (typeof b.address === 'string') c.address = b.address.slice(0, 200);
+  if (typeof b.city === 'string') c.city = b.city.slice(0, 120);
+  if (typeof b.market === 'string') c.market = b.market.slice(0, 120);
+  if (typeof b.centerType === 'string') c.centerType = CENTER_TYPES.indexOf(b.centerType) >= 0 ? b.centerType : (c.centerType || '');
+  if (typeof b.anchor === 'string') c.anchor = b.anchor.slice(0, 300);
+  if (typeof b.coTenants === 'string') c.coTenants = b.coTenants.slice(0, 600);
+  if (b.gla !== undefined) c.gla = num(b.gla);
+  if (typeof b.landlord === 'string') c.landlord = b.landlord.slice(0, 200);
+  if (b.vpd !== undefined) c.vpd = num(b.vpd);
+  if (typeof b.notes === 'string') c.notes = b.notes.slice(0, 4000);
+  c.updatedAt = now;
+  saveCenters(arr);
+  // keep the denormalized center name on linked spaces in sync when a center is renamed
+  if (b.id) { const sp = loadSpaces(); let ch = false; sp.forEach(x => { if (x.centerId === c.id && x.center !== c.name) { x.center = c.name; ch = true; } }); if (ch) saveSpaces(sp); }
+  res.json({ ok: true, center: centerBrief(c) });
+});
+app.delete('/api/center/:id', (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
+  const id = req.params.id;
+  const c = loadCenters().find(x => x.id === id);
+  if (c && c.photoExt) { try { fs.unlinkSync(path.join(CENTER_PHOTO_DIR, c.id + '.' + c.photoExt)); } catch (e) {} }
+  saveCenters(loadCenters().filter(x => x.id !== id));
+  const sp = loadSpaces(); let ch = false; sp.forEach(x => { if (x.centerId === id) { x.centerId = ''; ch = true; } }); if (ch) saveSpaces(sp);
+  res.json({ ok: true });
+});
+app.post('/api/center/:id/photo', express.json({ limit: '12mb' }), (req, res) => {
+  const arr = loadCenters(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Center not found.' });
+  const b = req.body || {}; const dataB64 = String(b.dataB64 || '').replace(/^data:[^,]*,/, '');
+  if (!dataB64) return res.status(400).json({ ok: false, error: 'No image data.' });
+  const ext = ((String(b.filename || '').match(/\.(png|jpe?g|gif|webp)$/i) || [])[1] || 'jpg').toLowerCase().replace('jpeg', 'jpg');
+  const buf = Buffer.from(dataB64, 'base64');
+  if (buf.length > 10 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 10 MB).' });
+  try { if (!fs.existsSync(CENTER_PHOTO_DIR)) fs.mkdirSync(CENTER_PHOTO_DIR, { recursive: true }); if (c.photoExt && c.photoExt !== ext) { try { fs.unlinkSync(path.join(CENTER_PHOTO_DIR, c.id + '.' + c.photoExt)); } catch (e) {} } fs.writeFileSync(path.join(CENTER_PHOTO_DIR, c.id + '.' + ext), buf); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the image.' }); }
+  c.photoExt = ext; c.updatedAt = new Date().toISOString(); saveCenters(arr);
+  res.json({ ok: true, center: centerBrief(c) });
+});
+app.get('/api/center-photo/:id', (req, res) => {
+  const c = loadCenters().find(x => x.id === req.params.id);
+  if (!c || !c.photoExt) return res.status(404).end();
+  try { const buf = fs.readFileSync(path.join(CENTER_PHOTO_DIR, c.id + '.' + c.photoExt)); res.set('Content-Type', spaceFileMime(c.photoExt)); res.set('Cache-Control', 'private, max-age=300'); res.send(buf); }
+  catch (e) { res.status(404).end(); }
 });
 
 // ---- Space attachments (brochures / photos) ----

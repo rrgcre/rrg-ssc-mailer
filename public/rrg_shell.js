@@ -125,6 +125,7 @@
       { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
       { ic: '✚', label: 'Site & Concept Fit', href: 'rrg_site_fit.html' },
       { ic: '⊡', label: 'Space Tracker', href: 'rrg_space_tracker.html' },
+      { ic: '▤', label: 'Shopping Centers', href: 'rrg_centers.html' },
       { ic: '⊚', label: 'Tour Tracker', href: 'rrg_tour_tracker.html' },
       { ic: '§', label: 'LOI Builder', href: 'rrg_loi_builder.html' },
     ] },
