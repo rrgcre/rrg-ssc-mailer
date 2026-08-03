@@ -1215,7 +1215,7 @@ app.use((req, res, next) => {
 });
 // Lightweight presence — who's active right now (in-memory, resets on restart).
 const PRESENCE = {};
-function onlineUsers() { const now = Date.now(); return Object.keys(PRESENCE).filter(u => now - PRESENCE[u].ts < 15 * 60000).map(u => ({ username: u, name: PRESENCE[u].name || u, minsAgo: Math.floor((now - PRESENCE[u].ts) / 60000) })).sort((a, b) => a.minsAgo - b.minsAgo).slice(0, 30); }
+function onlineUsers() { const now = Date.now(); return Object.keys(PRESENCE).filter(u => now - PRESENCE[u].ts < 15 * 60000).map(u => { let photoUrl = ''; try { const prof = auth.profileOf(auth.findUser(u)); if (prof && prof.photoExt) photoUrl = '/api/userphoto/' + String(u).replace(/[^a-z0-9_.-]/gi,'_') + '.' + prof.photoExt; } catch (e) {} return { username: u, name: PRESENCE[u].name || u, minsAgo: Math.floor((now - PRESENCE[u].ts) / 60000), photoUrl: photoUrl }; }).sort((a, b) => a.minsAgo - b.minsAgo).slice(0, 30); }
 app.use((req, res, next) => { try { if (req.user && req.user.username) PRESENCE[req.user.username] = { name: req.user.name || req.user.username, ts: Date.now() }; } catch (e) {} next(); });
 // Meter every AI call that actually succeeds (covers /api/ai/* and the locationgen concept/location routes).
 app.use((req, res, next) => {
@@ -2518,6 +2518,18 @@ function newRoomId() { return 'room_' + Date.now().toString(36) + Math.random().
 function newRoomDocId() { return 'rd_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
 function newRoomToken() { try { return crypto.randomBytes(16).toString('hex'); } catch (e) { return (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 28); } }
 const ROOM_CATEGORIES = ['Financials', 'Tax Returns', 'Lease', 'Equipment & FF&E', 'Licenses & Permits', 'Legal & Corporate', 'Menus & Marketing', 'Other'];
+// Room folder structure. Financials expands into the current year + the three preceding years
+// (captured per-room at creation so filed documents never orphan when the calendar year rolls over).
+function roomCategories(baseYear){
+  const y = Number(baseYear) || new Date().getFullYear();
+  return ['Financials', 'Financials / ' + y, 'Financials / ' + (y-1), 'Financials / ' + (y-2), 'Financials / ' + (y-3),
+    'Tax Returns', 'Lease', 'Equipment & FF&E', 'Licenses & Permits', 'Legal & Corporate', 'Menus & Marketing', 'Other'];
+}
+function roomServeCats(r){
+  let base = (r && Array.isArray(r.folders) && r.folders.length) ? r.folders.slice() : roomCategories();
+  (r && Array.isArray(r.docs) ? r.docs : []).forEach(function(d){ const c = d && d.category; if (c && base.indexOf(c) < 0) base.push(c); });
+  return base;
+}
 // Per-buyer access levels for a data room grant: view (preview only, no download),
 // download (view + download files), edit (download + upload their own documents).
 const ROOM_LEVELS = ['view', 'download', 'edit'];
@@ -2526,7 +2538,7 @@ function cleanRoomLevel(v, dflt) { return ROOM_LEVELS.indexOf(String(v)) >= 0 ? 
 const ROOM_CELL_LEVELS = ['none', 'view', 'download', 'edit'];
 // Effective level a buyer (grant) has for a given document category: the per-folder
 // override if set, otherwise the buyer's room-wide baseline level.
-function effGrantLevel(grant, category) { if (!grant) return 'download'; const cp = grant.catPerms && grant.catPerms[category]; if (ROOM_CELL_LEVELS.indexOf(cp) >= 0) return cp; return grant.level || 'download'; }
+function effGrantLevel(grant, category) { if (!grant) return 'download'; const cp = grant.catPerms && grant.catPerms[category]; if (ROOM_CELL_LEVELS.indexOf(cp) >= 0) return cp; const _sl = String(category || '').indexOf(' / '); if (_sl >= 0) { const _pcp = grant.catPerms && grant.catPerms[String(category).slice(0, _sl)]; if (ROOM_CELL_LEVELS.indexOf(_pcp) >= 0) return _pcp; } return grant.level || 'download'; }
 const ROOM_EXT = /^(pdf|docx?|xlsx?|csv|pptx?|png|jpe?g|gif|txt)$/i;
 // ---- Buyer access control: per-buyer codes + a 15-min idle session ----
 const ROOM_COOKIE = 'rrg_room';
@@ -2577,7 +2589,7 @@ function ensureRoomForCim(req, cim) {
     id: newRoomId(), srcCimId: cim.id, srcBovId: cim.srcBovId || '', token: newRoomToken(),
     business: cim.business || 'Business',
     by: (req.user && req.user.name) || cim.by || '', byUser: (req.user && req.user.username) || cim.byUser || '',
-    createdAt: new Date().toISOString(), docs: [], access: [], grants: [],
+    createdAt: new Date().toISOString(), folders: roomCategories(), docs: [], access: [], grants: [],
   };
   arr.push(rec); saveRooms(arr);
   return rec;
@@ -2600,7 +2612,7 @@ app.get('/api/room/:id', (req, res) => {
   if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const origin = req.protocol + '://' + req.get('host');
-  res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-120).reverse(), categories: ROOM_CATEGORIES,
+  res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-120).reverse(), categories: roomServeCats(r),
     gated: roomIsGated(r),
     grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', code: g.code, level: g.level || 'download', catPerms: g.catPerms || {}, active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
 });
@@ -2666,7 +2678,7 @@ app.post('/api/room/new', express.json(), (req, res) => {
     id: newRoomId(), srcCimId: '', srcBovId: '', token: newRoomToken(),
     business: String(b.business || 'Data Room').slice(0, 120),
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
-    createdAt: new Date().toISOString(), docs: [], access: [], grants: [],
+    createdAt: new Date().toISOString(), folders: roomCategories(), docs: [], access: [], grants: [],
   };
   const arr = loadRooms(); arr.push(rec); saveRooms(arr);
   res.json({ ok: true, id: rec.id });
@@ -2721,11 +2733,11 @@ app.post('/api/room/:id/bulk-upload', express.json({ limit: '80mb' }), async (re
     items.push({ name: String(f.filename || ('File ' + (i + 1))), snippet });
   }
   let cls = [];
-  try { cls = await aiassist.classifyRoomDocs({ items, categories: ROOM_CATEGORIES }); } catch (e) { console.error('classifyRoomDocs:', e && e.message); cls = []; }
+  try { cls = await aiassist.classifyRoomDocs({ items, categories: roomServeCats(r) }); } catch (e) { console.error('classifyRoomDocs:', e && e.message); cls = []; }
   const byIdx = {}; cls.forEach(c => { if (Number.isInteger(c.i)) byIdx[c.i] = c.category; });
   const results = []; let added = 0;
   for (let i = 0; i < files.length; i++) {
-    const f = files[i] || {}; const cat = ROOM_CATEGORIES.indexOf(byIdx[i]) >= 0 ? byIdx[i] : 'Other';
+    const f = files[i] || {}; const _rc = roomServeCats(r); const cat = _rc.indexOf(byIdx[i]) >= 0 ? byIdx[i] : 'Other';
     const doc = addFileToRoom(r, { name: f.filename, dataB64: f.dataB64 }, { category: cat, title: (String(f.title || '').trim() || prettyName(f.filename || '')), by: ((req.user && req.user.name) || '') + ' · AI-filed', source: 'bulk:' + Date.now() + ':' + i });
     if (doc) { added++; results.push({ ok: true, name: f.filename || '', category: cat, id: doc.id }); }
     else { results.push({ ok: false, name: f.filename || '', category: cat, error: 'Skipped — unsupported type, empty, or over 25 MB.' }); }
@@ -2967,7 +2979,7 @@ function ensureRoomForDeal(req, deal) {
     id: newRoomId(), srcDealId: deal.id, srcCimId: '', srcBovId: '', token: newRoomToken(),
     business: deal.business || 'Data Room',
     by: (req && req.user && req.user.name) || deal.by || '', byUser: (req && req.user && req.user.username) || deal.byUser || '',
-    createdAt: new Date().toISOString(), docs: [], access: [], grants: [],
+    createdAt: new Date().toISOString(), folders: roomCategories(), docs: [], access: [], grants: [],
   };
   arr.push(rec); saveRooms(arr);
   return rec;
@@ -3000,7 +3012,7 @@ function ensureRoomForScreen(req, rec) {
     id: newRoomId(), srcScreenId: rec.id, srcDealId: '', srcCimId: '', srcBovId: '', token: newRoomToken(),
     business: rec.business || 'Data Room',
     by: (req && req.user && req.user.name) || rec.by || '', byUser: (req && req.user && req.user.username) || rec.byUser || '',
-    createdAt: new Date().toISOString(), docs: [], access: [], grants: [],
+    createdAt: new Date().toISOString(), folders: roomCategories(), docs: [], access: [], grants: [],
   };
   arr.push(nr); saveRooms(arr); rec.roomId = nr.id;
   return nr;

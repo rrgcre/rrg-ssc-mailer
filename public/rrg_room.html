@@ -30,6 +30,13 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 .up input[type=text],.up select{width:100%;border:1px solid var(--inp);border-radius:8px;padding:9px 11px;font:inherit;font-size:13px;background:#fff;}
 .drop{margin-top:12px;border:1.5px dashed var(--inp);border-radius:10px;padding:16px;text-align:center;color:var(--muted);font-size:13px;font-weight:600;cursor:pointer;background:var(--wash);}
 .drop:hover{border-color:#9fb0cc;}
+.cathd{cursor:pointer;user-select:none;}
+.cathd .cav{transition:transform .15s;color:var(--muted);font-size:11px;}
+.cat.open>.cathd>.cav,.subcat.open>.cathd>.cav{transform:rotate(90deg);}
+.catbody{display:none;}
+.cat.open>.catbody,.subcat.open>.catbody{display:block;}
+.subcat{margin:2px 0 2px 12px;border-left:2px solid #eef0f5;}
+.cathd.sub{background:#fff;font-size:12px;}
 .umsg{font-size:12px;color:var(--muted);margin-top:8px;min-height:16px;}
 .cat{border-top:1px solid var(--line);}
 .cathd{padding:11px 20px;font-weight:800;color:var(--navy);font-size:12.5px;display:flex;align-items:center;gap:8px;background:#fbfcfe;}
@@ -83,11 +90,10 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
       <div class="fld"><button class="btn green" onclick="document.getElementById('docFile').click()">Choose file</button></div>
     </div>
     <input type="file" id="docFile" style="display:none" onchange="uploadDoc()">
-    <div class="drop" onclick="document.getElementById('docFile').click()">+ Click to choose a file to add</div>
     <input type="file" id="bulkFiles" multiple style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.csv,.txt" onchange="bulkUpload()">
     <div style="margin-top:12px;display:flex;align-items:center;gap:11px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:13px">
-      <button class="btn primary" onclick="document.getElementById('bulkFiles').click()">✦ Upload files — Claude sorts them</button>
-      <span style="font-size:11.5px;color:var(--soft);flex:1;min-width:200px">Drop in a batch (up to 40 files, 25 MB each). Claude reads each one and files it into the right folder automatically — move any it gets wrong with the folder controls.</span>
+      <button class="btn primary" onclick="document.getElementById('bulkFiles').click()">✦ Upload files — <span class="ainame">Claude</span> sorts them</button>
+      <span style="font-size:11.5px;color:var(--soft);flex:1;min-width:200px">Drop in a batch (up to 40 files, 25 MB each). <span class="ainame">Claude</span> reads each one and files it into the right folder automatically — move any it gets wrong with the folder controls.</span>
     </div>
     <div class="umsg" id="umsg"></div>
   </div></div>
@@ -108,7 +114,7 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
   <div style="background:#fff;border-radius:16px;padding:28px 34px;text-align:center;max-width:360px;box-shadow:0 24px 60px rgba(0,0,0,.35)">
     <div style="width:56px;height:56px;margin:0 auto 15px;border-radius:50%;background:conic-gradient(from 0deg,#5b46b8,#8b5cf6,#ec4899,#f59e0b,#22c55e,#3b82f6,#5b46b8);box-shadow:0 0 16px 2px rgba(91,70,184,.30);animation:orbspin 1.1s linear infinite"></div>
     <div style="font-weight:800;color:#000E31;font-size:15px" id="orbTitle">Reading your documents…</div>
-    <div style="color:#6b7488;font-size:12.5px;margin-top:5px" id="orbSub">Claude is sorting each file into the right folder.</div>
+    <div style="color:#6b7488;font-size:12.5px;margin-top:5px" id="orbSub"><span class="ainame">Claude</span> is sorting each file into the right folder.</div>
   </div>
 </div>
 <style>@keyframes orbspin{to{transform:rotate(360deg)}}</style>
@@ -122,7 +128,7 @@ function bulkUpload(){
   files=files.filter(function(f){ return f.size<=25*1024*1024; });
   if(files.length>40){ files=files.slice(0,40); }
   if(!files.length){ m.textContent=(skippedBig?('Those file(s) are over 25 MB — add smaller ones.'):''); fi.value=''; return; }
-  showOrb('Reading '+files.length+' document'+(files.length===1?'':'s')+'…','Claude is sorting each file into the right folder.');
+  showOrb('Reading '+files.length+' document'+(files.length===1?'':'s')+'…',aiName()+' is sorting each file into the right folder.');
   var reads=files.map(function(f){ return new Promise(function(resolve){ var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s); resolve({filename:f.name,dataB64:b64}); }; rd.onerror=function(){ resolve(null); }; rd.readAsDataURL(f); }); });
   Promise.all(reads).then(function(payload){ payload=payload.filter(Boolean);
     fetch('/api/room/'+encodeURIComponent(RID)+'/bulk-upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({files:payload})})
@@ -173,7 +179,7 @@ function effLevel(g,cat){ var cp=g.catPerms&&g.catPerms[cat]; return (CELL_ORDER
 function nextLevel(l){ var i=CELL_ORDER.indexOf(l); return CELL_ORDER[(i+1)%CELL_ORDER.length]; }
 function renderGrants(){
   var el=document.getElementById('buyerList'); if(!el) return;
-  var gs=(ROOM.grants||[]), cats=(ROOM.categories||[]);
+  var gs=(ROOM.grants||[]), cats=topCats();
   if(!gs.length){ el.innerHTML='<div class="catempty">No individual buyers yet — the room is open to anyone with the link (view &amp; download). Add a buyer to switch on per-person, per-folder access.</div>'; return; }
   var head='<tr><th style="text-align:left;padding:8px 10px;font-size:11px;color:#6b7488;position:sticky;left:0;background:#fff">Folder</th>'+gs.map(function(g){ return '<th style="padding:8px 10px;min-width:118px;font-size:12px;color:#0b1a3a;'+(g.active?'':'opacity:.5')+'">'+esc(g.name||g.email||'Buyer')+'<div style="font-weight:500;color:#6b7488;font-size:10.5px;margin-top:2px">Code '+esc(g.code)+'</div><button class="x" style="margin-top:4px" onclick="toggleGrant(\''+g.id+'\')">'+(g.active?'Revoke':'Restore')+'</button></th>'; }).join('')+'</tr>';
   var rows=cats.map(function(cat,ci){
@@ -186,7 +192,7 @@ function renderGrants(){
     +'<div class="h" style="margin-top:10px">Click any cell to cycle its access: <b>No access</b> &rarr; <b>View</b> &rarr; <b>Download</b> &rarr; <b>Edit</b>. View lets the buyer preview that folder&rsquo;s files but not download them; Edit also lets them upload into that folder. Each buyer&rsquo;s starting level comes from the level you picked when adding them.</div>';
 }
 function cycleCell(gid,ci,cur){
-  var cat=(ROOM.categories||[])[ci]; if(cat==null) return;
+  var cat=topCats()[ci]; if(cat==null) return;
   var nl=nextLevel(cur);
   fetch('/api/room/'+encodeURIComponent(RID)+'/grant-perms',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:gid,category:cat,level:nl})})
    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; renderGrants(); } else alert((j&&j.error)||'Could not update.'); }).catch(function(){ alert('Could not reach the server.'); });
@@ -233,6 +239,29 @@ async function delDoc(id){
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.docs=j.docs||[]; renderDocs(); } else alert((j&&j.error)||'Could not remove.'); }).catch(function(){ alert('Could not reach the server.'); });
 }
 if(RID){ load(); } else { document.getElementById('docList').innerHTML='<div class="catempty">No room selected. Open one from Data Rooms.</div>'; }
+function aiName(){ var n=window.__rrgAssistant; return (n && n!=='the assistant')?n:'Claude'; }
+function applyAiName(){ try{ var n=aiName(); document.querySelectorAll('.ainame').forEach(function(el){ el.textContent=n; }); }catch(e){} }
+document.addEventListener('rrg:session', applyAiName);
+function topCats(){ return ((window.ROOM&&ROOM.categories)||[]).filter(function(c){ return String(c).indexOf(' / ')<0; }); }
+function toggleCat(hd){ var c=hd&&hd.parentNode; if(c) c.classList.toggle('open'); }
+function _docRow(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+esc(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }
+function renderDocs(){
+  var el=document.getElementById('docList'); if(!el) return; var cats=(ROOM.categories||[]), docs=(ROOM.docs||[]);
+  var tops=cats.filter(function(c){ return String(c).indexOf(' / ')<0; });
+  var subs={}; cats.forEach(function(c){ var i=String(c).indexOf(' / '); if(i>=0){ var par=c.slice(0,i).trim(); (subs[par]=subs[par]||[]).push(c); } });
+  function filesIn(cat){ return docs.filter(function(d){ return (d.category||'Other')===cat; }); }
+  el.innerHTML=tops.map(function(cat){
+    var own=filesIn(cat), mySubs=subs[cat]||[]; var subCount=0; mySubs.forEach(function(sc){ subCount+=filesIn(sc).length; });
+    var total=own.length+subCount; var body='';
+    if(own.length){ body+=own.map(_docRow).join(''); } else if(!mySubs.length){ body+='<div class="catempty">No files in this section yet.</div>'; }
+    mySubs.forEach(function(sc){ var sf=filesIn(sc), label=String(sc).split(' / ').slice(1).join(' / ');
+      var srows=sf.length? sf.map(_docRow).join('') : '<div class="catempty">No files in this section yet.</div>';
+      body+='<div class="subcat'+(sf.length?' open':'')+'"><div class="cathd sub" onclick="toggleCat(this)"><span class="cav">\u25b8</span>'+esc(label)+'<span class="n">'+sf.length+'</span></div><div class="catbody">'+srows+'</div></div>'; });
+    return '<div class="cat'+(total>0?' open':'')+'"><div class="cathd" onclick="toggleCat(this)"><span class="cav">\u25b8</span>'+esc(cat)+'<span class="n">'+total+'</span></div><div class="catbody">'+body+'</div></div>';
+  }).join('');
+}
+applyAiName();
+
 </script>
 </body>
 </html>
