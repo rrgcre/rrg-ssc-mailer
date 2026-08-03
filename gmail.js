@@ -402,6 +402,28 @@ async function listCorrespondents(username, months, maxMsgs) {
   return { people: people, scanned: ids.length, capped: capped };
 }
 
+// Find likely commercial-listing emails (broker flyers, CoStar/LoopNet/Crexi, available space) — body + PDF attachments.
+async function listListingCandidates(username, max, daysArg) {
+  const lim = Math.min(max || 30, 50);
+  const days = Math.min(Math.max(parseInt(daysArg, 10) || 90, 1), 730);
+  const q = 'newer_than:' + days + 'd (listing OR "for lease" OR "for sublease" OR "available space" OR "sq ft" OR "square feet" OR NNN OR "triple net" OR "end cap" OR "2nd gen" OR "second generation" OR "lease rate" OR CoStar OR LoopNet OR Crexi OR "retail space" OR "restaurant space")';
+  const u = 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=' + lim + '&q=' + encodeURIComponent(q);
+  const r = await gapi(username, u, {});
+  const j = await r.json();
+  if (!r.ok) throw new Error((j && j.error && j.error.message) || 'Gmail search failed.');
+  const ids = (j.messages || []).map(m => m.id);
+  const out = await Promise.all(ids.map(async id => {
+    try {
+      const mr = await gapi(username, 'https://gmail.googleapis.com/gmail/v1/users/me/messages/' + id + '?format=full', {});
+      const mj = await mr.json();
+      if (!mr.ok) return null;
+      const H = mj.payload && mj.payload.headers;
+      const atts = collectAttachments(mj.payload).filter(a => /\.(pdf|docx?)$/i.test(a.filename));
+      return { id: mj.id, from: hdr(H, 'From'), subject: hdr(H, 'Subject'), date: hdr(H, 'Date') || '', ts: mj.internalDate ? Number(mj.internalDate) : 0, snippet: mj.snippet || '', body: (decodeBody(mj.payload) || ''), attachments: atts };
+    } catch (e) { return null; }
+  }));
+  return out.filter(Boolean).sort((a, b) => b.ts - a.ts);
+}
 // Generic authenticated Google API JSON call (People, Calendar, etc.).
 async function gapiJSON(username, url, opts) {
   const r = await gapi(username, url, opts || {});
@@ -413,6 +435,6 @@ module.exports = {
   isConfigured, SCOPES, statusFor, grantedScopes, redirectUri, authUrl, readState,
   connectFromCode, deleteToken, loadToken, statusForUser: statusFor,
   messagesForContact, messageFull, searchLeadBodies, listCorrespondents, sendMessage, TOK_DIR,
-  gapi, gapiJSON, accessToken, parseAddrs, listAgreementCandidates, getAttachment,
+  gapi, gapiJSON, accessToken, parseAddrs, listAgreementCandidates, getAttachment, listListingCandidates,
   sentMessages,
 };

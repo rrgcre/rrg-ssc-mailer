@@ -83,7 +83,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 <div class="ov" id="ov" hidden><div class="modal">
   <div class="mh"><b id="mtitle">Add space</b><button class="x" id="mx">✕</button></div>
   <div class="mb">
-    <div class="aibox" data-ai=""><div class="aihd">✨ AI fill from a listing <span>paste a CoStar / LoopNet / Crexi blurb or broker email, or upload a PDF — AI fills the fields (or batch-upload PDFs to auto-create listings)</span></div><textarea id="ai_paste" placeholder="Paste the listing here…"></textarea><div class="airow"><button class="btn" id="ai_fill" type="button">Fill the fields ↓</button><input type="file" id="ai_pdf" accept=".pdf,.doc,.docx,.txt" style="display:none"><button class="btn" id="ai_pdf_btn" type="button">⬆ Upload a PDF</button><input type="file" id="ai_batch" accept=".pdf,.doc,.docx,.txt" multiple style="display:none"><button class="btn" id="ai_batch_btn" type="button">⬆ Batch PDFs → auto-create</button><span class="msg" id="ai_msg"></span></div></div>
+    <div class="aibox" data-ai=""><div class="aihd">✨ AI fill from a listing <span>paste a CoStar / LoopNet / Crexi blurb or broker email, or upload a PDF — AI fills the fields (or batch-upload PDFs to auto-create listings)</span></div><textarea id="ai_paste" placeholder="Paste the listing here…"></textarea><div class="airow"><button class="btn" id="ai_fill" type="button">Fill the fields ↓</button><input type="file" id="ai_pdf" accept=".pdf,.doc,.docx,.txt" style="display:none"><button class="btn" id="ai_pdf_btn" type="button">⬆ Upload a PDF</button><input type="file" id="ai_batch" accept=".pdf,.doc,.docx,.txt" multiple style="display:none"><button class="btn" id="ai_batch_btn" type="button">⬆ Batch PDFs → auto-create</button><span class="msg" id="ai_msg"></span></div><div class="airow" style="margin-top:9px;border-top:1px solid rgba(0,0,0,.07);padding-top:10px"><label style="font-size:11.5px;color:#5a6478;display:inline-flex;align-items:center;gap:5px">Or scan my email for listings from the last <input type="number" id="ai_days" value="90" min="1" max="730" style="width:60px;font:inherit;font-size:12px;padding:4px 6px;border:1px solid #cfd6e2;border-radius:7px"> days</label><button class="btn" id="ai_email_btn" type="button">✉ Scan email → auto-create</button></div></div>
     <div class="grid">
       <div class="f full"><label class="fld">Address</label><input id="f_address" placeholder="1234 S Congress Ave"></div>
       <div class="f"><label class="fld">Shopping center</label><input id="f_center" placeholder="Southpark Plaza"></div>
@@ -102,7 +102,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
     <div class="aibox" data-ai="" style="background:#eef7f3;border-color:#cfe8dc;margin-top:16px"><div class="aihd" style="color:#1f8a5b">✨ Paste a Placer.ai report <span>foot traffic &amp; trade area — AI folds a clean summary into Notes</span></div><textarea id="pl_paste" placeholder="Paste your Placer report here…"></textarea><div class="airow"><button class="btn" id="pl_go" type="button">Summarize into Notes ↓</button><span class="msg" id="pl_msg"></span></div></div>
     <div class="f full" style="margin-top:14px"><label class="fld">Notes</label><textarea id="f_notes" placeholder="Condition, term available, TI, timing…"></textarea></div>
   </div>
-  <div class="mf"><button class="btn primary" id="msave">Save space</button><button class="btn ghost" id="mcancel">Cancel</button><span class="msg" id="mmsg"></span></div>
+  <div class="f full" style="margin-top:14px"><label class="fld">Brochures &amp; photos</label><div id="spaceFiles"></div><input type="file" id="sp_file" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx" multiple style="display:none"><button type="button" class="btn ghost" id="sp_file_btn" style="margin-top:8px">+ Add brochure / photo</button></div><div class="mf"><button class="btn primary" id="msave">Save space</button><button class="btn ghost" id="mcancel">Cancel</button><span class="msg" id="mmsg"></span></div>
 </div></div>
 
 <div class="ov" id="mov" hidden><div class="modal" style="max-width:640px">
@@ -189,9 +189,41 @@ function openForm(sp){
   document.getElementById('mmsg').textContent='';
   var ap=document.getElementById('ai_paste'); if(ap) ap.value=''; var am=document.getElementById('ai_msg'); if(am) am.textContent='';
   var pp=document.getElementById('pl_paste'); if(pp) pp.value=''; var pm=document.getElementById('pl_msg'); if(pm) pm.textContent='';
-  document.getElementById('ov').hidden=false;
+  document.getElementById('ov').hidden=false; renderSpaceFiles();
 }
 function closeForm(){ document.getElementById('ov').hidden=true; }
+function renderSpaceFiles(){
+  var host=document.getElementById('spaceFiles'); if(!host) return;
+  if(!EDIT||!EDIT.id){ host.innerHTML='<div style="font-size:11.5px;color:#98a1b5">Save the space first, then add brochures &amp; photos.</div>'; return; }
+  var files=(EDIT.files||[]);
+  if(!files.length){ host.innerHTML='<div style="font-size:11.5px;color:#98a1b5">No brochures or photos yet.</div>'; return; }
+  host.innerHTML='<div style="display:flex;flex-wrap:wrap;gap:10px">'+files.map(function(f){
+    var url='/api/space-file/'+encodeURIComponent(EDIT.id)+'/'+encodeURIComponent(f.id);
+    var del='<button type="button" title="Remove" onclick="spaceFileDel(\''+f.id+'\')" style="position:absolute;top:-7px;right:-7px;width:20px;height:20px;border-radius:50%;border:1px solid #e5c0bd;background:#fff;color:#DA2B1F;font-weight:800;cursor:pointer;line-height:1;padding:0">\u00d7</button>';
+    if(f.kind==='photo'){ return '<div style="position:relative"><a href="'+url+'" target="_blank" rel="noopener"><img src="'+url+'" alt="'+esc(f.name)+'" style="width:66px;height:66px;object-fit:cover;border-radius:9px;border:1px solid #e5e9f0;display:block"></a>'+del+'</div>'; }
+    return '<div style="position:relative"><a href="'+url+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;max-width:190px;padding:9px 12px;border:1px solid #e5e9f0;border-radius:9px;background:#f7f9fc;color:#000E31;text-decoration:none;font-size:12px;font-weight:600"><span>\ud83d\udcc4</span><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(f.name)+'</span></a>'+del+'</div>';
+  }).join('')+'</div>';
+}
+function _ensureSaved(){
+  if(EDIT&&EDIT.id) return Promise.resolve(EDIT.id);
+  var body={ id:'', address:val('f_address'), center:val('f_center'), market:val('f_market'), name:val('f_name'), spaceType:val('f_type'), size:val('f_size'), rent:val('f_rent'), nnn:val('f_nnn'), status:val('f_status'), landlord:val('f_landlord'), url:val('f_url'), notes:val('f_notes'), features:Object.keys(SEL).filter(function(k){return SEL[k];}) };
+  if(!body.address.trim() && !body.name.trim()) return Promise.resolve(null);
+  return fetch('/api/space',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.space){ EDIT=j.space; SPACES=j.spaces||SPACES; return EDIT.id; } return null; });
+}
+function spaceUpload(fileList){
+  var files=Array.prototype.slice.call(fileList||[]); if(!files.length) return; var mmsg=document.getElementById('mmsg');
+  _ensureSaved().then(function(id){
+    if(!id){ mmsg.textContent='Add an address or name first.'; return; }
+    mmsg.textContent='Uploading '+files.length+' file'+(files.length===1?'':'s')+'\u2026';
+    var chain=Promise.resolve();
+    files.forEach(function(f){ if(f.size>25*1024*1024) return; chain=chain.then(function(){ return _readB64(f).then(function(b64){ return fetch('/api/space/'+encodeURIComponent(id)+'/file',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:b64})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ EDIT=j.space; SPACES=j.spaces||SPACES; renderSpaceFiles(); } }); }); }); });
+    chain.then(function(){ mmsg.textContent='Attached \u2713'; renderTiles(); draw(); setTimeout(function(){ if(mmsg.textContent==='Attached \u2713') mmsg.textContent=''; },1500); }).catch(function(){ mmsg.textContent='Upload failed.'; });
+  }).catch(function(){ mmsg.textContent='Save the space first.'; });
+}
+function spaceFileDel(fid){
+  if(!EDIT||!EDIT.id) return;
+  fetch('/api/space/'+encodeURIComponent(EDIT.id)+'/file/'+encodeURIComponent(fid),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ EDIT=j.space; SPACES=j.spaces||SPACES; renderSpaceFiles(); renderTiles(); draw(); } });
+}
 
 function saveSpace(silent){
   var body={
@@ -272,6 +304,19 @@ function aiBatch(fileList){
     if(window.rrgToast) rrgToast('Created '+j.created+' listing'+(j.created===1?'':'s'));
   }).catch(function(){ if(window.rrgAiWork) window.rrgAiWork.hide(); m.textContent='Network error.'; });
 }
+function aiEmailScan(){
+  var m=document.getElementById('ai_msg'); var nm=(window.__rrgAssistant||'AI');
+  var days=parseInt((document.getElementById('ai_days')||{}).value,10)||90;
+  if(window.rrgAiWork) window.rrgAiWork.show(nm+' is scanning your email for listings and reading the PDFs…');
+  m.textContent=nm+' is scanning your email…';
+  fetch('/api/spaces/ai-email-scan',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({days:days})})
+    .then(function(r){return r.json();}).then(function(j){ if(window.rrgAiWork) window.rrgAiWork.hide();
+      if(!j||!j.ok){ m.textContent=(j&&j.error)||'Could not scan your email.'; return; }
+      SPACES=j.spaces||SPACES; renderTiles(); draw();
+      m.textContent='Scanned '+j.scanned+' email'+(j.scanned===1?'':'s')+' — created '+j.created+' listing'+(j.created===1?'':'s')+'.';
+      if(window.rrgToast) rrgToast('Created '+j.created+' listing'+(j.created===1?'':'s')+' from email');
+    }).catch(function(){ if(window.rrgAiWork) window.rrgAiWork.hide(); m.textContent='Network error.'; });
+}
 function loadCriteria(){ var sel=document.getElementById('mclient'); if(!sel) return; fetch('/api/site-criteria',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var list=(j&&j.criteria)||[]; sel.innerHTML='<option value="">'+(list.length?'— pick a client —':'— no Site Criteria on file yet —')+'</option>'+list.map(function(c){ var lbl=c.name+(c.market?(' · '+c.market):'')+(c.rep?(' · '+c.rep):''); return '<option value="'+esc(c.key)+'">'+esc(lbl)+'</option>'; }).join(''); }).catch(function(){}); }
 function openMatch(){ document.getElementById('mcrit').value=''; document.getElementById('mclient').value=''; document.getElementById('mstat').textContent=''; document.getElementById('mres').innerHTML=''; document.getElementById('mov').hidden=false; loadCriteria(); }
 function aiMatch(){
@@ -293,6 +338,9 @@ document.getElementById('ai_pdf_btn').addEventListener('click',function(){ docum
 document.getElementById('ai_pdf').addEventListener('change',function(){ var f=this.files&&this.files[0]; if(f) aiFillPdf(f); this.value=''; });
 document.getElementById('ai_batch_btn').addEventListener('click',function(){ document.getElementById('ai_batch').click(); });
 document.getElementById('ai_batch').addEventListener('change',function(){ if(this.files&&this.files.length) aiBatch(this.files); this.value=''; });
+document.getElementById('ai_email_btn').addEventListener('click',aiEmailScan);
+document.getElementById('sp_file_btn').addEventListener('click',function(){ document.getElementById('sp_file').click(); });
+document.getElementById('sp_file').addEventListener('change',function(){ if(this.files&&this.files.length) spaceUpload(this.files); this.value=''; });
 document.getElementById('pl_go').addEventListener('click',plParse);
 document.getElementById('matchBtn').addEventListener('click',openMatch);
 document.getElementById('mmx').addEventListener('click',function(){ document.getElementById('mov').hidden=true; });

@@ -4468,6 +4468,50 @@ app.delete('/api/space/:id', (req, res) => {
   saveSpaces(arr);
   res.json({ ok: true, spaces: arr });
 });
+
+// ---- Space attachments (brochures / photos) ----
+const SPACEFILES_DIR = path.join(BOV_DATA_DIR, 'spacefiles');
+function spaceFileKind(ext) { return /^(png|jpg|jpeg|gif|webp)$/i.test(ext) ? 'photo' : 'doc'; }
+function spaceFileMime(ext) { ext = String(ext).toLowerCase(); return ({ png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', webp: 'image/webp', pdf: 'application/pdf', doc: 'application/msword', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })[ext] || 'application/octet-stream'; }
+app.post('/api/space/:id/file', express.json({ limit: '30mb' }), (req, res) => {
+  const arr = loadSpaces(); const sp = arr.find(x => x.id === req.params.id);
+  if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' });
+  const b = req.body || {};
+  const m = String(b.filename || '').toLowerCase().match(/\.(pdf|png|jpg|jpeg|gif|webp|doc|docx)$/);
+  if (!m) return res.status(400).json({ ok: false, error: 'Use a PDF, image, or Word file.' });
+  const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+  let buf; try { buf = Buffer.from(String(b.dataB64 || '').replace(/^data:[^,]*,/, ''), 'base64'); } catch (e) { buf = null; }
+  if (!buf || !buf.length) return res.status(400).json({ ok: false, error: 'Could not read the file.' });
+  if (buf.length > 25 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File is over 25 MB.' });
+  try { if (!fs.existsSync(SPACEFILES_DIR)) fs.mkdirSync(SPACEFILES_DIR, { recursive: true }); } catch (e) {}
+  const fid = 'spf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  try { fs.writeFileSync(path.join(SPACEFILES_DIR, sp.id + '_' + fid + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
+  sp.files = Array.isArray(sp.files) ? sp.files : [];
+  sp.files.push({ id: fid, name: String(b.filename || ('file.' + ext)).slice(0, 200), ext, kind: spaceFileKind(ext), size: buf.length, uploadedAt: new Date().toISOString(), by: (req.user && req.user.name) || '' });
+  sp.updatedAt = new Date().toISOString(); saveSpaces(arr);
+  res.json({ ok: true, space: sp, spaces: arr });
+});
+app.delete('/api/space/:id/file/:fid', (req, res) => {
+  const arr = loadSpaces(); const sp = arr.find(x => x.id === req.params.id);
+  if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' });
+  const f = (sp.files || []).find(x => x.id === req.params.fid);
+  if (f) { try { fs.unlinkSync(path.join(SPACEFILES_DIR, sp.id + '_' + f.id + '.' + f.ext)); } catch (e) {} }
+  sp.files = (sp.files || []).filter(x => x.id !== req.params.fid);
+  sp.updatedAt = new Date().toISOString(); saveSpaces(arr);
+  res.json({ ok: true, space: sp, spaces: arr });
+});
+app.get('/api/space-file/:id/:fid', (req, res) => {
+  const sp = loadSpaces().find(x => x.id === req.params.id);
+  if (!sp) return res.status(404).end();
+  const f = (sp.files || []).find(x => x.id === req.params.fid);
+  if (!f) return res.status(404).end();
+  const fp = path.join(SPACEFILES_DIR, sp.id + '_' + f.id + '.' + f.ext);
+  if (!fp.startsWith(SPACEFILES_DIR) || !fs.existsSync(fp)) return res.status(404).end();
+  res.setHeader('Content-Type', spaceFileMime(f.ext));
+  res.setHeader('Content-Disposition', ((f.kind === 'photo' || f.ext === 'pdf') ? 'inline' : 'attachment') + '; filename="' + encodeURIComponent(f.name) + '"');
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  fs.createReadStream(fp).pipe(res);
+});
 app.post('/api/space/ai-intake', express.json({ limit: '25mb' }), async (req, res) => {
   try {
     const b = req.body || {};
@@ -4501,6 +4545,45 @@ app.post('/api/spaces/ai-batch', express.json({ limit: '80mb' }), async (req, re
   }
   if (created) saveSpaces(arr);
   res.json({ ok: true, created, results, spaces: arr });
+});
+
+function _spaceFromFields(fd, req, extra) {
+  const num = (v) => { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : null; };
+  const now = new Date().toISOString();
+  return Object.assign({ id: newSpaceId(), createdAt: now, updatedAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', status: 'Available',
+    name: String(fd.name || '').slice(0, 160), address: String(fd.address || '').slice(0, 200), center: String(fd.center || '').slice(0, 160), market: String(fd.market || '').slice(0, 120),
+    spaceType: SPACE_TYPES.indexOf(fd.spaceType) >= 0 ? fd.spaceType : '', size: num(fd.size), rent: num(fd.rent), nnn: num(fd.nnn),
+    features: Array.isArray(fd.features) ? fd.features.map(x => String(x).slice(0, 40)).filter(Boolean).slice(0, 40) : [],
+    notes: String(fd.notes || '').slice(0, 4000) }, extra || {});
+}
+// Scan the rep's Gmail for listing emails + PDF flyers and auto-create spaces from them.
+app.post('/api/spaces/ai-email-scan', express.json(), async (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Gmail first on the Account page.' });
+  const days = Math.min(Math.max(parseInt((req.body || {}).days, 10) || 90, 1), 730);
+  try {
+    const cands = await gmail.listListingCandidates(u, 30, days);
+    const arr = loadSpaces();
+    const seen = new Set(arr.map(s => String(s.address || '').toLowerCase().trim()).filter(Boolean));
+    const results = []; let created = 0;
+    for (const c of cands) {
+      let text = String(c.body || '').slice(0, 20000);
+      const pdfs = (c.attachments || []).filter(a => /\.(pdf|docx?)$/i.test(a.filename)).slice(0, 2);
+      for (const a of pdfs) {
+        try { const buf = await gmail.getAttachment(u, c.id, a.attachmentId); const t = String(await extractQuestionnaireText(a.filename, buf.toString('base64')) || ''); if (t) text += '\n\n' + t.slice(0, 20000); } catch (e) {}
+      }
+      if (!text.trim()) continue;
+      let fd; try { fd = await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES }); } catch (e) { fd = null; }
+      if (!fd || (!fd.address && fd.size == null)) { results.push({ ok: false, subject: c.subject || '', reason: 'not a listing' }); continue; }
+      const key = String(fd.address || '').toLowerCase().trim();
+      if (key && seen.has(key)) { results.push({ ok: false, subject: c.subject || '', reason: 'already in system' }); continue; }
+      const sp = _spaceFromFields(fd, req, { source: 'email:' + c.id });
+      arr.push(sp); created++; if (key) seen.add(key);
+      results.push({ ok: true, subject: c.subject || '', address: sp.address || sp.name || '' });
+    }
+    if (created) saveSpaces(arr);
+    res.json({ ok: true, created, scanned: cands.length, results, spaces: arr });
+  } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.get('/api/site-criteria', (req, res) => {
   try { const list = store.readAll().filter(r => r.form === 'ssc').map(r => ({ key: r.timestamp, name: r.name || 'Untitled', market: r.market || '', rep: r.rep || '', when: r.timestamp || '', summary: r.highlights || '' })).reverse(); res.json({ ok: true, criteria: list }); }
