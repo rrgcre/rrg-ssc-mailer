@@ -169,14 +169,8 @@ function openLibrary(){ document.getElementById('libbd').innerHTML=(MODS||[]).ma
 function render(){
   var bft=''; try{ if(BOOTED) bft=new Date(BOOTED).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){}
   document.getElementById('root').innerHTML=''
-    +'<div class="cmdhead"><div class="cmdhead-in">'
-    +'<span class="brand" onclick="location.href=\'./index.html\'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>'
-    +'<div class="kicker">Command</div>'
-    +'<h1>Your book at a glance</h1>'
-    +'<div class="sub">Pipeline, activity, and today’s priorities in one place. Drag any card by its header to make it yours.</div>'
-    +'<div class="cmdbar"><button class="addbtn" id="addmod">+ Add module</button><span class="live"><span class="d"></span>Live</span><span class="hclock" id="hclock"></span><span class="buildmini" id="buildmini" title="'+esc(BUILD+(bft?(' · booted '+bft):''))+'">'+esc(BUILD)+'</span></div>'
-    +'</div></div>'
     +'<div class="wrap">'
+    +'<div class="topline"><b>Command</b><span class="tsub">Business Overview</span><span class="live"><span class="d"></span>Live</span><span class="rmeta"><button class="addbtn" id="addmod">+ Add module</button><span class="buildmini" id="buildmini" title="'+esc(BUILD+(bft?(' · booted '+bft):''))+'">'+esc(BUILD)+'</span><span class="hclock" id="hclock"></span></span></div>'
     +'<div id="kstrip" class="kstrip" style="display:none"></div>'
     +'<div class="hint">Drag any module by its header to rearrange · × to remove · “+ Add module” for the library.</div>'
     +'<div class="modgrid" id="modgrid"></div>'
