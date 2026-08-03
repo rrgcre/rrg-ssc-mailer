@@ -39,10 +39,16 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 .cathd.sub{background:#fff;font-size:12px;}
 .movewrap{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);}
 .movewrap select.movesel{font:inherit;font-size:11px;padding:4px 6px;border:1px solid var(--line);border-radius:7px;max-width:160px;background:#fff;color:var(--navy);cursor:pointer;}
+.rmhd{cursor:pointer;user-select:none;}
+.rmcav{display:inline-block;transition:transform .15s;color:#8a94a6;font-size:12px;margin-right:7px;vertical-align:1px;}
+.card:not(.collapsed) .rmcav{transform:rotate(90deg);}
+.card.collapsed .cbody > *:not(h2){display:none;}
+.card.collapsed > *:not(.cbody){display:none;}
+.card.collapsed .cbody{padding-bottom:12px;}
 .umsg{font-size:12px;color:var(--muted);margin-top:8px;min-height:16px;}
 .cat{border-top:1px solid var(--line);}
 .cathd{padding:11px 20px;font-weight:800;color:var(--navy);font-size:12.5px;display:flex;align-items:center;gap:8px;background:#fbfcfe;}
-.cathd .n{margin-left:auto;color:var(--muted);font-weight:600;font-size:11px;}
+.cathd .n{margin-left:2px;color:var(--muted);font-weight:700;font-size:11px;}
 .docrow{display:flex;align-items:center;gap:12px;padding:10px 20px;border-top:1px solid #f0f2f7;}
 .ext{flex:0 0 42px;height:28px;border-radius:6px;background:var(--wash);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--navy);text-transform:uppercase;}
 .dt{flex:1;font-weight:600;color:var(--navy);font-size:13px;} .dm{color:var(--muted);font-size:11px;margin-top:1px;}
@@ -71,7 +77,7 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
   </div></div>
 
   <div class="card"><div class="cbody">
-    <h2>Buyers &amp; access</h2>
+    <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Buyers &amp; access</h2>
     <div class="h">Authorize each buyer individually. They get their own <b>access code — the password they’ll need to open the room</b>. New buyers start with <b>no folder access</b>: grant exactly the folders they should see in the grid below (no access, view, download, or upload). Authorizing the first buyer locks the room, so the shared link alone stops working and a code is required.</div>
     <div class="up">
       <div class="fld"><label>Buyer name</label><input type="text" id="bName" placeholder="e.g. Jane Smith / ABC Capital"></div>
@@ -84,7 +90,7 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
   </div></div>
 
   <div class="card"><div class="cbody">
-    <h2>Add a document</h2>
+    <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Add a document</h2>
     <div class="h">PDF, Word, Excel, CSV, PowerPoint, images, or text — up to <b>25 MB</b> each. Give it a clear name and drop it in the right section.</div>
     <div class="up">
       <div class="fld"><label>Document name</label><input type="text" id="docTitle" placeholder="e.g. 2023 Profit &amp; Loss"></div>
@@ -101,12 +107,12 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
   </div></div>
 
   <div class="card">
-    <div class="cbody" style="padding-bottom:6px"><h2>Documents</h2><div class="h" style="margin-bottom:2px">The room is organized into the same sections every time. Files show under their section; delete any anytime.</div></div>
+    <div class="cbody" style="padding-bottom:6px"><h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Documents</h2><div class="h" style="margin-bottom:2px">The room is organized into the same sections every time. Files show under their section; delete any anytime.</div></div>
     <div id="docList"></div>
   </div>
 
   <div class="card">
-    <div class="cbody" style="padding-bottom:8px"><h2>Access log</h2><div class="h" style="margin-bottom:0">Recent views and downloads through the buyer link — newest first.</div></div>
+    <div class="cbody" style="padding-bottom:8px"><h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Access log</h2><div class="h" style="margin-bottom:0">Recent views and downloads through the buyer link — newest first.</div></div>
     <div class="log" id="log"></div>
   </div>
 
@@ -246,6 +252,7 @@ function applyAiName(){ try{ var n=aiName(); document.querySelectorAll('.ainame'
 document.addEventListener('rrg:session', applyAiName);
 function topCats(){ return ((window.ROOM&&ROOM.categories)||[]).filter(function(c){ return String(c).indexOf(' / ')<0; }); }
 function toggleCat(hd){ var c=hd&&hd.parentNode; if(c) c.classList.toggle('open'); }
+function rmToggle(hd){ var c=hd&&hd.closest?hd.closest('.card'):null; if(c) c.classList.toggle('collapsed'); }
 function _docRow(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+esc(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }
 function renderDocs(){
   var el=document.getElementById('docList'); if(!el) return; var cats=(ROOM.categories||[]), docs=(ROOM.docs||[]);
