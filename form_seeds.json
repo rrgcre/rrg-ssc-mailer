@@ -129,7 +129,7 @@
           },
           {
             "type": "text",
-            "num": "dec2",
+            "num": "int",
             "label": "Years in Operation",
             "required": true,
             "prompt": "How many years have they been in operation?",

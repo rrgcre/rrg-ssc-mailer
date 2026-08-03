@@ -83,7 +83,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 <div class="ov" id="ov" hidden><div class="modal">
   <div class="mh"><b id="mtitle">Add space</b><button class="x" id="mx">✕</button></div>
   <div class="mb">
-    <div class="aibox" data-ai=""><div class="aihd">✨ AI fill from a listing <span>paste a CoStar / LoopNet / Crexi blurb or broker email, or upload a PDF — AI fills the fields (or batch-upload PDFs to auto-create listings)</span></div><textarea id="ai_paste" placeholder="Paste the listing here…"></textarea><div class="airow"><button class="btn" id="ai_fill" type="button">Fill the fields ↓</button><input type="file" id="ai_pdf" accept=".pdf,.doc,.docx,.txt" style="display:none"><button class="btn" id="ai_pdf_btn" type="button">⬆ Upload a PDF</button><input type="file" id="ai_batch" accept=".pdf,.doc,.docx,.txt" multiple style="display:none"><button class="btn" id="ai_batch_btn" type="button">⬆ Batch PDFs → auto-create</button><span class="msg" id="ai_msg"></span></div><div class="airow" style="margin-top:9px;border-top:1px solid rgba(0,0,0,.07);padding-top:10px"><label style="font-size:11.5px;color:#5a6478;display:inline-flex;align-items:center;gap:5px">Or scan my email for listings from the last <input type="number" id="ai_days" value="90" min="1" max="730" style="width:60px;font:inherit;font-size:12px;padding:4px 6px;border:1px solid #cfd6e2;border-radius:7px"> days</label><button class="btn" id="ai_email_btn" type="button">✉ Scan email → auto-create</button></div></div>
+    <div class="aibox" data-ai=""><div class="aihd">✨ AI fill from a listing <span>paste a CoStar / LoopNet / Crexi blurb or broker email, or upload PDFs — one fills the fields to review, several auto-create a listing each</span></div><textarea id="ai_paste" placeholder="Paste the listing here…"></textarea><div class="airow"><button class="btn" id="ai_fill" type="button">Fill the fields ↓</button><input type="file" id="ai_pdf" accept=".pdf,.doc,.docx,.txt" multiple style="display:none"><button class="btn" id="ai_pdf_btn" type="button" title="One file fills the form to review; pick several to auto-create a listing each">⬆ Upload PDF(s)</button><span class="msg" id="ai_msg"></span></div><div class="airow" style="margin-top:9px;border-top:1px solid rgba(0,0,0,.07);padding-top:10px"><label style="font-size:11.5px;color:#5a6478;display:inline-flex;align-items:center;gap:5px">Or scan my email for listings from the last <input type="number" id="ai_days" value="90" min="1" max="730" style="width:60px;font:inherit;font-size:12px;padding:4px 6px;border:1px solid #cfd6e2;border-radius:7px"> days</label><button class="btn" id="ai_email_btn" type="button">✉ Scan email → auto-create</button></div></div>
     <div class="grid">
       <div class="f full"><label class="fld">Address</label><input id="f_address" placeholder="1234 S Congress Ave"></div>
       <div class="f"><label class="fld">Shopping center</label><input id="f_center" placeholder="Southpark Plaza"></div>
@@ -267,13 +267,14 @@ function _spaceApply(fd){
 function _readB64(file){ return new Promise(function(resolve,reject){ var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''),i=s.indexOf(','); resolve(i>=0?s.slice(i+1):s); }; rd.onerror=function(){ reject(new Error('read')); }; rd.readAsDataURL(file); }); }
 function _spaceIntake(body){
   var m=document.getElementById('ai_msg'); var btn=document.getElementById('ai_fill'); var nm=(window.__rrgAssistant||'AI');
-  if(window.rrgAiWork) window.rrgAiWork.show(nm+' is reading the listing and filling the fields…');
+  var ac=(typeof AbortController!=='undefined')?new AbortController():null;
+  if(window.rrgAiWork) window.rrgAiWork.show(nm+' is reading the listing and filling the fields…', function(){ if(ac) ac.abort(); btn.disabled=false; m.textContent='Canceled.'; });
   btn.disabled=true; m.textContent=nm+' is reading the listing…';
-  fetch('/api/space/ai-intake',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+  fetch('/api/space/ai-intake',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body),signal:ac?ac.signal:undefined})
     .then(function(r){return r.json();}).then(function(j){ if(window.rrgAiWork) window.rrgAiWork.hide(); btn.disabled=false;
       if(!j||!j.ok){ m.textContent=(j&&j.error)||'Could not read that.'; return; }
       _spaceApply(j.fields||{}); m.textContent='Filled — review and save.';
-    }).catch(function(){ if(window.rrgAiWork) window.rrgAiWork.hide(); btn.disabled=false; m.textContent='Network error.'; });
+    }).catch(function(e){ if(window.rrgAiWork) window.rrgAiWork.hide(); btn.disabled=false; if(!(e&&e.name==='AbortError')) m.textContent='Network error.'; });
 }
 function aiFill(){
   var t=document.getElementById('ai_paste').value; var m=document.getElementById('ai_msg');
@@ -291,31 +292,34 @@ function aiBatch(fileList){
   if(!files.length){ if(m) m.textContent='Add PDF files under 25 MB each.'; return; }
   if(files.length>40) files=files.slice(0,40);
   var nm=(window.__rrgAssistant||'AI');
-  if(window.rrgAiWork) window.rrgAiWork.show(nm+' is reading '+files.length+' PDF'+(files.length===1?'':'s')+' and creating listings…');
+  var ac=(typeof AbortController!=='undefined')?new AbortController():null; var canceled=false;
+  if(window.rrgAiWork) window.rrgAiWork.show(nm+' is reading '+files.length+' PDF'+(files.length===1?'':'s')+' and creating listings…', function(){ canceled=true; if(ac) ac.abort(); m.textContent='Canceled.'; });
   m.textContent=nm+' is creating '+files.length+' listing'+(files.length===1?'':'s')+'…';
   Promise.all(files.map(function(f){ return _readB64(f).then(function(b64){ return {filename:f.name,dataB64:b64}; }).catch(function(){ return null; }); })).then(function(payload){
+    if(canceled) return null;
     payload=payload.filter(Boolean);
-    return fetch('/api/spaces/ai-batch',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({files:payload})}).then(function(r){return r.json();});
-  }).then(function(j){ if(window.rrgAiWork) window.rrgAiWork.hide();
+    return fetch('/api/spaces/ai-batch',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({files:payload}),signal:ac?ac.signal:undefined}).then(function(r){return r.json();});
+  }).then(function(j){ if(!j) return; if(window.rrgAiWork) window.rrgAiWork.hide();
     if(!j||!j.ok){ m.textContent=(j&&j.error)||'Batch failed.'; return; }
     SPACES=j.spaces||SPACES; renderTiles(); draw();
     var skipped=(j.results||[]).filter(function(x){return !x.ok;}).length;
     m.textContent='Created '+j.created+' listing'+(j.created===1?'':'s')+(skipped?(' · '+skipped+' skipped'):'')+'.';
     if(window.rrgToast) rrgToast('Created '+j.created+' listing'+(j.created===1?'':'s'));
-  }).catch(function(){ if(window.rrgAiWork) window.rrgAiWork.hide(); m.textContent='Network error.'; });
+  }).catch(function(e){ if(window.rrgAiWork) window.rrgAiWork.hide(); if(!(e&&e.name==='AbortError')) m.textContent='Network error.'; });
 }
 function aiEmailScan(){
   var m=document.getElementById('ai_msg'); var nm=(window.__rrgAssistant||'AI');
   var days=parseInt((document.getElementById('ai_days')||{}).value,10)||90;
-  if(window.rrgAiWork) window.rrgAiWork.show(nm+' is scanning your email for listings and reading the PDFs…');
+  var ac=(typeof AbortController!=='undefined')?new AbortController():null;
+  if(window.rrgAiWork) window.rrgAiWork.show(nm+' is scanning your email for listings and reading the PDFs…', function(){ if(ac) ac.abort(); m.textContent='Canceled.'; });
   m.textContent=nm+' is scanning your email…';
-  fetch('/api/spaces/ai-email-scan',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({days:days})})
+  fetch('/api/spaces/ai-email-scan',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({days:days}),signal:ac?ac.signal:undefined})
     .then(function(r){return r.json();}).then(function(j){ if(window.rrgAiWork) window.rrgAiWork.hide();
       if(!j||!j.ok){ m.textContent=(j&&j.error)||'Could not scan your email.'; return; }
       SPACES=j.spaces||SPACES; renderTiles(); draw();
       m.textContent='Scanned '+j.scanned+' email'+(j.scanned===1?'':'s')+' — created '+j.created+' listing'+(j.created===1?'':'s')+'.';
       if(window.rrgToast) rrgToast('Created '+j.created+' listing'+(j.created===1?'':'s')+' from email');
-    }).catch(function(){ if(window.rrgAiWork) window.rrgAiWork.hide(); m.textContent='Network error.'; });
+    }).catch(function(e){ if(window.rrgAiWork) window.rrgAiWork.hide(); if(!(e&&e.name==='AbortError')) m.textContent='Network error.'; });
 }
 function loadCriteria(){ var sel=document.getElementById('mclient'); if(!sel) return; fetch('/api/site-criteria',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var list=(j&&j.criteria)||[]; sel.innerHTML='<option value="">'+(list.length?'— pick a client —':'— no Site Criteria on file yet —')+'</option>'+list.map(function(c){ var lbl=c.name+(c.market?(' · '+c.market):'')+(c.rep?(' · '+c.rep):''); return '<option value="'+esc(c.key)+'">'+esc(lbl)+'</option>'; }).join(''); }).catch(function(){}); }
 function openMatch(){ document.getElementById('mcrit').value=''; document.getElementById('mclient').value=''; document.getElementById('mstat').textContent=''; document.getElementById('mres').innerHTML=''; document.getElementById('mov').hidden=false; loadCriteria(); }
@@ -335,9 +339,7 @@ function fmtPlacer(p){ var L=[]; if(p.visits) L.push('Visits: '+p.visits+(p.visi
 function plParse(){ var t=document.getElementById('pl_paste').value; var m=document.getElementById('pl_msg'); var btn=document.getElementById('pl_go'); if(!t.trim()){ m.textContent='Paste a report first.'; return; } btn.disabled=true; m.textContent=(window.__rrgAssistant||'AI')+' is reading the report…'; fetch('/api/ai/placer',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:t})}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; if(!j||!j.ok){ m.textContent=(j&&j.error)||'Could not read that.'; return; } var blk=fmtPlacer(j.result||{}); if(!blk){ m.textContent='No figures found in that report.'; return; } var n=document.getElementById('f_notes'); n.value=(n.value?(n.value.trim()+'\n\n'):'')+blk; document.getElementById('pl_paste').value=''; m.textContent='Added to Notes ✓'; }).catch(function(){ btn.disabled=false; m.textContent='Network error.'; }); }
 document.getElementById('ai_fill').addEventListener('click',aiFill);
 document.getElementById('ai_pdf_btn').addEventListener('click',function(){ document.getElementById('ai_pdf').click(); });
-document.getElementById('ai_pdf').addEventListener('change',function(){ var f=this.files&&this.files[0]; if(f) aiFillPdf(f); this.value=''; });
-document.getElementById('ai_batch_btn').addEventListener('click',function(){ document.getElementById('ai_batch').click(); });
-document.getElementById('ai_batch').addEventListener('change',function(){ if(this.files&&this.files.length) aiBatch(this.files); this.value=''; });
+document.getElementById('ai_pdf').addEventListener('change',function(){ var fs=this.files; if(fs&&fs.length===1) aiFillPdf(fs[0]); else if(fs&&fs.length>1) aiBatch(fs); this.value=''; });
 document.getElementById('ai_email_btn').addEventListener('click',aiEmailScan);
 document.getElementById('sp_file_btn').addEventListener('click',function(){ document.getElementById('sp_file').click(); });
 document.getElementById('sp_file').addEventListener('change',function(){ if(this.files&&this.files.length) spaceUpload(this.files); this.value=''; });
