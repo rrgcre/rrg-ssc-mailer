@@ -4589,6 +4589,31 @@ app.get('/api/site-criteria', (req, res) => {
   try { const list = store.readAll().filter(r => r.form === 'ssc').map(r => ({ key: r.timestamp, name: r.name || 'Untitled', market: r.market || '', rep: r.rep || '', when: r.timestamp || '', summary: r.highlights || '' })).reverse(); res.json({ ok: true, criteria: list }); }
   catch (e) { res.json({ ok: true, criteria: [] }); }
 });
+// Pre-fill the Site & Concept Fit sheet from an on-file Site Criteria Screening, an uploaded
+// document (PDF / Word / text), or pasted text. Returns AI-mapped values keyed by the sheet fields.
+app.post('/api/site-fit/prefill', express.json({ limit: '28mb' }), async (req, res) => {
+  try {
+    const b = req.body || {};
+    let source = '';
+    if (b.criteriaKey) {
+      const rec = store.readAll().filter(r => r.form === 'ssc' && r.timestamp === b.criteriaKey)[0];
+      if (!rec) return res.status(404).json({ ok: false, error: 'That screening is no longer on file.' });
+      source = 'ON-FILE SITE CRITERIA SCREENING\nClient / Concept: ' + (rec.name || '') + (rec.market ? (' \u00b7 Market: ' + rec.market) : '') + (rec.rep ? (' \u00b7 Rep: ' + rec.rep) : '') + '\n' + JSON.stringify(rec.data || {}).slice(0, 9000);
+    } else if (b.dataB64) {
+      let text = '';
+      try { text = String(await extractQuestionnaireText(b.filename, b.dataB64) || ''); }
+      catch (e) { return res.status(400).json({ ok: false, error: String(e.message || e) }); }
+      if (!text.trim() || text.trim().length < 20) return res.status(400).json({ ok: false, error: 'Could not read enough text from that file \u2014 try a text-based PDF, or paste the details.' });
+      source = 'UPLOADED SITE CRITERIA / CONCEPT DOCUMENT (' + (b.filename || 'file') + ')\n' + text.slice(0, 16000);
+    } else if (b.text && String(b.text).trim()) {
+      source = String(b.text).slice(0, 16000);
+    } else {
+      return res.status(400).json({ ok: false, error: 'Pick a screening on file, or upload a document.' });
+    }
+    const result = await aiassist.siteFitPrefill({ source });
+    res.json({ ok: true, values: (result && result.values) || {}, notes: (result && result.notes) || '' });
+  } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
+});
 app.post('/api/spaces/ai-match', express.json({ limit: '256kb' }), async (req, res) => {
   try {
     const b = req.body || {};
@@ -5420,7 +5445,7 @@ app.get('/api/person/:id', (req, res) => {
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
-const CONCEPT_TYPES = ['Full-Service', 'Fast-Casual', 'QSR', 'Bar / Nightlife', 'Cafe / Bakery', 'Food Truck', 'Ghost Kitchen', 'Other'];
+const CONCEPT_TYPES = ['Full-Service', 'Fast-Casual', 'QSR', 'Bar / Nightlife', 'Dancehall', 'Cafe / Bakery', 'Food Truck', 'Ghost Kitchen', 'Other'];
 const PRICE_POINTS = ['$', '$$', '$$$', '$$$$'];
 const RRG_METROS = ['Austin', 'Dallas', 'Houston', 'San Antonio', 'Rio Grande Valley', 'Central Texas'];
 function newLocationId() { return 'loc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }

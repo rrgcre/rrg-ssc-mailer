@@ -143,6 +143,21 @@ tr.tot td.scoreval{color:var(--red);text-align:right;}
   .narr,.callout textarea,.mbox textarea{min-height:0!important;overflow:visible!important;}
   .kl-block,table,.callout,.strip,.occ,.verdictbox,.matrix2,.sec{break-inside:avoid;}
 }
+/* prefill modal */
+.pfmodal{position:fixed;inset:0;background:rgba(10,14,40,.5);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:9998;padding:20px;}
+.pfmodal[hidden]{display:none!important;}
+.pfcard{background:#fff;border-radius:16px;padding:24px 26px;max-width:470px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.4);}
+.pfh{font-weight:800;color:var(--navy);font-size:16px;}
+.pfsub{color:var(--muted);font-size:12.5px;line-height:1.5;margin-top:6px;}
+.pflab{display:block;font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:16px 0 5px;}
+.pfsel,.pffile{width:100%;border:1px solid var(--inp);border-radius:8px;padding:9px 10px;font-family:inherit;font-size:12.5px;color:var(--ink);background:#fff;}
+.pfsel:focus,.pffile:focus{outline:none;border-color:var(--red);}
+.pfor{display:flex;align-items:center;text-align:center;color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.14em;font-weight:700;margin:16px 0 2px;}
+.pfor:before,.pfor:after{content:"";flex:1;height:1px;background:var(--line);}
+.pfor span{padding:0 12px;}
+.pferr{color:var(--red);font-size:12px;margin-top:10px;line-height:1.45;}
+.pfbtns{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+@media print{.pfmodal{display:none!important;}}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -153,6 +168,7 @@ tr.tot td.scoreval{color:var(--red);text-align:right;}
   <div class="tt">RRG Site &amp; Concept Fit <span>Score a space for a concept — then Print / Save PDF</span></div>
   <div class="actions">
     <span class="savechip" id="savechip">Draft saved ✓</span>
+    <button class="btn" onclick="openPrefill()">↧ Fill from SSC / PDF</button>
     <button class="btn" onclick="loadSample()">Load sample</button>
     <button class="btn" onclick="clearAll()">Clear</button>
     <button class="btn print" onclick="growAll();window.print()">Print</button>
@@ -330,6 +346,23 @@ tr.tot td.scoreval{color:var(--red);text-align:right;}
     <div class="foot">
       <span>Restaurant Realty Group, LLC &nbsp;·&nbsp; <b>Restaurant Transactions. Done Right.</b></span>
       <span>Broker's fit analysis for planning — market data should be independently verified. Not a guarantee of sales or performance.</span>
+    </div>
+  </div>
+</div>
+
+<div id="pfModal" class="pfmodal" hidden onclick="if(event.target===this)closePrefill()">
+  <div class="pfcard">
+    <div class="pfh">Fill the top from a screening or a document</div>
+    <div class="pfsub">Pull an on-file Site Criteria Screening, or drop a PDF / Word / text file. Our AI reads it and fills the concept fields up top &mdash; you review and adjust before you rely on it.</div>
+    <label class="pflab">On-file Site Criteria Screening</label>
+    <select id="pfSelect" class="pfsel"><option value="">&mdash; choose a screening &mdash;</option></select>
+    <div class="pfor"><span>or</span></div>
+    <label class="pflab">Upload a document (PDF, Word, text)</label>
+    <input type="file" id="pfFile" class="pffile" accept=".pdf,.docx,.txt,.md,.csv,.tsv">
+    <div class="pferr" id="pfErr"></div>
+    <div class="pfbtns">
+      <button class="btn" onclick="closePrefill()">Cancel</button>
+      <button class="btn print" onclick="runPrefill()">Fill top section</button>
     </div>
   </div>
 </div>
@@ -523,6 +556,73 @@ function loadSample(){
   };
   state.ratings={demo:4, daypart:4, coten:5, vis:4, access:3, comp:5, space:3, seg:4, deal:4};
   paintVals(); paintRates(); compute(); growAll(); save();
+}
+
+/* ---------- prefill from SSC / uploaded doc ---------- */
+function openPrefill(){
+  var m=document.getElementById('pfModal'); if(!m) return;
+  document.getElementById('pfErr').textContent='';
+  var fe=document.getElementById('pfFile'); if(fe) fe.value='';
+  var sel=document.getElementById('pfSelect');
+  m.hidden=false;
+  sel.innerHTML='<option value="">— loading… —</option>';
+  fetch('/api/site-criteria',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    var list=(j&&j.criteria)||[];
+    sel.innerHTML='';
+    var o0=document.createElement('option'); o0.value='';
+    o0.textContent=list.length?'— choose a screening —':'— none on file —';
+    sel.appendChild(o0);
+    list.forEach(function(c){ var o=document.createElement('option'); o.value=c.key||''; o.textContent=[c.name||'Untitled',c.market||'',c.when?String(c.when).slice(0,10):''].filter(Boolean).join(' · '); sel.appendChild(o); });
+  }).catch(function(){ sel.innerHTML='<option value="">— could not load —</option>'; });
+}
+function closePrefill(){ var m=document.getElementById('pfModal'); if(m) m.hidden=true; }
+function pfFileToB64(file){ return new Promise(function(res,rej){ var fr=new FileReader(); fr.onload=function(){ res(String(fr.result||'').replace(/^data:[^,]*,/,'')); }; fr.onerror=function(){ rej(fr.error||new Error('read error')); }; fr.readAsDataURL(file); }); }
+function applyPrefill(values){
+  if(!values||typeof values!=='object') return 0;
+  var n=0;
+  Object.keys(values).forEach(function(k){
+    var val=values[k]; if(val==null||val==='') return;
+    var el=document.querySelector('[data-k="'+k+'"]'); if(!el) return;
+    if(el.tagName==='SELECT'){
+      var opt=Array.prototype.slice.call(el.options).filter(function(o){ return o.value && o.value.toLowerCase()===String(val).toLowerCase(); })[0];
+      if(!opt) return;
+      el.value=opt.value;
+    } else { el.value=String(val); }
+    state.vals[k]=el.value; n++;
+  });
+  compute(); growAll(); save();
+  return n;
+}
+async function runPrefill(){
+  var errEl=document.getElementById('pfErr'); errEl.textContent='';
+  var fileEl=document.getElementById('pfFile'); var sel=document.getElementById('pfSelect');
+  var file=fileEl&&fileEl.files&&fileEl.files[0]; var key=sel?sel.value:'';
+  if(!file && !key){ errEl.textContent='Pick a screening on file, or choose a file to upload.'; return; }
+  var payload={};
+  if(file){
+    if(file.size>24*1024*1024){ errEl.textContent='That file is too large (max ~24 MB).'; return; }
+    try{ payload.dataB64=await pfFileToB64(file); payload.filename=file.name; }
+    catch(e){ errEl.textContent='Could not read that file.'; return; }
+  } else { payload.criteriaKey=key; }
+  closePrefill();
+  var aborted=false;
+  var ctrl=(typeof AbortController!=='undefined')?new AbortController():null;
+  var work=window.rrgAiWork;
+  if(work&&work.show) work.show('Reading the '+(file?'document':'screening')+' and filling the concept fields…', function(){ aborted=true; if(ctrl) ctrl.abort(); });
+  try{
+    var r=await fetch('/api/site-fit/prefill',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:ctrl?ctrl.signal:undefined});
+    var j=await r.json().catch(function(){return{};});
+    if(work&&work.hide) work.hide();
+    if(aborted) return;
+    if(!r.ok||!j.ok){ var em=(j&&j.error)||'Could not read that source.'; if(window.rrgToast) rrgToast(em,{danger:true}); else alert(em); return; }
+    var n=applyPrefill(j.values||{});
+    var msg=n?('Filled '+n+' field'+(n===1?'':'s')+' up top'+(j.notes?(' — '+j.notes):'')+'. Review before you rely on it.'):'Nothing usable in that source — fill the fields manually.';
+    if(window.rrgToast) rrgToast(msg); else alert(msg);
+  }catch(e){
+    if(work&&work.hide) work.hide();
+    if(aborted||(e&&e.name==='AbortError')) return;
+    var m2='Prefill failed: '+((e&&e.message)||e); if(window.rrgToast) rrgToast(m2,{danger:true}); else alert(m2);
+  }
 }
 
 /* ---------- init ---------- */

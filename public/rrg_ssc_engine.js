@@ -67,7 +67,7 @@ window.RRG_FORMS.seller = {
     { n:'6', title:'Call Outcome & Notes', decision:true, questions:[
       {sub:'Call Summary', draft:true},
       {type:'textarea', full:true, id:'callNotes', label:'Call Notes', required:true, placeholder:"3–4 sentences: motivation, financial picture, expectations, and your read on the lead. This goes into the contact's record in FullServe.", prompt:"Give me your 3–4 sentence summary — or hit Draft to generate one.", hint:"Write it so another broker could pick this lead up cold. Or hit Draft from answers and edit what comes back — never send it unread."},
-      {type:'options', full:true, cols:2, required:true, label:'Deal Call', options:['Business Sale','Asset Sale','Nurture','Decline'], prompt:"Your call — business sale, asset sale, nurture, or decline?", hint:"Business Sale = going concern with transferable earnings. Asset Sale = the value is in the buildout, FF&E or license, not the earnings. Nurture = real but not ready. Decline = we can't deliver it or it's not worth our time. The AI pre-fills its read; you own the final call."}
+      {type:'options', full:true, cols:2, required:true, label:'Deal Call', options:['Business Sale','Asset Sale','Nurture','Decline'], prompt:"Your recommended next step — business sale, asset sale, nurture, or decline?", hint:"A recommendation to move forward, not a commitment — nothing is locked until financials are verified, value is aligned, and an agreement is signed. Business Sale = going concern with transferable earnings. Asset Sale = the value is in the buildout, FF&E or license, not the earnings. Nurture = real but not ready. Decline = we can't deliver it or it's not worth our time. The AI pre-fills its read; you own the final call."}
     ]}
   ]
 };
@@ -131,7 +131,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     // every question inside it, so the whole block appears and disappears as one piece.
     var ca=condAttr(cat.showIf);
     var h='<div '+ca+'class="sec brk'+(cat.decision?' decisionsec':'')+'"><div class="num">'+esc(cat.n)+'</div><h2>'+esc(cat.title)+'</h2><div class="flex"></div></div>';
-    if(cat.decision) h+='<div '+ca+'class="decisionnote"><b>Decision point.</b> Based on everything above — do we move forward with this seller, or not?</div>';
+    if(cat.decision) h+='<div '+ca+'class="decisionnote"><b>Recommend the next step — then move forward.</b> This is a recommendation, not a commitment. Nothing is locked in until the financials are verified, the value is aligned, and an agreement is signed.</div>';
     if(cat.sub) h+='<div '+ca+'class="subhead">'+esc(cat.sub)+'</div>';
     var grid=[];
     function flush(){ if(grid.length){ h+='<div '+ca+'class="grid rowgap">'+grid.join('')+'</div>'; grid=[]; } }

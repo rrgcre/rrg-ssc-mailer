@@ -282,4 +282,47 @@ async function classifyRoomDocs({ items, categories }) {
   return out.map(x => ({ i: Number(x.i), category: (allow[String(x.category)] ? String(x.category) : 'Other') }));
 }
 
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs };
+
+// Map a Site Criteria Screening (or an uploaded concept/criteria document) onto the
+// Site & Concept Fit sheet's top section. Returns { values, notes } — values keyed by the
+// sheet's data-k fields; ENUM fields are constrained to the sheet's exact option strings.
+async function siteFitPrefill({ source }) {
+  const FB = ['QSR / Fast Food','Fast Casual','Full-Service / Casual Dining','Upscale / Fine Dining','Bar / Tavern / Sports Bar','Brewery / Taproom','Nightclub / Lounge','Coffee / Café','Bakery / Dessert','Pizza / Delivery-forward','Ghost / Virtual Kitchen','Food Hall Stall'];
+  const PP = ['$ — Value','$$ — Moderate','$$$ — Upscale','$$$$ — Premium'];
+  const DP = ['Breakfast','Lunch-driven','Dinner-driven','Late-night / Bar','All-day'];
+  const SM = ['Dine-in heavy','Counter / grab-and-go','Takeout & delivery heavy','Drive-thru forward','Bar / beverage-driven'];
+  const CT = ['Grocery-anchored','Power / big-box center','Lifestyle / mixed-use','Strip / unanchored','Freestanding pad','End cap','Downtown / street retail','Mall / food court','Entertainment / hospitality node'];
+  const ST = ['End Cap','Inline','Freestanding','Pad w/ drive-thru','2nd-gen restaurant','Gray / vanilla shell'];
+  const sys = [
+    'You extract structured data from a restaurant/bar Site Criteria Screening or concept document to pre-fill a broker\'s "Site & Concept Fit" worksheet.',
+    'Return ONLY a JSON object of the form {"values":{...},"notes":"..."}.',
+    'Fill a field only when the source clearly supports it. OMIT anything unknown from "values" (do not guess). Never invent an address, rent, NNN, or sales number.',
+    'A Site Criteria Screening describes what a tenant WANTS (concept, target size, must-haves, target markets/demographics) — it usually will NOT name a specific candidate address, base rent, or NNN, so leave those out unless the document clearly concerns one specific space.',
+    'Fields marked ENUM must be copied VERBATIM from the allowed list, or omitted. Numeric fields: digits only, no $ or commas.',
+    'FIELDS:',
+    'concept: concept / client name (string).',
+    'tagline: one-line positioning (string).',
+    'preparedFor: client / tenant entity name (string).',
+    'fbType ENUM, one of: '+JSON.stringify(FB),
+    'pricePoint ENUM, one of: '+JSON.stringify(PP),
+    'daypart ENUM, one of: '+JSON.stringify(DP),
+    'model ENUM, one of: '+JSON.stringify(SM),
+    'avgCheck: average check per guest, number (e.g. 18.50).',
+    'coversDay: estimated guests per day at maturity, integer.',
+    'segment: target customer segment (string).',
+    'sfNeeded: target square footage the concept needs, integer.',
+    'mustHaves: must-have features, short string (e.g. "patio · hood/venting · drive-thru · liquor").',
+    'centerType ENUM, one of: '+JSON.stringify(CT)+' (only if the source names a desired or specific center type).',
+    'spaceType ENUM, one of: '+JSON.stringify(ST)+' (only if named).',
+    'address, cotenancy, competition, term: strings, only if the source concerns one specific candidate space.',
+    'notes: one short sentence on what you filled and what the rep should still verify.'
+  ].join('\n');
+  const out = await callClaude(sys, 'SOURCE:\n' + String(source || '').slice(0, 16000), 1100);
+  const j = extractJson(out) || {};
+  const vals = (j && typeof j.values === 'object' && j.values) ? j.values : {};
+  const enums = { fbType:FB, pricePoint:PP, daypart:DP, model:SM, centerType:CT, spaceType:ST };
+  Object.keys(enums).forEach(function(k){ if(vals[k]!=null && enums[k].indexOf(vals[k])<0) delete vals[k]; });
+  return { values: vals, notes: String((j && j.notes) || '') };
+}
+
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, siteFitPrefill };
