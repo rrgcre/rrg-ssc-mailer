@@ -490,6 +490,7 @@
           },
           {
             "type": "options",
+            "multi": true,
             "label": "Objections Raised on the Call",
             "full": true,
             "cols": 3,

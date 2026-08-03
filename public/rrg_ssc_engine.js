@@ -62,7 +62,7 @@ window.RRG_FORMS.seller = {
       {type:'options', label:'Speaking With Other Brokers?', cols:3, options:['No (First Conversation)','Yes (Shopping Around)','Unknown'], prompt:"Are you talking with anyone else about listing it?", hint:"Ask it straight. You'd much rather know you're in a beauty contest than find out after you've done the work."},
       {type:'email', full:true, id:'clientEmail', label:'RRG Rep Email — screening copy sent here', required:true, prompt:"Where should the screening copy go?", hint:"Your address, not the seller's. This is the internal copy of the call."},
       {sub:'Objection Tracking'},
-      {type:'options', label:'Objections Raised on the Call', full:true, cols:3, options:['Not Ready Yet','Wants to Sell Themselves','Already Has a Buyer','Needs to Talk to Partner / Accountant','Talking to Other Brokers','Valuation / Price Gap','Confidentiality Concerns','Commission / Fees','None'], prompt:"What did they push back on during the call?", hint:"Your notes, not a question to ask. Log it even if you handled it — the same objection comes back at listing."}
+      {type:'options', multi:true, label:'Objections Raised on the Call', full:true, cols:3, options:['Not Ready Yet','Wants to Sell Themselves','Already Has a Buyer','Needs to Talk to Partner / Accountant','Talking to Other Brokers','Valuation / Price Gap','Confidentiality Concerns','Commission / Fees','None'], prompt:"What objections or hesitations did they raise?", hint:"Your notes, not a question to ask. Tick every one that came up — the same objections come back at listing."}
     ]},
     { n:'6', title:'Call Outcome & Notes', decision:true, questions:[
       {sub:'Call Summary', draft:true},
