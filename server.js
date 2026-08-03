@@ -8706,7 +8706,7 @@ app.get('/api/documents', (req, res) => {
         statusKey: s.becameListing ? 'livelisting' : ((s.callState === 'complete' || s.completed) ? 'complete' : (s.callState === 'pending' ? 'pending' : 'live')),
         owner: s.by || s.byUser || '', createdAt: s.createdAt || '',
         completePct: pct, completed: !!s.completed,
-        openUrl: '/api/screening/' + encodeURIComponent(s.id) + '/view', editUrl: 'seller_screening.html?screening=' + encodeURIComponent(s.id), deleteUrl: '/api/screening/' + encodeURIComponent(s.id), downloadUrl:'' });
+        openUrl: '/api/screening/' + encodeURIComponent(s.id) + '/view', editUrl: '/api/screening/' + encodeURIComponent(s.id) + '/view', deleteUrl: '/api/screening/' + encodeURIComponent(s.id), downloadUrl:'' });
     });
     let sellers = store.readAll().filter(r => r.form === 'seller' && !_seenFid[(r.data && r.data.formId) || '\u0000']);
     if (restrictToOwn(req)) sellers = sellers.filter(r => permOwnerMatch(req, r.rep));
@@ -8786,7 +8786,7 @@ app.get('/api/screening/:id/view', (req, res) => {
   const pct = (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0));
   const rec = { data: s.data || {}, name: (s.business && s.business !== 'Seller') ? s.business : (s.contact || (s.data && s.data.company) || 'Seller Screening'), market: s.market || '', rep: s.by || s.byUser || '', timestamp: s.createdAt || '', highlights: s.completed ? (s.statusText || s.decision || 'Complete') : ('In progress \u2014 ' + pct + '%') };
   let html = intakeViewHtml(rec, 'Seller Screening');
-  const edit = '<div style="position:fixed;left:16px;bottom:16px;z-index:50"><button type="button" onclick="window.close(); history.back();" style="background:#fff;border:1px solid #d7dde8;color:#1a2236;border-radius:9px;padding:10px 16px;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 6px 20px rgba(16,24,40,.18);cursor:pointer">\u2190 Back</button></div>' + '<div style="position:fixed;right:16px;bottom:16px;z-index:50"><a href="/seller_screening.html?screening=' + encodeURIComponent(s.id) + '" style="background:#000E31;color:#fff;text-decoration:none;border-radius:9px;padding:10px 16px;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 6px 20px rgba(16,24,40,.28)">Edit this call</a></div>';
+  const edit = '<div style="position:fixed;left:16px;bottom:16px;z-index:50"><button type="button" onclick="window.close(); history.back();" style="background:#fff;border:1px solid #d7dde8;color:#1a2236;border-radius:9px;padding:10px 16px;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 6px 20px rgba(16,24,40,.18);cursor:pointer">\u2190 Back</button></div>';
   html = html.replace('</body>', edit + '</body>');
   res.set('Content-Type', 'text/html; charset=utf-8').send(html);
 });
