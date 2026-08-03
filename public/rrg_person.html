@@ -256,12 +256,11 @@ function agrRow(a){
   var _exec=(a.signStatus==='executed'||a.signStatus==='signed'); var _await=(a.signStatus==='awaiting_countersign');
   var signed=_exec;
   var title=a.name||atypeLabel(a.type);
-  var lead;
-  if(_exec){ var _pendr=(a.effective && a.effective>todayStr()); if(_pendr){ lead='<span class="rchip await" title="Fully executed — commences '+esc(fmt(a.effective))+'" style="margin-right:7px">Commences '+esc(fmt(a.effective))+'</span>'; } else { var ed=fmt(a.signedDate||a.executedAt||a.effective||''); lead=ed?('<span style="color:#8a93a8">'+esc(ed)+'</span> &middot; '):''; } }
-  else { var lc=_await?'await':(a.signStatus==='sent'?'sent':(a.status==='terminated'?'bad':'')); var lt=_await?'Needs sign':(a.signStatus==='sent'?'Sent':(a.status==='terminated'?'Terminated':'Draft')); lead='<span class="rchip '+lc+'" style="margin-right:7px">'+lt+'</span>'; }
-  var isImg=a.docExt&&/^(png|jpe?g|gif|webp)$/i.test(a.docExt);
-  var thumb=isImg?('<span class="agrthumb" style="background-image:url(/api/agreements/'+encodeURIComponent(a.id)+'/doc)"></span>'):'';
-  return '<div class="rrow agrrow'+(signed?' agrexec':'')+'" data-agr="'+esc(a.id)+'" title="Open the document"><div class="rrmain" style="min-width:0"><div style="font-size:13px;font-weight:400;color:#1d2739;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+lead+esc(title)+'</div></div>'+expChip(a)+agrEntryIcon(a)+'</div>';
+  var _pendr=(_exec && a.effective && a.effective>today);
+  var statusTxt=_exec?(_pendr?('Commences '+esc(fmt(a.effective))):('Executed'+((a.signedDate||a.executedAt||a.effective)?(' · '+esc(fmt(a.signedDate||a.executedAt||a.effective))):''))):(_await?'Awaiting signature':(a.signStatus==='sent'?'Sent':(a.status==='terminated'?'Terminated':'Draft')));
+  var _typeL=atypeLabel(a.type);
+  var meta=(title&&title!==_typeL?(esc(_typeL)+' · '):'')+statusTxt;
+  return '<div class="rrow agrrow'+(signed?' agrexec':'')+'" data-agr="'+esc(a.id)+'" title="Open the document"><span class="dico" style="background:#2647b0">§</span><div class="rrmain" style="min-width:0"><div class="docttl">'+esc(title)+'</div><div class="docmeta">'+meta+'</div></div>'+expChip(a)+agrEntryIcon(a)+'</div>';
 }
 function apptFmtDT(sv){ if(!sv) return ''; var d=String(sv).slice(0,10).split('-'); var t=String(sv).slice(11,16); var out=d.length===3?(d[1]+'/'+d[2]+'/'+d[0]):String(sv); if(t){ var hh=parseInt(t.slice(0,2),10)||0,mm=t.slice(3,5); out+=' '+((hh%12)||12)+(mm==='00'?'':(':'+mm))+(hh>=12?'p':'a'); } return out; }
 function appointmentsCard(){
