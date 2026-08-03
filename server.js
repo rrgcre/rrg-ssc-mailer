@@ -2890,12 +2890,22 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:14px;}
 .chd{padding:13px 20px;border-bottom:1px solid var(--line);font-weight:800;color:var(--navy);font-size:13px;display:flex;align-items:center;gap:8px;}
 .chd .n{margin-left:auto;color:var(--muted);font-weight:600;font-size:11.5px;}
+.folderhd{cursor:pointer;user-select:none;}
+.cav{display:inline-block;transition:transform .15s;color:var(--muted);font-size:11px;}
+.card.open>.chd>.cav,.subcard.open>.chd>.cav{transform:rotate(90deg);}
+.card:not(.open)>.folderbody,.subcard:not(.open)>.folderbody{display:none;}
+.subcard{border-top:1px solid #f0f2f7;}
+.chd.sub{background:#fbfcfe;font-weight:700;font-size:12.5px;border-bottom:none;padding-left:32px;}
+.subcard .docrow{padding-left:32px;}
 .docrow{display:flex;align-items:center;gap:12px;padding:11px 20px;border-top:1px solid #f0f2f7;text-decoration:none;color:inherit;}
 .docrow:first-child{border-top:none;} .docrow:hover{background:#fbfcfe;}
 .ext{flex:0 0 44px;height:30px;border-radius:6px;background:var(--wash);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;color:var(--navy);text-transform:uppercase;}
 .dt{flex:1;font-weight:600;color:var(--navy);font-size:13.5px;} .dm{color:var(--muted);font-size:11px;margin-top:1px;}
 .dl{border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;white-space:nowrap;}
 .note{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 20px;color:var(--muted);font-size:12.5px;line-height:1.6;}
+.note.conf{display:flex;gap:12px;align-items:flex-start;border:1px solid #f0cfca;border-left:3px solid var(--red);background:#fff7f6;color:#4a3230;margin-bottom:14px;}
+.note.conf .lock{font-size:17px;line-height:1.35;flex:none;}
+.note.conf b{color:var(--red);}
 .empty{text-align:center;color:var(--muted);padding:46px 20px;}
 .foot{max-width:820px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11px;line-height:1.6;}
 </style></head><body>
@@ -2916,6 +2926,7 @@ function roomPublicPage(r, grant) {
   const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · ${esc(lvlLabel)} · session ends after 15 min idle</div>` : '';
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${visCount} document${visCount === 1 ? '' : 's'} · Provided by ${esc(orgDisplayName())} under NDA</div>${who}`;
   let body = '';
+  body += `<div class="note conf"><span class="lock">🔒</span><div><b>Confidential — provided under NDA.</b> These materials are shared solely so you can evaluate a potential acquisition of ${esc(r.business || 'this business')}. Do not copy, forward, screenshot, print, or distribute them, and do not share this link. All inquiries route exclusively through ${esc(orgDisplayName())}.</div></div>`;
   if (editCats.length) {
     body += `<div class="card"><div class="chd">Add a document</div><div style="padding:14px 20px">` +
       `<div class="note" style="border:none;padding:0;margin:0 0 10px">You can contribute documents to the folders you have upload rights to (e.g. proof of funds or a signed NDA). PDF, Word, Excel, images, or text — up to 20 MB.</div>` +
@@ -2926,22 +2937,23 @@ function roomPublicPage(r, grant) {
   if (!visCount) {
     body += '<div class="card"><div class="empty"><b>Documents are being prepared.</b><br>Your RRG contact will let you know as materials are added.</div></div>';
   } else {
-    body += visibleCats.map(cat => {
-      const inCat = docs.filter(d => (d.category || 'Other') === cat);
-      if (!inCat.length) return '';
-      const lvl = catLevel(cat);
-      const canDl = lvl !== 'view';
-      return `<div class="card"><div class="chd">${esc(cat)}<span class="n">${inCat.length}</span></div>` +
-        inCat.map(d => {
-          const href = '/roomfile/' + esc(r.token) + '/' + esc(d.id) + (canDl ? '?dl=1' : '');
-          const label = canDl ? 'Download →' : 'View →';
-          return `<a class="docrow" href="${href}" target="_blank" rel="noopener"><span class="ext">${esc(d.ext)}</span><div style="flex:1"><div class="dt">${esc(d.title || d.originalName)}</div><div class="dm">${esc(fmtBytes(d.size))}</div></div><span class="dl">${label}</span></a>`;
-        }).join('') +
-        `</div>`;
+    const _tops = visibleCats.filter(c => String(c).indexOf(' / ') < 0);
+    const _subs = {}; visibleCats.forEach(c => { const i = String(c).indexOf(' / '); if (i >= 0) { const par = c.slice(0, i).trim(); (_subs[par] = _subs[par] || []).push(c); } });
+    const filesIn = cat => docs.filter(d => (d.category || 'Other') === cat);
+    const docrows = cat => { const canDl = catLevel(cat) !== 'view'; return filesIn(cat).map(d => { const href = '/roomfile/' + esc(r.token) + '/' + esc(d.id) + (canDl ? '?dl=1' : ''); const label = canDl ? 'Download →' : 'View →'; return `<a class="docrow" href="${href}" target="_blank" rel="noopener"><span class="ext">${esc(d.ext)}</span><div style="flex:1"><div class="dt">${esc(d.title || d.originalName)}</div><div class="dm">${esc(fmtBytes(d.size))}</div></div><span class="dl">${label}</span></a>`; }).join(''); };
+    body += _tops.map(cat => {
+      const own = filesIn(cat);
+      const mySubs = (_subs[cat] || []).filter(sc => filesIn(sc).length);
+      const total = own.length + mySubs.reduce((n, sc) => n + filesIn(sc).length, 0);
+      if (!total) return '';
+      let inner = own.length ? docrows(cat) : '';
+      inner += mySubs.map(sc => { const label = String(sc).split(' / ').slice(1).join(' / '); return `<div class="subcard open"><div class="chd folderhd sub" onclick="rmToggle(this)"><span class="cav">▸</span>${esc(label)}<span class="n">${filesIn(sc).length}</span></div><div class="folderbody">${docrows(sc)}</div></div>`; }).join('');
+      return `<div class="card open"><div class="chd folderhd" onclick="rmToggle(this)"><span class="cav">▸</span>${esc(cat)}<span class="n">${total}</span></div><div class="folderbody">${inner}</div></div>`;
     }).join('');
   }
   const script = editCats.length ? `<script>(function(){var fi=document.getElementById('bup');if(!fi)return;fi.addEventListener('change',function(){var f=fi.files&&fi.files[0];var m=document.getElementById('bupmsg');if(!f)return;if(f.size>20*1024*1024){m.textContent='That file is over 20 MB.';fi.value='';return;}m.textContent='Uploading '+f.name+'…';var rd=new FileReader();rd.onload=function(){var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s);var cat=(document.getElementById('bupcat')||{}).value||'';fetch(location.pathname.replace(/\/+$/,'')+'/upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:b64,category:cat})}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok){m.textContent='Added ✓ — reloading…';setTimeout(function(){location.reload();},700);}else{m.textContent=(j&&j.error)||'Upload failed.';fi.value='';}}).catch(function(){m.textContent='Upload failed.';fi.value='';});};rd.readAsDataURL(f);});})();<\/script>` : '';
-  return roomShell('RRG Data Room — ' + (r.business || 'Confidential'), { head, body: body + script });
+  const _toggleJs = "<script>function rmToggle(h){var c=h&&h.parentNode;if(c)c.classList.toggle('open');}</script>";
+  return roomShell('RRG Data Room — ' + (r.business || 'Confidential'), { head, body: body + script + _toggleJs });
 }
 
 function roomNotFoundPage() {
