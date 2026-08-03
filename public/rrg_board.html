@@ -239,9 +239,20 @@ function renderList(cards){
       { label:'BBS #', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.bbsNumber,b.bbsNumber);}, cell:function(c){ return c.bbsNumber?esc(c.bbsNumber):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Owner', sort:function(a,b){return RRGList.cmp(a.owner,b.owner);}, cell:function(c){ return c.owner?esc(c.owner):'<span style="color:#b0b8c6">—</span>'; } },
       { label:'Last activity', sort:function(a,b){return RRGList.cmp(a.lastActivity||'',b.lastActivity||'');}, cell:function(c){ return c.lastActivity?esc(fmtDate(c.lastActivity)):'<span style="color:#b0b8c6">—</span>'; } }
-    ]
+    ],
+    bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelListings(ids,done); } } ]
   };
   if(LTBL) LTBL.refresh(cards); else LTBL=RRGList.create(cfg);
+}
+async function bulkDelListings(ids,done){
+  if(!ids||!ids.length) return;
+  if(!await rrgConfirm('Delete '+ids.length+' listing'+(ids.length>1?'s':'')+'? This removes the listing and its records — this cannot be undone.')) return;
+  var n=0, okc=0;
+  ids.forEach(function(key){
+    fetch('/api/assignment/'+encodeURIComponent(key),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
+      .then(function(j){ if(j&&j.ok) okc++; }).catch(function(){})
+      .then(function(){ if(++n===ids.length){ if(done)done(); if(window.rrgToast) rrgToast('Deleted '+okc+' listing'+(okc===1?'':'s')); load(); } });
+  });
 }
 
 function render(){

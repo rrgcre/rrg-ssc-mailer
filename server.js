@@ -2908,8 +2908,9 @@ ${inner.head}</div></div>
 function roomPublicPage(r, grant) {
   const docs = (r.docs || []);
   const catLevel = cat => grant ? effGrantLevel(grant, cat) : 'download';
-  const editCats = ROOM_CATEGORIES.filter(c => catLevel(c) === 'edit');
-  const visibleCats = ROOM_CATEGORIES.filter(c => catLevel(c) !== 'none');
+  const _roomCats = roomServeCats(r);
+  const editCats = _roomCats.filter(c => catLevel(c) === 'edit');
+  const visibleCats = _roomCats.filter(c => catLevel(c) !== 'none');
   const visCount = docs.filter(d => catLevel(d.category || 'Other') !== 'none').length;
   const lvlLabel = grant ? (editCats.length ? 'You can view, download & upload in some folders' : 'Folder-level access set by RRG') : '';
   const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · ${esc(lvlLabel)} · session ends after 15 min idle</div>` : '';
