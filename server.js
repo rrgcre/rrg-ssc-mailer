@@ -2518,11 +2518,11 @@ function newRoomId() { return 'room_' + Date.now().toString(36) + Math.random().
 function newRoomDocId() { return 'rd_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
 function newRoomToken() { try { return crypto.randomBytes(16).toString('hex'); } catch (e) { return (Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2)).slice(0, 28); } }
 const ROOM_CATEGORIES = ['Financials', 'Tax Returns', 'Lease', 'Equipment & FF&E', 'Licenses & Permits', 'Legal & Corporate', 'Menus & Marketing', 'Other'];
-// Room folder structure. Financials expands into the current year + the three preceding years
+// Room folder structure. Financials expands into the current year + the four preceding years
 // (captured per-room at creation so filed documents never orphan when the calendar year rolls over).
 function roomCategories(baseYear){
   const y = Number(baseYear) || new Date().getFullYear();
-  return ['Financials', 'Financials / ' + y, 'Financials / ' + (y-1), 'Financials / ' + (y-2), 'Financials / ' + (y-3),
+  return ['Financials', 'Financials / ' + y, 'Financials / ' + (y-1), 'Financials / ' + (y-2), 'Financials / ' + (y-3), 'Financials / ' + (y-4),
     'Tax Returns', 'Lease', 'Equipment & FF&E', 'Licenses & Permits', 'Legal & Corporate', 'Menus & Marketing', 'Other'];
 }
 function roomServeCats(r){
@@ -2754,6 +2754,22 @@ app.post('/api/room/:id/delete-doc', express.json(), (req, res) => {
   const d = (r.docs || []).find(x => x.id === did);
   if (d) { try { fs.unlinkSync(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} }
   r.docs = (r.docs || []).filter(x => x.id !== did);
+  saveRooms(arr);
+  res.json({ ok: true, docs: r.docs });
+});
+
+// Move a file to another folder (fix a mis-filed document).
+app.post('/api/room/:id/move-doc', express.json(), (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const b = req.body || {};
+  const d = (r.docs || []).find(x => x.id === String(b.id || ''));
+  if (!d) return res.status(404).json({ ok: false, error: 'File not found.' });
+  const cat = String(b.category || '');
+  if (roomServeCats(r).indexOf(cat) < 0) return res.status(400).json({ ok: false, error: 'Unknown folder.' });
+  d.category = cat; d.updatedAt = new Date().toISOString();
   saveRooms(arr);
   res.json({ ok: true, docs: r.docs });
 });

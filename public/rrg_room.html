@@ -37,6 +37,8 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 .cat.open>.catbody,.subcat.open>.catbody{display:block;}
 .subcat{margin:2px 0 2px 12px;border-left:2px solid #eef0f5;}
 .cathd.sub{background:#fff;font-size:12px;}
+.movewrap{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);}
+.movewrap select.movesel{font:inherit;font-size:11px;padding:4px 6px;border:1px solid var(--line);border-radius:7px;max-width:160px;background:#fff;color:var(--navy);cursor:pointer;}
 .umsg{font-size:12px;color:var(--muted);margin-top:8px;min-height:16px;}
 .cat{border-top:1px solid var(--line);}
 .cathd{padding:11px 20px;font-weight:800;color:var(--navy);font-size:12.5px;display:flex;align-items:center;gap:8px;background:#fbfcfe;}
@@ -261,6 +263,10 @@ function renderDocs(){
   }).join('');
 }
 applyAiName();
+function _folderOpts(cur){ return ((window.ROOM&&ROOM.categories)||[]).map(function(c){ return '<option value="'+esc(c)+'"'+(String(c)===String(cur)?' selected':'')+'>'+esc(c)+'</option>'; }).join(''); }
+function moveDoc(id,cat){ if(!id||!cat) return; fetch('/api/room/'+encodeURIComponent(RID)+'/move-doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:id,category:cat})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.docs=j.docs||ROOM.docs; renderDocs(); toast('Moved \u2713'); } else alert((j&&j.error)||'Could not move the file.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+function _docRow(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+esc(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div><label class="movewrap" title="Move this file to another folder"><span>Move</span><select class="movesel" onchange="moveDoc(\''+d.id+'\',this.value)">'+_folderOpts(d.category||'Other')+'</select></label><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }
+
 
 </script>
 </body>
