@@ -345,23 +345,32 @@
     (function(){
       var slot=document.getElementById("sscBody");
       function draw(schema){ try{ slot.innerHTML=RRG_FORMS.render(schema); window.RRG_ACTIVE_FORM=schema; if(RRG_FORMS.wireConditionals) RRG_FORMS.wireConditionals(); }catch(e){ console.error("form render",e); } }
+      var _PREVIEW=false; try{ _PREVIEW=/[?&]preview=1/.test(location.search); }catch(e){}
       // Render the built-in default immediately so the page is usable and all field wiring binds.
       draw(RRG_FORMS.seller);
-      // Then honor the admin's assigned Seller-Screening form (Settings > Call Questionnaires).
-      // If a custom form is assigned, swap it in. Autosave delegates on the <form>, so re-rendered fields still persist.
-      try {
-        window.RRG_FORM_READY = fetch("/api/forms",{credentials:"same-origin"})
-          .then(function(r){return r.json();})
-          .then(function(j){
-            if(!j||!j.ok) return;
-            var id=(j.assign&&j.assign.seller)||"";
-            var meta=(j.forms||[]).find(function(f){return f.id===id;});
-            if(!meta || meta.builtIn) return; // built-in default already rendered
-            return fetch("/api/form/"+encodeURIComponent(id),{credentials:"same-origin"})
-              .then(function(r){return r.json();})
-              .then(function(k){ if(k&&k.ok&&k.form) draw(k.form); });
-          }).catch(function(){});
-      } catch(e){}
+      if(_PREVIEW){
+        // Builder "Test in Call Mode": render the unsaved form from storage, auto-run Call Mode, save NOTHING.
+        window.__scrPreview=true;
+        var _pf=null; try{ _pf=JSON.parse(localStorage.getItem('rrgPreviewForm')||'null'); }catch(e){}
+        if(_pf) draw(_pf);
+        (function(){ try{ var b=document.createElement('div'); b.id='previewBanner'; b.textContent='● Preview — test run. Nothing is saved.'; b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:100002;background:#b5641a;color:#fff;text-align:center;font:800 12px/1 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;letter-spacing:.05em;padding:8px 12px;text-transform:uppercase'; (document.body||document.documentElement).appendChild(b); }catch(e){} })();
+        setTimeout(function(){ try{ if(window.startCall) window.startCall(); }catch(e){} }, 350);
+      } else {
+        // Then honor the admin's assigned Seller-Screening form (Settings > Call Questionnaires).
+        try {
+          window.RRG_FORM_READY = fetch("/api/forms",{credentials:"same-origin"})
+            .then(function(r){return r.json();})
+            .then(function(j){
+              if(!j||!j.ok) return;
+              var id=(j.assign&&j.assign.seller)||"";
+              var meta=(j.forms||[]).find(function(f){return f.id===id;});
+              if(!meta || meta.builtIn) return; // built-in default already rendered
+              return fetch("/api/form/"+encodeURIComponent(id),{credentials:"same-origin"})
+                .then(function(r){return r.json();})
+                .then(function(k){ if(k&&k.ok&&k.form) draw(k.form); });
+            }).catch(function(){});
+        } catch(e){}
+      }
     })();
     </script>
 
@@ -449,7 +458,7 @@
   if(document.body) document.body.appendChild(_svChip);
   function _flash(){ _svChip.style.opacity='1'; if(_flash._t)clearTimeout(_flash._t); _flash._t=setTimeout(function(){_svChip.style.opacity='0';},1400); }
   var _svT=null;
-  function _serverSave(){ if(!_CAN || !_hasData()) return; var data=_collectData(); data.formType='seller'; if(window.__scrExit) data.exited=true;
+  function _serverSave(){ if(window.__scrPreview) return; if(!_CAN || !_hasData()) return; var data=_collectData(); data.formType='seller'; if(window.__scrExit) data.exited=true;
     fetch(_apiBase()+'/api/screening-save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}).then(function(){ _flash(); }).catch(function(){});
   }
   function _svSchedule(){ if(_svT)clearTimeout(_svT); _svT=setTimeout(_serverSave,1300); }
@@ -459,9 +468,9 @@
   // asked. Only safe to call when the form is whole -- Call Mode lifts the live question
   // out of #sscform, and _collectData() only reads what is inside it, so the guide parks
   // the question back first and then calls this.
-  window.__scrSaveNow=function(){ if(_svT){ clearTimeout(_svT); _svT=null; } _serverSave(); try{ if(window.rrgSaveDraft) window.rrgSaveDraft(); }catch(e){} };
+  window.__scrSaveNow=function(){ if(window.__scrPreview) return; if(_svT){ clearTimeout(_svT); _svT=null; } _serverSave(); try{ if(window.rrgSaveDraft) window.rrgSaveDraft(); }catch(e){} };
   (function(){ var f=document.getElementById('sscform'); if(f){ f.addEventListener('input',_svSchedule); f.addEventListener('change',_svSchedule); } })();
-  window.addEventListener('beforeunload', function(){ try{ if(window.__cgPark) window.__cgPark(); if(_CAN && _hasData() && navigator.sendBeacon){ var data=_collectData(); data.formType='seller'; navigator.sendBeacon(_apiBase()+'/api/screening-save', new Blob([JSON.stringify(data)],{type:'application/json'})); } }catch(e){} });
+  window.addEventListener('beforeunload', function(){ try{ if(window.__scrPreview) return; if(window.__cgPark) window.__cgPark(); if(_CAN && _hasData() && navigator.sendBeacon){ var data=_collectData(); data.formType='seller'; navigator.sendBeacon(_apiBase()+'/api/screening-save', new Blob([JSON.stringify(data)],{type:'application/json'})); } }catch(e){} });
 
   window.screenClose=function(){
     var LOG='./rrg_screening_queue.html';
@@ -702,6 +711,7 @@
   }
 
   window.submitScreen=function(){
+    if(window.__scrPreview){ if(window.rrgToast) window.rrgToast('Test run — nothing was saved.'); return false; }
     var m=_validate();
     if(m.length){ _showBanner('Complete '+m.length+' required field'+(m.length>1?'s':'')+' (marked *) before submitting.'); m[0].scrollIntoView({behavior:'smooth',block:'center'}); return false; }
     _hideBanner();
@@ -715,6 +725,7 @@
   // whole, validates, confirms, and posts (submitted=true -> status Complete). Reports back via cb.
   window.__scrSubmit=function(cb){
     cb=cb||function(){};
+    if(window.__scrPreview){ if(window.rrgToast) window.rrgToast('Test run complete — nothing was saved.'); cb(false,'preview'); return; }
     if(window.__cgPark){ try{ window.__cgPark(); }catch(e){} }
     var m=_validate();
     if(m.length){ _showBanner('Complete '+m.length+' required field'+(m.length>1?'s':'')+' (marked *) before submitting.'); if(m[0]&&m[0].scrollIntoView) m[0].scrollIntoView({behavior:'smooth',block:'center'}); cb(false,'invalid',m.length); return; }
@@ -1298,6 +1309,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     if(btn) btn.disabled=true;
     window.__scrSubmit(function(ok,reason,count,actions){
       if(btn) btn.disabled=false;
+      if(reason==='preview'){ ov.style.display='none'; active=false; fab.style.display='block'; return; }   // test run — nothing saved
       if(ok){ if(window.rrgClearDraft) window.rrgClearDraft();
         var _cid=''; try{ _cid=(window.RRG_PARTY&&window.RRG_PARTY.personId)||new URLSearchParams(location.search).get('contactId')||''; }catch(e){}
         if(actions && actions.listingStatus){ try{ sessionStorage.setItem('rrgListingCreated', JSON.stringify(actions)); }catch(e){} }

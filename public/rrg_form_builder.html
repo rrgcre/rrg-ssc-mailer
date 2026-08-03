@@ -257,10 +257,47 @@ function renderSaveBar(){
   if(qs('#savebar')) return;
   var b=document.createElement('div'); b.id='savebar'; b.className='savebar';
   b.innerHTML='<div class="inner"><button type="button" class="btn ghost" onclick="goBack()">Cancel</button>'
-    +'<button type="button" class="btn primary" id="saveBtn" onclick="save()">Save questionnaire</button>'
+    +'<button type="button" class="btn ghost" id="testBtn" onclick="testPreview()" title="Run this questionnaire in Call Mode — nothing is saved">▶ Test in Call Mode</button>'
+    +'<span class="autostat" id="autoStatus" style="font-size:12px;color:#8a94a6;font-weight:600;margin-left:2px"></span>'
+    +'<button type="button" class="btn primary" id="saveBtn" onclick="save()">Save &amp; close</button>'
     +'<span class="msg" id="msg"></span></div>';
   document.body.appendChild(b);
 }
+/* ---- Test in Call Mode: stash the current (unsaved) form, open the real Call Mode in preview (no save) ---- */
+function testPreview(){
+  syncFromDom();
+  var f=STATE.form;
+  var totalQ=(f.header||[]).length + (f.categories||[]).reduce(function(n,c){return n+(c.questions||[]).filter(function(q){return q.type;}).length;},0);
+  var m=qs('#msg');
+  if(!totalQ){ if(m){ m.className='msg err'; m.textContent='Add at least one question to test.'; } return; }
+  try{ localStorage.setItem('rrgPreviewForm', JSON.stringify(f)); }catch(e){}
+  window.open('./seller_screening.html?preview=1','_blank');
+}
+/* ---- Auto-save (debounced) ---- */
+var _autoT=null, _autoSaving=false;
+function _nowTime(){ try{ var d=new Date(); var h=d.getHours(), mi=d.getMinutes(); return ((h%12)||12)+':'+(mi<10?'0':'')+mi+' '+(h<12?'AM':'PM'); }catch(e){ return ''; } }
+function setAutoStatus(t){ var el=qs('#autoStatus'); if(el) el.textContent=t||''; }
+function autoSave(){
+  syncFromDom();
+  var f=STATE.form;
+  if(!f.name){ setAutoStatus('Name it to auto-save'); return; }
+  var totalQ=(f.header||[]).length + (f.categories||[]).reduce(function(n,c){return n+(c.questions||[]).filter(function(q){return q.type;}).length;},0);
+  if(!totalQ){ return; }
+  if(_autoSaving) return;
+  var payload={ name:f.name, callType:f.callType, header:f.header, categories:f.categories, automations:f.automations||{}, knownSellerGuard:!!f.knownSellerGuard };
+  if(f.id && !STATE.dup) payload.id=f.id;
+  _autoSaving=true; setAutoStatus('Saving…');
+  fetch('/api/form',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(function(r){return r.json();}).then(function(j){
+      _autoSaving=false;
+      if(j&&j.ok&&j.form){ STATE.form.id=j.form.id; STATE.dup=false; setAutoStatus('Saved ✓ '+_nowTime()); }
+      else { setAutoStatus((j&&j.error)||'Not saved'); }
+    }).catch(function(){ _autoSaving=false; setAutoStatus('Offline — will retry'); });
+}
+function scheduleAutoSave(){ if(_autoT) clearTimeout(_autoT); _autoT=setTimeout(autoSave, 1200); }
+document.addEventListener('input', scheduleAutoSave);
+document.addEventListener('change', scheduleAutoSave);
+document.addEventListener('click', function(e){ var t=e.target; if(t && t.closest && t.closest('.mini,.btn.add,.addbtns,.optrow')) scheduleAutoSave(); });
 function bindTypeToggles(){
   qsa('.q-type').forEach(function(sel){
     sel.onchange=function(){ var row=sel.closest('.qrow'); var v=sel.value; row.classList.toggle('is-opts', v==='single'||v==='multi'); row.classList.toggle('is-group', v==='group'); row.classList.toggle('is-instr', v==='instruction'); };
