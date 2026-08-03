@@ -581,7 +581,8 @@
       finishedAt: new Date().toISOString(),
       repEmail: (document.getElementById('clientEmail').value||'').trim(),
       formQId: (window.RRG_ACTIVE_FORM && window.RRG_ACTIVE_FORM.id) || '',
-      sections: sections
+      sections: sections,
+      cardNotes: (function(){ var n=window.__cgNotes||{}, out=[]; Object.keys(n).forEach(function(k){ var v=n[k]; if(v && String(v.note||'').trim()) out.push({ label:v.label||'', note:String(v.note).trim() }); }); return out; })()
     };
   }
 
@@ -629,6 +630,8 @@
     for(var i=0;i<all.length;i++){ var k=all[i].querySelector('label.k'); if(k && /deal call/i.test(k.textContent||'')){ oset=all[i]; break; } }
     if(oset && target){ [].slice.call(oset.querySelectorAll('label.opt')).forEach(function(l){ var inp=l.querySelector('input'); if(!inp) return; if((l.textContent||'').trim().toLowerCase()===target.toLowerCase()){ inp.checked=true; inp.dispatchEvent(new Event('change',{bubbles:true})); } }); }
     if(oset){ var w=oset.querySelector('.recwhy'); if(!w){ w=document.createElement('div'); w.className='recwhy'; w.style.cssText='grid-column:1/-1;font-size:12.5px;color:#5a6478;margin-top:8px;line-height:1.5;border-left:3px solid #DA2B1F;padding-left:10px'; oset.appendChild(w); } w.textContent=why?('AI read: '+why):''; w.style.display=why?'block':'none'; }
+    window.__scrRec={ outcome:target, why:why||'' };   // reflect the suggestion on the summary card too
+    if(window.__cgShowSuggest){ try{ window.__cgShowSuggest(); }catch(e){} }
   };
   // Self-contained working orb for this page (rrg_shell.js is not loaded here). rrgDraftSummary
   // and the auto-draft below call window.rrgAiWork.show()/.hide().
@@ -1281,8 +1284,18 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
   }
   function show(i){ if(i<0)i=0; if(i>=steps.length){ finish(); return; } parkCurrent(); saveNow(); idx=i; var el=steps[i]; pull(el);
     if(el.querySelector('#callNotes')){ var db=document.createElement('button'); db.type='button'; db.textContent='✨ Draft from answers'; db.style.cssText='margin-top:12px;background:#000E31;border:1px solid #000E31;border-radius:9px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;color:#fff;cursor:pointer'; db.addEventListener('click',function(){ if(window.rrgDraftSummary) window.rrgDraftSummary(db); }); slot.appendChild(db); var _sy=el.querySelector('#callNotes'), _syn=Date.now(); if(_sy && !String(_sy.value||'').trim() && (!window.__scrAutoDraftAt || (_syn-window.__scrAutoDraftAt)>90000)){ window.__scrAutoDraftAt=_syn; setTimeout(function(){ var t2=document.getElementById('callNotes'); if(t2 && !String(t2.value||'').trim() && window.rrgDraftSummary) window.rrgDraftSummary(db); },250); }
-      var rp=document.getElementById('recPath'), rf=(rp&&rp.closest)?rp.closest('.field'):null;
-      if(rf && rf!==el){ var cap=document.createElement('div'); cap.style.cssText='margin:20px 0 6px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8'; cap.textContent='Suggested Action'; slot.appendChild(cap); pullExtra(rf); } }
+      var _sugCap=document.createElement('div'); _sugCap.style.cssText='margin:20px 0 6px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8'; _sugCap.textContent='Suggested Action';
+      var _sug=document.createElement('div'); _sug.id='cgSuggest'; _sug.style.cssText='background:#fff;border:1px solid #eef0f5;border-radius:10px;padding:12px 14px;font-size:13px;color:#5a6478'; _sug.textContent='The AI will suggest a call once the summary is drafted.';
+      slot.appendChild(_sugCap); slot.appendChild(_sug); if(window.__cgShowSuggest){ try{ window.__cgShowSuggest(); }catch(e){} } }
+    if(!el.querySelector('#callNotes')){
+      var _nk='cgnote_'+i;
+      var _nw=document.createElement('div'); _nw.style.cssText='margin-top:16px';
+      _nw.innerHTML='<div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a93a8;margin-bottom:5px">Quick notes (optional)</div>';
+      var _nt=document.createElement('textarea'); _nt.className='cgNote'; _nt.placeholder='Jot anything worth remembering about this answer…'; _nt.style.cssText='width:100%;min-height:52px;border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:inherit;font-size:14px;resize:vertical;background:#fff';
+      window.__cgNotes=window.__cgNotes||{}; if(window.__cgNotes[_nk]) _nt.value=window.__cgNotes[_nk].note||'';
+      (function(kk,label){ _nt.addEventListener('input',function(){ window.__cgNotes=window.__cgNotes||{}; window.__cgNotes[kk]={label:label,note:_nt.value}; }); })(_nk, labelOf(el)||('Question '+(i+1)));
+      _nw.appendChild(_nt); slot.appendChild(_nw);
+    }
     var lb=labelOf(el); var isInstr=!!(el.getAttribute&&el.getAttribute('data-instr')==='1'); var q=(el.getAttribute&&el.getAttribute('data-prompt'))||(isInstr?lb:(QMAP[norm(lb)]||(lb.replace(/\?+$/,'')+'?'))); cgQ.textContent=q; var hn=(el.getAttribute&&el.getAttribute('data-hint'))||''; if(cgHint){ cgHint.textContent=hn||'No coaching note on this question.'; cgHint.style.opacity=hn?'1':'.5'; } var total=0,pos=0; for(var k=0;k<steps.length;k++){ if(k!==i && skip(k)) continue; total++; if(k<=i) pos++; } if(!total){ total=steps.length; pos=i+1; }
     cgProg.textContent='Question '+pos+' of '+total; cgBar.style.width=Math.round((pos-1)/Math.max(1,total)*100)+'%'; cgBack.style.visibility=(seek(i-1,-1)>=0)?'visible':'hidden';
     var _nx=ov.querySelector('#cgNext'); if(_nx){ if(seek(i+1,1)>=steps.length){ _nx.textContent='\u2713 Submit screening'; _nx.setAttribute('data-submit','1'); _nx.style.background='#1f8a5b'; _nx.style.borderColor='#1f8a5b'; } else { _nx.textContent='Next \u2192'; _nx.removeAttribute('data-submit'); _nx.style.background='#DA2B1F'; _nx.style.borderColor='#DA2B1F'; } }
@@ -1344,6 +1357,17 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     wrap.addEventListener('click',function(e){ if(e.target===wrap) wrap.remove(); });
   }
   window.__lsSummary=showListingSummary;
+  // Render the AI's suggested call (outcome + why) onto the summary card's Suggested Action slot.
+  window.__cgShowSuggest=function(){
+    var host=document.getElementById('cgSuggest'); if(!host) return;
+    var r=window.__scrRec;
+    if(!r || !r.outcome){ host.textContent='The AI will suggest a call once the summary is drafted.'; return; }
+    var cm={ 'Business Sale':['#eaf5ef','#1f8a5b'], 'Asset Sale':['#eef2fb','#2647b0'], 'Nurture':['#fdf1df','#b5791f'], 'Decline':['#fdeceb','#c02318'] };
+    var c=cm[r.outcome]||['#eef1f6','#5b6472'];
+    host.innerHTML='<div style="display:inline-flex;align-items:center;gap:8px;background:'+c[0]+';color:'+c[1]+';border-radius:99px;padding:5px 13px;font-weight:800;font-size:13px">AI suggests: '+_deEsc(r.outcome)+'</div>'
+      +(r.why?('<div style="font-size:12.5px;color:#5a6478;margin-top:9px;line-height:1.5;border-left:3px solid #DA2B1F;padding-left:10px">'+_deEsc(r.why)+'</div>'):'')
+      +'<div style="font-size:11.5px;color:#8a93a8;margin-top:9px">You confirm or change this on the next card.</div>';
+  };
   function _deEsc(s){ var d=document.createElement('div'); d.textContent=(s==null?'':String(s)); return d.innerHTML; }
   // Live 'deal read' from the answers: temperature (weighted options), deal-killer alerts, and
   // follow-up nudges. Reads data-wt / data-kill / data-nudge the engine stamps from the builder.

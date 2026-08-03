@@ -239,7 +239,7 @@ function render(){
   // meta
   h+='<div class="card"><div class="row2"><div><span class="lbl">Questionnaire name</span><input type="text" id="formName" value="'+esc(f.name||'')+'" placeholder="e.g. Seller Screening — Bars"></div>'
     +'<div><span class="lbl">Used for which call type</span><select id="formType">'
-    +['seller','buyer','site','other'].map(function(t){var lbl={seller:'Seller Screening',buyer:'Buyer Qualification',site:'Site-Criteria',other:'Other / General'}[t];return '<option value="'+t+'"'+(f.callType===t?' selected':'')+'>'+lbl+'</option>';}).join('')
+    +['seller','buyer','site','valuation','other'].map(function(t){var lbl={seller:'Seller Screening',buyer:'Buyer Qualification',site:'Site-Criteria',valuation:'Valuation',other:'Other / General'}[t];return '<option value="'+t+'"'+(f.callType===t?' selected':'')+'>'+lbl+'</option>';}).join('')
     +'</select></div></div></div>';
    h+=automationsCard(f);
   // header
