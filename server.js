@@ -4678,7 +4678,7 @@ app.post('/api/site-fit/prefill', express.json({ limit: '28mb' }), async (req, r
     } else {
       return res.status(400).json({ ok: false, error: 'Pick a screening on file, or upload a document.' });
     }
-    const result = await aiassist.siteFitPrefill({ source });
+    const result = await aiassist.siteFitPrefill({ source, scope: b.scope });
     res.json({ ok: true, values: (result && result.values) || {}, notes: (result && result.notes) || '' });
   } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
 });

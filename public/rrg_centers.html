@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FullServe — Shopping Centers</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#14213d;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;--inp:#cfd6e2;--green:#1f8a5b;--amber:#b5791f;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f7;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:24px 0 22px;}
+.top-in{max-width:1180px;margin:0 auto;padding:0 24px;display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;}
+.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin-bottom:4px;}
+h1{margin:0;font-size:25px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:640px;line-height:1.5;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:700;font-size:13px;padding:9px 14px;border-radius:9px;cursor:pointer;}
+.btn:hover{border-color:#9fb0cc;} .btn.pri{background:var(--red);color:#fff;border-color:var(--red);}
+.wrap{max-width:1180px;margin:20px auto;padding:0 24px 90px;}
+.tools{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;}
+.search{flex:1;min-width:200px;border:1px solid var(--inp);border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;}
+.msg{font-size:12px;color:var(--muted);}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:14px;}
+.cc{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(16,32,70,.05);display:flex;flex-direction:column;}
+.cc .ph{height:128px;background:var(--wash) center/cover no-repeat;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:#b7c0d4;font-size:30px;}
+.cc .bd{padding:14px 16px;flex:1;display:flex;flex-direction:column;gap:6px;}
+.cc .nm{font-weight:800;font-size:15px;color:var(--navy);line-height:1.25;}
+.cc .addr{font-size:12px;color:var(--muted);line-height:1.45;}
+.chip{display:inline-block;font-size:10.5px;font-weight:800;padding:3px 9px;border-radius:999px;background:#eef2fa;color:#3a4b74;white-space:nowrap;}
+.spb{display:inline-block;font-size:10.5px;font-weight:800;color:#fff;background:var(--navy);border-radius:999px;padding:3px 9px;white-space:nowrap;}
+.stats{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink);margin-top:2px;}
+.stats b{color:var(--navy);}
+.spaces{padding:2px 16px 12px;font-size:12px;color:var(--muted);}
+.spaces .sp{padding:5px 0;border-top:1px dashed var(--line);}
+.ccf{display:flex;gap:8px;padding:10px 16px;border-top:1px solid var(--line);}
+.lnk{font-size:12px;color:#2647b0;background:none;border:none;cursor:pointer;font-weight:700;padding:0;}
+.ov{position:fixed;inset:0;background:rgba(8,14,32,.5);display:flex;align-items:flex-start;justify-content:center;padding:34px 16px;z-index:200;overflow:auto;}
+.ov[hidden]{display:none;}
+.mod{background:#fff;border-radius:15px;max-width:640px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.4);}
+.mhd{display:flex;align-items:center;justify-content:space-between;padding:15px 20px;border-bottom:1px solid var(--line);font-weight:800;color:var(--navy);font-size:16px;}
+.mb{padding:16px 20px;}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;}
+.f{display:flex;flex-direction:column;gap:4px;} .f.full{grid-column:1/-1;}
+.f label{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:800;}
+.f input,.f select,.f textarea{border:1px solid var(--inp);border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;background:#fff;}
+.f input:focus,.f select:focus,.f textarea:focus{outline:none;border-color:var(--red);}
+.f textarea{min-height:60px;resize:vertical;}
+.mf{display:flex;align-items:center;justify-content:flex-end;gap:10px;padding:14px 20px;border-top:1px solid var(--line);}
+.mf .msg{margin-right:auto;}
+.empty{text-align:center;color:var(--muted);padding:50px 20px;font-size:13.5px;}
+.phrow{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.phrow .thumb{width:88px;height:60px;border-radius:8px;background:var(--wash) center/cover no-repeat;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:#b7c0d4;font-size:22px;flex:0 0 auto;}
+.rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);}
+body.rrg-shelled .rrg-back{display:none;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<a href="./index.html" class="rrg-back"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
+<div class="top"><div class="top-in">
+  <div><div class="kicker">Tenant Rep · Inventory</div><h1>Shopping Centers</h1><div class="sub">Your book of centers. One center holds many spaces — link a space to its center in the Space Tracker.</div></div>
+  <button class="btn pri" onclick="openEdit()">＋ Add center</button>
+</div></div>
+<div class="wrap">
+  <div class="tools"><input class="search" id="q" placeholder="Search by name, market, anchor…" oninput="draw()"><span class="msg" id="count"></span></div>
+  <div id="grid" class="grid"><div class="empty">Loading…</div></div>
+</div>
+
+<div class="ov" id="ov" hidden>
+  <div class="mod">
+    <div class="mhd"><span id="modTitle">Add center</span><button class="btn" onclick="closeEdit()">✕</button></div>
+    <div class="mb">
+      <div class="phrow">
+        <div class="thumb" id="phThumb">▤</div>
+        <div><input type="file" id="phFile" accept=".png,.jpg,.jpeg,.gif,.webp" style="display:none"><button class="btn" type="button" onclick="document.getElementById('phFile').click()">Upload photo</button><div class="msg" id="phMsg" style="margin-top:5px"></div></div>
+      </div>
+      <div class="fg">
+        <div class="f full"><label>Center name *</label><input id="c_name" placeholder="Bulverde Marketplace"></div>
+        <div class="f full"><label>Address</label><input id="c_address" placeholder="1604 &amp; Bulverde Rd"></div>
+        <div class="f"><label>City</label><input id="c_city" placeholder="San Antonio"></div>
+        <div class="f"><label>Market</label><input id="c_market" placeholder="San Antonio"></div>
+        <div class="f"><label>Center type</label><select id="c_type"></select></div>
+        <div class="f"><label>Total GLA (SF)</label><input id="c_gla" inputmode="numeric" placeholder="128000"></div>
+        <div class="f full"><label>Anchor(s)</label><input id="c_anchor" placeholder="H-E-B"></div>
+        <div class="f full"><label>Notable co-tenants</label><input id="c_cot" placeholder="Starbucks, F45, Great Clips"></div>
+        <div class="f"><label>Landlord / owner</label><input id="c_landlord" placeholder="RREAF Holdings"></div>
+        <div class="f"><label>Traffic (VPD)</label><input id="c_vpd" inputmode="numeric" placeholder="41000"></div>
+        <div class="f full"><label>Notes</label><textarea id="c_notes" placeholder="Co-tenancy, parking, demand drivers, availability…"></textarea></div>
+      </div>
+    </div>
+    <div class="mf"><span class="msg" id="modMsg"></span><button class="btn" onclick="closeEdit()">Cancel</button><button class="btn pri" id="modSave" onclick="saveCenter()">Save center</button></div>
+  </div>
+</div>
+
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function fmtN(n){ return (n==null||n==='')?'':Number(n).toLocaleString('en-US'); }
+var CENTERS=[], SPACES=[], TYPES=[], CANDEL=false, EDIT=null, PENDING_PHOTO=null;
+function load(){
+  Promise.all([
+    fetch('/api/centers',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}),
+    fetch('/api/spaces',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).catch(function(){return {spaces:[]};})
+  ]).then(function(res){
+    var j=res[0]||{}; if(!j.ok){ document.getElementById('grid').innerHTML='<div class="empty">Could not load centers.</div>'; return; }
+    CENTERS=j.centers||[]; TYPES=j.types||[]; CANDEL=!!j.canDelete; SPACES=(res[1]&&res[1].spaces)||[];
+    var sel=document.getElementById('c_type'); sel.innerHTML='<option value="">— type —</option>'+TYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
+    draw();
+  }).catch(function(){ document.getElementById('grid').innerHTML='<div class="empty">Could not load centers.</div>'; });
+}
+function spacesFor(id){ return SPACES.filter(function(s){return s.centerId===id;}); }
+function draw(){
+  var q=(document.getElementById('q').value||'').toLowerCase().trim();
+  var list=CENTERS.slice().sort(function(a,b){return String(a.name||'').toLowerCase().localeCompare(String(b.name||'').toLowerCase());});
+  if(q) list=list.filter(function(c){ return [c.name,c.market,c.city,c.anchor,c.coTenants,c.address].filter(Boolean).join(' ').toLowerCase().indexOf(q)>=0; });
+  document.getElementById('count').textContent=CENTERS.length?(list.length+' of '+CENTERS.length+' center'+(CENTERS.length===1?'':'s')):'';
+  var g=document.getElementById('grid');
+  if(!list.length){ g.innerHTML='<div class="empty">'+(CENTERS.length?'No centers match your search.':'No shopping centers yet — add your first one.')+'</div>'; return; }
+  g.innerHTML=list.map(function(c){
+    var ph=c.hasPhoto?('<div class="ph" style="background-image:url(/api/center-photo/'+esc(c.id)+'?t='+encodeURIComponent(c.updatedAt||'')+')"></div>'):'<div class="ph">▤</div>';
+    var stats=[]; if(c.gla) stats.push('<span>GLA <b>'+fmtN(c.gla)+'</b> SF</span>'); if(c.vpd) stats.push('<span>VPD <b>'+fmtN(c.vpd)+'</b></span>');
+    var meta=[c.centerType?('<span class="chip">'+esc(c.centerType)+'</span>'):'', '<span class="spb">'+(c.spaceCount||0)+' space'+(c.spaceCount===1?'':'s')+'</span>'].filter(Boolean).join(' ');
+    var linked=spacesFor(c.id);
+    var sph=linked.length?('<div class="spaces">'+linked.map(function(s){return '<div class="sp">'+esc(s.name||s.address||'Space')+(s.status?(' · '+esc(s.status)):'')+'</div>';}).join('')+'</div>'):'';
+    return '<div class="cc">'+ph+'<div class="bd">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px"><div class="nm">'+esc(c.name||'Untitled')+'</div><div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">'+meta+'</div></div>'
+      +((c.address||c.market||c.city)?('<div class="addr">'+[c.address,c.market||c.city].filter(Boolean).map(esc).join(' · ')+'</div>'):'')
+      +(c.anchor?('<div class="addr">Anchor: <b style="color:var(--ink)">'+esc(c.anchor)+'</b>'+(c.coTenants?(' · '+esc(c.coTenants)):'')+'</div>'):'')
+      +((stats.length||c.landlord)?('<div class="stats">'+stats.join('')+(c.landlord?('<span>'+esc(c.landlord)+'</span>'):'')+'</div>'):'')
+      +'</div>'+sph
+      +'<div class="ccf"><button class="lnk" onclick="openEdit(\''+c.id+'\')">Edit</button>'+(CANDEL?('<button class="lnk" style="color:#DA2B1F;margin-left:auto" onclick="delCenter(\''+c.id+'\')">Delete</button>'):'')+'</div>'
+      +'</div>';
+  }).join('');
+}
+function setv(id,v){ var el=document.getElementById(id); if(el) el.value=(v==null?'':v); }
+function openEdit(id){
+  EDIT=id?CENTERS.find(function(c){return c.id===id;}):null; PENDING_PHOTO=null;
+  document.getElementById('modTitle').textContent=EDIT?'Edit center':'Add center';
+  document.getElementById('modMsg').textContent=''; document.getElementById('phMsg').textContent='';
+  setv('c_name',EDIT&&EDIT.name); setv('c_address',EDIT&&EDIT.address); setv('c_city',EDIT&&EDIT.city); setv('c_market',EDIT&&EDIT.market);
+  document.getElementById('c_type').value=(EDIT&&EDIT.centerType)||'';
+  setv('c_gla',EDIT&&EDIT.gla); setv('c_anchor',EDIT&&EDIT.anchor); setv('c_cot',EDIT&&EDIT.coTenants); setv('c_landlord',EDIT&&EDIT.landlord); setv('c_vpd',EDIT&&EDIT.vpd); setv('c_notes',EDIT&&EDIT.notes);
+  var th=document.getElementById('phThumb');
+  if(EDIT&&EDIT.hasPhoto){ th.style.backgroundImage='url(/api/center-photo/'+EDIT.id+'?t='+encodeURIComponent(EDIT.updatedAt||'')+')'; th.textContent=''; } else { th.style.backgroundImage=''; th.textContent='▤'; }
+  document.getElementById('phFile').value='';
+  document.getElementById('ov').hidden=false;
+}
+function closeEdit(){ document.getElementById('ov').hidden=true; }
+document.getElementById('phFile').addEventListener('change',function(){ var f=this.files&&this.files[0]; if(!f) return; if(f.size>10*1024*1024){ document.getElementById('phMsg').textContent='Image over 10 MB.'; this.value=''; return; } var rd=new FileReader(); rd.onload=function(){ PENDING_PHOTO={filename:f.name,dataB64:String(rd.result||'').replace(/^data:[^,]*,/,'')}; var th=document.getElementById('phThumb'); th.style.backgroundImage='url('+rd.result+')'; th.textContent=''; document.getElementById('phMsg').textContent='Will upload on save.'; }; rd.readAsDataURL(f); });
+function saveCenter(){
+  var name=(document.getElementById('c_name').value||'').trim();
+  if(!name){ document.getElementById('modMsg').textContent='Center name is required.'; return; }
+  var body={ id:EDIT?EDIT.id:'', name:name, address:document.getElementById('c_address').value, city:document.getElementById('c_city').value, market:document.getElementById('c_market').value, centerType:document.getElementById('c_type').value, gla:document.getElementById('c_gla').value, anchor:document.getElementById('c_anchor').value, coTenants:document.getElementById('c_cot').value, landlord:document.getElementById('c_landlord').value, vpd:document.getElementById('c_vpd').value, notes:document.getElementById('c_notes').value };
+  var btn=document.getElementById('modSave'); btn.disabled=true; document.getElementById('modMsg').textContent='Saving…';
+  fetch('/api/center',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ btn.disabled=false; document.getElementById('modMsg').textContent=(j&&j.error)||'Could not save.'; return null; }
+    if(PENDING_PHOTO){ return fetch('/api/center/'+j.center.id+'/photo',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(PENDING_PHOTO)}).then(function(r){return r.json();}); }
+    return j;
+  }).then(function(j){ if(j===null) return; btn.disabled=false; closeEdit(); if(window.rrgToast) rrgToast('Center saved'); load(); }).catch(function(){ btn.disabled=false; document.getElementById('modMsg').textContent='Network error.'; });
+}
+function delCenter(id){
+  var c=CENTERS.find(function(x){return x.id===id;}); if(!c) return;
+  var n=spacesFor(id).length;
+  var msg='Delete '+(c.name||'this center')+'?'+(n?(' '+n+' linked space'+(n===1?'':'s')+' will be unlinked (the spaces stay).'):'');
+  (window.rrgConfirm?rrgConfirm(msg,{danger:true}):Promise.resolve(confirm(msg))).then(function(ok){ if(!ok) return; fetch('/api/center/'+id,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(window.rrgToast) rrgToast('Center deleted'); load(); } else if(window.rrgToast) rrgToast((j&&j.error)||'Could not delete',{danger:true}); }); });
+}
+load();
+</script>
+</body>
+</html>

@@ -86,7 +86,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
     <div class="aibox" data-ai=""><div class="aihd">✨ AI fill from a listing <span>Paste a CoStar / LoopNet / Crexi blurb or broker email, or upload PDFs — one fills the fields to review, several auto-create a listing each</span></div><textarea id="ai_paste" placeholder="Paste the listing here…"></textarea><div class="airow"><button class="btn" id="ai_fill" type="button">Fill the fields ↓</button><input type="file" id="ai_pdf" accept=".pdf,.doc,.docx,.txt" multiple style="display:none"><button class="btn" id="ai_pdf_btn" type="button" title="One file fills the form to review; pick several to auto-create a listing each">⬆ Upload PDF(s)</button><span class="msg" id="ai_msg"></span></div><div class="airow" style="margin-top:9px;border-top:1px solid rgba(0,0,0,.07);padding-top:10px"><label style="font-size:11.5px;color:#5a6478;display:inline-flex;align-items:center;gap:5px">Or scan my email for listings from the last <input type="number" id="ai_days" value="90" min="1" max="730" style="width:60px;font:inherit;font-size:12px;padding:4px 6px;border:1px solid #cfd6e2;border-radius:7px"> days</label><button class="btn" id="ai_email_btn" type="button">✉ Scan email → auto-create</button></div></div>
     <div class="grid">
       <div class="f full"><label class="fld">Address</label><input id="f_address" placeholder="1234 S Congress Ave"></div>
-      <div class="f"><label class="fld">Shopping center</label><input id="f_center" placeholder="Southpark Plaza"></div>
+      <div class="f"><label class="fld">Shopping center</label><select id="f_center_sel" onchange="onCenterSel()"></select><input id="f_center" type="hidden"><input id="f_center_id" type="hidden"><div id="f_center_new" style="display:none;margin-top:6px"><input id="f_center_newname" placeholder="New center name" style="width:100%;margin-bottom:6px;border:1px solid #cfd6e2;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px"><div style="display:flex;gap:6px"><input id="f_center_newmkt" placeholder="Market / City" style="flex:1;border:1px solid #cfd6e2;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px"><button class="btn" type="button" onclick="createCenterInline()" style="white-space:nowrap">Create</button><button class="btn" type="button" onclick="cancelNewCenter()">✕</button></div></div></div>
       <div class="f"><label class="fld">Market / City</label><input id="f_market" placeholder="Austin"></div>
       <div class="f"><label class="fld">Space name / label <span style="text-transform:none;color:#98a1b5">(optional)</span></label><input id="f_name" placeholder="Former Chili's"></div>
       <div class="f"><label class="fld">Position type</label><select id="f_type"></select></div>
@@ -118,7 +118,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 </div></div>
 <script src="/rrg_list.js"></script>
 <script>
-var TYPES=[], STATUS=[], FEATURES=[], SPACES=[], CTL=null, IS_ADMIN=false, EDIT=null, SEL={}, FILTER='';
+var TYPES=[], STATUS=[], FEATURES=[], SPACES=[], CENTERS=[], CTL=null, IS_ADMIN=false, EDIT=null, SEL={}, FILTER='';
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function money(n){ return (n==null||n==='')?'':('$'+Number(n).toFixed(2)); }
 function sf(n){ return (n==null||n==='')?'':(Number(n).toLocaleString()+' SF'); }
@@ -176,12 +176,50 @@ function fillSelects(){
 function val(id){ return document.getElementById(id).value; }
 function setv(id,v){ document.getElementById(id).value=(v==null?'':v); }
 
+function fillCenterSel(){
+  var sel=document.getElementById('f_center_sel'); if(!sel) return;
+  var idEl=document.getElementById('f_center_id'), nameEl=document.getElementById('f_center');
+  var curId=idEl.value||'', curName=nameEl.value||'';
+  if(!curId && curName){ var m=CENTERS.filter(function(c){return String(c.name||'').toLowerCase()===curName.toLowerCase();})[0]; if(m){ curId=m.id; idEl.value=m.id; } }
+  var html='<option value="">— none —</option>'+CENTERS.map(function(c){ return '<option value="'+esc(c.id)+'">'+esc(c.name||'Untitled')+(c.market?(' · '+esc(c.market)):'')+'</option>'; }).join('');
+  var legacy=(!curId && !!curName);
+  if(legacy) html+='<option value="__text">'+esc(curName)+' (unlinked)</option>';
+  html+='<option value="__new">＋ Add new center…</option>';
+  sel.innerHTML=html;
+  sel.value=curId?curId:(legacy?'__text':'');
+  var nb=document.getElementById('f_center_new'); if(nb) nb.style.display='none';
+}
+function onCenterSel(){
+  var sel=document.getElementById('f_center_sel'); var v=sel.value; var nb=document.getElementById('f_center_new');
+  if(v==='__new'){ if(nb) nb.style.display='block'; var nn=document.getElementById('f_center_newname'); if(nn) nn.focus(); return; }
+  if(nb) nb.style.display='none';
+  if(v==='__text'){ document.getElementById('f_center_id').value=''; return; }
+  document.getElementById('f_center_id').value=v||'';
+  if(v){ var c=CENTERS.filter(function(x){return x.id===v;})[0]; document.getElementById('f_center').value=c?(c.name||''):''; } else { document.getElementById('f_center').value=''; }
+  if(EDIT&&EDIT.id) saveSpace(true);
+}
+function createCenterInline(){
+  var name=(document.getElementById('f_center_newname').value||'').trim();
+  var mkt=(document.getElementById('f_center_newmkt').value||'').trim();
+  var mm=document.getElementById('mmsg');
+  if(!name){ if(mm) mm.textContent='Enter a center name.'; return; }
+  fetch('/api/center',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:name,market:mkt})}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ if(mm) mm.textContent=(j&&j.error)||'Could not create center.'; return; }
+    CENTERS.push({id:j.center.id,name:j.center.name,market:j.center.market||''});
+    document.getElementById('f_center_id').value=j.center.id; document.getElementById('f_center').value=j.center.name;
+    document.getElementById('f_center_newname').value=''; document.getElementById('f_center_newmkt').value='';
+    fillCenterSel();
+    if(EDIT&&EDIT.id) saveSpace(true);
+    if(window.rrgToast) rrgToast('Center created');
+  }).catch(function(){ if(mm) mm.textContent='Network error creating center.'; });
+}
+function cancelNewCenter(){ var nb=document.getElementById('f_center_new'); if(nb) nb.style.display='none'; fillCenterSel(); }
 function openForm(sp){
   EDIT=sp||null; SEL={};
   if(sp && sp.features) sp.features.forEach(function(f){ SEL[f]=true; });
   document.getElementById('mtitle').textContent=sp?'Edit space':'Add space';
   fillSelects();
-  setv('f_address',sp&&sp.address); setv('f_center',sp&&sp.center); setv('f_market',sp&&sp.market);
+  setv('f_address',sp&&sp.address); document.getElementById('f_center_id').value=(sp&&sp.centerId)||''; setv('f_center',sp&&sp.center); setv('f_market',sp&&sp.market); fillCenterSel();
   setv('f_name',sp&&sp.name); setv('f_size',sp&&sp.size); setv('f_rent',sp&&sp.rent); setv('f_nnn',sp&&sp.nnn);
   setv('f_landlord',sp&&sp.landlord); setv('f_url',sp&&sp.url); setv('f_notes',sp&&sp.notes);
   document.getElementById('f_type').value=(sp&&sp.spaceType)||'';
@@ -206,7 +244,7 @@ function renderSpaceFiles(){
 }
 function _ensureSaved(){
   if(EDIT&&EDIT.id) return Promise.resolve(EDIT.id);
-  var body={ id:'', address:val('f_address'), center:val('f_center'), market:val('f_market'), name:val('f_name'), spaceType:val('f_type'), size:val('f_size'), rent:val('f_rent'), nnn:val('f_nnn'), status:val('f_status'), landlord:val('f_landlord'), url:val('f_url'), notes:val('f_notes'), features:Object.keys(SEL).filter(function(k){return SEL[k];}) };
+  var body={ id:'', address:val('f_address'), center:val('f_center'), centerId:val('f_center_id'), market:val('f_market'), name:val('f_name'), spaceType:val('f_type'), size:val('f_size'), rent:val('f_rent'), nnn:val('f_nnn'), status:val('f_status'), landlord:val('f_landlord'), url:val('f_url'), notes:val('f_notes'), features:Object.keys(SEL).filter(function(k){return SEL[k];}) };
   if(!body.address.trim() && !body.name.trim()) return Promise.resolve(null);
   return fetch('/api/space',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.space){ EDIT=j.space; SPACES=j.spaces||SPACES; return EDIT.id; } return null; });
 }
@@ -227,7 +265,7 @@ function spaceFileDel(fid){
 
 function saveSpace(silent){
   var body={
-    id:EDIT?EDIT.id:'', address:val('f_address'), center:val('f_center'), market:val('f_market'),
+    id:EDIT?EDIT.id:'', address:val('f_address'), center:val('f_center'), centerId:val('f_center_id'), market:val('f_market'),
     name:val('f_name'), spaceType:val('f_type'), size:val('f_size'), rent:val('f_rent'), nnn:val('f_nnn'),
     status:val('f_status'), landlord:val('f_landlord'), url:val('f_url'), notes:val('f_notes'),
     features:Object.keys(SEL).filter(function(k){return SEL[k];})
@@ -251,14 +289,14 @@ async function delSpace(id){
 function load(){
   fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){ IS_ADMIN=!!(s&&(s.role==='admin'||s.role==='creator')); }).catch(function(){}).then(function(){
     fetch('/api/spaces',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-      SPACES=(j&&j.spaces)||[]; TYPES=(j&&j.types)||[]; STATUS=(j&&j.statuses)||[]; FEATURES=(j&&j.features)||[];
+      SPACES=(j&&j.spaces)||[]; TYPES=(j&&j.types)||[]; STATUS=(j&&j.statuses)||[]; FEATURES=(j&&j.features)||[]; CENTERS=(j&&j.centers)||[];
       renderTiles(); draw();
     }).catch(function(){ document.getElementById('list').innerHTML='<div class="empty">Could not load spaces.</div>'; });
   });
 }
 
 function _spaceApply(fd){
-  if(fd.address) setv('f_address',fd.address); if(fd.center) setv('f_center',fd.center); if(fd.market) setv('f_market',fd.market);
+  if(fd.address) setv('f_address',fd.address); if(fd.center){ setv('f_center',fd.center); document.getElementById('f_center_id').value=''; try{fillCenterSel();}catch(e){} } if(fd.market) setv('f_market',fd.market);
   if(fd.size!=null) setv('f_size',fd.size); if(fd.rent!=null) setv('f_rent',fd.rent); if(fd.nnn!=null) setv('f_nnn',fd.nnn);
   if(fd.spaceType) document.getElementById('f_type').value=fd.spaceType;
   if(fd.notes) setv('f_notes',fd.notes);
@@ -358,7 +396,7 @@ document.getElementById('msave').addEventListener('click',function(){ saveSpace(
 document.getElementById('ov').addEventListener('click',function(e){ if(e.target===this){ /* stay open */ } });
 // Autosave while EDITING an existing space (change/blur or ~1s pause). Adding a new space stays explicit.
 (function(){ var _sAS=null; function commit(){ if(_sAS){ clearTimeout(_sAS); _sAS=null; } if(EDIT&&EDIT.id) saveSpace(true); } function pause(){ if(_sAS) clearTimeout(_sAS); _sAS=setTimeout(commit,1000); }
-  ['f_address','f_center','f_market','f_name','f_size','f_rent','f_nnn','f_type','f_status','f_landlord','f_url','f_notes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); });
+  ['f_address','f_market','f_name','f_size','f_rent','f_nnn','f_type','f_status','f_landlord','f_url','f_notes'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); });
   var bones=document.getElementById('bones'); if(bones) bones.addEventListener('click',function(e){ if(e.target&&e.target.closest&&e.target.closest('.chip')) commit(); });
 })();
 load();

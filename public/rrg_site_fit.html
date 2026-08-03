@@ -353,12 +353,14 @@ tr.tot td.scoreval{color:var(--red);text-align:right;}
 <div id="pfModal" class="pfmodal" hidden onclick="if(event.target===this)closePrefill()">
   <div class="pfcard">
     <div class="pfh">Fill the top from a screening or a document</div>
-    <div class="pfsub">Pull an on-file Site Criteria Screening, or drop a PDF / Word / text file. Our AI reads it and fills the concept fields up top &mdash; you review and adjust before you rely on it.</div>
+    <div class="pfsub">Pull an on-file Site Criteria Screening, and/or upload a concept document and a location document. Our AI reads each one and fills the matching section up top &mdash; you review and adjust before you rely on it.</div>
     <label class="pflab">On-file Site Criteria Screening</label>
     <select id="pfSelect" class="pfsel"><option value="">&mdash; choose a screening &mdash;</option></select>
     <div class="pfor"><span>or</span></div>
-    <label class="pflab">Upload a document (PDF, Word, text)</label>
-    <input type="file" id="pfFile" class="pffile" accept=".pdf,.docx,.txt,.md,.csv,.tsv">
+    <label class="pflab">Concept document &mdash; fills the concept up top (PDF, Word, text)</label>
+    <input type="file" id="pfFileConcept" class="pffile" accept=".pdf,.docx,.txt,.md,.csv,.tsv">
+    <label class="pflab" style="margin-top:12px">Location document &mdash; fills the site &amp; trade-area fields (PDF, Word, text)</label>
+    <input type="file" id="pfFileLocation" class="pffile" accept=".pdf,.docx,.txt,.md,.csv,.tsv">
     <div class="pferr" id="pfErr"></div>
     <div class="pfbtns">
       <button class="btn" onclick="closePrefill()">Cancel</button>
@@ -562,7 +564,7 @@ function loadSample(){
 function openPrefill(){
   var m=document.getElementById('pfModal'); if(!m) return;
   document.getElementById('pfErr').textContent='';
-  var fe=document.getElementById('pfFile'); if(fe) fe.value='';
+  var fc=document.getElementById('pfFileConcept'); if(fc) fc.value=''; var fl=document.getElementById('pfFileLocation'); if(fl) fl.value='';
   var sel=document.getElementById('pfSelect');
   m.hidden=false;
   sel.innerHTML='<option value="">— loading… —</option>';
@@ -595,28 +597,37 @@ function applyPrefill(values){
 }
 async function runPrefill(){
   var errEl=document.getElementById('pfErr'); errEl.textContent='';
-  var fileEl=document.getElementById('pfFile'); var sel=document.getElementById('pfSelect');
-  var file=fileEl&&fileEl.files&&fileEl.files[0]; var key=sel?sel.value:'';
-  if(!file && !key){ errEl.textContent='Pick a screening on file, or choose a file to upload.'; return; }
-  var payload={};
-  if(file){
-    if(file.size>24*1024*1024){ errEl.textContent='That file is too large (max ~24 MB).'; return; }
-    try{ payload.dataB64=await pfFileToB64(file); payload.filename=file.name; }
-    catch(e){ errEl.textContent='Could not read that file.'; return; }
-  } else { payload.criteriaKey=key; }
+  var sel=document.getElementById('pfSelect'); var key=sel?sel.value:'';
+  var cf=document.getElementById('pfFileConcept'); var lf=document.getElementById('pfFileLocation');
+  var conceptFile=cf&&cf.files&&cf.files[0]; var locFile=lf&&lf.files&&lf.files[0];
+  var tasks=[];
+  if(conceptFile) tasks.push({scope:'concept', file:conceptFile});
+  else if(key) tasks.push({scope:'concept', criteriaKey:key});
+  if(locFile) tasks.push({scope:'location', file:locFile});
+  if(!tasks.length){ errEl.textContent='Pick a screening, or choose a concept and/or location document.'; return; }
+  for(var i=0;i<tasks.length;i++){ if(tasks[i].file && tasks[i].file.size>24*1024*1024){ errEl.textContent='A file is too large (max ~24 MB).'; return; } }
   closePrefill();
-  var aborted=false;
-  var ctrl=(typeof AbortController!=='undefined')?new AbortController():null;
-  var work=window.rrgAiWork;
-  if(work&&work.show) work.show('Reading the '+(file?'document':'screening')+' and filling the concept fields…', function(){ aborted=true; if(ctrl) ctrl.abort(); });
+  var aborted=false; var ctrl=(typeof AbortController!=='undefined')?new AbortController():null; var work=window.rrgAiWork;
+  var lbl=tasks.length>1?'your documents':(tasks[0].scope==='location'?'the location document':'the source');
+  if(work&&work.show) work.show('Reading '+lbl+' and filling the fields…', function(){ aborted=true; if(ctrl) ctrl.abort(); });
+  var totalFilled=0, notesArr=[], errs=[];
   try{
-    var r=await fetch('/api/site-fit/prefill',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:ctrl?ctrl.signal:undefined});
-    var j=await r.json().catch(function(){return{};});
+    for(var t=0;t<tasks.length;t++){
+      if(aborted) break;
+      var task=tasks[t]; var payload={scope:task.scope};
+      if(task.file){ payload.dataB64=await pfFileToB64(task.file); payload.filename=task.file.name; }
+      else if(task.criteriaKey){ payload.criteriaKey=task.criteriaKey; }
+      var r=await fetch('/api/site-fit/prefill',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload),signal:ctrl?ctrl.signal:undefined});
+      var j=await r.json().catch(function(){return{};});
+      if(!r.ok||!j.ok){ errs.push((j&&j.error)||'a source could not be read'); continue; }
+      totalFilled+=applyPrefill(j.values||{});
+      if(j.notes) notesArr.push(j.notes);
+    }
     if(work&&work.hide) work.hide();
     if(aborted) return;
-    if(!r.ok||!j.ok){ var em=(j&&j.error)||'Could not read that source.'; if(window.rrgToast) rrgToast(em,{danger:true}); else alert(em); return; }
-    var n=applyPrefill(j.values||{});
-    var msg=n?('Filled '+n+' field'+(n===1?'':'s')+' up top'+(j.notes?(' — '+j.notes):'')+'. Review before you rely on it.'):'Nothing usable in that source — fill the fields manually.';
+    if(!totalFilled && errs.length){ var em=errs[0]; if(window.rrgToast) rrgToast(em,{danger:true}); else alert(em); return; }
+    var msg=totalFilled?('Filled '+totalFilled+' field'+(totalFilled===1?'':'s')+(notesArr.length?(' — '+notesArr.join(' ')):'')+'. Review before you rely on it.'):'Nothing usable in that source — fill the fields manually.';
+    if(errs.length) msg+=' ('+errs.length+' source had trouble.)';
     if(window.rrgToast) rrgToast(msg); else alert(msg);
   }catch(e){
     if(work&&work.hide) work.hide();
@@ -626,7 +637,9 @@ async function runPrefill(){
 }
 
 /* ---------- init ---------- */
-load(); bind(); paintVals(); paintRates(); compute();
+load(); bind(); paintVals();
+(function(){ var d=document.querySelector('[data-k=date]'); if(d && !d.value){ try{ var _s=new Date().toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'}); d.value=_s; state.vals.date=_s; save(); }catch(e){} } })();
+paintRates(); compute();
 window.addEventListener('load', growAll);
 </script>
 </body>
