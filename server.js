@@ -4468,10 +4468,39 @@ app.delete('/api/space/:id', (req, res) => {
   saveSpaces(arr);
   res.json({ ok: true, spaces: arr });
 });
-app.post('/api/space/ai-intake', express.json({ limit: '256kb' }), async (req, res) => {
-  try { const text = String((req.body || {}).text || ''); if (!text.trim()) return res.status(400).json({ ok: false, error: 'Paste a listing first.' });
-    const fields = await aiassist.parseSpaceListing({ text, types: SPACE_TYPES, features: SPACE_FEATURES }); res.json({ ok: true, fields: fields || {} });
+app.post('/api/space/ai-intake', express.json({ limit: '25mb' }), async (req, res) => {
+  try {
+    const b = req.body || {};
+    let text = String(b.text || '');
+    if (!text.trim() && b.dataB64) { try { text = String(await extractQuestionnaireText(b.filename || 'listing.pdf', b.dataB64) || ''); } catch (e) { text = ''; } }
+    if (!text.trim()) return res.status(400).json({ ok: false, error: 'Paste a listing or upload a readable PDF.' });
+    const fields = await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES }); res.json({ ok: true, fields: fields || {} });
   } catch (e) { res.status(502).json({ ok: false, error: String(e.message || e) }); }
+});
+// Batch: a PDF per listing — extract, parse with AI, and auto-create each space.
+app.post('/api/spaces/ai-batch', express.json({ limit: '80mb' }), async (req, res) => {
+  const files = Array.isArray((req.body || {}).files) ? (req.body.files || []).slice(0, 40) : [];
+  if (!files.length) return res.status(400).json({ ok: false, error: 'No files received.' });
+  const arr = loadSpaces();
+  const now = new Date().toISOString();
+  const num = (v) => { if (v === '' || v == null) return null; const n = parseFloat(String(v).replace(/[^0-9.\-]/g, '')); return isFinite(n) ? n : null; };
+  const results = []; let created = 0;
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i] || {};
+    try {
+      const text = String(await extractQuestionnaireText(f.filename || ('listing ' + (i + 1)), f.dataB64) || '');
+      if (!text.trim()) { results.push({ ok: false, name: f.filename || '', error: 'No readable text in this file.' }); continue; }
+      const fd = (await aiassist.parseSpaceListing({ text: text.slice(0, 60000), types: SPACE_TYPES, features: SPACE_FEATURES })) || {};
+      const sp = { id: newSpaceId(), createdAt: now, updatedAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', status: 'Available',
+        name: String(fd.name || '').slice(0, 160), address: String(fd.address || '').slice(0, 200), center: String(fd.center || '').slice(0, 160), market: String(fd.market || '').slice(0, 120),
+        spaceType: SPACE_TYPES.indexOf(fd.spaceType) >= 0 ? fd.spaceType : '', size: num(fd.size), rent: num(fd.rent), nnn: num(fd.nnn),
+        features: Array.isArray(fd.features) ? fd.features.map(x => String(x).slice(0, 40)).filter(Boolean).slice(0, 40) : [],
+        notes: String(fd.notes || '').slice(0, 4000), source: 'pdf:' + String(f.filename || '') };
+      arr.push(sp); created++; results.push({ ok: true, name: f.filename || '', id: sp.id, address: sp.address || sp.name || '' });
+    } catch (e) { results.push({ ok: false, name: f.filename || '', error: String((e && e.message) || e) }); }
+  }
+  if (created) saveSpaces(arr);
+  res.json({ ok: true, created, results, spaces: arr });
 });
 app.get('/api/site-criteria', (req, res) => {
   try { const list = store.readAll().filter(r => r.form === 'ssc').map(r => ({ key: r.timestamp, name: r.name || 'Untitled', market: r.market || '', rep: r.rep || '', when: r.timestamp || '', summary: r.highlights || '' })).reverse(); res.json({ ok: true, criteria: list }); }

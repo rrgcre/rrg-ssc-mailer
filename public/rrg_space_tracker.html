@@ -83,7 +83,7 @@ h1{font-size:27px;font-weight:800;margin:5px 0 0;letter-spacing:-.01em;}
 <div class="ov" id="ov" hidden><div class="modal">
   <div class="mh"><b id="mtitle">Add space</b><button class="x" id="mx">✕</button></div>
   <div class="mb">
-    <div class="aibox" data-ai=""><div class="aihd">✨ AI fill from a listing <span>paste a CoStar / LoopNet / Crexi blurb, broker email, or flyer — AI fills the fields below</span></div><textarea id="ai_paste" placeholder="Paste the listing here…"></textarea><div class="airow"><button class="btn" id="ai_fill" type="button">Fill the fields ↓</button><span class="msg" id="ai_msg"></span></div></div>
+    <div class="aibox" data-ai=""><div class="aihd">✨ AI fill from a listing <span>paste a CoStar / LoopNet / Crexi blurb or broker email, or upload a PDF — AI fills the fields (or batch-upload PDFs to auto-create listings)</span></div><textarea id="ai_paste" placeholder="Paste the listing here…"></textarea><div class="airow"><button class="btn" id="ai_fill" type="button">Fill the fields ↓</button><input type="file" id="ai_pdf" accept=".pdf,.doc,.docx,.txt" style="display:none"><button class="btn" id="ai_pdf_btn" type="button">⬆ Upload a PDF</button><input type="file" id="ai_batch" accept=".pdf,.doc,.docx,.txt" multiple style="display:none"><button class="btn" id="ai_batch_btn" type="button">⬆ Batch PDFs → auto-create</button><span class="msg" id="ai_msg"></span></div></div>
     <div class="grid">
       <div class="f full"><label class="fld">Address</label><input id="f_address" placeholder="1234 S Congress Ave"></div>
       <div class="f"><label class="fld">Shopping center</label><input id="f_center" placeholder="Southpark Plaza"></div>
@@ -225,21 +225,52 @@ function load(){
   });
 }
 
-function aiFill(){
-  var t=document.getElementById('ai_paste').value; var m=document.getElementById('ai_msg'); var btn=document.getElementById('ai_fill');
-  if(!t.trim()){ m.textContent='Paste a listing first.'; return; }
-  btn.disabled=true; m.textContent=(window.__rrgAssistant||'AI')+' is reading the listing…';
-  fetch('/api/space/ai-intake',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:t})})
-    .then(function(r){return r.json();}).then(function(j){ btn.disabled=false;
+function _spaceApply(fd){
+  if(fd.address) setv('f_address',fd.address); if(fd.center) setv('f_center',fd.center); if(fd.market) setv('f_market',fd.market);
+  if(fd.size!=null) setv('f_size',fd.size); if(fd.rent!=null) setv('f_rent',fd.rent); if(fd.nnn!=null) setv('f_nnn',fd.nnn);
+  if(fd.spaceType) document.getElementById('f_type').value=fd.spaceType;
+  if(fd.notes) setv('f_notes',fd.notes);
+  if(Array.isArray(fd.features)){ fd.features.forEach(function(fe){ SEL[fe]=true; }); document.querySelectorAll('#bones .chip').forEach(function(c){ c.classList.toggle('on',!!SEL[c.getAttribute('data-feat')]); }); }
+}
+function _readB64(file){ return new Promise(function(resolve,reject){ var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''),i=s.indexOf(','); resolve(i>=0?s.slice(i+1):s); }; rd.onerror=function(){ reject(new Error('read')); }; rd.readAsDataURL(file); }); }
+function _spaceIntake(body){
+  var m=document.getElementById('ai_msg'); var btn=document.getElementById('ai_fill'); var nm=(window.__rrgAssistant||'AI');
+  if(window.rrgAiWork) window.rrgAiWork.show(nm+' is reading the listing and filling the fields…');
+  btn.disabled=true; m.textContent=nm+' is reading the listing…';
+  fetch('/api/space/ai-intake',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ if(window.rrgAiWork) window.rrgAiWork.hide(); btn.disabled=false;
       if(!j||!j.ok){ m.textContent=(j&&j.error)||'Could not read that.'; return; }
-      var fd=j.fields||{};
-      if(fd.address) setv('f_address',fd.address); if(fd.center) setv('f_center',fd.center); if(fd.market) setv('f_market',fd.market);
-      if(fd.size!=null) setv('f_size',fd.size); if(fd.rent!=null) setv('f_rent',fd.rent); if(fd.nnn!=null) setv('f_nnn',fd.nnn);
-      if(fd.spaceType) document.getElementById('f_type').value=fd.spaceType;
-      if(fd.notes) setv('f_notes',fd.notes);
-      if(Array.isArray(fd.features)){ fd.features.forEach(function(fe){ SEL[fe]=true; }); document.querySelectorAll('#bones .chip').forEach(function(c){ c.classList.toggle('on',!!SEL[c.getAttribute('data-feat')]); }); }
-      m.textContent='Filled — review and save.';
-    }).catch(function(){ btn.disabled=false; m.textContent='Network error.'; });
+      _spaceApply(j.fields||{}); m.textContent='Filled — review and save.';
+    }).catch(function(){ if(window.rrgAiWork) window.rrgAiWork.hide(); btn.disabled=false; m.textContent='Network error.'; });
+}
+function aiFill(){
+  var t=document.getElementById('ai_paste').value; var m=document.getElementById('ai_msg');
+  if(!t.trim()){ m.textContent='Paste a listing or upload a PDF.'; return; }
+  _spaceIntake({text:t});
+}
+function aiFillPdf(file){
+  var m=document.getElementById('ai_msg'); if(!file) return;
+  if(file.size>25*1024*1024){ m.textContent='That file is over 25 MB.'; return; }
+  _readB64(file).then(function(b64){ _spaceIntake({filename:file.name,dataB64:b64}); }).catch(function(){ m.textContent='Could not read that file.'; });
+}
+function aiBatch(fileList){
+  var files=Array.prototype.slice.call(fileList||[]).filter(function(f){ return f.size<=25*1024*1024; });
+  var m=document.getElementById('ai_msg');
+  if(!files.length){ if(m) m.textContent='Add PDF files under 25 MB each.'; return; }
+  if(files.length>40) files=files.slice(0,40);
+  var nm=(window.__rrgAssistant||'AI');
+  if(window.rrgAiWork) window.rrgAiWork.show(nm+' is reading '+files.length+' PDF'+(files.length===1?'':'s')+' and creating listings…');
+  m.textContent=nm+' is creating '+files.length+' listing'+(files.length===1?'':'s')+'…';
+  Promise.all(files.map(function(f){ return _readB64(f).then(function(b64){ return {filename:f.name,dataB64:b64}; }).catch(function(){ return null; }); })).then(function(payload){
+    payload=payload.filter(Boolean);
+    return fetch('/api/spaces/ai-batch',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({files:payload})}).then(function(r){return r.json();});
+  }).then(function(j){ if(window.rrgAiWork) window.rrgAiWork.hide();
+    if(!j||!j.ok){ m.textContent=(j&&j.error)||'Batch failed.'; return; }
+    SPACES=j.spaces||SPACES; renderTiles(); draw();
+    var skipped=(j.results||[]).filter(function(x){return !x.ok;}).length;
+    m.textContent='Created '+j.created+' listing'+(j.created===1?'':'s')+(skipped?(' · '+skipped+' skipped'):'')+'.';
+    if(window.rrgToast) rrgToast('Created '+j.created+' listing'+(j.created===1?'':'s'));
+  }).catch(function(){ if(window.rrgAiWork) window.rrgAiWork.hide(); m.textContent='Network error.'; });
 }
 function loadCriteria(){ var sel=document.getElementById('mclient'); if(!sel) return; fetch('/api/site-criteria',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var list=(j&&j.criteria)||[]; sel.innerHTML='<option value="">'+(list.length?'— pick a client —':'— no Site Criteria on file yet —')+'</option>'+list.map(function(c){ var lbl=c.name+(c.market?(' · '+c.market):'')+(c.rep?(' · '+c.rep):''); return '<option value="'+esc(c.key)+'">'+esc(lbl)+'</option>'; }).join(''); }).catch(function(){}); }
 function openMatch(){ document.getElementById('mcrit').value=''; document.getElementById('mclient').value=''; document.getElementById('mstat').textContent=''; document.getElementById('mres').innerHTML=''; document.getElementById('mov').hidden=false; loadCriteria(); }
@@ -258,6 +289,10 @@ function aiMatch(){
 function fmtPlacer(p){ var L=[]; if(p.visits) L.push('Visits: '+p.visits+(p.visitsPeriod?(' ('+p.visitsPeriod+')'):'')); if(p.visitTrend) L.push('Trend: '+p.visitTrend); if(p.tradeArea) L.push('Trade area: '+p.tradeArea); if(p.dwellMinutes) L.push('Dwell: '+p.dwellMinutes); if(Array.isArray(p.peakDayparts)&&p.peakDayparts.length) L.push('Peak: '+p.peakDayparts.join(', ')); if(Array.isArray(p.topOrigins)&&p.topOrigins.length) L.push('Top origins: '+p.topOrigins.join(', ')); if(p.demographics) L.push('Demographics: '+p.demographics); if(Array.isArray(p.highlights)&&p.highlights.length) L.push('Highlights: '+p.highlights.join('; ')); return L.length?('— Placer trade area —\n'+L.join('\n')):''; }
 function plParse(){ var t=document.getElementById('pl_paste').value; var m=document.getElementById('pl_msg'); var btn=document.getElementById('pl_go'); if(!t.trim()){ m.textContent='Paste a report first.'; return; } btn.disabled=true; m.textContent=(window.__rrgAssistant||'AI')+' is reading the report…'; fetch('/api/ai/placer',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:t})}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; if(!j||!j.ok){ m.textContent=(j&&j.error)||'Could not read that.'; return; } var blk=fmtPlacer(j.result||{}); if(!blk){ m.textContent='No figures found in that report.'; return; } var n=document.getElementById('f_notes'); n.value=(n.value?(n.value.trim()+'\n\n'):'')+blk; document.getElementById('pl_paste').value=''; m.textContent='Added to Notes ✓'; }).catch(function(){ btn.disabled=false; m.textContent='Network error.'; }); }
 document.getElementById('ai_fill').addEventListener('click',aiFill);
+document.getElementById('ai_pdf_btn').addEventListener('click',function(){ document.getElementById('ai_pdf').click(); });
+document.getElementById('ai_pdf').addEventListener('change',function(){ var f=this.files&&this.files[0]; if(f) aiFillPdf(f); this.value=''; });
+document.getElementById('ai_batch_btn').addEventListener('click',function(){ document.getElementById('ai_batch').click(); });
+document.getElementById('ai_batch').addEventListener('change',function(){ if(this.files&&this.files.length) aiBatch(this.files); this.value=''; });
 document.getElementById('pl_go').addEventListener('click',plParse);
 document.getElementById('matchBtn').addEventListener('click',openMatch);
 document.getElementById('mmx').addEventListener('click',function(){ document.getElementById('mov').hidden=true; });
