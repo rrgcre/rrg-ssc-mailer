@@ -175,7 +175,7 @@ function render(list){
   var cols=COLUMNS[FILTER]||COLUMNS.all;
   if(!CTL || CURTYPE!==FILTER){
     var mount=document.getElementById('body'); mount.innerHTML='';
-    CTL=RRGList.create({ mount:'#body', data:list, key:'documents_'+FILTER, exportName:'documents', countEl:'#cnt', rowId:function(d){return d.id;}, columns:cols,
+    CTL=RRGList.create({ mount:'#body', data:list, key:'documents_'+FILTER, exportName:'documents', countEl:'#cnt', rowId:function(d){return d.id;}, columns:cols, bulk:[{ label:'Delete selected', danger:true, fn:docBulkDelete }],
       empty:'<div class="empty"><b>No documents'+(FILTER!=='all'?' of this type':'')+' yet.</b>Click <b>Upload</b> to add one — or they appear here automatically as your team creates agreements, valuations, and marketing packs.</div>' });
     CURTYPE=FILTER;
   } else { CTL.refresh(list); }
@@ -209,6 +209,19 @@ function load(){
 document.addEventListener('click', function(e){ var b=e.target.closest?e.target.closest('[data-del]'):null; if(b){ e.preventDefault(); e.stopPropagation(); delFile(b.getAttribute('data-del')); } });
 function delFile(id){ var d=DOCS.find(function(x){return x.id===id;}); if(!d) return; var isCall=(d.kind==='seller'); var url=d.deleteUrl||('/api/files/'+encodeURIComponent(id)); var msg=isCall?('Delete the call "'+(d.title||'this call')+'"? This permanently removes the seller screening and its answers. Cannot be undone.'):('Remove "'+(d.title||'this file')+'"? This deletes the uploaded file for everyone.'); if(!confirm(msg)) return;
   fetch(url,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert((j&&j.error)||'Could not remove.'); }).catch(function(){ alert('Could not reach the server.'); }); }
+function docBulkDelete(ids, done){
+  var docs=ids.map(function(id){ return DOCS.find(function(x){return x.id===id;}); }).filter(Boolean);
+  var deletable=docs.filter(function(d){ return d.deleteUrl || d.kind==='file'; });
+  var skipped=docs.length-deletable.length;
+  if(!deletable.length){ if(window.rrgToast) rrgToast('None of the selected items can be deleted here.',{danger:true}); else alert('None of the selected items can be deleted here.'); return; }
+  var hasCall=deletable.some(function(d){ return d.kind==='seller'; });
+  var msg='Delete '+deletable.length+' item'+(deletable.length===1?'':'s')+'? '+(hasCall?'This includes call/screening records and permanently removes their answers. ':'This removes the file(s) for everyone. ')+'Cannot be undone.'+(skipped?(' ('+skipped+' selected item'+(skipped===1?'':'s')+' can\u2019t be deleted here and will be skipped.)'):'');
+  (window.rrgConfirm?rrgConfirm(msg,{danger:true}):Promise.resolve(confirm(msg))).then(function(ok){ if(!ok) return;
+    var chain=Promise.resolve(), okN=0, fail=0;
+    deletable.forEach(function(d){ var url=d.deleteUrl||('/api/files/'+encodeURIComponent(d.id)); chain=chain.then(function(){ return fetch(url,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) okN++; else fail++; }).catch(function(){ fail++; }); }); });
+    chain.then(function(){ if(typeof done==='function'){ try{ done(); }catch(e){} } if(window.rrgToast) rrgToast('Deleted '+okN+' item'+(okN===1?'':'s')+(fail?(' \u00b7 '+fail+' failed'):'')); load(); });
+  });
+}
 
 var PICKED=null, REL=null, _relT=null;
 var DOCTYPES=['General','Agreement / Contract','Lease','Financials','Tax / W-9','Insurance / COI','Inspection','Exhibit / Addendum','Offer / LOI','Invoice / Receipt','Marketing','Legal / Entity','ID / License','Photo','Other'];
