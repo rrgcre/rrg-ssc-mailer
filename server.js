@@ -1331,6 +1331,18 @@ function sendMailWL(opts) {
   if (opts.html) opts.html = whiteLabelText(opts.html);
   return buildTransport().sendMail(opts);
 }
+function parseEmailAttachments(list) {
+  if (!Array.isArray(list)) return [];
+  let total = 0; const out = [];
+  for (const a of list) {
+    if (!a || !a.filename) continue;
+    const buf = Buffer.from(String(a.dataB64 || '').replace(/^data:[^,]*,/, ''), 'base64');
+    if (!buf.length) continue; total += buf.length; if (total > 22 * 1024 * 1024) break;
+    out.push({ filename: String(a.filename).slice(0, 200), content: buf, contentType: (typeof a.contentType === 'string' && a.contentType) ? a.contentType.slice(0, 120) : undefined });
+    if (out.length >= 15) break;
+  }
+  return out;
+}
 app.get('/api/admin/email', requireAdmin, (req, res) => {
   const c = loadEmailConfig();
   res.json({ ok: true, host: c.host, port: c.port, secure: c.secure, user: c.user, from: c.from, enabled: c.enabled, hasPass: !!c.pass, configured: isEmailConfigured() });
@@ -5006,7 +5018,7 @@ app.post('/api/gmail/sent/import', express.json(), async (req, res) => {
   } catch (e) { console.error('gmail sent import:', e && e.message); res.status(502).json({ ok: false, error: _gErr(e) }); }
 });
 function cleanAddrList(v){ return String(v||'').split(/[;,]/).map(function(x){return x.trim();}).filter(function(x){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x);}).join(', '); }
-app.post('/api/person/:id/email', express.json({ limit: '256kb' }), async (req, res) => {
+app.post('/api/person/:id/email', express.json({ limit: '28mb' }), async (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
   if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: "Email isn't set up. Configure it in Admin -> Email." });
@@ -5021,8 +5033,9 @@ app.post('/api/person/:id/email', express.json({ limit: '256kb' }), async (req, 
     const _origin = reqOrigin(req); const _tok = newOpenToken();
     const _sigHtml = userSignatureHtml(req.user && req.user.username); const _sigTxt = userSignatureText(req.user && req.user.username);
     const _bodyText = _bodyLooksHtml(body) ? htmlToText(body) : body;
+    const _atts = parseEmailAttachments(req.body && req.body.attachments);
     const _textOut = _bodyText + (_sigTxt ? ('\n\n' + _sigTxt) : '');
-    const info = await sendMailWL({ from: mailFrom(), to, cc: cc || undefined, bcc: bcc || undefined, subject: subject || '(no subject)', text: _textOut, html: trackedEmailHtml(body, _origin, _tok, _sigHtml) });
+    const info = await sendMailWL({ from: mailFrom(), to, cc: cc || undefined, bcc: bcc || undefined, subject: subject || '(no subject)', text: _textOut, html: trackedEmailHtml(body, _origin, _tok, _sigHtml), attachments: (_atts.length ? _atts : undefined) });
     const now = new Date().toISOString();
     p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
     const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: _bodyText.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', messageId: (info && info.messageId) || '', cc, bcc, openToken: _tok, opens: 0, senderIp: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() };
@@ -5374,7 +5387,7 @@ app.get('/api/gmail/message/:id', async (req, res) => {
   try { const m = await gmail.messageFull(u, req.params.id); res.json({ ok: true, message: m }); }
   catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
 });
-app.post('/api/gmail/send', express.json({ limit: '256kb' }), async (req, res) => {
+app.post('/api/gmail/send', express.json({ limit: '28mb' }), async (req, res) => {
   const u = (req.user && req.user.username) || '';
   if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Gmail first (Account -> Gmail).' });
   const b = req.body || {};
@@ -5388,7 +5401,8 @@ app.post('/api/gmail/send', express.json({ limit: '256kb' }), async (req, res) =
   try {
     const _tok = p ? newOpenToken() : ''; const _origin = reqOrigin(req);
     const _bodyText = _bodyLooksHtml(body) ? htmlToText(body) : body;
-    const sent = await gmail.sendMessage(u, { to, cc, bcc, subject, body: _bodyText, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '', html: _tok ? trackedEmailHtml(body, _origin, _tok) : '' });
+    const _atts = parseEmailAttachments(req.body && req.body.attachments);
+    const sent = await gmail.sendMessage(u, { to, cc, bcc, subject, body: _bodyText, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '', html: _tok ? trackedEmailHtml(body, _origin, _tok) : '', attachments: _atts });
     let emailLog = null, lastContacted = null;
     if (p) {
       const now = new Date().toISOString();

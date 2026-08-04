@@ -273,28 +273,23 @@ async function sendMessage(username, opts) {
   if (opts.inReplyTo) { extra.push('In-Reply-To: ' + opts.inReplyTo); extra.push('References: ' + (opts.references || opts.inReplyTo)); }
   if (opts.cc) extra.push('Cc: ' + String(opts.cc));
   if (opts.bcc) extra.push('Bcc: ' + String(opts.bcc));
+  const atts = Array.isArray(opts.attachments) ? opts.attachments.filter(a => a && a.filename && a.content) : [];
+  function altPart(bnd){ let p = '--'+bnd+'\r\nContent-Type: text/plain; charset="UTF-8"\r\nContent-Transfer-Encoding: 8bit\r\n\r\n'+String(opts.body||'')+'\r\n'; if (opts.html) p += '--'+bnd+'\r\nContent-Type: text/html; charset="UTF-8"\r\nContent-Transfer-Encoding: 8bit\r\n\r\n'+String(opts.html)+'\r\n'; p += '--'+bnd+'--\r\n'; return p; }
   let raw;
-  if (opts.html) {
+  if (atts.length) {
+    const mixed = 'rrgmx_' + crypto.randomBytes(9).toString('hex');
+    const alt = 'rrgb_' + crypto.randomBytes(9).toString('hex');
+    const head = ['From: '+from, 'To: '+to, 'Subject: '+subject, 'MIME-Version: 1.0', 'Content-Type: multipart/mixed; boundary="'+mixed+'"'].concat(extra).join('\r\n');
+    let body = '--'+mixed+'\r\nContent-Type: multipart/alternative; boundary="'+alt+'"\r\n\r\n' + altPart(alt);
+    atts.forEach(function(a){ const b64 = (Buffer.isBuffer(a.content) ? a.content : Buffer.from(String(a.content||''),'base64')).toString('base64').replace(/(.{76})/g,'$1\r\n'); const fn = String(a.filename).replace(/["\r\n]/g,''); body += '--'+mixed+'\r\nContent-Type: '+(a.contentType||'application/octet-stream')+'; name="'+fn+'"\r\nContent-Transfer-Encoding: base64\r\nContent-Disposition: attachment; filename="'+fn+'"\r\n\r\n'+b64+'\r\n'; });
+    body += '--'+mixed+'--\r\n';
+    raw = head + '\r\n\r\n' + body;
+  } else if (opts.html) {
     const boundary = 'rrgb_' + crypto.randomBytes(9).toString('hex');
-    const head = [
-      'From: ' + from, 'To: ' + to, 'Subject: ' + subject, 'MIME-Version: 1.0',
-      'Content-Type: multipart/alternative; boundary="' + boundary + '"',
-    ].concat(extra).join('\r\n');
-    const parts = [
-      '--' + boundary,
-      'Content-Type: text/plain; charset="UTF-8"', 'Content-Transfer-Encoding: 8bit', '',
-      String(opts.body || ''), '',
-      '--' + boundary,
-      'Content-Type: text/html; charset="UTF-8"', 'Content-Transfer-Encoding: 8bit', '',
-      String(opts.html), '',
-      '--' + boundary + '--', '',
-    ].join('\r\n');
-    raw = head + '\r\n\r\n' + parts;
+    const head = ['From: '+from, 'To: '+to, 'Subject: '+subject, 'MIME-Version: 1.0', 'Content-Type: multipart/alternative; boundary="'+boundary+'"'].concat(extra).join('\r\n');
+    raw = head + '\r\n\r\n' + altPart(boundary);
   } else {
-    const head = [
-      'From: ' + from, 'To: ' + to, 'Subject: ' + subject, 'MIME-Version: 1.0',
-      'Content-Type: text/plain; charset="UTF-8"',
-    ].concat(extra).join('\r\n');
+    const head = ['From: '+from, 'To: '+to, 'Subject: '+subject, 'MIME-Version: 1.0', 'Content-Type: text/plain; charset="UTF-8"'].concat(extra).join('\r\n');
     raw = head + '\r\n\r\n' + String(opts.body || '');
   }
   const encoded = Buffer.from(raw).toString('base64url');
