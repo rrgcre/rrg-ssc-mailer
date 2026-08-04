@@ -3485,6 +3485,10 @@ function importBbsLeads(req, leads) {
   const idx = assignmentsIndex();
   const byRef = {}, byNum = {};
   Object.keys(overlay).forEach(k => { const o = overlay[k] || {}; if (o.bbsRef) byRef[String(o.bbsRef).toLowerCase().trim()] = k; if (o.bbsNumber) byNum[String(o.bbsNumber).toLowerCase().trim()] = k; });
+  const _bbsNorm = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const byName = {};
+  Object.keys(overlay).forEach(k => { const o = overlay[k] || {}; if (o.bbsName) byName[_bbsNorm(o.bbsName)] = k; });
+  try { loadDeals().forEach(d => { if (d && d.fromBizBuySell && d.business) { const _n = _bbsNorm(d.business); if (_n && !byName[_n]) byName[_n] = 'd_' + d.id; } }); } catch (e) {}
   const now = new Date().toISOString();
   const due = (function(){ const d = new Date(); d.setDate(d.getDate() + 2); return d.toISOString().slice(0, 10); })();
   const tasks = loadTasks();
@@ -3497,23 +3501,27 @@ function importBbsLeads(req, leads) {
     const email = String(l.email || '').trim();
     const refKey = l.refId ? byRef[String(l.refId).toLowerCase().trim()] : null;
     const numKey = l.listingNumber ? byNum[String(l.listingNumber).toLowerCase().trim()] : null;
-    let key = refKey || numKey || null; let createdStub = false;
+    const _nn = _bbsNorm(l.listingName);
+    const nameKey = _nn ? byName[_nn] : null;
+    let key = numKey || nameKey || refKey || null; let createdStub = false;
     const qualBits = []; if (l.funds) qualBits.push('Funds: ' + l.funds); if (l.timeframe) qualBits.push('Timeframe: ' + l.timeframe); if (l.zip) qualBits.push('Zip: ' + l.zip); const qualLine = qualBits.join(' \u00b7 ');
     const person = findOrCreatePerson(req, { name: l.name || '', firstName: l.firstName || '', lastName: l.lastName || '', email: email, phones: l.phone ? [l.phone] : [], type: 'Buyer', companyId: _bbsCoId });
     if (person) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === person.id); if (pp) { logActivity(pp, 'BizBuySell Lead', ('Inquired on ' + (l.listingName || 'a listing') + (l.refId ? (' \u00b7 Ref ' + l.refId) : (l.listingNumber ? (' \u00b7 #' + l.listingNumber) : '')) + (qualLine ? (' \u00b7 ' + qualLine) : '') + (l.message ? (' \u2014 \u201c' + String(l.message).slice(0,140) + '\u201d') : '')).slice(0, 300), { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
     const _lplan = (key && overlay[key] && overlay[key].leadAutomationId) ? (_autos.find(a => a.id === overlay[key].leadAutomationId && a.active !== false) || _bbsPlan) : _bbsPlan;
     if (person && _lplan) { try { const ppl2 = loadPeople(); const pp2 = ppl2.find(x => x.id === person.id); if (pp2 && enrollPerson(pp2, _lplan, { byName: 'BizBuySell auto-import', byUser: 'system' })) savePeople(ppl2); } catch (e) {} }
-    if (!key && (l.refId || l.listingNumber)) {
+    if (!key && (l.listingNumber || _nn)) {
       const stub = { id: newDealId(), business: (l.listingName || ('BizBuySell ' + (l.refId || l.listingNumber))).slice(0, 120), market: '', contact: '', screenId: '', roomId: '', contactPersonId: '', companyId: '', createdAt: now, fromBizBuySell: true, needsSetup: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
       const _da = loadDeals(); _da.push(stub); saveDeals(_da);
       key = 'd_' + stub.id; createdStub = true;
       const c0 = overlay[key] || {};
       if (l.refId) c0.bbsRef = l.refId;
       if (l.listingNumber) c0.bbsNumber = String(l.listingNumber);
+      if (_nn) c0.bbsName = _nn;
       c0.status = c0.status || 'New'; c0.fromBbs = true; c0.needsSetup = true; c0.updatedAt = now;
       overlay[key] = c0;
       if (l.refId) byRef[String(l.refId).toLowerCase().trim()] = key;
       if (l.listingNumber) byNum[String(l.listingNumber).toLowerCase().trim()] = key;
+      if (_nn) byName[_nn] = key;
     }
     let listingLabel = l.listingName || '';
     if (key) {
