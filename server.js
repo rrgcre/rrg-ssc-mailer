@@ -3303,6 +3303,19 @@ app.get('/api/assignment/:key', (req, res) => {
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin) });
 });
+app.post('/api/assignment/:key/promote', express.json(), (req, res) => {
+  const key = req.params.key;
+  const deals = assignmentsIndex(); const d = deals[key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!ownsAssignment(req, d)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  if (!/^s_/.test(key)) return res.status(400).json({ ok: false, error: 'Only a provisional business-sale listing can be promoted.' });
+  const sid = key.slice(2); const scr = loadScreens(); const rec = scr.find(x => x.id === sid);
+  if (!rec || !rec.becameListing) return res.status(404).json({ ok: false, error: 'Provisional listing not found.' });
+  const now = new Date().toISOString();
+  rec.provisional = false; rec.listingStatus = 'Live Listing'; rec.listingLiveAt = now; saveScreens(scr);
+  try { const ov = loadAssignOverlay(); const cur = ov[key] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Active'; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[key] = cur; saveAssignOverlay(ov); } catch (e) {}
+  res.json({ ok: true });
+});
 app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   const deals = assignmentsIndex();
   const d = deals[req.params.key];

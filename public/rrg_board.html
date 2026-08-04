@@ -47,6 +47,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .cardx:hover{border-color:#cfd6e2;box-shadow:0 4px 14px rgba(16,24,40,.09);}
 .cardx.dragging{opacity:.4;}
 .cardx .t{font-size:13.5px;font-weight:700;color:var(--navy);line-height:1.3;margin-bottom:6px;}
+.pvbadge{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:#fdf1df;color:#b5791f;border:1px solid #eddab0;vertical-align:middle;}
 .cardx .r{display:flex;align-items:center;gap:6px;font-size:12px;color:#5b6472;margin-top:3px;}
 .cardx .r .ic{width:13px;text-align:center;color:#9aa4b6;flex:none;}
 .cardx .val{color:var(--navy);font-weight:700;}
@@ -302,13 +303,13 @@ function cardHtml(c){
   if(DENSITY==='compact'){
     var exp=!!EXPCARD[c.key];
     return '<div class="cardx compact'+(exp?' expanded':'')+'" draggable="true" data-key="'+esc(c.key)+'">'
-      +'<div class="chd"><span class="t">'+esc(c.business||'Listing')+'</span>'+cardOwner(c)+'</div>'
+      +'<div class="chd"><span class="t">'+esc(c.business||'Listing')+(c.provisional?' <span class="pvbadge">Provisional</span>':'')+'</span>'+cardOwner(c)+'</div>'
       +'<div class="cbody">'+(cardFieldsHtml(c)||'<div class="r" style="color:#98a1b5">No extra details</div>')
         +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span><a class="opendeal" href="'+open+'">Open deal →</a></div>'
       +'</div></div>';
   }
   return '<div class="cardx" draggable="true" data-key="'+esc(c.key)+'">'
-    +'<a class="t" href="'+open+'">'+esc(c.business||'Listing')+'</a>'
+    +'<a class="t" href="'+open+'">'+esc(c.business||'Listing')+'</a>'+(c.provisional?'<div style="margin:-2px 0 6px"><span class="pvbadge">Provisional</span></div>':'')
     +cardFieldsHtml(c)
     +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+cardOwner(c)+'</div>'
     +'</div>';

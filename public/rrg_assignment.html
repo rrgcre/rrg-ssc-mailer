@@ -371,6 +371,7 @@ function render(){
   if(A.contact) sub.push('<span>Contact: <b>'+esc(A.contact)+'</b></span>');
   if(A.value) sub.push('<span>Value: <b>'+esc(A.value)+'</b></span>');
   if(domDays()) sub.push('<span>On market: <b>'+esc(domDays())+'</b></span>');
+  if(A.provisional) sub.push('<span class="hpill" style="margin:0;background:#fdf1df;color:#b5791f">Provisional</span>');
   sub.push('<span class="hpill" style="margin:0">'+esc(A.status||'New')+'</span>');
   document.getElementById('subline').innerHTML=sub.join('');
 
@@ -419,6 +420,7 @@ function render(){
     + '</div>'
     + '<div class="side"><div class="card"><div class="ch"><b>Manage</b></div><div class="cb" style="padding-top:14px">'
       + (A.canStart?('<button class="startdeal" id="startDealBtn">Start the listing →</button><div class="startnote">Opens a Seller Qualification Call and drops this listing into the pipeline.</div>'):'')
+      + (A.provisional?('<button class="startdeal" id="promoteBtn" style="background:#1f8a5b;border-color:#1f8a5b">Promote to Live listing →</button><div class="startnote">Marks this listing Live. Do this once financials are verified, value is aligned, and the agreement is signed.</div>'):'')
       + '<div class="fldrow"><label class="fld">Status</label><select id="f_status">'+opts+'</select></div>'
       + (PIPES.length?('<div class="fldrow"><label class="fld">Pipeline</label><select id="f_pipeline">'+pipeOpts+'</select></div>'):'')
       + '<div class="fldrow"><label class="fld">Owner</label><input class="owner" id="f_owner" value="'+esc(A.owner||'')+'" placeholder="Assigned rep"></div>'
@@ -460,6 +462,7 @@ function render(){
   document.getElementById('savebtn').addEventListener('click',function(){save();});
   var pipeEl=document.getElementById('f_pipeline'); if(pipeEl) pipeEl.addEventListener('change',function(){ A.pipelineId=pipeEl.value; setDirty(true); save(true); });
   var sdb=document.getElementById('startDealBtn'); if(sdb) sdb.addEventListener('click',startDeal);
+  var pmb=document.getElementById('promoteBtn'); if(pmb) pmb.addEventListener('click',promoteListing);
   var ddb=document.getElementById('delDealBtn'); if(ddb) ddb.addEventListener('click',deleteDeal);
   wireRoomActivity();
   wireOffers();
@@ -471,6 +474,7 @@ function render(){
   setupAccordion();
 }
 function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){}); }
+function promoteListing(){ var b=document.getElementById('promoteBtn'); if(b){b.disabled=true;b.textContent='Promoting…';} fetch('/api/assignment/'+encodeURIComponent(KEY)+'/promote',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.reload(); } else { if(b){b.disabled=false;b.textContent='Promote to Live listing →';} alert((j&&j.error)||'Could not promote.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Promote to Live listing →';} alert('Could not reach the server.'); }); }
 function startDeal(){ var b=document.getElementById('startDealBtn'); if(b){b.disabled=true;b.textContent='Starting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId)+'/start',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { if(b){b.disabled=false;b.textContent='Start the listing →';} alert((j&&j.error)||'Could not start the deal.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Start the listing →';} alert('Could not reach the server.'); }); }
 async function deleteDeal(){ if(!await rrgConfirm('Delete this listing and everything in it — records, data room, and all uploaded files? This cannot be undone.')) return; var b=document.getElementById('delDealBtn'); if(b){b.disabled=true;b.textContent='Deleting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignments.html'; } else { if(b){b.disabled=false;b.textContent='Delete listing';} alert((j&&j.error)||'Could not delete the listing.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Delete listing';} alert('Could not reach the server.'); }); }
 function fmtDT(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; var h=d.getHours(),m=d.getMinutes(),ap=h<12?'AM':'PM',hh=(h%12)||12; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2)+' '+hh+':'+String(m).padStart(2,'0')+' '+ap; }
