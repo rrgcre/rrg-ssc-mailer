@@ -1900,6 +1900,7 @@ app.post('/api/generate-cim', express.json({ limit: '48mb' }), async (req, res) 
         }
       }
     } catch (e) { console.error('cim room-file error:', e && e.message); }
+    try { const _ix = assignmentsIndex(); for (const _k in _ix) { if (_ix[_k].cim && _ix[_k].cim.id === cim.id) { maybeGoLive(_k, req); break; } } } catch (e) {}
     res.json({ ok: true, id: cim.id });
   } catch (e) {
     console.error('generate-cim error:', e);
@@ -3091,6 +3092,21 @@ function applyBizSaleOutcome(req, rec) {
 
     // 4) Turn the call into a Live Listing.
     rec.becameListing = true; rec.provisional = true; rec.listingStatus = 'Provisional'; rec.listingDealId = deal.id;
+    // Advance the new provisional listing to the Data Collection stage on the configured pipeline.
+    try {
+      const _plid = pipelineForCategory('businessSale') || 'p_bizsales';
+      const _pl = loadPipelines().find(x => x.id === _plid);
+      const _stg = (_pl && Array.isArray(_pl.stages)) ? _pl.stages : [];
+      if (_stg.length) {
+        let _tgt = _stg.findIndex(st => /data collect/i.test(st.name || ''));
+        if (_tgt < 0) _tgt = _stg.findIndex(st => /valuation/i.test(st.name || ''));
+        if (_tgt < 0) _tgt = Math.min(2, _stg.length);
+        const _ov = loadAssignOverlay(); const _cur = _ov['s_' + rec.id] || {};
+        _cur.stageFlags = _cur.stageFlags || {};
+        for (let _i = 0; _i < _tgt; _i++) _cur.stageFlags['g' + _i] = true;
+        _cur.updatedAt = new Date().toISOString(); _ov['s_' + rec.id] = _cur; saveAssignOverlay(_ov);
+      }
+    } catch (e) {}
     if (!rec.listingAt) rec.listingAt = new Date().toISOString();
 
     return {
@@ -9478,6 +9494,23 @@ app.post('/api/agreements/:id/fill', express.json({ limit: '256kb' }), (req, res
   res.json({ ok: true });
 });
 
+// Promote a provisional business-sale listing to a Live Listing ONLY once both the listing
+// agreement is signed AND the marketing pack is out. The manual "Promote to Live" button bypasses this.
+function maybeGoLive(key, req) {
+  try {
+    if (!key || !/^s_/.test(key)) return;
+    const sid = key.slice(2); const scr = loadScreens(); const rec = scr.find(x => x.id === sid);
+    if (!rec || !rec.becameListing || !rec.provisional) return;
+    const signed = loadAgreements().some(a => a.dealKey === key && (a.signStatus === 'signed' || a.signStatus === 'executed' || a.status === 'active'));
+    if (!signed) return;
+    const idx = assignmentsIndex(); const d = idx[key];
+    const mktDone = !!(d && d.cim && !d.cim.pending);
+    if (!mktDone) return;
+    const now = new Date().toISOString();
+    rec.provisional = false; rec.listingStatus = 'Live Listing'; rec.listingLiveAt = now; saveScreens(scr);
+    try { const ov = loadAssignOverlay(); const cur = ov[key] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Active'; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[key] = cur; saveAssignOverlay(ov); } catch (e) {}
+  } catch (e) { console.error('maybeGoLive:', e && e.message); }
+}
 function runPostExecution(a, req) {
   try {
     if (!a) return;
@@ -9486,13 +9519,13 @@ function runPostExecution(a, req) {
     try { if (a.execAuto && a.personId) { const _pp = loadPeople(); const _p = _pp.find(x => x.id === a.personId); if (_p) { const _plan = loadAutomations().find(x => x.id === a.execAuto && x.active !== false); if (_plan) { enrollPerson(_p, _plan, { byName: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '', dealKey: a.dealKey || '' }); savePeople(_pp); } } } } catch (e) {}
     if (!a.dealKey) return;
     try { const ov = loadAssignOverlay(); const cur = ov[a.dealKey] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Active'; cur.stageFlags = cur.stageFlags || {}; cur.stageFlags.agreed = true; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[a.dealKey] = cur; saveAssignOverlay(ov); } catch (e) {}
-    // Promote a provisional business-sale listing to Live once its listing agreement is executed.
-    try { if (a.dealKey && /^s_/.test(a.dealKey)) { const _sid = a.dealKey.slice(2); const _scr = loadScreens(); const _rec = _scr.find(x => x.id === _sid); if (_rec && _rec.provisional) { _rec.provisional = false; _rec.listingStatus = 'Live Listing'; _rec.listingLiveAt = now; saveScreens(_scr); } } } catch (e) {}
+    // A signed agreement is one of two gates for going Live (marketing being out is the other).
+    try { maybeGoLive(a.dealKey, req); } catch (e) {}
     if (a.personId) {
       try {
         const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId);
         if (pp) {
-          logActivity(pp, 'Note', agreementTypeLabel(a.type) + ' fully executed \u2014 listing set to Live', { auto: true, by: 'Automation' });
+          logActivity(pp, 'Note', agreementTypeLabel(a.type) + ' fully executed \u2014 listing agreement on file', { auto: true, by: 'Automation' });
           try { const plan = loadAutomations().find(x => x.execDefault && x.active !== false); if (plan) enrollPerson(pp, plan, { byName: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '', dealKey: a.dealKey }); } catch (e) {}
           savePeople(ppl);
         }

@@ -1339,7 +1339,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
   function showListingSummary(a){
     if(!a){ return; }
     var folders=(a.folders||[]).map(function(f){return _deEsc(f);}).join(', ');
-    var lines='<div style="display:flex;gap:10px;align-items:flex-start"><span style="color:#1f8a5b;font-weight:900">\u2713</span><div><b>Live Listing created</b><div style="color:#6b7488;font-size:12.5px;margin-top:1px">'+_deEsc(a.business||'This seller')+' is now a live listing'+(a.pipeline?(' in the <b>'+_deEsc(a.pipeline)+'</b> pipeline'):'')+'.</div></div></div>';
+    var lines='<div style="display:flex;gap:10px;align-items:flex-start"><span style="color:#1f8a5b;font-weight:900">\u2713</span><div><b>Provisional listing created</b><div style="color:#6b7488;font-size:12.5px;margin-top:1px">'+_deEsc(a.business||'This seller')+' is now a provisional listing'+(a.pipeline?(' in the <b>'+_deEsc(a.pipeline)+'</b> pipeline'):'')+', moved to <b>Data Collection</b>. Start gathering financials and the lease, and schedule the Valuation Call. It goes Live once the agreement is signed and marketing is complete.</div></div></div>';
     if(a.roomId){ lines+='<div style="display:flex;gap:10px;align-items:flex-start;margin-top:13px"><span style="color:#1f8a5b;font-weight:900">\u2713</span><div><b>Data room '+(a.roomCreated?'created':'ready')+'</b>'+(folders?('<div style="color:#6b7488;font-size:12.5px;margin-top:1px">Folders: '+folders+'.</div>'):'')+'</div></div>'; }
     var btns='';
     if(a.roomId){ btns+='<a class="lsbtn" href="./rrg_room.html?room='+encodeURIComponent(a.roomId)+'">Open data room \u2192</a>'; }
@@ -1347,7 +1347,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     var wrap=document.createElement('div'); wrap.id='lsModal';
     wrap.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.55);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px';
     wrap.innerHTML='<div style="background:#fff;border-radius:16px;max-width:440px;width:100%;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden">'
-      +'<div style="padding:18px 22px;border-bottom:1px solid #eef0f5;display:flex;align-items:center;gap:11px"><span style="width:34px;height:34px;border-radius:50%;background:#eaf5ef;color:#1f8a5b;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none">\u2713</span><b style="color:#000E31;font-size:16px">Business sale \u2014 you\u2019re live</b></div>'
+      +'<div style="padding:18px 22px;border-bottom:1px solid #eef0f5;display:flex;align-items:center;gap:11px"><span style="width:34px;height:34px;border-radius:50%;background:#eaf5ef;color:#1f8a5b;display:flex;align-items:center;justify-content:center;font-size:17px;flex:none">\u2713</span><b style="color:#000E31;font-size:16px">Business sale \u2014 provisional listing</b></div>'
       +'<div style="padding:18px 22px">'+lines+'</div>'
       +'<div style="padding:14px 22px;border-top:1px solid #eef0f5;display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap">'+btns+'<button class="lsbtn lsclose" style="background:#000E31;color:#fff;border-color:#000E31">Done</button></div>'
       +'</div>';
