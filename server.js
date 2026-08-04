@@ -1507,7 +1507,7 @@ app.get('/api/screenings', (req, res) => {
   const list = loadScreens().slice().reverse().filter(s => isAdmin || ownsScreen(req, s));
   res.json({
     ok: true, isAdmin: !!isAdmin,
-    screenings: list.map(s => ({ id: s.id, personId: s.personId || '', companyId: s.companyId || '', callState: s.callState || '', becameListing: !!s.becameListing, listingStatus: s.listingStatus || '', business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, decision: s.decision || '', completed: !!s.completed, completePct: (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0)), processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt, startedAt: s.startedAt || '', completedAt: s.completedAt || '', durationSeconds: (typeof s.durationSeconds === 'number' ? s.durationSeconds : null) })),
+    screenings: list.map(s => ({ id: s.id, personId: s.personId || '', companyId: s.companyId || '', callState: s.callState || '', becameListing: !!s.becameListing, provisional: !!s.provisional, listingStatus: s.listingStatus || '', business: s.business, contact: s.contact, market: s.market, date: s.date, statusText: s.statusText, status: s.status, decision: s.decision || '', completed: !!s.completed, completePct: (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0)), processed: !!s.processed, processedAt: s.processedAt, by: s.by, byUser: s.byUser, createdAt: s.createdAt, startedAt: s.startedAt || '', completedAt: s.completedAt || '', durationSeconds: (typeof s.durationSeconds === 'number' ? s.durationSeconds : null) })),
   });
 });
 app.get('/api/screening/:id', (req, res) => {
@@ -3090,11 +3090,11 @@ function applyBizSaleOutcome(req, rec) {
     try { const pid = pipelineForCategory('businessSale'); const p = loadPipelines().find(x => x.id === pid); pipeName = p ? (p.name || '') : ''; } catch (e) {}
 
     // 4) Turn the call into a Live Listing.
-    rec.becameListing = true; rec.listingStatus = 'Live Listing'; rec.listingDealId = deal.id;
+    rec.becameListing = true; rec.provisional = true; rec.listingStatus = 'Provisional'; rec.listingDealId = deal.id;
     if (!rec.listingAt) rec.listingAt = new Date().toISOString();
 
     return {
-      listing: listingCreated, listingStatus: 'Live Listing',
+      listing: listingCreated, listingStatus: 'Provisional', provisional: true,
       roomCreated: !!(room && !hadRoom), roomId: room ? room.id : '', roomToken: room ? room.token : '',
       folders: ROOM_CATEGORIES.slice(), pipeline: pipeName, business: rec.business || '', dealKey: 's_' + rec.id,
     };
@@ -3244,7 +3244,7 @@ function assignmentView(d, overlay) {
   const created = [deal, d.screen, d.quest, d.bov, d.cim, d.map, d.room, d.lease].filter(Boolean).map(r => r.createdAt || '').filter(Boolean).sort()[0] || '';
   return {
     key: d.key, business, market, contact, by, byUser,
-    dealId: deal ? deal.id : '', started: !!d.screen, canStart: !!(deal && !d.screen),
+    dealId: deal ? deal.id : '', started: !!d.screen, canStart: !!(deal && !d.screen), provisional: !!(d.screen && d.screen.provisional),
     clientPersonId: deal ? (deal.contactPersonId || '') : '',
     companyId: deal ? (deal.companyId || '') : '', company: (deal && deal.companyId && companyById(deal.companyId)) ? companyBrief(companyById(deal.companyId)) : null,
     roomId: (room && room.id) || (deal && deal.roomId) || '',
@@ -5475,10 +5475,11 @@ app.get('/api/companies', (req, res) => {
 // A person's full cross-book view: their company, the deals where they're the client,
 // and every offer / tour / NDA they're linked to across all deals.
 const BIZ_PIPE = [
-  { k: 'room', name: 'Data Room', manual: false }, { k: 'outreach', name: 'Outreach', manual: true },
-  { k: 'call', name: 'Qualification Call', manual: false }, { k: 'questionnaire', name: 'Valuation Questionnaire', manual: false },
-  { k: 'bov', name: 'BOV', manual: false }, { k: 'agreed', name: 'Agreed', manual: true },
+  { k: 'call', name: 'Qualification Call', manual: false },
+  { k: 'bov', name: 'Valuation', manual: false },
+  { k: 'agreed', name: 'Agreed', manual: true },
   { k: 'pack', name: 'Marketing Pack', manual: false }, { k: 'attack', name: 'Attack Plan', manual: false },
+  { k: 'outreach', name: 'Outreach', manual: true },
   { k: 'lease', name: 'Lease Abstract', manual: false }, { k: 'offers', name: 'Offers', manual: true },
   { k: 'dd', name: 'Due Diligence', manual: true }, { k: 'closing', name: 'Closing', manual: true },
 ];
@@ -8778,8 +8779,8 @@ app.get('/api/documents', (req, res) => {
         companyName: coNameById[s.companyId] || s.market || '',
         personName: nameById[s.personId] || s.contact || '',
         dealName:'', relatesToName:'',
-        status: s.becameListing ? 'Live Listing' : ((s.callState === 'complete' || s.completed) ? 'Complete' : (s.callState === 'pending' ? 'Pending' : 'Live Call')),
-        statusKey: s.becameListing ? 'livelisting' : ((s.callState === 'complete' || s.completed) ? 'complete' : (s.callState === 'pending' ? 'pending' : 'live')),
+        status: s.becameListing ? (s.provisional ? 'Provisional Listing' : 'Live Listing') : ((s.callState === 'complete' || s.completed) ? 'Complete' : (s.callState === 'pending' ? 'Pending' : 'Live Call')),
+        statusKey: s.becameListing ? (s.provisional ? 'provisional' : 'livelisting') : ((s.callState === 'complete' || s.completed) ? 'complete' : (s.callState === 'pending' ? 'pending' : 'live')),
         owner: s.by || s.byUser || '', createdAt: s.createdAt || '',
         completePct: pct, completed: !!s.completed,
         openUrl: '/api/screening/' + encodeURIComponent(s.id) + '/view', editUrl: '/api/screening/' + encodeURIComponent(s.id) + '/view', deleteUrl: '/api/screening/' + encodeURIComponent(s.id), downloadUrl:'' });
@@ -9472,11 +9473,13 @@ function runPostExecution(a, req) {
     try { if (a.execAuto && a.personId) { const _pp = loadPeople(); const _p = _pp.find(x => x.id === a.personId); if (_p) { const _plan = loadAutomations().find(x => x.id === a.execAuto && x.active !== false); if (_plan) { enrollPerson(_p, _plan, { byName: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '', dealKey: a.dealKey || '' }); savePeople(_pp); } } } } catch (e) {}
     if (!a.dealKey) return;
     try { const ov = loadAssignOverlay(); const cur = ov[a.dealKey] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Active'; cur.stageFlags = cur.stageFlags || {}; cur.stageFlags.agreed = true; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[a.dealKey] = cur; saveAssignOverlay(ov); } catch (e) {}
+    // Promote a provisional business-sale listing to Live once its listing agreement is executed.
+    try { if (a.dealKey && /^s_/.test(a.dealKey)) { const _sid = a.dealKey.slice(2); const _scr = loadScreens(); const _rec = _scr.find(x => x.id === _sid); if (_rec && _rec.provisional) { _rec.provisional = false; _rec.listingStatus = 'Live Listing'; _rec.listingLiveAt = now; saveScreens(_scr); } } } catch (e) {}
     if (a.personId) {
       try {
         const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId);
         if (pp) {
-          logActivity(pp, 'Note', agreementTypeLabel(a.type) + ' fully executed \u2014 listing set to Active', { auto: true, by: 'Automation' });
+          logActivity(pp, 'Note', agreementTypeLabel(a.type) + ' fully executed \u2014 listing set to Live', { auto: true, by: 'Automation' });
           try { const plan = loadAutomations().find(x => x.execDefault && x.active !== false); if (plan) enrollPerson(pp, plan, { byName: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '', dealKey: a.dealKey }); } catch (e) {}
           savePeople(ppl);
         }
