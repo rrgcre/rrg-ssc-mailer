@@ -84,4 +84,14 @@ function readAll() {
     .filter(Boolean);
 }
 
-module.exports = { appendSubmission, readAll, DATA_DIR, JSONL, CSV, CSV_COLS };
+function removeByTimestamp(ts) {
+  ensureDir(); if (ts == null) return 0;
+  const all = readAll(); const keep = all.filter(r => String(r.timestamp) !== String(ts));
+  const removed = all.length - keep.length;
+  if (removed) {
+    try { fs.writeFileSync(JSONL, keep.map(r => JSON.stringify(r)).join('\n') + (keep.length ? '\n' : '')); } catch (e) {}
+    try { const rows = [CSV_COLS.join(',')].concat(keep.map(e => [e.timestamp, e.form, e.name, e.market, e.rep, e.repEmail, e.dateOnForm, e.emailed ? 'yes' : 'no', e.highlights].map(csvCell).join(','))); fs.writeFileSync(CSV, rows.join('\n') + '\n'); } catch (e) {}
+  }
+  return removed;
+}
+module.exports = { appendSubmission, readAll, removeByTimestamp, DATA_DIR, JSONL, CSV, CSV_COLS };

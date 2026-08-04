@@ -345,4 +345,9 @@ async function siteFitPrefill({ source, scope }) {
   return { values: vals, notes: String((j && j.notes) || '') };
 }
 
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, siteFitPrefill };
+async function rewriteEmail({ text }) {
+  const sys = 'You are an expert business email copywriter for a commercial real-estate broker who works exclusively with restaurants and bars. Rewrite the email so it is clear, warm, professional and concise \u2014 no fluff, best practice, plays to win. Keep every {{merge_field}} token EXACTLY as written. Preserve links and the overall intent. Return clean simple HTML using ONLY these tags: <p> <br> <b> <i> <u> <ul> <ol> <li> <a>. No inline styles, no <html>/<head>/<body>, no markdown, no commentary \u2014 return only the rewritten email HTML.';
+  const out = await callClaude(sys, 'EMAIL (may be HTML or plain text):\n' + String(text || '').slice(0, 8000), 1400);
+  return String(out || '').trim();
+}
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, siteFitPrefill, rewriteEmail };

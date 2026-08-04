@@ -247,7 +247,9 @@ function renderList(cards){
 }
 async function bulkDelListings(ids,done){
   if(!ids||!ids.length) return;
-  if(!await rrgConfirm('Delete '+ids.length+' listing'+(ids.length>1?'s':'')+'? This removes the listing and its records — this cannot be undone.')) return;
+  var _msg='Delete '+ids.length+' listing'+(ids.length>1?'s':'')+'? This removes the listing and its records — this cannot be undone.';
+  var _ok = window.rrgConfirm ? (await rrgConfirm(_msg)) : window.confirm(_msg);
+  if(!_ok) return;
   var n=0, okc=0;
   ids.forEach(function(key){
     fetch('/api/assignment/'+encodeURIComponent(key),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})

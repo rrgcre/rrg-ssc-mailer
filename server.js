@@ -1294,8 +1294,10 @@ function isEmailConfigured() { const c = loadEmailConfig(); return !!(c.enabled 
 function mailFrom() { return loadEmailConfig().from; }
 function newOpenToken() { return 'eo_' + crypto.randomBytes(16).toString('base64url'); }
 function _escHtmlBody(x) { return String(x == null ? '' : x).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function htmlToText(h){ return String(h||'').replace(/<\s*br\s*\/?>/gi,'\n').replace(/<\/(p|div|li|h[1-6])>/gi,'\n').replace(/<li[^>]*>/gi,'\u2022 ').replace(/<[^>]+>/g,'').replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>').replace(/&quot;/gi,'"').replace(/&#39;/gi,"'").replace(/\n{3,}/g,'\n\n').trim(); }
+function _bodyLooksHtml(body){ return /<(p|br|div|ul|ol|li|b|i|u|a|strong|em|img|span|h[1-6]|table)\b|<\/(p|div|li|ul|ol|a)>/i.test(String(body||'')); }
 function trackedEmailHtml(body, origin, token, sigHtml) {
-  const htmlBody = _escHtmlBody(body).split('\n').join('<br>');
+  const htmlBody = _bodyLooksHtml(body) ? String(body) : _escHtmlBody(body).split('\n').join('<br>');
   const pixel = (origin && token) ? ('<img src="' + origin + '/eo/' + token + '" width="1" height="1" alt="" style="display:block;max-height:1px;max-width:1px;overflow:hidden;opacity:0">') : '';
   return '<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;font-size:14px;line-height:1.5;color:#1a2236">' + htmlBody + (sigHtml || '') + '</div>' + pixel;
 }
@@ -3821,7 +3823,7 @@ async function runAutomationStep(p, en, step) {
   const tok = newOpenToken();
   const origin = String(process.env.APP_URL || '').replace(/\/$/, '');
   try {
-    await sendMailWL({ from: mailFrom(), to: to, subject: subject, text: body, html: trackedEmailHtml(body, origin, tok), replyTo: en.replyTo || undefined });
+    await sendMailWL({ from: mailFrom(), to: to, subject: subject, text: (_bodyLooksHtml(body) ? htmlToText(body) : body), html: trackedEmailHtml(body, origin, tok), replyTo: en.replyTo || undefined });
     const now = new Date().toISOString();
     p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
     p.emailLog.unshift({ id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to: to, subject: subject, body: body.slice(0, 6000), sentAt: now, by: 'Automation (' + (en.automationName || '') + ')', byUser: 'automation', openToken: tok, opens: 0, senderIp: '', via: 'automation' });
@@ -4767,6 +4769,7 @@ app.post('/api/ai/site-read', express.json({ limit: '256kb' }), aiRoute(b => aia
 app.post('/api/ai/calc-summary', express.json({ limit: '256kb' }), aiRoute(b => aiassist.calcSummary({ kind: b.kind || '', inputs: b.inputs || {}, outputs: b.outputs || {} })));
 app.post('/api/ai/screening-summary', express.json({ limit: '256kb' }), aiRoute(b => aiassist.draftScreeningSummary({ data: b || {} })));
 app.post('/api/ai/placer', express.json({ limit: '256kb' }), aiRoute(b => aiassist.parsePlacer({ text: b.text || '' })));
+app.post('/api/ai/rewrite-email', express.json({ limit: '256kb' }), async (req, res) => { try { const b = req.body || {}; if (!String(b.text || '').trim()) return res.status(400).json({ ok: false, error: 'Nothing to rewrite.' }); const htmlOut = await aiassist.rewriteEmail({ text: b.text }); res.json({ ok: true, html: htmlOut }); } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); } });
 app.post('/api/ai/loi-suggest', express.json({ limit: '256kb' }), async (req, res) => {
   try {
     const b = req.body || {}; const cfg = loadLoiConfig(); const tkey = (b.type === 'business_sale') ? 'business_sale' : 'tenant_rep';
@@ -5017,11 +5020,12 @@ app.post('/api/person/:id/email', express.json({ limit: '256kb' }), async (req, 
   try {
     const _origin = reqOrigin(req); const _tok = newOpenToken();
     const _sigHtml = userSignatureHtml(req.user && req.user.username); const _sigTxt = userSignatureText(req.user && req.user.username);
-    const _textOut = body + (_sigTxt ? ('\n\n' + _sigTxt) : '');
+    const _bodyText = _bodyLooksHtml(body) ? htmlToText(body) : body;
+    const _textOut = _bodyText + (_sigTxt ? ('\n\n' + _sigTxt) : '');
     const info = await sendMailWL({ from: mailFrom(), to, cc: cc || undefined, bcc: bcc || undefined, subject: subject || '(no subject)', text: _textOut, html: trackedEmailHtml(body, _origin, _tok, _sigHtml) });
     const now = new Date().toISOString();
     p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
-    const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', messageId: (info && info.messageId) || '', cc, bcc, openToken: _tok, opens: 0, senderIp: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() };
+    const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: _bodyText.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', messageId: (info && info.messageId) || '', cc, bcc, openToken: _tok, opens: 0, senderIp: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() };
     p.emailLog.unshift(entry); p.emailLog = p.emailLog.slice(0, 100);
     logActivity(p, 'Email', subject || '(no subject)', { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' });
     p.lastContacted = now.slice(0, 10); p.updatedAt = now;
@@ -5383,12 +5387,13 @@ app.post('/api/gmail/send', express.json({ limit: '256kb' }), async (req, res) =
   if (!subject.trim() && !body.trim()) return res.status(400).json({ ok: false, error: 'Add a subject or a message.' });
   try {
     const _tok = p ? newOpenToken() : ''; const _origin = reqOrigin(req);
-    const sent = await gmail.sendMessage(u, { to, cc, bcc, subject, body, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '', html: _tok ? trackedEmailHtml(body, _origin, _tok) : '' });
+    const _bodyText = _bodyLooksHtml(body) ? htmlToText(body) : body;
+    const sent = await gmail.sendMessage(u, { to, cc, bcc, subject, body: _bodyText, threadId: b.threadId || '', inReplyTo: b.inReplyTo || '', html: _tok ? trackedEmailHtml(body, _origin, _tok) : '' });
     let emailLog = null, lastContacted = null;
     if (p) {
       const now = new Date().toISOString();
       p.emailLog = Array.isArray(p.emailLog) ? p.emailLog : [];
-      const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: body.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: u, messageId: sent.id, via: 'gmail', cc, bcc, openToken: _tok, opens: 0, senderIp: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() };
+      const entry = { id: 'eml_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), to, subject, body: _bodyText.slice(0, 6000), sentAt: now, by: (req.user && req.user.name) || '', byUser: u, messageId: sent.id, via: 'gmail', cc, bcc, openToken: _tok, opens: 0, senderIp: (req.headers['x-forwarded-for'] || req.ip || '').toString().split(',')[0].trim() };
       p.emailLog.unshift(entry); p.emailLog = p.emailLog.slice(0, 100);
       logActivity(p, 'Email', subject || '(no subject)', { auto: true, by: (req.user && req.user.name) || '', byUser: u });
       p.lastContacted = now.slice(0, 10); p.updatedAt = now; savePeople(arr);
@@ -5538,7 +5543,7 @@ app.get('/api/person/:id', (req, res) => {
   const _pEmails = personEmails(p).map(e => String(e || '').toLowerCase()).filter(Boolean);
   const deals = [], offers = [], tours = [], ndas = [], interested = [];
   (Array.isArray(p.tours) ? p.tours : []).forEach(x => tours.push({ id: x.id, key: '', business: '', date: x.date, interest: x.interest, notes: x.notes, personLevel: true }));
-  loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); const _st = idx[key] ? listingStageSummary(idx[key], overlay) : null; deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client', stage: _st ? _st.label : '', stageDone: _st ? _st.done : 0, stageTotal: _st ? _st.total : 0 }); });
+  loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); const _st = idx[key] ? listingStageSummary(idx[key], overlay) : null; deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client', roomId: (idx[key] && idx[key].room && idx[key].room.id) || d.roomId || '', stage: _st ? _st.label : '', stageDone: _st ? _st.done : 0, stageTotal: _st ? _st.total : 0 }); });
   for (const key in overlay) {
     const o = overlay[key], biz = bizByKey[key] || '(deal)';
     const _keyStage = idx[key] ? listingStageSummary(idx[key], overlay) : null;
@@ -5942,7 +5947,7 @@ app.get('/api/company/:id', (req, res) => {
   if (restrictToOwn(req) && !permOwnerMatch(req, c.owner || c.by)) return res.status(403).json({ ok: false, error: 'You can only view your own companies.' });
   const contacts = loadPeople().filter(p => p.companyId === c.id).map(companyContactRow);
   const _cids = loadPeople().filter(p => p.companyId === c.id).map(p => p.id);
-  const dealRows = loadDeals().filter(d => d.companyId === c.id || (d.contactPersonId && _cids.indexOf(d.contactPersonId) >= 0)).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id) }));
+  const dealRows = loadDeals().filter(d => d.companyId === c.id || (d.contactPersonId && _cids.indexOf(d.contactPersonId) >= 0)).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id), roomId: (function(){ const _r = roomForDeal(d); return _r ? _r.id : (d.roomId || ''); })() }));
   const _pn = {}; loadPeople().forEach(p => { _pn[p.id] = p.name; });
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
@@ -8717,6 +8722,19 @@ function newFileId() { return 'file_' + Date.now().toString(36) + Math.random().
 const USERFILE_MIME = { pdf:'application/pdf', doc:'application/msword', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt:'application/vnd.ms-powerpoint', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', webp:'image/webp', txt:'text/plain', csv:'text/csv', zip:'application/zip' };
 function userFileMime(ext) { return USERFILE_MIME[String(ext||'').toLowerCase()] || 'application/octet-stream'; }
 
+app.delete('/api/document/:kind/:id', (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const kind = String(req.params.kind || ''); const id = req.params.id;
+  try {
+    if (kind === 'agreement') { const all = loadAgreements(); const a = all.find(x => x.id === id); if (a && a.docExt) { try { fs.unlinkSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); } catch (e) {} } saveAgreements(all.filter(x => x.id !== id)); return res.json({ ok: true }); }
+    if (kind === 'valuation') { saveBovs(loadBovs().filter(x => x.id !== id)); return res.json({ ok: true }); }
+    if (kind === 'marketingpack') { saveCims(loadCims().filter(x => x.id !== id)); return res.json({ ok: true }); }
+    if (kind === 'loi') { saveLois(loadLois().filter(x => x.id !== id)); return res.json({ ok: true }); }
+    if (kind === 'seller' || kind === 'ssc') { const scr = loadScreens(); if (scr.some(x => x.id === id)) { saveScreens(scr.filter(x => x.id !== id)); return res.json({ ok: true }); } try { store.removeByTimestamp(id); } catch (e) {} return res.json({ ok: true }); }
+    if (kind === 'file') { const arr = loadUserFiles(); const f = arr.find(x => x.id === id); if (f) { try { fs.unlinkSync(path.join(USERDOCS_DIR, f.id + '.' + f.ext)); } catch (e) {} saveUserFiles(arr.filter(x => x.id !== id)); } return res.json({ ok: true }); }
+    return res.status(400).json({ ok: false, error: 'Unknown document type.' });
+  } catch (e) { return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 app.post('/api/files', express.json({ limit: '28mb' }), (req, res) => {
   const b = req.body || {};
   const orig = String(b.filename || '').trim();
@@ -8767,18 +8785,18 @@ app.get('/api/documents', (req, res) => {
   const out = [];
   let ag = loadAgreements();
   if (restrictToOwn(req)) ag = ag.filter(a => permOwnerMatch(req, a.createdBy));
-  ag.forEach(a => { const br = agreementBrief(a); out.push({ id:a.id, kind:'agreement', title:(a.name || 'Agreement'), typeLabel:'Agreement', agrType: agreementTypeLabel(a.type), effective: a.effective||'', expires: a.expires||'', signStatus:a.signStatus||'', docExt:a.docExt||'', hasFinal:!!a.hasFinal, entryMethod:a.entryMethod||'', personId:a.personId||'', dealKey:a.dealKey||'', companyId:a.companyId||'', companyName: coNameById[a.companyId]||'', personName: a.personName || nameById[a.personId] || '', dealName: bizByKey[a.dealKey]||'', status: br.statusLabel||'', statusKey: br.statusKey||'', owner: a.createdByName || a.createdBy || '', createdAt: a.createdAt||'', openUrl: a.docExt ? ('/api/agreements/'+a.id+'/doc') : 'rrg_agreements.html', downloadUrl: a.docExt ? ('/api/agreements/'+a.id+'/doc') : '' }); });
+  ag.forEach(a => { const br = agreementBrief(a); out.push({ id:a.id, kind:'agreement', title:(a.name || 'Agreement'), typeLabel:'Agreement', agrType: agreementTypeLabel(a.type), effective: a.effective||'', expires: a.expires||'', signStatus:a.signStatus||'', docExt:a.docExt||'', hasFinal:!!a.hasFinal, entryMethod:a.entryMethod||'', personId:a.personId||'', dealKey:a.dealKey||'', companyId:a.companyId||'', companyName: coNameById[a.companyId]||'', personName: a.personName || nameById[a.personId] || '', dealName: bizByKey[a.dealKey]||'', status: br.statusLabel||'', statusKey: br.statusKey||'', owner: a.createdByName || a.createdBy || '', createdAt: a.createdAt||'', deleteUrl: '/api/document/agreement/'+a.id, openUrl: a.docExt ? ('/api/agreements/'+a.id+'/doc') : 'rrg_agreements.html', downloadUrl: a.docExt ? ('/api/agreements/'+a.id+'/doc') : '' }); });
   let bv = loadBovs().filter(b => isAdmin || ownsBov(req, b));
-  bv.forEach(b => { out.push({ id:b.id, kind:'valuation', title: b.business || 'Valuation', typeLabel:'Valuation', matchNames:[b.business||''], valueText: (b.targetText||b.rangeText||b.sdeText||''), basis: b.basis||'', personId:b.personId||'', companyId:b.companyId||'', companyName: coNameById[b.companyId]||'', personName: nameById[b.personId]||'', dealName:'', status: b.pending ? 'Requested' : 'Built', statusKey: b.pending ? 'pending' : 'built', owner: b.by || b.byUser || '', createdAt: b.createdAt || '', openUrl: (b.pending ? 'rrg_bov_generate.html?bov=' : 'rrg_bov_builder.html?bov=') + encodeURIComponent(b.id), downloadUrl:'' }); });
+  bv.forEach(b => { out.push({ id:b.id, kind:'valuation', title: b.business || 'Valuation', typeLabel:'Valuation', matchNames:[b.business||''], valueText: (b.targetText||b.rangeText||b.sdeText||''), basis: b.basis||'', personId:b.personId||'', companyId:b.companyId||'', companyName: coNameById[b.companyId]||'', personName: nameById[b.personId]||'', dealName:'', status: b.pending ? 'Requested' : 'Built', statusKey: b.pending ? 'pending' : 'built', owner: b.by || b.byUser || '', createdAt: b.createdAt || '', deleteUrl: '/api/document/valuation/'+b.id, openUrl: (b.pending ? 'rrg_bov_generate.html?bov=' : 'rrg_bov_builder.html?bov=') + encodeURIComponent(b.id), downloadUrl:'' }); });
   let cm = loadCims().filter(c => isAdmin || ownsCim(req, c));
-  cm.forEach(c => { out.push({ id:c.id, kind:'marketingpack', title: c.business || 'Marketing Pack', typeLabel:'Marketing Pack', matchNames:[c.business||''], personId:c.personId||'', companyId:c.companyId||'', companyName: coNameById[c.companyId] || c.market||'', personName: nameById[c.personId]||'', dealName:'', status: c.pending ? 'Draft' : 'Built', statusKey: c.pending ? 'pending' : 'built', owner: c.by || c.byUser || '', createdAt: c.createdAt || '', openUrl: (c.pending ? 'rrg_cim_generate.html?cim=' : 'rrg_cim_builder.html?cim=') + encodeURIComponent(c.id), downloadUrl:'' }); });
+  cm.forEach(c => { out.push({ id:c.id, kind:'marketingpack', title: c.business || 'Marketing Pack', typeLabel:'Marketing Pack', matchNames:[c.business||''], personId:c.personId||'', companyId:c.companyId||'', companyName: coNameById[c.companyId] || c.market||'', personName: nameById[c.personId]||'', dealName:'', status: c.pending ? 'Draft' : 'Built', statusKey: c.pending ? 'pending' : 'built', owner: c.by || c.byUser || '', createdAt: c.createdAt || '', deleteUrl: '/api/document/marketingpack/'+c.id, openUrl: (c.pending ? 'rrg_cim_generate.html?cim=' : 'rrg_cim_builder.html?cim=') + encodeURIComponent(c.id), downloadUrl:'' }); });
   let uf = loadUserFiles();
   if (restrictToOwn(req)) uf = uf.filter(fr => permOwnerMatch(req, fr.createdBy));
   uf.forEach(fr => { out.push({ id:fr.id, kind:'file', title: fr.name || fr.originalName || 'File', docType: fr.docType||'', typeLabel: fr.docType || (fr.ext||'file').toUpperCase(), personId:fr.personId||'', dealKey:fr.dealKey||'', companyId:fr.companyId||'', companyName: coNameById[fr.companyId]||'', personName: nameById[fr.personId]||'', dealName: bizByKey[fr.dealKey]||'', relatesToName: fr.relatesToName||'', status: fr.note || '', statusKey:'file', owner: fr.by || fr.byUser || '', createdAt: fr.uploadedAt || '', openUrl: '/api/files/'+fr.id+'/download', downloadUrl: '/api/files/'+fr.id+'/download', deleteUrl: '/api/files/'+fr.id, ext: fr.ext, size: fr.size }); });
   try {
     let sscs = store.readAll().filter(r => r.form === 'ssc');
     if (restrictToOwn(req)) sscs = sscs.filter(r => permOwnerMatch(req, r.rep));
-    sscs.forEach(r => { out.push({ id: r.timestamp, kind:'ssc', title: r.name || 'Site Criteria', typeLabel:'Site Criteria', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', dealName:'', relatesToName:'', status: r.highlights || '', statusKey:'ssc', owner: r.rep || '', createdAt: r.timestamp || '', openUrl: '/api/ssc/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
+    sscs.forEach(r => { out.push({ id: r.timestamp, kind:'ssc', title: r.name || 'Site Criteria', typeLabel:'Site Criteria', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', dealName:'', relatesToName:'', status: r.highlights || '', statusKey:'ssc', owner: r.rep || '', createdAt: r.timestamp || '', deleteUrl: '/api/document/ssc/'+encodeURIComponent(r.timestamp), openUrl: '/api/ssc/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
   } catch (e) {}
   // ---- Seller screening calls ---------------------------------------------------------
   // The row opens the CALL, not a rendering of it. A rep who spots a wrong number while
@@ -8816,12 +8834,12 @@ app.get('/api/documents', (req, res) => {
     });
     let sellers = store.readAll().filter(r => r.form === 'seller' && !_seenFid[(r.data && r.data.formId) || '\u0000']);
     if (restrictToOwn(req)) sellers = sellers.filter(r => permOwnerMatch(req, r.rep));
-    sellers.forEach(r => { out.push({ id: r.timestamp, kind:'seller', title: r.name || 'Seller Screening', typeLabel:'Seller Screening', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', dealName:'', relatesToName:'', status: 'Submitted', statusKey:'seller', owner: r.rep || '', createdAt: r.timestamp || '', completePct: 100, completed: true, openUrl: '/api/seller/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
+    sellers.forEach(r => { out.push({ id: r.timestamp, kind:'seller', title: r.name || 'Seller Screening', typeLabel:'Seller Screening', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', dealName:'', relatesToName:'', status: 'Submitted', statusKey:'seller', owner: r.rep || '', createdAt: r.timestamp || '', completePct: 100, completed: true, deleteUrl: '/api/document/seller/'+encodeURIComponent(r.timestamp), openUrl: '/api/seller/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
   } catch (e) {}
   try {
     let lois = loadLois();
     if (restrictToOwn(req)) lois = lois.filter(l => permOwnerMatch(req, l.byUser || l.by));
-    lois.forEach(l => { const tn = (l.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep'); const party = [(l.tenant&&l.tenant.name)||'', (l.landlord&&l.landlord.name)||''].filter(Boolean).join(' / '); const _lp = [l.tenant, l.landlord].filter(Boolean); out.push({ id: l.id, kind:'loi', linkPersons: _lp.filter(x => x.kind==='contact' && x.id).map(x => String(x.id)), linkCompanies: _lp.filter(x => x.kind==='company' && x.id).map(x => String(x.id)), title: (l.property || party || (tn+' LOI')), typeLabel:'LOI', dealType: tn, property: l.property||'', parties: party, companyId:'', companyName: party, personName:'', dealName:'', relatesToName:'', status: l.status || '', statusKey: (l.status||'').toLowerCase().replace(/[^a-z]+/g,''), owner: l.by || l.byUser || '', createdAt: l.createdAt || '', openUrl: '/api/loi/'+encodeURIComponent(l.id)+'/view', downloadUrl:'' }); });
+    lois.forEach(l => { const tn = (l.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep'); const party = [(l.tenant&&l.tenant.name)||'', (l.landlord&&l.landlord.name)||''].filter(Boolean).join(' / '); const _lp = [l.tenant, l.landlord].filter(Boolean); out.push({ id: l.id, kind:'loi', linkPersons: _lp.filter(x => x.kind==='contact' && x.id).map(x => String(x.id)), linkCompanies: _lp.filter(x => x.kind==='company' && x.id).map(x => String(x.id)), title: (l.property || party || (tn+' LOI')), typeLabel:'LOI', dealType: tn, property: l.property||'', parties: party, companyId:'', companyName: party, personName:'', dealName:'', relatesToName:'', status: l.status || '', statusKey: (l.status||'').toLowerCase().replace(/[^a-z]+/g,''), owner: l.by || l.byUser || '', createdAt: l.createdAt || '', deleteUrl: '/api/document/loi/'+l.id, openUrl: '/api/loi/'+encodeURIComponent(l.id)+'/view', downloadUrl:'' }); });
   } catch (e) {}
   out.sort((x,y) => String(y.createdAt||'').localeCompare(String(x.createdAt||'')));
   // Optional scoping for the Documents card on a contact or company record.
