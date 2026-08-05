@@ -647,10 +647,13 @@
     var ta=document.getElementById('callNotes'); if(!ta) return;
     var orig=btn?btn.textContent:'';
     function busy(on){ if(!btn) return; btn.disabled=on; btn.textContent=on?'\u2728 Drafting\u2026':orig; }
-    function done(){ if(window.rrgAiWork) window.rrgAiWork.hide(); busy(false); }
+    function done(){ if(typeof _introT!=='undefined') clearTimeout(_introT); if(window.rrgAiWork) window.rrgAiWork.hide(); busy(false); }
     function fail(m){ done(); if(window.__scrBanner) window.__scrBanner(m); }
     busy(true);
-    if(window.rrgAiWork) window.rrgAiWork.show('Reading your answers, writing the summary, and calling the deal\u2026');
+    var _ai=(window.__rrgAssistant||'Your assistant');
+    var _sn=''; try{ _sn=((new URLSearchParams(location.search).get('sellerName'))||'').trim().split(/\s+/)[0]||''; }catch(e){}
+    if(window.rrgAiWork) window.rrgAiWork.show('\u2728 '+_ai+' here \u2014 give me a moment to review '+(_sn?('your call with '+_sn):'the call')+' and pull together the summary and a recommended next step\u2026');
+    var _introT=setTimeout(function(){ if(window.rrgAiWork && window.rrgAiWork.setMsg) window.rrgAiWork.setMsg('Reading your answers, writing the summary, and calling the deal\u2026'); },1500);
     var data=(window._collectData?window._collectData():{}); data.formType='seller';
     fetch(API+'/api/ai/screening-summary',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
       .then(function(r){return r.json();})

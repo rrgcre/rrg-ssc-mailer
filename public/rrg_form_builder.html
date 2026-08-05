@@ -65,6 +65,14 @@ textarea{resize:vertical;min-height:60px;line-height:1.4;}
 .banner{background:#fff7ed;border:1px solid #f4e2c7;color:#8a5a12;border-radius:11px;padding:11px 14px;font-size:12.5px;line-height:1.5;margin-bottom:14px;font-weight:600;}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);} .gate h2{color:#000E31;}
 .decwrap{margin-top:8px;font-size:12.5px;color:var(--dim);font-weight:600;display:inline-flex;gap:6px;align-items:center;} .decwrap input{width:auto;}
+.condwrap{margin-top:10px;border-top:1px dashed #e0e6f1;padding-top:9px;}
+.condwrap .condtoggle{display:inline-flex;gap:6px;align-items:center;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;} .condwrap .condtoggle input{width:auto;}
+.condbody{margin-top:8px;background:#f6f9ff;border:1px solid #e2e9f6;border-radius:9px;padding:10px 11px;}
+.condgrid{display:flex;gap:8px;flex-wrap:wrap;align-items:center;} .condgrid .cond-q{flex:1;min-width:200px;} .condgrid .cond-op{width:120px;flex:0 0 auto;}
+.cond-vals{margin-top:9px;} .cond-vals .lbl{margin-bottom:5px;}
+.cond-valbox{display:flex;flex-wrap:wrap;gap:6px 14px;}
+.cond-vopt{display:inline-flex;gap:5px;align-items:center;font-size:12.5px;font-weight:600;color:var(--dim);cursor:pointer;background:#fff;border:1px solid #dde5f2;border-radius:8px;padding:5px 9px;} .cond-vopt input{width:auto;}
+.cond-empty{font-size:12px;color:var(--faint);font-style:italic;}
 .hint{font-size:12px;color:var(--dim);margin-top:5px;line-height:1.45;}
 </style>
 <script src="/rrg_brand.js"></script>
@@ -105,6 +113,7 @@ function qsa(sel,el){return [].slice.call((el||document).querySelectorAll(sel));
 
 var STATE={ form:{ id:'', name:'', callType:'seller', builtIn:false, header:[], categories:[] }, dup:false };
 var AUTOS=[];
+var RUID=0; function ruid(){ return 'ru'+(++RUID); }
 
 /* ---- map a stored question object -> builder type value ---- */
 function typeOf(q){
@@ -122,6 +131,7 @@ function questionFromRow(row){
     var st=qs('.q-sub',row); var v=(st&&st.value||'').trim();
     return v?{sub:v}:null;
   }
+  var _cond=readCond(row);
   var label=(qs('.q-label',row).value||'').trim();
   var bt=qs('.q-type',row).value;
   if(bt==='instruction'){
@@ -131,6 +141,7 @@ function questionFromRow(row){
     var ip=qs('.q-prompt',row); if(ip&&ip.value.trim()) iq.prompt=ip.value.trim();
     var ih=qs('.q-hint',row); if(ih&&ih.value.trim()) iq.hint=ih.value.trim();
     iq.id=slug(label||'instruction')||('q'+Math.random().toString(36).slice(2,6));
+    if(_cond) iq.showIf=_cond;
     return iq;
   }
   if(bt==='group'){
@@ -141,7 +152,7 @@ function questionFromRow(row){
     var gc=qs('.g-cols',row); if(gc&&gc.value) g.cols=parseInt(gc.value,10);
     var gp=qs('.q-prompt',row); if(gp&&gp.value.trim()) g.prompt=gp.value.trim();
     var gh=qs('.q-hint',row); if(gh&&gh.value.trim()) g.hint=gh.value.trim();
-    g.id=slug(label); return g;
+    if(_cond) g.showIf=_cond; g.id=slug(label); return g;
   }
   if(!label && bt!=='readonly') return null;
   var q={};
@@ -155,13 +166,15 @@ function questionFromRow(row){
     var opts=[], meta=[], anyMeta=false;
     qsa('.optrow',row).forEach(function(r){ var lb=(qs('.opt-label',r).value||'').trim(); if(!lb) return; opts.push(lb);
       var mk=qs('.opt-k',r).checked, mw=parseInt(qs('.opt-w',r).value,10)||0, mn=(qs('.opt-nudge',r).value||'').trim();
-      var m={}; if(mk)m.k=1; if(mw)m.w=mw; if(mn)m.n=mn; meta.push(m); if(mk||mw||mn) anyMeta=true; });
+      var _au=qs('.opt-auto',r); var ma=_au?(_au.value||'').trim():'';
+      var m={}; if(mk)m.k=1; if(mw)m.w=mw; if(mn)m.n=mn; if(ma)m.a=ma; meta.push(m); if(mk||mw||mn||ma) anyMeta=true; });
     q.options=opts;
     if(anyMeta) q.optMeta=meta;
     var c=qs('.q-cols',row).value; if(c) q.cols=parseInt(c,10);
   }
   var pr=qs('.q-prompt',row); if(pr && pr.value.trim()) q.prompt=pr.value.trim();
   var hn=qs('.q-hint',row); if(hn && hn.value.trim()) q.hint=hn.value.trim();
+  if(_cond) q.showIf=_cond;
   q.id=slug(label)||('q'+Math.random().toString(36).slice(2,6));
   return q;
 }
@@ -187,21 +200,22 @@ function typeSelect(sel){
   return '<select class="q-type">'+TYPES.map(function(t){ return '<option value="'+t.v+'"'+(t.v===sel?' selected':'')+'>'+esc(t.label)+'</option>'; }).join('')+'</select>';
 }
 function optWeightSel(w){ w=w||0; var o=''; for(var x=-3;x<=3;x++){ o+='<option value="'+x+'"'+(x===w?' selected':'')+'>'+(x>0?('+'+x):(''+x))+'</option>'; } return o; }
-function optRowHtml(lbl,m){ m=m||{}; return '<div class="optrow" style="display:flex;gap:6px;align-items:center;margin:0 0 5px;flex-wrap:wrap">'+'<input type="text" class="opt-label" placeholder="Choice" value="'+esc(lbl||'')+'" style="flex:2;min-width:110px">'+'<label style="font-size:11.5px;white-space:nowrap;display:inline-flex;gap:4px;align-items:center"><input type="checkbox" class="opt-k"'+(m.k?' checked':'')+'>Deal-killer</label>'+'<select class="opt-w" title="Temperature weight (\u2212 colder / + warmer)" style="width:60px">'+optWeightSel(m.w||0)+'</select>'+'<input type="text" class="opt-nudge" placeholder="Follow-up nudge (optional)" value="'+esc(m.n||'')+'" style="flex:2;min-width:110px">'+'<button type="button" class="mini danger" onclick="delOpt(this)">\u00d7</button></div>'; }
+function optRowHtml(lbl,m){ m=m||{}; return '<div class="optrow" style="display:flex;gap:6px;align-items:center;margin:0 0 5px;flex-wrap:wrap">'+'<input type="text" class="opt-label" placeholder="Choice" value="'+esc(lbl||'')+'" style="flex:2;min-width:110px">'+'<label style="font-size:11.5px;white-space:nowrap;display:inline-flex;gap:4px;align-items:center"><input type="checkbox" class="opt-k"'+(m.k?' checked':'')+'>Deal-killer</label>'+'<select class="opt-w" title="Temperature weight (\u2212 colder / + warmer)" style="width:60px">'+optWeightSel(m.w||0)+'</select>'+'<input type="text" class="opt-nudge" placeholder="Follow-up nudge (optional)" value="'+esc(m.n||'')+'" style="flex:2;min-width:110px">'+'<select class="opt-auto" title="Automation to run on submit when this answer is chosen" style="width:150px;flex:0 0 auto">'+autoOptions(m.a||'')+'</select>'+'<button type="button" class="mini danger" onclick="delOpt(this)">\u00d7</button></div>'; }
 function addOpt(btn){ var list=btn.closest('.oleft').querySelector('.optlist'); list.insertAdjacentHTML('beforeend', optRowHtml('',{})); var l=list.lastElementChild.querySelector('.opt-label'); if(l) l.focus(); }
 function delOpt(btn){ btn.closest('.optrow').remove(); }
 function qrow(q){
   q=q||{};
   if(q.sub!==undefined){
     return '<div class="qrow sub-row" data-sub="1"><div class="qtop"><input type="text" class="q-sub" placeholder="Subheading text" value="'+esc(q.sub)+'"></div>'
-      +'<div class="qact"><button type="button" class="mini" onclick="move(this,-1)">↑</button><button type="button" class="mini" onclick="move(this,1)">↓</button><button type="button" class="mini danger" onclick="del(this)">Remove</button></div></div>';
+      +'<div class="qact"><button type="button" class="mini" onclick="move(this,-1)">↑</button><button type="button" class="mini" onclick="move(this,1)">↓</button><button type="button" class="mini" onclick="insertBelow(this)" title="Insert a new card right after this one">+ Card</button><button type="button" class="mini danger" onclick="del(this)">Remove</button></div></div>';
   }
   var bt=typeOf(q)||'text';
   var isOpt=(bt==='single'||bt==='multi');
   var isGroup=(bt==='group');
   var isInstr=(bt==='instruction');
   var _om=q.optMeta||[]; var optRows=(q.options||[]).map(function(o,i){return optRowHtml(o,_om[i]);}).join('')||optRowHtml('',{});
-  return '<div class="qrow'+(isOpt?' is-opts':'')+(isGroup?' is-group':'')+(isInstr?' is-instr':'')+'">'
+  var _sc=(q.showIf&&q.showIf.q)?q.showIf:null; var _scop=(_sc&&_sc.not)?'not':'any';
+  return '<div class="qrow'+(isOpt?' is-opts':'')+(isGroup?' is-group':'')+(isInstr?' is-instr':'')+'" data-rowuid="'+ruid()+'"'+(_sc?(' data-cond-init="'+esc(JSON.stringify(_sc)).replace(/"/g,'&quot;')+'"'):'')+'>'
     +'<div class="qtop"><input type="text" class="q-label" placeholder="Question (e.g. “Annual revenue?”)" value="'+esc(q.label||'')+'">'+typeSelect(bt)+'</div>'
     +'<div class="instrwrap"><span class="lbl">Instruction text — shown on its own card with Back and Next, nothing to answer</span><textarea class="q-text" placeholder="e.g. Before you go further, confirm you are speaking with an owner and that this call is confidential.">'+esc(q.text||'')+'</textarea></div>'
     +'<div class="flags"><label><input type="checkbox" class="q-req"'+(q.required?' checked':'')+'> Required</label>'
@@ -212,7 +226,10 @@ function qrow(q){
     +'<div style="display:flex;gap:9px;margin-top:7px;align-items:center;flex-wrap:wrap"><button type="button" class="mini" onclick="addPart(this)">+ Add part</button><span class="lbl" style="margin:0">Layout</span><select class="g-cols" style="width:130px"><option value="2"'+((q.cols==2||!q.cols)?' selected':'')+'>2 columns</option><option value="3"'+(q.cols==3?' selected':'')+'>3 columns</option><option value="1"'+(q.cols==1?' selected':'')+'>Stacked</option></select></div></div>'
     +'<div class="qfline"><span class="lbl">Ask-out-loud prompt \u2014 what the rep reads to the seller in Call Mode</span><input type="text" class="q-prompt" placeholder="e.g. How long have you been operating?" value="'+esc(q.prompt||'')+'"></div>'
     +'<div class="qfline"><span class="lbl">Hint \u2014 coaching note shown beside the question, seller never hears it</span><input type="text" class="q-hint" placeholder="e.g. Under three years is thin for SBA financing." value="'+esc(q.hint||'')+'"></div>'
-    +'<div class="qact"><button type="button" class="mini" onclick="move(this,-1)">↑</button><button type="button" class="mini" onclick="move(this,1)">↓</button><button type="button" class="mini danger" onclick="del(this)">Remove</button></div></div>';
+    +'<div class="condwrap"><label class="condtoggle"><input type="checkbox" class="cond-on"'+(_sc?' checked':'')+'> Only show this card when a previous answer matches</label>'
+    +'<div class="condbody"'+(_sc?'':' style="display:none"')+'><div class="condgrid"><select class="cond-q"></select><select class="cond-op"><option value="any"'+(_scop==='not'?'':' selected')+'>is any of</option><option value="not"'+(_scop==='not'?' selected':'')+'>is not</option></select></div>'
+    +'<div class="cond-vals"><span class="lbl">Pick the answer(s) that reveal this card</span><div class="cond-valbox"><span class="cond-empty">Choose a question above first.</span></div></div></div></div>'
+    +'<div class="qact"><button type="button" class="mini" onclick="move(this,-1)">↑</button><button type="button" class="mini" onclick="move(this,1)">↓</button><button type="button" class="mini" onclick="insertBelow(this)" title="Insert a new card right after this one">+ Card</button><button type="button" class="mini danger" onclick="del(this)">Remove</button></div></div>';
 }
 
 function sectionCard(cat,idx){
@@ -252,6 +269,7 @@ function render(){
   qs('#root').innerHTML=h;
   renderSaveBar();
   bindTypeToggles();
+  try{ hydrateConds(); wireConds(); }catch(e){}
 }
 function renderSaveBar(){
   if(qs('#savebar')) return;
@@ -300,15 +318,78 @@ document.addEventListener('change', scheduleAutoSave);
 document.addEventListener('click', function(e){ var t=e.target; if(t && t.closest && t.closest('.mini,.btn.add,.addbtns,.optrow')) scheduleAutoSave(); });
 function bindTypeToggles(){
   qsa('.q-type').forEach(function(sel){
-    sel.onchange=function(){ var row=sel.closest('.qrow'); var v=sel.value; row.classList.toggle('is-opts', v==='single'||v==='multi'); row.classList.toggle('is-group', v==='group'); row.classList.toggle('is-instr', v==='instruction'); };
+    sel.onchange=function(){ var row=sel.closest('.qrow'); var v=sel.value; row.classList.toggle('is-opts', v==='single'||v==='multi'); row.classList.toggle('is-group', v==='group'); row.classList.toggle('is-instr', v==='instruction'); try{refreshCondSelects();}catch(e){} };
   });
 }
 
+function condTrigRows(){ return qsa('.qrow').filter(function(r){ if(r.getAttribute('data-sub')==='1') return false; var ts=qs('.q-type',r); var v=ts?ts.value:''; return v==='single'||v==='multi'; }); }
+function refreshCondSelects(){
+  qsa('.cond-q').forEach(function(sel){
+    var selfRow=sel.closest('.qrow'); var selfUid=selfRow?selfRow.getAttribute('data-rowuid'):'';
+    var cur=sel.value;
+    var opts='<option value="">- pick a question -</option>';
+    condTrigRows().forEach(function(r){
+      var uid=r.getAttribute('data-rowuid'); if(!uid||uid===selfUid) return;
+      var li=qs('.q-label',r); var lb=(li&&li.value||'').trim(); if(!lb) return;
+      opts+='<option value="'+esc(uid)+'" data-slug="'+esc(slug(lb))+'">'+esc(lb)+'</option>';
+    });
+    sel.innerHTML=opts;
+    if(cur) sel.value=cur;
+    refreshCondVals(selfRow);
+  });
+}
+function refreshCondVals(row){
+  if(!row) return; var box=qs('.cond-valbox',row); if(!box) return;
+  var cq=qs('.cond-q',row); var uid=cq&&cq.value;
+  var trigRow=uid?document.querySelector('.qrow[data-rowuid="'+uid+'"]'):null;
+  var checked={}; qsa('.cond-val',row).forEach(function(cb){ if(cb.checked) checked[String(cb.value).toLowerCase()]=1; });
+  if(!trigRow){ box.innerHTML='<span class="cond-empty">Choose a question above first.</span>'; return; }
+  var labels=[]; qsa('.opt-label',trigRow).forEach(function(i){ var v=(i.value||'').trim(); if(v) labels.push(v); });
+  if(!labels.length){ box.innerHTML='<span class="cond-empty">That question has no answer choices yet.</span>'; return; }
+  box.innerHTML=labels.map(function(l){ var on=checked[l.toLowerCase()]?' checked':''; return '<label class="cond-vopt"><input type="checkbox" class="cond-val" value="'+esc(l)+'"'+on+'>'+esc(l)+'</label>'; }).join('');
+}
+function readCond(row){
+  var con=qs('.cond-on',row); if(!con||!con.checked) return null;
+  var cq=qs('.cond-q',row); var uid=cq&&cq.value; if(!uid) return null;
+  var trigRow=document.querySelector('.qrow[data-rowuid="'+uid+'"]'); if(!trigRow) return null;
+  var li=qs('.q-label',trigRow); var trigId=li?slug((li.value||'').trim()):''; if(!trigId) return null;
+  var vals=qsa('.cond-val',row).filter(function(cb){return cb.checked;}).map(function(cb){return cb.value;});
+  if(!vals.length) return null;
+  var op=qs('.cond-op',row)?qs('.cond-op',row).value:'any';
+  var c={q:trigId}; c[op==='not'?'not':'any']=vals; return c;
+}
+function hydrateConds(){
+  refreshCondSelects();
+  qsa('.qrow[data-cond-init]').forEach(function(row){
+    var init; try{ init=JSON.parse(row.getAttribute('data-cond-init')); }catch(e){ init=null; }
+    row.removeAttribute('data-cond-init');
+    if(!init||!init.q) return;
+    var cq=qs('.cond-q',row); if(!cq) return;
+    var match=qsa('option',cq).filter(function(o){ return o.getAttribute('data-slug')===init.q; })[0];
+    if(match) cq.value=match.value;
+    var op=qs('.cond-op',row); if(op) op.value=init.not?'not':'any';
+    refreshCondVals(row);
+    var want=(init.any||init.not||[]).map(function(v){ return String(v).trim().toLowerCase(); });
+    qsa('.cond-val',row).forEach(function(cb){ if(want.indexOf(String(cb.value).trim().toLowerCase())>=0) cb.checked=true; });
+  });
+}
+var _condWired=false;
+function wireConds(){
+  refreshCondSelects();
+  if(_condWired) return; _condWired=true;
+  document.addEventListener('change', function(e){ var t=e.target; if(!t||!t.classList) return;
+    if(t.classList.contains('cond-on')){ var wrap=t.closest('.condwrap'); var body=wrap&&wrap.querySelector('.condbody'); if(body) body.style.display=t.checked?'':'none'; if(t.checked) refreshCondSelects(); }
+    else if(t.classList.contains('cond-q')){ refreshCondVals(t.closest('.qrow')); }
+  });
+  document.addEventListener('focusin', function(e){ if(e.target&&e.target.classList&&e.target.classList.contains('cond-q')) refreshCondSelects(); });
+}
+
 /* ---- structural ops (sync first so typing isn't lost) ---- */
-function addQ(btn){ syncFromDom(); var list=btn.closest('.card').querySelector('.qlist'); list.insertAdjacentHTML('beforeend', qrow({label:'',type:'text'})); bindTypeToggles(); list.lastElementChild.querySelector('.q-label').focus(); }
+function addQ(btn){ syncFromDom(); var list=btn.closest('.card').querySelector('.qlist'); list.insertAdjacentHTML('beforeend', qrow({label:'',type:'text'})); bindTypeToggles(); try{refreshCondSelects();}catch(e){} list.lastElementChild.querySelector('.q-label').focus(); }
 function addSub(btn){ var list=btn.closest('.card').querySelector('.qlist'); list.insertAdjacentHTML('beforeend', qrow({sub:''})); list.lastElementChild.querySelector('.q-sub').focus(); }
 function del(btn){ btn.closest('.qrow').remove(); }
 function move(btn,dir){ var r=btn.closest('.qrow'); if(dir<0 && r.previousElementSibling) r.parentNode.insertBefore(r,r.previousElementSibling); if(dir>0 && r.nextElementSibling) r.parentNode.insertBefore(r.nextElementSibling,r); }
+function insertBelow(btn){ var r=btn.closest('.qrow'); if(!r||!r.parentNode) return; var tmp=document.createElement('div'); tmp.innerHTML=qrow({label:'',type:'text'}); var nr=tmp.firstElementChild; r.parentNode.insertBefore(nr, r.nextElementSibling); try{ bindTypeToggles(); }catch(e){} try{ refreshCondSelects(); }catch(e){} var lb=nr.querySelector('.q-label'); if(lb) lb.focus(); try{ nr.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} }
 function addSection(){ syncFromDom(); STATE.form.categories.push({title:'',questions:[]}); render(); window.scrollTo(0,document.body.scrollHeight); }
 function delSec(btn){ if(!confirm('Delete this whole section and its questions?')) return; syncFromDom(); var cards=qsa('.card[data-section="1"]'); var i=cards.indexOf(btn.closest('.card')); if(i>=0){ STATE.form.categories.splice(i,1); render(); } }
 function moveSec(btn,dir){ syncFromDom(); var cards=qsa('.card[data-section="1"]'); var i=cards.indexOf(btn.closest('.card')); var j=i+dir; if(j<0||j>=STATE.form.categories.length) return; var a=STATE.form.categories; var t=a[i]; a[i]=a[j]; a[j]=t; render(); }

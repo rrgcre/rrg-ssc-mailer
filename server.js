@@ -908,22 +908,46 @@ function fireScreeningAutomation(req, rec, data) {
   try {
     if (!rec || rec.callState !== 'complete' || rec.automationFired) return;
     const outcome = _dealCallKey(rec.statusText || '');
-    if (!outcome) return;
     let form = null;
-    const fqid = data && data.formQId;
+    const fqid = data && (data.formQId || data.formId);
     if (fqid) form = loadForms().find(f => f.id === fqid);
     if (!form) { try { const asg = (loadSettings().callForms || {}).seller; if (asg) form = loadForms().find(f => f.id === asg); } catch (e) {} }
-    const autoId = form && form.automations && form.automations[outcome];
-    if (!autoId) { rec.automationFired = true; return; }
     const pid = rec.personId;
     if (!pid) { rec.automationFired = true; return; }
     const ppl = loadPeople(); const person = ppl.find(p => p.id === pid);
-    const plan = loadAutomations().find(a => a.id === autoId && a.active !== false);
+    if (!person) { rec.automationFired = true; return; }
+    const autoId = outcome && form && form.automations && form.automations[outcome];
+    const plan = autoId ? loadAutomations().find(a => a.id === autoId && a.active !== false) : null;
     if (person && plan) {
       const en = enrollPerson(person, plan, { byName: (req.user && req.user.name) || 'Screening outcome', byUser: (req.user && req.user.username) || '' });
       if (en) savePeople(ppl);
       try { logSysEvent(req, 'Automations', 'Screening outcome \u201c' + (rec.statusText || outcome) + '\u201d enrolled ' + (person.name || 'a contact') + ' in \u201c' + (plan.name || 'an automation') + '\u201d', { tool: 'screening', kind: 'auto-enroll', id: rec.id }); } catch (e) {}
     }
+    try {
+      if (form && Array.isArray(form.categories) && data && Array.isArray(data.sections)) {
+        var _picked = {};
+        data.sections.forEach(function (sec) { (sec.groups || []).forEach(function (grp) {
+          if (grp && grp.kind === 'options' && grp.label) {
+            var kk = String(grp.label).trim().toLowerCase();
+            var st = _picked[kk] || (_picked[kk] = {});
+            (grp.selected || []).forEach(function (vv) { st[String(vv).trim().toLowerCase()] = 1; });
+          }
+        }); });
+        var _allPlans = loadAutomations();
+        form.categories.forEach(function (cat) { (cat.questions || []).forEach(function (q) {
+          if (!q || q.type !== 'options' || !Array.isArray(q.optMeta) || !Array.isArray(q.options)) return;
+          var stt = _picked[String(q.label || '').trim().toLowerCase()]; if (!stt) return;
+          q.options.forEach(function (opt, i) {
+            var meta = q.optMeta[i]; if (!meta || !meta.a) return;
+            if (!stt[String(opt).trim().toLowerCase()]) return;
+            var ap = _allPlans.find(function (a) { return a.id === meta.a && a.active !== false; });
+            if (!ap) return;
+            var en2 = enrollPerson(person, ap, { byName: (req.user && req.user.name) || 'Screening answer', byUser: (req.user && req.user.username) || '' });
+            if (en2) { savePeople(ppl); try { logSysEvent(req, 'Automations', 'Answer "' + opt + '" enrolled ' + (person.name || 'a contact') + ' in "' + (ap.name || 'an automation') + '"', { tool: 'screening', kind: 'auto-enroll', id: rec.id }); } catch (e) {} }
+          });
+        }); });
+      }
+    } catch (e) { console.error('per-answer automation error:', e && e.message); }
     rec.automationFired = true;
   } catch (e) { console.error('screening automation error:', e); }
 }
