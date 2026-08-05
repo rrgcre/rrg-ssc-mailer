@@ -26,6 +26,8 @@ textarea{resize:vertical;min-height:60px;line-height:1.4;}
 .sechead input.sec-title:focus{box-shadow:none;border-bottom-color:var(--blue);}
 .qrow{border:1px solid #e7ecf5;border-radius:11px;padding:11px 12px;margin-bottom:9px;background:#fbfcfe;}
 .qrow .qtop{display:flex;gap:9px;align-items:flex-start;flex-wrap:wrap;}
+.cardnum{align-self:center;flex:0 0 auto;min-width:24px;height:22px;padding:0 7px;border-radius:11px;background:var(--navy);color:#fff;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;}
+.cardnum:empty{display:none;}
 .qrow .q-label{flex:1;min-width:200px;font-weight:600;}
 .qrow .q-type{width:170px;flex:0 0 auto;}
 .qrow .flags{display:flex;gap:14px;align-items:center;margin-top:9px;flex-wrap:wrap;font-size:12.5px;color:var(--dim);}
@@ -216,7 +218,7 @@ function qrow(q){
   var _om=q.optMeta||[]; var optRows=(q.options||[]).map(function(o,i){return optRowHtml(o,_om[i]);}).join('')||optRowHtml('',{});
   var _sc=(q.showIf&&q.showIf.q)?q.showIf:null; var _scop=(_sc&&_sc.not)?'not':'any';
   return '<div class="qrow'+(isOpt?' is-opts':'')+(isGroup?' is-group':'')+(isInstr?' is-instr':'')+'" data-rowuid="'+ruid()+'"'+(_sc?(' data-cond-init="'+esc(JSON.stringify(_sc)).replace(/"/g,'&quot;')+'"'):'')+'>'
-    +'<div class="qtop"><input type="text" class="q-label" placeholder="Question (e.g. “Annual revenue?”)" value="'+esc(q.label||'')+'">'+typeSelect(bt)+'</div>'
+    +'<div class="qtop"><span class="cardnum"></span><input type="text" class="q-label" placeholder="Question (e.g. “Annual revenue?”)" value="'+esc(q.label||'')+'">'+typeSelect(bt)+'</div>'
     +'<div class="instrwrap"><span class="lbl">Instruction text — shown on its own card with Back and Next, nothing to answer</span><textarea class="q-text" placeholder="e.g. Before you go further, confirm you are speaking with an owner and that this call is confidential.">'+esc(q.text||'')+'</textarea></div>'
     +'<div class="flags"><label><input type="checkbox" class="q-req"'+(q.required?' checked':'')+'> Required</label>'
     +'<label><input type="checkbox" class="q-full"'+(q.full?' checked':'')+'> Full width</label></div>'
@@ -246,8 +248,12 @@ function sectionCard(cat,idx){
 }
 
 var OUTCOMES=[['businessSale','Business Sale'],['assetSale','Asset Sale'],['nurture','Nurture'],['decline','Decline']];
+var OUTCOMES_BY_TYPE={ valuation:['businessSale'] };
+function outcomesFor(ct){ var k=OUTCOMES_BY_TYPE[ct]; return k?OUTCOMES.filter(function(o){return k.indexOf(o[0])>=0;}):OUTCOMES; }
 function autoOptions(selId){ var o='<option value="">\u2014 none \u2014</option>'; var seen=false; AUTOS.forEach(function(a){ if(a.id===selId) seen=true; o+='<option value="'+esc(a.id)+'"'+(a.id===selId?' selected':'')+'>'+esc(a.name||'Automation')+'</option>'; }); if(selId && !seen) o+='<option value="'+esc(selId)+'" selected>(saved automation)</option>'; return o; }
-function automationsCard(f){ var au=f.automations||{}; var rows=OUTCOMES.map(function(o){ return '<div><span class="lbl">'+esc(o[1])+'</span><select class="auto-sel" data-outcome="'+o[0]+'">'+autoOptions(au[o[0]]||'')+'</select></div>'; }).join(''); return '<div class="card"><div class="sechead"><span class="sn" style="background:#b5791f">\u26A1</span><div style="flex:1"><div style="font-size:15px;font-weight:700">Post-call automations</div><div class="hint">When the call is submitted, the rep\u2019s deal call fires the matching automation for the seller. All optional \u2014 leave any blank.</div></div></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:4px">'+rows+'</div><label style="display:inline-flex;gap:7px;align-items:center;margin-top:12px;font-size:13px;color:#1d2739;cursor:pointer"><input type="checkbox" class="known-guard"'+(f.knownSellerGuard?' checked':'')+'> Warn the rep at call start if this seller already has a call on file</label></div>'; }
+function renumberCards(){ var n=0; qsa('#sections .qrow').forEach(function(r){ if(r.getAttribute('data-sub')==='1') return; var b=r.querySelector('.cardnum'); if(b){ n++; b.textContent=n; } }); }
+function automationsCard(f){ if(f.callType==='valuation') return '';
+  var au=f.automations||{}; var outs=outcomesFor(f.callType); var rows=outs.map(function(o){ return '<div><span class="lbl">'+esc(o[1])+'</span><select class="auto-sel" data-outcome="'+o[0]+'">'+autoOptions(au[o[0]]||'')+'</select></div>'; }).join(''); var cols=outs.length>1?'1fr 1fr':'1fr'; return '<div class="card" id="autoCard"><div class="sechead"><span class="sn" style="background:#b5791f">⚡</span><div style="flex:1"><div style="font-size:15px;font-weight:700">Post-call automations</div><div class="hint">Pick an automation to run for each call outcome below. When a rep submits a call with that outcome, the contact is automatically enrolled in the automation you chose. All optional — leave any blank.</div></div></div><div style="display:grid;grid-template-columns:'+cols+';gap:12px;margin-top:4px">'+rows+'</div><label style="display:inline-flex;gap:7px;align-items:center;margin-top:12px;font-size:13px;color:#1d2739;cursor:pointer"><input type="checkbox" class="known-guard"'+(f.knownSellerGuard?' checked':'')+'> Warn the rep at call start if this contact already has a call on file</label></div>'; }
 function render(){
   var f=STATE.form;
   var h='';
@@ -270,6 +276,9 @@ function render(){
   renderSaveBar();
   bindTypeToggles();
   try{ hydrateConds(); wireConds(); }catch(e){}
+  var _ft=qs('#formType'); if(_ft) _ft.addEventListener('change',function(){ syncFromDom(); render(); });
+  try{ renumberCards(); }catch(e){}
+  if(!window.__cardnumObs && window.MutationObserver){ var _rt=qs('#root'); if(_rt){ window.__cardnumObs=new MutationObserver(function(){ if(window.__rnT) clearTimeout(window.__rnT); window.__rnT=setTimeout(function(){ try{renumberCards();}catch(e){} },40); }); window.__cardnumObs.observe(_rt,{childList:true,subtree:true}); } }
 }
 function renderSaveBar(){
   if(qs('#savebar')) return;
