@@ -176,20 +176,6 @@ function nav(u){ try{ (window.top||window).location.href=u; }catch(e){ location.
 function newForm(){ nav('rrg_form_builder.html?new=1'); }
 
 // ---- Upload / paste a questionnaire; the system builds it (with a hint per question) ----
-function _qnOrb(show,msg){
-  var o=document.getElementById('qnOrb');
-  if(show){
-    if(!o){ o=document.createElement('div'); o.id='qnOrb'; o.style.cssText='position:fixed;inset:0;z-index:4000;background:rgba(10,10,30,.6);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center';
-      o.innerHTML='<div style="text-align:center;color:#fff;font-family:inherit"><div class="qnorb"></div><div id="qnOrbMsg" style="margin-top:18px;font-size:15px;font-weight:700">Building your questionnaire…</div><div style="margin-top:6px;font-size:12.5px;color:#aeb8cf">Reading it, shaping the sections, and writing a coaching hint for every question.</div><div id="qnOrbT" style="margin-top:10px;font-size:12px;color:#DA2B1F;font-weight:700">0:00</div></div>';
-      var st=document.createElement('style'); st.textContent='.qnorb{width:64px;height:64px;margin:0 auto;border-radius:50%;background:conic-gradient(from 0deg,#DA2B1F,#000E31,#DA2B1F);-webkit-mask:radial-gradient(closest-side,transparent 62%,#000 64%);mask:radial-gradient(closest-side,transparent 62%,#000 64%);animation:qnspin 1s linear infinite}@keyframes qnspin{to{transform:rotate(360deg)}}'; o.appendChild(st);
-      document.body.appendChild(o);
-    }
-    if(msg){ var m=document.getElementById('qnOrbMsg'); if(m) m.textContent=msg; }
-    o.style.display='flex';
-    var t0=Date.now(); if(window.__qnT) clearInterval(window.__qnT);
-    window.__qnT=setInterval(function(){ var e=document.getElementById('qnOrbT'); if(e){ var s=Math.floor((Date.now()-t0)/1000); e.textContent=Math.floor(s/60)+':'+((s%60)<10?'0':'')+(s%60); } },1000);
-  } else if(o){ o.style.display='none'; if(window.__qnT){ clearInterval(window.__qnT); window.__qnT=null; } }
-}
 function openUploadQn(){
   var picked=null;
   var mask=document.createElement('div'); mask.style.cssText='position:fixed;inset:0;z-index:3900;background:rgba(6,14,32,.55);display:flex;align-items:center;justify-content:center;padding:20px';
@@ -212,28 +198,19 @@ function openUploadQn(){
   fi.addEventListener('change',function(){ var f=fi.files&&fi.files[0]; if(!f) return; if(f.size>25*1024*1024){ msg.textContent='File too large (max 25 MB).'; fi.value=''; return; } picked=f; dp.textContent='✓ '+f.name; dp.style.borderColor='#1f8a5b'; dp.style.color='#1f8a5b'; });
   mask.querySelector('#qnCancel').addEventListener('click',close);
   mask.addEventListener('click',function(e){ if(e.target===mask) close(); });
-  function _qnEnsureStyle(){ if(document.getElementById('qnorbStyle')) return; var st=document.createElement('style'); st.id='qnorbStyle'; st.textContent='.qnorb{width:56px;height:56px;margin:0 auto;border-radius:50%;background:conic-gradient(from 0deg,#DA2B1F,#000E31,#DA2B1F);-webkit-mask:radial-gradient(closest-side,transparent 62%,#000 64%);mask:radial-gradient(closest-side,transparent 62%,#000 64%);animation:qnspin 1s linear infinite}@keyframes qnspin{to{transform:rotate(360deg)}}'; document.head.appendChild(st); }
-  function startBuilding(){
-    _qnEnsureStyle();
-    var box=mask.firstElementChild; if(!box) return; box.style.position='relative';
-    var cov=document.createElement('div'); cov.id='qnCover';
-    cov.style.cssText='position:absolute;inset:0;background:rgba(255,255,255,.97);border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:28px;z-index:5';
-    cov.innerHTML='<div class="qnorb"></div><div style="margin-top:18px;font-size:16px;font-weight:800;color:#000E31">Building your questionnaire…</div><div style="margin-top:7px;font-size:12.5px;color:#5a6478;line-height:1.5;max-width:340px">Reading it, shaping the sections, and writing a coaching hint for every question. This can take up to a minute.</div><div id="qnBuildT" style="margin-top:12px;font-size:12px;color:#DA2B1F;font-weight:800">0:00</div>';
-    box.appendChild(cov);
-    var t0=Date.now(); if(window.__qnT) clearInterval(window.__qnT);
-    window.__qnT=setInterval(function(){ var e=document.getElementById('qnBuildT'); if(e){ var sec=Math.floor((Date.now()-t0)/1000); e.textContent=Math.floor(sec/60)+':'+((sec%60)<10?'0':'')+(sec%60); } },1000);
-  }
-  function stopBuilding(){ if(window.__qnT){ clearInterval(window.__qnT); window.__qnT=null; } var c=document.getElementById('qnCover'); if(c) c.remove(); }
   mask.querySelector('#qnBuild').addEventListener('click',function(){
     var text=(mask.querySelector('#qnText').value||'').trim();
     if(!text && !picked){ msg.textContent='Paste some text or choose a file first.'; return; }
     msg.textContent='';
-    var go=function(body){ startBuilding();
+    var cancelled=false;
+    var startWork=function(){ if(window.rrgAiWork){ rrgAiWork.show('Reading it, shaping the sections, and writing a coaching hint for every question. This can take up to a minute.', function(){ cancelled=true; }); } };
+    var stopWork=function(){ if(window.rrgAiWork) rrgAiWork.hide(); };
+    var go=function(body){ startWork();
       fetch('/api/form/build',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
-        .then(function(r){ return r.json(); }).then(function(j){
+        .then(function(r){ return r.json(); }).then(function(j){ if(cancelled) return;
           if(j&&j.ok&&j.form){ nav('rrg_form_builder.html?form='+encodeURIComponent(j.form.id)); }
-          else { stopBuilding(); msg.textContent=(j&&j.error)||'Could not build the questionnaire.'; } })
-        .catch(function(){ stopBuilding(); msg.textContent='Could not reach the server.'; }); };
+          else { stopWork(); msg.textContent=(j&&j.error)||'Could not build the questionnaire.'; } })
+        .catch(function(){ if(cancelled) return; stopWork(); msg.textContent='Could not reach the server.'; }); };
     if(picked){ var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s); go({ filename:picked.name, dataB64:b64 }); }; rd.onerror=function(){ msg.textContent='Could not read that file.'; }; rd.readAsDataURL(picked); }
     else { go({ text:text }); }
   });
