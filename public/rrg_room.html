@@ -127,8 +127,8 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 </div>
 <style>@keyframes orbspin{to{transform:rotate(360deg)}}</style>
 <script>
-function showOrb(t,s){ var o=document.getElementById('aiOrb'); if(!o) return; if(t) document.getElementById('orbTitle').textContent=t; if(s) document.getElementById('orbSub').textContent=s; o.style.display='flex'; }
-function hideOrb(){ var o=document.getElementById('aiOrb'); if(o) o.style.display='none'; }
+function showOrb(t,s){ if(window.rrgAiWork){ try{ rrgAiWork.show(((t||'')+(s?(' '+s):'')).trim()||'Working…'); return; }catch(e){} } var o=document.getElementById('aiOrb'); if(!o) return; if(t) document.getElementById('orbTitle').textContent=t; if(s) document.getElementById('orbSub').textContent=s; o.style.display='flex'; }
+function hideOrb(){ if(window.rrgAiWork){ try{ rrgAiWork.hide(); }catch(e){} } var o=document.getElementById('aiOrb'); if(o) o.style.display='none'; }
 function bulkUpload(){
   var fi=document.getElementById('bulkFiles'), files=fi&&fi.files?Array.prototype.slice.call(fi.files):[], m=document.getElementById('umsg');
   if(!files.length) return;
