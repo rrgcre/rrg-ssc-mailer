@@ -18,6 +18,13 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
 body.rrg-shelled .top{display:none;} body.rrg-shelled .rrg-back{display:none;}
 .wrap{max-width:1140px;margin:22px auto;padding:0 24px 90px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:15px;padding:20px 22px;box-shadow:0 1px 3px rgba(16,32,70,.05);margin-bottom:14px;}
+.cardhead{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;}
+.cardhead h2{margin:0;flex:1;}
+.cardhead .chev{flex:0 0 auto;color:#8a93a8;font-size:15px;line-height:1;transition:transform .15s ease;}
+.cardhead:hover .chev{color:#DA2B1F;}
+.card.sec.collapsed .chev{transform:rotate(-90deg);}
+.card.sec .cardbody{margin-top:13px;}
+.card.sec.collapsed .cardbody{display:none;}
 .ct{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;}
 .ct .info{flex:1;min-width:260px;}
 .ct h2{margin:0 0 3px;font-size:16px;font-weight:800;color:var(--ink);display:flex;align-items:center;gap:9px;}
@@ -117,12 +124,12 @@ function renderCard(ct){
       +(STATE.isAdmin?('<a href="#" class="edlink" onclick="editForm(\''+esc(chosen.id)+'\','+(chosen.builtIn?1:0)+');return false;">'+(chosen.builtIn?'Duplicate &amp; edit':'Edit')+'</a>'):'')
     : '<span>Assign a form once one is built for this call type.</span>';
   var disabled = STATE.isAdmin && list.length ? '' : ' disabled';
-  return '<div class="card"><div class="ct">'
-    +'<div class="info"><h2>'+esc(ct.label)+' <span class="tag">'+esc(ct.tag)+'</span></h2><p>'+esc(ct.desc)+'</p></div>'
+  return '<div class="card sec" data-sec="ct_'+ct.key+'"><div class="cardhead" onclick="toggleSec(this)"><h2>'+esc(ct.label)+' <span class="tag">'+esc(ct.tag)+'</span></h2><span class="chev">▾</span></div><div class="cardbody"><div class="ct">'
+    +'<div class="info"><p>'+esc(ct.desc)+'</p></div>'
     +'<div class="pick"><label class="lbl" for="sel_'+ct.key+'">Questionnaire used</label>'
     +'<select id="sel_'+ct.key+'" data-ct="'+ct.key+'"'+disabled+'>'+opts+'</select>'
     +'<div class="meta" id="meta_'+ct.key+'">'+meta+'</div><div class="pvinline" id="pvinline_'+ct.key+'" style="display:none"></div></div>'
-    +'</div></div>';
+    +'</div></div></div>';
 }
 
 function render(){
@@ -154,6 +161,16 @@ function render(){
   });
   root.querySelectorAll('[data-pv]').forEach(function(a){ a.addEventListener('click',pvHandler); });
   var sb=document.getElementById('saveBtn'); if(sb) sb.addEventListener('click',saveAll);
+  applyCollapsed();
+}
+function toggleSec(head){
+  var card=head.closest('.card.sec'); if(!card) return;
+  var collapsed=card.classList.toggle('collapsed');
+  try{ var m=JSON.parse(localStorage.getItem('rrgFormsCollapsed')||'{}'); m[card.getAttribute('data-sec')]=collapsed?1:0; localStorage.setItem('rrgFormsCollapsed',JSON.stringify(m)); }catch(e){}
+}
+function applyCollapsed(){
+  var m={}; try{ m=JSON.parse(localStorage.getItem('rrgFormsCollapsed')||'{}'); }catch(e){}
+  document.querySelectorAll('.card.sec').forEach(function(card){ if(m[card.getAttribute('data-sec')]) card.classList.add('collapsed'); });
 }
 function nav(u){ try{ (window.top||window).location.href=u; }catch(e){ location.href=u; } }
 function newForm(){ nav('rrg_form_builder.html?new=1'); }
@@ -222,9 +239,9 @@ function renderFormsList(){
     }
     return '<tr><td><b>'+esc(f.name)+'</b>'+(f.builtIn?' <span class="tag">built-in</span>':'')+'</td><td>'+esc(CTLABEL[f.callType]||f.callType||'\u2014')+'</td><td>'+f.questions+'</td><td class="ta-r">'+act+'</td></tr>';
   }).join('');
-  return '<div class="card"><h2 style="margin:0 0 3px;font-size:16px;font-weight:800">Your questionnaires</h2>'
+  return '<div class="card sec" data-sec="formslist"><div class="cardhead" onclick="toggleSec(this)"><h2 style="margin:0;font-size:16px;font-weight:800">Your questionnaires</h2><span class="chev">▾</span></div><div class="cardbody">'
     +'<p style="margin:0 0 12px;font-size:12.5px;color:var(--dim)">Every questionnaire in the system. Edit the ones you built, or duplicate the built-in to start a new one.</p>'
-    +'<table class="ftbl"><thead><tr><th>Name</th><th>Call type</th><th>Questions</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+    +'<table class="ftbl"><thead><tr><th>Name</th><th>Call type</th><th>Questions</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
 }
 function delForm(id,name){
   if(!confirm('Delete the questionnaire \u201c'+name+'\u201d?\n\nThis removes it and unassigns it from any call type. This cannot be undone.')) return;
