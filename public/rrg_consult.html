@@ -56,16 +56,6 @@ body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSys
 .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(14px);background:var(--navy);border:1px solid #0f2550;color:#fff;font-size:13px;font-weight:600;padding:11px 16px;border-radius:12px;box-shadow:0 12px 40px rgba(11,22,54,.35);opacity:0;pointer-events:none;transition:.25s;z-index:40;max-width:88%;text-align:center;}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0);}
 @media(max-width:520px){ .hero h1{font-size:21px;} .a .ans{font-size:16px;} .mic{width:58px;height:58px;} }
-.aiwork{position:fixed;inset:0;background:rgba(6,10,22,.62);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;}
-.aiwork[hidden]{display:none;}
-.aiworkbox{background:#fff;border-radius:18px;padding:32px 34px 26px;max-width:420px;width:100%;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.5);position:relative;overflow:hidden;}
-.aiworkbox:before{content:'';position:absolute;top:-45%;left:-45%;width:190%;height:190%;background:conic-gradient(from 0deg,#5b46b8,#8b5cf6,#ec4899,#f59e0b,#22c55e,#3b82f6,#5b46b8);opacity:.13;animation:aiworkspin 7s linear infinite;}
-@keyframes aiworkspin{to{transform:rotate(360deg);}}
-.aiworkorb{width:64px;height:64px;border-radius:50%;margin:0 auto 16px;background:conic-gradient(from 0deg,#5b46b8,#8b5cf6,#ec4899,#f59e0b,#22c55e,#3b82f6,#5b46b8);animation:aiworkspin 1.6s linear infinite;position:relative;z-index:1;}
-.aiworkorb:after{content:'\2728';position:absolute;inset:7px;display:flex;align-items:center;justify-content:center;font-size:23px;background:#fff;border-radius:50%;}
-.aiworktitle{font-weight:800;color:#1a2236;font-size:16px;position:relative;z-index:1;}
-.aiworkmsg{color:#5a6478;font-size:13px;margin-top:7px;line-height:1.5;min-height:18px;position:relative;z-index:1;}
-.aiworktimer{font-variant-numeric:tabular-nums;font-weight:800;font-size:22px;color:#5b46b8;margin-top:12px;letter-spacing:.02em;position:relative;z-index:1;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -144,11 +134,8 @@ function renderAnswer(node,r){
   if(VOICE) speak(r.answer||'');
 }
 function speak(text){ try{ if(!window.speechSynthesis||!text) return; window.speechSynthesis.cancel(); var u=new SpeechSynthesisUtterance(String(text).slice(0,600)); u.rate=1.02; u.pitch=1; window.speechSynthesis.speak(u); }catch(e){} }
-var AIWORK={t0:0,timer:null};
-function _aiFmt(ms){ var s=Math.max(0,Math.floor(ms/1000)); var m=Math.floor(s/60); s=s%60; return m+':'+(s<10?'0':'')+s; }
-function _aiEnsure(){ var o=document.getElementById('aiwork'); if(o) return o; o=document.createElement('div'); o.className='aiwork'; o.id='aiwork'; o.hidden=true; o.innerHTML='<div class="aiworkbox"><div class="aiworkorb"></div><div class="aiworktitle">\u2728 Consult is working\u2026</div><div class="aiworkmsg" id="aiworkmsg"></div><div class="aiworktimer" id="aiworktimer">0:00</div></div>'; document.body.appendChild(o); return o; }
-function aiShow(msg){ _aiEnsure(); var mm=document.getElementById('aiworkmsg'); if(mm) mm.textContent=msg||''; AIWORK.t0=Date.now(); var tm=document.getElementById('aiworktimer'); if(tm) tm.textContent='0:00'; if(AIWORK.timer) clearInterval(AIWORK.timer); AIWORK.timer=setInterval(function(){ var t=document.getElementById('aiworktimer'); if(t) t.textContent=_aiFmt(Date.now()-AIWORK.t0); },1000); document.getElementById('aiwork').hidden=false; }
-function aiHide(){ var o=document.getElementById('aiwork'); if(o) o.hidden=true; if(AIWORK.timer){ clearInterval(AIWORK.timer); AIWORK.timer=null; } }
+function aiShow(msg){ if(window.rrgAiWork) rrgAiWork.show(msg); }
+function aiHide(){ if(window.rrgAiWork) rrgAiWork.hide(); }
 function ask(text){
   text=String(text||'').trim(); if(!text||BUSY) return;
   BUSY=true; var _lg=document.querySelector('.logo'); if(_lg) _lg.classList.add('spin'); var turn=addQ(text); var node=thinkingInto(turn);

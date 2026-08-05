@@ -61,17 +61,6 @@ tr:hover td{background:#fbfcfe;}
 .mgrp{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#98a1b5;font-weight:800;margin:18px 0 12px;border-top:1px solid #eef1f6;padding-top:14px;} .mgrp .mopt{text-transform:none;letter-spacing:0;font-weight:500;color:#b0b8c6;font-size:11px;}
 .mmk{display:flex;flex-wrap:wrap;gap:6px 12px;} .mmkc{font-size:12.5px;color:#3a4560;display:inline-flex;align-items:center;gap:5px;cursor:pointer;} .mmkc input{width:15px;height:15px;accent-color:#DA2B1F;}
 .mrow2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
-.aiwork{position:fixed;inset:0;background:rgba(10,10,30,.55);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;}
-.aiwork[hidden]{display:none!important;}
-.aiworkbox{background:#fff;border-radius:18px;padding:32px 34px 26px;max-width:440px;width:100%;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,.42);position:relative;overflow:hidden;}
-.aiworkbox:before{content:"";position:absolute;top:-45%;left:-45%;width:190%;height:190%;background:conic-gradient(from 0deg,#5b46b8,#8b5cf6,#ec4899,#f59e0b,#22c55e,#3b82f6,#5b46b8);opacity:.13;animation:aiworkspin 7s linear infinite;}
-@keyframes aiworkspin{to{transform:rotate(360deg);}}
-.aiworkorb{width:64px;height:64px;border-radius:50%;margin:0 auto 16px;background:conic-gradient(from 0deg,#5b46b8,#8b5cf6,#ec4899,#f59e0b,#22c55e,#3b82f6,#5b46b8);animation:aiworkspin 1.6s linear infinite;position:relative;z-index:1;}
-.aiworkorb:after{content:"\2728";position:absolute;inset:7px;display:flex;align-items:center;justify-content:center;font-size:23px;background:#fff;border-radius:50%;}
-.aiworktitle{font-weight:800;color:var(--navy);font-size:16px;position:relative;z-index:1;}
-.aiworkmsg{color:#5a6478;font-size:13px;margin-top:7px;line-height:1.5;min-height:18px;position:relative;z-index:1;}
-.aiworktimer{font-variant-numeric:tabular-nums;font-weight:800;font-size:22px;color:#5b46b8;margin-top:12px;letter-spacing:.02em;position:relative;z-index:1;}
-.aiworkcancel{margin-top:18px;background:#fff;border:1px solid #d5dbe6;border-radius:9px;padding:8px 18px;font:inherit;font-size:13px;font-weight:600;color:#5a6478;cursor:pointer;position:relative;z-index:1;} .aiworkcancel:hover{background:#f4f7fb;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -118,13 +107,9 @@ tr:hover td{background:#fbfcfe;}
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function typeColor(t){ var m={'Seller':['#e8f0fd','#2f6fd0'],'Buyer':['#e7f5ee','#1f8a5b'],'Restaurant Group':['#f3edfb','#7a4fd0'],'Landlord':['#fdf1df','#b5791f'],'Investor':['#f3edfb','#7a4fd0'],'Other':['#eef1f6','#6b7488']}; if(m[t]) return m[t]; var pal=[['#e8f0fd','#2f6fd0'],['#e7f5ee','#1f8a5b'],['#f3edfb','#7a4fd0'],['#fdf1df','#b5791f'],['#fdeef4','#b83280'],['#e6f5f3','#0f766e']]; var h=0; for(var i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return pal[h%pal.length]; }
-var AIWORK={onCancel:null,t0:0,timer:null};
-function _aiFmt(ms){ var s=Math.max(0,Math.floor(ms/1000)); var m=Math.floor(s/60); s=s%60; return m+':'+(s<10?'0':'')+s; }
-function _aiAssistant(){ return window.__rrgAssistant||'AI'; }
-function _aiEnsure(){ var o=document.getElementById('aiwork'); if(o) return o; o=document.createElement('div'); o.className='aiwork'; o.id='aiwork'; o.hidden=true; o.innerHTML='<div class="aiworkbox"><div class="aiworkorb"></div><div class="aiworktitle" id="aiworktitle">Working\u2026</div><div class="aiworkmsg" id="aiworkmsg"></div><div class="aiworktimer" id="aiworktimer">0:00</div><button type="button" class="aiworkcancel" id="aiworkcancel">Cancel</button></div>'; document.body.appendChild(o); var cb=o.querySelector('#aiworkcancel'); if(cb) cb.addEventListener('click',function(){ var f=AIWORK.onCancel; aiHide(); if(typeof f==='function'){ try{f();}catch(e){} } }); return o; }
-function aiShow(msg,onCancel){ _aiEnsure(); document.getElementById('aiworktitle').textContent='\u2728 '+_aiAssistant()+' is working\u2026'; document.getElementById('aiworkmsg').textContent=msg||''; AIWORK.onCancel=onCancel||null; var cb=document.getElementById('aiworkcancel'); if(cb) cb.style.display=onCancel?'':'none'; AIWORK.t0=Date.now(); var tm=document.getElementById('aiworktimer'); if(tm) tm.textContent='0:00'; if(AIWORK.timer) clearInterval(AIWORK.timer); AIWORK.timer=setInterval(function(){ var t=document.getElementById('aiworktimer'); if(t) t.textContent=_aiFmt(Date.now()-AIWORK.t0); },1000); document.getElementById('aiwork').hidden=false; }
-function aiSetMsg(msg){ var m=document.getElementById('aiworkmsg'); if(m) m.textContent=msg||''; }
-function aiHide(){ var o=document.getElementById('aiwork'); if(o) o.hidden=true; AIWORK.onCancel=null; if(AIWORK.timer){ clearInterval(AIWORK.timer); AIWORK.timer=null; } }
+function aiShow(msg,onCancel){ if(window.rrgAiWork) rrgAiWork.show(msg,onCancel); }
+function aiSetMsg(msg){ if(window.rrgAiWork) rrgAiWork.setMsg(msg); }
+function aiHide(){ if(window.rrgAiWork) rrgAiWork.hide(); }
 var ALL=[], CTL=null, IS_ADMIN=false, CAN_DELETE=false, _foundGroupSite='';
 function coOwners(){ var m={}; (ALL||[]).forEach(function(c){ if(c.owner) m[c.owner]=1; }); return Object.keys(m).sort(); }
 function coLeads(){ var m={}; (ALL||[]).forEach(function(c){ if(c.leadSource) m[c.leadSource]=1; }); return Object.keys(m).sort(); }
