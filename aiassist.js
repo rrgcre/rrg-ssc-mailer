@@ -20,7 +20,20 @@ async function callClaude(system, userText, maxTokens) {
   const data = await resp.json();
   return (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
 }
-function extractJson(t) { if (!t) return null; const a = t.indexOf('{'), b = t.lastIndexOf('}'); if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch (e) {} } return null; }
+function extractJson(t) {
+  if (!t) return null;
+  const a = t.indexOf('{'); if (a < 0) return null;
+  const b = t.lastIndexOf('}');
+  if (b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch (e) {} }
+  const s = t.slice(a); let inStr = false, esc = false; const stack = [];
+  for (let i = 0; i < s.length; i++) { const c = s[i];
+    if (inStr) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') inStr = false; continue; }
+    if (c === '"') inStr = true; else if (c === '{' || c === '[') stack.push(c);
+    else if (c === '}' || c === ']') { stack.pop(); if (!stack.length) { try { return JSON.parse(s.slice(0, i + 1)); } catch (e) {} } }
+  }
+  if (stack.length) { let base = inStr ? (s + '"') : s.replace(/[,\s]*$/, ''); for (let i = stack.length - 1; i >= 0; i--) base += (stack[i] === '{' ? '}' : ']'); try { return JSON.parse(base); } catch (e) {} }
+  return null;
+}
 
 // 1) Parse a pasted listing (CoStar/LoopNet/Crexi/broker email/flyer) into space fields.
 async function parseSpaceListing({ text, types, features }) {
@@ -252,7 +265,7 @@ async function buildQuestionnaire({ text, callType }) {
     + '- Preserve the substance and ordering of the source but tighten wording. Do not invent whole sections the source does not imply. '
     + '- Do NOT include header/identity fields (company, contact, rep, date, market) - those are added automatically. Start with the substantive questions. '
     + 'Output JSON only, no prose.';
-  const out = await callClaude(sys, 'CALL TYPE: ' + (callType || 'seller') + '\n\nSOURCE QUESTIONNAIRE:\n' + String(text || '').slice(0, 60000), 4000);
+  const out = await callClaude(sys, 'CALL TYPE: ' + (callType || 'seller') + '\n\nSOURCE QUESTIONNAIRE:\n' + String(text || '').slice(0, 60000), 24000);
   const j = extractJson(out) || {};
   return { name: String(j.name || '').trim(), kicker: String(j.kicker || '').trim(), categories: Array.isArray(j.categories) ? j.categories : [] };
 }
