@@ -1084,6 +1084,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     function fill(){
       if(pc) setByLabel(['company name','business name','company'], pc);
       if(pn) setByLabel(['seller contact name','contact name','seller name'], pn);
+      if(pn){ var _cel=document.getElementById('sscContact'); if(_cel){ _cel.value=pn; try{ _cel.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){} } }
       if(pa) setByLabel(['business address','address'], pa);
       if(pm){
         var ms=document.getElementById('metroSelect');

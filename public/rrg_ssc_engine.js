@@ -91,6 +91,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     if(t==='instruction'||t==='note') return '<div class="field instrfield full rowgap" data-instr="1">'+lab(q)+'<div class="instrbody">'+esc(q.text||q.body||'').replace(/\n/g,'<br>')+'</div></div>';
     if(t==='company') return '<div class="field">'+lab(q)+'<div class="coauto2"><input type="text" class="req" id="sscCompany" autocomplete="off"><div class="cosug2" id="sscCosug" hidden></div></div></div>';
     if(t==='concept') return '<div class="field">'+lab(q)+'<div class="coauto2"><input type="text" id="sscConcept" autocomplete="off" placeholder="Pick or add a concept"><div class="cosug2" id="sscConceptSug" hidden></div></div></div>';
+    if(t==='contact') return '<div class="field">'+lab(q)+'<input type="text" class="req" id="sscContact" autocomplete="off"></div>';
     if(t==='rep') return '<div class="field">'+lab(q)+'<select class="req" id="repSelect"><option value="">Select…</option></select></div>';
     if(t==='date') return '<div class="field">'+lab(q)+'<input type="date" class="req" id="callDate"></div>';
     if(t==='metro') return '<div class="field">'+lab(q)+'<select class="req" id="metroSelect"><option value="">Select…</option><option>Austin</option><option>Dallas</option><option>Houston</option><option>San Antonio</option><option>RGV</option><option>Other</option></select></div>';
