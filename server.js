@@ -8947,6 +8947,25 @@ app.get('/api/documents', (req, res) => {
     sellers.forEach(r => { out.push({ id: r.timestamp, kind:'seller', title: r.name || 'Seller Screening', typeLabel:'Seller Screening', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', dealName:'', relatesToName:'', status: 'Submitted', statusKey:'seller', owner: r.rep || '', createdAt: r.timestamp || '', completePct: 100, completed: true, deleteUrl: '/api/document/seller/'+encodeURIComponent(r.timestamp), openUrl: '/api/seller/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
   } catch (e) {}
   try {
+    let qsts = loadQuests().filter(q => isAdmin || ownsQuest(req, q));
+    qsts.forEach(q => {
+      const d = q.data || {};
+      const pct = (typeof q.completePct === 'number' ? q.completePct : (q.completed ? 100 : 0));
+      const title = (q.business && q.business !== 'Business') ? q.business : (d.company || 'Valuation Questionnaire');
+      out.push({ id: q.id, kind:'questionnaire', title: title, typeLabel:'Valuation Questionnaire',
+        matchNames:[q.business||'', d.company||''],
+        personId: q.personId||'', companyId: q.companyId||'',
+        companyName: coNameById[q.companyId] || q.market || '',
+        personName: nameById[q.personId] || '',
+        dealName:'', relatesToName:'',
+        status: (q.completed ? 'Complete' : (pct>0 ? ('In progress — '+pct+'%') : 'Started')),
+        statusKey: (q.completed ? 'complete' : 'live'),
+        owner: q.by || q.byUser || '', createdAt: q.createdAt || '',
+        completePct: pct, completed: !!q.completed,
+        openUrl: '/api/questionnaire/' + encodeURIComponent(q.id) + '/view', editUrl: '/api/questionnaire/' + encodeURIComponent(q.id) + '/view', deleteUrl: '/api/questionnaire/' + encodeURIComponent(q.id), downloadUrl:'' });
+    });
+  } catch (e) {}
+  try {
     let lois = loadLois();
     if (restrictToOwn(req)) lois = lois.filter(l => permOwnerMatch(req, l.byUser || l.by));
     lois.forEach(l => { const tn = (l.type === 'business_sale' ? 'Business Sale' : 'Tenant Rep'); const party = [(l.tenant&&l.tenant.name)||'', (l.landlord&&l.landlord.name)||''].filter(Boolean).join(' / '); const _lp = [l.tenant, l.landlord].filter(Boolean); out.push({ id: l.id, kind:'loi', linkPersons: _lp.filter(x => x.kind==='contact' && x.id).map(x => String(x.id)), linkCompanies: _lp.filter(x => x.kind==='company' && x.id).map(x => String(x.id)), title: (l.property || party || (tn+' LOI')), typeLabel:'LOI', dealType: tn, property: l.property||'', parties: party, companyId:'', companyName: party, personName:'', dealName:'', relatesToName:'', status: l.status || '', statusKey: (l.status||'').toLowerCase().replace(/[^a-z]+/g,''), owner: l.by || l.byUser || '', createdAt: l.createdAt || '', deleteUrl: '/api/document/loi/'+l.id, openUrl: '/api/loi/'+encodeURIComponent(l.id)+'/view', downloadUrl:'' }); });
@@ -9021,6 +9040,17 @@ app.get('/api/screening/:id/view', (req, res) => {
   const rec = { data: s.data || {}, name: (s.business && s.business !== 'Seller') ? s.business : (s.contact || (s.data && s.data.company) || 'Seller Screening'), market: s.market || '', rep: s.by || s.byUser || '', timestamp: s.createdAt || '', highlights: s.completed ? (s.statusText || s.decision || 'Complete') : ('In progress \u2014 ' + pct + '%') };
   let html = intakeViewHtml(rec, 'Seller Screening');
   const edit = '<div style="position:fixed;left:16px;bottom:16px;z-index:50"><button type="button" onclick="window.close(); history.back();" style="background:#fff;border:1px solid #d7dde8;color:#1a2236;border-radius:9px;padding:10px 16px;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 6px 20px rgba(16,24,40,.18);cursor:pointer">\u2190 Back</button></div>';
+  html = html.replace('</body>', edit + '</body>');
+  res.set('Content-Type', 'text/html; charset=utf-8').send(html);
+});
+app.get('/api/questionnaire/:id/view', (req, res) => {
+  const s = (loadQuests() || []).find(x => x.id === req.params.id);
+  if (!s) return res.status(404).send('Not found.');
+  if (restrictToOwn(req) && !ownsQuest(req, s)) return res.status(403).send('Not authorized.');
+  const pct = (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0));
+  const rec = { data: s.data || {}, name: (s.business && s.business !== 'Business') ? s.business : ((s.data && s.data.company) || 'Valuation Questionnaire'), market: s.market || '', rep: s.by || s.byUser || '', timestamp: s.createdAt || '', highlights: s.completed ? 'Complete' : ('In progress — ' + pct + '%') };
+  let html = intakeViewHtml(rec, 'Valuation Questionnaire');
+  const edit = '<div style="position:fixed;left:16px;bottom:16px;z-index:50"><button type="button" onclick="window.close(); history.back();" style="background:#fff;border:1px solid #d7dde8;color:#1a2236;border-radius:9px;padding:10px 16px;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 6px 20px rgba(16,24,40,.18);cursor:pointer">← Back</button></div>';
   html = html.replace('</body>', edit + '</body>');
   res.set('Content-Type', 'text/html; charset=utf-8').send(html);
 });
