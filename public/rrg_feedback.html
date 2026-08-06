@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FullServe — Feedback & Requests</title>
+<title>FullServe — Wish List</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;}
@@ -52,7 +52,7 @@ h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;m
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span></span>
   <div class="kicker">Product</div>
-  <h1>Feedback &amp; Requests</h1>
+  <h1>Wish List</h1>
   <div class="sub">Log a feature request or bug. Approve the ones you want built, send them to Claude in one click, and track each from Approved → Sent → In progress → Shipped. Claude&rsquo;s replies show right on the request.</div>
 </div></div>
 <div class="wrap">
@@ -189,7 +189,7 @@ document.getElementById('paste_apply').addEventListener('click',applyPaste);
 document.getElementById('paste_close').addEventListener('click',function(){document.getElementById('pasteModal').setAttribute('hidden','');});
 function load(){
   fetch('/api/feedback',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
-    if(!j||!j.ok){ document.getElementById('body').innerHTML='<div class="empty">Could not load feedback.</div>'; return; }
+    if(!j||!j.ok){ document.getElementById('body').innerHTML='<div class="empty">Could not load your wish list.</div>'; return; }
     ALL=(j.items||[]).slice().sort(function(a,b){return String(b.createdAt).localeCompare(String(a.createdAt));});
     TYPES=j.types||[]; STATUSES=j.statuses||[]; PRIORITIES=j.priorities||[]; CAN_DELETE=!!j.canDelete; IS_ADMIN=!!j.isAdmin;
     if(IS_ADMIN){ var _sb=document.getElementById('sendBtn'), _pb=document.getElementById('pasteBtn'); if(_sb) _sb.style.display=''; if(_pb) _pb.style.display=''; }
