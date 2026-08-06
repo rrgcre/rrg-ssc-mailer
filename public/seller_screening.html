@@ -685,7 +685,8 @@
     return {done:done,total:total};
   }
   function mmss(ms){ var s=Math.max(0,Math.floor(ms/1000)); var m=Math.floor(s/60); s=s%60; return m+':'+(s<10?'0':'')+s; }
-  function upd(){ var p=prog(); var left=Math.max(0,p.total-p.done); var pct=p.total?Math.round(p.done/p.total*100):0; var t=window.__sscStarted?mmss(Date.now()-Date.parse(window.__sscStarted)):null; txt.innerHTML='<b>'+p.done+'</b> of '+p.total+' answered \u00b7 <b>'+left+'</b> left'+(t?(' \u00b7 \u23f1 '+t+' on call'):' \u00b7 not started'); if(bar) bar.style.width=pct+'%'; }
+  var _updS='', _updW='';
+  function upd(){ var p=prog(); var left=Math.max(0,p.total-p.done); var pct=p.total?Math.round(p.done/p.total*100):0; var t=window.__sscStarted?mmss(Date.now()-Date.parse(window.__sscStarted)):null; var _s='<b>'+p.done+'</b> of '+p.total+' answered \u00b7 <b>'+left+'</b> left'+(t?(' \u00b7 \u23f1 '+t+' on call'):' \u00b7 not started'); if(_s!==_updS){ txt.innerHTML=_s; _updS=_s; } if(bar){ var _w=pct+'%'; if(_w!==_updW){ bar.style.width=_w; _updW=_w; } } }
   document.addEventListener('input',upd); document.addEventListener('change',upd); setInterval(upd,1000); upd();
 })();
   // Read a response defensively — never let an HTML error page (e.g. a 404 or a
@@ -921,8 +922,8 @@
       if(t==='Company Name'&&inp) concept=concept||inp.value.trim();
       if(t==='Concept'&&inp&&inp.value.trim()) concept=inp.value.trim();
       if(t==='Metro'&&inp) market=inp.value.trim(); }
-    hc.textContent = concept || 'New Seller Screening';
-    ht.textContent = market ? ('Market: '+market) : 'Business and market appear here as you complete the screen.';
+    var _hcT = concept || 'New Seller Screening'; if(hc.textContent!==_hcT) hc.textContent=_hcT;
+    var _htT = market ? ('Market: '+market) : 'Business and market appear here as you complete the screen.'; if(ht.textContent!==_htT) ht.textContent=_htT;
   }
   document.addEventListener('input', _updateHeader);
   document.addEventListener('change', _updateHeader);
@@ -1400,7 +1401,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     html+='<div style="display:inline-flex;align-items:center;gap:8px;background:'+tcol+'14;border:1px solid '+tcol+'55;color:'+tcol+';border-radius:99px;padding:4px 12px;font-weight:800;font-size:13px">'+tlab+' \u00b7 '+(temp>0?'+':'')+temp+'</div>';
     if(kills.length){ html+='<div style="margin-top:10px;background:#fdeceb;border:1px solid #f3c2bd;border-radius:8px;padding:8px 10px"><div style="font-size:11px;font-weight:800;color:#c02318;text-transform:uppercase;letter-spacing:.04em">\u26a0 Deal-killers</div>'+kills.map(function(k){return '<div style="font-size:12.5px;color:#7a1a12;margin-top:3px">'+_deEsc(k)+'</div>';}).join('')+'</div>'; }
     if(nudges.length){ html+='<div style="margin-top:10px;background:#f0f5ff;border:1px solid #dbe6fb;border-radius:8px;padding:8px 10px"><div style="font-size:11px;font-weight:800;color:#31527a;text-transform:uppercase;letter-spacing:.04em">Follow up</div>'+nudges.map(function(n){return '<div style="font-size:12.5px;color:#31527a;margin-top:3px">'+_deEsc(n)+'</div>';}).join('')+'</div>'; }
-    host.innerHTML=html; host.style.display='block';
+    if(host.__lastHtml!==html){ host.innerHTML=html; host.__lastHtml=html; } host.style.display='block';
   }
   // Known-seller guard (per-questionnaire toggle): warn if this seller already has a call on file.
   function checkKnownSeller(){
