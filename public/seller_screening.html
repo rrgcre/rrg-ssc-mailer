@@ -935,9 +935,9 @@
 // questionnaire, valuation, marketing pack, lease abstract -- inherits them from here.
 window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
 (function(){ function fix(){ if(window.RRG_MODE!=='valuation') return;
-  try{ document.title='RRG — Valuation Questionnaire'; }catch(e){}
-  try{ Array.prototype.forEach.call(document.querySelectorAll('.kicker'),function(k){ if(/seller screening/i.test(k.textContent||'')) k.textContent='Valuation Questionnaire'; }); }catch(e){}
-  try{ var h=document.getElementById('hdrConcept'); if(h && /seller screening/i.test(h.textContent||'')) h.textContent='New Valuation Questionnaire'; }catch(e){}
+  try{ document.title='RRG — Value Questionnaire'; }catch(e){}
+  try{ Array.prototype.forEach.call(document.querySelectorAll('.kicker'),function(k){ if(/seller screening/i.test(k.textContent||'')) k.textContent='Value Questionnaire'; }); }catch(e){}
+  try{ var h=document.getElementById('hdrConcept'); if(h && /seller screening/i.test(h.textContent||'')) h.textContent='New Value Questionnaire'; }catch(e){}
   try{ Array.prototype.forEach.call(document.querySelectorAll('button'),function(b){ if(/submit screening/i.test(b.textContent||'')) b.textContent=b.textContent.replace(/Submit Screening/i,'Submit Questionnaire'); }); }catch(e){}
   try{ Array.prototype.forEach.call(document.querySelectorAll('p'),function(p){ if(/every seller conversation gets screened/i.test(p.textContent||'')) p.style.display='none'; }); }catch(e){}
 }

@@ -402,7 +402,7 @@ const TOOL_DEFS = [
   { file: 'rrg_tickets.html', name: 'Requests' },
   { file: 'rrg_cap_rate_calculator.html', name: 'Cap Rate Calculator' },
   { file: 'rrg_screening_queue.html', name: 'Seller Qualification Calls' },
-  { file: 'rrg_questionnaire_queue.html', name: 'Valuation Questionnaires' },
+  { file: 'rrg_questionnaire_queue.html', name: 'Value Questionnaires' },
   { file: 'rrg_bov_queue.html', name: 'Business Valuations' },
   { file: 'rrg_rooms_queue.html', name: 'Data Rooms' },
   { file: 'rrg_cim_queue.html', name: 'Marketing Packs' },
@@ -769,7 +769,7 @@ function addQuestTomb(fid) { if (!fid) return; const a = loadQuestTombs(); if (a
 function removeQuestTomb(fid) { if (!fid) return; const a = loadQuestTombs(); const b = a.filter(x => x !== fid); if (b.length !== a.length) saveQuestTombs(b); }
 // Flatten a stored questionnaire into readable "Section / Label: value" text so it
 // can be fed to the BOV analyst without the rep re-uploading it (mirrors the
-// answers builder in the Valuation Questionnaire's Run-Analysis action).
+// answers builder in the Value Questionnaire's Run-Analysis action).
 function questToText(quest) {
   try {
     const d = (quest && quest.data) || {};
@@ -7601,7 +7601,7 @@ const PIPELINES_FILE = path.join(BOV_DATA_DIR, 'pipelines.json');
 function _seedPipeline(id, name, area, names, days) { return { id: id, name: name, area: area, stages: names.map(function(n, i){ return { name: n, number: i + 1, targetDays: days }; }) }; }
 function defaultPipelines() {
   return [
-    _seedPipeline('p_bizsales', 'Business Sales', 'Business Sales', ['Data Room','Outreach','Seller Qualification Call','Valuation Questionnaire','BOV','Agreed','Marketing Pack','Market Attack Plan','Lease Abstract','Offers','Due Diligence','Closing'], 7),
+    _seedPipeline('p_bizsales', 'Business Sales', 'Business Sales', ['Data Room','Outreach','Seller Qualification Call','Value Questionnaire','BOV','Agreed','Marketing Pack','Market Attack Plan','Lease Abstract','Offers','Due Diligence','Closing'], 7),
     _seedPipeline('p_tenantrep', 'Tenant Rep', 'Tenant Rep', ['Needs Analysis','Site Search','Tours','LOI Out','Lease Negotiation','Build-out','Open'], 14),
     _seedPipeline('p_llrep', 'Landlord Rep', 'Landlord Rep', ['Listing Setup','Marketing','Tours','LOI Received','Lease Negotiation','Executed'], 14)
   ];
@@ -9046,8 +9046,8 @@ app.get('/api/documents', (req, res) => {
     qsts.forEach(q => {
       const d = q.data || {};
       const pct = (typeof q.completePct === 'number' ? q.completePct : (q.completed ? 100 : 0));
-      const title = (q.business && q.business !== 'Business') ? q.business : (d.company || 'Valuation Questionnaire');
-      out.push({ id: q.id, kind:'questionnaire', title: title, typeLabel:'Valuation Questionnaire',
+      const title = (q.business && q.business !== 'Business') ? q.business : (d.company || 'Value Questionnaire');
+      out.push({ id: q.id, kind:'questionnaire', title: title, typeLabel:'Value Questionnaire',
         matchNames:[q.business||'', d.company||''],
         personId: q.personId||'', companyId: q.companyId||'',
         companyName: coNameById[q.companyId] || q.market || '',
@@ -9143,8 +9143,8 @@ app.get('/api/questionnaire/:id/view', (req, res) => {
   if (!s) return res.status(404).send('Not found.');
   if (restrictToOwn(req) && !ownsQuest(req, s)) return res.status(403).send('Not authorized.');
   const pct = (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0));
-  const rec = { data: s.data || {}, name: (s.business && s.business !== 'Business') ? s.business : ((s.data && s.data.company) || 'Valuation Questionnaire'), market: s.market || '', rep: s.by || s.byUser || '', timestamp: s.createdAt || '', highlights: s.completed ? 'Complete' : ('In progress — ' + pct + '%') };
-  let html = intakeViewHtml(rec, 'Valuation Questionnaire');
+  const rec = { data: s.data || {}, name: (s.business && s.business !== 'Business') ? s.business : ((s.data && s.data.company) || 'Value Questionnaire'), market: s.market || '', rep: s.by || s.byUser || '', timestamp: s.createdAt || '', highlights: s.completed ? 'Complete' : ('In progress — ' + pct + '%') };
+  let html = intakeViewHtml(rec, 'Value Questionnaire');
   const edit = '<div style="position:fixed;left:16px;bottom:16px;z-index:50"><button type="button" onclick="window.close(); history.back();" style="background:#fff;border:1px solid #d7dde8;color:#1a2236;border-radius:9px;padding:10px 16px;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 6px 20px rgba(16,24,40,.18);cursor:pointer">← Back</button></div>';
   html = html.replace('</body>', edit + '</body>');
   res.set('Content-Type', 'text/html; charset=utf-8').send(html);
@@ -9975,7 +9975,7 @@ const GATEABLE_TOOLS = [
   { file: 'rrg_agreements.html', name: 'Agreements', cat: 'CRM & Records' },
   { file: 'rrg_tickets.html', name: 'Requests', cat: 'CRM & Records' },
   { file: 'rrg_screening_queue.html', name: 'Seller Qualification Calls', cat: 'Sell-Side' },
-  { file: 'rrg_questionnaire_queue.html', name: 'Valuation Questionnaires', cat: 'Sell-Side' },
+  { file: 'rrg_questionnaire_queue.html', name: 'Value Questionnaires', cat: 'Sell-Side' },
   { file: 'rrg_bov_queue.html', name: 'Business Valuations', cat: 'Sell-Side' },
   { file: 'rrg_rooms_queue.html', name: 'Data Rooms', cat: 'Sell-Side' },
   { file: 'rrg_cim_queue.html', name: 'Marketing Packs', cat: 'Sell-Side' },

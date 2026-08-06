@@ -85,7 +85,7 @@ tr.selrow td{background:#fff6e9;} tr.selrow td:first-child{box-shadow:inset 3px 
   <span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Seller Pipeline · Step 1</div>
   <h1>Call Screening Log</h1>
-  <div class="sub">Every seller call we've made, in one log. Log a new call, screen it, then reject or advance it to the Valuation Questionnaire.</div>
+  <div class="sub">Every seller call we've made, in one log. Log a new call, screen it, then reject or advance it to the Value Questionnaire.</div>
 </div></div>
 
 <div class="wrap">
@@ -183,7 +183,7 @@ function render(list){
     var em={
       all:['No calls logged yet.','Log your first call and it lands here.'],
       waiting:['Nothing waiting.','Every call has been rejected or advanced. Nice and clean.'],
-      advanced:['Nothing advanced yet.','Calls you move to the Valuation Questionnaire show up here.'],
+      advanced:['Nothing advanced yet.','Calls you move to the Value Questionnaire show up here.'],
       passed:['No rejected calls.','Calls you reject show up here — you can always Reconsider them.']
     }[VIEW]||['No calls.',''];
     body.innerHTML='<div class="empty"><b>'+em[0]+'</b>'+em[1]+'<br><a class="np" href="./seller_screening.html">+ New Call</a></div>';
@@ -243,7 +243,7 @@ function advanceCall(id, intro){
     }).catch(function(){ alert('Could not advance this call — please try again.'); });
 }
 async function decide(id,decision){
-  if(decision==='passed' && !await rrgConfirm('Reject this lead? It won’t move to the Valuation Questionnaire.')) return;
+  if(decision==='passed' && !await rrgConfirm('Reject this lead? It won’t move to the Value Questionnaire.')) return;
   fetch('/api/screening/'+encodeURIComponent(id)+'/decision',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({decision:decision})})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert('Could not update.'); }).catch(function(){ alert('Could not update.'); });
 }
