@@ -146,7 +146,7 @@
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
       { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' },
-      { ic: '⚑', label: 'Feedback', href: 'rrg_feedback.html' },
+      { ic: '⚑', label: 'Wish List', href: 'rrg_feedback.html' },
       { ic: '∑', label: 'Calculators', href: 'rrg_calculators.html' }
     ] },
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
