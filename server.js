@@ -1847,7 +1847,7 @@ app.get('/api/bovs', (req, res) => {
   const list = loadBovs().slice().reverse().filter(b => isAdmin || ownsBov(req, b));
   res.json({
     ok: true, isAdmin: !!isAdmin,
-    bovs: list.map(b => ({ id: b.id, business: b.business, date: b.date, revText: bovRevenueText(b), rangeText: b.rangeText, targetText: b.targetText, multText: b.multText, ebitdaText: b.ebitdaText, sdeText: b.sdeText || '', adjText: b.adjText || '', basis: b.basis || '', pending: !!b.pending, srcQuestId: b.srcQuestId || '', by: b.by, byUser: b.byUser, createdAt: b.createdAt, builtAt: b.builtAt || '' })),
+    bovs: list.map(b => ({ id: b.id, business: b.business, date: b.date, revText: bovRevenueText(b), rangeText: b.rangeText, targetText: b.targetText, multText: b.multText, ebitdaText: b.ebitdaText, sdeText: b.sdeText || '', adjText: b.adjText || '', basis: b.basis || '', pending: !!b.pending, srcQuestId: b.srcQuestId || '', by: b.by, byUser: b.byUser, createdAt: b.createdAt, builtAt: b.builtAt || '', finalizedAt: b.finalizedAt || '', version: b.version || 1, versionCount: (b.versions || []).length })),
   });
 });
 app.get('/api/bov/:id', (req, res) => {
@@ -1909,12 +1909,13 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
       }
     }
 
-    // Build ONCE. A valuation that has already been built is frozen — its earnings
-    // bridge is the source of truth and must not be silently regenerated into
-    // different numbers. To rebuild, the rep deletes it in Business Valuations
-    // (which reverts the questionnaire to Waiting) and requests a fresh one.
-    if (target && target.aiGenerated && !target.pending) {
-      return res.status(409).json({ ok: false, error: 'This valuation is already built. Its earnings bridge is locked. To rebuild from the financials, delete it in Business Valuations first — that reverts the questionnaire to Waiting so you can request a fresh valuation.' });
+    // Draft valuations re-generate freely — a rep can re-run the analysis, tweak
+    // add-backs, or adjust the multiple until the number is right. Only a FINALIZED
+    // valuation is locked: its earnings bridge is the number the firm put its name
+    // on. To change a final, the rep clicks "Revise (new version)" in the builder,
+    // which archives the finalized copy to history and opens a fresh draft.
+    if (target && target.finalizedAt) {
+      return res.status(409).json({ ok: false, finalized: true, error: 'This valuation is Final (v' + (target.version || 1) + '). Its earnings bridge is locked. Open it in Business Valuations and click \u201cRevise (new version)\u201d to start a new draft, then re-generate.' });
     }
 
     const out = await bovgen.generateBov({ business, files: _files, preparedBy, questionnaire: questionnaireText, links, systemPrompt: loadBovPromptCustom() || undefined, sdeThreshold: loadSdeThreshold(), assetSaleFloor: loadAssetSaleFloor() });
@@ -1930,7 +1931,7 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
     rec.rangeText = out.summary.rangeText; rec.targetText = out.summary.targetText;
     rec.multText = out.summary.multText; rec.ebitdaText = out.summary.ebitdaText;
     rec.basis = out.summary.basis; rec.sdeText = out.summary.sdeText; rec.adjText = out.summary.adjText;
-    rec.state = out.state; rec.aiGenerated = true; rec.pending = false; rec.builtAt = new Date().toISOString();
+    rec.state = out.state; rec.aiGenerated = true; rec.pending = false; rec.builtAt = new Date().toISOString(); rec.version = rec.version || 1;
     // No TTM statement (analyst fell back to the fiscal year) AND we're past Q1 →
     // flag the record so the builder can warn the rep the base may be stale.
     rec.periodBasis = (out.state && out.state.periodBasis === 'fiscal') ? 'fiscal' : 't12';
@@ -2351,6 +2352,7 @@ app.post('/api/bov', (req, res) => {
     const existing = bovs.find(x => x.id === b.id);
     if (existing) {
       if (!ownsBov(req, existing)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+      if (existing.finalizedAt) return res.status(409).json({ ok: false, finalized: true, error: 'This valuation is Final (v' + (existing.version || 1) + '). Click \u201cRevise (new version)\u201d to make changes \u2014 the finalized copy stays on record.' });
       Object.assign(existing, fields, { pending: false, updatedAt: new Date().toISOString() });
       inheritLink(existing, partyLink(b));
       saveBovs(bovs);
@@ -2363,6 +2365,48 @@ app.post('/api/bov', (req, res) => {
   });
   bovs.push(rec); saveBovs(bovs);
   res.json({ ok: true, id: rec.id });
+});
+// Finalize a built valuation — locks the earnings bridge and the concluded numbers.
+// The rep can still create a new version later (see /revise), but the finalized copy
+// is preserved. This is the number the firm hands the seller, protected from silent change.
+app.post('/api/bov/:id/finalize', (req, res) => {
+  const bovs = loadBovs();
+  const b = bovs.find(x => x.id === req.params.id);
+  if (!b) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsBov(req, b)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  if (b.pending) return res.status(409).json({ ok: false, error: 'Build the valuation before finalizing it.' });
+  if (b.finalizedAt) return res.json({ ok: true, alreadyFinal: true, version: b.version || 1, finalizedAt: b.finalizedAt });
+  b.version = b.version || 1;
+  b.finalizedAt = new Date().toISOString();
+  b.finalizedBy = (req.user && req.user.name) || '';
+  b.finalizedByUser = (req.user && req.user.username) || '';
+  saveBovs(bovs);
+  res.json({ ok: true, version: b.version, finalizedAt: b.finalizedAt, finalizedBy: b.finalizedBy });
+});
+// Revise a finalized valuation — archives the finalized copy into the version history
+// (audit trail) and re-opens the record as a fresh draft at the next version number.
+// Never a silent overwrite: the delivered number is always kept.
+app.post('/api/bov/:id/revise', (req, res) => {
+  const bovs = loadBovs();
+  const b = bovs.find(x => x.id === req.params.id);
+  if (!b) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsBov(req, b)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  if (!b.finalizedAt) return res.status(409).json({ ok: false, error: 'Only a finalized valuation can be revised.' });
+  if (!Array.isArray(b.versions)) b.versions = [];
+  let snapState = null;
+  try { snapState = b.state ? JSON.parse(JSON.stringify(b.state)) : null; } catch (e) { snapState = null; }
+  b.versions.push({
+    version: b.version || 1, finalizedAt: b.finalizedAt, finalizedBy: b.finalizedBy || '', finalizedByUser: b.finalizedByUser || '',
+    business: b.business || '', date: b.date || '', rangeText: b.rangeText || '', targetText: b.targetText || '',
+    multText: b.multText || '', ebitdaText: b.ebitdaText || '', basis: b.basis || '', sdeText: b.sdeText || '', adjText: b.adjText || '',
+    state: snapState,
+    revisedAt: new Date().toISOString(), revisedBy: (req.user && req.user.name) || '', revisedByUser: (req.user && req.user.username) || '',
+  });
+  b.version = (b.version || 1) + 1;
+  delete b.finalizedAt; delete b.finalizedBy; delete b.finalizedByUser;
+  b.revisedAt = new Date().toISOString();
+  saveBovs(bovs);
+  res.json({ ok: true, version: b.version, versionCount: b.versions.length });
 });
 app.delete('/api/bov/:id', (req, res) => {
   const bovs = loadBovs();
@@ -8948,7 +8992,7 @@ app.get('/api/documents', (req, res) => {
   if (restrictToOwn(req)) ag = ag.filter(a => permOwnerMatch(req, a.createdBy));
   ag.forEach(a => { const br = agreementBrief(a); out.push({ id:a.id, kind:'agreement', title:(a.name || 'Agreement'), typeLabel:'Agreement', agrType: agreementTypeLabel(a.type), effective: a.effective||'', expires: a.expires||'', signStatus:a.signStatus||'', docExt:a.docExt||'', hasFinal:!!a.hasFinal, entryMethod:a.entryMethod||'', personId:a.personId||'', dealKey:a.dealKey||'', companyId:a.companyId||'', companyName: coNameById[a.companyId]||'', personName: a.personName || nameById[a.personId] || '', dealName: bizByKey[a.dealKey]||'', status: br.statusLabel||'', statusKey: br.statusKey||'', owner: a.createdByName || a.createdBy || '', createdAt: a.createdAt||'', deleteUrl: '/api/document/agreement/'+a.id, openUrl: a.docExt ? ('/api/agreements/'+a.id+'/doc') : 'rrg_agreements.html', downloadUrl: a.docExt ? ('/api/agreements/'+a.id+'/doc') : '' }); });
   let bv = loadBovs().filter(b => isAdmin || ownsBov(req, b));
-  bv.forEach(b => { out.push({ id:b.id, kind:'valuation', title: b.business || 'Valuation', typeLabel:'Valuation', matchNames:[b.business||''], valueText: (b.targetText||b.rangeText||b.sdeText||''), basis: b.basis||'', personId:b.personId||'', companyId:b.companyId||'', companyName: coNameById[b.companyId]||'', personName: nameById[b.personId]||'', dealName:'', status: b.pending ? 'Requested' : 'Built', statusKey: b.pending ? 'pending' : 'built', owner: b.by || b.byUser || '', createdAt: b.createdAt || '', deleteUrl: '/api/document/valuation/'+b.id, openUrl: (b.pending ? 'rrg_bov_generate.html?bov=' : 'rrg_bov_builder.html?bov=') + encodeURIComponent(b.id), downloadUrl:'' }); });
+  bv.forEach(b => { out.push({ id:b.id, kind:'valuation', title: b.business || 'Valuation', typeLabel:'Valuation', matchNames:[b.business||''], valueText: (b.targetText||b.rangeText||b.sdeText||''), basis: b.basis||'', personId:b.personId||'', companyId:b.companyId||'', companyName: coNameById[b.companyId]||'', personName: nameById[b.personId]||'', dealName:'', status: b.finalizedAt ? ('Final' + ((b.version||1) > 1 ? (' v'+(b.version||1)) : '')) : (b.pending ? 'Requested' : 'Built'), statusKey: b.finalizedAt ? 'final' : (b.pending ? 'pending' : 'built'), owner: b.by || b.byUser || '', createdAt: b.createdAt || '', deleteUrl: '/api/document/valuation/'+b.id, openUrl: (b.pending ? 'rrg_bov_generate.html?bov=' : 'rrg_bov_builder.html?bov=') + encodeURIComponent(b.id), downloadUrl:'' }); });
   let cm = loadCims().filter(c => isAdmin || ownsCim(req, c));
   cm.forEach(c => { out.push({ id:c.id, kind:'marketingpack', title: c.business || 'Marketing Pack', typeLabel:'Marketing Pack', matchNames:[c.business||''], personId:c.personId||'', companyId:c.companyId||'', companyName: coNameById[c.companyId] || c.market||'', personName: nameById[c.personId]||'', dealName:'', status: c.pending ? 'Draft' : 'Built', statusKey: c.pending ? 'pending' : 'built', owner: c.by || c.byUser || '', createdAt: c.createdAt || '', deleteUrl: '/api/document/marketingpack/'+c.id, openUrl: (c.pending ? 'rrg_cim_generate.html?cim=' : 'rrg_cim_builder.html?cim=') + encodeURIComponent(c.id), downloadUrl:'' }); });
   let uf = loadUserFiles();

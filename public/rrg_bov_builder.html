@@ -16,6 +16,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .actions{display:flex;gap:8px;flex-wrap:wrap;}
 .btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:8px;cursor:pointer;}
 .btn:hover{border-color:#9fb0cc;} .btn.print{background:var(--navy);color:#fff;border-color:var(--navy);}
+.btn.fin{background:#0e7a53;color:#fff;border-color:#0e7a53;} .btn.fin:hover{background:#0c6a48;border-color:#0c6a48;}
+body.bov-locked #sheet input,body.bov-locked #sheet textarea{pointer-events:none;background:#f6f8fb!important;color:#4a5468;}
+body.bov-locked #sheet .rrg-noprint button{display:none!important;}
 
 .wrap{max-width:920px;margin:22px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(10,20,50,.08);}
 
@@ -116,6 +119,8 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     <button class="btn" onclick="goQuestionnaire()">← Questionnaire</button>
     <button class="btn" onclick="clearAll()">Clear</button>
     <label class="btn" style="display:inline-flex;align-items:center;gap:7px;font-weight:600" title="Use your brand color on the cover banner (Admin → Brand Colors)"><input type="checkbox" id="brandCover" style="width:15px;height:15px;accent-color:var(--red);margin:0"> Brand cover</label>
+    <button class="btn fin" id="btnFinalize" onclick="finalizeBov()" style="display:none">✓ Finalize</button>
+    <button class="btn" id="btnRevise" onclick="reviseBov()" style="display:none">Revise (new version)</button>
     <button class="btn print" onclick="printBov()">Print</button>
     <button class="btn" onclick="closeBov()">Close</button>
   </div>
@@ -457,7 +462,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     m=v.match(/^(\d{1,2})[\/\-]\d{1,2}[\/\-](\d{4})$/); if(m) return m[2]+'-'+('0'+m[1]).slice(-2);
     return v; }
   function apply(o){ document.querySelectorAll('[data-k]').forEach(function(el){ var k=el.getAttribute('data-k'); if(o[k]!=null){ el.value=(k==='date')?normMonth(o[k]):o[k]; } }); }
-  var st=null; function save(){ if(st)clearTimeout(st); st=setTimeout(function(){ state.fields=collect(); try{localStorage.setItem(KEY,JSON.stringify(state));chip();}catch(e){} },350); }
+  var st=null; function save(){ if(_locked)return; if(st)clearTimeout(st); st=setTimeout(function(){ state.fields=collect(); try{localStorage.setItem(KEY,JSON.stringify(state));chip();}catch(e){} },350); }
   var c=document.createElement('div'); c.className='rrg-noprint';
   c.style.cssText='position:fixed;right:14px;bottom:14px;z-index:9998;background:#0b1a3a;color:#fff;font:600 12px/1 -apple-system,Segoe UI,Roboto,sans-serif;padding:8px 12px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.22);opacity:0;transition:opacity .3s;pointer-events:none;';
   c.textContent='Draft saved ✓'; document.body.appendChild(c);
@@ -483,6 +488,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   // Save in place (updating the existing record when we opened one) then return
   // to the Business Valuations log.
   window.closeBov=function(){
+    if(_locked){ location.href='./rrg_bov_queue.html'; return; }
     var payload=bovPayload();
     if(!payload.business){ alert('Enter the business name on the cover first.'); return; }
     fetch('/api/bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
@@ -555,11 +561,53 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
       document.body.insertBefore(b, document.body.firstChild);
     }).catch(function(){});
   }
+  var _locked=false,_version=1,_versions=[];
+  function fmtDate(iso){ try{ return new Date(iso).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}); }catch(e){ return String(iso||'').slice(0,10); } }
+  function renderBovStatus(bov){
+    _version=bov.version||1; _versions=Array.isArray(bov.versions)?bov.versions:[]; _locked=!!bov.finalizedAt;
+    var bf=document.getElementById('btnFinalize'), br=document.getElementById('btnRevise'), built=!bov.pending;
+    if(_locked){ if(bf)bf.style.display='none'; if(br)br.style.display=''; document.body.classList.add('bov-locked'); }
+    else { if(bf)bf.style.display=built?'':'none'; if(br)br.style.display='none'; document.body.classList.remove('bov-locked'); }
+    var old=document.getElementById('finalBanner'); if(old) old.remove();
+    if(!_locked && !_versions.length) return;
+    var hist='';
+    if(_versions.length){
+      hist='<div style="margin-top:8px;font-weight:700;font-size:12px;opacity:.9">Version history</div>'+
+        _versions.slice().reverse().map(function(v){ var val=v.targetText||v.rangeText||v.sdeText||'—';
+          return '<div style="font-size:12px;opacity:.85;margin-top:3px">v'+(v.version||'?')+' · '+esc(val)+' · finalized '+esc(fmtDate(v.finalizedAt))+(v.finalizedBy?(' by '+esc(v.finalizedBy)):'')+' · revised '+esc(fmtDate(v.revisedAt))+(v.revisedBy?(' by '+esc(v.revisedBy)):'')+'</div>'; }).join('');
+    }
+    var b=document.createElement('div'); b.id='finalBanner'; b.className='rrg-noprint';
+    if(_locked){
+      b.style.cssText='position:sticky;top:0;z-index:9998;background:#eaf5ef;border-bottom:1px solid #b9e6cd;color:#0e5a3b;font:600 13px/1.45 -apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;padding:12px 18px;';
+      b.innerHTML='<div style="display:flex;gap:12px;align-items:flex-start"><span style="font-size:16px;line-height:1">🔒</span><div style="flex:1"><b>Final — v'+_version+'.</b> Finalized '+esc(fmtDate(bov.finalizedAt))+(bov.finalizedBy?(' by '+esc(bov.finalizedBy)):'')+'. The numbers are locked to protect the delivered valuation. Use <b>Revise (new version)</b> above to make changes — the finalized copy stays on record.'+hist+'</div></div>';
+    } else {
+      b.style.cssText='position:sticky;top:0;z-index:9998;background:#f4f7fb;border-bottom:1px solid #dbe3ef;color:#3a4560;font:600 13px/1.45 -apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;padding:12px 18px;';
+      b.innerHTML='<div style="display:flex;gap:12px;align-items:flex-start"><span style="font-size:15px;line-height:1">📝</span><div style="flex:1"><b>Draft — v'+_version+'.</b> '+_versions.length+' finalized version'+(_versions.length===1?'':'s')+' on record. Finalize when the number is ready.'+hist+'</div></div>';
+    }
+    document.body.insertBefore(b, document.body.firstChild);
+  }
+  window.finalizeBov=async function(){
+    var payload=bovPayload();
+    if(!payload.business){ alert('Enter the business name on the cover first.'); return; }
+    if(!await rrgConfirm('Finalize this valuation? This locks the earnings bridge and the concluded numbers. You can still create a new version later — the finalized copy is kept on record.')) return;
+    var sj; try{ sj=await (await fetch('/api/bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})).json(); }catch(e){ alert('Could not reach the server.'); return; }
+    if(!(sj&&sj.ok)){ alert((sj&&sj.error)||'Could not save before finalizing.'); return; }
+    var id=_bid||sj.id, fj;
+    try{ fj=await (await fetch('/api/bov/'+encodeURIComponent(id)+'/finalize',{method:'POST',headers:{'Content-Type':'application/json'}})).json(); }catch(e){ alert('Could not reach the server.'); return; }
+    if(fj&&fj.ok){ if(_bid){ location.reload(); } else { location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(id); } }
+    else alert((fj&&fj.error)||'Could not finalize.');
+  };
+  window.reviseBov=async function(){
+    if(!_bid) return;
+    if(!await rrgConfirm('Create a new version? The current finalized valuation is saved to history, and this record re-opens as an editable draft. The delivered number is never overwritten.')) return;
+    var j; try{ j=await (await fetch('/api/bov/'+encodeURIComponent(_bid)+'/revise',{method:'POST',headers:{'Content-Type':'application/json'}})).json(); }catch(e){ alert('Could not reach the server.'); return; }
+    if(j&&j.ok){ location.reload(); } else alert((j&&j.error)||'Could not revise.');
+  };
   var _bid=(new URLSearchParams(location.search)).get('bov');
   var _srcQuestId='';
   if(_bid){
     fetch('/api/bov/'+encodeURIComponent(_bid)).then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok&&j.bov){ _srcQuestId=j.bov.srcQuestId||''; if(j.bov.state){ applyState(j.bov.state); } else if(!restore()){ initBlank(); } if(j.bov.noTtmNotice) showNoTtmNotice(); }
+      if(j&&j.ok&&j.bov){ _srcQuestId=j.bov.srcQuestId||''; if(j.bov.state){ applyState(j.bov.state); } else if(!restore()){ initBlank(); } if(j.bov.noTtmNotice) showNoTtmNotice(); renderBovStatus(j.bov); }
       else if(!restore()){ initBlank(); }
     }).catch(function(){ if(!restore()) initBlank(); });
   } else if(!restore()){ initBlank(); }
