@@ -324,7 +324,7 @@
       Array.prototype.forEach.call(sr.querySelectorAll('a'),function(a){ a.addEventListener('mousemove',function(){ _srSel(parseInt(a.getAttribute('data-i'),10)); }); });
       _srSel(0);
     }
-    function _srSearch(q){ q=String(q||'').trim(); if(q.length<2){ _srHide(); _sres=[]; return; } fetch('/api/search?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(String(si.value||'').trim().length<2){ _srHide(); return; } _srRender((j&&j.results)||[], q); }).catch(function(){ _srHide(); }); }
+    function _srSearch(q){ q=String(q||'').trim(); if(q.length<2){ _srHide(); _sres=[]; return; } if(sr){ sr.innerHTML='<div class="rnone">Searching\u2026</div>'; sr.hidden=false; } fetch('/api/search?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(String(si.value||'').trim().length<2){ _srHide(); return; } _srRender((j&&j.results)||[], q); }).catch(function(){ if(String(si.value||'').trim().length>=2 && sr){ sr.innerHTML='<div class="rnone">Search is waking up \u2014 give it a second and type again.</div>'; sr.hidden=false; } else { _srHide(); } }); }
     si && si.addEventListener('input', function(){ var v=si.value; try{ if(typeof window.rrgLiveSearch==='function') window.rrgLiveSearch(v); }catch(e){} if(_sqt) clearTimeout(_sqt); _sqt=setTimeout(function(){ _srSearch(v); },180); });
     si && si.addEventListener('keydown', function(e){
       if(e.key==='ArrowDown'){ if(_sres.length){ e.preventDefault(); _srSel(Math.min(_sres.length-1,_ssel+1)); var el=sr.querySelector('a.sel'); if(el) el.scrollIntoView({block:'nearest'}); } return; }

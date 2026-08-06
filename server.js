@@ -1007,7 +1007,6 @@ function fmtWhen(ts) {
 const TOOL_LIST = [
   { name: 'Site Selection Criteria', file: 'ssc_form.html' },
   { name: 'Seller Screening', file: 'seller_screening.html' },
-  { name: 'Valuation Questionnaire', file: 'valuation_questionnaire.html' },
   { name: "Broker's Opinion of Value", file: 'rrg_bov_builder.html' },
   { name: 'BOV Queue', file: 'rrg_bov_queue.html' },
   { name: 'CIM Builder', file: 'rrg_cim_builder.html' },
@@ -1511,6 +1510,28 @@ app.post('/api/valuation-room', express.json(), (req, res) => {
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
+// Ensure a valuation (BOV) record exists for a contact — reuse the latest one, else
+// create a pending one from the contact's most recent questionnaire. Returns bovId so
+// the "Generate Valuation" action can open the generate screen.
+app.post('/api/valuation-ensure', express.json(), (req, res) => {
+  try {
+    const b = req.body || {};
+    const pid = String(b.personId || '').trim().slice(0, 48);
+    const cid = String(b.companyId || '').trim().slice(0, 48);
+    if (!pid && !cid) return res.status(400).json({ ok: false, error: 'No contact.' });
+    const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid));
+    const byNew = (a, b2) => String(b2.createdAt || '').localeCompare(String(a.createdAt || ''));
+    const bov = loadBovs().filter(hit).sort(byNew)[0] || null;
+    if (bov) return res.json({ ok: true, bovId: bov.id });
+    const arr = loadQuests();
+    const q = arr.filter(hit).sort(byNew)[0] || null;
+    if (!q) return res.status(409).json({ ok: false, error: 'No valuation questionnaire on file for this contact yet.' });
+    if (!q.processed) { q.processed = true; q.processedAt = new Date().toISOString(); saveQuests(arr); }
+    const nb = ensureBovForQuest(q);
+    res.json({ ok: true, bovId: (nb && nb.id) || '' });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+
 // ---- Screening queue ----
 app.get('/api/forms', (req, res) => {
   const forms = loadForms(); const assign = (loadSettings().callForms) || {};
@@ -1836,10 +1857,40 @@ app.get('/api/bov/:id', (req, res) => {
   res.json({ ok: true, bov: b });
 });
 // AI-generate a BOV from uploaded documents, then save it to the queue.
+// Pull a contact's data-room Financials & Lease docs as {name,dataB64,label} so a BOV
+// can be built from what was gathered in the room (no re-upload at generate time).
+function roomFilesForBov(bov) {
+  const out = [];
+  try {
+    if (!bov) return out;
+    const pid = String(bov.personId || ''), cid = String(bov.companyId || '');
+    const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid));
+    const rooms = loadRooms();
+    let room = rooms.find(hit) || null;
+    if (!room) { try { const deals = loadDeals().filter(hit); for (const d of deals) { const rm = rooms.find(r => r.id === d.roomId || r.srcDealId === d.id); if (rm) { room = rm; break; } } } catch (e) {} }
+    if (!room) return out;
+    (room.docs || []).forEach(d => {
+      const c = (d && d.category) || ''; let label = '';
+      if (c.indexOf('Financials') === 0) label = 'Financials'; else if (c === 'Lease') label = 'Lease'; else return;
+      try { const fp = path.join(ROOMS_DIR, d.id + '.' + d.ext); if (fp.startsWith(ROOMS_DIR) && fs.existsSync(fp)) { out.push({ name: (d.title || d.originalName || ('doc.' + d.ext)), dataB64: fs.readFileSync(fp).toString('base64'), label: label }); } } catch (e) {}
+    });
+  } catch (e) {}
+  return out;
+}
+// Does the BOV's contact already have financials/lease in a data room? (drives the generate screen)
+app.get('/api/valuation-room-ready', (req, res) => {
+  try {
+    const bov = loadBovs().find(x => x.id === String((req.query && req.query.bov) || ''));
+    const files = bov ? roomFilesForBov(bov) : [];
+    res.json({ ok: true, financials: files.some(f => f.label === 'Financials'), lease: files.some(f => f.label === 'Lease') });
+  } catch (e) { res.json({ ok: true, financials: false, lease: false }); }
+});
 app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) => {
   try {
     const { business, files, bovId, links, preparedFor } = req.body || {};
-    if (!files || !files.length) return res.status(400).json({ ok: false, error: 'Attach at least one financial document.' });
+    let _files = (files && files.length) ? files : [];
+    if (!_files.length && bovId) { try { _files = roomFilesForBov(loadBovs().find(x => x.id === bovId)); } catch (e) { _files = []; } }
+    if (!_files || !_files.length) return res.status(400).json({ ok: false, error: 'Attach at least one financial document, or add it to the deal\u2019s data room.' });
     const preparedBy = (req.user && req.user.preparedBy) || '';
 
     // Fulfilling an existing (Requested) valuation record? Pull its questionnaire
@@ -1866,7 +1917,7 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
       return res.status(409).json({ ok: false, error: 'This valuation is already built. Its earnings bridge is locked. To rebuild from the financials, delete it in Business Valuations first — that reverts the questionnaire to Waiting so you can request a fresh valuation.' });
     }
 
-    const out = await bovgen.generateBov({ business, files, preparedBy, questionnaire: questionnaireText, links, systemPrompt: loadBovPromptCustom() || undefined, sdeThreshold: loadSdeThreshold(), assetSaleFloor: loadAssetSaleFloor() });
+    const out = await bovgen.generateBov({ business, files: _files, preparedBy, questionnaire: questionnaireText, links, systemPrompt: loadBovPromptCustom() || undefined, sdeThreshold: loadSdeThreshold(), assetSaleFloor: loadAssetSaleFloor() });
     // Rep-entered "Prepared For" overrides whatever the analyst inferred.
     if (preparedFor && String(preparedFor).trim()) { out.state = out.state || {}; out.state.fields = out.state.fields || {}; out.state.fields.preparedFor = String(preparedFor).slice(0, 200); }
     const bovs = loadBovs();

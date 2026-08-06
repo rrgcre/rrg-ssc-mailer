@@ -172,6 +172,7 @@ var BOV_ID='';
     var id=new URLSearchParams(location.search).get('bov');
     if(!id){ var vn=document.getElementById('vqnote'); if(vn) vn.style.display='none'; return; }
     BOV_ID=id;
+    try{ fetch('/api/valuation-room-ready?bov='+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&(j.financials||j.lease)){ window.ROOM_HAS_FIN=!!j.financials; var g=document.getElementById('go'); if(g&&j.financials) g.disabled=false; var vn=document.getElementById('vqnote'); if(vn){ vn.textContent='✓ The questionnaire is in the system'+((j.financials||j.lease)?(', and the '+[j.financials?'financials':'',j.lease?'lease':''].filter(Boolean).join(' & ')+' are already in the data room — the analyst will pull them. Attach anything extra below, or just build.'):'.'); } } }).catch(function(){}); }catch(e){}
     fetch('/api/bov/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
       var b=(j&&j.bov)||null;
       if(b){
@@ -295,7 +296,7 @@ function generate(){
   unlockAudio();
   try{ var _li=document.getElementById('linkInput'); if(_li && _li.value.trim()) addLink(); }catch(e){}
   var biz=document.getElementById('biz').value.trim();
-  if(!SLOTS.fin.length){ setStatus('err','Upload at least one financials document before building. (Add the lease too if the business leases its space.)'); return; }
+  if(!SLOTS.fin.length && !window.ROOM_HAS_FIN){ setStatus('err','Upload at least one financials document before building, or add it to the data room. (Add the lease too if the business leases its space.)'); return; }
   var all=[]; Object.keys(SLOTS).forEach(function(s){ SLOTS[s].forEach(function(f){ all.push({file:f,label:LABEL[s]}); }); });
   setStatus('',''); document.getElementById('status').className='status';
   modal('Preparing your BOV…','Securely delivering the deal documents to the RRG Virtual Analyst.');
