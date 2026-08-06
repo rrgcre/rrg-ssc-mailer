@@ -1473,13 +1473,40 @@ app.get('/api/valuation-readiness', (req, res) => {
         const dealIds = new Set(deals.map(d => d.id));
         const roomIds = new Set(deals.map(d => d.roomId).filter(Boolean));
         loadRooms().forEach(r => {
-          if (!(roomIds.has(r.id) || dealIds.has(r.srcDealId))) return;
+          if (!(roomIds.has(r.id) || dealIds.has(r.srcDealId) || hit(r))) return;
           (r.docs || []).forEach(d => { const c = d && d.category; if (c === 'Financials') financials = true; if (c === 'Lease') lease = true; });
         });
       } catch (e) {}
     }
     const state = bov ? (bov.finalizedAt ? 'final' : (bov.aiGenerated && !bov.pending ? 'built' : 'requested')) : '';
     res.json({ ok: true, questionnaire: questionnaire, financials: financials, lease: lease, ready: !!(questionnaire && financials && lease), bovId: bov ? bov.id : '', state: state });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+
+// Find-or-create the data room for a contact (independent of a deal), so a rep can
+// collect financials & lease for a valuation at any time. Tags the room with
+// personId/companyId so it resolves consistently and feeds valuation-readiness.
+app.post('/api/valuation-room', express.json(), (req, res) => {
+  try {
+    const b = req.body || {};
+    const pid = String(b.personId || '').trim().slice(0, 48);
+    const cid = String(b.companyId || '').trim().slice(0, 48);
+    if (!pid && !cid) return res.status(400).json({ ok: false, error: 'No contact.' });
+    const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid));
+    const rooms = loadRooms();
+    let room = rooms.find(hit) || null;
+    if (!room) {
+      try { const deals = loadDeals().filter(hit); for (const d of deals) { const rm = rooms.find(r => r.id === d.roomId || r.srcDealId === d.id); if (rm) { room = rm; break; } } } catch (e) {}
+    }
+    if (!room) {
+      room = { id: newRoomId(), srcCimId: '', srcBovId: '', srcDealId: '', personId: pid, companyId: cid, token: newRoomToken(), business: String(b.business || 'Valuation').slice(0, 120), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: new Date().toISOString(), folders: roomCategories(), docs: [], access: [], grants: [] };
+      rooms.push(room); saveRooms(rooms);
+    } else if ((pid && !room.personId) || (cid && !room.companyId)) {
+      if (pid && !room.personId) room.personId = pid;
+      if (cid && !room.companyId) room.companyId = cid;
+      saveRooms(rooms);
+    }
+    res.json({ ok: true, id: room.id });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
