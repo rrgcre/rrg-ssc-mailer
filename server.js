@@ -1452,6 +1452,37 @@ app.post('/api/questionnaire-save', express.json({ limit: '2mb' }), (req, res) =
   catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
+// Valuation readiness: reports which of the three BOV inputs a contact has
+// (completed valuation questionnaire, Financials in a data room, Lease in a data room),
+// plus the latest valuation record + state. Read-only; drives the dimmed "Generate
+// Valuation" action on the contact page and the three-input generate gate.
+app.get('/api/valuation-readiness', (req, res) => {
+  try {
+    const pid = String(req.query.personId || '').trim().slice(0, 48);
+    const cid = String(req.query.companyId || '').trim().slice(0, 48);
+    const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid));
+    if (!pid && !cid) return res.json({ ok: true, questionnaire: false, financials: false, lease: false, ready: false, bovId: '', state: '' });
+    const questionnaire = loadQuests().some(q => hit(q) && (q.completed || q.processed));
+    const bovs = loadBovs().filter(hit).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    const bov = bovs[0] || null;
+    let financials = !!(bov && Array.isArray(bov.financials) && bov.financials.length);
+    let lease = !!(bov && Array.isArray(bov.lease) && bov.lease.length);
+    if (!financials || !lease) {
+      try {
+        const deals = loadDeals().filter(hit);
+        const dealIds = new Set(deals.map(d => d.id));
+        const roomIds = new Set(deals.map(d => d.roomId).filter(Boolean));
+        loadRooms().forEach(r => {
+          if (!(roomIds.has(r.id) || dealIds.has(r.srcDealId))) return;
+          (r.docs || []).forEach(d => { const c = d && d.category; if (c === 'Financials') financials = true; if (c === 'Lease') lease = true; });
+        });
+      } catch (e) {}
+    }
+    const state = bov ? (bov.finalizedAt ? 'final' : (bov.aiGenerated && !bov.pending ? 'built' : 'requested')) : '';
+    res.json({ ok: true, questionnaire: questionnaire, financials: financials, lease: lease, ready: !!(questionnaire && financials && lease), bovId: bov ? bov.id : '', state: state });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+
 // ---- Screening queue ----
 app.get('/api/forms', (req, res) => {
   const forms = loadForms(); const assign = (loadSettings().callForms) || {};
