@@ -1474,7 +1474,8 @@ app.get('/api/valuation-readiness', (req, res) => {
         const roomIds = new Set(deals.map(d => d.roomId).filter(Boolean));
         loadRooms().forEach(r => {
           if (!(roomIds.has(r.id) || dealIds.has(r.srcDealId) || hit(r))) return;
-          (r.docs || []).forEach(d => { const c = d && d.category; if (c === 'Financials') financials = true; if (c === 'Lease') lease = true; });
+          (r.docs || []).forEach(d => { const c = d && d.category; if (c && c.indexOf('Financials') === 0) financials = true; if (c === 'Lease') lease = true; });
+          if (r.noLease) lease = true;
         });
       } catch (e) {}
     }
@@ -2716,9 +2717,22 @@ app.get('/api/room/:id', (req, res) => {
   if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const origin = req.protocol + '://' + req.get('host');
-  res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-120).reverse(), categories: roomServeCats(r),
+  res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-120).reverse(), categories: roomServeCats(r), noLease: !!r.noLease,
     gated: roomIsGated(r),
     grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', code: g.code, level: g.level || 'download', catPerms: g.catPerms || {}, active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
+});
+// Mark/clear "no lease" on a data room (business owns / N/A) — satisfies the lease
+// input for valuation readiness without a document.
+app.post('/api/room/:id/no-lease', express.json(), (req, res) => {
+  const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  r.noLease = !!(req.body && req.body.noLease);
+  r.noLeaseAt = r.noLease ? new Date().toISOString() : '';
+  r.noLeaseBy = r.noLease ? ((req.user && req.user.name) || '') : '';
+  saveRooms(arr);
+  try { logSysEvent(req, 'Data Room', (r.noLease ? 'Marked \u201cno lease\u201d on' : 'Cleared \u201cno lease\u201d on') + ' the data room for ' + (r.business || 'a business'), { tool: 'room', kind: 'no-lease', id: r.id }); } catch (e) {}
+  res.json({ ok: true, noLease: r.noLease });
 });
 // Add a buyer (grant) — generates a personal access code.
 app.post('/api/room/:id/grant', express.json(), (req, res) => {
