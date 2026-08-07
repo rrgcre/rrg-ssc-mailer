@@ -1534,10 +1534,12 @@ app.post('/api/valuation-ensure', express.json(), (req, res) => {
 
 // ---- Screening queue ----
 app.get('/api/forms', (req, res) => {
+  res.set('Cache-Control','no-store');
   const forms = loadForms(); const assign = (loadSettings().callForms) || {};
   res.json({ ok:true, isAdmin: !!(req.user && isSuper(req.user)), forms: forms.map(function(f){ return { id:f.id, name:f.name||'(untitled)', callType:f.callType||'', builtIn:!!f.builtIn, questions:_formQCount(f), updatedAt:f.updatedAt||f.createdAt||'' }; }), assign: assign });
 });
 app.get('/api/form/:id', (req, res) => {
+  res.set('Cache-Control','no-store');
   const f = loadForms().find(function(x){ return x.id===req.params.id; });
   if(!f) return res.status(404).json({ ok:false, error:'Form not found.' });
   res.json({ ok:true, form:f });
