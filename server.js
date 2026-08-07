@@ -3312,6 +3312,7 @@ function applyBizSaleOutcome(req, rec) {
         const _ov = loadAssignOverlay(); const _cur = _ov['s_' + rec.id] || {};
         _cur.stageFlags = _cur.stageFlags || {};
         for (let _i = 0; _i < _tgt; _i++) _cur.stageFlags['g' + _i] = true;
+        _cur.pipelineStage = (_stg[_tgt] && _stg[_tgt].name) || _cur.pipelineStage || '';
         _cur.updatedAt = new Date().toISOString(); _ov['s_' + rec.id] = _cur; saveAssignOverlay(_ov);
       }
     } catch (e) {}
@@ -7699,6 +7700,7 @@ app.get('/api/board', (req, res) => {
   const overlay = loadAssignOverlay(), idx = assignmentsIndex();
   const isAdmin = req.user && isSuper(req.user);
   const cards = [];
+  const coNameById = {}; try { loadCompanies().forEach(c => { coNameById[c.id] = c.name; }); } catch (e) {}
   Object.values(idx).forEach(d => {
     if (!(isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d))) return;
     const o = overlay[d.key] || {};
@@ -7710,7 +7712,8 @@ app.get('/api/board', (req, res) => {
       try { const ss = listingStageSummary(d, overlay); const si = Math.max(0, Math.min((ss.done || 0), stageNames.length - 1)); stage = stageNames[si] || stageNames[0] || ''; }
       catch (e) { stage = stageNames[0] || ''; }
     }
-    cards.push({ key: d.key, business: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: o.status || 'New', bbsNumber: v.bbsNumber || '', stage: stage });
+    const _prov = !!(d.screen && d.screen.provisional);
+    cards.push({ key: d.key, business: v.business, company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', concept: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage });
   });
   res.json({ ok: true, pipelines: pipelines.map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, cards: cards, isAdmin: !!isAdmin });
 });
