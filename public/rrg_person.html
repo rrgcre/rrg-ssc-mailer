@@ -1120,7 +1120,7 @@ load();
     if(!pid&&!cid){ openAll(); return; }
     fetch('/api/valuation-readiness?personId='+encodeURIComponent(pid)+'&companyId='+encodeURIComponent(cid),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
       if(!j||!j.ok){ openAll(); return; }
-      var scr=!!j.questionnaire;   // a seller screening on file unlocks the deeper steps
+      var scr=!!j.screening;   // a seller screening on file unlocks the deeper steps
       _rrgSetGate(elU, !scr, scr?'':'Run a seller screening first'); _rrgSetGate(elC, !scr, scr?'':'Run a seller screening first');
       var miss=[]; if(!j.questionnaire) miss.push('Questionnaire'); if(!j.financials) miss.push('Financials'); if(!j.lease) miss.push('Lease');
       if(j.ready){ _rrgSetGate(elV,false,'Ready — all three inputs in'); window.__valReady={ready:true,bovId:j.bovId||''}; }

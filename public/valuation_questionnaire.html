@@ -139,12 +139,14 @@
   label.k{ display:block; font-size:9px; letter-spacing:.09em; text-transform:uppercase;
     color:var(--muted); font-weight:700; margin-bottom:5px; }
 
-  input[type=text], textarea{ width:100%; font-family:'Inter',sans-serif; font-size:13px;
+  input[type=text], input[type=number], textarea{ width:100%; font-family:'Inter',sans-serif; font-size:13px;
     color:var(--navy); border:1px solid var(--inp); border-radius:7px; padding:8px 10px;
     background:#fff; outline:none; }
-  input[type=text]{ height:36px; }
+  input[type=text], input[type=number]{ height:36px; }
+  input[type=number]{ -moz-appearance:textfield; appearance:textfield; }
+  input[type=number]::-webkit-outer-spin-button, input[type=number]::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
   textarea{ min-height:58px; resize:vertical; }
-  input[type=text]:focus, textarea:focus{ border-color:var(--red); box-shadow:0 0 0 3px rgba(218,43,31,.10); }
+  input[type=text]:focus, input[type=number]:focus, textarea:focus{ border-color:var(--red); box-shadow:0 0 0 3px rgba(218,43,31,.10); }
 
   .field{ margin-bottom:2px; }
 
