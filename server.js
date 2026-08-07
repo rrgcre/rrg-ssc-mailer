@@ -4973,6 +4973,20 @@ app.post('/api/ai/concept', express.json({ limit: '256kb' }), aiRoute(b => aiass
 app.post('/api/ai/site-read', express.json({ limit: '256kb' }), aiRoute(b => aiassist.locationSiteRead({ location: b.location || {} })));
 app.post('/api/ai/calc-summary', express.json({ limit: '256kb' }), aiRoute(b => aiassist.calcSummary({ kind: b.kind || '', inputs: b.inputs || {}, outputs: b.outputs || {} })));
 app.post('/api/ai/screening-summary', express.json({ limit: '256kb' }), aiRoute(b => aiassist.draftScreeningSummary({ data: b || {} })));
+app.post('/api/ai/screening-summary-stream', express.json({ limit: '256kb' }), async (req, res) => {
+  try {
+    const p = aiassist.screeningSummaryPrompt({ data: req.body || {} });
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-store');
+    res.setHeader('X-Accel-Buffering', 'no');
+    if (res.flushHeaders) res.flushHeaders();
+    await aiassist.streamClaude(p.system, p.user, 800, aiassist.FAST_MODEL, (t) => { try { res.write(t); } catch (e) {} });
+    res.end();
+  } catch (e) {
+    try { if (!res.headersSent) res.status(502); res.write('@@ERROR: ' + String((e && e.message) || e)); } catch (_) {}
+    try { res.end(); } catch (_) {}
+  }
+});
 app.post('/api/ai/placer', express.json({ limit: '256kb' }), aiRoute(b => aiassist.parsePlacer({ text: b.text || '' })));
 app.post('/api/ai/rewrite-email', express.json({ limit: '256kb' }), async (req, res) => { try { const b = req.body || {}; if (!String(b.text || '').trim()) return res.status(400).json({ ok: false, error: 'Nothing to rewrite.' }); const htmlOut = await aiassist.rewriteEmail({ text: b.text }); res.json({ ok: true, html: htmlOut }); } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); } });
 app.post('/api/ai/loi-suggest', express.json({ limit: '256kb' }), async (req, res) => {

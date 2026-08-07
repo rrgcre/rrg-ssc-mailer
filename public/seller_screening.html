@@ -665,26 +665,55 @@
   window.rrgDraftSummary=function(btn){
     var ta=document.getElementById('callNotes'); if(!ta) return;
     var orig=btn?btn.textContent:'';
+    var _introT=null, _hid=false;
     function busy(on){ if(!btn) return; btn.disabled=on; btn.textContent=on?'\u2728 Drafting\u2026':orig; }
-    function done(){ if(typeof _introT!=='undefined') clearTimeout(_introT); if(window.rrgAiWork) window.rrgAiWork.hide(); busy(false); }
+    function hideWork(){ if(_hid) return; _hid=true; if(_introT) clearTimeout(_introT); if(window.rrgAiWork) window.rrgAiWork.hide(); }
+    function done(){ hideWork(); busy(false); }
     function fail(m){ done(); if(window.__scrBanner) window.__scrBanner(m); }
     busy(true);
     var _ai=(window.__rrgAssistant||'Your assistant');
     var _sn=''; try{ _sn=((new URLSearchParams(location.search).get('sellerName'))||'').trim().split(/\s+/)[0]||''; }catch(e){}
     if(window.rrgAiWork) window.rrgAiWork.show('\u2728 '+_ai+' here \u2014 give me a moment to review '+(_sn?('your call with '+_sn):'the call')+' and pull together the summary and a recommended next step\u2026');
-    var _introT=setTimeout(function(){ if(window.rrgAiWork && window.rrgAiWork.setMsg) window.rrgAiWork.setMsg('Reading your answers, writing the summary, and calling the deal\u2026'); },1500);
+    _introT=setTimeout(function(){ if(!_hid && window.rrgAiWork && window.rrgAiWork.setMsg) window.rrgAiWork.setMsg('Reading your answers, writing the summary, and calling the deal\u2026'); },1500);
     var data=(window._collectData?window._collectData():{}); data.formType=window.RRG_MODE;
-    fetch(API+'/api/ai/screening-summary',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
-      .then(function(r){return r.json();})
-      .then(function(j){
-        var res=j&&j.ok&&j.result;
-        if(!res||!res.summary){ fail((j&&j.error)||'Could not draft \u2014 set the Anthropic API key in Admin, then try again.'); return; }
-        done();
-        ta.value=String(res.summary).trim(); ta.dispatchEvent(new Event('input',{bubbles:true}));
-        window.rrgSetRecPath(res.recommendation, res.why);
-        ta.focus();
-      })
-      .catch(function(){ fail('Could not reach the AI to draft the summary.'); });
+
+    // One-shot fallback — used if streaming is unavailable (older server) or fails before any text.
+    function legacy(){
+      fetch(API+'/api/ai/screening-summary',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+        .then(function(r){return r.json();})
+        .then(function(j){ var res=j&&j.ok&&j.result; if(!res||!res.summary){ fail((j&&j.error)||'Could not draft \u2014 set the Anthropic API key in Admin, then try again.'); return; } done(); ta.value=String(res.summary).trim(); ta.dispatchEvent(new Event('input',{bubbles:true})); window.rrgSetRecPath(res.recommendation, res.why); try{ ta.focus(); }catch(e){} })
+        .catch(function(){ fail('Could not reach the AI to draft the summary.'); });
+    }
+
+    // Stream first — text lands in the box within a second or two, no waiting on the whole draft.
+    // Everything before the first "@@" sentinel is the summary; the tail carries the call + why.
+    var _streamed=false;
+    function summaryOf(t){ return String(t).split('@@')[0].replace(/\s+$/,''); }
+    try{
+      fetch(API+'/api/ai/screening-summary-stream',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)})
+        .then(function(resp){
+          if(!resp.ok || !resp.body || !resp.body.getReader){ throw new Error('nostream'); }
+          var reader=resp.body.getReader(), decd=new TextDecoder(), full='';
+          function step(){ return reader.read().then(function(r){
+            if(r.done){
+              if(!_streamed){ if(/^\s*@@ERROR:/.test(full)){ legacy(); return; } legacy(); return; }
+              var summary=summaryOf(full).trim(); ta.value=summary; ta.dispatchEvent(new Event('input',{bubbles:true}));
+              var rec='', why=''; var mC=full.match(/@@CALL:\s*([^\n\r]*)/); if(mC) rec=mC[1].trim(); var mW=full.match(/@@WHY:\s*([\s\S]*)$/); if(mW) why=mW[1].trim();
+              done(); window.rrgSetRecPath(rec, why); try{ ta.focus(); }catch(e){}
+              return;
+            }
+            var chunk=decd.decode(r.value,{stream:true});
+            if(chunk){ full+=chunk;
+              if(!_streamed && /^\s*@@ERROR:/.test(full)){ try{ reader.cancel(); }catch(e){} legacy(); return; }
+              if(!_streamed){ _streamed=true; hideWork(); }
+              ta.value=summaryOf(full); ta.dispatchEvent(new Event('input',{bubbles:true}));
+            }
+            return step();
+          }); }
+          return step();
+        })
+        .catch(function(){ if(_streamed){ done(); } else { legacy(); } });
+    }catch(e){ legacy(); }
   };
   // Delegated so the button survives a custom assigned form re-rendering the questionnaire.
   document.addEventListener('click',function(ev){

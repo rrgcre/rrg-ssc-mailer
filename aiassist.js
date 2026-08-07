@@ -230,9 +230,9 @@ async function classifyConcepts({ items, conceptTypes, pricePoints, cuisines }) 
 }
 
 const SCREEN_RECS = ['Business Sale', 'Asset Sale', 'Nurture', 'Decline'];
-async function draftScreeningSummary({ data }) {
+function screeningSummaryPrompt({ data }) {
   const sys = 'You are an experienced restaurant and bar business broker at Restaurant Realty Group, writing the internal call summary immediately after screening a potential seller. '
-    + 'FIRST, write the call summary as TWO or THREE short paragraphs separated by a blank line (\\n\\n), in a direct broker voice: '
+    + 'FIRST, write the call summary as TWO or THREE short paragraphs separated by a blank line, in a direct broker voice: '
     + 'paragraph 1 - the operator and the business, their motivation and their timeline; '
     + 'paragraph 2 - the financial picture, and their valuation expectation with your read on how realistic it is; '
     + 'paragraph 3 - your read on whether this is a real lead worth working. '
@@ -243,12 +243,60 @@ async function draftScreeningSummary({ data }) {
     + 'NURTURE when the operator is a real prospect but not ready to move - motivated but early, the timing is off, or the financials still need to be assembled; we stay in touch and revisit the timeline. '
     + 'DECLINE when the deal cannot be delivered or is not worth our time - the lease is not assignable or the landlord will not transfer it, debt, liens, or litigation block a clean transfer, our contact is not the decision maker or is not actually motivated, the price expectation is far off with no room to move, or it is the wrong market or property type for us. '
     + 'THIRD, give one sentence of "why" naming the single fact that drove the call. '
-    + 'Return ONLY a JSON object: {"summary":"","recommendation":"Business Sale|Asset Sale|Nurture|Decline","why":""}';
+    + 'OUTPUT FORMAT - output exactly this, in this order, and NOTHING else: the summary paragraphs first; then a line reading exactly "@@CALL: X" where X is one of Business Sale, Asset Sale, Nurture, Decline; then a line reading exactly "@@WHY: " followed by your one sentence. Never use the characters "@@" anywhere inside the summary paragraphs. Do not output JSON.';
   const payload = { concept: (data && data.concept) || '', company: (data && data.company) || '', contact: (data && data.contact) || '', market: (data && data.market) || '', sections: (data && data.sections) || [] };
-  const out = await callClaude(sys, 'SCREENING ANSWERS (JSON):\n' + JSON.stringify(payload).slice(0, 16000), 800, FAST_MODEL);
-  const j = extractJson(out) || {};
-  const rec = SCREEN_RECS.find(a => a.toLowerCase() === String(j.recommendation || '').trim().toLowerCase()) || '';
-  return { summary: String(j.summary || out || '').trim(), recommendation: rec, why: String(j.why || '').trim() };
+  const user = 'SCREENING ANSWERS (JSON):\n' + JSON.stringify(payload).slice(0, 16000);
+  return { system: sys, user: user };
+}
+function parseScreeningOut(text) {
+  const t = String(text || '');
+  const summary = t.split('@@')[0].trim();
+  let rec = '', why = '';
+  const mC = t.match(/@@CALL:\s*([^\n\r]*)/); if (mC) rec = mC[1].trim();
+  const mW = t.match(/@@WHY:\s*([\s\S]*)$/); if (mW) why = mW[1].trim();
+  const recNorm = SCREEN_RECS.find(a => a.toLowerCase() === rec.toLowerCase()) || '';
+  return { summary: summary, recommendation: recNorm, why: why };
+}
+async function draftScreeningSummary({ data }) {
+  const p = screeningSummaryPrompt({ data });
+  const out = await callClaude(p.system, p.user, 800, FAST_MODEL);
+  const r = parseScreeningOut(out);
+  if (!r.summary) r.summary = String(out || '').trim();
+  return r;
+}
+// Streaming variant of callClaude: invokes onText(delta) for each text chunk and
+// returns the full text. Used so the rep sees the summary appear as it writes.
+async function streamClaude(system, userText, maxTokens, model, onText) {
+  const key = process.env.ANTHROPIC_API_KEY;
+  if (!key) throw new Error('AI is not configured - set the Anthropic API key in Admin -> Settings.');
+  const resp = await fetch(API_URL, {
+    method: 'POST',
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: model || MODEL, max_tokens: maxTokens || 1500, temperature: 0, stream: true,
+      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+      messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }],
+    }),
+  });
+  if (!resp.ok || !resp.body) { const t = await resp.text().catch(() => ''); throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 300)); }
+  const reader = resp.body.getReader(); const decoder = new TextDecoder();
+  let buf = '', full = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf('\n\n')) >= 0) {
+      const evt = buf.slice(0, idx); buf = buf.slice(idx + 2);
+      const lines = evt.split('\n');
+      for (const line of lines) {
+        const m = line.match(/^data:\s?(.*)$/); if (!m) continue;
+        const pl = m[1]; if (pl === '[DONE]') continue;
+        try { const j = JSON.parse(pl); if (j.type === 'content_block_delta' && j.delta && typeof j.delta.text === 'string') { full += j.delta.text; if (onText) onText(j.delta.text); } } catch (e) {}
+      }
+    }
+  }
+  return full;
 }
 // Build a call questionnaire from pasted text or an uploaded document. Returns the
 // app's form schema (categories of questions); every question carries a rep-facing
@@ -365,4 +413,4 @@ async function rewriteEmail({ text }) {
   const out = await callClaude(sys, 'EMAIL (may be HTML or plain text):\n' + String(text || '').slice(0, 8000), 1400);
   return String(out || '').trim();
 }
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, siteFitPrefill, rewriteEmail };
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, screeningSummaryPrompt, parseScreeningOut, streamClaude, FAST_MODEL, buildQuestionnaire, classifyRoomDocs, siteFitPrefill, rewriteEmail };
