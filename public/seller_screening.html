@@ -476,7 +476,8 @@
   window.addEventListener('beforeunload', function(){ try{ if(window.__scrPreview) return; if(window.__cgPark) window.__cgPark(); if(_CAN && _hasData() && navigator.sendBeacon){ var data=_collectData(); data.formType=window.RRG_MODE; navigator.sendBeacon(_apiBase()+window.RRG_SAVE_URL, new Blob([JSON.stringify(data)],{type:'application/json'})); } }catch(e){} });
 
   window.screenClose=function(){
-    var LOG='./rrg_screening_queue.html'; if(window.RRG_MODE==='valuation'){ var _pp=''; try{ _pp=(window.RRG_PARTY&&window.RRG_PARTY.personId)||new URLSearchParams(location.search).get('contactId')||''; }catch(e){} LOG=_pp?('./rrg_person.html?id='+encodeURIComponent(_pp)):'./index.html'; }
+    var _pp=''; try{ _pp=(window.RRG_PARTY&&window.RRG_PARTY.personId)||new URLSearchParams(location.search).get('contactId')||''; }catch(e){}
+    var LOG = _pp ? ('./rrg_person.html?id='+encodeURIComponent(_pp)) : (window.RRG_MODE==='valuation' ? './index.html' : './rrg_screening_queue.html');
     try{ if(window.rrgClearDraft) window.rrgClearDraft(); }catch(e){}
     if(!_CAN || !_hasData()){ location.href=LOG; return false; }
     var data=_collectData(); data.formType=window.RRG_MODE;
