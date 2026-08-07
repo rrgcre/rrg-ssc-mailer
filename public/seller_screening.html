@@ -1037,14 +1037,10 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     function _e(x){ return String(x==null?'':x).replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c];}); }
     try{ var cid=SSC.coId||(window.RRG_PARTY&&window.RRG_PARTY.companyId)||''; if((!SSC.concepts||!SSC.concepts.length)&&cid){ var _co=LIST.filter(function(x){return x.id===cid;})[0]; if(_co) SSC.concepts=(_co.conceptNames||[]).slice(); } }catch(e){}
     var opts=(SSC.concepts||[]);
-    Array.prototype.slice.call(document.querySelectorAll('select.conceptdd')).forEach(function(sel){
-      var cur=sel.value;
-      var html='<option value="">Select a concept\u2026</option>'+opts.map(function(n){ return '<option value="'+_e(n)+'">'+_e(n)+'</option>'; }).join('');
-      if(cur && opts.indexOf(cur)<0) html+='<option value="'+_e(cur)+'" selected>'+_e(cur)+'</option>';
-      sel.innerHTML=html; if(cur) sel.value=cur;
-    });
+    var html=opts.map(function(n){ return '<option value="'+_e(n)+'"></option>'; }).join('');
+    Array.prototype.slice.call(document.querySelectorAll('datalist.conceptdl')).forEach(function(dl){ dl.innerHTML=html; });
   };
-  document.addEventListener('mousedown',function(e){ var s=e.target&&e.target.closest&&e.target.closest('select.conceptdd'); if(s&&window.__refreshConceptDD) window.__refreshConceptDD(); },true);
+  document.addEventListener('focusin',function(e){ var s=e.target&&e.target.closest&&e.target.closest('input.conceptdd'); if(s&&window.__refreshConceptDD) window.__refreshConceptDD(); },true);
 })();
   _updateHeader();
 

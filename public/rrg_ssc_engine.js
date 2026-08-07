@@ -79,7 +79,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
   function reqstar(q){ return q.required?'<span class="req-star">*</span>':''; }
   function lab(q){ return '<label class="k">'+esc(q.label)+reqstar(q)+'</label>'; }
   function optcls(q){ var n=q.cols||2; return 'optcols'+(n>=4?' c4':(n===3?' c3':'')); }
-  var _OSET_N=0;
+  var _OSET_N=0, _CDN=0;
   function renderOptions(q){
     var cls='oset'+(q.full?' full':'')+(q.multi?'':' single')+' rowgap'+(q.required?'" data-req="1':'');
     var h='<div class="'+cls+'">'+lab(q)+'<div class="'+optcls(q)+'">';
@@ -95,7 +95,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     if(t==='instruction'||t==='note') return '<div class="field instrfield full rowgap" data-instr="1">'+lab(q)+'<div class="instrbody">'+esc(q.text||q.body||'').replace(/\n/g,'<br>')+'</div></div>';
     if(t==='company') return '<div class="field">'+lab(q)+'<div class="coauto2"><input type="text" class="req" id="sscCompany" autocomplete="off"><div class="cosug2" id="sscCosug" hidden></div></div></div>';
     if(t==='concept') return '<div class="field">'+lab(q)+'<div class="coauto2"><input type="text" id="sscConcept" autocomplete="off" placeholder="Pick or add a concept"><div class="cosug2" id="sscConceptSug" hidden></div></div></div>';
-    if(t==='conceptdd') return '<div class="field'+(q.full?' full':'')+'">'+lab(q)+'<select class="conceptdd'+(q.required?' req':'')+'"'+id+'><option value="">Select a concept\u2026</option></select></div>';
+    if(t==='conceptdd'){ var _dln='cdl'+(++_CDN); return '<div class="field'+(q.full?' full':'')+'">'+lab(q)+'<input type="text" class="conceptdd'+(q.required?' req':'')+'"'+id+' list="'+_dln+'" placeholder="Type or pick a concept" autocomplete="off"><datalist id="'+_dln+'" class="conceptdl"></datalist></div>'; }
     if(t==='contact') return '<div class="field">'+lab(q)+'<input type="text" class="req" id="sscContact" autocomplete="off"></div>';
     if(t==='rep') return '<div class="field">'+lab(q)+'<select class="req" id="repSelect"><option value="">Select…</option></select></div>';
     if(t==='date') return '<div class="field">'+lab(q)+'<input type="date" class="req" id="callDate"></div>';
