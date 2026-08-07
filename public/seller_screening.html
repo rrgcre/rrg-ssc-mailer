@@ -1107,6 +1107,8 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
       // picked-company id by design. The id the launcher handed us is still the right one.
       var _c0=q.get('companyId')||'';
       if(_c0) setTimeout(function(){ window.RRG_PARTY.companyId=String(_c0); },0);
+      // Launched from a contact — drop straight into Call Mode; the rep never sees the scrollable form.
+      try{ if(window.startCall && !window.__scrAuto){ window.__scrAuto=1; setTimeout(function(){ try{ window.startCall(); }catch(e){} }, 150); } }catch(e){}
     }
     Promise.all([repsReady, Promise.resolve(window.RRG_FORM_READY).catch(function(){})]).then(function(){
       if(contactId && (!pn || !pc)){
