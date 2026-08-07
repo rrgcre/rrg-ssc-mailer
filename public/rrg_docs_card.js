@@ -67,7 +67,7 @@
     var top=d.title||'Document';
     var sub=d.typeLabel||'';
     // Seller screening reads better with the call type on top and the concept + date beneath it.
-    if(d.kind==='seller'){ top=d.typeLabel||'Seller Screening'; sub=(d.title && d.title!==top)?d.title:''; }
+    if(d.kind==='seller'){ top=d.typeLabel||'Seller Screening'; var _cpt=d.concept||(d.title && d.title!==top?d.title:''); var _loc=d.location||d.market||''; sub=[_cpt,_loc].filter(Boolean).join(' \u00b7 '); }
     if(d.kind==='file' && d.size) sub+=(sub?' · ':'')+fmtSize(d.size);
     if(d.createdAt) sub+=(sub?' · ':'')+fmt(d.createdAt);
     var del=d.deleteUrl?('<button type="button" class="docdel" data-docdel="'+esc(d.id)+'" title="Delete">\u2715</button>'):'';

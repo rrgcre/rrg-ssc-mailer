@@ -9030,6 +9030,7 @@ app.get('/api/documents', (req, res) => {
         personId: s.personId||'', companyId: s.companyId||'',
         companyName: coNameById[s.companyId] || s.market || '',
         personName: nameById[s.personId] || s.contact || '',
+        concept: s.business || d.concept || '', location: d.address || '', market: s.market || d.market || '',
         dealName:'', relatesToName:'',
         status: s.becameListing ? (s.provisional ? 'Provisional Listing' : 'Live Listing') : ((s.callState === 'complete' || s.completed) ? 'Complete' : (s.callState === 'pending' ? 'Pending' : 'Live Call')),
         statusKey: s.becameListing ? (s.provisional ? 'provisional' : 'livelisting') : ((s.callState === 'complete' || s.completed) ? 'complete' : (s.callState === 'pending' ? 'pending' : 'live')),
@@ -9039,7 +9040,7 @@ app.get('/api/documents', (req, res) => {
     });
     let sellers = store.readAll().filter(r => r.form === 'seller' && !_seenFid[(r.data && r.data.formId) || '\u0000']);
     if (restrictToOwn(req)) sellers = sellers.filter(r => permOwnerMatch(req, r.rep));
-    sellers.forEach(r => { out.push({ id: r.timestamp, kind:'seller', title: r.name || 'Seller Screening', typeLabel:'Seller Screening', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', dealName:'', relatesToName:'', status: 'Submitted', statusKey:'seller', owner: r.rep || '', createdAt: r.timestamp || '', completePct: 100, completed: true, deleteUrl: '/api/document/seller/'+encodeURIComponent(r.timestamp), openUrl: '/api/seller/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
+    sellers.forEach(r => { out.push({ id: r.timestamp, kind:'seller', title: r.name || 'Seller Screening', typeLabel:'Seller Screening', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', concept:(r.data&&r.data.concept)||r.name||'', location:(r.data&&r.data.address)||'', market:r.market||(r.data&&r.data.market)||'', dealName:'', relatesToName:'', status: 'Submitted', statusKey:'seller', owner: r.rep || '', createdAt: r.timestamp || '', completePct: 100, completed: true, deleteUrl: '/api/document/seller/'+encodeURIComponent(r.timestamp), openUrl: '/api/seller/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
   } catch (e) {}
   try {
     let qsts = loadQuests().filter(q => isAdmin || ownsQuest(req, q));
