@@ -351,7 +351,11 @@
       // No built-in questionnaire. The call CONTEXT header (company, concept, contact, rep, date,
       // metro, address) is universal — render it now so its autofill / prefill / wiring binds at init,
       // then load only the assigned questionnaire's QUESTIONS beneath it (into #sscQ).
-      function drawQuestions(schema){ try{ var _q=document.getElementById('sscQ'); if(!_q){ draw(schema); return; } _q.innerHTML=RRG_FORMS.render({header:[], categories:(schema&&schema.categories)||[]}); window.RRG_ACTIVE_FORM=Object.assign({}, schema, {header:(window.RRG_FORMS&&RRG_FORMS.seller&&RRG_FORMS.seller.header)||[]}); if(RRG_FORMS.wireConditionals) RRG_FORMS.wireConditionals(); }catch(e){ console.error('questions render',e); } }
+      function drawQuestions(schema){ try{ var _q=document.getElementById('sscQ'); if(!_q){ draw(schema); return; } _q.innerHTML=RRG_FORMS.render({header:[], categories:(schema&&schema.categories)||[]});
+        // The AI close-out (Draft button, auto-draft, recommendation) keys off id="callNotes", which
+        // the builder can't produce. If the questionnaire has a summary field, tag it so it lights up.
+        try{ if(!_q.querySelector('#callNotes')){ var _tas=_q.querySelectorAll('textarea'), _sum=null; for(var _i=0;_i<_tas.length;_i++){ var _f=_tas[_i].closest('.field'); var _pp=(_f&&_f.getAttribute&&_f.getAttribute('data-prompt'))||''; var _lk=_f&&_f.querySelector('label.k'); var _ll=_lk?_lk.textContent:''; if(/summary|sentence summary|hit draft|draft to generate|call notes/i.test(_pp+' '+_ll)) _sum=_tas[_i]; } if(_sum) _sum.id='callNotes'; } }catch(e){}
+        window.RRG_ACTIVE_FORM=Object.assign({}, schema, {header:(window.RRG_FORMS&&RRG_FORMS.seller&&RRG_FORMS.seller.header)||[]}); if(RRG_FORMS.wireConditionals) RRG_FORMS.wireConditionals(); }catch(e){ console.error('questions render',e); } }
       var _stdHdr=(window.RRG_FORMS&&RRG_FORMS.seller&&RRG_FORMS.seller.header)||[];
       slot.innerHTML=RRG_FORMS.render({header:_stdHdr, categories:[]})+'<div id="sscQ"><div class="sscloading" style="padding:40px 22px;text-align:center;color:#8a93a8;font-size:14px">Loading questionnaire\u2026</div></div>';
       window.RRG_ACTIVE_FORM={header:_stdHdr, categories:[]};
