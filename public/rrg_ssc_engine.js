@@ -96,7 +96,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     if(t==='date') return '<div class="field">'+lab(q)+'<input type="date" class="req" id="callDate"></div>';
     if(t==='metro') return '<div class="field">'+lab(q)+'<select class="req" id="metroSelect"><option value="">Select…</option><option>Austin</option><option>Dallas</option><option>Houston</option><option>San Antonio</option><option>RGV</option><option>Other</option></select></div>';
     if(t==='readonly') return '<div class="field'+(q.full?' full rowgap':'')+'">'+lab(q)+'<input type="text"'+id+' readonly placeholder="'+esc(q.placeholder||'auto-calculated')+'" style="background:#f7f9fc"></div>';
-    if(t==='number') return '<div class="field">'+lab(q)+'<input type="number" min="0" step="1"'+id+' placeholder="months"></div>';
+    if(t==='number') return '<div class="field">'+lab(q)+'<input type="number" inputmode="numeric" min="0" step="1"'+id+' placeholder="months"></div>';
     if(t==='money') return '<div class="field'+(q.full?' full rowgap':'')+'">'+lab(q)+'<span class="madorn"><span class="ad-pre">$</span><input type="text" class="money'+(q.required?' req':'')+'" inputmode="numeric"'+id+'></span></div>';
     if(t==='range') return '<div class="field full rowgap rangefield">'+lab(q)+'<div class="rangewrap"><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric" placeholder="Amount / low"></span><span class="rangeto">to</span><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric" placeholder="High (optional)"></span></div></div>';
     if(t==='textarea') return '<div class="field'+(q.full?' full rowgap':'')+'">'+lab(q)+'<textarea'+(q.required?' class="req"':'')+id+(q.placeholder?(' placeholder="'+esc(q.placeholder)+'"'):'')+'></textarea></div>';
@@ -108,7 +108,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
   function partInput(p, id){
     var t=p.type||'text';
     if(t==='textarea') return '<textarea'+(id?(' id="'+id+'"'):'')+'></textarea>';
-    if(t==='number') return '<input type="number" min="0" step="1"'+(id?(' id="'+id+'"'):'')+'>';
+    if(t==='number') return '<input type="number" inputmode="numeric" min="0" step="1"'+(id?(' id="'+id+'"'):'')+'>';
     if(t==='money') return '<span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"'+(id?(' id="'+id+'"'):'')+'></span>';
     if(t==='date') return '<input type="date"'+(id?(' id="'+id+'"'):'')+'>';
     if(t==='email') return '<input type="text" class="email"'+(id?(' id="'+id+'"'):'')+'>';
