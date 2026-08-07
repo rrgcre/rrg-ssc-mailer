@@ -348,9 +348,13 @@
       var slot=document.getElementById("sscBody");
       function draw(schema){ try{ slot.innerHTML=RRG_FORMS.render(schema); window.RRG_ACTIVE_FORM=schema; if(RRG_FORMS.wireConditionals) RRG_FORMS.wireConditionals(); }catch(e){ console.error("form render",e); } }
       var _PREVIEW=false; try{ _PREVIEW=/[?&]preview=1/.test(location.search); }catch(e){}
-      // No built-in questionnaire (retired). Show a loading state — the outer #sscform stays,
-      // so autosave wiring keeps working via event bubbling — then render the assigned form.
-      slot.innerHTML='<div class="sscloading" style="padding:52px 22px;text-align:center;color:#8a93a8;font-size:14px">Loading questionnaire\u2026</div>';
+      // No built-in questionnaire. The call CONTEXT header (company, concept, contact, rep, date,
+      // metro, address) is universal — render it now so its autofill / prefill / wiring binds at init,
+      // then load only the assigned questionnaire's QUESTIONS beneath it (into #sscQ).
+      function drawQuestions(schema){ try{ var _q=document.getElementById('sscQ'); if(!_q){ draw(schema); return; } _q.innerHTML=RRG_FORMS.render({header:[], categories:(schema&&schema.categories)||[]}); window.RRG_ACTIVE_FORM=Object.assign({}, schema, {header:(window.RRG_FORMS&&RRG_FORMS.seller&&RRG_FORMS.seller.header)||[]}); if(RRG_FORMS.wireConditionals) RRG_FORMS.wireConditionals(); }catch(e){ console.error('questions render',e); } }
+      var _stdHdr=(window.RRG_FORMS&&RRG_FORMS.seller&&RRG_FORMS.seller.header)||[];
+      slot.innerHTML=RRG_FORMS.render({header:_stdHdr, categories:[]})+'<div id="sscQ"><div class="sscloading" style="padding:40px 22px;text-align:center;color:#8a93a8;font-size:14px">Loading questionnaire\u2026</div></div>';
+      window.RRG_ACTIVE_FORM={header:_stdHdr, categories:[]};
       if(_PREVIEW){
         // Builder "Test in Call Mode": render the unsaved form from storage, auto-run Call Mode, save NOTHING.
         window.__scrPreview=true;
@@ -364,7 +368,7 @@
           // Retry transient failures (e.g. a cold-start 502) so the assigned questionnaire
           // never silently falls back to the built-in just because the server was waking up.
           var _jget=function(url,tries){ tries=tries||8; return fetch(url,{credentials:"same-origin",cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }).catch(function(e){ if(tries<=1) throw e; return new Promise(function(res){ setTimeout(res,1500); }).then(function(){ return _jget(url,tries-1); }); }); };
-          var _noForm=function(msg){ if(slot) slot.innerHTML='<div class="sscloading" style="padding:52px 22px;text-align:center;color:#8a93a8;font-size:14px;line-height:1.65">'+msg+'</div>'; };
+          var _noForm=function(msg){ var _q=document.getElementById('sscQ'); var _h='<div class="sscloading" style="padding:52px 22px;text-align:center;color:#8a93a8;font-size:14px;line-height:1.65">'+msg+'</div>'; if(_q){ _q.innerHTML=_h; } else if(slot){ slot.innerHTML=_h; } };
           window.RRG_FORM_READY = _jget("/api/forms")
             .then(function(j){
               if(!j||!j.ok){ _noForm('Could not load the questionnaire. Refresh to try again.'); return; }
@@ -372,7 +376,7 @@
               var meta=(j.forms||[]).find(function(f){return f.id===id;});
               if(!id || !meta || meta.builtIn){ _noForm('No questionnaire is assigned to this call type yet.<br>Set one in <b>Settings \u2192 Call Questionnaires</b>.'); return; }
               return _jget("/api/form/"+encodeURIComponent(id))
-                .then(function(k){ if(k&&k.ok&&k.form){ draw(k.form); } else { _noForm('Could not load the assigned questionnaire. Refresh to try again.'); } });
+                .then(function(k){ if(k&&k.ok&&k.form){ drawQuestions(k.form); } else { _noForm('Could not load the assigned questionnaire. Refresh to try again.'); } });
             }).catch(function(){ _noForm('Could not load the questionnaire. Refresh to try again.'); });
         } catch(e){}
       }
