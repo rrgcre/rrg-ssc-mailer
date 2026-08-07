@@ -3,15 +3,17 @@
 // BOV/CIM generators. Requires env ANTHROPIC_API_KEY (admin-settable at runtime).
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
+// Fast model for short, latency-sensitive calls (e.g. the post-call screening summary).
+const FAST_MODEL = process.env.ANTHROPIC_MODEL_FAST || 'claude-haiku-4-5';
 
-async function callClaude(system, userText, maxTokens) {
+async function callClaude(system, userText, maxTokens, model) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('AI is not configured — set the Anthropic API key in Admin → Settings.');
   const resp = await fetch(API_URL, {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     body: JSON.stringify({
-      model: MODEL, max_tokens: maxTokens || 1500, temperature: 0,
+      model: model || MODEL, max_tokens: maxTokens || 1500, temperature: 0,
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }],
     }),
@@ -243,7 +245,7 @@ async function draftScreeningSummary({ data }) {
     + 'THIRD, give one sentence of "why" naming the single fact that drove the call. '
     + 'Return ONLY a JSON object: {"summary":"","recommendation":"Business Sale|Asset Sale|Nurture|Decline","why":""}';
   const payload = { concept: (data && data.concept) || '', company: (data && data.company) || '', contact: (data && data.contact) || '', market: (data && data.market) || '', sections: (data && data.sections) || [] };
-  const out = await callClaude(sys, 'SCREENING ANSWERS (JSON):\n' + JSON.stringify(payload).slice(0, 16000), 800);
+  const out = await callClaude(sys, 'SCREENING ANSWERS (JSON):\n' + JSON.stringify(payload).slice(0, 16000), 800, FAST_MODEL);
   const j = extractJson(out) || {};
   const rec = SCREEN_RECS.find(a => a.toLowerCase() === String(j.recommendation || '').trim().toLowerCase()) || '';
   return { summary: String(j.summary || out || '').trim(), recommendation: rec, why: String(j.why || '').trim() };
