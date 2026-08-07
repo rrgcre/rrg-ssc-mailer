@@ -79,10 +79,14 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
   function reqstar(q){ return q.required?'<span class="req-star">*</span>':''; }
   function lab(q){ return '<label class="k">'+esc(q.label)+reqstar(q)+'</label>'; }
   function optcls(q){ var n=q.cols||2; return 'optcols'+(n>=4?' c4':(n===3?' c3':'')); }
+  var _OSET_N=0;
   function renderOptions(q){
     var cls='oset'+(q.full?' full':'')+(q.multi?'':' single')+' rowgap'+(q.required?'" data-req="1':'');
     var h='<div class="'+cls+'">'+lab(q)+'<div class="'+optcls(q)+'">';
-    var om=q.optMeta||[]; (q.options||[]).forEach(function(o,i){ var m=om[i]||{}; var da=(m.k?' data-kill="1"':'')+(m.w?(' data-wt="'+m.w+'"'):'')+(m.n?(' data-nudge="'+esc(m.n)+'"'):''); h+='<label class="opt"><input type="checkbox"'+da+'>'+esc(o)+'</label>'; });
+    // Single-choice renders as native radios (one group name) so only one can ever be picked,
+    // with no reliance on a page-load script that misses dynamically-drawn custom forms.
+    var single=!q.multi; var gn='ro'+(++_OSET_N);
+    var om=q.optMeta||[]; (q.options||[]).forEach(function(o,i){ var m=om[i]||{}; var da=(m.k?' data-kill="1"':'')+(m.w?(' data-wt="'+m.w+'"'):'')+(m.n?(' data-nudge="'+esc(m.n)+'"'):''); var inp=single?('<input type="radio" name="'+gn+'"'+da+'>'):('<input type="checkbox"'+da+'>'); h+='<label class="opt">'+inp+esc(o)+'</label>'; });
     return h+'</div></div>';
   }
   function renderField(q){
