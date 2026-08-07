@@ -598,7 +598,7 @@
       date: header['call date']||'',
       startedAt: window.__sscStarted||'',
       finishedAt: new Date().toISOString(),
-      repEmail: (document.getElementById('clientEmail').value||'').trim(),
+      repEmail: ((document.getElementById('clientEmail')||{}).value||'').trim(),
       formQId: (window.RRG_ACTIVE_FORM && window.RRG_ACTIVE_FORM.id) || '',
       sections: sections,
       cardNotes: (function(){ var n=window.__cgNotes||{}, out=[]; Object.keys(n).forEach(function(k){ var v=n[k]; if(v && String(v.note||'').trim()) out.push({ label:v.label||'', note:String(v.note).trim() }); }); return out; })()
@@ -608,7 +608,7 @@
   // Fallback panel: shows the composed email for manual send (used when no backend is configured).
   function _openCopyPanel(){
     var cn=document.querySelector('#sscform input.req'); var concept=(cn&&cn.value.trim())||'Concept';
-    var rep=(document.getElementById('clientEmail').value||'').trim();
+    var rep=((document.getElementById('clientEmail')||{}).value||'').trim();
     var subject='Seller Screening \u2014 '+concept;
     var body=_collect();
     window.__lastMailto='mailto:'+encodeURIComponent(rep)+'?cc='+encodeURIComponent('van@rrgcre.com')+'&subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
@@ -675,7 +675,7 @@
     var _sn=''; try{ _sn=((new URLSearchParams(location.search).get('sellerName'))||'').trim().split(/\s+/)[0]||''; }catch(e){}
     if(window.rrgAiWork) window.rrgAiWork.show('\u2728 '+_ai+' here \u2014 give me a moment to review '+(_sn?('your call with '+_sn):'the call')+' and pull together the summary and a recommended next step\u2026');
     _introT=setTimeout(function(){ if(!_hid && window.rrgAiWork && window.rrgAiWork.setMsg) window.rrgAiWork.setMsg('Reading your answers, writing the summary, and calling the deal\u2026'); },1500);
-    var data=(window._collectData?window._collectData():{}); data.formType=window.RRG_MODE;
+    var data={}; try{ data=(window._collectData?window._collectData():{})||{}; }catch(e){ data={}; } data.formType=window.RRG_MODE;
 
     // Terminal guard — exactly one of {finalize, legacy, fail} runs; watchdogs always cleared.
     var _streamed=false, full='', _done2=false, _watch=null, _first=null, _ac=null;
@@ -697,8 +697,8 @@
     // Stream first — text lands within a second or two. The two hard caps below guarantee the orb
     // clears (and never blocks Submit behind it) even if a proxy holds the stream open with no bytes.
     try{ if(window.AbortController) _ac=new AbortController(); }catch(e){}
-    _first=setTimeout(function(){ if(_done2||_streamed) return; try{ if(_ac) _ac.abort(); }catch(e){} legacy(); },8000);
-    _watch=setTimeout(function(){ if(_done2) return; try{ if(_ac) _ac.abort(); }catch(e){} if(_streamed) finalize(); else legacy(); },35000);
+    _first=setTimeout(function(){ if(_done2||_streamed) return; try{ if(_ac) _ac.abort(); }catch(e){} legacy(); },20000);
+    _watch=setTimeout(function(){ if(_done2) return; try{ if(_ac) _ac.abort(); }catch(e){} if(_streamed) finalize(); else legacy(); },60000);
     try{
       var _opt={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}; if(_ac) _opt.signal=_ac.signal;
       fetch(API+'/api/ai/screening-summary-stream',_opt).then(function(resp){
@@ -790,7 +790,7 @@
     if(m.length){ _showBanner('Complete '+m.length+' required field'+(m.length>1?'s':'')+' (marked *) before submitting.'); if(m[0]&&m[0].scrollIntoView) m[0].scrollIntoView({behavior:'smooth',block:'center'}); cb(false,'invalid',m.length); return; }
     _hideBanner();
     var doIt=function(ok){ if(!ok){ cb(false,'cancel'); return; }
-      var data=_collectData(); data.formType=window.RRG_MODE; data.submitted=true;
+      var data; try{ data=_collectData(); }catch(e){ cb(false,'error'); return; } data.formType=window.RRG_MODE; data.submitted=true;
       var _so={method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)}; try{ if(window.AbortSignal&&AbortSignal.timeout) _so.signal=AbortSignal.timeout(20000); }catch(e){}
       fetch(_apiBase()+window.RRG_SAVE_URL,_so)
         .then(function(r){return r.json();}).then(function(j){ cb(true,'ok',0,(j&&j.actions)||null); })
