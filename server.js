@@ -3316,6 +3316,24 @@ function applyBizSaleOutcome(req, rec) {
         _cur.updatedAt = new Date().toISOString(); _ov['s_' + rec.id] = _cur; saveAssignOverlay(_ov);
       }
     } catch (e) {}
+    // Log the outcome to the seller's Activity Log — date is stamped by logActivity, call length in the note.
+    try {
+      const _pid = rec.personId || rec.contactPersonId || '';
+      if (_pid) {
+        const _ppl = loadPeople(); const _person = _ppl.find(x => x.id === _pid);
+        if (_person) {
+          const _d = (typeof rec.durationSeconds === 'number' && rec.durationSeconds > 0) ? rec.durationSeconds : null;
+          const _dtxt = _d ? (Math.floor(_d / 60) + 'm ' + (_d % 60) + 's') : '';
+          const _note = 'Seller Screening Call \u2014 Business Sale. Provisional listing created'
+            + ((room && !hadRoom) ? ', data room set up' : (room ? ', data room ready' : ''))
+            + (pipeName ? (', routed to the ' + pipeName + ' pipeline') : '') + '.'
+            + (_dtxt ? (' Call length: ' + _dtxt + '.') : '');
+          const _adate = String(rec.completedAt || rec.createdAt || '').slice(0, 10);
+          logActivity(_person, 'Call', _note, { date: _adate, auto: true, by: (req.user && req.user.name) || rec.by || '', byUser: (req.user && req.user.username) || rec.byUser || '' });
+          savePeople(_ppl);
+        }
+      }
+    } catch (e) {}
     if (!rec.listingAt) rec.listingAt = new Date().toISOString();
 
     return {
