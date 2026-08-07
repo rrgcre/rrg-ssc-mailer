@@ -646,10 +646,13 @@
   // option in the Deal Call question and shows the AI's rationale beneath it.
   window.rrgSetRecPath=function(rec,why){
     var map={ 'business sale':'Business Sale','asset sale':'Asset Sale','nurture':'Nurture','decline':'Decline','pass':'Decline' };
-    var target=map[String(rec||'').trim().toLowerCase()]||'';
+    // Match the outcome by keyword (mirrors the server), so custom labels like
+    // "Advance as Business Sale" / "Advance as Asset Sale" still pre-select correctly.
+    var kw={ 'business sale':/business sale/, 'asset sale':/asset sale/, 'nurture':/nurture/, 'decline':/decline|pass/, 'pass':/decline|pass/ };
+    var key=String(rec||'').trim().toLowerCase(); var target=map[key]||''; var re=kw[key]||null;
     var oset=null, all=document.querySelectorAll('#sscform .oset');
-    for(var i=0;i<all.length;i++){ var k=all[i].querySelector('label.k'); if(k && /deal call/i.test(k.textContent||'')){ oset=all[i]; break; } }
-    if(oset && target){ [].slice.call(oset.querySelectorAll('label.opt')).forEach(function(l){ var inp=l.querySelector('input'); if(!inp) return; if((l.textContent||'').trim().toLowerCase()===target.toLowerCase()){ inp.checked=true; inp.dispatchEvent(new Event('change',{bubbles:true})); } }); }
+    for(var i=0;i<all.length;i++){ var k=all[i].querySelector('label.k'); var kt=(k&&k.textContent)||''; var ot=(all[i].textContent||'').toLowerCase(); if(/deal call|lead status/i.test(kt) || (/nurture/.test(ot) && /(business sale|asset sale|advance|decline|pass)/.test(ot))){ oset=all[i]; break; } }
+    if(oset && re){ [].slice.call(oset.querySelectorAll('label.opt')).forEach(function(l){ var inp=l.querySelector('input'); if(!inp) return; if(re.test((l.textContent||'').toLowerCase())){ inp.checked=true; inp.dispatchEvent(new Event('change',{bubbles:true})); } }); }
     if(oset){ var w=oset.querySelector('.recwhy'); if(!w){ w=document.createElement('div'); w.className='recwhy'; w.style.cssText='grid-column:1/-1;font-size:12.5px;color:#5a6478;margin-top:8px;line-height:1.5;border-left:3px solid #DA2B1F;padding-left:10px'; oset.appendChild(w); } w.textContent=why?('AI read: '+why):''; w.style.display=why?'block':'none'; }
     window.__scrRec={ outcome:target, why:why||'' };   // reflect the suggestion on the summary card too
     if(window.__cgShowSuggest){ try{ window.__cgShowSuggest(); }catch(e){} }
