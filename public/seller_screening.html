@@ -357,7 +357,7 @@
         // The AI close-out (Draft button, auto-draft, recommendation) keys off id="callNotes", which
         // the builder can't produce. If the questionnaire has a summary field, tag it so it lights up.
         try{ if(!_q.querySelector('#callNotes')){ var _tas=_q.querySelectorAll('textarea'), _sum=null; for(var _i=0;_i<_tas.length;_i++){ var _f=_tas[_i].closest('.field'); var _pp=(_f&&_f.getAttribute&&_f.getAttribute('data-prompt'))||''; var _lk=_f&&_f.querySelector('label.k'); var _ll=_lk?_lk.textContent:''; if(/summary|sentence summary|hit draft|draft to generate|call notes/i.test(_pp+' '+_ll)) _sum=_tas[_i]; } if(_sum) _sum.id='callNotes'; } }catch(e){}
-        window.RRG_ACTIVE_FORM=Object.assign({}, schema, {header:(window.RRG_FORMS&&RRG_FORMS.seller&&RRG_FORMS.seller.header)||[]}); if(RRG_FORMS.wireConditionals) RRG_FORMS.wireConditionals(); }catch(e){ console.error('questions render',e); } }
+        window.RRG_ACTIVE_FORM=Object.assign({}, schema, {header:(window.RRG_FORMS&&RRG_FORMS.seller&&RRG_FORMS.seller.header)||[]}); if(RRG_FORMS.wireConditionals) RRG_FORMS.wireConditionals(); try{ if(window.__refreshConceptDD) window.__refreshConceptDD(); }catch(_e){} }catch(e){ console.error('questions render',e); } }
       var _stdHdr=(window.RRG_FORMS&&RRG_FORMS.seller&&RRG_FORMS.seller.header)||[];
       slot.innerHTML=RRG_FORMS.render({header:_stdHdr, categories:[]})+'<div id="sscQ"><div class="sscloading" style="padding:40px 22px;text-align:center;color:#8a93a8;font-size:14px">Loading questionnaire\u2026</div></div>';
       window.RRG_ACTIVE_FORM={header:_stdHdr, categories:[]};
@@ -1015,7 +1015,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
   var ci=document.getElementById('sscCompany'), cs=document.getElementById('sscCosug');
   function cclose(){ if(cs){ cs.setAttribute('hidden',''); cs.innerHTML=''; } }
   if(ci&&cs){
-    ci.addEventListener('input',function(){ SSC.coId=''; window.RRG_PARTY.companyId=''; SSC.concepts=[]; if(document.activeElement!==ci){ cclose(); return; } var q=ci.value.trim(); var ms=q?match(q):[]; if(!ms.length){ cclose(); return; } cs.innerHTML=ms.map(function(c){ return '<div class="cosug2row" data-id="'+e2(c.id)+'" data-nm="'+e2(c.name)+'">'+e2(c.name)+'</div>'; }).join(''); cs.removeAttribute('hidden'); cs.querySelectorAll('.cosug2row').forEach(function(r){ r.addEventListener('mousedown',function(ev){ ev.preventDefault(); ci.value=r.getAttribute('data-nm'); SSC.coId=r.getAttribute('data-id'); window.RRG_PARTY.companyId=SSC.coId||''; if(window.__afterPartyPick) window.__afterPartyPick(); var co=LIST.filter(function(x){return x.id===SSC.coId;})[0]; SSC.concepts=(co&&co.conceptNames)||[]; if(co){ if(co.address) setByLabel(['business address'], co.address); var _md=co.market||(co.markets&&co.markets[0])||''; if(_md){ var _ms=document.getElementById('metroSelect'); if(_ms){ var _op=[].slice.call(_ms.options).filter(function(o){return o.value.toLowerCase()===String(_md).toLowerCase();})[0]; _ms.value=_op?_op.value:'Other'; _ms.dispatchEvent(new Event('change',{bubbles:true})); } } } cclose(); ci.dispatchEvent(new Event('input',{bubbles:true})); var pin=document.getElementById('sscConcept'); if(pin){ pin.placeholder=SSC.concepts.length?('Pick or add a concept ('+SSC.concepts.length+' on file)'):'Add a concept'; } }); }); });
+    ci.addEventListener('input',function(){ SSC.coId=''; window.RRG_PARTY.companyId=''; SSC.concepts=[]; if(document.activeElement!==ci){ cclose(); return; } var q=ci.value.trim(); var ms=q?match(q):[]; if(!ms.length){ cclose(); return; } cs.innerHTML=ms.map(function(c){ return '<div class="cosug2row" data-id="'+e2(c.id)+'" data-nm="'+e2(c.name)+'">'+e2(c.name)+'</div>'; }).join(''); cs.removeAttribute('hidden'); cs.querySelectorAll('.cosug2row').forEach(function(r){ r.addEventListener('mousedown',function(ev){ ev.preventDefault(); ci.value=r.getAttribute('data-nm'); SSC.coId=r.getAttribute('data-id'); window.RRG_PARTY.companyId=SSC.coId||''; if(window.__afterPartyPick) window.__afterPartyPick(); var co=LIST.filter(function(x){return x.id===SSC.coId;})[0]; SSC.concepts=(co&&co.conceptNames)||[]; if(window.__refreshConceptDD) window.__refreshConceptDD(); if(co){ if(co.address) setByLabel(['business address'], co.address); var _md=co.market||(co.markets&&co.markets[0])||''; if(_md){ var _ms=document.getElementById('metroSelect'); if(_ms){ var _op=[].slice.call(_ms.options).filter(function(o){return o.value.toLowerCase()===String(_md).toLowerCase();})[0]; _ms.value=_op?_op.value:'Other'; _ms.dispatchEvent(new Event('change',{bubbles:true})); } } } cclose(); ci.dispatchEvent(new Event('input',{bubbles:true})); var pin=document.getElementById('sscConcept'); if(pin){ pin.placeholder=SSC.concepts.length?('Pick or add a concept ('+SSC.concepts.length+' on file)'):'Add a concept'; } }); }); });
     ci.addEventListener('blur',function(){ setTimeout(cclose,160); });
   }
 
@@ -1029,6 +1029,19 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     pi.addEventListener('focus',openConcept);
     pi.addEventListener('blur',function(){ setTimeout(pclose,160); });
   }
+  // Fill any Concept-dropdown fields (builder type 'conceptdd') from the selected company's concepts.
+  window.__refreshConceptDD=function(){
+    function _e(x){ return String(x==null?'':x).replace(/[&<>\"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;'}[c];}); }
+    try{ var cid=SSC.coId||(window.RRG_PARTY&&window.RRG_PARTY.companyId)||''; if((!SSC.concepts||!SSC.concepts.length)&&cid){ var _co=LIST.filter(function(x){return x.id===cid;})[0]; if(_co) SSC.concepts=(_co.conceptNames||[]).slice(); } }catch(e){}
+    var opts=(SSC.concepts||[]);
+    Array.prototype.slice.call(document.querySelectorAll('select.conceptdd')).forEach(function(sel){
+      var cur=sel.value;
+      var html='<option value="">Select a concept\u2026</option>'+opts.map(function(n){ return '<option value="'+_e(n)+'">'+_e(n)+'</option>'; }).join('');
+      if(cur && opts.indexOf(cur)<0) html+='<option value="'+_e(cur)+'" selected>'+_e(cur)+'</option>';
+      sel.innerHTML=html; if(cur) sel.value=cur;
+    });
+  };
+  document.addEventListener('mousedown',function(e){ var s=e.target&&e.target.closest&&e.target.closest('select.conceptdd'); if(s&&window.__refreshConceptDD) window.__refreshConceptDD(); },true);
 })();
   _updateHeader();
 
