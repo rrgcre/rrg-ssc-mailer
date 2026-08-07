@@ -1149,7 +1149,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
         contactId=q.get('contactId')||q.get('contact')||'';
     if(!pn && !pc && !pm && !pa && !contactId) return;
     function fill(){
-      if(pc) setByLabel(['company name','business name','company'], pc);
+      if(pc){ setByLabel(['company name','business name','company'], pc); var _cf=document.getElementById('sscCompany'); if(_cf && !String(_cf.value||'').trim()){ _cf.value=pc; try{ _cf.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){} } }
       if(pn) setByLabel(['seller contact name','contact name','seller name'], pn);
       if(pn){ var _cel=document.getElementById('sscContact'); if(_cel){ _cel.value=pn; try{ _cel.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){} } }
       if(pa) setByLabel(['business address','address'], pa);
@@ -1169,11 +1169,11 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     }
     Promise.all([repsReady, Promise.resolve(window.RRG_FORM_READY).catch(function(){})]).then(function(){
       if(contactId && (!pn || !pc)){
-        fetch(API+'/api/contact/'+encodeURIComponent(contactId),{credentials:'same-origin'})
+        fetch(API+'/api/person/'+encodeURIComponent(contactId),{credentials:'same-origin'})
           .then(function(r){return r.json();})
-          .then(function(j){ var c=j&&j.ok&&j.contact;
+          .then(function(j){ var c=j&&j.ok&&j.person;
             if(c){ if(!pn) pn=(((c.firstName||'')+' '+(c.lastName||'')).trim())||c.name||'';
-                   if(!pc) pc=c.company||''; }
+                   if(!pc) pc=c.company||c.companyName||''; }
             fill();
             if(c && c.companyId) setTimeout(function(){ if(!window.RRG_PARTY.companyId) window.RRG_PARTY.companyId=String(c.companyId); },0); })
           .catch(fill);
