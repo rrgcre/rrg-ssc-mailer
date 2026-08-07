@@ -34,7 +34,8 @@
       +'.rl-colopt:hover{background:#f4f7fb}'
       +'.rl-colopt input{width:15px;height:15px;cursor:pointer;accent-color:var(--red,#DA2B1F)}'
       +'.rl-colhint{font-size:11px;color:#98a1b5;padding:7px 9px 3px;border-top:1px solid #eef1f6;margin-top:5px}'
-      +'.rl-bulk{display:flex;align-items:center;gap:10px;background:#fff5f4;border:1px solid #f0cfca;border-radius:9px;padding:7px 12px;margin:0 0 12px;font-size:12.5px}'
+      +'.rl-mount{position:relative}'
+      +'.rl-bulk{position:absolute;top:0;left:0;z-index:5;display:flex;align-items:center;gap:10px;background:#fff5f4;border:1px solid #f0cfca;border-radius:9px;padding:6px 12px;margin:0;font-size:12.5px}'
       +'.rl-bulk b{color:var(--navy,#000E31)}'
       +'.rl-bulk button{font:inherit;font-size:12px;font-weight:800;padding:6px 12px;border-radius:7px;border:1px solid #cfd6e2;background:#fff;color:#0b1a3a;cursor:pointer}'
       +'.rl-bulk button.danger{background:var(--red,#DA2B1F);border-color:var(--red,#DA2B1F);color:#fff}'
@@ -101,6 +102,7 @@
     injectStyle();
     var mount = typeof opts.mount==='string' ? $(opts.mount) : opts.mount;
     if(!mount) return { refresh:function(){}, };
+    try{ mount.classList.add('rl-mount'); }catch(e){}
     var countEl = opts.countEl ? (typeof opts.countEl==='string'?$(opts.countEl):opts.countEl) : null;
     var cols = opts.columns||[];
     var rowId = opts.rowId || function(it,i){ return String(i); };
