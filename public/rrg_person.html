@@ -1105,23 +1105,27 @@ load();
 (function(){
   var ACTIONS=[
     {t:'Start Seller Screening Call', f:function(){ var nm=encodeURIComponent((typeof P!=='undefined'&&P&&P.name)||''); var co=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''); var mk=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.market)||''); var ad=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.address)||''); var pid=encodeURIComponent((typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''); var cid=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.id)||''); location.href='./seller_screening.html?sellerName='+nm+'&company='+co+'&market='+mk+'&address='+ad+'&contactId='+pid+'&companyId='+cid; }},
-    {t:'Upload Files to Data Room', f:function(){ var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid2=(typeof CO!=='undefined'&&CO&&CO.id)||''; var biz=(typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||(typeof P!=='undefined'&&P&&P.name)||''; if(!pid&&!cid2){ alert('No contact on this record.'); return; } fetch('/api/valuation-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid2,business:biz})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id){ location.href='./rrg_room.html?room='+encodeURIComponent(j.id); } else { alert((j&&j.error)||'Could not open a data room.'); } }).catch(function(){ alert('Could not open a data room.'); }); } },
-    {t:'Start Valuation Call', f:function(){ var nm=encodeURIComponent((typeof P!=='undefined'&&P&&P.name)||''); var co=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''); var mk=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.market)||''); var ad=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.address)||''); var pid=encodeURIComponent((typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''); var cid=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.id)||''); location.href='./seller_screening.html?valuation=1&sellerName='+nm+'&company='+co+'&market='+mk+'&address='+ad+'&contactId='+pid+'&companyId='+cid; }},
+    {t:'Upload Files to Data Room', lock:'screen', f:function(){ var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid2=(typeof CO!=='undefined'&&CO&&CO.id)||''; var biz=(typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||(typeof P!=='undefined'&&P&&P.name)||''; if(!pid&&!cid2){ alert('No contact on this record.'); return; } fetch('/api/valuation-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid2,business:biz})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id){ location.href='./rrg_room.html?room='+encodeURIComponent(j.id); } else { alert((j&&j.error)||'Could not open a data room.'); } }).catch(function(){ alert('Could not open a data room.'); }); } },
+    {t:'Start Valuation Call', lock:'screen', f:function(){ var nm=encodeURIComponent((typeof P!=='undefined'&&P&&P.name)||''); var co=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''); var mk=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.market)||''); var ad=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.address)||''); var pid=encodeURIComponent((typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''); var cid=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.id)||''); location.href='./seller_screening.html?valuation=1&sellerName='+nm+'&company='+co+'&market='+mk+'&address='+ad+'&contactId='+pid+'&companyId='+cid; }},
     {t:'Generate Valuation (BOV)', f:function(){ var v=window.__valReady||{}; if(!v.ready){ var _miss=(v.missing&&v.missing.slice())||[]; if(_miss.length===1&&_miss[0]==='Lease'){ if(window.confirm('Only the lease is missing. If this business has no lease, open the data room and tick "No lease" in the Lease folder. Open it now?')){ var _pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var _cid=(typeof CO!=='undefined'&&CO&&CO.id)||''; fetch('/api/valuation-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:_pid,companyId:_cid})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id) location.href='./rrg_room.html?room='+encodeURIComponent(j.id); }); } return; } var _m='Not ready yet — needs: '+(_miss.join(', ')||'financials, lease'); if(window.rrgToast) rrgToast(_m); else alert(_m); return; } var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid2=(typeof CO!=='undefined'&&CO&&CO.id)||''; if(v.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(v.bovId); } else { fetch('/api/valuation-ensure',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid2})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(j.bovId); } else { alert((j&&j.error)||'Could not open the valuation.'); } }).catch(function(){ alert('Could not reach the server.'); }); } } }
   ]
+  function _rrgActItem(re){ try{ return Array.prototype.slice.call(document.querySelectorAll('#rrgActionsMenu .rrgactitem')).filter(function(b){return re.test(b.textContent);})[0]||null; }catch(_){ return null; } }
+  function _rrgSetGate(el,dim,sub){ if(!el) return; var sb=el.querySelector('.rrgactsub'); if(!sb){ sb=document.createElement('div'); sb.className='rrgactsub'; el.appendChild(sb); } if(dim){ el.classList.add('rrgactdim'); } else { el.classList.remove('rrgactdim'); } sb.textContent=sub||''; }
   function refreshValuation(){
-    var el=null; try{ el=Array.prototype.slice.call(document.querySelectorAll('#rrgActionsMenu .rrgactitem')).filter(function(b){return /Generate Valuation/.test(b.textContent);})[0]; }catch(_){}
-    if(!el) return;
-    var sb=el.querySelector('.rrgactsub'); if(!sb){ sb=document.createElement('div'); sb.className='rrgactsub'; el.appendChild(sb); }
-    el.classList.add('rrgactdim'); sb.textContent='Checking inputs…';
+    var elV=_rrgActItem(/Generate Valuation/), elU=_rrgActItem(/Upload Files to Data Room/), elC=_rrgActItem(/Start Valuation Call/);
+    // Everything but the first action (Start Seller Screening) starts dim until it's earned.
+    _rrgSetGate(elV,true,'Checking inputs…'); _rrgSetGate(elU,true,'Checking…'); _rrgSetGate(elC,true,'Checking…');
+    function openAll(){ _rrgSetGate(elU,false,''); _rrgSetGate(elC,false,''); _rrgSetGate(elV,false,''); }   // fail open — never lock the broker out on an error
     var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid=(typeof CO!=='undefined'&&CO&&CO.id)||'';
-    if(!pid&&!cid) return;
+    if(!pid&&!cid){ openAll(); return; }
     fetch('/api/valuation-readiness?personId='+encodeURIComponent(pid)+'&companyId='+encodeURIComponent(cid),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-      if(!j||!j.ok) return;
+      if(!j||!j.ok){ openAll(); return; }
+      var scr=!!j.questionnaire;   // a seller screening on file unlocks the deeper steps
+      _rrgSetGate(elU, !scr, scr?'':'Run a seller screening first'); _rrgSetGate(elC, !scr, scr?'':'Run a seller screening first');
       var miss=[]; if(!j.questionnaire) miss.push('Questionnaire'); if(!j.financials) miss.push('Financials'); if(!j.lease) miss.push('Lease');
-      if(j.ready){ el.classList.remove('rrgactdim'); sb.textContent='Ready — all three inputs in'; window.__valReady={ready:true,bovId:j.bovId||''}; }
-      else { el.classList.add('rrgactdim'); sb.textContent='Needs: '+miss.join(', '); window.__valReady={ready:false,missing:miss}; }
-    }).catch(function(){});
+      if(j.ready){ _rrgSetGate(elV,false,'Ready — all three inputs in'); window.__valReady={ready:true,bovId:j.bovId||''}; }
+      else { _rrgSetGate(elV,true,'Needs: '+miss.join(', ')); window.__valReady={ready:false,missing:miss}; }
+    }).catch(function(){ openAll(); });
   }
   function install(create){
     if(document.getElementById("rrgActionsWrap")) return;
@@ -1134,7 +1138,7 @@ load();
     try{refreshValuation();}catch(_){}
     function close(){ menu.style.display="none"; }
     btn.addEventListener("click",function(e){ e.stopPropagation(); var _sw=(menu.style.display==="none"); menu.style.display=(_sw?"block":"none"); if(_sw){ try{refreshValuation();}catch(_){} } });
-    menu.addEventListener("click",function(e){ var b=e.target.closest(".rrgactitem"); if(!b) return; var i=+b.getAttribute("data-i"); close(); var a=ACTIONS[i]; if(a&&a.f) try{ a.f(); }catch(err){} });
+    menu.addEventListener("click",function(e){ var b=e.target.closest(".rrgactitem"); if(!b) return; var i=+b.getAttribute("data-i"); var a=ACTIONS[i]; if(a&&a.lock==='screen'&&b.classList.contains('rrgactdim')){ if(window.rrgToast) rrgToast('Run a seller screening first — then this unlocks.'); else alert('Run a seller screening first — then this unlocks.'); return; } close(); if(a&&a.f) try{ a.f(); }catch(err){} });
     document.addEventListener("click",function(e){ if(!wrap.contains(e.target)) close(); });
   }
   var tries=0; (function w(){ var c=document.querySelector("#rrgtop .create"); if(c){ install(c); return; } if(tries++<50) setTimeout(w,120); })();

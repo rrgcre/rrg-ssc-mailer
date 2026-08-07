@@ -1216,7 +1216,14 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
   };
   function norm(s){ return String(s||'').replace(/[*]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
   function labelOf(el){ var l=el.querySelector('label.k'); if(!l) return ''; var c=l.cloneNode(true); c.querySelectorAll('.req-star,.hint,button').forEach(function(x){x.remove();}); return c.textContent.trim(); }
-  function computeSteps(){ return Array.prototype.slice.call(form.querySelectorAll('.field, .oset')).filter(function(el){ if(el.getAttribute && el.getAttribute('data-instr')==='1') return true; var inp=el.querySelector('input,textarea,select'); if(!inp) return false; if(el.classList.contains('field')){ var editable=Array.prototype.slice.call(el.querySelectorAll('input,textarea,select')).some(function(x){return !x.readOnly && x.type!=='hidden';}); if(!editable) return false; } return true; }); }
+  function computeSteps(){ var arr=Array.prototype.slice.call(form.querySelectorAll('.field, .oset')).filter(function(el){ if(el.getAttribute && el.getAttribute('data-instr')==='1') return true; var inp=el.querySelector('input,textarea,select'); if(!inp) return false; if(el.classList.contains('field')){ var editable=Array.prototype.slice.call(el.querySelectorAll('input,textarea,select')).some(function(x){return !x.readOnly && x.type!=='hidden';}); if(!editable) return false; } return true; });
+    // Close-out ordering: the AI summary/draft card must land immediately before the 4-outcome
+    // Deal Call selection, however the questionnaire happens to be authored. Only reorders when both exist.
+    try{ var sumEl=null,outEl=null,i; for(i=0;i<arr.length;i++){ if(!sumEl && arr[i].querySelector && arr[i].querySelector('#callNotes')) sumEl=arr[i]; }
+      for(i=0;i<arr.length;i++){ var o=arr[i]; if(o.classList && o.classList.contains('oset')){ var k=o.querySelector('label.k'); if(k && /deal call/i.test(k.textContent||'')){ outEl=o; break; } } }
+      if(!outEl){ for(i=0;i<arr.length;i++){ var o2=arr[i]; if(o2.classList && o2.classList.contains('oset')){ var tx=(o2.textContent||'').toLowerCase(); if(tx.indexOf('business sale')>-1 && tx.indexOf('asset sale')>-1 && tx.indexOf('decline')>-1){ outEl=o2; break; } } } }
+      if(sumEl && outEl){ arr=arr.filter(function(e){ return e!==sumEl && e!==outEl; }); arr.push(sumEl); arr.push(outEl); } }catch(e){}
+    return arr; }
   var steps=computeSteps();
   var idx=0, active=false, known=[];
   // A question we already have an answer for (prefilled from the contact/company record,
