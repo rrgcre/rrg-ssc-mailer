@@ -9042,7 +9042,7 @@ app.get('/api/documents', (req, res) => {
       if (s.formId) _seenFid[s.formId] = 1;
       const pct = (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0));
       const title = (s.business && s.business !== 'Seller') ? s.business : (d.company || s.contact || 'Seller Screening');
-      out.push({ id: s.id, kind:'seller', title: title, typeLabel:'Seller Screening',
+      out.push({ id: s.id, kind:'seller', title: title, typeLabel:'Seller Screening Call',
         matchNames:[s.business||'', d.company||'', s.contact||''],
         personId: s.personId||'', companyId: s.companyId||'',
         companyName: coNameById[s.companyId] || s.market || '',
@@ -9057,7 +9057,7 @@ app.get('/api/documents', (req, res) => {
     });
     let sellers = store.readAll().filter(r => r.form === 'seller' && !_seenFid[(r.data && r.data.formId) || '\u0000']);
     if (restrictToOwn(req)) sellers = sellers.filter(r => permOwnerMatch(req, r.rep));
-    sellers.forEach(r => { out.push({ id: r.timestamp, kind:'seller', title: r.name || 'Seller Screening', typeLabel:'Seller Screening', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', concept:(r.data&&r.data.concept)||r.name||'', location:(r.data&&r.data.address)||'', market:r.market||(r.data&&r.data.market)||'', dealName:'', relatesToName:'', status: 'Submitted', statusKey:'seller', owner: r.rep || '', createdAt: r.timestamp || '', completePct: 100, completed: true, deleteUrl: '/api/document/seller/'+encodeURIComponent(r.timestamp), openUrl: '/api/seller/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
+    sellers.forEach(r => { out.push({ id: r.timestamp, kind:'seller', title: r.name || 'Seller Screening', typeLabel:'Seller Screening Call', matchNames:[r.name||'', (r.data&&r.data.company)||'', (r.data&&r.data.contact)||''], personId:(r.data&&r.data.personId)||'', companyId:(r.data&&r.data.companyId)||'', companyName: coNameById[r.data&&r.data.companyId] || r.market||'', personName: nameById[r.data&&r.data.personId]||'', concept:(r.data&&r.data.concept)||r.name||'', location:(r.data&&r.data.address)||'', market:r.market||(r.data&&r.data.market)||'', dealName:'', relatesToName:'', status: 'Submitted', statusKey:'seller', owner: r.rep || '', createdAt: r.timestamp || '', completePct: 100, completed: true, deleteUrl: '/api/document/seller/'+encodeURIComponent(r.timestamp), openUrl: '/api/seller/'+encodeURIComponent(r.timestamp)+'/view', downloadUrl:'' }); });
   } catch (e) {}
   try {
     let qsts = loadQuests().filter(q => isAdmin || ownsQuest(req, q));
@@ -9144,7 +9144,7 @@ app.get('/api/seller/:key/view', (req, res) => {
   const rec = store.readAll().filter(r => r.form === 'seller' && r.timestamp === String(req.params.key||''))[0];
   if (!rec) return res.status(404).send('Not found.');
   if (restrictToOwn(req) && !permOwnerMatch(req, rec.rep)) return res.status(403).send('Not authorized.');
-  res.set('Content-Type','text/html; charset=utf-8').send(intakeViewHtml(rec, 'Seller Screening'));
+  res.set('Content-Type','text/html; charset=utf-8').send(intakeViewHtml(rec, 'Seller Screening Call'));
 });
 
 // Read-only Q&A view of a seller screening call (opens from the document lists).
@@ -9154,7 +9154,7 @@ app.get('/api/screening/:id/view', (req, res) => {
   if (restrictToOwn(req) && !ownsScreen(req, s)) return res.status(403).send('Not authorized.');
   const pct = (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0));
   const rec = { data: s.data || {}, name: (s.business && s.business !== 'Seller') ? s.business : (s.contact || (s.data && s.data.company) || 'Seller Screening'), market: s.market || '', rep: s.by || s.byUser || '', timestamp: s.createdAt || '', highlights: s.completed ? (s.statusText || s.decision || 'Complete') : ('In progress \u2014 ' + pct + '%') };
-  let html = intakeViewHtml(rec, 'Seller Screening');
+  let html = intakeViewHtml(rec, 'Seller Screening Call');
   const edit = '<div style="position:fixed;left:16px;bottom:16px;z-index:50"><button type="button" onclick="window.close(); history.back();" style="background:#fff;border:1px solid #d7dde8;color:#1a2236;border-radius:9px;padding:10px 16px;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;box-shadow:0 6px 20px rgba(16,24,40,.18);cursor:pointer">\u2190 Back</button></div>';
   html = html.replace('</body>', edit + '</body>');
   res.set('Content-Type', 'text/html; charset=utf-8').send(html);
