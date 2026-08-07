@@ -1120,8 +1120,13 @@ load();
     if(!pid&&!cid){ openAll(); return; }
     fetch('/api/valuation-readiness?personId='+encodeURIComponent(pid)+'&companyId='+encodeURIComponent(cid),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
       if(!j||!j.ok){ openAll(); return; }
-      var scr=!!j.screening;   // a seller screening on file unlocks the deeper steps
-      _rrgSetGate(elU, !scr, scr?'':'Run a seller screening first'); _rrgSetGate(elC, !scr, scr?'':'Run a seller screening first');
+      var scr=!!j.screening;   // a Seller Screening Call on file unlocks Upload
+      _rrgSetGate(elU, !scr, scr?'':'Run a Seller Screening Call first');
+      // Start Seller Interview unlocks once the docs are in the data room — financials, plus the
+      // lease unless the business owns its real estate (No lease ticked, which readiness folds into j.lease).
+      var docsReady=!!(j.financials && j.lease);
+      var _cSub=(!j.financials && !j.lease)?'Add financials & lease to the data room':(!j.financials?'Add financials to the data room':(!j.lease?'Add the lease — or tick No lease if owned':''));
+      _rrgSetGate(elC, !docsReady, docsReady?'':_cSub);
       var miss=[]; if(!j.questionnaire) miss.push('Questionnaire'); if(!j.financials) miss.push('Financials'); if(!j.lease) miss.push('Lease');
       if(j.ready){ _rrgSetGate(elV,false,'Ready — all three inputs in'); window.__valReady={ready:true,bovId:j.bovId||''}; }
       else { _rrgSetGate(elV,true,'Needs: '+miss.join(', ')); window.__valReady={ready:false,missing:miss}; }
@@ -1138,7 +1143,7 @@ load();
     try{refreshValuation();}catch(_){}
     function close(){ menu.style.display="none"; }
     btn.addEventListener("click",function(e){ e.stopPropagation(); var _sw=(menu.style.display==="none"); menu.style.display=(_sw?"block":"none"); if(_sw){ try{refreshValuation();}catch(_){} } });
-    menu.addEventListener("click",function(e){ var b=e.target.closest(".rrgactitem"); if(!b) return; var i=+b.getAttribute("data-i"); var a=ACTIONS[i]; if(a&&a.lock==='screen'&&b.classList.contains('rrgactdim')){ if(window.rrgToast) rrgToast('Run a seller screening first — then this unlocks.'); else alert('Run a seller screening first — then this unlocks.'); return; } close(); if(a&&a.f) try{ a.f(); }catch(err){} });
+    menu.addEventListener("click",function(e){ var b=e.target.closest(".rrgactitem"); if(!b) return; var i=+b.getAttribute("data-i"); var a=ACTIONS[i]; if(a&&a.lock&&b.classList.contains('rrgactdim')){ var _sb=b.querySelector('.rrgactsub'); var _m=((_sb&&_sb.textContent||'').trim())||'Not available yet'; if(window.rrgToast) rrgToast(_m+' — then this unlocks.'); else alert(_m+' — then this unlocks.'); return; } close(); if(a&&a.f) try{ a.f(); }catch(err){} });
     document.addEventListener("click",function(e){ if(!wrap.contains(e.target)) close(); });
   }
   var tries=0; (function w(){ var c=document.querySelector("#rrgtop .create"); if(c){ install(c); return; } if(tries++<50) setTimeout(w,120); })();
