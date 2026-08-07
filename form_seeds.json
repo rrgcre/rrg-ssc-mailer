@@ -124,7 +124,7 @@
               "Leases",
               "Owns + Leases"
             ],
-            "prompt": "Do they own the real estate, or lease the space?",
+            "prompt": "Do you own the real estate, or lease the space?",
             "hint": "Owners have added value to sell. Lessees depend on lease terms—critical for deal. \"Owns + Leases\" is complex; clarify which locations are owned vs leased."
           },
           {
@@ -132,7 +132,7 @@
             "num": "int",
             "label": "Years in Operation",
             "required": true,
-            "prompt": "How many years have they been in operation?",
+            "prompt": "How many years have you been in operation?",
             "hint": "Newer businesses (< 3 years) are riskier to buyers. Established businesses (5+ years) have proven track records. Ask about ownership tenure specifically."
           },
           {
@@ -140,14 +140,14 @@
             "num": "int",
             "label": "Number of Locations",
             "required": true,
-            "prompt": "How many locations do they operate?",
+            "prompt": "How many locations do you operate?",
             "hint": "Multi-unit operators have higher valuation. Single location = simpler sale. Get names and status (owned, leased, closed) of all locations."
           },
           {
             "type": "text",
             "num": "int",
             "label": "Approx. Employees",
-            "prompt": "Roughly how many employees do they have?",
+            "prompt": "Roughly how many employees do you have?",
             "hint": "Employee count indicates business scale and labor intensity. High turnover or key staff dependencies are red flags. Ask about management depth."
           }
         ]
@@ -171,7 +171,7 @@
               "Opportunistic",
               "Other"
             ],
-            "prompt": "What's their main reason for selling?",
+            "prompt": "What's your main reason for selling?",
             "hint": "Motivation reveals deal urgency and risk. Financial distress or disputes can indicate hidden problems. Retirement signals transition prep time."
           },
           {
@@ -191,7 +191,7 @@
               "Medium (6–12 months)",
               "Exploratory / No Rush"
             ],
-            "prompt": "What's their timeline to sell?",
+            "prompt": "What's your timeline to sell?",
             "hint": "Urgent timelines can mean distressed deals or serious intent. Long timelines allow for preparation and financial cleanup."
           },
           {
@@ -204,7 +204,7 @@
               "Sell + Stay On",
               "Real Estate Only"
             ],
-            "prompt": "What kind of exit are they after — full sale, partial, walk away?",
+            "prompt": "What kind of exit are you after — full sale, partial, walk away?",
             "hint": "Full exit is cleanest. Earn-outs and stay-on arrangements = transition risk and buyer friction. Real estate-only flips the buyer profile entirely."
           }
         ]
@@ -236,14 +236,14 @@
               "Partial",
               "No / Disorganized"
             ],
-            "prompt": "Do they have clean financial records available?",
+            "prompt": "Do you have clean financial records available?",
             "hint": "This is critical for buyers and valuation. 'Disorganized' is a major red flag—will need reconstruction work before any buyer can move forward."
           },
           {
             "type": "money",
             "label": "Annual Revenue",
             "required": true,
-            "prompt": "Roughly what are their annual sales?",
+            "prompt": "Roughly what are your annual sales?",
             "hint": "Ask for top-line sales and clarify if this includes alcohol, takeout, catering. Get a range if exact figures aren't available."
           },
           {
@@ -325,7 +325,7 @@
             "type": "number",
             "id": "leaseOption",
             "label": "Option Period (months)",
-            "prompt": "How many months of option periods do they have?",
+            "prompt": "How many months of option periods do you have?",
             "hint": "Options are buyer gold—convert them to total remaining time. Ask about option terms: are they automatic, do they require notification, are there rent step-ups?"
           },
           {
@@ -337,7 +337,7 @@
           {
             "type": "money",
             "label": "Current Monthly Rent",
-            "prompt": "What's their current monthly rent?",
+            "prompt": "What's your current monthly rent?",
             "hint": "Include NNN (triple net) and CAM charges if applicable. Get base + total occupancy cost. High rent relative to revenue = buyer red flag."
           },
           {
@@ -349,7 +349,7 @@
               "Behind",
               "Negotiating"
             ],
-            "prompt": "Are they current on rent, behind, or negotiating?",
+            "prompt": "Are you current on rent, behind, or negotiating?",
             "hint": "Behind = landlord relationship damaged and lease risk. Negotiating = deal leverage—ask what terms they're pushing for. Behind + sale = red flag."
           },
           {
@@ -374,7 +374,7 @@
               "No",
               "Unsure"
             ],
-            "prompt": "Is the landlord aware they're planning to sell?",
+            "prompt": "Is the landlord aware you're planning to sell?",
             "hint": "Landlord unaware = confidentiality risk and lease surprise. Get landlord consent early. Confidentiality is key until buyer + landlord alignment happens."
           },
           {
@@ -403,13 +403,13 @@
               "No / Open to Guidance",
               "Has Had a Formal Appraisal"
             ],
-            "prompt": "Do they have a price or valuation in mind?",
+            "prompt": "Do you have a price or valuation in mind?",
             "hint": "\"Open to Guidance\" = easier negotiation. Formal appraisal = anchored expectations. Specific number = entrenched—assess if realistic before booking."
           },
           {
             "type": "range",
             "label": "Valuation Expectation",
-            "prompt": "What number or range are they expecting?",
+            "prompt": "What number or range are you expecting?",
             "hint": "Get both the low and high. Ask how they arrived at these numbers. If no doc support, flag as \"aspirational\" and note what earnings justify."
           },
           {
@@ -438,7 +438,7 @@
               "Yes (With a Broker)",
               "Yes (Tried Independently)"
             ],
-            "prompt": "Have they listed with a broker or tried to sell before?",
+            "prompt": "Have you listed with a broker or tried to sell before?",
             "hint": "Prior failed attempts = damaged price expectations. Get details: who, how long, why didn't work. First-time sellers need education on process and timeline."
           },
           {
@@ -473,7 +473,7 @@
               "Yes (Shopping Around)",
               "Unknown"
             ],
-            "prompt": "Are they talking to other brokers right now?",
+            "prompt": "Are you talking to other brokers right now?",
             "hint": "Shopping around = commission pressure coming. First conversation = you have leverage and time to build trust. Unknown answer = they're likely talking to someone."
           },
           {
