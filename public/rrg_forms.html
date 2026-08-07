@@ -95,13 +95,12 @@ var CALLTYPES=[
 var STATE={ forms:[], assign:{}, isAdmin:false, dirty:{} };
 
 function formsFor(key){
-  return STATE.forms.filter(function(f){ return !f.callType || f.callType===key; });
+  return STATE.forms.filter(function(f){ return !f.builtIn && (!f.callType || f.callType===key); });
 }
 function currentAssigned(key){
   var a=STATE.assign[key];
-  if(a && STATE.forms.find(function(f){return f.id===a;})) return a;
+  if(a){ var af=STATE.forms.find(function(f){return f.id===a;}); if(af && !af.builtIn) return af.id; }
   var list=formsFor(key);
-  var b=list.find(function(f){return f.builtIn;}); if(b) return b.id;
   return list.length?list[0].id:'';
 }
 
@@ -219,8 +218,9 @@ function openUploadQn(){
 function editForm(id, builtIn){ nav('rrg_form_builder.html?form='+encodeURIComponent(id)+(builtIn?'&dup=1':'')); }
 var CTLABEL={seller:'Seller Screening',buyer:'Buyer Qualification',site:'Site-Criteria',valuation:'Value',other:'General'};
 function renderFormsList(){
-  if(!STATE.forms.length) return '';
-  var rows=STATE.forms.map(function(f){
+  var _fl=STATE.forms.filter(function(f){ return !f.builtIn; });
+  if(!_fl.length) return '';
+  var rows=_fl.map(function(f){
     var act='';
     if(STATE.isAdmin){
       act = f.builtIn
@@ -230,7 +230,7 @@ function renderFormsList(){
     return '<tr><td><b>'+esc(f.name)+'</b>'+(f.builtIn?' <span class="tag">built-in</span>':'')+'</td><td>'+esc(CTLABEL[f.callType]||f.callType||'\u2014')+'</td><td>'+f.questions+'</td><td class="ta-r">'+act+'</td></tr>';
   }).join('');
   return '<div class="card sec" data-sec="formslist"><div class="cardhead" onclick="toggleSec(this)"><h2 style="margin:0;font-size:16px;font-weight:800">Your questionnaires</h2><span class="chev">▾</span></div><div class="cardbody">'
-    +'<p style="margin:0 0 12px;font-size:12.5px;color:var(--dim)">Every questionnaire in the system. Edit the ones you built, or duplicate the built-in to start a new one.</p>'
+    +'<p style="margin:0 0 12px;font-size:12.5px;color:var(--dim)">Every questionnaire you’ve built. Edit them here, or use “Build a new questionnaire” above.</p>'
     +'<table class="ftbl"><thead><tr><th>Name</th><th>Call type</th><th>Questions</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
 }
 function delForm(id,name){
