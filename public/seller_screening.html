@@ -982,9 +982,9 @@
 // questionnaire, valuation, marketing pack, lease abstract -- inherits them from here.
 window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
 (function(){ function fix(){ if(window.RRG_MODE!=='valuation') return;
-  try{ document.title='RRG — Value Questionnaire'; }catch(e){}
-  try{ Array.prototype.forEach.call(document.querySelectorAll('.kicker'),function(k){ if(/seller screening/i.test(k.textContent||'')) k.textContent='Value Questionnaire'; }); }catch(e){}
-  try{ var h=document.getElementById('hdrConcept'); if(h && /seller screening/i.test(h.textContent||'')) h.textContent='New Value Questionnaire'; }catch(e){}
+  try{ document.title='RRG — Seller Interview'; }catch(e){}
+  try{ Array.prototype.forEach.call(document.querySelectorAll('.kicker'),function(k){ if(/seller screening/i.test(k.textContent||'')) k.textContent='Seller Interview'; }); }catch(e){}
+  try{ var h=document.getElementById('hdrConcept'); if(h && /seller screening/i.test(h.textContent||'')) h.textContent='New Seller Interview'; }catch(e){}
   try{ Array.prototype.forEach.call(document.querySelectorAll('button'),function(b){ if(/submit screening/i.test(b.textContent||'')) b.textContent=b.textContent.replace(/Submit Screening/i,'Submit Questionnaire'); }); }catch(e){}
   try{ Array.prototype.forEach.call(document.querySelectorAll('p'),function(p){ if(/every seller conversation gets screened/i.test(p.textContent||'')) p.style.display='none'; }); }catch(e){}
 }
@@ -1414,7 +1414,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
   function showListingSummary(a){
     if(!a){ return; }
     var folders=(a.folders||[]).map(function(f){return _deEsc(f);}).join(', ');
-    var lines='<div style="display:flex;gap:10px;align-items:flex-start"><span style="color:#1f8a5b;font-weight:900">\u2713</span><div><b>Provisional listing created</b><div style="color:#6b7488;font-size:12.5px;margin-top:1px">'+_deEsc(a.business||'This seller')+' is now a provisional listing'+(a.pipeline?(' in the <b>'+_deEsc(a.pipeline)+'</b> pipeline'):'')+', moved to <b>Data Collection</b>. Start gathering financials and the lease, and schedule the Valuation Call. It goes Live once the agreement is signed and marketing is complete.</div></div></div>';
+    var lines='<div style="display:flex;gap:10px;align-items:flex-start"><span style="color:#1f8a5b;font-weight:900">\u2713</span><div><b>Provisional listing created</b><div style="color:#6b7488;font-size:12.5px;margin-top:1px">'+_deEsc(a.business||'This seller')+' is now a provisional listing'+(a.pipeline?(' in the <b>'+_deEsc(a.pipeline)+'</b> pipeline'):'')+', moved to <b>Data Collection</b>. Start gathering financials and the lease, and schedule the Seller Interview. It goes Live once the agreement is signed and marketing is complete.</div></div></div>';
     if(a.roomId){ lines+='<div style="display:flex;gap:10px;align-items:flex-start;margin-top:13px"><span style="color:#1f8a5b;font-weight:900">\u2713</span><div><b>Data room '+(a.roomCreated?'created':'ready')+'</b>'+(folders?('<div style="color:#6b7488;font-size:12.5px;margin-top:1px">Folders: '+folders+'.</div>'):'')+'</div></div>'; }
     var btns='';
     if(a.roomId){ btns+='<a class="lsbtn" href="./rrg_room.html?room='+encodeURIComponent(a.roomId)+'">Open data room \u2192</a>'; }

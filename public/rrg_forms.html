@@ -87,7 +87,7 @@ function post(url,body){ return fetch(url,{method:'POST',credentials:'same-origi
 /* Call types the system supports. Order = display order. */
 var CALLTYPES=[
   {key:'seller', label:'Seller Screening', tag:'', desc:'Runs when a rep qualifies an owner who wants to sell their restaurant or bar — the full Seller Screening Call.'},
-  {key:'valuation', label:'Value Questionnaire', tag:'', desc:'Runs when gathering everything needed to value a restaurant or bar — financials, TABC, menu tickets, and market position — the intake behind a BOV or CIM.'},
+  {key:'valuation', label:'Seller Interview', tag:'', desc:'Runs when gathering everything needed to value a restaurant or bar — financials, TABC, menu tickets, and market position — the intake behind a BOV or CIM.'},
   {key:'buyer',  label:'Buyer Qualification Call', tag:'', desc:'Runs when qualifying a buyer or investor looking to acquire a concept, lease, or location.'},
   {key:'site',   label:'Site Selection Criteria Call', tag:'', desc:'Runs when capturing an operator’s site requirements — trade area, size, budget, and deal-breakers.'}
 ];
@@ -216,7 +216,7 @@ function openUploadQn(){
 }
 
 function editForm(id, builtIn){ nav('rrg_form_builder.html?form='+encodeURIComponent(id)+(builtIn?'&dup=1':'')); }
-var CTLABEL={seller:'Seller Screening',buyer:'Buyer Qualification',site:'Site-Criteria',valuation:'Value',other:'General'};
+var CTLABEL={seller:'Seller Screening',buyer:'Buyer Qualification',site:'Site-Criteria',valuation:'Seller Interview',other:'General'};
 function renderFormsList(){
   var _fl=STATE.forms.filter(function(f){ return !f.builtIn; });
   if(!_fl.length) return '';
