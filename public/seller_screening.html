@@ -348,8 +348,9 @@
       var slot=document.getElementById("sscBody");
       function draw(schema){ try{ slot.innerHTML=RRG_FORMS.render(schema); window.RRG_ACTIVE_FORM=schema; if(RRG_FORMS.wireConditionals) RRG_FORMS.wireConditionals(); }catch(e){ console.error("form render",e); } }
       var _PREVIEW=false; try{ _PREVIEW=/[?&]preview=1/.test(location.search); }catch(e){}
-      // Render the built-in default immediately so the page is usable and all field wiring binds.
-      draw(RRG_FORMS.seller);
+      // No built-in questionnaire (retired). Show a loading state — the outer #sscform stays,
+      // so autosave wiring keeps working via event bubbling — then render the assigned form.
+      slot.innerHTML='<div class="sscloading" style="padding:52px 22px;text-align:center;color:#8a93a8;font-size:14px">Loading questionnaire\u2026</div>';
       if(_PREVIEW){
         // Builder "Test in Call Mode": render the unsaved form from storage, auto-run Call Mode, save NOTHING.
         window.__scrPreview=true;
@@ -363,15 +364,16 @@
           // Retry transient failures (e.g. a cold-start 502) so the assigned questionnaire
           // never silently falls back to the built-in just because the server was waking up.
           var _jget=function(url,tries){ tries=tries||8; return fetch(url,{credentials:"same-origin",cache:"no-store"}).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }).catch(function(e){ if(tries<=1) throw e; return new Promise(function(res){ setTimeout(res,1500); }).then(function(){ return _jget(url,tries-1); }); }); };
+          var _noForm=function(msg){ if(slot) slot.innerHTML='<div class="sscloading" style="padding:52px 22px;text-align:center;color:#8a93a8;font-size:14px;line-height:1.65">'+msg+'</div>'; };
           window.RRG_FORM_READY = _jget("/api/forms")
             .then(function(j){
-              if(!j||!j.ok) return;
+              if(!j||!j.ok){ _noForm('Could not load the questionnaire. Refresh to try again.'); return; }
               var id=(j.assign&&j.assign[window.RRG_MODE==='valuation'?'valuation':'seller'])||"";
               var meta=(j.forms||[]).find(function(f){return f.id===id;});
-              if(!meta || meta.builtIn) return; // built-in default is the assigned choice
+              if(!id || !meta || meta.builtIn){ _noForm('No questionnaire is assigned to this call type yet.<br>Set one in <b>Settings \u2192 Call Questionnaires</b>.'); return; }
               return _jget("/api/form/"+encodeURIComponent(id))
-                .then(function(k){ if(k&&k.ok&&k.form) draw(k.form); });
-            }).catch(function(){});
+                .then(function(k){ if(k&&k.ok&&k.form){ draw(k.form); } else { _noForm('Could not load the assigned questionnaire. Refresh to try again.'); } });
+            }).catch(function(){ _noForm('Could not load the questionnaire. Refresh to try again.'); });
         } catch(e){}
       }
     })();
