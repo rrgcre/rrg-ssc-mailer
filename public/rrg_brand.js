@@ -112,6 +112,7 @@
     +'body.rrg-shelled::before,body.rrg-shelled::after{display:none !important;}'
     +'#rrgnav-skel{position:fixed;top:0;left:0;bottom:0;width:238px;background:var(--navbg,#0b1a38);z-index:2;overflow:hidden;pointer-events:none;display:flex;flex-direction:column;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
     +'#rrgnav-skel .nt{display:flex;align-items:center;gap:9px;padding:12px 14px 6px;}'
+    +'#rrgnav-skel .ws{display:flex;align-items:center;gap:9px;padding:5px 7px;flex:1;text-decoration:none;}'
     +'#rrgnav-skel .rrgbrand{display:block;width:100%;font-weight:700;font-size:18px;color:#fff;line-height:1.1;}'
     +'#rrgnav-skel .rrgbrandimg{max-width:100%;max-height:48px;object-fit:contain;display:block;}'
     +'#rrgnav-skel .rrgcol{display:none;}'

@@ -107,6 +107,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .bmodalf{padding:15px 22px;border-top:1px solid #e6e9f0;display:flex;justify-content:flex-end;gap:10px;}
 .bmbtn{border:none;border-radius:9px;padding:10px 17px;font:inherit;font-size:13px;font-weight:800;cursor:pointer;background:#000E31;color:#fff;}
 .bmbtn.ghost{background:#f2f5fb;color:#000E31;border:1px solid #dfe6f2;}
+.pgtitle{font-size:17px;font-weight:800;color:var(--navy,#000E31);letter-spacing:-.01em;margin-right:8px;white-space:nowrap;align-self:center;}
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_list.js"></script>
@@ -200,7 +201,7 @@ function createDeal(){ var business=(document.getElementById('nd_business').valu
 function renderToolbar(){
   var vc=activeFilterCount();
   var perLabel=function(p){ return p===0?'All':String(p); };
-  var html='<div class="tb">'+'<button class="tbtn" id="tb_newlisting" style="background:#000E31;color:#fff;border-color:#000E31;font-weight:800">+ New Listing</button>'
+  var html='<div class="tb">'+'<span class="pgtitle">Listings</span>'+'<button class="tbtn" id="tb_newlisting" style="background:#000E31;color:#fff;border-color:#000E31;font-weight:800">+ New Listing</button>'
     +'<div class="vtog"><button class="vbtn'+(VIEW==='board'?' on':'')+'" data-view="board">\u25a4 Board</button><button class="vbtn'+(VIEW==='list'?' on':'')+'" data-view="list">\u2630 List</button></div>'
     +'<div class="search"><span class="mag">⌕</span><input id="tb_q" placeholder="Search listings…" value="'+esc(TB.q)+'"></div>'
     +'<button class="tbtn'+(FILTER_OPEN?' on':'')+'" id="tb_filter">☰ Filters'+(vc?(' <span class="pip">'+vc+'</span>'):'')+'</button>'
