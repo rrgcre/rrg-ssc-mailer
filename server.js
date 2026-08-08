@@ -1080,7 +1080,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/rrg_brand.js', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/')) return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -3626,6 +3626,270 @@ app.get('/api/assignments', (req, res) => {
   list.sort((a, b) => String(b.lastActivity).localeCompare(String(a.lastActivity)));
   res.json({ ok: true, isAdmin: !!isAdmin, canDelete: canDelete(req), statuses: ASSIGN_STATUSES, metros: RRG_METROS, assignments: list });
 });
+// ================= Marketplace =================
+// Publish Live listings to a public, NDA-gated buyer page. The public teaser is BLIND —
+// it never carries the business name, address, or contact; those release only under NDA.
+const MKT_METROS = ['San Antonio', 'Austin', 'Houston', 'Dallas', 'Fort Worth', 'Other'];
+const MKT_CONCEPTS = ['Breakfast / Brunch', 'Bar / Nightlife', 'Fast Casual', 'Full Service', 'Café / Bakery', 'Pizza', 'Steakhouse', 'Other'];
+const MKT_PRICE = { '': 'Any price', u1m: 'Under $1M', '1-3m': '$1M – $3M', '3-5m': '$3M – $5M', '5m+': '$5M+' };
+const MKT_CASH = { '': 'Any cash flow', '250k': '$250K+ SDE', '500k': '$500K+ SDE', '1m': '$1M+ SDE' };
+const MKT_FLAGS = ['', 'new', 'price'];
+function mktClean(b, prev) {
+  prev = prev || {};
+  const s = (v, n) => String(v == null ? '' : v).slice(0, n);
+  const out = Object.assign({}, prev);
+  if (b.published !== undefined) out.published = !!b.published;
+  if (b.featured !== undefined) out.featured = !!b.featured;
+  if (b.headline !== undefined) out.headline = s(b.headline, 140);
+  if (b.conceptType !== undefined) out.conceptType = s(b.conceptType, 60);
+  if (b.conceptKey !== undefined) out.conceptKey = MKT_CONCEPTS.indexOf(b.conceptKey) >= 0 ? b.conceptKey : '';
+  if (b.units !== undefined) out.units = (b.units === '' || b.units == null) ? '' : Math.max(0, Math.min(999, parseInt(b.units, 10) || 0));
+  if (b.loc !== undefined) out.loc = s(b.loc, 60);
+  if (b.marketKey !== undefined) out.marketKey = MKT_METROS.indexOf(b.marketKey) >= 0 ? b.marketKey : 'Other';
+  if (b.revenue !== undefined) out.revenue = s(b.revenue, 40);
+  if (b.sde !== undefined) out.sde = s(b.sde, 40);
+  if (b.guide !== undefined) out.guide = s(b.guide, 40);
+  if (b.priceBand !== undefined) out.priceBand = (b.priceBand in MKT_PRICE) ? b.priceBand : '';
+  if (b.cashBand !== undefined) out.cashBand = (b.cashBand in MKT_CASH) ? b.cashBand : '';
+  if (b.reAvailable !== undefined) out.reAvailable = !!b.reAvailable;
+  if (b.flag !== undefined) out.flag = MKT_FLAGS.indexOf(b.flag) >= 0 ? b.flag : '';
+  return out;
+}
+function mktSuggest(view) {
+  const mk = view.market || '';
+  const metro = MKT_METROS.filter(m => mk.toLowerCase().indexOf(m.toLowerCase()) >= 0)[0] || 'Other';
+  return { loc: mk ? (/(metro|area)/i.test(mk) ? mk : (mk + ' metro')) : '', marketKey: metro, guide: view.value || '' };
+}
+function mktTeaser(key, view, m) {
+  // PUBLIC-safe — deliberately omits business name, address, and contact.
+  const units = (m.units && m.units > 1) ? (' · ' + m.units + ' units') : '';
+  const badge = ((m.conceptType || m.conceptKey || 'Restaurant') + (m.reAvailable ? ' · RE available' : units)).trim();
+  return {
+    id: key, headline: m.headline || 'Confidential restaurant opportunity',
+    loc: m.loc || view.market || '', badge: badge,
+    conceptKey: m.conceptKey || '', marketKey: m.marketKey || 'Other',
+    priceBand: m.priceBand || '', cashBand: m.cashBand || '',
+    revenue: m.revenue || '', sde: m.sde || '', guide: m.guide || '',
+    flag: m.flag || '', featured: !!m.featured, publishedAt: m.publishedAt || ''
+  };
+}
+function mktPublicList() {
+  const deals = assignmentsIndex(), overlay = loadAssignOverlay();
+  const out = [];
+  Object.values(deals).forEach(d => {
+    const o = overlay[d.key] || {}; const m = o.market;
+    if (!m || !m.published) return;
+    try { out.push(mktTeaser(d.key, assignmentView(d, overlay), m)); } catch (e) {}
+  });
+  out.sort((a, b) => ((b.featured ? 1 : 0) - (a.featured ? 1 : 0)) || String(b.publishedAt).localeCompare(String(a.publishedAt)));
+  return out;
+}
+// Internal — every listing the rep can see, with its marketplace teaser (business shown to staff only).
+app.get('/api/marketplace', (req, res) => {
+  const deals = assignmentsIndex(), overlay = loadAssignOverlay();
+  const isAdmin = req.user && isSuper(req.user);
+  const rows = Object.values(deals)
+    .filter(d => isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d))
+    .filter(d => (overlay[d.key] && overlay[d.key].assignmentType) !== 'tenant_rep')
+    .map(d => {
+      const view = assignmentView(d, overlay);
+      const o = overlay[d.key] || {};
+      const live = !!(d.screen && d.screen.listingStatus === 'Live Listing') || !!view.listingLive || o.status === 'Active' || o.status === 'Under Contract';
+      return { key: d.key, business: view.business, market: view.market, roomId: view.roomId, value: view.value,
+        hasCim: !!(view.stages && view.stages.pack), live: !!live, status: view.status,
+        teaser: o.market || null, suggest: mktSuggest(view) };
+    });
+  rows.sort((a, b) => ((b.live ? 1 : 0) - (a.live ? 1 : 0)) || String(a.business).localeCompare(String(b.business)));
+  res.json({ ok: true, isAdmin: !!isAdmin, metros: MKT_METROS, concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, publicUrl: (req.protocol + '://' + req.get('host') + '/market'), listings: rows });
+});
+app.post('/api/marketplace/:key', express.json(), (req, res) => {
+  const key = req.params.key; const deals = assignmentsIndex(); const d = deals[key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay(); const cur = overlay[key] || {};
+  const wasPub = !!(cur.market && cur.market.published);
+  const m = mktClean(req.body || {}, cur.market || {});
+  const now = new Date().toISOString();
+  m.updatedAt = now; if (m.published && !wasPub) m.publishedAt = now;
+  cur.market = m; overlay[key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true, teaser: m });
+});
+// PUBLIC feed for the buyer page.
+app.get('/api/market/public', (req, res) => { res.json({ ok: true, listings: mktPublicList(), org: orgDisplayName() }); });
+// PUBLIC — a buyer requests access to a blind listing; logged as an inquiry for the rep to qualify under NDA.
+app.post('/api/market/request-access', express.json(), (req, res) => {
+  const b = req.body || {};
+  const key = String(b.listingKey || '').slice(0, 60);
+  const name = String(b.name || '').trim().slice(0, 120);
+  const email = String(b.email || '').trim().slice(0, 160);
+  const phone = String(b.phone || '').trim().slice(0, 60);
+  const note = String(b.note || '').trim().slice(0, 1000);
+  if (!name || !email) return res.status(400).json({ ok: false, error: 'Name and email are required.' });
+  const overlay = loadAssignOverlay(); const cur = overlay[key];
+  if (!cur || !cur.market || !cur.market.published) return res.status(404).json({ ok: false, error: 'That opportunity is no longer available.' });
+  const inqs = Array.isArray(cur.inquiries) ? cur.inquiries : [];
+  inqs.push({ id: newInquiryId(), source: 'Marketplace', name: name, email: email, phone: phone, status: 'Unqualified', note: note ? ('Marketplace access request — ' + note) : 'Marketplace access request', createdAt: new Date().toISOString() });
+  cur.inquiries = inqs; cur.updatedAt = new Date().toISOString(); overlay[key] = cur; saveAssignOverlay(overlay);
+  res.json({ ok: true });
+});
+app.get('/market', (req, res) => { res.set('Content-Type', 'text/html; charset=utf-8').send(marketplacePublicPage(req)); });
+function marketplacePublicPage(req) {
+  const org = esc(orgDisplayName());
+  const opts = (o) => Object.keys(o).map(k => '<option value="' + esc(k) + '">' + esc(o[k]) + '</option>').join('');
+  const mkOpts = ['<option value="">All markets</option>'].concat(MKT_METROS.map(m => '<option value="' + esc(m) + '">' + esc(m) + '</option>')).join('');
+  const cOpts = ['<option value="">All concepts</option>'].concat(MKT_CONCEPTS.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>')).join('');
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${org} — Confidential Marketplace</title>
+<style>
+:root{--navy:#000E31;--deep:#0b1636;--red:#C0261B;--gold:#a9822f;--ink:#141a29;--muted:#5f6a7d;--soft:#8a93a3;--line:#e7ebf1;--wash:#f4f6f9;--card:#fff;}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--wash);-webkit-font-smoothing:antialiased;line-height:1.5;}
+.wrap{max-width:1160px;margin:0 auto;padding:0 26px;}
+header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30;}
+.hrow{display:flex;align-items:center;justify-content:space-between;padding:14px 0;}
+.brand{display:inline-flex;align-items:center;gap:12px;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font:900 12px 'Arial Black',Arial,sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bwm{font-weight:800;font-size:12px;text-transform:uppercase;line-height:1.05;color:var(--navy);letter-spacing:.02em;}
+.bwm i{font-style:normal;color:var(--muted);font-weight:700;}
+.hauth a{font-size:12.5px;font-weight:700;text-decoration:none;color:#fff;background:var(--navy);padding:9px 15px;border-radius:8px;}
+.hero{background:linear-gradient(120deg,#000c26 0%,#0b1636 58%,#111c3d 100%);color:#fff;}
+.heroin{padding:52px 0 30px;}
+.kick{color:#b9c4d8;font-weight:700;letter-spacing:.24em;font-size:10.5px;text-transform:uppercase;margin-bottom:14px;}
+.hero h1{font-size:32px;font-weight:800;letter-spacing:-.02em;max-width:760px;line-height:1.1;}
+.hero p{color:#aab4c9;font-size:15px;margin-top:12px;max-width:600px;}
+.filters{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 10px 30px rgba(6,14,40,.18);padding:11px;display:flex;gap:9px;flex-wrap:wrap;margin-top:26px;}
+.filters select,.filters input{border:1px solid var(--line);border-radius:8px;padding:11px 12px;font:inherit;font-size:13px;background:#fff;color:var(--ink);}
+.filters .search{flex:1;min-width:190px;}
+.barrow{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin:24px 0 15px;}
+.barrow .cnt{font-size:13px;color:var(--muted);} .barrow .cnt b{color:var(--ink);}
+.barrow .sort{font-size:12.5px;color:var(--muted);}
+.barrow select{border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit;font-size:12.5px;background:#fff;margin-left:7px;}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;padding-bottom:24px;}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;transition:box-shadow .13s,transform .13s;}
+.card:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(12,22,54,.10);}
+.thumb{height:132px;position:relative;display:flex;align-items:flex-end;padding:13px;background:linear-gradient(155deg,#0b1636,#1b2b52);}
+.card.feat .thumb{background:linear-gradient(155deg,#0b1636,#22345f);box-shadow:inset 0 0 0 1px rgba(169,130,47,.5);}
+.thumb::before{content:"";position:absolute;inset:0;background:radial-gradient(120% 100% at 90% 0%,rgba(255,255,255,.06),transparent 60%);}
+.thumb .badge{position:relative;z-index:2;background:rgba(255,255,255,.94);color:var(--navy);font-size:10.5px;font-weight:800;border-radius:100px;padding:4px 11px;letter-spacing:.02em;}
+.thumb .flag{position:absolute;top:12px;right:12px;z-index:2;font-size:9.5px;font-weight:800;border-radius:100px;padding:4px 10px;letter-spacing:.06em;text-transform:uppercase;}
+.flag.new{background:var(--red);color:#fff;} .flag.price{background:var(--gold);color:#1a1205;} .flag.feat{background:rgba(255,255,255,.92);color:var(--navy);}
+.cbody{padding:15px 17px 17px;}
+.cbody .loc{font-size:11px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
+.cbody h3{font-size:16px;color:var(--navy);margin:5px 0 11px;line-height:1.28;font-weight:800;}
+.metrics{display:flex;gap:14px;padding:11px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+.metrics .m .v{font-size:14px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;}
+.metrics .m .k{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-top:2px;}
+.cfoot{display:flex;align-items:center;justify-content:space-between;margin-top:13px;gap:10px;}
+.lock{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--soft);font-weight:600;}
+.lock svg{width:12px;height:12px;stroke:var(--soft);fill:none;stroke-width:2;}
+.req{background:var(--navy);color:#fff;border:none;border-radius:8px;padding:9px 14px;font:inherit;font-weight:700;font-size:12px;cursor:pointer;white-space:nowrap;}
+.req:hover{background:#0b1636;}
+.empty{grid-column:1/-1;text-align:center;color:var(--muted);padding:60px 20px;font-size:14px;}
+footer{background:var(--navy);color:#95a1ba;font-size:12px;line-height:1.7;padding:32px 0;margin-top:14px;}
+footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} footer b{color:#fff;}
+.ov{position:fixed;inset:0;background:rgba(8,14,32,.55);display:none;align-items:center;justify-content:center;z-index:200;padding:20px;}
+.ov.on{display:flex;}
+.mbox{background:#fff;border-radius:14px;max-width:460px;width:100%;padding:24px 26px;box-shadow:0 30px 80px rgba(0,0,0,.4);}
+.mbox h2{font-size:18px;color:var(--navy);font-weight:800;}
+.mbox p{font-size:13px;color:var(--muted);margin-top:7px;line-height:1.55;}
+.mbox label{display:block;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin:13px 0 5px;}
+.mbox input,.mbox textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 12px;font:inherit;font-size:14px;}
+.mbox .mf{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;}
+.mbtn{border:none;border-radius:9px;padding:11px 18px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;}
+.mbtn.ghost{background:#fff;border:1px solid #cdd6e6;color:var(--navy);} .mbtn.go{background:var(--red);color:#fff;}
+.mmsg{font-size:12.5px;margin-top:10px;min-height:16px;}
+@media(max-width:900px){.grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:620px){.grid{grid-template-columns:1fr;}.hero h1{font-size:25px;}}
+</style></head>
+<body>
+<header><div class="wrap hrow">
+  <span class="brand"><span class="disc">RRG</span><span class="bwm">${org}<br><i>Confidential Marketplace</i></span></span>
+  <span class="hauth"><a href="mailto:?subject=Buyer%20registration">Register as a buyer</a></span>
+</div></header>
+<div class="hero"><div class="wrap heroin">
+  <div class="kick">Confidential · NDA-gated · Texas</div>
+  <h1>The confidential marketplace for restaurant &amp; bar acquisitions</h1>
+  <p>Every opportunity is presented blind. Browse the field, then request access to the full offering and data room under NDA.</p>
+  <div class="filters">
+    <input class="search" id="fSearch" placeholder="Search concept, keyword…">
+    <select id="fMarket">${mkOpts}</select>
+    <select id="fConcept">${cOpts}</select>
+    <select id="fPrice">${opts(MKT_PRICE)}</select>
+    <select id="fCash">${opts(MKT_CASH)}</select>
+  </div>
+</div></div>
+<div class="wrap">
+  <div class="barrow">
+    <div class="cnt" id="cnt">Loading confidential opportunities…</div>
+    <div class="sort">Sort<select id="fSort"><option value="new">Newest</option><option value="price">Guide: high → low</option></select></div>
+  </div>
+  <div class="grid" id="grid"></div>
+</div>
+<footer><div class="wrap ft">
+  <div style="max-width:640px"><b>Confidential.</b> Every listing is presented blind. Business names, addresses, and identifying details are released only to qualified buyers under an executed non-disclosure agreement. All inquiries route exclusively through ${org}.</div>
+  <div style="text-align:right"><b>${org}</b><br>Austin · Dallas · Fort Worth · Houston · San Antonio</div>
+</div></footer>
+<div class="ov" id="ov"><div class="mbox">
+  <h2>Request access</h2>
+  <p>Tell us who you are. We'll follow up with an NDA and, once it's signed, open the full offering and data room for this opportunity.</p>
+  <label>Full name *</label><input id="rName" autocomplete="name">
+  <label>Email *</label><input id="rEmail" type="email" autocomplete="email">
+  <label>Phone</label><input id="rPhone" autocomplete="tel">
+  <label>Anything we should know? (optional)</label><textarea id="rNote" rows="3" placeholder="Acquisition criteria, timeline, proof of funds…"></textarea>
+  <div class="mmsg" id="rMsg"></div>
+  <div class="mf"><button class="mbtn ghost" id="rCancel">Cancel</button><button class="mbtn go" id="rGo">Request access</button></div>
+</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var ALL=[], CUR='';
+var PB=${JSON.stringify(MKT_PRICE)}, CB=${JSON.stringify(MKT_CASH)};
+function metricsHtml(l){ var cells=[]; if(l.revenue) cells.push(['Revenue',l.revenue]); if(l.sde) cells.push(['SDE',l.sde]); if(l.guide) cells.push(['Guide',l.guide]);
+  if(!cells.length) return '<div class="metrics"><div class="m"><div class="v">Under NDA</div><div class="k">Financials on request</div></div></div>';
+  return '<div class="metrics">'+cells.map(function(c){return '<div class="m"><div class="v">'+esc(c[1])+'</div><div class="k">'+esc(c[0])+'</div></div>';}).join('')+'</div>'; }
+function card(l){ var flag=l.flag==='new'?'<span class="flag new">New</span>':(l.flag==='price'?'<span class="flag price">New price</span>':(l.featured?'<span class="flag feat">Featured</span>':''));
+  return '<div class="card'+(l.featured?' feat':'')+'"><div class="thumb">'+flag+'<span class="badge">'+esc(l.badge||'Restaurant')+'</span></div>'
+    +'<div class="cbody"><div class="loc">'+esc(l.loc||'Texas')+'</div><h3>'+esc(l.headline)+'</h3>'+metricsHtml(l)
+    +'<div class="cfoot"><span class="lock"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Blind until NDA</span>'
+    +'<button class="req" data-k="'+esc(l.id)+'">Request access →</button></div></div></div>'; }
+function priceRank(l){ var m={u1m:1,'1-3m':2,'3-5m':3,'5m+':4}; return m[l.priceBand]||0; }
+function render(){
+  var q=(document.getElementById('fSearch').value||'').toLowerCase().trim();
+  var mk=document.getElementById('fMarket').value, cc=document.getElementById('fConcept').value;
+  var pr=document.getElementById('fPrice').value, ca=document.getElementById('fCash').value, sort=document.getElementById('fSort').value;
+  var rows=ALL.filter(function(l){
+    if(mk && l.marketKey!==mk) return false;
+    if(cc && l.conceptKey!==cc) return false;
+    if(pr && l.priceBand!==pr) return false;
+    if(ca && l.cashBand!==ca) return false;
+    if(q){ var hay=(l.headline+' '+l.badge+' '+l.loc).toLowerCase(); if(hay.indexOf(q)<0) return false; }
+    return true;
+  });
+  if(sort==='price') rows.sort(function(a,b){ return priceRank(b)-priceRank(a); });
+  var g=document.getElementById('grid');
+  g.innerHTML=rows.length?rows.map(card).join(''):'<div class="empty">No opportunities match those filters right now. Adjust the filters, or register as a buyer to be notified as new listings come to market.</div>';
+  document.getElementById('cnt').innerHTML='Showing <b>'+rows.length+'</b> of <b>'+ALL.length+'</b> confidential opportunities';
+  g.querySelectorAll('.req').forEach(function(b){ b.addEventListener('click',function(){ openReq(b.getAttribute('data-k')); }); });
+}
+['fSearch','fMarket','fConcept','fPrice','fCash','fSort'].forEach(function(id){ var el=document.getElementById(id); el.addEventListener('input',render); el.addEventListener('change',render); });
+function openReq(k){ CUR=k; document.getElementById('rMsg').textContent=''; ['rName','rEmail','rPhone','rNote'].forEach(function(i){document.getElementById(i).value='';}); document.getElementById('ov').classList.add('on'); document.getElementById('rName').focus(); }
+function closeReq(){ document.getElementById('ov').classList.remove('on'); }
+document.getElementById('rCancel').addEventListener('click',closeReq);
+document.getElementById('ov').addEventListener('click',function(e){ if(e.target===this) closeReq(); });
+document.getElementById('rGo').addEventListener('click',function(){
+  var m=document.getElementById('rMsg'); var nm=document.getElementById('rName').value.trim(), em=document.getElementById('rEmail').value.trim();
+  if(!nm||!em){ m.style.color='#C0261B'; m.textContent='Name and email are required.'; return; }
+  var b=document.getElementById('rGo'); b.disabled=true; b.textContent='Sending…';
+  fetch('/api/market/request-access',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({listingKey:CUR,name:nm,email:em,phone:document.getElementById('rPhone').value.trim(),note:document.getElementById('rNote').value.trim()})})
+   .then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent='Request access';
+     if(j&&j.ok){ document.querySelector('.mbox').innerHTML='<h2>Request received</h2><p>Thank you. A broker will reach out shortly with an NDA and next steps for this opportunity. All communication routes through our office.</p><div class="mf"><button class="mbtn go" onclick="document.getElementById(\\'ov\\').classList.remove(\\'on\\')">Done</button></div>'; }
+     else { m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Could not send your request.'; } })
+   .catch(function(){ b.disabled=false; b.textContent='Request access'; m.style.color='#C0261B'; m.textContent='Could not reach the server.'; });
+});
+fetch('/api/market/public',{cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.listings)||[]; render(); }).catch(function(){ document.getElementById('cnt').textContent='Could not load opportunities.'; });
+</script>
+</body></html>`;
+}
+// ================= /Marketplace =================
 app.get('/api/assignment/:key', (req, res) => {
   const deals = assignmentsIndex(), overlay = loadAssignOverlay();
   const d = deals[req.params.key];
