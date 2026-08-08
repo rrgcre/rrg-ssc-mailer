@@ -4754,7 +4754,27 @@ app.post('/api/person', express.json(), (req, res) => {
   if (typeof b.notes === 'string') p.notes = b.notes.slice(0, 4000);
   if (isNew) logContactAdded(p, req);
   p.updatedAt = now; savePeople(arr);
-  res.json({ ok: true, person: Object.assign({}, p, { emails: personEmails(p), phones: personPhones(p) }), people: arr.map(personBrief) });
+  // Optionally start a pipeline listing for a brand-new contact (mirrors /api/company).
+  // The lead enters the board immediately as Unqualified; it links to the contact's company
+  // when one is set, otherwise the listing is named after the contact. No data room yet.
+  let _listingKey = '';
+  try {
+    const _pipeId = String(b.pipelineId || '').trim();
+    if (isNew && _pipeId) {
+      const _pipe = loadPipelines().find(pl => pl.id === _pipeId);
+      if (_pipe) {
+        const _biz = String(p.company || p.name || 'Untitled').slice(0, 120);
+        const _deal = { id: newDealId(), business: _biz, market: '', contact: p.name || '', screenId: '', roomId: '', contactPersonId: p.id, companyId: p.companyId || '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+        const _deals = loadDeals(); _deals.push(_deal); saveDeals(_deals);
+        const _ov = loadAssignOverlay();
+        const _first = (_pipe.stages && _pipe.stages[0] && _pipe.stages[0].name) || '';
+        _ov['d_' + _deal.id] = Object.assign(_ov['d_' + _deal.id] || {}, { pipelineId: _pipe.id, pipelineStage: _first, status: 'Unqualified', stageSince: now });
+        saveAssignOverlay(_ov);
+        _listingKey = 'd_' + _deal.id;
+      }
+    }
+  } catch (e) { console.error('start listing on contact create:', e && e.message); }
+  res.json({ ok: true, person: Object.assign({}, p, { emails: personEmails(p), phones: personPhones(p) }), people: arr.map(personBrief), listingKey: _listingKey });
 });
 // A buyer's interested listings (their inquiries across every listing) — the buyer-first view.
 function personInterested(personId) {
