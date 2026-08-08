@@ -58,6 +58,13 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .vipchip.on{border-color:#e2b93a;color:#8a6d10;background:#fff8e6;box-shadow:0 0 0 2px rgba(226,185,58,.18);}
 .cautionchip{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:800;letter-spacing:.03em;padding:3px 10px;border-radius:999px;border:1px solid #d6dbe6;color:#8a93a8;background:#fff;cursor:pointer;user-select:none;}
 .cautionchip.on{border-color:#DA2B1F;color:#a5352c;background:#fdeceb;box-shadow:0 0 0 2px rgba(218,43,31,.14);}
+.flagrow{display:inline-flex;gap:6px;vertical-align:middle;}
+.flagbtn{display:inline-flex;align-items:center;justify-content:center;width:27px;height:27px;border-radius:7px;border:1px solid #d6dbe6;background:#fff;color:#9aa3b4;cursor:pointer;padding:0;transition:all .12s;}
+.flagbtn svg{width:15px;height:15px;}
+.flagbtn:hover{border-color:#b9c2d2;color:#5b6472;}
+.flagbtn.vip.on{border-color:#d19f16;color:#fff;background:linear-gradient(160deg,#f0c74a,#d19f16);}
+.flagbtn.star.on{border-color:#1f3ea0;color:#fff;background:linear-gradient(160deg,#3a5cc8,#1f3ea0);}
+.flagbtn.bad.on{border-color:#c22a1c;color:#fff;background:linear-gradient(160deg,#e5533f,#c22a1c);}
 .actfsel{border:1px solid #d5dbe6;border-radius:8px;padding:5px 8px;font:inherit;font-size:12px;color:#26324a;background:#fff;}
 .actcond{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:#6b7488;cursor:pointer;white-space:nowrap;}
 .feed.condensed .feednote,.feed.condensed .acttask,.feed.condensed .gmexpand,.feed.condensed .feedmeta{display:none;}
@@ -830,6 +837,13 @@ function wireEmail(){
       .catch(function(){ b.disabled=false; m.textContent='Could not reach the server.'; });
   });
 }
+var _FLAG_SVG={
+ vip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>',
+ star:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+ bad:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+};
+function _flagBtn(kind,on,tip){ return '<button type="button" id="flag_'+kind+'" class="flagbtn '+kind+(on?' on':'')+'" onclick="toggleFlag(\''+kind+'\')" title="'+tip+'" aria-pressed="'+(on?'true':'false')+'">'+_FLAG_SVG[kind]+'</button>'; }
+function toggleFlag(kind){ if(!ID) return; var field=(kind==='bad')?'caution':kind; var nv=!(P&&P[field]); var body={id:ID}; body[field]=nv; fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ P=j.person; var el=document.getElementById('flag_'+kind); if(el){ el.classList.toggle('on', !!P[field]); el.setAttribute('aria-pressed', P[field]?'true':'false'); } } }).catch(function(){}); }
 function toggleVip(){ if(!ID) return; var nv=!(P&&P.vip); fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:ID,vip:nv})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ P=j.person; var c=document.getElementById('vipChip'); if(c){ c.className='vipchip'+(P.vip?' on':''); c.title=P.vip?'VIP — click to remove':'Mark as VIP'; } } }).catch(function(){}); }
 function toggleCaution(){ if(!ID) return; var nv=!(P&&P.caution); fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:ID,caution:nv})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ P=j.person; var c=document.getElementById('cautionChip'); if(c){ c.className='cautionchip'+(P.caution?' on':''); c.title=P.caution?'Caution flag — click to remove':'Flag as caution / bad actor'; } } }).catch(function(){}); }
 function statTiles(){ var acts=(ACTIVITIES&&ACTIVITIES.length)||0; var lc=P.lastContacted?fmt(P.lastContacted):'—'; var inactive='—'; if(P.lastContacted){ var t=Date.parse(P.lastContacted+'T00:00:00'); if(!isNaN(t)) inactive=Math.max(0,Math.floor((Date.now()-t)/86400000)); } return '<div class="tiles"><div class="tile"><div class="n">'+acts+'</div><div class="l">Interactions</div></div><div class="tile"><div class="n">'+esc(lc)+'</div><div class="l">Last Contacted</div></div><div class="tile"><div class="n">'+inactive+'</div><div class="l">Inactive Days</div></div></div>'; }
@@ -917,7 +931,7 @@ function _railUp(){ document.removeEventListener('pointermove',_railMove); if(_r
 function render(){
   document.getElementById('crumb').textContent=P.name||'Contact';
   document.getElementById('h1').textContent=P.name||'Contact';
-  var sub=[]; sub.push('<span id="vipChip" class="vipchip'+(P.vip?' on':'')+'" onclick="toggleVip()" title="'+(P.vip?'VIP — click to remove':'Mark as VIP')+'">\u2605 VIP</span>'); sub.push('<span id="cautionChip" class="cautionchip'+(P.caution?' on':'')+'" onclick="toggleCaution()" title="'+(P.caution?'Caution flag — click to remove':'Flag as caution / bad actor')+'">\u26a0 Caution</span>'); if(P.type) sub.push('<span class="hpill">'+esc(P.type)+'</span>');
+  var sub=[]; if(P.type) sub.push('<span class="hpill">'+esc(P.type)+'</span>');
   if(P.nickname) sub.push('<span>“'+esc(P.nickname)+'”</span>');
   if(CO&&CO.id) sub.push('<span>Company: <a href="./rrg_company.html?id='+encodeURIComponent(CO.id)+'">'+esc(CO.name)+'</a></span>');
   if(P.email) sub.push('<span>'+esc(P.email)+'</span>'); if(P.phone) sub.push('<span>'+esc(P.phone)+'</span>');
@@ -944,7 +958,7 @@ function render(){
   if(P.leadSource&&LEADSOURCES.indexOf(P.leadSource)<0) leadOpts+='<option selected>'+esc(P.leadSource)+'</option>';
   var tagDatalist='<datalist id="alltagslist">'+ALLTAGS.map(function(t){return '<option value="'+esc(t)+'">';}).join('')+'</datalist>';
   document.getElementById('root').innerHTML=
-    '<div class="side"><div class="card"><div class="ch"><b>Contact</b><span class="autonote">Autosaves</span></div><div class="cb">'
+    '<div class="side"><div class="card"><div class="ch"><b>Contact</b><span class="autonote">Autosaves</span><span class="flagrow" style="margin-left:auto">'+_flagBtn('vip',P.vip,'VIP')+_flagBtn('star',P.star,'Star / watchlist')+_flagBtn('bad',P.caution,'Bad news / caution')+'</span></div><div class="cb">'
       + '<div class="rsec" data-rsec><div class="rsechd">Identity <span class="cv">▾</span></div><div class="rsecbody">'
       + '<div class="photorow"><div class="photoprev" id="p_photoprev" title="Click to upload a photo">'+photoInner+'</div><input type="file" id="p_photofile" accept="image/*" hidden></div>'
       + '<div class="fldrow2"><div><label class="fld">First name *</label><input id="p_first" value="'+esc(P.firstName||'')+'" style="font-weight:700"></div><div><label class="fld">Last name *</label><input id="p_last" value="'+esc(P.lastName||'')+'" style="font-weight:700"></div></div>'

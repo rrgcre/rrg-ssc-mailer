@@ -251,7 +251,7 @@ function findOrCreatePerson(req, info) {
   arr.push(p); logContactAdded(p, req); savePeople(arr);
   return p;
 }
-function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', vip: !!p.vip, caution: !!p.caution, prefContact: Array.isArray(p.prefContact) ? p.prefContact : [], createdAt: p.createdAt || '', owner: p.by || '', lastContacted: p.lastContacted || '', hasPhoto: !!p.photoExt } : null; }
+function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', vip: !!p.vip, caution: !!p.caution, star: !!p.star, prefContact: Array.isArray(p.prefContact) ? p.prefContact : [], createdAt: p.createdAt || '', owner: p.by || '', lastContacted: p.lastContacted || '', hasPhoto: !!p.photoExt } : null; }
 // One contact row as shown on a company file.
 function companyContactRow(p) { return { id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', emails: personEmails(p), phones: personPhones(p), email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', title: p.title || '', tags: personTags(p), leadSource: p.leadSource || '', hasPhoto: !!p.photoExt }; }
 
@@ -4749,6 +4749,7 @@ app.post('/api/person', express.json(), (req, res) => {
   if (typeof b.url === 'string') p.url = b.url.slice(0, 300);
   if (b.vip !== undefined) p.vip = !!b.vip;
   if (b.caution !== undefined) p.caution = !!b.caution;
+  if (b.star !== undefined) p.star = !!b.star;
   if (b.tags !== undefined) p.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') p.notes = b.notes.slice(0, 4000);
   if (isNew) logContactAdded(p, req);
