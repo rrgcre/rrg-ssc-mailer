@@ -65,14 +65,14 @@ function load(){
 }
 function render(){
   var total=EMAILS.length;
-  var opened=EMAILS.filter(function(e){return (e.opens||0)>0;}).length;
-  var totalOpens=EMAILS.reduce(function(a,e){return a+(e.opens||0);},0);
-  var rate= total? Math.round(opened/total*100):0;
+  var tracked=EMAILS.filter(function(e){return e.tracked;}).length;
+  var opened=EMAILS.filter(function(e){return e.tracked && (e.opens||0)>0;}).length;
+  var rate= tracked? Math.round(opened/tracked*100):0;
   document.getElementById('stats').innerHTML=
     '<div class="stat"><div class="n">'+total+'</div><div class="l">Emails sent</div></div>'
+    +'<div class="stat"><div class="n">'+tracked+'</div><div class="l">Tracked · app sends</div></div>'
     +'<div class="stat"><div class="n green">'+opened+'</div><div class="l">Opened</div></div>'
-    +'<div class="stat"><div class="n amber">'+rate+'%</div><div class="l">Open rate</div></div>'
-    +'<div class="stat"><div class="n">'+totalOpens+'</div><div class="l">Total opens</div></div>';
+    +'<div class="stat"><div class="n amber">'+(tracked?rate+'%':'—')+'</div><div class="l">Open rate · of tracked</div></div>';
   var cfg={ mount:'#list', data:EMAILS, key:'trackedEmails', empty:'<div class="empty">No tracked emails yet. Send an email from a contact’s page and it will show up here.</div>', rowId:function(e){return e.id;},
     defaultSort:0, defaultDir:1,
     columns:[
