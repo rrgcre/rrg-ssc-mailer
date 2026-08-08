@@ -6,7 +6,10 @@
 <title>FullServe — Pipeline Board</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
-*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;height:100%;}
+body{display:flex;flex-direction:column;}
+.top,#toolbar,#filterpanel{flex:none;}
+#root{flex:1 1 auto;min-height:0;overflow:auto;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
 .top{max-width:100%;padding:18px 26px 6px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
 .pgh{font-size:22px;font-weight:800;color:var(--navy);margin:0;}
@@ -35,8 +38,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .savemenu .saverow{display:flex;gap:6px;padding:8px 6px 2px;border-top:1px solid #eef1f6;margin-top:4px;}
 .savemenu .saverow input{flex:1;border:1px solid #cfd6e2;border-radius:7px;padding:6px 8px;font:inherit;font-size:12.5px;}
 .savemenu .saverow button{font:inherit;font-size:12px;font-weight:700;background:var(--navy);color:#fff;border:none;border-radius:7px;padding:6px 11px;cursor:pointer;}
-.board{display:flex;gap:14px;padding:6px 26px 30px;overflow-x:auto;align-items:flex-start;min-height:66vh;}
-.col{flex:0 0 288px;background:#f1f3f8;border:1px solid var(--line);border-radius:13px;display:flex;flex-direction:column;max-height:calc(100vh - 200px);}
+.board{display:flex;gap:14px;padding:6px 26px 14px;overflow-x:auto;overflow-y:hidden;align-items:flex-start;height:100%;}
+.col{flex:0 0 288px;background:#f1f3f8;border:1px solid var(--line);border-radius:13px;display:flex;flex-direction:column;max-height:100%;}
 .col.dragover{background:#e7eefb;border-color:#9fb6e6;box-shadow:inset 0 0 0 2px #9fb6e6;}
 .colh{padding:12px 14px 8px;border-bottom:1px solid #e4e8f0;position:sticky;top:0;background:#f1f3f8;border-radius:13px 13px 0 0;z-index:2;}
 .colh .nm{font-size:12.5px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.03em;display:flex;align-items:center;gap:8px;}
