@@ -116,6 +116,10 @@
     var lsKey = 'rrglist_'+(opts.key||'list');
     var listName = opts.exportName || opts.key || 'list';
     var saved = {}; try{ saved=JSON.parse(localStorage.getItem(lsKey)||'{}')||{}; }catch(e){}
+    // One-time layout migration: apply dense-by-default and a fresh column order/visibility when
+    // the schema version bumps, so a stale per-browser layout can't hide new columns or the new default.
+    var RL_LAYOUT_V = 2;
+    if((saved._v||0) < RL_LAYOUT_V){ delete saved.order; delete saved.hidden; delete saved.compact; saved._v = RL_LAYOUT_V; }
 
     // stable key per column
     cols.forEach(function(c,i){ c.__key = c.key || slug(c.label) || ('col'+i); });
@@ -139,7 +143,7 @@
     function canExport(){ if(opts.canExport===false) return false; if(opts.canExport===true) return true; var ss=window.__rrgSession; return ss?!!ss.canExport:false; }
     (function(){ if(window.__rrgSession) return; if(!window.__rrgSessionFetch){ window.__rrgSessionFetch=fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(ss){ window.__rrgSession=ss; try{document.dispatchEvent(new CustomEvent('rrg:session',{detail:ss}));}catch(e){} return ss; }).catch(function(){}); } document.addEventListener('rrg:session',function(){ try{ var ce=canExport(); mount.querySelectorAll('.rl-export,.rl-print').forEach(function(b){ b.hidden=!ce; }); }catch(e){} }); })();
     function firstSortable(){ for(var i=0;i<cols.length;i++){ if(cols[i].sortable!==false && cols[i].sort) return i; } return -1; }
-    function persist(){ try{ localStorage.setItem(lsKey, JSON.stringify({per:state.per, sort:state.sort, dir:state.dir, compact:state.compact, widths:state.widths, order:orderedMeta().map(function(m){return m.key;}), hidden:state.hidden, filters:state.filters})); }catch(e){} }
+    function persist(){ try{ localStorage.setItem(lsKey, JSON.stringify({_v:RL_LAYOUT_V, per:state.per, sort:state.sort, dir:state.dir, compact:state.compact, widths:state.widths, order:orderedMeta().map(function(m){return m.key;}), hidden:state.hidden, filters:state.filters})); }catch(e){} }
 
     function orderedMeta(){
       var meta=metaAll(), byKey={}; meta.forEach(function(m){ byKey[m.key]=m; });
