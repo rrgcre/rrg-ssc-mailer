@@ -143,7 +143,8 @@
     { grp: 'Accounting', admin: true, color: '#4fb0a6', items: [
       { ic: '❏', label: 'Invoices', href: 'rrg_invoices.html' },
       { ic: '＄', label: 'Payments', href: 'rrg_payments.html' },
-      { ic: '⊟', label: 'Expenses', href: 'rrg_expenses.html' }
+      { ic: '⊟', label: 'Expenses', href: 'rrg_expenses.html' },
+      { ic: '▦', label: 'Profit & Loss', href: 'rrg_pnl.html' }
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
       { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' },

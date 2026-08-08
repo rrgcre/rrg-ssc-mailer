@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Profit &amp; Loss</title>
+<style>
+:root{--navy:#0b1636;--navy2:#16346e;--red:#C0261B;--ink:#141a29;--dim:#5f6a7d;--soft:#8a93a3;--line:#e5e9f1;--wash:#f5f7fb;--green:#1f8a5b;--bg:#eef1f6;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:920px;margin:22px auto;padding:0 24px 60px;}
+.pagehead{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:14px;margin-bottom:18px;}
+.pagehead .k{font-size:11px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:var(--red);}
+.pagehead h1{font-size:26px;font-weight:800;letter-spacing:-.015em;color:var(--navy);margin:4px 0 0;}
+.pagehead .rng{font-size:12.5px;color:var(--dim);font-weight:600;margin-top:5px;font-variant-numeric:tabular-nums;}
+.ctrl{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.ctrl select{border:1px solid var(--line);border-radius:9px;padding:9px 12px;font:inherit;font-size:13px;background:#fff;color:var(--ink);font-weight:600;}
+.ctrl .pr{background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 13px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;text-decoration:none;}
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-bottom:18px;}
+@media(max-width:640px){.kpis{grid-template-columns:1fr;}}
+.kpi{background:#fff;border:1px solid var(--line);border-top:2px solid var(--navy2);border-radius:12px;padding:15px 16px;box-shadow:0 5px 18px rgba(12,22,54,.04);}
+.kpi.rev{border-top-color:var(--green);} .kpi.exp{border-top-color:var(--red);} .kpi.net{border-top-color:var(--navy);}
+.kpi .l{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:800;}
+.kpi .v{font-size:27px;font-weight:800;margin-top:6px;letter-spacing:-.02em;color:var(--navy);font-variant-numeric:tabular-nums;}
+.kpi.net .v.neg{color:var(--red);} .kpi.net .v.pos{color:var(--green);}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 5px 18px rgba(12,22,54,.04);overflow:hidden;}
+.card h2{font-size:13px;font-weight:800;color:var(--navy);text-transform:uppercase;letter-spacing:.05em;padding:15px 20px 6px;margin:0;}
+.stmt{padding:6px 20px 16px;}
+.line{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f0f3f8;font-size:14px;}
+.line .lbl{color:var(--ink);} .line .amt{font-weight:700;font-variant-numeric:tabular-nums;color:var(--navy);}
+.line.sub .lbl{color:var(--dim);padding-left:14px;font-size:13px;} .line.sub .amt{font-weight:600;color:var(--dim);}
+.line.tot{border-top:2px solid var(--line);border-bottom:none;margin-top:4px;padding-top:11px;} .line.tot .lbl{font-weight:800;} .line.tot .amt{font-weight:800;}
+.line.net{border-top:2px solid var(--navy);border-bottom:none;margin-top:6px;padding-top:13px;font-size:16px;} .line.net .lbl{font-weight:800;color:var(--navy);} .line.net .amt{font-weight:800;font-size:18px;}
+.line.net .amt.neg{color:var(--red);} .line.net .amt.pos{color:var(--green);}
+.sect{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);font-weight:800;margin:14px 0 2px;}
+.note{font-size:11.5px;color:var(--soft);padding:0 20px 16px;line-height:1.5;}
+.supp{display:flex;gap:20px;flex-wrap:wrap;padding:12px 20px 4px;}
+.supp .s .n{font-size:16px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;} .supp .s .l{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);font-weight:700;margin-top:1px;}
+.empty{color:var(--soft);font-size:13px;padding:14px 0;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);} .gate h2{color:var(--navy);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to dashboard" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Dashboard</a><style>@media print{.rrg-back{display:none!important}}</style>
+<div class="wrap" id="root"><div class="empty">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function money(n){ n=Number(n||0); var neg=n<0; n=Math.abs(n); var s='$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); return neg?('('+s+')'):s; }
+var INV=[], EXP=[], PERIOD='thisyear';
+function periodRange(p){
+  var now=new Date(); var y=now.getFullYear(), m=now.getMonth();
+  function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+  var start,end;
+  if(p==='thismonth'){ start=new Date(y,m,1); end=new Date(y,m+1,0); }
+  else if(p==='thisquarter'){ var q=Math.floor(m/3)*3; start=new Date(y,q,1); end=new Date(y,q+3,0); }
+  else if(p==='thisyear'){ start=new Date(y,0,1); end=new Date(y,11,31); }
+  else if(p==='lastyear'){ start=new Date(y-1,0,1); end=new Date(y-1,11,31); }
+  else { return {s:'0000-01-01', e:'9999-12-31', label:'All time'}; }
+  var fmt=function(d){ return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); };
+  return { s:iso(start), e:iso(end), label:fmt(start)+' – '+fmt(end) };
+}
+function inRange(dstr,r){ if(!dstr) return false; var d=String(dstr).slice(0,10); return d>=r.s && d<=r.e; }
+function render(){
+  var r=periodRange(PERIOD);
+  var invP=INV.filter(function(x){ return x.baseStatus!=='Void' && inRange(x.issueDate,r); });
+  var revenue=invP.reduce(function(a,x){ return a+(x.total||0); },0);
+  var collected=invP.reduce(function(a,x){ return a+(x.paid||0); },0);
+  var outstanding=INV.filter(function(x){ return x.baseStatus!=='Void'; }).reduce(function(a,x){ return a+(x.balance||0); },0);
+  var expP=EXP.filter(function(x){ return inRange(x.date,r); });
+  var byCat={};
+  expP.forEach(function(x){ var c=x.category||'Uncategorized'; byCat[c]=(byCat[c]||0)+(x.amount||0); });
+  var cats=Object.keys(byCat).sort(function(a,b){ return byCat[b]-byCat[a]; });
+  var totalExp=expP.reduce(function(a,x){ return a+(x.amount||0); },0);
+  var net=revenue-totalExp;
+  var sel=function(v,l){ return '<option value="'+v+'"'+(PERIOD===v?' selected':'')+'>'+l+'</option>'; };
+  var html=''
+    +'<div class="pagehead"><div><div class="k">Accounting</div><h1>Profit &amp; Loss</h1><div class="rng">'+esc(r.label)+' · accrual (invoiced) basis</div></div>'
+      +'<div class="ctrl"><select id="per">'+sel('thismonth','This month')+sel('thisquarter','This quarter')+sel('thisyear','This year')+sel('lastyear','Last year')+sel('all','All time')+'</select><a class="pr" href="javascript:window.print()">Print</a></div>'
+    +'</div>'
+    +'<div class="kpis">'
+      +'<div class="kpi rev"><div class="l">Revenue</div><div class="v">'+money(revenue)+'</div></div>'
+      +'<div class="kpi exp"><div class="l">Expenses</div><div class="v">'+money(totalExp)+'</div></div>'
+      +'<div class="kpi net"><div class="l">Net income</div><div class="v '+(net<0?'neg':'pos')+'">'+money(net)+'</div></div>'
+    +'</div>'
+    +'<div class="card">'
+      +'<div class="supp">'
+        +'<div class="s"><div class="n">'+money(collected)+'</div><div class="l">Collected on these invoices</div></div>'
+        +'<div class="s"><div class="n">'+money(outstanding)+'</div><div class="l">Outstanding A/R (all open)</div></div>'
+        +'<div class="s"><div class="n">'+invP.length+'</div><div class="l">Invoices in period</div></div>'
+      +'</div>'
+      +'<div class="stmt">'
+        +'<div class="sect">Revenue</div>'
+        +'<div class="line"><span class="lbl">Commissions &amp; fees (invoiced)</span><span class="amt">'+money(revenue)+'</span></div>'
+        +'<div class="line tot"><span class="lbl">Total revenue</span><span class="amt">'+money(revenue)+'</span></div>'
+        +'<div class="sect" style="margin-top:20px">Operating expenses</div>'
+        +(cats.length?cats.map(function(c){ return '<div class="line sub"><span class="lbl">'+esc(c)+'</span><span class="amt">'+money(byCat[c])+'</span></div>'; }).join(''):'<div class="empty">No expenses recorded in this period.</div>')
+        +'<div class="line tot"><span class="lbl">Total expenses</span><span class="amt">'+money(totalExp)+'</span></div>'
+        +'<div class="line net"><span class="lbl">Net income</span><span class="amt '+(net<0?'neg':'pos')+'">'+money(net)+'</span></div>'
+      +'</div>'
+      +'<div class="note">Revenue is recognized when invoiced (accrual). “Collected” shows payments received against invoices issued in this period; “Outstanding A/R” is the balance owed across all open invoices. Void invoices are excluded.</div>'
+    +'</div>';
+  document.getElementById('root').innerHTML=html;
+  document.getElementById('per').addEventListener('change',function(){ PERIOD=this.value; render(); });
+}
+Promise.all([
+  fetch('/api/invoices',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
+  fetch('/api/expenses',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
+]).then(function(res){
+  var ji=res[0], je=res[1];
+  if((!ji||!ji.ok)&&(!je||!je.ok)){ document.getElementById('root').innerHTML='<div class="gate"><h2>Admins only</h2>Ask an administrator to view the Profit &amp; Loss report.</div>'; return; }
+  INV=(ji&&ji.invoices)||[]; EXP=(je&&je.expenses)||[]; render();
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+</script>
+<script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
+</body>
+</html>
