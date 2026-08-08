@@ -360,6 +360,60 @@ function crBox(){
     +'<div class="expnote">The tenant\'s Site Selection Criteria — what we are hunting for. Saves with the assignment.</div>'
   +'</div>';
 }
+// ---------- Publish to Marketplace (blind teaser lives on the listing) ----------
+var MKT=null; var MKT_FLAG_LBL={'':'None','new':'New','price':'New price'};
+function mktCardShell(){ if(A && A.assignmentType==='tenant_rep') return ''; return '<div class="card" id="mktCard"><div class="ch"><b>Publish to Marketplace</b><span id="mktStatus" style="margin-left:10px;font-size:12px;color:#8a93a3">Loading…</span><a href="/market" target="_blank" rel="noopener" style="margin-left:auto;font-size:12px;font-weight:700;color:#2647b0;text-decoration:none">Open public page ↗</a></div><div class="cb" id="mktBody" style="padding-top:14px"></div></div>'; }
+function loadMarketplace(){ if(!KEY) return; fetch('/api/marketplace/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ MKT=j; fillMarketplaceCard(); } else { var s=document.getElementById('mktStatus'); if(s) s.textContent=''; var b=document.getElementById('mktBody'); if(b) b.innerHTML='<div style="color:#8a93a3;font-size:13px">Marketplace publishing isn’t available for this listing.</div>'; } }).catch(function(){}); }
+function _mkOpts(arr,sel,blank){ var o=blank?('<option value="">'+esc(blank)+'</option>'):''; return o+(arr||[]).map(function(x){return '<option value="'+esc(x)+'"'+(x===sel?' selected':'')+'>'+esc(x)+'</option>';}).join(''); }
+function _mkOptsObj(obj,sel){ obj=obj||{}; return Object.keys(obj).map(function(k){return '<option value="'+esc(k)+'"'+(k===sel?' selected':'')+'>'+esc(obj[k])+'</option>';}).join(''); }
+function fillMarketplaceCard(){
+  var body=document.getElementById('mktBody'); if(!body||!MKT) return;
+  var L=MKT.listing||{}, t=L.teaser||{}, sg=L.suggest||{};
+  var v=function(k,d){ return (t[k]!==undefined&&t[k]!==''&&t[k]!=null)?t[k]:(d!==undefined?d:''); };
+  var pub=!!t.published, feat=!!t.featured;
+  if(!document.getElementById('mktCss')){ var st=document.createElement('style'); st.id='mktCss'; st.textContent='#mktCard .mkrow{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px}#mktCard .mkf{flex:1 1 150px;min-width:0}#mktCard .mkf.wide{flex:1 1 100%}#mktCard .mkf.sm{flex:0 1 104px}#mktCard .mkf label{display:block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#8a93a3;margin:0 0 5px}#mktCard .mkf input,#mktCard .mkf select{width:100%;border:1px solid #cfd6e2;border-radius:8px;padding:9px 11px;font:inherit;font-size:13px;background:#fff}#mktCard .mkf.chk{display:flex;align-items:flex-end}#mktCard .mkf.chk label{display:flex;align-items:center;gap:7px;text-transform:none;letter-spacing:0;font-size:12.5px;color:#1a2236;font-weight:600;cursor:pointer;margin:0;padding-bottom:9px}#mktCard .mkf.chk input{width:auto}#mktCard .mksw{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;color:#6b7488;cursor:pointer;user-select:none;margin-right:18px}#mktCard .mkswitch{position:relative;width:40px;height:22px;border-radius:100px;background:#cfd6e2;transition:background .15s;flex:none}#mktCard .mkswitch::after{content:"";position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s}#mktCard .mksw.on .mkswitch{background:#1f8a5b}#mktCard .mksw.on.feat .mkswitch{background:#a9822f}#mktCard .mksw.on .mkswitch::after{left:20px}#mktCard .mkprev{background:#f3f5f9;border:1px solid #e6e9f0;border-radius:12px;padding:14px;margin-top:4px}#mktCard .mkpc{background:#fff;border:1px solid #e6e9f0;border-radius:12px;overflow:hidden;max-width:360px}#mktCard .mkth{height:96px;position:relative;display:flex;align-items:flex-end;padding:11px;background:linear-gradient(155deg,#0b1636,#1b2b52)}#mktCard .mkpc.feat .mkth{box-shadow:inset 0 0 0 1px rgba(169,130,47,.6)}#mktCard .mkbadge{position:relative;z-index:2;background:rgba(255,255,255,.94);color:#000E31;font-size:10px;font-weight:800;border-radius:100px;padding:3px 9px}#mktCard .mkfl{position:absolute;top:10px;right:10px;font-size:9px;font-weight:800;border-radius:100px;padding:3px 8px;text-transform:uppercase;letter-spacing:.05em}#mktCard .mkfl.new{background:#C0261B;color:#fff}#mktCard .mkfl.price{background:#a9822f;color:#1a1205}#mktCard .mkfl.feat{background:rgba(255,255,255,.92);color:#000E31}#mktCard .mkpb{padding:11px 13px 13px}#mktCard .mkploc{font-size:10px;color:#8a93a3;font-weight:700;text-transform:uppercase;letter-spacing:.05em}#mktCard .mkpb h4{font-size:13.5px;color:#000E31;margin:4px 0 8px;line-height:1.3;font-weight:600}#mktCard .mkmet{display:flex;gap:12px;padding:8px 0;border-top:1px solid #e6e9f0;border-bottom:1px solid #e6e9f0}#mktCard .mkmet .mv{font-size:12.5px;font-weight:800;color:#000E31;font-variant-numeric:tabular-nums}#mktCard .mkmet .mk{font-size:9px;color:#6b7488;text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-top:1px}#mktCard .mkplock{font-size:10.5px;color:#8a93a3;font-weight:600;margin-top:9px}#mktCard .mksave{background:#000E31;color:#fff;border:none;border-radius:8px;padding:9px 18px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}#mktCard .mkmsg{font-size:12px;font-weight:600;margin-left:10px}'; document.head.appendChild(st); }
+  body.innerHTML=''
+    +'<div style="display:flex;align-items:center;flex-wrap:wrap;margin-bottom:14px">'
+      +'<span class="mksw pubsw'+(pub?' on':'')+'"><span class="mkswitch"></span>Public</span>'
+      +'<span class="mksw feat featsw'+(feat?' on':'')+'"><span class="mkswitch"></span>Featured</span>'
+      +'<span style="font-size:11.5px;color:#8a93a3;flex:1 1 100%;margin-top:6px">Public shows this as a <b>blind</b> teaser — business name, address and contact stay hidden until a buyer signs an NDA.</span>'
+    +'</div>'
+    +'<div class="mkrow"><div class="mkf wide"><label>Blind headline — buyers see this (no name)</label><input class="mki" data-f="headline" value="'+esc(v('headline',''))+'" placeholder="e.g. Award-winning breakfast &amp; brunch platform"></div></div>'
+    +'<div class="mkrow">'
+      +'<div class="mkf"><label>Category</label><select class="mki" data-f="conceptKey">'+_mkOpts(MKT.concepts,v('conceptKey',''),'—')+'</select></div>'
+      +'<div class="mkf"><label>Badge text — buyers see this</label><input class="mki" data-f="conceptType" value="'+esc(v('conceptType',''))+'" placeholder="Fills from Category — edit to customize"></div>'
+      +'<div class="mkf sm"><label>Units</label><input class="mki" data-f="units" type="number" min="0" value="'+esc(v('units',''))+'"></div>'
+      +'<div class="mkf chk"><label><input type="checkbox" class="mki" data-f="reAvailable"'+(t.reAvailable?' checked':'')+'> RE available</label></div>'
+    +'</div>'
+    +'<div class="mkrow">'
+      +'<div class="mkf"><label>Market</label><select class="mki" data-f="marketKey">'+_mkOpts(MKT.metros,v('marketKey',sg.marketKey||'Other'),'')+'</select></div>'
+      +'<div class="mkf"><label>Location label</label><input class="mki" data-f="loc" value="'+esc(v('loc',sg.loc||''))+'" placeholder="e.g. San Antonio metro"></div>'
+      +'<div class="mkf"><label>Flag</label><select class="mki" data-f="flag">'+['','new','price'].map(function(k){return '<option value="'+k+'"'+(v('flag','')===k?' selected':'')+'>'+MKT_FLAG_LBL[k]+'</option>';}).join('')+'</select></div>'
+    +'</div>'
+    +'<div class="mkrow">'
+      +'<div class="mkf"><label>Revenue band</label><input class="mki" data-f="revenue" value="'+esc(v('revenue',''))+'" placeholder="$6.0–6.5M"></div>'
+      +'<div class="mkf sm"><label>Earnings basis</label><select class="mki" data-f="earnBasis"><option value="SDE"'+(v('earnBasis','SDE')==='SDE'?' selected':'')+'>SDE</option><option value="EBITDA"'+(v('earnBasis','SDE')==='EBITDA'?' selected':'')+'>EBITDA</option></select></div>'
+      +'<div class="mkf"><label>Earnings band</label><input class="mki" data-f="sde" value="'+esc(v('sde',''))+'" placeholder="$1.0–1.25M"></div>'
+      +'<div class="mkf"><label>Guide band</label><input class="mki" data-f="guide" value="'+esc(v('guide',sg.guide||''))+'" placeholder="$5.25–5.5M"></div>'
+    +'</div>'
+    +'<div class="mkrow">'
+      +'<div class="mkf"><label>Price filter</label><select class="mki" data-f="priceBand">'+_mkOptsObj(MKT.priceBands,v('priceBand',''))+'</select></div>'
+      +'<div class="mkf"><label>Cash-flow filter</label><select class="mki" data-f="cashBand">'+_mkOptsObj(MKT.cashBands,v('cashBand',''))+'</select></div>'
+      +'<div class="mkf"></div>'
+    +'</div>'
+    +'<div class="mkprev"><div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#8a93a3;margin-bottom:8px">Buyer preview</div><div class="mkpc" id="mkPrev"></div></div>'
+    +'<div style="display:flex;align-items:center;margin-top:14px"><button type="button" class="mksave" id="mkSave">Save teaser</button><span class="mkmsg" id="mkMsg"></span></div>';
+  var status=document.getElementById('mktStatus'); if(status) status.innerHTML=pub?'<span style="color:#1f8a5b;font-weight:700">● Public</span>':'<span style="color:#8a93a3">Not published</span>';
+  var cat=body.querySelector('[data-f="conceptKey"]'), badge=body.querySelector('[data-f="conceptType"]');
+  if(cat&&badge){ cat.addEventListener('change',function(){ if(!badge.value.trim()){ badge.value=cat.value||''; mkPreview(); } }); }
+  body.querySelectorAll('.mki').forEach(function(el){ el.addEventListener('input',mkPreview); el.addEventListener('change',mkPreview); });
+  body.querySelectorAll('.mksw').forEach(function(sw){ sw.addEventListener('click',function(){ sw.classList.toggle('on'); mkPreview(); }); });
+  document.getElementById('mkSave').addEventListener('click',mkSave);
+  mkPreview();
+}
+function mkCollect(){ var o={}; var body=document.getElementById('mktBody'); if(!body) return o; body.querySelectorAll('.mki').forEach(function(el){ var f=el.getAttribute('data-f'); o[f]=(el.type==='checkbox')?el.checked:el.value; }); var ps=body.querySelector('.pubsw'), fs=body.querySelector('.featsw'); o.published=!!(ps&&ps.classList.contains('on')); o.featured=!!(fs&&fs.classList.contains('on')); return o; }
+function mkPreview(){ var pc=document.getElementById('mkPrev'); if(!pc) return; var o=mkCollect(); var units=(o.units&&+o.units>1)?(' · '+o.units+' units'):''; var badge=((o.conceptType||o.conceptKey||'Restaurant')+(o.reAvailable?' · RE available':units)).trim(); var flag=o.flag==='new'?'<span class="mkfl new">New</span>':(o.flag==='price'?'<span class="mkfl price">New price</span>':(o.featured?'<span class="mkfl feat">Featured</span>':'')); var cells=[]; if(o.revenue)cells.push(['Revenue',o.revenue]); if(o.sde)cells.push([o.earnBasis||'SDE',o.sde]); if(o.guide)cells.push(['Guide',o.guide]); var met=cells.length?('<div class="mkmet">'+cells.map(function(c){return '<div><div class="mv">'+esc(c[1])+'</div><div class="mk">'+esc(c[0])+'</div></div>';}).join('')+'</div>'):'<div class="mkmet"><div><div class="mv">Under NDA</div><div class="mk">On request</div></div></div>'; pc.className='mkpc'+(o.featured?' feat':''); pc.innerHTML='<div class="mkth">'+flag+'<span class="mkbadge">'+esc(badge)+'</span></div><div class="mkpb"><div class="mkploc">'+esc(o.loc||'Texas')+'</div><h4>'+esc(o.headline||'Confidential restaurant opportunity')+'</h4>'+met+'<div class="mkplock">🔒 Blind until NDA · Request access →</div></div>'; }
+function mkSave(){ var btn=document.getElementById('mkSave'), msg=document.getElementById('mkMsg'); if(!btn) return; var o=mkCollect(); btn.disabled=true; var was=btn.textContent; btn.textContent='Saving…'; msg.textContent=''; fetch('/api/marketplace/'+encodeURIComponent(KEY),{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(o)}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; btn.textContent=was; if(j&&j.ok){ if(MKT&&MKT.listing) MKT.listing.teaser=j.teaser; msg.style.color='#1f8a5b'; msg.textContent='Saved ✓'; var status=document.getElementById('mktStatus'); if(status) status.innerHTML=(j.teaser&&j.teaser.published)?'<span style="color:#1f8a5b;font-weight:700">● Public</span>':'<span style="color:#8a93a3">Not published</span>'; setTimeout(function(){msg.textContent='';},1600); } else { msg.style.color='#C0261B'; msg.textContent=(j&&j.error)||'Could not save.'; } }).catch(function(){ btn.disabled=false; btn.textContent=was; msg.style.color='#C0261B'; msg.textContent='Could not reach the server.'; }); }
 function render(){
   var s=A.stages||{};
   var ST=activeStages();
@@ -408,6 +462,7 @@ function render(){
     '<div class="main">'
     + '<div class="card"><div class="ch"><b>Listing facts</b><span>'+done+' of '+ST.length+' stages complete</span></div><div class="cb">'+facts+'</div></div>'
     + '<div class="card"><div class="ch"><b>Pipeline</b><span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
+    + mktCardShell()
     + inquiriesCard()
     + dealCard()
     + ndasCard()
@@ -465,6 +520,7 @@ function render(){
   var pmb=document.getElementById('promoteBtn'); if(pmb) pmb.addEventListener('click',promoteListing);
   var ddb=document.getElementById('delDealBtn'); if(ddb) ddb.addEventListener('click',deleteDeal);
   wireRoomActivity();
+  if(A && A.assignmentType!=='tenant_rep'){ if(MKT) fillMarketplaceCard(); else loadMarketplace(); }
   wireOffers();
   wireTours();
   wireNdas();

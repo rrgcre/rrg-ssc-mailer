@@ -3648,6 +3648,7 @@ function mktClean(b, prev) {
   if (b.marketKey !== undefined) out.marketKey = MKT_METROS.indexOf(b.marketKey) >= 0 ? b.marketKey : 'Other';
   if (b.revenue !== undefined) out.revenue = s(b.revenue, 40);
   if (b.sde !== undefined) out.sde = s(b.sde, 40);
+  if (b.earnBasis !== undefined) out.earnBasis = (b.earnBasis === 'EBITDA') ? 'EBITDA' : 'SDE';
   if (b.guide !== undefined) out.guide = s(b.guide, 40);
   if (b.priceBand !== undefined) out.priceBand = (b.priceBand in MKT_PRICE) ? b.priceBand : '';
   if (b.cashBand !== undefined) out.cashBand = (b.cashBand in MKT_CASH) ? b.cashBand : '';
@@ -3669,7 +3670,7 @@ function mktTeaser(key, view, m) {
     loc: m.loc || view.market || '', badge: badge,
     conceptKey: m.conceptKey || '', marketKey: m.marketKey || 'Other',
     priceBand: m.priceBand || '', cashBand: m.cashBand || '',
-    revenue: m.revenue || '', sde: m.sde || '', guide: m.guide || '',
+    revenue: m.revenue || '', sde: m.sde || '', earnBasis: m.earnBasis || 'SDE', guide: m.guide || '',
     flag: m.flag || '', featured: !!m.featured, publishedAt: m.publishedAt || ''
   };
 }
@@ -3701,6 +3702,15 @@ app.get('/api/marketplace', (req, res) => {
     });
   rows.sort((a, b) => ((b.live ? 1 : 0) - (a.live ? 1 : 0)) || String(a.business).localeCompare(String(b.business)));
   res.json({ ok: true, isAdmin: !!isAdmin, metros: MKT_METROS, concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, publicUrl: (req.protocol + '://' + req.get('host') + '/market'), listings: rows });
+});
+// Single listing's marketplace teaser — powers the "Publish to Marketplace" panel on the listing page.
+app.get('/api/marketplace/:key', (req, res) => {
+  const key = req.params.key; const deals = assignmentsIndex(); const d = deals[key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay(); const view = assignmentView(d, overlay); const o = overlay[key] || {};
+  res.json({ ok: true, metros: MKT_METROS, concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, publicUrl: (req.protocol + '://' + req.get('host') + '/market'),
+    listing: { key: key, business: view.business, market: view.market, value: view.value, roomId: view.roomId, status: view.status, teaser: o.market || null, suggest: mktSuggest(view) } });
 });
 app.post('/api/marketplace/:key', express.json(), (req, res) => {
   const key = req.params.key; const deals = assignmentsIndex(); const d = deals[key];
@@ -3775,7 +3785,7 @@ header{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0
 .flag.new{background:var(--red);color:#fff;} .flag.price{background:var(--gold);color:#1a1205;} .flag.feat{background:rgba(255,255,255,.92);color:var(--navy);}
 .cbody{padding:15px 17px 17px;}
 .cbody .loc{font-size:11px;color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
-.cbody h3{font-size:16px;color:var(--navy);margin:5px 0 11px;line-height:1.28;font-weight:800;}
+.cbody h3{font-size:15.5px;color:var(--navy);margin:5px 0 11px;line-height:1.3;font-weight:600;letter-spacing:-.005em;}
 .metrics{display:flex;gap:14px;padding:11px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
 .metrics .m .v{font-size:14px;font-weight:800;color:var(--navy);font-variant-numeric:tabular-nums;}
 .metrics .m .k{font-size:9.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-top:2px;}
@@ -3843,7 +3853,7 @@ footer .ft{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;} 
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 var ALL=[], CUR='';
 var PB=${JSON.stringify(MKT_PRICE)}, CB=${JSON.stringify(MKT_CASH)};
-function metricsHtml(l){ var cells=[]; if(l.revenue) cells.push(['Revenue',l.revenue]); if(l.sde) cells.push(['SDE',l.sde]); if(l.guide) cells.push(['Guide',l.guide]);
+function metricsHtml(l){ var cells=[]; if(l.revenue) cells.push(['Revenue',l.revenue]); if(l.sde) cells.push([l.earnBasis||'SDE',l.sde]); if(l.guide) cells.push(['Guide',l.guide]);
   if(!cells.length) return '<div class="metrics"><div class="m"><div class="v">Under NDA</div><div class="k">Financials on request</div></div></div>';
   return '<div class="metrics">'+cells.map(function(c){return '<div class="m"><div class="v">'+esc(c[1])+'</div><div class="k">'+esc(c[0])+'</div></div>';}).join('')+'</div>'; }
 function card(l){ var flag=l.flag==='new'?'<span class="flag new">New</span>':(l.flag==='price'?'<span class="flag price">New price</span>':(l.featured?'<span class="flag feat">Featured</span>':''));
