@@ -289,6 +289,8 @@
     document.body.insertBefore(nav, document.body.firstChild);
     document.body.insertBefore(top, document.body.firstChild);
     document.body.classList.add('rrg-shelled');
+    try{ var _skel=document.getElementById('rrgnav-skel'); if(_skel) _skel.remove(); }catch(e){}
+    try{ localStorage.setItem('rrg_nav_html_v1', navHtml.replace(/class="it on"/g,'class="it"')); }catch(e){}
     try{ if(localStorage.getItem('rrg_nav_collapsed')==='1') document.body.classList.add('rrg-collapsed'); }catch(e){}
     (function(){ var _cb=document.getElementById('rrgcollapse'); if(!_cb) return; function _sync(){ var on=document.body.classList.contains('rrg-collapsed'); _cb.textContent=on?'\u00bb':'\u00ab'; _cb.title=on?'Expand sidebar':'Collapse sidebar'; } _sync(); _cb.addEventListener('click',function(e){ e.preventDefault(); var on=document.body.classList.toggle('rrg-collapsed'); try{ localStorage.setItem('rrg_nav_collapsed',on?'1':'0'); }catch(_e){} _sync(); }); })();
     // Contextual back button in the header's left slot — pages opt in with
