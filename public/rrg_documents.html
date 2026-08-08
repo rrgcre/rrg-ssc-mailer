@@ -15,9 +15,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
 h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:680px;}
-.tabs{margin-top:18px;display:flex;gap:8px;flex-wrap:wrap;}
-.tabs a{color:#aeb8cf;text-decoration:none;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:100px;border:1px solid rgba(255,255,255,.2);cursor:pointer;display:inline-flex;gap:7px;align-items:center;}
-.tabs a.on{background:#fff;color:var(--navy);border-color:#fff;}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;padding:14px 20px 4px;border-bottom:1px solid var(--line);}
+.tabs a{color:#5b6472;text-decoration:none;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:100px;border:1px solid #e3e8f0;cursor:pointer;display:inline-flex;gap:7px;align-items:center;background:#fff;}
+.tabs a:hover{border-color:#c7d0de;background:#f7f9fc;}
+.tabs a.on{background:var(--navy);color:#fff;border-color:var(--navy);}
 .tabs a .tc{font-size:11px;font-weight:800;opacity:.6;}
 .wrap{max-width:none;margin:20px 0;padding:0 28px 56px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
@@ -75,11 +76,11 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
   <div class="kicker">Library</div>
   <h1>Documents</h1>
   <div class="sub">Every document in one place — agreements, LOIs, valuations, marketing packs, site criteria, and anything you upload. Filter by type, sort any column, search, or add your own.</div>
-  <div class="tabs" id="dtabs"></div>
 </div></div>
 <div class="wrap">
   <div class="card">
     <div class="hd"><b>Documents</b><span class="cnt" id="cnt"></span><button class="newbtn" onclick="openUpload()" style="margin-left:auto" title="Max 25 MB per file">⬆ Upload</button><span class="uphint" style="margin-left:8px;font-size:11px;color:#9aa3b2;align-self:center;white-space:nowrap">25 MB max</span><div class="searchwrap" style="margin-left:8px"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="search" placeholder="Search documents…" oninput="applyFilter()" autocomplete="off"><button type="button" class="searchx" id="searchx" title="Clear search" onclick="var s=document.getElementById('search');s.value='';applyFilter();s.focus();">×</button></div></div>
+    <div class="tabs" id="dtabs"></div>
     <div class="filterbar" id="filterbar">
       <span class="fbl">Filter</span>
       <select id="fOwner" class="fbsel" onchange="applyFilter()"><option value="">All owners</option></select>
