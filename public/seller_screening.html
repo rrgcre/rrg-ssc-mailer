@@ -272,6 +272,23 @@
 </style>
 </head>
 <body>
+<script>
+/* When Call Mode auto-launches (opened from a contact / Seller Interview), cover the page
+   with an opaque veil right away so the scrollable form never flashes before the guided
+   overlay comes up. Removed the instant Call Mode starts; a safety timer clears it either way. */
+(function(){ try{
+  var s=location.search||'';
+  if(/[?&]screening=/.test(s)) return;                 // editing an existing record — no auto-launch
+  if(!/[?&](sellerName|contactId|contact|company|business|market|address)=/.test(s)) return;
+  var st=document.createElement('style'); st.textContent='@keyframes sscspin{to{transform:rotate(360deg)}}'; (document.head||document.documentElement).appendChild(st);
+  var v=document.createElement('div'); v.id='sscAutoVeil';
+  v.style.cssText='position:fixed;inset:0;z-index:1180;background:#eef1f6;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;color:#5a6478';
+  v.innerHTML='<div style="width:34px;height:34px;border-radius:50%;border:3px solid #d7deea;border-top-color:#DA2B1F;animation:sscspin .8s linear infinite"></div><div>Starting Call Mode…</div>';
+  (document.body||document.documentElement).appendChild(v);
+  window.__sscHideVeil=function(){ var e=document.getElementById('sscAutoVeil'); if(e) e.remove(); };
+  setTimeout(window.__sscHideVeil, 8000);              // safety — never trap the user behind the veil
+}catch(e){} })();
+</script>
 <!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to dashboard" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)"><span style="font-size:14px;line-height:1">←</span> Dashboard</a><style>@media print{.rrg-back{display:none!important}}@media(max-width:560px){.rrg-back{left:12px;bottom:12px;padding:9px 13px}}</style>
 
 <div class="toolbar">
@@ -1427,7 +1444,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
       if((!_cReady || !_qReady) && (window.__scrStartTries=(window.__scrStartTries||0)+1) < 40){ setTimeout(start, 80); return; }
       window.__scrStartTries=0;
     } catch(e){}
-    steps=computeSteps(); active=true; fab.style.display='none'; ov.style.display='flex'; if(!window.__sscStarted) window.__sscStarted=new Date().toISOString();
+    steps=computeSteps(); active=true; fab.style.display='none'; ov.style.display='flex'; try{ if(window.__sscHideVeil) window.__sscHideVeil(); }catch(e){} if(!window.__sscStarted) window.__sscStarted=new Date().toISOString();
     known=steps.map(function(el){ return hasVal(el); });
     if(seek(0,1)>=steps.length) known=[];            // everything answered -> ask normally rather than end the call
     var pre=[]; for(var k=0;k<steps.length;k++){ if(known[k]){ var L=labelOf(steps[k]); if(L) pre.push(L); } }
