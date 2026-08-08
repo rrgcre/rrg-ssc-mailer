@@ -35,6 +35,12 @@ table.sum{width:100%;border-collapse:collapse;font-size:13px;} table.sum td,tabl
 .ufchip:hover{border-color:#9fb0cc;}
 .ufchip.on{background:var(--navy);color:#fff;border-color:var(--navy);}
 .ufscope{padding:2px 20px 16px;font-size:12px;color:var(--dim);font-weight:600;}
+.card>h2{cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none;}
+.card>h2 .chev{margin-left:auto;color:var(--faint);font-size:12px;line-height:1;transition:transform .15s;flex:none;}
+.card>h2:hover .chev{color:var(--navy2);}
+.card.collapsed>h2{padding-bottom:16px;}
+.card.collapsed>h2 .chev{transform:rotate(-90deg);}
+.card.collapsed>*:not(h2){display:none!important;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -96,6 +102,18 @@ function paint(){
     +'<div class="card"><h2>Recent tool activity</h2><span class="cs">Newest first · last 500 opens'+(sel.length?' · filtered':'')+'.</span><div class="mounted" id="usagelist"></div></div>'
     +'<div class="card"><h2>Login activity</h2><span class="cs">Newest first · last 300 sign-in attempts'+(sel.length?' · filtered':'')+'.</span><div class="mounted" id="loginlist"></div></div>';
   usageList(usage); loginList(logins);
+  makeCollapsible();
+}
+var COLL={}; try{ COLL=JSON.parse(localStorage.getItem('actcoll_v1')||'{}')||{}; }catch(e){}
+function saveColl(){ try{ localStorage.setItem('actcoll_v1',JSON.stringify(COLL)); }catch(e){} }
+function makeCollapsible(){
+  document.querySelectorAll('.card > h2').forEach(function(h2){
+    if(h2.__coll) return; h2.__coll=1;
+    var card=h2.parentNode; var k=(h2.textContent||'').trim().slice(0,48);
+    var chev=document.createElement('span'); chev.className='chev'; chev.textContent='▾'; h2.appendChild(chev);
+    if(COLL[k]) card.classList.add('collapsed');
+    h2.addEventListener('click',function(){ var on=card.classList.toggle('collapsed'); if(on) COLL[k]=1; else delete COLL[k]; saveColl(); });
+  });
 }
 function render(j){
   DATA=j;
