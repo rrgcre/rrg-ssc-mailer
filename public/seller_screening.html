@@ -1383,6 +1383,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     w.document.close();
   }
   var _rec=null,_recChunks=[],_recStream=null,_recTimer=null,_recStart=0,_recWidget=null;
+  var _recAudio=null,_recAudioChunks=[]; window.__recAudioBlob=null;
   function recSupported(){ return !!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder); }
   function _fmtT(s){ s=Math.floor(s); var m=Math.floor(s/60),ss=s%60; return m+':'+(ss<10?'0':'')+ss; }
   function startRecording(){
@@ -1395,6 +1396,20 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
       _rec.ondataavailable=function(e){ if(e.data&&e.data.size) _recChunks.push(e.data); };
       _rec.onstop=function(){ _saveRecording(); };
       _rec.start(1000); _recStart=Date.now(); _showRecWidget(stream);
+      // Compact audio-only track, captured in parallel, for Whisper transcription (kept small so it stays under the API limit).
+      try{
+        var atracks=stream.getAudioTracks?stream.getAudioTracks():[];
+        if(atracks.length){
+          window.__recAudioBlob=null; _recAudioChunks=[];
+          var amime=''; ['audio/webm;codecs=opus','audio/webm'].some(function(m){ try{ if(window.MediaRecorder.isTypeSupported(m)){ amime=m; return true; } }catch(e){} return false; });
+          var aopts={audioBitsPerSecond:32000}; if(amime) aopts.mimeType=amime;
+          try{ _recAudio=new MediaRecorder(new MediaStream(atracks),aopts); }catch(e){ try{ _recAudio=new MediaRecorder(new MediaStream(atracks)); }catch(_){ _recAudio=null; } }
+          if(_recAudio){ _recAudio.ondataavailable=function(e){ if(e.data&&e.data.size) _recAudioChunks.push(e.data); };
+            _recAudio.onstop=function(){ try{ if(_recAudioChunks.length) window.__recAudioBlob=new Blob(_recAudioChunks,{type:(_recAudio&&_recAudio.mimeType&&String(_recAudio.mimeType).split(';')[0])||'audio/webm'}); }catch(e){} };
+            _recAudio.start(1000);
+          }
+        }
+      }catch(e){}
     }).catch(function(err){ alert('Could not start the camera/microphone ('+((err&&err.name)||'blocked')+'). The call will continue without recording. Check the browser’s camera permission and try again.'); });
   }
   function _showRecWidget(stream){
@@ -1408,7 +1423,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     document.getElementById('recStop').addEventListener('click',function(){ stopRecording(); });
     _recTimer=setInterval(function(){ var t=document.getElementById('recTime'); if(t) t.textContent=_fmtT((Date.now()-_recStart)/1000); },500);
   }
-  function stopRecording(){ if(_rec&&_rec.state&&_rec.state!=='inactive'){ try{ _rec.stop(); }catch(e){ _saveRecording(); } } else if(_recStream){ _saveRecording(); } }
+  function stopRecording(){ try{ if(_recAudio&&_recAudio.state&&_recAudio.state!=='inactive') _recAudio.stop(); }catch(e){} if(_rec&&_rec.state&&_rec.state!=='inactive'){ try{ _rec.stop(); }catch(e){ _saveRecording(); } } else if(_recStream){ _saveRecording(); } }
   function _recApiBase(){ try{ return String(window.RRG_API||'').replace(/\/$/,''); }catch(e){ return ''; } }
   function _recBusiness(){ try{ var el=document.getElementById('sscCompany'); var v=el&&el.value?el.value.trim():''; return v||_qparam('company')||_qparam('sellerName')||''; }catch(e){ return _qparam('company')||''; } }
   function _recIds(){ var P=window.RRG_PARTY||{}; return { personId:P.personId||_qparam('contactId')||_qparam('contact')||'', companyId:P.companyId||_qparam('companyId')||_qparam('coId')||'', screenId:_qparam('screening')||'', business:_recBusiness() }; }
@@ -1444,13 +1459,27 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
       })
       .then(function(j){
         if(!j||!j.ok) throw new Error('register');
-        _showUp('Saved to the seller’s data room ✓', 100, 'ok'); _hideUpSoon(5000);
-        if(window.rrgToast) rrgToast('Interview video saved to the seller’s data room.');
+        var ab=window.__recAudioBlob;
+        if(ab&&ab.size){ _showUp('Saved ✓ — transcribing…', 100, 'ok'); transcribeInterview(j.id, ab); }
+        else { _showUp('Saved to the seller’s data room ✓', 100, 'ok'); _hideUpSoon(5000); if(window.rrgToast) rrgToast('Interview video saved to the seller’s data room.'); }
       })
       .catch(function(err){
         _showUp('Upload failed — saved to Downloads instead', 100, 'err'); _hideUpSoon(6500);
         _downloadRecording(blob);
       });
+  }
+  function transcribeInterview(id, audioBlob){
+    if(!id||!audioBlob||!audioBlob.size){ _hideUpSoon(4000); return; }
+    if(audioBlob.size>24*1024*1024){ _showUp('Saved ✓ — interview too long to auto-transcribe', 100, 'ok'); _hideUpSoon(6500); if(window.rrgToast) rrgToast('Video saved to the data room. The interview was too long to transcribe automatically.'); return; }
+    _showUp('Transcribing interview…', null, '');
+    var ct=(audioBlob.type&&String(audioBlob.type).split(';')[0])||'audio/webm';
+    fetch(_recApiBase()+'/api/interview/'+encodeURIComponent(id)+'/transcribe',{method:'POST',credentials:'same-origin',headers:{'Content-Type':ct},body:audioBlob})
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(j&&j.ok){ _showUp(j.summary?'Transcript + AI debrief ready ✓':'Transcript ready ✓', 100, 'ok'); _hideUpSoon(6500); if(window.rrgToast) rrgToast(j.summary?'Interview transcribed and an AI debrief was drafted to the seller’s file.':'Interview transcript saved to the seller’s file.'); }
+        else { _showUp('Video saved ✓ — transcription didn’t run', 100, ''); _hideUpSoon(6500); }
+      })
+      .catch(function(){ _showUp('Video saved ✓ — transcription didn’t run', 100, ''); _hideUpSoon(6500); });
   }
   function _saveRecording(){
     var blob=null;
@@ -1463,7 +1492,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
       else { _downloadRecording(blob); if(window.rrgToast) rrgToast('Interview video saved to your Downloads — upload it to the seller’s data room when ready.'); }
     }).catch(function(){ _downloadRecording(blob); if(window.rrgToast) rrgToast('Interview video saved to your Downloads — upload it to the seller’s data room when ready.'); });
   }
-  function _cleanupRec(){ if(_recTimer){ clearInterval(_recTimer); _recTimer=null; } if(_recStream){ try{ _recStream.getTracks().forEach(function(t){t.stop();}); }catch(e){} _recStream=null; } if(_recWidget){ try{ _recWidget.remove(); }catch(e){} _recWidget=null; } _rec=null; }
+  function _cleanupRec(){ try{ if(_recAudio&&_recAudio.state&&_recAudio.state!=='inactive') _recAudio.stop(); }catch(e){} if(_recTimer){ clearInterval(_recTimer); _recTimer=null; } if(_recStream){ try{ _recStream.getTracks().forEach(function(t){t.stop();}); }catch(e){} _recStream=null; } if(_recWidget){ try{ _recWidget.remove(); }catch(e){} _recWidget=null; } _rec=null; }
   function recGate(){
     if(document.getElementById('recGate')||_recStream) return;
     var d=document.createElement('div'); d.id='recGate'; d.style.cssText='position:fixed;inset:0;background:rgba(8,14,32,.5);display:flex;align-items:center;justify-content:center;z-index:1500;padding:20px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif';

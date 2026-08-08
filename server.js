@@ -4831,6 +4831,60 @@ app.get('/api/interview/:id/view', async (req, res) => {
     res.redirect(url);
   } catch (e) { console.error('interview view:', e && e.message); res.status(500).send('Could not open the recording.'); }
 });
+// Turn a raw interview transcript into a broker debrief (draft — the rep verifies it).
+async function summarizeInterview(rec) {
+  const key = process.env.ANTHROPIC_API_KEY; if (!key) return '';
+  const t = String((rec && rec.transcript) || '').trim(); if (!t) return '';
+  const sys = 'You are assisting a commercial real estate broker who sells and leases restaurants and bars. You are given the raw transcript of a recorded seller interview — the broker interviewing a restaurant or bar owner who wants to sell their business. Produce a clean, well-organized written debrief the broker can drop straight into the deal file. Use ONLY what the transcript supports — never invent numbers or facts; where the seller was vague, evasive, or silent on something, say so plainly. Organize under clear headings: Business & concept; Reason for selling; Financials as stated (revenue, cash flow / SDE, rent); Real estate & lease (term, options, transferability); Assets, equipment & staff; Price expectations & timeline; Red flags & follow-ups the broker should chase. Keep it tight, factual, and skimmable. This is a DRAFT for the broker to verify before it goes to any buyer.';
+  const content = 'Seller / business: ' + (String((rec && rec.business) || '').slice(0, 160) || '(unknown)') + '\n\nInterview transcript:\n\n' + t.slice(0, 60000) + '\n\nWrite the debrief now.';
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: loadAiModel(), max_tokens: 2200, temperature: 0.2, system: sys, messages: [{ role: 'user', content }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error((data && data.error && data.error.message) || 'AI request failed.');
+  let text = ''; try { text = (data.content || []).map(x => x.text || '').join(''); } catch (e) {}
+  return String(text || '').trim();
+}
+app.get('/api/interview/:id', (req, res) => {
+  const rec = loadInterviews().find(x => x.id === req.params.id);
+  if (!rec) return res.status(404).json({ ok: false, error: 'Interview not found.' });
+  res.json({ ok: true, id: rec.id, business: rec.business || '', personId: rec.personId || '', companyId: rec.companyId || '', screenId: rec.screenId || '',
+    durationSec: rec.durationSec || 0, sizeBytes: rec.sizeBytes || 0, createdAt: rec.createdAt || '', by: rec.by || '', roomId: rec.roomId || '',
+    transcript: rec.transcript || '', transcriptStatus: rec.transcriptStatus || '', summary: rec.summary || '', summaryStatus: rec.summaryStatus || '',
+    viewUrl: '/api/interview/' + rec.id + '/view' });
+});
+// Audio is posted straight from the browser and only kept long enough to transcribe (the durable copy is the video in S3).
+app.post('/api/interview/:id/transcribe', express.raw({ type: ['audio/*', 'application/octet-stream'], limit: '30mb' }), async (req, res) => {
+  try {
+    const key = process.env.OPENAI_API_KEY;
+    if (!key) return res.status(400).json({ ok: false, error: 'Transcription isn’t set up yet (add OPENAI_API_KEY).' });
+    const all = loadInterviews(); const rec = all.find(x => x.id === req.params.id);
+    if (!rec) return res.status(404).json({ ok: false, error: 'Interview not found.' });
+    const buf = req.body;
+    if (!buf || !buf.length) return res.status(400).json({ ok: false, error: 'No audio received.' });
+    if (buf.length > 24 * 1024 * 1024) { rec.transcriptStatus = 'too_large'; saveInterviews(all); return res.status(413).json({ ok: false, error: 'Audio too long to transcribe automatically (over 24 MB).' }); }
+    const ctIn = String(req.headers['content-type'] || 'audio/webm').split(';')[0];
+    const fname = 'audio.' + (ctIn.indexOf('mp4') >= 0 ? 'mp4' : (ctIn.indexOf('mpeg') >= 0 || ctIn.indexOf('mp3') >= 0 ? 'mp3' : 'webm'));
+    const fd = new FormData();
+    fd.append('file', new Blob([buf], { type: ctIn || 'audio/webm' }), fname);
+    fd.append('model', process.env.WHISPER_MODEL || 'whisper-1');
+    fd.append('response_format', 'json');
+    const wr = await fetch('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: fd });
+    const wdata = await wr.json().catch(() => ({}));
+    if (!wr.ok) { rec.transcriptStatus = 'error'; saveInterviews(all); return res.status(502).json({ ok: false, error: (wdata && wdata.error && wdata.error.message) || 'Transcription failed.' }); }
+    const text = String((wdata && wdata.text) || '').trim();
+    rec.transcript = text; rec.transcriptStatus = text ? 'done' : 'empty'; rec.transcribedAt = new Date().toISOString();
+    saveInterviews(all);
+    let summary = '';
+    try {
+      summary = await summarizeInterview(rec);
+      if (summary) { const a2 = loadInterviews(); const r2 = a2.find(x => x.id === rec.id); if (r2) { r2.summary = summary; r2.summaryStatus = 'done'; r2.summarizedAt = new Date().toISOString(); saveInterviews(a2); } }
+    } catch (e) { console.error('summarize interview:', e && e.message); }
+    res.json({ ok: true, transcript: text, transcriptStatus: rec.transcriptStatus, summary: summary, summaryStatus: summary ? 'done' : '' });
+  } catch (e) { console.error('transcribe interview:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 app.get('/api/payments', (req, res) => {
   const u = req.user || {}; const admin = isSuper(u); const all = loadInvoices();
   const vis = all.filter(x => admin || x.ownerUser === u.username);
