@@ -70,6 +70,13 @@ h1{font-size:21px;font-weight:800;margin:0;color:#fff;}
 </div></div>
 <div class="wrap">
 
+  <div id="closedBanner" style="display:none;background:#fff4e6;border:1px solid #f3d9a8;border-radius:12px;padding:12px 16px;margin-bottom:9px;display:none;align-items:center;gap:12px;flex-wrap:wrap">
+    <span style="font-size:18px;line-height:1">🗄️</span>
+    <div style="flex:1;min-width:180px"><div style="font-weight:800;color:#8a5a12;font-size:13.5px">Room archived — closed after sale</div><div id="closedWhen" style="color:#a06a1e;font-size:12px;margin-top:1px"></div></div>
+    <button class="btn" onclick="reopenRoom(this)" style="border-color:#e0c48a;color:#8a5a12">Reopen room</button>
+  </div>
+
+
   <div class="card">
     <div class="cbody" style="padding-bottom:6px"><h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Documents</h2><div class="h" style="margin-bottom:2px">The room is organized into the same sections every time. Files show under their section; delete any anytime.</div></div>
     <div id="docList"></div>
@@ -80,6 +87,14 @@ h1{font-size:21px;font-weight:800;margin:0;color:#fff;}
     <div class="h">Anyone with this link can view and download the documents in this room. Share it only with qualified, NDA'd buyers. Regenerate it to retire the old link instantly.</div>
     <div class="linkbar"><span class="url" id="url">…</span><button class="btn primary" onclick="copyLink()">Copy link</button><a class="btn green" id="openLink" href="#" target="_blank" rel="noopener" title="Open the room exactly as an NDA\u2019d buyer sees it">\ud83d\udc41 Buyer view</a><button class="btn" onclick="regen()">Regenerate</button></div>
   </div></div>
+
+  <div class="card" id="ivCard" style="display:none">
+    <div class="cbody" style="padding-bottom:6px">
+      <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Seller interviews <span style="font-weight:700;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:99px;padding:2px 8px;margin-left:6px;vertical-align:middle">Internal — buyers never see this</span></h2>
+      <div class="h">The recorded interview, the AI-drafted debrief, and the full transcript. These live on your side of the room only — they are <b>not</b> part of the buyer link or the Documents section.</div>
+    </div>
+    <div id="ivList"></div>
+  </div>
 
   <div class="card"><div class="cbody">
     <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Buyers &amp; access</h2>
@@ -114,6 +129,15 @@ h1{font-size:21px;font-weight:800;margin:0;color:#fff;}
   <div class="card">
     <div class="cbody" style="padding-bottom:8px"><h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Access log</h2><div class="h" style="margin-bottom:0">Recent views and downloads through the buyer link — newest first.</div></div>
     <div class="log" id="log"></div>
+  </div>
+
+  <div class="card" id="closeCard">
+    <div class="cbody">
+      <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Close &amp; archive</h2>
+      <div class="h">When the sale closes, archive the room. This <b>retires the buyer link</b> and <b>revokes every buyer's access</b> immediately, then locks the room read-only. Nothing is deleted — your documents, interviews and access log are kept on file, and you can reopen it if a deal falls through.</div>
+      <button class="btn" onclick="closeRoom(this)" style="border-color:#f0cfca;color:var(--red);background:#fff5f4">🗄️ Close &amp; archive room</button>
+      <div class="umsg" id="closeMsg"></div>
+    </div>
   </div>
 
 </div>
@@ -235,7 +259,27 @@ function toggleGrant(id){
   fetch('/api/room/'+encodeURIComponent(RID)+'/grant-toggle',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:id})})
    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; renderGrants(); } else alert((j&&j.error)||'Failed'); }).catch(function(){ alert('Could not reach the server.'); });
 }
-function paint(){ document.getElementById('hdr').textContent='Data Room · '+(ROOM.business||''); paintLink(); renderCats(); renderDocs(); renderGrants(); renderLog(); }
+function paint(){ document.getElementById('hdr').textContent='Data Room · '+(ROOM.business||''); paintLink(); renderInterviews(); renderCats(); renderDocs(); renderGrants(); renderLog(); paintClosed(); }
+function paintClosed(){
+  var closed=!!(ROOM&&ROOM.closed);
+  var b=document.getElementById('closedBanner'); if(b){ b.style.display=closed?'flex':'none'; var w=document.getElementById('closedWhen'); if(w) w.textContent=(closed&&ROOM.closedAt)?('Closed '+_ivDate(ROOM.closedAt)+(ROOM.closedBy?(' · by '+ROOM.closedBy):'')):''; }
+  var cc=document.getElementById('closeCard'); if(cc) cc.style.display=closed?'none':'';
+  if(closed){ var url=document.getElementById('url'); if(url) url.textContent='Link retired — room archived'; var open=document.getElementById('openLink'); if(open){ open.style.pointerEvents='none'; open.style.opacity='.5'; } }
+}
+async function closeRoom(btn){
+  if(!await rrgConfirm('Close and archive this room? The buyer link will stop working immediately and every buyer loses access. You can reopen it later if needed.',{title:'Close & archive room?',okText:'Close & archive'})) return;
+  if(btn) btn.disabled=true; var m=document.getElementById('closeMsg'); if(m) m.textContent='Archiving…';
+  fetch('/api/room/'+encodeURIComponent(RID)+'/close',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+    .then(function(r){return r.json();}).then(function(j){ if(btn) btn.disabled=false; if(j&&j.ok){ toast('Room archived ✓'); load(); } else { if(m) m.textContent=(j&&j.error)||'Could not archive.'; } })
+    .catch(function(){ if(btn) btn.disabled=false; if(m) m.textContent='Could not reach the server.'; });
+}
+async function reopenRoom(btn){
+  if(!await rrgConfirm('Reopen this room? A fresh buyer link will be issued. Buyers you had before stay revoked — re-authorize anyone who should have access.',{title:'Reopen room?',okText:'Reopen'})) return;
+  if(btn) btn.disabled=true;
+  fetch('/api/room/'+encodeURIComponent(RID)+'/reopen',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+    .then(function(r){return r.json();}).then(function(j){ if(btn) btn.disabled=false; if(j&&j.ok){ toast('Room reopened ✓'); load(); } else { alert((j&&j.error)||'Could not reopen.'); } })
+    .catch(function(){ if(btn) btn.disabled=false; alert('Could not reach the server.'); });
+}
 
 function load(){
   fetch('/api/room/'+encodeURIComponent(RID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
@@ -259,6 +303,69 @@ async function delDoc(id){
   if(!await rrgConfirm('Remove this file from the data room? Buyers will no longer be able to download it.')) return;
   fetch('/api/room/'+encodeURIComponent(RID)+'/delete-doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:id})})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.docs=j.docs||[]; renderDocs(); } else alert((j&&j.error)||'Could not remove.'); }).catch(function(){ alert('Could not reach the server.'); });
+}
+function _ivEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function _ivFmtDur(s){ s=Math.floor(s||0); if(!s) return ''; var m=Math.floor(s/60), ss=s%60; return m+':'+(ss<10?'0':'')+ss; }
+function _ivFmtSize(b){ b=Number(b||0); if(!b) return ''; if(b<1024*1024) return Math.round(b/1024)+' KB'; return (b/1024/1024).toFixed(1)+' MB'; }
+function _ivDate(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return iso||''; return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})+' · '+d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}); }catch(e){ return iso||''; } }
+function _ivChip(txt,kind){ var m={ok:['#e7f5ee','#1f8a5b','#b7e0c7'],warn:['#fff4e6','#8a5a12','#f3d9a8']}[kind]||['#eef1f6','#6b7488','#e6e9f0']; return '<span style="font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;background:'+m[0]+';color:'+m[1]+';border:1px solid '+m[2]+';border-radius:99px;padding:2px 8px;white-space:nowrap">'+_ivEsc(txt)+'</span>'; }
+function renderInterviews(){
+  var card=document.getElementById('ivCard'), list=document.getElementById('ivList');
+  if(!card||!list) return;
+  var ivs=(ROOM&&ROOM.interviews)||[];
+  if(!ivs.length){ card.style.display='none'; list.innerHTML=''; return; }
+  card.style.display='';
+  list.innerHTML=ivs.map(function(iv){
+    var tStat=iv.transcriptStatus||'', sStat=iv.summaryStatus||'';
+    var tChip = (tStat==='done'||iv.hasTranscript)?_ivChip('Transcript ✓','ok'):(tStat==='too_large'?_ivChip('Too long to auto-transcribe','warn'):(tStat==='error'?_ivChip('Transcript failed','warn'):_ivChip('No transcript','')));
+    var sChip = sStat==='edited'?_ivChip('Debrief · edited','ok'):((sStat==='done'||iv.summary)?_ivChip('AI debrief ✓','ok'):_ivChip('No debrief',''));
+    var meta=[_ivDate(iv.createdAt), _ivFmtDur(iv.durationSec), _ivFmtSize(iv.sizeBytes), iv.by?('by '+iv.by):''].filter(Boolean).join('  ·  ');
+    return '<div style="border-top:1px solid #f0f2f7;padding:14px 18px">'
+      +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+        +'<span style="font-size:18px;line-height:1">📹</span>'
+        +'<div style="flex:1;min-width:150px"><div style="font-weight:700;color:var(--navy);font-size:13.5px">'+_ivEsc(iv.business||'Seller interview')+'</div><div style="color:var(--muted);font-size:11.5px;margin-top:1px">'+_ivEsc(meta)+'</div></div>'
+        +'<div style="display:flex;gap:6px;flex-wrap:wrap">'+tChip+sChip+'</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px">'
+        +'<a class="btn primary" href="'+_ivEsc(iv.viewUrl)+'" target="_blank" rel="noopener">▶ Watch video</a>'
+        +(iv.hasTranscript?'<button class="btn" onclick="ivToggleTranscript(\''+iv.id+'\',this)">Show transcript</button>':'')
+        +(iv.hasTranscript?'<button class="btn" onclick="ivRedraft(\''+iv.id+'\',this)">↻ Re-draft debrief</button>':'')
+      +'</div>'
+      +'<div id="ivtx_'+iv.id+'" style="display:none;margin-top:11px"><pre style="white-space:pre-wrap;word-break:break-word;background:var(--wash);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font:inherit;font-size:12.5px;color:#31405a;max-height:280px;overflow:auto;margin:0"></pre></div>'
+      +'<div style="margin-top:12px"><div style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin-bottom:5px">AI debrief <span style="text-transform:none;letter-spacing:0;color:#b98a3a;font-weight:600">— draft, verify before use</span></div>'
+        +'<textarea id="ivsum_'+iv.id+'" placeholder="'+(iv.hasTranscript?'The debrief will appear here once transcription finishes.':'Add notes here, or record and transcribe an interview to generate a debrief.')+'" style="width:100%;min-height:150px;border:1px solid var(--inp);border-radius:10px;padding:11px 13px;font:inherit;font-size:13px;line-height:1.5;resize:vertical;background:#fff;color:var(--ink)">'+_ivEsc(iv.summary||'')+'</textarea>'
+        +'<div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap"><button class="btn green" onclick="ivSaveDebrief(\''+iv.id+'\',this)">Save debrief</button><button class="btn" onclick="ivCopyDebrief(\''+iv.id+'\')">Copy</button><span class="umsg" id="ivmsg_'+iv.id+'" style="margin-top:0"></span></div>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+function ivToggleTranscript(id, btn){
+  var wrap=document.getElementById('ivtx_'+id); if(!wrap) return; var pre=wrap.querySelector('pre');
+  if(wrap.style.display!=='none'){ wrap.style.display='none'; if(btn) btn.textContent='Show transcript'; return; }
+  if(pre && !pre.getAttribute('data-loaded')){
+    pre.textContent='Loading transcript…';
+    fetch('/api/interview/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ pre.textContent=j.transcript||'(No transcript text captured.)'; pre.setAttribute('data-loaded','1'); } else { pre.textContent=(j&&j.error)||'Could not load the transcript.'; }
+    }).catch(function(){ pre.textContent='Could not reach the server.'; });
+  }
+  wrap.style.display=''; if(btn) btn.textContent='Hide transcript';
+}
+function ivSaveDebrief(id, btn){
+  var ta=document.getElementById('ivsum_'+id), m=document.getElementById('ivmsg_'+id); if(!ta) return;
+  if(btn) btn.disabled=true; if(m) m.textContent='Saving…';
+  fetch('/api/interview/'+encodeURIComponent(id)+'/summary',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({summary:ta.value})})
+    .then(function(r){return r.json();}).then(function(j){ if(btn) btn.disabled=false; if(j&&j.ok){ if(m) m.textContent='Saved ✓'; toast('Debrief saved ✓'); var iv=(ROOM.interviews||[]).filter(function(x){return x.id===id;})[0]; if(iv){ iv.summary=ta.value; iv.summaryStatus='edited'; } setTimeout(function(){ if(m) m.textContent=''; },1600); } else { if(m) m.textContent=(j&&j.error)||'Save failed.'; } })
+    .catch(function(){ if(btn) btn.disabled=false; if(m) m.textContent='Could not reach the server.'; });
+}
+function ivRedraft(id, btn){
+  if(btn){ btn.disabled=true; if(!btn.getAttribute('data-o')) btn.setAttribute('data-o',btn.textContent); btn.textContent='Drafting…'; }
+  fetch('/api/interview/'+encodeURIComponent(id)+'/redraft',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+    .then(function(r){return r.json();}).then(function(j){ if(btn){ btn.disabled=false; btn.textContent=btn.getAttribute('data-o')||'↻ Re-draft debrief'; } if(j&&j.ok){ var ta=document.getElementById('ivsum_'+id); if(ta&&j.summary){ ta.value=j.summary; } var iv=(ROOM.interviews||[]).filter(function(x){return x.id===id;})[0]; if(iv){ iv.summary=j.summary||iv.summary; iv.summaryStatus='done'; } toast('Fresh debrief drafted ✓'); } else { alert((j&&j.error)||'Could not re-draft the debrief.'); } })
+    .catch(function(){ if(btn){ btn.disabled=false; btn.textContent=btn.getAttribute('data-o')||'↻ Re-draft debrief'; } alert('Could not reach the server.'); });
+}
+function ivCopyDebrief(id){
+  var ta=document.getElementById('ivsum_'+id); if(!ta) return;
+  try{ navigator.clipboard.writeText(ta.value||''); toast('Debrief copied ✓'); }catch(e){ try{ ta.select(); document.execCommand('copy'); toast('Debrief copied ✓'); }catch(_){} }
 }
 if(RID){ load(); } else { document.getElementById('docList').innerHTML='<div class="catempty">No room selected. Open one from Data Rooms.</div>'; }
 function aiName(){ var n=window.__rrgAssistant; return (n && n!=='the assistant')?n:'Claude'; }

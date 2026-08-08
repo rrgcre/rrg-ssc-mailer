@@ -2891,7 +2891,7 @@ function roomPublic(r, origin) {
   const _acc = Array.isArray(r.access) ? r.access : [];
   const _dls = _acc.reduce(function(n,x){ return n + (x.event === 'download' ? 1 : 0); }, 0);
   let _last = null; for (const x of _acc) { if (!_last || String(x.at) > String(_last.at)) _last = x; }
-  return { id: r.id, business: r.business, token: r.token, link: base, docCount: (r.docs || []).length, gated: roomIsGated(r), buyerCount: (r.grants || []).filter(g => g.active).length, srcCimId: r.srcCimId || '', createdAt: r.createdAt, builtAt: r.builtAt || '', by: r.by, downloads: _dls, lastAccessAt: _last ? _last.at : '', lastAccessBy: _last ? (_last.who || 'Buyer') : '' };
+  return { id: r.id, business: r.business, token: r.token, link: base, docCount: (r.docs || []).length, gated: roomIsGated(r), buyerCount: (r.grants || []).filter(g => g.active).length, srcCimId: r.srcCimId || '', createdAt: r.createdAt, builtAt: r.builtAt || '', by: r.by, downloads: _dls, lastAccessAt: _last ? _last.at : '', lastAccessBy: _last ? (_last.who || 'Buyer') : '', closed: !!r.closed, closedAt: r.closedAt || '' };
 }
 app.get('/api/rooms', (req, res) => {
   const isAdmin = req.user && isSuper(req.user);
@@ -2904,7 +2904,14 @@ app.get('/api/room/:id', (req, res) => {
   if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const origin = req.protocol + '://' + req.get('host');
+  const ivs = loadInterviews()
+    .filter(iv => (iv.roomId && iv.roomId === r.id) || (r.personId && iv.personId === r.personId) || (r.companyId && iv.companyId === r.companyId))
+    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
+    .map(iv => ({ id: iv.id, business: iv.business || '', createdAt: iv.createdAt || '', durationSec: iv.durationSec || 0, sizeBytes: iv.sizeBytes || 0, by: iv.by || '',
+      transcriptStatus: iv.transcriptStatus || '', summaryStatus: iv.summaryStatus || '', hasTranscript: !!(iv.transcript && iv.transcript.length), summary: iv.summary || '', viewUrl: '/api/interview/' + iv.id + '/view' }));
   res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-120).reverse(), categories: roomServeCats(r), noLease: !!r.noLease,
+    interviews: ivs,
+    closed: !!r.closed, closedAt: r.closedAt || '', closedBy: r.closedBy || '',
     gated: roomIsGated(r),
     grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', code: g.code, level: g.level || 'download', catPerms: g.catPerms || {}, active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
 });
@@ -3097,6 +3104,33 @@ app.post('/api/room/:id/newlink', (req, res) => {
   const origin = req.protocol + '://' + req.get('host');
   res.json({ ok: true, token: r.token, link: origin + '/room/' + r.token });
 });
+// Close & archive a room after the sale: kill the buyer link, deactivate every buyer's access,
+// and lock the room read-only on the broker side. Nothing is deleted — the deal file is retained.
+app.post('/api/room/:id/close', express.json(), (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const now = new Date().toISOString();
+  r.closed = true; r.closedAt = now; r.closedBy = (req.user && req.user.name) || (req.user && req.user.username) || '';
+  (r.grants || []).forEach(g => { g.active = false; });
+  r.token = newRoomToken(); // retire the shared link — any old/bookmarked link stops resolving
+  try { logRoomAccess(r, req, 'closed', '', null); } catch (e) {}
+  saveRooms(arr);
+  res.json({ ok: true, closed: true, closedAt: now });
+});
+// Reopen an archived room (issues a fresh link; buyers must be re-authorized).
+app.post('/api/room/:id/reopen', express.json(), (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  r.closed = false; r.reopenedAt = new Date().toISOString();
+  r.token = newRoomToken();
+  saveRooms(arr);
+  const origin = req.protocol + '://' + req.get('host');
+  res.json({ ok: true, closed: false, token: r.token, link: origin + '/room/' + r.token });
+});
 function logRoomAccess(r, req, event, doc, grant) {
   try {
     r.access = r.access || [];
@@ -3111,6 +3145,7 @@ app.get('/room/:token', (req, res) => {
   const arr = loadRooms();
   const r = arr.find(x => x.token === req.params.token);
   if (!r) return res.status(404).set('Content-Type', 'text/html').send(roomNotFoundPage());
+  if (r.closed) return res.status(410).set('Content-Type', 'text/html; charset=utf-8').send(roomClosedPage(r));
   if (roomIsGated(r)) {
     const grant = roomGrantFor(req, r);
     if (!grant) return res.set('Content-Type', 'text/html; charset=utf-8').send(roomGatePage(r, ''));
@@ -3127,6 +3162,7 @@ app.post('/room/:token/enter', (req, res) => {
   const arr = loadRooms();
   const r = arr.find(x => x.token === req.params.token);
   if (!r) return res.status(404).set('Content-Type', 'text/html').send(roomNotFoundPage());
+  if (r.closed) return res.status(410).set('Content-Type', 'text/html; charset=utf-8').send(roomClosedPage(r));
   const code = String((req.body && req.body.code) || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   const grant = (r.grants || []).find(g => g.active && String(g.code).toUpperCase() === code);
   if (!grant) return res.status(200).set('Content-Type', 'text/html; charset=utf-8').send(roomGatePage(r, 'That code isn’t valid. Check it and try again, or contact your RRG representative.'));
@@ -3139,6 +3175,7 @@ app.get('/roomfile/:token/:docid', (req, res) => {
   const arr = loadRooms();
   const r = arr.find(x => x.token === req.params.token);
   if (!r) return res.status(404).end();
+  if (r.closed) return res.status(410).end();
   let grant = null;
   if (roomIsGated(r)) { grant = roomGrantFor(req, r); if (!grant) return res.redirect('/room/' + r.token); }
   const d = (r.docs || []).find(x => x.id === String(req.params.docid));
@@ -3263,6 +3300,9 @@ function roomPublicPage(r, grant) {
 
 function roomNotFoundPage() {
   return roomShell('RRG Data Room', { head: '<div class="kick">Data Room</div><h1>Link not found</h1><div class="sub">This data room link is invalid or has been retired.</div>', body: '<div class="note">The link you followed is no longer active. Please contact your RRG representative for an updated link.</div>' });
+}
+function roomClosedPage(r) {
+  return roomShell('RRG Data Room', { head: '<div class="kick">Data Room</div><h1>This data room is closed</h1><div class="sub">' + esc((r && r.business) || 'This opportunity') + ' is no longer available.</div>', body: '<div class="note">This transaction has closed and the data room has been retired. Thank you for your interest — please contact your ' + esc(orgDisplayName()) + ' representative with any questions.</div>' });
 }
 // ================= Assignments (the deal / book of business) =================
 // An assignment is one deal. It is derived by grouping every pipeline record
@@ -4884,6 +4924,29 @@ app.post('/api/interview/:id/transcribe', express.raw({ type: ['audio/*', 'appli
     } catch (e) { console.error('summarize interview:', e && e.message); }
     res.json({ ok: true, transcript: text, transcriptStatus: rec.transcriptStatus, summary: summary, summaryStatus: summary ? 'done' : '' });
   } catch (e) { console.error('transcribe interview:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// Save the broker's edited debrief back onto the interview record.
+app.post('/api/interview/:id/summary', express.json(), (req, res) => {
+  try {
+    const all = loadInterviews(); const rec = all.find(x => x.id === req.params.id);
+    if (!rec) return res.status(404).json({ ok: false, error: 'Interview not found.' });
+    const s = String((req.body && req.body.summary) || '');
+    rec.summary = s.slice(0, 40000); rec.summaryStatus = 'edited'; rec.summaryEditedAt = new Date().toISOString(); rec.summaryEditedBy = (req.user && req.user.name) || '';
+    saveInterviews(all);
+    res.json({ ok: true, summaryStatus: rec.summaryStatus });
+  } catch (e) { console.error('save interview summary:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// Re-run the AI debrief from the stored transcript (if the rep wants a fresh draft).
+app.post('/api/interview/:id/redraft', express.json(), async (req, res) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) return res.status(400).json({ ok: false, error: 'AI is not configured — set the Anthropic key in Admin.' });
+    const all = loadInterviews(); const rec = all.find(x => x.id === req.params.id);
+    if (!rec) return res.status(404).json({ ok: false, error: 'Interview not found.' });
+    if (!String(rec.transcript || '').trim()) return res.status(400).json({ ok: false, error: 'No transcript to work from yet.' });
+    const summary = await summarizeInterview(rec);
+    if (summary) { rec.summary = summary; rec.summaryStatus = 'done'; rec.summarizedAt = new Date().toISOString(); saveInterviews(all); }
+    res.json({ ok: true, summary: summary, summaryStatus: rec.summaryStatus });
+  } catch (e) { console.error('redraft interview:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 app.get('/api/payments', (req, res) => {
   const u = req.user || {}; const admin = isSuper(u); const all = loadInvoices();
@@ -9586,6 +9649,19 @@ app.get('/api/documents', (req, res) => {
   let uf = loadUserFiles();
   if (restrictToOwn(req)) uf = uf.filter(fr => permOwnerMatch(req, fr.createdBy));
   uf.forEach(fr => { out.push({ id:fr.id, kind:'file', title: fr.name || fr.originalName || 'File', docType: fr.docType||'', typeLabel: fr.docType || (fr.ext||'file').toUpperCase(), personId:fr.personId||'', dealKey:fr.dealKey||'', companyId:fr.companyId||'', companyName: coNameById[fr.companyId]||'', personName: nameById[fr.personId]||'', dealName: bizByKey[fr.dealKey]||'', relatesToName: fr.relatesToName||'', status: fr.note || '', statusKey:'file', owner: fr.by || fr.byUser || '', createdAt: fr.uploadedAt || '', openUrl: '/api/files/'+fr.id+'/download', downloadUrl: '/api/files/'+fr.id+'/download', deleteUrl: '/api/files/'+fr.id, ext: fr.ext, size: fr.size }); });
+  try {
+    let ivx = loadInterviews();
+    if (restrictToOwn(req)) ivx = ivx.filter(iv => permOwnerMatch(req, iv.byUser));
+    ivx.forEach(iv => {
+      const _open = iv.roomId ? ('rrg_room.html?id=' + encodeURIComponent(iv.roomId)) : ('/api/interview/' + iv.id + '/view');
+      out.push({ id: iv.id, kind: 'interview', title: (iv.business || 'Seller interview') + ' — Interview', typeLabel: 'Interview',
+        matchNames: [iv.business || ''], personId: iv.personId || '', companyId: iv.companyId || '',
+        companyName: coNameById[iv.companyId] || '', personName: nameById[iv.personId] || '', dealName: '',
+        status: (iv.summaryStatus === 'edited' ? 'Debrief edited' : (iv.summary ? 'Debrief ready' : (iv.transcript ? 'Transcript ready' : 'Recorded'))),
+        statusKey: 'interview', owner: iv.by || iv.byUser || '', createdAt: iv.createdAt || '',
+        openUrl: _open, downloadUrl: '/api/interview/' + iv.id + '/view', deleteUrl: '' });
+    });
+  } catch (e) {}
   try {
     let sscs = store.readAll().filter(r => r.form === 'ssc');
     if (restrictToOwn(req)) sscs = sscs.filter(r => permOwnerMatch(req, r.rep));
