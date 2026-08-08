@@ -4772,6 +4772,65 @@ app.post('/api/admin/accounting', express.json(), (req, res) => {
   const s = loadSettings(); s.accountingBasis = ((req.body || {}).basis === 'cash') ? 'cash' : 'accrual'; saveSettings(s);
   res.json({ ok: true, basis: effAccountingBasis() });
 });
+// ===== Seller interview recordings -> S3 (lazy-loaded so a missing dep never blocks boot) =====
+let _s3 = null, _s3ok = null;
+function s3client() {
+  if (_s3) return _s3;
+  try { const { S3Client } = require('@aws-sdk/client-s3'); _s3 = new S3Client({ region: process.env.AWS_REGION || 'us-east-2' }); return _s3; }
+  catch (e) { console.error('S3 SDK load failed:', e && e.message); return null; }
+}
+function s3Bucket() { return process.env.S3_BUCKET || ''; }
+function s3Configured() { return !!(s3Bucket() && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && s3client()); }
+const INTERVIEWS_FILE = path.join(BOV_DATA_DIR, 'interviews.json');
+function loadInterviews() { try { return rj(INTERVIEWS_FILE) || []; } catch (e) { return []; } }
+function saveInterviews(a) { return writeJsonGuarded(INTERVIEWS_FILE, a, 'saveInterviews'); }
+function newInterviewId() { return 'iv_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+app.get('/api/interview/config', (req, res) => { res.json({ ok: true, ready: s3Configured() }); });
+app.post('/api/interview/presign', express.json(), async (req, res) => {
+  try {
+    if (!s3Configured()) return res.status(503).json({ ok: false, error: 'Video storage isn’t set up yet (check the S3 environment variables).' });
+    const b = req.body || {};
+    const personId = String(b.personId || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 48);
+    const companyId = String(b.companyId || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 48);
+    const screenId = String(b.screenId || '').replace(/[^a-z0-9_-]/gi, '').slice(0, 48);
+    const ct = String(b.contentType || 'video/webm').slice(0, 60);
+    const ext = ct.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const folder = companyId || personId || screenId || 'misc';
+    const key = 'interviews/' + folder + '/' + stamp + '_' + Math.random().toString(36).slice(2, 7) + '.' + ext;
+    const { PutObjectCommand } = require('@aws-sdk/client-s3');
+    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+    const url = await getSignedUrl(s3client(), new PutObjectCommand({ Bucket: s3Bucket(), Key: key, ContentType: ct }), { expiresIn: 900 });
+    res.json({ ok: true, key: key, uploadUrl: url });
+  } catch (e) { console.error('presign:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.post('/api/interview/register', express.json(), (req, res) => {
+  try {
+    const b = req.body || {}; const key = String(b.key || '').slice(0, 300); if (!key) return res.status(400).json({ ok: false, error: 'Missing key.' });
+    const now = new Date().toISOString();
+    const rec = { id: newInterviewId(), key: key, personId: String(b.personId || '').slice(0, 48), companyId: String(b.companyId || '').slice(0, 48), screenId: String(b.screenId || '').slice(0, 48),
+      business: String(b.business || '').slice(0, 160), sizeBytes: Number(b.sizeBytes || b.size || 0) || 0, durationSec: Number(b.durationSec || 0) || 0,
+      contentType: String(b.contentType || 'video/webm').slice(0, 60), transcript: '', transcriptStatus: '', createdAt: now,
+      by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', roomId: '' };
+    try {
+      const rooms = loadRooms();
+      const room = rooms.find(r => (rec.personId && r.personId === rec.personId) || (rec.companyId && r.companyId === rec.companyId));
+      if (room) { room.interviews = Array.isArray(room.interviews) ? room.interviews : []; room.interviews.push({ id: rec.id, key: key, createdAt: now, durationSec: rec.durationSec, sizeBytes: rec.sizeBytes, by: rec.by }); room.updatedAt = now; saveRooms(rooms); rec.roomId = room.id; }
+    } catch (e) { console.error('attach interview to room:', e && e.message); }
+    const all = loadInterviews(); all.push(rec); saveInterviews(all);
+    res.json({ ok: true, id: rec.id, roomId: rec.roomId, viewUrl: '/api/interview/' + rec.id + '/view' });
+  } catch (e) { console.error('register interview:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+app.get('/api/interview/:id/view', async (req, res) => {
+  try {
+    if (!s3Configured()) return res.status(503).send('Video storage is not configured.');
+    const rec = loadInterviews().find(x => x.id === req.params.id); if (!rec) return res.status(404).send('Recording not found.');
+    const { GetObjectCommand } = require('@aws-sdk/client-s3');
+    const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+    const url = await getSignedUrl(s3client(), new GetObjectCommand({ Bucket: s3Bucket(), Key: rec.key }), { expiresIn: 900 });
+    res.redirect(url);
+  } catch (e) { console.error('interview view:', e && e.message); res.status(500).send('Could not open the recording.'); }
+});
 app.get('/api/payments', (req, res) => {
   const u = req.user || {}; const admin = isSuper(u); const all = loadInvoices();
   const vis = all.filter(x => admin || x.ownerUser === u.username);
