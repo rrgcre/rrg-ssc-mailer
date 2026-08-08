@@ -1368,6 +1368,62 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
   document.body.appendChild(ov);
   var slot=ov.querySelector('#cgSlot'), cgQ=ov.querySelector('#cgQ'), cgHint=ov.querySelector('#cgHint'), cgPre=ov.querySelector('#cgPre'), cgRev=ov.querySelector('#cgRev'), cgRevWrap=ov.querySelector('#cgRevWrap'), cgRevBtn=ov.querySelector('#cgRevBtn'), cgProg=ov.querySelector('#cgProg'), cgBar=ov.querySelector('#cgBar'), cgBack=ov.querySelector('#cgBack'), cgReq=ov.querySelector('#cgReq'), cgReqTag=ov.querySelector('#cgReqTag');
   var fab=document.createElement('button'); fab.type='button'; fab.textContent='▶ Call mode'; fab.style.cssText='position:fixed;right:16px;bottom:16px;z-index:1150;background:#DA2B1F;color:#fff;border:none;border-radius:100px;padding:11px 18px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 6px 20px rgba(16,24,40,.28);display:none'; document.body.appendChild(fab);
+  // ===== Video recording (v1: live capture -> downloads on stop) + printable question sheet =====
+  function _rEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  function _qparam(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
+  function _recSlug(){ var s=(_qparam('company')||_qparam('sellerName')||'interview').replace(/[^a-z0-9]+/gi,'_').replace(/^_+|_+$/g,''); return s||'interview'; }
+  function _recStamp(){ var d=new Date(); function p(n){return(n<10?'0':'')+n;} return d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes()); }
+  function questionList(){ try{ var out=[]; Array.prototype.slice.call(form.querySelectorAll('.field, .oset')).forEach(function(el){ if(el.getAttribute&&el.getAttribute('data-instr')==='1') return; var l=labelOf(el); if(l&&out.indexOf(l)<0) out.push(l); }); return out; }catch(e){ return []; } }
+  function printQuestions(){
+    var qs=questionList(); if(!qs.length){ if(window.rrgToast) rrgToast('Questions are still loading — one moment.'); return; }
+    var seller=_qparam('sellerName'), company=_qparam('company');
+    var w=window.open('','_blank'); if(!w){ if(window.rrgToast) rrgToast('Allow pop-ups to open the question sheet.'); return; }
+    var rows=qs.map(function(q){ return '<li>'+_rEsc(q)+'</li>'; }).join('');
+    w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Seller Interview — Questions</title><style>body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;color:#1a2236;max-width:720px;margin:34px auto;padding:0 28px;line-height:1.5}h1{font-size:20px;color:#000E31;margin:0 0 2px}.sub{color:#6b7488;font-size:13px}.intro{font-size:13px;color:#5a6478;margin:10px 0 16px}ol{padding-left:22px}li{margin:9px 0;font-size:14px}.foot{margin-top:26px;color:#8a93a8;font-size:11px;border-top:1px solid #e6e9f0;padding-top:10px}@media print{.noprint{display:none}}</style></head><body><h1>Seller Interview — Questions</h1><div class="sub">'+_rEsc([company,seller].filter(Boolean).join(' · '))+'</div><div class="intro">Here are the questions we’ll go through during your interview. Feel free to review and make notes beforehand.</div><ol>'+rows+'</ol><div class="foot">Confidential · Provided by Restaurant Realty Group</div><div class="noprint" style="margin-top:18px"><button onclick="window.print()" style="background:#000E31;color:#fff;border:none;border-radius:8px;padding:10px 18px;font:inherit;font-weight:700;cursor:pointer">Print / Save PDF</button></div></body></html>');
+    w.document.close();
+  }
+  var _rec=null,_recChunks=[],_recStream=null,_recTimer=null,_recStart=0,_recWidget=null;
+  function recSupported(){ return !!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder); }
+  function _fmtT(s){ s=Math.floor(s); var m=Math.floor(s/60),ss=s%60; return m+':'+(ss<10?'0':'')+ss; }
+  function startRecording(){
+    if(_recStream) return;
+    if(!recSupported()){ alert('This browser can’t record video. Try the latest Chrome.'); return; }
+    navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720}},audio:true}).then(function(stream){
+      _recStream=stream;_recChunks=[];
+      var mime='';['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm'].some(function(m){ try{ if(window.MediaRecorder.isTypeSupported(m)){ mime=m; return true; } }catch(e){} return false; });
+      try{ _rec=mime?new MediaRecorder(stream,{mimeType:mime}):new MediaRecorder(stream); }catch(e){ _rec=new MediaRecorder(stream); }
+      _rec.ondataavailable=function(e){ if(e.data&&e.data.size) _recChunks.push(e.data); };
+      _rec.onstop=function(){ _saveRecording(); };
+      _rec.start(1000); _recStart=Date.now(); _showRecWidget(stream);
+    }).catch(function(err){ alert('Could not start the camera/microphone ('+((err&&err.name)||'blocked')+'). The call will continue without recording. Check the browser’s camera permission and try again.'); });
+  }
+  function _showRecWidget(stream){
+    if(_recWidget) return;
+    if(!document.getElementById('recCss')){ var st=document.createElement('style'); st.id='recCss'; st.textContent='@keyframes recpulse{0%{box-shadow:0 0 0 0 rgba(224,52,42,.5)}70%{box-shadow:0 0 0 7px rgba(224,52,42,0)}100%{box-shadow:0 0 0 0 rgba(224,52,42,0)}}'; document.head.appendChild(st); }
+    var w=document.createElement('div'); w.id='recWidget'; w.style.cssText='position:fixed;left:16px;bottom:16px;z-index:1450;width:210px;background:#0b1636;border-radius:12px;overflow:hidden;box-shadow:0 12px 32px rgba(0,0,0,.45)';
+    var v=document.createElement('video'); v.autoplay=true; v.muted=true; v.playsInline=true; v.setAttribute('playsinline',''); v.style.cssText='width:100%;height:124px;object-fit:cover;background:#000;transform:scaleX(-1);display:block'; try{ v.srcObject=stream; }catch(e){}
+    var bar=document.createElement('div'); bar.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 10px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif';
+    bar.innerHTML='<span style="width:9px;height:9px;border-radius:50%;background:#e0342a;animation:recpulse 1.4s infinite"></span><span style="font-size:11px;font-weight:800;letter-spacing:.06em;color:#ff8a82">REC</span><span id="recTime" style="font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;color:#dfe6f2">0:00</span><button id="recStop" type="button" style="margin-left:auto;background:#e0342a;border:none;color:#fff;border-radius:7px;padding:5px 11px;font:inherit;font-size:11px;font-weight:800;cursor:pointer">Stop &amp; save</button>';
+    w.appendChild(v); w.appendChild(bar); document.body.appendChild(w); _recWidget=w;
+    document.getElementById('recStop').addEventListener('click',function(){ stopRecording(); });
+    _recTimer=setInterval(function(){ var t=document.getElementById('recTime'); if(t) t.textContent=_fmtT((Date.now()-_recStart)/1000); },500);
+  }
+  function stopRecording(){ if(_rec&&_rec.state&&_rec.state!=='inactive'){ try{ _rec.stop(); }catch(e){ _saveRecording(); } } else if(_recStream){ _saveRecording(); } }
+  function _saveRecording(){
+    try{ if(_recChunks.length){ var blob=new Blob(_recChunks,{type:(_rec&&_rec.mimeType)||'video/webm'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='Seller_Interview_'+_recSlug()+'_'+_recStamp()+'.webm'; document.body.appendChild(a); a.click(); setTimeout(function(){ try{ URL.revokeObjectURL(url); a.remove(); }catch(e){} },1500); if(window.rrgToast) rrgToast('Interview video saved to your Downloads — upload it to the seller’s data room when ready.'); } }catch(e){}
+    _cleanupRec();
+  }
+  function _cleanupRec(){ if(_recTimer){ clearInterval(_recTimer); _recTimer=null; } if(_recStream){ try{ _recStream.getTracks().forEach(function(t){t.stop();}); }catch(e){} _recStream=null; } if(_recWidget){ try{ _recWidget.remove(); }catch(e){} _recWidget=null; } _rec=null; }
+  function recGate(){
+    if(document.getElementById('recGate')||_recStream) return;
+    var d=document.createElement('div'); d.id='recGate'; d.style.cssText='position:fixed;inset:0;background:rgba(8,14,32,.5);display:flex;align-items:center;justify-content:center;z-index:1500;padding:20px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif';
+    d.innerHTML='<div style="background:#fff;border-radius:14px;max-width:460px;width:100%;padding:24px 26px 20px;box-shadow:0 24px 70px rgba(6,12,30,.42)"><div style="display:flex;align-items:center;gap:10px"><span style="width:34px;height:34px;border-radius:50%;background:#fdeceb;color:#e0342a;display:flex;align-items:center;justify-content:center;font-size:16px">●</span><div style="font-weight:800;color:#000E31;font-size:17px">Record this interview?</div></div><div style="color:#5a6478;font-size:13.5px;margin-top:11px;line-height:1.55">Capture video + audio of the interview from this device. Please let the seller know they’re being recorded first. When you press <b>Stop</b>, the file downloads to your computer — add it to the seller’s data room afterward.</div><div style="display:flex;gap:9px;margin-top:18px;flex-wrap:wrap;align-items:center"><button type="button" id="rgSheet" style="background:#fff;border:1px solid #cdd6e6;color:#000E31;border-radius:9px;padding:9px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer">Question sheet</button><span style="flex:1"></span><button type="button" id="rgSkip" style="background:#fff;border:1px solid #cdd6e6;color:#000E31;border-radius:9px;padding:9px 14px;font:inherit;font-size:13px;font-weight:700;cursor:pointer">Not now</button><button type="button" id="rgGo" style="background:#e0342a;border:none;color:#fff;border-radius:9px;padding:9px 16px;font:inherit;font-size:13.5px;font-weight:800;cursor:pointer">Start recording</button></div></div>';
+    document.body.appendChild(d);
+    d.querySelector('#rgSheet').addEventListener('click',printQuestions);
+    d.querySelector('#rgSkip').addEventListener('click',function(){ d.remove(); });
+    d.querySelector('#rgGo').addEventListener('click',function(){ d.remove(); startRecording(); });
+  }
+  window.rrgStartRecording=startRecording; window.rrgPrintQuestions=printQuestions;
   var homeMarker=null, homeEl=null, extraMarker=null, extraEl=null;
   // Parking puts the lifted question back where it belongs. Exposed because the unload
   // beacon has to do it before it serializes the form.
@@ -1431,7 +1487,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     var cnt=buildReview();
     if(!revAuto && total>1 && pos>=total){ revAuto=true; revOpen=true; }   // the decision card -- show the whole call
     setRev(revOpen,cnt); ov.scrollTop=0; setTimeout(function(){ focusStep(el); },80); }
-  function finish(){ parkCurrent(); saveNow(); ov.style.display='none'; active=false; fab.style.display='block'; var d=document.getElementById('callNotes'); if(d){ d.scrollIntoView({behavior:'smooth',block:'center'}); } if(window.rrgToast) window.rrgToast('Call complete — review the summary and Submit.'); }
+  function finish(){ try{ stopRecording(); }catch(e){} parkCurrent(); saveNow(); ov.style.display='none'; active=false; fab.style.display='block'; var d=document.getElementById('callNotes'); if(d){ d.scrollIntoView({behavior:'smooth',block:'center'}); } if(window.rrgToast) window.rrgToast('Call complete — review the summary and Submit.'); }
   function start(){
     // Guard the form-not-yet-rendered race that silently dropped the Concept question:
     // wait until the Concept field is editable AND the questionnaire has rendered before
@@ -1445,6 +1501,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
       window.__scrStartTries=0;
     } catch(e){}
     steps=computeSteps(); active=true; fab.style.display='none'; ov.style.display='flex'; try{ if(window.__sscHideVeil) window.__sscHideVeil(); }catch(e){} if(!window.__sscStarted) window.__sscStarted=new Date().toISOString();
+    try{ if(!window.__recOffered && !isEdit){ window.__recOffered=true; setTimeout(recGate,140); } }catch(e){}
     known=steps.map(function(el){ return hasVal(el); });
     if(seek(0,1)>=steps.length) known=[];            // everything answered -> ask normally rather than end the call
     var pre=[]; for(var k=0;k<steps.length;k++){ if(known[k]){ var L=labelOf(steps[k]); if(L) pre.push(L); } }
@@ -1453,7 +1510,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     show(seek(0,1)); updateDealRead(); checkKnownSeller(); }
   // Seller had to stop early: save everything captured so far and leave the call; the rep
   // resumes later from the Call mode button or the Documents list. Never gates on required.
-  function exitSave(){ parkCurrent(); window.__scrExit=true; saveNow(); window.__scrExit=false; ov.style.display='none'; active=false; fab.style.display='block'; if(window.rrgToast) window.rrgToast('Saved \u2014 this call is now Pending; pick it back up whenever the seller is ready.'); }
+  function exitSave(){ try{ stopRecording(); }catch(e){} parkCurrent(); window.__scrExit=true; saveNow(); window.__scrExit=false; ov.style.display='none'; active=false; fab.style.display='block'; if(window.rrgToast) window.rrgToast('Saved \u2014 this call is now Pending; pick it back up whenever the seller is ready.'); }
   // Submit right from the decision card -- no bouncing back to the legacy form.
   function cgSubmit(btn){
     if(!window.__scrSubmit){ finish(); return; }
