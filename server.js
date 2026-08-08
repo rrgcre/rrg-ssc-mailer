@@ -1479,7 +1479,8 @@ app.get('/api/valuation-readiness', (req, res) => {
         });
       } catch (e) {}
     }
-    const screening = (function(){ try { return (loadScreens()||[]).some(function(sc){ var d=sc.data||{}; return (pid && (d.personId===pid || d.contactPersonId===pid || sc.personId===pid)) || (cid && (d.companyId===cid || sc.companyId===cid)); }); } catch(e){ return false; } })();
+    let screening = (function(){ try { return (loadScreens()||[]).some(function(sc){ var d=sc.data||{}; return (pid && (d.personId===pid || d.contactPersonId===pid || sc.personId===pid)) || (cid && (d.companyId===cid || sc.companyId===cid)); }); } catch(e){ return false; } })();
+    if (!screening) { try { const _ov = loadAssignOverlay(); screening = loadDeals().filter(hit).some(function(d){ const k = d.screenId ? ('s_'+d.screenId) : ('d_'+d.id); return _ov[k] && _ov[k].screeningSkipped; }); } catch(e){} }
     const state = bov ? (bov.finalizedAt ? 'final' : (bov.aiGenerated && !bov.pending ? 'built' : 'requested')) : '';
     res.json({ ok: true, screening: screening, questionnaire: questionnaire, financials: financials, lease: lease, ready: !!(questionnaire && financials && lease), bovId: bov ? bov.id : '', state: state });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
@@ -1509,6 +1510,67 @@ app.post('/api/valuation-room', express.json(), (req, res) => {
       saveRooms(rooms);
     }
     res.json({ ok: true, id: room.id });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+
+// Skip the Seller Screening Call for a seller we already know / already want. Marks the
+// listing qualified, advances it straight to Data Collection, ensures a data room exists,
+// and logs why + who — same destination as a completed screen, minus the call.
+app.post('/api/seller/skip-screening', express.json(), (req, res) => {
+  try {
+    const b = req.body || {};
+    const pid = String(b.personId || '').trim().slice(0, 48);
+    const cid = String(b.companyId || '').trim().slice(0, 48);
+    if (!pid && !cid) return res.status(400).json({ ok: false, error: 'No contact.' });
+    const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid));
+    const now = new Date().toISOString();
+    const ppl = loadPeople();
+    const person = pid ? (ppl.find(p => p.id === pid) || null) : null;
+    const company = cid ? (companyById(cid) || null) : null;
+    const bizName = (company && company.name) || (person && (person.company || person.name)) || 'Seller';
+    // Find or open the listing for this seller.
+    const deals = loadDeals();
+    let deal = deals.filter(hit)[0] || null;
+    if (!deal) {
+      deal = { id: newDealId(), business: String(bizName).slice(0, 120), market: (company && company.market) || '', contact: (person && person.name) || '', screenId: '', roomId: '', contactPersonId: pid || '', companyId: cid || '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+      deals.push(deal);
+    }
+    // Ensure a data room exists so financials & lease can go in.
+    const rooms = loadRooms();
+    let room = rooms.find(hit) || rooms.find(r => r.id === deal.roomId || r.srcDealId === deal.id) || null;
+    if (!room) {
+      room = { id: newRoomId(), srcCimId: '', srcBovId: '', srcDealId: deal.id, personId: pid, companyId: cid, token: newRoomToken(), business: String(bizName).slice(0, 120), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: now, folders: roomCategories(), docs: [], access: [], grants: [] };
+      rooms.push(room); saveRooms(rooms);
+    }
+    if (!deal.roomId) deal.roomId = room.id;
+    saveDeals(deals);
+    // Advance the listing to Data Collection on the business-sale pipeline.
+    let stageName = '';
+    const _plid = pipelineForCategory('businessSale') || 'p_bizsales';
+    const _pl = loadPipelines().find(x => x.id === _plid);
+    const _stg = (_pl && Array.isArray(_pl.stages)) ? _pl.stages : [];
+    const key = deal.screenId ? ('s_' + deal.screenId) : ('d_' + deal.id);
+    const ov = loadAssignOverlay(); const cur = ov[key] || {};
+    if (_stg.length) {
+      let _tgt = _stg.findIndex(st => /data collect/i.test(st.name || ''));
+      if (_tgt < 0) _tgt = _stg.findIndex(st => /valuation/i.test(st.name || ''));
+      if (_tgt < 0) _tgt = Math.min(2, _stg.length - 1);
+      cur.stageFlags = cur.stageFlags || {};
+      for (let i = 0; i < _tgt; i++) cur.stageFlags['g' + i] = true;
+      stageName = (_stg[_tgt] && _stg[_tgt].name) || cur.pipelineStage || '';
+      cur.pipelineStage = stageName;
+    }
+    cur.pipelineId = _plid;
+    cur.status = 'Active';
+    cur.screeningSkipped = true;
+    cur.updatedAt = now; cur.stageSince = now;
+    ov[key] = cur; saveAssignOverlay(ov);
+    // Audit trail on the seller's Activity Log.
+    if (person) {
+      logActivity(person, 'Note', 'Seller Screening Call skipped — pre-qualified (known seller). Listing moved to ' + (stageName || 'Data Collection') + '.', { by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', auto: true });
+      savePeople(ppl);
+    }
+    res.json({ ok: true, roomId: room.id, key: key, stage: stageName || 'Data Collection' });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
