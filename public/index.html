@@ -14,6 +14,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .pagehead .date{font-size:12.5px;color:var(--dim);font-weight:600;margin-top:4px;font-variant-numeric:tabular-nums;}
 .pagehead .live{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--green);margin-left:12px;}
 .pagehead .live .d{width:7px;height:7px;border-radius:50%;background:var(--green);}
+.headright{display:flex;flex-direction:column;align-items:flex-end;gap:9px;}
+.ver{font-size:10.5px;color:var(--soft);font-weight:700;letter-spacing:.02em;font-variant-numeric:tabular-nums;background:#fff;border:1px solid var(--line);border-radius:100px;padding:4px 11px;}
 .qa{display:flex;gap:9px;flex-wrap:wrap;}
 .qa a{font-size:12.5px;font-weight:700;text-decoration:none;border-radius:9px;padding:9px 14px;border:1px solid var(--line);background:#fff;color:var(--navy);}
 .qa a.pri{background:var(--navy);color:#fff;border-color:var(--navy);}
@@ -91,11 +93,14 @@ function linksHtml(){ return '<div class="card"><div class="ch"><b>Jump to</b></
 function tasksHtml(D){ var t=(D.tasks||[]); var body=t.length?('<div class="feed">'+t.slice(0,6).map(function(x){ var pc=(String(x.priority).toLowerCase()==='high'?'high':(String(x.priority).toLowerCase()==='medium'?'med':'')); return '<div class="fitem"><span class="fico">✔</span><span class="ftxt"><b>'+esc(x.title||'')+'</b>'+(x.link?(' · '+esc(x.link)):'')+'</span>'+(x.priority?'<span class="pri '+pc+'">'+esc(x.priority)+'</span>':'')+(x.due?'<span class="ftime">'+esc(fmtDate(x.due))+'</span>':'')+'</div>'; }).join('')+'</div>'):'<div class="empty">No open tasks — you’re clear.</div>'; return '<div class="card"><div class="ch"><b>Open tasks</b><a class="more" href="./rrg_tasks.html">All →</a></div><div class="cb">'+body+'</div></div>'; }
 function expiringHtml(D){ var e=(D.expiring||[]); if(!e.length) return ''; return '<div class="card"><div class="ch"><b>Expiring soon</b><span style="margin-left:auto;font-size:11.5px;color:var(--soft);font-weight:700">'+num(D.expiringTotal||e.length)+'</span></div><div class="cb"><div class="feed">'+e.slice(0,5).map(function(x){ return '<div class="fitem"><span class="fico" style="background:'+(x.overdue?'#fbeceb':'#fbf3e7')+';color:'+(x.overdue?'#C0261B':'#a9822f')+'">⏰</span><span class="ftxt">'+esc(x.business||'')+'</span><span class="ftime" style="'+(x.overdue?'color:var(--red);font-weight:700':'')+'">'+esc(fmtDate(x.expires))+'</span></div>'; }).join('')+'</div></div></div>'; }
 function activityHtml(D){ var a=(D.activity||[]); var body=a.length?('<div class="feed">'+a.slice(0,7).map(function(x){ return '<div class="fitem"><span class="fico">•</span><span class="ftxt"><b>'+esc(x.who||'')+'</b> · '+esc(x.type||'')+(x.text?(' — '+esc(x.text)):'')+'</span><span class="ftime">'+esc(fmtDate(x.at))+'</span></div>'; }).join('')+'</div>'):'<div class="empty">No recent activity.</div>'; return '<div class="card"><div class="ch"><b>Recent activity</b><a class="more" href="./rrg_activity.html">All →</a></div><div class="cb">'+body+'</div></div>'; }
-function render(NAME,D){
+function verText(M){ M=M||{}; var v=M.version?('v'+String(M.version).replace(/^v/i,'')):(M.build||(M.buildNo?('build '+M.buildNo):'')); return v||''; }
+function verTitle(M){ M=M||{}; var p=[]; if(M.build) p.push('Build '+M.build); if(M.buildNo) p.push('#'+M.buildNo); if(M.sha) p.push(String(M.sha).slice(0,7)); if(M.booted){ try{ p.push('booted '+new Date(M.booted).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})); }catch(e){} } return p.join(' · '); }
+function render(NAME,D,META){
+  var vt=verText(META);
   document.getElementById('root').innerHTML=''
     +'<div class="wrap">'
     +'<div class="pagehead"><div><div class="greet">'+esc(greeting())+(NAME?(', '+esc(NAME.split(' ')[0])):'')+'<span class="live"><span class="d"></span>Live</span></div><div class="date">'+esc(dateLine())+' · '+num(D.listingsTotal||0)+' active listings · '+num(D.agreementsOut||0)+' agreements out</div></div>'
-      +'<div class="qa"><a class="pri" href="./rrg_board.html">Pipeline board</a><a href="./rrg_companies.html">+ Company</a><a href="./rrg_people.html">+ Contact</a></div>'
+      +'<div class="headright">'+(vt?('<span class="ver" title="'+esc(verTitle(META))+'">FullServe '+esc(vt)+'</span>'):'')+'<div class="qa"><a class="pri" href="./rrg_board.html">Pipeline board</a><a href="./rrg_companies.html">+ Company</a><a href="./rrg_people.html">+ Contact</a></div></div>'
     +'</div>'
     +kpiHtml(D)
     +'<div class="grid"><div class="col">'+pipelineHtml(D)+linksHtml()+'</div><div class="col">'+tasksHtml(D)+expiringHtml(D)+activityHtml(D)+'</div></div>'
@@ -104,7 +109,7 @@ function render(NAME,D){
 }
 fetch('/api/dashboard',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="wrap"><div class="gate">Could not load your command center.</div></div>'; return; }
-  render(j.name||'', j.data||{});
+  render(j.name||'', j.data||{}, {build:j.build,version:j.version,buildNo:j.buildNo,sha:j.sha,booted:j.booted});
 }).catch(function(){ document.getElementById('root').innerHTML='<div class="wrap"><div class="gate">Could not reach the server.</div></div>'; });
 </script>
 </body>
