@@ -43,7 +43,7 @@ tr:hover td{background:#fbfcfe;}
 <!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to dashboard" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Dashboard</a><style>@media print{.rrg-back{display:none!important}}@media(max-width:560px){.rrg-back{left:12px;bottom:12px;padding:9px 13px}}</style>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'" title="Back to dashboard"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-  <div class="kicker">Deal Tools</div>
+  <div class="kicker">Data Rooms</div>
   <h1>Data Rooms</h1>
   <div class="sub">A confidential, per-deal document room with a shareable buyer link. A room is created the moment you open one from a Marketing Pack. Admins see the whole team; reps see their own.</div>
 </div></div>
@@ -82,7 +82,7 @@ function renderList(list){
       { label:'Downloads', align:'left', sort:function(a,b){ return (a.downloads||0)-(b.downloads||0); },
         cell:function(c){ return '<span class="pill">'+(c.downloads||0)+'</span>'; } },
       { label:'Actions', align:'right', sortable:false,
-        cell:function(c){ return '<div class="act"><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Open this data room to upload files">Upload data</a><button class="link" onclick="copyLink(\''+c.id+'\')">Copy buyer link</button><button class="del" onclick="delRoom(\''+c.id+'\',this)">Delete</button></div>'; } }
+        cell:function(c){ return '<div class="act"><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Open this data room to upload files">Upload files</a><button class="link" onclick="copyLink(\''+c.id+'\')">Copy buyer link</button><button class="del" onclick="delRoom(\''+c.id+'\',this)">Delete</button></div>'; } }
     ],
     bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDel(ids,done); } } ]
   };
