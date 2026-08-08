@@ -119,7 +119,7 @@
       per: PER_OPTS.indexOf(saved.per)>=0 ? saved.per : (opts.per||20),
       sort: (saved.sort!=null ? saved.sort : (opts.defaultSort!=null?opts.defaultSort:firstSortable())),
       dir: (saved.dir!=null ? saved.dir : (opts.defaultDir||1)),
-      compact: !!saved.compact,
+      compact: (saved.compact!=null ? !!saved.compact : true),  // dense by default; user can toggle roomy
       widths: (saved.widths&&typeof saved.widths==='object')?saved.widths:{},
       order: Array.isArray(saved.order)?saved.order.slice():null,
       hidden: (saved.hidden&&typeof saved.hidden==='object')?saved.hidden:(function(){ var h={}; cols.forEach(function(c){ if(c.defaultHidden) h[c.__key]=true; }); return h; })(),
