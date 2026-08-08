@@ -73,6 +73,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .cardx .opendeal:hover{text-decoration:underline;}
 .cfrow{display:flex;align-items:center;gap:7px;padding:5px 9px;font-size:13px;color:#26324a;cursor:pointer;border-radius:7px;}
 .cfrow:hover{background:#f4f7fb;}
+/* --- enhanced pipeline cards --- */
+.cardx .chd{display:flex;align-items:flex-start;gap:6px;margin-bottom:6px;}
+.cardx .chd .t{flex:1;margin-bottom:0;}
+.cardx .rollup{flex:none;border:none;background:none;cursor:pointer;color:#9aa4b6;font-size:12px;line-height:1;padding:2px 3px;transition:transform .15s;border-radius:5px;}
+.cardx .rollup:hover{color:#5b6472;background:#f1f3f8;}
+.cardx.rolled .rollup{transform:rotate(-90deg);}
+.cardx.rolled .cbody{display:none;}
+.cardx .contactlink{color:var(--navy,#000E31);text-decoration:none;font-weight:600;}
+.cardx .contactlink:hover{text-decoration:underline;}
+.cardx .flags{display:inline-flex;gap:4px;flex:none;align-items:center;}
+.fbadge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 2px;border-radius:50%;font-size:11px;font-weight:800;line-height:1;}
+.fbadge.hv{background:#d1f4e0;color:#0e7a53;}
+.fbadge.slip{background:#fde7cf;color:#b5651d;}
+.flagmenu{min-width:288px;}
+.flagmenu .flagrow{padding:8px 9px;border-radius:8px;}
+.flagmenu .flagrow+.flagrow{border-top:1px solid #eef1f6;margin-top:2px;}
+.flagmenu .flaghint{font-size:11.5px;color:#98a1b5;margin:2px 0 7px 24px;line-height:1.35;}
+.flagmenu .flaginp{display:flex;align-items:center;gap:6px;margin-left:24px;}
+.flagmenu .flaginp span{font-size:12px;color:#8a94a6;font-weight:700;}
+.flagmenu .flaginp input{flex:1;border:1px solid #cfd6e2;border-radius:7px;padding:6px 9px;font:inherit;font-size:13px;}
 .bmodal{position:fixed;inset:0;background:rgba(6,14,32,.55);display:flex;align-items:center;justify-content:center;z-index:1000;padding:20px;}
 .bmodal[hidden]{display:none;}
 .bmodalcard{background:#fff;border-radius:16px;max-width:460px;width:100%;box-shadow:0 30px 80px rgba(0,0,0,.4);overflow:hidden;}
@@ -115,8 +135,13 @@ var VIEW=(function(){ try{ return localStorage.getItem('rrg_board_view')||'board
 var TB={ q:'', owner:'', market:'', status:'', min:'', max:'', sort:'act_desc', per:25 };
 var FILTER_OPEN=false, SAVE_OPEN=false, EXPANDED={};
 var DENSITY=(function(){try{return localStorage.getItem('rrg_board_density')||'full';}catch(e){return 'full';}})();
-var CARDF=(function(){var d={contact:true,value:true,market:true,status:false,bbs:false,activity:true};try{var o=JSON.parse(localStorage.getItem('rrg_board_cardf')||'null');if(o&&typeof o==='object')return Object.assign(d,o);}catch(e){}return d;})();
+var CARDF=(function(){var d={contact:true,value:true,commission:true,days:true,market:true,status:false,bbs:false,activity:true};try{var o=JSON.parse(localStorage.getItem('rrg_board_cardf')||'null');if(o&&typeof o==='object')return Object.assign(d,o);}catch(e){}return d;})();
 var CARDF_OPEN=false, EXPCARD={};
+var ROLLED=(function(){try{return JSON.parse(localStorage.getItem('rrg_board_rolled')||'{}')||{};}catch(e){return {};}})();
+function saveROLLED(){ try{ localStorage.setItem('rrg_board_rolled',JSON.stringify(ROLLED)); }catch(e){} }
+var FLAGS=(function(){var d={highValue:{on:true,amount:'200000'},slipping:{on:true,days:'30'}};try{var g=JSON.parse(localStorage.getItem('rrg_board_flags')||'null');if(g&&typeof g==='object'){ if(g.highValue) d.highValue=Object.assign(d.highValue,g.highValue); if(g.slipping) d.slipping=Object.assign(d.slipping,g.slipping);} }catch(e){}return d;})();
+function saveFLAGS(){ try{ localStorage.setItem('rrg_board_flags',JSON.stringify(FLAGS)); }catch(e){} }
+var FLAGS_OPEN=false;
 var SORTS=[['act_desc','Newest activity'],['act_asc','Oldest activity'],['val_desc','Value: high → low'],['val_asc','Value: low → high'],['name_asc','Name: A → Z'],['created_desc','Newest listing']];
 var PER_OPTS=[10,25,50,0];
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
@@ -181,6 +206,7 @@ function renderToolbar(){
     +'<span class="tblabel">Per column</span><select class="tbsel" id="tb_per">'+PER_OPTS.map(function(p){return '<option value="'+p+'"'+(TB.per===p?' selected':'')+'>'+perLabel(p)+'</option>';}).join('')+'</select>'
     +'<span class="tblabel">Cards</span><div class="vtog"><button class="dbtn'+(DENSITY==='full'?' on':'')+'" data-density="full">Full</button><button class="dbtn'+(DENSITY==='compact'?' on':'')+'" data-density="compact">Compact</button></div>'
     +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_cardf">\u2699 Card fields \u25be</button><div id="cardfmenu"></div></div>'
+    +'<div style="position:relative;display:inline-block"><button class="tbtn" id="tb_flags">\u2691 Card flags \u25be</button><div id="flagmenu"></div></div>'
     +'</div>';
   document.getElementById('toolbar').innerHTML=html; var _nl=document.getElementById('tb_newlisting'); if(_nl) _nl.addEventListener('click',openDealModal);
   renderFilterPanel();
@@ -193,6 +219,7 @@ function renderToolbar(){
   document.querySelectorAll('.vbtn[data-view]').forEach(function(b){ b.addEventListener('click',function(){ VIEW=b.getAttribute('data-view'); try{localStorage.setItem('rrg_board_view',VIEW);}catch(e){} renderToolbar(); render(); }); });
   document.querySelectorAll('.dbtn[data-density]').forEach(function(b){ b.addEventListener('click',function(){ DENSITY=b.getAttribute('data-density'); try{localStorage.setItem('rrg_board_density',DENSITY);}catch(e){} renderToolbar(); render(); }); });
   var _cf=document.getElementById('tb_cardf'); if(_cf) _cf.addEventListener('click',function(e){ e.stopPropagation(); CARDF_OPEN=!CARDF_OPEN; renderCardfMenu(); });
+  var _fl=document.getElementById('tb_flags'); if(_fl) _fl.addEventListener('click',function(e){ e.stopPropagation(); FLAGS_OPEN=!FLAGS_OPEN; renderFlagMenu(); });
 }
 function renderFilterPanel(){
   var host=document.getElementById('filterpanel');
@@ -224,6 +251,7 @@ function renderSaveMenu(){
 function applyView(name){ var v=savedViews()[name]; if(!v) return; TB=Object.assign(TB,{q:v.q||'',owner:v.owner||'',market:v.market||'',status:v.status||'',min:v.min||'',max:v.max||'',sort:v.sort||'act_desc'}); saveTB(); SAVE_OPEN=false; FILTER_OPEN=true; EXPANDED={}; renderToolbar(); render(); }
 document.addEventListener('click',function(e){ if(SAVE_OPEN){ var m=document.getElementById('savemenu'); var b=document.getElementById('tb_saved'); if(m && !m.contains(e.target) && e.target!==b){ SAVE_OPEN=false; renderSaveMenu(); } } });
 document.addEventListener('click',function(e){ if(CARDF_OPEN){ var m=document.getElementById('cardfmenu'); var b=document.getElementById('tb_cardf'); if(m && !m.contains(e.target) && e.target!==b && !(b&&b.contains(e.target))){ CARDF_OPEN=false; renderCardfMenu(); } } });
+document.addEventListener('click',function(e){ if(FLAGS_OPEN){ var m=document.getElementById('flagmenu'); var b=document.getElementById('tb_flags'); if(m && !m.contains(e.target) && e.target!==b && !(b&&b.contains(e.target))){ FLAGS_OPEN=false; renderFlagMenu(); } } });
 var _rt=null; function debouncedRender(){ if(_rt) clearTimeout(_rt); _rt=setTimeout(render,140); }
 function renderList(cards){
   var root=document.getElementById('root');
@@ -282,7 +310,7 @@ function render(){
   document.querySelectorAll('[data-more]').forEach(function(el){ el.addEventListener('click',function(ev){ ev.preventDefault(); EXPANDED[el.getAttribute('data-more')]=true; render(); }); });
   wireDnD();
 }
-var CARDF_FIELDS=[['contact','Contact'],['value','Value'],['market','Market'],['status','Status'],['bbs','BBS #'],['activity','Last activity']];
+var CARDF_FIELDS=[['contact','Contact'],['value','Value'],['commission','Commission'],['days','Days in stage'],['market','Market'],['status','Status'],['bbs','BBS #'],['activity','Last activity']];
 function saveCARDF(){ try{ localStorage.setItem('rrg_board_cardf',JSON.stringify(CARDF)); }catch(e){} }
 function renderCardfMenu(){
   var host=document.getElementById('cardfmenu'); if(!host) return;
@@ -291,11 +319,34 @@ function renderCardfMenu(){
   host.innerHTML='<div class="shd">Show on cards</div>'+CARDF_FIELDS.map(function(f){ return '<label class="cfrow"><input type="checkbox" data-cf="'+f[0]+'"'+(CARDF[f[0]]?' checked':'')+'> '+esc(f[1])+'</label>'; }).join('');
   host.querySelectorAll('input[data-cf]').forEach(function(cb){ cb.addEventListener('change',function(){ CARDF[cb.getAttribute('data-cf')]=cb.checked; saveCARDF(); render(); }); });
 }
+function renderFlagMenu(){
+  var host=document.getElementById('flagmenu'); if(!host) return;
+  if(!FLAGS_OPEN){ host.innerHTML=''; host.className=''; return; }
+  host.className='savemenu flagmenu';
+  var sym=(window.RRG_CCYSYM||String.fromCharCode(36));
+  host.innerHTML='<div class="shd">Pipeline card flags</div>'
+    +'<div class="flagrow"><label class="cfrow"><input type="checkbox" data-flag="highValue"'+(FLAGS.highValue.on?' checked':'')+'> <b>High Value</b></label><div class="flaghint">Flag cards that have a value greater than or equal to a set amount.</div><div class="flaginp"><span>'+esc(sym)+'</span><input type="text" inputmode="numeric" data-flagamt="highValue" value="'+esc(FLAGS.highValue.amount)+'"></div></div>'
+    +'<div class="flagrow"><label class="cfrow"><input type="checkbox" data-flag="slipping"'+(FLAGS.slipping.on?' checked':'')+'> <b>Slipping</b></label><div class="flaghint">Flag cards that have had no activity after a set number of days.</div><div class="flaginp"><input type="text" inputmode="numeric" data-flagdays="slipping" value="'+esc(FLAGS.slipping.days)+'"><span>days</span></div></div>';
+  host.querySelectorAll('input[data-flag]').forEach(function(cb){ cb.addEventListener('change',function(){ FLAGS[cb.getAttribute('data-flag')].on=cb.checked; saveFLAGS(); render(); }); });
+  host.querySelectorAll('input[data-flagamt]').forEach(function(inp){ inp.addEventListener('input',function(){ FLAGS[inp.getAttribute('data-flagamt')].amount=inp.value.replace(/[^0-9]/g,''); saveFLAGS(); render(); }); });
+  host.querySelectorAll('input[data-flagdays]').forEach(function(inp){ inp.addEventListener('input',function(){ FLAGS[inp.getAttribute('data-flagdays')].days=inp.value.replace(/[^0-9]/g,''); saveFLAGS(); render(); }); });
+}
+function daysSince(iso){ if(!iso) return null; var t=new Date(iso).getTime(); if(isNaN(t)) return null; var d=Math.floor((Date.now()-t)/86400000); return d<0?0:d; }
+function daysInStage(c){ return daysSince(c.stageSince||c.createdAt||''); }
+function flagBadges(c){
+  var h='';
+  if(FLAGS.highValue.on && FLAGS.highValue.amount && money(c.value)>=Number(FLAGS.highValue.amount)) h+='<span class="fbadge hv" title="High value (\u2265 '+esc(fmtMoney(Number(FLAGS.highValue.amount)))+')">$</span>';
+  if(FLAGS.slipping.on && FLAGS.slipping.days){ var ds=daysSince(c.lastActivity); if(ds!=null && ds>=Number(FLAGS.slipping.days)) h+='<span class="fbadge slip" title="Slipping \u2014 '+ds+'d with no activity">\u2193</span>'; }
+  return h?('<span class="flags">'+h+'</span>'):'';
+}
 function cardOwner(c){ return c.owner?('<span class="av" title="'+esc(c.owner)+'">'+esc(initials(c.owner))+'</span>'):''; }
+function fmtMoneyMaybe(v){ var str=String(v==null?'':v); if(/^[\s$,.\d]+$/.test(str) && /\d/.test(str)){ var m=fmtMoney(money(str)); if(m) return m; } return esc(str); }
 function cardFieldsHtml(c){
   var h='';
-  if(CARDF.contact && c.contact) h+='<div class="r"><span class="ic">○</span>'+esc(c.contact)+'</div>';
+  if(CARDF.contact && c.contact){ var nm=esc(c.contact); h+='<div class="r"><span class="ic">○</span>'+(c.contactPersonId?('<a class="contactlink" href="./rrg_person.html?id='+encodeURIComponent(c.contactPersonId)+'">'+nm+'</a>'):nm)+'</div>'; }
   if(CARDF.value && c.value) h+='<div class="r"><span class="ic">$</span><span class="val">'+esc(c.value)+'</span></div>';
+  if(CARDF.commission && c.commission) h+='<div class="r" title="Commission"><span class="ic">%</span><span class="val">'+fmtMoneyMaybe(c.commission)+'</span></div>';
+  if(CARDF.days){ var dd=daysInStage(c); if(dd!=null) h+='<div class="r" title="'+dd+' day'+(dd===1?'':'s')+' in '+esc(c.stage||'this stage')+'"><span class="ic">◷</span>'+dd+'d in stage</div>'; }
   if(CARDF.market && c.market) h+='<div class="r"><span class="ic">◎</span>'+esc(c.market)+'</div>';
   if(CARDF.status && c.status) h+='<div class="r"><span class="ic">◈</span>'+esc(c.status)+'</div>';
   if(CARDF.bbs && c.bbsNumber) h+='<div class="r"><span class="ic">#</span>'+esc(c.bbsNumber)+'</div>';
@@ -303,19 +354,24 @@ function cardFieldsHtml(c){
 }
 function cardHtml(c){
   var open='./rrg_assignment.html?key='+encodeURIComponent(c.key);
+  var flags=flagBadges(c);
+  var rolled=!!ROLLED[c.key];
+  var chev='<button class="rollup" data-roll="'+esc(c.key)+'" title="Roll up / expand">▾</button>';
   if(DENSITY==='compact'){
     var exp=!!EXPCARD[c.key];
     return '<div class="cardx compact'+(exp?' expanded':'')+'" draggable="true" data-key="'+esc(c.key)+'">'
-      +'<div class="chd"><span class="t">'+esc(c.business||'Listing')+(c.provisional?' <span class="pvbadge">Provisional</span>':'')+'</span>'+cardOwner(c)+'</div>'
+      +'<div class="chd"><span class="t">'+esc(c.business||'Listing')+(c.provisional?' <span class="pvbadge">Provisional</span>':'')+'</span>'+flags+cardOwner(c)+'</div>'
       +'<div class="cbody">'+(cardFieldsHtml(c)||'<div class="r" style="color:#98a1b5">No extra details</div>')
         +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span><a class="opendeal" href="'+open+'">Open deal →</a></div>'
       +'</div></div>';
   }
-  return '<div class="cardx" draggable="true" data-key="'+esc(c.key)+'">'
-    +'<a class="t" href="'+open+'">'+esc(c.business||'Listing')+'</a>'+(c.provisional?'<div style="margin:-2px 0 6px"><span class="pvbadge">Provisional</span></div>':'')
-    +cardFieldsHtml(c)
-    +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+cardOwner(c)+'</div>'
-    +'</div>';
+  return '<div class="cardx'+(rolled?' rolled':'')+'" draggable="true" data-key="'+esc(c.key)+'">'
+    +'<div class="chd"><a class="t" href="'+open+'">'+esc(c.business||'Listing')+'</a>'+flags+chev+'</div>'
+    +'<div class="cbody">'
+      +(c.provisional?'<div style="margin:-2px 0 6px"><span class="pvbadge">Provisional</span></div>':'')
+      +cardFieldsHtml(c)
+      +'<div class="ft"><span class="dt">'+(CARDF.activity&&c.lastActivity?esc(fmtDate(c.lastActivity)):'')+'</span>'+cardOwner(c)+'</div>'
+    +'</div></div>';
 }
 function wireDnD(){
   document.querySelectorAll('.cardx').forEach(function(el){
@@ -323,6 +379,10 @@ function wireDnD(){
     el.addEventListener('dragend',function(){ el.classList.remove('dragging'); setTimeout(function(){el.__drag=false;},260); document.querySelectorAll('.col.dragover').forEach(function(c){c.classList.remove('dragover');}); });
   });
   document.querySelectorAll('.cardx.compact').forEach(function(el){ el.addEventListener('click',function(e){ if(el.__drag) return; if(e.target.closest('a')) return; var k=el.getAttribute('data-key'); EXPCARD[k]=!EXPCARD[k]; el.classList.toggle('expanded',!!EXPCARD[k]); }); });
+  document.querySelectorAll('.cardx .rollup').forEach(function(el){
+    el.addEventListener('mousedown',function(e){ e.stopPropagation(); });
+    el.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); var k=el.getAttribute('data-roll'); ROLLED[k]=!ROLLED[k]; saveROLLED(); var card=el.closest('.cardx'); if(card) card.classList.toggle('rolled',!!ROLLED[k]); });
+  });
   document.querySelectorAll('.col').forEach(function(col){
     col.addEventListener('dragover',function(e){ e.preventDefault(); e.dataTransfer.dropEffect='move'; col.classList.add('dragover'); });
     col.addEventListener('dragleave',function(e){ if(!col.contains(e.relatedTarget)) col.classList.remove('dragover'); });

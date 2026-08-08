@@ -3313,7 +3313,7 @@ function applyBizSaleOutcome(req, rec) {
         _cur.stageFlags = _cur.stageFlags || {};
         for (let _i = 0; _i < _tgt; _i++) _cur.stageFlags['g' + _i] = true;
         _cur.pipelineStage = (_stg[_tgt] && _stg[_tgt].name) || _cur.pipelineStage || '';
-        _cur.updatedAt = new Date().toISOString(); _ov['s_' + rec.id] = _cur; saveAssignOverlay(_ov);
+        _cur.updatedAt = new Date().toISOString(); _cur.stageSince = _cur.updatedAt; _ov['s_' + rec.id] = _cur; saveAssignOverlay(_ov);
       }
     } catch (e) {}
     // Log the outcome to the seller's Activity Log — date is stamped by logActivity, call length in the note.
@@ -7731,7 +7731,7 @@ app.get('/api/board', (req, res) => {
       catch (e) { stage = stageNames[0] || ''; }
     }
     const _prov = !!(d.screen && d.screen.provisional);
-    cards.push({ key: d.key, business: v.business, company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage });
+    cards.push({ key: d.key, business: v.business, company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, stageSince: o.stageSince || v.createdAt || '', commission: (v.transaction && v.transaction.commissionDue) || '' });
   });
   res.json({ ok: true, pipelines: pipelines.map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, cards: cards, isAdmin: !!isAdmin });
 });
@@ -7763,6 +7763,7 @@ app.post('/api/assignment/:key/stage', express.json(), (req, res) => {
   if (pipe && (pipe.stages || []).map(s => s.name).indexOf(stage) < 0) return res.status(400).json({ ok: false, error: 'Unknown stage for this pipeline.' });
   const _oldStage = cur.pipelineStage || '';
   cur.pipelineStage = stage; cur.updatedAt = new Date().toISOString();
+  if (_oldStage !== stage) cur.stageSince = cur.updatedAt;
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   try { _fireStageAutos(pipe, d, _oldStage, stage, req); } catch (e) {}
   res.json({ ok: true });
