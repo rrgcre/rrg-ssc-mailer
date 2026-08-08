@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="rrg-noshell" content="1">
+<title>Seller Intake</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:30px 0 32px;background:radial-gradient(95% 130% at 28% 15%,#1c2e5c 0%,#112044 42%,#0b1636 70%,#071029 100%);}
+.in{max-width:680px;margin:0 auto;padding:0 22px;}
+.disc{display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font:900 13px 'Arial Black',Arial,sans-serif;letter-spacing:-.04em;}
+.kick{margin:18px 0 4px;color:var(--red);font-weight:700;letter-spacing:.26em;font-size:11px;text-transform:uppercase;}
+h1{font-size:25px;font-weight:800;margin:0;color:#fff;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;line-height:1.5;}
+.wrap{max-width:680px;margin:20px auto;padding:0 22px 70px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);padding:22px;}
+.note{background:#f0f5ff;border:1px solid #dbe6fb;border-radius:11px;padding:13px 15px;color:#31527a;font-size:12.5px;line-height:1.55;margin-bottom:18px;}
+.note.ok{background:#e7f5ee;border-color:#b7e0c7;color:var(--green);}
+.fld{margin-bottom:15px;}
+.fld label{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin-bottom:5px;}
+.fld input,.fld textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:15px;background:#fff;color:var(--ink);}
+.fld input:focus,.fld textarea:focus{outline:none;border-color:#5b9be8;box-shadow:0 0 0 3px rgba(91,155,232,.15);}
+.fld textarea{min-height:78px;resize:vertical;}
+.sbtn{background:var(--navy);color:#fff;border:none;border-radius:11px;padding:14px 30px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;}
+.sbtn:disabled{opacity:.6;cursor:default;}
+#smsg{margin-top:13px;font-size:13.5px;font-weight:600;min-height:18px;}
+.foot{max-width:680px;margin:0 auto;padding:0 22px 40px;color:var(--soft);font-size:11px;text-align:center;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);padding:0 20px;}
+.gate b{display:block;color:var(--navy);font-size:17px;margin-bottom:6px;}
+.alt{margin-top:16px;font-size:12.5px;color:var(--muted);}
+</style>
+</head>
+<body>
+<div id="app" style="display:none">
+  <div class="top"><div class="in">
+    <span class="disc" id="disc">RRG</span>
+    <div class="kick">Confidential Seller Intake</div>
+    <h1 id="hdr">Tell us about your business</h1>
+    <div class="sub" id="hsub">A few quick questions. Everything you share is private and goes only to your representative.</div>
+  </div></div>
+  <div class="wrap">
+    <div class="card">
+      <div class="note ok" id="doneNote" style="display:none"><b>Thanks — we already have your answers.</b> Feel free to update anything below and resubmit.</div>
+      <div class="note" id="introNote">Answer what you can — rough numbers are fine, and you can skip anything you'd rather discuss by phone. It takes about 3 minutes.</div>
+      <form id="sform" autocomplete="off"></form>
+      <button class="sbtn" id="ssubmit" type="button">Submit</button>
+      <div id="smsg"></div>
+      <div class="alt" id="altline"></div>
+    </div>
+  </div>
+  <div class="foot">Confidential &middot; Provided securely by <span id="orgf">your representative</span></div>
+</div>
+<div id="gate" class="gate" style="display:none"></div>
+<script>
+(function(){
+  function qp(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
+  function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+  var TOKEN=qp('t');
+  var app=document.getElementById('app'), gate=document.getElementById('gate');
+  function showGate(msg){ gate.innerHTML='<b>Link unavailable</b>'+esc(msg||'This link is invalid or has expired. Please contact your representative for a new one.'); gate.style.display='block'; }
+  if(!TOKEN){ showGate('No link code found.'); return; }
+  var FIELDS=[];
+  fetch('/s/intake?token='+encodeURIComponent(TOKEN)).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ showGate(j&&j.error); return; }
+    FIELDS=j.fields||[];
+    var org=j.org||'Restaurant Realty Group';
+    document.getElementById('orgf').textContent=org;
+    try{ document.getElementById('disc').textContent=(org.match(/\b[A-Za-z]/g)||['R']).slice(0,3).join('').toUpperCase(); }catch(e){}
+    if(j.business){ document.getElementById('hdr').textContent=j.business; document.getElementById('hsub').textContent='A few quick questions about '+j.business+'. Everything you share is private and goes only to your representative.'; }
+    var f=document.getElementById('sform'); var data=j.data||{};
+    f.innerHTML=FIELDS.map(function(fd){
+      var v=esc(data[fd.k]||'');
+      var input=fd.ta ? ('<textarea id="f_'+fd.k+'">'+v+'</textarea>') : ('<input id="f_'+fd.k+'" value="'+v+'">');
+      return '<div class="fld"><label>'+esc(fd.label)+'</label>'+input+'</div>';
+    }).join('');
+    if(j.submitted){ document.getElementById('doneNote').style.display='block'; document.getElementById('introNote').style.display='none'; }
+    document.getElementById('altline').innerHTML='Prefer to talk it through on camera instead? <a href="./seller_record.html?t='+encodeURIComponent(TOKEN)+'" style="color:#DA2B1F;font-weight:700">Record a short video &rarr;</a>';
+    app.style.display='block';
+  }).catch(function(){ showGate('We could not load this page. Please try again in a moment.'); });
+  document.getElementById('ssubmit').addEventListener('click',function(){
+    var btn=this, m=document.getElementById('smsg');
+    var data={}; FIELDS.forEach(function(fd){ var el=document.getElementById('f_'+fd.k); data[fd.k]=el?el.value:''; });
+    btn.disabled=true; m.style.color='#6b7488'; m.textContent='Submitting…';
+    fetch('/s/intake/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,data:data})}).then(function(r){return r.json();}).then(function(j){
+      btn.disabled=false;
+      if(j&&j.ok){ m.style.color='#1f8a5b'; m.textContent='Thank you — your answers were sent to your representative. ✓'; document.getElementById('doneNote').style.display='block'; document.getElementById('introNote').style.display='none'; window.scrollTo({top:0,behavior:'smooth'}); }
+      else { m.style.color='#DA2B1F'; m.textContent=(j&&j.error)||'Could not submit — please try again.'; }
+    }).catch(function(){ btn.disabled=false; m.style.color='#DA2B1F'; m.textContent='Could not reach the server — please try again.'; });
+  });
+})();
+</script>
+</body>
+</html>

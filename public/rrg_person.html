@@ -662,6 +662,63 @@ function openSendModal(){
 }
 // Align & Agree — open the send-agreement modal preset to the Exclusive Business Listing
 // (Business Sales Representation) template, ready to review and send for signature.
+function _siEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+function _siRow(label,color,url){
+  return '<div style="border:1px solid #e6e9f0;border-radius:11px;padding:12px 13px;margin-bottom:10px">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:7px"><span style="width:8px;height:8px;border-radius:50%;background:'+color+'"></span><span style="font-weight:700;color:#000E31;font-size:13px">'+label+'</span></div>'
+    +'<div style="display:flex;gap:8px;align-items:center"><input readonly value="'+_siEsc(url)+'" style="flex:1;min-width:0;border:1px solid #d7dde8;border-radius:8px;padding:8px 10px;font:inherit;font-size:12px;color:#31405a;background:#f7f9fc"><button class="siCopy" data-u="'+_siEsc(url)+'" style="background:#000E31;color:#fff;border:none;border-radius:8px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap">Copy</button></div></div>';
+}
+function _siAnswers(j){
+  if(!j.form||!j.form.data) return '';
+  var fields=j.fields||[]; var data=j.form.data;
+  var rows=fields.filter(function(f){ return String(data[f.k]||'').trim(); }).map(function(f){
+    return '<div style="padding:7px 0;border-top:1px solid #f0f2f7"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;font-weight:700">'+_siEsc(f.label)+'</div><div style="font-size:13px;color:#1a2236;margin-top:2px;white-space:pre-wrap;line-height:1.45">'+_siEsc(data[f.k])+'</div></div>';
+  }).join('');
+  if(!rows) return '';
+  return '<details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#000E31;list-style:none">▸ View the seller’s form answers</summary><div style="margin-top:6px">'+rows+'</div></details>';
+}
+function _siRender(j, email){
+  var b=document.getElementById('siBody'); if(!b) return;
+  b.innerHTML=_siRow('Short form','#000E31', j.formUrl)
+    +_siRow('Video interview','#DA2B1F', j.videoUrl)
+    +'<div style="border-top:1px solid #eef1f6;margin-top:6px;padding-top:14px">'
+    +'<div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a93a8;margin-bottom:6px">Email both links to the seller</div>'
+    +'<div style="display:flex;gap:8px;align-items:center"><input id="siEmail" value="'+_siEsc(email||'')+'" placeholder="seller@email.com" style="flex:1;min-width:0;border:1px solid #d7dde8;border-radius:8px;padding:9px 11px;font:inherit;font-size:13px"><button id="siSend" style="background:#0e7a53;color:#fff;border:none;border-radius:8px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Email</button></div>'
+    +'<div id="siMsg" style="font-size:12.5px;margin-top:9px;min-height:16px"></div>'
+    +((j.formSubmitted||j.videoCount)? ('<div style="font-size:12px;color:#1f8a5b;font-weight:600;margin-top:8px">'+(j.formSubmitted?'Form completed ✓&nbsp;&nbsp;':'')+(j.videoCount?(j.videoCount+' video'+(j.videoCount===1?'':'s')+' received ✓ — in the data room'):'')+'</div>') : '')
+    +_siAnswers(j)
+    +'</div>';
+  Array.prototype.forEach.call(b.querySelectorAll('.siCopy'),function(btn){ btn.addEventListener('click',function(){ var u=btn.getAttribute('data-u'); try{ navigator.clipboard.writeText(u); }catch(e){} var o=btn.textContent; btn.textContent='Copied ✓'; setTimeout(function(){ btn.textContent=o; },1400); }); });
+  var send=document.getElementById('siSend');
+  send.addEventListener('click',function(){
+    var to=(document.getElementById('siEmail').value||'').trim(); var m=document.getElementById('siMsg');
+    if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){ m.style.color='#DA2B1F'; m.textContent='Enter a valid email address.'; return; }
+    send.disabled=true; m.style.color='#6b7488'; m.textContent='Sending…';
+    fetch('/api/seller-link/email',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:j.token,to:to})}).then(function(r){return r.json();}).then(function(k){ send.disabled=false; if(k&&k.ok){ m.style.color='#1f8a5b'; m.textContent='Sent to '+to+' ✓'; } else { m.style.color='#DA2B1F'; m.textContent=(k&&k.error)||'Could not send.'; } }).catch(function(){ send.disabled=false; m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; });
+  });
+}
+function openSellerIntake(){
+  var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||'';
+  var cid=(typeof CO!=='undefined'&&CO&&CO.id)||'';
+  var biz=(typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||(typeof P!=='undefined'&&P&&P.name)||'';
+  var email=(typeof P!=='undefined'&&P&&(P.email||(P.emails&&P.emails[0])))||'';
+  if(!pid&&!cid){ alert('No contact on this record.'); return; }
+  var ex=document.getElementById('siOv'); if(ex) ex.remove();
+  var ov=document.createElement('div'); ov.id='siOv'; ov.style.cssText='position:fixed;inset:0;background:rgba(8,14,32,.5);display:flex;align-items:center;justify-content:center;z-index:3000;padding:20px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif';
+  ov.innerHTML='<div style="background:#fff;border-radius:16px;max-width:540px;width:100%;box-shadow:0 24px 70px rgba(6,12,30,.42);overflow:hidden">'
+    +'<div style="padding:20px 24px 12px;border-bottom:1px solid #eef1f6;display:flex;align-items:center;gap:10px"><div style="font-weight:800;color:#000E31;font-size:17px;flex:1">Send seller intake</div><button id="siX" style="background:none;border:none;font-size:20px;color:#8a93a8;cursor:pointer;line-height:1">×</button></div>'
+    +'<div style="padding:18px 24px 22px">'
+    +'<div style="color:#5a6478;font-size:13px;line-height:1.55;margin-bottom:16px">Two private links for <b>'+_siEsc(biz)+'</b>. The seller uses whichever they prefer — the form, the video, or both. Everything comes back to this record.</div>'
+    +'<div id="siBody" style="color:#6b7488;font-size:13px">Preparing links…</div>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  document.getElementById('siX').addEventListener('click',function(){ ov.remove(); });
+  fetch('/api/seller-link',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid,business:biz})}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ document.getElementById('siBody').textContent=(j&&j.error)||'Could not create the links.'; return; }
+    _siRender(j, email);
+  }).catch(function(){ document.getElementById('siBody').textContent='Could not reach the server.'; });
+}
 function openListingAgreement(){
   if(typeof openSendModal!=='function'){ alert('Agreements are still loading — try again in a moment.'); return; }
   openSendModal();
@@ -1141,6 +1198,7 @@ load();
     {hdr:'Data \u0026 Valuation'},
     {t:'Upload Files to Data Room', lock:'screen', f:function(){ var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid2=(typeof CO!=='undefined'&&CO&&CO.id)||''; var biz=(typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||(typeof P!=='undefined'&&P&&P.name)||''; if(!pid&&!cid2){ alert('No contact on this record.'); return; } fetch('/api/valuation-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid2,business:biz})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id){ location.href='./rrg_room.html?room='+encodeURIComponent(j.id); } else { alert((j&&j.error)||'Could not open a data room.'); } }).catch(function(){ alert('Could not open a data room.'); }); } },
     {t:'Start Seller Interview', lock:'screen', f:function(){ var nm=encodeURIComponent((typeof P!=='undefined'&&P&&P.name)||''); var co=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||''); var mk=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.market)||''); var ad=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.address)||''); var pid=encodeURIComponent((typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''); var cid=encodeURIComponent((typeof CO!=='undefined'&&CO&&CO.id)||''); location.href='./seller_screening.html?valuation=1&sellerName='+nm+'&company='+co+'&market='+mk+'&address='+ad+'&contactId='+pid+'&companyId='+cid; }},
+    {t:'Send Seller Intake', sub:'Private form + video links the seller completes on their own', lock:'screen', f:function(){ if(typeof openSellerIntake==='function'){ openSellerIntake(); } else { alert('One moment — still loading.'); } }},
     {t:'Generate Valuation (BOV)', f:function(){ var v=window.__valReady||{}; if(!v.ready){ var _miss=(v.missing&&v.missing.slice())||[]; if(_miss.length===1&&_miss[0]==='Lease'){ if(window.confirm('Only the lease is missing. If this business has no lease, open the data room and tick "No lease" in the Lease folder. Open it now?')){ var _pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var _cid=(typeof CO!=='undefined'&&CO&&CO.id)||''; fetch('/api/valuation-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:_pid,companyId:_cid})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id) location.href='./rrg_room.html?room='+encodeURIComponent(j.id); }); } return; } var _m='Not ready yet — needs: '+(_miss.join(', ')||'financials, lease'); if(window.rrgToast) rrgToast(_m); else alert(_m); return; } var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid2=(typeof CO!=='undefined'&&CO&&CO.id)||''; if(v.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(v.bovId); } else { fetch('/api/valuation-ensure',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid2})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(j.bovId); } else { alert((j&&j.error)||'Could not open the valuation.'); } }).catch(function(){ alert('Could not reach the server.'); }); } } },
     {hdr:'Align & Agree'},
     {t:'Send Listing Agreement', sub:'Exclusive Business Sales Representation', lock:'valuation', f:function(){ if(typeof openListingAgreement==='function'){ openListingAgreement(); } else { alert('Agreements are still loading — try again in a moment.'); } }}

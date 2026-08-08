@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="rrg-noshell" content="1">
+<title>Video Interview</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.top{color:#fff;padding:30px 0 32px;background:radial-gradient(95% 130% at 28% 15%,#1c2e5c 0%,#112044 42%,#0b1636 70%,#071029 100%);}
+.in{max-width:720px;margin:0 auto;padding:0 22px;}
+.disc{display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font:900 13px 'Arial Black',Arial,sans-serif;letter-spacing:-.04em;}
+.kick{margin:18px 0 4px;color:var(--red);font-weight:700;letter-spacing:.26em;font-size:11px;text-transform:uppercase;}
+h1{font-size:25px;font-weight:800;margin:0;color:#fff;}
+.sub{color:#aeb8cf;font-size:13px;margin-top:7px;line-height:1.5;}
+.wrap{max-width:720px;margin:20px auto;padding:0 22px 70px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);padding:22px;margin-bottom:14px;}
+.note{background:#f0f5ff;border:1px solid #dbe6fb;border-radius:11px;padding:13px 15px;color:#31527a;font-size:12.5px;line-height:1.55;}
+h2{font-size:14px;color:var(--navy);margin:0 0 10px;}
+ol{margin:0;padding-left:22px;} li{margin:9px 0;font-size:14.5px;line-height:1.45;color:var(--ink);}
+.stage{position:relative;background:#0b1636;border-radius:14px;overflow:hidden;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;}
+video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#000;display:block;}
+.ph{color:#8a93a8;font-size:13px;text-align:center;padding:20px;}
+.recbar{position:absolute;top:12px;left:12px;display:none;align-items:center;gap:8px;background:rgba(6,12,30,.6);border-radius:100px;padding:6px 12px;}
+.recbar.on{display:flex;}
+.recdot{width:9px;height:9px;border-radius:50%;background:#e0342a;animation:rp 1.4s infinite;}
+@keyframes rp{0%{box-shadow:0 0 0 0 rgba(224,52,42,.5)}70%{box-shadow:0 0 0 7px rgba(224,52,42,0)}100%{box-shadow:0 0 0 0 rgba(224,52,42,0)}}
+.rectime{color:#fff;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;}
+.reclbl{color:#ff8a82;font-size:11px;font-weight:800;letter-spacing:.06em;}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:center;}
+.bbtn{border:none;border-radius:11px;padding:14px 26px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;}
+.bbtn.go{background:var(--red);color:#fff;} .bbtn.stop{background:#0b1636;color:#fff;} .bbtn.ghost{background:#f2f5fb;color:var(--navy);border:1px solid #dfe6f2;}
+.bbtn:disabled{opacity:.55;cursor:default;}
+#umsg{margin-top:14px;font-size:13.5px;font-weight:600;min-height:18px;}
+.prog{height:7px;background:#eef1f6;border-radius:99px;overflow:hidden;margin-top:10px;display:none;}
+.prog.on{display:block;} .prog > i{display:block;height:100%;width:0;background:#5b9be8;transition:width .2s;}
+.foot{max-width:720px;margin:0 auto;padding:0 22px 40px;color:var(--soft);font-size:11px;text-align:center;}
+.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);padding:0 20px;}
+.gate b{display:block;color:var(--navy);font-size:17px;margin-bottom:6px;}
+.done{text-align:center;padding:10px 0;}
+.done .ok{width:60px;height:60px;border-radius:50%;background:#e7f5ee;color:var(--green);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;margin:0 auto 14px;}
+.alt{margin-top:14px;font-size:12.5px;color:var(--muted);}
+</style>
+</head>
+<body>
+<div id="app" style="display:none">
+  <div class="top"><div class="in">
+    <span class="disc" id="disc">RRG</span>
+    <div class="kick">Confidential Video Interview</div>
+    <h1 id="hdr">Record a short interview</h1>
+    <div class="sub" id="hsub">Answer a few questions on camera, at your own pace. Private — only your representative sees it.</div>
+  </div></div>
+  <div class="wrap">
+    <div class="card" id="qcard">
+      <h2>What we'd love to hear</h2>
+      <div class="note" style="margin-bottom:12px">Just talk naturally — there are no wrong answers, and rough numbers are fine. Aim for a few minutes. When you're ready, press <b>Start recording</b>, allow your camera and microphone, and go through these:</div>
+      <ol id="qlist"></ol>
+    </div>
+    <div class="card">
+      <div class="stage">
+        <div class="ph" id="ph">Your camera preview will appear here once you start.</div>
+        <video id="pv" autoplay muted playsinline style="display:none"></video>
+        <div class="recbar" id="recbar"><span class="recdot"></span><span class="reclbl">REC</span><span class="rectime" id="rectime">0:00</span></div>
+      </div>
+      <div class="btnrow">
+        <button class="bbtn go" id="startBtn" type="button">● Start recording</button>
+        <button class="bbtn stop" id="stopBtn" type="button" style="display:none">■ Stop &amp; submit</button>
+      </div>
+      <div class="prog" id="prog"><i id="progbar"></i></div>
+      <div id="umsg"></div>
+      <div class="alt" id="altline"></div>
+    </div>
+  </div>
+  <div class="foot">Confidential &middot; Provided securely by <span id="orgf">your representative</span></div>
+</div>
+<div id="gate" class="gate" style="display:none"></div>
+<script>
+(function(){
+  function qp(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
+  function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
+  var TOKEN=qp('t');
+  var app=document.getElementById('app'), gate=document.getElementById('gate');
+  function showGate(msg){ gate.innerHTML='<b>Link unavailable</b>'+esc(msg||'This link is invalid or has expired. Please contact your representative for a new one.'); gate.style.display='block'; }
+  if(!TOKEN){ showGate('No link code found.'); return; }
+  var QUESTIONS=[
+    'What is the name of your business, and what type of restaurant or bar is it?',
+    'How long have you owned or operated it?',
+    'Why are you thinking about selling?',
+    'Roughly what are your annual sales?',
+    'Roughly what does the business net you per year (owner’s cash flow)?',
+    'What is your monthly rent, and how many years are left on the lease?',
+    'What are you hoping to get for the business, and on what timeline?',
+    'Is there anything else a serious buyer should know?'
+  ];
+  var READY=false;
+  fetch('/s/video?token='+encodeURIComponent(TOKEN)).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ showGate(j&&j.error); return; }
+    READY=!!j.ready;
+    var org=j.org||'Restaurant Realty Group';
+    document.getElementById('orgf').textContent=org;
+    try{ document.getElementById('disc').textContent=(org.match(/\b[A-Za-z]/g)||['R']).slice(0,3).join('').toUpperCase(); }catch(e){}
+    if(j.business){ document.getElementById('hdr').textContent=j.business; document.getElementById('hsub').textContent='Tell us about '+j.business+' in your own words. Private — only your representative sees it.'; }
+    document.getElementById('qlist').innerHTML=QUESTIONS.map(function(q){ return '<li>'+esc(q)+'</li>'; }).join('');
+    document.getElementById('altline').innerHTML='Prefer not to be on camera? <a href="./seller_intake.html?t='+encodeURIComponent(TOKEN)+'" style="color:#DA2B1F;font-weight:700">Fill out a short form instead &rarr;</a>';
+    app.style.display='block';
+  }).catch(function(){ showGate('We could not load this page. Please try again in a moment.'); });
+
+  var stream=null, vrec=null, vchunks=[], arec=null, achunks=[], ablob=null, t0=0, timer=null;
+  var startBtn=document.getElementById('startBtn'), stopBtn=document.getElementById('stopBtn');
+  var pv=document.getElementById('pv'), ph=document.getElementById('ph'), recbar=document.getElementById('recbar');
+  function fmt(s){ s=Math.floor(s); var m=Math.floor(s/60), ss=s%60; return m+':'+(ss<10?'0':'')+ss; }
+  function msg(t,c){ var m=document.getElementById('umsg'); m.textContent=t||''; m.style.color=c||'#6b7488'; }
+  function prog(p){ var w=document.getElementById('prog'), b=document.getElementById('progbar'); if(p==null){ w.classList.remove('on'); return; } w.classList.add('on'); b.style.width=Math.max(3,Math.min(100,p))+'%'; }
+
+  startBtn.addEventListener('click',function(){
+    if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder)){ msg('This browser can’t record video. Please try the latest Chrome or Safari, or use the form link below.','#DA2B1F'); return; }
+    startBtn.disabled=true; msg('Requesting camera…');
+    navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},facingMode:'user'},audio:true}).then(function(s){
+      stream=s; vchunks=[]; achunks=[]; ablob=null;
+      pv.srcObject=s; pv.style.display='block'; ph.style.display='none';
+      var vmime=''; ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'].some(function(m){ try{ if(MediaRecorder.isTypeSupported(m)){ vmime=m; return true; } }catch(e){} return false; });
+      try{ vrec=vmime?new MediaRecorder(s,{mimeType:vmime}):new MediaRecorder(s); }catch(e){ vrec=new MediaRecorder(s); }
+      vrec.ondataavailable=function(e){ if(e.data&&e.data.size) vchunks.push(e.data); };
+      vrec.onstop=function(){ finalize(); };
+      vrec.start(1000); t0=Date.now();
+      try{ var at=s.getAudioTracks?s.getAudioTracks():[]; if(at.length){ var am=''; ['audio/webm;codecs=opus','audio/webm'].some(function(m){ try{ if(MediaRecorder.isTypeSupported(m)){ am=m; return true; } }catch(e){} return false; }); var ao={audioBitsPerSecond:32000}; if(am) ao.mimeType=am; try{ arec=new MediaRecorder(new MediaStream(at),ao); }catch(e){ try{ arec=new MediaRecorder(new MediaStream(at)); }catch(_){ arec=null; } } if(arec){ arec.ondataavailable=function(e){ if(e.data&&e.data.size) achunks.push(e.data); }; arec.onstop=function(){ try{ if(achunks.length) ablob=new Blob(achunks,{type:(arec.mimeType&&String(arec.mimeType).split(';')[0])||'audio/webm'}); }catch(e){} }; arec.start(1000); } } }catch(e){}
+      startBtn.style.display='none'; stopBtn.style.display='inline-block'; recbar.classList.add('on'); msg('Recording — take your time. Press Stop &amp; submit when you’re done.','#1f8a5b');
+      timer=setInterval(function(){ document.getElementById('rectime').textContent=fmt((Date.now()-t0)/1000); },500);
+    }).catch(function(err){ startBtn.disabled=false; msg('We couldn’t start your camera ('+((err&&err.name)||'blocked')+'). Please allow camera and microphone access, or use the form link below.','#DA2B1F'); });
+  });
+
+  stopBtn.addEventListener('click',function(){
+    stopBtn.disabled=true; if(timer){ clearInterval(timer); timer=null; } recbar.classList.remove('on');
+    try{ if(arec&&arec.state&&arec.state!=='inactive') arec.stop(); }catch(e){}
+    try{ if(vrec&&vrec.state&&vrec.state!=='inactive') vrec.stop(); else finalize(); }catch(e){ finalize(); }
+  });
+
+  function stopStream(){ try{ if(stream) stream.getTracks().forEach(function(t){t.stop();}); }catch(e){} }
+  function dur(){ return t0?Math.max(1,Math.round((Date.now()-t0)/1000)):0; }
+
+  function finalize(){
+    var vblob=null; try{ if(vchunks.length) vblob=new Blob(vchunks,{type:(vrec&&vrec.mimeType)||'video/webm'}); }catch(e){}
+    stopStream(); pv.style.display='none'; ph.style.display='block'; ph.textContent='Uploading your interview…';
+    if(!vblob||!vblob.size){ msg('We didn’t capture any video. Please try again, or use the form link below.','#DA2B1F'); startBtn.style.display='inline-block'; startBtn.disabled=false; stopBtn.style.display='none'; return; }
+    var ct=vblob.type||'video/webm', d=dur();
+    prog(4); msg('Preparing upload…');
+    fetch('/s/video/presign',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,contentType:ct})}).then(function(r){return r.json();}).then(function(j){
+      if(!j||!j.ok||!j.uploadUrl) throw new Error((j&&j.error)||'presign');
+      return new Promise(function(res,rej){
+        var xhr=new XMLHttpRequest(); xhr.open('PUT',j.uploadUrl,true); try{ xhr.setRequestHeader('Content-Type',ct); }catch(e){}
+        xhr.upload.onprogress=function(ev){ if(ev.lengthComputable){ prog(Math.round(ev.loaded/ev.total*100)); msg('Uploading your interview…'); } };
+        xhr.onload=function(){ if(xhr.status>=200&&xhr.status<300) res(j.key); else rej(new Error('put '+xhr.status)); };
+        xhr.onerror=function(){ rej(new Error('put-net')); };
+        xhr.send(vblob);
+      });
+    }).then(function(key){
+      prog(98); msg('Finishing…');
+      return fetch('/s/video/register',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,key:key,sizeBytes:vblob.size,durationSec:d,contentType:ct})}).then(function(r){return r.json();});
+    }).then(function(j){
+      if(!j||!j.ok) throw new Error((j&&j.error)||'register');
+      prog(100);
+      if(ablob&&ablob.size&&ablob.size<24*1024*1024){ var act=(ablob.type&&String(ablob.type).split(';')[0])||'audio/webm'; fetch('/s/video/transcribe?token='+encodeURIComponent(TOKEN)+'&id='+encodeURIComponent(j.id),{method:'POST',headers:{'Content-Type':act},body:ablob}).catch(function(){}); }
+      success();
+    }).catch(function(err){
+      prog(null); msg('Your recording didn’t upload. Please check your connection and try again, or use the form link below.','#DA2B1F');
+      startBtn.style.display='inline-block'; startBtn.disabled=false; stopBtn.style.display='none'; ph.textContent='Your camera preview will appear here once you start.';
+    });
+  }
+
+  function success(){
+    document.querySelector('.wrap').innerHTML='<div class="card"><div class="done"><div class="ok">✓</div><h2 style="font-size:19px;margin-bottom:6px">Thank you — your interview was sent.</h2><div style="color:#6b7488;font-size:13.5px;line-height:1.55;max-width:440px;margin:0 auto">Your representative has received your video and will follow up shortly. You can close this window.</div></div></div>';
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+})();
+</script>
+</body>
+</html>

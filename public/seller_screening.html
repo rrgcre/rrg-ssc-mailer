@@ -1580,7 +1580,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
       window.__scrStartTries=0;
     } catch(e){}
     steps=computeSteps(); active=true; fab.style.display='none'; ov.style.display='flex'; try{ if(window.__sscHideVeil) window.__sscHideVeil(); }catch(e){} if(!window.__sscStarted) window.__sscStarted=new Date().toISOString();
-    try{ if(!window.__recOffered && !isEdit){ window.__recOffered=true; setTimeout(recGate,140); } }catch(e){}
+    /* Live camera recording removed — the seller now records on their own device via a private link (rrg_person.html → Send Seller Intake). */
     known=steps.map(function(el){ return hasVal(el); });
     if(seek(0,1)>=steps.length) known=[];            // everything answered -> ask normally rather than end the call
     var pre=[]; for(var k=0;k<steps.length;k++){ if(known[k]){ var L=labelOf(steps[k]); if(L) pre.push(L); } }

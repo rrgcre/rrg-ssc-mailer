@@ -1080,7 +1080,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/rrg_brand.js', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access') return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -4964,6 +4964,122 @@ app.post('/api/interview/:id/redraft', express.json(), async (req, res) => {
     if (summary) { rec.summary = summary; rec.summaryStatus = 'done'; rec.summarizedAt = new Date().toISOString(); saveInterviews(all); }
     res.json({ ok: true, summary: summary, summaryStatus: rec.summaryStatus });
   } catch (e) { console.error('redraft interview:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+
+// ===== Seller self-service intake: a form link + a video link the seller completes on their own =====
+const SELLER_LINKS_FILE = path.join(BOV_DATA_DIR, 'seller_links.json');
+function loadSellerLinks() { try { return rj(SELLER_LINKS_FILE) || []; } catch (e) { return []; } }
+function saveSellerLinks(a) { return writeJsonGuarded(SELLER_LINKS_FILE, a, 'saveSellerLinks'); }
+function sellerLinkByToken(t) { return loadSellerLinks().find(x => x.token === String(t || '')); }
+const SELLER_FORM_FIELDS = [
+  { k: 'business', label: 'Business name' },
+  { k: 'concept', label: 'Concept / cuisine' },
+  { k: 'years', label: 'Years owned or operated' },
+  { k: 'reason', label: 'Reason for selling', ta: true },
+  { k: 'revenue', label: 'Approx. annual sales' },
+  { k: 'sde', label: 'Approx. yearly owner cash flow (SDE)' },
+  { k: 'rent', label: 'Monthly rent' },
+  { k: 'lease', label: 'Lease term remaining (with options)' },
+  { k: 'price', label: 'Price expectation' },
+  { k: 'timeline', label: 'Ideal timeline to sell' },
+  { k: 'notes', label: 'Anything else a buyer should know', ta: true },
+];
+// Rep creates (or reuses) an intake link for a person/company.
+app.post('/api/seller-link', express.json(), (req, res) => {
+  try {
+    const b = req.body || {};
+    const personId = String(b.personId || '').slice(0, 48), companyId = String(b.companyId || '').slice(0, 48);
+    if (!personId && !companyId) return res.status(400).json({ ok: false, error: 'No contact on this record.' });
+    const all = loadSellerLinks();
+    let rec = all.find(x => (personId && x.personId === personId) || (!personId && companyId && x.companyId === companyId));
+    if (!rec) {
+      rec = { token: newRoomToken(), personId, companyId, business: String(b.business || '').slice(0, 160), createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', form: null, videoCount: 0 };
+      all.push(rec); saveSellerLinks(all);
+    } else if (b.business && !rec.business) { rec.business = String(b.business).slice(0, 160); saveSellerLinks(all); }
+    const origin = req.protocol + '://' + req.get('host');
+    res.json({ ok: true, token: rec.token, formUrl: origin + '/seller_intake.html?t=' + rec.token, videoUrl: origin + '/seller_record.html?t=' + rec.token, business: rec.business || '', formSubmitted: !!(rec.form && rec.form.submittedAt), form: rec.form || null, fields: SELLER_FORM_FIELDS, videoCount: rec.videoCount || 0, emailedTo: rec.emailedTo || '' });
+  } catch (e) { console.error('seller-link:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// Rep emails the two links to the seller.
+app.post('/api/seller-link/email', express.json(), async (req, res) => {
+  try {
+    const b = req.body || {}; const to = String(b.to || '').trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'Enter a valid email address.' });
+    const rec = sellerLinkByToken(b.token);
+    if (!rec) return res.status(404).json({ ok: false, error: 'Link not found — create it first.' });
+    const origin = req.protocol + '://' + req.get('host');
+    const formUrl = origin + '/seller_intake.html?t=' + rec.token, videoUrl = origin + '/seller_record.html?t=' + rec.token;
+    const org = orgDisplayName(); const biz = rec.business || 'your business'; const me = (req.user && req.user.name) || org;
+    const html = '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1a2236;font-size:14px;line-height:1.6">'
+      + '<p>Hi,</p><p>Thanks for considering ' + esc(org) + ' to represent the sale of <b>' + esc(biz) + '</b>. To get started, we’ve set up two quick, private options — use whichever you prefer (or both):</p>'
+      + '<p><a href="' + formUrl + '" style="display:inline-block;background:#000E31;color:#fff;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:9px;margin:4px 0">Fill out a short form &rarr;</a></p>'
+      + '<p><a href="' + videoUrl + '" style="display:inline-block;background:#DA2B1F;color:#fff;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:9px;margin:4px 0">Record a short video interview &rarr;</a></p>'
+      + '<p style="color:#6b7488;font-size:12.5px">Everything is confidential and goes only to your ' + esc(org) + ' representative. Prefer not to be on camera? Just use the form.</p>'
+      + '<p>— ' + esc(me) + '</p></div>';
+    const text = 'Two private ways to share the basics on ' + biz + ':\n\nShort form: ' + formUrl + '\nVideo interview: ' + videoUrl + '\n\nUse whichever you prefer. Everything is confidential. — ' + me;
+    await sendMailWL({ from: mailFrom(), to, subject: org + ' — quick seller intake for ' + biz, text, html });
+    const all = loadSellerLinks(); const i = all.findIndex(x => x.token === rec.token); if (i >= 0) { all[i].emailedAt = new Date().toISOString(); all[i].emailedTo = to; saveSellerLinks(all); }
+    res.json({ ok: true });
+  } catch (e) { console.error('seller-link email:', e && e.message); res.status(502).json({ ok: false, error: 'Could not send the email. Check the mailbox connection in Account → Gmail.' }); }
+});
+// ---- Public (token-gated, no login) endpoints the seller pages call ----
+app.get('/s/intake', (req, res) => {
+  const rec = sellerLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
+  res.json({ ok: true, business: rec.business || '', org: orgDisplayName(), fields: SELLER_FORM_FIELDS, data: (rec.form && rec.form.data) || {}, submitted: !!(rec.form && rec.form.submittedAt) });
+});
+app.post('/s/intake/submit', express.json(), (req, res) => {
+  const all = loadSellerLinks(); const rec = all.find(x => x.token === String((req.body && req.body.token) || '')); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
+  const b = (req.body && req.body.data) || {}; const data = {};
+  SELLER_FORM_FIELDS.forEach(f => { data[f.k] = String(b[f.k] || '').slice(0, 4000); });
+  rec.form = { submittedAt: new Date().toISOString(), data }; saveSellerLinks(all);
+  res.json({ ok: true });
+});
+app.get('/s/video', (req, res) => {
+  const rec = sellerLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
+  res.json({ ok: true, business: rec.business || '', org: orgDisplayName(), ready: s3Configured() });
+});
+app.post('/s/video/presign', express.json(), async (req, res) => {
+  const rec = sellerLinkByToken(req.body && req.body.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
+  if (!s3Configured()) return res.status(503).json({ ok: false, error: 'Video recording is not available right now.' });
+  try {
+    const ct = String((req.body && req.body.contentType) || 'video/webm').slice(0, 60);
+    const ext = ct.indexOf('mp4') >= 0 ? 'mp4' : 'webm';
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const folder = rec.companyId || rec.personId || 'seller';
+    const key = 'interviews/' + folder + '/seller_' + stamp + '_' + Math.random().toString(36).slice(2, 7) + '.' + ext;
+    const { PutObjectCommand } = require('@aws-sdk/client-s3'); const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+    const url = await getSignedUrl(s3client(), new PutObjectCommand({ Bucket: s3Bucket(), Key: key, ContentType: ct }), { expiresIn: 900 });
+    res.json({ ok: true, key, uploadUrl: url });
+  } catch (e) { console.error('seller presign:', e && e.message); res.status(500).json({ ok: false, error: 'Could not start the upload.' }); }
+});
+app.post('/s/video/register', express.json(), (req, res) => {
+  const all = loadSellerLinks(); const rec = all.find(x => x.token === String((req.body && req.body.token) || '')); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
+  try {
+    const b = req.body || {}; const key = String(b.key || '').slice(0, 300); if (!key) return res.status(400).json({ ok: false, error: 'Missing key.' });
+    const now = new Date().toISOString();
+    const iv = { id: newInterviewId(), key, personId: rec.personId || '', companyId: rec.companyId || '', screenId: '', business: rec.business || '', sizeBytes: Number(b.sizeBytes || 0) || 0, durationSec: Number(b.durationSec || 0) || 0, contentType: String(b.contentType || 'video/webm').slice(0, 60), transcript: '', transcriptStatus: '', summary: '', summaryStatus: '', createdAt: now, by: 'Seller (self-recorded)', byUser: rec.byUser || '', roomId: '', source: 'seller-link' };
+    try { const rooms = loadRooms(); const room = rooms.find(r => (iv.personId && r.personId === iv.personId) || (iv.companyId && r.companyId === iv.companyId)); if (room) { room.interviews = Array.isArray(room.interviews) ? room.interviews : []; room.interviews.push({ id: iv.id, key, createdAt: now, durationSec: iv.durationSec, sizeBytes: iv.sizeBytes, by: iv.by }); room.updatedAt = now; saveRooms(rooms); iv.roomId = room.id; } } catch (e) { console.error('seller register room:', e && e.message); }
+    const ivs = loadInterviews(); ivs.push(iv); saveInterviews(ivs);
+    rec.videoCount = (rec.videoCount || 0) + 1; rec.lastVideoAt = now; saveSellerLinks(all);
+    res.json({ ok: true, id: iv.id });
+  } catch (e) { console.error('seller register:', e && e.message); res.status(500).json({ ok: false, error: 'Could not save the recording.' }); }
+});
+app.post('/s/video/transcribe', express.raw({ type: ['audio/*', 'application/octet-stream'], limit: '30mb' }), async (req, res) => {
+  const rec = sellerLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
+  const key = process.env.OPENAI_API_KEY; if (!key) return res.json({ ok: true, skipped: true });
+  try {
+    const buf = req.body; if (!buf || !buf.length) return res.status(400).json({ ok: false, error: 'No audio received.' });
+    if (buf.length > 24 * 1024 * 1024) return res.json({ ok: true, skipped: true });
+    const all = loadInterviews(); const iv = all.find(x => x.id === String(req.query.id || '')); if (!iv) return res.status(404).json({ ok: false, error: 'Recording not found.' });
+    const ctIn = String(req.headers['content-type'] || 'audio/webm').split(';')[0];
+    const fname = 'audio.' + (ctIn.indexOf('mp4') >= 0 ? 'mp4' : 'webm');
+    const fd = new FormData(); fd.append('file', new Blob([buf], { type: ctIn || 'audio/webm' }), fname); fd.append('model', process.env.WHISPER_MODEL || 'whisper-1'); fd.append('response_format', 'json');
+    const wr = await fetch('https://api.openai.com/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: fd });
+    const wd = await wr.json().catch(() => ({})); if (!wr.ok) return res.json({ ok: true, skipped: true });
+    const text = String((wd && wd.text) || '').trim(); iv.transcript = text; iv.transcriptStatus = text ? 'done' : 'empty'; iv.transcribedAt = new Date().toISOString(); saveInterviews(all);
+    try { const s = await summarizeInterview(iv); if (s) { const a2 = loadInterviews(); const r2 = a2.find(x => x.id === iv.id); if (r2) { r2.summary = s; r2.summaryStatus = 'done'; r2.summarizedAt = new Date().toISOString(); saveInterviews(a2); } } } catch (e) { console.error('seller summarize:', e && e.message); }
+    res.json({ ok: true });
+  } catch (e) { console.error('seller transcribe:', e && e.message); res.json({ ok: true, skipped: true }); }
 });
 app.get('/api/payments', (req, res) => {
   const u = req.user || {}; const admin = isSuper(u); const all = loadInvoices();
