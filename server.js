@@ -3182,7 +3182,7 @@ function roomNotFoundPage() {
 const ASSIGN_FILE = path.join(BOV_DATA_DIR, 'assignments.json');
 function loadAssignOverlay() { try { return rj(ASSIGN_FILE) || {}; } catch (e) { return {}; } }
 function saveAssignOverlay(o) { return writeJsonGuarded(ASSIGN_FILE, o, 'saveAssignOverlay'); }
-const ASSIGN_STATUSES = ['New', 'Active', 'Under Contract', 'Closed', 'On Hold', 'Lost'];
+const ASSIGN_STATUSES = ['Unqualified', 'New', 'Active', 'Under Contract', 'Closed', 'On Hold', 'Lost'];
 const TXN_STATUSES = ['LOI', 'Under Contract', 'Due Diligence', 'Financing', 'Closing', 'Closed', 'Dead'];
 const TXN_COMM_STATUS = ['Unpaid', 'Invoiced', 'Partial', 'Paid'];
 const OFFER_TYPES = ['IOI', 'LOI'];
@@ -3932,6 +3932,7 @@ function cleanupPeopleAddrs() {
 try { bizBuySellCompany(); noCompanyCompany(); noContactPerson(); backlinkBbsLeads(); cleanupPeopleAddrs(); } catch (e) { console.error('bbs company init:', e && e.message); }
 try { seedEmailTemplates(); } catch (e) { console.error('seed email tpl:', e && e.message); }
 try { seedBizSalesStages(); } catch (e) { console.error('seed biz sales:', e && e.message); }
+try { seedUnqualifiedStage(); } catch (e) { console.error('seed unqualified:', e && e.message); }
 
 // ================= Automations (email / task drip sequences) =================
 const AUTOMATIONS_FILE = path.join(BOV_DATA_DIR, 'automations.json');
@@ -6593,6 +6594,7 @@ app.post('/api/company', express.json(), (req, res) => {
   const b = req.body || {};
   const arr = loadCompanies();
   let c = b.id ? arr.find(x => x.id === b.id) : null;
+  const wasNew = !c;
   const now = new Date().toISOString();
   if (!c) {
     const nm = String(b.name || '').trim();
@@ -6616,7 +6618,25 @@ app.post('/api/company', express.json(), (req, res) => {
     c.office = o;
   }
   c.updatedAt = now; saveCompanies(arr);
-  res.json({ ok: true, company: c });
+  // Start a pipeline listing for this company when a pipeline is chosen (an Unqualified lead
+  // enters the board immediately, before the screening call). No data room is built yet.
+  let _listingKey = '';
+  try {
+    const _pipeId = String(b.pipelineId || '').trim();
+    if (wasNew && _pipeId) {
+      const _pipe = loadPipelines().find(pl => pl.id === _pipeId);
+      if (_pipe) {
+        const _deal = { id: newDealId(), business: (c.name || 'Untitled').slice(0, 120), market: c.market || '', contact: '', screenId: '', roomId: '', contactPersonId: c.mainContactId || '', companyId: c.id, createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+        const _deals = loadDeals(); _deals.push(_deal); saveDeals(_deals);
+        const _ov = loadAssignOverlay();
+        const _first = (_pipe.stages && _pipe.stages[0] && _pipe.stages[0].name) || '';
+        _ov['d_' + _deal.id] = Object.assign(_ov['d_' + _deal.id] || {}, { pipelineId: _pipe.id, pipelineStage: _first, status: 'Unqualified', stageSince: now });
+        saveAssignOverlay(_ov);
+        _listingKey = 'd_' + _deal.id;
+      }
+    }
+  } catch (e) { console.error('start listing on company create:', e && e.message); }
+  res.json({ ok: true, company: c, listingKey: _listingKey });
 });
 // Add / associate a contact (person) to a company.
 app.post('/api/company/:id/contact', express.json(), (req, res) => {
@@ -7645,6 +7665,27 @@ function defaultPipelines() {
 function loadPipelines() { try { const a = rj(PIPELINES_FILE); if (Array.isArray(a) && a.length) return a; } catch (e) {} const d = defaultPipelines(); try { savePipelines(d); } catch (e) {} return d; }
 function savePipelines(a) { return writeJsonGuarded(PIPELINES_FILE, a, 'savePipelines'); }
 function newPipelineId() { return 'pl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function seedUnqualifiedStage() {
+  try {
+    if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
+    const marker = path.join(BOV_DATA_DIR, 'unqualified_stage_seeded.flag');
+    if (fs.existsSync(marker)) return;
+    const all = loadPipelines();
+    let pid; try { pid = pipelineForCategory('businessSale') || 'p_bizsales'; } catch (e) { pid = 'p_bizsales'; }
+    const p = all.find(x => x.id === pid) || all.find(x => x.id === 'p_bizsales');
+    if (p) {
+      const has = (p.stages || []).some(s => /unqualified/i.test(s.name || ''));
+      if (!has) {
+        const stages = [{ name: 'Unqualified', number: 1, targetDays: 0, winPct: 0 }].concat(p.stages || []);
+        stages.forEach((st, i) => { st.number = i + 1; });
+        p.stages = stages;
+        savePipelines(all);
+        console.log('Prepended Unqualified stage to ' + (p.name || p.id) + '.');
+      }
+    }
+    fs.writeFileSync(marker, new Date().toISOString());
+  } catch (e) { console.error('seedUnqualifiedStage:', e && e.message); }
+}
 function seedBizSalesStages() {
   try {
     if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
