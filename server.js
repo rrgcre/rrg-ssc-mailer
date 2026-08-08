@@ -1528,29 +1528,55 @@ app.post('/api/seller/skip-screening', express.json(), (req, res) => {
     const person = pid ? (ppl.find(p => p.id === pid) || null) : null;
     const company = cid ? (companyById(cid) || null) : null;
     const bizName = (company && company.name) || (person && (person.company || person.name)) || 'Seller';
+    const market = (company && company.market) || '';
+    const address = (company && company.office && [company.office.address, company.office.city, company.office.state].filter(Boolean).join(', ')) || '';
+    const repName = (req.user && req.user.name) || '';
+    const repUser = (req.user && req.user.username) || '';
     // Find or open the listing for this seller.
     const deals = loadDeals();
     let deal = deals.filter(hit)[0] || null;
     if (!deal) {
-      deal = { id: newDealId(), business: String(bizName).slice(0, 120), market: (company && company.market) || '', contact: (person && person.name) || '', screenId: '', roomId: '', contactPersonId: pid || '', companyId: cid || '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+      deal = { id: newDealId(), business: String(bizName).slice(0, 120), market: market, contact: (person && person.name) || '', screenId: '', roomId: '', contactPersonId: pid || '', companyId: cid || '', createdAt: now, by: repName, byUser: repUser };
       deals.push(deal);
+    }
+    // Stand up a screening record pre-filled with what we already know, so the rep can
+    // finish it as an editable form (no live call). It satisfies the screening gate and
+    // is fully editable from the screening view.
+    let screenId = deal.screenId || '';
+    if (!screenId) {
+      let sellerFormId = ''; try { sellerFormId = (loadSettings().callForms || {}).seller || ''; } catch (e) {}
+      const screens = loadScreens();
+      const screen = {
+        id: newScreenId(), formId: sellerFormId,
+        business: String(bizName).slice(0, 120), contact: (person && person.name) || '', market: market,
+        date: new Date().toLocaleDateString('en-US'),
+        statusText: 'Pre-qualified \u2014 enter details', status: 'nurture',
+        prequalified: true, skipped: true, completed: false, completePct: 0,
+        data: { company: bizName, concept: '', contact: (person && person.name) || '', preparedBy: repName, market: market, address: address, personId: pid, companyId: cid, contactPersonId: pid },
+        personId: pid, companyId: cid, contactPersonId: pid,
+        by: repName, byUser: repUser, processed: false, processedAt: '', createdAt: now
+      };
+      screens.push(screen); saveScreens(screens);
+      screenId = screen.id; deal.screenId = screenId; deal.startedAt = now;
     }
     // Ensure a data room exists so financials & lease can go in.
     const rooms = loadRooms();
     let room = rooms.find(hit) || rooms.find(r => r.id === deal.roomId || r.srcDealId === deal.id) || null;
     if (!room) {
-      room = { id: newRoomId(), srcCimId: '', srcBovId: '', srcDealId: deal.id, personId: pid, companyId: cid, token: newRoomToken(), business: String(bizName).slice(0, 120), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: now, folders: roomCategories(), docs: [], access: [], grants: [] };
+      room = { id: newRoomId(), srcCimId: '', srcBovId: '', srcDealId: deal.id, personId: pid, companyId: cid, token: newRoomToken(), business: String(bizName).slice(0, 120), by: repName, byUser: repUser, createdAt: now, folders: roomCategories(), docs: [], access: [], grants: [] };
       rooms.push(room); saveRooms(rooms);
     }
     if (!deal.roomId) deal.roomId = room.id;
     saveDeals(deals);
-    // Advance the listing to Data Collection on the business-sale pipeline.
+    // Carry any overlay from the pre-listing key to the screening key, then advance to Data Collection.
+    const oldKey = 'd_' + deal.id, key = 's_' + screenId;
+    const ov = loadAssignOverlay();
+    if (ov[oldKey] && !ov[key]) { ov[key] = ov[oldKey]; delete ov[oldKey]; }
+    const cur = ov[key] || {};
     let stageName = '';
     const _plid = pipelineForCategory('businessSale') || 'p_bizsales';
     const _pl = loadPipelines().find(x => x.id === _plid);
     const _stg = (_pl && Array.isArray(_pl.stages)) ? _pl.stages : [];
-    const key = deal.screenId ? ('s_' + deal.screenId) : ('d_' + deal.id);
-    const ov = loadAssignOverlay(); const cur = ov[key] || {};
     if (_stg.length) {
       let _tgt = _stg.findIndex(st => /data collect/i.test(st.name || ''));
       if (_tgt < 0) _tgt = _stg.findIndex(st => /valuation/i.test(st.name || ''));
@@ -1560,17 +1586,15 @@ app.post('/api/seller/skip-screening', express.json(), (req, res) => {
       stageName = (_stg[_tgt] && _stg[_tgt].name) || cur.pipelineStage || '';
       cur.pipelineStage = stageName;
     }
-    cur.pipelineId = _plid;
-    cur.status = 'Active';
-    cur.screeningSkipped = true;
+    cur.pipelineId = _plid; cur.status = 'Active'; cur.screeningSkipped = true;
     cur.updatedAt = now; cur.stageSince = now;
     ov[key] = cur; saveAssignOverlay(ov);
     // Audit trail on the seller's Activity Log.
     if (person) {
-      logActivity(person, 'Note', 'Seller Screening Call skipped — pre-qualified (known seller). Listing moved to ' + (stageName || 'Data Collection') + '.', { by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', auto: true });
+      logActivity(person, 'Note', 'Seller Screening Call skipped \u2014 pre-qualified (known seller). Listing moved to ' + (stageName || 'Data Collection') + '. Enter the known details on the screening form.', { by: repName, byUser: repUser, auto: true });
       savePeople(ppl);
     }
-    res.json({ ok: true, roomId: room.id, key: key, stage: stageName || 'Data Collection' });
+    res.json({ ok: true, screenId: screenId, key: key, roomId: room.id, stage: stageName || 'Data Collection' });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
