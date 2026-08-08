@@ -97,10 +97,12 @@ function verText(M){ M=M||{}; var v=M.version?('v'+String(M.version).replace(/^v
 function verTitle(M){ M=M||{}; var p=[]; if(M.build) p.push('Build '+M.build); if(M.buildNo) p.push('#'+M.buildNo); if(M.sha) p.push(String(M.sha).slice(0,7)); if(M.booted){ try{ p.push('booted '+new Date(M.booted).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})); }catch(e){} } return p.join(' · '); }
 function render(NAME,D,META){
   var vt=verText(META);
+  var vw=''; try{ if(META.booted) vw=new Date(META.booted).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){}
+  var vlabel=(vt?('FullServe '+vt):'FullServe')+(vw?(' · '+vw):'');
   document.getElementById('root').innerHTML=''
     +'<div class="wrap">'
     +'<div class="pagehead"><div><div class="greet">'+esc(greeting())+(NAME?(', '+esc(NAME.split(' ')[0])):'')+'<span class="live"><span class="d"></span>Live</span></div><div class="date">'+esc(dateLine())+' · '+num(D.listingsTotal||0)+' active listings · '+num(D.agreementsOut||0)+' agreements out</div></div>'
-      +'<div class="headright">'+(vt?('<span class="ver" title="'+esc(verTitle(META))+'">FullServe '+esc(vt)+'</span>'):'')+'<div class="qa"><a class="pri" href="./rrg_board.html">Pipeline board</a><a href="./rrg_companies.html">+ Company</a><a href="./rrg_people.html">+ Contact</a></div></div>'
+      +'<div class="headright">'+((vt||vw)?('<span class="ver" title="'+esc(verTitle(META))+'">'+esc(vlabel)+'</span>'):'')+'<div class="qa"><a class="pri" href="./rrg_board.html">Pipeline board</a><a href="./rrg_companies.html">+ Company</a><a href="./rrg_people.html">+ Contact</a></div></div>'
     +'</div>'
     +kpiHtml(D)
     +'<div class="grid"><div class="col">'+pipelineHtml(D)+linksHtml()+'</div><div class="col">'+tasksHtml(D)+expiringHtml(D)+activityHtml(D)+'</div></div>'
