@@ -302,7 +302,7 @@ function agrRowCo(a){
   var lead;
   if(_exec){ var ed=agrFmt(a.signedDate||a.executedAt||a.effective||''); lead=ed?('<span style="color:#8a93a8">'+esc(ed)+'</span> &middot; '):''; }
   else { var lc=_await?'await':(a.signStatus==='sent'?'sent':(a.status==='terminated'?'bad':'')); var lt=_await?'Needs sign':(a.signStatus==='sent'?'Sent':(a.status==='terminated'?'Terminated':'Draft')); lead='<span class="rchip '+lc+'" style="margin-right:7px">'+lt+'</span>'; }
-  return '<div class="rrow agrrow'+(signed?' agrexec':'')+'" onclick="agrOpenDocCo(&quot;'+esc(a.id)+'&quot;)" style="cursor:pointer" title="Open the document"><div class="rrmain" style="min-width:0"><div style="font-size:13px;font-weight:400;color:#1d2739;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+lead+esc(title)+'</div></div>'+expChip(a)+agrEntryIcon(a)+'</div>';
+  return '<div class="rrow agrrow'+(signed?' agrexec':'')+'" onclick="agrOpenDocCo(&quot;'+esc(a.id)+'&quot;)" style="cursor:pointer" title="Open the document"><span class="dico k-agreement"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.6 1.6 3.4-3.6"/></svg></span><div class="rrmain" style="min-width:0"><div style="font-size:13px;font-weight:400;color:#1d2739;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+lead+esc(title)+'</div></div>'+expChip(a)+agrEntryIcon(a)+'</div>';
 }
 // Every document tied to this company -- agreements from the record payload, everything
 // else (LOIs, valuations, marketing packs, screenings, uploads) from the document library.
