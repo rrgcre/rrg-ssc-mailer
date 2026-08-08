@@ -3152,10 +3152,10 @@ app.get('/room/:token', (req, res) => {
     grant.lastSeen = new Date().toISOString();
     setRoomCookie(res, signRoomSess({ r: r.id, g: grant.id, exp: Date.now() + ROOM_IDLE_MS }));
     logRoomAccess(r, req, 'view', '', grant); saveRooms(arr);
-    return res.set('Content-Type', 'text/html; charset=utf-8').send(roomPublicPage(r, grant));
+    return res.set('Content-Type', 'text/html; charset=utf-8').send(roomPublicPage(r, grant, { preview: req.query.preview === '1' }));
   }
   logRoomAccess(r, req, 'view', '', null); saveRooms(arr);
-  res.set('Content-Type', 'text/html; charset=utf-8').send(roomPublicPage(r, null));
+  res.set('Content-Type', 'text/html; charset=utf-8').send(roomPublicPage(r, null, { preview: req.query.preview === '1' }));
 });
 // Buyer enters their access code.
 app.post('/room/:token/enter', (req, res) => {
@@ -3241,7 +3241,7 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 .subcard .docrow{padding-left:32px;}
 .docrow{display:flex;align-items:center;gap:12px;padding:11px 20px;border-top:1px solid #f0f2f7;text-decoration:none;color:inherit;}
 .docrow:first-child{border-top:none;} .docrow:hover{background:#fbfcfe;}
-.ext{flex:0 0 44px;height:30px;border-radius:6px;background:var(--wash);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:800;color:var(--navy);text-transform:uppercase;}
+.ext{flex:0 0 28px;height:34px;display:flex;align-items:center;justify-content:center;}
 .dt{flex:1;font-weight:600;color:var(--navy);font-size:13.5px;} .dm{color:var(--muted);font-size:11px;margin-top:1px;}
 .dl{border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;white-space:nowrap;}
 .note{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 20px;color:var(--muted);font-size:12.5px;line-height:1.6;}
@@ -3257,7 +3257,23 @@ ${inner.head}</div></div>
 <div class="foot">Confidential &amp; proprietary. Access to this data room is provided under a non-disclosure agreement to a qualified, identified party for the sole purpose of evaluating a potential acquisition. Do not copy, forward, or distribute. All inquiries route exclusively through ${esc(orgLegalName())}${effOrg().website?(' · '+esc(effOrg().website)):''}</div>
 </body></html>`;
 }
-function roomPublicPage(r, grant) {
+function roomFileIcon(ext) {
+  const e = String(ext || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  let color = '#334155', label = (e ? e.toUpperCase() : 'FILE').slice(0, 4);
+  if (e === 'pdf') { color = '#E5472D'; label = 'PDF'; }
+  else if (['xls', 'xlsx', 'csv', 'numbers', 'ods'].includes(e)) { color = '#1F8A5B'; label = e === 'csv' ? 'CSV' : 'XLS'; }
+  else if (['doc', 'docx', 'rtf', 'txt', 'pages', 'odt'].includes(e)) { color = '#2B5BB5'; label = e === 'txt' ? 'TXT' : 'DOC'; }
+  else if (['ppt', 'pptx', 'key', 'odp'].includes(e)) { color = '#C4531C'; label = 'PPT'; }
+  else if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'bmp', 'tif', 'tiff', 'svg'].includes(e)) { color = '#7A5AD6'; label = 'IMG'; }
+  else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(e)) { color = '#6B7280'; label = 'ZIP'; }
+  return '<svg width="28" height="34" viewBox="0 0 28 34" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+    + '<path d="M4 1.5h12l8 8v22a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 31.5V3A1.5 1.5 0 0 1 4 1.5Z" fill="#fff" stroke="#dbe1ea"/>'
+    + '<path d="M16 1.8 24 9.8h-6.6A1.4 1.4 0 0 1 16 8.4Z" fill="#eef1f6"/>'
+    + '<rect x="3" y="18.5" width="22" height="10.5" rx="1.6" fill="' + color + '"/>'
+    + '<text x="14" y="26" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="7" font-weight="700" fill="#fff">' + label + '</text></svg>';
+}
+function roomPublicPage(r, grant, opts) {
+  const _preview = !!(opts && opts.preview);
   const docs = (r.docs || []);
   const catLevel = cat => grant ? effGrantLevel(grant, cat) : 'download';
   const _roomCats = roomServeCats(r);
@@ -3268,6 +3284,7 @@ function roomPublicPage(r, grant) {
   const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · ${esc(lvlLabel)} · session ends after 15 min idle</div>` : '';
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${visCount} document${visCount === 1 ? '' : 's'} · Provided by ${esc(orgDisplayName())} under NDA</div>${who}`;
   let body = '';
+  if (_preview) body += `<a href="/rrg_room.html?room=${esc(r.id)}" style="display:inline-flex;align-items:center;gap:7px;margin-bottom:14px;background:#0b1636;color:#fff;text-decoration:none;font-weight:700;font-size:12.5px;padding:8px 15px;border-radius:100px">← Back to your data room</a><div style="margin-bottom:14px;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:10px;padding:9px 13px;font-size:12.5px;font-weight:600">Preview — this is exactly what an NDA'd buyer sees. They do not see this bar.</div>`;
   body += `<div class="note conf"><span class="lock">🔒</span><div><b>Confidential — provided under NDA.</b> These materials are shared solely so you can evaluate a potential acquisition of ${esc(r.business || 'this business')}. Do not copy, forward, screenshot, print, or distribute them, and do not share this link. All inquiries route exclusively through ${esc(orgDisplayName())}.</div></div>`;
   if (editCats.length) {
     body += `<div class="card"><div class="chd">Add a document</div><div style="padding:14px 20px">` +
@@ -3282,7 +3299,7 @@ function roomPublicPage(r, grant) {
     const _tops = visibleCats.filter(c => String(c).indexOf(' / ') < 0);
     const _subs = {}; visibleCats.forEach(c => { const i = String(c).indexOf(' / '); if (i >= 0) { const par = c.slice(0, i).trim(); (_subs[par] = _subs[par] || []).push(c); } });
     const filesIn = cat => docs.filter(d => (d.category || 'Other') === cat);
-    const docrows = cat => { const canDl = catLevel(cat) !== 'view'; return filesIn(cat).map(d => { const href = '/roomfile/' + esc(r.token) + '/' + esc(d.id) + (canDl ? '?dl=1' : ''); const label = canDl ? 'Download →' : 'View →'; return `<a class="docrow" href="${href}" target="_blank" rel="noopener"><span class="ext">${esc(d.ext)}</span><div style="flex:1"><div class="dt">${esc(d.title || d.originalName)}</div><div class="dm">${esc(fmtBytes(d.size))}</div></div><span class="dl">${label}</span></a>`; }).join(''); };
+    const docrows = cat => { const canDl = catLevel(cat) !== 'view'; return filesIn(cat).map(d => { const href = '/roomfile/' + esc(r.token) + '/' + esc(d.id) + (canDl ? '?dl=1' : ''); const label = canDl ? 'Download →' : 'View →'; return `<a class="docrow" href="${href}" target="_blank" rel="noopener"><span class="ext">${roomFileIcon(d.ext)}</span><div style="flex:1"><div class="dt">${esc(d.title || d.originalName)}</div><div class="dm">${esc(fmtBytes(d.size))}</div></div><span class="dl">${label}</span></a>`; }).join(''); };
     body += _tops.map(cat => {
       const own = filesIn(cat);
       const mySubs = (_subs[cat] || []).filter(sc => filesIn(sc).length);

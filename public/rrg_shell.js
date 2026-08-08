@@ -133,9 +133,9 @@
       { ic: '⌂', label: 'Overview', href: 'rrg_landlord_rep.html' }
     ] },
     { grp: 'Marketing', color: '#c77dc0', items: [
-      { ic: '▤', label: 'Marketplace', href: 'rrg_marketplace.html' },
       { ic: '▧', label: 'Marketing Packs', href: 'rrg_cim_queue.html' },
       { ic: '➤', label: 'Market Attack Plans', href: 'rrg_attack_queue.html' },
+      { ic: '▤', label: 'Marketplace', href: 'rrg_marketplace.html', admin: true },
       { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
       { ic: '◉', label: 'Tracked Emails', href: 'rrg_tracked_emails.html' },
       { ic: '⟳', label: 'Automations', href: 'rrg_admin_automations.html', admin: true }

@@ -50,7 +50,7 @@ h1{font-size:21px;font-weight:800;margin:0;color:#fff;}
 .cathd{padding:8px 18px;font-weight:800;color:var(--navy);font-size:12.5px;display:flex;align-items:center;gap:8px;background:#fbfcfe;}
 .cathd .n{margin-left:2px;color:var(--muted);font-weight:700;font-size:11px;}
 .docrow{display:flex;align-items:center;gap:12px;padding:8px 18px;border-top:1px solid #f0f2f7;}
-.ext{flex:0 0 42px;height:28px;border-radius:6px;background:var(--wash);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:var(--navy);text-transform:uppercase;}
+.ext{flex:0 0 28px;height:34px;display:flex;align-items:center;justify-content:center;}
 .dt{flex:1;font-weight:600;color:var(--navy);font-size:13px;} .dm{color:var(--muted);font-size:11px;margin-top:1px;}
 .docrow a.view{font-size:11.5px;font-weight:700;color:var(--navy);text-decoration:none;border:1px solid var(--line);border-radius:7px;padding:5px 11px;}
 .docrow button.x{border:1px solid #f0cfca;background:#fff5f4;color:var(--red);border-radius:7px;padding:5px 10px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
@@ -85,7 +85,7 @@ h1{font-size:21px;font-weight:800;margin:0;color:#fff;}
   <div class="card"><div class="cbody">
     <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Buyer link</h2>
     <div class="h">Anyone with this link can view and download the documents in this room. Share it only with qualified, NDA'd buyers. Regenerate it to retire the old link instantly.</div>
-    <div class="linkbar"><span class="url" id="url">…</span><button class="btn primary" onclick="copyLink()">Copy link</button><a class="btn green" id="openLink" href="#" target="_blank" rel="noopener" title="Open the room exactly as an NDA\u2019d buyer sees it">\ud83d\udc41 Buyer view</a><button class="btn" onclick="regen()">Regenerate</button></div>
+    <div class="linkbar"><span class="url" id="url">…</span><button class="btn primary" onclick="copyLink()">Copy link</button><a class="btn green" id="openLink" href="#" target="_blank" rel="noopener" title="Open the room exactly as an NDA'd buyer sees it">👁 Buyer view</a><button class="btn" onclick="regen()">Regenerate</button></div>
   </div></div>
 
   <div class="card" id="ivCard" style="display:none">
@@ -192,13 +192,28 @@ function toast(m){ var t=document.getElementById('toast'); t.textContent=m; t.cl
 function copyLink(){ var url=(ROOM&&ROOM.link)||''; if(!url) return; if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(function(){ toast('Buyer link copied ✓'); }).catch(function(){ prompt('Copy the buyer link:',url); }); } else prompt('Copy the buyer link:',url); }
 async function regen(){ if(!await rrgConfirm('Regenerate the buyer link? The current link will stop working immediately.')) return;
   fetch('/api/room/'+encodeURIComponent(RID)+'/newlink',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.link=j.link; paintLink(); toast('New link generated ✓'); } else alert((j&&j.error)||'Failed'); }).catch(function(){ alert('Could not reach the server.'); }); }
-function paintLink(){ document.getElementById('url').textContent=(ROOM&&ROOM.link)||''; var o=document.getElementById('openLink'); if(o) o.href=(ROOM&&ROOM.link)||'#'; }
+function paintLink(){ document.getElementById('url').textContent=(ROOM&&ROOM.link)||''; var o=document.getElementById('openLink'); if(o){ var lk=(ROOM&&ROOM.link)||''; o.href=lk?(lk+(lk.indexOf('?')>=0?'&':'?')+'preview=1'):'#'; } }
+function fileIcon(ext){
+  var e=String(ext||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  var color='#334155', label=(e?e.toUpperCase():'FILE').slice(0,4);
+  if(e==='pdf'){ color='#E5472D'; label='PDF'; }
+  else if(['xls','xlsx','csv','numbers','ods'].indexOf(e)>=0){ color='#1F8A5B'; label=e==='csv'?'CSV':'XLS'; }
+  else if(['doc','docx','rtf','txt','pages','odt'].indexOf(e)>=0){ color='#2B5BB5'; label=e==='txt'?'TXT':'DOC'; }
+  else if(['ppt','pptx','key','odp'].indexOf(e)>=0){ color='#C4531C'; label='PPT'; }
+  else if(['png','jpg','jpeg','gif','webp','heic','bmp','tif','tiff','svg'].indexOf(e)>=0){ color='#7A5AD6'; label='IMG'; }
+  else if(['zip','rar','7z','tar','gz'].indexOf(e)>=0){ color='#6B7280'; label='ZIP'; }
+  return '<svg width="28" height="34" viewBox="0 0 28 34" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">'
+    +'<path d="M4 1.5h12l8 8v22a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 31.5V3A1.5 1.5 0 0 1 4 1.5Z" fill="#fff" stroke="#dbe1ea"/>'
+    +'<path d="M16 1.8 24 9.8h-6.6A1.4 1.4 0 0 1 16 8.4Z" fill="#eef1f6"/>'
+    +'<rect x="3" y="18.5" width="22" height="10.5" rx="1.6" fill="'+color+'"/>'
+    +'<text x="14" y="26" text-anchor="middle" font-family="Arial,Helvetica,sans-serif" font-size="7" font-weight="700" fill="#fff">'+label+'</text></svg>';
+}
 function renderCats(){ var sel=document.getElementById('docCategory'); sel.innerHTML=(ROOM.categories||[]).map(function(c){ return '<option>'+esc(c)+'</option>'; }).join(''); }
 function renderDocs(){
   var el=document.getElementById('docList'), cats=ROOM.categories||[], docs=ROOM.docs||[];
   el.innerHTML=cats.map(function(cat){
     var inCat=docs.filter(function(d){ return (d.category||'Other')===cat; });
-    var rows=inCat.length? inCat.map(function(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' · '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+esc(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' · added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' · '+esc(d.by)):'')+dlTxt+'</div></div><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }).join('') : '<div class="catempty">No files in this section yet.</div>';
+    var rows=inCat.length? inCat.map(function(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' · '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+fileIcon(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' · added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' · '+esc(d.by)):'')+dlTxt+'</div></div><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }).join('') : '<div class="catempty">No files in this section yet.</div>';
     return '<div class="cat"><div class="cathd">'+esc(cat)+'<span class="n">'+inCat.length+'</span></div>'+rows+(cat==='Lease'?leaseFlagHtml():'')+'</div>';
   }).join('');
 }
@@ -374,7 +389,7 @@ document.addEventListener('rrg:session', applyAiName);
 function topCats(){ return ((window.ROOM&&ROOM.categories)||[]).filter(function(c){ return String(c).indexOf(' / ')<0; }); }
 function toggleCat(hd){ var c=hd&&hd.parentNode; if(c) c.classList.toggle('open'); }
 function rmToggle(hd){ var c=hd&&hd.closest?hd.closest('.card'):null; if(c) c.classList.toggle('collapsed'); }
-function _docRow(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+esc(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }
+function _docRow(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+fileIcon(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }
 function renderDocs(){
   var el=document.getElementById('docList'); if(!el) return; var cats=(ROOM.categories||[]), docs=(ROOM.docs||[]);
   var tops=cats.filter(function(c){ return String(c).indexOf(' / ')<0; });
@@ -393,7 +408,7 @@ function renderDocs(){
 applyAiName();
 function _folderOpts(cur){ return ((window.ROOM&&ROOM.categories)||[]).map(function(c){ return '<option value="'+esc(c)+'"'+(String(c)===String(cur)?' selected':'')+'>'+esc(c)+'</option>'; }).join(''); }
 function moveDoc(id,cat){ if(!id||!cat) return; fetch('/api/room/'+encodeURIComponent(RID)+'/move-doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:id,category:cat})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.docs=j.docs||ROOM.docs; renderDocs(); toast('Moved \u2713'); } else alert((j&&j.error)||'Could not move the file.'); }).catch(function(){ alert('Could not reach the server.'); }); }
-function _docRow(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+esc(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div><label class="movewrap" title="Move this file to another folder"><span>Move</span><select class="movesel" onchange="moveDoc(\''+d.id+'\',this.value)">'+_folderOpts(d.category||'Other')+'</select></label><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }
+function _docRow(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+fileIcon(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div><label class="movewrap" title="Move this file to another folder"><span>Move</span><select class="movesel" onchange="moveDoc(\''+d.id+'\',this.value)">'+_folderOpts(d.category||'Other')+'</select></label><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }
 
 
 </script>
