@@ -87,7 +87,7 @@ tr:hover td{background:#fbfcfe;}
     <div id="m_dupe" class="dupe" hidden></div>
     <label class="mfld">Type</label><select id="m_type"></select>
     <label class="mfld">Lead source</label><input id="m_lead" list="leadsrclist" autocomplete="off" placeholder="Referral, CoStar, event…">
-    <label class="mfld">Pipeline <span class="mopt">— optional; starts this lead on the board as Unqualified</span></label><select id="m_pipeline"></select>
+    <label class="mfld">Pipeline <span class="mopt" id="m_pipeline_hint">— optional; starts this lead on the board as Unqualified</span></label><select id="m_pipeline"></select>
     <div class="mgrp">First contact <span class="mopt">— optional; most operators have just one</span></div>
     <div class="mrow2"><div><label class="mfld">First name</label><input id="m_cfirst" autocomplete="off"></div><div><label class="mfld">Last name</label><input id="m_clast" autocomplete="off"></div></div>
     <div class="mrow2"><div><label class="mfld">Nickname</label><input id="m_cnick" autocomplete="off"></div><div><label class="mfld">Title</label><input id="m_ctitle" list="titlelist" autocomplete="off"></div></div>
@@ -222,9 +222,10 @@ function setupCReferral(){
   fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var ppl=(j&&j.people)||[]; CREFMAP={}; var rl=document.getElementById('crefbyList'); var opts=ppl.slice().sort(function(a,b){return RRGList.cmp(a.name,b.name);}).map(function(p){ var co=p.companyName||p.company||''; var lbl=(p.name||'Contact')+(co?(' — '+co):''); CREFMAP[lbl.toLowerCase()]=p.id; if(!CREFMAP[String(p.name||'').toLowerCase()]) CREFMAP[String(p.name||'').toLowerCase()]=p.id; return '<option value="'+esc(lbl)+'">'; }).join(''); if(rl) rl.innerHTML=opts; CREFLOADED=true; }).catch(function(){});
 }
 var PIPELINES=[];
-try{ fetch('/api/pipelines',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PIPELINES=(j&&j.pipelines)||[]; }).catch(function(){}); }catch(e){}
+var PIPELINE_REQUIRED=false;
+try{ fetch('/api/pipelines',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PIPELINES=(j&&j.pipelines)||[]; PIPELINE_REQUIRED=!!(j&&j.pipelineRequired); }).catch(function(){}); }catch(e){}
 function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=CTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join(''); try{updateFindGrp();}catch(e){}
-  var psel=document.getElementById('m_pipeline'); if(psel){ psel.innerHTML='<option value="">\u2014 Don\u2019t start a listing \u2014</option>'+(PIPELINES||[]).map(function(pp){return '<option value="'+esc(pp.id)+'">'+esc(pp.name)+'</option>';}).join(''); var _def=(PIPELINES||[]).filter(function(pp){return pp.id==='p_bizsales'||/business sale/i.test((pp.area||'')+' '+(pp.name||''));})[0]; if(_def) psel.value=_def.id; }
+  var psel=document.getElementById('m_pipeline'); if(psel){ var _pops=(PIPELINES||[]).map(function(pp){return '<option value="'+esc(pp.id)+'">'+esc(pp.name)+'</option>';}).join(''); psel.innerHTML=(PIPELINE_REQUIRED?'':'<option value="">\u2014 Don\u2019t start a listing \u2014</option>')+_pops; var _def=(PIPELINES||[]).filter(function(pp){return pp.id==='p_bizsales'||/business sale/i.test((pp.area||'')+' '+(pp.name||''));})[0]; if(_def) psel.value=_def.id; var _ph=document.getElementById('m_pipeline_hint'); if(_ph) _ph.textContent=PIPELINE_REQUIRED?'\u2014 required; starts this lead on the board as Unqualified':'\u2014 optional; starts this lead on the board as Unqualified'; }
   var cu=document.getElementById('m_cuisine'); if(cu) cu.innerHTML='<option value="">— cuisine (optional) —</option>'+CUISINE.map(function(m){return '<option>'+esc(m)+'</option>';}).join(''); var cty=document.getElementById('m_conctype'); if(cty) cty.innerHTML='<option value="">— concept type (optional) —</option>'+CONCEPTTYPES.map(function(m){return '<option>'+esc(m)+'</option>';}).join(''); var lsd=document.getElementById('leadsrclist'); if(lsd) lsd.innerHTML=(LEADSOURCES||[]).map(function(m){return '<option value="'+esc(m)+'">';}).join('');
   var mcs0=document.getElementById('m_concepts'); if(mcs0){ mcs0.dataset.auto=''; }
   ['m_concepts','m_metro','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
@@ -238,6 +239,7 @@ function closeModal(){ document.getElementById('modal').setAttribute('hidden',''
 async function createCompany(){
   var name=document.getElementById('m_name').value.trim(); if(!name){ document.getElementById('m_name').focus(); return; }
   var d=findDupe(name); if(d){ if(await rrgConfirm('“'+d.name+'” is already in your book. Open it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(d.id); return; }
+  if(PIPELINE_REQUIRED){ var _pv=(document.getElementById('m_pipeline')||{}).value||''; if(!_pv){ var _mp=document.getElementById('m_pipeline'); if(_mp) _mp.focus(); alert('Choose a pipeline for this company — it is required.'); return; } }
   var b=document.getElementById('m_create'); b.disabled=true; b.textContent='Creating…';
   var conceptNames=((document.getElementById('m_concepts')||{}).value||'').split(/\n/).map(function(s){return s.trim();}).filter(Boolean).slice(0,50);
   var metro=titleCaseMarket(((document.getElementById('m_metro')||{}).value||'').trim());
