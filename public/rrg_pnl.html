@@ -47,7 +47,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function money(n){ n=Number(n||0); var neg=n<0; n=Math.abs(n); var s='$'+n.toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:0}); return neg?('('+s+')'):s; }
-var INV=[], EXP=[], PERIOD='thisyear';
+var INV=[], EXP=[], PAY=[], BASIS='accrual', PERIOD='thisyear';
 function periodRange(p){
   var now=new Date(); var y=now.getFullYear(), m=now.getMonth();
   function iso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
@@ -63,9 +63,12 @@ function periodRange(p){
 function inRange(dstr,r){ if(!dstr) return false; var d=String(dstr).slice(0,10); return d>=r.s && d<=r.e; }
 function render(){
   var r=periodRange(PERIOD);
+  var cash=(BASIS==='cash');
   var invP=INV.filter(function(x){ return x.baseStatus!=='Void' && inRange(x.issueDate,r); });
-  var revenue=invP.reduce(function(a,x){ return a+(x.total||0); },0);
-  var collected=invP.reduce(function(a,x){ return a+(x.paid||0); },0);
+  var invoiced=invP.reduce(function(a,x){ return a+(x.total||0); },0);
+  var payP=PAY.filter(function(p){ return inRange(p.date,r); });
+  var collectedPeriod=payP.reduce(function(a,p){ return a+(p.amount||0); },0);
+  var revenue=cash?collectedPeriod:invoiced;
   var outstanding=INV.filter(function(x){ return x.baseStatus!=='Void'; }).reduce(function(a,x){ return a+(x.balance||0); },0);
   var expP=EXP.filter(function(x){ return inRange(x.date,r); });
   var byCat={};
@@ -75,7 +78,7 @@ function render(){
   var net=revenue-totalExp;
   var sel=function(v,l){ return '<option value="'+v+'"'+(PERIOD===v?' selected':'')+'>'+l+'</option>'; };
   var html=''
-    +'<div class="pagehead"><div><div class="k">Accounting</div><h1>Profit &amp; Loss</h1><div class="rng">'+esc(r.label)+' · accrual (invoiced) basis</div></div>'
+    +'<div class="pagehead"><div><div class="k">Accounting</div><h1>Profit &amp; Loss</h1><div class="rng">'+esc(r.label)+' · '+(cash?'cash (collected)':'accrual (invoiced)')+' basis</div></div>'
       +'<div class="ctrl"><select id="per">'+sel('thismonth','This month')+sel('thisquarter','This quarter')+sel('thisyear','This year')+sel('lastyear','Last year')+sel('all','All time')+'</select><a class="pr" href="javascript:window.print()">Print</a></div>'
     +'</div>'
     +'<div class="kpis">'
@@ -85,31 +88,29 @@ function render(){
     +'</div>'
     +'<div class="card">'
       +'<div class="supp">'
-        +'<div class="s"><div class="n">'+money(collected)+'</div><div class="l">Collected on these invoices</div></div>'
+        +'<div class="s"><div class="n">'+money(invoiced)+'</div><div class="l">Invoiced this period</div></div>'
+        +'<div class="s"><div class="n">'+money(collectedPeriod)+'</div><div class="l">Collected this period</div></div>'
         +'<div class="s"><div class="n">'+money(outstanding)+'</div><div class="l">Outstanding A/R (all open)</div></div>'
-        +'<div class="s"><div class="n">'+invP.length+'</div><div class="l">Invoices in period</div></div>'
       +'</div>'
       +'<div class="stmt">'
         +'<div class="sect">Revenue</div>'
-        +'<div class="line"><span class="lbl">Commissions &amp; fees (invoiced)</span><span class="amt">'+money(revenue)+'</span></div>'
+        +'<div class="line"><span class="lbl">Commissions &amp; fees ('+(cash?'collected':'invoiced')+')</span><span class="amt">'+money(revenue)+'</span></div>'
         +'<div class="line tot"><span class="lbl">Total revenue</span><span class="amt">'+money(revenue)+'</span></div>'
         +'<div class="sect" style="margin-top:20px">Operating expenses</div>'
         +(cats.length?cats.map(function(c){ return '<div class="line sub"><span class="lbl">'+esc(c)+'</span><span class="amt">'+money(byCat[c])+'</span></div>'; }).join(''):'<div class="empty">No expenses recorded in this period.</div>')
         +'<div class="line tot"><span class="lbl">Total expenses</span><span class="amt">'+money(totalExp)+'</span></div>'
         +'<div class="line net"><span class="lbl">Net income</span><span class="amt '+(net<0?'neg':'pos')+'">'+money(net)+'</span></div>'
       +'</div>'
-      +'<div class="note">Revenue is recognized when invoiced (accrual). “Collected” shows payments received against invoices issued in this period; “Outstanding A/R” is the balance owed across all open invoices. Void invoices are excluded.</div>'
+      +'<div class="note">'+(cash?'Revenue is recognized when payment is collected (cash basis).':'Revenue is recognized when invoiced (accrual basis).')+' Expenses are counted by their recorded date. “Outstanding A/R” is the balance owed across all open invoices. Void invoices are excluded. Set the basis in Settings → Accounting.</div>'
     +'</div>';
   document.getElementById('root').innerHTML=html;
   document.getElementById('per').addEventListener('change',function(){ PERIOD=this.value; render(); });
 }
-Promise.all([
-  fetch('/api/invoices',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}),
-  fetch('/api/expenses',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;})
-]).then(function(res){
-  var ji=res[0], je=res[1];
+function _g(u){ return fetch(u,{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;}); }
+Promise.all([ _g('/api/invoices'), _g('/api/expenses'), _g('/api/payments'), _g('/api/admin/accounting') ]).then(function(res){
+  var ji=res[0], je=res[1], jp=res[2], ja=res[3];
   if((!ji||!ji.ok)&&(!je||!je.ok)){ document.getElementById('root').innerHTML='<div class="gate"><h2>Admins only</h2>Ask an administrator to view the Profit &amp; Loss report.</div>'; return; }
-  INV=(ji&&ji.invoices)||[]; EXP=(je&&je.expenses)||[]; render();
+  INV=(ji&&ji.invoices)||[]; EXP=(je&&je.expenses)||[]; PAY=(jp&&jp.payments)||[]; BASIS=(ja&&ja.basis)||'accrual'; render();
 }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
 </script>
 <script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>

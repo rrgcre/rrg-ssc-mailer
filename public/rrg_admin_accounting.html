@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Accounting Basis</title>
+<style>
+:root{--navy:#0b1636;--navy2:#16346e;--red:#C0261B;--ink:#141a29;--dim:#5f6a7d;--soft:#8a93a3;--line:#e5e9f1;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:720px;margin:0 auto;padding:26px 26px 60px;}
+h1{font-size:20px;font-weight:800;color:var(--navy);margin:0;}
+.sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.5;max-width:600px;}
+.opts{display:flex;flex-direction:column;gap:12px;margin:22px 0 18px;}
+.opt{display:flex;gap:13px;align-items:flex-start;border:1px solid var(--line);border-radius:13px;padding:16px 18px;cursor:pointer;transition:border-color .12s,box-shadow .12s,background .12s;}
+.opt:hover{border-color:#b9c6df;}
+.opt.on{border-color:var(--navy2);box-shadow:0 0 0 2px rgba(22,52,110,.14);background:#fbfcff;}
+.opt .rad{width:20px;height:20px;border-radius:50%;border:2px solid #c3ccdd;flex:none;margin-top:2px;position:relative;transition:border-color .12s;}
+.opt.on .rad{border-color:var(--navy2);}
+.opt.on .rad::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--navy2);}
+.opt .tx b{font-size:15px;color:var(--navy);font-weight:800;} .opt .tx .tag{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--green);margin-left:8px;}
+.opt .tx p{font-size:13px;color:var(--dim);margin:5px 0 0;line-height:1.55;}
+.savebar{display:flex;align-items:center;gap:12px;}
+.savebtn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:10px 20px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;}
+.savebtn:disabled{opacity:.5;cursor:default;}
+.msg{font-size:12.5px;font-weight:600;}
+.note{font-size:12px;color:var(--soft);margin-top:18px;line-height:1.55;}
+.gate{color:var(--dim);font-size:13.5px;padding:30px 0;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var BASIS='accrual', ADMIN=false, SEL='accrual';
+function render(){
+  if(!ADMIN){
+    document.getElementById('root').innerHTML='<h1>Accounting Basis</h1><div class="sub">Your reports currently use <b>'+(BASIS==='cash'?'cash (collected)':'accrual (invoiced)')+'</b> basis. Only an administrator can change this.</div>';
+    return;
+  }
+  function opt(v,title,tag,desc){ return '<div class="opt'+(SEL===v?' on':'')+'" data-v="'+v+'"><div class="rad"></div><div class="tx"><b>'+title+'</b>'+(tag?'<span class="tag">'+tag+'</span>':'')+'<p>'+desc+'</p></div></div>'; }
+  document.getElementById('root').innerHTML=''
+    +'<h1>Accounting Basis</h1>'
+    +'<div class="sub">Choose how the Profit &amp; Loss report recognizes revenue. This is a firm-wide setting.</div>'
+    +'<div class="opts">'
+      +opt('accrual','Accrual','Recommended','Revenue counts when you <b>invoice</b> it — the moment a commission is earned, whether or not it&rsquo;s been paid. Matches the work to the period it happened. Standard for a P&amp;L.')
+      +opt('cash','Cash','','Revenue counts when the money is <b>collected</b> — a payment hits against an invoice. Simpler, and how many small firms file taxes. Ignores what&rsquo;s still owed.')
+    +'</div>'
+    +'<div class="savebar"><button class="savebtn" id="save">Save</button><span class="msg" id="msg"></span></div>'
+    +'<div class="note">Either way, the report always shows both invoiced and collected figures plus outstanding A/R, so nothing is hidden — this only sets which number headlines your net income. Changing it affects everyone&rsquo;s reports.</div>';
+  document.querySelectorAll('.opt').forEach(function(o){ o.addEventListener('click',function(){ SEL=o.getAttribute('data-v'); document.querySelectorAll('.opt').forEach(function(x){ x.classList.toggle('on', x===o); }); }); });
+  document.getElementById('save').addEventListener('click',save);
+}
+function save(){
+  var b=document.getElementById('save'), m=document.getElementById('msg');
+  b.disabled=true; var was=b.textContent; b.textContent='Saving…'; m.textContent='';
+  fetch('/api/admin/accounting',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({basis:SEL})})
+    .then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent=was;
+      if(j&&j.ok){ BASIS=j.basis; m.style.color='#1f8a5b'; m.textContent='Saved ✓'; setTimeout(function(){m.textContent='';},1800); }
+      else { m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Could not save.'; } })
+    .catch(function(){ b.disabled=false; b.textContent=was; m.style.color='#C0261B'; m.textContent='Could not reach the server.'; });
+}
+fetch('/api/admin/accounting',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load accounting settings.</div>'; return; }
+  BASIS=j.basis||'accrual'; SEL=BASIS; ADMIN=!!j.isAdmin; render();
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+</script>
+</body>
+</html>

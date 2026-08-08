@@ -253,8 +253,10 @@
 
   // ---------- nav markup ----------
   var _cachedName = (function(){ try { return localStorage.getItem('rrg_appname') || ''; } catch(e){ return ''; } })();
+  var _cachedLogo = (function(){ try { return localStorage.getItem('rrg_logo') || ''; } catch(e){ return ''; } })();
+  var _brandInner = _cachedLogo ? ('<img src="'+esc(_cachedLogo)+'" alt="" class="rrgbrandimg">') : esc(_cachedName);
   var navHtml = '';
-  navHtml += '<div class="nt"><a class="ws" href="index.html"><span class="rrgbrand" id="rrgbrand">'+esc(_cachedName)+'</span></a><button class="rrgcol" id="rrgcollapse" title="Collapse sidebar" aria-label="Collapse sidebar">\u00ab</button></div>';
+  navHtml += '<div class="nt"><a class="ws" href="index.html"><span class="rrgbrand" id="rrgbrand">'+_brandInner+'</span></a><button class="rrgcol" id="rrgcollapse" title="Collapse sidebar" aria-label="Collapse sidebar">\u00ab</button></div>';
   navHtml += '<div class="scroll">';
   NAV.forEach(function (g, gi) {
     var _sp = []; if (g.color) _sp.push('--gc:' + g.color); if (g.admin) _sp.push('display:none');
@@ -341,7 +343,8 @@
     // hydrate app name, role, user
     try {
       fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-        var brand=document.getElementById('rrgbrand'); if(brand){ if(j&&j.logoUrl){ brand.innerHTML='<img src="'+j.logoUrl+'" alt="" class="rrgbrandimg">'; } else if(j&&j.name){ brand.textContent=j.name; } }
+        try{ localStorage.setItem('rrg_logo', (j&&j.logoUrl)||''); }catch(e){}
+        var brand=document.getElementById('rrgbrand'); if(brand){ if(j&&j.logoUrl){ if(brand.querySelector('img')){ /* already showing the logo — no swap, no flash */ } else { brand.innerHTML='<img src="'+j.logoUrl+'" alt="" class="rrgbrandimg">'; } } else if(j&&j.name){ brand.textContent=j.name; } }
       }).catch(function(){});
       fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(s){
         try{ window.__rrgSession=s; window.__rrgAssistant=(s&&s.assistant)||'the assistant'; document.dispatchEvent(new CustomEvent('rrg:session',{detail:s})); }catch(e){} try{ if(s&&s.assistant){ var _cl=nav.querySelector('a.it[href="rrg_consult.html"] .itlbl'); if(_cl) _cl.textContent='Consult '+s.assistant; } }catch(e){}
