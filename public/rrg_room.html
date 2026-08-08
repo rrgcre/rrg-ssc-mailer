@@ -129,6 +129,13 @@ h1{font-size:21px;font-weight:800;margin:0;color:#fff;}
 <script>
 function showOrb(t,s){ if(window.rrgAiWork){ try{ rrgAiWork.show(((t||'')+(s?(' '+s):'')).trim()||'Working…'); return; }catch(e){} } var o=document.getElementById('aiOrb'); if(!o) return; if(t) document.getElementById('orbTitle').textContent=t; if(s) document.getElementById('orbSub').textContent=s; o.style.display='flex'; }
 function hideOrb(){ if(window.rrgAiWork){ try{ rrgAiWork.hide(); }catch(e){} } var o=document.getElementById('aiOrb'); if(o) o.style.display='none'; }
+function showFileResult(added, byCat, skipped){
+  var keys=Object.keys(byCat||{}).sort();
+  var rows=keys.map(function(c){ return '<div style="display:flex;justify-content:space-between;gap:14px;align-items:center;padding:9px 0;border-top:1px solid #eef1f7"><span style="color:#1a2236;font-weight:600;font-size:13.5px">'+String(c).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'</span><span style="flex:none;background:#eef2fb;color:#2647b0;font-weight:800;font-size:12px;border-radius:100px;padding:3px 11px">'+byCat[c]+' file'+(byCat[c]===1?'':'s')+'</span></div>'; }).join('');
+  var d=document.createElement('div'); d.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.55);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px';
+  d.innerHTML='<div style="background:#fff;border-radius:16px;max-width:452px;width:100%;box-shadow:0 24px 70px rgba(0,0,0,.42);overflow:hidden"><div style="padding:26px 28px 10px;text-align:center"><div style="width:54px;height:54px;margin:0 auto 13px;border-radius:50%;background:#e7f5ee;color:#1f8a5b;display:flex;align-items:center;justify-content:center;font-size:27px;font-weight:800">\u2713</div><div style="font-weight:800;color:#000E31;font-size:18px">Filed '+added+' file'+(added===1?'':'s')+'</div><div style="color:#6b7488;font-size:12.5px;margin-top:5px">'+aiName()+' sorted each file into the right folder.</div></div><div style="padding:6px 28px 2px">'+rows+'</div>'+(skipped?('<div style="margin:10px 28px 0;background:#fdf1df;border:1px solid #eddab0;color:#8a5a12;border-radius:9px;padding:8px 12px;font-size:12.5px;font-weight:600">'+skipped+' file'+(skipped===1?'':'s')+' skipped (too large or unreadable).</div>'):'')+'<div style="padding:13px 28px 6px;color:#8a93a8;font-size:12px;text-align:center;line-height:1.5">Anything in the wrong place? Move it with the folder controls below.</div><div style="padding:6px 28px 24px;text-align:center"><button type="button" id="_fileResOk" style="background:#000E31;color:#fff;border:none;border-radius:10px;padding:12px 40px;font:inherit;font-size:14.5px;font-weight:700;cursor:pointer">OK</button></div></div>';
+  document.body.appendChild(d); var ok=d.querySelector('#_fileResOk'); ok.addEventListener('click',function(){ d.remove(); }); ok.focus(); d.addEventListener('click',function(e){ if(e.target===d) d.remove(); });
+}
 function bulkUpload(){
   var fi=document.getElementById('bulkFiles'), files=fi&&fi.files?Array.prototype.slice.call(fi.files):[], m=document.getElementById('umsg');
   if(!files.length) return;
@@ -145,7 +152,7 @@ function bulkUpload(){
          var byCat={}; (j.results||[]).forEach(function(x){ if(x.ok){ byCat[x.category]=(byCat[x.category]||0)+1; } });
          var parts=Object.keys(byCat).map(function(c){ return byCat[c]+' → '+c; });
          var skipped=(j.results||[]).filter(function(x){ return !x.ok; }).length + skippedBig;
-         m.textContent='Filed '+j.added+' file'+(j.added===1?'':'s')+(parts.length?(': '+parts.join(', ')):'')+(skipped?(' · '+skipped+' skipped'):'')+'. Move any misfile with the folder controls.';
+         m.textContent='Filed '+j.added+' file'+(j.added===1?'':'s')+(skipped?(' · '+skipped+' skipped'):'')+'.'; showFileResult(j.added, byCat, skipped);
        } else { m.textContent=(j&&j.error)||'Upload failed.'; }
      }).catch(function(){ hideOrb(); fi.value=''; m.textContent='Upload failed — try again.'; });
   });
