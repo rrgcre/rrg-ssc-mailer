@@ -82,7 +82,7 @@ function renderList(list){
       { label:'Downloads', align:'left', sort:function(a,b){ return (a.downloads||0)-(b.downloads||0); },
         cell:function(c){ return '<span class="pill">'+(c.downloads||0)+'</span>'; } },
       { label:'Actions', align:'right', sortable:false,
-        cell:function(c){ return '<div class="act"><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Open this data room to upload files">Upload files</a><button class="link" onclick="copyLink(\''+c.id+'\')">Copy General Access Link</button><button class="del" onclick="delRoom(\''+c.id+'\',this)">Delete</button></div>'; } }
+        cell:function(c){ return '<div class="act"><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Open this data room">Open data room</a><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Open this data room to upload files">Upload files</a><button class="link" onclick="copyLink(\''+c.id+'\')">Copy General Access Link</button><button class="del" onclick="delRoom(\''+c.id+'\',this)">Delete</button></div>'; } }
     ],
     bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDel(ids,done); } } ]
   };
