@@ -1415,7 +1415,19 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     if(!revAuto && total>1 && pos>=total){ revAuto=true; revOpen=true; }   // the decision card -- show the whole call
     setRev(revOpen,cnt); ov.scrollTop=0; setTimeout(function(){ focusStep(el); },80); }
   function finish(){ parkCurrent(); saveNow(); ov.style.display='none'; active=false; fab.style.display='block'; var d=document.getElementById('callNotes'); if(d){ d.scrollIntoView({behavior:'smooth',block:'center'}); } if(window.rrgToast) window.rrgToast('Call complete — review the summary and Submit.'); }
-  function start(){ steps=computeSteps(); active=true; fab.style.display='none'; ov.style.display='flex'; if(!window.__sscStarted) window.__sscStarted=new Date().toISOString();
+  function start(){
+    // Guard the form-not-yet-rendered race that silently dropped the Concept question:
+    // wait until the Concept field is editable AND the questionnaire has rendered before
+    // computing steps — covers EVERY caller (auto-launch, the confirm modal, the fab).
+    try {
+      var _ci=document.getElementById('sscConcept');
+      var _cReady = _ci && !_ci.readOnly && _ci.type!=='hidden' && (function(){ var f=_ci.closest('.field'); return !!f && !f.hasAttribute('hidden') && !f.closest('[hidden]'); })();
+      var _q=document.getElementById('sscQ');
+      var _qReady = !_q || (!_q.querySelector('.sscloading') && _q.querySelector('.field, .oset'));
+      if((!_cReady || !_qReady) && (window.__scrStartTries=(window.__scrStartTries||0)+1) < 40){ setTimeout(start, 80); return; }
+      window.__scrStartTries=0;
+    } catch(e){}
+    steps=computeSteps(); active=true; fab.style.display='none'; ov.style.display='flex'; if(!window.__sscStarted) window.__sscStarted=new Date().toISOString();
     known=steps.map(function(el){ return hasVal(el); });
     if(seek(0,1)>=steps.length) known=[];            // everything answered -> ask normally rather than end the call
     var pre=[]; for(var k=0;k<steps.length;k++){ if(known[k]){ var L=labelOf(steps[k]); if(L) pre.push(L); } }
