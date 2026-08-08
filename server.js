@@ -1480,9 +1480,11 @@ app.get('/api/valuation-readiness', (req, res) => {
       } catch (e) {}
     }
     let screening = (function(){ try { return (loadScreens()||[]).some(function(sc){ var d=sc.data||{}; return (pid && (d.personId===pid || d.contactPersonId===pid || sc.personId===pid)) || (cid && (d.companyId===cid || sc.companyId===cid)); }); } catch(e){ return false; } })();
-    if (!screening) { try { const _ov = loadAssignOverlay(); screening = loadDeals().filter(hit).some(function(d){ const k = d.screenId ? ('s_'+d.screenId) : ('d_'+d.id); return _ov[k] && _ov[k].screeningSkipped; }); } catch(e){} }
+    let screeningSkipped = false;
+    try { const _ov = loadAssignOverlay(); screeningSkipped = loadDeals().filter(hit).some(function(d){ const k = d.screenId ? ('s_'+d.screenId) : ('d_'+d.id); return _ov[k] && _ov[k].screeningSkipped; }); } catch(e){}
+    if (!screening && screeningSkipped) screening = true;
     const state = bov ? (bov.finalizedAt ? 'final' : (bov.aiGenerated && !bov.pending ? 'built' : 'requested')) : '';
-    res.json({ ok: true, screening: screening, questionnaire: questionnaire, financials: financials, lease: lease, ready: !!(questionnaire && financials && lease), bovId: bov ? bov.id : '', state: state });
+    res.json({ ok: true, screening: screening, screeningSkipped: screeningSkipped, questionnaire: questionnaire, financials: financials, lease: lease, ready: !!(questionnaire && financials && lease), bovId: bov ? bov.id : '', state: state });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
