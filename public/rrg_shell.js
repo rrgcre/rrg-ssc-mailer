@@ -112,7 +112,6 @@
     ] },
     { grp: 'Business Sales', color: '#6bbf95', items: [
       { ic: '⊞', label: 'Listings', href: 'rrg_board.html' },
-      { ic: '▤', label: 'Marketplace', href: 'rrg_marketplace.html' },
       { ic: '▥', label: 'Data Rooms', href: 'rrg_rooms_queue.html' },
       { ic: '◈', label: 'Deals', href: 'rrg_deals.html' }
     ] },
@@ -134,6 +133,7 @@
       { ic: '⌂', label: 'Overview', href: 'rrg_landlord_rep.html' }
     ] },
     { grp: 'Marketing', color: '#c77dc0', items: [
+      { ic: '▤', label: 'Marketplace', href: 'rrg_marketplace.html' },
       { ic: '▧', label: 'Marketing Packs', href: 'rrg_cim_queue.html' },
       { ic: '➤', label: 'Market Attack Plans', href: 'rrg_attack_queue.html' },
       { ic: '✎', label: 'Email Templates', href: 'rrg_email_templates.html' },
