@@ -73,9 +73,16 @@ h1{font-size:25px;font-weight:800;margin:0;color:#fff;}
     if(!j||!j.ok){ showGate(j&&j.error); return; }
     FIELDS=j.fields||[];
     var org=j.org||'Restaurant Realty Group';
+    var label=j.label||'Seller Interview'; var isScreen=(j.kind==='seller');
     document.getElementById('orgf').textContent=org;
+    try{ document.title=label; }catch(e){}
+    try{ var kk=document.querySelector('.kick'); if(kk) kk.textContent='Confidential '+label; }catch(e){}
     try{ document.getElementById('disc').textContent=(org.match(/\b[A-Za-z]/g)||['R']).slice(0,3).join('').toUpperCase(); }catch(e){}
-    if(j.business){ document.getElementById('hdr').textContent=j.business; document.getElementById('hsub').textContent='A few questions about the story behind the numbers at '+j.business+' — the details that shape what it’s worth. Private, and only your representative sees it.'; }
+    var subBase=isScreen
+      ? ' — the concept, the numbers at a high level, your lease, and your goals. Private, and only your representative sees it.'
+      : ' — the details that shape what it’s worth. Private, and only your representative sees it.';
+    if(j.business){ document.getElementById('hdr').textContent=j.business; document.getElementById('hsub').textContent=(isScreen?'A few questions about ':'A few questions about the story behind the numbers at ')+j.business+subBase; }
+    else { document.getElementById('hsub').textContent=(isScreen?'A few questions about your restaurant or bar':'A few questions about the story behind the numbers')+subBase; }
     var f=document.getElementById('sform'); var data=j.data||{}; var curSec='';
     f.innerHTML=FIELDS.map(function(fd){
       var head=''; if(fd.section && fd.section!==curSec){ curSec=fd.section; head='<div class="sech">'+esc(fd.section)+'</div>'; }

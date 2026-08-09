@@ -322,6 +322,26 @@ async function delDoc(id){
 function _ivEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
 function _ivFmtDur(s){ s=Math.floor(s||0); if(!s) return ''; var m=Math.floor(s/60), ss=s%60; return m+':'+(ss<10?'0':'')+ss; }
 function _ivFmtSize(b){ b=Number(b||0); if(!b) return ''; if(b<1024*1024) return Math.round(b/1024)+' KB'; return (b/1024/1024).toFixed(1)+' MB'; }
+// Shared transcript document renderer — same styled look as the contact-record viewer, so
+// the transcript reads consistently everywhere. Honors "## " topic headings + **bold**.
+function _ivInline(s){ s=_ivEsc(String(s==null?'':s)); s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>'); return s; }
+function _ivDocHtml(t){
+  t=String(t||'').trim(); if(!t) return '';
+  if(/(^|\n)\s*#{1,3}\s+\S/.test(t)){
+    var lines=t.split(/\n/), out=[], buf=[];
+    function flush(){ if(buf.length){ var para=buf.join(' ').trim(); if(para) out.push('<p style="margin:0 0 13px">'+_ivInline(para)+'</p>'); buf=[]; } }
+    lines.forEach(function(ln){ var m=ln.match(/^\s*#{1,3}\s+(.*)$/); if(m){ flush(); out.push('<h3 style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--navy);margin:20px 0 8px">'+_ivEsc(m[1].trim())+'</h3>'); } else if(!ln.trim()){ flush(); } else { buf.push(ln.trim()); } });
+    flush(); return out.join('');
+  }
+  // No headings: split into paragraphs on blank lines / newlines / sentence groups.
+  var blocks; if(/\n\s*\n/.test(t)){ blocks=t.split(/\n\s*\n/); } else if(/\n/.test(t)){ blocks=t.split(/\n+/); } else { var sents=t.match(/[^.!?]+[.!?]+[\])'"`’”]*|.+$/g)||[t]; blocks=[]; for(var i=0;i<sents.length;i+=3){ blocks.push(sents.slice(i,i+3).join(' ').trim()); } }
+  return blocks.filter(Boolean).map(function(p){ return '<p style="margin:0 0 13px">'+_ivInline(p.trim())+'</p>'; }).join('');
+}
+function _ivDocWrap(html,clean){
+  return '<div style="font-family:Georgia,\'Times New Roman\',serif;font-size:14.5px;line-height:1.72;color:#222b3d;background:#fff;border:1px solid var(--line);border-radius:12px;padding:20px 24px;max-height:340px;overflow:auto">'
+    +(clean?'<div style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;margin:0 0 12px"><span style="background:#e8f6ef;color:#1f8a5b;border:1px solid #bfe6d2;border-radius:100px;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px">Buyer-ready ✓</span></div>':'')
+    +html+'</div>';
+}
 function _ivDate(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return iso||''; return d.toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})+' · '+d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'}); }catch(e){ return iso||''; } }
 function _ivChip(txt,kind){ var m={ok:['#e7f5ee','#1f8a5b','#b7e0c7'],warn:['#fff4e6','#8a5a12','#f3d9a8']}[kind]||['#eef1f6','#6b7488','#e6e9f0']; return '<span style="font-size:10px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;background:'+m[0]+';color:'+m[1]+';border:1px solid '+m[2]+';border-radius:99px;padding:2px 8px;white-space:nowrap">'+_ivEsc(txt)+'</span>'; }
 function renderInterviews(){
@@ -344,9 +364,10 @@ function renderInterviews(){
       +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px">'
         +'<a class="btn primary" href="'+_ivEsc(iv.viewUrl)+'" target="_blank" rel="noopener">▶ Watch video</a>'
         +(iv.hasTranscript?'<button class="btn" onclick="ivToggleTranscript(\''+iv.id+'\',this)">Show transcript</button>':'')
+        +(iv.hasTranscript&&!iv.hasClean?'<button class="btn" onclick="ivCleanup(\''+iv.id+'\',this)">✨ Clean up for buyers</button>':'')
         +(iv.hasTranscript?'<button class="btn" onclick="ivRedraft(\''+iv.id+'\',this)">↻ Re-draft debrief</button>':'')
       +'</div>'
-      +'<div id="ivtx_'+iv.id+'" style="display:none;margin-top:11px"><pre style="white-space:pre-wrap;word-break:break-word;background:var(--wash);border:1px solid var(--line);border-radius:10px;padding:12px 14px;font:inherit;font-size:12.5px;color:#31405a;max-height:280px;overflow:auto;margin:0"></pre></div>'
+      +'<div id="ivtx_'+iv.id+'" style="display:none;margin-top:11px"></div>'
       +'<div style="margin-top:12px"><div style="font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin-bottom:5px">AI debrief <span style="text-transform:none;letter-spacing:0;color:#b98a3a;font-weight:600">— draft, verify before use</span></div>'
         +'<textarea id="ivsum_'+iv.id+'" placeholder="'+(iv.hasTranscript?'The debrief will appear here once transcription finishes.':'Add notes here, or record and transcribe an interview to generate a debrief.')+'" style="width:100%;min-height:150px;border:1px solid var(--inp);border-radius:10px;padding:11px 13px;font:inherit;font-size:13px;line-height:1.5;resize:vertical;background:#fff;color:var(--ink)">'+_ivEsc(iv.summary||'')+'</textarea>'
         +'<div style="display:flex;gap:8px;margin-top:8px;align-items:center;flex-wrap:wrap"><button class="btn green" onclick="ivSaveDebrief(\''+iv.id+'\',this)">Save debrief</button><button class="btn" onclick="ivCopyDebrief(\''+iv.id+'\')">Copy</button><span class="umsg" id="ivmsg_'+iv.id+'" style="margin-top:0"></span></div>'
@@ -355,15 +376,24 @@ function renderInterviews(){
   }).join('');
 }
 function ivToggleTranscript(id, btn){
-  var wrap=document.getElementById('ivtx_'+id); if(!wrap) return; var pre=wrap.querySelector('pre');
+  var wrap=document.getElementById('ivtx_'+id); if(!wrap) return;
   if(wrap.style.display!=='none'){ wrap.style.display='none'; if(btn) btn.textContent='Show transcript'; return; }
-  if(pre && !pre.getAttribute('data-loaded')){
-    pre.textContent='Loading transcript…';
+  if(!wrap.getAttribute('data-loaded')){
+    wrap.innerHTML='<div style="color:var(--muted);font-size:12.5px">Loading transcript…</div>';
     fetch('/api/interview/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok){ pre.textContent=j.transcript||'(No transcript text captured.)'; pre.setAttribute('data-loaded','1'); } else { pre.textContent=(j&&j.error)||'Could not load the transcript.'; }
-    }).catch(function(){ pre.textContent='Could not reach the server.'; });
+      if(j&&j.ok){ var clean=!!(j.cleanTranscript&&j.cleanTranscript.length); var body=j.cleanTranscript||j.transcript||''; wrap.innerHTML= body? _ivDocWrap(_ivDocHtml(body),clean) : '<div style="color:var(--muted);font-size:12.5px">(No transcript text captured.)</div>'; wrap.setAttribute('data-loaded','1'); }
+      else { wrap.innerHTML='<div style="color:#b5791f;font-size:12.5px">'+_ivEsc((j&&j.error)||'Could not load the transcript.')+'</div>'; }
+    }).catch(function(){ wrap.innerHTML='<div style="color:#b5791f;font-size:12.5px">Could not reach the server.</div>'; });
   }
   wrap.style.display=''; if(btn) btn.textContent='Hide transcript';
+}
+function ivCleanup(id, btn){
+  if(btn){ btn.disabled=true; if(!btn.getAttribute('data-o')) btn.setAttribute('data-o',btn.textContent); btn.textContent='✨ Cleaning up…'; }
+  fetch('/api/interview/'+encodeURIComponent(id)+'/cleanup',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+    .then(function(r){return r.json();}).then(function(j){ if(btn){ btn.disabled=false; btn.textContent=btn.getAttribute('data-o')||'✨ Clean up for buyers'; }
+      if(j&&j.ok&&j.cleanTranscript){ var iv=(ROOM.interviews||[]).filter(function(x){return x.id===id;})[0]; if(iv){ iv.hasClean=true; iv.cleanTranscript=j.cleanTranscript; iv.cleanStatus='done'; } var wrap=document.getElementById('ivtx_'+id); if(wrap){ wrap.setAttribute('data-loaded','1'); wrap.innerHTML=_ivDocWrap(_ivDocHtml(j.cleanTranscript),true); wrap.style.display=''; } renderInterviews(); toast('Buyer-ready transcript created ✓'); }
+      else { alert((j&&j.error)||'Could not clean up the transcript.'); } })
+    .catch(function(){ if(btn){ btn.disabled=false; btn.textContent=btn.getAttribute('data-o')||'✨ Clean up for buyers'; } alert('Could not reach the server.'); });
 }
 function ivSaveDebrief(id, btn){
   var ta=document.getElementById('ivsum_'+id), m=document.getElementById('ivmsg_'+id); if(!ta) return;

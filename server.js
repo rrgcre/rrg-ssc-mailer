@@ -1486,9 +1486,9 @@ app.get('/api/valuation-readiness', (req, res) => {
     // A seller-completed interview (self-serve form or video) satisfies the questionnaire input.
     let interviewDone = false, interviewId = '', interviewRoomId = '';
     try {
-      const sl = loadSellerLinks().find(x => (pid && x.personId === pid) || (cid && x.companyId === cid));
+      const sl = loadSellerLinks().find(x => ((pid && x.personId === pid) || (cid && x.companyId === cid)) && linkKind(x.kind) === 'valuation');
       if (sl && ((sl.form && sl.form.submittedAt) || (sl.videoCount || 0) > 0)) interviewDone = true;
-      const ivs = loadInterviews().filter(iv => (pid && iv.personId === pid) || (cid && iv.companyId === cid)).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+      const ivs = loadInterviews().filter(iv => ((pid && iv.personId === pid) || (cid && iv.companyId === cid)) && linkKind(iv.kind) === 'valuation').sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
       if (ivs.length) { interviewDone = true; interviewId = ivs[0].id; interviewRoomId = ivs[0].roomId || ''; }
     } catch (e) {}
     const q = questionnaire || interviewDone;
@@ -4855,16 +4855,27 @@ app.post('/api/admin/accounting', express.json(), (req, res) => {
   const s = loadSettings(); s.accountingBasis = ((req.body || {}).basis === 'cash') ? 'cash' : 'accrual'; saveSettings(s);
   res.json({ ok: true, basis: effAccountingBasis() });
 });
-// Configurable seller-intake email (admin-editable; placeholders {{business}} {{formUrl}} {{videoUrl}} {{repName}} {{org}}).
-const SELLER_INTAKE_EMAIL_DEFAULT = {
-  subject: '{{org}} — a few details about {{business}} for your file',
-  body: 'Hi,\n\nThanks again. As we position {{business}} for sale, the financials only tell part of the story — the details behind them are a big part of what a buyer is really paying for. To capture that in your own words, we’ve set up two quick, private options; use whichever you’re more comfortable with (or both):\n\n• Answer a short set of questions in writing: {{formUrl}}\n\n• Or talk through them on a short video: {{videoUrl}}\n\nThere are no wrong answers, and rough figures are fine. Everything is confidential and goes only to your {{org}} representative. Prefer not to be on camera? Just use the written version.\n\n— {{repName}}',
+// Configurable self-serve outreach emails, one per link kind (admin-editable; placeholders
+// {{firstName}} {{business}} {{formUrl}} {{videoUrl}} {{repName}} {{org}}).
+const SELLER_LINK_EMAIL_DEFAULTS = {
+  valuation: {
+    subject: '{{org}} — a few details about {{business}} for your file',
+    body: 'Hi,\n\nThanks again. As we position {{business}} for sale, the financials only tell part of the story — the details behind them are a big part of what a buyer is really paying for. To capture that in your own words, we’ve set up two quick, private options; use whichever you’re more comfortable with (or both):\n\n• Answer a short set of questions in writing: {{formUrl}}\n\n• Or talk through them on a short video: {{videoUrl}}\n\nThere are no wrong answers, and rough figures are fine. Everything is confidential and goes only to your {{org}} representative. Prefer not to be on camera? Just use the written version.\n\n— {{repName}}',
+  },
+  seller: {
+    subject: '{{org}} — tell us about {{business}}',
+    body: 'Hi,\n\nThanks for considering {{org}} to help with {{business}}. To get started, we’d like to learn a bit about your restaurant or bar — the concept, the numbers at a high level, your lease, and what you’re hoping to accomplish. It only takes a few minutes, and it helps us tell you exactly where you stand.\n\nUse whichever you prefer (or both):\n\n• Answer a short set of questions in writing: {{formUrl}}\n\n• Or just talk it through on a short video: {{videoUrl}}\n\nRough figures are fine, and everything is confidential — it goes only to your {{org}} representative. Prefer not to be on camera? Use the written version.\n\n— {{repName}}',
+  },
 };
-function effSellerIntakeEmail() {
-  const s = (loadSettings().sellerIntakeEmail) || {};
+// Legacy single-store maps to the interview (valuation) email so nothing existing breaks.
+function effSellerIntakeEmail(kind) {
+  kind = linkKind(kind);
+  const st = loadSettings();
+  const keyed = (st.sellerLinkEmails && st.sellerLinkEmails[kind]) || (kind === 'valuation' ? st.sellerIntakeEmail : null) || {};
+  const def = SELLER_LINK_EMAIL_DEFAULTS[kind] || SELLER_LINK_EMAIL_DEFAULTS.valuation;
   return {
-    subject: (typeof s.subject === 'string' && s.subject.trim()) ? s.subject : SELLER_INTAKE_EMAIL_DEFAULT.subject,
-    body: (typeof s.body === 'string' && s.body.trim()) ? s.body : SELLER_INTAKE_EMAIL_DEFAULT.body,
+    subject: (typeof keyed.subject === 'string' && keyed.subject.trim()) ? keyed.subject : def.subject,
+    body: (typeof keyed.body === 'string' && keyed.body.trim()) ? keyed.body : def.body,
   };
 }
 function fillTemplate(str, vars) { return String(str || '').replace(/\{\{(\w+)\}\}/g, function (m, k) { return (vars[k] != null) ? String(vars[k]) : ''; }); }
@@ -4890,13 +4901,17 @@ function sellerEmailRender(rawBody, vars) {
   const text = fillTemplate(hasTags ? htmlToText(String(rawBody || '')) : String(rawBody || ''), vars);
   return { html: html, text: text };
 }
-app.get('/api/admin/seller-intake-email', (req, res) => { const t = effSellerIntakeEmail(); res.json({ ok: true, subject: t.subject, body: t.body, defaults: SELLER_INTAKE_EMAIL_DEFAULT, isAdmin: !!(req.user && isSuper(req.user)) }); });
+const SELLER_LINK_EMAIL_KINDS = Object.keys(SELLER_LINK_KINDS).map(k => ({ kind: k, label: SELLER_LINK_KINDS[k].label }));
+app.get('/api/admin/seller-intake-email', (req, res) => { const kind = linkKind(req.query.kind); const t = effSellerIntakeEmail(kind); res.json({ ok: true, kind: kind, kinds: SELLER_LINK_EMAIL_KINDS, subject: t.subject, body: t.body, defaults: (SELLER_LINK_EMAIL_DEFAULTS[kind] || SELLER_LINK_EMAIL_DEFAULTS.valuation), isAdmin: !!(req.user && isSuper(req.user)) }); });
 app.post('/api/admin/seller-intake-email', express.json({ limit: '64kb' }), (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
-  const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.sellerIntakeEmail; saveSettings(s); const t = effSellerIntakeEmail(); return res.json({ ok: true, subject: t.subject, body: t.body }); }
-  s.sellerIntakeEmail = { subject: String(b.subject || '').slice(0, 300), body: String(b.body || '').slice(0, 20000) }; saveSettings(s);
-  const t = effSellerIntakeEmail(); res.json({ ok: true, subject: t.subject, body: t.body });
+  const b = req.body || {}; const kind = linkKind(b.kind); const s = loadSettings();
+  if (!s.sellerLinkEmails || typeof s.sellerLinkEmails !== 'object') s.sellerLinkEmails = {};
+  if (b.reset) { delete s.sellerLinkEmails[kind]; if (kind === 'valuation') delete s.sellerIntakeEmail; saveSettings(s); const t = effSellerIntakeEmail(kind); return res.json({ ok: true, kind: kind, subject: t.subject, body: t.body }); }
+  s.sellerLinkEmails[kind] = { subject: String(b.subject || '').slice(0, 300), body: String(b.body || '').slice(0, 20000) };
+  if (kind === 'valuation') delete s.sellerIntakeEmail; // migrate legacy store into the keyed one
+  saveSettings(s);
+  const t = effSellerIntakeEmail(kind); res.json({ ok: true, kind: kind, subject: t.subject, body: t.body });
 });
 // ===== Seller interview recordings -> S3 (lazy-loaded so a missing dep never blocks boot) =====
 let _s3 = null, _s3ok = null;
@@ -4989,7 +5004,7 @@ async function cleanInterviewTranscript(rec) {
   const key = process.env.ANTHROPIC_API_KEY; if (!key) return '';
   const t = String((rec && rec.transcript) || '').trim(); if (!t) return '';
   let topics = '';
-  try { topics = (sellerInterviewFields() || []).map(f => f.prompt || f.label).filter(Boolean).slice(0, 40).join(' | '); } catch (e) {}
+  try { topics = (sellerInterviewFields(rec && rec.kind) || []).map(f => f.prompt || f.label).filter(Boolean).slice(0, 40).join(' | '); } catch (e) {}
   const sys = 'You clean up the raw transcript of a recorded seller interview so a commercial real estate broker can present it to prospective buyers of a restaurant or bar. Keep the seller’s own meaning and words — this is an edit, not a rewrite. Remove filler words, false starts, stutters, repeated words, and obvious speech-to-text errors; fix punctuation, capitalization, and paragraph breaks so it reads cleanly. Organize the content under short, clear topic headings written on their own line and prefixed with "## " (for example: "## The Business", "## Why Selling", "## Financials", "## Lease & Location", "## Staff & Operations", "## What’s Included", "## Timing"). Under each heading, present what the seller said as clean, readable prose or as brief question/answer exchanges. Do NOT invent, infer, estimate, or add any facts, numbers, or commentary the seller did not say. Do NOT include analysis, opinions, red flags, or advice — this is the seller’s own account, not a broker assessment. If a topic did not come up, simply omit that heading. Return only the cleaned transcript.';
   const content = 'Business: ' + (String((rec && rec.business) || '').slice(0, 160) || '(unknown)') + '\nTopics the interview aimed to cover: ' + (topics || '(general seller interview)') + '\n\nRaw transcript:\n\n' + t.slice(0, 60000) + '\n\nProduce the cleaned, buyer-ready transcript now.';
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -5097,19 +5112,30 @@ const SELLER_FORM_FIELDS = [
   { k: 'timeline', label: 'Ideal timeline to sell' },
   { k: 'notes', label: 'Anything else a buyer should know', ta: true },
 ];
-// The seller interview draws its questions from the questionnaire assigned to the
-// "Seller Interview" call (Settings → Call Questionnaires → callForms.valuation).
-// Falls back to the generic list above if nothing is assigned.
-function sellerInterviewForm() {
+// Each self-serve link belongs to a "kind" = a call-questionnaire slot. This is what lets
+// us send the same self-serve form + voice walkthrough for ANY questionnaire, not just the
+// Seller Interview. To enable another (e.g. buyer qualification), add a slot entry here.
+//   slot        = the callForms key it pulls its questionnaire from (Settings → Call Questionnaires)
+//   roomVisible = whether a completed recording surfaces in the buyer data room
+const SELLER_LINK_KINDS = {
+  valuation: { label: 'Seller Interview', noun: 'interview', slot: 'valuation', roomVisible: true },
+  seller: { label: 'Seller Screening', noun: 'screening', slot: 'seller', roomVisible: false },
+};
+function linkKind(k) { return SELLER_LINK_KINDS[k] ? k : 'valuation'; }
+function linkKindMeta(k) { return SELLER_LINK_KINDS[linkKind(k)]; }
+// Draws its questions from the questionnaire assigned to this kind's call slot
+// (Settings → Call Questionnaires). Falls back to the generic list if nothing is assigned.
+function sellerInterviewForm(kind) {
   try {
     const asg = (loadSettings().callForms) || {};
-    const id = asg.valuation || asg.seller || '';
+    const meta = linkKindMeta(kind);
+    const id = asg[meta.slot] || (linkKind(kind) === 'valuation' ? asg.seller : '') || '';
     if (!id) return null;
     return loadForms().find(f => f.id === id) || null;
   } catch (e) { return null; }
 }
-function sellerInterviewFields() {
-  const f = sellerInterviewForm();
+function sellerInterviewFields(kind) {
+  const f = sellerInterviewForm(kind);
   if (!f || !Array.isArray(f.categories)) {
     return SELLER_FORM_FIELDS.map(x => ({ k: x.k, label: x.label, prompt: x.label, type: x.ta ? 'textarea' : 'text', options: [], section: '' }));
   }
@@ -5131,14 +5157,23 @@ app.post('/api/seller-link', express.json(), (req, res) => {
     const b = req.body || {};
     const personId = String(b.personId || '').slice(0, 48), companyId = String(b.companyId || '').slice(0, 48);
     if (!personId && !companyId) return res.status(400).json({ ok: false, error: 'No contact on this record.' });
+    const kind = linkKind(b.kind); const meta = linkKindMeta(kind);
     const all = loadSellerLinks();
-    let rec = all.find(x => (personId && x.personId === personId) || (!personId && companyId && x.companyId === companyId));
+    let rec = all.find(x => ((personId && x.personId === personId) || (!personId && companyId && x.companyId === companyId)) && linkKind(x.kind) === kind);
     if (!rec) {
-      rec = { token: newRoomToken(), personId, companyId, business: String(b.business || '').slice(0, 160), createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', form: null, videoCount: 0 };
+      rec = { token: newRoomToken(), kind: kind, personId, companyId, business: String(b.business || '').slice(0, 160), createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', form: null, videoCount: 0 };
       all.push(rec); saveSellerLinks(all);
-    } else if (b.business && !rec.business) { rec.business = String(b.business).slice(0, 160); saveSellerLinks(all); }
+    } else { let ch = false; if (!rec.kind) { rec.kind = kind; ch = true; } if (b.business && !rec.business) { rec.business = String(b.business).slice(0, 160); ch = true; } if (ch) saveSellerLinks(all); }
     const origin = req.protocol + '://' + req.get('host');
-    res.json({ ok: true, token: rec.token, formUrl: origin + '/seller_intake.html?t=' + rec.token, videoUrl: origin + '/seller_record.html?t=' + rec.token, business: rec.business || '', formSubmitted: !!(rec.form && rec.form.submittedAt), form: rec.form || null, fields: (rec.form && rec.form.fields) || sellerInterviewFields(), videoCount: rec.videoCount || 0, emailedTo: rec.emailedTo || '' });
+    // Recordings captured through THIS kind's link, so the send panel can show results.
+    let recordings = [];
+    try {
+      recordings = loadInterviews()
+        .filter(iv => ((personId && iv.personId === personId) || (companyId && iv.companyId === companyId)) && linkKind(iv.kind) === kind)
+        .sort((a, b2) => String(b2.createdAt || '').localeCompare(String(a.createdAt || '')))
+        .map(iv => ({ id: iv.id, createdAt: iv.createdAt || '', durationSec: iv.durationSec || 0, transcriptStatus: iv.transcriptStatus || '', viewUrl: '/api/interview/' + iv.id + '/view' }));
+    } catch (e) {}
+    res.json({ ok: true, token: rec.token, kind: kind, label: meta.label, roomVisible: !!meta.roomVisible, formUrl: origin + '/seller_intake.html?t=' + rec.token, videoUrl: origin + '/seller_record.html?t=' + rec.token, business: rec.business || '', formSubmitted: !!(rec.form && rec.form.submittedAt), form: rec.form || null, fields: (rec.form && rec.form.fields) || sellerInterviewFields(kind), videoCount: rec.videoCount || 0, recordings: recordings, emailedTo: rec.emailedTo || '' });
   } catch (e) { console.error('seller-link:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 // Rep emails the two links to the seller.
@@ -5154,8 +5189,8 @@ app.post('/api/seller-link/email', express.json(), async (req, res) => {
     let firstName = '';
     try { if (rec.personId) { const _p = loadPeople().find(x => x.id === rec.personId); if (_p) firstName = String(_p.firstName || (_p.name ? String(_p.name).trim().split(/\s+/)[0] : '') || '').trim(); } } catch (e) {}
     const vars = { org: org, business: biz, formUrl: formUrl, videoUrl: videoUrl, repName: me, firstName: firstName };
-    const tpl = effSellerIntakeEmail();
-    const subject = fillTemplate(tpl.subject, vars) || (org + ' — seller intake for ' + biz);
+    const tpl = effSellerIntakeEmail(rec.kind);
+    const subject = fillTemplate(tpl.subject, vars) || (org + ' — ' + linkKindMeta(rec.kind).label + ' for ' + biz);
     const _rendered = sellerEmailRender(tpl.body, vars);
     await sendMailWL({ from: mailFrom(), to, subject, text: _rendered.text, html: _rendered.html });
     const all = loadSellerLinks(); const i = all.findIndex(x => x.token === rec.token); if (i >= 0) { all[i].emailedAt = new Date().toISOString(); all[i].emailedTo = to; saveSellerLinks(all); }
@@ -5176,11 +5211,12 @@ function notifySellerInterviewDone(rec, iv, kind, req) {
     const biz = rec.business || 'The seller';
     const repName = (rep && rep.name) ? String(rep.name).trim().split(/\s+/)[0] : 'there';
     const contactUrl = rec.personId ? (origin + '/rrg_person.html?id=' + rec.personId) : origin;
-    const did = kind === 'form' ? 'completed the written interview form' : 'recorded their video interview';
+    const meta = linkKindMeta(rec.kind); const noun = meta.noun; const label = meta.label;
+    const did = kind === 'form' ? ('completed the written ' + noun + ' form') : ('recorded their ' + noun + ' video');
     const detail = kind === 'form'
       ? 'Their answers are saved to the deal. Open the contact to review them.'
-      : 'The video is saved to the deal and is transcribing now — the AI debrief follows automatically. Open the contact and choose “View Seller Interview” to watch it, read the transcript, and review the debrief.';
-    const subject = org + ' — seller interview completed: ' + biz;
+      : 'The video is saved to the deal and is transcribing now — the AI debrief follows automatically. Open the contact to watch it, read the transcript, and review the debrief.';
+    const subject = org + ' — ' + label + ' completed: ' + biz;
     const text = 'Hi ' + repName + ',\n\n' + biz + ' just ' + did + '.\n\n' + detail + '\n\n' + contactUrl + '\n\n— ' + org;
     const html = '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#1a2236">'
       + '<p>Hi ' + esc(repName) + ',</p>'
@@ -5195,21 +5231,23 @@ function notifySellerInterviewDone(rec, iv, kind, req) {
 // ---- Public (token-gated, no login) endpoints the seller pages call ----
 app.get('/s/intake', (req, res) => {
   const rec = sellerLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
-  res.json({ ok: true, business: rec.business || '', org: orgDisplayName(), fields: sellerInterviewFields(), data: (rec.form && rec.form.data) || {}, submitted: !!(rec.form && rec.form.submittedAt) });
+  const meta = linkKindMeta(rec.kind);
+  res.json({ ok: true, business: rec.business || '', org: orgDisplayName(), kind: linkKind(rec.kind), label: meta.label, fields: sellerInterviewFields(rec.kind), data: (rec.form && rec.form.data) || {}, submitted: !!(rec.form && rec.form.submittedAt) });
 });
 app.post('/s/intake/submit', express.json({ limit: '256kb' }), (req, res) => {
   const all = loadSellerLinks(); const rec = all.find(x => x.token === String((req.body && req.body.token) || '')); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
-  const b = (req.body && req.body.data) || {}; const fields = sellerInterviewFields(); const data = {};
+  const b = (req.body && req.body.data) || {}; const fields = sellerInterviewFields(rec.kind); const data = {};
   fields.forEach(f => { data[f.k] = String(b[f.k] || '').slice(0, 4000); });
   const _firstForm = !(rec.form && rec.form.submittedAt);
   rec.form = { submittedAt: new Date().toISOString(), data, fields }; saveSellerLinks(all);
-  if (_firstForm) { try { if (rec.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === rec.personId); if (p) { logActivity(p, 'Note', 'Seller interview — written form completed by the seller.', { auto: true }); savePeople(ppl); } } } catch (e) {} }
+  if (_firstForm) { try { if (rec.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === rec.personId); if (p) { logActivity(p, 'Note', linkKindMeta(rec.kind).label + ' — written form completed by the seller.', { auto: true }); savePeople(ppl); } } } catch (e) {} }
   if (_firstForm) { try { notifySellerInterviewDone(rec, null, 'form', req); } catch (e) { console.error('seller form notify:', e && e.message); } }
   res.json({ ok: true });
 });
 app.get('/s/video', (req, res) => {
   const rec = sellerLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
-  res.json({ ok: true, business: rec.business || '', org: orgDisplayName(), ready: s3Configured(), questions: sellerInterviewFields().map(f => f.prompt) });
+  const meta = linkKindMeta(rec.kind);
+  res.json({ ok: true, business: rec.business || '', org: orgDisplayName(), kind: linkKind(rec.kind), label: meta.label, ready: s3Configured(), questions: sellerInterviewFields(rec.kind).map(f => f.prompt) });
 });
 app.post('/s/video/presign', express.json(), async (req, res) => {
   const rec = sellerLinkByToken(req.body && req.body.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
@@ -5229,12 +5267,13 @@ app.post('/s/video/register', express.json(), (req, res) => {
   const all = loadSellerLinks(); const rec = all.find(x => x.token === String((req.body && req.body.token) || '')); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
   try {
     const b = req.body || {}; const key = String(b.key || '').slice(0, 300); if (!key) return res.status(400).json({ ok: false, error: 'Missing key.' });
-    const now = new Date().toISOString();
-    const iv = { id: newInterviewId(), key, personId: rec.personId || '', companyId: rec.companyId || '', screenId: '', business: rec.business || '', sizeBytes: Number(b.sizeBytes || 0) || 0, durationSec: Number(b.durationSec || 0) || 0, contentType: String(b.contentType || 'video/webm').slice(0, 60), transcript: '', transcriptStatus: '', summary: '', summaryStatus: '', createdAt: now, by: 'Seller (self-recorded)', byUser: rec.byUser || '', roomId: '', source: 'seller-link' };
-    try { const rooms = loadRooms(); let _rch = false; rooms.forEach(r => { if (backfillRoomLinks(r)) _rch = true; }); const room = rooms.find(r => (iv.personId && r.personId === iv.personId) || (iv.companyId && r.companyId === iv.companyId)); if (room) { room.interviews = Array.isArray(room.interviews) ? room.interviews : []; room.interviews.push({ id: iv.id, key, createdAt: now, durationSec: iv.durationSec, sizeBytes: iv.sizeBytes, by: iv.by }); room.updatedAt = now; iv.roomId = room.id; _rch = true; } if (_rch) saveRooms(rooms); } catch (e) { console.error('seller register room:', e && e.message); }
+    const now = new Date().toISOString(); const kind = linkKind(rec.kind); const meta = linkKindMeta(kind);
+    const iv = { id: newInterviewId(), key, kind: kind, personId: rec.personId || '', companyId: rec.companyId || '', screenId: '', business: rec.business || '', sizeBytes: Number(b.sizeBytes || 0) || 0, durationSec: Number(b.durationSec || 0) || 0, contentType: String(b.contentType || 'video/webm').slice(0, 60), transcript: '', transcriptStatus: '', summary: '', summaryStatus: '', createdAt: now, by: 'Seller (self-recorded)', byUser: rec.byUser || '', roomId: '', source: 'seller-link' };
+    // Only buyer-facing kinds (the Interview) belong in the data room. Screening stays internal.
+    if (meta.roomVisible) { try { const rooms = loadRooms(); let _rch = false; rooms.forEach(r => { if (backfillRoomLinks(r)) _rch = true; }); const room = rooms.find(r => (iv.personId && r.personId === iv.personId) || (iv.companyId && r.companyId === iv.companyId)); if (room) { room.interviews = Array.isArray(room.interviews) ? room.interviews : []; room.interviews.push({ id: iv.id, key, createdAt: now, durationSec: iv.durationSec, sizeBytes: iv.sizeBytes, by: iv.by }); room.updatedAt = now; iv.roomId = room.id; _rch = true; } if (_rch) saveRooms(rooms); } catch (e) { console.error('seller register room:', e && e.message); } }
     const ivs = loadInterviews(); ivs.push(iv); saveInterviews(ivs);
     rec.videoCount = (rec.videoCount || 0) + 1; rec.lastVideoAt = now; saveSellerLinks(all);
-    try { if (rec.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === rec.personId); if (p) { logActivity(p, 'Note', 'Seller interview — video recorded by the seller (self-serve).', { auto: true }); savePeople(ppl); } } } catch (e) {}
+    try { if (rec.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === rec.personId); if (p) { logActivity(p, 'Note', meta.label + ' — video recorded by the seller (self-serve).', { auto: true }); savePeople(ppl); } } } catch (e) {}
     try { notifySellerInterviewDone(rec, iv, 'video', req); } catch (e) { console.error('seller notify:', e && e.message); }
     res.json({ ok: true, id: iv.id });
   } catch (e) { console.error('seller register:', e && e.message); res.status(500).json({ ok: false, error: 'Could not save the recording.' }); }

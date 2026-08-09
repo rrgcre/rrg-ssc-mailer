@@ -677,38 +677,62 @@ function _siAnswers(j){
   if(!rows) return '';
   return '<details style="margin-top:12px"><summary style="cursor:pointer;font-size:12px;font-weight:700;color:#000E31;list-style:none">▸ View the seller’s form answers</summary><div style="margin-top:6px">'+rows+'</div></details>';
 }
+function _siRecordings(j){
+  var recs=(j&&j.recordings)||[]; if(!recs.length) return '';
+  var rows=recs.map(function(r){
+    var when=''; try{ when=new Date(r.createdAt).toLocaleDateString(); }catch(e){}
+    var mins=r.durationSec?(Math.max(1,Math.round(r.durationSec/60))+' min'):'';
+    var meta=[when,mins].filter(Boolean).join(' · ');
+    var view='<a href="'+_siEsc(r.viewUrl)+'" target="_blank" rel="noopener" style="color:#000E31;font-weight:700;font-size:12px;text-decoration:none">▶ Watch</a>';
+    var tr=(r.id&&typeof openInterviewView==='function')?(' &nbsp;·&nbsp; <a href="#" class="siTr" data-id="'+_siEsc(r.id)+'" style="color:#2647b0;font-weight:700;font-size:12px;text-decoration:none">View transcript</a>'):'';
+    return '<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #f0f2f7"><span style="flex:1;color:#5a6478;font-size:12px">'+_siEsc(meta||'Recording')+'</span>'+view+tr+'</div>';
+  }).join('');
+  return '<div style="margin-top:10px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#8a93a8;font-weight:700;margin-bottom:2px">Recordings received</div>'+rows+'</div>';
+}
 function _siRender(j, email){
   var b=document.getElementById('siBody'); if(!b) return;
+  var roomVis=(j.roomVisible!==false);
   b.innerHTML=_siRow('Short form','#000E31', j.formUrl)
-    +_siRow('Video interview','#DA2B1F', j.videoUrl)
+    +_siRow('Video walkthrough','#DA2B1F', j.videoUrl)
     +'<div style="border-top:1px solid #eef1f6;margin-top:6px;padding-top:14px">'
     +'<div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#8a93a8;margin-bottom:6px">Email both links to the seller</div>'
     +'<div style="display:flex;gap:8px;align-items:center"><input id="siEmail" value="'+_siEsc(email||'')+'" placeholder="seller@email.com" style="flex:1;min-width:0;border:1px solid #d7dde8;border-radius:8px;padding:9px 11px;font:inherit;font-size:13px"><button id="siSend" style="background:#0e7a53;color:#fff;border:none;border-radius:8px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">Email</button></div>'
     +'<div id="siMsg" style="font-size:12.5px;margin-top:9px;min-height:16px"></div>'
-    +((j.formSubmitted||j.videoCount)? ('<div style="font-size:12px;color:#1f8a5b;font-weight:600;margin-top:8px">'+(j.formSubmitted?'Form completed ✓&nbsp;&nbsp;':'')+(j.videoCount?(j.videoCount+' video'+(j.videoCount===1?'':'s')+' received ✓ — in the data room'):'')+'</div>') : '')
+    +((j.formSubmitted||j.videoCount)? ('<div style="font-size:12px;color:#1f8a5b;font-weight:600;margin-top:8px">'+(j.formSubmitted?'Form completed ✓&nbsp;&nbsp;':'')+(j.videoCount?(j.videoCount+' video'+(j.videoCount===1?'':'s')+' received ✓'+(roomVis?' — in the data room':'')):'')+'</div>') : '')
+    +_siRecordings(j)
     +_siAnswers(j)
     +'</div>';
+  Array.prototype.forEach.call(b.querySelectorAll('.siTr'),function(a){ a.addEventListener('click',function(e){ e.preventDefault(); var id=a.getAttribute('data-id'); window.__lastInterview={ id:id, roomId:'' }; try{ var ov=document.getElementById('siOv'); if(ov) ov.remove(); }catch(_){}
+    if(typeof openInterviewView==='function') openInterviewView(); }); });
   Array.prototype.forEach.call(b.querySelectorAll('.siCopy'),function(btn){ btn.addEventListener('click',function(){ var u=btn.getAttribute('data-u'); try{ navigator.clipboard.writeText(u); }catch(e){} var o=btn.textContent; btn.textContent='Copied ✓'; setTimeout(function(){ btn.textContent=o; },1400); }); });
   var send=document.getElementById('siSend');
   send.addEventListener('click',function(){
     var to=(document.getElementById('siEmail').value||'').trim(); var m=document.getElementById('siMsg');
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){ m.style.color='#DA2B1F'; m.textContent='Enter a valid email address.'; return; }
     send.disabled=true; m.style.color='#6b7488'; m.textContent='Sending…';
-    fetch('/api/seller-link/email',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:j.token,to:to})}).then(function(r){return r.json();}).then(function(k){ send.disabled=false; if(k&&k.ok){ m.style.color='#1f8a5b'; m.textContent='Sent to '+to+' ✓'; setTimeout(function(){ var ov=document.getElementById('siOv'); if(ov) ov.remove(); if(window.rrgToast) rrgToast('Seller interview links emailed to '+to+' ✓'); },1000); } else { m.style.color='#DA2B1F'; m.textContent=(k&&k.error)||'Could not send.'; } }).catch(function(){ send.disabled=false; m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; });
+    fetch('/api/seller-link/email',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:j.token,to:to})}).then(function(r){return r.json();}).then(function(k){ send.disabled=false; if(k&&k.ok){ m.style.color='#1f8a5b'; m.textContent='Sent to '+to+' ✓'; setTimeout(function(){ var ov=document.getElementById('siOv'); if(ov) ov.remove(); if(window.rrgToast) rrgToast((j.label||'Seller interview')+' links emailed to '+to+' ✓'); },1000); } else { m.style.color='#DA2B1F'; m.textContent=(k&&k.error)||'Could not send.'; } }).catch(function(){ send.disabled=false; m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; });
   });
 }
-function openSellerIntake(){
+var _SI_LBL={valuation:'Seller Interview',seller:'Seller Screening'};
+var _SI_BLURB={
+  valuation:'Two private links for <b>{b}</b> to capture the story behind the numbers — the details that shape what the business is worth. The seller uses whichever they prefer: written form, video, or both. Everything comes back to this record.',
+  seller:'Two private links for <b>{b}</b> to complete the Seller Screening on their own — the concept, the numbers at a high level, the lease, and their goals. The seller uses whichever they prefer: written form, video, or both. Everything comes back to this record.'
+};
+function openSellerIntake(kind){
+  kind=(kind==='seller')?'seller':'valuation';
+  var lbl=_SI_LBL[kind]||'Seller Interview';
   var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||'';
   var cid=(typeof CO!=='undefined'&&CO&&CO.id)||'';
   var biz=(typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||(typeof P!=='undefined'&&P&&P.name)||'';
   var email=(typeof P!=='undefined'&&P&&(P.email||(P.emails&&P.emails[0])))||'';
   if(!pid&&!cid){ alert('No contact on this record.'); return; }
   var ex=document.getElementById('siOv'); if(ex) ex.remove();
+  var blurb=(_SI_BLURB[kind]||_SI_BLURB.valuation).replace('{b}',_siEsc(biz));
   var ov=document.createElement('div'); ov.id='siOv'; ov.style.cssText='position:fixed;inset:0;background:rgba(8,14,32,.5);display:flex;align-items:center;justify-content:center;z-index:3000;padding:20px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif';
   ov.innerHTML='<div style="background:#fff;border-radius:16px;max-width:540px;width:100%;box-shadow:0 24px 70px rgba(6,12,30,.42);overflow:hidden">'
-    +'<div style="padding:20px 24px 12px;border-bottom:1px solid #eef1f6;display:flex;align-items:center;gap:10px"><div style="font-weight:800;color:#000E31;font-size:17px;flex:1">Send seller interview</div><button id="siX" style="background:none;border:none;font-size:20px;color:#8a93a8;cursor:pointer;line-height:1">×</button></div>'
+    +'<div style="padding:20px 24px 12px;border-bottom:1px solid #eef1f6;display:flex;align-items:center;gap:10px"><div style="font-weight:800;color:#000E31;font-size:17px;flex:1">Send '+_siEsc(lbl)+'</div><button id="siX" style="background:none;border:none;font-size:20px;color:#8a93a8;cursor:pointer;line-height:1">×</button></div>'
     +'<div style="padding:18px 24px 22px">'
-    +'<div style="color:#5a6478;font-size:13px;line-height:1.55;margin-bottom:16px">Two private links for <b>'+_siEsc(biz)+'</b> to capture the story behind the numbers — the details that shape what the business is worth. The seller uses whichever they prefer: written form, video, or both. Everything comes back to this record.</div>'
+    +'<div style="color:#5a6478;font-size:13px;line-height:1.55;margin-bottom:16px">'+blurb+'</div>'
     +'<div id="siBody" style="color:#6b7488;font-size:13px">Preparing links…</div>'
     +'<div style="margin-top:20px;padding-top:14px;border-top:1px solid #eef1f6;text-align:right"><button id="siClose" style="background:#eef1f6;border:1px solid #dce2ec;color:#33415c;border-radius:9px;padding:10px 22px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer">Close</button></div>'
     +'</div></div>';
@@ -718,7 +742,7 @@ function openSellerIntake(){
   document.getElementById('siX').addEventListener('click',closeSi);
   var _siCloseBtn=document.getElementById('siClose'); if(_siCloseBtn) _siCloseBtn.addEventListener('click',closeSi);
   document.addEventListener('keydown',_siKey);
-  fetch('/api/seller-link',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid,business:biz})}).then(function(r){return r.json();}).then(function(j){
+  fetch('/api/seller-link',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid,business:biz,kind:kind})}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ document.getElementById('siBody').textContent=(j&&j.error)||'Could not create the links.'; return; }
     _siRender(j, email);
   }).catch(function(){ document.getElementById('siBody').textContent='Could not reach the server.'; });
@@ -1275,7 +1299,8 @@ load();
       var _go=function(ok){ if(!ok) return; var _busy=null; try{ if(window.rrgAiWork){ window.rrgAiWork.show('Qualifying '+((typeof P!=='undefined'&&P&&P.name)||'seller')+' \u2014 setting up the data room and moving to Data Collection\u2026'); } else if(window.rrgToast){ _busy=1; rrgToast('Qualifying\u2026'); } }catch(e){} fetch('/api/seller/skip-screening',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid})}).then(function(r){return r.json();}).then(function(j){ try{ if(window.rrgAiWork) window.rrgAiWork.hide(); }catch(e){} if(j&&j.ok){ _skipResult(j); } else { alert((j&&j.error)||'Could not skip the screening.'); } }).catch(function(){ try{ if(window.rrgAiWork) window.rrgAiWork.hide(); }catch(e){} alert('Could not reach the server.'); }); }; var _msg='Skip the screening call and mark this seller qualified? The listing moves straight to Data Collection, and the data-room and Seller Interview steps unlock.'; if(window.rrgConfirm){ window.rrgConfirm(_msg,{title:'Skip screening?',okText:'Skip \u0026 qualify'}).then(_go); } else { _go(window.confirm(_msg)); } }},
     {hdr:'Data \u0026 Valuation'},
     {t:'Upload Files to Data Room', lock:'screen', f:function(){ var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid2=(typeof CO!=='undefined'&&CO&&CO.id)||''; var biz=(typeof CO!=='undefined'&&CO&&CO.name)||(typeof P!=='undefined'&&P&&P.company)||(typeof P!=='undefined'&&P&&P.name)||''; if(!pid&&!cid2){ alert('No contact on this record.'); return; } fetch('/api/valuation-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid2,business:biz})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id){ location.href='./rrg_room.html?room='+encodeURIComponent(j.id); } else { alert((j&&j.error)||'Could not open a data room.'); } }).catch(function(){ alert('Could not open a data room.'); }); } },
-    {t:'Send Seller Interview', sub:'Private links — the seller shares the value story by form or video', lock:'screen', f:function(){ if(typeof openSellerIntake==='function'){ openSellerIntake(); } else { alert('One moment — still loading.'); } }},
+    {t:'Send Seller Screening', sub:'Private links — the seller answers the screening by form or video', f:function(){ if(typeof openSellerIntake==='function'){ openSellerIntake('seller'); } else { alert('One moment — still loading.'); } }},
+    {t:'Send Seller Interview', sub:'Private links — the seller shares the value story by form or video', lock:'screen', f:function(){ if(typeof openSellerIntake==='function'){ openSellerIntake('valuation'); } else { alert('One moment — still loading.'); } }},
     {t:'View Seller Interview', sub:'Transcript, AI debrief & video', lock:'interview', f:function(){ if(typeof openInterviewView==='function'){ openInterviewView(); } else { alert('One moment — still loading.'); } }},
     {t:'Generate Valuation (BOV)', f:function(){ var v=window.__valReady||{}; if(!v.ready){ var _miss=(v.missing&&v.missing.slice())||[]; if(_miss.length===1&&_miss[0]==='Lease'){ if(window.confirm('Only the lease is missing. If this business has no lease, open the data room and tick "No lease" in the Lease folder. Open it now?')){ var _pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var _cid=(typeof CO!=='undefined'&&CO&&CO.id)||''; fetch('/api/valuation-room',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:_pid,companyId:_cid})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.id) location.href='./rrg_room.html?room='+encodeURIComponent(j.id); }); } return; } var _m='Not ready yet — needs: '+(_miss.join(', ')||'financials, lease'); if(window.rrgToast) rrgToast(_m); else alert(_m); return; } var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid2=(typeof CO!=='undefined'&&CO&&CO.id)||''; if(v.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(v.bovId); } else { fetch('/api/valuation-ensure',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid2})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.bovId){ location.href='./rrg_bov_generate.html?bov='+encodeURIComponent(j.bovId); } else { alert((j&&j.error)||'Could not open the valuation.'); } }).catch(function(){ alert('Could not reach the server.'); }); } } },
     {hdr:'Align & Agree'},

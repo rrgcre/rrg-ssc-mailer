@@ -42,6 +42,22 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
 .done{text-align:center;padding:10px 0;}
 .done .ok{width:60px;height:60px;border-radius:50%;background:#e7f5ee;color:var(--green);display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:800;margin:0 auto 14px;}
 .alt{margin-top:14px;font-size:12.5px;color:var(--muted);}
+/* Branded intro that segues into the recorder */
+.intro{padding:0;overflow:hidden;border:none;box-shadow:0 12px 38px rgba(10,20,50,.14);}
+.introhero{background:radial-gradient(120% 150% at 20% 0%,#1c2e5c 0%,#112044 45%,#0b1636 72%,#071029 100%);color:#fff;padding:36px 30px 30px;text-align:center;}
+.introdisc{display:inline-flex;align-items:center;justify-content:center;background:var(--red);color:#fff;border-radius:50%;width:54px;height:54px;font:900 16px 'Arial Black',Arial,sans-serif;letter-spacing:-.04em;margin-bottom:16px;box-shadow:0 8px 22px rgba(218,43,31,.42);}
+.introkick{color:#ff8a82;font-weight:800;letter-spacing:.24em;font-size:10.5px;text-transform:uppercase;margin-bottom:9px;}
+.introh{font-size:24px;font-weight:800;margin:0 0 9px;color:#fff;line-height:1.22;}
+.introsub{color:#b9c3da;font-size:13.5px;line-height:1.55;max-width:470px;margin:0 auto;}
+.introchips{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:18px;}
+.introchip{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.17);color:#dbe3f2;border-radius:100px;padding:6px 13px;font-size:11.5px;font-weight:600;}
+.introbody{padding:22px 26px 26px;text-align:center;}
+.introbody p{color:var(--muted);font-size:13.5px;line-height:1.6;margin:0 auto 18px;max-width:480px;}
+.introbtn{font-size:16px;padding:15px 36px;box-shadow:0 8px 22px rgba(218,43,31,.28);}
+.introalt{margin-top:14px;font-size:12.5px;color:var(--muted);}
+.fadeout{opacity:0!important;transform:translateY(-8px)!important;transition:opacity .35s ease,transform .35s ease;}
+.fadein{animation:rrgfi .5s ease both;}@keyframes rrgfi{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.pulse{animation:rrgpulse 1.5s ease-in-out 2;}@keyframes rrgpulse{0%,100%{box-shadow:0 0 0 0 rgba(218,43,31,.0)}50%{box-shadow:0 0 0 8px rgba(218,43,31,.18)}}
 </style>
 </head>
 <body>
@@ -53,7 +69,21 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
     <div class="sub" id="hsub">Answer a few questions on camera, at your own pace. Private — only your representative sees it.</div>
   </div></div>
   <div class="wrap">
-    <div class="card" id="qcard">
+    <div class="card intro" id="introCard">
+      <div class="introhero">
+        <span class="introdisc" id="idisc">RRG</span>
+        <div class="introkick" id="ikick">Confidential</div>
+        <h1 class="introh" id="ihdr">A quick walkthrough</h1>
+        <div class="introsub" id="isub">Your representative has invited you to share a little about your business — in your own words, on camera.</div>
+        <div class="introchips"><span class="introchip">⏱ About 5 minutes</span><span class="introchip">🎥 One take — no pressure</span><span class="introchip">🔒 Private &amp; confidential</span></div>
+      </div>
+      <div class="introbody">
+        <p id="ibody">We'll show you each question one at a time and read it aloud. Just answer naturally and tap Next. Rough figures are fine, and you can repeat any question or take your time.</p>
+        <button class="bbtn go introbtn" id="beginBtn" type="button">Begin ▶</button>
+        <div class="introalt" id="ialt"></div>
+      </div>
+    </div>
+    <div class="card workstep" id="qcard" style="display:none">
       <h2>How this works</h2>
       <div class="note" style="margin-bottom:12px">Press <b>Start recording</b> and allow your camera and microphone. We'll show each question one at a time and <b>read it aloud</b> — just answer in your own words and press <b>Next question</b> to move on. No script, rough figures are fine, and you can take your time or repeat a question. When you're done, press <b>Stop &amp; submit</b> and it sends automatically.</div>
       <div id="voicewrap" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
@@ -63,7 +93,7 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
       </div>
       <details style="margin-top:6px"><summary style="cursor:pointer;font-size:12.5px;font-weight:700;color:var(--navy)">Preview all questions</summary><ol id="qlist" style="margin-top:8px"></ol></details>
     </div>
-    <div class="card">
+    <div class="card workstep" id="camcard" style="display:none">
       <div class="stage">
         <div class="ph" id="ph">Your camera preview will appear here once you start.</div>
         <video id="pv" autoplay muted playsinline style="display:none"></video>
@@ -104,20 +134,43 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
     'What are you hoping to get for the business, and on what timeline?',
     'Is there anything else a serious buyer should know?'
   ];
-  var READY=false;
+  var READY=false, ORG='', LABEL='';
   fetch('/s/video?token='+encodeURIComponent(TOKEN)).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ showGate(j&&j.error); return; }
     READY=!!j.ready;
     var org=j.org||'Restaurant Realty Group';
+    var label=j.label||'Video Interview'; var isScreen=(j.kind==='seller');
+    ORG=org; LABEL=label;
+    try{ document.title=label; }catch(e){}
     document.getElementById('orgf').textContent=org;
-    try{ document.getElementById('disc').textContent=(org.match(/\b[A-Za-z]/g)||['R']).slice(0,3).join('').toUpperCase(); }catch(e){}
+    var mono=(org.match(/\b[A-Za-z]/g)||['R']).slice(0,3).join('').toUpperCase();
+    try{ document.getElementById('disc').textContent=mono; }catch(e){}
+    try{ document.getElementById('idisc').textContent=mono; }catch(e){}
+    try{ document.getElementById('ikick').textContent='Confidential · '+label; }catch(e){}
+    try{ document.querySelector('#app .kick').textContent='Confidential '+label; }catch(e){}
     if(j.business){ document.getElementById('hdr').textContent=j.business; document.getElementById('hsub').textContent='Tell us about '+j.business+' in your own words. Private — only your representative sees it.'; }
+    // Branded intro personalization
+    try{ document.getElementById('ihdr').textContent = j.business ? ('A quick walkthrough for '+j.business) : ('A quick '+(isScreen?'screening':'')+' walkthrough'); }catch(e){}
+    try{ document.getElementById('isub').textContent = (isScreen
+      ? ('The team at '+org+' would like to learn about your restaurant or bar — in your own words, on camera.')
+      : (org+' has invited you to share the story behind your business — in your own words, on camera.')); }catch(e){}
     if(Array.isArray(j.questions)&&j.questions.length) QUESTIONS=j.questions;
     document.getElementById('qlist').innerHTML=QUESTIONS.map(function(q){ return '<li>'+esc(q)+'</li>'; }).join('');
-    document.getElementById('altline').innerHTML='Prefer not to be on camera? <a href="./seller_intake.html?t='+encodeURIComponent(TOKEN)+'" style="color:#DA2B1F;font-weight:700">Fill out a short form instead &rarr;</a>';
+    var altHtml='Prefer not to be on camera? <a href="./seller_intake.html?t='+encodeURIComponent(TOKEN)+'" style="color:#DA2B1F;font-weight:700">Fill out a short form instead &rarr;</a>';
+    document.getElementById('altline').innerHTML=altHtml;
+    try{ document.getElementById('ialt').innerHTML=altHtml; }catch(e){}
     app.style.display='block';
     initVoices();
   }).catch(function(){ showGate('We could not load this page. Please try again in a moment.'); });
+  // Segue: branded intro → the recorder. Reveal the working cards, greet, and cue Start.
+  (function(){ var bg=document.getElementById('beginBtn'); if(!bg) return; bg.addEventListener('click',function(){
+    var intro=document.getElementById('introCard');
+    if(intro){ intro.classList.add('fadeout'); setTimeout(function(){ try{ intro.style.display='none'; }catch(e){} },340); }
+    var cards=document.querySelectorAll('.workstep'); Array.prototype.forEach.call(cards,function(c,i){ c.style.display='block'; c.classList.add('fadein'); c.style.animationDelay=(i*80)+'ms'; });
+    var cam=document.getElementById('camcard'); if(cam){ setTimeout(function(){ try{ cam.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} },260); }
+    var sb=document.getElementById('startBtn'); if(sb){ setTimeout(function(){ sb.classList.add('pulse'); },500); }
+    try{ if(window.speechSynthesis){ var line='Welcome, and thanks for taking a few minutes with '+(ORG||'us')+'. When you’re ready, press Start recording, and I’ll walk you through each question.'; setTimeout(function(){ speak(line); },420); } }catch(e){}
+  }); })();
 
   var stream=null, vrec=null, vchunks=[], arec=null, achunks=[], ablob=null, t0=0, timer=null;
   var startBtn=document.getElementById('startBtn'), stopBtn=document.getElementById('stopBtn');
@@ -194,7 +247,7 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
   }
 
   function success(){
-    document.querySelector('.wrap').innerHTML='<div class="card"><div class="done"><div class="ok">✓</div><h2 style="font-size:19px;margin-bottom:6px">Thank you — your interview was sent.</h2><div style="color:#6b7488;font-size:13.5px;line-height:1.55;max-width:440px;margin:0 auto">Your representative has received your video and will follow up shortly. You can close this window.</div></div></div>';
+    document.querySelector('.wrap').innerHTML='<div class="card"><div class="done"><div class="ok">✓</div><h2 style="font-size:19px;margin-bottom:6px">Thank you — your recording was sent.</h2><div style="color:#6b7488;font-size:13.5px;line-height:1.55;max-width:440px;margin:0 auto">'+esc(ORG||'Your representative')+' has received your video and will follow up shortly. You can close this window.</div></div></div>';
     window.scrollTo({top:0,behavior:'smooth'});
   }
 })();

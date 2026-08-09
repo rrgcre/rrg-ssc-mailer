@@ -32,12 +32,18 @@ input.tin:focus,textarea.tin:focus{outline:none;border-color:#5b9be8;box-shadow:
 <div class="wrap" id="root"><div class="gate">Loading…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var ADMIN=false, SUBJ='', BODY='';
+var ADMIN=false, SUBJ='', BODY='', CURKIND='valuation', KINDS=[];
+function kindLabel(k){ for(var i=0;i<KINDS.length;i++){ if(KINDS[i].kind===k) return KINDS[i].label; } return 'Seller Interview'; }
 function render(){
-  if(!ADMIN){ document.getElementById('root').innerHTML='<h1>Seller Interview Email</h1><div class="sub">This is the email sent to a seller with their interview links. Only an administrator can edit it.</div>'; return; }
+  if(!ADMIN){ document.getElementById('root').innerHTML='<h1>Self-serve outreach emails</h1><div class="sub">These are the emails sent to a seller with their self-serve links. Only an administrator can edit them.</div>'; return; }
+  var sel='';
+  if(KINDS.length>1){
+    sel='<label class="fl">Which email</label><select class="tin" id="kindsel" style="max-width:320px">'+KINDS.map(function(k){ return '<option value="'+esc(k.kind)+'"'+(k.kind===CURKIND?' selected':'')+'>'+esc(k.label)+'</option>'; }).join('')+'</select>';
+  }
   document.getElementById('root').innerHTML=''
-    +'<h1>Seller Interview Email</h1>'
-    +'<div class="sub">This is the message sent from a contact’s <b>Send Seller Interview</b> panel — inviting the seller to share the details beyond the numbers that shape what their business is worth. Use the placeholders below; they’re filled in automatically when the email goes out, and the two link placeholders become clickable links.</div>'
+    +'<h1>Self-serve outreach emails</h1>'
+    +'<div class="sub">The message sent from a contact’s <b>Send '+esc(kindLabel(CURKIND))+'</b> panel, inviting the seller to complete their questions by written form or short video. Use the placeholders below; they’re filled in automatically when the email goes out, and the link placeholders become clickable links.</div>'
+    +sel
     +'<label class="fl">Subject</label><input class="tin" id="subj" value="'+esc(SUBJ)+'">'
     +'<label class="fl">Body</label>'+(window.RRGRte?RRGRte.html('body',{value:BODY,placeholder:'Write the message…'}):('<textarea class="tin" id="body">'+esc(BODY)+'</textarea>'))
     +'<div class="chips" id="chips"></div>'
@@ -70,9 +76,17 @@ function render(){
   document.querySelectorAll('.chip').forEach(function(ch){ ch.addEventListener('mousedown',function(e){ e.preventDefault(); }); ch.addEventListener('click',function(){ insertChip(ch.getAttribute('data-c')); }); });
   document.getElementById('save').addEventListener('click',save);
   document.getElementById('reset').addEventListener('click',function(){ doSave({reset:true}); });
+  var ks=document.getElementById('kindsel'); if(ks) ks.addEventListener('change',function(){ loadKind(ks.value); });
+}
+function loadKind(kind){
+  CURKIND=kind;
+  fetch('/api/admin/seller-intake-email?kind='+encodeURIComponent(kind),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok){ SUBJ=j.subject||''; BODY=j.body||''; if(Array.isArray(j.kinds)&&j.kinds.length) KINDS=j.kinds; render(); }
+  }).catch(function(){});
 }
 function save(){ var bodyVal=(window.RRGRte?RRGRte.get('body'):((document.getElementById('body')||{}).value||'')); doSave({ subject:document.getElementById('subj').value, body:bodyVal }); }
 function doSave(payload){
+  payload=payload||{}; payload.kind=CURKIND;
   var b=document.getElementById('save'), m=document.getElementById('msg'); if(b){ b.disabled=true; } m.textContent='';
   fetch('/api/admin/seller-intake-email',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)})
     .then(function(r){return r.json();}).then(function(j){ if(b){ b.disabled=false; }
@@ -82,7 +96,7 @@ function doSave(payload){
 }
 fetch('/api/admin/seller-intake-email',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load the email settings.</div>'; return; }
-  SUBJ=j.subject||''; BODY=j.body||''; ADMIN=!!j.isAdmin; render();
+  SUBJ=j.subject||''; BODY=j.body||''; ADMIN=!!j.isAdmin; CURKIND=j.kind||'valuation'; KINDS=Array.isArray(j.kinds)?j.kinds:[]; render();
 }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
 </script>
 </body>
