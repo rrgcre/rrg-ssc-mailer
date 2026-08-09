@@ -313,6 +313,9 @@
     try{ var _raw=localStorage.getItem(_CK); if(_raw!=null){ _hadState=true; _coll=JSON.parse(_raw)||{}; } }catch(e){}
     if(!_hadState){ nav.querySelectorAll('.lbl[data-grp]').forEach(function(l){ _coll[l.getAttribute('data-grp')]=1; }); try{ localStorage.setItem(_CK, JSON.stringify(_coll)); }catch(e){} }
     nav.querySelectorAll('.lbl[data-grp]').forEach(function(l){ var g=l.getAttribute('data-grp'); if(_coll[g]){ var grp=l.closest('.grp'); if(grp) grp.classList.add('collapsed'); } l.addEventListener('click',function(){ var grp=l.closest('.grp'); if(!grp) return; var on=grp.classList.toggle('collapsed'); try{ var c=JSON.parse(localStorage.getItem(_CK)||'{}')||{}; if(on) c[g]=1; else delete c[g]; localStorage.setItem(_CK,JSON.stringify(c)); }catch(e){} }); });
+    // Re-cache the nav HTML now that collapsed state is applied, so the pre-paint
+    // skeleton on the next page matches (no expand→collapse flash on navigation).
+    try{ localStorage.setItem('rrg_nav_html_v1', nav.innerHTML.replace(/class="it on"/g,'class="it"')); }catch(e){}
     // search → companies search (simple v1)
     var si=document.getElementById('rrgsearch');
     var sr=document.getElementById('rrgsr');
