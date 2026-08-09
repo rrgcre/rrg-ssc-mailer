@@ -5011,6 +5011,34 @@ const SELLER_FORM_FIELDS = [
   { k: 'timeline', label: 'Ideal timeline to sell' },
   { k: 'notes', label: 'Anything else a buyer should know', ta: true },
 ];
+// The seller interview draws its questions from the questionnaire assigned to the
+// "Seller Interview" call (Settings → Call Questionnaires → callForms.valuation).
+// Falls back to the generic list above if nothing is assigned.
+function sellerInterviewForm() {
+  try {
+    const asg = (loadSettings().callForms) || {};
+    const id = asg.valuation || asg.seller || '';
+    if (!id) return null;
+    return loadForms().find(f => f.id === id) || null;
+  } catch (e) { return null; }
+}
+function sellerInterviewFields() {
+  const f = sellerInterviewForm();
+  if (!f || !Array.isArray(f.categories)) {
+    return SELLER_FORM_FIELDS.map(x => ({ k: x.k, label: x.label, prompt: x.label, type: x.ta ? 'textarea' : 'text', options: [], section: '' }));
+  }
+  const out = [], seen = {};
+  f.categories.forEach(cat => { (Array.isArray(cat.questions) ? cat.questions : []).forEach((q, i) => {
+    if (!q || q.type === 'instruction' || q.instruction) return;
+    const label = String(q.label || q.prompt || '').trim(); if (!label) return;
+    let k = 'q_' + label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+    if (seen[k]) k = k + '_' + i; seen[k] = 1;
+    const isOpt = q.type === 'options' && Array.isArray(q.options) && q.options.length;
+    const type = isOpt ? 'options' : ((q.type === 'textarea' || q.type === 'longtext' || /note|describe|explain|why|anything|comment|detail/i.test(label)) ? 'textarea' : 'text');
+    out.push({ k, label, prompt: String(q.prompt || label), type, options: isOpt ? q.options.slice(0, 14) : [], section: String(cat.title || '') });
+  }); });
+  return out.length ? out : SELLER_FORM_FIELDS.map(x => ({ k: x.k, label: x.label, prompt: x.label, type: x.ta ? 'textarea' : 'text', options: [], section: '' }));
+}
 // Rep creates (or reuses) an intake link for a person/company.
 app.post('/api/seller-link', express.json(), (req, res) => {
   try {
@@ -5024,7 +5052,7 @@ app.post('/api/seller-link', express.json(), (req, res) => {
       all.push(rec); saveSellerLinks(all);
     } else if (b.business && !rec.business) { rec.business = String(b.business).slice(0, 160); saveSellerLinks(all); }
     const origin = req.protocol + '://' + req.get('host');
-    res.json({ ok: true, token: rec.token, formUrl: origin + '/seller_intake.html?t=' + rec.token, videoUrl: origin + '/seller_record.html?t=' + rec.token, business: rec.business || '', formSubmitted: !!(rec.form && rec.form.submittedAt), form: rec.form || null, fields: SELLER_FORM_FIELDS, videoCount: rec.videoCount || 0, emailedTo: rec.emailedTo || '' });
+    res.json({ ok: true, token: rec.token, formUrl: origin + '/seller_intake.html?t=' + rec.token, videoUrl: origin + '/seller_record.html?t=' + rec.token, business: rec.business || '', formSubmitted: !!(rec.form && rec.form.submittedAt), form: rec.form || null, fields: (rec.form && rec.form.fields) || sellerInterviewFields(), videoCount: rec.videoCount || 0, emailedTo: rec.emailedTo || '' });
   } catch (e) { console.error('seller-link:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 // Rep emails the two links to the seller.
@@ -5050,18 +5078,18 @@ app.post('/api/seller-link/email', express.json(), async (req, res) => {
 // ---- Public (token-gated, no login) endpoints the seller pages call ----
 app.get('/s/intake', (req, res) => {
   const rec = sellerLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
-  res.json({ ok: true, business: rec.business || '', org: orgDisplayName(), fields: SELLER_FORM_FIELDS, data: (rec.form && rec.form.data) || {}, submitted: !!(rec.form && rec.form.submittedAt) });
+  res.json({ ok: true, business: rec.business || '', org: orgDisplayName(), fields: sellerInterviewFields(), data: (rec.form && rec.form.data) || {}, submitted: !!(rec.form && rec.form.submittedAt) });
 });
-app.post('/s/intake/submit', express.json(), (req, res) => {
+app.post('/s/intake/submit', express.json({ limit: '256kb' }), (req, res) => {
   const all = loadSellerLinks(); const rec = all.find(x => x.token === String((req.body && req.body.token) || '')); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
-  const b = (req.body && req.body.data) || {}; const data = {};
-  SELLER_FORM_FIELDS.forEach(f => { data[f.k] = String(b[f.k] || '').slice(0, 4000); });
-  rec.form = { submittedAt: new Date().toISOString(), data }; saveSellerLinks(all);
+  const b = (req.body && req.body.data) || {}; const fields = sellerInterviewFields(); const data = {};
+  fields.forEach(f => { data[f.k] = String(b[f.k] || '').slice(0, 4000); });
+  rec.form = { submittedAt: new Date().toISOString(), data, fields }; saveSellerLinks(all);
   res.json({ ok: true });
 });
 app.get('/s/video', (req, res) => {
   const rec = sellerLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
-  res.json({ ok: true, business: rec.business || '', org: orgDisplayName(), ready: s3Configured() });
+  res.json({ ok: true, business: rec.business || '', org: orgDisplayName(), ready: s3Configured(), questions: sellerInterviewFields().map(f => f.prompt) });
 });
 app.post('/s/video/presign', express.json(), async (req, res) => {
   const rec = sellerLinkByToken(req.body && req.body.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });

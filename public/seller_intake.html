@@ -24,6 +24,12 @@ h1{font-size:25px;font-weight:800;margin:0;color:#fff;}
 .fld input,.fld textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:15px;background:#fff;color:var(--ink);}
 .fld input:focus,.fld textarea:focus{outline:none;border-color:#5b9be8;box-shadow:0 0 0 3px rgba(91,155,232,.15);}
 .fld textarea{min-height:78px;resize:vertical;}
+.sech{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--navy);margin:26px 0 12px;padding-bottom:7px;border-bottom:1px solid #eef1f6;}
+.sech:first-child{margin-top:2px;}
+.opts{display:flex;flex-direction:column;gap:8px;}
+.optch{display:flex;align-items:center;gap:10px;border:1px solid #d7dde8;border-radius:9px;padding:10px 13px;cursor:pointer;font-size:14px;color:var(--ink);}
+.optch:hover{border-color:#9fb0cc;background:#fafcff;}
+.optch input{margin:0;flex:none;}
 .sbtn{background:var(--navy);color:#fff;border:none;border-radius:11px;padding:14px 30px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;}
 .sbtn:disabled{opacity:.6;cursor:default;}
 #smsg{margin-top:13px;font-size:13.5px;font-weight:600;min-height:18px;}
@@ -70,11 +76,14 @@ h1{font-size:25px;font-weight:800;margin:0;color:#fff;}
     document.getElementById('orgf').textContent=org;
     try{ document.getElementById('disc').textContent=(org.match(/\b[A-Za-z]/g)||['R']).slice(0,3).join('').toUpperCase(); }catch(e){}
     if(j.business){ document.getElementById('hdr').textContent=j.business; document.getElementById('hsub').textContent='A few questions about the story behind the numbers at '+j.business+' — the details that shape what it’s worth. Private, and only your representative sees it.'; }
-    var f=document.getElementById('sform'); var data=j.data||{};
+    var f=document.getElementById('sform'); var data=j.data||{}; var curSec='';
     f.innerHTML=FIELDS.map(function(fd){
-      var v=esc(data[fd.k]||'');
-      var input=fd.ta ? ('<textarea id="f_'+fd.k+'">'+v+'</textarea>') : ('<input id="f_'+fd.k+'" value="'+v+'">');
-      return '<div class="fld"><label>'+esc(fd.label)+'</label>'+input+'</div>';
+      var head=''; if(fd.section && fd.section!==curSec){ curSec=fd.section; head='<div class="sech">'+esc(fd.section)+'</div>'; }
+      var raw=data[fd.k]||''; var lab=esc(fd.prompt||fd.label); var input;
+      if(fd.type==='options' && fd.options && fd.options.length){ input='<div class="opts">'+fd.options.map(function(o){ return '<label class="optch"><input type="radio" name="r_'+fd.k+'" value="'+esc(o)+'"'+(raw===o?' checked':'')+'><span>'+esc(o)+'</span></label>'; }).join('')+'</div>'; }
+      else if(fd.type==='textarea'){ input='<textarea id="f_'+fd.k+'">'+esc(raw)+'</textarea>'; }
+      else { input='<input id="f_'+fd.k+'" value="'+esc(raw)+'">'; }
+      return head+'<div class="fld"><label>'+lab+'</label>'+input+'</div>';
     }).join('');
     if(j.submitted){ document.getElementById('doneNote').style.display='block'; document.getElementById('introNote').style.display='none'; }
     document.getElementById('altline').innerHTML='Prefer to talk it through on camera instead? <a href="./seller_record.html?t='+encodeURIComponent(TOKEN)+'" style="color:#DA2B1F;font-weight:700">Record a short video &rarr;</a>';
@@ -82,7 +91,7 @@ h1{font-size:25px;font-weight:800;margin:0;color:#fff;}
   }).catch(function(){ showGate('We could not load this page. Please try again in a moment.'); });
   document.getElementById('ssubmit').addEventListener('click',function(){
     var btn=this, m=document.getElementById('smsg');
-    var data={}; FIELDS.forEach(function(fd){ var el=document.getElementById('f_'+fd.k); data[fd.k]=el?el.value:''; });
+    var data={}; FIELDS.forEach(function(fd){ if(fd.type==='options' && fd.options && fd.options.length){ var sel=f.querySelector('input[name="r_'+fd.k+'"]:checked'); data[fd.k]=sel?sel.value:''; } else { var el=document.getElementById('f_'+fd.k); data[fd.k]=el?el.value:''; } });
     btn.disabled=true; m.style.color='#6b7488'; m.textContent='Submitting…';
     fetch('/s/intake/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,data:data})}).then(function(r){return r.json();}).then(function(j){
       btn.disabled=false;

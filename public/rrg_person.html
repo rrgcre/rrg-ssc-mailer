@@ -694,7 +694,7 @@ function _siRender(j, email){
     var to=(document.getElementById('siEmail').value||'').trim(); var m=document.getElementById('siMsg');
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)){ m.style.color='#DA2B1F'; m.textContent='Enter a valid email address.'; return; }
     send.disabled=true; m.style.color='#6b7488'; m.textContent='Sending…';
-    fetch('/api/seller-link/email',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:j.token,to:to})}).then(function(r){return r.json();}).then(function(k){ send.disabled=false; if(k&&k.ok){ m.style.color='#1f8a5b'; m.textContent='Sent to '+to+' ✓'; } else { m.style.color='#DA2B1F'; m.textContent=(k&&k.error)||'Could not send.'; } }).catch(function(){ send.disabled=false; m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; });
+    fetch('/api/seller-link/email',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:j.token,to:to})}).then(function(r){return r.json();}).then(function(k){ send.disabled=false; if(k&&k.ok){ m.style.color='#1f8a5b'; m.textContent='Sent to '+to+' ✓'; setTimeout(function(){ var ov=document.getElementById('siOv'); if(ov) ov.remove(); if(window.rrgToast) rrgToast('Seller interview links emailed to '+to+' ✓'); },1000); } else { m.style.color='#DA2B1F'; m.textContent=(k&&k.error)||'Could not send.'; } }).catch(function(){ send.disabled=false; m.style.color='#DA2B1F'; m.textContent='Could not reach the server.'; });
   });
 }
 function openSellerIntake(){

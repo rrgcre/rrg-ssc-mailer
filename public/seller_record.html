@@ -55,14 +55,24 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
   <div class="wrap">
     <div class="card" id="qcard">
       <h2>How this works</h2>
-      <div class="note" style="margin-bottom:12px">There's nothing to download or print. Press <b>Start recording</b> below and allow your camera and microphone. Then just talk through the questions here in your own words, one at a time — like you're telling a friend about the business. No script, and rough figures are fine. <b>The questions stay on this screen the whole time</b>, so glance at them as you go, and take your time — you can pause to think. When you're finished, press <b>Stop &amp; submit</b> and it sends automatically. It usually takes just a few minutes.</div>
-      <ol id="qlist"></ol>
+      <div class="note" style="margin-bottom:12px">Press <b>Start recording</b> and allow your camera and microphone. We'll show each question one at a time and <b>read it aloud</b> — just answer in your own words and press <b>Next question</b> to move on. No script, rough figures are fine, and you can take your time or repeat a question. When you're done, press <b>Stop &amp; submit</b> and it sends automatically.</div>
+      <div id="voicewrap" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+        <label style="font-size:12.5px;font-weight:700;color:var(--navy)">🔊 Question voice</label>
+        <select id="voiceSel" style="border:1px solid #cfd6e2;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;background:#fff;max-width:220px"></select>
+        <button type="button" id="voiceTest" style="background:#fff;border:1px solid #d7dde8;border-radius:8px;padding:8px 12px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer">Preview</button>
+      </div>
+      <details style="margin-top:6px"><summary style="cursor:pointer;font-size:12.5px;font-weight:700;color:var(--navy)">Preview all questions</summary><ol id="qlist" style="margin-top:8px"></ol></details>
     </div>
     <div class="card">
       <div class="stage">
         <div class="ph" id="ph">Your camera preview will appear here once you start.</div>
         <video id="pv" autoplay muted playsinline style="display:none"></video>
         <div class="recbar" id="recbar"><span class="recdot"></span><span class="reclbl">REC</span><span class="rectime" id="rectime">0:00</span></div>
+      </div>
+      <div id="qpanel" style="display:none;margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#f7f9fc">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px"><span id="qprog" style="font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--soft)">Question 1</span><button type="button" id="qrepeat" style="margin-left:auto;background:#fff;border:1px solid #d7dde8;border-radius:8px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer">🔊 Repeat</button></div>
+        <div id="qtext" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.4;min-height:58px"></div>
+        <div style="display:flex;gap:8px;margin-top:14px"><button type="button" id="qprev" style="background:#f2f5fb;border:1px solid #dfe6f2;color:var(--navy);border-radius:11px;padding:11px 18px;font:inherit;font-size:14px;font-weight:800;cursor:pointer">◀ Back</button><button type="button" id="qnext" style="background:var(--navy);border:none;color:#fff;border-radius:11px;padding:11px 22px;font:inherit;font-size:14px;font-weight:800;cursor:pointer">Next question ▶</button></div>
       </div>
       <div class="btnrow">
         <button class="bbtn go" id="startBtn" type="button">● Start recording</button>
@@ -102,9 +112,11 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
     document.getElementById('orgf').textContent=org;
     try{ document.getElementById('disc').textContent=(org.match(/\b[A-Za-z]/g)||['R']).slice(0,3).join('').toUpperCase(); }catch(e){}
     if(j.business){ document.getElementById('hdr').textContent=j.business; document.getElementById('hsub').textContent='Tell us about '+j.business+' in your own words. Private — only your representative sees it.'; }
+    if(Array.isArray(j.questions)&&j.questions.length) QUESTIONS=j.questions;
     document.getElementById('qlist').innerHTML=QUESTIONS.map(function(q){ return '<li>'+esc(q)+'</li>'; }).join('');
     document.getElementById('altline').innerHTML='Prefer not to be on camera? <a href="./seller_intake.html?t='+encodeURIComponent(TOKEN)+'" style="color:#DA2B1F;font-weight:700">Fill out a short form instead &rarr;</a>';
     app.style.display='block';
+    initVoices();
   }).catch(function(){ showGate('We could not load this page. Please try again in a moment.'); });
 
   var stream=null, vrec=null, vchunks=[], arec=null, achunks=[], ablob=null, t0=0, timer=null;
@@ -113,6 +125,16 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
   function fmt(s){ s=Math.floor(s); var m=Math.floor(s/60), ss=s%60; return m+':'+(ss<10?'0':'')+ss; }
   function msg(t,c){ var m=document.getElementById('umsg'); m.textContent=t||''; m.style.color=c||'#6b7488'; }
   function prog(p){ var w=document.getElementById('prog'), b=document.getElementById('progbar'); if(p==null){ w.classList.remove('on'); return; } w.classList.add('on'); b.style.width=Math.max(3,Math.min(100,p))+'%'; }
+
+  // ---- Spoken, guided questions (text-to-speech with voice choice) ----
+  var SS=window.speechSynthesis||null, voices=[], qIdx=0;
+  function loadVoices(){ if(!SS) return; try{ var all=SS.getVoices()||[]; voices=all.filter(function(v){ return /^en/i.test(v.lang); }); if(!voices.length) voices=all; }catch(e){ voices=[]; } fillVoiceSel(); }
+  function fillVoiceSel(){ var sel=document.getElementById('voiceSel'), w=document.getElementById('voicewrap'); if(!sel||!SS){ if(w) w.style.display='none'; return; } if(!voices.length){ w.style.display='none'; return; } var pref=voices.filter(function(v){ return /Google|Samantha|Natural|Aria|Jenny|Zira|Female|Karen|Serena/i.test(v.name); }); var ordered=pref.concat(voices.filter(function(v){ return pref.indexOf(v)<0; })); var cur=sel.value; sel.innerHTML=ordered.map(function(v){ return '<option value="'+esc(v.name)+'">'+esc(v.name.replace(/\s*\(.*\)$/,''))+'</option>'; }).join(''); if(cur) sel.value=cur; w.style.display='flex'; }
+  function pickedVoice(){ if(!SS||!voices.length) return null; var nm=(document.getElementById('voiceSel')||{}).value||''; return voices.filter(function(v){ return v.name===nm; })[0]||voices[0]; }
+  function speak(text){ if(!SS||!text) return; try{ SS.cancel(); var u=new SpeechSynthesisUtterance(String(text)); var v=pickedVoice(); if(v){ u.voice=v; u.lang=v.lang; } u.rate=0.98; u.pitch=1; SS.speak(u); }catch(e){} }
+  function initVoices(){ if(!SS){ var w=document.getElementById('voicewrap'); if(w) w.style.display='none'; return; } loadVoices(); try{ SS.onvoiceschanged=loadVoices; }catch(e){} var t=document.getElementById('voiceTest'); if(t) t.addEventListener('click',function(){ speak('Hi — this is the voice that will read your interview questions.'); }); }
+  function showQuestion(i){ if(i<0) i=0; if(i>=QUESTIONS.length) i=QUESTIONS.length-1; qIdx=i; var qt=document.getElementById('qtext'), qpr=document.getElementById('qprog'); if(qt) qt.textContent=QUESTIONS[i]||''; if(qpr) qpr.textContent='Question '+(i+1)+' of '+QUESTIONS.length; var prev=document.getElementById('qprev'), next=document.getElementById('qnext'); if(prev) prev.style.visibility=(i>0)?'visible':'hidden'; if(next) next.textContent=(i>=QUESTIONS.length-1)?'That’s the last one':'Next question ▶'; speak(QUESTIONS[i]); }
+  (function(){ var n=document.getElementById('qnext'), p=document.getElementById('qprev'), r=document.getElementById('qrepeat'); if(n) n.addEventListener('click',function(){ if(qIdx<QUESTIONS.length-1) showQuestion(qIdx+1); else speak(QUESTIONS[qIdx]); }); if(p) p.addEventListener('click',function(){ showQuestion(qIdx-1); }); if(r) r.addEventListener('click',function(){ speak(QUESTIONS[qIdx]); }); })();
 
   startBtn.addEventListener('click',function(){
     if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder)){ msg('This browser can’t record video. Please try the latest Chrome or Safari, or use the form link below.','#DA2B1F'); return; }
@@ -126,13 +148,15 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
       vrec.onstop=function(){ finalize(); };
       vrec.start(1000); t0=Date.now();
       try{ var at=s.getAudioTracks?s.getAudioTracks():[]; if(at.length){ var am=''; ['audio/webm;codecs=opus','audio/webm'].some(function(m){ try{ if(MediaRecorder.isTypeSupported(m)){ am=m; return true; } }catch(e){} return false; }); var ao={audioBitsPerSecond:32000}; if(am) ao.mimeType=am; try{ arec=new MediaRecorder(new MediaStream(at),ao); }catch(e){ try{ arec=new MediaRecorder(new MediaStream(at)); }catch(_){ arec=null; } } if(arec){ arec.ondataavailable=function(e){ if(e.data&&e.data.size) achunks.push(e.data); }; arec.onstop=function(){ try{ if(achunks.length) ablob=new Blob(achunks,{type:(arec.mimeType&&String(arec.mimeType).split(';')[0])||'audio/webm'}); }catch(e){} }; arec.start(1000); } } }catch(e){}
-      startBtn.style.display='none'; stopBtn.style.display='inline-block'; recbar.classList.add('on'); msg('Recording — take your time. Press Stop &amp; submit when you’re done.','#1f8a5b');
+      startBtn.style.display='none'; stopBtn.style.display='inline-block'; recbar.classList.add('on'); msg('Recording — answer each question, then press Next. Stop &amp; submit when you’re done.','#1f8a5b');
+      var qpn=document.getElementById('qpanel'); if(qpn) qpn.style.display='block'; qIdx=0; showQuestion(0);
       timer=setInterval(function(){ document.getElementById('rectime').textContent=fmt((Date.now()-t0)/1000); },500);
     }).catch(function(err){ startBtn.disabled=false; msg('We couldn’t start your camera ('+((err&&err.name)||'blocked')+'). Please allow camera and microphone access, or use the form link below.','#DA2B1F'); });
   });
 
   stopBtn.addEventListener('click',function(){
     stopBtn.disabled=true; if(timer){ clearInterval(timer); timer=null; } recbar.classList.remove('on');
+    try{ if(SS) SS.cancel(); }catch(e){} var qpn=document.getElementById('qpanel'); if(qpn) qpn.style.display='none';
     try{ if(arec&&arec.state&&arec.state!=='inactive') arec.stop(); }catch(e){}
     try{ if(vrec&&vrec.state&&vrec.state!=='inactive') vrec.stop(); else finalize(); }catch(e){ finalize(); }
   });

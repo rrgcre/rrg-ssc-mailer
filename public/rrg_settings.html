@@ -86,11 +86,12 @@ function buildRail(){
   var rail=document.getElementById('srail'); rail.innerHTML=h;
   rail.querySelectorAll('.sitem').forEach(function(a){ a.addEventListener('click',function(){ open(a.getAttribute('data-k')); }); });
 }
+function stripShell(f){ try{ var d=f&&(f.contentDocument||(f.contentWindow&&f.contentWindow.document)); if(!d) return; ['rrgnav','rrgtop','rrgnav-skel','rrgshell-preload'].forEach(function(id){ var e=d.getElementById(id); if(e&&e.parentNode) e.parentNode.removeChild(e); }); if(d.body){ d.body.classList.remove('rrg-shelled'); d.body.classList.remove('rrg-collapsed'); d.body.style.paddingLeft='0'; d.body.style.paddingTop='0'; } }catch(e){} }
 function open(k){
   var it=ALL[k]||ALL['general']; if(!it) return;
   document.querySelectorAll('.sitem').forEach(function(a){ a.classList.toggle('on', a.getAttribute('data-k')===it.k); });
   var f=document.getElementById('spanel'); var ld=document.getElementById('sload'); if(ld) ld.classList.remove('hide');
-  f.onload=function(){ if(ld) ld.classList.add('hide'); };
+  f.onload=function(){ if(ld) ld.classList.add('hide'); stripShell(f); setTimeout(function(){ stripShell(f); },120); };
   f.src=it.src+'?embed=1';
   try{ history.replaceState({},'', location.pathname+'?tab='+encodeURIComponent(it.k)); }catch(e){}
 }
