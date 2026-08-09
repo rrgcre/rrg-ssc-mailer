@@ -107,6 +107,7 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
       <div class="btnrow">
         <button class="bbtn go" id="startBtn" type="button">● Start recording</button>
         <button class="bbtn stop" id="stopBtn" type="button" style="display:none">■ Stop &amp; submit</button>
+        <button class="bbtn ghost" id="cancelBtn" type="button" style="display:none">Cancel</button>
       </div>
       <div class="prog" id="prog"><i id="progbar"></i></div>
       <div id="umsg"></div>
@@ -172,8 +173,8 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
     try{ if(window.speechSynthesis){ var line='Welcome, and thanks for taking a few minutes with '+(ORG||'us')+'. When you’re ready, press Start recording, and I’ll walk you through each question.'; setTimeout(function(){ speak(line); },420); } }catch(e){}
   }); })();
 
-  var stream=null, vrec=null, vchunks=[], arec=null, achunks=[], ablob=null, t0=0, timer=null;
-  var startBtn=document.getElementById('startBtn'), stopBtn=document.getElementById('stopBtn');
+  var stream=null, vrec=null, vchunks=[], arec=null, achunks=[], ablob=null, t0=0, timer=null, CANCELLED=false;
+  var startBtn=document.getElementById('startBtn'), stopBtn=document.getElementById('stopBtn'), cancelBtn=document.getElementById('cancelBtn');
   var pv=document.getElementById('pv'), ph=document.getElementById('ph'), recbar=document.getElementById('recbar');
   function fmt(s){ s=Math.floor(s); var m=Math.floor(s/60), ss=s%60; return m+':'+(ss<10?'0':'')+ss; }
   function msg(t,c){ var m=document.getElementById('umsg'); m.textContent=t||''; m.style.color=c||'#6b7488'; }
@@ -201,23 +202,46 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
       vrec.onstop=function(){ finalize(); };
       vrec.start(1000); t0=Date.now();
       try{ var at=s.getAudioTracks?s.getAudioTracks():[]; if(at.length){ var am=''; ['audio/webm;codecs=opus','audio/webm'].some(function(m){ try{ if(MediaRecorder.isTypeSupported(m)){ am=m; return true; } }catch(e){} return false; }); var ao={audioBitsPerSecond:32000}; if(am) ao.mimeType=am; try{ arec=new MediaRecorder(new MediaStream(at),ao); }catch(e){ try{ arec=new MediaRecorder(new MediaStream(at)); }catch(_){ arec=null; } } if(arec){ arec.ondataavailable=function(e){ if(e.data&&e.data.size) achunks.push(e.data); }; arec.onstop=function(){ try{ if(achunks.length) ablob=new Blob(achunks,{type:(arec.mimeType&&String(arec.mimeType).split(';')[0])||'audio/webm'}); }catch(e){} }; arec.start(1000); } } }catch(e){}
-      startBtn.style.display='none'; stopBtn.style.display='inline-block'; recbar.classList.add('on'); msg('Recording — answer each question, then press Next. Stop &amp; submit when you’re done.','#1f8a5b');
+      startBtn.style.display='none'; stopBtn.style.display='inline-block'; if(cancelBtn) cancelBtn.style.display='inline-block'; CANCELLED=false; recbar.classList.add('on'); msg('Recording — answer each question, then press Next. Stop &amp; submit when you’re done.','#1f8a5b');
       var qpn=document.getElementById('qpanel'); if(qpn) qpn.style.display='block'; qIdx=0; showQuestion(0);
       timer=setInterval(function(){ document.getElementById('rectime').textContent=fmt((Date.now()-t0)/1000); },500);
     }).catch(function(err){ startBtn.disabled=false; msg('We couldn’t start your camera ('+((err&&err.name)||'blocked')+'). Please allow camera and microphone access, or use the form link below.','#DA2B1F'); });
   });
 
   stopBtn.addEventListener('click',function(){
-    stopBtn.disabled=true; if(timer){ clearInterval(timer); timer=null; } recbar.classList.remove('on');
+    stopBtn.disabled=true; if(cancelBtn) cancelBtn.style.display='none'; if(timer){ clearInterval(timer); timer=null; } recbar.classList.remove('on');
     try{ if(SS) SS.cancel(); }catch(e){} var qpn=document.getElementById('qpanel'); if(qpn) qpn.style.display='none';
     try{ if(arec&&arec.state&&arec.state!=='inactive') arec.stop(); }catch(e){}
     try{ if(vrec&&vrec.state&&vrec.state!=='inactive') vrec.stop(); else finalize(); }catch(e){ finalize(); }
   });
+  // A way out mid-recording: stop and discard, back to the start — nothing is sent.
+  if(cancelBtn) cancelBtn.addEventListener('click',function(){
+    if(!window.confirm('Discard this recording? Nothing will be sent, and you can start over.')) return;
+    CANCELLED=true;
+    if(timer){ clearInterval(timer); timer=null; } recbar.classList.remove('on');
+    try{ if(SS) SS.cancel(); }catch(e){}
+    try{ if(arec&&arec.state&&arec.state!=='inactive') arec.stop(); }catch(e){}
+    try{ if(vrec&&vrec.state&&vrec.state!=='inactive') vrec.stop(); else resetReady(); }catch(e){ resetReady(); }
+  });
+  function resetReady(){
+    stopStream();
+    try{ pv.style.display='none'; pv.srcObject=null; }catch(e){}
+    ph.style.display='block'; ph.textContent='Your camera preview will appear here once you start.';
+    var qpn=document.getElementById('qpanel'); if(qpn) qpn.style.display='none';
+    recbar.classList.remove('on'); if(timer){ clearInterval(timer); timer=null; }
+    try{ if(SS) SS.cancel(); }catch(e){}
+    startBtn.style.display='inline-block'; startBtn.disabled=false;
+    stopBtn.style.display='none'; stopBtn.disabled=false; if(cancelBtn) cancelBtn.style.display='none';
+    vchunks=[]; achunks=[]; ablob=null; prog(null);
+    msg('Recording discarded — nothing was sent. Press Start recording to try again, or close this window when you’re done.','#6b7488');
+  }
 
   function stopStream(){ try{ if(stream) stream.getTracks().forEach(function(t){t.stop();}); }catch(e){} }
   function dur(){ return t0?Math.max(1,Math.round((Date.now()-t0)/1000)):0; }
 
   function finalize(){
+    if(CANCELLED){ CANCELLED=false; resetReady(); return; }
+    if(cancelBtn) cancelBtn.style.display='none';
     var vblob=null; try{ if(vchunks.length) vblob=new Blob(vchunks,{type:(vrec&&vrec.mimeType)||'video/webm'}); }catch(e){}
     stopStream(); pv.style.display='none'; ph.style.display='block'; ph.textContent='Uploading your interview…';
     if(!vblob||!vblob.size){ msg('We didn’t capture any video. Please try again, or use the form link below.','#DA2B1F'); startBtn.style.display='inline-block'; startBtn.disabled=false; stopBtn.style.display='none'; return; }
