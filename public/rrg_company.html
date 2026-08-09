@@ -230,7 +230,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
-var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Seller','Buyer'], PTYPES=['Buyer'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Dancehall','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], CUISINE_TYPES=[], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, CAN_DELETE=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], AUTOMATIONS=[], LOGOAUTO='', TITLES=[], LEADSOURCES=[], CO_AGR_FILE=null, ACTIVITY=[], ACTTYPES=[], USERS=[], CO_ACTFILTER='', DIRTY=false;
+var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Restaurant Group'], PTYPES=['Buying'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Dancehall','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], CUISINE_TYPES=[], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, CAN_DELETE=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], AUTOMATIONS=[], LOGOAUTO='', TITLES=[], LEADSOURCES=[], CO_AGR_FILE=null, ACTIVITY=[], ACTTYPES=[], USERS=[], CO_ACTFILTER='', DIRTY=false;
 var EXPANDED={};
 function conceptById(id){ return CONCEPTS.filter(function(x){return x.id===id;})[0]||null; }
 function normUrl(u){ u=String(u||'').trim(); if(!u) return ''; return /^https?:\/\//i.test(u)?u:('https://'+u); }
@@ -925,7 +925,7 @@ function openContactForm(){
   f.innerHTML='<div class="cform"><div class="cgrid">'
     +'<div><label class="fld">First name *</label><input id="ct_first" placeholder="First"></div>'
     +'<div><label class="fld">Last name *</label><input id="ct_last" placeholder="Last"></div>'
-    +'<div><label class="fld">Type *</label><select id="ct_type">'+ptsel+'</select></div>'
+    +'<div><label class="fld">Main Interests *</label><select id="ct_type">'+ptsel+'</select></div>'
     +'<div><label class="fld">Title / role</label><input id="ct_title" list="ct_titlelist" autocomplete="off" placeholder="Owner, partner, GM…"><datalist id="ct_titlelist">'+titleOpts+'</datalist></div>'
     +'<div><label class="fld">Nickname</label><input id="ct_nick" placeholder="Optional"></div>'
     +'<div><label class="fld">Lead source</label><input id="ct_lead" list="ct_leadlist" autocomplete="off" placeholder="Referral, CoStar, event"><datalist id="ct_leadlist">'+leadOpts+'</datalist></div>'
@@ -944,7 +944,7 @@ function saveContact(){
   var f=document.getElementById('contactForm'), msg=document.getElementById('ct_msg');
   var first=document.getElementById('ct_first').value.trim(), last=document.getElementById('ct_last').value.trim(), type=document.getElementById('ct_type').value;
   if(!first||!last){ msg.textContent='First and last name are required.'; return; }
-  if(!type){ msg.textContent='Pick a contact type.'; return; }
+  if(!type){ msg.textContent='Pick a main interest.'; return; }
   var pref=[]; f.querySelectorAll('.ct_pref').forEach(function(c){ if(c.checked) pref.push(c.value); });
   var tags=(document.getElementById('ct_tags').value||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
   var body={ firstName:first, lastName:last, type:type, title:document.getElementById('ct_title').value.trim(), nickname:document.getElementById('ct_nick').value.trim(), leadSource:document.getElementById('ct_lead').value.trim(), tags:tags, prefContact:pref, emails:collectMulti(f,'ct_email'), phones:collectMulti(f,'ct_phone') };

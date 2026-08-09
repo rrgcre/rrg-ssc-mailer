@@ -130,7 +130,10 @@ function ownsDeal(req, d) {
 // tours, NDAs, and data-room buyers all link back to a person by personId, so the same
 // buyer connects across every deal they touch.
 const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
-const PERSON_TYPES = ['Buyer', 'Seller', 'Tenant', 'Investor', 'Broker', 'Referral Source', 'Internal Personnel', 'Other'];
+// Contact "Main Interests" (formerly contact types).
+const PERSON_TYPES = ['Buying', 'Selling', 'Investing', 'Referring', 'Internal Personnel', 'Other'];
+// Old names, retired from the picker everywhere (a one-time migration remaps existing contacts).
+const RETIRED_PERSON_TYPES = ['buyer', 'seller', 'tenant', 'investor', 'broker', 'referral source'];
 const LEAD_SOURCES = ['Referral', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
 // System-required lead sources: cannot be deleted in admin — referral tracking / attribution depends on them.
 const SYSTEM_LEAD_SOURCES = ['Referral'];
@@ -374,7 +377,22 @@ const SYSTEM_TICKET_CATEGORIES = TICKET_CATEGORIES.slice();
 const SYSTEM_ACTIVITY_TYPES = ACTIVITY_TYPES.slice();
 const SYSTEM_CUISINE_TYPES = CUISINE_TYPES.slice();
 function _mergeRequired(list, req){ const out = Array.isArray(list) ? list.slice() : []; (req||[]).forEach(function(rq){ if (!out.some(function(x){ return String(x).toLowerCase() === String(rq).toLowerCase(); })) out.push(rq); }); return out; }
-function effPersonTypes() { const s = loadSettings(); return _mergeRequired((Array.isArray(s.personTypes) && s.personTypes.length) ? s.personTypes : PERSON_TYPES, SYSTEM_PERSON_TYPES); }
+function effPersonTypes() { const s = loadSettings(); const base = ((Array.isArray(s.personTypes) && s.personTypes.length) ? s.personTypes : PERSON_TYPES).filter(function(t){ return RETIRED_PERSON_TYPES.indexOf(String(t).toLowerCase()) < 0; }); return _mergeRequired(base, SYSTEM_PERSON_TYPES); }
+// One-time remap of existing contacts from the old contact-type names to Main Interests.
+// Deferred + guarded so it runs exactly once and can never block or crash boot.
+function migratePersonInterestsV1() {
+  try {
+    const s = loadSettings(); if (s.personInterestsMigratedV1) return;
+    const map = { 'buyer': 'Buying', 'seller': 'Selling', 'investor': 'Investing', 'referral source': 'Referring' };
+    const drop = ['tenant', 'broker'];
+    const ppl = loadPeople(); let ch = false;
+    (Array.isArray(ppl) ? ppl : []).forEach(function (p) { if (!p || !p.type) return; const k = String(p.type).toLowerCase(); if (map[k]) { if (p.type !== map[k]) { p.type = map[k]; ch = true; } } else if (drop.indexOf(k) >= 0) { p.type = ''; ch = true; } });
+    if (ch) savePeople(ppl);
+    s.personInterestsMigratedV1 = true; saveSettings(s);
+    console.log('migratePersonInterestsV1: done' + (ch ? ' (contacts updated)' : ''));
+  } catch (e) { console.error('migratePersonInterestsV1:', e && e.message); }
+}
+try { setTimeout(migratePersonInterestsV1, 4000); } catch (e) {}
 function effLeadSources() { const s = loadSettings(); let list = (Array.isArray(s.leadSources) && s.leadSources.length) ? s.leadSources.slice() : LEAD_SOURCES.slice(); SYSTEM_LEAD_SOURCES.forEach(function(rq){ if (!list.some(function(x){ return String(x).toLowerCase() === rq.toLowerCase(); })) list.unshift(rq); }); return list; }
 function effActivityTypes() { const s = loadSettings(); return _mergeRequired((Array.isArray(s.activityTypes) && s.activityTypes.length) ? s.activityTypes : ACTIVITY_TYPES, SYSTEM_ACTIVITY_TYPES); }
 function effCuisineTypes() { const s = loadSettings(); return (Array.isArray(s.cuisineTypes) && s.cuisineTypes.length) ? s.cuisineTypes : CUISINE_TYPES; }
@@ -4177,7 +4195,7 @@ app.post('/api/assignment/:key/deal', express.json(), (req, res) => {
   if (typeof b.commissionPaid === 'string') t.commissionPaid = b.commissionPaid.slice(0, 40);
   if (typeof b.commissionStatus === 'string' && TXN_COMM_STATUS.indexOf(b.commissionStatus) >= 0) t.commissionStatus = b.commissionStatus;
   t.updatedAt = new Date().toISOString();
-  if (t.buyer || b.buyerEmail) { const p = findOrCreatePerson(req, { name: t.buyer, email: b.buyerEmail, company: t.buyerCompany, type: 'Buyer' }); if (p) t.personId = p.id; }
+  if (t.buyer || b.buyerEmail) { const p = findOrCreatePerson(req, { name: t.buyer, email: b.buyerEmail, company: t.buyerCompany, type: 'Buying' }); if (p) t.personId = p.id; }
   cur.transaction = t; cur.updatedAt = new Date().toISOString();
   overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true, transaction: t, people: loadPeople().map(personBrief) });
@@ -4304,7 +4322,7 @@ function importBbsLeads(req, leads) {
     const nameKey = _nn ? byName[_nn] : null;
     let key = numKey || nameKey || refKey || null; let createdStub = false;
     const qualBits = []; if (l.funds) qualBits.push('Funds: ' + l.funds); if (l.timeframe) qualBits.push('Timeframe: ' + l.timeframe); if (l.zip) qualBits.push('Zip: ' + l.zip); const qualLine = qualBits.join(' \u00b7 ');
-    const person = findOrCreatePerson(req, { name: l.name || '', firstName: l.firstName || '', lastName: l.lastName || '', email: email, phones: l.phone ? [l.phone] : [], type: 'Buyer', companyId: _bbsCoId });
+    const person = findOrCreatePerson(req, { name: l.name || '', firstName: l.firstName || '', lastName: l.lastName || '', email: email, phones: l.phone ? [l.phone] : [], type: 'Buying', companyId: _bbsCoId });
     if (person) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === person.id); if (pp) { logActivity(pp, 'BizBuySell Lead', ('Inquired on ' + (l.listingName || 'a listing') + (l.refId ? (' \u00b7 Ref ' + l.refId) : (l.listingNumber ? (' \u00b7 #' + l.listingNumber) : '')) + (qualLine ? (' \u00b7 ' + qualLine) : '') + (l.message ? (' \u2014 \u201c' + String(l.message).slice(0,140) + '\u201d') : '')).slice(0, 300), { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
     const _lplan = (key && overlay[key] && overlay[key].leadAutomationId) ? (_autos.find(a => a.id === overlay[key].leadAutomationId && a.active !== false) || _bbsPlan) : _bbsPlan;
     if (person && _lplan) { try { const ppl2 = loadPeople(); const pp2 = ppl2.find(x => x.id === person.id); if (pp2 && enrollPerson(pp2, _lplan, { byName: 'BizBuySell auto-import', byUser: 'system' })) savePeople(ppl2); } catch (e) {} }
@@ -5474,7 +5492,7 @@ app.post('/api/assignment/:key/inquiry', express.json(), (req, res) => {
   if (typeof b.note === 'string') rec.note = b.note.slice(0, 2000);
   if (typeof b.status === 'string' && INQ_STATUS.indexOf(b.status) >= 0) rec.status = b.status;
   if (!rec.status) rec.status = 'Unqualified';
-  if ((rec.name || rec.email) && !rec.personId) { const p = findOrCreatePerson(req, { name: rec.name || '', email: rec.email || '', phones: rec.phone ? [rec.phone] : [], type: 'Buyer' }); if (p) rec.personId = p.id; }
+  if ((rec.name || rec.email) && !rec.personId) { const p = findOrCreatePerson(req, { name: rec.name || '', email: rec.email || '', phones: rec.phone ? [rec.phone] : [], type: 'Buying' }); if (p) rec.personId = p.id; }
   rec.updatedAt = now;
   cur.inquiries = inqs; cur.updatedAt = now; overlay[d.key] = cur; saveAssignOverlay(overlay);
   res.json({ ok: true, inquiries: inqs, statuses: INQ_STATUS });

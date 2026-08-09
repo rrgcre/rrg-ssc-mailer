@@ -1136,7 +1136,7 @@ function render(){
       + '<div class="rsec" data-rsec><div class="rsechd">Identity <span class="cv">▾</span></div><div class="rsecbody">'
       + '<div class="photorow"><div class="photoprev" id="p_photoprev" title="Click to upload a photo">'+photoInner+'</div><input type="file" id="p_photofile" accept="image/*" hidden></div>'
       + '<div class="fldrow2"><div><label class="fld">First name *</label><input id="p_first" value="'+esc(P.firstName||'')+'" style="font-weight:700"></div><div><label class="fld">Last name *</label><input id="p_last" value="'+esc(P.lastName||'')+'" style="font-weight:700"></div></div>'
-      + '<div class="fldrow2"><div><label class="fld">Nickname</label><input id="p_nick" value="'+esc(P.nickname||'')+'" placeholder="Optional"></div><div><label class="fld">Type *</label><select id="p_type">'+ptsel+'</select></div></div>'
+      + '<div class="fldrow2"><div><label class="fld">Nickname</label><input id="p_nick" value="'+esc(P.nickname||'')+'" placeholder="Optional"></div><div><label class="fld">Main Interests *</label><select id="p_type">'+ptsel+'</select></div></div>'
       + '<div class="fldrow"><label class="fld">Company'+(CO&&CO.id?(' <a class="colink" href="./rrg_company.html?id='+encodeURIComponent(CO.id)+'">open →</a>'):'')+'</label><div class="coauto"><input id="p_company" value="'+esc((CO&&CO.name)||P.company||'')+'" placeholder="Start typing to find a company" autocomplete="off" style="font-weight:400"><div class="cosug" id="p_cosug" hidden></div></div></div>'
       + '</div></div>'
       + '<div class="rsec" data-rsec><div class="rsechd">Communication <span class="cv">▾</span></div><div class="rsecbody">'
@@ -1213,7 +1213,7 @@ function savePerson(silent){
   var m=document.getElementById('p_msg'), st=document.getElementById('p_saved'), root=document.getElementById('root');
   var first=document.getElementById('p_first').value.trim(), last=document.getElementById('p_last').value.trim(), type=document.getElementById('p_type').value;
   if(!first||!last){ if(m)m.textContent='First and last name are required.'; return; }
-  if(!type){ if(m)m.textContent='Pick a contact type.'; return; }
+  if(!type){ if(m)m.textContent='Pick a main interest.'; return; }
   if(m) m.textContent=''; if(st){ st.textContent='Saving…'; st.classList.add('show'); }
   var body={ id:ID, firstName:first, lastName:last, type:type, nickname:document.getElementById('p_nick').value.trim(), company:document.getElementById('p_company').value.trim(), companyName:document.getElementById('p_company').value.trim(), emails:collectMulti(root,'p_email'), phones:collectMulti(root,'p_phone'), preferredEmail:collectPreferred(root,'prefemail','p_email'), preferredPhone:collectPreferred(root,'prefphone','p_phone'), leadSource:(document.getElementById('p_lead')||{}).value||'', prefContact:(function(){var o=[];document.querySelectorAll('.p_prefchk').forEach(function(c){if(c.checked)o.push(c.value);});return o;})(), lastContacted:(document.getElementById('p_lastcontact')||{}).value||'', url:document.getElementById('p_url').value.trim(), vip:!!(P&&P.vip), caution:!!(P&&P.caution), tags:CURTAGS.slice(), notes:document.getElementById('p_notes').value };
   fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})

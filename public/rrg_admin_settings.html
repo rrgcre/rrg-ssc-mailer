@@ -79,7 +79,7 @@ function tagListHtml(kind,arr){
 function renderTypes(){
   document.getElementById('typesBox').innerHTML=
     '<div class="grid2">'
-    +'<div><label class="fld">Contact types</label>'+tagListHtml('personTypes',TYPES.personTypes)+'</div>'
+    +'<div><label class="fld">Main interests</label>'+tagListHtml('personTypes',TYPES.personTypes)+'</div>'
     +'<div><label class="fld">Company types</label>'+tagListHtml('companyTypes',TYPES.companyTypes)+'</div>'
     +'<div><label class="fld">Request categories</label>'+tagListHtml('ticketCategories',TYPES.ticketCategories)+'</div>'
     +'<div><label class="fld">Lead sources</label>'+tagListHtml('leadSources',TYPES.leadSources)+'</div>'
@@ -174,10 +174,10 @@ function saveOrg(){ var m=document.getElementById('orgMsg'); m.textContent='Savi
 function build(){
   document.getElementById('root').innerHTML=
     '<div class="sectionhd">Customization</div>'
-    +'<div class="card"><div class="ch"><b>Type lists</b><span>— contact types, company types, and request categories used across the app</span></div><div class="cb">'
+    +'<div class="card"><div class="ch"><b>Type lists</b><span>— main interests, company types, and request categories used across the app</span></div><div class="cb">'
     +'<div id="typesBox"></div>'
     +'<div class="btnrow"><button class="btn" id="typesSave">Save type lists</button><button class="btn ghost" id="typesReset">Reset to defaults</button><span class="msg" id="typesMsg"></span></div>'
-    +'<div class="note">“Restaurant Owner” and “Referral Source” are already in the default contact types. Renaming a value here does not change contacts already saved with the old value.</div>'
+    +'<div class="note">Renaming a value here does not change contacts already saved with the old value.</div>'
     +'</div></div>'
     +'<div class="card"><div class="ch"><b>Brokerage / Organization</b><span>&mdash; your firm’s name, address and contact — used on agreements, BOVs and outbound email</span></div><div class="cb">'
     +'<div class="grid2">'
