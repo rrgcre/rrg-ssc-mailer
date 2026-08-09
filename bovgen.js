@@ -60,6 +60,7 @@ Return ONLY a single JSON object — no prose, no markdown fences — with EXACT
  "fields": {
    "subject": "Business name",
    "descriptor": "state the ACTUAL unit count, e.g. 'Single-Unit Full-Service Restaurant · Operating Business' or '3-Unit Full-Service Restaurant Group · Operating Business'",
+   "units": "the number of operating units / locations as a plain integer (e.g. 1, 2, 3). Use 1 for a single-unit business. If genuinely unknown from the documents, use an empty string.",
    "tagline": "short positioning line",
    "preparedFor": "Ownership of ...",
    "preparedBy": "Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com",

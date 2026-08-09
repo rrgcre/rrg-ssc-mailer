@@ -251,7 +251,7 @@ function findOrCreatePerson(req, info) {
   arr.push(p); logContactAdded(p, req); savePeople(arr);
   return p;
 }
-function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', vip: !!p.vip, caution: !!p.caution, star: !!p.star, preferred: !!p.preferred, prefContact: Array.isArray(p.prefContact) ? p.prefContact : [], createdAt: p.createdAt || '', owner: p.by || '', lastContacted: p.lastContacted || '', hasPhoto: !!p.photoExt } : null; }
+function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', vip: !!p.vip, caution: !!p.caution, star: !!p.star, preferred: !!p.preferred, prefContact: Array.isArray(p.prefContact) ? p.prefContact : [], createdAt: p.createdAt || '', owner: p.by || '', lastContacted: p.lastContacted || '', hasPhoto: !!p.photoExt, photoUrl: p.photoExt ? ('/api/personphoto/' + p.id + '.' + p.photoExt + (p.updatedAt ? ('?v=' + encodeURIComponent(p.updatedAt)) : '')) : '' } : null; }
 // One contact row as shown on a company file.
 function companyContactRow(p) { return { id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', emails: personEmails(p), phones: personPhones(p), email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', title: p.title || '', tags: personTags(p), leadSource: p.leadSource || '', hasPhoto: !!p.photoExt }; }
 
@@ -1908,6 +1908,16 @@ function moneyShort(n) {
 }
 // Trailing revenue ("the money the business brought in") lives in bridge row 0
 // of the generated BOV.
+// The operating-unit / location count the valuation determined (persisted on the BOV record
+// as `units`, or read from the analysis fields). Returns '' when unknown.
+function bovUnits(b) {
+  try {
+    if (!b) return '';
+    if (b.units != null && String(b.units).trim()) return String(b.units).replace(/[^0-9]/g, '') || '';
+    const u = b.state && b.state.fields && b.state.fields.units;
+    return (u != null && String(u).trim()) ? (String(u).replace(/[^0-9]/g, '') || '') : '';
+  } catch (e) { return ''; }
+}
 function bovRevenueText(b) {
   try {
     const br = b.state && b.state.bridge;
@@ -2104,6 +2114,7 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
     rec.multText = out.summary.multText; rec.ebitdaText = out.summary.ebitdaText;
     rec.basis = out.summary.basis; rec.sdeText = out.summary.sdeText; rec.adjText = out.summary.adjText;
     rec.state = out.state; rec.aiGenerated = true; rec.pending = false; rec.builtAt = new Date().toISOString(); rec.version = rec.version || 1;
+    try { const _u = out.state && out.state.fields && out.state.fields.units; if (_u != null && String(_u).replace(/[^0-9]/g, '')) rec.units = String(_u).replace(/[^0-9]/g, ''); } catch (e) {}
     // No TTM statement (analyst fell back to the fiscal year) AND we're past Q1 →
     // flag the record so the builder can warn the rep the base may be stale.
     rec.periodBasis = (out.state && out.state.periodBasis === 'fiscal') ? 'fiscal' : 't12';
@@ -2120,6 +2131,10 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
       if (grp && grp.room) {
         const rooms = loadRooms(); const room = rooms.find(x => x.id === grp.room.id);
         if (room) { let added = 0; (files || []).forEach(f => { if (addFileToRoom(room, f, { source: 'bov:' + rec.id, by: (req.user && req.user.name) || '' })) added++; }); if (added) saveRooms(rooms); }
+      }
+      // Persist the unit count onto the listing (deal) record so it's a first-class field.
+      if (grp && grp.deal && grp.deal.id && rec.units) {
+        try { const ds = loadDeals(); const d = ds.find(x => x.id === grp.deal.id); if (d && d.units !== rec.units) { d.units = rec.units; d.updatedAt = new Date().toISOString(); saveDeals(ds); } } catch (e) {}
       }
     } catch (e) { console.error('bov room-file error:', e && e.message); }
     res.json({ ok: true, id: rec.id, summary: out.summary, noTtmNotice: rec.noTtmNotice });
@@ -3750,7 +3765,8 @@ function assignmentView(d, overlay) {
     value: (bov && (bov.targetText || bov.rangeText)) || '', basis: (bov && bov.basis) || '',
     // Financials auto-populated from the valuation (BOV) — no re-keying; always in sync with
     // the latest generated valuation, which itself now reflects the Seller Interview.
-    financials: bov ? { valueTarget: bov.targetText || '', valueRange: bov.rangeText || '', revenue: bov.revText || bovRevenueText(bov) || '', sde: bov.sdeText || '', multiple: bov.multText || '', ebitda: bov.ebitdaText || '', basis: bov.basis || '', bovId: bov.id, state: bov.finalizedAt ? 'final' : (bov.aiGenerated ? 'built' : 'requested') } : null,
+    financials: bov ? { valueTarget: bov.targetText || '', valueRange: bov.rangeText || '', revenue: bov.revText || bovRevenueText(bov) || '', sde: bov.sdeText || '', multiple: bov.multText || '', ebitda: bov.ebitdaText || '', basis: bov.basis || '', units: bovUnits(bov), bovId: bov.id, state: bov.finalizedAt ? 'final' : (bov.aiGenerated ? 'built' : 'requested') } : null,
+    units: bovUnits(bov) || (deal && deal.units) || '',
     stages, lastActivity, createdAt: created,
   };
 }
