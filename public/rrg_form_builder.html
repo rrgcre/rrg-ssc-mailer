@@ -288,6 +288,7 @@ function renderSaveBar(){
   b.innerHTML='<div class="inner"><button type="button" class="btn ghost" onclick="goBack()">Cancel</button>'
     +'<button type="button" class="btn ghost" id="testBtn" onclick="testPreview()" title="Run this questionnaire in Call Mode — nothing is saved">▶ Test in Call Mode</button>'
     +'<button type="button" class="btn ghost" id="testVidBtn" onclick="testVideo()" title="Run this questionnaire in the seller video-recording view — nothing is saved">▶ Test in Video Mode</button>'
+    +'<button type="button" class="btn ghost" id="polishBtn" onclick="polishPrompts()" title="Rewrite every ask-out-loud prompt to be longer and more conversational">✨ Make prompts conversational</button>'
     +'<span class="autostat" id="autoStatus" style="font-size:12px;color:#8a94a6;font-weight:600;margin-left:2px"></span>'
     +'<button type="button" class="btn primary" id="saveBtn" onclick="save()">Save &amp; close</button>'
     +'<span class="msg" id="msg"></span></div>';
@@ -312,6 +313,24 @@ function testVideo(){
   if(!totalQ){ if(m){ m.className='msg err'; m.textContent='Add at least one question to test.'; } return; }
   try{ localStorage.setItem('rrgPreviewForm', JSON.stringify(f)); }catch(e){}
   window.open('./seller_record.html?preview=1','_blank');
+}
+/* ---- AI: rewrite every ask-out-loud prompt to be longer & more conversational ---- */
+function polishPrompts(){
+  var proms=Array.prototype.slice.call(document.querySelectorAll('.q-prompt'));
+  var m=qs('#msg');
+  if(!proms.length){ if(m){ m.className='msg err'; m.textContent='Add some questions first.'; } return; }
+  var rows=proms.map(function(ta,i){ var qr=ta.closest('.qrow'); var lab=qr?((qr.querySelector('.q-label')||{}).value||''):''; return { i:i, label:(lab||'').trim(), current:(ta.value||'').trim() }; });
+  var btn=document.getElementById('polishBtn'); if(btn){ btn.disabled=true; btn.textContent='✨ Rewriting…'; }
+  if(m){ m.className='msg'; m.textContent='Rewriting the ask-out-loud prompts…'; }
+  fetch('/api/ai/polish-prompts',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ questions:rows, callType:(STATE.form&&STATE.form.callType)||'' })})
+    .then(function(r){return r.json();}).then(function(j){
+      if(btn){ btn.disabled=false; btn.textContent='✨ Make prompts conversational'; }
+      var items=(j&&j.ok&&j.result&&j.result.items)||null;
+      if(!items||!items.length){ if(m){ m.className='msg err'; m.textContent=(j&&j.error)||'Could not rewrite the prompts — check the AI key in Admin → Settings.'; } return; }
+      var n=0; items.forEach(function(it){ var ta=proms[it.i]; if(ta && typeof it.prompt==='string' && it.prompt){ ta.value=it.prompt; n++; } });
+      if(m){ m.className='msg ok'; m.textContent='Rewrote '+n+' prompt'+(n===1?'':'s')+' — review and tweak, then Save & close.'; }
+      if(typeof autoSave==='function') autoSave();
+    }).catch(function(){ if(btn){ btn.disabled=false; btn.textContent='✨ Make prompts conversational'; } if(m){ m.className='msg err'; m.textContent='Could not reach the server.'; } });
 }
 /* ---- Auto-save (debounced) ---- */
 var _autoT=null, _autoSaving=false;

@@ -3,17 +3,15 @@
 // BOV/CIM generators. Requires env ANTHROPIC_API_KEY (admin-settable at runtime).
 const API_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
-// Fast model for short, latency-sensitive calls (e.g. the post-call screening summary).
-const FAST_MODEL = process.env.ANTHROPIC_MODEL_FAST || 'claude-haiku-4-5';
 
-async function callClaude(system, userText, maxTokens, model) {
+async function callClaude(system, userText, maxTokens) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('AI is not configured — set the Anthropic API key in Admin → Settings.');
   const resp = await fetch(API_URL, {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
     body: JSON.stringify({
-      model: model || MODEL, max_tokens: maxTokens || 1500, temperature: 0,
+      model: MODEL, max_tokens: maxTokens || 1500, temperature: 0,
       system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
       messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }],
     }),
@@ -22,20 +20,7 @@ async function callClaude(system, userText, maxTokens, model) {
   const data = await resp.json();
   return (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
 }
-function extractJson(t) {
-  if (!t) return null;
-  const a = t.indexOf('{'); if (a < 0) return null;
-  const b = t.lastIndexOf('}');
-  if (b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch (e) {} }
-  const s = t.slice(a); let inStr = false, esc = false; const stack = [];
-  for (let i = 0; i < s.length; i++) { const c = s[i];
-    if (inStr) { if (esc) esc = false; else if (c === '\\') esc = true; else if (c === '"') inStr = false; continue; }
-    if (c === '"') inStr = true; else if (c === '{' || c === '[') stack.push(c);
-    else if (c === '}' || c === ']') { stack.pop(); if (!stack.length) { try { return JSON.parse(s.slice(0, i + 1)); } catch (e) {} } }
-  }
-  if (stack.length) { let base = inStr ? (s + '"') : s.replace(/[,\s]*$/, ''); for (let i = stack.length - 1; i >= 0; i--) base += (stack[i] === '{' ? '}' : ']'); try { return JSON.parse(base); } catch (e) {} }
-  return null;
-}
+function extractJson(t) { if (!t) return null; const a = t.indexOf('{'), b = t.lastIndexOf('}'); if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch (e) {} } return null; }
 
 // 1) Parse a pasted listing (CoStar/LoopNet/Crexi/broker email/flyer) into space fields.
 async function parseSpaceListing({ text, types, features }) {
@@ -230,9 +215,9 @@ async function classifyConcepts({ items, conceptTypes, pricePoints, cuisines }) 
 }
 
 const SCREEN_RECS = ['Business Sale', 'Asset Sale', 'Nurture', 'Decline'];
-function screeningSummaryPrompt({ data }) {
+async function draftScreeningSummary({ data }) {
   const sys = 'You are an experienced restaurant and bar business broker at Restaurant Realty Group, writing the internal call summary immediately after screening a potential seller. '
-    + 'FIRST, write the call summary as TWO or THREE short paragraphs separated by a blank line, in a direct broker voice: '
+    + 'FIRST, write the call summary as TWO or THREE short paragraphs separated by a blank line (\\n\\n), in a direct broker voice: '
     + 'paragraph 1 - the operator and the business, their motivation and their timeline; '
     + 'paragraph 2 - the financial picture, and their valuation expectation with your read on how realistic it is; '
     + 'paragraph 3 - your read on whether this is a real lead worth working. '
@@ -243,60 +228,12 @@ function screeningSummaryPrompt({ data }) {
     + 'NURTURE when the operator is a real prospect but not ready to move - motivated but early, the timing is off, or the financials still need to be assembled; we stay in touch and revisit the timeline. '
     + 'DECLINE when the deal cannot be delivered or is not worth our time - the lease is not assignable or the landlord will not transfer it, debt, liens, or litigation block a clean transfer, our contact is not the decision maker or is not actually motivated, the price expectation is far off with no room to move, or it is the wrong market or property type for us. '
     + 'THIRD, give one sentence of "why" naming the single fact that drove the call. '
-    + 'OUTPUT FORMAT - output exactly this, in this order, and NOTHING else: the summary paragraphs first; then a line reading exactly "@@CALL: X" where X is one of Business Sale, Asset Sale, Nurture, Decline; then a line reading exactly "@@WHY: " followed by your one sentence. Never use the characters "@@" anywhere inside the summary paragraphs. Do not output JSON.';
+    + 'Return ONLY a JSON object: {"summary":"","recommendation":"Business Sale|Asset Sale|Nurture|Decline","why":""}';
   const payload = { concept: (data && data.concept) || '', company: (data && data.company) || '', contact: (data && data.contact) || '', market: (data && data.market) || '', sections: (data && data.sections) || [] };
-  const user = 'SCREENING ANSWERS (JSON):\n' + JSON.stringify(payload).slice(0, 16000);
-  return { system: sys, user: user };
-}
-function parseScreeningOut(text) {
-  const t = String(text || '');
-  const summary = t.split('@@')[0].trim();
-  let rec = '', why = '';
-  const mC = t.match(/@@CALL:\s*([^\n\r]*)/); if (mC) rec = mC[1].trim();
-  const mW = t.match(/@@WHY:\s*([\s\S]*)$/); if (mW) why = mW[1].trim();
-  const recNorm = SCREEN_RECS.find(a => a.toLowerCase() === rec.toLowerCase()) || '';
-  return { summary: summary, recommendation: recNorm, why: why };
-}
-async function draftScreeningSummary({ data }) {
-  const p = screeningSummaryPrompt({ data });
-  const out = await callClaude(p.system, p.user, 800, FAST_MODEL);
-  const r = parseScreeningOut(out);
-  if (!r.summary) r.summary = String(out || '').trim();
-  return r;
-}
-// Streaming variant of callClaude: invokes onText(delta) for each text chunk and
-// returns the full text. Used so the rep sees the summary appear as it writes.
-async function streamClaude(system, userText, maxTokens, model, onText) {
-  const key = process.env.ANTHROPIC_API_KEY;
-  if (!key) throw new Error('AI is not configured - set the Anthropic API key in Admin -> Settings.');
-  const resp = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: model || MODEL, max_tokens: maxTokens || 1500, temperature: 0, stream: true,
-      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }],
-    }),
-  });
-  if (!resp.ok || !resp.body) { const t = await resp.text().catch(() => ''); throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 300)); }
-  const reader = resp.body.getReader(); const decoder = new TextDecoder();
-  let buf = '', full = '';
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    let idx;
-    while ((idx = buf.indexOf('\n\n')) >= 0) {
-      const evt = buf.slice(0, idx); buf = buf.slice(idx + 2);
-      const lines = evt.split('\n');
-      for (const line of lines) {
-        const m = line.match(/^data:\s?(.*)$/); if (!m) continue;
-        const pl = m[1]; if (pl === '[DONE]') continue;
-        try { const j = JSON.parse(pl); if (j.type === 'content_block_delta' && j.delta && typeof j.delta.text === 'string') { full += j.delta.text; if (onText) onText(j.delta.text); } } catch (e) {}
-      }
-    }
-  }
-  return full;
+  const out = await callClaude(sys, 'SCREENING ANSWERS (JSON):\n' + JSON.stringify(payload).slice(0, 16000), 800);
+  const j = extractJson(out) || {};
+  const rec = SCREEN_RECS.find(a => a.toLowerCase() === String(j.recommendation || '').trim().toLowerCase()) || '';
+  return { summary: String(j.summary || out || '').trim(), recommendation: rec, why: String(j.why || '').trim() };
 }
 // Build a call questionnaire from pasted text or an uploaded document. Returns the
 // app's form schema (categories of questions); every question carries a rep-facing
@@ -315,7 +252,7 @@ async function buildQuestionnaire({ text, callType }) {
     + '- Preserve the substance and ordering of the source but tighten wording. Do not invent whole sections the source does not imply. '
     + '- Do NOT include header/identity fields (company, contact, rep, date, market) - those are added automatically. Start with the substantive questions. '
     + 'Output JSON only, no prose.';
-  const out = await callClaude(sys, 'CALL TYPE: ' + (callType || 'seller') + '\n\nSOURCE QUESTIONNAIRE:\n' + String(text || '').slice(0, 60000), 24000);
+  const out = await callClaude(sys, 'CALL TYPE: ' + (callType || 'seller') + '\n\nSOURCE QUESTIONNAIRE:\n' + String(text || '').slice(0, 60000), 4000);
   const j = extractJson(out) || {};
   return { name: String(j.name || '').trim(), kicker: String(j.kicker || '').trim(), categories: Array.isArray(j.categories) ? j.categories : [] };
 }
@@ -345,72 +282,24 @@ async function classifyRoomDocs({ items, categories }) {
   return out.map(x => ({ i: Number(x.i), category: (allow[String(x.category)] ? String(x.category) : 'Other') }));
 }
 
-
-// Map a Site Criteria Screening (or an uploaded concept/criteria document) onto the
-// Site & Concept Fit sheet's top section. Returns { values, notes } — values keyed by the
-// sheet's data-k fields; ENUM fields are constrained to the sheet's exact option strings.
-async function siteFitPrefill({ source, scope }) {
-  const FB = ['QSR / Fast Food','Fast Casual','Full-Service / Casual Dining','Upscale / Fine Dining','Bar / Tavern / Sports Bar','Brewery / Taproom','Nightclub / Lounge','Coffee / Café','Bakery / Dessert','Pizza / Delivery-forward','Ghost / Virtual Kitchen','Food Hall Stall'];
-  const PP = ['$ — Value','$$ — Moderate','$$$ — Upscale','$$$$ — Premium'];
-  const DP = ['Breakfast','Lunch-driven','Dinner-driven','Late-night / Bar','All-day'];
-  const SM = ['Dine-in heavy','Counter / grab-and-go','Takeout & delivery heavy','Drive-thru forward','Bar / beverage-driven'];
-  const CT = ['Grocery-anchored','Power / big-box center','Lifestyle / mixed-use','Strip / unanchored','Freestanding pad','End cap','Downtown / street retail','Mall / food court','Entertainment / hospitality node'];
-  const ST = ['End Cap','Inline','Freestanding','Pad w/ drive-thru','2nd-gen restaurant','Gray / vanilla shell'];
-  const CONCEPT_KEYS = ['concept','tagline','preparedFor','fbType','pricePoint','daypart','model','avgCheck','coversDay','segment','sfNeeded','mustHaves'];
-  const LOCATION_KEYS = ['address','suite','centerType','spaceType','sfAvail','baseRent','nnn','vpd','pop3','income','daytime','parking','term','cotenancy','competition'];
-  const FIELD = {
-    concept:'concept: concept / client name (string).',
-    tagline:'tagline: one-line positioning (string).',
-    preparedFor:'preparedFor: client / tenant entity name (string).',
-    fbType:'fbType ENUM, one of: '+JSON.stringify(FB),
-    pricePoint:'pricePoint ENUM, one of: '+JSON.stringify(PP),
-    daypart:'daypart ENUM, one of: '+JSON.stringify(DP),
-    model:'model ENUM, one of: '+JSON.stringify(SM),
-    avgCheck:'avgCheck: average check per guest, number (e.g. 18.50).',
-    coversDay:'coversDay: estimated guests per day at maturity, integer.',
-    segment:'segment: target customer segment (string).',
-    sfNeeded:'sfNeeded: target square footage the concept needs, integer.',
-    mustHaves:'mustHaves: must-have features, short string (e.g. "patio · hood/venting · drive-thru · liquor").',
-    address:'address: candidate space street address, city, state (string).',
-    suite:'suite: suite / unit number (string).',
-    centerType:'centerType ENUM, one of: '+JSON.stringify(CT),
-    spaceType:'spaceType ENUM, one of: '+JSON.stringify(ST),
-    sfAvail:'sfAvail: available square footage of the space, integer.',
-    baseRent:'baseRent: base rent in $/SF/yr, number.',
-    nnn:'nnn: NNN / CAM in $/SF/yr, number.',
-    vpd:'vpd: traffic count, vehicles per day, integer.',
-    pop3:'pop3: population within 3 miles, integer.',
-    income:'income: median household income within 3 miles, integer.',
-    daytime:'daytime: daytime population within 1 mile, integer.',
-    parking:'parking: parking ratio (string, e.g. "8 / 1,000").',
-    term:'term: lease term / TI offered (string).',
-    cotenancy:'cotenancy: co-tenancy & traffic drivers (string).',
-    competition:'competition: nearby competition (string).'
-  };
-  const sc = (scope === 'concept' || scope === 'location') ? scope : 'all';
-  const keys = sc === 'concept' ? CONCEPT_KEYS : sc === 'location' ? LOCATION_KEYS : CONCEPT_KEYS.concat(LOCATION_KEYS);
-  const scopeLine = sc === 'concept' ? 'This document describes the CONCEPT / tenant the broker is placing — fill only the concept fields listed below.'
-                  : sc === 'location' ? 'This document describes a specific SITE / space / shopping center — fill only the location fields listed below. Pull real figures (rent, SF, traffic, demographics) only if the document actually states them.'
-                  : 'A Site Criteria Screening describes what a tenant WANTS; fill any field the source clearly supports and never invent an address, rent, or NNN.';
-  const sys = ['You extract structured data from a restaurant/bar real-estate document to pre-fill a broker\'s "Site & Concept Fit" worksheet.',
-    'Return ONLY a JSON object of the form {"values":{...},"notes":"..."}.',
-    scopeLine,
-    'Fill a field only when the source clearly supports it. OMIT anything unknown from "values" (do not guess). Never invent an address, rent, NNN, traffic, or sales figure.',
-    'Fields marked ENUM must be copied VERBATIM from the allowed list, or omitted. Numeric fields: digits only, no $ or commas.',
-    'FIELDS:'].concat(keys.map(function(k){ return FIELD[k]; })).concat(['notes: one short sentence on what you filled and what the rep should still verify.']).join('\n');
-  const out = await callClaude(sys, 'SOURCE:\n' + String(source || '').slice(0, 16000), 1100);
+// Rewrite each question's "ask-out-loud" prompt to be longer and more conversational —
+// the line the broker reads to the seller on a call. Same intent, warmer delivery.
+async function polishPrompts({ questions, callType }) {
+  const qs = (questions || []).slice(0, 80).map((q, idx) => ({
+    i: (q && typeof q.i === 'number') ? q.i : idx,
+    label: String((q && q.label) || '').slice(0, 300),
+    current: String((q && q.current) || '').slice(0, 700),
+  }));
+  if (!qs.length) return { items: [] };
+  const sys = "You script warm, natural seller interviews for a business broker who buys and sells restaurants and bars. You are given the questions from a seller questionnaire. For EACH question, rewrite ONLY the 'ask-out-loud' line — the sentence the broker reads to the seller — so it is a bit longer and much more conversational, the way a real interviewer talks out loud, not a form field. Keep the SAME intent and ask for the SAME information; do not add new questions, do not answer them, do not invent facts. Warm, human, professional, specific to restaurants and bars. One to three sentences each. No markdown, no bullet points, no surrounding quotes. Return ONLY a JSON object of the exact shape {\"items\":[{\"i\":<the question's i>,\"prompt\":\"<rewritten ask-out-loud line>\"}]}, one entry per input question, preserving each i.";
+  const user = 'CALL TYPE: ' + (callType || 'seller interview') + '\n\nQUESTIONS (JSON — `label` is the question, `current` is the existing prompt to improve):\n' + JSON.stringify(qs);
+  const out = await callClaude(sys, user, 4000);
   const j = extractJson(out) || {};
-  let vals = (j && typeof j.values === 'object' && j.values) ? j.values : {};
-  const allow = {}; keys.forEach(function(k){ allow[k] = 1; });
-  Object.keys(vals).forEach(function(k){ if (!allow[k]) delete vals[k]; });
-  const enums = { fbType:FB, pricePoint:PP, daypart:DP, model:SM, centerType:CT, spaceType:ST };
-  Object.keys(enums).forEach(function(k){ if (vals[k]!=null && enums[k].indexOf(vals[k])<0) delete vals[k]; });
-  return { values: vals, notes: String((j && j.notes) || '') };
+  const arr = Array.isArray(j.items) ? j.items : [];
+  const items = arr.map(it => ({
+    i: (it && typeof it.i === 'number') ? it.i : null,
+    prompt: String((it && it.prompt) || '').replace(/^["'\s]+|["'\s]+$/g, '').slice(0, 1000),
+  })).filter(it => it.i != null && it.prompt);
+  return { items };
 }
-
-async function rewriteEmail({ text }) {
-  const sys = 'You are an expert business email copywriter for a commercial real-estate broker who works exclusively with restaurants and bars. Rewrite the email so it is clear, warm, professional and concise \u2014 no fluff, best practice, plays to win. Keep every {{merge_field}} token EXACTLY as written. Preserve links and the overall intent. Return clean simple HTML using ONLY these tags: <p> <br> <b> <i> <u> <ul> <ol> <li> <a>. No inline styles, no <html>/<head>/<body>, no markdown, no commentary \u2014 return only the rewritten email HTML.';
-  const out = await callClaude(sys, 'EMAIL (may be HTML or plain text):\n' + String(text || '').slice(0, 8000), 1400);
-  return String(out || '').trim();
-}
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, screeningSummaryPrompt, parseScreeningOut, streamClaude, FAST_MODEL, buildQuestionnaire, classifyRoomDocs, siteFitPrefill, rewriteEmail };
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts };

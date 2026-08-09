@@ -131,7 +131,7 @@ function ownsDeal(req, d) {
 // buyer connects across every deal they touch.
 const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
 // Contact "Main Interests" (formerly contact types).
-const PERSON_TYPES = ['Buying', 'Selling', 'Investing', 'Referring', 'Internal Personnel', 'Other'];
+const PERSON_TYPES = ['Buying', 'Selling', 'Investing', 'Referring', 'Working', 'Other'];
 // Old names, retired from the picker everywhere (a one-time migration remaps existing contacts).
 const RETIRED_PERSON_TYPES = ['buyer', 'seller', 'tenant', 'investor', 'broker', 'referral source'];
 const LEAD_SOURCES = ['Referral', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
@@ -6148,6 +6148,7 @@ app.post('/api/ai/concept', express.json({ limit: '256kb' }), aiRoute(b => aiass
 app.post('/api/ai/site-read', express.json({ limit: '256kb' }), aiRoute(b => aiassist.locationSiteRead({ location: b.location || {} })));
 app.post('/api/ai/calc-summary', express.json({ limit: '256kb' }), aiRoute(b => aiassist.calcSummary({ kind: b.kind || '', inputs: b.inputs || {}, outputs: b.outputs || {} })));
 app.post('/api/ai/screening-summary', express.json({ limit: '256kb' }), aiRoute(b => aiassist.draftScreeningSummary({ data: b || {} })));
+app.post('/api/ai/polish-prompts', express.json({ limit: '256kb' }), aiRoute(b => aiassist.polishPrompts({ questions: b.questions || [], callType: b.callType || '' })));
 app.post('/api/ai/screening-summary-stream', express.json({ limit: '256kb' }), async (req, res) => {
   try {
     const p = aiassist.screeningSummaryPrompt({ data: req.body || {} });
@@ -9038,7 +9039,7 @@ function _matchPersonType(v) {
   if (/investor|capital|equity/.test(low)) return has('Investor');
   if (/broker|agent|realtor/.test(low)) return has('Broker');
   if (/referr|source|partner/.test(low)) return has('Referral Source');
-  if (/staff|internal|employee|\bteam\b|colleague/.test(low)) return has('Internal Personnel');
+  if (/staff|internal|employee|\bteam\b|colleague/.test(low)) return has('Working');
   return '';
 }
 app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16mb' }), (req, res) => {
