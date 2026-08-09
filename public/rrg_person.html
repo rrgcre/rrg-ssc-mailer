@@ -1310,11 +1310,14 @@ load();
   function _rrgSetGate(el,dim,sub){ if(!el) return; var sb=el.querySelector('.rrgactsub'); if(!sb){ sb=document.createElement('div'); sb.className='rrgactsub'; el.appendChild(sb); } if(dim){ el.classList.add('rrgactdim'); } else { el.classList.remove('rrgactdim'); } sb.textContent=sub||''; }
   // Completion check — a green ✓ before a step that's already done, with a short green sub-note.
   function _rrgSetDone(el,done,note){ if(!el) return; var mk=el.querySelector('.rrgactck'); if(done){ if(!mk){ mk=document.createElement('span'); mk.className='rrgactck'; mk.textContent='✓'; el.appendChild(mk); } el.classList.add('rrgactdoneflag'); _rrgSetGate(el,false,note||''); } else { if(mk) mk.remove(); el.classList.remove('rrgactdoneflag'); } }
+  // Dead-end items are hidden outright (style.display), while locked-but-coming steps stay dimmed
+  // and visible. Hide a section header only when every item under it is truly hidden.
+  function _rrgTidyHeads(){ try{ var menu=document.getElementById('rrgActionsMenu'); if(!menu) return; var kids=menu.children, i, lastHead=null, has=false; function _hidden(el){ return el.style.display==='none'; } for(i=0;i<kids.length;i++){ var el=kids[i]; if(el.classList&&el.classList.contains('rrgacthead')){ if(lastHead) lastHead.style.display=has?'':'none'; lastHead=el; has=false; el.style.display=''; } else if(el.classList&&el.classList.contains('rrgactitem')){ if(!_hidden(el)) has=true; } } if(lastHead) lastHead.style.display=has?'':'none'; }catch(e){} }
   function refreshValuation(){
     var elV=_rrgActItem(/Generate Valuation/), elU=_rrgActItem(/Upload Files to Data Room/), elSend=_rrgActItem(/Send Seller Interview/), elView=_rrgActItem(/View Seller Interview/);
-    // Everything but the first action (Start Seller Screening) starts dim until it's earned.
-    _rrgSetGate(elV,true,'Checking inputs…'); _rrgSetGate(elU,true,'Checking…'); _rrgSetGate(elSend,true,'Checking…'); _rrgSetGate(elView,true,'Checking…');
-    function openAll(){ _rrgSetGate(elU,false,''); _rrgSetGate(elSend,false,''); _rrgSetGate(elV,false,''); _rrgSetGate(elView,true,'No interview received yet'); }   // fail open — never lock the broker out on an error
+    // Don't reset visibility on open — keep the last resolved state until the fresh check returns,
+    // so items don't flash hidden then reappear.
+    function openAll(){ _rrgSetGate(elU,false,''); _rrgSetGate(elSend,false,''); _rrgSetGate(elV,false,''); _rrgSetGate(elView,true,'No interview received yet'); _rrgTidyHeads(); }   // fail open — never lock the broker out on an error
     var pid=(typeof P!=='undefined'&&P&&P.id)||(typeof ID!=='undefined'&&ID)||''; var cid=(typeof CO!=='undefined'&&CO&&CO.id)||'';
     if(!pid&&!cid){ openAll(); return; }
     fetch('/api/valuation-readiness?personId='+encodeURIComponent(pid)+'&companyId='+encodeURIComponent(cid),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
@@ -1334,6 +1337,8 @@ load();
       _rrgSetDone(elSk,_skipped,'Pre-qualified');
       if(elSc) elSc.style.display=(_done && !_called)?'none':'';
       if(elSk) elSk.style.display=(_done && !_skipped)?'none':'';
+      // Once screening is settled, sending the seller the screening links is moot — hide it too.
+      var elSSS=_rrgActItem(/Send Seller Screening/); if(elSSS) elSSS.style.display=_done?'none':'';
       _rrgSetDone(elU, !!(j.financials && j.lease), 'Financials & lease in');
       _rrgSetDone(elSend, !!j.interviewDone, 'Completed by the seller');
       // View Seller Interview — enabled only once an interview has actually come back.
@@ -1344,6 +1349,7 @@ load();
       _rrgSetGate(elLA, !j.bovId, j.bovId ? 'Exclusive Business Sales Representation' : 'Create the valuation (BOV) first');
       var _laDone=(typeof AGREEMENTS!=='undefined') && (AGREEMENTS||[]).some(function(a){ return a && a.type==='Listing'; });
       _rrgSetDone(elLA, _laDone, 'On file');
+      _rrgTidyHeads();
     }).catch(function(){ openAll(); });
   }
   function install(create){
