@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — Seller Intake Email</title>
+<title>RRG — Seller Interview Email</title>
 <style>
 :root{--navy:#0b1636;--navy2:#16346e;--red:#C0261B;--ink:#141a29;--dim:#5f6a7d;--soft:#8a93a3;--line:#e5e9f1;--wash:#f5f7fb;--green:#1f8a5b;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
@@ -26,7 +26,6 @@ input.tin:focus,textarea.tin:focus{outline:none;border-color:#5b9be8;box-shadow:
 .note{font-size:12px;color:var(--soft);margin-top:16px;line-height:1.6;}
 .gate{color:var(--dim);font-size:13.5px;padding:30px 0;}
 </style>
-<script src="/rrg_brand.js"></script>
 </head>
 <body>
 <div class="wrap" id="root"><div class="gate">Loading…</div></div>
@@ -34,10 +33,10 @@ input.tin:focus,textarea.tin:focus{outline:none;border-color:#5b9be8;box-shadow:
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 var ADMIN=false, SUBJ='', BODY='';
 function render(){
-  if(!ADMIN){ document.getElementById('root').innerHTML='<h1>Seller Intake Email</h1><div class="sub">This is the email sent to a seller with their intake links. Only an administrator can edit it.</div>'; return; }
+  if(!ADMIN){ document.getElementById('root').innerHTML='<h1>Seller Interview Email</h1><div class="sub">This is the email sent to a seller with their interview links. Only an administrator can edit it.</div>'; return; }
   document.getElementById('root').innerHTML=''
-    +'<h1>Seller Intake Email</h1>'
-    +'<div class="sub">This is the message sent from a contact’s <b>Send Seller Intake</b> panel. Use the placeholders below — they’re filled in automatically when the email goes out. The two link placeholders become clickable links.</div>'
+    +'<h1>Seller Interview Email</h1>'
+    +'<div class="sub">This is the message sent from a contact’s <b>Send Seller Interview</b> panel — inviting the seller to share the details beyond the numbers that shape what their business is worth. Use the placeholders below; they’re filled in automatically when the email goes out, and the two link placeholders become clickable links.</div>'
     +'<label class="fl">Subject</label><input class="tin" id="subj" value="'+esc(SUBJ)+'">'
     +'<label class="fl">Body</label><textarea class="tin" id="body">'+esc(BODY)+'</textarea>'
     +'<div class="chips" id="chips"></div>'

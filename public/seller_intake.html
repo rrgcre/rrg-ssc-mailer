@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="rrg-noshell" content="1">
-<title>Seller Intake</title>
+<title>Seller Interview</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
@@ -37,9 +37,9 @@ h1{font-size:25px;font-weight:800;margin:0;color:#fff;}
 <div id="app" style="display:none">
   <div class="top"><div class="in">
     <span class="disc" id="disc">RRG</span>
-    <div class="kick">Confidential Seller Intake</div>
+    <div class="kick">Confidential Seller Interview</div>
     <h1 id="hdr">Tell us about your business</h1>
-    <div class="sub" id="hsub">A few quick questions. Everything you share is private and goes only to your representative.</div>
+    <div class="sub" id="hsub">A few questions about the story behind the numbers — the details that shape what your business is worth. Private, and only your representative sees it.</div>
   </div></div>
   <div class="wrap">
     <div class="card">
@@ -69,7 +69,7 @@ h1{font-size:25px;font-weight:800;margin:0;color:#fff;}
     var org=j.org||'Restaurant Realty Group';
     document.getElementById('orgf').textContent=org;
     try{ document.getElementById('disc').textContent=(org.match(/\b[A-Za-z]/g)||['R']).slice(0,3).join('').toUpperCase(); }catch(e){}
-    if(j.business){ document.getElementById('hdr').textContent=j.business; document.getElementById('hsub').textContent='A few quick questions about '+j.business+'. Everything you share is private and goes only to your representative.'; }
+    if(j.business){ document.getElementById('hdr').textContent=j.business; document.getElementById('hsub').textContent='A few questions about the story behind the numbers at '+j.business+' — the details that shape what it’s worth. Private, and only your representative sees it.'; }
     var f=document.getElementById('sform'); var data=j.data||{};
     f.innerHTML=FIELDS.map(function(fd){
       var v=esc(data[fd.k]||'');

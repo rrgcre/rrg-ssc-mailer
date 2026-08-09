@@ -4831,8 +4831,8 @@ app.post('/api/admin/accounting', express.json(), (req, res) => {
 });
 // Configurable seller-intake email (admin-editable; placeholders {{business}} {{formUrl}} {{videoUrl}} {{repName}} {{org}}).
 const SELLER_INTAKE_EMAIL_DEFAULT = {
-  subject: '{{org}} — quick seller intake for {{business}}',
-  body: 'Hi,\n\nThanks for considering {{org}} to represent the sale of {{business}}. To get started, we’ve set up two quick, private options — use whichever you prefer (or both):\n\n• Fill out a short form: {{formUrl}}\n\n• Record a short video interview: {{videoUrl}}\n\nEverything is confidential and goes only to your {{org}} representative. Prefer not to be on camera? Just use the form.\n\n— {{repName}}',
+  subject: '{{org}} — a few details about {{business}} for your file',
+  body: 'Hi,\n\nThanks again. As we position {{business}} for sale, the financials only tell part of the story — the details behind them are a big part of what a buyer is really paying for. To capture that in your own words, we’ve set up two quick, private options; use whichever you’re more comfortable with (or both):\n\n• Answer a short set of questions in writing: {{formUrl}}\n\n• Or talk through them on a short video: {{videoUrl}}\n\nThere are no wrong answers, and rough figures are fine. Everything is confidential and goes only to your {{org}} representative. Prefer not to be on camera? Just use the written version.\n\n— {{repName}}',
 };
 function effSellerIntakeEmail() {
   const s = (loadSettings().sellerIntakeEmail) || {};
@@ -9333,7 +9333,8 @@ function dashboardData(req) {
   Object.keys(idx).forEach(k => { const o = ov[k] || {}; if ((o.pipelineId || 'p_bizsales') !== 'p_bizsales') return; let st = o.pipelineStage; if (stageNames.indexOf(st) < 0) { try { const ss = listingStageSummary(idx[k], ov); const si = Math.max(0, Math.min(ss.done || 0, stageNames.length - 1)); st = stageNames[si] || stageNames[0]; } catch (e) { st = stageNames[0]; } } if (st) counts[st] = (counts[st] || 0) + 1; });
   const pipeline = stageNames.map(n => ({ name: n, count: counts[n] || 0 }));
   let tasks = []; try { tasks = loadTasks().filter(t => taskVisible(t, req) && t.status !== 'done').sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999'))).slice(0, 7).map(t => ({ title: t.title, due: t.due || '', priority: t.priority || '', link: t.linkLabel || '' })); } catch (e) {}
-  let acts = []; people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { acts.push({ who: p.name, type: a.type || 'Note', text: String(a.text || a.note || '').slice(0, 160), at: a.at || a.date || a.createdAt || '' }); }); });
+  let acts = []; people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { acts.push({ who: p.name, id: p.id || '', type: a.type || 'Note', text: String(a.text || a.note || '').slice(0, 160), at: a.at || a.date || a.createdAt || '' }); }); });
+  acts.sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
   acts.sort((a, b) => String(b.at).localeCompare(String(a.at))); acts = acts.slice(0, 8);
   const mk = {}; listings.forEach(l => { const m = l.market || '-'; mk[m] = (mk[m] || 0) + 1; });
   const markets = Object.keys(mk).map(m => ({ label: m, value: mk[m] })).sort((a, b) => b.value - a.value).slice(0, 6);
