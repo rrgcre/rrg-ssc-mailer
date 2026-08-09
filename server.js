@@ -742,6 +742,60 @@ function ensureBovForQuest(q) {
   return rec;
 }
 
+// ===== Seller Interview -> valuation input =====
+// The Seller Interview (self-serve form answers + video transcript + AI debrief) IS the
+// valuation questionnaire now. These helpers turn it into the same shape the BOV generator
+// already understands, so the valuation both unblocks and actually reflects what the seller
+// said — not just the uploaded financials.
+function interviewSections(pid, cid) {
+  try {
+    const hitL = x => ((pid && x.personId === pid) || (cid && x.companyId === cid)) && linkKind(x.kind) === 'valuation';
+    const links = (loadSellerLinks() || []).filter(hitL);
+    const ivs = (loadInterviews() || []).filter(hitL).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    const formRec = links.find(x => x.form && x.form.submittedAt) || null;
+    const ivRec = ivs.find(iv => String(iv.transcript || '').trim()) || ivs[0] || null;
+    const business = (formRec && formRec.business) || (ivRec && ivRec.business) || '';
+    const sections = [];
+    if (formRec && formRec.form && formRec.form.data) {
+      const fd = formRec.form.data;
+      const groups = (formRec.form.fields || []).filter(f => String(fd[f.k] || '').trim()).map(f => ({ kind: 'field', label: f.label || f.k, value: String(fd[f.k]) }));
+      if (groups.length) sections.push({ title: 'Seller Interview — Written Answers', groups });
+    }
+    if (ivRec && String(ivRec.transcript || '').trim()) {
+      const tx = String(ivRec.cleanTranscript || ivRec.transcript).slice(0, 24000);
+      sections.push({ title: 'Seller Interview — In the Seller’s Own Words', groups: [{ kind: 'field', label: 'Transcript', value: tx }] });
+    }
+    if (ivRec && String(ivRec.summary || '').trim()) {
+      sections.push({ title: 'Seller Interview — Broker Debrief (AI draft, unverified)', groups: [{ kind: 'field', label: 'Debrief', value: String(ivRec.summary).slice(0, 14000) }] });
+    }
+    return { business, sections };
+  } catch (e) { console.error('interviewSections:', e && e.message); return { business: '', sections: [] }; }
+}
+// Plain-text version of the interview, in the same format questToText produces, for folding
+// into the questionnaire passed to the BOV generator.
+function interviewQuestText(pid, cid) {
+  const r = interviewSections(pid, cid);
+  if (!r || !r.sections.length) return '';
+  return questToText({ data: { concept: r.business, sections: r.sections } });
+}
+// Create (or refresh) a first-class questionnaire record from the Seller Interview, so it
+// slots into the existing valuation pipeline (Q-Log, ensureBovForQuest, srcQuestId).
+function synthQuestFromInterview(req, pid, cid) {
+  try {
+    const r = interviewSections(pid, cid);
+    if (!r || !r.sections.length) return null;
+    const arr = loadQuests();
+    const fid = 'qfromint_' + (pid || cid);
+    let rec = arr.find(q => q.formId === fid);
+    const data = { formId: fid, concept: r.business || '', market: '', address: '', sections: r.sections, fromInterview: true };
+    const fields = { business: r.business || 'Business', market: '', completed: true, completePct: 100, data, personId: pid || '', companyId: cid || '', by: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '' };
+    if (rec) { Object.assign(rec, fields); rec.updatedAt = new Date().toISOString(); }
+    else { rec = Object.assign({ id: newQuestId(), formId: fid, processed: false, processedAt: '', decision: '', createdAt: new Date().toISOString() }, fields); arr.push(rec); }
+    saveQuests(arr);
+    return rec;
+  } catch (e) { console.error('synthQuestFromInterview:', e && e.message); return null; }
+}
+
 // ---- Screening queue store (seller screenings awaiting a questionnaire) ----
 const FORMS_FILE = path.join(BOV_DATA_DIR, 'forms.json');
 function loadForms(){ try { return rj(FORMS_FILE)||[]; } catch(e){ return []; } }
@@ -1623,9 +1677,12 @@ app.post('/api/valuation-ensure', express.json(), (req, res) => {
     const bov = loadBovs().filter(hit).sort(byNew)[0] || null;
     if (bov) return res.json({ ok: true, bovId: bov.id });
     const arr = loadQuests();
-    const q = arr.filter(hit).sort(byNew)[0] || null;
-    if (!q) return res.status(409).json({ ok: false, error: 'No valuation questionnaire on file for this contact yet.' });
-    if (!q.processed) { q.processed = true; q.processedAt = new Date().toISOString(); saveQuests(arr); }
+    let q = arr.filter(hit).sort(byNew)[0] || null;
+    // No formal questionnaire on file? A completed Seller Interview (form or video) IS the
+    // questionnaire now — synthesize one from it so the valuation can proceed.
+    if (!q) q = synthQuestFromInterview(req, pid, cid);
+    if (!q) return res.status(409).json({ ok: false, error: 'No Seller Interview on file yet. Send the Seller Interview (form or video), have the seller complete it, then generate the valuation.' });
+    if (!q.processed) { const arr2 = loadQuests(); const q2 = arr2.find(x => x.id === q.id) || q; q2.processed = true; q2.processedAt = new Date().toISOString(); saveQuests(arr2); }
     const nb = ensureBovForQuest(q);
     res.json({ ok: true, bovId: (nb && nb.id) || '' });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
@@ -1931,14 +1988,19 @@ function ensureLeaseForCim(req, cim) {
 // and the qualification call that produced it.
 function cimInputsFor(cim) {
   const bov = loadCims && loadBovs().find(x => x.id === cim.srcBovId);
-  let questionnaire = '', call = '';
+  let questionnaire = '', call = '', _interviewFolded = false;
   if (bov && bov.srcQuestId) {
     const q = loadQuests().find(x => x.id === bov.srcQuestId);
     if (q) {
       questionnaire = questToText(q);
+      if (String(q.formId || '').indexOf('qfromint_') === 0 || (q.data && q.data.fromInterview)) _interviewFolded = true;
       const m = String(q.formId || '').match(/^qfromscr_(.+)$/);
       if (m) { const sc = loadScreens().find(x => x.id === m[1]); if (sc) call = questToText(sc); }
     }
+  }
+  // Fold the Seller Interview into the CIM inputs too (unless already interview-derived).
+  if (!_interviewFolded) {
+    try { const _pid = (bov && bov.personId) || cim.personId || ''; const _cid = (bov && bov.companyId) || cim.companyId || ''; if (_pid || _cid) { const it = interviewQuestText(_pid, _cid); if (it) questionnaire = (questionnaire ? (questionnaire + '\n\n') : '') + it; } } catch (e) {}
   }
   const summary = bov ? { business: bov.business, revText: bov.revText || bovRevenueText(bov), rangeText: bov.rangeText, targetText: bov.targetText, multText: bov.multText, basis: bov.basis, sdeText: bov.sdeText, adjText: bov.adjText, date: bov.date } : null;
   return { bov, bovState: (bov && bov.state) || null, summary, questionnaire, call };
@@ -1997,7 +2059,7 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
     // Fulfilling an existing (Requested) valuation record? Pull its questionnaire
     // from the system so the rep never re-uploads the VQ, and update that record
     // in place rather than creating a duplicate.
-    let target = null, questionnaireText = '';
+    let target = null, questionnaireText = '', interviewFolded = false;
     if (bovId) {
       const existing = loadBovs().find(x => x.id === bovId);
       if (existing) {
@@ -2005,9 +2067,18 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
         target = existing;
         if (existing.srcQuestId) {
           const q = loadQuests().find(x => x.id === existing.srcQuestId);
-          if (q) questionnaireText = questToText(q);
+          if (q) { questionnaireText = questToText(q); if (String((q.formId) || '').indexOf('qfromint_') === 0 || (q.data && q.data.fromInterview)) interviewFolded = true; }
         }
       }
+    }
+    // Always fold in the Seller Interview (written answers + transcript + broker debrief) so
+    // the valuation reflects the seller's own account — not just the uploaded financials —
+    // unless the questionnaire is already interview-derived (avoid duplicating it).
+    if (!interviewFolded) {
+      try {
+        const _pid = (target && target.personId) || '', _cid = (target && target.companyId) || '';
+        if (_pid || _cid) { const itext = interviewQuestText(_pid, _cid); if (itext) questionnaireText = (questionnaireText ? (questionnaireText + '\n\n') : '') + itext; }
+      } catch (e) {}
     }
 
     // Draft valuations re-generate freely — a rep can re-run the analysis, tweak
@@ -2338,15 +2409,19 @@ function mapInputsFor(map) {
   const cim = loadCims().find(x => x.id === map.srcCimId) || null;
   const bovId = (cim && cim.srcBovId) || map.srcBovId || '';
   const bov = bovId ? loadBovs().find(x => x.id === bovId) : null;
-  let questionnaire = '', call = '';
+  let questionnaire = '', call = '', _interviewFolded = false;
   const qid = (bov && bov.srcQuestId) || (cim && cim.srcQuestId) || map.srcQuestId || '';
   if (qid) {
     const q = loadQuests().find(x => x.id === qid);
     if (q) {
       questionnaire = questToText(q);
+      if (String(q.formId || '').indexOf('qfromint_') === 0 || (q.data && q.data.fromInterview)) _interviewFolded = true;
       const m = String(q.formId || '').match(/^qfromscr_(.+)$/);
       if (m) { const sc = loadScreens().find(x => x.id === m[1]); if (sc) call = questToText(sc); }
     }
+  }
+  if (!_interviewFolded) {
+    try { const _pid = (bov && bov.personId) || (cim && cim.personId) || map.personId || ''; const _cid = (bov && bov.companyId) || (cim && cim.companyId) || map.companyId || ''; if (_pid || _cid) { const it = interviewQuestText(_pid, _cid); if (it) questionnaire = (questionnaire ? (questionnaire + '\n\n') : '') + it; } } catch (e) {}
   }
   const summary = bov ? { business: bov.business, revText: bov.revText || bovRevenueText(bov), rangeText: bov.rangeText, targetText: bov.targetText, multText: bov.multText, basis: bov.basis, sdeText: bov.sdeText, adjText: bov.adjText, date: bov.date } : null;
   return { cim, cimState: (cim && cim.state) || null, bov, bovState: (bov && bov.state) || null, summary, questionnaire, call };
@@ -3673,6 +3748,9 @@ function assignmentView(d, overlay) {
     assignmentType: (o.assignmentType === 'tenant_rep') ? 'tenant_rep' : 'listing', criteria: (o.criteria && typeof o.criteria === 'object') ? o.criteria : {},
     transaction: (o.transaction && typeof o.transaction === 'object') ? o.transaction : null,
     value: (bov && (bov.targetText || bov.rangeText)) || '', basis: (bov && bov.basis) || '',
+    // Financials auto-populated from the valuation (BOV) — no re-keying; always in sync with
+    // the latest generated valuation, which itself now reflects the Seller Interview.
+    financials: bov ? { valueTarget: bov.targetText || '', valueRange: bov.rangeText || '', revenue: bov.revText || bovRevenueText(bov) || '', sde: bov.sdeText || '', multiple: bov.multText || '', ebitda: bov.ebitdaText || '', basis: bov.basis || '', bovId: bov.id, state: bov.finalizedAt ? 'final' : (bov.aiGenerated ? 'built' : 'requested') } : null,
     stages, lastActivity, createdAt: created,
   };
 }
@@ -4901,8 +4979,11 @@ function sellerEmailRender(rawBody, vars) {
   const text = fillTemplate(hasTags ? htmlToText(String(rawBody || '')) : String(rawBody || ''), vars);
   return { html: html, text: text };
 }
-const SELLER_LINK_EMAIL_KINDS = Object.keys(SELLER_LINK_KINDS).map(k => ({ kind: k, label: SELLER_LINK_KINDS[k].label }));
-app.get('/api/admin/seller-intake-email', (req, res) => { const kind = linkKind(req.query.kind); const t = effSellerIntakeEmail(kind); res.json({ ok: true, kind: kind, kinds: SELLER_LINK_EMAIL_KINDS, subject: t.subject, body: t.body, defaults: (SELLER_LINK_EMAIL_DEFAULTS[kind] || SELLER_LINK_EMAIL_DEFAULTS.valuation), isAdmin: !!(req.user && isSuper(req.user)) }); });
+// Lazy — computed at request time. Must NOT run at module load: SELLER_LINK_KINDS is a
+// const defined later in the file, so evaluating this eagerly throws a temporal-dead-zone
+// ReferenceError and crashes boot.
+function sellerLinkEmailKinds() { return Object.keys(SELLER_LINK_KINDS).map(k => ({ kind: k, label: SELLER_LINK_KINDS[k].label })); }
+app.get('/api/admin/seller-intake-email', (req, res) => { const kind = linkKind(req.query.kind); const t = effSellerIntakeEmail(kind); res.json({ ok: true, kind: kind, kinds: sellerLinkEmailKinds(), subject: t.subject, body: t.body, defaults: (SELLER_LINK_EMAIL_DEFAULTS[kind] || SELLER_LINK_EMAIL_DEFAULTS.valuation), isAdmin: !!(req.user && isSuper(req.user)) }); });
 app.post('/api/admin/seller-intake-email', express.json({ limit: '64kb' }), (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
   const b = req.body || {}; const kind = linkKind(b.kind); const s = loadSettings();
