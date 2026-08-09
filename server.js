@@ -5106,7 +5106,7 @@ async function buildBrandedVideo(iv) {
       '-i', rawPath,
       '-filter_complex', fc,
       '-map', '[v]', '-map', '[a]',
-      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-threads', '1',
       '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', '-pix_fmt', 'yuv420p', outPath];
     await new Promise((resolve, reject) => {
       execFile(process.env.FFMPEG_PATH || 'ffmpeg', args, { timeout: 8 * 60 * 1000, maxBuffer: 8 * 1024 * 1024 }, (err) => err ? reject(err) : resolve());
@@ -5121,6 +5121,29 @@ async function buildBrandedVideo(iv) {
     console.error('brand video failed', iv.id, e && e.message);
     try { const all = loadInterviews(); const r = all.find(x => x.id === iv.id); if (r) { r.finishStatus = 'error'; saveInterviews(all); } } catch (e2) {}
   } finally { cleanup(); }
+}
+// Brand videos ONE AT A TIME. ffmpeg is memory-heavy and this app runs on a small
+// instance; two concurrent 720p encodes can blow past the memory limit and get the
+// process OOM-restarted. Serialize all branding through a single-flight queue.
+let _brandBusy = false;
+const _brandQueue = [];
+function enqueueBrand(iv) {
+  try {
+    if (!iv || !iv.id) return;
+    if (_brandQueue.some(x => x && x.id === iv.id)) return;   // de-dupe
+    _brandQueue.push(iv);
+    _drainBrandQueue();
+  } catch (e) {}
+}
+function _drainBrandQueue() {
+  if (_brandBusy) return;
+  const iv = _brandQueue.shift();
+  if (!iv) return;
+  _brandBusy = true;
+  Promise.resolve().then(function () { return buildBrandedVideo(iv); }).catch(function () {}).finally(function () {
+    _brandBusy = false;
+    if (_brandQueue.length) setImmediate(_drainBrandQueue);
+  });
 }
 app.get('/api/interview/config', (req, res) => { res.json({ ok: true, ready: s3Configured() }); });
 app.post('/api/interview/presign', express.json(), async (req, res) => {
@@ -5249,7 +5272,7 @@ app.post('/api/interview/:id/brand', express.json(), (req, res) => {
     const all = loadInterviews(); const rec = all.find(x => x.id === req.params.id);
     if (!rec || !rec.key) return res.status(404).json({ ok: false, error: 'Recording not found.' });
     rec.finishStatus = 'building'; saveInterviews(all);
-    setImmediate(function () { buildBrandedVideo(rec).catch(function () {}); });
+    enqueueBrand(rec);
     res.json({ ok: true, status: 'building' });
   } catch (e) { console.error('brand interview:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
@@ -5489,7 +5512,7 @@ app.post('/s/video/register', express.json(), (req, res) => {
     try { if (rec.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === rec.personId); if (p) { logActivity(p, 'Note', meta.label + ' — video recorded by the seller (self-serve).', { auto: true }); savePeople(ppl); } } } catch (e) {}
     try { notifySellerInterviewDone(rec, iv, 'video', req); } catch (e) { console.error('seller notify:', e && e.message); }
     // Brand the finished video (title card + segue) in the background — never blocks the seller.
-    try { setImmediate(function () { buildBrandedVideo(iv).catch(function () {}); }); } catch (e) {}
+    try { enqueueBrand(iv); } catch (e) {}
     res.json({ ok: true, id: iv.id });
   } catch (e) { console.error('seller register:', e && e.message); res.status(500).json({ ok: false, error: 'Could not save the recording.' }); }
 });
