@@ -10,9 +10,14 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true \
 USER root
 WORKDIR /app
 
-# ffmpeg (brands the seller interview videos — title card + segue) and the DejaVu fonts
-# the title card is drawn with. Debian base, so apt is available.
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
+# ffmpeg brands the seller interview videos (title card + segue). We copy a
+# prebuilt STATIC ffmpeg/ffprobe straight from a known image instead of using
+# apt — the Puppeteer base image is an older Debian whose package repos can be
+# archived/unreachable, which made `apt-get install ffmpeg` fail the build.
+# The static binary has no system deps, so the base image's repo state can't
+# break us. The DejaVu fonts the title card draws with are bundled in ./fonts.
+COPY --from=mwader/static-ffmpeg:7.1 /ffmpeg /usr/local/bin/ffmpeg
+COPY --from=mwader/static-ffmpeg:7.1 /ffprobe /usr/local/bin/ffprobe
 
 # Install deps first (better layer caching)
 COPY package*.json ./

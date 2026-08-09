@@ -5071,7 +5071,7 @@ function _s3PutFile(key, srcPath, contentType) {
   const { PutObjectCommand } = require('@aws-sdk/client-s3');
   return s3client().send(new PutObjectCommand({ Bucket: s3Bucket(), Key: key, Body: fs.createReadStream(srcPath), ContentType: contentType || 'video/mp4' }));
 }
-function _brandFont(bold) { const dir = '/usr/share/fonts/truetype/dejavu'; const f = dir + (bold ? '/DejaVuSans-Bold.ttf' : '/DejaVuSans.ttf'); try { return fs.existsSync(f) ? f : ''; } catch (e) { return ''; } }
+function _brandFont(bold) { const name = bold ? 'DejaVuSans-Bold.ttf' : 'DejaVuSans.ttf'; const cands = [ path.join(__dirname, 'fonts', name), '/app/fonts/' + name, '/usr/share/fonts/truetype/dejavu/' + name ]; for (var i = 0; i < cands.length; i++) { try { if (fs.existsSync(cands[i])) return cands[i]; } catch (e) {} } return ''; }
 // Produce the branded MP4 (title card -> fade segue -> the recording) for one interview.
 async function buildBrandedVideo(iv) {
   if (!iv || !iv.id || !iv.key || !s3Configured() || !ffmpegAvailable()) return;
