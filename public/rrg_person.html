@@ -710,10 +710,15 @@ function openSellerIntake(){
     +'<div style="padding:18px 24px 22px">'
     +'<div style="color:#5a6478;font-size:13px;line-height:1.55;margin-bottom:16px">Two private links for <b>'+_siEsc(biz)+'</b> to capture the story behind the numbers — the details that shape what the business is worth. The seller uses whichever they prefer: written form, video, or both. Everything comes back to this record.</div>'
     +'<div id="siBody" style="color:#6b7488;font-size:13px">Preparing links…</div>'
+    +'<div style="margin-top:20px;padding-top:14px;border-top:1px solid #eef1f6;text-align:right"><button id="siClose" style="background:#eef1f6;border:1px solid #dce2ec;color:#33415c;border-radius:9px;padding:10px 22px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer">Close</button></div>'
     +'</div></div>';
   document.body.appendChild(ov);
-  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
-  document.getElementById('siX').addEventListener('click',function(){ ov.remove(); });
+  function closeSi(){ try{ ov.remove(); }catch(e){} try{ document.removeEventListener('keydown',_siKey); }catch(e){} }
+  function _siKey(e){ if(e.key==='Escape') closeSi(); }
+  ov.addEventListener('click',function(e){ if(e.target===ov) closeSi(); });
+  document.getElementById('siX').addEventListener('click',closeSi);
+  var _siCloseBtn=document.getElementById('siClose'); if(_siCloseBtn) _siCloseBtn.addEventListener('click',closeSi);
+  document.addEventListener('keydown',_siKey);
   fetch('/api/seller-link',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({personId:pid,companyId:cid,business:biz})}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ document.getElementById('siBody').textContent=(j&&j.error)||'Could not create the links.'; return; }
     _siRender(j, email);

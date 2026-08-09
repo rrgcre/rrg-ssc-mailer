@@ -41,8 +41,8 @@ function render(){
     +'<label class="fl">Body</label><textarea class="tin" id="body">'+esc(BODY)+'</textarea>'
     +'<div class="chips" id="chips"></div>'
     +'<div class="savebar"><button class="savebtn" id="save">Save</button><button class="resetbtn" id="reset">Reset to default</button><span class="msg" id="msg"></span></div>'
-    +'<div class="note">Placeholders: <b>{{business}}</b> the business name · <b>{{formUrl}}</b> the form link · <b>{{videoUrl}}</b> the video link · <b>{{repName}}</b> your name · <b>{{org}}</b> your company. Click a chip to insert it into the body. Changes apply firm-wide.</div>';
-  var chips=['{{business}}','{{formUrl}}','{{videoUrl}}','{{repName}}','{{org}}'];
+    +'<div class="note">Placeholders: <b>{{firstName}}</b> the contact’s first name · <b>{{business}}</b> the business name · <b>{{formUrl}}</b> the form link · <b>{{videoUrl}}</b> the video link · <b>{{repName}}</b> your name · <b>{{org}}</b> your company. Click a chip to insert it into the body. Changes apply firm-wide.</div>';
+  var chips=['{{firstName}}','{{business}}','{{formUrl}}','{{videoUrl}}','{{repName}}','{{org}}'];
   document.getElementById('chips').innerHTML=chips.map(function(c){ return '<span class="chip" data-c="'+c+'">'+c+'</span>'; }).join('');
   document.querySelectorAll('.chip').forEach(function(ch){ ch.addEventListener('click',function(){ var ta=document.getElementById('body'); var c=ch.getAttribute('data-c'); var s=ta.selectionStart||ta.value.length, e=ta.selectionEnd||ta.value.length; ta.value=ta.value.slice(0,s)+c+ta.value.slice(e); ta.focus(); ta.selectionStart=ta.selectionEnd=s+c.length; }); });
   document.getElementById('save').addEventListener('click',save);

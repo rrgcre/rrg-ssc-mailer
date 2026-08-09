@@ -4844,8 +4844,8 @@ function effSellerIntakeEmail() {
 function fillTemplate(str, vars) { return String(str || '').replace(/\{\{(\w+)\}\}/g, function (m, k) { return (vars[k] != null) ? String(vars[k]) : ''; }); }
 function sellerIntakeEmailHtml(text, formUrl, videoUrl) {
   let h = esc(text).replace(/\n/g, '<br>');
-  h = h.split(esc(formUrl)).join('<a href="' + formUrl + '" style="color:#000E31;font-weight:700;text-decoration:underline">' + esc(formUrl) + '</a>');
-  h = h.split(esc(videoUrl)).join('<a href="' + videoUrl + '" style="color:#DA2B1F;font-weight:700;text-decoration:underline">' + esc(videoUrl) + '</a>');
+  h = h.split(esc(formUrl)).join('<a href="' + formUrl + '" style="color:#1155cc;font-weight:400;text-decoration:underline">' + esc(formUrl) + '</a>');
+  h = h.split(esc(videoUrl)).join('<a href="' + videoUrl + '" style="color:#1155cc;font-weight:400;text-decoration:underline">' + esc(videoUrl) + '</a>');
   return '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1a2236;font-size:14px;line-height:1.65">' + h + '</div>';
 }
 app.get('/api/admin/seller-intake-email', (req, res) => { const t = effSellerIntakeEmail(); res.json({ ok: true, subject: t.subject, body: t.body, defaults: SELLER_INTAKE_EMAIL_DEFAULT, isAdmin: !!(req.user && isSuper(req.user)) }); });
@@ -5065,7 +5065,9 @@ app.post('/api/seller-link/email', express.json(), async (req, res) => {
     const origin = req.protocol + '://' + req.get('host');
     const formUrl = origin + '/seller_intake.html?t=' + rec.token, videoUrl = origin + '/seller_record.html?t=' + rec.token;
     const org = orgDisplayName(); const biz = rec.business || 'your business'; const me = (req.user && req.user.name) || org;
-    const vars = { org: org, business: biz, formUrl: formUrl, videoUrl: videoUrl, repName: me };
+    let firstName = '';
+    try { if (rec.personId) { const _p = loadPeople().find(x => x.id === rec.personId); if (_p) firstName = String(_p.firstName || (_p.name ? String(_p.name).trim().split(/\s+/)[0] : '') || '').trim(); } } catch (e) {}
+    const vars = { org: org, business: biz, formUrl: formUrl, videoUrl: videoUrl, repName: me, firstName: firstName };
     const tpl = effSellerIntakeEmail();
     const subject = fillTemplate(tpl.subject, vars) || (org + ' — seller intake for ' + biz);
     const text = fillTemplate(tpl.body, vars);
