@@ -366,6 +366,30 @@ function mktCardShell(){ if(A && A.assignmentType==='tenant_rep') return ''; ret
 function loadMarketplace(){ if(!KEY) return; fetch('/api/marketplace/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ MKT=j; fillMarketplaceCard(); } else { var s=document.getElementById('mktStatus'); if(s) s.textContent=''; var b=document.getElementById('mktBody'); if(b) b.innerHTML='<div style="color:#8a93a3;font-size:13px">Marketplace publishing isn’t available for this listing.</div>'; } }).catch(function(){}); }
 function _mkOpts(arr,sel,blank){ var o=blank?('<option value="">'+esc(blank)+'</option>'):''; return o+(arr||[]).map(function(x){return '<option value="'+esc(x)+'"'+(x===sel?' selected':'')+'>'+esc(x)+'</option>';}).join(''); }
 function _mkOptsObj(obj,sel){ obj=obj||{}; return Object.keys(obj).map(function(k){return '<option value="'+esc(k)+'"'+(k===sel?' selected':'')+'>'+esc(obj[k])+'</option>';}).join(''); }
+// Turn a raw valuation figure ("$6,200,000", "$6.2M", "$5.25M–$5.75M") into a tidy blind-teaser
+// band ("$6–6.5M"). Single figures get rounded to a sensible band; existing ranges are reformatted.
+function _bandTrim(n){ n=Math.round(n*100)/100; return String(n); }
+function _bandFmt(lo,hi){ if(hi>=1e6) return '$'+_bandTrim(lo/1e6)+'–'+_bandTrim(hi/1e6)+'M'; return '$'+_bandTrim(lo/1e3)+'–'+_bandTrim(hi/1e3)+'K'; }
+function _bandFromSingle(v){
+  if(v>=1e6){ var m=v/1e6, step=m>=10?1:(m>=3?0.5:0.25); var lo=Math.floor(m/step)*step, hi=Math.ceil(m/step)*step; if(hi<=lo) hi=lo+step; return _bandFmt(lo*1e6,hi*1e6); }
+  var k=v/1e3, st=k>=250?50:(k>=100?25:10); var l=Math.floor(k/st)*st, h=Math.ceil(k/st)*st; if(h<=l) h=l+st; return _bandFmt(l*1e3,h*1e3);
+}
+function cleanBand(text){
+  text=String(text==null?'':text); if(!text) return '';
+  var nums=[], re=/\$?\s*([0-9][0-9,]*(?:\.[0-9]+)?)\s*(mm|m|million|k|thousand|b|billion)?/gi, mm;
+  while((mm=re.exec(text))){
+    var raw=mm[1].replace(/,/g,''), val=parseFloat(raw); if(isNaN(val)||val<=0) continue;
+    var u=(mm[2]||'').toLowerCase();
+    if(u==='b'||u==='billion') val*=1e9;
+    else if(u==='m'||u==='mm'||u==='million') val*=1e6;
+    else if(u==='k'||u==='thousand') val*=1e3;
+    else if(val<1000) val*=1e6; // bare small number = millions (e.g. 6.2)
+    nums.push(val);
+  }
+  if(!nums.length) return '';
+  if(nums.length>=2){ nums.sort(function(a,b){return a-b;}); var lo=nums[0], hi=nums[nums.length-1]; if(lo!==hi) return _bandFmt(lo,hi); }
+  return _bandFromSingle(nums[0]);
+}
 function fillMarketplaceCard(){
   var body=document.getElementById('mktBody'); if(!body||!MKT) return;
   var L=MKT.listing||{}, t=L.teaser||{}, sg=L.suggest||{};
@@ -396,10 +420,10 @@ function fillMarketplaceCard(){
       +'<div class="mkf"><label>Flag</label><select class="mki" data-f="flag">'+['','new','price'].map(function(k){return '<option value="'+k+'"'+(v('flag','')===k?' selected':'')+'>'+MKT_FLAG_LBL[k]+'</option>';}).join('')+'</select></div>'
     +'</div>'
     +'<div class="mkrow">'
-      +'<div class="mkf"><label>Revenue band</label><input class="mki" data-f="revenue" value="'+esc(v('revenue',sg.revenue||fin.revenue||''))+'" placeholder="$6.0–6.5M"></div>'
+      +'<div class="mkf"><label>Revenue band</label><input class="mki" data-f="revenue" value="'+esc(v('revenue',sg.revenue||cleanBand(fin.revenue)||''))+'" placeholder="$6.0–6.5M"></div>'
       +'<div class="mkf sm"><label>Earnings basis</label><select class="mki" data-f="earnBasis"><option value="SDE"'+(v('earnBasis',finBasis)==='SDE'?' selected':'')+'>SDE</option><option value="EBITDA"'+(v('earnBasis',finBasis)==='EBITDA'?' selected':'')+'>EBITDA</option></select></div>'
-      +'<div class="mkf"><label>Earnings band</label><input class="mki" data-f="sde" value="'+esc(v('sde',sg.sde||fin.sde||''))+'" placeholder="$1.0–1.25M"></div>'
-      +'<div class="mkf"><label>Guide band</label><input class="mki" data-f="guide" value="'+esc(v('guide',sg.guide||fin.valueRange||fin.valueTarget||''))+'" placeholder="$5.25–5.5M"></div>'
+      +'<div class="mkf"><label>Earnings band</label><input class="mki" data-f="sde" value="'+esc(v('sde',sg.sde||cleanBand(fin.sde)||''))+'" placeholder="$1.0–1.25M"></div>'
+      +'<div class="mkf"><label>Guide band</label><input class="mki" data-f="guide" value="'+esc(v('guide',sg.guide||cleanBand(fin.valueRange||fin.valueTarget)||''))+'" placeholder="$5.25–5.5M"></div>'
     +'</div>'
     +(finFilled?'<div style="font-size:11.5px;color:#1f8a5b;font-weight:600;margin:-4px 0 12px">✓ Revenue, earnings & guide pre-filled from the valuation — edit as needed.</div>':'')
     +'<div class="mkrow">'
