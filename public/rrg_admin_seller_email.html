@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Seller Intake Email</title>
+<style>
+:root{--navy:#0b1636;--navy2:#16346e;--red:#C0261B;--ink:#141a29;--dim:#5f6a7d;--soft:#8a93a3;--line:#e5e9f1;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:720px;margin:0 auto;padding:26px 26px 60px;}
+h1{font-size:20px;font-weight:800;color:var(--navy);margin:0;}
+.sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.5;max-width:620px;}
+label.fl{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin:18px 0 6px;}
+input.tin,textarea.tin{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;background:#fff;color:var(--ink);}
+textarea.tin{min-height:230px;resize:vertical;line-height:1.55;}
+input.tin:focus,textarea.tin:focus{outline:none;border-color:#5b9be8;box-shadow:0 0 0 3px rgba(91,155,232,.15);}
+.chips{margin:9px 0 2px;display:flex;flex-wrap:wrap;gap:7px;}
+.chip{font-size:11.5px;font-weight:700;color:var(--navy2);background:#eef2fb;border:1px solid #d7e0f2;border-radius:100px;padding:4px 10px;cursor:pointer;}
+.chip:hover{background:#e2e9fa;}
+.savebar{display:flex;align-items:center;gap:12px;margin-top:20px;}
+.savebtn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:10px 20px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;}
+.savebtn:disabled{opacity:.5;cursor:default;}
+.resetbtn{background:#eef1f6;color:#33415c;border:1px solid #dce2ec;border-radius:9px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.msg{font-size:12.5px;font-weight:600;}
+.note{font-size:12px;color:var(--soft);margin-top:16px;line-height:1.6;}
+.gate{color:var(--dim);font-size:13.5px;padding:30px 0;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var ADMIN=false, SUBJ='', BODY='';
+function render(){
+  if(!ADMIN){ document.getElementById('root').innerHTML='<h1>Seller Intake Email</h1><div class="sub">This is the email sent to a seller with their intake links. Only an administrator can edit it.</div>'; return; }
+  document.getElementById('root').innerHTML=''
+    +'<h1>Seller Intake Email</h1>'
+    +'<div class="sub">This is the message sent from a contact’s <b>Send Seller Intake</b> panel. Use the placeholders below — they’re filled in automatically when the email goes out. The two link placeholders become clickable links.</div>'
+    +'<label class="fl">Subject</label><input class="tin" id="subj" value="'+esc(SUBJ)+'">'
+    +'<label class="fl">Body</label><textarea class="tin" id="body">'+esc(BODY)+'</textarea>'
+    +'<div class="chips" id="chips"></div>'
+    +'<div class="savebar"><button class="savebtn" id="save">Save</button><button class="resetbtn" id="reset">Reset to default</button><span class="msg" id="msg"></span></div>'
+    +'<div class="note">Placeholders: <b>{{business}}</b> the business name · <b>{{formUrl}}</b> the form link · <b>{{videoUrl}}</b> the video link · <b>{{repName}}</b> your name · <b>{{org}}</b> your company. Click a chip to insert it into the body. Changes apply firm-wide.</div>';
+  var chips=['{{business}}','{{formUrl}}','{{videoUrl}}','{{repName}}','{{org}}'];
+  document.getElementById('chips').innerHTML=chips.map(function(c){ return '<span class="chip" data-c="'+c+'">'+c+'</span>'; }).join('');
+  document.querySelectorAll('.chip').forEach(function(ch){ ch.addEventListener('click',function(){ var ta=document.getElementById('body'); var c=ch.getAttribute('data-c'); var s=ta.selectionStart||ta.value.length, e=ta.selectionEnd||ta.value.length; ta.value=ta.value.slice(0,s)+c+ta.value.slice(e); ta.focus(); ta.selectionStart=ta.selectionEnd=s+c.length; }); });
+  document.getElementById('save').addEventListener('click',save);
+  document.getElementById('reset').addEventListener('click',function(){ doSave({reset:true}); });
+}
+function save(){ doSave({ subject:document.getElementById('subj').value, body:document.getElementById('body').value }); }
+function doSave(payload){
+  var b=document.getElementById('save'), m=document.getElementById('msg'); if(b){ b.disabled=true; } m.textContent='';
+  fetch('/api/admin/seller-intake-email',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)})
+    .then(function(r){return r.json();}).then(function(j){ if(b){ b.disabled=false; }
+      if(j&&j.ok){ SUBJ=j.subject; BODY=j.body; if(payload.reset){ render(); } var el=document.getElementById('subj'); if(el) el.value=SUBJ; var bd=document.getElementById('body'); if(bd) bd.value=BODY; m.style.color='#1f8a5b'; m.textContent=payload.reset?'Reset to default ✓':'Saved ✓'; setTimeout(function(){m.textContent='';},1900); }
+      else { m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Could not save.'; } })
+    .catch(function(){ if(b){ b.disabled=false; } m.style.color='#C0261B'; m.textContent='Could not reach the server.'; });
+}
+fetch('/api/admin/seller-intake-email',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load the email settings.</div>'; return; }
+  SUBJ=j.subject||''; BODY=j.body||''; ADMIN=!!j.isAdmin; render();
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+</script>
+</body>
+</html>

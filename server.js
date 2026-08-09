@@ -4829,6 +4829,33 @@ app.post('/api/admin/accounting', express.json(), (req, res) => {
   const s = loadSettings(); s.accountingBasis = ((req.body || {}).basis === 'cash') ? 'cash' : 'accrual'; saveSettings(s);
   res.json({ ok: true, basis: effAccountingBasis() });
 });
+// Configurable seller-intake email (admin-editable; placeholders {{business}} {{formUrl}} {{videoUrl}} {{repName}} {{org}}).
+const SELLER_INTAKE_EMAIL_DEFAULT = {
+  subject: '{{org}} — quick seller intake for {{business}}',
+  body: 'Hi,\n\nThanks for considering {{org}} to represent the sale of {{business}}. To get started, we’ve set up two quick, private options — use whichever you prefer (or both):\n\n• Fill out a short form: {{formUrl}}\n\n• Record a short video interview: {{videoUrl}}\n\nEverything is confidential and goes only to your {{org}} representative. Prefer not to be on camera? Just use the form.\n\n— {{repName}}',
+};
+function effSellerIntakeEmail() {
+  const s = (loadSettings().sellerIntakeEmail) || {};
+  return {
+    subject: (typeof s.subject === 'string' && s.subject.trim()) ? s.subject : SELLER_INTAKE_EMAIL_DEFAULT.subject,
+    body: (typeof s.body === 'string' && s.body.trim()) ? s.body : SELLER_INTAKE_EMAIL_DEFAULT.body,
+  };
+}
+function fillTemplate(str, vars) { return String(str || '').replace(/\{\{(\w+)\}\}/g, function (m, k) { return (vars[k] != null) ? String(vars[k]) : ''; }); }
+function sellerIntakeEmailHtml(text, formUrl, videoUrl) {
+  let h = esc(text).replace(/\n/g, '<br>');
+  h = h.split(esc(formUrl)).join('<a href="' + formUrl + '" style="color:#000E31;font-weight:700;text-decoration:underline">' + esc(formUrl) + '</a>');
+  h = h.split(esc(videoUrl)).join('<a href="' + videoUrl + '" style="color:#DA2B1F;font-weight:700;text-decoration:underline">' + esc(videoUrl) + '</a>');
+  return '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1a2236;font-size:14px;line-height:1.65">' + h + '</div>';
+}
+app.get('/api/admin/seller-intake-email', (req, res) => { const t = effSellerIntakeEmail(); res.json({ ok: true, subject: t.subject, body: t.body, defaults: SELLER_INTAKE_EMAIL_DEFAULT, isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.post('/api/admin/seller-intake-email', express.json({ limit: '64kb' }), (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
+  const b = req.body || {}; const s = loadSettings();
+  if (b.reset) { delete s.sellerIntakeEmail; saveSettings(s); const t = effSellerIntakeEmail(); return res.json({ ok: true, subject: t.subject, body: t.body }); }
+  s.sellerIntakeEmail = { subject: String(b.subject || '').slice(0, 300), body: String(b.body || '').slice(0, 20000) }; saveSettings(s);
+  const t = effSellerIntakeEmail(); res.json({ ok: true, subject: t.subject, body: t.body });
+});
 // ===== Seller interview recordings -> S3 (lazy-loaded so a missing dep never blocks boot) =====
 let _s3 = null, _s3ok = null;
 function s3client() {
@@ -5010,14 +5037,12 @@ app.post('/api/seller-link/email', express.json(), async (req, res) => {
     const origin = req.protocol + '://' + req.get('host');
     const formUrl = origin + '/seller_intake.html?t=' + rec.token, videoUrl = origin + '/seller_record.html?t=' + rec.token;
     const org = orgDisplayName(); const biz = rec.business || 'your business'; const me = (req.user && req.user.name) || org;
-    const html = '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1a2236;font-size:14px;line-height:1.6">'
-      + '<p>Hi,</p><p>Thanks for considering ' + esc(org) + ' to represent the sale of <b>' + esc(biz) + '</b>. To get started, we’ve set up two quick, private options — use whichever you prefer (or both):</p>'
-      + '<p><a href="' + formUrl + '" style="display:inline-block;background:#000E31;color:#fff;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:9px;margin:4px 0">Fill out a short form &rarr;</a></p>'
-      + '<p><a href="' + videoUrl + '" style="display:inline-block;background:#DA2B1F;color:#fff;text-decoration:none;font-weight:700;padding:11px 18px;border-radius:9px;margin:4px 0">Record a short video interview &rarr;</a></p>'
-      + '<p style="color:#6b7488;font-size:12.5px">Everything is confidential and goes only to your ' + esc(org) + ' representative. Prefer not to be on camera? Just use the form.</p>'
-      + '<p>— ' + esc(me) + '</p></div>';
-    const text = 'Two private ways to share the basics on ' + biz + ':\n\nShort form: ' + formUrl + '\nVideo interview: ' + videoUrl + '\n\nUse whichever you prefer. Everything is confidential. — ' + me;
-    await sendMailWL({ from: mailFrom(), to, subject: org + ' — quick seller intake for ' + biz, text, html });
+    const vars = { org: org, business: biz, formUrl: formUrl, videoUrl: videoUrl, repName: me };
+    const tpl = effSellerIntakeEmail();
+    const subject = fillTemplate(tpl.subject, vars) || (org + ' — seller intake for ' + biz);
+    const text = fillTemplate(tpl.body, vars);
+    const html = sellerIntakeEmailHtml(text, formUrl, videoUrl);
+    await sendMailWL({ from: mailFrom(), to, subject, text, html });
     const all = loadSellerLinks(); const i = all.findIndex(x => x.token === rec.token); if (i >= 0) { all[i].emailedAt = new Date().toISOString(); all[i].emailedTo = to; saveSellerLinks(all); }
     res.json({ ok: true });
   } catch (e) { console.error('seller-link email:', e && e.message); res.status(502).json({ ok: false, error: 'Could not send the email. Check the mailbox connection in Account → Gmail.' }); }
