@@ -399,6 +399,12 @@ function effCuisineTypes() { const s = loadSettings(); return (Array.isArray(s.c
 function effMaxPullLocations() { const s = loadSettings(); const n = parseInt(s.maxPullLocations, 10); return (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
 function effDefaultState() { const s = loadSettings(); const v = String(s.defaultState || '').trim(); return v ? v.slice(0, 20) : 'TX'; }
 function effAssistantName() { const s = loadSettings(); const v = String(s.assistantName || '').trim(); return v ? v.slice(0, 40) : 'Claude'; }
+const VOICE_ACCENTS = ['any', 'en-GB', 'en-US', 'en-AU', 'en-IE', 'en-IN'];
+const VOICE_GENDERS = ['any', 'female', 'male'];
+// Preferred voice for the spoken seller interview (device-side TTS). We store a
+// preference (accent + gender) rather than a specific voice, because Web Speech
+// voices vary by device — each seller's browser matches its best available voice.
+function effVoicePref() { const s = loadSettings(); const a = (VOICE_ACCENTS.indexOf(String(s.voiceAccent || '')) >= 0) ? s.voiceAccent : 'en-GB'; const g = (VOICE_GENDERS.indexOf(String(s.voiceGender || '')) >= 0) ? s.voiceGender : 'female'; return { accent: a, gender: g }; }
 function effListRecencyDays() { const s = loadSettings(); const n = parseInt(s.listRecencyDays, 10); return (isFinite(n) && n > 0) ? Math.min(3650, n) : 90; }
 function effListRecencyEnabled() { const s = loadSettings(); return s.listRecencyEnabled !== false; }
 function effConceptLabel() { const s = loadSettings(); const v = String(s.conceptLabel || '').trim(); return v ? v.slice(0, 30) : 'Concept'; }
@@ -5483,7 +5489,7 @@ app.post('/s/intake/submit', express.json({ limit: '256kb' }), (req, res) => {
 app.get('/s/video', (req, res) => {
   const rec = sellerLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
   const meta = linkKindMeta(rec.kind);
-  res.json({ ok: true, business: rec.business || '', org: orgDisplayName(), kind: linkKind(rec.kind), label: meta.label, ready: s3Configured(), questions: sellerInterviewFields(rec.kind).map(f => f.prompt) });
+  res.json({ ok: true, business: rec.business || '', org: orgDisplayName(), kind: linkKind(rec.kind), label: meta.label, ready: s3Configured(), voice: effVoicePref(), questions: sellerInterviewFields(rec.kind).map(f => f.prompt) });
 });
 app.post('/s/video/presign', express.json(), async (req, res) => {
   const rec = sellerLinkByToken(req.body && req.body.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
@@ -8645,6 +8651,8 @@ app.post('/api/admin/ticket-prompt', requireAdmin, (req, res) => {
 // SDE-vs-EBITDA revenue threshold. Admins read/write; any signed-in user (the
 // BOV builder) can read it to compute the basis client-side.
 app.get('/api/bov-config', (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD, introSeconds: loadIntroSeconds(), defaultIntroSeconds: DEFAULT_INTRO_SECONDS, introMessage: loadIntroMessage(), packIntroSeconds: loadPackIntroSeconds(), packIntroMessage: loadPackIntroMessage(), doneSeconds: loadDoneSeconds(), defaultDoneSeconds: DEFAULT_DONE_SECONDS, noTtmMessage: loadNoTtmMessage(), assetSaleFloor: loadAssetSaleFloor(), assetSaleMessage: loadAssetSaleMessage(), ambienceId: loadAmbienceId() }));
+app.get('/api/admin/voice', requireAdmin, (req, res) => { const v = effVoicePref(); res.json({ ok: true, accent: v.accent, gender: v.gender, accents: VOICE_ACCENTS, genders: VOICE_GENDERS, defaults: { accent: 'en-GB', gender: 'female' } }); });
+app.post('/api/admin/voice', requireAdmin, express.json(), (req, res) => { const s = loadSettings(); const b = req.body || {}; if (typeof b.accent === 'string') s.voiceAccent = (VOICE_ACCENTS.indexOf(b.accent) >= 0) ? b.accent : 'en-GB'; if (typeof b.gender === 'string') s.voiceGender = (VOICE_GENDERS.indexOf(b.gender) >= 0) ? b.gender : 'female'; saveSettings(s); const v = effVoicePref(); res.json({ ok: true, accent: v.accent, gender: v.gender }); });
 app.get('/api/admin/bov-config', requireAdmin, (req, res) => res.json({ ok: true, sdeThreshold: loadSdeThreshold(), defaultSdeThreshold: DEFAULT_SDE_THRESHOLD, introSeconds: loadIntroSeconds(), defaultIntroSeconds: DEFAULT_INTRO_SECONDS, introMessage: loadIntroMessage(), defaultIntroMessage: DEFAULT_INTRO_MESSAGE, packIntroSeconds: loadPackIntroSeconds(), defaultPackIntroSeconds: DEFAULT_PACK_INTRO_SECONDS, packIntroMessage: loadPackIntroMessage(), defaultPackIntroMessage: DEFAULT_PACK_INTRO_MESSAGE, doneSeconds: loadDoneSeconds(), defaultDoneSeconds: DEFAULT_DONE_SECONDS, noTtmMessage: loadNoTtmMessage(), defaultNoTtmMessage: DEFAULT_NO_TTM_MESSAGE, assetSaleFloor: loadAssetSaleFloor(), defaultAssetSaleFloor: DEFAULT_ASSET_SALE_FLOOR, assetSaleMessage: loadAssetSaleMessage(), defaultAssetSaleMessage: DEFAULT_ASSET_SALE_MESSAGE, ambienceId: loadAmbienceId() }));
 app.post('/api/admin/bov-config', requireAdmin, (req, res) => {
   const b = req.body || {};

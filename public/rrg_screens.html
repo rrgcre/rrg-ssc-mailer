@@ -82,6 +82,31 @@ textarea.ta{width:100%;min-height:190px;border:1px solid #cfd6e2;border-radius:1
     <div class="row"><button class="btn primary" onclick="saveAmbience()">Save sound</button> <button class="btn ghost" onclick="stopPreview()">Stop preview</button> <span id="sndmsg" class="msg"></span></div>
   </div>
 
+  <div class="card">
+    <h2>Interview Voice</h2>
+    <span class="cs">The voice that reads the questions aloud on the seller <b>video interview</b>. Browser voices vary by device, so you set a preference here and each seller's phone or laptop picks its closest match automatically.</span>
+    <div class="row" style="gap:18px;flex-wrap:wrap;align-items:flex-end">
+      <label style="font-size:12px;color:#66738f;font-weight:700">Accent
+        <select id="voiceAccent" class="txt" style="display:block;margin-top:5px;min-width:210px">
+          <option value="en-GB">British (English — UK)</option>
+          <option value="en-US">American (English — US)</option>
+          <option value="en-AU">Australian</option>
+          <option value="en-IE">Irish</option>
+          <option value="en-IN">Indian</option>
+          <option value="any">Any / device default</option>
+        </select>
+      </label>
+      <label style="font-size:12px;color:#66738f;font-weight:700">Voice
+        <select id="voiceGender" class="txt" style="display:block;margin-top:5px;min-width:150px">
+          <option value="female">Female</option>
+          <option value="male">Male</option>
+          <option value="any">Any</option>
+        </select>
+      </label>
+    </div>
+    <div class="row" style="margin-top:14px"><button class="btn primary" onclick="saveVoicePref()">Save voice</button> <button class="btn ghost" onclick="testVoicePref()">Test voice</button> <span id="voicemsg" class="msg"></span></div>
+  </div>
+
 </div>
 <script src="/rrg_ambience.js?v=3"></script>
 <script>
@@ -117,7 +142,14 @@ function resetIntroMessage(){ if(!confirm('Reset the intro message to the RRG de
 function savePackIntroSeconds(){ var v=(document.getElementById('packIntroSeconds').value||'').replace(/[^0-9.]/g,''); var m=document.getElementById('pismsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{packIntroSeconds:v}).then(function(j){ if(j&&j.ok){ document.getElementById('packIntroSeconds').value=(j.packIntroSeconds!=null?j.packIntroSeconds:20); m.textContent=(Number(j.packIntroSeconds)===0?'Saved — intro screen off ✓':('Saved — '+j.packIntroSeconds+'s ✓')); } else m.textContent=(j&&j.error)||'Failed'; }); }
 function savePackIntroMessage(){ var v=document.getElementById('packIntroMessage').value||''; var m=document.getElementById('pimmsg'); m.textContent='Saving…'; post('/api/admin/bov-config',{packIntroMessage:v}).then(function(j){ if(j&&j.ok){ document.getElementById('packIntroMessage').value=j.packIntroMessage||''; m.textContent='Saved ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
 function resetPackIntroMessage(){ if(!confirm('Reset the Marketing Pack intro message to the RRG default?')) return; var m=document.getElementById('pimmsg'); m.textContent='Resetting…'; post('/api/admin/bov-config',{packIntroMessage:''}).then(function(j){ if(j&&j.ok){ document.getElementById('packIntroMessage').value=j.packIntroMessage||PACK_INTRO_DEFAULT_MSG; m.textContent='Reset to default ✓'; } else m.textContent=(j&&j.error)||'Failed'; }); }
+/* ---- Interview voice preference (seller video interview TTS) ---- */
+function loadVoicePref(){ fetch('/api/admin/voice',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){ if(j&&j.ok){ var a=document.getElementById('voiceAccent'), g=document.getElementById('voiceGender'); if(a) a.value=j.accent||'en-GB'; if(g) g.value=j.gender||'female'; } }).catch(function(){}); }
+function saveVoicePref(){ var a=(document.getElementById('voiceAccent')||{}).value||'en-GB', g=(document.getElementById('voiceGender')||{}).value||'female', m=document.getElementById('voicemsg'); if(m){ m.className='msg'; m.textContent='Saving…'; } post('/api/admin/voice',{accent:a,gender:g}).then(function(j){ if(j&&j.ok){ if(m){ m.textContent='Saved ✓ — new seller video interviews use this voice.'; } } else if(m){ m.textContent=(j&&j.error)||'Failed'; } }).catch(function(){ if(m) m.textContent='Could not reach the server.'; }); }
+function _vFemale(n){ if(/\b(male|Daniel|George|Arthur|Ryan|Oliver|Thomas|James|David|Mark|Male)\b/i.test(n)&&!/female/i.test(n)) return false; return /female|woman|\b(Kate|Serena|Sonia|Libby|Hazel|Amy|Emma|Fiona|Moira|Samantha|Aria|Jenny|Zira|Karen|Susan|Victoria|Catherine|Google UK English Female)\b/i.test(n); }
+function testVoicePref(){ var SS=window.speechSynthesis, m=document.getElementById('voicemsg'); if(!SS){ if(m) m.textContent='This browser has no speech voices.'; return; } var acc=(document.getElementById('voiceAccent')||{}).value||'en-GB', gen=(document.getElementById('voiceGender')||{}).value||'female'; var all=(SS.getVoices()||[]).filter(function(v){return /^en/i.test(v.lang);}); if(!all.length) all=SS.getVoices()||[]; if(!all.length){ if(m) m.textContent='Voices still loading — tap Test again.'; return; } function rank(v){ var l=(v.lang||'').toLowerCase().replace('_','-'); var ma=(acc==='any')||l.indexOf(acc.toLowerCase())===0; var f=_vFemale(v.name||''); var mg=(gen==='any')||(gen==='female'?f:!f); if(ma&&mg)return 0; if(mg)return 1; if(ma)return 2; return 3; } all=all.slice().sort(function(a,b){return rank(a)-rank(b);}); var v=all[0]; try{ SS.cancel(); var u=new SpeechSynthesisUtterance('Hi — this is the voice that will read your interview questions.'); if(v) u.voice=v; SS.speak(u); if(m){ m.className='msg'; m.textContent=v?('Playing: '+String(v.name).replace(/\s*\(.*\)$/,'')):'Playing a sample.'; } }catch(e){} }
+
 try{ loadBovConfig(); }catch(e){}
+try{ loadVoicePref(); }catch(e){}
 </script>
 </body>
 </html>

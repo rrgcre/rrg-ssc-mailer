@@ -123,6 +123,7 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
   function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
   var TOKEN=qp('t');
   var PREVIEW=(qp('preview')==='1');   // Test in Video Mode from the form builder — nothing is recorded or saved
+  var VOICEPREF={accent:'en-GB',gender:'female'};   // org default; overridden by the admin voice setting via /s/video
   var app=document.getElementById('app'), gate=document.getElementById('gate');
   function showGate(msg){ gate.innerHTML='<b>Link unavailable</b>'+esc(msg||'This link is invalid or has expired. Please contact your representative for a new one.'); gate.style.display='block'; }
   function showPreviewBanner(){ if(document.getElementById('pvBanner')) return; var d=document.createElement('div'); d.id='pvBanner'; d.style.cssText='position:sticky;top:0;z-index:50;background:#fef3d6;color:#7a5a12;border-bottom:1px solid #f0dca6;font:600 12.5px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;text-align:center;padding:8px 14px'; d.textContent='Preview — this is a test of the video interview experience. Nothing is recorded, uploaded, or saved.'; document.body.insertBefore(d, document.body.firstChild); }
@@ -140,6 +141,7 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
   var READY=false, ORG='', LABEL='';
   function renderVideo(j){
     READY=!!j.ready;
+    if(j&&j.voice){ VOICEPREF={ accent:(j.voice.accent||'en-GB'), gender:(j.voice.gender||'female') }; }
     var org=j.org||'Restaurant Realty Group';
     var label=j.label||'Video Interview'; var isScreen=(j.kind==='seller');
     ORG=org; LABEL=label;
@@ -205,7 +207,13 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
   // then any female, then any British, then the rest.
   function _isGB(v){ var l=(v.lang||'').toLowerCase().replace('_','-'); return /en-gb|en-uk/.test(l) || /\bUK\b|United Kingdom|British/i.test(v.name||''); }
   function _isFemale(v){ var n=v.name||''; if(/\b(male|Daniel|George|Arthur|Ryan|Oliver|Thomas|James|Male)\b/i.test(n) && !/female/i.test(n)) return false; return /female|woman|\b(Kate|Serena|Sonia|Libby|Hazel|Stephanie|Martha|Amy|Emma|Fiona|Moira|Catherine|Google UK English Female|Samantha|Aria|Jenny|Zira|Karen|Susan|Victoria)\b/i.test(n); }
-  function _voiceRank(v){ var gb=_isGB(v), f=_isFemale(v); if(gb&&f) return 0; if(f) return 1; if(gb) return 2; return 3; }
+  function _isMale(v){ var n=v.name||''; if(/female|woman/i.test(n)) return false; return /\b(male|man|Daniel|George|Arthur|Ryan|Oliver|Thomas|James|David|Mark|Alex|Fred|Rishi|Aaron|Gordon|Lee)\b/i.test(n); }
+  function _accentLang(v){ return (v.lang||'').toLowerCase().replace('_','-'); }
+  function _matchAccent(v){ var a=(VOICEPREF&&VOICEPREF.accent)||'any'; if(a==='any') return true; var l=_accentLang(v); if(l.indexOf(a.toLowerCase())===0) return true; if(a==='en-GB' && _isGB(v)) return true; return false; }
+  function _matchGender(v){ var g=(VOICEPREF&&VOICEPREF.gender)||'any'; if(g==='any') return true; if(g==='female') return _isFemale(v); if(g==='male') return _isMale(v); return true; }
+  // Rank voices to match the admin's preferred accent + gender: both match first, then
+  // gender-only, then accent-only, then the rest. The top-ranked becomes the default.
+  function _voiceRank(v){ var a=_matchAccent(v), g=_matchGender(v); if(a&&g) return 0; if(g) return 1; if(a) return 2; return 3; }
   function fillVoiceSel(){ var sel=document.getElementById('voiceSel'), w=document.getElementById('voicewrap'); if(!sel||!SS){ if(w) w.style.display='none'; return; } if(!voices.length){ w.style.display='none'; return; } var ordered=voices.map(function(v,i){ return {v:v,i:i}; }).sort(function(a,b){ var d=_voiceRank(a.v)-_voiceRank(b.v); return d!==0?d:(a.i-b.i); }).map(function(x){ return x.v; }); var cur=sel.value; sel.innerHTML=ordered.map(function(v){ return '<option value="'+esc(v.name)+'">'+esc(v.name.replace(/\s*\(.*\)$/,''))+'</option>'; }).join(''); if(cur) sel.value=cur; w.style.display='flex'; }
   function pickedVoice(){ if(!SS||!voices.length) return null; var nm=(document.getElementById('voiceSel')||{}).value||''; return voices.filter(function(v){ return v.name===nm; })[0]||voices[0]; }
   function speak(text){ if(!SS||!text) return; try{ SS.cancel(); var u=new SpeechSynthesisUtterance(String(text)); var v=pickedVoice(); if(v){ u.voice=v; u.lang=v.lang; } u.rate=0.98; u.pitch=1; SS.speak(u); }catch(e){} }
