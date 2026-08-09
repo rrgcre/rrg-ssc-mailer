@@ -1554,7 +1554,10 @@ app.get('/api/valuation-readiness', (req, res) => {
         });
       } catch (e) {}
     }
-    let screening = (function(){ try { return (loadScreens()||[]).some(function(sc){ var d=sc.data||{}; return (pid && (d.personId===pid || d.contactPersonId===pid || sc.personId===pid)) || (cid && (d.companyId===cid || sc.companyId===cid)); }); } catch(e){ return false; } })();
+    // "On file" means a COMPLETED (or skipped) screening — not a call that was merely started
+    // and backed out of. An abandoned call leaves a 'live'/'pending' record; it must NOT flip the
+    // menu step to done or unlock the data-room / Seller Interview steps. (Skip is handled below.)
+    let screening = (function(){ try { return (loadScreens()||[]).some(function(sc){ var d=sc.data||{}; var matches=(pid && (d.personId===pid || d.contactPersonId===pid || sc.personId===pid)) || (cid && (d.companyId===cid || sc.companyId===cid)); return matches && (sc.callState==='complete' || sc.completed===true); }); } catch(e){ return false; } })();
     let screeningSkipped = false;
     try { const _ov = loadAssignOverlay(); screeningSkipped = loadDeals().filter(hit).some(function(d){ const k = d.screenId ? ('s_'+d.screenId) : ('d_'+d.id); return _ov[k] && _ov[k].screeningSkipped; }); } catch(e){}
     if (!screening && screeningSkipped) screening = true;
