@@ -1483,8 +1483,17 @@ app.get('/api/valuation-readiness', (req, res) => {
     let screeningSkipped = false;
     try { const _ov = loadAssignOverlay(); screeningSkipped = loadDeals().filter(hit).some(function(d){ const k = d.screenId ? ('s_'+d.screenId) : ('d_'+d.id); return _ov[k] && _ov[k].screeningSkipped; }); } catch(e){}
     if (!screening && screeningSkipped) screening = true;
+    // A seller-completed interview (self-serve form or video) satisfies the questionnaire input.
+    let interviewDone = false, interviewId = '', interviewRoomId = '';
+    try {
+      const sl = loadSellerLinks().find(x => (pid && x.personId === pid) || (cid && x.companyId === cid));
+      if (sl && ((sl.form && sl.form.submittedAt) || (sl.videoCount || 0) > 0)) interviewDone = true;
+      const ivs = loadInterviews().filter(iv => (pid && iv.personId === pid) || (cid && iv.companyId === cid)).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+      if (ivs.length) { interviewDone = true; interviewId = ivs[0].id; interviewRoomId = ivs[0].roomId || ''; }
+    } catch (e) {}
+    const q = questionnaire || interviewDone;
     const state = bov ? (bov.finalizedAt ? 'final' : (bov.aiGenerated && !bov.pending ? 'built' : 'requested')) : '';
-    res.json({ ok: true, screening: screening, screeningSkipped: screeningSkipped, questionnaire: questionnaire, financials: financials, lease: lease, ready: !!(questionnaire && financials && lease), bovId: bov ? bov.id : '', state: state });
+    res.json({ ok: true, screening: screening, screeningSkipped: screeningSkipped, questionnaire: q, interviewDone: interviewDone, interviewId: interviewId, interviewRoomId: interviewRoomId, financials: financials, lease: lease, ready: !!(q && financials && lease), bovId: bov ? bov.id : '', state: state });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
@@ -4848,6 +4857,22 @@ function sellerIntakeEmailHtml(text, formUrl, videoUrl) {
   h = h.split(esc(videoUrl)).join('<a href="' + videoUrl + '" style="color:#1155cc;font-weight:400;text-decoration:underline">' + esc(videoUrl) + '</a>');
   return '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1a2236;font-size:14px;line-height:1.65">' + h + '</div>';
 }
+// Linkify bare http(s) URLs that aren't already inside an anchor (leaves rich-text links intact).
+function linkifySellerBare(html) {
+  return String(html || '').split(/(<a\b[^>]*>[\s\S]*?<\/a>)/i).map(function (seg, i) {
+    if (i % 2 === 1) return seg;
+    return seg.replace(/(https?:\/\/[^\s<>"']+)/g, function (u) { return '<a href="' + u + '" style="color:#1155cc;text-decoration:underline">' + u + '</a>'; });
+  }).join('');
+}
+// Render the (rich-text OR legacy plain-text) email body with merge fields filled.
+function sellerEmailRender(rawBody, vars) {
+  const hasTags = /<[a-z][\s\S]*>/i.test(String(rawBody || ''));
+  let bodyHtml = hasTags ? String(rawBody || '') : esc(String(rawBody || '')).replace(/\n/g, '<br>');
+  bodyHtml = linkifySellerBare(fillTemplate(bodyHtml, vars));
+  const html = '<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;color:#1a2236;font-size:14px;line-height:1.65">' + bodyHtml + '</div>';
+  const text = fillTemplate(hasTags ? htmlToText(String(rawBody || '')) : String(rawBody || ''), vars);
+  return { html: html, text: text };
+}
 app.get('/api/admin/seller-intake-email', (req, res) => { const t = effSellerIntakeEmail(); res.json({ ok: true, subject: t.subject, body: t.body, defaults: SELLER_INTAKE_EMAIL_DEFAULT, isAdmin: !!(req.user && isSuper(req.user)) }); });
 app.post('/api/admin/seller-intake-email', express.json({ limit: '64kb' }), (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
@@ -5070,9 +5095,8 @@ app.post('/api/seller-link/email', express.json(), async (req, res) => {
     const vars = { org: org, business: biz, formUrl: formUrl, videoUrl: videoUrl, repName: me, firstName: firstName };
     const tpl = effSellerIntakeEmail();
     const subject = fillTemplate(tpl.subject, vars) || (org + ' — seller intake for ' + biz);
-    const text = fillTemplate(tpl.body, vars);
-    const html = sellerIntakeEmailHtml(text, formUrl, videoUrl);
-    await sendMailWL({ from: mailFrom(), to, subject, text, html });
+    const _rendered = sellerEmailRender(tpl.body, vars);
+    await sendMailWL({ from: mailFrom(), to, subject, text: _rendered.text, html: _rendered.html });
     const all = loadSellerLinks(); const i = all.findIndex(x => x.token === rec.token); if (i >= 0) { all[i].emailedAt = new Date().toISOString(); all[i].emailedTo = to; saveSellerLinks(all); }
     res.json({ ok: true });
   } catch (e) { console.error('seller-link email:', e && e.message); res.status(502).json({ ok: false, error: 'Could not send the email. Check the mailbox connection in Account → Gmail.' }); }
@@ -5086,7 +5110,9 @@ app.post('/s/intake/submit', express.json({ limit: '256kb' }), (req, res) => {
   const all = loadSellerLinks(); const rec = all.find(x => x.token === String((req.body && req.body.token) || '')); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
   const b = (req.body && req.body.data) || {}; const fields = sellerInterviewFields(); const data = {};
   fields.forEach(f => { data[f.k] = String(b[f.k] || '').slice(0, 4000); });
+  const _firstForm = !(rec.form && rec.form.submittedAt);
   rec.form = { submittedAt: new Date().toISOString(), data, fields }; saveSellerLinks(all);
+  if (_firstForm) { try { if (rec.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === rec.personId); if (p) { logActivity(p, 'Note', 'Seller interview — written form completed by the seller.', { auto: true }); savePeople(ppl); } } } catch (e) {} }
   res.json({ ok: true });
 });
 app.get('/s/video', (req, res) => {
@@ -5116,6 +5142,7 @@ app.post('/s/video/register', express.json(), (req, res) => {
     try { const rooms = loadRooms(); const room = rooms.find(r => (iv.personId && r.personId === iv.personId) || (iv.companyId && r.companyId === iv.companyId)); if (room) { room.interviews = Array.isArray(room.interviews) ? room.interviews : []; room.interviews.push({ id: iv.id, key, createdAt: now, durationSec: iv.durationSec, sizeBytes: iv.sizeBytes, by: iv.by }); room.updatedAt = now; saveRooms(rooms); iv.roomId = room.id; } } catch (e) { console.error('seller register room:', e && e.message); }
     const ivs = loadInterviews(); ivs.push(iv); saveInterviews(ivs);
     rec.videoCount = (rec.videoCount || 0) + 1; rec.lastVideoAt = now; saveSellerLinks(all);
+    try { if (rec.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === rec.personId); if (p) { logActivity(p, 'Note', 'Seller interview — video recorded by the seller (self-serve).', { auto: true }); savePeople(ppl); } } } catch (e) {}
     res.json({ ok: true, id: iv.id });
   } catch (e) { console.error('seller register:', e && e.message); res.status(500).json({ ok: false, error: 'Could not save the recording.' }); }
 });
