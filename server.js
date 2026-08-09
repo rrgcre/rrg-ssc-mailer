@@ -10383,18 +10383,12 @@ app.get('/api/questionnaire/:id/view', (req, res) => {
   res.set('Content-Type', 'text/html; charset=utf-8').send(html);
 });
 
-app.get('/api/agreements', (req, res) => {
-  let all = loadAgreements();
-  const pid = req.query.personId;
-  if (pid) all = all.filter(a => a.personId === pid);
-  const nameById = {}; loadPeople().forEach(p => { nameById[p.id] = p.name; });
-  const coNameById = {}; loadCompanies().forEach(c => { coNameById[c.id] = c.name; });
-  const bizByKey = {}; try { const ov = loadAssignOverlay(), idx = assignmentsIndex(); for (const k in idx) { try { bizByKey[k] = assignmentView(idx[k], ov).business; } catch (e) {} } } catch (e) {}
-  if (restrictToOwn(req)) all = all.filter(a => permOwnerMatch(req, a.createdBy));
-  all = all.map(a => Object.assign(agreementBrief(a), { personName: a.personName || nameById[a.personId] || '', companyName: coNameById[a.companyId] || '', dealName: bizByKey[a.dealKey] || '' }));
-  all.sort((x, y) => String(x.expires || '9999').localeCompare(String(y.expires || '9999')));
-  res.json({ ok: true, agreements: all, types: effAgreementTypes(), isAdmin: !!(req.user && isSuper(req.user)) });
-});
+// NOTE: a second `GET /api/agreements` used to live here to list agreement RECORDS
+// (with ?personId= filtering), but it was dead code — Express matched the template-file
+// `GET /api/agreements` registered earlier in the file, so this one never ran. The
+// records list is served by `GET /api/agreements/executed` (used by rrg_agreements.html);
+// the person and company cards read their agreements from the page payload. Removed to
+// end the duplicate-path collision. The POST below was never shadowed — only GETs collided.
 app.post('/api/agreements', express.json(), (req, res) => {
   const b = req.body || {}; const all = loadAgreements(); const now = new Date().toISOString();
   const type = String(b.type || '').trim();
