@@ -46,7 +46,28 @@ function render(){
   if(window.RRGRte) RRGRte.wire('body');
   var chips=['{{firstName}}','{{business}}','{{formUrl}}','{{videoUrl}}','{{repName}}','{{org}}'];
   document.getElementById('chips').innerHTML=chips.map(function(c){ return '<span class="chip" data-c="'+c+'">'+c+'</span>'; }).join('');
-  document.querySelectorAll('.chip').forEach(function(ch){ ch.addEventListener('click',function(){ var c=ch.getAttribute('data-c'); var ed=document.getElementById('body'); if(!ed) return; ed.focus(); if(ed.isContentEditable){ try{ document.execCommand('insertText',false,c); }catch(e){ ed.innerHTML+=c; } } else { var s=ed.selectionStart||ed.value.length, e=ed.selectionEnd||ed.value.length; ed.value=ed.value.slice(0,s)+c+ed.value.slice(e); ed.selectionStart=ed.selectionEnd=s+c.length; } }); });
+  // Remember the caret inside the editor so a chip inserts where the cursor was — clicking a
+  // chip would otherwise blur the editor and drop the insert (this is what broke {{org}} et al).
+  var _bodyRange=null;
+  (function(){ var ed=document.getElementById('body'); if(!ed||!ed.isContentEditable) return; function keep(){ var s=window.getSelection&&window.getSelection(); if(s&&s.rangeCount&&ed.contains(s.anchorNode)) _bodyRange=s.getRangeAt(0).cloneRange(); } ed.addEventListener('keyup',keep); ed.addEventListener('mouseup',keep); ed.addEventListener('blur',keep); })();
+  function insertChip(c){
+    var ed=document.getElementById('body'); if(!ed) return;
+    if(ed.isContentEditable){
+      ed.focus();
+      var sel=window.getSelection();
+      if(_bodyRange){ try{ sel.removeAllRanges(); sel.addRange(_bodyRange); }catch(e){} }
+      var range=(sel&&sel.rangeCount)?sel.getRangeAt(0):null;
+      if(!range||!ed.contains(range.commonAncestorContainer)){ range=document.createRange(); range.selectNodeContents(ed); range.collapse(false); sel.removeAllRanges(); sel.addRange(range); }
+      var node=document.createTextNode(c);
+      range.deleteContents(); range.insertNode(node);
+      range.setStartAfter(node); range.setEndAfter(node); sel.removeAllRanges(); sel.addRange(range);
+      _bodyRange=range.cloneRange();
+      try{ ed.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){}
+    } else {
+      var s=ed.selectionStart||ed.value.length, e=ed.selectionEnd||ed.value.length; ed.value=ed.value.slice(0,s)+c+ed.value.slice(e); ed.selectionStart=ed.selectionEnd=s+c.length;
+    }
+  }
+  document.querySelectorAll('.chip').forEach(function(ch){ ch.addEventListener('mousedown',function(e){ e.preventDefault(); }); ch.addEventListener('click',function(){ insertChip(ch.getAttribute('data-c')); }); });
   document.getElementById('save').addEventListener('click',save);
   document.getElementById('reset').addEventListener('click',function(){ doSave({reset:true}); });
 }

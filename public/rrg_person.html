@@ -724,7 +724,36 @@ function openSellerIntake(){
   }).catch(function(){ document.getElementById('siBody').textContent='Could not reach the server.'; });
 }
 function _ivFmtParas(t){ t=String(t||'').trim(); if(!t) return ''; var blocks; if(/\n\s*\n/.test(t)){ blocks=t.split(/\n\s*\n/); } else if(/\n/.test(t)){ blocks=t.split(/\n+/); } else { var sents=t.match(/[^.!?]+[.!?]+[\])'"`’”]*|.+$/g)||[t]; blocks=[]; for(var i=0;i<sents.length;i+=3){ blocks.push(sents.slice(i,i+3).join(' ').trim()); } } return blocks.filter(Boolean).map(function(p){ return '<p style="margin:0 0 15px">'+_siEsc(p.trim())+'</p>'; }).join(''); }
-function _ivPrint(j){ var w=window.open('','_blank'); if(!w){ if(window.rrgToast) rrgToast('Allow pop-ups to open the printable interview.'); return; } var org=''; try{ org=localStorage.getItem('rrg_appname')||''; }catch(e){} org=org||'Restaurant Realty Group'; var biz=_siEsc(j.business||'Seller Interview'); w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+biz+' — Interview</title><style>body{font-family:Georgia,\'Times New Roman\',serif;color:#1a2236;max-width:720px;margin:42px auto;padding:0 34px;line-height:1.8}h1{font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:23px;color:#000E31;margin:0 0 2px}.sub{font-family:-apple-system,Arial,sans-serif;color:#6b7488;font-size:13px;margin-bottom:28px}p{margin:0 0 16px;font-size:15px}.foot{font-family:-apple-system,Arial,sans-serif;margin-top:36px;color:#8a93a8;font-size:11px;border-top:1px solid #e6e9f0;padding-top:12px}@media print{.noprint{display:none}}</style></head><body><h1>'+biz+'</h1><div class="sub">Seller interview — in the seller’s own words</div>'+_ivFmtParas(j.transcript||'')+'<div class="foot">Confidential — provided by '+_siEsc(org)+' under NDA</div><div class="noprint" style="margin-top:22px"><button onclick="window.print()" style="font-family:-apple-system,Arial;background:#000E31;color:#fff;border:none;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:700;cursor:pointer">Print / Save PDF</button></div></body></html>'); w.document.close(); }
+// inline markdown-lite (**bold**) for the cleaned transcript
+function _ivInline(s){ s=_siEsc(String(s==null?'':s)); s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>'); return s; }
+// Render a transcript as a readable document. If the (cleaned) text carries "## " topic
+// headings, honor them as section heads; otherwise fall back to paragraph splitting.
+function _ivDocHtml(t){
+  t=String(t||'').trim(); if(!t) return '';
+  if(/(^|\n)\s*#{1,3}\s+\S/.test(t)){
+    var lines=t.split(/\n/), out=[], buf=[];
+    function flush(){ if(buf.length){ var para=buf.join(' ').trim(); if(para) out.push('<p style="margin:0 0 13px">'+_ivInline(para)+'</p>'); buf=[]; } }
+    lines.forEach(function(ln){
+      var m=ln.match(/^\s*#{1,3}\s+(.*)$/);
+      if(m){ flush(); out.push('<h3 class="ivdh" style="font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:#000E31;margin:22px 0 8px">'+_siEsc(m[1].trim())+'</h3>'); }
+      else if(!ln.trim()){ flush(); }
+      else { buf.push(ln.trim()); }
+    });
+    flush();
+    return out.join('');
+  }
+  return _ivFmtParas(t);
+}
+function _ivPrint(j){ var w=window.open('','_blank'); if(!w){ if(window.rrgToast) rrgToast('Allow pop-ups to open the printable interview.'); return; } var org=''; try{ org=localStorage.getItem('rrg_appname')||''; }catch(e){} org=org||'Restaurant Realty Group'; var biz=_siEsc(j.business||'Seller Interview'); var body=(j.cleanTranscript||j.transcript||''); var subtitle=j.cleanTranscript?'Seller interview — in the seller’s own words, edited for readability':'Seller interview — in the seller’s own words'; w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+biz+' — Interview</title><style>body{font-family:Georgia,\'Times New Roman\',serif;color:#1a2236;max-width:720px;margin:42px auto;padding:0 34px;line-height:1.8}h1{font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:23px;color:#000E31;margin:0 0 2px}h3.ivdh{font-family:-apple-system,BlinkMacSystemFont,Arial,sans-serif;font-size:13px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#000E31;margin:26px 0 8px}.sub{font-family:-apple-system,Arial,sans-serif;color:#6b7488;font-size:13px;margin-bottom:28px}p{margin:0 0 16px;font-size:15px}.foot{font-family:-apple-system,Arial,sans-serif;margin-top:36px;color:#8a93a8;font-size:11px;border-top:1px solid #e6e9f0;padding-top:12px}@media print{.noprint{display:none}}</style></head><body><h1>'+biz+'</h1><div class="sub">'+subtitle+'</div>'+_ivDocHtml(body)+'<div class="foot">Confidential — provided by '+_siEsc(org)+' under NDA</div><div class="noprint" style="margin-top:22px"><button onclick="window.print()" style="font-family:-apple-system,Arial;background:#000E31;color:#fff;border:none;border-radius:8px;padding:11px 20px;font-size:14px;font-weight:700;cursor:pointer">Print / Save PDF</button></div></body></html>'); w.document.close(); }
+// Kick off the buyer-ready AI cleanup, then re-open the viewer showing the result.
+function _ivCleanup(id,btn){
+  if(btn){ btn.disabled=true; btn.textContent='✨ Cleaning up…'; }
+  fetch('/api/interview/'+encodeURIComponent(id)+'/cleanup',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok&&j.cleanTranscript){ openInterviewView(); }
+      else { if(btn){ btn.disabled=false; btn.textContent='✨ Clean up for buyers'; } var m=(j&&j.error)||'Cleanup failed.'; if(window.rrgToast) rrgToast(m,{danger:true}); else alert(m); }
+    }).catch(function(){ if(btn){ btn.disabled=false; btn.textContent='✨ Clean up for buyers'; } if(window.rrgToast) rrgToast('Could not reach the server.',{danger:true}); });
+}
 function openInterviewView(){
   var iv=window.__lastInterview||{}; if(!iv.id){ if(window.rrgToast) rrgToast('No seller interview has come back yet.'); return; }
   var ex=document.getElementById('ivvOv'); if(ex) ex.remove();
@@ -743,13 +772,29 @@ function openInterviewView(){
   fetch('/api/interview/'+encodeURIComponent(iv.id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     var b=document.getElementById('ivvBody'); if(!b) return;
     if(!j||!j.ok){ b.textContent=(j&&j.error)||'Could not load the interview.'; return; }
-    var head=(j.business?('<div style="font-size:19px;font-weight:800;color:#000E31;margin:0 0 3px">'+_siEsc(j.business)+'</div>'):'')+'<div style="color:#8a93a8;font-size:12.5px;margin-bottom:16px">Seller interview — in the seller’s own words</div>';
+    var isClean=!!(j.cleanTranscript&&j.cleanTranscript.length);
+    var present=j.cleanTranscript||j.transcript||'';
+    var subtitle=isClean?'Seller interview — in the seller’s own words, edited for readability':'Seller interview — in the seller’s own words';
+    var head=(j.business?('<div style="font-size:19px;font-weight:800;color:#000E31;margin:0 0 3px">'+_siEsc(j.business)+'</div>'):'')
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:16px"><span style="color:#8a93a8;font-size:12.5px">'+subtitle+'</span>'
+      +(isClean?'<span style="background:#e8f6ef;color:#1f8a5b;border:1px solid #bfe6d2;border-radius:100px;font-size:10.5px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px">Buyer-ready ✓</span>':'')+'</div>';
     var vid=j.viewUrl?('<a href="'+_siEsc(j.viewUrl)+'" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px solid #d7dde8;color:#000E31;text-decoration:none;font-weight:700;font-size:13px;padding:9px 15px;border-radius:9px;margin-bottom:18px">▶ Watch the video</a>'):'';
-    var tx=j.transcript?('<div style="font-size:15px;line-height:1.75;color:#2a3547;max-width:600px">'+_ivFmtParas(j.transcript)+'</div>'):(vid?'<div style="color:#8a93a8;font-size:12.5px">Transcript is still processing — check back shortly.</div>':'<div style="color:#8a93a8;font-size:12.5px">No transcript captured.</div>');
+    var tx;
+    if(present){
+      tx='<div style="font-family:Georgia,\'Times New Roman\',serif;font-size:15px;line-height:1.75;color:#222b3d;background:#fff;border:1px solid #e8ebf2;border-radius:12px;padding:24px 28px;max-width:620px">'+_ivDocHtml(present)+'</div>';
+    } else {
+      tx=vid?'<div style="color:#8a93a8;font-size:12.5px">Transcript is still processing — check back shortly.</div>':'<div style="color:#8a93a8;font-size:12.5px">No transcript captured.</div>';
+    }
+    // Cleanup control: offer it when there's a raw transcript but no buyer-ready version yet;
+    // once cleaned, offer a quiet re-run.
+    var clean='';
+    if(j.transcript&&!isClean){ clean='<div style="margin:14px 0 2px"><button id="ivvClean" style="background:#f3eefe;border:1px solid #ddd0f7;color:#5b46b8;border-radius:9px;padding:9px 15px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer">✨ Clean up for buyers</button><div style="color:#9aa2b2;font-size:11px;margin-top:6px;max-width:560px">Polishes the raw transcript into a readable, buyer-appropriate version — same words, filler and false-starts removed, organized under headings. The original stays on file.</div></div>'; }
+    else if(isClean&&j.transcript){ clean='<div style="margin:14px 0 2px"><button id="ivvClean" style="background:none;border:none;color:#5b46b8;font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:0;text-decoration:underline">↻ Re-run cleanup</button></div>'; }
     var deb=j.summary?('<details style="margin-top:22px;border-top:1px solid #eef1f6;padding-top:16px"><summary style="cursor:pointer;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a5a12;list-style:none">▸ Internal AI debrief <span style="color:#b98a3a;font-weight:600">— not for buyers</span></summary><div style="white-space:pre-wrap;line-height:1.55;color:#1a2236;font-size:13px;background:#fff4e6;border:1px solid #f3d9a8;border-radius:10px;padding:13px 15px;margin-top:10px">'+_siEsc(j.summary)+'</div></details>'):'';
     var room=(iv.roomId)?('<div style="margin-top:16px"><a href="./rrg_room.html?room='+encodeURIComponent(iv.roomId)+'" style="color:#2647b0;font-weight:700;font-size:12.5px;text-decoration:none">Open in the data room →</a></div>'):'';
-    b.innerHTML=head+vid+tx+deb+room;
-    if(j.transcript){ var pb=document.getElementById('ivvPrint'); if(pb){ pb.style.display='inline-block'; pb.addEventListener('click',function(){ _ivPrint(j); }); } }
+    b.innerHTML=head+vid+tx+clean+deb+room;
+    var cb=document.getElementById('ivvClean'); if(cb){ cb.addEventListener('click',function(){ _ivCleanup(j.id||iv.id,cb); }); }
+    if(present){ var pb=document.getElementById('ivvPrint'); if(pb){ pb.style.display='inline-block'; pb.addEventListener('click',function(){ _ivPrint(j); }); } }
   }).catch(function(){ var b=document.getElementById('ivvBody'); if(b) b.textContent='Could not reach the server.'; });
 }
 function openListingAgreement(){

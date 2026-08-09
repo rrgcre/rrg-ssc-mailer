@@ -2889,11 +2889,26 @@ function ensureRoomForCim(req, cim) {
   const rec = {
     id: newRoomId(), srcCimId: cim.id, srcBovId: cim.srcBovId || '', token: newRoomToken(),
     business: cim.business || 'Business',
+    personId: cim.personId || '', companyId: cim.companyId || '',
     by: (req.user && req.user.name) || cim.by || '', byUser: (req.user && req.user.username) || cim.byUser || '',
     createdAt: new Date().toISOString(), folders: roomCategories(), docs: [], access: [], grants: [],
   };
   arr.push(rec); saveRooms(arr);
   return rec;
+}
+// A data room should always know which contact/company it belongs to, so seller
+// interviews (which carry personId/companyId) surface in it. Older rooms — and any
+// built from a CIM before this was wired — may be missing those links; resolve them
+// from the source CIM/BOV on demand. Returns true if it filled anything in.
+function backfillRoomLinks(r) {
+  if (!r || (r.personId && r.companyId)) return false;
+  let pid = r.personId || '', cid = r.companyId || '';
+  try {
+    if ((!pid || !cid) && r.srcCimId) { const c = loadCims().find(x => x.id === r.srcCimId); if (c) { pid = pid || c.personId || ''; cid = cid || c.companyId || ''; } }
+    if ((!pid || !cid) && r.srcBovId) { const b = loadBovs().find(x => x.id === r.srcBovId); if (b) { pid = pid || b.personId || ''; cid = cid || b.companyId || ''; } }
+  } catch (e) {}
+  if (pid === (r.personId || '') && cid === (r.companyId || '')) return false;
+  r.personId = pid; r.companyId = cid; return true;
 }
 function roomPublic(r, origin) {
   const base = (origin || '') + '/room/' + r.token;
@@ -2909,15 +2924,17 @@ app.get('/api/rooms', (req, res) => {
   res.json({ ok: true, isAdmin: !!isAdmin, rooms: list.map(r => roomPublic(r, origin)) });
 });
 app.get('/api/room/:id', (req, res) => {
-  const r = loadRooms().find(x => x.id === req.params.id);
+  const _rooms = loadRooms(); const r = _rooms.find(x => x.id === req.params.id);
   if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  try { if (backfillRoomLinks(r)) saveRooms(_rooms); } catch (e) {}
   const origin = req.protocol + '://' + req.get('host');
   const ivs = loadInterviews()
     .filter(iv => (iv.roomId && iv.roomId === r.id) || (r.personId && iv.personId === r.personId) || (r.companyId && iv.companyId === r.companyId))
     .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))
     .map(iv => ({ id: iv.id, business: iv.business || '', createdAt: iv.createdAt || '', durationSec: iv.durationSec || 0, sizeBytes: iv.sizeBytes || 0, by: iv.by || '',
-      transcriptStatus: iv.transcriptStatus || '', summaryStatus: iv.summaryStatus || '', hasTranscript: !!(iv.transcript && iv.transcript.length), summary: iv.summary || '', viewUrl: '/api/interview/' + iv.id + '/view' }));
+      transcriptStatus: iv.transcriptStatus || '', summaryStatus: iv.summaryStatus || '', hasTranscript: !!(iv.transcript && iv.transcript.length), summary: iv.summary || '',
+      cleanStatus: iv.cleanStatus || '', hasClean: !!(iv.cleanTranscript && iv.cleanTranscript.length), cleanTranscript: iv.cleanTranscript || '', viewUrl: '/api/interview/' + iv.id + '/view' }));
   res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-120).reverse(), categories: roomServeCats(r), noLease: !!r.noLease,
     interviews: ivs,
     closed: !!r.closed, closedAt: r.closedAt || '', closedBy: r.closedBy || '',
@@ -4962,7 +4979,51 @@ app.get('/api/interview/:id', (req, res) => {
   res.json({ ok: true, id: rec.id, business: rec.business || '', personId: rec.personId || '', companyId: rec.companyId || '', screenId: rec.screenId || '',
     durationSec: rec.durationSec || 0, sizeBytes: rec.sizeBytes || 0, createdAt: rec.createdAt || '', by: rec.by || '', roomId: rec.roomId || '',
     transcript: rec.transcript || '', transcriptStatus: rec.transcriptStatus || '', summary: rec.summary || '', summaryStatus: rec.summaryStatus || '',
+    cleanTranscript: rec.cleanTranscript || '', cleanStatus: rec.cleanStatus || '', cleanedAt: rec.cleanedAt || '',
     viewUrl: '/api/interview/' + rec.id + '/view' });
+});
+// Polish the raw transcript into a clean, readable version fit to show a buyer — same
+// substance, cut of filler/false-starts/transcription noise, organized under topic
+// headings. Never adds facts. Distinct from the internal debrief (which flags risks).
+async function cleanInterviewTranscript(rec) {
+  const key = process.env.ANTHROPIC_API_KEY; if (!key) return '';
+  const t = String((rec && rec.transcript) || '').trim(); if (!t) return '';
+  let topics = '';
+  try { topics = (sellerInterviewFields() || []).map(f => f.prompt || f.label).filter(Boolean).slice(0, 40).join(' | '); } catch (e) {}
+  const sys = 'You clean up the raw transcript of a recorded seller interview so a commercial real estate broker can present it to prospective buyers of a restaurant or bar. Keep the seller’s own meaning and words — this is an edit, not a rewrite. Remove filler words, false starts, stutters, repeated words, and obvious speech-to-text errors; fix punctuation, capitalization, and paragraph breaks so it reads cleanly. Organize the content under short, clear topic headings written on their own line and prefixed with "## " (for example: "## The Business", "## Why Selling", "## Financials", "## Lease & Location", "## Staff & Operations", "## What’s Included", "## Timing"). Under each heading, present what the seller said as clean, readable prose or as brief question/answer exchanges. Do NOT invent, infer, estimate, or add any facts, numbers, or commentary the seller did not say. Do NOT include analysis, opinions, red flags, or advice — this is the seller’s own account, not a broker assessment. If a topic did not come up, simply omit that heading. Return only the cleaned transcript.';
+  const content = 'Business: ' + (String((rec && rec.business) || '').slice(0, 160) || '(unknown)') + '\nTopics the interview aimed to cover: ' + (topics || '(general seller interview)') + '\n\nRaw transcript:\n\n' + t.slice(0, 60000) + '\n\nProduce the cleaned, buyer-ready transcript now.';
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+    body: JSON.stringify({ model: loadAiModel(), max_tokens: 3000, temperature: 0.2, system: sys, messages: [{ role: 'user', content }] }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) throw new Error((data && data.error && data.error.message) || 'AI request failed.');
+  let text = ''; try { text = (data.content || []).map(x => x.text || '').join(''); } catch (e) {}
+  return String(text || '').trim();
+}
+// Build (or rebuild) the buyer-ready cleaned transcript on demand.
+app.post('/api/interview/:id/cleanup', express.json(), async (req, res) => {
+  try {
+    if (!process.env.ANTHROPIC_API_KEY) return res.status(400).json({ ok: false, error: 'AI is not configured — set the Anthropic key in Admin.' });
+    const all = loadInterviews(); const rec = all.find(x => x.id === req.params.id);
+    if (!rec) return res.status(404).json({ ok: false, error: 'Interview not found.' });
+    if (!String(rec.transcript || '').trim()) return res.status(400).json({ ok: false, error: 'No transcript to clean up yet.' });
+    const clean = await cleanInterviewTranscript(rec);
+    if (clean) { rec.cleanTranscript = clean; rec.cleanStatus = 'done'; rec.cleanedAt = new Date().toISOString(); saveInterviews(all); }
+    res.json({ ok: true, cleanTranscript: clean, cleanStatus: rec.cleanStatus || '' });
+  } catch (e) { console.error('cleanup interview:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// Save a hand-edited buyer-ready transcript back onto the record.
+app.post('/api/interview/:id/clean-save', express.json(), (req, res) => {
+  try {
+    const all = loadInterviews(); const rec = all.find(x => x.id === req.params.id);
+    if (!rec) return res.status(404).json({ ok: false, error: 'Interview not found.' });
+    rec.cleanTranscript = String((req.body && req.body.cleanTranscript) || '').slice(0, 60000);
+    rec.cleanStatus = 'edited'; rec.cleanEditedAt = new Date().toISOString();
+    saveInterviews(all);
+    res.json({ ok: true, cleanStatus: rec.cleanStatus });
+  } catch (e) { console.error('clean-save interview:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 // Audio is posted straight from the browser and only kept long enough to transcribe (the durable copy is the video in S3).
 app.post('/api/interview/:id/transcribe', express.raw({ type: ['audio/*', 'application/octet-stream'], limit: '30mb' }), async (req, res) => {
@@ -5101,6 +5162,36 @@ app.post('/api/seller-link/email', express.json(), async (req, res) => {
     res.json({ ok: true });
   } catch (e) { console.error('seller-link email:', e && e.message); res.status(502).json({ ok: false, error: 'Could not send the email. Check the mailbox connection in Account → Gmail.' }); }
 });
+// Heads-up email to the rep the moment a seller finishes their self-serve interview,
+// so nobody has to keep re-opening the link to check. Links point back into the app;
+// the video itself lives in the deal / data room, not the inbox.
+function notifySellerInterviewDone(rec, iv, kind, req) {
+  try {
+    if (!rec) return;
+    let rep = null; try { rep = (auth.loadUsers() || []).find(u => u.username === (rec.byUser || '')) || null; } catch (e) {}
+    const to = (rep && rep.email) || '';
+    if (!to) return;
+    const origin = (req && req.get) ? (req.protocol + '://' + req.get('host')) : '';
+    const org = orgDisplayName();
+    const biz = rec.business || 'The seller';
+    const repName = (rep && rep.name) ? String(rep.name).trim().split(/\s+/)[0] : 'there';
+    const contactUrl = rec.personId ? (origin + '/rrg_person.html?id=' + rec.personId) : origin;
+    const did = kind === 'form' ? 'completed the written interview form' : 'recorded their video interview';
+    const detail = kind === 'form'
+      ? 'Their answers are saved to the deal. Open the contact to review them.'
+      : 'The video is saved to the deal and is transcribing now — the AI debrief follows automatically. Open the contact and choose “View Seller Interview” to watch it, read the transcript, and review the debrief.';
+    const subject = org + ' — seller interview completed: ' + biz;
+    const text = 'Hi ' + repName + ',\n\n' + biz + ' just ' + did + '.\n\n' + detail + '\n\n' + contactUrl + '\n\n— ' + org;
+    const html = '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#1a2236">'
+      + '<p>Hi ' + esc(repName) + ',</p>'
+      + '<p><b>' + esc(biz) + '</b> just ' + esc(did) + '.</p>'
+      + '<p>' + esc(detail) + '</p>'
+      + '<p><a href="' + esc(contactUrl) + '" style="color:#1155cc;text-decoration:underline">Open the contact record</a></p>'
+      + '<p style="color:#8a93a3">— ' + esc(org) + '</p></div>';
+    const p = sendMailWL({ from: mailFrom(), to, subject, text, html });
+    if (p && p.catch) p.catch(e => console.error('notifySellerInterviewDone send:', e && e.message));
+  } catch (e) { console.error('notifySellerInterviewDone:', e && e.message); }
+}
 // ---- Public (token-gated, no login) endpoints the seller pages call ----
 app.get('/s/intake', (req, res) => {
   const rec = sellerLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
@@ -5113,6 +5204,7 @@ app.post('/s/intake/submit', express.json({ limit: '256kb' }), (req, res) => {
   const _firstForm = !(rec.form && rec.form.submittedAt);
   rec.form = { submittedAt: new Date().toISOString(), data, fields }; saveSellerLinks(all);
   if (_firstForm) { try { if (rec.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === rec.personId); if (p) { logActivity(p, 'Note', 'Seller interview — written form completed by the seller.', { auto: true }); savePeople(ppl); } } } catch (e) {} }
+  if (_firstForm) { try { notifySellerInterviewDone(rec, null, 'form', req); } catch (e) { console.error('seller form notify:', e && e.message); } }
   res.json({ ok: true });
 });
 app.get('/s/video', (req, res) => {
@@ -5139,10 +5231,11 @@ app.post('/s/video/register', express.json(), (req, res) => {
     const b = req.body || {}; const key = String(b.key || '').slice(0, 300); if (!key) return res.status(400).json({ ok: false, error: 'Missing key.' });
     const now = new Date().toISOString();
     const iv = { id: newInterviewId(), key, personId: rec.personId || '', companyId: rec.companyId || '', screenId: '', business: rec.business || '', sizeBytes: Number(b.sizeBytes || 0) || 0, durationSec: Number(b.durationSec || 0) || 0, contentType: String(b.contentType || 'video/webm').slice(0, 60), transcript: '', transcriptStatus: '', summary: '', summaryStatus: '', createdAt: now, by: 'Seller (self-recorded)', byUser: rec.byUser || '', roomId: '', source: 'seller-link' };
-    try { const rooms = loadRooms(); const room = rooms.find(r => (iv.personId && r.personId === iv.personId) || (iv.companyId && r.companyId === iv.companyId)); if (room) { room.interviews = Array.isArray(room.interviews) ? room.interviews : []; room.interviews.push({ id: iv.id, key, createdAt: now, durationSec: iv.durationSec, sizeBytes: iv.sizeBytes, by: iv.by }); room.updatedAt = now; saveRooms(rooms); iv.roomId = room.id; } } catch (e) { console.error('seller register room:', e && e.message); }
+    try { const rooms = loadRooms(); let _rch = false; rooms.forEach(r => { if (backfillRoomLinks(r)) _rch = true; }); const room = rooms.find(r => (iv.personId && r.personId === iv.personId) || (iv.companyId && r.companyId === iv.companyId)); if (room) { room.interviews = Array.isArray(room.interviews) ? room.interviews : []; room.interviews.push({ id: iv.id, key, createdAt: now, durationSec: iv.durationSec, sizeBytes: iv.sizeBytes, by: iv.by }); room.updatedAt = now; iv.roomId = room.id; _rch = true; } if (_rch) saveRooms(rooms); } catch (e) { console.error('seller register room:', e && e.message); }
     const ivs = loadInterviews(); ivs.push(iv); saveInterviews(ivs);
     rec.videoCount = (rec.videoCount || 0) + 1; rec.lastVideoAt = now; saveSellerLinks(all);
     try { if (rec.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === rec.personId); if (p) { logActivity(p, 'Note', 'Seller interview — video recorded by the seller (self-serve).', { auto: true }); savePeople(ppl); } } } catch (e) {}
+    try { notifySellerInterviewDone(rec, iv, 'video', req); } catch (e) { console.error('seller notify:', e && e.message); }
     res.json({ ok: true, id: iv.id });
   } catch (e) { console.error('seller register:', e && e.message); res.status(500).json({ ok: false, error: 'Could not save the recording.' }); }
 });
