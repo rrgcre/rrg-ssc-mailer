@@ -6,23 +6,30 @@
 let MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 const API_URL = 'https://api.anthropic.com/v1/messages';
 
-const SYSTEM = `You are a diligence researcher for Restaurant Realty Group (RRG), a brokerage specializing in restaurants and bars. Your job is to find the real, current physical locations of a restaurant concept so a broker can build the company's location list during onboarding.
+const SYSTEM = `You are a diligence researcher for Restaurant Realty Group (RRG), a brokerage specializing in restaurants and bars. Your job is to find EVERY real, currently-open physical location of a restaurant concept so a broker can build the company's complete location list during onboarding. Completeness is the whole point of this task — a list that is missing half the units is a failure. Be exhaustive.
 
-You are given the concept name, the parent company, the concept's website, and an approximate number of locations. Use web search — start with the concept's own website (look for a "Locations", "Find us", or "Visit" page), and corroborate with map listings and directories — to identify each open location. For every location you are confident is real and currently operating, capture: a short location name (the neighborhood, city, or store label the brand uses, e.g. "Downtown", "The Domain", "Southpark"), the full street address, the city, the state, and the public phone number.
+You are given the concept name, the parent company, the concept's website, and an approximate number of locations. For every location you are confident is real and currently operating, capture: a short location name (the neighborhood, city, or store label the brand uses, e.g. "Downtown", "The Domain", "Southpark"), the full street address, the city, the state, and the public phone number.
+
+HOW TO SEARCH — do all of this, do not stop after one or two searches:
+1. START at the brand's OWN website. Open its "Locations", "Hours & Locations", "Find us", "Visit", or store-locator page and read it directly (fetch the page). Many restaurant store-locators are JavaScript-rendered and a plain read may come back nearly empty — if the locator page gives you few or no addresses, DO NOT conclude the brand only has a few units. Treat that as a rendering gap and corroborate aggressively with the steps below.
+2. Corroborate and FILL OUT the list using sources that enumerate every unit of a chain: the brand's own social pages, Yelp/Tripadvisor/Google roll-ups of the brand, franchise-disclosure or "our locations" listings, and local news about openings. These directory sources are usually static and often list units the JS locator hid from you.
+3. Search METRO BY METRO and STATE BY STATE. Run separate searches like "<concept> <city>" and "<concept> locations <state>" for every market the brand operates in. A single "<concept> locations" search almost never returns them all — chains are spread across many result pages.
+4. RECONCILE against the approximate count. If the brand is said to have ~20 units and you have only found 12, you are NOT done — keep searching different cities/states and directories until you have matched the expected count or genuinely exhausted reasonable queries. Only then stop.
 
 Return a SINGLE JSON object — no prose, no markdown fences — with EXACTLY this shape:
 {
  "locations": [
    { "name": "short label for this unit", "address": "street address", "city": "city", "state": "ST", "phone": "public phone" }
  ],
- "note": "one short line on what you found and any gaps (e.g. 'Found 6 of ~8; two addresses unconfirmed')"
+ "note": "one short line on what you found and any gaps (e.g. 'Found 18 of ~20; two addresses unconfirmed')"
 }
 
 Rules:
+- Aim to return the FULL set of open units, not a sample. Reconcile to the expected count before you stop.
 - Only include locations you actually found evidence for. NEVER invent an address or phone number. Leave a field as "" if you genuinely could not confirm it — an accurate partial record beats a fabricated one.
-- Prefer the brand's own website as the source of truth; use directories only to fill gaps.
-- The location count you're given is an approximation — return the real ones you find, whether that's more or fewer.
-- Do not include closed or "coming soon" locations. Restaurants only (this brand's own units), not fran'chisor HQ or unrelated businesses.
+- The count you're given is an approximation — if you find MORE real units than that, include them all; if you find fewer, keep looking before concluding.
+- De-duplicate: the same physical unit found on two sources is one location, not two.
+- Do not include closed or "coming soon" locations. Restaurants only (this brand's own units), not the franchisor HQ or unrelated businesses.
 - Output the JSON object only.`;
 
 function extractJson(text) {
@@ -38,22 +45,34 @@ async function findLocations({ company, concept, website, count, systemPrompt })
   if (!key) throw new Error('ANTHROPIC_API_KEY is not set on the server.');
   const sys = (systemPrompt && String(systemPrompt).trim()) ? String(systemPrompt) : SYSTEM;
   const ask =
-    'Find the physical locations for this restaurant concept and return the JSON.\n' +
+    'Find EVERY physical location for this restaurant concept and return the JSON. Be exhaustive — read the brand\'s own locations page, corroborate with directories, search market by market, and reconcile to the expected count before you stop.\n' +
     JSON.stringify({ concept: concept || '', company: company || '', website: website || '', approxLocations: count || '' });
 
-  const resp = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL, max_tokens: 4000, temperature: 0.1,
-      system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }],
-      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 8 }],
-      messages: [{ role: 'user', content: ask }],
-    }),
-  });
+  // Give the researcher room to actually read the brand's locations page (web_fetch) and to
+  // search many markets (web_search). web_fetch is a newer tool; if this deployment's API
+  // doesn't support it we transparently retry with search only so the finder never hard-fails.
+  const baseBody = {
+    model: MODEL, max_tokens: 8000, temperature: 0.1,
+    system: [{ type: 'text', text: sys, cache_control: { type: 'ephemeral' } }],
+    messages: [{ role: 'user', content: ask }],
+  };
+  const searchTool = { type: 'web_search_20250305', name: 'web_search', max_uses: 14 };
+  const fetchTool = { type: 'web_fetch_20250910', name: 'web_fetch', max_uses: 8 };
+
+  async function call(withFetch) {
+    const headers = { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' };
+    if (withFetch) headers['anthropic-beta'] = 'web-fetch-2025-09-10';
+    const body = Object.assign({}, baseBody, { tools: withFetch ? [searchTool, fetchTool] : [searchTool] });
+    return fetch(API_URL, { method: 'POST', headers, body: JSON.stringify(body) });
+  }
+
+  let resp = await call(true);
   if (!resp.ok) {
-    const t = await resp.text().catch(() => '');
-    throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 400));
+    // web_fetch is a newer tool + beta header; if anything about the enhanced request is
+    // rejected, transparently retry with search only so the finder never hard-fails on it.
+    await resp.text().catch(() => '');
+    resp = await call(false);
+    if (!resp.ok) { const t = await resp.text().catch(() => ''); throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 400)); }
   }
   const data = await resp.json();
   const text = (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
