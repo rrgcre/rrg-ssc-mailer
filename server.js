@@ -258,7 +258,10 @@ function companyContactRow(p) { return { id: p.id, name: p.name, firstName: pers
 // Companies — a company / account file that groups its associated contacts (people) and
 // its deals. Created at onboarding (the subject business), reusable across deals.
 const COMPANIES_FILE = path.join(BOV_DATA_DIR, 'companies.json');
-const COMPANY_TYPES = ['Seller', 'Buyer', 'Tenant', 'Restaurant Group'];
+const COMPANY_TYPES = ['Restaurant Group'];
+// Retired company types — removed from the picker everywhere, even if a previously-saved
+// custom list still contains them. Existing companies keep their stored value historically.
+const RETIRED_COMPANY_TYPES = ['seller', 'buyer', 'tenant'];
 function loadCompanies() { try { return rj(COMPANIES_FILE); } catch (e) { return []; } }
 function saveCompanies(a) {
   try {
@@ -479,7 +482,7 @@ function logContactAdded(p, req, extra) {
     logActivity(p, 'Contact Added', ('New contact added' + role + where).slice(0, 400), { auto: true, by: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '' });
   } catch (e) {}
 }
-function effCompanyTypes() { const s = loadSettings(); return _mergeRequired((Array.isArray(s.companyTypes) && s.companyTypes.length) ? s.companyTypes : COMPANY_TYPES, SYSTEM_COMPANY_TYPES); }
+function effCompanyTypes() { const s = loadSettings(); const base = ((Array.isArray(s.companyTypes) && s.companyTypes.length) ? s.companyTypes : COMPANY_TYPES).filter(function(t){ return RETIRED_COMPANY_TYPES.indexOf(String(t).toLowerCase()) < 0; }); return _mergeRequired(base, SYSTEM_COMPANY_TYPES); }
 function effTicketCategories() { const s = loadSettings(); return (Array.isArray(s.ticketCategories) && s.ticketCategories.length) ? s.ticketCategories : TICKET_CATEGORIES; }
 // ---- Departments: route requests to a team; only that team's members (plus the
 // requester) can see them. Departments own request categories, so a category maps
@@ -607,7 +610,7 @@ function findOrCreateCompany(req, info) {
     if (info.market && !c.market) { c.market = titleCaseMarket(String(info.market).slice(0, 80)); c.updatedAt = new Date().toISOString(); saveCompanies(arr); }
     return c;
   }
-  const type = (info && COMPANY_TYPES.indexOf(info.type) >= 0) ? info.type : 'Seller';
+  const type = (info && effCompanyTypes().indexOf(info.type) >= 0) ? info.type : 'Restaurant Group';
   c = { id: newCompanyId(), name: name.slice(0, 160), market: titleCaseMarket(String((info && info.market) || '').slice(0, 80)), type: type, notes: '', createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
   arr.push(c); saveCompanies(arr);
   return c;
@@ -7617,7 +7620,7 @@ app.post('/api/company', express.json(), (req, res) => {
     const existing = arr.find(x => normKey(x.name) === normKey(nm));
     if (existing) return res.status(409).json({ ok: false, error: 'A company named “' + existing.name + '” already exists.', existingId: existing.id, existing: { id: existing.id, name: existing.name } });
     if (effPipelineRequired()) { const _pid = String(b.pipelineId || '').trim(); const _ok = _pid && loadPipelines().some(pl => pl.id === _pid); if (!_ok) return res.status(400).json({ ok: false, error: 'Choose a pipeline for this company — it is required by your administrator.' }); }
-    c = { id: newCompanyId(), name: '', market: '', type: 'Seller', notes: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(c);
+    c = { id: newCompanyId(), name: '', market: '', type: 'Restaurant Group', notes: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(c);
   }
   if (typeof b.name === 'string' && b.name.trim()) c.name = b.name.trim().slice(0, 160);
   if (typeof b.market === 'string') c.market = b.market.slice(0, 80);
