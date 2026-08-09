@@ -69,7 +69,7 @@ function get(url){ return fetch(url,{credentials:'same-origin'}).then(function(r
 var TYPES={ personTypes:[], companyTypes:[], ticketCategories:[], leadSources:[], activityTypes:[], cuisineTypes:[], agreementTypes:[] };
 var SYSREQ={ leadSources:[] };
 function isSysReq(kind,val){ var a=(SYSREQ&&SYSREQ[kind])||[]; return a.some(function(x){ return String(x).toLowerCase()===String(val).toLowerCase(); }); }
-var MAXPULL=20; var RECENCY=90; var DEFSTATE='TX'; var ASSISTANT='Claude'; var CONCEPTL='Concept'; var CONCEPTLP='Concepts'; var SHOWRIBBON=true; var PIPELINEREQ=false; var TOOLDEFS=[]; var TOOLLABELS={}; var PALETTE={primary:'#000E31',accent:'#DA2B1F',sidebar:'#0b1a38',positive:'#1f8a5b'}; var RECENCYON=true;
+var MAXPULL=20; var RECENCY=90; var DEFSTATE='TX'; var ASSISTANT='Claude'; var CONCEPTL='Concept'; var CONCEPTLP='Concepts'; var SHOWRIBBON=true; var PIPELINEREQ=false; var TOOLDEFS=[]; var TOOLLABELS={}; var RECENCYON=true;
 function recencyToggle(){ var on=document.getElementById('recencyon'), d=document.getElementById('recencydays'); if(on&&d){ d.disabled=!on.checked; d.style.opacity=on.checked?String(1):String(0.45); } }
 
 function tagListHtml(kind,arr){
@@ -109,11 +109,6 @@ function agrListHtml(){
 }
 function addAgrType(){ var inp=document.getElementById('add_agr'); var v=(inp.value||'').trim(); if(!v) return; TYPES.agreementTypes=TYPES.agreementTypes||[]; if(!TYPES.agreementTypes.some(function(t){return String(t.label).toLowerCase()===v.toLowerCase();})) TYPES.agreementTypes.push({key:'',label:v}); inp.value=''; renderTypes(); setTimeout(function(){var i=document.getElementById('add_agr'); if(i) i.focus();},0); }
 function addType(k){ var inp=document.getElementById('add_'+k); var v=(inp.value||'').trim(); if(!v) return; if(TYPES[k].map(function(x){return x.toLowerCase();}).indexOf(v.toLowerCase())<0) TYPES[k].push(v); inp.value=''; renderTypes(); setTimeout(function(){var i=document.getElementById('add_'+k); if(i) i.focus();},0); }
-function fillPalette(){ var a=document.getElementById('pal_primary'),ah=document.getElementById('pal_primary_hex'),b=document.getElementById('pal_accent'),bh=document.getElementById('pal_accent_hex'); if(a)a.value=PALETTE.primary; if(ah)ah.value=PALETTE.primary; if(b)b.value=PALETTE.accent; if(bh)bh.value=PALETTE.accent; var c=document.getElementById('pal_sidebar'),ch=document.getElementById('pal_sidebar_hex'),d=document.getElementById('pal_positive'),dh=document.getElementById('pal_positive_hex'); if(c)c.value=PALETTE.sidebar; if(ch)ch.value=PALETTE.sidebar; if(d)d.value=PALETTE.positive; if(dh)dh.value=PALETTE.positive; }
-function applyPaletteLive(){ try{ document.documentElement.style.setProperty('--navy',PALETTE.primary); document.documentElement.style.setProperty('--red',PALETTE.accent); document.documentElement.style.setProperty('--navbg',PALETTE.sidebar); document.documentElement.style.setProperty('--green',PALETTE.positive); localStorage.setItem('rrg_pal',JSON.stringify(PALETTE)); }catch(e){} }
-function wirePalette(){ function sync(ci,hi){ var c=document.getElementById(ci),h=document.getElementById(hi); if(!c||!h)return; c.addEventListener('input',function(){ h.value=c.value; }); h.addEventListener('input',function(){ if(/^#[0-9a-fA-F]{6}$/.test(h.value)) c.value=h.value; }); } sync('pal_primary','pal_primary_hex'); sync('pal_accent','pal_accent_hex'); sync('pal_sidebar','pal_sidebar_hex'); sync('pal_positive','pal_positive_hex'); }
-function savePalette(){ var m=document.getElementById('palMsg'); m.textContent='Saving…'; m.className='msg'; var pr=(document.getElementById('pal_primary_hex').value||'').trim()||document.getElementById('pal_primary').value; var ac=(document.getElementById('pal_accent_hex').value||'').trim()||document.getElementById('pal_accent').value; var sb=(document.getElementById('pal_sidebar_hex').value||'').trim()||document.getElementById('pal_sidebar').value; var po=(document.getElementById('pal_positive_hex').value||'').trim()||document.getElementById('pal_positive').value; post('/api/admin/palette',{primary:pr,accent:ac,sidebar:sb,positive:po}).then(function(j){ if(j&&j.ok){ PALETTE=j.palette; fillPalette(); applyPaletteLive(); m.textContent='Saved \u2713'; m.className='msg ok'; } else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; } }); }
-async function resetPalette(){ if(!await rrgConfirm('Reset the brand colors to the built-in defaults?')) return; post('/api/admin/palette',{reset:true}).then(function(j){ if(j&&j.ok){ PALETTE=j.palette; fillPalette(); applyPaletteLive(); var m=document.getElementById('palMsg'); m.textContent='Reset \u2713'; m.className='msg ok'; } }); }
 function renderToolLabels(){
   var box=document.getElementById('toolLabelsBox'); if(!box) return;
   box.innerHTML='<div class="grid2">'+TOOLDEFS.map(function(t){
@@ -194,16 +189,6 @@ function build(){
     +'<div class="btnrow"><button class="btn" id="orgSave">Save brokerage info</button><span class="msg" id="orgMsg"></span></div>'
     +'<div class="note">This is your firm’s identity for white-label documents and emails. The display brand name and logo are set in the Admin console; this captures the legal and contact details.</div>'
     +'</div></div>'
-    +'<div class="card"><div class="ch"><b>Brand Colors</b><span>&mdash; your brand colors, used across the whole app and on branded documents like BOVs</span></div><div class="cb">'
-    +'<div style="display:flex;gap:28px;flex-wrap:wrap">'
-    +'<div><label class="fld">Primary &mdash; dark / brand</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="pal_primary" style="width:46px;height:40px;padding:2px;border:1px solid #cfd6e2;border-radius:8px;cursor:pointer"><input type="text" id="pal_primary_hex" maxlength="7" style="max-width:120px" placeholder="#000E31"></div><div class="note" style="margin-top:6px">Buttons, headers, the navigation.</div></div>'
-    +'<div><label class="fld">Accent &mdash; highlight / call-to-action</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="pal_accent" style="width:46px;height:40px;padding:2px;border:1px solid #cfd6e2;border-radius:8px;cursor:pointer"><input type="text" id="pal_accent_hex" maxlength="7" style="max-width:120px" placeholder="#DA2B1F"></div><div class="note" style="margin-top:6px">Accents, the &ldquo;Create&rdquo; button, key highlights.</div></div>'
-    +'<div><label class="fld">Sidebar / nav</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="pal_sidebar" style="width:46px;height:40px;padding:2px;border:1px solid #cfd6e2;border-radius:8px;cursor:pointer"><input type="text" id="pal_sidebar_hex" maxlength="7" style="max-width:120px" placeholder="#0B1A38"></div><div class="note" style="margin-top:6px">The left navigation bar.</div></div>'
-    +'<div><label class="fld">Positive / success</label><div style="display:flex;gap:8px;align-items:center"><input type="color" id="pal_positive" style="width:46px;height:40px;padding:2px;border:1px solid #cfd6e2;border-radius:8px;cursor:pointer"><input type="text" id="pal_positive_hex" maxlength="7" style="max-width:120px" placeholder="#1F8A5B"></div><div class="note" style="margin-top:6px">Success chips &amp; saved states.</div></div>'
-    +'</div>'
-    +'<div class="btnrow"><button class="btn" id="palSave">Save colors</button><button class="btn ghost" id="palReset">Reset to defaults</button><span class="msg" id="palMsg"></span></div>'
-    +'<div class="note">Applies across every screen. Your view updates immediately; teammates see it the next time each page loads.</div>'
-    +'</div></div>'
     +'<div class="card"><div class="ch"><b>Tool names</b><span>— rename any tool as it appears on the dashboard (e.g. call &ldquo;Contacts&rdquo; &ldquo;People&rdquo;)</span></div><div class="cb">'
     +'<div id="toolLabelsBox"></div>'
     +'<div class="btnrow"><button class="btn" id="tlSave">Save tool names</button><button class="btn ghost" id="tlReset">Reset to defaults</button><span class="msg" id="tlMsg"></span></div>'
@@ -230,10 +215,6 @@ function build(){
   document.getElementById('typesSave').addEventListener('click',saveTypes);
   document.getElementById('typesReset').addEventListener('click',resetTypes);
   var _os=document.getElementById('orgSave'); if(_os) _os.addEventListener('click',saveOrg); loadOrg();
-  document.getElementById('palSave').addEventListener('click',savePalette);
-  document.getElementById('palReset').addEventListener('click',resetPalette);
-  wirePalette();
-  get('/api/admin/palette').then(function(j){ if(j&&j.ok){ PALETTE=j.palette; fillPalette(); } });
   document.getElementById('tlSave').addEventListener('click',saveToolLabels);
   document.getElementById('tlReset').addEventListener('click',resetToolLabels);
   document.getElementById('svcSave').addEventListener('click',saveServices);

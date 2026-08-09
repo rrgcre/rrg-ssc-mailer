@@ -119,7 +119,7 @@
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
       { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
       { ic: '❐', label: 'Documents', href: 'rrg_documents.html' },
-      { ic: '✍', label: 'Agreements', href: 'rrg_agreements.html' },
+      { ic: '❒', label: 'Agreements', href: 'rrg_agreements.html' },
     ] },
     { grp: 'Tenant Rep', color: '#dfa937', items: [
       { ic: '◆', label: 'Assignments', href: 'rrg_assignments.html?type=tenant_rep' },
