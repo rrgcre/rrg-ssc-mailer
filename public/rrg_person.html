@@ -778,6 +778,15 @@ function _ivCleanup(id,btn){
       else { if(btn){ btn.disabled=false; btn.textContent='✨ Clean up for buyers'; } var m=(j&&j.error)||'Cleanup failed.'; if(window.rrgToast) rrgToast(m,{danger:true}); else alert(m); }
     }).catch(function(){ if(btn){ btn.disabled=false; btn.textContent='✨ Clean up for buyers'; } if(window.rrgToast) rrgToast('Could not reach the server.',{danger:true}); });
 }
+// Kick off (or redo) the baked-in branded intro for this recording, then re-open showing status.
+function _ivBrand(id,el){
+  if(el){ el.disabled=true; if(el.tagName==='BUTTON'){ el.textContent='✨ Starting…'; } }
+  fetch('/api/interview/'+encodeURIComponent(id)+'/brand',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ if(window.rrgToast) rrgToast('Branding started — the video will show your intro in a minute or two.'); if(typeof openInterviewView==='function') openInterviewView(); }
+      else { if(el){ el.disabled=false; } var m=(j&&j.error)||'Could not start branding.'; if(window.rrgToast) rrgToast(m,{danger:true}); else alert(m); }
+    }).catch(function(){ if(el){ el.disabled=false; } if(window.rrgToast) rrgToast('Could not reach the server.',{danger:true}); });
+}
 function openInterviewView(){
   var iv=window.__lastInterview||{}; if(!iv.id){ if(window.rrgToast) rrgToast('No seller interview has come back yet.'); return; }
   var ex=document.getElementById('ivvOv'); if(ex) ex.remove();
@@ -816,7 +825,15 @@ function openInterviewView(){
     else if(isClean&&j.transcript){ clean='<div style="margin:14px 0 2px"><button id="ivvClean" style="background:none;border:none;color:#5b46b8;font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:0;text-decoration:underline">↻ Re-run cleanup</button></div>'; }
     var deb=j.summary?('<details style="margin-top:22px;border-top:1px solid #eef1f6;padding-top:16px"><summary style="cursor:pointer;font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:#8a5a12;list-style:none">▸ Internal AI debrief <span style="color:#b98a3a;font-weight:600">— not for buyers</span></summary><div style="white-space:pre-wrap;line-height:1.55;color:#1a2236;font-size:13px;background:#fff4e6;border:1px solid #f3d9a8;border-radius:10px;padding:13px 15px;margin-top:10px">'+_siEsc(j.summary)+'</div></details>'):'';
     var room=(iv.roomId)?('<div style="margin-top:16px"><a href="./rrg_room.html?room='+encodeURIComponent(iv.roomId)+'" style="color:#2647b0;font-weight:700;font-size:12.5px;text-decoration:none">Open in the data room →</a></div>'):'';
-    b.innerHTML=head+vid+tx+clean+deb+room;
+    // Baked-in branded intro (title card + segue) — offer it for any recording; re-brand if already done.
+    var brand='';
+    if(j.viewUrl){
+      if(j.branded){ brand='<div style="margin:-6px 0 16px;font-size:12px;color:#1f8a5b;font-weight:600">✓ Branded intro is baked into the video &nbsp;·&nbsp; <a href="#" id="ivvBrand" style="color:#5b46b8;font-weight:700;text-decoration:none">re-brand</a></div>'; }
+      else if(j.finishStatus==='building'){ brand='<div style="margin:-6px 0 16px;font-size:12px;color:#8a5a12;font-weight:600">✨ Adding your branded intro… reopen this in a minute or two to see it.</div>'; }
+      else { brand='<div style="margin:-6px 0 16px"><button id="ivvBrand" style="background:#f3eefe;border:1px solid #ddd0f7;color:#5b46b8;border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer">✨ Add branded intro to the video</button><div style="color:#9aa2b2;font-size:11px;margin-top:5px;max-width:520px">Bakes your title card + a fade segue into the front of the finished video, so it plays on every viewing. Takes a minute or two.</div></div>'; }
+    }
+    b.innerHTML=head+vid+brand+tx+clean+deb+room;
+    var bb=document.getElementById('ivvBrand'); if(bb){ bb.addEventListener('click',function(ev){ ev.preventDefault(); _ivBrand(j.id||iv.id,bb); }); }
     var cb=document.getElementById('ivvClean'); if(cb){ cb.addEventListener('click',function(){ _ivCleanup(j.id||iv.id,cb); }); }
     if(present){ var pb=document.getElementById('ivvPrint'); if(pb){ pb.style.display='inline-block'; pb.addEventListener('click',function(){ _ivPrint(j); }); } }
   }).catch(function(){ var b=document.getElementById('ivvBody'); if(b) b.textContent='Could not reach the server.'; });

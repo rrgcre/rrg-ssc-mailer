@@ -5237,6 +5237,19 @@ app.post('/api/interview/:id/clean-save', express.json(), (req, res) => {
     res.json({ ok: true, cleanStatus: rec.cleanStatus });
   } catch (e) { console.error('clean-save interview:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
+// Brand (or re-brand) an existing recording on demand — bakes the title card + segue into it.
+// Runs in the background; the viewer serves the branded version once it's built.
+app.post('/api/interview/:id/brand', express.json(), (req, res) => {
+  try {
+    if (!s3Configured()) return res.status(503).json({ ok: false, error: 'Video storage is not configured.' });
+    if (!ffmpegAvailable()) return res.status(503).json({ ok: false, error: 'Video branding isn’t available on the server yet — it comes online after the ffmpeg deploy finishes.' });
+    const all = loadInterviews(); const rec = all.find(x => x.id === req.params.id);
+    if (!rec || !rec.key) return res.status(404).json({ ok: false, error: 'Recording not found.' });
+    rec.finishStatus = 'building'; saveInterviews(all);
+    setImmediate(function () { buildBrandedVideo(rec).catch(function () {}); });
+    res.json({ ok: true, status: 'building' });
+  } catch (e) { console.error('brand interview:', e && e.message); res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 // Audio is posted straight from the browser and only kept long enough to transcribe (the durable copy is the video in S3).
 app.post('/api/interview/:id/transcribe', express.raw({ type: ['audio/*', 'application/octet-stream'], limit: '30mb' }), async (req, res) => {
   try {
