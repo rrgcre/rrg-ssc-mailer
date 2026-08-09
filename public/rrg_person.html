@@ -1272,9 +1272,11 @@ load();
   function ctx(){ try{ return { name:P.name, type:P.type, company:(typeof CO!=="undefined"&&CO&&CO.name)||P.company||"", title:P.title, phone:P.phone, email:P.email, tags:P.tags, notes:P.notes, lastContacted:P.lastContacted, vip:P.vip, leadSource:P.leadSource, activities:(typeof ACTIVITIES!=="undefined"?ACTIVITIES:[]).slice(0,15), listings:(typeof DEALS!=="undefined"?DEALS:[]).map(function(d){return {business:d.business,market:d.market,role:d.role};}), agreements:(typeof AGREEMENTS!=="undefined"?AGREEMENTS:[]).map(function(a){return {type:a.type,status:a.status,expires:a.expires};}) }; }catch(e){ return {}; } }
   function showPrep(html){ document.getElementById("prepbody").innerHTML=html; document.getElementById("prepov").hidden=false; }
   function prepCall(){ if(typeof P==="undefined"||!P) return; if(window.rrgAiConfirm){ window.rrgAiConfirm({actionKey:"contact-prep",title:"Call prep with "+(window.__rrgAssistant||"AI"),body:"This reviews the full contact record — activities, listings, agreements — and drafts talking points. It runs an AI call — a metered action.",onProceed:function(){ _doPrepCall(); }}); return; } _doPrepCall(); }
-  function _doPrepCall(){ showPrep("<div style=\"color:#6b7488\">"+e2(window.__rrgAssistant||"AI")+" is reviewing the record…</div>");
+  function _doPrepCall(){
+    if(window.rrgAiWork){ rrgAiWork.show("Reviewing the full record — activities, listings, agreements — and drafting your talking points…"); }
+    else { showPrep("<div style=\"color:#6b7488\">"+e2(window.__rrgAssistant||"AI")+" is reviewing the record…</div>"); }
     fetch("/api/ai/contact-prep",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({person:ctx()})})
-     .then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok){ showPrep("<div style=\"color:#a5352c\">"+e2((j&&j.error)||"Could not build the prep.")+"</div>"); return; }
+     .then(function(r){return r.json();}).then(function(j){ if(window.rrgAiWork) rrgAiWork.hide(); if(!j||!j.ok){ showPrep("<div style=\"color:#a5352c\">"+e2((j&&j.error)||"Could not build the prep.")+"</div>"); return; }
        var b=j.result||{}; var h="";
        if(b.snapshot) h+="<div style=\"font-size:14px;color:#000E31;font-weight:700;line-height:1.4;margin-bottom:10px\">"+e2(b.snapshot)+"</div>";
        if(b.lastTouch) h+="<div style=\"font-size:12.5px;color:#6b7488;margin-bottom:12px\">Last touch: "+e2(b.lastTouch)+"</div>";
@@ -1282,7 +1284,7 @@ load();
        h+=list("Move forward",b.openItems); h+=list("Openers",b.openers);
        if(b.watchOut) h+="<div style=\"margin-top:12px;background:#fff4e6;border:1px solid #f0dcbf;border-radius:8px;padding:9px 11px;font-size:12.5px;color:#8a5a10\"><b>Watch out:</b> "+e2(b.watchOut)+"</div>";
        showPrep(h||"Not enough on the record yet — log a few activities first.");
-     }).catch(function(){ showPrep("<div style=\"color:#a5352c\">Network error.</div>"); });
+     }).catch(function(){ if(window.rrgAiWork) rrgAiWork.hide(); showPrep("<div style=\"color:#a5352c\">Network error.</div>"); });
   }
   document.addEventListener("click",function(e){ if(e.target.closest("#prepBtn")){ e.preventDefault(); prepCall(); return; } if(e.target.closest("#prepx")){ document.getElementById("prepov").hidden=true; return; } var ov=document.getElementById("prepov"); if(e.target===ov){ /* stay open */ } });
   document.addEventListener('change',function(e){ if(e.target&&e.target.id==='actFilter'){ var v=e.target.value; document.querySelectorAll('.actcard .feedrow').forEach(function(r){ var t=r.getAttribute('data-atype')||''; r.style.display=(!v||t===v)?'':'none'; }); return; } if(e.target&&e.target.id==='actCondensed'){ var fd=document.querySelector('.actcard .feed'); if(fd) fd.classList.toggle('condensed',e.target.checked); return; } });
