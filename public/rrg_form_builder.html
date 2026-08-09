@@ -49,6 +49,7 @@ textarea{resize:vertical;min-height:60px;line-height:1.4;}
 .qrow .qfline{margin-top:10px;}
 .qrow .qfline .lbl{display:block;margin:0 0 3px;}
 .qrow .q-prompt,.qrow .q-hint{font-size:12.5px;color:#54607a;width:100%;}
+.qrow .q-prompt{min-height:94px;line-height:1.5;}
 .qrow .q-hint{border-left:3px solid var(--red,#DA2B1F);background:#fbfcfe;}
 .qrow .qact{display:flex;gap:6px;margin-top:9px;justify-content:flex-end;}
 .qrow.sub-row{background:#f2f5fb;border-style:dashed;}
@@ -228,7 +229,7 @@ function qrow(q){
     +'<div class="oright"><span class="lbl">Layout</span><select class="q-cols"><option value="">Stacked</option><option value="2"'+(q.cols==2?' selected':'')+'>2 columns</option><option value="3"'+(q.cols==3?' selected':'')+'>3 columns</option><option value="4"'+(q.cols==4?' selected':'')+'>4 columns</option></select></div></div>'
     +'<div class="groupwrap"><span class="lbl">Parts \u2014 each becomes a field on the same card / flashcard</span><div class="plist">'+(q.parts||[]).map(partRow).join('')+'</div>'
     +'<div style="display:flex;gap:9px;margin-top:7px;align-items:center;flex-wrap:wrap"><button type="button" class="mini" onclick="addPart(this)">+ Add part</button><span class="lbl" style="margin:0">Layout</span><select class="g-cols" style="width:130px"><option value="2"'+((q.cols==2||!q.cols)?' selected':'')+'>2 columns</option><option value="3"'+(q.cols==3?' selected':'')+'>3 columns</option><option value="1"'+(q.cols==1?' selected':'')+'>Stacked</option></select></div></div>'
-    +'<div class="qfline"><span class="lbl">Ask-out-loud prompt \u2014 what the rep reads to the seller in Call Mode</span><input type="text" class="q-prompt" placeholder="e.g. How long have you been operating?" value="'+esc(q.prompt||'')+'"></div>'
+    +'<div class="qfline"><span class="lbl">Ask-out-loud prompt \u2014 what the rep reads to the seller in Call Mode</span><textarea class="q-prompt" rows="4" placeholder="e.g. How long have you been operating?">'+esc(q.prompt||'')+'</textarea></div>'
     +'<div class="qfline"><span class="lbl">Hint \u2014 coaching note shown beside the question, seller never hears it</span><input type="text" class="q-hint" placeholder="e.g. Under three years is thin for SBA financing." value="'+esc(q.hint||'')+'"></div>'
     +'<div class="condwrap"><label class="condtoggle"><input type="checkbox" class="cond-on"'+(_sc?' checked':'')+'> Only show this card when a previous answer matches</label>'
     +'<div class="condbody"'+(_sc?'':' style="display:none"')+'><div class="condgrid"><select class="cond-q"></select><select class="cond-op"><option value="any"'+(_scop==='not'?'':' selected')+'>is any of</option><option value="not"'+(_scop==='not'?' selected':'')+'>is not</option></select></div>'
