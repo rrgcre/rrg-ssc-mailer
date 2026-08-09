@@ -170,9 +170,8 @@ function questionFromRow(row){
   if(q.type==='options'){
     var opts=[], meta=[], anyMeta=false;
     qsa('.optrow',row).forEach(function(r){ var lb=(qs('.opt-label',r).value||'').trim(); if(!lb) return; opts.push(lb);
-      var mk=qs('.opt-k',r).checked, mw=parseInt(qs('.opt-w',r).value,10)||0, mn=(qs('.opt-nudge',r).value||'').trim();
-      var _au=qs('.opt-auto',r); var ma=_au?(_au.value||'').trim():'';
-      var m={}; if(mk)m.k=1; if(mw)m.w=mw; if(mn)m.n=mn; if(ma)m.a=ma; meta.push(m); if(mk||mw||mn||ma) anyMeta=true; });
+      var mk=qs('.opt-k',r).checked, mw=parseInt(qs('.opt-w',r).value,10)||0;
+      var m={}; if(mk)m.k=1; if(mw)m.w=mw; meta.push(m); if(mk||mw) anyMeta=true; });
     q.options=opts;
     if(anyMeta) q.optMeta=meta;
     var c=qs('.q-cols',row).value; if(c) q.cols=parseInt(c,10);
@@ -205,7 +204,7 @@ function typeSelect(sel){
   return '<select class="q-type">'+TYPES.map(function(t){ return '<option value="'+t.v+'"'+(t.v===sel?' selected':'')+'>'+esc(t.label)+'</option>'; }).join('')+'</select>';
 }
 function optWeightSel(w){ w=w||0; var o=''; for(var x=-3;x<=3;x++){ o+='<option value="'+x+'"'+(x===w?' selected':'')+'>'+(x>0?('+'+x):(''+x))+'</option>'; } return o; }
-function optRowHtml(lbl,m){ m=m||{}; return '<div class="optrow" style="display:flex;gap:6px;align-items:center;margin:0 0 5px;flex-wrap:wrap">'+'<input type="text" class="opt-label" placeholder="Choice" value="'+esc(lbl||'')+'" style="flex:2;min-width:110px">'+'<label style="font-size:11.5px;white-space:nowrap;display:inline-flex;gap:4px;align-items:center"><input type="checkbox" class="opt-k"'+(m.k?' checked':'')+'>Deal-killer</label>'+'<select class="opt-w" title="Temperature weight (\u2212 colder / + warmer)" style="width:60px">'+optWeightSel(m.w||0)+'</select>'+'<input type="text" class="opt-nudge" placeholder="Follow-up nudge (optional)" value="'+esc(m.n||'')+'" style="flex:2;min-width:110px">'+'<select class="opt-auto" title="Automation to run on submit when this answer is chosen" style="width:150px;flex:0 0 auto">'+autoOptions(m.a||'')+'</select>'+'<button type="button" class="mini danger" onclick="delOpt(this)">\u00d7</button></div>'; }
+function optRowHtml(lbl,m){ m=m||{}; return '<div class="optrow" style="display:flex;gap:6px;align-items:center;margin:0 0 5px;flex-wrap:wrap">'+'<input type="text" class="opt-label" placeholder="Choice" value="'+esc(lbl||'')+'" style="flex:2;min-width:110px">'+'<label style="font-size:11.5px;white-space:nowrap;display:inline-flex;gap:4px;align-items:center"><input type="checkbox" class="opt-k"'+(m.k?' checked':'')+'>Deal-killer</label>'+'<select class="opt-w" title="Temperature weight (\u2212 colder / + warmer)" style="width:60px">'+optWeightSel(m.w||0)+'</select>'+'<button type="button" class="mini danger" onclick="delOpt(this)">\u00d7</button></div>'; }
 function addOpt(btn){ var list=btn.closest('.oleft').querySelector('.optlist'); list.insertAdjacentHTML('beforeend', optRowHtml('',{})); var l=list.lastElementChild.querySelector('.opt-label'); if(l) l.focus(); }
 function delOpt(btn){ btn.closest('.optrow').remove(); }
 function qrow(q){
@@ -225,7 +224,7 @@ function qrow(q){
     +'<div class="instrwrap"><span class="lbl">Instruction text — shown on its own card with Back and Next, nothing to answer</span><textarea class="q-text" placeholder="e.g. Before you go further, confirm you are speaking with an owner and that this call is confidential.">'+esc(q.text||'')+'</textarea></div>'
     +'<div class="flags"><label><input type="checkbox" class="q-req"'+(q.required?' checked':'')+'> Required</label>'
     +'<label><input type="checkbox" class="q-full"'+(q.full?' checked':'')+'> Full width</label></div>'
-    +'<div class="optwrap"><div class="oleft"><span class="lbl">Answer choices \u2014 tick deal-killers, set a temperature weight (\u2212 colder / + warmer), add an optional follow-up nudge</span><div class="optlist">'+optRows+'</div><button type="button" class="mini" onclick="addOpt(this)" style="margin-top:2px">+ Add choice</button></div>'
+    +'<div class="optwrap"><div class="oleft"><span class="lbl">Answer choices \u2014 tick deal-killers, set a temperature weight (\u2212 colder / + warmer)</span><div class="optlist">'+optRows+'</div><button type="button" class="mini" onclick="addOpt(this)" style="margin-top:2px">+ Add choice</button></div>'
     +'<div class="oright"><span class="lbl">Layout</span><select class="q-cols"><option value="">Stacked</option><option value="2"'+(q.cols==2?' selected':'')+'>2 columns</option><option value="3"'+(q.cols==3?' selected':'')+'>3 columns</option><option value="4"'+(q.cols==4?' selected':'')+'>4 columns</option></select></div></div>'
     +'<div class="groupwrap"><span class="lbl">Parts \u2014 each becomes a field on the same card / flashcard</span><div class="plist">'+(q.parts||[]).map(partRow).join('')+'</div>'
     +'<div style="display:flex;gap:9px;margin-top:7px;align-items:center;flex-wrap:wrap"><button type="button" class="mini" onclick="addPart(this)">+ Add part</button><span class="lbl" style="margin:0">Layout</span><select class="g-cols" style="width:130px"><option value="2"'+((q.cols==2||!q.cols)?' selected':'')+'>2 columns</option><option value="3"'+(q.cols==3?' selected':'')+'>3 columns</option><option value="1"'+(q.cols==1?' selected':'')+'>Stacked</option></select></div></div>'
@@ -288,6 +287,7 @@ function renderSaveBar(){
   var b=document.createElement('div'); b.id='savebar'; b.className='savebar';
   b.innerHTML='<div class="inner"><button type="button" class="btn ghost" onclick="goBack()">Cancel</button>'
     +'<button type="button" class="btn ghost" id="testBtn" onclick="testPreview()" title="Run this questionnaire in Call Mode — nothing is saved">▶ Test in Call Mode</button>'
+    +'<button type="button" class="btn ghost" id="testVidBtn" onclick="testVideo()" title="Run this questionnaire in the seller video-recording view — nothing is saved">▶ Test in Video Mode</button>'
     +'<span class="autostat" id="autoStatus" style="font-size:12px;color:#8a94a6;font-weight:600;margin-left:2px"></span>'
     +'<button type="button" class="btn primary" id="saveBtn" onclick="save()">Save &amp; close</button>'
     +'<span class="msg" id="msg"></span></div>';
@@ -302,6 +302,16 @@ function testPreview(){
   if(!totalQ){ if(m){ m.className='msg err'; m.textContent='Add at least one question to test.'; } return; }
   try{ localStorage.setItem('rrgPreviewForm', JSON.stringify(f)); }catch(e){}
   window.open('./seller_screening.html?preview=1','_blank');
+}
+/* ---- Test in Video Mode: same stash, open the seller's video-recording view in preview (no save) ---- */
+function testVideo(){
+  syncFromDom();
+  var f=STATE.form;
+  var totalQ=(f.header||[]).length + (f.categories||[]).reduce(function(n,c){return n+(c.questions||[]).filter(function(q){return q.type;}).length;},0);
+  var m=qs('#msg');
+  if(!totalQ){ if(m){ m.className='msg err'; m.textContent='Add at least one question to test.'; } return; }
+  try{ localStorage.setItem('rrgPreviewForm', JSON.stringify(f)); }catch(e){}
+  window.open('./seller_record.html?preview=1','_blank');
 }
 /* ---- Auto-save (debounced) ---- */
 var _autoT=null, _autoSaving=false;
