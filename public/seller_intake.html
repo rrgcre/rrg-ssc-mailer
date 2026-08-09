@@ -20,16 +20,17 @@ h1{font-size:25px;font-weight:800;margin:0;color:#fff;}
 .note{background:#f0f5ff;border:1px solid #dbe6fb;border-radius:11px;padding:13px 15px;color:#31527a;font-size:12.5px;line-height:1.55;margin-bottom:18px;}
 .note.ok{background:#e7f5ee;border-color:#b7e0c7;color:var(--green);}
 .fld{margin-bottom:15px;}
-.fld label{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin-bottom:5px;}
-.fld input,.fld textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:15px;background:#fff;color:var(--ink);}
-.fld input:focus,.fld textarea:focus{outline:none;border-color:#5b9be8;box-shadow:0 0 0 3px rgba(91,155,232,.15);}
+.fld>label{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin-bottom:5px;}
+.fld>input,.fld>textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:15px;background:#fff;color:var(--ink);}
+.fld>input:focus,.fld>textarea:focus{outline:none;border-color:#5b9be8;box-shadow:0 0 0 3px rgba(91,155,232,.15);}
 .fld textarea{min-height:78px;resize:vertical;}
 .sech{font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--navy);margin:26px 0 12px;padding-bottom:7px;border-bottom:1px solid #eef1f6;}
 .sech:first-child{margin-top:2px;}
 .opts{display:flex;flex-direction:column;gap:8px;}
-.optch{display:flex;align-items:center;gap:10px;border:1px solid #d7dde8;border-radius:9px;padding:10px 13px;cursor:pointer;font-size:14px;color:var(--ink);}
+.optch{display:flex;align-items:flex-start;gap:11px;border:1px solid #d7dde8;border-radius:9px;padding:11px 13px;cursor:pointer;font-size:14px;color:var(--ink);line-height:1.4;}
 .optch:hover{border-color:#9fb0cc;background:#fafcff;}
-.optch input{margin:0;flex:none;}
+.optch input{margin:1px 0 0;flex:none;width:17px;height:17px;accent-color:var(--navy);}
+.optch span{flex:1;}
 .sbtn{background:var(--navy);color:#fff;border:none;border-radius:11px;padding:14px 30px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;}
 .sbtn:disabled{opacity:.6;cursor:default;}
 #smsg{margin-top:13px;font-size:13.5px;font-weight:600;min-height:18px;}
@@ -60,16 +61,21 @@ h1{font-size:25px;font-weight:800;margin:0;color:#fff;}
   <div class="foot">Confidential &middot; Provided securely by <span id="orgf">your representative</span></div>
 </div>
 <div id="gate" class="gate" style="display:none"></div>
+<div id="loading" class="gate">Loading your form…</div>
 <script>
 (function(){
   function qp(k){ try{ return new URLSearchParams(location.search).get(k)||''; }catch(e){ return ''; } }
   function esc(s){ var d=document.createElement('div'); d.textContent=s==null?'':String(s); return d.innerHTML; }
   var TOKEN=qp('t');
   var app=document.getElementById('app'), gate=document.getElementById('gate');
-  function showGate(msg){ gate.innerHTML='<b>Link unavailable</b>'+esc(msg||'This link is invalid or has expired. Please contact your representative for a new one.'); gate.style.display='block'; }
+  function hideLoading(){ var l=document.getElementById('loading'); if(l) l.style.display='none'; }
+  function showGate(msg){ hideLoading(); gate.innerHTML='<b>Link unavailable</b>'+esc(msg||'This link is invalid or has expired. Please contact your representative for a new one.'); gate.style.display='block'; }
   if(!TOKEN){ showGate('No link code found.'); return; }
   var FIELDS=[];
+  var _done=false;
+  var _to=setTimeout(function(){ if(_done) return; _done=true; showGate('This is taking longer than expected — please check your connection and reload the page.'); }, 15000);
   fetch('/s/intake?token='+encodeURIComponent(TOKEN)).then(function(r){return r.json();}).then(function(j){
+    if(_done) return; _done=true; clearTimeout(_to);
     if(!j||!j.ok){ showGate(j&&j.error); return; }
     FIELDS=j.fields||[];
     var org=j.org||'Restaurant Realty Group';
@@ -94,10 +100,10 @@ h1{font-size:25px;font-weight:800;margin:0;color:#fff;}
     }).join('');
     if(j.submitted){ document.getElementById('doneNote').style.display='block'; document.getElementById('introNote').style.display='none'; }
     document.getElementById('altline').innerHTML='Prefer to talk it through on camera instead? <a href="./seller_record.html?t='+encodeURIComponent(TOKEN)+'" style="color:#DA2B1F;font-weight:700">Record a short video &rarr;</a>';
-    app.style.display='block';
-  }).catch(function(){ showGate('We could not load this page. Please try again in a moment.'); });
+    hideLoading(); app.style.display='block';
+  }).catch(function(){ if(_done) return; _done=true; clearTimeout(_to); showGate('We could not load this page. Please try again in a moment.'); });
   document.getElementById('ssubmit').addEventListener('click',function(){
-    var btn=this, m=document.getElementById('smsg');
+    var btn=this, m=document.getElementById('smsg'), f=document.getElementById('sform');
     var data={}; FIELDS.forEach(function(fd){ if(fd.type==='options' && fd.options && fd.options.length){ var sel=f.querySelector('input[name="r_'+fd.k+'"]:checked'); data[fd.k]=sel?sel.value:''; } else { var el=document.getElementById('f_'+fd.k); data[fd.k]=el?el.value:''; } });
     btn.disabled=true; m.style.color='#6b7488'; m.textContent='Submitting…';
     fetch('/s/intake/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,data:data})}).then(function(r){return r.json();}).then(function(j){
