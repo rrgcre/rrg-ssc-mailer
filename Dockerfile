@@ -10,6 +10,10 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true \
 USER root
 WORKDIR /app
 
+# ffmpeg (brands the seller interview videos — title card + segue) and the DejaVu fonts
+# the title card is drawn with. Debian base, so apt is available.
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg fonts-dejavu-core && rm -rf /var/lib/apt/lists/*
+
 # Install deps first (better layer caching)
 COPY package*.json ./
 RUN npm install --omit=dev --no-audit --no-fund

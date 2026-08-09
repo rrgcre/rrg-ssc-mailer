@@ -5044,6 +5044,81 @@ const INTERVIEWS_FILE = path.join(BOV_DATA_DIR, 'interviews.json');
 function loadInterviews() { try { return rj(INTERVIEWS_FILE) || []; } catch (e) { return []; } }
 function saveInterviews(a) { return writeJsonGuarded(INTERVIEWS_FILE, a, 'saveInterviews'); }
 function newInterviewId() { return 'iv_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+
+// ===== Brand the uploaded seller video: a title card + fade segue baked into the file =====
+// Runs in the background after upload. If ffmpeg is missing or anything fails, the original
+// recording still plays (the viewer falls back to rec.key), so playback never breaks.
+let _ffmpegOk = null;
+function ffmpegAvailable() {
+  if (_ffmpegOk !== null) return _ffmpegOk;
+  try { const { spawnSync } = require('child_process'); const r = spawnSync(process.env.FFMPEG_PATH || 'ffmpeg', ['-version'], { timeout: 8000 }); _ffmpegOk = !r.error && r.status === 0; }
+  catch (e) { _ffmpegOk = false; }
+  return _ffmpegOk;
+}
+function _s3GetToFile(key, destPath) {
+  return new Promise((resolve, reject) => {
+    try {
+      const { GetObjectCommand } = require('@aws-sdk/client-s3');
+      s3client().send(new GetObjectCommand({ Bucket: s3Bucket(), Key: key })).then(out => {
+        const body = out && out.Body; if (!body || !body.pipe) return reject(new Error('no s3 body'));
+        const ws = fs.createWriteStream(destPath);
+        body.pipe(ws); ws.on('finish', resolve); ws.on('error', reject); body.on('error', reject);
+      }).catch(reject);
+    } catch (e) { reject(e); }
+  });
+}
+function _s3PutFile(key, srcPath, contentType) {
+  const { PutObjectCommand } = require('@aws-sdk/client-s3');
+  return s3client().send(new PutObjectCommand({ Bucket: s3Bucket(), Key: key, Body: fs.createReadStream(srcPath), ContentType: contentType || 'video/mp4' }));
+}
+function _brandFont(bold) { const dir = '/usr/share/fonts/truetype/dejavu'; const f = dir + (bold ? '/DejaVuSans-Bold.ttf' : '/DejaVuSans.ttf'); try { return fs.existsSync(f) ? f : ''; } catch (e) { return ''; } }
+// Produce the branded MP4 (title card -> fade segue -> the recording) for one interview.
+async function buildBrandedVideo(iv) {
+  if (!iv || !iv.id || !iv.key || !s3Configured() || !ffmpegAvailable()) return;
+  const fontB = _brandFont(true), fontR = _brandFont(false);
+  if (!fontB || !fontR) { console.error('brand video: DejaVu fonts missing'); return; }
+  const os = require('os'); const { execFile } = require('child_process');
+  const base = path.join(os.tmpdir(), 'ivbrand_' + String(iv.id).replace(/[^a-z0-9_]/gi, '') + '_' + Date.now());
+  const rawExt = (String(iv.contentType || '').indexOf('mp4') >= 0) ? 'mp4' : 'webm';
+  const rawPath = base + '_raw.' + rawExt, orgTxt = base + '_org.txt', bizTxt = base + '_biz.txt', outPath = base + '_final.mp4';
+  const cleanup = () => { [rawPath, orgTxt, bizTxt, outPath].forEach(p => { try { fs.unlinkSync(p); } catch (e) {} }); };
+  try {
+    await _s3GetToFile(iv.key, rawPath);
+    const org = orgDisplayName() || 'Restaurant Realty Group';
+    const biz = String(iv.business || '').slice(0, 80);
+    fs.writeFileSync(orgTxt, org); fs.writeFileSync(bizTxt, biz || ' ');
+    const kicker = 'C O N F I D E N T I A L   S E L L E R   I N T E R V I E W';
+    const bizFilter = biz ? (',drawtext=fontfile=' + fontR + ':textfile=' + bizTxt + ':fontcolor=0xb9c3da:fontsize=27:x=(w-tw)/2:y=433') : '';
+    const fc =
+      "[0:v]drawtext=fontfile=" + fontR + ":text='" + kicker + "':fontcolor=0xff8a82:fontsize=19:x=(w-tw)/2:y=285," +
+      "drawtext=fontfile=" + fontB + ":textfile=" + orgTxt + ":fontcolor=white:fontsize=52:x=(w-tw)/2:y=327," +
+      "drawbox=x=(iw-320)/2:y=407:w=320:h=3:color=0xDA2B1F:t=fill" + bizFilter + "," +
+      "fade=t=in:st=0:d=0.5,fade=t=out:st=4.0:d=0.5,setsar=1,format=yuv420p[intro];" +
+      "[2:v]scale=1280:720:force_original_aspect_ratio=decrease,pad=1280:720:(ow-iw)/2:(oh-ih)/2:color=black,fps=30,setsar=1,fade=t=in:st=0:d=0.4,format=yuv420p[rec];" +
+      "[2:a]afade=t=in:st=0:d=0.3,aresample=44100[reca];" +
+      "[intro][1:a][rec][reca]concat=n=2:v=1:a=1[v][a]";
+    const args = ['-y', '-hide_banner', '-loglevel', 'error',
+      '-f', 'lavfi', '-i', 'color=c=0x0b1636:s=1280x720:d=4.5:r=30',
+      '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo:d=4.5',
+      '-i', rawPath,
+      '-filter_complex', fc,
+      '-map', '[v]', '-map', '[a]',
+      '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20',
+      '-c:a', 'aac', '-b:a', '128k', '-movflags', '+faststart', '-pix_fmt', 'yuv420p', outPath];
+    await new Promise((resolve, reject) => {
+      execFile(process.env.FFMPEG_PATH || 'ffmpeg', args, { timeout: 8 * 60 * 1000, maxBuffer: 8 * 1024 * 1024 }, (err) => err ? reject(err) : resolve());
+    });
+    const st = fs.statSync(outPath); if (!st || st.size < 1000) throw new Error('empty ffmpeg output');
+    const finKey = String(iv.key).replace(/\.[a-z0-9]+$/i, '') + '_branded.mp4';
+    await _s3PutFile(finKey, outPath, 'video/mp4');
+    const all = loadInterviews(); const r = all.find(x => x.id === iv.id);
+    if (r) { r.finishedKey = finKey; r.finishStatus = 'done'; r.finishedAt = new Date().toISOString(); r.finishedSizeBytes = st.size; saveInterviews(all); }
+    console.log('brand video: done', iv.id, Math.round(st.size / 1024) + 'KB');
+  } catch (e) {
+    console.error('brand video failed', iv.id, e && e.message);
+    try { const all = loadInterviews(); const r = all.find(x => x.id === iv.id); if (r) { r.finishStatus = 'error'; saveInterviews(all); } } catch (e2) {}
+  } finally { cleanup(); }
+}
 app.get('/api/interview/config', (req, res) => { res.json({ ok: true, ready: s3Configured() }); });
 app.post('/api/interview/presign', express.json(), async (req, res) => {
   try {
@@ -5086,7 +5161,10 @@ app.get('/api/interview/:id/view', async (req, res) => {
     const rec = loadInterviews().find(x => x.id === req.params.id); if (!rec) return res.status(404).send('Recording not found.');
     const { GetObjectCommand } = require('@aws-sdk/client-s3');
     const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
-    const url = await getSignedUrl(s3client(), new GetObjectCommand({ Bucket: s3Bucket(), Key: rec.key }), { expiresIn: 900 });
+    // Serve the branded (title-card + segue) version once it's built; fall back to the raw
+    // recording if branding hasn't finished or wasn't produced — playback never breaks.
+    const serveKey = (rec.finishedKey && rec.finishStatus === 'done') ? rec.finishedKey : rec.key;
+    const url = await getSignedUrl(s3client(), new GetObjectCommand({ Bucket: s3Bucket(), Key: serveKey }), { expiresIn: 900 });
     res.redirect(url);
   } catch (e) { console.error('interview view:', e && e.message); res.status(500).send('Could not open the recording.'); }
 });
@@ -5113,6 +5191,7 @@ app.get('/api/interview/:id', (req, res) => {
     durationSec: rec.durationSec || 0, sizeBytes: rec.sizeBytes || 0, createdAt: rec.createdAt || '', by: rec.by || '', roomId: rec.roomId || '',
     transcript: rec.transcript || '', transcriptStatus: rec.transcriptStatus || '', summary: rec.summary || '', summaryStatus: rec.summaryStatus || '',
     cleanTranscript: rec.cleanTranscript || '', cleanStatus: rec.cleanStatus || '', cleanedAt: rec.cleanedAt || '',
+    branded: !!rec.finishedKey, finishStatus: rec.finishStatus || '',
     viewUrl: '/api/interview/' + rec.id + '/view' });
 });
 // Polish the raw transcript into a clean, readable version fit to show a buyer — same
@@ -5393,6 +5472,8 @@ app.post('/s/video/register', express.json(), (req, res) => {
     rec.videoCount = (rec.videoCount || 0) + 1; rec.lastVideoAt = now; saveSellerLinks(all);
     try { if (rec.personId) { const ppl = loadPeople(); const p = ppl.find(x => x.id === rec.personId); if (p) { logActivity(p, 'Note', meta.label + ' — video recorded by the seller (self-serve).', { auto: true }); savePeople(ppl); } } } catch (e) {}
     try { notifySellerInterviewDone(rec, iv, 'video', req); } catch (e) { console.error('seller notify:', e && e.message); }
+    // Brand the finished video (title card + segue) in the background — never blocks the seller.
+    try { setImmediate(function () { buildBrandedVideo(iv).catch(function () {}); }); } catch (e) {}
     res.json({ ok: true, id: iv.id });
   } catch (e) { console.error('seller register:', e && e.message); res.status(500).json({ ok: false, error: 'Could not save the recording.' }); }
 });
