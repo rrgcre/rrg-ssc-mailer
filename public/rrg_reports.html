@@ -53,7 +53,9 @@ svg{display:block;max-width:100%;}
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <script>
 var API=(String(location.protocol).indexOf('http')===0?location.origin:'');
-var RANGE=30, DATA=null;
+var RANGE=30, DATA=null, INS=null;
+function fmtDur(s){ s=Math.round(Number(s)||0); if(s<=0) return '—'; if(s<60) return s+'s'; var m=Math.floor(s/60), ss=s%60; if(m<60) return m+'m'+(ss?(' '+ss+'s'):''); var h=Math.floor(m/60); m=m%60; return h+'h'+(m?(' '+m+'m'):''); }
+function fmtDay(s){ s=String(s||''); return s?s.slice(5):'—'; }
 var PALETTE=['#4a6fc4','#6bbf95','#dfa937','#c77dc0','#e07a5f','#4fb0a6','#8a7fd0','#d98aa8','#5b8def','#9bb04a','#c98a5e','#7ea6d8','#b56db0','#59b06b','#d0a24a','#6f6fb0'];
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function initials(n){ n=String(n||'').trim(); if(!n||n==='(unassigned)') return '—'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'').toUpperCase()+((p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
@@ -117,6 +119,47 @@ function repLeads(rows){
   return rows.map(function(x){ var pct=(x.count/max)*100; return '<div class="srcrow"><span class="lbl" title="'+esc(x.name)+'">'+esc(x.name)+'</span><div class="track"><div class="fill" style="width:'+pct.toFixed(1)+'%;background:#6bbf95"></div></div><span class="v">'+x.count+'</span></div>'; }).join('');
 }
 
+function kpirow(items){ return '<div class="kpis">'+items.map(function(it){ return '<div class="kpi"><div class="n">'+esc(it[0])+'</div><div class="l">'+esc(it[1])+'</div></div>'; }).join('')+'</div>'; }
+function docActivityCard(rm){
+  var t=(rm&&rm.totals)||{}, docs=(rm&&rm.documents)||[];
+  var body=kpirow([[t.rooms||0,'Active rooms'],[t.views||0,'Document views'],[t.downloads||0,'Downloads'],[t.activeBuyers||0,'Active buyers']]);
+  if(!docs.length){ body+='<div class="empty">No document activity in this window.</div>'; }
+  else {
+    var head='<tr><th>Document</th><th>Room</th><th class="num">Views</th><th class="num">Downloads</th><th class="num">Buyers</th><th class="num">Read time</th></tr>';
+    var rows=docs.map(function(d){ var star=d.key?'<span title="Key financial/lease document" style="color:#b5791f">★ </span>':''; return '<tr><td>'+star+esc(d.name)+'</td><td style="color:#6b7488">'+esc(d.room)+'</td><td class="num">'+(d.views||0)+'</td><td class="num">'+(d.downloads||0)+'</td><td class="num">'+(d.uniqueBuyers||0)+'</td><td class="num">'+fmtDur(d.readSeconds)+'</td></tr>'; }).join('');
+    body+='<div style="overflow:auto;margin-top:6px"><table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>';
+    body+='<div style="color:#8a93a8;font-size:11px;margin-top:8px">Views, downloads and buyers are for the selected window. Read time is cumulative (total time buyers have spent reading each document).</div>';
+  }
+  return '<div class="card"><div class="ch"><b>Data-room document activity</b><span>what buyers are actually opening, across all rooms</span></div><div class="cb">'+body+'</div></div>';
+}
+function buyerEngCard(rm){
+  var buyers=(rm&&rm.buyers)||[], t=(rm&&rm.totals)||{};
+  var body='';
+  if(!buyers.length){ body='<div class="empty">No buyer engagement in this window.</div>'; }
+  else {
+    var head='<tr><th>Buyer</th><th>Room</th><th class="num">Docs</th><th class="num">Views</th><th class="num">Downloads</th><th>Last seen</th></tr>';
+    var rows=buyers.map(function(b){ var hot=b.hot?' <span style="background:#fdeceb;color:#DA2B1F;border:1px solid #f4cfcb;border-radius:99px;font-size:9.5px;font-weight:800;padding:1px 7px">🔥 HOT</span>':''; return '<tr><td><b>'+esc(b.name)+'</b>'+hot+'</td><td style="color:#6b7488">'+esc(b.room)+'</td><td class="num">'+(b.docsOpened||0)+'</td><td class="num">'+(b.views||0)+'</td><td class="num">'+(b.downloads||0)+'</td><td style="color:#6b7488">'+esc(fmtWhen(b.lastAt))+'</td></tr>'; }).join('');
+    body='<div style="margin-bottom:12px;color:#1a2236;font-size:13px">'+(t.hotBuyers||0)+' hot buyer'+((t.hotBuyers===1)?'':'s')+' — engaged with a key document in the last 7 days. Your call-today list.</div><div style="overflow:auto"><table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>';
+  }
+  return '<div class="card"><div class="ch"><b>Buyer engagement</b><span>who’s active across every deal — your follow-up radar</span></div><div class="cb">'+body+'</div></div>';
+}
+function usageCard(us){
+  var t=(us&&us.totals)||{}, users=(us&&us.users)||[], tools=(us&&us.tools)||[];
+  var body=kpirow([[t.logins||0,'Sign-ins'],[t.activeUsers||0,'Active users'],[t.failed||0,'Failed logins'],[t.tools||0,'Tools used']]);
+  body+='<div class="grid2" style="margin-top:8px"><div><div style="font-weight:800;color:#000E31;font-size:12.5px;margin:2px 0 8px">Sign-ins by user</div>';
+  if(!users.length){ body+='<div class="empty">No sign-ins in this window.</div>'; }
+  else { body+=users.map(function(u){ var max=users[0].logins||1; var pct=(u.logins/max)*100; return '<div class="srcrow"><span class="lbl" title="'+esc(u.name)+'">'+esc(u.name)+'</span><div class="track"><div class="fill" style="width:'+pct.toFixed(1)+'%"></div></div><span class="v">'+u.logins+'</span></div>'; }).join(''); }
+  body+='</div><div><div style="font-weight:800;color:#000E31;font-size:12.5px;margin:2px 0 8px">Most-used tools</div>';
+  if(!tools.length){ body+='<div class="empty">No tool usage recorded in this window.</div>'; }
+  else { body+=tools.map(function(x){ var max=tools[0].count||1; var pct=(x.count/max)*100; return '<div class="srcrow"><span class="lbl" title="'+esc(x.tool)+'">'+esc(x.tool)+'</span><div class="track"><div class="fill" style="width:'+pct.toFixed(1)+'%;background:#6bbf95"></div></div><span class="v">'+x.count+'</span></div>'; }).join(''); }
+  body+='</div></div>';
+  var chart=(us&&us.series&&us.series.length)?('<div style="margin-top:16px"><div style="font-weight:800;color:#000E31;font-size:12.5px;margin:2px 0 4px">Sign-ins over time</div>'+leadsChart(us.series)+'</div>'):'';
+  return '<div class="card"><div class="ch"><b>Login &amp; tool usage</b><span>team activity and adoption from the sign-in logs</span></div><div class="cb">'+body+chart+'</div></div>';
+}
+function insightsHtml(){
+  if(!INS) return '<div class="card"><div class="cb"><div class="empty">Loading data-room &amp; usage insights…</div></div></div>';
+  return docActivityCard(INS.rooms)+buyerEngCard(INS.rooms)+usageCard(INS.usage);
+}
 function render(){
   var root=document.getElementById('root');
   if(!DATA){ root.innerHTML=ctlbar()+'<div class="empty">Loading…</div>'; wireCtl(); return; }
@@ -129,6 +172,7 @@ function render(){
     +'<div class="card"><div class="ch"><b>Activity by user</b><span>calls, emails, tours &amp; more from the activity log</span></div><div class="cb">'+legend+activityChart(DATA.activityByUser,types,cmap)+'<div style="margin-top:18px">'+activityTable(DATA.activityByUser,types)+'</div></div></div>'
     +'<div class="grid2"><div class="card"><div class="ch"><b>Leads by source</b></div><div class="cb">'+sourceChart(DATA.leadsBySource)+'</div></div>'
     +'<div class="card"><div class="ch"><b>New leads by rep</b></div><div class="cb">'+repLeads(DATA.leadsByUser)+'</div></div></div>'
+    +insightsHtml()
     +'<div class="card"><div class="ch"><b>Full lists</b><span>open the complete book; filter and export from there</span></div><div class="cb"><a class="linkbtn" href="./rrg_people.html">◑ All contacts →</a><a class="linkbtn" href="./rrg_companies.html">▦ All companies →</a><a class="linkbtn" href="./rrg_agreements.html">⚖︎ Agreements →</a></div></div>';
   root.innerHTML=html; wireCtl();
 }
@@ -136,9 +180,11 @@ function wireCtl(){ document.querySelectorAll('[data-r]').forEach(function(b){ b
 function load(){
   var root=document.getElementById('root');
   var prev=root.innerHTML; render();
+  INS=null;
   fetch(API+'/api/reports/summary?days='+RANGE,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ var _adm=(j&&/admin/i.test(j.error||'')); root.innerHTML='<div class="gate">'+(_adm?'<h2 style="color:#000E31">Admins only</h2>Reports are limited to administrators. Ask an admin for access.':'Could not build reports.')+' <a href="/index.html">Back</a></div>'; return; }
     DATA=j; render();
+    fetch(API+'/api/reports/insights?days='+RANGE,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(k){ if(k&&k.ok){ INS=k; render(); } }).catch(function(){});
   }).catch(function(){ root.innerHTML='<div class="gate">Could not reach the server.</div>'; });
 }
 load();

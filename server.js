@@ -1161,7 +1161,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/rrg_brand.js', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -2988,6 +2988,18 @@ function readRoomSess(tok) {
   return p;
 }
 function setRoomCookie(res, token) { res.append('Set-Cookie', ROOM_COOKIE + '=' + token + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=900'); }
+// ---- Buyer MFA (email one-time code) cookies ----
+// rrg_room_mfa: short-lived proof the buyer passed the access code and is mid-verification.
+// rrg_room_trust: 30-day "remember this device" so a buyer isn't emailed a code every visit.
+const ROOM_MFA_COOKIE = 'rrg_room_mfa';
+const ROOM_TRUST_COOKIE = 'rrg_room_trust';
+const ROOM_MFA_MS = 10 * 60 * 1000;
+const ROOM_TRUST_MS = 30 * 24 * 60 * 60 * 1000;
+function setRoomMfaCookie(res, token) { res.append('Set-Cookie', ROOM_MFA_COOKIE + '=' + token + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + (ROOM_MFA_MS / 1000)); }
+function clearRoomMfaCookie(res) { res.append('Set-Cookie', ROOM_MFA_COOKIE + '=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0'); }
+function setRoomTrustCookie(res, token) { res.append('Set-Cookie', ROOM_TRUST_COOKIE + '=' + token + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + (ROOM_TRUST_MS / 1000)); }
+function readMfaPending(req, r) { const p = readRoomSess(parseCookies(req)[ROOM_MFA_COOKIE]); return (p && p.mfa && p.r === r.id) ? p : null; }
+function hasTrustedDevice(req, r, grant) { const t = readRoomSess(parseCookies(req)[ROOM_TRUST_COOKIE]); return !!(t && t.trust && t.r === r.id && t.g === grant.id); }
 function newGrantId() { return 'g_' + Math.random().toString(36).slice(2, 9); }
 function newGrantCode() { const A = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; let s = ''; try { const b = crypto.randomBytes(8); for (let i = 0; i < 8; i++) s += A[b[i] % A.length]; } catch (e) { for (let i = 0; i < 8; i++) s += A[Math.floor(Math.random() * A.length)]; } return s; }
 // The active grant for the current buyer session on this room, or null.
@@ -3061,6 +3073,7 @@ app.get('/api/room/:id', (req, res) => {
   res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-120).reverse(), categories: roomServeCats(r), noLease: !!r.noLease,
     interviews: ivs,
     qa: (r.qa || []),
+    mfa: mfaOnForRoom(r),
     closed: !!r.closed, closedAt: r.closedAt || '', closedBy: r.closedBy || '',
     gated: roomIsGated(r),
     grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', code: g.code, level: g.level || 'download', catPerms: g.catPerms || {}, docPerms: g.docPerms || {}, active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
@@ -3087,6 +3100,9 @@ app.post('/api/room/:id/grant', express.json(), (req, res) => {
   const name = String(b.name || '').trim().slice(0, 100);
   const email = String(b.email || '').trim().slice(0, 120);
   if (!name && !email) return res.status(400).json({ ok: false, error: 'Add a name or email for this buyer.' });
+  // With buyer verification (MFA) on, an email is required — that's the channel the one-time code is sent to.
+  if (mfaOnForRoom(r) && !email) return res.status(400).json({ ok: false, error: 'This room requires buyer verification, so an email is required to authorize a buyer (that’s where their one-time code is sent). Add an email, or turn off buyer verification for this room.' });
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ ok: false, error: 'That email doesn’t look valid.' });
   r.grants = r.grants || [];
   r.locked = true;   // authorizing a buyer locks the room — a code is now required
   // Default starting level is 'none': a newly authorized buyer sees nothing until the
@@ -3095,6 +3111,17 @@ app.post('/api/room/:id/grant', express.json(), (req, res) => {
   const g = { id: newGrantId(), name, email, code: newGrantCode(), level: startLevel, active: true, createdAt: new Date().toISOString(), lastSeen: '', views: 0, downloads: 0, by: (req.user && req.user.name) || '' };
   r.grants.push(g); saveRooms(arr);
   res.json({ ok: true, grants: r.grants, gated: true });
+});
+// Turn buyer verification (email one-time code) on or off for this room.
+app.post('/api/room/:id/mfa', express.json(), (req, res) => {
+  const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const on = !!(req.body && req.body.on);
+  // Guard: don't let the broker turn MFA on if any active buyer has no email to receive a code.
+  if (on) { const missing = (r.grants || []).filter(g => g.active && !g.email); if (missing.length) return res.status(400).json({ ok: false, error: 'Add an email to every active buyer first — ' + missing.length + ' ' + (missing.length === 1 ? 'buyer has' : 'buyers have') + ' no email to send a code to.' }); }
+  r.mfa = on; saveRooms(arr);
+  res.json({ ok: true, mfa: mfaOnForRoom(r) });
 });
 // Revoke / reactivate a buyer's access.
 app.post('/api/room/:id/grant-toggle', express.json(), (req, res) => {
@@ -3410,7 +3437,13 @@ app.get('/room/:token', (req, res) => {
   if (r.closed) return res.status(410).set('Content-Type', 'text/html; charset=utf-8').send(roomClosedPage(r));
   if (roomIsGated(r)) {
     const grant = roomGrantFor(req, r);
-    if (!grant) return res.set('Content-Type', 'text/html; charset=utf-8').send(roomGatePage(r, ''));
+    if (!grant) {
+      // Mid-verification (passed the code, awaiting the emailed OTP)? Resume that screen.
+      const pend = readMfaPending(req, r);
+      const pg = pend && (r.grants || []).find(g => g.id === pend.g && g.active);
+      if (pg) return res.set('Content-Type', 'text/html; charset=utf-8').send(roomOtpPage(r, pg, ''));
+      return res.set('Content-Type', 'text/html; charset=utf-8').send(roomGatePage(r, ''));
+    }
     grant.lastSeen = new Date().toISOString();
     setRoomCookie(res, signRoomSess({ r: r.id, g: grant.id, exp: Date.now() + ROOM_IDLE_MS }));
     logRoomAccess(r, req, 'view', '', grant); saveRooms(arr);
@@ -3419,7 +3452,14 @@ app.get('/room/:token', (req, res) => {
   logRoomAccess(r, req, 'view', '', null); saveRooms(arr);
   res.set('Content-Type', 'text/html; charset=utf-8').send(roomPublicPage(r, null, { preview: req.query.preview === '1' }));
 });
-// Buyer enters their access code.
+// Establish the buyer session cookie and go to the room (shared by code-only and post-MFA paths).
+function grantRoomSession(res, r, grant, arr, req) {
+  grant.lastSeen = new Date().toISOString(); logRoomAccess(r, req, 'signin', '', grant); saveRooms(arr);
+  setRoomCookie(res, signRoomSess({ r: r.id, g: grant.id, exp: Date.now() + ROOM_IDLE_MS }));
+  clearRoomMfaCookie(res);
+  res.redirect('/room/' + r.token);
+}
+// Buyer enters their access code (factor 1).
 app.post('/room/:token/enter', (req, res) => {
   const arr = loadRooms();
   const r = arr.find(x => x.token === req.params.token);
@@ -3428,11 +3468,81 @@ app.post('/room/:token/enter', (req, res) => {
   const code = String((req.body && req.body.code) || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
   const grant = (r.grants || []).find(g => g.active && String(g.code).toUpperCase() === code);
   if (!grant) return res.status(200).set('Content-Type', 'text/html; charset=utf-8').send(roomGatePage(r, 'That code isn’t valid. Check it and try again, or contact your RRG representative.'));
-  grant.lastSeen = new Date().toISOString(); logRoomAccess(r, req, 'signin', '', grant); saveRooms(arr);
-  setRoomCookie(res, signRoomSess({ r: r.id, g: grant.id, exp: Date.now() + ROOM_IDLE_MS }));
-  res.redirect('/room/' + r.token);
+  // Second factor: email one-time code, unless this device is already trusted.
+  if (mfaRequiredFor(r, grant) && !hasTrustedDevice(req, r, grant)) {
+    issueRoomOtp(r, grant, req); saveRooms(arr);
+    setRoomMfaCookie(res, signRoomSess({ r: r.id, g: grant.id, mfa: 1, exp: Date.now() + ROOM_MFA_MS }));
+    return res.set('Content-Type', 'text/html; charset=utf-8').send(roomOtpPage(r, grant, ''));
+  }
+  grantRoomSession(res, r, grant, arr, req);
+});
+// Buyer submits the emailed one-time code (factor 2).
+app.post('/room/:token/verify', (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.token === req.params.token);
+  if (!r) return res.status(404).set('Content-Type', 'text/html').send(roomNotFoundPage());
+  if (r.closed) return res.status(410).set('Content-Type', 'text/html; charset=utf-8').send(roomClosedPage(r));
+  const pend = readMfaPending(req, r);
+  const grant = pend && (r.grants || []).find(g => g.id === pend.g && g.active);
+  if (!grant) return res.status(200).set('Content-Type', 'text/html; charset=utf-8').send(roomGatePage(r, 'Your verification session expired. Please enter your access code again.'));
+  const entered = String((req.body && req.body.code) || '').replace(/\D/g, '').slice(0, 6);
+  const otp = grant.otp;
+  if (!otp || !otp.hash || !otp.exp || otp.exp < Date.now()) {
+    issueRoomOtp(r, grant, req); saveRooms(arr);
+    return res.set('Content-Type', 'text/html; charset=utf-8').send(roomOtpPage(r, grant, 'That code expired. We’ve emailed you a fresh one.'));
+  }
+  otp.tries = (otp.tries || 0) + 1;
+  if (otp.tries > 5) { grant.otp = null; saveRooms(arr); return res.set('Content-Type', 'text/html; charset=utf-8').send(roomGatePage(r, 'Too many attempts. Please enter your access code again to get a new verification code.')); }
+  const ok = entered.length === 6 && crypto.timingSafeEqual(Buffer.from(otpHash(r, grant, entered)), Buffer.from(otp.hash));
+  if (!ok) { saveRooms(arr); return res.set('Content-Type', 'text/html; charset=utf-8').send(roomOtpPage(r, grant, 'That code isn’t right. ' + Math.max(0, 6 - otp.tries) + ' attempt' + ((6 - otp.tries) === 1 ? '' : 's') + ' left.')); }
+  grant.otp = null;
+  if (String((req.body && req.body.remember) || '') === '1') setRoomTrustCookie(res, signRoomSess({ r: r.id, g: grant.id, trust: 1, exp: Date.now() + ROOM_TRUST_MS }));
+  grantRoomSession(res, r, grant, arr, req);
+});
+// Buyer asks for a fresh one-time code.
+app.post('/room/:token/resend', (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.token === req.params.token);
+  if (!r || r.closed) return res.redirect('/room/' + (r ? r.token : ''));
+  const pend = readMfaPending(req, r);
+  const grant = pend && (r.grants || []).find(g => g.id === pend.g && g.active);
+  if (!grant) return res.set('Content-Type', 'text/html; charset=utf-8').send(roomGatePage(r, 'Your verification session expired. Please enter your access code again.'));
+  // Light rate-limit: at most one resend every 20s.
+  if (grant.otp && grant.otp.sentAt && (Date.now() - grant.otp.sentAt) < 20000) {
+    return res.set('Content-Type', 'text/html; charset=utf-8').send(roomOtpPage(r, grant, 'A code was just sent — check your inbox before requesting another.'));
+  }
+  issueRoomOtp(r, grant, req); saveRooms(arr);
+  return res.set('Content-Type', 'text/html; charset=utf-8').send(roomOtpPage(r, grant, 'A fresh code is on its way to your inbox.'));
 });
 // ---- Real-time buyer alerts: email the room owner the first time a buyer opens a KEY doc ----
+// ---- Buyer MFA (email one-time code): resolve on/off, issue, and verify ----
+// Global default is ON; a room can override with r.mfa === false (or true).
+function effRoomMfaDefault() { const s = loadSettings(); return s.roomMfa !== false; }
+function mfaOnForRoom(r) { return (r && typeof r.mfa === 'boolean') ? r.mfa : effRoomMfaDefault(); }
+// MFA challenges a buyer only when it's on for the room AND that buyer has an email to send to.
+function mfaRequiredFor(r, grant) { return mfaOnForRoom(r) && !!(grant && grant.email); }
+function otpHash(r, grant, code) { return crypto.createHmac('sha256', roomSecret()).update(r.id + '|' + grant.id + '|' + String(code)).digest('hex'); }
+function genOtpCode() { try { return String(crypto.randomInt(0, 1000000)).padStart(6, '0'); } catch (e) { return String(Math.floor(Math.random() * 1000000)).padStart(6, '0'); } }
+function maskEmail(e) { e = String(e || ''); const at = e.indexOf('@'); if (at < 1) return e; const u = e.slice(0, at), d = e.slice(at); const keep = u.length <= 2 ? u.slice(0, 1) : u.slice(0, 2); return keep + '•••' + d; }
+function issueRoomOtp(r, grant, req) {
+  const code = genOtpCode();
+  grant.otp = { hash: otpHash(r, grant, code), exp: Date.now() + ROOM_MFA_MS, tries: 0, sentAt: Date.now() };
+  try { sendRoomOtpEmail(r, grant, code, req); } catch (e) { console.error('issueRoomOtp:', e && e.message); }
+  return code;
+}
+function sendRoomOtpEmail(r, grant, code, req) {
+  const to = grant.email; if (!to) return;
+  const org = orgDisplayName(), biz = r.business || 'the data room', who = grant.name || 'there';
+  const subject = org + ' — your access code for ' + biz;
+  const text = 'Hi ' + who + ',\n\nYour one-time verification code for the ' + biz + ' data room is:\n\n    ' + code + '\n\nEnter it on the verification screen to continue. This code expires in 10 minutes. If you didn’t request it, you can ignore this email.\n\n— ' + org;
+  const html = '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#1a2236">'
+    + '<p>Hi ' + esc(who) + ',</p><p>Your one-time verification code for the <b>' + esc(biz) + '</b> data room is:</p>'
+    + '<div style="font-size:30px;font-weight:800;letter-spacing:.28em;color:#000E31;background:#f6f8fc;border:1px solid #e2e8f4;border-radius:10px;padding:16px 20px;text-align:center;margin:10px 0">' + esc(code) + '</div>'
+    + '<p style="color:#6b7488">Enter it on the verification screen to continue. This code expires in 10 minutes. If you didn’t request it, you can ignore this email.</p>'
+    + '<p style="color:#8a93a3">— ' + esc(org) + '</p></div>';
+  const p = sendMailWL({ from: mailFrom(), to, subject, text, html });
+  if (p && p.catch) p.catch(e => console.error('room otp send:', e && e.message));
+}
 function effRoomAlerts() { const s = loadSettings(); return s.roomAlerts !== false; }
 const ROOM_KEY_DOC = /p ?& ?l\b|p and l|profit|financ|tax return|\btax\b|lease|\bsde\b|ebitda|rent roll|balance sheet|revenue/i;
 function notifyRoomActivity(r, grant, doc, event, req) {
@@ -3516,14 +3626,33 @@ app.get('/roomfile/:token/:docid', async (req, res) => {
 // ---- Read-duration: an in-browser viewer wraps the file so we can time how long
 // a buyer actually reads it. The viewer sends heartbeats to /room/:token/dwell. ----
 const ROOM_VIEWABLE = /^(pdf|png|jpe?g|gif|webp|txt)$/i;
+const ROOM_SHEET = /^(xlsx|xlsm|xlsb|xls|csv)$/i;
+function roomViewerCanRender(ext) { return ROOM_VIEWABLE.test(ext || '') || ROOM_SHEET.test(ext || ''); }
 function roomViewerPage(r, d, grant, canDl) {
   const viewable = ROOM_VIEWABLE.test(d.ext || '');
+  const isSheet = ROOM_SHEET.test(d.ext || '');
   const fileUrl = '/roomfile/' + esc(r.token) + '/' + esc(d.id);
   const title = esc(d.title || d.originalName || 'Document');
   const dlBtn = canDl ? `<a href="${fileUrl}?dl=1" class="vbtn" download>Download</a>` : '';
-  const stage = viewable
-    ? `<iframe class="vframe" src="${fileUrl}" title="${title}"></iframe>`
-    : `<div class="vfallback"><div class="vfi">${roomFileIcon(d.ext)}</div><div class="vft">${title}</div><div class="vfd">This file type opens in its own app.</div>${canDl ? `<a href="${fileUrl}?dl=1" class="vbtn solid" download>Download to open</a>` : `<a href="${fileUrl}" class="vbtn solid" target="_blank" rel="noopener">Open file</a>`}</div>`;
+  const stage = isSheet
+    ? `<div class="vsheetwrap"><div id="xlsxtabs" class="xtabs"></div><div class="vsheet"><div id="xlsxmsg" class="vsmsg">Rendering spreadsheet…</div><div id="xlsxbox" class="xbox"></div></div></div>`
+    : viewable
+      ? `<iframe class="vframe" src="${fileUrl}" title="${title}"></iframe>`
+      : `<div class="vfallback"><div class="vfi">${roomFileIcon(d.ext)}</div><div class="vft">${title}</div><div class="vfd">This file type opens in its own app.</div>${canDl ? `<a href="${fileUrl}?dl=1" class="vbtn solid" download>Download to open</a>` : `<a href="${fileUrl}" class="vbtn solid" target="_blank" rel="noopener">Open file</a>`}</div>`;
+  const sheetLib = isSheet ? `<script src="/vendor/xlsx.full.min.js"><\/script>` : '';
+  const sheetScript = isSheet ? `<script>(function(){
+  function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+  var box=document.getElementById('xlsxbox'),tabs=document.getElementById('xlsxtabs'),msg=document.getElementById('xlsxmsg');
+  if(typeof XLSX==='undefined'){ msg.textContent=${canDl ? "'Viewer failed to load. Use Download to open this file.'" : "'Viewer failed to load. Please contact your RRG representative.'"}; return; }
+  fetch(${JSON.stringify(fileUrl)},{credentials:'same-origin'}).then(function(res){ if(!res.ok) throw 0; return res.arrayBuffer(); }).then(function(buf){
+    var wb=XLSX.read(new Uint8Array(buf),{type:'array'}); var names=wb.SheetNames||[]; if(!names.length){ msg.textContent='This spreadsheet has no readable sheets.'; return; }
+    function show(i){ try{ box.innerHTML=XLSX.utils.sheet_to_html(wb.Sheets[names[i]],{editable:false}); }catch(e){ box.textContent='Could not render this sheet.'; } for(var k=0;k<tabs.children.length;k++){ tabs.children[k].className=(k===i?'xtab on':'xtab'); } }
+    tabs.innerHTML=names.map(function(n,i){ return '<button class="xtab'+(i===0?' on':'')+'" data-i="'+i+'">'+esc(n)+'</button>'; }).join('');
+    if(names.length<2) tabs.style.display='none';
+    for(var k=0;k<tabs.children.length;k++){ (function(b){ b.addEventListener('click',function(){ show(+b.getAttribute('data-i')); }); })(tabs.children[k]); }
+    msg.style.display='none'; show(0);
+  }).catch(function(){ msg.textContent='Could not render this spreadsheet in the browser'+(${canDl?"' — use Download to open it.'":"'.'"});  });
+})();<\/script>` : '';
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${title} — ${esc(orgDisplayName())}</title><style>
 :root{--navy:#000E31;--line:#e6eaf2;--muted:#6b7488;--red:#DA2B1F;}
 *{box-sizing:border-box;} html,body{margin:0;height:100%;} body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0b1230;color:#1a2236;display:flex;flex-direction:column;}
@@ -3537,9 +3666,19 @@ function roomViewerPage(r, d, grant, canDl) {
 .vfallback{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#f5f7fb;text-align:center;padding:30px;}
 .vfi{font-size:44px;} .vft{font-weight:800;color:var(--navy);font-size:16px;} .vfd{color:var(--muted);font-size:13px;}
 .vfallback .vbtn.solid{color:#fff;padding:9px 18px;font-size:13px;margin-top:4px;}
-</style></head><body>
+.vsheetwrap{flex:1;display:flex;flex-direction:column;min-height:0;background:#fff;}
+.xtabs{flex:none;display:flex;gap:2px;overflow-x:auto;background:#eef1f6;border-bottom:1px solid #d7deea;padding:6px 8px 0;}
+.xtab{border:1px solid #d7deea;border-bottom:none;background:#f7f9fc;color:#4a5468;font:inherit;font-size:12px;font-weight:700;padding:7px 13px;border-radius:7px 7px 0 0;cursor:pointer;white-space:nowrap;}
+.xtab.on{background:#fff;color:#000E31;}
+.vsheet{flex:1;overflow:auto;min-height:0;padding:0;}
+.vsmsg{padding:22px;color:var(--muted);font-size:13px;}
+.xbox table{border-collapse:collapse;font-size:12.5px;color:#1a2236;}
+.xbox td,.xbox th{border:1px solid #e2e8f2;padding:4px 9px;white-space:nowrap;max-width:360px;overflow:hidden;text-overflow:ellipsis;}
+.xbox tr:first-child td{background:#f5f7fb;font-weight:700;position:sticky;top:0;}
+</style>${sheetLib}</head><body>
 <div class="vbar"><a class="vback" href="/room/${esc(r.token)}">← Back to the data room</a><div class="vtitle">${title}</div><span class="vconf">🔒 Confidential</span>${dlBtn}</div>
 ${stage}
+${sheetScript}
 <script>(function(){
   var DOCID=${JSON.stringify(String(d.id))}, TOKEN=${JSON.stringify(String(r.token))};
   var acc=0, last=Date.now();
@@ -3703,7 +3842,7 @@ function roomPublicPage(r, grant, opts) {
     const filesIn = cat => docs.filter(d => (d.category || 'Other') === cat && docLevel(d) !== 'none');
     const docrows = cat => filesIn(cat).map(d => {
       const canDl = docLevel(d) !== 'view';
-      const viewable = ROOM_VIEWABLE.test(d.ext || '');
+      const viewable = roomViewerCanRender(d.ext || '');
       let acts = '';
       if (viewable) acts += `<a class="dl ghost" href="/roomview/${esc(r.token)}/${esc(d.id)}" target="_blank" rel="noopener">View →</a>`;
       if (canDl) acts += `<a class="dl" href="/roomfile/${esc(r.token)}/${esc(d.id)}?dl=1" target="_blank" rel="noopener">Download →</a>`;
@@ -8697,6 +8836,23 @@ function roomGatePage(r, err) {
   return roomShell('RRG Data Room — Access', { head, body });
 }
 
+// Second-factor screen: the buyer enters the 6-digit code we emailed them.
+function roomOtpPage(r, grant, err) {
+  const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">We emailed a one-time verification code to <b>${esc(maskEmail(grant.email))}</b>. Enter it below to continue.</div>`;
+  const body = `<div class="card"><div style="padding:24px 22px">`
+    + (err ? `<div style="background:#eef6ef;color:#1f6b45;border:1px solid #cfe6d8;border-radius:8px;padding:10px 13px;font-size:12.5px;font-weight:600;margin-bottom:16px">${esc(err)}</div>` : '')
+    + `<form method="POST" action="/room/${esc(r.token)}/verify">`
+    + `<label style="display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8a93a8;font-weight:700;margin-bottom:6px">6-digit code</label>`
+    + `<input name="code" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]*" maxlength="6" autofocus placeholder="000000" style="width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:13px;font:inherit;font-size:22px;font-weight:700;letter-spacing:.4em;text-align:center">`
+    + `<label style="display:flex;align-items:center;gap:8px;margin-top:14px;font-size:12.5px;color:#4a5468;cursor:pointer"><input type="checkbox" name="remember" value="1" style="width:16px;height:16px">Trust this device for 30 days (skip the code next time)</label>`
+    + `<button type="submit" style="width:100%;margin-top:14px;background:#000E31;color:#fff;border:none;border-radius:9px;padding:13px;font:inherit;font-size:14px;font-weight:700;cursor:pointer">Verify &amp; enter →</button>`
+    + `</form>`
+    + `<form method="POST" action="/room/${esc(r.token)}/resend" style="margin-top:12px;text-align:center"><button type="submit" style="background:none;border:none;color:#2647b0;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:underline">Didn’t get it? Send a new code</button></form>`
+    + `<div style="font-size:11.5px;color:#8a93a8;margin-top:16px;line-height:1.55">The code expires in 10 minutes. This extra step keeps ${esc(r.business || 'this opportunity')} confidential to verified buyers only.</div>`
+    + `</div></div>`;
+  return roomShell('RRG Data Room — Verify', { head, body });
+}
+
 /* ---------- submission log view (now shows who submitted) ---------- */
 app.get('/log', (_req, res) => {
   const rows = store.readAll().slice().reverse();
@@ -11610,6 +11766,70 @@ app.get('/api/reports/summary', requireAdmin, (req, res) => {
       leadsSeries, leadsBySource: bySource,
       activityByUser, activityTypes: actTypes, typeTotals,
       leadsByUser: Object.keys(leadsByUser).map(k => leadsByUser[k]).sort((a, b) => b.count - a.count) });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// ---- Reports: data-room document activity + buyer engagement + login/tool usage ----
+function reportsCutoff(days) { return new Date(Date.now() - (Math.max(1, days) - 1) * 86400000).toISOString().slice(0, 10); }
+function reportsDailySeries(cutoff, days, counts) {
+  const out = []; const start = new Date(cutoff + 'T00:00:00Z');
+  for (let i = 0; i < days; i++) { const d = new Date(start.getTime() + i * 86400000).toISOString().slice(0, 10); out.push({ date: d, count: counts[d] || 0 }); }
+  return out;
+}
+function reportsRoomInsights(days) {
+  const cutoff = reportsCutoff(days);
+  const inWin = at => String(at || '').slice(0, 10) >= cutoff;
+  const rooms = loadRooms();
+  const docMap = {}, buyerMap = {}; let totViews = 0, totDl = 0;
+  // Read time is cumulative (dwell isn't timestamped) — joined per doc name.
+  const readByKey = {};
+  rooms.forEach(r => {
+    const byId = {}; (r.docs || []).forEach(d => { byId[d.id] = d; });
+    (r.grants || []).forEach(g => { const dw = g.dwell || {}; Object.keys(dw).forEach(id => { const doc = byId[id]; if (!doc) return; const nm = String(doc.title || doc.originalName || ''); const k = r.id + '|' + nm; readByKey[k] = (readByKey[k] || 0) + (Number(dw[id]) || 0); }); });
+    const gname = {}; (r.grants || []).forEach(g => { gname[g.id] = g.name || g.email || 'Buyer'; });
+    (r.access || []).forEach(ev => {
+      if (!ev || (ev.event !== 'view' && ev.event !== 'download') || !ev.doc || !inWin(ev.at)) return;
+      const dk = r.id + '|' + ev.doc;
+      const d = docMap[dk] = docMap[dk] || { key: dk, room: r.business || 'Data Room', name: ev.doc, views: 0, downloads: 0, buyers: {}, lastAt: '', isKey: ROOM_KEY_DOC.test(ev.doc) };
+      if (ev.event === 'view') { d.views++; totViews++; } else { d.downloads++; totDl++; }
+      if (ev.grantId) d.buyers[ev.grantId] = true;
+      if ((ev.at || '') > d.lastAt) d.lastAt = ev.at || '';
+      if (ev.grantId) {
+        const bk = r.id + '|' + ev.grantId;
+        const b = buyerMap[bk] = buyerMap[bk] || { name: gname[ev.grantId] || 'Buyer', room: r.business || 'Data Room', views: 0, downloads: 0, docs: {}, lastAt: '' };
+        if (ev.event === 'view') b.views++; else b.downloads++;
+        b.docs[ev.doc] = true;
+        if ((ev.at || '') > b.lastAt) b.lastAt = ev.at || '';
+      }
+    });
+  });
+  const documents = Object.keys(docMap).map(k => { const d = docMap[k]; return { room: d.room, name: d.name, views: d.views, downloads: d.downloads, uniqueBuyers: Object.keys(d.buyers).length, readSeconds: readByKey[k] || 0, key: d.isKey, lastAt: d.lastAt }; })
+    .sort((a, b) => (b.views + b.downloads) - (a.views + a.downloads)).slice(0, 40);
+  const now = Date.now();
+  const buyers = Object.keys(buyerMap).map(k => { const b = buyerMap[k]; const touchedKey = Object.keys(b.docs).some(n => ROOM_KEY_DOC.test(n)); const recent = !!b.lastAt && (now - Date.parse(b.lastAt)) < 7 * 864e5; return { name: b.name, room: b.room, views: b.views, downloads: b.downloads, docsOpened: Object.keys(b.docs).length, lastAt: b.lastAt, hot: !!(touchedKey && recent) }; })
+    .sort((a, b) => String(b.lastAt).localeCompare(String(a.lastAt))).slice(0, 60);
+  return { documents, buyers, totals: { rooms: rooms.filter(r => !r.closed).length, activeBuyers: buyers.length, views: totViews, downloads: totDl, hotBuyers: buyers.filter(b => b.hot).length } };
+}
+function reportsUsageInsights(days) {
+  const cutoff = reportsCutoff(days);
+  const inWin = at => String(at || '').slice(0, 10) >= cutoff;
+  let logins = [], usage = [], users = [];
+  try { logins = auth.readLogins().filter(l => inWin(l.timestamp)); } catch (e) {}
+  try { usage = auth.readUsage().filter(u => inWin(u.timestamp)); } catch (e) {}
+  try { users = auth.loadUsers(); } catch (e) {}
+  const uname = {}; users.forEach(u => { uname[u.username] = u.name || u.username; });
+  const success = logins.filter(l => l.result === 'success').length;
+  const fail = logins.filter(l => l.result === 'fail').length;
+  const byUser = {}; logins.forEach(l => { if (l.result !== 'success') return; const k = l.username || '—'; const b = byUser[k] = byUser[k] || { user: k, name: uname[k] || k, logins: 0, last: '' }; b.logins++; if ((l.timestamp || '') > b.last) b.last = l.timestamp; });
+  const toolCounts = {}; usage.forEach(u => { const t = u.tool || '—'; toolCounts[t] = (toolCounts[t] || 0) + 1; });
+  const tools = Object.keys(toolCounts).map(t => ({ tool: t, count: toolCounts[t] })).sort((a, b) => b.count - a.count).slice(0, 20);
+  const userList = Object.keys(byUser).map(k => byUser[k]).sort((a, b) => b.logins - a.logins);
+  const dayCounts = {}; logins.forEach(l => { if (l.result !== 'success') return; const d = String(l.timestamp).slice(0, 10); dayCounts[d] = (dayCounts[d] || 0) + 1; });
+  return { totals: { logins: success, failed: fail, activeUsers: userList.length, tools: tools.length }, users: userList, tools, series: reportsDailySeries(cutoff, Math.max(1, days), dayCounts) };
+}
+app.get('/api/reports/insights', requireAdmin, (req, res) => {
+  try {
+    const days = Math.max(1, Math.min(3650, parseInt(req.query.days, 10) || 30));
+    res.json({ ok: true, generatedAt: new Date().toISOString(), days, rooms: reportsRoomInsights(days), usage: reportsUsageInsights(days) });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 // ---- KPIs / leaderboard ---------------------------------------------------
