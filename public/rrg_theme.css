@@ -10,7 +10,7 @@
        that rrg_brand.js sets inline on <html>. --- */
 html{
   --navy:#20334f !important;
-  --navbg:#20334f !important;
+  --navbg:#000E31 !important;   /* toolbar / left-nav = brand navy */
   --primary:#2c5c8f !important;
   --primary-d:#23496f !important;
   --red:#b23a2c !important;
