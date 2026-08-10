@@ -5937,6 +5937,13 @@ const SELLER_LINKS_FILE = path.join(BOV_DATA_DIR, 'seller_links.json');
 function loadSellerLinks() { try { return rj(SELLER_LINKS_FILE) || []; } catch (e) { return []; } }
 function saveSellerLinks(a) { return writeJsonGuarded(SELLER_LINKS_FILE, a, 'saveSellerLinks'); }
 function sellerLinkByToken(t) { return loadSellerLinks().find(x => x.token === String(t || '')); }
+// Live company name for a seller-link: the contact's CURRENT linked company wins over any
+// (possibly stale) name stored on the link, so the seller pages/email always show the right one.
+function sellerLinkBiz(rec) {
+  if (!rec) return '';
+  try { if (rec.personId) { const p = loadPeople().find(x => x.id === rec.personId); if (p) { if (p.companyId) { const co = companyById(p.companyId); if (co && co.name) return co.name; } if (p.company) return String(p.company); } } } catch (e) {}
+  return rec.business || '';
+}
 const SELLER_FORM_FIELDS = [
   { k: 'business', label: 'Business name' },
   { k: 'concept', label: 'Concept / cuisine' },
@@ -6023,7 +6030,13 @@ app.post('/api/seller-link/email', express.json(), async (req, res) => {
     if (!rec) return res.status(404).json({ ok: false, error: 'Link not found — create it first.' });
     const origin = req.protocol + '://' + req.get('host');
     const formUrl = origin + '/seller_intake.html?t=' + rec.token, videoUrl = origin + '/seller_record.html?t=' + rec.token;
-    const org = orgDisplayName(); const biz = rec.business || 'your business'; const me = (req.user && req.user.name) || org;
+    const org = orgDisplayName();
+    // Authoritative company name from the contact's CURRENT company (fixes a stale name on the
+    // link); persist it so the seller pages match, then fall back for the greeting.
+    let biz = sellerLinkBiz(rec);
+    if (biz && rec.business !== biz) { try { const _all2 = loadSellerLinks(); const _k = _all2.findIndex(x => x.token === rec.token); if (_k >= 0) { _all2[_k].business = String(biz).slice(0, 160); saveSellerLinks(_all2); rec.business = _all2[_k].business; } } catch (e) {} }
+    if (!biz) biz = 'your business';
+    const me = (req.user && req.user.name) || org;
     let firstName = '';
     try { if (rec.personId) { const _p = loadPeople().find(x => x.id === rec.personId); if (_p) firstName = String(_p.firstName || (_p.name ? String(_p.name).trim().split(/\s+/)[0] : '') || '').trim(); } } catch (e) {}
     const vars = { org: org, business: biz, formUrl: formUrl, videoUrl: videoUrl, repName: me, firstName: firstName };
@@ -6070,7 +6083,7 @@ function notifySellerInterviewDone(rec, iv, kind, req) {
 app.get('/s/intake', (req, res) => {
   const rec = sellerLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
   const meta = linkKindMeta(rec.kind);
-  res.json({ ok: true, business: rec.business || '', org: orgDisplayName(), kind: linkKind(rec.kind), label: meta.label, fields: sellerInterviewFields(rec.kind), data: (rec.form && rec.form.data) || {}, submitted: !!(rec.form && rec.form.submittedAt) });
+  res.json({ ok: true, business: sellerLinkBiz(rec), org: orgDisplayName(), kind: linkKind(rec.kind), label: meta.label, fields: sellerInterviewFields(rec.kind), data: (rec.form && rec.form.data) || {}, submitted: !!(rec.form && rec.form.submittedAt) });
 });
 app.post('/s/intake/submit', express.json({ limit: '256kb' }), (req, res) => {
   const all = loadSellerLinks(); const rec = all.find(x => x.token === String((req.body && req.body.token) || '')); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
@@ -6085,7 +6098,7 @@ app.post('/s/intake/submit', express.json({ limit: '256kb' }), (req, res) => {
 app.get('/s/video', (req, res) => {
   const rec = sellerLinkByToken(req.query.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
   const meta = linkKindMeta(rec.kind);
-  res.json({ ok: true, business: rec.business || '', org: orgDisplayName(), kind: linkKind(rec.kind), label: meta.label, ready: s3Configured(), voice: effVoicePref(), questions: sellerInterviewFields(rec.kind).map(f => f.prompt) });
+  res.json({ ok: true, business: sellerLinkBiz(rec), org: orgDisplayName(), kind: linkKind(rec.kind), label: meta.label, ready: s3Configured(), voice: effVoicePref(), questions: sellerInterviewFields(rec.kind).map(f => f.prompt) });
 });
 app.post('/s/video/presign', express.json(), async (req, res) => {
   const rec = sellerLinkByToken(req.body && req.body.token); if (!rec) return res.status(404).json({ ok: false, error: 'This link is invalid or has expired.' });
