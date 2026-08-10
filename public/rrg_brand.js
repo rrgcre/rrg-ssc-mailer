@@ -1,9 +1,27 @@
 /* Rewrites the browser tab title to the admin-set app name (preserving each page's
    section label after the — ), and renames the AI assistant site-wide to the admin-set
    name (default "Claude"). Loaded on every page. */
-/* Enterprise theme layer — one stylesheet, loaded on every page, that gives the whole
-   app the flat/dense/muted "data room" look. Retune it in /public/rrg_theme.css. */
-(function(){ try{ if(!document.querySelector('link[data-rrg-theme]')){ var l=document.createElement('link'); l.rel='stylesheet'; l.href='/rrg_theme.css'; l.setAttribute('data-rrg-theme','1'); (document.head||document.documentElement).appendChild(l); } }catch(e){} })();
+/* Enterprise theme layer — applied SYNCHRONOUSLY as an inline <style> in the head so it
+   lands before first paint (no flash of the old look). This inline copy is authoritative;
+   /public/rrg_theme.css mirrors it for reference — keep the two in sync. */
+(function(){ try{ if(document.getElementById('rrg-theme')) return;
+  var css='html{--navy:#20334f!important;--navbg:#000E31!important;--primary:#2c5c8f!important;--primary-d:#23496f!important;--red:#b23a2c!important;--accent:#b23a2c!important;--ink:#2b3648!important;--muted:#69748a!important;--soft:#96a1b2!important;--line:#dbe0e9!important;--wash:#f4f6f9!important;--inp:#c4ccda!important;--green:#2f7a55!important;}'
+    +'body{background:#e9ebf0!important;}'
+    +'.card,.kpi{border-radius:4px!important;box-shadow:none!important;}'
+    +'.btn,.rbtn,.mbtn,.newbtn,.savebtn,.linkbtn,.pre,.fbclear,.mbtn.ghost{border-radius:3px!important;}'
+    +'input[type=text],input[type=email],input[type=password],input[type=number],input[type=search],input[type=tel],input[type=url],input[type=date],select,textarea{border-radius:3px!important;}'
+    +'#rrgnav a.it,#rrgnav .lbl,#rrgnav .ws{border-radius:3px!important;}'
+    +'#rrgtop .create,#rrgtop .rrgback,#rrgtop .srch input{border-radius:3px!important;}'
+    +'#rrgtop .srch input{background:#f4f6f9!important;}'
+    +'#rrgtop .ic{border-radius:4px!important;}'
+    +'.rrgcol{border-radius:3px!important;}'
+    +'#rrgcfm-bx{border-radius:6px!important;}#rrgcfm-bx button{border-radius:4px!important;}'
+    +'#rrgcfm-bx button.ok{background:var(--primary)!important;border-color:var(--primary)!important;}'
+    +'#rrgcfm-bx button.ok.danger{background:var(--red)!important;}'
+    +'.rrgtoast{border-radius:4px!important;background:#20334f!important;}.rrgtoast.err{background:#7a1f1a!important;}';
+  var st=document.createElement('style'); st.id='rrg-theme'; st.setAttribute('data-rrg-theme','1'); st.textContent=css;
+  (document.head||document.documentElement).appendChild(st);
+}catch(e){} })();
 /* Pre-apply the shelled layout before first paint so navigating doesn't flash the un-shelled page. */
 (function(){ try{
   if(/\/(login|sign)\b/.test(location.pathname)) return;
