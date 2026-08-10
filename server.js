@@ -3789,39 +3789,39 @@ function roomShell(title, inner) {
 <style>
 :root{--navy:#20334f;--red:#b23a2c;--ink:#2b3648;--muted:#69748a;--line:#dbe0e9;--wash:#f4f6f9;--primary:#2c5c8f;--primary-d:#23496f;--inp:#c4ccda;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#e9ebf0;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:13px;}
-.top{color:#fff;padding:22px 0 24px;background:#20334f;border-bottom:3px solid var(--primary);}
-.in{max-width:860px;margin:0 auto;padding:0 24px;}
-.brand{display:inline-flex;align-items:center;} .disc{background:var(--red);color:#fff;border-radius:3px;width:34px;height:34px;font:900 12px 'Arial Black',Arial,sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
-.bar{background:rgba(255,255,255,.3);width:1px;height:24px;margin:0 12px;} .wm{font-weight:700;font-size:12px;text-transform:uppercase;line-height:1;letter-spacing:.02em;color:#cdd6e4;}
-.kick{margin:18px 0 3px;color:#8fa2be;font-weight:700;letter-spacing:.16em;font-size:10.5px;text-transform:uppercase;}
-h1{font-size:22px;font-weight:700;margin:0;color:#fff;letter-spacing:.01em;}
-.sub{color:#a9b4c8;font-size:13px;margin-top:5px;}
-.wrap{max-width:860px;margin:20px auto;padding:0 24px 60px;}
-.card{background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:none;overflow:hidden;margin-bottom:12px;}
-.chd{padding:12px 18px;border-bottom:1px solid var(--line);font-weight:700;color:var(--navy);font-size:12px;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.03em;}
-.chd .n{margin-left:auto;color:var(--muted);font-weight:600;font-size:11.5px;letter-spacing:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:12px;}
+.top{color:#fff;padding:15px 0 16px;background:#20334f;border-bottom:2px solid var(--primary);}
+.in{max-width:880px;margin:0 auto;padding:0 22px;}
+.brand{display:inline-flex;align-items:center;} .disc{background:var(--red);color:#fff;border-radius:3px;width:30px;height:30px;font:900 11px 'Arial Black',Arial,sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:rgba(255,255,255,.3);width:1px;height:22px;margin:0 11px;} .wm{font-weight:700;font-size:11px;text-transform:uppercase;line-height:1;letter-spacing:.02em;color:#cdd6e4;}
+.kick{margin:13px 0 2px;color:#8fa2be;font-weight:700;letter-spacing:.15em;font-size:10px;text-transform:uppercase;}
+h1{font-size:19px;font-weight:700;margin:0;color:#fff;letter-spacing:.01em;}
+.sub{color:#a9b4c8;font-size:12px;margin-top:4px;}
+.wrap{max-width:880px;margin:13px auto;padding:0 22px 46px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:none;overflow:hidden;margin-bottom:7px;}
+.chd{padding:9px 15px;border-bottom:1px solid var(--line);font-weight:700;color:var(--navy);font-size:11.5px;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.03em;}
+.chd .n{margin-left:auto;color:var(--muted);font-weight:600;font-size:11px;letter-spacing:0;}
 .folderhd{cursor:pointer;user-select:none;}
 .cav{display:inline-block;transition:transform .15s;color:var(--muted);font-size:11px;}
 .card.open>.chd>.cav,.subcard.open>.chd>.cav{transform:rotate(90deg);}
 .card:not(.open)>.folderbody,.subcard:not(.open)>.folderbody{display:none;}
 .subcard{border-top:1px solid #eef1f5;}
-.chd.sub{background:#f4f6f9;font-weight:700;font-size:12px;border-bottom:none;padding-left:32px;text-transform:none;letter-spacing:0;}
-.subcard .docrow{padding-left:32px;}
-.docrow{display:flex;align-items:center;gap:12px;padding:11px 18px;border-top:1px solid #eef1f5;text-decoration:none;color:inherit;}
+.chd.sub{background:#f4f6f9;font-weight:700;font-size:11.5px;border-bottom:none;padding-left:30px;text-transform:none;letter-spacing:0;}
+.subcard .docrow{padding-left:30px;}
+.docrow{display:flex;align-items:center;gap:10px;padding:8px 15px;border-top:1px solid #eef1f5;text-decoration:none;color:inherit;}
 .docrow:first-child{border-top:none;} .docrow:hover{background:#f7f9fb;}
-.ext{flex:0 0 28px;height:34px;display:flex;align-items:center;justify-content:center;}
-.dt{flex:1;font-weight:600;color:var(--navy);font-size:13px;} .dm{color:var(--muted);font-size:11px;margin-top:1px;}
-.dl{border:1px solid var(--primary);background:var(--primary);color:#fff;border-radius:3px;padding:6px 13px;font-size:12px;font-weight:600;white-space:nowrap;text-decoration:none;}
+.ext{flex:0 0 24px;height:30px;display:flex;align-items:center;justify-content:center;}
+.dt{flex:1;font-weight:600;color:var(--navy);font-size:12.5px;} .dm{color:var(--muted);font-size:10.5px;margin-top:1px;}
+.dl{border:1px solid var(--primary);background:var(--primary);color:#fff;border-radius:3px;padding:5px 11px;font-size:11.5px;font-weight:600;white-space:nowrap;text-decoration:none;}
 .dl.ghost{background:#fff;color:var(--primary-d);border-color:var(--inp);}
-.acts{display:flex;gap:8px;align-items:center;flex:none;}
-.note{background:#fff;border:1px solid var(--line);border-radius:4px;padding:15px 18px;color:var(--muted);font-size:12.5px;line-height:1.6;}
-.note.conf{display:flex;gap:11px;align-items:flex-start;border:1px solid #e0cdc9;border-left:3px solid var(--red);background:#faf5f4;color:#463a37;margin-bottom:14px;border-radius:4px;}
+.acts{display:flex;gap:6px;align-items:center;flex:none;}
+.note{background:#fff;border:1px solid var(--line);border-radius:4px;padding:12px 15px;color:var(--muted);font-size:12px;line-height:1.55;}
+.note.conf{display:flex;gap:10px;align-items:flex-start;border:1px solid #e0cdc9;border-left:3px solid var(--red);background:#faf5f4;color:#463a37;margin-bottom:12px;border-radius:4px;padding:11px 14px;}
 .note.conf .lock{flex:none;color:var(--red);opacity:.85;}
-.note.conf .lock svg{width:16px;height:16px;display:block;margin-top:1px;fill:none;stroke:currentColor;stroke-width:2;}
+.note.conf .lock svg{width:15px;height:15px;display:block;margin-top:1px;fill:none;stroke:currentColor;stroke-width:2;}
 .note.conf b{color:var(--red);}
-.empty{text-align:center;color:var(--muted);padding:46px 20px;}
-.foot{max-width:860px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11px;line-height:1.6;}
+.empty{text-align:center;color:var(--muted);padding:40px 20px;}
+.foot{max-width:880px;margin:0 auto;padding:0 22px 34px;color:var(--muted);font-size:10.5px;line-height:1.55;}
 </style></head><body>
 <div class="top"><div class="in"><span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
 ${inner.head}</div></div>
@@ -3857,7 +3857,7 @@ function roomPublicPage(r, grant, opts) {
   const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · ${esc(lvlLabel)} · session ends after 15 min idle</div>` : '';
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${visCount} document${visCount === 1 ? '' : 's'} · Provided by ${esc(orgDisplayName())} under NDA</div>${who}`;
   let body = '';
-  if (_preview) body += `<a href="/rrg_room.html?room=${esc(r.id)}" style="display:inline-flex;align-items:center;gap:7px;margin-bottom:14px;background:#0b1636;color:#fff;text-decoration:none;font-weight:700;font-size:12.5px;padding:8px 15px;border-radius:100px">← Back to your data room</a><div style="margin-bottom:14px;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:10px;padding:9px 13px;font-size:12.5px;font-weight:600">Preview — this is exactly what an NDA'd buyer sees. They do not see this bar.</div>`;
+  if (_preview) body += `<a href="/rrg_room.html?room=${esc(r.id)}" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;background:#20334f;color:#fff;text-decoration:none;font-weight:600;font-size:11.5px;padding:6px 12px;border-radius:3px">← Back to your data room</a><div style="margin-bottom:12px;display:flex;align-items:center;gap:10px;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:4px;padding:7px 11px;font-size:11.5px;font-weight:600"><span style="flex:1">Preview — this is exactly what an NDA'd buyer sees. They do not see this bar.</span><a href="/rrg_room.html?room=${esc(r.id)}" onclick="try{window.close();}catch(e){}" title="Close preview" style="flex:none;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #e2cfa0;border-radius:3px;color:#8a5a12;text-decoration:none;font-weight:700;font-size:14px;line-height:1;background:#fff">×</a></div>`;
   body += `<div class="note conf"><span class="lock"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><div><b>Confidential — provided under NDA.</b> These materials are shared solely so you can evaluate a potential acquisition of ${esc(r.business || 'this business')}. Do not copy, forward, screenshot, print, or distribute them, and do not share this link. All inquiries route exclusively through ${esc(orgDisplayName())}.</div></div>`;
   if (editCats.length) {
     body += `<div class="card"><div class="chd">Add a document</div><div style="padding:14px 20px">` +
