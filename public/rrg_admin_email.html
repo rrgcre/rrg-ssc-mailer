@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Email / SMTP</title>
+<style>
+:root{--navy:#0b1636;--navy2:#16346e;--red:#C0261B;--ink:#141a29;--dim:#5f6a7d;--soft:#8a93a3;--line:#e5e9f1;--wash:#f5f7fb;--green:#1f8a5b;--amber:#8a5a12;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:720px;margin:0 auto;padding:26px 26px 60px;}
+h1{font-size:20px;font-weight:800;color:var(--navy);margin:0;}
+.sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.5;max-width:620px;}
+.status{display:flex;align-items:center;gap:9px;margin:18px 0 4px;border:1px solid var(--line);border-radius:12px;padding:12px 15px;font-size:13px;}
+.dot{width:9px;height:9px;border-radius:50%;flex:none;}
+.dot.on{background:var(--green);} .dot.off{background:#c9ced8;}
+.card{border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin-top:16px;}
+.card h2{font-size:14px;font-weight:800;color:var(--navy);margin:0 0 3px;}
+.card .ch-sub{font-size:12px;color:var(--soft);margin-bottom:14px;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+@media(max-width:560px){.grid{grid-template-columns:1fr;}}
+.fld{display:flex;flex-direction:column;gap:5px;}
+.fld.full{grid-column:1/-1;}
+label.lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);}
+input[type=text],input[type=number],input[type=email],input[type=password]{border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:13.5px;width:100%;}
+input:focus{outline:none;border-color:var(--navy2);box-shadow:0 0 0 2px rgba(22,52,110,.12);}
+.presets{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 15px;}
+.pre{background:#fff;border:1px solid #cdd6e6;border-radius:8px;padding:7px 12px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;}
+.pre:hover{border-color:#b9c6df;background:#fbfcff;}
+.check{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--ink);cursor:pointer;}
+.check input{width:16px;height:16px;}
+.savebar{display:flex;align-items:center;gap:12px;margin-top:16px;}
+.savebtn{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:10px 20px;font:inherit;font-size:13.5px;font-weight:700;cursor:pointer;}
+.savebtn.ghost{background:#fff;color:var(--navy);border:1px solid #cdd6e6;}
+.savebtn:disabled{opacity:.5;cursor:default;}
+.msg{font-size:12.5px;font-weight:600;}
+.note{font-size:12px;color:var(--soft);margin-top:14px;line-height:1.55;}
+.hint{font-size:12px;color:var(--amber);background:#fff8ec;border:1px solid #f0e0c0;border-radius:9px;padding:9px 12px;margin-top:12px;line-height:1.5;display:none;}
+.hint.show{display:block;}
+.gate{color:var(--dim);font-size:13.5px;padding:30px 0;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var CFG=null;
+var PRESETS=[
+  {n:'SendGrid',host:'smtp.sendgrid.net',port:587,secure:false,user:'apikey'},
+  {n:'Mailgun',host:'smtp.mailgun.org',port:587,secure:false,user:''},
+  {n:'Gmail / Workspace',host:'smtp.gmail.com',port:587,secure:false,user:''},
+  {n:'Microsoft 365',host:'smtp.office365.com',port:587,secure:false,user:''},
+  {n:'Amazon SES',host:'email-smtp.us-east-1.amazonaws.com',port:587,secure:false,user:''}
+];
+function val(id){ var e=document.getElementById(id); return e?e.value.trim():''; }
+function chk(id){ var e=document.getElementById(id); return !!(e&&e.checked); }
+function detectHint(){
+  var h=val('host').toLowerCase(), box=document.getElementById('hint'); if(!box) return;
+  if(h.indexOf('sendgrid')>=0){ box.className='hint show'; box.innerHTML='<b>You’re on SendGrid.</b> That means you already have the Twilio SendGrid email product — so the email-in feature (SendGrid Inbound Parse) is available to you without any new vendor.'; }
+  else if(h){ box.className='hint show'; box.innerHTML='Relay set to <b>'+esc(h)+'</b>. For the email-in (drop files by email) feature we discussed, SendGrid Inbound Parse is the cleanest path — that needs the SendGrid email product.'; }
+  else { box.className='hint'; box.innerHTML=''; }
+}
+function render(){
+  var c=CFG||{};
+  var statusOn=!!c.configured;
+  document.getElementById('root').innerHTML=''
+    +'<h1>Email / SMTP</h1>'
+    +'<div class="sub">How the system sends all outbound mail — buyer invites, verification codes, alerts and signature requests. This is a firm-wide server setting.</div>'
+    +'<div class="status"><span class="dot '+(statusOn?'on':'off')+'"></span><span>'+(statusOn?'<b>Outbound email is configured and on.</b>':'<b>Not configured.</b> No automated email is being sent until a host is saved and enabled.')+'</span></div>'
+    +'<div class="card">'
+      +'<h2>Server (SMTP)</h2><div class="ch-sub">Your outbound relay. Use a preset to fill the common ones, then add your login.</div>'
+      +'<div class="presets">'+PRESETS.map(function(p,i){ return '<button class="pre" data-p="'+i+'">'+esc(p.n)+'</button>'; }).join('')+'</div>'
+      +'<div class="grid">'
+        +'<div class="fld full"><label class="lbl">SMTP host</label><input type="text" id="host" value="'+esc(c.host||'')+'" placeholder="e.g. smtp.sendgrid.net"></div>'
+        +'<div class="fld"><label class="lbl">Port</label><input type="number" id="port" value="'+esc(c.port||587)+'" placeholder="587"></div>'
+        +'<div class="fld" style="justify-content:flex-end"><label class="check" style="margin-bottom:8px"><input type="checkbox" id="secure" '+(c.secure?'checked':'')+'> Use SSL (port 465)</label></div>'
+        +'<div class="fld"><label class="lbl">Username</label><input type="text" id="user" value="'+esc(c.user||'')+'" placeholder="SMTP username / API user"></div>'
+        +'<div class="fld"><label class="lbl">Password / API key</label><input type="password" id="pass" placeholder="'+(c.hasPass?'••••• (unchanged)':'not set')+'"></div>'
+        +'<div class="fld full"><label class="lbl">From address</label><input type="text" id="from" value="'+esc(c.from||'')+'" placeholder="van@rrgcre.com"></div>'
+      +'</div>'
+      +'<label class="check" style="margin-top:14px"><input type="checkbox" id="enabled" '+((c.enabled!==false)?'checked':'')+'> Outbound email enabled</label>'
+      +(c.hasPass?'<label class="check" style="margin-top:10px;color:#C0261B"><input type="checkbox" id="clearpass"> Clear the saved password</label>':'')
+      +'<div class="hint" id="hint"></div>'
+      +'<div class="savebar"><button class="savebtn" id="save">Save settings</button><span class="msg" id="msg"></span></div>'
+      +'<div class="note">Password / API key is write-only — it’s never sent back to this screen. Leave it blank to keep the one already saved. Port 587 with SSL off is standard (STARTTLS); use 465 with SSL on only if your provider requires it.</div>'
+    +'</div>'
+    +'<div class="card">'
+      +'<h2>Send a test</h2><div class="ch-sub">Confirms the settings above actually deliver. Save first, then send.</div>'
+      +'<div class="grid"><div class="fld full"><label class="lbl">Send test to</label><input type="email" id="testto" placeholder="you@rrgcre.com"></div></div>'
+      +'<div class="savebar"><button class="savebtn ghost" id="test">Send test email</button><span class="msg" id="testmsg"></span></div>'
+    +'</div>';
+  PRESETS.forEach(function(p,i){});
+  document.querySelectorAll('[data-p]').forEach(function(b){ b.addEventListener('click',function(){ var p=PRESETS[+b.getAttribute('data-p')]; document.getElementById('host').value=p.host; document.getElementById('port').value=p.port; document.getElementById('secure').checked=!!p.secure; if(p.user&&!val('user')) document.getElementById('user').value=p.user; detectHint(); }); });
+  document.getElementById('host').addEventListener('input',detectHint);
+  document.getElementById('save').addEventListener('click',save);
+  document.getElementById('test').addEventListener('click',sendTest);
+  detectHint();
+}
+function save(){
+  var b=document.getElementById('save'), m=document.getElementById('msg'); b.disabled=true; var was=b.textContent; b.textContent='Saving…'; m.textContent='';
+  var body={ host:val('host'), port:Number(val('port'))||587, secure:chk('secure'), user:val('user'), from:val('from'), enabled:chk('enabled') };
+  var p=val('pass'); if(p) body.pass=p; if(chk('clearpass')) body.clearPass=true;
+  fetch('/api/admin/email',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent=was;
+      if(j&&j.ok){ m.style.color='#1f8a5b'; m.textContent='Saved ✓'; load(true); } else { m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Could not save.'; } })
+    .catch(function(){ b.disabled=false; b.textContent=was; m.style.color='#C0261B'; m.textContent='Could not reach the server.'; });
+}
+function sendTest(){
+  var b=document.getElementById('test'), m=document.getElementById('testmsg'); var to=val('testto');
+  if(!to){ m.style.color='#C0261B'; m.textContent='Enter an address first.'; return; }
+  b.disabled=true; var was=b.textContent; b.textContent='Sending…'; m.textContent='';
+  fetch('/api/admin/email/test',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({to:to})})
+    .then(function(r){return r.json();}).then(function(j){ b.disabled=false; b.textContent=was;
+      if(j&&j.ok){ m.style.color='#1f8a5b'; m.textContent='Sent ✓ — check that inbox.'; } else { m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Send failed.'; } })
+    .catch(function(){ b.disabled=false; b.textContent=was; m.style.color='#C0261B'; m.textContent='Could not reach the server.'; });
+}
+function load(quiet){
+  fetch('/api/admin/email',{credentials:'same-origin',cache:'no-store'}).then(function(r){ if(r.status===401||r.status===403) throw new Error('admin'); return r.json(); }).then(function(j){
+    if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load email settings.</div>'; return; }
+    CFG=j; if(!quiet) render(); else { var s=document.querySelector('.status .dot'); if(s) s.className='dot '+(j.configured?'on':'off'); }
+  }).catch(function(e){ document.getElementById('root').innerHTML='<div class="gate">'+((e&&e.message==='admin')?'Email settings are limited to administrators.':'Could not reach the server.')+'</div>'; });
+}
+load();
+</script>
+</body>
+</html>
