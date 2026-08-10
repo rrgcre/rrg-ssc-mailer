@@ -3373,8 +3373,58 @@ app.post('/room/:token/enter', (req, res) => {
   setRoomCookie(res, signRoomSess({ r: r.id, g: grant.id, exp: Date.now() + ROOM_IDLE_MS }));
   res.redirect('/room/' + r.token);
 });
+// ---- Real-time buyer alerts: email the room owner the first time a buyer opens a KEY doc ----
+function effRoomAlerts() { const s = loadSettings(); return s.roomAlerts !== false; }
+const ROOM_KEY_DOC = /p ?& ?l\b|p and l|profit|financ|tax return|\btax\b|lease|\bsde\b|ebitda|rent roll|balance sheet|revenue/i;
+function notifyRoomActivity(r, grant, doc, event, req) {
+  try {
+    if (!effRoomAlerts() || !r || !grant || !doc) return;
+    const name = String(doc.title || doc.originalName || '');
+    if (!ROOM_KEY_DOC.test(name)) return;                 // only the documents that signal intent
+    grant.alerted = grant.alerted || {};
+    if (grant.alerted[doc.id]) return;                    // once per buyer per key doc
+    grant.alerted[doc.id] = new Date().toISOString();
+    let to = '';
+    try { const u = (auth.loadUsers() || []).find(x => x.username === (r.byUser || '')); to = (u && u.email) || ''; } catch (e) {}
+    to = to || mailFrom();
+    if (!to) return;
+    const org = orgDisplayName(), biz = r.business || 'a listing', buyer = grant.name || grant.email || 'A buyer';
+    const origin = (req && req.get) ? (req.protocol + '://' + req.get('host')) : '';
+    const roomUrl = origin ? (origin + '/rrg_room.html?room=' + r.id) : '';
+    const verb = event === 'download' ? 'downloaded' : 'opened';
+    const subject = org + ' — buyer activity: ' + buyer + ' ' + verb + ' ' + name;
+    const text = buyer + ' just ' + verb + ' "' + name + '" in the ' + biz + ' data room.\n\nThat is one of the key documents — they may be getting serious. Worth a follow-up.\n\n' + roomUrl + '\n\n— ' + org;
+    const html = '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#1a2236">'
+      + '<p>🔥 <b>' + esc(buyer) + '</b> just ' + esc(verb) + ' <b>' + esc(name) + '</b> in the <b>' + esc(biz) + '</b> data room.</p>'
+      + '<p>That is one of the key documents — they may be getting serious. Worth a follow-up.</p>'
+      + (roomUrl ? ('<p><a href="' + esc(roomUrl) + '" style="color:#1155cc;text-decoration:underline">Open the data room</a></p>') : '')
+      + '<p style="color:#8a93a3">— ' + esc(org) + '</p></div>';
+    const p = sendMailWL({ from: mailFrom(), to, subject, text, html });
+    if (p && p.catch) p.catch(e => console.error('room alert send:', e && e.message));
+  } catch (e) { console.error('notifyRoomActivity:', e && e.message); }
+}
+// ---- Per-download watermarking: stamp the buyer's identity onto PDF downloads ----
+function effRoomWatermark() { const s = loadSettings(); return s.roomWatermark !== false; }
+async function watermarkPdf(fp, grant, r) {
+  const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+  const bytes = fs.readFileSync(fp);
+  const pdf = await PDFDocument.load(bytes, { ignoreEncryption: true });
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const who = grant.name || grant.email || 'Authorized buyer';
+  const emailPart = (grant.email && grant.email !== who) ? (' · ' + grant.email) : '';
+  const when = new Date().toISOString().slice(0, 16).replace('T', ' ');
+  const stamp = 'CONFIDENTIAL — ' + who + emailPart + ' · ' + when + ' UTC · via ' + orgDisplayName();
+  const size = 7.5;
+  pdf.getPages().forEach(pg => {
+    const { width } = pg.getSize();
+    let s = stamp; let tw = font.widthOfTextAtSize(s, size);
+    if (tw > width - 12) { while (s.length > 24 && tw > width - 12) { s = s.slice(0, -2); tw = font.widthOfTextAtSize(s + '…', size); } s = s + '…'; }
+    pg.drawText(s, { x: Math.max(6, (width - tw) / 2), y: 7, size, font, color: rgb(0.45, 0.45, 0.45), opacity: 0.85 });
+  });
+  return Buffer.from(await pdf.save());
+}
 // PUBLIC file download from a room (gated when buyers are added).
-app.get('/roomfile/:token/:docid', (req, res) => {
+app.get('/roomfile/:token/:docid', async (req, res) => {
   const arr = loadRooms();
   const r = arr.find(x => x.token === req.params.token);
   if (!r) return res.status(404).end();
@@ -3393,7 +3443,14 @@ app.get('/roomfile/:token/:docid', (req, res) => {
   const fnameSafe = String(d.title || d.originalName || d.id).replace(/[^\w.\- ]+/g, '_') + '.' + d.ext;
   if (asDownload && grant) { grant.downloads = (grant.downloads || 0) + 1; }
   if (asDownload) { d.downloads = (d.downloads || 0) + 1; d.lastDownloadAt = new Date().toISOString(); }   // per-file download tracking
+  notifyRoomActivity(r, grant, d, asDownload ? 'download' : 'view', req);
   logRoomAccess(r, req, asDownload ? 'download' : 'view', d.title || d.originalName, grant); saveRooms(arr);
+  if (asDownload && grant && /^pdf$/i.test(d.ext) && effRoomWatermark()) {
+    try {
+      const stamped = await watermarkPdf(fp, grant, r);
+      if (stamped && stamped.length) { res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', 'attachment; filename="' + fnameSafe + '"'); return res.send(stamped); }
+    } catch (e) { console.error('watermark serve:', e && e.message); }
+  }
   res.setHeader('Content-Disposition', (asDownload ? 'attachment' : 'inline') + '; filename="' + fnameSafe + '"');
   res.sendFile(fp);
 });
