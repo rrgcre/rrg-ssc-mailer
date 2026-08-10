@@ -121,6 +121,7 @@ function load(){
     TASKS=j.tasks||[]; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; USERS=j.users||[]; TITLESUG=j.titleSuggestions||[]; PRIORITIES=j.priorities||['Low','Normal','High']; ACTTYPES=j.activityTypes||[]; EMAILREADY=!!j.emailReady; SMSREADY=!!j.smsReady; ME=j.me||''; ISADMIN=!!j.isAdmin;
     if(ISADMIN) document.getElementById('scAll').style.display='';
     fillSelects(); render();
+    try{ if(new URLSearchParams(location.search).get('new')==='1'){ openTaskModal(); history.replaceState({},'',location.pathname); } }catch(e){}
   });
 }
 function fillSelects(){

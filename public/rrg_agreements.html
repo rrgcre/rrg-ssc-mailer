@@ -110,6 +110,7 @@ function statusOf(a){ var today=todayStr(); if(a.status==='terminated') return '
 function load(){
   fetch('/api/agreements/executed',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok) return; AGR=j.agreements||[]; TYPES=j.types||[]; CAN_DELETE=!!j.canDelete; IS_ADMIN=!!j.isAdmin; buildTypeFilters(); buildSignerFilter(); render();
+    try{ if(new URLSearchParams(location.search).get('new')==='1'){ openAgrModal(); history.replaceState({},'',location.pathname); } }catch(e){}
   });
   fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('agrPeopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.companyName||p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){});
 }

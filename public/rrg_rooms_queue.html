@@ -175,6 +175,7 @@ function applyFilter(){
 function load(){
   fetch('/api/rooms',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     ALL_ROOMS=(j&&j.rooms)||[]; USERS=(j&&j.users)||[]; ME=(j&&j.me)||null; applyFilter();
+    try{ if(new URLSearchParams(location.search).get('new')==='1'){ newRoom(); history.replaceState({},'',location.pathname); } }catch(e){}
   }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load data rooms.</div>'; });
 }
 document.addEventListener('change',function(e){ if(e.target&&e.target.id==='hideArch') applyFilter(); });

@@ -2958,7 +2958,8 @@ const ROOM_CATEGORIES = ['Financials', 'Tax Returns', 'Lease', 'Equipment & FF&E
 function roomCategories(baseYear){
   const y = Number(baseYear) || new Date().getFullYear();
   return ['Financials', 'Financials / ' + y, 'Financials / ' + (y-1), 'Financials / ' + (y-2), 'Financials / ' + (y-3), 'Financials / ' + (y-4),
-    'Tax Returns', 'Lease', 'Equipment & FF&E', 'Licenses & Permits', 'Legal & Corporate', 'Menus & Marketing', 'Other'];
+    'Tax Returns', 'Tax Returns / ' + y, 'Tax Returns / ' + (y-1), 'Tax Returns / ' + (y-2), 'Tax Returns / ' + (y-3), 'Tax Returns / ' + (y-4),
+    'Lease', 'Equipment & FF&E', 'Licenses & Permits', 'Legal & Corporate', 'Menus & Marketing', 'Other'];
 }
 function roomServeCats(r){
   let base = (r && Array.isArray(r.folders) && r.folders.length) ? r.folders.slice() : roomCategories();

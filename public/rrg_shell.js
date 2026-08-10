@@ -182,6 +182,13 @@
     + '#rrgtop .create{display:inline-flex;align-items:center;gap:6px;background:#fff;color:var(--red,#DA2B1F);border:1px solid var(--red,#DA2B1F);border-radius:9px;padding:8px 15px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;white-space:nowrap;transition:background .12s,color .12s;}'
     + '#rrgtop .create:hover{background:var(--red,#DA2B1F);color:#fff;}'
     + '#rrgtop .create .cplus{font-size:15px;font-weight:800;line-height:1;}'
+    + '#rrgtop .createwrap{position:relative;}'
+    + '#rrgtop .createmenu{position:absolute;top:calc(100% + 6px);left:0;min-width:196px;background:#fff;border:1px solid var(--line,#dbe0e9);border-radius:4px;box-shadow:0 10px 30px rgba(12,22,54,.16);padding:5px;z-index:70;}'
+    + '#rrgtop .createmenu[hidden]{display:none;}'
+    + '#rrgtop .createmenu a{display:flex;align-items:center;gap:10px;padding:8px 11px;border-radius:3px;color:#2b3648;text-decoration:none;font-size:13px;font-weight:500;white-space:nowrap;}'
+    + '#rrgtop .createmenu a:hover{background:#eef2f7;color:var(--navy,#20334f);}'
+    + '#rrgtop .createmenu .cmi{width:18px;text-align:center;color:#69748a;font-size:13px;flex:none;}'
+    + '#rrgtop .createmenu .cmsep{height:1px;background:var(--line,#dbe0e9);margin:5px 4px;}'
     + '#rrgnav .scroll{flex:1;overflow-y:auto;padding:10px 10px 14px;}'
     + '#rrgnav .scroll::-webkit-scrollbar{width:7px;}#rrgnav .scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:7px;}'
     + '#rrgnav .grp{margin-top:6px;background:transparent!important;border:0!important;border-radius:0!important;padding:0!important;box-shadow:none!important;}'
@@ -283,7 +290,17 @@
   top.innerHTML = ''
     + '<div class="ic" id="rrgburger" style="display:none">≡</div>'
     + '<div class="srch"><span class="si">⌕</span><input placeholder="Search contacts, companies, listings…" id="rrgsearch" autocomplete="off"><div class="rrgsr" id="rrgsr" hidden></div></div>'
-    + '<div class="acts"><a class="create" href="rrg_companies.html"><span class="cplus">+</span> Create New</a><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><div class="uav" id="rrguav">·</div></div>';
+    + '<div class="acts"><div class="createwrap">'
+      + '<button class="create" id="rrgCreateBtn" type="button" aria-haspopup="true" aria-expanded="false"><span class="cplus">+</span> Create New</button>'
+      + '<div class="createmenu" id="rrgCreateMenu" hidden>'
+        + '<a href="rrg_people.html?new=1"><span class="cmi">◑</span> New contact</a>'
+        + '<a href="rrg_companies.html?new=1"><span class="cmi">▦</span> New company</a>'
+        + '<a href="rrg_tasks.html?new=1"><span class="cmi">✔</span> New task</a>'
+        + '<div class="cmsep"></div>'
+        + '<a href="rrg_agreements.html?new=1"><span class="cmi">⚖</span> New agreement</a>'
+        + '<a href="rrg_rooms_queue.html?new=1"><span class="cmi">▤</span> New data room</a>'
+      + '</div>'
+    + '</div><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><div class="uav" id="rrguav">·</div></div>';
 
   document.addEventListener('DOMContentLoaded', mount);
   if (document.readyState !== 'loading') mount();
@@ -304,6 +321,14 @@
       _bk.addEventListener('click',function(e){ try{ var rf=(document.referrer||'').split('#')[0], cur=location.href.split('#')[0]; if(rf && rf.indexOf(location.origin)===0 && rf!==cur && window.history.length>1){ e.preventDefault(); window.history.back(); } }catch(_e){} });
       var _lg=top.querySelector('.rrgtoplogo'); if(_lg&&_lg.nextSibling){ top.insertBefore(_bk,_lg.nextSibling); } else { top.insertBefore(_bk, top.firstChild); } } } } catch(e){}
     try { fetch('/api/counts',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var od=(j&&j.overdue)||{}; var NOUN={'rrg_tickets.html':'past-due request','rrg_tasks.html':'overdue task'}; Object.keys(od).forEach(function(href){ var c=od[href]||0; if(c<=0) return; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||tl.querySelector('.navbadge')) return; var noun=NOUN[href]||'item'; tl.title=c+' '+noun+(c===1?'':'s'); var b=document.createElement('span'); b.className='navbadge'; b.textContent=c>999?'999+':String(c); tl.appendChild(b); }); var dt=(j&&j.dueToday)||{}; Object.keys(dt).forEach(function(href){ var c=dt[href]||0; if(c<=0) return; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||tl.querySelector('.navbadge.gold')) return; var g=document.createElement('span'); g.className='navbadge gold'; g.textContent=c>999?'999+':String(c); g.title=c+' task'+(c===1?'':'s')+' due today'; tl.appendChild(g); }); }).catch(function(){}); } catch(e){}
+    // Create New dropdown
+    (function(){ var cb=document.getElementById('rrgCreateBtn'), cm=document.getElementById('rrgCreateMenu'); if(!cb||!cm) return;
+      function openM(){ cm.hidden=false; cb.setAttribute('aria-expanded','true'); }
+      function closeM(){ cm.hidden=true; cb.setAttribute('aria-expanded','false'); }
+      cb.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); if(cm.hidden) openM(); else closeM(); });
+      document.addEventListener('click',function(e){ if(cm.hidden) return; if(!cm.contains(e.target)&&e.target!==cb) closeM(); });
+      document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeM(); });
+    })();
     // mobile burger
     var burger=document.getElementById('rrgburger'); if(window.innerWidth<=900){ burger.style.display='flex'; }
     burger && burger.addEventListener('click', function(){ nav.classList.toggle('open'); });
