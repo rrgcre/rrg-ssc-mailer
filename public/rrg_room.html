@@ -121,11 +121,6 @@ h1{font-size:16px;font-weight:700;margin:0;color:#fff;letter-spacing:.01em;}
     <div id="engBody"><div class="h" style="margin:0">Loading…</div></div>
   </div></div>
 
-  <div class="card" id="qaCard"><div class="cbody">
-    <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Buyer questions<span id="qaBadge"></span></h2>
-    <div class="h">Questions buyers ask from inside the room, grouped by buyer. Each buyer sees only their own thread — your reply goes straight back to them, privately.</div>
-    <div id="qaBody"><div class="h" style="margin:0">Loading…</div></div>
-  </div></div>
 
   <div class="card"><div class="cbody">
     <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Add a document</h2>
@@ -317,7 +312,7 @@ function toggleGrant(id){
   fetch('/api/room/'+encodeURIComponent(RID)+'/grant-toggle',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:id})})
    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; renderGrants(); } else alert((j&&j.error)||'Failed'); }).catch(function(){ alert('Could not reach the server.'); });
 }
-function paint(){ document.getElementById('hdr').textContent='Data Room · '+(ROOM.business||''); paintLink(); renderInterviews(); renderCats(); renderDocs(); renderGrants(); renderLog(); renderQA(); renderMfa(); paintClosed(); }
+function paint(){ document.getElementById('hdr').textContent='Data Room · '+(ROOM.business||''); paintLink(); renderInterviews(); renderCats(); renderDocs(); renderGrants(); renderLog(); renderMfa(); paintClosed(); }
 function renderMfa(){
   var chk=document.getElementById('mfaChk'), sub=document.getElementById('mfaSub'); if(!chk) return;
   var on=!!(ROOM&&ROOM.mfa); chk.checked=on;
@@ -388,45 +383,6 @@ function renderAnalytics(a){
   el.innerHTML=html;
 }
 function loadAnalytics(){ fetch('/api/room/'+encodeURIComponent(RID)+'/analytics',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ renderAnalytics(j&&j.ok?j.analytics:null); }).catch(function(){ renderAnalytics(null); }); }
-/* ---- Buyer Q&A: each buyer's private thread; broker replies inline ---- */
-function _qaBubble(m){
-  var broker=(m.from==='broker');
-  var nm=broker?esc(m.who||'You'):esc(m.who||'Buyer');
-  var align=broker?'flex-end':'flex-start';
-  var bg=broker?'#000E31':'#f1f4fb', fg=broker?'#fff':'#1a2236', bd=broker?'#000E31':'#e2e8f4';
-  return '<div style="display:flex;justify-content:'+align+';margin:7px 0"><div style="max-width:84%;background:'+bg+';color:'+fg+';border:1px solid '+bd+';border-radius:12px;padding:8px 12px"><div style="font-size:10.5px;font-weight:700;opacity:.7;margin-bottom:3px">'+nm+' · '+esc(fmtWhen(m.at))+'</div><div style="font-size:13px;line-height:1.5;white-space:pre-wrap">'+esc(m.text)+'</div></div></div>';
-}
-function renderQA(){
-  var el=document.getElementById('qaBody'); if(!el) return;
-  var qa=(ROOM&&ROOM.qa)||[], grants=(ROOM&&ROOM.grants)||[];
-  var badge=document.getElementById('qaBadge');
-  var open=qa.filter(function(m){return m.from==='buyer';}).length;
-  if(badge) badge.innerHTML=open?(' <span style="background:#fdeceb;color:#DA2B1F;border:1px solid #f4cfcb;border-radius:99px;font-size:10px;font-weight:800;padding:2px 8px;margin-left:7px">'+open+'</span>'):'';
-  if(!qa.length){ el.innerHTML='<div class="h" style="margin:0">No questions yet. When a buyer asks from inside the room, it shows up here.</div>'; return; }
-  var byG={}; qa.forEach(function(m){ (byG[m.grantId]=byG[m.grantId]||[]).push(m); });
-  var order=grants.map(function(g){return g.id;}).filter(function(id){return byG[id];});
-  Object.keys(byG).forEach(function(id){ if(order.indexOf(id)<0) order.push(id); });
-  el.innerHTML=order.map(function(gid){
-    var g=grants.filter(function(x){return x.id===gid;})[0];
-    var nm=g?(g.name||g.email||'Buyer'):'Former buyer';
-    var msgs=byG[gid]||[];
-    var lastBuyer=null; msgs.forEach(function(m){ if(m.from==='buyer') lastBuyer=m; });
-    var lastBroker=null; msgs.forEach(function(m){ if(m.from==='broker') lastBroker=m; });
-    var needs=lastBuyer&&(!lastBroker||new Date(lastBuyer.at)>new Date(lastBroker.at));
-    var flag=needs?'<span style="background:#fff4e6;color:#8a5a12;border:1px solid #f3d9a8;border-radius:99px;font-size:10px;font-weight:800;padding:2px 8px;margin-left:7px">Awaiting reply</span>':'';
-    var thread=msgs.map(_qaBubble).join('');
-    var reply='<div style="margin-top:9px;display:flex;gap:8px;align-items:flex-end"><textarea id="qar_'+esc(gid)+'" rows="2" placeholder="Reply to '+esc(nm)+'…" style="flex:1;padding:8px 10px;border:1px solid #cfd6e2;border-radius:9px;font:inherit;resize:vertical"></textarea><button class="btn green" onclick="qaReply(\''+esc(gid)+'\')" style="white-space:nowrap">Reply</button></div><div class="umsg" id="qarm_'+esc(gid)+'"></div>';
-    return '<details style="border:1px solid var(--line);border-radius:10px;padding:10px 13px;margin-bottom:9px"'+(needs?' open':'')+'><summary style="cursor:pointer;font-size:13.5px;font-weight:700;color:#000E31;list-style:none">'+esc(nm)+flag+'</summary><div style="margin-top:6px">'+thread+reply+'</div></details>';
-  }).join('');
-}
-function qaReply(gid){
-  var ta=document.getElementById('qar_'+gid), m=document.getElementById('qarm_'+gid);
-  var v=(ta&&ta.value||'').trim(); if(!v){ if(m) m.textContent='Type a reply first.'; return; }
-  if(m) m.textContent='Sending…';
-  fetch('/api/room/'+encodeURIComponent(RID)+'/qa-reply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:gid,text:v})})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.qa=j.qa||ROOM.qa; renderQA(); toast('Reply sent ✓'); } else { if(m) m.textContent=(j&&j.error)||'Could not send.'; } })
-    .catch(function(){ if(m) m.textContent='Could not reach the server.'; });
-}
 /* ---- Per-file access: override a single document's permission per buyer ---- */
 function openDocAccess(docId){
   var d=((ROOM&&ROOM.docs)||[]).filter(function(x){return x.id===docId;})[0]; if(!d) return;

@@ -3901,32 +3901,9 @@ function roomPublicPage(r, grant, opts) {
       return `<div class="card open"><div class="chd folderhd" onclick="rmToggle(this)"><span class="cav">▸</span>${esc(cat)}<span class="n">${total}</span></div><div class="folderbody">${inner}</div></div>`;
     }).join('');
   }
-  // ---- Buyer Q&A: this buyer's private thread with the broker ----
-  let qaScript = '';
-  if (grant) {
-    const mine = (r.qa || []).filter(q => q.grantId === grant.id);
-    const bubbles = mine.map(m => {
-      const mine2 = m.from === 'buyer';
-      const nm = mine2 ? 'You' : esc(orgDisplayName());
-      const when = esc(fmtWhen(m.at));
-      const align = mine2 ? 'flex-end' : 'flex-start';
-      const bg = mine2 ? '#0b1636' : '#f1f4fb';
-      const fg = mine2 ? '#fff' : '#1a2236';
-      const bd = mine2 ? '#0b1636' : '#e2e8f4';
-      return `<div style="display:flex;justify-content:${align};margin:8px 0"><div style="max-width:82%;background:${bg};color:${fg};border:1px solid ${bd};border-radius:12px;padding:9px 13px"><div style="font-size:11px;font-weight:700;opacity:.7;margin-bottom:3px">${nm} · ${when}</div><div style="font-size:13.5px;line-height:1.5;white-space:pre-wrap">${esc(m.text)}</div></div></div>`;
-    }).join('');
-    const thread = mine.length ? bubbles : `<div class="note" style="border:none;padding:0;margin:0 0 4px;color:var(--muted)">No questions yet. Ask ${esc(orgDisplayName())} anything about this opportunity — only you and ${esc(orgDisplayName())} can see this thread.</div>`;
-    const askBox = _preview
-      ? `<div class="note" style="border:none;padding:8px 0 0;color:#8a5a12">Preview — buyers type a question here and it goes privately to you.</div>`
-      : `<div style="margin-top:12px;display:flex;gap:8px;align-items:flex-end"><textarea id="qatext" rows="2" placeholder="Ask a question about this opportunity…" style="flex:1;padding:9px 11px;border:1px solid #cfd6e2;border-radius:10px;font:inherit;resize:vertical"></textarea><button class="dl" id="qasend" style="border:none;cursor:pointer;white-space:nowrap" onclick="rrgAskQ()">Send →</button></div><div id="qamsg" style="font-size:12px;color:var(--muted);margin-top:6px"></div>`;
-    body += `<div class="card"><div class="chd">Questions for ${esc(orgDisplayName())}</div><div style="padding:14px 20px">${thread}${askBox}</div></div>`;
-    if (!_preview) {
-      qaScript = `<script>function rrgAskQ(){var t=document.getElementById('qatext'),b=document.getElementById('qasend'),m=document.getElementById('qamsg');var v=(t&&t.value||'').trim();if(!v){m.textContent='Type a question first.';return;}b.disabled=true;m.textContent='Sending…';fetch(location.pathname.replace(/\\/+$/,'')+'/qa',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:v})}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok){m.textContent='Sent ✓ — reloading…';setTimeout(function(){location.reload();},700);}else{b.disabled=false;m.textContent=(j&&j.error)||'Could not send.';}}).catch(function(){b.disabled=false;m.textContent='Could not send.';});}<\/script>`;
-    }
-  }
   const script = editCats.length ? `<script>(function(){var fi=document.getElementById('bup');if(!fi)return;fi.addEventListener('change',function(){var f=fi.files&&fi.files[0];var m=document.getElementById('bupmsg');if(!f)return;if(f.size>20*1024*1024){m.textContent='That file is over 20 MB.';fi.value='';return;}m.textContent='Uploading '+f.name+'…';var rd=new FileReader();rd.onload=function(){var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s);var cat=(document.getElementById('bupcat')||{}).value||'';fetch(location.pathname.replace(/\/+$/,'')+'/upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:b64,category:cat})}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok){m.textContent='Added ✓ — reloading…';setTimeout(function(){location.reload();},700);}else{m.textContent=(j&&j.error)||'Upload failed.';fi.value='';}}).catch(function(){m.textContent='Upload failed.';fi.value='';});};rd.readAsDataURL(f);});})();<\/script>` : '';
   const _toggleJs = "<script>function rmToggle(h){var c=h&&h.parentNode;if(c)c.classList.toggle('open');}</script>";
-  return roomShell('RRG Data Room — ' + (r.business || 'Confidential'), { head, body: body + script + qaScript + _toggleJs });
+  return roomShell('RRG Data Room — ' + (r.business || 'Confidential'), { head, body: body + script + _toggleJs });
 }
 
 function roomNotFoundPage() {
