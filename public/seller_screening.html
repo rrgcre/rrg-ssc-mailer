@@ -1232,6 +1232,19 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     b.style.cssText='background:#0b1a3a;color:#fff;font:600 13px/1.3 -apple-system,Segoe UI,Roboto,sans-serif;padding:10px 16px;';
     b.textContent='Editing “'+(s.business||'call')+'”. Save or Submit to update this record in the log.';
     document.body.insertBefore(b, document.body.firstChild);
+    // Open the saved record straight into Call Mode (the call-detail screen the rep uses),
+    // pre-filled — same as launching a live call — instead of the scrollable form. The
+    // "Complete Screening" flow (finish=1) still uses the form so it can flag missing fields.
+    try{ if(window.startCall && !window.__scrAuto && new URLSearchParams(location.search).get('finish')!=='1'){ window.__scrAuto=1;
+      var _at=0; var _rs=function(){ _at++;
+        var _ci=document.getElementById('sscConcept');
+        var _cok=_ci && !_ci.readOnly && _ci.type!=='hidden' && (function(){ var f=_ci.closest('.field'); return !!f && !f.hasAttribute('hidden') && !f.closest('[hidden]'); })();
+        var _q=document.getElementById('sscQ');
+        var _qok=_q && !_q.querySelector('.sscloading') && _q.querySelector('.field, .oset');
+        if((_cok && _qok) || _at>60){ try{ window.startCall(); }catch(e){} } else { setTimeout(_rs,80); }
+      };
+      setTimeout(_rs, 220);
+    } }catch(e){}
     // Opened from "Complete Screening" — highlight the missing required fields,
     // advise the rep, and jump to the first one. (Only required fields are flagged;
     // optional detail fields are never marked.)
