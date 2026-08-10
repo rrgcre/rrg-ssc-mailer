@@ -3286,6 +3286,43 @@ function logRoomAccess(r, req, event, doc, grant) {
     if (r.access.length > 1000) r.access = r.access.slice(-1000);
   } catch (e) {}
 }
+// Document-level engagement analytics for a room, computed from the access log +
+// grants. Buyer-first: which documents each buyer has opened/downloaded, plus a
+// per-document rollup. Events reference the document by name (what logRoomAccess stores).
+function roomAnalytics(r) {
+  const access = (r && r.access) || [];
+  const grants = (r && r.grants) || [];
+  const docs = (r && r.docs) || [];
+  const KEY = /p ?& ?l\b|p and l|profit|financ|tax return|\btax\b|lease|\bsde\b|ebitda|rent roll|balance sheet|revenue/i;
+  const perBuyer = {}, perDoc = {};
+  access.forEach(function (ev) {
+    if (!ev || (ev.event !== 'view' && ev.event !== 'download') || !ev.doc) return;
+    const name = String(ev.doc);
+    const pd = perDoc[name] = perDoc[name] || { name: name, views: 0, downloads: 0, buyers: {}, lastAt: '' };
+    if (ev.event === 'view') pd.views++; else pd.downloads++;
+    if (ev.grantId) pd.buyers[ev.grantId] = true;
+    if ((ev.at || '') > pd.lastAt) pd.lastAt = ev.at || '';
+    if (ev.grantId) {
+      const pb = perBuyer[ev.grantId] = perBuyer[ev.grantId] || { views: 0, downloads: 0, lastAt: '', docs: {} };
+      if (ev.event === 'view') pb.views++; else pb.downloads++;
+      if ((ev.at || '') > pb.lastAt) pb.lastAt = ev.at || '';
+      const bd = pb.docs[name] = pb.docs[name] || { name: name, views: 0, downloads: 0, lastAt: '' };
+      if (ev.event === 'view') bd.views++; else bd.downloads++;
+      if ((ev.at || '') > bd.lastAt) bd.lastAt = ev.at || '';
+    }
+  });
+  const now = Date.now();
+  const buyers = grants.map(function (g) {
+    const pb = perBuyer[g.id] || { views: 0, downloads: 0, lastAt: '', docs: {} };
+    const docList = Object.keys(pb.docs).map(function (k) { return pb.docs[k]; }).sort(function (a, b) { return String(b.lastAt).localeCompare(String(a.lastAt)); });
+    const touchedKey = docList.some(function (d) { return KEY.test(d.name || ''); });
+    const recent = !!pb.lastAt && ((now - Date.parse(pb.lastAt)) < 7 * 864e5);
+    return { id: g.id, name: g.name || g.email || 'Buyer', email: g.email || '', level: g.level || 'download', active: g.active !== false, views: pb.views, downloads: pb.downloads, lastAt: pb.lastAt, docsOpened: docList.length, hot: !!(touchedKey && recent), docs: docList };
+  }).sort(function (a, b) { return String(b.lastAt).localeCompare(String(a.lastAt)); });
+  const documents = Object.keys(perDoc).map(function (k) { const pd = perDoc[k]; return { name: pd.name, views: pd.views, downloads: pd.downloads, uniqueBuyers: Object.keys(pd.buyers).length, lastAt: pd.lastAt, key: KEY.test(pd.name || '') }; }).sort(function (a, b) { return (b.views + b.downloads) - (a.views + a.downloads); });
+  return { buyers: buyers, documents: documents, totals: { buyers: grants.filter(function (g) { return g.active !== false; }).length, docs: docs.length, views: access.filter(function (e) { return e && e.event === 'view' && e.doc; }).length, downloads: access.filter(function (e) { return e && e.event === 'download'; }).length } };
+}
+app.get('/api/room/:id/analytics', (req, res) => { const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id); if (!r) return res.status(404).json({ ok: false, error: 'Room not found.' }); res.json({ ok: true, analytics: roomAnalytics(r) }); });
 // PUBLIC buyer-facing room page — gated by a personal access code once buyers are added.
 app.get('/room/:token', (req, res) => {
   const arr = loadRooms();
