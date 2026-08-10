@@ -1161,7 +1161,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -3498,7 +3498,8 @@ function grantRoomSession(res, r, grant, arr, req) {
   grant.lastSeen = new Date().toISOString(); logRoomAccess(r, req, 'signin', '', grant); saveRooms(arr);
   setRoomCookie(res, signRoomSess({ r: r.id, g: grant.id, exp: Date.now() + ROOM_IDLE_MS }));
   clearRoomMfaCookie(res);
-  res.redirect('/room/' + r.token);
+  // Land on the offering microsite when the room has one (teaser → NDA → microsite → data room); else straight to the docs.
+  res.redirect((r.srcCimId ? '/deal/' : '/room/') + r.token);
 }
 // Buyer enters their access code (factor 1).
 app.post('/room/:token/enter', (req, res) => {
@@ -3868,6 +3869,7 @@ function roomPublicPage(r, grant, opts) {
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${visCount} document${visCount === 1 ? '' : 's'} · Provided by ${esc(orgDisplayName())} under NDA</div>${who}`;
   let body = '';
   if (_preview) body += `<a href="/rrg_room.html?room=${esc(r.id)}" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;background:#20334f;color:#fff;text-decoration:none;font-weight:600;font-size:11.5px;padding:6px 12px;border-radius:3px">← Back to your data room</a><div id="rrgPrevBar" style="margin-bottom:12px;display:flex;align-items:center;gap:10px;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:4px;padding:7px 11px;font-size:11.5px;font-weight:600"><span style="flex:1">Preview — this is exactly what an NDA'd buyer sees. They do not see this bar.</span><a href="#" onclick="var b=document.getElementById('rrgPrevBar');if(b)b.style.display='none';return false;" title="Dismiss this notice" style="flex:none;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #e2cfa0;border-radius:3px;color:#8a5a12;text-decoration:none;font-weight:700;font-size:14px;line-height:1;background:#fff">×</a></div>`;
+  if (r.srcCimId) body += `<a href="/deal/${esc(r.token)}" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;background:#fff;color:#20334f;border:1px solid #c4ccda;text-decoration:none;font-weight:600;font-size:11.5px;padding:6px 12px;border-radius:3px">← Offering overview</a>`;
   body += `<div class="note conf"><span class="lock"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><div><b>Confidential — provided under NDA.</b> These materials are shared solely so you can evaluate a potential acquisition of ${esc(r.business || 'this business')}. Do not copy, forward, screenshot, print, or distribute them, and do not share this link. All inquiries route exclusively through ${esc(orgDisplayName())}.</div></div>`;
   if (editCats.length) {
     body += `<div class="card"><div class="chd">Add a document</div><div style="padding:14px 20px">` +
@@ -3906,6 +3908,102 @@ function roomPublicPage(r, grant, opts) {
   return roomShell('RRG Data Room — ' + (r.business || 'Confidential'), { head, body: body + script + _toggleJs });
 }
 
+// ---- Deal microsite: the CIM rendered as a gated, buyer-facing web page. Served
+// behind the same access code as the data room; "Enter data room" links across. ----
+function micrositePage(r, cim, opts) {
+  opts = opts || {};
+  const s = (cim && cim.state) || null;
+  const org = esc(orgDisplayName());
+  const roomUrl = '/room/' + esc(r.token);
+  const cover = (s && s.cover) || {};
+  const title = esc((cover.title) || r.business || 'Confidential Opportunity');
+  const E = (x) => esc(String(x == null ? '' : x));
+  const P = (x) => E(x).replace(/\n+/g, '<br>');
+  // Reusable section pieces
+  const chips = Array.isArray(cover.stats) && cover.stats.length
+    ? `<div class="chips">${cover.stats.slice(0, 5).map(st => `<div class="chip"><div class="k">${E(st.k)}</div><div class="v">${E(st.v)}</div></div>`).join('')}</div>` : '';
+  const ex = (s && s.execSummary) || {};
+  const oppQuote = ex.quote ? `<div class="pull">“${E(ex.quote)}”${ex.quoteBy ? `<div style="font-size:12px;font-weight:600;color:var(--muted);margin-top:8px">${E(ex.quoteBy)}</div>` : ''}</div>` : '';
+  const opp = (ex.para1 || ex.para2 || ex.quote) ? `<section><div class="mx sec-in"><div class="eyebrow">The opportunity</div><h2>Why this opportunity</h2>${ex.para1 ? `<p class="lead">${P(ex.para1)}</p>` : ''}${oppQuote}${ex.para2 ? `<p class="lead">${P(ex.para2)}</p>` : ''}</div></section>` : '';
+  const hls = Array.isArray(ex.highlights) && ex.highlights.length
+    ? `<section><div class="mx sec-in"><div class="eyebrow">Why it stands out</div><h2>Investment highlights</h2><div class="hl">${ex.highlights.slice(0, 6).map((h, i) => `<div class="hlc"><div class="no">${String(i + 1).padStart(2, '0')}</div><h3>${E(h.title)}</h3><p>${E(h.body)}</p></div>`).join('')}</div></div></section>` : '';
+  const story = (s && s.story) || {};
+  const storySec = (Array.isArray(story.paras) && story.paras.length) ? `<section><div class="mx sec-in"><div class="eyebrow">The story</div><h2>Background &amp; positioning</h2>${(story.paras[0] ? `<p class="lead">${P(story.paras[0])}</p>` : '')}${(story.calloutTitle || story.calloutBody) ? `<div class="pull">${story.calloutTitle ? `<b>${E(story.calloutTitle)}</b> ` : ''}${E(story.calloutBody)}</div>` : ''}${story.paras.slice(1).map(p => `<p class="lead">${P(p)}</p>`).join('')}</div></section>` : '';
+  const mkt = (s && s.market) || {};
+  const mktSec = (mkt.para1 || (Array.isArray(mkt.cards) && mkt.cards.length)) ? `<section><div class="mx sec-in"><div class="eyebrow">The market</div><h2>Market &amp; trade areas</h2>${mkt.para1 ? `<p class="lead">${P(mkt.para1)}</p>` : ''}${mkt.para2 ? `<p class="lead">${P(mkt.para2)}</p>` : ''}${(Array.isArray(mkt.cards) && mkt.cards.length) ? `<div class="mkt">${mkt.cards.slice(0, 4).map(c => `<div class="mc"><div class="k">${E(c.title)}</div><div class="s">${E(c.body)}</div></div>`).join('')}</div>` : ''}</div></section>` : '';
+  const fin = (s && s.financial) || {};
+  const finSec = (fin.intro || fin.revenueNote || fin.bridgeNote) ? `<section><div class="mx sec-in"><div class="eyebrow">The numbers</div><h2>Financial overview</h2>${fin.intro ? `<p class="lead">${P(fin.intro)}</p>` : ''}${fin.revenueNote ? `<p class="lead">${P(fin.revenueNote)}</p>` : ''}${fin.bridgeNote ? `<p class="lead">${P(fin.bridgeNote)}</p>` : ''}<div class="conf-inline"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span><b>Confidential.</b> Full financials, tax returns, and the working model are in the data room, under NDA.</span></div></div></section>` : '';
+  const val = (s && s.value) || {};
+  const valSec = (Array.isArray(val.cards) && val.cards.length) ? `<section><div class="mx sec-in"><div class="eyebrow">The upside</div><h2>Value-creation levers</h2>${val.intro ? `<p class="lead">${P(val.intro)}</p>` : ''}<div class="hl">${val.cards.slice(0, 6).map(c => `<div class="hlc"><h3>${E(c.title)}</h3><p>${E(c.body)}</p></div>`).join('')}</div></div></section>` : '';
+  const mediaSec = `<section><div class="mx sec-in"><div class="eyebrow">See it</div><h2>Location &amp; walkthrough</h2><div class="media"><div class="vid"><div class="play"></div><span class="vlbl">Location &amp; exterior walkthrough</span></div><div class="img"><span class="il">Exterior · signage</span></div><div class="img"><span class="il">Trade area</span></div><div class="img"><span class="il">Frontage</span></div><div class="img"><span class="il">Patio</span></div></div><div class="conf-inline"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Identifying interior media and the exact address are released inside the data room to NDA'd buyers only.</span></div></div></section>`;
+  const noCim = !s ? `<section><div class="mx sec-in"><p class="lead">The full confidential offering for this opportunity — financials, lease, licenses, and the seller interview — is available in the data room. Enter below to review the materials.</p></div></section>` : '';
+  const previewBar = opts.preview ? `<div class="mx" style="padding-top:12px"><div style="display:flex;align-items:center;gap:10px;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:4px;padding:7px 11px;font-size:11.5px;font-weight:600"><span style="flex:1">Preview — this is the offering microsite a buyer sees after entering their code.</span><a href="/rrg_room.html?room=${esc(r.id)}" style="color:#20334f;font-weight:700">← Back to your data room</a></div></div>` : '';
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${title} — ${org}</title><style>
+:root{--navy:#000E31;--slate:#20334f;--primary:#2c5c8f;--primary-d:#23496f;--red:#b23a2c;--ink:#2b3648;--muted:#69748a;--soft:#96a1b2;--line:#dbe0e9;--wash:#f4f6f9;--inp:#c4ccda;--gold:#b5791f;--green:#2f7a55;}
+*{box-sizing:border-box;margin:0;padding:0;} body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#fff;font-size:13px;line-height:1.55;-webkit-font-smoothing:antialiased;} a{color:inherit;text-decoration:none;}
+.mx{max-width:1000px;margin:0 auto;padding:0 26px;}
+.bar{position:sticky;top:0;z-index:20;background:var(--navy);border-bottom:2px solid var(--primary);color:#fff;} .bar .mx{display:flex;align-items:center;gap:13px;height:52px;}
+.disc{width:30px;height:30px;border-radius:3px;background:var(--red);color:#fff;font:900 11px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bwm{font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.03em;color:#cdd6e4;line-height:1.05;}
+.conf-badge{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#ffd7d2;background:rgba(178,58,44,.28);border:1px solid rgba(178,58,44,.55);border-radius:3px;padding:3px 9px;}
+.bar .cta{margin-left:auto;background:var(--primary);color:#fff;font-size:12px;font-weight:700;padding:8px 15px;border-radius:3px;}
+.hero{background:linear-gradient(135deg,#12224a 0%,#000E31 70%);color:#fff;position:relative;overflow:hidden;} .hero:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.03) 0 14px,transparent 14px 28px);} .hero .mx{position:relative;z-index:2;padding:38px 26px 34px;}
+.kick{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.16em;color:#8fa2be;margin-bottom:11px;}
+.hero h1{font-size:29px;font-weight:800;letter-spacing:-.01em;line-height:1.12;max-width:20ch;} .hero .pos{font-size:15px;color:#c6d0e6;margin-top:11px;max-width:64ch;} .hero .fnd{font-size:12px;color:#9fabc4;margin-top:8px;}
+.chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:22px;} .chip{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);border-radius:4px;padding:9px 14px;} .chip .k{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#9fabc4;} .chip .v{font-size:17px;font-weight:800;color:#fff;margin-top:3px;line-height:1;}
+section{border-bottom:1px solid var(--line);} .sec-in{padding:34px 0;}
+.eyebrow{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--red);margin-bottom:9px;}
+h2{font-size:20px;font-weight:800;color:var(--slate);letter-spacing:-.01em;}
+.lead{font-size:13.5px;color:var(--muted);margin-top:11px;max-width:70ch;line-height:1.7;}
+.pull{border-left:3px solid var(--primary);background:var(--wash);border-radius:0 4px 4px 0;padding:16px 20px;margin:18px 0;font-size:15px;font-weight:600;color:var(--slate);line-height:1.5;}
+.hl{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-top:22px;} @media(max-width:800px){.hl{grid-template-columns:1fr 1fr;}} @media(max-width:560px){.hl{grid-template-columns:1fr;}.hero h1{font-size:23px;}}
+.hlc{border:1px solid var(--line);border-radius:4px;padding:16px;} .hlc .no{font-size:11px;font-weight:800;color:var(--primary);letter-spacing:.05em;} .hlc h3{font-size:14px;font-weight:700;color:var(--slate);margin:7px 0 6px;} .hlc p{font-size:12.5px;color:var(--muted);line-height:1.6;}
+.mkt{display:grid;grid-template-columns:repeat(4,1fr);gap:13px;margin-top:22px;} @media(max-width:800px){.mkt{grid-template-columns:1fr 1fr;}}
+.mc{border:1px solid var(--line);border-radius:4px;padding:16px;} .mc .k{font-size:13px;font-weight:700;color:var(--slate);} .mc .s{font-size:12px;color:var(--muted);margin-top:6px;line-height:1.5;}
+.media{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:11px;margin-top:22px;} @media(max-width:700px){.media{grid-template-columns:1fr 1fr;}}
+.vid{grid-row:span 2;position:relative;background:linear-gradient(135deg,#274067,#0c1c3c);border-radius:4px;min-height:200px;display:flex;align-items:center;justify-content:center;overflow:hidden;} .vid:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.03) 0 12px,transparent 12px 24px);}
+.play{position:relative;z-index:2;width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;} .play:before{content:"";border-left:15px solid #fff;border-top:9px solid transparent;border-bottom:9px solid transparent;margin-left:4px;}
+.vlbl{position:absolute;left:13px;bottom:11px;z-index:2;color:#fff;font-size:12px;font-weight:600;}
+.img{background:linear-gradient(135deg,#3a4a63,#20334f);border-radius:4px;min-height:94px;position:relative;} .img .il{position:absolute;left:10px;bottom:8px;color:#dfe4ec;font-size:10.5px;font-weight:600;z-index:2;} .img:after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(255,255,255,.04) 0 10px,transparent 10px 20px);border-radius:4px;}
+.conf-inline{display:flex;align-items:center;gap:9px;background:#faf5f4;border:1px solid #e0cdc9;border-left:3px solid var(--red);border-radius:4px;padding:11px 14px;margin-top:18px;font-size:12px;color:#463a37;} .conf-inline svg{width:15px;height:15px;stroke:var(--red);fill:none;stroke-width:2;flex:none;} .conf-inline b{color:var(--red);}
+.dr{background:var(--navy);color:#fff;border-bottom:none;} .dr .sec-in{padding:40px 0;text-align:center;} .dr h2{color:#fff;} .dr p{color:#c6d0e6;font-size:14px;margin:11px auto 20px;max-width:56ch;} .dr .btn{display:inline-block;background:var(--primary);color:#fff;font-size:14px;font-weight:700;padding:12px 26px;border-radius:3px;} .dr .sub{color:#8fa2be;font-size:11.5px;margin-top:13px;}
+.foot{padding:20px 0 38px;color:var(--soft);font-size:11px;line-height:1.6;}
+</style></head><body>
+<div class="bar"><div class="mx"><span class="disc">RRG</span><span class="bwm">${org}</span><span class="conf-badge">🔒 Confidential — NDA</span><a class="cta" href="${roomUrl}">Enter data room →</a></div></div>
+${previewBar}
+<div class="hero"><div class="mx"><div class="kick">Confidential Acquisition Opportunity</div><h1>${title}</h1>${cover.tagline ? `<div class="pos">${E(cover.tagline)}</div>` : (r.business ? '' : '')}${cover.foundingLine ? `<div class="fnd">${E(cover.foundingLine)}</div>` : ''}${chips}</div></div>
+${opp}${hls}${storySec}${mktSec}${finSec}${valSec}${mediaSec}${noCim}
+<section class="dr"><div class="mx sec-in"><div class="eyebrow" style="color:#8fa2be">Next step</div><h2>Enter the data room</h2><p>Financials, tax returns, leases, licenses, the equipment list, and the seller interview are waiting behind your access code — organized, tracked, and confidential.</p><a class="btn" href="${roomUrl}">Enter the data room →</a><div class="sub">Access provided under NDA to a qualified, identified party. Your activity is logged.</div></div></section>
+<div class="mx foot">Confidential &amp; proprietary — marketed by ${esc(orgLegalName())}. Provided under a non-disclosure agreement to a qualified, identified party for the sole purpose of evaluating a potential acquisition. Do not copy, forward, or distribute.</div>
+</body></html>`;
+  return html;
+}
+// Buyer-facing deal microsite — gated by the same access code as the data room.
+app.get('/deal/:token', (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.token === req.params.token);
+  if (!r) return res.status(404).set('Content-Type', 'text/html').send(roomNotFoundPage());
+  if (r.closed) return res.status(410).set('Content-Type', 'text/html; charset=utf-8').send(roomClosedPage(r));
+  const cimFor = () => { try { return r.srcCimId ? (loadCims().find(c => c.id === r.srcCimId) || null) : null; } catch (e) { return null; } };
+  if (roomIsGated(r)) {
+    const grant = roomGrantFor(req, r);
+    if (!grant) {
+      if (req.query.preview === '1' && ownsRoomSess(auth.readSession(parseCookies(req)[COOKIE]), r)) {
+        return res.set('Content-Type', 'text/html; charset=utf-8').send(micrositePage(r, cimFor(), { preview: true }));
+      }
+      const pend = readMfaPending(req, r);
+      const pg = pend && (r.grants || []).find(g => g.id === pend.g && g.active);
+      if (pg) return res.set('Content-Type', 'text/html; charset=utf-8').send(roomOtpPage(r, pg, ''));
+      return res.set('Content-Type', 'text/html; charset=utf-8').send(roomGatePage(r, ''));
+    }
+    grant.lastSeen = new Date().toISOString();
+    setRoomCookie(res, signRoomSess({ r: r.id, g: grant.id, exp: Date.now() + ROOM_IDLE_MS }));
+    logRoomAccess(r, req, 'view', 'Offering microsite', grant); saveRooms(arr);
+    return res.set('Content-Type', 'text/html; charset=utf-8').send(micrositePage(r, cimFor(), {}));
+  }
+  logRoomAccess(r, req, 'view', 'Offering microsite', null); saveRooms(arr);
+  res.set('Content-Type', 'text/html; charset=utf-8').send(micrositePage(r, cimFor(), {}));
+});
 function roomNotFoundPage() {
   return roomShell('RRG Data Room', { head: '<div class="kick">Data Room</div><h1>Link not found</h1><div class="sub">This data room link is invalid or has been retired.</div>', body: '<div class="note">The link you followed is no longer active. Please contact your RRG representative for an updated link.</div>' });
 }
