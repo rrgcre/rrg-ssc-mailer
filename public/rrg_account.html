@@ -48,9 +48,8 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
 .sigbox img{max-width:240px;max-height:100px;height:auto;}
 .sighint{font-size:11px;color:#9aa3b5;margin-top:5px;text-align:right;}
 .uphoto{display:flex;align-items:center;gap:16px;margin:2px 0 18px;}
-.uphoto-av{width:76px;height:76px;border-radius:50%;background:#eef1f6;border:1px solid var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center;flex:0 0 auto;background-size:cover;background-position:center;}
-.uphoto-av span{font-size:28px;color:#aab3c2;font-weight:300;line-height:1;}
-.upclear{background:none;border:none;color:var(--red);font-weight:600;cursor:pointer;font-size:12px;margin-left:6px;}
+.uphoto-av{cursor:pointer;width:76px;height:76px;border-radius:50%;background:#eef1f6;border:1px solid var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.uphoto-av img{width:100%;height:100%;object-fit:cover;display:block;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -69,8 +68,9 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
     <h2>Contact info</h2>
     <div class="desc">This is the "prepared by" line that appears on your BOVs and CIMs.</div>
     <div class="uphoto">
-      <div class="uphoto-av" id="uav"><span id="uavph">＋</span></div>
-      <div><button type="button" class="save" id="upbtn" onclick="document.getElementById('uphinput').click()">Upload headshot</button><button type="button" class="upclear" id="uprm" onclick="clearHeadshot()" style="display:none">Remove</button><input type="file" id="uphinput" accept="image/*" hidden onchange="uploadHeadshot(this)"><div class="desc" style="margin-top:6px">A square photo works best. Shows on your profile and reports.</div></div>
+      <div class="uphoto-av" id="uav" title="Click to upload a photo"></div>
+      <input type="file" id="uphinput" accept="image/*" hidden>
+      <div class="desc" style="margin:0">Click the circle to add a headshot — click it again to remove. A square photo works best; it shows on your profile and reports.</div>
     </div>
     <label class="fl">Full name</label>
     <input class="f" id="name" autocomplete="name" placeholder="e.g. Van Rinn">
@@ -140,9 +140,12 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
 <script>
 var API=(String(location.protocol).indexOf('http')===0?location.origin:'');
 function $(id){return document.getElementById(id);}
-function setHeadshot(url){ var av=$("uav"); if(!av) return; var ph=$("uavph"); if(url){ av.style.backgroundImage="url("+url+")"; if(ph) ph.style.display="none"; var rm=$("uprm"); if(rm) rm.style.display=""; } else { av.style.backgroundImage=""; if(ph) ph.style.display=""; var rm2=$("uprm"); if(rm2) rm2.style.display="none"; } }
-function uploadHeadshot(inp){ var file=inp.files&&inp.files[0]; if(!file) return; if(file.size>6*1024*1024){ setMsg("pmsg","err","Image too large (max 6 MB)."); return; } var rd=new FileReader(); rd.onload=function(){ fetch(API+"/api/me/photo",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({dataB64:rd.result,filename:file.name})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ setHeadshot(j.photoUrl); setMsg("pmsg","ok","Headshot updated ✓"); } else setMsg("pmsg","err",(j&&j.error)||"Upload failed."); }).catch(function(){ setMsg("pmsg","err","Could not reach the server."); }); }; rd.readAsDataURL(file); inp.value=""; }
+var HEADSHOT_PH='<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#8a93a8" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>';
+var HAS_HEADSHOT=false;
+function setHeadshot(url){ var av=$("uav"); if(!av) return; if(url){ av.innerHTML='<img src="'+esc(url)+'" alt="">'; av.title="Click to remove your photo"; HAS_HEADSHOT=true; } else { av.innerHTML=HEADSHOT_PH; av.title="Click to upload a photo"; HAS_HEADSHOT=false; } }
+function uploadHeadshot(file){ if(!file) return; if(file.size>6*1024*1024){ setMsg("pmsg","err","Image too large (max 6 MB)."); return; } var rd=new FileReader(); rd.onload=function(){ fetch(API+"/api/me/photo",{method:"POST",headers:{"Content-Type":"application/json"},credentials:"same-origin",body:JSON.stringify({dataB64:rd.result,filename:file.name})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ setHeadshot(j.photoUrl); setMsg("pmsg","ok","Headshot updated ✓"); } else setMsg("pmsg","err",(j&&j.error)||"Upload failed."); }).catch(function(){ setMsg("pmsg","err","Could not reach the server."); }); }; rd.readAsDataURL(file); }
 function clearHeadshot(){ fetch(API+"/api/me/photo/clear",{method:"POST",credentials:"same-origin"}).then(function(r){return r.json();}).then(function(){ setHeadshot(""); setMsg("pmsg","ok","Headshot removed."); }).catch(function(){}); }
+(function(){ var av=$("uav"), inp=$("uphinput"); setHeadshot(""); if(av) av.addEventListener("click",async function(){ if(HAS_HEADSHOT){ if(await rrgConfirm("Remove this photo?")) clearHeadshot(); } else if(inp){ inp.click(); } }); if(inp) inp.addEventListener("change",function(){ if(inp.files&&inp.files[0]) uploadHeadshot(inp.files[0]); inp.value=""; }); })();
 
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
 function preview(){
