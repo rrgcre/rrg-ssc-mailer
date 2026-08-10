@@ -293,12 +293,12 @@
     + '<div class="acts"><div class="createwrap">'
       + '<button class="create" id="rrgCreateBtn" type="button" aria-haspopup="true" aria-expanded="false"><span class="cplus">+</span> Create New</button>'
       + '<div class="createmenu" id="rrgCreateMenu" hidden>'
-        + '<a href="rrg_people.html?new=1"><span class="cmi">◑</span> New contact</a>'
-        + '<a href="rrg_companies.html?new=1"><span class="cmi">▦</span> New company</a>'
-        + '<a href="rrg_tasks.html?new=1"><span class="cmi">✔</span> New task</a>'
+        + '<a href="rrg_people.html?new=1"><span class="cmi">◑</span> Contact</a>'
+        + '<a href="rrg_companies.html?new=1"><span class="cmi">▦</span> Company</a>'
+        + '<a href="rrg_tasks.html?new=1"><span class="cmi">✔</span> Task</a>'
         + '<div class="cmsep"></div>'
-        + '<a href="rrg_agreements.html?new=1"><span class="cmi">⚖</span> New agreement</a>'
-        + '<a href="rrg_rooms_queue.html?new=1"><span class="cmi">▤</span> New data room</a>'
+        + '<a href="rrg_agreements.html?new=1"><span class="cmi">⚖</span> Agreement</a>'
+        + '<a href="rrg_rooms_queue.html?new=1"><span class="cmi">▤</span> Data Room</a>'
       + '</div>'
     + '</div><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><div class="uav" id="rrguav">·</div></div>';
 
