@@ -3078,7 +3078,9 @@ app.get('/api/rooms', (req, res) => {
   const isAdmin = req.user && isSuper(req.user);
   const list = loadRooms().slice().reverse().filter(r => isAdmin || ownsRoom(req, r));
   const origin = req.protocol + '://' + req.get('host');
-  res.json({ ok: true, isAdmin: !!isAdmin, rooms: list.map(r => roomPublic(r, origin)) });
+  res.json({ ok: true, isAdmin: !!isAdmin, rooms: list.map(r => roomPublic(r, origin)),
+    users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))),
+    me: { username: (req.user && req.user.username) || '', name: (req.user && req.user.name) || '' } });
 });
 app.get('/api/room/:id', (req, res) => {
   const _rooms = loadRooms(); const r = _rooms.find(x => x.id === req.params.id);
@@ -3257,11 +3259,31 @@ app.post('/api/room/:id/qa-reply', express.json({ limit: '32kb' }), (req, res) =
 // Create a standalone data room (not tied to a Marketing Pack).
 app.post('/api/room/new', express.json(), (req, res) => {
   const b = req.body || {};
+  // Originating contact — link to an existing contact, or create one from a typed name.
+  let personId = String(b.personId || '').trim();
+  let companyId = '';
+  if (personId) {
+    try { const p = loadPeople().find(x => x.id === personId); if (p) { companyId = p.companyId || ''; } else personId = ''; } catch (e) { personId = ''; }
+  }
+  if (!personId && String(b.personName || '').trim()) {
+    try { const p = findOrCreatePerson(req, { name: b.personName, type: 'Seller' }); if (p) { personId = p.id; companyId = p.companyId || ''; } } catch (e) {}
+  }
+  // Rep — default to the current user; allow assigning a teammate.
+  let byUser = (req.user && req.user.username) || '';
+  let by = (req.user && req.user.name) || '';
+  if (String(b.byUser || '').trim()) {
+    try { const u = auth.loadUsers().find(x => x.username === String(b.byUser).trim() && !x.disabled); if (u) { byUser = u.username; by = u.name || u.username; } } catch (e) {}
+  }
+  // Originating date — default now; accept a YYYY-MM-DD date.
+  let createdAt = new Date().toISOString();
+  const d = String(b.date || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(d)) { const dt = new Date(d + 'T12:00:00'); if (!isNaN(dt.getTime())) createdAt = dt.toISOString(); }
   const rec = {
-    id: newRoomId(), srcCimId: '', srcBovId: '', token: newRoomToken(),
+    id: newRoomId(), srcCimId: '', srcBovId: '', srcDealId: '', token: newRoomToken(),
     business: String(b.business || 'Data Room').slice(0, 120),
-    by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
-    createdAt: new Date().toISOString(), folders: roomCategories(), docs: [], access: [], grants: [],
+    personId: personId || '', companyId: companyId || '',
+    by: by, byUser: byUser,
+    createdAt: createdAt, folders: roomCategories(), docs: [], access: [], grants: [],
   };
   const arr = loadRooms(); arr.push(rec); saveRooms(arr);
   res.json({ ok: true, id: rec.id });
@@ -5978,7 +6000,7 @@ app.post('/api/seller-link', express.json(), (req, res) => {
     if (!rec) {
       rec = { token: newRoomToken(), kind: kind, personId, companyId, business: String(b.business || '').slice(0, 160), createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', form: null, videoCount: 0 };
       all.push(rec); saveSellerLinks(all);
-    } else { let ch = false; if (!rec.kind) { rec.kind = kind; ch = true; } if (b.business && !rec.business) { rec.business = String(b.business).slice(0, 160); ch = true; } if (ch) saveSellerLinks(all); }
+    } else { let ch = false; if (!rec.kind) { rec.kind = kind; ch = true; } const nb = String(b.business || '').slice(0, 160); if (nb && rec.business !== nb) { rec.business = nb; ch = true; } if (ch) saveSellerLinks(all); }
     const origin = req.protocol + '://' + req.get('host');
     // Recordings captured through THIS kind's link, so the send panel can show results.
     let recordings = [];

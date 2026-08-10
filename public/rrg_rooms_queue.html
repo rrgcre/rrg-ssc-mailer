@@ -46,29 +46,101 @@ tr:hover td{background:#fbfcfe;}
   <span class="brand" onclick="location.href='./index.html'" title="Back to dashboard"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Data Rooms</div>
   <h1>Data Rooms</h1>
-  <div class="sub">A confidential, per-deal document room with a shareable buyer link. A room is created the moment you open one from a Marketing Pack. Admins see the whole team; reps see their own.</div>
+  <div class="sub">A confidential, per-deal document room with a shareable buyer link. Start a blank room with <b>+ New data room</b>, or one is created automatically when you open a Marketing Pack. Admins see the whole team; reps see their own.</div>
 </div></div>
 <div class="wrap">
   <div class="card">
-    <div class="hd"><b>Data Rooms</b><span class="cnt" id="cnt"></span><label id="hideArchWrap" style="display:none;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap"><input type="checkbox" id="hideArch" checked style="cursor:pointer;margin:0"> Hide archived <span id="archCnt" style="display:none;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:99px;padding:1px 7px;font-size:11px;font-weight:700"></span></label></div>
+    <div class="hd"><b>Data Rooms</b><span class="cnt" id="cnt"></span><button id="newRoomBtn" onclick="newRoom()" style="margin-left:auto;background:var(--navy,#000E31);color:#fff;border:1px solid var(--navy,#000E31);border-radius:3px;padding:8px 15px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">+ New data room</button><label id="hideArchWrap" style="display:none;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap"><input type="checkbox" id="hideArch" checked style="cursor:pointer;margin:0"> Hide archived <span id="archCnt" style="display:none;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:99px;padding:1px 7px;font-size:11px;font-weight:700"></span></label></div>
     <div id="body"></div>
   </div>
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
+<style>
+.rmodal{position:fixed;inset:0;background:rgba(6,14,32,.5);display:flex;align-items:flex-start;justify-content:center;z-index:400;padding:44px 18px;overflow:auto;}
+.rmodal[hidden]{display:none;}
+.rmodalcard{background:#fff;border:1px solid var(--line);border-radius:6px;width:100%;max-width:460px;box-shadow:0 18px 44px rgba(0,0,0,.24);}
+.rmhd{display:flex;align-items:center;justify-content:space-between;padding:15px 18px;border-bottom:1px solid var(--line);}
+.rmhd b{font-size:15px;color:var(--navy);font-weight:700;}
+.rmx{background:none;border:none;font-size:22px;line-height:1;color:#8a93a8;cursor:pointer;padding:0 4px;}
+.rmbd{padding:16px 18px;}
+.rfld{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin:12px 0 5px;}
+.rmbd .rfld:first-child{margin-top:0;}
+.rmbd input,.rmbd select{width:100%;border:1px solid #c4ccda;border-radius:4px;padding:9px 11px;font:inherit;font-size:14px;color:var(--ink);background:#fff;}
+.rrow2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.rmsg{font-size:12.5px;color:var(--red);margin-top:10px;min-height:15px;}
+.rmft{display:flex;gap:9px;align-items:center;padding:14px 18px;border-top:1px solid var(--line);}
+.rcreate{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:9px 16px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.rcreate:disabled{opacity:.55;cursor:default;}
+.rcancel{background:#fff;color:var(--muted);border:1px solid #c4ccda;border-radius:3px;padding:9px 14px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+</style>
+<div class="rmodal" id="newRoomModal" hidden>
+  <div class="rmodalcard">
+    <div class="rmhd"><b>New data room</b><button class="rmx" type="button" onclick="closeNewRoom()" aria-label="Close">×</button></div>
+    <div class="rmbd">
+      <label class="rfld">Dataroom name</label>
+      <input id="nr_name" placeholder="e.g. Magnolia Pancake Haus">
+      <label class="rfld">Originating contact <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)">— the seller / owner (optional)</span></label>
+      <input id="nr_contact" list="nr_contacts" autocomplete="off" placeholder="Type a contact name…">
+      <datalist id="nr_contacts"></datalist>
+      <div class="rrow2">
+        <div><label class="rfld">Rep</label><select id="nr_rep"></select></div>
+        <div><label class="rfld">Date</label><input type="date" id="nr_date"></div>
+      </div>
+      <div class="rmsg" id="nr_msg"></div>
+    </div>
+    <div class="rmft"><button class="rcreate" type="button" id="nr_create" onclick="createRoomSubmit()">Create data room</button><button class="rcancel" type="button" onclick="closeNewRoom()">Cancel</button></div>
+  </div>
+</div>
 <div class="toast" id="toast">Link copied ✓</div>
 <script src="/rrg_list.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
-var CTL=null, LINKS={};
+var CTL=null, LINKS={}, USERS=[], ME=null, CONTACTS=[], CONTACTS_LOADED=false;
 function toast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); },1400); }
 function copyLink(id){ var url=LINKS[id]||''; if(!url) return; function ok(){ toast('Buyer link copied ✓'); } if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(ok).catch(function(){ prompt('Copy the buyer link:', url); }); } else { prompt('Copy the buyer link:', url); } }
 function buyerView(id){ var url=LINKS[id]||''; if(!url){ url='./rrg_room.html?room='+encodeURIComponent(id); window.open(url,'_blank','noopener'); return; } url += (url.indexOf('?')>=0?'&':'?')+'preview=1'; window.open(url,'_blank','noopener'); }
+function newRoom(){
+  var m=document.getElementById('newRoomModal'); if(!m) return;
+  document.getElementById('nr_name').value='';
+  document.getElementById('nr_contact').value='';
+  var rep=document.getElementById('nr_rep');
+  rep.innerHTML=(USERS||[]).map(function(u){ return '<option value="'+esc(u.username)+'">'+esc(u.name)+'</option>'; }).join('');
+  if(ME&&ME.username){ rep.value=ME.username; }
+  document.getElementById('nr_date').value=(new Date()).toISOString().slice(0,10);
+  var msg=document.getElementById('nr_msg'); msg.textContent=''; msg.style.color='';
+  var b=document.getElementById('nr_create'); b.disabled=false; b.textContent='Create data room';
+  loadContactsOnce();
+  m.removeAttribute('hidden');
+  setTimeout(function(){ try{ document.getElementById('nr_name').focus(); }catch(e){} },30);
+}
+function closeNewRoom(){ var m=document.getElementById('newRoomModal'); if(m) m.setAttribute('hidden',''); }
+function loadContactsOnce(){
+  if(CONTACTS_LOADED) return; CONTACTS_LOADED=true;
+  fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    CONTACTS=(j&&j.people)||[]; var dl=document.getElementById('nr_contacts');
+    if(dl) dl.innerHTML=CONTACTS.map(function(p){ return '<option value="'+esc(p.name)+'"></option>'; }).join('');
+  }).catch(function(){ CONTACTS_LOADED=false; });
+}
+function createRoomSubmit(){
+  var msg=document.getElementById('nr_msg'); msg.style.color='';
+  var name=document.getElementById('nr_name').value.trim();
+  if(!name){ msg.textContent='Give the data room a name.'; return; }
+  var cname=document.getElementById('nr_contact').value.trim();
+  var pid=''; if(cname){ var hit=CONTACTS.filter(function(p){ return String(p.name||'').trim().toLowerCase()===cname.toLowerCase(); })[0]; if(hit) pid=hit.id; }
+  var body={ business:name, personId:pid, personName:(pid?'':cname), byUser:(document.getElementById('nr_rep').value||''), date:(document.getElementById('nr_date').value||'') };
+  var btn=document.getElementById('nr_create'); btn.disabled=true; btn.textContent='Creating…'; msg.textContent='';
+  fetch('/api/room/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok&&j.id){ location.href='./rrg_room.html?room='+encodeURIComponent(j.id); }
+      else { btn.disabled=false; btn.textContent='Create data room'; msg.textContent=(j&&j.error)||'Could not create the data room.'; }
+    }).catch(function(){ btn.disabled=false; btn.textContent='Create data room'; msg.textContent='Could not reach the server.'; });
+}
 function renderList(list){
   (list||[]).forEach(function(r){ LINKS[r.id]=r.link; });
   var cfg={
     mount:'#body', data:list, key:'rooms_v2', countEl:'#cnt',
-    empty:'<div class="empty"><b>No data rooms yet.</b>Open one from a built Marketing Pack to create the deal’s room.<br><a class="act open" style="display:inline-block;margin-top:16px;padding:10px 18px" href="./rrg_cim_queue.html">Go to Marketing Packs →</a></div>',
+    empty:'<div class="empty"><b>No data rooms yet.</b>Start a blank room here, or open one from a built Marketing Pack.<br><button onclick="newRoom()" style="display:inline-block;margin-top:16px;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:10px 18px;font:inherit;font-size:13px;font-weight:600;cursor:pointer">+ New data room</button> <a class="act open" style="display:inline-block;margin-top:16px;padding:10px 18px" href="./rrg_cim_queue.html">Marketing Packs →</a></div>',
     rowId:function(c){ return c.id; }, defaultSort:0, defaultDir:1,
     columns:[
       { label:'Dataroom Name', key:'name', sort:function(a,b){ return RRGList.cmp(a.business,b.business); },
@@ -102,7 +174,7 @@ function applyFilter(){
 }
 function load(){
   fetch('/api/rooms',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    ALL_ROOMS=(j&&j.rooms)||[]; applyFilter();
+    ALL_ROOMS=(j&&j.rooms)||[]; USERS=(j&&j.users)||[]; ME=(j&&j.me)||null; applyFilter();
   }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load data rooms.</div>'; });
 }
 document.addEventListener('change',function(e){ if(e.target&&e.target.id==='hideArch') applyFilter(); });

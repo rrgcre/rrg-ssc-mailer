@@ -16,11 +16,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 h1{font-size:25px;font-weight:800;margin:0;color:#fff;}
 .sub{color:#aeb8cf;font-size:13px;margin-top:7px;line-height:1.5;}
 .wrap{max-width:720px;margin:20px auto;padding:0 22px 70px;}
-.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);padding:22px;margin-bottom:14px;}
-.note{background:#f0f5ff;border:1px solid #dbe6fb;border-radius:11px;padding:13px 15px;color:#31527a;font-size:12.5px;line-height:1.55;}
+.card{background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:none;padding:22px;margin-bottom:14px;}
+.note{background:#eef2f7;border:1px solid #d3dbe6;border-radius:4px;padding:13px 15px;color:#33465f;font-size:12.5px;line-height:1.55;}
 h2{font-size:14px;color:var(--navy);margin:0 0 10px;}
 ol{margin:0;padding-left:22px;} li{margin:9px 0;font-size:14.5px;line-height:1.45;color:var(--ink);}
-.stage{position:relative;background:#0b1636;border-radius:14px;overflow:hidden;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;}
+.stage{position:relative;background:#0b1636;border-radius:4px;overflow:hidden;aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;}
 video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#000;display:block;}
 .ph{color:#8a93a8;font-size:13px;text-align:center;padding:20px;}
 .recbar{position:absolute;top:12px;left:12px;display:none;align-items:center;gap:8px;background:rgba(6,12,30,.6);border-radius:100px;padding:6px 12px;}
@@ -30,12 +30,12 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
 .rectime{color:#fff;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums;}
 .reclbl{color:#ff8a82;font-size:11px;font-weight:800;letter-spacing:.06em;}
 .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px;align-items:center;}
-.bbtn{border:none;border-radius:11px;padding:14px 26px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;}
+.bbtn{border:none;border-radius:4px;padding:14px 26px;font:inherit;font-size:15px;font-weight:800;cursor:pointer;}
 .bbtn.go{background:var(--red);color:#fff;} .bbtn.stop{background:#0b1636;color:#fff;} .bbtn.ghost{background:#f2f5fb;color:var(--navy);border:1px solid #dfe6f2;}
 .bbtn:disabled{opacity:.55;cursor:default;}
 #umsg{margin-top:14px;font-size:13.5px;font-weight:600;min-height:18px;}
 .prog{height:7px;background:#eef1f6;border-radius:99px;overflow:hidden;margin-top:10px;display:none;}
-.prog.on{display:block;} .prog > i{display:block;height:100%;width:0;background:#5b9be8;transition:width .2s;}
+.prog.on{display:block;} .prog > i{display:block;height:100%;width:0;background:#2c5c8f;transition:width .2s;}
 .foot{max-width:720px;margin:0 auto;padding:0 22px 40px;color:var(--soft);font-size:11px;text-align:center;}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);padding:0 20px;}
 .gate b{display:block;color:var(--navy);font-size:17px;margin-bottom:6px;}
@@ -65,20 +65,20 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
   <div class="top"><div class="in">
     <span class="disc" id="disc">RRG</span>
     <div class="kick">Confidential Video Interview</div>
-    <h1 id="hdr">Record a short interview</h1>
-    <div class="sub" id="hsub">Answer a few questions on camera, at your own pace. Private — only your representative sees it.</div>
+    <h1 id="hdr">Your seller interview</h1>
+    <div class="sub" id="hsub">Answer a set of questions on camera, at your own pace — plan for about 10–15 minutes. What you share helps us sell your business. Your video and audio stay confidential and won’t be shared without your permission.</div>
   </div></div>
   <div class="wrap">
     <div class="card intro" id="introCard">
       <div class="introhero">
         <span class="introdisc" id="idisc">RRG</span>
         <div class="introkick" id="ikick">Confidential</div>
-        <h1 class="introh" id="ihdr">A quick walkthrough</h1>
-        <div class="introsub" id="isub">Your representative has invited you to share a little about your business — in your own words, on camera.</div>
-        <div class="introchips"><span class="introchip">⏱ About 5 minutes</span><span class="introchip">🎥 One take — no pressure</span><span class="introchip">🔒 Private &amp; confidential</span></div>
+        <h1 class="introh" id="ihdr">Your seller interview</h1>
+        <div class="introsub" id="isub">Your representative will use this to help sell your business. The more you can share about it — in your own words, on camera — the better we can position it for the right buyer.</div>
+        <div class="introchips"><span class="introchip">⏱ About 10–15 minutes</span><span class="introchip">🎥 On camera, at your pace</span><span class="introchip">🔒 Not shared without your permission</span></div>
       </div>
       <div class="introbody">
-        <p id="ibody">We'll show you each question one at a time and read it aloud. Just answer naturally and tap Next. Rough figures are fine, and you can repeat any question or take your time.</p>
+        <p id="ibody">We'll show you each question one at a time and read it aloud. Just answer naturally and tap Next. Rough figures are fine, and you can repeat any question or take your time. The more detail you give, the better we can tell your business's story to serious buyers. Your video and audio are confidential and won't be shared with anyone without your permission.</p>
         <button class="bbtn go introbtn" id="beginBtn" type="button">Begin ▶</button>
         <div class="introalt" id="ialt"></div>
       </div>
@@ -88,21 +88,21 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
       <div class="note" style="margin-bottom:12px">Press <b>Start recording</b> and allow your camera and microphone. We'll show each question one at a time and <b>read it aloud</b> — just answer in your own words and press <b>Next question</b> to move on. No script, rough figures are fine, and you can take your time or repeat a question. When you're done, press <b>Stop &amp; submit</b> and it sends automatically.</div>
       <div id="voicewrap" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:6px">
         <label style="font-size:12.5px;font-weight:700;color:var(--navy)">🔊 Question voice</label>
-        <select id="voiceSel" style="border:1px solid #cfd6e2;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;background:#fff;max-width:220px"></select>
-        <button type="button" id="voiceTest" style="background:#fff;border:1px solid #d7dde8;border-radius:8px;padding:8px 12px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer">Preview</button>
+        <select id="voiceSel" style="border:1px solid #c4ccda;border-radius:4px;padding:8px 10px;font:inherit;font-size:13px;background:#fff;max-width:220px"></select>
+        <button type="button" id="voiceTest" style="background:#fff;border:1px solid #d7dde8;border-radius:4px;padding:8px 12px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer">Preview</button>
       </div>
       <details style="margin-top:6px"><summary style="cursor:pointer;font-size:12.5px;font-weight:700;color:var(--navy)">Preview all questions</summary><ol id="qlist" style="margin-top:8px"></ol></details>
     </div>
     <div class="card workstep" id="camcard" style="display:none">
       <div class="stage">
-        <div class="ph" id="ph">Your camera preview will appear here once you start.</div>
+        <div class="ph" id="ph">Turning on your camera…</div>
         <video id="pv" autoplay muted playsinline style="display:none"></video>
         <div class="recbar" id="recbar"><span class="recdot"></span><span class="reclbl">REC</span><span class="rectime" id="rectime">0:00</span></div>
       </div>
-      <div id="qpanel" style="display:none;margin-top:14px;border:1px solid var(--line);border-radius:12px;padding:16px 18px;background:#f7f9fc">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px"><span id="qprog" style="font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--soft)">Question 1</span><button type="button" id="qrepeat" style="margin-left:auto;background:#fff;border:1px solid #d7dde8;border-radius:8px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer">🔊 Repeat</button></div>
+      <div id="qpanel" style="display:none;margin-top:14px;border:1px solid var(--line);border-radius:4px;padding:16px 18px;background:#f7f9fc">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px"><span id="qprog" style="font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--soft)">Question 1</span><button type="button" id="qrepeat" style="margin-left:auto;background:#fff;border:1px solid #d7dde8;border-radius:4px;padding:6px 12px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer">🔊 Repeat</button></div>
         <div id="qtext" style="font-size:19px;font-weight:700;color:var(--navy);line-height:1.4;min-height:58px"></div>
-        <div style="display:flex;gap:8px;margin-top:14px"><button type="button" id="qprev" style="background:#f2f5fb;border:1px solid #dfe6f2;color:var(--navy);border-radius:11px;padding:11px 18px;font:inherit;font-size:14px;font-weight:800;cursor:pointer">◀ Back</button><button type="button" id="qnext" style="background:var(--navy);border:none;color:#fff;border-radius:11px;padding:11px 22px;font:inherit;font-size:14px;font-weight:800;cursor:pointer">Next question ▶</button></div>
+        <div style="display:flex;gap:8px;margin-top:14px"><button type="button" id="qprev" style="background:#eef2f7;border:1px solid #d3dbe6;color:var(--navy);border-radius:4px;padding:11px 18px;font:inherit;font-size:14px;font-weight:800;cursor:pointer">◀ Back</button><button type="button" id="qnext" style="background:var(--navy);border:none;color:#fff;border-radius:4px;padding:11px 22px;font:inherit;font-size:14px;font-weight:800;cursor:pointer">Next question ▶</button></div>
       </div>
       <div class="btnrow">
         <button class="bbtn go" id="startBtn" type="button">● Start recording</button>
@@ -190,6 +190,8 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
     var cards=document.querySelectorAll('.workstep'); Array.prototype.forEach.call(cards,function(c,i){ c.style.display='block'; c.classList.add('fadein'); c.style.animationDelay=(i*80)+'ms'; });
     var cam=document.getElementById('camcard'); if(cam){ setTimeout(function(){ try{ cam.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} },260); }
     var sb=document.getElementById('startBtn'); if(sb){ setTimeout(function(){ sb.classList.add('pulse'); },500); }
+    // Light up the live preview right away so they can frame up before recording starts.
+    try{ ensureCamera().then(function(){ msg('Camera on — take a moment to get comfortable and framed, then press Start recording.','#1f8a5b'); }).catch(function(){}); }catch(e){}
     try{ if(window.speechSynthesis){ var line='Welcome, and thanks for taking a few minutes with '+(ORG||'us')+'. When you’re ready, press Start recording, and I’ll walk you through each question.'; setTimeout(function(){ speak(line); },420); } }catch(e){}
   }); })();
 
@@ -221,12 +223,24 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
   function showQuestion(i){ if(i<0) i=0; if(i>=QUESTIONS.length) i=QUESTIONS.length-1; qIdx=i; var qt=document.getElementById('qtext'), qpr=document.getElementById('qprog'); if(qt) qt.textContent=QUESTIONS[i]||''; if(qpr) qpr.textContent='Question '+(i+1)+' of '+QUESTIONS.length; var prev=document.getElementById('qprev'), next=document.getElementById('qnext'); if(prev) prev.style.visibility=(i>0)?'visible':'hidden'; if(next) next.textContent=(i>=QUESTIONS.length-1)?'That’s the last one':'Next question ▶'; speak(QUESTIONS[i]); }
   (function(){ var n=document.getElementById('qnext'), p=document.getElementById('qprev'), r=document.getElementById('qrepeat'); if(n) n.addEventListener('click',function(){ if(qIdx<QUESTIONS.length-1) showQuestion(qIdx+1); else speak(QUESTIONS[qIdx]); }); if(p) p.addEventListener('click',function(){ showQuestion(qIdx-1); }); if(r) r.addEventListener('click',function(){ speak(QUESTIONS[qIdx]); }); })();
 
+  // Turn the camera on and show the live preview WITHOUT recording, so the seller can
+  // frame themselves first. Recording starts clean when they press Start recording.
+  function ensureCamera(){
+    return new Promise(function(resolve,reject){
+      if(stream){ resolve(stream); return; }
+      if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder)){ reject(new Error('unsupported')); return; }
+      navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},facingMode:'user'},audio:true}).then(function(s){
+        stream=s; pv.srcObject=s; pv.style.display='block'; ph.style.display='none'; try{ if(pv.play) pv.play(); }catch(e){}
+        resolve(s);
+      }).catch(reject);
+    });
+  }
   startBtn.addEventListener('click',function(){
     if(!(navigator.mediaDevices&&navigator.mediaDevices.getUserMedia&&window.MediaRecorder)){ msg('This browser can’t record video. Please try the latest Chrome or Safari, or use the form link below.','#DA2B1F'); return; }
-    startBtn.disabled=true; msg('Requesting camera…');
-    navigator.mediaDevices.getUserMedia({video:{width:{ideal:1280},height:{ideal:720},facingMode:'user'},audio:true}).then(function(s){
-      stream=s; vchunks=[]; achunks=[]; ablob=null;
-      pv.srcObject=s; pv.style.display='block'; ph.style.display='none';
+    startBtn.disabled=true; msg('Starting…');
+    ensureCamera().then(function(s){
+      msg('');
+      vchunks=[]; achunks=[]; ablob=null;
       var vmime=''; ['video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm','video/mp4'].some(function(m){ try{ if(MediaRecorder.isTypeSupported(m)){ vmime=m; return true; } }catch(e){} return false; });
       try{ vrec=vmime?new MediaRecorder(s,{mimeType:vmime}):new MediaRecorder(s); }catch(e){ vrec=new MediaRecorder(s); }
       vrec.ondataavailable=function(e){ if(e.data&&e.data.size) vchunks.push(e.data); };
@@ -257,7 +271,7 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
   function resetReady(){
     stopStream();
     try{ pv.style.display='none'; pv.srcObject=null; }catch(e){}
-    ph.style.display='block'; ph.textContent='Your camera preview will appear here once you start.';
+    ph.style.display='block'; ph.textContent='Your camera preview will appear here.';
     var qpn=document.getElementById('qpanel'); if(qpn) qpn.style.display='none';
     recbar.classList.remove('on'); if(timer){ clearInterval(timer); timer=null; }
     try{ if(SS) SS.cancel(); }catch(e){}
@@ -302,7 +316,7 @@ video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);background:#0
       success();
     }).catch(function(err){
       prog(null); msg('Your recording didn’t upload. Please check your connection and try again, or use the form link below.','#DA2B1F');
-      startBtn.style.display='inline-block'; startBtn.disabled=false; stopBtn.style.display='none'; ph.textContent='Your camera preview will appear here once you start.';
+      startBtn.style.display='inline-block'; startBtn.disabled=false; stopBtn.style.display='none'; ph.textContent='Your camera preview will appear here.';
     });
   }
 
