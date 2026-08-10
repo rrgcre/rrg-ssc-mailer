@@ -3016,6 +3016,14 @@ function ownsRoom(req, r) {
   if (r.byUser) return r.byUser === (req.user && req.user.username);
   return r.by && r.by === (req.user && req.user.name);
 }
+// Same ownership test straight from a decoded app session (the public /room route
+// doesn't set req.user, so owner-preview checks the session cookie directly).
+function ownsRoomSess(sess, r) {
+  if (!sess) return false;
+  if (isSuper(sess)) return true;
+  if (r.byUser) return r.byUser === sess.username;
+  return !!(r.by && r.by === sess.name);
+}
 function ensureRoomForCim(req, cim) {
   if (!cim) return null;
   const arr = loadRooms();
@@ -3438,6 +3446,12 @@ app.get('/room/:token', (req, res) => {
   if (roomIsGated(r)) {
     const grant = roomGrantFor(req, r);
     if (!grant) {
+      // Owner preview: an authenticated owner/admin can look past the gate and see the
+      // room exactly as an authorized buyer would (all folders, download). Buyers and
+      // anonymous visitors have no app session, so they still hit the gate.
+      if (req.query.preview === '1' && ownsRoomSess(auth.readSession(parseCookies(req)[COOKIE]), r)) {
+        return res.set('Content-Type', 'text/html; charset=utf-8').send(roomPublicPage(r, null, { preview: true }));
+      }
       // Mid-verification (passed the code, awaiting the emailed OTP)? Resume that screen.
       const pend = readMfaPending(req, r);
       const pg = pend && (r.grants || []).find(g => g.id === pend.g && g.active);

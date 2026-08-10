@@ -32,6 +32,7 @@ tr:hover td{background:#fbfcfe;}
 .act a:hover,.act button:hover{border-color:#9fb0cc;}
 .act .open{background:var(--navy);color:#fff;border-color:var(--navy);}
 .act .link{color:var(--green);border-color:#bfe6d1;} .act .del{color:var(--red);border-color:#f0c9c6;}
+.act .view{background:#fff;color:#2647b0;border-color:#c3d0ee;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
 .foot{max-width:1080px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:12.5px;font-weight:700;padding:10px 18px;border-radius:100px;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .2s;pointer-events:none;z-index:99;}
@@ -62,6 +63,7 @@ function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime()
 var CTL=null, LINKS={};
 function toast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); },1400); }
 function copyLink(id){ var url=LINKS[id]||''; if(!url) return; function ok(){ toast('Buyer link copied ✓'); } if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(ok).catch(function(){ prompt('Copy the buyer link:', url); }); } else { prompt('Copy the buyer link:', url); } }
+function buyerView(id){ var url=LINKS[id]||''; if(!url){ url='./rrg_room.html?room='+encodeURIComponent(id); window.open(url,'_blank','noopener'); return; } url += (url.indexOf('?')>=0?'&':'?')+'preview=1'; window.open(url,'_blank','noopener'); }
 function renderList(list){
   (list||[]).forEach(function(r){ LINKS[r.id]=r.link; });
   var cfg={
@@ -82,7 +84,7 @@ function renderList(list){
       { label:'Downloads', key:'downloads', align:'left', sort:function(a,b){ return (a.downloads||0)-(b.downloads||0); },
         cell:function(c){ return '<span class="pill">'+(c.downloads||0)+'</span>'; } },
       { label:'Actions', key:'actions', align:'right', sortable:false,
-        cell:function(c){ return '<div class="act"><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Edit this data room">Edit data room</a><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Open this data room to upload files">Upload files</a><button class="link" onclick="copyLink(\''+c.id+'\')">Copy General Access Link</button><button class="del" onclick="delRoom(\''+c.id+'\',this)">Delete</button></div>'; } }
+        cell:function(c){ var bv=c.closed?'':'<button class="view" onclick="buyerView(\''+c.id+'\')" title="See this room exactly as an NDA’d buyer does">👁 Buyer view</button>'; return '<div class="act"><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Edit this data room">Edit data room</a><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Open this data room to upload files">Upload files</a>'+bv+'<button class="link" onclick="copyLink(\''+c.id+'\')">Copy General Access Link</button><button class="del" onclick="delRoom(\''+c.id+'\',this)">Delete</button></div>'; } }
     ],
     bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDel(ids,done); } } ]
   };
