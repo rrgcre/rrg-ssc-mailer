@@ -3060,6 +3060,7 @@ app.get('/api/room/:id', (req, res) => {
       cleanStatus: iv.cleanStatus || '', hasClean: !!(iv.cleanTranscript && iv.cleanTranscript.length), cleanTranscript: iv.cleanTranscript || '', viewUrl: '/api/interview/' + iv.id + '/view' }));
   res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-120).reverse(), categories: roomServeCats(r), noLease: !!r.noLease,
     interviews: ivs,
+    qa: (r.qa || []),
     closed: !!r.closed, closedAt: r.closedAt || '', closedBy: r.closedBy || '',
     gated: roomIsGated(r),
     grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', code: g.code, level: g.level || 'download', catPerms: g.catPerms || {}, docPerms: g.docPerms || {}, active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
@@ -3148,6 +3149,48 @@ app.post('/api/room/:id/grant-doc-perms', express.json(), (req, res) => {
   else return res.status(400).json({ ok: false, error: 'Bad level.' });
   saveRooms(arr);
   res.json({ ok: true, grants: r.grants });
+});
+// ---- Buyer Q&A: a private question thread between one buyer and the broker ----
+function notifyRoomQuestion(r, grant, text, req) {
+  try {
+    if (!r || !grant) return;
+    let to = ''; try { const u = (auth.loadUsers() || []).find(x => x.username === (r.byUser || '')); to = (u && u.email) || ''; } catch (e) {}
+    to = to || mailFrom(); if (!to) return;
+    const org = orgDisplayName(), biz = r.business || 'a listing', buyer = grant.name || grant.email || 'A buyer';
+    const origin = (req && req.get) ? (req.protocol + '://' + req.get('host')) : '';
+    const roomUrl = origin ? (origin + '/rrg_room.html?room=' + r.id) : '';
+    const subject = org + ' — question from ' + buyer + ' · ' + biz;
+    const body = buyer + ' asked a question in the ' + biz + ' data room:\n\n"' + String(text).slice(0, 1200) + '"\n\nReply from the data room: ' + roomUrl + '\n\n— ' + org;
+    const html = '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#1a2236"><p><b>' + esc(buyer) + '</b> asked a question in the <b>' + esc(biz) + '</b> data room:</p><blockquote style="margin:0;padding:10px 14px;border-left:3px solid #2647b0;background:#f6f8fc">' + esc(String(text).slice(0, 1200)) + '</blockquote>' + (roomUrl ? ('<p style="margin-top:12px"><a href="' + esc(roomUrl) + '" style="color:#1155cc;text-decoration:underline">Reply from the data room</a></p>') : '') + '<p style="color:#8a93a3">— ' + esc(org) + '</p></div>';
+    const p = sendMailWL({ from: mailFrom(), to, subject, text: body, html });
+    if (p && p.catch) p.catch(e => console.error('room question send:', e && e.message));
+  } catch (e) { console.error('notifyRoomQuestion:', e && e.message); }
+}
+function newQaId() { return 'qa_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+app.post('/room/:token/qa', express.json({ limit: '32kb' }), (req, res) => {
+  const arr = loadRooms(); const r = arr.find(x => x.token === req.params.token);
+  if (!r || r.closed) return res.status(404).json({ ok: false, error: 'This room is unavailable.' });
+  if (!roomIsGated(r)) return res.status(403).json({ ok: false, error: 'Sign in to ask a question.' });
+  const grant = roomGrantFor(req, r); if (!grant) return res.status(403).json({ ok: false, error: 'Sign in to ask a question.' });
+  const text = String((req.body && req.body.text) || '').trim().slice(0, 4000);
+  if (!text) return res.status(400).json({ ok: false, error: 'Type a question first.' });
+  r.qa = r.qa || [];
+  r.qa.push({ id: newQaId(), grantId: grant.id, who: grant.name || grant.email || 'Buyer', from: 'buyer', at: new Date().toISOString(), text });
+  grant.lastSeen = new Date().toISOString(); logRoomAccess(r, req, 'question', '', grant); saveRooms(arr);
+  try { notifyRoomQuestion(r, grant, text, req); } catch (e) {}
+  res.json({ ok: true });
+});
+app.post('/api/room/:id/qa-reply', express.json({ limit: '32kb' }), (req, res) => {
+  const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const b = req.body || {}; const grantId = String(b.grantId || ''); const text = String(b.text || '').trim().slice(0, 4000);
+  if (!grantId || !text) return res.status(400).json({ ok: false, error: 'Pick a buyer and write a reply.' });
+  if (!(r.grants || []).some(g => g.id === grantId)) return res.status(400).json({ ok: false, error: 'Unknown buyer.' });
+  r.qa = r.qa || [];
+  r.qa.push({ id: newQaId(), grantId, who: (req.user && req.user.name) || orgDisplayName(), from: 'broker', at: new Date().toISOString(), text });
+  saveRooms(arr);
+  res.json({ ok: true, qa: r.qa });
 });
 // Create a standalone data room (not tied to a Marketing Pack).
 app.post('/api/room/new', express.json(), (req, res) => {
@@ -3571,9 +3614,32 @@ function roomPublicPage(r, grant, opts) {
       return `<div class="card open"><div class="chd folderhd" onclick="rmToggle(this)"><span class="cav">▸</span>${esc(cat)}<span class="n">${total}</span></div><div class="folderbody">${inner}</div></div>`;
     }).join('');
   }
+  // ---- Buyer Q&A: this buyer's private thread with the broker ----
+  let qaScript = '';
+  if (grant) {
+    const mine = (r.qa || []).filter(q => q.grantId === grant.id);
+    const bubbles = mine.map(m => {
+      const mine2 = m.from === 'buyer';
+      const nm = mine2 ? 'You' : esc(orgDisplayName());
+      const when = esc(fmtWhen(m.at));
+      const align = mine2 ? 'flex-end' : 'flex-start';
+      const bg = mine2 ? '#0b1636' : '#f1f4fb';
+      const fg = mine2 ? '#fff' : '#1a2236';
+      const bd = mine2 ? '#0b1636' : '#e2e8f4';
+      return `<div style="display:flex;justify-content:${align};margin:8px 0"><div style="max-width:82%;background:${bg};color:${fg};border:1px solid ${bd};border-radius:12px;padding:9px 13px"><div style="font-size:11px;font-weight:700;opacity:.7;margin-bottom:3px">${nm} · ${when}</div><div style="font-size:13.5px;line-height:1.5;white-space:pre-wrap">${esc(m.text)}</div></div></div>`;
+    }).join('');
+    const thread = mine.length ? bubbles : `<div class="note" style="border:none;padding:0;margin:0 0 4px;color:var(--muted)">No questions yet. Ask ${esc(orgDisplayName())} anything about this opportunity — only you and ${esc(orgDisplayName())} can see this thread.</div>`;
+    const askBox = _preview
+      ? `<div class="note" style="border:none;padding:8px 0 0;color:#8a5a12">Preview — buyers type a question here and it goes privately to you.</div>`
+      : `<div style="margin-top:12px;display:flex;gap:8px;align-items:flex-end"><textarea id="qatext" rows="2" placeholder="Ask a question about this opportunity…" style="flex:1;padding:9px 11px;border:1px solid #cfd6e2;border-radius:10px;font:inherit;resize:vertical"></textarea><button class="dl" id="qasend" style="border:none;cursor:pointer;white-space:nowrap" onclick="rrgAskQ()">Send →</button></div><div id="qamsg" style="font-size:12px;color:var(--muted);margin-top:6px"></div>`;
+    body += `<div class="card"><div class="chd">Questions for ${esc(orgDisplayName())}</div><div style="padding:14px 20px">${thread}${askBox}</div></div>`;
+    if (!_preview) {
+      qaScript = `<script>function rrgAskQ(){var t=document.getElementById('qatext'),b=document.getElementById('qasend'),m=document.getElementById('qamsg');var v=(t&&t.value||'').trim();if(!v){m.textContent='Type a question first.';return;}b.disabled=true;m.textContent='Sending…';fetch(location.pathname.replace(/\\/+$/,'')+'/qa',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:v})}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok){m.textContent='Sent ✓ — reloading…';setTimeout(function(){location.reload();},700);}else{b.disabled=false;m.textContent=(j&&j.error)||'Could not send.';}}).catch(function(){b.disabled=false;m.textContent='Could not send.';});}<\/script>`;
+    }
+  }
   const script = editCats.length ? `<script>(function(){var fi=document.getElementById('bup');if(!fi)return;fi.addEventListener('change',function(){var f=fi.files&&fi.files[0];var m=document.getElementById('bupmsg');if(!f)return;if(f.size>20*1024*1024){m.textContent='That file is over 20 MB.';fi.value='';return;}m.textContent='Uploading '+f.name+'…';var rd=new FileReader();rd.onload=function(){var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s);var cat=(document.getElementById('bupcat')||{}).value||'';fetch(location.pathname.replace(/\/+$/,'')+'/upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:f.name,dataB64:b64,category:cat})}).then(function(r){return r.json();}).then(function(j){if(j&&j.ok){m.textContent='Added ✓ — reloading…';setTimeout(function(){location.reload();},700);}else{m.textContent=(j&&j.error)||'Upload failed.';fi.value='';}}).catch(function(){m.textContent='Upload failed.';fi.value='';});};rd.readAsDataURL(f);});})();<\/script>` : '';
   const _toggleJs = "<script>function rmToggle(h){var c=h&&h.parentNode;if(c)c.classList.toggle('open');}</script>";
-  return roomShell('RRG Data Room — ' + (r.business || 'Confidential'), { head, body: body + script + _toggleJs });
+  return roomShell('RRG Data Room — ' + (r.business || 'Confidential'), { head, body: body + script + qaScript + _toggleJs });
 }
 
 function roomNotFoundPage() {
