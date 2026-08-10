@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Data Room</title>
+<style>
+:root{--navy:#0b1636;--navy2:#16346e;--red:#C0261B;--ink:#141a29;--dim:#5f6a7d;--soft:#8a93a3;--line:#e5e9f1;--wash:#f5f7fb;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:720px;margin:0 auto;padding:26px 26px 60px;}
+h1{font-size:20px;font-weight:800;color:var(--navy);margin:0;}
+.sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.5;max-width:620px;}
+.row{display:flex;align-items:flex-start;gap:14px;border:1px solid var(--line);border-radius:13px;padding:16px 18px;margin-top:14px;}
+.row .tx{flex:1;}
+.row .tx b{font-size:15px;color:var(--navy);font-weight:800;}
+.row .tx p{font-size:13px;color:var(--dim);margin:5px 0 0;line-height:1.55;}
+.switch{position:relative;display:inline-block;width:46px;height:26px;flex:none;margin-top:2px;}
+.switch input{opacity:0;width:0;height:0;}
+.sl{position:absolute;cursor:pointer;inset:0;background:#c6cede;border-radius:26px;transition:.15s;}
+.sl:before{position:absolute;content:"";height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.switch input:checked+.sl{background:var(--green);}
+.switch input:checked+.sl:before{transform:translateX(20px);}
+.msg{font-size:12.5px;font-weight:600;margin-top:14px;min-height:16px;}
+.note{font-size:12px;color:var(--soft);margin-top:16px;line-height:1.55;}
+.gate{color:var(--dim);font-size:13.5px;padding:30px 0;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var CFG=null;
+var ITEMS=[
+  {k:'mfa', title:'🔐 Buyer verification (2-step)', desc:'Require buyers to enter a one-time code emailed to them, on top of their access code — so only someone with the code and the inbox can open a room. This is the firm-wide default; you can override it on any individual room.'},
+  {k:'alerts', title:'🔔 Real-time buyer alerts', desc:'Email the room owner the moment a buyer first opens a key document (P&amp;L, financials, lease, tax returns) — once per buyer per document, so it stays a signal, not noise.'},
+  {k:'watermark', title:'🛡️ Download watermarking', desc:'Stamp every PDF download on every page with the buyer’s name, email, timestamp and your firm — so a leaked document traces straight back to who pulled it.'}
+];
+function render(){
+  var c=CFG||{};
+  document.getElementById('root').innerHTML=''
+    +'<h1>Data Room</h1>'
+    +'<div class="sub">Firm-wide security defaults for every data room. These apply to all rooms unless a room overrides them individually. All three are on by default.</div>'
+    +ITEMS.map(function(it){ var on=(c[it.k]!==false);
+      return '<div class="row"><div class="tx"><b>'+it.title+'</b><p>'+it.desc+'</p></div>'
+        +'<label class="switch"><input type="checkbox" data-k="'+it.k+'" '+(on?'checked':'')+'><span class="sl"></span></label></div>'; }).join('')
+    +'<div class="msg" id="msg"></div>'
+    +'<div class="note">Buyer verification can be overridden per room from the room’s own page (Buyers &amp; access). Alerts and watermarking are firm-wide. Turning a setting off applies to new activity going forward.</div>';
+  [].slice.call(document.querySelectorAll('input[data-k]')).forEach(function(inp){ inp.addEventListener('change',function(){ save(inp.getAttribute('data-k'), inp.checked, inp); }); });
+}
+function save(key,val,inp){
+  var m=document.getElementById('msg'); m.style.color='#5f6a7d'; m.textContent='Saving…';
+  var body={}; body[key]=!!val;
+  fetch('/api/admin/dataroom',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CFG=j; m.style.color='#1f8a5b'; m.textContent='Saved ✓'; setTimeout(function(){ if(m.textContent==='Saved ✓') m.textContent=''; },1600); }
+      else { if(inp) inp.checked=!val; m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Could not save.'; } })
+    .catch(function(){ if(inp) inp.checked=!val; m.style.color='#C0261B'; m.textContent='Could not reach the server.'; });
+}
+fetch('/api/admin/dataroom',{credentials:'same-origin',cache:'no-store'}).then(function(r){ if(r.status===401||r.status===403) throw new Error('admin'); return r.json(); }).then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load data room settings.</div>'; return; }
+  CFG=j; render();
+}).catch(function(e){ document.getElementById('root').innerHTML='<div class="gate">'+((e&&e.message==='admin')?'Data room settings are limited to administrators.':'Could not reach the server.')+'</div>'; });
+</script>
+</body>
+</html>

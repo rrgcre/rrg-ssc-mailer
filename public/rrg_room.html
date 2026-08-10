@@ -6,39 +6,39 @@
 <meta name="rrg-back" content="rrg_rooms_queue.html|Data Rooms">
 <title>RRG — Data Room</title>
 <style>
-:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--inp:#cfd6e2;}
+:root{--navy:#20334f;--red:#b23a2c;--ink:#2b3648;--muted:#69748a;--soft:#96a1b2;--line:#dbe0e9;--wash:#f4f6f9;--green:#2c5c8f;--inp:#c4ccda;--primary:#2c5c8f;--primary-d:#23496f;}
 *{box-sizing:border-box;}
-html,body{margin:0;padding:0;background:#eef1f6;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.top{color:#fff;padding:15px 0 17px;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
-.top-in{max-width:900px;margin:0 auto;padding:0 24px;}
-.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font:900 13px 'Arial Black',Arial,sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
-.bar{background:#fff;width:3px;height:28px;margin:0 12px;} .wm{font-weight:800;font-size:13px;text-transform:uppercase;line-height:.95;}
-.kicker{margin:9px 0 3px;color:var(--red);font-weight:700;letter-spacing:.28em;font-size:11px;text-transform:uppercase;}
-h1{font-size:21px;font-weight:800;margin:0;color:#fff;}
-.sub{color:#aeb8cf;font-size:12px;margin-top:4px;}
-.wrap{max-width:900px;margin:14px auto;padding:0 24px 40px;}
-.card{background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 4px 16px rgba(10,20,50,.05);margin-bottom:9px;overflow:hidden;}
-.card .cbody{padding:11px 18px;}
-.card h2{font-size:13.5px;color:var(--navy);margin:0 0 2px;} .card .h{color:var(--muted);font-size:12px;margin-bottom:8px;line-height:1.4;}
-.linkbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--wash);border:1px solid var(--line);border-radius:10px;padding:9px 12px;}
-.linkbar .url{flex:1;min-width:200px;font-size:12.5px;color:var(--navy);font-weight:600;word-break:break-all;}
-.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font:inherit;font-weight:700;font-size:12.5px;padding:8px 14px;border-radius:8px;cursor:pointer;text-decoration:none;white-space:nowrap;}
-.btn:hover{border-color:#9fb0cc;} .btn.primary{background:var(--navy);color:#fff;border-color:var(--navy);} .btn.green{background:#0e7a53;color:#fff;border-color:#0e7a53;}
+html,body{margin:0;padding:0;background:#e9ebf0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:13px;}
+.top{color:#fff;padding:0;background:#20334f;border-bottom:3px solid var(--primary);}
+.top-in{max-width:960px;margin:0 auto;padding:12px 24px 13px;}
+.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:3px;width:34px;height:34px;font:900 12px 'Arial Black',Arial,sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:rgba(255,255,255,.3);width:1px;height:24px;margin:0 12px;} .wm{font-weight:700;font-size:12px;text-transform:uppercase;line-height:1;letter-spacing:.02em;color:#cdd6e4;}
+.kicker{margin:11px 0 2px;color:#8fa2be;font-weight:700;letter-spacing:.16em;font-size:10.5px;text-transform:uppercase;}
+h1{font-size:19px;font-weight:700;margin:0;color:#fff;letter-spacing:.01em;}
+.sub{color:#a9b4c8;font-size:12px;margin-top:3px;}
+.wrap{max-width:960px;margin:16px auto;padding:0 24px 44px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:none;margin-bottom:10px;overflow:hidden;}
+.card .cbody{padding:12px 16px;}
+.card h2{font-size:13px;font-weight:700;color:var(--navy);margin:0 0 2px;letter-spacing:.01em;} .card .h{color:var(--muted);font-size:12px;margin-bottom:8px;line-height:1.45;}
+.linkbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--wash);border:1px solid var(--line);border-radius:4px;padding:8px 10px;}
+.linkbar .url{flex:1;min-width:200px;font-size:12px;color:var(--primary-d);font-weight:600;word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font:inherit;font-weight:600;font-size:12.5px;padding:7px 13px;border-radius:3px;cursor:pointer;text-decoration:none;white-space:nowrap;}
+.btn:hover{border-color:#9aa7bc;background:#f7f9fb;} .btn.primary{background:var(--primary);color:#fff;border-color:var(--primary);} .btn.primary:hover{background:var(--primary-d);} .btn.green{background:var(--primary);color:#fff;border-color:var(--primary);} .btn.green:hover{background:var(--primary-d);}
 .up{display:grid;grid-template-columns:1.4fr 1fr auto;gap:10px;align-items:end;}
-.up .fld label{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin-bottom:4px;}
-.up input[type=text],.up select{width:100%;border:1px solid var(--inp);border-radius:8px;padding:9px 11px;font:inherit;font-size:13px;background:#fff;}
-.drop{margin-top:9px;border:1.5px dashed var(--inp);border-radius:10px;padding:11px;text-align:center;color:var(--muted);font-size:12.5px;font-weight:600;cursor:pointer;background:var(--wash);}
-.drop:hover{border-color:#9fb0cc;}
+.up .fld label{display:block;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin-bottom:4px;}
+.up input[type=text],.up select{width:100%;border:1px solid var(--inp);border-radius:3px;padding:8px 10px;font:inherit;font-size:12.5px;background:#fff;}
+.drop{margin-top:9px;border:1px dashed var(--inp);border-radius:4px;padding:11px;text-align:center;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;background:var(--wash);}
+.drop:hover{border-color:#9aa7bc;}
 .cathd{cursor:pointer;user-select:none;}
 .cathd .cav{transition:transform .15s;color:var(--muted);font-size:11px;}
 .cat.open>.cathd>.cav,.subcat.open>.cathd>.cav{transform:rotate(90deg);}
 .catbody{display:none;}
 .cat.open>.catbody,.subcat.open>.catbody{display:block;}
-.subcat{margin:2px 0 2px 12px;border-left:2px solid #eef0f5;}
+.subcat{margin:2px 0 2px 12px;border-left:2px solid #eaedf3;}
 .cathd.sub{background:#fff;font-size:12px;}
 .movewrap{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);}
-.movewrap select.movesel{font:inherit;font-size:11px;padding:4px 6px;border:1px solid var(--line);border-radius:7px;max-width:160px;background:#fff;color:var(--navy);cursor:pointer;}
+.movewrap select.movesel{font:inherit;font-size:11px;padding:4px 6px;border:1px solid var(--line);border-radius:3px;max-width:160px;background:#fff;color:var(--navy);cursor:pointer;}
 .rmhd{cursor:pointer;user-select:none;}
 .rmcav{display:inline-block;transition:transform .15s;color:#8a94a6;font-size:12px;margin-right:7px;vertical-align:1px;}
 .card:not(.collapsed) .rmcav{transform:rotate(90deg);}
@@ -47,18 +47,18 @@ h1{font-size:21px;font-weight:800;margin:0;color:#fff;}
 .card.collapsed .cbody{padding-bottom:12px;}
 .umsg{font-size:12px;color:var(--muted);margin-top:8px;min-height:16px;}
 .cat{border-top:1px solid var(--line);}
-.cathd{padding:8px 18px;font-weight:800;color:var(--navy);font-size:12.5px;display:flex;align-items:center;gap:8px;background:#fbfcfe;}
+.cathd{padding:8px 16px;font-weight:700;color:var(--navy);font-size:12px;display:flex;align-items:center;gap:8px;background:#f4f6f9;text-transform:uppercase;letter-spacing:.03em;}
 .cathd .n{margin-left:2px;color:var(--muted);font-weight:700;font-size:11px;}
-.docrow{display:flex;align-items:center;gap:12px;padding:8px 18px;border-top:1px solid #f0f2f7;}
+.docrow{display:flex;align-items:center;gap:12px;padding:8px 16px;border-top:1px solid #eef1f5;}
 .ext{flex:0 0 28px;height:34px;display:flex;align-items:center;justify-content:center;}
 .dt{flex:1;font-weight:600;color:var(--navy);font-size:13px;} .dm{color:var(--muted);font-size:11px;margin-top:1px;}
-.docrow a.view{font-size:11.5px;font-weight:700;color:var(--navy);text-decoration:none;border:1px solid var(--line);border-radius:7px;padding:5px 11px;}
-.docrow button.x{border:1px solid #f0cfca;background:#fff5f4;color:var(--red);border-radius:7px;padding:5px 10px;font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;}
-.catempty{padding:9px 20px;color:var(--soft);font-size:11.5px;font-style:italic;border-top:1px solid #f0f2f7;}
-.log{max-height:230px;overflow:auto;} .logrow{display:flex;gap:10px;font-size:11.5px;padding:6px 20px;border-top:1px solid #f5f6fa;color:var(--muted);} .logrow .ev{font-weight:700;color:var(--navy);width:74px;} .logrow .when{width:120px;}
-.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--navy);color:#fff;font-size:12.5px;font-weight:700;padding:10px 18px;border-radius:100px;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .2s;pointer-events:none;z-index:99;} .toast.show{opacity:1;}
+.docrow a.view{font-size:11.5px;font-weight:600;color:var(--primary-d);text-decoration:none;border:1px solid var(--inp);border-radius:3px;padding:5px 11px;}
+.docrow button.x{border:1px solid #d8c3bf;background:#faf4f3;color:var(--red);border-radius:3px;padding:5px 10px;font:inherit;font-size:11.5px;font-weight:600;cursor:pointer;}
+.catempty{padding:9px 20px;color:var(--soft);font-size:11.5px;font-style:italic;border-top:1px solid #eef1f5;}
+.log{max-height:230px;overflow:auto;} .logrow{display:flex;gap:10px;font-size:11.5px;padding:6px 16px;border-top:1px solid #f2f4f7;color:var(--muted);} .logrow .ev{font-weight:600;color:var(--primary-d);width:74px;} .logrow .when{width:120px;}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#20334f;color:#fff;font-size:12.5px;font-weight:600;padding:10px 18px;border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .2s;pointer-events:none;z-index:99;} .toast.show{opacity:1;}
 .switch .sl:before{position:absolute;content:"";height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
-.switch input:checked+.sl{background:#1f8a5b;} .switch input:checked+.sl:before{transform:translateX(20px);}
+.switch input:checked+.sl{background:var(--primary);} .switch input:checked+.sl:before{transform:translateX(20px);}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -73,7 +73,7 @@ h1{font-size:21px;font-weight:800;margin:0;color:#fff;}
 <div class="wrap">
 
   <div id="closedBanner" style="display:none;background:#fff4e6;border:1px solid #f3d9a8;border-radius:12px;padding:12px 16px;margin-bottom:9px;display:none;align-items:center;gap:12px;flex-wrap:wrap">
-    <span style="font-size:18px;line-height:1">🗄️</span>
+    <span style="font-size:18px;line-height:1"></span>
     <div style="flex:1;min-width:180px"><div style="font-weight:800;color:#8a5a12;font-size:13.5px">Room archived — closed after sale</div><div id="closedWhen" style="color:#a06a1e;font-size:12px;margin-top:1px"></div></div>
     <button class="btn" onclick="reopenRoom(this)" style="border-color:#e0c48a;color:#8a5a12">Reopen room</button>
   </div>
@@ -87,7 +87,7 @@ h1{font-size:21px;font-weight:800;margin:0;color:#fff;}
   <div class="card"><div class="cbody">
     <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Buyer link</h2>
     <div class="h">Anyone with this link can view and download the documents in this room. Share it only with qualified, NDA'd buyers. Regenerate it to retire the old link instantly.</div>
-    <div class="linkbar"><span class="url" id="url">…</span><button class="btn primary" onclick="copyLink()">Copy link</button><a class="btn green" id="openLink" href="#" target="_blank" rel="noopener" title="Open the room exactly as an NDA'd buyer sees it">👁 Buyer view</a><button class="btn" onclick="regen()">Regenerate</button></div>
+    <div class="linkbar"><span class="url" id="url">…</span><button class="btn primary" onclick="copyLink()">Copy link</button><a class="btn green" id="openLink" href="#" target="_blank" rel="noopener" title="Open the room exactly as an NDA'd buyer sees it">Buyer view</a><button class="btn" onclick="regen()">Regenerate</button></div>
   </div></div>
 
   <div class="card" id="ivCard" style="display:none">
@@ -102,7 +102,7 @@ h1{font-size:21px;font-weight:800;margin:0;color:#fff;}
     <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Buyers &amp; access</h2>
     <div class="h">Authorize each buyer individually. They get their own <b>access code — the password they’ll need to open the room</b>. New buyers start with <b>no folder access</b>: grant exactly the folders they should see in the grid below (no access, view, download, or upload). Authorizing the first buyer locks the room, so the shared link alone stops working and a code is required.</div>
     <div id="mfaRow" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#f5f7fb;border:1px solid var(--line);border-radius:11px;padding:12px 15px;margin-bottom:14px">
-      <div style="flex:1;min-width:220px"><div style="font-weight:800;color:#000E31;font-size:13.5px">🔐 Buyer verification (2-step)</div><div id="mfaSub" style="color:#6b7488;font-size:12px;margin-top:2px">When on, a buyer must also enter a one-time code emailed to them — so only someone with the code <i>and</i> the inbox gets in.</div></div>
+      <div style="flex:1;min-width:220px"><div style="font-weight:800;color:#000E31;font-size:13.5px">Buyer verification (2-step)</div><div id="mfaSub" style="color:#6b7488;font-size:12px;margin-top:2px">When on, a buyer must also enter a one-time code emailed to them — so only someone with the code <i>and</i> the inbox gets in.</div></div>
       <label class="switch" style="position:relative;display:inline-block;width:46px;height:26px;flex:none"><input type="checkbox" id="mfaChk" onchange="toggleMfa(this.checked)" style="opacity:0;width:0;height:0"><span class="sl" style="position:absolute;cursor:pointer;inset:0;background:#c6cede;border-radius:26px;transition:.15s"></span></label>
     </div>
     <div class="up">
@@ -138,7 +138,7 @@ h1{font-size:21px;font-weight:800;margin:0;color:#fff;}
     <input type="file" id="docFile" style="display:none" onchange="uploadDoc()">
     <input type="file" id="bulkFiles" multiple style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.csv,.txt" onchange="bulkUpload()">
     <div style="margin-top:12px;display:flex;align-items:center;gap:11px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:13px">
-      <button class="btn primary" onclick="document.getElementById('bulkFiles').click()">✦ Upload files — <span class="ainame">Claude</span> sorts them</button>
+      <button class="btn primary" onclick="document.getElementById('bulkFiles').click()">Upload files — <span class="ainame">Claude</span> sorts them</button>
       <span style="font-size:11.5px;color:var(--soft);flex:1;min-width:200px">Drop in a batch (up to 40 files, 25 MB each). <span class="ainame">Claude</span> reads each one and files it into the right folder automatically — move any it gets wrong with the folder controls.</span>
     </div>
     <div class="umsg" id="umsg"></div>
@@ -153,7 +153,7 @@ h1{font-size:21px;font-weight:800;margin:0;color:#fff;}
     <div class="cbody">
       <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Close &amp; archive</h2>
       <div class="h">When the sale closes, archive the room. This <b>retires the buyer link</b> and <b>revokes every buyer's access</b> immediately, then locks the room read-only. Nothing is deleted — your documents, interviews and access log are kept on file, and you can reopen it if a deal falls through.</div>
-      <button class="btn" onclick="closeRoom(this)" style="border-color:#f0cfca;color:var(--red);background:#fff5f4">🗄️ Close &amp; archive room</button>
+      <button class="btn" onclick="closeRoom(this)" style="border-color:#f0cfca;color:var(--red);background:#fff5f4">Close &amp; archive room</button>
       <div class="umsg" id="closeMsg"></div>
     </div>
   </div>
@@ -296,14 +296,23 @@ function paint(){ document.getElementById('hdr').textContent='Data Room · '+(RO
 function renderMfa(){
   var chk=document.getElementById('mfaChk'), sub=document.getElementById('mfaSub'); if(!chk) return;
   var on=!!(ROOM&&ROOM.mfa); chk.checked=on;
+  var override=!!(ROOM&&ROOM.mfaOverride);
+  var def=!(ROOM&&ROOM.mfaDefault===false);
   var noEmail=((ROOM&&ROOM.grants)||[]).filter(function(g){return g.active!==false&&!g.email;}).length;
-  if(on){ sub.innerHTML='<b style="color:#1f8a5b">On.</b> Buyers must enter a one-time code emailed to them before they can open the room. A trusted device can skip the code for 30 days.'; }
-  else { sub.innerHTML='When on, a buyer must also enter a one-time code emailed to them — so only someone with the code <i>and</i> the inbox gets in.'+(noEmail?(' <span style="color:#b26a00">'+noEmail+' active buyer'+(noEmail===1?'':'s')+' '+(noEmail===1?'has':'have')+' no email — add one before turning this on.</span>'):''); }
+  var origin=override
+    ? '<span style="color:#8a5a12">Overriding the firm default ('+(def?'on':'off')+').</span> <a href="#" onclick="mfaUseDefault();return false;" style="color:#2647b0;font-weight:700">Use firm default</a>'
+    : '<span style="color:#8a93a8">Following the firm default (set in Settings → Data Room).</span>';
+  if(on){ sub.innerHTML='<b style="color:#1f8a5b">On.</b> Buyers must enter a one-time code emailed to them before they can open the room. A trusted device can skip the code for 30 days.<br>'+origin; }
+  else { sub.innerHTML='When on, a buyer must also enter a one-time code emailed to them — so only someone with the code <i>and</i> the inbox gets in.'+(noEmail?(' <span style="color:#b26a00">'+noEmail+' active buyer'+(noEmail===1?'':'s')+' '+(noEmail===1?'has':'have')+' no email — add one before turning this on.</span>'):'')+'<br>'+origin; }
   var req=document.getElementById('bEmailReq'); if(req) req.textContent=on?'(required for verification)':'(optional)';
 }
 function toggleMfa(on){
   fetch('/api/room/'+encodeURIComponent(RID)+'/mfa',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({on:!!on})})
-   .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(!ROOM)ROOM={}; ROOM.mfa=!!j.mfa; renderMfa(); toast(j.mfa?'Buyer verification on ✓':'Buyer verification off'); } else { alert((j&&j.error)||'Could not update.'); renderMfa(); } }).catch(function(){ alert('Could not reach the server.'); renderMfa(); });
+   .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(!ROOM)ROOM={}; ROOM.mfa=!!j.mfa; ROOM.mfaOverride=!!j.mfaOverride; if('mfaDefault' in j) ROOM.mfaDefault=j.mfaDefault; renderMfa(); toast(j.mfa?'Buyer verification on ✓':'Buyer verification off'); } else { alert((j&&j.error)||'Could not update.'); renderMfa(); } }).catch(function(){ alert('Could not reach the server.'); renderMfa(); });
+}
+function mfaUseDefault(){
+  fetch('/api/room/'+encodeURIComponent(RID)+'/mfa',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({inherit:true})})
+   .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(!ROOM)ROOM={}; ROOM.mfa=!!j.mfa; ROOM.mfaOverride=!!j.mfaOverride; if('mfaDefault' in j) ROOM.mfaDefault=j.mfaDefault; renderMfa(); toast('Now following the firm default ✓'); } else { alert((j&&j.error)||'Could not update.'); } }).catch(function(){ alert('Could not reach the server.'); });
 }
 function paintClosed(){
   var closed=!!(ROOM&&ROOM.closed);
@@ -337,7 +346,7 @@ function renderAnalytics(a){
   html+='<div style="font-weight:800;color:#000E31;font-size:12.5px;margin:2px 0 8px">By buyer</div>';
   if(!buyers.length){ html+='<div class="h" style="margin:0 0 14px">No buyers authorized yet — add one under Buyers &amp; access.</div>'; }
   else buyers.forEach(function(b){
-    var hot=b.hot?'<span style="background:#fdeceb;color:#DA2B1F;border:1px solid #f4cfcb;border-radius:99px;font-size:10px;font-weight:800;padding:2px 8px;margin-left:7px;text-transform:uppercase;letter-spacing:.03em">🔥 Hot</span>':'';
+    var hot=b.hot?'<span style="background:#fdeceb;color:#DA2B1F;border:1px solid #f4cfcb;border-radius:99px;font-size:10px;font-weight:800;padding:2px 8px;margin-left:7px;text-transform:uppercase;letter-spacing:.03em">Hot</span>':'';
     var last=b.lastAt?('last seen '+esc(fmtWhen(b.lastAt))):'no activity yet';
     var rt=b.readSeconds?(' · '+fmtDur(b.readSeconds)+' read'):'';
     var sum='<b>'+esc(b.name)+'</b>'+hot+' <span style="color:#8a93a8;font-size:12px;font-weight:600">· '+(b.docsOpened||0)+' doc'+(b.docsOpened===1?'':'s')+' · '+(b.views||0)+'v · '+(b.downloads||0)+'d'+rt+' · '+last+'</span>';
@@ -481,14 +490,14 @@ function renderInterviews(){
     var meta=[_ivDate(iv.createdAt), _ivFmtDur(iv.durationSec), _ivFmtSize(iv.sizeBytes), iv.by?('by '+iv.by):''].filter(Boolean).join('  ·  ');
     return '<div style="border-top:1px solid #f0f2f7;padding:14px 18px">'
       +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
-        +'<span style="font-size:18px;line-height:1">📹</span>'
+        +'<span style="font-size:9px;font-weight:700;letter-spacing:.05em;color:#69748a;border:1px solid #dbe0e9;border-radius:3px;padding:2px 6px">VIDEO</span>'
         +'<div style="flex:1;min-width:150px"><div style="font-weight:700;color:var(--navy);font-size:13.5px">'+_ivEsc(iv.business||'Seller interview')+'</div><div style="color:var(--muted);font-size:11.5px;margin-top:1px">'+_ivEsc(meta)+'</div></div>'
         +'<div style="display:flex;gap:6px;flex-wrap:wrap">'+tChip+sChip+'</div>'
       +'</div>'
       +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:11px">'
         +'<a class="btn primary" href="'+_ivEsc(iv.viewUrl)+'" target="_blank" rel="noopener">▶ Watch video</a>'
         +(iv.hasTranscript?'<button class="btn" onclick="ivToggleTranscript(\''+iv.id+'\',this)">Show transcript</button>':'')
-        +(iv.hasTranscript&&!iv.hasClean?'<button class="btn" onclick="ivCleanup(\''+iv.id+'\',this)">✨ Clean up for buyers</button>':'')
+        +(iv.hasTranscript&&!iv.hasClean?'<button class="btn" onclick="ivCleanup(\''+iv.id+'\',this)">Clean up for buyers</button>':'')
         +(iv.hasTranscript?'<button class="btn" onclick="ivRedraft(\''+iv.id+'\',this)">↻ Re-draft debrief</button>':'')
       +'</div>'
       +'<div id="ivtx_'+iv.id+'" style="display:none;margin-top:11px"></div>'
@@ -512,12 +521,12 @@ function ivToggleTranscript(id, btn){
   wrap.style.display=''; if(btn) btn.textContent='Hide transcript';
 }
 function ivCleanup(id, btn){
-  if(btn){ btn.disabled=true; if(!btn.getAttribute('data-o')) btn.setAttribute('data-o',btn.textContent); btn.textContent='✨ Cleaning up…'; }
+  if(btn){ btn.disabled=true; if(!btn.getAttribute('data-o')) btn.setAttribute('data-o',btn.textContent); btn.textContent='Cleaning up…'; }
   fetch('/api/interview/'+encodeURIComponent(id)+'/cleanup',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
-    .then(function(r){return r.json();}).then(function(j){ if(btn){ btn.disabled=false; btn.textContent=btn.getAttribute('data-o')||'✨ Clean up for buyers'; }
+    .then(function(r){return r.json();}).then(function(j){ if(btn){ btn.disabled=false; btn.textContent=btn.getAttribute('data-o')||'Clean up for buyers'; }
       if(j&&j.ok&&j.cleanTranscript){ var iv=(ROOM.interviews||[]).filter(function(x){return x.id===id;})[0]; if(iv){ iv.hasClean=true; iv.cleanTranscript=j.cleanTranscript; iv.cleanStatus='done'; } var wrap=document.getElementById('ivtx_'+id); if(wrap){ wrap.setAttribute('data-loaded','1'); wrap.innerHTML=_ivDocWrap(_ivDocHtml(j.cleanTranscript),true); wrap.style.display=''; } renderInterviews(); toast('Buyer-ready transcript created ✓'); }
       else { alert((j&&j.error)||'Could not clean up the transcript.'); } })
-    .catch(function(){ if(btn){ btn.disabled=false; btn.textContent=btn.getAttribute('data-o')||'✨ Clean up for buyers'; } alert('Could not reach the server.'); });
+    .catch(function(){ if(btn){ btn.disabled=false; btn.textContent=btn.getAttribute('data-o')||'Clean up for buyers'; } alert('Could not reach the server.'); });
 }
 function ivSaveDebrief(id, btn){
   var ta=document.getElementById('ivsum_'+id), m=document.getElementById('ivmsg_'+id); if(!ta) return;

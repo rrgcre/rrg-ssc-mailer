@@ -1477,6 +1477,20 @@ app.post('/api/admin/email/test', requireAdmin, express.json(), async (req, res)
     res.json({ ok: true, id: info.messageId });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
+// ---- Firm-wide Data Room security defaults (verification / alerts / watermarking) ----
+// effRoom* resolvers live near the room routes; these read/write the same settings keys.
+app.get('/api/admin/dataroom', requireAdmin, (req, res) => {
+  const s = loadSettings();
+  res.json({ ok: true, mfa: s.roomMfa !== false, alerts: s.roomAlerts !== false, watermark: s.roomWatermark !== false });
+});
+app.post('/api/admin/dataroom', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const s = loadSettings();
+  if (typeof b.mfa === 'boolean') s.roomMfa = b.mfa;
+  if (typeof b.alerts === 'boolean') s.roomAlerts = b.alerts;
+  if (typeof b.watermark === 'boolean') s.roomWatermark = b.watermark;
+  saveSettings(s);
+  res.json({ ok: true, mfa: s.roomMfa !== false, alerts: s.roomAlerts !== false, watermark: s.roomWatermark !== false });
+});
 // Best-effort notification email. Silently no-ops if SMTP isn't configured, and never throws.
 async function sendNotifyMail(to, subject, text) {
   try {
@@ -3081,7 +3095,7 @@ app.get('/api/room/:id', (req, res) => {
   res.json({ ok: true, room: { id: r.id, business: r.business, token: r.token, link: origin + '/room/' + r.token, srcCimId: r.srcCimId || '', docs: r.docs || [], access: (r.access || []).slice(-120).reverse(), categories: roomServeCats(r), noLease: !!r.noLease,
     interviews: ivs,
     qa: (r.qa || []),
-    mfa: mfaOnForRoom(r),
+    mfa: mfaOnForRoom(r), mfaDefault: effRoomMfaDefault(), mfaOverride: (typeof r.mfa === 'boolean'),
     closed: !!r.closed, closedAt: r.closedAt || '', closedBy: r.closedBy || '',
     gated: roomIsGated(r),
     grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', code: g.code, level: g.level || 'download', catPerms: g.catPerms || {}, docPerms: g.docPerms || {}, active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
@@ -3125,11 +3139,14 @@ app.post('/api/room/:id/mfa', express.json(), (req, res) => {
   const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
   if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  const on = !!(req.body && req.body.on);
+  const b = req.body || {};
+  // inherit:true clears the per-room override so this room follows the firm-wide default again.
+  if (b.inherit) { delete r.mfa; saveRooms(arr); return res.json({ ok: true, mfa: mfaOnForRoom(r), mfaDefault: effRoomMfaDefault(), mfaOverride: false }); }
+  const on = !!b.on;
   // Guard: don't let the broker turn MFA on if any active buyer has no email to receive a code.
   if (on) { const missing = (r.grants || []).filter(g => g.active && !g.email); if (missing.length) return res.status(400).json({ ok: false, error: 'Add an email to every active buyer first — ' + missing.length + ' ' + (missing.length === 1 ? 'buyer has' : 'buyers have') + ' no email to send a code to.' }); }
   r.mfa = on; saveRooms(arr);
-  res.json({ ok: true, mfa: mfaOnForRoom(r) });
+  res.json({ ok: true, mfa: mfaOnForRoom(r), mfaDefault: effRoomMfaDefault(), mfaOverride: true });
 });
 // Revoke / reactivate a buyer's access.
 app.post('/api/room/:id/grant-toggle', express.json(), (req, res) => {
@@ -3668,29 +3685,29 @@ function roomViewerPage(r, d, grant, canDl) {
   }).catch(function(){ msg.textContent='Could not render this spreadsheet in the browser'+(${canDl?"' — use Download to open it.'":"'.'"});  });
 })();<\/script>` : '';
   const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${title} — ${esc(orgDisplayName())}</title><style>
-:root{--navy:#000E31;--line:#e6eaf2;--muted:#6b7488;--red:#DA2B1F;}
-*{box-sizing:border-box;} html,body{margin:0;height:100%;} body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0b1230;color:#1a2236;display:flex;flex-direction:column;}
-.vbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--navy);color:#fff;flex:none;}
-.vback{color:#cdd6ea;text-decoration:none;font-size:12.5px;font-weight:700;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
-.vtitle{flex:1;font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.vconf{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#ffd7d2;background:rgba(218,43,31,.22);border:1px solid rgba(218,43,31,.5);border-radius:99px;padding:3px 9px;white-space:nowrap;}
-.vbtn{color:#fff;text-decoration:none;font-size:12px;font-weight:700;border:1px solid rgba(255,255,255,.5);border-radius:7px;padding:6px 12px;white-space:nowrap;}
-.vbtn.solid{background:var(--navy);border-color:var(--navy);}
+:root{--navy:#20334f;--line:#dbe0e9;--muted:#69748a;--red:#b23a2c;--primary:#2c5c8f;}
+*{box-sizing:border-box;} html,body{margin:0;height:100%;} body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#20334f;color:#2b3648;display:flex;flex-direction:column;font-size:13px;}
+.vbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#20334f;border-bottom:2px solid var(--primary);color:#fff;flex:none;}
+.vback{color:#c6d0e0;text-decoration:none;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.vtitle{flex:1;font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.vconf{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#d8e0ec;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-radius:3px;padding:3px 9px;white-space:nowrap;}
+.vbtn{color:#fff;text-decoration:none;font-size:12px;font-weight:600;border:1px solid rgba(255,255,255,.45);border-radius:3px;padding:6px 12px;white-space:nowrap;}
+.vbtn.solid{background:var(--primary);border-color:var(--primary);}
 .vframe{flex:1;width:100%;border:none;background:#525659;}
-.vfallback{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#f5f7fb;text-align:center;padding:30px;}
-.vfi{font-size:44px;} .vft{font-weight:800;color:var(--navy);font-size:16px;} .vfd{color:var(--muted);font-size:13px;}
+.vfallback{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#f4f6f9;text-align:center;padding:30px;}
+.vfi{font-size:44px;} .vft{font-weight:700;color:var(--navy);font-size:16px;} .vfd{color:var(--muted);font-size:13px;}
 .vfallback .vbtn.solid{color:#fff;padding:9px 18px;font-size:13px;margin-top:4px;}
 .vsheetwrap{flex:1;display:flex;flex-direction:column;min-height:0;background:#fff;}
-.xtabs{flex:none;display:flex;gap:2px;overflow-x:auto;background:#eef1f6;border-bottom:1px solid #d7deea;padding:6px 8px 0;}
-.xtab{border:1px solid #d7deea;border-bottom:none;background:#f7f9fc;color:#4a5468;font:inherit;font-size:12px;font-weight:700;padding:7px 13px;border-radius:7px 7px 0 0;cursor:pointer;white-space:nowrap;}
-.xtab.on{background:#fff;color:#000E31;}
+.xtabs{flex:none;display:flex;gap:2px;overflow-x:auto;background:#eceff3;border-bottom:1px solid var(--line);padding:6px 8px 0;}
+.xtab{border:1px solid var(--line);border-bottom:none;background:#f4f6f9;color:#4a5468;font:inherit;font-size:12px;font-weight:600;padding:7px 13px;border-radius:3px 3px 0 0;cursor:pointer;white-space:nowrap;}
+.xtab.on{background:#fff;color:var(--navy);}
 .vsheet{flex:1;overflow:auto;min-height:0;padding:0;}
 .vsmsg{padding:22px;color:var(--muted);font-size:13px;}
-.xbox table{border-collapse:collapse;font-size:12.5px;color:#1a2236;}
-.xbox td,.xbox th{border:1px solid #e2e8f2;padding:4px 9px;white-space:nowrap;max-width:360px;overflow:hidden;text-overflow:ellipsis;}
-.xbox tr:first-child td{background:#f5f7fb;font-weight:700;position:sticky;top:0;}
+.xbox table{border-collapse:collapse;font-size:12.5px;color:#2b3648;}
+.xbox td,.xbox th{border:1px solid #e4e8f0;padding:4px 9px;white-space:nowrap;max-width:360px;overflow:hidden;text-overflow:ellipsis;}
+.xbox tr:first-child td{background:#f4f6f9;font-weight:700;position:sticky;top:0;}
 </style>${sheetLib}</head><body>
-<div class="vbar"><a class="vback" href="/room/${esc(r.token)}">← Back to the data room</a><div class="vtitle">${title}</div><span class="vconf">🔒 Confidential</span>${dlBtn}</div>
+<div class="vbar"><a class="vback" href="/room/${esc(r.token)}">← Back to the data room</a><div class="vtitle">${title}</div><span class="vconf">Confidential</span>${dlBtn}</div>
 ${stage}
 ${sheetScript}
 <script>(function(){
@@ -3770,40 +3787,41 @@ function fmtBytes(n) { n = Number(n) || 0; if (n < 1024) return n + ' B'; if (n 
 function roomShell(title, inner) {
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)}</title>
 <style>
-:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--line:#e6e9f0;--wash:#f5f7fb;}
-*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.top{color:#fff;padding:28px 0 30px;background:radial-gradient(95% 130% at 28% 15%,#1c2e5c 0%,#112044 42%,#0b1636 70%,#071029 100%);}
-.in{max-width:820px;margin:0 auto;padding:0 24px;}
-.brand{display:inline-flex;align-items:center;} .disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font:900 13px 'Arial Black',Arial,sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
-.bar{background:#fff;width:3px;height:28px;margin:0 12px;} .wm{font-weight:800;font-size:13px;text-transform:uppercase;line-height:.95;color:#fff;}
-.kick{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.28em;font-size:11px;text-transform:uppercase;}
-h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
-.sub{color:#aeb8cf;font-size:13px;margin-top:6px;}
-.wrap{max-width:820px;margin:22px auto;padding:0 24px 60px;}
-.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:14px;}
-.chd{padding:13px 20px;border-bottom:1px solid var(--line);font-weight:800;color:var(--navy);font-size:13px;display:flex;align-items:center;gap:8px;}
-.chd .n{margin-left:auto;color:var(--muted);font-weight:600;font-size:11.5px;}
+:root{--navy:#20334f;--red:#b23a2c;--ink:#2b3648;--muted:#69748a;--line:#dbe0e9;--wash:#f4f6f9;--primary:#2c5c8f;--primary-d:#23496f;--inp:#c4ccda;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#e9ebf0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:13px;}
+.top{color:#fff;padding:22px 0 24px;background:#20334f;border-bottom:3px solid var(--primary);}
+.in{max-width:860px;margin:0 auto;padding:0 24px;}
+.brand{display:inline-flex;align-items:center;} .disc{background:var(--red);color:#fff;border-radius:3px;width:34px;height:34px;font:900 12px 'Arial Black',Arial,sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.bar{background:rgba(255,255,255,.3);width:1px;height:24px;margin:0 12px;} .wm{font-weight:700;font-size:12px;text-transform:uppercase;line-height:1;letter-spacing:.02em;color:#cdd6e4;}
+.kick{margin:18px 0 3px;color:#8fa2be;font-weight:700;letter-spacing:.16em;font-size:10.5px;text-transform:uppercase;}
+h1{font-size:22px;font-weight:700;margin:0;color:#fff;letter-spacing:.01em;}
+.sub{color:#a9b4c8;font-size:13px;margin-top:5px;}
+.wrap{max-width:860px;margin:20px auto;padding:0 24px 60px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:none;overflow:hidden;margin-bottom:12px;}
+.chd{padding:12px 18px;border-bottom:1px solid var(--line);font-weight:700;color:var(--navy);font-size:12px;display:flex;align-items:center;gap:8px;text-transform:uppercase;letter-spacing:.03em;}
+.chd .n{margin-left:auto;color:var(--muted);font-weight:600;font-size:11.5px;letter-spacing:0;}
 .folderhd{cursor:pointer;user-select:none;}
 .cav{display:inline-block;transition:transform .15s;color:var(--muted);font-size:11px;}
 .card.open>.chd>.cav,.subcard.open>.chd>.cav{transform:rotate(90deg);}
 .card:not(.open)>.folderbody,.subcard:not(.open)>.folderbody{display:none;}
-.subcard{border-top:1px solid #f0f2f7;}
-.chd.sub{background:#fbfcfe;font-weight:700;font-size:12.5px;border-bottom:none;padding-left:32px;}
+.subcard{border-top:1px solid #eef1f5;}
+.chd.sub{background:#f4f6f9;font-weight:700;font-size:12px;border-bottom:none;padding-left:32px;text-transform:none;letter-spacing:0;}
 .subcard .docrow{padding-left:32px;}
-.docrow{display:flex;align-items:center;gap:12px;padding:11px 20px;border-top:1px solid #f0f2f7;text-decoration:none;color:inherit;}
-.docrow:first-child{border-top:none;} .docrow:hover{background:#fbfcfe;}
+.docrow{display:flex;align-items:center;gap:12px;padding:11px 18px;border-top:1px solid #eef1f5;text-decoration:none;color:inherit;}
+.docrow:first-child{border-top:none;} .docrow:hover{background:#f7f9fb;}
 .ext{flex:0 0 28px;height:34px;display:flex;align-items:center;justify-content:center;}
-.dt{flex:1;font-weight:600;color:var(--navy);font-size:13.5px;} .dm{color:var(--muted);font-size:11px;margin-top:1px;}
-.dl{border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;white-space:nowrap;text-decoration:none;}
-.dl.ghost{background:#fff;color:var(--navy);}
+.dt{flex:1;font-weight:600;color:var(--navy);font-size:13px;} .dm{color:var(--muted);font-size:11px;margin-top:1px;}
+.dl{border:1px solid var(--primary);background:var(--primary);color:#fff;border-radius:3px;padding:6px 13px;font-size:12px;font-weight:600;white-space:nowrap;text-decoration:none;}
+.dl.ghost{background:#fff;color:var(--primary-d);border-color:var(--inp);}
 .acts{display:flex;gap:8px;align-items:center;flex:none;}
-.note{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 20px;color:var(--muted);font-size:12.5px;line-height:1.6;}
-.note.conf{display:flex;gap:12px;align-items:flex-start;border:1px solid #f0cfca;border-left:3px solid var(--red);background:#fff7f6;color:#4a3230;margin-bottom:14px;}
-.note.conf .lock{font-size:17px;line-height:1.35;flex:none;}
+.note{background:#fff;border:1px solid var(--line);border-radius:4px;padding:15px 18px;color:var(--muted);font-size:12.5px;line-height:1.6;}
+.note.conf{display:flex;gap:11px;align-items:flex-start;border:1px solid #e0cdc9;border-left:3px solid var(--red);background:#faf5f4;color:#463a37;margin-bottom:14px;border-radius:4px;}
+.note.conf .lock{flex:none;color:var(--red);opacity:.85;}
+.note.conf .lock svg{width:16px;height:16px;display:block;margin-top:1px;fill:none;stroke:currentColor;stroke-width:2;}
 .note.conf b{color:var(--red);}
 .empty{text-align:center;color:var(--muted);padding:46px 20px;}
-.foot{max-width:820px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11px;line-height:1.6;}
+.foot{max-width:860px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11px;line-height:1.6;}
 </style></head><body>
 <div class="top"><div class="in"><span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
 ${inner.head}</div></div>
@@ -3840,7 +3858,7 @@ function roomPublicPage(r, grant, opts) {
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${visCount} document${visCount === 1 ? '' : 's'} · Provided by ${esc(orgDisplayName())} under NDA</div>${who}`;
   let body = '';
   if (_preview) body += `<a href="/rrg_room.html?room=${esc(r.id)}" style="display:inline-flex;align-items:center;gap:7px;margin-bottom:14px;background:#0b1636;color:#fff;text-decoration:none;font-weight:700;font-size:12.5px;padding:8px 15px;border-radius:100px">← Back to your data room</a><div style="margin-bottom:14px;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:10px;padding:9px 13px;font-size:12.5px;font-weight:600">Preview — this is exactly what an NDA'd buyer sees. They do not see this bar.</div>`;
-  body += `<div class="note conf"><span class="lock">🔒</span><div><b>Confidential — provided under NDA.</b> These materials are shared solely so you can evaluate a potential acquisition of ${esc(r.business || 'this business')}. Do not copy, forward, screenshot, print, or distribute them, and do not share this link. All inquiries route exclusively through ${esc(orgDisplayName())}.</div></div>`;
+  body += `<div class="note conf"><span class="lock"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><div><b>Confidential — provided under NDA.</b> These materials are shared solely so you can evaluate a potential acquisition of ${esc(r.business || 'this business')}. Do not copy, forward, screenshot, print, or distribute them, and do not share this link. All inquiries route exclusively through ${esc(orgDisplayName())}.</div></div>`;
   if (editCats.length) {
     body += `<div class="card"><div class="chd">Add a document</div><div style="padding:14px 20px">` +
       `<div class="note" style="border:none;padding:0;margin:0 0 10px">You can contribute documents to the folders you have upload rights to (e.g. proof of funds or a signed NDA). PDF, Word, Excel, images, or text — up to 20 MB.</div>` +
