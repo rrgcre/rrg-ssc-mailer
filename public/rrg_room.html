@@ -219,7 +219,7 @@ function renderDocs(){
   var el=document.getElementById('docList'), cats=ROOM.categories||[], docs=ROOM.docs||[];
   el.innerHTML=cats.map(function(cat){
     var inCat=docs.filter(function(d){ return (d.category||'Other')===cat; });
-    var rows=inCat.length? inCat.map(function(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' · '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+fileIcon(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' · added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' · '+esc(d.by)):'')+dlTxt+'</div></div><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }).join('') : '<div class="catempty">No files in this section yet.</div>';
+    var rows=inCat.length? inCat.map(function(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' · '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+fileIcon(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' · added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' · '+esc(d.by)):'')+dlTxt+'</div></div><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="openDocAccess(\''+d.id+'\')" title="Set which buyers can see this file">Access</button><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }).join('') : '<div class="catempty">No files in this section yet.</div>';
     return '<div class="cat"><div class="cathd">'+esc(cat)+'<span class="n">'+inCat.length+'</span></div>'+rows+(cat==='Lease'?leaseFlagHtml():'')+'</div>';
   }).join('');
 }
@@ -328,6 +328,33 @@ function renderAnalytics(a){
   el.innerHTML=html;
 }
 function loadAnalytics(){ fetch('/api/room/'+encodeURIComponent(RID)+'/analytics',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ renderAnalytics(j&&j.ok?j.analytics:null); }).catch(function(){ renderAnalytics(null); }); }
+/* ---- Per-file access: override a single document's permission per buyer ---- */
+function openDocAccess(docId){
+  var d=((ROOM&&ROOM.docs)||[]).filter(function(x){return x.id===docId;})[0]; if(!d) return;
+  var grants=(ROOM&&ROOM.grants)||[];
+  var ex=document.getElementById('docAccOv'); if(ex) ex.remove();
+  var ov=document.createElement('div'); ov.id='docAccOv';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.5);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px';
+  var rows;
+  if(!grants.length){ rows='<div style="color:#6b7488;font-size:13px;padding:10px 0">No buyers authorized yet. Add buyers under “Buyers &amp; access,” then set per-file access here.</div>'; }
+  else rows=grants.map(function(g){
+    var cur=(g.docPerms&&g.docPerms[docId])||'inherit';
+    function opt(v,l){ return '<option value="'+v+'"'+(cur===v?' selected':'')+'>'+l+'</option>'; }
+    return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid #eef1f6"><div style="font-size:13.5px;color:#1a2236;font-weight:600">'+esc(g.name||g.email||'Buyer')+(g.active===false?' <span style="color:#8a93a8;font-weight:500;font-size:11.5px">(inactive)</span>':'')+'</div><select data-gid="'+esc(g.id)+'" onchange="setDocAccess(\''+docId+'\',this.getAttribute(\'data-gid\'),this.value,this)" style="padding:7px 9px;border:1px solid #cfd6e2;border-radius:8px;font:inherit;font-size:12.5px">'+opt('inherit','Inherit folder')+opt('none','No access')+opt('view','View only')+opt('download','View &amp; download')+'</select></div>';
+  }).join('');
+  ov.innerHTML='<div style="background:#fff;border-radius:14px;max-width:470px;width:100%;box-shadow:0 24px 70px rgba(6,12,30,.42);overflow:hidden;font-family:inherit">'
+    +'<div style="padding:16px 20px 12px;border-bottom:1px solid #eef1f6"><div style="font-weight:800;color:#000E31;font-size:15px">Per-file access</div><div style="color:#6b7488;font-size:12.5px;margin-top:3px">'+esc(d.title||d.originalName)+'</div></div>'
+    +'<div style="padding:6px 20px 4px;max-height:58vh;overflow:auto">'+rows+'<div style="color:#8a93a8;font-size:11.5px;margin:11px 0 4px;line-height:1.5">“Inherit folder” uses this buyer’s folder permission. A per-file choice overrides it for this document only — set it to <b>No access</b> to hide the file from a buyer who can otherwise see the folder.</div></div>'
+    +'<div style="padding:12px 20px;border-top:1px solid #eef1f6;display:flex;justify-content:flex-end"><button onclick="var o=document.getElementById(\'docAccOv\');if(o)o.remove();" style="background:#000E31;color:#fff;border:none;border-radius:9px;padding:9px 20px;font:inherit;font-size:13px;font-weight:700;cursor:pointer">Done</button></div></div>';
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  document.body.appendChild(ov);
+}
+function setDocAccess(docId,gid,level,sel){
+  if(sel) sel.disabled=true;
+  fetch('/api/room/'+encodeURIComponent(RID)+'/grant-doc-perms',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:gid,docId:docId,level:level})})
+    .then(function(r){return r.json();}).then(function(j){ if(sel) sel.disabled=false; if(j&&j.ok){ ROOM.grants=j.grants||ROOM.grants; toast('Access updated ✓'); } else { alert((j&&j.error)||'Could not update.'); } })
+    .catch(function(){ if(sel) sel.disabled=false; alert('Could not reach the server.'); });
+}
 function load(){
   fetch('/api/room/'+encodeURIComponent(RID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(j&&j.ok&&j.room){ ROOM=j.room; paint(); loadAnalytics(); } else { document.getElementById('docList').innerHTML='<div class="catempty">Could not load this data room.</div>'; }
@@ -451,7 +478,7 @@ document.addEventListener('rrg:session', applyAiName);
 function topCats(){ return ((window.ROOM&&ROOM.categories)||[]).filter(function(c){ return String(c).indexOf(' / ')<0; }); }
 function toggleCat(hd){ var c=hd&&hd.parentNode; if(c) c.classList.toggle('open'); }
 function rmToggle(hd){ var c=hd&&hd.closest?hd.closest('.card'):null; if(c) c.classList.toggle('collapsed'); }
-function _docRow(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+fileIcon(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }
+function _docRow(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+fileIcon(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="openDocAccess(\''+d.id+'\')" title="Set which buyers can see this file">Access</button><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }
 function renderDocs(){
   var el=document.getElementById('docList'); if(!el) return; var cats=(ROOM.categories||[]), docs=(ROOM.docs||[]);
   var tops=cats.filter(function(c){ return String(c).indexOf(' / ')<0; });
@@ -470,7 +497,7 @@ function renderDocs(){
 applyAiName();
 function _folderOpts(cur){ return ((window.ROOM&&ROOM.categories)||[]).map(function(c){ return '<option value="'+esc(c)+'"'+(String(c)===String(cur)?' selected':'')+'>'+esc(c)+'</option>'; }).join(''); }
 function moveDoc(id,cat){ if(!id||!cat) return; fetch('/api/room/'+encodeURIComponent(RID)+'/move-doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:id,category:cat})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.docs=j.docs||ROOM.docs; renderDocs(); toast('Moved \u2713'); } else alert((j&&j.error)||'Could not move the file.'); }).catch(function(){ alert('Could not reach the server.'); }); }
-function _docRow(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+fileIcon(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div><label class="movewrap" title="Move this file to another folder"><span>Move</span><select class="movesel" onchange="moveDoc(\''+d.id+'\',this.value)">'+_folderOpts(d.category||'Other')+'</select></label><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }
+function _docRow(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+fileIcon(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div><label class="movewrap" title="Move this file to another folder"><span>Move</span><select class="movesel" onchange="moveDoc(\''+d.id+'\',this.value)">'+_folderOpts(d.category||'Other')+'</select></label><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="openDocAccess(\''+d.id+'\')" title="Set which buyers can see this file">Access</button><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }
 
 
 </script>

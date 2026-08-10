@@ -2960,6 +2960,9 @@ const ROOM_CELL_LEVELS = ['none', 'view', 'download', 'edit'];
 // Effective level a buyer (grant) has for a given document category: the per-folder
 // override if set, otherwise the buyer's room-wide baseline level.
 function effGrantLevel(grant, category) { if (!grant) return 'download'; const cp = grant.catPerms && grant.catPerms[category]; if (ROOM_CELL_LEVELS.indexOf(cp) >= 0) return cp; const _sl = String(category || '').indexOf(' / '); if (_sl >= 0) { const _pcp = grant.catPerms && grant.catPerms[String(category).slice(0, _sl)]; if (ROOM_CELL_LEVELS.indexOf(_pcp) >= 0) return _pcp; } return grant.level || 'download'; }
+// Effective level for a SPECIFIC document: an explicit per-file override (docPerms)
+// wins; otherwise fall back to the document's folder level (per-folder, then baseline).
+function effGrantLevelForDoc(grant, doc) { if (!grant) return 'download'; const dp = grant.docPerms && doc && grant.docPerms[doc.id]; if (ROOM_CELL_LEVELS.indexOf(dp) >= 0) return dp; return effGrantLevel(grant, (doc && doc.category) || 'Other'); }
 const ROOM_EXT = /^(pdf|docx?|xlsx?|csv|pptx?|png|jpe?g|gif|txt)$/i;
 // ---- Buyer access control: per-buyer codes + a 15-min idle session ----
 const ROOM_COOKIE = 'rrg_room';
@@ -3059,7 +3062,7 @@ app.get('/api/room/:id', (req, res) => {
     interviews: ivs,
     closed: !!r.closed, closedAt: r.closedAt || '', closedBy: r.closedBy || '',
     gated: roomIsGated(r),
-    grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', code: g.code, level: g.level || 'download', catPerms: g.catPerms || {}, active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
+    grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', code: g.code, level: g.level || 'download', catPerms: g.catPerms || {}, docPerms: g.docPerms || {}, active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
 });
 // Mark/clear "no lease" on a data room (business owns / N/A) — satisfies the lease
 // input for valuation readiness without a document.
@@ -3125,6 +3128,23 @@ app.post('/api/room/:id/grant-perms', express.json(), (req, res) => {
   g.catPerms = g.catPerms || {};
   if (lvl === 'inherit') { delete g.catPerms[cat]; }
   else if (ROOM_CELL_LEVELS.indexOf(lvl) >= 0) { g.catPerms[cat] = lvl; }
+  else return res.status(400).json({ ok: false, error: 'Bad level.' });
+  saveRooms(arr);
+  res.json({ ok: true, grants: r.grants });
+});
+// Per-DOCUMENT access override for one buyer — beats the file's folder permission.
+app.post('/api/room/:id/grant-doc-perms', express.json(), (req, res) => {
+  const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const b = req.body || {};
+  const g = (r.grants || []).find(x => x.id === String(b.grantId || ''));
+  if (!g) return res.status(404).json({ ok: false, error: 'Buyer not found.' });
+  const docId = String(b.docId || ''); const lvl = String(b.level || '');
+  if (!(r.docs || []).some(d => d.id === docId)) return res.status(400).json({ ok: false, error: 'Unknown document.' });
+  g.docPerms = g.docPerms || {};
+  if (lvl === 'inherit') { delete g.docPerms[docId]; }
+  else if (ROOM_CELL_LEVELS.indexOf(lvl) >= 0) { g.docPerms[docId] = lvl; }
   else return res.status(400).json({ ok: false, error: 'Bad level.' });
   saveRooms(arr);
   res.json({ ok: true, grants: r.grants });
@@ -3366,7 +3386,7 @@ app.get('/roomfile/:token/:docid', (req, res) => {
   const fp = path.join(ROOMS_DIR, d.id + '.' + d.ext);
   if (!fp.startsWith(ROOMS_DIR) || !fs.existsSync(fp)) return res.status(404).end();
   if (grant) { grant.lastSeen = new Date().toISOString(); setRoomCookie(res, signRoomSess({ r: r.id, g: grant.id, exp: Date.now() + ROOM_IDLE_MS })); }
-  const level = grant ? effGrantLevel(grant, d.category || 'Other') : 'download';
+  const level = grant ? effGrantLevelForDoc(grant, d) : 'download';
   if (level === 'none') return res.status(403).end();
   const wantDl = String(req.query.dl || '') === '1';
   const asDownload = wantDl && level !== 'view';   // view-only buyers can preview but never download
@@ -3459,10 +3479,11 @@ function roomPublicPage(r, grant, opts) {
   const _preview = !!(opts && opts.preview);
   const docs = (r.docs || []);
   const catLevel = cat => grant ? effGrantLevel(grant, cat) : 'download';
+  const docLevel = d => grant ? effGrantLevelForDoc(grant, d) : 'download';
   const _roomCats = roomServeCats(r);
   const editCats = _roomCats.filter(c => catLevel(c) === 'edit');
-  const visibleCats = _roomCats.filter(c => catLevel(c) !== 'none');
-  const visCount = docs.filter(d => catLevel(d.category || 'Other') !== 'none').length;
+  const visibleCats = _roomCats.filter(c => catLevel(c) !== 'none' || docs.some(d => (d.category || 'Other') === c && docLevel(d) !== 'none'));
+  const visCount = docs.filter(d => docLevel(d) !== 'none').length;
   const lvlLabel = grant ? (editCats.length ? 'You can view, download & upload in some folders' : 'Folder-level access set by RRG') : '';
   const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · ${esc(lvlLabel)} · session ends after 15 min idle</div>` : '';
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${visCount} document${visCount === 1 ? '' : 's'} · Provided by ${esc(orgDisplayName())} under NDA</div>${who}`;
@@ -3481,8 +3502,8 @@ function roomPublicPage(r, grant, opts) {
   } else {
     const _tops = visibleCats.filter(c => String(c).indexOf(' / ') < 0);
     const _subs = {}; visibleCats.forEach(c => { const i = String(c).indexOf(' / '); if (i >= 0) { const par = c.slice(0, i).trim(); (_subs[par] = _subs[par] || []).push(c); } });
-    const filesIn = cat => docs.filter(d => (d.category || 'Other') === cat);
-    const docrows = cat => { const canDl = catLevel(cat) !== 'view'; return filesIn(cat).map(d => { const href = '/roomfile/' + esc(r.token) + '/' + esc(d.id) + (canDl ? '?dl=1' : ''); const label = canDl ? 'Download →' : 'View →'; return `<a class="docrow" href="${href}" target="_blank" rel="noopener"><span class="ext">${roomFileIcon(d.ext)}</span><div style="flex:1"><div class="dt">${esc(d.title || d.originalName)}</div><div class="dm">${esc(fmtBytes(d.size))}</div></div><span class="dl">${label}</span></a>`; }).join(''); };
+    const filesIn = cat => docs.filter(d => (d.category || 'Other') === cat && docLevel(d) !== 'none');
+    const docrows = cat => filesIn(cat).map(d => { const canDl = docLevel(d) !== 'view'; const href = '/roomfile/' + esc(r.token) + '/' + esc(d.id) + (canDl ? '?dl=1' : ''); const label = canDl ? 'Download →' : 'View →'; return `<a class="docrow" href="${href}" target="_blank" rel="noopener"><span class="ext">${roomFileIcon(d.ext)}</span><div style="flex:1"><div class="dt">${esc(d.title || d.originalName)}</div><div class="dm">${esc(fmtBytes(d.size))}</div></div><span class="dl">${label}</span></a>`; }).join('');
     body += _tops.map(cat => {
       const own = filesIn(cat);
       const mySubs = (_subs[cat] || []).filter(sc => filesIn(sc).length);
