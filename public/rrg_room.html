@@ -255,6 +255,29 @@ function renderGrants(){
   var el=document.getElementById('buyerList'); if(!el) return;
   var gs=(ROOM.grants||[]), cats=topCats();
   if(!gs.length){ el.innerHTML='<div class="catempty">No individual buyers yet — the room is open to anyone with the link (view &amp; download). Add a buyer to switch on per-person, per-folder access.</div>'; return; }
+  function _rfmt(iso){ if(!iso) return '—'; try{ var d=new Date(iso); if(isNaN(d.getTime())) return '—'; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }catch(e){ return '—'; } }
+  var _rh=['Person','Email','Company','Access','Code','Granted','Last seen','Views','Downloads',''];
+  var roster='<div class="ch" style="margin:2px 0 8px"><b>People with access</b> &nbsp;<span style="color:#6b7488;font-weight:600;font-size:12px">'+gs.length+' authorized</span></div>'
+    +'<div style="overflow-x:auto;border:1px solid #eef0f5;border-radius:6px;margin-bottom:16px"><table style="border-collapse:collapse;width:100%;font-size:12.5px">'
+    +'<tr style="background:#f4f6f9">'+_rh.map(function(h,i){ return '<th style="text-align:'+((i>=7&&i<=8)?'center':'left')+';padding:8px 10px;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#69748a;font-weight:700;white-space:nowrap">'+h+'</th>'; }).join('')+'</tr>'
+    +gs.map(function(g){
+       var nm=esc(g.name||g.email||'Buyer');
+       var nmh=g.personId?('<a href="./rrg_person.html?id='+encodeURIComponent(g.personId)+'" title="Open contact" style="color:#23496f;font-weight:600;text-decoration:none">'+nm+'</a>'):('<span style="font-weight:600;color:#0b1a3a">'+nm+'</span>');
+       var li=levelInfo(g.level||'none');
+       var badge=g.active?('<span style="background:'+li.bg+';color:'+li.fg+';border-radius:3px;padding:2px 7px;font-size:10px;font-weight:700;white-space:nowrap">'+li.t+'</span>'):'<span style="background:#fdeceb;color:#b23a2c;border-radius:3px;padding:2px 7px;font-size:10px;font-weight:700">Revoked</span>';
+       return '<tr style="border-top:1px solid #eef0f5;'+(g.active?'':'opacity:.55')+'">'
+         +'<td style="padding:7px 10px">'+nmh+'</td>'
+         +'<td style="padding:7px 10px;color:#3a4560">'+esc(g.email||'—')+'</td>'
+         +'<td style="padding:7px 10px;color:#3a4560">'+esc(g.company||'—')+'</td>'
+         +'<td style="padding:7px 10px">'+badge+'</td>'
+         +'<td style="padding:7px 10px;font-family:ui-monospace,Menlo,Consolas,monospace;color:#0b1a3a">'+esc(g.code||'—')+'</td>'
+         +'<td style="padding:7px 10px;color:#6b7488;white-space:nowrap">'+_rfmt(g.createdAt)+'</td>'
+         +'<td style="padding:7px 10px;color:#6b7488;white-space:nowrap">'+_rfmt(g.lastSeen)+'</td>'
+         +'<td style="padding:7px 10px;text-align:center;color:#0b1a3a;font-weight:600">'+(g.views||0)+'</td>'
+         +'<td style="padding:7px 10px;text-align:center;color:#0b1a3a;font-weight:600">'+(g.downloads||0)+'</td>'
+         +'<td style="padding:7px 10px;text-align:right;white-space:nowrap">'+(g.email?('<button class="x" onclick="inviteGrant(\''+g.id+'\')" title="Email this person the room link &amp; their access code">'+(g.invitedAt?'Re-send email':'Email access')+'</button> '):'')+'<button class="x" onclick="toggleGrant(\''+g.id+'\')">'+(g.active?'Revoke':'Restore')+'</button></td>'
+         +'</tr>';
+    }).join('')+'</table></div>';
   var head='<tr><th style="text-align:left;padding:8px 10px;font-size:11px;color:#6b7488;position:sticky;left:0;background:#fff">Folder</th>'+gs.map(function(g){ var _nm=esc(g.name||g.email||'Buyer'); var _nmh=g.personId?('<a href="./rrg_person.html?id='+encodeURIComponent(g.personId)+'" title="Open contact" style="color:inherit;text-decoration:underline;text-decoration-color:#c4ccda">'+_nm+'</a>'):_nm; return '<th style="padding:8px 10px;min-width:118px;font-size:12px;color:#0b1a3a;'+(g.active?'':'opacity:.5')+'">'+_nmh+'<div style="font-weight:500;color:#6b7488;font-size:10.5px;margin-top:2px">Code '+esc(g.code)+'</div><button class="x" style="margin-top:4px" onclick="toggleGrant(\''+g.id+'\')">'+(g.active?'Revoke':'Restore')+'</button></th>'; }).join('')+'</tr>';
   var rows=cats.map(function(cat,ci){
     return '<tr><td style="padding:7px 10px;font-size:12.5px;font-weight:600;color:#0b1a3a;border-top:1px solid #eef0f5;position:sticky;left:0;background:#fff">'+esc(cat)+'</td>'+gs.map(function(g){
@@ -262,7 +285,9 @@ function renderGrants(){
       return '<td style="padding:6px;text-align:center;border-top:1px solid #eef0f5"><button title="Click to change access" onclick="cycleCell(\''+g.id+'\','+ci+',\''+lv+'\')" style="cursor:pointer;border:1px solid rgba(0,0,0,.08);border-radius:7px;padding:5px 9px;font-size:11px;font-weight:700;min-width:80px;background:'+info.bg+';color:'+info.fg+'">'+info.t+'</button></td>';
     }).join('')+'</tr>';
   }).join('');
-  el.innerHTML='<div style="overflow-x:auto;margin-top:8px;border:1px solid #eef0f5;border-radius:10px"><table style="border-collapse:collapse;width:100%">'+head+rows+'</table></div>'
+  el.innerHTML=roster
+    +'<div class="ch" style="margin:2px 0 8px"><b>Folder-level access</b> &nbsp;<span style="color:#6b7488;font-weight:600;font-size:12px">what each person can see, by folder</span></div>'
+    +'<div style="overflow-x:auto;margin-top:8px;border:1px solid #eef0f5;border-radius:6px"><table style="border-collapse:collapse;width:100%">'+head+rows+'</table></div>'
     +'<div class="h" style="margin-top:10px">Click any cell to cycle its access: <b>No access</b> &rarr; <b>View</b> &rarr; <b>Download</b> &rarr; <b>Edit</b>. View lets the buyer preview that folder&rsquo;s files but not download them; Edit also lets them upload into that folder. Each buyer&rsquo;s starting level comes from the level you picked when adding them.</div>';
 }
 function cycleCell(gid,ci,cur){
@@ -307,6 +332,12 @@ function addBuyer(){
 function setLevel(id,level){
   fetch('/api/room/'+encodeURIComponent(RID)+'/grant-level',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:id,level:level})})
    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; renderGrants(); toast('Access updated ✓'); } else alert((j&&j.error)||'Failed'); }).catch(function(){ alert('Could not reach the server.'); });
+}
+function inviteGrant(gid){
+  var g=(ROOM.grants||[]).filter(function(x){return x.id===gid;})[0]; if(!g) return;
+  if(!g.email){ alert('Add an email for this person first (edit them, or re-add with an email).'); return; }
+  fetch('/api/room/'+encodeURIComponent(RID)+'/grant/'+encodeURIComponent(gid)+'/email',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+   .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||ROOM.grants; renderGrants(); toast('Access emailed to '+esc(j.sentTo||g.email)+' ✓'); } else alert((j&&j.error)||'Could not send the email.'); }).catch(function(){ alert('Could not reach the server.'); });
 }
 function toggleGrant(id){
   fetch('/api/room/'+encodeURIComponent(RID)+'/grant-toggle',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:id})})

@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Data Room Access Email</title>
+<style>
+:root{--navy:#20334f;--navy2:#23496f;--red:#b23a2c;--ink:#2b3648;--dim:#5f6a7d;--soft:#8a93a3;--line:#dbe0e9;--wash:#f4f6f9;--green:#2f7a55;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:720px;margin:0 auto;padding:26px 26px 60px;}
+h1{font-size:19px;font-weight:800;color:var(--navy);margin:0;}
+.sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.5;max-width:640px;}
+label.fl{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin:18px 0 6px;}
+input.tin,textarea.tin{width:100%;border:1px solid #c4ccda;border-radius:4px;padding:11px 13px;font:inherit;font-size:14px;background:#fff;color:var(--ink);}
+textarea.tin{min-height:250px;resize:vertical;line-height:1.55;}
+input.tin:focus,textarea.tin:focus{outline:none;border-color:#2c5c8f;box-shadow:0 0 0 3px rgba(44,92,143,.15);}
+.chips{margin:9px 0 2px;display:flex;flex-wrap:wrap;gap:7px;}
+.chip{font-size:11.5px;font-weight:700;color:var(--navy2);background:#eef2f7;border:1px solid #d3dbe6;border-radius:3px;padding:4px 10px;cursor:pointer;}
+.chip:hover{background:#e3ebf3;}
+.savebar{display:flex;align-items:center;gap:12px;margin-top:20px;}
+.savebtn{background:var(--navy);color:#fff;border:none;border-radius:3px;padding:10px 20px;font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;}
+.savebtn:disabled{opacity:.5;cursor:default;}
+.resetbtn{background:#fff;color:#33415c;border:1px solid #c4ccda;border-radius:3px;padding:10px 16px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.msg{font-size:12.5px;font-weight:600;}
+.note{font-size:12px;color:var(--soft);margin-top:16px;line-height:1.65;}
+.gate{color:var(--dim);font-size:13.5px;padding:30px 0;}
+</style>
+<script src="/rrg_rte.js"></script>
+</head>
+<body>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var ADMIN=false, SUBJ='', BODY='';
+function render(){
+  if(!ADMIN){ document.getElementById('root').innerHTML='<h1>Data room access email</h1><div class="sub">This is the email sent to a person when you grant them data-room access. Only an administrator can edit it.</div>'; return; }
+  document.getElementById('root').innerHTML=''
+    +'<h1>Data room access email</h1>'
+    +'<div class="sub">The message sent when you click <b>Email access</b> for a person in a data room. It gives them the room link and their personal access code. Use the placeholders below — they’re filled in automatically when the email goes out, and the link becomes clickable. Changes apply firm-wide.</div>'
+    +'<label class="fl">Subject</label><input class="tin" id="subj" value="'+esc(SUBJ)+'">'
+    +'<label class="fl">Body</label>'+(window.RRGRte?RRGRte.html('body',{value:BODY,placeholder:'Write the message…'}):('<textarea class="tin" id="body">'+esc(BODY)+'</textarea>'))
+    +'<div class="chips" id="chips"></div>'
+    +'<div class="savebar"><button class="savebtn" id="save">Save</button><button class="resetbtn" id="reset">Reset to default</button><span class="msg" id="msg"></span></div>'
+    +'<div class="note">Placeholders: <b>{{firstName}}</b> the person’s first name · <b>{{business}}</b> the data-room / business name · <b>{{link}}</b> the room link · <b>{{code}}</b> their access code · <b>{{repName}}</b> your name · <b>{{org}}</b> your company · <b>{{uploadNote}}</b> upload instructions (only shown when the person has upload rights) · <b>{{mfaNote}}</b> the verification-code note (only shown when buyer verification is on for that room). Click a chip to insert it where your cursor is.</div>';
+  if(window.RRGRte) RRGRte.wire('body');
+  var chips=['{{firstName}}','{{business}}','{{link}}','{{code}}','{{repName}}','{{org}}','{{uploadNote}}','{{mfaNote}}'];
+  document.getElementById('chips').innerHTML=chips.map(function(c){ return '<span class="chip" data-c="'+c+'">'+c+'</span>'; }).join('');
+  var _bodyRange=null;
+  (function(){ var ed=document.getElementById('body'); if(!ed||!ed.isContentEditable) return; function keep(){ var s=window.getSelection&&window.getSelection(); if(s&&s.rangeCount&&ed.contains(s.anchorNode)) _bodyRange=s.getRangeAt(0).cloneRange(); } ed.addEventListener('keyup',keep); ed.addEventListener('mouseup',keep); ed.addEventListener('blur',keep); })();
+  function insertChip(c){
+    var ed=document.getElementById('body'); if(!ed) return;
+    if(ed.isContentEditable){
+      ed.focus();
+      var sel=window.getSelection();
+      if(_bodyRange){ try{ sel.removeAllRanges(); sel.addRange(_bodyRange); }catch(e){} }
+      var range=(sel&&sel.rangeCount)?sel.getRangeAt(0):null;
+      if(!range||!ed.contains(range.commonAncestorContainer)){ range=document.createRange(); range.selectNodeContents(ed); range.collapse(false); sel.removeAllRanges(); sel.addRange(range); }
+      var node=document.createTextNode(c);
+      range.deleteContents(); range.insertNode(node);
+      range.setStartAfter(node); range.setEndAfter(node); sel.removeAllRanges(); sel.addRange(range);
+      _bodyRange=range.cloneRange();
+      try{ ed.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){}
+    } else {
+      var s=ed.selectionStart||ed.value.length, e=ed.selectionEnd||ed.value.length; ed.value=ed.value.slice(0,s)+c+ed.value.slice(e); ed.selectionStart=ed.selectionEnd=s+c.length;
+    }
+  }
+  document.querySelectorAll('.chip').forEach(function(ch){ ch.addEventListener('mousedown',function(e){ e.preventDefault(); }); ch.addEventListener('click',function(){ insertChip(ch.getAttribute('data-c')); }); });
+  document.getElementById('save').addEventListener('click',save);
+  document.getElementById('reset').addEventListener('click',function(){ doSave({reset:true}); });
+}
+function save(){ var bodyVal=(window.RRGRte?RRGRte.get('body'):((document.getElementById('body')||{}).value||'')); doSave({ subject:document.getElementById('subj').value, body:bodyVal }); }
+function doSave(payload){
+  payload=payload||{};
+  var b=document.getElementById('save'), m=document.getElementById('msg'); if(b){ b.disabled=true; } m.textContent='';
+  fetch('/api/admin/room-invite-email',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)})
+    .then(function(r){return r.json();}).then(function(j){ if(b){ b.disabled=false; }
+      if(j&&j.ok){ SUBJ=j.subject; BODY=j.body; if(payload.reset){ render(); } else { var el=document.getElementById('subj'); if(el) el.value=SUBJ; if(!window.RRGRte){ var bd=document.getElementById('body'); if(bd) bd.value=BODY; } } m.style.color='#2f7a55'; m.textContent=payload.reset?'Reset to default ✓':'Saved ✓'; setTimeout(function(){m.textContent='';},1900); }
+      else { m.style.color='#b23a2c'; m.textContent=(j&&j.error)||'Could not save.'; } })
+    .catch(function(){ if(b){ b.disabled=false; } m.style.color='#b23a2c'; m.textContent='Could not reach the server.'; });
+}
+fetch('/api/admin/room-invite-email',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load the email settings.</div>'; return; }
+  SUBJ=j.subject||''; BODY=j.body||''; ADMIN=!!j.isAdmin; render();
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+</script>
+</body>
+</html>

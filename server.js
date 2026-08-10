@@ -3147,6 +3147,35 @@ app.post('/api/room/:id/grant', express.json(), (req, res) => {
   r.grants.push(g); saveRooms(arr);
   res.json({ ok: true, grants: r.grants, gated: true });
 });
+// Email a granted person their access — the room link + their personal access code, with
+// upload instructions when they have upload (edit) rights. This is how a seller/owner is
+// invited to add their own documents to the room.
+app.post('/api/room/:id/grant/:gid/email', express.json(), async (req, res) => {
+  try {
+    const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
+    if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+    if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    const g = (r.grants || []).find(x => x.id === req.params.gid);
+    if (!g) return res.status(404).json({ ok: false, error: 'Person not found on this room.' });
+    if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: 'Email isn’t set up yet — connect a mailbox in Settings → Email / SMTP (or your Account → Gmail) first.' });
+    const to = String((req.body && req.body.to) || g.email || '').trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return res.status(400).json({ ok: false, error: 'This person has no valid email — add one first.' });
+    const origin = req.protocol + '://' + req.get('host');
+    const link = origin + '/room/' + r.token;
+    const org = orgDisplayName(); const biz = r.business || 'the data room'; const me = (req.user && req.user.name) || org;
+    const first = String(g.name || '').trim().split(/\s+/)[0] || 'there';
+    const canUpload = (g.level === 'edit');
+    const uploadNote = canUpload ? 'To add your files, open the relevant folder and click Upload. You can add financials, your lease, and any other requested documents.\n\n' : '';
+    const mfaNote = mfaOnForRoom(r) ? 'For added security, you’ll also be emailed a one-time verification code when you open the room.\n\n' : '';
+    const vars = { firstName: first, business: biz, link: link, code: g.code, repName: me, org: org, uploadNote: uploadNote, mfaNote: mfaNote };
+    const tpl = effRoomInviteEmail();
+    const subject = fillTemplate(tpl.subject, vars) || (org + ' — Access to the ' + biz + ' data room');
+    const _r = sellerEmailRender(tpl.body, vars);
+    await sendMailWL({ from: mailFrom(), to, subject, text: _r.text, html: _r.html });
+    g.invitedAt = new Date().toISOString(); g.invitedTo = to; saveRooms(arr);
+    res.json({ ok: true, grants: r.grants, sentTo: to });
+  } catch (e) { console.error('room grant email:', e && e.message); res.status(502).json({ ok: false, error: 'Could not send the email. Check the mailbox connection in Settings → Email / SMTP.' }); }
+});
 // Turn buyer verification (email one-time code) on or off for this room.
 app.post('/api/room/:id/mfa', express.json(), (req, res) => {
   const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
@@ -5587,6 +5616,19 @@ const SELLER_LINK_EMAIL_DEFAULTS = {
     body: 'Hi,\n\nThanks for considering {{org}} to help with {{business}}. To get started, we’d like to learn a bit about your restaurant or bar — the concept, the numbers at a high level, your lease, and what you’re hoping to accomplish. It only takes a few minutes, and it helps us tell you exactly where you stand.\n\nUse whichever you prefer (or both):\n\n• Answer a short set of questions in writing: {{formUrl}}\n\n• Or just talk it through on a short video: {{videoUrl}}\n\nRough figures are fine, and everything is confidential — it goes only to your {{org}} representative. Prefer not to be on camera? Use the written version.\n\n— {{repName}}',
   },
 };
+// Admin-editable data-room access invite email. Placeholders: {{firstName}} {{business}}
+// {{link}} {{code}} {{repName}} {{org}} {{uploadNote}} {{mfaNote}}.
+const ROOM_INVITE_EMAIL_DEFAULT = {
+  subject: '{{org}} — Access to the {{business}} data room',
+  body: 'Hi {{firstName}},\n\nYou’ve been granted secure access to the {{business}} data room.\n\nOpen the data room: {{link}}\n\nYour access code (your password): {{code}}\n\n{{uploadNote}}{{mfaNote}}This link is confidential — please don’t forward it.\n\n— {{repName}}',
+};
+function effRoomInviteEmail() {
+  const st = loadSettings(); const k = (st.roomInviteEmail && typeof st.roomInviteEmail === 'object') ? st.roomInviteEmail : {};
+  return {
+    subject: (typeof k.subject === 'string' && k.subject.trim()) ? k.subject : ROOM_INVITE_EMAIL_DEFAULT.subject,
+    body: (typeof k.body === 'string' && k.body.trim()) ? k.body : ROOM_INVITE_EMAIL_DEFAULT.body,
+  };
+}
 // Legacy single-store maps to the interview (valuation) email so nothing existing breaks.
 function effSellerIntakeEmail(kind) {
   kind = linkKind(kind);
@@ -5635,6 +5677,16 @@ app.post('/api/admin/seller-intake-email', express.json({ limit: '64kb' }), (req
   if (kind === 'valuation') delete s.sellerIntakeEmail; // migrate legacy store into the keyed one
   saveSettings(s);
   const t = effSellerIntakeEmail(kind); res.json({ ok: true, kind: kind, subject: t.subject, body: t.body });
+});
+// Data-room access invite email — admin editable.
+app.get('/api/admin/room-invite-email', (req, res) => { const t = effRoomInviteEmail(); res.json({ ok: true, subject: t.subject, body: t.body, defaults: ROOM_INVITE_EMAIL_DEFAULT, isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.post('/api/admin/room-invite-email', express.json({ limit: '64kb' }), (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
+  const b = req.body || {}; const s = loadSettings();
+  if (b.reset) { delete s.roomInviteEmail; saveSettings(s); const t = effRoomInviteEmail(); return res.json({ ok: true, subject: t.subject, body: t.body }); }
+  s.roomInviteEmail = { subject: String(b.subject || '').slice(0, 300), body: String(b.body || '').slice(0, 20000) };
+  saveSettings(s);
+  const t = effRoomInviteEmail(); res.json({ ok: true, subject: t.subject, body: t.body });
 });
 // ===== Seller interview recordings -> S3 (lazy-loaded so a missing dep never blocks boot) =====
 let _s3 = null, _s3ok = null;
