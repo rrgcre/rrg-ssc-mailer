@@ -1,0 +1,53 @@
+/* ============================================================
+   FullServe — enterprise theme layer (NetSuite-style)
+   Flat, dense, muted. Loaded last on every app page (via
+   rrg_brand.js), so it overrides both per-page and shell
+   styling. Retune the whole app from this one file.
+   ============================================================ */
+
+/* --- Design tokens: muted slate + steel, applied app-wide.
+       !important beats each page's own :root and the palette
+       that rrg_brand.js sets inline on <html>. --- */
+html{
+  --navy:#20334f !important;
+  --navbg:#20334f !important;
+  --primary:#2c5c8f !important;
+  --primary-d:#23496f !important;
+  --red:#b23a2c !important;
+  --accent:#b23a2c !important;
+  --ink:#2b3648 !important;
+  --muted:#69748a !important;
+  --soft:#96a1b2 !important;
+  --line:#dbe0e9 !important;
+  --wash:#f4f6f9 !important;
+  --inp:#c4ccda !important;
+  --green:#2f7a55 !important;
+}
+body{ background:#e9ebf0 !important; }
+
+/* --- Flat, squared cards. Borders carry separation, not shadows. --- */
+.card,.kpi{ border-radius:4px !important; box-shadow:none !important; }
+
+/* --- Action buttons: squared, not pill-shaped. (Round elements —
+       avatars, toggles, the logo disc — are left alone.) --- */
+.btn,.rbtn,.mbtn,.newbtn,.savebtn,.linkbtn,.pre,.fbclear,.mbtn.ghost{ border-radius:3px !important; }
+
+/* --- Form fields --- */
+input[type=text],input[type=email],input[type=password],input[type=number],
+input[type=search],input[type=tel],input[type=url],input[type=date],
+select,textarea{ border-radius:3px !important; }
+
+/* --- Shared shell: left nav + top bar, de-rounded and muted --- */
+#rrgnav a.it,#rrgnav .lbl,#rrgnav .ws{ border-radius:3px !important; }
+#rrgtop .create,#rrgtop .rrgback,#rrgtop .srch input{ border-radius:3px !important; }
+#rrgtop .srch input{ background:#f4f6f9 !important; }
+#rrgtop .ic{ border-radius:4px !important; }
+.rrgcol{ border-radius:3px !important; }
+
+/* --- Dialogs + toasts --- */
+#rrgcfm-bx{ border-radius:6px !important; }
+#rrgcfm-bx button{ border-radius:4px !important; }
+#rrgcfm-bx button.ok{ background:var(--primary) !important; border-color:var(--primary) !important; }
+#rrgcfm-bx button.ok.danger{ background:var(--red) !important; }
+.rrgtoast{ border-radius:4px !important; background:#20334f !important; }
+.rrgtoast.err{ background:#7a1f1a !important; }

@@ -1,6 +1,9 @@
 /* Rewrites the browser tab title to the admin-set app name (preserving each page's
    section label after the — ), and renames the AI assistant site-wide to the admin-set
    name (default "Claude"). Loaded on every page. */
+/* Enterprise theme layer — one stylesheet, loaded on every page, that gives the whole
+   app the flat/dense/muted "data room" look. Retune it in /public/rrg_theme.css. */
+(function(){ try{ if(!document.querySelector('link[data-rrg-theme]')){ var l=document.createElement('link'); l.rel='stylesheet'; l.href='/rrg_theme.css'; l.setAttribute('data-rrg-theme','1'); (document.head||document.documentElement).appendChild(l); } }catch(e){} })();
 /* Pre-apply the shelled layout before first paint so navigating doesn't flash the un-shelled page. */
 (function(){ try{
   if(/\/(login|sign)\b/.test(location.pathname)) return;
