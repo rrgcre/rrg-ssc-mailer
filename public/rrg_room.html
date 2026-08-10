@@ -106,7 +106,7 @@ h1{font-size:16px;font-weight:700;margin:0;color:#fff;letter-spacing:.01em;}
       <label class="switch" style="position:relative;display:inline-block;width:46px;height:26px;flex:none"><input type="checkbox" id="mfaChk" onchange="toggleMfa(this.checked)" style="opacity:0;width:0;height:0"><span class="sl" style="position:absolute;cursor:pointer;inset:0;background:#c6cede;border-radius:26px;transition:.15s"></span></label>
     </div>
     <div class="up">
-      <div class="fld"><label>Buyer name</label><input type="text" id="bName" placeholder="e.g. Jane Smith / ABC Capital"></div>
+      <div class="fld" style="position:relative"><label>Buyer name</label><input type="text" id="bName" autocomplete="off" placeholder="Search contacts, or type a new name" oninput="bNameInput()" onfocus="bNameLoad()"><div id="bNameRes" style="display:none;position:absolute;z-index:50;top:100%;left:0;right:0;background:#fff;border:1px solid var(--line);border-radius:3px;box-shadow:0 8px 24px rgba(12,22,54,.14);max-height:230px;overflow:auto;margin-top:2px"></div><div id="bNameHint" style="font-size:10.5px;color:var(--soft);margin-top:3px;min-height:12px"></div></div>
       <div class="fld"><label>Email <span id="bEmailReq" style="color:#8a93a8;font-weight:500"></span></label><input type="text" id="bEmail" placeholder="jane@abccapital.com"></div>
       <div class="fld"><label>Starting access</label><select id="bLevel"><option value="none" selected>No access — choose folders</option><option value="view">View only</option><option value="download">View &amp; download</option><option value="edit">View, download &amp; upload</option></select></div>
       <div class="fld"><button class="btn green" onclick="addBuyer()">Authorize access</button></div>
@@ -260,7 +260,7 @@ function renderGrants(){
   var el=document.getElementById('buyerList'); if(!el) return;
   var gs=(ROOM.grants||[]), cats=topCats();
   if(!gs.length){ el.innerHTML='<div class="catempty">No individual buyers yet — the room is open to anyone with the link (view &amp; download). Add a buyer to switch on per-person, per-folder access.</div>'; return; }
-  var head='<tr><th style="text-align:left;padding:8px 10px;font-size:11px;color:#6b7488;position:sticky;left:0;background:#fff">Folder</th>'+gs.map(function(g){ return '<th style="padding:8px 10px;min-width:118px;font-size:12px;color:#0b1a3a;'+(g.active?'':'opacity:.5')+'">'+esc(g.name||g.email||'Buyer')+'<div style="font-weight:500;color:#6b7488;font-size:10.5px;margin-top:2px">Code '+esc(g.code)+'</div><button class="x" style="margin-top:4px" onclick="toggleGrant(\''+g.id+'\')">'+(g.active?'Revoke':'Restore')+'</button></th>'; }).join('')+'</tr>';
+  var head='<tr><th style="text-align:left;padding:8px 10px;font-size:11px;color:#6b7488;position:sticky;left:0;background:#fff">Folder</th>'+gs.map(function(g){ var _nm=esc(g.name||g.email||'Buyer'); var _nmh=g.personId?('<a href="./rrg_person.html?id='+encodeURIComponent(g.personId)+'" title="Open contact" style="color:inherit;text-decoration:underline;text-decoration-color:#c4ccda">'+_nm+'</a>'):_nm; return '<th style="padding:8px 10px;min-width:118px;font-size:12px;color:#0b1a3a;'+(g.active?'':'opacity:.5')+'">'+_nmh+'<div style="font-weight:500;color:#6b7488;font-size:10.5px;margin-top:2px">Code '+esc(g.code)+'</div><button class="x" style="margin-top:4px" onclick="toggleGrant(\''+g.id+'\')">'+(g.active?'Revoke':'Restore')+'</button></th>'; }).join('')+'</tr>';
   var rows=cats.map(function(cat,ci){
     return '<tr><td style="padding:7px 10px;font-size:12.5px;font-weight:600;color:#0b1a3a;border-top:1px solid #eef0f5;position:sticky;left:0;background:#fff">'+esc(cat)+'</td>'+gs.map(function(g){
       var lv=effLevel(g,cat), info=levelInfo(lv);
@@ -276,12 +276,37 @@ function cycleCell(gid,ci,cur){
   fetch('/api/room/'+encodeURIComponent(RID)+'/grant-perms',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:gid,category:cat,level:nl})})
    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; renderGrants(); } else alert((j&&j.error)||'Could not update.'); }).catch(function(){ alert('Could not reach the server.'); });
 }
+/* ---- Buyer = a contact in the book of business. Search existing contacts to link;
+       a typed name with no match is onboarded as a new contact on authorize. ---- */
+var BUYERPID='', BUYER_PEOPLE=null;
+function bNameLoad(){ if(BUYER_PEOPLE!==null) return; BUYER_PEOPLE=[]; fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ BUYER_PEOPLE=((j&&j.people)||[]).filter(function(p){return !p.system;}); }).catch(function(){ BUYER_PEOPLE=[]; }); }
+function _bhint(html){ var h=document.getElementById('bNameHint'); if(h) h.innerHTML=html||''; }
+function bNameInput(){
+  BUYERPID='';
+  var input=document.getElementById('bName'), box=document.getElementById('bNameRes'); if(!box) return;
+  var q=(input.value||'').trim().toLowerCase();
+  if(!q){ box.style.display='none'; box.innerHTML=''; _bhint(''); return; }
+  _bhint('New contact — “'+esc(input.value.trim())+'” will be added to your registry on authorize.');
+  var hits=(BUYER_PEOPLE||[]).filter(function(p){ var hay=((p.name||'')+' '+(p.companyName||p.company||'')+' '+(p.email||'')).toLowerCase(); return hay.indexOf(q)>=0; }).slice(0,8);
+  if(!hits.length){ box.style.display='none'; box.innerHTML=''; return; }
+  box.innerHTML=hits.map(function(p){ var sub=[p.companyName||p.company||'', p.email||''].filter(Boolean).join(' · '); return '<div class="bnrow" data-id="'+esc(p.id)+'" data-name="'+esc(p.name||'')+'" data-email="'+esc(p.email||'')+'" style="padding:8px 11px;cursor:pointer;border-bottom:1px solid #f2f4f7"><div style="font-size:12.5px;font-weight:600;color:var(--navy)">'+esc(p.name||'(no name)')+'</div>'+(sub?('<div style="font-size:11px;color:var(--muted)">'+esc(sub)+'</div>'):'')+'</div>'; }).join('');
+  box.style.display='block';
+  [].slice.call(box.querySelectorAll('.bnrow')).forEach(function(el){ el.addEventListener('mousedown',function(e){ e.preventDefault(); pickBuyerContact(el.getAttribute('data-id'),el.getAttribute('data-name'),el.getAttribute('data-email')); }); });
+}
+function pickBuyerContact(id,name,email){
+  BUYERPID=id;
+  document.getElementById('bName').value=name||'';
+  if(email) document.getElementById('bEmail').value=email;
+  var box=document.getElementById('bNameRes'); if(box){ box.style.display='none'; box.innerHTML=''; }
+  _bhint('✓ Linking to existing contact <b style="color:var(--ink)">'+esc(name||'')+'</b>');
+}
+document.addEventListener('click',function(e){ var box=document.getElementById('bNameRes'); if(box&&e.target&&e.target.id!=='bName'&&!(e.target.closest&&e.target.closest('#bNameRes'))){ box.style.display='none'; } });
 function addBuyer(){
   var name=document.getElementById('bName').value.trim(), email=document.getElementById('bEmail').value.trim(), level=document.getElementById('bLevel').value, m=document.getElementById('bmsg');
   if(!name&&!email){ m.textContent='Add a name or email for this buyer.'; return; }
   m.textContent='Authorizing…';
-  fetch('/api/room/'+encodeURIComponent(RID)+'/grant',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:name,email:email,level:level})})
-   .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; document.getElementById('bName').value=''; document.getElementById('bEmail').value=''; renderGrants(); m.textContent='Access authorized ✓ — share their access code (their password) from the grid below, and grant the folders they should see.'; } else { m.textContent=(j&&j.error)||'Could not authorize this buyer.'; } })
+  fetch('/api/room/'+encodeURIComponent(RID)+'/grant',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:name,email:email,level:level,personId:BUYERPID})})
+   .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; BUYERPID=''; BUYER_PEOPLE=null; document.getElementById('bName').value=''; document.getElementById('bEmail').value=''; _bhint(''); renderGrants(); m.textContent='Access authorized ✓ — share their access code (their password) from the grid below, and grant the folders they should see.'; } else { m.textContent=(j&&j.error)||'Could not authorize this buyer.'; } })
    .catch(function(){ m.textContent='Could not reach the server.'; });
 }
 function setLevel(id,level){

@@ -3098,7 +3098,7 @@ app.get('/api/room/:id', (req, res) => {
     mfa: mfaOnForRoom(r), mfaDefault: effRoomMfaDefault(), mfaOverride: (typeof r.mfa === 'boolean'),
     closed: !!r.closed, closedAt: r.closedAt || '', closedBy: r.closedBy || '',
     gated: roomIsGated(r),
-    grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', code: g.code, level: g.level || 'download', catPerms: g.catPerms || {}, docPerms: g.docPerms || {}, active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
+    grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', personId: g.personId || '', company: g.company || '', code: g.code, level: g.level || 'download', catPerms: g.catPerms || {}, docPerms: g.docPerms || {}, active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
 });
 // Mark/clear "no lease" on a data room (business owns / N/A) — satisfies the lease
 // input for valuation readiness without a document.
@@ -3127,10 +3127,20 @@ app.post('/api/room/:id/grant', express.json(), (req, res) => {
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ ok: false, error: 'That email doesn’t look valid.' });
   r.grants = r.grants || [];
   r.locked = true;   // authorizing a buyer locks the room — a code is now required
+  // A data-room buyer is always a contact in the book of business: link the one the
+  // rep picked, or find/onboard one by name+email. Keeps engagement tied to the CRM.
+  let person = null;
+  try {
+    const pid = String(b.personId || '');
+    if (pid) person = (loadPeople().find(x => x.id === pid && !x.system)) || null;
+    if (!person) person = findOrCreatePerson(req, { name, email, type: 'Buyer' });
+  } catch (e) { console.error('grant person link:', e && e.message); }
+  const gName = name || (person && person.name) || '';
+  const gEmail = email || (person && (person.email || preferredEmailOf(person))) || '';
   // Default starting level is 'none': a newly authorized buyer sees nothing until the
   // rep grants specific folders in the grid. (Accepts none/view/download/edit.)
   const startLevel = (ROOM_CELL_LEVELS.indexOf(String(b.level)) >= 0) ? String(b.level) : 'none';
-  const g = { id: newGrantId(), name, email, code: newGrantCode(), level: startLevel, active: true, createdAt: new Date().toISOString(), lastSeen: '', views: 0, downloads: 0, by: (req.user && req.user.name) || '' };
+  const g = { id: newGrantId(), name: gName, email: gEmail, personId: (person && person.id) || '', company: (person && person.company) || '', code: newGrantCode(), level: startLevel, active: true, createdAt: new Date().toISOString(), lastSeen: '', views: 0, downloads: 0, by: (req.user && req.user.name) || '' };
   r.grants.push(g); saveRooms(arr);
   res.json({ ok: true, grants: r.grants, gated: true });
 });
