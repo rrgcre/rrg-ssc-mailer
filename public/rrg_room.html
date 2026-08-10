@@ -452,12 +452,27 @@ function uploadDoc(){
   if(f.size>25*1024*1024){ m.textContent='That file is over 25 MB — please add a smaller file.'; fi.value=''; return; }
   m.textContent='Uploading “'+f.name+'”…';
   var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''), i=s.indexOf(','), b64=(i>=0?s.slice(i+1):s);
-    fetch('/api/room-upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({roomId:RID, filename:f.name, dataB64:b64, title:document.getElementById('docTitle').value, category:document.getElementById('docCategory').value})})
-      .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.docs=j.docs||[]; renderDocs(); m.textContent='Added ✓'; document.getElementById('docTitle').value=''; fi.value=''; setTimeout(function(){ m.textContent=''; },1600); } else { m.textContent=(j&&j.error)||'Upload failed.'; fi.value=''; } })
-      .catch(function(){ m.textContent='Upload failed — try again.'; fi.value=''; });
+    var payload={roomId:RID, filename:f.name, dataB64:b64, title:document.getElementById('docTitle').value, category:document.getElementById('docCategory').value};
+    _sendUpload(payload, fi, m, false);
   };
   rd.onerror=function(){ m.textContent='Could not read that file.'; };
   rd.readAsDataURL(f);
+}
+function _sendUpload(payload, fi, m, force){
+  if(force) payload.force=true;
+  fetch('/api/room-upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)})
+    .then(function(r){return r.json();}).then(async function(j){
+      if(j&&j.ok){ ROOM.docs=j.docs||[]; renderDocs(); m.textContent='Added ✓'; document.getElementById('docTitle').value=''; fi.value=''; setTimeout(function(){ m.textContent=''; },1600); return; }
+      if(j&&j.duplicate){
+        var ex=j.existing||{}; var where=ex.category?(' in the “'+esc(ex.category)+'” folder'):''; var when=ex.uploadedAt?(' on '+fmtWhen(ex.uploadedAt)):'';
+        var what=(j.reason==='content')?'An identical file is already in this data room':('A file named “'+esc(ex.originalName||payload.filename)+'” is already in this data room');
+        m.textContent='';
+        if(await rrgConfirm(what+(ex.title?(' (“'+esc(ex.title)+'”)'):'')+where+when+'.\n\nUpload it again anyway?')){ m.textContent='Uploading “'+esc(payload.filename)+'”…'; _sendUpload(payload, fi, m, true); }
+        else { m.textContent='Skipped — duplicate file.'; fi.value=''; setTimeout(function(){ m.textContent=''; },2400); }
+        return;
+      }
+      m.textContent=(j&&j.error)||'Upload failed.'; fi.value='';
+    }).catch(function(){ m.textContent='Upload failed — try again.'; fi.value=''; });
 }
 async function delDoc(id){
   if(!await rrgConfirm('Remove this file from the data room? Buyers will no longer be able to download it.')) return;

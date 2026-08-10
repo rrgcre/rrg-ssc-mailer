@@ -3341,13 +3341,22 @@ app.post('/api/room-upload', express.json({ limit: '40mb' }), (req, res) => {
   let buf; try { buf = Buffer.from(data, 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the file data.' }); }
   if (!buf.length) return res.status(400).json({ ok: false, error: 'The file appears to be empty.' });
   if (buf.length > 25 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 25 MB).' });
+  // Duplicate detection: flag an identical file (same content hash) or a same-name file already
+  // in this room, unless the uploader confirms with force:true.
+  const hash = crypto.createHash('sha256').update(buf).digest('hex');
+  if (!b.force) {
+    const byHash = (r.docs || []).find(d => d.hash && d.hash === hash);
+    const byName = (r.docs || []).find(d => String(d.originalName || '').trim().toLowerCase() === orig.toLowerCase());
+    const dup = byHash || byName;
+    if (dup) return res.json({ ok: false, duplicate: true, reason: byHash ? 'content' : 'name', existing: { title: dup.title || dup.originalName || '', originalName: dup.originalName || '', category: dup.category || '', uploadedAt: dup.uploadedAt || '' } });
+  }
   const category = (ROOM_CATEGORIES.indexOf(b.category) >= 0) ? b.category : 'Other';
   const title = String(b.title || '').trim().slice(0, 140) || prettyName(orig);
   try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not create the rooms folder.' }); }
   const id = newRoomDocId();
   try { fs.writeFileSync(path.join(ROOMS_DIR, id + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
   r.docs = r.docs || [];
-  r.docs.push({ id, title, category, ext, originalName: orig, size: buf.length, uploadedAt: new Date().toISOString(), by: (req.user && req.user.name) || '' });
+  r.docs.push({ id, title, category, ext, originalName: orig, size: buf.length, hash: hash, uploadedAt: new Date().toISOString(), by: (req.user && req.user.name) || '' });
   if (!r.builtAt) r.builtAt = new Date().toISOString();
   saveRooms(arr);
   res.json({ ok: true, docs: r.docs });
@@ -4262,10 +4271,13 @@ function addFileToRoom(room, file, opts) {
     const title = String(opts.title || file.label || prettyName(orig) || 'Document').slice(0, 140);
     // idempotent: skip if the same source already filed a file with this original name
     if (source && room.docs.some(d => d.source === source && d.originalName === orig)) return null;
+    // duplicate content: skip if an identical file (same hash) is already in the room
+    const hash = crypto.createHash('sha256').update(buf).digest('hex');
+    if (room.docs.some(d => d.hash && d.hash === hash)) return null;
     try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch (e) { return null; }
     const id = newRoomDocId();
     try { fs.writeFileSync(path.join(ROOMS_DIR, id + '.' + ext), buf); } catch (e) { return null; }
-    const doc = { id, title, category, ext, originalName: orig, size: buf.length, uploadedAt: new Date().toISOString(), by: (opts.by || ''), source, auto: true };
+    const doc = { id, title, category, ext, originalName: orig, size: buf.length, hash: hash, uploadedAt: new Date().toISOString(), by: (opts.by || ''), source, auto: true };
     room.docs.push(doc);
     if (!room.builtAt) room.builtAt = new Date().toISOString();
     return doc;
