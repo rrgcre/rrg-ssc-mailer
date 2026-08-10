@@ -1142,6 +1142,9 @@ function _railDown(e){ if(e.button!=null&&e.button!==0) return; if(e.target.clos
 function _railMove(e){ if(!_railDrag) return; var rail=_railDrag.parentNode; if(!rail) return; var after=null; _railChildren(rail).forEach(function(c){ if(c===_railDrag) return; var r=c.getBoundingClientRect(); if(e.clientY > r.top + r.height/2) after=c; }); if(after){ if(after.nextSibling!==_railDrag) rail.insertBefore(_railDrag, after.nextSibling); } else if(rail.firstChild!==_railDrag){ rail.insertBefore(_railDrag, rail.firstChild); } }
 function _railUp(){ document.removeEventListener('pointermove',_railMove); if(_railDrag){ _railDrag.style.opacity=''; var h=_railDrag.querySelector('.ch'); if(h) h.style.cursor='grab'; var rail=_railDrag.parentNode; if(rail){ var order=_railChildren(rail).map(function(c){ return c.getAttribute('data-rk'); }).filter(Boolean); try{ localStorage.setItem('rrgRailOrder',JSON.stringify(order)); }catch(e){} } } _railDrag=null; }
 function render(){
+  // Preserve an open Send-agreement modal across re-renders (late gmail/template
+  // loads rebuild the DOM and would otherwise flash it closed).
+  var _smWasOpen=false,_smSnap=null; (function(){ var sm=document.getElementById('sendModal'); if(sm&&!sm.hasAttribute('hidden')){ _smWasOpen=true; _smSnap={ to:((document.getElementById('sm_to')||{}).value)||'', tpl:((document.getElementById('sm_tpl')||{}).value)||'', msg:((document.getElementById('sm_msg')||{}).innerHTML)||'' }; } })();
   document.getElementById('crumb').textContent=P.name||'Contact';
   document.getElementById('h1').textContent=P.name||'Contact';
   var sub=[]; if(P.type) sub.push('<span class="hpill">'+esc(P.type)+'</span>');
@@ -1216,6 +1219,7 @@ function render(){
   wireActivity();
   applyRailOrder();
   document.querySelectorAll('[data-rsec] .rsechd').forEach(function(h){ h.addEventListener('click',function(){ h.parentNode.classList.toggle('collapsed'); }); });
+  if(_smWasOpen&&typeof openSendModal==='function'){ try{ openSendModal(); if(_smSnap){ var _t=document.getElementById('sm_to'); if(_t&&_smSnap.to) _t.value=_smSnap.to; var _tp=document.getElementById('sm_tpl'); if(_tp&&_smSnap.tpl){ _tp.value=_smSnap.tpl; if(typeof smOnTpl==='function') smOnTpl(); } var _mg=document.getElementById('sm_msg'); if(_mg&&_smSnap.msg) _mg.innerHTML=_smSnap.msg; } }catch(e){} }
 }
 function mfHtml(cls,values,ph){ values=(values&&values.length)?values:['']; var rows=values.map(function(v){ return '<div class="mfrow"><input class="'+cls+'" value="'+esc(v)+'" placeholder="'+esc(ph)+'"><button type="button" class="mfrm">×</button></div>'; }).join(''); return '<div class="mfwrap">'+rows+'<button type="button" class="mfadd" data-cls="'+cls+'" data-ph="'+esc(ph)+'">+ Add another</button></div>'; }
 function prefFieldHtml(cls,values,ph,grp,prefVal,isPhone){
