@@ -35,7 +35,7 @@ th{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--mu
 tr:hover td{background:#fbfcfe;}
 .nm{font-weight:500;color:var(--navy);font-size:14px;} .meta{color:var(--muted);font-size:11.5px;margin-top:2px;}
 .nmlink{color:var(--navy);font-weight:500;text-decoration:none;} .nmlink:hover{text-decoration:underline;}
-.pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;}
+.pill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:#eef2fb;color:#23496f;border:1px solid #d3ddf3;}
 .pill-seller{background:#eaf5ef;color:#1f8a5b;border-color:#c7e6d6;} .pill-buyer{background:#fdf0e6;color:#b5641a;border-color:#f4d8bd;}
 .count{font-weight:700;color:var(--ink);} .count span{color:var(--soft);font-weight:600;font-size:11px;}
 .tags2{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px;} .tags2 .tg{font-size:10px;font-weight:700;color:#3a4c74;background:#eef2fb;border:1px solid #dbe4f5;border-radius:6px;padding:2px 7px;}
@@ -57,7 +57,7 @@ tr:hover td{background:#fbfcfe;}
 .mbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 17px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;} .mbtn.ghost{background:#fff;color:var(--muted);border-color:var(--line);}
 .dupe.warn{background:#fdf7ec;border-color:#f0dcae;color:#7a5b22;} .dupe.warn a{color:#b5791f;} .dupe.warn b{color:#7a5b22;}
 .dupelist{display:flex;flex-direction:column;gap:3px;margin-top:5px;} .dupelist a{font-weight:700;text-decoration:none;} .dupehint{margin-top:6px;color:#98a1b5;font-size:11.5px;}
-.cowho{display:flex;align-items:center;gap:10px;} .cowhotext{min-width:0;} .colistlogo{position:relative;width:30px;height:30px;flex:none;border-radius:7px;background:#eef2fb;color:#2647b0;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;} .colistlogo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff;padding:3px;}
+.cowho{display:flex;align-items:center;gap:10px;} .cowhotext{min-width:0;} .colistlogo{position:relative;width:30px;height:30px;flex:none;border-radius:7px;background:#eef2fb;color:#23496f;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;} .colistlogo img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#fff;padding:3px;}
 .mgrp{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#98a1b5;font-weight:800;margin:18px 0 12px;border-top:1px solid #eef1f6;padding-top:14px;} .mgrp .mopt{text-transform:none;letter-spacing:0;font-weight:500;color:#b0b8c6;font-size:11px;}
 .mmk{display:flex;flex-wrap:wrap;gap:6px 12px;} .mmkc{font-size:12.5px;color:#3a4560;display:inline-flex;align-items:center;gap:5px;cursor:pointer;} .mmkc input{width:15px;height:15px;accent-color:#DA2B1F;}
 .mrow2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
@@ -95,7 +95,7 @@ tr:hover td{background:#fbfcfe;}
     <label class="mfld">Pipeline <span class="mopt" id="m_pipeline_hint">— optional; starts this lead on the board as Unqualified</span></label><select id="m_pipeline"></select>
     <label class="mfld">Major metro</label><input id="m_metro" list="metrolist" autocomplete="off" placeholder="e.g. Dallas, Austin">
     <div class="mgrp">Concepts <span class="mopt">— up to 6, one per line</span></div>
-    <label class="mfld" id="m_findgrp_wrap" style="display:none;background:#f6f4ff;border:1px solid #e2dcf6;border-radius:9px;padding:9px 11px"><input type="checkbox" id="m_findgrp"> ✨ Restaurant group — let AI find every concept (skip typing them)</label>
+    <label class="mfld" id="m_findgrp_wrap" style="display:none;background:#f4f6f9;border:1px solid #e2dcf6;border-radius:9px;padding:9px 11px"><input type="checkbox" id="m_findgrp"> ✨ Restaurant group — let AI find every concept (skip typing them)</label>
     <label class="mfld">Concept name(s)</label><textarea id="m_concepts" rows="4" placeholder="One concept per line" style="width:100%;padding:9px 11px;border:1px solid #d5dbe6;border-radius:9px;font:inherit;font-size:13px;resize:vertical"></textarea><div id="m_concept_msg" style="font-size:12px;color:#DA2B1F;margin-top:5px"></div>
     <div style="font-size:11.5px;color:#6b7488;margin-top:6px;line-height:1.5">On <b>Create</b>, ✨ your AI agent builds each concept — website, type, cuisine, price, logo &amp; summary — and finds its locations with photos.</div>
     <datalist id="metrolist"></datalist><datalist id="citylist"></datalist><datalist id="titlelist"></datalist><datalist id="taglist"></datalist><datalist id="leadsrclist"></datalist>
@@ -107,7 +107,7 @@ tr:hover td{background:#fbfcfe;}
 <script src="/rrg_filters.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-function typeColor(t){ var m={'Seller':['#e8f0fd','#2f6fd0'],'Buyer':['#e7f5ee','#1f8a5b'],'Restaurant Group':['#f3edfb','#7a4fd0'],'Landlord':['#fdf1df','#b5791f'],'Investor':['#f3edfb','#7a4fd0'],'Other':['#eef1f6','#6b7488']}; if(m[t]) return m[t]; var pal=[['#e8f0fd','#2f6fd0'],['#e7f5ee','#1f8a5b'],['#f3edfb','#7a4fd0'],['#fdf1df','#b5791f'],['#fdeef4','#b83280'],['#e6f5f3','#0f766e']]; var h=0; for(var i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return pal[h%pal.length]; }
+function typeColor(t){ var m={'Seller':['#e8f0fd','#2c5c8f'],'Buyer':['#e7f5ee','#1f8a5b'],'Restaurant Group':['#f3edfb','#7a4fd0'],'Landlord':['#fdf1df','#b5791f'],'Investor':['#f3edfb','#7a4fd0'],'Other':['#eef1f6','#6b7488']}; if(m[t]) return m[t]; var pal=[['#e8f0fd','#2c5c8f'],['#e7f5ee','#1f8a5b'],['#f3edfb','#7a4fd0'],['#fdf1df','#b5791f'],['#fdeef4','#b83280'],['#e6f5f3','#0f766e']]; var h=0; for(var i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return pal[h%pal.length]; }
 function aiShow(msg,onCancel){ if(window.rrgAiWork) rrgAiWork.show(msg,onCancel); }
 function aiSetMsg(msg){ if(window.rrgAiWork) rrgAiWork.setMsg(msg); }
 function aiHide(){ if(window.rrgAiWork) rrgAiWork.hide(); }
@@ -136,7 +136,7 @@ function recencyNote(noun, active, shown, total){
   if(!(active && RECENCY_DAYS>0)){ if(note) note.style.display='none'; return; }
   if(!note){ note=document.createElement('div'); note.id='recencynote'; note.style.cssText='padding:8px 14px;margin:0 0 10px;background:#f5f7fb;border:1px solid #e6e9f0;border-radius:9px;font-size:12.5px;color:#6b7488;font-weight:600'; host.parentNode.insertBefore(note,host); }
   note.style.display='';
-  var bstyle='background:none;border:none;color:#2647b0;font-weight:700;cursor:pointer;font:inherit;font-size:12.5px;padding:0;text-decoration:underline';
+  var bstyle='background:none;border:none;color:#23496f;font-weight:700;cursor:pointer;font:inherit;font-size:12.5px;padding:0;text-decoration:underline';
   if(RECENCY_SHOWALL){ note.innerHTML='Showing all '+total+' '+noun+'. <button type="button" style="'+bstyle+'" onclick="RECENCY_SHOWALL=false;applyFilter();">Show only recently active</button>'; }
   else { var hidden=total-shown; if(hidden<0) hidden=0; note.innerHTML='Showing '+shown+' '+noun+' active in the last '+RECENCY_DAYS+' days'+(hidden>0?(' \u00b7 '+hidden+' hidden'):'')+'. <button type="button" style="'+bstyle+'" onclick="RECENCY_SHOWALL=true;applyFilter();">Show all '+total+'</button>'; }
 }
@@ -208,7 +208,7 @@ function checkDupe(){
   } else { box.setAttribute('hidden',''); box.innerHTML=''; }
 }
 function mfmtPhone(v){ var d=String(v||'').replace(/\D/g,'').slice(0,10); if(d.length<4) return d; if(d.length<7) return '('+d.slice(0,3)+') '+d.slice(3); return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6); }
-function renderMTags(){ var box=document.getElementById('m_tagedit'); if(!box) return; box.innerHTML=MTAGS.length?MTAGS.map(function(t){ return '<span style="display:inline-flex;align-items:center;gap:6px;background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;border-radius:16px;padding:4px 6px 4px 11px;font-size:12.5px;font-weight:600">'+esc(t)+'<button type="button" data-mtag="'+esc(t)+'" title="Remove" style="border:none;background:rgba(38,71,176,.12);color:#2647b0;width:17px;height:17px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1;padding:0;display:inline-flex;align-items:center;justify-content:center">×</button></span>'; }).join(''):''; box.querySelectorAll('[data-mtag]').forEach(function(b){ b.addEventListener('click',function(){ var t=b.getAttribute('data-mtag'); MTAGS=MTAGS.filter(function(x){return x!==t;}); renderMTags(); }); }); }
+function renderMTags(){ var box=document.getElementById('m_tagedit'); if(!box) return; box.innerHTML=MTAGS.length?MTAGS.map(function(t){ return '<span style="display:inline-flex;align-items:center;gap:6px;background:#eef2fb;color:#23496f;border:1px solid #d3ddf3;border-radius:16px;padding:4px 6px 4px 11px;font-size:12.5px;font-weight:600">'+esc(t)+'<button type="button" data-mtag="'+esc(t)+'" title="Remove" style="border:none;background:rgba(38,71,176,.12);color:#23496f;width:17px;height:17px;border-radius:50%;cursor:pointer;font-size:12px;line-height:1;padding:0;display:inline-flex;align-items:center;justify-content:center">×</button></span>'; }).join(''):''; box.querySelectorAll('[data-mtag]').forEach(function(b){ b.addEventListener('click',function(){ var t=b.getAttribute('data-mtag'); MTAGS=MTAGS.filter(function(x){return x!==t;}); renderMTags(); }); }); }
 function addMTag(v){ v=(v||'').replace(/,+$/,'').trim(); if(!v) return; if(MTAGS.map(function(x){return x.toLowerCase();}).indexOf(v.toLowerCase())<0){ MTAGS.push(v); renderMTags(); } }
 var CLEADSRC=['Referral','CoStar','LoopNet','Crexi','Cold call','Event / conference','Website','Email campaign','Walk-in','Existing client','Social media','Other'];
 var CREFMAP={}, CREFLOADED=false;

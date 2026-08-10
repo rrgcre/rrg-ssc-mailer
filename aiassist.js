@@ -7,18 +7,39 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-5';
 async function callClaude(system, userText, maxTokens) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new Error('AI is not configured — set the Anthropic API key in Admin → Settings.');
-  const resp = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({
-      model: MODEL, max_tokens: maxTokens || 1500, temperature: 0,
-      system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
-      messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }],
-    }),
+  const body = JSON.stringify({
+    model: MODEL, max_tokens: maxTokens || 1500, temperature: 0,
+    system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
+    messages: [{ role: 'user', content: [{ type: 'text', text: userText }] }],
   });
-  if (!resp.ok) { const t = await resp.text().catch(() => ''); throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 300)); }
-  const data = await resp.json();
-  return (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
+  // Retry once on connection-level failures ("fetch failed"), with a hard timeout so
+  // the request fails clean instead of hanging. HTTP/API errors surface immediately.
+  let lastConnErr = null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    if (attempt) await new Promise(r => setTimeout(r, 700));
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => { try { ctrl.abort(); } catch (e) {} }, 90000);
+    try {
+      const resp = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+        body,
+        signal: ctrl.signal,
+      });
+      clearTimeout(timer);
+      if (!resp.ok) { const t = await resp.text().catch(() => ''); throw new Error('AI service error ' + resp.status + ': ' + t.slice(0, 300)); }
+      const data = await resp.json();
+      return (data.content || []).filter(c => c.type === 'text').map(c => c.text).join('\n');
+    } catch (e) {
+      clearTimeout(timer);
+      const msg = String((e && e.message) || e);
+      const isConn = (e && e.name === 'AbortError') || /fetch failed|network|socket|ECONN|ETIMEDOUT|EAI_AGAIN|ENOTFOUND|UND_ERR|terminated|aborted|timeout/i.test(msg);
+      if (!isConn) throw e;            // real API/HTTP error — don't retry, surface it
+      lastConnErr = e;
+      if (attempt === 1) throw new Error('Couldn’t reach the AI service — check the server’s network and Anthropic API key, then try again.');
+    }
+  }
+  throw lastConnErr || new Error('Couldn’t reach the AI service.');
 }
 function extractJson(t) { if (!t) return null; const a = t.indexOf('{'), b = t.lastIndexOf('}'); if (a >= 0 && b > a) { try { return JSON.parse(t.slice(a, b + 1)); } catch (e) {} } return null; }
 

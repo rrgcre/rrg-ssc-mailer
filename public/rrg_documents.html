@@ -15,10 +15,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
 h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:680px;}
-.tabs{display:flex;gap:8px;flex-wrap:wrap;padding:14px 20px 4px;border-bottom:1px solid var(--line);}
-.tabs a{color:#5b6472;text-decoration:none;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:100px;border:1px solid #e3e8f0;cursor:pointer;display:inline-flex;gap:7px;align-items:center;background:#fff;}
-.tabs a:hover{border-color:#c7d0de;background:#f7f9fc;}
-.tabs a.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.tabs{margin-top:18px;display:flex;gap:8px;flex-wrap:wrap;}
+.tabs a{color:#aeb8cf;text-decoration:none;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:100px;border:1px solid rgba(255,255,255,.2);cursor:pointer;display:inline-flex;gap:7px;align-items:center;}
+.tabs a.on{background:#fff;color:var(--navy);border-color:#fff;}
 .tabs a .tc{font-size:11px;font-weight:800;opacity:.6;}
 .wrap{max-width:none;margin:20px 0;padding:0 28px 56px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
@@ -37,12 +36,11 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
 .foot{max-width:1320px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .cowho{display:flex;align-items:center;gap:10px;} .cowhotext{min-width:0;}
-.kico{width:32px;height:32px;flex:none;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 1px 2px rgba(16,24,40,.16), inset 0 1px 0 rgba(255,255,255,.20);}
-.kico svg{width:16px;height:16px;display:block;}
-.k-agreement{background:linear-gradient(160deg,#3a5cc8,#1f3ea0);} .k-valuation{background:linear-gradient(160deg,#25a06b,#167a4c);} .k-marketingpack{background:linear-gradient(160deg,#d08a2a,#a5661a);} .k-file{background:linear-gradient(160deg,#7d5bd6,#553aa0);} .k-ssc{background:linear-gradient(160deg,#12a6bd,#0b7285);} .k-loi{background:linear-gradient(160deg,#d24a63,#a5334a);} .k-seller{background:linear-gradient(160deg,#6d954a,#4b6b2f);}
-.tp{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;white-space:nowrap;}
+.kico{width:30px;height:30px;flex:none;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;color:#fff;}
+.k-agreement{background:#23496f;} .k-valuation{background:#1f8a5b;} .k-marketingpack{background:#b9761a;} .k-file{background:#5a3d9e;} .k-ssc{background:#0b7285;} .k-loi{background:#b5364f;} .k-seller{background:#4b6b2f;}
+.tp{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;padding:3px 9px;border-radius:999px;background:#eef2fb;color:#23496f;border:1px solid #d3ddf3;white-space:nowrap;}
 .tp.t-valuation{background:#eaf5ef;color:#1f8a5b;border-color:#c7e6d6;} .tp.t-marketingpack{background:#fdf0e6;color:#b5641a;border-color:#f4d8bd;} .tp.t-file{background:#efe9f7;color:#5a3d9e;border-color:#d9cdf0;} .tp.t-ssc{background:#e6f4f7;color:#0b7285;border-color:#bfe3ea;} .tp.t-loi{background:#fdecef;color:#b5364f;border-color:#f4ccd5;} .tp.t-seller{background:#eef5e6;color:#4b6b2f;border-color:#d3e5bf;}
-.st{display:inline-block;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;background:#eef2fb;color:#2647b0;border:1px solid #d3ddf3;white-space:nowrap;}
+.st{display:inline-block;font-size:10px;font-weight:800;padding:3px 9px;border-radius:999px;background:#eef2fb;color:#23496f;border:1px solid #d3ddf3;white-space:nowrap;}
 .st.s-built,.st.s-active,.st.s-fullyexecuted{background:#eaf5ef;color:#1f8a5b;border-color:#c7e6d6;}
 .st.s-pending,.st.s-awaiting,.st.s-outforsigs,.st.s-expiringsoon,.st.s-draft{background:#fdf0e6;color:#b5641a;border-color:#f4d8bd;}
 .st.s-expired,.st.s-terminated,.st.s-declined,.st.s-canceled{background:#fdeceb;color:var(--red);border-color:#f3cfc9;}
@@ -77,11 +75,11 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
   <div class="kicker">Library</div>
   <h1>Documents</h1>
   <div class="sub">Every document in one place — agreements, LOIs, valuations, marketing packs, site criteria, and anything you upload. Filter by type, sort any column, search, or add your own.</div>
+  <div class="tabs" id="dtabs"></div>
 </div></div>
 <div class="wrap">
   <div class="card">
     <div class="hd"><b>Documents</b><span class="cnt" id="cnt"></span><button class="newbtn" onclick="openUpload()" style="margin-left:auto" title="Max 25 MB per file">⬆ Upload</button><span class="uphint" style="margin-left:8px;font-size:11px;color:#9aa3b2;align-self:center;white-space:nowrap">25 MB max</span><div class="searchwrap" style="margin-left:8px"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="search" placeholder="Search documents…" oninput="applyFilter()" autocomplete="off"><button type="button" class="searchx" id="searchx" title="Clear search" onclick="var s=document.getElementById('search');s.value='';applyFilter();s.focus();">×</button></div></div>
-    <div class="tabs" id="dtabs"></div>
     <div class="filterbar" id="filterbar">
       <span class="fbl">Filter</span>
       <select id="fOwner" class="fbsel" onchange="applyFilter()"><option value="">All owners</option></select>
@@ -126,21 +124,12 @@ function cmp(a,b){ return RRGList.cmp(a,b); }
 
 var DOCS=[], CTL=null, CURTYPE=null, FILTER='all', IS_ADMIN=false;
 var TYPES=[['all','All'],['agreement','Agreements'],['loi','LOIs'],['valuation','Valuations'],['marketingpack','Marketing Packs'],['ssc','Site Criteria'],['seller','Seller Screening'],['file','Files']];
-function _ksvg(inner){ return '<svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'+inner+'</svg>'; }
-var KICON={
- agreement:_ksvg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.6 1.6 3.4-3.6"/>'),
- loi:_ksvg('<rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="3 7 12 13 21 7"/>'),
- valuation:_ksvg('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'),
- marketingpack:_ksvg('<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>'),
- ssc:_ksvg('<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>'),
- seller:_ksvg('<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>'),
- file:_ksvg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="15" y1="13" x2="9" y2="13"/><line x1="15" y1="17" x2="9" y2="17"/>')
-};
+var KICON={agreement:'§',loi:'✎',valuation:'▤',marketingpack:'❏',ssc:'◎',seller:'⊚',file:'▦'};
 var RELICON={contact:'◑',company:'▦',listing:'◆'};
 
 function _muted(){ return '<span class="meta">—</span>'; }
 function _open(d){ var u=d.openUrl||''; if(!u) return esc(d.title); if(/^\/api\//.test(u)) return '<a class="nmlink" href="'+esc(u)+'" target="_blank" rel="noopener">'+esc(d.title)+'</a>'; return '<a class="nmlink" href="./'+esc(u)+'">'+esc(d.title)+'</a>'; }
-function cName(d){ var sub=''; if(d.kind==='file') sub='<div class="meta">'+esc((d.ext||'').toUpperCase())+(d.size?(' · '+fmtSize(d.size)):'')+'</div>'; return '<div class="cowho"><span class="kico k-'+d.kind+'">'+(KICON[d.kind]||KICON.file)+'</span><div class="cowhotext"><div class="nm">'+_open(d)+'</div>'+sub+'</div></div>'; }
+function cName(d){ var sub=''; if(d.kind==='file') sub='<div class="meta">'+esc((d.ext||'').toUpperCase())+(d.size?(' · '+fmtSize(d.size)):'')+'</div>'; return '<div class="cowho"><span class="kico k-'+d.kind+'">'+(KICON[d.kind]||'▦')+'</span><div class="cowhotext"><div class="nm">'+_open(d)+'</div>'+sub+'</div></div>'; }
 function cType(d){ return '<span class="tp t-'+d.kind+'">'+esc(d.typeLabel)+'</span>'; }
 function cDocType(d){ return '<span class="tp t-file">'+esc(d.docType||d.typeLabel)+'</span>'; }
 function cLinked(d){ var p=[]; if(d.companyName) p.push(d.companyName); if(d.personName) p.push(d.personName); if(d.dealName) p.push(d.dealName); if(!p.length && d.relatesToName) p.push(d.relatesToName); return p.length?esc(p.join(' · ')):_muted(); }
@@ -186,7 +175,7 @@ function render(list){
   var cols=COLUMNS[FILTER]||COLUMNS.all;
   if(!CTL || CURTYPE!==FILTER){
     var mount=document.getElementById('body'); mount.innerHTML='';
-    CTL=RRGList.create({ mount:'#body', data:list, key:'documents_'+FILTER, exportName:'documents', countEl:'#cnt', rowId:function(d){return d.id;}, columns:cols, bulk:[{ label:'Delete selected', danger:true, fn:docBulkDelete }],
+    CTL=RRGList.create({ mount:'#body', data:list, key:'documents_'+FILTER, exportName:'documents', countEl:'#cnt', rowId:function(d){return d.id;}, columns:cols,
       empty:'<div class="empty"><b>No documents'+(FILTER!=='all'?' of this type':'')+' yet.</b>Click <b>Upload</b> to add one — or they appear here automatically as your team creates agreements, valuations, and marketing packs.</div>' });
     CURTYPE=FILTER;
   } else { CTL.refresh(list); }
@@ -220,19 +209,6 @@ function load(){
 document.addEventListener('click', function(e){ var b=e.target.closest?e.target.closest('[data-del]'):null; if(b){ e.preventDefault(); e.stopPropagation(); delFile(b.getAttribute('data-del')); } });
 function delFile(id){ var d=DOCS.find(function(x){return x.id===id;}); if(!d) return; var isCall=(d.kind==='seller'); var url=d.deleteUrl||('/api/files/'+encodeURIComponent(id)); var msg=isCall?('Delete the call "'+(d.title||'this call')+'"? This permanently removes the seller screening and its answers. Cannot be undone.'):('Remove "'+(d.title||'this file')+'"? This deletes the uploaded file for everyone.'); if(!confirm(msg)) return;
   fetch(url,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert((j&&j.error)||'Could not remove.'); }).catch(function(){ alert('Could not reach the server.'); }); }
-function docBulkDelete(ids, done){
-  var docs=ids.map(function(id){ return DOCS.find(function(x){return x.id===id;}); }).filter(Boolean);
-  var deletable=docs.filter(function(d){ return d.deleteUrl || d.kind==='file'; });
-  var skipped=docs.length-deletable.length;
-  if(!deletable.length){ if(window.rrgToast) rrgToast('None of the selected items can be deleted here.',{danger:true}); else alert('None of the selected items can be deleted here.'); return; }
-  var hasCall=deletable.some(function(d){ return d.kind==='seller'; });
-  var msg='Delete '+deletable.length+' item'+(deletable.length===1?'':'s')+'? '+(hasCall?'This includes call/screening records and permanently removes their answers. ':'This removes the file(s) for everyone. ')+'Cannot be undone.'+(skipped?(' ('+skipped+' selected item'+(skipped===1?'':'s')+' can\u2019t be deleted here and will be skipped.)'):'');
-  (window.rrgConfirm?rrgConfirm(msg,{danger:true}):Promise.resolve(confirm(msg))).then(function(ok){ if(!ok) return;
-    var chain=Promise.resolve(), okN=0, fail=0;
-    deletable.forEach(function(d){ var url=d.deleteUrl||('/api/files/'+encodeURIComponent(d.id)); chain=chain.then(function(){ return fetch(url,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) okN++; else fail++; }).catch(function(){ fail++; }); }); });
-    chain.then(function(){ if(typeof done==='function'){ try{ done(); }catch(e){} } if(window.rrgToast) rrgToast('Deleted '+okN+' item'+(okN===1?'':'s')+(fail?(' \u00b7 '+fail+' failed'):'')); load(); });
-  });
-}
 
 var PICKED=null, REL=null, _relT=null;
 var DOCTYPES=['General','Agreement / Contract','Lease','Financials','Tax / W-9','Insurance / COI','Inspection','Exhibit / Addendum','Offer / LOI','Invoice / Receipt','Marketing','Legal / Entity','ID / License','Photo','Other'];
@@ -240,8 +216,8 @@ function fillTypes(){ var sel=document.getElementById('upType'); if(sel.options.
 function openUpload(){ PICKED=null; REL=null; document.getElementById('upFile').value=''; document.getElementById('upName').value=''; document.getElementById('upNote').value=''; document.getElementById('upRel').value=''; document.getElementById('upRelChosen').style.display='none'; document.getElementById('upRelRes').style.display='none'; document.getElementById('upMsg').textContent=''; fillTypes(); try{ var nm=(window.__rrgSession&&window.__rrgSession.name)||''; if(nm) document.getElementById('upWho').textContent=nm; }catch(e){} var dp=document.getElementById('drop'); dp.className='drop'; dp.textContent='Click to choose a file — PDF, Word, Excel, PowerPoint, image, TXT, CSV or ZIP (max 25 MB)'; document.getElementById('upMask').removeAttribute('hidden'); }
 function closeUpload(){ document.getElementById('upMask').setAttribute('hidden',''); }
 function onPick(){ var f=document.getElementById('upFile').files[0]; if(!f) return; PICKED=f; var dp=document.getElementById('drop'); dp.className='drop has'; dp.textContent='✓ '+f.name+' ('+fmtSize(f.size)+')'; }
-function relSearch(){ var q=document.getElementById('upRel').value.trim(); REL=null; document.getElementById('upRelChosen').style.display='none'; var box=document.getElementById('upRelRes'); if(q.length<2){ box.style.display='none'; return; } if(_relT) clearTimeout(_relT); _relT=setTimeout(function(){ fetch('/api/search?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var rs=((j&&j.results)||[]).filter(function(x){return x.type==='contact'||x.type==='company'||x.type==='listing';}).slice(0,12); if(!rs.length){ box.innerHTML='<div style="padding:11px 14px;color:#8a93a8;font-size:12.5px">No match — press Upload to save “'+esc(q)+'” as a plain reference.</div>'; box.style.display='block'; return; } box.innerHTML=rs.map(function(x){ return '<div class="relrow" data-t="'+x.type+'" data-i="'+esc(x.id)+'" data-n="'+esc(x.title)+'" style="padding:9px 13px;cursor:pointer;display:flex;align-items:center;gap:9px;border-bottom:1px solid #f1f3f8"><span style="color:#2647b0">'+(RELICON[x.type]||'•')+'</span><span><b style="color:#0b1a3a;font-size:13px">'+esc(x.title)+'</b>'+(x.sub?(' <span style="color:#8a93a8;font-size:11.5px">'+esc(x.sub)+'</span>'):'')+'</span></div>'; }).join(''); box.style.display='block'; [].slice.call(box.querySelectorAll('.relrow')).forEach(function(el){ el.onclick=function(){ chooseRel(el.getAttribute('data-t'),el.getAttribute('data-i'),el.getAttribute('data-n')); }; }); }).catch(function(){ box.style.display='none'; }); },180); }
-function chooseRel(t,i,n){ REL={type:t,id:i,name:n}; document.getElementById('upRelRes').style.display='none'; document.getElementById('upRel').value=n; var ch=document.getElementById('upRelChosen'); ch.style.display='block'; ch.innerHTML='<span style="display:inline-flex;align-items:center;gap:8px;background:#eef2fb;border:1px solid #d3ddf3;color:#2647b0;border-radius:100px;padding:5px 12px;font-size:12.5px;font-weight:700">'+(RELICON[t]||'•')+' '+esc(n)+' <span style="cursor:pointer;color:#8a93a8" onclick="clearRel()">×</span></span>'; }
+function relSearch(){ var q=document.getElementById('upRel').value.trim(); REL=null; document.getElementById('upRelChosen').style.display='none'; var box=document.getElementById('upRelRes'); if(q.length<2){ box.style.display='none'; return; } if(_relT) clearTimeout(_relT); _relT=setTimeout(function(){ fetch('/api/search?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var rs=((j&&j.results)||[]).filter(function(x){return x.type==='contact'||x.type==='company'||x.type==='listing';}).slice(0,12); if(!rs.length){ box.innerHTML='<div style="padding:11px 14px;color:#8a93a8;font-size:12.5px">No match — press Upload to save “'+esc(q)+'” as a plain reference.</div>'; box.style.display='block'; return; } box.innerHTML=rs.map(function(x){ return '<div class="relrow" data-t="'+x.type+'" data-i="'+esc(x.id)+'" data-n="'+esc(x.title)+'" style="padding:9px 13px;cursor:pointer;display:flex;align-items:center;gap:9px;border-bottom:1px solid #f1f3f8"><span style="color:#23496f">'+(RELICON[x.type]||'•')+'</span><span><b style="color:#0b1a3a;font-size:13px">'+esc(x.title)+'</b>'+(x.sub?(' <span style="color:#8a93a8;font-size:11.5px">'+esc(x.sub)+'</span>'):'')+'</span></div>'; }).join(''); box.style.display='block'; [].slice.call(box.querySelectorAll('.relrow')).forEach(function(el){ el.onclick=function(){ chooseRel(el.getAttribute('data-t'),el.getAttribute('data-i'),el.getAttribute('data-n')); }; }); }).catch(function(){ box.style.display='none'; }); },180); }
+function chooseRel(t,i,n){ REL={type:t,id:i,name:n}; document.getElementById('upRelRes').style.display='none'; document.getElementById('upRel').value=n; var ch=document.getElementById('upRelChosen'); ch.style.display='block'; ch.innerHTML='<span style="display:inline-flex;align-items:center;gap:8px;background:#eef2fb;border:1px solid #d3ddf3;color:#23496f;border-radius:100px;padding:5px 12px;font-size:12.5px;font-weight:700">'+(RELICON[t]||'•')+' '+esc(n)+' <span style="cursor:pointer;color:#8a93a8" onclick="clearRel()">×</span></span>'; }
 function clearRel(){ REL=null; document.getElementById('upRelChosen').style.display='none'; document.getElementById('upRel').value=''; document.getElementById('upRel').focus(); }
 function doUpload(){
   var m=document.getElementById('upMsg'); if(!PICKED){ m.textContent='Choose a file first.'; return; }

@@ -38,7 +38,7 @@ thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(
 .who a{color:var(--navy);font-weight:700;text-decoration:none;} .who a:hover{text-decoration:underline;}
 .lk{color:var(--navy);text-decoration:none;font-weight:600;} .lk:hover{text-decoration:underline;}
 .stpill{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:3px 9px;border-radius:20px;white-space:nowrap;}
-.stpill.active{background:#e7f5ee;color:#1f8a5b;} .stpill.soon{background:#fdf1df;color:#b5791f;} .stpill.expired{background:#fdeceb;color:var(--red);} .stpill.awaiting{background:#eaf1fb;color:#2647b0;} .stpill.executed{background:#eef3ff;color:#3730a3;} .stpill.terminated{background:#f2f4f8;color:#6b7488;} .stpill.canceled{background:#f2f4f8;color:#6b7488;} .stpill.declined{background:#fdeceb;color:var(--red);} .stpill.draft{background:#f2f4f8;color:#8a93a8;}
+.stpill.active{background:#e7f5ee;color:#1f8a5b;} .stpill.soon{background:#fdf1df;color:#b5791f;} .stpill.expired{background:#fdeceb;color:var(--red);} .stpill.awaiting{background:#eaf1fb;color:#23496f;} .stpill.executed{background:#eef3ff;color:#3730a3;} .stpill.terminated{background:#f2f4f8;color:#6b7488;} .stpill.canceled{background:#f2f4f8;color:#6b7488;} .stpill.declined{background:#fdeceb;color:var(--red);} .stpill.draft{background:#f2f4f8;color:#8a93a8;}
 .sigp{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:2px 8px;border-radius:20px;white-space:nowrap;background:#eef1f6;color:#98a1b5;} .sigp.sent{background:#fff4e6;color:#b5791f;} .sigp.signed{background:#e7f5ee;color:#1f8a5b;}
 .exp{font-weight:700;} .exp.red{color:var(--red);} .exp.amber{color:#b5791f;}
 .note{color:var(--muted);font-size:12.5px;max-width:280px;}
@@ -99,7 +99,7 @@ thead th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(
 </div>
 <script>
 var AGR=[], TYPES=[], FT='all', FS='all', FSG='all'; var ACTL=null; var CAN_DELETE=false, IS_ADMIN=false, PEOPLE=[];
-var COLORS={ NDA:{bg:'#eef2fb',fg:'#2647b0'}, CA:{bg:'#e6f5f3',fg:'#0f766e'}, ETRA:{bg:'#f1ebfb',fg:'#6d28d9'}, Referral:{bg:'#fdf1df',fg:'#b5791f'}, Listing:{bg:'#fdeceb',fg:'#DA2B1F'} };
+var COLORS={ NDA:{bg:'#eef2fb',fg:'#23496f'}, CA:{bg:'#e6f5f3',fg:'#0f766e'}, ETRA:{bg:'#f1ebfb',fg:'#6d28d9'}, Referral:{bg:'#fdf1df',fg:'#b5791f'}, Listing:{bg:'#fdeceb',fg:'#DA2B1F'} };
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function fmt(d){ if(!d) return '—'; var p=d.split('-'); if(p.length!==3) return d; return p[1]+'/'+p[2]+'/'+p[0]; }
 function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
