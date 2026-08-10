@@ -309,26 +309,28 @@ async function reopenRoom(btn){
 }
 
 function _engChip(v,k){ return '<div style="background:#f5f7fb;border:1px solid var(--line);border-radius:10px;padding:9px 14px;min-width:74px"><div style="font-size:19px;font-weight:800;color:#000E31;line-height:1">'+v+'</div><div style="font-size:10px;color:#8a93a8;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:3px">'+k+'</div></div>'; }
+function fmtDur(s){ s=Math.round(Number(s)||0); if(s<=0) return ''; if(s<60) return s+'s'; var m=Math.floor(s/60), ss=s%60; if(m<60) return m+'m'+(ss?(' '+ss+'s'):''); var h=Math.floor(m/60); m=m%60; return h+'h'+(m?(' '+m+'m'):''); }
 function renderAnalytics(a){
   var el=document.getElementById('engBody'); if(!el) return;
   if(!a){ el.innerHTML='<div class="h" style="margin:0">Could not load engagement yet.</div>'; return; }
   var t=a.totals||{};
-  var html='<div style="display:flex;gap:9px;flex-wrap:wrap;margin:2px 0 15px">'+_engChip(t.buyers||0,'Buyers')+_engChip(t.docs||0,'Documents')+_engChip(t.views||0,'Views')+_engChip(t.downloads||0,'Downloads')+'</div>';
+  var html='<div style="display:flex;gap:9px;flex-wrap:wrap;margin:2px 0 15px">'+_engChip(t.buyers||0,'Buyers')+_engChip(t.docs||0,'Documents')+_engChip(t.views||0,'Views')+_engChip(t.downloads||0,'Downloads')+(t.readSeconds?_engChip(fmtDur(t.readSeconds),'Read time'):'')+'</div>';
   var buyers=a.buyers||[];
   html+='<div style="font-weight:800;color:#000E31;font-size:12.5px;margin:2px 0 8px">By buyer</div>';
   if(!buyers.length){ html+='<div class="h" style="margin:0 0 14px">No buyers authorized yet — add one under Buyers &amp; access.</div>'; }
   else buyers.forEach(function(b){
     var hot=b.hot?'<span style="background:#fdeceb;color:#DA2B1F;border:1px solid #f4cfcb;border-radius:99px;font-size:10px;font-weight:800;padding:2px 8px;margin-left:7px;text-transform:uppercase;letter-spacing:.03em">🔥 Hot</span>':'';
     var last=b.lastAt?('last seen '+esc(fmtWhen(b.lastAt))):'no activity yet';
-    var sum='<b>'+esc(b.name)+'</b>'+hot+' <span style="color:#8a93a8;font-size:12px;font-weight:600">· '+(b.docsOpened||0)+' doc'+(b.docsOpened===1?'':'s')+' · '+(b.views||0)+'v · '+(b.downloads||0)+'d · '+last+'</span>';
+    var rt=b.readSeconds?(' · '+fmtDur(b.readSeconds)+' read'):'';
+    var sum='<b>'+esc(b.name)+'</b>'+hot+' <span style="color:#8a93a8;font-size:12px;font-weight:600">· '+(b.docsOpened||0)+' doc'+(b.docsOpened===1?'':'s')+' · '+(b.views||0)+'v · '+(b.downloads||0)+'d'+rt+' · '+last+'</span>';
     var ds=(b.docs||[]);
-    var rows=ds.length? ds.map(function(d){ return '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid #f0f2f7;font-size:12.5px"><span style="color:#1a2236">'+esc(d.name)+'</span><span style="color:#8a93a8;white-space:nowrap">'+(d.views||0)+'v · '+(d.downloads||0)+'d · '+esc(fmtWhen(d.lastAt))+'</span></div>'; }).join('') : '<div style="color:#8a93a8;font-size:12px;padding:5px 0">Hasn’t opened any documents yet.</div>';
+    var rows=ds.length? ds.map(function(d){ var dr=d.readSeconds?(' · '+fmtDur(d.readSeconds)+' read'):''; return '<div style="display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid #f0f2f7;font-size:12.5px"><span style="color:#1a2236">'+esc(d.name)+'</span><span style="color:#8a93a8;white-space:nowrap">'+(d.views||0)+'v · '+(d.downloads||0)+'d'+dr+' · '+esc(fmtWhen(d.lastAt))+'</span></div>'; }).join('') : '<div style="color:#8a93a8;font-size:12px;padding:5px 0">Hasn’t opened any documents yet.</div>';
     html+='<details style="border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin-bottom:8px"><summary style="cursor:pointer;font-size:13px;list-style:none">'+sum+'</summary><div style="margin-top:4px">'+rows+'</div></details>';
   });
   var docs=a.documents||[];
   if(docs.length){
     html+='<div style="font-weight:800;color:#000E31;font-size:12.5px;margin:16px 0 8px">By document</div><div style="border:1px solid var(--line);border-radius:10px;overflow:hidden">';
-    docs.forEach(function(d,i){ var star=d.key?'<span title="Key financial/lease document" style="color:#b5791f">★ </span>':''; html+='<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 12px;font-size:12.5px;'+(i?'border-top:1px solid #f0f2f7;':'')+'"><span style="color:#1a2236">'+star+esc(d.name)+'</span><span style="color:#8a93a8;white-space:nowrap">'+(d.views||0)+' view'+(d.views===1?'':'s')+' · '+(d.downloads||0)+' dl · '+(d.uniqueBuyers||0)+' buyer'+(d.uniqueBuyers===1?'':'s')+'</span></div>'; });
+    docs.forEach(function(d,i){ var star=d.key?'<span title="Key financial/lease document" style="color:#b5791f">★ </span>':''; var dr=d.readSeconds?(' · '+fmtDur(d.readSeconds)+' read'):''; html+='<div style="display:flex;justify-content:space-between;gap:10px;padding:9px 12px;font-size:12.5px;'+(i?'border-top:1px solid #f0f2f7;':'')+'"><span style="color:#1a2236">'+star+esc(d.name)+'</span><span style="color:#8a93a8;white-space:nowrap">'+(d.views||0)+' view'+(d.views===1?'':'s')+' · '+(d.downloads||0)+' dl · '+(d.uniqueBuyers||0)+' buyer'+(d.uniqueBuyers===1?'':'s')+dr+'</span></div>'; });
     html+='</div>';
   }
   el.innerHTML=html;

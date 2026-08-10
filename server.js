@@ -3374,16 +3374,32 @@ function roomAnalytics(r) {
       if ((ev.at || '') > bd.lastAt) bd.lastAt = ev.at || '';
     }
   });
+  // Read-duration: grant.dwell is keyed by doc id (seconds). Join to doc names.
+  const docById = {}; docs.forEach(function (d) { docById[d.id] = d; });
+  const readByGid = {}, readByName = {};
+  let totalRead = 0;
+  grants.forEach(function (g) {
+    const dw = g.dwell || {};
+    Object.keys(dw).forEach(function (id) {
+      const s = Math.round(Number(dw[id]) || 0); if (!(s > 0)) return;
+      (readByGid[g.id] = readByGid[g.id] || {})[id] = s; totalRead += s;
+      const d = docById[id]; if (!d) return;
+      const nm = String(d.title || d.originalName || ''); if (!nm) return;
+      readByName[nm] = (readByName[nm] || 0) + s;
+    });
+  });
   const now = Date.now();
   const buyers = grants.map(function (g) {
     const pb = perBuyer[g.id] || { views: 0, downloads: 0, lastAt: '', docs: {} };
+    const rd = readByGid[g.id] || {}; let readTotal = 0;
+    Object.keys(rd).forEach(function (id) { const s = rd[id]; readTotal += s; const d = docById[id]; const nm = d ? String(d.title || d.originalName || '') : ''; if (!nm) return; const bd = pb.docs[nm] = pb.docs[nm] || { name: nm, views: 0, downloads: 0, lastAt: '' }; bd.readSeconds = (bd.readSeconds || 0) + s; });
     const docList = Object.keys(pb.docs).map(function (k) { return pb.docs[k]; }).sort(function (a, b) { return String(b.lastAt).localeCompare(String(a.lastAt)); });
     const touchedKey = docList.some(function (d) { return KEY.test(d.name || ''); });
     const recent = !!pb.lastAt && ((now - Date.parse(pb.lastAt)) < 7 * 864e5);
-    return { id: g.id, name: g.name || g.email || 'Buyer', email: g.email || '', level: g.level || 'download', active: g.active !== false, views: pb.views, downloads: pb.downloads, lastAt: pb.lastAt, docsOpened: docList.length, hot: !!(touchedKey && recent), docs: docList };
+    return { id: g.id, name: g.name || g.email || 'Buyer', email: g.email || '', level: g.level || 'download', active: g.active !== false, views: pb.views, downloads: pb.downloads, lastAt: pb.lastAt, docsOpened: docList.length, readSeconds: readTotal, hot: !!(touchedKey && recent), docs: docList };
   }).sort(function (a, b) { return String(b.lastAt).localeCompare(String(a.lastAt)); });
-  const documents = Object.keys(perDoc).map(function (k) { const pd = perDoc[k]; return { name: pd.name, views: pd.views, downloads: pd.downloads, uniqueBuyers: Object.keys(pd.buyers).length, lastAt: pd.lastAt, key: KEY.test(pd.name || '') }; }).sort(function (a, b) { return (b.views + b.downloads) - (a.views + a.downloads); });
-  return { buyers: buyers, documents: documents, totals: { buyers: grants.filter(function (g) { return g.active !== false; }).length, docs: docs.length, views: access.filter(function (e) { return e && e.event === 'view' && e.doc; }).length, downloads: access.filter(function (e) { return e && e.event === 'download'; }).length } };
+  const documents = Object.keys(perDoc).map(function (k) { const pd = perDoc[k]; return { name: pd.name, views: pd.views, downloads: pd.downloads, uniqueBuyers: Object.keys(pd.buyers).length, lastAt: pd.lastAt, readSeconds: readByName[pd.name] || 0, key: KEY.test(pd.name || '') }; }).sort(function (a, b) { return (b.views + b.downloads) - (a.views + a.downloads); });
+  return { buyers: buyers, documents: documents, totals: { buyers: grants.filter(function (g) { return g.active !== false; }).length, docs: docs.length, views: access.filter(function (e) { return e && e.event === 'view' && e.doc; }).length, downloads: access.filter(function (e) { return e && e.event === 'download'; }).length, readSeconds: totalRead } };
 }
 app.get('/api/room/:id/analytics', (req, res) => { const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id); if (!r) return res.status(404).json({ ok: false, error: 'Room not found.' }); res.json({ ok: true, analytics: roomAnalytics(r) }); });
 // PUBLIC buyer-facing room page — gated by a personal access code once buyers are added.
@@ -3497,6 +3513,86 @@ app.get('/roomfile/:token/:docid', async (req, res) => {
   res.setHeader('Content-Disposition', (asDownload ? 'attachment' : 'inline') + '; filename="' + fnameSafe + '"');
   res.sendFile(fp);
 });
+// ---- Read-duration: an in-browser viewer wraps the file so we can time how long
+// a buyer actually reads it. The viewer sends heartbeats to /room/:token/dwell. ----
+const ROOM_VIEWABLE = /^(pdf|png|jpe?g|gif|webp|txt)$/i;
+function roomViewerPage(r, d, grant, canDl) {
+  const viewable = ROOM_VIEWABLE.test(d.ext || '');
+  const fileUrl = '/roomfile/' + esc(r.token) + '/' + esc(d.id);
+  const title = esc(d.title || d.originalName || 'Document');
+  const dlBtn = canDl ? `<a href="${fileUrl}?dl=1" class="vbtn" download>Download</a>` : '';
+  const stage = viewable
+    ? `<iframe class="vframe" src="${fileUrl}" title="${title}"></iframe>`
+    : `<div class="vfallback"><div class="vfi">${roomFileIcon(d.ext)}</div><div class="vft">${title}</div><div class="vfd">This file type opens in its own app.</div>${canDl ? `<a href="${fileUrl}?dl=1" class="vbtn solid" download>Download to open</a>` : `<a href="${fileUrl}" class="vbtn solid" target="_blank" rel="noopener">Open file</a>`}</div>`;
+  const html = `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>${title} — ${esc(orgDisplayName())}</title><style>
+:root{--navy:#000E31;--line:#e6eaf2;--muted:#6b7488;--red:#DA2B1F;}
+*{box-sizing:border-box;} html,body{margin:0;height:100%;} body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#0b1230;color:#1a2236;display:flex;flex-direction:column;}
+.vbar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--navy);color:#fff;flex:none;}
+.vback{color:#cdd6ea;text-decoration:none;font-size:12.5px;font-weight:700;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.vtitle{flex:1;font-size:13.5px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.vconf{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#ffd7d2;background:rgba(218,43,31,.22);border:1px solid rgba(218,43,31,.5);border-radius:99px;padding:3px 9px;white-space:nowrap;}
+.vbtn{color:#fff;text-decoration:none;font-size:12px;font-weight:700;border:1px solid rgba(255,255,255,.5);border-radius:7px;padding:6px 12px;white-space:nowrap;}
+.vbtn.solid{background:var(--navy);border-color:var(--navy);}
+.vframe{flex:1;width:100%;border:none;background:#525659;}
+.vfallback{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#f5f7fb;text-align:center;padding:30px;}
+.vfi{font-size:44px;} .vft{font-weight:800;color:var(--navy);font-size:16px;} .vfd{color:var(--muted);font-size:13px;}
+.vfallback .vbtn.solid{color:#fff;padding:9px 18px;font-size:13px;margin-top:4px;}
+</style></head><body>
+<div class="vbar"><a class="vback" href="/room/${esc(r.token)}">← Back to the data room</a><div class="vtitle">${title}</div><span class="vconf">🔒 Confidential</span>${dlBtn}</div>
+${stage}
+<script>(function(){
+  var DOCID=${JSON.stringify(String(d.id))}, TOKEN=${JSON.stringify(String(r.token))};
+  var acc=0, last=Date.now();
+  function tick(){ var now=Date.now(); if(document.visibilityState==='visible'){ acc+=Math.min(30000, now-last); } last=now; if(acc>=15000) flush(false); }
+  function flush(beacon){ if(acc<1000) return; var s=Math.round(acc/1000); acc=0; var body=JSON.stringify({docid:DOCID,seconds:s}); var url='/room/'+TOKEN+'/dwell'; try{ if(beacon&&navigator.sendBeacon){ navigator.sendBeacon(url, new Blob([body],{type:'application/json'})); } else { fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:body,keepalive:true}); } }catch(e){} }
+  setInterval(tick, 5000);
+  document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='hidden'){ tick(); flush(true); } else { last=Date.now(); } });
+  window.addEventListener('pagehide', function(){ tick(); flush(true); });
+  window.addEventListener('beforeunload', function(){ tick(); flush(true); });
+})();</script>
+</body></html>`;
+  return html;
+}
+// The in-browser viewer for a single document (gated exactly like the file itself).
+app.get('/roomview/:token/:docid', (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.token === req.params.token);
+  if (!r) return res.status(404).set('Content-Type', 'text/html').send(roomNotFoundPage());
+  if (r.closed) return res.status(410).set('Content-Type', 'text/html; charset=utf-8').send(roomClosedPage(r));
+  let grant = null;
+  if (roomIsGated(r)) { grant = roomGrantFor(req, r); if (!grant) return res.redirect('/room/' + r.token); }
+  const d = (r.docs || []).find(x => x.id === String(req.params.docid));
+  if (!d) return res.status(404).end();
+  const level = grant ? effGrantLevelForDoc(grant, d) : 'download';
+  if (level === 'none') return res.status(403).end();
+  const canDl = level !== 'view';
+  res.set('Content-Type', 'text/html; charset=utf-8').send(roomViewerPage(r, d, grant, canDl));
+});
+// Heartbeat from the viewer: accumulate how long a buyer has spent reading a document.
+app.post('/room/:token/dwell', express.json({ limit: '4kb' }), (req, res) => {
+  try {
+    const arr = loadRooms();
+    const r = arr.find(x => x.token === req.params.token);
+    if (!r || r.closed) return res.status(204).end();
+    if (!roomIsGated(r)) return res.status(204).end();
+    const grant = roomGrantFor(req, r);
+    if (!grant) return res.status(204).end();
+    const docid = String((req.body && req.body.docid) || '');
+    let secs = Math.round(Number(req.body && req.body.seconds) || 0);
+    if (!docid || !(secs > 0)) return res.status(204).end();
+    const d = (r.docs || []).find(x => x.id === docid);
+    if (!d) return res.status(204).end();
+    if (effGrantLevelForDoc(grant, d) === 'none') return res.status(204).end();
+    secs = Math.min(secs, 600);                                  // cap a single beacon at 10 min
+    grant.dwell = grant.dwell || {};
+    grant.dwell[docid] = Math.min((grant.dwell[docid] || 0) + secs, 360000);   // cap 100h/doc/buyer
+    grant.dwellOpens = grant.dwellOpens || {};
+    d.readSeconds = Math.min((d.readSeconds || 0) + secs, 3600000);
+    grant.lastSeen = new Date().toISOString();
+    saveRooms(arr);
+  } catch (e) { /* best-effort */ }
+  return res.status(204).end();
+});
 // Buyer document upload — only for grants with the 'edit' level (contributors).
 app.post('/room/:token/upload', express.json({ limit: '40mb' }), (req, res) => {
   const arr = loadRooms(); const r = arr.find(x => x.token === req.params.token);
@@ -3546,7 +3642,9 @@ h1{font-size:26px;font-weight:800;margin:0;color:#fff;}
 .docrow:first-child{border-top:none;} .docrow:hover{background:#fbfcfe;}
 .ext{flex:0 0 28px;height:34px;display:flex;align-items:center;justify-content:center;}
 .dt{flex:1;font-weight:600;color:var(--navy);font-size:13.5px;} .dm{color:var(--muted);font-size:11px;margin-top:1px;}
-.dl{border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;white-space:nowrap;}
+.dl{border:1px solid var(--navy);background:var(--navy);color:#fff;border-radius:7px;padding:6px 13px;font-size:12px;font-weight:700;white-space:nowrap;text-decoration:none;}
+.dl.ghost{background:#fff;color:var(--navy);}
+.acts{display:flex;gap:8px;align-items:center;flex:none;}
 .note{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 20px;color:var(--muted);font-size:12.5px;line-height:1.6;}
 .note.conf{display:flex;gap:12px;align-items:flex-start;border:1px solid #f0cfca;border-left:3px solid var(--red);background:#fff7f6;color:#4a3230;margin-bottom:14px;}
 .note.conf .lock{font-size:17px;line-height:1.35;flex:none;}
@@ -3603,7 +3701,15 @@ function roomPublicPage(r, grant, opts) {
     const _tops = visibleCats.filter(c => String(c).indexOf(' / ') < 0);
     const _subs = {}; visibleCats.forEach(c => { const i = String(c).indexOf(' / '); if (i >= 0) { const par = c.slice(0, i).trim(); (_subs[par] = _subs[par] || []).push(c); } });
     const filesIn = cat => docs.filter(d => (d.category || 'Other') === cat && docLevel(d) !== 'none');
-    const docrows = cat => filesIn(cat).map(d => { const canDl = docLevel(d) !== 'view'; const href = '/roomfile/' + esc(r.token) + '/' + esc(d.id) + (canDl ? '?dl=1' : ''); const label = canDl ? 'Download →' : 'View →'; return `<a class="docrow" href="${href}" target="_blank" rel="noopener"><span class="ext">${roomFileIcon(d.ext)}</span><div style="flex:1"><div class="dt">${esc(d.title || d.originalName)}</div><div class="dm">${esc(fmtBytes(d.size))}</div></div><span class="dl">${label}</span></a>`; }).join('');
+    const docrows = cat => filesIn(cat).map(d => {
+      const canDl = docLevel(d) !== 'view';
+      const viewable = ROOM_VIEWABLE.test(d.ext || '');
+      let acts = '';
+      if (viewable) acts += `<a class="dl ghost" href="/roomview/${esc(r.token)}/${esc(d.id)}" target="_blank" rel="noopener">View →</a>`;
+      if (canDl) acts += `<a class="dl" href="/roomfile/${esc(r.token)}/${esc(d.id)}?dl=1" target="_blank" rel="noopener">Download →</a>`;
+      if (!viewable && !canDl) acts += `<a class="dl" href="/roomview/${esc(r.token)}/${esc(d.id)}" target="_blank" rel="noopener">Open →</a>`;
+      return `<div class="docrow"><span class="ext">${roomFileIcon(d.ext)}</span><div style="flex:1"><div class="dt">${esc(d.title || d.originalName)}</div><div class="dm">${esc(fmtBytes(d.size))}</div></div><span class="acts">${acts}</span></div>`;
+    }).join('');
     body += _tops.map(cat => {
       const own = filesIn(cat);
       const mySubs = (_subs[cat] || []).filter(sc => filesIn(sc).length);
