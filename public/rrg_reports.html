@@ -126,7 +126,7 @@ function docActivityCard(rm){
   if(!docs.length){ body+='<div class="empty">No document activity in this window.</div>'; }
   else {
     var head='<tr><th>Document</th><th>Room</th><th class="num">Views</th><th class="num">Downloads</th><th class="num">Buyers</th><th class="num">Read time</th></tr>';
-    var rows=docs.map(function(d){ var star=d.key?'<span title="Key financial/lease document" style="color:#b5791f">★ </span>':''; return '<tr><td>'+star+esc(d.name)+'</td><td style="color:#6b7488">'+esc(d.room)+'</td><td class="num">'+(d.views||0)+'</td><td class="num">'+(d.downloads||0)+'</td><td class="num">'+(d.uniqueBuyers||0)+'</td><td class="num">'+fmtDur(d.readSeconds)+'</td></tr>'; }).join('');
+    var rows=docs.map(function(d){ var star=d.key?'<span title="Key financial/lease document" style="display:inline-block;width:15px;text-align:center;color:#b5791f">★ </span>':'<span style="display:inline-block;width:15px"></span>'; return '<tr><td><span style="display:inline-flex;align-items:baseline;gap:6px">'+star+'<span>'+esc(d.name)+'</span></span></td><td style="color:#6b7488">'+esc(d.room)+'</td><td class="num">'+(d.views||0)+'</td><td class="num">'+(d.downloads||0)+'</td><td class="num">'+(d.uniqueBuyers||0)+'</td><td class="num">'+fmtDur(d.readSeconds)+'</td></tr>'; }).join('');
     body+='<div style="overflow:auto;margin-top:6px"><table><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>';
     body+='<div style="color:#8a93a8;font-size:11px;margin-top:8px">Views, downloads and buyers are for the selected window. Read time is cumulative (total time buyers have spent reading each document).</div>';
   }
