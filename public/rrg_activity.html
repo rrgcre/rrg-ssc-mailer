@@ -3,145 +3,153 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FullServe — Activity & Logs</title>
+<title>FullServe — Activity &amp; Logs</title>
 <style>
-:root{--navy:#000E31;--red:#DA2B1F;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy2:#16346e;--line:#e3e8f1;--wash:#f5f7fb;}
-*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f7;}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px;}
-.top-in{max-width:1140px;margin:0 auto;padding:0 24px;}
-.disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
-.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:14px 0 4px;}
-h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:720px;line-height:1.5;}
-.crumb{font-size:12px;color:#9fb0d0;font-weight:600;margin-bottom:12px;} .crumb a{color:#c7d3ea;text-decoration:none;} .crumb span{color:#6a7ba0;margin:0 7px;}
-.navcrumb{display:none;max-width:1180px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:#66738f;font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:#2c5c8f;text-decoration:none;} .navcrumb span{color:#93a0ba;margin:0 7px;}
-.wrap{max-width:1140px;margin:22px auto;padding:0 24px 80px;}
-.card{background:#fff;border:1px solid var(--line);border-radius:15px;box-shadow:0 1px 3px rgba(16,32,70,.05);margin-bottom:16px;overflow:hidden;}
-.card>h2{margin:0;padding:16px 20px 4px;font-size:16px;font-weight:800;color:var(--ink);}
-.card>.cs{display:block;padding:0 20px 12px;font-size:12.5px;color:var(--dim);}
-.cols{display:grid;grid-template-columns:1fr 1fr;gap:0;} @media(max-width:720px){.cols{grid-template-columns:1fr;}}
-.cols>div{padding:0 20px 18px;} .cols h3{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:800;margin:6px 0 8px;}
-table.sum{width:100%;border-collapse:collapse;font-size:13px;} table.sum td,table.sum th{text-align:left;padding:7px 10px;border-bottom:1px solid #eef1f7;} table.sum th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:800;} table.sum td:last-child,table.sum th:last-child{text-align:right;font-variant-numeric:tabular-nums;}
-.nm{font-weight:700;color:var(--navy2);} .mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#3a4560;} .ts{font-size:12px;color:#3a4560;white-space:nowrap;}
-.tag{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;} .tag.ok{background:#eaf5ef;color:#1f8a5b;border:1px solid #c7e6d6;} .tag.off{background:#fdeceb;color:var(--red);border:1px solid #f3cfc9;}
-.empty{text-align:center;color:var(--dim);padding:24px;font-size:13px;}
-.mounted{padding:6px 12px 14px;}
-.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);} .gate h2{color:#000E31;}
-.rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);}
-.rl-filtbtn{display:none!important;}
-.ufcard .cs{padding-bottom:8px;}
-.ufwrap{display:flex;flex-wrap:wrap;gap:8px;padding:2px 20px 6px;}
-.ufchip{border:1px solid var(--line);background:#fff;color:var(--navy2);font-family:inherit;font-size:12px;font-weight:700;padding:6px 12px;border-radius:999px;cursor:pointer;}
-.ufchip:hover{border-color:#9fb0cc;}
-.ufchip.on{background:var(--navy);color:#fff;border-color:var(--navy);}
-.ufscope{padding:2px 20px 16px;font-size:12px;color:var(--dim);font-weight:600;}
-.card>h2{cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none;}
-.card>h2 .chev{margin-left:auto;color:var(--faint);font-size:12px;line-height:1;transition:transform .15s;flex:none;}
-.card>h2:hover .chev{color:var(--navy2);}
-.card.collapsed>h2{padding-bottom:16px;}
-.card.collapsed>h2 .chev{transform:rotate(-90deg);}
-.card.collapsed>*:not(h2){display:none!important;}
+:root{--navy:#20334f;--navy2:#23496f;--primary:#2c5c8f;--primary-d:#23496f;--red:#b23a2c;--ink:#2b3648;--dim:#5f6a7d;--soft:#8a93a3;--faint:#96a1b2;--line:#dbe0e9;--wash:#f4f6f9;--green:#2f7a55;--inp:#c4ccda;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:13px;}
+.wrap{max-width:980px;margin:0 auto;padding:24px 24px 70px;}
+h1{font-size:19px;font-weight:800;color:var(--navy);margin:0;}
+.sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:720px;line-height:1.5;}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;margin-top:16px;overflow:hidden;}
+.ch{display:flex;align-items:center;gap:10px;padding:11px 16px;background:var(--wash);border-bottom:1px solid var(--line);}
+.ch b{color:var(--navy);font-size:12px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;} .ch span{color:var(--muted,#69748a);font-size:12px;} .ch .sp{margin-left:auto;}
+.cb{padding:6px 0;}
+.pad{padding:14px 16px;}
+.note{color:var(--dim);font-size:12px;line-height:1.55;}
+/* scrollable summary list */
+.scrolllist{max-height:300px;overflow-y:auto;}
+.srow{display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid #eef1f6;font-size:13px;}
+.srow:last-child{border-bottom:none;}
+.srow .nm{font-weight:600;color:var(--navy2);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.srow .ct{font-variant-numeric:tabular-nums;color:var(--dim);font-weight:700;}
+.bar{height:6px;border-radius:3px;background:#e7edf5;overflow:hidden;width:110px;flex:none;}
+.bar>i{display:block;height:100%;background:var(--primary);}
+.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;color:#3a4560;}
+.ts{font-size:12px;color:#3a4560;white-space:nowrap;}
+.searchwrap{position:relative;display:flex;align-items:center;margin-left:auto;}
+.searchwrap svg{position:absolute;left:11px;color:#9aa3b2;pointer-events:none;}
+.searchwrap input{border:1px solid var(--inp);border-radius:4px;padding:7px 11px 7px 32px;font:inherit;font-size:12.5px;min-width:210px;background:#fff;}
+.searchwrap input:focus{outline:none;border-color:var(--primary);}
+/* people drill-down */
+.urow{border-bottom:1px solid var(--line);}
+.urow:last-child{border-bottom:none;}
+.uhd{display:flex;align-items:center;gap:12px;padding:11px 16px;cursor:pointer;user-select:none;}
+.uhd:hover{background:#fafbfd;}
+.uav{width:30px;height:30px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex:none;background-size:cover;background-position:center;}
+.uname{font-weight:700;color:var(--navy);font-size:13.5px;} .umeta{font-size:11.5px;color:var(--dim);margin-top:1px;}
+.uspacer{flex:1;}
+.ustat{text-align:right;font-size:11.5px;color:var(--dim);white-space:nowrap;} .ustat b{color:var(--navy2);font-size:13px;}
+.chev{color:var(--faint);font-size:12px;transition:transform .15s;flex:none;} .urow.open .chev,.sess.open .chev{transform:rotate(90deg);}
+.udetail{display:none;padding:4px 16px 14px 58px;background:#fbfcfe;border-top:1px solid var(--line);}
+.urow.open .udetail{display:block;}
+.uloading{color:var(--dim);font-size:12.5px;padding:10px 0;}
+/* sessions */
+.sess{border:1px solid var(--line);border-radius:5px;background:#fff;margin-top:9px;overflow:hidden;}
+.sesshd{display:flex;align-items:center;gap:11px;padding:9px 12px;cursor:pointer;user-select:none;}
+.sesshd:hover{background:#fafbfd;}
+.sessdot{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none;}
+.sesstitle{font-weight:700;color:var(--navy);font-size:12.5px;}
+.sessmeta{font-size:11.5px;color:var(--dim);}
+.sessright{margin-left:auto;font-size:11.5px;color:var(--dim);white-space:nowrap;text-align:right;}
+.sessbody{display:none;border-top:1px solid #eef1f6;padding:4px 0;}
+.sess.open .sessbody{display:block;}
+.act{display:flex;align-items:center;gap:12px;padding:6px 14px;font-size:12.5px;border-bottom:1px solid #f3f5f9;}
+.act:last-child{border-bottom:none;}
+.act .at{width:150px;flex:none;color:#5b6472;} .act .al{flex:1;color:var(--navy2);font-weight:600;} .act .aip{color:#9aa3b2;font-size:11.5px;}
+.act.login .al{color:var(--green);} .act.loginfail .al{color:var(--red);}
+.tag{display:inline-block;font-size:10px;font-weight:800;padding:2px 8px;border-radius:999px;} .tag.ok{background:#eaf5ef;color:#1f7a4d;border:1px solid #c7e6d6;} .tag.off{background:#fdeceb;color:var(--red);border:1px solid #f3cfc9;}
+.empty{text-align:center;color:var(--dim);padding:22px;font-size:13px;}
+.gate{max-width:520px;margin:70px auto;text-align:center;color:var(--dim);} .gate h2{color:var(--navy);}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
-<a href="./index.html" class="rrg-back"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
-<div class="top"><div class="top-in">
-  <div class="crumb"><a href="./index.html">Command</a><span>›</span>Activity &amp; Logs</div>
-  <span class="disc" onclick="location.href='./index.html'">RRG</span>
-  <div class="kicker">Admin · Activity</div>
-  <h1>Activity &amp; Logs</h1>
-  <div class="sub">What your team is using and who's signing in — tool opens by person and tool, plus the recent tool activity and login history.</div>
-</div></div>
-<div class="navcrumb"><a href="./index.html">Command</a><span>›</span>Activity &amp; Logs</div>
-<div id="root" class="wrap"><div class="empty">Loading…</div></div>
-<script src="/rrg_list.js"></script>
+<div class="wrap" id="root"><div class="empty">Loading…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-function sumRows(rows,keyName){ if(!rows||!rows.length) return '<tr><td colspan="2" class="empty">None yet.</td></tr>'; return rows.map(function(r){ var lbl=r[keyName]||'—'; var cls=(keyName==='tool')?'nm':'mono'; return '<tr><td class="'+cls+'">'+esc(lbl)+'</td><td>'+r.count+'</td></tr>'; }).join(''); }
-function tsCmp(a,b){ return RRGList.cmp(a.ts,b.ts); }
+function get(u){return fetch(u,{credentials:'same-origin',cache:'no-store'}).then(function(r){ if(r.status===403||r.status===401) throw 0; return r.json(); });}
+function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
+var SESSION_GAP=30*60*1000; // 30 min of inactivity ends a session
+var DATA=null, LASTACTIVE={}, LOADED={};
 
-var DATA=null, SEL={};
-function userRoster(j){ var s={}; (j.byUser||[]).forEach(function(r){ if(r.user) s[r.user]=1; }); (j.usage||[]).forEach(function(r){ if(r.user) s[r.user]=1; }); (j.logins||[]).forEach(function(r){ if(r.user) s[r.user]=1; }); return Object.keys(s).sort(function(a,b){return RRGList.cmp(String(a).toLowerCase(),String(b).toLowerCase());}); }
-function selectedUsers(){ return Object.keys(SEL).filter(function(u){return SEL[u];}); }
-function filterByUser(rows){ var sel=selectedUsers(); if(!sel.length) return rows||[]; var set={}; sel.forEach(function(u){set[u]=1;}); return (rows||[]).filter(function(r){return set[r.user];}); }
-function usageList(data){
-  RRGList.create({ mount:'#usagelist', data:data, key:'adminusage', rowId:function(r){return r.ts+'|'+r.user+'|'+r.tool;}, defaultSort:0, defaultDir:-1, per:50,
-    empty:'<div class="empty">No tool activity for this selection.</div>',
-    columns:[
-      {label:'When (CT)', width:180, sort:tsCmp, cell:function(r){return '<span class="ts">'+esc(r.when)+'</span>';}},
-      {label:'User', sort:function(a,b){return RRGList.cmp(a.user,b.user);}, cell:function(r){return '<span class="mono">'+(esc(r.user)||'—')+'</span>';}},
-      {label:'Tool', sort:function(a,b){return RRGList.cmp(a.tool,b.tool);}, cell:function(r){return '<span class="nm">'+esc(r.tool)+'</span>';}},
-      {label:'IP', sort:function(a,b){return RRGList.cmp(a.ip,b.ip);}, cell:function(r){return '<span class="mono">'+esc(r.ip)+'</span>';}}
-    ] });
-}
-function loginList(data){
-  RRGList.create({ mount:'#loginlist', data:data, key:'adminlogins', rowId:function(r){return r.ts+'|'+r.user+'|'+r.ip;}, defaultSort:0, defaultDir:-1, per:50,
-    empty:'<div class="empty">No sign-ins for this selection.</div>',
-    columns:[
-      {label:'When (CT)', width:180, sort:tsCmp, cell:function(r){return '<span class="ts">'+esc(r.when)+'</span>';}},
-      {label:'Username', sort:function(a,b){return RRGList.cmp(a.user,b.user);}, cell:function(r){return '<span class="mono">'+(esc(r.user)||'—')+'</span>';}},
-      {label:'Result', sort:function(a,b){return RRGList.cmp(a.result,b.result);}, cell:function(r){return r.result==='success'?'<span class="tag ok">Success</span>':'<span class="tag off">Failed</span>';}},
-      {label:'IP', sort:function(a,b){return RRGList.cmp(a.ip,b.ip);}, cell:function(r){return '<span class="mono">'+esc(r.ip)+'</span>';}}
-    ] });
-}
-function chipsHtml(j){
-  var roster=userRoster(j);
-  var out='<button type="button" class="ufchip'+(selectedUsers().length?'':' on')+'" data-u="__all">All users</button>';
-  out+=roster.map(function(u){ return '<button type="button" class="ufchip'+(SEL[u]?' on':'')+'" data-u="'+esc(u)+'">'+esc(u)+'</button>'; }).join('');
-  return out;
-}
-function refreshChips(){ var wrap=document.getElementById('ufwrap'); if(!wrap) return; Array.prototype.forEach.call(wrap.querySelectorAll('.ufchip'),function(b){ var u=b.getAttribute('data-u'); var on=(u==='__all')?(selectedUsers().length===0):!!SEL[u]; b.classList.toggle('on',on); }); }
-function paint(){
-  var j=DATA; if(!j) return;
-  var usage=filterByUser(j.usage), logins=filterByUser(j.logins), sel=selectedUsers();
-  var scopeEl=document.getElementById('ufscope');
-  if(scopeEl) scopeEl.textContent = sel.length ? (sel.length+' selected: '+sel.join(', ')+' — '+usage.length+' tool opens, '+logins.length+' sign-ins') : ('All users — '+(j.usage||[]).length+' tool opens, '+(j.logins||[]).length+' sign-ins');
-  var host=document.getElementById('histcontent'); if(!host) return;
-  host.innerHTML=''
-    +'<div class="card"><h2>Recent tool activity</h2><span class="cs">Newest first · last 500 opens'+(sel.length?' · filtered':'')+'.</span><div class="mounted" id="usagelist"></div></div>'
-    +'<div class="card"><h2>Login activity</h2><span class="cs">Newest first · last 300 sign-in attempts'+(sel.length?' · filtered':'')+'.</span><div class="mounted" id="loginlist"></div></div>';
-  usageList(usage); loginList(logins);
-  makeCollapsible();
-}
-var COLL={}; try{ COLL=JSON.parse(localStorage.getItem('actcoll_v1')||'{}')||{}; }catch(e){}
-function saveColl(){ try{ localStorage.setItem('actcoll_v1',JSON.stringify(COLL)); }catch(e){} }
-function makeCollapsible(){
-  document.querySelectorAll('.card > h2').forEach(function(h2){
-    if(h2.__coll) return; h2.__coll=1;
-    var card=h2.parentNode; var k=(h2.textContent||'').trim().slice(0,48);
-    var chev=document.createElement('span'); chev.className='chev'; chev.textContent='▾'; h2.appendChild(chev);
-    if(COLL[k]) card.classList.add('collapsed');
-    h2.addEventListener('click',function(){ var on=card.classList.toggle('collapsed'); if(on) COLL[k]=1; else delete COLL[k]; saveColl(); });
-  });
-}
 function render(j){
   DATA=j;
-  var root=document.getElementById('root');
-  root.innerHTML=''
-    +'<div class="card"><h2>Tool usage</h2><span class="cs">Opens by tool and by user, all time.</span>'
-      +'<div class="cols">'
-        +'<div><h3>By tool</h3><table class="sum"><thead><tr><th>Tool</th><th>Opens</th></tr></thead><tbody>'+sumRows(j.byTool,'tool')+'</tbody></table></div>'
-        +'<div><h3>By user</h3><table class="sum"><thead><tr><th>User</th><th>Opens</th></tr></thead><tbody>'+sumRows(j.byUser,'user')+'</tbody></table></div>'
-      +'</div>'
-    +'</div>'
-    +'<div class="card ufcard"><h2>Filter history by user</h2><span class="cs">Scope the tool-activity and login history below to one or more people. Click to toggle; the summary above stays all-time.</span>'
-      +'<div class="ufwrap" id="ufwrap">'+chipsHtml(j)+'</div>'
-      +'<div class="ufscope" id="ufscope"></div>'
-    +'</div>'
-    +'<div id="histcontent"></div>';
-  document.getElementById('ufwrap').addEventListener('click',function(e){
-    var b=e.target.closest('.ufchip'); if(!b) return;
-    var u=b.getAttribute('data-u');
-    if(u==='__all'){ SEL={}; } else { if(SEL[u]) delete SEL[u]; else SEL[u]=true; }
-    refreshChips(); paint();
+  // last-active per user from the recent global usage stream
+  LASTACTIVE={}; (j.usage||[]).forEach(function(u){ if(u.user && !LASTACTIVE[u.user]) LASTACTIVE[u.user]=u.when; });
+  var maxTool=(j.byTool&&j.byTool[0]&&j.byTool[0].count)||1;
+  var toolRows=(j.byTool||[]).length? (j.byTool||[]).map(function(t){ var pct=Math.max(4,Math.round((t.count/maxTool)*100)); return '<div class="srow"><span class="nm">'+esc(t.tool||'—')+'</span><span class="bar"><i style="width:'+pct+'%"></i></span><span class="ct">'+t.count+'</span></div>'; }).join('') : '<div class="empty">No tool activity yet.</div>';
+
+  var users=(j.byUser||[]).filter(function(u){return u.user;});
+  var userRows=users.length? users.map(function(u){
+    var la=LASTACTIVE[u.user]?('Last active '+esc(LASTACTIVE[u.user])):'';
+    return '<div class="urow" data-user="'+esc(u.user)+'">'
+      +'<div class="uhd"><span class="uav" data-av="'+esc(u.user)+'">'+esc(initials(u.user).toUpperCase())+'</span>'
+        +'<div><div class="uname">'+esc(u.user)+'</div><div class="umeta">'+la+'</div></div>'
+        +'<span class="uspacer"></span>'
+        +'<div class="ustat"><b>'+u.count+'</b> tool opens</div>'
+        +'<span class="chev">▶</span></div>'
+      +'<div class="udetail" data-det="'+esc(u.user)+'"><div class="uloading">Click to load sessions…</div></div>'
+    +'</div>';
+  }).join('') : '<div class="empty">No users have activity yet.</div>';
+
+  document.getElementById('root').innerHTML=''
+    +'<h1>Activity &amp; Logs</h1>'
+    +'<div class="sub">Who is using what, and when. The tool list is scrollable; click a person to see their sessions, and a session to see exactly what they did.</div>'
+    +'<div class="card"><div class="ch"><b>Tool usage — by tool</b><span class="sp">'+(j.byTool||[]).length+' tools · all time</span></div><div class="scrolllist">'+toolRows+'</div></div>'
+    +'<div class="card"><div class="ch"><b>People</b><div class="searchwrap"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="usearch" placeholder="Find a person…" autocomplete="off"></div></div><div class="cb" id="people">'+userRows+'</div></div>';
+
+  document.getElementById('people').addEventListener('click',function(e){
+    var hd=e.target.closest('.uhd'); if(!hd) return;
+    var row=hd.closest('.urow'); var user=row.getAttribute('data-user');
+    var open=row.classList.toggle('open');
+    if(open && !LOADED[user]) loadUser(user, row.querySelector('[data-det]'));
   });
-  paint();
+  var us=document.getElementById('usearch');
+  if(us) us.addEventListener('input',function(){ var q=this.value.trim().toLowerCase(); document.querySelectorAll('#people .urow').forEach(function(r){ var u=(r.getAttribute('data-user')||'').toLowerCase(); r.style.display=(!q||u.indexOf(q)>=0)?'':'none'; }); });
 }
-fetch('/api/admin/activity',{credentials:'same-origin',cache:'no-store'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
-  if(!j||!j.ok){ throw 0; }
-  if(window.RRGList){ render(j); } else { var t=setInterval(function(){ if(window.RRGList){ clearInterval(t); render(j); } },40); }
-}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2>Admins only</h2>Ask an administrator to view activity &amp; logs.</div>'; });
+
+function loadUser(user, host){
+  host.innerHTML='<div class="uloading">Loading sessions…</div>';
+  get('/api/admin/user-activity?user='+encodeURIComponent(user)).then(function(j){
+    if(!j||!j.ok){ host.innerHTML='<div class="uloading">Could not load.</div>'; return; }
+    LOADED[user]=1;
+    var sessions=buildSessions(j.usage,j.logins);
+    if(!sessions.length){ host.innerHTML='<div class="uloading">No recorded activity for this person.</div>'; return; }
+    host.innerHTML=sessions.map(sessionHtml).join('');
+    host.querySelectorAll('.sesshd').forEach(function(h){ h.addEventListener('click',function(){ h.closest('.sess').classList.toggle('open'); }); });
+  }).catch(function(){ host.innerHTML='<div class="uloading">Could not reach the server.</div>'; });
+}
+
+function buildSessions(usage,logins){
+  var ev=[];
+  (usage||[]).forEach(function(u){ ev.push({ts:u.ts,when:u.when,label:u.tool||'(tool)',kind:'tool',ip:u.ip||''}); });
+  (logins||[]).forEach(function(l){ ev.push({ts:l.ts,when:l.when,label:(l.result==='success'?'Signed in':'Failed sign-in'),kind:(l.result==='success'?'login':'loginfail'),ip:l.ip||''}); });
+  ev=ev.filter(function(e){return e.ts;});
+  ev.sort(function(a,b){ return a.ts<b.ts?-1:(a.ts>b.ts?1:0); });
+  var out=[], cur=null;
+  ev.forEach(function(e){
+    var t=Date.parse(e.ts)||0;
+    if(!cur || (t-cur._last)>SESSION_GAP){ cur={startWhen:e.when,endWhen:e.when,ip:e.ip,acts:[],_start:t,_last:t}; out.push(cur); }
+    cur.acts.push(e); cur._last=t; cur.endWhen=e.when; if(e.ip) cur.ip=e.ip;
+  });
+  out.forEach(function(s){ s.durMin=Math.max(0,Math.round((s._last-s._start)/60000)); });
+  return out.reverse(); // newest session first
+}
+function durText(m){ if(m<1) return '<1 min'; if(m<60) return m+' min'; var h=Math.floor(m/60), r=m%60; return h+'h'+(r?(' '+r+'m'):''); }
+function sessionHtml(s){
+  var acts=s.acts.slice().reverse(); // newest action first inside a session
+  var body=acts.map(function(a){ return '<div class="act'+(a.kind==='login'?' login':(a.kind==='loginfail'?' loginfail':''))+'"><span class="at">'+esc(a.when)+'</span><span class="al">'+esc(a.label)+'</span><span class="aip mono">'+esc(a.ip||'')+'</span></div>'; }).join('');
+  var toolCount=s.acts.filter(function(a){return a.kind==='tool';}).length;
+  return '<div class="sess"><div class="sesshd"><span class="sessdot"></span>'
+    +'<div><div class="sesstitle">'+esc(s.startWhen)+'</div><div class="sessmeta">'+toolCount+' tool open'+(toolCount===1?'':'s')+(s.ip?(' · '+esc(s.ip)):'')+'</div></div>'
+    +'<span class="sessright">'+durText(s.durMin)+'<br>'+s.acts.length+' event'+(s.acts.length===1?'':'s')+'</span>'
+    +'<span class="chev" style="margin-left:10px">▶</span></div>'
+    +'<div class="sessbody">'+body+'</div></div>';
+}
+
+get('/api/admin/activity').then(function(j){ if(!j||!j.ok) throw 0; render(j); })
+  .catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2>Admins only</h2>Ask an administrator to view activity &amp; logs.</div>'; });
 </script>
 </body>
 </html>

@@ -3452,6 +3452,18 @@ app.delete('/api/room/:id', (req, res) => {
   saveRooms(arr.filter(x => x.id !== r.id));
   res.json({ ok: true });
 });
+// Atomic bulk delete for data rooms — one pass, only rooms the caller owns.
+app.post('/api/rooms/bulk-delete', express.json({ limit: '512kb' }), (req, res) => {
+  const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.map(String) : [];
+  if (!ids.length) return res.status(400).json({ ok: false, error: 'No data rooms given.' });
+  const idset = {}; ids.forEach(id => { idset[id] = 1; });
+  const arr = loadRooms();
+  const targets = arr.filter(r => idset[r.id] && ownsRoom(req, r));
+  const tset = {}; targets.forEach(r => { tset[r.id] = 1; });
+  targets.forEach(r => (r.docs || []).forEach(d => { try { fs.unlinkSync(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} }));
+  saveRooms(arr.filter(r => !tset[r.id]));
+  res.json({ ok: true, deleted: targets.length, skipped: ids.length - targets.length });
+});
 // Regenerate the share link (invalidates the old one).
 app.post('/api/room/:id/newlink', (req, res) => {
   const arr = loadRooms();
@@ -6585,6 +6597,21 @@ app.delete('/api/person/:id', (req, res) => {
   savePeople(arr);
   res.json({ ok: true, people: arr.map(personBrief) });
 });
+// Atomic bulk delete — one read-modify-write, so selecting-all then deleting can't race
+// (firing hundreds of single DELETEs made each clobber the others' writes; almost nothing stuck).
+app.post('/api/people/bulk-delete', express.json({ limit: '512kb' }), (req, res) => {
+  if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete contacts.' });
+  const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.map(String) : [];
+  if (!ids.length) return res.status(400).json({ ok: false, error: 'No contacts given.' });
+  const idset = {}; ids.forEach(id => { idset[id] = 1; });
+  const all = loadPeople();
+  const removable = {}; let skipped = 0;
+  all.forEach(p => { if (idset[p.id]) { if (p.system || p.locked) skipped++; else removable[p.id] = 1; } });
+  const kept = all.filter(p => !removable[p.id]);
+  const deleted = all.length - kept.length;
+  savePeople(kept);
+  res.json({ ok: true, deleted: deleted, skipped: skipped, people: kept.map(personBrief) });
+});
 // ---------- Space Tracker: available-space inventory ----------
 app.get('/api/spaces', (req, res) => {
   res.json({ ok: true, spaces: loadSpaces(), types: SPACE_TYPES, statuses: SPACE_STATUS, features: SPACE_FEATURES, centers: loadCenters().map(function(c){ return { id: c.id, name: c.name || '', market: c.market || c.city || '', centerType: c.centerType || '' }; }) });
@@ -7868,6 +7895,16 @@ app.get('/api/admin/activity', requireAdmin, (req, res) => {
   const loginsOut = logins.map(l => ({ when: fmtWhen(l.timestamp), ts: l.timestamp||'', user: l.username||'', result: l.result||'', ip: l.ip||'' }));
   res.json({ ok:true, byTool: byToolOut, byUser: byUserOut, usage, logins: loginsOut });
 });
+// Full tool-open + sign-in history for ONE user, for the sessions drill-down on the Activity page.
+app.get('/api/admin/user-activity', requireAdmin, (req, res) => {
+  const user = String((req.query && req.query.user) || '').trim();
+  if (!user) return res.status(400).json({ ok: false, error: 'No user given.' });
+  const usage = auth.readUsage().filter(u => u.username === user).slice(-3000)
+    .map(u => ({ when: fmtWhen(u.timestamp), ts: u.timestamp || '', tool: u.tool || '', ip: u.ip || '' }));
+  const logins = auth.readLogins().filter(l => l.username === user).slice(-800)
+    .map(l => ({ when: fmtWhen(l.timestamp), ts: l.timestamp || '', result: l.result || '', ip: l.ip || '' }));
+  res.json({ ok: true, user: user, usage: usage, logins: logins });
+});
 app.get('/api/admin/anthropic-key', requireAdmin, (req, res) => res.json({ ok: true, set: !!process.env.ANTHROPIC_API_KEY, fromFile: !!loadAnthropicKeyFile(), fromEnv: !loadAnthropicKeyFile() && !!process.env.ANTHROPIC_API_KEY }));
 app.post('/api/admin/anthropic-key', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {};
@@ -8702,6 +8739,28 @@ app.delete('/api/company/:id', (req, res) => {
   // 4) Unlink contacts (people are global — keep them, just clear the association).
   const people = loadPeople(); let ch = false; people.forEach(p => { if (p.companyId === id) { p.companyId = ''; ch = true; } }); if (ch) savePeople(people);
   res.json({ ok: true, deletedDeals: linkedDeals.length, deletedPhotos: photos });
+});
+// Atomic bulk delete for companies — same cascade as the single delete, batched into one pass
+// so select-all → delete can't race and clobber writes.
+app.post('/api/companies/bulk-delete', express.json({ limit: '512kb' }), (req, res) => {
+  if (!canDelete(req)) return res.status(403).json({ ok: false, error: 'You do not have permission to delete companies.' });
+  const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.map(String) : [];
+  if (!ids.length) return res.status(400).json({ ok: false, error: 'No companies given.' });
+  const idset = {}; ids.forEach(id => { idset[id] = 1; });
+  const companies = loadCompanies();
+  const targets = companies.filter(c => idset[c.id] && !(c.system || c.locked));
+  const tset = {}; targets.forEach(c => { tset[c.id] = 1; });
+  // 1) purge every deal tied to any target company (record chain + files)
+  const linkedDeals = loadDeals().filter(d => tset[d.companyId]);
+  linkedDeals.forEach(d => { try { purgeDealRecords(d); } catch (e) { console.error('bulk company delete — deal purge failed:', e && e.message); } });
+  if (linkedDeals.length) saveDeals(loadDeals().filter(d => !tset[d.companyId]));
+  // 2) location photo files
+  let photos = 0; targets.forEach(c => (c.locations || []).forEach(l => (l.photos || []).forEach(p => { try { fs.unlinkSync(path.join(LOCPHOTO_DIR, p.id + '.' + p.ext)); photos++; } catch (e) {} })));
+  // 3) remove the company records
+  saveCompanies(companies.filter(c => !tset[c.id]));
+  // 4) unlink contacts (kept, association cleared)
+  const people = loadPeople(); let ch = false; people.forEach(p => { if (tset[p.companyId]) { p.companyId = ''; ch = true; } }); if (ch) savePeople(people);
+  res.json({ ok: true, deleted: targets.length, skipped: ids.length - targets.length, deletedDeals: linkedDeals.length, deletedPhotos: photos });
 });
 // ---- Deals (first-class) ----
 app.post('/api/deal/new', express.json(), (req, res) => {

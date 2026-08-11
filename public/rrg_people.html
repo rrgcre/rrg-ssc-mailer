@@ -290,8 +290,10 @@ function reloadPeople(){ return fetch('/api/people',{credentials:'same-origin',c
 async function bulkDeletePeople(ids, done){
   if(!ids||!ids.length) return;
   if(!await rrgConfirm('Delete '+ids.length+' contact'+(ids.length>1?'s':'')+' from your registry? Their names stay on any past offers, tours and NDAs. This cannot be undone.')) return;
-  Promise.all(ids.map(function(id){ return fetch('/api/person/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).catch(function(){return {ok:false};}); }))
-    .then(function(res){ var fail=res.filter(function(x){return !x||!x.ok;}).length; if(done) done(); reloadPeople().then(function(){ if(fail) alert(fail+' of '+ids.length+' could not be deleted.'); }); });
+  fetch('/api/people/bulk-delete',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ids:ids})})
+    .then(function(r){return r.json();})
+    .then(function(j){ if(done) done(); reloadPeople().then(function(){ if(!j||!j.ok){ alert((j&&j.error)||'Could not delete.'); } else if(j.skipped){ alert(j.deleted+' deleted · '+j.skipped+' protected contact'+(j.skipped>1?'s':'')+' skipped.'); } }); })
+    .catch(function(){ if(done) done(); reloadPeople(); alert('Could not reach the server.'); });
 }
 function openMergePicker(ids, done){
   var people=ids.map(function(id){ return (ALL||[]).find(function(p){return p.id===id;}); }).filter(Boolean);

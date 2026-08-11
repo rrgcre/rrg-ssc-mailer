@@ -265,8 +265,10 @@ async function bulkDeleteCompanies(ids, done){
   if(!await rrgConfirm('Delete '+ids.length+' compan'+(ids.length===1?'y':'ies')+' and ALL their associated records (concepts, locations, photos, and listings)? Contacts are kept. This cannot be undone.')) return;
   var idset={}; ids.forEach(function(id){ idset[id]=1; });
   ALL=ALL.filter(function(c){ return !idset[c.id]; }); applyFilter();
-  Promise.all(ids.map(function(id){ return fetch('/api/company/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).catch(function(){ return {ok:false}; }); }))
-    .then(function(res){ var fail=res.filter(function(x){ return !x||!x.ok; }).length; if(done) done(); reloadCompanies().then(function(){ if(fail) alert(fail+' of '+ids.length+' could not be deleted.'); }); });
+  fetch('/api/companies/bulk-delete',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ids:ids})})
+    .then(function(r){return r.json();})
+    .then(function(j){ if(done) done(); reloadCompanies().then(function(){ if(!j||!j.ok){ alert((j&&j.error)||'Could not delete.'); } else if(j.skipped){ alert(j.deleted+' deleted · '+j.skipped+' protected compan'+(j.skipped===1?'y':'ies')+' skipped.'); } }); })
+    .catch(function(){ if(done) done(); reloadCompanies(); alert('Could not reach the server.'); });
 }
 function openCompanyMergePicker(ids, done){
   var cos=ids.map(function(id){ return (ALL||[]).find(function(c){return c.id===id;}); }).filter(Boolean);

@@ -190,11 +190,12 @@ function load(){
 }
 document.addEventListener('change',function(e){ if(e.target&&e.target.id==='hideArch') applyFilter(); });
 async function bulkDel(ids,done){
+  if(!ids||!ids.length) return;
   if(!await rrgConfirm('Delete '+ids.length+' data room'+(ids.length>1?'s':'')+'? This removes the room and its files.')) return;
-  var n=0; ids.forEach(function(id){
-    fetch('/api/room/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
-      .then(function(){ if(++n===ids.length){ if(done)done(); load(); } }).catch(function(){ if(++n===ids.length){ if(done)done(); load(); } });
-  });
+  fetch('/api/rooms/bulk-delete',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ids:ids})})
+    .then(function(r){return r.json();})
+    .then(function(j){ if(done) done(); load(); if(j&&j.skipped) alert(j.deleted+' deleted · '+j.skipped+' skipped (not yours).'); })
+    .catch(function(){ if(done) done(); load(); alert('Could not reach the server.'); });
 }
 async function delRoom(id,btn){
   if(!await rrgConfirm('Delete this data room? This removes the room and all its files. The buyer link will stop working.')) return;
