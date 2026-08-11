@@ -172,6 +172,8 @@
     + ':root{--navbg:var(--navbg,#0b1a38);}'
     + 'body.rrg-shelled{padding-left:238px !important;padding-top:56px !important;}'
     + 'body.rrg-shelled .top,body.rrg-shelled .rrg-back{display:none !important;}'
+    + 'body.rrg-shelled .rrgcrumb{display:block;padding:16px 24px 0;font-size:12.5px;font-weight:600;color:#5f6a7d;line-height:1.4;}'
+    + '.rrgcrumb a{color:#2c5c8f;text-decoration:none;} .rrgcrumb a:hover{text-decoration:underline;} .rrgcrumb .sep{color:#96a1b2;margin:0 7px;} .rrgcrumb .rrgcrumb-cur{color:#20334f;font-weight:700;}'
     + '#rrgnav{position:fixed;top:0;left:0;bottom:0;width:238px;background:var(--navbg,#0b1a38);color:#c7d0e4;display:flex;flex-direction:column;z-index:60;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}'
     + '#rrgnav .nt{display:flex;align-items:center;gap:9px;padding:12px 14px 6px;}'
     + '#rrgnav .ws{display:flex;align-items:center;gap:9px;cursor:pointer;border-radius:9px;padding:5px 7px;flex:1;text-decoration:none;}'
@@ -326,11 +328,16 @@
     (function(){ var _cb=document.getElementById('rrgcollapse'); if(!_cb) return; function _sync(){ var on=document.body.classList.contains('rrg-collapsed'); _cb.textContent=on?'\u00bb':'\u00ab'; _cb.title=on?'Expand sidebar':'Collapse sidebar'; } _sync(); _cb.addEventListener('click',function(e){ e.preventDefault(); var on=document.body.classList.toggle('rrg-collapsed'); try{ localStorage.setItem('rrg_nav_collapsed',on?'1':'0'); }catch(_e){} _sync(); }); })();
     // Contextual back button in the header's left slot — pages opt in with
     // <meta name="rrg-back" content="rrg_companies.html|Companies">.
-    try { var _mb=document.querySelector('meta[name="rrg-back"]'); if(_mb){ var _p=String(_mb.getAttribute('content')||'').split('|'); var _href=(_p[0]||'').trim(), _lbl=(_p[1]||'Back').trim(); if(_href){ var _bk=document.createElement('a'); _bk.className='rrgback'; _bk.href=_href; _bk.innerHTML='<span style="font-size:15px;line-height:1">←</span> '+esc(_lbl);
-      // If we arrived here from another page inside the app, go back to THAT page
-      // (e.g. the company you clicked from) rather than the list. Otherwise use the list.
-      _bk.addEventListener('click',function(e){ try{ var rf=(document.referrer||'').split('#')[0], cur=location.href.split('#')[0]; if(rf && rf.indexOf(location.origin)===0 && rf!==cur && window.history.length>1){ e.preventDefault(); window.history.back(); } }catch(_e){} });
-      var _lg=top.querySelector('.rrgtoplogo'); if(_lg&&_lg.nextSibling){ top.insertBefore(_bk,_lg.nextSibling); } else { top.insertBefore(_bk, top.firstChild); } } } } catch(e){}
+    // Standardized breadcrumb: pages opt in with <meta name="rrg-back" content="rrg_companies.html|Companies">.
+    // Renders "Command › Companies › [record]" at the top of the content — same breadcrumb pattern as every other page.
+    try { var _mb=document.querySelector('meta[name="rrg-back"]'); if(_mb && !document.querySelector('.navcrumb')){ var _p=String(_mb.getAttribute('content')||'').split('|'); var _href=(_p[0]||'').trim(), _lbl=(_p[1]||'Back').trim(); if(_href){
+      var _bk=document.createElement('nav'); _bk.className='rrgcrumb';
+      _bk.innerHTML='<a href="index.html">Command</a><span class="sep">›</span><a href="'+esc(_href)+'" class="rrgcrumb-back">'+esc(_lbl)+'</a>';
+      var _pl=_bk.querySelector('.rrgcrumb-back'); if(_pl) _pl.addEventListener('click',function(e){ try{ var rf=(document.referrer||'').split('#')[0], cur=location.href.split('#')[0]; if(rf && rf.indexOf(location.origin)===0 && rf!==cur && window.history.length>1){ e.preventDefault(); window.history.back(); } }catch(_e){} });
+      document.body.insertBefore(_bk, document.body.firstChild);
+      var _fillLeaf=function(){ try{ if(_bk.querySelector('.rrgcrumb-cur')) return; var _h1=document.querySelector('h1'); var _lf=_h1?String(_h1.textContent||'').trim():''; if(_lf){ var _s=document.createElement('span'); _s.className='sep'; _s.textContent='›'; var _c=document.createElement('span'); _c.className='rrgcrumb-cur'; _c.textContent=_lf; _bk.appendChild(_s); _bk.appendChild(_c); } }catch(_e){} };
+      _fillLeaf(); setTimeout(_fillLeaf,400); setTimeout(_fillLeaf,1100);
+    } } } catch(e){}
     try { fetch('/api/counts',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var od=(j&&j.overdue)||{}; var NOUN={'rrg_tickets.html':'past-due request','rrg_tasks.html':'overdue task'}; Object.keys(od).forEach(function(href){ var c=od[href]||0; if(c<=0) return; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||tl.querySelector('.navbadge')) return; var noun=NOUN[href]||'item'; tl.title=c+' '+noun+(c===1?'':'s'); var b=document.createElement('span'); b.className='navbadge'; b.textContent=c>999?'999+':String(c); tl.appendChild(b); }); var dt=(j&&j.dueToday)||{}; Object.keys(dt).forEach(function(href){ var c=dt[href]||0; if(c<=0) return; var tl=nav.querySelector('a.it[href="'+href+'"]'); if(!tl||tl.querySelector('.navbadge.gold')) return; var g=document.createElement('span'); g.className='navbadge gold'; g.textContent=c>999?'999+':String(c); g.title=c+' task'+(c===1?'':'s')+' due today'; tl.appendChild(g); }); }).catch(function(){}); } catch(e){}
     // Create New dropdown
     (function(){ var cb=document.getElementById('rrgCreateBtn'), cm=document.getElementById('rrgCreateMenu'); if(!cb||!cm) return;

@@ -46,7 +46,8 @@ h1{margin:0;font-size:16px;font-weight:700;color:var(--navy);} .sub{color:var(--
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function hasLogo(c){ return !!(c&&(c.proposed||c.apple||c.clearbit)); }  // real logo source (not just a favicon)
-function sortCands(){ CANDS.sort(function(a,b){ return ((b.ai?1:0)-(a.ai?1:0)) || ((hasLogo(b)?1:0)-(hasLogo(a)?1:0)); }); }  // newly AI-found logos first, then companies with a real logo
+function _logoTier(c){ return hasLogo(c)?2:(c&&c.favicon?1:0); }  // 2=real logo, 1=favicon only, 0=generic/none
+function sortCands(){ CANDS.sort(function(a,b){ return (_logoTier(b)-_logoTier(a)) || ((b.ai?1:0)-(a.ai?1:0)); }); }  // real logos first (new AI ones first within), generic/no-logo last
 var AIW = {_p:null,_iv:null,show:function(m,c){try{if(window.rrgAiWork){this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork.show(m,c);}this._p={m:m,c:c};var s=this,t=0;if(this._iv)clearInterval(this._iv);this._iv=setInterval(function(){t++;if(window.rrgAiWork){clearInterval(s._iv);s._iv=null;if(s._p){window.rrgAiWork.show(s._p.m,s._p.c);}}else if(t>150){clearInterval(s._iv);s._iv=null;}},50);}catch(e){}},setMsg:function(m){try{if(window.rrgAiWork)window.rrgAiWork.setMsg(m);else if(this._p)this._p.m=m;}catch(e){}},progress:function(d,t,o){try{if(window.rrgAiWork&&window.rrgAiWork.progress)window.rrgAiWork.progress(d,t,o);else if(o&&o.msg)this.setMsg(o.msg);}catch(e){}},done:function(o){try{o=o||{};if(window.rrgAiWork&&window.rrgAiWork.done)window.rrgAiWork.done(o);else this.hide();}catch(e){}},hide:function(){try{this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
 var LOGOCANCEL=false;
 var CANDS=[], STATE={};
@@ -123,7 +124,7 @@ function aiFind(){
 function apply(){
   var items=[]; CANDS.forEach(function(c){ if(STATE[c.id]==='on'){ var img=document.querySelector('.logobox img[data-cid="'+c.id+'"]'); var src=img?img.src:(c.proposed||c.favicon); var _it={id:c.id,logo:src}; if(c.website) _it.website=c.website; items.push(_it); } });
   if(!items.length){ document.getElementById('msg').textContent=''; alert('Nothing approved to apply.'); return; }
-  var b=document.getElementById('apply'); b.disabled=true; AIW.show('Fetching &amp; saving logos…');
+  var b=document.getElementById('apply'); b.disabled=true; AIW.show('Fetching & saving logos…');
   fetch('/api/admin/apply-logos',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
     b.disabled=false; if(j&&j.ok){ document.getElementById('msg').textContent='Applied '+j.applied+' logo'+(j.applied===1?'':'s')+' ✓'; AIW.done({title:'Logos applied', summary:'Saved '+j.applied+' logo'+(j.applied===1?'':'s')+' to your companies.', onClose:function(){ setTimeout(loadCands,150); }}); } else { AIW.hide(); alert((j&&j.error)||'Could not apply.'); }
   }).catch(function(){ AIW.hide(); b.disabled=false; alert('Could not reach the server.'); });
