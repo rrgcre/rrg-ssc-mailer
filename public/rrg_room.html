@@ -96,9 +96,26 @@ body.rrg-shelled .pagehd{display:block;}
 
 
   <div class="card">
-    <div class="cbody" style="padding-bottom:6px"><h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Documents</h2><div class="h" style="margin-bottom:2px">The room is organized into the same sections every time. Files show under their section; delete any anytime.</div></div>
+    <div class="cbody" style="padding-bottom:6px"><h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Documents</h2><div class="h" style="margin-bottom:2px">The room is organized into the same sections every time. Files appear under their section — you can add, move, or delete any file at any time.</div></div>
     <div id="docList"></div>
   </div>
+
+  <div class="card"><div class="cbody">
+    <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Add documents</h2>
+    <div class="h">PDF, Word, Excel, CSV, PowerPoint, images, or text — up to <b>25 MB</b> each. Give it a clear name and drop it in the right section.</div>
+    <div class="up">
+      <div class="fld"><label>Document name</label><input type="text" id="docTitle" placeholder="e.g. 2023 Profit &amp; Loss"></div>
+      <div class="fld"><label>Section</label><select id="docCategory"></select></div>
+      <div class="fld"><button class="btn green" onclick="document.getElementById('docFile').click()">Choose file</button></div>
+    </div>
+    <input type="file" id="docFile" style="display:none" onchange="uploadDoc()">
+    <input type="file" id="bulkFiles" multiple style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.csv,.txt" onchange="bulkUpload()">
+    <div style="margin-top:12px;display:flex;align-items:center;gap:11px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:13px">
+      <button class="btn primary" onclick="document.getElementById('bulkFiles').click()">Add multiple documents — <span class="ainame">Claude</span> sorts them</button>
+      <span style="font-size:11.5px;color:var(--soft);flex:1;min-width:200px">Drop in a batch (up to 40 files, 25 MB each). <span class="ainame">Claude</span> reads each one and files it into the right folder automatically — move any it gets wrong with the folder controls.</span>
+    </div>
+    <div class="umsg" id="umsg"></div>
+  </div></div>
 
   <div class="card"><div class="cbody">
     <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Buyer link</h2>
@@ -138,23 +155,6 @@ body.rrg-shelled .pagehd{display:block;}
     <div id="engBody"><div class="h" style="margin:0">Loading…</div></div>
   </div></div>
 
-
-  <div class="card"><div class="cbody">
-    <h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Add a document</h2>
-    <div class="h">PDF, Word, Excel, CSV, PowerPoint, images, or text — up to <b>25 MB</b> each. Give it a clear name and drop it in the right section.</div>
-    <div class="up">
-      <div class="fld"><label>Document name</label><input type="text" id="docTitle" placeholder="e.g. 2023 Profit &amp; Loss"></div>
-      <div class="fld"><label>Section</label><select id="docCategory"></select></div>
-      <div class="fld"><button class="btn green" onclick="document.getElementById('docFile').click()">Choose file</button></div>
-    </div>
-    <input type="file" id="docFile" style="display:none" onchange="uploadDoc()">
-    <input type="file" id="bulkFiles" multiple style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.csv,.txt" onchange="bulkUpload()">
-    <div style="margin-top:12px;display:flex;align-items:center;gap:11px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:13px">
-      <button class="btn primary" onclick="document.getElementById('bulkFiles').click()">Upload files — <span class="ainame">Claude</span> sorts them</button>
-      <span style="font-size:11.5px;color:var(--soft);flex:1;min-width:200px">Drop in a batch (up to 40 files, 25 MB each). <span class="ainame">Claude</span> reads each one and files it into the right folder automatically — move any it gets wrong with the folder controls.</span>
-    </div>
-    <div class="umsg" id="umsg"></div>
-  </div></div>
 
   <div class="card">
     <div class="cbody" style="padding-bottom:8px"><h2 class="rmhd" onclick="rmToggle(this)"><span class="rmcav">▸</span>Access log</h2><div class="h" style="margin-bottom:0">Recent views and downloads through the buyer link — newest first.</div></div>
@@ -295,7 +295,7 @@ function renderGrants(){
          +'<td style="padding:7px 10px;text-align:right;white-space:nowrap">'+(g.email?('<button class="x" onclick="inviteGrant(\''+g.id+'\')" title="Email this person the room link &amp; their access code">'+(g.invitedAt?'Re-send email':'Email access')+'</button> '):'')+'<button class="x" onclick="toggleGrant(\''+g.id+'\')">'+(g.active?'Revoke':'Restore')+'</button></td>'
          +'</tr>';
     }).join('')+'</table></div>';
-  var head='<tr><th style="text-align:left;padding:8px 10px;font-size:11px;color:#6b7488;position:sticky;left:0;background:#fff">Folder</th>'+gs.map(function(g){ var _nm=esc(g.name||g.email||'Buyer'); var _nmh=g.personId?('<a href="./rrg_person.html?id='+encodeURIComponent(g.personId)+'" title="Open contact" style="color:inherit;text-decoration:underline;text-decoration-color:#c4ccda">'+_nm+'</a>'):_nm; return '<th style="padding:8px 10px;min-width:118px;font-size:12px;color:#0b1a3a;'+(g.active?'':'opacity:.5')+'">'+_nmh+'<div style="font-weight:500;color:#6b7488;font-size:10.5px;margin-top:2px">Code '+esc(g.code)+'</div><button class="x" style="margin-top:4px" onclick="toggleGrant(\''+g.id+'\')">'+(g.active?'Revoke':'Restore')+'</button></th>'; }).join('')+'</tr>';
+  var head='<tr><th style="text-align:left;padding:8px 10px;font-size:11px;color:#6b7488;position:sticky;left:0;background:#fff">Folder</th>'+gs.map(function(g){ var _nm=esc(g.name||g.email||'Buyer'); var _nmh=g.personId?('<a href="./rrg_person.html?id='+encodeURIComponent(g.personId)+'" title="Open contact" style="color:inherit;text-decoration:underline;text-decoration-color:#c4ccda">'+_nm+'</a>'):_nm; return '<th style="padding:8px 10px;min-width:110px;font-size:12px;color:#0b1a3a;text-align:center;'+(g.active?'':'opacity:.5')+'">'+_nmh+(g.active?'':'<div style="font-weight:600;color:#b23a2c;font-size:10px;text-transform:uppercase;letter-spacing:.03em;margin-top:2px">Revoked</div>')+'</th>'; }).join('')+'</tr>';
   var rows=cats.map(function(cat,ci){
     return '<tr><td style="padding:7px 10px;font-size:12.5px;font-weight:600;color:#0b1a3a;border-top:1px solid #eef0f5;position:sticky;left:0;background:#fff">'+esc(cat)+'</td>'+gs.map(function(g){
       var lv=effLevel(g,cat), info=levelInfo(lv);

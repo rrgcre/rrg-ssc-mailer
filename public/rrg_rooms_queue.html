@@ -156,7 +156,7 @@ function renderList(list){
       { label:'Downloads', key:'downloads', align:'left', sort:function(a,b){ return (a.downloads||0)-(b.downloads||0); },
         cell:function(c){ return '<span class="pill">'+(c.downloads||0)+'</span>'; } },
       { label:'Actions', key:'actions', align:'right', sortable:false,
-        cell:function(c){ var bv=c.closed?'':'<button class="view" onclick="buyerView(\''+c.id+'\')" title="See this room exactly as an NDA’d buyer does">👁 Buyer view</button>'; return '<div class="act"><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Edit this data room">Edit data room</a><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Open this data room to upload files">Upload files</a>'+bv+'<button class="link" onclick="copyLink(\''+c.id+'\')">Copy General Access Link</button><button class="del" onclick="delRoom(\''+c.id+'\',this)">Delete</button></div>'; } }
+        cell:function(c){ var bv=c.closed?'':'<button class="view" onclick="buyerView(\''+c.id+'\')" title="See this room exactly as an NDA’d buyer does">👁 Buyer view</button>'; return '<div class="act"><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Edit this data room">Edit data room</a><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Open this data room to upload files">Upload files</a>'+bv+'<button class="link" onclick="copyLink(\''+c.id+'\')">Copy general access link</button><button class="del" onclick="delRoom(\''+c.id+'\',this)">Delete</button></div>'; } }
     ],
     bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDel(ids,done); } } ]
   };
