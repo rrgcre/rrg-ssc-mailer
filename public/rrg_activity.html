@@ -114,7 +114,7 @@ function render(j){
     +'<div class="sub">Who is using what, and when. The tool list is scrollable; click a person to see their sessions, and a session to see exactly what they did.</div>'
     +countsCard(COUNTS)
     +'<div class="card"><div class="ch"><b>Tool usage — by tool</b><span class="sp">'+(j.byTool||[]).length+' tools · all time</span></div><div class="scrolllist">'+toolRows+'</div></div>'
-    +'<div class="card"><div class="ch"><b>People</b><div class="searchwrap"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="usearch" placeholder="Find a person…" autocomplete="off"></div></div><div class="cb" id="people">'+userRows+'</div></div>';
+    +'<div class="card"><div class="ch"><b>Users</b><div class="searchwrap"><svg viewBox="0 0 20 20" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="usearch" placeholder="Find a user…" autocomplete="off"></div></div><div class="cb" id="people">'+userRows+'</div></div>';
 
   document.getElementById('people').addEventListener('click',function(e){
     var hd=e.target.closest('.uhd'); if(!hd) return;
