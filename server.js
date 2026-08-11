@@ -1934,6 +1934,18 @@ app.delete('/api/questionnaire/:id', (req, res) => {
   } catch (e) {}
   res.json({ ok: true });
 });
+// Delete a seller interview (self-recorded/uploaded). Surfaces in the Documents module, so it
+// needs its own delete route — every other document kind already has one. Owner or admin only.
+app.delete('/api/interview/:id', (req, res) => {
+  const arr = loadInterviews();
+  const iv = arr.find(x => x.id === req.params.id);
+  if (!iv) return res.status(404).json({ ok: false, error: 'Not found.' });
+  const isAdmin = !!(req.user && isSuper(req.user));
+  if (!isAdmin && restrictToOwn(req) && !permOwnerMatch(req, iv.byUser)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  saveInterviews(arr.filter(x => x.id !== req.params.id));
+  try { logSysEvent(req, 'Documents', 'Deleted the seller interview' + (iv.business ? ' for “' + iv.business + '”' : ''), { tool: 'interview', kind: 'delete', id: iv.id }); } catch (e) {}
+  res.json({ ok: true });
+});
 app.get('/log.csv', (_req, res) => {
   const fs = require('fs');
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
@@ -10979,7 +10991,7 @@ app.get('/api/documents', (req, res) => {
         companyName: coNameById[iv.companyId] || '', personName: nameById[iv.personId] || '', dealName: '',
         status: (iv.summaryStatus === 'edited' ? 'Debrief edited' : (iv.summary ? 'Debrief ready' : (iv.transcript ? 'Transcript ready' : 'Recorded'))),
         statusKey: 'interview', owner: iv.by || iv.byUser || '', createdAt: iv.createdAt || '',
-        openUrl: _open, downloadUrl: '/api/interview/' + iv.id + '/view', deleteUrl: '' });
+        openUrl: _open, downloadUrl: '/api/interview/' + iv.id + '/view', deleteUrl: '/api/interview/' + iv.id });
     });
   } catch (e) {}
   try {

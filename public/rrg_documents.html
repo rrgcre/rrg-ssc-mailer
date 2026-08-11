@@ -229,7 +229,7 @@ async function bulkDeleteDocs(ids, done){
   var m='Deleted '+n+' document'+(n===1?'':'s')+(skipped?(' · '+skipped+' skipped'):'')+' ✓';
   if(window.rrgToast) rrgToast(m); else alert(m);
 }
-function delFile(id){ var d=DOCS.find(function(x){return x.id===id;}); if(!d) return; var isCall=(d.kind==='seller'); var url=d.deleteUrl||('/api/files/'+encodeURIComponent(id)); var msg=isCall?('Delete the call "'+(d.title||'this call')+'"? This permanently removes the seller screening and its answers. Cannot be undone.'):('Remove "'+(d.title||'this file')+'"? This deletes the uploaded file for everyone.'); if(!confirm(msg)) return;
+function delFile(id){ var d=DOCS.find(function(x){return x.id===id;}); if(!d) return; var url=d.deleteUrl||('/api/files/'+encodeURIComponent(id)); var msg; if(d.kind==='seller'){ msg='Delete the call "'+(d.title||'this call')+'"? This permanently removes the seller screening and its answers. Cannot be undone.'; } else if(d.kind==='interview'){ msg='Delete "'+(d.title||'this interview')+'"? This permanently removes the seller interview and its transcript and debrief. Cannot be undone.'; } else { msg='Remove "'+(d.title||'this file')+'"? This deletes the uploaded file for everyone.'; } if(!confirm(msg)) return;
   fetch(url,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert((j&&j.error)||'Could not remove.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 
 var PICKED=null, REL=null, _relT=null;
