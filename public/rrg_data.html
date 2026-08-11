@@ -5,55 +5,82 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FullServe — Data Enrichment</title>
 <style>
-:root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2f6fd0;--teal:#12a594;--green:#1f8a5b;--amber:#B7791F;--red:#DA2B1F;}
-*{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px;}
-.top-in{max-width:1140px;margin:0 auto;padding:0 24px;}
-.disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
-.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:14px 0 4px;}
-h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:720px;line-height:1.5;}
-.wrap{max-width:1140px;margin:22px auto;padding:0 24px 80px;}
-.strip{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;}
-body.rrg-shelled .wrap{margin-top:40px;}
-.stat{flex:1;min-width:150px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:13px 16px;box-shadow:0 1px 2px rgba(16,32,70,.04);}
-.stat .n{font-size:23px;font-weight:800;color:var(--navy);letter-spacing:-.01em;} .stat .l{font-size:11px;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:15px;}
-.tool{background:#fff;border:1px solid var(--line);border-radius:15px;padding:19px 20px;box-shadow:0 1px 3px rgba(16,32,70,.05);display:flex;flex-direction:column;position:relative;transition:.14s;}
-.tool:hover{border-color:#cdd6e6;box-shadow:0 6px 20px rgba(16,32,70,.09);transform:translateY(-1px);}
-.tool.soon{opacity:.72;} .tool.soon:hover{transform:none;box-shadow:0 1px 3px rgba(16,32,70,.05);}
-.tool .ic{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;background:#eef3fb;margin-bottom:13px;}
-.tool.g .ic{background:#eaf5ef;} .tool.p .ic{background:#f2eefb;} .tool.a .ic{background:#fbf3e7;}
-.tool h3{margin:0;font-size:16px;font-weight:800;color:var(--ink);}
-.tool p{margin:6px 0 0;font-size:12.5px;color:var(--dim);line-height:1.5;flex:1;}
-.tool .stat2{font-size:12.5px;font-weight:700;color:var(--navy);margin-top:12px;min-height:18px;}
+:root{--navy:#20334f;--navy2:#23496f;--primary:#2c5c8f;--primary-d:#23496f;--ink:#2b3648;--dim:#5f6a7d;--soft:#8a93a3;--faint:#96a1b2;--line:#dbe0e9;--wash:#f4f6f9;--green:#2f7a55;--teal:#0b7285;--blue:#2c5c8f;--amber:#8a5a12;--red:#b23a2c;--inp:#c4ccda;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:13px;}
+.wrap{max-width:1040px;margin:0 auto;padding:24px 24px 70px;}
+h1{font-size:19px;font-weight:800;color:var(--navy);margin:0;}
+.sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:720px;line-height:1.5;}
+/* stat strip */
+.strip{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0 20px;}
+.stat{flex:1;min-width:140px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px 15px;}
+.stat .n{font-size:22px;font-weight:800;color:var(--navy);letter-spacing:-.01em;font-variant-numeric:tabular-nums;}
+.stat .l{font-size:10.5px;color:var(--dim);font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:2px;}
+/* scope chooser */
+.scopehint{font-size:10.5px;color:var(--soft);font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 9px;}
+.scope{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:22px;}
+.scopetile{flex:1;min-width:250px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:16px 18px;cursor:pointer;display:flex;align-items:center;gap:15px;transition:.12s;}
+.scopetile:hover{border-color:var(--primary);background:#fafcff;}
+.scopetile.on{border-color:var(--navy);background:var(--wash);box-shadow:inset 0 0 0 1px var(--navy);}
+.scopetile .sic{width:50px;height:50px;flex:none;border-radius:8px;background:#eef2f7;color:var(--navy2);display:flex;align-items:center;justify-content:center;}
+.scopetile.on .sic{background:var(--navy);color:#fff;}
+.scopetile .sic svg{width:30px;height:30px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;}
+.scopetile .st{font-size:16px;font-weight:800;color:var(--navy);}
+.scopetile .ss{font-size:12px;color:var(--dim);margin-top:2px;}
+.scopetile .chk{margin-left:auto;flex:none;width:20px;height:20px;border-radius:50%;border:1.5px solid var(--inp);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;}
+.scopetile.on .chk{background:var(--navy);border-color:var(--navy);}
+/* tool cards */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:13px;}
+.tool{background:#fff;border:1px solid var(--line);border-radius:6px;padding:16px 17px;display:flex;flex-direction:column;position:relative;transition:.12s;}
+.tool:hover{border-color:var(--primary);}
+.tool .ic{width:42px;height:42px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:20px;background:#eef2f8;margin-bottom:12px;}
+.tool.g .ic{background:#e9f4ee;} .tool.p .ic{background:#efeaf7;} .tool.a .ic{background:#e7f2f4;}
+.tool h3{margin:0;font-size:14.5px;font-weight:800;color:var(--navy);}
+.tool p{margin:6px 0 0;font-size:12px;color:var(--dim);line-height:1.5;flex:1;}
+.tool .stat2{font-size:12px;font-weight:700;color:var(--navy2);margin-top:11px;min-height:16px;}
 .tool .stat2 b{color:var(--red);} .tool .stat2.clean{color:var(--green);}
-.tool .foot{margin-top:15px;display:flex;align-items:center;gap:9px;}
-.go{background:var(--navy);color:#fff;border:none;border-radius:9px;padding:9px 16px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block;} .go:hover{filter:brightness(1.1);}
-.go.green{background:var(--green);}
-.soonbadge{position:absolute;top:16px;right:16px;font-size:10px;font-weight:800;letter-spacing:.06em;color:#fff;background:linear-gradient(135deg,var(--teal),var(--blue));border-radius:100px;padding:3px 10px;text-transform:uppercase;}
-.needkey{position:absolute;top:16px;right:16px;font-size:10px;font-weight:800;letter-spacing:.05em;color:var(--amber);background:#fbf3e7;border-radius:100px;padding:3px 10px;text-transform:uppercase;}
-.gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);}
-.crumb{font-size:12px;color:#9fb0d0;font-weight:600;margin-bottom:12px;} .crumb a{color:#c7d3ea;text-decoration:none;} .crumb a:hover{color:#fff;text-decoration:underline;} .crumb span{color:#6a7ba0;margin:0 7px;}
-.navcrumb{display:none;max-width:1180px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:#66738f;font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:#2f6fd0;text-decoration:none;} .navcrumb a:hover{text-decoration:underline;} .navcrumb span{color:#93a0ba;margin:0 7px;}
+.tool .foot{margin-top:14px;}
+.go{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:8px 15px;font:inherit;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block;} .go:hover{background:var(--primary-d);}
+.go.green{background:var(--green);border-color:var(--green);} .go.green:hover{filter:brightness(1.06);}
+.needkey{position:absolute;top:14px;right:14px;font-size:9.5px;font-weight:800;letter-spacing:.05em;color:var(--amber);background:#fbf3e7;border:1px solid #ecd9a8;border-radius:3px;padding:2px 8px;text-transform:uppercase;}
+.gate{max-width:520px;margin:70px auto;text-align:center;color:var(--dim);} .gate h2{color:var(--navy);}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
-<!--rrgback--><a href="./index.html" class="rrg-back" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
-<div class="top"><div class="top-in">
-  <div class="crumb"><a href="./index.html">Command</a><span>›</span>Data Enrichment</div>
-  <span class="disc" onclick="location.href='./index.html'">RRG</span>
-  <div class="kicker">Admin · Data Enrichment</div>
-  <h1>Make your data work harder.</h1>
-  <div class="sub">Every tool that cleans, fills, links, and enriches your book — in one place. Import once, then run these to turn a flat contact list into a live restaurant &amp; bar intelligence database.</div>
-</div></div>
-<div class="navcrumb"><a href="./index.html">Command</a><span>›</span>Data Enrichment</div>
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function n(v){return Number(v||0).toLocaleString('en-US');}
+var SUMMARY=null, SCOPE='company';
+try{ var _sc=localStorage.getItem('rrg_enrich_scope'); if(_sc==='company'||_sc==='contact') SCOPE=_sc; }catch(e){}
+
+var IC_CO='<svg viewBox="0 0 24 24"><path d="M4 20V6a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v14"/><path d="M13 20V10a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v10"/><line x1="2.5" y1="20" x2="21.5" y2="20"/><line x1="6.5" y1="8.5" x2="10.5" y2="8.5"/><line x1="6.5" y1="12" x2="10.5" y2="12"/><line x1="16" y1="13" x2="18" y2="13"/><line x1="16" y1="16" x2="18" y2="16"/></svg>';
+var IC_CT='<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5.5 19.5c0-3.4 2.9-5.6 6.5-5.6s6.5 2.2 6.5 5.6"/></svg>';
+
+function scopeTile(key,label,svg,sub){
+  return '<div class="scopetile'+(SCOPE===key?' on':'')+'" data-scope="'+key+'"><div class="sic">'+svg+'</div><div><div class="st">'+esc(label)+'</div><div class="ss">'+esc(sub)+'</div></div><div class="chk">✓</div></div>';
+}
+
+function toolDefs(S){
+  return [
+    { scope:['company','contact'], html:'<div class="tool"><div class="ic">⧉</div><h3>Find Duplicates</h3><p>Fuzzy-match companies and contacts by name, website domain and phone. Approve each merge — every linked record moves to the keeper.</p><div class="stat2">Scan '+n(S.companies)+' companies &amp; '+n(S.contacts)+' contacts</div><div class="foot"><a target="_top" class="go" href="rrg_duplicates.html">Open →</a></div></div>' },
+    { scope:['company'], html:'<div class="tool g">'+(S.hasKey?'':'<span class="needkey">Needs key</span>')+'<div class="ic">🌐</div><h3>Enrich from Google</h3><p>Operating status (open / dark / closed), star rating, review count, price point, phone, website and map coordinates — pulled live onto every location.</p><div class="stat2'+(S.locationsToEnrich>0?'':' clean')+'">'+(S.locationsToEnrich>0?('<b>'+n(S.locationsToEnrich)+'</b> of '+n(S.locations)+' locations not yet pulled from Google'):(S.locations?('All '+n(S.locations)+' locations enriched'):'No locations yet — import some first'))+'</div><div class="foot"><a target="_top" class="go green" href="rrg_enrich.html">Open →</a></div></div>' },
+    { scope:['company'], html:'<div class="tool"><div class="ic">◐</div><h3>Find Logos</h3><p>Auto-pull a brand logo for every company with a website. Review the grid, approve the good ones, apply.</p><div class="stat2'+(S.missingLogo>0?'':' clean')+'">'+(S.missingLogo>0?('<b>'+n(S.missingLogo)+'</b> companies missing a logo'):'Every company has a logo')+'</div><div class="foot"><a target="_top" class="go" href="rrg_logos.html">Open →</a></div></div>' },
+    { scope:['company'], html:'<div class="tool p"><div class="ic">✦</div><h3>Concept Intelligence (AI)</h3><p>Consult reads each concept name and fills cuisine, concept type and price point — plus flags multi-unit operators. The fields that make this a restaurant CRM.</p><div class="stat2">'+(S.conceptsIncomplete>0?('<b>'+n(S.conceptsIncomplete)+'</b> concepts missing cuisine / type / price'):(S.concepts?'All concepts classified':'No concepts yet'))+'</div><div class="foot"><a target="_top" class="go" style="background:#5a3d9e;border-color:#5a3d9e" href="rrg_concepts.html">Open →</a></div></div>' },
+    { scope:['contact'], html:'<div class="tool"><div class="ic">✉</div><h3>Match by Email Domain</h3><p>Link contacts to the right company by their email domain — reliable, never name-based. Personal domains (gmail, yahoo…) are ignored.</p><div class="stat2">Connect '+n(S.contacts)+' contacts to companies</div><div class="foot"><a target="_top" class="go" href="rrg_emailmatch.html">Open →</a></div></div>' },
+    { scope:['company','contact'], html:'<div class="tool a"><div class="ic">✎</div><h3>Cleanup &amp; Standardize</h3><p>Title-case names and companies, standardize state codes, validate emails, normalize websites, and auto-assign market / submarket from city. Run it anytime — ideal right after an import.</p><div class="stat2">Deterministic · no AI cost</div><div class="foot"><a target="_top" class="go" style="background:#0b7285;border-color:#0b7285" href="rrg_cleanup.html">Open →</a></div></div>' }
+  ];
+}
+
+function renderTools(){
+  var host=document.getElementById('toolgrid'); if(!host) return;
+  var tools=toolDefs(SUMMARY).filter(function(t){ return t.scope.indexOf(SCOPE)>=0; });
+  host.innerHTML=tools.map(function(t){return t.html;}).join('');
+}
+
 function render(S){
+  SUMMARY=S;
   var root=document.getElementById('root'); root.className='wrap';
   var strip=''
     +'<div class="stat"><div class="n">'+n(S.companies)+'</div><div class="l">Companies</div></div>'
@@ -61,29 +88,26 @@ function render(S){
     +'<div class="stat"><div class="n">'+n(S.locations)+'</div><div class="l">Locations</div></div>'
     +'<div class="stat"><div class="n">'+n(S.locationsEnriched)+'</div><div class="l">Enriched w/ Google</div></div>'
     +'<div class="stat"><div class="n">'+n(S.missingLogo)+'</div><div class="l">Missing a logo</div></div>';
-  var tools=[];
-  // Enrich from Google
-  var gStat = S.locationsToEnrich>0 ? ('<b>'+n(S.locationsToEnrich)+'</b> of '+n(S.locations)+' locations not yet pulled from Google') : (S.locations? 'All '+n(S.locations)+' locations enriched':'No locations yet — import some first');
-  tools.push('<div class="tool g">'+(S.hasKey?'':'<span class="needkey">Needs key</span>')+'<div class="ic">🌐</div><h3>Enrich from Google</h3><p>Operating status (open / dark / closed), star rating, review count, price point, phone, website and map coordinates — pulled live onto every location.</p><div class="stat2'+(S.locationsToEnrich>0?'':' clean')+'">'+gStat+'</div><div class="foot"><a class="go green" href="rrg_enrich.html">Open →</a></div></div>');
-  // Find Logos
-  var lStat = S.missingLogo>0 ? ('<b>'+n(S.missingLogo)+'</b> companies missing a logo') : 'Every company has a logo';
-  tools.push('<div class="tool"><div class="ic">◐</div><h3>Find Logos</h3><p>Auto-pull a brand logo for every company with a website. Review the grid, approve the good ones, apply.</p><div class="stat2'+(S.missingLogo>0?'':' clean')+'">'+lStat+'</div><div class="foot"><a class="go" href="rrg_logos.html">Open →</a></div></div>');
-  // Find Duplicates
-  tools.push('<div class="tool"><div class="ic">⧉</div><h3>Find Duplicates</h3><p>Fuzzy-match companies and contacts by name, website domain and phone. Approve each merge — every linked record moves to the keeper.</p><div class="stat2">Scan '+n(S.companies)+' companies &amp; '+n(S.contacts)+' contacts</div><div class="foot"><a class="go" href="rrg_duplicates.html">Open →</a></div></div>');
-  tools.push('<div class="tool"><div class="ic">✉</div><h3>Match by Email Domain</h3><p>Link contacts to the right company by their email domain — reliable, never name-based. Personal domains (gmail, yahoo…) are ignored.</p><div class="stat2">Connect '+n(S.contacts)+' contacts to companies</div><div class="foot"><a class="go" href="rrg_emailmatch.html">Open →</a></div></div>');
-  // Import
-  tools.push('<div class="tool"><div class="ic">⤓</div><h3>Import Data</h3><p>Bring companies and contacts in from Copper, HubSpot, Salesforce, Pipedrive — or any CSV / Excel. Auto-maps columns, dedupes, links people to companies.</p><div class="stat2">Add more records anytime</div><div class="foot"><a class="go" href="rrg_import.html">Open →</a></div></div>');
-  // Concept Intelligence (soon)
-  var cStat = S.conceptsIncomplete>0 ? ('<b>'+n(S.conceptsIncomplete)+'</b> concepts missing cuisine / type / price') : (S.concepts?'All concepts classified':'No concepts yet');
-  tools.push('<div class="tool p"><div class="ic">✦</div><h3>Concept Intelligence (AI)</h3><p>Consult reads each concept name and fills cuisine, concept type and price point — plus flags multi-unit operators. The fields that make this a restaurant CRM.</p><div class="stat2">'+cStat+'</div><div class="foot"><a class="go" style="background:#6d5bc0" href="rrg_concepts.html">Open →</a></div></div>');
-  // Cleanup (soon)
-  tools.push('<div class="tool a"><div class="ic">✎</div><h3>Cleanup &amp; Standardize</h3><p>Title-case names and companies, standardize state codes, validate emails, normalize websites, and auto-assign market / submarket from city. Run it anytime — ideal right after an import.</p><div class="stat2">Deterministic · no AI cost</div><div class="foot"><a class="go" style="background:#12a594" href="rrg_cleanup.html">Open →</a></div></div>');
-  root.innerHTML='<div class="strip">'+strip+'</div><div class="grid">'+tools.join('')+'</div>';
+  var scope=''
+    +'<div class="scopehint">What do you want to enrich?</div>'
+    +'<div class="scope">'
+    + scopeTile('company','Companies', IC_CO, n(S.companies)+' companies · '+n(S.locations)+' locations')
+    + scopeTile('contact','Contacts', IC_CT, n(S.contacts)+' contacts')
+    +'</div>';
+  root.innerHTML=''
+    +'<h1>Data Enrichment</h1>'
+    +'<div class="sub">Clean, fill, link and enrich your book. Pick <b>Companies</b> or <b>Contacts</b>, then run the tools that turn a flat list into a live restaurant &amp; bar intelligence database.</div>'
+    +'<div class="strip">'+strip+'</div>'
+    +scope
+    +'<div class="grid" id="toolgrid"></div>';
+  document.querySelectorAll('.scopetile').forEach(function(t){ t.addEventListener('click',function(){ SCOPE=t.getAttribute('data-scope'); try{localStorage.setItem('rrg_enrich_scope',SCOPE);}catch(e){} document.querySelectorAll('.scopetile').forEach(function(x){ x.classList.toggle('on',x.getAttribute('data-scope')===SCOPE); }); renderTools(); }); });
+  renderTools();
 }
+
 fetch('/api/admin/enrichment-summary',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
   if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load enrichment tools.</div>'; return; }
   render(j);
-}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to run data enrichment.</div>'; });
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2>Admins only</h2>Ask an administrator to run data enrichment.</div>'; });
 </script>
 </body>
 </html>
