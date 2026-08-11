@@ -42,80 +42,60 @@ input[type=text],input[type=email],input[type=search],input[type=tel],input[type
 <div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_data.html">Data Enrichment</a><span>›</span>Cleanup &amp; Standardize</div>
 <div class="wrap pagehead">
   <h1>Cleanup &amp; Standardize</h1>
-  <div class="sub">Fix the messy stuff imports leave behind — <b>ALL-CAPS names</b> title-cased, <b>state names</b> to codes, <b>websites</b> normalized, <b>emails</b> lowercased, <b>phones</b> formatted, <b>markets</b> assigned from city, and <b>decision-makers</b> tagged from their title. When a company has just one contact, that contact is set as its <b>main contact</b>. Deterministic — no AI cost. Review, tick, apply.</div>
+  <div class="sub">Fix the messy stuff imports leave behind — <b>ALL-CAPS names</b> title-cased, <b>state names</b> to codes, <b>websites</b> normalized, <b>emails</b> lowercased, <b>phones</b> formatted, <b>markets</b> assigned from city, and <b>decision-makers</b> tagged from their title. When a company has just one contact, that contact is set as its <b>main contact</b>. Deterministic — no AI cost. It runs and applies every fix automatically; the results are listed below.</div>
 </div>
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 var AIW = {_p:null,_iv:null,show:function(m,c){try{if(window.rrgAiWork){this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork.show(m,c);}this._p={m:m,c:c};var s=this,t=0;if(this._iv)clearInterval(this._iv);this._iv=setInterval(function(){t++;if(window.rrgAiWork){clearInterval(s._iv);s._iv=null;if(s._p){window.rrgAiWork.show(s._p.m,s._p.c);}}else if(t>150){clearInterval(s._iv);s._iv=null;}},50);}catch(e){}},setMsg:function(m){try{if(window.rrgAiWork)window.rrgAiWork.setMsg(m);else if(this._p)this._p.m=m;}catch(e){}},progress:function(d,t,o){try{if(window.rrgAiWork&&window.rrgAiWork.progress)window.rrgAiWork.progress(d,t,o);else if(o&&o.msg)this.setMsg(o.msg);}catch(e){}},done:function(o){try{o=o||{};if(window.rrgAiWork&&window.rrgAiWork.done)window.rrgAiWork.done(o);else this.hide();}catch(e){}},hide:function(){try{this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
-var DATA={companies:[],people:[]}, STATE={};
-function fieldsOn(){ return { case:document.getElementById('f_case').checked, state:document.getElementById('f_state').checked, website:document.getElementById('f_web').checked, email:document.getElementById('f_email').checked, phone:document.getElementById('f_phone').checked, market:document.getElementById('f_market').checked, dm:document.getElementById('f_dm').checked, main:document.getElementById('f_main').checked }; }
+var DATA={companies:[],people:[]};
+var ALLKINDS={case:true,state:true,website:true,email:true,phone:true,market:true,dm:true,main:true};
 function build(){
   var root=document.getElementById('root'); root.className='wrap';
   root.innerHTML=''
-   +'<div class="fields"><span class="ttl">Apply</span>'
-   +'<label><input type="checkbox" id="f_case" checked> Name casing</label>'
-   +'<label><input type="checkbox" id="f_state" checked> State codes</label>'
-   +'<label><input type="checkbox" id="f_web" checked> Websites</label>'
-   +'<label><input type="checkbox" id="f_email" checked> Emails</label>'
-   +'<label><input type="checkbox" id="f_phone" checked> Phone format</label>'
-   +'<label><input type="checkbox" id="f_market" checked> Market from city</label>'
-   +'<label><input type="checkbox" id="f_dm" checked> Decision-maker tags</label>'
-   +'<label><input type="checkbox" id="f_main" checked> Sole contact as main</label></div>'
-   +'<div class="bar"><span class="cnt" id="cnt"><span class="spin"></span>Scanning your book…</span><div class="sp"><button class="btn" id="all">Select all</button><button class="btn" id="none">Select none</button><button class="btn green" id="apply">Apply approved</button><span class="msg" id="msg"></span></div></div>'
+   +'<div class="bar"><span class="cnt" id="cnt"><span class="spin"></span>Scanning &amp; standardizing…</span><div class="sp"><button class="btn" id="again" style="display:none">Run again</button><span class="msg" id="msg"></span></div></div>'
    +'<div id="list"></div>';
-  document.getElementById('all').addEventListener('click',function(){ Object.keys(STATE).forEach(function(k){ if(STATE[k]!=='dead') STATE[k]='on'; }); paint(); });
-  document.getElementById('none').addEventListener('click',function(){ Object.keys(STATE).forEach(function(k){ if(STATE[k]!=='dead') STATE[k]='off'; }); paint(); });
-  document.getElementById('apply').addEventListener('click',apply);
-  scan();
+  var ag=document.getElementById('again'); if(ag) ag.addEventListener('click',run);
+  run();
 }
-function scan(){
-  AIW.show('Scanning your book for fixes…');
-  fetch('/api/admin/cleanup-scan',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    AIW.hide();
-    if(!j||!j.ok){ document.getElementById('list').innerHTML='<div class="empty">Could not scan.</div>'; document.getElementById('cnt').textContent=''; return; }
-    DATA={companies:j.companies||[],people:j.people||[]};
-    var tot=DATA.companies.length+DATA.people.length;
-    if(!tot){ document.getElementById('list').innerHTML='<div class="empty"><b>Everything looks clean.</b>No casing, state, website, email, market, role or main-contact fixes needed right now.</div>'; document.getElementById('cnt').textContent=''; return; }
-    STATE={};
-    DATA.companies.forEach(function(c){ STATE['c|'+c.id]='on'; });
-    DATA.people.forEach(function(p){ STATE['p|'+p.id]='on'; });
-    render();
-  }).catch(function(){ AIW.hide(); document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; });
-}
+function showAgain(){ var a=document.getElementById('again'); if(a) a.style.display=''; }
 function chgLine(ch){
   var lbl={case:'Name',state:'State',website:'Website',market:'Market',email:'Email',phone:'Phone',dm:'Tag',main:'Main contact'}[ch.kind]||ch.kind;
   var to = ch.kind==='dm' ? ('<span class="to">+ '+esc(ch.to)+'</span>') : (ch.kind==='main' ? ('<span class="to">→ '+esc(ch.toName||ch.to)+'</span>') : ((ch.from?('<span class="fr">'+esc(ch.from)+'</span><span class="ar">→</span>'):'')+'<span class="to">'+esc(ch.to)+'</span>'));
   return '<div class="chg"><span class="kk '+ch.kind+'">'+esc(lbl)+'</span> '+to+'</div>';
 }
-function card(kind,rec){
-  var k=(kind==='c'?'c|':'p|')+rec.id;
+function cardRO(kind,rec){
   var sub = kind==='p' ? [rec.title,rec.company].filter(Boolean).join(' · ') : '';
-  return '<div class="ec'+(STATE[k]==='on'?' on':'')+'" data-k="'+esc(k)+'"><div class="chk">✓</div>'
-    +'<div class="nm">'+esc(rec.name||'(no name)')+'</div>'
+  return '<div class="ec on"><div class="chk">✓</div><div class="nm">'+esc(rec.name||'(no name)')+'</div>'
     +(sub?('<div class="co">'+esc(sub)+'</div>'):'')
     +rec.changes.map(chgLine).join('')+'</div>';
 }
-function render(){
+function renderDone(){
   var html='';
-  if(DATA.companies.length){ html+='<div class="sec">Companies · '+DATA.companies.length+'</div><div class="grid">'+DATA.companies.map(function(c){return card('c',c);}).join('')+'</div>'; }
-  if(DATA.people.length){ html+='<div class="sec">Contacts · '+DATA.people.length+'</div><div class="grid">'+DATA.people.map(function(p){return card('p',p);}).join('')+'</div>'; }
+  if(DATA.companies.length){ html+='<div class="sec">Companies standardized · '+DATA.companies.length+'</div><div class="grid">'+DATA.companies.map(function(c){return cardRO('c',c);}).join('')+'</div>'; }
+  if(DATA.people.length){ html+='<div class="sec">Contacts standardized · '+DATA.people.length+'</div><div class="grid">'+DATA.people.map(function(p){return cardRO('p',p);}).join('')+'</div>'; }
   document.getElementById('list').innerHTML=html;
-  document.querySelectorAll('.ec[data-k]').forEach(function(el){ el.addEventListener('click',function(){ var k=el.getAttribute('data-k'); if(STATE[k]==='dead')return; STATE[k]=(STATE[k]==='on')?'off':'on'; el.classList.toggle('on',STATE[k]==='on'); count(); }); });
-  count();
 }
-function paint(){ document.querySelectorAll('.ec[data-k]').forEach(function(el){ var k=el.getAttribute('data-k'); el.classList.toggle('on',STATE[k]==='on'); }); count(); }
-function count(){ var on=Object.keys(STATE).filter(function(k){return STATE[k]==='on';}).length; var c=document.getElementById('cnt'); if(c) c.innerHTML='<b>'+(DATA.companies.length+DATA.people.length)+'</b> records with fixes · <b>'+on+'</b> selected'; var ap=document.getElementById('apply'); if(ap) ap.textContent='Apply approved'+(on?(' ('+on+')'):''); }
-function apply(){
-  var kinds=fieldsOn();
-  var cos=DATA.companies.filter(function(c){return STATE['c|'+c.id]==='on';}).map(function(c){return {id:c.id,changes:c.changes};});
-  var ppl=DATA.people.filter(function(p){return STATE['p|'+p.id]==='on';}).map(function(p){return {id:p.id,changes:p.changes};});
-  if(!cos.length&&!ppl.length){ alert('Tick at least one record.'); return; }
-  var b=document.getElementById('apply'); b.disabled=true; var msg=document.getElementById('msg'); msg.className='msg'; msg.textContent=''; AIW.show('Applying fixes…');
-  fetch('/api/admin/cleanup-apply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({companies:cos,people:ppl,kinds:kinds})}).then(function(r){return r.json();}).then(function(j){
-    AIW.hide(); b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Applied '+j.applied+' fix'+(j.applied===1?'':'es')+' ✓'; [].concat(cos.map(function(c){return 'c|'+c.id;}),ppl.map(function(p){return 'p|'+p.id;})).forEach(function(k){ STATE[k]='dead'; var el=document.querySelector('.ec[data-k="'+String(k).replace(/"/g,'\\"')+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } }); count(); }
-    else { msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
-  }).catch(function(){ AIW.hide(); b.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
+// No approval step — scan, then apply every fix automatically, and show what changed.
+function run(){
+  var ag=document.getElementById('again'); if(ag) ag.style.display='none';
+  var msg=document.getElementById('msg'); if(msg){ msg.className='msg'; msg.textContent=''; }
+  document.getElementById('cnt').innerHTML='<span class="spin"></span>Scanning &amp; standardizing…';
+  document.getElementById('list').innerHTML='';
+  AIW.show('Scanning your book for fixes…');
+  fetch('/api/admin/cleanup-scan',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ AIW.hide(); document.getElementById('cnt').textContent=''; document.getElementById('list').innerHTML='<div class="empty">Could not scan.</div>'; showAgain(); return; }
+    DATA={companies:j.companies||[],people:j.people||[]};
+    var tot=DATA.companies.length+DATA.people.length;
+    if(!tot){ AIW.done({title:'Nothing to standardize', summary:'Your book is already clean — no casing, state, website, email, phone, market, role or main-contact fixes needed right now.'}); document.getElementById('cnt').innerHTML='<b>Everything looks clean.</b>'; document.getElementById('list').innerHTML='<div class="empty"><b>Everything looks clean.</b>Nothing needed standardizing right now.</div>'; showAgain(); return; }
+    AIW.setMsg('Standardizing '+tot+' record'+(tot===1?'':'s')+'…');
+    var cos=DATA.companies.map(function(c){return {id:c.id,changes:c.changes};});
+    var ppl=DATA.people.map(function(p){return {id:p.id,changes:p.changes};});
+    fetch('/api/admin/cleanup-apply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({companies:cos,people:ppl,kinds:ALLKINDS})}).then(function(r){return r.json();}).then(function(j2){
+      if(j2&&j2.ok){ AIW.done({title:'Cleanup complete', summary:'Standardized '+tot+' record'+(tot===1?'':'s')+' — applied '+j2.applied+' fix'+(j2.applied===1?'':'es')+'. Names title-cased, states, websites, emails and phones normalized, markets filled from city, decision-makers tagged, and sole contacts set as main.'}); document.getElementById('cnt').innerHTML='<b>'+j2.applied+'</b> fix'+(j2.applied===1?'':'es')+' applied across <b>'+tot+'</b> record'+(tot===1?'':'s')+' ✓'; renderDone(); showAgain(); }
+      else { AIW.hide(); document.getElementById('cnt').textContent=''; var m=document.getElementById('msg'); m.className='msg err'; m.textContent=(j2&&j2.error)||'Could not apply.'; showAgain(); }
+    }).catch(function(){ AIW.hide(); var m=document.getElementById('msg'); m.className='msg err'; m.textContent='Could not reach the server.'; showAgain(); });
+  }).catch(function(){ AIW.hide(); document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; showAgain(); });
 }
 fetch('/api/admin/cleanup-scan',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
   build();
