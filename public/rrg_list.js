@@ -39,6 +39,9 @@
       +'.rl-bulk button{font:inherit;font-size:12px;font-weight:800;padding:6px 12px;border-radius:3px;border:1px solid #cfd6e2;background:#fff;color:#0b1a3a;cursor:pointer}'
       +'.rl-bulk button.danger{background:var(--red,#DA2B1F);border-color:var(--red,#DA2B1F);color:#fff}'
       +'.rl-bulk a{color:#5b6472;cursor:pointer;text-decoration:underline;font-weight:600}'
+      +'.rl-selallwrap{display:inline-flex;align-items:center;gap:7px;margin-left:2px}'
+      +'.rl-selallnote{color:#5b6472;font-weight:600}'
+      +'.rl-bulk a.rl-selall{color:var(--primary,#2c5c8f);font-weight:800;text-decoration:underline}'
       +'.rl-morewrap{position:relative;display:inline-block}'
       +'.rl-moremenu{position:absolute;top:calc(100% + 6px);left:0;z-index:60;background:#fff;border:1px solid #e3e8f0;border-radius:6px;box-shadow:0 14px 40px rgba(12,22,54,.18);padding:6px;min-width:186px}'
       +'.rl-moremenu .rl-bulkitem{display:block;width:100%;text-align:left;font:inherit;font-size:13px;font-weight:600;color:#26324a;background:#fff;border:none;border-radius:3px;padding:8px 10px;cursor:pointer}'
@@ -166,6 +169,7 @@
     }
     function pageCount(total){ return Math.max(1, Math.ceil(total/state.per)); }
     function selectedIds(){ return Object.keys(state.sel).filter(function(k){ return state.sel[k]; }); }
+    function allIds(){ return sortedData().map(function(it,i){ return rowId(it,i); }); }
     function cellText(c,it){ var d=document.createElement('div'); d.innerHTML=c.cell(it); return (d.textContent||'').replace(/\s+/g,' ').trim(); }
 
     function render(){
@@ -208,16 +212,25 @@
           return '<div class="rl-filterfield"><label>'+esc(m.c.label)+'</label>'+ctl+'</div>';
         }).join(''); filterPanel='<div class="rl-filterpanel">'+ffs+'<button class="rl-filterclear">Clear all</button></div>'; }
 
+      var visibleIds = slice.map(function(it,i){ return rowId(it, start+i); });
+      var allChecked = visibleIds.length && visibleIds.every(function(id){ return state.sel[id]; });
+
       var bulk='';
       if(opts.bulk && opts.bulk.length && selIds.length){
         var _bitems = opts.bulk.map(function(b,i){ var need=b.min||1; var dis=selIds.length<need; return '<button class="rl-bulkitem'+(b.danger?' danger':'')+'" data-i="'+i+'"'+(dis?' disabled':'')+'>'+esc(b.label)+(dis&&need>1?' <span class="rl-need">('+need+'+ needed)</span>':'')+'</button>'; }).join('');
+        // Gmail-style "select everything that matches", not just this page. Offer it once the whole
+        // page is checked and more matching records exist beyond what's currently selected.
+        var _selAll='';
+        if(total>slice.length){
+          if(allChecked && selIds.length<total){ _selAll='<span class="rl-selallnote">All '+slice.length+' on this page selected.</span> <a class="rl-selall">Select all '+total+' matching</a>'; }
+          else if(selIds.length>=total){ _selAll='<span class="rl-selallnote">All '+total+' matching records selected.</span>'; }
+        }
         bulk = '<div class="rl-bulk"><b>'+selIds.length+' selected</b>'
           + '<div class="rl-morewrap"><button class="rl-morebtn" title="Bulk actions">Actions <span class="rlic">\u22ef</span></button><div class="rl-moremenu" hidden>'+_bitems+'</div></div>'
+          + (_selAll?('<span class="rl-selallwrap">'+_selAll+'</span>'):'')
           + '<a class="rl-clear">Clear</a></div>';
       }
 
-      var visibleIds = slice.map(function(it,i){ return rowId(it, start+i); });
-      var allChecked = visibleIds.length && visibleIds.every(function(id){ return state.sel[id]; });
       var head = '<th class="rl-ck"><input type="checkbox" class="rl-all"'+(allChecked?' checked':'')+' title="Select all on this page"></th>';
       head += vis.map(function(m){
         var c=m.c, ci=m.i;
@@ -333,6 +346,7 @@
       var next=$('.rl-next',mount); if(next) next.onclick=function(){ state.page++; render(); };
       mount.querySelectorAll('.rl-pg').forEach(function(b){ b.onclick=function(){ state.page=+b.getAttribute('data-p'); render(); }; });
       var clr=$('.rl-clear',mount); if(clr) clr.onclick=function(){ state.sel={}; render(); };
+      var selAll=$('.rl-selall',mount); if(selAll) selAll.onclick=function(){ allIds().forEach(function(id){ state.sel[id]=true; }); render(); };
       var morebtn=$('.rl-morebtn',mount); if(morebtn) morebtn.onclick=function(e){ e.stopPropagation(); var menu=$('.rl-moremenu',mount); if(menu){ menu.hidden=!menu.hidden; if(!menu.hidden) _placeMenu(morebtn,menu,false); } };
       mount.querySelectorAll('.rl-bulkitem').forEach(function(b){ b.onclick=function(){ if(b.disabled) return; var i=+b.getAttribute('data-i'); var act=opts.bulk[i]; var ids=selectedIds(); if(!ids.length||!act) return; var mm=$('.rl-moremenu',mount); if(mm) mm.hidden=true; act.fn(ids, function(){ ids.forEach(function(id){ delete state.sel[id]; }); render(); }); }; });
       var colbtn=$('.rl-colbtn',mount); if(colbtn) colbtn.onclick=function(e){ e.stopPropagation(); var menu=$('.rl-colmenu',mount); if(menu.hidden) openColMenu(); else menu.hidden=true; };
