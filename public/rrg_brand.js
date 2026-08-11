@@ -164,4 +164,4 @@
   } }catch(e){} }
 }catch(e){} })();
 /* load the app shell (persistent nav + top bar) on every page */
-(function(){ try{ if(!document.querySelector('script[src="/rrg_shell.js"]')){ if((/[?&]embed=1/.test(location.search)||(function(){try{return window.top!==window.self;}catch(e){return true;}})())) return; var sc=document.createElement('script'); sc.src='/rrg_shell.js'; sc.defer=true; (document.head||document.documentElement).appendChild(sc); } }catch(e){} })();
+(function(){ try{ if(!document.querySelector('script[src="/rrg_shell.js"]')){ var sc=document.createElement('script'); sc.src='/rrg_shell.js'; sc.defer=true; (document.head||document.documentElement).appendChild(sc); } }catch(e){} })(); /* load shell everywhere — it self-guards the nav in embed mode, but still needs to define the shared AI-working box (rrgAiWork) for tool pages opened inside the Settings iframe */

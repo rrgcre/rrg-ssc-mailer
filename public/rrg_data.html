@@ -88,8 +88,8 @@ function toolDefs(S){
       desc:'Auto-pull a brand logo for every company with a website. Review the grid, approve the good ones, apply.',
       stat:(S.missingLogo>0?('<b>'+n(S.missingLogo)+'</b> companies missing a logo'):'Every company has a logo'), clean:!(S.missingLogo>0), href:'rrg_logos.html', go:'' },
     { scope:['company'], cls:'p', ic:'✦', title:'Concept Intelligence (AI)',
-      desc:'Consult reads each concept name and fills cuisine, concept type and price point — plus flags multi-unit operators. The fields that make this a restaurant CRM.',
-      stat:(S.conceptsIncomplete>0?('<b>'+n(S.conceptsIncomplete)+'</b> concepts missing cuisine / type / price'):(S.concepts?'All concepts classified':'No concepts yet')), href:'rrg_concepts.html', go:'purple' }
+      desc:'Uses AI to fill in the cuisine, concept type and price point each concept is missing, and flags multi-unit operators.',
+      stat:(S.conceptsIncomplete>0?('<b>'+n(S.conceptsIncomplete)+'</b> concepts missing cuisine / type / price'):(S.concepts?'All concepts classified':'No concepts yet')), href:'rrg_concepts.html', go:'' }
   ];
 }
 function buildCard(t, step){

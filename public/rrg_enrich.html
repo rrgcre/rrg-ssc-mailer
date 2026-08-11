@@ -52,7 +52,7 @@ h1{margin:0;font-size:19px;font-weight:800;color:var(--navy);} .sub{color:var(--
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var AIW = {_p:null,_iv:null,show:function(m,c){try{if(window.rrgAiWork){this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork.show(m,c);}this._p={m:m,c:c};var s=this,t=0;if(this._iv)clearInterval(this._iv);this._iv=setInterval(function(){t++;if(window.rrgAiWork){clearInterval(s._iv);s._iv=null;if(s._p){window.rrgAiWork.show(s._p.m,s._p.c);}}else if(t>150){clearInterval(s._iv);s._iv=null;}},50);}catch(e){}},setMsg:function(m){try{if(window.rrgAiWork)window.rrgAiWork.setMsg(m);else if(this._p)this._p.m=m;}catch(e){}},hide:function(){try{this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
+var AIW = {_p:null,_iv:null,show:function(m,c){try{if(window.rrgAiWork){this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork.show(m,c);}this._p={m:m,c:c};var s=this,t=0;if(this._iv)clearInterval(this._iv);this._iv=setInterval(function(){t++;if(window.rrgAiWork){clearInterval(s._iv);s._iv=null;if(s._p){window.rrgAiWork.show(s._p.m,s._p.c);}}else if(t>150){clearInterval(s._iv);s._iv=null;}},50);}catch(e){}},setMsg:function(m){try{if(window.rrgAiWork)window.rrgAiWork.setMsg(m);else if(this._p)this._p.m=m;}catch(e){}},progress:function(d,t,o){try{if(window.rrgAiWork&&window.rrgAiWork.progress)window.rrgAiWork.progress(d,t,o);else if(o&&o.msg)this.setMsg(o.msg);}catch(e){}},done:function(o){try{o=o||{};if(window.rrgAiWork&&window.rrgAiWork.done)window.rrgAiWork.done(o);else this.hide();}catch(e){}},hide:function(){try{this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
 var CANDS=[], ROWS={}, ORDER=[], STATE={}, SCANNED=0, CANCELLED=false, INCLUDE_ALL=false;
 function statusPill(s,bs){ var cls='pill',lbl=s||bs||'—'; if(s==='Operating'){cls='pill op';} else if(s==='Dark'){cls='pill dark';} else if(s==='Closed'){cls='pill cl';} return '<span class="'+cls+'">'+esc(lbl)+'</span>'; }
 function fieldsOn(){ return { status:document.getElementById('f_status').checked, price:document.getElementById('f_price').checked, fills:document.getElementById('f_fills').checked }; }
@@ -90,19 +90,25 @@ function startScan(){
   if(!pool.length){ document.getElementById('cnt').innerHTML='<b>All caught up.</b> Every location already has Google data. Tick <b>Re-check already-enriched</b> to refresh them.'; document.getElementById('grid').innerHTML='<div class="empty"><b>Nothing new to enrich.</b>All '+CANDS.length+' locations already have Google data. Use “Re-check already-enriched” to pull fresh operating status.</div>'; return; }
   AIW.show('Reading Google for your locations…', function(){ CANCELLED=true; AIW.hide(); location.href='rrg_data.html'; });
   var chunks=[]; for(var i=0;i<pool.length;i+=12) chunks.push(pool.slice(i,i+12));
-  var ci=0;
-  function next(){
-    if(CANCELLED) return;
-    if(ci>=chunks.length){ var matched=ORDER.filter(function(k){return ROWS[k].proposed;}).length; var nomatch=ORDER.length-matched; document.getElementById('cnt').innerHTML='<b>'+matched+'</b> matched · '+nomatch+' no match · scanned '+SCANNED; AIW.progress(pool.length,pool.length,{noun:'locations'}); AIW.done({title:'Google scan complete', summary:'Scanned '+SCANNED+' location'+(SCANNED===1?'':'s')+' — '+matched+' matched Google data, '+nomatch+' with no match. Review the suggestions below and apply the ones you want.'}); return; }
-    var batch=chunks[ci];
-    AIW.progress(SCANNED, pool.length, {noun:'locations', msg:'Reading Google — '+esc(batch[0].name||batch[0].companyName||'location')});
-    fetch('/api/admin/enrich-run',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:batch.map(function(c){return {companyId:c.companyId,locId:c.locId};})})}).then(function(r){return r.json();}).then(function(j){
-      if(CANCELLED) return;
-      if(!j||!j.ok){ AIW.hide(); document.getElementById('cnt').innerHTML=''; document.getElementById('msg').className='msg err'; document.getElementById('msg').textContent=(j&&j.error)||'Google scan failed — check your key in Settings.'; return; }
-      (j.results||[]).forEach(addRow); SCANNED+=batch.length; ci++; next();
-    }).catch(function(){ if(CANCELLED) return; AIW.hide(); document.getElementById('msg').className='msg err'; document.getElementById('msg').textContent='Scan stopped — server error.'; });
+  var ci=0, inflight=0, finished=false, POOL=Math.min(2, chunks.length||1);   // 2 chunks in flight; server fans out each chunk's Google calls in parallel too
+  function finish(){ if(finished) return; finished=true; var matched=ORDER.filter(function(k){return ROWS[k].proposed;}).length; var nomatch=ORDER.length-matched; document.getElementById('cnt').innerHTML='<b>'+matched+'</b> matched · '+nomatch+' no match · scanned '+SCANNED; AIW.progress(pool.length,pool.length,{noun:'locations'}); AIW.done({title:'Google scan complete', summary:'Scanned '+SCANNED+' location'+(SCANNED===1?'':'s')+' — '+matched+' matched Google data, '+nomatch+' with no match. Review the suggestions below and apply the ones you want.'}); }
+  function fail(msg){ if(finished) return; finished=true; AIW.hide(); document.getElementById('msg').className='msg err'; document.getElementById('msg').textContent=msg; }
+  function pump(){
+    if(CANCELLED||finished) return;
+    if(ci>=chunks.length && inflight===0){ finish(); return; }
+    while(inflight<POOL && ci<chunks.length){
+      var batch=chunks[ci++]; inflight++;
+      AIW.progress(SCANNED, pool.length, {noun:'locations', msg:'Reading Google — '+esc(batch[0].name||batch[0].companyName||'location')});
+      (function(batch){
+        fetch('/api/admin/enrich-run',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:batch.map(function(c){return {companyId:c.companyId,locId:c.locId};})})}).then(function(r){return r.json();}).then(function(j){
+          if(CANCELLED||finished) return;
+          if(!j||!j.ok){ document.getElementById('cnt').innerHTML=''; fail((j&&j.error)||'Google scan failed — check your key in Settings.'); return; }
+          (j.results||[]).forEach(addRow); SCANNED+=batch.length; inflight--; AIW.progress(SCANNED, pool.length, {noun:'locations'}); pump();
+        }).catch(function(){ if(CANCELLED||finished) return; fail('Scan stopped — server error.'); });
+      })(batch);
+    }
   }
-  next();
+  pump();
 }
 function addRow(r){
   var k=r.companyId+'|'+r.locId; ROWS[k]=r; ORDER.push(k);

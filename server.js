@@ -10134,21 +10134,21 @@ app.post('/api/admin/enrich-run', requireAdmin, express.json(), async (req, res)
   const key = loadGmapsKey(); if (!key) return res.status(400).json({ ok: false, error: 'No Google key set. Add one in Admin → Settings.' });
   const items = Array.isArray((req.body || {}).items) ? req.body.items.slice(0, 30) : [];
   const companies = loadCompanies();
-  const results = [];
-  for (const it of items) {
-    const c = companies.find(x => x.id === it.companyId); if (!c) { results.push({ companyId: it.companyId, locId: it.locId, reason: 'company gone' }); continue; }
-    const l = (c.locations || []).find(x => x.id === it.locId); if (!l) { results.push({ companyId: it.companyId, locId: it.locId, reason: 'location gone' }); continue; }
+  // Google lookups are independent + read-only, so fan them out in parallel instead of awaiting one at a time (was the enrichment bottleneck).
+  const results = await Promise.all(items.map(async (it) => {
+    const c = companies.find(x => x.id === it.companyId); if (!c) return { companyId: it.companyId, locId: it.locId, reason: 'company gone' };
+    const l = (c.locations || []).find(x => x.id === it.locId); if (!l) return { companyId: it.companyId, locId: it.locId, reason: 'location gone' };
     const query = [l.concept, l.name, l.address, l.city, l.state].filter(Boolean).join(' ');
     let en; try { en = await placesSearchNew(key, query); } catch (e) { en = { data: null, reason: 'request failed' }; }
-    if (!en.data) { results.push({ companyId: c.id, companyName: c.name || '', locId: l.id, name: l.name || '', address: l.address || '', city: l.city || '', reason: en.reason || 'no match' }); continue; }
+    if (!en.data) return { companyId: c.id, companyName: c.name || '', locId: l.id, name: l.name || '', address: l.address || '', city: l.city || '', reason: en.reason || 'no match' };
     const d = en.data;
     const cpt = (c.concepts || []).find(cp => normKey(cp.name) === normKey(l.concept));
     const proposedPrice = (d.priceLevel != null && d.priceLevel >= 1) ? (PRICE_POINTS[d.priceLevel - 1] || '') : '';
-    results.push({ companyId: c.id, companyName: c.name || '', locId: l.id, name: l.name || '', concept: l.concept || '', address: l.address || '', city: l.city || '', state: l.state || '', companyHasLogo: !!c.logo, companyLogo: c.logo || '', companyWebsite: (c.office && c.office.website) || '',
+    return { companyId: c.id, companyName: c.name || '', locId: l.id, name: l.name || '', concept: l.concept || '', address: l.address || '', city: l.city || '', state: l.state || '', companyHasLogo: !!c.logo, companyLogo: c.logo || '', companyWebsite: (c.office && c.office.website) || '',
       current: { status: l.status || '', phone: l.phone || '', website: l.website || '', pricePoint: (cpt ? (cpt.pricePoint || '') : '') },
       proposed: { status: placeStatusToLoc(d.businessStatus), businessStatus: d.businessStatus || '', rating: d.rating, reviews: d.reviews, priceLevel: d.priceLevel, pricePoint: proposedPrice, phone: d.phone || '', website: d.website || '', lat: d.lat, lng: d.lng, address: d.address || '', mapsUrl: d.mapsUrl || '', placeId: d.placeId || '' },
-      reason: '' });
-  }
+      reason: '' };
+  }));
   res.json({ ok: true, results });
 });
 app.post('/api/admin/enrich-apply', requireAdmin, express.json({ limit: '3mb' }), (req, res) => {

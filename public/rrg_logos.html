@@ -45,7 +45,7 @@ h1{margin:0;font-size:19px;font-weight:800;color:var(--navy);} .sub{color:var(--
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function hasLogo(c){ return !!(c&&(c.proposed||c.apple||c.clearbit)); }  // real logo source (not just a favicon)
-var AIW = {_p:null,_iv:null,show:function(m,c){try{if(window.rrgAiWork){this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork.show(m,c);}this._p={m:m,c:c};var s=this,t=0;if(this._iv)clearInterval(this._iv);this._iv=setInterval(function(){t++;if(window.rrgAiWork){clearInterval(s._iv);s._iv=null;if(s._p){window.rrgAiWork.show(s._p.m,s._p.c);}}else if(t>150){clearInterval(s._iv);s._iv=null;}},50);}catch(e){}},setMsg:function(m){try{if(window.rrgAiWork)window.rrgAiWork.setMsg(m);else if(this._p)this._p.m=m;}catch(e){}},hide:function(){try{this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
+var AIW = {_p:null,_iv:null,show:function(m,c){try{if(window.rrgAiWork){this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork.show(m,c);}this._p={m:m,c:c};var s=this,t=0;if(this._iv)clearInterval(this._iv);this._iv=setInterval(function(){t++;if(window.rrgAiWork){clearInterval(s._iv);s._iv=null;if(s._p){window.rrgAiWork.show(s._p.m,s._p.c);}}else if(t>150){clearInterval(s._iv);s._iv=null;}},50);}catch(e){}},setMsg:function(m){try{if(window.rrgAiWork)window.rrgAiWork.setMsg(m);else if(this._p)this._p.m=m;}catch(e){}},progress:function(d,t,o){try{if(window.rrgAiWork&&window.rrgAiWork.progress)window.rrgAiWork.progress(d,t,o);else if(o&&o.msg)this.setMsg(o.msg);}catch(e){}},done:function(o){try{o=o||{};if(window.rrgAiWork&&window.rrgAiWork.done)window.rrgAiWork.done(o);else this.hide();}catch(e){}},hide:function(){try{this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
 var LOGOCANCEL=false;
 var CANDS=[], STATE={};
 function initials(s){ s=String(s||'').trim(); if(!s) return '?'; var p=s.split(/\s+/); return ((p[0]||'')[0]||'').toUpperCase()+((p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
@@ -97,24 +97,26 @@ function paint(){ document.querySelectorAll('.lc[data-id]').forEach(function(el)
 function count(){ var on=CANDS.filter(function(c){return STATE[c.id]==='on';}).length; var c=document.getElementById('cnt'); if(c) c.textContent=on+' of '+CANDS.length+' approved'; }
 function aiFind(){
   var b=document.getElementById('aibtn'); if(!b) return; b.disabled=true; b.textContent='Finding…'; LOGOCANCEL=false; AIW.show('Finding logos with AI…', function(){ LOGOCANCEL=true; AIW.hide(); location.href='rrg_data.html'; });
-  function done(msg){ AIW.hide(); b.disabled=false; b.textContent='🤖 No-website logos (AI)'; if(CANDS.length){ ['all','none','apply'].forEach(function(id){ var bb=document.getElementById(id); if(bb) bb.disabled=false; }); } if(msg){ var m=document.getElementById('msg'); m.className='msg ok'; m.textContent=msg; } }
+  function reset(){ b.disabled=false; b.textContent='🤖 No-website logos (AI)'; if(CANDS.length){ ['all','none','apply'].forEach(function(id){ var bb=document.getElementById(id); if(bb) bb.disabled=false; }); } }
+  function stop(msg){ AIW.hide(); reset(); if(msg){ var m=document.getElementById('msg'); m.className='msg ok'; m.textContent=msg; } }
   fetch('/api/admin/logo-nowebsite',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(!j||!j.ok){ done(''); return; }
-    if(!j.aiReady){ alert('Set your Anthropic key in Admin → Settings to use AI.'); done(''); return; }
-    var pool=j.companies||[]; if(!pool.length){ alert('Every company already has a website or a logo.'); done(''); return; }
-    var chunks=[]; for(var i=0;i<pool.length;i+=15) chunks.push(pool.slice(i,i+15)); var ci=0, found=0;
+    if(!j||!j.ok){ stop(''); return; }
+    if(!j.aiReady){ stop(''); alert('Set your Anthropic key in Admin → Settings to use AI.'); return; }
+    var pool=j.companies||[]; if(!pool.length){ stop(''); alert('Every company already has a website or a logo.'); return; }
+    AIW.progress(0,pool.length,{noun:'companies', msg:'Reading brands with AI…'});
+    var chunks=[]; for(var i=0;i<pool.length;i+=15) chunks.push(pool.slice(i,i+15)); var ci=0, found=0, scanned=0;
     function next(){
       if(LOGOCANCEL) return;
-      if(ci>=chunks.length){ done('AI found '+found+' new logo candidate'+(found===1?'':'s')+' — review the ✦ AI cards and apply.'); return; }
-      AIW.setMsg('Reading brands — '+Math.min(ci*15,pool.length)+'/'+pool.length+'…');
+      if(ci>=chunks.length){ AIW.progress(pool.length,pool.length,{noun:'companies'}); reset(); AIW.done({title:'AI logo search complete', summary:'Checked '+pool.length+' website-less compan'+(pool.length===1?'y':'ies')+' with AI — found '+found+' new logo candidate'+(found===1?'':'s')+'. Review the AI cards and apply the ones you want.'}); return; }
+      AIW.progress(scanned,pool.length,{noun:'companies', msg:'Reading brands with AI…'});
       fetch('/api/admin/logo-ai-domains',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:chunks[ci].map(function(c){return {id:c.id};})})}).then(function(r){return r.json();}).then(function(jj){
         if(LOGOCANCEL) return;
         if(jj&&jj.ok){ (jj.results||[]).forEach(function(x){ if(CANDS.some(function(c){return c.id===x.id;})) return; CANDS.push({id:x.id,name:x.name,website:x.website,domain:x.domain,proposed:x.proposed,apple:x.apple,clearbit:x.clearbit,favicon:x.favicon,ai:true}); STATE[x.id]='on'; found++; }); render(); }
-        ci++; next();
-      }).catch(function(){ done(''); });
+        scanned+=chunks[ci].length; ci++; next();
+      }).catch(function(){ stop(''); });
     }
     next();
-  }).catch(function(){ done(''); });
+  }).catch(function(){ stop(''); });
 }
 function apply(){
   var items=[]; CANDS.forEach(function(c){ if(STATE[c.id]==='on'){ var img=document.querySelector('.logobox img[data-cid="'+c.id+'"]'); var src=img?img.src:(c.proposed||c.favicon); var _it={id:c.id,logo:src}; if(c.website) _it.website=c.website; items.push(_it); } });

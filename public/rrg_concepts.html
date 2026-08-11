@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FullServe — Concept Intelligence</title>
 <style>
-:root{--navy:#20334f;--navy2:#23496f;--primary:#2c5c8f;--primary-d:#23496f;--ink:#2b3648;--dim:#5f6a7d;--soft:#8a93a3;--faint:#96a1b2;--line:#dbe0e9;--wash:#f4f6f9;--green:#2f7a55;--red:#b23a2c;--inp:#c4ccda;--amber:#8a5a12;--teal:#0b7285;--purple:#5a3d9e;--bg:#fff;--card:#fff;--blue:var(--primary);}
+:root{--navy:#20334f;--navy2:#23496f;--primary:#2c5c8f;--primary-d:#23496f;--ink:#2b3648;--dim:#5f6a7d;--soft:#8a93a3;--faint:#96a1b2;--line:#dbe0e9;--wash:#f4f6f9;--green:#2f7a55;--red:#b23a2c;--inp:#c4ccda;--amber:#8a5a12;--teal:#0b7285;--purple:#20334f;--bg:#fff;--card:#fff;--blue:var(--primary);}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:13px;}
 h1{margin:0;font-size:19px;font-weight:800;color:var(--navy);} .sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:720px;line-height:1.5;}
@@ -21,10 +21,10 @@ h1{margin:0;font-size:19px;font-weight:800;color:var(--navy);} .sub{color:var(--
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:13px;}
 .ec{background:#fff;border:1px solid var(--line);border-radius:6px;padding:14px 15px;position:relative;transition:.12s;}
 .ec:hover{border-color:var(--primary);}
-.ec.on{border-color:var(--purple);box-shadow:0 0 0 2px rgba(90,61,158,.16);} .ec.dead{opacity:.5;}
+.ec.on{border-color:var(--purple);box-shadow:0 0 0 2px rgba(32,51,79,.16);} .ec.dead{opacity:.5;}
 .ec .chk{position:absolute;top:13px;right:13px;width:22px;height:22px;border-radius:4px;border:1.5px solid var(--inp);background:#fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;cursor:pointer;} .ec.on .chk{background:var(--purple);border-color:var(--purple);}
 .ec .nm{font-weight:800;font-size:14.5px;padding-right:30px;line-height:1.25;color:var(--navy);} .ec .co{font-size:11px;color:var(--faint);margin-top:1px;}
-.meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px;} .tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:100px;background:#efeaf7;color:var(--purple);} .tag.set{background:var(--wash);color:var(--dim);} .tag.mu{background:#e9f4ee;color:var(--green);} .tag.none{background:#faf1f0;color:var(--faint);}
+.meta{display:flex;flex-wrap:wrap;gap:7px;margin-top:11px;} .tag{font-size:11px;font-weight:700;padding:3px 9px;border-radius:3px;background:#eef1f6;color:var(--purple);} .tag.set{background:var(--wash);color:var(--dim);} .tag.mu{background:#e9f4ee;color:var(--green);} .tag.none{background:#faf1f0;color:var(--faint);}
 .lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--faint);font-weight:800;margin-right:3px;}
 .deadmsg{font-size:11.5px;color:var(--faint);margin-top:9px;}
 .empty{text-align:center;color:var(--dim);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:16px;margin-bottom:6px;}
@@ -41,17 +41,17 @@ h1{margin:0;font-size:19px;font-weight:800;color:var(--navy);} .sub{color:var(--
 <div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_data.html">Data Enrichment</a><span>›</span>Concept Intelligence</div>
 <div class="wrap" style="padding-bottom:4px">
   <h1>Concept Intelligence</h1>
-  <div class="sub">Consult reads each concept name and fills what Copper never captured — <b>cuisine, concept type, and price point</b> — and flags <b>multi-unit operators</b>. The fields that turn a contact list into a restaurant &amp; bar database. Review, tick, apply.</div>
+  <div class="sub">Uses AI to fill in the <b>cuisine, concept type, and price point</b> each concept is missing, and flags <b>multi-unit operators</b>. Review the suggestions, tick the ones to keep, and apply.</div>
 </div>
 <div id="root" class="wrap" style="padding-top:14px"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var AIW = {_p:null,_iv:null,show:function(m,c){try{if(window.rrgAiWork){this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork.show(m,c);}this._p={m:m,c:c};var s=this,t=0;if(this._iv)clearInterval(this._iv);this._iv=setInterval(function(){t++;if(window.rrgAiWork){clearInterval(s._iv);s._iv=null;if(s._p){window.rrgAiWork.show(s._p.m,s._p.c);}}else if(t>150){clearInterval(s._iv);s._iv=null;}},50);}catch(e){}},setMsg:function(m){try{if(window.rrgAiWork)window.rrgAiWork.setMsg(m);else if(this._p)this._p.m=m;}catch(e){}},hide:function(){try{this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
+var AIW = {_p:null,_iv:null,show:function(m,c){try{if(window.rrgAiWork){this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork.show(m,c);}this._p={m:m,c:c};var s=this,t=0;if(this._iv)clearInterval(this._iv);this._iv=setInterval(function(){t++;if(window.rrgAiWork){clearInterval(s._iv);s._iv=null;if(s._p){window.rrgAiWork.show(s._p.m,s._p.c);}}else if(t>150){clearInterval(s._iv);s._iv=null;}},50);}catch(e){}},setMsg:function(m){try{if(window.rrgAiWork)window.rrgAiWork.setMsg(m);else if(this._p)this._p.m=m;}catch(e){}},progress:function(d,t,o){try{if(window.rrgAiWork&&window.rrgAiWork.progress)window.rrgAiWork.progress(d,t,o);else if(o&&o.msg)this.setMsg(o.msg);}catch(e){}},done:function(o){try{o=o||{};if(window.rrgAiWork&&window.rrgAiWork.done)window.rrgAiWork.done(o);else this.hide();}catch(e){}},hide:function(){try{this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
 var CANDS=[], ROWS={}, ORDER=[], STATE={}, SCANNED=0, ONLYNEEDS=true, CPTCANCEL=false;
 function fieldsOn(){ return { cuisine:document.getElementById('f_cuisine').checked, type:document.getElementById('f_type').checked, price:document.getElementById('f_price').checked, mu:document.getElementById('f_mu').checked }; }
 function build(aiReady){
   var root=document.getElementById('root'); root.className='wrap';
-  if(!aiReady){ root.innerHTML='<div class="setup"><b>Turn on AI first</b><p>Concept Intelligence uses Consult (your Anthropic key). Save your key under <b>Admin → Settings</b>, then come back.</p><a class="btn purple" href="rrg_admin_settings.html" style="text-decoration:none;color:#fff">Open Settings</a></div>'; return; }
+  if(!aiReady){ root.innerHTML='<div class="setup"><b>Turn on AI first</b><p>Concept classification uses AI (your Anthropic key). Save your key under <b>Admin → Settings</b>, then come back.</p><a class="btn purple" href="rrg_admin_settings.html" style="text-decoration:none;color:#fff">Open Settings</a></div>'; return; }
   root.innerHTML=''
    +'<div class="fields"><span class="ttl">Apply</span>'
    +'<label><input type="checkbox" id="f_cuisine" checked> Cuisine</label>'
@@ -83,19 +83,25 @@ function scan(){
   if(!pool.length){ btn.disabled=false; document.getElementById('cnt').textContent='Nothing to classify — every concept already has cuisine, type and price.'; return; }
   CPTCANCEL=false; AIW.show('Classifying your concepts with AI…', function(){ CPTCANCEL=true; AIW.hide(); location.href='rrg_data.html'; });
   var chunks=[]; for(var i=0;i<pool.length;i+=12) chunks.push(pool.slice(i,i+12));
-  var ci=0;
-  function next(){
-    if(CPTCANCEL) return;
-    if(ci>=chunks.length){ AIW.hide(); btn.disabled=false; document.getElementById('cnt').innerHTML='<b>'+ORDER.filter(function(k){return ROWS[k].proposed;}).length+'</b> classified · scanned '+SCANNED; return; }
-    var items=chunks[ci].map(function(c){ return {companyId:c.companyId, conceptId:c.conceptId}; });
-    AIW.setMsg('Classifying '+(SCANNED+1)+'–'+Math.min(SCANNED+items.length,pool.length)+' of '+pool.length+'…'); document.getElementById('cnt').innerHTML='<span class="spin"></span>Classifying… '+SCANNED+'/'+pool.length;
-    fetch('/api/admin/concepts-classify',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
-      if(CPTCANCEL) return;
-      if(j&&j.ok){ (j.results||[]).forEach(addRow); } else { document.getElementById('msg').className='msg err'; document.getElementById('msg').textContent=(j&&j.error)||'AI error'; }
-      SCANNED+=items.length; ci++; next();
-    }).catch(function(){ if(CPTCANCEL) return; AIW.hide(); btn.disabled=false; document.getElementById('msg').className='msg err'; document.getElementById('msg').textContent='Scan stopped — server error.'; });
+  var ci=0, inflight=0, finished=false, POOL=Math.min(2, chunks.length||1);   // 2 AI requests in flight — faster without hammering rate limits
+  AIW.progress(0,pool.length,{noun:'concepts', msg:'Reading concepts with AI…'});
+  function finish(){ if(finished) return; finished=true; btn.disabled=false; var classified=ORDER.filter(function(k){return ROWS[k].proposed;}).length; document.getElementById('cnt').innerHTML='<b>'+classified+'</b> classified · scanned '+SCANNED; AIW.progress(pool.length,pool.length,{noun:'concepts'}); AIW.done({title:'Classification complete', summary:'Classified '+classified+' of '+SCANNED+' concept'+(SCANNED===1?'':'s')+' — cuisine, type and price filled where AI was confident. Review the suggestions and apply the ones you want.'}); }
+  function pump(){
+    if(CPTCANCEL||finished) return;
+    if(ci>=chunks.length && inflight===0){ finish(); return; }
+    while(inflight<POOL && ci<chunks.length){
+      var items=chunks[ci++].map(function(c){ return {companyId:c.companyId, conceptId:c.conceptId}; }); inflight++;
+      document.getElementById('cnt').innerHTML='<span class="spin"></span>Classifying… '+SCANNED+'/'+pool.length;
+      (function(items){
+        fetch('/api/admin/concepts-classify',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
+          if(CPTCANCEL||finished) return;
+          if(j&&j.ok){ (j.results||[]).forEach(addRow); } else { document.getElementById('msg').className='msg err'; document.getElementById('msg').textContent=(j&&j.error)||'AI error'; }
+          SCANNED+=items.length; inflight--; AIW.progress(SCANNED,pool.length,{noun:'concepts'}); pump();
+        }).catch(function(){ if(CPTCANCEL||finished) return; finished=true; AIW.hide(); btn.disabled=false; document.getElementById('msg').className='msg err'; document.getElementById('msg').textContent='Scan stopped — server error.'; });
+      })(items);
+    }
   }
-  next();
+  pump();
 }
 function addRow(r){
   var k=r.companyId+'|'+r.conceptId; ROWS[k]=r; ORDER.push(k);
@@ -132,8 +138,8 @@ function apply(){
   if(!items.length){ alert('Tick at least one concept to apply.'); return; }
   var b=document.getElementById('apply'); b.disabled=true; var msg=document.getElementById('msg'); msg.className='msg'; msg.textContent=''; AIW.show('Applying classifications…');
   fetch('/api/admin/concepts-apply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
-    AIW.hide(); b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Classified '+j.applied+' concept'+(j.applied===1?'':'s')+(j.tagged?(' · '+j.tagged+' tagged multi-unit'):'')+' ✓'; items.forEach(function(it){ var k=it.companyId+'|'+it.conceptId; STATE[k]='off'; var el=document.querySelector('.ec[data-k="'+cssq(k)+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } }); count(); }
-    else { msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
+    b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; var mt='Classified '+j.applied+' concept'+(j.applied===1?'':'s')+(j.tagged?(' · '+j.tagged+' tagged multi-unit'):''); msg.textContent=mt+' ✓'; items.forEach(function(it){ var k=it.companyId+'|'+it.conceptId; STATE[k]='off'; var el=document.querySelector('.ec[data-k="'+cssq(k)+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } }); count(); AIW.done({title:'Classifications applied', summary:mt+'.'}); }
+    else { AIW.hide(); msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
   }).catch(function(){ AIW.hide(); b.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
 }
 fetch('/api/admin/concepts-candidates',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
