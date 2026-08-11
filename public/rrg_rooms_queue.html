@@ -46,7 +46,7 @@ tr:hover td{background:#fbfcfe;}
   <span class="brand" onclick="location.href='./index.html'" title="Back to dashboard"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Data Rooms</div>
   <h1>Data Rooms</h1>
-  <div class="sub">A confidential, per-deal document room with a shareable buyer link. Start a blank room with <b>+ New data room</b>, or one is created automatically when you open a Marketing Pack. Admins see the whole team; reps see their own.</div>
+  <div class="sub">A confidential, per-deal document room with a shareable buyer link. Start one with <b>+ New data room</b>. Admins see the whole team; reps see their own.</div>
 </div></div>
 <div class="wrap">
   <div class="card">
@@ -140,7 +140,7 @@ function renderList(list){
   (list||[]).forEach(function(r){ LINKS[r.id]=r.link; });
   var cfg={
     mount:'#body', data:list, key:'rooms_v2', countEl:'#cnt',
-    empty:'<div class="empty"><b>No data rooms yet.</b>Start a blank room here, or open one from a built Marketing Pack.<br><button onclick="newRoom()" style="display:inline-block;margin-top:16px;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:10px 18px;font:inherit;font-size:13px;font-weight:600;cursor:pointer">+ New data room</button> <a class="act open" style="display:inline-block;margin-top:16px;padding:10px 18px" href="./rrg_cim_queue.html">Marketing Packs →</a></div>',
+    empty:'<div class="empty"><b>No data rooms yet.</b>Start your first confidential deal room.<br><button onclick="newRoom()" style="display:inline-block;margin-top:16px;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:10px 18px;font:inherit;font-size:13px;font-weight:600;cursor:pointer">+ New data room</button></div>',
     rowId:function(c){ return c.id; }, defaultSort:0, defaultDir:1,
     columns:[
       { label:'Dataroom Name', key:'name', filterable:false, sort:function(a,b){ return RRGList.cmp(a.business,b.business); },
