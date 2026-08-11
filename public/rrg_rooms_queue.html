@@ -20,6 +20,18 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .wrap{max-width:none;margin:20px 0;padding:0 28px 56px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
 .hd{display:flex;align-items:center;padding:16px 22px;border-bottom:1px solid var(--line);gap:12px;}
+.feats{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);margin-bottom:16px;overflow:hidden;}
+.featshd{display:flex;align-items:center;gap:10px;padding:13px 20px;cursor:pointer;user-select:none;}
+.featshd b{font-size:14px;color:var(--navy);}
+.featshd .sh{font-size:11.5px;color:var(--muted);font-weight:600;}
+.featshd .chev{margin-left:auto;color:var(--muted);font-size:12px;transition:transform .15s;}
+.feats.collapsed .chev{transform:rotate(-90deg);}
+.feats.collapsed .featgrid{display:none;}
+.featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line);}
+.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;}
+.feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
+.feat b{display:block;font-size:12.5px;color:var(--navy);font-weight:800;}
+.feat span{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px;}
 .hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
 .newbtn{margin-left:auto;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .fbtn{background:#fff;border:1px solid #cfd6e2;border-radius:9px;padding:9px 13px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
@@ -54,6 +66,19 @@ tr:hover td{background:#fbfcfe;}
   <div class="sub">A confidential, per-deal document room with a shareable buyer link. Start one with <b>+ New data room</b>. Admins see the whole team; reps see their own.</div>
 </div></div>
 <div class="wrap">
+  <div class="feats" id="featStrip">
+    <div class="featshd" id="featHd"><b>What your data rooms do</b><span class="sh">the confidential deal room, at a glance</span><span class="chev" id="featChev">▾</span></div>
+    <div class="featgrid">
+      <div class="feat"><span class="fic">🔒</span><div><b>Confidential &amp; gated</b><span>A private tokenized link; each buyer gets their own access code. Buyers never sign in to an app.</span></div></div>
+      <div class="feat"><span class="fic">🎚️</span><div><b>Granular permissions</b><span>No access · view · download · upload — set per buyer and overridden folder-by-folder.</span></div></div>
+      <div class="feat"><span class="fic">📊</span><div><b>Engagement tracking</b><span>See who opened what, a "hot buyer" flag on recent key-doc activity, and real read-time.</span></div></div>
+      <div class="feat"><span class="fic">🔔</span><div><b>Real-time alerts</b><span>Emailed the moment a buyer first opens the P&amp;L, financials, lease, or tax returns.</span></div></div>
+      <div class="feat"><span class="fic">🛡️</span><div><b>Watermarked downloads</b><span>Every PDF is stamped with the buyer's name, email &amp; time — a leak traces straight back.</span></div></div>
+      <div class="feat"><span class="fic">💬</span><div><b>Buyer Q&amp;A</b><span>Private per-buyer threads asked and answered right inside the room — no email channel.</span></div></div>
+      <div class="feat"><span class="fic">📁</span><div><b>Bulk upload, AI-filed</b><span>Drop up to 40 files; the assistant reads each one and sorts it into the right folder.</span></div></div>
+      <div class="feat"><span class="fic">🔑</span><div><b>Two-step verification</b><span>Optional one-time email code on top of the access code, with 30-day trusted devices.</span></div></div>
+    </div>
+  </div>
   <div class="card">
     <div class="hd"><b>Data Rooms</b><span class="cnt" id="cnt"></span><button id="newRoomBtn" class="newbtn" onclick="newRoom()">+ New data room</button><label id="hideArchWrap" style="display:none;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap"><input type="checkbox" id="hideArch" checked style="cursor:pointer;margin:0"> Hide archived <span id="archCnt" style="display:none;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:99px;padding:1px 7px;font-size:11px;font-weight:700"></span></label><button id="filterBtn" class="fbtn" onclick="toggleRoomFilter()">⚙ Filters</button><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="roomSearch" placeholder="Search data rooms by name, creator, or buyer…" oninput="applyFilter()" autocomplete="off"><button type="button" class="searchx" id="roomSearchx" title="Clear search" onclick="var s=document.getElementById('roomSearch');s.value='';applyFilter();s.focus();">×</button></div></div>
     <div id="body"></div>
@@ -224,5 +249,6 @@ load();
 </script>
 <script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
 <script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
+<script>(function(){ var fs=document.getElementById('featStrip'), hd=document.getElementById('featHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_roomfeats')==='0') fs.classList.add('collapsed'); }catch(e){} hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_roomfeats', col?'0':'1'); }catch(e){} }); })();</script>
 </body>
 </html>
