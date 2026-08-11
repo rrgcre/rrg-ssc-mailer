@@ -368,11 +368,18 @@
     function _srHide(){ if(sr){ sr.hidden=true; } _ssel=-1; }
     function _srSel(i){ _ssel=i; Array.prototype.forEach.call(sr.querySelectorAll('a'),function(a){ a.classList.toggle('sel', parseInt(a.getAttribute('data-i'),10)===i); }); }
     function _srRender(res,q){
-      _sres=res||[];
-      if(!_sres.length){ sr.innerHTML='<div class="rnone">No matches for “'+_sesc(q)+'”.</div>'; sr.hidden=false; _ssel=-1; return; }
+      var raw=res||[];
+      if(!raw.length){ _sres=[]; sr.innerHTML='<div class="rnone">No matches for “'+_sesc(q)+'”.</div>'; sr.hidden=false; _ssel=-1; return; }
       var ic={contact:'◑',company:'▦',listing:'⌂'}, lbl={contact:'Contacts',company:'Companies',listing:'Listings'}, order=['contact','company','listing'];
-      var html='';
-      order.forEach(function(ty){ var g=_sres.filter(function(r){return r.type===ty;}); if(!g.length) return; html+='<div class="grp">'+lbl[ty]+'</div>'; g.forEach(function(r){ var gi=_sres.indexOf(r); html+='<a href="'+r.url+'" data-i="'+gi+'"><span class="ric">'+(ic[ty]||'•')+'</span><span><span class="rt">'+_sesc(r.title)+'</span>'+(r.sub?('<span class="rs">'+_sesc(r.sub)+'</span>'):'')+'</span></a>'; }); });
+      // Prioritise the record type that matches the window you searched from (e.g. Companies first on the companies page).
+      var _f=(location.pathname||'').toLowerCase().split('/').pop();
+      var _ctx=/compan/.test(_f)?'company':((/person|people|contact/.test(_f))?'contact':((/listing|assignment/.test(_f))?'listing':''));
+      if(_ctx && order.indexOf(_ctx)>=0){ order=[_ctx].concat(order.filter(function(t){return t!==_ctx;})); }
+      var ql=String(q||'').trim().toLowerCase();
+      function _exact(r){ return String(r.title||'').trim().toLowerCase()===ql; }
+      var html='', flat=[];
+      order.forEach(function(ty){ var g=raw.filter(function(r){return r.type===ty;}); if(!g.length) return; g.sort(function(a,b){ return (_exact(b)?1:0)-(_exact(a)?1:0); }); html+='<div class="grp">'+lbl[ty]+'</div>'; g.forEach(function(r){ var gi=flat.length; flat.push(r); html+='<a href="'+r.url+'" data-i="'+gi+'"><span class="ric">'+(ic[ty]||'•')+'</span><span><span class="rt">'+_sesc(r.title)+'</span>'+(r.sub?('<span class="rs">'+_sesc(r.sub)+'</span>'):'')+'</span></a>'; }); });
+      _sres=flat;
       sr.innerHTML=html; sr.hidden=false;
       Array.prototype.forEach.call(sr.querySelectorAll('a'),function(a){ a.addEventListener('mousemove',function(){ _srSel(parseInt(a.getAttribute('data-i'),10)); }); });
       _srSel(0);
