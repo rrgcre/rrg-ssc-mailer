@@ -208,6 +208,19 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .jbeans{display:flex;flex-wrap:wrap;gap:8px;}
 .jbean{display:inline-flex;align-items:center;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;line-height:1;}
 .jbean b{font-weight:800;}
+.tagfieldhost{position:relative;}
+.tagfield{border:1px solid #c4ccda;border-radius:4px;background:#fff;padding:5px 6px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;position:relative;min-height:38px;cursor:text;}
+.tagfield:focus-within{border-color:#2c5c8f;box-shadow:0 0 0 2px rgba(44,92,143,.12);}
+.tagfield .tchip{display:inline-flex;align-items:center;gap:6px;background:#eef2f8;color:#23496f;border:1px solid #d3ddf3;border-radius:3px;padding:3px 4px 3px 8px;font-size:12px;font-weight:700;line-height:1.3;}
+.tagfield .tchip button{background:none;border:none;color:#7a869c;cursor:pointer;font-size:14px;line-height:1;padding:0 2px;}
+.tagfield .tchip button:hover{color:#b23a2c;}
+.tagfield input{flex:1;min-width:130px;border:none;outline:none;font:inherit;font-size:13px;padding:4px 2px;background:transparent;color:#2b3648;}
+.tagmenu{position:absolute;left:0;right:0;top:100%;margin-top:4px;background:#fff;border:1px solid #dbe0e9;border-radius:5px;box-shadow:0 12px 30px rgba(11,26,56,.16);z-index:60;max-height:240px;overflow:auto;}
+.tagmenu[hidden]{display:none;}
+.tagmenu div{padding:8px 11px;font-size:13px;color:#2b3648;cursor:pointer;}
+.tagmenu div.sel{background:#eef2f8;}
+.tagmenu div .hl{font-weight:800;color:#20334f;}
+.tagmenu .newrow{color:#5f6a7d;border-top:1px solid #eef1f6;}
 .grate{color:#b5791f;font-weight:700;} .gclosed{background:#fdeceb;color:#DA2B1F;font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:20px;white-space:nowrap;}
 .cohdrlogo{height:30px;width:auto;max-width:110px;object-fit:contain;background:#fff;border-radius:6px;padding:2px 5px;vertical-align:middle;}
 .logorow2{display:flex;gap:12px;align-items:flex-start;} .logoprev2{width:64px;height:64px;border-radius:13px;border:1px dashed #cdd6e6;background:#fbfcfe;flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:border-color .12s,background .12s;padding:8px;} .logoprev2:hover{border-color:#9fb0cc;background:#f4f7fb;} .logoprev2 img{max-width:100%;max-height:100%;object-fit:contain;} .comono{color:#23496f;font-weight:800;font-size:18px;}
@@ -248,7 +261,7 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return ((p[0]||'')[0]||'')+((p[1]||'')[0]||''); }
-var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Restaurant Group'], PTYPES=['Buying'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Dancehall','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], CUISINE_TYPES=[], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, CAN_DELETE=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], AUTOMATIONS=[], LOGOAUTO='', TITLES=[], LEADSOURCES=[], CO_AGR_FILE=null, ACTIVITY=[], ACTTYPES=[], USERS=[], CO_ACTFILTER='', DIRTY=false;
+var ID=qs('id'), C=null, CONTACTS=[], DEALS=[], LOCATIONS=[], CONCEPTS=[], CTYPES=['Restaurant Group'], PTYPES=['Buying'], LSTATUSES=['Planned','Under Construction','Operating','Dark','Closed'], SITETYPES=['Freestanding','End Cap','Inline','Food Hall','Ghost Kitchen','Other'], CONCEPT_TYPES=['Full-Service','Fast-Casual','QSR','Bar / Nightlife','Dancehall','Cafe / Bakery','Food Truck','Ghost Kitchen','Other'], PRICE_POINTS=['$','$$','$$$','$$$$'], CUISINE_TYPES=[], MARKETS=['Austin','Dallas','Houston','San Antonio','Rio Grande Valley','Central Texas'], IS_ADMIN=false, CAN_DELETE=false, HASMAPS=false, AGREEMENTS=[], ATYPES=[], AUTOMATIONS=[], LOGOAUTO='', TITLES=[], LEADSOURCES=[], CO_AGR_FILE=null, ACTIVITY=[], ACTTYPES=[], USERS=[], CO_ACTFILTER='', DIRTY=false, ALLTAGS=[], CT_TAGF=null;
 var EXPANDED={};
 function conceptById(id){ return CONCEPTS.filter(function(x){return x.id===id;})[0]||null; }
 function normUrl(u){ u=String(u||'').trim(); if(!u) return ''; return /^https?:\/\//i.test(u)?u:('https://'+u); }
@@ -944,6 +957,28 @@ function wireMulti(scope){
   scope.querySelectorAll('.mfrm').forEach(function(b){ b.addEventListener('click',function(){ b.parentNode.remove(); }); });
 }
 function collectMulti(scope,cls){ var out=[]; scope.querySelectorAll('.'+cls).forEach(function(i){ var v=i.value.trim(); if(v) out.push(v); }); return out; }
+function _tfFuzzy(hay,q){ hay=String(hay).toLowerCase(); q=String(q).toLowerCase(); if(!q) return true; var i=0; for(var j=0;j<hay.length&&i<q.length;j++){ if(hay.charAt(j)===q.charAt(i)) i++; } return i===q.length; }
+function _tfScore(hay,q){ hay=String(hay).toLowerCase(); q=String(q).toLowerCase(); if(!q) return 0; var idx=hay.indexOf(q); if(idx===0) return 0; if(idx>0) return 1; return 2; }
+// Chip + fuzzy-autocomplete tag field. initial = current tags, suggestions = ALLTAGS. Returns {get:()=>[...tags]}.
+function mkTagField(hostId, initial, suggestions){
+  var host=document.getElementById(hostId); if(!host) return null;
+  var tags=(initial||[]).slice(), LIST=[], sel=-1;
+  var wrap=document.createElement('div'); wrap.className='tagfield';
+  var inp=document.createElement('input'); inp.type='text'; inp.autocomplete='off'; inp.placeholder='Type to search tags…';
+  var menu=document.createElement('div'); menu.className='tagmenu'; menu.hidden=true;
+  host.className='tagfieldhost'; host.innerHTML=''; host.appendChild(wrap); wrap.appendChild(inp); wrap.appendChild(menu);
+  function chips(){ Array.prototype.slice.call(wrap.querySelectorAll('.tchip')).forEach(function(x){ x.parentNode.removeChild(x); }); tags.forEach(function(t){ var c=document.createElement('span'); c.className='tchip'; c.appendChild(document.createTextNode(t)); var b=document.createElement('button'); b.type='button'; b.textContent='×'; b.title='Remove'; b.addEventListener('click',function(){ tags=tags.filter(function(x){return x!==t;}); chips(); inp.focus(); }); c.appendChild(b); wrap.insertBefore(c,inp); }); }
+  function add(v){ v=(v||'').replace(/,+$/,'').trim(); if(v && tags.map(function(x){return x.toLowerCase();}).indexOf(v.toLowerCase())<0){ tags.push(v); chips(); } inp.value=''; close(); }
+  function open(){ var q=inp.value.trim(); var have={}; tags.forEach(function(t){ have[t.toLowerCase()]=1; }); LIST=(suggestions||[]).filter(function(s){ return !have[String(s).toLowerCase()] && _tfFuzzy(s,q); }); LIST.sort(function(a,b){ return _tfScore(a,q)-_tfScore(b,q) || String(a).toLowerCase().localeCompare(String(b).toLowerCase()); }); LIST=LIST.slice(0,50); var exact=(suggestions||[]).some(function(s){ return String(s).toLowerCase()===q.toLowerCase(); }) || tags.map(function(x){return x.toLowerCase();}).indexOf(q.toLowerCase())>=0; var html=LIST.map(function(s,i){ return '<div data-i="'+i+'">'+esc(s)+'</div>'; }).join(''); if(q && !exact){ html+='<div class="newrow" data-new="1">Add “'+esc(q)+'”</div>'; } if(!html){ close(); return; } sel=-1; menu.innerHTML=html; menu.hidden=false; Array.prototype.slice.call(menu.children).forEach(function(row){ row.addEventListener('mousedown',function(e){ e.preventDefault(); if(row.getAttribute('data-new')) add(inp.value); else add(LIST[+row.getAttribute('data-i')]); inp.focus(); }); }); }
+  function close(){ menu.hidden=true; sel=-1; }
+  function paint(){ Array.prototype.slice.call(menu.children).forEach(function(r,i){ r.classList.toggle('sel',i===sel); }); }
+  inp.addEventListener('input',open); inp.addEventListener('focus',open);
+  inp.addEventListener('blur',function(){ setTimeout(close,150); });
+  inp.addEventListener('keydown',function(e){ var rows=menu.hidden?[]:Array.prototype.slice.call(menu.children); if(e.key==='ArrowDown'&&rows.length){ e.preventDefault(); sel=Math.min(rows.length-1,sel+1); paint(); } else if(e.key==='ArrowUp'&&rows.length){ e.preventDefault(); sel=Math.max(0,sel-1); paint(); } else if(e.key==='Enter'||e.key===','){ e.preventDefault(); if(sel>=0&&rows[sel]){ if(rows[sel].getAttribute('data-new')) add(inp.value); else add(LIST[+rows[sel].getAttribute('data-i')]); } else add(inp.value); } else if(e.key==='Backspace'&&!inp.value&&tags.length){ tags.pop(); chips(); } else if(e.key==='Escape'){ close(); } });
+  wrap.addEventListener('mousedown',function(e){ if(e.target===wrap) inp.focus(); });
+  chips();
+  return { get:function(){ return tags.slice(); } };
+}
 function openContactForm(){
   var f=document.getElementById('contactForm');
   var ptsel='<option value="">— select —</option>'+PTYPES.map(function(t){return '<option'+((C&&C.type&&t===C.type)?' selected':'')+'>'+esc(t)+'</option>';}).join('');
@@ -958,12 +993,13 @@ function openContactForm(){
     +'<div class="wide"><label class="fld">Emails</label>'+multiFieldHtml('ct_email',[],'name@email.com')+'</div>'
     +'<div class="wide"><label class="fld">Phones</label>'+multiFieldHtml('ct_phone',[],'(555) 555-5555')+'</div>'
     +'<div class="wide"><label class="fld">Preferred contact method</label><div style="display:flex;gap:18px;font-size:13px;padding:4px 0 2px"><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="ct_pref" value="phone"> Phone</label><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="ct_pref" value="text"> Text</label><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="ct_pref" value="email"> Email</label></div></div>'
-    +'<div class="wide"><label class="fld">Tags</label><input id="ct_tags" placeholder="Comma-separated, e.g. hot, franchisee, DFW"></div>'
+    +'<div class="wide"><label class="fld">Tags</label><div id="ct_tags"></div></div>'
     +'</div><div class="cbtns"><button class="sbtn" id="ct_save">Save</button><button class="cbtn" id="ct_cancel">Cancel</button><span id="ct_msg" class="findmsg"></span></div></div>';
   f.removeAttribute('hidden'); expandCardOf(f);
   wireMulti(f);
   document.getElementById('ct_save').addEventListener('click',saveContact);
-  document.getElementById('ct_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
+  document.getElementById('ct_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; CT_TAGF=null; });
+  CT_TAGF=mkTagField('ct_tags', [], ALLTAGS);
   document.getElementById('ct_first').focus();
 }
 function saveContact(){
@@ -972,7 +1008,7 @@ function saveContact(){
   if(!first||!last){ msg.textContent='First and last name are required.'; return; }
   if(!type){ msg.textContent='Pick a main interest.'; return; }
   var pref=[]; f.querySelectorAll('.ct_pref').forEach(function(c){ if(c.checked) pref.push(c.value); });
-  var tags=(document.getElementById('ct_tags').value||'').split(',').map(function(x){return x.trim();}).filter(Boolean);
+  var tags=CT_TAGF?CT_TAGF.get():[];
   var body={ firstName:first, lastName:last, type:type, title:document.getElementById('ct_title').value.trim(), nickname:document.getElementById('ct_nick').value.trim(), leadSource:document.getElementById('ct_lead').value.trim(), tags:tags, prefContact:pref, emails:collectMulti(f,'ct_email'), phones:collectMulti(f,'ct_phone') };
   var b=document.getElementById('ct_save'); b.disabled=true; b.textContent='Saving…';
   fetch('/api/company/'+encodeURIComponent(ID)+'/contact',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
@@ -1008,7 +1044,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No company selected. <a href="./rrg_companies.html">Back to companies →</a></div>'; return; }
   fetch('/api/company/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; TITLES=j.titles||TITLES; LEADSOURCES=j.leadSources||LEADSOURCES; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; AUTOMATIONS=j.automations||[]; ACTIVITY=j.activity||[]; ACTTYPES=j.activityTypes||ACTTYPES; USERS=j.users||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; HASMAPS=!!j.hasMaps; render(); loadDocsCo(); try{ var _pb=localStorage.getItem('rrg_build_'+ID); if(_pb){ localStorage.removeItem('rrg_build_'+ID); var _o=JSON.parse(_pb)||{}; if(_o.findGroup){ setTimeout(function(){ autoFindGroup(_o.metro||''); },500); } else if(_o.names&&_o.names.length){ setTimeout(function(){ runBuildConcepts(_o.names,_o.metro||'','',_o.website||''); },500); } } }catch(e){} })
+    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; TITLES=j.titles||TITLES; LEADSOURCES=j.leadSources||LEADSOURCES; ALLTAGS=j.allTags||ALLTAGS; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; AUTOMATIONS=j.automations||[]; ACTIVITY=j.activity||[]; ACTTYPES=j.activityTypes||ACTTYPES; USERS=j.users||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; HASMAPS=!!j.hasMaps; render(); loadDocsCo(); try{ var _pb=localStorage.getItem('rrg_build_'+ID); if(_pb){ localStorage.removeItem('rrg_build_'+ID); var _o=JSON.parse(_pb)||{}; if(_o.findGroup){ setTimeout(function(){ autoFindGroup(_o.metro||''); },500); } else if(_o.names&&_o.names.length){ setTimeout(function(){ runBuildConcepts(_o.names,_o.metro||'','',_o.website||''); },500); } } }catch(e){} })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this company.')+'<br><br><a href="./rrg_companies.html" style="color:#000E31;font-weight:700">← Back to companies</a></div>'; });
 }
 var ASSISTANT='the RRG analyst'; var CLABEL='Concept', CLABELP='Concepts';

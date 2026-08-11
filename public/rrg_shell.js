@@ -122,6 +122,7 @@
     ] },
     { grp: 'Tenant Rep', color: '#dfa937', items: [
       { ic: '◆', label: 'Assignments', href: 'rrg_assignments.html?type=tenant_rep' },
+      { ic: '⇄', label: 'Shared Assignments', href: 'rrg_shared_assignments.html' },
       { ic: '◎', label: 'Site Criteria', href: 'ssc_form.html' },
       { ic: '✚', label: 'Site & Concept Fit', href: 'rrg_site_fit.html' },
       { ic: '⊡', label: 'Space Tracker', href: 'rrg_space_tracker.html' },
