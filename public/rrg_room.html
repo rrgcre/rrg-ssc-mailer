@@ -343,7 +343,7 @@ function toggleGrant(id){
   fetch('/api/room/'+encodeURIComponent(RID)+'/grant-toggle',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:id})})
    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; renderGrants(); } else alert((j&&j.error)||'Failed'); }).catch(function(){ alert('Could not reach the server.'); });
 }
-function paint(){ document.getElementById('hdr').textContent='Data Room · '+(ROOM.business||''); paintLink(); renderInterviews(); renderCats(); renderDocs(); renderGrants(); renderLog(); renderMfa(); paintClosed(); }
+function paint(){ document.getElementById('hdr').textContent=(ROOM.business&&String(ROOM.business).trim())?('Data Room · '+String(ROOM.business).trim()):'Data Room'; paintLink(); renderInterviews(); renderCats(); renderDocs(); renderGrants(); renderLog(); renderMfa(); paintClosed(); }
 function renderMfa(){
   var chk=document.getElementById('mfaChk'), sub=document.getElementById('mfaSub'); if(!chk) return;
   var on=!!(ROOM&&ROOM.mfa); chk.checked=on;
