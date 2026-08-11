@@ -19,6 +19,12 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .tabs a{color:#aeb8cf;text-decoration:none;font-size:12.5px;font-weight:700;padding:7px 14px;border-radius:100px;border:1px solid rgba(255,255,255,.2);cursor:pointer;display:inline-flex;gap:7px;align-items:center;}
 .tabs a.on{background:#fff;color:var(--navy);border-color:#fff;}
 .tabs a .tc{font-size:11px;font-weight:800;opacity:.6;}
+.doctabs{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 14px;}
+.doctabs a{color:#5a6274;text-decoration:none;font-size:12.5px;font-weight:700;padding:7px 13px;border-radius:6px;border:1px solid var(--line);background:#fff;cursor:pointer;display:inline-flex;gap:7px;align-items:center;}
+.doctabs a:hover{border-color:#b9c3d6;}
+.doctabs a.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.doctabs a .tc{font-size:11px;font-weight:800;opacity:.55;}
+.doctabs a.on .tc{opacity:.75;}
 .wrap{max-width:none;margin:20px 0;padding:0 28px 56px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:0 6px 24px rgba(10,20,50,.06);}
 .hd{display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line);gap:12px;}
@@ -46,15 +52,15 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .st.s-expired,.st.s-terminated,.st.s-declined,.st.s-canceled{background:#fdeceb;color:var(--red);border-color:#f3cfc9;}
 .modal{position:fixed;inset:0;background:rgba(6,14,32,.55);display:flex;align-items:center;justify-content:center;z-index:200;padding:20px;}
 .modal[hidden]{display:none!important;}
-.modalcard{background:#fff;border-radius:16px;width:100%;max-width:460px;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden;max-height:calc(100vh - 40px);display:flex;flex-direction:column;}
-.modalh{padding:18px 22px;font-size:16px;font-weight:800;color:var(--navy);border-bottom:1px solid var(--line);}
-.modalb{padding:18px 22px;overflow-y:auto;flex:1 1 auto;min-height:0;}
-.mfld{display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:14px 0 6px;} .modalb .mfld:first-child{margin-top:0;}
-.modalb input,.modalb select,.modalb textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 13px;font:inherit;font-size:14px;background:#fff;} .modalb textarea{min-height:70px;resize:vertical;}
-.modalf{display:flex;gap:9px;justify-content:flex-end;align-items:center;padding:14px 22px;border-top:1px solid var(--line);}
-.mbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 17px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;} .mbtn.ghost{background:#fff;color:var(--muted);border-color:var(--line);}
+.modalcard{background:#fff;border:1px solid var(--line);border-radius:6px;width:100%;max-width:460px;box-shadow:0 18px 44px rgba(0,0,0,.24);overflow:hidden;max-height:calc(100vh - 40px);display:flex;flex-direction:column;}
+.modalh{padding:13px 20px;font-size:15px;font-weight:700;color:var(--navy);border-bottom:1px solid var(--line);background:var(--wash);}
+.modalb{padding:16px 20px;overflow-y:auto;flex:1 1 auto;min-height:0;}
+.mfld{display:block;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:14px 0 5px;} .modalb .mfld:first-child{margin-top:0;}
+.modalb input,.modalb select,.modalb textarea{width:100%;border:1px solid var(--inp,#c4ccda);border-radius:4px;padding:9px 11px;font:inherit;font-size:13.5px;background:#fff;} .modalb textarea{min-height:70px;resize:vertical;} .modalb input:focus,.modalb select:focus,.modalb textarea:focus{outline:none;border-color:var(--primary,#2c5c8f);}
+.modalf{display:flex;gap:9px;justify-content:flex-end;align-items:center;padding:13px 20px;border-top:1px solid var(--line);background:var(--wash);}
+.mbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:9px 16px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;} .mbtn.ghost{background:#fff;color:var(--navy);border-color:var(--inp,#c4ccda);}
 .upmsg{font-size:12px;color:var(--muted);margin-right:auto;}
-.drop{border:2px dashed #cfd6e2;border-radius:11px;padding:20px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;background:var(--wash);} .drop.has{border-color:#1f8a5b;color:#1f8a5b;background:#f2faf5;font-weight:700;}
+.drop{border:1px dashed var(--inp,#c4ccda);border-radius:6px;padding:20px;text-align:center;color:var(--muted);font-size:13px;cursor:pointer;background:var(--wash);} .drop.has{border-color:#2f7a55;color:#2f7a55;background:#f1f8f4;font-weight:700;}
 .relrow:hover{background:#f5f7fb;}
 .rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);}
 .rl-filtbtn{display:none!important;}
@@ -75,9 +81,9 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
   <div class="kicker">Library</div>
   <h1>Documents</h1>
   <div class="sub">Every document in one place — agreements, LOIs, valuations, marketing packs, site criteria, and anything you upload. Filter by type, sort any column, search, or add your own.</div>
-  <div class="tabs" id="dtabs"></div>
 </div></div>
 <div class="wrap">
+  <div class="doctabs" id="dtabs"></div>
   <div class="card">
     <div class="hd"><b>Documents</b><span class="cnt" id="cnt"></span><button class="newbtn" onclick="openUpload()" style="margin-left:auto" title="Max 25 MB per file">⬆ Upload</button><span class="uphint" style="margin-left:8px;font-size:11px;color:#9aa3b2;align-self:center;white-space:nowrap">25 MB max</span><div class="searchwrap" style="margin-left:8px"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="search" placeholder="Search documents…" oninput="applyFilter()" autocomplete="off"><button type="button" class="searchx" id="searchx" title="Clear search" onclick="var s=document.getElementById('search');s.value='';applyFilter();s.focus();">×</button></div></div>
     <div class="filterbar" id="filterbar">
@@ -176,6 +182,7 @@ function render(list){
   if(!CTL || CURTYPE!==FILTER){
     var mount=document.getElementById('body'); mount.innerHTML='';
     CTL=RRGList.create({ mount:'#body', data:list, key:'documents_'+FILTER, exportName:'documents', countEl:'#cnt', rowId:function(d){return d.id;}, columns:cols,
+      bulk:[ { label:'Delete selected', danger:true, min:1, fn:function(ids,done){ bulkDeleteDocs(ids,done); } } ],
       empty:'<div class="empty"><b>No documents'+(FILTER!=='all'?' of this type':'')+' yet.</b>Click <b>Upload</b> to add one — or they appear here automatically as your team creates agreements, valuations, and marketing packs.</div>' });
     CURTYPE=FILTER;
   } else { CTL.refresh(list); }
@@ -207,6 +214,21 @@ function load(){
 }
 
 document.addEventListener('click', function(e){ var b=e.target.closest?e.target.closest('[data-del]'):null; if(b){ e.preventDefault(); e.stopPropagation(); delFile(b.getAttribute('data-del')); } });
+async function bulkDeleteDocs(ids, done){
+  var docs=ids.map(function(id){ return DOCS.find(function(x){return x.id===id;}); }).filter(Boolean);
+  var deletable=docs.filter(function(d){ return d.kind==='file'||d.deleteUrl; });
+  var skipped=docs.length-deletable.length;
+  if(!deletable.length){ alert('None of the selected items can be deleted here — they’re records managed in their own module (agreements, valuations, marketing packs, screening calls). Open the item to delete it at its source.'); if(done)done(); return; }
+  var prompt='Delete '+deletable.length+' document'+(deletable.length===1?'':'s')+'?'+(skipped?(' '+skipped+' selected item'+(skipped===1?'':'s')+' can’t be deleted here and will be skipped.'):'')+' This cannot be undone.';
+  var ok=window.rrgConfirm?(await rrgConfirm(prompt,{title:'Delete documents?',okText:'Delete',danger:true})):confirm(prompt);
+  if(!ok){ if(done)done(); return; }
+  var n=0;
+  for(var i=0;i<deletable.length;i++){ var d=deletable[i]; var url=d.deleteUrl||('/api/files/'+encodeURIComponent(d.id)); try{ var r=await fetch(url,{method:'DELETE',credentials:'same-origin'}); var j=await r.json(); if(j&&j.ok) n++; }catch(e){} }
+  if(done) done();
+  load();
+  var m='Deleted '+n+' document'+(n===1?'':'s')+(skipped?(' · '+skipped+' skipped'):'')+' ✓';
+  if(window.rrgToast) rrgToast(m); else alert(m);
+}
 function delFile(id){ var d=DOCS.find(function(x){return x.id===id;}); if(!d) return; var isCall=(d.kind==='seller'); var url=d.deleteUrl||('/api/files/'+encodeURIComponent(id)); var msg=isCall?('Delete the call "'+(d.title||'this call')+'"? This permanently removes the seller screening and its answers. Cannot be undone.'):('Remove "'+(d.title||'this file')+'"? This deletes the uploaded file for everyone.'); if(!confirm(msg)) return;
   fetch(url,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ load(); } else alert((j&&j.error)||'Could not remove.'); }).catch(function(){ alert('Could not reach the server.'); }); }
 

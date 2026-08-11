@@ -244,6 +244,7 @@
       wire();
       if(keepMenu){ keepMenu=false; openColMenu(); }
       if(state._focusFilter){ var _sel='[data-filterkey="'+state._focusFilter+'"]'; var _ff=mount.querySelector('input[type="text"]'+_sel)||mount.querySelector('[data-fnumval]'+_sel)||mount.querySelector(_sel); state._focusFilter=null; if(_ff){ try{ _ff.focus(); var _l=String(_ff.value).length; _ff.setSelectionRange(_l,_l); }catch(e){} } }
+      if(opts.onFilterChange){ try{ opts.onFilterChange(activeFilterKeys().length, !!state._filterOpen); }catch(e){} }
     }
 
     function pageButtons(pc){
@@ -381,7 +382,9 @@
     if(!mount.__rlClose){ mount.__rlClose=true; document.addEventListener('click',function(e){ if(!e.target.closest('.rl-colwrap')){ var cm=$('.rl-colmenu',mount); if(cm) cm.hidden=true; var sm=$('.rl-savedmenu',mount); if(sm) sm.hidden=true; } if(!e.target.closest('.rl-morewrap')){ var mo=$('.rl-moremenu',mount); if(mo) mo.hidden=true; } }); }
 
     render();
-    return { refresh:function(newData){ state.data=newData||[]; state.sel={}; render(); }, getSelected:selectedIds, clearSelection:function(){ state.sel={}; render(); } };
+    return { refresh:function(newData){ state.data=newData||[]; state.sel={}; render(); }, getSelected:selectedIds, clearSelection:function(){ state.sel={}; render(); },
+      openFilter:function(){ state._filterOpen=true; render(); }, toggleFilter:function(){ state._filterOpen=!state._filterOpen; render(); }, closeFilter:function(){ state._filterOpen=false; render(); },
+      filterOpen:function(){ return !!state._filterOpen; }, activeFilterCount:function(){ return activeFilterKeys().length; } };
   }
 
   window.RRGList = { create:create, cmp:cmpVal };
