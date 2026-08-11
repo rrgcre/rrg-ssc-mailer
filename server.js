@@ -7895,6 +7895,23 @@ app.get('/api/admin/activity', requireAdmin, (req, res) => {
   const loginsOut = logins.map(l => ({ when: fmtWhen(l.timestamp), ts: l.timestamp||'', user: l.username||'', result: l.result||'', ip: l.ip||'' }));
   res.json({ ok:true, byTool: byToolOut, byUser: byUserOut, usage, logins: loginsOut });
 });
+// Quick record counts of the main data stores — the overview strip on the Activity page.
+app.get('/api/admin/record-counts', requireAdmin, (req, res) => {
+  const n = a => { try { return (a || []).length; } catch (e) { return 0; } };
+  res.json({ ok: true, counts: [
+    { key: 'contacts',   label: 'Contacts',          count: n(loadPeople()),     href: 'rrg_people.html',       primary: true },
+    { key: 'companies',  label: 'Companies',         count: n(loadCompanies()),  href: 'rrg_companies.html',    primary: true },
+    { key: 'listings',   label: 'Listings',          count: n(loadDeals()),      href: 'rrg_board.html',        primary: true },
+    { key: 'datarooms',  label: 'Data Rooms',        count: n(loadRooms()),      href: 'rrg_rooms_queue.html',  primary: true },
+    { key: 'files',      label: 'Uploaded Files',    count: n(loadUserFiles()),  href: 'rrg_documents.html' },
+    { key: 'valuations', label: 'Valuations',        count: n(loadBovs()),       href: 'rrg_bov_queue.html' },
+    { key: 'marketing',  label: 'Marketing Packs',   count: n(loadCims()),       href: 'rrg_cim_queue.html' },
+    { key: 'lois',       label: 'LOIs',              count: n(loadLois()),        href: 'rrg_documents.html' },
+    { key: 'agreements', label: 'Agreements',        count: n(loadAgreements()), href: 'rrg_agreements.html' },
+    { key: 'interviews', label: 'Seller Interviews', count: n(loadInterviews()) },
+    { key: 'screenings', label: 'Screening Calls',   count: n(loadScreens()) },
+  ] });
+});
 // Full tool-open + sign-in history for ONE user, for the sessions drill-down on the Activity page.
 app.get('/api/admin/user-activity', requireAdmin, (req, res) => {
   const user = String((req.query && req.query.user) || '').trim();
