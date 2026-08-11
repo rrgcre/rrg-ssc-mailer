@@ -283,7 +283,7 @@
   var st=document.createElement('style'); st.textContent='@keyframes sscspin{to{transform:rotate(360deg)}}'; (document.head||document.documentElement).appendChild(st);
   var v=document.createElement('div'); v.id='sscAutoVeil';
   v.style.cssText='position:fixed;inset:0;z-index:1180;background:#eef1f6;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;font:600 14px/1.4 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;color:#5a6478';
-  v.innerHTML='<div style="width:34px;height:34px;border-radius:50%;border:3px solid #d7deea;border-top-color:#DA2B1F;animation:sscspin .8s linear infinite"></div><div>Starting Call Mode…</div>';
+  v.innerHTML='<div style="width:34px;height:34px;border-radius:50%;border:3px solid #e6eaf1;border-top-color:#20334f;animation:sscspin .8s linear infinite"></div><div>Starting Call Mode…</div>';
   (document.body||document.documentElement).appendChild(v);
   window.__sscHideVeil=function(){ var e=document.getElementById('sscAutoVeil'); if(e) e.remove(); };
   setTimeout(window.__sscHideVeil, 8000);              // safety — never trap the user behind the veil
