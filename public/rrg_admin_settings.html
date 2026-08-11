@@ -168,12 +168,7 @@ function loadOrg(){ get('/api/admin/org').then(function(j){ if(!j||!j.ok||!j.org
 function saveOrg(){ var m=document.getElementById('orgMsg'); m.textContent='Saving…'; m.className='msg'; var g=function(id){ var e=document.getElementById(id); return e?e.value:''; }; post('/api/admin/org',{name:g('org_name'),legalName:g('org_legal'),address:g('org_address'),city:g('org_city'),state:g('org_state'),zip:g('org_zip'),phone:g('org_phone'),email:g('org_email'),website:g('org_website'),license:g('org_license')}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; m.className='msg ok'; } else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; } }).catch(function(){ m.textContent='Could not reach the server.'; m.className='msg err'; }); }
 function build(){
   document.getElementById('root').innerHTML=
-    '<div class="sectionhd">Customization</div>'
-    +'<div class="card"><div class="ch"><b>Type lists</b><span>— main interests, company types, and request categories used across the app</span></div><div class="cb">'
-    +'<div id="typesBox"></div>'
-    +'<div class="btnrow"><button class="btn" id="typesSave">Save type lists</button><button class="btn ghost" id="typesReset">Reset to defaults</button><span class="msg" id="typesMsg"></span></div>'
-    +'<div class="note">Renaming a value here does not change contacts already saved with the old value.</div>'
-    +'</div></div>'
+    '<div class="sectionhd">Brokerage</div>'
     +'<div class="card"><div class="ch"><b>Brokerage / Organization</b><span>&mdash; your firm’s name, address and contact — used on agreements, BOVs and outbound email</span></div><div class="cb">'
     +'<div class="grid2">'
     +'<div><label class="fld">Brokerage name</label><input id="org_name" placeholder="e.g. Acme Commercial Realty"></div>'
@@ -188,6 +183,12 @@ function build(){
     +'</div>'
     +'<div class="btnrow"><button class="btn" id="orgSave">Save brokerage info</button><span class="msg" id="orgMsg"></span></div>'
     +'<div class="note">This is your firm’s identity for white-label documents and emails. The display brand name and logo are set in the Admin console; this captures the legal and contact details.</div>'
+    +'</div></div>'
+    +'<div class="sectionhd">Customization</div>'
+    +'<div class="card"><div class="ch"><b>Type lists</b><span>— main interests, company types, and request categories used across the app</span></div><div class="cb">'
+    +'<div id="typesBox"></div>'
+    +'<div class="btnrow"><button class="btn" id="typesSave">Save type lists</button><button class="btn ghost" id="typesReset">Reset to defaults</button><span class="msg" id="typesMsg"></span></div>'
+    +'<div class="note">Renaming a value here does not change contacts already saved with the old value.</div>'
     +'</div></div>'
     +'<div class="card"><div class="ch"><b>Tool names</b><span>— rename any tool as it appears on the dashboard (e.g. call &ldquo;Contacts&rdquo; &ldquo;People&rdquo;)</span></div><div class="cb">'
     +'<div id="toolLabelsBox"></div>'
