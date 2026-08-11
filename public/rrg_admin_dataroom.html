@@ -5,61 +5,137 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RRG — Data Room</title>
 <style>
-:root{--navy:#0b1636;--navy2:#16346e;--red:#C0261B;--ink:#141a29;--dim:#5f6a7d;--soft:#8a93a3;--line:#e5e9f1;--wash:#f5f7fb;--green:#1f8a5b;}
+:root{--navy:#20334f;--navy2:#23496f;--primary:#2c5c8f;--red:#b23a2c;--ink:#2b3648;--dim:#5f6a7d;--soft:#8a93a3;--line:#dbe0e9;--wash:#f4f6f9;--green:#2f7a55;--inp:#c4ccda;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.wrap{max-width:720px;margin:0 auto;padding:26px 26px 60px;}
-h1{font-size:20px;font-weight:800;color:var(--navy);margin:0;}
-.sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.5;max-width:620px;}
-.row{display:flex;align-items:flex-start;gap:14px;border:1px solid var(--line);border-radius:13px;padding:16px 18px;margin-top:14px;}
+.wrap{max-width:760px;margin:0 auto;padding:24px 26px 60px;}
+h1{font-size:19px;font-weight:800;color:var(--navy);margin:0;}
+.sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.5;max-width:640px;}
+.card{border:1px solid var(--line);border-radius:6px;background:#fff;margin-top:18px;overflow:hidden;}
+.cardh{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 16px;font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);}
+.cardb{padding:2px 16px 14px;}
+.row{display:flex;align-items:flex-start;gap:14px;border-top:1px solid var(--line);padding:15px 2px;}
+.cardb .row:first-child{border-top:none;}
 .row .tx{flex:1;}
-.row .tx b{font-size:15px;color:var(--navy);font-weight:800;}
-.row .tx p{font-size:13px;color:var(--dim);margin:5px 0 0;line-height:1.55;}
-.switch{position:relative;display:inline-block;width:46px;height:26px;flex:none;margin-top:2px;}
+.row .tx b{font-size:14px;color:var(--navy);font-weight:700;}
+.row .tx p{font-size:12.5px;color:var(--dim);margin:4px 0 0;line-height:1.55;}
+.switch{position:relative;display:inline-block;width:44px;height:24px;flex:none;margin-top:2px;}
 .switch input{opacity:0;width:0;height:0;}
-.sl{position:absolute;cursor:pointer;inset:0;background:#c6cede;border-radius:26px;transition:.15s;}
-.sl:before{position:absolute;content:"";height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
+.sl{position:absolute;cursor:pointer;inset:0;background:#c6cede;border-radius:24px;transition:.15s;}
+.sl:before{position:absolute;content:"";height:18px;width:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.3);}
 .switch input:checked+.sl{background:var(--green);}
 .switch input:checked+.sl:before{transform:translateX(20px);}
-.msg{font-size:12.5px;font-weight:600;margin-top:14px;min-height:16px;}
-.note{font-size:12px;color:var(--soft);margin-top:16px;line-height:1.55;}
+label.fl{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin:14px 0 6px;}
+input.tin,textarea.tin{width:100%;border:1px solid var(--inp);border-radius:4px;padding:10px 12px;font:inherit;font-size:13.5px;background:#fff;color:var(--ink);}
+textarea.tin{min-height:190px;resize:vertical;line-height:1.55;}
+input.tin:focus,textarea.tin:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(44,92,143,.15);}
+.chips{margin:9px 0 2px;display:flex;flex-wrap:wrap;gap:7px;}
+.chip{font-size:11.5px;font-weight:700;color:var(--navy2);background:#eef2f7;border:1px solid #d3dbe6;border-radius:3px;padding:4px 10px;cursor:pointer;}
+.chip:hover{background:#e3ebf3;}
+.savebar{display:flex;align-items:center;gap:12px;margin-top:16px;}
+.savebtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:9px 18px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;}
+.savebtn:disabled{opacity:.5;cursor:default;}
+.resetbtn{background:#fff;color:#33415c;border:1px solid var(--inp);border-radius:3px;padding:9px 15px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
+.msg{font-size:12.5px;font-weight:600;min-height:16px;}
+.note{font-size:12px;color:var(--soft);margin-top:14px;line-height:1.6;}
+.hint{font-size:12px;color:var(--dim);margin:0 0 12px;line-height:1.55;}
 .gate{color:var(--dim);font-size:13.5px;padding:30px 0;}
 </style>
+<script src="/rrg_rte.js"></script>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
 <div class="wrap" id="root"><div class="gate">Loading…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
-var CFG=null;
+var CFG=null, ADMIN=false, A_SUBJ='', A_BODY='';
 var ITEMS=[
   {k:'mfa', title:'🔐 Buyer verification (2-step)', desc:'Require buyers to enter a one-time code emailed to them, on top of their access code — so only someone with the code and the inbox can open a room. This is the firm-wide default; you can override it on any individual room.'},
   {k:'alerts', title:'🔔 Real-time buyer alerts', desc:'Email the room owner the moment a buyer first opens a key document (P&amp;L, financials, lease, tax returns) — once per buyer per document, so it stays a signal, not noise.'},
   {k:'watermark', title:'🛡️ Download watermarking', desc:'Stamp every PDF download on every page with the buyer’s name, email, timestamp and your firm — so a leaked document traces straight back to who pulled it.'}
 ];
+var A_CHIPS=['{{buyer}}','{{action}}','{{document}}','{{business}}','{{roomLink}}','{{org}}'];
+
 function render(){
   var c=CFG||{};
+  var toggles=ITEMS.map(function(it){ var on=(c[it.k]!==false);
+    return '<div class="row"><div class="tx"><b>'+it.title+'</b><p>'+it.desc+'</p></div>'
+      +'<label class="switch"><input type="checkbox" data-k="'+it.k+'" '+(on?'checked':'')+'><span class="sl"></span></label></div>'; }).join('');
+
+  var alertCard = ADMIN ? (
+      '<div class="card"><div class="cardh">Real-time alert email</div><div class="cardb">'
+      +'<p class="hint">This is the message emailed to the room owner when a buyer opens or downloads a key document. It only sends while <b>Real-time buyer alerts</b> (above) is on. Use the placeholders below — they fill in automatically and the room link becomes clickable. Changes apply firm-wide.</p>'
+      +'<label class="fl">Subject</label><input class="tin" id="aSubj" value="'+esc(A_SUBJ)+'">'
+      +'<label class="fl">Message</label>'+(window.RRGRte?RRGRte.html('aBody',{value:A_BODY,placeholder:'Write the alert message…'}):('<textarea class="tin" id="aBody">'+esc(A_BODY)+'</textarea>'))
+      +'<div class="chips" id="aChips"></div>'
+      +'<div class="savebar"><button class="savebtn" id="aSave">Save alert email</button><button class="resetbtn" id="aReset">Reset to default</button><span class="msg" id="aMsg"></span></div>'
+      +'<div class="note">Placeholders: <b>{{buyer}}</b> the buyer’s name · <b>{{action}}</b> opened / downloaded · <b>{{document}}</b> the document name · <b>{{business}}</b> the data-room / business name · <b>{{roomLink}}</b> a link to the room · <b>{{org}}</b> your company. Click a chip to insert it where your cursor is.</div>'
+      +'</div></div>'
+    ) : '';
+
   document.getElementById('root').innerHTML=''
     +'<h1>Data Room</h1>'
-    +'<div class="sub">Firm-wide security defaults for every data room. These apply to all rooms unless a room overrides them individually. All three are on by default.</div>'
-    +ITEMS.map(function(it){ var on=(c[it.k]!==false);
-      return '<div class="row"><div class="tx"><b>'+it.title+'</b><p>'+it.desc+'</p></div>'
-        +'<label class="switch"><input type="checkbox" data-k="'+it.k+'" '+(on?'checked':'')+'><span class="sl"></span></label></div>'; }).join('')
-    +'<div class="msg" id="msg"></div>'
+    +'<div class="sub">Firm-wide security defaults for every data room, and the alert email your team receives. Defaults apply to all rooms unless a room overrides them individually.</div>'
+    +'<div class="card"><div class="cardh">Security defaults</div><div class="cardb">'+toggles+'</div></div>'
+    +'<div class="msg" id="msg" style="margin-top:12px"></div>'
+    +alertCard
     +'<div class="note">Buyer verification can be overridden per room from the room’s own page (Buyers &amp; access). Alerts and watermarking are firm-wide. Turning a setting off applies to new activity going forward.</div>';
-  [].slice.call(document.querySelectorAll('input[data-k]')).forEach(function(inp){ inp.addEventListener('change',function(){ save(inp.getAttribute('data-k'), inp.checked, inp); }); });
+
+  [].slice.call(document.querySelectorAll('input[data-k]')).forEach(function(inp){ inp.addEventListener('change',function(){ saveToggle(inp.getAttribute('data-k'), inp.checked, inp); }); });
+  if(ADMIN) wireAlertEditor();
 }
-function save(key,val,inp){
+
+function saveToggle(key,val,inp){
   var m=document.getElementById('msg'); m.style.color='#5f6a7d'; m.textContent='Saving…';
   var body={}; body[key]=!!val;
   fetch('/api/admin/dataroom',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
-    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CFG=j; m.style.color='#1f8a5b'; m.textContent='Saved ✓'; setTimeout(function(){ if(m.textContent==='Saved ✓') m.textContent=''; },1600); }
-      else { if(inp) inp.checked=!val; m.style.color='#C0261B'; m.textContent=(j&&j.error)||'Could not save.'; } })
-    .catch(function(){ if(inp) inp.checked=!val; m.style.color='#C0261B'; m.textContent='Could not reach the server.'; });
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CFG=j; m.style.color='#2f7a55'; m.textContent='Saved ✓'; setTimeout(function(){ if(m.textContent==='Saved ✓') m.textContent=''; },1600); }
+      else { if(inp) inp.checked=!val; m.style.color='#b23a2c'; m.textContent=(j&&j.error)||'Could not save.'; } })
+    .catch(function(){ if(inp) inp.checked=!val; m.style.color='#b23a2c'; m.textContent='Could not reach the server.'; });
 }
-fetch('/api/admin/dataroom',{credentials:'same-origin',cache:'no-store'}).then(function(r){ if(r.status===401||r.status===403) throw new Error('admin'); return r.json(); }).then(function(j){
+
+function wireAlertEditor(){
+  if(window.RRGRte) RRGRte.wire('aBody');
+  document.getElementById('aChips').innerHTML=A_CHIPS.map(function(c){ return '<span class="chip" data-c="'+c+'">'+c+'</span>'; }).join('');
+  var _range=null;
+  (function(){ var ed=document.getElementById('aBody'); if(!ed||!ed.isContentEditable) return; function keep(){ var s=window.getSelection&&window.getSelection(); if(s&&s.rangeCount&&ed.contains(s.anchorNode)) _range=s.getRangeAt(0).cloneRange(); } ed.addEventListener('keyup',keep); ed.addEventListener('mouseup',keep); ed.addEventListener('blur',keep); })();
+  function insertChip(c){
+    var ed=document.getElementById('aBody'); if(!ed) return;
+    if(ed.isContentEditable){
+      ed.focus(); var sel=window.getSelection();
+      if(_range){ try{ sel.removeAllRanges(); sel.addRange(_range); }catch(e){} }
+      var range=(sel&&sel.rangeCount)?sel.getRangeAt(0):null;
+      if(!range||!ed.contains(range.commonAncestorContainer)){ range=document.createRange(); range.selectNodeContents(ed); range.collapse(false); sel.removeAllRanges(); sel.addRange(range); }
+      var node=document.createTextNode(c); range.deleteContents(); range.insertNode(node);
+      range.setStartAfter(node); range.setEndAfter(node); sel.removeAllRanges(); sel.addRange(range); _range=range.cloneRange();
+      try{ ed.dispatchEvent(new Event('input',{bubbles:true})); }catch(e){}
+    } else {
+      var s=ed.selectionStart||ed.value.length, e=ed.selectionEnd||ed.value.length; ed.value=ed.value.slice(0,s)+c+ed.value.slice(e); ed.selectionStart=ed.selectionEnd=s+c.length;
+    }
+  }
+  document.querySelectorAll('#aChips .chip').forEach(function(ch){ ch.addEventListener('mousedown',function(e){ e.preventDefault(); }); ch.addEventListener('click',function(){ insertChip(ch.getAttribute('data-c')); }); });
+  document.getElementById('aSave').addEventListener('click',function(){ var bodyVal=(window.RRGRte?RRGRte.get('aBody'):((document.getElementById('aBody')||{}).value||'')); saveAlert({ subject:document.getElementById('aSubj').value, body:bodyVal }); });
+  document.getElementById('aReset').addEventListener('click',function(){ saveAlert({reset:true}); });
+}
+function saveAlert(payload){
+  payload=payload||{};
+  var b=document.getElementById('aSave'), m=document.getElementById('aMsg'); if(b) b.disabled=true; m.textContent='';
+  fetch('/api/admin/room-alert-email',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)})
+    .then(function(r){return r.json();}).then(function(j){ if(b) b.disabled=false;
+      if(j&&j.ok){ A_SUBJ=j.subject; A_BODY=j.body; if(payload.reset){ render(); } else { var el=document.getElementById('aSubj'); if(el) el.value=A_SUBJ; if(!window.RRGRte){ var bd=document.getElementById('aBody'); if(bd) bd.value=A_BODY; } } m.style.color='#2f7a55'; m.textContent=payload.reset?'Reset to default ✓':'Saved ✓'; setTimeout(function(){m.textContent='';},1900); }
+      else { m.style.color='#b23a2c'; m.textContent=(j&&j.error)||'Could not save.'; } })
+    .catch(function(){ if(b) b.disabled=false; m.style.color='#b23a2c'; m.textContent='Could not reach the server.'; });
+}
+
+Promise.all([
+  fetch('/api/admin/dataroom',{credentials:'same-origin',cache:'no-store'}).then(function(r){ if(r.status===401||r.status===403) throw new Error('admin'); return r.json(); }),
+  fetch('/api/admin/room-alert-email',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).catch(function(){ return null; })
+]).then(function(res){
+  var j=res[0], a=res[1];
   if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load data room settings.</div>'; return; }
-  CFG=j; render();
+  CFG=j;
+  if(a&&a.ok){ A_SUBJ=a.subject||''; A_BODY=a.body||''; ADMIN=!!a.isAdmin; }
+  render();
 }).catch(function(e){ document.getElementById('root').innerHTML='<div class="gate">'+((e&&e.message==='admin')?'Data room settings are limited to administrators.':'Could not reach the server.')+'</div>'; });
 </script>
 </body>

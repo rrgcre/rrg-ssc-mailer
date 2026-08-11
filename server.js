@@ -3679,14 +3679,11 @@ function notifyRoomActivity(r, grant, doc, event, req) {
     const origin = (req && req.get) ? (req.protocol + '://' + req.get('host')) : '';
     const roomUrl = origin ? (origin + '/rrg_room.html?room=' + r.id) : '';
     const verb = event === 'download' ? 'downloaded' : 'opened';
-    const subject = org + ' — buyer activity: ' + buyer + ' ' + verb + ' ' + name;
-    const text = buyer + ' just ' + verb + ' "' + name + '" in the ' + biz + ' data room.\n\nThat is one of the key documents — they may be getting serious. Worth a follow-up.\n\n' + roomUrl + '\n\n— ' + org;
-    const html = '<div style="font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.55;color:#1a2236">'
-      + '<p>🔥 <b>' + esc(buyer) + '</b> just ' + esc(verb) + ' <b>' + esc(name) + '</b> in the <b>' + esc(biz) + '</b> data room.</p>'
-      + '<p>That is one of the key documents — they may be getting serious. Worth a follow-up.</p>'
-      + (roomUrl ? ('<p><a href="' + esc(roomUrl) + '" style="color:#1155cc;text-decoration:underline">Open the data room</a></p>') : '')
-      + '<p style="color:#8a93a3">— ' + esc(org) + '</p></div>';
-    const p = sendMailWL({ from: mailFrom(), to, subject, text, html });
+    const tmpl = effRoomAlertEmail();
+    const vars = { buyer: buyer, action: verb, document: name, business: biz, roomLink: roomUrl, org: org };
+    const subject = fillTemplate(tmpl.subject, vars);
+    const rendered = sellerEmailRender(tmpl.body, vars);   // supports rich-text or plain; linkifies the room URL
+    const p = sendMailWL({ from: mailFrom(), to, subject: subject, text: rendered.text, html: rendered.html });
     if (p && p.catch) p.catch(e => console.error('room alert send:', e && e.message));
   } catch (e) { console.error('notifyRoomActivity:', e && e.message); }
 }
@@ -5656,6 +5653,19 @@ function effRoomInviteEmail() {
     body: (typeof k.body === 'string' && k.body.trim()) ? k.body : ROOM_INVITE_EMAIL_DEFAULT.body,
   };
 }
+// Admin-editable real-time buyer-alert email (sent to the room owner when a buyer opens/downloads
+// a key doc). Placeholders: {{buyer}} {{action}} {{document}} {{business}} {{roomLink}} {{org}}.
+const ROOM_ALERT_EMAIL_DEFAULT = {
+  subject: '{{org}} — buyer activity: {{buyer}} {{action}} {{document}}',
+  body: '🔥 {{buyer}} just {{action}} "{{document}}" in the {{business}} data room.\n\nThat is one of the key documents — they may be getting serious. Worth a follow-up.\n\n{{roomLink}}\n\n— {{org}}',
+};
+function effRoomAlertEmail() {
+  const st = loadSettings(); const k = (st.roomAlertEmail && typeof st.roomAlertEmail === 'object') ? st.roomAlertEmail : {};
+  return {
+    subject: (typeof k.subject === 'string' && k.subject.trim()) ? k.subject : ROOM_ALERT_EMAIL_DEFAULT.subject,
+    body: (typeof k.body === 'string' && k.body.trim()) ? k.body : ROOM_ALERT_EMAIL_DEFAULT.body,
+  };
+}
 // Legacy single-store maps to the interview (valuation) email so nothing existing breaks.
 function effSellerIntakeEmail(kind) {
   kind = linkKind(kind);
@@ -5714,6 +5724,16 @@ app.post('/api/admin/room-invite-email', express.json({ limit: '64kb' }), (req, 
   s.roomInviteEmail = { subject: String(b.subject || '').slice(0, 300), body: String(b.body || '').slice(0, 20000) };
   saveSettings(s);
   const t = effRoomInviteEmail(); res.json({ ok: true, subject: t.subject, body: t.body });
+});
+// Real-time buyer-alert email — admin editable.
+app.get('/api/admin/room-alert-email', (req, res) => { const t = effRoomAlertEmail(); res.json({ ok: true, subject: t.subject, body: t.body, defaults: ROOM_ALERT_EMAIL_DEFAULT, isAdmin: !!(req.user && isSuper(req.user)) }); });
+app.post('/api/admin/room-alert-email', express.json({ limit: '64kb' }), (req, res) => {
+  if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admins only.' });
+  const b = req.body || {}; const s = loadSettings();
+  if (b.reset) { delete s.roomAlertEmail; saveSettings(s); const t = effRoomAlertEmail(); return res.json({ ok: true, subject: t.subject, body: t.body }); }
+  s.roomAlertEmail = { subject: String(b.subject || '').slice(0, 300), body: String(b.body || '').slice(0, 20000) };
+  saveSettings(s);
+  const t = effRoomAlertEmail(); res.json({ ok: true, subject: t.subject, body: t.body });
 });
 // ===== Seller interview recordings -> S3 (lazy-loaded so a missing dep never blocks boot) =====
 let _s3 = null, _s3ok = null;
