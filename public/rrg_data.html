@@ -113,10 +113,10 @@ function render(S){
   var root=document.getElementById('root'); root.className='wrap';
   var strip=''
     +'<div class="stat"><div class="n">'+n(S.companies)+'</div><div class="l">Companies</div></div>'
-    +'<div class="stat"><div class="n">'+n(S.contacts)+'</div><div class="l">Contacts</div></div>'
+    +'<div class="stat"><div class="n">'+n(S.missingLogo)+'</div><div class="l">Missing a logo</div></div>'
     +'<div class="stat"><div class="n">'+n(S.locations)+'</div><div class="l">Locations</div></div>'
     +'<div class="stat"><div class="n">'+n(S.locationsEnriched)+'</div><div class="l">Enriched w/ Google</div></div>'
-    +'<div class="stat"><div class="n">'+n(S.missingLogo)+'</div><div class="l">Missing a logo</div></div>';
+    +'<div class="stat"><div class="n">'+n(S.contacts)+'</div><div class="l">Contacts</div></div>';
   var wf='<div class="wf"><span class="lab">Recommended order</span>'
     +'<span class="wfstep"><span class="wfn">1</span>Clean up</span><span class="wfar">→</span>'
     +'<span class="wfstep"><span class="wfn">2</span>Find duplicates</span><span class="wfar">→</span>'

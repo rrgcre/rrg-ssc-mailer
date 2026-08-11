@@ -5,47 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>FullServe — Find Logos</title>
 <style>
-:root{--bg:#eef1f7;--card:#fff;--line:#e3e8f1;--ink:#14213d;--dim:#66738f;--faint:#93a0ba;--navy:#16346e;--blue:#2f6fd0;--green:#1f8a5b;--red:#DA2B1F;}
-*{box-sizing:border-box;} html,body{margin:0;padding:0;background:var(--bg);}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.top{background:radial-gradient(90% 130% at 25% 10%,#22346a,#152752 42%,#0b1636 72%,#060f26 100%);color:#fff;padding:26px 0 24px;}
-.top-in{max-width:1120px;margin:0 auto;padding:0 24px;}
-.disc{background:var(--red);color:#fff;border-radius:50%;width:40px;height:40px;font-family:'Arial Black',Arial;font-weight:900;font-size:13px;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em;cursor:pointer;}
-.kicker{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#8fa2c4;font-weight:800;margin:14px 0 4px;}
-h1{margin:0;font-size:27px;font-weight:800;} .sub{color:#aeb8cf;font-size:13px;margin-top:6px;max-width:720px;line-height:1.5;}
-.wrap{max-width:1120px;margin:20px auto;padding:0 24px 70px;}
-.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;box-shadow:0 1px 2px rgba(16,32,70,.04);}
+:root{--navy:#20334f;--navy2:#23496f;--primary:#2c5c8f;--primary-d:#23496f;--ink:#2b3648;--dim:#5f6a7d;--soft:#8a93a3;--faint:#96a1b2;--line:#dbe0e9;--wash:#f4f6f9;--green:#2f7a55;--red:#b23a2c;--inp:#c4ccda;--amber:#8a5a12;--teal:#0b7285;--bg:#fff;--card:#fff;--blue:var(--primary);}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:13px;}
+.phead{max-width:1120px;margin:0 auto;padding:24px 24px 2px;}
+h1{margin:0;font-size:19px;font-weight:800;color:var(--navy);} .sub{color:var(--dim);font-size:12.5px;margin-top:5px;max-width:720px;line-height:1.5;}
+.wrap{max-width:1120px;margin:0 auto;padding:16px 24px 70px;}
+.bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;background:var(--wash);border:1px solid var(--line);border-radius:6px;padding:12px 16px;}
 .bar .cnt{font-size:13px;color:var(--dim);font-weight:600;}
-.btn{background:#fff;color:var(--navy);border:1px solid #cdd6e6;border-radius:9px;padding:9px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;} .btn:hover{background:#f4f7fb;} .btn.green{background:var(--green);color:#fff;border-color:var(--green);} .btn.green:hover{background:#186f48;} .btn:disabled{opacity:.5;cursor:default;}
+.btn{background:#fff;color:var(--navy);border:1px solid var(--inp);border-radius:3px;padding:9px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;} .btn:hover{background:var(--wash);} .btn.green{background:var(--green);color:#fff;border-color:var(--green);} .btn.green:hover{filter:brightness(1.06);} .btn:disabled{opacity:.5;cursor:default;}
 .bar .sp{margin-left:auto;display:flex;gap:9px;align-items:center;}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
-.lc{background:#fff;border:1px solid var(--line);border-radius:13px;padding:14px;box-shadow:0 1px 2px rgba(16,32,70,.04);cursor:pointer;transition:.12s;position:relative;}
-.lc:hover{border-color:#cdd6e6;} .lc.on{border-color:var(--green);box-shadow:0 0 0 2px rgba(31,138,91,.18);} .lc.dead{opacity:.55;}
-.lc .logobox{height:76px;display:flex;align-items:center;justify-content:center;background:#f7f9fc;border:1px solid #eef1f6;border-radius:10px;margin-bottom:11px;overflow:hidden;}
+.lc{background:#fff;border:1px solid var(--line);border-radius:6px;padding:14px;cursor:pointer;transition:.12s;position:relative;}
+.lc:hover{border-color:var(--primary);} .lc.on{border-color:var(--primary);box-shadow:inset 0 0 0 2px rgba(44,92,143,.5);} .lc.dead{opacity:.55;}
+.lc .logobox{height:76px;display:flex;align-items:center;justify-content:center;background:var(--wash);border:1px solid var(--line);border-radius:6px;margin-bottom:11px;overflow:hidden;}
 .lc .logobox img{max-width:88%;max-height:60px;object-fit:contain;}
-.lc .ph{width:48px;height:48px;border-radius:11px;background:#e7ecf5;color:#8a96ab;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;}
+.lc .ph{width:48px;height:48px;border-radius:6px;background:#eef2f7;color:var(--soft);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:17px;}
 .lc .nm{font-weight:700;font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .lc .ws{font-size:11.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
-.lc .chk{position:absolute;top:11px;right:11px;width:22px;height:22px;border-radius:6px;border:1.5px solid #cdd6e6;background:#fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;}
-.lc.on .chk{background:var(--green);border-color:var(--green);}
+.lc .chk{position:absolute;top:11px;right:11px;width:22px;height:22px;border-radius:4px;border:1.5px solid var(--inp);background:#fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;}
+.lc.on .chk{background:var(--primary);border-color:var(--primary);}
 .empty{text-align:center;color:var(--dim);padding:50px 20px;} .empty b{color:var(--navy);display:block;font-size:16px;margin-bottom:6px;}
 .msg{font-size:13px;font-weight:700;} .msg.ok{color:var(--green);}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);}
-.lc .aibadge{position:absolute;top:11px;left:11px;font-size:9px;font-weight:800;letter-spacing:.05em;color:#fff;background:linear-gradient(135deg,#6d5bc0,#2f6fd0);border-radius:100px;padding:2px 7px;}
-.crumb{font-size:12px;color:#9fb0d0;font-weight:600;margin-bottom:12px;} .crumb a{color:#c7d3ea;text-decoration:none;} .crumb a:hover{color:#fff;text-decoration:underline;} .crumb span{color:#6a7ba0;margin:0 7px;}
-.navcrumb{display:none;max-width:1180px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:#66738f;font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:#2f6fd0;text-decoration:none;} .navcrumb a:hover{text-decoration:underline;} .navcrumb span{color:#93a0ba;margin:0 7px;}
+.lc .aibadge{position:absolute;top:11px;left:11px;font-size:9px;font-weight:800;letter-spacing:.05em;color:#fff;background:linear-gradient(135deg,#5a3d9e,var(--primary));border-radius:100px;padding:2px 7px;}
+.crumb{font-size:12px;color:var(--dim);font-weight:600;margin-bottom:12px;} .crumb a{color:var(--primary);text-decoration:none;} .crumb a:hover{text-decoration:underline;} .crumb span{color:var(--faint);margin:0 7px;}
+.navcrumb{display:none;max-width:1180px;margin:16px auto -2px;padding:0 24px;font-size:12.5px;color:var(--dim);font-weight:600;} body.rrg-shelled .navcrumb{display:block;} .navcrumb a{color:var(--primary);text-decoration:none;} .navcrumb a:hover{text-decoration:underline;} .navcrumb span{color:var(--faint);margin:0 7px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
 <!--rrgback--><a href="./index.html" class="rrg-back" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
-<div class="top"><div class="top-in">
+<div class="phead">
   <div class="crumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_data.html">Data Enrichment</a><span>›</span>Find Logos</div>
-  <span class="disc" onclick="location.href='./index.html'">RRG</span>
-  <div class="kicker">Enrichment</div>
   <h1>Find Company Logos</h1>
   <div class="sub">We fetch a logo for every company that has a website. Review them below — <b>approve the good ones, skip the rest</b> — then apply. Nothing changes until you hit Apply.</div>
-</div></div>
+</div>
 <div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_data.html">Data Enrichment</a><span>›</span>Find Logos</div>
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
