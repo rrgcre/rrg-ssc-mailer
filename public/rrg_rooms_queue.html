@@ -84,9 +84,12 @@ tr:hover td{background:#fbfcfe;}
     <div class="rmbd">
       <label class="rfld">Dataroom name</label>
       <input id="nr_name" placeholder="e.g. Magnolia Pancake Haus">
-      <label class="rfld">Originating contact <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)">— the seller / owner (optional)</span></label>
+      <label class="rfld">Contact <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)">— the seller / owner (required)</span></label>
       <input id="nr_contact" list="nr_contacts" autocomplete="off" placeholder="Type a contact name…">
       <datalist id="nr_contacts"></datalist>
+      <label class="rfld">Listing <span style="font-weight:500;text-transform:none;letter-spacing:0;color:var(--muted)">— link to an existing listing (optional)</span></label>
+      <input id="nr_listing" list="nr_listings" autocomplete="off" placeholder="Type a listing name…">
+      <datalist id="nr_listings"></datalist>
       <div class="rrow2">
         <div><label class="rfld">Rep</label><select id="nr_rep"></select></div>
         <div><label class="rfld">Date</label><input type="date" id="nr_date"></div>
@@ -101,7 +104,7 @@ tr:hover td{background:#fbfcfe;}
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
-var CTL=null, LINKS={}, USERS=[], ME=null, CONTACTS=[], CONTACTS_LOADED=false;
+var CTL=null, LINKS={}, USERS=[], ME=null, CONTACTS=[], CONTACTS_LOADED=false, LISTINGS=[], LISTINGS_LOADED=false;
 function toast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); },1400); }
 function copyLink(id){ var url=LINKS[id]||''; if(!url) return; function ok(){ toast('Buyer link copied ✓'); } if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(ok).catch(function(){ prompt('Copy the buyer link:', url); }); } else { prompt('Copy the buyer link:', url); } }
 function buyerView(id){ var url=LINKS[id]||''; if(!url){ url='./rrg_room.html?room='+encodeURIComponent(id); window.open(url,'_blank','noopener'); return; } url += (url.indexOf('?')>=0?'&':'?')+'preview=1'; window.open(url,'_blank','noopener'); }
@@ -109,6 +112,7 @@ function newRoom(){
   var m=document.getElementById('newRoomModal'); if(!m) return;
   document.getElementById('nr_name').value='';
   document.getElementById('nr_contact').value='';
+  var _nl=document.getElementById('nr_listing'); if(_nl) _nl.value='';
   var rep=document.getElementById('nr_rep');
   rep.innerHTML=(USERS||[]).map(function(u){ return '<option value="'+esc(u.username)+'">'+esc(u.name)+'</option>'; }).join('');
   if(ME&&ME.username){ rep.value=ME.username; }
@@ -116,6 +120,7 @@ function newRoom(){
   var msg=document.getElementById('nr_msg'); msg.textContent=''; msg.style.color='';
   var b=document.getElementById('nr_create'); b.disabled=false; b.textContent='Create data room';
   loadContactsOnce();
+  loadListingsOnce();
   m.removeAttribute('hidden');
   setTimeout(function(){ try{ document.getElementById('nr_name').focus(); }catch(e){} },30);
 }
@@ -127,13 +132,24 @@ function loadContactsOnce(){
     if(dl) dl.innerHTML=CONTACTS.map(function(p){ return '<option value="'+esc(p.name)+'"></option>'; }).join('');
   }).catch(function(){ CONTACTS_LOADED=false; });
 }
+function loadListingsOnce(){
+  if(LISTINGS_LOADED) return; LISTINGS_LOADED=true;
+  fetch('/api/assignments',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    LISTINGS=((j&&j.assignments)||[]).filter(function(a){ return a && a.business; });
+    var dl=document.getElementById('nr_listings');
+    if(dl) dl.innerHTML=LISTINGS.map(function(a){ var lbl=a.business+(a.market?(' — '+a.market):''); return '<option value="'+esc(lbl)+'"></option>'; }).join('');
+  }).catch(function(){ LISTINGS_LOADED=false; });
+}
 function createRoomSubmit(){
   var msg=document.getElementById('nr_msg'); msg.style.color='';
   var name=document.getElementById('nr_name').value.trim();
   if(!name){ msg.textContent='Give the data room a name.'; return; }
   var cname=document.getElementById('nr_contact').value.trim();
+  if(!cname){ msg.textContent='Enter the contact (seller / owner).'; try{ document.getElementById('nr_contact').focus(); }catch(e){} return; }
   var pid=''; if(cname){ var hit=CONTACTS.filter(function(p){ return String(p.name||'').trim().toLowerCase()===cname.toLowerCase(); })[0]; if(hit) pid=hit.id; }
-  var body={ business:name, personId:pid, personName:(pid?'':cname), byUser:(document.getElementById('nr_rep').value||''), date:(document.getElementById('nr_date').value||'') };
+  var lval=(document.getElementById('nr_listing')?document.getElementById('nr_listing').value:'').trim(); var lkey='', llabel='';
+  if(lval){ var lh=LISTINGS.filter(function(a){ var full=(a.business+(a.market?(' — '+a.market):'')).toLowerCase(); return full===lval.toLowerCase() || String(a.business||'').trim().toLowerCase()===lval.toLowerCase(); })[0]; if(lh){ lkey=lh.key; llabel=lh.business||''; } }
+  var body={ business:name, personId:pid, personName:(pid?'':cname), byUser:(document.getElementById('nr_rep').value||''), date:(document.getElementById('nr_date').value||''), listingKey:lkey, listingLabel:llabel };
   var btn=document.getElementById('nr_create'); btn.disabled=true; btn.textContent='Creating…'; msg.textContent='';
   fetch('/api/room/new',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){

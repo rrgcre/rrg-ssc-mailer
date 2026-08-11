@@ -28,6 +28,7 @@ h1{margin:0;font-size:19px;font-weight:800;color:var(--navy);}
 .row{display:flex;align-items:center;gap:11px;margin:9px 0;} .row .nm{width:150px;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;} @media(max-width:520px){.row .nm{width:100px;}}
 .row .tk{flex:1;height:20px;background:var(--wash);border-radius:5px;overflow:hidden;} .row .tk i{display:block;height:100%;border-radius:5px;width:0;transition:width 1s ease;background:linear-gradient(90deg,var(--navy),var(--primary));}
 .row .vv{width:112px;text-align:right;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;} .row .vv b{color:var(--ink);}
+.row .vt{width:74px;text-align:right;font-size:12px;color:var(--dim);font-variant-numeric:tabular-nums;}
 .empty{color:var(--faint);font-size:12.5px;padding:16px 0;text-align:center;}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);}
 </style>
@@ -45,13 +46,14 @@ h1{margin:0;font-size:19px;font-weight:800;color:var(--navy);}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function n(v){return Number(v||0).toLocaleString('en-US');}
 function money(v){ v=Number(v||0); return '$'+v.toFixed(2); }
-var DATA=null, METRIC='calls', SPAN=30, GATEON=true;
+var DATA=null, SPAN=30, GATEON=true;
 function setGateState(on){ var s=document.getElementById('gateState'); if(s){ s.textContent=on?'On':'Off'; s.style.color=on?'var(--green,#1f8a5b)':'var(--soft,#8a93a8)'; } }
 function gateCard(){ return '<div class="panel" style="margin-bottom:16px"><div class="ph"><b>AI cost control</b><span class="tag" id="gateState"></span></div><label style="display:flex;align-items:flex-start;gap:12px;padding:6px 2px;cursor:pointer"><input type="checkbox" id="gateOn"'+(GATEON?' checked':'')+' style="width:18px;height:18px;margin-top:1px"><span><b style="font-size:13.5px">Confirm before heavy AI actions</b><div style="font-size:12px;color:var(--soft,#8a93a8);margin-top:2px;line-height:1.5">When on, reps get a quick “this uses AI — continue?” confirm before metered actions (find locations, build concepts, RRG Brief, LOI review). Metering keeps counting either way.</div></span></label></div>'; }
 var FEAT={'build-concepts':'Concept Builder','find-locations':'Location Finder','find-concepts':'Group Concepts','concept-resolve':'Concept Resolve','concept-intel':'Concept Intelligence','logo-ai':'Logo AI','consult':'Consult','brief':'RRG Brief','loi-review':'LOI Review','loi-suggest':'LOI Suggest','loi-parse':'LOI Parse','loi-counter':'LOI Counter','enrich-company':'Enrich Company','enrich-contact':'Enrich Contact','contact-prep':'Call Prep','concept':'Concept','site-read':'Site Read','calc-summary':'Calc Summary','placer':'Placer','space-intake':'Space Intake','space-match':'Space Match'};
 function fname(f){ return FEAT[f]||f; }
-function val(o){ return METRIC==='cost'? o.cost : o.calls; }
-function fmtv(v){ return METRIC==='cost'? money(v) : n(v); }
+function val(o){ return o.calls; }
+function spanDays(){ if(SPAN==='ytd'){ var now=new Date(); var jan1=Date.UTC(now.getUTCFullYear(),0,1); return Math.max(1,Math.round((Date.now()-jan1)/86400000)+1); } return Number(SPAN)||30; }
+function rangeLabel(){ if(SPAN===1) return 'today'; if(SPAN===7) return 'last 7 days'; if(SPAN==='ytd') return 'year to date'; if(SPAN===365) return 'last 12 months'; return 'last '+SPAN+' days'; }
 function kpi(){
   var d=DATA; var mtd=d.total||{calls:0,cost:0}, at=d.allTime||{calls:0,cost:0}, w=d.windows||{};
   return '<div class="kpis">'
@@ -62,11 +64,11 @@ function kpi(){
     +'</div>';
 }
 function daily(){
-  var arr=(DATA.daily||[]).slice(-SPAN);
+  var arr=(DATA.daily||[]).slice(-spanDays());
   var mx=Math.max.apply(null,arr.map(val).concat([1]));
   var bars=arr.map(function(o){ var v=val(o); var h=Math.max(0,Math.round(v/mx*100)); return '<div class="dbar'+(v?'':' z')+'" style="height:'+(v?Math.max(3,h):2)+'%" title="'+esc(o.date)+' · '+n(o.calls)+' calls · '+money(o.cost)+'"></div>'; }).join('');
   var first=arr[0]?arr[0].date:'', last=arr[arr.length-1]?arr[arr.length-1].date:'';
-  return '<div class="panel"><div class="ph"><b>By day</b><span class="tag">'+(SPAN===1?'today':(SPAN===7?'this week':('last '+SPAN+' days')))+' · '+METRIC+'</span></div><div class="dchart">'+bars+'</div><div class="dax"><span>'+esc(first)+'</span><span>'+esc(last)+'</span></div></div>';
+  return '<div class="panel"><div class="ph"><b>By day</b><span class="tag">'+rangeLabel()+' · call volume</span></div><div class="dchart">'+bars+'</div><div class="dax"><span>'+esc(first)+'</span><span>'+esc(last)+'</span></div></div>';
 }
 function hourly(){
   var b=[]; for(var i=0;i<24;i++) b.push({calls:0,cost:0});
@@ -76,32 +78,34 @@ function hourly(){
   var totC=0,totCost=0; b.forEach(function(o){ totC+=o.calls; totCost+=o.cost; });
   function hl(h){ return h===0?'12a':(h<12?h+'a':(h===12?'12p':(h-12)+'p')); }
   var bars=b.map(function(o,h){ var v=val(o); var ht=Math.max(0,Math.round(v/mx*100)); return '<div class="dbar'+(v?'':' z')+'" style="height:'+(v?Math.max(3,ht):2)+'%" title="'+hl(h)+' \u00b7 '+n(o.calls)+' calls \u00b7 '+money(o.cost)+'"></div>'; }).join('');
-  return '<div class="panel"><div class="ph"><b>By hour</b><span class="tag">today \u00b7 '+METRIC+' \u00b7 '+n(totC)+' calls'+(totCost?(' \u00b7 '+money(totCost)):'')+'</span></div><div class="dchart">'+bars+'</div><div class="dax"><span>12 AM</span><span>Noon</span><span>11 PM</span></div></div>';
+  return '<div class="panel"><div class="ph"><b>By hour</b><span class="tag">today \u00b7 '+n(totC)+' calls'+(totCost?(' \u00b7 '+money(totCost)):'')+'</span></div><div class="dchart">'+bars+'</div><div class="dax"><span>12 AM</span><span>Noon</span><span>11 PM</span></div></div>';
 }
+function fmtms(ms){ if(ms==null) return '—'; if(ms<1000) return ms+'ms'; var s=ms/1000; return (s<10?s.toFixed(1):Math.round(s))+'s'; }
 function rows(list, keyName){
-  if(!list.length) return '<div class="empty">No AI usage yet this month.</div>';
-  var mx=Math.max.apply(null,list.map(val).concat([1]));
-  return list.slice(0,12).map(function(o){ var v=val(o); var w=Math.round(v/mx*100); var label=keyName==='feature'?fname(o.feature):(o.name||'—'); return '<div class="row"><div class="nm" title="'+esc(label)+'">'+esc(label)+'</div><div class="tk"><i style="width:'+w+'%"></i></div><div class="vv"><b>'+fmtv(v)+'</b> '+(METRIC==='cost'?'':('· '+money(o.cost)))+'</div></div>'; }).join('');
+  if(!list.length) return '<div class="empty">No AI usage in this range.</div>';
+  var mx=Math.max.apply(null,list.map(function(o){return o.cost;}).concat([0.0001]));
+  return list.slice(0,12).map(function(o){ var w=Math.round((o.cost/mx)*100); var label=keyName==='feature'?fname(o.feature):(o.name||'—'); var vt=(keyName==='feature')?('<div class="vt" title="Average run time per call">'+fmtms(o.avgMs)+'</div>'):''; return '<div class="row"><div class="nm" title="'+esc(label)+'">'+esc(label)+'</div><div class="tk"><i style="width:'+w+'%"></i></div>'+vt+'<div class="vv"><b>'+n(o.calls)+'</b> · '+money(o.cost)+'</div></div>'; }).join('');
 }
 function render(){
   var root=document.getElementById('root'); root.className='wrap';
   root.innerHTML=gateCard()+kpi()
-    +'<div class="bar2"><div class="seg" id="mseg"><button data-m="calls" class="'+(METRIC==='calls'?'on':'')+'">Calls</button><button data-m="cost" class="'+(METRIC==='cost'?'on':'')+'">Est. cost</button></div>'
-    +'<div class="seg" id="sseg"><button data-s="1" class="'+(SPAN===1?'on':'')+'">Today</button><button data-s="7" class="'+(SPAN===7?'on':'')+'">This week</button><button data-s="30" class="'+(SPAN===30?'on':'')+'">30 days</button><button data-s="90" class="'+(SPAN===90?'on':'')+'">90 days</button></div>'
+    +'<div class="bar2"><div class="seg" id="sseg"><button data-s="1" class="'+(SPAN===1?'on':'')+'">Today</button><button data-s="7" class="'+(SPAN===7?'on':'')+'">This week</button><button data-s="30" class="'+(SPAN===30?'on':'')+'">30 days</button><button data-s="90" class="'+(SPAN===90?'on':'')+'">90 days</button><button data-s="ytd" class="'+(SPAN==='ytd'?'on':'')+'">YTD</button><button data-s="365" class="'+(SPAN===365?'on':'')+'">1 year</button></div>'
     +'<span class="sp"></span><a class="btn" href="/api/admin/ai-usage.csv">Export CSV</a></div>'
     +(SPAN===1?hourly():daily())
-    +'<div class="grid2"><div class="panel"><div class="ph"><b>By rep</b><span class="tag">this month</span></div>'+rows(DATA.byUser||[],'user')+'</div>'
-    +'<div class="panel"><div class="ph"><b>By feature</b><span class="tag">this month</span></div>'+rows(DATA.byFeature||[],'feature')+'</div></div>';
-  document.querySelectorAll('#mseg button').forEach(function(b){ b.addEventListener('click',function(){ METRIC=b.getAttribute('data-m'); render(); }); });
-  document.querySelectorAll('#sseg button').forEach(function(b){ b.addEventListener('click',function(){ SPAN=Number(b.getAttribute('data-s')); render(); }); });
+    +'<div class="grid2"><div class="panel"><div class="ph"><b>By rep</b><span class="tag">'+rangeLabel()+' · calls · cost</span></div>'+rows(DATA.byUser||[],'user')+'</div>'
+    +'<div class="panel"><div class="ph"><b>By feature</b><span class="tag">'+rangeLabel()+' · avg time · calls · cost</span></div>'+rows(DATA.byFeature||[],'feature')+'</div></div>';
+  document.querySelectorAll('#sseg button').forEach(function(b){ b.addEventListener('click',function(){ var v=b.getAttribute('data-s'); SPAN=(v==='ytd')?'ytd':Number(v); fetchUsage(spanDays()); }); });
   var _g=document.getElementById('gateOn'); if(_g){ setGateState(GATEON); _g.addEventListener('change',function(){ GATEON=_g.checked; setGateState(GATEON); fetch('/api/admin/ai-confirm',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({on:GATEON})}).catch(function(){}); }); }
   document.querySelectorAll('.row .tk i').forEach(function(el){ var w=el.style.width; el.style.width='0'; setTimeout(function(){ el.style.width=w; },50); });
 }
-fetch('/api/admin/ai-usage',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
-  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load AI usage.</div>'; return; }
-  DATA=j; render();
-  fetch('/api/admin/ai-confirm',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(k){ GATEON=!(k&&k.on===false); setGateState(GATEON); var g=document.getElementById('gateOn'); if(g) g.checked=GATEON; }).catch(function(){});
-}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to view AI usage.</div>'; });
+function fetchUsage(days){
+  fetch('/api/admin/ai-usage?days='+encodeURIComponent(days),{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
+    if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load AI usage.</div>'; return; }
+    DATA=j; render();
+  }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to view AI usage.</div>'; });
+}
+fetchUsage(spanDays());
+fetch('/api/admin/ai-confirm',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(k){ GATEON=!(k&&k.on===false); setGateState(GATEON); var g=document.getElementById('gateOn'); if(g) g.checked=GATEON; }).catch(function(){});
 </script>
 </body>
 </html>

@@ -27,7 +27,7 @@ input[type=text],input[type=email],input[type=search],input[type=tel],input[type
 .ec .chk{position:absolute;top:12px;right:12px;width:21px;height:21px;border-radius:4px;border:1.5px solid var(--inp);background:#fff;display:flex;align-items:center;justify-content:center;color:#fff;font-size:12px;} .ec.on .chk{background:var(--primary);border-color:var(--primary);}
 .ec .nm{font-weight:800;font-size:14px;padding-right:28px;line-height:1.25;} .ec .co{font-size:11px;color:var(--faint);margin-top:1px;}
 .chg{font-size:12px;color:var(--dim);margin-top:8px;line-height:1.5;display:flex;flex-wrap:wrap;gap:5px;align-items:center;}
-.chg .kk{font-size:9px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;color:#fff;background:var(--blue);border-radius:100px;padding:1px 6px;} .chg .kk.state{background:var(--soft);} .chg .kk.website{background:var(--teal);} .chg .kk.market{background:var(--amber);} .chg .kk.email{background:var(--navy2);} .chg .kk.phone{background:var(--primary);} .chg .kk.dm{background:var(--green);}
+.chg .kk{font-size:9px;text-transform:uppercase;letter-spacing:.04em;font-weight:800;color:#fff;background:var(--blue);border-radius:100px;padding:1px 6px;} .chg .kk.state{background:var(--soft);} .chg .kk.website{background:var(--teal);} .chg .kk.market{background:var(--amber);} .chg .kk.email{background:var(--navy2);} .chg .kk.phone{background:var(--primary);} .chg .kk.dm{background:var(--green);} .chg .kk.main{background:var(--navy);}
 .chg .fr{color:var(--faint);text-decoration:line-through;} .chg .to{color:var(--ink);font-weight:700;} .chg .ar{color:var(--faint);}
 .empty{text-align:center;color:var(--dim);padding:54px 20px;} .empty b{color:var(--green);display:block;font-size:17px;margin-bottom:6px;}
 .msg{font-size:13px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
@@ -42,14 +42,14 @@ input[type=text],input[type=email],input[type=search],input[type=tel],input[type
 <div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_data.html">Data Enrichment</a><span>›</span>Cleanup &amp; Standardize</div>
 <div class="wrap pagehead">
   <h1>Cleanup &amp; Standardize</h1>
-  <div class="sub">Fix the messy stuff imports leave behind — <b>ALL-CAPS names</b> title-cased, <b>state names</b> to codes, <b>websites</b> normalized, <b>emails</b> lowercased, <b>phones</b> formatted, <b>markets</b> assigned from city, and <b>decision-makers</b> tagged from their title. Deterministic — no AI cost. Review, tick, apply.</div>
+  <div class="sub">Fix the messy stuff imports leave behind — <b>ALL-CAPS names</b> title-cased, <b>state names</b> to codes, <b>websites</b> normalized, <b>emails</b> lowercased, <b>phones</b> formatted, <b>markets</b> assigned from city, and <b>decision-makers</b> tagged from their title. When a company has just one contact, that contact is set as its <b>main contact</b>. Deterministic — no AI cost. Review, tick, apply.</div>
 </div>
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 var AIW = {_p:null,_iv:null,show:function(m,c){try{if(window.rrgAiWork){this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork.show(m,c);}this._p={m:m,c:c};var s=this,t=0;if(this._iv)clearInterval(this._iv);this._iv=setInterval(function(){t++;if(window.rrgAiWork){clearInterval(s._iv);s._iv=null;if(s._p){window.rrgAiWork.show(s._p.m,s._p.c);}}else if(t>150){clearInterval(s._iv);s._iv=null;}},50);}catch(e){}},setMsg:function(m){try{if(window.rrgAiWork)window.rrgAiWork.setMsg(m);else if(this._p)this._p.m=m;}catch(e){}},progress:function(d,t,o){try{if(window.rrgAiWork&&window.rrgAiWork.progress)window.rrgAiWork.progress(d,t,o);else if(o&&o.msg)this.setMsg(o.msg);}catch(e){}},done:function(o){try{o=o||{};if(window.rrgAiWork&&window.rrgAiWork.done)window.rrgAiWork.done(o);else this.hide();}catch(e){}},hide:function(){try{this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
 var DATA={companies:[],people:[]}, STATE={};
-function fieldsOn(){ return { case:document.getElementById('f_case').checked, state:document.getElementById('f_state').checked, website:document.getElementById('f_web').checked, email:document.getElementById('f_email').checked, phone:document.getElementById('f_phone').checked, market:document.getElementById('f_market').checked, dm:document.getElementById('f_dm').checked }; }
+function fieldsOn(){ return { case:document.getElementById('f_case').checked, state:document.getElementById('f_state').checked, website:document.getElementById('f_web').checked, email:document.getElementById('f_email').checked, phone:document.getElementById('f_phone').checked, market:document.getElementById('f_market').checked, dm:document.getElementById('f_dm').checked, main:document.getElementById('f_main').checked }; }
 function build(){
   var root=document.getElementById('root'); root.className='wrap';
   root.innerHTML=''
@@ -60,7 +60,8 @@ function build(){
    +'<label><input type="checkbox" id="f_email" checked> Emails</label>'
    +'<label><input type="checkbox" id="f_phone" checked> Phone format</label>'
    +'<label><input type="checkbox" id="f_market" checked> Market from city</label>'
-   +'<label><input type="checkbox" id="f_dm" checked> Decision-maker tags</label></div>'
+   +'<label><input type="checkbox" id="f_dm" checked> Decision-maker tags</label>'
+   +'<label><input type="checkbox" id="f_main" checked> Sole contact as main</label></div>'
    +'<div class="bar"><span class="cnt" id="cnt"><span class="spin"></span>Scanning your book…</span><div class="sp"><button class="btn" id="all">Select all</button><button class="btn" id="none">Select none</button><button class="btn green" id="apply">Apply approved</button><span class="msg" id="msg"></span></div></div>'
    +'<div id="list"></div>';
   document.getElementById('all').addEventListener('click',function(){ Object.keys(STATE).forEach(function(k){ if(STATE[k]!=='dead') STATE[k]='on'; }); paint(); });
@@ -75,7 +76,7 @@ function scan(){
     if(!j||!j.ok){ document.getElementById('list').innerHTML='<div class="empty">Could not scan.</div>'; document.getElementById('cnt').textContent=''; return; }
     DATA={companies:j.companies||[],people:j.people||[]};
     var tot=DATA.companies.length+DATA.people.length;
-    if(!tot){ document.getElementById('list').innerHTML='<div class="empty"><b>Everything looks clean.</b>No casing, state, website, email, market or role fixes needed right now.</div>'; document.getElementById('cnt').textContent=''; return; }
+    if(!tot){ document.getElementById('list').innerHTML='<div class="empty"><b>Everything looks clean.</b>No casing, state, website, email, market, role or main-contact fixes needed right now.</div>'; document.getElementById('cnt').textContent=''; return; }
     STATE={};
     DATA.companies.forEach(function(c){ STATE['c|'+c.id]='on'; });
     DATA.people.forEach(function(p){ STATE['p|'+p.id]='on'; });
@@ -83,8 +84,8 @@ function scan(){
   }).catch(function(){ AIW.hide(); document.getElementById('list').innerHTML='<div class="empty">Could not reach the server.</div>'; });
 }
 function chgLine(ch){
-  var lbl={case:'Name',state:'State',website:'Website',market:'Market',email:'Email',phone:'Phone',dm:'Tag'}[ch.kind]||ch.kind;
-  var to = ch.kind==='dm' ? ('<span class="to">+ '+esc(ch.to)+'</span>') : ((ch.from?('<span class="fr">'+esc(ch.from)+'</span><span class="ar">→</span>'):'')+'<span class="to">'+esc(ch.to)+'</span>');
+  var lbl={case:'Name',state:'State',website:'Website',market:'Market',email:'Email',phone:'Phone',dm:'Tag',main:'Main contact'}[ch.kind]||ch.kind;
+  var to = ch.kind==='dm' ? ('<span class="to">+ '+esc(ch.to)+'</span>') : (ch.kind==='main' ? ('<span class="to">→ '+esc(ch.toName||ch.to)+'</span>') : ((ch.from?('<span class="fr">'+esc(ch.from)+'</span><span class="ar">→</span>'):'')+'<span class="to">'+esc(ch.to)+'</span>'));
   return '<div class="chg"><span class="kk '+ch.kind+'">'+esc(lbl)+'</span> '+to+'</div>';
 }
 function card(kind,rec){

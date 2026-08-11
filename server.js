@@ -1311,11 +1311,13 @@ function aiMeterFeature(p) {
   if (/^\/api\/admin\/logo-ai-domains$/.test(p)) return 'logo-ai';
   return null;
 }
-function logAiCall(feature, req) {
+function logAiCall(feature, req, durationMs) {
   try {
     var list = loadAiUsage();
     var cost = (AI_FEATURE_COST[feature] != null) ? AI_FEATURE_COST[feature] : 0.02;
-    list.push({ ts: new Date().toISOString(), username: (req && req.user && req.user.username) || '', name: (req && req.user && req.user.name) || '', feature: feature, estCost: cost });
+    var rec = { ts: new Date().toISOString(), username: (req && req.user && req.user.username) || '', name: (req && req.user && req.user.name) || '', feature: feature, estCost: cost };
+    if (typeof durationMs === 'number' && isFinite(durationMs) && durationMs >= 0) rec.ms = Math.round(durationMs);
+    list.push(rec);
     saveAiUsage(list);
   } catch (e) {}
 }
@@ -1333,7 +1335,7 @@ app.use((req, res, next) => { try { if (req.user && req.user.username) PRESENCE[
 // Meter every AI call that actually succeeds (covers /api/ai/* and the locationgen concept/location routes).
 app.use((req, res, next) => {
   const feat = aiMeterFeature(req.path);
-  if (feat) { res.on('finish', function () { try { if (res.statusCode < 400) logAiCall(feat, req); } catch (e) {} }); }
+  if (feat) { const _t0 = Date.now(); res.on('finish', function () { try { if (res.statusCode < 400) logAiCall(feat, req, Date.now() - _t0); } catch (e) {} }); }
   next();
 });
 // Admin — AI usage rollup: brokerage total + per-user + per-feature, this month and all-time.
@@ -1341,20 +1343,25 @@ app.get('/api/admin/ai-usage', requireAdmin, (req, res) => {
   const all = loadAiUsage();
   const ym = new Date().toISOString().slice(0, 7);
   const month = all.filter(x => String(x.ts || '').slice(0, 7) === ym);
-  function agg(list, keyFn) { const m = {}; list.forEach(x => { const k = keyFn(x) || '—'; if (!m[k]) m[k] = { key: k, calls: 0, cost: 0 }; m[k].calls++; m[k].cost += (x.estCost || 0); }); return Object.keys(m).map(k => m[k]).sort((a, b) => b.cost - a.cost); }
+  // Selectable range (days) drives the By rep / By feature panels: 30/90/YTD/365 etc.
+  const rangeDays = Math.max(1, Math.min(3660, parseInt(req.query.days, 10) || 30));
+  const _rangeSince = new Date(Date.now() - rangeDays * 86400000).toISOString();
+  const scoped = all.filter(x => String(x.ts || '') >= _rangeSince);
+  function agg(list, keyFn) { const m = {}; list.forEach(x => { const k = keyFn(x) || '—'; if (!m[k]) m[k] = { key: k, calls: 0, cost: 0, msSum: 0, msN: 0 }; m[k].calls++; m[k].cost += (x.estCost || 0); if (typeof x.ms === 'number' && isFinite(x.ms)) { m[k].msSum += x.ms; m[k].msN++; } }); return Object.keys(m).map(k => { const o = m[k]; return { key: o.key, calls: o.calls, cost: o.cost, avgMs: o.msN ? Math.round(o.msSum / o.msN) : null, avgCost: o.calls ? (o.cost / o.calls) : 0 }; }).sort((a, b) => b.cost - a.cost); }
   const r2 = n => Math.round(n * 100) / 100;
-  const byUser = agg(month, x => (x.name || x.username)).map(r => ({ name: r.key, calls: r.calls, cost: r2(r.cost) }));
-  const byFeature = agg(month, x => x.feature).map(r => ({ feature: r.key, calls: r.calls, cost: r2(r.cost) }));
+  const byUser = agg(scoped, x => (x.name || x.username)).map(r => ({ name: r.key, calls: r.calls, cost: r2(r.cost), avgMs: r.avgMs }));
+  const byFeature = agg(scoped, x => x.feature).map(r => ({ feature: r.key, calls: r.calls, cost: r2(r.cost), avgMs: r.avgMs, avgCost: r2(r.avgCost) }));
+  const rangeTotal = { calls: scoped.length, cost: r2(scoped.reduce((s, x) => s + (x.estCost || 0), 0)) };
   // Daily time-series (last 90 days) for trend analysis, from the timestamped log.
   const dayMap = {}; all.forEach(x => { const d = String(x.ts || '').slice(0, 10); if (!d) return; if (!dayMap[d]) dayMap[d] = { calls: 0, cost: 0 }; dayMap[d].calls++; dayMap[d].cost += (x.estCost || 0); });
-  const DAYS = 90; const daily = []; const _now = new Date();
+  const DAYS = 365; const daily = []; const _now = new Date();
   for (let i = DAYS - 1; i >= 0; i--) { const dt = new Date(_now.getTime() - i * 86400000); const key = dt.toISOString().slice(0, 10); const e = dayMap[key]; daily.push({ date: key, calls: e ? e.calls : 0, cost: e ? r2(e.cost) : 0 }); }
   const _since = ds => all.filter(x => String(x.ts || '') >= ds).length;
   const _d7 = new Date(_now.getTime() - 7 * 86400000).toISOString(); const _d30 = new Date(_now.getTime() - 30 * 86400000).toISOString();
   const windows = { last7: _since(_d7), last30: _since(_d30), firstTs: (all[0] && all[0].ts) || '', lastTs: (all[all.length - 1] && all[all.length - 1].ts) || '' };
   const _cut = new Date(_now.getTime() - 36 * 3600 * 1000).toISOString();
   const recent = all.filter(x => String(x.ts || '') >= _cut).map(x => ({ ts: x.ts, cost: r2(x.estCost || 0), feature: x.feature || '' }));
-  res.json({ ok: true, month: ym, total: { calls: month.length, cost: r2(month.reduce((s, x) => s + (x.estCost || 0), 0)) }, allTime: { calls: all.length, cost: r2(all.reduce((s, x) => s + (x.estCost || 0), 0)) }, byUser: byUser, byFeature: byFeature, daily: daily, recent: recent, windows: windows });
+  res.json({ ok: true, month: ym, rangeDays: rangeDays, rangeTotal: rangeTotal, total: { calls: month.length, cost: r2(month.reduce((s, x) => s + (x.estCost || 0), 0)) }, allTime: { calls: all.length, cost: r2(all.reduce((s, x) => s + (x.estCost || 0), 0)) }, byUser: byUser, byFeature: byFeature, daily: daily, recent: recent, windows: windows });
 });
 
 // AI usage — CSV export of the raw timestamped log for offline trend analysis.
@@ -3334,10 +3341,17 @@ app.post('/api/room/new', express.json(), (req, res) => {
   let createdAt = new Date().toISOString();
   const d = String(b.date || '').trim();
   if (/^\d{4}-\d{2}-\d{2}$/.test(d)) { const dt = new Date(d + 'T12:00:00'); if (!isNaN(dt.getTime())) createdAt = dt.toISOString(); }
+  // Optional listing link — resolve the assignment key ('d_<id>' deal, 's_<id>' screening) into the room's real link fields.
+  let srcDealId = '', srcScreenId = '', listingKey = '', listingLabel = '';
+  const lk = String(b.listingKey || '').trim();
+  if (lk) {
+    try { const idx = assignmentsIndex(); if (idx[lk]) { listingKey = lk; listingLabel = String(b.listingLabel || '').slice(0, 160); if (lk.slice(0, 2) === 'd_') srcDealId = lk.slice(2); else if (lk.slice(0, 2) === 's_') srcScreenId = lk.slice(2); } } catch (e) {}
+  }
   const rec = {
-    id: newRoomId(), srcCimId: '', srcBovId: '', srcDealId: '', token: newRoomToken(),
+    id: newRoomId(), srcCimId: '', srcBovId: '', srcDealId: srcDealId, srcScreenId: srcScreenId, token: newRoomToken(),
     business: String(b.business || 'Data Room').slice(0, 120),
     personId: personId || '', companyId: companyId || '',
+    listingKey: listingKey, listingLabel: listingLabel,
     by: by, byUser: byUser,
     createdAt: createdAt, folders: roomCategories(), docs: [], access: [], grants: [],
   };
@@ -10269,6 +10283,8 @@ function _isDecisionMaker(title){ return /\b(owner|founder|co-?founder|president
 app.get('/api/admin/cleanup-scan', requireAdmin, (req, res) => {
   const companies = loadCompanies(), people = loadPeople();
   const coOut = [], pOut = [];
+  // Contacts grouped by company — used to auto-assign the sole contact as the main contact.
+  const cpByCo = {}; people.forEach(p => { const cid = p.companyId; if (!cid) return; (cpByCo[cid] = cpByCo[cid] || []).push(p); });
   companies.forEach(c => {
     const ch = [];
     const nm = c.name || ''; if (_needsCase(nm)) { const t = _titleCase(nm); if (t && t !== nm) ch.push({ field: 'name', kind: 'case', from: nm, to: t }); }
@@ -10278,6 +10294,9 @@ app.get('/api/admin/cleanup-scan', requireAdmin, (req, res) => {
     if (!String(c.market || '').trim() && o.city) { const mm = _cityMetro(o.city); if (mm) ch.push({ field: 'market', kind: 'market', from: '', to: mm }); }
     if (o.phone) { const _pf = _fmtPhone(o.phone); if (_pf && _pf !== o.phone) ch.push({ field: 'office.phone', kind: 'phone', from: o.phone, to: _pf }); }
     (c.locations || []).forEach(l => { if (l.phone) { const _lpf = _fmtPhone(l.phone); if (_lpf && _lpf !== l.phone) ch.push({ field: 'location.phone', kind: 'phone', locId: l.id, from: l.phone, to: _lpf }); } });
+    // Sole contact → main contact: if the company has exactly one contact and it isn't already the main, set it.
+    const _cps = cpByCo[c.id] || [];
+    if (_cps.length === 1) { const only = _cps[0]; if (String(c.mainContactId || '').trim() !== only.id) { const onlyName = (only.name || '').trim() || [only.firstName, only.lastName].filter(Boolean).join(' '); ch.push({ field: 'mainContactId', kind: 'main', from: '', to: only.id, toName: onlyName }); } }
     if (ch.length) coOut.push({ id: c.id, name: c.name || '', changes: ch });
   });
   people.forEach(p => {
@@ -10303,6 +10322,7 @@ app.post('/api/admin/cleanup-apply', requireAdmin, express.json({ limit: '4mb' }
     else if (ch.field === 'market') { c.market = ch.to; }
     else if (ch.field === 'office.phone') { c.office = c.office || {}; c.office.phone = ch.to; }
     else if (ch.field === 'location.phone') { const _l = (c.locations || []).find(x => x.id === ch.locId); if (_l) _l.phone = ch.to; }
+    else if (ch.field === 'mainContactId') { c.mainContactId = ch.to; }
     applied++; }); c.updatedAt = now; });
   const pById = {}; people.forEach(p => pById[p.id] = p);
   pItems.forEach(it => { const p = pById[it.id]; if (!p) return; (it.changes || []).forEach(ch => { if (kinds[ch.kind] === false) return;

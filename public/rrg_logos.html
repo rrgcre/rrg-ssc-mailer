@@ -45,13 +45,14 @@ h1{margin:0;font-size:19px;font-weight:800;color:var(--navy);} .sub{color:var(--
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function hasLogo(c){ return !!(c&&(c.proposed||c.apple||c.clearbit)); }  // real logo source (not just a favicon)
+function sortCands(){ CANDS.sort(function(a,b){ return ((b.ai?1:0)-(a.ai?1:0)) || ((hasLogo(b)?1:0)-(hasLogo(a)?1:0)); }); }  // newly AI-found logos first, then companies with a real logo
 var AIW = {_p:null,_iv:null,show:function(m,c){try{if(window.rrgAiWork){this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork.show(m,c);}this._p={m:m,c:c};var s=this,t=0;if(this._iv)clearInterval(this._iv);this._iv=setInterval(function(){t++;if(window.rrgAiWork){clearInterval(s._iv);s._iv=null;if(s._p){window.rrgAiWork.show(s._p.m,s._p.c);}}else if(t>150){clearInterval(s._iv);s._iv=null;}},50);}catch(e){}},setMsg:function(m){try{if(window.rrgAiWork)window.rrgAiWork.setMsg(m);else if(this._p)this._p.m=m;}catch(e){}},progress:function(d,t,o){try{if(window.rrgAiWork&&window.rrgAiWork.progress)window.rrgAiWork.progress(d,t,o);else if(o&&o.msg)this.setMsg(o.msg);}catch(e){}},done:function(o){try{o=o||{};if(window.rrgAiWork&&window.rrgAiWork.done)window.rrgAiWork.done(o);else this.hide();}catch(e){}},hide:function(){try{this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
 var LOGOCANCEL=false;
 var CANDS=[], STATE={};
 function initials(s){ s=String(s||'').trim(); if(!s) return '?'; var p=s.split(/\s+/); return ((p[0]||'')[0]||'').toUpperCase()+((p.length>1?(p[p.length-1][0]||''):'')).toUpperCase(); }
 function build(){
   var root=document.getElementById('root'); root.className='wrap';
-  root.innerHTML='<div class="bar"><span class="cnt" id="cnt"></span><div class="sp"><button class="btn" id="all" disabled>Select all</button><button class="btn" id="none" disabled>Select none</button><button class="btn" id="aibtn" disabled>🤖 No-website logos (AI)</button><button class="btn green" id="apply" disabled>Apply approved logos</button><span class="msg ok" id="msg"></span></div></div><div class="grid" id="grid"></div>';
+  root.innerHTML='<div class="bar"><span class="cnt" id="cnt"></span><div class="sp"><button class="btn" id="all" disabled>Select all</button><button class="btn" id="none" disabled>Select none</button><button class="btn" id="aibtn" disabled>Find missing logos (AI)</button><button class="btn green" id="apply" disabled>Apply approved logos</button><span class="msg ok" id="msg"></span></div></div><div class="grid" id="grid"></div>';
   document.getElementById('all').addEventListener('click',function(){ CANDS.forEach(function(c){ if(STATE[c.id]!=='dead') STATE[c.id]='on'; }); paint(); });
   document.getElementById('none').addEventListener('click',function(){ CANDS.forEach(function(c){ if(STATE[c.id]!=='dead') STATE[c.id]='off'; }); paint(); });
   document.getElementById('apply').addEventListener('click',apply);
@@ -71,7 +72,7 @@ function loadCands(){
   fetch('/api/admin/logo-candidates',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(LOADCANCEL) return; AIW.hide();
     if(!j||!j.ok){ document.getElementById('grid').innerHTML='<div class="empty">Could not load companies.</div>'; return; }
-    CANDS=(j.candidates||[]).slice().sort(function(a,b){ return (hasLogo(b)?1:0)-(hasLogo(a)?1:0); });
+    CANDS=(j.candidates||[]).slice(); sortCands();
     if(!CANDS.length){ document.getElementById('grid').innerHTML='<div class="empty"><b>All set.</b>Every company with a website already has a logo (or none have websites to pull from). Import companies with websites, then come back.</div>'; document.getElementById('cnt').textContent=''; var _ab=document.getElementById('aibtn'); if(_ab) _ab.disabled=false; return; }  // keep Apply off; still allow the AI no-website search
     CANDS.forEach(function(c){ STATE[c.id]=hasLogo(c)?'on':'off'; });  // real logos pre-approved; favicon-only start unchecked
     render();
@@ -97,7 +98,7 @@ function paint(){ document.querySelectorAll('.lc[data-id]').forEach(function(el)
 function count(){ var on=CANDS.filter(function(c){return STATE[c.id]==='on';}).length; var c=document.getElementById('cnt'); if(c) c.textContent=on+' of '+CANDS.length+' approved'; }
 function aiFind(){
   var b=document.getElementById('aibtn'); if(!b) return; b.disabled=true; b.textContent='Finding…'; LOGOCANCEL=false; AIW.show('Finding logos with AI…', function(){ LOGOCANCEL=true; AIW.hide(); location.href='rrg_data.html'; });
-  function reset(){ b.disabled=false; b.textContent='🤖 No-website logos (AI)'; if(CANDS.length){ ['all','none','apply'].forEach(function(id){ var bb=document.getElementById(id); if(bb) bb.disabled=false; }); } }
+  function reset(){ b.disabled=false; b.textContent='Find missing logos (AI)'; if(CANDS.length){ ['all','none','apply'].forEach(function(id){ var bb=document.getElementById(id); if(bb) bb.disabled=false; }); } }
   function stop(msg){ AIW.hide(); reset(); if(msg){ var m=document.getElementById('msg'); m.className='msg ok'; m.textContent=msg; } }
   fetch('/api/admin/logo-nowebsite',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ stop(''); return; }
@@ -111,7 +112,7 @@ function aiFind(){
       AIW.progress(scanned,pool.length,{noun:'companies', msg:'Reading brands with AI…'});
       fetch('/api/admin/logo-ai-domains',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:chunks[ci].map(function(c){return {id:c.id};})})}).then(function(r){return r.json();}).then(function(jj){
         if(LOGOCANCEL) return;
-        if(jj&&jj.ok){ (jj.results||[]).forEach(function(x){ if(CANDS.some(function(c){return c.id===x.id;})) return; CANDS.push({id:x.id,name:x.name,website:x.website,domain:x.domain,proposed:x.proposed,apple:x.apple,clearbit:x.clearbit,favicon:x.favicon,ai:true}); STATE[x.id]='on'; found++; }); render(); }
+        if(jj&&jj.ok){ (jj.results||[]).forEach(function(x){ if(CANDS.some(function(c){return c.id===x.id;})) return; CANDS.push({id:x.id,name:x.name,website:x.website,domain:x.domain,proposed:x.proposed,apple:x.apple,clearbit:x.clearbit,favicon:x.favicon,ai:true}); STATE[x.id]='on'; found++; }); sortCands(); render(); }
         scanned+=chunks[ci].length; ci++; next();
       }).catch(function(){ stop(''); });
     }
