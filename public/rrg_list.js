@@ -81,6 +81,8 @@
       +'.rl-filterfield label{font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:#8a94a6;font-weight:700}'
       +'.rl-filterfield input{border:1px solid #cfd6e2;border-radius:7px;padding:5px 8px;font:inherit;font-size:12.5px;min-width:132px}'
       +'.rl-filterfield input:focus{outline:none;border-color:#4a90e2}'
+      +'.rl-fdate{display:flex;align-items:center;gap:6px}.rl-fdate input{min-width:118px}.rl-fto{font-size:11px;color:#8a94a6;font-weight:600}'
+      +'.rl-fnum{display:flex;align-items:center;gap:6px}.rl-fnum select{border:1px solid #cfd6e2;border-radius:7px;padding:5px 6px;font:inherit;font-size:13px;font-weight:700;color:#26324a;background:#fff;cursor:pointer}.rl-fnum input{min-width:96px}'
       +'.rl-filterclear{font-size:11.5px;color:#5b6472;text-decoration:underline;cursor:pointer;background:none;border:none;padding:6px 4px}'
       +'.rl-savedmenu{position:absolute;top:calc(100% + 6px);right:0;z-index:60;background:#fff;border:1px solid #e3e8f0;border-radius:11px;box-shadow:0 14px 40px rgba(12,22,54,.18);padding:7px;min-width:236px;max-height:340px;overflow:auto}'
       +'.rl-savedrow{display:flex;align-items:center;gap:6px;padding:6px 9px;border-radius:8px;font-size:13px;color:#26324a}'
@@ -140,11 +142,21 @@
     }
     function visibleMeta(){ return orderedMeta().filter(function(m){ return !state.hidden[m.key]; }); }
 
+    function _ftype(m){ return (m&&m.c&&m.c.filterType)||'text'; }
+    function _fParseDate(x){ if(x==null||x==='') return null; var t=Date.parse(x); return isNaN(t)?null:t; }
+    function _fActive(f,type){ if(f==null) return false; if(type==='date') return !!(f&&(f.from||f.to)); if(type==='number') return !!(f&&f.op&&f.val!==''&&f.val!=null); return String(f||'').trim()!==''; }
+    function _fMatch(m,it,f){
+      var type=_ftype(m);
+      if(type==='date'){ var d=_fParseDate(m.c.filterVal?m.c.filterVal(it):cellText(m.c,it)); if(d==null) return false; if(f.from){ var fr=_fParseDate(f.from); if(fr!=null&&d<fr) return false; } if(f.to){ var to=_fParseDate(f.to); if(to!=null&&d>to+86399999) return false; } return true; }
+      if(type==='number'){ var raw=m.c.filterVal?m.c.filterVal(it):cellText(m.c,it); var nv=Number(String(raw).replace(/[^0-9.\-]/g,'')); if(isNaN(nv)) return false; var tgt=Number(f.val); if(isNaN(tgt)) return true; if(f.op==='lt') return nv<tgt; if(f.op==='gt') return nv>tgt; return nv===tgt; }
+      var v=String(f||'').toLowerCase(); var txt=(m.c.filterVal?String(m.c.filterVal(it)||''):cellText(m.c,it)).toLowerCase(); return rrgFuzzy(txt,v);
+    }
+    function activeFilterKeys(){ var mm={}; metaAll().forEach(function(m){ mm[m.key]=m; }); return Object.keys(state.filters||{}).filter(function(k){ var m=mm[k]; return m && _fActive(state.filters[k], _ftype(m)); }); }
     function filteredData(){
-      var keys=Object.keys(state.filters||{}).filter(function(k){ return String(state.filters[k]||'').trim()!==''; });
-      if(!keys.length) return state.data.slice();
       var mm={}; metaAll().forEach(function(m){ mm[m.key]=m; });
-      return state.data.filter(function(it){ return keys.every(function(k){ var m=mm[k]; if(!m) return true; var v=String(state.filters[k]).toLowerCase(); var txt=(m.c.filterVal?String(m.c.filterVal(it)||''):cellText(m.c,it)).toLowerCase(); return rrgFuzzy(txt,v); }); });
+      var keys=activeFilterKeys();
+      if(!keys.length) return state.data.slice();
+      return state.data.filter(function(it){ return keys.every(function(k){ var m=mm[k]; if(!m) return true; return _fMatch(m,it,state.filters[k]); }); });
     }
     function sortedData(){
       var d = filteredData();
@@ -179,7 +191,7 @@
         + pageButtons(pc)
         + '<button class="rl-next"'+(state.page>=pc-1?' disabled':'')+'>›</button></span>';
       var densTog = '<label class="rl-dens" title="Compact rows"><input type="checkbox" class="rl-densCk"'+(state.compact?' checked':'')+'> Compact</label>';
-      var fcount = Object.keys(state.filters||{}).filter(function(k){ return String(state.filters[k]||'').trim()!==''; }).length;
+      var fcount = activeFilterKeys().length;
       var filtBtn = '<button class="rl-btn rl-filtbtn'+(state._filterOpen?' on':'')+'" title="Filter rows"><span class="rlic">\u2261</span>Filter'+(fcount?('<span class="rlfcount">'+fcount+'</span>'):'')+'</button>';
       var savedBtn = '<div class="rl-colwrap"><button class="rl-btn rl-savedbtn" title="Saved searches"><span class="rlic">\u2606</span>Saved</button><div class="rl-savedmenu" hidden></div></div>';
       var colsBtn = '<div class="rl-colwrap"><button class="rl-btn rl-colbtn" title="Choose columns"><span class="rlic">▦</span>Columns</button><div class="rl-colmenu" hidden></div></div>';
@@ -188,7 +200,13 @@
       if(!canExport()){ expBtn=expBtn.replace('<button ','<button hidden '); prnBtn=prnBtn.replace('<button ','<button hidden '); }
       var bar = '<div class="rl-bar"><span class="rl-sp"></span>'+count+densTog+perSel+filtBtn+savedBtn+colsBtn+expBtn+prnBtn+pager+'</div>';
       var filterPanel='';
-      if(state._filterOpen){ var ffs=orderedMeta().filter(function(m){ return m.c.label && m.c.filterable!==false; }).map(function(m){ return '<div class="rl-filterfield"><label>'+esc(m.c.label)+'</label><input type="text" data-filterkey="'+esc(m.key)+'" value="'+esc(state.filters[m.key]||'')+'" placeholder="contains\u2026"></div>'; }).join(''); filterPanel='<div class="rl-filterpanel">'+ffs+'<button class="rl-filterclear">Clear all</button></div>'; }
+      if(state._filterOpen){ var ffs=orderedMeta().filter(function(m){ return m.c.label && m.c.filterable!==false && _ftype(m)!=='none'; }).map(function(m){
+          var type=_ftype(m), f=state.filters[m.key], ctl;
+          if(type==='date'){ var _fr=(f&&f.from)||'', _to=(f&&f.to)||''; ctl='<div class="rl-fdate"><input type="date" data-fdate="from" data-filterkey="'+esc(m.key)+'" value="'+esc(_fr)+'"><span class="rl-fto">to</span><input type="date" data-fdate="to" data-filterkey="'+esc(m.key)+'" value="'+esc(_to)+'"></div>'; }
+          else if(type==='number'){ var _op=(f&&f.op)||'eq', _val=(f&&f.val!=null)?f.val:''; ctl='<div class="rl-fnum"><select data-fnumop data-filterkey="'+esc(m.key)+'"><option value="eq"'+(_op==='eq'?' selected':'')+'>=</option><option value="lt"'+(_op==='lt'?' selected':'')+'>&lt;</option><option value="gt"'+(_op==='gt'?' selected':'')+'>&gt;</option></select><input type="number" data-fnumval data-filterkey="'+esc(m.key)+'" value="'+esc(String(_val))+'" placeholder="value"></div>'; }
+          else { ctl='<input type="text" data-filterkey="'+esc(m.key)+'" value="'+esc(String(f||''))+'" placeholder="contains\u2026">'; }
+          return '<div class="rl-filterfield"><label>'+esc(m.c.label)+'</label>'+ctl+'</div>';
+        }).join(''); filterPanel='<div class="rl-filterpanel">'+ffs+'<button class="rl-filterclear">Clear all</button></div>'; }
 
       var bulk='';
       if(opts.bulk && opts.bulk.length && selIds.length){
@@ -225,7 +243,7 @@
       mount.classList.toggle('rl-compact', !!state.compact);
       wire();
       if(keepMenu){ keepMenu=false; openColMenu(); }
-      if(state._focusFilter){ var _ff=mount.querySelector('[data-filterkey="'+state._focusFilter+'"]'); state._focusFilter=null; if(_ff){ try{ _ff.focus(); var _l=_ff.value.length; _ff.setSelectionRange(_l,_l); }catch(e){} } }
+      if(state._focusFilter){ var _sel='[data-filterkey="'+state._focusFilter+'"]'; var _ff=mount.querySelector('input[type="text"]'+_sel)||mount.querySelector('[data-fnumval]'+_sel)||mount.querySelector(_sel); state._focusFilter=null; if(_ff){ try{ _ff.focus(); var _l=String(_ff.value).length; _ff.setSelectionRange(_l,_l); }catch(e){} } }
     }
 
     function pageButtons(pc){
@@ -245,7 +263,8 @@
     function _placeMenu(btn,menu,alignRight){ if(!btn||!menu) return; menu.style.position='fixed'; menu.style.right='auto'; menu.style.bottom='auto'; var r=btn.getBoundingClientRect(); var top=r.bottom+6; menu.style.top=top+'px'; var mw=menu.offsetWidth||210; var vw=window.innerWidth||1200; var left=alignRight?(r.right-mw):r.left; if(left+mw>vw-8) left=vw-8-mw; if(left<8) left=8; menu.style.left=left+'px'; var vh=window.innerHeight||800; var mh=vh-top-12; menu.style.maxHeight=(mh<140?140:mh)+'px'; menu.style.overflow='auto'; }
     function openColMenu(){ var menu=$('.rl-colmenu',mount); if(!menu) return; menu.innerHTML=buildColMenu(); menu.hidden=false; _placeMenu($('.rl-colbtn',mount),menu,true); menu.querySelectorAll('.rl-coltog').forEach(function(cb){ cb.onchange=function(){ var k=cb.getAttribute('data-key'); if(!cb.checked && visibleMeta().length<=1){ cb.checked=true; return; } if(cb.checked) delete state.hidden[k]; else state.hidden[k]=true; keepMenu=true; persist(); render(); }; }); }
 
-    function exportCsv(){
+    function _exportToast(msg){ if(window.rrgToast){ window.rrgToast(msg); } else { var eb=$('.rl-export',mount); if(eb){ var o=eb.innerHTML; eb.innerHTML='<span class="rlic">✓</span>Exported'; setTimeout(function(){ eb.innerHTML=o; },2000); } } }
+    async function exportCsv(){
       var vc=visibleMeta();
       var all=sortedData();
       var sel=state.sel||{};
@@ -254,13 +273,23 @@
       var rows=[ vc.map(function(m){ return m.c.label||''; }) ];
       data.forEach(function(it){ rows.push(vc.map(function(m){ return cellText(m.c,it); })); });
       var csv=rows.map(function(r){ return r.map(function(v){ v=String(v==null?'':v); return /[",\n]/.test(v)?('"'+v.replace(/"/g,'""')+'"'):v; }).join(','); }).join('\r\n');
-      var b=new Blob([csv],{type:'text/csv;charset=utf-8'}); var u=URL.createObjectURL(b);
-      var a=document.createElement('a'); a.href=u; a.download=listName+'.csv'; document.body.appendChild(a); a.click();
-      setTimeout(function(){ URL.revokeObjectURL(u); a.remove(); },120);
       var n=data.length, noun=(n===1?'row':'rows');
-      var msg=(selected.length?('Exported '+n+' selected '+noun):('Exported all '+n+' '+noun))+' to your Downloads folder';
-      if(window.rrgToast){ window.rrgToast(msg); }
-      else { var eb=$('.rl-export',mount); if(eb){ var o=eb.innerHTML; eb.innerHTML='<span class="rlic">✓</span>Exported '+n; setTimeout(function(){ eb.innerHTML=o; },2000); } }
+      var msg=(selected.length?('Exported '+n+' selected '+noun):('Exported all '+n+' '+noun));
+      var fname=listName+'.csv';
+      var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+      // Let the user choose where to save it, when the browser supports the file picker.
+      if(window.showSaveFilePicker){
+        try{
+          var handle=await window.showSaveFilePicker({ suggestedName:fname, types:[{description:'CSV file', accept:{'text/csv':['.csv']}}] });
+          var ws=await handle.createWritable(); await ws.write(blob); await ws.close();
+          _exportToast(msg+' — saved to '+(handle.name||fname));
+          return;
+        }catch(err){ if(err&&err.name==='AbortError') return; /* not supported / denied → fall back to a normal download */ }
+      }
+      var u=URL.createObjectURL(blob);
+      var a=document.createElement('a'); a.href=u; a.download=fname; document.body.appendChild(a); a.click();
+      setTimeout(function(){ URL.revokeObjectURL(u); a.remove(); },120);
+      _exportToast(msg+' to your Downloads folder');
     }
     function printList(){
       var vc=visibleMeta(); var data=sortedData(); var title=(document.title||'List').split(/[—|]/)[0].trim();
@@ -311,7 +340,11 @@
       var fbt=$('.rl-filtbtn',mount); if(fbt) fbt.onclick=function(){ state._filterOpen=!state._filterOpen; render(); };
       var svb=$('.rl-savedbtn',mount); if(svb) svb.onclick=function(e){ e.stopPropagation(); var menu=$('.rl-savedmenu',mount); if(menu.hidden) openSavedMenu(); else menu.hidden=true; };
       var fcl=$('.rl-filterclear',mount); if(fcl) fcl.onclick=function(){ state.filters={}; state.page=0; persist(); render(); };
-      mount.querySelectorAll('.rl-filterfield input[data-filterkey]').forEach(function(fi){ fi.oninput=function(){ var k=fi.getAttribute('data-filterkey'); var v=fi.value; if(fi._t) clearTimeout(fi._t); fi._t=setTimeout(function(){ state.filters[k]=v; state._focusFilter=k; state.page=0; persist(); render(); },180); }; });
+      function _fobj(k){ var c=state.filters[k]; return (c&&typeof c==='object')?c:{}; }
+      mount.querySelectorAll('.rl-filterfield input[type="text"][data-filterkey]').forEach(function(fi){ fi.oninput=function(){ var k=fi.getAttribute('data-filterkey'); var v=fi.value; if(fi._t) clearTimeout(fi._t); fi._t=setTimeout(function(){ state.filters[k]=v; state._focusFilter=k; state.page=0; persist(); render(); },180); }; });
+      mount.querySelectorAll('.rl-filterfield input[type="date"][data-filterkey]').forEach(function(fi){ fi.onchange=function(){ var k=fi.getAttribute('data-filterkey'); var cur=_fobj(k); cur[fi.getAttribute('data-fdate')]=fi.value; state.filters[k]=cur; state.page=0; persist(); render(); }; });
+      mount.querySelectorAll('.rl-filterfield [data-fnumop]').forEach(function(sel){ sel.onchange=function(){ var k=sel.getAttribute('data-filterkey'); var cur=_fobj(k); cur.op=sel.value; if(cur.val==null) cur.val=''; state.filters[k]=cur; state.page=0; persist(); render(); }; });
+      mount.querySelectorAll('.rl-filterfield [data-fnumval]').forEach(function(fi){ fi.oninput=function(){ var k=fi.getAttribute('data-filterkey'); if(fi._t) clearTimeout(fi._t); fi._t=setTimeout(function(){ var cur=_fobj(k); cur.val=fi.value; if(!cur.op) cur.op='eq'; state.filters[k]=cur; state._focusFilter=k; state.page=0; persist(); render(); },200); }; });
     }
 
     function loadSaved(){ try{ return JSON.parse(localStorage.getItem('rrgsaved_'+(opts.key||'list'))||'[]')||[]; }catch(e){ return []; } }

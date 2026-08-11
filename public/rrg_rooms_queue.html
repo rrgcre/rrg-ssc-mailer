@@ -50,7 +50,7 @@ tr:hover td{background:#fbfcfe;}
 </div></div>
 <div class="wrap">
   <div class="card">
-    <div class="hd"><b>Data Rooms</b><span class="cnt" id="cnt"></span><button id="newRoomBtn" onclick="newRoom()" style="margin-left:auto;background:var(--navy,#000E31);color:#fff;border:1px solid var(--navy,#000E31);border-radius:3px;padding:8px 15px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">+ New data room</button><label id="hideArchWrap" style="display:none;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap"><input type="checkbox" id="hideArch" checked style="cursor:pointer;margin:0"> Hide archived <span id="archCnt" style="display:none;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:99px;padding:1px 7px;font-size:11px;font-weight:700"></span></label></div>
+    <div class="hd"><b>Data Rooms</b><span class="cnt" id="cnt"></span><input id="roomSearch" type="text" placeholder="Search data rooms by name, creator, or buyer…" oninput="applyFilter()" autocomplete="off" style="margin-left:14px;flex:0 1 300px;min-width:150px;border:1px solid var(--line,#e6e9f0);border-radius:8px;padding:7px 12px;font:inherit;font-size:12.5px;color:var(--ink,#1a2236)"><button id="newRoomBtn" onclick="newRoom()" style="margin-left:auto;background:var(--navy,#000E31);color:#fff;border:1px solid var(--navy,#000E31);border-radius:3px;padding:8px 15px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap">+ New data room</button><label id="hideArchWrap" style="display:none;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap"><input type="checkbox" id="hideArch" checked style="cursor:pointer;margin:0"> Hide archived <span id="archCnt" style="display:none;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:99px;padding:1px 7px;font-size:11px;font-weight:700"></span></label></div>
     <div id="body"></div>
   </div>
 </div>
@@ -143,19 +143,19 @@ function renderList(list){
     empty:'<div class="empty"><b>No data rooms yet.</b>Start a blank room here, or open one from a built Marketing Pack.<br><button onclick="newRoom()" style="display:inline-block;margin-top:16px;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:10px 18px;font:inherit;font-size:13px;font-weight:600;cursor:pointer">+ New data room</button> <a class="act open" style="display:inline-block;margin-top:16px;padding:10px 18px" href="./rrg_cim_queue.html">Marketing Packs →</a></div>',
     rowId:function(c){ return c.id; }, defaultSort:0, defaultDir:1,
     columns:[
-      { label:'Dataroom Name', key:'name', sort:function(a,b){ return RRGList.cmp(a.business,b.business); },
+      { label:'Dataroom Name', key:'name', filterable:false, sort:function(a,b){ return RRGList.cmp(a.business,b.business); },
         cell:function(c){ var meta='Created '+fmt(c.createdAt)+(c.by?(' · '+esc(c.by)):'')+((c.closed&&c.closedAt)?(' · archived '+fmt(c.closedAt)):''); var arch=c.closed?' <span style="display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;padding:1px 7px;border-radius:999px;background:#fff4e6;color:#8a5a12;border:1px solid #f3d9a8;vertical-align:middle;margin-left:6px">Archived</span>':''; return '<div class="biz"><a class="bizlink" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Open this data room">'+esc(c.business||'Business')+'</a>'+arch+'</div><div class="meta">'+meta+'</div>'; } },
-      { label:'Documents', key:'docs', align:'left', sort:function(a,b){ return (a.docCount||0)-(b.docCount||0); },
+      { label:'Documents', key:'docs', align:'left', filterType:'number', filterVal:function(c){ return c.docCount||0; }, sort:function(a,b){ return (a.docCount||0)-(b.docCount||0); },
         cell:function(c){ return '<span class="pill">'+(c.docCount||0)+' file'+((c.docCount===1)?'':'s')+'</span>'; } },
-      { label:'Created', key:'created', sort:function(a,b){ return RRGList.cmp(a.createdAt||'',b.createdAt||''); },
+      { label:'Created', key:'created', filterType:'date', filterVal:function(c){ return c.createdAt||''; }, sort:function(a,b){ return RRGList.cmp(a.createdAt||'',b.createdAt||''); },
         cell:function(c){ return c.createdAt?('<span class="meta">'+esc(fmt(c.createdAt))+'</span>'):'<span class="meta">\u2014</span>'; } },
-      { label:'Last access', key:'lastaccess', sort:function(a,b){ return RRGList.cmp(a.lastAccessAt||'',b.lastAccessAt||''); },
+      { label:'Last access', key:'lastaccess', filterType:'date', filterVal:function(c){ return c.lastAccessAt||''; }, sort:function(a,b){ return RRGList.cmp(a.lastAccessAt||'',b.lastAccessAt||''); },
         cell:function(c){ return c.lastAccessAt?('<span class="meta">'+esc(fmt(c.lastAccessAt))+'</span>'):'<span class="meta">\u2014</span>'; } },
       { label:'Accessed by', key:'accessedby', sort:function(a,b){ return RRGList.cmp(a.lastAccessBy||'',b.lastAccessBy||''); },
         cell:function(c){ return c.lastAccessBy?esc(c.lastAccessBy):'<span class="meta">\u2014</span>'; } },
-      { label:'Downloads', key:'downloads', align:'left', sort:function(a,b){ return (a.downloads||0)-(b.downloads||0); },
+      { label:'Downloads', key:'downloads', align:'left', filterType:'number', filterVal:function(c){ return c.downloads||0; }, sort:function(a,b){ return (a.downloads||0)-(b.downloads||0); },
         cell:function(c){ return '<span class="pill">'+(c.downloads||0)+'</span>'; } },
-      { label:'Actions', key:'actions', align:'right', sortable:false,
+      { label:'Actions', key:'actions', align:'right', sortable:false, filterable:false,
         cell:function(c){ var bv=c.closed?'':'<button class="view" onclick="buyerView(\''+c.id+'\')" title="See this room exactly as an NDA’d buyer does">👁 Buyer view</button>'; return '<div class="act"><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Edit this data room">Edit data room</a><a class="open" href="./rrg_room.html?room='+encodeURIComponent(c.id)+'" title="Open this data room to upload files">Upload files</a>'+bv+'<button class="link" onclick="copyLink(\''+c.id+'\')">Copy general access link</button><button class="del" onclick="delRoom(\''+c.id+'\',this)">Delete</button></div>'; } }
     ],
     bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDel(ids,done); } } ]
@@ -170,6 +170,8 @@ function applyFilter(){
   if(cnt){ if(arch.length){ cnt.textContent=arch.length; cnt.style.display='inline-block'; } else { cnt.style.display='none'; } }
   var hide=document.getElementById('hideArch');
   var list = (hide&&hide.checked) ? ALL_ROOMS.filter(function(r){ return !r.closed; }) : ALL_ROOMS.slice();
+  var qEl=document.getElementById('roomSearch'), q=((qEl&&qEl.value)||'').trim().toLowerCase();
+  if(q){ list=list.filter(function(r){ return String(r.business||'').toLowerCase().indexOf(q)>=0 || String(r.by||'').toLowerCase().indexOf(q)>=0 || String(r.lastAccessBy||'').toLowerCase().indexOf(q)>=0; }); }
   renderList(list);
 }
 function load(){
