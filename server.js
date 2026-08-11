@@ -1241,6 +1241,7 @@ app.get('/api/session', (req, res) => res.json({
   adminOnlyTools: auth.loadToolAccess(),
   toolLabels: effToolLabels(),
   logoUrl: (function () { const b = loadBrand(); return b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(b.updatedAt || '')) : ''; })(),
+  photoUrl: (function () { try { const prof = auth.profileOf(auth.findUser(req.user.username)); if (prof && prof.photoExt) return '/api/userphoto/' + String(req.user.username).replace(/[^a-z0-9_.-]/gi, '_') + '.' + prof.photoExt + (prof.updatedAt ? ('?v=' + encodeURIComponent(prof.updatedAt)) : ''); } catch (e) {} return ''; })(),
   headerMsg: (function () { const b = loadBrand(); return (b.headerMsg && b.headerMsgOn !== false) ? String(b.headerMsg) : ''; })(),
   navVis: loadNavVis(),
   build: BUILD,
