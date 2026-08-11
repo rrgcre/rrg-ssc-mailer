@@ -62,6 +62,11 @@ table.t tr.urow.open{background:#f1f5fa;}
 .permcat{font-size:11px;font-weight:800;color:var(--navy);margin:12px 0 2px;padding-top:9px;border-top:1px dashed var(--line);}
 .permcat:first-child{border-top:none;padding-top:2px;}
 .ovpanel{background:var(--wash);border:1px solid var(--line);border-radius:5px;padding:13px;}
+.deptwrap{display:flex;flex-wrap:wrap;gap:8px;}
+.deptchip{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#33415c;background:#fff;border:1px solid var(--inp,#c4ccda);border-radius:4px;padding:7px 11px;cursor:pointer;user-select:none;}
+.deptchip:hover{border-color:#9fb0cc;}
+.deptchip.on{background:#eef2f9;border-color:var(--navy);color:var(--navy);}
+.deptchip input{cursor:pointer;margin:0;}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);} .gate h2{color:var(--navy2);font-weight:700;}
 .rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);}
 .foot{max-width:1180px;margin:0 auto;padding:0 24px 40px;color:var(--dim);font-size:11.5px;}
@@ -93,6 +98,7 @@ function uAvatar(u){var un=String(u.username||'').replace(/[^a-z0-9_.-]/gi,'_');
 var ST=null;               // raw /api/admin/permissions response (core/tools/roles/enabled)
 var MERGED=[];             // merged users
 var ROLES=[];              // [{key,name,builtin?}]
+var DEPTS=[];              // [{id,name}] — departments a user can belong to
 var ENABLED=false;         // permission enforcement master flag
 var OPEN=null;             // username of expanded row
 var SEARCH='';
@@ -122,6 +128,7 @@ function merge(usersJson,permJson){
   ST=permJson;
   ENABLED=!!permJson.enabled;
   ROLES=(permJson.roles&&permJson.roles.length)?permJson.roles:(usersJson.roles||[]);
+  DEPTS=usersJson.departments||[];
   var pMap={};(permJson.users||[]).forEach(function(p){pMap[p.username]=p;});
   var aMap={};(usersJson.users||[]).forEach(function(a){aMap[a.username]=a;});
   var names={};Object.keys(aMap).forEach(function(k){names[k]=1;});Object.keys(pMap).forEach(function(k){names[k]=1;});
@@ -136,6 +143,7 @@ function merge(usersJson,permJson){
       role:p.role||a.role||'associate',
       commissionSplit:(p.commissionSplit!=null?p.commissionSplit:''),
       photoExt:p.photoExt||'',
+      deptIds:(a.deptIds||[]),
       perms:p.perms||p.overrides||{}
     };
   }).sort(function(x,y){return String(x.name).localeCompare(String(y.name));});
@@ -238,7 +246,21 @@ function detailHtml(u){
     +'</div>'
     +'</div></div>';
 
-  /* c. Permission overrides */
+  /* c. Departments */
+  var dept;
+  if(DEPTS.length){
+    var have=u.deptIds||[];
+    var chips=DEPTS.map(function(d){ var on=have.indexOf(d.id)>=0; return '<label class="deptchip'+(on?' on':'')+'"><input type="checkbox" class="e-dept" data-dept="'+esc(d.id)+'"'+(on?' checked':'')+'> '+esc(d.name)+'</label>'; }).join('');
+    dept='<div class="subsec"><div class="subhead">Departments</div><div class="subbody">'
+      +'<div class="deptwrap">'+chips+'</div>'
+      +'<span id="deptMsg" class="msg" style="margin-top:8px;display:inline-block"></span>'
+      +'<div class="note" style="margin-top:6px">Check every department <b>'+esc(u.name)+'</b> works in. Office requests in a department’s categories route to its members — so this controls which requests land on their desk. A person can be in more than one.</div>'
+      +'</div></div>';
+  } else {
+    dept='<div class="subsec"><div class="subhead">Departments</div><div class="subbody"><div class="note">No departments defined yet. Create them under <b>Settings → Departments</b>, then assign people here.</div></div></div>';
+  }
+
+  /* d. Permission overrides */
   var ov;
   if(ENABLED){
     ov='<div class="subsec"><div class="subhead">Permission overrides</div><div class="subbody">'+overridePanel(u)+'</div></div>';
@@ -246,7 +268,7 @@ function detailHtml(u){
     ov='<div class="subsec"><div class="subhead">Permission overrides</div><div class="subbody"><div class="note">Per-person overrides apply once permission enforcement is turned on (Roles &amp; Permissions).</div></div></div>';
   }
 
-  return '<tr class="detail"><td colspan="8"><div class="detail-in">'+acct+rc+ov+'</div></td></tr>';
+  return '<tr class="detail"><td colspan="8"><div class="detail-in">'+acct+rc+dept+ov+'</div></td></tr>';
 }
 
 function overridePanel(u){
@@ -312,11 +334,22 @@ function wire(){
   var raGo=document.getElementById('raGo');
   if(raGo) raGo.onclick=doReassign;
 
+  /* Departments */
+  document.querySelectorAll('.e-dept').forEach(function(cb){ cb.addEventListener('change',function(){ var lab=cb.closest('.deptchip'); if(lab) lab.classList.toggle('on',cb.checked); saveUserDepartments(u.username); }); });
+
   /* Overrides */
   var ovSave=document.getElementById('ovSave');
   if(ovSave) ovSave.onclick=function(){ saveOverrides(OPEN); };
 }
 function qv(sel){var el=document.querySelector(sel);return el?el.value:'';}
+function saveUserDepartments(username){
+  var ids=[]; document.querySelectorAll('.e-dept').forEach(function(cb){ if(cb.checked) ids.push(cb.getAttribute('data-dept')); });
+  var m=document.getElementById('deptMsg'); if(m){ m.textContent='Saving…'; m.className='msg'; }
+  post('/api/admin/user-departments',{username:username,departmentIds:ids}).then(function(j){
+    if(j&&j.ok){ var u=userByName(username); if(u) u.deptIds=(j.deptIds||ids); if(m){ m.textContent='Saved ✓'; m.className='msg ok'; setTimeout(function(){ if(m.textContent==='Saved ✓') m.textContent=''; },1600); } }
+    else { if(m){ m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; } }
+  }).catch(function(){ if(m){ m.textContent='Could not reach the server.'; m.className='msg err'; } });
+}
 
 function applySearch(){
   var q=SEARCH.trim().toLowerCase();

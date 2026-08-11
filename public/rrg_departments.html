@@ -35,6 +35,7 @@ input,textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10p
 .chk{display:inline-flex;align-items:center;gap:6px;background:var(--wash);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px;font-weight:600;color:var(--navy);cursor:pointer;}
 .chk input{width:auto;}
 .chk.none{color:var(--muted);font-weight:500;background:none;border:none;}
+.chk.memchip{cursor:default;background:#eef2f9;border-color:#d3ddf3;}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--muted);}
 .foot{max-width:960px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 </style>
@@ -46,7 +47,7 @@ input,textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10p
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Admin</div>
   <h1>Departments</h1>
-  <div class="sub">Route office requests to the right team. Each department owns request categories and has assigned members &mdash; only a department&rsquo;s members (plus the person who opened the request) can see and answer what routes to it. Admin only.</div>
+  <div class="sub">Define the teams that office requests route to &mdash; each department owns request categories, and only its members (plus the person who opened the request) can see and answer what routes to it. Set a department&rsquo;s categories and notification emails here; assign <b>who&rsquo;s in each department on the Users page</b>. Admin only.</div>
 </div></div>
 <div id="root" class="wrap"><div class="gate">Loading&hellip;</div></div>
 <div class="foot">Proprietary &amp; Confidential &middot; Property of Restaurant Realty Group, LLC &middot; Internal RRG use only.</div>
@@ -55,32 +56,34 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function post(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body||{})}).then(function(r){return r.json();}); }
 function get(url){ return fetch(url,{credentials:'same-origin'}).then(function(r){return r.json();}); }
 
-var DEPTS=[], USERS=[], CATS=[];
+var DEPTS=[], USERS=[], CATS=[], MEMBERS_BY_ID={};
+
+function rememberMembers(){ MEMBERS_BY_ID={}; (DEPTS||[]).forEach(function(d){ if(d.id) MEMBERS_BY_ID[d.id]=(d.members||[]).slice(); }); }
 
 function deptCard(d,idx){
-  var mem = USERS.length ? USERS.map(function(u){
-    var on=(d.members||[]).indexOf(u.username)>=0;
-    return '<label class="chk"><input type="checkbox" class="d_mem" value="'+esc(u.username)+'"'+(on?' checked':'')+'> '+esc(u.name||u.username)+'</label>';
-  }).join('') : '<span class="chk none">No users yet &mdash; add users under Roles &amp; permissions.</span>';
+  var memNames=(d.members||[]).map(function(un){ var u=USERS.filter(function(x){return x.username===un;})[0]; return esc((u&&u.name)||un); });
+  var mem = memNames.length ? memNames.map(function(n){ return '<span class="chk memchip">'+n+'</span>'; }).join('')
+    : '<span class="chk none">No one assigned yet.</span>';
   var cats = CATS.length ? CATS.map(function(c){
     var on=(d.cats||[]).indexOf(c)>=0;
     return '<label class="chk"><input type="checkbox" class="d_cat" value="'+esc(c)+'"'+(on?' checked':'')+'> '+esc(c)+'</label>';
   }).join('') : '<span class="chk none">No categories.</span>';
   return '<div class="dept" data-dept data-id="'+esc(d.id||'')+'">'
     +'<div class="depthd"><input class="d_name" value="'+esc(d.name||'')+'" placeholder="Department name" maxlength="60"><button class="btn danger sm" type="button" data-del="'+idx+'">Delete</button></div>'
-    +'<div class="subh">Members &mdash; who sees &amp; answers requests routed here</div><div class="chks">'+mem+'</div>'
+    +'<div class="subh">Members &mdash; assigned on the <a href="./rrg_settings.html?tab=users" style="color:var(--navy);font-weight:700">Users page</a></div><div class="chks">'+mem+'</div>'
     +'<div class="subh">Request categories this department handles</div><div class="chks">'+cats+'</div>'
     +'<div class="subh" style="margin-top:14px">Extra notification emails (optional)</div><input class="d_email" value="'+esc((d.emails||[]).join(', '))+'" placeholder="e.g. marketing@rrgcre.com, ops@rrgcre.com">'
     +'</div>';
 }
 
 function syncFromDom(){
-  var out=[]; 
+  var out=[];
   document.querySelectorAll('[data-dept]').forEach(function(c){
-    var members=[]; c.querySelectorAll('.d_mem:checked').forEach(function(x){members.push(x.value);});
+    var id=c.getAttribute('data-id')||'';
+    var members=(id&&MEMBERS_BY_ID[id])?MEMBERS_BY_ID[id].slice():[];   // members are managed on the Users page — never wipe them here
     var cats=[]; c.querySelectorAll('.d_cat:checked').forEach(function(x){cats.push(x.value);});
     var emails=((c.querySelector('.d_email')||{}).value||'').split(/[,;\s]+/).filter(Boolean);
-    out.push({ id:c.getAttribute('data-id')||'', name:(c.querySelector('.d_name')||{}).value||'', members:members, cats:cats, emails:emails });
+    out.push({ id:id, name:(c.querySelector('.d_name')||{}).value||'', members:members, cats:cats, emails:emails });
   });
   DEPTS=out;
 }
@@ -98,7 +101,7 @@ function save(){
   var clean=DEPTS.filter(function(d){ return (d.name||'').trim(); });
   var m=document.getElementById('depMsg'); m.textContent='Saving…'; m.className='msg';
   post('/api/admin/departments',{departments:clean}).then(function(j){
-    if(j&&j.ok){ DEPTS=j.departments||[]; render(); m.textContent='Saved ✓'; m.className='msg ok'; }
+    if(j&&j.ok){ DEPTS=j.departments||[]; rememberMembers(); render(); m.textContent='Saved ✓'; m.className='msg ok'; }
     else { m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; }
   }).catch(function(){ m.textContent='Could not reach the server.'; m.className='msg err'; });
 }
@@ -117,7 +120,7 @@ function build(){
   document.getElementById('addBtn').addEventListener('click',addDept);
   document.getElementById('saveBtn').addEventListener('click',save);
   document.getElementById('resetBtn').addEventListener('click',resetDepts);
-  get('/api/admin/departments').then(function(j){ if(j&&j.ok){ DEPTS=j.departments||[]; USERS=j.users||[]; CATS=j.categories||[]; render(); } });
+  get('/api/admin/departments').then(function(j){ if(j&&j.ok){ DEPTS=j.departments||[]; USERS=j.users||[]; CATS=j.categories||[]; rememberMembers(); render(); } });
 }
 
 get('/api/session').then(function(s){

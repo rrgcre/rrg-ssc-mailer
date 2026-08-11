@@ -5,13 +5,18 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RRG — Roles &amp; Permissions</title>
 <style>
-:root{--navy:#20334f;--slate:#000E31;--primary:#2c5c8f;--primary-d:#23496f;--ink:#2b3648;--muted:#69748a;--soft:#96a1b2;--line:#dbe0e9;--wash:#f4f6f9;--inp:#c4ccda;--green:#2f7a55;--red:#b23a2c;}
+:root{--navy:#20334f;--slate:#000E31;--primary:#2c5c8f;--primary-d:#23496f;--ink:#2b3648;--muted:#69748a;--soft:#96a1b2;--line:#dbe0e9;--wash:#f4f6f9;--inp:#c4ccda;--green:#2f7a55;--red:#b23a2c;--amber:#8a5a12;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;font-size:13px;}
 .wrap{max-width:1000px;margin:0 auto;padding:22px 24px 70px;}
-.pagehd{margin:2px 0 16px;}
+.pagehd{margin:2px 0 14px;}
 .pagehd h1{font-size:20px;font-weight:800;color:var(--slate);margin:0;letter-spacing:-.01em;}
-.pagehd .sub{color:var(--muted);font-size:12.5px;margin-top:5px;max-width:760px;line-height:1.5;}
+.pagehd .sub{color:var(--muted);font-size:12.5px;margin-top:5px;max-width:780px;line-height:1.5;}
+/* tabs */
+.tabbar{display:flex;gap:2px;border-bottom:2px solid var(--line);margin:16px 0 18px;flex-wrap:wrap;}
+.tabbtn{border:none;background:none;font:inherit;font-size:13px;font-weight:700;color:var(--muted);padding:9px 16px 11px;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;letter-spacing:.01em;}
+.tabbtn:hover{color:var(--slate);}
+.tabbtn.on{color:var(--primary-d);border-bottom-color:var(--primary);}
 /* how-it-works steps */
 .steps{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 4px;}
 .step{flex:1;min-width:210px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;gap:11px;align-items:flex-start;}
@@ -52,6 +57,20 @@ input:focus,select:focus{outline:none;border-color:var(--primary);}
 .gate{max-width:520px;margin:70px auto;text-align:center;color:var(--muted);} .gate a{color:var(--primary);}
 .assignnote{background:#f7fafd;border:1px solid var(--line);border-left:3px solid var(--primary);border-radius:0 4px 4px 0;padding:11px 14px;font-size:12.5px;color:var(--muted);margin-top:4px;}
 .assignnote b{color:var(--slate);}
+.infobar{background:#fbf7ec;border:1px solid #ecd9a8;border-radius:5px;padding:10px 13px;font-size:12px;color:var(--amber);line-height:1.5;margin-bottom:14px;}
+.infobar b{color:#6d4a0f;}
+/* menu visibility table */
+.mtbl{width:100%;border-collapse:collapse;}
+.mtbl th,.mtbl td{padding:10px 12px;border-top:1px solid #eef1f6;font-size:12.5px;text-align:center;}
+.mtbl th{background:var(--wash);font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--soft);font-weight:700;border-top:none;}
+.mtbl td.grp,.mtbl th.grp{text-align:left;font-weight:700;color:var(--slate);white-space:nowrap;}
+.mtbl input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--primary);}
+.ev{font-size:11px;color:var(--green);font-weight:700;}
+.someroles{font-size:11px;color:var(--amber);font-weight:700;}
+/* tool grid */
+.toolgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px 16px;margin:6px 0 4px;}
+.toolopt{display:flex;align-items:center;gap:9px;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:5px;cursor:pointer;}
+.toolopt input{width:16px;height:16px;cursor:pointer;accent-color:var(--red);}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -61,28 +80,36 @@ input:focus,select:focus{outline:none;border-color:var(--primary);}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function get(u){return fetch(u,{credentials:'same-origin'}).then(function(r){return r.json();});}
 function post(u,b){return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(b||{})}).then(function(r){return r.json();});}
-var ST=null, SELROLE='associate';
+var ST=null, SELROLE='associate', TAB='roles';
+var NAV={groups:[],roles:[],visibility:{}}, NAVLOADED=false;
+var TOOLS={tools:[],adminOnly:[]}, TOOLSLOADED=false;
 
-function permRows(){ return (ST.core||[]).map(function(c){return {key:c.key,label:c.label,note:c.note||'',cat:c.cat||'Other'};}).concat((ST.tools||[]).map(function(t){return {key:'tool:'+t.file,label:t.name,note:'tool',cat:t.cat||'Other'};})); }
+function roleByKey(k){ return (ST.roles||[]).filter(function(r){return r.key===k;})[0]; }
 function groupByCat(items){ var order=[],map={}; (items||[]).forEach(function(it){ var c=it.cat||'Other'; if(!map[c]){ map[c]=[]; order.push(c); } map[c].push(it); }); return order.map(function(c){ return {cat:c,items:map[c]}; }); }
 function permSwitchRow(key,label,note,on,disabled){ return '<div class="permrow"><span class="pn">'+esc(label)+((note&&note!=='tool')?(' <small>'+esc(note)+'</small>'):'')+'</span><label class="switch" style="width:44px;height:24px"><input type="checkbox" data-perm="'+esc(key)+'"'+(on?' checked':'')+(disabled?' disabled':'')+'><span class="slider"></span></label></div>'; }
-function roleByKey(k){ return (ST.roles||[]).filter(function(r){return r.key===k;})[0]; }
 
+/* ---------------- shell: header + tabs + active pane ---------------- */
 function render(){
   var root=document.getElementById('root');
-
   var head='<div class="pagehd"><h1>Roles &amp; Permissions</h1>'
-    +'<div class="sub">Decide what each role can see and do, then assign roles to people under <b>Users</b>. Nothing is restricted until you turn on enforcement. Admin only.</div>'
-    +'<div class="steps">'
-      +'<div class="step"><span class="n">1</span><div><div class="t">Turn on enforcement</div><div class="d">Off by default — the app behaves exactly as today until you flip it on.</div></div></div>'
-      +'<div class="step"><span class="n">2</span><div><div class="t">Define each role</div><div class="d">Pick a role below and set what it can reach.</div></div></div>'
-      +'<div class="step"><span class="n">3</span><div><div class="t">Assign people</div><div class="d">Give each person a role in <b>Settings → Users</b>.</div></div></div>'
-    +'</div></div>';
+    +'<div class="sub">One place to control access. <b>Roles</b> decide what each role can do and which tools it can open; <b>Menu visibility</b> tidies the sidebar per role; <b>Admin-only tools</b> is a blanket lock. Assign roles to people under <b>Users</b>. Admin only.</div></div>';
+  var tabs='<div class="tabbar">'
+    +'<button class="tabbtn'+(TAB==='roles'?' on':'')+'" data-tab="roles">Roles &amp; permissions</button>'
+    +'<button class="tabbtn'+(TAB==='menu'?' on':'')+'" data-tab="menu">Menu visibility</button>'
+    +'<button class="tabbtn'+(TAB==='tools'?' on':'')+'" data-tab="tools">Admin-only tools</button>'
+    +'</div>';
+  var pane = TAB==='menu' ? menuPane() : (TAB==='tools' ? toolsPane() : rolesPane());
+  root.innerHTML=head+tabs+'<div id="pane">'+pane+'</div>';
+  document.querySelectorAll('[data-tab]').forEach(function(b){ b.addEventListener('click',function(){ TAB=b.getAttribute('data-tab'); if(TAB==='menu'&&!NAVLOADED){ loadNav(); return; } if(TAB==='tools'&&!TOOLSLOADED){ loadTools(); return; } render(); }); });
+  if(TAB==='roles') wireRoles();
+  else if(TAB==='menu') wireMenu();
+  else if(TAB==='tools') wireTools();
+}
 
-  // master
-  var master='<div class="card"><div class="ch"><b>Enforce permissions</b><span class="sp"></span><span class="pill '+(ST.enabled?'on':'off')+'">'+(ST.enabled?'On — enforced':'Off — not enforced')+'</span></div><div class="cb"><div class="master"><label class="switch"><input type="checkbox" id="master"'+(ST.enabled?' checked':'')+'><span class="slider"></span></label><div class="note" style="flex:1;min-width:220px">While <b>off</b>, the app works exactly as it does today — everyone sees everything. Set up your roles below with zero risk, then flip this on. You can turn it off instantly if anything looks wrong.</div></div><div id="masterMsg" class="msg" style="margin-top:8px"></div></div></div>';
+/* ---------------- TAB 1: Roles & permissions ---------------- */
+function rolesPane(){
+  var master='<div class="card"><div class="ch"><b>Enforce permissions</b><span class="sp"></span><span class="pill '+(ST.enabled?'on':'off')+'">'+(ST.enabled?'On — enforced':'Off — not enforced')+'</span></div><div class="cb"><div class="master"><label class="switch"><input type="checkbox" id="master"'+(ST.enabled?' checked':'')+'><span class="slider"></span></label><div class="note" style="flex:1;min-width:220px">While <b>off</b>, the app works exactly as it does today — everyone sees everything. Set up your roles below with zero risk, then flip this on. You can turn it off instantly if anything looks wrong. <b>Per-role tool access below only applies when this is on.</b></div></div><div id="masterMsg" class="msg" style="margin-top:8px"></div></div></div>';
 
-  // roles
   var chips=(ST.roles||[]).map(function(r){ return '<div class="rolechip'+(r.key===SELROLE?' on':'')+'" data-role="'+esc(r.key)+'">'+esc(r.name)+'</div>'; }).join('');
   var role=roleByKey(SELROLE)||ST.roles[0];
   var isAdminRole=(role.key==='admin');
@@ -94,22 +121,21 @@ function render(){
     +'<div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:6px"><div><label class="fld">Role name</label><input id="roleName" value="'+esc(role.name)+'"'+(isAdminRole?' disabled':'')+' style="min-width:220px"></div>'
     +(isAdminRole?'<div class="note" style="padding-bottom:8px">The Admin role always has every permission and can’t be limited.</div>':'<button class="btn sm" id="roleSave">Save role</button>'+(role.builtin?'':'<button class="btn danger sm" id="roleDel">Delete role</button>')+'<span id="roleMsg" class="msg"></span>')+'</div>'
     +'<div class="seclbl">Permissions</div>'+coreHtml
-    +'<div class="seclbl">Tool access</div>'+toolHtml
+    +'<div class="seclbl">Tool access <span style="text-transform:none;letter-spacing:0;font-weight:600;color:var(--soft)">— which tools this role can open (applies when enforcement is on)</span></div>'+toolHtml
     +'<div style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px;display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap"><div><label class="fld">Add a new role</label><input id="newRole" placeholder="e.g. Team Lead"></div><button class="btn ghost sm" id="roleAdd">+ Add role</button><span id="addMsg" class="msg"></span></div>'
     +'</div></div>';
 
   var assign='<div class="assignnote"><b>Assigning roles to people</b> now lives in <b>Settings &rarr; Users</b> — pick a role for each person there, along with commission split and per-person overrides.</div>';
-
-  root.innerHTML=head+master+rolesCard+assign;
-  if((location.hash||'').toLowerCase()==='#roles'){ setTimeout(function(){ var el=document.getElementById('rolesSection'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },80); }
-
-  document.getElementById('master').addEventListener('change',function(){ var on=this.checked; post('/api/admin/permissions/toggle',{enabled:on}).then(function(j){ var m=document.getElementById('masterMsg'); if(j&&j.ok){ ST.enabled=j.enabled; m.textContent=j.enabled?'Enforcement is ON.':'Enforcement is OFF.'; m.className='msg ok'; render(); } else { m.textContent='Could not change.'; m.className='msg err'; } }); });
+  return master+rolesCard+assign;
+}
+function wireRoles(){
+  var m=document.getElementById('master'); if(m) m.addEventListener('change',function(){ var on=this.checked; post('/api/admin/permissions/toggle',{enabled:on}).then(function(j){ var mm=document.getElementById('masterMsg'); if(j&&j.ok){ ST.enabled=j.enabled; render(); } else if(mm){ mm.textContent='Could not change.'; mm.className='msg err'; } }); });
   document.querySelectorAll('[data-role]').forEach(function(b){ b.addEventListener('click',function(){ SELROLE=b.getAttribute('data-role'); render(); }); });
   var rs=document.getElementById('roleSave'); if(rs) rs.addEventListener('click',saveRole);
   var rd=document.getElementById('roleDel'); if(rd) rd.addEventListener('click',delRole);
   var ra=document.getElementById('roleAdd'); if(ra) ra.addEventListener('click',addRole);
+  if((location.hash||'').toLowerCase()==='#roles'){ setTimeout(function(){ var el=document.getElementById('rolesSection'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); },80); }
 }
-
 function collectPerms(){ var p={}; document.querySelectorAll('[data-perm]').forEach(function(cb){ p[cb.getAttribute('data-perm')]=cb.checked; }); return p; }
 function saveRole(){
   var role=roleByKey(SELROLE); var name=(document.getElementById('roleName').value||'').trim();
@@ -119,15 +145,54 @@ function saveRole(){
 function addRole(){
   var name=(document.getElementById('newRole').value||'').trim(); var m=document.getElementById('addMsg');
   if(!name){ if(m){m.textContent='Name it first.';m.className='msg err';} return; }
-  var perms={}; (ST.tools||[]).forEach(function(t){ perms['tool:'+t.file]=true; }); // new role: tools on, core off
+  var perms={}; (ST.tools||[]).forEach(function(t){ perms['tool:'+t.file]=true; });
   post('/api/admin/roles',{name:name,perms:perms}).then(function(j){ if(j&&j.ok){ ST.roles=j.roles; var added=j.roles[j.roles.length-1]; SELROLE=added?added.key:SELROLE; render(); } else if(m){ m.textContent=(j&&j.error)||'Failed'; m.className='msg err'; } });
 }
 async function delRole(){
   var role=roleByKey(SELROLE); if(!(window.rrgConfirm?await rrgConfirm('Delete the "'+role.name+'" role? Users on it move to Associate.'):confirm('Delete the "'+role.name+'" role? Users on it move to Associate.'))) return;
-  post('/api/admin/roles/delete',{key:role.key}).then(function(j){ if(j&&j.ok){ ST.roles=j.roles; SELROLE='associate'; reload(); } else alert((j&&j.error)||'Failed'); });
+  post('/api/admin/roles/delete',{key:role.key}).then(function(j){ if(j&&j.ok){ ST.roles=j.roles; SELROLE='associate'; reloadPerms(); } else alert((j&&j.error)||'Failed'); });
 }
-function reload(){ get('/api/admin/permissions').then(function(j){ if(j&&j.ok){ ST=j; render(); } }); }
+function reloadPerms(){ get('/api/admin/permissions').then(function(j){ if(j&&j.ok){ ST=j; render(); } }); }
 
+/* ---------------- TAB 2: Menu visibility (declutter, not security) ---------------- */
+function menuPane(){
+  if(!NAVLOADED) return '<div class="card"><div class="cb"><div class="note">Loading…</div></div></div>';
+  var roles=NAV.roles||[], groups=NAV.groups||[], vis=NAV.visibility||{};
+  var head='<tr><th class="grp">Toolbar section</th>'+roles.map(function(r){return '<th>'+esc(r.name)+'</th>';}).join('')+'<th>Shows to</th></tr>';
+  var rows=groups.map(function(g){
+    var allow=vis[g]||[];
+    var cells=roles.map(function(r){ var on=allow.indexOf(r.key)>=0; return '<td><input type="checkbox" class="nv" data-g="'+esc(g)+'" data-r="'+esc(r.key)+'"'+(on?' checked':'')+'></td>'; }).join('');
+    var acc=allow.length?('<span class="someroles">'+allow.length+' role'+(allow.length===1?'':'s')+'</span>'):'<span class="ev">Everyone</span>';
+    return '<tr><td class="grp">'+esc(g)+'</td>'+cells+'<td>'+acc+'</td></tr>';
+  }).join('');
+  return '<div class="infobar">Menu visibility only <b>hides sections from the sidebar to reduce clutter</b> — it is <b>not</b> a security control. To actually block a tool, use role permissions (Roles tab) or the admin-only lock (Admin-only tools tab). Owners and admins always see every section.</div>'
+    +'<div class="card"><div class="ch"><b>Toolbar sections</b><span class="sp"><span class="msg" id="navMsg"></span> <button class="btn" id="navSave">Save</button></span></div>'
+    +'<div style="overflow-x:auto"><table class="mtbl"><thead>'+head+'</thead><tbody>'+rows+'</tbody></table></div>'
+    +'<div class="cb"><div class="note">A section with <b>no roles checked shows to everyone</b>. Check one or more roles to limit it — e.g. check only Marketing roles on the Marketing section so brokers do not see it in their sidebar.</div></div></div>';
+}
+function wireMenu(){
+  document.querySelectorAll('.nv').forEach(function(el){ el.onchange=function(){ var g=el.getAttribute('data-g'), r=el.getAttribute('data-r'); NAV.visibility[g]=NAV.visibility[g]||[]; if(el.checked){ if(NAV.visibility[g].indexOf(r)<0) NAV.visibility[g].push(r); } else { NAV.visibility[g]=NAV.visibility[g].filter(function(x){return x!==r;}); } if(!NAV.visibility[g].length) delete NAV.visibility[g]; render(); }; });
+  var sb=document.getElementById('navSave'); if(sb) sb.onclick=function(){ var m=document.getElementById('navMsg'); if(m){m.textContent='Saving…';m.className='msg';} post('/api/admin/nav-visibility',{visibility:NAV.visibility}).then(function(j){ if(j&&j.ok){ NAV.visibility=j.visibility||{}; if(m){m.textContent='Saved ✓';m.className='msg ok';} } else if(m){ m.textContent=(j&&j.error)||'Could not save.'; m.className='msg err'; } }); };
+}
+function loadNav(){ get('/api/admin/nav-visibility').then(function(j){ if(j&&j.ok){ NAV={groups:j.groups||[],roles:j.roles||[],visibility:j.visibility||{}}; } NAVLOADED=true; render(); }).catch(function(){ NAVLOADED=true; render(); }); }
+
+/* ---------------- TAB 3: Admin-only tools (blanket lock) ---------------- */
+function toolsPane(){
+  if(!TOOLSLOADED) return '<div class="card"><div class="cb"><div class="note">Loading…</div></div></div>';
+  var admin=TOOLS.adminOnly||[], tools=TOOLS.tools||[];
+  var grid=tools.length?tools.map(function(t){ return '<label class="toolopt"><input type="checkbox" class="ta" value="'+esc(t.file)+'"'+(admin.indexOf(t.file)>=0?' checked':'')+'> '+esc(t.name)+'</label>'; }).join(''):'<div class="note">No tools registered.</div>';
+  return '<div class="infobar">A quick <b>blanket lock</b>: checked tools vanish from every non-admin’s toolbox and are blocked even by direct link — <b>always on, regardless of enforcement</b>. For finer control by role, use per-role <b>Tool access</b> on the Roles tab instead.</div>'
+    +'<div class="card"><div class="ch"><b>Lock tools to admins only</b><span class="sp"><span class="msg" id="toolMsg"></span> <button class="btn" id="toolSave">Save</button></span></div><div class="cb">'
+    +'<div class="toolgrid">'+grid+'</div>'
+    +'<div class="note" style="margin-top:10px">Takes effect on each user’s next page load.</div>'
+    +'</div></div>';
+}
+function wireTools(){
+  var sb=document.getElementById('toolSave'); if(sb) sb.onclick=function(){ var t=[]; document.querySelectorAll('.ta:checked').forEach(function(c){ t.push(c.value); }); var m=document.getElementById('toolMsg'); if(m){m.textContent='Saving…';m.className='msg';} post('/api/admin/tool-access',{adminOnly:t}).then(function(j){ if(j&&j.ok){ TOOLS.adminOnly=j.adminOnly||[]; if(m){m.textContent='Saved — '+(j.adminOnly||[]).length+' locked ✓';m.className='msg ok';} } else if(m){ m.textContent=(j&&j.error)||'Failed'; m.className='msg err'; } }); };
+}
+function loadTools(){ get('/api/admin/tool-access').then(function(j){ if(j&&j.ok){ TOOLS={tools:j.tools||[],adminOnly:j.adminOnly||[]}; } TOOLSLOADED=true; render(); }).catch(function(){ TOOLSLOADED=true; render(); }); }
+
+/* ---------------- init ---------------- */
 get('/api/admin/permissions').then(function(j){
   if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Admins only. <a href="/admin">Back</a></div>'; return; }
   ST=j; render();

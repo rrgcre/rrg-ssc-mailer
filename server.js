@@ -9184,13 +9184,32 @@ app.get('/api/admin/users', requireAdmin, (req, res) => {
     const _roles = loadRoles().filter(r => r.key !== 'creator').map(r => ({ key: r.key, name: r.name }));
     const list = _u.slice()
       .sort((a, b) => String(a.name || a.username).toLowerCase().localeCompare(String(b.name || b.username).toLowerCase()))
-      .map(u => ({ name: u.name || '', username: u.username || '', email: u.email || '', role: u.role || '', title: u.title || '', phone: u.phone || '', disabled: !!u.disabled, created: (u.createdAt || '').slice(0, 10), last: _last[u.username] ? fmtWhen(_last[u.username]) : '' }));
-    res.json({ ok: true, users: list, roles: _roles });
+      .map(u => ({ name: u.name || '', username: u.username || '', email: u.email || '', role: u.role || '', title: u.title || '', phone: u.phone || '', disabled: !!u.disabled, created: (u.createdAt || '').slice(0, 10), last: _last[u.username] ? fmtWhen(_last[u.username]) : '', deptIds: userDepartmentIds(u.username) }));
+    res.json({ ok: true, users: list, roles: _roles, departments: effDepartments().map(d => ({ id: d.id, name: d.name })) });
   } catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
 });
 app.get('/api/admin/tool-access', requireAdmin, (req, res) => {
   try { res.json({ ok: true, tools: TOOL_LIST.map(t => ({ name: t.name, file: t.file })), adminOnly: auth.loadToolAccess() }); }
   catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
+});
+// Set which departments a user belongs to, edited from the Users page. Membership still lives on
+// the department (that's what request routing reads) — this just writes it from the person's side.
+app.post('/api/admin/user-departments', requireAdmin, express.json(), (req, res) => {
+  try {
+    const b = req.body || {};
+    const uname = String(b.username || '').trim().toLowerCase();
+    if (!uname) return res.status(400).json({ ok: false, error: 'No user given.' });
+    if (!auth.findUser(uname)) return res.status(404).json({ ok: false, error: 'User not found.' });
+    const want = Array.isArray(b.departmentIds) ? b.departmentIds.map(x => String(x)) : [];
+    const base = effDepartments().map(d => Object.assign({}, d, { members: Array.isArray(d.members) ? d.members.slice() : [] }));
+    const next = base.map(d => {
+      const members = d.members.filter(m => String(m).toLowerCase() !== uname);
+      if (want.indexOf(d.id) >= 0) members.push(uname);
+      return Object.assign({}, d, { members: members });
+    });
+    const s = loadSettings(); s.departments = cleanDepartments(next) || next; saveSettings(s);
+    res.json({ ok: true, deptIds: userDepartmentIds(uname) });
+  } catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
 });
 app.get('/api/admin/links', requireAdmin, (req, res) => {
   try { res.json({ ok: true, links: auth.loadLinks(), max: 20 }); }
