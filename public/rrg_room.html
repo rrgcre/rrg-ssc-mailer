@@ -17,6 +17,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .kicker{margin:8px 0 1px;color:#8fa2be;font-weight:700;letter-spacing:.15em;font-size:10px;text-transform:uppercase;}
 h1{font-size:16px;font-weight:700;margin:0;color:#fff;letter-spacing:.01em;}
 .sub{color:#a9b4c8;font-size:11.5px;margin-top:2px;}
+.pagehd{display:none;margin:2px 0 15px;}
+body.rrg-shelled .pagehd{display:block;}
+.pagehd-k{color:#8a93a8;font-weight:800;letter-spacing:.12em;font-size:10px;text-transform:uppercase;margin-bottom:2px;}
+.pagehd-t{font-size:19px;font-weight:800;color:#000E31;margin:0;letter-spacing:.01em;}
+.pagehd-s{color:#6b7488;font-size:12.5px;margin-top:3px;}
 .wrap{max-width:1000px;margin:11px auto;padding:0 22px 34px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:4px;box-shadow:none;margin-bottom:6px;overflow:hidden;}
 .card .cbody{padding:9px 13px;}
@@ -58,7 +63,12 @@ h1{font-size:16px;font-weight:700;margin:0;color:#fff;letter-spacing:.01em;}
 .log{max-height:210px;overflow:auto;} .logrow{display:flex;gap:10px;font-size:11px;padding:5px 13px;border-top:1px solid #f2f4f7;color:var(--muted);} .logrow .ev{font-weight:600;color:var(--primary-d);width:70px;} .logrow .when{width:116px;}
 .toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:#20334f;color:#fff;font-size:12.5px;font-weight:600;padding:10px 18px;border-radius:4px;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;transition:opacity .2s;pointer-events:none;z-index:99;} .toast.show{opacity:1;}
 .switch .sl:before{position:absolute;content:"";height:20px;width:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 3px rgba(0,0,0,.3);}
-.switch input:checked+.sl{background:var(--primary);} .switch input:checked+.sl:before{transform:translateX(20px);}
+.switch input:checked+.sl{background:#2f7a55;} .switch input:checked+.sl:before{transform:translateX(20px);}
+.mfastate{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:5px 11px;border-radius:100px;border:1px solid transparent;white-space:nowrap;}
+.mfastate .dot{width:8px;height:8px;border-radius:50%;background:currentColor;}
+.mfastate.on{color:#1f7a4d;background:#e8f3ec;border-color:#bfe2cd;}
+.mfastate.off{color:#7a8090;background:#eef1f6;border-color:#d7dce6;}
+#mfaRow.ison{background:#eef7f1;border-color:#bfe2cd;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -71,6 +81,12 @@ h1{font-size:16px;font-weight:700;margin:0;color:#fff;letter-spacing:.01em;}
   <div class="sub">Add or remove files anytime. Share the buyer link with an NDA'd buyer to give them view &amp; download access.</div>
 </div></div>
 <div class="wrap">
+
+  <div class="pagehd">
+    <div class="pagehd-k">Data Room</div>
+    <h2 class="pagehd-t" id="roomHdr">Data Room</h2>
+    <div class="pagehd-s">Add or remove files anytime. Share the buyer link with an NDA'd buyer to give them view &amp; download access.</div>
+  </div>
 
   <div id="closedBanner" style="display:none;background:#fff4e6;border:1px solid #f3d9a8;border-radius:12px;padding:12px 16px;margin-bottom:9px;display:none;align-items:center;gap:12px;flex-wrap:wrap">
     <span style="font-size:18px;line-height:1"></span>
@@ -103,6 +119,7 @@ h1{font-size:16px;font-weight:700;margin:0;color:#fff;letter-spacing:.01em;}
     <div class="h">Authorize each buyer individually. They get their own <b>access code — the password they’ll need to open the room</b>. New buyers start with <b>no folder access</b>: grant exactly the folders they should see in the grid below (no access, view, download, or upload). Authorizing the first buyer locks the room, so the shared link alone stops working and a code is required.</div>
     <div id="mfaRow" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:#f5f7fb;border:1px solid var(--line);border-radius:11px;padding:12px 15px;margin-bottom:14px">
       <div style="flex:1;min-width:220px"><div style="font-weight:800;color:#000E31;font-size:13.5px">Buyer verification (2-step)</div><div id="mfaSub" style="color:#6b7488;font-size:12px;margin-top:2px">When on, a buyer must also enter a one-time code emailed to them — so only someone with the code <i>and</i> the inbox gets in.</div></div>
+      <span class="mfastate off" id="mfaState"><span class="dot"></span>Off</span>
       <label class="switch" style="position:relative;display:inline-block;width:46px;height:26px;flex:none"><input type="checkbox" id="mfaChk" onchange="toggleMfa(this.checked)" style="opacity:0;width:0;height:0"><span class="sl" style="position:absolute;cursor:pointer;inset:0;background:#c6cede;border-radius:26px;transition:.15s"></span></label>
     </div>
     <div class="up">
@@ -343,10 +360,12 @@ function toggleGrant(id){
   fetch('/api/room/'+encodeURIComponent(RID)+'/grant-toggle',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({grantId:id})})
    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; renderGrants(); } else alert((j&&j.error)||'Failed'); }).catch(function(){ alert('Could not reach the server.'); });
 }
-function paint(){ document.getElementById('hdr').textContent=(ROOM.business&&String(ROOM.business).trim())?('Data Room · '+String(ROOM.business).trim()):'Data Room'; paintLink(); renderInterviews(); renderCats(); renderDocs(); renderGrants(); renderLog(); renderMfa(); paintClosed(); }
+function paint(){ var _biz=(ROOM.business&&String(ROOM.business).trim())||''; var _t=_biz?('Data Room · '+_biz):'Data Room'; document.getElementById('hdr').textContent=_t; var _rh=document.getElementById('roomHdr'); if(_rh) _rh.textContent=_biz||'Data Room'; paintLink(); renderInterviews(); renderCats(); renderDocs(); renderGrants(); renderLog(); renderMfa(); paintClosed(); }
 function renderMfa(){
   var chk=document.getElementById('mfaChk'), sub=document.getElementById('mfaSub'); if(!chk) return;
   var on=!!(ROOM&&ROOM.mfa); chk.checked=on;
+  var st=document.getElementById('mfaState'); if(st){ st.className='mfastate '+(on?'on':'off'); st.innerHTML='<span class="dot"></span>'+(on?'On':'Off'); }
+  var row=document.getElementById('mfaRow'); if(row){ row.classList.toggle('ison',on); }
   var override=!!(ROOM&&ROOM.mfaOverride);
   var def=!(ROOM&&ROOM.mfaDefault===false);
   var noEmail=((ROOM&&ROOM.grants)||[]).filter(function(g){return g.active!==false&&!g.email;}).length;
