@@ -39,12 +39,12 @@ h1{margin:0;font-size:19px;font-weight:800;color:var(--navy);} .sub{color:var(--
 <div class="phead">
   <div class="crumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_data.html">Data Enrichment</a><span>›</span>Find Logos</div>
   <h1>Find Company Logos</h1>
-  <div class="sub">We fetch a logo for every company that has a website. Review them below — <b>approve the good ones, skip the rest</b> — then apply. Nothing changes until you hit Apply.</div>
+  <div class="sub">We fetch a logo for every company that has a website. Review them below — <b>approve the good ones, skip the rest</b> — then apply. Nothing changes until you hit Apply. Companies with a real logo are sorted to the top and pre‑approved; the rest (favicon only) start unchecked.</div>
 </div>
-<div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_data.html">Data Enrichment</a><span>›</span>Find Logos</div>
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function hasLogo(c){ return !!(c&&(c.proposed||c.apple||c.clearbit)); }  // real logo source (not just a favicon)
 var AIW = {_p:null,_iv:null,show:function(m,c){try{if(window.rrgAiWork){this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork.show(m,c);}this._p={m:m,c:c};var s=this,t=0;if(this._iv)clearInterval(this._iv);this._iv=setInterval(function(){t++;if(window.rrgAiWork){clearInterval(s._iv);s._iv=null;if(s._p){window.rrgAiWork.show(s._p.m,s._p.c);}}else if(t>150){clearInterval(s._iv);s._iv=null;}},50);}catch(e){}},setMsg:function(m){try{if(window.rrgAiWork)window.rrgAiWork.setMsg(m);else if(this._p)this._p.m=m;}catch(e){}},hide:function(){try{this._p=null;if(this._iv){clearInterval(this._iv);this._iv=null;}return window.rrgAiWork&&window.rrgAiWork.hide();}catch(e){}}};
 var LOGOCANCEL=false;
 var CANDS=[], STATE={};
@@ -71,9 +71,9 @@ function loadCands(){
   fetch('/api/admin/logo-candidates',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(LOADCANCEL) return; AIW.hide();
     if(!j||!j.ok){ document.getElementById('grid').innerHTML='<div class="empty">Could not load companies.</div>'; return; }
-    CANDS=j.candidates||[];
+    CANDS=(j.candidates||[]).slice().sort(function(a,b){ return (hasLogo(b)?1:0)-(hasLogo(a)?1:0); });
     if(!CANDS.length){ document.getElementById('grid').innerHTML='<div class="empty"><b>All set.</b>Every company with a website already has a logo (or none have websites to pull from). Import companies with websites, then come back.</div>'; document.getElementById('cnt').textContent=''; var _ab=document.getElementById('aibtn'); if(_ab) _ab.disabled=false; return; }  // keep Apply off; still allow the AI no-website search
-    CANDS.forEach(function(c){ STATE[c.id]='on'; });
+    CANDS.forEach(function(c){ STATE[c.id]=hasLogo(c)?'on':'off'; });  // real logos pre-approved; favicon-only start unchecked
     render();
     setActionsEnabled(true);                                 // logos are in — now you can review & apply
   }).catch(function(){ if(LOADCANCEL) return; AIW.hide(); document.getElementById('grid').innerHTML='<div class="empty">Could not reach the server.</div>'; });
@@ -121,7 +121,7 @@ function apply(){
   if(!items.length){ document.getElementById('msg').textContent=''; alert('Nothing approved to apply.'); return; }
   var b=document.getElementById('apply'); b.disabled=true; AIW.show('Fetching &amp; saving logos…');
   fetch('/api/admin/apply-logos',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
-    AIW.hide(); b.disabled=false; if(j&&j.ok){ document.getElementById('msg').textContent='Applied '+j.applied+' logo'+(j.applied===1?'':'s')+' ✓'; setTimeout(loadCands,900); } else { alert((j&&j.error)||'Could not apply.'); }
+    b.disabled=false; if(j&&j.ok){ document.getElementById('msg').textContent='Applied '+j.applied+' logo'+(j.applied===1?'':'s')+' ✓'; AIW.done({title:'Logos applied', summary:'Saved '+j.applied+' logo'+(j.applied===1?'':'s')+' to your companies.', onClose:function(){ setTimeout(loadCands,150); }}); } else { AIW.hide(); alert((j&&j.error)||'Could not apply.'); }
   }).catch(function(){ AIW.hide(); b.disabled=false; alert('Could not reach the server.'); });
 }
 fetch('/api/feedback',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){

@@ -93,9 +93,9 @@ function startScan(){
   var ci=0;
   function next(){
     if(CANCELLED) return;
-    if(ci>=chunks.length){ AIW.hide(); var matched=ORDER.filter(function(k){return ROWS[k].proposed;}).length; document.getElementById('cnt').innerHTML='<b>'+matched+'</b> matched · '+(ORDER.length-matched)+' no match · scanned '+SCANNED; return; }
+    if(ci>=chunks.length){ var matched=ORDER.filter(function(k){return ROWS[k].proposed;}).length; var nomatch=ORDER.length-matched; document.getElementById('cnt').innerHTML='<b>'+matched+'</b> matched · '+nomatch+' no match · scanned '+SCANNED; AIW.progress(pool.length,pool.length,{noun:'locations'}); AIW.done({title:'Google scan complete', summary:'Scanned '+SCANNED+' location'+(SCANNED===1?'':'s')+' — '+matched+' matched Google data, '+nomatch+' with no match. Review the suggestions below and apply the ones you want.'}); return; }
     var batch=chunks[ci];
-    AIW.setMsg('Reading Google — '+(SCANNED+1)+'–'+Math.min(SCANNED+batch.length,pool.length)+' of '+pool.length+' · '+esc(batch[0].name||batch[0].companyName||'location'));
+    AIW.progress(SCANNED, pool.length, {noun:'locations', msg:'Reading Google — '+esc(batch[0].name||batch[0].companyName||'location')});
     fetch('/api/admin/enrich-run',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:batch.map(function(c){return {companyId:c.companyId,locId:c.locId};})})}).then(function(r){return r.json();}).then(function(j){
       if(CANCELLED) return;
       if(!j||!j.ok){ AIW.hide(); document.getElementById('cnt').innerHTML=''; document.getElementById('msg').className='msg err'; document.getElementById('msg').textContent=(j&&j.error)||'Google scan failed — check your key in Settings.'; return; }

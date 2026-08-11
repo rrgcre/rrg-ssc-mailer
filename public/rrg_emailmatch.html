@@ -85,8 +85,8 @@ function apply(){
   if(!items.length){ alert('Tick at least one contact to link.'); return; }
   var b=document.getElementById('apply'); b.disabled=true; var msg=document.getElementById('msg'); msg.className='msg'; msg.textContent=''; AIW.show('Linking '+items.length+' contact'+(items.length===1?'':'s')+'…');
   fetch('/api/admin/emaildomain-apply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
-    AIW.hide(); b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Linked '+j.applied+' contact'+(j.applied===1?'':'s')+' ✓'; items.forEach(function(it){ STATE[it.personId]='dead'; var el=document.querySelector('.ec[data-k="'+String(it.personId).replace(/"/g,'\\"')+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } }); count(); }
-    else { msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
+    b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Linked '+j.applied+' contact'+(j.applied===1?'':'s')+' ✓'; items.forEach(function(it){ STATE[it.personId]='dead'; var el=document.querySelector('.ec[data-k="'+String(it.personId).replace(/"/g,'\\"')+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } }); count(); AIW.done({title:'Contacts linked', summary:'Linked '+j.applied+' contact'+(j.applied===1?'':'s')+' to companies by matching email domains.'}); }
+    else { AIW.hide(); msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
   }).catch(function(){ AIW.hide(); b.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
 }
 fetch('/api/admin/emaildomain-scan',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){ build(); }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to run contact matching.</div>'; });
