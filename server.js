@@ -7861,6 +7861,17 @@ async function pullPhotosForLocation(key, l) {
   return { added, reasons, enriched: !!(l.google && l.google.placeId) };
 }
 app.get('/api/admin/gmaps-key', requireAdmin, (req, res) => res.json({ ok: true, set: !!loadGmapsKey(), fromEnv: !fs.existsSync(GMAPS_KEY_FILE) && !!process.env.GOOGLE_MAPS_API_KEY }));
+// Live connection status for the Integrations gallery tiles.
+app.get('/api/admin/integrations-status', requireAdmin, (req, res) => {
+  const st = {};
+  try { st.maps = !!loadGmapsKey(); } catch (e) { st.maps = false; }
+  try { st.claude = !!(loadAnthropicKeyFile() || process.env.ANTHROPIC_API_KEY); } catch (e) { st.claude = false; }
+  try { st.twilio = isSmsConfigured(); } catch (e) { st.twilio = false; }
+  try { st.gmail = !!(req.user && gmail.statusFor(req.user.username).connected); } catch (e) { st.gmail = false; }
+  st.calendar = st.gmail;   // same Google account connection
+  st.bizbuysell = st.gmail; // BizBuySell import runs through the connected Gmail inbox
+  res.json({ ok: true, status: st });
+});
 app.post('/api/admin/gmaps-key', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {};
   if (b.clear) { saveGmapsKey(''); return res.json({ ok: true, set: !!loadGmapsKey() }); }

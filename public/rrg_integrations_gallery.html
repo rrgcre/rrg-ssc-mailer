@@ -26,7 +26,7 @@ h1{margin:0;font-size:19px;font-weight:800;color:var(--navy);}
 .tname{font-size:14px;font-weight:800;line-height:1.15;color:var(--navy);} .tdesc{font-size:11.5px;color:var(--dim);margin-top:3px;line-height:1.4;}
 .tbody{padding:11px 15px 13px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;background:#fff;}
 .badge{font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:3px;}
-.badge.on{background:#eaf5ef;color:var(--green);border:1px solid #bfe6d1;} .badge.soon{background:#f2f4f8;color:#7a869c;border:1px solid #e0e5ee;} .badge.native{background:#fdeceb;color:var(--red);border:1px solid #f3cfc9;}
+.badge.on{background:#eaf5ef;color:var(--green);border:1px solid #bfe6d1;} .badge.soon{background:#f2f4f8;color:#7a869c;border:1px solid #e0e5ee;} .badge.native{background:#fdeceb;color:var(--red);border:1px solid #f3cfc9;} .badge.avail{background:#eef2fb;color:var(--navy2);border:1px solid #d3ddf3;}
 .cbtn{border:1px solid var(--navy);border-radius:3px;padding:7px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;background:var(--navy);color:#fff;text-decoration:none;display:inline-block;} .cbtn:hover{background:var(--primary-d);}
 .cbtn.soon{background:#fff;color:var(--soft);border-color:var(--inp);cursor:default;} .cbtn.soon:hover{background:#fff;}
 .gate{max-width:520px;margin:70px auto;text-align:center;color:var(--dim);}
@@ -57,14 +57,15 @@ var CLAUDE_ICON='<svg width="24" height="24" viewBox="0 0 24 24" fill="none"><g 
 function letter(ch,color){ return '<span class="lm" style="color:'+color+'">'+ch+'</span>'; }
 
 // tier: 'platform' (provisioned once by the operator) | 'brokerage' (each firm connects its own)
+// statusKey: matches /api/admin/integrations-status so a live "Connected" badge shows when it's set up.
 var INTEGRATIONS=[
- {name:'Claude', tier:'platform', desc:'The AI engine behind valuations, marketing packs, attack plans & the Requests office.', icon:CLAUDE_ICON, native:true, act:{label:'Configure', href:'rrg_ai_engine.html'}},
- {name:'Google Maps', tier:'platform', desc:'Auto-pull storefront photos & Places data onto every location.', icon:letter('◆','#1f8a5b'), act:{label:'Add key', href:'rrg_integrations.html'}},
- {name:'Twilio SMS', tier:'platform', desc:'Text task reminders to reps at the number on their profile.', icon:letter('☎','#f22f46'), act:{label:'Connect', href:'rrg_integrations.html'}},
+ {name:'Claude', tier:'platform', statusKey:'claude', desc:'The AI engine behind valuations, marketing packs, attack plans & the Requests office.', icon:CLAUDE_ICON, native:true, act:{label:'Configure', href:'rrg_ai_engine.html'}},
+ {name:'Google Maps', tier:'platform', statusKey:'maps', desc:'Auto-pull storefront photos & Places data onto every location.', icon:letter('◆','#1f8a5b'), act:{label:'Add key', href:'rrg_integrations.html'}},
+ {name:'Twilio SMS', tier:'platform', statusKey:'twilio', desc:'Text task reminders to reps at the number on their profile.', icon:letter('☎','#f22f46'), act:{label:'Connect', href:'rrg_integrations.html'}},
 
- {name:'Gmail', tier:'brokerage', desc:'Send, track & auto-log sent email straight from FullServe.', icon:letter('M','#ea4335'), act:{label:'Connect', href:'rrg_integrations.html'}},
- {name:'Google Calendar', tier:'brokerage', desc:'Push tasks & reminders to a dedicated FullServe calendar.', icon:letter('31','#2f6fd0'), act:{label:'Connect', href:'rrg_account.html'}},
- {name:'BizBuySell', tier:'brokerage', desc:'Auto-import inbound business-for-sale leads from your inbox.', icon:letter('B','#0b7285'), act:{label:'Set up', href:'rrg_import.html'}},
+ {name:'Gmail', tier:'brokerage', statusKey:'gmail', desc:'Send, track & auto-log sent email straight from FullServe.', icon:letter('M','#ea4335'), act:{label:'Connect', href:'rrg_integrations.html'}},
+ {name:'Google Calendar', tier:'brokerage', statusKey:'calendar', desc:'Push tasks & reminders to a dedicated FullServe calendar.', icon:letter('31','#2f6fd0'), act:{label:'Connect', href:'rrg_account.html'}},
+ {name:'BizBuySell', tier:'brokerage', statusKey:'bizbuysell', desc:'Auto-import inbound business-for-sale leads from your inbox.', icon:letter('B','#0b7285'), act:{label:'Set up', href:'rrg_import.html'}},
  {name:'DocuSign', tier:'brokerage', desc:'Track e-signatures on agreements alongside the built-in signer.', icon:letter('D','#d98b0a'), act:{soon:true}},
  {name:'QuickBooks', tier:'brokerage', desc:'Sync invoices & payments with your accounting.', icon:letter('qb','#2ca01c'), act:{soon:true}},
  {name:'Slack', tier:'brokerage', desc:'Real-time lead & deal notifications in your channels.', icon:letter('#','#7c2d67'), act:{soon:true}},
@@ -74,21 +75,25 @@ var INTEGRATIONS=[
  {name:'RingCentral', tier:'brokerage', desc:'Make, receive and log calls against records.', icon:letter('R','#cf8a0a'), act:{soon:true}}
 ];
 
+var STATUS={};
 function tile(x){
-  var actHtml = x.act.soon ? '<span class="cbtn soon">Coming soon</span>' : '<a class="cbtn" href="'+x.act.href+'">'+esc(x.act.label)+'</a>';
-  var badge = x.act.soon ? '<span class="badge soon">Roadmap</span>' : (x.native?'<span class="badge native">Native</span>':'<span class="badge on">Available</span>');
+  var connected = !x.act.soon && x.statusKey && STATUS[x.statusKey]===true;
+  var actHtml = x.act.soon ? '<span class="cbtn soon">Coming soon</span>' : '<a class="cbtn" href="'+x.act.href+'">'+esc(connected?'Manage':x.act.label)+'</a>';
+  var badge = x.act.soon ? '<span class="badge soon">Roadmap</span>'
+    : (x.native ? '<span class="badge native">Native</span>'
+      : (connected ? '<span class="badge on">Connected</span>' : '<span class="badge avail">Available</span>'));
   return '<div class="tile"><div class="thead"><div class="tico">'+x.icon+'</div>'
     +'<div><div class="tname">'+esc(x.name)+'</div><div class="tdesc">'+esc(x.desc)+'</div></div></div>'
     +'<div class="tbody">'+badge+'<div class="tacts">'+actHtml+'</div></div></div>';
 }
+function connectedCount(list){ return list.filter(function(x){ return !x.act.soon && ((x.statusKey && STATUS[x.statusKey]===true) || x.native); }).length; }
 function renderTier(tier, gridId, ctId){
   var list=INTEGRATIONS.filter(function(x){ return x.tier===tier; });
   document.getElementById(gridId).innerHTML=list.map(tile).join('');
-  var live=list.filter(function(x){ return !x.act.soon; }).length;
-  document.getElementById(ctId).textContent=live+' live · '+list.length+' total';
+  document.getElementById(ctId).textContent=connectedCount(list)+' connected · '+list.length+' total';
 }
-renderTier('platform','gridPlatform','ctPlatform');
-renderTier('brokerage','gridBrokerage','ctBrokerage');
+function renderAll(){ renderTier('platform','gridPlatform','ctPlatform'); renderTier('brokerage','gridBrokerage','ctBrokerage'); }
+fetch('/api/admin/integrations-status',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok) STATUS=j.status||{}; renderAll(); }).catch(function(){ renderAll(); });
 </script>
 </body>
 </html>
