@@ -7898,11 +7898,16 @@ app.get('/api/admin/activity', requireAdmin, (req, res) => {
 // Quick record counts of the main data stores — the overview strip on the Activity page.
 app.get('/api/admin/record-counts', requireAdmin, (req, res) => {
   const n = a => { try { return (a || []).length; } catch (e) { return 0; } };
+  const companies = loadCompanies();
+  let concepts = 0, locations = 0;
+  companies.forEach(c => { concepts += (Array.isArray(c.concepts) ? c.concepts.length : 0); locations += (Array.isArray(c.locations) ? c.locations.length : 0); });
   res.json({ ok: true, counts: [
     { key: 'contacts',   label: 'Contacts',          count: n(loadPeople()),     href: 'rrg_people.html',       primary: true },
-    { key: 'companies',  label: 'Companies',         count: n(loadCompanies()),  href: 'rrg_companies.html',    primary: true },
+    { key: 'companies',  label: 'Companies',         count: companies.length,    href: 'rrg_companies.html',    primary: true },
     { key: 'listings',   label: 'Listings',          count: n(loadDeals()),      href: 'rrg_board.html',        primary: true },
     { key: 'datarooms',  label: 'Data Rooms',        count: n(loadRooms()),      href: 'rrg_rooms_queue.html',  primary: true },
+    { key: 'concepts',   label: 'Concepts',          count: concepts,            href: 'rrg_companies.html' },
+    { key: 'locations',  label: 'Locations',         count: locations,           href: 'rrg_companies.html' },
     { key: 'files',      label: 'Uploaded Files',    count: n(loadUserFiles()),  href: 'rrg_documents.html' },
     { key: 'valuations', label: 'Valuations',        count: n(loadBovs()),       href: 'rrg_bov_queue.html' },
     { key: 'marketing',  label: 'Marketing Packs',   count: n(loadCims()),       href: 'rrg_cim_queue.html' },
