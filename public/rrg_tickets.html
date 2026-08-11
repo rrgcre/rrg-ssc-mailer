@@ -64,6 +64,10 @@ h1{font-size:28px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .replyrow{display:flex;gap:9px;justify-content:space-between;align-items:center;margin-top:10px;}
 .linkbtn{background:none;border:none;color:var(--muted);font:inherit;font-size:12px;font-weight:700;cursor:pointer;text-decoration:underline;}
 .linkbtn.danger{color:var(--red);}
+.delrow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 22px 18px;border-top:1px solid var(--line);}
+.delrow .linkbtn{text-decoration:none;border:1px solid #e6cdc9;border-radius:4px;padding:7px 12px;}
+.delrow .linkbtn:hover{background:#fbeceb;}
+.delnote{font-size:11.5px;color:var(--muted);line-height:1.5;flex:1;min-width:180px;}
 .detmeta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:2px 22px 4px;}
 .detmeta .dchip{font-size:11px;color:var(--muted);background:var(--wash);border:1px solid var(--line);border-radius:100px;padding:4px 10px;font-weight:600;}
 .thinking{padding:14px 22px;color:var(--muted);font-size:12.5px;font-style:italic;}
@@ -113,7 +117,7 @@ function ago(iso){ if(!iso) return ''; var d=new Date(iso), now=new Date(), s=(n
 function fmtDate(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return d.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'2-digit'}); }
 function openDays(t){ var start=new Date(t.createdAt||t.lastAt||Date.now()); var end=(t.status==='Closed')?new Date(t.updatedAt||t.lastAt||Date.now()):new Date(); var d=Math.max(0,Math.floor((end-start)/86400000)); return d; }
 function openLabel(t){ var d=openDays(t); var closed=t.status==='Closed'; return (closed?'Open ':'Open ')+ (d===0?'<1d':(d+'d')) + (closed?' (resolved)':''); }
-var ALL=[], CATS=[], PRIS=[], STATUSES=[], DEPTS=[], ISADMIN=false, FILTER='all', SORT='new', USERFILTER='';
+var ALL=[], CATS=[], PRIS=[], STATUSES=[], DEPTS=[], ISADMIN=false, FILTER='all', SORT='new', USERFILTER='', CANDEL=false;
 
 function renderFilters(){
   var opts=[{k:'all',l:'All'},{k:'open',l:'Needs you'},{k:'Answered',l:'Answered'},{k:'Closed',l:'Closed'}];
@@ -181,17 +185,25 @@ function renderThread(t){
     + '<div class="thwrap">'+msgs+'</div>'
     + '<div id="thinkSlot"></div>'
     + reply
+    + (CANDEL?('<div class="delrow"><button class="linkbtn danger" id="delTicketBtn">🗑 Delete this request</button><span class="delnote">Permanently removes the request and its entire thread. This can’t be undone — use <b>Close</b> instead to keep the record.</span></div>'):'')
     + '</div>';
   document.getElementById('backBtn').addEventListener('click',showList);
   var sr=document.getElementById('sendReply'); if(sr) sr.addEventListener('click',function(){ sendReply(t.id); });
   var cb=document.getElementById('closeBtn'); if(cb) cb.addEventListener('click',function(){ setStatus(t.id,'Closed'); });
   var rb=document.getElementById('reopenBtn'); if(rb) rb.addEventListener('click',function(){ setStatus(t.id,'Open'); });
   var ds=document.getElementById('detStatus'); if(ds) ds.addEventListener('change',function(){ setStatus(t.id,ds.value); });
+  var db=document.getElementById('delTicketBtn'); if(db) db.addEventListener('click',function(){ delTicket(t.id, t.no); });
+}
+async function delTicket(id, no){
+  if(!(window.rrgConfirm?await rrgConfirm('Delete request '+(no||'')+'? This permanently removes it and its whole thread. This cannot be undone.'):confirm('Delete request '+(no||'')+'? This cannot be undone.'))) return;
+  fetch('/api/ticket/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'})
+    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(window.rrgToast) rrgToast('Request deleted'); showList(); } else alert((j&&j.error)||'Could not delete.'); })
+    .catch(function(){ alert('Could not reach the server.'); });
 }
 function showList(){ document.getElementById('detailView').setAttribute('hidden',''); document.getElementById('listView').removeAttribute('hidden'); load(); }
 function showDetail(t){ document.getElementById('listView').setAttribute('hidden',''); var d=document.getElementById('detailView'); d.removeAttribute('hidden'); renderThread(t); window.scrollTo(0,0); }
 function openTicket(id){
-  fetch('/api/ticket/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ showDetail(j.ticket); } else alert((j&&j.error)||'Could not open the request.'); }).catch(function(){ alert('Could not reach the server.'); });
+  fetch('/api/ticket/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CANDEL=!!j.canDelete; showDetail(j.ticket); } else alert((j&&j.error)||'Could not open the request.'); }).catch(function(){ alert('Could not reach the server.'); });
 }
 function sendReply(id){
   var ta=document.getElementById('replyText'); var text=(ta.value||'').trim(); if(!text){ ta.focus(); return; }

@@ -19,7 +19,14 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .top a.back:hover{border-color:#fff;color:#fff;}
 .wrap{max-width:1320px;margin:0 auto;padding:24px 28px 60px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:20px;}
+.card.list{padding:0;overflow:hidden;}
 .card h2{font-size:14px;color:var(--navy);margin:0 0 4px;}
+/* standard list-window header, matching Contacts / Companies / Documents */
+.hd{display:flex;align-items:center;padding:15px 20px;border-bottom:1px solid var(--line);gap:12px;}
+.hd b{color:var(--navy);font-size:14px;} .hd .cnt{color:var(--muted);font-size:12.5px;}
+.newbtn{margin-left:auto;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.subbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:11px 20px;border-bottom:1px solid var(--line);background:#fafbfe;}
+.searchwrap .searchx{display:none;} .searchwrap .searchx.show{display:block;}
 .subline{font-size:12px;color:var(--muted);margin:0 0 14px;}
 label.fld{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;margin-bottom:5px;}
 input,select,textarea{width:100%;border:1px solid #cfd6e2;border-radius:8px;padding:9px 11px;font:inherit;font-size:14px;background:#fff;color:var(--ink);}
@@ -94,9 +101,9 @@ input,select,textarea{border-radius:4px;}
       <span class="msg" id="msg"></span>
     </div>
   </div></div>
-  <div class="card">
-    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px"><b style="font-size:16px;color:var(--navy)">My Tasks</b><span class="meta" id="tcount"></span><button id="newTaskBtn" class="newtaskbtn" style="margin-left:auto">+ New task</button></div>
-    <div class="filters">
+  <div class="card list">
+    <div class="hd"><b>My Tasks</b><span class="cnt" id="tcount"></span><button id="newTaskBtn" class="newbtn">+ New task</button><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="tsearch" placeholder="Search tasks…" autocomplete="off"><button type="button" class="searchx" id="tsearchx" title="Clear search" onclick="var s=document.getElementById('tsearch');s.value='';TSEARCH='';applyTaskSearch();s.focus();">×</button></div></div>
+    <div class="subbar filters">
       <button data-s="open" class="on" id="sOpen">Open</button>
       <button data-s="done" id="sDone">Done</button>
       <span style="flex:1"></span>
@@ -142,14 +149,18 @@ function linkChip(t){
   if(t.linkType==='deal'&&t.linkId) return '<a class="linkchip deal" href="./rrg_assignment.html?key='+encodeURIComponent(t.linkId)+'">📁 '+esc(t.linkLabel||'Project')+'</a>';
   return '';
 }
+var TSEARCH='';
 function visibleTasks(){
+  var q=TSEARCH.trim().toLowerCase(); var toks=q?q.split(/\s+/):[];
   return TASKS.filter(function(t){
     if(SHOW==='open'&&t.status!=='open') return false;
     if(SHOW==='done'&&t.status!=='done') return false;
-    if(SCOPE==='mine') return t.assignee===ME||t.createdBy===ME;
+    if(SCOPE==='mine'&&!(t.assignee===ME||t.createdBy===ME)) return false;
+    if(toks.length){ var hay=((t.title||'')+' '+(t.notes||'')+' '+(t.priority||'')+' '+(t.type||'')+' '+(t.linkLabel||'')+' '+(t.assigneeName||'')).toLowerCase(); if(!toks.every(function(x){return hay.indexOf(x)>=0;})) return false; }
     return true;
   });
 }
+function applyTaskSearch(){ var sx=document.getElementById('tsearchx'); if(sx) sx.classList.toggle('show', !!TSEARCH); render(); }
 function render(){
   var today=todayStr();
   var list=visibleTasks(); var _tc=document.getElementById('tcount'); if(_tc) _tc.textContent=list.length+' task'+(list.length===1?'':'s');
@@ -216,12 +227,13 @@ async function del(id){ if(!await rrgConfirm('Delete this task?')) return; fetch
 async function bulkDelTasks(ids,done){
   if(!ids||!ids.length) return;
   if(!await rrgConfirm('Delete '+ids.length+' task'+(ids.length>1?'s':'')+'? This cannot be undone.')) return;
-  var n=0, okIds=[];
-  ids.forEach(function(id){
-    fetch('/api/tasks/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();})
-      .then(function(j){ if(j&&j.ok) okIds.push(id); }).catch(function(){})
-      .then(function(){ if(++n===ids.length){ TASKS=TASKS.filter(function(x){return okIds.indexOf(x.id)<0;}); if(done)done(); render(); if(window.rrgToast) rrgToast('Deleted '+okIds.length+' task'+(okIds.length===1?'':'s')); } });
-  });
+  fetch('/api/tasks/bulk-delete',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({ids:ids})})
+    .then(function(r){return r.json();})
+    .then(function(j){
+      if(j&&j.ok){ var idset={}; ids.forEach(function(id){idset[id]=1;}); TASKS=TASKS.filter(function(x){ return !(idset[x.id] && (ISADMIN||x.createdBy===ME)); }); if(done)done(); render(); if(window.rrgToast) rrgToast('Deleted '+(j.deleted||0)+' task'+((j.deleted===1)?'':'s')+(j.skipped?(' · '+j.skipped+' skipped'):'')); }
+      else { if(done)done(); alert((j&&j.error)||'Could not delete.'); }
+    })
+    .catch(function(){ if(done)done(); alert('Could not reach the server.'); });
 }
 function openTaskModal(){ var m=document.getElementById('taskModal'); if(m) m.removeAttribute('hidden'); var t=document.getElementById('t_title'); if(t) setTimeout(function(){try{t.focus();}catch(e){}},30); }
 function closeTaskModal(){ var m=document.getElementById('taskModal'); if(m) m.setAttribute('hidden',''); }
@@ -238,6 +250,7 @@ var _tm=document.getElementById('taskModal'); if(_tm) _tm.addEventListener('clic
 document.getElementById('t_linktype').addEventListener('change',function(){ fillTargets(this.value,''); });
 document.querySelectorAll('.filters [data-s]').forEach(function(b){ b.addEventListener('click',function(){ SHOW=b.getAttribute('data-s'); document.querySelectorAll('.filters [data-s]').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); render(); }); });
 document.querySelectorAll('.filters [data-scope]').forEach(function(b){ b.addEventListener('click',function(){ SCOPE=b.getAttribute('data-scope'); document.querySelectorAll('.filters [data-scope]').forEach(function(x){x.classList.remove('on');}); b.classList.add('on'); render(); }); });
+(function(){ var s=document.getElementById('tsearch'); if(s) s.addEventListener('input',function(){ TSEARCH=this.value||''; applyTaskSearch(); }); })();
 load();
 </script>
 <script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>

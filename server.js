@@ -8957,7 +8957,7 @@ app.get('/api/ticket/:id', (req, res) => {
   const t = loadTickets().find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Ticket not found.' });
   if (!canSeeTicket(req, t)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  res.json({ ok: true, ticket: ticketFull(t), categories: effTicketCategories(), priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin: !!(req.user && isSuper(req.user)), departments: effDepartments().map(d => ({ id: d.id, name: d.name, cats: d.cats })) });
+  res.json({ ok: true, ticket: ticketFull(t), canDelete: ownsTicket(req, t), categories: effTicketCategories(), priorities: TICKET_PRIORITIES, statuses: TICKET_STATUSES, isAdmin: !!(req.user && isSuper(req.user)), departments: effDepartments().map(d => ({ id: d.id, name: d.name, cats: d.cats })) });
 });
 app.post('/api/ticket', express.json(), async (req, res) => {
   const b = req.body || {};
@@ -10826,6 +10826,21 @@ app.delete('/api/tasks/:id', (req, res) => {
   if (!t) return res.status(404).json({ ok: false, error: 'Task not found.' });
   if (!(req.user && isSuper(req.user)) && t.createdBy !== (req.user && req.user.username)) return res.status(403).json({ ok: false, error: 'Only the creator or an admin can delete this.' });
   saveTasks(all.filter(x => x.id !== t.id)); res.json({ ok: true });
+});
+// Atomic bulk delete for tasks — one pass, only tasks the caller created (or admin).
+app.post('/api/tasks/bulk-delete', express.json({ limit: '512kb' }), (req, res) => {
+  const ids = Array.isArray(req.body && req.body.ids) ? req.body.ids.map(String) : [];
+  if (!ids.length) return res.status(400).json({ ok: false, error: 'No tasks given.' });
+  const isAdmin = !!(req.user && isSuper(req.user));
+  const me = (req.user && req.user.username) || '';
+  const idset = {}; ids.forEach(id => { idset[id] = 1; });
+  const all = loadTasks();
+  const removable = {}; let skipped = 0;
+  all.forEach(t => { if (idset[t.id]) { if (isAdmin || t.createdBy === me) removable[t.id] = 1; else skipped++; } });
+  const kept = all.filter(t => !removable[t.id]);
+  const deleted = all.length - kept.length;
+  saveTasks(kept);
+  res.json({ ok: true, deleted: deleted, skipped: skipped });
 });
 
 
