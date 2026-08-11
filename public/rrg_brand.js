@@ -18,7 +18,14 @@
     +'#rrgcfm-bx{border-radius:6px!important;}#rrgcfm-bx button{border-radius:4px!important;}'
     +'#rrgcfm-bx button.ok{background:var(--primary)!important;border-color:var(--primary)!important;}'
     +'#rrgcfm-bx button.ok.danger{background:var(--red)!important;}'
-    +'.rrgtoast{border-radius:4px!important;background:#20334f!important;}.rrgtoast.err{background:#7a1f1a!important;}';
+    +'.rrgtoast{border-radius:4px!important;background:#20334f!important;}.rrgtoast.err{background:#7a1f1a!important;}'
+    /* Standardized list search box (Companies, Contacts, Documents, Data Rooms, etc.) */
+    +'.searchwrap{position:relative!important;display:inline-flex!important;align-items:center!important;}'
+    +'.searchic{position:absolute!important;left:12px!important;top:50%!important;transform:translateY(-50%)!important;width:15px!important;height:15px!important;color:#96a1b2!important;pointer-events:none!important;}'
+    +'.searchwrap input{padding:8px 30px 8px 34px!important;min-width:280px!important;border:1px solid var(--inp)!important;border-radius:3px!important;font-size:13px!important;background:#fff!important;color:var(--ink)!important;margin:0!important;height:auto!important;}'
+    +'.searchwrap input:focus{outline:none!important;border-color:var(--primary)!important;}'
+    +'.searchx{position:absolute!important;right:6px!important;top:50%!important;transform:translateY(-50%)!important;border:none!important;background:none!important;color:#9aa3b2!important;cursor:pointer!important;font-size:16px!important;line-height:1!important;padding:0 4px!important;}'
+    +'.searchx:hover{color:var(--red)!important;}';
   var st=document.createElement('style'); st.id='rrg-theme'; st.setAttribute('data-rrg-theme','1'); st.textContent=css;
   (document.head||document.documentElement).appendChild(st);
 }catch(e){} })();
@@ -146,12 +153,15 @@
     +'#rrgnav-skel .grp.collapsed .gcv{transform:rotate(-90deg);}'
     +'#rrgnav-skel a.it .i{width:17px;text-align:center;color:rgba(255,255,255,.5);font-size:13.5px;flex:none;}'
     +'#rrgnav-skel .itlbl{white-space:nowrap;}'
+    +'#rrgnav-skel a.it.on{background:rgba(255,255,255,.12);color:#fff;font-weight:600;}#rrgnav-skel a.it.on .i{color:#fff;}'
     +'#rrgnav-skel .foot{border-top:1px solid rgba(255,255,255,.09);padding:8px;display:flex;align-items:center;gap:4px;}'
     +'#rrgnav-skel .navbadge{display:none;}'
     +'body.rrg-shelled #rrgnav-skel{display:none !important;}'
     +'@media(max-width:900px){body{padding-left:0;}body::before,#rrgnav-skel{display:none;}body::after{left:0;}}';
   (document.head||document.documentElement).appendChild(st);
-  if(!_cw){ try{ var _ch=localStorage.getItem('rrg_nav_html_v1'); if(_ch && !document.getElementById('rrgnav-skel')){ var _sk=document.createElement('div'); _sk.id='rrgnav-skel'; _sk.innerHTML=_ch; (document.body||document.documentElement).appendChild(_sk); } }catch(e){} }
+  if(!_cw){ try{ var _ch=localStorage.getItem('rrg_nav_html_v1'); if(_ch && !document.getElementById('rrgnav-skel')){ var _sk=document.createElement('div'); _sk.id='rrgnav-skel'; _sk.innerHTML=_ch; (document.body||document.documentElement).appendChild(_sk);
+    try{ var _cf=(location.pathname||'').split('/').pop()||'index.html'; var _ls=_sk.querySelectorAll('a.it[href]'); for(var _i=0;_i<_ls.length;_i++){ var _hf=(_ls[_i].getAttribute('href')||'').split('/').pop().split('?')[0].split('#')[0]; if(_hf===_cf){ _ls[_i].className='it on'; break; } } }catch(_e){}
+  } }catch(e){} }
 }catch(e){} })();
 /* load the app shell (persistent nav + top bar) on every page */
 (function(){ try{ if(!document.querySelector('script[src="/rrg_shell.js"]')){ if((/[?&]embed=1/.test(location.search)||(function(){try{return window.top!==window.self;}catch(e){return true;}})())) return; var sc=document.createElement('script'); sc.src='/rrg_shell.js'; sc.defer=true; (document.head||document.documentElement).appendChild(sc); } }catch(e){} })();
