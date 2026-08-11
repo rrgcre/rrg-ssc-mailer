@@ -71,8 +71,8 @@ function build(hasKey){
   document.getElementById('all').addEventListener('click',function(){ ORDER.forEach(function(k){ if(STATE[k]!=='dead'&&ROWS[k].proposed) STATE[k]='on'; }); paint(); });
   document.getElementById('none').addEventListener('click',function(){ ORDER.forEach(function(k){ if(STATE[k]!=='dead') STATE[k]='off'; }); paint(); });
   document.getElementById('apply').addEventListener('click',apply);
-  document.getElementById('rescan').addEventListener('click',function(){ startScan(); });
-  document.getElementById('f_incall').addEventListener('change',function(){ INCLUDE_ALL=this.checked; startScan(); });
+  document.getElementById('rescan').addEventListener('click',function(){ loadAndScan(); });   // re-fetch fresh candidates so applied ones drop off
+  document.getElementById('f_incall').addEventListener('change',function(){ INCLUDE_ALL=this.checked; loadAndScan(); });
   loadAndScan();
 }
 function loadAndScan(){
@@ -148,7 +148,7 @@ function apply(){
   var b=document.getElementById('apply'); b.disabled=true; var msg=document.getElementById('msg'); msg.className='msg'; msg.textContent='';
   AIW.show('Applying enrichment to '+items.length+' location'+(items.length===1?'':'s')+'…');
   fetch('/api/admin/enrich-apply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
-    AIW.hide(); b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Enriched '+j.applied+' location'+(j.applied===1?'':'s')+' ✓'; items.forEach(function(it){ var k=it.companyId+'|'+it.locId; STATE[k]='off'; var el=document.querySelector('.ec[data-k="'+cssq(k)+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } }); count(); }
+    AIW.hide(); b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Enriched '+j.applied+' location'+(j.applied===1?'':'s')+' ✓'; items.forEach(function(it){ var k=it.companyId+'|'+it.locId; STATE[k]='off'; var el=document.querySelector('.ec[data-k="'+cssq(k)+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } var _cd=CANDS.filter(function(x){return (x.companyId+'|'+x.locId)===k;})[0]; if(_cd) _cd.hasGoogle=true; }); count(); }
     else { msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
   }).catch(function(){ AIW.hide(); b.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
 }

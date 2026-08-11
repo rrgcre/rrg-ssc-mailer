@@ -100,7 +100,7 @@ function buildCard(t, step){
     +'<span class="stepbadge">Step '+step+'</span>'
     +'<div class="ic">'+t.ic+'</div><h3>'+t.title+'</h3><p>'+t.desc+'</p>'
     +'<div class="stat2'+(t.clean?' clean':'')+'">'+t.stat+'</div>'
-    +'<div class="foot"><a target="_top" class="'+goCls+'"'+goStyle+' href="'+t.href+'">Open →</a></div></div>';
+    +'<div class="foot"><a class="'+goCls+'"'+goStyle+' href="'+t.href+'">Open →</a></div></div>';
 }
 function renderTools(){
   var host=document.getElementById('toolgrid'); if(!host) return;
@@ -115,8 +115,8 @@ function render(S){
     +'<div class="stat"><div class="n">'+n(S.companies)+'</div><div class="l">Companies</div></div>'
     +'<div class="stat"><div class="n">'+n(S.missingLogo)+'</div><div class="l">Missing a logo</div></div>'
     +'<div class="stat"><div class="n">'+n(S.locations)+'</div><div class="l">Locations</div></div>'
-    +'<div class="stat"><div class="n">'+n(S.locationsEnriched)+'</div><div class="l">Enriched w/ Google</div></div>'
-    +'<div class="stat"><div class="n">'+n(S.contacts)+'</div><div class="l">Contacts</div></div>';
+    +'<div class="stat"><div class="n">'+n(S.contacts)+'</div><div class="l">Contacts</div></div>'
+    +'<div class="stat"><div class="n">'+n(S.locationsEnriched)+'</div><div class="l">Enriched w/ Google</div></div>';
   var wf='<div class="wf"><span class="lab">Recommended order</span>'
     +'<span class="wfstep"><span class="wfn">1</span>Clean up</span><span class="wfar">→</span>'
     +'<span class="wfstep"><span class="wfn">2</span>Find duplicates</span><span class="wfar">→</span>'
