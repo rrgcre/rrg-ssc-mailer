@@ -256,7 +256,7 @@ function findOrCreatePerson(req, info) {
 }
 function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', vip: !!p.vip, caution: !!p.caution, star: !!p.star, preferred: !!p.preferred, prefContact: Array.isArray(p.prefContact) ? p.prefContact : [], createdAt: p.createdAt || '', owner: p.by || '', lastContacted: p.lastContacted || '', hasPhoto: !!p.photoExt, photoUrl: p.photoExt ? ('/api/personphoto/' + p.id + '.' + p.photoExt + (p.updatedAt ? ('?v=' + encodeURIComponent(p.updatedAt)) : '')) : '' } : null; }
 // One contact row as shown on a company file.
-function companyContactRow(p) { return { id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', emails: personEmails(p), phones: personPhones(p), email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', title: p.title || '', tags: personTags(p), leadSource: p.leadSource || '', hasPhoto: !!p.photoExt }; }
+function companyContactRow(p) { return { id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', emails: personEmails(p), phones: personPhones(p), email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', title: p.title || '', tags: personTags(p), leadSource: p.leadSource || '', hasPhoto: !!p.photoExt, photoExt: p.photoExt || '', updatedAt: p.updatedAt || '' }; }
 
 // Companies — a company / account file that groups its associated contacts (people) and
 // its deals. Created at onboarding (the subject business), reusable across deals.
@@ -2981,7 +2981,7 @@ function effGrantLevelForDoc(grant, doc) { if (!grant) return 'download'; const 
 const ROOM_EXT = /^(pdf|docx?|xlsx?|csv|pptx?|png|jpe?g|gif|txt)$/i;
 // ---- Buyer access control: per-buyer codes + a 15-min idle session ----
 const ROOM_COOKIE = 'rrg_room';
-const ROOM_IDLE_MS = 15 * 60 * 1000;
+const ROOM_IDLE_MS = 8 * 60 * 60 * 1000;
 const ROOM_KEYFILE = path.join(BOV_DATA_DIR, 'room.key');
 function roomSecret() {
   if (process.env.SESSION_SECRET) return process.env.SESSION_SECRET;
@@ -3002,7 +3002,7 @@ function readRoomSess(tok) {
   if (!p || !p.exp || p.exp < Date.now()) return null;
   return p;
 }
-function setRoomCookie(res, token) { res.append('Set-Cookie', ROOM_COOKIE + '=' + token + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=900'); }
+function setRoomCookie(res, token) { res.append('Set-Cookie', ROOM_COOKIE + '=' + token + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + (ROOM_IDLE_MS / 1000)); }
 // ---- Buyer MFA (email one-time code) cookies ----
 // rrg_room_mfa: short-lived proof the buyer passed the access code and is mid-verification.
 // rrg_room_trust: 30-day "remember this device" so a buyer isn't emailed a code every visit.
@@ -3115,6 +3115,19 @@ app.post('/api/room/:id/no-lease', express.json(), (req, res) => {
   saveRooms(arr);
   try { logSysEvent(req, 'Data Room', (r.noLease ? 'Marked \u201cno lease\u201d on' : 'Cleared \u201cno lease\u201d on') + ' the data room for ' + (r.business || 'a business'), { tool: 'room', kind: 'no-lease', id: r.id }); } catch (e) {}
   res.json({ ok: true, noLease: r.noLease });
+});
+// Rename a data room (its business / deal name).
+app.post('/api/room/:id/rename', express.json(), (req, res) => {
+  const arr = loadRooms(); const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const name = String((req.body && req.body.business) || '').trim().slice(0, 120);
+  if (!name) return res.status(400).json({ ok: false, error: 'Enter a name.' });
+  const prev = r.business || '';
+  r.business = name;
+  saveRooms(arr);
+  try { logSysEvent(req, 'Data Room', 'Renamed the data room' + (prev ? (' from “' + prev + '”') : '') + ' to “' + name + '”', { tool: 'room', kind: 'rename', id: r.id }); } catch (e) {}
+  res.json({ ok: true, business: r.business });
 });
 // Add a buyer (grant) — generates a personal access code.
 app.post('/api/room/:id/grant', express.json(), (req, res) => {
@@ -3599,7 +3612,9 @@ app.post('/room/:token/verify', (req, res) => {
   const ok = entered.length === 6 && crypto.timingSafeEqual(Buffer.from(otpHash(r, grant, entered)), Buffer.from(otp.hash));
   if (!ok) { saveRooms(arr); return res.set('Content-Type', 'text/html; charset=utf-8').send(roomOtpPage(r, grant, 'That code isn’t right. ' + Math.max(0, 6 - otp.tries) + ' attempt' + ((6 - otp.tries) === 1 ? '' : 's') + ' left.')); }
   grant.otp = null;
-  if (String((req.body && req.body.remember) || '') === '1') setRoomTrustCookie(res, signRoomSess({ r: r.id, g: grant.id, trust: 1, exp: Date.now() + ROOM_TRUST_MS }));
+  // Verify once per device: once the buyer passes the one-time code, trust this device for 30 days
+  // so opening documents never re-prompts for the code. The access code is still required each visit.
+  setRoomTrustCookie(res, signRoomSess({ r: r.id, g: grant.id, trust: 1, exp: Date.now() + ROOM_TRUST_MS }));
   grantRoomSession(res, r, grant, arr, req);
 });
 // Buyer asks for a fresh one-time code.
@@ -3926,7 +3941,7 @@ function roomPublicPage(r, grant, opts) {
   const visibleCats = _roomCats.filter(c => catLevel(c) !== 'none' || docs.some(d => (d.category || 'Other') === c && docLevel(d) !== 'none'));
   const visCount = docs.filter(d => docLevel(d) !== 'none').length;
   const lvlLabel = grant ? (editCats.length ? 'You can view, download & upload in some folders' : 'Folder-level access set by RRG') : '';
-  const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · ${esc(lvlLabel)} · session ends after 15 min idle</div>` : '';
+  const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · ${esc(lvlLabel)} · this device is verified for 30 days</div>` : '';
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${visCount} document${visCount === 1 ? '' : 's'} · Provided by ${esc(orgDisplayName())} under NDA</div>${who}`;
   let body = '';
   if (_preview) body += `<a href="/rrg_room.html?room=${esc(r.id)}" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;background:#20334f;color:#fff;text-decoration:none;font-weight:600;font-size:11.5px;padding:6px 12px;border-radius:3px">← Back to your data room</a><div id="rrgPrevBar" style="margin-bottom:12px;display:flex;align-items:center;gap:10px;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:4px;padding:7px 11px;font-size:11.5px;font-weight:600"><span style="flex:1">Preview — this is exactly what an NDA'd buyer sees. They do not see this bar.</span><a href="#" onclick="var b=document.getElementById('rrgPrevBar');if(b)b.style.display='none';return false;" title="Dismiss this notice" style="flex:none;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #e2cfa0;border-radius:3px;color:#8a5a12;text-decoration:none;font-weight:700;font-size:14px;line-height:1;background:#fff">×</a></div>`;

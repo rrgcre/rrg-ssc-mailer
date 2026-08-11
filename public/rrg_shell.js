@@ -254,7 +254,17 @@
     + '#rrgtop .acts{display:flex;align-items:center;gap:10px;margin-left:auto;}'
     + '#rrgtop .ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#6b7488;cursor:pointer;text-decoration:none;}'
     + '#rrgtop .ic:hover{background:#f2f4f8;color:#1d2739;}'
-    + '#rrgtop .uav{width:32px;height:32px;border-radius:50%;background:var(--navbg,#233a68);color:#fff;font-weight:600;font-size:12.5px;display:flex;align-items:center;justify-content:center;}'
+    + '#rrgtop .uav{width:32px;height:32px;border-radius:50%;background:var(--navbg,#233a68);color:#fff;font-weight:600;font-size:12.5px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;padding:0;}'
+    + '#rrgtop .uavwrap{position:relative;display:inline-flex;}'
+    + '#rrgtop .uavmenu{position:absolute;top:calc(100% + 8px);right:0;z-index:70;background:#fff;border:1px solid #e3e8f0;border-radius:10px;box-shadow:0 14px 40px rgba(12,22,54,.18);padding:6px;min-width:196px;}'
+    + '#rrgtop .uavmenu[hidden]{display:none;}'
+    + '#rrgtop .uavhd{font-size:11px;font-weight:700;color:#8a94a6;padding:7px 10px 7px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;}'
+    + '#rrgtop .uavitem{display:flex;align-items:center;gap:9px;width:100%;text-align:left;font:inherit;font-size:13px;font-weight:600;color:#26324a;background:#fff;border:none;border-radius:7px;padding:8px 10px;cursor:pointer;text-decoration:none;box-sizing:border-box;}'
+    + '#rrgtop .uavitem:hover{background:#f4f7fb;}'
+    + '#rrgtop .uavitem.danger{color:var(--red,#DA2B1F);}'
+    + '#rrgtop .uavitem.danger:hover{background:#fff5f4;}'
+    + '#rrgtop .uavsep{height:1px;background:#eef1f6;margin:5px 4px;}'
+    + '#rrgtop .uavic{width:16px;text-align:center;opacity:.85;flex:none;}'
     + '@media(max-width:900px){body.rrg-shelled{padding-left:0 !important;}#rrgnav{transform:translateX(-100%);transition:transform .2s;}#rrgnav.open{transform:none;}#rrgtop{left:0;}}';
   var st = document.createElement('style'); st.id='rrgshellcss'; st.textContent=css; document.head.appendChild(st);
 
@@ -278,7 +288,7 @@
     navHtml += '</div>';
   });
   navHtml += '</div>';
-  navHtml += '<div class="foot"><a class="it" href="rrg_account.html"><span class="i">◔</span><span id="rrgacct">Account</span></a><a class="it" href="index.html"><span class="i">?</span>Help</a></div>';
+  // Account / Help / Log out moved to the top-right avatar menu; no bottom footer.
 
   var nav = document.createElement('aside'); nav.id='rrgnav'; nav.innerHTML=navHtml;
 
@@ -300,7 +310,7 @@
         + '<a href="rrg_agreements.html?new=1"><span class="cmi">⚖</span> Agreement</a>'
         + '<a href="rrg_rooms_queue.html?new=1"><span class="cmi">▤</span> Data Room</a>'
       + '</div>'
-    + '</div><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><div class="uav" id="rrguav">·</div></div>';
+    + '</div><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><div class="uavwrap"><button class="uav" id="rrguav" type="button" aria-haspopup="true" aria-expanded="false" title="Account menu">·</button><div class="uavmenu" id="rrguavMenu" hidden><div class="uavhd" id="rrguavName">Signed in</div><a class="uavitem" href="rrg_account.html"><span class="uavic">◔</span> Account</a><a class="uavitem" href="index.html"><span class="uavic">?</span> Help</a><div class="uavsep"></div><a class="uavitem danger" href="/logout"><span class="uavic">⏻</span> Log out</a></div></div></div>';
 
   document.addEventListener('DOMContentLoaded', mount);
   if (document.readyState !== 'loading') mount();
@@ -327,6 +337,14 @@
       function closeM(){ cm.hidden=true; cb.setAttribute('aria-expanded','false'); }
       cb.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); if(cm.hidden) openM(); else closeM(); });
       document.addEventListener('click',function(e){ if(cm.hidden) return; if(!cm.contains(e.target)&&e.target!==cb) closeM(); });
+      document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeM(); });
+    })();
+    // Account menu (top-right avatar)
+    (function(){ var ab=document.getElementById('rrguav'), am=document.getElementById('rrguavMenu'); if(!ab||!am) return;
+      function openM(){ am.hidden=false; ab.setAttribute('aria-expanded','true'); }
+      function closeM(){ am.hidden=true; ab.setAttribute('aria-expanded','false'); }
+      ab.addEventListener('click',function(e){ e.preventDefault(); e.stopPropagation(); if(am.hidden) openM(); else closeM(); });
+      document.addEventListener('click',function(e){ if(am.hidden) return; if(!am.contains(e.target)&&e.target!==ab) closeM(); });
       document.addEventListener('keydown',function(e){ if(e.key==='Escape') closeM(); });
     })();
     // mobile burger
@@ -380,7 +398,7 @@
         if(s&&s.canManageLoi){ nav.querySelectorAll('a.it[data-need="loi"]').forEach(function(el){ el.style.display=''; }); }
         (function(){ var _role=(s&&s.role)||''; var _owner=(_role==='admin'||_role==='creator'); var _nv=(s&&s.navVis)||{}; if(!_owner){ nav.querySelectorAll('.lbl[data-grp]').forEach(function(l){ var gg=l.getAttribute('data-grp'); var allow=_nv[gg]; if(allow&&allow.length&&allow.indexOf(_role)<0){ var grp=l.closest('.grp'); if(grp) grp.style.display='none'; } }); } })();
         if(s&&!s.canUseAi){ var aist=document.createElement('style'); aist.textContent='[data-ai]{display:none !important;}'; document.head.appendChild(aist); }
-        var nm=(s&&(s.name||s.username))||''; var uav=document.getElementById('rrguav'); if(uav&&nm){ var parts=nm.trim().split(/\s+/); uav.textContent=((parts[0]||'')[0]||'')+((parts[1]||'')[0]||'')||nm[0].toUpperCase(); }
+        var nm=(s&&(s.name||s.username))||''; var uav=document.getElementById('rrguav'); if(uav&&nm){ var parts=nm.trim().split(/\s+/); uav.textContent=((parts[0]||'')[0]||'')+((parts[1]||'')[0]||'')||nm[0].toUpperCase(); uav.title=nm+' — account menu'; } var uavn=document.getElementById('rrguavName'); if(uavn&&nm){ uavn.textContent='Signed in as '+nm; }
         var ac=document.getElementById('rrgacct'); if(ac&&nm) ac.textContent=nm.split(/\s+/)[0];
       }).catch(function(){});
     } catch(e){}

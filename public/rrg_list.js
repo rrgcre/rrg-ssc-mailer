@@ -34,8 +34,7 @@
       +'.rl-colopt:hover{background:#f4f7fb}'
       +'.rl-colopt input{width:15px;height:15px;cursor:pointer;accent-color:var(--red,#DA2B1F)}'
       +'.rl-colhint{font-size:11px;color:#98a1b5;padding:7px 9px 3px;border-top:1px solid #eef1f6;margin-top:5px}'
-      +'.rl-mount{position:relative}'
-      +'.rl-bulk{position:absolute;top:0;left:0;z-index:5;display:flex;align-items:center;gap:10px;background:#fff5f4;border:1px solid #f0cfca;border-radius:9px;padding:6px 12px;margin:0;font-size:12.5px}'
+      +'.rl-bulk{display:flex;align-items:center;gap:10px;background:#fff5f4;border:1px solid #f0cfca;border-radius:9px;padding:7px 12px;margin:0 0 12px;font-size:12.5px}'
       +'.rl-bulk b{color:var(--navy,#000E31)}'
       +'.rl-bulk button{font:inherit;font-size:12px;font-weight:800;padding:6px 12px;border-radius:7px;border:1px solid #cfd6e2;background:#fff;color:#0b1a3a;cursor:pointer}'
       +'.rl-bulk button.danger{background:var(--red,#DA2B1F);border-color:var(--red,#DA2B1F);color:#fff}'
@@ -68,13 +67,6 @@
       +'.rl-compact .av{width:26px !important;height:26px !important;font-size:10px !important;line-height:26px !important}'
       +'.rl-compact .tags2{display:none !important}'
       +'.rl-compact .who .meta{display:none !important}'
-      +'.rl-compact .kico{width:24px !important;height:24px !important;border-radius:6px !important}'
-      +'.rl-compact .kico svg{width:13px !important;height:13px !important}'
-      +'.rl-compact .dico{width:22px !important;height:22px !important;border-radius:6px !important}'
-      +'.rl-compact .dico svg{width:12px !important;height:12px !important}'
-      +'.rl-compact .flagcell{width:22px !important;height:22px !important}'
-      +'.rl-compact .flagcell svg{width:13px !important;height:13px !important}'
-      +'.rl-compact .fmark svg{width:12px !important;height:12px !important}'
       +'.rl-resize{position:absolute;right:0;top:0;bottom:0;width:8px;cursor:col-resize;z-index:2}'
       +'.rl-resize:hover{background:rgba(0,0,0,.10)}'
       +'tbody tr.rl-tr:hover td{background:#f7faff}'
@@ -109,17 +101,12 @@
     injectStyle();
     var mount = typeof opts.mount==='string' ? $(opts.mount) : opts.mount;
     if(!mount) return { refresh:function(){}, };
-    try{ mount.classList.add('rl-mount'); }catch(e){}
     var countEl = opts.countEl ? (typeof opts.countEl==='string'?$(opts.countEl):opts.countEl) : null;
     var cols = opts.columns||[];
     var rowId = opts.rowId || function(it,i){ return String(i); };
     var lsKey = 'rrglist_'+(opts.key||'list');
     var listName = opts.exportName || opts.key || 'list';
     var saved = {}; try{ saved=JSON.parse(localStorage.getItem(lsKey)||'{}')||{}; }catch(e){}
-    // One-time layout migration: apply dense-by-default and a fresh column order/visibility when
-    // the schema version bumps, so a stale per-browser layout can't hide new columns or the new default.
-    var RL_LAYOUT_V = 2;
-    if((saved._v||0) < RL_LAYOUT_V){ delete saved.order; delete saved.hidden; delete saved.compact; saved._v = RL_LAYOUT_V; }
 
     // stable key per column
     cols.forEach(function(c,i){ c.__key = c.key || slug(c.label) || ('col'+i); });
@@ -130,7 +117,7 @@
       per: PER_OPTS.indexOf(saved.per)>=0 ? saved.per : (opts.per||20),
       sort: (saved.sort!=null ? saved.sort : (opts.defaultSort!=null?opts.defaultSort:firstSortable())),
       dir: (saved.dir!=null ? saved.dir : (opts.defaultDir||1)),
-      compact: (saved.compact!=null ? !!saved.compact : true),  // dense by default; user can toggle roomy
+      compact: !!saved.compact,
       widths: (saved.widths&&typeof saved.widths==='object')?saved.widths:{},
       order: Array.isArray(saved.order)?saved.order.slice():null,
       hidden: (saved.hidden&&typeof saved.hidden==='object')?saved.hidden:(function(){ var h={}; cols.forEach(function(c){ if(c.defaultHidden) h[c.__key]=true; }); return h; })(),
@@ -143,7 +130,7 @@
     function canExport(){ if(opts.canExport===false) return false; if(opts.canExport===true) return true; var ss=window.__rrgSession; return ss?!!ss.canExport:false; }
     (function(){ if(window.__rrgSession) return; if(!window.__rrgSessionFetch){ window.__rrgSessionFetch=fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(ss){ window.__rrgSession=ss; try{document.dispatchEvent(new CustomEvent('rrg:session',{detail:ss}));}catch(e){} return ss; }).catch(function(){}); } document.addEventListener('rrg:session',function(){ try{ var ce=canExport(); mount.querySelectorAll('.rl-export,.rl-print').forEach(function(b){ b.hidden=!ce; }); }catch(e){} }); })();
     function firstSortable(){ for(var i=0;i<cols.length;i++){ if(cols[i].sortable!==false && cols[i].sort) return i; } return -1; }
-    function persist(){ try{ localStorage.setItem(lsKey, JSON.stringify({_v:RL_LAYOUT_V, per:state.per, sort:state.sort, dir:state.dir, compact:state.compact, widths:state.widths, order:orderedMeta().map(function(m){return m.key;}), hidden:state.hidden, filters:state.filters})); }catch(e){} }
+    function persist(){ try{ localStorage.setItem(lsKey, JSON.stringify({per:state.per, sort:state.sort, dir:state.dir, compact:state.compact, widths:state.widths, order:orderedMeta().map(function(m){return m.key;}), hidden:state.hidden, filters:state.filters})); }catch(e){} }
 
     function orderedMeta(){
       var meta=metaAll(), byKey={}; meta.forEach(function(m){ byKey[m.key]=m; });
@@ -259,12 +246,20 @@
 
     function exportCsv(){
       var vc=visibleMeta();
+      var all=sortedData();
+      var sel=state.sel||{};
+      var selected=all.filter(function(it,i){ return sel[rowId(it,i)]; });
+      var data=selected.length?selected:all;
       var rows=[ vc.map(function(m){ return m.c.label||''; }) ];
-      sortedData().forEach(function(it){ rows.push(vc.map(function(m){ return cellText(m.c,it); })); });
+      data.forEach(function(it){ rows.push(vc.map(function(m){ return cellText(m.c,it); })); });
       var csv=rows.map(function(r){ return r.map(function(v){ v=String(v==null?'':v); return /[",\n]/.test(v)?('"'+v.replace(/"/g,'""')+'"'):v; }).join(','); }).join('\r\n');
       var b=new Blob([csv],{type:'text/csv;charset=utf-8'}); var u=URL.createObjectURL(b);
       var a=document.createElement('a'); a.href=u; a.download=listName+'.csv'; document.body.appendChild(a); a.click();
       setTimeout(function(){ URL.revokeObjectURL(u); a.remove(); },120);
+      var n=data.length, noun=(n===1?'row':'rows');
+      var msg=(selected.length?('Exported '+n+' selected '+noun):('Exported all '+n+' '+noun))+' to your Downloads folder';
+      if(window.rrgToast){ window.rrgToast(msg); }
+      else { var eb=$('.rl-export',mount); if(eb){ var o=eb.innerHTML; eb.innerHTML='<span class="rlic">✓</span>Exported '+n; setTimeout(function(){ eb.innerHTML=o; },2000); } }
     }
     function printList(){
       var vc=visibleMeta(); var data=sortedData(); var title=(document.title||'List').split(/[—|]/)[0].trim();

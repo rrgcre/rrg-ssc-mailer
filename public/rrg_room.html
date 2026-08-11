@@ -60,7 +60,7 @@ body.rrg-shelled .pagehd{display:block;}
 .docrow a.view{font-size:11px;font-weight:600;color:var(--primary-d);text-decoration:none;border:1px solid var(--inp);border-radius:3px;padding:4px 9px;}
 .docrow button.x{border:1px solid #d8c3bf;background:#faf4f3;color:var(--red);border-radius:3px;padding:4px 9px;font:inherit;font-size:11px;font-weight:600;cursor:pointer;}
 .catempty{padding:7px 16px;color:var(--soft);font-size:11px;font-style:italic;border-top:1px solid #eef1f5;}
-.log{max-height:230px;overflow:auto;} .logrow{display:flex;gap:10px;font-size:11px;padding:5px 13px;border-top:1px solid #f2f4f7;color:var(--muted);align-items:baseline;} .logrow .ev{font-weight:700;width:96px;flex:none;} .logrow .when{width:112px;flex:none;} .logrow .who{width:158px;flex:none;color:#2b3648;} .logrow .who b{font-weight:700;} .logrow .whoco{display:block;color:#96a1b2;font-size:10px;line-height:1.2;} .logrow .lip{width:104px;flex:none;text-align:right;color:#b3bccb;white-space:nowrap;} .loghead{color:#8a93a8;font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.05em;border-top:none;position:sticky;top:0;background:#fff;}
+.log{max-height:230px;overflow:auto;} .logrow{display:flex;gap:10px;font-size:11px;padding:5px 13px;border-top:1px solid #f2f4f7;color:var(--muted);align-items:baseline;} .logrow .ev{font-weight:700;width:96px;flex:none;} .logrow .when{width:112px;flex:none;} .logrow .who{width:158px;flex:none;color:#2b3648;} .logrow .who b{font-weight:700;} .logrow .whoco{display:block;color:#96a1b2;font-size:10px;line-height:1.2;} .logrow .lread{width:66px;flex:none;text-align:right;color:#6b7488;white-space:nowrap;font-variant-numeric:tabular-nums;} .logrow .lip{width:104px;flex:none;text-align:right;color:#b3bccb;white-space:nowrap;} .loghead{color:#8a93a8;font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.05em;border-top:none;position:sticky;top:0;background:#fff;}
 .logfilter{font-size:11px;color:#69748a;padding:6px 13px;background:#f4f6f9;border-bottom:1px solid var(--line);}
 .engchip{background:#f5f7fb;border:1px solid var(--line);border-radius:6px;padding:9px 14px;min-width:74px;} .engchip .ecv{font-size:19px;font-weight:800;color:#000E31;line-height:1;} .engchip .eck{font-size:10px;color:#8a93a8;font-weight:700;text-transform:uppercase;letter-spacing:.04em;margin-top:3px;} .engchip.clk{cursor:pointer;transition:border-color .12s,background .12s;} .engchip.clk:hover{border-color:var(--primary);background:#eef4fa;}
 .engsub{font-weight:800;color:#20334f;font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin:2px 0 5px;}
@@ -82,6 +82,19 @@ body.rrg-shelled .pagehd{display:block;}
 </head>
 <body>
 <!--rrgback--><a href="./rrg_rooms_queue.html" class="rrg-back" aria-label="Back to Data Rooms" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22)"><span>←</span> Data Rooms</a>
+<!--rrgpager: prev/next through the rooms list, mounted in the shell top bar next to the back button-->
+<script>(function(){
+  var KEY='rooms_v2', NOUN='data room';
+  function qv(k){return new URLSearchParams(location.search).get(k)||'';}
+  var order; try{order=JSON.parse(sessionStorage.getItem('rrgorder_'+KEY)||'[]');}catch(e){order=[];}
+  if(!Array.isArray(order)||order.length<2) return;
+  var cur=qv('room'); var idx=order.indexOf(cur); if(idx<0) return;
+  function go(i){ if(i<0||i>=order.length) return; location.href=location.pathname+'?room='+encodeURIComponent(order[i]); }
+  function mk(txt,dis,dir,title){ var a=document.createElement('button'); a.type='button'; a.title=title; a.textContent=txt; a.style.cssText='display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;border:1px solid #e9edf3;background:#fff;color:#1d2739;font:inherit;font-size:17px;line-height:1;cursor:pointer;padding:0;'+(dis?'opacity:.35;pointer-events:none;':''); if(!dis){ a.addEventListener('click',function(e){e.preventDefault();go(idx+dir);}); a.onmouseenter=function(){a.style.background='#f2f4f8';}; a.onmouseleave=function(){a.style.background='#fff';}; } return a; }
+  function mount(top){ if(document.getElementById('rrgPagerTop')) return; var wrap=document.createElement('div'); wrap.id='rrgPagerTop'; wrap.style.cssText='display:inline-flex;align-items:center;gap:2px;'; var pos=document.createElement('span'); pos.textContent=(idx+1)+' of '+order.length; pos.style.cssText='font-size:12.5px;font-weight:600;color:#6b7488;padding:0 7px;white-space:nowrap;'; wrap.appendChild(mk('‹',idx===0,-1,'Previous '+NOUN+' (←)')); wrap.appendChild(pos); wrap.appendChild(mk('›',idx===order.length-1,1,'Next '+NOUN+' (→)')); var back=top.querySelector('.rrgback'); if(back&&back.nextSibling){ top.insertBefore(wrap,back.nextSibling); } else if(back){ top.appendChild(wrap); } else { var lg=top.querySelector('.rrgtoplogo'); if(lg&&lg.nextSibling){ top.insertBefore(wrap,lg.nextSibling); } else { top.insertBefore(wrap,top.firstChild); } } }
+  var tries=0; (function wait(){ var top=document.getElementById('rrgtop'); if(top){ mount(top); return; } if(tries++>80) return; setTimeout(wait,50); })();
+  document.addEventListener('keydown',function(e){ var t=e.target; if(t&&(t.isContentEditable||/^(input|textarea|select)$/i.test(t.tagName)))return; if(e.metaKey||e.ctrlKey||e.altKey)return; if(e.key==='ArrowLeft'&&idx>0)go(idx-1); else if(e.key==='ArrowRight'&&idx<order.length-1)go(idx+1); });
+})();</script>
 <div class="top"><div class="top-in">
   <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
   <div class="kicker">Data Room</div>
@@ -92,7 +105,10 @@ body.rrg-shelled .pagehd{display:block;}
 
   <div class="pagehd">
     <div class="pagehd-k">Data Room</div>
-    <h2 class="pagehd-t" id="roomHdr">Data Room</h2>
+    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <h2 class="pagehd-t" id="roomHdr" style="margin:0">Data Room</h2>
+      <a href="#" id="roomRenameBtn" onclick="startRename();return false;" style="font-size:12px;font-weight:700;color:#2c5c8f;text-decoration:none">✎ Rename</a>
+    </div>
     <div class="pagehd-s">Add or remove files anytime. Share the buyer link with an NDA'd buyer to give them view &amp; download access.</div>
   </div>
 
@@ -114,7 +130,7 @@ body.rrg-shelled .pagehd{display:block;}
     <div class="up">
       <div class="fld"><label>Document name</label><input type="text" id="docTitle" placeholder="e.g. 2023 Profit &amp; Loss"></div>
       <div class="fld"><label>Section</label><select id="docCategory"></select></div>
-      <div class="fld"><button class="btn green" onclick="document.getElementById('docFile').click()">Choose file</button></div>
+      <div class="fld"><button class="btn green" id="docChooseBtn" onclick="document.getElementById('docFile').click()">Choose file</button></div>
     </div>
     <input type="file" id="docFile" style="display:none" onchange="uploadDoc()">
     <input type="file" id="bulkFiles" multiple style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.csv,.txt" onchange="bulkUpload()">
@@ -279,19 +295,22 @@ function setLogFilter(f){ LOGFILTER=(LOGFILTER===f)?'':f; renderLog(); var el=do
 function renderLog(){
   var el=document.getElementById('log'), a=ROOM.access||[];
   var gmap={}; (ROOM.grants||[]).forEach(function(g){ if(g&&g.id) gmap[g.id]=g; });
+  var docId={}; (ROOM.docs||[]).forEach(function(d){ var nm=(d.title||d.originalName||''); if(nm&&!docId[nm]) docId[nm]=d.id; });
   var list=a.slice().sort(function(p,q){ return (Date.parse(q.at)||0)-(Date.parse(p.at)||0); });
   if(LOGFILTER==='download') list=list.filter(function(e){ return e.event==='download'; });
   else if(LOGFILTER==='view') list=list.filter(function(e){ return e.event==='view'&&(e.doc||'').trim(); });
   var fbar=LOGFILTER?('<div class="logfilter">Showing '+(LOGFILTER==='download'?'downloads':'document views')+' only · <a href="#" onclick="setLogFilter(\''+LOGFILTER+'\');return false;" style="font-weight:700">Show all</a></div>'):'';
   if(!list.length){ el.innerHTML=fbar+'<div class="logrow" style="border-top:none">No '+(LOGFILTER?'matching ':'')+'activity yet.</div>'; return; }
-  var head='<div class="logrow loghead"><span class="ev">Action</span><span class="when">When</span><span class="who">Buyer</span><span style="flex:1">Document</span><span class="lip">IP</span></div>';
+  var head='<div class="logrow loghead"><span class="ev">Action</span><span class="when">When</span><span class="who">Buyer</span><span style="flex:1">Document</span><span class="lread">Read</span><span class="lip">IP</span></div>';
   var rows=list.map(function(x){
     var g=x.grantId?gmap[x.grantId]:null;
     var nm=(g&&(g.name||g.email))||x.who||(x.grantId?'Buyer':'Open link (pre-authorization)');
     var co=(g&&g.company)||'';
     var who='<span class="who"><b>'+esc(nm)+'</b>'+(co?('<span class="whoco">'+esc(co)+'</span>'):'')+'</span>';
     var m=evMeta(x);
-    return '<div class="logrow"><span class="ev" style="color:'+m.c+'">'+esc(m.t)+'</span><span class="when">'+esc(fmtWhen(x.at))+'</span>'+who+'<span style="flex:1">'+esc(x.doc||'—')+'</span><span class="lip">'+esc(x.ip||'')+'</span></div>';
+    var rd='';
+    if(x.event==='view' && x.doc && g && g.dwell){ var _id=docId[x.doc]; var _s=_id?(Number(g.dwell[_id])||0):0; if(_s>0) rd=fmtDur(_s); }
+    return '<div class="logrow"><span class="ev" style="color:'+m.c+'">'+esc(m.t)+'</span><span class="when">'+esc(fmtWhen(x.at))+'</span>'+who+'<span style="flex:1">'+esc(x.doc||'—')+'</span><span class="lread" title="'+(rd?'Total time this buyer has spent reading this document':'')+'">'+esc(rd||'')+'</span><span class="lip">'+esc(x.ip||'')+'</span></div>';
   }).join('');
   el.innerHTML=fbar+head+rows;
 }
@@ -397,6 +416,24 @@ function toggleGrant(id){
    .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.grants=j.grants||[]; renderGrants(); } else alert((j&&j.error)||'Failed'); }).catch(function(){ alert('Could not reach the server.'); });
 }
 function paint(){ var _biz=(ROOM.business&&String(ROOM.business).trim())||''; var _t=_biz?('Data Room · '+_biz):'Data Room'; document.getElementById('hdr').textContent=_t; var _rh=document.getElementById('roomHdr'); if(_rh) _rh.textContent=_biz||'Data Room'; paintLink(); renderInterviews(); renderCats(); renderDocs(); renderGrants(); renderLog(); renderMfa(); paintClosed(); }
+function startRename(){
+  var h=document.getElementById('roomHdr'); if(!h||document.getElementById('renameBox')) return;
+  var cur=(ROOM&&ROOM.business)||'';
+  var box=document.createElement('span'); box.id='renameBox'; box.style.cssText='display:inline-flex;align-items:center;gap:6px;flex-wrap:wrap';
+  box.innerHTML='<input id="renameInput" style="border:1px solid #c4ccda;border-radius:4px;padding:5px 9px;font:inherit;font-size:15px;font-weight:700;min-width:220px"><button class="btn green" style="padding:6px 12px" onclick="saveRename()">Save</button><button class="btn" style="padding:6px 12px" onclick="cancelRename()">Cancel</button>';
+  h.style.display='none'; var rb=document.getElementById('roomRenameBtn'); if(rb) rb.style.display='none';
+  h.parentNode.insertBefore(box, rb);
+  var inp=document.getElementById('renameInput'); inp.value=cur; inp.focus(); inp.select();
+  inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); saveRename(); } else if(e.key==='Escape'){ cancelRename(); } });
+}
+function cancelRename(){ var b=document.getElementById('renameBox'); if(b) b.remove(); var h=document.getElementById('roomHdr'); if(h) h.style.display=''; var rb=document.getElementById('roomRenameBtn'); if(rb) rb.style.display=''; }
+function saveRename(){
+  var inp=document.getElementById('renameInput'); if(!inp) return;
+  var v=(inp.value||'').trim(); if(!v){ inp.focus(); return; }
+  fetch('/api/room/'+encodeURIComponent(RID)+'/rename',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({business:v})})
+   .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(!ROOM)ROOM={}; ROOM.business=j.business; cancelRename(); paint(); if(window.rrgToast) rrgToast('Renamed ✓'); else if(typeof toast==='function') toast('Renamed ✓'); } else { alert((j&&j.error)||'Could not rename.'); } })
+   .catch(function(){ alert('Could not reach the server.'); });
+}
 function renderMfa(){
   var chk=document.getElementById('mfaChk'), sub=document.getElementById('mfaSub'); if(!chk) return;
   var on=!!(ROOM&&ROOM.mfa); chk.checked=on;
@@ -453,7 +490,7 @@ function renderAnalytics(a){
   var el=document.getElementById('engBody'); if(!el) return;
   if(!a){ el.innerHTML='<div class="h" style="margin:0">Could not load engagement yet.</div>'; return; }
   var t=a.totals||{};
-  var html='<div style="display:flex;gap:9px;flex-wrap:wrap;margin:2px 0 15px">'+_engChip(t.buyers||0,'Buyers','buyers')+_engChip(t.docs||0,'Documents','docs')+_engChip(t.views||0,'Views','views')+_engChip(t.downloads||0,'Downloads','downloads')+(t.readSeconds?_engChip(fmtDur(t.readSeconds),'Read time','read'):'')+'</div>';
+  var html='<div style="display:flex;gap:9px;flex-wrap:wrap;margin:2px 0 15px">'+_engChip(t.docs||0,'Documents','docs')+_engChip(t.buyers||0,'Buyers','buyers')+_engChip(t.views||0,'Views','views')+_engChip(t.downloads||0,'Downloads','downloads')+(t.readSeconds?_engChip(fmtDur(t.readSeconds),'Read time','read'):'')+'</div>';
   var buyers=a.buyers||[];
   html+='<div id="engByBuyer" style="font-weight:800;color:#000E31;font-size:12.5px;margin:2px 0 8px">By buyer <span style="font-weight:600;color:#8a93a8;font-size:11px">— expand a name for their full activity trail</span></div>';
   if(!buyers.length){ html+='<div class="h" style="margin:0 0 14px">No buyers authorized yet — add one under Buyers &amp; access.</div>'; }
@@ -515,7 +552,8 @@ function uploadDoc(){
   var fi=document.getElementById('docFile'), f=fi&&fi.files&&fi.files[0], m=document.getElementById('umsg');
   if(!f){ return; }
   if(f.size>25*1024*1024){ m.textContent='That file is over 25 MB — please add a smaller file.'; fi.value=''; return; }
-  m.textContent='Uploading “'+f.name+'”…';
+  var _cb=document.getElementById('docChooseBtn'); if(_cb){ _cb.disabled=true; if(!_cb.dataset.orig) _cb.dataset.orig=_cb.textContent; _cb.textContent='Uploading…'; }
+  m.innerHTML='<span style="color:#2c5c8f;font-weight:700">Saving “'+esc(f.name)+'” to the room…</span>';
   var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''), i=s.indexOf(','), b64=(i>=0?s.slice(i+1):s);
     var payload={roomId:RID, filename:f.name, dataB64:b64, title:document.getElementById('docTitle').value, category:document.getElementById('docCategory').value};
     _sendUpload(payload, fi, m, false);
@@ -523,21 +561,22 @@ function uploadDoc(){
   rd.onerror=function(){ m.textContent='Could not read that file.'; };
   rd.readAsDataURL(f);
 }
+function _restoreUpBtn(){ var b=document.getElementById('docChooseBtn'); if(b){ b.disabled=false; b.textContent=b.dataset.orig||'Choose file'; } }
 function _sendUpload(payload, fi, m, force){
   if(force) payload.force=true;
   fetch('/api/room-upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)})
     .then(function(r){return r.json();}).then(async function(j){
-      if(j&&j.ok){ ROOM.docs=j.docs||[]; renderDocs(); m.textContent='Added ✓'; document.getElementById('docTitle').value=''; fi.value=''; setTimeout(function(){ m.textContent=''; },1600); return; }
+      if(j&&j.ok){ ROOM.docs=j.docs||[]; renderDocs(); _restoreUpBtn(); m.innerHTML='<span style="color:#1f7a4d;font-weight:700">✓ Saved to the room</span>'; if(window.rrgToast) rrgToast('Document added ✓'); else if(typeof toast==='function') toast('Document added ✓'); document.getElementById('docTitle').value=''; fi.value=''; setTimeout(function(){ m.textContent=''; },2600); return; }
       if(j&&j.duplicate){
         var ex=j.existing||{}; var where=ex.category?(' in the “'+esc(ex.category)+'” folder'):''; var when=ex.uploadedAt?(' on '+fmtWhen(ex.uploadedAt)):'';
         var what=(j.reason==='content')?'An identical file is already in this data room':('A file named “'+esc(ex.originalName||payload.filename)+'” is already in this data room');
         m.textContent='';
-        if(await rrgConfirm(what+(ex.title?(' (“'+esc(ex.title)+'”)'):'')+where+when+'.\n\nUpload it again anyway?')){ m.textContent='Uploading “'+esc(payload.filename)+'”…'; _sendUpload(payload, fi, m, true); }
-        else { m.textContent='Skipped — duplicate file.'; fi.value=''; setTimeout(function(){ m.textContent=''; },2400); }
+        if(await rrgConfirm(what+(ex.title?(' (“'+esc(ex.title)+'”)'):'')+where+when+'.\n\nUpload it again anyway?')){ m.innerHTML='<span style="color:#2c5c8f;font-weight:700">Saving “'+esc(payload.filename)+'” to the room…</span>'; _sendUpload(payload, fi, m, true); }
+        else { _restoreUpBtn(); m.textContent='Skipped — duplicate file.'; fi.value=''; setTimeout(function(){ m.textContent=''; },2400); }
         return;
       }
-      m.textContent=(j&&j.error)||'Upload failed.'; fi.value='';
-    }).catch(function(){ m.textContent='Upload failed — try again.'; fi.value=''; });
+      _restoreUpBtn(); m.textContent=(j&&j.error)||'Upload failed.'; fi.value='';
+    }).catch(function(){ _restoreUpBtn(); m.textContent='Upload failed — try again.'; fi.value=''; });
 }
 async function delDoc(id){
   if(!await rrgConfirm('Remove this file from the data room? Buyers will no longer be able to download it.')) return;

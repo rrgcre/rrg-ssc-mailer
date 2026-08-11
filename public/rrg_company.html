@@ -405,11 +405,19 @@ function saveCoAgr(){
 }
 function recordHeaderCo(){ var lg=(C.logo||LOGOAUTO||''); return '<div class="rechero"><div class="rhlogo">'+(lg?('<img src="'+esc(lg)+'" onerror="this.remove()">'):esc((C.name||'?').charAt(0).toUpperCase()))+'</div><div><div class="rhname">'+esc(C.name||'Company')+'</div><div class="rhmeta">'+esc(C.type||'Company')+' · '+CONTACTS.length+' contact'+(CONTACTS.length===1?'':'s')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+' · '+DEALS.length+' listing'+(DEALS.length===1?'':'s')+'</div></div></div>'; }
 function statTilesCo(){ return '<div class="tiles"><div class="tile"><div class="n">'+CONCEPTS.length+'</div><div class="l">Concepts</div></div><div class="tile"><div class="n">'+LOCATIONS.length+'</div><div class="l">Locations</div></div><div class="tile"><div class="n">'+CONTACTS.length+'</div><div class="l">Contacts</div></div></div>'; }
+function _cav(p){
+  var ini=esc(initials(p.name).toUpperCase());
+  if(p.hasPhoto&&p.photoExt){
+    var u='/api/personphoto/'+encodeURIComponent(p.id)+'.'+esc(p.photoExt)+(p.updatedAt?('?v='+encodeURIComponent(p.updatedAt)):'');
+    return '<div class="cav" style="overflow:hidden"><img src="'+u+'" alt="" data-ini="'+ini+'" style="width:100%;height:100%;object-fit:cover" onerror="this.parentNode.textContent=this.getAttribute(\'data-ini\')"></div>';
+  }
+  return '<div class="cav">'+ini+'</div>';
+}
 function render(){
   document.getElementById('crumb').textContent=C.name||'Company';
   var contacts = CONTACTS.length ? CONTACTS.map(function(p){
     var sub=[p.title].concat(p.emails||(p.email?[p.email]:[])).concat(p.phones||(p.phone?[p.phone]:[])).filter(Boolean).map(esc).join(' · ');
-    return '<a class="crow crowlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'"><div class="cav">'+esc(initials(p.name).toUpperCase())+'</div><div class="cinfo"><div class="cname">'+esc(p.name||'Contact')+'</div><div class="csub">'+sub+'</div></div><button class="cmain'+(p.id===C.mainContactId?' on':'')+'" data-main="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();" title="'+(p.id===C.mainContactId?'Main contact':'Set as main contact')+'">'+(p.id===C.mainContactId?'\u2605':'\u2606')+'</button><button class="crm" data-rm="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();">Remove</button></a>';
+    return '<a class="crow crowlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">'+_cav(p)+'<div class="cinfo"><div class="cname">'+esc(p.name||'Contact')+'</div><div class="csub">'+sub+'</div></div><button class="cmain'+(p.id===C.mainContactId?' on':'')+'" data-main="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();" title="'+(p.id===C.mainContactId?'Main contact':'Set as main contact')+'">'+(p.id===C.mainContactId?'\u2605':'\u2606')+'</button><button class="crm" data-rm="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();">Remove</button></a>';
   }).join('') : '<div class="empty">No contacts yet. Add the owner, partners, or advisors tied to this company.</div>';
   function locThumb(l){
     var p=(l.photos||[])[0];
@@ -1006,6 +1014,7 @@ function load(){
 var ASSISTANT='the RRG analyst'; var CLABEL='Concept', CLABELP='Concepts';
 fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.assistant) ASSISTANT=j.assistant; if(j&&j.concept) CLABEL=j.concept; if(j&&j.conceptPlural) CLABELP=j.conceptPlural; if(typeof C!=='undefined'&&C){ try{render();}catch(e){} } }).catch(function(){});
 load();
+window.addEventListener('pageshow',function(e){ if(e.persisted && typeof load==='function') load(); });
 </script>
 <script>/*rrg-accordion-js*/
 (function(){
