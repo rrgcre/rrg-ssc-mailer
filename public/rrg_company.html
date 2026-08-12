@@ -125,14 +125,20 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .cptblock.open>.cptbar{background:#f8fafc;}
 .cptchev{color:#3f4b63;font-size:12px;font-weight:800;flex:none;width:10px;text-align:center;transition:transform .15s;} .cptblock.open .cptchev{transform:rotate(90deg);}
 .cptlocs{display:none;} .cptblock.open .cptlocs{display:block;background:#fbfcfe;border-top:1px solid #eef1f6;}
-.cptlocs .crow{padding-left:34px;padding-top:7px;padding-bottom:7px;gap:9px;position:relative;}
+.cptlocs .crow{padding-left:80px;padding-top:7px;padding-bottom:7px;gap:9px;position:relative;}
 .cptlocs .crow .cname{font-size:12.5px;color:#5b6472;font-weight:400;}
-.cptlocs .crow:before{content:"";position:absolute;left:20px;top:0;bottom:0;width:2px;background:#e2e8f2;}
+.cptlocs .crow:before{content:"";position:absolute;left:54px;top:0;bottom:0;width:2px;background:#e2e8f2;}
+.cptlocs .crow:after{content:"";position:absolute;left:54px;top:18px;width:18px;height:2px;background:#e2e8f2;}
 .locnamerow .locthumbwrap{flex:none;}
 .locnamerow .locthumb,.locnamerow .cav{width:26px !important;height:26px !important;border-radius:5px;font-size:12px;display:flex;align-items:center;justify-content:center;}
-.cptlocs .cptempty{padding-left:58px;}
+.cptlocs .cptempty{padding-left:80px;}
 .commblock .cptbar{background:#fff8f1;} .commblock .cptbar:hover{background:#fdf1e4;}
 .expall{color:#23496f;font-weight:700;cursor:pointer;} .expall:hover{text-decoration:underline;}
+.lcrow{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:8px;cursor:pointer;border-bottom:1px solid #f1f3f8;} .lcrow:last-child{border-bottom:none;} .lcrow:hover{background:#f2f6fc;}
+.lcav{width:26px;height:26px;border-radius:6px;background:#eef2fb;color:#23496f;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex:none;}
+.lcnm{font-size:13px;font-weight:600;color:#1f2a3d;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lcsub{font-size:11.5px;color:#8a93a8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.lclink{font-size:11px;font-weight:700;color:#2c5c8f;flex:none;opacity:0;transition:opacity .12s;} .lcrow:hover .lclink{opacity:1;}
 .cptname{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1;}
 .cptnm{font-weight:600;color:var(--ink);font-size:13.5px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;} .cptnm.cptnameedit{cursor:pointer;} .cptnm.cptnameedit:hover{text-decoration:underline;text-underline-offset:2px;}
 .cptsub{font-size:11.5px;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
@@ -503,7 +509,7 @@ function render(){
     + '<div class="card"><div class="ch"><b>Activity</b><span>'+ACTIVITY.length+'</span>'+coActFilterSelect()+'</div><div class="cb" id="coActivity">'+activityListCo()+'</div></div>'
     + '</div>'
     + '<div class="rail">'
-    + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="addContactBtn" title="Add contact" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
+    + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="linkContactBtn" title="Link an existing contact from your book" style="margin-left:auto;width:auto;height:26px;padding:0 10px;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:5px">🔗 Link</button><button class="addbtn" id="addContactBtn" title="Add a new contact" style="margin-left:6px;width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
     + '<div class="card"><div class="ch"><b>'+esc(CLABELP)+'</b><span>'+CONCEPTS.length+' '+(CONCEPTS.length===1?esc(CLABEL.toLowerCase()):esc(CLABELP.toLowerCase()))+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn" title="Add commissary" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button><button class="addbtn" id="addConceptBtn" title="Add '+esc(CLABEL.toLowerCase())+'" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
     + '<div class="card"><div class="ch"><b>Listings</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
     + agreementsCardCo()
@@ -541,6 +547,7 @@ function render(){
   document.getElementById('c_save').addEventListener('click',saveCompany);
   var cd=document.getElementById('c_delete'); if(cd) cd.addEventListener('click',deleteCompany);
   document.getElementById('addContactBtn').addEventListener('click',openContactForm);
+  var _lcb=document.getElementById('linkContactBtn'); if(_lcb) _lcb.addEventListener('click',openLinkContact);
   var _aab=document.getElementById('addAgrBtn'); if(_aab) _aab.addEventListener('click',openCoAgrChooser);
   document.querySelectorAll('.crm[data-rm]').forEach(function(b){ b.addEventListener('click',function(){ removeContact(b.getAttribute('data-rm')); }); });
   document.querySelectorAll('.cmain[data-main]').forEach(function(b){ b.addEventListener('click',function(){ setMainContact(b.getAttribute('data-main')); }); });
@@ -1010,6 +1017,25 @@ function openContactForm(){
   CT_TAGF=mkTagField('ct_tags', [], ALLTAGS);
   document.getElementById('ct_first').focus();
 }
+// Link an existing contact from your book to this company — search, click, linked (no dupe).
+function openLinkContact(){
+  var f=document.getElementById('contactForm');
+  f.innerHTML='<div class="cform"><label class="fld">Link an existing contact</label>'
+    +'<input id="lc_search" placeholder="Search your book by name or email…" autocomplete="off" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:8px;padding:9px 11px;font:inherit;font-size:13.5px">'
+    +'<div id="lc_res" style="margin-top:7px;max-height:280px;overflow:auto"></div>'
+    +'<div class="cbtns" style="margin-top:8px"><button class="cbtn" id="lc_cancel">Cancel</button><span id="lc_msg" class="findmsg"></span></div>'
+    +'<div class="note" style="margin-top:2px;font-size:11.5px;color:#8a93a8">Not in your book yet? Use <b>+</b> to add them as a new contact.</div></div>';
+  f.removeAttribute('hidden'); expandCardOf(f);
+  var inp=document.getElementById('lc_search'), res=document.getElementById('lc_res'), t=null;
+  var onIds={}; (CONTACTS||[]).forEach(function(p){ onIds[p.id]=1; });
+  document.getElementById('lc_cancel').addEventListener('click',function(){ f.setAttribute('hidden',''); f.innerHTML=''; });
+  function draw(rs,q){ if(!rs.length){ res.innerHTML='<div style="padding:9px 3px;color:#8a93a8;font-size:12.5px">No matching contacts'+(q?(' for “'+esc(q)+'”'):'')+'. Use <b>+</b> to add a new one.</div>'; return; } res.innerHTML=rs.map(function(x){ return '<div class="lcrow" data-lcid="'+esc(x.id)+'" data-lcn="'+esc(x.title)+'"><span class="lcav">'+esc((x.title||'?').charAt(0).toUpperCase())+'</span><div style="min-width:0;flex:1"><div class="lcnm">'+esc(x.title)+'</div>'+(x.sub?('<div class="lcsub">'+esc(x.sub)+'</div>'):'')+'</div><span class="lclink">Link →</span></div>'; }).join(''); res.querySelectorAll('.lcrow').forEach(function(row){ row.addEventListener('click',function(){ linkExistingContact(row.getAttribute('data-lcid'), row.getAttribute('data-lcn')); }); }); }
+  function search(){ var q=inp.value.trim(); if(q.length<2){ res.innerHTML='<div style="padding:9px 3px;color:#8a93a8;font-size:12.5px">Type at least 2 letters to search your contacts…</div>'; return; } fetch('/api/search?q='+encodeURIComponent(q),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var rs=((j&&j.results)||[]).filter(function(x){ return x.type==='contact' && !onIds[x.id]; }).slice(0,12); draw(rs,q); }).catch(function(){ res.innerHTML='<div style="padding:9px 3px;color:#DA2B1F;font-size:12.5px">Search failed — try again.</div>'; }); }
+  inp.addEventListener('input',function(){ if(t) clearTimeout(t); t=setTimeout(search,180); });
+  search(); inp.focus();
+}
+function linkExistingContact(pid,name,confirm){ var msg=document.getElementById('lc_msg'); if(msg){ msg.style.color='#6b7488'; msg.textContent='Linking '+(name||'contact')+'…'; }
+  fetch('/api/company/'+encodeURIComponent(ID)+'/contact/'+encodeURIComponent(pid)+'/link',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({confirm:!!confirm})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ CONTACTS=j.contacts||[]; var f=document.getElementById('contactForm'); if(f){ f.setAttribute('hidden',''); f.innerHTML=''; } render(); if(window.rrgToast) rrgToast('Linked '+(name||'contact')+' to '+((C&&C.name)||'this company')+' ✓'); } else if(j&&j.needsConfirm){ if(msg) msg.textContent=''; (window.rrgConfirm?rrgConfirm((name||'This contact')+' is currently linked to '+(j.currentCompany||'another company')+'. Move them to '+((C&&C.name)||'this company')+'?',{title:'Move contact?',okText:'Move here'}):Promise.resolve(confirm(name+' is linked to '+j.currentCompany+'. Move?'))).then(function(ok){ if(ok) linkExistingContact(pid,name,true); }); } else { if(msg){ msg.style.color='#DA2B1F'; msg.textContent=(j&&j.error)||'Could not link.'; } } }).catch(function(){ if(msg){ msg.style.color='#DA2B1F'; msg.textContent='Could not reach the server.'; } }); }
 function saveContact(){
   var f=document.getElementById('contactForm'), msg=document.getElementById('ct_msg');
   var first=document.getElementById('ct_first').value.trim(), last=document.getElementById('ct_last').value.trim(), type=document.getElementById('ct_type').value;

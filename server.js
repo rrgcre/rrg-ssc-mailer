@@ -8715,6 +8715,23 @@ app.post('/api/company', express.json(), (req, res) => {
   res.json({ ok: true, company: c, listingKey: _listingKey });
 });
 // Add / associate a contact (person) to a company.
+// Link an EXISTING contact to this company (no duplicate) — sets the person's companyId.
+// A contact belongs to one company, so if they're already at a different one, moving them
+// requires an explicit confirm (client re-posts with {confirm:true}).
+app.post('/api/company/:id/contact/:pid/link', express.json(), (req, res) => {
+  const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+  if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+  const ppl = loadPeople(); const p = ppl.find(x => x.id === req.params.pid);
+  if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
+  const confirm = !!(req.body && req.body.confirm);
+  if (p.companyId && p.companyId !== c.id && !confirm) {
+    const cur = arr.find(x => x.id === p.companyId);
+    return res.json({ ok: false, needsConfirm: true, currentCompany: (cur && cur.name) || p.company || 'another company' });
+  }
+  p.companyId = c.id; p.company = c.name || ''; p.updatedAt = new Date().toISOString(); savePeople(ppl);
+  const contacts = loadPeople().filter(x => x.companyId === c.id).map(companyContactRow);
+  res.json({ ok: true, contacts });
+});
 app.post('/api/company/:id/contact', express.json(), (req, res) => {
   const c = companyById(req.params.id);
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
