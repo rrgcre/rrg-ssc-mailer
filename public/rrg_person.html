@@ -412,7 +412,7 @@ function refreshDocList(){
 }
 function agreementsCard(){
   var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
-  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><span style="margin-left:auto;display:flex;gap:6px"><a href="./rrg_documents.html" title="Open the full document library" style="font-size:11px;font-weight:700;color:#8a93a8;text-decoration:none;align-self:center">Library</a></span></div>'
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><span style="margin-left:auto;display:flex;gap:6px"><a href="./rrg_documents.html" title="Open the full document library" style="font-size:11px;font-weight:700;color:#8a93a8;text-decoration:none;align-self:center">All Documents →</a></span></div>'
     +'<div class="cb"><div class="agrlist" id="docList">'+docListHtml()+'</div>'
     +'<div id="agrForm" hidden style="margin-top:12px;border-top:1px solid #e6e9f0;padding-top:12px">'
       +'<input type="hidden" id="agr_id">'
@@ -1152,7 +1152,7 @@ function interestedCard(){
     var bg=(st==='Unqualified')?'#fdeceb':(st==='Qualified'?'#e7f5ee':((st==='Dead'||st==='Passed')?'#eef1f6':'#eef2fb'));
     var fg=(st==='Unqualified')?'#b23a2c':(st==='Qualified'?'#1f8a5b':((st==='Dead'||st==='Passed')?'#8a94a6':'#23496f'));
     return '<div class="row" style="display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)"><div style="flex:1;min-width:0"><a href="./rrg_assignment.html?key='+encodeURIComponent(x.key)+'" style="display:block;font-weight:600;color:var(--navy);text-decoration:none;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(x.business||'Listing')+'</a>'+(x.stage?('<div style="font-size:11px;color:#8a94a6;margin-top:1px">Listing stage: <b style="color:#5b6472;font-weight:700">'+esc(x.stage)+'</b>'+(x.stageTotal?(' \u00b7 '+x.stageDone+'/'+x.stageTotal):'')+'</div>'):'')+'</div>'+(x.source?'<span style="font-size:10px;font-weight:700;color:#6b7488;background:#eef1f6;border-radius:5px;padding:2px 6px;white-space:nowrap">'+esc(x.source)+'</span>':'')+(x.date?'<span style="font-size:11px;color:#8a94a6;white-space:nowrap">'+esc(fmt(x.date))+'</span>':'')+'<span style="font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;background:'+bg+';color:'+fg+'">'+esc(st)+'</span><button type="button" data-unlink="'+esc(x.key)+'" title="Unlink this listing" style="border:none;background:none;color:#b23a2c;cursor:pointer;font-size:17px;line-height:1;padding:0 2px">\u00d7</button></div>';
-  }).join('') : '<div class="empty">No listings inquired on or linked yet \u2014 link a listing this buyer is interested in.</div>';
+  }).join('') : '<div class="empty">No inquiries or linked listings yet.</div>';
   return '<div class="card"><div class="ch" style="display:flex;align-items:center"><b>Inquiries</b><span>'+(INTERESTED?INTERESTED.length:0)+'</span><button type="button" class="mfadd" id="linkListingBtn" title="Link a listing" style="margin-left:auto;width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div id="linkPickerWrap"></div><div>'+body+'</div></div>';
 }
 function openLinkPicker(){
@@ -1225,7 +1225,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Company'+(CO&&CO.id?(' <a class="colink" href="./rrg_company.html?id='+encodeURIComponent(CO.id)+'">open →</a>'):'')+'</label><div class="coauto"><input id="p_company" value="'+esc((CO&&CO.name)||P.company||'')+'" placeholder="Start typing to find a company" autocomplete="off" style="font-weight:400"><div class="cosug" id="p_cosug" hidden></div></div></div>'
       + '</div></div>'
       + '<div class="rsec" data-rsec><div class="rsechd">Communication <span class="cv">▾</span></div><div class="rsecbody">'
-      + '<div class="fldrow"><label class="fld">Emails <span class="prefhint">★ marks preferred</span></label><div id="p_emails">'+prefFieldHtml('p_email',pemails,'name@email.com','prefemail',P.preferredEmail)+'</div></div>'
+      + '<div class="fldrow"><label class="fld">Emails <span class="prefhint">★ marks preferred</span></label><div id="p_emails">'+prefFieldHtml('p_email',pemails,'name@email.com','prefemail',P.preferredEmail)+'</div><div id="p_emailwarn" style="font-size:12px;color:#b23a2c;margin-top:5px;display:none"></div></div>'
       + '<div class="fldrow"><label class="fld">Phones <span class="prefhint">★ marks preferred</span></label><div id="p_phones">'+prefFieldHtml('p_phone',pphones,'(555) 555-5555','prefphone',P.preferredPhone,true)+'</div></div>'
       + '<div class="fldrow2"><div><label class="fld">Lead source</label><select id="p_lead">'+leadOpts+'</select></div><div><label class="fld">LinkedIn</label><input id="p_url" value="'+esc(P.url||'')+'" placeholder="linkedin.com/in/…"></div></div>'
       + '<div class="fldrow"><label class="fld">Preferred contact method</label><div id="p_pref" style="display:flex;gap:16px;font-size:13px;padding-top:2px">'+['phone','text','email'].map(function(k){ var pc=Array.isArray(P.prefContact)?P.prefContact:[]; return '<label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="p_prefchk" value="'+k+'"'+(pc.indexOf(k)>=0?' checked':'')+'> '+k.charAt(0).toUpperCase()+k.slice(1)+'</label>'; }).join('')+'</div></div>'
@@ -1247,6 +1247,7 @@ function render(){
   root.querySelectorAll('input.p_email,input.p_phone').forEach(function(el){
     el.addEventListener('input',function(){ if(el.classList.contains('p_phone')) el.value=fmtPhoneVal(el.value); _autoPref(el); queueSave(); });
     el.addEventListener('change',function(){ _autoPref(el); if(SAVET){ clearTimeout(SAVET); SAVET=null; } autoSave(); });
+    if(el.classList.contains('p_email')) el.addEventListener('blur',function(){ _emailDupCheck(el); });
   });
   root.querySelectorAll('input[name="prefemail"],input[name="prefphone"]').forEach(function(el){ el.addEventListener('change',queueSave); });
   wireMulti(root);
@@ -1272,6 +1273,12 @@ function prefFieldHtml(cls,values,ph,grp,prefVal,isPhone){
   return '<div class="mfwrap" data-grp="'+grp+'"'+(isPhone?' data-phone="1"':'')+'>'+rows+'<button type="button" class="mfadd" data-cls="'+cls+'" data-ph="'+esc(ph)+'" data-grp="'+grp+'"'+(isPhone?' data-phone="1"':'')+'>+ Add another</button></div>';
 }
 function collectPreferred(scope,grp,cls){ var r=scope.querySelector('input[name="'+grp+'"]:checked'); if(!r) return ''; var row=r.closest('.mfrow'); if(!row) return ''; var inp=row.querySelector('input.'+cls); return inp?inp.value.trim():''; }
+// Warn the moment a rep leaves an email field if that address already belongs to another
+// contact (the same rule the server enforces on save) — so they catch the dupe early.
+function _emailDupCheck(el){ var warn=document.getElementById('p_emailwarn'); var v=(el.value||'').trim();
+  function clear(){ el.style.borderColor=''; if(warn){ warn.style.display='none'; warn.innerHTML=''; } }
+  if(!v || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){ clear(); return; }
+  fetch('/api/email-check?email='+encodeURIComponent(v)+'&exceptId='+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if((el.value||'').trim()!==v) return; if(j&&j.ok&&j.taken){ el.style.borderColor='#DA2B1F'; if(warn){ warn.style.display='block'; warn.innerHTML='⚠ <b>'+esc(v)+'</b> is already on <a href="./rrg_person.html?id='+encodeURIComponent(j.id)+'" style="color:#b23a2c;font-weight:700">'+esc(j.name||'another contact')+'</a> — every email must be unique, so this won’t save until you change it.'; } } else { clear(); } }).catch(function(){}); }
 function queueSave(){ DIRTY=true; var st=document.getElementById('p_saved'); if(st){ st.textContent='Editing…'; st.classList.add('show'); } if(SAVET) clearTimeout(SAVET); SAVET=setTimeout(function(){ SAVET=null; autoSave(); },700); }
 function autoSave(){ var fi=document.getElementById('p_first'), la=document.getElementById('p_last'), ty=document.getElementById('p_type'); if(!fi||!la||!ty) return; if(!fi.value.trim()||!la.value.trim()||!ty.value) return; savePerson(true); }
 function fmtPhone(v){ var d=String(v||'').replace(/\D/g,'').slice(0,10); if(d.length<4) return d; if(d.length<7) return '('+d.slice(0,3)+') '+d.slice(3); return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6); }

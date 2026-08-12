@@ -6573,6 +6573,18 @@ app.get('/api/people', (req, res) => {
   const people = loadPeople().filter(p => !restrictToOwn(req) || permOwnerMatch(req, p.by)).map(p => Object.assign(personBrief(p), { companyName: (p.companyId && cos[p.companyId]) || '', isMainContact: !!(p.companyId && coMain[p.companyId] === p.id), lastActiveAt: _personLastActive(p), lastContacted: p.lastContacted || '', interactions: (Array.isArray(p.activities) ? p.activities.length : 0) }));
   res.json({ ok: true, people: people, canDelete: canDelete(req), types: effPersonTypes(), leadSources: effLeadSources(), users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), recencyDays: (effListRecencyEnabled() ? effListRecencyDays() : 0), isAdmin: !!(req.user && isSuper(req.user)) });
 });
+// Live duplicate-email check — used by the contact form to warn the moment a rep leaves
+// the email field, before autosave. Returns the other contact that already owns the email.
+app.get('/api/email-check', (req, res) => {
+  try {
+    const email = String(req.query.email || '').trim();
+    const exceptId = String(req.query.exceptId || '').trim() || '__none__';
+    if (!email) return res.json({ ok: true, taken: false });
+    const owner = emailOwner(loadPeople(), [email], exceptId);
+    if (owner) return res.json({ ok: true, taken: true, id: owner.id, name: owner.name || '' });
+    return res.json({ ok: true, taken: false });
+  } catch (e) { res.json({ ok: true, taken: false }); }
+});
 app.post('/api/person', express.json(), (req, res) => {
   const b = req.body || {};
   const arr = loadPeople();

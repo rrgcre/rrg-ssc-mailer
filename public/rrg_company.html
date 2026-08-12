@@ -350,7 +350,7 @@ function refreshDocListCo(){
   var c=document.getElementById('coDocCount'); if(c) c.textContent=String(docCountCo());
 }
 function agreementsCardCo(){
-  return '<div class="card"><div class="ch"><b>Documents</b><span id="coDocCount">'+docCountCo()+'</span><span style="margin-left:auto;display:flex;gap:6px;align-items:center"><a href="./rrg_documents.html" title="Open the full document library" style="font-size:11px;font-weight:700;color:#8a93a8;text-decoration:none">Library</a></span></div><div class="cb"><div id="coAgrForm" hidden></div><div class="agrlistco" id="coDocList">'+docListHtmlCo()+'</div></div></div>';
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="coDocCount">'+docCountCo()+'</span><span style="margin-left:auto;display:flex;gap:6px;align-items:center"><a href="./rrg_documents.html" title="Open the full document library" style="font-size:11px;font-weight:700;color:#8a93a8;text-decoration:none">All Documents →</a></span></div><div class="cb"><div id="coAgrForm" hidden></div><div class="agrlistco" id="coDocList">'+docListHtmlCo()+'</div></div></div>';
 }
 function filesCountCo(){ return (window.RRGDocs&&RRGDocs.filesCount&&RRGDocs.filesCount())||0; }
 function filesListHtmlCo(){ var rows=(window.RRGDocs?RRGDocs.filesRowsHtml():''); if(rows) return rows; return '<div class="rrempty">'+((window.RRGDocs&&RRGDocs.ready())?'No files uploaded for this company yet. Use + to add a lease, P&L, or other document.':'Loading files\u2026')+'</div>'; }
