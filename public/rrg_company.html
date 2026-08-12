@@ -968,7 +968,8 @@ function multiFieldHtml(cls,values,ph){
   return '<div class="mfwrap">'+rows+'<button type="button" class="mfadd" data-cls="'+cls+'" data-ph="'+esc(ph)+'">+ Add another</button></div>';
 }
 function wireMulti(scope){
-  scope.querySelectorAll('.mfadd').forEach(function(b){ b.addEventListener('click',function(){ var cls=b.getAttribute('data-cls'),ph=b.getAttribute('data-ph'); var row=document.createElement('div'); row.className='mfrow'; row.innerHTML='<input class="'+cls+'" placeholder="'+esc(ph)+'"><button type="button" class="mfrm" title="Remove">×</button>'; b.parentNode.insertBefore(row,b); row.querySelector('.mfrm').addEventListener('click',function(){row.remove();}); row.querySelector('input').focus(); }); });
+  // Only genuine "add another" buttons carry data-cls; styling-only .mfadd buttons must not get the row-insert handler.
+  scope.querySelectorAll('.mfadd[data-cls]').forEach(function(b){ b.addEventListener('click',function(){ var cls=b.getAttribute('data-cls'),ph=b.getAttribute('data-ph'); var row=document.createElement('div'); row.className='mfrow'; row.innerHTML='<input class="'+cls+'" placeholder="'+esc(ph)+'"><button type="button" class="mfrm" title="Remove">×</button>'; b.parentNode.insertBefore(row,b); row.querySelector('.mfrm').addEventListener('click',function(){row.remove();}); row.querySelector('input').focus(); }); });
   scope.querySelectorAll('.mfrm').forEach(function(b){ b.addEventListener('click',function(){ b.parentNode.remove(); }); });
 }
 function collectMulti(scope,cls){ var out=[]; scope.querySelectorAll('.'+cls).forEach(function(i){ var v=i.value.trim(); if(v) out.push(v); }); return out; }

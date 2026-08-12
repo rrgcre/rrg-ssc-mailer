@@ -366,7 +366,7 @@
         + '<a href="rrg_agreements.html?new=1"><span class="cmi">⚖</span> Agreement</a>'
         + '<a href="rrg_rooms_queue.html?new=1"><span class="cmi">▤</span> Data Room</a>'
       + '</div>'
-    + '</div><a class="ic" href="rrg_tickets.html" title="Requests">✉</a><div class="uavwrap"><button class="uav" id="rrguav" type="button" aria-haspopup="true" aria-expanded="false" title="Account menu">·</button><div class="uavmenu" id="rrguavMenu" hidden><div class="uavhd" id="rrguavName">Signed in</div><a class="uavitem" href="rrg_account.html"><span class="uavic">◔</span> Account</a><a class="uavitem" href="index.html"><span class="uavic">?</span> Help</a><div class="uavsep"></div><a class="uavitem danger" href="/logout"><span class="uavic">⏻</span> Log out</a></div></div></div>';
+    + '</div><div class="uavwrap"><button class="uav" id="rrguav" type="button" aria-haspopup="true" aria-expanded="false" title="Account menu">·</button><div class="uavmenu" id="rrguavMenu" hidden><div class="uavhd" id="rrguavName">Signed in</div><a class="uavitem" href="rrg_account.html"><span class="uavic">◔</span> Account</a><a class="uavitem" href="index.html"><span class="uavic">?</span> Help</a><div class="uavsep"></div><a class="uavitem danger" href="/logout"><span class="uavic">⏻</span> Log out</a></div></div></div>';
 
   document.addEventListener('DOMContentLoaded', mount);
   if (document.readyState !== 'loading') mount();

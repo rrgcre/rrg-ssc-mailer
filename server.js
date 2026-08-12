@@ -11221,6 +11221,39 @@ app.delete('/api/document/:kind/:id', (req, res) => {
     return res.status(400).json({ ok: false, error: 'Unknown document type.' });
   } catch (e) { return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
+// AI: classify a batch of uploaded filenames into document types. Used by the Files card when
+// several files are uploaded at once, so each file gets the right type instead of one shared type.
+// Judges from the filename + extension only (fast, no file contents). Always validated against the
+// caller's allowed list; anything uncertain falls back to "General".
+app.post('/api/classify-docs', express.json(), async (req, res) => {
+  try {
+    const b = req.body || {};
+    const names = (Array.isArray(b.files) ? b.files : []).map(x => String((x && x.name) || x || '').slice(0, 200)).filter(Boolean).slice(0, 40);
+    const allowed = (Array.isArray(b.types) ? b.types : []).map(x => String(x || '').slice(0, 60)).filter(Boolean);
+    if (!names.length || !allowed.length) return res.json({ ok: true, results: [] });
+    const key = process.env.ANTHROPIC_API_KEY;
+    if (!key) return res.json({ ok: false, error: 'AI is not configured.', results: [] });
+    const sys = 'You classify uploaded document filenames for a commercial real estate brokerage that sells and leases restaurants and bars. For each filename choose the single best-fitting document type from the provided list, judging only from the filename and its extension. If nothing fits well, use "General". Respond with ONLY a JSON array — one object per filename, in the same order — each {"name":"<filename>","type":"<one allowed type, verbatim>"}. No prose, no code fences.';
+    const content = 'Allowed document types (choose exactly one per file, copied verbatim):\n' + allowed.map(t => '- ' + t).join('\n') + '\n\nFilenames:\n' + names.map((n, i) => (i + 1) + '. ' + n).join('\n') + '\n\nReturn the JSON array now.';
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model: loadAiModel(), max_tokens: 1200, temperature: 0, system: sys, messages: [{ role: 'user', content }] }),
+    });
+    const data = await resp.json();
+    if (!resp.ok) return res.json({ ok: false, error: (data && data.error && data.error.message) || 'AI request failed.', results: [] });
+    let text = ''; try { text = (data.content || []).map(x => x.text || '').join(''); } catch (e) {}
+    let arr = []; try { const mm = text.match(/\[[\s\S]*\]/); arr = JSON.parse(mm ? mm[0] : text); } catch (e) { arr = []; }
+    const allowSet = {}; allowed.forEach(t => { allowSet[t.toLowerCase()] = t; });
+    const results = names.map((n, i) => {
+      let t = '';
+      const hit = (Array.isArray(arr) ? (arr.find(x => x && String(x.name || '') === n) || arr[i]) : null);
+      if (hit && hit.type) t = allowSet[String(hit.type).toLowerCase()] || '';
+      return { name: n, type: t || 'General' };
+    });
+    res.json({ ok: true, results });
+  } catch (e) { res.json({ ok: false, error: String((e && e.message) || e), results: [] }); }
+});
 app.post('/api/files', express.json({ limit: '28mb' }), (req, res) => {
   const b = req.body || {};
   const orig = String(b.filename || '').trim();
