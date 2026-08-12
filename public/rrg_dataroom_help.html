@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Room — Help &amp; User Guide · RRG</title>
+<style>
+:root{
+  --navy:#000E31; --slate:#20334f; --primary:#2c5c8f; --primary-d:#23496f;
+  --red:#b23a2c; --ink:#2b3648; --muted:#69748a; --soft:#96a1b2;
+  --line:#dbe0e9; --wash:#f4f6f9; --inp:#c4ccda; --gold:#b5791f; --green:#2f7a55;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--primary);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.top{background:var(--navy);border-bottom:2px solid var(--primary);color:#fff;position:sticky;top:0;z-index:50;}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:13px;}
+.disc{width:34px;height:34px;border-radius:4px;background:var(--red);color:#fff;font:900 12px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;flex:none;}
+.wm{font-weight:700;font-size:12px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em;color:#cdd6e4;}
+.bar{width:1px;height:24px;background:rgba(255,255,255,.28);margin:0 5px;}
+.ttl{font-weight:700;font-size:15px;color:#fff;}
+.ttl small{display:block;font-size:10.5px;font-weight:600;color:#9fb0cc;text-transform:uppercase;letter-spacing:.06em;margin-top:1px;}
+.backlink{margin-left:auto;color:#cdd6e4;font-size:12.5px;font-weight:600;}
+.backlink:hover{color:#fff;text-decoration:none;}
+.shell{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;align-items:start;}
+.toc{position:sticky;top:74px;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.toc .th{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 15px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);}
+.tsearch{padding:10px 12px;border-bottom:1px solid var(--line);}
+.tsearch input{width:100%;border:1px solid var(--inp);border-radius:4px;padding:7px 10px;font:inherit;font-size:12.5px;}
+.toc nav{max-height:calc(100vh - 200px);overflow:auto;padding:6px 0;}
+.toc a{display:block;padding:6px 15px;font-size:12.5px;font-weight:600;color:var(--slate);border-left:2px solid transparent;}
+.toc a:hover{background:var(--wash);text-decoration:none;}
+.toc a.on{border-left-color:var(--primary);background:#eef4fa;color:var(--primary-d);}
+.toc .miss{padding:10px 15px;color:var(--soft);font-size:12px;}
+.doc{min-width:0;}
+.hero{background:#fff;border:1px solid var(--line);border-radius:6px;padding:24px 26px;margin-bottom:20px;}
+.hero h1{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-.01em;}
+.hero p{color:var(--muted);font-size:14.5px;margin-top:9px;max-width:760px;}
+.hero .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;}
+.tag{font-size:11px;font-weight:700;color:var(--slate);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
+section.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:22px 26px;margin-bottom:16px;scroll-margin-top:74px;}
+section.card>h2{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.01em;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;gap:9px;}
+section.card>h2 .n{width:24px;height:24px;border-radius:4px;background:var(--navy);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+h3{font-size:14.5px;font-weight:800;color:var(--slate);margin:18px 0 7px;}
+p{margin:9px 0;}
+.lead{color:var(--muted);font-size:14px;}
+ul,ol{margin:9px 0 9px 4px;padding-left:22px;}
+li{margin:5px 0;}
+ol.steps{counter-reset:st;list-style:none;padding-left:0;margin:12px 0;}
+ol.steps>li{position:relative;padding:0 0 14px 40px;margin:0;}
+ol.steps>li:before{counter-increment:st;content:counter(st);position:absolute;left:0;top:-1px;width:26px;height:26px;border-radius:4px;background:#eef4fa;color:var(--primary-d);border:1px solid #cddcec;font-weight:800;font-size:12.5px;display:flex;align-items:center;justify-content:center;}
+ol.steps>li:not(:last-child):after{content:"";position:absolute;left:13px;top:27px;bottom:2px;width:1px;background:var(--line);}
+ol.steps b{color:var(--slate);}
+.kbd{display:inline-block;background:var(--wash);border:1px solid var(--inp);border-bottom-width:2px;border-radius:3px;padding:1px 7px;font-size:12px;font-weight:700;color:var(--slate);}
+.callout{border:1px solid var(--line);border-left:3px solid var(--primary);background:#f7fafd;border-radius:0 4px 4px 0;padding:13px 16px;margin:14px 0;font-size:13.5px;}
+.callout.tip{border-left-color:var(--green);background:#f1f8f4;}
+.callout.warn{border-left-color:var(--red);background:#fbf3f2;}
+.callout .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
+.callout.tip .lbl{color:var(--green);} .callout.warn .lbl{color:var(--red);}
+table.mx{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;}
+table.mx th,table.mx td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+table.mx th{background:var(--wash);font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:800;}
+table.mx td b{color:var(--slate);}
+.pill{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:3px;padding:2px 7px;}
+.pill.no{background:#eef1f6;color:#7a8090;} .pill.v{background:#eaf1f8;color:#2c5c8f;} .pill.d{background:#fdf1df;color:#8a5a12;} .pill.e{background:#e8f3ec;color:#1f7a4d;}
+.fq{border-top:1px solid var(--line);padding:13px 0;}
+.fq:first-of-type{border-top:none;}
+.fq h3{margin:0 0 4px;font-size:14px;}
+.fq p{margin:0;color:var(--muted);font-size:13.5px;}
+.folders{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:14px 0;}
+.fold{border:1px solid var(--line);border-radius:4px;padding:10px 12px;background:var(--wash);}
+.fold b{color:var(--slate);font-size:13px;}
+.fold span{display:block;color:var(--muted);font-size:12px;margin-top:2px;}
+.fold .subf{margin-top:6px;font-size:11.5px;color:var(--primary-d);}
+.foot{max-width:1180px;margin:0 auto;padding:0 24px 50px;color:var(--soft);font-size:12px;text-align:center;}
+.totop{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;border:none;border-radius:4px;padding:9px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .15s;z-index:60;}
+.totop.show{opacity:1;pointer-events:auto;}
+@media(max-width:900px){.shell{grid-template-columns:1fr;}.toc{position:static;}.toc nav{max-height:none;}}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <span class="disc">RRG</span><span class="wm">Restaurant<br>Realty Group</span><span class="bar"></span>
+  <span class="ttl">Data Room<small>Help &amp; User Guide</small></span>
+  <a class="backlink" href="rrg_rooms_queue.html">&larr; Back to Data Rooms</a>
+</div></div>
+
+<div class="shell">
+  <aside class="toc">
+    <div class="th">Contents</div>
+    <div class="tsearch"><input id="tocSearch" placeholder="Search this guide…" autocomplete="off"></div>
+    <nav id="tocNav">
+      <a href="#overview">1 · Overview</a>
+      <a href="#create">2 · Creating a data room</a>
+      <a href="#folders">3 · Folder structure</a>
+      <a href="#upload">4 · Getting documents in</a>
+      <a href="#buyers">5 · Inviting buyers &amp; access</a>
+      <a href="#permissions">6 · Permission levels &amp; matrix</a>
+      <a href="#verify">7 · Buyer verification (2-step)</a>
+      <a href="#link">8 · The buyer link</a>
+      <a href="#buyerview">9 · What the buyer sees</a>
+      <a href="#analytics">10 · Engagement &amp; analytics</a>
+      <a href="#alerts">11 · Alerts &amp; Buyer Q&amp;A</a>
+      <a href="#protect">12 · Document protection</a>
+      <a href="#interview">13 · Seller interview (internal)</a>
+      <a href="#lifecycle">14 · Room lifecycle</a>
+      <a href="#admin">15 · Admin settings</a>
+      <a href="#faq">16 · FAQ &amp; troubleshooting</a>
+      <a href="#glossary">17 · Glossary</a>
+    </nav>
+  </aside>
+
+  <main class="doc">
+    <div class="hero">
+      <h1>Data Room — Help &amp; User Guide</h1>
+      <p>The Data Room is your confidential deal room: the place an NDA'd buyer reviews a listing's documents, and where you control who sees what and watch exactly who's serious. Everything here is confidential by default — nothing is exposed to a buyer until they're vetted and gated. This guide walks through every part of it, start to finish.</p>
+      <div class="meta"><span class="tag">Business Sales</span><span class="tag">Confidential by default</span><span class="tag">Buyer engagement tracking</span><span class="tag">No buyer app required</span></div>
+    </div>
+
+    <section class="card" id="overview">
+      <h2><span class="n">1</span> Overview</h2>
+      <p class="lead">A data room (VDR — virtual data room) is a private, per-listing document vault with a shareable buyer link. You load the seller's financials, lease, licenses, and other diligence documents once; qualified buyers review them under NDA; and you get a running record of who opened what, when, and for how long.</p>
+      <h3>The core idea</h3>
+      <ul>
+        <li><b>Confidential by default</b> — a buyer sees nothing until you've authorized them. The room is public-but-gated: there's a link, but a personal access code is what actually opens it.</li>
+        <li><b>No buyer account, no app</b> — buyers never sign in to the platform. They click a link, enter a code, and they're in. That keeps the barrier low for serious buyers and the wall high for everyone else.</li>
+        <li><b>Tied to the deal</b> — each room links back to its listing/company, so access and engagement live right alongside your pipeline, offers, tours, and NDAs.</li>
+        <li><b>Every move is logged</b> — views, downloads, read time, and questions are all captured so your follow-up is driven by real behavior, not guesswork.</li>
+      </ul>
+      <div class="callout"><div class="lbl">Who this guide is for</div>Brokers and reps who set up and run data rooms. Buyers don't need a manual — they just receive a link and a code from you.</div>
+    </section>
+
+    <section class="card" id="create">
+      <h2><span class="n">2</span> Creating a data room</h2>
+      <p class="lead">There are three ways a room comes into being, depending on where you are in the deal.</p>
+      <h3>A. From a seller screening call</h3>
+      <p>When a seller qualification call moves forward to a business sale, a data room can be spun up from that call, carrying the seller's details across so you're not re-typing them.</p>
+      <h3>B. From a listing's marketing pack / CIM</h3>
+      <p>Generate the room straight from a listing's marketing pack or CIM microsite, so the room and the offering stay tied together.</p>
+      <h3>C. Standalone — the "+ New data room" button</h3>
+      <p>On the <b>Data Rooms</b> page, use <span class="kbd">+ New data room</span> (top-right of the list). It's also reachable from the header's <b>Create New → Data Room</b>, and when the list is empty a <span class="kbd">+ New data room</span> button appears in the center of the page as a shortcut. All three open the same form. You'll capture the originating details up front:</p>
+      <ol class="steps">
+        <li><b>Contact</b> — the seller/contact this room belongs to (searchable against your book of business; now required).</li>
+        <li><b>Listing</b> — optionally link the room to an existing listing.</li>
+        <li><b>Rep</b> — who's running the deal.</li>
+        <li><b>Date</b> — when the room is opened.</li>
+        <li>The room is created with the standard folder structure already in place — no building from scratch.</li>
+      </ol>
+      <div class="callout tip"><div class="lbl">Best practice</div>Link the room to the real seller contact when you create it. That's what powers the "Data Room · [Business]" title, the access email personalization, and the tie-back to the deal record.</div>
+      <h3>Renaming a room</h3>
+      <p>A room's name isn't locked in. Use the <span class="kbd">✎ Rename</span> control next to the title at the top of the room to edit it inline and save — handy when a room was created with a placeholder name or the wrong business. The new name flows straight into the "Data Room · [Business]" title everywhere it appears.</p>
+    </section>
+
+    <section class="card" id="folders">
+      <h2><span class="n">3</span> Folder structure</h2>
+      <p class="lead">Every room uses the same consistent sections, so buyers always know where to look and you never design a structure from scratch. The default folders:</p>
+      <div class="folders">
+        <div class="fold"><b>Financials</b><span>P&amp;Ls, SDE bridge, balance sheets, working model.</span></div>
+        <div class="fold"><b>Tax Returns</b><span>Business returns.</span><span class="subf">↳ Organized into per-year subfolders.</span></div>
+        <div class="fold"><b>Lease</b><span>Lease, amendments, estoppels, landlord contacts.</span></div>
+        <div class="fold"><b>Equipment &amp; FF&amp;E</b><span>FF&amp;E schedule, what conveys.</span></div>
+        <div class="fold"><b>Licenses &amp; Permits</b><span>TABC, health, occupancy, signage.</span></div>
+        <div class="fold"><b>Legal &amp; Corporate</b><span>Entity docs, contracts, assignments.</span></div>
+        <div class="fold"><b>Menus &amp; Marketing</b><span>Menus, brand assets, teaser.</span></div>
+        <div class="fold"><b>Staffing &amp; Payroll</b><span>Employee roster, wage summary, org.</span></div>
+        <div class="fold"><b>Other</b><span>Anything that doesn't fit above.</span></div>
+      </div>
+      <p>You can <b>move</b> documents between folders and <b>delete</b> them at any time. If a deal genuinely has no lease (owner-occupied or N/A), flag it with the <b>"No lease"</b> toggle so the structure stays honest and the missing folder doesn't read as a gap.</p>
+    </section>
+
+    <section class="card" id="upload">
+      <h2><span class="n">4</span> Getting documents in</h2>
+      <p class="lead">Four ways to load a room — pick whichever is fastest for the batch in front of you.</p>
+      <h3>Single upload</h3>
+      <p>Name a file, drop it into the right section. Supported: PDF, Word, Excel, CSV, PowerPoint, images, and text — up to <b>25&nbsp;MB</b> each.</p>
+      <h3>Bulk upload with AI auto-filing</h3>
+      <p>Drop in a batch of up to <b>40 files</b> at once. The assistant reads each one and files it into the correct folder automatically. Anything it gets wrong, you fix in a click with the folder controls.</p>
+      <h3>Duplicate detection</h3>
+      <p>When you upload, the room checks for duplicates — both an exact file match and the same document already sitting in a folder — and warns you before it adds a second copy, so a room doesn't fill up with "P&amp;L (1).pdf, P&amp;L (2).pdf." You can override and upload anyway if it's genuinely a new version.</p>
+      <h3>Buyer / seller upload by link</h3>
+      <p>Give a person <b>Edit</b> rights on a folder and they can upload into it through the room link — see <a href="#buyers">Inviting buyers &amp; access</a>. This is how a seller sends you their financials, or a buyer returns a signed document.</p>
+      <div class="callout warn"><div class="lbl">Heads up</div>Upload is a <b>folder-level</b> right. A person can only upload into a folder you've set to Edit for them — not the whole room.</div>
+    </section>
+
+    <section class="card" id="buyers">
+      <h2><span class="n">5</span> Inviting buyers &amp; access</h2>
+      <p class="lead">Each buyer is authorized individually and gets their own access code — their password to open the room.</p>
+      <ol class="steps">
+        <li><b>Add the buyer</b> under <b>Buyers &amp; access</b> — name and email. The buyer is a contact in your book, so you can search an existing contact to link rather than creating a duplicate.</li>
+        <li><b>Set a starting access level</b> — No access (choose folders), View only, View &amp; download, or View, download &amp; upload. You can fine-tune per folder afterward.</li>
+        <li><b>Authorize</b> — this generates the buyer's personal access code and, importantly, <b>locks the room</b> (see the warning below).</li>
+        <li><b>Email access</b> — click <span class="kbd">Email access</span> on the buyer's row to send them the room link, their access code, and an upload note in one email. The button reads "Re-send email" afterward.</li>
+        <li><b>They're in</b> — the buyer opens the link, enters the code, and reviews exactly the folders and files you granted. Everything they do is logged.</li>
+      </ol>
+      <h3>People-with-access roster</h3>
+      <p>The room shows a live roster of everyone granted access: name, email, company, their access level, their code, when access was granted, when they were last seen, and their view/download counts — each with <b>Email access</b> and <b>Revoke</b> right there.</p>
+      <div class="callout warn"><div class="lbl">Authorizing the first buyer locks the room</div>The moment you authorize the first buyer, the plain shared link stops working on its own — from then on a personal access code is required to get in. That's the confidentiality gate, and it's by design.</div>
+      <div class="callout tip"><div class="lbl">Best practice</div>Add an email for every buyer. The "Email access" button only appears once there's an address on file, and email becomes required if two-step verification is on.</div>
+    </section>
+
+    <section class="card" id="permissions">
+      <h2><span class="n">6</span> Permission levels &amp; matrix</h2>
+      <p class="lead">Access is granular. Set a base level per buyer, then override it folder-by-folder — and even file-by-file — so each buyer sees exactly what they should.</p>
+      <table class="mx">
+        <thead><tr><th>Level</th><th>What the buyer can do</th></tr></thead>
+        <tbody>
+          <tr><td><span class="pill no">No access</span></td><td>The folder doesn't exist for them. Nothing shown.</td></tr>
+          <tr><td><span class="pill v">View</span></td><td>Preview files on screen in the in-browser viewer — <b>but not download</b>. Good for the P&amp;L you want read, not walked off with.</td></tr>
+          <tr><td><span class="pill d">Download</span></td><td>Everything in View, plus pull the actual files down.</td></tr>
+          <tr><td><span class="pill e">Edit</span></td><td>Everything in Download, plus <b>upload</b> into that folder.</td></tr>
+        </tbody>
+      </table>
+      <h3>How to set it</h3>
+      <ul>
+        <li><b>Base level</b> comes from the level you picked when adding the buyer.</li>
+        <li><b>Per-folder override</b> — click any cell in the permission grid to cycle it: No access → View → Download → Edit. So a buyer can, say, view the financials but only download the teaser.</li>
+        <li><b>Per-file override</b> — expose or hide a single document for a specific buyer without touching the rest of the folder.</li>
+        <li><b>Activate / deactivate</b> — one toggle kills or restores a buyer's access instantly, without deleting their history.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="verify">
+      <h2><span class="n">7</span> Buyer verification (2-step)</h2>
+      <p class="lead">Two-step verification (MFA) adds a one-time email code on top of the access code — so only someone with the code <i>and</i> the buyer's inbox can get in.</p>
+      <ul>
+        <li><b>Per-room toggle</b>, on by default, with a clear <b>On / Off</b> state indicator next to the switch.</li>
+        <li><b>Trust this device for 30 days</b> — a verified buyer isn't re-challenged on every visit.</li>
+        <li><b>Email becomes required</b> to authorize a buyer while verification is on (the code has to go somewhere).</li>
+        <li><b>Firm default</b> — a room can follow the brokerage default or override it; you can always snap it back to "Use firm default."</li>
+      </ul>
+      <div class="callout tip"><div class="lbl">Reading the toggle</div>On = green pill and a tinted row; Off = grey pill. If a buyer has no email on file, the room warns you to add one before you can turn verification on.</div>
+    </section>
+
+    <section class="card" id="link">
+      <h2><span class="n">8</span> The buyer link</h2>
+      <ul>
+        <li><b>Tokenized URL</b> — every room has its own private link with an unguessable token. No buyer account required.</li>
+        <li><b>Regenerate link</b> — issue a fresh link at any time, which instantly invalidates the old one. Use this if a link may have been forwarded.</li>
+        <li><b>Copy link</b> is one click from the room and from the Rooms queue.</li>
+      </ul>
+      <div class="callout warn"><div class="lbl">Remember</div>Before the first buyer is authorized, the raw link opens the room. After that, the link alone isn't enough — a code is required. So sharing the link early (pre-authorization) is different from sharing it once the room is locked.</div>
+    </section>
+
+    <section class="card" id="buyerview">
+      <h2><span class="n">9</span> What the buyer sees</h2>
+      <p class="lead">Use <b>Buyer view</b> to preview the room exactly as an NDA'd buyer sees it — no surprises.</p>
+      <ul>
+        <li><b>In-browser viewer</b> — PDFs, images, and text open in a viewer inside the room.</li>
+        <li><b>Spreadsheets render in the browser too</b>, client-side — so an Excel or CSV P&amp;L can be read on screen and the file never leaves the confidential room. A view-only buyer reads the numbers without walking away with your working model.</li>
+        <li>Office files that can't render in-browser fall back to a clean download (for buyers with download rights).</li>
+        <li>The room carries your firm's brand — logo, name, colors — throughout.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="analytics">
+      <h2><span class="n">10</span> Engagement &amp; analytics</h2>
+      <p class="lead">This is the part that tells you who's actually serious. Every view and download through the buyer link is captured, then rolled up for you.</p>
+      <h3>Access log</h3>
+      <p>A running record of every action taken through the buyer link, newest first, showing <b>who did it (name and company), what they did, the document, and the timestamp</b>. Actions are labeled distinctly — <b>Signed in</b>, <b>Entered room</b>, <b>Viewed</b>, <b>Downloaded</b>, <b>Uploaded</b>, and <b>Asked a question</b> — so you can read exactly what happened, not just "activity."</p>
+      <div class="callout tip"><div class="lbl">Drill down from the KPIs</div>The summary tiles at the top of Buyer engagement are clickable. Click <b>Views</b> or <b>Downloads</b> to filter the access log to just those events; click <b>Buyers</b> or <b>Documents</b> to jump straight to that breakdown.</div>
+      <h3>Engagement by buyer</h3>
+      <p>For each buyer: which documents they opened or downloaded, how many times, and when they were last in. Your follow-up radar.</p>
+      <h3>Per-buyer activity trail</h3>
+      <p>Expand any buyer in the "By buyer" list to see their <b>full activity trail in order</b> — a timeline grouped by day of everything they did and when: signed in at 10:00 PM, downloaded the 2024 P&amp;L at 10:05, viewed the lease at 11:20, and so on. It's the play-by-play of a single buyer's visit, right alongside their per-document totals and read time.</p>
+      <h3>"Hot buyer" flag</h3>
+      <p>Automatically surfaces buyers who touched the <b>key documents</b> (P&amp;L, financials, lease, tax returns) in the last 7 days. That's your call-today list.</p>
+      <h3>Read time (time-on-page)</h3>
+      <p>Not just <i>that</i> a buyer clicked, but <i>how long</i> they actually read each document — e.g. "Jane spent 6m 12s on the 2023 P&amp;L." Timed honestly: the clock pauses when they switch tabs or minimize, so backgrounded time isn't counted as reading.</p>
+      <h3>Engagement by document</h3>
+      <p>For each file: views, downloads, unique buyers, and total read time — with the key financial and lease docs starred.</p>
+      <h3>Firm-wide reports</h3>
+      <p>The admin Reports page rolls it all up across every room: most-opened / most-downloaded documents, buyer engagement across all deals, and where your attention should go — each windowed to a time range you pick.</p>
+    </section>
+
+    <section class="card" id="alerts">
+      <h2><span class="n">11</span> Alerts &amp; Buyer Q&amp;A</h2>
+      <h3>Real-time alerts</h3>
+      <p>The instant a buyer <b>first</b> opens one of the key documents (P&amp;L, financials, lease, tax returns), you get an email — once per buyer per doc, so it's signal, not noise. On by default, controllable in settings.</p>
+      <h3>Buyer Q&amp;A (private threads)</h3>
+      <ul>
+        <li>An authorized buyer can ask questions right inside the room — no separate email channel.</li>
+        <li><b>Private per buyer</b> — each buyer sees only their own thread; buyers never see each other's questions.</li>
+        <li>Questions land in your inbox <b>and</b> in a "Buyer questions" panel, flagged <b>Awaiting reply</b> until you answer.</li>
+        <li>Reply inline; the buyer sees your answer next time they're in.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="protect">
+      <h2><span class="n">12</span> Document protection</h2>
+      <h3>Download watermarking</h3>
+      <p>Every PDF download is stamped on every page with the buyer's name, email, timestamp, and your firm. A leaked document points straight back to whoever downloaded it. On by default, controllable in settings.</p>
+      <h3>Confidential by default</h3>
+      <p>Nothing is exposed to a buyer until they're vetted and gated. Combined with per-buyer codes, the permission matrix, verification, and watermarking, that's the whole philosophy: the seller's information stays protected at every step.</p>
+    </section>
+
+    <section class="card" id="interview">
+      <h2><span class="n">13</span> Seller interview (internal only)</h2>
+      <p class="lead">Seller interview videos and transcripts can be attached to the room <b>for the broker's reference</b>.</p>
+      <div class="callout warn"><div class="lbl">Internal — buyers never see this</div>Seller interview material is clearly marked internal and is never shown to buyers. It's there to brief you and your team, not the buy side.</div>
+    </section>
+
+    <section class="card" id="lifecycle">
+      <h2><span class="n">14</span> Room lifecycle</h2>
+      <ul>
+        <li><b>Create</b> — standalone, from a seller call, or generated from a listing's marketing pack / CIM.</li>
+        <li><b>Close &amp; archive</b> — after a sale, archive the room. It's <b>preserved with an archived banner, not deleted</b>, so the record and its engagement history stay intact.</li>
+        <li><b>Reopen</b> — if a deal comes back to life, reopen the archived room right where it left off.</li>
+        <li><b>Rooms queue</b> — manage every active and archived room from one list, with buyer view, edit, upload, and copy-link a click away.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="admin">
+      <h2><span class="n">15</span> Admin settings</h2>
+      <ul>
+        <li><b>Data Room Access Email</b> — the email a buyer/seller receives with the link, their code, and the upload note is fully editable under <b>Admin Settings → Data Room Access Email</b> (subject and body, with tokens like the business name, first name, link, and code). Make it sound like you.</li>
+        <li><b>Firm default verification</b> — set whether new rooms default to two-step verification on or off; individual rooms can override.</li>
+        <li><b>Alerts &amp; watermarking</b> — both on by default and controllable in settings.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="faq">
+      <h2><span class="n">16</span> FAQ &amp; troubleshooting</h2>
+      <div class="fq"><h3>A buyer says the link doesn't work.</h3><p>Once the first buyer is authorized the room locks, so the link alone won't open it — they need their access code. Re-send it with <b>Email access</b> on their row. If verification is on, they'll also get a one-time email code each new device.</p></div>
+      <div class="fq"><h3>How does someone upload documents to the room?</h3><p>Give them <b>Edit</b> rights on the target folder, then <b>Email access</b> so they get the link and code. They open the link and can upload into any folder where they have Edit. There's no separate "upload link" — it's the room link plus Edit permission.</p></div>
+      <div class="fq"><h3>The room title just says "Data Room" with no business name.</h3><p>The title reads "Data Room · [Business]" and pulls the business from the linked seller record. If it's blank or wrong, use the <b>✎ Rename</b> control next to the title to set it directly — see "Renaming a room" in Creating a data room.</p></div>
+      <div class="fq"><h3>Can a buyer download something I only want them to read?</h3><p>Set that folder (or file) to <b>View</b>, not Download. They'll read it in the in-browser viewer — spreadsheets included — but can't pull the file.</p></div>
+      <div class="fq"><h3>I need to cut off a buyer immediately.</h3><p>Deactivate them with one toggle (keeps their history) or revoke access. To invalidate a link that may have been forwarded, regenerate the room link.</p></div>
+      <div class="fq"><h3>Can I tell whether a buyer is serious?</h3><p>Check the "Hot buyer" flag and read time. A buyer who spent real minutes on the P&amp;L and lease in the last week is your call-today.</p></div>
+      <div class="fq"><h3>Does the buyer need an account?</h3><p>No. Buyers never sign in to the platform — link plus code (plus a one-time email code if verification is on).</p></div>
+      <div class="fq"><h3>What file types and sizes are supported?</h3><p>PDF, Word, Excel, CSV, PowerPoint, images, and text; up to 25&nbsp;MB per file on single upload, and up to 40 files at once on bulk upload.</p></div>
+    </section>
+
+    <section class="card" id="glossary">
+      <h2><span class="n">17</span> Glossary</h2>
+      <table class="mx">
+        <tbody>
+          <tr><td><b>Data room (VDR)</b></td><td>The confidential, per-listing document vault a buyer reviews under NDA.</td></tr>
+          <tr><td><b>Access code</b></td><td>A buyer's personal password to open the room.</td></tr>
+          <tr><td><b>Grant</b></td><td>A single buyer's authorization on a room — their level, per-folder permissions, and history.</td></tr>
+          <tr><td><b>Permission matrix</b></td><td>The grid of buyers × folders where you set No access / View / Download / Edit.</td></tr>
+          <tr><td><b>Two-step verification (MFA)</b></td><td>A one-time email code required on top of the access code.</td></tr>
+          <tr><td><b>Buyer view</b></td><td>A preview of the room exactly as a buyer sees it.</td></tr>
+          <tr><td><b>Hot buyer</b></td><td>A buyer who engaged with key documents in the last 7 days.</td></tr>
+          <tr><td><b>Key documents</b></td><td>P&amp;L, financials, lease, and tax returns — the docs that drive alerts and the hot-buyer flag.</td></tr>
+          <tr><td><b>Watermark</b></td><td>The per-page stamp (buyer name, email, time, firm) on every PDF download.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+</div>
+
+<div class="foot">Restaurant Realty Group — Data Room Help &amp; User Guide · Confidential platform documentation.</div>
+<button class="totop" id="totop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ Top</button>
+
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('#tocNav a'));
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function spy(){
+    var y=window.scrollY+90, cur=secs[0];
+    for(var i=0;i<secs.length;i++){ if(secs[i].offsetTop<=y) cur=secs[i]; }
+    links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('href')==='#'+(cur&&cur.id)); });
+    var tt=document.getElementById('totop'); tt.classList.toggle('show', window.scrollY>400);
+  }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+  var box=document.getElementById('tocSearch'), nav=document.getElementById('tocNav');
+  box.addEventListener('input',function(){
+    var q=box.value.trim().toLowerCase();
+    var any=false;
+    links.forEach(function(a){
+      var sec=document.getElementById(a.getAttribute('href').slice(1));
+      var hit=!q || a.textContent.toLowerCase().indexOf(q)>=0 || (sec&&sec.textContent.toLowerCase().indexOf(q)>=0);
+      a.style.display=hit?'':'none'; if(hit) any=true;
+    });
+    var m=document.getElementById('tocMiss'); if(m) m.remove();
+    if(!any){ var d=document.createElement('div'); d.className='miss'; d.id='tocMiss'; d.textContent='No matches.'; nav.appendChild(d); }
+  });
+})();
+</script>
+</body>
+</html>

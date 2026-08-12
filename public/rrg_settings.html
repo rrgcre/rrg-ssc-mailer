@@ -37,23 +37,24 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .feats.collapsed .chev{transform:rotate(-90deg);}
 .feats.collapsed .featgrid{display:none;}
 .featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line,#dbe0e9);border-top:1px solid var(--line,#dbe0e9);}
-.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;}
+.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;text-decoration:none;color:inherit;transition:background .12s;}
+a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--primary,#2c5c8f);}
 .feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
 .feat b{display:block;font-size:12.5px;color:var(--navy,#20334f);font-weight:800;}
 .feat span{display:block;font-size:11.5px;color:var(--muted,#5f6a7d);line-height:1.45;margin-top:2px;}
 </style>
 <div class="sadminwrap">
   <div class="feats" id="admFeatStrip">
-    <div class="featshd" id="admFeatHd"><b>What the admin section does</b><span class="sh">configure and run the whole platform</span><span class="chev">▾</span></div>
+    <div class="featshd" id="admFeatHd"><b>What the admin section does</b><span class="sh">configure and run the whole platform — tap any tile for help</span><span class="chev">▾</span></div>
     <div class="featgrid">
-      <div class="feat"><span class="fic">👥</span><div><b>Users, roles &amp; permissions</b><span>Add your team, set exactly what each role can see and do, and organize people by department.</span></div></div>
-      <div class="feat"><span class="fic">🔀</span><div><b>Pipelines, stages &amp; automations</b><span>Define how deals move across the board and what fires automatically at each step.</span></div></div>
-      <div class="feat"><span class="fic">🗃️</span><div><b>Data tools</b><span>Import from any CRM, enrich from Google &amp; AI, clean, dedupe, back up and export your whole book.</span></div></div>
-      <div class="feat"><span class="fic">📝</span><div><b>Paperwork engine</b><span>Agreement templates, the LOI builder and valuation rules that power every document you generate.</span></div></div>
-      <div class="feat"><span class="fic">🎨</span><div><b>Branding &amp; white-label</b><span>Your logo, name and colors across the app, generated documents and outbound email.</span></div></div>
-      <div class="feat"><span class="fic">🔌</span><div><b>Integrations &amp; keys</b><span>Connect Google Maps, Gmail / SMTP and API keys — the plumbing behind enrichment and email.</span></div></div>
-      <div class="feat"><span class="fic">🤖</span><div><b>AI settings &amp; usage</b><span>Tune the assistant's prompts and engine, and watch AI usage and cost in one place.</span></div></div>
-      <div class="feat"><span class="fic">📋</span><div><b>Forms &amp; firm-wide documents</b><span>Build call questionnaires and publish blank agreements and forms the whole team shares.</span></div></div>
+      <a class="feat" href="rrg_admin_help.html#users" target="_blank" rel="noopener"><span class="fic">👥</span><div><b>Users, roles &amp; permissions</b><span>Add your team, set exactly what each role can see and do, and organize people by department.</span></div></a>
+      <a class="feat" href="rrg_admin_help.html#pipelines" target="_blank" rel="noopener"><span class="fic">🔀</span><div><b>Pipelines, stages &amp; automations</b><span>Define how deals move across the board and what fires automatically at each step.</span></div></a>
+      <a class="feat" href="rrg_admin_help.html#data" target="_blank" rel="noopener"><span class="fic">🗃️</span><div><b>Data tools</b><span>Import from any CRM, enrich from Google &amp; AI, clean, dedupe, back up and export your whole book.</span></div></a>
+      <a class="feat" href="rrg_admin_help.html#paperwork" target="_blank" rel="noopener"><span class="fic">📝</span><div><b>Paperwork engine</b><span>Agreement templates, the LOI builder and valuation rules that power every document you generate.</span></div></a>
+      <a class="feat" href="rrg_admin_help.html#branding" target="_blank" rel="noopener"><span class="fic">🎨</span><div><b>Branding &amp; white-label</b><span>Your logo, name and colors across the app, generated documents and outbound email.</span></div></a>
+      <a class="feat" href="rrg_admin_help.html#integrations" target="_blank" rel="noopener"><span class="fic">🔌</span><div><b>Integrations &amp; keys</b><span>Connect Google Maps, Gmail / SMTP and API keys — the plumbing behind enrichment and email.</span></div></a>
+      <a class="feat" href="rrg_admin_help.html#ai" target="_blank" rel="noopener"><span class="fic">🤖</span><div><b>AI settings &amp; usage</b><span>Tune the assistant's prompts and engine, and watch AI usage and cost in one place.</span></div></a>
+      <a class="feat" href="rrg_admin_help.html#forms" target="_blank" rel="noopener"><span class="fic">📋</span><div><b>Forms &amp; firm-wide documents</b><span>Build call questionnaires and publish blank agreements and forms the whole team shares.</span></div></a>
     </div>
   </div>
   <div class="shub">

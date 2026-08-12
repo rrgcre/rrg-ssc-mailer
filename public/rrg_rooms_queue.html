@@ -28,7 +28,8 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .feats.collapsed .chev{transform:rotate(-90deg);}
 .feats.collapsed .featgrid{display:none;}
 .featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line);}
-.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;}
+.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;text-decoration:none;color:inherit;transition:background .12s;}
+a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--primary,#2c5c8f);}
 .feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
 .feat b{display:block;font-size:12.5px;color:var(--navy);font-weight:800;}
 .feat span{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px;}
@@ -67,16 +68,16 @@ tr:hover td{background:#fbfcfe;}
 </div></div>
 <div class="wrap">
   <div class="feats" id="featStrip">
-    <div class="featshd" id="featHd"><b>What your data rooms do</b><span class="sh">the confidential deal room, at a glance</span><span class="chev" id="featChev">▾</span></div>
+    <div class="featshd" id="featHd"><b>What your data rooms do</b><span class="sh">the confidential deal room, at a glance — tap any tile for help</span><span class="chev" id="featChev">▾</span></div>
     <div class="featgrid">
-      <div class="feat"><span class="fic">🔒</span><div><b>Confidential &amp; gated</b><span>A private tokenized link; each buyer gets their own access code. Buyers never sign in to an app.</span></div></div>
-      <div class="feat"><span class="fic">🎚️</span><div><b>Granular permissions</b><span>No access · view · download · upload — set per buyer, then overridden folder-by-folder and file-by-file.</span></div></div>
-      <div class="feat"><span class="fic">📊</span><div><b>Engagement tracking</b><span>See who opened what, a "hot buyer" flag on recent key-doc activity, and real read-time.</span></div></div>
-      <div class="feat"><span class="fic">🔔</span><div><b>Real-time alerts</b><span>Emailed the moment a buyer first opens the P&amp;L, financials, lease, or tax returns.</span></div></div>
-      <div class="feat"><span class="fic">🛡️</span><div><b>Watermarked downloads</b><span>Every PDF is stamped with the buyer's name, email &amp; time — a leak traces straight back.</span></div></div>
-      <div class="feat"><span class="fic">💬</span><div><b>Buyer Q&amp;A</b><span>Private per-buyer threads asked and answered right inside the room — no email channel.</span></div></div>
-      <div class="feat"><span class="fic">📁</span><div><b>Bulk upload, AI-filed</b><span>Drop up to 40 files; the assistant reads each one and sorts it into the right folder.</span></div></div>
-      <div class="feat"><span class="fic">🔑</span><div><b>Two-step verification</b><span>Optional one-time email code on top of the access code, with 30-day trusted devices.</span></div></div>
+      <a class="feat" href="rrg_dataroom_help.html#overview" target="_blank" rel="noopener"><span class="fic">🔒</span><div><b>Confidential &amp; gated</b><span>A private tokenized link; each buyer gets their own access code. Buyers never sign in to an app.</span></div></a>
+      <a class="feat" href="rrg_dataroom_help.html#permissions" target="_blank" rel="noopener"><span class="fic">🎚️</span><div><b>Granular permissions</b><span>No access · view · download · upload — set per buyer, then overridden folder-by-folder and file-by-file.</span></div></a>
+      <a class="feat" href="rrg_dataroom_help.html#analytics" target="_blank" rel="noopener"><span class="fic">📊</span><div><b>Engagement tracking</b><span>See who opened what, a "hot buyer" flag on recent key-doc activity, and real read-time.</span></div></a>
+      <a class="feat" href="rrg_dataroom_help.html#alerts" target="_blank" rel="noopener"><span class="fic">🔔</span><div><b>Real-time alerts</b><span>Emailed the moment a buyer first opens the P&amp;L, financials, lease, or tax returns.</span></div></a>
+      <a class="feat" href="rrg_dataroom_help.html#protect" target="_blank" rel="noopener"><span class="fic">🛡️</span><div><b>Watermarked downloads</b><span>Every PDF is stamped with the buyer's name, email &amp; time — a leak traces straight back.</span></div></a>
+      <a class="feat" href="rrg_dataroom_help.html#alerts" target="_blank" rel="noopener"><span class="fic">💬</span><div><b>Buyer Q&amp;A</b><span>Private per-buyer threads asked and answered right inside the room — no email channel.</span></div></a>
+      <a class="feat" href="rrg_dataroom_help.html#upload" target="_blank" rel="noopener"><span class="fic">📁</span><div><b>Bulk upload, AI-filed</b><span>Drop up to 40 files; the assistant reads each one and sorts it into the right folder.</span></div></a>
+      <a class="feat" href="rrg_dataroom_help.html#verify" target="_blank" rel="noopener"><span class="fic">🔑</span><div><b>Two-step verification</b><span>Optional one-time email code on top of the access code, with 30-day trusted devices.</span></div></a>
     </div>
   </div>
   <div class="card">

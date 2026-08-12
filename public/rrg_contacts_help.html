@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contacts — Help &amp; User Guide · RRG</title>
+<style>
+:root{ --navy:#000E31; --slate:#20334f; --primary:#2c5c8f; --primary-d:#23496f; --red:#b23a2c; --ink:#2b3648; --muted:#69748a; --soft:#96a1b2; --line:#dbe0e9; --wash:#f4f6f9; --inp:#c4ccda; --gold:#b5791f; --green:#2f7a55; }
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--primary);text-decoration:none;} a:hover{text-decoration:underline;}
+.top{background:var(--navy);border-bottom:2px solid var(--primary);color:#fff;position:sticky;top:0;z-index:50;}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:13px;}
+.disc{width:34px;height:34px;border-radius:4px;background:var(--red);color:#fff;font:900 12px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;flex:none;}
+.wm{font-weight:700;font-size:12px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em;color:#cdd6e4;}
+.bar{width:1px;height:24px;background:rgba(255,255,255,.28);margin:0 5px;}
+.ttl{font-weight:700;font-size:15px;color:#fff;}
+.ttl small{display:block;font-size:10.5px;font-weight:600;color:#9fb0cc;text-transform:uppercase;letter-spacing:.06em;margin-top:1px;}
+.backlink{margin-left:auto;color:#cdd6e4;font-size:12.5px;font-weight:600;} .backlink:hover{color:#fff;text-decoration:none;}
+.shell{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;align-items:start;}
+.toc{position:sticky;top:74px;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.toc .th{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 15px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);}
+.tsearch{padding:10px 12px;border-bottom:1px solid var(--line);}
+.tsearch input{width:100%;border:1px solid var(--inp);border-radius:4px;padding:7px 10px;font:inherit;font-size:12.5px;}
+.toc nav{max-height:calc(100vh - 200px);overflow:auto;padding:6px 0;}
+.toc a{display:block;padding:6px 15px;font-size:12.5px;font-weight:600;color:var(--slate);border-left:2px solid transparent;}
+.toc a:hover{background:var(--wash);text-decoration:none;}
+.toc a.on{border-left-color:var(--primary);background:#eef4fa;color:var(--primary-d);}
+.toc .miss{padding:10px 15px;color:var(--soft);font-size:12px;}
+.doc{min-width:0;}
+.hero{background:#fff;border:1px solid var(--line);border-radius:6px;padding:24px 26px;margin-bottom:20px;}
+.hero h1{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-.01em;}
+.hero p{color:var(--muted);font-size:14.5px;margin-top:9px;max-width:760px;}
+.hero .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;}
+.tag{font-size:11px;font-weight:700;color:var(--slate);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
+section.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:22px 26px;margin-bottom:16px;scroll-margin-top:74px;}
+section.card>h2{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.01em;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;gap:9px;}
+section.card>h2 .n{width:24px;height:24px;border-radius:4px;background:var(--navy);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+h3{font-size:14.5px;font-weight:800;color:var(--slate);margin:18px 0 7px;}
+p{margin:9px 0;} .lead{color:var(--muted);font-size:14px;}
+ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
+.kbd{display:inline-block;background:var(--wash);border:1px solid var(--inp);border-bottom-width:2px;border-radius:3px;padding:1px 7px;font-size:12px;font-weight:700;color:var(--slate);}
+.callout{border:1px solid var(--line);border-left:3px solid var(--primary);background:#f7fafd;border-radius:0 4px 4px 0;padding:13px 16px;margin:14px 0;font-size:13.5px;}
+.callout.tip{border-left-color:var(--green);background:#f1f8f4;}
+.callout .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
+.callout.tip .lbl{color:var(--green);}
+.fq{border-top:1px solid var(--line);padding:13px 0;} .fq:first-of-type{border-top:none;} .fq h3{margin:0 0 4px;font-size:14px;} .fq p{margin:0;color:var(--muted);font-size:13.5px;}
+.foot{max-width:1180px;margin:0 auto;padding:0 24px 50px;color:var(--soft);font-size:12px;text-align:center;}
+.totop{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;border:none;border-radius:4px;padding:9px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .15s;z-index:60;}
+.totop.show{opacity:1;pointer-events:auto;}
+@media(max-width:900px){.shell{grid-template-columns:1fr;}.toc{position:static;}.toc nav{max-height:none;}}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <span class="disc">RRG</span><span class="wm">Restaurant<br>Realty Group</span><span class="bar"></span>
+  <span class="ttl">Contacts<small>Help &amp; User Guide</small></span>
+  <a class="backlink" href="rrg_people.html">&larr; Back to Contacts</a>
+</div></div>
+
+<div class="shell">
+  <aside class="toc">
+    <div class="th">Contents</div>
+    <div class="tsearch"><input id="tocSearch" placeholder="Search this guide…" autocomplete="off"></div>
+    <nav id="tocNav">
+      <a href="#overview">1 · Overview</a>
+      <a href="#company">2 · Linked to their company</a>
+      <a href="#comms">3 · Every touch tracked</a>
+      <a href="#flags">4 · Flags that matter</a>
+      <a href="#interests">5 · Interests &amp; lead source</a>
+      <a href="#records">6 · Everything they touch</a>
+      <a href="#screening">7 · Seller screening &amp; interviews</a>
+      <a href="#photos">8 · Headshots</a>
+      <a href="#import">9 · Import from anywhere</a>
+      <a href="#filters">10 · Filters &amp; saved searches</a>
+      <a href="#faq">11 · FAQ</a>
+    </nav>
+  </aside>
+
+  <main class="doc">
+    <div class="hero">
+      <h1>Contacts — Help &amp; User Guide</h1>
+      <p>A contact is one record per person in your book — a buyer, a seller, a landlord, an advisor. Every contact is tied to the company they work for and to every deal, document, and conversation they touch, so the whole relationship is visible in one place. This guide covers what a contact record does and how to get the most out of it.</p>
+      <div class="meta"><span class="tag">Book of Business</span><span class="tag">One record per person</span><span class="tag">Linked to everything</span></div>
+    </div>
+
+    <section class="card" id="overview">
+      <h2><span class="n">1</span> Overview</h2>
+      <p class="lead">Contacts live under <span class="kbd">Book of Business → Contacts</span>. Each row is a person; open one to see their identity, how to reach them, their company, and every record they're connected to. New contacts come in three ways: added by hand with <span class="kbd">+ New contact</span>, imported in bulk from a CRM, or created automatically as you work a deal.</p>
+    </section>
+
+    <section class="card" id="company">
+      <h2><span class="n">2</span> Linked to their company</h2>
+      <p class="lead">Every contact ties to the operator or business they belong to, so you never work a person in isolation.</p>
+      <p>On the contact you'll see the company with a direct <b>open →</b> link; on the company you'll see all its contacts. Links are made by <b>email domain</b> where possible (the reliable way — see the <a href="#import">import</a> and the Data tools' email-domain matcher), so a person at <i>@copperforkholdings.com</i> attaches to Copper Fork Holdings without guessing on the name. A contact with no company sits on the catch-all <b>No Company</b> record until you link it.</p>
+      <div class="callout tip"><div class="lbl">Main contact</div>The <b>primary</b> (main) contact is the go-to person for a company — starred on the company card. When a company has just one contact, the system makes that person the main automatically.</div>
+    </section>
+
+    <section class="card" id="comms">
+      <h2><span class="n">3</span> Every touch tracked</h2>
+      <p class="lead">The contact is the timeline of your relationship, so nothing goes cold and nothing gets lost.</p>
+      <ul>
+        <li><b>Email</b> — with Gmail connected, sent and received mail threads show right on the contact, and you can send from inside the record.</li>
+        <li><b>Calls &amp; notes</b> — log a call or drop a note; a note written as a to-do becomes a task.</li>
+        <li><b>Activity feed</b> — a running, filterable history of every interaction and change on the record.</li>
+        <li><b>Last contacted</b> — a stamp that tells you at a glance who's overdue for a touch, and that you can filter and sort by.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="flags">
+      <h2><span class="n">4</span> Flags that matter</h2>
+      <p class="lead">Fast, visual triage of your book. Toggle a flag on the contact and filter by it on the list.</p>
+      <ul>
+        <li><b>VIP</b> — your most important relationships.</li>
+        <li><b>Star</b> — a personal shortlist / follow-up mark.</li>
+        <li><b>Bad news (caution)</b> — flag a difficult party or bad actor so the whole team is warned.</li>
+        <li><b>Primary contact</b> — the main person for their company (see <a href="#company">Linked to their company</a>).</li>
+      </ul>
+    </section>
+
+    <section class="card" id="interests">
+      <h2><span class="n">5</span> Interests &amp; lead source</h2>
+      <p class="lead">Categorize who someone is and where they came from, then work the list by segment.</p>
+      <p><b>Main interests</b> classify the contact — buying, selling, investor, landlord, tenant, and so on (the list is admin-editable, so it fits how your firm works). <b>Lead source</b> records where the relationship originated — referral, website, CoStar, LoopNet, an event, a cold call. Both are filterable, so you can pull, say, every selling contact from a referral in Austin in seconds.</p>
+    </section>
+
+    <section class="card" id="records">
+      <h2><span class="n">6</span> Everything they touch</h2>
+      <p class="lead">The contact collects every record the person is part of, so the full picture is one screen.</p>
+      <p>Listings and assignments, agreements (with sign status), LOIs, valuations and BOVs, marketing packs, tours, NDAs, inquiries, appointments, and uploaded documents (leases, P&amp;Ls, IDs) all surface on the contact — each a click from where it lives. When you generate an agreement or a valuation for someone, it files itself onto their record automatically.</p>
+    </section>
+
+    <section class="card" id="screening">
+      <h2><span class="n">7</span> Seller screening &amp; interviews</h2>
+      <p class="lead">Qualify sellers and capture their story right from the contact.</p>
+      <p>Start a <b>seller screening call</b> to run a structured qualification — concept, numbers, lease, motivation — and, when it moves forward, spin it into a listing or a data room without re-typing. Send a <b>seller interview</b> to have the seller answer a set of questions on camera at their own pace; the video and transcript attach for your team's reference. Both live on the contact and flow into the deal.</p>
+    </section>
+
+    <section class="card" id="photos">
+      <h2><span class="n">8</span> Headshots</h2>
+      <p class="lead">A photo on the contact so your team recognizes who they're calling or meeting.</p>
+      <p>Upload a headshot on the contact record; it then shows on the contact, on the company's contact list, and anywhere the person appears. Small touch, real payoff when a rep is walking into a meeting or picking up the phone.</p>
+    </section>
+
+    <section class="card" id="import">
+      <h2><span class="n">9</span> Import from anywhere</h2>
+      <p class="lead">Bring your people in from your old CRM in a few clicks — nothing gets lost or doubled.</p>
+      <p>Under <span class="kbd">Settings → Data → Import Data</span>, upload a Copper, HubSpot, Salesforce, Pipedrive, Gmail or plain CSV/Excel export. The importer maps your columns, then <b>dedupes by email</b> and <b>links each contact to its company</b> automatically as it runs. Every import is a numbered batch you can revert in one click. You can also pull buyers straight from <b>BizBuySell</b> and contacts from <b>Gmail</b> using the buttons on the Contacts page.</p>
+    </section>
+
+    <section class="card" id="filters">
+      <h2><span class="n">10</span> Filters &amp; saved searches</h2>
+      <p class="lead">Slice your book any way you work and save the views you run most.</p>
+      <p>Use <span class="kbd">⚙ Filters</span> to narrow by main interest, owner, lead source, tags, flags, and created / last-contacted dates — each a type-to-search chip field, so even long lists are a couple of keystrokes. Name and <b>save</b> a search (just for you or shared with the team) and it's one click next time. The list also focuses on recently-active records by default, with a <b>Show all</b> toggle.</p>
+    </section>
+
+    <section class="card" id="faq">
+      <h2><span class="n">11</span> FAQ</h2>
+      <div class="fq"><h3>A contact isn't linked to a company.</h3><p>Open the contact and set the company in the Company field, or run the email-domain matcher under Settings → Data → Data Enrichment to link loose contacts in bulk by their email domain.</p></div>
+      <div class="fq"><h3>How do I set the main contact for a company?</h3><p>If a company has one contact, it's set automatically. For several, open the company and star the person you want as main — or toggle the Primary flag on the contact.</p></div>
+      <div class="fq"><h3>My imported contacts show as duplicates.</h3><p>Import dedupes by email, but contacts imported without an email can double up. Use Find Duplicates under Settings → Data to merge them without losing history.</p></div>
+      <div class="fq"><h3>Where do emails come from on the contact?</h3><p>Connect Gmail under Settings → Integrations. Once connected, mail threads with that contact appear on their record and you can send from there.</p></div>
+    </section>
+
+  </main>
+</div>
+
+<div class="foot">Restaurant Realty Group — Contacts Help &amp; User Guide · Confidential platform documentation.</div>
+<button class="totop" id="totop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ Top</button>
+
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('#tocNav a'));
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function spy(){ var y=window.scrollY+90, cur=secs[0]; for(var i=0;i<secs.length;i++){ if(secs[i].offsetTop<=y) cur=secs[i]; } links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('href')==='#'+(cur&&cur.id)); }); var tt=document.getElementById('totop'); tt.classList.toggle('show', window.scrollY>400); }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+  var box=document.getElementById('tocSearch'), nav=document.getElementById('tocNav');
+  box.addEventListener('input',function(){ var q=box.value.trim().toLowerCase(); var any=false; links.forEach(function(a){ var sec=document.getElementById(a.getAttribute('href').slice(1)); var hit=!q || a.textContent.toLowerCase().indexOf(q)>=0 || (sec&&sec.textContent.toLowerCase().indexOf(q)>=0); a.style.display=hit?'':'none'; if(hit) any=true; }); var m=document.getElementById('tocMiss'); if(m) m.remove(); if(!any){ var d=document.createElement('div'); d.className='miss'; d.id='tocMiss'; d.textContent='No matches.'; nav.appendChild(d); } });
+})();
+</script>
+</body>
+</html>
