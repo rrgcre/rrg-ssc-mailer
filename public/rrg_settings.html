@@ -62,7 +62,7 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--primary,#2c5c8f);}
     <div class="spanelwrap"><div class="sload" id="sload">Loading…</div><iframe class="spanel" id="spanel" title="Settings panel"></iframe></div>
   </div>
 </div>
-<script>(function(){ var fs=document.getElementById('admFeatStrip'), hd=document.getElementById('admFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_adminfeats')==='0') fs.classList.add('collapsed'); }catch(e){} hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_adminfeats', col?'0':'1'); }catch(e){} }); })();</script>
+<script>(function(){ var fs=document.getElementById('admFeatStrip'), hd=document.getElementById('admFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_adminfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_adminfeats', col?'0':'1'); }catch(e){} }); })();</script>
 <script>
 var GROUPS=[
  { title:'', items:[ {k:'general', label:'General Settings', src:'rrg_admin_settings.html'} ] },

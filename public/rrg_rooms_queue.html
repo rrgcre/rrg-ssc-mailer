@@ -252,6 +252,6 @@ load();
 </script>
 <script>window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
 <script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted)location.reload();});</script>
-<script>(function(){ var fs=document.getElementById('featStrip'), hd=document.getElementById('featHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_roomfeats')==='0') fs.classList.add('collapsed'); }catch(e){} hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_roomfeats', col?'0':'1'); }catch(e){} }); })();</script>
+<script>(function(){ var fs=document.getElementById('featStrip'), hd=document.getElementById('featHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_roomfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_roomfeats', col?'0':'1'); }catch(e){} }); })();</script>
 </body>
 </html>

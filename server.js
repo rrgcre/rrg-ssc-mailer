@@ -7672,7 +7672,7 @@ app.get('/api/companies', (req, res) => {
   const cos = loadCompanies().filter(c => !restrictToOwn(req) || permOwnerMatch(req, c.owner || c.by)), people = loadPeople(), deals = loadDeals();
   const _coActMax = {}; people.forEach(p => { if (!p.companyId) return; const _t = _personLastActive(p); if (_t > (_coActMax[p.companyId] || '')) _coActMax[p.companyId] = _t; });
   const rows = cos.map(c => {
-    const mk = {}; (c.concepts || []).forEach(cp => (cp.markets || []).forEach(m => { if (m) mk[m] = 1; }));
+    const mk = {}; (c.concepts || []).forEach(cp => (cp.markets || []).forEach(m => { if (m) mk[m] = 1; })); (c.markets || []).forEach(m => { if (m) mk[m] = 1; }); if (c.market) mk[c.market] = 1;
     const _cp = people.filter(p => p.companyId === c.id);
     let _main = c.mainContactId ? _cp.find(p => p.id === c.mainContactId) : null;
     if (!_main && _cp.length === 1) _main = _cp[0];   // only one contact → treat it as the main/preferred
@@ -8585,6 +8585,10 @@ app.post('/api/company', express.json(), (req, res) => {
   }
   if (typeof b.name === 'string' && b.name.trim()) c.name = b.name.trim().slice(0, 160);
   if (typeof b.market === 'string') c.market = b.market.slice(0, 80);
+  if (Array.isArray(b.markets)) {
+    const _seen = {}; c.markets = b.markets.map(x => titleCaseMarket(String(x || '').slice(0, 80))).filter(Boolean).filter(m => { const k = m.toLowerCase(); if (_seen[k]) return false; _seen[k] = 1; return true; }).slice(0, 30);
+    if (c.markets.length && !String(c.market || '').trim()) c.market = c.markets[0];
+  }
   if (typeof b.type === 'string' && effCompanyTypes().indexOf(b.type) >= 0) c.type = b.type;
   if (b.tags !== undefined) c.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') c.notes = b.notes.slice(0, 6000);

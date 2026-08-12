@@ -38,7 +38,7 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .nmlink{color:var(--navy);font-weight:500;text-decoration:none;} .nmlink:hover{text-decoration:underline;}
 .count{font-weight:700;color:var(--ink);} .count span{color:var(--soft);font-weight:600;font-size:11px;}
 .newbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:8px 14px;font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}
-.codel{background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:8px;padding:6px 12px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;} .codel:hover{background:#fdeceb;}
+.codel{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;padding:0;background:#fff;color:var(--red);border:1px solid #f0c9c6;border-radius:6px;font:inherit;font-size:17px;line-height:1;font-weight:700;cursor:pointer;} .codel:hover{background:var(--red);color:#fff;border-color:var(--red);}
 .empty{text-align:center;color:var(--muted);padding:54px 20px;} .empty b{color:var(--navy);display:block;font-size:15px;margin-bottom:6px;}
 .foot{max-width:1320px;margin:0 auto;padding:0 24px 40px;color:var(--muted);font-size:11.5px;}
 .cowho{display:flex;align-items:center;gap:10px;} .cowhotext{min-width:0;}
@@ -162,7 +162,7 @@ function cDate(v){ return (v&&String(v).trim())?('<span class="meta">'+esc(fmtDa
 function stCls(k){ return 's-'+String(k||'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
 function cStatus(d){ return d.status?('<span class="st '+stCls(d.statusKey||d.status)+'">'+esc(d.status)+'</span>'):_muted(); }
 function cText(v){ return (v&&String(v).trim())?esc(v):_muted(); }
-function cActions(d){ if(d.kind==='firmwide') return IS_ADMIN?('<button class="codel" data-del="'+esc(d.id)+'">Remove</button>'):_muted(); return (d.kind==='file'||d.deleteUrl)?('<button class="codel" data-del="'+esc(d.id)+'">'+(d.kind==='seller'?'Delete':'Remove')+'</button>'):_muted(); }
+function cActions(d){ if(d.kind==='firmwide') return IS_ADMIN?('<button class="codel" data-del="'+esc(d.id)+'" title="Remove" aria-label="Remove">×</button>'):_muted(); return (d.kind==='file'||d.deleteUrl)?('<button class="codel" data-del="'+esc(d.id)+'" title="'+(d.kind==='seller'?'Delete':'Remove')+'" aria-label="'+(d.kind==='seller'?'Delete':'Remove')+'">×</button>'):_muted(); }
 function _s(field){ return function(a,b){ return cmp(a[field],b[field]); }; }
 
 var C_NAME={ label:'Name', sort:_s('title'), cell:cName };
