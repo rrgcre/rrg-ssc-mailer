@@ -48,7 +48,7 @@ h1{margin:0;font-size:16px;font-weight:700;color:var(--navy);} .sub{color:var(--
 <div class="navcrumb"><a href="./index.html">Command</a><span>›</span><a href="./rrg_data.html">Data Enrichment</a><span>›</span>Enrich from Google</div>
 <div class="pagehead">
   <div class="pkick">Admin · Data</div><h1>Enrich from Google</h1>
-  <div class="sub">Pulls live business data onto your locations — <b>operating status</b> (open / dark / closed), rating, review count, price point, phone, website, map coordinates — and grabs a <b>logo</b> for any company without one. Review, tick, apply. Nothing changes until you hit Apply.</div>
+  <div class="sub">Pulls live business data onto your locations — <b>operating status</b> (open / dark / closed), rating, review count, price point, phone, website, map coordinates — grabs a <b>logo</b> for any company without one, and pulls <b>location photos</b> from Google for any location that has none. Review, tick, apply. Nothing changes until you hit Apply.</div>
 </div>
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
 <script>
@@ -155,16 +155,38 @@ function apply(){
   var b=document.getElementById('apply'); b.disabled=true; var msg=document.getElementById('msg'); msg.className='msg'; msg.textContent='';
   AIW.show('Applying enrichment to '+items.length+' location'+(items.length===1?'':'s')+'…');
   fetch('/api/admin/enrich-apply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
-    AIW.hide(); b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Enriched '+j.applied+' location'+(j.applied===1?'':'s')+' ✓';
+    if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Enriched '+j.applied+' location'+(j.applied===1?'':'s')+' ✓';
+      var _cos={};
       items.forEach(function(it){ var k=it.companyId+'|'+it.locId;
+        if(it.companyId) _cos[it.companyId]=1;
         var _cd=CANDS.filter(function(x){return (x.companyId+'|'+x.locId)===k;})[0]; if(_cd) _cd.hasGoogle=true;
         var el=document.querySelector('.ec[data-k="'+cssq(k)+'"]'); if(el){ el.classList.add('dead'); (function(node){ setTimeout(function(){ if(node&&node.parentNode) node.parentNode.removeChild(node); },260); })(el); }
         delete STATE[k]; delete ROWS[k]; ORDER=ORDER.filter(function(x){return x!==k;});
       });
       count();
-      setTimeout(function(){ if(!ORDER.length){ document.getElementById('grid').innerHTML='<div class="empty"><b>All caught up.</b>Every reviewed location was applied. Press <b>Re-scan</b> to pull anything still missing.</div>'; document.getElementById('cnt').textContent=''; } },300); }
-    else { msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
+      setTimeout(function(){ if(!ORDER.length){ document.getElementById('grid').innerHTML='<div class="empty"><b>All caught up.</b>Every reviewed location was applied. Press <b>Re-scan</b> to pull anything still missing.</div>'; document.getElementById('cnt').textContent=''; } },300);
+      // Always pull location photos for the companies we just enriched (photoless locations only).
+      pullPhotosForCompanies(Object.keys(_cos), j.applied); }
+    else { AIW.hide(); b.disabled=false; msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
   }).catch(function(){ AIW.hide(); b.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
+}
+var _photoCancel=false;
+function pullPhotosForCompanies(cos, appliedCount){
+  var b=document.getElementById('apply');
+  if(!cos||!cos.length){ if(b) b.disabled=false; AIW.done({title:'Enrichment complete', summary:'Enriched '+appliedCount+' location'+(appliedCount===1?'':'s')+' — data applied.'}); return; }
+  _photoCancel=false;
+  AIW.show('Pulling location photos from Google…', function(){ _photoCancel=true; });
+  AIW.progress(0,cos.length,{noun:'companies', msg:'Pulling location photos from Google…'});
+  var done=0, photos=0;
+  function next(){
+    if(_photoCancel){ if(b) b.disabled=false; AIW.done({title:'Stopped', summary:'Enriched '+appliedCount+' location'+(appliedCount===1?'':'s')+' · pulled '+photos+' photo'+(photos===1?'':'s')+' before you stopped the photo pull.'}); return; }
+    if(done>=cos.length){ if(b) b.disabled=false; AIW.progress(cos.length,cos.length,{noun:'companies'}); AIW.done({title:'Enrichment complete', summary:'Enriched '+appliedCount+' location'+(appliedCount===1?'':'s')+' and pulled '+photos+' location photo'+(photos===1?'':'s')+' from Google.'}); return; }
+    var cid=cos[done];
+    fetch('/api/company/'+encodeURIComponent(cid)+'/pull-photos',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+      .then(function(r){return r.json();}).then(function(j){ if(j&&j.added) photos+=j.added; }).catch(function(){})
+      .then(function(){ done++; AIW.progress(done,cos.length,{noun:'companies'}); next(); });
+  }
+  next();
 }
 fetch('/api/admin/enrich-candidates',{credentials:'same-origin'}).then(function(r){ if(r.status===403){ throw 0; } return r.json(); }).then(function(j){
   build(!!(j&&j.hasKey));
