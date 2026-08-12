@@ -17,6 +17,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 h1{font-size:21px;font-weight:800;margin:3px 0 0;color:#fff;letter-spacing:-.01em;}
 .subline{color:#aeb8cf;font-size:12.5px;margin-top:5px;display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
 .hpill{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:4px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.3);color:#fff;background:rgba(255,255,255,.08);}
+.interestpills{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;}
+.interestpills button{border:1px solid #dbe0e9;border-radius:999px;padding:6px 13px;font:inherit;font-size:12.5px;cursor:pointer;transition:background .12s,color .12s,border-color .12s;}
 .subline a{color:#fff;font-weight:700;text-decoration:underline;text-underline-offset:2px;}
 .wrap{max-width:1040px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start;}
 @media(max-width:840px){.wrap{grid-template-columns:1fr;}}
@@ -262,7 +264,19 @@ function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime()
 function money(v){ if(v==null||v==='') return ''; var n=Number(String(v).replace(/[^0-9.\-]/g,'')); if(!isFinite(n)||n===0) return esc(String(v)); return '$'+n.toLocaleString('en-US',{maximumFractionDigits:0}); }
 var _autoSend=(qs('agr')==='1'), _pReady=false, _tplReady=false, _autoSentDone=false;
 function maybeAutoSend(){ if(!_autoSend||_autoSentDone||!_pReady||!_tplReady) return; var m=document.getElementById('sendModal'); if(!m||typeof openSendModal!=='function') return; _autoSentDone=true; try{ openSendModal(); }catch(e){} }
-var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], INTERESTED=[], AGREEMENTS=[], ATYPES=[], PTYPES=['Buyer'], LEADSOURCES=[], ALLTAGS=[], CURTAGS=[], SAVET=null, EMAILREADY=false, COMPANIESLIST=[], ACTIVITIES=[], ACTTYPES=[], USERS=[], TEMPLATES=[], IS_ADMIN=false, CAN_DELETE=false, DIRTY=false, GMAIL=[], GMAILCONN=false, GMAILEMAIL='', GMAILLOADED=false, PENDING_AGR_FILE=null, AUTOMATIONS=[], EMAILTPLS=[], TASKS=[], TASKPRIOS=['Normal','High','Urgent'], P_TAGF=null;
+var ID=qs('id'), P=null, CO=null, DEALS=[], OFFERS=[], TOURS=[], NDAS=[], INTERESTED=[], AGREEMENTS=[], ATYPES=[], PTYPES=['Buyer'], LEADSOURCES=[], ALLTAGS=[], CURTAGS=[], SAVET=null, EMAILREADY=false, COMPANIESLIST=[], ACTIVITIES=[], ACTTYPES=[], USERS=[], TEMPLATES=[], IS_ADMIN=false, CAN_DELETE=false, DIRTY=false, GMAIL=[], GMAILCONN=false, GMAILEMAIL='', GMAILLOADED=false, PENDING_AGR_FILE=null, AUTOMATIONS=[], EMAILTPLS=[], TASKS=[], TASKPRIOS=['Normal','High','Urgent'], P_TAGF=null, P_INT=null;
+// Main Interests — a contact can carry more than one (Buying, Selling, ...). `types` is the source of truth; `type` is the first.
+function pInterests(p){ return (p&&Array.isArray(p.types)&&p.types.length)?p.types:(p&&p.type?[p.type]:[]); }
+function typeColor(t){ var m={'Buyer':['#e7f5ee','#1f8a5b'],'Buying':['#e7f5ee','#1f8a5b'],'Seller':['#e8f0fd','#2c5c8f'],'Selling':['#e8f0fd','#2c5c8f'],'Tenant':['#e6f5f3','#0f766e'],'Investor':['#f3edfb','#7a4fd0'],'Investing':['#f3edfb','#7a4fd0'],'Broker':['#fdf1df','#b5791f'],'Referring':['#fdeef4','#b83280'],'Referral Source':['#fdeef4','#b83280'],'Working':['#eaeef5','#3a4a66'],'Internal Personnel':['#eaeef5','#3a4a66'],'Other':['#eef1f6','#6b7488']}; if(m[t]) return m[t]; var pal=[['#e7f5ee','#1f8a5b'],['#e8f0fd','#2c5c8f'],['#f3edfb','#7a4fd0'],['#fdf1df','#b5791f'],['#fdeef4','#b83280'],['#e6f5f3','#0f766e']]; var h=0; for(var i=0;i<String(t).length;i++) h=(h*31+String(t).charCodeAt(i))>>>0; return pal[h%pal.length]; }
+function interestPills(hostId, selected, onChange){
+  var host=document.getElementById(hostId); if(!host) return {get:function(){return [];}};
+  var opts=(PTYPES&&PTYPES.length?PTYPES:['Buying','Selling']); var sel={}; (selected||[]).forEach(function(t){ sel[t]=1; });
+  host.className='interestpills'; host.innerHTML='';
+  function paint(){ Array.prototype.slice.call(host.children).forEach(function(btn){ var t=btn.getAttribute('data-t'); var on=!!sel[t]; var c=typeColor(t); btn.style.background=on?c[0]:'#fff'; btn.style.color=on?c[1]:'#6b7488'; btn.style.borderColor=on?c[1]:'#dbe0e9'; btn.style.fontWeight=on?'700':'600'; btn.setAttribute('aria-pressed',on?'true':'false'); }); }
+  opts.forEach(function(t){ var btn=document.createElement('button'); btn.type='button'; btn.setAttribute('data-t',t); btn.textContent=t; btn.addEventListener('click',function(){ if(sel[t]) delete sel[t]; else sel[t]=1; paint(); if(typeof onChange==='function') onChange(); }); host.appendChild(btn); });
+  paint();
+  return { get:function(){ return opts.filter(function(t){return sel[t];}); } };
+}
 async function deletePerson(){
   if(!await rrgConfirm('Delete “'+((P&&P.name)||'this contact')+'” from your registry? Their name stays on any past offers, tours, and NDAs. This cannot be undone.')) return;
   var b=document.getElementById('p_delete'); b.disabled=true; b.textContent='Deleting…';
@@ -1190,7 +1204,7 @@ function render(){
   var _smWasOpen=false,_smSnap=null; (function(){ var sm=document.getElementById('sendModal'); if(sm&&!sm.hasAttribute('hidden')){ _smWasOpen=true; _smSnap={ to:((document.getElementById('sm_to')||{}).value)||'', tpl:((document.getElementById('sm_tpl')||{}).value)||'', msg:((document.getElementById('sm_msg')||{}).innerHTML)||'' }; } })();
   document.getElementById('crumb').textContent=P.name||'Contact';
   document.getElementById('h1').textContent=P.name||'Contact';
-  var sub=[]; if(P.type) sub.push('<span class="hpill">'+esc(P.type)+'</span>');
+  var sub=[]; pInterests(P).forEach(function(t){ var c=typeColor(t); sub.push('<span class="hpill" style="background:'+c[1]+';border-color:'+c[1]+';color:#fff">'+esc(t)+'</span>'); });
   if(P.nickname) sub.push('<span>“'+esc(P.nickname)+'”</span>');
   if(CO&&CO.id) sub.push('<span>Company: <a href="./rrg_company.html?id='+encodeURIComponent(CO.id)+'">'+esc(CO.name)+'</a></span>');
   if(P.email) sub.push('<span>'+esc(P.email)+'</span>'); if(P.phone) sub.push('<span>'+esc(P.phone)+'</span>');
@@ -1221,7 +1235,8 @@ function render(){
       + '<div class="rsec" data-rsec><div class="rsechd">Identity <span class="cv">▾</span></div><div class="rsecbody">'
       + '<div class="photorow"><div class="photoprev" id="p_photoprev" title="Click to upload a photo">'+photoInner+'</div><input type="file" id="p_photofile" accept="image/*" hidden></div>'
       + '<div class="fldrow2"><div><label class="fld">First name *</label><input id="p_first" value="'+esc(P.firstName||'')+'" style="font-weight:700"></div><div><label class="fld">Last name *</label><input id="p_last" value="'+esc(P.lastName||'')+'" style="font-weight:700"></div></div>'
-      + '<div class="fldrow2"><div><label class="fld">Nickname</label><input id="p_nick" value="'+esc(P.nickname||'')+'" placeholder="Optional"></div><div><label class="fld">Main Interests *</label><select id="p_type">'+ptsel+'</select></div></div>'
+      + '<div class="fldrow"><label class="fld">Nickname</label><input id="p_nick" value="'+esc(P.nickname||'')+'" placeholder="Optional"></div>'
+      + '<div class="fldrow"><label class="fld">Main Interests * <span style="font-weight:500;color:#8a93a8;font-size:11px">(pick one or more)</span></label><div id="p_types"></div></div>'
       + '<div class="fldrow"><label class="fld">Company'+(CO&&CO.id?(' <a class="colink" href="./rrg_company.html?id='+encodeURIComponent(CO.id)+'">open →</a>'):'')+'</label><div class="coauto"><input id="p_company" value="'+esc((CO&&CO.name)||P.company||'')+'" placeholder="Start typing to find a company" autocomplete="off" style="font-weight:400"><div class="cosug" id="p_cosug" hidden></div></div></div>'
       + '</div></div>'
       + '<div class="rsec" data-rsec><div class="rsechd">Communication <span class="cv">▾</span></div><div class="rsecbody">'
@@ -1242,7 +1257,8 @@ function render(){
     + '<div class="rail">'+relatedRail()+tasksCard()+appointmentsCard()+interestedCard()+automationsCard()+agreementsCard()+filesCard()+'</div>';
   var root=document.getElementById('root');
   var pd=document.getElementById('p_delete'); if(pd) pd.addEventListener('click',deletePerson);
-  ['p_first','p_last','p_type','p_nick','p_company','p_lead','p_url','p_lastcontact','p_notes'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener(el.tagName==='SELECT'?'change':'input',queueSave); });
+  ['p_first','p_last','p_nick','p_company','p_lead','p_url','p_lastcontact','p_notes'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener(el.tagName==='SELECT'?'change':'input',queueSave); });
+  P_INT=interestPills('p_types', pInterests(P), queueSave);
   document.querySelectorAll('.p_prefchk').forEach(function(c){ c.addEventListener('change', queueSave); });
   root.querySelectorAll('input.p_email,input.p_phone').forEach(function(el){
     el.addEventListener('input',function(){ if(el.classList.contains('p_phone')) el.value=fmtPhoneVal(el.value); _autoPref(el); queueSave(); });
@@ -1280,7 +1296,7 @@ function _emailDupCheck(el){ var warn=document.getElementById('p_emailwarn'); va
   if(!v || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v)){ clear(); return; }
   fetch('/api/email-check?email='+encodeURIComponent(v)+'&exceptId='+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if((el.value||'').trim()!==v) return; if(j&&j.ok&&j.taken){ el.style.borderColor='#DA2B1F'; if(warn){ warn.style.display='block'; warn.innerHTML='⚠ <b>'+esc(v)+'</b> is already on <a href="./rrg_person.html?id='+encodeURIComponent(j.id)+'" style="color:#b23a2c;font-weight:700">'+esc(j.name||'another contact')+'</a> — every email must be unique, so this won’t save until you change it.'; } } else { clear(); } }).catch(function(){}); }
 function queueSave(){ DIRTY=true; var st=document.getElementById('p_saved'); if(st){ st.textContent='Editing…'; st.classList.add('show'); } if(SAVET) clearTimeout(SAVET); SAVET=setTimeout(function(){ SAVET=null; autoSave(); },700); }
-function autoSave(){ var fi=document.getElementById('p_first'), la=document.getElementById('p_last'), ty=document.getElementById('p_type'); if(!fi||!la||!ty) return; if(!fi.value.trim()||!la.value.trim()||!ty.value) return; savePerson(true); }
+function autoSave(){ var fi=document.getElementById('p_first'), la=document.getElementById('p_last'); if(!fi||!la) return; if(!fi.value.trim()||!la.value.trim()||!(P_INT&&P_INT.get().length)) return; savePerson(true); }
 function fmtPhone(v){ var d=String(v||'').replace(/\D/g,'').slice(0,10); if(d.length<4) return d; if(d.length<7) return '('+d.slice(0,3)+') '+d.slice(3); return '('+d.slice(0,3)+') '+d.slice(3,6)+'-'+d.slice(6); }
 document.addEventListener('input',function(e){ if(e.target&&e.target.classList&&e.target.classList.contains('p_phone')){ e.target.value=fmtPhone(e.target.value); } });
 function _tfFuzzy(hay,q){ hay=String(hay).toLowerCase(); q=String(q).toLowerCase(); if(!q) return true; var i=0; for(var j=0;j<hay.length&&i<q.length;j++){ if(hay.charAt(j)===q.charAt(i)) i++; } return i===q.length; }
@@ -1327,11 +1343,11 @@ function wireMulti(scope){
 function collectMulti(scope,cls){ var out=[]; scope.querySelectorAll('.'+cls).forEach(function(i){ var v=i.value.trim(); if(v) out.push(v); }); return out; }
 function savePerson(silent){
   var m=document.getElementById('p_msg'), st=document.getElementById('p_saved'), root=document.getElementById('root');
-  var first=document.getElementById('p_first').value.trim(), last=document.getElementById('p_last').value.trim(), type=document.getElementById('p_type').value;
+  var first=document.getElementById('p_first').value.trim(), last=document.getElementById('p_last').value.trim(), types=(P_INT?P_INT.get():pInterests(P));
   if(!first||!last){ if(m)m.textContent='First and last name are required.'; return; }
-  if(!type){ if(m)m.textContent='Pick a main interest.'; return; }
+  if(!types.length){ if(m)m.textContent='Pick at least one main interest.'; return; }
   if(m) m.textContent=''; if(st){ st.textContent='Saving…'; st.classList.add('show'); }
-  var body={ id:ID, firstName:first, lastName:last, type:type, nickname:document.getElementById('p_nick').value.trim(), company:document.getElementById('p_company').value.trim(), companyName:document.getElementById('p_company').value.trim(), emails:collectMulti(root,'p_email'), phones:collectMulti(root,'p_phone'), preferredEmail:collectPreferred(root,'prefemail','p_email'), preferredPhone:collectPreferred(root,'prefphone','p_phone'), leadSource:(document.getElementById('p_lead')||{}).value||'', prefContact:(function(){var o=[];document.querySelectorAll('.p_prefchk').forEach(function(c){if(c.checked)o.push(c.value);});return o;})(), lastContacted:(document.getElementById('p_lastcontact')||{}).value||'', url:document.getElementById('p_url').value.trim(), vip:!!(P&&P.vip), caution:!!(P&&P.caution), tags:CURTAGS.slice(), notes:document.getElementById('p_notes').value };
+  var body={ id:ID, firstName:first, lastName:last, types:types, nickname:document.getElementById('p_nick').value.trim(), company:document.getElementById('p_company').value.trim(), companyName:document.getElementById('p_company').value.trim(), emails:collectMulti(root,'p_email'), phones:collectMulti(root,'p_phone'), preferredEmail:collectPreferred(root,'prefemail','p_email'), preferredPhone:collectPreferred(root,'prefphone','p_phone'), leadSource:(document.getElementById('p_lead')||{}).value||'', prefContact:(function(){var o=[];document.querySelectorAll('.p_prefchk').forEach(function(c){if(c.checked)o.push(c.value);});return o;})(), lastContacted:(document.getElementById('p_lastcontact')||{}).value||'', url:document.getElementById('p_url').value.trim(), vip:!!(P&&P.vip), caution:!!(P&&P.caution), tags:CURTAGS.slice(), notes:document.getElementById('p_notes').value };
   fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ P=j.person; DIRTY=false; document.getElementById('h1').textContent=P.name; document.getElementById('crumb').textContent=P.name; if(st){ st.textContent='Saved ✓'; st.classList.add('show'); } } else { if(m)m.textContent=(j&&j.error)||'Could not save.'; if(st)st.textContent=''; } })
     .catch(function(){ if(m)m.textContent='Could not reach the server.'; if(st)st.textContent=''; });

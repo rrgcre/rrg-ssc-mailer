@@ -248,15 +248,18 @@ function findOrCreatePerson(req, info) {
   p = {
     id: newPersonId(), name: fullName, firstName: (first || sp.first).slice(0, 80), lastName: (last || sp.last).slice(0, 80),
     company: company.slice(0, 160), companyId: (info && info.companyId) || '',
-    emails: emails, phones: phones, email: emails[0] || '', phone: phones[0] || '', type: type, notes: '',
+    emails: emails, phones: phones, email: emails[0] || '', phone: phones[0] || '', type: type, types: (type ? [type] : []), notes: '',
     createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
   arr.push(p); logContactAdded(p, req); savePeople(arr);
   return p;
 }
-function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', vip: !!p.vip, caution: !!p.caution, star: !!p.star, preferred: !!p.preferred, prefContact: Array.isArray(p.prefContact) ? p.prefContact : [], createdAt: p.createdAt || '', owner: p.by || '', lastContacted: p.lastContacted || '', hasPhoto: !!p.photoExt, photoUrl: p.photoExt ? ('/api/personphoto/' + p.id + '.' + p.photoExt + (p.updatedAt ? ('?v=' + encodeURIComponent(p.updatedAt)) : '')) : '' } : null; }
+// A contact can carry multiple "Main Interests" (Buying, Selling, ...). `types` is the
+// source of truth; `type` stays synced to the first for every legacy reader.
+function personTypesOf(p) { return (p && Array.isArray(p.types) && p.types.length) ? p.types.slice() : (p && p.type ? [p.type] : []); }
+function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', types: personTypesOf(p), tags: personTags(p), leadSource: p.leadSource || '', vip: !!p.vip, caution: !!p.caution, star: !!p.star, preferred: !!p.preferred, prefContact: Array.isArray(p.prefContact) ? p.prefContact : [], createdAt: p.createdAt || '', owner: p.by || '', lastContacted: p.lastContacted || '', hasPhoto: !!p.photoExt, photoUrl: p.photoExt ? ('/api/personphoto/' + p.id + '.' + p.photoExt + (p.updatedAt ? ('?v=' + encodeURIComponent(p.updatedAt)) : '')) : '' } : null; }
 // One contact row as shown on a company file.
-function companyContactRow(p) { return { id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', emails: personEmails(p), phones: personPhones(p), email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', title: p.title || '', tags: personTags(p), leadSource: p.leadSource || '', hasPhoto: !!p.photoExt, photoExt: p.photoExt || '', updatedAt: p.updatedAt || '', photoUrl: p.photoExt ? ('/api/personphoto/' + p.id + '.' + p.photoExt + (p.updatedAt ? ('?v=' + encodeURIComponent(p.updatedAt)) : '')) : '' }; }
+function companyContactRow(p) { return { id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', emails: personEmails(p), phones: personPhones(p), email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', types: personTypesOf(p), title: p.title || '', tags: personTags(p), leadSource: p.leadSource || '', hasPhoto: !!p.photoExt, photoExt: p.photoExt || '', updatedAt: p.updatedAt || '', photoUrl: p.photoExt ? ('/api/personphoto/' + p.id + '.' + p.photoExt + (p.updatedAt ? ('?v=' + encodeURIComponent(p.updatedAt)) : '')) : '' }; }
 
 // Companies — a company / account file that groups its associated contacts (people) and
 // its deals. Created at onboarding (the subject business), reusable across deals.
@@ -6596,12 +6599,19 @@ app.post('/api/person', express.json(), (req, res) => {
   // {id, vip:true}) must not be rejected for a legacy contact that only has a `name`, nor
   // should it rewrite/erase the stored name. Fall back to the split name when needed.
   const _editName = (typeof b.firstName === 'string' || typeof b.lastName === 'string');
+  const _editTypes = Array.isArray(b.types);
   const _editType = (typeof b.type === 'string');
   const first = String((typeof b.firstName === 'string' ? b.firstName : ((p && (p.firstName || (typeof personFirst === 'function' ? personFirst(p) : ''))) || '')) || '').trim();
   const last = String((typeof b.lastName === 'string' ? b.lastName : ((p && (p.lastName || (typeof personLast === 'function' ? personLast(p) : ''))) || '')) || '').trim();
   if ((isNew || _editName) && (!first || !last)) return res.status(400).json({ ok: false, error: 'First and last name are required.' });
-  const typeIn = (_editType && effPersonTypes().indexOf(b.type) >= 0) ? b.type : (p && p.type) || '';
-  if ((isNew || _editType) && !typeIn) return res.status(400).json({ ok: false, error: 'A contact type is required.' });
+  // Main Interests: `types` (array) is authoritative; a legacy `type` (string) maps to a
+  // single-element array. `type` stays synced to the first interest for every legacy reader.
+  const _validTypes = effPersonTypes();
+  let typesIn;
+  if (_editTypes) { typesIn = b.types.map(t => String(t)).filter((t, i, self) => _validTypes.indexOf(t) >= 0 && self.indexOf(t) === i); }
+  else if (_editType) { typesIn = (_validTypes.indexOf(b.type) >= 0 && b.type) ? [b.type] : []; }
+  else { typesIn = personTypesOf(p); }
+  if ((isNew || _editType || _editTypes) && !typesIn.length) return res.status(400).json({ ok: false, error: 'A contact type is required.' });
   // Multiple emails / phones — all emails must be globally unique.
   const emails = (b.emails !== undefined || b.email !== undefined) ? cleanList(b.emails !== undefined ? b.emails : b.email, 10, 160) : (p ? personEmails(p) : []);
   const phones = (b.phones !== undefined || b.phone !== undefined) ? cleanList(b.phones !== undefined ? b.phones : b.phone, 10, 60) : (p ? personPhones(p) : []);
@@ -6609,7 +6619,7 @@ app.post('/api/person', express.json(), (req, res) => {
   if (clash) return res.status(409).json({ ok: false, error: 'That email is already on ' + (clash.name || 'another contact') + '.', existingId: clash.id });
   if (!p) { p = { id: newPersonId(), createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(p); }
   if (isNew || _editName) { p.firstName = first.slice(0, 80); p.lastName = last.slice(0, 80); p.name = composeName(p.firstName, p.lastName); }
-  if (isNew || _editType) p.type = typeIn;
+  if (isNew || _editType || _editTypes) { p.types = typesIn; p.type = typesIn[0] || ''; }
   p.emails = emails; p.phones = phones;
   // Preferred email / phone — the value the app shows first (falls back to the first entry).
   if (typeof b.preferredEmail === 'string' && emails.indexOf(b.preferredEmail.trim()) >= 0) p.preferredEmail = b.preferredEmail.trim();
@@ -7808,7 +7818,7 @@ app.get('/api/person/:id', (req, res) => {
   let _automations = []; try { _automations = loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === (req.user && req.user.username) || (req.user && isSuper(req.user)))).map(a => automationBrief(a, req.user || {})); } catch (e) { console.error('[/api/person] automations build failed for ' + p.id + ':', e && e.message); }
   let _users = []; try { _users = auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))); } catch (e) {}
   let _company = null; try { _company = companyBrief(companyById(p.companyId)); } catch (e) {}
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), companyName: (function(){ try{ var _c=companyById(p.companyId); return _c?(_c.name||''):''; }catch(e){ return ''; } })(), hasPhoto: !!p.photoExt }), company: _company, deals, offers, tours, ndas, interested, agreements: _agreements, agreementTypes: effAgreementTypes(), appointments: _appointments, apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: _automations, emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: _users, activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), types: personTypesOf(p), tags: personTags(p), companyName: (function(){ try{ var _c=companyById(p.companyId); return _c?(_c.name||''):''; }catch(e){ return ''; } })(), hasPhoto: !!p.photoExt }), company: _company, deals, offers, tours, ndas, interested, agreements: _agreements, agreementTypes: effAgreementTypes(), appointments: _appointments, apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: _automations, emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: _users, activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
  } catch (e) {
   console.error('[/api/person] fatal for ' + (req.params && req.params.id) + ':', (e && e.stack) || e);
   if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not load this contact — a linked record looks malformed. (' + ((e && e.message) || 'error') + ')' });
@@ -8738,7 +8748,7 @@ app.post('/api/company/:id/contact', express.json(), (req, res) => {
   const b = req.body || {};
   const arr = loadPeople();
   let p = b.personId ? arr.find(x => x.id === b.personId) : null;
-  if (p) { p.companyId = c.id; if (typeof b.type === 'string' && effPersonTypes().indexOf(b.type) >= 0) p.type = b.type; if (typeof b.title === 'string') p.title = b.title.slice(0, 120); p.updatedAt = new Date().toISOString(); savePeople(arr); }
+  if (p) { p.companyId = c.id; if (typeof b.type === 'string' && effPersonTypes().indexOf(b.type) >= 0) { p.type = b.type; p.types = [b.type]; } if (typeof b.title === 'string') p.title = b.title.slice(0, 120); p.updatedAt = new Date().toISOString(); savePeople(arr); }
   else {
     const first = String(b.firstName || '').trim(), last = String(b.lastName || '').trim();
     const emails = cleanList(b.emails !== undefined ? b.emails : b.email, 10, 160);
@@ -8748,7 +8758,7 @@ app.post('/api/company/:id/contact', express.json(), (req, res) => {
     const clash = emailOwner(arr, emails, '__new__');
     if (clash) return res.status(409).json({ ok: false, error: 'That email is already on ' + (clash.name || 'another contact') + '.', existingId: clash.id });
     p = findOrCreatePerson(req, { firstName: first, lastName: last, name: composeName(first, last), emails: emails, phones: phones, companyId: c.id, type: b.type, strict: true });
-    if (p && typeof b.type === 'string' && effPersonTypes().indexOf(b.type) >= 0 && p.type !== b.type) { const _a = loadPeople(); const _pp = _a.find(x => x.id === p.id); if (_pp) { _pp.type = b.type; _pp.updatedAt = new Date().toISOString(); savePeople(_a); p.type = b.type; } }
+    if (p && typeof b.type === 'string' && effPersonTypes().indexOf(b.type) >= 0 && p.type !== b.type) { const _a = loadPeople(); const _pp = _a.find(x => x.id === p.id); if (_pp) { _pp.type = b.type; _pp.types = [b.type]; _pp.updatedAt = new Date().toISOString(); savePeople(_a); p.type = b.type; } }
     if (p && (b.title || b.nickname || b.notes || Array.isArray(b.tags) || b.leadSource || b.referredBy || b.referredById)) { const a2 = loadPeople(); const pp = a2.find(x => x.id === p.id); if (pp) { if (b.title) pp.title = String(b.title).slice(0, 120); if (b.nickname) pp.nickname = String(b.nickname).slice(0, 80); if (b.notes) pp.notes = String(b.notes).slice(0, 4000); if (Array.isArray(b.tags)) pp.tags = b.tags.map(x => String(x || '').slice(0, 60)).filter(Boolean).slice(0, 30); if (Array.isArray(b.prefContact)) pp.prefContact = b.prefContact.filter(x => ['phone','text','email'].indexOf(x) >= 0); if (b.leadSource) pp.leadSource = String(b.leadSource).slice(0, 160); if (b.referredBy) pp.referredBy = String(b.referredBy).slice(0, 160); if (b.referredById) pp.referredById = String(b.referredById).slice(0, 40); pp.updatedAt = new Date().toISOString(); savePeople(a2); } }
   }
   // If the company has no primary contact yet, make this newly-added contact the primary.
