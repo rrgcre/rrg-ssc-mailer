@@ -110,7 +110,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .crow{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);}
 .crow:last-child{border-bottom:none;} .crow:hover{background:#fbfcfe;} .crow .ledit,.crow .crm{opacity:0;pointer-events:none;transition:opacity .13s;} .crow:hover .ledit,.crow:hover .crm{opacity:1;pointer-events:auto;} @media(hover:none){.cptacts{display:flex!important;} .crow .ledit,.crow .crm{opacity:1!important;pointer-events:auto!important;}}
 .cav{width:38px;height:38px;flex:none;border-radius:50%;background:#eef1f6;color:#6b7488;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:13px;}
-.cinfo{min-width:0;flex:1;} .cname{font-weight:500;color:var(--ink);font-size:14px;} .cname .lnameedit{cursor:pointer;} .cname .lnameedit:hover{text-decoration:underline;text-underline-offset:2px;} .csub{font-size:12.5px;color:var(--muted);margin-top:3px;}
+.cinfo{min-width:0;flex:1;} .cname{font-weight:500;color:var(--ink);font-size:14px;} .cname .lnameedit{cursor:pointer;} .cname .lnameedit:hover{text-decoration:underline;text-underline-offset:2px;} .csub{font-size:12.5px;color:var(--muted);margin-top:3px;} .csub.csubttl{color:#5b6472;font-weight:600;margin-top:2px;}
 .ctype{font-size:9.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;padding:2px 8px;border-radius:999px;background:#f2f4f8;color:#6b7488;border:1px solid #e6eaf1;}
 .cmain{background:none;border:none;color:#c7ccd6;cursor:pointer;font-size:17px;line-height:1;padding:0 5px;flex:none;} .cmain.on{color:#e2b93a;} .cmain:hover{color:#e2b93a;} .crow .cmain:not(.on){opacity:.6;transition:opacity .13s;} .crow:hover .cmain{opacity:1;}
 .ctype.ls-operating,.ctype.ls-open{background:#eafaf0;color:#0e7a53;border-color:#b9e6cd;} .ctype.ls-closed{background:#fdeceb;color:var(--red);border-color:#f3cfc9;} .ctype.ls-underconstruction,.ctype.ls-underloi{background:#fff4e6;color:#b9761a;border-color:#f0d7ad;} .ctype.ls-planned,.ctype.ls-prospective{background:#f2f4f8;color:#6b7488;border-color:#e0e5ee;} .ctype.ls-dark{background:#efe9f7;color:#5a3d9e;border-color:#d9cdf0;}
@@ -360,7 +360,7 @@ function refreshDocListCo(){
   var c=document.getElementById('coDocCount'); if(c) c.textContent=String(docCountCo());
 }
 function agreementsCardCo(){
-  return '<div class="card"><div class="ch"><b>Documents</b><span id="coDocCount">'+docCountCo()+'</span><span style="margin-left:auto;display:flex;gap:6px;align-items:center"><a href="./rrg_documents.html" title="Open the full document library" style="font-size:11px;font-weight:700;color:#8a93a8;text-decoration:none">All Documents →</a></span></div><div class="cb"><div id="coAgrForm" hidden></div><div class="agrlistco" id="coDocList">'+docListHtmlCo()+'</div></div></div>';
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="coDocCount">'+docCountCo()+'</span></div><div class="cb"><div id="coAgrForm" hidden></div><div class="agrlistco" id="coDocList">'+docListHtmlCo()+'</div></div></div>';
 }
 function filesCountCo(){ return (window.RRGDocs&&RRGDocs.filesCount&&RRGDocs.filesCount())||0; }
 function filesListHtmlCo(){ var rows=(window.RRGDocs?RRGDocs.filesRowsHtml():''); if(rows) return rows; return '<div class="rrempty">'+((window.RRGDocs&&RRGDocs.ready())?'No files uploaded for this company yet. Use + to add a lease, P&L, or other document.':'Loading files\u2026')+'</div>'; }
@@ -440,8 +440,10 @@ function _cav(p){
 function render(){
   document.getElementById('crumb').textContent=C.name||'Company';
   var contacts = CONTACTS.length ? CONTACTS.map(function(p){
-    var sub=[p.title].concat(p.emails||(p.email?[p.email]:[])).concat(p.phones||(p.phone?[p.phone]:[])).filter(Boolean).map(esc).join(' · ');
-    return '<a class="crow crowlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">'+_cav(p)+'<div class="cinfo"><div class="cname">'+esc(p.name||'Contact')+'</div><div class="csub">'+sub+'</div></div><button class="cmain'+(p.id===C.mainContactId?' on':'')+'" data-main="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();" title="'+(p.id===C.mainContactId?'Main contact':'Set as main contact')+'">'+(p.id===C.mainContactId?'\u2605':'\u2606')+'</button><button class="crm" data-rm="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();">Remove</button></a>';
+    var _ttl=p.title?'<div class="csub csubttl">'+esc(p.title)+'</div>':'';
+    var _reach=(p.emails||(p.email?[p.email]:[])).concat(p.phones||(p.phone?[p.phone]:[])).filter(Boolean).map(esc).join(' · ');
+    var sub=_ttl+(_reach?'<div class="csub">'+_reach+'</div>':'');
+    return '<a class="crow crowlink" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'">'+_cav(p)+'<div class="cinfo"><div class="cname">'+esc(p.name||'Contact')+'</div>'+sub+'</div><button class="cmain'+(p.id===C.mainContactId?' on':'')+'" data-main="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();" title="'+(p.id===C.mainContactId?'Main contact':'Set as main contact')+'">'+(p.id===C.mainContactId?'\u2605':'\u2606')+'</button><button class="crm" data-rm="'+esc(p.id)+'" onclick="event.preventDefault();event.stopPropagation();">Remove</button></a>';
   }).join('') : '<div class="empty">No contacts yet. Add the owner, partners, or advisors tied to this company.</div>';
   function locThumb(l){
     var p=(l.photos||[])[0];
@@ -493,8 +495,6 @@ function render(){
     locs=CONCEPTS.map(conceptBlock).join('');
     if(commissaries.length) locs+=commissaryBlock();
     if(orphans.length){ var oOpen=!!EXPANDED['__orphan__']; locs+='<div class="cptblock'+(oOpen?' open':'')+'"><div class="cptbar" data-cpt="__orphan__"><span class="cptchev">▸</span><div class="cptname">Unassigned <span class="cptcount">'+orphans.length+' loc'+(orphans.length===1?'':'s')+'</span></div></div><div class="cptlocs">'+orphans.map(locNameRow).join('')+'</div></div>'; }
-    var allOpen=CONCEPTS.length&&CONCEPTS.every(function(c){return EXPANDED[c.id];});
-    locs+='<div class="cpttotal"><span class="expall" id="cptExpand">'+(allOpen?'Collapse all':'Expand all')+'</span></div>';
   }
   var deals = DEALS.length ? DEALS.map(function(d){
     var _mn='<a class="rrow" href="./rrg_assignment.html?key='+encodeURIComponent(d.key)+'"><span class="rric">$</span><div class="rrmain"><div class="rrnm">'+esc(d.business)+'</div>'+(d.market?'<div class="rrmt">'+esc(d.market)+'</div>':'')+'</div><span class="rchip">'+(d.started?'In pipeline':'Not started')+'</span></a>'; return d.roomId?('<div class="rrowd">'+_mn+'<a class="rroom" href="./rrg_room.html?room='+encodeURIComponent(d.roomId)+'" title="Open the data room">\u25a5 Data room \u2192</a></div>'):_mn;
@@ -560,7 +560,6 @@ function render(){
   var acm=document.querySelector('.mini[data-addcomm]'); if(acm) acm.addEventListener('click',function(){ openLocForm({commissary:true,servesAll:true},''); });
   document.querySelectorAll('.mini[data-photos]').forEach(function(b){ b.addEventListener('click',function(){ pullConceptPhotos(b.getAttribute('data-photos'),b); }); });
   document.querySelectorAll('.cptbar[data-cpt]').forEach(function(bar){ bar.addEventListener('click',function(e){ if(e.target.closest('button,a')) return; var id=bar.getAttribute('data-cpt'); EXPANDED[id]=!EXPANDED[id]; bar.parentNode.classList.toggle('open',EXPANDED[id]); }); });
-  var xa=document.getElementById('cptExpand'); if(xa) xa.addEventListener('click',function(){ var all=CONCEPTS.every(function(c){return EXPANDED[c.id];}); CONCEPTS.forEach(function(c){ EXPANDED[c.id]=!all; }); EXPANDED['__orphan__']=!all; render(); });
   document.querySelectorAll('.ledit, .lnameedit').forEach(function(b){ b.addEventListener('click',function(){ var l=LOCATIONS.filter(function(x){return x.id===b.getAttribute('data-le');})[0]; if(l) openLocForm(l); }); });
   document.querySelectorAll('.crm[data-lrm]').forEach(function(b){ b.addEventListener('click',function(){ removeLoc(b.getAttribute('data-lrm')); }); });
   wireCoComposer();
