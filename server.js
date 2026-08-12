@@ -6579,20 +6579,25 @@ app.post('/api/person', express.json(), (req, res) => {
   const isNew = !b.id;
   let p = b.id ? arr.find(x => x.id === b.id) : null;
   const now = new Date().toISOString();
-  // Required first / last / type on entry.
-  const first = String((typeof b.firstName === 'string' ? b.firstName : (p && p.firstName) || '') || '').trim();
-  const last = String((typeof b.lastName === 'string' ? b.lastName : (p && p.lastName) || '') || '').trim();
-  if (!first || !last) return res.status(400).json({ ok: false, error: 'First and last name are required.' });
-  const typeIn = (typeof b.type === 'string' && effPersonTypes().indexOf(b.type) >= 0) ? b.type : (p && p.type) || '';
-  if (!typeIn) return res.status(400).json({ ok: false, error: 'A contact type is required.' });
+  // Required first / last / type — but ONLY when creating, or when those fields are actually
+  // being edited. A partial update (e.g. a VIP/Star/Preferred/Bad flag toggle posts just
+  // {id, vip:true}) must not be rejected for a legacy contact that only has a `name`, nor
+  // should it rewrite/erase the stored name. Fall back to the split name when needed.
+  const _editName = (typeof b.firstName === 'string' || typeof b.lastName === 'string');
+  const _editType = (typeof b.type === 'string');
+  const first = String((typeof b.firstName === 'string' ? b.firstName : ((p && (p.firstName || (typeof personFirst === 'function' ? personFirst(p) : ''))) || '')) || '').trim();
+  const last = String((typeof b.lastName === 'string' ? b.lastName : ((p && (p.lastName || (typeof personLast === 'function' ? personLast(p) : ''))) || '')) || '').trim();
+  if ((isNew || _editName) && (!first || !last)) return res.status(400).json({ ok: false, error: 'First and last name are required.' });
+  const typeIn = (_editType && effPersonTypes().indexOf(b.type) >= 0) ? b.type : (p && p.type) || '';
+  if ((isNew || _editType) && !typeIn) return res.status(400).json({ ok: false, error: 'A contact type is required.' });
   // Multiple emails / phones — all emails must be globally unique.
   const emails = (b.emails !== undefined || b.email !== undefined) ? cleanList(b.emails !== undefined ? b.emails : b.email, 10, 160) : (p ? personEmails(p) : []);
   const phones = (b.phones !== undefined || b.phone !== undefined) ? cleanList(b.phones !== undefined ? b.phones : b.phone, 10, 60) : (p ? personPhones(p) : []);
   const clash = emailOwner(arr, emails, p ? p.id : '__new__');
   if (clash) return res.status(409).json({ ok: false, error: 'That email is already on ' + (clash.name || 'another contact') + '.', existingId: clash.id });
   if (!p) { p = { id: newPersonId(), createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; arr.push(p); }
-  p.firstName = first.slice(0, 80); p.lastName = last.slice(0, 80); p.name = composeName(p.firstName, p.lastName);
-  p.type = typeIn;
+  if (isNew || _editName) { p.firstName = first.slice(0, 80); p.lastName = last.slice(0, 80); p.name = composeName(p.firstName, p.lastName); }
+  if (isNew || _editType) p.type = typeIn;
   p.emails = emails; p.phones = phones;
   // Preferred email / phone — the value the app shows first (falls back to the first entry).
   if (typeof b.preferredEmail === 'string' && emails.indexOf(b.preferredEmail.trim()) >= 0) p.preferredEmail = b.preferredEmail.trim();
