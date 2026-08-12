@@ -183,6 +183,7 @@ tr:hover td{background:#fbfcfe;}
 </div></div>
 <style>.rl-filtbtn{display:none!important;}</style>
 <script src="/rrg_list.js"></script>
+<script src="/rrg_filters.js"></script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function typeColor(t){ var m={'Buyer':['#e7f5ee','#1f8a5b'],'Seller':['#e8f0fd','#2c5c8f'],'Tenant':['#e6f5f3','#0f766e'],'Investor':['#f3edfb','#7a4fd0'],'Broker':['#fdf1df','#b5791f'],'Referral Source':['#fdeef4','#b83280'],'Internal Personnel':['#eaeef5','#3a4a66'],'Other':['#eef1f6','#6b7488']}; if(m[t]) return m[t]; var pal=[['#e7f5ee','#1f8a5b'],['#e8f0fd','#2c5c8f'],['#f3edfb','#7a4fd0'],['#fdf1df','#b5791f'],['#fdeef4','#b83280'],['#e6f5f3','#0f766e']]; var h=0; for(var i=0;i<t.length;i++) h=(h*31+t.charCodeAt(i))>>>0; return pal[h%pal.length]; }
@@ -413,9 +414,9 @@ function openFilters(){
    +'<div class="modalh">Filter contacts</div>'
    +'<div class="modalb" style="overflow:auto">'
    +'<div class="fgrp" id="savedWrap"></div>'
-   +chkBox('types',(TYPES.length?TYPES:['Buying','Selling']),FILTERS.types,'Main interests')
-   +chkBox('owners',ownerOpts(),FILTERS.owners,'Owner')
-   +chkBox('leadSources',leadOpts(),FILTERS.leadSources,'Lead source')
+   +'<div class="fgrp"><div class="flbl">Main interests</div><div class="ctfhost" data-ctf="types"></div></div>'
+   +'<div class="fgrp"><div class="flbl">Owner</div><div class="ctfhost" data-ctf="owners"></div></div>'
+   +'<div class="fgrp"><div class="flbl">Lead source</div><div class="ctfhost" data-ctf="leadSources"></div></div>'
    +'<div class="fgrp"><div class="flbl">Tags (comma-separated, matches all)</div><input id="f_tags" list="f_taglist" value="'+esc(FILTERS.tags.join(', '))+'" placeholder="e.g. hot, franchisee"><datalist id="f_taglist">'+allTagsInUse().map(function(t){return '<option value="'+esc(t)+'">';}).join('')+'</datalist></div>'
    +'<div class="fgrp"><div class="flbl">Flags</div><div class="fwrap"><label class="fchk"><input type="checkbox" id="f_vip"'+(FILTERS.vip?' checked':'')+'> VIP</label><label class="fchk"><input type="checkbox" id="f_star"'+(FILTERS.star?' checked':'')+'> Star</label><label class="fchk"><input type="checkbox" id="f_caution"'+(FILTERS.caution?' checked':'')+'> Bad news</label><label class="fchk"><input type="checkbox" id="f_primary"'+(FILTERS.primary?' checked':'')+'> Primary contact</label></div></div>'
    +'<div class="fgrp2"><div><div class="flbl">Created from</div><input type="date" id="f_cfrom" value="'+esc(FILTERS.createdFrom)+'"></div><div><div class="flbl">Created to</div><input type="date" id="f_cto" value="'+esc(FILTERS.createdTo)+'"></div></div>'
@@ -424,12 +425,13 @@ function openFilters(){
    +'<div class="modalf"><button class="mbtn ghost" id="f_clear">Clear all</button><button class="mbtn ghost" id="f_savebtn">Save search\u2026</button><button class="mbtn ghost" id="f_cancel">Close</button><button class="mbtn" id="f_apply">Apply</button></div>'
    +'</div>';
   document.body.appendChild(ov);
-  ov.querySelectorAll('.fsearch').forEach(function(si){ si.addEventListener('input',function(){ var q=si.value.trim().toLowerCase(); var wrap=ov.querySelector('.fwrap[data-fg="'+si.getAttribute('data-search-for')+'"]'); if(!wrap) return; wrap.querySelectorAll('.fchk').forEach(function(lb){ var t=(lb.textContent||'').toLowerCase(); lb.style.display=(!q||t.indexOf(q)>=0)?'':'none'; }); }); });
-  ov.querySelectorAll('.fwrap[data-fg]').forEach(function(wrap){ var note=ov.querySelector('.fselnote[data-selnote="'+wrap.getAttribute('data-fg')+'"]'); if(!note) return; wrap.addEventListener('change',function(){ note.textContent=wrap.querySelectorAll('input:checked').length+' selected'; }); });
+  var CHIP={};
+  if(window.RRGFilters&&RRGFilters.chip){ if(RRGFilters.injectCss){ try{ RRGFilters.injectCss(); }catch(e){} }
+    [['types',(TYPES.length?TYPES:['Buying','Selling']),'main interests'],['owners',ownerOpts(),'owner'],['leadSources',leadOpts(),'lead source']].forEach(function(t){ var host=ov.querySelector('.ctfhost[data-ctf="'+t[0]+'"]'); if(!host) return; var seen={},disp=[]; (t[1]||[]).forEach(function(x){ if(x==null||x==='') return; var k=String(x).toLowerCase(); if(!seen[k]){ seen[k]=1; disp.push(x); } }); disp.sort(function(a,b){ return String(a).toLowerCase().localeCompare(String(b).toLowerCase()); }); CHIP[t[0]]=RRGFilters.chip(host,(FILTERS[t[0]]||[]).slice(),disp,null,'Type to search '+t[2]+'…'); }); }
   function close(){ ov.remove(); }
   ov.addEventListener('click',function(e){ if(e.target===ov){ /* stay open */ } });
   ov.querySelector('#f_cancel').addEventListener('click',close);
-  function collect(){ ['types','owners','leadSources'].forEach(function(g){ var arr=[]; ov.querySelectorAll('[data-fg="'+g+'"] input:checked').forEach(function(c){ arr.push(c.value); }); FILTERS[g]=arr; }); FILTERS.tags=(ov.querySelector('#f_tags').value||'').split(',').map(function(x){return x.trim();}).filter(Boolean); FILTERS.vip=ov.querySelector('#f_vip').checked; FILTERS.star=ov.querySelector('#f_star').checked; FILTERS.caution=ov.querySelector('#f_caution').checked; FILTERS.primary=ov.querySelector('#f_primary').checked; FILTERS.createdFrom=ov.querySelector('#f_cfrom').value; FILTERS.createdTo=ov.querySelector('#f_cto').value; FILTERS.contactedFrom=ov.querySelector('#f_lfrom').value; FILTERS.contactedTo=ov.querySelector('#f_lto').value; }
+  function collect(){ ['types','owners','leadSources'].forEach(function(g){ FILTERS[g]=(CHIP&&CHIP[g])?CHIP[g].get():(FILTERS[g]||[]); }); FILTERS.tags=(ov.querySelector('#f_tags').value||'').split(',').map(function(x){return x.trim();}).filter(Boolean); FILTERS.vip=ov.querySelector('#f_vip').checked; FILTERS.star=ov.querySelector('#f_star').checked; FILTERS.caution=ov.querySelector('#f_caution').checked; FILTERS.primary=ov.querySelector('#f_primary').checked; FILTERS.createdFrom=ov.querySelector('#f_cfrom').value; FILTERS.createdTo=ov.querySelector('#f_cto').value; FILTERS.contactedFrom=ov.querySelector('#f_lfrom').value; FILTERS.contactedTo=ov.querySelector('#f_lto').value; }
   ov.querySelector('#f_clear').addEventListener('click',function(){ FILTERS=emptyFilters(); close(); applyFilter(); });
   ov.querySelector('#f_apply').addEventListener('click',function(){ collect(); close(); applyFilter(); });
   ov.querySelector('#f_savebtn').addEventListener('click',async function(){ collect(); var name=prompt('Name this saved search:'); if(name===null) return; name=name.trim(); if(!name) return; var shared=await rrgConfirm('Share this saved search with the whole team?\n\nOK = shared with team \u00b7 Cancel = just me'); fetch('/api/saved-searches',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({list:'contacts',name:name,shared:shared,payload:FILTERS})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ renderSaved(ov); } else alert((j&&j.error)||'Could not save.'); }); });
