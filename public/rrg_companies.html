@@ -184,7 +184,7 @@ function applyFilter(){
 window.rrgLiveSearch=function(q){ var el=document.getElementById('search'); if(el && el.value!==q){ el.value=q; } applyFilter(); };
 (function(){ try{ var qp=new URLSearchParams(location.search).get('q'); if(qp){ var el=document.getElementById('search'); if(el) el.value=qp; } }catch(e){} })();
 function renderList(list){
-  var cfg={ mount:'#body', data:list, key:'companies', countEl:'#cnt', filterButton:document.getElementById('filterBtn'),
+  var cfg={ mount:'#body', data:list, key:'companies_v2', countEl:'#cnt', filterButton:document.getElementById('filterBtn'), per:100, compact:true,
     empty:'<div class="empty"><b>No companies yet.</b>Companies are created automatically when you start a deal — the business name opens its company file.</div>',
     rowId:function(c){ return c.id; }, defaultSort:0, defaultDir:1,
     bulk: (function(){ var _b=[]; if(IS_ADMIN) _b.push({ label:'Merge\u2026', min:2, fn:openCompanyMergePicker }); if(CAN_DELETE) _b.push({ label:'Delete', danger:true, min:1, fn:bulkDeleteCompanies }); return _b.length?_b:null; })(),
@@ -194,14 +194,14 @@ function renderList(list){
       { label:'Main contact', sort:function(a,b){ return RRGList.cmp(a.mainContact,b.mainContact); }, cell:function(c){ return c.mainContact?('<a href="./rrg_person.html?id='+encodeURIComponent(c.mainContactId)+'" style="color:var(--navy);text-decoration:none;font-weight:500">'+esc(c.mainContact)+'</a>'):'<span class="meta">—</span>'; } },
       { label:'Concepts', align:'left', sort:function(a,b){ return (a.concepts||0)-(b.concepts||0); }, cell:function(c){ return '<span class="count">'+(c.concepts||0)+' <span>concept'+((c.concepts===1)?'':'s')+'</span></span>'; } },
       { label:'Contacts', align:'left', sort:function(a,b){ return (a.contacts||0)-(b.contacts||0); }, cell:function(c){ return '<span class="count">'+(c.contacts||0)+' <span>contact'+((c.contacts===1)?'':'s')+'</span></span>'; } },
+      { label:'Created', sort:function(a,b){ return RRGList.cmp(a.createdAt,b.createdAt); }, cell:function(c){ if(!c.createdAt) return '<span class="meta">—</span>'; var _d=String(c.createdAt).slice(0,10).split('-'); var _f=(_d.length===3)?(_d[1]+'-'+_d[2]+'-'+_d[0]):String(c.createdAt).slice(0,10); return '<span class="meta">'+esc(_f)+'</span>'; } },
       { label:'Locations', align:'left', sort:function(a,b){ return (a.locations||0)-(b.locations||0); }, cell:function(c){ return '<span class="count">'+(c.locations||0)+' <span>location'+((c.locations===1)?'':'s')+'</span></span>'; } },
+      { label:'Markets', sortable:false, cell:function(c){ return (c.markets&&c.markets.length)?esc(c.markets.join(', ')):'<span class="meta">—</span>'; } },
       { label:'Listings', align:'left', sort:function(a,b){ return (a.deals||0)-(b.deals||0); }, cell:function(c){ return '<span class="count">'+(c.deals||0)+' <span>listing'+((c.deals===1)?'':'s')+'</span></span>'; } },
-      { label:'Tags', defaultHidden:true, sortable:false, cell:function(c){ return (c.tags&&c.tags.length)?esc(c.tags.join(', ')):'<span class="meta">—</span>'; } },
-      { label:'Markets', defaultHidden:true, sortable:false, cell:function(c){ return (c.markets&&c.markets.length)?esc(c.markets.join(', ')):'<span class="meta">—</span>'; } },
-      { label:'Created', defaultHidden:true, sort:function(a,b){ return RRGList.cmp(a.createdAt,b.createdAt); }, cell:function(c){ if(!c.createdAt) return '<span class="meta">—</span>'; var _d=String(c.createdAt).slice(0,10).split('-'); var _f=(_d.length===3)?(_d[1]+'-'+_d[2]+'-'+_d[0]):String(c.createdAt).slice(0,10); return '<span class="meta">'+esc(_f)+'</span>'; } },
-      { label:'Interactions', align:'left', defaultHidden:true, sort:function(a,b){ return (a.interactions||0)-(b.interactions||0); }, cell:function(c){ var n=c.interactions||0; return '<span class="count">'+n+' <span>interaction'+(n===1?'':'s')+'</span></span>'; } },
-      { label:'Lead source', defaultHidden:true, sort:function(a,b){ return RRGList.cmp(a.leadSource,b.leadSource); }, cell:function(c){ return c.leadSource?esc(c.leadSource):'<span class="meta">—</span>'; } },
-      { label:'Inactive days', align:'left', defaultHidden:true, sort:function(a,b){ var x=_inactiveDays(a.lastActiveAt),y=_inactiveDays(b.lastActiveAt); return (x==null?-1:x)-(y==null?-1:y); }, cell:function(c){ var d=_inactiveDays(c.lastActiveAt); return d==null?'<span class="meta">—</span>':('<span class="count">'+d+' <span>day'+(d===1?'':'s')+'</span></span>'); } },
+      { label:'Interactions', align:'left', sort:function(a,b){ return (a.interactions||0)-(b.interactions||0); }, cell:function(c){ var n=c.interactions||0; return '<span class="count">'+n+' <span>interaction'+(n===1?'':'s')+'</span></span>'; } },
+      { label:'Inactive days', align:'left', sort:function(a,b){ var x=_inactiveDays(a.lastActiveAt),y=_inactiveDays(b.lastActiveAt); return (x==null?-1:x)-(y==null?-1:y); }, cell:function(c){ var d=_inactiveDays(c.lastActiveAt); return d==null?'<span class="meta">—</span>':('<span class="count">'+d+' <span>day'+(d===1?'':'s')+'</span></span>'); } },
+      { label:'Lead source', sort:function(a,b){ return RRGList.cmp(a.leadSource,b.leadSource); }, cell:function(c){ return c.leadSource?esc(c.leadSource):'<span class="meta">—</span>'; } },
+      { label:'Tags', sortable:false, cell:function(c){ return (c.tags&&c.tags.length)?esc(c.tags.join(', ')):'<span class="meta">—</span>'; } },
       { label:'', align:'right', sortable:false, cell:function(c){ return CAN_DELETE?('<button class="codel" data-del="'+esc(c.id)+'" data-name="'+esc(c.name)+'" data-deals="'+(c.deals||0)+'" title="Delete company">Delete</button>'):'<span class="meta">—</span>'; } }
     ]
   };
