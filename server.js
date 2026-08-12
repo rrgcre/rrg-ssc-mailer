@@ -341,8 +341,8 @@ function companyActivityFeed(c) {
   if (!c) return [];
   const people = loadPeople().filter(p => p.companyId === c.id);
   const acts = [];
-  people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { acts.push({ id: a.id || '', type: a.type || 'Note', note: a.note || '', at: a.date || a.at || '', by: a.by || '', auto: !!a.auto, personId: p.id, personName: p.name || 'Contact', companyLevel: false }); }); });
-  (Array.isArray(c.activities) ? c.activities : []).forEach(a => { acts.push({ id: a.id || '', type: a.type || 'Note', note: a.note || '', at: a.date || a.at || '', by: a.by || '', auto: !!a.auto, personId: '', personName: '', companyLevel: true }); });
+  people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { acts.push({ id: a.id || '', type: a.type || 'Note', note: a.note || '', at: a.at || a.date || '', by: a.by || '', auto: !!a.auto, personId: p.id, personName: p.name || 'Contact', companyLevel: false }); }); });
+  (Array.isArray(c.activities) ? c.activities : []).forEach(a => { acts.push({ id: a.id || '', type: a.type || 'Note', note: a.note || '', at: a.at || a.date || '', by: a.by || '', auto: !!a.auto, personId: '', personName: '', companyLevel: true }); });
   if (c.createdAt) { const _imp = !!c.importBatch; acts.push({ id: 'co_created', type: _imp ? 'Company Imported' : 'Company Added', note: _imp ? ('Company record imported' + (c.importBatch ? ' · batch #' + c.importBatch : '')) : 'Company record created', at: (_imp && c.importBatchAt) ? c.importBatchAt : c.createdAt, by: c.by || '', auto: true, personId: '', personName: '', companyLevel: true }); }
   acts.sort((x, y) => String(y.at || '').localeCompare(String(x.at || '')));
   return acts.slice(0, 200);
@@ -455,8 +455,14 @@ function logActivity(p, type, note, o) {
   o = o || {};
   p.activities = Array.isArray(p.activities) ? p.activities : [];
   const now = new Date().toISOString();
-  const date = (o.date && /^\d{4}-\d{2}-\d{2}$/.test(o.date)) ? o.date : now.slice(0, 10);
-  const e = { id: newActivityId(), type: String(type || 'Note'), date, at: now, note: String(note || '').slice(0, 2000), by: o.by || '', byUser: o.byUser || '', auto: !!o.auto };
+  // Every activity carries a full date+time `at`. Priority: explicit `at` from the form,
+  // then a date-only value (kept with the current time-of-day so we never lose the clock),
+  // else right now. `date` (date-only) is derived from `at` for legacy readers.
+  let at = now;
+  if (o.at && !isNaN(Date.parse(o.at))) { at = new Date(o.at).toISOString(); }
+  else if (o.date && /^\d{4}-\d{2}-\d{2}$/.test(o.date)) { const _d = new Date(o.date + 'T' + now.slice(11)); at = isNaN(_d.getTime()) ? now : _d.toISOString(); }
+  const date = at.slice(0, 10);
+  const e = { id: newActivityId(), type: String(type || 'Note'), date, at, note: String(note || '').slice(0, 2000), by: o.by || '', byUser: o.byUser || '', auto: !!o.auto };
   p.activities.unshift(e); p.activities = p.activities.slice(0, 800);
   if (type !== 'To-Do') { if (!p.lastContacted || date > p.lastContacted) p.lastContacted = date; }
   p.updatedAt = now;
@@ -2897,7 +2903,7 @@ app.get('/api/feed', (req, res) => {
   let people = loadPeople();
   if (restrictToOwn(req)) people = people.filter(p => permOwnerMatch(req, p.by));
   const items = [];
-  people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { items.push({ type: a.type || 'Note', note: a.note || '', at: a.date || a.at || '', by: a.by || '', byUser: a.byUser || '', auto: !!a.auto, personId: p.id, personName: p.name || 'Contact', company: p.company || '' }); }); });
+  people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { items.push({ type: a.type || 'Note', note: a.note || '', at: a.at || a.date || '', by: a.by || '', byUser: a.byUser || '', auto: !!a.auto, personId: p.id, personName: p.name || 'Contact', company: p.company || '' }); }); });
   try { loadSysEvents().forEach(function(e){ items.push({ type: e.type || 'System', note: e.note || '', at: e.at || e.at || '', by: e.by || '', byUser: e.byUser || '', auto: true, system: true, personId: '', personName: '', company: '' }); }); } catch(e){}
   const canScope = !restrictToOwn(req);
   const mine = req.query.scope === 'mine';
@@ -6568,7 +6574,7 @@ app.delete('/api/assignment/:key/nda/:ndaId', (req, res) => {
 });
 // ---- People (global buyer registry) ----
 function _maxStr(){ let t=''; for (let i=0;i<arguments.length;i++){ const x=String(arguments[i]||''); if (x>t) t=x; } return t; }
-function _personLastActive(p){ if(!p) return ''; let t=_maxStr(p.updatedAt, p.createdAt, p.lastContacted?String(p.lastContacted).slice(0,10):''); if(Array.isArray(p.activities)) p.activities.forEach(a=>{ const x=String((a&&(a.date||a.at))||''); if(x>t) t=x; }); return t; }
+function _personLastActive(p){ if(!p) return ''; let t=_maxStr(p.updatedAt, p.createdAt, p.lastContacted?String(p.lastContacted).slice(0,10):''); if(Array.isArray(p.activities)) p.activities.forEach(a=>{ const x=String((a&&(a.at||a.date))||''); if(x>t) t=x; }); return t; }
 function _companyLastActive(c, contactMax){ if(!c) return ''; let t=_maxStr(c.updatedAt, c.createdAt, contactMax||''); if(Array.isArray(c.activities)) c.activities.forEach(a=>{ const x=String((a&&(a.at||a.date))||''); if(x>t) t=x; }); return t; }
 app.get('/api/people', (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -7676,7 +7682,7 @@ app.post('/api/person/:id/activity', express.json(), (req, res) => {
   const b = req.body || {};
   const type = String(b.type || '').trim();
   if (effActivityTypes().indexOf(type) < 0) return res.status(400).json({ ok: false, error: 'Pick an activity type.' });
-  const entry = logActivity(p, type, b.note, { date: b.date, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', auto: false });
+  const entry = logActivity(p, type, b.note, { at: b.at, date: b.date, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', auto: false });
   let task = null;
   if (type === 'To-Do') {
     try {
@@ -8276,7 +8282,7 @@ app.post('/api/company/:id/activity', express.json(), (req, res) => {
   const type = String(b.type || '').trim();
   if (effActivityTypes().indexOf(type) < 0) return res.status(400).json({ ok: false, error: 'Pick an activity type.' });
   let task = null;
-  const entry = logActivity(c, type, b.note, { date: b.date, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', auto: false });
+  const entry = logActivity(c, type, b.note, { at: b.at, date: b.date, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', auto: false });
   if (type === 'To-Do') {
     try {
       const tasks = loadTasks(); const tnow = new Date().toISOString();
@@ -12474,7 +12480,7 @@ app.get('/api/kpis', (req, res) => {
     // Spaces marked Leased in the Space Tracker (dated by last edit — no leasedAt field yet)
     try { loadSpaces().forEach(s => { if (s.status === 'Leased' && inPeriod(s.updatedAt || s.createdAt) && mine(s.byUser)) { spacesLeased++; rep(s.byUser).spacesLeased++; } }); } catch (e) {}
     // BizBuySell leads imported (person activities)
-    try { loadPeople().forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { if (a.type === 'BizBuySell Lead') { const dt = a.date || a.at; if (inPeriod(dt) && mine(a.byUser)) { bbsLeads++; rep(a.byUser).bbsLeads++; } } }); }); } catch (e) {}
+    try { loadPeople().forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { if (a.type === 'BizBuySell Lead') { const dt = a.at || a.date; if (inPeriod(dt) && mine(a.byUser)) { bbsLeads++; rep(a.byUser).bbsLeads++; } } }); }); } catch (e) {}
 
     const tiles = [
       { key: 'bizClosed',    label: 'Business sales closed', value: bizClosed,   group: 'Sales',   period: true,  accent: 'green' },

@@ -69,6 +69,7 @@ var DATA={}, ASSIST='';
 function num(n){ return Number(n||0).toLocaleString('en-US'); }
 function money(n){ n=Number(n||0); if(n>=1e6) return (window.RRG_CCYSYM||String.fromCharCode(36))+(Math.round(n/1e5)/10)+'M'; if(n>=1e3) return (window.RRG_CCYSYM||String.fromCharCode(36))+Math.round(n/1e3)+'k'; return (window.RRG_CCYSYM||String.fromCharCode(36))+num(n); }
 function fmtDate(iso){ if(!iso) return ''; var x=String(iso).slice(0,10).split('-'); if(x.length!==3) return String(iso).slice(0,10); return x[1]+'/'+x[2]; }
+function fmtDT(v){ if(!v) return ''; var s=String(v); var dOnly=/^\d{4}-\d{2}-\d{2}$/.test(s); var d=new Date(dOnly?(s+'T00:00:00'):s); if(isNaN(d.getTime())) return fmtDate(v); var base=(d.getMonth()+1)+'/'+d.getDate(); if(dOnly) return base; var h=d.getHours(),mi=String(d.getMinutes()).padStart(2,'0'),ap=h<12?'a':'p',h12=(h%12)||12; return base+' '+h12+':'+mi+ap; }
 function dcol(i){ return ['#16346e','#2c5c8f','#12a594','#c9812a','#DA2B1F','#6d7c9c','#4a5cd0','#3a7a5e'][i%8]; }
 function kacc(i){ return ['#2c5c8f','#16346e','#c9812a','#12a594','#6d7c9c','#1f8a5b','#4a5cd0','#DA2B1F'][i%8]; }
 var MODS=[['Contacts','👥'],['Companies','🏢'],['Listings','🍽'],['Agreements','✍'],['Marketing','📣'],['Accounting','＄'],['Data Rooms','🔐'],['Consult','◉']];
@@ -125,7 +126,7 @@ function render(){
   var funnel=stages.map(function(s){ return '<div class="stage"><div class="nm">'+esc(s.name)+'</div><div class="track"><div class="fill" data-w="'+Math.round(s.count/mxS*100)+'">'+s.count+'</div></div><div class="ct">'+s.count+' deals</div></div>'; }).join('');
   var mkts=(dd.markets&&dd.markets.length)?dd.markets:[{label:'—',value:0}]; var mxM=Math.max.apply(null,mkts.map(function(m){return m.value;}).concat([1]));
   var markets=mkts.map(function(m,i){ return '<div class="bar"><div class="top"><span>'+esc(m.label)+'</span><b>'+m.value+'</b></div><div class="tk"><i data-w="'+Math.round(m.value/mxM*100)+'%" style="background:'+dcol(i)+'"></i></div></div>'; }).join('');
-  var acts=(dd.activity&&dd.activity.length)?dd.activity.map(function(a){ return '<div class="fitem"><span class="fico">•</span><span class="ftxt"><b>'+esc(a.who||'')+'</b> · '+esc(a.type||'')+(a.text?(' — '+esc(a.text)):'')+'</span><span class="ftime">'+esc(fmtDate(a.at))+'</span></div>'; }).join(''):SAMPLE_FEED.map(function(f){ return '<div class="fitem"><span class="fico">'+f[0]+'</span><span class="ftxt">'+f[1]+'</span><span class="ftime">'+f[2]+'</span></div>'; }).join('');
+  var acts=(dd.activity&&dd.activity.length)?dd.activity.map(function(a){ return '<div class="fitem"><span class="fico">•</span><span class="ftxt"><b>'+esc(a.who||'')+'</b> · '+esc(a.type||'')+(a.text?(' — '+esc(a.text)):'')+'</span><span class="ftime">'+esc(fmtDT(a.at))+'</span></div>'; }).join(''):SAMPLE_FEED.map(function(f){ return '<div class="fitem"><span class="fico">'+f[0]+'</span><span class="ftxt">'+f[1]+'</span><span class="ftime">'+f[2]+'</span></div>'; }).join('');
   var ag=agent();
   var bft=''; try{ if(dd._booted) bft=new Date(dd._booted).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}); }catch(e){}
   document.getElementById('root').innerHTML=''
