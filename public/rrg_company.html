@@ -38,7 +38,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .actadd{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;}
 .actadd select,.actadd input[type=date]{border:1px solid #d5dbe6;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;}
 .actadd textarea{flex:1;min-width:150px;resize:vertical;font:inherit;font-size:13px;padding:8px 10px;border:1px solid #d5dbe6;border-radius:8px;line-height:1.4;}
-.rail .card .ch .rchev{background:none;border:none;color:#3f4b63;font-size:13px;font-weight:800;line-height:1;cursor:pointer;padding:2px 4px;margin-right:2px;transition:transform .15s;flex:none;}
+.rail .card .ch .rchev{background:none;border:none;color:#3f4b63;font-size:12px;font-weight:800;line-height:1;cursor:pointer;padding:2px 4px;margin-right:2px;transition:transform .15s;flex:none;}
 .rail .card .ch .rchev:hover{color:var(--navy);}
 .rail .card.railcollapsed .ch .rchev{transform:rotate(-90deg);} .rail .card .ch{gap:4px;} .rail .card .ch .rchev{margin-right:0;padding-left:2px;padding-right:3px;}
 .rail .card.railcollapsed > .cb, .rail .card.railcollapsed > .railbody{display:none;}
@@ -84,7 +84,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .rrempty{font-size:12.5px;color:var(--soft);padding:8px 20px;}
 @media(max-width:840px){.wrap{grid-template-columns:1fr;}}
 .card{background:#fff;border:1px solid #e9edf3;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.05);overflow:hidden;margin-bottom:12px;}
-/*rrg-accordion-css*/.card > .ch{cursor:pointer;} .card > .ch .rrgchev{margin-left:8px;color:#3f4b63;font-size:13px;font-weight:800;transition:transform .15s;flex:none;} .card.collapsed > .ch .rrgchev{transform:rotate(-90deg);} .card.collapsed > .cb{display:none;}
+/*rrg-accordion-css*/.card > .ch{cursor:pointer;} .card > .ch .rrgchev{margin-left:8px;color:#3f4b63;font-size:12px;font-weight:800;transition:transform .15s;flex:none;} .card.collapsed > .ch .rrgchev{transform:rotate(-90deg);} .card.collapsed > .cb{display:none;}
 .rail .rrgchev{display:none!important;}
 .ch{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid #eef1f6;} .ch b{color:var(--ink);font-size:15px;font-weight:600;} .ch span{color:var(--soft);font-size:12.5px;font-weight:500;} .rail .card .ch b{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);} .rail .card .ch span{font-size:11px;font-weight:600;}
 .addbtn{margin-left:auto;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:8px 15px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
@@ -92,7 +92,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .findcard{background:#fff8f7;border-bottom:1px solid #f3d9d5;}
 .findhd{font-weight:800;color:var(--navy);font-size:13.5px;margin:2px 0 4px;}
 .findcard > .findhd{cursor:pointer;display:flex;align-items:center;gap:8px;}
-.findhd .fchev{margin-left:auto;color:#3f4b63;font-size:13px;font-weight:800;transition:transform .15s;flex:none;}
+.findhd .fchev{margin-left:auto;color:#3f4b63;font-size:12px;font-weight:800;transition:transform .15s;flex:none;}
 .findcard.collapsed .fchev{transform:rotate(-90deg);}
 .findcard.collapsed > *:not(.findhd){display:none!important;}
 .findsub{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px;max-width:640px;}
@@ -120,23 +120,25 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 /* concept blocks */
 .cptblock{margin:0 -20px;padding:0;border-top:1px solid var(--line);}
 .cptblock:first-child{border-top:none;}
-.cptbar{display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:16px 22px;background:#fff;cursor:pointer;transition:background .12s;position:relative;}
+.cptbar{display:flex;align-items:center;gap:11px;padding:10px 20px;background:#fff;cursor:pointer;transition:background .12s;position:relative;}
 .cptbar:hover{background:#f8fafc;}
 .cptblock.open>.cptbar{background:#f8fafc;}
-.cptchev{color:#3f4b63;font-size:13px;font-weight:800;flex:none;transition:transform .15s;} .cptblock.open .cptchev{transform:rotate(90deg);}
-.cptlocs{display:none;} .cptblock.open .cptlocs{display:block;background:#fcfdff;}
-.cptlocs .crow{padding-left:58px;position:relative;}
-.cptlocs .crow:before{content:"";position:absolute;left:34px;top:0;bottom:0;width:2px;background:#e6ebf5;}
+.cptchev{color:#3f4b63;font-size:12px;font-weight:800;flex:none;width:10px;text-align:center;transition:transform .15s;} .cptblock.open .cptchev{transform:rotate(90deg);}
+.cptlocs{display:none;} .cptblock.open .cptlocs{display:block;background:#fbfcfe;border-top:1px solid #eef1f6;}
+.cptlocs .crow{padding-left:53px;padding-top:8px;padding-bottom:8px;position:relative;}
+.cptlocs .crow .cname{font-size:12.5px;color:#5b6472;font-weight:400;}
+.cptlocs .crow:before{content:"";position:absolute;left:31px;top:0;bottom:0;width:2px;background:#e2e8f2;}
 .cptlocs .cptempty{padding-left:58px;}
 .commblock .cptbar{background:#fff8f1;} .commblock .cptbar:hover{background:#fdf1e4;}
 .expall{color:#23496f;font-weight:700;cursor:pointer;} .expall:hover{text-decoration:underline;}
-.cptname{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;flex:1;}
-.cptnm{font-weight:500;color:var(--ink);font-size:14px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;} .cptnm.cptnameedit{cursor:pointer;} .cptnm.cptnameedit:hover{text-decoration:underline;text-underline-offset:2px;}
+.cptname{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1;}
+.cptnm{font-weight:600;color:var(--ink);font-size:13.5px;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;} .cptnm.cptnameedit{cursor:pointer;} .cptnm.cptnameedit:hover{text-decoration:underline;text-underline-offset:2px;}
+.cptsub{font-size:11.5px;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
 .cptcount{color:#9aa3b5;font-size:12px;font-weight:600;letter-spacing:0;white-space:nowrap;} .cptcount::before{content:"·";margin-right:7px;color:#cfd6e2;}
 .cpttype{font-size:12px;font-weight:600;color:#9aa3b5;white-space:nowrap;} .cpttype::before{content:"·";margin-right:7px;color:#cfd6e2;}
 .cptmkts{font-size:11px;color:var(--muted);font-weight:600;flex-basis:100%;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .cptsite{font-size:11.5px;color:#23496f;text-decoration:none;font-weight:700;}
-.cptlogo{width:30px;height:30px;border-radius:7px;object-fit:contain;background:#fff;border:1px solid var(--line);flex:none;padding:3px;}
+.cptlogo{width:28px;height:28px;border-radius:6px;object-fit:contain;background:#fff;border:1px solid var(--line);flex:none;padding:3px;}
 .cptlogo-mono{display:flex;align-items:center;justify-content:center;color:#23496f;background:#eef2fb;font-weight:800;font-size:12px;}
 .locthumb-logo{background:#fff;border:1px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden;} .locthumb-logo img{max-width:100%;max-height:100%;object-fit:contain;}
 .tenpill{display:inline-block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:1px 7px;border-radius:999px;}
@@ -457,15 +459,15 @@ function render(){
   function conceptBlock(cpt){
     var mine=LOCATIONS.filter(function(l){ return (l.concept||'')===cpt.name && !l.commissary; });
     var tp=[]; if(cpt.conceptType) tp.push(esc(cpt.conceptType)); if(cpt.pricePoint) tp.push(esc(cpt.pricePoint));
-    var tpbadge=tp.length?('<span class="cpttype">'+tp.join(' · ')+'</span>'):'';
-    var mkts=(cpt.markets&&cpt.markets.length)?('<span class="cptmkts">'+cpt.markets.map(esc).join(' · ')+'</span>'):'';
+    var _mparts=tp.slice(); if(cpt.markets&&cpt.markets.length) _mparts.push(cpt.markets.map(esc).join(', ')); _mparts.push(mine.length+' location'+(mine.length===1?'':'s'));
+    var metaLine='<div class="cptsub">'+_mparts.join(' · ')+'</div>';
     var rows=mine.length?mine.map(locNameRow).join(''):'<div class="cptempty">No locations yet — add one with <b>+ Location</b>, or open <b>Edit</b> to find them from the web.</div>';
     var open=!!EXPANDED[cpt.id];
     var mletter=(cpt.name||'?').charAt(0).toUpperCase();
     var mono='<span class="cptlogo cptlogo-mono">'+esc(mletter)+'</span>';
     var logo=cpt.logo?('<img class="cptlogo" src="'+esc(cpt.logo)+'" alt="" data-mono="'+esc(mletter)+'" onerror="cptLogoFail(this)">'):mono;
-    return '<div class="cptblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="'+esc(cpt.id)+'"><span class="cptchev">▶</span>'+logo
-      + '<div class="cptname"><span class="cptnm cptnameedit" data-editc="'+esc(cpt.id)+'" title="Click to edit this concept">'+esc(cpt.name)+'</span><span class="cptcount">'+mine.length+' loc'+(mine.length===1?'':'s')+'</span>'+tpbadge+mkts+'</div>'
+    return '<div class="cptblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="'+esc(cpt.id)+'"><span class="cptchev">▸</span>'+logo
+      + '<div class="cptname"><div class="cptnm cptnameedit" data-editc="'+esc(cpt.id)+'" title="Click to edit this concept">'+esc(cpt.name)+'</div>'+metaLine+'</div>'
       + '<div class="cptacts"><button class="mini" data-addloc="'+esc(cpt.id)+'">+ Location</button>'+(HASMAPS?'<button class="mini" data-photos="'+esc(cpt.name)+'">Photos</button>':'')+'<button class="mini" data-editc="'+esc(cpt.id)+'">Edit</button><button class="mini danger" data-rmc="'+esc(cpt.id)+'" title="Remove concept">\u2212 Remove</button></div></div>'
       + '<div class="cptlocs">'+rows+'</div></div>';
   }
@@ -475,14 +477,14 @@ function render(){
   function commissaryBlock(){
     var open=!!EXPANDED['__commissary__'];
     var rows=commissaries.map(locNameRow).join('');
-    return '<div class="cptblock commblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="__commissary__"><span class="cptchev">▶</span><span class="cptlogo cptlogo-mono" style="background:#fdf0e6;color:#b5641a">⛏</span><div class="cptname">Commissaries &amp; shared kitchens <span class="cptcount">'+commissaries.length+'</span><span class="cptmkts">serve across concepts</span></div><div class="cptacts"><button class="mini" data-addcomm="1">+ Commissary</button></div></div><div class="cptlocs">'+rows+'</div></div>';
+    return '<div class="cptblock commblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="__commissary__"><span class="cptchev">▸</span><span class="cptlogo cptlogo-mono" style="background:#fdf0e6;color:#b5641a">⛏</span><div class="cptname">Commissaries &amp; shared kitchens <span class="cptcount">'+commissaries.length+'</span><span class="cptmkts">serve across concepts</span></div><div class="cptacts"><button class="mini" data-addcomm="1">+ Commissary</button></div></div><div class="cptlocs">'+rows+'</div></div>';
   }
   var locs;
   if(!CONCEPTS.length && !LOCATIONS.length){ locs='<div class="empty">No concepts yet. A company runs one or more concepts (brands) — e.g. a group with Cane Rosso, Zoli’s, and Thunderbird. Add a concept, then add or auto-find its locations.</div>'; }
   else {
     locs=CONCEPTS.map(conceptBlock).join('');
     if(commissaries.length) locs+=commissaryBlock();
-    if(orphans.length){ var oOpen=!!EXPANDED['__orphan__']; locs+='<div class="cptblock'+(oOpen?' open':'')+'"><div class="cptbar" data-cpt="__orphan__"><span class="cptchev">▶</span><div class="cptname">Unassigned <span class="cptcount">'+orphans.length+' loc'+(orphans.length===1?'':'s')+'</span></div></div><div class="cptlocs">'+orphans.map(locNameRow).join('')+'</div></div>'; }
+    if(orphans.length){ var oOpen=!!EXPANDED['__orphan__']; locs+='<div class="cptblock'+(oOpen?' open':'')+'"><div class="cptbar" data-cpt="__orphan__"><span class="cptchev">▸</span><div class="cptname">Unassigned <span class="cptcount">'+orphans.length+' loc'+(orphans.length===1?'':'s')+'</span></div></div><div class="cptlocs">'+orphans.map(locNameRow).join('')+'</div></div>'; }
     var allOpen=CONCEPTS.length&&CONCEPTS.every(function(c){return EXPANDED[c.id];});
     locs+='<div class="cpttotal"><span class="expall" id="cptExpand">'+(allOpen?'Collapse all':'Expand all')+'</span></div>';
   }
