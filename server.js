@@ -11244,6 +11244,13 @@ app.post('/api/files', express.json({ limit: '28mb' }), (req, res) => {
     note: String(b.note||'').slice(0,400),
     by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdBy: (req.user && req.user.username) || '', uploadedAt: new Date().toISOString() };
   files.push(rec); saveUserFiles(files);
+  // Record the upload as an activity on the linked contact and/or company.
+  try {
+    const _fnote = 'Uploaded file: ' + (rec.name || orig) + (rec.docType ? (' · ' + rec.docType) : '');
+    const _by = (req.user && req.user.name) || '', _byUser = (req.user && req.user.username) || '';
+    if (_pe) { const ppl = loadPeople(); const pp = ppl.find(x => x.id === _pe); if (pp) { logActivity(pp, 'File', _fnote, { by: _by, byUser: _byUser, auto: true }); savePeople(ppl); } }
+    if (_co) { const cos = loadCompanies(); const cc = cos.find(x => x.id === _co); if (cc) { logActivity(cc, 'File', _fnote, { by: _by, byUser: _byUser, auto: true }); saveCompanies(cos); } }
+  } catch (e) {}
   res.json({ ok:true, file: rec });
 });
 app.get('/api/files/:id/download', (req, res) => {

@@ -371,7 +371,7 @@ function loadDocsCo(){
   if(!window.RRGDocs) return;
   if(_docsInitCo){ RRGDocs.reload(); return; }
   _docsInitCo=true;
-  RRGDocs.init({ param:'companyId', id:ID, name:((C&&C.name)||''), onChange:function(){ refreshDocListCo(); refreshFilesListCo(); } });
+  RRGDocs.init({ param:'companyId', id:ID, name:((C&&C.name)||''), onChange:function(){ refreshDocListCo(); refreshFilesListCo(); if(!DIRTY){ fetch('/api/company/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ACTIVITY=j.activity||ACTIVITY; render(); } }).catch(function(){}); } } });
 }
 document.addEventListener('click',function(e){ if(!e.target||!e.target.closest) return; var b=e.target.closest('#filesAddBtn'); if(b){ e.preventDefault(); e.stopPropagation(); if(window.RRGDocs) RRGDocs.upload(); } });
 // When an inline form opens inside a card, make sure that card is expanded —
@@ -567,7 +567,7 @@ function render(){
 }
 function fmtD(d){ if(!d) return ''; var p=String(d).split('-'); if(p.length===3) return (+p[1])+'/'+(+p[2])+'/'+String(p[0]).slice(2); return d; }
 function agoCo(iso){ if(!iso) return ''; var t=Date.parse(iso); if(isNaN(t)) return ''; var s=Math.max(0,(Date.now()-t)/1000); if(s<60) return 'just now'; var m=Math.floor(s/60); if(m<60) return m+'m ago'; var h=Math.floor(m/60); if(h<24) return h+'h ago'; var d=Math.floor(h/24); if(d<30) return d+'d ago'; try{ return new Date(t).toLocaleDateString(); }catch(e){ return ''; } }
-var ACT_ICON={'Email':'✉','Call':'☎','Note':'✎','To-Do':'◻','Task':'◻','Tour':'◈','Meeting':'▫','Text':'✆','Contact Added':'＋','Company Added':'★','BizBuySell Lead':'$'};
+var ACT_ICON={'Email':'✉','Call':'☎','Note':'✎','To-Do':'◻','Task':'◻','Tour':'◈','Meeting':'▫','Text':'✆','Contact Added':'＋','Company Added':'★','BizBuySell Lead':'$','File':'📎'};
 function activityRowCo(a){ var ic=ACT_ICON[a.type]||'•'; var who=a.personName?('<a class="aln" href="./rrg_person.html?id='+encodeURIComponent(a.personId)+'">'+esc(a.personName)+'</a>'):''; var _stamp=coDateTime(a.at); var _ago=agoCo(a.at); var _when=_stamp?('<span title="'+esc(_ago)+'">'+esc(_stamp)+'</span>'):''; var meta=[who,esc(a.by||''),_when].filter(Boolean).join(' · '); var del=(a.companyLevel&&a.id&&a.id!=='co_created')?('<button class="actdel" data-coactdel="'+esc(a.id)+'" title="Delete">×</button>'):''; return '<div class="actrow"><span class="actic">'+ic+'</span><div class="actbd"><div class="acttop"><span class="acttype">'+esc(a.type||'Note')+'</span>'+(a.note?'<span class="actnote">'+esc(a.note)+'</span>':'')+'</div>'+(meta?'<div class="actmeta">'+meta+'</div>':'')+'</div>'+del+'</div>'; }
 function pad2(n){ return String(n).length<2?('0'+n):String(n); }
 function coDateShort(iso){ if(!iso) return '—'; var t=Date.parse(iso); if(isNaN(t)) { var p=String(iso).split('-'); if(p.length===3) return (+p[1])+'/'+(+p[2])+'/'+p[0]; return '—'; } var d=new Date(t); return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }

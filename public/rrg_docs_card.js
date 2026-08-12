@@ -120,48 +120,56 @@
 
   function upload(){
     styles();
-    var picked=null;
+    var pickedFiles=[];
     var mask=document.createElement('div'); mask.className='dmask';
     mask.innerHTML='<div class="dbox" role="dialog" aria-modal="true">'
-      +'<h4>Upload a document</h4>'
+      +'<h4>Upload documents</h4>'
       +'<div class="dbody">'
-      +'<div class="ddrop" id="_dDrop">Click to choose a file — PDF, Word, Excel, PowerPoint, image, TXT, CSV or ZIP (max 25 MB)</div>'
-      +'<input type="file" id="_dFile" style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.zip">'
-      +'<label>Document name</label><input type="text" id="_dName" placeholder="Defaults to the file name" maxlength="160">'
-      +'<label>Document type</label><select id="_dType">'+DOCTYPES.map(function(t){ return '<option>'+esc(t)+'</option>'; }).join('')+'</select>'
+      +'<div class="ddrop" id="_dDrop">Click to choose one or more files — PDF, Word, Excel, PowerPoint, image, TXT, CSV or ZIP (max 25 MB each)</div>'
+      +'<input type="file" id="_dFile" multiple style="display:none" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.png,.jpg,.jpeg,.gif,.webp,.txt,.csv,.zip">'
+      +'<div id="_dList" style="display:none;max-height:150px;overflow:auto;margin:2px 0 4px"></div>'
+      +'<label id="_dNameLbl">Document name <span style="font-weight:400;color:#8a93a8;font-size:11px">(single file only)</span></label><input type="text" id="_dName" placeholder="Defaults to the file name" maxlength="160">'
+      +'<label>Document type <span style="font-weight:400;color:#8a93a8;font-size:11px">(applies to all)</span></label><select id="_dType">'+DOCTYPES.map(function(t){ return '<option>'+esc(t)+'</option>'; }).join('')+'</select>'
       +'<label>Filed under</label><div><span class="dchip">'+esc(SCOPE.name||'this record')+'</span></div>'
-      +'<label>Notes</label><textarea id="_dNote" maxlength="400" placeholder="Anything worth remembering about this document…"></textarea>'
+      +'<label>Notes <span style="font-weight:400;color:#8a93a8;font-size:11px">(applies to all)</span></label><textarea id="_dNote" maxlength="400" placeholder="Anything worth remembering about these documents…"></textarea>'
       +'</div>'
       +'<div class="dfoot"><span id="_dMsg" style="font-size:12px;color:#6b7488;margin-right:auto"></span><button type="button" class="dbtn ghost" id="_dCancel">Cancel</button><button type="button" class="dbtn" id="_dSave">Upload</button></div>'
       +'</div>';
     document.body.appendChild(mask);
-    var fi=mask.querySelector('#_dFile'), dp=mask.querySelector('#_dDrop'), msg=mask.querySelector('#_dMsg'), save=mask.querySelector('#_dSave');
+    var fi=mask.querySelector('#_dFile'), dp=mask.querySelector('#_dDrop'), msg=mask.querySelector('#_dMsg'), save=mask.querySelector('#_dSave'), listEl=mask.querySelector('#_dList'), nameInp=mask.querySelector('#_dName'), nameLbl=mask.querySelector('#_dNameLbl');
     function close(){ mask.remove(); }
+    function renderPicked(){
+      if(!pickedFiles.length){ dp.className='ddrop'; dp.textContent='Click to choose one or more files — PDF, Word, Excel, PowerPoint, image, TXT, CSV or ZIP (max 25 MB each)'; listEl.style.display='none'; listEl.innerHTML=''; nameInp.disabled=false; nameLbl.style.opacity=''; return; }
+      if(pickedFiles.length===1){ dp.className='ddrop has'; dp.textContent='✓ '+pickedFiles[0].name+' ('+fmtSize(pickedFiles[0].size)+') — click to change'; listEl.style.display='none'; listEl.innerHTML=''; nameInp.disabled=false; nameLbl.style.opacity=''; return; }
+      dp.className='ddrop has'; dp.textContent='✓ '+pickedFiles.length+' files selected — click to change';
+      listEl.style.display='block'; listEl.innerHTML=pickedFiles.map(function(f){ var big=f.size>25*1024*1024; return '<div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:3px 2px;border-bottom:1px solid #f0f3f8'+(big?';color:#b23a2c':';color:#5b6472')+'"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(f.name)+'</span><span style="flex:none;color:'+(big?'#b23a2c':'#8a93a8')+'">'+fmtSize(f.size)+(big?' · too big':'')+'</span></div>'; }).join('');
+      nameInp.disabled=true; nameInp.value=''; nameLbl.style.opacity='.5';
+    }
     dp.addEventListener('click',function(){ fi.click(); });
-    fi.addEventListener('change',function(){ var f=fi.files&&fi.files[0]; if(!f) return; picked=f; dp.className='ddrop has'; dp.textContent='✓ '+f.name+' ('+fmtSize(f.size)+')'; });
+    fi.addEventListener('change',function(){ pickedFiles=Array.prototype.slice.call(fi.files||[]); msg.textContent=''; renderPicked(); });
     mask.querySelector('#_dCancel').addEventListener('click',close);
     mask.addEventListener('click',function(e){ if(e.target===mask) close(); });
+    function readFile(f){ return new Promise(function(res,rej){ var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''), i=s.indexOf(','); res(i>=0?s.slice(i+1):s); }; rd.onerror=function(){ rej(new Error('read')); }; rd.readAsDataURL(f); }); }
+    function uploadOne(f, useName){ return readFile(f).then(function(b64){ return fetch('/api/files',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      filename:f.name, dataB64:b64,
+      title:(useName?nameInp.value.trim():''),
+      docType:mask.querySelector('#_dType').value,
+      note:mask.querySelector('#_dNote').value.trim(),
+      relatesToType:(SCOPE.param==='companyId'?'company':'contact'), relatesToId:SCOPE.id, relatesToName:(SCOPE.name||'')
+    })}).then(function(r){ return r.json(); }); }); }
     save.addEventListener('click',function(){
-      if(!picked){ msg.textContent='Choose a file first.'; return; }
-      if(picked.size>25*1024*1024){ msg.textContent='File too large (max 25 MB).'; return; }
-      save.disabled=true; msg.textContent='Uploading…';
-      var rd=new FileReader();
-      rd.onload=function(){ var s=String(rd.result||''), i=s.indexOf(','), b64=(i>=0?s.slice(i+1):s);
-        fetch('/api/files',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-          filename:picked.name, dataB64:b64,
-          title:mask.querySelector('#_dName').value.trim(),
-          docType:mask.querySelector('#_dType').value,
-          note:mask.querySelector('#_dNote').value.trim(),
-          relatesToType:(SCOPE.param==='companyId'?'company':'contact'), relatesToId:SCOPE.id, relatesToName:(SCOPE.name||'')
-        })}).then(function(r){ return r.json(); }).then(function(j){
-          save.disabled=false;
-          if(j&&j.ok){ close(); load(); } else { msg.textContent=(j&&j.error)||'Upload failed.'; }
-        }).catch(function(){ save.disabled=false; msg.textContent='Upload failed — try again.'; });
-      };
-      rd.onerror=function(){ save.disabled=false; msg.textContent='Could not read that file.'; };
-      rd.readAsDataURL(picked);
+      if(!pickedFiles.length){ msg.textContent='Choose at least one file first.'; return; }
+      var tooBig=pickedFiles.filter(function(f){ return f.size>25*1024*1024; });
+      if(tooBig.length){ msg.textContent=(tooBig.length===1?('“'+tooBig[0].name+'” is'):(tooBig.length+' files are'))+' over 25 MB — remove '+(tooBig.length===1?'it':'them')+' and try again.'; return; }
+      save.disabled=true;
+      var single=(pickedFiles.length===1), total=pickedFiles.length, done=0, failed=0;
+      (function next(i){
+        if(i>=total){ save.disabled=false; if(failed){ msg.textContent=done+' uploaded, '+failed+' failed.'; if(done) load(); } else { close(); load(); } return; }
+        msg.textContent='Uploading '+(i+1)+' of '+total+'…';
+        uploadOne(pickedFiles[i], single).then(function(j){ if(j&&j.ok) done++; else failed++; }).catch(function(){ failed++; }).then(function(){ next(i+1); });
+      })(0);
     });
-    setTimeout(function(){ try{ mask.querySelector('#_dName').focus(); }catch(e){} },40);
+    setTimeout(function(){ try{ dp.focus(); }catch(e){} },40);
   }
 
   window.RRGDocs={ init:init, reload:load, count:count, filesCount:filesCount, ready:ready, rowsHtml:rowsHtml, filesRowsHtml:filesRowsHtml, upload:upload, menu:menu, open:open, icon:function(k){ return KICON[k]||KICON.file; } };
