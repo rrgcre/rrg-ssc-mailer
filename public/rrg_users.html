@@ -307,9 +307,9 @@ function wire(){
       .catch(function(){ m.textContent='Failed'; m.className='msg err'; });
   };
   var acctReset=document.getElementById('acctReset');
-  if(acctReset) acctReset.onclick=function(){
+  if(acctReset) acctReset.onclick=async function(){
     var m=document.getElementById('acctMsg');
-    var p=prompt('New password for '+u.username+' (min 6):'); if(!p) return;
+    var p=await rrgPrompt('New password for '+u.username+' (min 6):'); if(!p) return;
     m.textContent='Resetting…'; m.className='msg';
     post('/api/admin/reset',{username:u.username,password:p}).then(function(j){ if(j&&j.ok){ m.textContent='Password reset for '+u.username+' ✓'; m.className='msg ok'; } else { m.textContent=(j&&j.error)||'Failed'; m.className='msg err'; } });
   };
@@ -319,9 +319,9 @@ function wire(){
     post('/api/admin/toggle',{username:u.username,disabled:(u.disabled?'0':'1')}).then(function(j){ if(j&&j.ok){ m.textContent='Saved ✓'; m.className='msg ok'; loadData(); } else { m.textContent=(j&&j.error)||'Failed'; m.className='msg err'; } });
   };
   var acctRemove=document.getElementById('acctRemove');
-  if(acctRemove) acctRemove.onclick=function(){
+  if(acctRemove) acctRemove.onclick=async function(){
     var m=document.getElementById('acctMsg');
-    if(!confirm('Remove '+u.username+' completely? Disabling is usually the safer move.')) return;
+    if(!await rrgConfirm('Remove '+u.username+' completely? Disabling is usually the safer move.')) return;
     m.textContent='Removing…'; m.className='msg';
     post('/api/admin/remove',{username:u.username}).then(function(j){ if(j&&j.ok){ OPEN=null; loadData(); } else { m.textContent=(j&&j.error)||'Failed'; m.className='msg err'; } });
   };

@@ -404,7 +404,7 @@ function agreementsCard(){
 }
 function filesCount(){ return (window.RRGDocs&&RRGDocs.filesCount&&RRGDocs.filesCount())||0; }
 function filesListHtml(){ var rows=(window.RRGDocs?RRGDocs.filesRowsHtml():''); if(rows) return rows; return '<div class="rrempty">'+((window.RRGDocs&&RRGDocs.ready())?'No files uploaded for this contact yet. Use + to add a lease, P&L, or other document.':'Loading files\u2026')+'</div>'; }
-function filesCard(){ return '<div class="card"><div class="ch"><b>Files</b><span id="filesCount">'+filesCount()+'</span><span style="margin-left:auto;display:flex;gap:6px"><button type="button" class="mfadd" id="filesAddBtn" title="Upload a file (max 25 MB)" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></span></div><div class="cb"><div class="agrlist" id="filesList">'+filesListHtml()+'</div></div></div>'; }
+function filesCard(){ var _fn=((typeof P!=='undefined'&&P)?(String(P.firstName||'').trim()||String(P.name||'').trim().split(/\s+/)[0]||''):''); var _lbl=_fn?(esc(_fn)+'’s Files'):'Files'; return '<div class="card"><div class="ch"><b>'+_lbl+'</b><span id="filesCount">'+filesCount()+'</span><span style="margin-left:auto;display:flex;gap:6px"><button type="button" class="mfadd" id="filesAddBtn" title="Upload a file (max 25 MB)" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></span></div><div class="cb"><div class="agrlist" id="filesList">'+filesListHtml()+'</div></div></div>'; }
 function refreshFilesList(){ var host=document.getElementById('filesList'); if(host) host.innerHTML=filesListHtml(); var c=document.getElementById('filesCount'); if(c) c.textContent=String(filesCount()); }
 var _docsInit=false;
 function loadDocs(){
@@ -443,7 +443,7 @@ function openAgrView(a){
   ov.querySelector('#agrvClose').addEventListener('click',close);
   ov.querySelector('#agrvDone').addEventListener('click',close);
   ov.querySelector('#agrvEdit').addEventListener('click',function(){ close(); openAgrForm(a); });
-  var _cs=ov.querySelector('#agrvCancelSig'); if(_cs) _cs.addEventListener('click',function(){ if(!confirm('Cancel this agreement? It will be marked Canceled and can no longer be signed.')) return; fetch('/api/agreements/'+encodeURIComponent(a.id)+'/cancel',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ close(); load(); } else alert((j&&j.error)||'Could not cancel.'); }); });
+  var _cs=ov.querySelector('#agrvCancelSig'); if(_cs) _cs.addEventListener('click',async function(){ if(!await rrgConfirm('Cancel this agreement? It will be marked Canceled and can no longer be signed.')) return; fetch('/api/agreements/'+encodeURIComponent(a.id)+'/cancel',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ close(); load(); } else alert((j&&j.error)||'Could not cancel.'); }); });
 }
 function openAgrForm(a){
   var f=document.getElementById('agrForm'); f.removeAttribute('hidden'); PENDING_AGR_FILE=null;

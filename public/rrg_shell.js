@@ -96,6 +96,60 @@
       });
     }
     window.rrgConfirm = rrgConfirm;
+
+    // Branded prompt modal — replaces native prompt() (which leaked the backend domain).
+    // Resolves to the entered string, or null on cancel (matching native prompt semantics).
+    function rrgPrompt(message, def, opts){
+      opts = opts || {};
+      return new Promise(function(resolve){
+        try{
+          var msg = String(message==null?'':message);
+          var appName=''; try{ appName = window.__rrgAppName || localStorage.getItem('rrg_appname') || ''; }catch(e){}
+          var title = opts.title || appName || 'Enter a value';
+          if(!document.getElementById('rrgprompt-css')){
+            var st=document.createElement('style'); st.id='rrgprompt-css';
+            st.textContent='#rrgprm-ov{position:fixed;inset:0;background:rgba(6,14,32,.5);z-index:3000;display:flex;align-items:center;justify-content:center;padding:20px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;opacity:0;transition:opacity .14s;}'
+              +'#rrgprm-ov.show{opacity:1;}'
+              +'#rrgprm-bx{background:#fff;border:1px solid #dbe0e9;border-radius:6px;max-width:440px;width:100%;box-shadow:0 18px 44px rgba(0,0,0,.24);overflow:hidden;transform:translateY(8px) scale(.985);transition:transform .16s cubic-bezier(.2,.8,.2,1);}'
+              +'#rrgprm-ov.show #rrgprm-bx{transform:none;}'
+              +'#rrgprm-bx .h{font-weight:700;color:#0b1a38;font-size:14px;padding:13px 20px;background:#f4f6f9;border-bottom:1px solid #dbe0e9;}'
+              +'#rrgprm-bx .m{color:#3a4560;font-size:13.5px;line-height:1.5;padding:16px 20px 8px;white-space:pre-wrap;}'
+              +'#rrgprm-bx .ipwrap{padding:0 20px 16px;}'
+              +'#rrgprm-bx input{width:100%;box-sizing:border-box;border:1px solid #c4ccda;border-radius:4px;padding:9px 11px;font:inherit;font-size:13.5px;color:#1f2a3d;}'
+              +'#rrgprm-bx input:focus{outline:none;border-color:#2c5c8f;}'
+              +'#rrgprm-bx .b{display:flex;gap:9px;justify-content:flex-end;padding:12px 20px;background:#f4f6f9;border-top:1px solid #dbe0e9;}'
+              +'#rrgprm-bx button{font:inherit;font-size:13px;font-weight:600;border-radius:3px;padding:9px 16px;cursor:pointer;border:1px solid #c4ccda;background:#fff;color:#33415c;}'
+              +'#rrgprm-bx button:hover{background:#eef2f7;}'
+              +'#rrgprm-bx button.ok{border:none;background:#0b1a38;color:#fff;}'
+              +'#rrgprm-bx button.ok:hover{filter:brightness(1.12);}';
+            document.head.appendChild(st);
+          }
+          var ov=document.createElement('div'); ov.id='rrgprm-ov';
+          var bx=document.createElement('div'); bx.id='rrgprm-bx';
+          var h=document.createElement('div'); h.className='h'; h.textContent=title;
+          var m=document.createElement('div'); m.className='m'; m.textContent=msg;
+          var iw=document.createElement('div'); iw.className='ipwrap';
+          var inp=document.createElement('input'); inp.type=opts.password?'password':'text'; inp.value=(def==null?'':String(def)); if(opts.placeholder) inp.placeholder=opts.placeholder;
+          iw.appendChild(inp);
+          var b=document.createElement('div'); b.className='b';
+          var cancel=document.createElement('button'); cancel.type='button'; cancel.textContent=opts.cancelText||'Cancel';
+          var ok=document.createElement('button'); ok.type='button'; ok.className='ok'; ok.textContent=opts.okText||'OK';
+          b.appendChild(cancel); b.appendChild(ok);
+          bx.appendChild(h); bx.appendChild(m); bx.appendChild(iw); bx.appendChild(b); ov.appendChild(bx);
+          document.body.appendChild(ov);
+          requestAnimationFrame(function(){ ov.classList.add('show'); });
+          var done=false;
+          function close(val){ if(done) return; done=true; ov.classList.remove('show'); document.removeEventListener('keydown',onKey,true); setTimeout(function(){ if(ov.parentNode) ov.parentNode.removeChild(ov); },160); resolve(val); }
+          function onKey(e){ if(e.key==='Escape'){ e.preventDefault(); close(null); } else if(e.key==='Enter'){ e.preventDefault(); close(inp.value); } }
+          cancel.addEventListener('click',function(){ close(null); });
+          ok.addEventListener('click',function(){ close(inp.value); });
+          ov.addEventListener('click',function(e){ if(e.target===ov) close(null); });
+          document.addEventListener('keydown',onKey,true);
+          setTimeout(function(){ try{ inp.focus(); inp.select(); }catch(e){} },30);
+        }catch(e){ resolve(null); }
+      });
+    }
+    window.rrgPrompt = rrgPrompt;
   } catch (e) {}
 
   // Global phone formatting — any phone field, 10 digits -> (xxx) xxx-xxxx

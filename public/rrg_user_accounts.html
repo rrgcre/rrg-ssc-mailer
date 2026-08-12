@@ -146,9 +146,9 @@ function wire(){
         .catch(function(){ m.textContent='Failed'; });
     };
   }; });
-  document.querySelectorAll('[data-reset]').forEach(function(b){ b.onclick=function(){ var un=b.getAttribute('data-reset'); var p=prompt('New password for '+un+' (min 6):'); if(!p) return; m.textContent='Resetting…'; post('/api/admin/reset',{username:un,password:p}).then(function(j){ m.textContent=j.ok?('Password reset for '+un+' ✓'):(j.error||'Failed'); }); }; });
+  document.querySelectorAll('[data-reset]').forEach(function(b){ b.onclick=async function(){ var un=b.getAttribute('data-reset'); var p=await rrgPrompt('New password for '+un+' (min 6):'); if(!p) return; m.textContent='Resetting…'; post('/api/admin/reset',{username:un,password:p}).then(function(j){ m.textContent=j.ok?('Password reset for '+un+' ✓'):(j.error||'Failed'); }); }; });
   document.querySelectorAll('[data-toggle]').forEach(function(b){ b.onclick=function(){ var un=b.getAttribute('data-toggle'); m.textContent='Saving…'; post('/api/admin/toggle',{username:un,disabled:b.getAttribute('data-dis')}).then(function(j){ if(j.ok){ m.textContent='Saved ✓'; load(); } else m.textContent=j.error||'Failed'; }); }; });
-  document.querySelectorAll('[data-remove]').forEach(function(b){ b.onclick=function(){ var un=b.getAttribute('data-remove'); if(!confirm('Remove '+un+' completely? Disabling is usually the safer move.')) return; m.textContent='Removing…'; post('/api/admin/remove',{username:un}).then(function(j){ if(j.ok){ m.textContent='Removed ✓'; load(); } else m.textContent=j.error||'Failed'; }); }; });
+  document.querySelectorAll('[data-remove]').forEach(function(b){ b.onclick=async function(){ var un=b.getAttribute('data-remove'); if(!await rrgConfirm('Remove '+un+' completely? Disabling is usually the safer move.')) return; m.textContent='Removing…'; post('/api/admin/remove',{username:un}).then(function(j){ if(j.ok){ m.textContent='Removed ✓'; load(); } else m.textContent=j.error||'Failed'; }); }; });
 }
 function addUser(f){
   var m=document.getElementById('addmsg'); m.textContent='Adding…';

@@ -233,8 +233,8 @@ function renderFormsList(){
     +'<p style="margin:0 0 12px;font-size:12.5px;color:var(--dim)">Every questionnaire you’ve built. Edit them here, or use “Build a new questionnaire” above.</p>'
     +'<table class="ftbl"><thead><tr><th>Name</th><th>Call type</th><th>Questions</th><th></th></tr></thead><tbody>'+rows+'</tbody></table></div></div>';
 }
-function delForm(id,name){
-  if(!confirm('Delete the questionnaire \u201c'+name+'\u201d?\n\nThis removes it and unassigns it from any call type. This cannot be undone.')) return;
+async function delForm(id,name){
+  if(!await rrgConfirm('Delete the questionnaire \u201c'+name+'\u201d?\n\nThis removes it and unassigns it from any call type. This cannot be undone.')) return;
   fetch('/api/form/'+encodeURIComponent(id)+'/delete',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(j&&j.ok){ location.reload(); } else { alert((j&&j.error)||'Could not delete.'); }
   }).catch(function(){ alert('Network error \u2014 not deleted.'); });

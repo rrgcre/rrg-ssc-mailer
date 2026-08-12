@@ -89,7 +89,7 @@ function render(){
   body.innerHTML='<table><thead><tr><th>Listing</th><th>Market</th><th>Category</th><th>Guide</th><th>Status</th><th></th></tr></thead><tbody>'+rows.map(rowHtml).join('')+'</tbody></table>';
 }
 document.getElementById('seg').addEventListener('click',function(e){ var b=e.target.closest('button'); if(!b) return; FILTER=b.getAttribute('data-f'); this.querySelectorAll('button').forEach(function(x){ x.classList.toggle('on',x===b); }); render(); });
-document.getElementById('copyBtn').addEventListener('click',function(){ var u=PUBLIC_URL; if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(u).then(function(){toast('Public link copied ✓');}).catch(function(){prompt('Copy the public link:',u);}); } else { prompt('Copy the public link:',u); } });
+document.getElementById('copyBtn').addEventListener('click',function(){ var u=PUBLIC_URL; if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(u).then(function(){toast('Public link copied ✓');}).catch(function(){rrgPrompt('Copy the public link:',u);}); } else { rrgPrompt('Copy the public link:',u); } });
 fetch('/api/marketplace',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.ok){ document.getElementById('body').innerHTML='<div class="empty">Could not load listings.</div>'; return; }
   PUBLIC_URL=j.publicUrl||'/market'; document.getElementById('openBtn').href=PUBLIC_URL;

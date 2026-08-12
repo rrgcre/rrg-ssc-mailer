@@ -790,12 +790,12 @@ function postOffer(body,onok,onerr){
 function setRating(id,r){ var o=offerById(id); var next=(o&&o.rating===r)?'':r; postOffer({id:id,rating:next}); }
 async function acceptOffer(id){ if(!await rrgConfirm('Mark this offer ACCEPTED? Set the others to Rejected/Withdrawn separately if needed.')) return; postOffer({id:id,status:'Accepted'}); }
 async function rejectOffer(id){ if(!await rrgConfirm('Reject this offer?')) return; postOffer({id:id,status:'Rejected'}); }
-function counterOffer(id){
+async function counterOffer(id){
   var o=offerById(id)||{};
   var pre=(o.analysis&&o.analysis.suggestedCounter)||'';
-  var amt=prompt('Counter amount (leave blank to keep price):', (o.counter&&o.counter.amount)||'');
+  var amt=await rrgPrompt('Counter amount (leave blank to keep price):', (o.counter&&o.counter.amount)||'');
   if(amt===null) return;
-  var terms=prompt('Counter terms / note:', (o.counter&&o.counter.terms)||pre||'');
+  var terms=await rrgPrompt('Counter terms / note:', (o.counter&&o.counter.terms)||pre||'');
   if(terms===null) return;
   postOffer({id:id,status:'Countered',counter:{amount:amt.trim(),terms:terms.trim()}});
 }

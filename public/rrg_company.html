@@ -314,7 +314,7 @@ function openAgrViewCo(id){
   ov.addEventListener('click',function(e){ if(e.target===ov) close(); });
   ov.querySelector('#agrvClose').addEventListener('click',close);
   ov.querySelector('#agrvDone').addEventListener('click',close);
-  var _cs=ov.querySelector('#agrvCancelSig'); if(_cs) _cs.addEventListener('click',function(){ if(!confirm('Cancel this agreement? It will be marked Canceled and can no longer be signed.')) return; fetch('/api/agreements/'+encodeURIComponent(a.id)+'/cancel',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ close(); load(); } else alert((j&&j.error)||'Could not cancel.'); }); });
+  var _cs=ov.querySelector('#agrvCancelSig'); if(_cs) _cs.addEventListener('click',async function(){ if(!await rrgConfirm('Cancel this agreement? It will be marked Canceled and can no longer be signed.')) return; fetch('/api/agreements/'+encodeURIComponent(a.id)+'/cancel',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ close(); load(); } else alert((j&&j.error)||'Could not cancel.'); }); });
   var oc=ov.querySelector('#agrvOpenContact'); if(oc) oc.addEventListener('click',function(){ location.href='./rrg_person.html?id='+encodeURIComponent(a.personId); });
 }
 function agrEntryIcon(a){

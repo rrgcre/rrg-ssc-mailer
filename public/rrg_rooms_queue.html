@@ -134,7 +134,7 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function fmt(iso){ if(!iso) return ''; var d=new Date(iso); if(isNaN(d.getTime())) return ''; return (d.getMonth()+1)+'/'+d.getDate()+'/'+String(d.getFullYear()).slice(2); }
 var CTL=null, LINKS={}, USERS=[], ME=null, CONTACTS=[], CONTACTS_LOADED=false, LISTINGS=[], LISTINGS_LOADED=false;
 function toast(msg){ var t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(function(){ t.classList.remove('show'); },1400); }
-function copyLink(id){ var url=LINKS[id]||''; if(!url) return; function ok(){ toast('Buyer link copied ✓'); } if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(ok).catch(function(){ prompt('Copy the buyer link:', url); }); } else { prompt('Copy the buyer link:', url); } }
+function copyLink(id){ var url=LINKS[id]||''; if(!url) return; function ok(){ toast('Buyer link copied ✓'); } if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(url).then(ok).catch(function(){ rrgPrompt('Copy the buyer link:', url); }); } else { rrgPrompt('Copy the buyer link:', url); } }
 function buyerView(id){ var url=LINKS[id]||''; if(!url){ url='./rrg_room.html?room='+encodeURIComponent(id); window.open(url,'_blank','noopener'); return; } url += (url.indexOf('?')>=0?'&':'?')+'preview=1'; window.open(url,'_blank','noopener'); }
 function newRoom(){
   var m=document.getElementById('newRoomModal'); if(!m) return;
