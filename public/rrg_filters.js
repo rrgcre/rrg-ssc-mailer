@@ -30,7 +30,7 @@
     +'.rlf-lbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#8a93a3;font-weight:800;margin-bottom:6px;}'
     +'.rlf-wrap{display:flex;flex-wrap:wrap;gap:6px 14px;}'
     +'.rlf-wrap.rlf-scroll{max-height:184px;overflow:auto;border:1px solid #dbe0e9;border-radius:4px;padding:10px 12px;gap:8px 14px;align-content:flex-start;background:#fbfcfe;}'
-    +'.rlf-chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#2b3648;cursor:pointer;}'
+    +'.rlf-chk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#2b3648;cursor:pointer;white-space:nowrap;}'
     +'.rlf-in{width:100%;box-sizing:border-box;border:1px solid #c4ccda;border-radius:4px;padding:8px 10px;font:inherit;font-size:13px;}'
     +'.rlf-search{margin-bottom:8px;}'
     +'.rlf-selnote{font-size:11.5px;color:#5f6a7d;font-weight:600;margin-top:6px;}'

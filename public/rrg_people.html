@@ -49,14 +49,17 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .searchwrap .searchx{position:absolute;right:9px;background:none;border:none;color:#b0b8c6;font-size:19px;line-height:1;cursor:pointer;padding:0 4px;display:none;}
 .searchwrap .searchx.show{display:block;}
 .searchwrap .searchx:hover{color:#DA2B1F;}
-.fbtn{margin-left:8px;background:#fff;border:1px solid #cfd6e2;border-radius:9px;padding:9px 13px;font:inherit;font-size:12.5px;font-weight:700;color:var(--navy,#000E31);cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
-.fbtn.on{border-color:var(--navy,#000E31);background:#eef2f9;}
-.fbadge{background:var(--red,#DA2B1F);color:#fff;font-size:11px;font-weight:800;border-radius:999px;padding:1px 7px;}
+.fbtn{margin-left:8px;background:#fff;border:1px solid #c4ccda;border-radius:4px;padding:8px 12px;font:inherit;font-size:12.5px;font-weight:700;color:#20334f;cursor:pointer;display:inline-flex;align-items:center;gap:6px;}
+.fbtn.on{border-color:#20334f;background:#eef2f7;}
+.fbadge{background:#20334f;color:#fff;font-size:11px;font-weight:800;border-radius:3px;padding:1px 6px;}
 .fgrp{margin-bottom:14px;} .fgrp2{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;}
 .flbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;font-weight:700;margin-bottom:6px;}
 .fwrap{display:flex;flex-wrap:wrap;gap:6px 14px;}
-.fchk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#26324a;cursor:pointer;}
+.fchk{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:#26324a;cursor:pointer;white-space:nowrap;}
 .fgrp2 input[type=date],#f_tags{width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:9px;padding:8px 10px;font:inherit;font-size:13px;}
+.fwrap.fscroll{max-height:184px;overflow:auto;border:1px solid #dbe0e9;border-radius:4px;padding:10px 12px;gap:8px 14px;align-content:flex-start;background:#fbfcfe;}
+.fsearch{width:100%;box-sizing:border-box;border:1px solid #c4ccda;border-radius:4px;padding:8px 10px;font:inherit;font-size:13px;margin-bottom:8px;}
+.fselnote{font-size:11.5px;color:#5f6a7d;font-weight:600;margin-top:6px;}
 .savedrow{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid #eef1f6;font-size:13px;}
 .savednm{flex:1;cursor:pointer;color:#23496f;font-weight:600;} .savednm:hover{text-decoration:underline;}
 .savedx{border:none;background:none;color:#c7cedb;cursor:pointer;font-size:14px;} .savedx:hover{color:var(--red,#DA2B1F);}
@@ -286,7 +289,7 @@ document.getElementById('m_cancel').addEventListener('click',closeModal);
 document.getElementById('m_create').addEventListener('click',createContact);
 document.getElementById('modal').addEventListener('click',function(e){ /* clicking the backdrop no longer closes the window — prevents losing entered info. Use Cancel to close. */ });
 var _lastPeopleLoad=0;
-function reloadPeople(){ return fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; if(j&&j.recencyDays!=null) RECENCY_DAYS=j.recencyDays; if(j&&j.types) TYPES=j.types; if(j&&j.leadSources&&j.leadSources.length) LEADSRC=j.leadSources; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); _lastPeopleLoad=Date.now(); applyFilter(); }); }
+function reloadPeople(){ return fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; if(j&&j.recencyDays!=null) RECENCY_DAYS=j.recencyDays; if(j&&j.types) TYPES=j.types; if(j&&j.leadSources&&j.leadSources.length) LEADSRC=j.leadSources; USERS=(j&&j.users)||USERS; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); _lastPeopleLoad=Date.now(); applyFilter(); }); }
 async function bulkDeletePeople(ids, done){
   if(!ids||!ids.length) return;
   if(!await rrgConfirm('Delete '+ids.length+' contact'+(ids.length>1?'s':'')+' from your registry? Their names stay on any past offers, tours and NDAs. This cannot be undone.')) return;
@@ -348,7 +351,7 @@ function openNewListingFor(id, done){
       .catch(function(){ gb.disabled=false; gb.textContent='Create listing'; msg.textContent='Could not reach the server.'; });
   });
 }
-fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; if(j&&j.recencyDays!=null) RECENCY_DAYS=j.recencyDays; TYPES=(j&&j.types)||[]; if(j&&j.leadSources&&j.leadSources.length) LEADSRC=j.leadSources; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); var _rv=loadView(); RECENCY_SHOWALL=true; try{ var _qt=new URLSearchParams(location.search).get('type'); if(_qt){ FILTERS.types=[_qt]; var _sb=document.getElementById('search'); } }catch(e){} renderFilters(); applyFilter(); try{ if(new URLSearchParams(location.search).get('new')==='1'){ openModal(); history.replaceState({},'',location.pathname); } }catch(e){} }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load contacts.</div>'; });
+fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; if(j&&j.recencyDays!=null) RECENCY_DAYS=j.recencyDays; TYPES=(j&&j.types)||[]; if(j&&j.leadSources&&j.leadSources.length) LEADSRC=j.leadSources; USERS=(j&&j.users)||USERS; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); var _rv=loadView(); RECENCY_SHOWALL=true; try{ var _qt=new URLSearchParams(location.search).get('type'); if(_qt){ FILTERS.types=[_qt]; var _sb=document.getElementById('search'); } }catch(e){} renderFilters(); applyFilter(); try{ if(new URLSearchParams(location.search).get('new')==='1'){ openModal(); history.replaceState({},'',location.pathname); } }catch(e){} }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load contacts.</div>'; });
 loadPipelinesList();
 var IMP_LEADS=[];
 function openImport(){ document.getElementById('importModal').removeAttribute('hidden'); document.getElementById('imp_msg').textContent=''; var _g=document.getElementById('imp_go'); if(_g){ _g.disabled=false; _g.textContent='Import'; } document.getElementById('imp_text').focus(); loadPoll(); }
@@ -368,27 +371,33 @@ function showImpResults(j){ var box=document.getElementById('imp_preview_box'); 
 /* ---- Advanced filter window + saved searches ---- */
 function filterActiveCount(){ var n=0; ['types','owners','leadSources','tags'].forEach(function(k){ if(FILTERS[k]&&FILTERS[k].length) n++; }); ['vip','star','caution','primary'].forEach(function(k){ if(FILTERS[k]) n++; }); if(FILTERS.createdFrom||FILTERS.createdTo) n++; if(FILTERS.contactedFrom||FILTERS.contactedTo) n++; return n; }
 function updateFilterBtn(){ var b=document.getElementById('filterBtn'); if(!b) return; var n=filterActiveCount(); b.innerHTML='\u2699 Filters'+(n?(' <span class="fbadge">'+n+'</span>'):''); b.classList.toggle('on',!!n); }
+var USERS=[];
+function ownerOpts(){ var m={}; (USERS||[]).forEach(function(u){ if(u&&u.name) m[u.name]=1; }); (ALL||[]).forEach(function(p){ if(p.owner) m[p.owner]=1; }); return Object.keys(m).sort(); }
+function leadOpts(){ var m={}; (LEADSRC||[]).forEach(function(x){ if(x) m[x]=1; }); (ALL||[]).forEach(function(p){ if(p.leadSource) m[p.leadSource]=1; }); return Object.keys(m).sort(); }
 function distinctOwners(){ var m={}; (ALL||[]).forEach(function(p){ if(p.owner) m[p.owner]=1; }); return Object.keys(m).sort(); }
 function inUseLeadSources(){ var m={}; (ALL||[]).forEach(function(p){ if(p.leadSource) m[p.leadSource]=1; }); return Object.keys(m).sort(); }
 function allTagsInUse(){ var m={}; (ALL||[]).forEach(function(p){ (p.tags||[]).forEach(function(t){ if(t) m[t]=1; }); }); return Object.keys(m).sort(); }
 function openFilters(){
   var ov=document.createElement('div'); ov.className='modal'; ov.id='filterModal';
   function chk(items,sel){ return items.length?items.map(function(x){ return '<label class="fchk"><input type="checkbox" value="'+esc(x)+'"'+(sel.indexOf(x)>=0?' checked':'')+'> '+esc(x)+'</label>'; }).join(''):'<span class="meta" style="font-size:12px">None on record</span>'; }
-  ov.innerHTML='<div class="modalcard" style="max-width:660px;max-height:88vh;display:flex;flex-direction:column">'
+  function chkBox(fg,items,sel,label){ var s=items.length>10; return '<div class="fgrp"><div class="flbl">'+esc(label)+'</div>'+(s?('<input type="text" class="fsearch" data-search-for="'+esc(fg)+'" placeholder="Search '+esc(String(label).toLowerCase())+'\u2026" autocomplete="off">'):'')+'<div class="fwrap'+(s?' fscroll':'')+'" data-fg="'+esc(fg)+'">'+chk(items,sel)+'</div>'+(s?('<div class="fselnote" data-selnote="'+esc(fg)+'">'+sel.length+' selected</div>'):'')+'</div>'; }
+  ov.innerHTML='<div class="modalcard" style="max-width:640px;max-height:88vh;display:flex;flex-direction:column">'
    +'<div class="modalh">Filter contacts</div>'
    +'<div class="modalb" style="overflow:auto">'
-   +'<div class="fgrp"><div class="flbl">Main Interests</div><div class="fwrap" data-fg="types">'+chk(TYPES.length?TYPES:['Buying','Selling'],FILTERS.types)+'</div></div>'
-   +'<div class="fgrp2"><div><div class="flbl">Created from</div><input type="date" id="f_cfrom" value="'+esc(FILTERS.createdFrom)+'"></div><div><div class="flbl">Created to</div><input type="date" id="f_cto" value="'+esc(FILTERS.createdTo)+'"></div></div>'
-   +'<div class="fgrp2"><div><div class="flbl">Last contacted from</div><input type="date" id="f_lfrom" value="'+esc(FILTERS.contactedFrom)+'"></div><div><div class="flbl">Last contacted to</div><input type="date" id="f_lto" value="'+esc(FILTERS.contactedTo)+'"></div></div>'
-   +'<div class="fgrp"><div class="flbl">Owner</div><div class="fwrap" data-fg="owners">'+chk(distinctOwners(),FILTERS.owners)+'</div></div>'
-   +'<div class="fgrp"><div class="flbl">Lead source (in use)</div><div class="fwrap" data-fg="leadSources">'+chk(inUseLeadSources(),FILTERS.leadSources)+'</div></div>'
+   +'<div class="fgrp" id="savedWrap"></div>'
+   +chkBox('types',(TYPES.length?TYPES:['Buying','Selling']),FILTERS.types,'Main interests')
+   +chkBox('owners',ownerOpts(),FILTERS.owners,'Owner')
+   +chkBox('leadSources',leadOpts(),FILTERS.leadSources,'Lead source')
    +'<div class="fgrp"><div class="flbl">Tags (comma-separated, matches all)</div><input id="f_tags" list="f_taglist" value="'+esc(FILTERS.tags.join(', '))+'" placeholder="e.g. hot, franchisee"><datalist id="f_taglist">'+allTagsInUse().map(function(t){return '<option value="'+esc(t)+'">';}).join('')+'</datalist></div>'
    +'<div class="fgrp"><div class="flbl">Flags</div><div class="fwrap"><label class="fchk"><input type="checkbox" id="f_vip"'+(FILTERS.vip?' checked':'')+'> VIP</label><label class="fchk"><input type="checkbox" id="f_star"'+(FILTERS.star?' checked':'')+'> Star</label><label class="fchk"><input type="checkbox" id="f_caution"'+(FILTERS.caution?' checked':'')+'> Bad news</label><label class="fchk"><input type="checkbox" id="f_primary"'+(FILTERS.primary?' checked':'')+'> Primary contact</label></div></div>'
-   +'<div class="fgrp" id="savedWrap"></div>'
+   +'<div class="fgrp2"><div><div class="flbl">Created from</div><input type="date" id="f_cfrom" value="'+esc(FILTERS.createdFrom)+'"></div><div><div class="flbl">Created to</div><input type="date" id="f_cto" value="'+esc(FILTERS.createdTo)+'"></div></div>'
+   +'<div class="fgrp2"><div><div class="flbl">Last contacted from</div><input type="date" id="f_lfrom" value="'+esc(FILTERS.contactedFrom)+'"></div><div><div class="flbl">Last contacted to</div><input type="date" id="f_lto" value="'+esc(FILTERS.contactedTo)+'"></div></div>'
    +'</div>'
    +'<div class="modalf"><button class="mbtn ghost" id="f_clear">Clear all</button><button class="mbtn ghost" id="f_savebtn">Save search\u2026</button><button class="mbtn ghost" id="f_cancel">Close</button><button class="mbtn" id="f_apply">Apply</button></div>'
    +'</div>';
   document.body.appendChild(ov);
+  ov.querySelectorAll('.fsearch').forEach(function(si){ si.addEventListener('input',function(){ var q=si.value.trim().toLowerCase(); var wrap=ov.querySelector('.fwrap[data-fg="'+si.getAttribute('data-search-for')+'"]'); if(!wrap) return; wrap.querySelectorAll('.fchk').forEach(function(lb){ var t=(lb.textContent||'').toLowerCase(); lb.style.display=(!q||t.indexOf(q)>=0)?'':'none'; }); }); });
+  ov.querySelectorAll('.fwrap[data-fg]').forEach(function(wrap){ var note=ov.querySelector('.fselnote[data-selnote="'+wrap.getAttribute('data-fg')+'"]'); if(!note) return; wrap.addEventListener('change',function(){ note.textContent=wrap.querySelectorAll('input:checked').length+' selected'; }); });
   function close(){ ov.remove(); }
   ov.addEventListener('click',function(e){ if(e.target===ov){ /* stay open */ } });
   ov.querySelector('#f_cancel').addEventListener('click',close);
