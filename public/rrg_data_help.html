@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data — Help &amp; User Guide · RRG</title>
+<style>
+:root{
+  --navy:#000E31; --slate:#20334f; --primary:#2c5c8f; --primary-d:#23496f;
+  --red:#b23a2c; --ink:#2b3648; --muted:#69748a; --soft:#96a1b2;
+  --line:#dbe0e9; --wash:#f4f6f9; --inp:#c4ccda; --gold:#b5791f; --green:#2f7a55; --purple:#5a3d9e;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--primary);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.top{background:var(--navy);border-bottom:2px solid var(--primary);color:#fff;position:sticky;top:0;z-index:50;}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:13px;}
+.disc{width:34px;height:34px;border-radius:4px;background:var(--red);color:#fff;font:900 12px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;flex:none;}
+.wm{font-weight:700;font-size:12px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em;color:#cdd6e4;}
+.bar{width:1px;height:24px;background:rgba(255,255,255,.28);margin:0 5px;}
+.ttl{font-weight:700;font-size:15px;color:#fff;}
+.ttl small{display:block;font-size:10.5px;font-weight:600;color:#9fb0cc;text-transform:uppercase;letter-spacing:.06em;margin-top:1px;}
+.backlink{margin-left:auto;color:#cdd6e4;font-size:12.5px;font-weight:600;}
+.backlink:hover{color:#fff;text-decoration:none;}
+.shell{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;align-items:start;}
+.toc{position:sticky;top:74px;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.toc .th{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 15px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);}
+.tsearch{padding:10px 12px;border-bottom:1px solid var(--line);}
+.tsearch input{width:100%;border:1px solid var(--inp);border-radius:4px;padding:7px 10px;font:inherit;font-size:12.5px;}
+.toc nav{max-height:calc(100vh - 200px);overflow:auto;padding:6px 0;}
+.toc a{display:block;padding:6px 15px;font-size:12.5px;font-weight:600;color:var(--slate);border-left:2px solid transparent;}
+.toc a:hover{background:var(--wash);text-decoration:none;}
+.toc a.on{border-left-color:var(--primary);background:#eef4fa;color:var(--primary-d);}
+.toc .miss{padding:10px 15px;color:var(--soft);font-size:12px;}
+.doc{min-width:0;}
+.hero{background:#fff;border:1px solid var(--line);border-radius:6px;padding:24px 26px;margin-bottom:20px;}
+.hero h1{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-.01em;}
+.hero p{color:var(--muted);font-size:14.5px;margin-top:9px;max-width:780px;}
+.hero .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;}
+.tag{font-size:11px;font-weight:700;color:var(--slate);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
+section.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:22px 26px;margin-bottom:16px;scroll-margin-top:74px;}
+section.card>h2{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.01em;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;gap:9px;}
+section.card>h2 .n{width:24px;height:24px;border-radius:4px;background:var(--navy);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+section.card>h2 .n.ai{background:var(--purple);}
+h3{font-size:14.5px;font-weight:800;color:var(--slate);margin:18px 0 7px;}
+p{margin:9px 0;}
+.lead{color:var(--muted);font-size:14px;}
+ul,ol{margin:9px 0 9px 4px;padding-left:22px;}
+li{margin:5px 0;}
+ol.steps{counter-reset:st;list-style:none;padding-left:0;margin:12px 0;}
+ol.steps>li{position:relative;padding:0 0 14px 40px;margin:0;}
+ol.steps>li:before{counter-increment:st;content:counter(st);position:absolute;left:0;top:-1px;width:26px;height:26px;border-radius:4px;background:#eef4fa;color:var(--primary-d);border:1px solid #cddcec;font-weight:800;font-size:12.5px;display:flex;align-items:center;justify-content:center;}
+ol.steps>li:not(:last-child):after{content:"";position:absolute;left:13px;top:27px;bottom:2px;width:1px;background:var(--line);}
+ol.steps b{color:var(--slate);}
+.kbd{display:inline-block;background:var(--wash);border:1px solid var(--inp);border-bottom-width:2px;border-radius:3px;padding:1px 7px;font-size:12px;font-weight:700;color:var(--slate);}
+.callout{border:1px solid var(--line);border-left:3px solid var(--primary);background:#f7fafd;border-radius:0 4px 4px 0;padding:13px 16px;margin:14px 0;font-size:13.5px;}
+.callout.tip{border-left-color:var(--green);background:#f1f8f4;}
+.callout.warn{border-left-color:var(--red);background:#fbf3f2;}
+.callout.ai{border-left-color:var(--purple);background:#f6f3fb;}
+.callout .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
+.callout.tip .lbl{color:var(--green);} .callout.warn .lbl{color:var(--red);} .callout.ai .lbl{color:var(--purple);}
+table.mx{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;}
+table.mx th,table.mx td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+table.mx th{background:var(--wash);font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:800;}
+table.mx td b{color:var(--slate);}
+.pill{display:inline-block;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;border-radius:3px;padding:2px 7px;}
+.pill.det{background:#eaf1f8;color:#2c5c8f;} .pill.ai{background:#f0eafb;color:#5a3d9e;} .pill.ext{background:#e8f3ec;color:#1f7a4d;}
+.flow{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:14px 0;padding:14px 16px;background:var(--wash);border:1px solid var(--line);border-radius:6px;}
+.flow .fs{background:#fff;border:1px solid var(--line);border-radius:4px;padding:6px 11px;font-size:12.5px;font-weight:700;color:var(--slate);display:inline-flex;align-items:center;gap:7px;}
+.flow .fs .fn{width:18px;height:18px;border-radius:3px;background:var(--navy);color:#fff;font-size:10.5px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;}
+.flow .fs.loop .fn{background:var(--gold);}
+.flow .far{color:var(--soft);font-weight:800;}
+.fq{border-top:1px solid var(--line);padding:13px 0;}
+.fq:first-of-type{border-top:none;}
+.fq h3{margin:0 0 4px;font-size:14px;}
+.fq p{margin:0;color:var(--muted);font-size:13.5px;}
+.foot{max-width:1180px;margin:0 auto;padding:0 24px 50px;color:var(--soft);font-size:12px;text-align:center;}
+.totop{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;border:none;border-radius:4px;padding:9px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .15s;z-index:60;}
+.totop.show{opacity:1;pointer-events:auto;}
+@media(max-width:900px){.shell{grid-template-columns:1fr;}.toc{position:static;}.toc nav{max-height:none;}}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <span class="disc">RRG</span><span class="wm">Restaurant<br>Realty Group</span><span class="bar"></span>
+  <span class="ttl">Data<small>Help &amp; User Guide</small></span>
+  <a class="backlink" href="rrg_data.html">&larr; Back to Data Enrichment</a>
+</div></div>
+
+<div class="shell">
+  <aside class="toc">
+    <div class="th">Contents</div>
+    <div class="tsearch"><input id="tocSearch" placeholder="Search this guide…" autocomplete="off"></div>
+    <nav id="tocNav">
+      <a href="#overview">1 · Overview</a>
+      <a href="#quickstart">2 · Quick start — your first hour</a>
+      <a href="#import">3 · Step 1 · Import your data</a>
+      <a href="#cleanup">4 · Step 2 · Clean up &amp; standardize</a>
+      <a href="#dupes">5 · Step 3 · Find duplicates</a>
+      <a href="#email">6 · Step 4 · Link by email domain</a>
+      <a href="#google">7 · Step 5 · Enrich from Google</a>
+      <a href="#logos">8 · Step 6 · Find logos</a>
+      <a href="#concepts">9 · Step 7 · Concept Intelligence</a>
+      <a href="#loop">10 · The loop &amp; upkeep</a>
+      <a href="#counts">11 · Record counts</a>
+      <a href="#export">12 · Export &amp; backup</a>
+      <a href="#faq">13 · FAQ &amp; troubleshooting</a>
+      <a href="#glossary">14 · Glossary</a>
+    </nav>
+  </aside>
+
+  <main class="doc">
+    <div class="hero">
+      <h1>Data — Help &amp; User Guide</h1>
+      <p>Everything you do in the <b>Data</b> section, in the order a new user should do it: bring your book in from your old CRM, clean it up, remove duplicates, link contacts to their companies, then enrich it with live Google data, logos, and concept detail. By the end your list of names becomes a real restaurant &amp; bar database you can work from.</p>
+      <div class="meta"><span class="tag">New-user onboarding</span><span class="tag">Import → Enrich</span><span class="tag">Deterministic + AI tools</span><span class="tag">Admin · Data</span></div>
+    </div>
+
+    <section class="card" id="overview">
+      <h2><span class="n">1</span> Overview</h2>
+      <p class="lead">The Data tools live under <span class="kbd">Settings → Data</span>. They take you from a raw CRM export to a clean, enriched book of business — companies, their locations, the contacts at each one, and the concepts (restaurant/bar brands) they operate.</p>
+      <h3>The golden path</h3>
+      <div class="flow">
+        <span class="fs"><span class="fn">1</span>Import</span><span class="far">→</span>
+        <span class="fs"><span class="fn">2</span>Clean up</span><span class="far">→</span>
+        <span class="fs"><span class="fn">3</span>Duplicates</span><span class="far">→</span>
+        <span class="fs"><span class="fn">4</span>Link &amp; enrich</span><span class="far">→</span>
+        <span class="fs loop"><span class="fn">↻</span>Clean up again</span>
+      </div>
+      <p>This is the same recommended order printed across the top of the <b>Data Enrichment</b> screen. Import first, tidy what came in, collapse duplicates, then link and enrich — and re-run cleanup at the end to standardize anything the enrichment added.</p>
+      <h3>Two kinds of tools</h3>
+      <p>It helps to know which tools cost nothing and which use AI:</p>
+      <ul>
+        <li><span class="pill det">Deterministic</span> Cleanup, Find Duplicates, Match by Email Domain — rules-based, instant, <b>no AI cost</b>.</li>
+        <li><span class="pill ext">External data</span> Enrich from Google — pulls live business data from Google (uses your Google Maps key, not AI).</li>
+        <li><span class="pill ai">AI</span> Find missing logos (AI) and Concept Intelligence — use your Anthropic key and are metered on the <a href="#counts">AI Usage</a> page.</li>
+      </ul>
+      <div class="callout"><div class="lbl">Who this is for</div>Admins setting up the firm's book for the first time, and anyone maintaining data quality as new records come in. Most tools are review-and-approve — you tick what you want before it's applied. The one exception is <b>Cleanup &amp; Standardize</b>, which runs and applies its fixes automatically, since they're deterministic and safe.</div>
+    </section>
+
+    <section class="card" id="quickstart">
+      <h2><span class="n">2</span> Quick start — your first hour</h2>
+      <p class="lead">Brand new and staring at an empty system? Do these seven things in order and you'll go from a spreadsheet to a working database.</p>
+      <ol class="steps">
+        <li><b>Import your contacts and companies</b> from your old CRM. Export a spreadsheet from Copper, HubSpot, Salesforce, Pipedrive — or any CSV/Excel — and drop it in. <a href="#import">Step 1</a>.</li>
+        <li><b>Clean up &amp; standardize</b> what came in — fix ALL-CAPS names, state codes, phone formats, lowercased emails, and let it set the main contact where a company has only one. <a href="#cleanup">Step 2</a>.</li>
+        <li><b>Find duplicates</b> and merge the obvious ones so you're not working the same company twice. <a href="#dupes">Step 3</a>.</li>
+        <li><b>Match by email domain</b> to link loose contacts to the right company automatically. <a href="#email">Step 4</a>.</li>
+        <li><b>Enrich from Google</b> to pull operating status, ratings, price point, phone, website, and map location onto every location. <a href="#google">Step 5</a>.</li>
+        <li><b>Find logos</b> so companies show a real brand mark instead of a grey initial. <a href="#logos">Step 6</a>.</li>
+        <li><b>Run Concept Intelligence</b> to fill in cuisine, concept type, and price point and flag the multi-unit operators. <a href="#concepts">Step 7</a>.</li>
+      </ol>
+      <div class="callout tip"><div class="lbl">Don't aim for perfect on day one</div>Import and a single cleanup pass already make the system usable. Enrichment, logos, and concept detail can run in the background afterward — each is review-and-approve and safe to do in chunks.</div>
+    </section>
+
+    <section class="card" id="import">
+      <h2><span class="n">3</span> Step 1 · Import your data</h2>
+      <p class="lead">Bring your companies and contacts in from any CRM in three steps. Open <span class="kbd">Settings → Data → Import Data</span>.</p>
+      <h3>What you can import</h3>
+      <p>Three record types, each its own import: <b>Companies</b>, <b>Contacts</b>, and <b>Tasks</b>. Works with exports from Copper, HubSpot, Salesforce, Pipedrive, or any plain CSV / Excel file.</p>
+      <ol class="steps">
+        <li><b>Pick what you're importing</b> — Companies, Contacts, or Tasks — then upload your <span class="kbd">.xlsx</span> or <span class="kbd">.csv</span> export.</li>
+        <li><b>Map the columns</b> — the importer auto-detects your columns (name, email, phone, company, address, and so on). Check the mapping and adjust anything it guessed wrong. At minimum, map the name column.</li>
+        <li><b>Preview &amp; import</b> — see a sample of what will come in, then import. As it runs it <b>dedupes</b> and <b>links every contact to its company</b> automatically.</li>
+      </ol>
+      <h3>Order matters a little</h3>
+      <p>If you're importing both, do <b>Companies first, then Contacts</b> — that way each contact can attach to a company that already exists. If you only have one combined contact list, that's fine too; the importer creates the companies it needs from the company column.</p>
+      <h3>Every import is reversible</h3>
+      <p>Each import is saved as a numbered batch on the same page under past imports, showing what it added, by whom, and when. If a file came in wrong, hit <span class="kbd">Revert Import</span> on that batch to remove exactly the records it added — no manual cleanup.</p>
+      <div class="callout warn"><div class="lbl">Revert is permanent</div>Reverting deletes the records that batch created and can't be undone. It only touches that batch, so it's safe — but double-check you're reverting the right one.</div>
+    </section>
+
+    <section class="card" id="cleanup">
+      <h2><span class="n">4</span> Step 2 · Clean up &amp; standardize <span class="pill det">Deterministic</span></h2>
+      <p class="lead">Fix the messy stuff imports leave behind. Open <span class="kbd">Settings → Data → Data Enrichment → Cleanup &amp; Standardize</span>. No AI, no cost — just rules.</p>
+      <h3>What it proposes</h3>
+      <table class="mx">
+        <thead><tr><th>Fix</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><b>Name casing</b></td><td>ALL-CAPS or lowercase names title-cased (e.g. <i>JOE'S BAR</i> → <i>Joe's Bar</i>).</td></tr>
+          <tr><td><b>State codes</b></td><td>State names to two-letter codes (<i>Texas</i> → <i>TX</i>).</td></tr>
+          <tr><td><b>Websites</b></td><td>Normalized to a clean <i>https://domain</i> form.</td></tr>
+          <tr><td><b>Emails</b></td><td>Lowercased.</td></tr>
+          <tr><td><b>Phone format</b></td><td>Standardized to (555) 555-5555, on companies and locations.</td></tr>
+          <tr><td><b>Market from city</b></td><td>Assigns a metro/market when it's blank but the city is known.</td></tr>
+          <tr><td><b>Decision-maker tags</b></td><td>Tags a contact <i>Decision Maker</i> when their title implies it (owner, partner, GM…).</td></tr>
+          <tr><td><b>Sole contact as main</b></td><td>When a company has exactly one contact, sets that contact as its <b>main contact</b>.</td></tr>
+        </tbody>
+      </table>
+      <h3>How to run it</h3>
+      <p>Open the tool and it just runs — it scans your book and <b>applies every fix automatically</b>, no ticking or approval. When it's done it shows a summary and lists exactly what it changed, grouped by record, so you can see what happened. A <span class="kbd">Run again</span> button re-runs it any time. Because the fixes are deterministic and idempotent, re-running is safe — it only ever touches records that still need standardizing.</p>
+      <div class="callout tip"><div class="lbl">Set the main contact once, forever</div>The <b>Sole contact as main</b> fix backfills your imported book in one pass. Going forward, whenever you add a contact to a company that has no main contact yet, the app makes that contact the main automatically — so it stays correct without re-running cleanup.</div>
+    </section>
+
+    <section class="card" id="dupes">
+      <h2><span class="n">5</span> Step 3 · Find duplicates <span class="pill det">Deterministic</span></h2>
+      <p class="lead">Imports from more than one source almost always create doubles. Open <b>Find Duplicates</b> from the Data Enrichment screen.</p>
+      <ol class="steps">
+        <li><b>Scan</b> — the tool groups likely-duplicate companies (or contacts) together. On a large book this takes a moment; you can keep it running or cancel.</li>
+        <li><b>Review each group</b> — see the records that look like the same company side by side.</li>
+        <li><b>Merge</b> — merging keeps one record and folds the others into it, preserving their contacts, locations, deals, and the main contact, so nothing is lost.</li>
+      </ol>
+      <div class="callout warn"><div class="lbl">Merge is a combine, not a delete</div>The kept record inherits the others' details; the duplicates are absorbed. Review the group before merging so you keep the record you want as the survivor.</div>
+    </section>
+
+    <section class="card" id="email">
+      <h2><span class="n">6</span> Step 4 · Link by email domain <span class="pill det">Deterministic</span></h2>
+      <p class="lead">Contacts often import without being attached to a company. <b>Match by Email Domain</b> links them the reliable way — by the domain in their email, never by name.</p>
+      <ul>
+        <li>A contact at <i>jane@magnoliahaus.com</i> links to the company that owns <i>magnoliahaus.com</i>.</li>
+        <li><b>Personal domains are ignored</b> — gmail, yahoo, outlook and the like never create a false match.</li>
+        <li>Review the proposed links, tick the ones you want, and apply. Each becomes a chip you can see before committing.</li>
+      </ul>
+      <div class="callout tip"><div class="lbl">Why domain, not name</div>Two different companies can share a name; an email domain is unique to one business. Matching on the domain is why this step is safe to trust.</div>
+    </section>
+
+    <section class="card" id="google">
+      <h2><span class="n">7</span> Step 5 · Enrich from Google <span class="pill ext">External data</span></h2>
+      <p class="lead">Turn each location into a live record. <b>Enrich from Google</b> reads Google for every location and pulls back the operating detail you'd otherwise chase down by hand.</p>
+      <h3>What it pulls</h3>
+      <p>Operating status (open / dark / closed), star rating and review count, price point, phone, website, and map coordinates — live onto every location.</p>
+      <h3>How to run it</h3>
+      <ol class="steps">
+        <li>The screen shows how many locations haven't been pulled yet. Click to scan.</li>
+        <li>A progress bar shows how far along it is and an <b>estimated time remaining</b>; when it finishes you get a summary of how many matched Google and how many had no match.</li>
+        <li>Review the suggested changes per location and apply the ones you want.</li>
+      </ol>
+      <div class="callout warn"><div class="lbl">Needs a Google key</div>This tool needs a Google Maps key set under <span class="kbd">Settings → Integrations</span>. Until then the tool shows "add a key." It uses Google, not AI, so there's no Anthropic cost.</div>
+    </section>
+
+    <section class="card" id="logos">
+      <h2><span class="n">8</span> Step 6 · Find logos</h2>
+      <p class="lead">Give every company a real brand mark. <b>Find Logos</b> pulls a logo for each company that has a website, and can use AI to track down the ones that don't.</p>
+      <h3>Two passes</h3>
+      <ul>
+        <li><b>From the website</b> <span class="pill ext">External</span> — for companies with a website, it fetches the best available logo. Companies with a real logo sort to the top and start pre-approved; favicon-only guesses start unchecked so you approve just the good ones.</li>
+        <li><b>Find missing logos (AI)</b> <span class="pill ai">AI</span> — for companies with no website, AI figures out the brand and finds a logo. Newly found logos sort to the top of the grid so they're easy to review and approve first.</li>
+      </ul>
+      <p>Approve the ones that look right and <span class="kbd">Apply</span>. Applied logos show up on the company everywhere in the app.</p>
+      <div class="callout ai"><div class="lbl">AI note</div>The "Find missing logos (AI)" pass uses your Anthropic key and is metered on AI Usage. The website pass is free. A working dialog with a live progress estimate shows while either runs.</div>
+    </section>
+
+    <section class="card" id="concepts">
+      <h2><span class="n ai">9</span> Step 7 · Concept Intelligence <span class="pill ai">AI</span></h2>
+      <p class="lead">The step that makes this a <i>restaurant &amp; bar</i> database, not just a contact list. <b>Concept Intelligence</b> reads each concept and fills the fields a plain import leaves blank.</p>
+      <h3>What it fills</h3>
+      <ul>
+        <li><b>Cuisine</b> — the food category, from your firm's cuisine list.</li>
+        <li><b>Concept type</b> — full-service, fast-casual, QSR, bar / nightlife, café / bakery, and so on.</li>
+        <li><b>Price point</b> — $ through $$$$.</li>
+        <li><b>Multi-unit operators</b> — flags companies that run more than one concept, so you can spot the groups.</li>
+      </ul>
+      <p>Press <span class="kbd">Classify with AI</span>, watch the progress and estimate, then review the suggestions and apply the ones you want. It only fills fields that are blank — it won't overwrite what you've already set. Applied concepts clear out of the review grid so you can see what's left.</p>
+      <div class="callout ai"><div class="lbl">AI note</div>Uses your Anthropic key and is metered on AI Usage. Runs in review-and-approve chunks so a large book is safe to classify.</div>
+    </section>
+
+    <section class="card" id="loop">
+      <h2><span class="n">10</span> The loop &amp; ongoing upkeep</h2>
+      <p class="lead">Enrichment can introduce new websites, phones, and details — so the recommended workflow ends where it began: <b>clean up again</b>.</p>
+      <ul>
+        <li><b>Re-run Cleanup</b> after a big enrichment pass to standardize anything new (phone formats, website forms, markets from newly-found cities).</li>
+        <li><b>The Data Enrichment home reads the state of your book</b> — each tool card shows how much is left to do (companies missing a logo, locations not yet pulled from Google, concepts missing detail), so you always know what to run next.</li>
+        <li><b>New records self-maintain where they can</b> — a sole contact becomes the main contact on add; imports dedupe and link as they land.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="counts">
+      <h2><span class="n">11</span> Record counts — know your book</h2>
+      <p class="lead"><span class="kbd">Settings → Data → Record Counts</span> is the one-glance tally of everything in the system: contacts, companies, listings, data rooms, concepts, locations, files, valuations, marketing packs, LOIs, agreements, interviews, and screenings.</p>
+      <p>Use it as a health check before and after a big import or enrichment run — the numbers should move the way you expect. There's a <span class="kbd">Refresh</span> to re-tally on demand.</p>
+    </section>
+
+    <section class="card" id="export">
+      <h2><span class="n">12</span> Export &amp; backup</h2>
+      <h3>Export your data</h3>
+      <p><span class="kbd">Settings → Data → Export Data</span> pulls your companies and contacts back out to a spreadsheet whenever you need a copy outside the system.</p>
+      <h3>Data backup</h3>
+      <p><span class="kbd">Settings → Data → Data Backup</span> keeps a full copy of everything the team has built — deals, companies, contacts, requests, calls, valuations, marketing packs, and every data-room file. The server saves an automatic snapshot once a day; download one any time to keep an off-site copy in Drive or Dropbox, or restore from a backup file if you ever need to roll back.</p>
+      <div class="callout tip"><div class="lbl">Before any big change</div>Grab a fresh backup before a large import, merge, or restore. It's the safety net that lets you move fast on the rest.</div>
+    </section>
+
+    <section class="card" id="faq">
+      <h2><span class="n">13</span> FAQ &amp; troubleshooting</h2>
+      <div class="fq"><h3>Where do I start as a brand-new user?</h3><p>Import Data first, then run Cleanup &amp; Standardize. Those two make the system usable. Duplicates, email linking, Google enrichment, logos, and Concept Intelligence build on top — do them in that order when you're ready.</p></div>
+      <div class="fq"><h3>Will these tools overwrite what I've already entered?</h3><p>Enrichment, duplicates, email-linking, logos, and Concept Intelligence are review-and-approve — they propose changes and nothing is written until you apply, and the AI steps only fill blank fields. Cleanup &amp; Standardize is the exception: it runs and applies automatically, but it only standardizes formatting (casing, codes, phone/email formats) and sets a main contact where there's a single obvious one — it never discards information.</p></div>
+      <div class="fq"><h3>I imported the wrong file.</h3><p>Open Import Data, find that numbered batch under past imports, and click Revert Import. It removes exactly the records that batch added.</p></div>
+      <div class="fq"><h3>Enrich from Google says "add a key."</h3><p>Set a Google Maps key under Settings → Integrations. That tool reads Google, so it needs the key before it can pull anything.</p></div>
+      <div class="fq"><h3>Which tools cost money?</h3><p>Find missing logos (AI) and Concept Intelligence use your Anthropic key and show on the AI Usage page. Cleanup, Duplicates, and Email-domain matching are free. Google enrichment uses your Google key, not AI.</p></div>
+      <div class="fq"><h3>How do I set a company's main contact?</h3><p>If a company has one contact, Cleanup sets it as main automatically. For companies with several contacts, open the company and choose the main contact yourself — that's a judgment call the system won't guess.</p></div>
+      <div class="fq"><h3>How long does enrichment take?</h3><p>It runs in batches and shows a live time estimate. A large book can take several minutes; you can let it run or cancel and pick it up later — it remembers what's already done.</p></div>
+    </section>
+
+    <section class="card" id="glossary">
+      <h2><span class="n">14</span> Glossary</h2>
+      <table class="mx">
+        <tbody>
+          <tr><td><b>Company</b></td><td>An operator or business entity — the parent record that holds locations, concepts, and contacts.</td></tr>
+          <tr><td><b>Concept</b></td><td>A restaurant or bar brand a company operates. One company can run several concepts.</td></tr>
+          <tr><td><b>Location</b></td><td>A physical address for a concept — what Google enrichment reads against.</td></tr>
+          <tr><td><b>Contact</b></td><td>A person at a company. The <b>main contact</b> is the primary person for that company.</td></tr>
+          <tr><td><b>Standardize</b></td><td>Rules-based cleanup — casing, codes, formats — with no AI cost.</td></tr>
+          <tr><td><b>Enrich</b></td><td>Add data the record didn't have: Google business detail, a logo, cuisine / type / price.</td></tr>
+          <tr><td><b>Multi-unit operator</b></td><td>A company that runs more than one concept — flagged by Concept Intelligence.</td></tr>
+          <tr><td><b>Import batch</b></td><td>One numbered import, revertible as a unit.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+</div>
+
+<div class="foot">Restaurant Realty Group — Data Help &amp; User Guide · Confidential platform documentation.</div>
+<button class="totop" id="totop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ Top</button>
+
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('#tocNav a'));
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function spy(){ var y=window.scrollY+90, cur=secs[0]; for(var i=0;i<secs.length;i++){ if(secs[i].offsetTop<=y) cur=secs[i]; } links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('href')==='#'+(cur&&cur.id)); }); var tt=document.getElementById('totop'); tt.classList.toggle('show', window.scrollY>400); }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+  var box=document.getElementById('tocSearch'), nav=document.getElementById('tocNav');
+  box.addEventListener('input',function(){ var q=box.value.trim().toLowerCase(); var any=false; links.forEach(function(a){ var sec=document.getElementById(a.getAttribute('href').slice(1)); var hit=!q || a.textContent.toLowerCase().indexOf(q)>=0 || (sec&&sec.textContent.toLowerCase().indexOf(q)>=0); a.style.display=hit?'':'none'; if(hit) any=true; }); var m=document.getElementById('tocMiss'); if(m) m.remove(); if(!any){ var d=document.createElement('div'); d.className='miss'; d.id='tocMiss'; d.textContent='No matches.'; nav.appendChild(d); } });
+})();
+</script>
+</body>
+</html>

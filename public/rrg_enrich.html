@@ -155,7 +155,14 @@ function apply(){
   var b=document.getElementById('apply'); b.disabled=true; var msg=document.getElementById('msg'); msg.className='msg'; msg.textContent='';
   AIW.show('Applying enrichment to '+items.length+' location'+(items.length===1?'':'s')+'…');
   fetch('/api/admin/enrich-apply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
-    AIW.hide(); b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Enriched '+j.applied+' location'+(j.applied===1?'':'s')+' ✓'; items.forEach(function(it){ var k=it.companyId+'|'+it.locId; STATE[k]='off'; var el=document.querySelector('.ec[data-k="'+cssq(k)+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } var _cd=CANDS.filter(function(x){return (x.companyId+'|'+x.locId)===k;})[0]; if(_cd) _cd.hasGoogle=true; }); count(); }
+    AIW.hide(); b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Enriched '+j.applied+' location'+(j.applied===1?'':'s')+' ✓';
+      items.forEach(function(it){ var k=it.companyId+'|'+it.locId;
+        var _cd=CANDS.filter(function(x){return (x.companyId+'|'+x.locId)===k;})[0]; if(_cd) _cd.hasGoogle=true;
+        var el=document.querySelector('.ec[data-k="'+cssq(k)+'"]'); if(el){ el.classList.add('dead'); (function(node){ setTimeout(function(){ if(node&&node.parentNode) node.parentNode.removeChild(node); },260); })(el); }
+        delete STATE[k]; delete ROWS[k]; ORDER=ORDER.filter(function(x){return x!==k;});
+      });
+      count();
+      setTimeout(function(){ if(!ORDER.length){ document.getElementById('grid').innerHTML='<div class="empty"><b>All caught up.</b>Every reviewed location was applied. Press <b>Re-scan</b> to pull anything still missing.</div>'; document.getElementById('cnt').textContent=''; } },300); }
     else { msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
   }).catch(function(){ AIW.hide(); b.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
 }

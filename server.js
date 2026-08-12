@@ -256,7 +256,7 @@ function findOrCreatePerson(req, info) {
 }
 function personBrief(p) { const em = personEmails(p), ph = personPhones(p); return p ? { id: p.id, name: p.name || '', firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', company: p.company || '', companyId: p.companyId || '', emails: em, phones: ph, email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', tags: personTags(p), leadSource: p.leadSource || '', vip: !!p.vip, caution: !!p.caution, star: !!p.star, preferred: !!p.preferred, prefContact: Array.isArray(p.prefContact) ? p.prefContact : [], createdAt: p.createdAt || '', owner: p.by || '', lastContacted: p.lastContacted || '', hasPhoto: !!p.photoExt, photoUrl: p.photoExt ? ('/api/personphoto/' + p.id + '.' + p.photoExt + (p.updatedAt ? ('?v=' + encodeURIComponent(p.updatedAt)) : '')) : '' } : null; }
 // One contact row as shown on a company file.
-function companyContactRow(p) { return { id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', emails: personEmails(p), phones: personPhones(p), email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', title: p.title || '', tags: personTags(p), leadSource: p.leadSource || '', hasPhoto: !!p.photoExt, photoExt: p.photoExt || '', updatedAt: p.updatedAt || '' }; }
+function companyContactRow(p) { return { id: p.id, name: p.name, firstName: personFirst(p), lastName: personLast(p), nickname: p.nickname || '', emails: personEmails(p), phones: personPhones(p), email: preferredEmailOf(p), phone: preferredPhoneOf(p), type: p.type || '', title: p.title || '', tags: personTags(p), leadSource: p.leadSource || '', hasPhoto: !!p.photoExt, photoExt: p.photoExt || '', updatedAt: p.updatedAt || '', photoUrl: p.photoExt ? ('/api/personphoto/' + p.id + '.' + p.photoExt + (p.updatedAt ? ('?v=' + encodeURIComponent(p.updatedAt)) : '')) : '' }; }
 
 // Companies — a company / account file that groups its associated contacts (people) and
 // its deals. Created at onboarding (the subject business), reusable across deals.
@@ -340,7 +340,7 @@ function companyActivityFeed(c) {
   const acts = [];
   people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { acts.push({ id: a.id || '', type: a.type || 'Note', note: a.note || '', at: a.date || a.at || '', by: a.by || '', auto: !!a.auto, personId: p.id, personName: p.name || 'Contact', companyLevel: false }); }); });
   (Array.isArray(c.activities) ? c.activities : []).forEach(a => { acts.push({ id: a.id || '', type: a.type || 'Note', note: a.note || '', at: a.date || a.at || '', by: a.by || '', auto: !!a.auto, personId: '', personName: '', companyLevel: true }); });
-  if (c.createdAt) acts.push({ id: 'co_created', type: 'Company Added', note: 'Company record created', at: c.createdAt, by: c.by || '', auto: true, personId: '', personName: '', companyLevel: true });
+  if (c.createdAt) { const _imp = !!c.importBatch; acts.push({ id: 'co_created', type: _imp ? 'Company Imported' : 'Company Added', note: _imp ? ('Company record imported' + (c.importBatch ? ' · batch #' + c.importBatch : '')) : 'Company record created', at: (_imp && c.importBatchAt) ? c.importBatchAt : c.createdAt, by: c.by || '', auto: true, personId: '', personName: '', companyLevel: true }); }
   acts.sort((x, y) => String(y.at || '').localeCompare(String(x.at || '')));
   return acts.slice(0, 200);
 }
@@ -2782,6 +2782,17 @@ app.post('/api/admin/delete-doc', requireAdmin, express.json(), (req, res) => {
   try { fs.unlinkSync(path.join(DOCS_DIR, d.id + '.' + d.ext)); } catch (e) {}
   saveDocs(docs.filter(x => x.id !== id));
   res.json({ ok: true, documents: loadDocs() });
+});
+
+// RESTful delete for firm-wide documents — used by the unified library's generic
+// delete (DELETE verb) so admins can manage firm-wide forms from the Documents page.
+app.delete('/api/admin/documents/:id', requireAdmin, (req, res) => {
+  const id = String(req.params.id || '');
+  const docs = loadDocs(); const d = docs.find(x => x.id === id);
+  if (!d) return res.status(404).json({ ok: false, error: 'Document not found.' });
+  try { fs.unlinkSync(path.join(DOCS_DIR, d.id + '.' + d.ext)); } catch (e) {}
+  saveDocs(docs.filter(x => x.id !== id));
+  res.json({ ok: true });
 });
 
 // ---- Brand logo (org-wide, admin-managed) ----
@@ -11128,6 +11139,12 @@ app.get('/api/documents', (req, res) => {
   let uf = loadUserFiles();
   if (restrictToOwn(req)) uf = uf.filter(fr => permOwnerMatch(req, fr.createdBy));
   uf.forEach(fr => { out.push({ id:fr.id, kind:'file', title: fr.name || fr.originalName || 'File', docType: fr.docType||'', typeLabel: fr.docType || (fr.ext||'file').toUpperCase(), personId:fr.personId||'', dealKey:fr.dealKey||'', companyId:fr.companyId||'', companyName: coNameById[fr.companyId]||'', personName: nameById[fr.personId]||'', dealName: bizByKey[fr.dealKey]||'', relatesToName: fr.relatesToName||'', status: fr.note || '', statusKey:'file', owner: fr.by || fr.byUser || '', createdAt: fr.uploadedAt || '', openUrl: '/api/files/'+fr.id+'/download', downloadUrl: '/api/files/'+fr.id+'/download', deleteUrl: '/api/files/'+fr.id, ext: fr.ext, size: fr.size }); });
+  // Firm-wide forms (admin-managed, org-wide). Surface them in the unified library under
+  // the "Firm-wide" filter so there is one place to find every document. They carry no
+  // record link, so they never scope onto a single contact or company card below.
+  try {
+    loadDocs().forEach(fd => { out.push({ id: fd.id, kind:'firmwide', title: fd.title || fd.originalName || 'Firm-wide form', typeLabel: 'Firm-wide · ' + (fd.category || 'Document'), category: fd.category || 'Document', docType: fd.category || 'Document', personId:'', companyId:'', companyName:'', personName:'', dealName:'', relatesToName:'', status: fd.category || '', statusKey:'firmwide', owner: fd.by || '', createdAt: fd.uploadedAt || '', openUrl: '/doc/' + fd.id + '.' + fd.ext, downloadUrl: '/doc/' + fd.id + '.' + fd.ext, deleteUrl: '/api/admin/documents/' + fd.id, ext: fd.ext, firmwide: true }); });
+  } catch (e) {}
   try {
     let ivx = loadInterviews();
     if (restrictToOwn(req)) ivx = ivx.filter(iv => permOwnerMatch(req, iv.byUser));

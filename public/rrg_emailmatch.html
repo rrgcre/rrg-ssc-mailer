@@ -86,7 +86,13 @@ function apply(){
   if(!items.length){ alert('Tick at least one contact to link.'); return; }
   var b=document.getElementById('apply'); b.disabled=true; var msg=document.getElementById('msg'); msg.className='msg'; msg.textContent=''; AIW.show('Linking '+items.length+' contact'+(items.length===1?'':'s')+'…');
   fetch('/api/admin/emaildomain-apply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
-    b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Linked '+j.applied+' contact'+(j.applied===1?'':'s')+' ✓'; items.forEach(function(it){ STATE[it.personId]='dead'; var el=document.querySelector('.ec[data-k="'+String(it.personId).replace(/"/g,'\\"')+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } }); count(); AIW.done({title:'Contacts linked', summary:'Linked '+j.applied+' contact'+(j.applied===1?'':'s')+' to companies by matching email domains.'}); }
+    b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; msg.textContent='Linked '+j.applied+' contact'+(j.applied===1?'':'s')+' ✓';
+      items.forEach(function(it){ var pid=it.personId;
+        var el=document.querySelector('.ec[data-k="'+String(pid).replace(/"/g,'\\"')+'"]'); if(el){ el.classList.add('dead'); (function(node){ setTimeout(function(){ if(node&&node.parentNode) node.parentNode.removeChild(node); },260); })(el); }
+        delete STATE[pid]; MATCHES=MATCHES.filter(function(m){return m.personId!==pid;});
+      });
+      count(); AIW.done({title:'Contacts linked', summary:'Linked '+j.applied+' contact'+(j.applied===1?'':'s')+' to companies by matching email domains.'});
+      setTimeout(function(){ if(!MATCHES.length){ document.getElementById('list').innerHTML='<div class="empty"><b>All linked up.</b>Every reviewed contact was linked. Press <b>Re-scan</b> to check for more.</div>'; document.getElementById('cnt').textContent=''; } },300); }
     else { AIW.hide(); msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
   }).catch(function(){ AIW.hide(); b.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
 }

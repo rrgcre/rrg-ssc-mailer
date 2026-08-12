@@ -139,7 +139,17 @@ function apply(){
   if(!items.length){ alert('Tick at least one concept to apply.'); return; }
   var b=document.getElementById('apply'); b.disabled=true; var msg=document.getElementById('msg'); msg.className='msg'; msg.textContent=''; AIW.show('Applying classifications…');
   fetch('/api/admin/concepts-apply',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({items:items})}).then(function(r){return r.json();}).then(function(j){
-    b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; var mt='Classified '+j.applied+' concept'+(j.applied===1?'':'s')+(j.tagged?(' · '+j.tagged+' tagged multi-unit'):''); msg.textContent=mt+' ✓'; items.forEach(function(it){ var k=it.companyId+'|'+it.conceptId; STATE[k]='off'; var el=document.querySelector('.ec[data-k="'+cssq(k)+'"]'); if(el){ el.classList.remove('on'); el.classList.add('dead'); } }); count(); AIW.done({title:'Classifications applied', summary:mt+'.'}); }
+    b.disabled=false; if(j&&j.ok){ msg.className='msg ok'; var mt='Classified '+j.applied+' concept'+(j.applied===1?'':'s')+(j.tagged?(' · '+j.tagged+' tagged multi-unit'):''); msg.textContent=mt+' ✓';
+      items.forEach(function(it){ var k=it.companyId+'|'+it.conceptId;
+        // Reflect the applied values locally so counts and a re-scan stay accurate.
+        var r=ROWS[k]; if(r){ r.current=r.current||{}; var p=r.proposed||{}; if(p.cuisine)r.current.cuisine=p.cuisine; if(p.conceptType)r.current.conceptType=p.conceptType; if(p.pricePoint)r.current.pricePoint=p.pricePoint; }
+        for(var ci=0;ci<CANDS.length;ci++){ if((CANDS[ci].companyId+'|'+CANDS[ci].conceptId)===k){ CANDS[ci].needs=false; break; } }
+        // Clear the applied card out of the review grid — it's handled.
+        var el=document.querySelector('.ec[data-k="'+cssq(k)+'"]'); if(el){ el.classList.add('dead'); (function(node){ setTimeout(function(){ if(node&&node.parentNode) node.parentNode.removeChild(node); },260); })(el); }
+        delete STATE[k]; delete ROWS[k]; ORDER=ORDER.filter(function(x){return x!==k;});
+      });
+      count(); AIW.done({title:'Classifications applied', summary:mt+'.'});
+      setTimeout(function(){ if(!ORDER.length){ document.getElementById('grid').innerHTML='<div class="empty"><b>All caught up.</b>Every reviewed concept was applied. Press <b>Classify with AI</b> to scan again for anything still missing.</div>'; document.getElementById('cnt').textContent=''; } },300); }
     else { AIW.hide(); msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not apply.'; }
   }).catch(function(){ AIW.hide(); b.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
 }

@@ -41,6 +41,9 @@ input,textarea{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10p
 .tagchip .tmv{border:none;background:transparent;color:#98a1b5;cursor:pointer;font-size:15px;font-weight:800;padding:0 1px;line-height:1;} .tagchip .tmv:hover{color:#DA2B1F;}
 .tagchip .tglbl{padding:0 2px;}
 .tagchip.sysreq{background:#f6f3e8;border-color:#e2d6ab;}
+.tagchip[draggable="true"]{cursor:grab;} .tagchip[draggable="true"]:active{cursor:grabbing;}
+.tagchip.dragging{opacity:.35;} .tagchip.dragover{box-shadow:0 0 0 2px var(--primary,#2c5c8f);}
+.ordhint{font-size:11.5px;color:var(--muted,#69748a);margin:2px 0 12px;} .ordhint b{color:var(--navy,#000E31);}
 .tagchip .tgsys{margin-left:3px;background:#e7dfc2;color:#7a6414;border-radius:5px;padding:1px 6px;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;cursor:help;}
 .sectionhd{font-size:11.5px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);margin:30px 2px 13px;display:flex;align-items:center;gap:12px;}
 .sectionhd:first-child{margin-top:6px;}
@@ -73,12 +76,13 @@ var MAXPULL=20; var RECENCY=90; var DEFSTATE='TX'; var ASSISTANT='Claude'; var C
 function recencyToggle(){ var on=document.getElementById('recencyon'), d=document.getElementById('recencydays'); if(on&&d){ d.disabled=!on.checked; d.style.opacity=on.checked?String(1):String(0.45); } }
 
 function tagListHtml(kind,arr){
-  return '<div class="tagbox" id="tb_'+kind+'">'+(arr.length?arr.map(function(t,i){ var sys=isSysReq(kind,t); var tail = sys ? '<span class="tgsys" title="System type — the app relies on this, so it can’t be removed.">required</span>' : ('<button type="button" class="tgx" data-rm="'+kind+'" data-val="'+esc(t)+'" title="Remove">×</button>'); return '<span class="tagchip'+(sys?' sysreq':'')+'"><button type="button" class="tmv" data-mv="'+kind+'" data-i="'+i+'" data-d="-1" title="Move earlier">‹</button><span class="tglbl">'+esc(t)+'</span><button type="button" class="tmv" data-mv="'+kind+'" data-i="'+i+'" data-d="1" title="Move later">›</button>'+tail+'</span>'; }).join(''):'<span class="note" style="margin:4px">None — add one below.</span>')+'</div>'
+  return '<div class="tagbox" id="tb_'+kind+'">'+(arr.length?arr.map(function(t,i){ var sys=isSysReq(kind,t); var tail = sys ? '<span class="tgsys" title="System type — the app relies on this, so it can’t be removed.">required</span>' : ('<button type="button" class="tgx" data-rm="'+kind+'" data-val="'+esc(t)+'" title="Remove">×</button>'); return '<span class="tagchip'+(sys?' sysreq':'')+'" data-kind="'+kind+'" data-idx="'+i+'"'+(sys?'':' draggable="true"')+' title="'+(sys?'':'Drag to reorder')+'"><button type="button" class="tmv" data-mv="'+kind+'" data-i="'+i+'" data-d="-1" title="Move earlier">‹</button><span class="tglbl">'+esc(t)+'</span><button type="button" class="tmv" data-mv="'+kind+'" data-i="'+i+'" data-d="1" title="Move later">›</button>'+tail+'</span>'; }).join(''):'<span class="note" style="margin:4px">None — add one below.</span>')+'</div>'
     +'<div class="addrow"><input id="add_'+kind+'" placeholder="Add a value and press Enter"><button class="btn ghost" type="button" data-add="'+kind+'">Add</button><button class="btn ghost" type="button" data-sort="'+kind+'" title="Sort this list A \u2192 Z">A\u2013Z</button></div>';
 }
 function renderTypes(){
   document.getElementById('typesBox').innerHTML=
-    '<div class="grid2">'
+    '<div class="ordhint"><b>Drag</b> any value to set its order, or use the <b>‹ ›</b> arrows. This is the exact order it appears in the pop-up menus across the app — <b>A–Z</b> is just a shortcut when alphabetical is what you want.</div>'
+    +'<div class="grid2">'
     +'<div><label class="fld">Main interests</label>'+tagListHtml('personTypes',TYPES.personTypes)+'</div>'
     +'<div><label class="fld">Company types</label>'+tagListHtml('companyTypes',TYPES.companyTypes)+'</div>'
     +'<div><label class="fld">Request categories</label>'+tagListHtml('ticketCategories',TYPES.ticketCategories)+'</div>'
@@ -101,6 +105,20 @@ function renderTypes(){
   document.querySelectorAll('[data-agradd]').forEach(function(b){ b.addEventListener('click',addAgrType); });
   var _ai=document.getElementById('add_agr'); if(_ai) _ai.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); addAgrType(); } });
   ['personTypes','companyTypes','ticketCategories','leadSources','activityTypes','cuisineTypes'].forEach(function(k){ var inp=document.getElementById('add_'+k); if(inp) inp.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); addType(k); } }); });
+  wireDrag();
+}
+var _dragK=null, _dragI=null;
+function wireDrag(){
+  var chips=[].slice.call(document.querySelectorAll('.tagchip[data-kind]'));
+  chips.forEach(function(ch){
+    if(ch.getAttribute('draggable')==='true'){
+      ch.addEventListener('dragstart',function(e){ _dragK=ch.getAttribute('data-kind'); _dragI=+ch.getAttribute('data-idx'); ch.classList.add('dragging'); try{ e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain',String(_dragI)); }catch(_e){} });
+      ch.addEventListener('dragend',function(){ ch.classList.remove('dragging'); [].slice.call(document.querySelectorAll('.tagchip.dragover')).forEach(function(x){ x.classList.remove('dragover'); }); });
+    }
+    ch.addEventListener('dragover',function(e){ if(_dragK==null || ch.getAttribute('data-kind')!==_dragK) return; e.preventDefault(); ch.classList.add('dragover'); });
+    ch.addEventListener('dragleave',function(){ ch.classList.remove('dragover'); });
+    ch.addEventListener('drop',function(e){ e.preventDefault(); ch.classList.remove('dragover'); var k=ch.getAttribute('data-kind'); if(_dragK==null || k!==_dragK) return; var to=+ch.getAttribute('data-idx'); if(to===_dragI) { _dragK=null; _dragI=null; return; } var arr=TYPES[k]; if(!arr||_dragI<0||_dragI>=arr.length) { _dragK=null; _dragI=null; return; } var item=arr.splice(_dragI,1)[0]; arr.splice(to,0,item); _dragK=null; _dragI=null; renderTypes(); saveTypes(); });
+  });
 }
 function agrListHtml(){
   var arr=TYPES.agreementTypes||[];
