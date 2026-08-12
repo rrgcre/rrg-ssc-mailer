@@ -120,7 +120,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 /* concept blocks */
 .cptblock{margin:0 -20px;padding:0;border-top:1px solid var(--line);}
 .cptblock:first-child{border-top:none;}
-.cptbar{display:flex;align-items:center;gap:11px;padding:10px 20px;background:#fff;cursor:pointer;transition:background .12s;position:relative;}
+.cptbar{display:flex;align-items:center;flex-wrap:wrap;gap:11px;padding:10px 20px;background:#fff;cursor:pointer;transition:background .12s;position:relative;}
 .cptbar:hover{background:#f8fafc;}
 .cptblock.open>.cptbar{background:#f8fafc;}
 .cptchev{color:#3f4b63;font-size:12px;font-weight:800;flex:none;width:10px;text-align:center;transition:transform .15s;} .cptblock.open .cptchev{transform:rotate(90deg);}
@@ -155,7 +155,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .logorow{display:flex;gap:12px;align-items:flex-start;} .logoprev{width:52px;height:52px;border-radius:10px;border:1px solid var(--line);background:#fff;flex:none;overflow:hidden;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:6px;} .logoprev img{max-width:100%;max-height:100%;object-fit:contain;}
 .logobtns{display:flex;gap:8px;margin-top:7px;}
 .cpsaved{font-size:11.5px;color:var(--green);font-weight:700;margin-left:8px;}
-.cptacts{display:none;flex-basis:100%;justify-content:flex-end;gap:4px;flex-wrap:wrap;margin-top:4px;} .cptbar:hover .cptacts,.cptblock.open>.cptbar .cptacts{display:flex;}
+.cptacts{display:none;flex-basis:100%;width:100%;justify-content:flex-end;gap:4px;margin-top:2px;} .cptbar:hover .cptacts,.cptblock.open>.cptbar .cptacts{display:flex;}
 .mini{background:transparent;border:1px solid transparent;color:#9aa3b5;border-radius:7px;padding:5px 9px;font:inherit;font-size:11px;font-weight:700;cursor:pointer;transition:background .12s,color .12s;}
 .cptbar:hover .mini{color:#5a6478;} .mini:hover{background:#eef2fb;color:var(--navy);} .mini.danger{color:#c19b97;} .cptbar:hover .mini.danger{color:#bd8a85;} .mini.danger:hover{background:#fdeceb;color:var(--red);}
 .cptempty{color:var(--muted);font-size:12px;padding:12px 20px;}
@@ -476,7 +476,7 @@ function render(){
     var logo=cpt.logo?('<img class="cptlogo" src="'+esc(cpt.logo)+'" alt="" data-mono="'+esc(mletter)+'" onerror="cptLogoFail(this)">'):mono;
     return '<div class="cptblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="'+esc(cpt.id)+'"><span class="cptchev">▸</span>'+logo
       + '<div class="cptname"><div class="cptnm cptnameedit" data-editc="'+esc(cpt.id)+'" title="Click to edit this concept">'+esc(cpt.name)+'</div>'+metaLine+'</div>'
-      + '<div class="cptacts"><button class="mini" data-addloc="'+esc(cpt.id)+'">+ Location</button>'+(HASMAPS?'<button class="mini" data-photos="'+esc(cpt.name)+'">Photos</button>':'')+'<button class="mini" data-editc="'+esc(cpt.id)+'">Edit</button><button class="mini danger" data-rmc="'+esc(cpt.id)+'" title="Remove concept">\u2212 Remove</button></div></div>'
+      + '<div class="cptacts"><button class="mini" data-addloc="'+esc(cpt.id)+'">+ Location</button><button class="mini" data-editc="'+esc(cpt.id)+'">Edit</button><button class="mini danger" data-rmc="'+esc(cpt.id)+'" title="Remove concept">\u2212 Remove</button></div></div>'
       + '<div class="cptlocs">'+rows+'</div></div>';
   }
   var known={}; CONCEPTS.forEach(function(x){known[x.name]=1;});
