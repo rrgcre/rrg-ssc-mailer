@@ -58,6 +58,8 @@
       +'.ddrop.has{border-color:#1f8a5b;color:#1f8a5b;background:#f2faf5;font-weight:700;}'
       +'.dfoot{display:flex;gap:9px;justify-content:flex-end;align-items:center;padding:13px 21px;border-top:1px solid #e6e9f0;}'
       +'.dbtn{background:#000E31;color:#fff;border:1px solid #000E31;border-radius:9px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}'
+      +'.dbtn[disabled]{opacity:.85;cursor:default;}'
+      +'.dspin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.45);border-top-color:#fff;border-radius:50%;vertical-align:-2px;margin-right:7px;animation:dspin .7s linear infinite;}@keyframes dspin{to{transform:rotate(360deg);}}'
       +'.dbtn.ghost{background:#fff;color:#6b7488;border-color:#e6e9f0;}'
       +'.dchip{display:inline-flex;align-items:center;gap:7px;background:#eef2fb;border:1px solid #d3ddf3;color:#2647b0;border-radius:100px;padding:5px 12px;font-size:12.5px;font-weight:700;}'
       +'.docdel{margin-left:auto;flex:none;background:none;border:none;color:#c2c9d6;font-size:13px;line-height:1;cursor:pointer;padding:4px 6px;border-radius:6px;opacity:0;transition:opacity .12s,background .12s,color .12s;}'
@@ -200,9 +202,11 @@
       if(tooBig.length){ msg.textContent=(tooBig.length===1?('“'+tooBig[0].name+'” is'):(tooBig.length+' files are'))+' over 25 MB — remove '+(tooBig.length===1?'it':'them')+' and try again.'; return; }
       save.disabled=true;
       var single=(pickedFiles.length===1), total=pickedFiles.length, done=0, failed=0;
+      function working(n){ save.innerHTML='<span class="dspin"></span>'+(total>1?('Uploading '+n+' of '+total+'…'):'Uploading…'); }
+      working(1); msg.style.color='#6b7488'; msg.textContent=(total>1?('Uploading '+total+' files — please keep this window open…'):'Uploading…');
       (function next(i){
-        if(i>=total){ save.disabled=false; if(failed){ msg.textContent=done+' uploaded, '+failed+' failed.'; if(done) load(); } else { close(); load(); } return; }
-        msg.textContent='Uploading '+(i+1)+' of '+total+'…';
+        if(i>=total){ if(failed){ save.disabled=false; save.textContent='Upload'; msg.style.color='#DA2B1F'; msg.textContent=done+' uploaded, '+failed+' failed.'; if(done) load(); } else { save.innerHTML='✓ Done'; msg.textContent=''; setTimeout(function(){ close(); load(); },250); } return; }
+        working(i+1);
         uploadOne(pickedFiles[i], single, single?null:rowType(i)).then(function(j){ if(j&&j.ok) done++; else failed++; }).catch(function(){ failed++; }).then(function(){ next(i+1); });
       })(0);
     });
