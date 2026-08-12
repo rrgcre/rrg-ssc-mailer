@@ -266,6 +266,8 @@ function renderList(list){
       { label:'Nickname', defaultHidden:true, sort:function(a,b){ return RRGList.cmp(a.nickname,b.nickname); }, cell:function(p){ return p.nickname?esc(p.nickname):'<span class="meta">—</span>'; } },
       { label:'Tags', defaultHidden:true, sortable:false, cell:function(p){ return (p.tags&&p.tags.length)?p.tags.map(function(t){return '<span style="font-size:10px;font-weight:700;color:#3a4c74;background:#eef2fb;border:1px solid #dbe4f5;border-radius:6px;padding:1px 6px;margin-right:3px">'+esc(t)+'</span>';}).join(''):'<span class="meta">—</span>'; } },
       { label:'Lead source', defaultHidden:true, sort:function(a,b){ return RRGList.cmp(a.leadSource,b.leadSource); }, cell:function(p){ return p.leadSource?esc(p.leadSource):'<span class="meta">—</span>'; } },
+      { label:'Interactions', align:'left', defaultHidden:true, sort:function(a,b){ return (a.interactions||0)-(b.interactions||0); }, cell:function(p){ var n=p.interactions||0; return '<span class="count">'+n+' <span>interaction'+(n===1?'':'s')+'</span></span>'; } },
+      { label:'Inactive days', align:'left', defaultHidden:true, sort:function(a,b){ var x=_inactiveDays(a.lastContacted),y=_inactiveDays(b.lastContacted); return (x==null?-1:x)-(y==null?-1:y); }, cell:function(p){ var d=_inactiveDays(p.lastContacted); return d==null?'<span class="meta">—</span>':('<span class="count">'+d+' <span>day'+(d===1?'':'s')+'</span></span>'); } },
       { label:'', align:'right', sortable:false, width:150, cell:function(p){ var open='<a class="popen" href="./rrg_person.html?id='+encodeURIComponent(p.id)+'&agr=1" title="Send an agreement">Send agreement</a>'; var del=CAN_DELETE?('<button class="pdel" data-del="'+esc(p.id)+'" data-name="'+esc(p.name||'')+'" title="Delete contact" aria-label="Delete">✕</button>'):''; return '<div class="rowacts">'+open+del+'</div>'; } }
     ]
   };
@@ -402,6 +404,7 @@ function showImpResults(j){ var box=document.getElementById('imp_preview_box'); 
 function filterActiveCount(){ var n=0; ['types','owners','leadSources','tags'].forEach(function(k){ if(FILTERS[k]&&FILTERS[k].length) n++; }); ['vip','star','caution','primary'].forEach(function(k){ if(FILTERS[k]) n++; }); if(FILTERS.createdFrom||FILTERS.createdTo) n++; if(FILTERS.contactedFrom||FILTERS.contactedTo) n++; return n; }
 function updateFilterBtn(){ var b=document.getElementById('filterBtn'); if(!b) return; var n=filterActiveCount(); b.innerHTML='\u2699 Filters'+(n?(' <span class="fbadge">'+n+'</span>'):''); b.classList.toggle('on',!!n); }
 var USERS=[];
+function _inactiveDays(v){ if(!v) return null; var t=Date.parse(v); if(isNaN(t)) t=Date.parse(String(v).slice(0,10)+'T00:00:00'); if(isNaN(t)) return null; return Math.max(0,Math.floor((Date.now()-t)/86400000)); }
 function ownerOpts(){ var m={}; (USERS||[]).forEach(function(u){ if(u&&u.name) m[u.name]=1; }); (ALL||[]).forEach(function(p){ if(p.owner) m[p.owner]=1; }); return Object.keys(m).sort(); }
 function leadOpts(){ var m={}; (LEADSRC||[]).forEach(function(x){ if(x) m[x]=1; }); (ALL||[]).forEach(function(p){ if(p.leadSource) m[p.leadSource]=1; }); return Object.keys(m).sort(); }
 function distinctOwners(){ var m={}; (ALL||[]).forEach(function(p){ if(p.owner) m[p.owner]=1; }); return Object.keys(m).sort(); }
