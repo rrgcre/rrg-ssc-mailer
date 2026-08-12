@@ -263,6 +263,29 @@ function wireLS(j){
     }).catch(function(){ ap.disabled=false; document.getElementById('lsMsg').textContent='Could not reach the server.'; });
   });
 }
+// Shared working box — proxy to the shell's plain work box (loaded via rrg_brand.js).
+if(!document.querySelector('script[src="/rrg_shell.js"]')){try{var _sh=document.createElement('script');_sh.src='/rrg_shell.js';_sh.defer=true;(document.head||document.documentElement).appendChild(_sh);}catch(_e){}}
+var WORK=(function(){ function proxy(m){ return function(){ var a=arguments,t=0; (function go(){ if(window.rrgWork&&window.rrgWork[m]){ try{window.rrgWork[m].apply(null,a);}catch(e){} return; } if(t++>150) return; setTimeout(go,50); })(); }; } return {show:proxy('show'),setMsg:proxy('setMsg'),progress:proxy('progress'),done:proxy('done'),hide:proxy('hide')}; })();
+var _enrichStop=false, _AUTOENRICH_CAP=300;
+function startBatchEnrich(batch){
+  if(!batch) return;
+  fetch('/api/admin/batch-company-ids?batch='+encodeURIComponent(batch),{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){
+    var ids=(j&&j.ids)||[]; if(!ids.length) return;   // no imported companies with locations to enrich
+    var capped=false; if(ids.length>_AUTOENRICH_CAP){ ids=ids.slice(0,_AUTOENRICH_CAP); capped=true; }
+    _enrichStop=false;
+    WORK.show('Enriching your imported companies from Google — status, ratings, phone, website and photos…', function(){ _enrichStop=true; });
+    WORK.progress(0,ids.length,{noun:'companies', msg:'Enriching from Google…'});
+    var done=0, photos=0, nokey=false;
+    function next(){
+      if(_enrichStop){ WORK.done({title:'Stopped', summary:'Enriched '+done+' of '+ids.length+' compan'+(done===1?'y':'ies')+' · pulled '+photos+' photo'+(photos===1?'':'s')+' before you stopped.'}); return; }
+      if(done>=ids.length){ WORK.progress(ids.length,ids.length,{noun:'companies'}); WORK.done({title:'Import enrichment complete', summary:'Enriched '+ids.length+' compan'+(ids.length===1?'y':'ies')+' from Google and pulled '+photos+' location photo'+(photos===1?'':'s')+'.'+(capped?(' Reached the auto-enrich cap of '+_AUTOENRICH_CAP+' — enrich the rest from Data → Enrich from Google.'):'')}); return; }
+      fetch('/api/company/'+encodeURIComponent(ids[done])+'/pull-photos',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
+        .then(function(r){return r.json();}).then(function(j2){ if(j2&&j2.added) photos+=j2.added; if(j2&&j2.error&&/api key/i.test(j2.error)) nokey=true; }).catch(function(){})
+        .then(function(){ if(nokey){ WORK.done({title:'Add a Google key', summary:'Auto-enrichment needs a Google Maps key — add one in Settings → Integrations, then run Enrich from Google.'}); return; } done++; WORK.progress(done,ids.length,{noun:'companies'}); next(); });
+    }
+    next();
+  }).catch(function(){});
+}
 function renderResult(j){
   var host=document.getElementById('resbox'); if(!host) return;
   var cards, tip;
@@ -276,6 +299,8 @@ function renderResult(j){
   host.classList.remove('hide'); host.scrollIntoView({behavior:'smooth',block:'nearest'});
   var ab=document.getElementById('againBtn'); if(ab) ab.addEventListener('click',resetUpload);
   wireLS(j);
+  // Auto-enrich the freshly-imported companies from Google (data + photos), with a working box.
+  if(MODE==='companies' && j.batch){ startBatchEnrich(j.batch); }
 }
 function resetUpload(){ HEADERS=[];ROWS=[];MAP={}; document.getElementById('filepill').classList.add('hide'); document.getElementById('step2').classList.add('hide'); document.getElementById('step3').classList.add('hide'); document.getElementById('resbox').classList.add('hide'); setMsg('',''); updateStepper(); window.scrollTo({top:0,behavior:'smooth'}); }
 function setMsg(t,c){ var m=document.getElementById('importMsg'); if(m){ m.textContent=t; m.className='msg '+(c||''); } }

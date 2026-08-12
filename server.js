@@ -10199,6 +10199,16 @@ app.post('/api/admin/enrich-apply', requireAdmin, express.json({ limit: '3mb' })
   res.json({ ok: true, applied });
 });
 
+// Company IDs in an import batch that still have at least one photoless location —
+// the targets for the auto-enrich pass the import page runs right after an import.
+app.get('/api/admin/batch-company-ids', requireAdmin, (req, res) => {
+  const batch = parseInt((req.query || {}).batch, 10) || 0;
+  if (!batch) return res.json({ ok: true, ids: [] });
+  const ids = loadCompanies()
+    .filter(c => c.importBatch === batch && (c.locations || []).some(l => (l.photos || []).length === 0))
+    .map(c => c.id);
+  res.json({ ok: true, ids });
+});
 app.get('/api/admin/enrichment-summary', requireAdmin, (req, res) => {
   const companies = loadCompanies(); const people = loadPeople();
   let locs = 0, locsEnriched = 0;

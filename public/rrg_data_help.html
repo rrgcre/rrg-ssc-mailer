@@ -165,6 +165,7 @@ table.mx td b{color:var(--slate);}
         <li><b>Map the columns</b> — the importer auto-detects your columns (name, email, phone, company, address, and so on). Check the mapping and adjust anything it guessed wrong. At minimum, map the name column.</li>
         <li><b>Preview &amp; import</b> — see a sample of what will come in, then import. As it runs it <b>dedupes</b> and <b>links every contact to its company</b> automatically.</li>
       </ol>
+      <div class="callout tip"><div class="lbl">Companies auto-enrich after import</div>Right after a <b>company</b> import, the system automatically enriches the batch from Google — operating status, ratings, phone, website, map coordinates and <b>location photos</b> — with a working box and a live count you can stop any time. It only touches locations that came in with the import, and it's capped so a huge import can't run away; anything past the cap you finish from <b>Data → Enrich from Google</b>. The AI concept discovery (finding brands and locations a company operates) stays a one-click action on each company, since it's a web-search guess worth a glance before it's written.</div>
       <h3>Order matters a little</h3>
       <p>If you're importing both, do <b>Companies first, then Contacts</b> — that way each contact can attach to a company that already exists. If you only have one combined contact list, that's fine too; the importer creates the companies it needs from the company column.</p>
       <h3>Every import is reversible</h3>
