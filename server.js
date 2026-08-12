@@ -1559,11 +1559,45 @@ app.post('/api/questionnaire-save', express.json({ limit: '2mb' }), (req, res) =
 // (completed valuation questionnaire, Financials in a data room, Lease in a data room),
 // plus the latest valuation record + state. Read-only; drives the dimmed "Generate
 // Valuation" action on the contact page and the three-input generate gate.
+// Resolve a single listing/deal from a listing key ('s_<screenId>' or 'd_<dealId>').
+// Used to scope the seller-actions pipeline to ONE business when a seller has several.
+function _dealFromListingKey(lk) {
+  lk = String(lk || '').trim();
+  if (!lk) return null;
+  try {
+    const deals = loadDeals();
+    if (lk.slice(0, 2) === 's_') return deals.find(d => d.screenId === lk.slice(2)) || null;
+    if (lk.slice(0, 2) === 'd_') return deals.find(d => d.id === lk.slice(2)) || null;
+  } catch (e) {}
+  return null;
+}
 app.get('/api/valuation-readiness', (req, res) => {
   try {
     const pid = String(req.query.personId || '').trim().slice(0, 48);
     const cid = String(req.query.companyId || '').trim().slice(0, 48);
     const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid));
+    // ---- Listing-scoped path: when a listingKey is supplied, resolve the state for THAT
+    // one business only (its screening, its data room, a BOV tagged to it). Falls through
+    // to the person/company aggregate when no listingKey (single-business — unchanged). ----
+    const _lk = String(req.query.listingKey || '').trim().slice(0, 64);
+    const _sd = _lk ? _dealFromListingKey(_lk) : null;
+    if (_lk && _sd) {
+      let scr = false, scrSkip = false;
+      try { const _ov = loadAssignOverlay(); scrSkip = !!(_ov[_lk] && _ov[_lk].screeningSkipped); } catch (e) {}
+      try { if (_sd.screenId) { const _sc = (loadScreens() || []).find(s => s.id === _sd.screenId); if (_sc && (_sc.callState === 'complete' || _sc.completed === true)) scr = true; } } catch (e) {}
+      if (!scr && scrSkip) scr = true;
+      let fin = false, lse = false, _rmid = '';
+      try { const _rm = roomForDeal(_sd); if (_rm) { _rmid = _rm.id || ''; (_rm.docs || []).forEach(d => { const c = d && d.category; if (c && c.indexOf('Financials') === 0) fin = true; if (c === 'Lease') lse = true; }); if (_rm.noLease) lse = true; } } catch (e) {}
+      let _bov = null;
+      try { _bov = loadBovs().filter(b => b && b.listingKey === _lk).sort((a, b2) => String(b2.createdAt || '').localeCompare(String(a.createdAt || '')))[0] || null; } catch (e) {}
+      if (_bov) { if (!fin && Array.isArray(_bov.financials) && _bov.financials.length) fin = true; if (!lse && Array.isArray(_bov.lease) && _bov.lease.length) lse = true; }
+      let ivDone = false, ivId = '', ivRoom = '';
+      try { const ivs = loadInterviews().filter(iv => ((iv.dealKey === _lk) || (_rmid && iv.roomId === _rmid)) && linkKind(iv.kind) === 'valuation').sort((a, b2) => String(b2.createdAt || '').localeCompare(String(a.createdAt || ''))); if (ivs.length) { ivDone = true; ivId = ivs[0].id; ivRoom = ivs[0].roomId || ''; } } catch (e) {}
+      try { if (!ivDone) { const sls = loadSellerLinks().filter(x => x.dealKey === _lk && linkKind(x.kind) === 'valuation'); if (sls.some(sl => (sl.form && sl.form.submittedAt) || ((sl.videoCount || 0) > 0))) ivDone = true; } } catch (e) {}
+      const _q = ivDone;
+      const _state = _bov ? (_bov.finalizedAt ? 'final' : (_bov.aiGenerated && !_bov.pending ? 'built' : 'requested')) : '';
+      return res.json({ ok: true, listingKey: _lk, screening: scr, screeningSkipped: scrSkip, questionnaire: _q, interviewDone: ivDone, interviewId: ivId, interviewRoomId: ivRoom, financials: fin, lease: lse, ready: !!(_q && fin && lse), bovId: _bov ? _bov.id : '', state: _state });
+    }
     if (!pid && !cid) return res.json({ ok: true, screening: false, questionnaire: false, financials: false, lease: false, ready: false, bovId: '', state: '' });
     const questionnaire = loadQuests().some(q => hit(q) && (q.completed || q.processed));
     const bovs = loadBovs().filter(hit).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
@@ -1611,6 +1645,18 @@ app.post('/api/valuation-room', express.json(), (req, res) => {
     const b = req.body || {};
     const pid = String(b.personId || '').trim().slice(0, 48);
     const cid = String(b.companyId || '').trim().slice(0, 48);
+    // Listing-scoped: a specific business's data room (create-or-find tied to that deal).
+    const _lk = String(b.listingKey || '').trim().slice(0, 64);
+    const _sd = _lk ? _dealFromListingKey(_lk) : null;
+    if (_lk && _sd) {
+      const _rm = roomForDeal(_sd);
+      if (_rm) return res.json({ ok: true, id: _rm.id });
+      const _rooms = loadRooms();
+      const nr = { id: newRoomId(), srcCimId: '', srcBovId: '', srcDealId: _sd.id, personId: pid || _sd.contactPersonId || '', companyId: cid || _sd.companyId || '', token: newRoomToken(), business: String(b.business || _sd.business || 'Valuation').slice(0, 120), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: new Date().toISOString(), folders: roomCategories(), docs: [], access: [], grants: [] };
+      _rooms.push(nr); saveRooms(_rooms);
+      try { const _ds = loadDeals(); const _d2 = _ds.find(x => x.id === _sd.id); if (_d2 && !_d2.roomId) { _d2.roomId = nr.id; saveDeals(_ds); } } catch (e) {}
+      return res.json({ ok: true, id: nr.id });
+    }
     if (!pid && !cid) return res.status(400).json({ ok: false, error: 'No contact.' });
     const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid));
     const rooms = loadRooms();
@@ -1649,9 +1695,13 @@ app.post('/api/seller/skip-screening', express.json(), (req, res) => {
     const address = (company && company.office && [company.office.address, company.office.city, company.office.state].filter(Boolean).join(', ')) || '';
     const repName = (req.user && req.user.name) || '';
     const repUser = (req.user && req.user.username) || '';
-    // Find or open the listing for this seller.
+    // Find or open the listing for this seller. When a listingKey is supplied, act on that
+    // specific business; otherwise fall back to the seller's first listing (single-business).
     const deals = loadDeals();
-    let deal = deals.filter(hit)[0] || null;
+    const _lk = String(b.listingKey || '').trim().slice(0, 64);
+    let deal = null;
+    if (_lk) { if (_lk.slice(0, 2) === 's_') deal = deals.find(d => d.screenId === _lk.slice(2)) || null; else if (_lk.slice(0, 2) === 'd_') deal = deals.find(d => d.id === _lk.slice(2)) || null; }
+    if (!deal) deal = deals.filter(hit)[0] || null;
     if (!deal) {
       deal = { id: newDealId(), business: String(bizName).slice(0, 120), market: market, contact: (person && person.name) || '', screenId: '', roomId: '', contactPersonId: pid || '', companyId: cid || '', createdAt: now, by: repName, byUser: repUser };
       deals.push(deal);
@@ -1724,9 +1774,12 @@ app.post('/api/valuation-ensure', express.json(), (req, res) => {
     const pid = String(b.personId || '').trim().slice(0, 48);
     const cid = String(b.companyId || '').trim().slice(0, 48);
     if (!pid && !cid) return res.status(400).json({ ok: false, error: 'No contact.' });
+    const _lk = String(b.listingKey || '').trim().slice(0, 64);
     const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid));
     const byNew = (a, b2) => String(b2.createdAt || '').localeCompare(String(a.createdAt || ''));
-    const bov = loadBovs().filter(hit).sort(byNew)[0] || null;
+    // When scoped to one listing, only reuse a BOV tagged to THAT listing — never another
+    // business's valuation. Otherwise fall back to the person/company aggregate (unchanged).
+    const bov = _lk ? (loadBovs().filter(x => x && x.listingKey === _lk).sort(byNew)[0] || null) : (loadBovs().filter(hit).sort(byNew)[0] || null);
     if (bov) return res.json({ ok: true, bovId: bov.id });
     const arr = loadQuests();
     let q = arr.filter(hit).sort(byNew)[0] || null;
@@ -1736,6 +1789,8 @@ app.post('/api/valuation-ensure', express.json(), (req, res) => {
     if (!q) return res.status(409).json({ ok: false, error: 'No Seller Interview on file yet. Send the Seller Interview (form or video), have the seller complete it, then generate the valuation.' });
     if (!q.processed) { const arr2 = loadQuests(); const q2 = arr2.find(x => x.id === q.id) || q; q2.processed = true; q2.processedAt = new Date().toISOString(); saveQuests(arr2); }
     const nb = ensureBovForQuest(q);
+    // Tag the new valuation to the specific listing so its state resolves per-business.
+    if (_lk && nb && nb.id) { try { const _bs = loadBovs(); const _bb = _bs.find(x => x.id === nb.id); if (_bb && !_bb.listingKey) { _bb.listingKey = _lk; saveBovs(_bs); } } catch (e) {} }
     res.json({ ok: true, bovId: (nb && nb.id) || '' });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
@@ -7672,7 +7727,7 @@ app.get('/api/companies', (req, res) => {
   const cos = loadCompanies().filter(c => !restrictToOwn(req) || permOwnerMatch(req, c.owner || c.by)), people = loadPeople(), deals = loadDeals();
   const _coActMax = {}; people.forEach(p => { if (!p.companyId) return; const _t = _personLastActive(p); if (_t > (_coActMax[p.companyId] || '')) _coActMax[p.companyId] = _t; });
   const rows = cos.map(c => {
-    const mk = {}; (c.concepts || []).forEach(cp => (cp.markets || []).forEach(m => { if (m) mk[m] = 1; })); (c.markets || []).forEach(m => { if (m) mk[m] = 1; }); if (c.market) mk[c.market] = 1;
+    const mk = {}; (Array.isArray(c.concepts) ? c.concepts : []).forEach(cp => (Array.isArray(cp.markets) ? cp.markets : []).forEach(m => { if (m) mk[m] = 1; })); (Array.isArray(c.markets) ? c.markets : []).forEach(m => { if (m) mk[m] = 1; }); if (c.market) mk[c.market] = 1;
     const _cp = people.filter(p => p.companyId === c.id);
     let _main = c.mainContactId ? _cp.find(p => p.id === c.mainContactId) : null;
     if (!_main && _cp.length === 1) _main = _cp[0];   // only one contact → treat it as the main/preferred
@@ -7711,6 +7766,7 @@ function listingStageSummary(d, overlay) {
   } catch (e) { return { label: '', done: 0, total: 0 }; }
 }
 app.get('/api/person/:id', (req, res) => {
+ try {
   const p = personById(req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Person not found.' });
   if (restrictToOwn(req) && !permOwnerMatch(req, p.by)) return res.status(403).json({ ok: false, error: 'You can only view your own contacts.' });
@@ -7728,7 +7784,18 @@ app.get('/api/person/:id', (req, res) => {
     (o.ndas || []).filter(x => x.personId === p.id).forEach(x => ndas.push({ key: key, business: biz, date: x.date, status: x.status, method: x.method }));
     (o.inquiries || []).forEach(x => { const _m = (x.personId && x.personId === p.id) || (x.email && _pEmails.indexOf(String(x.email).toLowerCase()) >= 0); if (_m && !interested.some(it => it.key === key)) interested.push({ key: key, business: biz, status: x.status || 'New', inquiryId: x.id, date: x.date || x.createdAt || '', source: x.source || '', stage: _keyStage ? _keyStage.label : '', stageDone: _keyStage ? _keyStage.done : 0, stageTotal: _keyStage ? _keyStage.total : 0 }); });
   }
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), companyName: (function(){ try{ var _c=companyById(p.companyId); return _c?(_c.name||''):''; }catch(e){ return ''; } })(), hasPhoto: !!p.photoExt }), company: companyBrief(companyById(p.companyId)), deals, offers, tours, ndas, interested, agreements: loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))), agreementTypes: effAgreementTypes(), appointments: loadAppts().filter(x => x.contactPersonId === p.id && x.status !== "deleted").map(apptBrief).sort((m,n)=>String(m.start||"").localeCompare(String(n.start||""))), apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === (req.user && req.user.username) || (req.user && isSuper(req.user)))).map(a => automationBrief(a, req.user || {})), emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  // Build each sub-list defensively — one malformed agreement / appointment / automation
+  // must never 500 the whole contact page. Failures log server-side and fall back to [].
+  let _agreements = []; try { _agreements = loadAgreements().filter(a => a.personId === p.id).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999'))); } catch (e) { console.error('[/api/person] agreements build failed for ' + p.id + ':', e && e.message); }
+  let _appointments = []; try { _appointments = loadAppts().filter(x => x.contactPersonId === p.id && x.status !== "deleted").map(apptBrief).sort((m,n)=>String(m.start||"").localeCompare(String(n.start||""))); } catch (e) { console.error('[/api/person] appointments build failed for ' + p.id + ':', e && e.message); }
+  let _automations = []; try { _automations = loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === (req.user && req.user.username) || (req.user && isSuper(req.user)))).map(a => automationBrief(a, req.user || {})); } catch (e) { console.error('[/api/person] automations build failed for ' + p.id + ':', e && e.message); }
+  let _users = []; try { _users = auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))); } catch (e) {}
+  let _company = null; try { _company = companyBrief(companyById(p.companyId)); } catch (e) {}
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), tags: personTags(p), companyName: (function(){ try{ var _c=companyById(p.companyId); return _c?(_c.name||''):''; }catch(e){ return ''; } })(), hasPhoto: !!p.photoExt }), company: _company, deals, offers, tours, ndas, interested, agreements: _agreements, agreementTypes: effAgreementTypes(), appointments: _appointments, apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: _automations, emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: _users, activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+ } catch (e) {
+  console.error('[/api/person] fatal for ' + (req.params && req.params.id) + ':', (e && e.stack) || e);
+  if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not load this contact — a linked record looks malformed. (' + ((e && e.message) || 'error') + ')' });
+ }
 });
 const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark', 'Closed'];
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
