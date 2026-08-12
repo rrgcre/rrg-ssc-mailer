@@ -71,6 +71,9 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .fbsel.act{border-color:#b6c2ff;background:#f2f5ff;color:var(--navy);font-weight:600;}
 .fbclear{background:none;border:none;color:var(--red);font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:4px 6px;}
 .fbclear:hover{text-decoration:underline;}
+.fbtoggle{border:1px solid var(--line);border-radius:8px;padding:7px 12px;font:inherit;font-size:12.5px;color:var(--ink);background:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
+.fbtoggle:hover{border-color:#b9c3d6;}
+.fbtoggle.on{border-color:#b6c2ff;background:#f2f5ff;color:var(--navy);font-weight:600;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -91,6 +94,7 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
       <select id="fOwner" class="fbsel" onchange="applyFilter()"><option value="">All owners</option></select>
       <select id="fDocType" class="fbsel" onchange="applyFilter()"><option value="">All document types</option></select>
       <select id="fCreated" class="fbsel" onchange="applyFilter()"><option value="">Any time</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="90">Last 90 days</option><option value="365">Last 12 months</option><option value="ytd">This year</option></select>
+      <button type="button" class="fbtoggle" id="fbSystem" onclick="toggleSystem()" title="Hide records that flow in automatically from other tools (agreements, LOIs, valuations, marketing packs, site criteria, seller screening) — show only uploaded files and firm-wide forms">Hide system docs</button>
       <button type="button" class="fbclear" id="fbClear" onclick="clearFilters()" style="display:none">Clear filters</button>
     </div>
     <style>.listloading{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:72px 20px;color:#6b7488;font-size:14px;font-weight:600;gap:15px}.listspin{width:38px;height:38px;border-radius:50%;border:3px solid #e6e9f0;border-top-color:#DA2B1F;animation:listspin .8s linear infinite}@keyframes listspin{to{transform:rotate(360deg)}}</style>
@@ -139,7 +143,10 @@ function fmtDate(iso){ if(!iso) return ''; try{ var d=new Date(iso); if(isNaN(d.
 function fmtSize(n){ if(!n) return ''; if(n<1024) return n+' B'; if(n<1024*1024) return (n/1024).toFixed(0)+' KB'; return (n/1024/1024).toFixed(1)+' MB'; }
 function cmp(a,b){ return RRGList.cmp(a,b); }
 
-var DOCS=[], CTL=null, CURTYPE=null, FILTER='all', IS_ADMIN=false;
+var DOCS=[], CTL=null, CURTYPE=null, FILTER='all', IS_ADMIN=false, HIDE_SYS=false;
+try{ HIDE_SYS = localStorage.getItem('docs_hidesys')==='1'; }catch(e){}
+var SYSTEM_KINDS={agreement:1,loi:1,valuation:1,marketingpack:1,ssc:1,seller:1,interview:1};
+function toggleSystem(){ HIDE_SYS=!HIDE_SYS; try{ localStorage.setItem('docs_hidesys',HIDE_SYS?'1':'0'); }catch(e){} applyFilter(); }
 var TYPES=[['all','All'],['agreement','Agreements'],['loi','LOIs'],['valuation','Valuations'],['marketingpack','Marketing Packs'],['ssc','Site Criteria'],['seller','Seller Screening'],['file','Files'],['firmwide','Firm-wide']];
 var KICON={agreement:'§',loi:'✎',valuation:'▤',marketingpack:'❏',ssc:'◎',seller:'⊚',file:'▦',firmwide:'★'};
 var RELICON={contact:'◑',company:'▦',listing:'◆'};
@@ -208,7 +215,9 @@ function applyFilter(){
   if(ow) base=base.filter(function(d){ return (d.owner||'')===ow; });
   if(dt) base=base.filter(function(d){ return (d.docType||'')===dt; });
   if(cr) base=base.filter(function(d){ return createdOk(d.createdAt,cr); });
+  if(HIDE_SYS) base=base.filter(function(d){ return !SYSTEM_KINDS[d.kind]; });
   ['fOwner','fDocType','fCreated'].forEach(function(id){ var el=document.getElementById(id); if(el) el.classList.toggle('act', !!el.value); });
+  var _sysBtn=document.getElementById('fbSystem'); if(_sysBtn){ _sysBtn.classList.toggle('on',HIDE_SYS); _sysBtn.textContent=HIDE_SYS?'✓ System docs hidden':'Hide system docs'; }
   var fbC=document.getElementById('fbClear'); if(fbC) fbC.style.display=(ow||dt||cr)?'inline-block':'none';
   var q=(document.getElementById('search').value||'').trim().toLowerCase();
   var _sx=document.getElementById('searchx'); if(_sx) _sx.classList.toggle('show', !!q);
