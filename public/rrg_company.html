@@ -38,7 +38,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .actadd{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;}
 .actadd select,.actadd input[type=date]{border:1px solid #d5dbe6;border-radius:8px;padding:8px 10px;font:inherit;font-size:13px;}
 .actadd textarea{flex:1;min-width:150px;resize:vertical;font:inherit;font-size:13px;padding:8px 10px;border:1px solid #d5dbe6;border-radius:8px;line-height:1.4;}
-.rail .card .ch .rchev{background:none;border:none;color:#98a1b5;font-size:11px;line-height:1;cursor:pointer;padding:2px 4px;margin-right:2px;transition:transform .15s;flex:none;}
+.rail .card .ch .rchev{background:none;border:none;color:#3f4b63;font-size:13px;font-weight:800;line-height:1;cursor:pointer;padding:2px 4px;margin-right:2px;transition:transform .15s;flex:none;}
 .rail .card .ch .rchev:hover{color:var(--navy);}
 .rail .card.railcollapsed .ch .rchev{transform:rotate(-90deg);} .rail .card .ch{gap:4px;} .rail .card .ch .rchev{margin-right:0;padding-left:2px;padding-right:3px;}
 .rail .card.railcollapsed > .cb, .rail .card.railcollapsed > .railbody{display:none;}
@@ -84,14 +84,14 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .rrempty{font-size:12.5px;color:var(--soft);padding:8px 20px;}
 @media(max-width:840px){.wrap{grid-template-columns:1fr;}}
 .card{background:#fff;border:1px solid #e9edf3;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.05);overflow:hidden;margin-bottom:12px;}
-/*rrg-accordion-css*/.card > .ch{cursor:pointer;} .card > .ch .rrgchev{margin-left:8px;color:#b0b8c6;font-size:11px;transition:transform .15s;flex:none;} .card.collapsed > .ch .rrgchev{transform:rotate(-90deg);} .card.collapsed > .cb{display:none;}
+/*rrg-accordion-css*/.card > .ch{cursor:pointer;} .card > .ch .rrgchev{margin-left:8px;color:#3f4b63;font-size:13px;font-weight:800;transition:transform .15s;flex:none;} .card.collapsed > .ch .rrgchev{transform:rotate(-90deg);} .card.collapsed > .cb{display:none;}
 .ch{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid #eef1f6;} .ch b{color:var(--ink);font-size:15px;font-weight:600;} .ch span{color:var(--soft);font-size:12.5px;font-weight:500;} .rail .card .ch b{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);} .rail .card .ch span{font-size:11px;font-weight:600;}
 .addbtn{margin-left:auto;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:8px;padding:8px 15px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
 .addbtn.ghost{background:#fff;color:var(--navy);border-color:#cdd6e6;}
 .findcard{background:#fff8f7;border-bottom:1px solid #f3d9d5;}
 .findhd{font-weight:800;color:var(--navy);font-size:13.5px;margin:2px 0 4px;}
 .findcard > .findhd{cursor:pointer;display:flex;align-items:center;gap:8px;}
-.findhd .fchev{margin-left:auto;color:#b0b8c6;font-size:11px;transition:transform .15s;flex:none;}
+.findhd .fchev{margin-left:auto;color:#3f4b63;font-size:13px;font-weight:800;transition:transform .15s;flex:none;}
 .findcard.collapsed .fchev{transform:rotate(-90deg);}
 .findcard.collapsed > *:not(.findhd){display:none!important;}
 .findsub{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:12px;max-width:640px;}
@@ -122,7 +122,7 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .cptbar{display:flex;align-items:center;gap:11px;flex-wrap:wrap;padding:16px 22px;background:#fff;cursor:pointer;transition:background .12s;position:relative;}
 .cptbar:hover{background:#f8fafc;}
 .cptblock.open>.cptbar{background:#f8fafc;}
-.cptchev{color:#b3bccc;font-size:11px;flex:none;transition:transform .15s;} .cptblock.open .cptchev{transform:rotate(90deg);}
+.cptchev{color:#3f4b63;font-size:13px;font-weight:800;flex:none;transition:transform .15s;} .cptblock.open .cptchev{transform:rotate(90deg);}
 .cptlocs{display:none;} .cptblock.open .cptlocs{display:block;background:#fcfdff;}
 .cptlocs .crow{padding-left:58px;position:relative;}
 .cptlocs .crow:before{content:"";position:absolute;left:34px;top:0;bottom:0;width:2px;background:#e6ebf5;}
@@ -1047,7 +1047,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No company selected. <a href="./rrg_companies.html">Back to companies →</a></div>'; return; }
   fetch('/api/company/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; TITLES=j.titles||TITLES; LEADSOURCES=j.leadSources||LEADSOURCES; ALLTAGS=j.allTags||ALLTAGS; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; AUTOMATIONS=j.automations||[]; ACTIVITY=j.activity||[]; ACTTYPES=j.activityTypes||ACTTYPES; USERS=j.users||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; HASMAPS=!!j.hasMaps; render(); loadDocsCo(); try{ var _pb=localStorage.getItem('rrg_build_'+ID); if(_pb){ localStorage.removeItem('rrg_build_'+ID); var _o=JSON.parse(_pb)||{}; if(_o.findGroup){ setTimeout(function(){ autoFindGroup(_o.metro||''); },500); } else if(_o.names&&_o.names.length){ setTimeout(function(){ runBuildConcepts(_o.names,_o.metro||'','',_o.website||''); },500); } } }catch(e){} })
+    .then(function(j){ C=j.company; CONTACTS=j.contacts||[]; DEALS=j.deals||[]; LOCATIONS=j.locations||[]; CONCEPTS=j.concepts||[]; CTYPES=j.types||CTYPES; PTYPES=j.personTypes||PTYPES; LSTATUSES=j.locationStatuses||LSTATUSES; SITETYPES=j.siteTypes||SITETYPES; CONCEPT_TYPES=j.conceptTypes||CONCEPT_TYPES; PRICE_POINTS=j.pricePoints||PRICE_POINTS; CUISINE_TYPES=j.cuisineTypes||CUISINE_TYPES; MARKETS=j.markets||MARKETS; TITLES=j.titles||TITLES; LEADSOURCES=j.leadSources||LEADSOURCES; ALLTAGS=j.allTags||ALLTAGS; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; AUTOMATIONS=j.automations||[]; ACTIVITY=j.activity||[]; ACTTYPES=j.activityTypes||ACTTYPES; USERS=j.users||[]; LOGOAUTO=j.logoAuto||''; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; HASMAPS=!!j.hasMaps; render(); loadDocsCo(); try{ var _pb=localStorage.getItem('rrg_build_'+ID); if(_pb){ localStorage.removeItem('rrg_build_'+ID); var _o=JSON.parse(_pb)||{}; if(_o.findGroup){ setTimeout(function(){ autoFindGroup(_o.metro||''); },500); } else if(_o.names&&_o.names.length){ setTimeout(function(){ runBuildConcepts(_o.names,_o.metro||'',_o.count||'',_o.website||''); },500); } } }catch(e){} })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this company.')+'<br><br><a href="./rrg_companies.html" style="color:#000E31;font-weight:700">← Back to companies</a></div>'; });
 }
 var ASSISTANT='the RRG analyst'; var CLABEL='Concept', CLABELP='Concepts';
