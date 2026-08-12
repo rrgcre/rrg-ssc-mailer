@@ -110,6 +110,34 @@ tr:hover td{background:#fbfcfe;}
   <div class="tabs"><a href="./rrg_companies.html">Companies</a><a href="./rrg_people.html" class="on">Contacts</a></div>
 </div></div>
 <div class="wrap">
+  <style>
+  .feats{background:#fff;border:1px solid var(--line,#dbe0e9);border-radius:8px;box-shadow:0 4px 18px rgba(11,26,56,.05);margin-bottom:16px;overflow:hidden;}
+  .featshd{display:flex;align-items:center;gap:10px;padding:13px 20px;cursor:pointer;user-select:none;}
+  .featshd b{font-size:14px;color:var(--navy,#20334f);}
+  .featshd .sh{font-size:11.5px;color:var(--muted,#5f6a7d);font-weight:600;}
+  .featshd .chev{margin-left:auto;color:var(--muted,#5f6a7d);font-size:12px;transition:transform .15s;}
+  .feats.collapsed .chev{transform:rotate(-90deg);}
+  .feats.collapsed .featgrid{display:none;}
+  .featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line,#dbe0e9);border-top:1px solid var(--line,#dbe0e9);}
+  .feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;}
+  .feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
+  .feat b{display:block;font-size:12.5px;color:var(--navy,#20334f);font-weight:800;}
+  .feat span{display:block;font-size:11.5px;color:var(--muted,#5f6a7d);line-height:1.45;margin-top:2px;}
+  </style>
+  <div class="feats" id="ctFeatStrip">
+    <div class="featshd" id="ctFeatHd"><b>What your contacts do</b><span class="sh">every person in your book, connected</span><span class="chev">▾</span></div>
+    <div class="featgrid">
+      <div class="feat"><span class="fic">👥</span><div><b>Linked to their company</b><span>Every contact ties to the operator they work for, so the whole relationship is one click away.</span></div></div>
+      <div class="feat"><span class="fic">✉️</span><div><b>Every touch tracked</b><span>Gmail sync, logged calls and notes, and a last-contacted stamp so nothing goes cold.</span></div></div>
+      <div class="feat"><span class="fic">🚩</span><div><b>Flags that matter</b><span>VIP, Star, Bad-news and Primary-contact flags to triage your book at a glance.</span></div></div>
+      <div class="feat"><span class="fic">🎯</span><div><b>Interests &amp; lead source</b><span>Tag buyers vs sellers and track exactly where every lead came from.</span></div></div>
+      <div class="feat"><span class="fic">📄</span><div><b>Everything they touch</b><span>Listings, agreements, tours, NDAs, valuations and documents all collected on the contact.</span></div></div>
+      <div class="feat"><span class="fic">🎥</span><div><b>Seller screening &amp; interviews</b><span>Screen sellers and record on-camera interviews right from the contact record.</span></div></div>
+      <div class="feat"><span class="fic">🖼️</span><div><b>Headshots</b><span>A photo on every contact so the team recognizes who they're calling.</span></div></div>
+      <div class="feat"><span class="fic">⬇️</span><div><b>Import from anywhere</b><span>Copper, Gmail and BizBuySell imports auto-link to companies and dedupe by email.</span></div></div>
+    </div>
+  </div>
+  <script>(function(){ var fs=document.getElementById('ctFeatStrip'), hd=document.getElementById('ctFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_ctfeats')==='0') fs.classList.add('collapsed'); }catch(e){} hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_ctfeats', col?'0':'1'); }catch(e){} }); })();</script>
   <div class="filters" id="filters"></div>
   <div class="card">
     <div class="hd"><b>Contacts</b><span class="cnt" id="cnt"></span><button id="newBtn" class="newbtn">+ New contact</button><button id="importBtn" title="Import BizBuySell buyer leads" style="margin-left:8px;background:#fff;border:1px solid var(--line,#e6e9f0);color:var(--muted,#6b7488);border-radius:9px;padding:8px 12px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer">⬇ Import from BizBuySell</button><button id="gmailImpBtn" title="Import your contacts from Gmail" onclick="location.href='./rrg_gmail_import.html'" style="margin-left:6px;background:#fff;border:1px solid var(--line,#e6e9f0);color:var(--muted,#6b7488);border-radius:9px;padding:8px 12px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer">⤓ Import from Gmail</button><button id="filterBtn" class="fbtn" onclick="openFilters()">⚙ Filters</button><div class="searchwrap"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="search" placeholder="Search contacts by name, company, email…" oninput="applyFilter()" autocomplete="off"><button type="button" class="searchx" id="searchx" title="Clear search" onclick="var s=document.getElementById(&#39;search&#39;);s.value=&#39;&#39;;applyFilter();s.focus();">×</button></div></div>
