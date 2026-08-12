@@ -184,7 +184,7 @@ function applyFilter(){
 window.rrgLiveSearch=function(q){ var el=document.getElementById('search'); if(el && el.value!==q){ el.value=q; } applyFilter(); };
 (function(){ try{ var qp=new URLSearchParams(location.search).get('q'); if(qp){ var el=document.getElementById('search'); if(el) el.value=qp; } }catch(e){} })();
 function renderList(list){
-  var cfg={ mount:'#body', data:list, key:'companies', countEl:'#cnt',
+  var cfg={ mount:'#body', data:list, key:'companies', countEl:'#cnt', filterButton:document.getElementById('filterBtn'),
     empty:'<div class="empty"><b>No companies yet.</b>Companies are created automatically when you start a deal — the business name opens its company file.</div>',
     rowId:function(c){ return c.id; }, defaultSort:0, defaultDir:1,
     bulk: (function(){ var _b=[]; if(IS_ADMIN) _b.push({ label:'Merge\u2026', min:2, fn:openCompanyMergePicker }); if(CAN_DELETE) _b.push({ label:'Delete', danger:true, min:1, fn:bulkDeleteCompanies }); return _b.length?_b:null; })(),

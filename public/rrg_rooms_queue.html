@@ -72,7 +72,9 @@ tr:hover td{background:#fbfcfe;}
     <div class="featgrid">
       <a class="feat" href="rrg_dataroom_help.html#overview" target="_blank" rel="noopener"><span class="fic">🔒</span><div><b>Confidential &amp; gated</b><span>A private tokenized link; each buyer gets their own access code. Buyers never sign in to an app.</span></div></a>
       <a class="feat" href="rrg_dataroom_help.html#permissions" target="_blank" rel="noopener"><span class="fic">🎚️</span><div><b>Granular permissions</b><span>No access · view · download · upload — set per buyer, then overridden folder-by-folder and file-by-file.</span></div></a>
-      <a class="feat" href="rrg_dataroom_help.html#analytics" target="_blank" rel="noopener"><span class="fic">📊</span><div><b>Engagement tracking</b><span>See who opened what, a "hot buyer" flag on recent key-doc activity, and real read-time.</span></div></a>
+      <a class="feat" href="rrg_dataroom_help.html#create" target="_blank" rel="noopener"><span class="fic">⚡</span><div><b>Instant, structured setup</b><span>Create a room in one click — it comes pre-built with the standard folders and per-year tax subfolders, nothing to assemble.</span></div></a>
+      <a class="feat" href="rrg_dataroom_help.html#analytics" target="_blank" rel="noopener"><span class="fic">📊</span><div><b>Engagement tracking</b><span>See who opened what and for how long — a per-session activity trail, real read-time, and a "hot buyer" flag on recent key-doc activity.</span></div></a>
+      <a class="feat" href="rrg_dataroom_help.html#buyerview" target="_blank" rel="noopener"><span class="fic">👁️</span><div><b>Built-in preview viewers</b><span>PDFs, images and even Excel / CSV P&amp;Ls render right in the browser — a view-only buyer reads the numbers without the file ever leaving the room.</span></div></a>
       <a class="feat" href="rrg_dataroom_help.html#alerts" target="_blank" rel="noopener"><span class="fic">🔔</span><div><b>Real-time alerts</b><span>Emailed the moment a buyer first opens the P&amp;L, financials, lease, or tax returns.</span></div></a>
       <a class="feat" href="rrg_dataroom_help.html#protect" target="_blank" rel="noopener"><span class="fic">🛡️</span><div><b>Watermarked downloads</b><span>Every PDF is stamped with the buyer's name, email &amp; time — a leak traces straight back.</span></div></a>
       <a class="feat" href="rrg_dataroom_help.html#alerts" target="_blank" rel="noopener"><span class="fic">💬</span><div><b>Buyer Q&amp;A</b><span>Private per-buyer threads asked and answered right inside the room — no email channel.</span></div></a>
@@ -186,7 +188,7 @@ function createRoomSubmit(){
 function renderList(list){
   (list||[]).forEach(function(r){ LINKS[r.id]=r.link; });
   var cfg={
-    mount:'#body', data:list, key:'rooms_v2', countEl:'#cnt',
+    mount:'#body', data:list, key:'rooms_v2', countEl:'#cnt', filterButton:document.getElementById('filterBtn'),
     empty:'<div class="empty"><b>No data rooms yet.</b>Start your first confidential deal room.<br><button onclick="newRoom()" style="display:inline-block;margin-top:16px;background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:10px 18px;font:inherit;font-size:13px;font-weight:600;cursor:pointer">+ New data room</button></div>',
     rowId:function(c){ return c.id; }, defaultSort:0, defaultDir:1, onFilterChange:function(){ updateRoomFilterBtn(); },
     columns:[

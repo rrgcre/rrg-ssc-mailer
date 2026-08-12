@@ -246,7 +246,7 @@ function applyFilter(){
 window.rrgLiveSearch=function(q){ var el=document.getElementById('search'); if(el && el.value!==q){ el.value=q; } applyFilter(); };
 function fmtDate(d){ if(!d) return ''; var x=String(d).slice(0,10).split('-'); if(x.length!==3) return String(d); return x[1]+'/'+x[2]+'/'+x[0]; }
 function renderList(list){
-  var cfg={ mount:'#body', data:list, key:'contacts', countEl:'#cnt',
+  var cfg={ mount:'#body', data:list, key:'contacts', countEl:'#cnt', filterButton:document.getElementById('filterBtn'),
     empty:'<div class="empty"><b>No contacts yet.</b>Add one with + New contact, or bring buyers in with Import BizBuySell.</div>',
     rowId:function(p){ return p.id; }, defaultSort:0, defaultDir:1,
     bulk: (function(){ var _b=[]; _b.push({ label:'New listing\u2026', min:1, fn:bulkNewListing }); if(IS_ADMIN) _b.push({ label:'Merge\u2026', min:2, fn:openMergePicker }); if(CAN_DELETE) _b.push({ label:'Delete', danger:true, min:1, fn:bulkDeletePeople }); return _b.length?_b:null; })(),
