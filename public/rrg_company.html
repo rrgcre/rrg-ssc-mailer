@@ -125,9 +125,11 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .cptblock.open>.cptbar{background:#f8fafc;}
 .cptchev{color:#3f4b63;font-size:12px;font-weight:800;flex:none;width:10px;text-align:center;transition:transform .15s;} .cptblock.open .cptchev{transform:rotate(90deg);}
 .cptlocs{display:none;} .cptblock.open .cptlocs{display:block;background:#fbfcfe;border-top:1px solid #eef1f6;}
-.cptlocs .crow{padding-left:53px;padding-top:8px;padding-bottom:8px;position:relative;}
+.cptlocs .crow{padding-left:34px;padding-top:7px;padding-bottom:7px;gap:9px;position:relative;}
 .cptlocs .crow .cname{font-size:12.5px;color:#5b6472;font-weight:400;}
-.cptlocs .crow:before{content:"";position:absolute;left:31px;top:0;bottom:0;width:2px;background:#e2e8f2;}
+.cptlocs .crow:before{content:"";position:absolute;left:20px;top:0;bottom:0;width:2px;background:#e2e8f2;}
+.locnamerow .locthumbwrap{flex:none;}
+.locnamerow .locthumb,.locnamerow .cav{width:26px !important;height:26px !important;border-radius:5px;font-size:12px;display:flex;align-items:center;justify-content:center;}
 .cptlocs .cptempty{padding-left:58px;}
 .commblock .cptbar{background:#fff8f1;} .commblock .cptbar:hover{background:#fdf1e4;}
 .expall{color:#23496f;font-weight:700;cursor:pointer;} .expall:hover{text-decoration:underline;}
@@ -454,7 +456,7 @@ function render(){
   function locNameRow(l){
     var st=l.status||'Open';
     var comm=l.commissary?' <span class="commtag" title="Commissary / central kitchen">Commissary</span>':'';
-    return '<div class="crow locnamerow"><div class="cinfo" style="min-width:0"><div class="cname"><span class="lnameedit" data-le="'+esc(l.id)+'" title="Open location details">'+esc(l.name||l.address||'Location')+'</span>'+comm+'</div></div><span class="ctype '+locStatusClass(st)+'">'+esc(st)+'</span><button class="crm" data-lrm="'+esc(l.id)+'" title="Remove location">\u2212</button></div>';
+    return '<div class="crow locnamerow"><div class="locthumbwrap">'+locThumb(l)+'</div><div class="cinfo" style="min-width:0"><div class="cname"><span class="lnameedit" data-le="'+esc(l.id)+'" title="Open location details">'+esc(l.name||l.address||'Location')+'</span>'+comm+'</div></div><span class="ctype '+locStatusClass(st)+'">'+esc(st)+'</span><button class="crm" data-lrm="'+esc(l.id)+'" title="Remove location">\u2212</button></div>';
   }
   function conceptBlock(cpt){
     var mine=LOCATIONS.filter(function(l){ return (l.concept||'')===cpt.name && !l.commissary; });

@@ -8615,6 +8615,15 @@ app.post('/api/company/:id/build-concepts', express.json(), async (req, res) => 
       if (!String(c.logo || '').trim()) { const lg = logoFromWebsite(groupSite); if (lg) { c.logo = lg; companyLogoSet = true; } }
     }
 
+    // Log the AI build to the company's activity feed so the record tells the whole story
+    // (not just "Company added" / "Contact added").
+    if (addedConcepts || addedLocations) {
+      c.activities = Array.isArray(c.activities) ? c.activities : [];
+      const _parts = [];
+      if (addedConcepts) _parts.push(addedConcepts + ' concept' + (addedConcepts === 1 ? '' : 's'));
+      if (addedLocations) _parts.push(addedLocations + ' location' + (addedLocations === 1 ? '' : 's'));
+      c.activities.push({ id: 'coact_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), type: 'Concepts Built', note: 'AI built ' + _parts.join(' and ') + (market ? (' in ' + market) : '') + '.', at: now, date: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', auto: true });
+    }
     c.updatedAt = now; saveCompanies(arr);
 
     // Best-effort storefront photos for brand-new locations (only if a Google key is set).
