@@ -196,6 +196,8 @@ tr:hover td{background:#fbfcfe;}
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function pInterests(p){ return (p&&Array.isArray(p.types)&&p.types.length)?p.types:(p&&p.type?[p.type]:[]); }
+// One-time: make sure the Main Interests column is visible for anyone whose saved layout had it hidden. Runs once; they can hide it again via the Columns menu afterward.
+(function(){ try{ if(localStorage.getItem('rrg_showinterests_v1')) return; var _k='rrglist_contacts'; var _s=JSON.parse(localStorage.getItem(_k)||'{}')||{}; if(_s&&_s.hidden&&_s.hidden['main-interests']){ delete _s.hidden['main-interests']; localStorage.setItem(_k, JSON.stringify(_s)); } localStorage.setItem('rrg_showinterests_v1','1'); }catch(e){} })();
 // Toggleable colored "Main Interests" pills — used in the new-contact modal (and mirrored on the contact detail page).
 function interestPills(hostId, selected, onChange){
   var host=document.getElementById(hostId); if(!host) return {get:function(){return [];}};
