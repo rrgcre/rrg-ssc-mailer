@@ -3532,6 +3532,76 @@ app.post('/api/room/:id/move-doc', express.json(), (req, res) => {
   saveRooms(arr);
   res.json({ ok: true, docs: r.docs });
 });
+// ---- Redact a PDF: burn black boxes in DESTRUCTIVELY (mupdf truly removes the covered text/vector
+// content — not a cosmetic overlay), save the redacted copy as the buyer-facing document, and keep
+// the untouched original as a broker-only file. Boxes are normalized (0..1, top-left origin) per page. ----
+app.post('/api/room/:id/redact', express.json({ limit: '2mb' }), async (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).json({ ok: false, error: 'Data room not found.' });
+  if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const b = req.body || {};
+  const d = (r.docs || []).find(x => x.id === String(b.docId || ''));
+  if (!d) return res.status(404).json({ ok: false, error: 'File not found.' });
+  if (!/^pdf$/i.test(d.ext)) return res.status(400).json({ ok: false, error: 'Only PDF files can be redacted.' });
+  const boxes = Array.isArray(b.boxes) ? b.boxes.filter(x => x && isFinite(x.x) && isFinite(x.y) && isFinite(x.w) && isFinite(x.h) && x.w > 0 && x.h > 0) : [];
+  if (!boxes.length) return res.status(400).json({ ok: false, error: 'Draw at least one redaction box first.' });
+  const fp = path.join(ROOMS_DIR, d.id + '.' + d.ext);
+  if (!fp.startsWith(ROOMS_DIR) || !fs.existsSync(fp)) return res.status(404).json({ ok: false, error: 'File missing on disk.' });
+  try {
+    const mupdf = await import('mupdf');
+    const src = fs.readFileSync(fp);
+    const doc = mupdf.PDFDocument.openDocument(new Uint8Array(src), 'application/pdf');
+    const pageCount = doc.countPages();
+    const byPage = {};
+    boxes.forEach(bx => { const p = Math.max(0, Math.min(pageCount - 1, parseInt(bx.page, 10) || 0)); (byPage[p] = byPage[p] || []).push(bx); });
+    let applied = 0;
+    Object.keys(byPage).forEach(pk => {
+      const page = doc.loadPage(parseInt(pk, 10));
+      const bnd = page.getBounds();
+      const x0 = bnd[0], y0 = bnd[1], W = bnd[2] - bnd[0], HH = bnd[3] - bnd[1];
+      byPage[pk].forEach(bx => {
+        const nx = Math.max(0, Math.min(1, bx.x)), ny = Math.max(0, Math.min(1, bx.y));
+        const nw = Math.max(0, Math.min(1 - nx, bx.w)), nh = Math.max(0, Math.min(1 - ny, bx.h));
+        if (nw <= 0 || nh <= 0) return;
+        const annot = page.createAnnotation('Redact');
+        annot.setRect([x0 + nx * W, y0 + ny * HH, x0 + (nx + nw) * W, y0 + (ny + nh) * HH]);
+        applied++;
+      });
+      page.applyRedactions();
+    });
+    if (!applied) return res.status(400).json({ ok: false, error: 'No valid redaction boxes.' });
+    const outBytes = doc.saveToBuffer('').asUint8Array();
+    const newId = newRoomDocId();
+    fs.writeFileSync(path.join(ROOMS_DIR, newId + '.pdf'), Buffer.from(outBytes));
+    const now = new Date().toISOString();
+    const baseTitle = String(d.title || d.originalName || 'Document').replace(/\.pdf$/i, '');
+    const rec = { id: newId, title: baseTitle + ' (redacted)', category: d.category || 'Other', ext: 'pdf',
+      originalName: (baseTitle + ' (redacted).pdf'), size: outBytes.length, uploadedAt: now,
+      by: ((req.user && req.user.name) || '') + ' · redacted', redactedOf: d.id };
+    const idx = r.docs.findIndex(x => x.id === d.id);
+    if (idx >= 0) r.docs.splice(idx + 1, 0, rec); else r.docs.push(rec);
+    d.brokerOnly = true; d.redactedById = newId; d.updatedAt = now;
+    try { logRoomAccess(r, req, 'redact', (d.title || d.originalName || '') + ' → redacted copy for buyers', null); } catch (e) {}
+    saveRooms(arr);
+    res.json({ ok: true, docs: r.docs, redactedId: newId });
+  } catch (e) { console.error('redact:', e && e.message); res.status(500).json({ ok: false, error: 'Could not redact this PDF: ' + ((e && e.message) || 'error') }); }
+});
+// Broker-only original file — redacted originals are hidden from buyers on /roomfile, so the broker
+// views/downloads them through this authenticated route.
+app.get('/api/room/:id/original/:docid', (req, res) => {
+  const arr = loadRooms();
+  const r = arr.find(x => x.id === req.params.id);
+  if (!r) return res.status(404).end();
+  if (!ownsRoom(req, r)) return res.status(403).end();
+  const d = (r.docs || []).find(x => x.id === String(req.params.docid));
+  if (!d) return res.status(404).end();
+  const fp = path.join(ROOMS_DIR, d.id + '.' + d.ext);
+  if (!fp.startsWith(ROOMS_DIR) || !fs.existsSync(fp)) return res.status(404).end();
+  const fnameSafe = String(d.title || d.originalName || d.id).replace(/[^\w.\- ]+/g, '_') + '.' + d.ext;
+  res.setHeader('Content-Disposition', (String(req.query.dl || '') === '1' ? 'attachment' : 'inline') + '; filename="' + fnameSafe + '"');
+  res.sendFile(fp);
+});
 app.delete('/api/room/:id', (req, res) => {
   const arr = loadRooms();
   const r = arr.find(x => x.id === req.params.id);
@@ -3831,6 +3901,7 @@ app.get('/roomfile/:token/:docid', async (req, res) => {
   if (roomIsGated(r)) { grant = roomGrantFor(req, r); if (!grant) return res.redirect('/room/' + r.token); }
   const d = (r.docs || []).find(x => x.id === String(req.params.docid));
   if (!d) return res.status(404).end();
+  if (d.brokerOnly) return res.status(404).end();   // redacted originals are never served to buyers
   const fp = path.join(ROOMS_DIR, d.id + '.' + d.ext);
   if (!fp.startsWith(ROOMS_DIR) || !fs.existsSync(fp)) return res.status(404).end();
   if (grant) { grant.lastSeen = new Date().toISOString(); setRoomCookie(res, signRoomSess({ r: r.id, g: grant.id, exp: Date.now() + ROOM_IDLE_MS })); }
@@ -3931,6 +4002,7 @@ app.get('/roomview/:token/:docid', (req, res) => {
   if (roomIsGated(r)) { grant = roomGrantFor(req, r); if (!grant) return res.redirect('/room/' + r.token); }
   const d = (r.docs || []).find(x => x.id === String(req.params.docid));
   if (!d) return res.status(404).end();
+  if (d.brokerOnly) return res.status(404).end();   // redacted originals are never shown to buyers
   const level = grant ? effGrantLevelForDoc(grant, d) : 'download';
   if (level === 'none') return res.status(403).end();
   const canDl = level !== 'view';
@@ -4046,7 +4118,7 @@ function roomPublicPage(r, grant, opts) {
   const _preview = !!(opts && opts.preview);
   const docs = (r.docs || []);
   const catLevel = cat => grant ? effGrantLevel(grant, cat) : 'download';
-  const docLevel = d => grant ? effGrantLevelForDoc(grant, d) : 'download';
+  const docLevel = d => d.brokerOnly ? 'none' : (grant ? effGrantLevelForDoc(grant, d) : 'download');   // broker-only (redacted) originals are hidden from buyers
   const _roomCats = roomServeCats(r);
   const editCats = _roomCats.filter(c => catLevel(c) === 'edit');
   const visibleCats = _roomCats.filter(c => catLevel(c) !== 'none' || docs.some(d => (d.category || 'Other') === c && docLevel(d) !== 'none'));

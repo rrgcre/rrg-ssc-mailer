@@ -708,7 +708,97 @@ function renderDocs(){
 applyAiName();
 function _folderOpts(cur){ return ((window.ROOM&&ROOM.categories)||[]).map(function(c){ return '<option value="'+esc(c)+'"'+(String(c)===String(cur)?' selected':'')+'>'+esc(c)+'</option>'; }).join(''); }
 function moveDoc(id,cat){ if(!id||!cat) return; fetch('/api/room/'+encodeURIComponent(RID)+'/move-doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({id:id,category:cat})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.docs=j.docs||ROOM.docs; renderDocs(); toast('Moved \u2713'); } else alert((j&&j.error)||'Could not move the file.'); }).catch(function(){ alert('Could not reach the server.'); }); }
-function _docRow(d){ var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):''; return '<div class="docrow"><span class="ext">'+fileIcon(d.ext)+'</span><div style="flex:1"><div class="dt">'+esc(d.title||d.originalName)+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div><label class="movewrap" title="Move this file to another folder"><span>Move</span><select class="movesel" onchange="moveDoc(\''+d.id+'\',this.value)">'+_folderOpts(d.category||'Other')+'</select></label><a class="view" href="/roomfile/'+esc(ROOM.token)+'/'+esc(d.id)+'" target="_blank" rel="noopener">View</a><button class="x" onclick="openDocAccess(\''+d.id+'\')" title="Set which buyers can see this file">Access</button><button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button></div>'; }
+function _docRow(d){
+  var dl=Number(d.downloads)||0; var dlTxt=dl?(' \u00b7 '+dl+' download'+(dl===1?'':'s')):'';
+  var isPdf=/^pdf$/i.test(d.ext||'');
+  var badge='';
+  if(d.brokerOnly) badge=' <span class="rbadge rb-orig" title="The unredacted original \u2014 hidden from buyers, visible only to you">Original \u00b7 hidden</span>';
+  else if(d.redactedOf) badge=' <span class="rbadge rb-red" title="Redacted copy \u2014 this is what buyers see">\u2702 Redacted</span>';
+  var viewHref=d.brokerOnly?('/api/room/'+esc(RID)+'/original/'+esc(d.id)):('/roomfile/'+esc(ROOM.token)+'/'+esc(d.id));
+  var acts;
+  if(d.brokerOnly){
+    acts='<a class="view" href="'+viewHref+'" target="_blank" rel="noopener" title="View your private original">View</a>'
+      +'<button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button>';
+  } else {
+    acts='<label class="movewrap" title="Move this file to another folder"><span>Move</span><select class="movesel" onchange="moveDoc(\''+d.id+'\',this.value)">'+_folderOpts(d.category||'Other')+'</select></label>'
+      +'<a class="view" href="'+viewHref+'" target="_blank" rel="noopener">View</a>'
+      +(isPdf?'<button class="x rbtn" onclick="openRedact(\''+d.id+'\')" title="Black out sensitive areas \u2014 buyers get the redacted copy, your original stays private">\u2702 Redact</button>':'')
+      +'<button class="x" onclick="openDocAccess(\''+d.id+'\')" title="Set which buyers can see this file">Access</button>'
+      +'<button class="x" onclick="delDoc(\''+d.id+'\')">Remove</button>';
+  }
+  return '<div class="docrow"><span class="ext">'+fileIcon(d.ext)+'</span><div style="flex:1;min-width:0"><div class="dt">'+esc(d.title||d.originalName)+badge+'</div><div class="dm">'+esc(fmtBytes(d.size))+' \u00b7 added '+esc(fmtWhen(d.uploadedAt))+(d.by?(' \u00b7 '+esc(d.by)):'')+dlTxt+'</div></div>'+acts+'</div>';
+}
+
+/* ---- PDF Redaction studio: draw black boxes over sensitive areas; the server burns them in
+   destructively (mupdf) and files the redacted copy as the buyer-facing document. --------------- */
+(function(){
+  var CSS='.rbadge{display:inline-block;font-size:9.5px;font-weight:800;text-transform:uppercase;letter-spacing:.03em;padding:1px 7px;border-radius:999px;margin-left:7px;vertical-align:1px;}'
+    +'.rb-orig{background:#eef1f6;color:#6b7488;border:1px solid #dbe0e9;}'
+    +'.rb-red{background:#e7f5ee;color:#1f8a5b;border:1px solid #bfe3ce;}'
+    +'.rbtn{color:#b23a2c !important;}'
+    +'.redmask{position:fixed;inset:0;background:rgba(6,14,32,.62);z-index:1000;display:flex;flex-direction:column;}'
+    +'.redbar{display:flex;align-items:center;gap:12px;padding:11px 16px;background:#0b1a38;color:#fff;flex:none;flex-wrap:wrap;}'
+    +'.redbar b{font-size:14px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:38vw;}'
+    +'.redbar .rsp{flex:1;}'
+    +'.rnav{display:flex;align-items:center;gap:8px;font-size:13px;}'
+    +'.rnav span{color:#cdd6ea;}'
+    +'.rnav button{background:#20334f;color:#fff;border:1px solid #34496b;border-radius:4px;padding:5px 10px;font:inherit;font-size:13px;cursor:pointer;}'
+    +'.rnav button:disabled{opacity:.4;cursor:default;}'
+    +'.redbtn{background:#DA2B1F;color:#fff;border:none;border-radius:4px;padding:8px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}'
+    +'.redbtn:disabled{opacity:.6;cursor:default;}'
+    +'.redghost{background:transparent;color:#cdd6ea;border:1px solid #34496b;border-radius:4px;padding:8px 14px;font:inherit;font-size:13px;cursor:pointer;}'
+    +'.redhint{background:#12244a;color:#aebbd6;font-size:12px;padding:7px 16px;flex:none;text-align:center;}'
+    +'.redstage{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:center;padding:20px;}'
+    +'.redwrap{position:relative;box-shadow:0 8px 30px rgba(0,0,0,.5);background:#fff;}'
+    +'.redwrap canvas{display:block;}'
+    +'.redlayer{position:absolute;inset:0;cursor:crosshair;}'
+    +'.redbox{position:absolute;background:rgba(10,12,20,.82);border:1px solid #000;box-sizing:border-box;}'
+    +'.redbox .rx{position:absolute;top:-9px;right:-9px;width:18px;height:18px;border-radius:50%;background:#fff;color:#b23a2c;border:1px solid #e0b3ad;font-size:12px;line-height:16px;text-align:center;cursor:pointer;font-weight:800;}';
+  var st=document.createElement('style'); st.textContent=CSS; document.head.appendChild(st);
+
+  var PDFJS_SRC='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+  var PDFJS_WORKER='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  var _pdfLoad=null;
+  function loadPdfJs(){ if(window.pdfjsLib) return Promise.resolve(window.pdfjsLib); if(_pdfLoad) return _pdfLoad; _pdfLoad=new Promise(function(res,rej){ var s=document.createElement('script'); s.src=PDFJS_SRC; s.onload=function(){ try{ window.pdfjsLib.GlobalWorkerOptions.workerSrc=PDFJS_WORKER; }catch(e){} res(window.pdfjsLib); }; s.onerror=function(){ rej(new Error('Could not load the PDF viewer.')); }; document.head.appendChild(s); }); return _pdfLoad; }
+
+  window.openRedact=function(docId){
+    var doc=((window.ROOM&&ROOM.docs)||[]).filter(function(x){return x.id===docId;})[0]; if(!doc) return;
+    var boxesByPage={}, pdf=null, cur=0, npages=1, rendering=false;
+    var mask=document.createElement('div'); mask.className='redmask';
+    mask.innerHTML='<div class="redbar"><b>\u2702 Redact \u2014 '+esc(doc.title||doc.originalName||'PDF')+'</b>'
+      +'<div class="rnav"><button id="_rprev">\u2039 Prev</button><span id="_rpg">Page 1</span><button id="_rnext">Next \u203a</button><button id="_rclear" title="Clear boxes on this page">Clear page</button></div>'
+      +'<span class="rsp"></span><button class="redghost" id="_rcancel">Cancel</button><button class="redbtn" id="_rapply" disabled>Apply redactions</button></div>'
+      +'<div class="redhint">Drag across anything sensitive to black it out. Buyers receive the <b>redacted copy</b>; your original stays private, and the blacked-out content is permanently removed from their file.</div>'
+      +'<div class="redstage"><div id="_rmsg" style="color:#cdd6ea;font-size:14px;margin-top:40px">Loading PDF\u2026</div></div>';
+    document.body.appendChild(mask);
+    function close(){ mask.remove(); }
+    var applyBtn=mask.querySelector('#_rapply'), stage=mask.querySelector('.redstage'), pgLbl=mask.querySelector('#_rpg');
+    mask.querySelector('#_rcancel').addEventListener('click',close);
+    function totalBoxes(){ var n=0; Object.keys(boxesByPage).forEach(function(k){ n+=boxesByPage[k].length; }); return n; }
+    function refreshApply(){ applyBtn.disabled=(totalBoxes()===0); }
+    function drawBoxes(layer,W,H){ Array.prototype.slice.call(layer.querySelectorAll('.redbox')).forEach(function(x){x.remove();}); (boxesByPage[cur]||[]).forEach(function(bx,i){ var el=document.createElement('div'); el.className='redbox'; el.style.left=(bx.x*W)+'px'; el.style.top=(bx.y*H)+'px'; el.style.width=(bx.w*W)+'px'; el.style.height=(bx.h*H)+'px'; var rx=document.createElement('div'); rx.className='rx'; rx.textContent='\u00d7'; rx.title='Remove'; rx.addEventListener('mousedown',function(e){ e.stopPropagation(); e.preventDefault(); boxesByPage[cur].splice(i,1); drawBoxes(layer,W,H); refreshApply(); }); el.appendChild(rx); layer.appendChild(el); }); }
+    function wireDraw(layer,W,H){ var start=null, ghost=null;
+      layer.addEventListener('mousedown',function(e){ if(e.target!==layer) return; var r=layer.getBoundingClientRect(); start={x:e.clientX-r.left,y:e.clientY-r.top}; ghost=document.createElement('div'); ghost.className='redbox'; layer.appendChild(ghost); });
+      layer.addEventListener('mousemove',function(e){ if(!start||!ghost) return; var r=layer.getBoundingClientRect(); var cx=Math.max(0,Math.min(W,e.clientX-r.left)), cy=Math.max(0,Math.min(H,e.clientY-r.top)); ghost.style.left=Math.min(start.x,cx)+'px'; ghost.style.top=Math.min(start.y,cy)+'px'; ghost.style.width=Math.abs(cx-start.x)+'px'; ghost.style.height=Math.abs(cy-start.y)+'px'; });
+      function end(){ if(!start){ return; } if(ghost){ var box={x:parseFloat(ghost.style.left||0)/W, y:parseFloat(ghost.style.top||0)/H, w:parseFloat(ghost.style.width||0)/W, h:parseFloat(ghost.style.height||0)/H}; ghost.remove(); ghost=null; if(box.w>0.008&&box.h>0.006){ (boxesByPage[cur]=boxesByPage[cur]||[]).push(box); drawBoxes(layer,W,H); refreshApply(); } } start=null; }
+      layer.addEventListener('mouseup',end); layer.addEventListener('mouseleave',end);
+    }
+    function renderPage(){ if(rendering||!pdf) return; rendering=true;
+      pdf.getPage(cur+1).then(function(page){ var avail=Math.min((stage.clientWidth||900)-40,940); var vp0=page.getViewport({scale:1}); var scale=Math.max(0.4,Math.min(2.4,avail/vp0.width)); var vp=page.getViewport({scale:scale}); var canvas=document.createElement('canvas'); canvas.width=Math.floor(vp.width); canvas.height=Math.floor(vp.height); var ctx=canvas.getContext('2d');
+        return page.render({canvasContext:ctx,viewport:vp}).promise.then(function(){ var wrap=document.createElement('div'); wrap.className='redwrap'; wrap.style.width=canvas.width+'px'; wrap.style.height=canvas.height+'px'; wrap.appendChild(canvas); var layer=document.createElement('div'); layer.className='redlayer'; wrap.appendChild(layer); stage.innerHTML=''; stage.appendChild(wrap); drawBoxes(layer,canvas.width,canvas.height); wireDraw(layer,canvas.width,canvas.height); rendering=false; pgLbl.textContent='Page '+(cur+1)+' of '+npages; mask.querySelector('#_rprev').disabled=(cur<=0); mask.querySelector('#_rnext').disabled=(cur>=npages-1); });
+      }).catch(function(){ rendering=false; stage.innerHTML='<div style="color:#f6c6c0;margin-top:40px">Could not render this page.</div>'; });
+    }
+    mask.querySelector('#_rprev').addEventListener('click',function(){ if(cur>0){ cur--; renderPage(); } });
+    mask.querySelector('#_rnext').addEventListener('click',function(){ if(cur<npages-1){ cur++; renderPage(); } });
+    mask.querySelector('#_rclear').addEventListener('click',function(){ boxesByPage[cur]=[]; renderPage(); refreshApply(); });
+    applyBtn.addEventListener('click',function(){ var boxes=[]; Object.keys(boxesByPage).forEach(function(k){ (boxesByPage[k]||[]).forEach(function(bx){ boxes.push({page:+k,x:bx.x,y:bx.y,w:bx.w,h:bx.h}); }); }); if(!boxes.length) return; applyBtn.disabled=true; applyBtn.textContent='Redacting\u2026';
+      fetch('/api/room/'+encodeURIComponent(RID)+'/redact',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({docId:docId,boxes:boxes})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ROOM.docs=j.docs||ROOM.docs; renderDocs(); close(); if(window.toast) toast('Redacted \u2713 \u2014 buyers now see the redacted copy'); } else { applyBtn.disabled=false; applyBtn.textContent='Apply redactions'; alert((j&&j.error)||'Could not redact this file.'); } }).catch(function(){ applyBtn.disabled=false; applyBtn.textContent='Apply redactions'; alert('Could not reach the server.'); });
+    });
+    loadPdfJs().then(function(lib){ return fetch('/api/room/'+encodeURIComponent(RID)+'/original/'+encodeURIComponent(docId),{credentials:'same-origin'}).then(function(r){ if(!r.ok) throw new Error('load'); return r.arrayBuffer(); }).then(function(buf){ return lib.getDocument({data:buf}).promise; }); })
+      .then(function(_pdf){ pdf=_pdf; npages=pdf.numPages; cur=0; renderPage(); })
+      .catch(function(e){ var m=mask.querySelector('#_rmsg'); if(m) m.textContent=(e&&e.message==='Could not load the PDF viewer.')?e.message:'Could not open this PDF.'; });
+  };
+})();
 
 
 </script>
