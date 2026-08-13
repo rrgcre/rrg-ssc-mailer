@@ -10118,6 +10118,40 @@ function loadTasks() { try { return rj(TASKS_FILE) || []; } catch (e) { return [
 function saveTasks(a) { return writeJsonGuarded(TASKS_FILE, a, 'saveTasks'); }
 function newTaskId() { return 'tsk_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const TASK_PRIORITIES = ['Low', 'Normal', 'High'];
+const TASK_REPEATS = ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
+// Roll a due value ('YYYY-MM-DD' or 'YYYY-MM-DDTHH:MM') forward by one repeat interval.
+function _taskAdvanceDue(due, repeat) {
+  if (!due) return '';
+  const hasTime = String(due).length > 10; const datePart = String(due).slice(0, 10); const timePart = hasTime ? String(due).slice(10) : '';
+  const d = new Date(datePart + 'T00:00:00'); if (isNaN(d.getTime())) return '';
+  switch (repeat) {
+    case 'daily': d.setDate(d.getDate() + 1); break;
+    case 'weekly': d.setDate(d.getDate() + 7); break;
+    case 'biweekly': d.setDate(d.getDate() + 14); break;
+    case 'monthly': d.setMonth(d.getMonth() + 1); break;
+    case 'quarterly': d.setMonth(d.getMonth() + 3); break;
+    case 'yearly': d.setFullYear(d.getFullYear() + 1); break;
+    default: return '';
+  }
+  const p2 = n => String(n).padStart(2, '0');
+  return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()) + (hasTime ? timePart : '');
+}
+// When a repeating task is completed, open the next occurrence: same details, due rolled
+// forward, the reminder kept at the same lead time before the new due. Returns the new task.
+function _taskSpawnRecurrence(t, all, now) {
+  if (!t || TASK_REPEATS.indexOf(t.repeat) < 0) return null;
+  const nextDue = _taskAdvanceDue(t.due || now.slice(0, 16), t.repeat); if (!nextDue) return null;
+  let nextRem = '';
+  if (t.reminder && t.due) {
+    const _dueMs = new Date(String(t.due).length > 10 ? t.due : (t.due + 'T00:00')).getTime();
+    const _remMs = new Date(String(t.reminder).length > 10 ? t.reminder : (t.reminder + 'T00:00')).getTime();
+    const off = _dueMs - _remMs;
+    if (!isNaN(off)) { const nd = new Date(String(nextDue).length > 10 ? nextDue : (nextDue + 'T00:00')); const r = new Date(nd.getTime() - off); const p2 = n => String(n).padStart(2, '0'); nextRem = r.getFullYear() + '-' + p2(r.getMonth() + 1) + '-' + p2(r.getDate()) + 'T' + p2(r.getHours()) + ':' + p2(r.getMinutes()); }
+  }
+  const nt = Object.assign({}, t, { id: newTaskId(), status: 'open', doneAt: '', due: nextDue, reminder: nextRem, remSent: false, createdAt: now, updatedAt: now, prevTaskId: t.id });
+  all.push(nt);
+  return nt;
+}
 function taskVisible(t, req) {
   if (req.user && isSuper(req.user)) return true;
   const u = req.user && req.user.username;
@@ -11268,6 +11302,7 @@ app.post('/api/tasks', express.json(), (req, res) => {
   if (typeof b.linkId === 'string') t.linkId = b.linkId.slice(0, 60);
   if (typeof b.linkLabel === 'string') t.linkLabel = b.linkLabel.slice(0, 200);
   if (b.linkType === '') { t.linkId = ''; t.linkLabel = ''; }
+  if (typeof b.repeat === 'string') t.repeat = TASK_REPEATS.indexOf(b.repeat) >= 0 ? b.repeat : '';
   if (typeof b.reminder === 'string') { t.reminder = b.reminder.slice(0, 16); t.remSent = false; }
   if (Array.isArray(b.remChannels)) t.remChannels = b.remChannels.filter(x => ['popup', 'email', 'sms'].indexOf(x) >= 0);
   if (!Array.isArray(t.remChannels) || !t.remChannels.length) t.remChannels = taskChannels(t);
@@ -11307,8 +11342,11 @@ app.post('/api/tasks/:id/toggle', (req, res) => {
   const all = loadTasks(); const t = all.find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Task not found.' });
   if (!taskVisible(t, req)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  t.status = t.status === 'done' ? 'open' : 'done'; t.doneAt = t.status === 'done' ? new Date().toISOString() : ''; t.updatedAt = new Date().toISOString();
-  saveTasks(all); res.json({ ok: true, task: t });
+  const now = new Date().toISOString();
+  t.status = t.status === 'done' ? 'open' : 'done'; t.doneAt = t.status === 'done' ? now : ''; t.updatedAt = now;
+  let spawned = null;
+  if (t.status === 'done') { try { spawned = _taskSpawnRecurrence(t, all, now); } catch (e) {} }
+  saveTasks(all); res.json({ ok: true, task: t, spawned: spawned ? { id: spawned.id, due: spawned.due } : null });
 });
 app.delete('/api/tasks/:id', (req, res) => {
   const all = loadTasks(); const t = all.find(x => x.id === req.params.id);

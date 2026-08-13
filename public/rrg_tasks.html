@@ -10,7 +10,7 @@
 :root{ --navy:#000E31; --red:#DA2B1F; --ink:#1a2236; --muted:#6b7488; --line:#e6e9f0; --wash:#f5f7fb; --bg:#eef1f6; }
 *{box-sizing:border-box;} html,body{margin:0;padding:0;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);}
-.top{background:radial-gradient(115% 130% at 50% 0%, #182a54 0%, #0d1b3d 55%, #04091d 100%);color:#fff;padding:20px 0;}
+.top{background:#000E31;border-bottom:2px solid #2c5c8f;color:#fff;padding:20px 0;}
 .top-inner{max-width:1320px;margin:0 auto;padding:0 28px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;}
 .brand{display:inline-flex;align-items:center;gap:11px;}
 .brand .disc{background:var(--red);color:#fff;border-radius:50%;width:38px;height:38px;font-family:'Arial Black',Arial;font-weight:900;font-size:12px;display:flex;align-items:center;justify-content:center;}
@@ -18,7 +18,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .top a.back{color:#c3ccdf;text-decoration:none;font-weight:600;font-size:13px;border:1px solid rgba(255,255,255,.2);padding:7px 13px;border-radius:8px;}
 .top a.back:hover{border-color:#fff;color:#fff;}
 .wrap{max-width:1320px;margin:0 auto;padding:24px 28px 60px;}
-.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:20px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:20px;margin-bottom:20px;}
 .card.list{padding:0;overflow:hidden;}
 .card h2{font-size:14px;color:var(--navy);margin:0 0 4px;}
 /* standard list-window header, matching Contacts / Companies / Documents */
@@ -38,7 +38,7 @@ textarea{min-height:56px;resize:vertical;}
 .btnrow{display:flex;gap:10px;align-items:center;margin-top:14px;flex-wrap:wrap;}
 .msg{font-size:12.5px;color:var(--muted);}
 .filters{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
-.filters button{background:#fff;border:1px solid #cfd6e2;border-radius:20px;padding:6px 14px;font:inherit;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;}
+.filters button{background:#fff;border:1px solid #cfd6e2;border-radius:4px;padding:6px 14px;font:inherit;font-size:12.5px;font-weight:700;color:var(--muted);cursor:pointer;}
 .filters button.on{background:var(--navy);color:#fff;border-color:var(--navy);}
 .trow{display:flex;align-items:flex-start;gap:12px;padding:13px 4px;border-bottom:1px solid var(--line);}
 .trow:last-child{border-bottom:none;}
@@ -48,9 +48,10 @@ textarea{min-height:56px;resize:vertical;}
 .ttitle{font-weight:700;color:var(--navy);font-size:14.5px;}
 .trow.done .ttitle{text-decoration:line-through;color:var(--muted);}
 .tmeta{font-size:12px;color:var(--muted);margin-top:4px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
-.pill{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:20px;}
+.pill{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;padding:2px 8px;border-radius:3px;}
+.rpt{display:inline-block;font-size:10.5px;font-weight:700;color:#23496f;background:#eef2fb;border:1px solid #d3ddf0;border-radius:3px;padding:1px 7px;margin-left:8px;vertical-align:middle;}
 .pill.High{background:#fdeceb;color:var(--red);} .pill.Normal{background:#eef2fb;color:#23496f;} .pill.Low{background:#eef1f6;color:#6b7488;}
-.linkchip{display:inline-flex;align-items:center;gap:4px;background:#eef2fb;color:#23496f;border-radius:20px;padding:2px 9px;font-weight:700;text-decoration:none;font-size:11.5px;}
+.linkchip{display:inline-flex;align-items:center;gap:4px;background:#eef2fb;color:#23496f;border-radius:3px;padding:2px 9px;font-weight:700;text-decoration:none;font-size:11.5px;}
 .linkchip.deal{background:#fdf1df;color:#b5791f;}
 .rem{font-weight:700;} .rem.due{color:var(--red);}
 .tbtn{background:#fff;border:1px solid #cfd6e2;border-radius:7px;padding:5px 10px;font:inherit;font-size:12px;font-weight:700;color:#26324a;cursor:pointer;margin-left:4px;} .tbtn:hover{background:#f4f7fb;}
@@ -68,7 +69,7 @@ textarea{min-height:56px;resize:vertical;}
 .tmx{background:none;border:none;font-size:24px;line-height:1;color:#8a94a6;cursor:pointer;padding:0 4px;}
 .newtaskbtn{background:var(--red);color:#fff;border:none;border-radius:9px;padding:9px 15px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
 /* NetSuite normalization: square buttons, inputs, back link */
-.btn,.newtaskbtn,.tbtn,.tacts button,.top a.back{border-radius:4px;}
+.btn,.newtaskbtn,.tbtn,.tacts button,.top a.back,.newbtn{border-radius:4px;}
 input,select,textarea{border-radius:4px;}
 </style>
 </head>
@@ -80,7 +81,7 @@ input,select,textarea{border-radius:4px;}
 <div class="wrap">
   <div id="taskModal" class="tmodal" hidden><div class="tmodalcard">
     <div class="tmodalh"><h2 id="formTitle" style="margin:0;font-size:18px">New task</h2><button type="button" id="taskClose" class="tmx" aria-label="Close">×</button></div>
-    <div class="subline">Assign to yourself or a teammate, set a due date and time, link it to a contact or project, and add a reminder.</div>
+    <div class="subline">Assign to yourself or a teammate, set a due date and time, link it to a contact or project, add a reminder, and set it to repeat.</div>
     <div class="grid">
       <div><label class="fld">Task</label><input id="t_title" list="titleList" autocomplete="off" placeholder="What needs doing?"><datalist id="titleList"></datalist></div>
       <div><label class="fld">Due (date &amp; time)</label><input type="datetime-local" id="t_due"></div>
@@ -92,6 +93,7 @@ input,select,textarea{border-radius:4px;}
       <div><label class="fld">Link to</label><select id="t_linktype"><option value="">— Nothing —</option><option value="contact">Contact</option><option value="deal">Project / deal</option></select></div>
       <div><label class="fld">Which one</label><select id="t_linktarget" disabled><option value="">—</option></select></div>
       <div><label class="fld">Reminder</label><select id="t_remsel" onchange="document.getElementById('t_reminder').style.display=this.value==='custom'?'block':'none';"><option value="">No reminder</option><option value="0">At due date/time</option><option value="10">10 minutes before</option><option value="30">30 minutes before</option><option value="60">1 hour before</option><option value="1440">1 day before</option><option value="custom">Custom time…</option></select><input type="datetime-local" id="t_reminder" style="display:none;width:100%;margin-top:6px"></div>
+      <div><label class="fld">Repeat</label><select id="t_repeat"><option value="">Does not repeat</option><option value="daily">Daily</option><option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="monthly">Monthly</option><option value="quarterly">Quarterly</option><option value="yearly">Yearly</option></select></div>
       <div><label class="fld">Send reminder via</label><div id="t_chans" style="display:flex;gap:14px;align-items:center;padding-top:8px;font-size:13px"><label style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="t_chan" value="popup" checked> Pop-up</label><label id="t_chan_email_l" style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="t_chan" value="email" id="t_chan_email"> Email</label><label id="t_chan_sms_l" style="display:inline-flex;align-items:center;gap:5px"><input type="checkbox" class="t_chan" value="sms" id="t_chan_sms"> SMS</label></div></div>
     </div>
     <div style="margin-top:12px"><label class="fld">Notes</label><textarea id="t_notes" placeholder="Optional detail…"></textarea></div>
@@ -121,6 +123,9 @@ document.addEventListener('change',function(e){ var c=e.target.closest?e.target.
 document.addEventListener('click',function(e){ if(!e.target.closest) return; var ed=e.target.closest('[data-edit]'); if(ed){ startEdit(ed.getAttribute('data-edit')); return; } var dl=e.target.closest('[data-del]'); if(dl){ del(dl.getAttribute('data-del')); } });
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
 function fmt(d){ if(!d) return ''; var s=String(d); var p=s.slice(0,10).split('-'); if(p.length!==3) return d; var out=p[1]+'/'+p[2]+'/'+p[0]; var t=s.slice(11,16); if(t){ var hh=parseInt(t.slice(0,2),10)||0, mm=t.slice(3,5); var ap=hh>=12?'p':'a', h12=((hh%12)||12); out+=' '+h12+':'+mm+ap; } return out; }
+function fmtD(d){ if(!d) return ''; var s=String(d).slice(0,10).split('-'); if(s.length!==3) return ''; return s[1]+'/'+s[2]+'/'+s[0]; }
+var REPEAT_LABELS={daily:'Daily',weekly:'Weekly',biweekly:'Every 2 weeks',monthly:'Monthly',quarterly:'Quarterly',yearly:'Yearly'};
+function repeatLabel(v){ return REPEAT_LABELS[v]||''; }
 function todayStr(){ var d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function load(){
   fetch('/api/tasks',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
@@ -168,11 +173,14 @@ function render(){
     rowId:function(t){return t.id;}, defaultSort:5, defaultDir:1,
     columns:[
       { label:'', width:38, sortable:false, cell:function(t){ return '<input type="checkbox" class="tchk" data-toggle="'+esc(t.id)+'"'+(t.status==='done'?' checked':'')+'>'; } },
-      { label:'Task', sort:function(a,b){return RRGList.cmp(a.title,b.title);}, edit:{ type:'text', get:function(t){return t.title||'';}, save:function(t,v){ if(!(v||'').trim()) return Promise.reject(new Error('Title is required.')); return taskSave(t,{title:v}); } }, cell:function(t){ return '<div class="ttitle'+(t.status==='done'?' done':'')+'">'+esc(t.title)+'</div>'+(t.notes?('<div class="tnotes">'+esc(t.notes)+'</div>'):''); } },
+      { label:'Task', sort:function(a,b){return RRGList.cmp(a.title,b.title);}, edit:{ type:'text', get:function(t){return t.title||'';}, save:function(t,v){ if(!(v||'').trim()) return Promise.reject(new Error('Title is required.')); return taskSave(t,{title:v}); } }, cell:function(t){ return '<div class="ttitle'+(t.status==='done'?' done':'')+'">'+esc(t.title)+(t.repeat?(' <span class="rpt">🔁 '+esc(repeatLabel(t.repeat))+'</span>'):'')+'</div>'+(t.notes?('<div class="tnotes">'+esc(t.notes)+'</div>'):''); } },
       { label:'Priority', sort:function(a,b){return RRGList.cmp(a.priority,b.priority);}, edit:{ type:'select', options:function(){return PRIORITIES;}, get:function(t){return t.priority||'Normal';}, save:function(t,v){ return taskSave(t,{priority:v}); } }, cell:function(t){ return '<span class="pill '+esc(t.priority||'Normal')+'">'+esc(t.priority||'Normal')+'</span>'; } },
       { label:'Type', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.type,b.type);}, cell:function(t){ return t.type?esc(t.type):'<span class="meta">—</span>'; } },
       { label:'Link', sortable:false, cell:function(t){ var c=linkChip(t); return c||'<span class="meta">—</span>'; } },
       { label:'Due', sort:function(a,b){return RRGList.cmp(a.due||'9999',b.due||'9999');}, edit:{ type:'date', get:function(t){return (t.due||'').slice(0,10);}, save:function(t,v){ return taskSave(t,{due:v}); } }, cell:function(t){ var over=(t.status==='open'&&t.due&&t.due<today); return t.due?('<span class="due-lbl'+(over?' over':'')+'">'+(over?'Overdue ':'')+esc(fmt(t.due))+'</span>'):'<span class="meta">—</span>'; } },
+      { label:'Created', sort:function(a,b){return RRGList.cmp(a.createdAt||'',b.createdAt||'');}, cell:function(t){ return t.createdAt?esc(fmtD(t.createdAt)):'<span class="meta">—</span>'; } },
+      { label:'Owner', sort:function(a,b){return RRGList.cmp(a.createdByName||'',b.createdByName||'');}, cell:function(t){ return t.createdByName?esc(t.createdByName):'<span class="meta">—</span>'; } },
+      { label:'Completed', sort:function(a,b){return RRGList.cmp(a.doneAt||'',b.doneAt||'');}, cell:function(t){ return t.doneAt?esc(fmtD(t.doneAt)):'<span class="meta">—</span>'; } },
       { label:'Reminder', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.reminder||'',b.reminder||'');}, cell:function(t){ return t.reminder?('⏰ '+esc(fmt(t.reminder))):'<span class="meta">—</span>'; } },
       { label:'Assignee', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.assigneeName,b.assigneeName);}, cell:function(t){ return t.assigneeName?esc(t.assigneeName):'<span class="meta">—</span>'; } },
       { label:'', align:'right', sortable:false, cell:function(t){ return '<button class="tbtn" data-edit="'+esc(t.id)+'">Edit</button>'+((ISADMIN||t.createdBy===ME)?(' <button class="tbtn" data-del="'+esc(t.id)+'">Delete</button>'):''); } }
@@ -188,7 +196,7 @@ function collect(){
   if(linkId){ var opt=tgt.options[tgt.selectedIndex]; linkLabel=opt?opt.text:''; }
   return { title:document.getElementById('t_title').value.trim(),
     due:document.getElementById('t_due').value, priority:document.getElementById('t_priority').value, type:(document.getElementById('t_type')||{}).value||'', assignee:(document.getElementById('t_assignee')||{}).value||'',
-    reminder:reminderVal(), remChannels:channelVals(), linkType:lt, linkId:linkId, linkLabel:linkLabel,
+    reminder:reminderVal(), remChannels:channelVals(), repeat:(document.getElementById('t_repeat')||{}).value||'', linkType:lt, linkId:linkId, linkLabel:linkLabel,
     notes:document.getElementById('t_notes').value.trim() };
 }
 function applyChannelAvail(){ var e=document.getElementById('t_chan_email'), sm=document.getElementById('t_chan_sms'); if(e){ e.disabled=!EMAILREADY; var el=document.getElementById('t_chan_email_l'); if(el){ el.style.opacity=EMAILREADY?'1':'.4'; el.title=EMAILREADY?'':'Set up Email in Admin → Email'; } if(!EMAILREADY) e.checked=false; } if(sm){ sm.disabled=!SMSREADY; var sl=document.getElementById('t_chan_sms_l'); if(sl){ sl.style.opacity=SMSREADY?'1':'.4'; sl.title=SMSREADY?'':'Set up SMS in Admin → SMS (Twilio)'; } if(!SMSREADY) sm.checked=false; } }
@@ -198,6 +206,7 @@ function clearForm(){
   document.getElementById('t_title').value=''; document.getElementById('t_due').value=todayStr()+'T09:00';
   var _rs=document.getElementById('t_remsel'); if(_rs)_rs.value=''; var _rr=document.getElementById('t_reminder'); _rr.style.display='none'; _rr.value=''; document.querySelectorAll('.t_chan').forEach(function(cb){ cb.checked=(cb.value==='popup'||cb.value==='email'); }); applyChannelAvail(); document.getElementById('t_notes').value='';
   document.getElementById('t_linktype').value=''; fillTargets('','');
+  var _rp=document.getElementById('t_repeat'); if(_rp) _rp.value='';
   fillSelects(); var _asg=document.getElementById('t_assignee'); if(_asg) _asg.value=ME; EDITID=''; document.getElementById('formTitle').textContent='New task';
   document.getElementById('addBtn').textContent='Add task'; document.getElementById('cancelEdit').style.display='none';
 }
@@ -209,7 +218,7 @@ function save(silent){
   msg.textContent='Saving…';
   fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ msg.textContent='Saved ✓';
-      if(silent){ var _t=TASKS.filter(function(x){return x.id===EDITID;})[0]; if(_t){ _t.title=body.title; _t.due=body.due; _t.priority=body.priority; _t.type=body.type; _t.assignee=body.assignee; _t.reminder=body.reminder; _t.remChannels=body.remChannels; _t.linkType=body.linkType; _t.linkId=body.linkId; _t.linkLabel=body.linkLabel; _t.notes=body.notes; } render(); setTimeout(function(){msg.textContent='';},1500); return; }
+      if(silent){ var _t=TASKS.filter(function(x){return x.id===EDITID;})[0]; if(_t){ _t.title=body.title; _t.due=body.due; _t.priority=body.priority; _t.type=body.type; _t.assignee=body.assignee; _t.reminder=body.reminder; _t.remChannels=body.remChannels; _t.repeat=body.repeat; _t.linkType=body.linkType; _t.linkId=body.linkId; _t.linkLabel=body.linkLabel; _t.notes=body.notes; } render(); setTimeout(function(){msg.textContent='';},1500); return; }
       clearForm(); closeTaskModal(); load(); setTimeout(function(){msg.textContent='';},1500); } else { msg.textContent=(j&&j.error)||'Failed'; } });
 }
 function startEdit(id){
@@ -218,11 +227,12 @@ function startEdit(id){
   var _es=document.getElementById('t_remsel'); if(_es)_es.value=t.reminder?'custom':''; var _er=document.getElementById('t_reminder'); _er.style.display=t.reminder?'block':'none'; _er.value=t.reminder?t.reminder.slice(0,16):''; var chs=(t.remChannels&&t.remChannels.length)?t.remChannels:(t.remChannel==='email'?['email']:t.remChannel==='popup'?['popup']:['popup','email']); document.querySelectorAll('.t_chan').forEach(function(cb){ cb.checked=chs.indexOf(cb.value)>=0; }); applyChannelAvail(); document.getElementById('t_notes').value=t.notes||'';
   fillSelects(); document.getElementById('t_priority').value=t.priority||'Normal'; var _ty=document.getElementById('t_type'); if(_ty) _ty.value=t.type||''; var _asg=document.getElementById('t_assignee'); if(_asg) _asg.value=t.assignee||ME;
   document.getElementById('t_linktype').value=t.linkType||''; fillTargets(t.linkType||'',t.linkId||'');
+  var _rp=document.getElementById('t_repeat'); if(_rp) _rp.value=t.repeat||'';
   EDITID=id; document.getElementById('formTitle').textContent='Edit task';
   document.getElementById('addBtn').textContent='Save changes'; document.getElementById('cancelEdit').style.display='';
   openTaskModal();
 }
-function toggle(id){ fetch('/api/tasks/'+encodeURIComponent(id)+'/toggle',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var t=TASKS.filter(function(x){return x.id===id;})[0]; if(t){t.status=j.task.status;t.doneAt=j.task.doneAt;} render(); } }); }
+function toggle(id){ fetch('/api/tasks/'+encodeURIComponent(id)+'/toggle',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ var t=TASKS.filter(function(x){return x.id===id;})[0]; if(t){t.status=j.task.status;t.doneAt=j.task.doneAt;} if(j.spawned){ if(window.rrgToast) rrgToast('Repeated — next one added for '+fmtD(j.spawned.due)); load(); } else { render(); } } }); }
 async function del(id){ if(!await rrgConfirm('Delete this task?')) return; fetch('/api/tasks/'+encodeURIComponent(id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ TASKS=TASKS.filter(function(x){return x.id!==id;}); render(); } else alert((j&&j.error)||'Could not delete.'); }); }
 async function bulkDelTasks(ids,done){
   if(!ids||!ids.length) return;
@@ -244,7 +254,7 @@ var _tc2=document.getElementById('taskClose'); if(_tc2) _tc2.addEventListener('c
 var _tm=document.getElementById('taskModal'); if(_tm) _tm.addEventListener('click',function(e){ if(e.target===_tm){ /* backdrop: keep open to avoid losing input */ } });
 // Autosave while EDITING an existing task (change/blur or ~1s pause). New-task entry stays explicit.
 (function(){ var _tAS=null; function commit(){ if(_tAS){ clearTimeout(_tAS); _tAS=null; } if(EDITID) save(true); } function pause(){ if(_tAS) clearTimeout(_tAS); _tAS=setTimeout(commit,1000); }
-  ['t_title','t_due','t_priority','t_type','t_assignee','t_remsel','t_reminder','t_notes','t_linktype','t_linktarget'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); });
+  ['t_title','t_due','t_priority','t_type','t_assignee','t_remsel','t_reminder','t_repeat','t_notes','t_linktype','t_linktarget'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); });
   document.querySelectorAll('.t_chan').forEach(function(cb){ cb.addEventListener('change',commit); });
 })();
 document.getElementById('t_linktype').addEventListener('change',function(){ fillTargets(this.value,''); });
