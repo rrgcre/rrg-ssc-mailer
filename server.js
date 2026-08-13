@@ -6685,6 +6685,36 @@ app.delete('/api/gl/journal/:id', requireAdmin, (req, res) => {
   saveGlJournal(all.filter(e => e.id !== req.params.id));
   res.json({ ok: true });
 });
+// Bulk import a chart of accounts (e.g. a QuickBooks CoA export). Client sends already-mapped
+// rows {name, type, code?}; server dedups by name, auto-assigns codes in the right range when
+// blank or colliding, and (with overwrite) updates the type of existing accounts.
+app.post('/api/gl/import-accounts', requireAdmin, express.json({ limit: '4mb' }), (req, res) => {
+  const b = req.body || {}; const incoming = Array.isArray(b.accounts) ? b.accounts : [];
+  if (!incoming.length) return res.status(400).json({ ok: false, error: 'No accounts to import.' });
+  const accounts = loadGlAccounts();
+  const byCode = {}; accounts.forEach(a => byCode[a.code] = a);
+  const byName = {}; accounts.forEach(a => byName[String(a.name).toLowerCase()] = a);
+  const base = { Asset: 1000, Liability: 2000, Equity: 3000, Income: 4000, Expense: 6000 };
+  const nextByType = {};
+  function nextCode(type) { let n = nextByType[type] || base[type] || 9000; while (byCode[String(n)]) n += 10; nextByType[type] = n + 10; return String(n); }
+  let added = 0, updated = 0, skipped = 0;
+  incoming.forEach(row => {
+    const name = String((row && row.name) || '').trim().slice(0, 80);
+    const type = GL_ACCOUNT_TYPES.indexOf(row && row.type) >= 0 ? row.type : '';
+    if (!name || !type) { skipped++; return; }
+    let code = String((row && row.code) || '').trim().slice(0, 12);
+    const exists = byName[name.toLowerCase()];
+    if (exists) {
+      if (b.overwrite) { exists.type = type; if (code && code !== exists.code && !byCode[code]) { delete byCode[exists.code]; exists.code = code; byCode[code] = exists; } updated++; }
+      else skipped++;
+      return;
+    }
+    if (!code || byCode[code]) code = nextCode(type);
+    const acc = { code, name, type }; accounts.push(acc); byCode[code] = acc; byName[name.toLowerCase()] = acc; added++;
+  });
+  saveGlAccounts(accounts);
+  res.json({ ok: true, added, updated, skipped, accounts });
+});
 
 app.get('/api/automations', (req, res) => { const u = req.user || {}; const vis = loadAutomations().filter(a => (a.scope !== 'private') || a.ownerUser === u.username || isSuper(u)); res.json({ ok: true, automations: vis.map(a => automationBrief(a, u)), isAdmin: !!(req.user && isSuper(req.user)), smsNotify: smsNotifyEnabled(), smsReady: isSmsConfigured(), me: u.username || '' }); });
 app.get('/api/admin/automation-sms', requireAdmin, (req, res) => res.json({ ok: true, enabled: smsNotifyEnabled(), configured: isSmsConfigured() }));

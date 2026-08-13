@@ -116,6 +116,25 @@ input,select{width:100%;border:1px solid #cfd6e2;border-radius:4px;padding:8px 1
   </div>
 </div></div>
 
+<div class="modal" id="impModal" hidden><div class="mcard" style="max-width:840px">
+  <div class="mhd"><h2>Import chart of accounts</h2><button class="mx" id="impClose" aria-label="Close">×</button></div>
+  <div class="mbody">
+    <p style="margin:0 0 12px;color:var(--muted);font-size:13px;line-height:1.5">In QuickBooks, export your Chart of Accounts to CSV — <b>Accounting → Chart of Accounts → the export icon</b> (QBO), or run the <b>Account Listing</b> report and export (Desktop). Choose the file or paste the CSV below; I'll map QuickBooks' account types to ours and show a preview before anything is added.</p>
+    <div class="row" style="margin-bottom:10px"><input type="file" id="impFile" accept=".csv,text/csv" style="flex:1"></div>
+    <textarea id="impText" placeholder="…or paste the CSV here" style="width:100%;min-height:84px;border:1px solid #cfd6e2;border-radius:4px;padding:9px 11px;font:inherit;font-size:12.5px"></textarea>
+    <div id="impMap" style="display:none;margin-top:12px">
+      <div class="row" style="gap:12px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1;min-width:150px"><label class="fld">Account name column</label><select id="impName"></select></div>
+        <div style="flex:1;min-width:150px"><label class="fld">Type column</label><select id="impType"></select></div>
+        <div style="flex:1;min-width:150px"><label class="fld">Account # column (optional)</label><select id="impCode"></select></div>
+      </div>
+      <div style="margin-top:12px;border:1px solid var(--line);border-radius:4px;max-height:300px;overflow:auto"><table id="impPreview"></table></div>
+      <label style="display:flex;align-items:center;gap:7px;margin-top:10px;font-size:12.5px;color:var(--muted);font-weight:600"><input type="checkbox" id="impOverwrite" style="width:auto"> Update the type of accounts that already exist (matched by name)</label>
+    </div>
+  </div>
+  <div class="mfoot"><span class="msg" id="impSummary"></span><button class="btn ghost" id="impCancel">Cancel</button><button class="btn" id="impDo" disabled>Import</button></div>
+</div></div>
+
 <script>
 var DATA={accounts:[],entries:[],trialBalance:{rows:[],totalDebit:0,totalCredit:0,balanced:true},accountTypes:[]};
 var TAB='trial', LEDGER_ACCT='', EDITID='';
@@ -191,8 +210,9 @@ function renderAccounts(){
     var core=['1000','1100','2000','3000','4000'].indexOf(a.code)>=0;
     return '<tr><td class="code">'+esc(a.code)+'</td><td>'+esc(a.name)+'</td><td><span class="tpill tp-'+esc(a.type)+'">'+esc(a.type)+'</span></td><td class="num"><button class="linkbtn" data-aedit="'+esc(a.code)+'">Edit</button>'+(core?'':' &nbsp; <button class="linkbtn" style="color:#c0392b" data-adel="'+esc(a.code)+'">Remove</button>')+'</td></tr>';
   }).join('');
-  document.getElementById('view').innerHTML='<div class="card"><div class="ch">Chart of Accounts <span class="rt">'+DATA.accounts.length+' accounts</span></div>'+form+'<table><thead><tr><th style="width:80px">Code</th><th>Account</th><th style="width:120px">Type</th><th class="num" style="width:150px"></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  document.getElementById('view').innerHTML='<div class="card"><div class="ch">Chart of Accounts <button class="btn ghost sm" id="importQbBtn" style="margin-left:10px">⇪ Import from QuickBooks</button><span class="rt">'+DATA.accounts.length+' accounts</span></div>'+form+'<table><thead><tr><th style="width:80px">Code</th><th>Account</th><th style="width:120px">Type</th><th class="num" style="width:150px"></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   document.getElementById('a_add').addEventListener('click',saveAccount);
+  var _iq=document.getElementById('importQbBtn'); if(_iq) _iq.addEventListener('click',openImportModal);
   document.querySelectorAll('[data-aedit]').forEach(function(b){ b.addEventListener('click',function(){ var a=DATA.accounts.filter(function(x){return x.code===b.getAttribute('data-aedit');})[0]; if(!a) return; document.getElementById('a_code').value=a.code; document.getElementById('a_name').value=a.name; document.getElementById('a_type').value=a.type; document.getElementById('a_orig').value=a.code; document.getElementById('a_add').textContent='Save account'; document.getElementById('a_code').focus(); }); });
   document.querySelectorAll('[data-adel]').forEach(function(b){ b.addEventListener('click',function(){ delAccount(b.getAttribute('data-adel')); }); });
 }
@@ -238,6 +258,65 @@ document.getElementById('jClose').addEventListener('click',closeJModal);
 document.getElementById('jCancel').addEventListener('click',closeJModal);
 document.getElementById('jAddLine').addEventListener('click',function(){ addJLine(); });
 document.getElementById('jSave').addEventListener('click',saveJEntry);
+
+/* ---- QuickBooks chart-of-accounts import ---- */
+var IMP_ROWS=[], IMP_HEADER=[];
+function parseCSV(text){
+  var rows=[], row=[], cur='', q=false;
+  for(var i=0;i<text.length;i++){ var ch=text[i];
+    if(q){ if(ch==='"'){ if(text[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=ch; }
+    else { if(ch==='"') q=true; else if(ch===','){ row.push(cur); cur=''; } else if(ch==='\n'||ch==='\r'){ if(ch==='\r'&&text[i+1]==='\n') i++; row.push(cur); rows.push(row); row=[]; cur=''; } else cur+=ch; } }
+  if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(function(r){ return r.some(function(c){return String(c).trim()!=='';}); });
+}
+function mapQbType(t){ t=String(t||'').toLowerCase().trim(); if(!t) return '';
+  if(/receivable/.test(t)) return 'Asset';
+  if(/payable/.test(t)) return 'Liability';
+  if(/bank|cash|current asset|fixed asset|other asset|inventory|prepaid|\basset/.test(t)) return 'Asset';
+  if(/credit card|current liab|long ?term|liabilit|\bloan\b|note payable/.test(t)) return 'Liability';
+  if(/equity|retained earning|owner|capital|\bdraw/.test(t)) return 'Equity';
+  if(/cost of goods|cogs/.test(t)) return 'Expense';
+  if(/income|revenue|sales/.test(t)) return 'Income';
+  if(/expense|overhead/.test(t)) return 'Expense';
+  return ''; }
+function _hidx(re){ for(var i=0;i<IMP_HEADER.length;i++){ if(re.test(String(IMP_HEADER[i]||''))) return i; } return -1; }
+function detectName(){ var i=_hidx(/account name/i); if(i<0) i=_hidx(/^\s*name\s*$/i); if(i<0) i=_hidx(/^\s*account\s*$/i); if(i<0) i=_hidx(/name/i); return String(i<0?0:i); }
+function detectType(){ var i=_hidx(/^\s*type\s*$/i); if(i<0) i=_hidx(/account type/i); if(i<0) i=_hidx(/(^|[^a-z])type/i); return String(i<0?0:i); }
+function detectCode(){ return String(_hidx(/account\s*#|acct\.?\s*#|account\s*(number|no)|^\s*(number|no\.?|#)\s*$/i)); }
+function openImportModal(){ IMP_ROWS=[]; IMP_HEADER=[]; document.getElementById('impText').value=''; document.getElementById('impFile').value=''; document.getElementById('impMap').style.display='none'; document.getElementById('impSummary').textContent=''; document.getElementById('impDo').disabled=true; document.getElementById('impModal').removeAttribute('hidden'); }
+function closeImportModal(){ document.getElementById('impModal').setAttribute('hidden',''); }
+function impParse(text){ var rows=parseCSV(text||''); var mapDiv=document.getElementById('impMap'); if(rows.length<2){ mapDiv.style.display='none'; document.getElementById('impDo').disabled=true; document.getElementById('impSummary').textContent=rows.length?'Add a header row and at least one account.':''; return; } IMP_HEADER=rows[0]; IMP_ROWS=rows.slice(1); var opts=IMP_HEADER.map(function(h,i){return '<option value="'+i+'">'+esc(h||('Column '+(i+1)))+'</option>';}).join(''); var nS=document.getElementById('impName'), tS=document.getElementById('impType'), cS=document.getElementById('impCode'); nS.innerHTML=opts; tS.innerHTML=opts; cS.innerHTML='<option value="-1">— none —</option>'+opts; nS.value=detectName(); tS.value=detectType(); cS.value=detectCode(); [nS,tS,cS].forEach(function(s){ s.onchange=renderImpPreview; }); mapDiv.style.display='block'; renderImpPreview(); }
+function renderImpPreview(){
+  var ni=+document.getElementById('impName').value, ti=+document.getElementById('impType').value, ci=+document.getElementById('impCode').value;
+  var existing={}; DATA.accounts.forEach(function(a){ existing[String(a.name).toLowerCase()]=1; });
+  var neu=0,dup=0,skip=0, body='';
+  IMP_ROWS.forEach(function(r){ var name=String(r[ni]||'').trim(); var traw=String(r[ti]||'').trim(); var type=mapQbType(traw); var code=ci>=0?String(r[ci]||'').trim():'';
+    if(!name && !traw) return;
+    var status,cls;
+    if(!name){ status='Skip — no name'; cls='#c0392b'; skip++; }
+    else if(!type){ status='Skip — type “'+esc(traw)+'”'; cls='#c0392b'; skip++; }
+    else if(existing[name.toLowerCase()]){ status='Already exists'; cls='#b5791f'; dup++; }
+    else { status='New'; cls='#1f8a5b'; neu++; }
+    body+='<tr><td class="code">'+esc(code||'(auto)')+'</td><td>'+esc(name||'—')+'</td><td>'+(type?('<span class="tpill tp-'+type+'">'+type+'</span>'):('<span style="color:#c0392b;font-size:12px">'+esc(traw||'?')+'</span>'))+'</td><td style="color:'+cls+';font-weight:700;font-size:12px">'+status+'</td></tr>'; });
+  document.getElementById('impPreview').innerHTML='<thead><tr><th style="width:72px">Code</th><th>Account</th><th style="width:112px">Type</th><th style="width:170px">Status</th></tr></thead><tbody>'+(body||'<tr><td colspan="4" class="empty">Nothing to import.</td></tr>')+'</tbody>';
+  var over=document.getElementById('impOverwrite').checked;
+  document.getElementById('impSummary').textContent=neu+' new · '+dup+' already exist · '+skip+' skipped';
+  document.getElementById('impDo').disabled=!(neu>0 || (over && dup>0));
+}
+function doImport(){
+  var ni=+document.getElementById('impName').value, ti=+document.getElementById('impType').value, ci=+document.getElementById('impCode').value;
+  var accts=[]; IMP_ROWS.forEach(function(r){ var name=String(r[ni]||'').trim(); var type=mapQbType(r[ti]); if(!name||!type) return; accts.push({name:name,type:type,code:ci>=0?String(r[ci]||'').trim():''}); });
+  if(!accts.length) return;
+  var over=document.getElementById('impOverwrite').checked;
+  document.getElementById('impDo').disabled=true; document.getElementById('impSummary').textContent='Importing…';
+  fetch('/api/gl/import-accounts',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({accounts:accts,overwrite:over})}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ closeImportModal(); if(window.rrgToast) rrgToast('Imported '+j.added+' account'+(j.added===1?'':'s')+(j.updated?(' · updated '+j.updated):'')+(j.skipped?(' · skipped '+j.skipped):'')); load(); } else { document.getElementById('impDo').disabled=false; document.getElementById('impSummary').textContent=(j&&j.error)||'Import failed.'; } }).catch(function(){ document.getElementById('impDo').disabled=false; document.getElementById('impSummary').textContent='Could not reach the server.'; });
+}
+document.getElementById('impClose').addEventListener('click',closeImportModal);
+document.getElementById('impCancel').addEventListener('click',closeImportModal);
+document.getElementById('impDo').addEventListener('click',doImport);
+document.getElementById('impOverwrite').addEventListener('change',renderImpPreview);
+document.getElementById('impText').addEventListener('input',function(){ impParse(this.value); });
+document.getElementById('impFile').addEventListener('change',function(){ var f=this.files&&this.files[0]; if(!f) return; var rd=new FileReader(); rd.onload=function(){ document.getElementById('impText').value=rd.result; impParse(String(rd.result||'')); }; rd.readAsText(f); });
 load();
 </script>
 </body>
