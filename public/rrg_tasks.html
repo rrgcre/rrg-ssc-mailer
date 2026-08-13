@@ -43,7 +43,12 @@ textarea{min-height:56px;resize:vertical;}
 .trow{display:flex;align-items:flex-start;gap:12px;padding:13px 4px;border-bottom:1px solid var(--line);}
 .trow:last-child{border-bottom:none;}
 .trow.due{background:#fff8f0;border-radius:8px;padding-left:8px;padding-right:8px;}
-.tchk{width:20px;height:20px;flex:none;margin-top:2px;cursor:pointer;accent-color:var(--red);}
+/* "Mark complete" toggle — a round green check, deliberately NOT a square so it never
+   reads as a second row-selection checkbox next to the grid's select column. */
+.tchk{appearance:none;-webkit-appearance:none;width:20px;height:20px;flex:none;margin-top:2px;border:2px solid #c2ccdb;border-radius:50%;background:#fff;cursor:pointer;position:relative;vertical-align:middle;transition:background .12s,border-color .12s;}
+.tchk:hover{border-color:#1f8a5b;}
+.tchk:checked{background:#1f8a5b;border-color:#1f8a5b;}
+.tchk:checked::after{content:'';position:absolute;left:5.5px;top:2px;width:4px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg);}
 .tmain{flex:1;min-width:0;}
 .ttitle{font-weight:700;color:var(--navy);font-size:14.5px;}
 .trow.done .ttitle{text-decoration:line-through;color:var(--muted);}
@@ -172,7 +177,7 @@ function render(){
   var cfg={ mount:'#list', data:list, key:'tasks', empty:'<div class="empty">No tasks here.</div>',
     rowId:function(t){return t.id;}, defaultSort:5, defaultDir:1,
     columns:[
-      { label:'', width:38, sortable:false, cell:function(t){ return '<input type="checkbox" class="tchk" data-toggle="'+esc(t.id)+'"'+(t.status==='done'?' checked':'')+'>'; } },
+      { label:'', width:38, sortable:false, cell:function(t){ return '<input type="checkbox" class="tchk" data-toggle="'+esc(t.id)+'"'+(t.status==='done'?' checked':'')+' title="'+(t.status==='done'?'Completed — click to reopen':'Mark complete')+'">'; } },
       { label:'Task', sort:function(a,b){return RRGList.cmp(a.title,b.title);}, edit:{ type:'text', get:function(t){return t.title||'';}, save:function(t,v){ if(!(v||'').trim()) return Promise.reject(new Error('Title is required.')); return taskSave(t,{title:v}); } }, cell:function(t){ return '<div class="ttitle'+(t.status==='done'?' done':'')+'">'+esc(t.title)+(t.repeat?(' <span class="rpt">🔁 '+esc(repeatLabel(t.repeat))+'</span>'):'')+'</div>'+(t.notes?('<div class="tnotes">'+esc(t.notes)+'</div>'):''); } },
       { label:'Priority', sort:function(a,b){return RRGList.cmp(a.priority,b.priority);}, edit:{ type:'select', options:function(){return PRIORITIES;}, get:function(t){return t.priority||'Normal';}, save:function(t,v){ return taskSave(t,{priority:v}); } }, cell:function(t){ return '<span class="pill '+esc(t.priority||'Normal')+'">'+esc(t.priority||'Normal')+'</span>'; } },
       { label:'Type', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.type,b.type);}, cell:function(t){ return t.type?esc(t.type):'<span class="meta">—</span>'; } },
