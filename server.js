@@ -418,10 +418,16 @@ function effConceptLabelPlural() { const s = loadSettings(); const v = String(s.
 function effShowRequestRibbon() { const s = loadSettings(); return s.showRequestRibbon !== false; }
 function effPipelineRequired() { const s = loadSettings(); return !!s.pipelineRequiredOnCompany; }
 // Calendar feature flags — admin can turn each on/off (default ON).
-const CAL_FEATURES = { calSync: 'featCalSync', calTasks: 'featCalTasks', calMeet: 'featCalMeet', workHours: 'featWorkHours', eventFiles: 'featEventFiles', booking: 'featBooking' };
+const CAL_FEATURES = { calSync: 'featCalSync', calTasks: 'featCalTasks', calMeet: 'featCalMeet', workHours: 'featWorkHours', eventFiles: 'featEventFiles', booking: 'featBooking', calShare: 'featCalShare' };
 function effCalFeatures() { const s = loadSettings(); const o = {}; for (const k in CAL_FEATURES) o[k] = s[CAL_FEATURES[k]] !== false; return o; }
 function calFeatOn(k) { const s = loadSettings(); return s[CAL_FEATURES[k]] !== false; }
-function calFeatFlags() { return { featCalSync: calFeatOn('calSync'), featCalTasks: calFeatOn('calTasks'), featCalMeet: calFeatOn('calMeet'), featWorkHours: calFeatOn('workHours'), featEventFiles: calFeatOn('eventFiles'), featBooking: calFeatOn('booking') }; }
+function calFeatFlags() { return { featCalSync: calFeatOn('calSync'), featCalTasks: calFeatOn('calTasks'), featCalMeet: calFeatOn('calMeet'), featWorkHours: calFeatOn('workHours'), featEventFiles: calFeatOn('eventFiles'), featBooking: calFeatOn('booking'), featCalShare: calFeatOn('calShare') }; }
+// Per-person calendar sharing — an owner grants named teammates visibility of their calendar.
+const CALSHARE_FILE = path.join(BOV_DATA_DIR, 'calshares.json');
+function loadCalShares() { try { return rj(CALSHARE_FILE) || {}; } catch (e) { return {}; } }
+function saveCalShares(o) { return writeJsonGuarded(CALSHARE_FILE, o, 'saveCalShares'); }
+function calSharedWith(owner) { const all = loadCalShares(); return Array.isArray(all[owner]) ? all[owner] : []; } // grantees of owner
+function calSharedToMe(me) { if (!calFeatOn('calShare')) return []; const all = loadCalShares(); const out = []; for (const owner in all) { if (Array.isArray(all[owner]) && all[owner].indexOf(me) >= 0) out.push(owner); } return out; } // owners who shared with me
 function effShowQuickLinks() { const s = loadSettings(); return s.showQuickLinks !== false; }
 const CURRENCY_SYMBOLS={USD:'$',CAD:'C$',AUD:'A$',NZD:'NZ$',EUR:'€',GBP:'£',JPY:'¥',CNY:'¥',INR:'₹',MXN:'MX$',BRL:'R$',CHF:'CHF ',SEK:'kr ',NOK:'kr ',DKK:'kr ',ZAR:'R',AED:'AED ',SGD:'S$',HKD:'HK$'};
 function effCurrency(){ const s=loadSettings(); const c=(typeof s.currency==='string'&&s.currency)?s.currency.toUpperCase():'USD'; return CURRENCY_SYMBOLS[c]?c:'USD'; }
@@ -8169,7 +8175,7 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags() }); }
   if (b.personTypes !== undefined) { s.personTypes = cleanStrList(b.personTypes, 40, 60) || []; s.personTypes = _mergeRequired(s.personTypes, SYSTEM_PERSON_TYPES); }
   if (b.companyTypes !== undefined) { s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || []; s.companyTypes = _mergeRequired(s.companyTypes, SYSTEM_COMPANY_TYPES); }
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
@@ -8204,6 +8210,7 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   if (b.featWorkHours !== undefined) s.featWorkHours = !!b.featWorkHours;
   if (b.featEventFiles !== undefined) s.featEventFiles = !!b.featEventFiles;
   if (b.featBooking !== undefined) s.featBooking = !!b.featBooking;
+  if (b.featCalShare !== undefined) s.featCalShare = !!b.featCalShare;
   if (b.pipelineRequiredOnCompany !== undefined) s.pipelineRequiredOnCompany = !!b.pipelineRequiredOnCompany;
   if (b.showQuickLinks !== undefined) s.showQuickLinks = !!b.showQuickLinks;
   if (b.sentSyncEnabled !== undefined) s.sentSyncEnabled = !!b.sentSyncEnabled;
@@ -11197,16 +11204,23 @@ app.get('/api/appointments', (req, res) => {
   const u = req.user || {};
   const from = String(req.query.from || ''), to = String(req.query.to || ''), cid = String(req.query.contactId || ''), scope = String(req.query.scope || ''), who = String(req.query.user || '');
   const canAll = isSuper(u) || !permsEnabled() || !!effectivePerms(u).view_calendars;
+  const sharedToMe = canAll ? [] : calSharedToMe(u.username);   // owners who shared their calendar with me
   let list = loadAppts().filter(a => a.status !== 'deleted');
   if (cid) list = list.filter(a => a.contactPersonId === cid);
-  if (!canAll) { list = list.filter(a => a.byUser === u.username); }
+  if (!canAll) {
+    const allowed = {}; allowed[u.username] = 1; sharedToMe.forEach(o => { allowed[o] = 1; });
+    if (who && allowed[who]) list = list.filter(a => a.byUser === who);
+    else if (scope === 'mine') list = list.filter(a => a.byUser === u.username);
+    else list = list.filter(a => allowed[a.byUser]);
+  }
   else if (scope === 'mine') { list = list.filter(a => a.byUser === u.username); }
   else if (who) { list = list.filter(a => a.byUser === who); }
   if (from) list = list.filter(a => String(a.start || '') >= from || (a.end && String(a.end) >= from));
   if (to) list = list.filter(a => String(a.start || '') <= to);
   list.sort((a, b) => String(a.start || '').localeCompare(String(b.start || '')));
   const contacts = loadPeople().map(p => ({ id: p.id, name: p.name, email: (typeof preferredEmailOf === 'function' ? (preferredEmailOf(p) || '') : (p.email || '')) })).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-  const users = auth.loadUsers().filter(x => !x.disabled).map(x => ({ username: x.username, name: x.name || x.username, workLocation: x.workLocation || '', workStart: x.workStart || '', workEnd: x.workEnd || '', workDays: Array.isArray(x.workDays) ? x.workDays : [] }));
+  let users = auth.loadUsers().filter(x => !x.disabled).map(x => ({ username: x.username, name: x.name || x.username, workLocation: x.workLocation || '', workStart: x.workStart || '', workEnd: x.workEnd || '', workDays: Array.isArray(x.workDays) ? x.workDays : [] }));
+  if (!canAll) { const keep = {}; keep[u.username] = 1; sharedToMe.forEach(o => { keep[o] = 1; }); users = users.filter(x => keep[x.username]); }
   const meProf = (function(){ try { return auth.profileOf(auth.findUser(u.username)) || {}; } catch (e) { return {}; } })();
   const meWork = { workLocation: meProf.workLocation || '', workStart: meProf.workStart || '', workEnd: meProf.workEnd || '', workDays: Array.isArray(meProf.workDays) ? meProf.workDays : [] };
   // Dated tasks in the same window, so they can render on the calendar grid alongside meetings.
@@ -11227,9 +11241,23 @@ app.get('/api/appointments', (req, res) => {
       return true;
     }).map(t => ({ id: t.id, title: t.title || 'Task', due: t.due || '', priority: t.priority || 'Normal', assignee: t.assignee || '', assigneeName: t.assigneeName || '', linkLabel: t.linkLabel || '', link: t.link || '' }));
   } catch (e) {}
-  res.json({ ok: true, appointments: list.map(apptBrief), tasks: tasksOut, contacts, users, meWork, features: effCalFeatures(), types: APPT_TYPES, me: u.username || '', canSeeAll: canAll, emailReady: isEmailConfigured() });
+  res.json({ ok: true, appointments: list.map(apptBrief), tasks: tasksOut, contacts, users, meWork, features: effCalFeatures(), types: APPT_TYPES, me: u.username || '', canSeeAll: canAll, hasShared: sharedToMe.length > 0, emailReady: isEmailConfigured() });
 });
 app.get('/api/features', (req, res) => res.json({ ok: true, features: effCalFeatures() }));
+// Per-person calendar sharing — owner picks which teammates can see their calendar.
+app.get('/api/me/calendar-shares', (req, res) => {
+  const me = (req.user && req.user.username) || '';
+  const users = auth.loadUsers().filter(x => !x.disabled && x.username !== me).map(x => ({ username: x.username, name: x.name || x.username }));
+  res.json({ ok: true, enabled: calFeatOn('calShare'), shares: calSharedWith(me), users });
+});
+app.post('/api/me/calendar-shares', express.json(), (req, res) => {
+  const me = (req.user && req.user.username) || ''; if (!me) return res.status(401).json({ ok: false });
+  if (!calFeatOn('calShare')) return res.status(403).json({ ok: false, error: 'Calendar sharing is turned off in Admin settings.' });
+  const valid = new Set(auth.loadUsers().filter(x => !x.disabled).map(x => x.username));
+  const list = Array.isArray(req.body && req.body.shares) ? req.body.shares.filter(x => valid.has(x) && x !== me).slice(0, 200) : [];
+  const all = loadCalShares(); all[me] = list; saveCalShares(all);
+  res.json({ ok: true, shares: list });
+});
 app.post('/api/appointments', express.json(), (req, res) => {
   const u = req.user || {}; const b = req.body || {}; const all = loadAppts(); const now = new Date().toISOString();
   const title = String(b.title || '').trim().slice(0, 200); if (!title) return res.status(400).json({ ok: false, error: 'A meeting title is required.' });

@@ -88,7 +88,7 @@ input,select,textarea{border-radius:4px;}
 .featshd{display:flex;align-items:center;gap:10px;padding:13px 20px;cursor:pointer;user-select:none;}
 .featshd b{font-size:14px;color:var(--navy);}
 .featshd .sh{font-size:11.5px;color:var(--muted);font-weight:600;}
-.featshd .chev{margin-left:auto;color:var(--muted);font-size:12px;transition:transform .15s;}
+.featshd .chev{margin-left:auto;color:#3f4b63;font-size:12px;font-weight:800;transition:transform .15s;}
 .feats.collapsed .chev{transform:rotate(-90deg);}
 .feats.collapsed .featgrid{display:none;}
 .featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line);}
@@ -161,7 +161,7 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
       <a class="feat" href="rrg_calendar_help.html#tasks" target="_blank" rel="noopener"><span class="fic">✅</span><div><b>Tasks on your calendar</b><span>Give any task a date and time and it shows up right on the calendar alongside your meetings.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#gmailsync" target="_blank" rel="noopener"><span class="fic">📥</span><div><b>Events from your inbox <span class="soon">Soon</span></b><span>Flights, hotels and reservations sitting in Gmail get added to your calendar automatically.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#meet" target="_blank" rel="noopener"><span class="fic">🎥</span><div><b>Video with Google Meet</b><span>Add a Google Meet link to any meeting in a click and connect virtually.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#share" target="_blank" rel="noopener"><span class="fic">📤</span><div><b>Share calendars <span class="soon">Soon</span></b><span>Share your calendar with others and find times that work across everyone's schedule.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#share" target="_blank" rel="noopener"><span class="fic">📤</span><div><b>Share calendars</b><span>Share your calendar with others and find times that work across everyone's schedule.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#attach" target="_blank" rel="noopener"><span class="fic">📎</span><div><b>Attach files to events</b><span>Keep agendas, pre-reads and documents right on the event — all the details in one place.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#working" target="_blank" rel="noopener"><span class="fic">🏠</span><div><b>Working location &amp; hours</b><span>Let teammates see where you're working from and what your working hours are.</span></div></a>
     </div>
@@ -220,7 +220,7 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
 
 <script>
 var APPTS=[],TASKS=[],CONTACTS=[],USERS=[],TYPES=[],ME='',EMAILREADY=false,MEWORK={},FEATURES={};
-var VIEW='month',SCOPE='all',EDIT=null,CANSEEALL=false,USERSEL='';
+var VIEW='month',SCOPE='all',EDIT=null,CANSEEALL=false,USERSEL='',HASSHARED=false;
 var SHOWTASKS=(function(){ try{ return localStorage.getItem('rrg_cal_showtasks')!=='0'; }catch(e){ return true; } })();
 var CUR=(function(){var d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate());})();
 var MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -237,7 +237,7 @@ function load(){
   if(SCOPE==='mine') q+='&scope=mine'; else if(USERSEL) q+='&user='+encodeURIComponent(USERSEL);
   fetch('/api/appointments?'+q,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok) return;
-    APPTS=j.appointments||[]; TASKS=j.tasks||[]; CONTACTS=j.contacts||[]; USERS=j.users||[]; MEWORK=j.meWork||{}; FEATURES=j.features||{}; TYPES=j.types||[]; ME=j.me||''; EMAILREADY=!!j.emailReady; CANSEEALL=!!j.canSeeAll; applyFeatureGates(); setupScope();
+    APPTS=j.appointments||[]; TASKS=j.tasks||[]; CONTACTS=j.contacts||[]; USERS=j.users||[]; MEWORK=j.meWork||{}; FEATURES=j.features||{}; TYPES=j.types||[]; ME=j.me||''; EMAILREADY=!!j.emailReady; CANSEEALL=!!j.canSeeAll; HASSHARED=!!j.hasShared; applyFeatureGates(); setupScope();
     document.getElementById('contactList').innerHTML=CONTACTS.map(function(c){return '<option value="'+esc(c.name)+'"></option>';}).join('');
     render();
   });
@@ -395,8 +395,8 @@ async function del(){
   if(!EDIT) return; if(!await rrgConfirm('Delete this meeting?')) return;
   fetch('/api/appointments/'+encodeURIComponent(EDIT.id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ closeForm(); load(); } else alert((j&&j.error)||'Could not delete.'); });
 }
-function fillUserFilter(){ var el=document.getElementById('userFilter'); if(!el) return; var cur=(SCOPE==='mine')?'__mine':(USERSEL||'__all'); el.innerHTML='<option value="__all">Everyone’s calendar</option><option value="__mine">Just my meetings</option>'+USERS.map(function(u){return '<option value="'+esc(u.username)+'">'+esc(u.name)+'</option>';}).join(''); el.value=cur; }
-function setupScope(){ var seg=document.getElementById('scopeSeg'), uf=document.getElementById('userFilter'); if(CANSEEALL){ if(seg) seg.style.display='none'; if(uf){ uf.style.display=''; fillUserFilter(); } } else { if(seg) seg.style.display='none'; if(uf) uf.style.display='none'; } }
+function fillUserFilter(){ var el=document.getElementById('userFilter'); if(!el) return; var cur=(SCOPE==='mine')?'__mine':(USERSEL||'__all'); var allLabel=CANSEEALL?'Everyone’s calendar':'My + shared calendars'; el.innerHTML='<option value="__all">'+allLabel+'</option><option value="__mine">Just my meetings</option>'+USERS.filter(function(u){return u.username!==ME;}).map(function(u){return '<option value="'+esc(u.username)+'">'+esc(u.name)+'</option>';}).join(''); el.value=cur; }
+function setupScope(){ var seg=document.getElementById('scopeSeg'), uf=document.getElementById('userFilter'); if(seg) seg.style.display='none'; if(CANSEEALL||HASSHARED){ if(uf){ uf.style.display=''; fillUserFilter(); } } else { if(uf) uf.style.display='none'; } }
 document.getElementById('userFilter').addEventListener('change',function(){ var v=this.value; if(v==='__all'){ SCOPE='all'; USERSEL=''; } else if(v==='__mine'){ SCOPE='mine'; USERSEL=''; } else { SCOPE='all'; USERSEL=v; } load(); });
 function stepDate(dir){ if(VIEW==='day'){ CUR=new Date(CUR.getFullYear(),CUR.getMonth(),CUR.getDate()+dir); } else if(VIEW==='week'){ CUR=new Date(CUR.getFullYear(),CUR.getMonth(),CUR.getDate()+7*dir); } else { CUR=new Date(CUR.getFullYear(),CUR.getMonth()+dir,1); } load(); }
 document.getElementById('prev').addEventListener('click',function(){ stepDate(-1); });

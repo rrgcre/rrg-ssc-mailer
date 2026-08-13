@@ -118,6 +118,13 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
     <div style="margin-top:12px"><button class="save" id="saveBooking" onclick="saveBooking()">Save booking page</button><span class="msg" id="bkMsg"></span></div>
   </div>
 
+  <div class="card" id="shareCard" style="display:none">
+    <h2>Share my calendar</h2>
+    <p class="desc">Pick teammates who can see your calendar. They’ll be able to view your meetings on the Calendar page (they can’t edit them).</p>
+    <div id="shareList" style="display:flex;flex-wrap:wrap;gap:10px;margin:6px 0 12px"></div>
+    <div><button class="save" id="saveShare" onclick="saveShare()">Save sharing</button><span class="msg" id="shMsg"></span></div>
+  </div>
+
   <div class="card">
     <h2>Email signature</h2>
     <p class="desc">Appended to the bottom of every email you send from a contact’s page. Type your sign-off and drop your logo right into the same box.</p>
@@ -204,6 +211,7 @@ function load(){
 }
 load();
 loadBooking();
+loadShares();
 fetch(API+'/api/features',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ var f=(j&&j.features)||{}; if(f.workHours===false){ var w=document.getElementById('workCard'); if(w) w.style.display='none'; } if(f.booking===false){ var b=document.getElementById('bookingCard'); if(b) b.style.display='none'; } }).catch(function(){});
 
 /* ---- My Quick Links ---- */
@@ -259,6 +267,8 @@ function saveSig(){
 $('sigBox').addEventListener('input',sigSize);
 loadSig();
 
+function loadShares(){ fetch(API+'/api/me/calendar-shares',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok||!j.enabled) return; var card=$('shareCard'); if(card) card.style.display=''; var box=$('shareList'); if(!box) return; var sh=j.shares||[]; box.innerHTML=(j.users||[]).map(function(u){ return '<label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--line,#e6e9f0);border-radius:8px;padding:6px 10px"><input type="checkbox" class="shareck" value="'+esc(u.username)+'"'+(sh.indexOf(u.username)>=0?' checked':'')+' style="width:auto">'+esc(u.name)+'</label>'; }).join('')||'<span style="color:#6b7488;font-size:13px">No other teammates yet.</span>'; }).catch(function(){}); }
+function saveShare(){ var b=$('saveShare'); b.disabled=true; setMsg('shMsg','','Saving…'); var picks=[]; document.querySelectorAll('.shareck:checked').forEach(function(c){ picks.push(c.value); }); fetch(API+'/api/me/calendar-shares',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({shares:picks})}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ setMsg('shMsg','ok','Saved ✓'); } else setMsg('shMsg','err',(j&&j.error)||'Could not save.'); }).catch(function(){ b.disabled=false; setMsg('shMsg','err','Could not reach the server.'); }); }
 function loadBooking(){ fetch(API+'/api/me/booking',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return; var sel=$('bkLength'); if(sel&&!sel.options.length){ (j.lengths||[15,30,45,60]).forEach(function(n){ var o=document.createElement('option'); o.value=n; o.textContent=n+' min'; sel.appendChild(o); }); } if(sel) sel.value=j.length||30; $('bkEnabled').checked=!!j.enabled; $('bkTitle').value=j.title||''; renderBkLink(j); }).catch(function(){}); }
 function renderBkLink(j){ var row=$('bkLinkRow'); if(!row) return; var link=j.link||''; if(link&&link.charAt(0)==='/') link=location.origin+link; if(j.enabled&&link){ row.style.display=''; $('bkLink').value=link; var op=$('bkOpen'); if(op) op.href=link; } else row.style.display='none'; }
 function bkCopyLink(){ var i=$('bkLink'); try{ navigator.clipboard.writeText(i.value); var b=$('bkCopy'); b.textContent='Copied'; setTimeout(function(){b.textContent='Copy';},1200);}catch(e){} }
