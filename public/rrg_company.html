@@ -477,7 +477,7 @@ function render(){
     var mono='<span class="cptlogo cptlogo-mono">'+esc(mletter)+'</span>';
     var logo=cpt.logo?('<img class="cptlogo" src="'+esc(cpt.logo)+'" alt="" data-mono="'+esc(mletter)+'" onerror="cptLogoFail(this)">'):mono;
     return '<div class="cptblock'+(open?' open':'')+'"><div class="cptbar" data-cpt="'+esc(cpt.id)+'"><span class="cptchev">▸</span>'+logo
-      + '<div class="cptname"><div class="cptnm cptnameedit" data-editc="'+esc(cpt.id)+'" title="Click to edit this concept">'+esc(cpt.name)+'</div>'+metaLine+'</div>'
+      + '<div class="cptname"><div class="cptnm" title="Click to open · use Edit to rename">'+esc(cpt.name)+'</div>'+metaLine+'</div>'
       + '<div class="cptacts"><button class="mini" data-addloc="'+esc(cpt.id)+'">+ Location</button><button class="mini" data-editc="'+esc(cpt.id)+'">Edit</button><button class="mini danger" data-rmc="'+esc(cpt.id)+'" title="Remove concept">\u2212 Remove</button></div></div>'
       + '<div class="cptlocs">'+rows+'</div></div>';
   }
