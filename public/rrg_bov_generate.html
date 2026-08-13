@@ -107,10 +107,13 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
 
   <div class="card">
     <label class="fl" for="biz">Business / Concept Name</label>
-    <input class="name" id="biz" placeholder="e.g. The Magnolia Pancake Haus" autocomplete="off">
+    <input class="name" id="biz" placeholder="The exact business name — e.g. Buffalo Blue" autocomplete="off">
 
     <label class="fl" for="prepFor">Prepared For</label>
-    <input class="name" id="prepFor" placeholder="e.g. Ownership of The Magnolia Pancake Haus" autocomplete="off">
+    <input class="name" id="prepFor" placeholder="e.g. Ownership of Buffalo Blue" autocomplete="off">
+
+    <label class="fl" for="bovNotes">Notes for the analyst <span style="text-transform:none;letter-spacing:0;color:var(--soft);font-weight:600">— optional, but recommended</span></label>
+    <textarea class="name" id="bovNotes" rows="4" placeholder="Context the analyst should use before valuing this business — e.g. &quot;This is Buffalo Blue, a bar in San Antonio. The attached P&amp;L is Buffalo Blue only. Add back ~$120K owner comp; the lease has two 5-year options; exclude the catering line.&quot; The analyst uses this alongside the documents." style="resize:vertical;line-height:1.5"></textarea>
 
     <div class="uphd">
       <span class="l">Upload the deal documents</span>
@@ -328,7 +331,7 @@ function generate(){
     if(mb>28){ workHide(); setStatus('err','Those files are too large together (~'+mb.toFixed(0)+'MB). Trim to the essential pages and try again.'); return; }
     workMsg(aiName()+' is reviewing the financials, adjustments, and key value drivers to produce a thorough, defensible opinion of value — this can take a few minutes.');
     ABORT=new AbortController();
-    fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files,bovId:BOV_ID,links:LINKS,preparedFor:(document.getElementById('prepFor').value||'').trim()}),signal:ABORT.signal})
+    fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files,bovId:BOV_ID,links:LINKS,preparedFor:(document.getElementById('prepFor').value||'').trim(),notes:((document.getElementById('bovNotes')||{}).value||'').trim()}),signal:ABORT.signal})
       .then(function(r){ return r.text().then(function(t){ var j=null; try{ j=JSON.parse(t); }catch(e){} return {ok:r.ok,status:r.status,j:j}; }); })
       .then(function(res){
         if(res.j&&res.j.ok&&res.j.id){ stopAmbient(); playDone(); workMsg('Done — opening the finished draft ✓'); var _id=res.j.id; setTimeout(function(){ location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(_id); }, DONE_MS); return; }

@@ -2285,7 +2285,7 @@ app.get('/api/valuation-room-ready', (req, res) => {
 });
 app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) => {
   try {
-    const { business, files, bovId, links, preparedFor } = req.body || {};
+    const { business, files, bovId, links, preparedFor, notes } = req.body || {};
     let _files = (files && files.length) ? files : [];
     if (!_files.length && bovId) { try { _files = roomFilesForBov(loadBovs().find(x => x.id === bovId)); } catch (e) { _files = []; } }
     if (!_files || !_files.length) return res.status(400).json({ ok: false, error: 'Attach at least one financial document, or add it to the deal\u2019s data room.' });
@@ -2315,6 +2315,11 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
         if (_pid || _cid) { const itext = interviewQuestText(_pid, _cid); if (itext) questionnaireText = (questionnaireText ? (questionnaireText + '\n\n') : '') + itext; }
       } catch (e) {}
     }
+    // Broker's pre-valuation notes (entered on the generate screen) — authoritative context.
+    // Prepended so the analyst treats it as primary guidance for the subject business, add-backs,
+    // and exclusions, rather than inferring (which is how a wrong business name can creep in).
+    const _brokerNotes = String(notes || '').trim().slice(0, 6000);
+    if (_brokerNotes) { questionnaireText = 'BROKER NOTES — authoritative. Use these for the subject business identity, add-backs, and exclusions; do not infer a different business:\n' + _brokerNotes + (questionnaireText ? ('\n\n' + questionnaireText) : ''); }
 
     // Draft valuations re-generate freely — a rep can re-run the analysis, tweak
     // add-backs, or adjust the multiple until the number is right. Only a FINALIZED

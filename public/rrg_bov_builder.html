@@ -250,7 +250,9 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 
 <script>
 (function(){
-  var KEY='rrgdraft:'+(document.title||location.pathname);
+  // Per-BOV draft key — MUST include the bov id, else every valuation shares one localStorage
+  // draft and a stateless BOV would show whatever was last edited (e.g. the Magnolia sample).
+  var KEY='rrgdraft:'+(document.title||location.pathname)+':'+(((new URLSearchParams(location.search)).get('bov'))||'new');
   var state={fields:{}, bridge:[], bench:[], buyers:[]};
   function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.\-]/g,''))||0; }
   function money(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
@@ -546,6 +548,9 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();});
     sortBuyers(); apply(state.fields); renderAll(); return true; }catch(e){ return false; } }
   function initBlank(){ resetBlank(); }
+  // Stateless BOV (not yet generated): show a blank scaffold with the CORRECT business name,
+  // never another valuation's data. Only fills empty fields, so a real draft is left intact.
+  function _prefillFromRecord(bov){ try{ if(!bov||!bov.business) return; var s=q('subject'); if(s && !String(s.value).trim()) s.value=bov.business; var pf=q('preparedFor'); if(pf && !String(pf.value).trim()) pf.value='Ownership of '+bov.business; renderAll(); }catch(e){} }
   function applyState(s){ state=s; state.bridge=migrateBridge(state.bridge); if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();}); sortBuyers(); apply(state.fields||{}); renderAll(); }
   // Warn the rep (admin-editable message) when this valuation fell back to the
   // fiscal year because no TTM statement was provided and we're past Q1.
@@ -607,7 +612,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   var _srcQuestId='';
   if(_bid){
     fetch('/api/bov/'+encodeURIComponent(_bid)).then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok&&j.bov){ _srcQuestId=j.bov.srcQuestId||''; if(j.bov.state){ applyState(j.bov.state); } else if(!restore()){ initBlank(); } if(j.bov.noTtmNotice) showNoTtmNotice(); renderBovStatus(j.bov); }
+      if(j&&j.ok&&j.bov){ _srcQuestId=j.bov.srcQuestId||''; if(j.bov.state){ applyState(j.bov.state); } else { if(!restore()) initBlank(); _prefillFromRecord(j.bov); } if(j.bov.noTtmNotice) showNoTtmNotice(); renderBovStatus(j.bov); }
       else if(!restore()){ initBlank(); }
     }).catch(function(){ if(!restore()) initBlank(); });
   } else if(!restore()){ initBlank(); }
