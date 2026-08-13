@@ -219,7 +219,8 @@ function doImport(){
   var objs=ROWS.map(rowObj).filter(function(o){ return MODE==='companies'?o.name:(MODE==='tasks'?o.title:(o.firstName||o.lastName||o.name)); });
   if(!objs.length){ setMsg('Nothing to import — map the '+(MODE==='tasks'?'title':'name')+' column first.','err'); return; }
   var url=MODE==='companies'?'/api/admin/import/companies':(MODE==='tasks'?'/api/admin/import/tasks':'/api/admin/import/people');
-  var body={rows:objs}; if(MODE==='contacts'){ body.defaultType=document.getElementById('deftype').value; } else { body.makeConcept=document.getElementById('opt_concept').checked; body.makeLocation=document.getElementById('opt_location').checked; }
+  var body={rows:objs}; if(MODE==='contacts'){ body.defaultType=document.getElementById('deftype').value; } else if(MODE==='companies'){ body.makeConcept=document.getElementById('opt_concept').checked; body.makeLocation=document.getElementById('opt_location').checked; }
+  if(MODE!=='tasks'){ var _bt=document.getElementById('batchTag'); if(_bt && _bt.value.trim()) body.batchTag=_bt.value.trim().slice(0,60); }
   var btn=document.getElementById('importBtn'); btn.disabled=true; setMsg('Importing '+objs.length+' rows…','');
   var pl=document.getElementById('prog'); if(pl){ pl.parentElement.classList.remove('hide'); pl.style.width='70%'; }
   fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
@@ -294,7 +295,8 @@ function renderResult(j){
   else { cards='<div class="rc g"><div class="n">'+j.created+'</div><div class="l">Contacts added</div></div><div class="rc a"><div class="n">'+j.dupe+'</div><div class="l">Skipped · email exists</div></div><div class="rc a"><div class="n">'+j.noname+'</div><div class="l">Skipped · no name</div></div>'; tip='Contacts are in <b>Book of Business → Contacts</b>, each linked to its company. Duplicates were skipped by email so nothing already in FullServe got overwritten.'; }
   var logoCta=(MODE==='companies'&&((j.created||0)+(j.updated||0))>0)?'<a class="btn green" href="rrg_logos.html" style="text-decoration:none;margin-right:9px;display:inline-block">◐ Find logos (AI)</a>':'';
   var logoNote=(MODE==='companies')?' <b>Tip:</b> tap <b>Find logos (AI)</b> to auto-pull a logo for every company with a website — you approve each one before it&rsquo;s applied.':'';
-  host.innerHTML='<div style="font-size:15px;font-weight:800;color:var(--navy);margin-bottom:10px">Import complete ✓</div><div class="res">'+cards+'</div><div class="note">'+tip+logoNote+'</div><div style="margin-top:14px">'+logoCta+'<button class="btn ghost" id="againBtn">Import another file</button></div>'+buildLS(j);
+  var tagChip=(j.batchTag)?('<div style="margin:2px 0 10px"><span style="display:inline-flex;align-items:center;gap:6px;background:#eef2fb;color:#23496f;border:1px solid #d6e0ee;border-radius:100px;padding:4px 12px;font-size:12.5px;font-weight:700">🏷 Tagged <b>'+esc(j.batchTag)+'</b> — filter this batch anytime from the '+(MODE==='companies'?'Companies':'Contacts')+' list</span></div>'):'';
+  host.innerHTML='<div style="font-size:15px;font-weight:800;color:var(--navy);margin-bottom:10px">Import complete ✓</div><div class="res">'+cards+'</div>'+tagChip+'<div class="note">'+tip+logoNote+'</div><div style="margin-top:14px">'+logoCta+'<button class="btn ghost" id="againBtn">Import another file</button></div>'+buildLS(j);
   if(MODE==='tasks'){ host.innerHTML+='<div id="unlinkedPanel"></div>'; var uc=document.getElementById('unlinkedCard'); if(uc&&(j.noContact!=null?j.noContact:((j.created||0)-(j.linked||0)))>0){ uc.addEventListener('click',function(){ confirmReassign(j.batch); }); } }
   host.classList.remove('hide'); host.scrollIntoView({behavior:'smooth',block:'nearest'});
   var ab=document.getElementById('againBtn'); if(ab) ab.addEventListener('click',resetUpload);
@@ -331,6 +333,7 @@ function build(){
     '<div class="card hide" id="step2"><div class="ch"><span class="st">Step 2</span><b>Map the columns</b><span class="hint">auto-detected — adjust anything</span></div><div class="cb">'+
       '<div id="mapbox"></div>'+
       '<div class="deftype" id="deftypewrap"><span style="font-size:12.5px;font-weight:700">Contact type when the source type doesn&rsquo;t match one of ours:</span><select id="deftype"></select></div><div class="deftype" id="coptswrap" style="flex-direction:column;align-items:flex-start;gap:9px"><label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="opt_concept" checked style="width:16px;height:16px"> Create a <b>concept</b> for each company (named after the company)</label><label style="display:flex;align-items:center;gap:9px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" id="opt_location" checked style="width:16px;height:16px"> Create a <b>location</b> from the address, linked to the concept</label></div>'+
+      '<div class="deftype" id="tagwrap"><span style="font-size:12.5px;font-weight:700">Tag every record in this import <span style="font-weight:500;color:var(--soft)">(optional)</span>:</span><input id="batchTag" list="impTagList" maxlength="60" placeholder="e.g. Gmail 2026, Trade show, Cold list…" style="border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:inherit;font-size:13px;min-width:250px"><datalist id="impTagList"></datalist><span style="font-size:11.5px;color:var(--soft)">Added on top of any Tags column above — great for segmenting or emailing this batch later.</span></div>'+
       '<div class="note">Green rows auto-combine every matching column — handy for Email 1 / Email 2 or multiple phone fields. Contacts dedupe by email; companies dedupe by name.</div>'+
     '</div></div>'+
     '<div class="card hide" id="step3"><div class="ch"><span class="st">Step 3</span><b>Preview &amp; import</b></div><div class="cb">'+
@@ -357,14 +360,16 @@ function build(){
   ['dragover','dragenter'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.add('over'); }); });
   ['dragleave'].forEach(function(ev){ drop.addEventListener(ev,function(e){ e.preventDefault(); drop.classList.remove('over'); }); });
   drop.addEventListener('drop',function(e){ e.preventDefault(); drop.classList.remove('over'); if(e.dataTransfer&&e.dataTransfer.files&&e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
-  function setMode(m){ MODE=m; document.getElementById('m_contacts').classList.toggle('on',m==='contacts'); document.getElementById('m_companies').classList.toggle('on',m==='companies'); var _mt=document.getElementById('m_tasks'); if(_mt) _mt.classList.toggle('on',m==='tasks'); document.getElementById('deftypewrap').style.display=(m==='contacts')?'':'none'; var _co=document.getElementById('coptswrap'); if(_co) _co.style.display=(m==='companies')?'':'none'; resetUpload(); }
+  function setMode(m){ MODE=m; document.getElementById('m_contacts').classList.toggle('on',m==='contacts'); document.getElementById('m_companies').classList.toggle('on',m==='companies'); var _mt=document.getElementById('m_tasks'); if(_mt) _mt.classList.toggle('on',m==='tasks'); document.getElementById('deftypewrap').style.display=(m==='contacts')?'':'none'; var _co=document.getElementById('coptswrap'); if(_co) _co.style.display=(m==='companies')?'':'none'; var _tg=document.getElementById('tagwrap'); if(_tg) _tg.style.display=(m==='tasks')?'none':''; resetUpload(); }
   document.getElementById('m_contacts').addEventListener('click',function(){ setMode('contacts'); });
   document.getElementById('m_companies').addEventListener('click',function(){ setMode('companies'); });
   loadImports();
   var _mtb=document.getElementById('m_tasks'); if(_mtb) _mtb.addEventListener('click',function(){ setMode('tasks'); });
   document.getElementById('importBtn').addEventListener('click',doImport);
+  loadTagSuggestions();
   updateStepper();
 }
+function loadTagSuggestions(){ var dl=document.getElementById('impTagList'); if(!dl) return; fetch('/api/tags',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ var tags=(j&&j.tags)||[]; dl.innerHTML=tags.map(function(t){ return '<option value="'+esc(t)+'">'; }).join(''); }).catch(function(){}); }
 fetch('/api/feedback',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.isAdmin){ document.getElementById('root').innerHTML='<div class="gate"><h2 style="color:#000E31">Admins only</h2>Ask an administrator to run the data import.</div>'; return; }
   build();

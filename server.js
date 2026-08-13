@@ -229,6 +229,7 @@ function findOrCreatePerson(req, info) {
   const email = cleanEmailAddr(String((info && info.email) || ''));
   let company = String((info && info.company) || '').trim();
   if (company.length > 100) company = ''; // 100+ char "company" is import junk, not a real name
+  const tag = String((info && info.tag) || '').trim().slice(0, 60); // batch tag applied by imports
   if (!name && !email) return null;
   const arr = loadPeople();
   let p = null;
@@ -239,6 +240,7 @@ function findOrCreatePerson(req, info) {
     if (email && !p.email) { p.email = email.slice(0, 160); ch = true; }
     if (company && !p.company) { p.company = company.slice(0, 160); ch = true; }
     if (info && info.companyId && !p.companyId) { p.companyId = info.companyId; ch = true; }
+    if (tag) { p.tags = Array.isArray(p.tags) ? p.tags : []; if (p.tags.indexOf(tag) < 0 && p.tags.length < 30) { p.tags.push(tag); ch = true; } }
     if (ch) { p.updatedAt = new Date().toISOString(); savePeople(arr); }
     return p;
   }
@@ -251,6 +253,7 @@ function findOrCreatePerson(req, info) {
     id: newPersonId(), name: fullName, firstName: (first || sp.first).slice(0, 80), lastName: (last || sp.last).slice(0, 80),
     company: company.slice(0, 160), companyId: (info && info.companyId) || '',
     emails: emails, phones: phones, email: emails[0] || '', phone: phones[0] || '', type: type, types: (type ? [type] : []), notes: '',
+    tags: (tag ? [tag] : []),
     createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '',
   };
   arr.push(p); logContactAdded(p, req); savePeople(arr);
@@ -655,14 +658,18 @@ async function ensureDailyBackup() {
 function findOrCreateCompany(req, info) {
   const name = String((info && info.name) || '').trim();
   if (!name || name.length > 100) return null; // 100+ char company name is import junk
+  const tag = String((info && info.tag) || '').trim().slice(0, 60); // batch tag applied by imports
   const arr = loadCompanies();
   let c = arr.find(x => normKey(x.name) === normKey(name));
   if (c) {
-    if (info.market && !c.market) { c.market = titleCaseMarket(String(info.market).slice(0, 80)); c.updatedAt = new Date().toISOString(); saveCompanies(arr); }
+    let ch = false;
+    if (info.market && !c.market) { c.market = titleCaseMarket(String(info.market).slice(0, 80)); ch = true; }
+    if (tag) { c.tags = Array.isArray(c.tags) ? c.tags : []; if (c.tags.indexOf(tag) < 0 && c.tags.length < 30) { c.tags.push(tag); ch = true; } }
+    if (ch) { c.updatedAt = new Date().toISOString(); saveCompanies(arr); }
     return c;
   }
   const type = (info && effCompanyTypes().indexOf(info.type) >= 0) ? info.type : 'Restaurant Group';
-  c = { id: newCompanyId(), name: name.slice(0, 160), market: titleCaseMarket(String((info && info.market) || '').slice(0, 80)), type: type, notes: '', createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
+  c = { id: newCompanyId(), name: name.slice(0, 160), market: titleCaseMarket(String((info && info.market) || '').slice(0, 80)), type: type, notes: '', tags: (tag ? [tag] : []), createdAt: new Date().toISOString(), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' };
   arr.push(c); saveCompanies(arr);
   return c;
 }
@@ -3639,9 +3646,9 @@ app.post('/api/room/:id/bulk-upload', express.json({ limit: '80mb' }), async (re
   const results = []; let added = 0;
   for (let i = 0; i < files.length; i++) {
     const f = files[i] || {}; const cat = _rc.indexOf(byIdx[i]) >= 0 ? byIdx[i] : roomCatFromName(f.filename, _rc);
-    const doc = addFileToRoom(r, { name: f.filename, dataB64: f.dataB64 }, { category: cat, title: (String(f.title || '').trim() || prettyName(f.filename || '')), by: ((req.user && req.user.name) || '') + ' · AI-filed', source: 'bulk:' + Date.now() + ':' + i });
-    if (doc) { added++; results.push({ ok: true, name: f.filename || '', category: cat, id: doc.id }); }
-    else { results.push({ ok: false, name: f.filename || '', category: cat, error: 'Skipped — unsupported type, empty, or over 25 MB.' }); }
+    const out = addFileToRoomEx(r, { name: f.filename, dataB64: f.dataB64 }, { category: cat, title: (String(f.title || '').trim() || prettyName(f.filename || '')), by: ((req.user && req.user.name) || '') + ' · AI-filed', source: 'bulk:' + Date.now() + ':' + i });
+    if (out && out.doc) { added++; results.push({ ok: true, name: f.filename || '', category: cat, id: out.doc.id }); }
+    else { const reason = (out && out.error) || 'Skipped.'; console.error('bulk-upload skip:', f.filename || ('file ' + (i + 1)), '→', reason); results.push({ ok: false, name: f.filename || '', category: cat, error: reason }); }
   }
   if (added) saveRooms(arr);
   res.json({ ok: true, added, results, docs: r.docs || [] });
@@ -4595,36 +4602,42 @@ function categoryForUploadLabel(label) {
 }
 // Write one uploaded file into a room, tagged by source (so it can be cascade-removed).
 // file = { name, dataB64, text, type, label }. Returns the doc or null (skips text/dupes).
-function addFileToRoom(room, file, opts) {
+// File a document into a room. Returns { doc } on success or { error } with a SPECIFIC,
+// human-readable reason on skip — so the UI (and server log) can say exactly why instead of
+// a generic "too large or unreadable". addFileToRoom() below keeps the old doc|null contract
+// for every other caller.
+function addFileToRoomEx(room, file, opts) {
   try {
     opts = opts || {};
-    if (!room || !file) return null;
+    if (!room || !file) return { error: 'No room or file provided.' };
     const orig = String(file.name || file.filename || '').trim();
     const m = orig.match(/\.([a-z0-9]+)$/i); let ext = m ? m[1].toLowerCase() : '';
     let buf = null;
     if (file.dataB64) { buf = Buffer.from(String(file.dataB64), 'base64'); }
     else if (typeof file.text === 'string' && file.text) { buf = Buffer.from(file.text, 'utf8'); if (!ext) ext = 'txt'; }
-    if (!buf || !buf.length) return null;
-    if (!ROOM_EXT.test(ext)) return null;
-    if (buf.length > 25 * 1024 * 1024) return null;
+    if (!buf || !buf.length) return { error: 'File came through empty — could not read it.' };
+    if (!ROOM_EXT.test(ext)) return { error: ext ? ('Unsupported file type (.' + ext + ').') : 'File has no extension.' };
+    if (buf.length > 25 * 1024 * 1024) return { error: 'Over the 25 MB per-file limit.' };
     room.docs = room.docs || [];
     const source = opts.source || '';
     const category = opts.category || categoryForUploadLabel(file.label);
     const title = String(opts.title || file.label || prettyName(orig) || 'Document').slice(0, 140);
     // idempotent: skip if the same source already filed a file with this original name
-    if (source && room.docs.some(d => d.source === source && d.originalName === orig)) return null;
+    if (source && room.docs.some(d => d.source === source && d.originalName === orig)) return { error: 'Already filed from this source.' };
     // duplicate content: skip if an identical file (same hash) is already in the room
     const hash = crypto.createHash('sha256').update(buf).digest('hex');
-    if (room.docs.some(d => d.hash && d.hash === hash)) return null;
-    try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch (e) { return null; }
+    if (room.docs.some(d => d.hash && d.hash === hash)) return { error: 'Duplicate — this exact file is already in the room.' };
+    try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch (e) { return { error: 'Storage folder unavailable on the server.' }; }
     const id = newRoomDocId();
-    try { fs.writeFileSync(path.join(ROOMS_DIR, id + '.' + ext), buf); } catch (e) { return null; }
+    try { fs.writeFileSync(path.join(ROOMS_DIR, id + '.' + ext), buf); }
+    catch (e) { return { error: (e && e.code === 'ENOSPC') ? 'Server storage is full — free up space and retry.' : ('Could not save to storage (' + ((e && e.code) || 'write error') + ').') }; }
     const doc = { id, title, category, ext, originalName: orig, size: buf.length, hash: hash, uploadedAt: new Date().toISOString(), by: (opts.by || ''), source, auto: true };
     room.docs.push(doc);
     if (!room.builtAt) room.builtAt = new Date().toISOString();
-    return doc;
-  } catch (e) { return null; }
+    return { doc };
+  } catch (e) { return { error: 'Unexpected error: ' + ((e && e.message) || 'unknown') + '.' }; }
 }
+function addFileToRoom(room, file, opts) { const r = addFileToRoomEx(room, file, opts); return (r && r.doc) || null; }
 // Remove every room doc contributed by a given source id (e.g. 'bov:ID' or 'cim:ID').
 function removeRoomDocsBySource(source) {
   if (!source) return 0;
@@ -7850,6 +7863,7 @@ app.get('/api/feed/nudges', async (req, res) => {
 app.post('/api/gmail/contacts/import', express.json({ limit: '3mb' }), (req, res) => {
   const b = req.body || {}; const list = Array.isArray(b.contacts) ? b.contacts : [];
   if (!list.length) return res.status(400).json({ ok: false, error: 'No contacts selected.' });
+  const tag = String(b.tag || '').trim().slice(0, 60); // optional batch tag for this whole import
   const noCo = noCompanyCompany();
   let imported = 0;
   list.forEach(c => {
@@ -7860,11 +7874,13 @@ app.post('/api/gmail/contacts/import', express.json({ limit: '3mb' }), (req, res
     let companyId = '';
     if (!coName || coName.toLowerCase() === 'no company') companyId = noCo.id;
     else { const co = findOrCreateCompany(req, { name: coName }); if (co) companyId = co.id; }
-    const p = findOrCreatePerson(req, { name: name, email: email, companyId: companyId, type: 'Other' });
+    const p = findOrCreatePerson(req, { name: name, email: email, companyId: companyId, type: 'Other', tag: tag });
     if (p) imported++;
   });
-  res.json({ ok: true, imported: imported });
+  res.json({ ok: true, imported: imported, tag: tag });
 });
+// Existing tags across contacts + companies — feeds the "tag this import" autocomplete.
+app.get('/api/tags', (req, res) => { try { res.json({ ok: true, tags: allTagsList() }); } catch (e) { res.json({ ok: true, tags: [] }); } });
 
 // ===== Google two-way sync — Contacts (People API) + Calendar (Calendar API) =====
 const GSYNC_TZ = 'America/Chicago';
@@ -10617,6 +10633,7 @@ app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16m
   const _lsExisting = {}; effLeadSources().forEach(function(x){ _lsExisting[x.toLowerCase()] = x; }); const _newLSmap = {};
   const cts = effCompanyTypes(); const now = new Date().toISOString();
   const mkConcept = (req.body || {}).makeConcept !== false; const mkLocation = (req.body || {}).makeLocation !== false;
+  const batchTag = _impStr((req.body || {}).batchTag, 60); // one tag stamped on every record in this import
   let created = 0, updated = 0, skipped = 0, conceptsCreated = 0, locationsCreated = 0;
   const _batch = nextImportBatch();
   rows.forEach(r => {
@@ -10630,6 +10647,7 @@ app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16m
     fill('leadSource', _impStr(r.leadSource, 160));
     { const _ls = _impStr(r.leadSource, 160); if (_ls) { const _lk = _ls.toLowerCase(); if (!_lsExisting[_lk]) { _lsExisting[_lk] = _ls; _newLSmap[_lk] = _ls; } } }
     if (r.tags) { const tg = _impTags(r.tags); if (tg.length && (isNew || !(c.tags && c.tags.length))) c.tags = tg; }
+    if (batchTag) { c.tags = Array.isArray(c.tags) ? c.tags : []; if (c.tags.indexOf(batchTag) < 0 && c.tags.length < 30) c.tags.push(batchTag); }
     const office = c.office || {}; ['address', 'city', 'state', 'phone', 'website', 'email'].forEach(k => { if (r[k] != null && r[k] !== '' && (isNew || !office[k])) office[k] = _impStr(r[k], 200); }); c.office = office;
     if (mkConcept) {
       const cname = _impStr(r.concept, 120) || name;
@@ -10658,13 +10676,14 @@ app.post('/api/admin/import/companies', requireAdmin, express.json({ limit: '16m
   const _newLS = Object.values(_newLSmap);
   if (_newLS.length) { const _s = loadSettings(); const _cur = (Array.isArray(_s.leadSources) && _s.leadSources.length) ? _s.leadSources.slice() : LEAD_SOURCES.slice(); const _low = _cur.map(function(x){return x.toLowerCase();}); _newLS.forEach(function(v){ if (_low.indexOf(v.toLowerCase()) < 0) { _cur.push(v); _low.push(v.toLowerCase()); } }); _s.leadSources = _cur; saveSettings(_s); }
   logSysEvent(req, 'Import', 'Imported ' + created + ' compan' + (created === 1 ? 'y' : 'ies') + (updated ? (' · ' + updated + ' updated') : '') + ' — batch #' + _batch, { tool: 'import', kind: 'companies', batch: _batch, created: created, updated: updated, count: created });
-  res.json({ ok: true, created, updated, skipped, conceptsCreated, locationsCreated, total: rows.length, batch: _batch, newLeadSources: _newLS, allLeadSources: effLeadSources() });
+  res.json({ ok: true, created, updated, skipped, conceptsCreated, locationsCreated, total: rows.length, batch: _batch, batchTag: batchTag, newLeadSources: _newLS, allLeadSources: effLeadSources() });
   } catch (e) { console.error('import companies:', e && e.message); res.status(500).json({ ok: false, error: 'Import failed: ' + ((e && e.message) || 'server error') }); }
 });
 app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' }), (req, res) => {
   try {
   const b = req.body || {}; const rows = Array.isArray(b.rows) ? b.rows : [];
   const defType = (typeof b.defaultType === 'string' && effPersonTypes().indexOf(b.defaultType) >= 0) ? b.defaultType : 'Other';
+  const batchTag = _impStr(b.batchTag, 60); // one tag stamped on every contact in this import
   const _lsExisting = {}; effLeadSources().forEach(function(x){ _lsExisting[x.toLowerCase()] = x; }); const _newLSmap = {};
   const ppl = loadPeople(); const cos = loadCompanies();
   const _batch = nextImportBatch();
@@ -10689,6 +10708,7 @@ app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' 
     if (r.notes) p.notes = _impStr(r.notes, 4000);
     if (r.url) p.url = _impStr(r.url, 300);
     if (r.tags) { const tg = _impTags(r.tags); if (tg.length) p.tags = tg; }
+    if (batchTag) { p.tags = Array.isArray(p.tags) ? p.tags : []; if (p.tags.indexOf(batchTag) < 0 && p.tags.length < 30) p.tags.push(batchTag); }
     const coName = _impStr(r.companyName || r.company, 160);
     if (coName && coName.length <= 100) { let c = coByKey[normKey(coName)]; if (!c) { c = { id: newCompanyId(), name: coName, market: '', type: 'Seller', notes: '', createdAt: now, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }; cos.push(c); coByKey[normKey(coName)] = c; cosDirty = true; } p.companyId = c.id; p.company = c.name; }
     if (p.leadSource) { const _lk = String(p.leadSource).toLowerCase(); if (!_lsExisting[_lk]) { _lsExisting[_lk] = p.leadSource; _newLSmap[_lk] = p.leadSource; } }
@@ -10699,7 +10719,7 @@ app.post('/api/admin/import/people', requireAdmin, express.json({ limit: '24mb' 
   const _newLS = Object.values(_newLSmap);
   if (_newLS.length) { const _s = loadSettings(); const _cur = (Array.isArray(_s.leadSources) && _s.leadSources.length) ? _s.leadSources.slice() : LEAD_SOURCES.slice(); const _low = _cur.map(function(x){return x.toLowerCase();}); _newLS.forEach(function(v){ if (_low.indexOf(v.toLowerCase()) < 0) { _cur.push(v); _low.push(v.toLowerCase()); } }); _s.leadSources = _cur; saveSettings(_s); }
   logSysEvent(req, 'Import', 'Imported ' + created + ' contact' + (created === 1 ? '' : 's') + ' — batch #' + _batch, { tool: 'import', kind: 'people', batch: _batch, created: created, count: created });
-  res.json({ ok: true, created, dupe, noname, total: rows.length, batch: _batch, defaultType: defType, newLeadSources: _newLS, allLeadSources: effLeadSources() });
+  res.json({ ok: true, created, dupe, noname, total: rows.length, batch: _batch, batchTag: batchTag, defaultType: defType, newLeadSources: _newLS, allLeadSources: effLeadSources() });
   } catch (e) { console.error('import people:', e && e.message); res.status(500).json({ ok: false, error: 'Import failed: ' + ((e && e.message) || 'server error') }); }
 });
 

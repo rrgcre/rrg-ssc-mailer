@@ -42,7 +42,7 @@ td input.co{font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--l
   <h1 class="pgh">Import Gmail Contacts</h1>
   <div class="pgs">A quick way to get your book started. This scans your connected Gmail for everyone you've corresponded with, shows them here, and lets you pick who to add. Each accepted contact is filed under their company (matched or created from their email domain) — anyone on a personal address lands under a permanent <b>No Company</b> bucket you can sort later.</div>
   <div class="card">
-    <div class="bar"><b>Gmail contacts</b><span class="msg" id="cnt"></span><span class="sp"></span><button class="btn" id="selAll" style="display:none">Select all</button><button class="btn" id="selNone" style="display:none">Clear</button><button class="btn" id="aiBtn" style="display:none">✨ Remove personal (AI)</button><button class="btn pri" id="importBtn" style="display:none">Import selected</button></div>
+    <div class="bar"><b>Gmail contacts</b><span class="msg" id="cnt"></span><span class="sp"></span><button class="btn" id="startOverBtn" style="display:none">← Start over</button><button class="btn" id="selAll" style="display:none">Select all</button><button class="btn" id="selNone" style="display:none">Clear</button><button class="btn" id="aiBtn" style="display:none">✨ Remove personal (AI)</button><input id="gTag" list="gTagList" maxlength="60" placeholder="Tag these contacts (optional)" title="Every imported contact gets this tag — segment or email the batch later" style="display:none;font:inherit;font-size:12.5px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;min-width:210px"><datalist id="gTagList"></datalist><button class="btn pri" id="importBtn" style="display:none">Import selected</button></div>
     <div id="root"><div class="scan"><div class="big">Ready when you are</div><p>Choose how far back to look, then scan. It reads message headers only — names and email addresses — and pulls out the people you've corresponded with. Nothing is added until you review and choose.</p><div style="margin-bottom:16px;font-size:14px;color:#3a4560;font-weight:600">Look back <input type="number" id="monthsBack" value="12" min="1" max="120" style="width:68px;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:14px;text-align:center"> months</div><button class="btn pri" id="scanBtn">Scan my Gmail</button><button class="btn" id="cancelScanBtn" style="display:none;margin-left:8px">Cancel</button><div class="msg" id="scanMsg" style="margin-top:12px"></div></div></div>
   </div>
   <div class="note">Heads up: this reads message headers only (names + email addresses), never the contents of your emails. Pulling street addresses or restaurant concepts from signatures is coming later — for now this handles the contact and their company.</div>
@@ -73,6 +73,8 @@ function renderList(){
   document.getElementById('selNone').style.display=ROWS.length?'':'none';
   document.getElementById('importBtn').style.display=ROWS.length?'':'none';
   var _ai=document.getElementById('aiBtn'); if(_ai) _ai.style.display=ROWS.length?'':'none';
+  var _tg=document.getElementById('gTag'); if(_tg) _tg.style.display=ROWS.length?'':'none';
+  var _so=document.getElementById('startOverBtn'); if(_so) _so.style.display='';
   if(!ROWS.length){ root.innerHTML='<div class="empty">No contacts found in your recent Gmail. Try sending or receiving a few emails first, or add contacts manually.</div>'; return; }
   var vis=[]; ROWS.forEach(function(c,i){ if(c.sel) vis.push({c:c,i:i}); });
   if(!vis.length){ root.innerHTML='<div class="empty">Nothing selected to import. Click <b>Select all</b> to review the full scan again.</div>'; updateCount(); return; }
@@ -92,10 +94,11 @@ function updateCount(){ var n=ROWS.filter(function(c){return c.sel;}).length; do
 function doImport(){
   var picks=ROWS.filter(function(c){return c.sel;}).map(function(c){ return {name:c.name,email:c.email,company:(c.company||'').trim()}; });
   if(!picks.length){ document.getElementById('cnt').textContent='Select at least one contact.'; return; }
+  var _tgEl=document.getElementById('gTag'); var tag=_tgEl?(_tgEl.value||'').trim().slice(0,60):'';
   var b=document.getElementById('importBtn'); b.disabled=true; b.textContent='Importing…';
-  fetch('/api/gmail/contacts/import',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({contacts:picks})}).then(function(r){return r.json();}).then(function(j){
+  fetch('/api/gmail/contacts/import',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({contacts:picks,tag:tag})}).then(function(r){return r.json();}).then(function(j){
     b.disabled=false; b.textContent='Import selected';
-    if(j&&j.ok){ document.getElementById('root').innerHTML='<div class="empty"><div style="font-size:34px">✓</div><b style="color:#000E31;font-size:16px">Imported '+j.imported+' contact'+(j.imported===1?'':'s')+'.</b><div style="margin-top:8px">They\'re in your book now, filed under their companies. <a href="./rrg_people.html" style="color:#000E31;font-weight:700">Go to Contacts →</a></div></div>'; document.getElementById('cnt').textContent=''; document.getElementById('selAll').style.display='none'; document.getElementById('selNone').style.display='none'; document.getElementById('importBtn').style.display='none'; }
+    if(j&&j.ok){ var tagLine=(j.tag)?('<div style="margin-top:6px;font-size:13px">Tagged <b>'+esc(j.tag)+'</b> — filter this batch anytime from Contacts.</div>'):''; document.getElementById('root').innerHTML='<div class="empty"><div style="font-size:34px">✓</div><b style="color:#000E31;font-size:16px">Imported '+j.imported+' contact'+(j.imported===1?'':'s')+'.</b><div style="margin-top:8px">They\'re in your book now, filed under their companies. <a href="./rrg_people.html" style="color:#000E31;font-weight:700">Go to Contacts →</a></div>'+tagLine+'</div>'; document.getElementById('cnt').textContent=''; document.getElementById('selAll').style.display='none'; document.getElementById('selNone').style.display='none'; var _gt=document.getElementById('gTag'); if(_gt) _gt.style.display='none'; document.getElementById('importBtn').style.display='none'; }
     else { document.getElementById('cnt').textContent=(j&&j.error)||'Import failed.'; }
   }).catch(function(){ b.disabled=false; b.textContent='Import selected'; document.getElementById('cnt').textContent='Could not reach the server.'; });
 }
@@ -103,9 +106,11 @@ function aiFilter(auto){ var cand=ROWS.filter(function(c){return c.sel;}).map(fu
 var _aib=document.getElementById('aiBtn'); if(_aib) _aib.addEventListener('click',aiFilter);
 document.getElementById('scanBtn').addEventListener('click',scan);
 var _csb=document.getElementById('cancelScanBtn'); if(_csb) _csb.addEventListener('click',cancelScan);
+var _sob=document.getElementById('startOverBtn'); if(_sob) _sob.addEventListener('click',function(){ location.reload(); });
 document.getElementById('selAll').addEventListener('click',function(){ ROWS.forEach(function(c){c.sel=true;}); renderList(); });
 document.getElementById('selNone').addEventListener('click',function(){ ROWS.forEach(function(c){c.sel=false;}); renderList(); });
 document.getElementById('importBtn').addEventListener('click',doImport);
+(function(){ var dl=document.getElementById('gTagList'); if(!dl) return; fetch('/api/tags',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ var tags=(j&&j.tags)||[]; dl.innerHTML=tags.map(function(t){ return '<option value="'+esc(t)+'">'; }).join(''); }).catch(function(){}); })();
 </script>
 </body>
 </html>
