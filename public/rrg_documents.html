@@ -74,6 +74,19 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .fbtoggle{border:1px solid var(--line);border-radius:8px;padding:7px 12px;font:inherit;font-size:12.5px;color:var(--ink);background:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap;}
 .fbtoggle:hover{border-color:#b9c3d6;}
 .fbtoggle.on{border-color:#b6c2ff;background:#f2f5ff;color:var(--navy);font-weight:600;}
+/* "What this section does" strip — matches Contacts / Companies / Data Rooms. */
+.feats{background:#fff;border:1px solid var(--line,#e6e9f0);border-radius:8px;box-shadow:0 4px 18px rgba(11,26,56,.05);margin-bottom:16px;overflow:hidden;}
+.featshd{display:flex;align-items:center;gap:10px;padding:13px 20px;cursor:pointer;user-select:none;}
+.featshd b{font-size:14px;color:var(--navy,#000E31);}
+.featshd .sh{font-size:11.5px;color:var(--muted,#6b7488);font-weight:600;}
+.featshd .chev{margin-left:auto;color:var(--muted,#6b7488);font-size:12px;transition:transform .15s;}
+.feats.collapsed .chev{transform:rotate(-90deg);}
+.feats.collapsed .featgrid{display:none;}
+.featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line,#e6e9f0);border-top:1px solid var(--line,#e6e9f0);}
+.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;color:inherit;}
+.feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
+.feat b{display:block;font-size:12.5px;color:var(--navy,#000E31);font-weight:800;}
+.feat span{display:block;font-size:11.5px;color:var(--muted,#6b7488);line-height:1.45;margin-top:2px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -86,6 +99,20 @@ h1{font-size:30px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
   <div class="sub">Every document in one place — agreements, LOIs, valuations, marketing packs, site criteria, firm-wide forms, and anything you upload. Filter by type, sort any column, search, or add your own.</div>
 </div></div>
 <div class="wrap">
+  <div class="feats" id="docFeatStrip">
+    <div class="featshd" id="docFeatHd"><b>What this section does</b><span class="sh">every document your firm produces or collects, in one place</span><span class="chev">▾</span></div>
+    <div class="featgrid">
+      <div class="feat"><span class="fic">📚</span><div><b>One library for everything</b><span>Agreements, LOIs, valuations (BOVs), marketing packs, site criteria, firm-wide forms and your uploads — all in a single searchable list.</span></div></div>
+      <div class="feat"><span class="fic">🗂️</span><div><b>Filter by type</b><span>Jump straight to just the agreements, just the valuations, or whatever you need with one tab.</span></div></div>
+      <div class="feat"><span class="fic">🔎</span><div><b>Search &amp; sort</b><span>Find any document by name and sort any column to surface what matters right now.</span></div></div>
+      <div class="feat"><span class="fic">🔗</span><div><b>Linked to the record</b><span>Every document ties back to its contact, company or listing, so the whole relationship is one click away.</span></div></div>
+      <div class="feat"><span class="fic">✍️</span><div><b>Generated &amp; e-signed</b><span>Agreements and LOIs you generate e-sign and file themselves back to the record automatically.</span></div></div>
+      <div class="feat"><span class="fic">📊</span><div><b>Valuations &amp; packs land here</b><span>Every Broker's Opinion of Value and marketing pack you build is collected here as you go.</span></div></div>
+      <div class="feat"><span class="fic">🏢</span><div><b>Firm-wide forms</b><span>Blank agreements and forms the whole team shares — published once, available to everyone.</span></div></div>
+      <div class="feat"><span class="fic">⬆️</span><div><b>Upload your own</b><span>Drop in any file up to 25 MB and file it under the right type — it shows up in the list instantly.</span></div></div>
+    </div>
+  </div>
+  <script>(function(){ var fs=document.getElementById('docFeatStrip'), hd=document.getElementById('docFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_docfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_docfeats', col?'0':'1'); }catch(e){} }); })();</script>
   <div class="doctabs" id="dtabs"></div>
   <div class="card">
     <div class="hd"><b>Documents</b><span class="cnt" id="cnt"></span><button class="newbtn" onclick="openUpload()" style="margin-left:auto" title="Max 25 MB per file">⬆ Upload</button><span class="uphint" style="margin-left:8px;font-size:11px;color:#9aa3b2;align-self:center;white-space:nowrap">25 MB max</span><div class="searchwrap" style="margin-left:8px"><svg class="searchic" viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"></circle><line x1="12.8" y1="12.8" x2="17.5" y2="17.5"></line></svg><input id="search" placeholder="Search documents…" oninput="applyFilter()" autocomplete="off"><button type="button" class="searchx" id="searchx" title="Clear search" onclick="var s=document.getElementById('search');s.value='';applyFilter();s.focus();">×</button></div></div>
