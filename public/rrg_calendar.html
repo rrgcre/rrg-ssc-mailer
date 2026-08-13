@@ -251,14 +251,24 @@ function load(){
 }
 function render(){ var t; if(VIEW==='month'){ t=MON[CUR.getMonth()]+' '+CUR.getFullYear(); } else if(VIEW==='day'){ t=DOW[CUR.getDay()]+', '+MON[CUR.getMonth()]+' '+CUR.getDate()+', '+CUR.getFullYear(); } else if(VIEW==='week'){ var w=weekRange(),e=w.end; t=MON[w.start.getMonth()].slice(0,3)+' '+w.start.getDate()+' - '+MON[e.getMonth()].slice(0,3)+' '+e.getDate()+', '+e.getFullYear(); } else { t='Upcoming'; } document.getElementById('mtitle').textContent=t; if(VIEW==='month') renderMonth(); else if(VIEW==='week') renderWeek(); else if(VIEW==='day') renderDay(); else renderAgenda(); renderMini(); renderWork(); renderLegend(); }
 function apptsOn(dstr){ return APPTS.filter(function(a){return String(a.start||'').slice(0,10)===dstr;}).sort(function(a,b){return String(a.start).localeCompare(String(b.start));}); }
-function chip(a){ var cls='chip'+(a.byUser===ME?' mine':'')+(a.status==='cancelled'?' cancelled':''); return '<span class="'+cls+'" data-appt="'+esc(a.id)+'" title="'+esc(a.title)+(a.contactName?(' · '+esc(a.contactName)):'')+'"><span class="t">'+esc(fmtTime(timeOf(a.start)))+'</span>'+esc(a.title)+'</span>'; }
+/* Muted, NetSuite-flat palette; each rep gets a stable color by username. */
+var CALPAL=[
+ {bg:'#e8eef7',text:'#274b7a',border:'#3d6cae'},{bg:'#e6f3ec',text:'#1f6b45',border:'#2f8a5b'},
+ {bg:'#efeafa',text:'#4a3a86',border:'#6c55c4'},{bg:'#fbf0e2',text:'#8a5a12',border:'#d08a2e'},
+ {bg:'#e2f2f2',text:'#1c6a68',border:'#2f9c99'},{bg:'#fbeceb',text:'#9a342a',border:'#cf4a3d'},
+ {bg:'#eaedf2',text:'#3f4b63',border:'#5b6b8c'},{bg:'#fbe9f2',text:'#8a2a5c',border:'#c0468a'},
+ {bg:'#eef2e3',text:'#5b6b1f',border:'#8a9c36'},{bg:'#e8eafa',text:'#33357a',border:'#4f52c0'},
+ {bg:'#f2ebe4',text:'#6e4b2a',border:'#9c6f42'},{bg:'#e3f0f7',text:'#1f5a78',border:'#2f89b5'}
+];
+function colorForUser(u){ u=String(u||''); var h=0; for(var i=0;i<u.length;i++){ h=(h*31+u.charCodeAt(i))>>>0; } return CALPAL[h%CALPAL.length]; }
+function chip(a){ var c=colorForUser(a.byUser); var st='background:'+c.bg+';color:'+c.text+';border-left-color:'+c.border+';'; return '<span class="chip'+(a.status==='cancelled'?' cancelled':'')+'" style="'+st+'" data-appt="'+esc(a.id)+'" title="'+esc(a.title)+(a.byName?(' · '+esc(a.byName)):'')+(a.contactName?(' · '+esc(a.contactName)):'')+'"><span class="t">'+esc(fmtTime(timeOf(a.start)))+'</span>'+esc(a.title)+'</span>'; }
 function tasksOn(dstr){ if(!SHOWTASKS) return []; return (TASKS||[]).filter(function(t){return String(t.due||'').slice(0,10)===dstr;}).sort(function(a,b){return String(a.due).localeCompare(String(b.due));}); }
 function taskChip(t){ var tm=String(t.due||'').slice(11,16); return '<span class="tchip" data-task="'+esc(t.id)+'" title="Task: '+esc(t.title)+(t.assigneeName?(' · '+esc(t.assigneeName)):'')+(t.linkLabel?(' · '+esc(t.linkLabel)):'')+'"><span class="tk">✓</span>'+(tm?('<span class="t">'+esc(fmtTime(tm))+'</span>'):'')+esc(t.title)+'</span>'; }
-function taskItem(t){ var tm=String(t.due||'').slice(11,16); return '<div class="agitem tk" data-task="'+esc(t.id)+'"><div class="atime">'+(tm?esc(fmtTime(tm)):'Task')+'</div><div class="abody"><b>'+esc(t.title)+'</b><div class="ameta">Task'+(t.priority&&t.priority!=='Normal'?(' · '+esc(t.priority)):'')+(t.assigneeName?(' · '+esc(t.assigneeName)):'')+(t.linkLabel?(' · '+esc(t.linkLabel)):'')+'</div></div></div>'; }
+function taskItem(t){ var tm=String(t.due||'').slice(11,16); return '<div class="agitem tk" data-task="'+esc(t.id)+'" style="border-left:3px solid #e0a53a;padding-left:11px"><div class="atime">'+(tm?esc(fmtTime(tm)):'Task')+'</div><div class="abody"><b>'+esc(t.title)+'</b><div class="ameta">Task'+(t.priority&&t.priority!=='Normal'?(' · '+esc(t.priority)):'')+(t.assigneeName?(' · '+esc(t.assigneeName)):'')+(t.linkLabel?(' · '+esc(t.linkLabel)):'')+'</div></div></div>'; }
 function renderDay(){
   var ds=ymd(CUR); var list=apptsOn(ds); var tks=tasksOn(ds);
   if(!list.length && !tks.length){ document.getElementById('cal').innerHTML='<div class="agenda"><div class="empty">Nothing on this day. Click <b>+ New meeting</b> to schedule one.</div></div>'; return; }
-  var html='<div class="agenda"><div class="agday"><div class="ah">'+esc(DOW[CUR.getDay()]+', '+MON[CUR.getMonth()]+' '+CUR.getDate())+'</div>'+list.map(function(a){ return '<div class="agitem" data-appt="'+esc(a.id)+'"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('-'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>'; }).join('')+tks.map(taskItem).join('')+'</div></div>';
+  var html='<div class="agenda"><div class="agday"><div class="ah">'+esc(DOW[CUR.getDay()]+', '+MON[CUR.getMonth()]+' '+CUR.getDate())+'</div>'+list.map(function(a){ return '<div class="agitem" data-appt="'+esc(a.id)+'" style="border-left:3px solid '+colorForUser(a.byUser).border+';padding-left:11px"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('-'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>'; }).join('')+tks.map(taskItem).join('')+'</div></div>';
   document.getElementById('cal').innerHTML=html; wireGrid();
 }
 function renderWeek(){
@@ -293,7 +303,7 @@ function renderAgenda(){
   var html='<div class="agenda">'+order.map(function(k){
     var dt=new Date(k+'T00:00'); var hd=DOW[dt.getDay()]+', '+MON[dt.getMonth()]+' '+dt.getDate();
     return '<div class="agday"><div class="ah">'+esc(hd)+'</div>'+days[k].appts.map(function(a){
-      return '<div class="agitem" data-appt="'+esc(a.id)+'"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('–'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>';
+      return '<div class="agitem" data-appt="'+esc(a.id)+'" style="border-left:3px solid '+colorForUser(a.byUser).border+';padding-left:11px"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('–'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>';
     }).join('')+days[k].tasks.map(taskItem).join('')+'</div>';
   }).join('')+'</div>';
   document.getElementById('cal').innerHTML=html;
@@ -315,7 +325,7 @@ function renderWork(){
     (w.workLocation?('<div class="wkrow"><span>Location</span><b>'+esc(w.workLocation)+'</b></div>'):'')+
     (mine?'<a class="wkedit" href="rrg_account.html">Edit</a>':'')+'</div>';
 }
-function renderLegend(){ var host=document.getElementById('legend'); if(!host) return; var items='<div class="lg"><span class="sw mine"></span>My meetings</div><div class="lg"><span class="sw other"></span>Team &amp; shared</div>'; if(FEATURES.calTasks!==false) items+='<div class="lg"><span class="sw task"></span>Tasks</div>'; host.innerHTML='<div class="lh">What the colors mean</div>'+items+'<div class="lg" style="color:var(--muted);font-size:11px;margin-top:2px">Struck-through = cancelled</div>'; }
+function renderLegend(){ var host=document.getElementById('legend'); if(!host) return; var seen={}, reps=[]; (APPTS||[]).forEach(function(a){ var u=a.byUser||''; if(u&&!seen[u]){ seen[u]=1; reps.push({u:u,n:a.byName||u}); } }); reps.sort(function(x,y){ return String(x.n).localeCompare(String(y.n)); }); var items=reps.map(function(r){ var c=colorForUser(r.u); return '<div class="lg"><span class="sw" style="background:'+c.bg+';border-left-color:'+c.border+'"></span>'+esc(r.n)+(r.u===ME?' (you)':'')+'</div>'; }).join(''); if(FEATURES.calTasks!==false) items+='<div class="lg"><span class="sw" style="background:#fff6e6;border-left-color:#e0a53a"></span>Tasks</div>'; if(!items){ host.innerHTML=''; return; } host.innerHTML='<div class="lh">Calendars</div>'+items+'<div class="lg" style="color:var(--muted);font-size:11px;margin-top:2px">Struck-through = cancelled</div>'; }
 function renderMini(){
   var host=document.getElementById('mini'); if(!host) return;
   var y=CUR.getFullYear(), mo=CUR.getMonth();
