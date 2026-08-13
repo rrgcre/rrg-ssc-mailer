@@ -78,6 +78,19 @@ textarea{min-height:64px;resize:vertical;}
 .cal,.agenda,.weekgrid{border-radius:4px;box-shadow:none;}
 .mcard{border-radius:6px;}
 input,select,textarea{border-radius:4px;}
+/* "What your calendar can do" panel */
+.calhelp{border:1px solid var(--line);border-radius:4px;background:#fff;margin-bottom:14px;overflow:hidden;}
+.calhelp .chh{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f6f8fb;border-bottom:1px solid var(--line);}
+.calhelp .chh b{font-size:13px;font-weight:800;color:var(--navy);}
+.calhelp .chtog{margin-left:auto;background:none;border:none;font:inherit;font-size:12px;font-weight:700;color:var(--blue);cursor:pointer;padding:2px 4px;}
+.calhelp.collapsed .chbody{display:none;}
+.calhelp.collapsed .chh{border-bottom:none;}
+.chgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px 22px;padding:12px 16px;}
+@media(max-width:900px){.chgrid{grid-template-columns:1fr;}}
+.chitem{display:flex;gap:10px;padding:8px 0;align-items:flex-start;}
+.chitem .chi{flex:0 0 auto;width:26px;height:26px;border-radius:4px;background:#eef2fb;color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:14px;}
+.chitem b{display:block;font-size:12.5px;color:var(--ink);font-weight:700;margin-bottom:1px;}
+.chitem span{display:block;font-size:12px;color:var(--muted);line-height:1.45;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -85,6 +98,17 @@ input,select,textarea{border-radius:4px;}
 <div class="wrap">
   <h1 class="pgh">Calendar</h1>
   <div class="pgs">Schedule meetings — with your contacts or anyone outside the group — and see everything in one place. Add attendee emails and send a calendar invite in a click.</div>
+  <div class="calhelp" id="calhelp">
+    <div class="chh"><b>What your calendar can do</b><button type="button" class="chtog" id="chtog">Hide</button></div>
+    <div class="chbody"><div class="chgrid">
+      <div class="chitem"><span class="chi">📅</span><div><b>Schedule any meeting</b><span>Meetings, calls, tours and follow-ups — tied to a contact in the system or on their own.</span></div></div>
+      <div class="chitem"><span class="chi">🔭</span><div><b>Four ways to look</b><span>Day, Week, Month and Agenda views — step through with ‹ Today ›.</span></div></div>
+      <div class="chitem"><span class="chi">✉️</span><div><b>Invite outside guests</b><span>Add attendees by name &amp; email and send a real calendar invite in one click.</span></div></div>
+      <div class="chitem"><span class="chi">👥</span><div><b>See the whole team</b><span>Switch between everyone's calendar, one person's, or just your own meetings.</span></div></div>
+      <div class="chitem"><span class="chi">📍</span><div><b>Capture the details</b><span>Type, location — address, video link or phone — and notes on every meeting.</span></div></div>
+      <div class="chitem"><span class="chi">🔄</span><div><b>Always in sync</b><span>Meetings booked from a contact's page appear here automatically; edit or cancel anytime.</span></div></div>
+    </div></div>
+  </div>
   <div class="calbar">
     <button class="btn" id="prev" title="Previous">‹</button>
     <button class="btn" id="today">Today</button>
@@ -271,6 +295,7 @@ document.getElementById('del').addEventListener('click',del);
 document.getElementById('sendinv').addEventListener('click',function(){ if(EDIT) sendInvite(EDIT.id,false); });
 document.getElementById('addatt').addEventListener('click',function(){ var box=document.getElementById('f_atts'); box.insertAdjacentHTML('beforeend',attRow({})); wireAttX(); });
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target===this){ /* stay open */ } });
+(function(){ var box=document.getElementById('calhelp'), tog=document.getElementById('chtog'); if(!box||!tog) return; var KEY='rrg_calhelp_collapsed'; try{ if(localStorage.getItem(KEY)==='1') box.classList.add('collapsed'); }catch(e){} function sync(){ tog.textContent=box.classList.contains('collapsed')?'Show':'Hide'; } sync(); tog.addEventListener('click',function(){ var on=box.classList.toggle('collapsed'); try{ localStorage.setItem(KEY,on?'1':'0'); }catch(e){} sync(); }); })();
 load();
 </script>
 </body></html>

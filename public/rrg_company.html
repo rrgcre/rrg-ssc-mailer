@@ -1094,7 +1094,7 @@ window.addEventListener('pageshow',function(e){ if(e.persisted && typeof load===
   function get(){ try{ return JSON.parse(localStorage.getItem(KEY)||'{}')||{}; }catch(e){ return {}; } }
   function set(o){ try{ localStorage.setItem(KEY,JSON.stringify(o)); }catch(e){} }
   function titleOf(card){ var b=card.querySelector('.ch b'); return b?b.textContent.trim():''; }
-  var root=document.getElementById('root'), mo=null;
+  var root=document.getElementById('root'), mo=null, _ct=null;
   function apply(){
     if(mo) mo.disconnect();
     var st=get();
@@ -1103,13 +1103,13 @@ window.addEventListener('pageshow',function(e){ if(e.persisted && typeof load===
     document.querySelectorAll('.card').forEach(function(card){ var t=titleOf(card); if(!t) return; var collapse=hasSaved?(!!st[t]):(!first); first=false; card.classList.toggle('collapsed', collapse); });
     connect();
   }
-  function connect(){ if(root && window.MutationObserver){ if(!mo) mo=new MutationObserver(function(){ apply(); }); mo.observe(root,{childList:true,subtree:true}); } }
+  function connect(){ if(root && window.MutationObserver){ if(!mo) mo=new MutationObserver(function(){ if(_ct) return; _ct=setTimeout(function(){ _ct=null; apply(); },90); }); mo.observe(root,{childList:true,subtree:true}); } }
   document.addEventListener('click',function(e){ var ch=e.target.closest('.card > .ch'); if(!ch) return; if(e.target.closest('button,input,select,a,label,textarea')) return; var card=ch.closest('.card'); if(!card) return; card.classList.toggle('collapsed'); var st=get(); document.querySelectorAll('.card').forEach(function(c){ var t=titleOf(c); if(t){ if(c.classList.contains('collapsed')) st[t]=1; else delete st[t]; } }); set(st); });
   setTimeout(apply, 350);
 })();
 
 /* Hide a rail card's count badge when it's exactly 0 — an empty section reads cleaner without a "0". */
-(function(){ function hz(){ document.querySelectorAll('.rail .card > .ch > span').forEach(function(s){ s.style.display=((s.textContent||'').trim()==='0')?'none':''; }); } var t=null; function sched(){ if(t) return; t=setTimeout(function(){ t=null; hz(); },60); } function go(){ hz(); try{ new MutationObserver(sched).observe(document.body,{childList:true,subtree:true,characterData:true}); }catch(e){} } if(document.readyState!=='loading') go(); else document.addEventListener('DOMContentLoaded',go); })();
+(function(){ function hz(){ document.querySelectorAll('.rail .card > .ch > span').forEach(function(s){ var z=((s.textContent||'').trim()==='0'); var want=z?'none':''; if(s.style.display!==want) s.style.display=want; }); } var t=null; function sched(){ if(t) return; t=setTimeout(function(){ t=null; hz(); },120); } function go(){ hz(); try{ var tgt=document.getElementById('root')||document.body; new MutationObserver(sched).observe(tgt,{childList:true,subtree:true}); }catch(e){} } if(document.readyState!=='loading') go(); else document.addEventListener('DOMContentLoaded',go); })();
 </script>
 </body>
 </html>
