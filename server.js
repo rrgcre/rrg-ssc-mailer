@@ -1617,7 +1617,17 @@ app.get('/api/valuation-readiness', (req, res) => {
     const _sd = _lk ? _dealFromListingKey(_lk) : null;
     if (_lk && _sd) {
       let scr = false, scrSkip = false, ivSkip = false;
-      try { const _ov = loadAssignOverlay(); scrSkip = !!(_ov[_lk] && _ov[_lk].screeningSkipped); ivSkip = !!(_ov[_lk] && _ov[_lk].interviewSkipped); } catch (e) {}
+      // A skip flag can be recorded under the listing key, the deal's s_<screenId> key, OR its
+      // d_<id> key — and that key flips once a screening record is attached. Check all of them so
+      // a skip is never orphaned (which was re-gating the BOV after the key changed).
+      try {
+        const _ov = loadAssignOverlay();
+        const _cand = [_lk];
+        if (_sd.screenId) _cand.push('s_' + _sd.screenId);
+        if (_sd.id) _cand.push('d_' + _sd.id);
+        scrSkip = _cand.some(k => _ov[k] && _ov[k].screeningSkipped);
+        ivSkip = _cand.some(k => _ov[k] && _ov[k].interviewSkipped);
+      } catch (e) {}
       try { if (_sd.screenId) { const _sc = (loadScreens() || []).find(s => s.id === _sd.screenId); if (_sc && (_sc.callState === 'complete' || _sc.completed === true)) scr = true; } } catch (e) {}
       if (!scr && scrSkip) scr = true;
       let fin = false, lse = false, _rmid = '';
@@ -1655,7 +1665,9 @@ app.get('/api/valuation-readiness', (req, res) => {
     // menu step to done or unlock the data-room / Seller Interview steps. (Skip is handled below.)
     let screening = (function(){ try { return (loadScreens()||[]).some(function(sc){ var d=sc.data||{}; var matches=(pid && (d.personId===pid || d.contactPersonId===pid || sc.personId===pid)) || (cid && (d.companyId===cid || sc.companyId===cid)); return matches && (sc.callState==='complete' || sc.completed===true); }); } catch(e){ return false; } })();
     let screeningSkipped = false, interviewSkipped = false;
-    try { const _ov = loadAssignOverlay(); loadDeals().filter(hit).forEach(function(d){ const k = d.screenId ? ('s_'+d.screenId) : ('d_'+d.id); if (_ov[k] && _ov[k].screeningSkipped) screeningSkipped = true; if (_ov[k] && _ov[k].interviewSkipped) interviewSkipped = true; }); } catch(e){}
+    // Check BOTH the s_<screenId> and d_<id> keys per deal — the overlay key flips when a screening
+    // record is attached, and a skip written under the old key must still count.
+    try { const _ov = loadAssignOverlay(); loadDeals().filter(hit).forEach(function(d){ const ks = []; if (d.screenId) ks.push('s_'+d.screenId); if (d.id) ks.push('d_'+d.id); ks.forEach(function(k){ if (_ov[k] && _ov[k].screeningSkipped) screeningSkipped = true; if (_ov[k] && _ov[k].interviewSkipped) interviewSkipped = true; }); }); } catch(e){}
     if (!screening && screeningSkipped) screening = true;
     // A seller-completed interview (self-serve form or video) satisfies the questionnaire input.
     let interviewDone = false, interviewId = '', interviewRoomId = '';
@@ -1826,7 +1838,7 @@ app.post('/api/seller/unskip', express.json(), (req, res) => {
     const _lk = String(b.listingKey || '').trim().slice(0, 64);
     const ov = loadAssignOverlay();
     const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid));
-    const keys = []; if (_lk) keys.push(_lk); loadDeals().filter(hit).forEach(d => keys.push(d.screenId ? ('s_' + d.screenId) : ('d_' + d.id)));
+    const keys = []; if (_lk) keys.push(_lk); loadDeals().filter(hit).forEach(d => { if (d.screenId) keys.push('s_' + d.screenId); if (d.id) keys.push('d_' + d.id); });
     let changed = false;
     keys.forEach(k => { const cur = ov[k]; if (!cur) return; if ((which === 'screening' || !which) && cur.screeningSkipped) { delete cur.screeningSkipped; changed = true; cur.updatedAt = new Date().toISOString(); } if ((which === 'interview' || !which) && cur.interviewSkipped) { delete cur.interviewSkipped; changed = true; cur.updatedAt = new Date().toISOString(); } });
     if (changed) saveAssignOverlay(ov);
