@@ -85,6 +85,28 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
   </div>
 
   <div class="card">
+    <h2>Working hours &amp; location</h2>
+    <p class="desc">Let teammates see when you’re available and where you’re working from — it shows on the Calendar so the team can schedule around you.</p>
+    <label class="fl">Working days</label>
+    <div id="workDays" style="display:flex;flex-wrap:wrap;gap:12px;margin:4px 0 12px">
+      <label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" value="1" style="width:auto">Mon</label>
+      <label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" value="2" style="width:auto">Tue</label>
+      <label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" value="3" style="width:auto">Wed</label>
+      <label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" value="4" style="width:auto">Thu</label>
+      <label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" value="5" style="width:auto">Fri</label>
+      <label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" value="6" style="width:auto">Sat</label>
+      <label style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;cursor:pointer"><input type="checkbox" value="0" style="width:auto">Sun</label>
+    </div>
+    <div class="row2">
+      <div><label class="fl">Start</label><input class="f" type="time" id="workStart"></div>
+      <div><label class="fl">End</label><input class="f" type="time" id="workEnd"></div>
+    </div>
+    <label class="fl">Working location</label>
+    <input class="f" id="workLocation" placeholder="e.g. San Antonio office · Home · On the road">
+    <div style="margin-top:12px"><button class="save" id="saveWork" onclick="saveWork()">Save working hours</button><span class="msg" id="wmsg"></span></div>
+  </div>
+
+  <div class="card">
     <h2>Email signature</h2>
     <p class="desc">Appended to the bottom of every email you send from a contact’s page. Type your sign-off and drop your logo right into the same box.</p>
     <div class="sigbar">
@@ -161,6 +183,8 @@ function load(){
     var p=(j&&j.profile)||{};
     $('name').value=p.name||''; $('title').value=p.title||''; $('phone').value=p.phone||''; $('email').value=p.email||'';
     setHeadshot(p.photoUrl||'');
+    $('workStart').value=p.workStart||''; $('workEnd').value=p.workEnd||''; $('workLocation').value=p.workLocation||'';
+    var wd=(p.workDays&&p.workDays.length)?p.workDays:[1,2,3,4,5]; document.querySelectorAll('#workDays input').forEach(function(c){ c.checked=wd.indexOf(+c.value)>=0; });
     var first=((p.name||'').trim().split(/\s+/)[0])||'Account';
     $('hName').textContent=first==='Account'?'Account':(first+"'s Account");
     preview();
@@ -221,6 +245,7 @@ function saveSig(){
 $('sigBox').addEventListener('input',sigSize);
 loadSig();
 
+function saveWork(){ var b=$('saveWork'); b.disabled=true; setMsg('wmsg','','Saving…'); var days=[]; document.querySelectorAll('#workDays input:checked').forEach(function(c){ days.push(+c.value); }); fetch(API+'/api/me/profile',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({workStart:$('workStart').value,workEnd:$('workEnd').value,workLocation:$('workLocation').value,workDays:days})}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ setMsg('wmsg','ok','Saved ✓'); } else setMsg('wmsg','err',(j&&j.error)||'Could not save.'); }).catch(function(){ b.disabled=false; setMsg('wmsg','err','Could not reach the server.'); }); }
 function saveProfile(){
   var b=$('saveProfile'); b.disabled=true; setMsg('pmsg','','Saving…');
   fetch(API+'/api/me/profile',{method:'POST',headers:{'Content-Type':'application/json'},

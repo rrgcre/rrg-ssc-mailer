@@ -1282,7 +1282,7 @@ app.get('/api/me', (req, res) => { const prof = auth.profileOf(auth.findUser(req
 app.post('/api/me/profile', express.json(), (req, res) => {
   try {
     const b = req.body || {};
-    const p = auth.updateProfile(req.user.username, { name: b.name, title: b.title, phone: b.phone, email: b.email });
+    const p = auth.updateProfile(req.user.username, { name: b.name, title: b.title, phone: b.phone, email: b.email, workLocation: b.workLocation, workStart: b.workStart, workEnd: b.workEnd, workDays: b.workDays });
     res.json({ ok: true, profile: p });
   } catch (e) { res.status(400).json({ ok: false, error: String((e && e.message) || e) }); }
 });
@@ -11160,7 +11160,7 @@ function saveAppts(a) { return writeJsonGuarded(APPTS_FILE, a, 'saveAppts'); }
 function newApptId() { return 'ap_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const APPT_TYPES = ['Meeting', 'Call', 'Tour', 'Listing Presentation', 'Closing', 'Follow-up', 'Other'];
 function _cleanAttendees(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 20).map(function (x) { return { name: String((x && x.name) || '').slice(0, 120), email: String((x && x.email) || '').slice(0, 160).trim() }; }).filter(function (x) { return x.name || x.email; }); }
-function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], cc: Array.isArray(a.cc) ? a.cc : [], bcc: Array.isArray(a.bcc) ? a.bcc : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', invitedAt: a.invitedAt || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
+function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], cc: Array.isArray(a.cc) ? a.cc : [], bcc: Array.isArray(a.bcc) ? a.bcc : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', invitedAt: a.invitedAt || '', meetUrl: a.meetUrl || '', googleEventId: a.googleEventId || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
 function apptIcs(a) {
   function e(s) { return String(s || '').replace(/([,;\\])/g, '\\$1').replace(/\r?\n/g, '\\n'); }
   function dt(s) { var m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); return m ? (m[1] + m[2] + m[3] + 'T' + m[4] + m[5] + '00') : ''; }
@@ -11195,7 +11195,9 @@ app.get('/api/appointments', (req, res) => {
   if (to) list = list.filter(a => String(a.start || '') <= to);
   list.sort((a, b) => String(a.start || '').localeCompare(String(b.start || '')));
   const contacts = loadPeople().map(p => ({ id: p.id, name: p.name, email: (typeof preferredEmailOf === 'function' ? (preferredEmailOf(p) || '') : (p.email || '')) })).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-  const users = auth.loadUsers().filter(x => !x.disabled).map(x => ({ username: x.username, name: x.name || x.username }));
+  const users = auth.loadUsers().filter(x => !x.disabled).map(x => ({ username: x.username, name: x.name || x.username, workLocation: x.workLocation || '', workStart: x.workStart || '', workEnd: x.workEnd || '', workDays: Array.isArray(x.workDays) ? x.workDays : [] }));
+  const meProf = (function(){ try { return auth.profileOf(auth.findUser(u.username)) || {}; } catch (e) { return {}; } })();
+  const meWork = { workLocation: meProf.workLocation || '', workStart: meProf.workStart || '', workEnd: meProf.workEnd || '', workDays: Array.isArray(meProf.workDays) ? meProf.workDays : [] };
   // Dated tasks in the same window, so they can render on the calendar grid alongside meetings.
   let tasksOut = [];
   try {
@@ -11213,7 +11215,7 @@ app.get('/api/appointments', (req, res) => {
       return true;
     }).map(t => ({ id: t.id, title: t.title || 'Task', due: t.due || '', priority: t.priority || 'Normal', assignee: t.assignee || '', assigneeName: t.assigneeName || '', linkLabel: t.linkLabel || '', link: t.link || '' }));
   } catch (e) {}
-  res.json({ ok: true, appointments: list.map(apptBrief), tasks: tasksOut, contacts, users, types: APPT_TYPES, me: u.username || '', canSeeAll: canAll, emailReady: isEmailConfigured() });
+  res.json({ ok: true, appointments: list.map(apptBrief), tasks: tasksOut, contacts, users, meWork, types: APPT_TYPES, me: u.username || '', canSeeAll: canAll, emailReady: isEmailConfigured() });
 });
 app.post('/api/appointments', express.json(), (req, res) => {
   const u = req.user || {}; const b = req.body || {}; const all = loadAppts(); const now = new Date().toISOString();
@@ -11251,6 +11253,47 @@ app.delete('/api/appointments/:id', (req, res) => {
   const u = req.user || {}; const all = loadAppts(); const a = all.find(x => x.id === req.params.id); if (!a) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!(isSuper(u) || a.byUser === u.username)) return res.status(403).json({ ok: false, error: 'You can only delete your own appointments.' });
   saveAppts(all.filter(x => x.id !== a.id)); res.json({ ok: true });
+});
+// Add (or attach) a Google Meet video link to a meeting, via the Google Calendar API.
+function _meetLinkOf(j) {
+  if (!j) return '';
+  if (j.hangoutLink) return j.hangoutLink;
+  try { const ep = ((j.conferenceData || {}).entryPoints || []).filter(e => e.entryPointType === 'video')[0]; if (ep && ep.uri) return ep.uri; } catch (e) {}
+  return '';
+}
+app.post('/api/appointments/:id/meet', express.json(), async (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  const all = loadAppts(); const a = all.find(x => x.id === req.params.id);
+  if (!a) return res.status(404).json({ ok: false, error: 'Meeting not found.' });
+  const st = gmail.statusFor(u);
+  if (!st.connected) return res.status(400).json({ ok: false, error: 'Connect your Google account first (Account → Gmail).' });
+  if (!st.hasCalendar) return res.status(400).json({ ok: false, error: 'Calendar permission was not granted. Click Reconnect on the Gmail card (Account → Gmail) and approve Calendar access.' });
+  if (!a.start) return res.status(400).json({ ok: false, error: 'Add a date and time to the meeting first.' });
+  const reqId = 'rrgmeet-' + a.id + '-' + Date.now().toString(36);
+  const body = {
+    summary: a.title || 'Meeting', location: a.location || '', description: a.notes || '',
+    start: { dateTime: _gDT(a.start), timeZone: GSYNC_TZ }, end: { dateTime: _gDT(a.end || a.start), timeZone: GSYNC_TZ },
+    attendees: (a.attendees || []).filter(x => x.email).map(x => ({ email: x.email })),
+    conferenceData: { createRequest: { requestId: reqId, conferenceSolutionKey: { type: 'hangoutsMeet' } } }
+  };
+  try {
+    let j;
+    if (a.googleEventId) {
+      j = await gmail.gapiJSON(u, 'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(a.googleCalId || 'primary') + '/events/' + encodeURIComponent(a.googleEventId) + '?conferenceDataVersion=1', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    } else {
+      j = await gmail.gapiJSON(u, 'https://www.googleapis.com/calendar/v3/calendars/primary/events?conferenceDataVersion=1', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (j && j.id) { a.googleEventId = j.id; a.googleCalId = 'primary'; }
+    }
+    let link = _meetLinkOf(j);
+    // Meet provisioning can lag the insert by a beat — fetch the event once more if the link isn't back yet.
+    if (!link && a.googleEventId) {
+      try { const g2 = await gmail.gapiJSON(u, 'https://www.googleapis.com/calendar/v3/calendars/' + encodeURIComponent(a.googleCalId || 'primary') + '/events/' + encodeURIComponent(a.googleEventId) + '?conferenceDataVersion=1', {}); link = _meetLinkOf(g2); } catch (e) {}
+    }
+    if (!link) { saveAppts(all); return res.status(502).json({ ok: false, error: 'Google is still creating the Meet link — try again in a moment.' }); }
+    a.meetUrl = link; a.updatedAt = new Date().toISOString(); saveAppts(all);
+    try { logSysEvent(req, 'Google', 'Added a Google Meet link to “' + (a.title || 'Meeting') + '”', { tool: 'google-meet' }); } catch (e) {}
+    res.json({ ok: true, meetUrl: link });
+  } catch (e) { console.error('appt meet:', e && e.message); res.status(502).json({ ok: false, error: _gErr(e) }); }
 });
 
 // ================= Agreements =================
