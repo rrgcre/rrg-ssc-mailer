@@ -2280,8 +2280,8 @@ app.get('/api/valuation-room-ready', (req, res) => {
   try {
     const bov = loadBovs().find(x => x.id === String((req.query && req.query.bov) || ''));
     const files = bov ? roomFilesForBov(bov) : [];
-    res.json({ ok: true, financials: files.some(f => f.label === 'Financials'), lease: files.some(f => f.label === 'Lease') });
-  } catch (e) { res.json({ ok: true, financials: false, lease: false }); }
+    res.json({ ok: true, financials: files.some(f => f.label === 'Financials'), lease: files.some(f => f.label === 'Lease'), hasQuestionnaire: !!(bov && bov.srcQuestId), interviewSkipped: !!(bov && bov.interviewSkipped) });
+  } catch (e) { res.json({ ok: true, financials: false, lease: false, hasQuestionnaire: false, interviewSkipped: false }); }
 });
 app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) => {
   try {
