@@ -364,6 +364,10 @@
     (function(){
       window.RRG_MODE=(function(){try{return /[?&]valuation=1/.test(location.search)?'valuation':'seller';}catch(e){return 'seller';}})();
       window.RRG_SAVE_URL=(window.RRG_MODE==='valuation')?'/api/questionnaire-save':'/api/screening-save';
+      // Hard-lock Call Mode OFF for edit/finish loads. Setting __scrAuto up-front means no
+      // later timing race can auto-launch the guided call-detail screen — the plain,
+      // single-column scrollable form is the only thing the rep ever sees when editing.
+      try{ if(/[?&](edit|finish)=1/.test(location.search)){ window.__scrAuto=1; } }catch(e){}
       var slot=document.getElementById("sscBody");
       function draw(schema){ try{ slot.innerHTML=RRG_FORMS.render(schema); window.RRG_ACTIVE_FORM=schema; if(RRG_FORMS.wireConditionals) RRG_FORMS.wireConditionals(); }catch(e){ console.error("form render",e); } }
       var _PREVIEW=false; try{ _PREVIEW=/[?&]preview=1/.test(location.search); }catch(e){}
