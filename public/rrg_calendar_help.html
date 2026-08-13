@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calendar — Help &amp; User Guide · RRG</title>
+<style>
+:root{
+  --navy:#000E31; --slate:#20334f; --primary:#2c5c8f; --primary-d:#23496f;
+  --red:#b23a2c; --ink:#2b3648; --muted:#69748a; --soft:#96a1b2;
+  --line:#dbe0e9; --wash:#f4f6f9; --inp:#c4ccda; --gold:#b5791f; --green:#2f7a55;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--primary);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.top{background:var(--navy);border-bottom:2px solid var(--primary);color:#fff;position:sticky;top:0;z-index:50;}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:13px;}
+.disc{width:34px;height:34px;border-radius:4px;background:var(--red);color:#fff;font:900 12px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;flex:none;}
+.wm{font-weight:700;font-size:12px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em;color:#cdd6e4;}
+.bar{width:1px;height:24px;background:rgba(255,255,255,.28);margin:0 5px;}
+.ttl{font-weight:700;font-size:15px;color:#fff;}
+.ttl small{display:block;font-size:10.5px;font-weight:600;color:#9fb0cc;text-transform:uppercase;letter-spacing:.06em;margin-top:1px;}
+.backlink{margin-left:auto;color:#cdd6e4;font-size:12.5px;font-weight:600;}
+.backlink:hover{color:#fff;text-decoration:none;}
+.shell{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;align-items:start;}
+.toc{position:sticky;top:74px;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.toc .th{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 15px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);}
+.tsearch{padding:10px 12px;border-bottom:1px solid var(--line);}
+.tsearch input{width:100%;border:1px solid var(--inp);border-radius:4px;padding:7px 10px;font:inherit;font-size:12.5px;}
+.toc nav{max-height:calc(100vh - 200px);overflow:auto;padding:6px 0;}
+.toc a{display:block;padding:6px 15px;font-size:12.5px;font-weight:600;color:var(--slate);border-left:2px solid transparent;}
+.toc a:hover{background:var(--wash);text-decoration:none;}
+.toc a.on{border-left-color:var(--primary);background:#eef4fa;color:var(--primary-d);}
+.toc .miss{padding:10px 15px;color:var(--soft);font-size:12px;}
+.doc{min-width:0;}
+.hero{background:#fff;border:1px solid var(--line);border-radius:6px;padding:24px 26px;margin-bottom:20px;}
+.hero h1{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-.01em;}
+.hero p{color:var(--muted);font-size:14.5px;margin-top:9px;max-width:760px;}
+.hero .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;}
+.tag{font-size:11px;font-weight:700;color:var(--slate);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
+section.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:22px 26px;margin-bottom:16px;scroll-margin-top:74px;}
+section.card>h2{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.01em;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;gap:9px;}
+section.card>h2 .n{width:24px;height:24px;border-radius:4px;background:var(--navy);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+h3{font-size:14.5px;font-weight:800;color:var(--slate);margin:18px 0 7px;}
+p{margin:9px 0;}
+.lead{color:var(--muted);font-size:14px;}
+ul,ol{margin:9px 0 9px 4px;padding-left:22px;}
+li{margin:5px 0;}
+ol.steps{counter-reset:st;list-style:none;padding-left:0;margin:12px 0;}
+ol.steps>li{position:relative;padding:0 0 14px 40px;margin:0;}
+ol.steps>li:before{counter-increment:st;content:counter(st);position:absolute;left:0;top:-1px;width:26px;height:26px;border-radius:4px;background:#eef4fa;color:var(--primary-d);border:1px solid #cddcec;font-weight:800;font-size:12.5px;display:flex;align-items:center;justify-content:center;}
+ol.steps>li:not(:last-child):after{content:"";position:absolute;left:13px;top:27px;bottom:2px;width:1px;background:var(--line);}
+ol.steps b{color:var(--slate);}
+.kbd{display:inline-block;background:var(--wash);border:1px solid var(--inp);border-bottom-width:2px;border-radius:3px;padding:1px 7px;font-size:12px;font-weight:700;color:var(--slate);}
+.callout{border:1px solid var(--line);border-left:3px solid var(--primary);background:#f7fafd;border-radius:0 4px 4px 0;padding:13px 16px;margin:14px 0;font-size:13.5px;}
+.callout.tip{border-left-color:var(--green);background:#f1f8f4;}
+.callout.warn{border-left-color:var(--red);background:#fbf3f2;}
+.callout .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
+.callout.tip .lbl{color:var(--green);} .callout.warn .lbl{color:var(--red);}
+table.mx{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;}
+table.mx th,table.mx td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+table.mx th{background:var(--wash);font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:800;}
+table.mx td b{color:var(--slate);}
+.fq{border-top:1px solid var(--line);padding:13px 0;}
+.fq:first-of-type{border-top:none;}
+.fq h3{margin:0 0 4px;font-size:14px;}
+.fq p{margin:0;color:var(--muted);font-size:13.5px;}
+.foot{max-width:1180px;margin:0 auto;padding:0 24px 50px;color:var(--soft);font-size:12px;text-align:center;}
+.totop{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;border:none;border-radius:4px;padding:9px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .15s;z-index:60;}
+.totop.show{opacity:1;pointer-events:auto;}
+@media(max-width:900px){.shell{grid-template-columns:1fr;}.toc{position:static;}.toc nav{max-height:none;}}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <span class="disc">RRG</span><span class="wm">Restaurant<br>Realty Group</span><span class="bar"></span>
+  <span class="ttl">Calendar<small>Help &amp; User Guide</small></span>
+  <a class="backlink" href="rrg_calendar.html">&larr; Back to Calendar</a>
+</div></div>
+
+<div class="shell">
+  <aside class="toc">
+    <div class="th">Contents</div>
+    <div class="tsearch"><input id="tocSearch" placeholder="Search this guide…" autocomplete="off"></div>
+    <nav id="tocNav">
+      <a href="#overview">1 · Overview</a>
+      <a href="#schedule">2 · Scheduling a meeting</a>
+      <a href="#views">3 · Day, Week, Month &amp; Agenda</a>
+      <a href="#invites">4 · Attendees &amp; calendar invites</a>
+      <a href="#scope">5 · Whose calendar you see</a>
+      <a href="#details">6 · Meeting details</a>
+      <a href="#sync">7 · Staying in sync</a>
+      <a href="#faq">8 · FAQ &amp; troubleshooting</a>
+      <a href="#glossary">9 · Glossary</a>
+    </nav>
+  </aside>
+
+  <main class="doc">
+    <div class="hero">
+      <h1>Calendar — Help &amp; User Guide</h1>
+      <p>The Calendar is where every meeting in the shop lives in one place — listing walk-throughs, buyer calls, seller tours, and follow-ups — whether you booked it here or from a contact's page. Schedule with a contact in your book or anyone outside the group, invite guests by email in a click, and see the whole team's day at a glance. This guide covers every part of it.</p>
+      <div class="meta"><span class="tag">Team scheduling</span><span class="tag">Real calendar invites</span><span class="tag">Tied to your contacts</span><span class="tag">Day · Week · Month · Agenda</span></div>
+    </div>
+
+    <section class="card" id="overview">
+      <h2><span class="n">1</span> Overview</h2>
+      <p class="lead">The Calendar is a shared, team-wide schedule of meetings. Anything you book — from the Calendar page or from a contact's <b>Calendar</b> card — shows up here, so nothing lives in one person's head or a separate app.</p>
+      <h3>The core idea</h3>
+      <ul>
+        <li><b>One place for every meeting</b> — reps and admins book here or from a contact record, and it all rolls into the same calendar.</li>
+        <li><b>Tied to your book of business</b> — link a meeting to a contact and it appears on that contact's timeline too, so the schedule and the relationship stay connected.</li>
+        <li><b>Guests don't need the app</b> — attach anyone's name and email and send them a real calendar invite; they add it to whatever calendar they already use.</li>
+        <li><b>Team visibility</b> — admins can see everyone's calendar or filter to one rep; reps see their own.</li>
+      </ul>
+      <div class="callout"><div class="lbl">Where to find it</div>Open <b>Calendar</b> from the left nav. The <b>What your calendar can do</b> strip at the top of that page links to the matching section of this guide — tap any tile.</div>
+    </section>
+
+    <section class="card" id="schedule">
+      <h2><span class="n">2</span> Scheduling a meeting</h2>
+      <p class="lead">Two ways to start a meeting, whichever is faster for the moment you're in.</p>
+      <h3>A. The "+ New meeting" button</h3>
+      <p>On the Calendar page, click <span class="kbd">+ New meeting</span> (top-right of the toolbar) to open a blank meeting form.</p>
+      <h3>B. Click a day</h3>
+      <p>In Month or Week view, click any day cell and the form opens pre-set to that date — handy when you're eyeing an open slot.</p>
+      <h3>C. From a contact's page</h3>
+      <p>On any contact, use the <span class="kbd">+</span> on the <b>Calendar</b> card to book a meeting already tied to that person. It lands on the shared calendar automatically — see <a href="#sync">Staying in sync</a>.</p>
+      <ol class="steps">
+        <li><b>Title</b> — what the meeting is (e.g. "Listing walk-through"). Required.</li>
+        <li><b>Contact</b> — optional; start typing to match a contact in your book, or leave blank for an internal or outside meeting.</li>
+        <li><b>Type, Date, Time</b> — the meeting type comes from your firm's list; pick a date and a start time. A date is required.</li>
+        <li><b>End &amp; Location</b> — an end time and where it happens: a street address, a video link, or a phone number.</li>
+        <li><b>Attendees &amp; Notes</b> — add outside guests by name and email, and any prep or agenda notes.</li>
+        <li><b>Save</b> — the meeting posts to the calendar. Optionally email invites at the same time (next section).</li>
+      </ol>
+      <div class="callout tip"><div class="lbl">Best practice</div>Link the contact whenever the meeting is with someone in your book. That's what puts the meeting on their record and keeps your follow-up history in one place.</div>
+    </section>
+
+    <section class="card" id="views">
+      <h2><span class="n">3</span> Day, Week, Month &amp; Agenda</h2>
+      <p class="lead">Four views of the same schedule. Switch with the segmented control in the toolbar; move through time with <span class="kbd">‹</span>, <span class="kbd">Today</span>, and <span class="kbd">›</span>.</p>
+      <table class="mx">
+        <thead><tr><th>View</th><th>Best for</th></tr></thead>
+        <tbody>
+          <tr><td><b>Month</b></td><td>The big picture — every day of the month, up to four meetings per day with a "+N more" when a day is busy.</td></tr>
+          <tr><td><b>Week</b></td><td>Seven columns side by side — a working week at a glance.</td></tr>
+          <tr><td><b>Day</b></td><td>A single day's agenda in order, with times and details.</td></tr>
+          <tr><td><b>Agenda</b></td><td>A running list of what's <i>coming up</i>, grouped by day — your upcoming schedule top to bottom.</td></tr>
+        </tbody>
+      </table>
+      <p>Click any meeting in any view to open it and edit. Your own meetings are tinted so they stand out from the rest of the team's.</p>
+    </section>
+
+    <section class="card" id="invites">
+      <h2><span class="n">4</span> Attendees &amp; calendar invites</h2>
+      <p class="lead">Add guests who aren't on the platform and send them a real calendar invite — no account, no app.</p>
+      <ol class="steps">
+        <li><b>Add attendees</b> — on the meeting form, enter each guest's name and email. Use <span class="kbd">+ Add attendee</span> for more than one.</li>
+        <li><b>Email the invite</b> — tick <b>Email a calendar invite to attendees now</b> before saving, and everyone with an email gets an invite they can add to their own calendar.</li>
+        <li><b>Send later</b> — on an existing meeting, <span class="kbd">Send invite</span> re-sends to the attendees anytime after the fact.</li>
+      </ol>
+      <div class="callout tip"><div class="lbl">Reading the form</div>The "Email a calendar invite" option only appears when the firm's email sending is set up. Attendees need an email address on file to receive an invite.</div>
+      <div class="callout warn"><div class="lbl">From a contact's page</div>When you schedule from a contact's <b>Calendar</b> card and Gmail is connected, saving can also hand off to Google Calendar with the meeting pre-filled and the contact added as a guest — so it lands on your Google calendar too.</div>
+    </section>
+
+    <section class="card" id="scope">
+      <h2><span class="n">5</span> Whose calendar you see</h2>
+      <p class="lead">Control which meetings the calendar shows.</p>
+      <ul>
+        <li><b>Admins</b> — a picker switches between <b>Everyone's calendar</b>, <b>Just my meetings</b>, or any single rep's calendar, so you can see the whole team or zero in on one person.</li>
+        <li><b>Reps</b> — see your own meetings.</li>
+      </ul>
+      <div class="callout"><div class="lbl">Note</div>Deleting a meeting is limited to the person who created it — you can open and read anyone's meeting (per your access), but only its owner can remove it.</div>
+    </section>
+
+    <section class="card" id="details">
+      <h2><span class="n">6</span> Meeting details</h2>
+      <p class="lead">Every meeting carries the context you'll want when you glance at it later.</p>
+      <ul>
+        <li><b>Type</b> — Meeting, Call, Tour, Follow-up, and any others your firm defines. Edit the list under Admin settings.</li>
+        <li><b>Location</b> — a street address, a video link, or a phone number, whatever fits the meeting.</li>
+        <li><b>Notes</b> — agenda, prep, or anything to remember, kept with the meeting.</li>
+        <li><b>Status</b> — a cancelled meeting stays on the calendar shown struck through, so the record's honest without cluttering your day.</li>
+      </ul>
+    </section>
+
+    <section class="card" id="sync">
+      <h2><span class="n">7</span> Staying in sync</h2>
+      <p class="lead">The Calendar page and each contact's <b>Calendar</b> card are two windows on the same set of meetings.</p>
+      <ul>
+        <li><b>Book once, see everywhere</b> — a meeting scheduled from a contact's page appears on the shared calendar automatically, and a calendar meeting linked to a contact shows on that contact's record.</li>
+        <li><b>Edit anywhere</b> — open a meeting from either place to change the time, details, or attendees.</li>
+        <li><b>Google Calendar hand-off</b> — with Gmail connected, scheduling from a contact can also push the meeting to Google Calendar with the contact as a guest.</li>
+      </ul>
+      <div class="callout tip"><div class="lbl">Why it matters</div>Because the contact card and the team calendar draw from the same meetings, your follow-up radar and your schedule never drift apart.</div>
+    </section>
+
+    <section class="card" id="faq">
+      <h2><span class="n">8</span> FAQ &amp; troubleshooting</h2>
+      <div class="fq"><h3>I don't see the "Email a calendar invite" option.</h3><p>That option only shows when the firm's email sending is configured. Once it's set up, the checkbox appears on the meeting form and the <b>Send invite</b> button appears on saved meetings.</p></div>
+      <div class="fq"><h3>My guest didn't get the invite.</h3><p>Make sure the attendee has an email address on the meeting. Only attendees with an email receive an invite. You can re-send anytime with <b>Send invite</b> on the meeting.</p></div>
+      <div class="fq"><h3>Can I book a meeting with someone who isn't a contact?</h3><p>Yes. Leave the Contact field blank and add the person as an attendee by name and email — good for internal meetings or one-off outside guests.</p></div>
+      <div class="fq"><h3>A meeting I booked on a contact's page isn't on the calendar.</h3><p>It should appear automatically. Check the calendar's scope filter — if you're viewing "Just my meetings" or another rep, switch to Everyone's calendar (admins) or confirm the meeting is under your name.</p></div>
+      <div class="fq"><h3>How do I cancel without losing the record?</h3><p>Open the meeting and mark it cancelled — it stays on the calendar struck through so the history is intact. Only the meeting's creator can delete it outright.</p></div>
+      <div class="fq"><h3>Why is one meeting tinted differently?</h3><p>Your own meetings are highlighted so they stand out from the rest of the team's on a shared calendar.</p></div>
+    </section>
+
+    <section class="card" id="glossary">
+      <h2><span class="n">9</span> Glossary</h2>
+      <table class="mx">
+        <tbody>
+          <tr><td><b>Meeting</b></td><td>Any scheduled event on the calendar — a meeting, call, tour, or follow-up.</td></tr>
+          <tr><td><b>Attendee</b></td><td>A guest attached to a meeting by name and email, who can receive a calendar invite.</td></tr>
+          <tr><td><b>Calendar invite</b></td><td>An emailed invitation an attendee adds to their own calendar; no platform account needed.</td></tr>
+          <tr><td><b>Type</b></td><td>The category of a meeting (Meeting, Call, Tour, Follow-up, …), editable in Admin settings.</td></tr>
+          <tr><td><b>Scope</b></td><td>Whose meetings the calendar shows — everyone, one rep, or just yours.</td></tr>
+          <tr><td><b>Agenda view</b></td><td>A running list of upcoming meetings grouped by day.</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+  </main>
+</div>
+
+<div class="foot">Restaurant Realty Group — Calendar Help &amp; User Guide · Confidential platform documentation.</div>
+<button class="totop" id="totop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ Top</button>
+
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('#tocNav a'));
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function spy(){
+    var y=window.scrollY+90, cur=secs[0];
+    for(var i=0;i<secs.length;i++){ if(secs[i].offsetTop<=y) cur=secs[i]; }
+    links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('href')==='#'+(cur&&cur.id)); });
+    var tt=document.getElementById('totop'); tt.classList.toggle('show', window.scrollY>400);
+  }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+  var box=document.getElementById('tocSearch'), nav=document.getElementById('tocNav');
+  box.addEventListener('input',function(){
+    var q=box.value.trim().toLowerCase();
+    var any=false;
+    links.forEach(function(a){
+      var sec=document.getElementById(a.getAttribute('href').slice(1));
+      var hit=!q || a.textContent.toLowerCase().indexOf(q)>=0 || (sec&&sec.textContent.toLowerCase().indexOf(q)>=0);
+      a.style.display=hit?'':'none'; if(hit) any=true;
+    });
+    var m=document.getElementById('tocMiss'); if(m) m.remove();
+    if(!any){ var d=document.createElement('div'); d.className='miss'; d.id='tocMiss'; d.textContent='No matches.'; nav.appendChild(d); }
+  });
+})();
+</script>
+</body>
+</html>

@@ -78,19 +78,20 @@ textarea{min-height:64px;resize:vertical;}
 .cal,.agenda,.weekgrid{border-radius:4px;box-shadow:none;}
 .mcard{border-radius:6px;}
 input,select,textarea{border-radius:4px;}
-/* "What your calendar can do" panel */
-.calhelp{border:1px solid var(--line);border-radius:4px;background:#fff;margin-bottom:14px;overflow:hidden;}
-.calhelp .chh{display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f6f8fb;border-bottom:1px solid var(--line);}
-.calhelp .chh b{font-size:13px;font-weight:800;color:var(--navy);}
-.calhelp .chtog{margin-left:auto;background:none;border:none;font:inherit;font-size:12px;font-weight:700;color:var(--blue);cursor:pointer;padding:2px 4px;}
-.calhelp.collapsed .chbody{display:none;}
-.calhelp.collapsed .chh{border-bottom:none;}
-.chgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px 22px;padding:12px 16px;}
-@media(max-width:900px){.chgrid{grid-template-columns:1fr;}}
-.chitem{display:flex;gap:10px;padding:8px 0;align-items:flex-start;}
-.chitem .chi{flex:0 0 auto;width:26px;height:26px;border-radius:4px;background:#eef2fb;color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:14px;}
-.chitem b{display:block;font-size:12.5px;color:var(--ink);font-weight:700;margin-bottom:1px;}
-.chitem span{display:block;font-size:12px;color:var(--muted);line-height:1.45;}
+/* "What your calendar can do" — matches the data-room feature strip */
+.feats{background:#fff;border:1px solid var(--line);border-radius:4px;margin-bottom:16px;overflow:hidden;}
+.featshd{display:flex;align-items:center;gap:10px;padding:13px 20px;cursor:pointer;user-select:none;}
+.featshd b{font-size:14px;color:var(--navy);}
+.featshd .sh{font-size:11.5px;color:var(--muted);font-weight:600;}
+.featshd .chev{margin-left:auto;color:var(--muted);font-size:12px;transition:transform .15s;}
+.feats.collapsed .chev{transform:rotate(-90deg);}
+.feats.collapsed .featgrid{display:none;}
+.featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line);}
+.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;text-decoration:none;color:inherit;transition:background .12s;}
+a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
+.feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
+.feat b{display:block;font-size:12.5px;color:var(--navy);font-weight:800;}
+.feat span{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -98,16 +99,16 @@ input,select,textarea{border-radius:4px;}
 <div class="wrap">
   <h1 class="pgh">Calendar</h1>
   <div class="pgs">Schedule meetings — with your contacts or anyone outside the group — and see everything in one place. Add attendee emails and send a calendar invite in a click.</div>
-  <div class="calhelp" id="calhelp">
-    <div class="chh"><b>What your calendar can do</b><button type="button" class="chtog" id="chtog">Hide</button></div>
-    <div class="chbody"><div class="chgrid">
-      <div class="chitem"><span class="chi">📅</span><div><b>Schedule any meeting</b><span>Meetings, calls, tours and follow-ups — tied to a contact in the system or on their own.</span></div></div>
-      <div class="chitem"><span class="chi">🔭</span><div><b>Four ways to look</b><span>Day, Week, Month and Agenda views — step through with ‹ Today ›.</span></div></div>
-      <div class="chitem"><span class="chi">✉️</span><div><b>Invite outside guests</b><span>Add attendees by name &amp; email and send a real calendar invite in one click.</span></div></div>
-      <div class="chitem"><span class="chi">👥</span><div><b>See the whole team</b><span>Switch between everyone's calendar, one person's, or just your own meetings.</span></div></div>
-      <div class="chitem"><span class="chi">📍</span><div><b>Capture the details</b><span>Type, location — address, video link or phone — and notes on every meeting.</span></div></div>
-      <div class="chitem"><span class="chi">🔄</span><div><b>Always in sync</b><span>Meetings booked from a contact's page appear here automatically; edit or cancel anytime.</span></div></div>
-    </div></div>
+  <div class="feats" id="featStrip">
+    <div class="featshd" id="featHd"><b>What your calendar can do</b><span class="sh">your whole team's schedule, at a glance — tap any tile for help</span><span class="chev" id="featChev">▾</span></div>
+    <div class="featgrid">
+      <a class="feat" href="rrg_calendar_help.html#schedule" target="_blank" rel="noopener"><span class="fic">📅</span><div><b>Schedule any meeting</b><span>Meetings, calls, tours and follow-ups — tied to a contact in the system or on their own.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#views" target="_blank" rel="noopener"><span class="fic">🔭</span><div><b>Four ways to look</b><span>Day, Week, Month and Agenda views — step through with ‹ Today ›.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#invites" target="_blank" rel="noopener"><span class="fic">✉️</span><div><b>Invite outside guests</b><span>Add attendees by name &amp; email and send a real calendar invite in one click.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#scope" target="_blank" rel="noopener"><span class="fic">👥</span><div><b>See the whole team</b><span>Switch between everyone's calendar, one person's, or just your own meetings.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#details" target="_blank" rel="noopener"><span class="fic">📍</span><div><b>Capture the details</b><span>Type, location — address, video link or phone — and notes on every meeting.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#sync" target="_blank" rel="noopener"><span class="fic">🔄</span><div><b>Always in sync</b><span>Meetings booked from a contact's page appear here automatically; edit or cancel anytime.</span></div></a>
+    </div>
   </div>
   <div class="calbar">
     <button class="btn" id="prev" title="Previous">‹</button>
@@ -295,7 +296,7 @@ document.getElementById('del').addEventListener('click',del);
 document.getElementById('sendinv').addEventListener('click',function(){ if(EDIT) sendInvite(EDIT.id,false); });
 document.getElementById('addatt').addEventListener('click',function(){ var box=document.getElementById('f_atts'); box.insertAdjacentHTML('beforeend',attRow({})); wireAttX(); });
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target===this){ /* stay open */ } });
-(function(){ var box=document.getElementById('calhelp'), tog=document.getElementById('chtog'); if(!box||!tog) return; var KEY='rrg_calhelp_collapsed'; try{ if(localStorage.getItem(KEY)==='1') box.classList.add('collapsed'); }catch(e){} function sync(){ tog.textContent=box.classList.contains('collapsed')?'Show':'Hide'; } sync(); tog.addEventListener('click',function(){ var on=box.classList.toggle('collapsed'); try{ localStorage.setItem(KEY,on?'1':'0'); }catch(e){} sync(); }); })();
+(function(){ var fs=document.getElementById('featStrip'), hd=document.getElementById('featHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_calfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_calfeats', col?'0':'1'); }catch(e){} }); })();
 load();
 </script>
 </body></html>
