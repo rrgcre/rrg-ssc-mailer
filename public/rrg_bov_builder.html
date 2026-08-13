@@ -123,10 +123,40 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     <label class="btn" style="display:inline-flex;align-items:center;gap:7px;font-weight:600" title="Use your brand color on the cover banner (Admin → Brand Colors)"><input type="checkbox" id="brandCover" style="width:15px;height:15px;accent-color:var(--red);margin:0"> Brand cover</label>
     <button class="btn fin" id="btnFinalize" onclick="finalizeBov()" style="display:none">✓ Finalize</button>
     <button class="btn" id="btnRevise" onclick="reviseBov()" style="display:none">Revise (new version)</button>
+    <button class="btn" id="btnRefine" onclick="toggleRefine()" style="display:none;color:#20334f;border-color:#c4ccda">✦ Refine</button>
     <button class="btn print" onclick="printBov()">Print</button>
     <button class="btn" id="btnDelete" onclick="deleteBov()" style="display:none;color:#b23a2c;border-color:#e0cdc9">Delete</button>
     <button class="btn" onclick="closeBov()">Close</button>
   </div>
+</div>
+<style>
+#refinePanel{position:fixed;right:18px;bottom:18px;width:372px;max-width:calc(100vw - 24px);height:534px;max-height:calc(100vh - 96px);background:#fff;border:1px solid var(--line,#dbe0e9);border-radius:12px;box-shadow:0 18px 60px rgba(10,20,50,.28);display:none;flex-direction:column;z-index:9998;overflow:hidden;}
+#refinePanel.open{display:flex;}
+#refinePanel .rfhd{background:#20334f;color:#fff;padding:11px 14px;display:flex;align-items:center;gap:8px;font-weight:700;font-size:13.5px;}
+#refinePanel .rfhd .x{margin-left:auto;background:none;border:none;color:#c3ccdf;font-size:19px;cursor:pointer;line-height:1;padding:0 2px;}
+#refinePanel .rfhd .x:hover{color:#fff;}
+#refinePanel .rfsub{font-size:11px;color:#8a93a8;padding:9px 14px 2px;line-height:1.45;}
+#refineMsgs{flex:1;overflow:auto;padding:10px 14px 4px;display:flex;flex-direction:column;gap:9px;}
+.rfmsg{font-size:13px;line-height:1.5;max-width:90%;padding:8px 11px;border-radius:10px;white-space:pre-wrap;word-break:break-word;}
+.rfmsg.broker{align-self:flex-end;background:#eef3fb;color:#1a2236;border:1px solid #dbe4f2;}
+.rfmsg.analyst{align-self:flex-start;background:#f4f6f9;color:#2b3648;border:1px solid #e6e9f0;}
+.rfmsg.applied{align-self:stretch;max-width:100%;background:#eef7f1;border:1px solid #bfe0cd;color:#1f6b47;font-weight:600;font-size:12px;}
+.rfmsg.err{align-self:stretch;max-width:100%;background:#faf5f4;border:1px solid #e0cdc9;color:#b23a2c;font-size:12.5px;}
+#refineForm{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line,#dbe0e9);}
+#refineInput{flex:1;border:1px solid var(--inp,#c4ccda);border-radius:8px;padding:9px 11px;font:inherit;font-size:13px;resize:none;height:38px;max-height:90px;line-height:1.4;}
+#refineInput:focus{outline:none;border-color:var(--primary,#2c5c8f);}
+#refineSend{flex:none;background:var(--primary,#2c5c8f);color:#fff;border:none;border-radius:8px;padding:0 15px;font:inherit;font-weight:700;font-size:13px;cursor:pointer;}
+#refineSend:disabled{opacity:.5;cursor:default;}
+@media print{#refinePanel,#btnRefine{display:none!important;}}
+</style>
+<div id="refinePanel" class="rrg-noprint">
+  <div class="rfhd">✦ <span id="rfName">Refine with the analyst</span><button type="button" class="x" onclick="toggleRefine()" title="Close">×</button></div>
+  <div class="rfsub">Ask why it concluded something, or give a correction — e.g. “value on FY2024”, “add the verified $80K owner-health add-back”, “multiple 5.0× for the 20-yr lease”. Your facts are authoritative; it won’t invent numbers. You still review &amp; finalize.</div>
+  <div id="refineMsgs"></div>
+  <form id="refineForm" onsubmit="sendRefine();return false;">
+    <textarea id="refineInput" rows="1" placeholder="Ask a question or give a correction…" oninput="this.style.height='auto';this.style.height=Math.min(90,this.scrollHeight)+'px';" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendRefine();}"></textarea>
+    <button type="submit" id="refineSend">Send</button>
+  </form>
 </div></div>
 
 <div class="wrap" id="sheet">
@@ -266,6 +296,36 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   function _bmv(s){ var m=String(s==null?'':s).match(/-?\d+(?:\.\d+)?/g); return (m&&m.length)?Math.max.apply(null,m.map(Number)):-1; }
   function sortBuyers(){ try{ var rows=state.buyers; if(!Array.isArray(rows)||rows.length<2) return; var hasHead=_bmv(rows[0]&&rows[0][1])<0 && /multiple/i.test(String((rows[0]||[])[1]||'')); var head=hasHead?rows.slice(0,1):[]; var body=hasHead?rows.slice(1):rows.slice(); body.sort(function(a,b){ return _bmv(b&&b[1]) - _bmv(a&&a[1]); }); state.buyers=head.concat(body); }catch(e){} }
   window.printBov=function(){ sortBuyers(); renderAll(); setTimeout(function(){ window.print(); }, 60); };
+  // ---- Refine with the analyst — conversational Q&A + corrections on the finished BOV ----
+  var _rfHist=[], _rfBusy=false, _rfName='the analyst';
+  function _rfAppend(cls,text){ var m=document.getElementById('refineMsgs'); if(!m) return null; var d=document.createElement('div'); d.className='rfmsg '+cls; d.textContent=text; m.appendChild(d); m.scrollTop=m.scrollHeight; return d; }
+  window.toggleRefine=function(){ var p=document.getElementById('refinePanel'); if(!p) return; var open=p.classList.toggle('open'); if(open){ var m=document.getElementById('refineMsgs'); if(m && !m.children.length){ _rfAppend('analyst','Ask me anything about this valuation, or tell me what to fix — e.g. “value on FY2024”, “add the verified $80K owner-health add-back”, or “multiple 5.0×”. I apply it; you review.'); } setTimeout(function(){ var i=document.getElementById('refineInput'); if(i) i.focus(); },50); } };
+  function _rfApply(ch){ if(!ch||typeof ch!=='object') return 0; var n=0;
+    if(ch.fields&&typeof ch.fields==='object'){ state.fields=state.fields||{}; Object.keys(ch.fields).forEach(function(k){ state.fields[k]=ch.fields[k]; n++; }); apply(state.fields); }
+    if(ch.bridge&&typeof ch.bridge==='object'){ state.bridge=state.bridge||{}; Object.keys(ch.bridge).forEach(function(k){ state.bridge[k]=ch.bridge[k]; n++; }); }
+    if(n){ try{ renderAll(); }catch(e){} try{ save(); }catch(e){} }
+    return n;
+  }
+  window.sendRefine=function(){
+    if(_rfBusy) return;
+    var inp=document.getElementById('refineInput'); if(!inp) return; var msg=(inp.value||'').trim(); if(!msg) return;
+    if(!_bid){ _rfAppend('err','Build or open a saved valuation first — refine works on a real BOV record.'); return; }
+    if(_locked){ _rfAppend('err','This valuation is Final. Click “Revise (new version)” to reopen it, then refine.'); return; }
+    inp.value=''; inp.style.height='38px'; _rfAppend('broker',msg); _rfHist.push({role:'broker',text:msg});
+    _rfBusy=true; var sb=document.getElementById('refineSend'); if(sb){ sb.disabled=true; sb.textContent='…'; }
+    var thinking=_rfAppend('analyst',_rfName+' is thinking…');
+    var payload={ message:msg, history:_rfHist.slice(-8), state:{ fields:collect(), bridge:state.bridge||{} } };
+    fetch('/api/bov/'+encodeURIComponent(_bid)+'/refine',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(payload)})
+      .then(function(r){ return r.json(); }).then(function(j){
+        if(thinking&&thinking.parentNode) thinking.parentNode.removeChild(thinking);
+        if(!j||!j.ok){ _rfAppend('err',(j&&j.error)||'Could not reach the analyst.'); return; }
+        _rfAppend('analyst',j.reply||'Done.'); _rfHist.push({role:'analyst',text:j.reply||''});
+        var n=_rfApply(j.changes);
+        if(n){ _rfAppend('applied','✓ Applied to the valuation — '+n+' value'+(n===1?'':'s')+' updated. Review the numbers, then Finalize when it’s right.'); }
+      }).catch(function(){ if(thinking&&thinking.parentNode) thinking.parentNode.removeChild(thinking); _rfAppend('err','Could not reach the server.'); })
+      .then(function(){ _rfBusy=false; var sb2=document.getElementById('refineSend'); if(sb2){ sb2.disabled=false; sb2.textContent='Send'; } });
+  };
+  try{ fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.assistant){ _rfName=j.assistant; var el=document.getElementById('rfName'); if(el) el.textContent='Refine with '+j.assistant; } }).catch(function(){}); }catch(e){}
   function grp(s){ s=String(s).replace(/[^0-9\-]/g,''); return s?Number(s).toLocaleString('en-US'):''; }
   window.grpme=function(el){ el.value=grp(el.value); };
   function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
@@ -580,6 +640,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   function renderBovStatus(bov){
     _version=bov.version||1; _versions=Array.isArray(bov.versions)?bov.versions:[]; _locked=!!bov.finalizedAt;
     var _bd=document.getElementById('btnDelete'); if(_bd) _bd.style.display='';
+    var _rb=document.getElementById('btnRefine'); if(_rb) _rb.style.display=(!bov.pending && !bov.finalizedAt)?'':'none';
     var bf=document.getElementById('btnFinalize'), br=document.getElementById('btnRevise'), built=!bov.pending;
     if(_locked){ if(bf)bf.style.display='none'; if(br)br.style.display=''; document.body.classList.add('bov-locked'); }
     else { if(bf)bf.style.display=built?'':'none'; if(br)br.style.display='none'; document.body.classList.remove('bov-locked'); }

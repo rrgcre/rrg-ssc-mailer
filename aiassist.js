@@ -323,4 +323,35 @@ async function polishPrompts({ questions, callType }) {
   })).filter(it => it.i != null && it.prompt);
   return { items };
 }
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts };
+// Conversational refine of a finished BOV. The broker either ASKS a question about the valuation
+// or gives a CORRECTION. Returns { reply, changes } where changes optionally patches fields/bridge.
+// The broker's stated facts/judgment are authoritative; numbers are never fabricated.
+async function refineBov({ state, message, history, agentName }) {
+  const name = agentName || 'the analyst';
+  const sys = 'You are ' + name + ', a seasoned restaurant & bar business-sale broker at Restaurant Realty Group, refining a Broker’s Opinion of Value (BOV) that YOU drafted. You are given the CURRENT BOV as JSON with "fields" (narrative + inputs like multiples and ebLow/ebUp) and "bridge" (the earnings-bridge numbers). The broker will either ASK a question about the valuation or give a CORRECTION / instruction.\n' +
+    'HOW TO RESPOND:\n' +
+    '- QUESTION (e.g. "how did you get adjusted EBITDA?"): answer plainly, broker-to-broker, lead with the number or reason, 1–5 sentences. Make NO changes.\n' +
+    '- CORRECTION (e.g. "value on FY2024", "add the verified $80K owner health add-back", "multiple should be 5.0× for the 20-year lease control", "the address is X", "tighten the range"): apply ONLY what the broker asked. Put the changed keys in "changes". Do NOT recompute EBITDA/SDE/Adjusted EBITDA or the value ranges yourself — the app derives those automatically from the bridge and the multiples; you only set the input values and any narrative that should reflect the change.\n' +
+    'DISCIPLINE:\n' +
+    '- The broker’s stated facts and judgment are AUTHORITATIVE — a verified add-back, the period to value on, the chosen multiple, the address. Apply them.\n' +
+    '- NEVER fabricate a number that is not given by the broker or already present in the bridge. If you cannot source a requested figure, say so in the reply and make NO change to it.\n' +
+    '- Do not inflate toward a target. If a requested change makes the opinion hard to defend, apply it but flag the caution in your reply.\n' +
+    '- Change ONLY the keys that must change; leave everything else out of "changes".\n' +
+    'KEYS — bridge (numbers, plain digits, no $ or commas): revenue, netIncome, interest, entityTax, depreciation, amortization, ownerSalary, ownerHealth, familyPayroll, oneTime, rentNorm, marketGM. fields: subject, descriptor, tagline, preparedFor, date, purpose, subjectOf, excluded, basisOf, execNarr, whyHolds, earnNarr, multLow, multBase, multHigh, methodNarr, premium, tempers, ebLow, ebUp, concNarr, gtmNarr, assume, coNote.\n' +
+    'Return ONLY a JSON object: {"reply":"plain text, no markdown","changes":{"fields":{...},"bridge":{...}}}. For a pure question, omit "changes" or set it to null. Numbers as plain digit strings (e.g. "312000").';
+  const parts = [];
+  parts.push('=== CURRENT BOV (the valuation as it stands) ===\n' + JSON.stringify({ fields: (state && state.fields) || {}, bridge: (state && state.bridge) || {} }).slice(0, 60000));
+  if (Array.isArray(history) && history.length) parts.push('=== Conversation so far (oldest first) ===\n' + JSON.stringify(history.slice(-8)).slice(0, 8000));
+  parts.push('=== The broker says ===\n' + String(message || '').slice(0, 2000) + '\n\nRespond now as the JSON object only.');
+  const text = await callClaude(sys, parts.join('\n\n'), 2200);
+  const r = extractJson(text) || { reply: (text || 'I could not read a result.').slice(0, 1500) };
+  const out = { reply: String(r.reply || 'Done.').slice(0, 2000) };
+  if (r.changes && typeof r.changes === 'object') {
+    const ch = {};
+    if (r.changes.fields && typeof r.changes.fields === 'object') { ch.fields = {}; Object.keys(r.changes.fields).slice(0, 40).forEach(k => { ch.fields[String(k).slice(0, 40)] = String(r.changes.fields[k] == null ? '' : r.changes.fields[k]).slice(0, 6000); }); }
+    if (r.changes.bridge && typeof r.changes.bridge === 'object') { ch.bridge = {}; Object.keys(r.changes.bridge).slice(0, 20).forEach(k => { ch.bridge[String(k).slice(0, 30)] = String(r.changes.bridge[k] == null ? '' : r.changes.bridge[k]).slice(0, 20); }); }
+    if ((ch.fields && Object.keys(ch.fields).length) || (ch.bridge && Object.keys(ch.bridge).length)) out.changes = ch;
+  }
+  return out;
+}
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };

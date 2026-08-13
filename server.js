@@ -2794,6 +2794,21 @@ app.post('/api/bov', (req, res) => {
 // Finalize a built valuation — locks the earnings bridge and the concluded numbers.
 // The rep can still create a new version later (see /revise), but the finalized copy
 // is preserved. This is the number the firm hands the seller, protected from silent change.
+// Conversational refine: the broker asks the analyst a question about the finished BOV or gives a
+// correction. Operates on the client's CURRENT (possibly unsaved) state so in-progress edits count.
+app.post('/api/bov/:id/refine', express.json({ limit: '1mb' }), async (req, res) => {
+  try {
+    const b = loadBovs().find(x => x.id === req.params.id);
+    if (!b) return res.status(404).json({ ok: false, error: 'Not found.' });
+    if (!ownsBov(req, b)) return res.status(403).json({ ok: false, error: 'Not yours.' });
+    if (b.finalizedAt) return res.status(409).json({ ok: false, error: 'This valuation is Final. Click “Revise (new version)” first, then refine the draft.' });
+    const body = req.body || {};
+    const msg = String(body.message || '').trim();
+    if (!msg) return res.status(400).json({ ok: false, error: 'Ask a question or give a correction.' });
+    const out = await aiassist.refineBov({ state: (body.state && typeof body.state === 'object') ? body.state : {}, message: msg, history: Array.isArray(body.history) ? body.history : [], agentName: effAssistantName() });
+    res.json({ ok: true, reply: out.reply, changes: out.changes || null });
+  } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 app.post('/api/bov/:id/finalize', (req, res) => {
   const bovs = loadBovs();
   const b = bovs.find(x => x.id === req.params.id);
