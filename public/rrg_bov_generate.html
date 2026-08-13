@@ -116,27 +116,19 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
     <textarea class="name" id="bovNotes" rows="4" placeholder="Context the analyst should use before valuing this business — e.g. &quot;This is Buffalo Blue, a bar in San Antonio. The attached P&amp;L is Buffalo Blue only. Add back ~$120K owner comp; the lease has two 5-year options; exclude the catering line.&quot; The analyst uses this alongside the documents." style="resize:vertical;line-height:1.5"></textarea>
 
     <div class="uphd">
-      <span class="l">Upload the deal documents</span>
+      <span class="l">Deal documents</span>
       <span class="r">PDF, image, or CSV</span>
     </div>
 
-    <div class="drop" onclick="pick('fin')">
-      <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/></svg></div>
-      <div class="mid"><div class="t">Financials<span class="req">*</span></div><div class="h">Trailing P&amp;L and any add-back / normalization detail. Send the key statements — not full tax returns or every bank statement.</div></div>
-      <div class="cta">Upload</div>
-    </div>
-    <div class="files" id="fin_files"></div>
-    <input type="file" id="fin_in" multiple accept=".pdf,.png,.jpg,.jpeg,.csv,.txt" style="display:none" onchange="took('fin')">
-
     <div class="vqnote" id="vqnote" style="display:none"></div>
 
-    <div class="drop" onclick="pick('lease')">
+    <div class="drop" onclick="pick('docs')">
       <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/></svg></div>
-      <div class="mid"><div class="t">Lease &amp; Amendments<span class="opt">— if leased</span></div><div class="h">The lease plus every amendment — term, rent, options, assignability. Skip if the business owns its real estate.</div></div>
+      <div class="mid"><div class="t">Financials, lease &amp; diligence docs<span class="opt">— optional if they're in the data room</span></div><div class="h">Trailing P&amp;L with add-backs, the lease and amendments, and anything else that helps. Drop them all here — <b id="aiSort">Hubert AI</b> sorts each file, so there's no need to label them.</div></div>
       <div class="cta">Upload</div>
     </div>
-    <div class="files" id="lease_files"></div>
-    <input type="file" id="lease_in" multiple accept=".pdf,.png,.jpg,.jpeg,.txt" style="display:none" onchange="took('lease')">
+    <div class="files" id="docs_files"></div>
+    <input type="file" id="docs_in" multiple accept=".pdf,.png,.jpg,.jpeg,.csv,.txt" style="display:none" onchange="took('docs')">
 
     <div class="uphd" style="margin-top:24px">
       <span class="l">Reviews, press &amp; video <span style="color:var(--soft);font-weight:600;font-size:11px">— optional</span></span>
@@ -168,7 +160,9 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
 </div>
 
 <script>
-var SLOTS={fin:[],lease:[]}, LABEL={fin:'Financials',lease:'Lease & Amendments'};
+var SLOTS={docs:[]};
+// Reflect the admin-configured AI name in the upload hint (falls back to the "Hubert AI" default).
+setTimeout(function(){ try{ var el=document.getElementById('aiSort'); if(el && typeof aiName==='function'){ var n=aiName(); if(n && n!=='AI') el.textContent=n; } }catch(e){} },500);
 var BOV_ID='';
 // Opened for a specific Requested valuation record: prefill the business name and
 // remember the record id so building fulfills it (rather than creating a new one).
@@ -201,7 +195,7 @@ var BOV_ID='';
   }catch(e){}
 })();
 function pick(s){ document.getElementById(s+'_in').click(); }
-function gate(){ document.getElementById('go').disabled = !SLOTS.fin.length; }
+function gate(){ document.getElementById('go').disabled = !(SLOTS.docs && SLOTS.docs.length) && !window.ROOM_HAS_FIN; }
 // ---- Reference links (press, reviews, video, web presence) ----
 var LINKS=[];
 function _escLink(s){ return String(s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
@@ -321,8 +315,8 @@ function generate(){
   unlockAudio();
   try{ var _li=document.getElementById('linkInput'); if(_li && _li.value.trim()) addLink(); }catch(e){}
   var biz=document.getElementById('biz').value.trim();
-  if(!SLOTS.fin.length && !window.ROOM_HAS_FIN){ setStatus('err','Upload at least one financials document before building, or add it to the data room. (Add the lease too if the business leases its space.)'); return; }
-  var all=[]; Object.keys(SLOTS).forEach(function(s){ SLOTS[s].forEach(function(f){ all.push({file:f,label:LABEL[s]}); }); });
+  if(!(SLOTS.docs&&SLOTS.docs.length) && !window.ROOM_HAS_FIN){ setStatus('err','Add at least the financials — drop them above, or have them in the data room. (Include the lease too if the business leases its space.)'); return; }
+  var all=[]; (SLOTS.docs||[]).forEach(function(f){ all.push({file:f,label:f.name}); });
   setStatus('',''); document.getElementById('status').className='status';
   workShow('Securely delivering the deal documents to '+aiName()+'…');
   Promise.all(all.map(function(x){ return readFile(x.file,x.label); })).then(function(files){

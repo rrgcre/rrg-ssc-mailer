@@ -122,6 +122,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     <button class="btn fin" id="btnFinalize" onclick="finalizeBov()" style="display:none">✓ Finalize</button>
     <button class="btn" id="btnRevise" onclick="reviseBov()" style="display:none">Revise (new version)</button>
     <button class="btn print" onclick="printBov()">Print</button>
+    <button class="btn" id="btnDelete" onclick="deleteBov()" style="display:none;color:#b23a2c;border-color:#e0cdc9">Delete</button>
     <button class="btn" onclick="closeBov()">Close</button>
   </div>
 </div></div>
@@ -570,6 +571,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   function fmtDate(iso){ try{ return new Date(iso).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}); }catch(e){ return String(iso||'').slice(0,10); } }
   function renderBovStatus(bov){
     _version=bov.version||1; _versions=Array.isArray(bov.versions)?bov.versions:[]; _locked=!!bov.finalizedAt;
+    var _bd=document.getElementById('btnDelete'); if(_bd) _bd.style.display='';
     var bf=document.getElementById('btnFinalize'), br=document.getElementById('btnRevise'), built=!bov.pending;
     if(_locked){ if(bf)bf.style.display='none'; if(br)br.style.display=''; document.body.classList.add('bov-locked'); }
     else { if(bf)bf.style.display=built?'':'none'; if(br)br.style.display='none'; document.body.classList.remove('bov-locked'); }
@@ -601,6 +603,17 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     try{ fj=await (await fetch('/api/bov/'+encodeURIComponent(id)+'/finalize',{method:'POST',headers:{'Content-Type':'application/json'}})).json(); }catch(e){ alert('Could not reach the server.'); return; }
     if(fj&&fj.ok){ if(_bid){ location.reload(); } else { location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(id); } }
     else alert((fj&&fj.error)||'Could not finalize.');
+  };
+  window.deleteBov=async function(){
+    if(!_bid){ location.href='./rrg_bov_queue.html'; return; }
+    var warn=_locked ? 'Delete this FINALIZED valuation? The delivered number and its full version history are permanently removed. This cannot be undone.'
+                     : 'Delete this valuation? It is permanently removed from your Valuations list, along with the financials/lease it filed. This cannot be undone.';
+    if(!await rrgConfirm(warn,{title:'Delete valuation?',okText:'Delete'})) return;
+    var bd=document.getElementById('btnDelete'); if(bd){ bd.disabled=true; bd.textContent='Deleting…'; }
+    try{ var j=await (await fetch('/api/bov/'+encodeURIComponent(_bid),{method:'DELETE',credentials:'same-origin'})).json();
+      if(j&&j.ok){ try{localStorage.removeItem(KEY);}catch(e){} location.href='./rrg_bov_queue.html'; }
+      else { if(bd){ bd.disabled=false; bd.textContent='Delete'; } alert((j&&j.error)||'Could not delete the valuation.'); }
+    }catch(e){ if(bd){ bd.disabled=false; bd.textContent='Delete'; } alert('Could not reach the server.'); }
   };
   window.reviseBov=async function(){
     if(!_bid) return;
