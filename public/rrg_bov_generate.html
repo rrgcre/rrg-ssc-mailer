@@ -91,6 +91,7 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
 .modal .mmute{margin-top:14px;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer;user-select:none;border:1px solid var(--line);border-radius:100px;padding:6px 14px;transition:.15s;}
 .modal .mmute:hover{border-color:#9fb0cc;color:var(--navy);}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="/rrg_ambience.js"></script>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -131,7 +132,7 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
       <div class="cta">Upload</div>
     </div>
     <div class="files" id="docs_files"></div>
-    <input type="file" id="docs_in" multiple accept=".pdf,.png,.jpg,.jpeg,.csv,.txt" style="display:none" onchange="took('docs')">
+    <input type="file" id="docs_in" multiple accept=".pdf,.png,.jpg,.jpeg,.csv,.txt,.xlsx,.xls,.xlsm" style="display:none" onchange="took('docs')">
 
     <div class="uphd" style="margin-top:24px">
       <span class="l">Reviews, press &amp; video <span style="color:var(--soft);font-weight:600;font-size:11px">— optional</span></span>
@@ -225,6 +226,22 @@ function took(s){
 }
 function readFile(file,label){
   return new Promise(function(resolve){
+    // Spreadsheets (Excel) must be converted to text — the analyst can't read a raw .xlsx binary,
+    // and an unconverted spreadsheet is silently dropped, which produced all-zero valuations.
+    if(/\.(xlsx|xlsm|xlsb|xls)$/i.test(file.name) && window.XLSX){
+      var rb=new FileReader();
+      rb.onload=function(){
+        try{
+          var wb=XLSX.read(new Uint8Array(rb.result),{type:'array'});
+          var parts=[];
+          (wb.SheetNames||[]).forEach(function(sn){ try{ var csv=XLSX.utils.sheet_to_csv(wb.Sheets[sn]); if(csv&&csv.trim()) parts.push('--- Sheet: '+sn+' ---\n'+csv); }catch(e){} });
+          resolve({name:file.name,type:'text/plain',text:(parts.join('\n\n')||'(the spreadsheet was empty)'),label:label});
+        }catch(e){ resolve({name:file.name,type:'text/plain',text:'(could not read spreadsheet '+file.name+')',label:label}); }
+      };
+      rb.onerror=function(){ resolve(null); };
+      rb.readAsArrayBuffer(file);
+      return;
+    }
     var isText=/^text\//.test(file.type)||/\.(csv|txt)$/i.test(file.name);
     var r=new FileReader();
     r.onload=function(){

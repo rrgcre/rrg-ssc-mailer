@@ -2270,7 +2270,19 @@ function roomFilesForBov(bov) {
     (room.docs || []).forEach(d => {
       const c = (d && d.category) || ''; let label = '';
       if (c.indexOf('Financials') === 0) label = 'Financials'; else if (c === 'Lease') label = 'Lease'; else return;
-      try { const fp = path.join(ROOMS_DIR, d.id + '.' + d.ext); if (fp.startsWith(ROOMS_DIR) && fs.existsSync(fp)) { out.push({ name: (d.title || d.originalName || ('doc.' + d.ext)), dataB64: fs.readFileSync(fp).toString('base64'), label: label }); } } catch (e) {}
+      try {
+        const ext = String(d.ext || '').toLowerCase();
+        const fp = path.join(ROOMS_DIR, d.id + '.' + ext);
+        if (!(fp.startsWith(ROOMS_DIR) && fs.existsSync(fp))) return;
+        const name = (d.title || d.originalName || ('doc.' + ext));
+        // Set the media type from the extension — without it the analyst silently drops the file.
+        if (ext === 'csv' || ext === 'txt') {
+          out.push({ name: name, label: label, type: 'text/plain', text: fs.readFileSync(fp, 'utf8').slice(0, 200000) });
+        } else {
+          const mt = ext === 'pdf' ? 'application/pdf' : (ext === 'png' ? 'image/png' : ((ext === 'jpg' || ext === 'jpeg') ? 'image/jpeg' : (ext === 'gif' ? 'image/gif' : '')));
+          out.push({ name: name, label: label, type: mt, dataB64: fs.readFileSync(fp).toString('base64') });
+        }
+      } catch (e) {}
     });
   } catch (e) {}
   return out;

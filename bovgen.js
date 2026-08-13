@@ -165,14 +165,27 @@ function summarize(state, threshold) {
 function fileBlocks(files) {
   const blocks = [];
   (files || []).forEach(f => {
-    const mt = String(f.type || '').toLowerCase();
+    let mt = String(f.type || '').toLowerCase();
     const label = f.label || f.name || 'Document';
+    // Infer the media type from the filename when it's missing (data-room files carry no type).
+    if (!mt && f.dataB64) {
+      const e = ((String(f.name || '').match(/\.([a-z0-9]+)$/i) || [])[1] || '').toLowerCase();
+      if (e === 'pdf') mt = 'application/pdf';
+      else if (e === 'png') mt = 'image/png';
+      else if (e === 'jpg' || e === 'jpeg') mt = 'image/jpeg';
+      else if (e === 'gif') mt = 'image/gif';
+    }
     if (mt === 'application/pdf' && f.dataB64) {
       blocks.push({ type: 'document', title: label, source: { type: 'base64', media_type: 'application/pdf', data: f.dataB64 } });
     } else if (mt.indexOf('image/') === 0 && f.dataB64) {
       blocks.push({ type: 'image', source: { type: 'base64', media_type: mt, data: f.dataB64 } });
     } else if (f.text) {
       blocks.push({ type: 'text', text: '=== ' + label + ' ===\n' + String(f.text).slice(0, 60000) });
+    } else if (f.dataB64 || f.name) {
+      // A provided file we cannot turn into a readable block (e.g. a raw spreadsheet binary). Never
+      // drop it silently — tell the analyst so it flags "financials not readable" rather than
+      // valuing on nothing and returning zeros with no explanation.
+      blocks.push({ type: 'text', text: '=== ' + label + ' — COULD NOT BE READ ===\nThis file was provided but is in a format that could not be read here (likely a spreadsheet binary that was not converted to text). Treat its contents as NOT PROVIDED — do not guess them — and state in basisOf that this document could not be read.' });
     }
   });
   return blocks;
