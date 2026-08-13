@@ -6782,10 +6782,19 @@ app.post('/api/gl/import-accounts', requireAdmin, express.json({ limit: '4mb' })
 // Wipe GL data. journal:true clears manual entries; accounts:'empty' removes every account,
 // accounts:'default' resets to the starter chart. Auto-posted entries come from invoices /
 // payments / expenses and are not stored here, so they are unaffected.
+// The data writer guards against overwriting >=2 records with an empty array — a safety net
+// against accidental wipes. A GL reset is a *deliberate* wipe, so it bypasses that one guard.
+function _glForceWrite(file, data) {
+  try {
+    if (DB_OK && _db && typeof _db._db === 'function') { const raw = _db._db(); if (raw) { raw.prepare('INSERT INTO stores(name,json,updated_at) VALUES(?,?,?) ON CONFLICT(name) DO UPDATE SET json=excluded.json, updated_at=excluded.updated_at').run(path.basename(file), JSON.stringify(data), new Date().toISOString()); return true; } }
+    if (!fs.existsSync(path.dirname(file))) fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(data, null, 2)); return true;
+  } catch (e) { console.error('glForceWrite:', e && e.message); return false; }
+}
 app.post('/api/gl/reset', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {};
-  if (b.journal) saveGlJournal([]);
-  if (b.accounts === 'empty') saveGlAccounts([]);
+  if (b.journal) _glForceWrite(GL_JOURNAL_FILE, []);
+  if (b.accounts === 'empty') _glForceWrite(GL_ACCOUNTS_FILE, []);
   else if (b.accounts === 'default') saveGlAccounts(_glDefaultAccounts());
   res.json({ ok: true, accounts: loadGlAccounts() });
 });
