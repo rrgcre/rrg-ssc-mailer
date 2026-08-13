@@ -137,7 +137,7 @@ input,select{width:100%;border:1px solid #cfd6e2;border-radius:4px;padding:8px 1
 
 <script>
 var DATA={accounts:[],entries:[],trialBalance:{rows:[],totalDebit:0,totalCredit:0,balanced:true},accountTypes:[]};
-var TAB='trial', LEDGER_ACCT='', EDITID='';
+var TAB='trial', LEDGER_ACCT='', EDITID='', ROLLUP=true; try{ ROLLUP=(localStorage.getItem('rrg_gl_rollup')!=='0'); }catch(e){}
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function money(n){ n=Number(n||0); var neg=n<0; n=Math.abs(n); var s='$'+n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2}); return neg?('('+s+')'):s; }
 function money0(n){ if(!n) return '<span style="color:#c3cad6">—</span>'; return money(n); }
@@ -159,20 +159,36 @@ function render(){
   else if(TAB==='ledger') renderLedger();
   else renderAccounts();
 }
+// Sum an account plus its whole sub-account subtree (debit/credit/balance).
+function _glSubtree(code, byCode, kids){ var d=0,c=0,b=0; (function walk(cc){ var r=byCode[cc]; if(r){ d+=r.debit||0; c+=r.credit||0; b+=r.balance||0; } (kids[cc]||[]).forEach(function(ch){ walk(ch.code); }); })(code); return {debit:Math.round(d*100)/100,credit:Math.round(c*100)/100,balance:Math.round(b*100)/100}; }
+// The account code plus every code beneath it.
+function _glDescendants(code){ var kids=acctChildrenMap(); var set={}; set[code]=1; (function walk(cc){ (kids[cc]||[]).forEach(function(ch){ set[ch.code]=1; walk(ch.code); }); })(code); return set; }
 function renderTrial(){
   var tb=DATA.trialBalance||{rows:[]};
-  var depth=acctDepth();
-  var rows=tb.rows.filter(function(r){return r.debit||r.credit;});
-  var body=rows.map(function(r){ var pad=(depth[r.code]||0)*18; var caret=(depth[r.code]>0)?'<span style="color:#c3cad6">↳</span> ':'';
-    return '<tr><td class="code">'+esc(r.code)+'</td><td><span style="padding-left:'+pad+'px">'+caret+esc(r.name)+'</span> <span class="tpill tp-'+esc(r.type)+'">'+esc(r.type)+'</span></td><td class="num">'+money0(r.debit)+'</td><td class="num">'+money0(r.credit)+'</td><td class="num">'+money(r.balance)+'</td></tr>';
-  }).join('') || '<tr><td colspan="5" class="empty">No posted activity yet. Add invoices, expenses, or a manual entry.</td></tr>';
+  var byCode={}; tb.rows.forEach(function(r){ byCode[r.code]=r; });
+  var kids=acctChildrenMap();
+  var body='';
+  if(ROLLUP){
+    acctTree().filter(function(x){return x.depth===0;}).forEach(function(x){ var a=x.a; var t=_glSubtree(a.code,byCode,kids); if(!t.debit && !t.credit) return; var hasKids=(kids[a.code]||[]).length>0;
+      body+='<tr><td class="code">'+esc(a.code)+'</td><td>'+esc(a.name)+(hasKids?' <span style="color:#8a93a8;font-size:11px;font-weight:600">rolled up</span>':'')+' <span class="tpill tp-'+esc(a.type)+'">'+esc(a.type)+'</span></td><td class="num">'+money0(t.debit)+'</td><td class="num">'+money0(t.credit)+'</td><td class="num">'+money(t.balance)+'</td></tr>';
+    });
+    if(!body) body='<tr><td colspan="5" class="empty">No posted activity yet. Add invoices, expenses, or a manual entry.</td></tr>';
+  } else {
+    var depth=acctDepth();
+    var rows=tb.rows.filter(function(r){return r.debit||r.credit;});
+    body=rows.map(function(r){ var pad=(depth[r.code]||0)*18; var caret=(depth[r.code]>0)?'<span style="color:#c3cad6">↳</span> ':'';
+      return '<tr><td class="code">'+esc(r.code)+'</td><td><span style="padding-left:'+pad+'px">'+caret+esc(r.name)+'</span> <span class="tpill tp-'+esc(r.type)+'">'+esc(r.type)+'</span></td><td class="num">'+money0(r.debit)+'</td><td class="num">'+money0(r.credit)+'</td><td class="num">'+money(r.balance)+'</td></tr>';
+    }).join('') || '<tr><td colspan="5" class="empty">No posted activity yet. Add invoices, expenses, or a manual entry.</td></tr>';
+  }
   var bal=tb.balanced?'<span class="bal ok">In balance ✓</span>':'<span class="bal no">Out of balance</span>';
+  var toggle='<label style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted);font-size:12px;display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="tbRollup" style="width:auto"'+(ROLLUP?' checked':'')+'> Roll up sub-accounts</label>';
   document.getElementById('view').innerHTML=
-    '<div class="card"><div class="ch">Trial Balance <span class="rt">'+bal+'</span></div>'+
+    '<div class="card"><div class="ch">Trial Balance <span class="rt" style="display:flex;align-items:center;gap:12px">'+toggle+bal+'</span></div>'+
     '<table><thead><tr><th style="width:70px">Code</th><th>Account</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th></tr></thead><tbody>'+
     body+
     '<tr class="totrow"><td></td><td>Totals</td><td class="num">'+money(tb.totalDebit)+'</td><td class="num">'+money(tb.totalCredit)+'</td><td class="num"></td></tr>'+
     '</tbody></table></div>';
+  var _rt=document.getElementById('tbRollup'); if(_rt) _rt.addEventListener('change',function(){ ROLLUP=this.checked; try{localStorage.setItem('rrg_gl_rollup',ROLLUP?'1':'0');}catch(e){} renderTrial(); });
 }
 function srcBadge(s){ var lbl={invoice:'Invoice',payment:'Payment',expense:'Expense',manual:'Manual'}[s]||s; return '<span class="src src-'+esc(s)+'">'+esc(lbl)+'</span>'; }
 function renderJournal(){
@@ -188,14 +204,16 @@ function renderJournal(){
 }
 function renderLedger(){
   var opts='<option value="">— pick an account —</option>'+DATA.accounts.map(function(a){ return '<option value="'+esc(a.code)+'"'+(a.code===LEDGER_ACCT?' selected':'')+'>'+esc(a.code+' · '+a.name)+'</option>'; }).join('');
-  var head='<div class="card"><div class="ch">Account Ledger <span class="rt"><select id="ledgerSel" style="width:auto;min-width:240px">'+opts+'</select></span></div>';
+  var _kidNote=(LEDGER_ACCT && ROLLUP && Object.keys(_glDescendants(LEDGER_ACCT)).length>1)?'<span style="color:#8a93a8;font-size:11.5px">includes sub-accounts</span>':'';
+  var head='<div class="card"><div class="ch">Account Ledger <span class="rt" style="display:flex;align-items:center;gap:8px"><select id="ledgerSel" style="width:auto;min-width:240px">'+opts+'</select>'+_kidNote+'</span></div>';
   var bodyHtml='';
   if(!LEDGER_ACCT){ bodyHtml='<div class="empty">Pick an account to see its running ledger.</div>'; }
   else {
     var debitNormal=(acctType(LEDGER_ACCT)==='Asset'||acctType(LEDGER_ACCT)==='Expense');
+    var acctSet=ROLLUP?_glDescendants(LEDGER_ACCT):(function(){var s={};s[LEDGER_ACCT]=1;return s;})();
     var rows=[]; var running=0;
     DATA.entries.slice().sort(function(a,b){ return String(a.date).localeCompare(String(b.date))||String(a.id).localeCompare(String(b.id)); }).forEach(function(e){
-      e.lines.forEach(function(l){ if(l.account!==LEDGER_ACCT) return; var delta=debitNormal?((l.debit||0)-(l.credit||0)):((l.credit||0)-(l.debit||0)); running=Math.round((running+delta)*100)/100; rows.push({date:e.date,memo:e.memo,source:e.source,debit:l.debit,credit:l.credit,bal:running}); });
+      e.lines.forEach(function(l){ if(!acctSet[l.account]) return; var delta=debitNormal?((l.debit||0)-(l.credit||0)):((l.credit||0)-(l.debit||0)); running=Math.round((running+delta)*100)/100; var sub=(l.account!==LEDGER_ACCT)?(' · '+acctName(l.account)):''; rows.push({date:e.date,memo:(e.memo||'')+sub,source:e.source,debit:l.debit,credit:l.credit,bal:running}); });
     });
     if(!rows.length){ bodyHtml='<div class="empty">No activity in this account yet.</div>'; }
     else {
