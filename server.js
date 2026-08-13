@@ -417,6 +417,11 @@ function effConceptLabel() { const s = loadSettings(); const v = String(s.concep
 function effConceptLabelPlural() { const s = loadSettings(); const v = String(s.conceptLabelPlural || '').trim(); return v ? v.slice(0, 30) : (effConceptLabel() + 's'); }
 function effShowRequestRibbon() { const s = loadSettings(); return s.showRequestRibbon !== false; }
 function effPipelineRequired() { const s = loadSettings(); return !!s.pipelineRequiredOnCompany; }
+// Calendar feature flags — admin can turn each on/off (default ON).
+const CAL_FEATURES = { calSync: 'featCalSync', calTasks: 'featCalTasks', calMeet: 'featCalMeet', workHours: 'featWorkHours', eventFiles: 'featEventFiles', booking: 'featBooking' };
+function effCalFeatures() { const s = loadSettings(); const o = {}; for (const k in CAL_FEATURES) o[k] = s[CAL_FEATURES[k]] !== false; return o; }
+function calFeatOn(k) { const s = loadSettings(); return s[CAL_FEATURES[k]] !== false; }
+function calFeatFlags() { return { featCalSync: calFeatOn('calSync'), featCalTasks: calFeatOn('calTasks'), featCalMeet: calFeatOn('calMeet'), featWorkHours: calFeatOn('workHours'), featEventFiles: calFeatOn('eventFiles'), featBooking: calFeatOn('booking') }; }
 function effShowQuickLinks() { const s = loadSettings(); return s.showQuickLinks !== false; }
 const CURRENCY_SYMBOLS={USD:'$',CAD:'C$',AUD:'A$',NZD:'NZ$',EUR:'€',GBP:'£',JPY:'¥',CNY:'¥',INR:'₹',MXN:'MX$',BRL:'R$',CHF:'CHF ',SEK:'kr ',NOK:'kr ',DKK:'kr ',ZAR:'R',AED:'AED ',SGD:'S$',HKD:'HK$'};
 function effCurrency(){ const s=loadSettings(); const c=(typeof s.currency==='string'&&s.currency)?s.currency.toUpperCase():'USD'; return CURRENCY_SYMBOLS[c]?c:'USD'; }
@@ -8156,7 +8161,7 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(),
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags(),
     defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, roomCloseReasons: ROOM_CLOSE_REASONS, cuisineTypes: CUISINE_TYPES, agreementTypes: AGREEMENT_TYPES },
     isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), roomCloseReasons: Array.isArray(s.roomCloseReasons), cuisineTypes: Array.isArray(s.cuisineTypes), agreementTypes: Array.isArray(s.agreementTypes) },
     systemRequired: { leadSources: SYSTEM_LEAD_SOURCES, personTypes: SYSTEM_PERSON_TYPES, companyTypes: SYSTEM_COMPANY_TYPES, activityTypes: SYSTEM_ACTIVITY_TYPES, agreementTypes: AGREEMENT_TYPES.map(function(t){ return t.label; }) },
@@ -8164,7 +8169,7 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags() }); }
   if (b.personTypes !== undefined) { s.personTypes = cleanStrList(b.personTypes, 40, 60) || []; s.personTypes = _mergeRequired(s.personTypes, SYSTEM_PERSON_TYPES); }
   if (b.companyTypes !== undefined) { s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || []; s.companyTypes = _mergeRequired(s.companyTypes, SYSTEM_COMPANY_TYPES); }
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
@@ -8193,13 +8198,19 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   if (typeof b.conceptLabel === 'string') s.conceptLabel = b.conceptLabel.trim().slice(0, 30);
   if (typeof b.conceptLabelPlural === 'string') s.conceptLabelPlural = b.conceptLabelPlural.trim().slice(0, 30);
   if (b.showRequestRibbon !== undefined) s.showRequestRibbon = !!b.showRequestRibbon;
+  if (b.featCalSync !== undefined) s.featCalSync = !!b.featCalSync;
+  if (b.featCalTasks !== undefined) s.featCalTasks = !!b.featCalTasks;
+  if (b.featCalMeet !== undefined) s.featCalMeet = !!b.featCalMeet;
+  if (b.featWorkHours !== undefined) s.featWorkHours = !!b.featWorkHours;
+  if (b.featEventFiles !== undefined) s.featEventFiles = !!b.featEventFiles;
+  if (b.featBooking !== undefined) s.featBooking = !!b.featBooking;
   if (b.pipelineRequiredOnCompany !== undefined) s.pipelineRequiredOnCompany = !!b.pipelineRequiredOnCompany;
   if (b.showQuickLinks !== undefined) s.showQuickLinks = !!b.showQuickLinks;
   if (b.sentSyncEnabled !== undefined) s.sentSyncEnabled = !!b.sentSyncEnabled;
   if (b.sentSyncIntervalMin !== undefined) { const n = parseInt(b.sentSyncIntervalMin, 10); s.sentSyncIntervalMin = (isFinite(n) && n >= 2) ? Math.min(720, n) : 10; }
   if (typeof b.currency === 'string') s.currency = b.currency.trim().slice(0,3).toUpperCase();
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
@@ -11201,6 +11212,7 @@ app.get('/api/appointments', (req, res) => {
   // Dated tasks in the same window, so they can render on the calendar grid alongside meetings.
   let tasksOut = [];
   try {
+    if (!calFeatOn('calTasks')) throw 0;
     const f10 = from ? from.slice(0, 10) : '', t10 = to ? to.slice(0, 10) : '';
     tasksOut = loadTasks().filter(t => {
       if (t.status && t.status !== 'open') return false;
@@ -11215,8 +11227,9 @@ app.get('/api/appointments', (req, res) => {
       return true;
     }).map(t => ({ id: t.id, title: t.title || 'Task', due: t.due || '', priority: t.priority || 'Normal', assignee: t.assignee || '', assigneeName: t.assigneeName || '', linkLabel: t.linkLabel || '', link: t.link || '' }));
   } catch (e) {}
-  res.json({ ok: true, appointments: list.map(apptBrief), tasks: tasksOut, contacts, users, meWork, types: APPT_TYPES, me: u.username || '', canSeeAll: canAll, emailReady: isEmailConfigured() });
+  res.json({ ok: true, appointments: list.map(apptBrief), tasks: tasksOut, contacts, users, meWork, features: effCalFeatures(), types: APPT_TYPES, me: u.username || '', canSeeAll: canAll, emailReady: isEmailConfigured() });
 });
+app.get('/api/features', (req, res) => res.json({ ok: true, features: effCalFeatures() }));
 app.post('/api/appointments', express.json(), (req, res) => {
   const u = req.user || {}; const b = req.body || {}; const all = loadAppts(); const now = new Date().toISOString();
   const title = String(b.title || '').trim().slice(0, 200); if (!title) return res.status(400).json({ ok: false, error: 'A meeting title is required.' });
@@ -11265,6 +11278,7 @@ app.post('/api/appointments/:id/meet', express.json(), async (req, res) => {
   const u = (req.user && req.user.username) || '';
   const all = loadAppts(); const a = all.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ ok: false, error: 'Meeting not found.' });
+  if (!calFeatOn('calMeet')) return res.status(403).json({ ok: false, error: 'Google Meet is turned off in Admin settings.' });
   const st = gmail.statusFor(u);
   if (!st.connected) return res.status(400).json({ ok: false, error: 'Connect your Google account first (Account → Gmail).' });
   if (!st.hasCalendar) return res.status(400).json({ ok: false, error: 'Calendar permission was not granted. Click Reconnect on the Gmail card (Account → Gmail) and approve Calendar access.' });
@@ -11300,6 +11314,7 @@ const APPT_FILE_DIR = path.join(BOV_DATA_DIR, 'apptfiles');
 function _apptFileId() { return 'af_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 app.post('/api/appointments/:id/files', express.json({ limit: '30mb' }), (req, res) => {
   const all = loadAppts(); const a = all.find(x => x.id === req.params.id); if (!a) return res.status(404).json({ ok: false, error: 'Meeting not found.' });
+  if (!calFeatOn('eventFiles')) return res.status(403).json({ ok: false, error: 'Event attachments are turned off in Admin settings.' });
   const b = req.body || {};
   const orig = String(b.filename || '').trim(); const m = orig.match(/\.([a-z0-9]+)$/i); const ext = m ? m[1].toLowerCase() : '';
   if (!/^(pdf|docx?|xlsx?|csv|pptx?|png|jpe?g|gif|txt|zip)$/i.test(ext)) return res.status(400).json({ ok: false, error: 'Unsupported file type.' });
@@ -11336,7 +11351,7 @@ const BOOKINGS_FILE = path.join(BOV_DATA_DIR, 'bookings.json');
 function loadBookings() { try { return rj(BOOKINGS_FILE) || {}; } catch (e) { return {}; } }
 function saveBookings(b) { return writeJsonGuarded(BOOKINGS_FILE, b, 'saveBookings'); }
 function _bookToken() { return 'bk_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
-function bookingByToken(tok) { const all = loadBookings(); for (const un in all) { if (all[un] && all[un].token === tok && all[un].enabled) return Object.assign({ username: un }, all[un]); } return null; }
+function bookingByToken(tok) { if (!calFeatOn('booking')) return null; const all = loadBookings(); for (const un in all) { if (all[un] && all[un].token === tok && all[un].enabled) return Object.assign({ username: un }, all[un]); } return null; }
 const BOOK_LENGTHS = [15, 30, 45, 60];
 function _bmToMin(hm) { const p = String(hm || '').split(':'); return (+p[0] || 0) * 60 + (+p[1] || 0); }
 function _bAddMin(naive, min) { const d = new Date(naive + ':00Z'); d.setUTCMinutes(d.getUTCMinutes() + min); return d.toISOString().slice(0, 16); }
