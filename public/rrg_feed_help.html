@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Activity Feed — Help &amp; User Guide · RRG</title>
+<style>
+:root{
+  --navy:#000E31; --slate:#20334f; --primary:#2c5c8f; --primary-d:#23496f;
+  --red:#b23a2c; --ink:#2b3648; --muted:#69748a; --soft:#96a1b2;
+  --line:#dbe0e9; --wash:#f4f6f9; --inp:#c4ccda; --gold:#b5791f; --green:#2f7a55;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--primary);text-decoration:none;}
+a:hover{text-decoration:underline;}
+.top{background:var(--navy);border-bottom:2px solid var(--primary);color:#fff;position:sticky;top:0;z-index:50;}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:13px;}
+.disc{width:34px;height:34px;border-radius:4px;background:var(--red);color:#fff;font:900 12px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;flex:none;}
+.wm{font-weight:700;font-size:12px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em;color:#cdd6e4;}
+.bar{width:1px;height:24px;background:rgba(255,255,255,.28);margin:0 5px;}
+.ttl{font-weight:700;font-size:15px;color:#fff;}
+.ttl small{display:block;font-size:10.5px;font-weight:600;color:#9fb0cc;text-transform:uppercase;letter-spacing:.06em;margin-top:1px;}
+.backlink{margin-left:auto;color:#cdd6e4;font-size:12.5px;font-weight:600;}
+.backlink:hover{color:#fff;text-decoration:none;}
+.shell{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;align-items:start;}
+.toc{position:sticky;top:74px;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.toc .th{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 15px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);}
+.tsearch{padding:10px 12px;border-bottom:1px solid var(--line);}
+.tsearch input{width:100%;border:1px solid var(--inp);border-radius:4px;padding:7px 10px;font:inherit;font-size:12.5px;}
+.toc nav{max-height:calc(100vh - 200px);overflow:auto;padding:6px 0;}
+.toc a{display:block;padding:6px 15px;font-size:12.5px;font-weight:600;color:var(--slate);border-left:2px solid transparent;}
+.toc a:hover{background:var(--wash);text-decoration:none;}
+.toc a.on{border-left-color:var(--primary);background:#eef4fa;color:var(--primary-d);}
+.toc .miss{padding:10px 15px;color:var(--soft);font-size:12px;}
+.doc{min-width:0;}
+.hero{background:#fff;border:1px solid var(--line);border-radius:6px;padding:24px 26px;margin-bottom:20px;}
+.hero h1{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-.01em;}
+.hero p{color:var(--muted);font-size:14.5px;margin-top:9px;max-width:760px;}
+.hero .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;}
+.tag{font-size:11px;font-weight:700;color:var(--slate);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
+section.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:22px 26px;margin-bottom:16px;scroll-margin-top:74px;}
+section.card>h2{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.01em;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;gap:9px;}
+section.card>h2 .n{width:24px;height:24px;border-radius:4px;background:var(--navy);color:#fff;font-size:12px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;flex:none;}
+h3{font-size:14.5px;font-weight:800;color:var(--slate);margin:18px 0 7px;}
+p{margin:9px 0;}
+.lead{color:var(--muted);font-size:14px;}
+ul,ol{margin:9px 0 9px 4px;padding-left:22px;}
+li{margin:5px 0;}
+ol.steps{counter-reset:st;list-style:none;padding-left:0;margin:12px 0;}
+ol.steps>li{position:relative;padding:0 0 14px 40px;margin:0;}
+ol.steps>li:before{counter-increment:st;content:counter(st);position:absolute;left:0;top:-1px;width:26px;height:26px;border-radius:4px;background:#eef4fa;color:var(--primary-d);border:1px solid #cddcec;font-weight:800;font-size:12.5px;display:flex;align-items:center;justify-content:center;}
+ol.steps>li:not(:last-child):after{content:"";position:absolute;left:13px;top:27px;bottom:2px;width:1px;background:var(--line);}
+ol.steps b{color:var(--slate);}
+.kbd{display:inline-block;background:var(--wash);border:1px solid var(--inp);border-bottom-width:2px;border-radius:3px;padding:1px 7px;font-size:12px;font-weight:700;color:var(--slate);}
+.callout{border:1px solid var(--line);border-left:3px solid var(--primary);background:#f7fafd;border-radius:0 4px 4px 0;padding:13px 16px;margin:14px 0;font-size:13.5px;}
+.callout.tip{border-left-color:var(--green);background:#f1f8f4;}
+.callout.warn{border-left-color:var(--red);background:#fbf3f2;}
+.callout .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
+.callout.tip .lbl{color:var(--green);} .callout.warn .lbl{color:var(--red);}
+table.mx{width:100%;border-collapse:collapse;margin:14px 0;font-size:13px;}
+table.mx th,table.mx td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top;}
+table.mx th{background:var(--wash);font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:800;}
+table.mx td b{color:var(--slate);}
+.fq{border-top:1px solid var(--line);padding:13px 0;}
+.fq:first-of-type{border-top:none;}
+.fq h3{margin:0 0 4px;font-size:14px;}
+.fq p{margin:0;color:var(--muted);font-size:13.5px;}
+.foot{max-width:1180px;margin:0 auto;padding:0 24px 50px;color:var(--soft);font-size:12px;text-align:center;}
+.totop{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;border:none;border-radius:4px;padding:9px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .15s;z-index:60;}
+.totop.show{opacity:1;pointer-events:auto;}
+@media(max-width:900px){.shell{grid-template-columns:1fr;}.toc{position:static;}.toc nav{max-height:none;}}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <span class="disc">RRG</span><span class="wm">Restaurant<br>Realty Group</span><span class="bar"></span>
+  <span class="ttl">Activity Feed<small>Help &amp; User Guide</small></span>
+  <a class="backlink" href="rrg_feed.html">&larr; Back to the Feed</a>
+</div></div>
+
+<div class="shell">
+  <aside class="toc">
+    <div class="th">Contents</div>
+    <div class="tsearch"><input id="tocSearch" placeholder="Search this guide…" autocomplete="off"></div>
+    <nav id="tocNav">
+      <a href="#overview">1 · Overview</a>
+      <a href="#stream">2 · Your whole book, one stream</a>
+      <a href="#buyers">3 · Who's in your data rooms</a>
+      <a href="#moving">4 · Keep things moving</a>
+      <a href="#calendar">5 · Meetings on the timeline</a>
+      <a href="#quiet">6 · Signal over noise</a>
+      <a href="#views">7 · Saved views</a>
+      <a href="#filters">8 · Filters</a>
+      <a href="#suggested">9 · People worth adding</a>
+      <a href="#faq">10 · FAQ &amp; troubleshooting</a>
+    </nav>
+  </aside>
+
+  <main class="doc">
+    <div class="hero">
+      <h1>Activity Feed — Help &amp; User Guide</h1>
+      <p>The Feed is your command center — everything happening across your book in one stream, newest first, with the two things a broker actually opens it for pulled to the front: who's engaging in your confidential data rooms, and what needs you today. This guide covers every part of it.</p>
+      <div class="meta"><span class="tag">One stream</span><span class="tag">Buyer engagement</span><span class="tag">Triage rail</span><span class="tag">Calendar on the timeline</span></div>
+    </div>
+
+    <section class="card" id="overview">
+      <h2><span class="n">1</span> Overview</h2>
+      <p class="lead">The Feed answers three questions the moment you open it: what moved, what needs me, and what's going quiet. The center column is the live stream of activity; the right rail is your ranked to-do list.</p>
+      <h3>The core idea</h3>
+      <ul>
+        <li><b>One place for everything</b> — calls, tours, notes, emails, meetings, agreements, and data-room engagement, all on the same timeline.</li>
+        <li><b>The money signal up front</b> — when a buyer opens the P&amp;L, the lease, or the CIM in a data room, it lands in the feed and is flagged <b>hot</b>.</li>
+        <li><b>Triage, not just reporting</b> — the <b>Keep things moving</b> rail ranks what needs you: overdue tasks, hot buyers, and deals going quiet — each with a one-click action.</li>
+        <li><b>Signal over noise</b> — automated workflow churn is folded away under one toggle so real activity stands out.</li>
+      </ul>
+      <div class="callout"><div class="lbl">Where to find it</div>Open <b>Feed</b> from the left nav. The <b>What your feed does</b> strip at the top of that page links to the matching section of this guide — tap any tile.</div>
+    </section>
+
+    <section class="card" id="stream">
+      <h2><span class="n">2</span> Your whole book, one stream</h2>
+      <p class="lead">The center column is every logged activity across all your contacts, newest first — so nothing lives in one person's head or a separate app.</p>
+      <h3>What shows up here</h3>
+      <ul>
+        <li><b>Contact activity</b> — calls, tours, meals, texts, emails, notes and to-dos logged on any contact.</li>
+        <li><b>Deal milestones</b> — agreements sent and signed, LOIs sent, received and countered, new contacts added.</li>
+        <li><b>Data-room engagement</b> — buyer visits to your confidential rooms (see the next section).</li>
+        <li><b>Calendar meetings</b> — tours, calls and meetings from your calendar (section 5).</li>
+      </ul>
+      <p>Click any row that's tied to a contact to jump straight to that contact's page. Rows are colored by type with a dot on the left so you can scan the stream at a glance.</p>
+    </section>
+
+    <section class="card" id="buyers">
+      <h2><span class="n">3</span> Who's in your data rooms</h2>
+      <p class="lead">The single most valuable signal in the whole system. When a buyer opens documents in one of your confidential data rooms, it shows up right here — so you know where the interest is before you make your next call.</p>
+      <h3>How to read a data-room row</h3>
+      <ul>
+        <li><b>Who and where</b> — the buyer's name and the business/data room they were in.</li>
+        <li><b>What they opened</b> — how many documents, and specifically if they touched the money: <b>P&amp;L, tax returns, the lease, rent roll, SDE/EBITDA, the CIM or offering.</b></li>
+        <li><b>Downloads</b> — how many documents they pulled, not just viewed.</li>
+      </ul>
+      <div class="callout tip"><div class="lbl">The tell</div>A buyer in the financials or the lease this week is flagged <b>● Hot</b> and the row is tinted. That's the closest thing to reading a buyer's mind — call them while the interest is warm.</div>
+      <p>A buyer's repeated hits in one sitting are grouped into a single visit so the feed reads cleanly instead of one row per click. Click any data-room row to open the room and see the full engagement breakdown.</p>
+    </section>
+
+    <section class="card" id="moving">
+      <h2><span class="n">4</span> Keep things moving</h2>
+      <p class="lead">The right rail is your ranked to-do list — the deals leaking value if you don't act. Highest-priority at the top, each with a one-click action so you never leave the feed to do the work.</p>
+      <table class="mx">
+        <thead><tr><th>Nudge</th><th>What it means</th><th>Action</th></tr></thead>
+        <tbody>
+          <tr><td><b>Call — hot buyer</b></td><td>A buyer just opened the financials in one of your data rooms.</td><td>Open the data room or the seller.</td></tr>
+          <tr><td><b>Overdue task</b></td><td>One of your tasks is due today or past due.</td><td>Open the contact or task.</td></tr>
+          <tr><td><b>Reply / follow up</b></td><td>An email is waiting on your reply, or you're waiting on theirs.</td><td>Jump to the thread in Gmail.</td></tr>
+          <tr><td><b>Re-engage — cooling buyer</b></td><td>A buyer who was active in a data room has gone quiet.</td><td>Open the data room or the seller.</td></tr>
+          <tr><td><b>Reach out — gone quiet</b></td><td>An active buyer or seller you haven't touched in a while.</td><td>Open the contact.</td></tr>
+        </tbody>
+      </table>
+      <p>Dismiss any nudge with the <b>×</b> to clear it for now. Email-based nudges (reply / follow up) require Gmail connected on your Account page.</p>
+    </section>
+
+    <section class="card" id="calendar">
+      <h2><span class="n">5</span> Meetings on the timeline</h2>
+      <p class="lead">Your calendar and your activity are the same story, so meetings sit right on the feed alongside everything else.</p>
+      <ul>
+        <li><b>Recent and upcoming</b> — meetings, tours and calls from roughly the last two months through the next few weeks.</li>
+        <li><b>Upcoming flag</b> — anything still in the future is tagged <b>Upcoming</b> so you can tell a booked meeting from a completed one.</li>
+        <li><b>Tied to the contact</b> — a meeting linked to a contact clicks straight through to that contact's page.</li>
+      </ul>
+      <div class="callout"><div class="lbl">Related</div>Book and manage meetings on the <a href="rrg_calendar.html">Calendar</a> — everything you schedule there appears here automatically.</div>
+    </section>
+
+    <section class="card" id="quiet">
+      <h2><span class="n">6</span> Signal over noise</h2>
+      <p class="lead">A feed is only useful if the important things aren't buried. Automated, low-value activity is treated as <b>system activity</b> and folded out of the way by default.</p>
+      <h3>How it works</h3>
+      <ul>
+        <li><b>Hidden by default</b> — the <b>System activity</b> toggle starts <b>Off</b>, so you see real, human and deal activity first.</li>
+        <li><b>Folded, not lost</b> — repeated automated updates on the same contact (like screening skips and undos, or enrichment runs) collapse into a single <b>· +N more</b> row.</li>
+        <li><b>One click to see it all</b> — flip <b>System activity: On</b> any time to expand the full audit trail.</li>
+      </ul>
+      <div class="callout tip"><div class="lbl">Why</div>The board's plumbing generates a lot of housekeeping. It belongs in the record, not in your face — so it's one toggle away instead of the first thing you scroll past.</div>
+    </section>
+
+    <section class="card" id="views">
+      <h2><span class="n">7</span> Saved views</h2>
+      <p class="lead">Set the filters you use most, then save them so you can jump back in one click.</p>
+      <ol class="steps">
+        <li>Set your <b>scope</b> (everyone or just you), <b>activity type</b>, <b>user</b>, and the <b>system</b> toggle the way you want them.</li>
+        <li>Click <b>＋ Save this view</b> in the left rail and give it a name.</li>
+        <li>The view appears in the rail — click it any time to snap the feed back to exactly those filters.</li>
+      </ol>
+      <p>Views are remembered on this browser. Delete one with the <b>×</b> beside it.</p>
+    </section>
+
+    <section class="card" id="filters">
+      <h2><span class="n">8</span> Filters</h2>
+      <p class="lead">Slice the stream any way you work.</p>
+      <ul>
+        <li><b>All activity / My activity</b> — everything across the team, or just what you did (admins and owners).</li>
+        <li><b>By user</b> — narrow to a single teammate's activity.</li>
+        <li><b>By type</b> — show only calls, only agreements, only data-room engagement, and so on.</li>
+        <li><b>System activity On / Off</b> — show or hide the automated audit trail (section 6).</li>
+      </ul>
+    </section>
+
+    <section class="card" id="suggested">
+      <h2><span class="n">9</span> People worth adding</h2>
+      <p class="lead">The right rail surfaces people you email often but haven't saved as contacts yet — pulled from your inbox.</p>
+      <ul>
+        <li><b>From your inbox</b> — frequent correspondents from the last couple of months who aren't in your book.</li>
+        <li><b>One-click add</b> — hit <b>Add</b> to create the contact without leaving the feed.</li>
+        <li><b>Automated senders filtered out</b> — no-reply and notification addresses are skipped.</li>
+      </ul>
+      <div class="callout"><div class="lbl">Requires</div>Gmail connected on your <a href="rrg_account.html">Account</a> page.</div>
+    </section>
+
+    <section class="card" id="faq">
+      <h2><span class="n">10</span> FAQ &amp; troubleshooting</h2>
+      <div class="fq"><h3>A buyer opened documents but I don't see it.</h3><p>Data-room engagement only appears once a buyer with a personal access grant opens a document. Owner previews of your own room aren't counted. Give it a moment after their visit and refresh.</p></div>
+      <div class="fq"><h3>Why did the skip / undo notes disappear?</h3><p>They didn't — they're system activity now. Flip <b>System activity: On</b> to see them, and repeated ones are folded into a single row.</p></div>
+      <div class="fq"><h3>I don't see any email nudges or suggested people.</h3><p>Those come from Gmail. Connect it on your Account page and they'll populate.</p></div>
+      <div class="fq"><h3>What makes a buyer "hot"?</h3><p>They opened a deal-critical document — the P&amp;L, tax returns, the lease, rent roll, SDE/EBITDA, or the CIM — within the last week. That's the money signal.</p></div>
+      <div class="fq"><h3>Can I see just my own activity?</h3><p>Yes — click <b>My activity</b> (admins and owners). Reps see their own book by default.</p></div>
+    </section>
+
+    <div class="foot">Restaurant Realty Group · Activity Feed guide. Questions your team hits a lot? Tell us and we'll add them here.</div>
+  </main>
+</div>
+
+<button class="totop" id="totop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ Top</button>
+
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('#tocNav a'));
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function spy(){
+    var y=window.scrollY+90, cur=secs[0];
+    for(var i=0;i<secs.length;i++){ if(secs[i].offsetTop<=y) cur=secs[i]; }
+    links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('href')==='#'+(cur&&cur.id)); });
+    var tt=document.getElementById('totop'); tt.classList.toggle('show', window.scrollY>400);
+  }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+  var box=document.getElementById('tocSearch'), nav=document.getElementById('tocNav');
+  box.addEventListener('input',function(){
+    var q=box.value.trim().toLowerCase();
+    var any=false;
+    links.forEach(function(a){
+      var sec=document.getElementById(a.getAttribute('href').slice(1));
+      var hit=!q || a.textContent.toLowerCase().indexOf(q)>=0 || (sec&&sec.textContent.toLowerCase().indexOf(q)>=0);
+      a.style.display=hit?'':'none'; if(hit) any=true;
+    });
+    var m=document.getElementById('tocMiss'); if(m) m.remove();
+    if(!any){ var d=document.createElement('div'); d.className='miss'; d.id='tocMiss'; d.textContent='No matches.'; nav.appendChild(d); }
+  });
+})();
+</script>
+</body>
+</html>

@@ -2949,12 +2949,83 @@ const PALETTE_DEFAULT = { primary: '#000E31', accent: '#DA2B1F', sidebar: '#0b1a
 function isHexColor(v) { return /^#[0-9a-fA-F]{6}$/.test(String(v || '')); }
 function effPalette() { const b = loadBrand(); const pl = (b.palette && typeof b.palette === 'object') ? b.palette : {}; return { primary: isHexColor(pl.primary) ? pl.primary : PALETTE_DEFAULT.primary, accent: isHexColor(pl.accent) ? pl.accent : PALETTE_DEFAULT.accent, sidebar: isHexColor(pl.sidebar) ? pl.sidebar : PALETTE_DEFAULT.sidebar, positive: isHexColor(pl.positive) ? pl.positive : PALETTE_DEFAULT.positive }; }
 app.get('/api/appname', (req, res) => res.json({ ok: true, name: loadAppName(), assistant: effAssistantName(), concept: effConceptLabel(), conceptPlural: effConceptLabelPlural(), palette: effPalette(), aiConfirm: effAiConfirm(), logoUrl: (function(){ const _b = loadBrand(); return _b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(_b.updatedAt || '')) : ''; })(), org: effOrg() }));
+// Data-room buyer engagement → feed rows. Each buyer's raw view/download hits are
+// collapsed into per-visit "sessions" (a >45-min gap starts a new one): what they
+// opened, how many they pulled, and whether they touched the money. That last part is
+// the tell — a buyer in the P&L and the lease is a buyer to call today.
+function roomEngagementEvents(rooms) {
+  const out = []; const GAP = 45 * 60 * 1000;
+  (rooms || []).forEach(function (r) {
+    const access = Array.isArray(r.access) ? r.access : []; if (!access.length) return;
+    const gmap = {}; (Array.isArray(r.grants) ? r.grants : []).forEach(function (g) { gmap[g.id] = g; });
+    const byGrant = {};
+    access.forEach(function (ev) {
+      if (!ev || (ev.event !== 'view' && ev.event !== 'download') || !ev.doc) return;
+      const gid = ev.grantId || ('anon:' + (ev.who || ev.ip || '?'));
+      (byGrant[gid] = byGrant[gid] || []).push(ev);
+    });
+    Object.keys(byGrant).forEach(function (gid) {
+      const g = gmap[gid] || {};
+      const who = g.name || g.email || (byGrant[gid][0] && byGrant[gid][0].who) || 'A buyer';
+      const evs = byGrant[gid].slice().sort(function (a, b) { return String(a.at).localeCompare(String(b.at)); });
+      let sess = null; const sessions = [];
+      evs.forEach(function (ev) {
+        const t = Date.parse(ev.at) || 0;
+        if (!sess || (t - sess._last) > GAP) { sess = { docs: {}, downloads: 0, key: {}, at: ev.at, _last: t }; sessions.push(sess); }
+        sess._last = t; sess.at = ev.at;
+        const nm = String(ev.doc); sess.docs[nm] = true;
+        if (ev.event === 'download') sess.downloads++;
+        if (ROOM_KEY_DOC.test(nm)) sess.key[nm] = true;
+      });
+      sessions.forEach(function (s) {
+        const docNames = Object.keys(s.docs); const keyNames = Object.keys(s.key); const nd = docNames.length; if (!nd) return;
+        let note = who + ' opened ' + nd + ' document' + (nd === 1 ? '' : 's') + ' in the ' + (r.business || 'confidential') + ' data room';
+        if (keyNames.length) note += ' — including ' + keyNames.slice(0, 2).join(', ');
+        if (s.downloads) note += ' · downloaded ' + s.downloads;
+        out.push({ type: 'Data Room', note: note, at: s.at, by: r.by || '', byUser: r.byUser || '', auto: false, system: false, room: true, hot: keyNames.length > 0, buyer: who, business: r.business || '', roomId: r.id, href: 'rrg_room.html?room=' + encodeURIComponent(r.id), personId: r.personId || '', personName: r.business || who, company: r.business || '' });
+      });
+    });
+  });
+  out.sort(function (a, b) { return String(b.at).localeCompare(String(a.at)); });
+  return out.slice(0, 50);
+}
+// Calendar meetings/tours/calls, folded onto the same timeline (recent past + near future).
+function apptFeedEvents(appts) {
+  const now = Date.now(); const out = [];
+  (appts || []).forEach(function (a) {
+    const start = a.start || ''; if (!start) return;
+    const t = Date.parse((/^\d{4}-\d{2}-\d{2}$/.test(start) ? start + 'T00:00:00' : start)) || 0; if (!t) return;
+    const days = (t - now) / 86400000; if (days > 21 || days < -60) return;
+    out.push({ type: (a.type || 'Meeting'), note: (a.title || a.type || 'Meeting') + (a.location ? (' · ' + a.location) : ''), at: start, by: a.byName || '', byUser: a.byUser || '', auto: false, system: false, appt: true, upcoming: days > 0, personId: a.contactPersonId || '', personName: a.contactName || (a.title || 'Meeting'), company: '', href: a.contactPersonId ? ('rrg_person.html?id=' + encodeURIComponent(a.contactPersonId)) : 'rrg_calendar.html' });
+  });
+  return out;
+}
+// Fold consecutive low-signal system rows (skip/undo churn, repeated enrichment) on the
+// same contact + type into a single "· +N more" row so real deal movement stays visible.
+function collapseFeed(list) {
+  const out = []; let i = 0;
+  while (i < list.length) {
+    const it = list[i];
+    if (it.system && it.type) {
+      let j = i + 1, n = 0;
+      while (j < list.length && list[j].system && list[j].type === it.type && list[j].personId === it.personId) { n++; j++; }
+      if (n >= 1) { const c = Object.assign({}, it); c.note = (it.note || it.type) + ' · +' + n + ' more'; c.collapsed = n + 1; out.push(c); i = j; continue; }
+    }
+    out.push(it); i++;
+  }
+  return out;
+}
 app.get('/api/feed', (req, res) => {
   let people = loadPeople();
   if (restrictToOwn(req)) people = people.filter(p => permOwnerMatch(req, p.by));
   const items = [];
-  people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { items.push({ type: a.type || 'Note', note: a.note || '', at: a.at || a.date || '', by: a.by || '', byUser: a.byUser || '', auto: !!a.auto, personId: p.id, personName: p.name || 'Contact', company: p.company || '' }); }); });
-  try { loadSysEvents().forEach(function(e){ items.push({ type: e.type || 'System', note: e.note || '', at: e.at || e.at || '', by: e.by || '', byUser: e.byUser || '', auto: true, system: true, personId: '', personName: '', company: '' }); }); } catch(e){}
+  const LOWSIGNAL = { 'Note': 1, 'To-Do': 1, 'Diligence': 1 };
+  people.forEach(p => { (Array.isArray(p.activities) ? p.activities : []).forEach(a => { const type = a.type || 'Note'; items.push({ type: type, note: a.note || '', at: a.at || a.date || '', by: a.by || '', byUser: a.byUser || '', auto: !!a.auto, system: (!!a.auto && !!LOWSIGNAL[type]), personId: p.id, personName: p.name || 'Contact', company: p.company || '' }); }); });
+  try { loadSysEvents().forEach(function(e){ items.push({ type: e.type || 'System', note: e.note || '', at: e.at || '', by: e.by || '', byUser: e.byUser || '', auto: true, system: true, personId: '', personName: '', company: '' }); }); } catch(e){}
+  // Data-room buyer engagement — the highest-value signal in the whole feed. Shown by default.
+  try { let rooms = loadRooms(); if (restrictToOwn(req)) rooms = rooms.filter(r => permOwnerMatch(req, r.by)); roomEngagementEvents(rooms).forEach(function(e){ items.push(e); }); } catch(e){}
+  // Calendar meetings on the same timeline.
+  try { let appts = loadAppts(); if (restrictToOwn(req) && req.user) appts = appts.filter(a => a.byUser && a.byUser === req.user.username); apptFeedEvents(appts).forEach(function(e){ items.push(e); }); } catch(e){}
   const canScope = !restrictToOwn(req);
   const mine = req.query.scope === 'mine';
   const wantUser = canScope ? String(req.query.user || '').trim() : '';
@@ -2964,6 +3035,7 @@ app.get('/api/feed', (req, res) => {
   if (wantUser) { out = items.filter(it => it.byUser && it.byUser === wantUser); }
   else if (mine) { const u = req.user || {}; out = items.filter(it => (it.byUser && it.byUser === u.username) || (it.by && it.by === u.name)); }
   out.sort((x, y) => String(y.at).localeCompare(String(x.at)));
+  out = collapseFeed(out);
   res.json({ ok: true, items: out.slice(0, 200), scope: wantUser ? 'user' : (mine ? 'mine' : 'all'), user: wantUser, users: users, canScope: canScope });
 });
 app.get('/api/admin/palette', requireAdmin, (req, res) => res.json({ ok: true, palette: effPalette(), defaults: PALETTE_DEFAULT }));
@@ -3914,7 +3986,7 @@ function sendRoomOtpEmail(r, grant, code, req) {
   if (p && p.catch) p.catch(e => console.error('room otp send:', e && e.message));
 }
 function effRoomAlerts() { const s = loadSettings(); return s.roomAlerts !== false; }
-const ROOM_KEY_DOC = /p ?& ?l\b|p and l|profit|financ|tax return|\btax\b|lease|\bsde\b|ebitda|rent roll|balance sheet|revenue/i;
+const ROOM_KEY_DOC = /p ?& ?l\b|p and l|profit|financ|tax return|\btax\b|lease|\bsde\b|ebitda|rent roll|balance sheet|revenue|\bcim\b|offering/i;
 function notifyRoomActivity(r, grant, doc, event, req) {
   try {
     if (!effRoomAlerts() || !r || !grant || !doc) return;
@@ -7491,6 +7563,26 @@ app.get('/api/feed/nudges', async (req, res) => {
       const overdue = Math.floor((now - new Date(due + 'T00:00:00').getTime()) / DAY);
       if (overdue < 0) return;
       out.push({ kind: 'task', name: t.title || 'Task', sub: overdue === 0 ? 'Due today' : ('Overdue ' + overdue + ' day' + (overdue === 1 ? '' : 's')), score: 1000 + overdue, taskId: t.id, personId: (t.linkType === 'contact' ? t.linkId : '') || '' });
+    });
+  } catch (e) {}
+  // 1.5) Data-room buyers heating up or cooling off — the sharpest money signal we have.
+  //      A buyer in the P&L this week is a call to make today; one who went quiet mid-
+  //      diligence is a deal starting to slip.
+  try {
+    let rooms = loadRooms();
+    if (restrictToOwn(req)) rooms = rooms.filter(r => permOwnerMatch(req, r.by));
+    rooms.forEach(function (r) {
+      if (r.closed) return;
+      let an; try { an = roomAnalytics(r); } catch (e) { return; }
+      (an.buyers || []).forEach(function (b) {
+        if (!b.active || !b.lastAt) return;
+        const days = Math.floor((now - Date.parse(b.lastAt)) / DAY);
+        if (b.hot) {
+          out.push({ kind: 'hotbuyer', name: b.name, sub: 'In the ' + (r.business || 'data room') + ' — opened the financials' + (days <= 0 ? ' today' : (' ' + days + 'd ago')) + (b.downloads ? (' · pulled ' + b.downloads) : ''), score: 900 + Math.max(0, 30 - days), roomId: r.id, personId: r.personId || '' });
+        } else if (b.views > 0 && days >= 6 && days <= 30) {
+          out.push({ kind: 'coolbuyer', name: b.name, sub: 'Was active in ' + (r.business || 'the data room') + ' — quiet ' + days + ' days', score: 340 + days, roomId: r.id, personId: r.personId || '' });
+        }
+      });
     });
   } catch (e) {}
   // 2) Deal-aware: active buyers/sellers who've gone quiet (recently engaged, now cooling).
