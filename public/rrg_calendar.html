@@ -92,6 +92,18 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
 .feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
 .feat b{display:block;font-size:12.5px;color:var(--navy);font-weight:800;}
 .feat span{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px;}
+.feat .soon{display:inline-block;font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:999px;padding:1px 6px;margin-left:6px;vertical-align:middle;}
+.feat .soon+span,.feat b .soon{vertical-align:middle;}
+/* Google Calendar sync bar */
+.btn.gc{display:inline-flex;align-items:center;gap:6px;}
+.btn.gc .gdot{width:7px;height:7px;border-radius:50%;background:#c3cbd8;flex:none;}
+.btn.gc.ready .gdot{background:var(--green);}
+.btn.gc.warn .gdot{background:#e0a53a;}
+.gcalbar{font-size:12.5px;font-weight:600;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:4px;padding:8px 12px;margin-bottom:12px;}
+.gcalbar.ok{color:var(--green);border-color:#cfe6d6;background:#f4fbf6;}
+.gcalbar.err{color:#b23a2c;border-color:#f0c9c6;background:#fdf3f2;}
+.gcalbar.warn{color:#8a5a12;border-color:#f3d9a8;background:#fff7ed;}
+.gcalbar a{color:var(--blue);font-weight:700;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -108,6 +120,13 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
       <a class="feat" href="rrg_calendar_help.html#scope" target="_blank" rel="noopener"><span class="fic">👥</span><div><b>See the whole team</b><span>Switch between everyone's calendar, one person's, or just your own meetings.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#details" target="_blank" rel="noopener"><span class="fic">📍</span><div><b>Capture the details</b><span>Type, location — address, video link or phone — and notes on every meeting.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#sync" target="_blank" rel="noopener"><span class="fic">🔄</span><div><b>Always in sync</b><span>Meetings booked from a contact's page appear here automatically; edit or cancel anytime.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#booking" target="_blank" rel="noopener"><span class="fic">🔗</span><div><b>All-in-one booking <span class="soon">Soon</span></b><span>Share a booking page — clients pick a time from your availability and it lands on your calendar automatically.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#tasks" target="_blank" rel="noopener"><span class="fic">✅</span><div><b>Tasks on your calendar <span class="soon">Soon</span></b><span>Give any task a date and time and it shows up right on the calendar alongside your meetings.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#gmailsync" target="_blank" rel="noopener"><span class="fic">📥</span><div><b>Events from your inbox <span class="soon">Soon</span></b><span>Flights, hotels and reservations sitting in Gmail get added to your calendar automatically.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#meet" target="_blank" rel="noopener"><span class="fic">🎥</span><div><b>Video with Google Meet <span class="soon">Soon</span></b><span>Add a Google Meet link to any meeting in a click and connect virtually.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#share" target="_blank" rel="noopener"><span class="fic">📤</span><div><b>Share calendars <span class="soon">Soon</span></b><span>Share your calendar with others and find times that work across everyone's schedule.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#attach" target="_blank" rel="noopener"><span class="fic">📎</span><div><b>Attach files to events <span class="soon">Soon</span></b><span>Keep agendas, pre-reads and documents right on the event — all the details in one place.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#working" target="_blank" rel="noopener"><span class="fic">🏠</span><div><b>Working location &amp; hours <span class="soon">Soon</span></b><span>Let teammates see where you're working from and what your working hours are.</span></div></a>
     </div>
   </div>
   <div class="calbar">
@@ -118,8 +137,10 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
     <span class="sp"></span>
     <span class="seg" id="viewSeg"><button id="vday">Day</button><button id="vweek">Week</button><button id="vmonth" class="on">Month</button><button id="vagenda">Agenda</button></span>
     <span class="seg" id="scopeSeg"><button id="sall" class="on">Everyone</button><button id="smine">My meetings</button></span><select id="userFilter" style="display:none;font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff;max-width:200px"></select>
+    <button class="btn gc" id="gcalBtn" title="Two-way sync with Google Calendar" style="display:none"><span class="gdot"></span>⟳ Google</button>
     <button class="btn red" id="newbtn">+ New meeting</button>
   </div>
+  <div id="gcalBar" class="gcalbar" hidden></div>
   <div id="cal"></div>
 </div>
 
@@ -297,6 +318,12 @@ document.getElementById('sendinv').addEventListener('click',function(){ if(EDIT)
 document.getElementById('addatt').addEventListener('click',function(){ var box=document.getElementById('f_atts'); box.insertAdjacentHTML('beforeend',attRow({})); wireAttX(); });
 document.getElementById('modal').addEventListener('click',function(e){ if(e.target===this){ /* stay open */ } });
 (function(){ var fs=document.getElementById('featStrip'), hd=document.getElementById('featHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_calfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_calfeats', col?'0':'1'); }catch(e){} }); })();
+/* ---- Google Calendar two-way sync (uses the existing /api/google/sync endpoints) ---- */
+var _GCAL={state:'off'};
+function gcalStatus(){ var btn=document.getElementById('gcalBtn'); if(!btn) return; fetch('/api/google/sync/status',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.configured){ btn.style.display='none'; _GCAL.state='off'; return; } btn.style.display=''; btn.classList.remove('ready','warn'); if(!j.connected){ _GCAL.state='disconnected'; btn.title='Connect Google on your Account page to sync'; btn.classList.add('warn'); } else if(!j.hasCalendar){ _GCAL.state='nocal'; btn.title='Calendar permission not granted — Reconnect on your Account page'; btn.classList.add('warn'); } else { _GCAL.state='ready'; btn.title='Two-way sync with Google Calendar'+(j.email?(' ('+j.email+')'):''); btn.classList.add('ready'); } }).catch(function(){ btn.style.display='none'; }); }
+function gcalSync(){ var btn=document.getElementById('gcalBtn'), bar=document.getElementById('gcalBar'); if(!btn||!bar) return; if(_GCAL.state==='disconnected'||_GCAL.state==='nocal'){ bar.hidden=false; bar.className='gcalbar warn'; bar.innerHTML=(_GCAL.state==='nocal'?'Calendar permission isn’t granted yet. ':'Google isn’t connected yet. ')+'Open your <a href="rrg_account.html">Account</a> page, connect Gmail, and approve <b>Calendar</b> access — then sync here.'; return; } bar.hidden=false; bar.className='gcalbar'; bar.textContent='Syncing with Google Calendar… a large first sync can take a moment.'; btn.disabled=true; fetch('/api/google/sync/calendar',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({direction:'both'})}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; if(j&&j.ok){ bar.className='gcalbar ok'; bar.textContent='Synced — '+j.pulledNew+' new and '+j.pulledUpdated+' updated from Google, '+j.pushed+' pushed out.'; load(); } else { bar.className='gcalbar err'; bar.textContent=(j&&j.error)||'Sync failed.'; } }).catch(function(){ btn.disabled=false; bar.className='gcalbar err'; bar.textContent='Could not reach the server.'; }); }
+document.getElementById('gcalBtn').addEventListener('click',gcalSync);
+gcalStatus();
 load();
 </script>
 </body></html>
