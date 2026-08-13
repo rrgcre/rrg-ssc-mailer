@@ -25,7 +25,7 @@ h1{font-size:21px;font-weight:800;margin:3px 0 0;color:#fff;letter-spacing:-.01e
 .card{background:#fff;border:1px solid #e9edf3;border-radius:12px;box-shadow:0 1px 2px rgba(16,24,40,.04),0 1px 3px rgba(16,24,40,.05);overflow:hidden;margin-bottom:12px;}
 /*rrg-accordion-css*/.card > .ch{cursor:pointer;} .card > .ch .rrgchev{margin-left:8px;color:#3f4b63;font-size:12px;font-weight:800;transition:transform .15s;flex:none;} .card.collapsed > .ch .rrgchev{transform:rotate(-90deg);} .card.collapsed > .cb{display:none;}
 .rail .rrgchev{display:none!important;}
-.ch{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid #eef1f6;} .ch b{color:var(--ink);font-size:15px;font-weight:600;} .ch span{color:var(--soft);font-size:12.5px;font-weight:500;} .rail .card .ch b{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);} .rail .card .ch span{font-size:11px;font-weight:600;}
+.ch{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid #eef1f6;} .ch b{color:var(--ink);font-size:15px;font-weight:600;} .ch span{color:var(--soft);font-size:12.5px;font-weight:500;} .rail .card .ch b{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);} .rail .card .ch span{font-size:10.5px;font-weight:700;color:#6b7488;background:#eef2f6;border-radius:999px;padding:1px 8px;line-height:1.7;font-variant-numeric:tabular-nums;}
 .row{display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);text-decoration:none;color:inherit;} .row:last-child{border-bottom:none;} .row:hover{background:#fbfcfe;}
 .rbiz{font-weight:800;color:var(--navy);font-size:13.5px;} .rmeta{font-size:11.5px;color:var(--muted);margin-top:2px;}
 .rt{margin-left:auto;font-size:11px;font-weight:700;color:var(--ink);white-space:nowrap;}
@@ -357,15 +357,15 @@ document.addEventListener('change',function(e){ if(e.target&&e.target.classList&
 function appointmentsCard(){
   var A=(typeof P!=='undefined'&&P&&P.appointments)||[];
   var rows=A.length?A.map(function(a){ return '<div data-appt="'+esc(a.id)+'" style="display:flex;gap:11px;padding:8px 0;border-top:1px solid #f0f3f8;cursor:pointer">'+
-    '<div style="min-width:120px;font-size:12.5px;font-weight:800;color:#000E31">'+esc(apptFmtDT(a.start))+'</div>'+
-    '<div style="flex:1"><b style="font-size:13.5px'+(a.status==="cancelled"?";text-decoration:line-through;opacity:.6":"")+'">'+esc(a.title)+'</b>'+(a.type?(' <span style="font-size:10.5px;font-weight:800;color:#8a93a8;text-transform:uppercase;letter-spacing:.04em">'+esc(a.type)+'</span>'):'')+(a.location?('<div style="font-size:12px;color:#6b7488;margin-top:1px">'+esc(a.location)+'</div>'):'')+'</div></div>'; }).join(''):'<div class="rrempty">No meetings scheduled with this contact.</div>';
+    '<div style="min-width:120px;font-size:12.5px;font-weight:600;color:#3a4560">'+esc(apptFmtDT(a.start))+'</div>'+
+    '<div style="flex:1;min-width:0"><span style="font-size:13.5px;font-weight:600;color:#1f2a3d'+(a.status==="cancelled"?";text-decoration:line-through;opacity:.6":"")+'">'+esc(a.title)+'</span>'+(a.type?(' <span style="font-size:10.5px;font-weight:700;color:#8a93a8;text-transform:uppercase;letter-spacing:.04em">'+esc(a.type)+'</span>'):'')+(a.location?('<div style="font-size:12px;color:#6b7488;margin-top:1px">'+esc(a.location)+'</div>'):'')+'</div></div>'; }).join(''):'<div class="rrempty">No meetings scheduled with this contact.</div>';
   return '<div class="card"><div class="ch"><b>Calendar</b><span>'+A.length+'</span><button type="button" class="mfadd" id="apptAddBtn" title="Schedule an appointment" style="margin-left:auto;width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb">'+rows+'</div></div>';
 }
 function gcalFromAppt(body){
   function z(v){ v=String(v||'').replace(/[-:]/g,''); return /T\d{4}$/.test(v)?(v+'00'):v; }
   var u='https://calendar.google.com/calendar/u/0/r/eventedit?text='+encodeURIComponent(body.title||'Meeting');
   var s=z(body.start), e=z(body.end); if(s&&e) u+='&dates='+s+'/'+e;
-  var em=(body.attendees&&body.attendees[0]&&body.attendees[0].email)||''; if(em) u+='&add='+encodeURIComponent(em);
+  var _guests=[].concat((body.attendees||[]).map(function(x){return x.email;}), body.cc||[]).filter(Boolean); if(_guests.length) u+='&add='+encodeURIComponent(_guests.join(','));
   if(body.location) u+='&location='+encodeURIComponent(body.location);
   if(body.notes) u+='&details='+encodeURIComponent(body.notes);
   try{ var tz=Intl.DateTimeFormat().resolvedOptions().timeZone; if(tz) u+='&ctz='+encodeURIComponent(tz); }catch(e){}
@@ -383,12 +383,14 @@ function openApptModal(a){
     +'<div style="display:flex;align-items:center;padding:14px 20px;border-bottom:1px solid #e6e9f0;background:#f4f6f9"><b style="font-size:14px;color:#000E31;font-weight:700">'+(a?'Edit meeting':'Schedule meeting')+'</b><button type="button" id="_apx" style="margin-left:auto;background:none;border:none;font-size:20px;color:#8a93a8;cursor:pointer;line-height:1">\u00d7</button></div>'
     +'<div style="padding:16px 20px">'
     +'<label class="fld">Title</label><input id="_aptitle" value="'+esc(a?a.title:('Meeting with '+pName))+'" style="'+_apInp+'">'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-top:10px"><div><label class="fld">Type</label><select id="_aptype" style="'+_apInp+'">'+TYPES.map(function(t){return '<option'+((a&&a.type===t)?' selected':'')+'>'+esc(t)+'</option>';}).join('')+'</select></div>'
-    +'<div><label class="fld">Date</label><input type="date" id="_apdate" value="'+esc(a?String(a.start).slice(0,10):today)+'" style="'+_apInp+'"></div>'
-    +'<div><label class="fld">Time</label><input type="time" id="_apstart" value="'+esc(a?tv(a.start):'09:00')+'" style="'+_apInp+'"></div></div>'
-    +'<div style="display:grid;grid-template-columns:1fr 2fr;gap:9px;margin-top:10px"><div><label class="fld">End</label><input type="time" id="_apend" value="'+esc(a?tv(a.end):'09:30')+'" style="'+_apInp+'"></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 2fr;gap:9px;margin-top:10px"><div><label class="fld">Type</label><select id="_aptype" style="'+_apInp+'">'+TYPES.map(function(t){return '<option'+((a&&a.type===t)?' selected':'')+'>'+esc(t)+'</option>';}).join('')+'</select></div>'
     +'<div><label class="fld">Location</label><input id="_aploc" value="'+esc(a?(a.location||''):'')+'" placeholder="Address, video link, or phone" style="'+_apInp+'"></div></div>'
-    +'<label class="fld">Attendee email (to send an invite)</label><input id="_apemail" value="'+esc(a?((a.attendees&&a.attendees[0]&&a.attendees[0].email)||''):pEmail)+'" placeholder="name@example.com" style="'+_apInp+'">'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin-top:10px"><div><label class="fld">Date</label><input type="date" id="_apdate" value="'+esc(a?String(a.start).slice(0,10):today)+'" style="'+_apInp+'"></div>'
+    +'<div><label class="fld">Time</label><input type="time" id="_apstart" value="'+esc(a?tv(a.start):'09:00')+'" style="'+_apInp+'"></div>'
+    +'<div><label class="fld">End</label><input type="time" id="_apend" value="'+esc(a?tv(a.end):'09:30')+'" style="'+_apInp+'"></div></div>'
+    +'<label class="fld" style="display:flex;align-items:center;justify-content:space-between;gap:8px">Attendee email (to send an invite)<a href="#" id="_apccbtn" style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:#6b7488;text-decoration:none;cursor:pointer">Cc / Bcc</a></label><input id="_apemail" value="'+esc(a?((a.attendees&&a.attendees[0]&&a.attendees[0].email)||''):pEmail)+'" placeholder="name@example.com" style="'+_apInp+'">'
+    +'<div id="_apccrow" style="display:'+((a&&((a.cc&&a.cc.length)||(a.bcc&&a.bcc.length)))?'block':'none')+';margin-top:10px"><label class="fld">Cc</label><input id="_apcc" value="'+esc(a?((a.cc||[]).join(', ')):'')+'" placeholder="Comma-separated emails" style="'+_apInp+'"></div>'
+    +'<div id="_apbccrow" style="display:'+((a&&((a.cc&&a.cc.length)||(a.bcc&&a.bcc.length)))?'block':'none')+';margin-top:10px"><label class="fld">Bcc</label><input id="_apbcc" value="'+esc(a?((a.bcc||[]).join(', ')):'')+'" placeholder="Comma-separated emails" style="'+_apInp+'"></div>'
     +'<label class="fld">Notes</label><textarea id="_apnotes" style="'+_apInp+';min-height:60px">'+esc(a?(a.notes||''):'')+'</textarea>'
     +(emailReady?'<label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-top:10px"><input type="checkbox" id="_apinv" style="width:auto"> Email a calendar invite now</label>':'')
     +'</div>'
@@ -399,11 +401,14 @@ function openApptModal(a){
   ov.addEventListener('click',function(e){ if(e.target===ov){ /* stay open */ } });
   if(!a && typeof GMAILCONN!=='undefined' && GMAILCONN){ var _sb=ov.querySelector('#_apsave'); if(_sb) _sb.textContent='Save & open Google Calendar'; }
   ov.querySelector('#_apx').addEventListener('click',close);
+  var _ccb=ov.querySelector('#_apccbtn'); if(_ccb) _ccb.addEventListener('click',function(e){ e.preventDefault(); var cr=ov.querySelector('#_apccrow'), br=ov.querySelector('#_apbccrow'); var show=(cr.style.display==='none'); cr.style.display=show?'block':'none'; br.style.display=show?'block':'none'; if(show){ var ci=ov.querySelector('#_apcc'); if(ci) ci.focus(); } });
   var delb=ov.querySelector('#_apdel'); if(delb) delb.addEventListener('click',async function(){ if(!await rrgConfirm('Delete this meeting?'))return; fetch('/api/appointments/'+encodeURIComponent(a.id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ close(); load(); } else alert((j&&j.error)||'Could not delete.'); }); });
   ov.querySelector('#_apsave').addEventListener('click',function(){
     var date=ov.querySelector('#_apdate').value, st=ov.querySelector('#_apstart').value||'09:00', en=ov.querySelector('#_apend').value||st;
     var em=ov.querySelector('#_apemail').value.trim();
-    var body={ id:a?a.id:undefined, title:ov.querySelector('#_aptitle').value.trim(), type:ov.querySelector('#_aptype').value, contactPersonId:ID, contactName:pName, start:date?(date+'T'+st):'', end:date?(date+'T'+en):'', location:ov.querySelector('#_aploc').value.trim(), notes:ov.querySelector('#_apnotes').value.trim(), attendees:em?[{name:pName,email:em}]:[] };
+    function _emails(sel){ var el=ov.querySelector(sel); return el?el.value.split(/[,;\s]+/).map(function(s){return s.trim();}).filter(Boolean):[]; }
+    var _cc=_emails('#_apcc'), _bcc=_emails('#_apbcc');
+    var body={ id:a?a.id:undefined, title:ov.querySelector('#_aptitle').value.trim(), type:ov.querySelector('#_aptype').value, contactPersonId:ID, contactName:pName, start:date?(date+'T'+st):'', end:date?(date+'T'+en):'', location:ov.querySelector('#_aploc').value.trim(), notes:ov.querySelector('#_apnotes').value.trim(), attendees:em?[{name:pName,email:em}]:[], cc:_cc, bcc:_bcc };
     var msg=ov.querySelector('#_apmsg');
     if(!body.title){ msg.style.color='#DA2B1F'; msg.textContent='Add a title.'; return; }
     if(!body.start){ msg.style.color='#DA2B1F'; msg.textContent='Pick a date.'; return; }

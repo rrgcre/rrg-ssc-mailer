@@ -11154,7 +11154,7 @@ function saveAppts(a) { return writeJsonGuarded(APPTS_FILE, a, 'saveAppts'); }
 function newApptId() { return 'ap_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const APPT_TYPES = ['Meeting', 'Call', 'Tour', 'Listing Presentation', 'Closing', 'Follow-up', 'Other'];
 function _cleanAttendees(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 20).map(function (x) { return { name: String((x && x.name) || '').slice(0, 120), email: String((x && x.email) || '').slice(0, 160).trim() }; }).filter(function (x) { return x.name || x.email; }); }
-function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', invitedAt: a.invitedAt || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
+function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], cc: Array.isArray(a.cc) ? a.cc : [], bcc: Array.isArray(a.bcc) ? a.bcc : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', invitedAt: a.invitedAt || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
 function apptIcs(a) {
   function e(s) { return String(s || '').replace(/([,;\\])/g, '\\$1').replace(/\r?\n/g, '\\n'); }
   function dt(s) { var m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); return m ? (m[1] + m[2] + m[3] + 'T' + m[4] + m[5] + '00') : ''; }
@@ -11165,12 +11165,14 @@ function apptIcs(a) {
   var lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//RRG//FullServe//EN', 'CALSCALE:GREGORIAN', 'METHOD:REQUEST', 'BEGIN:VEVENT', 'UID:' + a.id + '@rrgcre', 'DTSTAMP:' + stamp + 'Z', 'DTSTART:' + start, 'DTEND:' + end, 'SUMMARY:' + e(a.title || 'Meeting'), (a.location ? 'LOCATION:' + e(a.location) : ''), (a.notes ? 'DESCRIPTION:' + e(a.notes) : ''), 'ORGANIZER:mailto:' + org, att, 'STATUS:CONFIRMED', 'END:VEVENT', 'END:VCALENDAR'].filter(Boolean);
   return lines.join('\r\n');
 }
-async function sendInviteMail(to, subject, text, ics) {
+async function sendInviteMail(to, subject, text, ics, cc, bcc) {
   try {
     if (!isEmailConfigured()) return { ok: false, skipped: true };
     const list = (Array.isArray(to) ? to : [to]).filter(Boolean).join(', ');
     if (!list) return { ok: false, skipped: true };
-    const info = await sendMailWL({ from: mailFrom(), to: list, subject: String(subject || '').slice(0, 200), text: String(text || ''), icalEvent: ics ? { method: 'REQUEST', content: ics } : undefined, attachments: ics ? [{ filename: 'invite.ics', content: ics, contentType: 'text/calendar; method=REQUEST' }] : undefined });
+    const ccList = (Array.isArray(cc) ? cc : (cc ? [cc] : [])).filter(Boolean).join(', ');
+    const bccList = (Array.isArray(bcc) ? bcc : (bcc ? [bcc] : [])).filter(Boolean).join(', ');
+    const info = await sendMailWL({ from: mailFrom(), to: list, cc: ccList || undefined, bcc: bccList || undefined, subject: String(subject || '').slice(0, 200), text: String(text || ''), icalEvent: ics ? { method: 'REQUEST', content: ics } : undefined, attachments: ics ? [{ filename: 'invite.ics', content: ics, contentType: 'text/calendar; method=REQUEST' }] : undefined });
     return { ok: true, id: info.messageId };
   } catch (e) { console.error('invite mail error:', e && e.message); return { ok: false, error: String((e && e.message) || e) }; }
 }
@@ -11203,6 +11205,8 @@ app.post('/api/appointments', express.json(), (req, res) => {
   a.notes = String(b.notes || '').slice(0, 4000);
   if (typeof b.contactPersonId === 'string') { a.contactPersonId = b.contactPersonId.slice(0, 60); const p = a.contactPersonId ? personById(a.contactPersonId) : null; a.contactName = p ? p.name : (String(b.contactName || '').slice(0, 160)); a.companyId = p ? (p.companyId || '') : (a.companyId || ''); }
   if (Array.isArray(b.attendees)) a.attendees = _cleanAttendees(b.attendees);
+  if (b.cc !== undefined) a.cc = cleanList(Array.isArray(b.cc) ? b.cc : String(b.cc || '').split(/[,;\s]+/), 20, 160);
+  if (b.bcc !== undefined) a.bcc = cleanList(Array.isArray(b.bcc) ? b.bcc : String(b.bcc || '').split(/[,;\s]+/), 20, 160);
   if (typeof b.status === 'string' && ['scheduled', 'cancelled'].indexOf(b.status) >= 0) a.status = b.status;
   a.updatedAt = now; saveAppts(all);
   try { if (a.contactPersonId) { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.contactPersonId); if (pp) { logActivity(pp, 'Meeting', (b.id ? 'Updated' : 'Scheduled') + ' meeting: ' + title + ' — ' + start.replace('T', ' '), { by: u.name || '', byUser: u.username || '' }); savePeople(ppl); } } } catch (e) {}
@@ -11215,7 +11219,7 @@ app.post('/api/appointments/:id/invite', express.json(), async (req, res) => {
   if (!to.length) return res.status(400).json({ ok: false, error: 'Add at least one attendee email first.' });
   const when = String(a.start || '').replace('T', ' at ') + (a.end ? (' – ' + String(a.end).replace(/^.*T/, '')) : '');
   const text = 'You are invited: ' + (a.title || 'Meeting') + '\n\nWhen: ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + (a.notes ? ('\n\n' + a.notes) : '') + '\n\n— ' + (a.byName || 'Restaurant Realty Group');
-  const r = await sendInviteMail(to, 'Invitation: ' + (a.title || 'Meeting'), text, apptIcs(a));
+  const r = await sendInviteMail(to, 'Invitation: ' + (a.title || 'Meeting'), text, apptIcs(a), a.cc || [], a.bcc || []);
   if (!r.ok) return res.status(500).json({ ok: false, error: r.error || 'Could not send the invite.' });
   a.invitedAt = new Date().toISOString(); saveAppts(all);
   res.json({ ok: true, sentTo: to });
