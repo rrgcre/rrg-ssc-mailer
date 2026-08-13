@@ -134,9 +134,9 @@ const PEOPLE_FILE = path.join(BOV_DATA_DIR, 'people.json');
 const PERSON_TYPES = ['Buying', 'Selling', 'Investing', 'Referring', 'Working', 'Other'];
 // Old names, retired from the picker everywhere (a one-time migration remaps existing contacts).
 const RETIRED_PERSON_TYPES = ['buyer', 'seller', 'tenant', 'investor', 'broker', 'referral source'];
-const LEAD_SOURCES = ['Referral', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
+const LEAD_SOURCES = ['Referral', 'BizBuySell', 'Cold Call', 'Website', 'CoStar', 'LoopNet', 'Walk-in', 'Event / Networking', 'Existing Client', 'Social Media', 'Other'];
 // System-required lead sources: cannot be deleted in admin — referral tracking / attribution depends on them.
-const SYSTEM_LEAD_SOURCES = ['Referral'];
+const SYSTEM_LEAD_SOURCES = ['Referral', 'BizBuySell'];
 const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'LOI Sent', 'LOI Received', 'LOI Countered', 'LOI Accepted', 'Diligence', 'Note', 'To-Do'];
 // Reasons a broker closes & archives a data room — editable in Admin → Lists.
 const ROOM_CLOSE_REASONS = ['Transaction closed (sold)', 'Deal cancelled', 'Listing expired', 'Seller withdrew', 'Buyer withdrew', 'Financing fell through', 'Other'];
@@ -292,15 +292,6 @@ function saveCompanies(a) {
 }
 function newCompanyId() { return 'co_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 function companyById(id) { if (!id) return null; return loadCompanies().find(c => c.id === id) || null; }
-function bizBuySellCompany() {
-  const arr = loadCompanies();
-  let c = arr.find(x => x.system === 'bizbuysell');
-  if (!c) {
-    c = { id: newCompanyId(), name: 'BizBuySell', type: '', market: '', system: 'bizbuysell', locked: true, notes: 'Permanent home for BizBuySell buyer leads. Created and protected by the system \u2014 cannot be deleted.', createdAt: new Date().toISOString(), by: 'System', byUser: 'system' };
-    arr.push(c); saveCompanies(arr);
-  }
-  return c;
-}
 function companyNameFromDomain(dom) {
   dom = String(dom || '').replace(/^www\./, '');
   let base = dom.split('.')[0] || dom;
@@ -327,14 +318,27 @@ function noContactPerson() {
   }
   return p;
 }
+// BizBuySell leads are buyers with no company. Stamp the lead SOURCE on the contact and park
+// them in "No Company" — not a fake "BizBuySell" company. Migrates any leads still sitting on
+// the old BizBuySell bucket, then retires that bucket company once nothing points at it.
 function backlinkBbsLeads() {
   try {
-    const cid = bizBuySellCompany().id;
+    const noCoId = noCompanyCompany().id;
+    const bbsCo = loadCompanies().find(x => x.system === 'bizbuysell'); // do NOT recreate it
+    const bbsId = bbsCo ? bbsCo.id : '';
     const overlay = loadAssignOverlay(); const bbsIds = new Set();
     Object.keys(overlay).forEach(k => ((overlay[k] || {}).inquiries || []).forEach(x => { if (x && x.source === 'BizBuySell' && x.personId) bbsIds.add(x.personId); }));
     const ppl = loadPeople(); let ch = false;
-    ppl.forEach(p => { const isBbs = bbsIds.has(p.id) || (Array.isArray(p.activities) && p.activities.some(a => a.type === 'BizBuySell Lead')); if (isBbs && !p.companyId) { p.companyId = cid; ch = true; } });
+    ppl.forEach(p => {
+      const isBbs = bbsIds.has(p.id) || (Array.isArray(p.activities) && p.activities.some(a => a.type === 'BizBuySell Lead'));
+      if (!isBbs) return;
+      if (!p.companyId || (bbsId && p.companyId === bbsId)) { p.companyId = noCoId; ch = true; }
+      if (!p.leadSource) { p.leadSource = 'BizBuySell'; ch = true; }
+    });
     if (ch) savePeople(ppl);
+    if (bbsId && !loadPeople().some(p => p.companyId === bbsId)) {
+      saveCompanies(loadCompanies().filter(c => c.id !== bbsId));
+    }
   } catch (e) { console.error('backlinkBbsLeads:', e && e.message); }
 }
 function companyBrief(c) { return c ? { id: c.id, name: c.name || '', market: c.market || '', type: c.type || '', address: (c.office && [c.office.address, c.office.city, c.office.state].filter(Boolean).join(', ')) || '' } : null; }
@@ -5293,7 +5297,7 @@ function importBbsLeads(req, leads) {
   const now = new Date().toISOString();
   const due = (function(){ const d = new Date(); d.setDate(d.getDate() + 2); return d.toISOString().slice(0, 10); })();
   const tasks = loadTasks();
-  const _bbsCoId = bizBuySellCompany().id;
+  const _bbsCoId = noCompanyCompany().id;   // buyers have no company — source is stamped on the contact
   const _autos = loadAutomations();
   const _bbsPlan = _autos.find(a => a.bbsDefault && a.active !== false) || null;
   let imported = 0, matched = 0, unmatched = 0, dupes = 0, createdListings = 0;
@@ -5307,7 +5311,7 @@ function importBbsLeads(req, leads) {
     let key = numKey || nameKey || refKey || null; let createdStub = false;
     const qualBits = []; if (l.funds) qualBits.push('Funds: ' + l.funds); if (l.timeframe) qualBits.push('Timeframe: ' + l.timeframe); if (l.zip) qualBits.push('Zip: ' + l.zip); const qualLine = qualBits.join(' \u00b7 ');
     const person = findOrCreatePerson(req, { name: l.name || '', firstName: l.firstName || '', lastName: l.lastName || '', email: email, phones: l.phone ? [l.phone] : [], type: 'Buying', companyId: _bbsCoId });
-    if (person) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === person.id); if (pp) { logActivity(pp, 'BizBuySell Lead', ('Inquired on ' + (l.listingName || 'a listing') + (l.refId ? (' \u00b7 Ref ' + l.refId) : (l.listingNumber ? (' \u00b7 #' + l.listingNumber) : '')) + (qualLine ? (' \u00b7 ' + qualLine) : '') + (l.message ? (' \u2014 \u201c' + String(l.message).slice(0,140) + '\u201d') : '')).slice(0, 300), { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
+    if (person) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === person.id); if (pp) { if (!pp.leadSource) pp.leadSource = 'BizBuySell'; logActivity(pp, 'BizBuySell Lead', ('Inquired on ' + (l.listingName || 'a listing') + (l.refId ? (' \u00b7 Ref ' + l.refId) : (l.listingNumber ? (' \u00b7 #' + l.listingNumber) : '')) + (qualLine ? (' \u00b7 ' + qualLine) : '') + (l.message ? (' \u2014 \u201c' + String(l.message).slice(0,140) + '\u201d') : '')).slice(0, 300), { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); savePeople(ppl); } } catch (e) {} }
     const _lplan = (key && overlay[key] && overlay[key].leadAutomationId) ? (_autos.find(a => a.id === overlay[key].leadAutomationId && a.active !== false) || _bbsPlan) : _bbsPlan;
     if (person && _lplan) { try { const ppl2 = loadPeople(); const pp2 = ppl2.find(x => x.id === person.id); if (pp2 && enrollPerson(pp2, _lplan, { byName: 'BizBuySell auto-import', byUser: 'system' })) savePeople(ppl2); } catch (e) {} }
     if (!key && (l.listingNumber || _nn)) {
@@ -5474,7 +5478,7 @@ function cleanupPeopleAddrs() {
     if (ch) savePeople(arr);
   } catch (e) { console.error('addr cleanup:', e && e.message); }
 }
-try { bizBuySellCompany(); noCompanyCompany(); noContactPerson(); backlinkBbsLeads(); cleanupPeopleAddrs(); } catch (e) { console.error('bbs company init:', e && e.message); }
+try { noCompanyCompany(); noContactPerson(); backlinkBbsLeads(); cleanupPeopleAddrs(); } catch (e) { console.error('bbs company init:', e && e.message); }
 try { seedEmailTemplates(); } catch (e) { console.error('seed email tpl:', e && e.message); }
 try { seedBizSalesStages(); } catch (e) { console.error('seed biz sales:', e && e.message); }
 try { seedUnqualifiedStage(); } catch (e) { console.error('seed unqualified:', e && e.message); }
@@ -12133,7 +12137,7 @@ app.get('/api/documents', (req, res) => {
       if (s.formId) _seenFid[s.formId] = 1;
       const pct = (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0));
       const title = (s.business && s.business !== 'Seller') ? s.business : (d.company || s.contact || 'Seller Screening');
-      out.push({ id: s.id, kind:'seller', title: title, typeLabel:'Seller Screening Call',
+      out.push({ id: s.id, kind:'seller', title: title, typeLabel:(s.skipped?'Seller Screening (pre-qualified)':'Seller Screening Call'),
         matchNames:[s.business||'', d.company||'', s.contact||''],
         personId: s.personId||'', companyId: s.companyId||'',
         companyName: coNameById[s.companyId] || s.market || '',
@@ -12221,7 +12225,8 @@ function intakeViewHtml(rec, kicker) {
   }).join('') || '<div class="card"><div class="ch">Submission</div><div style="padding:16px 18px;color:#6b7488;font-size:13px">No structured fields were captured on this submission.</div></div>';
   const _idPairs = [['Company', d.company],['Concept', d.concept],['Contact', d.contact],['Market', d.market||rec.market],['Address', d.address],['Call Date', d.date],['RRG Rep', d.preparedBy||rec.rep]];
   const _idRows = _idPairs.map(pr => (pr[1] && String(pr[1]).trim()) ? `<tr><td class="lb">${esc(pr[0])}</td><td class="vl">${esc(pr[1])}</td></tr>` : '').join('');
-  const idCard = _idRows ? `<div class="card"><div class="ch">Call Details</div><table>${_idRows}</table></div>` : '';
+  const _idLabel = /pre-?qualified/i.test(kicker || '') ? 'Details' : (/interview/i.test(kicker || '') ? 'Interview Details' : 'Call Details');
+  const idCard = _idRows ? `<div class="card"><div class="ch">${esc(_idLabel)}</div><table>${_idRows}</table></div>` : '';
   const when = (function(){ try { return new Date(rec.timestamp).toLocaleString('en-US',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'}); } catch(e){ return rec.timestamp||''; } })();
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(kicker)} — ${esc(rec.name||'')}</title><style>*{box-sizing:border-box}body{margin:0;background:#eef1f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#1a2236}.top{background:#000E31;border-bottom:2px solid #2c5c8f;color:#fff;padding:16px 0 18px}.top-in{max-width:900px;margin:0 auto;padding:0 24px}.brand{display:inline-flex;align-items:center}.disc{background:#b23a2c;color:#fff;border-radius:3px;width:30px;height:30px;font:900 11px 'Arial Black',Arial,sans-serif;display:inline-flex;align-items:center;justify-content:center;letter-spacing:-.04em}.bar{background:rgba(255,255,255,.3);width:1px;height:22px;margin:0 11px}.wm{font-weight:700;font-size:11px;text-transform:uppercase;line-height:1;letter-spacing:.02em;color:#cdd6e4}.kick{margin:13px 0 2px;color:#8fa2be;font-weight:700;letter-spacing:.15em;font-size:10px;text-transform:uppercase}h1{margin:0;font-size:19px;font-weight:700;color:#fff;letter-spacing:.01em}.meta{color:#a9b4c8;font-size:12px;margin-top:5px;line-height:1.6}.wrap{max-width:900px;margin:22px auto;padding:0 24px 90px}.card{background:#fff;border:1px solid #dbe0e9;border-radius:6px;overflow:hidden;box-shadow:0 1px 2px rgba(16,24,40,.04);margin-bottom:14px}.ch{padding:12px 18px;border-bottom:1px solid #e6e9f0;font-weight:700;color:#000E31;font-size:13px;letter-spacing:.02em;text-transform:uppercase;background:#f4f6f9}table{width:100%;border-collapse:collapse}td{padding:11px 18px;border-bottom:1px solid #eef1f6;font-size:13px;vertical-align:top}tr:last-child td{border-bottom:none}.lb{width:34%;color:#66738f;font-weight:600}.vl{color:#1a2236;font-weight:500}.dim{color:#aab2c2}@media print{.noprint{display:none!important}body{background:#fff}}*{-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body><div class="top"><div class="top-in"><span class="brand"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span><div class="kick">${esc(kicker)}</div><h1>${esc(rec.name||'Untitled')}</h1><div class="meta">${rec.market?('Market: <b>'+esc(rec.market)+'</b> &nbsp;·&nbsp; '):''}Prepared by <b>${esc(rec.rep||'—')}</b> &nbsp;·&nbsp; ${esc(when)}${rec.highlights?('<br>'+esc(rec.highlights)):''}</div></div></div><div class="wrap">${idCard}${secHtml}</div></body></html>`;
 }
@@ -12244,13 +12249,13 @@ app.get('/api/screening/:id/view', (req, res) => {
   if (!s) return res.status(404).send('Not found.');
   if (restrictToOwn(req) && !ownsScreen(req, s)) return res.status(403).send('Not authorized.');
   const pct = (typeof s.completePct === 'number' ? s.completePct : (s.completed ? 100 : 0));
-  const rec = { data: s.data || {}, name: (s.business && s.business !== 'Seller') ? s.business : (s.contact || (s.data && s.data.company) || 'Seller Screening'), market: s.market || '', rep: s.by || s.byUser || '', timestamp: s.createdAt || '', highlights: s.completed ? (s.statusText || s.decision || 'Complete') : ('In progress \u2014 ' + pct + '%') };
-  let html = intakeViewHtml(rec, 'Seller Screening Call');
+  const rec = { data: s.data || {}, name: (s.business && s.business !== 'Seller') ? s.business : (s.contact || (s.data && s.data.company) || 'Seller Screening'), market: s.market || '', rep: s.by || s.byUser || '', timestamp: s.createdAt || '', highlights: s.completed ? (s.statusText || s.decision || 'Complete') : (s.skipped ? (s.statusText || 'Pre-qualified \u2014 no call, enter details') : ('In progress \u2014 ' + pct + '%')) };
+  let html = intakeViewHtml(rec, s.skipped ? 'Seller Screening \u2014 Pre-qualified (no call)' : 'Seller Screening Call');
   const _bs = 'display:inline-flex;align-items:center;gap:7px;text-decoration:none;font:600 13px -apple-system,Segoe UI,Roboto,sans-serif;padding:10px 16px;border-radius:4px;box-shadow:0 6px 20px rgba(16,24,40,.18);cursor:pointer;border:1px solid #d7dde8;background:#fff;color:#1a2236';
   const _eurl = '/seller_screening.html?screening=' + encodeURIComponent(s.id) + '&edit=1';
   const edit = '<div class="noprint" style="position:fixed;left:16px;bottom:16px;z-index:50"><button type="button" onclick="history.length>1?history.back():window.close()" style="' + _bs + '">\u2190 Back</button></div>'
     + '<div class="noprint" style="position:fixed;right:16px;bottom:16px;z-index:50;display:flex;gap:10px">'
-    + '<a href="' + _eurl + '" style="' + _bs + '">\u270e Edit call</a>'
+    + '<a href="' + _eurl + '" style="' + _bs + '">\u270e ' + (s.skipped ? 'Edit details' : 'Edit call') + '</a>'
     + '<button type="button" onclick="window.print()" style="' + _bs + ';background:#000E31;color:#fff;border-color:#000E31">\u2b07 Download PDF</button></div>';
   html = html.replace('</body>', edit + '</body>');
   res.set('Content-Type', 'text/html; charset=utf-8').send(html);

@@ -43,24 +43,29 @@ td input.co{font:inherit;font-size:13px;padding:6px 9px;border:1px solid var(--l
   <div class="pgs">A quick way to get your book started. This scans your connected Gmail for everyone you've corresponded with, shows them here, and lets you pick who to add. Each accepted contact is filed under their company (matched or created from their email domain) — anyone on a personal address lands under a permanent <b>No Company</b> bucket you can sort later.</div>
   <div class="card">
     <div class="bar"><b>Gmail contacts</b><span class="msg" id="cnt"></span><span class="sp"></span><button class="btn" id="selAll" style="display:none">Select all</button><button class="btn" id="selNone" style="display:none">Clear</button><button class="btn" id="aiBtn" style="display:none">✨ Remove personal (AI)</button><button class="btn pri" id="importBtn" style="display:none">Import selected</button></div>
-    <div id="root"><div class="scan"><div class="big">Ready when you are</div><p>Choose how far back to look, then scan. It reads message headers only — names and email addresses — and pulls out the people you've corresponded with. Nothing is added until you review and choose.</p><div style="margin-bottom:16px;font-size:14px;color:#3a4560;font-weight:600">Look back <input type="number" id="monthsBack" value="12" min="1" max="120" style="width:68px;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:14px;text-align:center"> months</div><button class="btn pri" id="scanBtn">Scan my Gmail</button><div class="msg" id="scanMsg" style="margin-top:12px"></div></div></div>
+    <div id="root"><div class="scan"><div class="big">Ready when you are</div><p>Choose how far back to look, then scan. It reads message headers only — names and email addresses — and pulls out the people you've corresponded with. Nothing is added until you review and choose.</p><div style="margin-bottom:16px;font-size:14px;color:#3a4560;font-weight:600">Look back <input type="number" id="monthsBack" value="12" min="1" max="120" style="width:68px;border:1px solid #cfd6e2;border-radius:8px;padding:7px 9px;font:inherit;font-size:14px;text-align:center"> months</div><button class="btn pri" id="scanBtn">Scan my Gmail</button><button class="btn" id="cancelScanBtn" style="display:none;margin-left:8px">Cancel</button><div class="msg" id="scanMsg" style="margin-top:12px"></div></div></div>
   </div>
   <div class="note">Heads up: this reads message headers only (names + email addresses), never the contents of your emails. Pulling street addresses or restaurant concepts from signatures is coming later — for now this handles the contact and their company.</div>
 </div>
 <script>
-var ROWS=[], SCANNED=0, CAPPED=false;
+var ROWS=[], SCANNED=0, CAPPED=false, _scanCtrl=null;
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];});}
+function _scanBtns(scanning){ var b=document.getElementById('scanBtn'); var cb=document.getElementById('cancelScanBtn'); if(b){ b.disabled=scanning; b.textContent=scanning?'Scanning…':'Scan my Gmail'; } if(cb) cb.style.display=scanning?'':'none'; }
+function cancelScan(){ if(_scanCtrl){ try{ _scanCtrl.abort(); }catch(e){} _scanCtrl=null; } _scanBtns(false); var m=document.getElementById('scanMsg'); if(m) m.textContent='Scan cancelled.'; }
 function scan(){
   var mb=document.getElementById('monthsBack'); var months=mb?(parseInt(mb.value,10)||12):12;
-  var b=document.getElementById('scanBtn'); if(b){b.disabled=true;b.textContent='Scanning '+months+' months…';}
-  var m=document.getElementById('scanMsg'); if(m) m.textContent='This can take a minute or two on a busy inbox — hang tight.';
-  fetch('/api/gmail/contacts/scan?months='+months,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(!j||!j.ok){ if(m) m.textContent=(j&&j.error)||'Could not scan Gmail.'; if(b){b.disabled=false;b.textContent='Scan my Gmail';} return; }
+  var b=document.getElementById('scanBtn'); if(b) b.textContent='Scanning '+months+' months…';
+  _scanBtns(true); if(b) b.textContent='Scanning '+months+' months…';
+  var m=document.getElementById('scanMsg'); if(m) m.textContent='This can take a minute or two on a busy inbox — hang tight. You can cancel anytime.';
+  _scanCtrl=(window.AbortController)?new AbortController():null;
+  fetch('/api/gmail/contacts/scan?months='+months,{credentials:'same-origin',signal:_scanCtrl?_scanCtrl.signal:undefined}).then(function(r){return r.json();}).then(function(j){
+    _scanCtrl=null; _scanBtns(false);
+    if(!j||!j.ok){ if(m) m.textContent=(j&&j.error)||'Could not scan Gmail.'; return; }
     SCANNED=j.scanned||0; CAPPED=!!j.capped;
     ROWS=(j.contacts||[]).map(function(c){ return {name:c.name,email:c.email,company:c.suggestedCompany,existing:c.existing,count:c.count,sel:!c.existing}; });
     renderList();
     if(j.aiAvailable){ aiFilter(true); }
-  }).catch(function(){ if(m) m.textContent='Could not reach the server.'; if(b){b.disabled=false;b.textContent='Scan my Gmail';} });
+  }).catch(function(err){ if(err&&err.name==='AbortError') return; _scanCtrl=null; _scanBtns(false); if(m) m.textContent='Could not reach the server.'; });
 }
 function renderList(){
   var root=document.getElementById('root');
@@ -97,6 +102,7 @@ function doImport(){
 function aiFilter(auto){ var cand=ROWS.filter(function(c){return c.sel;}).map(function(c){return {name:c.name,email:c.email};}); if(!cand.length){ if(!auto) alert('Nothing to review — nothing is selected.'); return; } var ai=window.rrgAiWork; var ctrl=(window.AbortController)?new AbortController():null; if(ai&&ai.show){ ai.show('Reviewing your contacts — setting aside the obvious personal and automated ones…', function(){ if(ctrl) ctrl.abort(); if(ai&&ai.hide) ai.hide(); }); } var ab=document.getElementById('aiBtn'); if(ab) ab.disabled=true; fetch('/api/gmail/contacts/classify',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({contacts:cand}),signal:ctrl?ctrl.signal:undefined}).then(function(r){return r.json();}).then(function(j){ if(ai&&ai.hide) ai.hide(); if(ab) ab.disabled=false; if(!j||!j.ok){ if(!auto) alert((j&&j.error)||'AI could not review the list.'); return; } var rm={}; (j.removeEmails||[]).forEach(function(e){ rm[String(e).toLowerCase()]=1; }); var n=0; ROWS.forEach(function(c){ if(c.sel && rm[String(c.email||'').toLowerCase()]){ c.sel=false; n++; } }); renderList(); var cm=document.getElementById('cnt'); if(auto){ if(n&&cm){ var _p=document.createElement('span'); } } if(!auto){ alert(n?('Set aside '+n+' obvious personal / automated contact'+(n===1?'':'s')+'. Review what remains, then Import selected.'):'No obvious personal contacts stood out — the list looks like business contacts.'); } }).catch(function(err){ if(ai&&ai.hide) ai.hide(); if(ab) ab.disabled=false; if(err&&err.name==='AbortError') return; if(!auto) alert('Could not reach the server.'); }); }
 var _aib=document.getElementById('aiBtn'); if(_aib) _aib.addEventListener('click',aiFilter);
 document.getElementById('scanBtn').addEventListener('click',scan);
+var _csb=document.getElementById('cancelScanBtn'); if(_csb) _csb.addEventListener('click',cancelScan);
 document.getElementById('selAll').addEventListener('click',function(){ ROWS.forEach(function(c){c.sel=true;}); renderList(); });
 document.getElementById('selNone').addEventListener('click',function(){ ROWS.forEach(function(c){c.sel=false;}); renderList(); });
 document.getElementById('importBtn').addEventListener('click',doImport);
