@@ -1868,7 +1868,31 @@ app.post('/api/valuation-ensure', express.json(), (req, res) => {
     // No formal questionnaire on file? A completed Seller Interview (form or video) IS the
     // questionnaire now — synthesize one from it so the valuation can proceed.
     if (!q) q = synthQuestFromInterview(req, pid, cid);
-    if (!q) return res.status(409).json({ ok: false, error: 'No Seller Interview on file yet. Send the Seller Interview (form or video), have the seller complete it, then generate the valuation.' });
+    if (!q) {
+      // The interview was deliberately SKIPPED — no questionnaire is expected. Don't bounce the
+      // broker back to "send the interview"; stand up a bare valuation so it can build straight
+      // from the financials & lease. (Checks both overlay keys, like valuation-readiness.)
+      let ivSkipped = false;
+      try {
+        const _ov = loadAssignOverlay(); const _cand = [];
+        if (_lk) { _cand.push(_lk); const _sd = _dealFromListingKey(_lk); if (_sd) { if (_sd.screenId) _cand.push('s_' + _sd.screenId); if (_sd.id) _cand.push('d_' + _sd.id); } }
+        else { loadDeals().filter(hit).forEach(function (d) { if (d.screenId) _cand.push('s_' + d.screenId); if (d.id) _cand.push('d_' + d.id); }); }
+        ivSkipped = _cand.some(k => _ov[k] && _ov[k].interviewSkipped);
+      } catch (e) {}
+      if (ivSkipped) {
+        let biz = '', mkt = '';
+        try { const _sd = _lk ? _dealFromListingKey(_lk) : (loadDeals().filter(hit)[0] || null); if (_sd) { biz = _sd.business || ''; mkt = _sd.market || _sd.city || ''; } } catch (e) {}
+        if (!biz && cid) { try { const _c = loadCompanies().find(c => c.id === cid); if (_c) biz = _c.name || ''; } catch (e) {} }
+        const _arr = loadBovs();
+        const rec = { id: newBovId(), srcFormId: '', srcQuestId: '', pending: true, interviewSkipped: true,
+          personId: pid || '', companyId: cid || '', listingKey: _lk || '',
+          business: biz || 'Business', market: mkt || '', date: '', rangeText: '', targetText: '', multText: '', ebitdaText: '',
+          by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: new Date().toISOString() };
+        _arr.push(rec); saveBovs(_arr);
+        return res.json({ ok: true, bovId: rec.id });
+      }
+      return res.status(409).json({ ok: false, error: 'No Seller Interview on file yet. Send the Seller Interview (form or video), have the seller complete it, then generate the valuation.' });
+    }
     if (!q.processed) { const arr2 = loadQuests(); const q2 = arr2.find(x => x.id === q.id) || q; q2.processed = true; q2.processedAt = new Date().toISOString(); saveQuests(arr2); }
     const nb = ensureBovForQuest(q);
     // Tag the new valuation to the specific listing so its state resolves per-business.
@@ -4290,7 +4314,7 @@ function roomPublicPage(r, grant, opts) {
   const who = grant ? `<div class="sub" style="margin-top:8px;color:#cdd6ea">Signed in as ${esc(grant.name || grant.email)} · ${esc(lvlLabel)} · this device is verified for 30 days</div>` : '';
   const head = `<div class="kick">Confidential Data Room</div><h1>${esc(r.business || 'Confidential Opportunity')}</h1><div class="sub">${visCount} document${visCount === 1 ? '' : 's'} · Provided by ${esc(orgDisplayName())} under NDA</div>${who}`;
   let body = '';
-  if (_preview) body += `<a href="/rrg_room.html?room=${esc(r.id)}" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:8px;background:#20334f;color:#fff;text-decoration:none;font-weight:600;font-size:11.5px;padding:6px 12px;border-radius:3px">← Back to your data room</a><div id="rrgPrevBar" style="margin-bottom:12px;display:flex;align-items:center;gap:10px;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:4px;padding:7px 11px;font-size:11.5px;font-weight:600"><span style="flex:1">Preview — this is exactly what an NDA'd buyer sees. They do not see this bar.</span><a href="#" onclick="var b=document.getElementById('rrgPrevBar');if(b)b.style.display='none';return false;" title="Dismiss this notice" style="flex:none;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #e2cfa0;border-radius:3px;color:#8a5a12;text-decoration:none;font-weight:700;font-size:14px;line-height:1;background:#fff">×</a></div>`;
+  if (_preview) body += `<nav style="margin-bottom:10px;font-size:12.5px;font-weight:600;color:#5f6a7d;line-height:1.4"><a href="/index.html" style="color:#2c5c8f;text-decoration:none">Command</a><span style="color:#96a1b2;margin:0 7px">›</span><a href="/rrg_rooms_queue.html" style="color:#2c5c8f;text-decoration:none">Data Rooms</a><span style="color:#96a1b2;margin:0 7px">›</span><a href="/rrg_room.html?room=${esc(r.id)}" style="color:#2c5c8f;text-decoration:none">${esc(r.business || 'Data Room')}</a><span style="color:#96a1b2;margin:0 7px">›</span><span style="color:#20334f;font-weight:700">Preview</span></nav><div id="rrgPrevBar" style="margin-bottom:12px;display:flex;align-items:center;gap:10px;color:#8a5a12;background:#fff4e6;border:1px solid #f3d9a8;border-radius:4px;padding:7px 11px;font-size:11.5px;font-weight:600"><span style="flex:1">Preview — this is exactly what an NDA'd buyer sees. They do not see this bar.</span><a href="#" onclick="var b=document.getElementById('rrgPrevBar');if(b)b.style.display='none';return false;" title="Dismiss this notice" style="flex:none;width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;border:1px solid #e2cfa0;border-radius:3px;color:#8a5a12;text-decoration:none;font-weight:700;font-size:14px;line-height:1;background:#fff">×</a></div>`;
   if (r.srcCimId) body += `<a href="/deal/${esc(r.token)}" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:12px;background:#fff;color:#20334f;border:1px solid #c4ccda;text-decoration:none;font-weight:600;font-size:11.5px;padding:6px 12px;border-radius:3px">← Offering overview</a>`;
   body += `<div class="note conf"><span class="lock"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span><div><b>Confidential — provided under NDA.</b> These materials are shared solely so you can evaluate a potential acquisition of ${esc(r.business || 'this business')}. Do not copy, forward, screenshot, print, or distribute them, and do not share this link. All inquiries route exclusively through ${esc(orgDisplayName())}.</div></div>`;
   if (editCats.length) {

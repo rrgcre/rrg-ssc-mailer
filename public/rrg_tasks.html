@@ -89,7 +89,8 @@ input,select,textarea{border-radius:4px;}
     <div class="subline">Assign to yourself or a teammate, set a due date and time, link it to a contact or project, add a reminder, and set it to repeat.</div>
     <div class="grid">
       <div><label class="fld">Task</label><input id="t_title" list="titleList" autocomplete="off" placeholder="What needs doing?"><datalist id="titleList"></datalist></div>
-      <div><label class="fld">Due (date &amp; time)</label><input type="datetime-local" id="t_due"></div>
+      <div><label class="fld">Due date</label><input type="date" id="t_due_date"></div>
+      <div><label class="fld">Due time</label><input type="time" id="t_due_time"></div>
       <div><label class="fld">Priority</label><select id="t_priority"></select></div>
       <div><label class="fld">Type</label><select id="t_type"></select></div>
       <div><label class="fld">Assign to</label><select id="t_assignee"></select></div>
@@ -200,15 +201,18 @@ function collect(){
   var linkId=lt?tgt.value:''; var linkLabel='';
   if(linkId){ var opt=tgt.options[tgt.selectedIndex]; linkLabel=opt?opt.text:''; }
   return { title:document.getElementById('t_title').value.trim(),
-    due:document.getElementById('t_due').value, priority:document.getElementById('t_priority').value, type:(document.getElementById('t_type')||{}).value||'', assignee:(document.getElementById('t_assignee')||{}).value||'',
+    due:dueVal(), priority:document.getElementById('t_priority').value, type:(document.getElementById('t_type')||{}).value||'', assignee:(document.getElementById('t_assignee')||{}).value||'',
     reminder:reminderVal(), remChannels:channelVals(), repeat:(document.getElementById('t_repeat')||{}).value||'', linkType:lt, linkId:linkId, linkLabel:linkLabel,
     notes:document.getElementById('t_notes').value.trim() };
 }
 function applyChannelAvail(){ var e=document.getElementById('t_chan_email'), sm=document.getElementById('t_chan_sms'); if(e){ e.disabled=!EMAILREADY; var el=document.getElementById('t_chan_email_l'); if(el){ el.style.opacity=EMAILREADY?'1':'.4'; el.title=EMAILREADY?'':'Set up Email in Admin → Email'; } if(!EMAILREADY) e.checked=false; } if(sm){ sm.disabled=!SMSREADY; var sl=document.getElementById('t_chan_sms_l'); if(sl){ sl.style.opacity=SMSREADY?'1':'.4'; sl.title=SMSREADY?'':'Set up SMS in Admin → SMS (Twilio)'; } if(!SMSREADY) sm.checked=false; } }
 function channelVals(){ var out=[]; document.querySelectorAll('.t_chan').forEach(function(cb){ if(cb.checked && !cb.disabled) out.push(cb.value); }); return out; }
-function reminderVal(){ var sel=document.getElementById('t_remsel').value; if(!sel) return ''; if(sel==='custom') return document.getElementById('t_reminder').value||''; var dv=document.getElementById('t_due').value; var base=dv?new Date(dv):new Date(); if(isNaN(base.getTime())) base=new Date(); var mins=parseInt(sel,10)||0; var d=new Date(base.getTime()-mins*60000); function p2(x){return String(x).padStart(2,'0');} return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+'T'+p2(d.getHours())+':'+p2(d.getMinutes()); }
+// Due date + due time are two separate fields; combine to the stored 'YYYY-MM-DDTHH:MM' (or '').
+function dueVal(){ var d=(document.getElementById('t_due_date')||{}).value||''; var t=(document.getElementById('t_due_time')||{}).value||''; if(!d) return ''; return d+'T'+(t||'09:00'); }
+function setDue(v){ v=String(v||''); var d=document.getElementById('t_due_date'), t=document.getElementById('t_due_time'); if(!d||!t) return; var m=v.match(/^(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2}))?/); if(m){ d.value=m[1]; t.value=m[2]||'09:00'; } else { d.value=''; t.value=''; } }
+function reminderVal(){ var sel=document.getElementById('t_remsel').value; if(!sel) return ''; if(sel==='custom') return document.getElementById('t_reminder').value||''; var dv=dueVal(); var base=dv?new Date(dv):new Date(); if(isNaN(base.getTime())) base=new Date(); var mins=parseInt(sel,10)||0; var d=new Date(base.getTime()-mins*60000); function p2(x){return String(x).padStart(2,'0');} return d.getFullYear()+'-'+p2(d.getMonth()+1)+'-'+p2(d.getDate())+'T'+p2(d.getHours())+':'+p2(d.getMinutes()); }
 function clearForm(){
-  document.getElementById('t_title').value=''; document.getElementById('t_due').value=todayStr()+'T09:00';
+  document.getElementById('t_title').value=''; setDue(todayStr()+'T09:00');
   var _rs=document.getElementById('t_remsel'); if(_rs)_rs.value=''; var _rr=document.getElementById('t_reminder'); _rr.style.display='none'; _rr.value=''; document.querySelectorAll('.t_chan').forEach(function(cb){ cb.checked=(cb.value==='popup'||cb.value==='email'); }); applyChannelAvail(); document.getElementById('t_notes').value='';
   document.getElementById('t_linktype').value=''; fillTargets('','');
   var _rp=document.getElementById('t_repeat'); if(_rp) _rp.value='';
@@ -228,7 +232,7 @@ function save(silent){
 }
 function startEdit(id){
   var t=TASKS.filter(function(x){return x.id===id;})[0]; if(!t) return;
-  document.getElementById('t_title').value=t.title||''; document.getElementById('t_due').value=(t.due?(t.due.length>10?t.due.slice(0,16):t.due+'T09:00'):'');
+  document.getElementById('t_title').value=t.title||''; setDue(t.due?(t.due.length>10?t.due.slice(0,16):t.due+'T09:00'):'');
   var _es=document.getElementById('t_remsel'); if(_es)_es.value=t.reminder?'custom':''; var _er=document.getElementById('t_reminder'); _er.style.display=t.reminder?'block':'none'; _er.value=t.reminder?t.reminder.slice(0,16):''; var chs=(t.remChannels&&t.remChannels.length)?t.remChannels:(t.remChannel==='email'?['email']:t.remChannel==='popup'?['popup']:['popup','email']); document.querySelectorAll('.t_chan').forEach(function(cb){ cb.checked=chs.indexOf(cb.value)>=0; }); applyChannelAvail(); document.getElementById('t_notes').value=t.notes||'';
   fillSelects(); document.getElementById('t_priority').value=t.priority||'Normal'; var _ty=document.getElementById('t_type'); if(_ty) _ty.value=t.type||''; var _asg=document.getElementById('t_assignee'); if(_asg) _asg.value=t.assignee||ME;
   document.getElementById('t_linktype').value=t.linkType||''; fillTargets(t.linkType||'',t.linkId||'');
@@ -259,7 +263,7 @@ var _tc2=document.getElementById('taskClose'); if(_tc2) _tc2.addEventListener('c
 var _tm=document.getElementById('taskModal'); if(_tm) _tm.addEventListener('click',function(e){ if(e.target===_tm){ /* backdrop: keep open to avoid losing input */ } });
 // Autosave while EDITING an existing task (change/blur or ~1s pause). New-task entry stays explicit.
 (function(){ var _tAS=null; function commit(){ if(_tAS){ clearTimeout(_tAS); _tAS=null; } if(EDITID) save(true); } function pause(){ if(_tAS) clearTimeout(_tAS); _tAS=setTimeout(commit,1000); }
-  ['t_title','t_due','t_priority','t_type','t_assignee','t_remsel','t_reminder','t_repeat','t_notes','t_linktype','t_linktarget'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); });
+  ['t_title','t_due_date','t_due_time','t_priority','t_type','t_assignee','t_remsel','t_reminder','t_repeat','t_notes','t_linktype','t_linktarget'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); });
   document.querySelectorAll('.t_chan').forEach(function(cb){ cb.addEventListener('change',commit); });
 })();
 document.getElementById('t_linktype').addEventListener('change',function(){ fillTargets(this.value,''); });
