@@ -257,6 +257,9 @@ document.addEventListener('click',function(e){ var t=e.target.closest&&e.target.
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+// Gmail returns snippets/subjects/bodies HTML-escaped (&#39; &amp; …). Decode them once so
+// esc() below doesn't double-escape and show the raw entities.
+function dec(s){var t=document.createElement('textarea');t.innerHTML=String(s==null?'':s);return t.value;}
 function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
 function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/\s+/); return (((p[0]||'')[0]||'')+((p[1]||'')[0]||'')).toUpperCase(); }
 function personPhotoUrl(){ return (P&&P.photoExt)?('/api/personphoto/'+encodeURIComponent(ID)+'.'+P.photoExt+'?v='+(P.updatedAt?encodeURIComponent(P.updatedAt):Date.now())):''; }
@@ -1058,7 +1061,7 @@ function activityCard(){
   (GMAIL||[]).forEach(function(g){ items.push({k:'g',t:(g.ts?new Date(g.ts).toISOString():(g.date||'')),d:g}); });
   items.sort(function(x,y){ return String(y.t).localeCompare(String(x.t)); });
   var feed = items.length ? items.map(function(it){
-    if(it.k==='g'){ var g=it.d; var dir=g.direction==='out'?'Sent':'Received'; var who=g.direction==='out'?('To '+esc(addrLabel(g.to))):('From '+esc(addrLabel(g.from))); return '<div class="feedrow" data-atype="email" data-gmid="'+esc(g.id)+'"><span class="feedic" title="Gmail" style="color:#c5221f">\u2709</span><div class="feedmain"><div class="feedtop"><span class="feedttl">'+esc(g.subject||'(no subject)')+'</span><span class="feedwhen">'+esc(fmt(g.ts?new Date(g.ts).toISOString():g.date))+'</span></div><div class="feedmeta">Gmail \u00b7 '+dir+' \u00b7 '+who+(g.unread?' \u00b7 <b style="color:#c5221f">unread</b>':'')+'</div><div class="feednote gmsnip" data-gmsnip="'+esc(g.id)+'">'+esc(g.snippet||'')+'</div><a href="#" class="gmexpand" data-gmfull="'+esc(g.id)+'">Show full email</a></div></div>'; }
+    if(it.k==='g'){ var g=it.d; var dir=g.direction==='out'?'Sent':'Received'; var who=g.direction==='out'?('To '+esc(addrLabel(g.to))):('From '+esc(addrLabel(g.from))); return '<div class="feedrow" data-atype="email" data-gmid="'+esc(g.id)+'"><span class="feedic" title="Gmail" style="color:#c5221f">\u2709</span><div class="feedmain"><div class="feedtop"><span class="feedttl">'+esc(dec(g.subject||'(no subject)'))+'</span><span class="feedwhen">'+esc(fmt(g.ts?new Date(g.ts).toISOString():g.date))+'</span></div><div class="feedmeta">Gmail \u00b7 '+dir+' \u00b7 '+who+(g.unread?' \u00b7 <b style="color:#c5221f">unread</b>':'')+'</div><div class="feednote gmsnip" data-gmsnip="'+esc(g.id)+'">'+esc(dec(g.snippet||''))+'</div><a href="#" class="gmexpand" data-gmfull="'+esc(g.id)+'">Show full email</a></div></div>'; }
     if(it.k==='e'){ var e=it.d; var opn=(e.opens>0)?(' · <b style="color:#1f8a5b">\ud83d\udc41 Opened '+e.opens+'\u00d7</b>'+(e.lastOpen?(' · last '+esc(fmt(e.lastOpen))):'')):(e.openToken?' · <span style="color:#8a94a6">not opened yet</span>':''); return '<div class="feedrow" data-atype="email"><span class="feedic">✉</span><div class="feedmain"><div class="feedtop"><span class="feedttl">'+esc(e.subject||'(no subject)')+'</span><span class="feedwhen">'+esc(fmt(e.sentAt))+'</span></div><div class="feedmeta">Email · To '+esc(e.to)+(e.by?(' · '+esc(e.by)):'')+opn+'</div>'+(e.body?('<div class="feednote">'+esc(e.body).split('\n').join('<br>')+'</div>'):'')+'</div></div>'; }
     var a=it.d; var c=actColor(a.type); return '<div class="feedrow" data-atype="'+esc(a.type)+'"><span class="feedic" style="background:'+c[0]+';color:'+c[1]+'">'+actIcon(a.type)+'</span><div class="feedmain"><div class="feedtop"><span class="feedwhen">'+esc(fmtDT(a.at||a.date))+'</span>'+(a.auto?'<span class="actauto">auto</span>':'')+'<span class="feedchip" style="background:'+c[0]+';color:'+c[1]+'">'+esc(a.type)+'</span>'+(a.by?('<span class="actby">'+esc(a.by)+'</span>'):'')+'</div>'+(a.note?('<div class="feednote">'+esc(a.note)+'</div>'):'')+(a.taskId?'<div class="acttask">↳ task created</div>':'')+'</div><button class="actdel" data-actdel="'+esc(a.id)+'" title="Delete">×</button></div>';
   }).join('') : '<div class="empty" style="padding:16px 2px">No activity yet. Log a call, tour, meal or note — or send an email — using the buttons above.</div>';
@@ -1094,7 +1097,7 @@ function wireActivity(){
       .catch(function(){ b.disabled=false; });
   });
   document.querySelectorAll('[data-actdel]').forEach(function(x){ x.addEventListener('click',async function(){ if(!await rrgConfirm('Delete this activity entry?')) return; fetch('/api/person/'+encodeURIComponent(ID)+'/activity/'+encodeURIComponent(x.getAttribute('data-actdel')),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ACTIVITIES=j.activities||[]; render(); } }); }); });
-  document.querySelectorAll('.gmexpand').forEach(function(x){ x.addEventListener('click',function(ev){ ev.preventDefault(); var id=x.getAttribute('data-gmfull'); var snip=document.querySelector('[data-gmsnip="'+id+'"]'); x.textContent='Loading\u2026'; fetch('/api/gmail/message/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.message){ if(snip){ snip.innerHTML=esc(j.message.body||j.message.snippet||'(no content)').split('\n').join('<br>'); } x.style.display='none'; } else { x.textContent='Could not load'; } }).catch(function(){ x.textContent='Could not load'; }); }); });
+  document.querySelectorAll('.gmexpand').forEach(function(x){ x.addEventListener('click',function(ev){ ev.preventDefault(); var id=x.getAttribute('data-gmfull'); var snip=document.querySelector('[data-gmsnip="'+id+'"]'); x.textContent='Loading\u2026'; fetch('/api/gmail/message/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.message){ if(snip){ snip.innerHTML=esc(dec(j.message.body||j.message.snippet||'(no content)')).split('\n').join('<br>'); } x.style.display='none'; } else { x.textContent='Could not load'; } }).catch(function(){ x.textContent='Could not load'; }); }); });
 }
 function emailCard(){
   var to=P.email||((P.emails&&P.emails[0])||'');
@@ -1421,13 +1424,13 @@ load();
   function apply(){
     if(mo) mo.disconnect();
     var st=get();
-    document.querySelectorAll('.card > .ch').forEach(function(ch){ if(!ch.querySelector('.rrgchev')){ var cv=document.createElement('span'); cv.className='rrgchev'; cv.textContent='\u25be'; ch.appendChild(cv); } });
+    document.querySelectorAll('.card > .ch').forEach(function(ch){ if(ch.closest('.rail')) return; if(!ch.querySelector('.rrgchev')){ var cv=document.createElement('span'); cv.className='rrgchev'; cv.textContent='\u25be'; ch.appendChild(cv); } });
     var hasSaved=(function(){ try{ return localStorage.getItem(KEY)!=null; }catch(e){ return false; } })(), first=true;
-    document.querySelectorAll('.card').forEach(function(card){ var t=titleOf(card); if(!t) return; var collapse=hasSaved?(!!st[t]):(!first); first=false; card.classList.toggle('collapsed', collapse); });
+    document.querySelectorAll('.card').forEach(function(card){ if(card.closest('.rail')){ card.classList.remove('collapsed'); return; } var t=titleOf(card); if(!t) return; var collapse=hasSaved?(!!st[t]):(!first); first=false; card.classList.toggle('collapsed', collapse); });
     connect();
   }
   function connect(){ if(root && window.MutationObserver){ if(!mo) mo=new MutationObserver(function(){ if(_ct) return; _ct=setTimeout(function(){ _ct=null; apply(); },90); }); mo.observe(root,{childList:true,subtree:true}); } }
-  document.addEventListener('click',function(e){ var ch=e.target.closest('.card > .ch'); if(!ch) return; if(e.target.closest('button,input,select,a,label,textarea')) return; var card=ch.closest('.card'); if(!card) return; card.classList.toggle('collapsed'); var st=get(); document.querySelectorAll('.card').forEach(function(c){ var t=titleOf(c); if(t){ if(c.classList.contains('collapsed')) st[t]=1; else delete st[t]; } }); set(st); });
+  document.addEventListener('click',function(e){ var ch=e.target.closest('.card > .ch'); if(!ch) return; if(e.target.closest('button,input,select,a,label,textarea')) return; var card=ch.closest('.card'); if(!card) return; if(card.closest('.rail')) return; card.classList.toggle('collapsed'); var st=get(); document.querySelectorAll('.card').forEach(function(c){ var t=titleOf(c); if(t){ if(c.classList.contains('collapsed')) st[t]=1; else delete st[t]; } }); set(st); });
   setTimeout(apply, 350);
 })();
 </script>

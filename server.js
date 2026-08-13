@@ -5876,6 +5876,8 @@ function invoiceBrief(x, user, opts) {
     baseStatus: INVOICE_STATUSES.indexOf(x.status) >= 0 ? x.status : 'Draft', total: total, paid: paid, balance: total - paid,
     status: invoiceStatusDisplay(x, total, paid), notes: x.notes || '', terms: x.terms || '',
     paymentCount: pays.length, ownerUser: x.ownerUser || '', ownerName: x.ownerName || '',
+    recur: (x.recur && INVOICE_RECUR_FREQS.indexOf(x.recur.freq) >= 0) ? { freq: x.recur.freq, nextDate: x.recur.nextDate || '', active: x.recur.active !== false, count: x.recur.count || 0, lastGenerated: x.recur.lastGenerated || '' } : null,
+    seriesId: x.seriesId || '',
     mine: !!(user && (x.ownerUser === user.username || isSuper(user))), createdAt: x.createdAt || '', updatedAt: x.updatedAt || '' };
   if (opts.full) { b.lineItems = items.map(li => ({ desc: li.desc || '', amount: _expNum(li.amount) }));
     b.payments = pays.slice().sort((p, q) => String(q.date || '').localeCompare(String(p.date || ''))).map(p => ({ id: p.id, date: p.date || '', amount: _expNum(p.amount), method: p.method || '', reference: p.reference || '', notes: p.notes || '' })); }
@@ -5889,7 +5891,43 @@ function dealInvoiceRollup(key, user) {
   return { items: rows, billed: billed, collected: collected, outstanding: billed - collected, count: rows.length, statuses: INVOICE_STATUSES, methods: PAYMENT_METHODS };
 }
 function _invCanEdit(x, u) { return !!(x.ownerUser === u.username || isSuper(u)); }
+// ---- Recurring invoices ----
+const INVOICE_RECUR_FREQS = ['weekly', 'biweekly', 'monthly', 'quarterly', 'yearly'];
+function _invFmtISO(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function _invAdvanceDate(dateStr, freq) {
+  const d = new Date(String(dateStr) + 'T00:00:00'); if (isNaN(d.getTime())) return dateStr;
+  if (freq === 'weekly') d.setDate(d.getDate() + 7);
+  else if (freq === 'biweekly') d.setDate(d.getDate() + 14);
+  else if (freq === 'monthly') d.setMonth(d.getMonth() + 1);
+  else if (freq === 'quarterly') d.setMonth(d.getMonth() + 3);
+  else if (freq === 'yearly') d.setFullYear(d.getFullYear() + 1);
+  else return dateStr;
+  return _invFmtISO(d);
+}
+function _invDueFrom(inv, issue) { if (!inv.dueDate || !inv.issueDate) return ''; const d0 = Date.parse(inv.issueDate + 'T00:00:00'), d1 = Date.parse(inv.dueDate + 'T00:00:00'); if (isNaN(d0) || isNaN(d1)) return ''; const off = Math.round((d1 - d0) / 86400000); return _invFmtISO(new Date(Date.parse(issue + 'T00:00:00') + off * 86400000)); }
+// Lazily materialize any recurring invoices that have come due — called on every read of the
+// list and on a timer, so a series keeps producing even if nobody opens the page. Each child is
+// a normal Sent invoice (copy of the template's line items) tied back to the series via seriesId.
+function generateDueRecurringInvoices() {
+  let all; try { all = loadInvoices(); } catch (e) { return 0; }
+  const today = _invFmtISO(new Date()); let changed = false, made = 0;
+  all.slice().forEach(inv => {
+    const rc = inv.recur; if (!rc || rc.active === false || INVOICE_RECUR_FREQS.indexOf(rc.freq) < 0 || !rc.nextDate) return;
+    let guard = 0;
+    while (String(rc.nextDate) <= today && guard < 120) {
+      guard++;
+      const child = { id: newInvoiceId(), number: nextInvoiceNumber(all), listingKey: inv.listingKey || '', listingLabel: inv.listingLabel || '', billTo: inv.billTo || '', billToEmail: inv.billToEmail || '', issueDate: rc.nextDate, dueDate: _invDueFrom(inv, rc.nextDate), status: 'Sent', lineItems: (inv.lineItems || []).map(li => ({ desc: li.desc || '', amount: _expNum(li.amount) })), payments: [], notes: inv.notes || '', terms: inv.terms || '', ownerUser: inv.ownerUser || '', ownerName: inv.ownerName || '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seriesId: inv.seriesId || inv.id };
+      all.push(child); made++; changed = true;
+      rc.nextDate = _invAdvanceDate(rc.nextDate, rc.freq); rc.count = (rc.count || 0) + 1; rc.lastGenerated = child.issueDate;
+    }
+  });
+  if (changed) saveInvoices(all);
+  return made;
+}
+setTimeout(() => { try { generateDueRecurringInvoices(); } catch (e) {} }, 20000);
+setInterval(() => { try { generateDueRecurringInvoices(); } catch (e) {} }, 6 * 60 * 60 * 1000);
 app.get('/api/invoices', (req, res) => {
+  try { generateDueRecurringInvoices(); } catch (e) {}
   const u = req.user || {}; const admin = isSuper(u); const all = loadInvoices();
   const filt = req.query.listingKey ? all.filter(x => x.listingKey === req.query.listingKey) : all;
   const vis = filt.filter(x => admin || x.ownerUser === u.username);
@@ -5918,6 +5956,12 @@ app.post('/api/invoices', express.json({ limit: '512kb' }), (req, res) => {
   if (b.lineItems !== undefined) x.lineItems = cleanLineItems(b.lineItems);
   if (b.notes !== undefined) x.notes = String(b.notes || '').slice(0, 4000);
   if (b.terms !== undefined) x.terms = String(b.terms || '').slice(0, 600);
+  if (b.recur !== undefined) {
+    const rc = b.recur || {};
+    if (rc && INVOICE_RECUR_FREQS.indexOf(rc.freq) >= 0) {
+      x.recur = { freq: rc.freq, nextDate: String(rc.nextDate || x.issueDate || '').slice(0, 10), active: rc.active !== false, count: (x.recur && x.recur.count) || 0, lastGenerated: (x.recur && x.recur.lastGenerated) || '' };
+    } else { x.recur = null; }
+  }
   x.updatedAt = new Date().toISOString(); saveInvoices(all);
   res.json({ ok: true, invoice: invoiceBrief(x, u, { full: true }) });
 });
@@ -6645,14 +6689,23 @@ app.get('/api/gl', requireAdmin, (req, res) => {
   const entries = glAllEntries(accounts);
   res.json({ ok: true, accounts, entries, trialBalance: glTrialBalance(accounts, entries), accountTypes: GL_ACCOUNT_TYPES, basis: effAccountingBasis() });
 });
+// Would setting `parent` on `code` create a loop? (parent is a descendant of code)
+function _glWouldCycle(accounts, code, parent) {
+  const byCode = {}; accounts.forEach(a => byCode[a.code] = a);
+  let cur = parent, guard = 0;
+  while (cur && guard++ < 100) { if (cur === code) return true; const a = byCode[cur]; cur = a ? a.parent : ''; }
+  return false;
+}
 app.post('/api/gl/account', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const accounts = loadGlAccounts();
   const code = String(b.code || '').trim().slice(0, 12); const name = String(b.name || '').trim().slice(0, 80);
   const type = GL_ACCOUNT_TYPES.indexOf(b.type) >= 0 ? b.type : '';
   if (!code || !name || !type) return res.status(400).json({ ok: false, error: 'Code, name and type are all required.' });
+  let parent = String(b.parent || '').trim();
+  if (parent) { if (parent === code) return res.status(400).json({ ok: false, error: 'An account can’t be its own parent.' }); if (!accounts.some(x => x.code === parent)) return res.status(400).json({ ok: false, error: 'Parent account not found.' }); if (_glWouldCycle(accounts, code, parent)) return res.status(400).json({ ok: false, error: 'That would nest an account under one of its own sub-accounts.' }); }
   const orig = String(b.origCode || '').trim();
-  if (orig) { const a = accounts.find(x => x.code === orig); if (!a) return res.status(404).json({ ok: false, error: 'Account not found.' }); if (code !== orig && accounts.some(x => x.code === code)) return res.status(400).json({ ok: false, error: 'That account code is already in use.' }); a.code = code; a.name = name; a.type = type; }
-  else { if (accounts.some(x => x.code === code)) return res.status(400).json({ ok: false, error: 'That account code is already in use.' }); accounts.push({ code, name, type }); }
+  if (orig) { const a = accounts.find(x => x.code === orig); if (!a) return res.status(404).json({ ok: false, error: 'Account not found.' }); if (code !== orig && accounts.some(x => x.code === code)) return res.status(400).json({ ok: false, error: 'That account code is already in use.' }); if (code !== orig) accounts.forEach(x => { if (x.parent === orig) x.parent = code; }); a.code = code; a.name = name; a.type = type; a.parent = (parent && parent !== code) ? parent : ''; }
+  else { if (accounts.some(x => x.code === code)) return res.status(400).json({ ok: false, error: 'That account code is already in use.' }); const acc = { code, name, type }; if (parent) acc.parent = parent; accounts.push(acc); }
   saveGlAccounts(accounts);
   res.json({ ok: true, accounts });
 });
@@ -6693,24 +6746,35 @@ app.post('/api/gl/import-accounts', requireAdmin, express.json({ limit: '4mb' })
   if (!incoming.length) return res.status(400).json({ ok: false, error: 'No accounts to import.' });
   const accounts = loadGlAccounts();
   const byCode = {}; accounts.forEach(a => byCode[a.code] = a);
-  const byName = {}; accounts.forEach(a => byName[String(a.name).toLowerCase()] = a);
   const base = { Asset: 1000, Liability: 2000, Equity: 3000, Income: 4000, Expense: 6000 };
   const nextByType = {};
   function nextCode(type) { let n = nextByType[type] || base[type] || 9000; while (byCode[String(n)]) n += 10; nextByType[type] = n + 10; return String(n); }
+  // QuickBooks names sub-accounts as "Parent:Child:Grandchild" — match on the full path so
+  // the same leaf name under different parents doesn't collide, and nest via `parent`.
+  function fullPath(a) { const parts = []; let cur = a, g = 0; while (cur && g++ < 50) { parts.unshift(String(cur.name).toLowerCase()); cur = cur.parent ? byCode[cur.parent] : null; } return parts.join(' : '); }
+  const pathMap = {}; accounts.forEach(a => { pathMap[fullPath(a)] = a; });
   let added = 0, updated = 0, skipped = 0;
   incoming.forEach(row => {
-    const name = String((row && row.name) || '').trim().slice(0, 80);
+    const rawName = String((row && row.name) || '').trim();
     const type = GL_ACCOUNT_TYPES.indexOf(row && row.type) >= 0 ? row.type : '';
-    if (!name || !type) { skipped++; return; }
-    let code = String((row && row.code) || '').trim().slice(0, 12);
-    const exists = byName[name.toLowerCase()];
-    if (exists) {
-      if (b.overwrite) { exists.type = type; if (code && code !== exists.code && !byCode[code]) { delete byCode[exists.code]; exists.code = code; byCode[code] = exists; } updated++; }
-      else skipped++;
-      return;
-    }
-    if (!code || byCode[code]) code = nextCode(type);
-    const acc = { code, name, type }; accounts.push(acc); byCode[code] = acc; byName[name.toLowerCase()] = acc; added++;
+    if (!rawName || !type) { skipped++; return; }
+    const parts = rawName.split(/\s*:\s*/).map(s => s.trim()).filter(Boolean); if (!parts.length) { skipped++; return; }
+    let parentCode = '', cumPath = '';
+    parts.forEach((seg, di) => {
+      const isLeaf = di === parts.length - 1;
+      cumPath = cumPath ? (cumPath + ' : ' + seg.toLowerCase()) : seg.toLowerCase();
+      let acc = pathMap[cumPath];
+      if (!acc) {
+        let code = isLeaf ? String((row && row.code) || '').trim().slice(0, 12) : '';
+        if (!code || byCode[code]) code = nextCode(type);
+        acc = { code, name: seg.slice(0, 80), type }; if (parentCode) acc.parent = parentCode;
+        accounts.push(acc); byCode[code] = acc; pathMap[cumPath] = acc; added++;
+      } else {
+        if (isLeaf) { if (b.overwrite) { acc.type = type; updated++; } else { skipped++; } }
+        if (parentCode && !acc.parent) acc.parent = parentCode;
+      }
+      parentCode = acc.code;
+    });
   });
   saveGlAccounts(accounts);
   res.json({ ok: true, added, updated, skipped, accounts });

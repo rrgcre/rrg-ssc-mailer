@@ -71,7 +71,7 @@ input,select{width:100%;border:1px solid #cfd6e2;border-radius:4px;padding:8px 1
 .mfoot{display:flex;align-items:center;gap:12px;padding:14px 20px;border-top:1px solid var(--line);flex-wrap:wrap;}
 .mfoot .msg{font-size:12.5px;color:var(--muted);flex:1;}
 .bchip{font-size:12px;font-weight:800;font-variant-numeric:tabular-nums;padding:4px 10px;border-radius:4px;}
-.acctform{display:grid;grid-template-columns:110px 1fr 150px auto;gap:10px;align-items:end;padding:14px 16px;border-bottom:1px solid var(--line);background:#fbfcfe;}
+.acctform{display:grid;grid-template-columns:100px 1.3fr 120px 160px auto;gap:10px;align-items:end;padding:14px 16px;border-bottom:1px solid var(--line);background:#fbfcfe;}
 @media(max-width:640px){.acctform{grid-template-columns:1fr 1fr;}}
 .linkbtn{background:none;border:none;color:var(--primary);font:inherit;font-size:12px;font-weight:700;cursor:pointer;padding:0;}
 </style>
@@ -144,6 +144,9 @@ function money0(n){ if(!n) return '<span style="color:#c3cad6">—</span>'; retu
 function fmtD(d){ if(!d) return ''; var s=String(d).slice(0,10).split('-'); if(s.length!==3) return esc(d); return s[1]+'/'+s[2]+'/'+s[0].slice(2); }
 function acctName(code){ var a=DATA.accounts.filter(function(x){return x.code===code;})[0]; return a?(a.code+' · '+a.name):code; }
 function acctType(code){ var a=DATA.accounts.filter(function(x){return x.code===code;})[0]; return a?a.type:''; }
+function acctChildrenMap(){ var m={}; DATA.accounts.forEach(function(a){ var p=a.parent||''; (m[p]=m[p]||[]).push(a); }); Object.keys(m).forEach(function(k){ m[k].sort(function(a,b){return String(a.code).localeCompare(String(b.code));}); }); return m; }
+function acctTree(){ var m=acctChildrenMap(), out=[], seen={}; function walk(p,d){ (m[p]||[]).forEach(function(a){ if(seen[a.code]) return; seen[a.code]=1; out.push({a:a,depth:d}); walk(a.code,d+1); }); } walk('',0); DATA.accounts.forEach(function(a){ if(!seen[a.code]){ seen[a.code]=1; out.push({a:a,depth:0}); } }); return out; }
+function acctDepth(){ var d={}; acctTree().forEach(function(x){ d[x.a.code]=x.depth; }); return d; }
 function load(){
   fetch('/api/gl',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok){ document.getElementById('view').innerHTML='<div class="empty">'+((j&&j.error)||'Could not load the ledger.')+'</div>'; return; }
@@ -158,9 +161,10 @@ function render(){
 }
 function renderTrial(){
   var tb=DATA.trialBalance||{rows:[]};
+  var depth=acctDepth();
   var rows=tb.rows.filter(function(r){return r.debit||r.credit;});
-  var body=rows.map(function(r){
-    return '<tr><td class="code">'+esc(r.code)+'</td><td>'+esc(r.name)+' <span class="tpill tp-'+esc(r.type)+'">'+esc(r.type)+'</span></td><td class="num">'+money0(r.debit)+'</td><td class="num">'+money0(r.credit)+'</td><td class="num">'+money(r.balance)+'</td></tr>';
+  var body=rows.map(function(r){ var pad=(depth[r.code]||0)*18; var caret=(depth[r.code]>0)?'<span style="color:#c3cad6">↳</span> ':'';
+    return '<tr><td class="code">'+esc(r.code)+'</td><td><span style="padding-left:'+pad+'px">'+caret+esc(r.name)+'</span> <span class="tpill tp-'+esc(r.type)+'">'+esc(r.type)+'</span></td><td class="num">'+money0(r.debit)+'</td><td class="num">'+money0(r.credit)+'</td><td class="num">'+money(r.balance)+'</td></tr>';
   }).join('') || '<tr><td colspan="5" class="empty">No posted activity yet. Add invoices, expenses, or a manual entry.</td></tr>';
   var bal=tb.balanced?'<span class="bal ok">In balance ✓</span>':'<span class="bal no">Out of balance</span>';
   document.getElementById('view').innerHTML=
@@ -204,20 +208,19 @@ function renderLedger(){
   var sel=document.getElementById('ledgerSel'); if(sel) sel.addEventListener('change',function(){ LEDGER_ACCT=this.value; renderLedger(); });
 }
 function renderAccounts(){
-  var byType={}; DATA.accounts.forEach(function(a){ (byType[a.type]=byType[a.type]||[]).push(a); });
-  var form='<div class="acctform"><div><label class="fld">Code</label><input id="a_code" placeholder="6000"></div><div><label class="fld">Account name</label><input id="a_name" placeholder="New account"></div><div><label class="fld">Type</label><select id="a_type">'+DATA.accountTypes.map(function(t){return '<option>'+esc(t)+'</option>';}).join('')+'</select></div><div><button class="btn" id="a_add">Add account</button><input type="hidden" id="a_orig"></div></div>';
-  var rows=DATA.accounts.slice().sort(function(a,b){return String(a.code).localeCompare(String(b.code));}).map(function(a){
-    var core=['1000','1100','2000','3000','4000'].indexOf(a.code)>=0;
-    return '<tr><td class="code">'+esc(a.code)+'</td><td>'+esc(a.name)+'</td><td><span class="tpill tp-'+esc(a.type)+'">'+esc(a.type)+'</span></td><td class="num"><button class="linkbtn" data-aedit="'+esc(a.code)+'">Edit</button>'+(core?'':' &nbsp; <button class="linkbtn" style="color:#c0392b" data-adel="'+esc(a.code)+'">Remove</button>')+'</td></tr>';
+  var parentOpts='<option value="">— none (top level) —</option>'+DATA.accounts.slice().sort(function(a,b){return String(a.code).localeCompare(String(b.code));}).map(function(a){return '<option value="'+esc(a.code)+'">'+esc(a.code+' · '+a.name)+'</option>';}).join('');
+  var form='<div class="acctform"><div><label class="fld">Code</label><input id="a_code" placeholder="6000"></div><div><label class="fld">Account name</label><input id="a_name" placeholder="New account"></div><div><label class="fld">Type</label><select id="a_type">'+DATA.accountTypes.map(function(t){return '<option>'+esc(t)+'</option>';}).join('')+'</select></div><div><label class="fld">Sub-account of</label><select id="a_parent">'+parentOpts+'</select></div><div><button class="btn" id="a_add">Add account</button><input type="hidden" id="a_orig"></div></div>';
+  var rows=acctTree().map(function(x){ var a=x.a; var core=['1000','1100','2000','3000','4000'].indexOf(a.code)>=0; var pad=x.depth*20; var caret=x.depth>0?'<span style="color:#c3cad6">↳</span> ':'';
+    return '<tr><td class="code">'+esc(a.code)+'</td><td><span style="padding-left:'+pad+'px">'+caret+esc(a.name)+'</span></td><td><span class="tpill tp-'+esc(a.type)+'">'+esc(a.type)+'</span></td><td class="num"><button class="linkbtn" data-aedit="'+esc(a.code)+'">Edit</button>'+(core?'':' &nbsp; <button class="linkbtn" style="color:#c0392b" data-adel="'+esc(a.code)+'">Remove</button>')+'</td></tr>';
   }).join('');
   document.getElementById('view').innerHTML='<div class="card"><div class="ch">Chart of Accounts <button class="btn ghost sm" id="importQbBtn" style="margin-left:10px">⇪ Import from QuickBooks</button><span class="rt">'+DATA.accounts.length+' accounts</span></div>'+form+'<table><thead><tr><th style="width:80px">Code</th><th>Account</th><th style="width:120px">Type</th><th class="num" style="width:150px"></th></tr></thead><tbody>'+rows+'</tbody></table></div>';
   document.getElementById('a_add').addEventListener('click',saveAccount);
   var _iq=document.getElementById('importQbBtn'); if(_iq) _iq.addEventListener('click',openImportModal);
-  document.querySelectorAll('[data-aedit]').forEach(function(b){ b.addEventListener('click',function(){ var a=DATA.accounts.filter(function(x){return x.code===b.getAttribute('data-aedit');})[0]; if(!a) return; document.getElementById('a_code').value=a.code; document.getElementById('a_name').value=a.name; document.getElementById('a_type').value=a.type; document.getElementById('a_orig').value=a.code; document.getElementById('a_add').textContent='Save account'; document.getElementById('a_code').focus(); }); });
+  document.querySelectorAll('[data-aedit]').forEach(function(b){ b.addEventListener('click',function(){ var a=DATA.accounts.filter(function(x){return x.code===b.getAttribute('data-aedit');})[0]; if(!a) return; document.getElementById('a_code').value=a.code; document.getElementById('a_name').value=a.name; document.getElementById('a_type').value=a.type; var ap=document.getElementById('a_parent'); if(ap) ap.value=a.parent||''; document.getElementById('a_orig').value=a.code; document.getElementById('a_add').textContent='Save account'; document.getElementById('a_code').focus(); }); });
   document.querySelectorAll('[data-adel]').forEach(function(b){ b.addEventListener('click',function(){ delAccount(b.getAttribute('data-adel')); }); });
 }
 function saveAccount(){
-  var body={code:document.getElementById('a_code').value.trim(),name:document.getElementById('a_name').value.trim(),type:document.getElementById('a_type').value,origCode:document.getElementById('a_orig').value};
+  var body={code:document.getElementById('a_code').value.trim(),name:document.getElementById('a_name').value.trim(),type:document.getElementById('a_type').value,parent:(document.getElementById('a_parent')||{}).value||'',origCode:document.getElementById('a_orig').value};
   if(!body.code||!body.name){ if(window.rrgToast) rrgToast('Enter a code and name'); return; }
   fetch('/api/gl/account',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ DATA.accounts=j.accounts; document.getElementById('a_orig').value=''; if(window.rrgToast) rrgToast('Saved'); load(); } else alert((j&&j.error)||'Could not save.'); });
 }

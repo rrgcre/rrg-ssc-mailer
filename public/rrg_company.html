@@ -1098,13 +1098,13 @@ window.addEventListener('pageshow',function(e){ if(e.persisted && typeof load===
   function apply(){
     if(mo) mo.disconnect();
     var st=get();
-    document.querySelectorAll('.card > .ch').forEach(function(ch){ if(!ch.querySelector('.rrgchev')){ var cv=document.createElement('span'); cv.className='rrgchev'; cv.textContent='\u25be'; ch.appendChild(cv); } });
+    document.querySelectorAll('.card > .ch').forEach(function(ch){ if(ch.closest('.rail')) return; if(!ch.querySelector('.rrgchev')){ var cv=document.createElement('span'); cv.className='rrgchev'; cv.textContent='\u25be'; ch.appendChild(cv); } });
     var hasSaved=(function(){ try{ return localStorage.getItem(KEY)!=null; }catch(e){ return false; } })(), first=true;
-    document.querySelectorAll('.card').forEach(function(card){ var t=titleOf(card); if(!t) return; var collapse=hasSaved?(!!st[t]):(!first); first=false; card.classList.toggle('collapsed', collapse); });
+    document.querySelectorAll('.card').forEach(function(card){ if(card.closest('.rail')){ card.classList.remove('collapsed'); return; } var t=titleOf(card); if(!t) return; var collapse=hasSaved?(!!st[t]):(!first); first=false; card.classList.toggle('collapsed', collapse); });
     connect();
   }
   function connect(){ if(root && window.MutationObserver){ if(!mo) mo=new MutationObserver(function(){ if(_ct) return; _ct=setTimeout(function(){ _ct=null; apply(); },90); }); mo.observe(root,{childList:true,subtree:true}); } }
-  document.addEventListener('click',function(e){ var ch=e.target.closest('.card > .ch'); if(!ch) return; if(e.target.closest('button,input,select,a,label,textarea')) return; var card=ch.closest('.card'); if(!card) return; card.classList.toggle('collapsed'); var st=get(); document.querySelectorAll('.card').forEach(function(c){ var t=titleOf(c); if(t){ if(c.classList.contains('collapsed')) st[t]=1; else delete st[t]; } }); set(st); });
+  document.addEventListener('click',function(e){ var ch=e.target.closest('.card > .ch'); if(!ch) return; if(e.target.closest('button,input,select,a,label,textarea')) return; var card=ch.closest('.card'); if(!card) return; if(card.closest('.rail')) return; card.classList.toggle('collapsed'); var st=get(); document.querySelectorAll('.card').forEach(function(c){ var t=titleOf(c); if(t){ if(c.classList.contains('collapsed')) st[t]=1; else delete st[t]; } }); set(st); });
   setTimeout(apply, 350);
 })();
 
