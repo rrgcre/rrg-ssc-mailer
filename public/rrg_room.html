@@ -224,15 +224,24 @@ function bulkUpload(){
   showOrb('Reading '+files.length+' document'+(files.length===1?'':'s')+'…',aiName()+' is sorting each file into the right folder.');
   var reads=files.map(function(f){ return new Promise(function(resolve){ var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''),i=s.indexOf(','),b64=(i>=0?s.slice(i+1):s); resolve({filename:f.name,dataB64:b64}); }; rd.onerror=function(){ resolve(null); }; rd.readAsDataURL(f); }); });
   Promise.all(reads).then(function(payload){ payload=payload.filter(Boolean);
-    fetch('/api/room/'+encodeURIComponent(RID)+'/bulk-upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({files:payload})})
-     .then(function(r){return r.json();}).then(function(j){ hideOrb(); fi.value='';
-       if(j&&j.ok){ ROOM.docs=j.docs||ROOM.docs; renderDocs();
-         var byCat={}; (j.results||[]).forEach(function(x){ if(x.ok){ byCat[x.category]=(byCat[x.category]||0)+1; } });
-         var parts=Object.keys(byCat).map(function(c){ return byCat[c]+' → '+c; });
-         var skipped=(j.results||[]).filter(function(x){ return !x.ok; }).length + skippedBig;
-         m.textContent='Filed '+j.added+' file'+(j.added===1?'':'s')+(skipped?(' · '+skipped+' skipped'):'')+'.'; showFileResult(j.added, byCat, skipped);
-       } else { m.textContent=(j&&j.error)||'Upload failed.'; }
-     }).catch(function(){ hideOrb(); fi.value=''; m.textContent='Upload failed — try again.'; });
+    if(!payload.length){ hideOrb(); fi.value=''; m.textContent='Could not read those files — try again.'; return; }
+    // Send in chunks so a big batch never exceeds the server's request-size limit (which is
+    // what made large uploads silently fail). Each request stays well under it; files stream in.
+    var MAXB=28*1024*1024, MAXN=8, chunks=[], cur=[], curSize=0;
+    payload.forEach(function(p){ var sz=(p.dataB64||'').length; if(cur.length && (curSize+sz>MAXB || cur.length>=MAXN)){ chunks.push(cur); cur=[]; curSize=0; } cur.push(p); curSize+=sz; });
+    if(cur.length) chunks.push(cur);
+    var added=0, results=[], lastDocs=null, done=0, total=payload.length;
+    function finish(){ hideOrb(); fi.value=''; if(lastDocs){ ROOM.docs=lastDocs; renderDocs(); } var byCat={}; results.forEach(function(x){ if(x.ok){ byCat[x.category]=(byCat[x.category]||0)+1; } }); var skipped=results.filter(function(x){ return !x.ok; }).length + skippedBig; m.textContent='Filed '+added+' file'+(added===1?'':'s')+(skipped?(' · '+skipped+' skipped'):'')+'.'; showFileResult(added, byCat, skipped); }
+    function post(ci){
+      if(ci>=chunks.length){ finish(); return; }
+      var chunk=chunks[ci];
+      showOrb('Filing '+(done+1)+(chunk.length>1?('–'+(done+chunk.length)):'')+' of '+total+'…',aiName()+' is sorting each file into the right folder.');
+      fetch('/api/room/'+encodeURIComponent(RID)+'/bulk-upload',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({files:chunk})})
+        .then(function(r){ return r.json().catch(function(){ return {ok:false,error:'Server error ('+r.status+')'}; }); })
+        .then(function(j){ if(j&&j.ok){ added+=(j.added||0); (j.results||[]).forEach(function(x){ results.push(x); }); if(j.docs) lastDocs=j.docs; } else { chunk.forEach(function(p){ results.push({ok:false,name:p.filename||'',error:(j&&j.error)||'Upload failed'}); }); } done+=chunk.length; post(ci+1); })
+        .catch(function(){ chunk.forEach(function(p){ results.push({ok:false,name:p.filename||'',error:'Upload failed'}); }); done+=chunk.length; post(ci+1); });
+    }
+    post(0);
   });
 }
 </script>
