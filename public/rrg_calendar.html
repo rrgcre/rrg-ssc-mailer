@@ -141,6 +141,13 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
 .workcard .wkrow span{color:var(--muted);}
 .workcard .wkrow b{color:var(--ink);font-weight:700;text-align:right;}
 .workcard .wkedit{display:inline-block;margin-top:8px;font-size:11.5px;font-weight:700;color:var(--blue);}
+.legend{background:#fff;border:1px solid var(--line);border-radius:4px;padding:11px 12px;margin-top:12px;}
+.legend .lh{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin-bottom:8px;}
+.legend .lg{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink);padding:3px 0;}
+.legend .sw{width:13px;height:13px;border-radius:3px;border-left:3px solid;flex:none;}
+.legend .sw.mine{background:#eaf7f0;border-left-color:#1f8a5b;}
+.legend .sw.other{background:#eaeff6;border-left-color:#2c5c8f;}
+.legend .sw.task{background:#fff6e6;border-left-color:#e0a53a;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -180,7 +187,7 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
   </div>
   <div id="gcalBar" class="gcalbar" hidden></div>
   <div class="calmain">
-    <aside class="calside"><div id="mini"></div><div id="workPanel"></div></aside>
+    <aside class="calside"><div id="mini"></div><div id="legend" class="legend"></div><div id="workPanel"></div></aside>
     <div id="cal"></div>
   </div>
 </div>
@@ -242,7 +249,7 @@ function load(){
     render();
   });
 }
-function render(){ var t; if(VIEW==='month'){ t=MON[CUR.getMonth()]+' '+CUR.getFullYear(); } else if(VIEW==='day'){ t=DOW[CUR.getDay()]+', '+MON[CUR.getMonth()]+' '+CUR.getDate()+', '+CUR.getFullYear(); } else if(VIEW==='week'){ var w=weekRange(),e=w.end; t=MON[w.start.getMonth()].slice(0,3)+' '+w.start.getDate()+' - '+MON[e.getMonth()].slice(0,3)+' '+e.getDate()+', '+e.getFullYear(); } else { t='Upcoming'; } document.getElementById('mtitle').textContent=t; if(VIEW==='month') renderMonth(); else if(VIEW==='week') renderWeek(); else if(VIEW==='day') renderDay(); else renderAgenda(); renderMini(); renderWork(); }
+function render(){ var t; if(VIEW==='month'){ t=MON[CUR.getMonth()]+' '+CUR.getFullYear(); } else if(VIEW==='day'){ t=DOW[CUR.getDay()]+', '+MON[CUR.getMonth()]+' '+CUR.getDate()+', '+CUR.getFullYear(); } else if(VIEW==='week'){ var w=weekRange(),e=w.end; t=MON[w.start.getMonth()].slice(0,3)+' '+w.start.getDate()+' - '+MON[e.getMonth()].slice(0,3)+' '+e.getDate()+', '+e.getFullYear(); } else { t='Upcoming'; } document.getElementById('mtitle').textContent=t; if(VIEW==='month') renderMonth(); else if(VIEW==='week') renderWeek(); else if(VIEW==='day') renderDay(); else renderAgenda(); renderMini(); renderWork(); renderLegend(); }
 function apptsOn(dstr){ return APPTS.filter(function(a){return String(a.start||'').slice(0,10)===dstr;}).sort(function(a,b){return String(a.start).localeCompare(String(b.start));}); }
 function chip(a){ var cls='chip'+(a.byUser===ME?' mine':'')+(a.status==='cancelled'?' cancelled':''); return '<span class="'+cls+'" data-appt="'+esc(a.id)+'" title="'+esc(a.title)+(a.contactName?(' · '+esc(a.contactName)):'')+'"><span class="t">'+esc(fmtTime(timeOf(a.start)))+'</span>'+esc(a.title)+'</span>'; }
 function tasksOn(dstr){ if(!SHOWTASKS) return []; return (TASKS||[]).filter(function(t){return String(t.due||'').slice(0,10)===dstr;}).sort(function(a,b){return String(a.due).localeCompare(String(b.due));}); }
@@ -308,6 +315,7 @@ function renderWork(){
     (w.workLocation?('<div class="wkrow"><span>Location</span><b>'+esc(w.workLocation)+'</b></div>'):'')+
     (mine?'<a class="wkedit" href="rrg_account.html">Edit</a>':'')+'</div>';
 }
+function renderLegend(){ var host=document.getElementById('legend'); if(!host) return; var items='<div class="lg"><span class="sw mine"></span>My meetings</div><div class="lg"><span class="sw other"></span>Team &amp; shared</div>'; if(FEATURES.calTasks!==false) items+='<div class="lg"><span class="sw task"></span>Tasks</div>'; host.innerHTML='<div class="lh">What the colors mean</div>'+items+'<div class="lg" style="color:var(--muted);font-size:11px;margin-top:2px">Struck-through = cancelled</div>'; }
 function renderMini(){
   var host=document.getElementById('mini'); if(!host) return;
   var y=CUR.getFullYear(), mo=CUR.getMonth();

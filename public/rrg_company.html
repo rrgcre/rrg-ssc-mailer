@@ -1109,7 +1109,7 @@ window.addEventListener('pageshow',function(e){ if(e.persisted && typeof load===
 })();
 
 /* Hide a rail card's count badge when it's exactly 0 — an empty section reads cleaner without a "0". */
-(function(){ function hz(){ document.querySelectorAll('.rail .card > .ch > span').forEach(function(s){ var z=((s.textContent||'').trim()==='0'); var want=z?'none':''; if(s.style.display!==want) s.style.display=want; }); } var t=null; function sched(){ if(t) return; t=setTimeout(function(){ t=null; hz(); },120); } function go(){ hz(); try{ var tgt=document.getElementById('root')||document.body; new MutationObserver(sched).observe(tgt,{childList:true,subtree:true}); }catch(e){} } if(document.readyState!=='loading') go(); else document.addEventListener('DOMContentLoaded',go); })();
+(function(){ function hz(){ document.querySelectorAll('.rail .card > .ch > span').forEach(function(s){ var z=((s.textContent||'').trim()==='0'); var want=z?'none':''; if(s.style.display!==want) s.style.display=want; }); } var t=null; var raf=window.requestAnimationFrame||function(f){return setTimeout(f,16);}; function sched(){ if(t) return; t=raf(function(){ t=null; hz(); }); } function go(){ hz(); try{ var tgt=document.getElementById('root')||document.body; new MutationObserver(sched).observe(tgt,{childList:true,subtree:true}); }catch(e){} } if(document.readyState!=='loading') go(); else document.addEventListener('DOMContentLoaded',go); })();
 </script>
 </body>
 </html>
