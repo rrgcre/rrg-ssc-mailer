@@ -6646,7 +6646,7 @@ function _glDefaultAccounts() {
   (EXPENSE_CATEGORIES || []).forEach((cat, i) => base.push({ code: String(5000 + i * 10), name: cat, type: 'Expense', cat: cat }));
   return base;
 }
-function loadGlAccounts() { let a; try { a = rj(GL_ACCOUNTS_FILE); } catch (e) { a = null; } if (!Array.isArray(a) || !a.length) { a = _glDefaultAccounts(); try { writeJsonGuarded(GL_ACCOUNTS_FILE, a, 'seedGlAccounts'); } catch (e) {} } return a; }
+function loadGlAccounts() { let a; try { a = rj(GL_ACCOUNTS_FILE); } catch (e) { a = null; } if (!Array.isArray(a)) { a = _glDefaultAccounts(); try { writeJsonGuarded(GL_ACCOUNTS_FILE, a, 'seedGlAccounts'); } catch (e) {} } return a; }
 function saveGlAccounts(a) { return writeJsonGuarded(GL_ACCOUNTS_FILE, a, 'saveGlAccounts'); }
 function loadGlJournal() { try { return rj(GL_JOURNAL_FILE) || []; } catch (e) { return []; } }
 function saveGlJournal(a) { return writeJsonGuarded(GL_JOURNAL_FILE, a, 'saveGlJournal'); }
@@ -6778,6 +6778,16 @@ app.post('/api/gl/import-accounts', requireAdmin, express.json({ limit: '4mb' })
   });
   saveGlAccounts(accounts);
   res.json({ ok: true, added, updated, skipped, accounts });
+});
+// Wipe GL data. journal:true clears manual entries; accounts:'empty' removes every account,
+// accounts:'default' resets to the starter chart. Auto-posted entries come from invoices /
+// payments / expenses and are not stored here, so they are unaffected.
+app.post('/api/gl/reset', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {};
+  if (b.journal) saveGlJournal([]);
+  if (b.accounts === 'empty') saveGlAccounts([]);
+  else if (b.accounts === 'default') saveGlAccounts(_glDefaultAccounts());
+  res.json({ ok: true, accounts: loadGlAccounts() });
 });
 
 app.get('/api/automations', (req, res) => { const u = req.user || {}; const vis = loadAutomations().filter(a => (a.scope !== 'private') || a.ownerUser === u.username || isSuper(u)); res.json({ ok: true, automations: vis.map(a => automationBrief(a, u)), isAdmin: !!(req.user && isSuper(req.user)), smsNotify: smsNotifyEnabled(), smsReady: isSmsConfigured(), me: u.username || '' }); });
