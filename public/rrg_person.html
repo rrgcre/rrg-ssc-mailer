@@ -1524,7 +1524,7 @@ load();
       _rrgSetDone(elU, !!(j.financials && j.lease), 'Financials & lease in');
       _rrgSetDone(elSend, !!j.interviewDone, 'Completed by the seller');
       // Skip - Seller Interview — available once screening is done; marks the interview waived and unlocks valuation.
-      var elSkI=_rrgActById('ivSkip'), _ivSkipped=!!j.interviewSkipped, _ivSettled=!!j.interviewDone||_ivSkipped;
+      var elSkI=_rrgActById('ivSkip'), _ivSkipped=!!j.interviewSkipped, _ivSettled=!!j.interviewDone||!!j.questionnaire||_ivSkipped;
       _rrgSetGate(elSkI, !scr, scr?'':'Run a Seller Screening Call first');
       _rrgSetDone(elSkI, _ivSkipped, 'Skipped');
       if(_ivSkipped) _addUndo(elSkI,'interview');

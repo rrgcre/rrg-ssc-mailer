@@ -3527,6 +3527,20 @@ app.post('/api/room-upload', express.json({ limit: '40mb' }), (req, res) => {
   res.json({ ok: true, docs: r.docs });
 });
 // Mass upload — Claude reads each file and files it into the right folder automatically.
+// Instant name-based folder guess — the fallback when the AI classifier is slow or off.
+function roomCatFromName(name, cats) {
+  const s = String(name || '').toLowerCase();
+  const has = (...ws) => ws.some(w => s.indexOf(w) >= 0);
+  let c = 'Other';
+  if (has('p&l', 'p_l', 'p and l', 'profit', 'income statement', 'balance sheet', 'financ', 'sde', 'add-back', 'revenue', 'sales report', 'bank statement')) c = 'Financials';
+  else if (has('tax', '1120', '1065', '1040', 'w-2', 'w2', 'w-9', 'w9', 'k-1', '1099', 'return')) c = 'Tax Returns';
+  else if (has('lease', 'sublease', 'estoppel', 'rent roll', 'loi', 'amendment')) c = 'Lease';
+  else if (has('equip', 'ff&e', 'ffe', 'inventory', 'asset')) c = 'Equipment & FF&E';
+  else if (has('license', 'permit', 'tabc', 'liquor', 'health', 'occupancy', 'certificate')) c = 'Licenses & Permits';
+  else if (has('operating agreement', 'bylaw', 'contract', 'nda', 'entity', 'articles', 'legal', 'assignment')) c = 'Legal & Corporate';
+  else if (has('menu', 'marketing', 'flyer', 'press', 'photo', 'brochure', 'teaser')) c = 'Menus & Marketing';
+  return (Array.isArray(cats) && cats.indexOf(c) >= 0) ? c : 'Other';
+}
 app.post('/api/room/:id/bulk-upload', express.json({ limit: '80mb' }), async (req, res) => {
   const arr = loadRooms();
   const r = arr.find(x => x.id === req.params.id);
@@ -3534,19 +3548,21 @@ app.post('/api/room/:id/bulk-upload', express.json({ limit: '80mb' }), async (re
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const files = Array.isArray((req.body || {}).files) ? (req.body.files || []).slice(0, 40) : [];
   if (!files.length) return res.status(400).json({ ok: false, error: 'No files received.' });
-  // Best-effort text excerpt per file for the classifier (images/xlsx/pptx classify by name only).
-  const items = [];
-  for (let i = 0; i < files.length; i++) {
-    const f = files[i] || {}; let snippet = '';
-    try { snippet = String(await extractQuestionnaireText(f.filename, f.dataB64) || '').slice(0, 1200); } catch (e) { snippet = ''; }
-    items.push({ name: String(f.filename || ('File ' + (i + 1))), snippet });
-  }
-  let cls = [];
-  try { cls = await aiassist.classifyRoomDocs({ items, categories: roomServeCats(r) }); } catch (e) { console.error('classifyRoomDocs:', e && e.message); cls = []; }
-  const byIdx = {}; cls.forEach(c => { if (Number.isInteger(c.i)) byIdx[c.i] = c.category; });
+  const _rc = roomServeCats(r);
+  // Classify by file name only — fast. AI sorts when it answers quickly; otherwise a name
+  // heuristic files each doc so the upload NEVER stalls on a slow/unavailable AI call.
+  const items = files.map((f, i) => ({ name: String((f && f.filename) || ('File ' + (i + 1))) }));
+  const byIdx = {};
+  try {
+    const cls = await Promise.race([
+      aiassist.classifyRoomDocs({ items, categories: _rc }),
+      new Promise(resolve => setTimeout(() => resolve(null), 15000)),
+    ]);
+    if (Array.isArray(cls)) cls.forEach(c => { if (Number.isInteger(c.i)) byIdx[c.i] = c.category; });
+  } catch (e) { console.error('classifyRoomDocs:', e && e.message); }
   const results = []; let added = 0;
   for (let i = 0; i < files.length; i++) {
-    const f = files[i] || {}; const _rc = roomServeCats(r); const cat = _rc.indexOf(byIdx[i]) >= 0 ? byIdx[i] : 'Other';
+    const f = files[i] || {}; const cat = _rc.indexOf(byIdx[i]) >= 0 ? byIdx[i] : roomCatFromName(f.filename, _rc);
     const doc = addFileToRoom(r, { name: f.filename, dataB64: f.dataB64 }, { category: cat, title: (String(f.title || '').trim() || prettyName(f.filename || '')), by: ((req.user && req.user.name) || '') + ' · AI-filed', source: 'bulk:' + Date.now() + ':' + i });
     if (doc) { added++; results.push({ ok: true, name: f.filename || '', category: cat, id: doc.id }); }
     else { results.push({ ok: false, name: f.filename || '', category: cat, error: 'Skipped — unsupported type, empty, or over 25 MB.' }); }
