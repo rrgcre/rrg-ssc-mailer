@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Book a meeting · RRG</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a94a6;--line:#e6e9f0;--wash:#f5f7fb;--blue:#2c5c8f;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;}
+.top{background:radial-gradient(115% 130% at 50% 0%,#182a54 0%,#0d1b3d 55%,#04091d 100%);color:#fff;padding:20px 0;}
+.top-in{max-width:820px;margin:0 auto;padding:0 22px;display:flex;align-items:center;gap:11px;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:36px;height:36px;font:900 11px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;flex:none;}
+.biz{font-weight:800;font-size:14px;}
+.wrap{max-width:820px;margin:20px auto;padding:0 22px 50px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.hd{padding:20px 24px;border-bottom:1px solid var(--line);}
+.hd h1{margin:0;font-size:20px;font-weight:800;color:var(--navy);}
+.hd .who{color:var(--muted);font-size:13.5px;margin-top:5px;}
+.hd .meta{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;}
+.tag{font-size:11px;font-weight:700;color:var(--navy);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
+.body{padding:18px 24px;}
+.lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);margin:0 0 9px;}
+.dates{display:flex;gap:8px;overflow-x:auto;padding-bottom:6px;}
+.dbtn{flex:none;border:1px solid var(--line);background:#fff;border-radius:6px;padding:9px 13px;cursor:pointer;text-align:center;min-width:66px;font:inherit;}
+.dbtn .dw{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;}
+.dbtn .dd{font-size:17px;font-weight:800;color:var(--navy);margin-top:2px;}
+.dbtn.on{border-color:var(--navy);background:#eef2fb;}
+.slots{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:8px;margin-top:16px;}
+.slot{border:1px solid #cfd6e2;background:#fff;border-radius:6px;padding:10px 8px;font:inherit;font-size:13px;font-weight:700;color:var(--navy);cursor:pointer;}
+.slot:hover{border-color:var(--navy);background:var(--wash);}
+.slot.on{background:var(--navy);color:#fff;border-color:var(--navy);}
+.empty{color:var(--muted);font-size:13.5px;padding:24px 0;text-align:center;}
+.form{margin-top:18px;border-top:1px solid var(--line);padding-top:16px;}
+label.fl{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:800;margin:10px 0 5px;}
+input,textarea{width:100%;border:1px solid #cfd6e2;border-radius:6px;padding:10px 12px;font:inherit;font-size:14px;color:var(--ink);}
+textarea{min-height:66px;resize:vertical;}
+.confirm{margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.btn{background:var(--red);color:#fff;border:none;border-radius:6px;padding:12px 20px;font:inherit;font-size:14px;font-weight:800;cursor:pointer;}
+.btn:disabled{opacity:.6;cursor:default;}
+.pick{font-size:13.5px;color:var(--navy);font-weight:700;}
+.msg{font-size:13px;font-weight:700;}
+.msg.err{color:var(--red);} .msg.ok{color:var(--green);}
+.done{text-align:center;padding:40px 24px;}
+.done .ico{width:58px;height:58px;border-radius:50%;background:#e8f5ee;color:var(--green);font-size:30px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;}
+.done h2{margin:0 0 8px;color:var(--navy);font-size:20px;}
+.done p{color:var(--muted);font-size:14px;margin:4px 0;}
+.foot{text-align:center;color:var(--soft);font-size:12px;margin-top:22px;}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-in"><span class="disc">RRG</span><span class="biz" id="biz">Restaurant Realty Group</span></div></div>
+<div class="wrap">
+  <div class="card" id="card">
+    <div class="hd">
+      <h1 id="h1">Book a meeting</h1>
+      <div class="who" id="who">Loading availability…</div>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="body" id="body"><div class="empty">Loading…</div></div>
+  </div>
+  <div class="foot">Scheduling powered by Restaurant Realty Group</div>
+</div>
+<script>
+var TOKEN=(location.pathname.match(/\/book\/([^\/?#]+)/)||[])[1]||'';
+var LEN=30, DAYS=[], SEL=null, OWNER={};
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function fmtTime(s){var t=String(s).slice(11,16);var p=t.split(':');var h=+p[0],m=p[1];var ap=h>=12?'pm':'am',h12=(h%12)||12;return h12+(m==='00'?'':(':'+m))+ap;}
+var WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],MO=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function dObj(dstr){return new Date(dstr+'T12:00:00Z');}
+function init(){
+  fetch('/api/book/'+encodeURIComponent(TOKEN)).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ fail((j&&j.error)||'This booking link is not active.'); return; }
+    OWNER=j.owner||{}; LEN=j.length||30;
+    if(j.business) document.getElementById('biz').textContent=j.business;
+    document.getElementById('h1').textContent=j.title||('Book time with '+(OWNER.name||''));
+    document.getElementById('who').textContent='with '+(OWNER.name||'')+(OWNER.title?(' · '+OWNER.title):'');
+    var meta=[]; meta.push('<span class="tag">'+LEN+' min</span>'); if(OWNER.location) meta.push('<span class="tag">'+esc(OWNER.location)+'</span>');
+    document.getElementById('meta').innerHTML=meta.join('');
+    loadSlots();
+  }).catch(function(){ fail('Could not reach the server.'); });
+}
+function fail(msg){ document.getElementById('who').textContent=''; document.getElementById('body').innerHTML='<div class="empty">'+esc(msg)+'</div>'; }
+function loadSlots(){
+  fetch('/api/book/'+encodeURIComponent(TOKEN)+'/slots').then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ fail((j&&j.error)||'No availability.'); return; }
+    DAYS=j.days||[]; if(!DAYS.length){ document.getElementById('body').innerHTML='<div class="empty">No open times in the next few weeks. Please check back later.</div>'; return; }
+    SEL=null; renderPicker();
+  }).catch(function(){ fail('Could not reach the server.'); });
+}
+function renderPicker(){
+  var dates='<p class="lbl">Pick a day</p><div class="dates">'+DAYS.map(function(d,i){ var dt=dObj(d.date); return '<button class="dbtn'+(i===(SEL&&SEL.di)?' on':'')+'" data-di="'+i+'"><span class="dw">'+WD[dt.getUTCDay()]+'</span><span class="dd">'+dt.getUTCDate()+'</span><span class="dw">'+MO[dt.getUTCMonth()]+'</span></button>'; }).join('')+'</div>';
+  var slotsHtml='';
+  if(SEL){ var day=DAYS[SEL.di]; slotsHtml='<div class="slots">'+day.slots.map(function(s,si){ return '<button class="slot'+(SEL.si===si?' on':'')+'" data-si="'+si+'">'+fmtTime(s.start)+'</button>'; }).join('')+'</div>'; }
+  var formHtml='';
+  if(SEL&&SEL.si!=null){ var pick=DAYS[SEL.di].slots[SEL.si].start; var dt=dObj(pick.slice(0,10)); var pl=WD[dt.getUTCDay()]+', '+MO[dt.getUTCMonth()]+' '+dt.getUTCDate()+' at '+fmtTime(pick);
+    formHtml='<div class="form"><div class="pick">📅 '+pl+' · '+LEN+' min</div><label class="fl">Your name</label><input id="bk_name" placeholder="Full name"><label class="fl">Email</label><input id="bk_email" type="email" placeholder="you@example.com"><label class="fl">Anything to add? (optional)</label><textarea id="bk_notes" placeholder="What would you like to discuss?"></textarea><div class="confirm"><button class="btn" id="bk_go">Confirm booking</button><span class="msg" id="bk_msg"></span></div></div>';
+  }
+  document.getElementById('body').innerHTML=dates+slotsHtml+formHtml;
+  document.querySelectorAll('.dbtn').forEach(function(b){ b.addEventListener('click',function(){ SEL={di:+b.getAttribute('data-di'),si:null}; renderPicker(); }); });
+  document.querySelectorAll('.slot').forEach(function(b){ b.addEventListener('click',function(){ SEL.si=+b.getAttribute('data-si'); renderPicker(); }); });
+  var go=document.getElementById('bk_go'); if(go) go.addEventListener('click',book);
+}
+function book(){
+  var msg=document.getElementById('bk_msg'); var go=document.getElementById('bk_go');
+  var name=(document.getElementById('bk_name').value||'').trim(), email=(document.getElementById('bk_email').value||'').trim();
+  var notes=(document.getElementById('bk_notes').value||'').trim();
+  if(!name||!email){ msg.className='msg err'; msg.textContent='Please enter your name and email.'; return; }
+  var start=DAYS[SEL.di].slots[SEL.si].start;
+  go.disabled=true; msg.className='msg'; msg.textContent='Booking…';
+  fetch('/api/book/'+encodeURIComponent(TOKEN),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name,email:email,notes:notes,start:start})}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok){ showDone(start,name); }
+    else { go.disabled=false; msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not book.'; if(j&&/taken/i.test(j.error||'')) loadSlots(); }
+  }).catch(function(){ go.disabled=false; msg.className='msg err'; msg.textContent='Could not reach the server.'; });
+}
+function showDone(start,name){
+  var dt=dObj(start.slice(0,10)); var pl=WD[dt.getUTCDay()]+', '+MO[dt.getUTCMonth()]+' '+dt.getUTCDate()+' at '+fmtTime(start);
+  document.getElementById('card').innerHTML='<div class="done"><div class="ico">✓</div><h2>You’re booked!</h2><p><b>'+esc(pl)+'</b></p><p>with '+esc(OWNER.name||'')+' · '+LEN+' min</p><p style="margin-top:12px">A confirmation is on its way to your email.</p></div>';
+}
+if(!TOKEN){ fail('This booking link is missing its code.'); } else { init(); }
+</script>
+</body>
+</html>

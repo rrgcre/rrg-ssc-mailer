@@ -1173,7 +1173,7 @@ app.use(express.urlencoded({ extended: false }));
 const OPEN = new Set(['/health', '/login', '/api/login', '/logout', '/favicon.ico', '/api/appname', '/rrg_brand.js', '/rrg_theme.css', '/api/gmail/callback']);
 app.use((req, res, next) => {
   // Buyer-facing data-room links are public (the unguessable token is the gate).
-  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
+  if (OPEN.has(req.path) || req.path.startsWith('/room/') || req.path.startsWith('/deal/') || req.path.startsWith('/roomfile/') || req.path.startsWith('/roomview/') || req.path.startsWith('/vendor/') || req.path.startsWith('/sign/') || req.path.startsWith('/api/sign/') || req.path.startsWith('/eo/') || req.path.startsWith('/book/') || req.path.startsWith('/api/book/') || req.path === '/market' || req.path === '/api/market/public' || req.path === '/api/market/request-access' || req.path.startsWith('/s/') || req.path === '/seller_intake.html' || req.path === '/seller_record.html') return next();
   const sess = auth.readSession(parseCookies(req)[COOKIE]);
   if (sess) {
     req.user = sess;
@@ -11160,7 +11160,7 @@ function saveAppts(a) { return writeJsonGuarded(APPTS_FILE, a, 'saveAppts'); }
 function newApptId() { return 'ap_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const APPT_TYPES = ['Meeting', 'Call', 'Tour', 'Listing Presentation', 'Closing', 'Follow-up', 'Other'];
 function _cleanAttendees(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 20).map(function (x) { return { name: String((x && x.name) || '').slice(0, 120), email: String((x && x.email) || '').slice(0, 160).trim() }; }).filter(function (x) { return x.name || x.email; }); }
-function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], cc: Array.isArray(a.cc) ? a.cc : [], bcc: Array.isArray(a.bcc) ? a.bcc : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', invitedAt: a.invitedAt || '', meetUrl: a.meetUrl || '', googleEventId: a.googleEventId || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
+function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], cc: Array.isArray(a.cc) ? a.cc : [], bcc: Array.isArray(a.bcc) ? a.bcc : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', invitedAt: a.invitedAt || '', meetUrl: a.meetUrl || '', googleEventId: a.googleEventId || '', files: Array.isArray(a.files) ? a.files : [], createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
 function apptIcs(a) {
   function e(s) { return String(s || '').replace(/([,;\\])/g, '\\$1').replace(/\r?\n/g, '\\n'); }
   function dt(s) { var m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); return m ? (m[1] + m[2] + m[3] + 'T' + m[4] + m[5] + '00') : ''; }
@@ -11294,6 +11294,129 @@ app.post('/api/appointments/:id/meet', express.json(), async (req, res) => {
     try { logSysEvent(req, 'Google', 'Added a Google Meet link to “' + (a.title || 'Meeting') + '”', { tool: 'google-meet' }); } catch (e) {}
     res.json({ ok: true, meetUrl: link });
   } catch (e) { console.error('appt meet:', e && e.message); res.status(502).json({ ok: false, error: _gErr(e) }); }
+});
+// ---- Event attachments (agendas, pre-reads, documents on a meeting) ----
+const APPT_FILE_DIR = path.join(BOV_DATA_DIR, 'apptfiles');
+function _apptFileId() { return 'af_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+app.post('/api/appointments/:id/files', express.json({ limit: '30mb' }), (req, res) => {
+  const all = loadAppts(); const a = all.find(x => x.id === req.params.id); if (!a) return res.status(404).json({ ok: false, error: 'Meeting not found.' });
+  const b = req.body || {};
+  const orig = String(b.filename || '').trim(); const m = orig.match(/\.([a-z0-9]+)$/i); const ext = m ? m[1].toLowerCase() : '';
+  if (!/^(pdf|docx?|xlsx?|csv|pptx?|png|jpe?g|gif|txt|zip)$/i.test(ext)) return res.status(400).json({ ok: false, error: 'Unsupported file type.' });
+  const data = String(b.dataB64 || '').replace(/^data:[^,]*,/, ''); if (!data) return res.status(400).json({ ok: false, error: 'No file data received.' });
+  let buf; try { buf = Buffer.from(data, 'base64'); } catch (e) { return res.status(400).json({ ok: false, error: 'Could not read the file.' }); }
+  if (!buf.length) return res.status(400).json({ ok: false, error: 'The file is empty.' });
+  if (buf.length > 20 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 20 MB).' });
+  try { if (!fs.existsSync(APPT_FILE_DIR)) fs.mkdirSync(APPT_FILE_DIR, { recursive: true }); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not create the folder.' }); }
+  const fid = _apptFileId();
+  try { fs.writeFileSync(path.join(APPT_FILE_DIR, a.id + '_' + fid + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
+  if (!Array.isArray(a.files)) a.files = [];
+  a.files.push({ id: fid, name: String(b.filename || ('file.' + ext)).slice(0, 200), ext, size: buf.length, at: new Date().toISOString() });
+  a.updatedAt = new Date().toISOString(); saveAppts(all);
+  res.json({ ok: true, files: a.files });
+});
+app.get('/api/appointments/:id/files/:fid', (req, res) => {
+  const a = loadAppts().find(x => x.id === req.params.id); if (!a) return res.status(404).end();
+  const f = (a.files || []).find(x => x.id === req.params.fid); if (!f) return res.status(404).end();
+  const fp = path.join(APPT_FILE_DIR, a.id + '_' + f.id + '.' + f.ext);
+  if (!fp.startsWith(APPT_FILE_DIR) || !fs.existsSync(fp)) return res.status(404).end();
+  res.setHeader('Content-Disposition', 'inline; filename="' + encodeURIComponent(f.name) + '"');
+  res.sendFile(fp);
+});
+app.delete('/api/appointments/:id/files/:fid', (req, res) => {
+  const all = loadAppts(); const a = all.find(x => x.id === req.params.id); if (!a) return res.status(404).json({ ok: false, error: 'Not found.' });
+  const f = (a.files || []).find(x => x.id === req.params.fid); if (!f) return res.status(404).json({ ok: false, error: 'File not found.' });
+  try { fs.unlinkSync(path.join(APPT_FILE_DIR, a.id + '_' + f.id + '.' + f.ext)); } catch (e) {}
+  a.files = (a.files || []).filter(x => x.id !== f.id); a.updatedAt = new Date().toISOString(); saveAppts(all);
+  res.json({ ok: true, files: a.files });
+});
+
+// ================= Booking pages (public self-scheduling) =================
+const BOOKINGS_FILE = path.join(BOV_DATA_DIR, 'bookings.json');
+function loadBookings() { try { return rj(BOOKINGS_FILE) || {}; } catch (e) { return {}; } }
+function saveBookings(b) { return writeJsonGuarded(BOOKINGS_FILE, b, 'saveBookings'); }
+function _bookToken() { return 'bk_' + Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6); }
+function bookingByToken(tok) { const all = loadBookings(); for (const un in all) { if (all[un] && all[un].token === tok && all[un].enabled) return Object.assign({ username: un }, all[un]); } return null; }
+const BOOK_LENGTHS = [15, 30, 45, 60];
+function _bmToMin(hm) { const p = String(hm || '').split(':'); return (+p[0] || 0) * 60 + (+p[1] || 0); }
+function _bAddMin(naive, min) { const d = new Date(naive + ':00Z'); d.setUTCMinutes(d.getUTCMinutes() + min); return d.toISOString().slice(0, 16); }
+function _bAddDays(dstr, n) { const d = new Date(dstr + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
+function _bDow(dstr) { return new Date(dstr + 'T12:00:00Z').getUTCDay(); }
+function _bNow() { try { const p = new Intl.DateTimeFormat('en-CA', { timeZone: GSYNC_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()); const o = {}; p.forEach(x => o[x.type] = x.value); const hh = (o.hour === '24' ? '00' : o.hour); return o.year + '-' + o.month + '-' + o.day + 'T' + hh + ':' + o.minute; } catch (e) { return new Date().toISOString().slice(0, 16); } }
+function bookingAvailability(username, days) {
+  const prof = auth.profileOf(auth.findUser(username)) || {};
+  const bk = (loadBookings()[username]) || {};
+  const len = BOOK_LENGTHS.indexOf(+bk.length) >= 0 ? +bk.length : 30;
+  const wd = (Array.isArray(prof.workDays) && prof.workDays.length) ? prof.workDays : [1, 2, 3, 4, 5];
+  const ws = /^\d{2}:\d{2}$/.test(prof.workStart || '') ? prof.workStart : '09:00';
+  const we = /^\d{2}:\d{2}$/.test(prof.workEnd || '') ? prof.workEnd : '17:00';
+  const appts = loadAppts().filter(a => a.byUser === username && a.status !== 'cancelled' && a.status !== 'deleted' && a.start);
+  const nowN = _bNow(); const today = nowN.slice(0, 10);
+  const out = [];
+  for (let i = 0; i < (days || 14); i++) {
+    const dstr = _bAddDays(today, i);
+    if (wd.indexOf(_bDow(dstr)) < 0) continue;
+    const slots = [];
+    for (let m = _bmToMin(ws); m + len <= _bmToMin(we); m += len) {
+      const hh = String(Math.floor(m / 60)).padStart(2, '0'), mm = String(m % 60).padStart(2, '0');
+      const s = dstr + 'T' + hh + ':' + mm;
+      if (s < nowN) continue;
+      const sEnd = _bAddMin(s, len);
+      let free = true;
+      for (const a of appts) { const aS = String(a.start); const aE = String(a.end || '') || _bAddMin(aS, 30); if (s < aE && aS < sEnd) { free = false; break; } }
+      if (free) slots.push({ start: s });
+    }
+    if (slots.length) out.push({ date: dstr, slots });
+  }
+  return { length: len, days: out, owner: { name: prof.name || username, title: prof.title || '', location: prof.workLocation || '' } };
+}
+app.get('/api/me/booking', (req, res) => {
+  const un = req.user && req.user.username; const bk = (loadBookings()[un]) || {}; const base = appBaseUrl();
+  res.json({ ok: true, enabled: !!bk.enabled, token: bk.token || '', length: bk.length || 30, title: bk.title || '', lengths: BOOK_LENGTHS, link: (bk.token ? ((base || '') + '/book/' + bk.token) : '') });
+});
+app.post('/api/me/booking', express.json(), (req, res) => {
+  const un = req.user && req.user.username; if (!un) return res.status(401).json({ ok: false });
+  const b = req.body || {}; const all = loadBookings(); const cur = all[un] || {};
+  if (typeof b.enabled === 'boolean') cur.enabled = b.enabled;
+  if (b.length !== undefined) cur.length = BOOK_LENGTHS.indexOf(+b.length) >= 0 ? +b.length : (cur.length || 30);
+  if (b.title !== undefined) cur.title = String(b.title || '').slice(0, 120);
+  if (cur.enabled && !cur.token) cur.token = _bookToken();
+  all[un] = cur; saveBookings(all); const base = appBaseUrl();
+  res.json({ ok: true, enabled: !!cur.enabled, token: cur.token || '', length: cur.length || 30, title: cur.title || '', lengths: BOOK_LENGTHS, link: (cur.token ? ((base || '') + '/book/' + cur.token) : '') });
+});
+app.get('/book/:token', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'rrg_book.html')); });
+app.get('/api/book/:token', (req, res) => {
+  const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
+  const av = bookingAvailability(bk.username, 1);
+  res.json({ ok: true, owner: av.owner, length: av.length, title: bk.title || '', business: loadAppName() });
+});
+app.get('/api/book/:token/slots', (req, res) => {
+  const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
+  const av = bookingAvailability(bk.username, 21);
+  res.json({ ok: true, length: av.length, days: av.days, owner: av.owner });
+});
+app.post('/api/book/:token', express.json(), async (req, res) => {
+  const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
+  const b = req.body || {};
+  const name = String(b.name || '').trim().slice(0, 120); const email = String(b.email || '').trim().slice(0, 160);
+  const start = String(b.start || '').slice(0, 16);
+  if (!name || !email) return res.status(400).json({ ok: false, error: 'Please enter your name and email.' });
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(start)) return res.status(400).json({ ok: false, error: 'Please pick a time.' });
+  const av = bookingAvailability(bk.username, 30);
+  const stillFree = av.days.some(d => d.slots.some(s => s.start === start));
+  if (!stillFree) return res.status(409).json({ ok: false, error: 'Sorry — that time was just taken. Please pick another.' });
+  const prof = auth.profileOf(auth.findUser(bk.username)) || {};
+  const all = loadAppts(); const now = new Date().toISOString();
+  const a = { id: newApptId(), byUser: bk.username, byName: prof.name || bk.username, createdAt: now, status: 'scheduled', title: (bk.title || ('Meeting with ' + name)).slice(0, 200), start, end: _bAddMin(start, av.length), type: 'Meeting', location: prof.workLocation || '', notes: String(b.notes || '').slice(0, 2000), contactName: name, attendees: [{ name, email }], source: 'booking' };
+  all.push(a); saveAppts(all);
+  try {
+    if (isEmailConfigured()) {
+      const when = start.replace('T', ' at ');
+      await sendInviteMail([email], 'Booked: ' + a.title, 'Your meeting is booked for ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + '\n\n— ' + a.byName, apptIcs(a), [], []);
+      const ownerEmail = (prof.email || '').trim(); if (ownerEmail) sendNotifyMail(ownerEmail, 'New booking: ' + name, name + ' (' + email + ') booked ' + when + '.').catch(() => {});
+    }
+  } catch (e) {}
+  res.json({ ok: true, when: start });
 });
 
 // ================= Agreements =================

@@ -107,6 +107,18 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
   </div>
 
   <div class="card">
+    <h2>Booking page</h2>
+    <p class="desc">Share a link and let clients pick an open time from your working hours — it books straight onto your calendar. Availability comes from your working days &amp; hours above.</p>
+    <label class="fl" style="display:flex;align-items:center;gap:9px;cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0;font-size:14px"><input type="checkbox" id="bkEnabled" style="width:auto"> <b style="font-weight:700">Turn on my booking page</b></label>
+    <div class="row2" style="margin-top:12px">
+      <div><label class="fl">Meeting length</label><select class="f" id="bkLength"></select></div>
+      <div><label class="fl">Title (optional)</label><input class="f" id="bkTitle" placeholder="e.g. Intro call"></div>
+    </div>
+    <div id="bkLinkRow" style="margin-top:12px;display:none"><label class="fl">Your booking link</label><div style="display:flex;gap:8px;align-items:center"><input class="f" id="bkLink" readonly style="flex:1"><button class="save" type="button" id="bkCopy" onclick="bkCopyLink()" style="white-space:nowrap">Copy</button><a class="save" id="bkOpen" href="#" target="_blank" rel="noopener" style="background:#eef1f6;color:#33415c;text-decoration:none;white-space:nowrap">Open</a></div></div>
+    <div style="margin-top:12px"><button class="save" id="saveBooking" onclick="saveBooking()">Save booking page</button><span class="msg" id="bkMsg"></span></div>
+  </div>
+
+  <div class="card">
     <h2>Email signature</h2>
     <p class="desc">Appended to the bottom of every email you send from a contact’s page. Type your sign-off and drop your logo right into the same box.</p>
     <div class="sigbar">
@@ -191,6 +203,7 @@ function load(){
   }).catch(function(){ preview(); });
 }
 load();
+loadBooking();
 
 /* ---- My Quick Links ---- */
 function addLinkRow(name,url){
@@ -245,6 +258,10 @@ function saveSig(){
 $('sigBox').addEventListener('input',sigSize);
 loadSig();
 
+function loadBooking(){ fetch(API+'/api/me/booking',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return; var sel=$('bkLength'); if(sel&&!sel.options.length){ (j.lengths||[15,30,45,60]).forEach(function(n){ var o=document.createElement('option'); o.value=n; o.textContent=n+' min'; sel.appendChild(o); }); } if(sel) sel.value=j.length||30; $('bkEnabled').checked=!!j.enabled; $('bkTitle').value=j.title||''; renderBkLink(j); }).catch(function(){}); }
+function renderBkLink(j){ var row=$('bkLinkRow'); if(!row) return; var link=j.link||''; if(link&&link.charAt(0)==='/') link=location.origin+link; if(j.enabled&&link){ row.style.display=''; $('bkLink').value=link; var op=$('bkOpen'); if(op) op.href=link; } else row.style.display='none'; }
+function bkCopyLink(){ var i=$('bkLink'); try{ navigator.clipboard.writeText(i.value); var b=$('bkCopy'); b.textContent='Copied'; setTimeout(function(){b.textContent='Copy';},1200);}catch(e){} }
+function saveBooking(){ var b=$('saveBooking'); b.disabled=true; setMsg('bkMsg','','Saving…'); fetch(API+'/api/me/booking',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({enabled:$('bkEnabled').checked,length:+$('bkLength').value,title:$('bkTitle').value})}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ setMsg('bkMsg','ok','Saved ✓'); renderBkLink(j); } else setMsg('bkMsg','err',(j&&j.error)||'Could not save.'); }).catch(function(){ b.disabled=false; setMsg('bkMsg','err','Could not reach the server.'); }); }
 function saveWork(){ var b=$('saveWork'); b.disabled=true; setMsg('wmsg','','Saving…'); var days=[]; document.querySelectorAll('#workDays input:checked').forEach(function(c){ days.push(+c.value); }); fetch(API+'/api/me/profile',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({workStart:$('workStart').value,workEnd:$('workEnd').value,workLocation:$('workLocation').value,workDays:days})}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ setMsg('wmsg','ok','Saved ✓'); } else setMsg('wmsg','err',(j&&j.error)||'Could not save.'); }).catch(function(){ b.disabled=false; setMsg('wmsg','err','Could not reach the server.'); }); }
 function saveProfile(){
   var b=$('saveProfile'); b.disabled=true; setMsg('pmsg','','Saving…');
