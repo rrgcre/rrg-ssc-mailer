@@ -138,6 +138,8 @@ const LEAD_SOURCES = ['Referral', 'Cold Call', 'Website', 'CoStar', 'LoopNet', '
 // System-required lead sources: cannot be deleted in admin — referral tracking / attribution depends on them.
 const SYSTEM_LEAD_SOURCES = ['Referral'];
 const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 'Form Submitted', 'Agreement Sent', 'Agreement Signed', 'LOI Sent', 'LOI Received', 'LOI Countered', 'LOI Accepted', 'Diligence', 'Note', 'To-Do'];
+// Reasons a broker closes & archives a data room — editable in Admin → Lists.
+const ROOM_CLOSE_REASONS = ['Transaction closed (sold)', 'Deal cancelled', 'Listing expired', 'Seller withdrew', 'Buyer withdrew', 'Financing fell through', 'Other'];
 const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Burgers', 'BBQ', 'Steakhouse', 'Seafood', 'Chinese', 'Japanese / Sushi', 'Thai', 'Vietnamese', 'Korean', 'Indian', 'Mediterranean', 'Greek', 'Southern / Soul', 'Breakfast / Brunch', 'Coffee / Cafe', 'Hawaiian', 'Desserts', 'Bar / Lounge'];
 function loadPeople() { try { return rj(PEOPLE_FILE); } catch (e) { return []; } }
 function savePeople(a) {
@@ -398,6 +400,7 @@ function migratePersonInterestsV1() {
 try { setTimeout(migratePersonInterestsV1, 4000); } catch (e) {}
 function effLeadSources() { const s = loadSettings(); let list = (Array.isArray(s.leadSources) && s.leadSources.length) ? s.leadSources.slice() : LEAD_SOURCES.slice(); SYSTEM_LEAD_SOURCES.forEach(function(rq){ if (!list.some(function(x){ return String(x).toLowerCase() === rq.toLowerCase(); })) list.unshift(rq); }); return list; }
 function effActivityTypes() { const s = loadSettings(); return _mergeRequired((Array.isArray(s.activityTypes) && s.activityTypes.length) ? s.activityTypes : ACTIVITY_TYPES, SYSTEM_ACTIVITY_TYPES); }
+function effRoomCloseReasons() { const s = loadSettings(); return (Array.isArray(s.roomCloseReasons) && s.roomCloseReasons.length) ? s.roomCloseReasons : ROOM_CLOSE_REASONS; }
 function effCuisineTypes() { const s = loadSettings(); return (Array.isArray(s.cuisineTypes) && s.cuisineTypes.length) ? s.cuisineTypes : CUISINE_TYPES; }
 function effMaxPullLocations() { const s = loadSettings(); const n = parseInt(s.maxPullLocations, 10); return (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
 function effDefaultState() { const s = loadSettings(); const v = String(s.defaultState || '').trim(); return v ? v.slice(0, 20) : 'TX'; }
@@ -3168,7 +3171,7 @@ function roomPublic(r, origin) {
   const _acc = Array.isArray(r.access) ? r.access : [];
   const _dls = _acc.reduce(function(n,x){ return n + (x.event === 'download' ? 1 : 0); }, 0);
   let _last = null; for (const x of _acc) { if (!_last || String(x.at) > String(_last.at)) _last = x; }
-  return { id: r.id, business: r.business, token: r.token, link: base, docCount: (r.docs || []).length, gated: roomIsGated(r), buyerCount: (r.grants || []).filter(g => g.active).length, srcCimId: r.srcCimId || '', createdAt: r.createdAt, builtAt: r.builtAt || '', by: r.by, downloads: _dls, lastAccessAt: _last ? _last.at : '', lastAccessBy: _last ? (_last.who || 'Buyer') : '', closed: !!r.closed, closedAt: r.closedAt || '' };
+  return { id: r.id, business: r.business, token: r.token, link: base, docCount: (r.docs || []).length, gated: roomIsGated(r), buyerCount: (r.grants || []).filter(g => g.active).length, srcCimId: r.srcCimId || '', createdAt: r.createdAt, builtAt: r.builtAt || '', by: r.by, downloads: _dls, lastAccessAt: _last ? _last.at : '', lastAccessBy: _last ? (_last.who || 'Buyer') : '', closed: !!r.closed, closedAt: r.closedAt || '', closeReason: r.closeReason || '' };
 }
 app.get('/api/rooms', (req, res) => {
   const isAdmin = req.user && isSuper(req.user);
@@ -3194,7 +3197,7 @@ app.get('/api/room/:id', (req, res) => {
     interviews: ivs,
     qa: (r.qa || []),
     mfa: mfaOnForRoom(r), mfaDefault: effRoomMfaDefault(), mfaOverride: (typeof r.mfa === 'boolean'),
-    closed: !!r.closed, closedAt: r.closedAt || '', closedBy: r.closedBy || '',
+    closed: !!r.closed, closedAt: r.closedAt || '', closedBy: r.closedBy || '', closeReason: r.closeReason || '', closeReasons: effRoomCloseReasons(),
     gated: roomIsGated(r),
     grants: (r.grants || []).map(g => ({ id: g.id, name: g.name || '', email: g.email || '', personId: g.personId || '', company: g.company || '', code: g.code, level: g.level || 'download', catPerms: g.catPerms || {}, docPerms: g.docPerms || {}, active: g.active !== false, createdAt: g.createdAt, lastSeen: g.lastSeen || '', views: g.views || 0, downloads: g.downloads || 0 })) } });
 });
@@ -3641,12 +3644,14 @@ app.post('/api/room/:id/close', express.json(), (req, res) => {
   if (!r) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const now = new Date().toISOString();
+  const reason = String((req.body && req.body.closeReason) || '').trim().slice(0, 80);
   r.closed = true; r.closedAt = now; r.closedBy = (req.user && req.user.name) || (req.user && req.user.username) || '';
+  r.closeReason = reason;
   (r.grants || []).forEach(g => { g.active = false; });
   r.token = newRoomToken(); // retire the shared link — any old/bookmarked link stops resolving
-  try { logRoomAccess(r, req, 'closed', '', null); } catch (e) {}
+  try { logRoomAccess(r, req, 'closed', reason || '', null); } catch (e) {}
   saveRooms(arr);
-  res.json({ ok: true, closed: true, closedAt: now });
+  res.json({ ok: true, closed: true, closedAt: now, closeReason: reason });
 });
 // Reopen an archived room (issues a fresh link; buyers must be re-authorized).
 app.post('/api/room/:id/reopen', express.json(), (req, res) => {
@@ -8151,20 +8156,21 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(),
-    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, cuisineTypes: CUISINE_TYPES, agreementTypes: AGREEMENT_TYPES },
-    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), cuisineTypes: Array.isArray(s.cuisineTypes), agreementTypes: Array.isArray(s.agreementTypes) },
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(),
+    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, roomCloseReasons: ROOM_CLOSE_REASONS, cuisineTypes: CUISINE_TYPES, agreementTypes: AGREEMENT_TYPES },
+    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), roomCloseReasons: Array.isArray(s.roomCloseReasons), cuisineTypes: Array.isArray(s.cuisineTypes), agreementTypes: Array.isArray(s.agreementTypes) },
     systemRequired: { leadSources: SYSTEM_LEAD_SOURCES, personTypes: SYSTEM_PERSON_TYPES, companyTypes: SYSTEM_COMPANY_TYPES, activityTypes: SYSTEM_ACTIVITY_TYPES, agreementTypes: AGREEMENT_TYPES.map(function(t){ return t.label; }) },
   });
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.cuisineTypes; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency() }); }
   if (b.personTypes !== undefined) { s.personTypes = cleanStrList(b.personTypes, 40, 60) || []; s.personTypes = _mergeRequired(s.personTypes, SYSTEM_PERSON_TYPES); }
   if (b.companyTypes !== undefined) { s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || []; s.companyTypes = _mergeRequired(s.companyTypes, SYSTEM_COMPANY_TYPES); }
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
   if (b.leadSources !== undefined) { s.leadSources = cleanStrList(b.leadSources, 40, 60) || []; SYSTEM_LEAD_SOURCES.forEach(function(rq){ if (!s.leadSources.some(function(x){ return String(x).toLowerCase() === rq.toLowerCase(); })) s.leadSources.unshift(rq); }); }
   if (b.activityTypes !== undefined) { s.activityTypes = cleanStrList(b.activityTypes, 40, 60) || []; s.activityTypes = _mergeRequired(s.activityTypes, SYSTEM_ACTIVITY_TYPES); }
+  if (b.roomCloseReasons !== undefined) { s.roomCloseReasons = cleanStrList(b.roomCloseReasons, 40, 80) || []; }
   if (b.agreementTypes !== undefined) {
     const seen = {}; const out = [];
     (Array.isArray(b.agreementTypes) ? b.agreementTypes : []).forEach(function(t){

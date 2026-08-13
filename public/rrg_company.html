@@ -1107,6 +1107,9 @@ window.addEventListener('pageshow',function(e){ if(e.persisted && typeof load===
   document.addEventListener('click',function(e){ var ch=e.target.closest('.card > .ch'); if(!ch) return; if(e.target.closest('button,input,select,a,label,textarea')) return; var card=ch.closest('.card'); if(!card) return; card.classList.toggle('collapsed'); var st=get(); document.querySelectorAll('.card').forEach(function(c){ var t=titleOf(c); if(t){ if(c.classList.contains('collapsed')) st[t]=1; else delete st[t]; } }); set(st); });
   setTimeout(apply, 350);
 })();
+
+/* Hide a rail card's count badge when it's exactly 0 — an empty section reads cleaner without a "0". */
+(function(){ function hz(){ document.querySelectorAll('.rail .card > .ch > span').forEach(function(s){ s.style.display=((s.textContent||'').trim()==='0')?'none':''; }); } var t=null; function sched(){ if(t) return; t=setTimeout(function(){ t=null; hz(); },60); } function go(){ hz(); try{ new MutationObserver(sched).observe(document.body,{childList:true,subtree:true,characterData:true}); }catch(e){} } if(document.readyState!=='loading') go(); else document.addEventListener('DOMContentLoaded',go); })();
 </script>
 </body>
 </html>

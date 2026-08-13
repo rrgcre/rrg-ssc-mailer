@@ -363,9 +363,11 @@ function appointmentsCard(){
 }
 function gcalFromAppt(body){
   function z(v){ v=String(v||'').replace(/[-:]/g,''); return /T\d{4}$/.test(v)?(v+'00'):v; }
-  var u='https://calendar.google.com/calendar/u/0/r/eventedit?text='+encodeURIComponent(body.title||'Meeting');
+  // render?action=TEMPLATE is the documented "Add to Google Calendar" format — it reliably prefills
+  // guests via add=, which the /r/eventedit route does not.
+  var u='https://calendar.google.com/calendar/render?action=TEMPLATE&text='+encodeURIComponent(body.title||'Meeting');
   var s=z(body.start), e=z(body.end); if(s&&e) u+='&dates='+s+'/'+e;
-  var _guests=[].concat((body.attendees||[]).map(function(x){return x.email;}), body.cc||[]).filter(Boolean); if(_guests.length) u+='&add='+encodeURIComponent(_guests.join(','));
+  var _guests=[].concat((body.attendees||[]).map(function(x){return x&&x.email;}), body.cc||[]).filter(Boolean); if(_guests.length) u+='&add='+encodeURIComponent(_guests.join(','));
   if(body.location) u+='&location='+encodeURIComponent(body.location);
   if(body.notes) u+='&details='+encodeURIComponent(body.notes);
   try{ var tz=Intl.DateTimeFormat().resolvedOptions().timeZone; if(tz) u+='&ctz='+encodeURIComponent(tz); }catch(e){}
@@ -1551,6 +1553,9 @@ load();
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',function(){ setTimeout(go,450); }); else setTimeout(go,450);
 })();
+
+/* Hide a rail card's count badge when it's exactly 0 — an empty section reads cleaner without a "0". */
+(function(){ function hz(){ document.querySelectorAll('.rail .card > .ch > span').forEach(function(s){ s.style.display=((s.textContent||'').trim()==='0')?'none':''; }); } var t=null; function sched(){ if(t) return; t=setTimeout(function(){ t=null; hz(); },60); } function go(){ hz(); try{ new MutationObserver(sched).observe(document.body,{childList:true,subtree:true,characterData:true}); }catch(e){} } if(document.readyState!=='loading') go(); else document.addEventListener('DOMContentLoaded',go); })();
 </script>
 </body>
 </html>

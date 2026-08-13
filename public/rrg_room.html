@@ -459,16 +459,33 @@ function mfaUseDefault(){
 }
 function paintClosed(){
   var closed=!!(ROOM&&ROOM.closed);
-  var b=document.getElementById('closedBanner'); if(b){ b.style.display=closed?'flex':'none'; var w=document.getElementById('closedWhen'); if(w) w.textContent=(closed&&ROOM.closedAt)?('Closed '+_ivDate(ROOM.closedAt)+(ROOM.closedBy?(' · by '+ROOM.closedBy):'')):''; }
+  var b=document.getElementById('closedBanner'); if(b){ b.style.display=closed?'flex':'none'; var w=document.getElementById('closedWhen'); if(w) w.textContent=(closed&&ROOM.closedAt)?('Closed '+_ivDate(ROOM.closedAt)+(ROOM.closeReason?(' · '+ROOM.closeReason):'')+(ROOM.closedBy?(' · by '+ROOM.closedBy):'')):''; }
   var cc=document.getElementById('closeCard'); if(cc) cc.style.display=closed?'none':'';
   if(closed){ var url=document.getElementById('url'); if(url) url.textContent='Link retired — room archived'; var open=document.getElementById('openLink'); if(open){ open.style.pointerEvents='none'; open.style.opacity='.5'; } }
 }
-async function closeRoom(btn){
-  if(!await rrgConfirm('Close and archive this room? The buyer link will stop working immediately and every buyer loses access. You can reopen it later if needed.',{title:'Close & archive room?',okText:'Close & archive'})) return;
-  if(btn) btn.disabled=true; var m=document.getElementById('closeMsg'); if(m) m.textContent='Archiving…';
-  fetch('/api/room/'+encodeURIComponent(RID)+'/close',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'})
-    .then(function(r){return r.json();}).then(function(j){ if(btn) btn.disabled=false; if(j&&j.ok){ toast('Room archived ✓'); load(); } else { if(m) m.textContent=(j&&j.error)||'Could not archive.'; } })
-    .catch(function(){ if(btn) btn.disabled=false; if(m) m.textContent='Could not reach the server.'; });
+function closeRoom(btn){
+  var reasons=(ROOM&&ROOM.closeReasons&&ROOM.closeReasons.length)?ROOM.closeReasons:['Transaction closed (sold)','Deal cancelled','Other'];
+  var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(6,14,32,.5);z-index:900;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:#fff;border:1px solid #e6e9f0;border-radius:6px;width:100%;max-width:460px;box-shadow:0 18px 44px rgba(0,0,0,.24);overflow:hidden">'
+    +'<div style="padding:14px 20px;border-bottom:1px solid #e6e9f0;background:#f4f6f9;font-size:14px;font-weight:700;color:#000E31">Close &amp; archive room?</div>'
+    +'<div style="padding:16px 20px">'
+    +'<div style="font-size:13px;color:#5b6472;line-height:1.5;margin-bottom:13px">This retires the buyer link and revokes every buyer’s access immediately, then locks the room read-only. Nothing is deleted — you can reopen it later if a deal falls through.</div>'
+    +'<label style="display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#8a93a8;font-weight:700;margin-bottom:6px">Reason for closing</label>'
+    +'<select id="_crReason" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:4px;padding:9px 11px;font:inherit;font-size:14px;background:#fff">'+reasons.map(function(rn){return '<option>'+esc(rn)+'</option>';}).join('')+'</select>'
+    +'</div>'
+    +'<div style="display:flex;gap:9px;justify-content:flex-end;padding:14px 20px;border-top:1px solid #e6e9f0;background:#f4f6f9"><button type="button" id="_crCancel" style="background:#fff;border:1px solid #cdd6e6;border-radius:4px;padding:8px 14px;font:inherit;font-size:13px;cursor:pointer">Cancel</button><button type="button" id="_crGo" style="background:#DA2B1F;border:none;color:#fff;border-radius:4px;padding:8px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer">Close &amp; archive</button></div>'
+    +'</div>';
+  document.body.appendChild(ov);
+  function done(){ ov.remove(); }
+  ov.addEventListener('click',function(e){ if(e.target===ov) done(); });
+  ov.querySelector('#_crCancel').addEventListener('click',done);
+  ov.querySelector('#_crGo').addEventListener('click',function(){
+    var reason=(ov.querySelector('#_crReason')||{}).value||'';
+    var go=ov.querySelector('#_crGo'); go.disabled=true; go.textContent='Archiving…';
+    fetch('/api/room/'+encodeURIComponent(RID)+'/close',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({closeReason:reason})})
+      .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ done(); toast('Room archived ✓'); load(); } else { go.disabled=false; go.textContent='Close & archive'; alert((j&&j.error)||'Could not archive.'); } })
+      .catch(function(){ go.disabled=false; go.textContent='Close & archive'; alert('Could not reach the server.'); });
+  });
 }
 async function reopenRoom(btn){
   if(!await rrgConfirm('Reopen this room? A fresh buyer link will be issued. Buyers you had before stay revoked — re-authorize anyone who should have access.',{title:'Reopen room?',okText:'Reopen'})) return;
