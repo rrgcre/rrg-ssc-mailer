@@ -6583,6 +6583,109 @@ app.get('/api/payments', (req, res) => {
   res.json({ ok: true, isAdmin: !!admin, methods: PAYMENT_METHODS, total: total, payments: rows });
 });
 
+// ===== General Ledger (simple double-entry) =====
+// Auto-posts from invoices, invoice payments, and expenses; overlays manual journal
+// entries on top. Company-wide books — admin only.
+const GL_ACCOUNTS_FILE = path.join(BOV_DATA_DIR, 'gl_accounts.json');
+const GL_JOURNAL_FILE = path.join(BOV_DATA_DIR, 'gl_journal.json');
+const GL_ACCOUNT_TYPES = ['Asset', 'Liability', 'Equity', 'Income', 'Expense'];
+const GL_DEBIT_NORMAL = { Asset: 1, Expense: 1 }; // others are credit-normal
+function _glDefaultAccounts() {
+  const base = [
+    { code: '1000', name: 'Cash / Operating Bank', type: 'Asset' },
+    { code: '1100', name: 'Accounts Receivable', type: 'Asset' },
+    { code: '2000', name: 'Accounts Payable', type: 'Liability' },
+    { code: '3000', name: "Owner's Equity", type: 'Equity' },
+    { code: '4000', name: 'Commission Income', type: 'Income' },
+    { code: '4100', name: 'Other Income', type: 'Income' },
+  ];
+  (EXPENSE_CATEGORIES || []).forEach((cat, i) => base.push({ code: String(5000 + i * 10), name: cat, type: 'Expense', cat: cat }));
+  return base;
+}
+function loadGlAccounts() { let a; try { a = rj(GL_ACCOUNTS_FILE); } catch (e) { a = null; } if (!Array.isArray(a) || !a.length) { a = _glDefaultAccounts(); try { writeJsonGuarded(GL_ACCOUNTS_FILE, a, 'seedGlAccounts'); } catch (e) {} } return a; }
+function saveGlAccounts(a) { return writeJsonGuarded(GL_ACCOUNTS_FILE, a, 'saveGlAccounts'); }
+function loadGlJournal() { try { return rj(GL_JOURNAL_FILE) || []; } catch (e) { return []; } }
+function saveGlJournal(a) { return writeJsonGuarded(GL_JOURNAL_FILE, a, 'saveGlJournal'); }
+function newGlEntryId() { return 'gle_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function _glR2(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+function _glExpenseCode(cat, accounts) { const hit = accounts.find(a => a.type === 'Expense' && (a.cat === cat || a.name === cat)); if (hit) return hit.code; const other = accounts.find(a => a.type === 'Expense' && /other/i.test(a.name)); return other ? other.code : (accounts.find(a => a.type === 'Expense') || { code: '5110' }).code; }
+// Build the read-only auto entries from the existing accounting records.
+function glAutoEntries(accounts) {
+  const out = [];
+  try {
+    loadInvoices().forEach(x => {
+      const items = Array.isArray(x.lineItems) ? x.lineItems : [];
+      const total = _glR2(items.reduce((s, li) => s + _expNum(li.amount), 0));
+      const label = x.billTo || x.listingLabel || '';
+      if (x.status === 'Sent' && total > 0) {
+        out.push({ id: 'auto:inv:' + x.id, date: x.issueDate || x.createdAt || '', memo: 'Invoice ' + (x.number || '') + (label ? (' — ' + label) : ''), source: 'invoice', editable: false, lines: [{ account: '1100', debit: total, credit: 0 }, { account: '4000', debit: 0, credit: total }] });
+      }
+      if (x.status !== 'Void') {
+        (x.payments || []).forEach(p => { const amt = _glR2(p.amount); if (amt > 0) out.push({ id: 'auto:pay:' + p.id, date: p.date || '', memo: 'Payment received — Invoice ' + (x.number || '') + (label ? (' — ' + label) : ''), source: 'payment', editable: false, lines: [{ account: '1000', debit: amt, credit: 0 }, { account: '1100', debit: 0, credit: amt }] }); });
+      }
+    });
+  } catch (e) {}
+  try {
+    loadExpenses().forEach(x => { const amt = _glR2(x.amount); if (!(amt > 0)) return; const exCode = _glExpenseCode(x.category || '', accounts); const credit = x.status === 'Unpaid' ? '2000' : '1000'; out.push({ id: 'auto:exp:' + x.id, date: x.date || '', memo: (x.vendor || 'Expense') + (x.category ? (' — ' + x.category) : ''), source: 'expense', editable: false, lines: [{ account: exCode, debit: amt, credit: 0 }, { account: credit, debit: 0, credit: amt }] }); });
+  } catch (e) {}
+  return out;
+}
+function glManualEntries() { return loadGlJournal().map(e => ({ id: e.id, date: e.date || '', memo: e.memo || '', source: 'manual', editable: true, by: e.byName || '', lines: (e.lines || []).map(l => ({ account: l.account, debit: _glR2(l.debit), credit: _glR2(l.credit) })) })); }
+function glAllEntries(accounts) { return glAutoEntries(accounts).concat(glManualEntries()).sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id))); }
+function glTrialBalance(accounts, entries) {
+  const map = {}; accounts.forEach(a => { map[a.code] = { code: a.code, name: a.name, type: a.type, debit: 0, credit: 0 }; });
+  entries.forEach(e => (e.lines || []).forEach(l => { const m = map[l.account]; if (!m) return; m.debit = _glR2(m.debit + (Number(l.debit) || 0)); m.credit = _glR2(m.credit + (Number(l.credit) || 0)); }));
+  const rows = Object.keys(map).map(c => { const m = map[c]; const net = _glR2(m.debit - m.credit); m.balance = GL_DEBIT_NORMAL[m.type] ? net : _glR2(-net); return m; });
+  rows.sort((a, b) => String(a.code).localeCompare(String(b.code)));
+  const totDebit = _glR2(rows.reduce((s, r) => s + r.debit, 0)); const totCredit = _glR2(rows.reduce((s, r) => s + r.credit, 0));
+  return { rows, totalDebit: totDebit, totalCredit: totCredit, balanced: Math.abs(totDebit - totCredit) < 0.005 };
+}
+app.get('/api/gl', requireAdmin, (req, res) => {
+  const accounts = loadGlAccounts();
+  const entries = glAllEntries(accounts);
+  res.json({ ok: true, accounts, entries, trialBalance: glTrialBalance(accounts, entries), accountTypes: GL_ACCOUNT_TYPES, basis: effAccountingBasis() });
+});
+app.post('/api/gl/account', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const accounts = loadGlAccounts();
+  const code = String(b.code || '').trim().slice(0, 12); const name = String(b.name || '').trim().slice(0, 80);
+  const type = GL_ACCOUNT_TYPES.indexOf(b.type) >= 0 ? b.type : '';
+  if (!code || !name || !type) return res.status(400).json({ ok: false, error: 'Code, name and type are all required.' });
+  const orig = String(b.origCode || '').trim();
+  if (orig) { const a = accounts.find(x => x.code === orig); if (!a) return res.status(404).json({ ok: false, error: 'Account not found.' }); if (code !== orig && accounts.some(x => x.code === code)) return res.status(400).json({ ok: false, error: 'That account code is already in use.' }); a.code = code; a.name = name; a.type = type; }
+  else { if (accounts.some(x => x.code === code)) return res.status(400).json({ ok: false, error: 'That account code is already in use.' }); accounts.push({ code, name, type }); }
+  saveGlAccounts(accounts);
+  res.json({ ok: true, accounts });
+});
+app.delete('/api/gl/account/:code', requireAdmin, (req, res) => {
+  const code = String(req.params.code || ''); const accounts = loadGlAccounts();
+  if (['1000', '1100', '2000', '3000', '4000'].indexOf(code) >= 0) return res.status(400).json({ ok: false, error: 'This is a core account and can’t be removed.' });
+  const used = loadGlJournal().some(e => (e.lines || []).some(l => l.account === code));
+  if (used) return res.status(400).json({ ok: false, error: 'This account is used by a journal entry — reassign those entries first.' });
+  saveGlAccounts(accounts.filter(a => a.code !== code));
+  res.json({ ok: true });
+});
+app.post('/api/gl/journal', requireAdmin, express.json({ limit: '256kb' }), (req, res) => {
+  const b = req.body || {}; const all = loadGlJournal(); const accounts = loadGlAccounts(); const codes = {}; accounts.forEach(a => codes[a.code] = 1);
+  const date = String(b.date || '').slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ ok: false, error: 'Pick a valid date.' });
+  const lines = (Array.isArray(b.lines) ? b.lines : []).map(l => ({ account: String((l && l.account) || ''), debit: _glR2(l && l.debit), credit: _glR2(l && l.credit) })).filter(l => l.account && (l.debit > 0 || l.credit > 0));
+  if (lines.length < 2) return res.status(400).json({ ok: false, error: 'A journal entry needs at least two lines.' });
+  for (const l of lines) { if (!codes[l.account]) return res.status(400).json({ ok: false, error: 'Unknown account ' + l.account + '.' }); if (l.debit > 0 && l.credit > 0) return res.status(400).json({ ok: false, error: 'Each line is a debit OR a credit, not both.' }); }
+  const totD = _glR2(lines.reduce((s, l) => s + l.debit, 0)); const totC = _glR2(lines.reduce((s, l) => s + l.credit, 0));
+  if (Math.abs(totD - totC) >= 0.005) return res.status(400).json({ ok: false, error: 'Entry is out of balance: debits ' + totD.toFixed(2) + ' vs credits ' + totC.toFixed(2) + '.' });
+  const now = new Date().toISOString();
+  let e;
+  if (b.id) { e = all.find(x => x.id === b.id); if (!e) return res.status(404).json({ ok: false, error: 'Entry not found.' }); }
+  else { e = { id: newGlEntryId(), createdAt: now, byUser: (req.user && req.user.username) || '', byName: (req.user && req.user.name) || '' }; all.push(e); }
+  e.date = date; e.memo = String(b.memo || '').slice(0, 300); e.lines = lines; e.updatedAt = now;
+  saveGlJournal(all);
+  res.json({ ok: true, entry: e });
+});
+app.delete('/api/gl/journal/:id', requireAdmin, (req, res) => {
+  const all = loadGlJournal(); if (!all.some(e => e.id === req.params.id)) return res.status(404).json({ ok: false, error: 'Entry not found.' });
+  saveGlJournal(all.filter(e => e.id !== req.params.id));
+  res.json({ ok: true });
+});
+
 app.get('/api/automations', (req, res) => { const u = req.user || {}; const vis = loadAutomations().filter(a => (a.scope !== 'private') || a.ownerUser === u.username || isSuper(u)); res.json({ ok: true, automations: vis.map(a => automationBrief(a, u)), isAdmin: !!(req.user && isSuper(req.user)), smsNotify: smsNotifyEnabled(), smsReady: isSmsConfigured(), me: u.username || '' }); });
 app.get('/api/admin/automation-sms', requireAdmin, (req, res) => res.json({ ok: true, enabled: smsNotifyEnabled(), configured: isSmsConfigured() }));
 app.post('/api/admin/automation-sms', requireAdmin, express.json(), (req, res) => { const s = loadSettings(); s.smsNotifyEnabled = !!(req.body && req.body.enabled); saveSettings(s); res.json({ ok: true, enabled: smsNotifyEnabled(), configured: isSmsConfigured() }); });

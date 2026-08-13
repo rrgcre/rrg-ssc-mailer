@@ -200,7 +200,8 @@
       { ic: '❏', label: 'Invoices', href: 'rrg_invoices.html' },
       { ic: '＄', label: 'Payments', href: 'rrg_payments.html' },
       { ic: '⊟', label: 'Expenses', href: 'rrg_expenses.html' },
-      { ic: '▦', label: 'Profit & Loss', href: 'rrg_pnl.html' }
+      { ic: '▦', label: 'Profit & Loss', href: 'rrg_pnl.html' },
+      { ic: '≣', label: 'General Ledger', href: 'rrg_gl.html' }
     ] },
     { grp: 'Tools', color: '#a99be0', items: [
       { ic: '▭', label: 'Lease Abstracts', href: 'rrg_lease_queue.html' },
