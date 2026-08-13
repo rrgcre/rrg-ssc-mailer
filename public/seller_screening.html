@@ -1185,7 +1185,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
       // Auto-launch Call Mode — but only once the header (Concept) field and the questionnaire
       // are fully rendered, so computeSteps() captures every step. Starting too early raced the
       // form build and silently dropped the Concept question.
-      try{ if(window.startCall && !window.__scrAuto){ window.__scrAuto=1;
+      try{ if(window.startCall && !window.__scrAuto && new URLSearchParams(location.search).get('edit')!=='1'){ window.__scrAuto=1;
         var _autoTries=0;
         var _readyStart=function(){
           _autoTries++;
@@ -1235,7 +1235,7 @@ window.RRG_PARTY = window.RRG_PARTY || { personId:'', companyId:'' };
     // Open the saved record straight into Call Mode (the call-detail screen the rep uses),
     // pre-filled — same as launching a live call — instead of the scrollable form. The
     // "Complete Screening" flow (finish=1) still uses the form so it can flag missing fields.
-    try{ if(window.startCall && !window.__scrAuto && new URLSearchParams(location.search).get('finish')!=='1'){ window.__scrAuto=1;
+    try{ if(window.startCall && !window.__scrAuto && new URLSearchParams(location.search).get('finish')!=='1' && new URLSearchParams(location.search).get('edit')!=='1'){ window.__scrAuto=1;
       var _at=0; var _rs=function(){ _at++;
         var _ci=document.getElementById('sscConcept');
         var _cok=_ci && !_ci.readOnly && _ci.type!=='hidden' && (function(){ var f=_ci.closest('.field'); return !!f && !f.hasAttribute('hidden') && !f.closest('[hidden]'); })();
