@@ -11196,7 +11196,24 @@ app.get('/api/appointments', (req, res) => {
   list.sort((a, b) => String(a.start || '').localeCompare(String(b.start || '')));
   const contacts = loadPeople().map(p => ({ id: p.id, name: p.name, email: (typeof preferredEmailOf === 'function' ? (preferredEmailOf(p) || '') : (p.email || '')) })).sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
   const users = auth.loadUsers().filter(x => !x.disabled).map(x => ({ username: x.username, name: x.name || x.username }));
-  res.json({ ok: true, appointments: list.map(apptBrief), contacts, users, types: APPT_TYPES, me: u.username || '', canSeeAll: canAll, emailReady: isEmailConfigured() });
+  // Dated tasks in the same window, so they can render on the calendar grid alongside meetings.
+  let tasksOut = [];
+  try {
+    const f10 = from ? from.slice(0, 10) : '', t10 = to ? to.slice(0, 10) : '';
+    tasksOut = loadTasks().filter(t => {
+      if (t.status && t.status !== 'open') return false;
+      if (!taskVisible(t, req)) return false;
+      const due = String(t.due || ''); if (!/^\d{4}-\d{2}-\d{2}/.test(due)) return false;
+      if (cid) { if (t.personId !== cid) return false; }
+      if (scope === 'mine') { if (t.assignee !== u.username) return false; }
+      else if (who) { if (t.assignee !== who) return false; }
+      const d10 = due.slice(0, 10);
+      if (f10 && d10 < f10) return false;
+      if (t10 && d10 > t10) return false;
+      return true;
+    }).map(t => ({ id: t.id, title: t.title || 'Task', due: t.due || '', priority: t.priority || 'Normal', assignee: t.assignee || '', assigneeName: t.assigneeName || '', linkLabel: t.linkLabel || '', link: t.link || '' }));
+  } catch (e) {}
+  res.json({ ok: true, appointments: list.map(apptBrief), tasks: tasksOut, contacts, users, types: APPT_TYPES, me: u.username || '', canSeeAll: canAll, emailReady: isEmailConfigured() });
 });
 app.post('/api/appointments', express.json(), (req, res) => {
   const u = req.user || {}; const b = req.body || {}; const all = loadAppts(); const now = new Date().toISOString();

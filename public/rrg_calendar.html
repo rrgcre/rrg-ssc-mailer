@@ -35,6 +35,11 @@ body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Hel
 .chip.cancelled{text-decoration:line-through;opacity:.55;}
 .chip .t{opacity:.7;font-weight:800;margin-right:3px;}
 .morelink{font-size:10.5px;color:var(--muted);font-weight:700;margin-top:2px;display:inline-block;}
+.tchip{display:block;margin-top:3px;font-size:11px;font-weight:700;padding:2px 6px;border-radius:3px;background:#fff6e6;color:#8a5a12;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;border-left:3px solid #e0a53a;}
+.tchip .tk{font-weight:800;margin-right:3px;}
+.tchip .t{opacity:.7;font-weight:800;margin-right:3px;}
+.agitem.tk .atime{color:#8a5a12;}
+.agitem.tk .abody b:before{content:"\2713  ";color:#e0a53a;font-weight:800;}
 .agenda{background:#fff;border:1px solid var(--line);border-radius:13px;overflow:hidden;}
 .weekgrid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:13px;overflow:hidden;}
 .weekgrid .wcol{background:#fff;min-height:440px;padding:7px 6px;}
@@ -137,6 +142,7 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
     <span class="sp"></span>
     <span class="seg" id="viewSeg"><button id="vday">Day</button><button id="vweek">Week</button><button id="vmonth" class="on">Month</button><button id="vagenda">Agenda</button></span>
     <span class="seg" id="scopeSeg"><button id="sall" class="on">Everyone</button><button id="smine">My meetings</button></span><select id="userFilter" style="display:none;font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff;max-width:200px"></select>
+    <button class="btn" id="taskToggle" title="Show dated tasks on the calendar">✓ Tasks</button>
     <button class="btn gc" id="gcalBtn" title="Two-way sync with Google Calendar" style="display:none"><span class="gdot"></span>⟳ Google</button>
     <button class="btn red" id="newbtn">+ New meeting</button>
   </div>
@@ -175,8 +181,9 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
 </div></div>
 
 <script>
-var APPTS=[],CONTACTS=[],USERS=[],TYPES=[],ME='',EMAILREADY=false;
+var APPTS=[],TASKS=[],CONTACTS=[],USERS=[],TYPES=[],ME='',EMAILREADY=false;
 var VIEW='month',SCOPE='all',EDIT=null,CANSEEALL=false,USERSEL='';
+var SHOWTASKS=(function(){ try{ return localStorage.getItem('rrg_cal_showtasks')!=='0'; }catch(e){ return true; } })();
 var CUR=(function(){var d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate());})();
 var MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
 var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
@@ -192,7 +199,7 @@ function load(){
   if(SCOPE==='mine') q+='&scope=mine'; else if(USERSEL) q+='&user='+encodeURIComponent(USERSEL);
   fetch('/api/appointments?'+q,{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
     if(!j||!j.ok) return;
-    APPTS=j.appointments||[]; CONTACTS=j.contacts||[]; USERS=j.users||[]; TYPES=j.types||[]; ME=j.me||''; EMAILREADY=!!j.emailReady; CANSEEALL=!!j.canSeeAll; setupScope();
+    APPTS=j.appointments||[]; TASKS=j.tasks||[]; CONTACTS=j.contacts||[]; USERS=j.users||[]; TYPES=j.types||[]; ME=j.me||''; EMAILREADY=!!j.emailReady; CANSEEALL=!!j.canSeeAll; setupScope();
     document.getElementById('contactList').innerHTML=CONTACTS.map(function(c){return '<option value="'+esc(c.name)+'"></option>';}).join('');
     render();
   });
@@ -200,15 +207,18 @@ function load(){
 function render(){ var t; if(VIEW==='month'){ t=MON[CUR.getMonth()]+' '+CUR.getFullYear(); } else if(VIEW==='day'){ t=DOW[CUR.getDay()]+', '+MON[CUR.getMonth()]+' '+CUR.getDate()+', '+CUR.getFullYear(); } else if(VIEW==='week'){ var w=weekRange(),e=w.end; t=MON[w.start.getMonth()].slice(0,3)+' '+w.start.getDate()+' - '+MON[e.getMonth()].slice(0,3)+' '+e.getDate()+', '+e.getFullYear(); } else { t='Upcoming'; } document.getElementById('mtitle').textContent=t; if(VIEW==='month') renderMonth(); else if(VIEW==='week') renderWeek(); else if(VIEW==='day') renderDay(); else renderAgenda(); }
 function apptsOn(dstr){ return APPTS.filter(function(a){return String(a.start||'').slice(0,10)===dstr;}).sort(function(a,b){return String(a.start).localeCompare(String(b.start));}); }
 function chip(a){ var cls='chip'+(a.byUser===ME?' mine':'')+(a.status==='cancelled'?' cancelled':''); return '<span class="'+cls+'" data-appt="'+esc(a.id)+'" title="'+esc(a.title)+(a.contactName?(' · '+esc(a.contactName)):'')+'"><span class="t">'+esc(fmtTime(timeOf(a.start)))+'</span>'+esc(a.title)+'</span>'; }
+function tasksOn(dstr){ if(!SHOWTASKS) return []; return (TASKS||[]).filter(function(t){return String(t.due||'').slice(0,10)===dstr;}).sort(function(a,b){return String(a.due).localeCompare(String(b.due));}); }
+function taskChip(t){ var tm=String(t.due||'').slice(11,16); return '<span class="tchip" data-task="'+esc(t.id)+'" title="Task: '+esc(t.title)+(t.assigneeName?(' · '+esc(t.assigneeName)):'')+(t.linkLabel?(' · '+esc(t.linkLabel)):'')+'"><span class="tk">✓</span>'+(tm?('<span class="t">'+esc(fmtTime(tm))+'</span>'):'')+esc(t.title)+'</span>'; }
+function taskItem(t){ var tm=String(t.due||'').slice(11,16); return '<div class="agitem tk" data-task="'+esc(t.id)+'"><div class="atime">'+(tm?esc(fmtTime(tm)):'Task')+'</div><div class="abody"><b>'+esc(t.title)+'</b><div class="ameta">Task'+(t.priority&&t.priority!=='Normal'?(' · '+esc(t.priority)):'')+(t.assigneeName?(' · '+esc(t.assigneeName)):'')+(t.linkLabel?(' · '+esc(t.linkLabel)):'')+'</div></div></div>'; }
 function renderDay(){
-  var ds=ymd(CUR); var list=apptsOn(ds);
-  if(!list.length){ document.getElementById('cal').innerHTML='<div class="agenda"><div class="empty">No meetings on this day. Click <b>+ New meeting</b> to schedule one.</div></div>'; return; }
-  var html='<div class="agenda"><div class="agday"><div class="ah">'+esc(DOW[CUR.getDay()]+', '+MON[CUR.getMonth()]+' '+CUR.getDate())+'</div>'+list.map(function(a){ return '<div class="agitem" data-appt="'+esc(a.id)+'"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('-'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>'; }).join('')+'</div></div>';
+  var ds=ymd(CUR); var list=apptsOn(ds); var tks=tasksOn(ds);
+  if(!list.length && !tks.length){ document.getElementById('cal').innerHTML='<div class="agenda"><div class="empty">Nothing on this day. Click <b>+ New meeting</b> to schedule one.</div></div>'; return; }
+  var html='<div class="agenda"><div class="agday"><div class="ah">'+esc(DOW[CUR.getDay()]+', '+MON[CUR.getMonth()]+' '+CUR.getDate())+'</div>'+list.map(function(a){ return '<div class="agitem" data-appt="'+esc(a.id)+'"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('-'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>'; }).join('')+tks.map(taskItem).join('')+'</div></div>';
   document.getElementById('cal').innerHTML=html; wireGrid();
 }
 function renderWeek(){
   var w=weekRange(); var today=ymd(new Date()); var d=new Date(w.start); var html='<div class="weekgrid">';
-  for(var i=0;i<7;i++){ var ds=ymd(d); var list=apptsOn(ds); html+='<div class="wcol'+(ds===today?' today':'')+'" data-day="'+ds+'"><div class="wch">'+DOW[d.getDay()]+'<span class="wd">'+d.getDate()+'</span></div>'+list.map(chip).join('')+(list.length?'':'<div class="wempty">—</div>')+'</div>'; d.setDate(d.getDate()+1); }
+  for(var i=0;i<7;i++){ var ds=ymd(d); var list=apptsOn(ds); var tks=tasksOn(ds); html+='<div class="wcol'+(ds===today?' today':'')+'" data-day="'+ds+'"><div class="wch">'+DOW[d.getDay()]+'<span class="wd">'+d.getDate()+'</span></div>'+list.map(chip).join('')+tks.map(taskChip).join('')+((list.length||tks.length)?'':'<div class="wempty">—</div>')+'</div>'; d.setDate(d.getDate()+1); }
   html+='</div>'; document.getElementById('cal').innerHTML=html; wireGrid();
 }
 function renderMonth(){
@@ -219,6 +229,7 @@ function renderMonth(){
     html+='<div class="day'+(oom?' oom':'')+(ds===today?' today':'')+'" data-day="'+ds+'"><span class="dn">'+d.getDate()+'</span>';
     list.slice(0,4).forEach(function(a){ html+=chip(a); });
     if(list.length>4) html+='<span class="morelink">+'+(list.length-4)+' more</span>';
+    tasksOn(ds).slice(0,3).forEach(function(t){ html+=taskChip(t); });
     html+='</div>';
     d.setDate(d.getDate()+1);
   }
@@ -228,19 +239,24 @@ function renderMonth(){
 }
 function renderAgenda(){
   var days={},order=[];
-  APPTS.slice().sort(function(a,b){return String(a.start).localeCompare(String(b.start));}).forEach(function(a){ var k=String(a.start||'').slice(0,10); if(!days[k]){days[k]=[];order.push(k);} days[k].push(a); });
-  if(!order.length){ document.getElementById('cal').innerHTML='<div class="agenda"><div class="empty">No upcoming meetings. Click <b>+ New meeting</b> to schedule one.</div></div>'; return; }
+  function add(k){ if(!days[k]){days[k]={appts:[],tasks:[]};order.push(k);} return days[k]; }
+  APPTS.slice().forEach(function(a){ var k=String(a.start||'').slice(0,10); if(k) add(k).appts.push(a); });
+  if(SHOWTASKS)(TASKS||[]).forEach(function(t){ var k=String(t.due||'').slice(0,10); if(k) add(k).tasks.push(t); });
+  if(!order.length){ document.getElementById('cal').innerHTML='<div class="agenda"><div class="empty">Nothing upcoming. Click <b>+ New meeting</b> to schedule one.</div></div>'; return; }
+  order.sort();
+  order.forEach(function(k){ days[k].appts.sort(function(a,b){return String(a.start).localeCompare(String(b.start));}); days[k].tasks.sort(function(a,b){return String(a.due).localeCompare(String(b.due));}); });
   var html='<div class="agenda">'+order.map(function(k){
     var dt=new Date(k+'T00:00'); var hd=DOW[dt.getDay()]+', '+MON[dt.getMonth()]+' '+dt.getDate();
-    return '<div class="agday"><div class="ah">'+esc(hd)+'</div>'+days[k].map(function(a){
+    return '<div class="agday"><div class="ah">'+esc(hd)+'</div>'+days[k].appts.map(function(a){
       return '<div class="agitem" data-appt="'+esc(a.id)+'"><div class="atime">'+esc(fmtTime(timeOf(a.start)))+(a.end&&timeOf(a.end)!==timeOf(a.start)?('–'+esc(fmtTime(timeOf(a.end)))):'')+'</div><div class="abody"><b'+(a.status==='cancelled'?' style="text-decoration:line-through;opacity:.6"':'')+'>'+esc(a.title)+'</b><div class="ameta">'+esc(a.type||'Meeting')+(a.contactName?(' · '+esc(a.contactName)):'')+(a.location?(' · '+esc(a.location)):'')+' · '+esc(a.byName||'')+'</div></div></div>';
-    }).join('')+'</div>';
+    }).join('')+days[k].tasks.map(taskItem).join('')+'</div>';
   }).join('')+'</div>';
   document.getElementById('cal').innerHTML=html;
   wireGrid();
 }
 function wireGrid(){
   document.querySelectorAll('[data-appt]').forEach(function(el){ el.addEventListener('click',function(e){ e.stopPropagation(); var a=APPTS.filter(function(x){return x.id===el.getAttribute('data-appt');})[0]; if(a) openForm(a); }); });
+  document.querySelectorAll('[data-task]').forEach(function(el){ el.addEventListener('click',function(e){ e.stopPropagation(); var id=el.getAttribute('data-task'); var t=(TASKS||[]).filter(function(x){return x.id===id;})[0]; location.href=(t&&t.link)?t.link:('rrg_tasks.html'+(id?('?task='+encodeURIComponent(id)):'')); }); });
   document.querySelectorAll('.day[data-day]').forEach(function(el){ el.addEventListener('click',function(){ openForm(null,el.getAttribute('data-day')); }); });
 }
 function onContactPick(inp){ var v=String(inp.value||'').trim().toLowerCase(); var c=CONTACTS.filter(function(x){return String(x.name||'').trim().toLowerCase()===v;})[0]; var h=document.getElementById('f_contact'); if(h) h.value=c?c.id:''; }
@@ -324,6 +340,7 @@ function gcalStatus(){ var btn=document.getElementById('gcalBtn'); if(!btn) retu
 function gcalSync(){ var btn=document.getElementById('gcalBtn'), bar=document.getElementById('gcalBar'); if(!btn||!bar) return; if(_GCAL.state==='disconnected'||_GCAL.state==='nocal'){ bar.hidden=false; bar.className='gcalbar warn'; bar.innerHTML=(_GCAL.state==='nocal'?'Calendar permission isn’t granted yet. ':'Google isn’t connected yet. ')+'Open your <a href="rrg_account.html">Account</a> page, connect Gmail, and approve <b>Calendar</b> access — then sync here.'; return; } bar.hidden=false; bar.className='gcalbar'; bar.textContent='Syncing with Google Calendar… a large first sync can take a moment.'; btn.disabled=true; fetch('/api/google/sync/calendar',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({direction:'both'})}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; if(j&&j.ok){ bar.className='gcalbar ok'; bar.textContent='Synced — '+j.pulledNew+' new and '+j.pulledUpdated+' updated from Google, '+j.pushed+' pushed out.'; load(); } else { bar.className='gcalbar err'; bar.textContent=(j&&j.error)||'Sync failed.'; } }).catch(function(){ btn.disabled=false; bar.className='gcalbar err'; bar.textContent='Could not reach the server.'; }); }
 document.getElementById('gcalBtn').addEventListener('click',gcalSync);
 gcalStatus();
+(function(){ var tb=document.getElementById('taskToggle'); if(!tb) return; function sync(){ tb.classList.toggle('on',SHOWTASKS); } sync(); tb.addEventListener('click',function(){ SHOWTASKS=!SHOWTASKS; try{ localStorage.setItem('rrg_cal_showtasks',SHOWTASKS?'1':'0'); }catch(e){} sync(); render(); }); })();
 load();
 </script>
 </body></html>
