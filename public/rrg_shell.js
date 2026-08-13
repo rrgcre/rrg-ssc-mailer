@@ -477,6 +477,18 @@
   }
 })();
 
+/* Repaint the top-right account avatar without a page reload (called after the
+   user saves or clears a headshot on the account page). */
+window.rrgSetAvatar=function(url){
+  var uav=document.getElementById('rrguav'); if(!uav) return;
+  var s=window.__rrgSession||{};
+  var nm=(s.name||s.username||'').trim();
+  var parts=nm.split(/\s+/);
+  var _ini=((parts[0]||'')[0]||'')+((parts[1]||'')[0]||'')||(nm?nm[0].toUpperCase():'?');
+  if(url){ var _im=new Image(); _im.onload=function(){ uav.textContent=''; uav.style.backgroundImage='url("'+url+'")'; uav.style.backgroundSize='cover'; uav.style.backgroundPosition='center'; uav.classList.add('haspic'); }; _im.onerror=function(){}; _im.src=url; }
+  else { uav.textContent=_ini; uav.style.backgroundImage=''; uav.classList.remove('haspic'); }
+};
+
 /* ---- Shared working box: ONE canonical dialog for every long action, app-wide.
        rrgWork = plain NetSuite style (navy). rrgAiWork = same box with a small AI twist (sparkle + purple accent).
        Both share markup/methods so every "working" dialog in the app looks identical. ---- */

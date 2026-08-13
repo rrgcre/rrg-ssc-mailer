@@ -439,7 +439,7 @@ function refreshDocList(){
 }
 function agreementsCard(){
   var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
-  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><span style="margin-left:auto;display:flex;gap:6px"><a href="./rrg_documents.html" title="Open the full document library" style="font-size:11px;font-weight:700;color:#8a93a8;text-decoration:none;align-self:center">All Documents →</a></span></div>'
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span></div>'
     +'<div class="cb"><div class="agrlist" id="docList">'+docListHtml()+'</div>'
     +'<div id="agrForm" hidden style="margin-top:12px;border-top:1px solid #e6e9f0;padding-top:12px">'
       +'<input type="hidden" id="agr_id">'

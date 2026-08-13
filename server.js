@@ -1253,7 +1253,7 @@ app.get('/api/session', (req, res) => res.json({
   adminOnlyTools: auth.loadToolAccess(),
   toolLabels: effToolLabels(),
   logoUrl: (function () { const b = loadBrand(); return b.logoExt ? ('/api/brand/logo?v=' + encodeURIComponent(b.updatedAt || '')) : ''; })(),
-  photoUrl: (function () { try { const prof = auth.profileOf(auth.findUser(req.user.username)); if (prof && prof.photoExt) return '/api/userphoto/' + String(req.user.username).replace(/[^a-z0-9_.-]/gi, '_') + '.' + prof.photoExt + (prof.updatedAt ? ('?v=' + encodeURIComponent(prof.updatedAt)) : ''); } catch (e) {} return ''; })(),
+  photoUrl: (function () { try { const prof = auth.profileOf(auth.findUser(req.user.username)); if (prof && prof.photoExt) return '/api/userphoto/' + String(req.user.username).replace(/[^a-z0-9_.-]/gi, '_') + '.' + prof.photoExt + '?v=' + encodeURIComponent(prof.photoAt || 0); } catch (e) {} return ''; })(),
   headerMsg: (function () { const b = loadBrand(); return (b.headerMsg && b.headerMsgOn !== false) ? String(b.headerMsg) : ''; })(),
   navVis: loadNavVis(),
   build: BUILD,
@@ -1277,7 +1277,7 @@ app.get('/api/users-list', (req, res) => {
 });
 
 // ---- Self-service account: view/edit own contact info + change own password ----
-app.get('/api/me', (req, res) => { const prof = auth.profileOf(auth.findUser(req.user.username)); if (prof && prof.photoExt) { prof.photoUrl = '/api/userphoto/' + String(req.user.username).replace(/[^a-z0-9_.-]/gi,'_') + '.' + prof.photoExt; } res.json({ ok: true, profile: prof }); });
+app.get('/api/me', (req, res) => { const prof = auth.profileOf(auth.findUser(req.user.username)); if (prof && prof.photoExt) { prof.photoUrl = '/api/userphoto/' + String(req.user.username).replace(/[^a-z0-9_.-]/gi,'_') + '.' + prof.photoExt + '?v=' + encodeURIComponent(prof.photoAt || 0); } res.json({ ok: true, profile: prof }); });
 
 app.post('/api/me/profile', express.json(), (req, res) => {
   try {
