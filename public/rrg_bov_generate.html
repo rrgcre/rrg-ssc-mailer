@@ -346,7 +346,27 @@ function generate(){
     fetch('/api/generate-bov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({business:biz,files:files,bovId:BOV_ID,links:LINKS,preparedFor:(document.getElementById('prepFor').value||'').trim(),address:((document.getElementById('bovAddr')||{}).value||'').trim(),notes:((document.getElementById('bovNotes')||{}).value||'').trim()}),signal:ABORT.signal})
       .then(function(r){ return r.text().then(function(t){ var j=null; try{ j=JSON.parse(t); }catch(e){} return {ok:r.ok,status:r.status,j:j}; }); })
       .then(function(res){
-        if(res.j&&res.j.ok&&res.j.id){ stopAmbient(); playDone(); workMsg('Done — opening the finished draft ✓'); var _id=res.j.id; setTimeout(function(){ location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(_id); }, DONE_MS); return; }
+        if(res.j&&res.j.ok&&res.j.id){
+          var _id=res.j.id; var dg=res.j.diag||null;
+          // If the analyst came back with zero revenue, don't silently open a blank draft —
+          // show what actually reached it so the cause is visible (unreadable file vs. read-but-zeroed).
+          if(dg && Number(dg.bridgeRevenue||0)===0){
+            stopAmbient(); workHide();
+            var lines=[];
+            lines.push('The analyst returned $0 revenue. Here is exactly what happened, so we can fix the real cause:');
+            lines.push('');
+            lines.push('Files sent ('+(dg.fileCount||0)+'): '+((dg.blocks||[]).join('  •  ')||'none'));
+            if(dg.unreadable>0) lines.push('⚠ '+dg.unreadable+' file(s) could NOT be read — that is the problem. Upload the P&L as a PDF, or a real spreadsheet (.xlsx), not a scan/image of a table.');
+            lines.push('Analyst read '+(dg.inputTokens||0).toLocaleString()+' input tokens.'+((dg.inputTokens||0)<3000?' ← that is very low; the financials likely never reached it.':' ← that is enough to have read a real P&L, so the analyst read it but still returned zeros.'));
+            if(dg.basisOf) lines.push('Analyst note: '+dg.basisOf);
+            lines.push('');
+            lines.push('Open the draft anyway? (It will show zeros — the point above is the fix.)');
+            document.getElementById('status').className='status err';
+            document.getElementById('status').innerHTML=lines.map(function(t){return t?('<div>'+t.replace(/</g,'&lt;')+'</div>'):'<div>&nbsp;</div>';}).join('')+'<div style="margin-top:10px"><a href="./rrg_bov_builder.html?bov='+encodeURIComponent(_id)+'" style="color:#2c5c8f;font-weight:600">Open the draft →</a></div>';
+            return;
+          }
+          stopAmbient(); playDone(); workMsg('Done — opening the finished draft ✓'); setTimeout(function(){ location.href='./rrg_bov_builder.html?bov='+encodeURIComponent(_id); }, DONE_MS); return;
+        }
         workHide();
         if(res.status===413){ setStatus('err','The documents are over the server’s upload limit. Trim the PDFs to the key pages (P&L, add-backs, lease) and try again.'); }
         else if(res.j&&res.j.error){ setStatus('err',res.j.error); }

@@ -2383,11 +2383,28 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
         try { const ds = loadDeals(); const d = ds.find(x => x.id === grp.deal.id); if (d && d.units !== rec.units) { d.units = rec.units; d.updatedAt = new Date().toISOString(); saveDeals(ds); } } catch (e) {}
       }
     } catch (e) { console.error('bov room-file error:', e && e.message); }
-    res.json({ ok: true, id: rec.id, summary: out.summary, noTtmNotice: rec.noTtmNotice });
+    // Persist a lightweight diagnostic of the last generation so a "zeros" result can be
+    // traced (did the P&L reach the analyst as a readable block? what revenue came back?).
+    try {
+      const _d = Object.assign({ at: new Date().toISOString(), bovId: rec.id, business: rec.business }, out.diag || {});
+      console.log('BOV DIAG:', JSON.stringify(_d));
+      fs.writeFileSync(path.join(BOV_DATA_DIR, 'bov_last_diag.json'), JSON.stringify(_d, null, 2));
+    } catch (e) {}
+    res.json({ ok: true, id: rec.id, summary: out.summary, noTtmNotice: rec.noTtmNotice, diag: out.diag || null });
   } catch (e) {
     console.error('generate-bov error:', e);
     res.status(500).json({ ok: false, error: String((e && e.message) || e) });
   }
+});
+
+// Last BOV generation diagnostic — lets us trace a "zeros" result to its true cause
+// (P&L never became a readable block vs. analyst read it and still returned zeros).
+app.get('/api/bov/last-diag', (req, res) => {
+  try {
+    const p = path.join(BOV_DATA_DIR, 'bov_last_diag.json');
+    if (!fs.existsSync(p)) return res.json({ ok: true, diag: null });
+    res.json({ ok: true, diag: JSON.parse(fs.readFileSync(p, 'utf8')) });
+  } catch (e) { res.json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
 // ---- CIM routes (mirror the BOV routes) ----

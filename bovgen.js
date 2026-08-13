@@ -266,6 +266,19 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
   // fall back to the built-in default when none is set.
   const sys = (systemPrompt && String(systemPrompt).trim()) ? String(systemPrompt) : SYSTEM;
   const content = fileBlocks(files);
+  // Diagnostic: what did each provided file turn into? (so a zeros result can be traced
+  // to "the P&L never became a readable block" vs "the analyst read it and still zeroed").
+  const diag = { fileCount: (files || []).length, blocks: [], unreadable: 0 };
+  (files || []).forEach(f => {
+    const mt0 = String(f.type || '').toLowerCase();
+    const nm = f.name || f.label || 'file';
+    let kind = 'dropped';
+    if ((mt0 === 'application/pdf' || /\.pdf$/i.test(nm)) && f.dataB64) kind = 'pdf-document';
+    else if (mt0.indexOf('image/') === 0 && f.dataB64) kind = 'image';
+    else if (f.text) kind = 'text(' + String(f.text).length + ')';
+    else if (f.dataB64 || f.name) { kind = 'UNREADABLE'; diag.unreadable++; }
+    diag.blocks.push(nm + ' → ' + kind);
+  });
   // The completed Valuation Questionnaire is already in the RRG system — feed it
   // in as text so the rep never has to re-upload it.
   if (questionnaire && String(questionnaire).trim()) {
@@ -318,7 +331,16 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
   state.buyers = sortBuyersByMultiple(state.buyers);
   const summary = summarize(state, threshold);
   const usage = data.usage || {};
-  return { state, summary, business: state.fields.subject || business || 'Untitled', date: state.fields.date || '', usage };
+  // Finish the diagnostic: how big was the read (input tokens rise sharply when a PDF is
+  // actually parsed) and what revenue did the analyst put on the bridge?
+  diag.inputTokens = usage.input_tokens || 0;
+  diag.outputTokens = usage.output_tokens || 0;
+  const _b = state.bridge || {};
+  diag.bridgeRevenue = Number(_b.revenue) || 0;
+  diag.bridgeNetIncome = Number(_b.netIncome) || 0;
+  diag.bridgeKeys = Object.keys(_b).length;
+  diag.basisOf = String((state.fields && state.fields.basisOf) || '').slice(0, 400);
+  return { state, summary, business: state.fields.subject || business || 'Untitled', date: state.fields.date || '', usage, diag };
 }
 
 function setModel(m){ if (m) MODEL = String(m); }
