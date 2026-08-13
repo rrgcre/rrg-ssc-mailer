@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Calendar</title>
+<style>
+:root{--navy:#20334f;--navy2:#23496f;--primary:#2c5c8f;--red:#b23a2c;--ink:#2b3648;--dim:#5f6a7d;--soft:#8a93a3;--line:#dbe0e9;--wash:#f4f6f9;--green:#2f7a55;--inp:#c4ccda;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:760px;margin:0 auto;padding:24px 26px 60px;}
+h1{font-size:16px;font-weight:700;color:var(--navy);margin:0;}
+.sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.5;max-width:640px;}
+.card{border:1px solid var(--line);border-radius:6px;background:#fff;margin-top:18px;overflow:hidden;}
+.cardh{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 16px;font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);display:flex;align-items:center;gap:10px;}
+.cardh .m{margin-left:auto;font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;min-height:16px;}
+.cardb{padding:2px 16px 8px;}
+.row{display:flex;align-items:flex-start;gap:14px;border-top:1px solid var(--line);padding:15px 2px;}
+.cardb .row:first-child{border-top:none;}
+.row .tx{flex:1;}
+.row .tx b{font-size:14px;color:var(--navy);font-weight:700;}
+.row .tx p{font-size:12.5px;color:var(--dim);margin:4px 0 0;line-height:1.55;}
+.switch{position:relative;display:inline-block;width:44px;height:24px;flex:none;margin-top:2px;}
+.switch input{opacity:0;width:0;height:0;}
+.sl{position:absolute;cursor:pointer;inset:0;background:#c6cede;border-radius:24px;transition:.15s;}
+.sl:before{position:absolute;content:"";height:18px;width:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s;box-shadow:0 1px 2px rgba(0,0,0,.3);}
+.switch input:checked+.sl{background:var(--green);}
+.switch input:checked+.sl:before{transform:translateX(20px);}
+.note{font-size:12px;color:var(--soft);margin-top:14px;line-height:1.6;}
+.gate{max-width:520px;margin:70px auto;text-align:center;color:var(--dim);}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var ITEMS=[
+  {k:'featCalSync',  label:'Google Calendar sync',    desc:'Two-way sync button on the Calendar page.'},
+  {k:'featCalTasks', label:'Tasks on the calendar',   desc:'Show dated tasks on the calendar grid and contact cards.'},
+  {k:'featCalMeet',  label:'Google Meet links',       desc:'Add a Google Meet video link to meetings.'},
+  {k:'featWorkHours',label:'Working hours & location', desc:'Let people set their hours/location, shown to teammates.'},
+  {k:'featEventFiles',label:'Event attachments',      desc:'Attach agendas, pre-reads and documents to meetings.'},
+  {k:'featBooking',  label:'Booking pages',           desc:'Shareable self-scheduling links that book onto the calendar.'},
+  {k:'featCalShare', label:'Calendar sharing',        desc:'Let people share their calendar with specific teammates.'}
+];
+var CFG={};
+function render(){
+  var rows=ITEMS.map(function(it){ var on=(CFG[it.k]!==false);
+    return '<div class="row"><div class="tx"><b>'+esc(it.label)+'</b><p>'+esc(it.desc)+'</p></div>'
+      +'<label class="switch"><input type="checkbox" data-k="'+it.k+'"'+(on?' checked':'')+'><span class="sl"></span></label></div>';
+  }).join('');
+  document.getElementById('root').innerHTML=''
+    +'<h1>Calendar</h1>'
+    +'<div class="sub">Turn calendar capabilities on or off for the whole team. Changes save the moment you flip a switch.</div>'
+    +'<div class="card"><div class="cardh">Calendar features<span class="m" id="calMsg"></span></div><div class="cardb">'+rows+'</div></div>'
+    +'<div class="note">Turning a feature off hides it for everyone and removes its controls from the Calendar and contact pages. Existing data (synced events, booking links) is kept and reappears if you turn the feature back on.</div>';
+  [].slice.call(document.querySelectorAll('input[data-k]')).forEach(function(inp){ inp.addEventListener('change',function(){ saveToggle(inp.getAttribute('data-k'), inp.checked, inp); }); });
+}
+function saveToggle(key,val,inp){
+  var m=document.getElementById('calMsg'); if(m){ m.style.color='var(--dim)'; m.textContent='Saving…'; }
+  var body={}; body[key]=!!val;
+  fetch('/api/admin/types',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
+    .then(function(r){return r.json();}).then(function(j){
+      if(j&&j.ok){ CFG[key]=!!val; if(m){ m.style.color='var(--green)'; m.textContent='Saved ✓'; setTimeout(function(){ if(m.textContent==='Saved ✓') m.textContent=''; },1600); } }
+      else { if(inp) inp.checked=!val; if(m){ m.style.color='var(--red)'; m.textContent=(j&&j.error)||'Could not save.'; } }
+    })
+    .catch(function(){ if(inp) inp.checked=!val; if(m){ m.style.color='var(--red)'; m.textContent='Could not reach the server.'; } });
+}
+fetch('/api/admin/types',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate"><b style="color:#20334f;font-size:15px">Admins only</b><br><br>Ask an administrator to manage calendar features.</div>'; return; }
+  ITEMS.forEach(function(it){ CFG[it.k]=(j[it.k]!==false); });
+  render();
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><b style="color:#20334f;font-size:15px">Admins only</b><br><br>This section is for RRG administrators.</div>'; });
+</script>
+</body>
+</html>

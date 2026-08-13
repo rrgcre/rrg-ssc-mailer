@@ -20,7 +20,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 body.bov-locked #sheet input,body.bov-locked #sheet textarea{pointer-events:none;background:#f6f8fb!important;color:#4a5468;}
 body.bov-locked #sheet .rrg-noprint button{display:none!important;}
 
-.wrap{max-width:920px;margin:22px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(10,20,50,.08);}
+/* On-screen sheet mirrors the printed page: 8.5in (816px) letter width. Print @page is Letter. */
+.wrap{max-width:816px;margin:22px auto;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(10,20,50,.08);}
+@media print{ .wrap{max-width:none;width:auto;} }
 
 .band{color:#fff;padding:38px 46px 30px;position:relative;overflow:hidden;
   background:radial-gradient(96% 130% at 27% 12%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
@@ -254,6 +256,9 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   // Per-BOV draft key — MUST include the bov id, else every valuation shares one localStorage
   // draft and a stateless BOV would show whatever was last edited (e.g. the Magnolia sample).
   var KEY='rrgdraft:'+(document.title||location.pathname)+':'+(((new URLSearchParams(location.search)).get('bov'))||'new');
+  // One-time cleanup: purge pre-fix shared drafts (no bov id in the key) — this is where the
+  // Magnolia sample was stranded and leaking into other valuations. Per-BOV drafts are kept.
+  try{ Object.keys(localStorage).forEach(function(k){ if(k.indexOf('rrgdraft:')===0 && k.indexOf(':bov_')<0 && k.slice(-4)!==':new'){ localStorage.removeItem(k); } }); }catch(e){}
   var state={fields:{}, bridge:[], bench:[], buyers:[]};
   function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.\-]/g,''))||0; }
   function money(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
@@ -465,7 +470,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     m=v.match(/^(\d{1,2})[\/\-]\d{1,2}[\/\-](\d{4})$/); if(m) return m[2]+'-'+('0'+m[1]).slice(-2);
     return v; }
   function apply(o){ document.querySelectorAll('[data-k]').forEach(function(el){ var k=el.getAttribute('data-k'); if(o[k]!=null){ el.value=(k==='date')?normMonth(o[k]):o[k]; } }); }
-  var st=null; function save(){ if(_locked)return; if(st)clearTimeout(st); st=setTimeout(function(){ state.fields=collect(); try{localStorage.setItem(KEY,JSON.stringify(state));chip();}catch(e){} },350); }
+  var st=null; function save(){ if(_locked)return; if(st)clearTimeout(st); st=setTimeout(function(){ state.fields=collect(); state._bovId=(new URLSearchParams(location.search)).get('bov')||''; try{localStorage.setItem(KEY,JSON.stringify(state));chip();}catch(e){} },350); }
   var c=document.createElement('div'); c.className='rrg-noprint';
   c.style.cssText='position:fixed;right:14px;bottom:14px;z-index:9998;background:#0b1a3a;color:#fff;font:600 12px/1 -apple-system,Segoe UI,Roboto,sans-serif;padding:8px 12px;border-radius:20px;box-shadow:0 4px 14px rgba(0,0,0,.22);opacity:0;transition:opacity .3s;pointer-events:none;';
   c.textContent='Draft saved ✓'; document.body.appendChild(c);
@@ -521,23 +526,23 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   };
 
   window.loadSample=function(){
-    state.bridge={revenue:'9,195,755', netIncome:'553,161', interest:'965', entityTax:'0', depreciation:'133,561', amortization:'0', ownerSalary:'0', ownerHealth:'0', familyPayroll:'0', oneTime:'56,408', rentNorm:'352,962', marketGM:'0'};
+    state.bridge={revenue:'2,400,000', netIncome:'180,000', interest:'0', entityTax:'0', depreciation:'60,000', amortization:'0', ownerSalary:'0', ownerHealth:'0', familyPayroll:'0', oneTime:'0', rentNorm:'0', marketGM:'0'};
     state.bench=BENCH.map(function(r){return r.slice();}); state.buyers=BUYERS.map(function(r){return r.slice();});
-    var f={subject:'The Magnolia Pancake Haus',descriptor:'Three-Restaurant Go-Forward Platform · Operating Business',tagline:'A San Antonio Institution Since 2000',
-      preparedFor:'Ownership of The Magnolia Pancake Haus',preparedBy:'Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com',preparedBy2:'Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com',date:'2026-07',
-      multLow:'4.0',multBase:'4.5',multHigh:'5.0',revLo:'0.50',revHi:'0.60',ebLow:'1,020,000',ebUp:'1,250,000',
-      purpose:'At ownership’s request, RRG has prepared this Broker’s Opinion of Value for the three-restaurant go-forward platform of The Magnolia Pancake Haus (the “Company”), presented as a sale of the operating business. The purpose is to establish a supportable value range and recommended pricing strategy to guide the confidential, invitation-based marketing process described in the Company’s CIM.',
-      subjectOf:'The going-concern operating business of the three continuing restaurants — Huebner Rd., Northwoods, and Cibolo — sold as an asset or equity transaction with a defined transition, and with the executed leases assumed by the buyer.',
-      excluded:'The underlying real estate is not part of the sale — the premises are leased from an ownership-affiliated landlord and the executed NNN leases are assumed and assigned rather than sold. The separate catering operation (being wound down) is likewise excluded. This is an OpCo-only opinion.',
-      basisOf:'Management-prepared, unaudited financials (QuickBooks class-level P&Ls FY2022–FY2024; Restaurant365 for the TTM ended Feb 28, 2026) and the executed 2024 leases at $22,500/month per location. Figures are consistent with the CIM.',
-      execNarr:'This conclusion is derived principally from a market (multiple-of-earnings) approach applied to adjusted TTM EBITDA of $1,121,839 at 4.0×–5.0× (base 4.5×), cross-checked against revenue and comparable-transaction benchmarks.',
-      whyHolds:'A 26-year iconic brand, top-decile ~$3.1M average unit volumes, and pristine long-dated NNN leases support the upper end. Sub-$5M EBITDA scale, the related-party landlord, founder/brand transition, and catering wind-down noise anchor the floor. A tight, defensible band — not a wide guess.',
-      earnNarr:'Reported trailing earnings are adjusted for non-cash items, non-recurring and discretionary costs, and occupancy normalized to the executed 2024 leases ($22,500/month per location; ~$937,575 including NNN, ~10% of revenue), arriving at adjusted EBITDA of $1,121,839 (12.2% of revenue). If a QoE review confirms higher sustainable EBITDA, value scales accordingly.',
-      methodNarr:'Market approach (primary): manager-run, multi-unit restaurant groups generally clear at 4.0×–7.0× adjusted EBITDA, with size the biggest determinant. At ~$1.12M EBITDA across three units, Magnolia sits at the entry of the multi-unit band — scale argues for low-4×; brand equity, top-decile AUVs, and 20+ years of lease control support a premium toward 5×. Income cross-check: ~$1.12M against ~$5.0M implies a ~22% unlevered pre-tax yield. Revenue cross-check: 0.50×–0.60× of $9.2M ≈ $4.6M–$5.5M.',
-      premium:'26-year iconic brand; national media (DDD ×2)\nTop-decile ~$3.1M average unit volumes\nLong-dated, uniform NNN leases; 20+ yrs control\nDaytime-only simplicity; transferable systems (R365)\nUndeployed marketing & off-premise upside',
-      tempers:'Sub-$5M EBITDA — size caps the multiple\nRelated-party landlord — leases must confirm as market\nFounder / brand transition risk\nFull-service labor & food-cost sensitivity\nCatering wind-down noise in trailing results',
-      concNarr:'Approximately $4.5M to $5.6M for the go-forward operating business (leases assumed), with a most-likely clearing value near $5.0M at a 4.5× base-case multiple. A QoE-confirmed EBITDA above $1.12M, or a strategic buyer, supports the upper end and beyond.',
-      gtmNarr:'Run a confidential, invitation-based process without a published price, inviting IOIs. Anchor: guide qualified buyers toward $5.25M–$5.5M in conversation, target a clearing value near $5.0M (≈4.5×), and hold $5.6M (5.0×) as the defensible ceiling for a strategic buyer. Protect the number in diligence: confirm the executed leases, deliver a QoE-ready add-back schedule, and isolate the catering wind-down.',
+    var f={subject:'Sample Restaurant (demo)',descriptor:'Single-Unit Full-Service Restaurant · Operating Business',tagline:'Illustrative layout sample — not a real business',
+      preparedFor:'Ownership of the sample business',preparedBy:'',preparedBy2:'',date:'',
+      multLow:'4.0',multBase:'4.5',multHigh:'5.0',revLo:'0.30',revHi:'0.50',ebLow:'220,000',ebUp:'280,000',
+      purpose:'This is an illustrative sample only — not a real business. Use it to preview how the BOV lays out on the page, then click Clear and generate the real valuation from the deal documents.',
+      subjectOf:'The going-concern operating business of a sample single-unit full-service restaurant.',
+      excluded:'Sample content — replace with the real deal specifics when you build from documents.',
+      basisOf:'Placeholder figures for layout preview only.',
+      execNarr:'Sample narrative — the analyst writes this section from the actual financials.',
+      whyHolds:'Sample narrative — the analyst fills this in from the real drivers.',
+      earnNarr:'Sample narrative — the earnings bridge is built from the uploaded statements.',
+      methodNarr:'Sample narrative — the analyst documents the valuation method here.',
+      premium:'Sample strength one\nSample strength two',
+      tempers:'Sample risk one\nSample risk two',
+      concNarr:'Sample conclusion — the real range comes from the analysis.',
+      gtmNarr:'Sample go-to-market narrative.',
       assume:ASSUME};
     apply(f); q('multLow').value='4.0';q('multBase').value='4.5';q('multHigh').value='5.0';
     renderAll(); save();
@@ -545,6 +550,9 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 
   // init
   function restore(){ try{ var raw=localStorage.getItem(KEY); if(!raw)return false; var s=JSON.parse(raw); if(!s||!s.fields)return false;
+    // Never load a draft that belongs to a different valuation (or an unstamped legacy/sample draft)
+    // when a specific BOV is open. This is what let the Magnolia sample bleed across records.
+    var _cb=(new URLSearchParams(location.search)).get('bov')||''; if(_cb && s._bovId!==_cb) return false;
     state=s; state.bridge=migrateBridge(state.bridge);
     if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();});
     sortBuyers(); apply(state.fields); renderAll(); return true; }catch(e){ return false; } }

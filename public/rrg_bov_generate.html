@@ -124,7 +124,7 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
 
     <div class="drop" onclick="pick('docs')">
       <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/></svg></div>
-      <div class="mid"><div class="t">Financials, lease &amp; diligence docs<span class="opt">— optional if they're in the data room</span></div><div class="h">Trailing P&amp;L with add-backs, the lease and amendments, and anything else that helps. Drop them all here — <b id="aiSort">Hubert AI</b> sorts each file, so there's no need to label them.</div></div>
+      <div class="mid"><div class="t">Financials, lease &amp; diligence docs<span class="opt">— optional if they're in the data room</span></div><div class="h">Trailing P&amp;L with add-backs, the lease and amendments, and anything else that helps. Drop them all here — <b>the analyst</b> sorts each file, so there's no need to label them.</div></div>
       <div class="cta">Upload</div>
     </div>
     <div class="files" id="docs_files"></div>
@@ -161,8 +161,6 @@ label.fl{display:block;font-size:9px;letter-spacing:.12em;text-transform:upperca
 
 <script>
 var SLOTS={docs:[]};
-// Reflect the admin-configured AI name in the upload hint (falls back to the "Hubert AI" default).
-setTimeout(function(){ try{ var el=document.getElementById('aiSort'); if(el && typeof aiName==='function'){ var n=aiName(); if(n && n!=='AI') el.textContent=n; } }catch(e){} },500);
 var BOV_ID='';
 // Opened for a specific Requested valuation record: prefill the business name and
 // remember the record id so building fulfills it (rather than creating a new one).
