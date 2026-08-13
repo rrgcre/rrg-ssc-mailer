@@ -18,7 +18,7 @@ window.RRG_FORMS.seller = {
       {type:'options', label:'Owner’s Role', cols:3, options:['Owner-Operator (Daily)','Semi-Absentee','Absentee / Manager-Run'], prompt:"How involved are you in the business day to day?", hint:"Owner-operator earnings include their own labor — a buyer has to pay to replace it. Absentee sells at a premium and to a much wider pool."},
       {type:'options', label:'Ownership Structure', cols:2, options:['Sole Owner','Partnership','LLC / Corporation','Family-Owned'], prompt:"How is the ownership set up — is it just you, or do you have partners?", hint:"Every partner is a signature you need at closing. Find out now if one of them isn't on board."},
       {type:'options', id:'realEstate', required:true, label:'Real Estate', cols:3, options:['Owns Real Estate','Leases','Owns + Leases'], prompt:"Do you own the building, or do you lease the space?", hint:"If they own it you may have two deals. Ask whether they'd sell the real estate or lease it back to the buyer."},
-      {type:'text', num:'int', label:'Years in Operation', required:true, prompt:"How long have you been operating?", hint:"Under three years is thin for SBA financing. Ten-plus under the same owner is a story worth telling buyers."},
+      {type:'text', num:'dec2', label:'Years in Operation', required:true, prompt:"How long have you been operating?", hint:"Under three years is thin for SBA financing. Ten-plus under the same owner is a story worth telling buyers."},
       {type:'text', num:'int', label:'Number of Locations', required:true, prompt:"How many locations do you have?", hint:"Multi-unit changes the whole deal — allocation, shared overhead, and whether they're selling all of them or just one."},
       {type:'text', num:'int', label:'Approx. Employees', prompt:"Roughly how many people do you have on staff?", hint:"Listen for a key manager. If the business runs on one person who isn't the owner, ask whether that person stays."}
     ]},
@@ -67,7 +67,7 @@ window.RRG_FORMS.seller = {
     { n:'6', title:'Call Outcome & Notes', decision:true, questions:[
       {sub:'Call Summary', draft:true},
       {type:'textarea', full:true, id:'callNotes', label:'Call Notes', required:true, placeholder:"3–4 sentences: motivation, financial picture, expectations, and your read on the lead. This goes into the contact's record in FullServe.", prompt:"Give me your 3–4 sentence summary — or hit Draft to generate one.", hint:"Write it so another broker could pick this lead up cold. Or hit Draft from answers and edit what comes back — never send it unread."},
-      {type:'options', full:true, cols:2, required:true, label:'Deal Call', options:['Business Sale','Asset Sale','Nurture','Decline'], prompt:"Your recommended next step — business sale, asset sale, nurture, or decline?", hint:"A recommendation to move forward, not a commitment — nothing is locked until financials are verified, value is aligned, and an agreement is signed. Business Sale = going concern with transferable earnings. Asset Sale = the value is in the buildout, FF&E or license, not the earnings. Nurture = real but not ready. Decline = we can't deliver it or it's not worth our time. The AI pre-fills its read; you own the final call."}
+      {type:'options', full:true, cols:2, required:true, label:'Deal Call', options:['Business Sale','Asset Sale','Nurture','Decline'], prompt:"Your call — business sale, asset sale, nurture, or decline?", hint:"Business Sale = going concern with transferable earnings. Asset Sale = the value is in the buildout, FF&E or license, not the earnings. Nurture = real but not ready. Decline = we can't deliver it or it's not worth our time. The AI pre-fills its read; you own the final call."}
     ]}
   ]
 };
@@ -79,14 +79,10 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
   function reqstar(q){ return q.required?'<span class="req-star">*</span>':''; }
   function lab(q){ return '<label class="k">'+esc(q.label)+reqstar(q)+'</label>'; }
   function optcls(q){ var n=q.cols||2; return 'optcols'+(n>=4?' c4':(n===3?' c3':'')); }
-  var _OSET_N=0, _CDN=0;
   function renderOptions(q){
     var cls='oset'+(q.full?' full':'')+(q.multi?'':' single')+' rowgap'+(q.required?'" data-req="1':'');
     var h='<div class="'+cls+'">'+lab(q)+'<div class="'+optcls(q)+'">';
-    // Single-choice renders as native radios (one group name) so only one can ever be picked,
-    // with no reliance on a page-load script that misses dynamically-drawn custom forms.
-    var single=!q.multi; var gn='ro'+(++_OSET_N);
-    var om=q.optMeta||[]; (q.options||[]).forEach(function(o,i){ var m=om[i]||{}; var da=(m.k?' data-kill="1"':'')+(m.w?(' data-wt="'+m.w+'"'):'')+(m.n?(' data-nudge="'+esc(m.n)+'"'):''); var inp=single?('<input type="radio" name="'+gn+'"'+da+'>'):('<input type="checkbox"'+da+'>'); h+='<label class="opt">'+inp+esc(o)+'</label>'; });
+    var om=q.optMeta||[]; (q.options||[]).forEach(function(o,i){ var m=om[i]||{}; var da=(m.k?' data-kill="1"':'')+(m.w?(' data-wt="'+m.w+'"'):'')+(m.n?(' data-nudge="'+esc(m.n)+'"'):''); h+='<label class="opt"><input type="checkbox"'+da+'>'+esc(o)+'</label>'; });
     return h+'</div></div>';
   }
   function renderField(q){
@@ -95,13 +91,11 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     if(t==='instruction'||t==='note') return '<div class="field instrfield full rowgap" data-instr="1">'+lab(q)+'<div class="instrbody">'+esc(q.text||q.body||'').replace(/\n/g,'<br>')+'</div></div>';
     if(t==='company') return '<div class="field">'+lab(q)+'<div class="coauto2"><input type="text" class="req" id="sscCompany" autocomplete="off"><div class="cosug2" id="sscCosug" hidden></div></div></div>';
     if(t==='concept') return '<div class="field">'+lab(q)+'<div class="coauto2"><input type="text" id="sscConcept" autocomplete="off" placeholder="Pick or add a concept"><div class="cosug2" id="sscConceptSug" hidden></div></div></div>';
-    if(t==='conceptdd'){ var _dln='cdl'+(++_CDN); return '<div class="field'+(q.full?' full':'')+'">'+lab(q)+'<input type="text" class="conceptdd'+(q.required?' req':'')+'"'+id+' list="'+_dln+'" placeholder="Type or pick a concept" autocomplete="off"><datalist id="'+_dln+'" class="conceptdl"></datalist></div>'; }
-    if(t==='contact') return '<div class="field">'+lab(q)+'<input type="text" class="req" id="sscContact" autocomplete="off"></div>';
     if(t==='rep') return '<div class="field">'+lab(q)+'<select class="req" id="repSelect"><option value="">Select…</option></select></div>';
-    if(t==='date') return '<div class="field">'+lab(q)+'<input type="date" class="req" id="callDate"></div>';
+    if(t==='date') return '<div class="field">'+lab(q)+'<input type="date" class="req" id="callDate" value="'+(function(){var d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');})()+'"></div>';
     if(t==='metro') return '<div class="field">'+lab(q)+'<select class="req" id="metroSelect"><option value="">Select…</option><option>Austin</option><option>Dallas</option><option>Houston</option><option>San Antonio</option><option>RGV</option><option>Other</option></select></div>';
     if(t==='readonly') return '<div class="field'+(q.full?' full rowgap':'')+'">'+lab(q)+'<input type="text"'+id+' readonly placeholder="'+esc(q.placeholder||'auto-calculated')+'" style="background:#f7f9fc"></div>';
-    if(t==='number') return '<div class="field">'+lab(q)+'<input type="number" inputmode="numeric" min="0" step="1"'+id+' placeholder="months"></div>';
+    if(t==='number') return '<div class="field">'+lab(q)+'<input type="number" min="0" step="1"'+id+' placeholder="months"></div>';
     if(t==='money') return '<div class="field'+(q.full?' full rowgap':'')+'">'+lab(q)+'<span class="madorn"><span class="ad-pre">$</span><input type="text" class="money'+(q.required?' req':'')+'" inputmode="numeric"'+id+'></span></div>';
     if(t==='range') return '<div class="field full rowgap rangefield">'+lab(q)+'<div class="rangewrap"><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric" placeholder="Amount / low"></span><span class="rangeto">to</span><span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric" placeholder="High (optional)"></span></div></div>';
     if(t==='textarea') return '<div class="field'+(q.full?' full rowgap':'')+'">'+lab(q)+'<textarea'+(q.required?' class="req"':'')+id+(q.placeholder?(' placeholder="'+esc(q.placeholder)+'"'):'')+'></textarea></div>';
@@ -113,7 +107,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
   function partInput(p, id){
     var t=p.type||'text';
     if(t==='textarea') return '<textarea'+(id?(' id="'+id+'"'):'')+'></textarea>';
-    if(t==='number') return '<input type="number" inputmode="numeric" min="0" step="1"'+(id?(' id="'+id+'"'):'')+'>';
+    if(t==='number') return '<input type="number" min="0" step="1"'+(id?(' id="'+id+'"'):'')+'>';
     if(t==='money') return '<span class="madorn"><span class="ad-pre">$</span><input type="text" class="money" inputmode="numeric"'+(id?(' id="'+id+'"'):'')+'></span>';
     if(t==='date') return '<input type="date"'+(id?(' id="'+id+'"'):'')+'>';
     if(t==='email') return '<input type="text" class="email"'+(id?(' id="'+id+'"'):'')+'>';
@@ -137,7 +131,7 @@ console.log('schema loaded:', window.RRG_FORMS.seller.categories.length, 'catego
     // every question inside it, so the whole block appears and disappears as one piece.
     var ca=condAttr(cat.showIf);
     var h='<div '+ca+'class="sec brk'+(cat.decision?' decisionsec':'')+'"><div class="num">'+esc(cat.n)+'</div><h2>'+esc(cat.title)+'</h2><div class="flex"></div></div>';
-    if(cat.decision) h+='<div '+ca+'class="decisionnote"><b>Recommend the next step — then move forward.</b> This is a recommendation, not a commitment. Nothing is locked in until the financials are verified, the value is aligned, and an agreement is signed.</div>';
+    if(cat.decision) h+='<div '+ca+'class="decisionnote"><b>Decision point.</b> Based on everything above — do we move forward with this seller, or not?</div>';
     if(cat.sub) h+='<div '+ca+'class="subhead">'+esc(cat.sub)+'</div>';
     var grid=[];
     function flush(){ if(grid.length){ h+='<div '+ca+'class="grid rowgap">'+grid.join('')+'</div>'; grid=[]; } }

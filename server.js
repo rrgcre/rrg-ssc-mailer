@@ -1605,8 +1605,8 @@ app.get('/api/valuation-readiness', (req, res) => {
     const _lk = String(req.query.listingKey || '').trim().slice(0, 64);
     const _sd = _lk ? _dealFromListingKey(_lk) : null;
     if (_lk && _sd) {
-      let scr = false, scrSkip = false;
-      try { const _ov = loadAssignOverlay(); scrSkip = !!(_ov[_lk] && _ov[_lk].screeningSkipped); } catch (e) {}
+      let scr = false, scrSkip = false, ivSkip = false;
+      try { const _ov = loadAssignOverlay(); scrSkip = !!(_ov[_lk] && _ov[_lk].screeningSkipped); ivSkip = !!(_ov[_lk] && _ov[_lk].interviewSkipped); } catch (e) {}
       try { if (_sd.screenId) { const _sc = (loadScreens() || []).find(s => s.id === _sd.screenId); if (_sc && (_sc.callState === 'complete' || _sc.completed === true)) scr = true; } } catch (e) {}
       if (!scr && scrSkip) scr = true;
       let fin = false, lse = false, _rmid = '';
@@ -1617,9 +1617,9 @@ app.get('/api/valuation-readiness', (req, res) => {
       let ivDone = false, ivId = '', ivRoom = '';
       try { const ivs = loadInterviews().filter(iv => ((iv.dealKey === _lk) || (_rmid && iv.roomId === _rmid)) && linkKind(iv.kind) === 'valuation').sort((a, b2) => String(b2.createdAt || '').localeCompare(String(a.createdAt || ''))); if (ivs.length) { ivDone = true; ivId = ivs[0].id; ivRoom = ivs[0].roomId || ''; } } catch (e) {}
       try { if (!ivDone) { const sls = loadSellerLinks().filter(x => x.dealKey === _lk && linkKind(x.kind) === 'valuation'); if (sls.some(sl => (sl.form && sl.form.submittedAt) || ((sl.videoCount || 0) > 0))) ivDone = true; } } catch (e) {}
-      const _q = ivDone;
+      const _q = ivDone || ivSkip;
       const _state = _bov ? (_bov.finalizedAt ? 'final' : (_bov.aiGenerated && !_bov.pending ? 'built' : 'requested')) : '';
-      return res.json({ ok: true, listingKey: _lk, screening: scr, screeningSkipped: scrSkip, questionnaire: _q, interviewDone: ivDone, interviewId: ivId, interviewRoomId: ivRoom, financials: fin, lease: lse, ready: !!(_q && fin && lse), bovId: _bov ? _bov.id : '', state: _state });
+      return res.json({ ok: true, listingKey: _lk, screening: scr, screeningSkipped: scrSkip, questionnaire: _q, interviewDone: ivDone, interviewSkipped: ivSkip, interviewId: ivId, interviewRoomId: ivRoom, financials: fin, lease: lse, ready: !!(_q && fin && lse), bovId: _bov ? _bov.id : '', state: _state });
     }
     if (!pid && !cid) return res.json({ ok: true, screening: false, questionnaire: false, financials: false, lease: false, ready: false, bovId: '', state: '' });
     const questionnaire = loadQuests().some(q => hit(q) && (q.completed || q.processed));
@@ -1643,8 +1643,8 @@ app.get('/api/valuation-readiness', (req, res) => {
     // and backed out of. An abandoned call leaves a 'live'/'pending' record; it must NOT flip the
     // menu step to done or unlock the data-room / Seller Interview steps. (Skip is handled below.)
     let screening = (function(){ try { return (loadScreens()||[]).some(function(sc){ var d=sc.data||{}; var matches=(pid && (d.personId===pid || d.contactPersonId===pid || sc.personId===pid)) || (cid && (d.companyId===cid || sc.companyId===cid)); return matches && (sc.callState==='complete' || sc.completed===true); }); } catch(e){ return false; } })();
-    let screeningSkipped = false;
-    try { const _ov = loadAssignOverlay(); screeningSkipped = loadDeals().filter(hit).some(function(d){ const k = d.screenId ? ('s_'+d.screenId) : ('d_'+d.id); return _ov[k] && _ov[k].screeningSkipped; }); } catch(e){}
+    let screeningSkipped = false, interviewSkipped = false;
+    try { const _ov = loadAssignOverlay(); loadDeals().filter(hit).forEach(function(d){ const k = d.screenId ? ('s_'+d.screenId) : ('d_'+d.id); if (_ov[k] && _ov[k].screeningSkipped) screeningSkipped = true; if (_ov[k] && _ov[k].interviewSkipped) interviewSkipped = true; }); } catch(e){}
     if (!screening && screeningSkipped) screening = true;
     // A seller-completed interview (self-serve form or video) satisfies the questionnaire input.
     let interviewDone = false, interviewId = '', interviewRoomId = '';
@@ -1654,9 +1654,9 @@ app.get('/api/valuation-readiness', (req, res) => {
       const ivs = loadInterviews().filter(iv => ((pid && iv.personId === pid) || (cid && iv.companyId === cid)) && linkKind(iv.kind) === 'valuation').sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
       if (ivs.length) { interviewDone = true; interviewId = ivs[0].id; interviewRoomId = ivs[0].roomId || ''; }
     } catch (e) {}
-    const q = questionnaire || interviewDone;
+    const q = questionnaire || interviewDone || interviewSkipped;
     const state = bov ? (bov.finalizedAt ? 'final' : (bov.aiGenerated && !bov.pending ? 'built' : 'requested')) : '';
-    res.json({ ok: true, screening: screening, screeningSkipped: screeningSkipped, questionnaire: q, interviewDone: interviewDone, interviewId: interviewId, interviewRoomId: interviewRoomId, financials: financials, lease: lease, ready: !!(q && financials && lease), bovId: bov ? bov.id : '', state: state });
+    res.json({ ok: true, screening: screening, screeningSkipped: screeningSkipped, questionnaire: q, interviewDone: interviewDone, interviewSkipped: interviewSkipped, interviewId: interviewId, interviewRoomId: interviewRoomId, financials: financials, lease: lease, ready: !!(q && financials && lease), bovId: bov ? bov.id : '', state: state });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
@@ -1785,6 +1785,42 @@ app.post('/api/seller/skip-screening', express.json(), (req, res) => {
       savePeople(ppl);
     }
     res.json({ ok: true, screenId: screenId, key: key, roomId: room.id, stage: stageName || 'Data Collection' });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+
+// Skip the Seller Interview for a listing that doesn't need one — unlocks the valuation.
+app.post('/api/seller/skip-interview', express.json(), (req, res) => {
+  try {
+    const b = req.body || {};
+    const pid = String(b.personId || '').trim().slice(0, 48);
+    const cid = String(b.companyId || '').trim().slice(0, 48);
+    let key = String(b.listingKey || '').trim().slice(0, 64);
+    if (!key) { const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid)); const d = loadDeals().filter(hit)[0]; if (d) key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); }
+    if (!key) return res.status(400).json({ ok: false, error: 'No listing to skip the interview on.' });
+    const now = new Date().toISOString();
+    const ov = loadAssignOverlay(); const cur = ov[key] || {};
+    cur.interviewSkipped = true; cur.updatedAt = now; ov[key] = cur; saveAssignOverlay(ov);
+    try { const ppl = loadPeople(); const person = pid ? ppl.find(p => p.id === pid) : null; if (person) { logActivity(person, 'Note', 'Seller Interview skipped — not needed for this listing. Valuation unlocked.', { by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', auto: true }); savePeople(ppl); } } catch (e) {}
+    res.json({ ok: true, key: key });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+
+// Undo a mistaken skip (screening or interview) — clears the flag so the step is required again.
+app.post('/api/seller/unskip', express.json(), (req, res) => {
+  try {
+    const b = req.body || {};
+    const pid = String(b.personId || '').trim().slice(0, 48);
+    const cid = String(b.companyId || '').trim().slice(0, 48);
+    const which = String(b.which || '').trim();
+    const _lk = String(b.listingKey || '').trim().slice(0, 64);
+    const ov = loadAssignOverlay();
+    const hit = o => !!o && ((pid && (o.personId === pid || o.contactPersonId === pid)) || (cid && o.companyId === cid));
+    const keys = []; if (_lk) keys.push(_lk); loadDeals().filter(hit).forEach(d => keys.push(d.screenId ? ('s_' + d.screenId) : ('d_' + d.id)));
+    let changed = false;
+    keys.forEach(k => { const cur = ov[k]; if (!cur) return; if ((which === 'screening' || !which) && cur.screeningSkipped) { delete cur.screeningSkipped; changed = true; cur.updatedAt = new Date().toISOString(); } if ((which === 'interview' || !which) && cur.interviewSkipped) { delete cur.interviewSkipped; changed = true; cur.updatedAt = new Date().toISOString(); } });
+    if (changed) saveAssignOverlay(ov);
+    try { const ppl = loadPeople(); const person = pid ? ppl.find(p => p.id === pid) : null; if (person && changed) { logActivity(person, 'Note', (which === 'interview' ? 'Seller Interview skip undone — interview needed again.' : 'Seller Screening skip undone — screening needed again.'), { by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', auto: true }); savePeople(ppl); } } catch (e) {}
+    res.json({ ok: true, changed: changed });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
@@ -7420,6 +7456,68 @@ app.get('/api/gmail/contacts/scan', async (req, res) => {
     });
     res.json({ ok: true, contacts: out, scanned: result.scanned, capped: result.capped, aiAvailable: !!process.env.ANTHROPIC_API_KEY });
   } catch (e) { console.error('gmail contacts scan:', e && e.message); res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// ---- Feed "Keep things moving": inbox threads awaiting a reply (from me or from them) ----
+function _hdrEmail(v) { var m = String(v || '').match(/<([^>]+)>/); return (m ? m[1] : String(v || '')).trim().toLowerCase(); }
+function _hdrName(v) { var s = String(v || '').trim(); var m = s.match(/^(.*?)\s*<[^>]+>/); if (m && m[1]) return m[1].replace(/^"|"$/g, '').trim(); return ''; }
+app.get('/api/feed/nudges', async (req, res) => {
+  const u = (req.user && req.user.username) || '';
+  const st = gmail.statusFor(u);
+  const now = Date.now(); const DAY = 86400000; const out = [];
+  const idx = {}; loadPeople().forEach(p => { (personEmails(p) || []).forEach(e => { var k = String(e || '').toLowerCase(); if (k && !idx[k]) idx[k] = { id: p.id, name: p.name || '' }; }); });
+  // 1) Overdue / due-today tasks that are mine — the sharpest "do this now" signal.
+  try {
+    loadTasks().forEach(t => {
+      if (t.status && t.status !== 'open') return;
+      if (!taskVisible(t, req)) return;
+      if (t.assignee && t.assignee !== u) return;
+      const due = String(t.due || '').slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}/.test(due)) return;
+      const overdue = Math.floor((now - new Date(due + 'T00:00:00').getTime()) / DAY);
+      if (overdue < 0) return;
+      out.push({ kind: 'task', name: t.title || 'Task', sub: overdue === 0 ? 'Due today' : ('Overdue ' + overdue + ' day' + (overdue === 1 ? '' : 's')), score: 1000 + overdue, taskId: t.id, personId: (t.linkType === 'contact' ? t.linkId : '') || '' });
+    });
+  } catch (e) {}
+  // 2) Deal-aware: active buyers/sellers who've gone quiet (recently engaged, now cooling).
+  try {
+    const quiet = [];
+    loadPeople().forEach(p => {
+      const types = (typeof personTypesOf === 'function' ? personTypesOf(p) : (p.types || [])) || [];
+      const active = types.some(t => /buyer|seller/i.test(String(t)));
+      if (!active) return;
+      const lc = p.lastContacted ? new Date(p.lastContacted).getTime() : 0; if (!lc) return;
+      const days = Math.floor((now - lc) / DAY);
+      if (days >= 12 && days <= 150) quiet.push({ p: p, days: days });
+    });
+    quiet.sort((a, b) => b.days - a.days);
+    quiet.slice(0, 4).forEach(q => {
+      const roles = (typeof personTypesOf === 'function' ? personTypesOf(q.p) : (q.p.types || [])).filter(t => /buyer|seller/i.test(String(t)));
+      out.push({ kind: 'quiet', name: q.p.name || 'Contact', sub: (roles[0] || 'Active') + ' · quiet ' + q.days + ' days', score: 200 + q.days, personId: q.p.id });
+    });
+  } catch (e) {}
+  // 3) Inbox: emails awaiting a reply from me, or that I'm waiting on.
+  if (st.connected) {
+    const me = String(((gmail.loadToken(u) || {}).email) || st.email || '').toLowerCase();
+    try {
+      const tl = await gmail.gapiJSON(u, 'https://www.googleapis.com/gmail/v1/users/me/threads?maxResults=40&q=' + encodeURIComponent('newer_than:30d -in:chats -in:draft -category:promotions -category:social'), {});
+      const threads = (tl && tl.threads) || [];
+      for (const th of threads.slice(0, 22)) {
+        let g; try { g = await gmail.gapiJSON(u, 'https://www.googleapis.com/gmail/v1/users/me/threads/' + encodeURIComponent(th.id) + '?format=metadata&metadataHeaders=From&metadataHeaders=To&metadataHeaders=Subject', {}); } catch (e) { continue; }
+        const msgs = (g && g.messages) || []; if (!msgs.length) continue;
+        const last = msgs[msgs.length - 1];
+        const hdr = {}; ((last.payload && last.payload.headers) || []).forEach(h => { hdr[String(h.name).toLowerCase()] = h.value; });
+        const fromE = _hdrEmail(hdr.from); const subj = hdr.subject || '(no subject)';
+        const ageDays = Math.floor((now - (parseInt(last.internalDate, 10) || 0)) / DAY);
+        if (ageDays < 2 || ageDays > 60) continue;
+        let kind, who, whoEmail;
+        if (fromE && fromE !== me) { kind = 'reply'; whoEmail = fromE; who = _hdrName(hdr.from) || fromE; }
+        else { kind = 'followup'; whoEmail = _hdrEmail(hdr.to); who = _hdrName(hdr.to) || whoEmail; if (!whoEmail || whoEmail === me) continue; }
+        const match = idx[whoEmail] || null;
+        out.push({ kind, name: who, email: whoEmail, sub: (kind === 'reply' ? ('Emailed you ' + ageDays + ' days ago') : ('No reply in ' + ageDays + ' days')) + (subj ? (' · ' + String(subj).slice(0, 60)) : ''), score: (kind === 'reply' ? 500 : 300) + ageDays, threadId: th.id, personId: match ? match.id : '' });
+      }
+    } catch (e) { /* inbox best-effort; CRM nudges still return */ }
+  }
+  out.sort((a, b) => (b.score || 0) - (a.score || 0));
+  res.json({ ok: true, connected: st.connected, nudges: out.slice(0, 12) });
 });
 app.post('/api/gmail/contacts/import', express.json({ limit: '3mb' }), (req, res) => {
   const b = req.body || {}; const list = Array.isArray(b.contacts) ? b.contacts : [];
