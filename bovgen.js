@@ -119,12 +119,7 @@ Return ONLY a single JSON object — no prose, no markdown fences — with EXACT
 IMPORTANT: "bridge" is an OBJECT of plain numbers (no $, no commas). The system computes the subtotals from it, the same way every time: EBITDA = netIncome + interest + entityTax + depreciation + amortization; SDE = EBITDA + ownerSalary + ownerHealth + familyPayroll + oneTime + rentNorm; ADJUSTED EBITDA = SDE − marketGM. Give rentNorm as a SIGNED number (negative to reduce earnings toward market rent). Give marketGM as a POSITIVE cost (it is subtracted). Use 0 for any line that does not apply. Output ONLY the fixed keyed lines shown above — do NOT output any itemized add-back lists; the broker adds verified, itemized add-backs (e.g. disguised owner comp) on the builder. If a document is missing, make the most defensible assumption and say so in the relevant narrative. Output the JSON object only.`;
 
 function num(s) { return Number(String(s == null ? '' : s).replace(/[^0-9.\-]/g, '')) || 0; }
-function moneyM(n) {
-  n = Number(n) || 0; const a = Math.abs(n);
-  if (a >= 1e6) { const m = n / 1e6; return '$' + (a >= 1e7 ? m.toFixed(1) : m.toFixed(2)) + 'M'; }
-  if (a >= 1e3) return '$' + Math.round(n / 1e3) + 'K';   // never "$0.45M" — use "$450K"
-  return '$' + Math.round(n);
-}
+function moneyM(n) { n = Number(n) || 0; return '$' + Math.round(n).toLocaleString('en-US'); }
 function money(n) { return '$' + Math.round(n).toLocaleString('en-US'); }
 
 // Compute the three bridge subtotals — the same way, every time. Accepts the new

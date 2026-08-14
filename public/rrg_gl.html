@@ -31,6 +31,19 @@ td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:now
 .tpill{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:3px;text-transform:uppercase;letter-spacing:.03em;}
 .tp-Asset{background:#eaf0fb;color:#2c5c8f;} .tp-Liability{background:#fdf1df;color:#b5791f;} .tp-Equity{background:#f1ebfb;color:#6d28d9;} .tp-Income{background:#e7f5ee;color:#1f8a5b;} .tp-Expense{background:#fdeceb;color:#c0392b;}
 .totrow td{font-weight:800;color:var(--navy);border-top:2px solid var(--line);background:#fbfcfe;}
+/* Prominent roll-up toggle */
+.rollupbar{display:flex;align-items:center;gap:14px;padding:13px 16px;background:#eef4fb;border-bottom:1px solid #d3e0f0;}
+.rollupsw{display:inline-flex;align-items:center;gap:12px;cursor:pointer;user-select:none;}
+.rollupsw input{position:absolute;opacity:0;width:0;height:0;}
+.rsw-track{position:relative;width:46px;height:26px;border-radius:999px;background:#c4ccda;transition:background .15s;flex:none;}
+.rsw-thumb{position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:left .15s;}
+.rollupsw input:checked + .rsw-track{background:var(--primary,#2c5c8f);}
+.rollupsw input:checked + .rsw-track .rsw-thumb{left:23px;}
+.rollupsw input:focus-visible + .rsw-track{box-shadow:0 0 0 3px rgba(44,92,143,.3);}
+.rsw-txt{display:flex;flex-direction:column;line-height:1.25;}
+.rsw-txt b{font-size:13.5px;color:var(--navy);font-weight:800;text-transform:none;letter-spacing:0;}
+.rsw-txt span{font-size:11.5px;color:var(--muted);font-weight:500;text-transform:none;letter-spacing:0;}
+.rsw-state{margin-left:auto;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.04em;color:var(--primary,#2c5c8f);}
 .bal{font-size:12px;font-weight:700;padding:3px 10px;border-radius:3px;}
 .bal.ok{background:#e7f5ee;color:#1f8a5b;} .bal.no{background:#fdeceb;color:var(--red);}
 .src{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:3px;text-transform:uppercase;letter-spacing:.03em;}
@@ -184,14 +197,15 @@ function renderTrial(){
     }).join('') || '<tr><td colspan="5" class="empty">No posted activity yet. Add invoices, expenses, or a manual entry.</td></tr>';
   }
   var bal=tb.balanced?'<span class="bal ok">In balance ✓</span>':'<span class="bal no">Out of balance</span>';
-  var toggle='<label style="font-weight:600;text-transform:none;letter-spacing:0;color:var(--muted);font-size:12px;display:inline-flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="tbRollup" style="width:auto"'+(ROLLUP?' checked':'')+'> Roll up sub-accounts</label>';
+  var rollupBar='<div class="rollupbar"><label class="rollupsw"><input type="checkbox" id="tbRollup"'+(ROLLUP?' checked':'')+'><span class="rsw-track"><span class="rsw-thumb"></span></span><span class="rsw-txt"><b>Roll up sub-accounts</b><span>Combine each sub-account into its parent for a summary trial balance</span></span></label><span class="rsw-state" id="tbRollupState">'+(ROLLUP?'Rolled up':'Expanded')+'</span></div>';
   document.getElementById('view').innerHTML=
-    '<div class="card"><div class="ch">Trial Balance <span class="rt" style="display:flex;align-items:center;gap:12px">'+toggle+bal+'</span></div>'+
+    '<div class="card"><div class="ch">Trial Balance <span class="rt" style="display:flex;align-items:center;gap:12px;margin-left:auto">'+bal+'</span></div>'+
+    rollupBar+
     '<table><thead><tr><th style="width:70px">Code</th><th>Account</th><th class="num">Debit</th><th class="num">Credit</th><th class="num">Balance</th></tr></thead><tbody>'+
     body+
     '<tr class="totrow"><td></td><td>Totals</td><td class="num">'+money(tb.totalDebit)+'</td><td class="num">'+money(tb.totalCredit)+'</td><td class="num"></td></tr>'+
     '</tbody></table></div>';
-  var _rt=document.getElementById('tbRollup'); if(_rt) _rt.addEventListener('change',function(){ ROLLUP=this.checked; try{localStorage.setItem('rrg_gl_rollup',ROLLUP?'1':'0');}catch(e){} renderTrial(); });
+  var _rt=document.getElementById('tbRollup'); if(_rt) _rt.addEventListener('change',function(){ ROLLUP=this.checked; try{localStorage.setItem('rrg_gl_rollup',ROLLUP?'1':'0');}catch(e){} var _st=document.getElementById('tbRollupState'); if(_st) _st.textContent=ROLLUP?'Rolled up':'Expanded'; renderTrial(); });
 }
 function srcBadge(s){ var lbl={invoice:'Invoice',payment:'Payment',expense:'Expense',manual:'Manual'}[s]||s; return '<span class="src src-'+esc(s)+'">'+esc(lbl)+'</span>'; }
 function renderJournal(){

@@ -324,7 +324,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   var state={fields:{}, bridge:[], bench:[], buyers:[]};
   function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.\-]/g,''))||0; }
   function money(n){ return '$'+Math.round(n).toLocaleString('en-US'); }
-  function moneyM(n){ n=Number(n)||0; var a=Math.abs(n); if(a>=1e6){ var m=n/1e6; return '$'+(a>=1e7?m.toFixed(1):m.toFixed(2))+'M'; } if(a>=1e3) return '$'+Math.round(n/1e3)+'K'; return '$'+Math.round(n); }
+  function moneyM(n){ n=Number(n)||0; return '$'+Math.round(n).toLocaleString('en-US'); }
   function _bmv(s){ var m=String(s==null?'':s).match(/-?\d+(?:\.\d+)?/g); return (m&&m.length)?Math.max.apply(null,m.map(Number)):-1; }
   function sortBuyers(){ try{ var rows=state.buyers; if(!Array.isArray(rows)||rows.length<2) return; var hasHead=_bmv(rows[0]&&rows[0][1])<0 && /multiple/i.test(String((rows[0]||[])[1]||'')); var head=hasHead?rows.slice(0,1):[]; var body=hasHead?rows.slice(1):rows.slice(); body.sort(function(a,b){ return _bmv(b&&b[1]) - _bmv(a&&a[1]); }); state.buyers=head.concat(body); }catch(e){} }
   window.printBov=function(){ sortBuyers(); renderAll(); setTimeout(function(){ window.print(); }, 60); };
