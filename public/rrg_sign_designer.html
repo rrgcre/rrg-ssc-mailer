@@ -43,6 +43,10 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
 .f .rq{position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;font-size:9px;font-weight:800;border-radius:20px;padding:0 4px;line-height:14px;}
 .f .fx{position:absolute;top:-9px;left:-9px;width:18px;height:18px;background:var(--red);color:#fff;font-size:13px;font-weight:800;line-height:16px;text-align:center;border-radius:50%;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,.3);z-index:6;}
 .loading{text-align:center;color:var(--muted);padding:60px;font-size:14px;}
+.mgh{font-size:11px;font-weight:800;color:var(--muted);margin:9px 0 5px;}
+.afgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:2px;}
+.tool.af{margin:0;padding:8px 8px;font-size:12.5px;justify-content:center;text-align:center;}
+.tool.af.on{border-color:var(--navy);background:#f0f3fb;box-shadow:inset 0 0 0 1px var(--navy);}
 </style>
 <style>.algrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}.algn{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 4px;font:inherit;font-size:13px;font-weight:800;color:var(--muted);cursor:pointer}.algn:hover{background:var(--wash);color:var(--ink)}.f.msel{outline:2px dashed #2647b0;outline-offset:1px}.applyall{width:100%;font:inherit;font-size:12px;font-weight:700;border-radius:7px;padding:7px 10px;cursor:pointer;border:1px solid #bcd;color:#2647b0;background:#fff;margin-top:2px}.applyall:hover{background:#eef3fb}.algnseg{display:flex;gap:4px;margin-bottom:8px}.algnseg button{flex:1;border:1px solid var(--line);background:#fff;border-radius:7px;padding:6px 4px;font:inherit;font-size:12px;font-weight:700;color:var(--muted);cursor:pointer}.algnseg button.on{background:#2647b0;border-color:#2647b0;color:#fff}</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -71,6 +75,24 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
       <button class="tool" data-tool="date"><span class="ti">▦</span>Date</button>
       <button class="tool" data-tool="checkbox"><span class="ti">☑</span>Checkbox</button>
       <button class="tool on" data-tool=""><span class="ti">✋</span>Select / move</button>
+    </div>
+    <div class="psec"><div class="plbl">Auto-fill fields (merge)</div>
+      <div class="hint" style="margin-bottom:8px">One click, then click the page. The field fills itself from the contact record and your account when the agreement is prepared to send — no typing at send time.</div>
+      <div class="mgh">Other party (the contact)</div>
+      <div class="afgrid">
+        <button class="tool af" data-af="party_name">Name</button>
+        <button class="tool af" data-af="title">Title</button>
+        <button class="tool af" data-af="email">Email</button>
+        <button class="tool af" data-af="phone">Phone</button>
+        <button class="tool af" data-af="company">Company</button>
+      </div>
+      <div class="mgh">You (RRG)</div>
+      <div class="afgrid">
+        <button class="tool af" data-af="my_name">Name</button>
+        <button class="tool af" data-af="my_title">Title</button>
+        <button class="tool af" data-af="my_email">Email</button>
+        <button class="tool af" data-af="my_phone">Phone</button>
+      </div>
     </div>
     <div class="psec" id="alignPanel" style="display:none"><div class="plbl">Align &amp; arrange</div>
       <div class="algrid">
@@ -122,13 +144,16 @@ var TYPELBL={text:'Text',signature:'✍ Sign',initials:'Init',date:'Date',checkb
 
 if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-function setTool(t){ TOOL=t; document.querySelectorAll('.tool').forEach(function(b){ b.classList.toggle('on', b.getAttribute('data-tool')===t); }); }
+var PENDING_AF='';
+function setTool(t){ TOOL=t; PENDING_AF=''; document.querySelectorAll('.tool').forEach(function(b){ b.classList.toggle('on', !b.classList.contains('af') && b.getAttribute('data-tool')===t); }); }
+function setAFTool(af){ TOOL='text'; PENDING_AF=af; document.querySelectorAll('.tool').forEach(function(b){ b.classList.toggle('on', b.classList.contains('af') && b.getAttribute('data-af')===af); }); }
+function afLabel(k){ var m={party_name:'Party name',first_name:'First name',last_name:'Last name',title:'Party title',email:'Party email',phone:'Party phone',company:'Company',my_name:'My name',my_title:'My title',my_email:'My email',my_phone:'My phone',date:'Date'}; return m[k]||'Text'; }
 function sigCount(){ return parseInt(document.getElementById('signerCount').value,10)||1; }
 function setSigner(n){ SIGNER=n; document.getElementById('sg1').className='seg'+(n===1?' on1':''); document.getElementById('sg2').className='seg'+(n===2?' on2':''); document.getElementById('sg3').className='seg'+(n===3?' on3':''); }
 function _segTxt(id,def){ var e=document.getElementById(id); var v=((e&&e.value)||'').trim(); return (v||def).toUpperCase(); }
 function syncSegs(){ var c=sigCount(); var g1=document.getElementById('sg1'),g2=document.getElementById('sg2'),g3=document.getElementById('sg3'); if(g1) g1.textContent=_segTxt('s1label','Signer 1'); if(g2){ g2.textContent=_segTxt('s2label','Signer 2'); g2.style.display=c>=2?'':'none'; } if(g3){ g3.textContent=_segTxt('s3label','Signer 3'); g3.style.display=c>=3?'':'none'; } }
 
-document.querySelectorAll('.tool').forEach(function(b){ b.addEventListener('click',function(){ setTool(b.getAttribute('data-tool')); }); });
+document.querySelectorAll('.tool').forEach(function(b){ b.addEventListener('click',function(){ if(b.classList.contains('af')){ setAFTool(b.getAttribute('data-af')); } else { setTool(b.getAttribute('data-tool')); } }); });
 function pickSigner(n){ setSigner(n); if(MULTI.length){ MULTI.forEach(function(id){ var g=fieldById(id); if(g) g.signer=n; }); drawFields(); scheduleSave(); } }
 document.getElementById('sg1').addEventListener('click',function(){ pickSigner(1); });
 document.getElementById('sg2').addEventListener('click',function(){ if(sigCount()<2){ alert('Set the number of signers to 2 or more first.'); return; } pickSigner(2); });
@@ -140,8 +165,9 @@ var _uidc=0; function uid(){ _uidc++; return 'f'+Date.now().toString(36)+'_'+_ui
 function addField(page,xf,yf){
   if(!TOOL) return;
   var d=DEF[TOOL]||DEF.text;
-  var f={id:uid(),page:page,x:Math.max(0,Math.min(1-d.w,xf)),y:Math.max(0,Math.min(1-d.h,yf)),w:d.w,h:d.h,type:TOOL,signer:SIGNER,label:defaultLabel(TOOL),required:(TOOL==='signature'),autofill:autoFor(TOOL),font:'',fontSize:''};
-  FIELDS.push(f); SELECTED=f.id; MULTI=[f.id]; setTool(''); drawFields(); openPanel(); scheduleSave();
+  var wf=d.w; if(PENDING_AF==='email'||PENDING_AF==='my_email') wf=0.30;
+  var f={id:uid(),page:page,x:Math.max(0,Math.min(1-wf,xf)),y:Math.max(0,Math.min(1-d.h,yf)),w:wf,h:d.h,type:TOOL,signer:SIGNER,label:(PENDING_AF?afLabel(PENDING_AF):defaultLabel(TOOL)),required:(TOOL==='signature'),autofill:(PENDING_AF||autoFor(TOOL)),font:'',fontSize:''};
+  FIELDS.push(f); SELECTED=f.id; MULTI=[f.id]; PENDING_AF=''; setTool(''); drawFields(); openPanel(); scheduleSave();
 }
 function defaultLabel(t){ return t==='signature'?'Signature':t==='initials'?'Initials':t==='date'?'Date':t==='checkbox'?'':'Text'; }
 function autoFor(t){ return t==='date'?'date':''; }

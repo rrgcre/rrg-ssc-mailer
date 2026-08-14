@@ -349,7 +349,7 @@ function backlinkBbsLeads() {
     }
   } catch (e) { console.error('backlinkBbsLeads:', e && e.message); }
 }
-function companyBrief(c) { return c ? { id: c.id, name: c.name || '', market: c.market || '', type: c.type || '', address: (c.office && [c.office.address, c.office.city, c.office.state].filter(Boolean).join(', ')) || '' } : null; }
+function companyBrief(c) { return c ? { id: c.id, name: c.name || '', market: c.market || '', type: c.type || '', mainContactId: c.mainContactId || '', address: (c.office && [c.office.address, c.office.city, c.office.state].filter(Boolean).join(', ')) || '' } : null; }
 // Company activity feed: this company's own logged activity + every contact's activity, newest first.
 function companyActivityFeed(c) {
   if (!c) return [];
@@ -1758,26 +1758,10 @@ app.post('/api/seller/skip-screening', express.json(), (req, res) => {
       deal = { id: newDealId(), business: String(bizName).slice(0, 120), market: market, contact: (person && person.name) || '', screenId: '', roomId: '', contactPersonId: pid || '', companyId: cid || '', createdAt: now, by: repName, byUser: repUser };
       deals.push(deal);
     }
-    // Stand up a screening record pre-filled with what we already know, so the rep can
-    // finish it as an editable form (no live call). It satisfies the screening gate and
-    // is fully editable from the screening view.
-    let screenId = deal.screenId || '';
-    if (!screenId) {
-      let sellerFormId = ''; try { sellerFormId = (loadSettings().callForms || {}).seller || ''; } catch (e) {}
-      const screens = loadScreens();
-      const screen = {
-        id: newScreenId(), formId: sellerFormId,
-        business: String(bizName).slice(0, 120), contact: (person && person.name) || '', market: market,
-        date: new Date().toLocaleDateString('en-US'),
-        statusText: 'Pre-qualified \u2014 enter details', status: 'nurture',
-        prequalified: true, skipped: true, completed: false, completePct: 0,
-        data: { company: bizName, concept: '', contact: (person && person.name) || '', preparedBy: repName, market: market, address: address, personId: pid, companyId: cid, contactPersonId: pid },
-        personId: pid, companyId: cid, contactPersonId: pid,
-        by: repName, byUser: repUser, processed: false, processedAt: '', createdAt: now
-      };
-      screens.push(screen); saveScreens(screens);
-      screenId = screen.id; deal.screenId = screenId; deal.startedAt = now;
-    }
+    // Pre-qualified (known seller): we skip the screening CALL and do NOT create a screening
+    // form/record \u2014 there's nothing to fill out for a seller we already know. The screening
+    // gate is satisfied by the screeningSkipped overlay flag set on the listing below.
+    deal.startedAt = deal.startedAt || now;
     // Ensure a data room exists so financials & lease can go in.
     const rooms = loadRooms();
     let room = rooms.find(hit) || rooms.find(r => r.id === deal.roomId || r.srcDealId === deal.id) || null;
@@ -1787,10 +1771,11 @@ app.post('/api/seller/skip-screening', express.json(), (req, res) => {
     }
     if (!deal.roomId) deal.roomId = room.id;
     saveDeals(deals);
-    // Carry any overlay from the pre-listing key to the screening key, then advance to Data Collection.
-    const oldKey = 'd_' + deal.id, key = 's_' + screenId;
+    // Advance to Data Collection. Key off an existing screening if one already exists on this
+    // listing, otherwise the listing's own d_<id> key \u2014 no new screening record is created.
+    const key = deal.screenId ? ('s_' + deal.screenId) : ('d_' + deal.id);
     const ov = loadAssignOverlay();
-    if (ov[oldKey] && !ov[key]) { ov[key] = ov[oldKey]; delete ov[oldKey]; }
+    if (deal.screenId) { const _oldKey = 'd_' + deal.id; if (ov[_oldKey] && !ov[key]) { ov[key] = ov[_oldKey]; delete ov[_oldKey]; } }
     const cur = ov[key] || {};
     let stageName = '';
     const _plid = pipelineForCategory('businessSale') || 'p_bizsales';
@@ -1810,10 +1795,10 @@ app.post('/api/seller/skip-screening', express.json(), (req, res) => {
     ov[key] = cur; saveAssignOverlay(ov);
     // Audit trail on the seller's Activity Log.
     if (person) {
-      logActivity(person, 'Note', 'Seller Screening Call skipped \u2014 pre-qualified (known seller). Listing moved to ' + (stageName || 'Data Collection') + '. Enter the known details on the screening form.', { by: repName, byUser: repUser, auto: true });
+      logActivity(person, 'Note', 'Seller Screening Call skipped \u2014 pre-qualified (known seller). Listing moved to ' + (stageName || 'Data Collection') + '.', { by: repName, byUser: repUser, auto: true });
       savePeople(ppl);
     }
-    res.json({ ok: true, screenId: screenId, key: key, roomId: room.id, stage: stageName || 'Data Collection' });
+    res.json({ ok: true, screenId: deal.screenId || '', key: key, roomId: room.id, stage: stageName || 'Data Collection' });
   } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
 
@@ -7967,6 +7952,8 @@ function aiRoute(fn) { return async (req, res) => { try { const result = await f
 app.post('/api/ai/contact-prep', express.json({ limit: '256kb' }), aiRoute(b => aiassist.callPrep({ person: b.person || {} })));
 app.post('/api/ai/enrich-contact', express.json({ limit: '64kb' }), aiRoute(b => aiassist.enrichContact(b || {})));
 app.post('/api/ai/enrich-company', express.json({ limit: '64kb' }), aiRoute(b => aiassist.enrichCompany(b || {})));
+// Parse a pasted blob (email signature, business card, forwarded intro) into contact + company fields.
+app.post('/api/ai/parse-contact', express.json({ limit: '64kb' }), aiRoute(b => aiassist.parseEmailContact({ from: String((b && b.from) || ''), subject: '', body: String((b && b.text) || '').slice(0, 12000) })));
 app.post('/api/ai/loi-review', express.json({ limit: '256kb' }), aiRoute(b => aiassist.reviewLoi({ text: b.text || '' })));
 app.post('/api/ai/concept', express.json({ limit: '256kb' }), aiRoute(b => aiassist.conceptPositioning({ concept: b.concept || {}, locations: b.locations || [] })));
 app.post('/api/ai/site-read', express.json({ limit: '256kb' }), aiRoute(b => aiassist.locationSiteRead({ location: b.location || {} })));
@@ -9600,6 +9587,77 @@ app.post('/api/company/:id/find-concepts', express.json(), async (req, res) => {
 // write the company ONCE with dedup applied. Much faster than the per-concept chain and
 // safe from the save race (a single load/mutate/save at the end). Also sets the company
 // logo from the group's own website when the company doesn't already have one.
+// Parse a pasted list of a group's brands + locations into a structured preview (no web lookup).
+app.post('/api/company/:id/parse-list', express.json({ limit: '128kb' }), async (req, res) => {
+  try {
+    if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'You do not have access to AI features.' });
+    const c = loadCompanies().find(x => x.id === req.params.id);
+    if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+    const text = String((req.body || {}).text || '').trim();
+    if (!text) return res.status(400).json({ ok: false, error: 'Paste a list first.' });
+    let out;
+    try { out = await aiassist.parseConceptList({ text, conceptTypes: CONCEPT_TYPES, cuisines: effCuisineTypes() }); }
+    catch (e) { return res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
+    const concepts = (Array.isArray(out && out.concepts) ? out.concepts : []).map(cc => ({
+      name: String((cc && cc.name) || '').slice(0, 120),
+      conceptType: (CONCEPT_TYPES.indexOf(cc && cc.conceptType) >= 0) ? cc.conceptType : '',
+      cuisine: (effCuisineTypes().indexOf(cc && cc.cuisine) >= 0) ? cc.cuisine : '',
+      website: String((cc && cc.website) || '').slice(0, 300),
+      locations: (Array.isArray(cc && cc.locations) ? cc.locations : []).map(l => ({
+        name: String((l && l.name) || '').slice(0, 120), address: String((l && l.address) || '').slice(0, 200),
+        city: String((l && l.city) || '').slice(0, 80), state: String((l && l.state) || '').slice(0, 20), phone: String((l && l.phone) || '').slice(0, 40)
+      })).slice(0, 100)
+    })).filter(cc => cc.name).slice(0, 60);
+    res.json({ ok: true, concepts });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// Create concept + location records from a reviewed, structured list (dedups against what's already on file).
+app.post('/api/company/:id/import-concepts', express.json({ limit: '256kb' }), (req, res) => {
+  try {
+    const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
+    if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
+    const inC = Array.isArray((req.body || {}).concepts) ? req.body.concepts : [];
+    if (!inC.length) return res.status(400).json({ ok: false, error: 'Nothing to import.' });
+    c.concepts = c.concepts || []; c.locations = c.locations || [];
+    const now = new Date().toISOString();
+    const _lk = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+    let addedConcepts = 0, addedLocations = 0;
+    inC.slice(0, 60).forEach(rc => {
+      const name = String((rc && rc.name) || '').trim(); if (!name) return;
+      const website = String((rc && rc.website) || '').slice(0, 300);
+      const conceptType = (CONCEPT_TYPES.indexOf(rc && rc.conceptType) >= 0) ? rc.conceptType : '';
+      const cuisine = (effCuisineTypes().indexOf(rc && rc.cuisine) >= 0) ? rc.cuisine : '';
+      let cpt = c.concepts.find(x => normKey(x.name) === normKey(name));
+      if (cpt) {
+        if (!String(cpt.website || '').trim() && website) cpt.website = website;
+        if (!String(cpt.conceptType || '').trim() && conceptType) cpt.conceptType = conceptType;
+        if (!String(cpt.cuisine || '').trim() && cuisine) cpt.cuisine = cuisine;
+        if (!String(cpt.logo || '').trim() && website) { const lg = logoFromWebsite(website); if (lg) cpt.logo = lg; }
+        cpt.updatedAt = now;
+      } else {
+        cpt = { id: newConceptId(), name: name.slice(0, 120), website, logo: website ? logoFromWebsite(website) : '', markets: [], conceptType, pricePoint: '', cuisine, createdAt: now };
+        c.concepts.push(cpt); addedConcepts++;
+      }
+      (Array.isArray(rc && rc.locations) ? rc.locations : []).slice(0, 100).forEach(l => {
+        const address = String((l && l.address) || '').trim(), lname = String((l && l.name) || '').trim();
+        const city = String((l && l.city) || '').trim(), state = String((l && l.state) || '').trim(), phone = String((l && l.phone) || '').trim();
+        if (!address && !lname && !city) return;
+        const dupe = c.locations.some(x => {
+          if ((x.concept || '') !== cpt.name) return false;
+          const ax = _lk(x.address), al = _lk(address); if (ax && al && ax === al) return true;
+          const px = _lk(x.phone), pl = _lk(phone); if (px && pl && px === pl) return true;
+          const nx = _lk(x.name), nl = _lk(lname), cx = _lk(x.city), cl = _lk(city); if (nx && nl && nx === nl && cx === cl) return true;
+          return false;
+        });
+        if (dupe) return;
+        c.locations.push({ id: newLocationId(), name: lname.slice(0, 120), concept: cpt.name, address: address.slice(0, 200), city: city.slice(0, 80), state: state.slice(0, 20), phone: phone.slice(0, 40), website: cpt.website || '', opened: '', status: 'Operating', notes: '', photos: [], source: 'paste-import', createdAt: now });
+        addedLocations++;
+      });
+    });
+    c.updatedAt = now; saveCompanies(arr);
+    res.json({ ok: true, addedConcepts, addedLocations, concepts: c.concepts, locations: c.locations });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 app.post('/api/company/:id/build-concepts', express.json(), async (req, res) => {
   try {
     if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'You do not have access to AI features.' });

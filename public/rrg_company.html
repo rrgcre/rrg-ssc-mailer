@@ -716,12 +716,14 @@ function openConceptBuilder(){
     +(C.type==='Landlord'?'':('<div class="wide" data-ai="" style="margin-top:-2px"><button type="button" class="findbtn" id="cb_findgroup" style="background:#fff;color:#2c5c8f;border-color:#2c5c8f">✨ Find '+esc(C.name||'this company')+'’s '+esc(CLABELP.toLowerCase())+'</button> <span style="font-size:11.5px;color:#8a80b3">'+esc(ASSISTANT)+' searches the web for every '+esc(CLABEL.toLowerCase())+' '+esc(C.name||'this company')+' operates and builds each one — website, type, cuisine, price, logo and locations</span></div>'))
     +'<div><label class="fld">Major metro they operate in</label><input id="cb_metro" list="cb_mklist" placeholder="e.g. Dallas, Austin"><datalist id="cb_mklist">'+mkOpts+'</datalist></div>'
     +'<div><label class="fld">Approx. # locations each</label><input id="cb_count" placeholder="optional"></div>'
+    +'<div class="wide" style="border-top:1px dashed #d9dfe9;margin-top:6px;padding-top:11px"><label class="fld">Or paste a list you already have — brands with their addresses</label><textarea id="cb_paste" rows="5" placeholder="Paste the list — one location per line, e.g.&#10;Blue Agave Cantina — 123 Main St, Austin TX&#10;Blue Agave Cantina — 456 Oak Ave, Round Rock TX&#10;El Toro Steakhouse — 789 Elm St, Dallas TX" style="width:100%;padding:9px 11px;font:inherit;font-size:13px;border:1px solid #d5dbe6;border-radius:9px;resize:vertical"></textarea><div style="margin-top:6px;display:flex;align-items:center;gap:9px;flex-wrap:wrap"><button type="button" class="findbtn" id="cb_import" style="background:#fff;color:#2c5c8f;border-color:#2c5c8f">📋 Import pasted list</button><span style="font-size:11.5px;color:#8a93a8">No web search — structures exactly what you paste into '+esc(CLABELP.toLowerCase())+' &amp; locations</span></div><div id="cb_imprev" style="margin-top:8px"></div></div>'
     +'</div><div class="cbtns"><button type="button" class="findbtn" id="cb_go">✨ Build all</button><button type="button" class="mfadd" id="cb_manual">Add one manually</button><button type="button" class="cbtn" id="cb_cancel">Cancel</button><span id="cb_msg" class="findmsg"></span></div></div>';
   f.removeAttribute('hidden'); expandCardOf(f);
   document.getElementById('cb_go').addEventListener('click',buildAllConcepts);
   var _fg=document.getElementById('cb_findgroup'); if(_fg) _fg.addEventListener('click',findGroupConcepts);
   document.getElementById('cb_manual').addEventListener('click',function(){ openConceptForm(null); });
-  document.getElementById('cb_cancel').addEventListener('click',function(){ f.setAttribute('hidden','');f.innerHTML='';render(); });
+  var _ip=document.getElementById('cb_import'); if(_ip) _ip.addEventListener('click',importPastedList);
+  document.getElementById('cb_cancel').addEventListener('click',function(){ _pastedConcepts=null; f.setAttribute('hidden','');f.innerHTML='';render(); });
   var _bhd=f.querySelector('.findhd'); if(_bhd) _bhd.addEventListener('click',function(e){ if(e.target.closest('input,textarea,button,select')) return; var card=f.querySelector('.findcard'); if(card) card.classList.toggle('collapsed'); });
   document.getElementById('cb_names').focus();
 }
@@ -751,6 +753,34 @@ function autoFindGroup(metro){
     if(!names.length){ if(typeof aiHide==='function') aiHide(); alert((j&&j.error)||('Could not auto-find '+CLABELP.toLowerCase()+'. Add them with “+ Add '+CLABEL.toLowerCase()+'”.')); return; }
     runBuildConcepts(names,metro||'','',(j&&j.groupWebsite)||'');
   }).catch(function(){ if(typeof aiHide==='function') aiHide(); alert('Could not reach the server.'); });
+}
+var _pastedConcepts=null;
+function importPastedList(){
+  var ta=document.getElementById('cb_paste'); var txt=((ta&&ta.value)||'').trim();
+  var prev=document.getElementById('cb_imprev'); var btn=document.getElementById('cb_import');
+  if(!txt){ if(ta) ta.focus(); if(prev) prev.innerHTML='<span style="color:#b23a2c;font-size:12px">Paste a list first.</span>'; return; }
+  if(btn) btn.disabled=true; if(prev) prev.innerHTML='<span style="color:#6b7488;font-size:12px">Reading the list…</span>';
+  fetch('/api/company/'+encodeURIComponent(ID)+'/parse-list',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:txt})}).then(function(r){return r.json();}).then(function(j){
+    if(btn) btn.disabled=false;
+    if(!j||!j.ok||!(j.concepts&&j.concepts.length)){ if(prev) prev.innerHTML='<span style="color:#b23a2c;font-size:12px">'+esc((j&&j.error)||('Couldn’t find any '+CLABELP.toLowerCase()+' in that text.'))+'</span>'; return; }
+    _pastedConcepts=j.concepts;
+    var locN=0; j.concepts.forEach(function(c){ locN+=(c.locations||[]).length; });
+    var rows=j.concepts.map(function(c){ var ln=(c.locations||[]).length; var sub=(c.locations||[]).map(function(l){ return esc([l.address,l.city,l.state].filter(Boolean).join(', ')||l.name||'location'); }).join('<br>'); return '<div style="border:1px solid #e6ebf3;border-radius:8px;padding:8px 10px;margin-bottom:6px"><div style="font-weight:700;color:#20334f;font-size:13px">'+esc(c.name)+' <span style="font-weight:600;color:#8a93a8;font-size:11.5px">— '+ln+' location'+(ln===1?'':'s')+(c.conceptType?(' · '+esc(c.conceptType)):'')+(c.cuisine?(' · '+esc(c.cuisine)):'')+'</span></div>'+(sub?'<div style="font-size:11.5px;color:#6b7488;margin-top:3px;line-height:1.5">'+sub+'</div>':'')+'</div>'; }).join('');
+    prev.innerHTML='<div style="font-size:12.5px;font-weight:700;color:#20334f;margin-bottom:6px">Found '+j.concepts.length+' '+((j.concepts.length===1)?esc(CLABEL.toLowerCase()):esc(CLABELP.toLowerCase()))+' · '+locN+' location'+(locN===1?'':'s')+' — review, then import</div>'+rows+'<div style="margin-top:8px;display:flex;gap:8px;align-items:center"><button type="button" class="findbtn" id="cb_impgo">Import all</button><button type="button" class="cbtn" id="cb_impcancel">Cancel</button><span id="cb_impmsg" class="findmsg"></span></div>';
+    var _g=document.getElementById('cb_impgo'); if(_g) _g.addEventListener('click',commitPastedList);
+    var _cx=document.getElementById('cb_impcancel'); if(_cx) _cx.addEventListener('click',function(){ _pastedConcepts=null; if(prev) prev.innerHTML=''; });
+  }).catch(function(){ if(btn) btn.disabled=false; if(prev) prev.innerHTML='<span style="color:#b23a2c;font-size:12px">Could not reach the server.</span>'; });
+}
+function commitPastedList(){
+  if(!_pastedConcepts||!_pastedConcepts.length) return;
+  var go=document.getElementById('cb_impgo'); var msg=document.getElementById('cb_impmsg'); if(go){ go.disabled=true; go.textContent='Importing…'; }
+  fetch('/api/company/'+encodeURIComponent(ID)+'/import-concepts',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({concepts:_pastedConcepts})}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ if(go){ go.disabled=false; go.textContent='Import all'; } if(msg) msg.textContent=(j&&j.error)||'Could not import.'; return; }
+    CONCEPTS=j.concepts||CONCEPTS; LOCATIONS=j.locations||LOCATIONS; _pastedConcepts=null;
+    var f=document.getElementById('conceptForm'); if(f){ f.setAttribute('hidden','');f.innerHTML=''; }
+    render();
+    if(window.rrgToast) rrgToast('Imported '+(j.addedConcepts||0)+' '+((j.addedConcepts===1)?CLABEL.toLowerCase():CLABELP.toLowerCase())+' · '+(j.addedLocations||0)+' location'+((j.addedLocations===1)?'':'s')+' ✓');
+  }).catch(function(){ if(go){ go.disabled=false; go.textContent='Import all'; } if(msg) msg.textContent='Could not reach the server.'; });
 }
 function buildAllConcepts(){
   var names=(document.getElementById('cb_names').value||'').split(/\n/).map(function(s){return s.trim();}).filter(Boolean);

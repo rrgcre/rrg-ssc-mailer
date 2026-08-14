@@ -132,6 +132,16 @@ async function parseEmailContact({ from, subject, body }) {
   const payload = 'FROM: ' + String(from || '') + '\nSUBJECT: ' + String(subject || '') + '\n\nBODY:\n' + String(body || '').slice(0, 12000);
   return extractJson(await callClaude(sys, payload, 700)) || { found: false };
 }
+// 6b) Structure a pasted list of a group's brands + locations (NO web lookup — just organize what's given).
+async function parseConceptList({ text, conceptTypes, cuisines }) {
+  const sys = 'You are a restaurant/bar commercial real-estate broker\'s intake assistant. You are given a pasted list of restaurant/bar brands and their locations, all owned by ONE ownership group. ' +
+    'Organize it for the CRM. Group every location that belongs to the same brand under ONE concept. ' +
+    'Return ONLY JSON: {"concepts":[{"name":"","conceptType":"","cuisine":"","website":"","locations":[{"name":"","address":"","city":"","state":"","phone":""}]}]}. ' +
+    'name = the brand/concept name. locations = each physical location for that brand found in the text (street address, city, 2-letter US state, phone if present). location "name" is an optional store label (e.g. "Downtown", "The Domain") or "". ' +
+    'conceptType: pick from ' + JSON.stringify(conceptTypes || []) + ' only if clearly implied, else "". cuisine: pick from ' + JSON.stringify(cuisines || []) + ' only if clearly implied, else "". website: only if a domain is literally present in the text; never guess. ' +
+    'Do NOT invent brands, addresses, phones, or websites that are not in the text. If a brand is listed with no address, include it with an empty locations array. If nothing is parseable, return {"concepts":[]}.';
+  return extractJson(await callClaude(sys, 'LIST:\n' + String(text || '').slice(0, 14000), 2200)) || { concepts: [] };
+}
 // 7) Company enrichment from name/website.
 async function enrichCompany({ name, website, markets }) {
   const sys = 'You are a restaurant/bar CRE broker\'s assistant. From a company/group name and website, infer a concise CRM profile. ' +
@@ -367,4 +377,4 @@ async function refineBov({ state, message, history, agentName }) {
   }
   return out;
 }
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, parseConceptList, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };

@@ -115,6 +115,11 @@ tr:hover td{background:#fbfcfe;}
 <div id="modal" class="modal" hidden><div class="modalcard">
   <div class="modalh">New company</div>
   <div class="modalb">
+    <div id="m_pastewrap" style="background:#f0f5ff;border:1px solid #d3e0f5;border-radius:8px;padding:11px 12px;margin-bottom:16px">
+      <label class="mfld" style="margin-top:0">Paste to fill <span class="mopt" style="text-transform:none;font-weight:600;letter-spacing:0;color:#6b7488">— drop an email signature, business card, or any blob and we'll split it into the fields below</span></label>
+      <textarea id="m_paste" rows="3" placeholder="Paste here — e.g. John Rivera, GM, Blue Agave Cantina, john@blueagave.com, (512) 555-0134, Austin TX" style="width:100%;border:1px solid #c4ccda;border-radius:6px;padding:10px 12px;font:inherit;font-size:13.5px;resize:vertical;background:#fff"></textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:8px"><button type="button" id="m_pastebtn" class="mbtn" style="padding:7px 14px;font-size:13px">Read &amp; fill</button><span id="m_pastemsg" style="font-size:12px;color:#6b7488;font-weight:600"></span></div>
+    </div>
     <label class="mfld">Company name</label><input id="m_name" autocomplete="off" placeholder="e.g. Blue Agave Restaurant Group">
     <div id="m_dupe" class="dupe" hidden></div>
     <label class="mfld">Type</label><select id="m_type"></select>
@@ -279,14 +284,38 @@ function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=C
   var psel=document.getElementById('m_pipeline'); if(psel){ var _pops=(PIPELINES||[]).map(function(pp){return '<option value="'+esc(pp.id)+'">'+esc(pp.name)+'</option>';}).join(''); psel.innerHTML=(PIPELINE_REQUIRED?'':'<option value="">\u2014 Don\u2019t start a listing \u2014</option>')+_pops; if(PIPELINE_REQUIRED){ var _def=(PIPELINES||[]).filter(function(pp){return pp.id==='p_bizsales'||/business sale/i.test((pp.area||'')+' '+(pp.name||''));})[0]; if(_def) psel.value=_def.id; } else { psel.value=''; } var _ph=document.getElementById('m_pipeline_hint'); if(_ph) _ph.textContent=PIPELINE_REQUIRED?'\u2014 required; starts this lead on the board as Unqualified':'\u2014 optional; adding a company doesn\u2019t start a listing \u2014 pick one only when the deal is real'; }
   var cu=document.getElementById('m_cuisine'); if(cu) cu.innerHTML='<option value="">— cuisine (optional) —</option>'+CUISINE.map(function(m){return '<option>'+esc(m)+'</option>';}).join(''); var cty=document.getElementById('m_conctype'); if(cty) cty.innerHTML='<option value="">— concept type (optional) —</option>'+CONCEPTTYPES.map(function(m){return '<option>'+esc(m)+'</option>';}).join(''); var lsd=document.getElementById('leadsrclist'); if(lsd) lsd.innerHTML=(LEADSOURCES||[]).map(function(m){return '<option value="'+esc(m)+'">';}).join('');
   var mcs0=document.getElementById('m_concepts'); if(mcs0){ mcs0.dataset.auto=''; }
-  ['m_concepts','m_conccount','m_metro','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  ['m_concepts','m_conccount','m_metro','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes','m_paste'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
+  var _pm=document.getElementById('m_pastemsg'); if(_pm){ _pm.textContent=''; }
   var ct=document.getElementById('m_ctype'); if(ct) ct.innerHTML='<option value="">— select —</option>'+PERSONTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
   function fillDL(id,arr){ var el=document.getElementById(id); if(el) el.innerHTML=(arr||[]).map(function(v){return '<option value="'+esc(v)+'"></option>';}).join(''); }
   fillDL('citylist',CITIES); fillDL('titlelist',TITLES); fillDL('taglist',ALLTAGS);
   MTAGS=[]; renderMTags(); MMETROS=[]; renderMMetros(); document.querySelectorAll('.m_prefchk').forEach(function(c){c.checked=false;});
   var _cl=document.getElementById('m_clead'); if(_cl) _cl.value=''; setupCReferral();
   document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_name').focus(); }
-function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_name','m_concept','m_concepts','m_conccount','m_website','m_addr','m_city','m_state','m_zip','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes','m_clead','m_crefby','m_lead'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); var _cc=document.getElementById('crefbyCell'); if(_cc) _cc.style.display='none'; var box=document.getElementById('m_dupe'); box.setAttribute('hidden','');box.innerHTML=''; document.getElementById('m_create').disabled=false; document.getElementById('m_create').textContent='Create company'; MTAGS=[]; if(typeof renderMTags==='function') renderMTags(); MMETROS=[]; if(typeof renderMMetros==='function') renderMMetros(); }
+function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_name','m_concept','m_concepts','m_conccount','m_website','m_addr','m_city','m_state','m_zip','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes','m_clead','m_crefby','m_lead','m_paste'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); var _pm=document.getElementById('m_pastemsg'); if(_pm) _pm.textContent=''; var _cc=document.getElementById('crefbyCell'); if(_cc) _cc.style.display='none'; var box=document.getElementById('m_dupe'); box.setAttribute('hidden','');box.innerHTML=''; document.getElementById('m_create').disabled=false; document.getElementById('m_create').textContent='Create company'; MTAGS=[]; if(typeof renderMTags==='function') renderMTags(); MMETROS=[]; if(typeof renderMMetros==='function') renderMMetros(); }
+function _pasteSet(id,v){ var el=document.getElementById(id); if(el && v!=null && String(v).trim()!==''){ el.value=String(v).trim(); } }
+function pasteFill(){
+  var ta=document.getElementById('m_paste'); var txt=((ta&&ta.value)||'').trim();
+  var msg=document.getElementById('m_pastemsg'); var btn=document.getElementById('m_pastebtn');
+  if(!txt){ if(msg){ msg.style.color='#b23a2c'; msg.textContent='Paste something first.'; } if(ta) ta.focus(); return; }
+  if(btn) btn.disabled=true; if(msg){ msg.style.color='#6b7488'; msg.textContent='Reading…'; }
+  fetch('/api/ai/parse-contact',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({text:txt})}).then(function(r){return r.json();}).then(function(j){
+    if(btn) btn.disabled=false;
+    var p=(j&&j.ok&&j.result)||null;
+    if(!p||p.found===false){ if(msg){ msg.style.color='#b23a2c'; msg.textContent='Couldn’t find a clear contact — fill the fields by hand.'; } return; }
+    _pasteSet('m_name',p.companyName); _pasteSet('m_website',p.companyWebsite);
+    _pasteSet('m_addr',p.address); _pasteSet('m_city',p.city); _pasteSet('m_state',p.state);
+    _pasteSet('m_cfirst',p.firstName); _pasteSet('m_clast',p.lastName); _pasteSet('m_ctitle',p.title);
+    var _ph=document.getElementById('m_cphone'); if(_ph && p.phone){ _ph.value=(typeof mfmtPhone==='function')?mfmtPhone(String(p.phone)):String(p.phone); }
+    _pasteSet('m_cemail',p.email);
+    if(p.city && (METROS||[]).indexOf(String(p.city).trim())>=0 && (MMETROS||[]).indexOf(String(p.city).trim())<0 && typeof addMMetro==='function'){ addMMetro(String(p.city).trim()); }
+    var ct=document.getElementById('m_ctype'); if(ct && p.interest && (PERSONTYPES||[]).indexOf(p.interest)>=0){ ct.value=p.interest; }
+    if(typeof checkDupe==='function'){ try{ checkDupe(); }catch(e){} }
+    var needInterest=(p.firstName||p.lastName)&&!(ct&&ct.value);
+    if(msg){ msg.style.color='#1f8a5b'; msg.textContent='Filled — review below'+(needInterest?', pick a main interest,':'')+' then Create.'; }
+    var mn=document.getElementById('m_name'); if(mn && !mn.value){ mn.focus(); }
+  }).catch(function(){ if(btn) btn.disabled=false; if(msg){ msg.style.color='#b23a2c'; msg.textContent='Couldn’t reach the parser — fill by hand.'; } });
+}
 async function createCompany(){
   var name=document.getElementById('m_name').value.trim(); if(!name){ document.getElementById('m_name').focus(); return; }
   var d=findDupe(name); if(d){ if(await rrgConfirm('“'+d.name+'” is already in your book. Open it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(d.id); return; }
@@ -364,6 +393,7 @@ document.getElementById('m_name').addEventListener('input',function(){ var mcs=d
 var _mc=document.getElementById('m_concepts'); if(_mc) _mc.addEventListener('input',function(){ this.dataset.auto=''; });
 document.getElementById('m_cancel').addEventListener('click',closeModal);
 document.getElementById('m_create').addEventListener('click',createCompany);
+(function(){ var pb=document.getElementById('m_pastebtn'); if(pb) pb.addEventListener('click',pasteFill); var pt=document.getElementById('m_paste'); if(pt) pt.addEventListener('keydown',function(e){ if((e.ctrlKey||e.metaKey)&&e.key==='Enter'){ e.preventDefault(); pasteFill(); } }); })();
 function updateFindGrp(){ var w=document.getElementById('m_findgrp_wrap'); var t=document.getElementById('m_type'); if(!w||!t) return; var isG=(t.value==='Restaurant Group'); w.style.display=isG?'':'none'; if(!isG){ var cb=document.getElementById('m_findgrp'); if(cb) cb.checked=false; } toggleConceptEntry(); }
 function toggleConceptEntry(){ var cb=document.getElementById('m_findgrp'); var ta=document.getElementById('m_concepts'); if(!ta) return; var on=!!(cb&&cb.checked); if(on){ ta.value=''; try{ta.dataset.auto='';}catch(e){} var _cm=document.getElementById('m_concept_msg'); if(_cm) _cm.textContent=''; } ta.disabled=on; ta.style.opacity=on?'.5':''; ta.placeholder=on?'AI will find the concepts on Create':'One concept per line'; }
 document.getElementById('m_type').addEventListener('change',updateFindGrp);
