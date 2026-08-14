@@ -141,6 +141,11 @@ const ACTIVITY_TYPES = ['Tour', 'Photo Shoot', 'Meal', 'Text', 'Call', 'Email', 
 // Reasons a broker closes & archives a data room — editable in Admin → Lists.
 const ROOM_CLOSE_REASONS = ['Transaction closed (sold)', 'Deal cancelled', 'Listing expired', 'Seller withdrew', 'Buyer withdrew', 'Financing fell through', 'Other'];
 const CUISINE_TYPES = ['American', 'Tex-Mex', 'Mexican', 'Italian', 'Pizza', 'Burgers', 'BBQ', 'Steakhouse', 'Seafood', 'Chinese', 'Japanese / Sushi', 'Thai', 'Vietnamese', 'Korean', 'Indian', 'Mediterranean', 'Greek', 'Southern / Soul', 'Breakfast / Brunch', 'Coffee / Cafe', 'Hawaiian', 'Desserts', 'Bar / Lounge'];
+// Markets (metros) — ONE admin-editable list that feeds both the CRM entry fields (company/listing
+// markets) and the matching engine (Buy-Box, Tenant-Box, marketplace), so they never drift apart.
+// "Other" is system-required: the matching engine uses it as the catch-all bucket.
+const MARKETS = ['Austin', 'Dallas', 'Fort Worth', 'Houston', 'San Antonio', 'Rio Grande Valley', 'Central Texas', 'Other'];
+const SYSTEM_MARKETS = ['Other'];
 function loadPeople() { try { return rj(PEOPLE_FILE); } catch (e) { return []; } }
 function savePeople(a) {
   try {
@@ -409,6 +414,7 @@ function effLeadSources() { const s = loadSettings(); let list = (Array.isArray(
 function effActivityTypes() { const s = loadSettings(); return _mergeRequired((Array.isArray(s.activityTypes) && s.activityTypes.length) ? s.activityTypes : ACTIVITY_TYPES, SYSTEM_ACTIVITY_TYPES); }
 function effRoomCloseReasons() { const s = loadSettings(); return (Array.isArray(s.roomCloseReasons) && s.roomCloseReasons.length) ? s.roomCloseReasons : ROOM_CLOSE_REASONS; }
 function effCuisineTypes() { const s = loadSettings(); return (Array.isArray(s.cuisineTypes) && s.cuisineTypes.length) ? s.cuisineTypes : CUISINE_TYPES; }
+function effMarkets() { const s = loadSettings(); const base = (Array.isArray(s.markets) && s.markets.length) ? s.markets : MARKETS; return _mergeRequired(base, SYSTEM_MARKETS); }
 function effMaxPullLocations() { const s = loadSettings(); const n = parseInt(s.maxPullLocations, 10); return (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
 function effDefaultState() { const s = loadSettings(); const v = String(s.defaultState || '').trim(); return v ? v.slice(0, 20) : 'TX'; }
 function effAssistantName() { const s = loadSettings(); const v = String(s.assistantName || '').trim(); return v ? v.slice(0, 40) : 'Claude'; }
@@ -4883,12 +4889,12 @@ app.get('/api/assignments', (req, res) => {
   const isAdmin = req.user && isSuper(req.user);
   const list = Object.values(deals).filter(d => isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d)).map(d => assignmentView(d, overlay));
   list.sort((a, b) => String(b.lastActivity).localeCompare(String(a.lastActivity)));
-  res.json({ ok: true, isAdmin: !!isAdmin, canDelete: canDelete(req), statuses: ASSIGN_STATUSES, metros: RRG_METROS, assignments: list });
+  res.json({ ok: true, isAdmin: !!isAdmin, canDelete: canDelete(req), statuses: ASSIGN_STATUSES, metros: effMarkets(), assignments: list });
 });
 // ================= Marketplace =================
 // Publish Live listings to a public, NDA-gated buyer page. The public teaser is BLIND —
 // it never carries the business name, address, or contact; those release only under NDA.
-const MKT_METROS = ['San Antonio', 'Austin', 'Houston', 'Dallas', 'Fort Worth', 'Other'];
+// Marketplace/matching markets now come from effMarkets() (admin-editable, unified with CRM markets).
 const MKT_CONCEPTS = ['Breakfast / Brunch', 'Bar / Nightlife', 'Fast Casual', 'Full Service', 'Café / Bakery', 'Pizza', 'Steakhouse', 'Other'];
 const MKT_PRICE = { '': 'Any price', u1m: 'Under $1M', '1-3m': '$1M – $3M', '3-5m': '$3M – $5M', '5m+': '$5M+' };
 const MKT_CASH = { '': 'Any cash flow', '250k': '$250K+ SDE', '500k': '$500K+ SDE', '1m': '$1M+ SDE' };
@@ -4904,7 +4910,7 @@ function mktClean(b, prev) {
   if (b.conceptKey !== undefined) out.conceptKey = MKT_CONCEPTS.indexOf(b.conceptKey) >= 0 ? b.conceptKey : '';
   if (b.units !== undefined) out.units = (b.units === '' || b.units == null) ? '' : Math.max(0, Math.min(999, parseInt(b.units, 10) || 0));
   if (b.loc !== undefined) out.loc = s(b.loc, 60);
-  if (b.marketKey !== undefined) out.marketKey = MKT_METROS.indexOf(b.marketKey) >= 0 ? b.marketKey : 'Other';
+  if (b.marketKey !== undefined) out.marketKey = effMarkets().indexOf(b.marketKey) >= 0 ? b.marketKey : 'Other';
   if (b.revenue !== undefined) out.revenue = s(b.revenue, 40);
   if (b.sde !== undefined) out.sde = s(b.sde, 40);
   if (b.earnBasis !== undefined) out.earnBasis = (b.earnBasis === 'EBITDA') ? 'EBITDA' : 'SDE';
@@ -4917,7 +4923,7 @@ function mktClean(b, prev) {
 }
 function mktSuggest(view) {
   const mk = view.market || '';
-  const metro = MKT_METROS.filter(m => mk.toLowerCase().indexOf(m.toLowerCase()) >= 0)[0] || 'Other';
+  const metro = effMarkets().filter(m => mk.toLowerCase().indexOf(m.toLowerCase()) >= 0)[0] || 'Other';
   return { loc: mk ? (/(metro|area)/i.test(mk) ? mk : (mk + ' metro')) : '', marketKey: metro, guide: view.value || '' };
 }
 function mktTeaser(key, view, m) {
@@ -4960,7 +4966,7 @@ app.get('/api/marketplace', (req, res) => {
         teaser: o.market || null, suggest: mktSuggest(view) };
     });
   rows.sort((a, b) => ((b.live ? 1 : 0) - (a.live ? 1 : 0)) || String(a.business).localeCompare(String(b.business)));
-  res.json({ ok: true, isAdmin: !!isAdmin, metros: MKT_METROS, concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, publicUrl: (req.protocol + '://' + req.get('host') + '/market'), listings: rows });
+  res.json({ ok: true, isAdmin: !!isAdmin, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, publicUrl: (req.protocol + '://' + req.get('host') + '/market'), listings: rows });
 });
 // Single listing's marketplace teaser — powers the "Publish to Marketplace" panel on the listing page.
 app.get('/api/marketplace/:key', (req, res) => {
@@ -4968,18 +4974,18 @@ app.get('/api/marketplace/:key', (req, res) => {
   if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
   if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const overlay = loadAssignOverlay(); const view = assignmentView(d, overlay); const o = overlay[key] || {};
-  res.json({ ok: true, metros: MKT_METROS, concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, publicUrl: (req.protocol + '://' + req.get('host') + '/market'),
+  res.json({ ok: true, metros: effMarkets(), concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, publicUrl: (req.protocol + '://' + req.get('host') + '/market'),
     listing: { key: key, business: view.business, market: view.market, value: view.value, roomId: view.roomId, status: view.status, teaser: o.market || null, suggest: mktSuggest(view) } });
 });
 // ===== Buyer buy-box + matching =====
 // A buyer's acquisition criteria, stored on the contact, in the SAME vocabulary as marketplace
-// listings (MKT_CONCEPTS / MKT_METROS / MKT_PRICE / MKT_CASH) so matching is exact.
+// listings (MKT_CONCEPTS / effMarkets() / MKT_PRICE / MKT_CASH) so matching is exact.
 function buyBoxClean(b, prev) {
   const out = Object.assign({}, prev || {});
   const s = (v, n) => String(v == null ? '' : v).slice(0, n);
   if (b.active !== undefined) out.active = !!b.active;
   if (b.concepts !== undefined) out.concepts = (Array.isArray(b.concepts) ? b.concepts : []).map(String).filter(x => MKT_CONCEPTS.indexOf(x) >= 0).slice(0, 12);
-  if (b.markets !== undefined) out.markets = (Array.isArray(b.markets) ? b.markets : []).map(String).filter(x => MKT_METROS.indexOf(x) >= 0).slice(0, 12);
+  if (b.markets !== undefined) out.markets = (Array.isArray(b.markets) ? b.markets : []).map(String).filter(x => effMarkets().indexOf(x) >= 0).slice(0, 12);
   if (b.priceMax !== undefined) out.priceMax = (b.priceMax in MKT_PRICE && b.priceMax) ? b.priceMax : '';
   if (b.sdeMin !== undefined) out.sdeMin = (b.sdeMin in MKT_CASH && b.sdeMin) ? b.sdeMin : '';
   if (b.unitsMin !== undefined) out.unitsMin = (b.unitsMin === '' || b.unitsMin == null) ? '' : Math.max(0, Math.min(999, parseInt(b.unitsMin, 10) || 0));
@@ -4998,7 +5004,7 @@ function _cashIdx(k) { return _CASH_ORDER.indexOf(k); }
 // Derive a listing's matchable fields from its marketplace teaser (+ view fallback).
 function _listingMatchFields(d, o, view) {
   const m = (o && o.market) || {};
-  const mk = m.marketKey || (MKT_METROS.filter(x => x !== 'Other' && String(view.market || '').toLowerCase().indexOf(x.toLowerCase()) >= 0)[0]) || '';
+  const mk = m.marketKey || (effMarkets().filter(x => x !== 'Other' && String(view.market || '').toLowerCase().indexOf(x.toLowerCase()) >= 0)[0]) || '';
   const units = (m.units !== '' && m.units != null) ? Number(m.units) : (parseInt(String(view.units || '').replace(/[^0-9]/g, ''), 10) || 0);
   return { conceptKey: m.conceptKey || '', marketKey: mk, priceBand: m.priceBand || '', cashBand: m.cashBand || '', units: units, reAvailable: !!m.reAvailable, published: !!m.published, hasTeaser: !!(m.conceptKey || m.marketKey || m.priceBand || m.published) };
 }
@@ -5081,7 +5087,7 @@ function tenantBoxClean(b, prev) {
   if (b.condition !== undefined) out.condition = (Array.isArray(b.condition) ? b.condition : []).map(String).filter(x => TB_CONDITIONS.indexOf(x) >= 0).slice(0, 5);
   if (b.deal !== undefined) out.deal = (TB_DEAL.indexOf(b.deal) >= 0 ? b.deal : 'both');
   if (b.amenities !== undefined) out.amenities = (Array.isArray(b.amenities) ? b.amenities : []).map(String).filter(x => TB_AMENITIES.indexOf(x) >= 0).slice(0, 20);
-  if (b.markets !== undefined) out.markets = (Array.isArray(b.markets) ? b.markets : []).map(String).filter(x => MKT_METROS.indexOf(x) >= 0).slice(0, 12);
+  if (b.markets !== undefined) out.markets = (Array.isArray(b.markets) ? b.markets : []).map(String).filter(x => effMarkets().indexOf(x) >= 0).slice(0, 12);
   if (b.budget !== undefined) out.budget = posInt(b.budget); // max rent, $/SF/yr
   if (b.areaNote !== undefined) out.areaNote = s(b.areaNote, 400);
   if (b.notes !== undefined) out.notes = s(b.notes, 2000);
@@ -5097,7 +5103,7 @@ function tenantBoxHasCriteria(tb) {
 function _spaceMatchFields(sp) {
   const feats = Array.isArray(sp.features) ? sp.features : [];
   const mkStr = String(sp.market || sp.center || '').toLowerCase();
-  const marketKey = MKT_METROS.filter(x => x !== 'Other' && mkStr.indexOf(x.toLowerCase()) >= 0)[0] || '';
+  const marketKey = effMarkets().filter(x => x !== 'Other' && mkStr.indexOf(x.toLowerCase()) >= 0)[0] || '';
   let cond = (TB_CONDITIONS.indexOf(sp.condition) >= 0) ? sp.condition : '';
   if (!cond && feats.indexOf('2nd-gen restaurant') >= 0) cond = 'Second-gen';
   const dealType = (['lease', 'sale', 'both'].indexOf(sp.dealType) >= 0) ? sp.dealType : '';
@@ -5228,7 +5234,7 @@ app.get('/market', (req, res) => { res.set('Content-Type', 'text/html; charset=u
 function marketplacePublicPage(req) {
   const org = esc(orgDisplayName());
   const opts = (o) => Object.keys(o).map(k => '<option value="' + esc(k) + '">' + esc(o[k]) + '</option>').join('');
-  const mkOpts = ['<option value="">All markets</option>'].concat(MKT_METROS.map(m => '<option value="' + esc(m) + '">' + esc(m) + '</option>')).join('');
+  const mkOpts = ['<option value="">All markets</option>'].concat(effMarkets().map(m => '<option value="' + esc(m) + '">' + esc(m) + '</option>')).join('');
   const cOpts = ['<option value="">All concepts</option>'].concat(MKT_CONCEPTS.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>')).join('');
   return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${org} — Confidential Marketplace</title>
@@ -8765,7 +8771,7 @@ app.get('/api/companies', (req, res) => {
     return { id: c.id, name: c.name, markets: Object.keys(mk), market: c.market || '', address: (c.office && [c.office.address, c.office.city, c.office.state].filter(Boolean).join(', ')) || '', type: c.type || '', tags: Array.isArray(c.tags) ? c.tags : [], logo: c.logo || '', logoAuto: logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || '')), concepts: (c.concepts || []).length, conceptNames: (c.concepts || []).map(cp => cp.name).filter(Boolean), contacts: _cp.length, locations: (c.locations || []).length, deals: deals.filter(d => d.companyId === c.id).length, mainContactId: (_main && _main.id) || '', mainContact: (_main && _main.name) || '', preferredContact: _pref, createdAt: c.createdAt, owner: c.by || '', leadSource: c.leadSource || '', interactions: (Array.isArray(c.activities) ? c.activities.length : 0), lastActiveAt: _companyLastActive(c, _coActMax[c.id] || '') };
   });
   const _cities = {}; cos.forEach(c => { if (c.office && c.office.city) _cities[c.office.city] = 1; (c.locations || []).forEach(l => { if (l.city) _cities[l.city] = 1; }); }); const _titles = {}; people.forEach(pp => { if (pp.title) _titles[pp.title] = 1; });
-  res.json({ ok: true, companies: rows, recencyDays: (effListRecencyEnabled() ? effListRecencyDays() : 0), canDelete: canDelete(req), types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: CONCEPT_TYPES, leadSources: effLeadSources(), users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), defaultState: effDefaultState(), personTypes: effPersonTypes(), metros: RRG_METROS, cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, companies: rows, recencyDays: (effListRecencyEnabled() ? effListRecencyDays() : 0), canDelete: canDelete(req), types: effCompanyTypes(), cuisineTypes: effCuisineTypes(), conceptTypes: CONCEPT_TYPES, leadSources: effLeadSources(), users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), defaultState: effDefaultState(), personTypes: effPersonTypes(), metros: effMarkets(), cities: Object.keys(_cities).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), titles: Object.keys(_titles).sort((x,y)=>x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // A person's full cross-book view: their company, the deals where they're the client,
 // and every offer / tour / NDA they're linked to across all deals.
@@ -8821,7 +8827,7 @@ app.get('/api/person/:id', (req, res) => {
   let _automations = []; try { _automations = loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === (req.user && req.user.username) || (req.user && isSuper(req.user)))).map(a => automationBrief(a, req.user || {})); } catch (e) { console.error('[/api/person] automations build failed for ' + p.id + ':', e && e.message); }
   let _users = []; try { _users = auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))); } catch (e) {}
   let _company = null; try { _company = companyBrief(companyById(p.companyId)); } catch (e) {}
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), types: personTypesOf(p), tags: personTags(p), companyName: (function(){ try{ var _c=companyById(p.companyId); return _c?(_c.name||''):''; }catch(e){ return ''; } })(), hasPhoto: !!p.photoExt }), relationship: (function(){ try{ return relationshipRollup(p.id); }catch(e){ return null; } })(), company: _company, deals, offers, tours, ndas, interested, agreements: _agreements, agreementTypes: effAgreementTypes(), appointments: _appointments, apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: _automations, emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: _users, activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), types: personTypesOf(p), tags: personTags(p), companyName: (function(){ try{ var _c=companyById(p.companyId); return _c?(_c.name||''):''; }catch(e){ return ''; } })(), hasPhoto: !!p.photoExt }), relationship: (function(){ try{ return relationshipRollup(p.id); }catch(e){ return null; } })(), company: _company, deals, offers, tours, ndas, interested, agreements: _agreements, agreementTypes: effAgreementTypes(), appointments: _appointments, apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), markets: effMarkets(), allTags: allTagsList(), automations: _automations, emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: _users, activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
  } catch (e) {
   console.error('[/api/person] fatal for ' + (req.params && req.params.id) + ':', (e && e.stack) || e);
   if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not load this contact — a linked record looks malformed. (' + ((e && e.message) || 'error') + ')' });
@@ -8831,7 +8837,7 @@ const LOCATION_STATUSES = ['Planned', 'Under Construction', 'Operating', 'Dark',
 const LOCATION_SITETYPES = ['Freestanding', 'End Cap', 'Inline', 'Food Hall', 'Ghost Kitchen', 'Other'];
 const CONCEPT_TYPES = ['Full-Service', 'Fast-Casual', 'QSR', 'Bar / Nightlife', 'Dancehall', 'Cafe / Bakery', 'Food Truck', 'Ghost Kitchen', 'Other'];
 const PRICE_POINTS = ['$', '$$', '$$$', '$$$$'];
-const RRG_METROS = ['Austin', 'Dallas', 'Houston', 'San Antonio', 'Rio Grande Valley', 'Central Texas'];
+// effMarkets() retired — CRM market fields now read effMarkets() (admin-editable, unified with matching).
 function newLocationId() { return 'loc_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function applyLocationFields(l, b) {
   if (typeof b.name === 'string') l.name = b.name.slice(0, 160);
@@ -9076,15 +9082,15 @@ app.get('/api/admin/types', requireAdmin, (req, res) => {
   const s = loadSettings();
   res.json({
     ok: true,
-    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags(),
-    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, roomCloseReasons: ROOM_CLOSE_REASONS, cuisineTypes: CUISINE_TYPES, agreementTypes: AGREEMENT_TYPES },
-    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), roomCloseReasons: Array.isArray(s.roomCloseReasons), cuisineTypes: Array.isArray(s.cuisineTypes), agreementTypes: Array.isArray(s.agreementTypes) },
-    systemRequired: { leadSources: SYSTEM_LEAD_SOURCES, personTypes: SYSTEM_PERSON_TYPES, companyTypes: SYSTEM_COMPANY_TYPES, activityTypes: SYSTEM_ACTIVITY_TYPES, agreementTypes: AGREEMENT_TYPES.map(function(t){ return t.label; }) },
+    personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), markets: effMarkets(), ...calFeatFlags(),
+    defaults: { personTypes: PERSON_TYPES, companyTypes: COMPANY_TYPES, ticketCategories: TICKET_CATEGORIES, leadSources: LEAD_SOURCES, activityTypes: ACTIVITY_TYPES, roomCloseReasons: ROOM_CLOSE_REASONS, cuisineTypes: CUISINE_TYPES, agreementTypes: AGREEMENT_TYPES, markets: MARKETS },
+    isCustom: { personTypes: Array.isArray(s.personTypes), companyTypes: Array.isArray(s.companyTypes), ticketCategories: Array.isArray(s.ticketCategories), leadSources: Array.isArray(s.leadSources), activityTypes: Array.isArray(s.activityTypes), roomCloseReasons: Array.isArray(s.roomCloseReasons), cuisineTypes: Array.isArray(s.cuisineTypes), agreementTypes: Array.isArray(s.agreementTypes), markets: Array.isArray(s.markets) },
+    systemRequired: { leadSources: SYSTEM_LEAD_SOURCES, personTypes: SYSTEM_PERSON_TYPES, companyTypes: SYSTEM_COMPANY_TYPES, activityTypes: SYSTEM_ACTIVITY_TYPES, agreementTypes: AGREEMENT_TYPES.map(function(t){ return t.label; }), markets: SYSTEM_MARKETS },
   });
 });
 app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
-  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags() }); }
+  if (b.reset) { delete s.personTypes; delete s.companyTypes; delete s.ticketCategories; delete s.leadSources; delete s.activityTypes; delete s.roomCloseReasons; delete s.cuisineTypes; delete s.markets; delete s.agreementTypes; delete s.maxPullLocations; delete s.defaultState; delete s.assistantName; delete s.listRecencyDays; delete s.listRecencyEnabled; delete s.conceptLabel; delete s.conceptLabelPlural; delete s.showRequestRibbon; delete s.pipelineRequiredOnCompany; delete s.showQuickLinks; delete s.sentSyncEnabled; delete s.sentSyncIntervalMin; delete s.currency; delete s.featCalSync; delete s.featCalTasks; delete s.featCalMeet; delete s.featWorkHours; delete s.featEventFiles; delete s.featBooking; delete s.featCalShare; saveSettings(s); return res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags() }); }
   if (b.personTypes !== undefined) { s.personTypes = cleanStrList(b.personTypes, 40, 60) || []; s.personTypes = _mergeRequired(s.personTypes, SYSTEM_PERSON_TYPES); }
   if (b.companyTypes !== undefined) { s.companyTypes = cleanStrList(b.companyTypes, 40, 60) || []; s.companyTypes = _mergeRequired(s.companyTypes, SYSTEM_COMPANY_TYPES); }
   if (b.ticketCategories !== undefined) s.ticketCategories = cleanStrList(b.ticketCategories, 40, 60) || [];
@@ -9105,6 +9111,7 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
     if (out.length) s.agreementTypes = out.slice(0, 40); else delete s.agreementTypes;
   }
   if (b.cuisineTypes !== undefined) s.cuisineTypes = cleanStrList(b.cuisineTypes, 40, 60) || [];
+  if (b.markets !== undefined) s.markets = _mergeRequired(cleanStrList(b.markets, 60, 60) || [], SYSTEM_MARKETS);
   if (b.maxPullLocations !== undefined) { const n = parseInt(b.maxPullLocations, 10); s.maxPullLocations = (isFinite(n) && n > 0) ? Math.min(500, n) : 20; }
   if (typeof b.defaultState === 'string') s.defaultState = b.defaultState.trim().slice(0, 20);
   if (typeof b.assistantName === 'string') s.assistantName = b.assistantName.trim().slice(0, 40);
@@ -9126,7 +9133,7 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   if (b.sentSyncIntervalMin !== undefined) { const n = parseInt(b.sentSyncIntervalMin, 10); s.sentSyncIntervalMin = (isFinite(n) && n >= 2) ? Math.min(720, n) : 10; }
   if (typeof b.currency === 'string') s.currency = b.currency.trim().slice(0,3).toUpperCase();
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), markets: effMarkets(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
@@ -9277,7 +9284,7 @@ app.get('/api/company/:id', (req, res) => {
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
   const companyActivity = companyActivityFeed(c);
-  res.json({ ok: true, company: c, relationship: (function(){ try{ return relationshipRollupCompany(c.id); }catch(e){ return null; } })(), logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: effAgreementTypes(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), activity: companyActivity, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), hasMaps: !!loadGmapsKey(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, company: c, relationship: (function(){ try{ return relationshipRollupCompany(c.id); }catch(e){ return null; } })(), logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: effAgreementTypes(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), activity: companyActivity, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: effMarkets(), titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), hasMaps: !!loadGmapsKey(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // ---- Company-level activity: notes / calls / meetings logged against the company itself. ----
 app.post('/api/company/:id/activity', express.json(), (req, res) => {
@@ -10340,7 +10347,7 @@ app.get('/api/command', (req, res) => {
   const statusMix = {}, siteMix = {}, marketCoverage = {};
   const multiUnit = [], singleUnit = [], darkUnits = [], underConstruction = [], noContacts = [], noDeals = [];
   const dealsByCompany = {}; loadDeals().forEach(d => { if (d.companyId) dealsByCompany[d.companyId] = (dealsByCompany[d.companyId] || 0) + 1; });
-  RRG_METROS.forEach(m => marketCoverage[m] = { concepts: 0, locations: 0 });
+  effMarkets().forEach(m => marketCoverage[m] = { concepts: 0, locations: 0 });
   companies.forEach(c => {
     const locs = c.locations || [];
     locTotal += locs.length;
