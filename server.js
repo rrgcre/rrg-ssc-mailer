@@ -4818,7 +4818,7 @@ function assignmentView(d, overlay) {
   const deal = d.deal || null;
   const pick = (f) => (deal && deal[f]) || (d.quest && d.quest[f]) || (d.bov && d.bov[f]) || (d.cim && d.cim[f]) || (d.map && d.map[f]) || (d.screen && d.screen[f]) || (d.lease && d.lease[f]) || (d.room && d.room[f]) || '';
   const business = o.businessOverride || pick('business') || 'Untitled';
-  const market = pick('market') || '';
+  const market = o.marketOverride || pick('market') || '';
   const contact = (d.screen && d.screen.contact) || (deal && deal.contact) || '';
   const anchor = deal || d.screen || d.quest || d.bov || d.cim || d.map || d.lease || d.room || {};
   const by = anchor.by || '', byUser = anchor.byUser || '';
@@ -5425,7 +5425,7 @@ app.get('/api/assignment/:key', (req, res) => {
   if (!(canSeeAllDeals(req) || ownsAssignment(req, d))) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const origin = req.protocol + '://' + req.get('host');
   const dealAgreements = loadAgreements().filter(a => a.dealKey === d.key).map(agreementBrief).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
-  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin) });
+  res.json({ ok: true, statuses: ASSIGN_STATUSES, txnStatuses: TXN_STATUSES, commStatuses: TXN_COMM_STATUS, markets: effMarkets(), assignment: assignmentView(d, overlay), agreements: dealAgreements, agreementTypes: effAgreementTypes(), pipelines: loadPipelines(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), expenses: dealExpenseRollup(d.key, req.user), invoices: dealInvoiceRollup(d.key, req.user), roomActivity: roomActivityFor(d, origin) });
 });
 app.post('/api/assignment/:key/promote', express.json(), (req, res) => {
   const key = req.params.key;
@@ -5451,6 +5451,7 @@ app.post('/api/assignment/:key/save', express.json(), (req, res) => {
   if (typeof b.notes === 'string') cur.notes = b.notes.slice(0, 8000);
   if (typeof b.owner === 'string') cur.owner = b.owner.slice(0, 120);
   if (typeof b.businessOverride === 'string') cur.businessOverride = b.businessOverride.slice(0, 120);
+  if (typeof b.marketOverride === 'string') cur.marketOverride = b.marketOverride.slice(0, 80);
   if (b.stageFlags && typeof b.stageFlags === 'object') {
     const allowedStages = ['outreach','agreed','offers','dd','closing'];
     const sf = {};
@@ -9133,7 +9134,7 @@ app.post('/api/admin/types', requireAdmin, express.json(), (req, res) => {
   if (b.sentSyncIntervalMin !== undefined) { const n = parseInt(b.sentSyncIntervalMin, 10); s.sentSyncIntervalMin = (isFinite(n) && n >= 2) ? Math.min(720, n) : 10; }
   if (typeof b.currency === 'string') s.currency = b.currency.trim().slice(0,3).toUpperCase();
   saveSettings(s);
-  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), cuisineTypes: effCuisineTypes(), markets: effMarkets(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags() });
+  res.json({ ok: true, personTypes: effPersonTypes(), companyTypes: effCompanyTypes(), ticketCategories: effTicketCategories(), leadSources: effLeadSources(), activityTypes: effActivityTypes(), roomCloseReasons: effRoomCloseReasons(), cuisineTypes: effCuisineTypes(), markets: effMarkets(), agreementTypes: effAgreementTypes(), maxPullLocations: effMaxPullLocations(), defaultState: effDefaultState(), assistantName: effAssistantName(), listRecencyDays: effListRecencyDays(), listRecencyEnabled: effListRecencyEnabled(), conceptLabel: effConceptLabel(), conceptLabelPlural: effConceptLabelPlural(), showRequestRibbon: effShowRequestRibbon(), pipelineRequiredOnCompany: effPipelineRequired(), showQuickLinks: effShowQuickLinks(), sentSyncEnabled: effSentSyncEnabled(), sentSyncIntervalMin: effSentSyncInterval(), currency: effCurrency(), ...calFeatFlags() });
 });
 
 // ---- Request-services notification recipients (multi-address) ----
