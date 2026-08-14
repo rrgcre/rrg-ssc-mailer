@@ -10999,6 +10999,9 @@ app.get('/api/board', (req, res) => {
   const isAdmin = req.user && isSuper(req.user);
   const cards = [];
   const coNameById = {}; try { loadCompanies().forEach(c => { coNameById[c.id] = c.name; }); } catch (e) {}
+  // Rep avatars — map an owner's name (and username) to their profile photo so the board can show faces.
+  const ownerPhotoBy = {};
+  try { auth.loadUsers().forEach(u => { try { const prof = auth.profileOf(auth.findUser(u.username)); if (prof && prof.photoExt) { const url = '/api/userphoto/' + String(u.username).replace(/[^a-z0-9_.-]/gi, '_') + '.' + prof.photoExt + '?v=' + encodeURIComponent(prof.photoAt || 0); if (u.name) ownerPhotoBy[String(u.name).toLowerCase()] = url; ownerPhotoBy[String(u.username).toLowerCase()] = url; } } catch (e) {} }); } catch (e) {}
   Object.values(idx).forEach(d => {
     if (!(isAdmin || canSeeAllDeals(req) || ownsAssignment(req, d))) return;
     const o = overlay[d.key] || {};
@@ -11011,7 +11014,7 @@ app.get('/api/board', (req, res) => {
       catch (e) { stage = stageNames[0] || ''; }
     }
     const _prov = !!(d.screen && d.screen.provisional);
-    cards.push({ key: d.key, business: v.business, company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, stageSince: o.stageSince || v.createdAt || '', commission: (v.transaction && v.transaction.commissionDue) || '' });
+    cards.push({ key: d.key, business: v.business, company: coNameById[v.companyId] || (d.screen && d.screen.data && d.screen.data.company) || '', companyId: v.companyId || '', contactPersonId: v.clientPersonId || '', concept: v.business, contact: v.contact || '', value: v.value || '', market: v.market || '', owner: v.owner || '', lastActivity: v.lastActivity || '', createdAt: v.createdAt || '', status: _prov ? 'Pending Approval' : (o.status || 'New'), provisional: _prov, bbsNumber: v.bbsNumber || '', stage: stage, stageSince: o.stageSince || v.createdAt || '', commission: (v.transaction && v.transaction.commissionDue) || '', ownerPhoto: ownerPhotoBy[String(v.owner || '').toLowerCase()] || '' });
   });
   res.json({ ok: true, pipelines: pipelines.map(p => ({ id: p.id, name: p.name })), pipelineId: pid, pipelineName: pipe.name || '', stages: stageNames, cards: cards, isAdmin: !!isAdmin });
 });

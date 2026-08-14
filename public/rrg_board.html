@@ -78,7 +78,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .cardx .val{color:var(--navy);font-weight:700;}
 .cardx .ft{display:flex;align-items:center;justify-content:space-between;margin-top:6px;padding-top:5px;border-top:1px solid #f0f2f7;}
 .cardx .dt{font-size:11px;color:#98a1b5;}
-.cardx .av{width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;}
+.cardx .av{width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;font-size:10px;font-weight:800;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;}
+.cardx .av img{width:100%;height:100%;object-fit:cover;display:block;}
 .showmore{margin-top:2px;font:inherit;font-size:12px;font-weight:600;color:var(--navy);background:#e6e9f1;border:none;border-radius:3px;padding:7px;cursor:pointer;} .showmore:hover{background:#dde3ef;}
 .colempty{color:#a7b0c0;font-size:12px;text-align:center;padding:14px 6px;}
 .gate{max-width:520px;margin:70px auto;text-align:center;color:var(--muted);}
@@ -388,7 +389,7 @@ function flagBadges(c){
   if(FLAGS.slipping.on && FLAGS.slipping.days){ var ds=daysSince(c.lastActivity); if(ds!=null && ds>=Number(FLAGS.slipping.days)) h+='<span class="fbadge slip" title="Slipping \u2014 '+ds+'d with no activity">\u2193</span>'; }
   return h?('<span class="flags">'+h+'</span>'):'';
 }
-function cardOwner(c){ return c.owner?('<span class="av" title="'+esc(c.owner)+'">'+esc(initials(c.owner))+'</span>'):''; }
+function cardOwner(c){ if(!c.owner) return ''; var t=esc(c.owner); var ini=esc(initials(c.owner)); if(c.ownerPhoto){ return '<span class="av" title="'+t+'"><img src="'+esc(c.ownerPhoto)+'" alt="'+t+'" onerror="this.remove();this.parentNode.textContent=\''+ini.replace(/'/g,"\\'")+'\'"></span>'; } return '<span class="av" title="'+t+'">'+ini+'</span>'; }
 function fmtMoneyMaybe(v){ var str=String(v==null?'':v); if(/^[\s$,.\d]+$/.test(str) && /\d/.test(str)){ var m=fmtMoney(money(str)); if(m) return m; } return esc(str); }
 function cardFieldsHtml(c){
   var h='';

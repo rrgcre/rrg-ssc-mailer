@@ -215,8 +215,34 @@ var TOOLPIPE='p_bizsales';
 function activePipe(){ return PIPES.filter(function(p){return p.id===(A&&A.pipelineId||'');})[0]||null; }
 function usingGeneric(){ return !!(A&&A.pipelineId && A.pipelineId!==TOOLPIPE && activePipe()); }
 function shortLbl(n){ n=String(n||''); if(n.length<=11) return n; var w=n.split(/\s+/); if(w.length>1){ return w.map(function(x){return x[0];}).join('').toUpperCase().slice(0,5); } return n.slice(0,10); }
-function genericStages(){ var p=activePipe(); if(!p) return []; return (p.stages||[]).map(function(st,i){ return {k:'g'+i, name:st.name, lbl:shortLbl(st.name), manual:true, targetDays:st.targetDays}; }); }
-function activeStages(){ return usingGeneric()? genericStages() : STAGES; }
+// Map a saved stage name back to a built-in tool stage, so tool links + artifact auto-complete
+// survive even when the pipeline's stages are admin-defined. Returns a canonical STAGES entry or null.
+function _stageTool(name){
+  var n=String(name||'').toLowerCase();
+  function h(){ for(var i=0;i<arguments.length;i++){ if(n.indexOf(arguments[i])>=0) return true; } return false; }
+  var k=null;
+  if(h('data room','dataroom')) k='room';
+  else if(h('qualification call','seller call','screening')||n==='call') k='call';
+  else if(h('seller interview','questionnaire')||n==='interview'||n==='si') k='questionnaire';
+  else if(h('opinion of value','bov')||n==='valuation') k='bov';
+  else if(h('marketing pack')||n==='marketing'||n==='pack'||n==='cim') k='pack';
+  else if(h('attack plan','market attack')||n==='map') k='attack';
+  else if(h('lease abstract')) k='lease';
+  return k ? (STAGES.filter(function(x){return x.k===k;})[0]||null) : null;
+}
+// Build the pipeline track from a pipeline's own saved stages (names, order, count all match Admin),
+// tool-linking the ones that correspond to a tool and leaving the rest as manual toggles.
+function pipeStages(p){
+  var used={};
+  return (p.stages||[]).map(function(st,i){
+    var c=_stageTool(st.name);
+    if(c && !used[c.k]){ used[c.k]=1; return { k:c.k, name:st.name, lbl:shortLbl(st.name), href:c.href, open:c.open }; }
+    return { k:'g'+i, name:st.name, lbl:shortLbl(st.name), manual:true, targetDays:st.targetDays };
+  });
+}
+// A listing shows its assigned pipeline's actual stages. With no pipeline (or a stageless one),
+// fall back to the built-in business-sale tool workflow.
+function activeStages(){ var p=activePipe(); return (p && (p.stages||[]).length) ? pipeStages(p) : STAGES; }
 function domDays(){ if(!A||!A.listingLive) return ''; var d=new Date(A.listingLive+'T00:00:00'); if(isNaN(d)) return ''; var n=Math.floor((Date.now()-d.getTime())/86400000); return n>=0?(n+' day'+(n===1?'':'s')):''; }
 function manualStepHtml(d){
   var mf=A.stageFlags||{}; var mdone=!!mf[d.k];
@@ -489,7 +515,7 @@ function render(){
   var opts=STATUSES.map(function(x){ return '<option'+(A.status===x?' selected':'')+'>'+esc(x)+'</option>'; }).join('');
   var curPid=(A.pipelineId&&PIPES.some(function(p){return p.id===A.pipelineId;}))?A.pipelineId:TOOLPIPE;
   var pipeOpts=PIPES.map(function(p){ return '<option value="'+esc(p.id)+'"'+(p.id===curPid?' selected':'')+'>'+esc(p.name)+'</option>'; }).join('');
-  var pipeName=(PIPES.filter(function(p){return p.id===curPid;})[0]||{}).name||'';
+  var _apipe=activePipe(); var pipeName=(_apipe&&(_apipe.stages||[]).length)?(_apipe.name||''):'';
   var _curMkt=(A.market||''); var _mktList=(MARKETS||[]).slice(); if(_curMkt&&_mktList.indexOf(_curMkt)<0) _mktList.unshift(_curMkt);
   var mktOpts='<option value="">— none —</option>'+_mktList.map(function(m){ return '<option'+(_curMkt===m?' selected':'')+'>'+esc(m)+'</option>'; }).join('');
 

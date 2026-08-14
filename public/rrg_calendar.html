@@ -171,7 +171,6 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
       <a class="feat" href="rrg_calendar_help.html#details" target="_blank" rel="noopener"><span class="fic">📍</span><div><b>Capture the details</b><span>Type, location — address, video link or phone — and notes on every meeting.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#sync" target="_blank" rel="noopener"><span class="fic">🔄</span><div><b>Always in sync</b><span>Meetings booked from a contact's page appear here automatically; edit or cancel anytime.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#booking" target="_blank" rel="noopener"><span class="fic">🔗</span><div><b>All-in-one booking</b><span>Share a booking page — pick from several meeting types, with buffers, minimum notice, and each visitor's own time zone. Booked slots land on your calendar and can be rescheduled or cancelled by the guest.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#tasks" target="_blank" rel="noopener"><span class="fic">✅</span><div><b>Tasks on your calendar</b><span>Give any task a date and time and it shows up right on the calendar alongside your meetings.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#gmailsync" target="_blank" rel="noopener"><span class="fic">📥</span><div><b>Events from your inbox <span class="soon">Soon</span></b><span>Flights, hotels and reservations sitting in Gmail get added to your calendar automatically.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#meet" target="_blank" rel="noopener"><span class="fic">🎥</span><div><b>Video with Google Meet</b><span>Add a Google Meet link to any meeting in a click and connect virtually.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#share" target="_blank" rel="noopener"><span class="fic">📤</span><div><b>Share calendars</b><span>Share your calendar with others and find times that work across everyone's schedule.</span></div></a>
@@ -187,7 +186,6 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
     <span class="sp"></span>
     <span class="seg" id="viewSeg"><button id="vday">Day</button><button id="vweek">Week</button><button id="vmonth" class="on">Month</button><button id="vagenda">Agenda</button></span>
     <span class="seg" id="scopeSeg"><button id="sall" class="on">Everyone</button><button id="smine">My meetings</button></span><select id="userFilter" style="display:none;font:inherit;font-size:12.5px;font-weight:600;border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff;max-width:200px"></select>
-    <button class="btn" id="taskToggle" title="Show dated tasks on the calendar">✓ Tasks</button>
     <button class="btn gc" id="gcalBtn" title="Two-way sync with Google Calendar" style="display:none"><span class="gdot"></span>⟳ Google</button>
     <button class="btn red" id="newbtn">+ New meeting</button>
   </div>
@@ -240,7 +238,7 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
 <script>
 var APPTS=[],TASKS=[],CONTACTS=[],USERS=[],TYPES=[],ME='',EMAILREADY=false,MEWORK={},FEATURES={};
 var VIEW='month',SCOPE='all',EDIT=null,CANSEEALL=false,USERSEL='',HASSHARED=false;
-var SHOWTASKS=(function(){ try{ return localStorage.getItem('rrg_cal_showtasks')!=='0'; }catch(e){ return true; } })();
+var SHOWTASKS=false; // Tasks are kept OFF the calendar by design — they live only in Tasks / the contact's Tasks card.
 var CUR=(function(){var d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate());})();
 var MON=['January','February','March','April','May','June','July','August','September','October','November','December'];
 var DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
