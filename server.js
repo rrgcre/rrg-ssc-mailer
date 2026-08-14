@@ -5748,7 +5748,27 @@ setTimeout(function () { automationTick(); }, 20000);
 // ---- Automations API ----
 // ---- Email templates (personal / shared, reusable in composer + automations) ----
 const EMAIL_TPL_FILE = path.join(BOV_DATA_DIR, 'email_templates.json');
-function loadEmailTpls() { try { return rj(EMAIL_TPL_FILE) || []; } catch (e) { return []; } }
+const EMAIL_TPL_SEED_FLAG = path.join(BOV_DATA_DIR, 'email_templates_seeded.json');
+const PRENDA_TPL_ID = 'etpl_prenda';
+const PRENDA_TPL_SUBJECT = 'Next steps on your sale — NDA and documents';
+const PRENDA_TPL_BODY =
+  '<p>Hi {{first_name}},</p>' +
+  '<p>Great connecting with you. Here’s what happens next so we keep this moving.</p>' +
+  '<p><b>1) An NDA is on its way.</b> You’ll receive a short non-disclosure agreement to sign shortly. It protects your confidentiality and lets us share your information only with qualified, serious buyers — nothing goes out until it’s signed.</p>' +
+  '<p><b>2) The documents I’ll need from you.</b> To build an accurate opinion of value and present the business in its best light, please start pulling together: profit &amp; loss statements for the last three years plus the most recent year-to-date; the current lease and any amendments; and a short list of any owner add-backs or one-time expenses a buyer should add back.</p>' +
+  '<p><b>3) The seller interview.</b> We’ll also set up a brief recorded conversation about the business — the story behind the numbers, what makes it special, and why now is the right time to sell. It’s one of the most valuable things we do: it sharpens the valuation and gives buyers confidence.</p>' +
+  '<p>Send over any questions in the meantime. Looking forward to it.</p>' +
+  '<p>Best,<br>{{my_name}}</p>';
+// Seed the shared pre-NDA seller template ONCE (respects later deletion via a sentinel flag).
+function _seedEmailTpls(a) {
+  try { if (fs.existsSync(EMAIL_TPL_SEED_FLAG)) return a; } catch (e) { return a; }
+  if (!a.some(t => t.id === PRENDA_TPL_ID)) {
+    a.push({ id: PRENDA_TPL_ID, name: 'Seller — NDA & docs heads-up', scope: 'shared', ownerUser: '', ownerName: 'RRG', subject: PRENDA_TPL_SUBJECT, body: PRENDA_TPL_BODY, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), seeded: true });
+  }
+  try { writeJsonGuarded(EMAIL_TPL_FILE, a, 'seedEmailTpls'); fs.writeFileSync(EMAIL_TPL_SEED_FLAG, JSON.stringify({ seededAt: new Date().toISOString() })); } catch (e) {}
+  return a;
+}
+function loadEmailTpls() { try { return _seedEmailTpls(rj(EMAIL_TPL_FILE) || []); } catch (e) { return []; } }
 function saveEmailTpls(a) { return writeJsonGuarded(EMAIL_TPL_FILE, a, 'saveEmailTpls'); }
 function newEmailTplId() { return 'etpl_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function emailTplBrief(t, user) { return { id: t.id, name: t.name || '', subject: t.subject || '', body: t.body || '', scope: (t.scope === 'shared' ? 'shared' : 'personal'), ownerName: t.ownerName || '', ownerUser: t.ownerUser || '', mine: !!(user && (t.ownerUser === user.username || isSuper(user))), updatedAt: t.updatedAt || '' }; }
@@ -10391,36 +10411,46 @@ ${inner}
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div></body></html>`;
 }
 function loginPage(note) {
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>RRG · Sign In</title>
+  // Brand from Admin → the uploaded logo (embedded, since the logo route needs auth) and app name.
+  let _logo = null; try { _logo = brandLogoObj(); } catch (e) {}
+  let _appName = 'RRG'; try { _appName = loadAppName() || 'RRG'; } catch (e) {}
+  let _org = _appName; try { _org = orgDisplayName() || _appName; } catch (e) {}
+  const _appEsc = esc(_appName);
+  const brandMark = _logo
+    ? `<img class="logo" src="data:${_logo.type};base64,${_logo.dataB64}" alt="${_appEsc}">`
+    : `<span class="disc">RRG</span><span class="wm">${esc(_org)}</span>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${_appEsc} · Sign In</title>
 <style>
-:root{--navy:#000E31;--red:#DA2B1F;}
+:root{--navy:#20334f;--ink:#000E31;--primary:#2c5c8f;--red:#b23a2c;--line:#dbe0e9;--muted:#5f6a7d;}
 *{box-sizing:border-box;} html,body{height:100%;margin:0;}
-body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;display:flex;align-items:center;justify-content:center;
-  background:radial-gradient(120% 120% at 30% 10%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
-.card{background:#fff;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.35);width:360px;max-width:92vw;padding:34px 32px 30px;}
-.brand{display:flex;align-items:center;gap:12px;margin-bottom:22px;}
-.disc{width:46px;height:46px;border-radius:50%;background:var(--red);color:#fff;font:900 15px 'Arial Black',Arial,sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
-.brand .wm{font-weight:800;color:var(--navy);font-size:14px;text-transform:uppercase;line-height:1;} .brand .wm span{display:block;}
-h1{font-size:19px;color:var(--navy);margin:0 0 4px;} .sub{font-size:12.5px;color:#6b7488;margin:0 0 20px;}
-label{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6b7488;font-weight:700;display:block;margin:14px 0 4px;}
-input{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:11px 12px;font:inherit;font-size:14px;}
-input:focus{outline:none;border-color:var(--red);}
-button{width:100%;margin-top:22px;background:var(--navy);color:#fff;border:none;border-radius:9px;padding:12px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;}
-button:hover{background:#0b1a3a;}
-.err{background:#fdeceb;color:var(--red);font-size:12.5px;font-weight:600;border-radius:8px;padding:9px 12px;margin-top:16px;display:none;}
+body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;display:flex;align-items:center;justify-content:center;background:#eef1f6;}
+.card{background:#fff;border:1px solid var(--line);border-top:3px solid var(--primary);border-radius:4px;box-shadow:0 10px 34px rgba(16,32,70,.12);width:380px;max-width:92vw;padding:34px 34px 26px;}
+.brand{display:flex;flex-direction:column;align-items:center;gap:12px;margin-bottom:8px;}
+.logo{max-height:56px;max-width:230px;object-fit:contain;display:block;}
+.disc{width:52px;height:52px;border-radius:50%;background:#DA2B1F;color:#fff;font:900 16px 'Arial Black',Arial,sans-serif;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
+.brand .wm{font-weight:800;color:var(--navy);font-size:14px;text-transform:uppercase;line-height:1.2;text-align:center;letter-spacing:.02em;}
+h1{font-size:17px;color:var(--navy);margin:20px 0 3px;text-align:center;font-weight:800;} .sub{font-size:12px;color:var(--muted);margin:0 0 6px;text-align:center;}
+.rule{height:2px;background:var(--primary);width:44px;margin:12px auto 20px;border-radius:2px;}
+label{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;display:block;margin:14px 0 5px;}
+input{width:100%;border:1px solid #cfd6e2;border-radius:4px;padding:11px 12px;font:inherit;font-size:14px;background:#fff;}
+input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(44,92,143,.12);}
+button{width:100%;margin-top:22px;background:var(--navy);color:#fff;border:none;border-radius:4px;padding:12px;font:inherit;font-size:14px;font-weight:700;cursor:pointer;letter-spacing:.02em;}
+button:hover{background:var(--ink);}
+.err{background:#fbeceb;color:var(--red);font-size:12.5px;font-weight:600;border-radius:4px;padding:9px 12px;margin-top:16px;display:none;border:1px solid #eed3cf;}
 .note{color:#1f8a5b;font-size:12px;margin-top:14px;text-align:center;}
-.foot{text-align:center;font-size:10px;color:#8894a8;margin-top:20px;letter-spacing:.03em;}
+.foot{text-align:center;font-size:10px;color:#8894a8;margin-top:22px;letter-spacing:.03em;}
 </style></head><body>
 <form class="card" onsubmit="return go(this)">
-  <div class="brand"><span class="disc">RRG</span><span class="wm"><span>Restaurant</span><span>Realty</span><span>Group</span></span></div>
+  <div class="brand">${brandMark}</div>
   <h1>Associate Sign In</h1>
   <p class="sub">Restaurant Transactions. Done Right.</p>
+  <div class="rule"></div>
   <label>Username</label><input name="username" autocomplete="username" autofocus required>
   <label>Password</label><input name="password" type="password" autocomplete="current-password" required>
   <div class="err" id="err"></div>
   <button>Sign in</button>
   ${note ? `<div class="note">${esc(note)}</div>` : ''}
-  <div class="foot">Proprietary &amp; Confidential · Internal RRG use only</div>
+  <div class="foot">Proprietary &amp; Confidential · Internal ${_appEsc} use only</div>
 </form>
 <script>
 function go(f){

@@ -993,8 +993,13 @@ function openPreNdaEmail(){
   var tabBtn=document.querySelector('.cotab[data-tab="email"]'); if(tabBtn) tabBtn.click();
   try{
     var to=document.getElementById('em_to'); if(to && !to.value.trim()){ to.value=_pEmail(); }
-    var su=document.getElementById('em_subj'); if(su) su.value=PRENDA_SUBJECT;
-    if(window.RRGRte){ RRGRte.set('em_body', PRENDA_BODY); } else { var bo=document.getElementById('em_body'); if(bo) bo.value=PRENDA_BODY.replace(/<\/p>/g,'\n\n').replace(/<[^>]+>/g,''); }
+    // Prefer the editable library template (Admin → Email templates); fall back to the built-in text.
+    var lib=(EMAILTPLS||[]).filter(function(t){ return t.id==='etpl_prenda' || /nda\s*&?\s*docs?\s*heads?-?up/i.test(t.name||''); })[0];
+    if(lib){ var sel=document.getElementById('em_tpl'); if(sel) sel.value=lib.id; if(typeof applyEmailTemplate==='function'){ applyEmailTemplate(lib.id); } }
+    else {
+      var su=document.getElementById('em_subj'); if(su) su.value=PRENDA_SUBJECT;
+      if(window.RRGRte){ RRGRte.set('em_body', PRENDA_BODY); } else { var bo=document.getElementById('em_body'); if(bo) bo.value=PRENDA_BODY.replace(/<\/p>/g,'\n\n').replace(/<[^>]+>/g,''); }
+    }
     var host=document.getElementById('actTabEmail'); if(host&&host.scrollIntoView) host.scrollIntoView({behavior:'smooth',block:'center'});
     var subEl=document.getElementById('em_subj'); if(subEl) setTimeout(function(){ try{ subEl.focus(); }catch(e){} },120);
     if(window.rrgToast) rrgToast('Pre-NDA note ready — review and hit Send email.');
