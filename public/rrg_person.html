@@ -505,7 +505,7 @@ function agreementsCard(){
       +'<div class="fldrow"><label class="fld">Notes</label><input id="agr_notes" placeholder="Counterparty, terms, reference…"></div>'
       +'<div id="agr_sig" class="agrsig"></div>'
       +'<div style="display:flex;gap:8px;align-items:center;margin-top:8px"><button type="button" class="savebtn" id="agrSave" style="width:auto;padding:8px 16px">Save agreement</button><button type="button" class="mfadd" id="agrCancel">Cancel</button><span id="agrMsg" style="font-size:12px;color:#6b7488"></span></div>'
-    +'</div>'+sendModalHtml()+'</div></div>';
+    +'</div></div>'+sendModalHtml()+'</div>';
 }
 function filesCount(){ return (window.RRGDocs&&RRGDocs.filesCount&&RRGDocs.filesCount())||0; }
 function filesListHtml(){ var rows=(window.RRGDocs?RRGDocs.filesRowsHtml():''); if(rows) return rows; return '<div class="rrempty">'+((window.RRGDocs&&RRGDocs.ready())?'No files uploaded for this contact yet. Use + to add a lease, P&L, or other document.':'Loading files\u2026')+'</div>'; }
@@ -1463,53 +1463,57 @@ function loadBbMatches(){
 var TB_CONDITIONS=['Shell','Second-gen','Dirt / pad'];
 var TB_AMENITIES=['Drive-thru','Patio','Hood / exhaust','Grease trap','Gas service','Walk-in cooler','Bar built-out','Fire suppression','3-phase power','Restrooms (ADA)'];
 var TB_DEAL=[['both','Lease or purchase'],['lease','Lease only'],['purchase','Purchase only']];
-function tenantBoxCard(){
-  var tb=(P&&P.tenantBox)||{};
-  var chips=function(list,sel,cls){ return list.map(function(x){ var on=(sel||[]).indexOf(x)>=0; return '<label class="bbchip'+(on?' on':'')+'"><input type="checkbox" class="'+cls+'" value="'+esc(x)+'"'+(on?' checked':'')+'>'+esc(x)+'</label>'; }).join(''); };
+var TBOXES=[], TB_CONCEPTS=[];
+function _tbEmpty(){ return {concept:'',active:false,sfMin:'',sfIdeal:'',sfMax:'',condition:[],deal:'both',amenities:[],markets:[],budget:'',areaNote:'',notes:''}; }
+function _tbChips(list,sel,cls){ return list.map(function(x){ var on=(sel||[]).indexOf(x)>=0; return '<label class="bbchip'+(on?' on':'')+'"><input type="checkbox" class="'+cls+'" value="'+esc(x)+'"'+(on?' checked':'')+'>'+esc(x)+'</label>'; }).join(''); }
+function tbSetHtml(tb,i){
+  tb=tb||{};
   var dealOpt=TB_DEAL.map(function(o){return '<option value="'+o[0]+'"'+(((tb.deal||'both')===o[0])?' selected':'')+'>'+o[1]+'</option>';}).join('');
   var nv=function(v){ return (v!=null&&v!=='')?esc(v):''; };
-  return '<div class="card" id="tenantBoxCard"><div class="ch"><b>Tenant-Box</b><label class="bbactive" title="Actively looking — include this tenant in space matches"><input type="checkbox" id="tbActive"'+(tb.active?' checked':'')+'> Active</label></div><div class="cb">'
-    +'<div class="bbrow"><div><div class="bblab">Min SF</div><input class="bbin" id="tbSfMin" inputmode="numeric" value="'+nv(tb.sfMin)+'" placeholder="—"></div><div><div class="bblab">Ideal SF</div><input class="bbin" id="tbSfIdeal" inputmode="numeric" value="'+nv(tb.sfIdeal)+'" placeholder="—"></div><div><div class="bblab">Max SF</div><input class="bbin" id="tbSfMax" inputmode="numeric" value="'+nv(tb.sfMax)+'" placeholder="—"></div></div>'
-    +'<div class="bblab">Condition</div><div class="bbchips" id="tbCondition">'+chips(TB_CONDITIONS,tb.condition,'tbc')+'</div>'
-    +'<div class="bbrow"><div><div class="bblab">Deal</div><select id="tbDeal">'+dealOpt+'</select></div><div><div class="bblab">Budget · max rent $/SF/yr</div><input class="bbin" id="tbBudget" inputmode="numeric" value="'+nv(tb.budget)+'" placeholder="—"></div></div>'
-    +'<div class="bblab">Amenities</div><div class="bbchips" id="tbAmenities">'+chips(TB_AMENITIES,tb.amenities,'tba')+'</div>'
-    +'<div class="bblab">Markets</div><div class="bbchips" id="tbMarkets">'+chips(BB_METROS,tb.markets,'tbm')+'</div>'
-    +'<div class="bblab">Area / trade-area details</div><input class="bbin" id="tbAreaNote" value="'+esc(tb.areaNote||'')+'" placeholder="e.g. north of 1604, near the medical center">'
-    +'<div class="bblab">Notes</div><textarea id="tbNotes" rows="2" placeholder="Anything else about the space they need">'+esc(tb.notes||'')+'</textarea>'
+  var dl=(TB_CONCEPTS&&TB_CONCEPTS.length)?('<datalist id="tbCdl'+i+'">'+TB_CONCEPTS.map(function(c){return '<option value="'+esc(c)+'">';}).join('')+'</datalist>'):'';
+  return '<div class="tbset" data-i="'+i+'" style="border:1px solid #e6e9f0;border-radius:9px;padding:10px 11px;margin:0 0 12px;background:#fcfdff">'
+    +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">'
+      +'<input class="bbin tbConcept" list="tbCdl'+i+'" value="'+esc(tb.concept||'')+'" placeholder="Concept (optional)" style="flex:1;font-weight:700">'+dl
+      +'<label class="bbactive" style="margin:0;white-space:nowrap" title="Actively looking for this concept"><input type="checkbox" class="tbActive"'+(tb.active?' checked':'')+'> Active</label>'
+      +'<button type="button" class="tbDel" data-i="'+i+'" title="Remove this concept" style="background:none;border:none;color:#c4ccda;cursor:pointer;font-size:17px;line-height:1;padding:0 2px">×</button>'
+    +'</div>'
+    +'<div class="bbrow"><div><div class="bblab">Min SF</div><input class="bbin tbSfMin" inputmode="numeric" value="'+nv(tb.sfMin)+'" placeholder="—"></div><div><div class="bblab">Ideal SF</div><input class="bbin tbSfIdeal" inputmode="numeric" value="'+nv(tb.sfIdeal)+'" placeholder="—"></div><div><div class="bblab">Max SF</div><input class="bbin tbSfMax" inputmode="numeric" value="'+nv(tb.sfMax)+'" placeholder="—"></div></div>'
+    +'<div class="bblab">Condition</div><div class="bbchips">'+_tbChips(TB_CONDITIONS,tb.condition,'tbc')+'</div>'
+    +'<div class="bbrow"><div><div class="bblab">Deal</div><select class="tbDeal">'+dealOpt+'</select></div><div><div class="bblab">Budget · max rent $/SF/yr</div><input class="bbin tbBudget" inputmode="numeric" value="'+nv(tb.budget)+'" placeholder="—"></div></div>'
+    +'<div class="bblab">Amenities</div><div class="bbchips">'+_tbChips(TB_AMENITIES,tb.amenities,'tba')+'</div>'
+    +'<div class="bblab">Markets</div><div class="bbchips">'+_tbChips(BB_METROS,tb.markets,'tbm')+'</div>'
+    +'<div class="bblab">Area / trade-area details</div><input class="bbin tbArea" value="'+esc(tb.areaNote||'')+'" placeholder="e.g. north of 1604, near the medical center">'
+    +'<div class="bblab">Notes</div><textarea class="tbNotes" rows="2" placeholder="Anything else about the space they need">'+esc(tb.notes||'')+'</textarea>'
+    +'<div class="bbmatchhd" style="margin-top:11px">Matching spaces</div><div class="tbMatches bbmatches" data-i="'+i+'"><div style="color:#8a93a8;font-size:12px;padding:4px 0">Mark <b>Active</b> &amp; save to see matches.</div></div>'
+  +'</div>';
+}
+function tenantBoxCard(){
+  TBOXES=(P&&Array.isArray(P.tenantBoxes))?P.tenantBoxes.slice():((P&&P.tenantBox)?[P.tenantBox]:[]);
+  if(!TBOXES.length) TBOXES=[_tbEmpty()];
+  return '<div class="card" id="tenantBoxCard"><div class="ch"><b>Tenant-Box</b><span style="margin-left:7px;font-size:10.5px;color:#8a93a8;font-weight:600;text-transform:none">one per concept</span><button type="button" class="mfadd" id="tbAddSet" title="Add another concept requirement" style="margin-left:auto;width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb">'
+    +'<div id="tbSets">'+TBOXES.map(tbSetHtml).join('')+'</div>'
     +'<div class="bbbtns"><button type="button" class="savebtn" id="tbSave" style="width:auto;padding:8px 16px">Save tenant-box</button><span id="tbMsg" style="font-size:12px;color:#6b7488"></span></div>'
-    +'<div class="bbmatchhd">Matching spaces <span id="tbMatchCount"></span></div><div id="tbMatches" class="bbmatches"><div style="color:#8a93a8;font-size:12px;padding:4px 0">…</div></div>'
     +'</div></div>';
 }
+function _tbGather(){ var sets=[]; document.querySelectorAll('#tbSets .tbset').forEach(function(el){
+  function v(cls){ var e=el.querySelector('.'+cls); return e?(e.value||''):''; }
+  function ck(cls){ var e=el.querySelector('.'+cls); return e?!!e.checked:false; }
+  function chips(cls){ return [].slice.call(el.querySelectorAll('.'+cls+':checked')).map(function(x){return x.value;}); }
+  sets.push({ concept:v('tbConcept').trim(), active:ck('tbActive'), sfMin:v('tbSfMin').replace(/[^0-9]/g,''), sfIdeal:v('tbSfIdeal').replace(/[^0-9]/g,''), sfMax:v('tbSfMax').replace(/[^0-9]/g,''), condition:chips('tbc'), deal:v('tbDeal')||'both', amenities:chips('tba'), markets:chips('tbm'), budget:v('tbBudget').replace(/[^0-9]/g,''), areaNote:v('tbArea'), notes:v('tbNotes') });
+}); return sets; }
+function _tbRerender(){ var host=document.getElementById('tbSets'); if(!host) return; host.innerHTML=TBOXES.map(tbSetHtml).join(''); loadTbMatches(); }
 function wireTenantBox(){
-  var save=document.getElementById('tbSave'); if(!save) return;
-  document.querySelectorAll('#tenantBoxCard .bbchip input').forEach(function(cb){ if(cb._w) return; cb._w=1; cb.addEventListener('change',function(){ var l=cb.closest('.bbchip'); if(l) l.classList.toggle('on',cb.checked); }); });
-  if(!save._w){ save._w=1; save.addEventListener('click',function(){
-    var g=function(id){ var e=document.getElementById(id); return e?e.value:''; };
-    var body={ active:(document.getElementById('tbActive')||{}).checked||false,
-      sfMin:g('tbSfMin').replace(/[^0-9]/g,''), sfIdeal:g('tbSfIdeal').replace(/[^0-9]/g,''), sfMax:g('tbSfMax').replace(/[^0-9]/g,''),
-      condition:[].slice.call(document.querySelectorAll('.tbc:checked')).map(function(x){return x.value;}),
-      deal:g('tbDeal'),
-      amenities:[].slice.call(document.querySelectorAll('.tba:checked')).map(function(x){return x.value;}),
-      markets:[].slice.call(document.querySelectorAll('.tbm:checked')).map(function(x){return x.value;}),
-      budget:g('tbBudget').replace(/[^0-9]/g,''), areaNote:g('tbAreaNote'), notes:g('tbNotes') };
-    var msg=document.getElementById('tbMsg'); if(msg){msg.style.color='#6b7488';msg.textContent='Saving…';} save.disabled=true;
-    fetch('/api/person/'+encodeURIComponent(ID)+'/tenantbox',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ save.disabled=false; if(j&&j.ok){ if(P) P.tenantBox=j.tenantBox; if(msg){msg.style.color='#1f8a5b';msg.textContent='Saved ✓';setTimeout(function(){if(msg)msg.textContent='';},1500);} loadTbMatches(); } else { if(msg){msg.style.color='#DA2B1F';msg.textContent=(j&&j.error)||'Could not save.';} } }).catch(function(){ save.disabled=false; if(msg){msg.style.color='#DA2B1F';msg.textContent='Network error.';} });
-  }); }
+  var card=document.getElementById('tenantBoxCard'); if(!card) return; if(card._w){ loadTbMatches(); return; } card._w=1;
+  card.addEventListener('change',function(e){ var t=e.target; if(t&&t.matches&&t.matches('.bbchip input')){ var l=t.closest('.bbchip'); if(l) l.classList.toggle('on',t.checked); } });
+  card.addEventListener('click',function(e){
+    var d=e.target.closest&&e.target.closest('.tbDel'); if(d){ e.preventDefault(); TBOXES=_tbGather(); TBOXES.splice(+d.getAttribute('data-i'),1); if(!TBOXES.length) TBOXES=[_tbEmpty()]; _tbRerender(); return; }
+    var a=e.target.closest&&e.target.closest('#tbAddSet'); if(a){ e.preventDefault(); TBOXES=_tbGather(); TBOXES.push(_tbEmpty()); _tbRerender(); return; }
+    var s=e.target.closest&&e.target.closest('#tbSave'); if(s){ e.preventDefault(); TBOXES=_tbGather(); var save=s, msg=document.getElementById('tbMsg'); if(msg){msg.style.color='#6b7488';msg.textContent='Saving…';} save.disabled=true; fetch('/api/person/'+encodeURIComponent(ID)+'/tenantbox',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({boxes:TBOXES})}).then(function(r){return r.json();}).then(function(j){ save.disabled=false; if(j&&j.ok){ if(P) P.tenantBoxes=j.tenantBoxes; if(msg){msg.style.color='#1f8a5b';msg.textContent='Saved ✓';setTimeout(function(){if(msg)msg.textContent='';},1500);} loadTbMatches(); } else { if(msg){msg.style.color='#DA2B1F';msg.textContent=(j&&j.error)||'Could not save.';} } }).catch(function(){ save.disabled=false; if(msg){msg.style.color='#DA2B1F';msg.textContent='Network error.';} }); return; }
+  });
   loadTbMatches();
 }
-function loadTbMatches(){
-  var host=document.getElementById('tbMatches'), cnt=document.getElementById('tbMatchCount'); if(!host||!ID) return;
-  fetch('/api/person/'+encodeURIComponent(ID)+'/matching-spaces',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
-    if(!j||!j.ok){ host.innerHTML='<div style="color:#8a93a8;font-size:12px;padding:4px 0">—</div>'; return; }
-    if(!j.active){ if(cnt)cnt.textContent=''; host.innerHTML='<div style="color:#8a93a8;font-size:12px;padding:4px 0">Mark this tenant <b>Active</b> and save to see matches.</div>'; return; }
-    if(!j.hasCriteria){ if(cnt)cnt.textContent=''; host.innerHTML='<div style="color:#8a93a8;font-size:12px;padding:4px 0">Add at least one criterion above, then save.</div>'; return; }
-    var L=j.spaces||[]; if(cnt) cnt.textContent='· '+L.length;
-    if(!L.length){ host.innerHTML='<div style="color:#8a93a8;font-size:12px;padding:4px 0">No open spaces match this tenant yet.</div>'; return; }
-    host.innerHTML=L.map(function(l){ var badges=(l.reasons||[]).map(function(r){return '<span class="bbrz">'+esc(r)+'</span>';}).join('');
-      var parts=[]; if(l.market) parts.push(esc(l.market)); if(l.size) parts.push(esc(Number(l.size).toLocaleString('en-US'))+' SF'); if(l.rent) parts.push('$'+esc(Number(l.rent).toLocaleString('en-US'))+'/SF'); if(l.spaceType) parts.push(esc(l.spaceType));
-      return '<div class="bbmatch"><div class="bbmt"><b>'+esc(l.name||'Space')+'</b>'+(l.status?'<span class="bbpub" style="color:#2c5c8f;background:#eef4fb">'+esc(l.status)+'</span>':'')+'</div><div class="bbmm">'+(l.center?(esc(l.center)+(parts.length?' · ':'')):'')+parts.join(' · ')+'</div><div class="bbmrz">'+badges+'</div></div>'; }).join('');
-  }).catch(function(){ host.innerHTML='<div style="color:#8a93a8;font-size:12px;padding:4px 0">—</div>'; });
-}
+function _tbSpaceRow(l){ var badges=(l.reasons||[]).map(function(r){return '<span class="bbrz">'+esc(r)+'</span>';}).join(''); var parts=[]; if(l.market) parts.push(esc(l.market)); if(l.size) parts.push(esc(Number(l.size).toLocaleString('en-US'))+' SF'); if(l.rent) parts.push('$'+esc(Number(l.rent).toLocaleString('en-US'))+'/SF'); if(l.spaceType) parts.push(esc(l.spaceType)); return '<div class="bbmatch"><div class="bbmt"><b>'+esc(l.name||'Space')+'</b>'+(l.status?'<span class="bbpub" style="color:#2c5c8f;background:#eef4fb">'+esc(l.status)+'</span>':'')+'</div><div class="bbmm">'+(l.center?(esc(l.center)+(parts.length?' · ':'')):'')+parts.join(' · ')+'</div><div class="bbmrz">'+badges+'</div></div>'; }
+function loadTbMatches(){ if(!ID) return; fetch('/api/person/'+encodeURIComponent(ID)+'/matching-spaces',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(!j||!j.ok) return; var byI={}; (j.sets||[]).forEach(function(s){ byI[s.i]=s; }); document.querySelectorAll('#tbSets .tbMatches').forEach(function(host){ var set=byI[+host.getAttribute('data-i')]; var em=function(t){ return '<div style="color:#8a93a8;font-size:12px;padding:4px 0">'+t+'</div>'; }; if(!set){ host.innerHTML=em('Save to see matches.'); return; } if(!set.active){ host.innerHTML=em('Mark <b>Active</b> and save to see matches.'); return; } if(!set.hasCriteria){ host.innerHTML=em('Add a criterion, then save.'); return; } var L=set.spaces||[]; if(!L.length){ host.innerHTML=em('No open spaces match this concept yet.'); return; } host.innerHTML=L.map(_tbSpaceRow).join(''); }); }).catch(function(){}); }
 function mfHtml(cls,values,ph){ values=(values&&values.length)?values:['']; var rows=values.map(function(v){ return '<div class="mfrow"><input class="'+cls+'" value="'+esc(v)+'" placeholder="'+esc(ph)+'"><button type="button" class="mfrm">×</button></div>'; }).join(''); return '<div class="mfwrap">'+rows+'<button type="button" class="mfadd" data-cls="'+cls+'" data-ph="'+esc(ph)+'">+ Add another</button></div>'; }
 function prefFieldHtml(cls,values,ph,grp,prefVal,isPhone){
   values=(values&&values.length)?values:['']; var has=values.indexOf(prefVal)>=0;
@@ -1608,7 +1612,7 @@ window.addEventListener('beforeunload',function(e){ if(DIRTY){ e.preventDefault(
 function load(){
   if(!ID){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px">No contact selected. <a href="./rrg_people.html">Back to contacts →</a></div>'; return; }
   fetch('/api/person/'+encodeURIComponent(ID),{credentials:'same-origin'}).then(function(r){ if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); }); return r.json(); })
-    .then(function(j){ P=j.person; if(P){ P.appointments=j.appointments||[]; P.apptTypes=j.apptTypes||[]; } CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; INTERESTED=j.interested||[]; AUTOMATIONS=j.automations||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; if(Array.isArray(j.markets)&&j.markets.length) BB_METROS=j.markets; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; USERS=j.users||[]; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; render(); setCoCrumb(); _pReady=true; maybeAutoSend(); loadGmail(); loadEmailTpls2(); loadDocs(); loadTasksCo(); })
+    .then(function(j){ P=j.person; if(P){ P.appointments=j.appointments||[]; P.apptTypes=j.apptTypes||[]; } CO=j.company; DEALS=j.deals||[]; OFFERS=j.offers||[]; TOURS=j.tours||[]; NDAS=j.ndas||[]; INTERESTED=j.interested||[]; AUTOMATIONS=j.automations||[]; AGREEMENTS=j.agreements||[]; ATYPES=j.agreementTypes||[]; PTYPES=j.personTypes||PTYPES; LEADSOURCES=j.leadSources||[]; if(Array.isArray(j.markets)&&j.markets.length) BB_METROS=j.markets; TB_CONCEPTS=j.companyConcepts||[]; ALLTAGS=j.allTags||[]; EMAILREADY=!!j.emailReady; ACTIVITIES=j.activities||[]; ACTTYPES=j.activityTypes||[]; USERS=j.users||[]; IS_ADMIN=!!j.isAdmin; CAN_DELETE=!!j.canDelete; render(); setCoCrumb(); _pReady=true; maybeAutoSend(); loadGmail(); loadEmailTpls2(); loadDocs(); loadTasksCo(); })
     .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this contact.')+'<br><br><a href="./rrg_people.html" style="color:#000E31;font-weight:700">← Back to contacts</a></div>'; });
 }
 fetch('/api/companies',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ COMPANIESLIST=(j&&j.companies)||[]; }).catch(function(){});

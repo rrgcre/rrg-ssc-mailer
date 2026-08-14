@@ -5081,6 +5081,7 @@ function tenantBoxClean(b, prev) {
   const s = (v, n) => String(v == null ? '' : v).slice(0, n);
   const posInt = (v) => (v === '' || v == null) ? '' : Math.max(0, Math.min(9999999, parseInt(String(v).replace(/[^0-9]/g, ''), 10) || 0));
   if (b.active !== undefined) out.active = !!b.active;
+  if (b.concept !== undefined) out.concept = s(b.concept, 80);
   if (b.sfMin !== undefined) out.sfMin = posInt(b.sfMin);
   if (b.sfMax !== undefined) out.sfMax = posInt(b.sfMax);
   if (b.sfIdeal !== undefined) out.sfIdeal = posInt(b.sfIdeal);
@@ -5139,37 +5140,53 @@ function tenantBoxMatch(tb, S) {
   if (specified === 0 || positive === 0) return { match: false, reasons: [] };
   return { match: true, reasons: reasons.filter((v, i, a) => a.indexOf(v) === i) };
 }
-// Save a tenant's requirement box.
-app.post('/api/person/:id/tenantbox', express.json({ limit: '256kb' }), (req, res) => {
+// A tenant can carry MULTIPLE requirement sets — one per concept, each with its own needs.
+// tenantBoxes is the source of truth; the legacy single tenantBox is folded in for back-compat.
+function personTenantBoxes(p) {
+  if (p && Array.isArray(p.tenantBoxes)) return p.tenantBoxes;
+  if (p && p.tenantBox && typeof p.tenantBox === 'object') return [p.tenantBox];
+  return [];
+}
+// Save a tenant's requirement boxes (array of per-concept sets).
+app.post('/api/person/:id/tenantbox', express.json({ limit: '512kb' }), (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
-  p.tenantBox = tenantBoxClean(req.body || {}, p.tenantBox || {});
+  const b = req.body || {};
+  let boxes;
+  if (Array.isArray(b.boxes)) boxes = b.boxes.slice(0, 30).map(x => tenantBoxClean(x || {}, {}));
+  else boxes = [tenantBoxClean(b, (personTenantBoxes(p)[0]) || {})]; // back-compat: single set
+  p.tenantBoxes = boxes;
+  if (p.tenantBox) delete p.tenantBox; // retire the legacy single field
   p.updatedAt = new Date().toISOString(); savePeople(arr);
-  res.json({ ok: true, tenantBox: p.tenantBox });
+  res.json({ ok: true, tenantBoxes: p.tenantBoxes });
 });
-// Sites/spaces matching this tenant's requirement box (open inventory only).
+// Sites/spaces matching this tenant's requirement sets (open inventory only), grouped by concept.
 app.get('/api/person/:id/matching-spaces', (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
-  const tb = p.tenantBox || null; const out = [];
-  if (tb && tb.active) {
-    loadSpaces().forEach(sp => {
-      if (sp.status === 'Leased' || sp.status === 'Passed') return;
-      const S = _spaceMatchFields(sp);
-      if (!S.hasData) return;
-      const r = tenantBoxMatch(tb, S);
-      if (r.match) out.push({ id: sp.id, name: sp.name || sp.address || 'Space', center: sp.center || '', market: sp.market || S.marketKey || '', size: sp.size || null, rent: sp.rent || null, spaceType: sp.spaceType || '', status: sp.status || '', reasons: r.reasons });
-    });
-  }
-  out.sort((a, b) => (b.reasons.length - a.reasons.length) || String(a.name || '').localeCompare(String(b.name || '')));
-  res.json({ ok: true, active: !!(tb && tb.active), hasCriteria: tenantBoxHasCriteria(tb), spaces: out });
+  const boxes = personTenantBoxes(p);
+  const spaces = loadSpaces().filter(sp => sp.status !== 'Leased' && sp.status !== 'Passed');
+  const sets = boxes.map((tb, i) => {
+    const out = [];
+    if (tb && tb.active) {
+      spaces.forEach(sp => {
+        const S = _spaceMatchFields(sp);
+        if (!S.hasData) return;
+        const r = tenantBoxMatch(tb, S);
+        if (r.match) out.push({ id: sp.id, name: sp.name || sp.address || 'Space', center: sp.center || '', market: sp.market || S.marketKey || '', size: sp.size || null, rent: sp.rent || null, spaceType: sp.spaceType || '', status: sp.status || '', reasons: r.reasons });
+      });
+    }
+    out.sort((a, b) => (b.reasons.length - a.reasons.length) || String(a.name || '').localeCompare(String(b.name || '')));
+    return { i, concept: (tb && tb.concept) || '', active: !!(tb && tb.active), hasCriteria: tenantBoxHasCriteria(tb), spaces: out };
+  });
+  res.json({ ok: true, sets });
 });
-// Tenants whose requirement box matches this space (for a future space detail page).
+// Tenants whose requirement sets match this space (for a future space detail page).
 app.get('/api/space/:id/tenant-matches', (req, res) => {
   const sp = loadSpaces().find(x => x.id === req.params.id);
   if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' });
   const S = _spaceMatchFields(sp); const arr = loadPeople(); const out = [];
-  arr.forEach(p => { if (!p.tenantBox || !p.tenantBox.active) return; const r = tenantBoxMatch(p.tenantBox, S); if (r.match) out.push({ id: p.id, name: p.name || '', company: p.company || '', email: preferredEmailOf(p), phone: preferredPhoneOf(p), reasons: r.reasons }); });
+  arr.forEach(p => { personTenantBoxes(p).forEach(tb => { if (!tb || !tb.active) return; const r = tenantBoxMatch(tb, S); if (r.match) out.push({ id: p.id, name: p.name || '', company: p.company || '', concept: tb.concept || '', email: preferredEmailOf(p), phone: preferredPhoneOf(p), reasons: r.reasons }); }); });
   out.sort((a, b) => (b.reasons.length - a.reasons.length) || String(a.name || '').localeCompare(String(b.name || '')));
   res.json({ ok: true, characterized: S.hasData, space: sp.name || sp.address || '', tenants: out });
 });
@@ -8828,7 +8845,7 @@ app.get('/api/person/:id', (req, res) => {
   let _automations = []; try { _automations = loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === (req.user && req.user.username) || (req.user && isSuper(req.user)))).map(a => automationBrief(a, req.user || {})); } catch (e) { console.error('[/api/person] automations build failed for ' + p.id + ':', e && e.message); }
   let _users = []; try { _users = auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))); } catch (e) {}
   let _company = null; try { _company = companyBrief(companyById(p.companyId)); } catch (e) {}
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), types: personTypesOf(p), tags: personTags(p), companyName: (function(){ try{ var _c=companyById(p.companyId); return _c?(_c.name||''):''; }catch(e){ return ''; } })(), hasPhoto: !!p.photoExt }), relationship: (function(){ try{ return relationshipRollup(p.id); }catch(e){ return null; } })(), company: _company, deals, offers, tours, ndas, interested, agreements: _agreements, agreementTypes: effAgreementTypes(), appointments: _appointments, apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), markets: effMarkets(), allTags: allTagsList(), automations: _automations, emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: _users, activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), types: personTypesOf(p), tags: personTags(p), companyName: (function(){ try{ var _c=companyById(p.companyId); return _c?(_c.name||''):''; }catch(e){ return ''; } })(), hasPhoto: !!p.photoExt }), relationship: (function(){ try{ return relationshipRollup(p.id); }catch(e){ return null; } })(), company: _company, deals, offers, tours, ndas, interested, agreements: _agreements, agreementTypes: effAgreementTypes(), appointments: _appointments, apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), markets: effMarkets(), companyConcepts: (function(){ try{ var _c=companyById(p.companyId); return (_c&&Array.isArray(_c.concepts))?_c.concepts.map(function(x){return (x&&x.name)||'';}).filter(Boolean).slice(0,80):[]; }catch(e){ return []; } })(), allTags: allTagsList(), automations: _automations, emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: _users, activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
  } catch (e) {
   console.error('[/api/person] fatal for ' + (req.params && req.params.id) + ':', (e && e.stack) || e);
   if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not load this contact — a linked record looks malformed. (' + ((e && e.message) || 'error') + ')' });
@@ -11689,8 +11706,9 @@ app.get('/api/admin/duplicates', requireAdmin, (req, res) => {
       personEmails(p).forEach(e => { const k = String(e||'').toLowerCase().trim(); if(!k) return; if(emailMap[k]!=null) U(i, emailMap[k]); else emailMap[k]=i; });
     }
     function _sharePhone(a,b){ for(var k in a){ if(b[k]) return true; } return false; }
-    // Name-based matching. A shared phone number alone is NOT enough — two contacts whose
-    // names AND emails both differ are never treated as duplicates (shared office lines, etc.).
+    // Name-based matching. An EXACT full-name match flags the pair on its own (surfaced for review —
+    // no auto-merge — and real name-twins can be marked "not a duplicate"). A fuzzy/near name match
+    // still needs corroboration (same company or shared phone) so typos don't over-group.
     for (let i=0;i<N;i++){
       if(!keys[i] || keys[i].length<3) continue;
       for (let j=i+1;j<N;j++){
@@ -11704,7 +11722,7 @@ app.get('/api/admin/duplicates', requireAdmin, (req, res) => {
         const sameCo = (pi.companyId && pi.companyId===pj.companyId) || (comps[i] && comps[i]===comps[j]);
         const bothNoCo = !comps[i] && !comps[j] && !pi.companyId && !pj.companyId;
         const samePhone = _sharePhone(phonesArr[i], phonesArr[j]);
-        if(exactName && (sameCo || bothNoCo || samePhone)) U(i,j);
+        if(exactName) U(i,j);
         else if(sameCo && nameSim>=0.9) U(i,j);
         else if(samePhone && nameSim>=0.9) U(i,j);
       }
