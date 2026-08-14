@@ -8837,7 +8837,7 @@ app.get('/api/person/:id', (req, res) => {
   const _pEmails = personEmails(p).map(e => String(e || '').toLowerCase()).filter(Boolean);
   const deals = [], offers = [], tours = [], ndas = [], interested = [];
   (Array.isArray(p.tours) ? p.tours : []).forEach(x => tours.push({ id: x.id, key: '', business: '', date: x.date, interest: x.interest, notes: x.notes, personLevel: true }));
-  loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); const _st = idx[key] ? listingStageSummary(idx[key], overlay) : null; deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client', roomId: (idx[key] && idx[key].room && idx[key].room.id) || d.roomId || '', stage: _st ? _st.label : '', stageDone: _st ? _st.done : 0, stageTotal: _st ? _st.total : 0 }); });
+  loadDeals().filter(d => d.contactPersonId === p.id).forEach(d => { const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id); const _st = idx[key] ? listingStageSummary(idx[key], overlay) : null; deals.push({ key: key, business: d.business, market: d.market || '', role: 'Client', roomId: (function(){ var cand = (idx[key] && idx[key].room && idx[key].room.id) || d.roomId || ''; if (!cand) return ''; try { return loadRooms().some(r => r.id === cand) ? cand : ''; } catch (e) { return ''; } })(), stage: _st ? _st.label : '', stageDone: _st ? _st.done : 0, stageTotal: _st ? _st.total : 0 }); });
   for (const key in overlay) {
     const o = overlay[key], biz = bizByKey[key] || '(deal)';
     const _keyStage = idx[key] ? listingStageSummary(idx[key], overlay) : null;
@@ -9307,7 +9307,7 @@ app.get('/api/company/:id', (req, res) => {
   try { if (c.office && c.office.website) { if (!c.website) c.website = c.office.website; delete c.office.website; const _all = loadCompanies(); const _cc = _all.find(x => x.id === c.id); if (_cc && _cc.office && _cc.office.website) { if (!_cc.website) _cc.website = _cc.office.website; delete _cc.office.website; saveCompanies(_all); } } } catch (e) {}
   const contacts = loadPeople().filter(p => p.companyId === c.id).map(companyContactRow);
   const _cids = loadPeople().filter(p => p.companyId === c.id).map(p => p.id);
-  const dealRows = loadDeals().filter(d => d.companyId === c.id || (d.contactPersonId && _cids.indexOf(d.contactPersonId) >= 0)).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id), roomId: (function(){ const _r = roomForDeal(d); return _r ? _r.id : (d.roomId || ''); })() }));
+  const dealRows = loadDeals().filter(d => d.companyId === c.id || (d.contactPersonId && _cids.indexOf(d.contactPersonId) >= 0)).map(d => ({ id: d.id, business: d.business, market: d.market || '', started: !!d.screenId, key: d.screenId ? ('s_' + d.screenId) : ('d_' + d.id), roomId: (function(){ const _r = roomForDeal(d); return _r ? _r.id : ''; })() }));
   const _pn = {}; loadPeople().forEach(p => { _pn[p.id] = p.name; });
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite(c.website || (c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
@@ -9663,7 +9663,9 @@ app.post('/api/company/:id/build-concepts', express.json(), async (req, res) => 
     if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'You do not have access to AI features.' });
     { const c0 = loadCompanies().find(x => x.id === req.params.id); if (!c0) return res.status(404).json({ ok: false, error: 'Company not found.' }); }
     const b = req.body || {};
-    const market = titleCaseMarket(String(b.market || '').trim());
+    const _mkArr = Array.isArray(b.markets) ? b.markets.map(m => titleCaseMarket(String(m || '').trim())).filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).slice(0, 12) : [];
+    const market = _mkArr[0] || titleCaseMarket(String(b.market || '').trim());
+    const markets = _mkArr.length ? _mkArr : (market ? [market] : []);
     const count = String(b.count || '').trim();
     let names = Array.isArray(b.names) ? b.names.map(n => String(n || '').trim()).filter(Boolean).slice(0, 50) : [];
     { const seen = {}; names = names.filter(n => { const k = normKey(n); if (seen[k]) return false; seen[k] = 1; return true; }); }
@@ -9710,10 +9712,10 @@ app.post('/api/company/:id/build-concepts', express.json(), async (req, res) => 
         if (!String(cpt.pricePoint || '').trim() && r.pricePoint) cpt.pricePoint = r.pricePoint;
         if (!String(cpt.cuisine || '').trim() && r.cuisine) cpt.cuisine = r.cuisine;
         if (!String(cpt.logo || '').trim() && r.website) { const lg = logoFromWebsite(r.website); if (lg) cpt.logo = lg; }
-        if (market) { const mk = {}; (cpt.markets || []).forEach(m => { if (m) mk[normKey(m)] = m; }); if (!mk[normKey(market)]) mk[normKey(market)] = market; cpt.markets = Object.values(mk).slice(0, 30); }
+        if (markets.length) { const mk = {}; (cpt.markets || []).forEach(m => { if (m) mk[normKey(m)] = m; }); markets.forEach(m => { if (!mk[normKey(m)]) mk[normKey(m)] = m; }); cpt.markets = Object.values(mk).slice(0, 30); }
         cpt.updatedAt = now;
       } else {
-        cpt = { id: newConceptId(), name: r.name.slice(0, 120), website: r.website.slice(0, 300), logo: r.website ? logoFromWebsite(r.website) : '', markets: market ? [market] : [], conceptType: r.conceptType, pricePoint: r.pricePoint, cuisine: r.cuisine, createdAt: now };
+        cpt = { id: newConceptId(), name: r.name.slice(0, 120), website: r.website.slice(0, 300), logo: r.website ? logoFromWebsite(r.website) : '', markets: markets.slice(0, 30), conceptType: r.conceptType, pricePoint: r.pricePoint, cuisine: r.cuisine, createdAt: now };
         c.concepts.push(cpt); addedConcepts++;
       }
       const lr = locByName[normKey(r.name)];

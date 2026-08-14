@@ -114,6 +114,19 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .findloc{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .findcount{flex:none;max-width:150px;}
 .findbtn{background:#2c5c8f;color:#fff;border:1px solid #2c5c8f;border-radius:4px;padding:9px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;transition:background .12s;} .findbtn:hover{background:#23496f;} .findbtn:disabled{opacity:.6;cursor:default;}
+.findbtn.sec{background:#fff;color:#2c5c8f;} .findbtn.sec:hover{background:#eef3fb;}
+.addmethods{display:flex;flex-direction:column;gap:10px;margin-bottom:4px;}
+.cmeth{border:1px solid var(--line);border-radius:4px;padding:13px 14px;background:#fff;}
+.cmeth .mh{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
+.cmeth .mn{flex:none;width:20px;height:20px;border-radius:4px;background:#eef2f8;color:#2c5c8f;font-size:11px;font-weight:800;display:inline-flex;align-items:center;justify-content:center;}
+.cmeth .mt{font-weight:800;color:var(--navy);font-size:13px;}
+.cmeth .mtag{margin-left:auto;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;background:#f4f6f9;border:1px solid #e6e9f0;border-radius:3px;padding:2px 6px;}
+.cmeth .md{font-size:11.5px;color:var(--muted);line-height:1.5;margin:0 0 10px;}
+.cmeth .mrow{display:flex;gap:9px;flex-wrap:wrap;align-items:flex-end;}
+.cbmetrofield{display:flex;flex-wrap:wrap;gap:5px;align-items:center;border:1px solid #d5dbe6;border-radius:4px;padding:5px 7px;background:#fff;min-height:38px;}
+.cbmetrofield input{border:none!important;outline:none;flex:1;min-width:90px;padding:4px!important;font:inherit;font-size:13px;background:transparent;}
+.cbchip{display:inline-flex;align-items:center;gap:5px;background:#eef2fb;color:#23496f;border:1px solid #d3ddf3;border-radius:16px;padding:3px 5px 3px 9px;font-size:12px;font-weight:600;}
+.cbchip button{border:none;background:rgba(38,71,176,.12);color:#23496f;width:16px;height:16px;border-radius:50%;cursor:pointer;font-size:11px;line-height:1;padding:0;display:inline-flex;align-items:center;justify-content:center;}
 .findloctip{font-size:11.5px;color:var(--muted);line-height:1.5;margin-top:8px;max-width:640px;}
 .cb{padding:6px 0 4px;}
 .crow{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);}
@@ -170,6 +183,9 @@ h1{font-size:29px;font-weight:800;margin:6px 0 0;color:#fff;letter-spacing:-.01e
 .cptempty{color:var(--muted);font-size:12px;padding:12px 20px;}
 .cpttotal{padding:12px 20px;color:var(--muted);font-size:12.5px;border-top:1px solid var(--line);} .cpttotal b{color:var(--navy);}
 .locthumbwrap{flex:none;} .locthumb{width:40px;height:40px;border-radius:8px;background-size:cover;background-position:center;background-color:#eef1f6;}
+.locaddr{font-size:12.5px;color:#4a5568;font-weight:500;line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.locaddr-empty{color:#aab2c0;font-weight:400;font-style:italic;}
+.locmeta{font-size:11.5px;color:var(--muted);margin-top:2px;}
 .locnote{font-size:11.5px;color:var(--muted);margin-top:3px;font-style:italic;white-space:pre-wrap;}
 .servesline{font-size:11px;color:#b5641a;font-weight:700;margin-top:3px;}
 .phcount{font-size:10px;font-weight:800;color:#23496f;background:#eef2fb;border-radius:999px;padding:1px 7px;}
@@ -461,14 +477,15 @@ function render(){
   }
   function locRow(l){
     var loc=[l.address,l.city,l.state].filter(Boolean).map(esc).join(', ');
-    var bits=[]; if(loc) bits.push(loc); if(l.siteType) bits.push(esc(l.siteType)); if(l.tenure) bits.push('<span class="tenpill ten-'+l.tenure.toLowerCase()+'">'+esc(l.tenure)+'</span>'); if(l.sf) bits.push(esc(Number(l.sf).toLocaleString())+' SF'); if(l.phone) bits.push(esc(l.phone)); if(l.opened) bits.push('Opened '+esc(fmtD(l.opened))); if(l.closedDate) bits.push('<span class="closedpill">Closed '+esc(fmtD(l.closedDate))+'</span>'); if(l.leaseExpires) bits.push('Lease exp '+esc(fmtD(l.leaseExpires))); if(l.google&&typeof l.google.rating==='number') bits.push('<span class="grate" title="Google rating">★ '+l.google.rating.toFixed(1)+(l.google.reviews?(' ('+Number(l.google.reviews).toLocaleString()+')'):'')+'</span>'); if(l.google&&typeof l.google.priceLevel==='number'&&l.google.priceLevel>0) bits.push('<span class="grate" title="Google price level">'+new Array(l.google.priceLevel+1).join('$')+'</span>');
+    var addrLine=loc?('<div class="locaddr">'+loc+'</div>'):'<div class="locaddr locaddr-empty">No address on file — Edit to add</div>';
+    var bits=[]; if(l.siteType) bits.push(esc(l.siteType)); if(l.tenure) bits.push('<span class="tenpill ten-'+l.tenure.toLowerCase()+'">'+esc(l.tenure)+'</span>'); if(l.sf) bits.push(esc(Number(l.sf).toLocaleString())+' SF'); if(l.phone) bits.push(esc(l.phone)); if(l.opened) bits.push('Opened '+esc(fmtD(l.opened))); if(l.closedDate) bits.push('<span class="closedpill">Closed '+esc(fmtD(l.closedDate))+'</span>'); if(l.leaseExpires) bits.push('Lease exp '+esc(fmtD(l.leaseExpires))); if(l.google&&typeof l.google.rating==='number') bits.push('<span class="grate" title="Google rating">★ '+l.google.rating.toFixed(1)+(l.google.reviews?(' ('+Number(l.google.reviews).toLocaleString()+')'):'')+'</span>'); if(l.google&&typeof l.google.priceLevel==='number'&&l.google.priceLevel>0) bits.push('<span class="grate" title="Google price level">'+new Array(l.google.priceLevel+1).join('$')+'</span>');
     var line=bits.join(' · '); var np=(l.photos||[]).length;
     var badge=np?('<span class="phcount" title="'+np+' photo'+(np===1?'':'s')+'">'+np+' ▣</span>'):'';
     var flag=l.flagship?'<span class="flagtag" title="Flagship location">★ Flagship</span>':'';
     var comm=l.commissary?'<span class="commtag" title="Commissary / central kitchen">Commissary</span>':'';
     var serves='';
     if(l.commissary){ serves=l.servesAll?'Serves all concepts':((l.serves&&l.serves.length)?('Serves '+l.serves.map(esc).join(', ')):'Serves — set which concepts'); serves='<div class="servesline">'+serves+'</div>'; }
-    return '<div class="crow"><div class="locthumbwrap">'+locThumb(l)+'</div><div class="cinfo"><div class="cname"><span class="lnameedit" data-le="'+esc(l.id)+'" title="Click to edit this location">'+esc(l.name||l.address||'Location')+'</span> '+flag+' '+comm+' '+((l.google&&/CLOSED/.test(l.google.businessStatus||'')&&['Closed','Dark'].indexOf(l.status)<0)?'<span class="gclosed" title="Google Places shows this as '+esc(l.google.businessStatus||'')+'">⚠ Google: may be closed</span>':'')+' '+badge+'</div><div class="csub">'+line+serves+(l.notes?('<div class="locnote">'+esc(l.notes)+'</div>'):'')+'</div></div><span class="ctype '+locStatusClass(l.status)+'">'+esc(l.status||'Open')+'</span><button class="ledit" data-le="'+esc(l.id)+'">Edit</button><button class="crm" data-lrm="'+esc(l.id)+'">Remove</button></div>';
+    return '<div class="crow"><div class="locthumbwrap">'+locThumb(l)+'</div><div class="cinfo"><div class="cname"><span class="lnameedit" data-le="'+esc(l.id)+'" title="Click to edit this location">'+esc(l.name||l.address||'Location')+'</span> '+flag+' '+comm+' '+((l.google&&/CLOSED/.test(l.google.businessStatus||'')&&['Closed','Dark'].indexOf(l.status)<0)?'<span class="gclosed" title="Google Places shows this as '+esc(l.google.businessStatus||'')+'">⚠ Google: may be closed</span>':'')+' '+badge+'</div><div class="csub">'+addrLine+(line?('<div class="locmeta">'+line+'</div>'):'')+serves+(l.notes?('<div class="locnote">'+esc(l.notes)+'</div>'):'')+'</div></div><span class="ctype '+locStatusClass(l.status)+'">'+esc(l.status||'Open')+'</span><button class="ledit" data-le="'+esc(l.id)+'">Edit</button><button class="crm" data-lrm="'+esc(l.id)+'">Remove</button></div>';
   }
   function locNameRow(l){
     var st=l.status||'Open';
@@ -709,16 +726,34 @@ function _doConceptBuildFromName(cpt,isEdit){
 function openConceptBuilder(){
   var f=document.getElementById('conceptForm'); if(!f) return;
   var mkOpts=(MARKETS||[]).map(function(m){return '<option value="'+esc(m)+'">';}).join('');
-  f.innerHTML='<div class="cform findcard"><div class="findhd">✨ Add '+esc(CLABELP.toLowerCase())+'<span class="fchev">▾</span></div>'
-    +'<div class="findsub">Enter one or more concept names (one per line). '+esc(ASSISTANT)+' finds each brand’s website, type, cuisine, price, logo, and locations. A metro helps it land on the right website.</div>'
-    +'<div class="cgrid">'
-    +'<div class="wide"><label class="fld">'+esc(CLABEL)+' name(s) — one per line</label><textarea id="cb_names" rows="4" placeholder="One concept per line" style="width:100%;padding:9px 11px;font:inherit;font-size:13px;border:1px solid #d5dbe6;border-radius:9px;resize:vertical"></textarea></div>'
-    +(C.type==='Landlord'?'':('<div class="wide" data-ai="" style="margin-top:-2px"><button type="button" class="findbtn" id="cb_findgroup" style="background:#fff;color:#2c5c8f;border-color:#2c5c8f">✨ Find '+esc(C.name||'this company')+'’s '+esc(CLABELP.toLowerCase())+'</button> <span style="font-size:11.5px;color:#8a80b3">'+esc(ASSISTANT)+' searches the web for every '+esc(CLABEL.toLowerCase())+' '+esc(C.name||'this company')+' operates and builds each one — website, type, cuisine, price, logo and locations</span></div>'))
-    +'<div><label class="fld">Major metro they operate in</label><input id="cb_metro" list="cb_mklist" placeholder="e.g. Dallas, Austin"><datalist id="cb_mklist">'+mkOpts+'</datalist></div>'
-    +'<div><label class="fld">Approx. # locations each</label><input id="cb_count" placeholder="optional"></div>'
-    +'<div class="wide" style="border-top:1px dashed #d9dfe9;margin-top:6px;padding-top:11px"><label class="fld">Or paste a list you already have — brands with their addresses</label><textarea id="cb_paste" rows="5" placeholder="Paste the list — one location per line, e.g.&#10;Blue Agave Cantina — 123 Main St, Austin TX&#10;Blue Agave Cantina — 456 Oak Ave, Round Rock TX&#10;El Toro Steakhouse — 789 Elm St, Dallas TX" style="width:100%;padding:9px 11px;font:inherit;font-size:13px;border:1px solid #d5dbe6;border-radius:9px;resize:vertical"></textarea><div style="margin-top:6px;display:flex;align-items:center;gap:9px;flex-wrap:wrap"><button type="button" class="findbtn" id="cb_import" style="background:#fff;color:#2c5c8f;border-color:#2c5c8f">📋 Import pasted list</button><span style="font-size:11.5px;color:#8a93a8">No web search — structures exactly what you paste into '+esc(CLABELP.toLowerCase())+' &amp; locations</span></div><div id="cb_imprev" style="margin-top:8px"></div></div>'
-    +'</div><div class="cbtns"><button type="button" class="findbtn" id="cb_go">✨ Build all</button><button type="button" class="mfadd" id="cb_manual">Add one manually</button><button type="button" class="cbtn" id="cb_cancel">Cancel</button><span id="cb_msg" class="findmsg"></span></div></div>';
+  var cl=esc(CLABEL.toLowerCase()), clp=esc(CLABELP.toLowerCase()), coName=esc(C.name||'this company');
+  var _isLL=(C.type==='Landlord');
+  var findBlock=_isLL?'':(
+    '<div class="cmeth"><div class="mh"><span class="mn">1</span><span class="mt">Find them for me</span><span class="mtag">Auto-discover</span></div>'
+    +'<div class="md">Don’t have the list? '+esc(ASSISTANT)+' searches the web for every '+cl+' <b>'+coName+'</b> operates and builds each one — website, type, cuisine, price, logo and locations.</div>'
+    +'<button type="button" class="findbtn" id="cb_findgroup">✨ Find '+coName+'’s '+clp+'</button></div>');
+  var nTitle=_isLL?'1':'2', nPaste=_isLL?'2':'3', nMan=_isLL?'3':'4';
+  f.innerHTML='<div class="cform findcard clean" style="background:#fff;border-bottom-color:var(--line)"><div class="findhd">Add '+clp+'<span class="fchev">▾</span></div>'
+    +'<div class="findsub">A few ways to add '+clp+' — pick whichever matches what you have.</div>'
+    +'<div class="addmethods">'
+    +findBlock
+    +'<div class="cmeth"><div class="mh"><span class="mn">'+nTitle+'</span><span class="mt">I know the brand names</span><span class="mtag">AI builds each</span></div>'
+      +'<div class="md">Type each brand, one per line. '+esc(ASSISTANT)+' fills in the website, type, cuisine, price, logo and pulls locations. Metros help it land on the right sites.</div>'
+      +'<textarea id="cb_names" rows="4" placeholder="One '+cl+' per line" style="width:100%;padding:9px 11px;font:inherit;font-size:13px;border:1px solid #d5dbe6;border-radius:4px;resize:vertical"></textarea>'
+      +'<div class="mrow" style="margin-top:9px"><div style="flex:2;min-width:190px"><label class="fld">Metros they operate in</label><div id="cb_metrohost" class="cbmetrofield"><span id="cb_metrochips"></span><input id="cb_metro" list="cb_mklist" placeholder="Type a metro, press Enter" autocomplete="off"><datalist id="cb_mklist">'+mkOpts+'</datalist></div></div><div style="flex:1;min-width:110px"><label class="fld">Approx. # locations each</label><input id="cb_count" placeholder="optional" style="border-radius:4px"></div></div>'
+      +'<div style="margin-top:10px"><button type="button" class="findbtn" id="cb_go">✨ Build all</button></div></div>'
+    +'<div class="cmeth"><div class="mh"><span class="mn">'+nPaste+'</span><span class="mt">I already have a list</span><span class="mtag">No search</span></div>'
+      +'<div class="md">Paste brands with their addresses. We structure exactly what you paste into '+clp+' &amp; locations — nothing is searched or invented.</div>'
+      +'<textarea id="cb_paste" rows="5" placeholder="One location per line, e.g.&#10;Lucky Rabbit Bar &amp; Grill — 123 Main St, Austin TX&#10;Lucky Rabbit Bar &amp; Grill — 456 Oak Ave, Round Rock TX&#10;Rabbit Hole — 789 Elm St, Dallas TX" style="width:100%;padding:9px 11px;font:inherit;font-size:13px;border:1px solid #d5dbe6;border-radius:4px;resize:vertical"></textarea>'
+      +'<div style="margin-top:9px"><button type="button" class="findbtn sec" id="cb_import">📋 Import pasted list</button></div><div id="cb_imprev" style="margin-top:8px"></div></div>'
+    +'<div class="cmeth"><div class="mh"><span class="mn">'+nMan+'</span><span class="mt">Add one by hand</span><span class="mtag">Manual</span></div>'
+      +'<div class="md">Enter a single '+cl+' yourself — no AI, no search.</div>'
+      +'<button type="button" class="mfadd" id="cb_manual">+ Add one manually</button></div>'
+    +'</div>'
+    +'<div class="cbtns" style="margin-top:12px"><button type="button" class="cbtn" id="cb_cancel">Close</button><span id="cb_msg" class="findmsg"></span></div></div>';
   f.removeAttribute('hidden'); expandCardOf(f);
+  CB_METROS=[]; cbRenderMetros();
+  (function(){ var mi=document.getElementById('cb_metro'); if(!mi) return; mi.addEventListener('keydown',function(e){ if(e.key==='Enter'||e.key===','){ e.preventDefault(); cbAddMetro(mi.value); mi.value=''; } else if(e.key==='Backspace' && !mi.value && CB_METROS.length){ CB_METROS.pop(); cbRenderMetros(); } }); mi.addEventListener('change',function(){ if(mi.value){ cbAddMetro(mi.value); mi.value=''; } }); mi.addEventListener('blur',function(){ if(mi.value){ cbAddMetro(mi.value); mi.value=''; } }); var host=document.getElementById('cb_metrohost'); if(host) host.addEventListener('click',function(e){ if(e.target===host||e.target.id==='cb_metrochips') mi.focus(); }); })();
   document.getElementById('cb_go').addEventListener('click',buildAllConcepts);
   var _fg=document.getElementById('cb_findgroup'); if(_fg) _fg.addEventListener('click',findGroupConcepts);
   document.getElementById('cb_manual').addEventListener('click',function(){ openConceptForm(null); });
@@ -741,7 +776,7 @@ function _doFindGroupConcepts(){
     var names=(j.concepts||[]).map(function(c){return c.name;}).filter(Boolean);
     if(!names.length){ if(msg) msg.textContent='No concepts found — enter them manually.'; return; }
     var ta=document.getElementById('cb_names'); if(ta) ta.value=names.join('\n');
-    var metro=(document.getElementById('cb_metro').value||'').trim(); var count=(document.getElementById('cb_count').value||'').trim();
+    var metro=cbMetrosNow(); var count=(document.getElementById('cb_count').value||'').trim();
     if(msg) msg.textContent='Found '+names.length+' concept'+(names.length===1?'':'s')+' — building…';
     runBuildConcepts(names,metro,count,(j&&j.groupWebsite)||'');
   }).catch(function(){ if(btn) btn.disabled=false; if(msg) msg.textContent='Network error.'; });
@@ -754,6 +789,10 @@ function autoFindGroup(metro){
     runBuildConcepts(names,metro||'','',(j&&j.groupWebsite)||'');
   }).catch(function(){ if(typeof aiHide==='function') aiHide(); alert('Could not reach the server.'); });
 }
+var CB_METROS=[];
+function cbRenderMetros(){ var box=document.getElementById('cb_metrochips'); if(!box) return; box.innerHTML=CB_METROS.map(function(m){ return '<span class="cbchip">'+esc(m)+'<button type="button" data-cbm="'+esc(m)+'" title="Remove">×</button></span>'; }).join(''); box.querySelectorAll('[data-cbm]').forEach(function(b){ b.addEventListener('click',function(){ var m=b.getAttribute('data-cbm'); CB_METROS=CB_METROS.filter(function(x){return x!==m;}); cbRenderMetros(); }); }); }
+function cbAddMetro(v){ v=(v||'').trim(); if(!v) return; var key=v.toLowerCase(); if(CB_METROS.some(function(x){return x.toLowerCase()===key;})) return; CB_METROS.push(v); cbRenderMetros(); }
+function cbMetrosNow(){ var mi=document.getElementById('cb_metro'); if(mi && mi.value.trim()){ cbAddMetro(mi.value); mi.value=''; } return CB_METROS.slice(); }
 var _pastedConcepts=null;
 function importPastedList(){
   var ta=document.getElementById('cb_paste'); var txt=((ta&&ta.value)||'').trim();
@@ -784,10 +823,10 @@ function commitPastedList(){
 }
 function buildAllConcepts(){
   var names=(document.getElementById('cb_names').value||'').split(/\n/).map(function(s){return s.trim();}).filter(Boolean);
-  var metro=(document.getElementById('cb_metro').value||'').trim();
+  var metros=cbMetrosNow();
   var count=(document.getElementById('cb_count').value||'').trim();
   if(!names.length){ document.getElementById('cb_names').focus(); var msg=document.getElementById('cb_msg'); if(msg) msg.textContent='Enter at least one concept name.'; return; }
-  runBuildConcepts(names,metro,count,'');
+  runBuildConcepts(names,metros,count,'');
 }
 var _cbAbort=null;
 function runBuildConcepts(names,metro,count,website){
@@ -801,7 +840,8 @@ function _doRunBuildConcepts(names,metro,count,website){
   var _lbl=(names.length===1?(typeof CLABEL!=='undefined'?CLABEL:'concept').toLowerCase():(typeof CLABELP!=='undefined'?CLABELP:'concepts').toLowerCase());
   var _bldMsg=(names.length===1)?(' is building '+_lbl+' — searching the web…'):(' is building '+names.length+' '+_lbl+' in parallel — searching the web for each…');
   aiShow((window.__rrgAssistant||(typeof ASSISTANT!=='undefined'?ASSISTANT:'AI'))+_bldMsg, function(){ _cbStop=true; if(_cbAbort){ try{_cbAbort.abort();}catch(e){} } aiHide(); });
-  var opt={method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({names:names,market:metro,count:count,website:website||''})};
+  var _metros=Array.isArray(metro)?metro:(metro?[metro]:[]);
+  var opt={method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({names:names,market:(_metros[0]||''),markets:_metros,count:count,website:website||''})};
   if(_cbAbort) opt.signal=_cbAbort.signal;
   fetch('/api/company/'+encodeURIComponent(ID)+'/build-concepts',opt)
     .then(function(r){return r.json();}).then(function(j){
