@@ -1695,6 +1695,7 @@ app.get('/api/valuation-readiness', (req, res) => {
 app.post('/api/valuation-room', express.json(), (req, res) => {
   try {
     const b = req.body || {};
+    const _canRoom = userCan(req.user, 'tool:rrg_rooms_queue.html');
     const pid = String(b.personId || '').trim().slice(0, 48);
     const cid = String(b.companyId || '').trim().slice(0, 48);
     // Listing-scoped: a specific business's data room (create-or-find tied to that deal).
@@ -1703,6 +1704,7 @@ app.post('/api/valuation-room', express.json(), (req, res) => {
     if (_lk && _sd) {
       const _rm = roomForDeal(_sd);
       if (_rm) return res.json({ ok: true, id: _rm.id });
+      if (!_canRoom) return res.status(403).json({ ok: false, error: 'You do not have permission to set up data rooms.' });
       const _rooms = loadRooms();
       const nr = { id: newRoomId(), srcCimId: '', srcBovId: '', srcDealId: _sd.id, personId: pid || _sd.contactPersonId || '', companyId: cid || _sd.companyId || '', token: newRoomToken(), business: String(b.business || _sd.business || 'Valuation').slice(0, 120), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: new Date().toISOString(), folders: roomCategories(), docs: [], access: [], grants: [] };
       _rooms.push(nr); saveRooms(_rooms);
@@ -1717,6 +1719,7 @@ app.post('/api/valuation-room', express.json(), (req, res) => {
       try { const deals = loadDeals().filter(hit); for (const d of deals) { const rm = rooms.find(r => r.id === d.roomId || r.srcDealId === d.id); if (rm) { room = rm; break; } } } catch (e) {}
     }
     if (!room) {
+      if (!_canRoom) return res.status(403).json({ ok: false, error: 'You do not have permission to set up data rooms.' });
       room = { id: newRoomId(), srcCimId: '', srcBovId: '', srcDealId: '', personId: pid, companyId: cid, token: newRoomToken(), business: String(b.business || 'Valuation').slice(0, 120), by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', createdAt: new Date().toISOString(), folders: roomCategories(), docs: [], access: [], grants: [] };
       rooms.push(room); saveRooms(rooms);
     } else if ((pid && !room.personId) || (cid && !room.companyId)) {
@@ -8853,7 +8856,7 @@ app.get('/api/person/:id', (req, res) => {
   let _automations = []; try { _automations = loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === (req.user && req.user.username) || (req.user && isSuper(req.user)))).map(a => automationBrief(a, req.user || {})); } catch (e) { console.error('[/api/person] automations build failed for ' + p.id + ':', e && e.message); }
   let _users = []; try { _users = auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))); } catch (e) {}
   let _company = null; try { _company = companyBrief(companyById(p.companyId)); } catch (e) {}
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), types: personTypesOf(p), tags: personTags(p), companyName: (function(){ try{ var _c=companyById(p.companyId); return _c?(_c.name||''):''; }catch(e){ return ''; } })(), hasPhoto: !!p.photoExt }), relationship: (function(){ try{ return relationshipRollup(p.id); }catch(e){ return null; } })(), company: _company, deals, offers, tours, ndas, interested, agreements: _agreements, agreementTypes: effAgreementTypes(), appointments: _appointments, apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), markets: effMarkets(), companyConcepts: (function(){ try{ var _c=companyById(p.companyId); return (_c&&Array.isArray(_c.concepts))?_c.concepts.map(function(x){return (x&&x.name)||'';}).filter(Boolean).slice(0,80):[]; }catch(e){ return []; } })(), allTags: allTagsList(), automations: _automations, emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: _users, activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), types: personTypesOf(p), tags: personTags(p), companyName: (function(){ try{ var _c=companyById(p.companyId); return _c?(_c.name||''):''; }catch(e){ return ''; } })(), hasPhoto: !!p.photoExt }), relationship: (function(){ try{ return relationshipRollup(p.id); }catch(e){ return null; } })(), company: _company, deals, offers, tours, ndas, interested, agreements: _agreements, agreementTypes: effAgreementTypes(), appointments: _appointments, apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), markets: effMarkets(), companyConcepts: (function(){ try{ var _c=companyById(p.companyId); return (_c&&Array.isArray(_c.concepts))?_c.concepts.map(function(x){return (x&&x.name)||'';}).filter(Boolean).slice(0,80):[]; }catch(e){ return []; } })(), allTags: allTagsList(), automations: _automations, emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: _users, activityTypes: effActivityTypes(), canRooms: userCan(req.user, 'tool:rrg_rooms_queue.html'), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
  } catch (e) {
   console.error('[/api/person] fatal for ' + (req.params && req.params.id) + ':', (e && e.stack) || e);
   if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not load this contact — a linked record looks malformed. (' + ((e && e.message) || 'error') + ')' });
@@ -9312,7 +9315,7 @@ app.get('/api/company/:id', (req, res) => {
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite(c.website || (c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
   const companyActivity = companyActivityFeed(c);
-  res.json({ ok: true, company: c, relationship: (function(){ try{ return relationshipRollupCompany(c.id); }catch(e){ return null; } })(), logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: effAgreementTypes(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), activity: companyActivity, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: effMarkets(), titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), hasMaps: !!loadGmapsKey(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, company: c, relationship: (function(){ try{ return relationshipRollupCompany(c.id); }catch(e){ return null; } })(), logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: effAgreementTypes(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), activity: companyActivity, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: effMarkets(), titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), hasMaps: !!loadGmapsKey(), canRooms: userCan(req.user, 'tool:rrg_rooms_queue.html'), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // ---- Company-level activity: notes / calls / meetings logged against the company itself. ----
 app.post('/api/company/:id/activity', express.json(), (req, res) => {
@@ -9878,19 +9881,23 @@ app.post('/api/company/:id/contact', express.json(), (req, res) => {
   const c = companyById(req.params.id);
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
   const b = req.body || {};
+  const _et = effPersonTypes();
+  // Main interest(s) — a contact can have more than one (e.g. Buying + Investing).
+  const inTypes = (Array.isArray(b.types) ? b.types : (b.type != null ? [b.type] : [])).map(x => String(x || '')).filter(t => _et.indexOf(t) >= 0).filter((v, i, a) => a.indexOf(v) === i).slice(0, 8);
+  const primaryType = inTypes[0] || '';
   const arr = loadPeople();
   let p = b.personId ? arr.find(x => x.id === b.personId) : null;
-  if (p) { p.companyId = c.id; if (typeof b.type === 'string' && effPersonTypes().indexOf(b.type) >= 0) { p.type = b.type; p.types = [b.type]; } if (typeof b.title === 'string') p.title = b.title.slice(0, 120); p.updatedAt = new Date().toISOString(); savePeople(arr); }
+  if (p) { p.companyId = c.id; if (inTypes.length) { p.type = primaryType; p.types = inTypes.slice(); } if (typeof b.title === 'string') p.title = b.title.slice(0, 120); p.updatedAt = new Date().toISOString(); savePeople(arr); }
   else {
     const first = String(b.firstName || '').trim(), last = String(b.lastName || '').trim();
     const emails = cleanList(b.emails !== undefined ? b.emails : b.email, 10, 160);
     const phones = cleanList(b.phones !== undefined ? b.phones : b.phone, 10, 60);
     if (!first || !last) return res.status(400).json({ ok: false, error: 'First and last name are required.' });
-    if (!(typeof b.type === 'string' && effPersonTypes().indexOf(b.type) >= 0)) return res.status(400).json({ ok: false, error: 'A contact type is required.' });
+    if (!inTypes.length) return res.status(400).json({ ok: false, error: 'At least one main interest is required.' });
     const clash = emailOwner(arr, emails, '__new__');
     if (clash) return res.status(409).json({ ok: false, error: 'That email is already on ' + (clash.name || 'another contact') + '.', existingId: clash.id });
-    p = findOrCreatePerson(req, { firstName: first, lastName: last, name: composeName(first, last), emails: emails, phones: phones, companyId: c.id, type: b.type, strict: true });
-    if (p && typeof b.type === 'string' && effPersonTypes().indexOf(b.type) >= 0 && p.type !== b.type) { const _a = loadPeople(); const _pp = _a.find(x => x.id === p.id); if (_pp) { _pp.type = b.type; _pp.types = [b.type]; _pp.updatedAt = new Date().toISOString(); savePeople(_a); p.type = b.type; } }
+    p = findOrCreatePerson(req, { firstName: first, lastName: last, name: composeName(first, last), emails: emails, phones: phones, companyId: c.id, type: primaryType, strict: true });
+    if (p && inTypes.length) { const _a = loadPeople(); const _pp = _a.find(x => x.id === p.id); if (_pp) { _pp.type = primaryType; _pp.types = inTypes.slice(); _pp.updatedAt = new Date().toISOString(); savePeople(_a); p.type = primaryType; } }
     if (p && (b.title || b.nickname || b.notes || Array.isArray(b.tags) || b.leadSource || b.referredBy || b.referredById)) { const a2 = loadPeople(); const pp = a2.find(x => x.id === p.id); if (pp) { if (b.title) pp.title = String(b.title).slice(0, 120); if (b.nickname) pp.nickname = String(b.nickname).slice(0, 80); if (b.notes) pp.notes = String(b.notes).slice(0, 4000); if (Array.isArray(b.tags)) pp.tags = b.tags.map(x => String(x || '').slice(0, 60)).filter(Boolean).slice(0, 30); if (Array.isArray(b.prefContact)) pp.prefContact = b.prefContact.filter(x => ['phone','text','email'].indexOf(x) >= 0); if (b.leadSource) pp.leadSource = String(b.leadSource).slice(0, 160); if (b.referredBy) pp.referredBy = String(b.referredBy).slice(0, 160); if (b.referredById) pp.referredById = String(b.referredById).slice(0, 40); pp.updatedAt = new Date().toISOString(); savePeople(a2); } }
   }
   // If the company has no primary contact yet, make this newly-added contact the primary.

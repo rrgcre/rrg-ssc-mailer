@@ -53,6 +53,10 @@ tr:hover td{background:#fbfcfe;}
 .modalh{padding:14px 22px;font-size:14px;font-weight:700;color:var(--navy);border-bottom:1px solid var(--line);background:var(--wash,#f4f6f9);}
 .modalb{padding:18px 22px;overflow-y:auto;flex:1 1 auto;min-height:0;} .mfld{display:block;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:12px 0 6px;} .modalb .mfld:first-child{margin-top:0;}
 .modalb input,.modalb select{width:100%;border:1px solid #c4ccda;border-radius:4px;padding:11px 13px;font:inherit;font-size:14px;background:#fff;}
+.mtypechips{display:flex;flex-wrap:wrap;gap:7px;}
+.mtypechip{display:inline-flex;align-items:center;gap:6px;border:1px solid #c4ccda;border-radius:16px;padding:6px 12px;font-size:13px;cursor:pointer;background:#fff;user-select:none;}
+.mtypechip input{width:auto!important;margin:0;padding:0!important;}
+.mtypechip.on{border-color:#2647b0;background:#eef2fb;color:#20335f;font-weight:600;}
 .modalf{display:flex;gap:9px;justify-content:flex-end;padding:14px 22px;border-top:1px solid var(--line);background:var(--wash,#f4f6f9);}
 .mbtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:10px 17px;font:inherit;font-size:13px;font-weight:600;cursor:pointer;} .mbtn.ghost{background:#fff;color:var(--muted);border-color:#c4ccda;}
 .dupe.warn{background:#fdf7ec;border-color:#f0dcae;color:#7a5b22;} .dupe.warn a{color:#b5791f;} .dupe.warn b{color:#7a5b22;}
@@ -112,7 +116,7 @@ tr:hover td{background:#fbfcfe;}
   </div>
 </div>
 <div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
-<div id="modal" class="modal" hidden><div class="modalcard">
+<div id="modal" class="modal" hidden><div class="modalcard" style="max-width:560px">
   <div class="modalh">New company</div>
   <div class="modalb">
     <div id="m_pastewrap" style="background:#f0f5ff;border:1px solid #d3e0f5;border-radius:8px;padding:11px 12px;margin-bottom:16px">
@@ -120,19 +124,22 @@ tr:hover td{background:#fbfcfe;}
       <textarea id="m_paste" rows="3" placeholder="Paste here — e.g. John Rivera, GM, Blue Agave Cantina, john@blueagave.com, (512) 555-0134, Austin TX" style="width:100%;border:1px solid #c4ccda;border-radius:6px;padding:10px 12px;font:inherit;font-size:13.5px;resize:vertical;background:#fff"></textarea>
       <div style="display:flex;align-items:center;gap:10px;margin-top:8px"><button type="button" id="m_pastebtn" class="mbtn" style="padding:7px 14px;font-size:13px">Read &amp; fill</button><span id="m_pastemsg" style="font-size:12px;color:#6b7488;font-weight:600"></span></div>
     </div>
+    <div class="mgrp" style="margin-top:0;border-top:none;padding-top:0">Company</div>
     <label class="mfld">Company name</label><input id="m_name" autocomplete="off" placeholder="e.g. Blue Agave Restaurant Group">
     <div id="m_dupe" class="dupe" hidden></div>
-    <label class="mfld">Type</label><select id="m_type"></select>
-    <label class="mfld">Lead source</label><input id="m_lead" list="leadsrclist" autocomplete="off" placeholder="Referral, CoStar, event…">
-    <div class="mgrp">First contact <span class="mopt">— optional; most operators have just one</span></div>
-    <div class="mrow2"><div><label class="mfld">First name</label><input id="m_cfirst" autocomplete="off"></div><div><label class="mfld">Last name</label><input id="m_clast" autocomplete="off"></div></div>
-    <div class="mrow2"><div><label class="mfld">Nickname</label><input id="m_cnick" autocomplete="off"></div><div><label class="mfld">Title</label><input id="m_ctitle" list="titlelist" autocomplete="off"></div></div>
-    <label class="mfld">Main interest <span class="mopt">— required if you add a contact; we don't guess</span></label><select id="m_ctype"></select>
-    <label class="mfld">Phone</label><input id="m_cphone" autocomplete="off" inputmode="numeric">
-    <label class="mfld">Email</label><input id="m_cemail" autocomplete="off">
-    <label class="mfld">Pipeline <span class="mopt" id="m_pipeline_hint">— optional; starts this lead on the board as Unqualified</span></label><select id="m_pipeline"></select>
+    <div class="mrow2"><div><label class="mfld">Type</label><select id="m_type"></select></div><div><label class="mfld">Lead source</label><input id="m_lead" list="leadsrclist" autocomplete="off" placeholder="Referral, CoStar, event…"></div></div>
     <label class="mfld">Major metros <span class="mopt">— add one or more; Enter or comma to add each</span></label>
     <div id="m_metrohost" class="mtagfield"><span id="m_metroedit" class="mtagchips"></span><input id="m_metro" list="metrolist" autocomplete="off" placeholder="e.g. Houston, Dallas…"></div>
+
+    <div class="mgrp">Primary contact <span class="mopt">— optional; most operators have just one</span></div>
+    <div class="mrow2"><div><label class="mfld">First name</label><input id="m_cfirst" autocomplete="off"></div><div><label class="mfld">Last name</label><input id="m_clast" autocomplete="off"></div></div>
+    <div class="mrow2"><div><label class="mfld">Nickname</label><input id="m_cnick" autocomplete="off"></div><div><label class="mfld">Title</label><input id="m_ctitle" list="titlelist" autocomplete="off"></div></div>
+    <label class="mfld">Main interest(s) <span class="mopt">— required if you add a contact; pick all that apply</span></label><div id="m_ctype" class="mtypechips"></div>
+    <div class="mrow2"><div><label class="mfld">Phone</label><input id="m_cphone" autocomplete="off" inputmode="numeric"></div><div><label class="mfld">Email</label><input id="m_cemail" autocomplete="off"></div></div>
+
+    <div class="mgrp">Pipeline &amp; board</div>
+    <label class="mfld">Pipeline <span class="mopt" id="m_pipeline_hint">— optional; starts this lead on the board as Unqualified</span></label><select id="m_pipeline"></select>
+
     <div class="mgrp">Concepts <span class="mopt">— up to 6, one per line</span></div>
     <label class="mfld" id="m_findgrp_wrap" style="display:none;background:var(--wash,#f4f6f9);border:1px solid var(--line);border-radius:4px;padding:9px 11px"><input type="checkbox" id="m_findgrp"> ✨ Restaurant group — let AI find every concept (skip typing them)</label>
     <label class="mfld">Concept name(s)</label><textarea id="m_concepts" rows="4" placeholder="One concept per line" style="width:100%;padding:9px 11px;border:1px solid #c4ccda;border-radius:4px;font:inherit;font-size:13px;resize:vertical"></textarea><div id="m_concept_msg" style="font-size:12px;color:#DA2B1F;margin-top:5px"></div>
@@ -278,7 +285,7 @@ function _syncModalSelects(){
   var tsel=document.getElementById('m_type'); if(tsel){ var tv=tsel.value; tsel.innerHTML=CTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join(''); if(tv&&CTYPES.indexOf(tv)>=0) tsel.value=tv; try{updateFindGrp();}catch(e){} }
   var psel=document.getElementById('m_pipeline'); if(psel){ var pv=psel.value; var _pops=(PIPELINES||[]).map(function(pp){return '<option value="'+esc(pp.id)+'">'+esc(pp.name)+'</option>';}).join(''); psel.innerHTML=(PIPELINE_REQUIRED?'':'<option value="">— Don’t start a listing —</option>')+_pops; if(pv){ psel.value=pv; } else if(PIPELINE_REQUIRED){ var _def=(PIPELINES||[]).filter(function(pp){return pp.id==='p_bizsales'||/business sale/i.test((pp.area||'')+' '+(pp.name||''));})[0]; if(_def) psel.value=_def.id; } else { psel.value=''; } var _ph=document.getElementById('m_pipeline_hint'); if(_ph) _ph.textContent=PIPELINE_REQUIRED?'— required; starts this lead on the board as Unqualified':'— optional; adding a company doesn’t start a listing — pick one only when the deal is real'; }
   var _ml=document.getElementById('metrolist'); if(_ml) _ml.innerHTML=(METROS||[]).map(function(m){return '<option value="'+esc(m)+'">';}).join('');
-  var ctsel=document.getElementById('m_ctype'); if(ctsel){ var ctv=ctsel.value; ctsel.innerHTML='<option value="">— select —</option>'+(PERSONTYPES||[]).map(function(t){return '<option>'+esc(t)+'</option>';}).join(''); if(ctv&&(PERSONTYPES||[]).indexOf(ctv)>=0) ctsel.value=ctv; }
+  renderMTypes();
 }
 function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=CTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join(''); try{updateFindGrp();}catch(e){}
   var psel=document.getElementById('m_pipeline'); if(psel){ var _pops=(PIPELINES||[]).map(function(pp){return '<option value="'+esc(pp.id)+'">'+esc(pp.name)+'</option>';}).join(''); psel.innerHTML=(PIPELINE_REQUIRED?'':'<option value="">\u2014 Don\u2019t start a listing \u2014</option>')+_pops; if(PIPELINE_REQUIRED){ var _def=(PIPELINES||[]).filter(function(pp){return pp.id==='p_bizsales'||/business sale/i.test((pp.area||'')+' '+(pp.name||''));})[0]; if(_def) psel.value=_def.id; } else { psel.value=''; } var _ph=document.getElementById('m_pipeline_hint'); if(_ph) _ph.textContent=PIPELINE_REQUIRED?'\u2014 required; starts this lead on the board as Unqualified':'\u2014 optional; adding a company doesn\u2019t start a listing \u2014 pick one only when the deal is real'; }
@@ -286,13 +293,16 @@ function openModal(){ var sel=document.getElementById('m_type'); sel.innerHTML=C
   var mcs0=document.getElementById('m_concepts'); if(mcs0){ mcs0.dataset.auto=''; }
   ['m_concepts','m_conccount','m_metro','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes','m_paste'].forEach(function(id){var el=document.getElementById(id);if(el)el.value='';});
   var _pm=document.getElementById('m_pastemsg'); if(_pm){ _pm.textContent=''; }
-  var ct=document.getElementById('m_ctype'); if(ct) ct.innerHTML='<option value="">— select —</option>'+PERSONTYPES.map(function(t){return '<option>'+esc(t)+'</option>';}).join('');
+  renderMTypes();
   function fillDL(id,arr){ var el=document.getElementById(id); if(el) el.innerHTML=(arr||[]).map(function(v){return '<option value="'+esc(v)+'"></option>';}).join(''); }
   fillDL('citylist',CITIES); fillDL('titlelist',TITLES); fillDL('taglist',ALLTAGS);
   MTAGS=[]; renderMTags(); MMETROS=[]; renderMMetros(); document.querySelectorAll('.m_prefchk').forEach(function(c){c.checked=false;});
   var _cl=document.getElementById('m_clead'); if(_cl) _cl.value=''; setupCReferral();
   document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_name').focus(); }
 function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_name','m_concept','m_concepts','m_conccount','m_website','m_addr','m_city','m_state','m_zip','m_cfirst','m_clast','m_cnick','m_ctitle','m_cphone','m_cemail','m_ctag','m_cnotes','m_clead','m_crefby','m_lead','m_paste'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; }); var _pm=document.getElementById('m_pastemsg'); if(_pm) _pm.textContent=''; var _cc=document.getElementById('crefbyCell'); if(_cc) _cc.style.display='none'; var box=document.getElementById('m_dupe'); box.setAttribute('hidden','');box.innerHTML=''; document.getElementById('m_create').disabled=false; document.getElementById('m_create').textContent='Create company'; MTAGS=[]; if(typeof renderMTags==='function') renderMTags(); MMETROS=[]; if(typeof renderMMetros==='function') renderMMetros(); }
+function collectMTypes(){ var out=[]; document.querySelectorAll('#m_ctype .m_ctypechk:checked').forEach(function(c){ out.push(c.value); }); return out; }
+function renderMTypes(){ var box=document.getElementById('m_ctype'); if(!box) return; var cur=collectMTypes(); box.innerHTML=(PERSONTYPES||[]).map(function(t){ var on=cur.indexOf(t)>=0; return '<label class="mtypechip'+(on?' on':'')+'"><input type="checkbox" class="m_ctypechk" value="'+esc(t)+'"'+(on?' checked':'')+'>'+esc(t)+'</label>'; }).join(''); }
+document.addEventListener('change',function(e){ var t=e.target; if(t&&t.classList&&t.classList.contains('m_ctypechk')){ var l=t.closest('.mtypechip'); if(l) l.classList.toggle('on',t.checked); } });
 function _pasteSet(id,v){ var el=document.getElementById(id); if(el && v!=null && String(v).trim()!==''){ el.value=String(v).trim(); } }
 function pasteFill(){
   var ta=document.getElementById('m_paste'); var txt=((ta&&ta.value)||'').trim();
@@ -309,9 +319,9 @@ function pasteFill(){
     var _ph=document.getElementById('m_cphone'); if(_ph && p.phone){ _ph.value=(typeof mfmtPhone==='function')?mfmtPhone(String(p.phone)):String(p.phone); }
     _pasteSet('m_cemail',p.email);
     if(p.city && (METROS||[]).indexOf(String(p.city).trim())>=0 && (MMETROS||[]).indexOf(String(p.city).trim())<0 && typeof addMMetro==='function'){ addMMetro(String(p.city).trim()); }
-    var ct=document.getElementById('m_ctype'); if(ct && p.interest && (PERSONTYPES||[]).indexOf(p.interest)>=0){ ct.value=p.interest; }
+    if(p.interest && (PERSONTYPES||[]).indexOf(p.interest)>=0){ document.querySelectorAll('#m_ctype .m_ctypechk').forEach(function(c){ if(c.value===p.interest){ c.checked=true; var l=c.closest('.mtypechip'); if(l) l.classList.add('on'); } }); }
     if(typeof checkDupe==='function'){ try{ checkDupe(); }catch(e){} }
-    var needInterest=(p.firstName||p.lastName)&&!(ct&&ct.value);
+    var needInterest=(p.firstName||p.lastName)&&!collectMTypes().length;
     if(msg){ msg.style.color='#1f8a5b'; msg.textContent='Filled — review below'+(needInterest?', pick a main interest,':'')+' then Create.'; }
     var mn=document.getElementById('m_name'); if(mn && !mn.value){ mn.focus(); }
   }).catch(function(){ if(btn) btn.disabled=false; if(msg){ msg.style.color='#b23a2c'; msg.textContent='Couldn’t reach the parser — fill by hand.'; } });
@@ -329,8 +339,8 @@ async function createCompany(){
   var cnick=(document.getElementById('m_cnick').value||'').trim(), ctitle=(document.getElementById('m_ctitle').value||'').trim(), cphone=(document.getElementById('m_cphone').value||'').trim(), cemail=(document.getElementById('m_cemail').value||'').trim();
   var ctype=document.getElementById('m_type').value;
   // Main interest is the contact's — never inferred from the company type. If a contact is being added, it must be chosen.
-  var contactType=((document.getElementById('m_ctype')||{}).value||'').trim();
-  if(cfirst&&clast&&!contactType){ var _mc=document.getElementById('m_ctype'); if(_mc) _mc.focus(); b.disabled=false; b.textContent='Create company'; alert('Pick this contact’s main interest — or clear their name to add them later.'); return; }
+  var contactTypes=collectMTypes();
+  if(cfirst&&clast&&!contactTypes.length){ var _mc=document.querySelector('#m_ctype .m_ctypechk'); if(_mc) _mc.focus(); b.disabled=false; b.textContent='Create company'; alert('Pick at least one main interest — or clear their name to add them later.'); return; }
   var findGrp=!!(document.getElementById('m_findgrp')&&document.getElementById('m_findgrp').checked&&ctype==='Restaurant Group');
   if(findGrp){ b.textContent='Finding concepts…'; var _cmsg=document.getElementById('m_concept_msg'); if(_cmsg) _cmsg.textContent=''; var _fcCtrl=window.AbortController?new AbortController():null; var _fcCancelled=false; aiShow('Reading “'+name+'”’s website for every brand they operate…', function(){ _fcCancelled=true; if(_fcCtrl){ try{_fcCtrl.abort();}catch(e){} } var cb=document.getElementById('m_findgrp'); if(cb) cb.checked=false; var ta=document.getElementById('m_concepts'); if(ta){ ta.disabled=false; ta.style.opacity=''; } b.disabled=false; b.textContent='Create company'; }); fetch('/api/ai/find-concepts',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({name:name,market:metro}),signal:_fcCtrl?_fcCtrl.signal:undefined}).then(function(r){return r.json();}).then(function(j){ if(_fcCancelled) return; _foundGroupSite=(j&&j.groupWebsite)||''; var found=(j&&j.ok&&j.concepts)?j.concepts.map(function(c){return c.name;}).filter(Boolean).slice(0,50):[]; var ta=document.getElementById('m_concepts'); var cb=document.getElementById('m_findgrp'); if(cb) cb.checked=false; if(ta){ ta.disabled=false; ta.style.opacity=''; try{ta.dataset.auto='';}catch(e){} } b.disabled=false; b.textContent='Create company'; if(!found.length){ aiHide(); if(ta){ ta.value=''; ta.focus(); } if(_cmsg) _cmsg.textContent='Couldn’t find concepts for “'+name+'” — enter them below, one per line, then Create.'; return; } if(ta) ta.value=found.join('\n'); aiSetMsg('Found '+found.length+' concept'+(found.length===1?'':'s')+' — creating the company…'); createCompany(); }).catch(function(e){ if(_fcCancelled||(e&&e.name==='AbortError')){ aiHide(); return; } aiHide(); var ta=document.getElementById('m_concepts'); var cb=document.getElementById('m_findgrp'); if(cb) cb.checked=false; if(ta){ ta.disabled=false; ta.style.opacity=''; ta.value=''; ta.focus(); } b.disabled=false; b.textContent='Create company'; if(_cmsg) _cmsg.textContent='Couldn’t reach the AI — enter the concepts below manually.'; }); return; }
   var _stash=(conceptNames.length?{names:conceptNames,metro:metro,website:_foundGroupSite||'',count:conccount}:null);
@@ -339,7 +349,7 @@ async function createCompany(){
     .then(async function(j){
       if(!(j&&j.ok&&j.company)){ if(j&&j.existingId){ b.textContent='Create company'; if(await rrgConfirm((j.error||'That company already exists.')+'\n\nOpen it instead?')) location.href='./rrg_company.html?id='+encodeURIComponent(j.existingId); else b.disabled=false; } else { b.disabled=false;b.textContent='Create company'; alert((j&&j.error)||'Could not create the company.'); } return; }
       var id=j.company.id; var chain=Promise.resolve();
-      if(cfirst&&clast){ chain=chain.then(function(){ var _cbody={firstName:cfirst,lastName:clast,nickname:cnick,title:ctitle,phone:cphone,email:cemail,type:contactType}; return J('/api/company/'+encodeURIComponent(id)+'/contact',_cbody).then(function(cj){ if(cj&&!cj.ok){ alert('Company created, but the contact was not added: '+((cj&&cj.error)||'unknown error')); } return cj; }); }); }
+      if(cfirst&&clast){ chain=chain.then(function(){ var _cbody={firstName:cfirst,lastName:clast,nickname:cnick,title:ctitle,phone:cphone,email:cemail,types:contactTypes}; return J('/api/company/'+encodeURIComponent(id)+'/contact',_cbody).then(function(cj){ if(cj&&!cj.ok){ alert('Company created, but the contact was not added: '+((cj&&cj.error)||'unknown error')); } return cj; }); }); }
       chain.then(function(){ if(_stash){ try{ localStorage.setItem('rrg_build_'+id, JSON.stringify(_stash)); }catch(e){} } location.href='./rrg_company.html?id='+encodeURIComponent(id); }, function(){ if(_stash){ try{ localStorage.setItem('rrg_build_'+id, JSON.stringify(_stash)); }catch(e){} } location.href='./rrg_company.html?id='+encodeURIComponent(id); });
     })
     .catch(function(){ b.disabled=false;b.textContent='Create company'; alert('Could not reach the server.'); });
