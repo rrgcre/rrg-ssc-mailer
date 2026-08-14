@@ -216,7 +216,7 @@ function initials(n){ n=String(n||'').trim(); if(!n) return '?'; var p=n.split(/
 function tclass(t){ return 't-'+String(t||'other').toLowerCase().replace(/[^a-z]+/g,''); }
 var ALL=[], CTL=null, FILTER='', TYPES=[], IS_ADMIN=false, CAN_DELETE=false, VIPONLY=false, PIPELINES=[];
 function loadPipelinesList(){ return fetch('/api/pipelines',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PIPELINES=(j&&j.pipelines)||[]; fillPipelineSelect(); }).catch(function(){}); }
-function fillPipelineSelect(){ var ps=document.getElementById('m_pipeline'); if(!ps) return; var cur=ps.value; ps.innerHTML='<option value="">— Don’t start a listing —</option>'+(PIPELINES||[]).map(function(pp){return '<option value="'+esc(pp.id)+'">'+esc(pp.name)+'</option>';}).join(''); if(cur) ps.value=cur; }
+function fillPipelineSelect(){ var ps=document.getElementById('m_pipeline'); if(!ps) return; var cur=ps.value; ps.innerHTML='<option value="">— None (don’t start a listing) —</option>'+(PIPELINES||[]).map(function(pp){return '<option value="'+esc(pp.id)+'">'+esc(pp.name)+'</option>';}).join(''); if(cur) ps.value=cur; }
 var FILTERS=emptyFilters(), SAVEDLIST=[];
 var _FSVG={
  vip:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="6"/><path d="M15.477 12.89 17 22l-5-3-5 3 1.523-9.11"/></svg>',

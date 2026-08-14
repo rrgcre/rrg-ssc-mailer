@@ -7956,7 +7956,40 @@ app.post('/api/ai/contact-prep', express.json({ limit: '256kb' }), aiRoute(b => 
 app.post('/api/ai/enrich-contact', express.json({ limit: '64kb' }), aiRoute(b => aiassist.enrichContact(b || {})));
 app.post('/api/ai/enrich-company', express.json({ limit: '64kb' }), aiRoute(b => aiassist.enrichCompany(b || {})));
 // Parse a pasted blob (email signature, business card, forwarded intro) into contact + company fields.
-app.post('/api/ai/parse-contact', express.json({ limit: '64kb' }), aiRoute(b => aiassist.parseEmailContact({ from: String((b && b.from) || ''), subject: '', body: String((b && b.text) || '').slice(0, 12000) })));
+// Derive a company name + website from a person's business email domain (skips free providers).
+function companyFromEmailDomain(email) {
+  const m = String(email || '').toLowerCase().match(/[a-z0-9._%+\-]+@([a-z0-9.\-]+\.[a-z]{2,})/);
+  if (!m) return null;
+  const host = m[1].replace(/^www\./, '');
+  try { if (PERSONAL_DOMAINS.has(host)) return null; } catch (e) {}
+  const parts = host.split('.');
+  const root = (parts.length >= 3 && /^(co|com|net|org|gov|edu|ac)$/.test(parts[parts.length - 2]) && parts[parts.length - 1].length === 2)
+    ? parts[parts.length - 3] : parts[parts.length - 2];
+  if (!root) return null;
+  const name = String(root).split(/[-_]+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  return name ? { name: name, website: host } : null;
+}
+app.post('/api/ai/parse-contact', express.json({ limit: '64kb' }), async (req, res) => {
+  try {
+    if (!aiAllowed(req)) return res.status(403).json({ ok: false, error: 'You do not have access to AI features.' });
+    const b = req.body || {};
+    const text = String(b.text || '').slice(0, 12000);
+    let out;
+    try { out = await aiassist.parseEmailContact({ from: String(b.from || ''), subject: '', body: text }); }
+    catch (e) { return res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
+    out = out || {};
+    // Fallback: derive the company from the contact's business email domain when the signature didn't name one.
+    if (!String(out.companyName || '').trim() || !String(out.companyWebsite || '').trim()) {
+      const em = String(out.email || '').trim() || (function () { const mm = text.match(/[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}/i); return mm ? mm[0] : ''; })();
+      const dom = companyFromEmailDomain(em);
+      if (dom) {
+        if (!String(out.companyName || '').trim()) { out.companyName = dom.name; out.companyFromDomain = true; }
+        if (!String(out.companyWebsite || '').trim()) out.companyWebsite = dom.website;
+      }
+    }
+    res.json({ ok: true, result: out });
+  } catch (e) { res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
+});
 app.post('/api/ai/loi-review', express.json({ limit: '256kb' }), aiRoute(b => aiassist.reviewLoi({ text: b.text || '' })));
 app.post('/api/ai/concept', express.json({ limit: '256kb' }), aiRoute(b => aiassist.conceptPositioning({ concept: b.concept || {}, locations: b.locations || [] })));
 app.post('/api/ai/site-read', express.json({ limit: '256kb' }), aiRoute(b => aiassist.locationSiteRead({ location: b.location || {} })));

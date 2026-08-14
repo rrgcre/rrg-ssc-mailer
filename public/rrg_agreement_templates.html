@@ -6,30 +6,29 @@
 <title>RRG — Agreement Templates</title>
 <style>
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
-*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
-.top{color:#fff;padding:28px 0 30px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
-.top-in{max-width:1080px;margin:0 auto;padding:0 24px;position:relative;z-index:2;}
-.brand{display:inline-flex;align-items:center;cursor:pointer;} .disc{background:var(--red);color:#fff;border-radius:50%;width:42px;height:42px;font-family:'Arial Black',Arial,sans-serif;font-weight:900;font-size:14px;display:flex;align-items:center;justify-content:center;letter-spacing:-.04em;}
-.bar{background:#fff;width:3px;height:30px;margin:0 12px;} .wm{font-weight:800;font-size:14px;text-transform:uppercase;line-height:.95;}
-.kicker{margin:20px 0 4px;color:var(--red);font-weight:700;letter-spacing:.3em;font-size:11px;text-transform:uppercase;}
-h1{font-size:29px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
-.sub{color:#aeb8cf;font-size:13px;margin-top:7px;max-width:680px;}
-.wrap{max-width:none;margin:20px 0;padding:0 28px 70px;}
-.card{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 6px 24px rgba(10,20,50,.06);overflow:hidden;margin-bottom:20px;}
-.ch{display:flex;align-items:center;gap:10px;padding:15px 20px;border-bottom:1px solid var(--line);} .ch b{color:var(--navy);font-size:14px;} .ch span{color:var(--muted);font-size:11.5px;} .ch .sp{margin-left:auto;}
+.rrg-back{display:none!important;}
+.pagehd{border-bottom:1px solid var(--line);background:#fff;}
+.pagehd-in{max-width:1080px;margin:0 auto;padding:22px 28px 18px;}
+.pkick{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin:0 0 4px;}
+h1{font-size:18px;font-weight:700;margin:0;color:var(--navy);letter-spacing:0;}
+.sub{color:var(--muted);font-size:13px;margin-top:6px;line-height:1.5;max-width:680px;}
+.wrap{max-width:1080px;margin:0 auto;padding:18px 28px 70px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:none;overflow:hidden;margin-bottom:16px;}
+.ch{display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line);background:var(--wash);} .ch b{color:var(--navy);font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;} .ch span{color:var(--muted);font-size:11.5px;} .ch .sp{margin-left:auto;}
 .cb{padding:18px 20px;}
 .tsearch{margin-left:auto;position:relative;display:flex;align-items:center;}
 .tsearch svg{position:absolute;left:12px;color:#9aa3b2;pointer-events:none;}
-.tsearch input{padding:9px 12px 9px 36px;border:1px solid var(--line);border-radius:9px;font:inherit;font-size:13px;min-width:300px;background:#fff;}
+.tsearch input{padding:9px 12px 9px 36px;border:1px solid var(--line);border-radius:4px;font:inherit;font-size:13px;min-width:300px;background:#fff;}
 .tsearch input:focus{outline:none;border-color:#4a90e2;}
 .tsearch .tx{position:absolute;right:8px;background:none;border:none;color:#b0b8c6;font-size:18px;line-height:1;cursor:pointer;display:none;}
 .tsearch .tx.show{display:block;}
 .tsearch .tx:hover{color:var(--red);}
 label.fld{display:block;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--soft);font-weight:700;margin:2px 0 7px;}
-input,textarea,select{width:100%;border:1px solid #cfd6e2;border-radius:9px;padding:10px 12px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;}
+input,textarea,select{width:100%;border:1px solid #cfd6e2;border-radius:4px;padding:10px 12px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;}
 textarea{min-height:92px;resize:vertical;line-height:1.5;}
-.btn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:9px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
+.btn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:4px;padding:10px 16px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;}
 .btn.ghost{background:#fff;color:var(--navy);border-color:#cdd6e6;} .btn.red{background:var(--red);border-color:var(--red);}
 .btn.danger{background:#fff;color:var(--red);border-color:#f0c9c6;} .btn.danger:hover{background:#fdeceb;}
 .btn.sm{padding:6px 11px;font-size:12px;}
@@ -51,7 +50,7 @@ textarea{min-height:92px;resize:vertical;line-height:1.5;}
 .trow .sp{margin-left:auto;} .trow .acts{display:flex;gap:7px;}
 .empty{padding:26px 20px;text-align:center;color:var(--soft);font-size:13px;}
 .uprow{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;}
-.filelabel{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px dashed #cdd6e6;border-radius:9px;padding:9px 14px;font-size:12.5px;font-weight:700;font-family:inherit;color:var(--navy);cursor:pointer;}
+.filelabel{display:inline-flex;align-items:center;gap:7px;background:#fff;border:1px dashed #cdd6e6;border-radius:4px;padding:9px 14px;font-size:12.5px;font-weight:700;font-family:inherit;color:var(--navy);cursor:pointer;}
 .chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--ink);font-weight:600;margin-top:6px;} .chk input{width:auto;}
 
 .lk{color:var(--navy);text-decoration:none;font-weight:600;} .lk:hover{text-decoration:underline;}
@@ -62,28 +61,26 @@ textarea{min-height:92px;resize:vertical;line-height:1.5;}
 .rl-filtbtn{display:none!important;}
 @media(max-width:600px){.fldrow{grid-template-columns:1fr auto auto;}}
 #tlist .rl-wrap{max-height:60vh;overflow:auto;} #tlist .rl-wrap table thead th{position:sticky;top:0;background:#fff;z-index:2;box-shadow:inset 0 -1px 0 var(--line);}
-.mfbar{border:1px solid #dbe6f5;background:#f6f9ff;border-radius:11px;padding:11px 13px;margin:0 0 14px;}
+.mfbar{border:1px solid #dbe6f5;background:#f6f9ff;border-radius:4px;padding:11px 13px;margin:0 0 14px;}
 .mfhd{font-size:12px;font-weight:800;color:#2f4a7a;margin-bottom:8px;} .mfhd span{font-weight:600;color:#6b7488;}
 .mfgrp{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:5px 0;}
 .mfglbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;min-width:120px;}
 .mfchip{background:#fff;border:1px solid #cddbf1;color:#2f6fd0;border-radius:100px;padding:4px 11px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;}
 .mfchip:hover{background:#e7f0fe;border-color:#a9c5ee;}
 @media(max-width:600px){.mfglbl{min-width:0;width:100%;margin-bottom:2px;}}
-.rrgrt{border:1px solid #cfd6e2;border-radius:9px;overflow:hidden;background:#fff;} .rrgrt-bar{display:flex;gap:2px;align-items:center;padding:5px 7px;border-bottom:1px solid #e6e9f0;background:#f7f9fc;} .rrgrt-bar button{background:none;border:1px solid transparent;border-radius:6px;min-width:28px;height:26px;padding:0 7px;cursor:pointer;font-size:13px;color:#3a4560;line-height:1;} .rrgrt-bar button:hover{background:#eef3fb;border-color:#dbe3f0;} .rrgrt-sep{width:1px;height:16px;background:#dbe1ea;margin:0 4px;} .rrgrt-ed{min-height:96px;max-height:280px;overflow:auto;padding:9px 11px;font:inherit;font-size:13.5px;line-height:1.5;color:#1d2739;outline:none;} .rrgrt-ed:empty:before{content:attr(data-ph);color:#9aa4b6;}
+.rrgrt{border:1px solid #cfd6e2;border-radius:4px;overflow:hidden;background:#fff;} .rrgrt-bar{display:flex;gap:2px;align-items:center;padding:5px 7px;border-bottom:1px solid #e6e9f0;background:#f7f9fc;} .rrgrt-bar button{background:none;border:1px solid transparent;border-radius:6px;min-width:28px;height:26px;padding:0 7px;cursor:pointer;font-size:13px;color:#3a4560;line-height:1;} .rrgrt-bar button:hover{background:#eef3fb;border-color:#dbe3f0;} .rrgrt-sep{width:1px;height:16px;background:#dbe1ea;margin:0 4px;} .rrgrt-ed{min-height:96px;max-height:280px;overflow:auto;padding:9px 11px;font:inherit;font-size:13.5px;line-height:1.5;color:#1d2739;outline:none;} .rrgrt-ed:empty:before{content:attr(data-ph);color:#9aa4b6;}
 </style>
 <script src="/rrg_list.js"></script>
 <script src="/rrg_brand.js"></script>
 </head>
 <body>
 <!--rrgback--><a href="/admin" class="rrg-back" aria-label="Back to admin console" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Admin console</a>
-<div class="top"><div class="top-in">
-  <span class="brand" onclick="location.href='./index.html'"><span class="disc">RRG</span><span class="bar"></span><span class="wm">Restaurant<br>Realty<br>Group</span></span>
-  <div class="kicker">Admin</div>
+<div class="pagehd"><div class="pagehd-in">
+  <div class="pkick">Admin · Documents</div>
   <h1>Agreement Templates</h1>
   <div class="sub">Your standard agreements, stored once and reused. Upload the signable PDF, then place the signature, date and text fields right on the document. The rep fills every detail before sending — the signer only signs. Admin only.</div>
 </div></div>
 <div id="root" class="wrap"><div class="gate">Loading…</div></div>
-<div class="foot">Proprietary &amp; Confidential · Property of Restaurant Realty Group, LLC · Internal RRG use only.</div>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function get(url){ return fetch(url,{credentials:'same-origin'}).then(function(r){return r.json();}); }
@@ -209,7 +206,7 @@ function renderEditor(){
       '</div><div class="note">Upload the signable PDF (or Word), up to 20 MB — it saves when you click '+(e.id?'Save changes':'Create template')+'.</div>'+
       (e.fileExt==='pdf'?'':(e.fileExt?('<div class="note" style="color:#b5791f;margin-top:8px">Field placement needs a <b>PDF</b>. This file is .'+esc(e.fileExt)+' — upload a PDF version to place fields on it.</div>'):(e.id?'<div class="note" style="margin-top:8px">Upload a PDF above, then place fields on it.</div>':'<div class="note" style="margin-top:8px">Save the template, then upload the PDF and place fields.</div>')))+
       '</div>'+
-    '<div style="margin-top:16px">'+mergeBar()+'<label class="fld">Email subject</label><input id="t_subject" placeholder="e.g. Your agreement is ready to sign, {{first_name}}" value="'+esc(e.emailSubject||'')+'" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:inherit;font-size:13.5px;margin-bottom:12px"><div class="note" style="margin:-6px 0 12px">Tokens like {{first_name}} and {{company}} are personalized per send. Leave blank to use the default subject.</div>'
+    '<div style="margin-top:16px">'+mergeBar()+'<label class="fld">Email subject</label><input id="t_subject" placeholder="e.g. Your agreement is ready to sign, {{first_name}}" value="'+esc(e.emailSubject||'')+'" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:4px;padding:9px 11px;font:inherit;font-size:13.5px;margin-bottom:12px"><div class="note" style="margin:-6px 0 12px">Tokens like {{first_name}} and {{company}} are personalized per send. Leave blank to use the default subject.</div>'
       +'<div style="margin-bottom:12px"><label class="fld">Greeting (added to the top of the send email)</label><select id="t_greeting"><option value="none"'+((e.greeting||'none')==='none'?' selected':'')+'>No greeting</option><option value="dear"'+(e.greeting==='dear'?' selected':'')+'>Dear {first name},</option><option value="hi"'+(e.greeting==='hi'?' selected':'')+'>Hi {first name},</option><option value="first"'+(e.greeting==='first'?' selected':'')+'>{first name},</option></select></div>'
       +'<label class="fld">Email message (sent with the signing link)</label>'
       +rrgRT('t_emailmsg', _msgToHtml(e.emailMessage), DEFAULT_EMAIL_MSG)

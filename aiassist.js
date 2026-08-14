@@ -127,8 +127,9 @@ async function parseEmailContact({ from, subject, body }) {
     'If the email is a forward or introduction whose clear purpose is to share someone else\'s details, extract THAT person instead. Ignore the broker\'s own signature, mailing-list footers, legal disclaimers, and unsubscribe text. ' +
     'Return ONLY JSON: {"found":true,"firstName":"","lastName":"","title":"","email":"","phone":"","companyName":"","companyWebsite":"","companyPhone":"","address":"","city":"","state":"","interest":"","confidence":"high|medium|low","summary":""}. ' +
     'interest is their likely main interest, EXACTLY one of: Buying, Selling, Investing, Referring, Working, Other, or "" if unclear — do not guess when there is no signal. ' +
-    'email/phone: prefer the signature; fall back to the From header for email. state: 2-letter US code if present. companyWebsite: bare domain or URL if shown. ' +
-    'Do NOT invent a company, phone, or address that is not in the email. If you cannot identify a real person, return {"found":false}. summary: one short line on who they are and why they emailed.';
+    'email/phone: prefer the signature; fall back to the From header for email. state: 2-letter US code if present. companyWebsite: bare domain or URL if shown, or the domain of the person\'s business email. ' +
+    'If no company is named but the person\'s email uses a business domain (NOT a free provider such as gmail, yahoo, outlook, hotmail, icloud, aol, proton), infer companyWebsite from that domain and a sensible, properly-spaced companyName from it (e.g. randy@thelocalbull.com -> companyName "The Local Bull", companyWebsite "thelocalbull.com"). Never infer a company from a free email provider. ' +
+    'Do NOT invent a phone or address that is not in the email. If you cannot identify a real person, return {"found":false}. summary: one short line on who they are and why they emailed.';
   const payload = 'FROM: ' + String(from || '') + '\nSUBJECT: ' + String(subject || '') + '\n\nBODY:\n' + String(body || '').slice(0, 12000);
   return extractJson(await callClaude(sys, payload, 700)) || { found: false };
 }
