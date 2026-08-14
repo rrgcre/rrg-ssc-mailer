@@ -8,7 +8,7 @@
 :root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;height:100%;}
 body{display:flex;flex-direction:column;}
-.top,.boardctl,#toolbar,#filterpanel{flex:none;}
+.top,.feats,.boardctl,#toolbar,#filterpanel{flex:none;}
 #root{flex:1 1 auto;min-height:0;overflow:auto;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);}
 .top{color:#fff;padding:26px 0 24px;position:relative;overflow:hidden;background:radial-gradient(95% 130% at 28% 15%, #1c2e5c 0%, #112044 42%, #0b1636 70%, #071029 100%);}
@@ -23,6 +23,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .tabs a.on{background:#fff;color:var(--navy);border-color:#fff;}
 .boardctl{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:11px 26px 3px;}
 .boardctl-l{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700;}
+.feats{background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 18px rgba(11,26,56,.05);margin:14px 26px 2px;overflow:hidden;}
+.featshd{display:flex;align-items:center;gap:10px;padding:13px 20px;cursor:pointer;user-select:none;}
+.featshd b{font-size:14px;color:var(--navy);}
+.featshd .sh{font-size:11.5px;color:var(--muted);font-weight:600;}
+.featshd .chev{margin-left:auto;color:var(--muted);font-size:12px;transition:transform .15s;}
+.feats.collapsed .chev{transform:rotate(-90deg);}
+.feats.collapsed .featgrid{display:none;}
+.feats .featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line);max-height:min(52vh,460px);overflow:auto;}
+.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;text-decoration:none;color:inherit;}
+.feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
+.feat b{display:block;font-size:12.5px;color:var(--navy);font-weight:800;}
+.feat span{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px;}
 .psel{font:inherit;font-size:12.5px;font-weight:700;color:var(--navy);border:1px solid var(--line);border-radius:8px;padding:7px 10px;background:#fff;cursor:pointer;}
 .tot{font-size:12.5px;color:var(--muted);font-weight:600;margin-left:auto;}
 /* toolbar */
@@ -130,6 +142,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
   <div class="sub">Every active listing on the board, moving stage by stage — drag a card to advance it, or switch to the list view.</div>
   <div class="tabs"><a href="./rrg_assignments.html">Listings</a><a href="./rrg_board.html" class="on">Board</a></div>
 </div></div>
+<div class="feats" id="bdFeatStrip">
+  <div class="featshd" id="bdFeatHd"><b>What the pipeline board does</b><span class="sh">every listing, stage by stage — from first call to close</span><span class="chev">▾</span></div>
+  <div class="featgrid">
+    <div class="feat"><span class="fic">🔀</span><div><b>Drag to advance a listing</b><span>Move a card across the pipeline and its stage updates instantly — no forms. The board is the deal, live.</span></div></div>
+    <div class="feat"><span class="fic">🎬</span><div><b>Every stage opens its tool</b><span>Click a stage on a card to jump straight into that step — Seller Call, Questionnaire, BOV, Data Room, Marketing Pack, Attack Plan, Closing.</span></div></div>
+    <div class="feat"><span class="fic">🗂️</span><div><b>Switch pipelines</b><span>Run separate boards for business sales and tenant rep — pick the pipeline from the selector and the board reflows to its stages.</span></div></div>
+    <div class="feat"><span class="fic">👁️</span><div><b>Board or list view</b><span>Toggle between the kanban board and a sortable, filterable list of the same listings — whichever way you work.</span></div></div>
+    <div class="feat"><span class="fic">🔎</span><div><b>Filter &amp; save your views</b><span>Slice by owner, market, status, value or commission, and save the views you run most.</span></div></div>
+    <div class="feat"><span class="fic">➕</span><div><b>Start a listing in one step</b><span>Create a listing with a business, market and client — it builds the data room and links the client automatically.</span></div></div>
+    <div class="feat"><span class="fic">💰</span><div><b>Value, days &amp; commission on the card</b><span>Each card shows its valuation, days on market and commission at a glance — configurable in the card settings.</span></div></div>
+    <div class="feat"><span class="fic">🧲</span><div><b>Buyer leads auto-attach</b><span>BizBuySell and CoStar inquiries land on the matching listing as deduped buyers with a follow-up task already waiting.</span></div></div>
+    <div class="feat"><span class="fic">🎯</span><div><b>Matching buyers on every listing</b><span>Open a listing and see the active buyers whose Buy-Box fits it — with one-click open and email.</span></div></div>
+    <div class="feat"><span class="fic">🔒</span><div><b>Data room &amp; documents built in</b><span>Every listing carries its confidential data room, agreements, NDAs, tours and files — all on the listing record.</span></div></div>
+  </div>
+</div>
+<script>(function(){ var fs=document.getElementById('bdFeatStrip'), hd=document.getElementById('bdFeatHd'); if(!fs||!hd) return; try{ if(localStorage.getItem('rrg_bdfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_bdfeats', col?'0':'1'); }catch(e){} }); })();</script>
 <div class="boardctl">
   <label class="boardctl-l">Pipeline</label>
   <select class="psel" id="psel"></select>
