@@ -162,8 +162,8 @@ textarea{min-height:90px;resize:vertical;line-height:1.5;}
 .bbchip input{display:none;}
 .bbchip.on{background:#eaf1fb;border-color:#8fb2dd;color:#20334f;}
 .bbrow{display:flex;gap:8px;margin-top:2px;} .bbrow > div{flex:1;min-width:0;}
-#buyBoxCard select,#buyBoxCard textarea,.bbin{width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:6px;padding:7px 9px;font:inherit;font-size:12.5px;background:#fff;}
-#buyBoxCard select:focus,#buyBoxCard textarea:focus,.bbin:focus{outline:none;border-color:#2c5c8f;}
+#buyBoxCard select,#buyBoxCard textarea,#tenantBoxCard select,#tenantBoxCard textarea,.bbin{width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:6px;padding:7px 9px;font:inherit;font-size:12.5px;background:#fff;}
+#buyBoxCard select:focus,#buyBoxCard textarea:focus,#tenantBoxCard select:focus,#tenantBoxCard textarea:focus,.bbin:focus{outline:none;border-color:#2c5c8f;}
 .bbactive{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:11px!important;font-weight:700!important;color:#2c5c8f!important;text-transform:none!important;letter-spacing:0!important;cursor:pointer;}
 .bbactive input{display:inline-block!important;width:auto!important;}
 .bbbtns{display:flex;align-items:center;gap:9px;margin-top:12px;}
@@ -1133,7 +1133,7 @@ function activityCard(){
   items.sort(function(x,y){ return String(y.t).localeCompare(String(x.t)); });
   var feed = items.length ? items.map(function(it){
     if(it.k==='g'){ var g=it.d; var dir=g.direction==='out'?'Sent':'Received'; var who=g.direction==='out'?('To '+esc(addrLabel(g.to))):('From '+esc(addrLabel(g.from))); return '<div class="feedrow" data-atype="email" data-gmid="'+esc(g.id)+'"><span class="feedic" title="Gmail" style="color:#c5221f">\u2709</span><div class="feedmain"><div class="feedtop"><span class="feedttl">'+esc(dec(g.subject||'(no subject)'))+'</span><span class="feedwhen">'+esc(fmt(g.ts?new Date(g.ts).toISOString():g.date))+'</span></div><div class="feedmeta">Gmail \u00b7 '+dir+' \u00b7 '+who+(g.unread?' \u00b7 <b style="color:#c5221f">unread</b>':'')+'</div><div class="feednote gmsnip" data-gmsnip="'+esc(g.id)+'">'+esc(dec(g.snippet||''))+'</div><a href="#" class="gmexpand" data-gmfull="'+esc(g.id)+'">Show full email</a></div></div>'; }
-    if(it.k==='e'){ var e=it.d; var opn=(e.opens>0)?(' · <b style="color:#1f8a5b">\ud83d\udc41 Opened '+e.opens+'\u00d7</b>'+(e.lastOpen?(' · last '+esc(fmt(e.lastOpen))):'')):(e.openToken?' · <span style="color:#8a94a6">not opened yet</span>':''); return '<div class="feedrow" data-atype="email"><span class="feedic">✉</span><div class="feedmain"><div class="feedtop"><span class="feedttl">'+esc(e.subject||'(no subject)')+'</span><span class="feedwhen">'+esc(fmt(e.sentAt))+'</span></div><div class="feedmeta">Email · To '+esc(e.to)+(e.by?(' · '+esc(e.by)):'')+opn+'</div>'+(e.body?('<div class="feednote">'+esc(e.body).split('\n').join('<br>')+'</div>'):'')+'</div></div>'; }
+    if(it.k==='e'){ var e=it.d; var opn=(e.opens>0)?(' · <b style="color:#1f8a5b">\ud83d\udc41 Opened '+e.opens+'\u00d7</b>'+(e.lastOpen?(' · last '+esc(fmt(e.lastOpen))):'')):(e.openToken?' · <span style="color:#8a94a6">not opened yet</span>':''); return '<div class="feedrow" data-atype="email"><span class="feedic">✉</span><div class="feedmain"><div class="feedtop"><span class="feedttl">'+esc(dec(e.subject||'(no subject)'))+'</span><span class="feedwhen">'+esc(fmt(e.sentAt))+'</span></div><div class="feedmeta">Email · To '+esc(e.to)+(e.by?(' · '+esc(e.by)):'')+opn+'</div>'+(e.body?('<div class="feednote">'+esc(dec(e.body)).split('\n').join('<br>')+'</div>'):'')+'</div></div>'; }
     var a=it.d; var c=actColor(a.type); return '<div class="feedrow" data-atype="'+esc(a.type)+'"><span class="feedic" style="background:'+c[0]+';color:'+c[1]+'">'+actIcon(a.type)+'</span><div class="feedmain"><div class="feedtop"><span class="feedwhen">'+esc(fmtDT(a.at||a.date))+'</span>'+(a.auto?'<span class="actauto">auto</span>':'')+'<span class="feedchip" style="background:'+c[0]+';color:'+c[1]+'">'+esc(a.type)+'</span>'+(a.by?('<span class="actby">'+esc(a.by)+'</span>'):'')+'</div>'+(a.note?('<div class="feednote">'+esc(a.note)+'</div>'):'')+(a.taskId?'<div class="acttask">↳ task created</div>':'')+'</div><button class="actdel" data-actdel="'+esc(a.id)+'" title="Delete">×</button></div>';
   }).join('') : '<div class="empty" style="padding:16px 2px">No activity yet. Log a call, tour, meal or note — or send an email — using the buttons above.</div>';
   var _sendHint = GMAILCONN ? ('<div style="font-size:11.5px;color:#8a94a6;margin-top:6px">Sends through your Gmail'+(GMAILEMAIL?(' ('+esc(GMAILEMAIL)+')'):'')+' — lands in your Sent folder and threads normally.</div>') : (EMAILREADY ? '<div style="font-size:11.5px;color:#8a94a6;margin-top:6px">Sends via the app’s email settings.</div>' : '');
@@ -1168,7 +1168,15 @@ function wireActivity(){
       .catch(function(){ b.disabled=false; });
   });
   document.querySelectorAll('[data-actdel]').forEach(function(x){ x.addEventListener('click',async function(){ if(!await rrgConfirm('Delete this activity entry?')) return; fetch('/api/person/'+encodeURIComponent(ID)+'/activity/'+encodeURIComponent(x.getAttribute('data-actdel')),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ ACTIVITIES=j.activities||[]; render(); } }); }); });
-  document.querySelectorAll('.gmexpand').forEach(function(x){ x.addEventListener('click',function(ev){ ev.preventDefault(); var id=x.getAttribute('data-gmfull'); var snip=document.querySelector('[data-gmsnip="'+id+'"]'); x.textContent='Loading\u2026'; fetch('/api/gmail/message/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.message){ if(snip){ snip.innerHTML=esc(dec(j.message.body||j.message.snippet||'(no content)')).split('\n').join('<br>'); } x.style.display='none'; } else { x.textContent='Could not load'; } }).catch(function(){ x.textContent='Could not load'; }); }); });
+  document.querySelectorAll('.gmexpand').forEach(function(x){ x.addEventListener('click',function(ev){ ev.preventDefault(); var id=x.getAttribute('data-gmfull'); var snip=document.querySelector('[data-gmsnip="'+id+'"]'); if(!snip) return;
+    var st=x.getAttribute('data-state')||'snip';
+    // Already loaded \u2014 just toggle between the snippet and the full body.
+    if(st==='full'){ snip.innerHTML=snip.getAttribute('data-snip')||snip.innerHTML; x.textContent='Show full email'; x.setAttribute('data-state','snip'); return; }
+    if(st==='loaded'){ snip.innerHTML=snip.getAttribute('data-full')||''; x.textContent='Hide full email'; x.setAttribute('data-state','full'); return; }
+    // First expansion \u2014 stash the snippet, fetch the full message.
+    if(!snip.getAttribute('data-snip')) snip.setAttribute('data-snip', snip.innerHTML);
+    x.textContent='Loading\u2026';
+    fetch('/api/gmail/message/'+encodeURIComponent(id),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.message){ var full=esc(dec(j.message.body||j.message.snippet||'(no content)')).split('\n').join('<br>'); snip.setAttribute('data-full', full); snip.innerHTML=full; x.textContent='Hide full email'; x.setAttribute('data-state','full'); } else { x.textContent='Could not load'; } }).catch(function(){ x.textContent='Could not load'; }); }); });
 }
 function emailCard(){
   var to=P.email||((P.emails&&P.emails[0])||'');
@@ -1176,7 +1184,7 @@ function emailCard(){
   if(!EMAILREADY){
     inner='<div class="empty" style="padding:8px 2px">Email isn\'t set up yet. An admin can configure it in <a href="/admin">Admin</a>, then you can send from here.</div>';
   } else {
-    var log=count?P.emailLog.map(function(e){ return '<div class="emlrow"><div class="emlhd"><b>'+esc(e.subject||'(no subject)')+'</b><span class="emlwhen">'+esc(fmt(e.sentAt))+'</span></div><div class="emlmeta">To '+esc(e.to)+(e.by?(' · '+esc(e.by)):'')+'</div>'+(e.body?('<div class="emlbody">'+esc(e.body).split('\n').join('<br>')+'</div>'):'')+'</div>'; }).join(''):'<div class="empty" style="padding:6px 2px">No emails sent yet.</div>';
+    var log=count?P.emailLog.map(function(e){ return '<div class="emlrow"><div class="emlhd"><b>'+esc(dec(e.subject||'(no subject)'))+'</b><span class="emlwhen">'+esc(fmt(e.sentAt))+'</span></div><div class="emlmeta">To '+esc(e.to)+(e.by?(' · '+esc(e.by)):'')+'</div>'+(e.body?('<div class="emlbody">'+esc(dec(e.body)).split('\n').join('<br>')+'</div>'):'')+'</div>'; }).join(''):'<div class="empty" style="padding:6px 2px">No emails sent yet.</div>';
     inner='<div class="emlcompose">'
       +'<div class="fldrow"><label class="fld">To</label><input id="em_to" value="'+esc(to)+'" placeholder="recipient@email.com"></div>'
       +'<div class="fldrow"><label class="fld">Subject</label><input id="em_subj" placeholder="Subject"></div>'
@@ -1363,7 +1371,7 @@ function render(){
       + ((P.system||P.locked)?('<div class="pdangerz"><div class="pdangernote">🔒 System-required record — permanent and cannot be deleted.</div></div>'):(CAN_DELETE?('<div class="pdangerz"><button class="pdelbtn" id="p_delete">Delete contact</button><div class="pdangernote">Removes this person from the registry. Their name stays on any past offers and tours. Cannot be undone.</div></div>'):''))
     + '</div></div></div>'
     + '<div class="mid">'+statTiles()+activityCard()+'</div>'
-    + '<div class="rail">'+relatedRail()+tasksCard()+appointmentsCard()+interestedCard()+buyBoxCard()+automationsCard()+agreementsCard()+filesCard()+'</div>';
+    + '<div class="rail">'+relatedRail()+tasksCard()+appointmentsCard()+interestedCard()+buyBoxCard()+tenantBoxCard()+automationsCard()+agreementsCard()+filesCard()+'</div>';
   var root=document.getElementById('root');
   var pd=document.getElementById('p_delete'); if(pd) pd.addEventListener('click',deletePerson);
   ['p_first','p_last','p_nick','p_company','p_lead','p_url','p_lastcontact','p_notes'].forEach(function(id){ var el=document.getElementById(id); if(el) el.addEventListener(el.tagName==='SELECT'?'change':'input',queueSave); });
@@ -1388,6 +1396,7 @@ function render(){
   wireActivity();
   applyRailOrder();
   wireBuyBox();
+  wireTenantBox();
   document.querySelectorAll('[data-rsec] .rsechd').forEach(function(h){ h.addEventListener('click',function(){ h.parentNode.classList.toggle('collapsed'); }); });
   if(_smWasOpen&&typeof openSendModal==='function'){ try{ openSendModal(); if(_smSnap){ var _t=document.getElementById('sm_to'); if(_t&&_smSnap.to) _t.value=_smSnap.to; var _tp=document.getElementById('sm_tpl'); if(_tp&&_smSnap.tpl){ _tp.value=_smSnap.tpl; if(typeof smOnTpl==='function') smOnTpl(); } var _mg=document.getElementById('sm_msg'); if(_mg&&_smSnap.msg) _mg.innerHTML=_smSnap.msg; } }catch(e){} }
 }
@@ -1437,6 +1446,57 @@ function loadBbMatches(){
     var L=j.listings||[]; if(cnt) cnt.textContent='· '+L.length;
     if(!L.length){ host.innerHTML='<div style="color:#8a93a8;font-size:12px;padding:4px 0">No current listings match this buyer.</div>'; return; }
     host.innerHTML=L.map(function(l){ var badges=(l.reasons||[]).map(function(r){return '<span class="bbrz">'+esc(r)+'</span>';}).join(''); return '<a class="bbmatch" href="./rrg_assignment.html?key='+encodeURIComponent(l.key)+'"><div class="bbmt"><b>'+esc(l.business||'Listing')+'</b>'+(l.published?'<span class="bbpub">Live</span>':'')+'</div><div class="bbmm">'+esc(l.market||'')+(l.value?(' · '+esc(l.value)):'')+'</div><div class="bbmrz">'+badges+'</div></a>'; }).join('');
+  }).catch(function(){ host.innerHTML='<div style="color:#8a93a8;font-size:12px;padding:4px 0">—</div>'; });
+}
+// ===== Tenant Box — a tenant's space requirements, matched against the sites/spaces inventory =====
+var TB_CONDITIONS=['Shell','Second-gen','Dirt / pad'];
+var TB_AMENITIES=['Drive-thru','Patio','Hood / exhaust','Grease trap','Gas service','Walk-in cooler','Bar built-out','Fire suppression','3-phase power','Restrooms (ADA)'];
+var TB_DEAL=[['both','Lease or purchase'],['lease','Lease only'],['purchase','Purchase only']];
+function tenantBoxCard(){
+  var tb=(P&&P.tenantBox)||{};
+  var chips=function(list,sel,cls){ return list.map(function(x){ var on=(sel||[]).indexOf(x)>=0; return '<label class="bbchip'+(on?' on':'')+'"><input type="checkbox" class="'+cls+'" value="'+esc(x)+'"'+(on?' checked':'')+'>'+esc(x)+'</label>'; }).join(''); };
+  var dealOpt=TB_DEAL.map(function(o){return '<option value="'+o[0]+'"'+(((tb.deal||'both')===o[0])?' selected':'')+'>'+o[1]+'</option>';}).join('');
+  var nv=function(v){ return (v!=null&&v!=='')?esc(v):''; };
+  return '<div class="card" id="tenantBoxCard"><div class="ch"><b>Tenant Box</b><label class="bbactive" title="Actively looking — include this tenant in space matches"><input type="checkbox" id="tbActive"'+(tb.active?' checked':'')+'> Active</label></div><div class="cb">'
+    +'<div class="bbrow"><div><div class="bblab">Min SF</div><input class="bbin" id="tbSfMin" inputmode="numeric" value="'+nv(tb.sfMin)+'" placeholder="—"></div><div><div class="bblab">Ideal SF</div><input class="bbin" id="tbSfIdeal" inputmode="numeric" value="'+nv(tb.sfIdeal)+'" placeholder="—"></div><div><div class="bblab">Max SF</div><input class="bbin" id="tbSfMax" inputmode="numeric" value="'+nv(tb.sfMax)+'" placeholder="—"></div></div>'
+    +'<div class="bblab">Condition</div><div class="bbchips" id="tbCondition">'+chips(TB_CONDITIONS,tb.condition,'tbc')+'</div>'
+    +'<div class="bbrow"><div><div class="bblab">Deal</div><select id="tbDeal">'+dealOpt+'</select></div><div><div class="bblab">Budget · max rent $/SF/yr</div><input class="bbin" id="tbBudget" inputmode="numeric" value="'+nv(tb.budget)+'" placeholder="—"></div></div>'
+    +'<div class="bblab">Amenities</div><div class="bbchips" id="tbAmenities">'+chips(TB_AMENITIES,tb.amenities,'tba')+'</div>'
+    +'<div class="bblab">Markets</div><div class="bbchips" id="tbMarkets">'+chips(BB_METROS,tb.markets,'tbm')+'</div>'
+    +'<div class="bblab">Area / trade-area details</div><input class="bbin" id="tbAreaNote" value="'+esc(tb.areaNote||'')+'" placeholder="e.g. north of 1604, near the medical center">'
+    +'<div class="bblab">Notes</div><textarea id="tbNotes" rows="2" placeholder="Anything else about the space they need">'+esc(tb.notes||'')+'</textarea>'
+    +'<div class="bbbtns"><button type="button" class="savebtn" id="tbSave" style="width:auto;padding:8px 16px">Save tenant box</button><span id="tbMsg" style="font-size:12px;color:#6b7488"></span></div>'
+    +'<div class="bbmatchhd">Matching spaces <span id="tbMatchCount"></span></div><div id="tbMatches" class="bbmatches"><div style="color:#8a93a8;font-size:12px;padding:4px 0">…</div></div>'
+    +'</div></div>';
+}
+function wireTenantBox(){
+  var save=document.getElementById('tbSave'); if(!save) return;
+  document.querySelectorAll('#tenantBoxCard .bbchip input').forEach(function(cb){ if(cb._w) return; cb._w=1; cb.addEventListener('change',function(){ var l=cb.closest('.bbchip'); if(l) l.classList.toggle('on',cb.checked); }); });
+  if(!save._w){ save._w=1; save.addEventListener('click',function(){
+    var g=function(id){ var e=document.getElementById(id); return e?e.value:''; };
+    var body={ active:(document.getElementById('tbActive')||{}).checked||false,
+      sfMin:g('tbSfMin').replace(/[^0-9]/g,''), sfIdeal:g('tbSfIdeal').replace(/[^0-9]/g,''), sfMax:g('tbSfMax').replace(/[^0-9]/g,''),
+      condition:[].slice.call(document.querySelectorAll('.tbc:checked')).map(function(x){return x.value;}),
+      deal:g('tbDeal'),
+      amenities:[].slice.call(document.querySelectorAll('.tba:checked')).map(function(x){return x.value;}),
+      markets:[].slice.call(document.querySelectorAll('.tbm:checked')).map(function(x){return x.value;}),
+      budget:g('tbBudget').replace(/[^0-9]/g,''), areaNote:g('tbAreaNote'), notes:g('tbNotes') };
+    var msg=document.getElementById('tbMsg'); if(msg){msg.style.color='#6b7488';msg.textContent='Saving…';} save.disabled=true;
+    fetch('/api/person/'+encodeURIComponent(ID)+'/tenantbox',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ save.disabled=false; if(j&&j.ok){ if(P) P.tenantBox=j.tenantBox; if(msg){msg.style.color='#1f8a5b';msg.textContent='Saved ✓';setTimeout(function(){if(msg)msg.textContent='';},1500);} loadTbMatches(); } else { if(msg){msg.style.color='#DA2B1F';msg.textContent=(j&&j.error)||'Could not save.';} } }).catch(function(){ save.disabled=false; if(msg){msg.style.color='#DA2B1F';msg.textContent='Network error.';} });
+  }); }
+  loadTbMatches();
+}
+function loadTbMatches(){
+  var host=document.getElementById('tbMatches'), cnt=document.getElementById('tbMatchCount'); if(!host||!ID) return;
+  fetch('/api/person/'+encodeURIComponent(ID)+'/matching-spaces',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ host.innerHTML='<div style="color:#8a93a8;font-size:12px;padding:4px 0">—</div>'; return; }
+    if(!j.active){ if(cnt)cnt.textContent=''; host.innerHTML='<div style="color:#8a93a8;font-size:12px;padding:4px 0">Mark this tenant <b>Active</b> and save to see matches.</div>'; return; }
+    if(!j.hasCriteria){ if(cnt)cnt.textContent=''; host.innerHTML='<div style="color:#8a93a8;font-size:12px;padding:4px 0">Add at least one criterion above, then save.</div>'; return; }
+    var L=j.spaces||[]; if(cnt) cnt.textContent='· '+L.length;
+    if(!L.length){ host.innerHTML='<div style="color:#8a93a8;font-size:12px;padding:4px 0">No open spaces match this tenant yet.</div>'; return; }
+    host.innerHTML=L.map(function(l){ var badges=(l.reasons||[]).map(function(r){return '<span class="bbrz">'+esc(r)+'</span>';}).join('');
+      var parts=[]; if(l.market) parts.push(esc(l.market)); if(l.size) parts.push(esc(Number(l.size).toLocaleString('en-US'))+' SF'); if(l.rent) parts.push('$'+esc(Number(l.rent).toLocaleString('en-US'))+'/SF'); if(l.spaceType) parts.push(esc(l.spaceType));
+      return '<div class="bbmatch"><div class="bbmt"><b>'+esc(l.name||'Space')+'</b>'+(l.status?'<span class="bbpub" style="color:#2c5c8f;background:#eef4fb">'+esc(l.status)+'</span>':'')+'</div><div class="bbmm">'+(l.center?(esc(l.center)+(parts.length?' · ':'')):'')+parts.join(' · ')+'</div><div class="bbmrz">'+badges+'</div></div>'; }).join('');
   }).catch(function(){ host.innerHTML='<div style="color:#8a93a8;font-size:12px;padding:4px 0">—</div>'; });
 }
 function mfHtml(cls,values,ph){ values=(values&&values.length)?values:['']; var rows=values.map(function(v){ return '<div class="mfrow"><input class="'+cls+'" value="'+esc(v)+'" placeholder="'+esc(ph)+'"><button type="button" class="mfrm">×</button></div>'; }).join(''); return '<div class="mfwrap">'+rows+'<button type="button" class="mfadd" data-cls="'+cls+'" data-ph="'+esc(ph)+'">+ Add another</button></div>'; }

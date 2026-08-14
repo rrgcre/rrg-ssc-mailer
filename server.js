@@ -5066,6 +5066,108 @@ app.get('/api/assignment/:key/buyer-matches', (req, res) => {
   res.json({ ok: true, characterized: L.hasTeaser, business: view.business || '', buyers: out });
 });
 
+// ===== Tenant Requirement Box — a tenant's space criteria, matched against the sites/spaces inventory =====
+const TB_CONDITIONS = ['Shell', 'Second-gen', 'Dirt / pad'];
+const TB_AMENITIES = SPACE_FEATURES.slice(); // reuse the space feature vocabulary so matching lines up
+const TB_DEAL = ['both', 'lease', 'purchase'];
+function tenantBoxClean(b, prev) {
+  const out = Object.assign({}, prev || {});
+  const s = (v, n) => String(v == null ? '' : v).slice(0, n);
+  const posInt = (v) => (v === '' || v == null) ? '' : Math.max(0, Math.min(9999999, parseInt(String(v).replace(/[^0-9]/g, ''), 10) || 0));
+  if (b.active !== undefined) out.active = !!b.active;
+  if (b.sfMin !== undefined) out.sfMin = posInt(b.sfMin);
+  if (b.sfMax !== undefined) out.sfMax = posInt(b.sfMax);
+  if (b.sfIdeal !== undefined) out.sfIdeal = posInt(b.sfIdeal);
+  if (b.condition !== undefined) out.condition = (Array.isArray(b.condition) ? b.condition : []).map(String).filter(x => TB_CONDITIONS.indexOf(x) >= 0).slice(0, 5);
+  if (b.deal !== undefined) out.deal = (TB_DEAL.indexOf(b.deal) >= 0 ? b.deal : 'both');
+  if (b.amenities !== undefined) out.amenities = (Array.isArray(b.amenities) ? b.amenities : []).map(String).filter(x => TB_AMENITIES.indexOf(x) >= 0).slice(0, 20);
+  if (b.markets !== undefined) out.markets = (Array.isArray(b.markets) ? b.markets : []).map(String).filter(x => MKT_METROS.indexOf(x) >= 0).slice(0, 12);
+  if (b.budget !== undefined) out.budget = posInt(b.budget); // max rent, $/SF/yr
+  if (b.areaNote !== undefined) out.areaNote = s(b.areaNote, 400);
+  if (b.notes !== undefined) out.notes = s(b.notes, 2000);
+  out.updatedAt = new Date().toISOString();
+  return out;
+}
+function tenantBoxHasCriteria(tb) {
+  return !!(tb && ((tb.sfMin !== '' && tb.sfMin != null && tb.sfMin) || (tb.sfMax !== '' && tb.sfMax != null && tb.sfMax) ||
+    (tb.condition && tb.condition.length) || (tb.deal && tb.deal !== 'both') || (tb.amenities && tb.amenities.length) ||
+    (tb.markets && tb.markets.length) || (tb.budget !== '' && tb.budget != null && tb.budget)));
+}
+// Derive a space's matchable fields. Condition is explicit if set, else inferred from a 2nd-gen feature.
+function _spaceMatchFields(sp) {
+  const feats = Array.isArray(sp.features) ? sp.features : [];
+  const mkStr = String(sp.market || sp.center || '').toLowerCase();
+  const marketKey = MKT_METROS.filter(x => x !== 'Other' && mkStr.indexOf(x.toLowerCase()) >= 0)[0] || '';
+  let cond = (TB_CONDITIONS.indexOf(sp.condition) >= 0) ? sp.condition : '';
+  if (!cond && feats.indexOf('2nd-gen restaurant') >= 0) cond = 'Second-gen';
+  const dealType = (['lease', 'sale', 'both'].indexOf(sp.dealType) >= 0) ? sp.dealType : '';
+  const size = (sp.size === '' || sp.size == null) ? null : Number(sp.size);
+  const rent = (sp.rent === '' || sp.rent == null) ? null : Number(sp.rent);
+  const hasData = !!(size || rent || marketKey || feats.length || cond || dealType || sp.spaceType);
+  return { size, rent, marketKey, features: feats, condition: cond, dealType, spaceType: sp.spaceType || '', status: sp.status || '', hasData };
+}
+// Match a tenant box to a space. Empty criteria are wildcards; a space silent on a criterion is not
+// excluded. Requires the tenant to be active AND at least one concrete positive hit.
+function tenantBoxMatch(tb, S) {
+  if (!tb || !tb.active) return { match: false, reasons: [] };
+  const reasons = []; let specified = 0, positive = 0;
+  function crit(isSpec, spaceHas, ok, label) {
+    if (!isSpec) return true; specified++;
+    if (!spaceHas) return true;
+    if (ok) { positive++; if (label) reasons.push(label); return true; }
+    return false;
+  }
+  const sfMin = (tb.sfMin !== '' && tb.sfMin != null) ? Number(tb.sfMin) : null;
+  const sfMax = (tb.sfMax !== '' && tb.sfMax != null) ? Number(tb.sfMax) : null;
+  if (!crit(sfMin != null, S.size != null, S.size >= sfMin, 'size')) return { match: false, reasons: [] };
+  if (!crit(sfMax != null, S.size != null, S.size <= sfMax, 'size')) return { match: false, reasons: [] };
+  if (!crit(!!(tb.markets && tb.markets.length), !!S.marketKey, !!(S.marketKey && tb.markets.indexOf(S.marketKey) >= 0), 'market')) return { match: false, reasons: [] };
+  if (!crit(!!(tb.condition && tb.condition.length), !!S.condition, !!(S.condition && tb.condition.indexOf(S.condition) >= 0), 'condition')) return { match: false, reasons: [] };
+  // Deal type — lease tenant needs a lease/both space; purchase tenant needs a sale/both space.
+  if (tb.deal === 'lease') { if (!crit(true, !!S.dealType, S.dealType === 'lease' || S.dealType === 'both', 'lease')) return { match: false, reasons: [] }; }
+  else if (tb.deal === 'purchase') { if (!crit(true, !!S.dealType, S.dealType === 'sale' || S.dealType === 'both', 'purchase')) return { match: false, reasons: [] }; }
+  // Amenities — when a space is characterized with features, every requested amenity must be present.
+  if (tb.amenities && tb.amenities.length) { specified++; if (S.features && S.features.length) { const miss = tb.amenities.filter(a => S.features.indexOf(a) < 0); if (miss.length) return { match: false, reasons: [] }; positive++; reasons.push('amenities'); } }
+  // Budget — max rent $/SF/yr; only bites for lease/both tenants against a priced space.
+  if ((tb.budget !== '' && tb.budget != null && tb.budget) && tb.deal !== 'purchase') { specified++; if (S.rent != null) { if (S.rent > Number(tb.budget)) return { match: false, reasons: [] }; positive++; reasons.push('budget'); } }
+  if (specified === 0 || positive === 0) return { match: false, reasons: [] };
+  return { match: true, reasons: reasons.filter((v, i, a) => a.indexOf(v) === i) };
+}
+// Save a tenant's requirement box.
+app.post('/api/person/:id/tenantbox', express.json({ limit: '256kb' }), (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
+  p.tenantBox = tenantBoxClean(req.body || {}, p.tenantBox || {});
+  p.updatedAt = new Date().toISOString(); savePeople(arr);
+  res.json({ ok: true, tenantBox: p.tenantBox });
+});
+// Sites/spaces matching this tenant's requirement box (open inventory only).
+app.get('/api/person/:id/matching-spaces', (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
+  const tb = p.tenantBox || null; const out = [];
+  if (tb && tb.active) {
+    loadSpaces().forEach(sp => {
+      if (sp.status === 'Leased' || sp.status === 'Passed') return;
+      const S = _spaceMatchFields(sp);
+      if (!S.hasData) return;
+      const r = tenantBoxMatch(tb, S);
+      if (r.match) out.push({ id: sp.id, name: sp.name || sp.address || 'Space', center: sp.center || '', market: sp.market || S.marketKey || '', size: sp.size || null, rent: sp.rent || null, spaceType: sp.spaceType || '', status: sp.status || '', reasons: r.reasons });
+    });
+  }
+  out.sort((a, b) => (b.reasons.length - a.reasons.length) || String(a.name || '').localeCompare(String(b.name || '')));
+  res.json({ ok: true, active: !!(tb && tb.active), hasCriteria: tenantBoxHasCriteria(tb), spaces: out });
+});
+// Tenants whose requirement box matches this space (for a future space detail page).
+app.get('/api/space/:id/tenant-matches', (req, res) => {
+  const sp = loadSpaces().find(x => x.id === req.params.id);
+  if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' });
+  const S = _spaceMatchFields(sp); const arr = loadPeople(); const out = [];
+  arr.forEach(p => { if (!p.tenantBox || !p.tenantBox.active) return; const r = tenantBoxMatch(p.tenantBox, S); if (r.match) out.push({ id: p.id, name: p.name || '', company: p.company || '', email: preferredEmailOf(p), phone: preferredPhoneOf(p), reasons: r.reasons }); });
+  out.sort((a, b) => (b.reasons.length - a.reasons.length) || String(a.name || '').localeCompare(String(b.name || '')));
+  res.json({ ok: true, characterized: S.hasData, space: sp.name || sp.address || '', tenants: out });
+});
+
 // ===== Relationship value — closed deals, commission generated, active pipeline =====
 function _relNum(s) { return Number(String(s == null ? '' : s).replace(/[^0-9.\-]/g, '')) || 0; }
 function _relFromListing(d, overlay, roll) {
@@ -7423,6 +7525,8 @@ app.post('/api/space', express.json(), (req, res) => {
   if (b.nnn !== undefined) sp.nnn = num(b.nnn);
   if (typeof b.status === 'string') sp.status = SPACE_STATUS.indexOf(b.status) >= 0 ? b.status : (sp.status || 'Available');
   if (!sp.status) sp.status = 'Available';
+  if (typeof b.condition === 'string') sp.condition = (['Shell', 'Second-gen', 'Dirt / pad'].indexOf(b.condition) >= 0) ? b.condition : (b.condition === '' ? '' : (sp.condition || ''));
+  if (typeof b.dealType === 'string') sp.dealType = (['lease', 'sale', 'both'].indexOf(b.dealType) >= 0) ? b.dealType : (b.dealType === '' ? '' : (sp.dealType || ''));
   if (typeof b.landlord === 'string') sp.landlord = b.landlord.slice(0, 160);
   if (typeof b.companyId === 'string') sp.companyId = b.companyId.slice(0, 40);
   if (typeof b.url === 'string') sp.url = b.url.slice(0, 300);
@@ -9471,6 +9575,19 @@ app.post('/api/company', express.json(), (req, res) => {
   if (b.tags !== undefined) c.tags = (cleanStrList(b.tags, 30, 40) || []);
   if (typeof b.notes === 'string') c.notes = b.notes.slice(0, 6000);
   if (typeof b.leadSource === 'string') c.leadSource = b.leadSource.slice(0, 160);
+  if (typeof b.website === 'string') {
+    const _raw = b.website.trim().slice(0, 300);
+    if (!_raw) { c.website = ''; }
+    else {
+      const _t = /^https?:\/\//i.test(_raw) ? _raw : ('https://' + _raw);
+      let _host = '';
+      try { _host = new URL(_t).hostname; } catch (e) { _host = ''; }
+      if (!_host || !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(_host) || !/\.[a-z]{2,}$/i.test(_host)) {
+        return res.status(400).json({ ok: false, error: 'Enter a valid website address — e.g. example.com.' });
+      }
+      c.website = _t.slice(0, 300);
+    }
+  }
   if (typeof b.mainContactId === 'string') c.mainContactId = b.mainContactId.slice(0, 40);
   if (typeof b.logo === 'string') c.logo = b.logo.slice(0, 400);
   if (b.office && typeof b.office === 'object') {

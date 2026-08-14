@@ -529,6 +529,7 @@ function render(){
       + '<div class="fldrow"><label class="fld">Name</label><input id="c_name" value="'+esc(C.name||'')+'" style="font-weight:'+((C.name||'').trim()?'700':'400')+'" oninput="this.style.fontWeight=this.value.trim()?&quot;700&quot;:&quot;400&quot;"></div>'
       + '<div class="fldrow"><label class="fld">Type</label><select id="c_type">'+ctsel+'</select></div>'
       + '<div class="fldrow"><label class="fld">Lead source</label><input id="c_lead" list="c_leadlist" autocomplete="off" value="'+esc(C.leadSource||'')+'" placeholder="Referral, CoStar, event"><datalist id="c_leadlist">'+(LEADSOURCES||[]).map(function(x){return '<option value="'+esc(x)+'">';}).join('')+'</datalist></div>'
+      + '<div class="fldrow"><label class="fld">Website</label><input id="c_website" type="url" inputmode="url" spellcheck="false" autocapitalize="off" autocomplete="off" value="'+esc(C.website||'')+'" placeholder="example.com"><div id="c_website_err" style="display:none;font-size:11px;color:#DA2B1F;margin-top:3px">Enter a valid web address — e.g. example.com</div></div>'
       + '<div class="fldrow"><label class="fld">Notes</label><textarea id="c_notes" placeholder="Ownership, history, relationships, anything worth remembering…">'+esc(C.notes||'')+'</textarea></div>'
       + '<div class="fldrow"><label class="fld">Tags</label><div id="c_tags"></div></div>'
       + '<div class="officebox">'
@@ -541,9 +542,11 @@ function render(){
       + '<button class="savebtn" id="c_save" disabled>Save changes</button><div class="saved" id="c_saved">Saved ✓</div>'
       + ((C.system||C.locked)?('<div class="dangerz"><div class="dangernote">🔒 System-required record — permanent and cannot be deleted.</div></div>'):(CAN_DELETE?('<div class="dangerz"><button class="delco" id="c_delete">Delete company</button><div class="dangernote">Permanently removes this company, its concepts, all locations &amp; photos, and every listing tied to it — records, data rooms, and files. Contacts are kept. Cannot be undone.</div></div>'):''))
     + '</div></div></div>';
-  ['c_name','c_type','c_lead','c_tags','c_notes','o_address','o_city','o_state','o_phone','o_email','o_website'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener(el.tagName==='SELECT'?'change':'input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; }); });
+  ['c_name','c_type','c_lead','c_website','c_tags','c_notes','o_address','o_city','o_state','o_phone','o_email','o_website'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener(el.tagName==='SELECT'?'change':'input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; }); });
+  // Website — validate + normalize on blur (accepts "example.com"; stores "https://example.com").
+  (function(){ var w=document.getElementById('c_website'); if(!w) return; w.addEventListener('blur',function(){ var r=validateWebsite(); if(r.ok&&r.val!==undefined&&w.value.trim()) w.value=r.val; }); w.addEventListener('input',function(){ w.style.borderColor=''; var e=document.getElementById('c_website_err'); if(e) e.style.display='none'; }); })();
   // Autosave: save on leaving a field (change/blur) or after a ~1s pause while typing.
-  (function(){ var _cAS=null; function commit(){ if(_cAS){ clearTimeout(_cAS); _cAS=null; } if(DIRTY) saveCompany(); } function pause(){ if(_cAS) clearTimeout(_cAS); _cAS=setTimeout(commit,1000); } ['c_name','c_type','c_lead','c_tags','c_notes','o_address','o_city','o_state','o_phone','o_email','o_website'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
+  (function(){ var _cAS=null; function commit(){ if(_cAS){ clearTimeout(_cAS); _cAS=null; } if(DIRTY) saveCompany(); } function pause(){ if(_cAS) clearTimeout(_cAS); _cAS=setTimeout(commit,1000); } ['c_name','c_type','c_lead','c_website','c_tags','c_notes','o_address','o_city','o_state','o_phone','o_email','o_website'].forEach(function(id){ var el=document.getElementById(id); if(!el) return; el.addEventListener('input',pause); el.addEventListener('change',commit); }); })();
   C_TAGF=mkTagField('c_tags', (C.tags||[]), ALLTAGS, function(){ DIRTY=true; var s=document.getElementById('c_save'); if(s) s.disabled=false; if(window._cTagT) clearTimeout(window._cTagT); window._cTagT=setTimeout(function(){ if(DIRTY) saveCompany(); }, 900); });
   (function(){ function draw(){ var p=document.getElementById('c_logoprev'); if(!p) return; var u=(document.getElementById('c_logo').value||'').trim()||(LOGOAUTO||''); p.innerHTML=u?('<img src="'+esc(u)+'" onerror="this.parentNode.innerHTML=&quot;<span class=\'comono\'>'+esc((C.name||'?').charAt(0).toUpperCase())+'</span>&quot;">'):('<span class="comono">'+esc((C.name||'?').charAt(0).toUpperCase())+'</span>'); }
     var li=document.getElementById('c_logo'); if(li) li.addEventListener('input',function(){ DIRTY=true; document.getElementById('c_save').disabled=false; draw(); });
@@ -1079,9 +1082,25 @@ async function deleteCompany(){
     .then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ alert('Deleted “'+n+'”'+(j.deletedDeals?(' and '+j.deletedDeals+' listing'+(j.deletedDeals===1?'':'s')):'')+'.'); location.href='./rrg_companies.html'; } else { b.disabled=false;b.textContent='Delete company'; alert((j&&j.error)||'Could not delete.'); } })
     .catch(function(){ b.disabled=false;b.textContent='Delete company'; alert('Could not reach the server.'); });
 }
+// Website validation — empty is fine; otherwise must parse to a host with a dot + TLD.
+// Returns {ok, val} where val is the normalized https:// form.
+function validateWebsite(){
+  var w=document.getElementById('c_website'), err=document.getElementById('c_website_err');
+  var raw=w?(w.value||'').trim():'';
+  function clear(){ if(w) w.style.borderColor=''; if(err) err.style.display='none'; }
+  if(!raw){ clear(); return {ok:true,val:''}; }
+  var t=/^https?:\/\//i.test(raw)?raw:('https://'+raw);
+  var host='';
+  try{ host=new URL(t).hostname; }catch(e){ host=''; }
+  if(!host || !/^[a-z0-9-]+(\.[a-z0-9-]+)+$/i.test(host) || !/\.[a-z]{2,}$/i.test(host)){
+    if(w) w.style.borderColor='#DA2B1F'; if(err) err.style.display='block'; return {ok:false};
+  }
+  clear(); return {ok:true, val:t};
+}
 function saveCompany(){
+  var _wv=validateWebsite(); if(!_wv.ok){ var _w=document.getElementById('c_website'); if(_w){ try{_w.focus();}catch(e){} } return; }
   var b=document.getElementById('c_save'); b.disabled=true; b.textContent='Saving…';
-  var body={ id:ID, name:document.getElementById('c_name').value.trim(), type:document.getElementById('c_type').value, leadSource:(document.getElementById('c_lead')||{}).value||'', tags:(C_TAGF?C_TAGF.get():[]), notes:document.getElementById('c_notes').value, logo:(document.getElementById('c_logo')||{}).value||'',
+  var body={ id:ID, name:document.getElementById('c_name').value.trim(), type:document.getElementById('c_type').value, leadSource:(document.getElementById('c_lead')||{}).value||'', website:(_wv.val||''), tags:(C_TAGF?C_TAGF.get():[]), notes:document.getElementById('c_notes').value, logo:(document.getElementById('c_logo')||{}).value||'',
     office:{ address:document.getElementById('o_address').value.trim(), city:document.getElementById('o_city').value.trim(), state:document.getElementById('o_state').value.trim(), phone:document.getElementById('o_phone').value.trim(), email:document.getElementById('o_email').value.trim(), website:document.getElementById('o_website').value.trim() } };
   fetch('/api/company',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
     .then(function(r){return r.json();}).then(function(j){ b.textContent='Save changes'; if(j&&j.ok){ C=j.company; DIRTY=false; document.getElementById('crumb').textContent=C.name; var s=document.getElementById('c_saved'); s.classList.add('show'); setTimeout(function(){s.classList.remove('show');},2000); } else { b.disabled=false; alert((j&&j.error)||'Could not save.'); } })
