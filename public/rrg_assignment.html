@@ -497,6 +497,7 @@ function render(){
     + '<div class="card"><div class="ch"><b>Pipeline</b><span>'+started+' of '+ST.length+' started</span></div><div class="track"><div class="hpipe">'+steps+'</div></div></div>'
     + mktCardShell()
     + inquiriesCard()
+    + matchBuyersShell()
     + dealCard()
     + ndasCard()
     + toursCard()
@@ -563,6 +564,21 @@ function render(){
   setupAccordion();
 }
 function loadPeople(){ fetch('/api/people',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ PEOPLE=(j&&j.people)||[]; var dl=document.getElementById('peopleList'); if(dl) dl.innerHTML=PEOPLE.map(function(p){return '<option value="'+esc(p.name)+'">'+esc(p.company||p.email||'')+'</option>';}).join(''); }).catch(function(){}); }
+function matchBuyersShell(){ return '<div class="card" id="matchBuyersCard"><div class="ch"><b>Matching buyers</b><span id="mbCount" style="color:#8a93a8;font-weight:700;margin-left:6px"></span></div><div class="cb" style="padding:12px 16px"><div id="matchBuyers"><div style="color:#8a93a8;font-size:12.5px;padding:4px 0">Checking your buyer book…</div></div></div></div>'; }
+function loadMatchingBuyers(){ var host=document.getElementById('matchBuyers'), cnt=document.getElementById('mbCount'); if(!host||!KEY) return;
+  fetch('/api/assignment/'+encodeURIComponent(KEY)+'/buyer-matches',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ host.innerHTML='<div style="color:#8a93a8;font-size:12.5px;padding:4px 0">—</div>'; return; }
+    if(!j.characterized){ if(cnt)cnt.textContent=''; host.innerHTML='<div style="color:#8a93a8;font-size:12.5px;padding:4px 0;line-height:1.5">Set this listing’s concept, market, or price in <b>Publish to Marketplace</b> above, and matching buyers from your book will appear here.</div>'; return; }
+    var B=j.buyers||[]; if(cnt) cnt.textContent='· '+B.length;
+    if(!B.length){ host.innerHTML='<div style="color:#8a93a8;font-size:12.5px;padding:4px 0">No active buyers in your book match this listing yet.</div>'; return; }
+    host.innerHTML=B.map(function(b){
+      var rz=(b.reasons||[]).map(function(x){return '<span style="font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:#2c5c8f;background:#eef4fb;border-radius:3px;padding:1px 5px">'+esc(x)+'</span>';}).join(' ');
+      var open='<a href="./rrg_person.html?id='+encodeURIComponent(b.id)+'" style="color:#2c5c8f;font-weight:600;text-decoration:none;font-size:12px">Open</a>';
+      var mail=b.email?(' &nbsp; <a href="mailto:'+esc(b.email)+'?subject='+encodeURIComponent('A confidential opportunity you may want to see')+'" style="color:#2c5c8f;font-weight:600;text-decoration:none;font-size:12px">Email</a>'):'';
+      return '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;border:1px solid #e6e9f0;border-radius:6px;padding:9px 11px;margin-bottom:7px"><div style="min-width:0"><a href="./rrg_person.html?id='+encodeURIComponent(b.id)+'" style="color:#20334f;font-weight:700;text-decoration:none;font-size:13px">'+esc(b.name||'Buyer')+'</a>'+(b.company?('<span style="color:#6b7488;font-size:12px"> · '+esc(b.company)+'</span>'):'')+'<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px">'+rz+'</div></div><div style="white-space:nowrap;flex:none">'+open+mail+'</div></div>';
+    }).join('');
+  }).catch(function(){ host.innerHTML='<div style="color:#8a93a8;font-size:12.5px;padding:4px 0">—</div>'; });
+}
 function promoteListing(){ var b=document.getElementById('promoteBtn'); if(b){b.disabled=true;b.textContent='Promoting…';} fetch('/api/assignment/'+encodeURIComponent(KEY)+'/promote',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.reload(); } else { if(b){b.disabled=false;b.textContent='Promote to Live listing →';} alert((j&&j.error)||'Could not promote.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Promote to Live listing →';} alert('Could not reach the server.'); }); }
 function startDeal(){ var b=document.getElementById('startDealBtn'); if(b){b.disabled=true;b.textContent='Starting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId)+'/start',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignment.html?key='+encodeURIComponent(j.key); } else { if(b){b.disabled=false;b.textContent='Start the listing →';} alert((j&&j.error)||'Could not start the deal.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Start the listing →';} alert('Could not reach the server.'); }); }
 async function deleteDeal(){ if(!await rrgConfirm('Delete this listing and everything in it — records, data room, and all uploaded files? This cannot be undone.')) return; var b=document.getElementById('delDealBtn'); if(b){b.disabled=true;b.textContent='Deleting…';} fetch('/api/deal/'+encodeURIComponent(A.dealId),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ location.href='./rrg_assignments.html'; } else { if(b){b.disabled=false;b.textContent='Delete listing';} alert((j&&j.error)||'Could not delete the listing.'); } }).catch(function(){ if(b){b.disabled=false;b.textContent='Delete listing';} alert('Could not reach the server.'); }); }
@@ -1036,7 +1052,7 @@ function load(){
   fetch('/api/assignment/'+encodeURIComponent(KEY),{credentials:'same-origin'}).then(function(r){
     if(!r.ok) return r.json().then(function(j){ throw new Error((j&&j.error)||'Not found'); });
     return r.json();
-  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; AUTOS=j.automations||[]; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); })
+  }).then(function(j){ A=j.assignment; if(j.statuses) STATUSES=j.statuses; TXN=(A&&A.transaction)||null; if(j.txnStatuses) TXNSTAT=j.txnStatuses; if(j.commStatuses) TXNCOMM=j.commStatuses; RA=j.roomActivity||null; OFFERS=(A&&A.offers)||[]; TOURS=(A&&A.tours)||[]; NDAS=(A&&A.ndas)||[]; INQUIRIES=(A&&A.inquiries)||[]; AGR=j.agreements||[]; ATYPES=j.agreementTypes||[]; PIPES=j.pipelines||[]; AUTOS=j.automations||[]; EXP=j.expenses||null; INVX=j.invoices||null; render(); loadPeople(); loadMatchingBuyers(); })
   .catch(function(e){ document.getElementById('root').innerHTML='<div style="text-align:center;color:#6b7488;padding:50px 24px">'+esc(e.message||'Could not load this deal.')+'<br><br><a href="./rrg_assignments.html" style="color:#000E31;font-weight:700">← Back to deals</a></div>'; });
 }
 load();

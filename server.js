@@ -4971,6 +4971,101 @@ app.get('/api/marketplace/:key', (req, res) => {
   res.json({ ok: true, metros: MKT_METROS, concepts: MKT_CONCEPTS, priceBands: MKT_PRICE, cashBands: MKT_CASH, flags: MKT_FLAGS, publicUrl: (req.protocol + '://' + req.get('host') + '/market'),
     listing: { key: key, business: view.business, market: view.market, value: view.value, roomId: view.roomId, status: view.status, teaser: o.market || null, suggest: mktSuggest(view) } });
 });
+// ===== Buyer buy-box + matching =====
+// A buyer's acquisition criteria, stored on the contact, in the SAME vocabulary as marketplace
+// listings (MKT_CONCEPTS / MKT_METROS / MKT_PRICE / MKT_CASH) so matching is exact.
+function buyBoxClean(b, prev) {
+  const out = Object.assign({}, prev || {});
+  const s = (v, n) => String(v == null ? '' : v).slice(0, n);
+  if (b.active !== undefined) out.active = !!b.active;
+  if (b.concepts !== undefined) out.concepts = (Array.isArray(b.concepts) ? b.concepts : []).map(String).filter(x => MKT_CONCEPTS.indexOf(x) >= 0).slice(0, 12);
+  if (b.markets !== undefined) out.markets = (Array.isArray(b.markets) ? b.markets : []).map(String).filter(x => MKT_METROS.indexOf(x) >= 0).slice(0, 12);
+  if (b.priceMax !== undefined) out.priceMax = (b.priceMax in MKT_PRICE && b.priceMax) ? b.priceMax : '';
+  if (b.sdeMin !== undefined) out.sdeMin = (b.sdeMin in MKT_CASH && b.sdeMin) ? b.sdeMin : '';
+  if (b.unitsMin !== undefined) out.unitsMin = (b.unitsMin === '' || b.unitsMin == null) ? '' : Math.max(0, Math.min(999, parseInt(b.unitsMin, 10) || 0));
+  if (b.unitsMax !== undefined) out.unitsMax = (b.unitsMax === '' || b.unitsMax == null) ? '' : Math.max(0, Math.min(999, parseInt(b.unitsMax, 10) || 0));
+  if (b.realEstate !== undefined) out.realEstate = (['yes', 'no', 'either'].indexOf(b.realEstate) >= 0) ? b.realEstate : 'either';
+  if (b.financing !== undefined) out.financing = s(b.financing, 60);
+  if (b.timeline !== undefined) out.timeline = s(b.timeline, 40);
+  if (b.notes !== undefined) out.notes = s(b.notes, 2000);
+  out.updatedAt = new Date().toISOString();
+  return out;
+}
+const _PRICE_ORDER = ['u1m', '1-3m', '3-5m', '5m+'];
+const _CASH_ORDER = ['250k', '500k', '1m'];
+function _priceIdx(k) { return _PRICE_ORDER.indexOf(k); }
+function _cashIdx(k) { return _CASH_ORDER.indexOf(k); }
+// Derive a listing's matchable fields from its marketplace teaser (+ view fallback).
+function _listingMatchFields(d, o, view) {
+  const m = (o && o.market) || {};
+  const mk = m.marketKey || (MKT_METROS.filter(x => x !== 'Other' && String(view.market || '').toLowerCase().indexOf(x.toLowerCase()) >= 0)[0]) || '';
+  const units = (m.units !== '' && m.units != null) ? Number(m.units) : (parseInt(String(view.units || '').replace(/[^0-9]/g, ''), 10) || 0);
+  return { conceptKey: m.conceptKey || '', marketKey: mk, priceBand: m.priceBand || '', cashBand: m.cashBand || '', units: units, reAvailable: !!m.reAvailable, published: !!m.published, hasTeaser: !!(m.conceptKey || m.marketKey || m.priceBand || m.published) };
+}
+// Match a buy-box to a listing. Empty buyer criteria are wildcards; a listing that is silent on a
+// criterion is not excluded. Requires the buyer to be active AND at least one concrete positive hit.
+function buyBoxMatch(bb, L) {
+  if (!bb || !bb.active) return { match: false, reasons: [] };
+  const reasons = []; let specified = 0, positive = 0;
+  function crit(isSpec, listingHas, ok, label) {
+    if (!isSpec) return true; specified++;
+    if (!listingHas) return true;
+    if (ok) { positive++; if (label) reasons.push(label); return true; }
+    return false;
+  }
+  if (!crit(!!(bb.concepts && bb.concepts.length), !!L.conceptKey, !!(L.conceptKey && bb.concepts.indexOf(L.conceptKey) >= 0), 'concept')) return { match: false, reasons: [] };
+  if (!crit(!!(bb.markets && bb.markets.length), !!L.marketKey, !!(L.marketKey && bb.markets.indexOf(L.marketKey) >= 0), 'market')) return { match: false, reasons: [] };
+  if (!crit(!!bb.priceMax, _priceIdx(L.priceBand) >= 0, _priceIdx(L.priceBand) >= 0 && _priceIdx(L.priceBand) <= _priceIdx(bb.priceMax), 'price')) return { match: false, reasons: [] };
+  if (!crit(!!bb.sdeMin, _cashIdx(L.cashBand) >= 0, _cashIdx(L.cashBand) >= 0 && _cashIdx(L.cashBand) >= _cashIdx(bb.sdeMin), 'SDE')) return { match: false, reasons: [] };
+  if (!crit(bb.unitsMin !== '' && bb.unitsMin != null, L.units > 0, L.units >= Number(bb.unitsMin), 'units')) return { match: false, reasons: [] };
+  if (!crit(bb.unitsMax !== '' && bb.unitsMax != null, L.units > 0, L.units <= Number(bb.unitsMax), 'units')) return { match: false, reasons: [] };
+  if (bb.realEstate === 'yes') { specified++; if (!L.reAvailable) return { match: false, reasons: [] }; positive++; reasons.push('RE'); }
+  if (specified === 0 || positive === 0) return { match: false, reasons: [] };
+  return { match: true, reasons: reasons.filter((v, i, a) => a.indexOf(v) === i) };
+}
+function buyBoxHasCriteria(bb) { return !!(bb && (bb.concepts && bb.concepts.length || bb.markets && bb.markets.length || bb.priceMax || bb.sdeMin || (bb.unitsMin !== '' && bb.unitsMin != null) || (bb.unitsMax !== '' && bb.unitsMax != null) || bb.realEstate === 'yes')); }
+// Save a buyer's buy-box.
+app.post('/api/person/:id/buybox', express.json({ limit: '256kb' }), (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
+  p.buyBox = buyBoxClean(req.body || {}, p.buyBox || {});
+  p.updatedAt = new Date().toISOString(); savePeople(arr);
+  res.json({ ok: true, buyBox: p.buyBox });
+});
+// Listings (rep-internal) matching this buyer's buy-box.
+app.get('/api/person/:id/matching-listings', (req, res) => {
+  const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
+  if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
+  const bb = p.buyBox || null;
+  const deals = assignmentsIndex(), overlay = loadAssignOverlay(); const out = [];
+  if (bb && bb.active) {
+    Object.values(deals).forEach(d => {
+      const o = overlay[d.key] || {};
+      if (o.assignmentType === 'tenant_rep') return;
+      if (!(canSeeAllDeals(req) || ownsAssignment(req, d) || (req.user && isSuper(req.user)))) return;
+      let view; try { view = assignmentView(d, overlay); } catch (e) { return; }
+      const L = _listingMatchFields(d, o, view);
+      if (!L.hasTeaser) return;
+      const r = buyBoxMatch(bb, L);
+      if (r.match) out.push({ key: d.key, business: view.business, market: view.market || L.marketKey, value: view.value || '', concept: L.conceptKey, units: L.units, published: L.published, status: view.status, reasons: r.reasons });
+    });
+  }
+  out.sort((a, b) => (b.reasons.length - a.reasons.length) || String(a.business || '').localeCompare(String(b.business || '')));
+  res.json({ ok: true, active: !!(bb && bb.active), hasCriteria: buyBoxHasCriteria(bb), listings: out });
+});
+// Buyers whose buy-box matches this listing.
+app.get('/api/assignment/:key/buyer-matches', (req, res) => {
+  const deals = assignmentsIndex(); const d = deals[req.params.key];
+  if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
+  if (!(canSeeAllDeals(req) || ownsAssignment(req, d) || (req.user && isSuper(req.user)))) return res.status(403).json({ ok: false, error: 'Not yours.' });
+  const overlay = loadAssignOverlay(); let view; try { view = assignmentView(d, overlay); } catch (e) { view = {}; }
+  const L = _listingMatchFields(d, overlay[req.params.key] || {}, view);
+  const arr = loadPeople(); const out = [];
+  arr.forEach(p => { if (!p.buyBox || !p.buyBox.active) return; const r = buyBoxMatch(p.buyBox, L); if (r.match) out.push({ id: p.id, name: p.name || '', company: p.company || '', email: preferredEmailOf(p), phone: preferredPhoneOf(p), reasons: r.reasons }); });
+  out.sort((a, b) => (b.reasons.length - a.reasons.length) || String(a.name || '').localeCompare(String(b.name || '')));
+  res.json({ ok: true, characterized: L.hasTeaser, business: view.business || '', buyers: out });
+});
+
 app.post('/api/marketplace/:key', express.json(), (req, res) => {
   const key = req.params.key; const deals = assignmentsIndex(); const d = deals[key];
   if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
@@ -10442,8 +10537,8 @@ button:hover{background:var(--ink);}
 </style></head><body>
 <form class="card" onsubmit="return go(this)">
   <div class="brand">${brandMark}</div>
-  <h1>Associate Sign In</h1>
-  <p class="sub">Restaurant Transactions. Done Right.</p>
+  <h1>Sign in</h1>
+  <p class="sub">Sign in to ${_appEsc}</p>
   <div class="rule"></div>
   <label>Username</label><input name="username" autocomplete="username" autofocus required>
   <label>Password</label><input name="password" type="password" autocomplete="current-password" required>
