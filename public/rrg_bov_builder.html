@@ -10,11 +10,17 @@
 html,body{margin:0;padding:0;background:#e9edf3;}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
 
-.toolbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--line);}
+.toolbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:2px solid var(--primary,#2c5c8f);}
 .tb-inner{max-width:920px;margin:0 auto;padding:11px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
 .tt{font-weight:800;color:var(--navy);font-size:14px;} .tt span{color:var(--muted);font-weight:500;font-size:12px;margin-left:6px;}
+/* NetSuite-style breadcrumb */
+.bovcrumb{display:flex;align-items:center;gap:7px;font-size:12.5px;min-width:0;flex-wrap:wrap;}
+.bovcrumb a{color:#5f6a7d;text-decoration:none;font-weight:600;}
+.bovcrumb a:hover{color:#2c5c8f;text-decoration:underline;}
+.bovcrumb .sep{color:#b7c0d0;font-size:12px;}
+.bovcrumb .cur{color:#20334f;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:340px;}
 .actions{display:flex;gap:8px;flex-wrap:wrap;}
-.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:8px;cursor:pointer;}
+.btn{border:1px solid var(--inp);background:#fff;color:var(--navy);font-weight:600;font-size:12.5px;padding:8px 13px;border-radius:4px;cursor:pointer;}
 .btn:hover{border-color:#9fb0cc;} .btn.print{background:var(--navy);color:#fff;border-color:var(--navy);}
 .btn.fin{background:#0e7a53;color:#fff;border-color:#0e7a53;} .btn.fin:hover{background:#0c6a48;border-color:#0c6a48;}
 body.bov-locked #sheet input,body.bov-locked #sheet textarea{pointer-events:none;background:#f6f8fb!important;color:#4a5468;}
@@ -87,6 +93,18 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 .multwrap input:hover{border-color:#9fb0cc;} .multwrap input:focus{outline:none;border-color:var(--red);background:#fffdfd;}
 .multwrap .mx{font-size:18px;font-weight:700;color:var(--muted);}
 .multtd.base .multwrap input{border-color:var(--red);box-shadow:0 0 0 2px rgba(218,43,31,.12);}
+/* Dual-basis method table (SDE + Adjusted EBITDA on every BOV) */
+.dualtable th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;padding:6px 6px;text-align:center;}
+.dualtable td{padding:8px 6px;vertical-align:middle;text-align:center;border-top:1px solid var(--line);}
+.dualtable td.l{text-align:left;font-size:13px;color:var(--navy);}
+.dualtable td.calc{font-weight:800;color:var(--navy);white-space:nowrap;font-variant-numeric:tabular-nums;}
+.dualtable .multwrap input{width:52px;font-size:16px;padding:6px 3px;border-radius:6px;}
+.dualtable .multwrap .mx{font-size:13px;}
+.dualtable tr.headrow{background:#eef4fb;}
+.dualtable tr.headrow td{border-top-color:#cfe0f2;}
+.hltag{color:#2c5c8f;font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;}
+.reconcile{margin:12px 0 6px;font-size:12.5px;line-height:1.6;color:#3f4b63;background:#f4f6f9;border:1px solid #dbe0e9;border-left:3px solid #2c5c8f;border-radius:3px;padding:10px 13px;}
+.reconcile b{color:var(--navy);}
 
 .foot{margin-top:30px;border-top:1px solid var(--line);padding-top:12px;display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted);flex-wrap:wrap;gap:6px;}
 .foot b{color:var(--navy);}
@@ -115,12 +133,11 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 <body>
 <!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to dashboard" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)"><span style="font-size:14px;line-height:1">←</span> Dashboard</a><style>@media print{.rrg-back{display:none!important}}@media(max-width:560px){.rrg-back{left:12px;bottom:12px;padding:9px 13px}}</style>
 <div class="toolbar"><div class="tb-inner">
-  <div class="tt">RRG Broker's Opinion of Value <span>Fill in, then Print</span></div>
+  <nav class="bovcrumb" id="bovCrumb" aria-label="Breadcrumb">
+    <a href="./index.html">Command</a><span class="sep">›</span><a href="./rrg_documents.html">Documents</a><span class="sep">›</span><span class="cur" id="bovCrumbCur">Opinion of Value</span>
+  </nav>
   <div class="actions">
-    <button class="btn" onclick="goDashboard()">← Dashboard</button>
-    <button class="btn" onclick="goQuestionnaire()">← Questionnaire</button>
     <button class="btn" onclick="clearAll()">Clear</button>
-    <label class="btn" style="display:inline-flex;align-items:center;gap:7px;font-weight:600" title="Use your brand color on the cover banner (Admin → Brand Colors)"><input type="checkbox" id="brandCover" style="width:15px;height:15px;accent-color:var(--red);margin:0"> Brand cover</label>
     <button class="btn fin" id="btnFinalize" onclick="finalizeBov()" style="display:none">✓ Finalize</button>
     <button class="btn" id="btnRevise" onclick="reviseBov()" style="display:none">Revise (new version)</button>
     <button class="btn" id="btnRefine" onclick="toggleRefine()" style="display:none;color:#20334f;border-color:#c4ccda">✦ Refine</button>
@@ -216,16 +233,30 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     <!-- 4 APPROACH -->
     <div class="kl-block"><div class="kl">Approach</div>
     <div class="sec"><h2>Valuation Methodology &amp; Multiple Selection</h2><div class="flex"></div></div>
-    <div class="sublabel">Selected multiple range <span style="text-transform:none;font-weight:600;color:var(--muted);letter-spacing:0">(× <span class="basisLabel">Adj. EBITDA</span>)</span></div>
-    <div class="multguide rrg-noprint">This is your lever. Adjust the multiple to set the value — the concluded range, target, and matrix recalculate instantly. No re-build, no AI credits.</div>
-    <table style="max-width:470px" class="multtable">
-      <thead><tr><th>Low</th><th>Base Case</th><th>High</th></tr></thead>
-      <tbody><tr>
-        <td class="multtd"><span class="multwrap"><input data-k="multLow" inputmode="decimal" value="4.0" oninput="compute()"><span class="mx">×</span></span></td>
-        <td class="multtd base"><span class="multwrap"><input data-k="multBase" inputmode="decimal" value="4.5" oninput="compute()"><span class="mx">×</span></span></td>
-        <td class="multtd"><span class="multwrap"><input data-k="multHigh" inputmode="decimal" value="5.0" oninput="compute()"><span class="mx">×</span></span></td>
-      </tr></tbody>
+    <div class="sublabel">Selected multiple ranges — both methods (headline basis is highlighted)</div>
+    <div class="multguide rrg-noprint">Every BOV values on BOTH methods. Adjust either row — the ranges, the matrix, and the concluded value recalc instantly. The headline basis (by revenue) drives the concluded number. No re-build, no AI credits.</div>
+    <table style="max-width:640px" class="dualtable">
+      <thead><tr><th style="text-align:left">Method</th><th>Earnings</th><th>Low</th><th>Base</th><th>High</th><th>Indicated value</th></tr></thead>
+      <tbody>
+        <tr id="rowSde">
+          <td class="l"><b>SDE</b><span class="hltag" id="hlSde"> · headline</span></td>
+          <td class="calc" id="dtSdeEarn">—</td>
+          <td class="multtd"><span class="multwrap"><input data-k="sdeMultLow" inputmode="decimal" value="2.0" oninput="compute()"><span class="mx">×</span></span></td>
+          <td class="multtd base"><span class="multwrap"><input data-k="sdeMultBase" inputmode="decimal" value="2.25" oninput="compute()"><span class="mx">×</span></span></td>
+          <td class="multtd"><span class="multwrap"><input data-k="sdeMultHigh" inputmode="decimal" value="2.5" oninput="compute()"><span class="mx">×</span></span></td>
+          <td class="calc" id="dtSdeRange">—</td>
+        </tr>
+        <tr id="rowEb">
+          <td class="l"><b>Adjusted EBITDA</b><span class="hltag" id="hlEb"> · headline</span></td>
+          <td class="calc" id="dtEbEarn">—</td>
+          <td class="multtd"><span class="multwrap"><input data-k="ebMultLow" inputmode="decimal" value="4.0" oninput="compute()"><span class="mx">×</span></span></td>
+          <td class="multtd base"><span class="multwrap"><input data-k="ebMultBase" inputmode="decimal" value="4.5" oninput="compute()"><span class="mx">×</span></span></td>
+          <td class="multtd"><span class="multwrap"><input data-k="ebMultHigh" inputmode="decimal" value="5.0" oninput="compute()"><span class="mx">×</span></span></td>
+          <td class="calc" id="dtEbRange">—</td>
+        </tr>
+      </tbody>
     </table>
+    <input type="hidden" data-k="multLow" value="4.0"><input type="hidden" data-k="multBase" value="4.5"><input type="hidden" data-k="multHigh" value="5.0">
     <textarea class="narr" data-k="methodNarr" placeholder="Market approach (primary), the subject's positioning within the band, income cross-check (implied earnings yield), and revenue cross-check."></textarea>
     </div>
 
@@ -254,6 +285,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
         <tr><td class="l">Upside (confirmed) &nbsp; <input data-k="ebUp" inputmode="numeric" value="" placeholder="$" oninput="grpme(this);compute()" style="width:110px;display:inline-block"></td><td class="calc" id="m20">—</td><td class="calc" id="m21">—</td><td class="calc" id="m22">—</td></tr>
       </tbody>
     </table>
+    <div class="reconcile" id="reconcile"></div>
     <div class="callout"><div class="ct">Concluded value — RRG opinion</div><textarea data-k="concNarr"></textarea></div>
     </div>
 
@@ -483,7 +515,14 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
 
   window.compute=function(){
     var s=subtotals(), e=s.basisVal, rev=s.rev;
-    var lo=num(val('multLow')),ba=num(val('multBase')),hi=num(val('multHigh'));
+    var isSde=(s.basis==='SDE');
+    var sLo=num(val('sdeMultLow')),sBa=num(val('sdeMultBase')),sHi=num(val('sdeMultHigh'));
+    var eLo=num(val('ebMultLow')),eBa=num(val('ebMultBase')),eHi=num(val('ebMultHigh'));
+    var lo=isSde?sLo:eLo, ba=isSde?sBa:eBa, hi=isSde?sHi:eHi;
+    // keep the hidden headline mirror in sync — the matrix, save, and CIM summary read these.
+    if(q('multLow')) q('multLow').value = lo?String(lo):'';
+    if(q('multBase')) q('multBase').value = ba?String(ba):'';
+    if(q('multHigh')) q('multHigh').value = hi?String(hi):'';
     // bridge subtotals (inline) + basis labels
     setTxt('stEbitda',money(s.ebitda)); setTxt('stSde',money(s.sde)); setTxt('stAdj',money(s.adj));
     if(typeof checkAssetSale==='function') checkAssetSale(s.sde);
@@ -505,6 +544,21 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     setTxt('ebBaseTxt',money(e));
     var mults=[lo,ba,hi], ebs=[ebLow,e,ebUp];
     for(var r=0;r<3;r++) for(var col=0;col<3;col++){ var cell=document.getElementById('m'+r+col); if(cell) cell.textContent=(ebs[r]>0&&mults[col]>0)?money(ebs[r]*mults[col]):'—'; }
+    // Dual-basis method table + reconciliation — both methods on every BOV, headline highlighted.
+    setTxt('dtSdeEarn', s.sde>0?money(s.sde):'—');
+    setTxt('dtEbEarn', s.adj>0?money(s.adj):'—');
+    setTxt('dtSdeRange', (s.sde>0&&sLo&&sHi)?(moneyM(s.sde*sLo)+' – '+moneyM(s.sde*sHi)+(sBa?(' (~'+moneyM(s.sde*sBa)+')'):'')):'—');
+    setTxt('dtEbRange', (s.adj>0&&eLo&&eHi)?(moneyM(s.adj*eLo)+' – '+moneyM(s.adj*eHi)+(eBa?(' (~'+moneyM(s.adj*eBa)+')'):'')):'—');
+    var rSde=document.getElementById('rowSde'), rEb=document.getElementById('rowEb');
+    if(rSde) rSde.classList.toggle('headrow', isSde);
+    if(rEb) rEb.classList.toggle('headrow', !isSde);
+    var hlS=document.getElementById('hlSde'), hlE=document.getElementById('hlEb');
+    if(hlS) hlS.style.display=isSde?'':'none';
+    if(hlE) hlE.style.display=isSde?'none':'';
+    var recEl=document.getElementById('reconcile');
+    if(recEl){ recEl.innerHTML=(s.sde>0||s.adj>0)
+      ? ('<b>Reconciliation.</b> SDE method (SDE '+money(s.sde)+' × '+(sLo?sLo.toFixed(2):'—')+'–'+(sHi?sHi.toFixed(2):'—')+'×): <b>'+((s.sde>0&&sLo&&sHi)?(moneyM(s.sde*sLo)+'–'+moneyM(s.sde*sHi)):'—')+'</b>.&nbsp;&nbsp; Adjusted-EBITDA method (Adj. EBITDA '+money(s.adj)+' × '+(eLo?eLo.toFixed(2):'—')+'–'+(eHi?eHi.toFixed(2):'—')+'×): <b>'+((s.adj>0&&eLo&&eHi)?(moneyM(s.adj*eLo)+'–'+moneyM(s.adj*eHi)):'—')+'</b>.&nbsp;&nbsp; Concluded ('+s.basis+' headline): <b>'+((e>0&&lo&&hi)?(moneyM(e*lo)+' – '+moneyM(e*hi)):'—')+'</b>.')
+      : ''; }
     // publish a compact summary for the CIM builder (includes SDE, Adj EBITDA, basis)
     try{ if(e>0){ localStorage.setItem('rrg_bov_summary', JSON.stringify({
       subject: val('subject')||'', date: val('date')||'',
@@ -576,8 +630,10 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   // band, rep contact) — used by both Clear and a fresh (record-less) open.
   function resetBlank(){
     state={fields:{}, bridge:blankBridge(), bench:BENCH.map(function(r){return r.slice();}), buyers:BUYERS.map(function(r){return r.slice();})};
-    document.querySelectorAll('[data-k]').forEach(function(el){ if(el.getAttribute('data-k')==='assume') el.value=ASSUME; else if(['multLow','multBase','multHigh'].indexOf(el.getAttribute('data-k'))>=0){} else if(el.getAttribute('data-k')==='revLo')el.value='0.50'; else if(el.getAttribute('data-k')==='revHi')el.value='0.60'; else if(el.getAttribute('data-k')==='preparedBy')el.value='Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com'; else if(el.getAttribute('data-k')==='preparedBy2')el.value='Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com'; else el.value=''; });
+    document.querySelectorAll('[data-k]').forEach(function(el){ if(el.getAttribute('data-k')==='assume') el.value=ASSUME; else if(['multLow','multBase','multHigh','sdeMultLow','sdeMultBase','sdeMultHigh','ebMultLow','ebMultBase','ebMultHigh'].indexOf(el.getAttribute('data-k'))>=0){} else if(el.getAttribute('data-k')==='revLo')el.value='0.50'; else if(el.getAttribute('data-k')==='revHi')el.value='0.60'; else if(el.getAttribute('data-k')==='preparedBy')el.value='Van Rinn, President & Founder · 210-362-0678 · van@rrgcre.com'; else if(el.getAttribute('data-k')==='preparedBy2')el.value='Avery Rinn, Associate · 210-204-2471 · avery@rrgcre.com'; else el.value=''; });
     q('multLow').value='4.0'; q('multBase').value='4.5'; q('multHigh').value='5.0';
+    q('sdeMultLow').value='2.0'; q('sdeMultBase').value='2.25'; q('sdeMultHigh').value='2.5';
+    q('ebMultLow').value='4.0'; q('ebMultBase').value='4.5'; q('ebMultHigh').value='5.0';
     renderAll();
   }
   window.clearAll=async function(){
@@ -590,7 +646,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
     state.bench=BENCH.map(function(r){return r.slice();}); state.buyers=BUYERS.map(function(r){return r.slice();});
     var f={subject:'Sample Restaurant (demo)',descriptor:'Single-Unit Full-Service Restaurant · Operating Business',tagline:'Illustrative layout sample — not a real business',
       preparedFor:'Ownership of the sample business',preparedBy:'',preparedBy2:'',date:'',
-      multLow:'4.0',multBase:'4.5',multHigh:'5.0',revLo:'0.30',revHi:'0.50',ebLow:'220,000',ebUp:'280,000',
+      multLow:'4.0',multBase:'4.5',multHigh:'5.0',sdeMultLow:'2.0',sdeMultBase:'2.25',sdeMultHigh:'2.5',ebMultLow:'4.0',ebMultBase:'4.5',ebMultHigh:'5.0',revLo:'0.30',revHi:'0.50',ebLow:'220,000',ebUp:'280,000',
       purpose:'This is an illustrative sample only — not a real business. Use it to preview how the BOV lays out on the page, then click Clear and generate the real valuation from the deal documents.',
       subjectOf:'The going-concern operating business of a sample single-unit full-service restaurant.',
       excluded:'Sample content — replace with the real deal specifics when you build from documents.',
@@ -620,7 +676,19 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   // Stateless BOV (not yet generated): show a blank scaffold with the CORRECT business name,
   // never another valuation's data. Only fills empty fields, so a real draft is left intact.
   function _prefillFromRecord(bov){ try{ if(!bov||!bov.business) return; var s=q('subject'); if(s && !String(s.value).trim()) s.value=bov.business; var pf=q('preparedFor'); if(pf && !String(pf.value).trim()) pf.value='Ownership of '+bov.business; renderAll(); }catch(e){} }
-  function applyState(s){ state=s; state.bridge=migrateBridge(state.bridge); if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();}); sortBuyers(); apply(state.fields||{}); renderAll(); }
+  function applyState(s){ state=s; state.bridge=migrateBridge(state.bridge); if(!state.bench) state.bench=BENCH.map(function(r){return r.slice();}); if(!state.buyers) state.buyers=BUYERS.map(function(r){return r.slice();}); sortBuyers(); apply(state.fields||{}); seedDualFromLegacy(state.fields||{}); renderAll(); }
+  // Back-compat: an older BOV saved before dual-basis carried only multLow/Base/High. Mirror
+  // that single set into the correct headline row so the number the firm concluded on is
+  // preserved, and leave the other method's row at its sensible default band.
+  function seedDualFromLegacy(ff){
+    var hasDual=(ff.sdeMultLow!=null&&ff.sdeMultLow!=='')||(ff.ebMultLow!=null&&ff.ebMultLow!=='');
+    if(hasDual) return;
+    var lLo=ff.multLow, lBa=ff.multBase, lHi=ff.multHigh; if(!lLo&&!lHi) return;
+    var revNum=Number(String((state.bridge&&state.bridge.revenue)||'').replace(/[^0-9.\-]/g,''))||0;
+    var isSde = revNum>0 ? (revNum<SDE_THRESHOLD) : (/sde/i.test(String(ff.basis||'')));
+    if(isSde){ if(q('sdeMultLow'))q('sdeMultLow').value=lLo||''; if(q('sdeMultBase'))q('sdeMultBase').value=lBa||''; if(q('sdeMultHigh'))q('sdeMultHigh').value=lHi||''; }
+    else { if(q('ebMultLow'))q('ebMultLow').value=lLo||''; if(q('ebMultBase'))q('ebMultBase').value=lBa||''; if(q('ebMultHigh'))q('ebMultHigh').value=lHi||''; }
+  }
   // Warn the rep (admin-editable message) when this valuation fell back to the
   // fiscal year because no TTM statement was provided and we're past Q1.
   function showNoTtmNotice(){
@@ -635,6 +703,16 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
       document.body.insertBefore(b, document.body.firstChild);
     }).catch(function(){});
   }
+  function showConclusionWarning(msg){
+    if(!msg || document.getElementById('bovConclWarn')) return;
+    var b=document.createElement('div'); b.id='bovConclWarn'; b.className='rrg-noprint';
+    b.style.cssText='position:sticky;top:0;z-index:9999;background:#fbeceb;border-bottom:2px solid #b23a2c;color:#8a2a20;font:600 13px/1.5 -apple-system,BlinkMacSystemFont,Segoe UI,Arial,sans-serif;padding:12px 18px;display:flex;gap:12px;align-items:flex-start';
+    b.innerHTML='<span style="font-size:16px;line-height:1">⛔</span><span style="flex:1"><b>Conclusion mismatch — review before sending.</b> <span class="cwmsg"></span></span><button type="button" title="Dismiss" style="border:none;background:none;color:#8a2a20;font-size:18px;line-height:1;cursor:pointer;font-weight:700">×</button>';
+    b.querySelector('.cwmsg').textContent=msg;
+    b.children[2].addEventListener('click',function(){ b.remove(); });
+    document.body.insertBefore(b, document.body.firstChild);
+  }
+  function setBovCrumb(bov){ try{ var el=document.getElementById('bovCrumbCur'); if(!el) return; var nm=(bov&&(bov.business||''))||''; el.textContent=nm?(nm+' — Opinion of Value'):'Opinion of Value'; if(nm) el.title=nm+' — Opinion of Value'; }catch(e){} }
   var _locked=false,_version=1,_versions=[];
   function fmtDate(iso){ try{ return new Date(iso).toLocaleDateString(undefined,{year:'numeric',month:'short',day:'numeric'}); }catch(e){ return String(iso||'').slice(0,10); } }
   function renderBovStatus(bov){
@@ -694,7 +772,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   var _srcQuestId='';
   if(_bid){
     fetch('/api/bov/'+encodeURIComponent(_bid)).then(function(r){return r.json();}).then(function(j){
-      if(j&&j.ok&&j.bov){ _srcQuestId=j.bov.srcQuestId||''; if(j.bov.state){ applyState(j.bov.state); } else { if(!restore()) initBlank(); _prefillFromRecord(j.bov); } if(j.bov.noTtmNotice) showNoTtmNotice(); renderBovStatus(j.bov); }
+      if(j&&j.ok&&j.bov){ _srcQuestId=j.bov.srcQuestId||''; if(j.bov.state){ applyState(j.bov.state); } else { if(!restore()) initBlank(); _prefillFromRecord(j.bov); } if(j.bov.noTtmNotice) showNoTtmNotice(); if(j.bov.conclusionWarning) showConclusionWarning(j.bov.conclusionWarning); setBovCrumb(j.bov); renderBovStatus(j.bov); }
       else if(!restore()){ initBlank(); }
     }).catch(function(){ if(!restore()) initBlank(); });
   } else if(!restore()){ initBlank(); }
@@ -708,7 +786,7 @@ tr.baserow td{background:#fdeceb;font-weight:700;}
   var KEY='rrg_bov_cover_brand', DEF_PRIMARY='#000E31', primary=DEF_PRIMARY;
   function shade(hex,pct){ hex=String(hex||'').replace('#',''); if(hex.length===3) hex=hex.split('').map(function(c){return c+c;}).join(''); var n=parseInt(hex,16); if(isNaN(n)) return '#'+hex; var r=(n>>16)&255,g=(n>>8)&255,b=n&255; function a(v){ return pct>=0? Math.round(v+(255-v)*pct/100) : Math.round(v*(100+pct)/100); } return '#'+[a(r),a(g),a(b)].map(function(v){ v=Math.max(0,Math.min(255,v)); return ('0'+v.toString(16)).slice(-2); }).join(''); }
   function apply(on){ var st=document.getElementById('bovCoverBrand'); if(on){ var p=primary; var band='radial-gradient(96% 130% at 27% 12%, '+shade(p,22)+' 0%, '+shade(p,4)+' 42%, '+shade(p,-16)+' 70%, '+shade(p,-40)+' 100%)'; var after='radial-gradient(circle at 34% 30%, '+shade(p,-8)+' 0%, '+shade(p,-26)+' 48%, '+shade(p,-46)+' 82%)'; if(!st){ st=document.createElement('style'); st.id='bovCoverBrand'; document.head.appendChild(st);} st.textContent='.band{background:'+band+' !important}.band::after{background:'+after+' !important}'; } else if(st){ st.parentNode.removeChild(st); } }
-  function wire(){ var cb=document.getElementById('brandCover'); if(!cb) return; var stored=localStorage.getItem(KEY); var on = (stored===null) ? (String(primary).toLowerCase()!==DEF_PRIMARY.toLowerCase()) : (stored==='1'); cb.checked=on; apply(on); cb.addEventListener('change',function(){ localStorage.setItem(KEY, cb.checked?'1':'0'); apply(cb.checked); }); }
+  function wire(){ var stored=localStorage.getItem(KEY); var on = (stored===null) ? (String(primary).toLowerCase()!==DEF_PRIMARY.toLowerCase()) : (stored==='1'); apply(on); var cb=document.getElementById('brandCover'); if(!cb) return; cb.checked=on; cb.addEventListener('change',function(){ localStorage.setItem(KEY, cb.checked?'1':'0'); apply(cb.checked); }); }
   fetch('/api/appname',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.palette&&j.palette.primary) primary=j.palette.primary; wire(); }).catch(wire);
 })();
 </script>

@@ -2359,6 +2359,7 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
     rec.rangeText = out.summary.rangeText; rec.targetText = out.summary.targetText;
     rec.multText = out.summary.multText; rec.ebitdaText = out.summary.ebitdaText;
     rec.basis = out.summary.basis; rec.sdeText = out.summary.sdeText; rec.adjText = out.summary.adjText;
+    rec.conclusionWarning = out.summary.conclusionWarning || '';
     rec.state = out.state; rec.aiGenerated = true; rec.pending = false; rec.builtAt = new Date().toISOString(); rec.version = rec.version || 1;
     try { const _u = out.state && out.state.fields && out.state.fields.units; if (_u != null && String(_u).replace(/[^0-9]/g, '')) rec.units = String(_u).replace(/[^0-9]/g, ''); } catch (e) {}
     // No TTM statement (analyst fell back to the fiscal year) AND we're past Q1 →
@@ -2390,7 +2391,7 @@ app.post('/api/generate-bov', express.json({ limit: '48mb' }), async (req, res) 
       console.log('BOV DIAG:', JSON.stringify(_d));
       fs.writeFileSync(path.join(BOV_DATA_DIR, 'bov_last_diag.json'), JSON.stringify(_d, null, 2));
     } catch (e) {}
-    res.json({ ok: true, id: rec.id, summary: out.summary, noTtmNotice: rec.noTtmNotice, diag: out.diag || null });
+    res.json({ ok: true, id: rec.id, summary: out.summary, noTtmNotice: rec.noTtmNotice, conclusionWarning: rec.conclusionWarning || '', diag: out.diag || null });
   } catch (e) {
     console.error('generate-bov error:', e);
     res.status(500).json({ ok: false, error: String((e && e.message) || e) });

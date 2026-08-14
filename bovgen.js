@@ -58,12 +58,18 @@ Do the analysis. Build the earnings the SAME WAY, EVERY TIME, using this exact a
 - Use PRIOR years only to read the TREND (growing, flat, or declining revenue and margin) — a strong, improving trend supports the HIGH end of the multiple; a soft or declining trend pulls it toward the LOW end. Prior years inform the multiple; they do NOT change the T12 earnings base. Say what the trend is and how it moved the multiple in the methodology / why-the-range-holds narratives.
 - Compute BOTH SDE and Adjusted EBITDA every time, and report both figures.
 - UNIT / LOCATION COUNT — DETECT IT, DO NOT DEFAULT TO ONE. Determine how many operating units (locations) this business runs. Read the evidence: consolidating or departmentalized P&Ls with per-location columns, tabs, or class/department breakouts; combined statements covering several stores; more than one rent / occupancy-cost line; multiple sales-tax or TABC permits; and any unit count stated in the Seller Interview / questionnaire. State the unit count explicitly in "descriptor" (e.g. "3-Unit Full-Service Restaurant Group") and in execNarr, and note in basisOf how you determined it. When there is more than one unit, treat and value it as a MULTI-UNIT, manager-run PLATFORM: use the multi-unit EBITDA band (≈4.0–7.0×) rather than a single-unit multiple, conclude on Adjusted EBITDA, and say in whyHolds that multiple cash-flowing locations, scale, and manager-run infrastructure support the higher multiple. Never describe or value a multi-location operation as single-unit. If the number of units is genuinely ambiguous from the documents, state your best read and flag it for broker confirmation rather than silently assuming one.
-- VALUATION BASIS: if trailing revenue is UNDER $1,200,000, conclude value on SDE using SDE multiples (single-unit owner-operated ≈ 1.5–3.0× SDE). If trailing revenue is $1,200,000 OR MORE, conclude on Adjusted EBITDA using EBITDA multiples (profitable independents ≈ 3.0–5.0×; multi-unit / manager-run ≈ 4.0–7.0×). Set "basis" to "SDE" or "Adjusted EBITDA" accordingly, and give low / base / high multiples for that basis.
+- VALUATION BASIS — VALUE ON BOTH, EVERY TIME. Every BOV must present TWO methods: (1) an SDE-based value using SDE multiples (single-unit owner-operated ≈ 1.5–3.0× SDE) AND (2) an Adjusted-EBITDA-based value using EBITDA multiples (profitable independents ≈ 3.0–5.0×; multi-unit / manager-run ≈ 4.0–7.0×). Output BOTH multiple sets on every deal — "sdeMultLow/sdeMultBase/sdeMultHigh" AND "ebMultLow/ebMultBase/ebMultHigh" — even when one basis is clearly the driver. Then set the HEADLINE basis by trailing revenue: UNDER $1,200,000 → headline is SDE; $1,200,000 OR MORE → headline is Adjusted EBITDA. Set "basis" to "SDE" or "Adjusted EBITDA" accordingly, and set "multLow"/"multBase"/"multHigh" EQUAL to the headline basis's multiples. In methodNarr and concNarr, present BOTH ranges and reconcile — lead with the headline basis, note where the two methods converge, and explain any divergence.
 - ASSET-SALE FLOOR — NO GOING-CONCERN VALUE. If trailing SDE is at or below the asset-sale floor (a low, marginal, break-even, or negative owner's earnings), the business has little or no going-concern value: do NOT apply an earnings multiple. Conclude the value as an ASSET SALE — the worth is in the tangible assets (FF&E, leasehold improvements, a transferable or below-market lease, and any transferable licenses — but see the TEXAS LIQUOR LICENSE rule below), NOT the earnings. Set "assetSale" to true, set "basis" to "Asset Sale", and write concNarr and gtmNarr to state plainly that the business is best marketed as an asset sale, that the price reflects tangible assets rather than a multiple of earnings, and why (marginal / negative earnings, owner-dependent, etc.). A losing or barely-profitable restaurant is an asset sale, not a going concern. When SDE is healthy and above the floor, set "assetSale" to false and value normally.
 - PHOTO GALLERY (for the marketing package). The Marketing Pack / CIM built from this valuation always includes a dedicated Property Gallery page of photography (sometimes two pages). This does not change any BOV number or JSON field — but where you note go-to-market readiness, flag whether strong exterior, interior, and food photography is available or should be gathered, since the package needs a full photo page.
 - TEXAS LIQUOR LICENSE — NO VALUE (except San Marcos). A Texas liquor license / TABC permit carries NO separate resale or transfer value and must NOT be assigned any dollar value in the valuation — not in a going-concern conclusion and not in an asset sale — with ONE exception: a business located in San Marcos, Texas, where the liquor license does hold transferable value and may be valued. Everywhere else in Texas, treat the liquor license as $0 and do not list it among the value-bearing assets. Only when the business is in San Marcos may you ascribe value to the license, and say so explicitly.
 - MULTIPLE DISCIPLINE — price to SELL, not to a top-of-market ask. For a single-unit owner-operated restaurant/bar, anchor the SDE multiple around 2.0–2.5× and only reach the top of the band (or above) when the fundamentals clearly earn it. Pull the multiple DOWN for: short remaining lease term (not SBA-financeable), small or rural market, heavy owner/operator dependence, below-market wages that will normalize up, customer/daypart concentration, or no seller financing. Push UP only for: a long, assignable, below-market lease; manager-run / low owner dependence; clean, growing financials; strong brand and AUVs; and real multiple-buyer demand. State the multiple you chose and the one or two factors that set it. Do NOT apply an EBITDA-scale multiple (4×+) to an SDE deal.
 - CROSS-CHECK: always sanity-check the earnings-multiple conclusion against a revenue multiple (roughly 0.3–0.5× of trailing revenue for a full-service restaurant/bar) and reconcile. Conclude where the methods CONVERGE, not at the top of any single method.
+- YOU MUST OUTPUT THE MULTIPLE — this is not optional. Whenever assetSale is false, "multLow", "multBase", and "multHigh" are REQUIRED numbers. The concluded value IS basis × multiple, so a blank or zero multiple produces a $0 valuation — a hard failure. Pick and output the band every single time (SDE ≈ 1.5–3.0×, single-unit anchor ~2.0–2.5×; independent EBITDA ≈ 3.0–5.0×; multi-unit / manager-run ≈ 4.0–7.0×). Even when some data is thin, choose your best-supported multiple and say what set it — never leave it empty.
+- ONE COHERENT CONCLUSION — THE NARRATIVE MUST MATCH THE NUMBERS. This is critical. The system computes SDE and Adjusted EBITDA from your "bridge" and builds the matrix as (basis × multiple). Every earnings figure you state in words — in concNarr, execNarr, gtmNarr, earnNarr, whyHolds, methodNarr — MUST equal those computed subtotals. NEVER cite a different SDE or EBITDA in prose than your bridge produces (e.g. do NOT build a $306K Adjusted-EBITDA bridge and then write "only $21K in SDE"). And the going-concern-vs-asset-sale decision must be ONE decision that the bridge, basis, multiple, matrix, and every narrative all agree on:
+  • If you conclude ASSET SALE, set assetSale=true AND your bridge earnings must genuinely be at/near the asset-sale floor — do NOT output a healthy earnings bridge and then write an asset-sale conclusion. concNarr and gtmNarr describe tangible-asset value, not a multiple.
+  • If you conclude GOING CONCERN (assetSale=false), the whole document — matrix, multiple, and concNarr — reflects basis × multiple. Do NOT slip an asset-sale paragraph into concNarr.
+  Before you finish, re-read concNarr against your bridge: if the dollar figures or the sale type disagree, FIX the narrative to match the numbers. A BOV that concludes two different values is a hard failure.
+- ADD-BACK DISCIPLINE — do not manufacture a going concern out of speculative add-backs. Only normalize earnings for well-supported items (documented owner comp, owner health, verifiable family payroll, true one-time costs, rent-to-market). Do NOT bake a questionable or unverified add-back (e.g. a possibly-disguised "management fee") into the bridge to lift a thin business over the going-concern line. If earnings only clear the floor because of an add-back you cannot stand behind, treat the business on its SUPPORTABLE earnings (likely an asset sale) and mention the unverified add-back in the narrative as broker-verify upside — do not put it in the bridge.
 - Note lease posture from the actual lease (term remaining, base + NNN, options, assignability) and normalize rent if needed.
 - OWNED REAL ESTATE: if there is no lease because the business owns its real estate, do NOT skip rent — impute a fair market rent via the rent-normalization line so earnings are comparable to a leased peer, and state clearly that the real estate is a SEPARATE asset excluded from the business value. Say what you did in the earnings and excluded narratives.
 - Give a range, not false precision. Flag anything off the books that moves value (owner dependence, related-party landlord, deferred capex, concentration).
@@ -82,7 +88,9 @@ Return ONLY a single JSON object — no prose, no markdown fences — with EXACT
    "preparedBy2": "",
    "date": "YYYY-MM (the valuation month, e.g. 2026-07)",
    "basis": "SDE or Adjusted EBITDA — which earnings the multiple is applied to, per the revenue rule",
-   "multLow": "4.0", "multBase": "4.5", "multHigh": "5.0",
+   "sdeMultLow": "REQUIRED numeric — LOW end of the SDE multiple (e.g. 1.75). Output on EVERY deal, both bases always.", "sdeMultBase": "REQUIRED numeric — base-case SDE multiple (e.g. 2.25).", "sdeMultHigh": "REQUIRED numeric — HIGH end SDE multiple (e.g. 2.75).",
+   "ebMultLow": "REQUIRED numeric — LOW end of the Adjusted-EBITDA multiple (e.g. 4.0). Output on EVERY deal, both bases always.", "ebMultBase": "REQUIRED numeric — base-case EBITDA multiple (e.g. 4.5).", "ebMultHigh": "REQUIRED numeric — HIGH end EBITDA multiple (e.g. 5.0).",
+   "multLow": "REQUIRED numeric — set EQUAL to the HEADLINE basis's low multiple (= sdeMultLow if headline is SDE, else ebMultLow). Use 0 ONLY for an asset sale.", "multBase": "REQUIRED numeric — the headline base-case multiple.", "multHigh": "REQUIRED numeric — the headline high multiple.",
    "revLo": "0.50", "revHi": "0.60",
    "ebLow": "conservative earnings scenario on the valuation basis, as a number, e.g. 1020000",
    "ebUp": "upside earnings scenario on the valuation basis, as a number, e.g. 1250000",
@@ -148,16 +156,42 @@ function summarize(state, threshold) {
   const f = (state && state.fields) || {};
   const basis = basisFor(sub, f.basis, threshold);
   const basisVal = basis === 'SDE' ? sub.sde : sub.adj;
-  const lo = num(f.multLow), ba = num(f.multBase), hi = num(f.multHigh);
+  const isAsset = (state && state.assetSale === true);
+  let multFallback = false;
+  // DUAL BASIS — every BOV carries both an SDE method and an Adjusted-EBITDA method.
+  let sLo = num(f.sdeMultLow), sBa = num(f.sdeMultBase), sHi = num(f.sdeMultHigh);
+  let eLo = num(f.ebMultLow), eBa = num(f.ebMultBase), eHi = num(f.ebMultHigh);
+  // Back-compat: a thin/older response may carry only the single multLow/Base/High set.
+  // Seed the headline basis's dual set from it so nothing regresses.
+  const lLo = num(f.multLow), lBa = num(f.multBase), lHi = num(f.multHigh);
+  if (basis === 'SDE' && !(sLo > 0 && sHi > 0) && lLo > 0 && lHi > 0) { sLo = lLo; sBa = lBa; sHi = lHi; }
+  if (basis !== 'SDE' && !(eLo > 0 && eHi > 0) && lLo > 0 && lHi > 0) { eLo = lLo; eBa = lBa; eHi = lHi; }
+  // SAFETY NET — never let a real going concern collapse to $0 for a missing multiple.
+  if (!isAsset && sub.sde > 0 && !(sLo > 0 && sHi > 0)) { sLo = 2.0; sBa = 2.25; sHi = 2.5; multFallback = true; }
+  if (!isAsset && sub.adj > 0 && !(eLo > 0 && eHi > 0)) { eLo = 4.0; eBa = 4.5; eHi = 5.0; multFallback = true; }
+  if (!(sBa > 0) && sLo > 0 && sHi > 0) sBa = (sLo + sHi) / 2;
+  if (!(eBa > 0) && eLo > 0 && eHi > 0) eBa = (eLo + eHi) / 2;
+  // Write the dual sets back so the builder opens with real, editable numbers.
+  if (sLo > 0) { f.sdeMultLow = sLo.toFixed(2); f.sdeMultBase = (sBa || 0).toFixed(2); f.sdeMultHigh = sHi.toFixed(2); }
+  if (eLo > 0) { f.ebMultLow = eLo.toFixed(2); f.ebMultBase = (eBa || 0).toFixed(2); f.ebMultHigh = eHi.toFixed(2); }
+  // Headline multiples mirror the chosen basis (keeps the existing matrix + downstream intact).
+  const lo = basis === 'SDE' ? sLo : eLo, ba = basis === 'SDE' ? sBa : eBa, hi = basis === 'SDE' ? sHi : eHi;
+  if (lo > 0) { f.multLow = lo.toFixed(2); f.multBase = (ba || 0).toFixed(2); f.multHigh = hi.toFixed(2); }
+  const sdeRangeText = (sub.sde > 0 && sLo > 0 && sHi > 0) ? (moneyM(sub.sde * sLo) + ' – ' + moneyM(sub.sde * sHi)) : '—';
+  const ebRangeText = (sub.adj > 0 && eLo > 0 && eHi > 0) ? (moneyM(sub.adj * eLo) + ' – ' + moneyM(sub.adj * eHi)) : '—';
   return {
     basis: basis, basisVal: basisVal, sde: sub.sde, adjEbitda: sub.adj, revenue: sub.revenue,
     ebitda: basisVal,   // headline earnings = the basis figure the multiple is applied to
-    rangeText: basisVal > 0 ? (moneyM(basisVal * lo) + ' – ' + moneyM(basisVal * hi)) : '—',
-    targetText: basisVal > 0 ? ('~' + moneyM(basisVal * ba)) : '—',
+    multFallback: multFallback,
+    rangeText: (basisVal > 0 && lo > 0 && hi > 0) ? (moneyM(basisVal * lo) + ' – ' + moneyM(basisVal * hi)) : '—',
+    targetText: (basisVal > 0 && ba > 0) ? ('~' + moneyM(basisVal * ba)) : '—',
     multText: (lo && hi) ? (lo.toFixed(1) + '–' + hi.toFixed(1) + '×') : '—',
     ebitdaText: basisVal > 0 ? ('~' + moneyM(basisVal)) : '—',
     sdeText: sub.sde > 0 ? ('~' + moneyM(sub.sde)) : '—',
     adjText: sub.adj > 0 ? ('~' + moneyM(sub.adj)) : '—',
+    sdeRangeText: sdeRangeText, ebRangeText: ebRangeText,
+    sdeMultText: (sLo && sHi) ? (sLo.toFixed(2) + '–' + sHi.toFixed(2) + '×') : '—',
+    ebMultText: (eLo && eHi) ? (eLo.toFixed(2) + '–' + eHi.toFixed(2) + '×') : '—',
   };
 }
 
@@ -330,6 +364,36 @@ async function generateBov({ business, files, preparedBy, questionnaire, links, 
   // code (not the prompt) so it stays correct even if the prompt is edited.
   state.buyers = sortBuyersByMultiple(state.buyers);
   const summary = summarize(state, threshold);
+  // HARD GUARD — the written conclusion must not contradict the computed matrix. A BOV that
+  // states two different values (e.g. a healthy going-concern matrix with an asset-sale
+  // narrative, or numbers in prose that don't match the bridge) is unsendable. Detect the
+  // mismatch deterministically and attach a loud warning so it can't reach a client silently.
+  try {
+    const f = state.fields || {};
+    const txt = String((f.concNarr || '') + ' ' + (f.gtmNarr || '') + ' ' + (f.execNarr || '') + ' ' + (f.methodNarr || '')).toLowerCase();
+    const assetLang = /asset[-\s]?sale|not a going[-\s]?concern|no going[-\s]?concern|tangible asset|liquidation value|scrap value|acquiring hard assets/.test(txt);
+    const isAsset = state.assetSale === true;
+    const bv = Number(summary.basisVal) || 0;
+    let warn = '';
+    if (!isAsset && bv > floor && assetLang) {
+      warn = 'The written conclusion reads as an ASSET SALE, but the matrix concludes a going-concern value of ' + summary.rangeText + '. These disagree — reconcile before sending: either it is an asset sale (earnings should sit at the floor, no multiple) or a going concern (remove the asset-sale language). Use Refine to fix it.';
+    } else if (isAsset && summary.multText !== '—' && bv > floor) {
+      warn = 'This is flagged as an ASSET SALE, yet a going-concern multiple and matrix (' + summary.rangeText + ') are present. These disagree — reconcile before sending.';
+    } else {
+      // Numeric cross-check: the biggest dollar figure the prose commits to as "value" should
+      // land in the neighbourhood of the matrix. If concNarr concludes a number far below the
+      // matrix low, the narrative is valuing something else than the matrix.
+      const lowV = bv * num(f.multLow);
+      if (!isAsset && lowV > 0) {
+        const nums = (String(f.concNarr || '').match(/\$[\s]?[\d][\d,]{3,}/g) || []).map(function (s) { return Number(String(s).replace(/[^0-9]/g, '')) || 0; }).filter(function (n) { return n > 0 && n < bv * 100; });
+        const maxProse = nums.length ? Math.max.apply(null, nums) : 0;
+        if (maxProse > 0 && maxProse < lowV * 0.5) {
+          warn = 'The concluded value described in words (about ' + money(maxProse) + ') is far below the matrix range (' + summary.rangeText + '). The narrative and the numbers disagree — reconcile before sending.';
+        }
+      }
+    }
+    if (warn) summary.conclusionWarning = warn;
+  } catch (e) {}
   const usage = data.usage || {};
   // Finish the diagnostic: how big was the read (input tokens rise sharply when a PDF is
   // actually parsed) and what revenue did the analyst put on the bridge?
