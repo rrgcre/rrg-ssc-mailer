@@ -5792,6 +5792,138 @@ async function bbsPollTick() {
   _bbsPolling = false;
 }
 setInterval(bbsPollTick, 60 * 1000);
+
+// ===== Add-to-book from Gmail =====
+// Label an email in Gmail; the poller reads it, AI extracts the contact + their company from the
+// signature, dedupes against the book, files the contact under the company, and (optionally) enrolls
+// them in an automation you choose. Reuses the Gmail READ scope — it can't add/remove labels, so it
+// dedupes by message id instead. The intake just gets people in; the automation owns the follow-up.
+const GADD_POLL_FILE = path.join(BOV_DATA_DIR, 'gmailadd_poll.json');
+function loadGaddPoll() { try { return rj(GADD_POLL_FILE) || {}; } catch (e) { return {}; } }
+function saveGaddPoll(o) { return writeJsonGuarded(GADD_POLL_FILE, o, 'saveGaddPoll'); }
+function gaddLabelQuery(label) {
+  // Gmail search treats a label with spaces as hyphenated (label:my-label). Sanitize to match.
+  const l = String(label || 'FullServe').trim().replace(/[^A-Za-z0-9 _\/-]/g, '').replace(/\s+/g, '-');
+  return 'label:' + (l || 'FullServe');
+}
+// Find or create a company by name, filling website/office from parsed signature data.
+function ensureCompanyByName(name, req, extra) {
+  const nm = String(name || '').trim(); if (!nm || nm.length > 160) return null;
+  extra = extra || {};
+  const arr = loadCompanies();
+  let c = arr.find(x => normKey(x.name) === normKey(nm));
+  const now = new Date().toISOString();
+  if (!c) {
+    c = { id: newCompanyId(), name: nm.slice(0, 160), market: '', type: 'Restaurant Group', notes: '', office: {}, createdAt: now, by: (req && req.user && req.user.name) || 'Gmail intake', byUser: (req && req.user && req.user.username) || 'system' };
+    if (extra.leadSource) c.leadSource = String(extra.leadSource).slice(0, 160);
+    arr.push(c);
+  }
+  c.office = c.office || {};
+  if (extra.website && !c.website) { let w = String(extra.website).trim(); if (w && !/^https?:\/\//i.test(w) && /\.[a-z]{2,}$/i.test(w)) w = 'https://' + w; c.website = w.slice(0, 300); }
+  ['address', 'city', 'state', 'phone'].forEach(k => { if (extra[k] && !c.office[k]) c.office[k] = String(extra[k]).slice(0, 200); });
+  c.updatedAt = now; saveCompanies(arr);
+  return c;
+}
+async function gmailAddPull(username, name, opts) {
+  opts = opts || {};
+  if (!gmail.statusFor(username).connected) return { ok: false, error: 'Gmail not connected.' };
+  const rep = { user: { name: name || username, username: username } };
+  const store = loadGaddPoll(); const rec = store[username] || {};
+  const days = opts.all ? 180 : (rec.lastRun ? 30 : 60);
+  const q = gaddLabelQuery(rec.label) + ' newer_than:' + days + 'd';
+  let msgs = [];
+  try { msgs = await gmail.searchLeadBodies(username, q, 30); } catch (e) { return { ok: false, error: String((e && e.message) || e) }; }
+  const seenArr = Array.isArray(rec.seen) ? rec.seen : [];
+  const seenSet = {}; seenArr.forEach(id => seenSet[id] = 1);
+  const fresh = opts.all ? msgs : msgs.filter(m => !seenSet[m.id]);
+  // Mark every fetched id as seen — the read-only scope can't strip the label, so this prevents re-processing.
+  rec.seen = seenArr.concat(msgs.map(m => m.id)).filter((v, i, a) => a.indexOf(v) === i).slice(-3000);
+  const plan = rec.automationId ? loadAutomations().find(a => a.id === rec.automationId && a.active !== false) : null;
+  const tag = String(rec.tag || 'Gmail intake').slice(0, 60);
+  const results = []; let added = 0, updated = 0, skipped = 0;
+  for (const m of fresh) {
+    let parsed = null;
+    try { parsed = await aiassist.parseEmailContact({ from: m.from, subject: m.subject, body: m.body }); } catch (e) { parsed = null; }
+    const hasWho = parsed && parsed.found && (String(parsed.firstName || '').trim() || String(parsed.lastName || '').trim() || String(parsed.email || '').trim());
+    if (!hasWho) { skipped++; continue; }
+    let co = null;
+    if (parsed.companyName) { try { co = ensureCompanyByName(parsed.companyName, rep, { website: parsed.companyWebsite, address: parsed.address, city: parsed.city, state: parsed.state, phone: parsed.companyPhone, leadSource: 'Gmail' }); } catch (e) {} }
+    const validInterest = (effPersonTypes().indexOf(parsed.interest) >= 0) ? parsed.interest : '';
+    const before = loadPeople().length;
+    const person = findOrCreatePerson(rep, {
+      firstName: parsed.firstName, lastName: parsed.lastName, name: composeName(parsed.firstName, parsed.lastName),
+      email: parsed.email, emails: parsed.email ? [parsed.email] : [], phones: parsed.phone ? [parsed.phone] : [],
+      companyId: co ? co.id : '', company: parsed.companyName || '', type: validInterest || 'Buyer', tag: tag, strict: false,
+    });
+    if (!person) { skipped++; continue; }
+    const isNew = loadPeople().length > before;
+    try {
+      const ppl = loadPeople(); const pp = ppl.find(x => x.id === person.id);
+      if (pp) {
+        if (parsed.title && !pp.title) pp.title = String(parsed.title).slice(0, 120);
+        if (co && !pp.companyId) pp.companyId = co.id;
+        if (co && parsed.companyName && !pp.company) pp.company = String(parsed.companyName).slice(0, 160);
+        if (!pp.leadSource) pp.leadSource = 'Gmail';
+        // Honor "don't guess": if the AI had no interest signal, leave it blank for the rep to set on review.
+        if (!validInterest && isNew) { pp.type = ''; pp.types = []; }
+        pp.updatedAt = new Date().toISOString();
+        logActivity(pp, 'Note', ('Added from Gmail (' + (m.subject ? ('“' + String(m.subject).slice(0, 80) + '”') : 'labeled email') + ')' + (parsed.summary ? (' — ' + String(parsed.summary).slice(0, 160)) : '')).slice(0, 300), { auto: true, by: 'Gmail intake', byUser: 'system' });
+        savePeople(ppl);
+        if (plan) { const ppl2 = loadPeople(); const pp2 = ppl2.find(x => x.id === person.id); if (pp2 && enrollPerson(pp2, plan, { byName: 'Gmail intake', byUser: username })) savePeople(ppl2); }
+      }
+    } catch (e) {}
+    if (isNew) added++; else updated++;
+    results.push({ id: person.id, name: person.name || composeName(parsed.firstName, parsed.lastName), company: parsed.companyName || '', isNew: isNew });
+  }
+  rec.lastRun = new Date().toISOString(); rec.lastCount = added; store[username] = rec; saveGaddPoll(store);
+  return { ok: true, added, updated, skipped, scanned: msgs.length, fresh: fresh.length, results };
+}
+app.get('/api/gmail-add/poll', (req, res) => {
+  const u = (req.user && req.user.username) || ''; const rec = (loadGaddPoll()[u]) || {};
+  const autos = loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === u || isSuper(req.user))).map(a => ({ id: a.id, name: a.name || '' }));
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, label: rec.label || 'FullServe', tag: rec.tag || 'Gmail intake', automationId: rec.automationId || '', connected: gmail.statusFor(u).connected, configured: gmail.isConfigured(), lastRun: rec.lastRun || '', lastCount: rec.lastCount || 0, automations: autos });
+});
+app.post('/api/gmail-add/poll', express.json(), (req, res) => {
+  const u = (req.user && req.user.username) || ''; if (!u) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const b = req.body || {}; const store = loadGaddPoll(); const rec = store[u] || {};
+  if (typeof b.enabled === 'boolean') rec.enabled = b.enabled;
+  if (b.intervalMin != null) { const m = parseInt(b.intervalMin, 10); rec.intervalMin = (isFinite(m) && m >= 5) ? Math.min(m, 720) : 15; }
+  if (typeof b.label === 'string') rec.label = b.label.trim().slice(0, 80) || 'FullServe';
+  if (typeof b.tag === 'string') rec.tag = b.tag.trim().slice(0, 60);
+  if (typeof b.automationId === 'string') rec.automationId = b.automationId.slice(0, 60);
+  store[u] = rec; saveGaddPoll(store);
+  res.json({ ok: true, enabled: !!rec.enabled, intervalMin: rec.intervalMin || 15, label: rec.label || 'FullServe', tag: rec.tag || 'Gmail intake', automationId: rec.automationId || '' });
+});
+app.post('/api/gmail-add/run', express.json(), async (req, res) => {
+  try {
+    const u = (req.user && req.user.username) || '';
+    if (!gmail.statusFor(u).connected) return res.status(400).json({ ok: false, error: 'Connect your Gmail first — Account page, Connect Gmail.' });
+    const out = await gmailAddPull(u, (req.user && req.user.name) || u, { all: !!(req.body && req.body.all) });
+    if (out.ok && !out.added && !out.updated) out.note = out.scanned ? ('Scanned ' + out.scanned + ' labeled email(s)' + (out.fresh === 0 ? ' — all already processed.' : ' — none had a contact I could read.')) : ('No emails found with the label “' + ((loadGaddPoll()[u] || {}).label || 'FullServe') + '” — add the label to a few emails in Gmail first.');
+    res.json(out);
+  } catch (e) { res.status(502).json({ ok: false, error: String((e && e.message) || e) }); }
+});
+// Background poller — checks each enabled+connected user's Gmail when their interval is due.
+let _gaddPolling = false;
+async function gaddPollTick() {
+  if (_gaddPolling) return; _gaddPolling = true;
+  try {
+    if (gmail.isConfigured()) {
+      const store = loadGaddPoll(); const users = auth.loadUsers(); const now = Date.now();
+      for (const uname of Object.keys(store)) {
+        const rec = store[uname]; if (!rec || !rec.enabled) continue;
+        if (!gmail.statusFor(uname).connected) continue;
+        const iv = (rec.intervalMin || 15) * 60 * 1000;
+        const last = rec.lastRun ? Date.parse(rec.lastRun) : 0;
+        if (now - last < iv) continue;
+        const prof = (users || []).find(x => x.username === uname) || {};
+        try { const r = await gmailAddPull(uname, prof.name || uname, {}); if (r && r.added) console.log('Gmail add: created ' + r.added + ' contact(s) for ' + uname); } catch (e) { console.error('gadd poll error ' + uname + ':', e && e.message); }
+      }
+    }
+  } catch (e) { console.error('gadd poll tick:', e && e.message); }
+  _gaddPolling = false;
+}
+setInterval(gaddPollTick, 60 * 1000);
 function cleanupPeopleAddrs() {
   try {
     const arr = loadPeople(); let ch = false;

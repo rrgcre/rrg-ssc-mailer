@@ -166,6 +166,27 @@ input.f:disabled{background:var(--wash);color:var(--soft);}
     <span class="msg" id="gmmsg"></span>
   </div>
 
+  <div class="card" id="gaddCard">
+    <h2>Add to book from Gmail</h2>
+    <div class="desc">Label an email in Gmail and it files itself here — no need to open the app. The app reads that label on a schedule, pulls the contact and their company out of the signature, dedupes against your book, and (optionally) starts an automation. It reads only the emails you label; it never writes to your mailbox.</div>
+    <div id="gaddState" class="desc" style="margin-bottom:12px">Checking…</div>
+    <div id="gaddBody" style="display:none">
+      <label class="fl" style="display:flex;align-items:center;gap:9px;cursor:pointer;font-weight:400;text-transform:none;letter-spacing:0;font-size:14px"><input type="checkbox" id="gaddEnabled" style="width:auto"> <b style="font-weight:700">Turn on Gmail add-to-book</b></label>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+        <div><label class="fl">Gmail label to watch</label><input class="f" id="gaddLabel" placeholder="FullServe"><div class="hint" style="font-size:11.5px;color:#8a93a8;margin-top:4px">Create this label in Gmail once, then apply it to any email. (Sub-labels like <b>FullServe/Add</b> work too.)</div></div>
+        <div><label class="fl">Check every</label><select class="f" id="gaddInterval"><option value="5">5 minutes</option><option value="15">15 minutes</option><option value="30">30 minutes</option><option value="60">1 hour</option><option value="240">4 hours</option></select></div>
+        <div><label class="fl">Tag new contacts</label><input class="f" id="gaddTag" placeholder="Gmail intake"><div class="hint" style="font-size:11.5px;color:#8a93a8;margin-top:4px">So you can filter and review what came in.</div></div>
+        <div><label class="fl">Start this automation</label><select class="f" id="gaddAuto"><option value="">— none (just add them) —</option></select><div class="hint" style="font-size:11.5px;color:#8a93a8;margin-top:4px">Owns the follow-up (task, email…). Build these in <b>Settings → Automations</b>.</div></div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button class="save" id="gaddSave" onclick="saveGadd()">Save</button>
+        <button class="save" id="gaddScan" onclick="gaddScanNow()" style="background:#eef1f6;color:#33415c">Scan now</button>
+        <span class="msg" id="gaddMsg"></span>
+      </div>
+      <div id="gaddLast" class="hint" style="font-size:11.5px;color:#8a93a8;margin-top:8px"></div>
+    </div>
+  </div>
+
   <div class="card">
     <h2>Google Sync</h2>
     <div class="desc">Two-way sync your meetings with <b>Google Calendar</b>. Uses the same Google connection as Gmail above — if you just enabled it, click <b>Reconnect</b> on the Gmail card once to approve Calendar access. New Google events come in; appointments you create here go out.</div>
@@ -332,8 +353,35 @@ function gsRow(kind,label){ return '<div style="display:flex;align-items:center;
 var _gsAbort={};
 function gsCancel(kind){ try{ if(_gsAbort[kind]) _gsAbort[kind].abort(); }catch(e){} fetch(API+'/api/google/sync/cancel',{method:'POST',credentials:'same-origin'}).catch(function(){}); var out=document.getElementById('gs_'+kind); if(out){ out.className='msg'; out.textContent='Cancelling…'; } var cb=document.getElementById('gscancel_'+kind); if(cb) cb.style.display='none'; }
 function gsSync(kind,dir,btn){ var out=document.getElementById('gs_'+kind); out.className='msg'; out.textContent='Syncing… a large Push can take a few minutes.'; btn.disabled=true; var cb=document.getElementById('gscancel_'+kind); if(cb&&(dir==='push'||dir==='both')) cb.style.display='inline-block'; var ac=(typeof AbortController!=='undefined')?new AbortController():null; _gsAbort[kind]=ac; var opt={method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({direction:dir})}; if(ac) opt.signal=ac.signal; fetch(API+'/api/google/sync/'+kind,opt).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; if(cb) cb.style.display='none'; if(j&&j.ok){ out.className='msg ok'; out.textContent='Done — '+j.pulledNew+' new, '+j.pulledUpdated+' updated in, '+j.pushed+' out'+((j.pushRemaining)?(' · '+j.pushRemaining+' left — run Push again to continue'):'')+((j.cancelled)?' · cancelled':'')+'.'; } else { out.className='msg err'; out.textContent=(j&&j.error)||'Sync failed.'; } }).catch(function(e){ btn.disabled=false; if(cb) cb.style.display='none'; if(e&&e.name==='AbortError'){ out.className='msg'; out.textContent='Cancelled — the sync was stopped.'; } else { out.className='msg err'; out.textContent='Could not reach the server.'; } }); }
+/* ---- Add to book from Gmail ---- */
+function loadGadd(){
+  var st=document.getElementById('gaddState'), body=document.getElementById('gaddBody'); if(!st) return;
+  fetch(API+'/api/gmail-add/poll',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ st.textContent='Could not load these settings.'; return; }
+    if(!j.configured){ st.innerHTML='<span style="color:#a05a00">Gmail isn’t set up on the server yet — an admin needs to add the Google credentials.</span>'; body.style.display='none'; return; }
+    if(!j.connected){ st.innerHTML='Connect your Gmail on the card above first, then this turns on.'; body.style.display='none'; return; }
+    st.innerHTML='Connected. Label emails <b>'+esc(j.label||'FullServe')+'</b> in Gmail and they’ll appear in your book.';
+    body.style.display='';
+    document.getElementById('gaddEnabled').checked=!!j.enabled;
+    document.getElementById('gaddLabel').value=j.label||'FullServe';
+    document.getElementById('gaddInterval').value=String(j.intervalMin||15);
+    document.getElementById('gaddTag').value=j.tag||'Gmail intake';
+    var sel=document.getElementById('gaddAuto'); sel.innerHTML='<option value="">— none (just add them) —</option>'+(j.automations||[]).map(function(a){return '<option value="'+esc(a.id)+'">'+esc(a.name||'Automation')+'</option>';}).join(''); sel.value=j.automationId||'';
+    var last=document.getElementById('gaddLast'); if(last){ last.innerHTML = j.lastRun ? ('Last checked '+esc(new Date(j.lastRun).toLocaleString())+((j.lastCount!=null)?(' · added '+j.lastCount+' last run'):'')) : 'Not checked yet.'; }
+  }).catch(function(){ st.textContent='Could not reach the server.'; });
+}
+function saveGadd(){
+  var b=document.getElementById('gaddSave'); b.disabled=true; setMsg('gaddMsg','','Saving…');
+  var body={ enabled:document.getElementById('gaddEnabled').checked, intervalMin:+document.getElementById('gaddInterval').value||15, label:document.getElementById('gaddLabel').value, tag:document.getElementById('gaddTag').value, automationId:document.getElementById('gaddAuto').value };
+  fetch(API+'/api/gmail-add/poll',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ setMsg('gaddMsg','ok','Saved ✓'); loadGadd(); } else setMsg('gaddMsg','err',(j&&j.error)||'Could not save.'); }).catch(function(){ b.disabled=false; setMsg('gaddMsg','err','Could not reach the server.'); });
+}
+function gaddScanNow(){
+  var b=document.getElementById('gaddScan'); b.disabled=true; setMsg('gaddMsg','','Scanning your labeled emails…');
+  fetch(API+'/api/gmail-add/run',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({})}).then(function(r){return r.json();}).then(function(j){ b.disabled=false; if(j&&j.ok){ if(j.added||j.updated){ setMsg('gaddMsg','ok','Added '+j.added+', updated '+j.updated+(j.skipped?(' · '+j.skipped+' skipped'):'')+'.'); } else { setMsg('gaddMsg','ok',j.note||'Nothing new to add.'); } loadGadd(); } else setMsg('gaddMsg','err',(j&&j.error)||'Scan failed.'); }).catch(function(){ b.disabled=false; setMsg('gaddMsg','err','Could not reach the server.'); });
+}
 renderGmail();
 renderGSync();
+loadGadd();
 </script>
 </body>
 </html>

@@ -1448,7 +1448,7 @@ function loadBbMatches(){
     host.innerHTML=L.map(function(l){ var badges=(l.reasons||[]).map(function(r){return '<span class="bbrz">'+esc(r)+'</span>';}).join(''); return '<a class="bbmatch" href="./rrg_assignment.html?key='+encodeURIComponent(l.key)+'"><div class="bbmt"><b>'+esc(l.business||'Listing')+'</b>'+(l.published?'<span class="bbpub">Live</span>':'')+'</div><div class="bbmm">'+esc(l.market||'')+(l.value?(' · '+esc(l.value)):'')+'</div><div class="bbmrz">'+badges+'</div></a>'; }).join('');
   }).catch(function(){ host.innerHTML='<div style="color:#8a93a8;font-size:12px;padding:4px 0">—</div>'; });
 }
-// ===== Tenant Box — a tenant's space requirements, matched against the sites/spaces inventory =====
+// ===== Tenant-Box — a tenant's space requirements, matched against the sites/spaces inventory (tenant-box) =====
 var TB_CONDITIONS=['Shell','Second-gen','Dirt / pad'];
 var TB_AMENITIES=['Drive-thru','Patio','Hood / exhaust','Grease trap','Gas service','Walk-in cooler','Bar built-out','Fire suppression','3-phase power','Restrooms (ADA)'];
 var TB_DEAL=[['both','Lease or purchase'],['lease','Lease only'],['purchase','Purchase only']];
@@ -1457,7 +1457,7 @@ function tenantBoxCard(){
   var chips=function(list,sel,cls){ return list.map(function(x){ var on=(sel||[]).indexOf(x)>=0; return '<label class="bbchip'+(on?' on':'')+'"><input type="checkbox" class="'+cls+'" value="'+esc(x)+'"'+(on?' checked':'')+'>'+esc(x)+'</label>'; }).join(''); };
   var dealOpt=TB_DEAL.map(function(o){return '<option value="'+o[0]+'"'+(((tb.deal||'both')===o[0])?' selected':'')+'>'+o[1]+'</option>';}).join('');
   var nv=function(v){ return (v!=null&&v!=='')?esc(v):''; };
-  return '<div class="card" id="tenantBoxCard"><div class="ch"><b>Tenant Box</b><label class="bbactive" title="Actively looking — include this tenant in space matches"><input type="checkbox" id="tbActive"'+(tb.active?' checked':'')+'> Active</label></div><div class="cb">'
+  return '<div class="card" id="tenantBoxCard"><div class="ch"><b>Tenant-Box</b><label class="bbactive" title="Actively looking — include this tenant in space matches"><input type="checkbox" id="tbActive"'+(tb.active?' checked':'')+'> Active</label></div><div class="cb">'
     +'<div class="bbrow"><div><div class="bblab">Min SF</div><input class="bbin" id="tbSfMin" inputmode="numeric" value="'+nv(tb.sfMin)+'" placeholder="—"></div><div><div class="bblab">Ideal SF</div><input class="bbin" id="tbSfIdeal" inputmode="numeric" value="'+nv(tb.sfIdeal)+'" placeholder="—"></div><div><div class="bblab">Max SF</div><input class="bbin" id="tbSfMax" inputmode="numeric" value="'+nv(tb.sfMax)+'" placeholder="—"></div></div>'
     +'<div class="bblab">Condition</div><div class="bbchips" id="tbCondition">'+chips(TB_CONDITIONS,tb.condition,'tbc')+'</div>'
     +'<div class="bbrow"><div><div class="bblab">Deal</div><select id="tbDeal">'+dealOpt+'</select></div><div><div class="bblab">Budget · max rent $/SF/yr</div><input class="bbin" id="tbBudget" inputmode="numeric" value="'+nv(tb.budget)+'" placeholder="—"></div></div>'
@@ -1465,7 +1465,7 @@ function tenantBoxCard(){
     +'<div class="bblab">Markets</div><div class="bbchips" id="tbMarkets">'+chips(BB_METROS,tb.markets,'tbm')+'</div>'
     +'<div class="bblab">Area / trade-area details</div><input class="bbin" id="tbAreaNote" value="'+esc(tb.areaNote||'')+'" placeholder="e.g. north of 1604, near the medical center">'
     +'<div class="bblab">Notes</div><textarea id="tbNotes" rows="2" placeholder="Anything else about the space they need">'+esc(tb.notes||'')+'</textarea>'
-    +'<div class="bbbtns"><button type="button" class="savebtn" id="tbSave" style="width:auto;padding:8px 16px">Save tenant box</button><span id="tbMsg" style="font-size:12px;color:#6b7488"></span></div>'
+    +'<div class="bbbtns"><button type="button" class="savebtn" id="tbSave" style="width:auto;padding:8px 16px">Save tenant-box</button><span id="tbMsg" style="font-size:12px;color:#6b7488"></span></div>'
     +'<div class="bbmatchhd">Matching spaces <span id="tbMatchCount"></span></div><div id="tbMatches" class="bbmatches"><div style="color:#8a93a8;font-size:12px;padding:4px 0">…</div></div>'
     +'</div></div>';
 }

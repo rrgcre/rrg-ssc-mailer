@@ -119,6 +119,19 @@ async function enrichContact({ name, company, email, phone, title, notes }) {
     'type is their likely role: one of Buyer, Seller, Landlord, Tenant, Investor, Operator, Broker, Vendor, or "". markets: cities/areas they likely operate in if inferable. talkingPoints: 2-4 concrete openers for THIS person. summary: 1-2 sentence who-they-are. Do not fabricate deal history or specifics.';
   return extractJson(await callClaude(sys, 'CONTACT:\n' + JSON.stringify({ name, company, email, phone, title, notes }), 900)) || {};
 }
+// 6b) Parse a raw email into a single business contact + their company (signature-aware).
+// Used by the "Add to book from Gmail" intake and any paste-an-email flow.
+async function parseEmailContact({ from, subject, body }) {
+  const sys = 'You are a restaurant/bar commercial real-estate broker\'s intake assistant. You are given ONE email (its From header, Subject, and body). ' +
+    'Identify the single most useful NEW business contact to add to the CRM — normally the person who wrote it, read primarily from their EMAIL SIGNATURE block (name, title, company, phone, address, website). ' +
+    'If the email is a forward or introduction whose clear purpose is to share someone else\'s details, extract THAT person instead. Ignore the broker\'s own signature, mailing-list footers, legal disclaimers, and unsubscribe text. ' +
+    'Return ONLY JSON: {"found":true,"firstName":"","lastName":"","title":"","email":"","phone":"","companyName":"","companyWebsite":"","companyPhone":"","address":"","city":"","state":"","interest":"","confidence":"high|medium|low","summary":""}. ' +
+    'interest is their likely main interest, EXACTLY one of: Buying, Selling, Investing, Referring, Working, Other, or "" if unclear — do not guess when there is no signal. ' +
+    'email/phone: prefer the signature; fall back to the From header for email. state: 2-letter US code if present. companyWebsite: bare domain or URL if shown. ' +
+    'Do NOT invent a company, phone, or address that is not in the email. If you cannot identify a real person, return {"found":false}. summary: one short line on who they are and why they emailed.';
+  const payload = 'FROM: ' + String(from || '') + '\nSUBJECT: ' + String(subject || '') + '\n\nBODY:\n' + String(body || '').slice(0, 12000);
+  return extractJson(await callClaude(sys, payload, 700)) || { found: false };
+}
 // 7) Company enrichment from name/website.
 async function enrichCompany({ name, website, markets }) {
   const sys = 'You are a restaurant/bar CRE broker\'s assistant. From a company/group name and website, infer a concise CRM profile. ' +
@@ -354,4 +367,4 @@ async function refineBov({ state, message, history, agentName }) {
   }
   return out;
 }
-module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };
+module.exports = { parseSpaceListing, parseLoiText, matchSpaces, dailyBrief, callPrep, enrichContact, parseEmailContact, enrichCompany, suggestSections, reviewLoi, conceptPositioning, locationSiteRead, calcSummary, parsePlacer, counterDiff, findGroupConcepts, consult, classifyConcepts, inferDomains, draftScreeningSummary, buildQuestionnaire, classifyRoomDocs, polishPrompts, refineBov };
