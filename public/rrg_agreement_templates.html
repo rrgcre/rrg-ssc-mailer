@@ -62,6 +62,13 @@ textarea{min-height:92px;resize:vertical;line-height:1.5;}
 .rl-filtbtn{display:none!important;}
 @media(max-width:600px){.fldrow{grid-template-columns:1fr auto auto;}}
 #tlist .rl-wrap{max-height:60vh;overflow:auto;} #tlist .rl-wrap table thead th{position:sticky;top:0;background:#fff;z-index:2;box-shadow:inset 0 -1px 0 var(--line);}
+.mfbar{border:1px solid #dbe6f5;background:#f6f9ff;border-radius:11px;padding:11px 13px;margin:0 0 14px;}
+.mfhd{font-size:12px;font-weight:800;color:#2f4a7a;margin-bottom:8px;} .mfhd span{font-weight:600;color:#6b7488;}
+.mfgrp{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:5px 0;}
+.mfglbl{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;min-width:120px;}
+.mfchip{background:#fff;border:1px solid #cddbf1;color:#2f6fd0;border-radius:100px;padding:4px 11px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;}
+.mfchip:hover{background:#e7f0fe;border-color:#a9c5ee;}
+@media(max-width:600px){.mfglbl{min-width:0;width:100%;margin-bottom:2px;}}
 .rrgrt{border:1px solid #cfd6e2;border-radius:9px;overflow:hidden;background:#fff;} .rrgrt-bar{display:flex;gap:2px;align-items:center;padding:5px 7px;border-bottom:1px solid #e6e9f0;background:#f7f9fc;} .rrgrt-bar button{background:none;border:1px solid transparent;border-radius:6px;min-width:28px;height:26px;padding:0 7px;cursor:pointer;font-size:13px;color:#3a4560;line-height:1;} .rrgrt-bar button:hover{background:#eef3fb;border-color:#dbe3f0;} .rrgrt-sep{width:1px;height:16px;background:#dbe1ea;margin:0 4px;} .rrgrt-ed{min-height:96px;max-height:280px;overflow:auto;padding:9px 11px;font:inherit;font-size:13.5px;line-height:1.5;color:#1d2739;outline:none;} .rrgrt-ed:empty:before{content:attr(data-ph);color:#9aa4b6;}
 </style>
 <script src="/rrg_list.js"></script>
@@ -84,6 +91,33 @@ function post(url,body){ return fetch(url,{method:'POST',headers:{'Content-Type'
 function del(url){ return fetch(url,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}); }
 
 var TPLS=[], TYPES=[], AUTOS=[], EDIT=null, TFIELDS=[], CTL=null, BUILT=false;
+var LASTMERGE=null;
+var MERGE_FIELDS=[
+  ['Contact',[['{{name}}','Name'],['{{first_name}}','First name'],['{{title}}','Title'],['{{email}}','Email'],['{{company}}','Company'],['{{phone}}','Phone']]],
+  ['You (sender)',[['{{my_name}}','Name'],['{{my_title}}','Title'],['{{my_email}}','Email'],['{{my_phone}}','Phone']]],
+  ['Other',[['{{today}}','Today’s date']]]
+];
+function mergeBar(){
+  var groups=MERGE_FIELDS.map(function(g){
+    var chips=g[1].map(function(t){ return '<button type="button" class="mfchip" data-mf="'+esc(t[0])+'" title="'+esc(t[0])+'">'+esc(t[1])+'</button>'; }).join('');
+    return '<div class="mfgrp"><span class="mfglbl">'+esc(g[0])+'</span>'+chips+'</div>';
+  }).join('');
+  return '<div class="mfbar" id="t_mfbar"><div class="mfhd">Insert a merge field <span>— click a field to drop it into the subject or message you last clicked. It auto-fills from the contact and from your own account when the agreement is sent.</span></div>'+groups+'</div>';
+}
+function insMerge(tok){
+  var el=LASTMERGE; if(!el||!document.body.contains(el)) el=document.getElementById('t_emailmsg'); if(!el) return;
+  if(el.tagName==='INPUT'||el.tagName==='TEXTAREA'){
+    var st=el.selectionStart||0,en=el.selectionEnd||0,v=el.value; el.value=v.slice(0,st)+tok+v.slice(en); var np=st+tok.length; el.focus(); try{el.setSelectionRange(np,np);}catch(e){}
+  } else {
+    el.focus(); try{ document.execCommand('insertText',false,tok); }catch(e){ el.innerHTML+=tok; }
+  }
+}
+function wireMergeBar(){
+  var sub=document.getElementById('t_subject'); if(sub) sub.addEventListener('focus',function(){ LASTMERGE=sub; });
+  var msg=document.getElementById('t_emailmsg'); if(msg) msg.addEventListener('focus',function(){ LASTMERGE=msg; });
+  var bar=document.getElementById('t_mfbar'); if(!bar) return;
+  Array.prototype.forEach.call(bar.querySelectorAll('.mfchip'),function(c){ c.addEventListener('mousedown',function(e){ e.preventDefault(); }); c.addEventListener('click',function(e){ e.preventDefault(); insMerge(c.getAttribute('data-mf')); }); });
+}
 function autoOpts(sel){ return (AUTOS||[]).map(function(a){ return '<option value="'+esc(a.id)+'"'+(a.id===sel?' selected':'')+'>'+esc(a.name||'Automation')+'</option>'; }).join(''); }
 function _msgToHtml(m){ m=String(m||''); if(m.indexOf('<')<0) return esc(m).split('\n').join('<br>'); return m; }
 function rrgRT(id,html,ph){ return '<div class="rrgrt"><div class="rrgrt-bar"><button type="button" data-cmd="bold" title="Bold"><b>B</b></button><button type="button" data-cmd="italic" title="Italic"><i>I</i></button><button type="button" data-cmd="underline" title="Underline"><u>U</u></button><span class="rrgrt-sep"></span><button type="button" data-cmd="insertUnorderedList" title="Bulleted list">\u2022</button><button type="button" data-cmd="insertOrderedList" title="Numbered list">1.</button></div><div class="rrgrt-ed" id="'+id+'" contenteditable="true" data-ph="'+esc(ph||'')+'">'+(html||'')+'</div></div>'; }
@@ -175,7 +209,7 @@ function renderEditor(){
       '</div><div class="note">Upload the signable PDF (or Word), up to 20 MB — it saves when you click '+(e.id?'Save changes':'Create template')+'.</div>'+
       (e.fileExt==='pdf'?'':(e.fileExt?('<div class="note" style="color:#b5791f;margin-top:8px">Field placement needs a <b>PDF</b>. This file is .'+esc(e.fileExt)+' — upload a PDF version to place fields on it.</div>'):(e.id?'<div class="note" style="margin-top:8px">Upload a PDF above, then place fields on it.</div>':'<div class="note" style="margin-top:8px">Save the template, then upload the PDF and place fields.</div>')))+
       '</div>'+
-    '<div style="margin-top:16px"><label class="fld">Email subject</label><input id="t_subject" placeholder="e.g. Your agreement is ready to sign, {{first_name}}" value="'+esc(e.emailSubject||'')+'" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:inherit;font-size:13.5px;margin-bottom:12px"><div class="note" style="margin:-6px 0 12px">Tokens like {{first_name}} and {{company}} are personalized per send. Leave blank to use the default subject.</div>'
+    '<div style="margin-top:16px">'+mergeBar()+'<label class="fld">Email subject</label><input id="t_subject" placeholder="e.g. Your agreement is ready to sign, {{first_name}}" value="'+esc(e.emailSubject||'')+'" style="width:100%;box-sizing:border-box;border:1px solid #cfd6e2;border-radius:9px;padding:9px 11px;font:inherit;font-size:13.5px;margin-bottom:12px"><div class="note" style="margin:-6px 0 12px">Tokens like {{first_name}} and {{company}} are personalized per send. Leave blank to use the default subject.</div>'
       +'<div style="margin-bottom:12px"><label class="fld">Greeting (added to the top of the send email)</label><select id="t_greeting"><option value="none"'+((e.greeting||'none')==='none'?' selected':'')+'>No greeting</option><option value="dear"'+(e.greeting==='dear'?' selected':'')+'>Dear {first name},</option><option value="hi"'+(e.greeting==='hi'?' selected':'')+'>Hi {first name},</option><option value="first"'+(e.greeting==='first'?' selected':'')+'>{first name},</option></select></div>'
       +'<label class="fld">Email message (sent with the signing link)</label>'
       +rrgRT('t_emailmsg', _msgToHtml(e.emailMessage), DEFAULT_EMAIL_MSG)
@@ -187,6 +221,7 @@ function renderEditor(){
   if(document.getElementById('t_type')) document.getElementById('t_type').value=e.type||'';
   renderFieldRows();
   rrgRTWire();
+  wireMergeBar();
   document.getElementById('t_save').addEventListener('click',saveTpl);
   document.getElementById('t_close').addEventListener('click',closeEditor);
   var fbtn=document.getElementById('t_filebtn'); if(fbtn) fbtn.addEventListener('click',function(){ var _f=document.getElementById('t_file'); if(_f) _f.click(); });

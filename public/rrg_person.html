@@ -1461,10 +1461,13 @@ function loadBbMatches(){
 }
 // ===== Tenant-Box — a tenant's space requirements, matched against the sites/spaces inventory (tenant-box) =====
 var TB_CONDITIONS=['Shell','Second-gen','Dirt / pad'];
-var TB_AMENITIES=['Drive-thru','Patio','Hood / exhaust','Grease trap','Gas service','Walk-in cooler','Bar built-out','Fire suppression','3-phase power','Restrooms (ADA)'];
+var TB_SPACE_TYPES=['End cap','Inline','Pad / Outparcel','Freestanding'];
+var TB_AMEN_SITE=['Drive-thru','Patio'];
+var TB_AMEN_2NDGEN=['Hood / exhaust','Grease trap','Gas service','Walk-in cooler','Bar built-out','Fire suppression','3-phase power','Restrooms (ADA)'];
+var TB_AMENITIES=TB_AMEN_SITE.concat(TB_AMEN_2NDGEN);
 var TB_DEAL=[['both','Lease or purchase'],['lease','Lease only'],['purchase','Purchase only']];
 var TBOXES=[], TB_CONCEPTS=[];
-function _tbEmpty(){ return {concept:'',active:false,sfMin:'',sfIdeal:'',sfMax:'',condition:[],deal:'both',amenities:[],markets:[],budget:'',areaNote:'',notes:''}; }
+function _tbEmpty(){ return {concept:'',active:false,sfMin:'',sfIdeal:'',sfMax:'',condition:[],deal:'both',spaceTypes:[],amenities:[],markets:[],budget:'',areaNote:'',notes:''}; }
 function _tbChips(list,sel,cls){ return list.map(function(x){ var on=(sel||[]).indexOf(x)>=0; return '<label class="bbchip'+(on?' on':'')+'"><input type="checkbox" class="'+cls+'" value="'+esc(x)+'"'+(on?' checked':'')+'>'+esc(x)+'</label>'; }).join(''); }
 function tbSetHtml(tb,i){
   tb=tb||{};
@@ -1480,7 +1483,8 @@ function tbSetHtml(tb,i){
     +'<div class="bbrow"><div><div class="bblab">Min SF</div><input class="bbin tbSfMin" inputmode="numeric" value="'+nv(tb.sfMin)+'" placeholder="—"></div><div><div class="bblab">Ideal SF</div><input class="bbin tbSfIdeal" inputmode="numeric" value="'+nv(tb.sfIdeal)+'" placeholder="—"></div><div><div class="bblab">Max SF</div><input class="bbin tbSfMax" inputmode="numeric" value="'+nv(tb.sfMax)+'" placeholder="—"></div></div>'
     +'<div class="bblab">Condition</div><div class="bbchips">'+_tbChips(TB_CONDITIONS,tb.condition,'tbc')+'</div>'
     +'<div class="bbrow"><div><div class="bblab">Deal</div><select class="tbDeal">'+dealOpt+'</select></div><div><div class="bblab">Budget · max rent $/SF/yr</div><input class="bbin tbBudget" inputmode="numeric" value="'+nv(tb.budget)+'" placeholder="—"></div></div>'
-    +'<div class="bblab">Amenities</div><div class="bbchips">'+_tbChips(TB_AMENITIES,tb.amenities,'tba')+'</div>'
+    +'<div class="bblab">Site &amp; position <span style="font-weight:600;color:#9aa4b6;text-transform:none;letter-spacing:0">— matters for any space</span></div><div class="bbchips">'+_tbChips(TB_SPACE_TYPES,tb.spaceTypes,'tbst')+_tbChips(TB_AMEN_SITE,tb.amenities,'tba')+'</div>'
+    +'<div class="bblab">Second-generation infrastructure <span style="font-weight:600;color:#9aa4b6;text-transform:none;letter-spacing:0">— only for 2nd-gen space</span></div><div class="bbchips">'+_tbChips(TB_AMEN_2NDGEN,tb.amenities,'tba')+'</div>'
     +'<div class="bblab">Markets</div><div class="bbchips">'+_tbChips(BB_METROS,tb.markets,'tbm')+'</div>'
     +'<div class="bblab">Area / trade-area details</div><input class="bbin tbArea" value="'+esc(tb.areaNote||'')+'" placeholder="e.g. north of 1604, near the medical center">'
     +'<div class="bblab">Notes</div><textarea class="tbNotes" rows="2" placeholder="Anything else about the space they need">'+esc(tb.notes||'')+'</textarea>'
@@ -1499,7 +1503,7 @@ function _tbGather(){ var sets=[]; document.querySelectorAll('#tbSets .tbset').f
   function v(cls){ var e=el.querySelector('.'+cls); return e?(e.value||''):''; }
   function ck(cls){ var e=el.querySelector('.'+cls); return e?!!e.checked:false; }
   function chips(cls){ return [].slice.call(el.querySelectorAll('.'+cls+':checked')).map(function(x){return x.value;}); }
-  sets.push({ concept:v('tbConcept').trim(), active:ck('tbActive'), sfMin:v('tbSfMin').replace(/[^0-9]/g,''), sfIdeal:v('tbSfIdeal').replace(/[^0-9]/g,''), sfMax:v('tbSfMax').replace(/[^0-9]/g,''), condition:chips('tbc'), deal:v('tbDeal')||'both', amenities:chips('tba'), markets:chips('tbm'), budget:v('tbBudget').replace(/[^0-9]/g,''), areaNote:v('tbArea'), notes:v('tbNotes') });
+  sets.push({ concept:v('tbConcept').trim(), active:ck('tbActive'), sfMin:v('tbSfMin').replace(/[^0-9]/g,''), sfIdeal:v('tbSfIdeal').replace(/[^0-9]/g,''), sfMax:v('tbSfMax').replace(/[^0-9]/g,''), condition:chips('tbc'), deal:v('tbDeal')||'both', spaceTypes:chips('tbst'), amenities:chips('tba'), markets:chips('tbm'), budget:v('tbBudget').replace(/[^0-9]/g,''), areaNote:v('tbArea'), notes:v('tbNotes') });
 }); return sets; }
 function _tbRerender(){ var host=document.getElementById('tbSets'); if(!host) return; host.innerHTML=TBOXES.map(tbSetHtml).join(''); loadTbMatches(); }
 function wireTenantBox(){

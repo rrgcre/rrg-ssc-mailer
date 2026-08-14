@@ -5088,6 +5088,7 @@ function tenantBoxClean(b, prev) {
   if (b.condition !== undefined) out.condition = (Array.isArray(b.condition) ? b.condition : []).map(String).filter(x => TB_CONDITIONS.indexOf(x) >= 0).slice(0, 5);
   if (b.deal !== undefined) out.deal = (TB_DEAL.indexOf(b.deal) >= 0 ? b.deal : 'both');
   if (b.amenities !== undefined) out.amenities = (Array.isArray(b.amenities) ? b.amenities : []).map(String).filter(x => TB_AMENITIES.indexOf(x) >= 0).slice(0, 20);
+  if (b.spaceTypes !== undefined) out.spaceTypes = (Array.isArray(b.spaceTypes) ? b.spaceTypes : []).map(String).filter(x => SPACE_TYPES.indexOf(x) >= 0).slice(0, 4);
   if (b.markets !== undefined) out.markets = (Array.isArray(b.markets) ? b.markets : []).map(String).filter(x => effMarkets().indexOf(x) >= 0).slice(0, 12);
   if (b.budget !== undefined) out.budget = posInt(b.budget); // max rent, $/SF/yr
   if (b.areaNote !== undefined) out.areaNote = s(b.areaNote, 400);
@@ -5098,6 +5099,7 @@ function tenantBoxClean(b, prev) {
 function tenantBoxHasCriteria(tb) {
   return !!(tb && ((tb.sfMin !== '' && tb.sfMin != null && tb.sfMin) || (tb.sfMax !== '' && tb.sfMax != null && tb.sfMax) ||
     (tb.condition && tb.condition.length) || (tb.deal && tb.deal !== 'both') || (tb.amenities && tb.amenities.length) ||
+    (tb.spaceTypes && tb.spaceTypes.length) ||
     (tb.markets && tb.markets.length) || (tb.budget !== '' && tb.budget != null && tb.budget)));
 }
 // Derive a space's matchable fields. Condition is explicit if set, else inferred from a 2nd-gen feature.
@@ -5130,6 +5132,8 @@ function tenantBoxMatch(tb, S) {
   if (!crit(sfMax != null, S.size != null, S.size <= sfMax, 'size')) return { match: false, reasons: [] };
   if (!crit(!!(tb.markets && tb.markets.length), !!S.marketKey, !!(S.marketKey && tb.markets.indexOf(S.marketKey) >= 0), 'market')) return { match: false, reasons: [] };
   if (!crit(!!(tb.condition && tb.condition.length), !!S.condition, !!(S.condition && tb.condition.indexOf(S.condition) >= 0), 'condition')) return { match: false, reasons: [] };
+  // Position — end-cap / inline / pad / freestanding. A space silent on position is not excluded.
+  if (!crit(!!(tb.spaceTypes && tb.spaceTypes.length), !!S.spaceType, !!(S.spaceType && tb.spaceTypes.indexOf(S.spaceType) >= 0), 'position')) return { match: false, reasons: [] };
   // Deal type — lease tenant needs a lease/both space; purchase tenant needs a sale/both space.
   if (tb.deal === 'lease') { if (!crit(true, !!S.dealType, S.dealType === 'lease' || S.dealType === 'both', 'lease')) return { match: false, reasons: [] }; }
   else if (tb.deal === 'purchase') { if (!crit(true, !!S.dealType, S.dealType === 'sale' || S.dealType === 'both', 'purchase')) return { match: false, reasons: [] }; }
@@ -5973,15 +5977,16 @@ function newAutomationId() { return 'auto_' + Date.now().toString(36) + Math.ran
 function newEnrollId() { return 'enr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function cleanAutoSteps(arr) {
   return (Array.isArray(arr) ? arr : []).slice(0, 30).map(function (st, i) {
-    const type = ['task', 'notification', 'logactivity', 'assignment'].indexOf(st && st.type) >= 0 ? st.type : 'email';
+    const type = ['task', 'notification', 'logactivity', 'assignment', 'pipeline'].indexOf(st && st.type) >= 0 ? st.type : 'email';
     const o = { type: type, delayDays: Math.max(0, Math.min(3650, parseInt((st && st.delayDays), 10) || 0)), delayHours: Math.max(0, Math.min(23, parseInt((st && st.delayHours), 10) || 0)), delayMinutes: Math.max(0, Math.min(59, parseInt((st && st.delayMinutes), 10) || 0)), name: String((st && st.name) || '').slice(0, 80) };
     if (type === 'email') { o.subject = String((st && st.subject) || '').slice(0, 300); o.body = String((st && st.body) || '').slice(0, 20000); }
     else if (type === 'task') { o.taskTitle = String((st && st.taskTitle) || '').slice(0, 300); o.taskNote = String((st && st.taskNote) || '').slice(0, 2000); }
     else if (type === 'notification') { o.message = String((st && st.message) || '').slice(0, 2000); o.notifyEmail = String((st && st.notifyEmail) || '').slice(0, 160); o.channel = (st && st.channel === 'text') ? 'text' : 'email'; }
     else if (type === 'logactivity') { o.actType = String((st && st.actType) || 'Note').slice(0, 40); o.actNote = String((st && st.actNote) || '').slice(0, 2000); }
     else if (type === 'assignment') { o.setStatus = String((st && st.setStatus) || '').slice(0, 40); o.advanceStage = String((st && st.advanceStage) || '').slice(0, 20); o.markLive = !!(st && st.markLive); }
+    else if (type === 'pipeline') { o.pipelineId = String((st && st.pipelineId) || '').slice(0, 40); o.pipelineStage = String((st && st.pipelineStage) || '').slice(0, 80); }
     return o;
-  }).filter(function (st) { return (st.type === 'logactivity' || st.type === 'assignment') ? true : (st.type === 'task' ? st.taskTitle : (st.type === 'notification' ? st.message : (st.subject || st.body))); });
+  }).filter(function (st) { return (st.type === 'logactivity' || st.type === 'assignment') ? true : (st.type === 'pipeline' ? st.pipelineId : (st.type === 'task' ? st.taskTitle : (st.type === 'notification' ? st.message : (st.subject || st.body)))); });
 }
 function personPrimaryListing(p) {
   try {
@@ -6046,6 +6051,22 @@ function enrollPerson(p, plan, opts) {
 async function runAutomationStep(p, en, step) {
   if (step.type === 'logactivity') { try { logActivity(p, (step.actType || 'Note'), mergeTokens(step.actNote || '', p) || 'Logged by automation', { auto: true, by: 'Automation' }); return 'activity logged'; } catch (e) { return 'activity error: ' + (e && e.message); } }
   if (step.type === 'assignment') { if (!en.dealKey) return 'skipped: no linked assignment'; try { const ov = loadAssignOverlay(); const cur = ov[en.dealKey] || {}; if (step.setStatus && ASSIGN_STATUSES.indexOf(step.setStatus) >= 0) cur.status = step.setStatus; if (step.advanceStage && ['outreach','agreed','offers','dd','closing'].indexOf(step.advanceStage) >= 0) { cur.stageFlags = cur.stageFlags || {}; cur.stageFlags[step.advanceStage] = true; } if (step.markLive && !cur.listingStart) cur.listingStart = new Date().toISOString().slice(0, 10); cur.updatedAt = new Date().toISOString(); ov[en.dealKey] = cur; saveAssignOverlay(ov); logActivity(p, 'Note', 'Automation updated the linked assignment', { auto: true, by: 'Automation' }); return 'assignment updated'; } catch (e) { return 'assignment error: ' + (e && e.message); } }
+  if (step.type === 'pipeline') {
+    if (!en.dealKey) return 'skipped: no linked listing';
+    if (!step.pipelineId) return 'skipped: no pipeline set';
+    try {
+      const pipe = loadPipelines().find(x => x.id === step.pipelineId);
+      if (!pipe) return 'skipped: pipeline not found';
+      const stageNames = (pipe.stages || []).map(s => s.name);
+      const stage = (step.pipelineStage && stageNames.indexOf(step.pipelineStage) >= 0) ? step.pipelineStage : (stageNames[0] || '');
+      const ov = loadAssignOverlay(); const cur = ov[en.dealKey] || {};
+      const now = new Date().toISOString();
+      cur.pipelineId = pipe.id; cur.pipelineStage = stage; cur.stageSince = now; cur.updatedAt = now;
+      ov[en.dealKey] = cur; saveAssignOverlay(ov);
+      logActivity(p, 'Note', 'Automation moved the listing to ' + (pipe.name || 'a pipeline') + (stage ? (' — ' + stage) : ''), { auto: true, by: 'Automation' });
+      return 'moved to ' + (pipe.name || 'pipeline') + (stage ? (' / ' + stage) : '');
+    } catch (e) { return 'pipeline error: ' + (e && e.message); }
+  }
   if (step.type === 'notification') {
     if (step.channel === 'text') {
       if (!smsNotifyEnabled() || !isSmsConfigured()) return 'skipped: text notifications not enabled';
@@ -13005,13 +13026,14 @@ app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   const label = agreementTypeLabel(a.type);
   if (!a.signToken) a.signToken = newSignToken();
   const signUrl = reqOrigin(req) + '/sign/' + a.signToken;
-  const subject = (function(){ var _s = String(b.subject || a.emailSubject || (label + ' for your signature')); try { if (p) _s = mergeTokens(_s, p); } catch (e) {} return _s.slice(0, 300); })();
-  const _note = String(b.message || '').trim();
+  const _u = agrSendUser(req, a);
+  const subject = (function(){ var _s = String(b.subject || a.emailSubject || (label + ' for your signature')); try { _s = mergeTokens(_s, p, _u); } catch (e) {} return _s.slice(0, 300); })();
+  const _note = (function(){ try { return mergeTokens(String(b.message || '').trim(), p, _u); } catch (e) { return String(b.message || '').trim(); } })();
   const _linkBlock = 'Review and sign your ' + label + ' online here:\n' + signUrl;
   const _greet = agrGreetingLine(a.greeting, a.personName);
   const message = ((_note && _note.indexOf('/sign/') !== -1) ? _note : ((_greet ? _greet + '\n\n' : '') + (_note ? _note + '\n\n' : '') + _linkBlock + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
   // The signing page now shows an inline preview of the document, so the email is a clean link only (no heavy attachment).
-  var _bodyHtml = String(b.messageHtml||'').trim() || (_note ? esc(_note).replace(/\n/g,'<br>') : '');
+  var _bodyHtml = (function(){ try { return mergeTokens(String(b.messageHtml||'').trim(), p, _u); } catch(e){ return String(b.messageHtml||'').trim(); } })() || (_note ? esc(_note).replace(/\n/g,'<br>') : '');
   var _html = (_note && _note.indexOf('/sign/') !== -1) ? '' : agrEmailHtml(_greet, _bodyHtml, label, signUrl);
   try { await sendMailWL({ from: mailFrom(), to, subject, text: message, html: _html || undefined }); }
   catch (e) { console.error('agreement send:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
@@ -13374,6 +13396,11 @@ function repUserForAgreement(a) {
   try { const key = (a && (a.byUser || a.createdBy)) || ''; const u = (auth.loadUsers() || []).find(x => x.username === key) || {}; return { name: u.name || (a && (a.by || a.createdByName)) || '', title: u.title || '', email: u.email || '', phone: u.phone || '' }; }
   catch (e) { return { name: (a && (a.by || a.createdByName)) || '', title: '', email: '', phone: '' }; }
 }
+// Merge-token "me" values for an outgoing agreement email: prefer the acting sender, fall back to the deal's rep.
+function agrSendUser(req, a) {
+  try { const un = req && req.user && req.user.username; if (un) { const u = (auth.loadUsers() || []).find(x => x.username === un); if (u) return { name: u.name || '', title: u.title || '', email: u.email || '', phone: u.phone || '' }; } } catch (e) {}
+  return repUserForAgreement(a);
+}
 function signerFieldPrefill(a, fld) {
   const p = a.personId ? personById(a.personId) : null;
   const k = String(fld.autofill || '').toLowerCase();
@@ -13419,12 +13446,13 @@ app.post('/api/agreements/:id/send-adv', express.json(), async (req, res) => {
   const now = new Date().toISOString();
   a.signStatus = a.signers.some(s => s.status === 'signed') ? 'partial' : 'sent'; a.sentAt = now; a.entryMethod = a.entryMethod || 'sent'; a.updatedAt = now; saveAgreements(all);
   const label = agreementTypeLabel(a.type); const signUrl = reqOrigin(req) + '/sign/' + next.token;
-  const subject = (function(){ var _s = String((req.body || {}).subject || a.emailSubject || (label + ' for your signature')); try { var _pp = a.personId ? personById(a.personId) : null; if (_pp) _s = mergeTokens(_s, _pp); } catch (e) {} return _s.slice(0, 300); })();
-  const _noteA = String((req.body || {}).message || '').trim();
+  const _uAdv = agrSendUser(req, a); const _padv = a.personId ? personById(a.personId) : null;
+  const subject = (function(){ var _s = String((req.body || {}).subject || a.emailSubject || (label + ' for your signature')); try { _s = mergeTokens(_s, _padv, _uAdv); } catch (e) {} return _s.slice(0, 300); })();
+  const _noteA = (function(){ try { return mergeTokens(String((req.body || {}).message || '').trim(), _padv, _uAdv); } catch (e) { return String((req.body || {}).message || '').trim(); } })();
   const _linkBlockA = 'Review and sign your ' + label + ' online here:\n' + signUrl;
   const _greetA = agrGreetingLine(a.greeting, (next && next.name) || a.personName);
   const message = ((_noteA && _noteA.indexOf('/sign/') !== -1) ? _noteA : ((_greetA ? _greetA + '\n\n' : '') + (_noteA ? _noteA + '\n\n' : '') + _linkBlockA + '\n\nThank you,\n' + orgDisplayName())).slice(0, 20000);
-  var _bodyHtmlA = String((req.body||{}).messageHtml||'').trim() || (_noteA ? esc(_noteA).replace(/\n/g,'<br>') : '');
+  var _bodyHtmlA = (function(){ try { return mergeTokens(String((req.body||{}).messageHtml||'').trim(), _padv, _uAdv); } catch(e){ return String((req.body||{}).messageHtml||'').trim(); } })() || (_noteA ? esc(_noteA).replace(/\n/g,'<br>') : '');
   var _htmlA = (_noteA && _noteA.indexOf('/sign/') !== -1) ? '' : agrEmailHtml(_greetA, _bodyHtmlA, label, signUrl);
   try { await sendMailWL({ from: mailFrom(), to: next.email, subject, text: message, html: _htmlA || undefined }); }
   catch (e) { console.error('send-adv:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
