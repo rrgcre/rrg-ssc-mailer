@@ -99,7 +99,7 @@ input,select{width:100%;border:1px solid #cfd6e2;border-radius:4px;padding:8px 1
       <h1>General Ledger</h1>
       <div class="sub" id="subline">Auto-posted from invoices, payments and expenses — plus your manual journal entries.</div>
     </div>
-    <div><button class="btn" id="newEntryBtn">＋ New journal entry</button></div>
+    <div style="display:flex;gap:8px"><button class="btn ghost" id="glExportBtn" title="Export the current tab to CSV (opens in Excel)">⭳ Export CSV</button><button class="btn" id="newEntryBtn">＋ New journal entry</button></div>
   </div>
   <div class="tabs" id="tabs">
     <button data-tab="trial" class="on">Trial Balance</button>
@@ -303,6 +303,36 @@ async function delJEntry(id){ if(!await rrgConfirm('Delete this journal entry?')
 document.getElementById('tabs').addEventListener('click',function(e){ var b=e.target.closest('[data-tab]'); if(!b) return; TAB=b.getAttribute('data-tab'); document.querySelectorAll('#tabs button').forEach(function(x){x.classList.toggle('on',x===b);}); render(); });
 document.getElementById('view').addEventListener('click',function(e){ var ed=e.target.closest('[data-edit]'); if(ed){ var en=DATA.entries.filter(function(x){return x.id===ed.getAttribute('data-edit');})[0]; if(en) openJModal(en); return; } var dl=e.target.closest('[data-del]'); if(dl){ delJEntry(dl.getAttribute('data-del')); } });
 document.getElementById('newEntryBtn').addEventListener('click',function(){ openJModal(null); });
+// ---- CSV export of the current tab (opens in Excel) ----
+function _csvCell(v){ v=String(v==null?'':v); return /[",\n\r]/.test(v)?('"'+v.replace(/"/g,'""')+'"'):v; }
+function _num2(n){ n=Number(n||0); return n?n.toFixed(2):''; }
+function _acctNameOnly(code){ var a=DATA.accounts.filter(function(x){return x.code===code;})[0]; return a?a.name:''; }
+function _dlCsv(name,rows){ var csv=rows.map(function(r){return r.map(_csvCell).join(',');}).join('\r\n'); var blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); setTimeout(function(){ try{document.body.removeChild(a);}catch(e){} URL.revokeObjectURL(url); },120); }
+function exportGlCsv(){
+  var rows=[], name='GL', today=''; try{ today=new Date().toISOString().slice(0,10); }catch(e){}
+  if(TAB==='trial'){
+    name='GL-TrialBalance'; rows.push(['Code','Account','Type','Debit','Credit','Balance']);
+    var tb=DATA.trialBalance||{rows:[]}; (tb.rows||[]).forEach(function(r){ rows.push([r.code||'', r.name||'', r.type||'', _num2(r.debit), _num2(r.credit), _num2(r.balance)]); });
+    rows.push(['','Totals','', _num2(tb.totalDebit), _num2(tb.totalCredit), '']);
+  } else if(TAB==='journal'){
+    name='GL-Journal'; rows.push(['Date','Memo','Source','Account Code','Account','Debit','Credit']);
+    DATA.entries.slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date))||String(a.id).localeCompare(String(b.id));}).forEach(function(e){ (e.lines||[]).forEach(function(l){ rows.push([e.date||'', e.memo||'', e.source||'', l.account||'', _acctNameOnly(l.account), _num2(l.debit), _num2(l.credit)]); }); });
+  } else if(TAB==='ledger'){
+    if(!LEDGER_ACCT){ if(window.rrgToast) rrgToast('Pick an account on the Ledger tab first, then export.'); else alert('Pick an account first.'); return; }
+    name='GL-Ledger-'+LEDGER_ACCT; rows.push(['Date','Memo','Source','Debit','Credit','Balance']);
+    var debitNormal=(acctType(LEDGER_ACCT)==='Asset'||acctType(LEDGER_ACCT)==='Expense');
+    var acctSet=ROLLUP?_glDescendants(LEDGER_ACCT):(function(){var s={};s[LEDGER_ACCT]=1;return s;})();
+    var running=0;
+    DATA.entries.slice().sort(function(a,b){return String(a.date).localeCompare(String(b.date))||String(a.id).localeCompare(String(b.id));}).forEach(function(e){ (e.lines||[]).forEach(function(l){ if(!acctSet[l.account]) return; var delta=debitNormal?((l.debit||0)-(l.credit||0)):((l.credit||0)-(l.debit||0)); running=Math.round((running+delta)*100)/100; var sub=(l.account!==LEDGER_ACCT)?(' · '+acctName(l.account)):''; rows.push([e.date||'', (e.memo||'')+sub, e.source||'', _num2(l.debit), _num2(l.credit), running.toFixed(2)]); }); });
+    rows.push(['','Ending balance','','','', running.toFixed(2)]);
+  } else {
+    name='GL-ChartOfAccounts'; rows.push(['Code','Name','Type','Parent']);
+    acctTree().forEach(function(x){ var a=x.a; rows.push([a.code||'', a.name||'', a.type||'', a.parent||'']); });
+  }
+  if(rows.length<=1){ if(window.rrgToast) rrgToast('Nothing to export on this tab yet.'); else alert('Nothing to export yet.'); return; }
+  _dlCsv(name+'-'+(today||'export')+'.csv', rows);
+}
+document.getElementById('glExportBtn').addEventListener('click',exportGlCsv);
 document.getElementById('jClose').addEventListener('click',closeJModal);
 document.getElementById('jCancel').addEventListener('click',closeJModal);
 document.getElementById('jAddLine').addEventListener('click',function(){ addJLine(); });
