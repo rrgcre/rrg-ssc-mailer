@@ -74,6 +74,10 @@ textarea{min-height:64px;resize:vertical;}
 .attrow input{font-size:13px;padding:7px 9px;}
 .axr{background:#fff;border:1px solid #f0c9c6;color:var(--red);border-radius:7px;width:32px;height:32px;font-size:15px;cursor:pointer;}
 .chk{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;margin-top:10px;}
+.remchrow{display:flex;align-items:center;gap:12px;margin:8px 0 2px;flex-wrap:wrap;}
+.remchlbl{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--soft);font-weight:800;}
+.chkmini{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;font-weight:600;color:#3f4b63;cursor:pointer;}
+.chkmini input{width:auto;}
 .chk input{width:auto;}
 .mft{display:flex;align-items:center;gap:10px;padding:14px 20px;border-top:1px solid var(--line);}
 .msg{font-size:12.5px;font-weight:700;}
@@ -159,12 +163,14 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
     <div class="featshd" id="featHd"><b>What your calendar can do</b><span class="sh">your whole team's schedule, at a glance — tap any tile for help</span><span class="chev" id="featChev">▾</span></div>
     <div class="featgrid">
       <a class="feat" href="rrg_calendar_help.html#schedule" target="_blank" rel="noopener"><span class="fic">📅</span><div><b>Schedule any meeting</b><span>Meetings, calls, tours and follow-ups — tied to a contact in the system or on their own.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#reminders" target="_blank" rel="noopener"><span class="fic">🔔</span><div><b>Reminders on every meeting</b><span>Pop-up, email or text — from ten minutes to a day before — for you and, when you've invited them, your guests too.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#recurring" target="_blank" rel="noopener"><span class="fic">🔁</span><div><b>Recurring meetings</b><span>Weekly, biweekly or monthly, for a set number of times — edit or cancel just one or the whole series.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#views" target="_blank" rel="noopener"><span class="fic">🔭</span><div><b>Four ways to look</b><span>Day, Week, Month and Agenda views — step through with ‹ Today ›.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#invites" target="_blank" rel="noopener"><span class="fic">✉️</span><div><b>Invite outside guests</b><span>Add attendees by name &amp; email and send a real calendar invite in one click.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#scope" target="_blank" rel="noopener"><span class="fic">👥</span><div><b>See the whole team</b><span>Switch between everyone's calendar, one person's, or just your own meetings.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#details" target="_blank" rel="noopener"><span class="fic">📍</span><div><b>Capture the details</b><span>Type, location — address, video link or phone — and notes on every meeting.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#sync" target="_blank" rel="noopener"><span class="fic">🔄</span><div><b>Always in sync</b><span>Meetings booked from a contact's page appear here automatically; edit or cancel anytime.</span></div></a>
-      <a class="feat" href="rrg_calendar_help.html#booking" target="_blank" rel="noopener"><span class="fic">🔗</span><div><b>All-in-one booking</b><span>Share a booking page — clients pick a time from your availability and it lands on your calendar automatically.</span></div></a>
+      <a class="feat" href="rrg_calendar_help.html#booking" target="_blank" rel="noopener"><span class="fic">🔗</span><div><b>All-in-one booking</b><span>Share a booking page — pick from several meeting types, with buffers, minimum notice, and each visitor's own time zone. Booked slots land on your calendar and can be rescheduled or cancelled by the guest.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#tasks" target="_blank" rel="noopener"><span class="fic">✅</span><div><b>Tasks on your calendar</b><span>Give any task a date and time and it shows up right on the calendar alongside your meetings.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#gmailsync" target="_blank" rel="noopener"><span class="fic">📥</span><div><b>Events from your inbox <span class="soon">Soon</span></b><span>Flights, hotels and reservations sitting in Gmail get added to your calendar automatically.</span></div></a>
       <a class="feat" href="rrg_calendar_help.html#meet" target="_blank" rel="noopener"><span class="fic">🎥</span><div><b>Video with Google Meet</b><span>Add a Google Meet link to any meeting in a click and connect virtually.</span></div></a>
@@ -208,6 +214,12 @@ a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:var(--blue);}
       <div><label class="fld">End</label><input type="time" id="f_end"></div>
       <div style="grid-column:span 2"><label class="fld">Location</label><input id="f_loc" placeholder="Address, video link, or phone"></div>
     </div>
+    <div class="row2">
+      <div><label class="fld">Reminder</label><select id="f_remind" onchange="_remChToggle()"><option value="">No reminder</option><option value="0">At start time</option><option value="10">10 min before</option><option value="30">30 min before</option><option value="60">1 hour before</option><option value="120">2 hours before</option><option value="1440">1 day before</option></select></div>
+      <div id="f_repeatWrap"><label class="fld">Repeat</label><select id="f_repeat" onchange="_repToggle()"><option value="">Does not repeat</option><option value="weekly">Weekly</option><option value="biweekly">Every 2 weeks</option><option value="monthly">Monthly</option></select></div>
+      <div id="f_repCntWrap" style="display:none"><label class="fld">Occurrences</label><input type="number" id="f_repeatCount" min="1" max="60" value="12"></div>
+    </div>
+    <div id="f_remChwrap" class="remchrow" style="display:none"><span class="remchlbl">Notify by</span><label class="chkmini"><input type="checkbox" class="remch" value="popup" checked> Pop-up</label><label class="chkmini"><input type="checkbox" class="remch" value="email" checked> Email</label><label class="chkmini"><input type="checkbox" class="remch" value="sms"> Text</label></div>
     <label class="fld">Attendees (name &amp; email — for people outside the group)</label>
     <div id="f_atts"></div>
     <button type="button" class="btn" id="addatt" style="font-size:12px;padding:6px 10px">+ Add attendee</button>
@@ -379,14 +391,25 @@ function openForm(a,presetDate){
   document.getElementById('sendinv').style.display=(a&&EMAILREADY)?'':'none';
   var mr=document.getElementById('meetRow'); if(mr){ if(_GCAL.state==='ready' && FEATURES.calMeet!==false){ mr.style.display=''; showMeet(a&&a.meetUrl?a.meetUrl:''); } else { mr.style.display='none'; mr.innerHTML=''; } }
   renderAtt();
+  // Reminder + repeat
+  var rem=document.getElementById('f_remind'); if(rem) rem.value=(a&&a.remMinutes!=null&&a.remMinutes!=='')?String(a.remMinutes):'';
+  var rc=(a&&Array.isArray(a.remChannels)&&a.remChannels.length)?a.remChannels:['popup','email']; document.querySelectorAll('.remch').forEach(function(cb){ cb.checked=rc.indexOf(cb.value)>=0; });
+  var rep=document.getElementById('f_repeat'); if(rep){ rep.value=''; }
+  var rpw=document.getElementById('f_repeatWrap'); if(rpw) rpw.style.display=a?'none':'';   // repeat only when creating
+  if(a&&a.seriesId){ var t2=document.getElementById('mtitle2'); if(t2) t2.textContent='Edit meeting · part of a repeating series'; }
+  _remChToggle(); _repToggle();
   document.getElementById('mmsg').textContent='';
   document.getElementById('modal').removeAttribute('hidden');
   setTimeout(function(){try{document.getElementById('f_title').focus();}catch(e){}},30);
 }
+function _remChToggle(){ var r=document.getElementById('f_remind'), w=document.getElementById('f_remChwrap'); if(w) w.style.display=(r&&r.value!=='')?'flex':'none'; }
+function _repToggle(){ var r=document.getElementById('f_repeat'), w=document.getElementById('f_repCntWrap'); if(w) w.style.display=(r&&r.value!=='')?'':'none'; }
 function closeForm(){ document.getElementById('modal').setAttribute('hidden',''); EDIT=null; }
 function bodyFromForm(){
   var date=document.getElementById('f_date').value; var st=document.getElementById('f_start').value||'09:00'; var en=document.getElementById('f_end').value||st;
-  return { id:EDIT?EDIT.id:undefined, title:document.getElementById('f_title').value.trim(), contactPersonId:document.getElementById('f_contact').value||'', contactName:document.getElementById('f_contactq').value.trim(), type:document.getElementById('f_type').value, start:date?(date+'T'+st):'', end:date?(date+'T'+en):'', location:document.getElementById('f_loc').value.trim(), notes:document.getElementById('f_notes').value.trim(), attendees:collectAtts() };
+  var rep=document.getElementById('f_repeat'); var repVal=(rep&&document.getElementById('f_repeatWrap')&&document.getElementById('f_repeatWrap').style.display!=='none')?rep.value:'';
+  return { id:EDIT?EDIT.id:undefined, title:document.getElementById('f_title').value.trim(), contactPersonId:document.getElementById('f_contact').value||'', contactName:document.getElementById('f_contactq').value.trim(), type:document.getElementById('f_type').value, start:date?(date+'T'+st):'', end:date?(date+'T'+en):'', location:document.getElementById('f_loc').value.trim(), notes:document.getElementById('f_notes').value.trim(), attendees:collectAtts(),
+    remMinutes:(document.getElementById('f_remind')||{}).value||'', remChannels:[].slice.call(document.querySelectorAll('.remch:checked')).map(function(x){return x.value;}), repeat:repVal, repeatCount:(document.getElementById('f_repeatCount')||{}).value||'' };
 }
 function save(){
   var body=bodyFromForm(); var m=document.getElementById('mmsg');
@@ -410,8 +433,16 @@ function sendInvite(id,thenClose){
     }).catch(function(){ m.className='msg err'; m.textContent='Could not reach the server.'; });
 }
 async function del(){
-  if(!EDIT) return; if(!await rrgConfirm('Delete this meeting?')) return;
-  fetch('/api/appointments/'+encodeURIComponent(EDIT.id),{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ closeForm(); load(); } else alert((j&&j.error)||'Could not delete.'); });
+  if(!EDIT) return;
+  var series=false;
+  if(EDIT.seriesId){
+    if(!await rrgConfirm('Delete this meeting? It’s part of a repeating series.',{title:'Delete meeting'})) return;
+    series=await rrgConfirm('Also remove all FUTURE occurrences in this series? Choose “Only this one” to delete just this meeting.',{title:'Repeating series',okText:'Delete future too',cancelText:'Only this one'});
+  } else {
+    if(!await rrgConfirm('Delete this meeting?')) return;
+  }
+  var url='/api/appointments/'+encodeURIComponent(EDIT.id)+(series?'?series=1':'');
+  fetch(url,{method:'DELETE',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ closeForm(); load(); } else alert((j&&j.error)||'Could not delete.'); });
 }
 function fillUserFilter(){ var el=document.getElementById('userFilter'); if(!el) return; var cur=(SCOPE==='mine')?'__mine':(USERSEL||'__all'); var allLabel=CANSEEALL?'Everyone’s calendar':'My + shared calendars'; el.innerHTML='<option value="__all">'+allLabel+'</option><option value="__mine">Just my meetings</option>'+USERS.filter(function(u){return u.username!==ME;}).map(function(u){return '<option value="'+esc(u.username)+'">'+esc(u.name)+'</option>';}).join(''); el.value=cur; }
 function setupScope(){ var seg=document.getElementById('scopeSeg'), uf=document.getElementById('userFilter'); if(seg) seg.style.display='none'; if(CANSEEALL||HASSHARED){ if(uf){ uf.style.display=''; fillUserFilter(); } } else { if(uf) uf.style.display='none'; } }

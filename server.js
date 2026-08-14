@@ -5066,6 +5066,32 @@ app.get('/api/assignment/:key/buyer-matches', (req, res) => {
   res.json({ ok: true, characterized: L.hasTeaser, business: view.business || '', buyers: out });
 });
 
+// ===== Relationship value — closed deals, commission generated, active pipeline =====
+function _relNum(s) { return Number(String(s == null ? '' : s).replace(/[^0-9.\-]/g, '')) || 0; }
+function _relFromListing(d, overlay, roll) {
+  const key = d.screenId ? ('s_' + d.screenId) : ('d_' + d.id);
+  const o = overlay[key] || {}; const t = o.transaction || null; const st = o.status || '';
+  if (st !== 'Closed' && st !== 'Lost') roll.activeListings++;
+  if (t) {
+    if (t.status === 'Closed') { roll.closedDeals++; roll.commission += _relNum(t.commissionDue); }
+    else if (t.status && t.status !== 'Dead') roll.pipeline += _relNum(t.price);
+  }
+}
+function relationshipRollup(personId) {
+  const deals = loadDeals(), overlay = loadAssignOverlay();
+  const roll = { activeListings: 0, closedDeals: 0, commission: 0, pipeline: 0 };
+  deals.filter(d => d.contactPersonId === personId).forEach(d => _relFromListing(d, overlay, roll));
+  // Also count closed deals where this contact was the buyer.
+  for (const key in overlay) { const t = overlay[key] && overlay[key].transaction; if (t && t.personId === personId && t.status === 'Closed') roll.closedDeals++; }
+  return roll;
+}
+function relationshipRollupCompany(companyId) {
+  const deals = loadDeals(), overlay = loadAssignOverlay();
+  const roll = { activeListings: 0, closedDeals: 0, commission: 0, pipeline: 0 };
+  deals.filter(d => d.companyId === companyId).forEach(d => _relFromListing(d, overlay, roll));
+  return roll;
+}
+
 app.post('/api/marketplace/:key', express.json(), (req, res) => {
   const key = req.params.key; const deals = assignmentsIndex(); const d = deals[key];
   if (!d) return res.status(404).json({ ok: false, error: 'Listing not found.' });
@@ -8559,7 +8585,7 @@ app.get('/api/person/:id', (req, res) => {
   let _automations = []; try { _automations = loadAutomations().filter(a => a.active !== false && ((a.scope !== 'private') || a.ownerUser === (req.user && req.user.username) || (req.user && isSuper(req.user)))).map(a => automationBrief(a, req.user || {})); } catch (e) { console.error('[/api/person] automations build failed for ' + p.id + ':', e && e.message); }
   let _users = []; try { _users = auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))); } catch (e) {}
   let _company = null; try { _company = companyBrief(companyById(p.companyId)); } catch (e) {}
-  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), types: personTypesOf(p), tags: personTags(p), companyName: (function(){ try{ var _c=companyById(p.companyId); return _c?(_c.name||''):''; }catch(e){ return ''; } })(), hasPhoto: !!p.photoExt }), company: _company, deals, offers, tours, ndas, interested, agreements: _agreements, agreementTypes: effAgreementTypes(), appointments: _appointments, apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: _automations, emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: _users, activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, person: Object.assign({}, p, { firstName: personFirst(p), lastName: personLast(p), emails: personEmails(p), phones: personPhones(p), types: personTypesOf(p), tags: personTags(p), companyName: (function(){ try{ var _c=companyById(p.companyId); return _c?(_c.name||''):''; }catch(e){ return ''; } })(), hasPhoto: !!p.photoExt }), relationship: (function(){ try{ return relationshipRollup(p.id); }catch(e){ return null; } })(), company: _company, deals, offers, tours, ndas, interested, agreements: _agreements, agreementTypes: effAgreementTypes(), appointments: _appointments, apptTypes: APPT_TYPES, personTypes: effPersonTypes(), leadSources: effLeadSources(), allTags: allTagsList(), automations: _automations, emailReady: isEmailConfigured(), activities: (Array.isArray(p.activities) ? p.activities : []), users: _users, activityTypes: effActivityTypes(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
  } catch (e) {
   console.error('[/api/person] fatal for ' + (req.params && req.params.id) + ':', (e && e.stack) || e);
   if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not load this contact — a linked record looks malformed. (' + ((e && e.message) || 'error') + ')' });
@@ -9015,7 +9041,7 @@ app.get('/api/company/:id', (req, res) => {
   const companyAgreements = loadAgreements().filter(a => a.companyId === c.id || _cids.indexOf(a.personId) >= 0).map(a => Object.assign(agreementBrief(a), { personName: a.personName || _pn[a.personId] || '' })).sort((x,y)=>String(x.expires||'9999').localeCompare(String(y.expires||'9999')));
   const companyLogoAuto = logoFromWebsite((c.office && c.office.website) || ((c.concepts && c.concepts[0] && c.concepts[0].website) || ''));
   const companyActivity = companyActivityFeed(c);
-  res.json({ ok: true, company: c, logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: effAgreementTypes(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), activity: companyActivity, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), hasMaps: !!loadGmapsKey(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, company: c, relationship: (function(){ try{ return relationshipRollupCompany(c.id); }catch(e){ return null; } })(), logoAuto: companyLogoAuto, contacts, deals: dealRows, agreements: companyAgreements, agreementTypes: effAgreementTypes(), automations: loadAutomations().filter(a => a.active !== false).map(a => ({ id: a.id, name: a.name || '' })), activity: companyActivity, users: auth.loadUsers().filter(u => !u.disabled).map(u => ({ username: u.username, name: u.name || u.username })).sort((a, b) => String(a.name).localeCompare(String(b.name))), activityTypes: effActivityTypes(), locations: c.locations || [], concepts: c.concepts || [], types: effCompanyTypes(), personTypes: effPersonTypes(), locationStatuses: LOCATION_STATUSES, siteTypes: LOCATION_SITETYPES, conceptTypes: CONCEPT_TYPES, pricePoints: PRICE_POINTS, cuisineTypes: effCuisineTypes(), leadSources: effLeadSources(), markets: RRG_METROS, titles: Object.keys(loadPeople().reduce((m, pp) => { if (pp.title) m[pp.title] = 1; return m; }, {})).sort((x, y) => x.toLowerCase().localeCompare(y.toLowerCase())), allTags: allTagsList(), hasMaps: !!loadGmapsKey(), canDelete: canDelete(req), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 // ---- Company-level activity: notes / calls / meetings logged against the company itself. ----
 app.post('/api/company/:id/activity', express.json(), (req, res) => {
@@ -11875,9 +11901,14 @@ const APPTS_FILE = path.join(BOV_DATA_DIR, 'appointments.json');
 function loadAppts() { try { return rj(APPTS_FILE) || []; } catch (e) { return []; } }
 function saveAppts(a) { return writeJsonGuarded(APPTS_FILE, a, 'saveAppts'); }
 function newApptId() { return 'ap_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+// Naive-local datetime helpers for meeting reminders + recurrence ("YYYY-MM-DDTHH:MM").
+function _apptPad(n) { return String(n).padStart(2, '0'); }
+function _apptFmt(d) { return d.getFullYear() + '-' + _apptPad(d.getMonth() + 1) + '-' + _apptPad(d.getDate()) + 'T' + _apptPad(d.getHours()) + ':' + _apptPad(d.getMinutes()); }
+function _apptReminderIso(start, mins) { try { const d = new Date(start); if (isNaN(d.getTime())) return ''; d.setMinutes(d.getMinutes() - Number(mins || 0)); return _apptFmt(d); } catch (e) { return ''; } }
+function _apptStep(iso, repeat, n) { try { const d = new Date(iso); if (isNaN(d.getTime())) return iso; if (repeat === 'weekly') d.setDate(d.getDate() + 7 * n); else if (repeat === 'biweekly') d.setDate(d.getDate() + 14 * n); else if (repeat === 'monthly') d.setMonth(d.getMonth() + n); return _apptFmt(d); } catch (e) { return iso; } }
 const APPT_TYPES = ['Meeting', 'Call', 'Tour', 'Listing Presentation', 'Closing', 'Follow-up', 'Other'];
 function _cleanAttendees(arr) { return (Array.isArray(arr) ? arr : []).slice(0, 20).map(function (x) { return { name: String((x && x.name) || '').slice(0, 120), email: String((x && x.email) || '').slice(0, 160).trim() }; }).filter(function (x) { return x.name || x.email; }); }
-function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], cc: Array.isArray(a.cc) ? a.cc : [], bcc: Array.isArray(a.bcc) ? a.bcc : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', invitedAt: a.invitedAt || '', meetUrl: a.meetUrl || '', googleEventId: a.googleEventId || '', files: Array.isArray(a.files) ? a.files : [], createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
+function apptBrief(a) { return { id: a.id, title: a.title || '', contactPersonId: a.contactPersonId || '', contactName: a.contactName || '', companyId: a.companyId || '', start: a.start || '', end: a.end || '', allDay: !!a.allDay, location: a.location || '', type: a.type || '', notes: a.notes || '', attendees: Array.isArray(a.attendees) ? a.attendees : [], cc: Array.isArray(a.cc) ? a.cc : [], bcc: Array.isArray(a.bcc) ? a.bcc : [], byUser: a.byUser || '', byName: a.byName || '', status: a.status || 'scheduled', invitedAt: a.invitedAt || '', meetUrl: a.meetUrl || '', googleEventId: a.googleEventId || '', files: Array.isArray(a.files) ? a.files : [], remMinutes: (a.remMinutes == null ? '' : a.remMinutes), remChannels: Array.isArray(a.remChannels) ? a.remChannels : [], reminder: a.reminder || '', seriesId: a.seriesId || '', repeat: a.repeat || '', createdAt: a.createdAt || '', updatedAt: a.updatedAt || '' }; }
 function apptIcs(a) {
   function e(s) { return String(s || '').replace(/([,;\\])/g, '\\$1').replace(/\r?\n/g, '\\n'); }
   function dt(s) { var m = String(s || '').match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/); return m ? (m[1] + m[2] + m[3] + 'T' + m[4] + m[5] + '00') : ''; }
@@ -11973,7 +12004,27 @@ app.post('/api/appointments', express.json(), (req, res) => {
   if (b.cc !== undefined) a.cc = cleanList(Array.isArray(b.cc) ? b.cc : String(b.cc || '').split(/[,;\s]+/), 20, 160);
   if (b.bcc !== undefined) a.bcc = cleanList(Array.isArray(b.bcc) ? b.bcc : String(b.bcc || '').split(/[,;\s]+/), 20, 160);
   if (typeof b.status === 'string' && ['scheduled', 'cancelled'].indexOf(b.status) >= 0) a.status = b.status;
-  a.updatedAt = now; saveAppts(all);
+  // Per-meeting reminder — fires from the reminder sender (same engine as tasks).
+  if (b.remMinutes !== undefined) {
+    const rm = (b.remMinutes === '' || b.remMinutes == null) ? '' : Math.max(0, Math.min(43200, parseInt(b.remMinutes, 10) || 0));
+    a.remMinutes = rm;
+    a.remChannels = Array.isArray(b.remChannels) ? b.remChannels.filter(c => ['popup', 'email', 'sms'].indexOf(c) >= 0) : (a.remChannels || ['popup', 'email']);
+    a.reminder = (rm === '') ? '' : _apptReminderIso(a.start, rm);
+    a.remSent = false;
+  }
+  a.updatedAt = now;
+  // Recurrence — materialize the series as real instances so each shows on the calendar and
+  // reminds on its own. Only on create (editing one instance never re-spawns the series).
+  const _rep = ['weekly', 'biweekly', 'monthly'].indexOf(b.repeat) >= 0 ? b.repeat : '';
+  if (!b.id && _rep) {
+    a.seriesId = a.id; a.repeat = _rep;
+    const cnt = Math.max(1, Math.min(60, parseInt(b.repeatCount, 10) || 12));
+    for (let i = 1; i < cnt; i++) {
+      const st2 = _apptStep(a.start, _rep, i), en2 = a.end ? _apptStep(a.end, _rep, i) : '';
+      all.push(Object.assign({}, a, { id: newApptId(), start: st2, end: en2, reminder: (a.remMinutes === '' || a.remMinutes == null) ? '' : _apptReminderIso(st2, a.remMinutes), remSent: false, seriesId: a.id, googleEventId: '', meetUrl: '', invitedAt: '', createdAt: now, updatedAt: now }));
+    }
+  }
+  saveAppts(all);
   try { if (a.contactPersonId) { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.contactPersonId); if (pp) { logActivity(pp, 'Meeting', (b.id ? 'Updated' : 'Scheduled') + ' meeting: ' + title + ' — ' + start.replace('T', ' '), { by: u.name || '', byUser: u.username || '' }); savePeople(ppl); } } } catch (e) {}
   res.json({ ok: true, appointment: apptBrief(a) });
 });
@@ -11992,6 +12043,14 @@ app.post('/api/appointments/:id/invite', express.json(), async (req, res) => {
 app.delete('/api/appointments/:id', (req, res) => {
   const u = req.user || {}; const all = loadAppts(); const a = all.find(x => x.id === req.params.id); if (!a) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!(isSuper(u) || a.byUser === u.username)) return res.status(403).json({ ok: false, error: 'You can only delete your own appointments.' });
+  // ?series=1 removes the whole repeating series (only the future instances from this one on, so
+  // past occurrences stay on the record). Default removes just this one.
+  const sid = a.seriesId || '';
+  if (String(req.query.series || '') === '1' && sid) {
+    const fromStart = String(a.start || '');
+    saveAppts(all.filter(x => !(x.seriesId === sid && String(x.start || '') >= fromStart && (isSuper(u) || x.byUser === u.username))));
+    return res.json({ ok: true, series: true });
+  }
   saveAppts(all.filter(x => x.id !== a.id)); res.json({ ok: true });
 });
 // Add (or attach) a Google Meet video link to a meeting, via the Google Calendar API.
@@ -12085,15 +12144,28 @@ function _bAddMin(naive, min) { const d = new Date(naive + ':00Z'); d.setUTCMinu
 function _bAddDays(dstr, n) { const d = new Date(dstr + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); }
 function _bDow(dstr) { return new Date(dstr + 'T12:00:00Z').getUTCDay(); }
 function _bNow() { try { const p = new Intl.DateTimeFormat('en-CA', { timeZone: GSYNC_TZ, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false }).formatToParts(new Date()); const o = {}; p.forEach(x => o[x.type] = x.value); const hh = (o.hour === '24' ? '00' : o.hour); return o.year + '-' + o.month + '-' + o.day + 'T' + hh + ':' + o.minute; } catch (e) { return new Date().toISOString().slice(0, 16); } }
-function bookingAvailability(username, days) {
+// Meeting types on a booking page. Back-compat: a page with only a single `length` becomes one type.
+function bookTypes(bk) {
+  bk = bk || {};
+  if (Array.isArray(bk.types) && bk.types.length) {
+    return bk.types.filter(t => t && t.name).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + i)), name: String(t.name).slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160) }));
+  }
+  const len = BOOK_LENGTHS.indexOf(+bk.length) >= 0 ? +bk.length : 30;
+  return [{ id: 'default', name: bk.title || 'Meeting', length: len, location: '' }];
+}
+function bookTypeById(bk, id) { const ts = bookTypes(bk); return ts.find(t => t.id === id) || ts[0]; }
+function bookingAvailability(username, days, lenOverride) {
   const prof = auth.profileOf(auth.findUser(username)) || {};
   const bk = (loadBookings()[username]) || {};
-  const len = BOOK_LENGTHS.indexOf(+bk.length) >= 0 ? +bk.length : 30;
+  const len = (BOOK_LENGTHS.indexOf(+lenOverride) >= 0) ? +lenOverride : (BOOK_LENGTHS.indexOf(+bk.length) >= 0 ? +bk.length : 30);
+  const buffer = Math.max(0, Math.min(120, parseInt(bk.buffer, 10) || 0));       // minutes of padding around each meeting
+  const minNoticeH = Math.max(0, Math.min(336, parseInt(bk.minNotice, 10) || 0)); // hours of lead time required
   const wd = (Array.isArray(prof.workDays) && prof.workDays.length) ? prof.workDays : [1, 2, 3, 4, 5];
   const ws = /^\d{2}:\d{2}$/.test(prof.workStart || '') ? prof.workStart : '09:00';
   const we = /^\d{2}:\d{2}$/.test(prof.workEnd || '') ? prof.workEnd : '17:00';
   const appts = loadAppts().filter(a => a.byUser === username && a.status !== 'cancelled' && a.status !== 'deleted' && a.start);
   const nowN = _bNow(); const today = nowN.slice(0, 10);
+  const minStart = minNoticeH > 0 ? _bAddMin(nowN, minNoticeH * 60) : nowN;   // earliest bookable time
   const out = [];
   for (let i = 0; i < (days || 14); i++) {
     const dstr = _bAddDays(today, i);
@@ -12102,40 +12174,49 @@ function bookingAvailability(username, days) {
     for (let m = _bmToMin(ws); m + len <= _bmToMin(we); m += len) {
       const hh = String(Math.floor(m / 60)).padStart(2, '0'), mm = String(m % 60).padStart(2, '0');
       const s = dstr + 'T' + hh + ':' + mm;
-      if (s < nowN) continue;
+      if (s < minStart) continue;
       const sEnd = _bAddMin(s, len);
       let free = true;
-      for (const a of appts) { const aS = String(a.start); const aE = String(a.end || '') || _bAddMin(aS, 30); if (s < aE && aS < sEnd) { free = false; break; } }
+      // A slot is blocked if it overlaps an existing meeting padded by the buffer on both sides.
+      for (const a of appts) { const aS = String(a.start); const aE = String(a.end || '') || _bAddMin(aS, 30); const aSb = buffer ? _bAddMin(aS, -buffer) : aS; const aEb = buffer ? _bAddMin(aE, buffer) : aE; if (s < aEb && aSb < sEnd) { free = false; break; } }
       if (free) slots.push({ start: s });
     }
     if (slots.length) out.push({ date: dstr, slots });
   }
-  return { length: len, days: out, owner: { name: prof.name || username, title: prof.title || '', location: prof.workLocation || '' } };
+  return { length: len, buffer: buffer, minNotice: minNoticeH, days: out, owner: { name: prof.name || username, title: prof.title || '', location: prof.workLocation || '' } };
 }
 app.get('/api/me/booking', (req, res) => {
   const un = req.user && req.user.username; const bk = (loadBookings()[un]) || {}; const base = appBaseUrl();
-  res.json({ ok: true, enabled: !!bk.enabled, token: bk.token || '', length: bk.length || 30, title: bk.title || '', lengths: BOOK_LENGTHS, link: (bk.token ? ((base || '') + '/book/' + bk.token) : '') });
+  res.json({ ok: true, enabled: !!bk.enabled, token: bk.token || '', length: bk.length || 30, buffer: bk.buffer || 0, minNotice: bk.minNotice || 0, title: bk.title || '', types: (Array.isArray(bk.types) ? bk.types : []), lengths: BOOK_LENGTHS, ownerTz: GSYNC_TZ, link: (bk.token ? ((base || '') + '/book/' + bk.token) : '') });
 });
 app.post('/api/me/booking', express.json(), (req, res) => {
   const un = req.user && req.user.username; if (!un) return res.status(401).json({ ok: false });
   const b = req.body || {}; const all = loadBookings(); const cur = all[un] || {};
   if (typeof b.enabled === 'boolean') cur.enabled = b.enabled;
   if (b.length !== undefined) cur.length = BOOK_LENGTHS.indexOf(+b.length) >= 0 ? +b.length : (cur.length || 30);
+  if (b.buffer !== undefined) cur.buffer = Math.max(0, Math.min(120, parseInt(b.buffer, 10) || 0));
+  if (b.minNotice !== undefined) cur.minNotice = Math.max(0, Math.min(336, parseInt(b.minNotice, 10) || 0));
   if (b.title !== undefined) cur.title = String(b.title || '').slice(0, 120);
+  // Meeting types — a named list, each with its own length. Empty list falls back to the single length.
+  if (Array.isArray(b.types)) {
+    cur.types = b.types.filter(t => t && String(t.name || '').trim()).slice(0, 8).map((t, i) => ({ id: String(t.id || ('t' + Date.now().toString(36) + i)).slice(0, 24), name: String(t.name).trim().slice(0, 80), length: BOOK_LENGTHS.indexOf(+t.length) >= 0 ? +t.length : 30, location: String(t.location || '').slice(0, 160) }));
+  }
   if (cur.enabled && !cur.token) cur.token = _bookToken();
   all[un] = cur; saveBookings(all); const base = appBaseUrl();
-  res.json({ ok: true, enabled: !!cur.enabled, token: cur.token || '', length: cur.length || 30, title: cur.title || '', lengths: BOOK_LENGTHS, link: (cur.token ? ((base || '') + '/book/' + cur.token) : '') });
+  res.json({ ok: true, enabled: !!cur.enabled, token: cur.token || '', length: cur.length || 30, buffer: cur.buffer || 0, minNotice: cur.minNotice || 0, title: cur.title || '', types: (Array.isArray(cur.types) ? cur.types : []), lengths: BOOK_LENGTHS, ownerTz: GSYNC_TZ, link: (cur.token ? ((base || '') + '/book/' + cur.token) : '') });
 });
 app.get('/book/:token', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'rrg_book.html')); });
 app.get('/api/book/:token', (req, res) => {
   const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
-  const av = bookingAvailability(bk.username, 1);
-  res.json({ ok: true, owner: av.owner, length: av.length, title: bk.title || '', business: loadAppName() });
+  const types = bookTypes(bk);
+  const av = bookingAvailability(bk.username, 1, types[0].length);
+  res.json({ ok: true, owner: av.owner, length: av.length, title: bk.title || '', business: loadAppName(), types: types, ownerTz: GSYNC_TZ });
 });
 app.get('/api/book/:token/slots', (req, res) => {
   const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
-  const av = bookingAvailability(bk.username, 21);
-  res.json({ ok: true, length: av.length, days: av.days, owner: av.owner });
+  const t = bookTypeById(bk, String(req.query.type || ''));
+  const av = bookingAvailability(bk.username, 21, t.length);
+  res.json({ ok: true, length: av.length, days: av.days, owner: av.owner, ownerTz: GSYNC_TZ, type: t });
 });
 app.post('/api/book/:token', express.json(), async (req, res) => {
   const bk = bookingByToken(req.params.token); if (!bk) return res.status(404).json({ ok: false, error: 'This booking link is not active.' });
@@ -12144,21 +12225,48 @@ app.post('/api/book/:token', express.json(), async (req, res) => {
   const start = String(b.start || '').slice(0, 16);
   if (!name || !email) return res.status(400).json({ ok: false, error: 'Please enter your name and email.' });
   if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(start)) return res.status(400).json({ ok: false, error: 'Please pick a time.' });
-  const av = bookingAvailability(bk.username, 30);
+  const t = bookTypeById(bk, String(b.type || ''));
+  const av = bookingAvailability(bk.username, 30, t.length);
   const stillFree = av.days.some(d => d.slots.some(s => s.start === start));
   if (!stillFree) return res.status(409).json({ ok: false, error: 'Sorry — that time was just taken. Please pick another.' });
   const prof = auth.profileOf(auth.findUser(bk.username)) || {};
   const all = loadAppts(); const now = new Date().toISOString();
-  const a = { id: newApptId(), byUser: bk.username, byName: prof.name || bk.username, createdAt: now, status: 'scheduled', title: (bk.title || ('Meeting with ' + name)).slice(0, 200), start, end: _bAddMin(start, av.length), type: 'Meeting', location: prof.workLocation || '', notes: String(b.notes || '').slice(0, 2000), contactName: name, attendees: [{ name, email }], source: 'booking' };
+  const _tt = (t.id !== 'default' && t.name) ? t.name : (bk.title || ('Meeting with ' + name));
+  const a = { id: newApptId(), byUser: bk.username, byName: prof.name || bk.username, createdAt: now, status: 'scheduled', title: String(_tt).slice(0, 200), start, end: _bAddMin(start, t.length), type: 'Meeting', location: t.location || prof.workLocation || '', notes: String(b.notes || '').slice(0, 2000), contactName: name, attendees: [{ name, email }], source: 'booking', bookToken: bk.token || '', manageToken: _bookToken(), invitedAt: now };
   all.push(a); saveAppts(all);
   try {
     if (isEmailConfigured()) {
       const when = start.replace('T', ' at ');
-      await sendInviteMail([email], 'Booked: ' + a.title, 'Your meeting is booked for ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + '\n\n— ' + a.byName, apptIcs(a), [], []);
+      const mUrl = (appBaseUrl() || (req.protocol + '://' + req.get('host'))) + '/book/manage/' + a.manageToken;
+      await sendInviteMail([email], 'Booked: ' + a.title, 'Your meeting is booked for ' + when + (a.location ? ('\nWhere: ' + a.location) : '') + '\n\n— ' + a.byName + '\n\nNeed to change it? Reschedule or cancel here:\n' + mUrl, apptIcs(a), [], []);
       const ownerEmail = (prof.email || '').trim(); if (ownerEmail) sendNotifyMail(ownerEmail, 'New booking: ' + name, name + ' (' + email + ') booked ' + when + '.').catch(() => {});
     }
   } catch (e) {}
   res.json({ ok: true, when: start });
+});
+// ---- Guest self-service: manage a booked meeting (cancel / reschedule) ----
+function _apptByManageToken(tok) { if (!tok) return null; return loadAppts().find(a => a.manageToken === tok) || null; }
+app.get('/book/manage/:token', (req, res) => { res.sendFile(path.join(__dirname, 'public', 'rrg_book_manage.html')); });
+app.get('/api/book/manage/:token', (req, res) => {
+  const a = _apptByManageToken(req.params.token); if (!a) return res.status(404).json({ ok: false, error: 'This link is no longer valid.' });
+  const prof = auth.profileOf(auth.findUser(a.byUser)) || {};
+  res.json({ ok: true, title: a.title, start: a.start, end: a.end, location: a.location || '', status: a.status || 'scheduled', owner: prof.name || a.byName || '', business: loadAppName(), ownerTz: GSYNC_TZ, rebook: a.bookToken ? ('/book/' + a.bookToken) : '' });
+});
+app.post('/api/book/manage/:token/cancel', express.json(), (req, res) => {
+  const all = loadAppts(); const a = all.find(x => x.manageToken === req.params.token);
+  if (!a) return res.status(404).json({ ok: false, error: 'This link is no longer valid.' });
+  if (a.status === 'cancelled') return res.json({ ok: true, already: true });
+  a.status = 'cancelled'; a.updatedAt = new Date().toISOString(); saveAppts(all);
+  try {
+    if (isEmailConfigured()) {
+      const prof = auth.profileOf(auth.findUser(a.byUser)) || {};
+      const when = String(a.start || '').replace('T', ' at ');
+      const guest = (a.attendees && a.attendees[0]) || {};
+      const oEmail = (prof.email || '').trim(); if (oEmail) sendNotifyMail(oEmail, 'Booking cancelled: ' + (guest.name || 'guest'), (guest.name || 'A guest') + (guest.email ? (' (' + guest.email + ')') : '') + ' cancelled the meeting scheduled for ' + when + '.').catch(() => {});
+      if (guest.email) sendNotifyMail(guest.email, 'Cancelled: ' + a.title, 'Your meeting on ' + when + ' has been cancelled.').catch(() => {});
+    }
+  } catch (e) {}
+  res.json({ ok: true });
 });
 
 // ================= Agreements =================
@@ -13672,6 +13780,27 @@ function runReminderSender() {
       }
     });
     if (changed) saveTasks(all);
+    // Meeting reminders — same engine, over appointments.
+    const appts = loadAppts(); let apChanged = false;
+    appts.forEach(a => {
+      if (a.status !== 'cancelled' && a.reminder && !a.remSent && String(a.reminder).slice(0, 16) <= nowIso) {
+        const ch = (Array.isArray(a.remChannels) && a.remChannels.length) ? a.remChannels : ['popup', 'email'];
+        const u = users.find(x => x.username === a.byUser);
+        const to = u && u.email;
+        const whenTxt = String(a.start || '').replace('T', ' ');
+        if (ch.indexOf('email') >= 0 && to && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) {
+          const link = (process.env.APP_URL || '') + '/rrg_calendar.html';
+          sendMailWL({ from: mailFrom(), to, subject: 'Reminder: ' + a.title, text: 'Upcoming meeting:\n\n' + a.title + '\nWhen: ' + whenTxt + (a.location ? ('\nWhere: ' + a.location) : '') + (a.contactName ? ('\nWith: ' + a.contactName) : '') + '\n\nYour calendar: ' + link }).catch(() => {});
+        }
+        if (ch.indexOf('sms') >= 0 && isSmsConfigured() && u && u.phone) { sendSms(u.phone, 'Reminder: ' + a.title + ' — ' + whenTxt + (a.location ? (' @ ' + a.location) : '')).catch(() => {}); }
+        // Remind invited guests too — only when an invite was actually sent for this meeting.
+        if (a.invitedAt && Array.isArray(a.attendees)) {
+          a.attendees.forEach(g => { if (g && g.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(g.email)) sendMailWL({ from: mailFrom(), to: g.email, subject: 'Reminder: ' + a.title, text: 'A reminder of your upcoming meeting' + (a.byName ? (' with ' + a.byName) : '') + ':\n\n' + a.title + '\nWhen: ' + whenTxt + (a.location ? ('\nWhere: ' + a.location) : '') + (a.meetUrl ? ('\nVideo: ' + a.meetUrl) : '') }).catch(() => {}); });
+        }
+        a.remSent = true; apChanged = true;
+      }
+    });
+    if (apChanged) saveAppts(appts);
   } catch (e) { console.error('reminder sender:', e && e.message); }
 }
 setInterval(runReminderSender, 60000);

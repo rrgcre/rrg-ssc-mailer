@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manage your meeting</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a94a6;--line:#e6e9f0;--wash:#f5f7fb;--blue:#2c5c8f;--green:#1f8a5b;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;}
+.top{background:radial-gradient(115% 130% at 50% 0%,#182a54 0%,#0d1b3d 55%,#04091d 100%);color:#fff;padding:20px 0;}
+.top-in{max-width:640px;margin:0 auto;padding:0 22px;display:flex;align-items:center;gap:11px;}
+.disc{background:var(--red);color:#fff;border-radius:50%;width:36px;height:36px;font:900 11px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;flex:none;}
+.biz{font-weight:800;font-size:14px;}
+.wrap{max-width:640px;margin:20px auto;padding:0 22px 50px;}
+.card{background:#fff;border:1px solid var(--line);border-top:3px solid var(--blue);border-radius:6px;overflow:hidden;}
+.hd{padding:20px 24px;border-bottom:1px solid var(--line);}
+.hd h1{margin:0;font-size:19px;font-weight:800;color:var(--navy);}
+.hd .who{color:var(--muted);font-size:13.5px;margin-top:5px;}
+.bd{padding:20px 24px;}
+.row{display:flex;gap:10px;font-size:14px;color:var(--ink);margin-bottom:10px;}
+.row .k{color:var(--soft);font-weight:700;text-transform:uppercase;letter-spacing:.04em;font-size:10.5px;width:80px;flex:none;padding-top:2px;}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px;}
+.btn{border:1px solid var(--line);background:#fff;color:var(--navy);font:inherit;font-size:14px;font-weight:700;padding:11px 18px;border-radius:4px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;}
+.btn.primary{background:var(--navy);color:#fff;border-color:var(--navy);}
+.btn.danger{color:var(--red);border-color:#e0cdc9;}
+.btn:disabled{opacity:.5;cursor:default;}
+.msg{margin-top:14px;font-size:13.5px;}
+.msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.done{padding:20px 24px;}
+.done h2{margin:0 0 8px;font-size:17px;color:var(--navy);}
+.done p{color:var(--muted);font-size:14px;line-height:1.6;margin:0 0 14px;}
+.foot{text-align:center;color:var(--soft);font-size:11px;margin-top:18px;}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-in"><span class="disc" id="disc">RRG</span><span class="biz" id="biz">Loading…</span></div></div>
+<div class="wrap">
+  <div class="card" id="card"><div class="bd" id="body"><div style="color:var(--muted);font-size:14px">Loading your meeting…</div></div></div>
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+var TOKEN=(function(){ var m=location.pathname.match(/\/book\/manage\/([^\/?#]+)/); return m?m[1]:''; })();
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+var OWNER_TZ='America/Chicago';
+function ownerToInstant(naive){ try{ var u=new Date(naive+':00Z'); var l=new Date(u.toLocaleString('en-US',{timeZone:OWNER_TZ})); var g=new Date(u.toLocaleString('en-US',{timeZone:'UTC'})); return new Date(u.getTime()-(l.getTime()-g.getTime())); }catch(e){ return new Date(String(naive)+':00'); } }
+function fmtWhen(s){ if(!s) return ''; try{ return new Intl.DateTimeFormat(undefined,{weekday:'long',month:'long',day:'numeric',hour:'numeric',minute:'2-digit',timeZoneName:'short'}).format(ownerToInstant(s)); }catch(e){ return String(s).replace('T',' at '); } }
+var DATA=null;
+function load(){
+  fetch('/api/book/manage/'+encodeURIComponent(TOKEN),{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+    if(!j||!j.ok){ document.getElementById('body').innerHTML='<div style="color:#b23a2c;font-size:14px">'+esc((j&&j.error)||'This link is no longer valid.')+'</div>'; return; }
+    DATA=j; OWNER_TZ=j.ownerTz||OWNER_TZ; document.getElementById('biz').textContent=j.business||'Booking'; document.getElementById('foot').textContent=(j.business||'')+' · scheduling';
+    render();
+  }).catch(function(){ document.getElementById('body').innerHTML='<div style="color:#b23a2c;font-size:14px">Could not load this meeting.</div>'; });
+}
+function render(){
+  var j=DATA;
+  if(j.status==='cancelled'){
+    document.getElementById('card').innerHTML='<div class="done"><h2>This meeting is cancelled</h2><p>Your meeting on '+esc(fmtWhen(j.start))+' is no longer scheduled.</p>'+(j.rebook?('<a class="btn primary" href="'+esc(j.rebook)+'">Book a new time →</a>'):'')+'</div>';
+    return;
+  }
+  var loc=j.location?('<div class="row"><span class="k">Where</span><span>'+esc(j.location)+'</span></div>'):'';
+  document.getElementById('card').innerHTML=
+    '<div class="hd"><h1>Manage your meeting</h1><div class="who">with '+esc(j.owner||'')+'</div></div>'
+    +'<div class="bd">'
+    +'<div class="row"><span class="k">Meeting</span><span>'+esc(j.title||'Meeting')+'</span></div>'
+    +'<div class="row"><span class="k">When</span><span>'+esc(fmtWhen(j.start))+'</span></div>'
+    +loc
+    +'<div class="btns">'
+    +(j.rebook?('<a class="btn primary" id="resched" href="#">Reschedule</a>'):'')
+    +'<button class="btn danger" id="cancel">Cancel meeting</button>'
+    +'</div><div class="msg" id="msg"></div></div>';
+  var cb=document.getElementById('cancel'); if(cb) cb.addEventListener('click',function(){ doCancel(false); });
+  var rb=document.getElementById('resched'); if(rb) rb.addEventListener('click',function(e){ e.preventDefault(); doCancel(true); });
+}
+function doCancel(reschedule){
+  var msg=document.getElementById('msg'); var cb=document.getElementById('cancel'); var rb=document.getElementById('resched');
+  if(!reschedule && !window.confirm('Cancel this meeting?')) return;
+  if(cb) cb.disabled=true; if(rb) rb.style.pointerEvents='none';
+  if(msg){ msg.className='msg'; msg.textContent=reschedule?'Releasing this time…':'Cancelling…'; }
+  fetch('/api/book/manage/'+encodeURIComponent(TOKEN)+'/cancel',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:'{}'}).then(function(r){return r.json();}).then(function(j){
+    if(j&&j.ok){
+      if(reschedule && DATA.rebook){ location.href=DATA.rebook; return; }
+      document.getElementById('card').innerHTML='<div class="done"><h2>Meeting cancelled</h2><p>You’re all set — the meeting has been removed from the calendar'+(DATA.owner?(' and '+esc(DATA.owner)+' has been notified'):'')+'.</p>'+(DATA.rebook?('<a class="btn primary" href="'+esc(DATA.rebook)+'">Book a new time →</a>'):'')+'</div>';
+    } else { if(msg){ msg.className='msg err'; msg.textContent=(j&&j.error)||'Could not cancel.'; } if(cb) cb.disabled=false; if(rb) rb.style.pointerEvents=''; }
+  }).catch(function(){ if(msg){ msg.className='msg err'; msg.textContent='Could not reach the server.'; } if(cb) cb.disabled=false; });
+}
+if(TOKEN) load(); else document.getElementById('body').innerHTML='<div style="color:#b23a2c;font-size:14px">Invalid link.</div>';
+</script>
+</body>
+</html>
