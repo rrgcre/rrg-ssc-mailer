@@ -816,16 +816,19 @@ function openSignReturn(){
 function openSendAgrMenu(btn){
   var ex=document.getElementById('sendAgrMenu'); if(ex){ ex.remove(); return; }
   var IST='display:block;width:100%;text-align:left;border:none;background:none;padding:8px 9px;border-radius:6px;cursor:pointer;font:inherit;font-size:13px;color:#1a2236';
-  var tpls=(TEMPLATES||[]).filter(function(t){return t.fileExt;});
+  var ready=(TEMPLATES||[]).filter(function(t){return t.fileExt && t.active!==false;});
+  var pending=(TEMPLATES||[]).filter(function(t){return !t.fileExt && t.active!==false;});
   var html='';
-  if(tpls.length){ html+='<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;padding:6px 9px 3px">Send for signature</div>'; tpls.forEach(function(t){ html+='<button type="button" class="samItem" data-tpl="'+esc(t.id)+'" style="'+IST+'">✉ '+esc(t.name)+'</button>'; }); html+='<div style="height:1px;background:#eef1f6;margin:5px 0"></div>'; }
-  else { html+='<div style="font-size:12px;color:#8a93a8;padding:8px 9px;line-height:1.4">No templates yet — add them in Admin → Agreement templates.</div><div style="height:1px;background:#eef1f6;margin:5px 0"></div>'; }
+  if(ready.length){ html+='<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;padding:6px 9px 3px">Send for signature</div>'; ready.forEach(function(t){ html+='<button type="button" class="samItem" data-tpl="'+esc(t.id)+'" style="'+IST+'">✉ '+esc(t.name)+'</button>'; }); }
+  else if(!pending.length){ html+='<div style="font-size:12px;color:#8a93a8;padding:8px 9px;line-height:1.4">No templates yet — add them in Admin → Agreement templates.</div>'; }
+  if(pending.length){ html+='<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#b5791f;padding:8px 9px 3px">Needs a document</div>'; pending.forEach(function(t){ html+='<button type="button" class="samItem" data-settings="1" title="Finish setup: upload the document and place the signing fields" style="'+IST+';cursor:default"><span style="color:#6b7488">'+esc(t.name)+'</span><span style="display:block;font-size:11px;color:#b5791f;margin-top:1px">Upload a document to enable ›</span></button>'; }); }
+  html+='<div style="height:1px;background:#eef1f6;margin:5px 0"></div>';
   html+='<button type="button" class="samItem" data-act="upload" style="'+IST+'">📎 Use another agreement (upload)</button>';
   html+='<button type="button" class="samItem" data-act="more" style="'+IST+'">⋯ Record signed · Sign &amp; return</button>';
   var m=document.createElement('div'); m.id='sendAgrMenu'; m.style.cssText='position:absolute;z-index:140;background:#fff;border:1px solid #dbe0e9;border-radius:8px;box-shadow:0 12px 30px rgba(11,26,56,.16);min-width:240px;max-width:300px;padding:5px'; m.innerHTML=html;
   document.body.appendChild(m);
   var r=btn.getBoundingClientRect(); m.style.top=(window.scrollY+r.bottom+4)+'px'; m.style.left=(window.scrollX+Math.max(8,r.right-m.offsetWidth))+'px';
-  Array.prototype.forEach.call(m.querySelectorAll('.samItem'),function(b){ b.onmouseenter=function(){b.style.background='#f4f7fb';}; b.onmouseleave=function(){b.style.background='none';}; b.onclick=function(){ var tpl=b.getAttribute('data-tpl'), act=b.getAttribute('data-act'); m.remove(); if(tpl){ openSendModal(tpl); } else if(act==='upload'){ openSendModal(); var _f=document.getElementById('sm_file'); if(_f){ try{ _f.focus(); }catch(e){} } } else if(act==='more'){ openAgrChooser(); } }; });
+  Array.prototype.forEach.call(m.querySelectorAll('.samItem'),function(b){ b.onmouseenter=function(){b.style.background='#f4f7fb';}; b.onmouseleave=function(){b.style.background='none';}; b.onclick=function(){ var tpl=b.getAttribute('data-tpl'), act=b.getAttribute('data-act'); m.remove(); if(tpl){ openSendModal(tpl); } else if(b.getAttribute('data-settings')){ location.href='rrg_settings.html?tab=agrtemplates'; } else if(act==='upload'){ openSendModal(); var _f=document.getElementById('sm_file'); if(_f){ try{ _f.focus(); }catch(e){} } } else if(act==='more'){ openAgrChooser(); } }; });
   setTimeout(function(){ document.addEventListener('click',function _c(ev){ var mm=document.getElementById('sendAgrMenu'); if(mm&&!mm.contains(ev.target)&&ev.target!==btn){ mm.remove(); document.removeEventListener('click',_c); } }); },0);
 }
 function openSendModal(preTpl){

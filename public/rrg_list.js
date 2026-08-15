@@ -236,11 +236,15 @@
       head += vis.map(function(m){
         var c=m.c, ci=m.i;
         var sortable = c.sortable!==false && c.sort;
+        // Actions / utility column (e.g. the row ✕): not sortable, no header. It should not be
+        // draggable, sortable, or resizable, and stays a fixed compact width so it never balloons
+        // or pushes the real columns' resize handles off-screen.
+        var isUtil = (c.sortable===false && !c.label);
         var cls='rl-th'+(sortable?'':' rl-noselect')+(state.sort===ci?(state.dir>0?' rl-asc':' rl-desc'):'');
         var arrow = sortable ? '<span class="rl-arrow">'+(state.sort===ci?(state.dir>0?'▲':'▼'):'↕')+'</span>' : '';
-        var w = (state.widths[m.key]!=null) ? state.widths[m.key] : (c.width||null);
-        var style = (c.align?('text-align:'+c.align+';'):'')+(w?('width:'+w+'px;'):'');
-        return '<th class="'+cls+(c.cls?(' '+c.cls):'')+'" data-ci="'+ci+'" data-key="'+esc(m.key)+'" draggable="true"'+(style?(' style="'+style+'"'):'')+'>'+esc(c.label)+arrow+'<span class="rl-resize"></span></th>';
+        var w = (state.widths[m.key]!=null && !isUtil) ? state.widths[m.key] : (c.width || (isUtil?64:null));
+        var style = (c.align?('text-align:'+c.align+';'):'')+(w?('width:'+w+'px;'):'')+(isUtil?'min-width:48px;max-width:96px;':'');
+        return '<th class="'+cls+(c.cls?(' '+c.cls):'')+'" data-ci="'+ci+'" data-key="'+esc(m.key)+'"'+(isUtil?'':' draggable="true"')+(style?(' style="'+style+'"'):'')+'>'+esc(c.label)+arrow+(isUtil?'':'<span class="rl-resize"></span>')+'</th>';
       }).join('');
 
       var body = slice.map(function(it,i){
