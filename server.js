@@ -13117,6 +13117,7 @@ function agrGreetingLine(style, name){ style = String(style || 'none'); var firs
 
 function agrEmailHtml(greet, bodyHtml, label, signUrl){ var P=[]; P.push('<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.55;color:#1a2236">'); if(greet) P.push('<p style="margin:0 0 14px">'+esc(greet)+'</p>'); if(bodyHtml) P.push('<div style="margin:0 0 14px">'+String(bodyHtml)+'</div>'); P.push('<p style="margin:0 0 14px">Review and sign your '+esc(label)+' online here:<br><a href="'+esc(signUrl)+'" style="color:#2647b0;font-weight:700;text-decoration:none">'+esc(signUrl)+'</a></p>'); P.push('<p style="margin:0">Thank you,<br>'+esc(orgDisplayName())+'</p>'); P.push('</div>'); return P.join(''); }
 app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
+ try {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
   if (!isEmailConfigured()) return res.status(400).json({ ok: false, error: "Email isn't set up. Configure it in Admin -> Email." });
@@ -13140,6 +13141,7 @@ app.post('/api/agreements/:id/send', express.json(), async (req, res) => {
   const now = new Date().toISOString(); a.signStatus = 'sent'; a.sentAt = now; a.sentTo = to; a.entryMethod = a.entryMethod || 'sent'; if (Array.isArray(b.values)) a.fieldValues = b.values.map(function(v){return String(v==null?'':v).slice(0,500);}); a.updatedAt = now; saveAgreements(all);
   if (p) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === p.id); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + to, { auto: true, by: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '' }); if (a.sendAuto && !a.sendAutoFired) { try { const _sp = loadAutomations().find(x => x.id === a.sendAuto && x.active !== false); if (_sp) { enrollPerson(pp, _sp, { byName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', dealKey: a.dealKey || '' }); a.sendAutoFired = true; try { saveAgreements(all); } catch (e) {} } } catch (e) {} } savePeople(ppl); } } catch (e) {} }
   res.json({ ok: true, agreement: agreementBrief(a), to });
+ } catch (e) { console.error('agreement send fatal:', e && (e.stack || e.message)); if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not send: ' + String((e && e.message) || e) }); }
 });
 app.post('/api/agreements/:id/sign', express.json(), (req, res) => {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
@@ -13532,6 +13534,7 @@ app.post('/api/agreements/:id/signers', express.json(), (req, res) => {
 });
 
 app.post('/api/agreements/:id/send-adv', express.json(), async (req, res) => {
+ try {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
   if (!(Array.isArray(a.pdfFields) && a.pdfFields.length)) return res.status(400).json({ ok: false, error: 'This agreement has no placed fields.' });
@@ -13558,6 +13561,7 @@ app.post('/api/agreements/:id/send-adv', express.json(), async (req, res) => {
   catch (e) { console.error('send-adv:', e && e.message); return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
   if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Sent', label + ' sent for signature to ' + (next.label || '') + ' ' + next.email, { auto: true }); if (a.sendAuto && !a.sendAutoFired) { try { const _sp = loadAutomations().find(x => x.id === a.sendAuto && x.active !== false); if (_sp) { enrollPerson(pp, _sp, { byName: (req.user && req.user.name) || '', byUser: (req.user && req.user.username) || '', dealKey: a.dealKey || '' }); a.sendAutoFired = true; try { saveAgreements(all); } catch (e) {} } } catch (e) {} } savePeople(ppl); } } catch (e) {} }
   res.json({ ok: true, agreement: agreementBrief(a), to: next.email, signer: next.label });
+ } catch (e) { console.error('send-adv fatal:', e && (e.stack || e.message)); if (!res.headersSent) res.status(500).json({ ok: false, error: 'Could not send: ' + String((e && e.message) || e) }); }
 });
 
 app.get('/api/sign/:token/data', (req, res) => {
@@ -14659,6 +14663,19 @@ app.post('/api/loi/clause/reorder', requireManageLoi, express.json(), (req, res)
   saveLoiConfig(cfg); res.json({ ok: true, config: cfg });
 });
 
+
+// ---- Global error handler: /api routes ALWAYS return JSON, never Express's HTML 500 page ----
+app.use((err, req, res, next) => {
+  try { console.error('Route error:', req.method, req.originalUrl, err && (err.stack || err.message || err)); } catch (e) {}
+  if (res.headersSent) return next(err);
+  if (String(req.path || '').indexOf('/api/') === 0) {
+    return res.status(500).json({ ok: false, error: 'Server error: ' + String((err && err.message) || err || 'unknown') });
+  }
+  res.status(500).send('Server error.');
+});
+// A stray thrown error or rejected promise should be logged, not crash the whole server.
+process.on('unhandledRejection', (reason) => { try { console.error('unhandledRejection:', reason && (reason.stack || reason.message || reason)); } catch (e) {} });
+process.on('uncaughtException', (err) => { try { console.error('uncaughtException:', err && (err.stack || err.message || err)); } catch (e) {} });
 
 const PORT = process.env.PORT || 8787;
 app.listen(PORT, () => console.log(`RRG toolkit server listening on :${PORT}`));
