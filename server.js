@@ -12676,7 +12676,7 @@ function loadAgreements() { try { return rj(AGREEMENTS_FILE) || []; } catch (e) 
 function saveAgreements(a) { return writeJsonGuarded(AGREEMENTS_FILE, a, 'saveAgreements'); }
 function newAgreementId() { return 'agr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const AGREEMENT_TYPES = [
-  { key: 'NDA', label: 'NDA' },
+  { key: 'NDA', label: 'Non-Disclosure Agreement' },
   { key: 'CA', label: 'CA' },
   { key: 'ETRA', label: 'ETRA' },
   { key: 'Referral', label: 'Referral Agreement' },
@@ -13775,7 +13775,9 @@ function advancedSignPage(a, me, req) {
 
   function renderPdf(){
     var pagesEl=document.getElementById('pages'); pagesEl.innerHTML='';
-    fetch('/sign/'+encodeURIComponent(TOKEN)+'/doc',{credentials:'same-origin'}).then(function(r){return r.arrayBuffer();}).then(function(buf){
+    if(!window.pdfjsLib){ document.getElementById('advmsg').innerHTML='<b style="color:#b23a2c">The document viewer could not load.</b> Please refresh the page, or contact your RRG representative.'; return; }
+    fetch('/sign/'+encodeURIComponent(TOKEN)+'/doc',{credentials:'same-origin'}).then(function(r){ if(!r.ok) throw new Error('doc-'+r.status); return r.arrayBuffer(); }).then(function(buf){
+      if(!buf||!buf.byteLength) throw new Error('empty-doc');
       return pdfjsLib.getDocument({data:buf}).promise;
     }).then(function(pdf){
       var chain=Promise.resolve();
