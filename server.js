@@ -86,6 +86,18 @@ function rj(file) {
   if (DB_OK) return _db.readOrThrow(path.basename(file));
   return JSON.parse(fs.readFileSync(file, 'utf8'));
 }
+// ---- Binary asset durability: mirror files to object storage (S3 / Cloudflare R2) ----
+// The disk stays the working filesystem (reads unchanged). Every binary write and
+// delete is additionally mirrored to the bucket, and reconcile() on boot migrates
+// existing files up and restores anything the disk is missing. Inert (disk-only,
+// exactly as before) until S3_BUCKET + AWS keys are set.
+const blobstore = require('./blobstore');
+const BINARY_PREFIXES = ['agreedocs/', 'agreetemplates/', 'documents/', 'userdocs/', 'rooms/', 'spacefiles/', 'personphotos/', 'locphotos/', 'userphotos/', 'centerphotos/', 'companylogos/', 'cptlogos/', 'cologos/', 'apptfiles/', 'brand_logo', 'brand_favicon'];
+(function () { try { const on = blobstore.init(BOV_DATA_DIR, BINARY_PREFIXES); console.log(on ? '[BLOB] Object storage active — binary assets mirrored to the bucket.' : '[BLOB] Object storage not configured — binaries on disk only (set S3_BUCKET + AWS keys to enable).'); } catch (e) { console.error('[BLOB] init error: ' + (e && e.message)); } })();
+// Disk-first write/delete that also mirror to object storage. Drop-in for the
+// binary fs.writeFileSync / fs.unlinkSync call sites.
+function binWrite(file, data, opts) { const r = fs.writeFileSync(file, data, opts); try { blobstore.mirrorPut(file); } catch (e) {} return r; }
+function binDel(file) { try { blobstore.mirrorDel(file); } catch (e) {} return fs.unlinkSync(file); }
 function saveBovs(a) { return writeJsonGuarded(BOVS_FILE, a, 'saveBovs'); }
 function newBovId() { return 'bov_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
@@ -1263,7 +1275,7 @@ function requireAdmin(req, res, next) {
   return res.status(403).send('Admin access only.');
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true, storage: DB_KIND, pgPending: (DB_KIND === 'postgres' && _db && _db._pending) ? _db._pending() : 0 }));
+app.get('/health', (_req, res) => res.json({ ok: true, storage: DB_KIND, pgPending: (DB_KIND === 'postgres' && _db && _db._pending) ? _db._pending() : 0, blobStore: blobstore.ready() ? 'on' : 'off', blobPending: blobstore.ready() ? blobstore.pendingCount() : 0 }));
 
 /* ---------- login / logout ---------- */
 app.get('/login', (req, res) => {
@@ -2995,7 +3007,7 @@ app.post('/api/admin/upload-doc', requireAdmin, express.json({ limit: '40mb' }),
   const title = String(b.title || '').trim().slice(0, 120) || prettyName(orig);
   try { if (!fs.existsSync(DOCS_DIR)) fs.mkdirSync(DOCS_DIR, { recursive: true }); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not create the documents folder.' }); }
   const id = newDocId();
-  try { fs.writeFileSync(path.join(DOCS_DIR, id + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
+  try { binWrite(path.join(DOCS_DIR, id + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
   const docs = loadDocs();
   docs.push({ id, title, category, ext, originalName: orig, type: category + ' · ' + ext.toUpperCase(), uploadedAt: new Date().toISOString(), by: (req.user && req.user.name) || '' });
   saveDocs(docs);
@@ -3007,7 +3019,7 @@ app.post('/api/admin/delete-doc', requireAdmin, express.json(), (req, res) => {
   const id = String((req.body || {}).id || '');
   const docs = loadDocs(); const d = docs.find(x => x.id === id);
   if (!d) return res.status(404).json({ ok: false, error: 'Document not found.' });
-  try { fs.unlinkSync(path.join(DOCS_DIR, d.id + '.' + d.ext)); } catch (e) {}
+  try { binDel(path.join(DOCS_DIR, d.id + '.' + d.ext)); } catch (e) {}
   saveDocs(docs.filter(x => x.id !== id));
   res.json({ ok: true, documents: loadDocs() });
 });
@@ -3018,7 +3030,7 @@ app.delete('/api/admin/documents/:id', requireAdmin, (req, res) => {
   const id = String(req.params.id || '');
   const docs = loadDocs(); const d = docs.find(x => x.id === id);
   if (!d) return res.status(404).json({ ok: false, error: 'Document not found.' });
-  try { fs.unlinkSync(path.join(DOCS_DIR, d.id + '.' + d.ext)); } catch (e) {}
+  try { binDel(path.join(DOCS_DIR, d.id + '.' + d.ext)); } catch (e) {}
   saveDocs(docs.filter(x => x.id !== id));
   res.json({ ok: true });
 });
@@ -3042,15 +3054,15 @@ app.post('/api/admin/logo', requireAdmin, express.json({ limit: '8mb' }), (req, 
   if (buf.length > 4 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 4 MB).' });
   try {
     if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
-    const old = loadBrand(); if (old.logoExt && old.logoExt !== ext) { try { fs.unlinkSync(path.join(BOV_DATA_DIR, 'brand_logo.' + old.logoExt)); } catch (e) {} }
-    fs.writeFileSync(path.join(BOV_DATA_DIR, 'brand_logo.' + ext), buf);
+    const old = loadBrand(); if (old.logoExt && old.logoExt !== ext) { try { binDel(path.join(BOV_DATA_DIR, 'brand_logo.' + old.logoExt)); } catch (e) {} }
+    binWrite(path.join(BOV_DATA_DIR, 'brand_logo.' + ext), buf);
   } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the logo.' }); }
   const now = new Date().toISOString();
   const brand = loadBrand(); brand.logoExt = ext; brand.logoType = LOGO_MIME[ext] || 'image/png'; brand.updatedAt = now; brand.by = (req.user && req.user.name) || ''; saveBrand(brand);
   res.json({ ok: true, hasLogo: true, logoUrl: '/api/brand/logo?v=' + encodeURIComponent(now) });
 });
 app.post('/api/admin/logo/clear', requireAdmin, (req, res) => {
-  const b = loadBrand(); if (b.logoExt) { try { fs.unlinkSync(path.join(BOV_DATA_DIR, 'brand_logo.' + b.logoExt)); } catch (e) {} }
+  const b = loadBrand(); if (b.logoExt) { try { binDel(path.join(BOV_DATA_DIR, 'brand_logo.' + b.logoExt)); } catch (e) {} }
   delete b.logoExt; delete b.logoType; b.updatedAt = new Date().toISOString(); saveBrand(b);
   res.json({ ok: true, hasLogo: false });
 });
@@ -3229,14 +3241,14 @@ app.post('/api/admin/favicon', requireAdmin, express.json({ limit: '4mb' }), (re
   if (buf.length > 1024 * 1024) return res.status(400).json({ ok: false, error: 'Favicon too large (max 1 MB).' });
   try {
     if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true });
-    const old = loadBrand(); if (old.faviconExt && old.faviconExt !== ext) { try { fs.unlinkSync(path.join(BOV_DATA_DIR, 'brand_favicon.' + old.faviconExt)); } catch (e) {} }
-    fs.writeFileSync(path.join(BOV_DATA_DIR, 'brand_favicon.' + ext), buf);
+    const old = loadBrand(); if (old.faviconExt && old.faviconExt !== ext) { try { binDel(path.join(BOV_DATA_DIR, 'brand_favicon.' + old.faviconExt)); } catch (e) {} }
+    binWrite(path.join(BOV_DATA_DIR, 'brand_favicon.' + ext), buf);
   } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the favicon.' }); }
   const brand = loadBrand(); brand.faviconExt = ext; brand.faviconType = FAVICON_MIME[ext] || 'image/png'; brand.updatedAt = new Date().toISOString(); saveBrand(brand);
   res.json({ ok: true, hasFavicon: true });
 });
 app.post('/api/admin/favicon/clear', requireAdmin, (req, res) => {
-  const b = loadBrand(); if (b.faviconExt) { try { fs.unlinkSync(path.join(BOV_DATA_DIR, 'brand_favicon.' + b.faviconExt)); } catch (e) {} }
+  const b = loadBrand(); if (b.faviconExt) { try { binDel(path.join(BOV_DATA_DIR, 'brand_favicon.' + b.faviconExt)); } catch (e) {} }
   delete b.faviconExt; delete b.faviconType; b.updatedAt = new Date().toISOString(); saveBrand(b);
   res.json({ ok: true, hasFavicon: false });
 });
@@ -3246,7 +3258,7 @@ app.post('/api/admin/logo/pull', requireAdmin, express.json(), async (req, res) 
   const img = await fetchImageBuffer('https://logo.clearbit.com/' + d, 200);
   if (!img) return res.status(404).json({ ok: false, error: 'Could not find a logo for ' + d + '. Try uploading one instead.' });
   let ext = LOGO_EXT.test(img.ext) ? img.ext : 'png';
-  try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); const old = loadBrand(); if (old.logoExt && old.logoExt !== ext) { try { fs.unlinkSync(path.join(BOV_DATA_DIR, 'brand_logo.' + old.logoExt)); } catch (e) {} } fs.writeFileSync(path.join(BOV_DATA_DIR, 'brand_logo.' + ext), img.buf); }
+  try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); const old = loadBrand(); if (old.logoExt && old.logoExt !== ext) { try { binDel(path.join(BOV_DATA_DIR, 'brand_logo.' + old.logoExt)); } catch (e) {} } binWrite(path.join(BOV_DATA_DIR, 'brand_logo.' + ext), img.buf); }
   catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the logo.' }); }
   const brand = loadBrand(); brand.logoExt = ext; brand.logoType = LOGO_MIME[ext] || 'image/png'; brand.updatedAt = new Date().toISOString(); saveBrand(brand);
   res.json({ ok: true, hasLogo: true });
@@ -3258,7 +3270,7 @@ app.post('/api/admin/favicon/pull', requireAdmin, express.json(), async (req, re
   if (!img) img = await fetchImageBuffer('https://www.google.com/s2/favicons?domain=' + encodeURIComponent(d) + '&sz=64', 100);
   if (!img) return res.status(404).json({ ok: false, error: 'Could not find a favicon for ' + d + '. Try uploading one instead.' });
   let ext = FAVICON_EXT.test(img.ext) ? img.ext : 'png';
-  try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); const old = loadBrand(); if (old.faviconExt && old.faviconExt !== ext) { try { fs.unlinkSync(path.join(BOV_DATA_DIR, 'brand_favicon.' + old.faviconExt)); } catch (e) {} } fs.writeFileSync(path.join(BOV_DATA_DIR, 'brand_favicon.' + ext), img.buf); }
+  try { if (!fs.existsSync(BOV_DATA_DIR)) fs.mkdirSync(BOV_DATA_DIR, { recursive: true }); const old = loadBrand(); if (old.faviconExt && old.faviconExt !== ext) { try { binDel(path.join(BOV_DATA_DIR, 'brand_favicon.' + old.faviconExt)); } catch (e) {} } binWrite(path.join(BOV_DATA_DIR, 'brand_favicon.' + ext), img.buf); }
   catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the favicon.' }); }
   const brand = loadBrand(); brand.faviconExt = ext; brand.faviconType = FAVICON_MIME[ext] || 'image/png'; brand.updatedAt = new Date().toISOString(); saveBrand(brand);
   res.json({ ok: true, hasFavicon: true });
@@ -3705,7 +3717,7 @@ app.post('/api/room-upload', express.json({ limit: '40mb' }), (req, res) => {
   const title = String(b.title || '').trim().slice(0, 140) || prettyName(orig);
   try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not create the rooms folder.' }); }
   const id = newRoomDocId();
-  try { fs.writeFileSync(path.join(ROOMS_DIR, id + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
+  try { binWrite(path.join(ROOMS_DIR, id + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
   r.docs = r.docs || [];
   r.docs.push({ id, title, category, ext, originalName: orig, size: buf.length, hash: hash, uploadedAt: new Date().toISOString(), by: (req.user && req.user.name) || '' });
   if (!r.builtAt) r.builtAt = new Date().toISOString();
@@ -3763,7 +3775,7 @@ app.post('/api/room/:id/delete-doc', express.json(), (req, res) => {
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
   const did = String((req.body || {}).id || '');
   const d = (r.docs || []).find(x => x.id === did);
-  if (d) { try { fs.unlinkSync(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} }
+  if (d) { try { binDel(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} }
   r.docs = (r.docs || []).filter(x => x.id !== did);
   saveRooms(arr);
   res.json({ ok: true, docs: r.docs });
@@ -3825,7 +3837,7 @@ app.post('/api/room/:id/redact', express.json({ limit: '2mb' }), async (req, res
     if (!applied) return res.status(400).json({ ok: false, error: 'No valid redaction boxes.' });
     const outBytes = doc.saveToBuffer('').asUint8Array();
     const newId = newRoomDocId();
-    fs.writeFileSync(path.join(ROOMS_DIR, newId + '.pdf'), Buffer.from(outBytes));
+    binWrite(path.join(ROOMS_DIR, newId + '.pdf'), Buffer.from(outBytes));
     const now = new Date().toISOString();
     const baseTitle = String(d.title || d.originalName || 'Document').replace(/\.pdf$/i, '');
     const rec = { id: newId, title: baseTitle + ' (redacted)', category: d.category || 'Other', ext: 'pdf',
@@ -3859,7 +3871,7 @@ app.delete('/api/room/:id', (req, res) => {
   const r = arr.find(x => x.id === req.params.id);
   if (!r) return res.status(404).json({ ok: false, error: 'Not found.' });
   if (!ownsRoom(req, r)) return res.status(403).json({ ok: false, error: 'Not yours.' });
-  (r.docs || []).forEach(d => { try { fs.unlinkSync(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} });
+  (r.docs || []).forEach(d => { try { binDel(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} });
   saveRooms(arr.filter(x => x.id !== r.id));
   res.json({ ok: true });
 });
@@ -3871,7 +3883,7 @@ app.post('/api/rooms/bulk-delete', express.json({ limit: '512kb' }), (req, res) 
   const arr = loadRooms();
   const targets = arr.filter(r => idset[r.id] && ownsRoom(req, r));
   const tset = {}; targets.forEach(r => { tset[r.id] = 1; });
-  targets.forEach(r => (r.docs || []).forEach(d => { try { fs.unlinkSync(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} }));
+  targets.forEach(r => (r.docs || []).forEach(d => { try { binDel(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} }));
   saveRooms(arr.filter(r => !tset[r.id]));
   res.json({ ok: true, deleted: targets.length, skipped: ids.length - targets.length });
 });
@@ -4732,7 +4744,7 @@ function addFileToRoomEx(room, file, opts) {
     if (room.docs.some(d => d.hash && d.hash === hash)) return { error: 'Duplicate — this exact file is already in the room.' };
     try { if (!fs.existsSync(ROOMS_DIR)) fs.mkdirSync(ROOMS_DIR, { recursive: true }); } catch (e) { return { error: 'Storage folder unavailable on the server.' }; }
     const id = newRoomDocId();
-    try { fs.writeFileSync(path.join(ROOMS_DIR, id + '.' + ext), buf); }
+    try { binWrite(path.join(ROOMS_DIR, id + '.' + ext), buf); }
     catch (e) { return { error: (e && e.code === 'ENOSPC') ? 'Server storage is full — free up space and retry.' : ('Could not save to storage (' + ((e && e.code) || 'write error') + ').') }; }
     const doc = { id, title, category, ext, originalName: orig, size: buf.length, hash: hash, uploadedAt: new Date().toISOString(), by: (opts.by || ''), source, auto: true };
     room.docs.push(doc);
@@ -4748,7 +4760,7 @@ function removeRoomDocsBySource(source) {
   arr.forEach(r => {
     const keep = [];
     (r.docs || []).forEach(d => {
-      if (d.source === source) { try { fs.unlinkSync(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} n++; touched = true; }
+      if (d.source === source) { try { binDel(path.join(ROOMS_DIR, d.id + '.' + d.ext)); } catch (e) {} n++; touched = true; }
       else keep.push(d);
     });
     r.docs = keep;
@@ -6644,7 +6656,7 @@ app.post('/api/admin/room-alert-email', express.json({ limit: '64kb' }), (req, r
 let _s3 = null, _s3ok = null;
 function s3client() {
   if (_s3) return _s3;
-  try { const { S3Client } = require('@aws-sdk/client-s3'); _s3 = new S3Client({ region: process.env.AWS_REGION || 'us-east-2' }); return _s3; }
+  try { const { S3Client } = require('@aws-sdk/client-s3'); const _ep = process.env.S3_ENDPOINT || ''; const _cfg = { region: process.env.AWS_REGION || (_ep ? 'auto' : 'us-east-2') }; if (_ep) { _cfg.endpoint = _ep; _cfg.forcePathStyle = true; } _s3 = new S3Client(_cfg); return _s3; }
   catch (e) { console.error('S3 SDK load failed:', e && e.message); return null; }
 }
 function s3Bucket() { return process.env.S3_BUCKET || ''; }
@@ -7763,7 +7775,7 @@ app.delete('/api/center/:id', (req, res) => {
   if (!(req.user && isSuper(req.user))) return res.status(403).json({ ok: false, error: 'Admin only.' });
   const id = req.params.id;
   const c = loadCenters().find(x => x.id === id);
-  if (c && c.photoExt) { try { fs.unlinkSync(path.join(CENTER_PHOTO_DIR, c.id + '.' + c.photoExt)); } catch (e) {} }
+  if (c && c.photoExt) { try { binDel(path.join(CENTER_PHOTO_DIR, c.id + '.' + c.photoExt)); } catch (e) {} }
   saveCenters(loadCenters().filter(x => x.id !== id));
   const sp = loadSpaces(); let ch = false; sp.forEach(x => { if (x.centerId === id) { x.centerId = ''; ch = true; } }); if (ch) saveSpaces(sp);
   res.json({ ok: true });
@@ -7776,7 +7788,7 @@ app.post('/api/center/:id/photo', express.json({ limit: '12mb' }), (req, res) =>
   const ext = ((String(b.filename || '').match(/\.(png|jpe?g|gif|webp)$/i) || [])[1] || 'jpg').toLowerCase().replace('jpeg', 'jpg');
   const buf = Buffer.from(dataB64, 'base64');
   if (buf.length > 10 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 10 MB).' });
-  try { if (!fs.existsSync(CENTER_PHOTO_DIR)) fs.mkdirSync(CENTER_PHOTO_DIR, { recursive: true }); if (c.photoExt && c.photoExt !== ext) { try { fs.unlinkSync(path.join(CENTER_PHOTO_DIR, c.id + '.' + c.photoExt)); } catch (e) {} } fs.writeFileSync(path.join(CENTER_PHOTO_DIR, c.id + '.' + ext), buf); }
+  try { if (!fs.existsSync(CENTER_PHOTO_DIR)) fs.mkdirSync(CENTER_PHOTO_DIR, { recursive: true }); if (c.photoExt && c.photoExt !== ext) { try { binDel(path.join(CENTER_PHOTO_DIR, c.id + '.' + c.photoExt)); } catch (e) {} } binWrite(path.join(CENTER_PHOTO_DIR, c.id + '.' + ext), buf); }
   catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the image.' }); }
   c.photoExt = ext; c.updatedAt = new Date().toISOString(); saveCenters(arr);
   res.json({ ok: true, center: centerBrief(c) });
@@ -7804,7 +7816,7 @@ app.post('/api/space/:id/file', express.json({ limit: '30mb' }), (req, res) => {
   if (buf.length > 25 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File is over 25 MB.' });
   try { if (!fs.existsSync(SPACEFILES_DIR)) fs.mkdirSync(SPACEFILES_DIR, { recursive: true }); } catch (e) {}
   const fid = 'spf_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  try { fs.writeFileSync(path.join(SPACEFILES_DIR, sp.id + '_' + fid + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
+  try { binWrite(path.join(SPACEFILES_DIR, sp.id + '_' + fid + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
   sp.files = Array.isArray(sp.files) ? sp.files : [];
   sp.files.push({ id: fid, name: String(b.filename || ('file.' + ext)).slice(0, 200), ext, kind: spaceFileKind(ext), size: buf.length, uploadedAt: new Date().toISOString(), by: (req.user && req.user.name) || '' });
   sp.updatedAt = new Date().toISOString(); saveSpaces(arr);
@@ -7814,7 +7826,7 @@ app.delete('/api/space/:id/file/:fid', (req, res) => {
   const arr = loadSpaces(); const sp = arr.find(x => x.id === req.params.id);
   if (!sp) return res.status(404).json({ ok: false, error: 'Space not found.' });
   const f = (sp.files || []).find(x => x.id === req.params.fid);
-  if (f) { try { fs.unlinkSync(path.join(SPACEFILES_DIR, sp.id + '_' + f.id + '.' + f.ext)); } catch (e) {} }
+  if (f) { try { binDel(path.join(SPACEFILES_DIR, sp.id + '_' + f.id + '.' + f.ext)); } catch (e) {} }
   sp.files = (sp.files || []).filter(x => x.id !== req.params.fid);
   sp.updatedAt = new Date().toISOString(); saveSpaces(arr);
   res.json({ ok: true, space: sp, spaces: arr });
@@ -8692,7 +8704,7 @@ app.post('/api/gmail/agreements/import', express.json({ limit: '1mb' }), async (
       if (!a.personName && it.personName) a.personName = String(it.personName).slice(0, 160);
       if (it.date) { const d = new Date(it.date); if (!isNaN(d.getTime())) a.effective = d.toISOString().slice(0, 10); }
       if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true });
-      fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + ext), buf);
+      binWrite(path.join(AGREEMENT_DOC_DIR, a.id + '.' + ext), buf);
       a.docExt = ext; a.docName = String(it.filename || ('agreement.' + ext)).slice(0, 200);
       all.push(a); created++;
       if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Note', agreementTypeLabel(type) + ' imported from email (' + a.docName + ')', { auto: true, by: (req.user && req.user.name) || '', byUser: uname }); savePeople(ppl); } } catch (e) {} }
@@ -8816,16 +8828,16 @@ app.post('/api/person/:id/photo', express.json({ limit: '8mb' }), (req, res) => 
   const ext = photoExtFromName((req.body && req.body.filename) || '');
   const buf = Buffer.from(dataB64, 'base64');
   if (buf.length > 6 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 6 MB).' });
-  try { if (!fs.existsSync(PERSONPHOTO_DIR)) fs.mkdirSync(PERSONPHOTO_DIR, { recursive: true }); fs.writeFileSync(path.join(PERSONPHOTO_DIR, p.id + '.' + ext), buf); }
+  try { if (!fs.existsSync(PERSONPHOTO_DIR)) fs.mkdirSync(PERSONPHOTO_DIR, { recursive: true }); binWrite(path.join(PERSONPHOTO_DIR, p.id + '.' + ext), buf); }
   catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the photo.' }); }
-  if (p.photoExt && p.photoExt !== ext) { try { fs.unlinkSync(path.join(PERSONPHOTO_DIR, p.id + '.' + p.photoExt)); } catch (e) {} }
+  if (p.photoExt && p.photoExt !== ext) { try { binDel(path.join(PERSONPHOTO_DIR, p.id + '.' + p.photoExt)); } catch (e) {} }
   p.photoExt = ext; p.updatedAt = new Date().toISOString(); savePeople(arr);
   res.json({ ok: true, hasPhoto: true, photoUrl: '/api/personphoto/' + p.id + '.' + ext + '?v=' + Date.now() });
 });
 app.post('/api/person/:id/photo/clear', (req, res) => {
   const arr = loadPeople(); const p = arr.find(x => x.id === req.params.id);
   if (!p) return res.status(404).json({ ok: false, error: 'Contact not found.' });
-  if (p.photoExt) { try { fs.unlinkSync(path.join(PERSONPHOTO_DIR, p.id + '.' + p.photoExt)); } catch (e) {} p.photoExt = ''; }
+  if (p.photoExt) { try { binDel(path.join(PERSONPHOTO_DIR, p.id + '.' + p.photoExt)); } catch (e) {} p.photoExt = ''; }
   p.updatedAt = new Date().toISOString(); savePeople(arr);
   res.json({ ok: true, hasPhoto: false });
 });
@@ -8961,8 +8973,8 @@ app.post('/api/me/photo', express.json({ limit: '8mb' }), (req, res) => {
   try {
     if (!fs.existsSync(USERPHOTO_DIR)) fs.mkdirSync(USERPHOTO_DIR, { recursive: true });
     const cur = auth.profileOf(auth.findUser(uname));
-    if (cur && cur.photoExt && cur.photoExt !== ext) { try { fs.unlinkSync(userPhotoFile(uname, cur.photoExt)); } catch (e) {} }
-    fs.writeFileSync(userPhotoFile(uname, ext), buf);
+    if (cur && cur.photoExt && cur.photoExt !== ext) { try { binDel(userPhotoFile(uname, cur.photoExt)); } catch (e) {} }
+    binWrite(userPhotoFile(uname, ext), buf);
   } catch (e) { return res.status(500).json({ ok:false, error:'Could not save the photo.' }); }
   try { auth.setUserPhoto(uname, ext); } catch (e) { return res.status(500).json({ ok:false, error:String((e && e.message) || e) }); }
   res.json({ ok:true, hasPhoto:true, photoUrl:'/api/userphoto/' + String(uname).replace(/[^a-z0-9_.-]/gi,'_') + '.' + ext + '?v=' + Date.now() });
@@ -8970,7 +8982,7 @@ app.post('/api/me/photo', express.json({ limit: '8mb' }), (req, res) => {
 app.post('/api/me/photo/clear', (req, res) => {
   const uname = req.user && req.user.username; if (!uname) return res.status(401).json({ ok:false });
   const cur = auth.profileOf(auth.findUser(uname));
-  if (cur && cur.photoExt) { try { fs.unlinkSync(userPhotoFile(uname, cur.photoExt)); } catch (e) {} }
+  if (cur && cur.photoExt) { try { binDel(userPhotoFile(uname, cur.photoExt)); } catch (e) {} }
   try { auth.clearUserPhoto(uname); } catch (e) {}
   res.json({ ok:true, hasPhoto:false });
 });
@@ -9020,7 +9032,7 @@ async function placesPhotoNew(key, photoName) {
 function attachPhotoBuffer(l, img, source) {
   if (!img) return false; l.photos = l.photos || []; if (l.photos.length >= LOCPHOTO_MAX) return false;
   const pid = 'lph_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  try { if (!fs.existsSync(LOCPHOTO_DIR)) fs.mkdirSync(LOCPHOTO_DIR, { recursive: true }); fs.writeFileSync(path.join(LOCPHOTO_DIR, pid + '.' + img.ext), img.buf); } catch (e) { return false; }
+  try { if (!fs.existsSync(LOCPHOTO_DIR)) fs.mkdirSync(LOCPHOTO_DIR, { recursive: true }); binWrite(path.join(LOCPHOTO_DIR, pid + '.' + img.ext), img.buf); } catch (e) { return false; }
   l.photos.push({ id: pid, ext: img.ext, source: source || 'google' }); return true;
 }
 // Google Places business-data enrichment: finds the listing and pulls address, geo, status, rating, phone, website.
@@ -9265,8 +9277,8 @@ app.post('/api/admin/reset-book', requireAdmin, express.json(), async (req, res)
   catch (e) { console.error('reset-book backup failed:', e && e.message); return res.status(500).json({ ok: false, error: 'Backup failed \u2014 reset aborted so your data stays safe. (' + String((e && e.message) || e) + ')' }); }
   const companies = loadCompanies();
   companies.forEach(c => {
-    (c.concepts || []).forEach(cp => { if (cp.logoExt) { try { fs.unlinkSync(path.join(CPTLOGO_DIR, cp.id + '.' + cp.logoExt)); } catch (e) {} } });
-    (c.locations || []).forEach(l => { (l.photos || []).forEach(ph => { try { fs.unlinkSync(path.join(LOCPHOTO_DIR, ph.id + '.' + ph.ext)); } catch (e) {} }); });
+    (c.concepts || []).forEach(cp => { if (cp.logoExt) { try { binDel(path.join(CPTLOGO_DIR, cp.id + '.' + cp.logoExt)); } catch (e) {} } });
+    (c.locations || []).forEach(l => { (l.photos || []).forEach(ph => { try { binDel(path.join(LOCPHOTO_DIR, ph.id + '.' + ph.ext)); } catch (e) {} }); });
   });
   const keep = companies.filter(c => c.system || c.locked); const keepIds = new Set(keep.map(c => c.id));
   const count = companies.length - keep.length;
@@ -9313,7 +9325,7 @@ app.post('/api/company/:id/location/:locId/photo', express.json({ limit: '12mb' 
   const buf = Buffer.from(dataB64, 'base64');
   if (buf.length > 10 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 10 MB).' });
   const pid = 'lph_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-  try { if (!fs.existsSync(LOCPHOTO_DIR)) fs.mkdirSync(LOCPHOTO_DIR, { recursive: true }); fs.writeFileSync(path.join(LOCPHOTO_DIR, pid + '.' + ext), buf); }
+  try { if (!fs.existsSync(LOCPHOTO_DIR)) fs.mkdirSync(LOCPHOTO_DIR, { recursive: true }); binWrite(path.join(LOCPHOTO_DIR, pid + '.' + ext), buf); }
   catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the image.' }); }
   l.photos.push({ id: pid, ext }); c.updatedAt = new Date().toISOString(); saveCompanies(arr);
   res.json({ ok: true, locations: c.locations });
@@ -9324,7 +9336,7 @@ app.post('/api/company/:id/location/:locId/photo/:photoId/remove', (req, res) =>
   const l = (c.locations || []).find(x => x.id === req.params.locId);
   if (!l) return res.status(404).json({ ok: false, error: 'Location not found.' });
   const ph = (l.photos || []).find(p => p.id === req.params.photoId);
-  if (ph) { try { fs.unlinkSync(path.join(LOCPHOTO_DIR, ph.id + '.' + ph.ext)); } catch (e) {} }
+  if (ph) { try { binDel(path.join(LOCPHOTO_DIR, ph.id + '.' + ph.ext)); } catch (e) {} }
   l.photos = (l.photos || []).filter(p => p.id !== req.params.photoId);
   c.updatedAt = new Date().toISOString(); saveCompanies(arr);
   res.json({ ok: true, locations: c.locations });
@@ -9459,7 +9471,7 @@ app.post('/api/company/:id/concept/:cid/logo', express.json({ limit: '8mb' }), (
   const ext = photoExtFromName((req.body && req.body.filename) || '');
   const buf = Buffer.from(dataB64, 'base64');
   if (buf.length > 6 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 6 MB).' });
-  try { if (!fs.existsSync(CPTLOGO_DIR)) fs.mkdirSync(CPTLOGO_DIR, { recursive: true }); fs.writeFileSync(path.join(CPTLOGO_DIR, cpt.id + '.' + ext), buf); }
+  try { if (!fs.existsSync(CPTLOGO_DIR)) fs.mkdirSync(CPTLOGO_DIR, { recursive: true }); binWrite(path.join(CPTLOGO_DIR, cpt.id + '.' + ext), buf); }
   catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the logo.' }); }
   cpt.logoExt = ext; cpt.logo = '/api/cptlogo/' + cpt.id + '.' + ext + '?v=' + Date.now(); cpt.updatedAt = new Date().toISOString();
   saveCompanies(arr);
@@ -9470,7 +9482,7 @@ app.post('/api/company/:id/concept/:cid/logo/clear', express.json(), (req, res) 
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
   const cpt = (c.concepts || []).find(x => x.id === req.params.cid);
   if (!cpt) return res.status(404).json({ ok: false, error: 'Concept not found.' });
-  if (cpt.logoExt) { try { fs.unlinkSync(path.join(CPTLOGO_DIR, cpt.id + '.' + cpt.logoExt)); } catch (e) {} cpt.logoExt = ''; }
+  if (cpt.logoExt) { try { binDel(path.join(CPTLOGO_DIR, cpt.id + '.' + cpt.logoExt)); } catch (e) {} cpt.logoExt = ''; }
   cpt.logo = ''; cpt.updatedAt = new Date().toISOString(); saveCompanies(arr);
   res.json({ ok: true, concepts: c.concepts });
 });
@@ -9494,7 +9506,7 @@ app.post('/api/company/:id/logo', express.json({ limit: '8mb' }), (req, res) => 
   const ext = photoExtFromName((req.body && req.body.filename) || '');
   const buf = Buffer.from(dataB64, 'base64');
   if (buf.length > 6 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Image too large (max 6 MB).' });
-  try { if (!fs.existsSync(COLOGO_DIR)) fs.mkdirSync(COLOGO_DIR, { recursive: true }); fs.writeFileSync(path.join(COLOGO_DIR, c.id + '.' + ext), buf); }
+  try { if (!fs.existsSync(COLOGO_DIR)) fs.mkdirSync(COLOGO_DIR, { recursive: true }); binWrite(path.join(COLOGO_DIR, c.id + '.' + ext), buf); }
   catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the logo.' }); }
   c.logoExt = ext; c.logo = '/api/cologo/' + c.id + '.' + ext + '?v=' + Date.now(); c.updatedAt = new Date().toISOString();
   saveCompanies(arr);
@@ -9503,7 +9515,7 @@ app.post('/api/company/:id/logo', express.json({ limit: '8mb' }), (req, res) => 
 app.post('/api/company/:id/logo/clear', express.json(), (req, res) => {
   const arr = loadCompanies(); const c = arr.find(x => x.id === req.params.id);
   if (!c) return res.status(404).json({ ok: false, error: 'Company not found.' });
-  if (c.logoExt) { try { fs.unlinkSync(path.join(COLOGO_DIR, c.id + '.' + c.logoExt)); } catch (e) {} c.logoExt = ''; }
+  if (c.logoExt) { try { binDel(path.join(COLOGO_DIR, c.id + '.' + c.logoExt)); } catch (e) {} c.logoExt = ''; }
   c.logo = ''; c.updatedAt = new Date().toISOString(); saveCompanies(arr);
   res.json({ ok: true });
 });
@@ -10107,7 +10119,7 @@ app.delete('/api/company/:id', (req, res) => {
   if (linkedDeals.length) saveDeals(loadDeals().filter(d => d.companyId !== id));
   // 2) Delete the company's location photo files.
   let photos = 0;
-  (c.locations || []).forEach(l => (l.photos || []).forEach(p => { try { fs.unlinkSync(path.join(LOCPHOTO_DIR, p.id + '.' + p.ext)); photos++; } catch (e) {} }));
+  (c.locations || []).forEach(l => (l.photos || []).forEach(p => { try { binDel(path.join(LOCPHOTO_DIR, p.id + '.' + p.ext)); photos++; } catch (e) {} }));
   // 3) Remove the company record (concepts + locations are embedded, so they go with it).
   saveCompanies(companies.filter(x => x.id !== id));
   // 4) Unlink contacts (people are global — keep them, just clear the association).
@@ -10129,7 +10141,7 @@ app.post('/api/companies/bulk-delete', express.json({ limit: '512kb' }), (req, r
   linkedDeals.forEach(d => { try { purgeDealRecords(d); } catch (e) { console.error('bulk company delete — deal purge failed:', e && e.message); } });
   if (linkedDeals.length) saveDeals(loadDeals().filter(d => !tset[d.companyId]));
   // 2) location photo files
-  let photos = 0; targets.forEach(c => (c.locations || []).forEach(l => (l.photos || []).forEach(p => { try { fs.unlinkSync(path.join(LOCPHOTO_DIR, p.id + '.' + p.ext)); photos++; } catch (e) {} })));
+  let photos = 0; targets.forEach(c => (c.locations || []).forEach(l => (l.photos || []).forEach(p => { try { binDel(path.join(LOCPHOTO_DIR, p.id + '.' + p.ext)); photos++; } catch (e) {} })));
   // 3) remove the company records
   saveCompanies(companies.filter(c => !tset[c.id]));
   // 4) unlink contacts (kept, association cleared)
@@ -10214,7 +10226,7 @@ function purgeDealRecords(rec) {
   const roomKeep = [];
   rooms.forEach(r => {
     const linked = roomIds.indexOf(r.id) >= 0 || r.srcDealId === rec.id || (r.srcCimId && cimIds.indexOf(r.srcCimId) >= 0);
-    if (linked) { (r.docs || []).forEach(dd => { try { fs.unlinkSync(path.join(ROOMS_DIR, dd.id + '.' + dd.ext)); } catch (e) {} }); }
+    if (linked) { (r.docs || []).forEach(dd => { try { binDel(path.join(ROOMS_DIR, dd.id + '.' + dd.ext)); } catch (e) {} }); }
     else roomKeep.push(r);
   });
   if (roomKeep.length !== rooms.length) saveRooms(roomKeep);
@@ -10252,7 +10264,7 @@ app.delete('/api/assignment/:key', (req, res) => {
       if (d.cim) saveCims(loadCims().filter(x => x.id !== d.cim.id));
       if (d.map) saveMaps(loadMaps().filter(x => x.id !== d.map.id));
       if (d.lease) saveLeases(loadLeases().filter(x => x.id !== d.lease.id));
-      if (d.room) { const rooms = loadRooms(); const rm = rooms.find(r => r.id === d.room.id); if (rm) { (rm.docs || []).forEach(dd => { try { fs.unlinkSync(path.join(ROOMS_DIR, dd.id + '.' + dd.ext)); } catch (e) {} }); } saveRooms(rooms.filter(r => r.id !== d.room.id)); }
+      if (d.room) { const rooms = loadRooms(); const rm = rooms.find(r => r.id === d.room.id); if (rm) { (rm.docs || []).forEach(dd => { try { binDel(path.join(ROOMS_DIR, dd.id + '.' + dd.ext)); } catch (e) {} }); } saveRooms(rooms.filter(r => r.id !== d.room.id)); }
       if (d.quest) saveQuests(loadQuests().filter(x => x.id !== d.quest.id));
       if (d.screen) saveScreens(loadScreens().filter(x => x.id !== d.screen.id));
     }
@@ -11470,8 +11482,8 @@ async function downloadAndStoreCompanyLogo(company, url) {
     const buf = Buffer.from(await r.arrayBuffer()); if (buf.length < 500) return false;
     const ext = ct.includes('svg') ? 'svg' : (ct.includes('png') ? 'png' : (ct.includes('webp') ? 'webp' : (ct.includes('x-icon') || ct.includes('microsoft.icon') ? 'ico' : (ct.includes('gif') ? 'gif' : 'jpg'))));
     if (!fs.existsSync(COMPANY_LOGO_DIR)) fs.mkdirSync(COMPANY_LOGO_DIR, { recursive: true });
-    ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif', 'ico'].forEach(e => { if (e !== ext) { try { fs.unlinkSync(path.join(COMPANY_LOGO_DIR, company.id + '.' + e)); } catch (_) {} } });
-    fs.writeFileSync(path.join(COMPANY_LOGO_DIR, company.id + '.' + ext), buf);
+    ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif', 'ico'].forEach(e => { if (e !== ext) { try { binDel(path.join(COMPANY_LOGO_DIR, company.id + '.' + e)); } catch (_) {} } });
+    binWrite(path.join(COMPANY_LOGO_DIR, company.id + '.' + ext), buf);
     company.logoExt = ext; company.logo = '/api/company-logo/' + company.id + '?v=' + Date.now().toString(36);
     return true;
   } catch (e) { return false; }
@@ -12531,7 +12543,7 @@ app.post('/api/appointments/:id/files', express.json({ limit: '30mb' }), (req, r
   if (buf.length > 20 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 20 MB).' });
   try { if (!fs.existsSync(APPT_FILE_DIR)) fs.mkdirSync(APPT_FILE_DIR, { recursive: true }); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not create the folder.' }); }
   const fid = _apptFileId();
-  try { fs.writeFileSync(path.join(APPT_FILE_DIR, a.id + '_' + fid + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
+  try { binWrite(path.join(APPT_FILE_DIR, a.id + '_' + fid + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
   if (!Array.isArray(a.files)) a.files = [];
   a.files.push({ id: fid, name: String(b.filename || ('file.' + ext)).slice(0, 200), ext, size: buf.length, at: new Date().toISOString() });
   a.updatedAt = new Date().toISOString(); saveAppts(all);
@@ -12548,7 +12560,7 @@ app.get('/api/appointments/:id/files/:fid', (req, res) => {
 app.delete('/api/appointments/:id/files/:fid', (req, res) => {
   const all = loadAppts(); const a = all.find(x => x.id === req.params.id); if (!a) return res.status(404).json({ ok: false, error: 'Not found.' });
   const f = (a.files || []).find(x => x.id === req.params.fid); if (!f) return res.status(404).json({ ok: false, error: 'File not found.' });
-  try { fs.unlinkSync(path.join(APPT_FILE_DIR, a.id + '_' + f.id + '.' + f.ext)); } catch (e) {}
+  try { binDel(path.join(APPT_FILE_DIR, a.id + '_' + f.id + '.' + f.ext)); } catch (e) {}
   a.files = (a.files || []).filter(x => x.id !== f.id); a.updatedAt = new Date().toISOString(); saveAppts(all);
   res.json({ ok: true, files: a.files });
 });
@@ -12765,12 +12777,12 @@ app.delete('/api/document/:kind/:id', (req, res) => {
   if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
   const kind = String(req.params.kind || ''); const id = req.params.id;
   try {
-    if (kind === 'agreement') { const all = loadAgreements(); const a = all.find(x => x.id === id); if (a && a.docExt) { try { fs.unlinkSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); } catch (e) {} } saveAgreements(all.filter(x => x.id !== id)); return res.json({ ok: true }); }
+    if (kind === 'agreement') { const all = loadAgreements(); const a = all.find(x => x.id === id); if (a && a.docExt) { try { binDel(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); } catch (e) {} } saveAgreements(all.filter(x => x.id !== id)); return res.json({ ok: true }); }
     if (kind === 'valuation') { saveBovs(loadBovs().filter(x => x.id !== id)); return res.json({ ok: true }); }
     if (kind === 'marketingpack') { saveCims(loadCims().filter(x => x.id !== id)); return res.json({ ok: true }); }
     if (kind === 'loi') { saveLois(loadLois().filter(x => x.id !== id)); return res.json({ ok: true }); }
     if (kind === 'seller' || kind === 'ssc') { const scr = loadScreens(); if (scr.some(x => x.id === id)) { saveScreens(scr.filter(x => x.id !== id)); return res.json({ ok: true }); } try { store.removeByTimestamp(id); } catch (e) {} return res.json({ ok: true }); }
-    if (kind === 'file') { const arr = loadUserFiles(); const f = arr.find(x => x.id === id); if (f) { try { fs.unlinkSync(path.join(USERDOCS_DIR, f.id + '.' + f.ext)); } catch (e) {} saveUserFiles(arr.filter(x => x.id !== id)); } return res.json({ ok: true }); }
+    if (kind === 'file') { const arr = loadUserFiles(); const f = arr.find(x => x.id === id); if (f) { try { binDel(path.join(USERDOCS_DIR, f.id + '.' + f.ext)); } catch (e) {} saveUserFiles(arr.filter(x => x.id !== id)); } return res.json({ ok: true }); }
     return res.status(400).json({ ok: false, error: 'Unknown document type.' });
   } catch (e) { return res.status(500).json({ ok: false, error: String((e && e.message) || e) }); }
 });
@@ -12818,7 +12830,7 @@ app.post('/api/files', express.json({ limit: '28mb' }), (req, res) => {
   if (buf.length > 25 * 1024 * 1024) return res.status(400).json({ ok:false, error:'File too large (max 25 MB).' });
   try { if (!fs.existsSync(USERDOCS_DIR)) fs.mkdirSync(USERDOCS_DIR, { recursive: true }); } catch (e) { return res.status(500).json({ ok:false, error:'Could not create the documents folder.' }); }
   const id = newFileId();
-  try { fs.writeFileSync(path.join(USERDOCS_DIR, id + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok:false, error:'Could not save the file.' }); }
+  try { binWrite(path.join(USERDOCS_DIR, id + '.' + ext), buf); } catch (e) { return res.status(500).json({ ok:false, error:'Could not save the file.' }); }
   const files = loadUserFiles();
   const rt = String(b.relatesToType||''); const rid = String(b.relatesToId||'');
   let _co=String(b.companyId||''), _pe=String(b.personId||''), _dk=String(b.dealKey||'');
@@ -12850,7 +12862,7 @@ app.delete('/api/files/:id', (req, res) => {
   const files = loadUserFiles(); const fRec = files.find(x => x.id === req.params.id);
   if (!fRec) return res.status(404).json({ ok:false, error:'Not found.' });
   if (restrictToOwn(req) && !permOwnerMatch(req, fRec.createdBy)) return res.status(403).json({ ok:false, error:'Not yours.' });
-  try { fs.unlinkSync(path.join(USERDOCS_DIR, fRec.id + '.' + fRec.ext)); } catch (e) {}
+  try { binDel(path.join(USERDOCS_DIR, fRec.id + '.' + fRec.ext)); } catch (e) {}
   saveUserFiles(files.filter(x => x.id !== req.params.id));
   res.json({ ok:true });
 });
@@ -13126,7 +13138,7 @@ app.post('/api/agreements/:id/doc', express.json({ limit: '28mb' }), (req, res) 
   if (!dataB64) return res.status(400).json({ ok: false, error: 'No file data.' });
   const ext = agreementDocExt(b.filename); const buf = Buffer.from(dataB64, 'base64');
   if (buf.length > 20 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 20 MB).' });
-  try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); if (a.docExt && a.docExt !== ext) { try { fs.unlinkSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); } catch (e) {} } fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + ext), buf); }
+  try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); if (a.docExt && a.docExt !== ext) { try { binDel(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); } catch (e) {} } binWrite(path.join(AGREEMENT_DOC_DIR, a.id + '.' + ext), buf); }
   catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
   a.docExt = ext; a.docName = String(b.filename || ('agreement.' + ext)).slice(0, 200); a.updatedAt = new Date().toISOString();
   saveAgreements(all); res.json({ ok: true, agreement: agreementBrief(a) });
@@ -13140,7 +13152,7 @@ app.get('/api/agreements/:id/doc', (req, res) => {
 app.post('/api/agreements/:id/doc/clear', (req, res) => {
   const all = loadAgreements(); const a = all.find(x => x.id === req.params.id);
   if (!a) return res.status(404).json({ ok: false, error: 'Agreement not found.' });
-  if (a.docExt) { try { fs.unlinkSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); } catch (e) {} }
+  if (a.docExt) { try { binDel(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); } catch (e) {} }
   a.docExt = ''; a.docName = ''; a.updatedAt = new Date().toISOString(); saveAgreements(all);
   res.json({ ok: true, agreement: agreementBrief(a) });
 });
@@ -13283,7 +13295,7 @@ app.post('/api/sign/:token', express.json({ limit: '8mb' }), async (req, res) =>
   const _vals = Array.isArray(a.fieldValues) ? a.fieldValues : [];
   const responses = {}; fields.forEach(function(fld, i){ responses[fld.label] = String((_vals[i] != null ? _vals[i] : (Array.isArray(b.responses) ? b.responses[i] : '')) || '').slice(0, 500); });
   const now = new Date().toISOString();
-  try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); const buf = Buffer.from(sig.replace(/^data:image\/png;base64,/, ''), 'base64'); if (buf.length > 3 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Signature too large.' }); fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, 'sig_' + a.id + '.png'), buf); a.hasSignature = true; } catch (e) {}
+  try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); const buf = Buffer.from(sig.replace(/^data:image\/png;base64,/, ''), 'base64'); if (buf.length > 3 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Signature too large.' }); binWrite(path.join(AGREEMENT_DOC_DIR, 'sig_' + a.id + '.png'), buf); a.hasSignature = true; } catch (e) {}
   a.signStatus = 'awaiting_countersign'; a.signedDate = now.slice(0, 10); a.signedAt = now; a.signedName = String(b.name || a.personName || responses['Full name'] || '').slice(0, 160); a.signedResponses = responses; a.signedIp = req.ip; a.status = 'active'; a.updatedAt = now;
   saveAgreements(all);
   if (a.personId) { try { const ppl = loadPeople(); const pp = ppl.find(x => x.id === a.personId); if (pp) { logActivity(pp, 'Agreement Signed', agreementTypeLabel(a.type) + ' signed by ' + (a.signedName || 'contact') + ' \u2014 awaiting your countersignature', { auto: true, date: a.signedDate }); savePeople(ppl); } } catch (e) {} }
@@ -13302,7 +13314,7 @@ app.post('/api/agreements/:id/countersign', express.json({ limit: '8mb' }), (req
   const sig = String(b.signature || '');
   if (!/^data:image\/png;base64,/.test(sig)) return res.status(400).json({ ok: false, error: 'Draw your signature to countersign.' });
   const now = new Date().toISOString();
-  try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); const buf = Buffer.from(sig.replace(/^data:image\/png;base64,/, ''), 'base64'); if (buf.length > 3 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Signature too large.' }); fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, 'countersig_' + a.id + '.png'), buf); a.hasCountersign = true; } catch (e) {}
+  try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); const buf = Buffer.from(sig.replace(/^data:image\/png;base64,/, ''), 'base64'); if (buf.length > 3 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'Signature too large.' }); binWrite(path.join(AGREEMENT_DOC_DIR, 'countersig_' + a.id + '.png'), buf); a.hasCountersign = true; } catch (e) {}
   a.repSignedName = String(b.name || (req.user && req.user.name) || '').slice(0, 160);
   a.repSignedAt = now; a.executedAt = now; a.signStatus = 'executed'; a.signedDate = a.signedDate || now.slice(0, 10); a.status = 'active'; a.updatedAt = now;
   saveAgreements(all);
@@ -13388,7 +13400,7 @@ app.post('/api/admin/agreement-templates/:id/file', requireAdmin, express.json({
   if (!dataB64) return res.status(400).json({ ok: false, error: 'No file data.' });
   const ext = agreementDocExt(b.filename); const buf = Buffer.from(dataB64, 'base64');
   if (buf.length > 20 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'File too large (max 20 MB).' });
-  try { if (!fs.existsSync(AGREEMENT_TPL_DIR)) fs.mkdirSync(AGREEMENT_TPL_DIR, { recursive: true }); if (t.fileExt && t.fileExt !== ext) { try { fs.unlinkSync(path.join(AGREEMENT_TPL_DIR, t.id + '.' + t.fileExt)); } catch (e) {} } fs.writeFileSync(path.join(AGREEMENT_TPL_DIR, t.id + '.' + ext), buf); }
+  try { if (!fs.existsSync(AGREEMENT_TPL_DIR)) fs.mkdirSync(AGREEMENT_TPL_DIR, { recursive: true }); if (t.fileExt && t.fileExt !== ext) { try { binDel(path.join(AGREEMENT_TPL_DIR, t.id + '.' + t.fileExt)); } catch (e) {} } binWrite(path.join(AGREEMENT_TPL_DIR, t.id + '.' + ext), buf); }
   catch (e) { return res.status(500).json({ ok: false, error: 'Could not save the file.' }); }
   t.fileExt = ext; t.fileName = String(b.filename || ('template.' + ext)).slice(0, 200); t.updatedAt = new Date().toISOString();
   saveTemplates(all); res.json({ ok: true, template: templateBrief(t) });
@@ -13402,7 +13414,7 @@ app.get('/api/agreement-templates/:id/file', (req, res) => {
 app.delete('/api/admin/agreement-templates/:id', requireAdmin, (req, res) => {
   const all = loadTemplates(); const t = all.find(x => x.id === req.params.id);
   if (!t) return res.status(404).json({ ok: false, error: 'Template not found.' });
-  if (t.fileExt) { try { fs.unlinkSync(path.join(AGREEMENT_TPL_DIR, t.id + '.' + t.fileExt)); } catch (e) {} }
+  if (t.fileExt) { try { binDel(path.join(AGREEMENT_TPL_DIR, t.id + '.' + t.fileExt)); } catch (e) {} }
   saveTemplates(all.filter(x => x.id !== t.id)); res.json({ ok: true });
 });
 function clamp01(v) { v = parseFloat(v); if (!isFinite(v)) return 0; return Math.max(0, Math.min(1, v)); }
@@ -13472,7 +13484,7 @@ app.post('/api/agreements/:id/self-sign-return', express.json({ limit: '8mb' }),
       pg.drawImage(png, { x: _sigX, y: _sigY, width: w, height: h });
       _lines.forEach((ln, i) => { pg.drawText(ln, { x: _sigX, y: _mb + _tbh - (i + 1) * _lh, size: _fsz, font: _sfont, color: rgb(0.1, 0.13, 0.2) }); });
     }
-    const out = await pdf.save(); fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'), Buffer.from(out));
+    const out = await pdf.save(); binWrite(path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'), Buffer.from(out));
     const now = new Date().toISOString();
     a.hasFinal = true; a.signStatus = 'executed'; a.entryMethod = 'signreturn'; a.executedAt = now; a.signedDate = _dt || a.signedDate || now.slice(0, 10); a.repSignedName = _nm || (req.user && req.user.name) || ''; a.repSignedTitle = _ti || a.repSignedTitle || ''; a.repSignedAt = now; a.status = 'active'; a.updatedAt = now;
     saveAgreements(all);
@@ -13491,8 +13503,8 @@ app.post('/api/agreements/:id/apply-template', express.json(), (req, res) => {
   try {
     if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true });
     const src = fs.readFileSync(path.join(AGREEMENT_TPL_DIR, t.id + '.' + t.fileExt));
-    if (a.docExt && a.docExt !== t.fileExt) { try { fs.unlinkSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); } catch (e) {} }
-    fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, a.id + '.' + t.fileExt), src);
+    if (a.docExt && a.docExt !== t.fileExt) { try { binDel(path.join(AGREEMENT_DOC_DIR, a.id + '.' + a.docExt)); } catch (e) {} }
+    binWrite(path.join(AGREEMENT_DOC_DIR, a.id + '.' + t.fileExt), src);
   } catch (e) { return res.status(500).json({ ok: false, error: 'Could not copy the template document.' }); }
   a.docExt = t.fileExt; a.docName = t.fileName || ('template.' + t.fileExt);
   a.templateId = t.id; a.templateName = t.name || '';
@@ -13729,7 +13741,7 @@ async function burnFinalPdf(a) {
   ap.drawText('Each party consented to sign electronically. Drawn signatures are legally binding equivalents of', { x: 50, y: 46, size: 8, font, color: rgb(0.5, 0.55, 0.62) });
   ap.drawText('handwritten signatures under applicable e-signature law.', { x: 50, y: 36, size: 8, font, color: rgb(0.5, 0.55, 0.62) });
   const out = await pdf.save();
-  fs.writeFileSync(path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'), Buffer.from(out));
+  binWrite(path.join(AGREEMENT_DOC_DIR, 'final_' + a.id + '.pdf'), Buffer.from(out));
   a.hasFinal = true;
 }
 
@@ -13746,7 +13758,7 @@ function submitAdvancedSign(req, res, all, a, me) {
   a.fieldValues = a.fieldValues || {};
   try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); } catch (e) {}
   myFields.forEach(f => {
-    if (f.type === 'signature' || f.type === 'initials') { const d = String(sigs[f.id] || ''); if (/^data:image\/png;base64,/.test(d)) { try { const buf = Buffer.from(d.replace(/^data:image\/png;base64,/, ''), 'base64'); if (buf.length <= 3 * 1024 * 1024) fs.writeFileSync(sigFieldPath(a, f.id), buf); } catch (e) {} } }
+    if (f.type === 'signature' || f.type === 'initials') { const d = String(sigs[f.id] || ''); if (/^data:image\/png;base64,/.test(d)) { try { const buf = Buffer.from(d.replace(/^data:image\/png;base64,/, ''), 'base64'); if (buf.length <= 3 * 1024 * 1024) binWrite(sigFieldPath(a, f.id), buf); } catch (e) {} } }
     else if (f.type === 'checkbox') { a.fieldValues[f.id] = values[f.id] ? '1' : ''; }
     else { a.fieldValues[f.id] = String(values[f.id] || '').slice(0, 500); }
   });
@@ -14719,3 +14731,6 @@ process.on('uncaughtException', (err) => { try { console.error('uncaughtExceptio
 
 const PORT = process.env.PORT || 8787;
 app.listen(PORT, () => console.log(`RRG toolkit server listening on :${PORT}`));
+// Reconcile binary assets with object storage on boot: migrate disk→bucket (first run)
+// and restore anything the disk is missing (after a disk loss). Async; never blocks startup.
+setTimeout(() => { try { if (blobstore.ready()) { blobstore.reconcile().then(r => { if (r && !r.skipped) console.log('[BLOB] boot reconcile — uploaded ' + r.uploaded + ', restored ' + r.restored); }).catch(e => console.error('[BLOB] reconcile failed: ' + (e && e.message))); } } catch (e) {} }, 8000);
