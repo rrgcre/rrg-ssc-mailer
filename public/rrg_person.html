@@ -572,7 +572,7 @@ function openAgrForm(a){
   var sig=document.getElementById('agr_sig');
   if(a&&a.id&&a.pdfFieldCount>0){ renderAdvSig(a); return; }
   if(a&&a.id){
-    var docLine=a.docExt?('<span class="agrdoc">📎 '+esc(a.docName||'document')+' <a href="/api/agreements/'+encodeURIComponent(a.id)+'/doc" target="_blank" rel="noopener">view</a> · <a href="#" data-agrdocclear="1">remove</a></span>'):('<label class="mfadd" style="cursor:pointer">Attach document<input type="file" id="agr_docfile" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label>');
+    var docLine=a.docExt?('<span class="agrdoc">📎 '+esc(a.hasFinal?'Executed copy':(a.docName||'document'))+' <a href="/api/agreements/'+encodeURIComponent(a.id)+'/'+(a.hasFinal?'final':'doc')+'" target="_blank" rel="noopener">view</a>'+(a.hasFinal?'':' · <a href="#" data-agrdocclear="1">remove</a>')+'</span>'):('<label class="mfadd" style="cursor:pointer">Attach document<input type="file" id="agr_docfile" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" hidden></label>');
     var _exec=(a.signStatus==='executed'||a.signStatus==='signed'); var _await=(a.signStatus==='awaiting_countersign');
     var st='<span class="sigpill '+_agrCls(a.statusKey)+'">'+esc(a.statusLabel||'Active')+(((a.statusKey==='executed'||a.statusKey==='active')&&a.signedDate)?(' '+fmt(a.signedDate)):'')+'</span>';
     var signUrl=a.signToken?(location.origin+'/sign/'+a.signToken):'';
