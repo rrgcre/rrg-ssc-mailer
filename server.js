@@ -6004,7 +6004,7 @@ function mergeTokens(t, p, user) {
   let today = ''; try { today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }); } catch (e) {}
   let _lst = null, _lstDone = false;
   function _listing() { if (!_lstDone) { _lstDone = true; try { _lst = (p && (p._listing || null)) || personPrimaryListing(p); } catch (e) { _lst = null; } } return _lst || { name: '', number: '' }; }
-  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|email|phone|my_name|my_title|my_phone|my_email|today|listing_name|listing_number|listing_no|listing)\s*\}\}/gi, function (_, k) {
+  return String(t || '').replace(/\{\{\s*(first_name|firstname|last_name|lastname|name|company|title|email|phone|my_name|my_title|my_phone|my_email|brokerage|brokerage_legal|today|listing_name|listing_number|listing_no|listing)\s*\}\}/gi, function (_, k) {
     k = k.toLowerCase();
     if (k === 'first_name' || k === 'firstname') return first;
     if (k === 'last_name' || k === 'lastname') return last;
@@ -6017,6 +6017,7 @@ function mergeTokens(t, p, user) {
     if (k === 'my_title') return user.title || '';
     if (k === 'my_phone') return user.phone || '';
     if (k === 'my_email') return user.email || '';
+    if (k === 'brokerage' || k === 'brokerage_legal') { try { return orgLegalName(); } catch (e) { return ''; } }
     if (k === 'today') return today;
     if (k === 'listing_name' || k === 'listing') return _listing().name || '';
     if (k === 'listing_number' || k === 'listing_no') return _listing().number || '';
@@ -12686,7 +12687,11 @@ const AGREEMENT_TYPES = [
   { key: 'AssocBroker', label: 'Associate Broker Agreement' }
 ];
 const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
-function effAgreementTypes() { const s = loadSettings(); let list = (Array.isArray(s.agreementTypes) && s.agreementTypes.length) ? s.agreementTypes.filter(t => t && t.key && t.label).map(t => ({ key: String(t.key), label: String(t.label) })) : AGREEMENT_TYPES.slice(); if (!list.length) list = AGREEMENT_TYPES.slice(); AGREEMENT_TYPES.forEach(function(rt){ if (!list.some(function(x){ return x.key === rt.key; })) list.push({ key: rt.key, label: rt.label }); }); return list; }
+function effAgreementTypes() { const s = loadSettings(); let list = (Array.isArray(s.agreementTypes) && s.agreementTypes.length) ? s.agreementTypes.filter(t => t && t.key && t.label).map(t => ({ key: String(t.key), label: String(t.label) })) : AGREEMENT_TYPES.slice(); if (!list.length) list = AGREEMENT_TYPES.slice(); AGREEMENT_TYPES.forEach(function(rt){ if (!list.some(function(x){ return x.key === rt.key; })) list.push({ key: rt.key, label: rt.label }); });
+  // Auto-upgrade a built-in type whose label is still the bare abbreviation (e.g. "NDA") to its spelled-out default.
+  const _def = {}; AGREEMENT_TYPES.forEach(function(t){ _def[t.key] = t.label; });
+  list.forEach(function(t){ if (_def[t.key] && String(t.label) === String(t.key)) t.label = _def[t.key]; });
+  return list; }
 function agreementTypeKeys() { return effAgreementTypes().map(t => t.key); }
 function agreementStatus(a){
   a = a || {};
@@ -13174,7 +13179,7 @@ app.get('/sign/:token', (req, res) => {
   const _party = p ? p.name : (a.personName || '');
   const _coName = a.companyId ? ((companyById(a.companyId) || {}).name || '') : '';
   const _today = new Date().toISOString().slice(0, 10);
-  function prefillFor(fld) { const k = String(fld.autofill || '').toLowerCase(); const L = String(fld.label || '').toLowerCase(); const _rep = repUserForAgreement(a); if (k === 'party_name' || k === 'name' || (!k && /\bname\b/.test(L))) return _party; if (k === 'first_name') return p ? (personFirst(p) || '') : ''; if (k === 'last_name') return p ? (personLast(p) || '') : ''; if (k === 'title') return p ? (p.title || '') : ''; if (k === 'phone') return p ? preferredPhoneOf(p) : ''; if (k === 'company' || (!k && /(company|firm)/.test(L))) return _coName; if (k === 'my_name') return _rep.name; if (k === 'my_title') return _rep.title; if (k === 'my_email') return _rep.email; if (k === 'my_phone') return _rep.phone; if (k === 'date' || (!k && /date/.test(L))) return _today; if (k === 'email' || (!k && /email/.test(L))) return (p ? preferredEmailOf(p) : ''); return ''; }
+  function prefillFor(fld) { const k = String(fld.autofill || '').toLowerCase(); const L = String(fld.label || '').toLowerCase(); const _rep = repUserForAgreement(a); if (k === 'party_name' || k === 'name' || (!k && /\bname\b/.test(L))) return _party; if (k === 'first_name') return p ? (personFirst(p) || '') : ''; if (k === 'last_name') return p ? (personLast(p) || '') : ''; if (k === 'title') return p ? (p.title || '') : ''; if (k === 'phone') return p ? preferredPhoneOf(p) : ''; if (k === 'company' || (!k && /(company|firm)/.test(L))) return _coName; if (k === 'my_name') return _rep.name; if (k === 'my_title') return _rep.title; if (k === 'my_email') return _rep.email; if (k === 'my_phone') return _rep.phone; if (k === 'brokerage' || k === 'brokerage_legal' || (!k && /(brokerage|broker legal)/.test(L))) return orgLegalName(); if (k === 'date' || (!k && /date/.test(L))) return _today; if (k === 'email' || (!k && /email/.test(L))) return (p ? preferredEmailOf(p) : ''); return ''; }
   const _vals = Array.isArray(a.fieldValues) ? a.fieldValues : [];
   const fieldHtml = '<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin:4px 0 8px">Agreement details</div>'+fields.map(function(fld, i){ var val=(_vals[i]!=null && String(_vals[i])!=='')?_vals[i]:prefillFor(fld); return '<div style="display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid #eef1f6"><span style="font-size:12.5px;font-weight:700;color:#8a93a8">'+esc(fld.label)+'</span><span style="font-size:14.5px;color:#1a2236;font-weight:600;text-align:right">'+esc(fmtSignVal(fld.type==='autofill'?(fld.autofill||'text'):fld.type, val)||'\u2014')+'</span></div>'; }).join('');
   const docLink = (function(){ if(!a.docExt) return ''; var src='/sign/'+esc(a.signToken)+'/doc'; var open='<div style="text-align:right;margin-top:8px"><a href="'+src+'" target="_blank" rel="noopener" style="color:#2647b0;font-weight:700;font-size:12.5px;text-decoration:none">Open full document ↗</a></div>'; var hdr='<div style="font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;margin:4px 0 10px">Document preview</div>'; if(a.docExt==='pdf') return hdr+'<div style="border:1px solid #e6e9f0;border-radius:10px;overflow:hidden;background:#f5f7fb"><iframe src="'+src+'#view=FitH" title="Agreement document" style="width:100%;height:540px;border:0;display:block"></iframe></div>'+open; if(a.docExt==='png'||a.docExt==='jpg') return hdr+'<div style="border:1px solid #e6e9f0;border-radius:10px;overflow:hidden;background:#f5f7fb;text-align:center"><img src="'+src+'" alt="Agreement document" style="max-width:100%;display:block;margin:0 auto"></div>'+open; return hdr+'<a href="'+src+'" target="_blank" rel="noopener" style="display:block;text-align:center;border:1px dashed #cfd6e2;border-radius:10px;padding:18px;color:#2647b0;font-weight:700;text-decoration:none;background:#f8fafc">Open the '+esc(label)+' document to review →</a>'; })();
@@ -13518,6 +13523,7 @@ function signerFieldPrefill(a, fld) {
   if (k === 'my_title') return rep.title;
   if (k === 'my_email') return rep.email;
   if (k === 'my_phone') return rep.phone;
+  if (k === 'brokerage' || k === 'brokerage_legal') return orgLegalName();
   if (k === 'date') return new Date().toISOString().slice(0, 10);
   return '';
 }

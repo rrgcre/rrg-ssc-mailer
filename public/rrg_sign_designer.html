@@ -92,6 +92,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
         <button class="tool af" data-af="my_title">Title</button>
         <button class="tool af" data-af="my_email">Email</button>
         <button class="tool af" data-af="my_phone">Phone</button>
+        <button class="tool af" data-af="brokerage">Brokerage legal name</button>
       </div>
     </div>
     <div class="psec" id="alignPanel" style="display:none"><div class="plbl">Align &amp; arrange</div>
@@ -113,7 +114,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
       <div class="selbox">
         <label class="fld">Label</label><input id="f_label" placeholder="e.g. Tenant name">
         <label class="fld">Auto-fill from record</label>
-        <select id="f_auto"><option value="">— none —</option><option value="email">Client — email</option><option value="first_name">Client — first name</option><option value="party_name">Client — full name</option><option value="last_name">Client — last name</option><option value="phone">Client — phone</option><option value="title">Client — title</option><option value="company">Company / firm</option><option value="my_email">Me — email</option><option value="my_name">Me — name</option><option value="my_phone">Me — phone</option><option value="my_title">Me — title</option><option value="date">Today's date</option></select>
+        <select id="f_auto"><option value="">— none —</option><option value="email">Client — email</option><option value="first_name">Client — first name</option><option value="party_name">Client — full name</option><option value="last_name">Client — last name</option><option value="phone">Client — phone</option><option value="title">Client — title</option><option value="company">Company / firm</option><option value="my_email">Me — email</option><option value="my_name">Me — name</option><option value="my_phone">Me — phone</option><option value="my_title">Me — title</option><option value="brokerage">Brokerage — legal name</option><option value="date">Today's date</option></select>
         <label class="chk"><input type="checkbox" id="f_req"> Required</label>
         <div style="height:1px;background:var(--line);margin:10px 0"></div>
         <label class="fld">Font</label>
@@ -147,7 +148,7 @@ if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudf
 var PENDING_AF='';
 function setTool(t){ TOOL=t; PENDING_AF=''; document.querySelectorAll('.tool').forEach(function(b){ b.classList.toggle('on', !b.classList.contains('af') && b.getAttribute('data-tool')===t); }); }
 function setAFTool(af){ TOOL='text'; PENDING_AF=af; document.querySelectorAll('.tool').forEach(function(b){ b.classList.toggle('on', b.classList.contains('af') && b.getAttribute('data-af')===af); }); }
-function afLabel(k){ var m={party_name:'Party name',first_name:'First name',last_name:'Last name',title:'Party title',email:'Party email',phone:'Party phone',company:'Company',my_name:'My name',my_title:'My title',my_email:'My email',my_phone:'My phone',date:'Date'}; return m[k]||'Text'; }
+function afLabel(k){ var m={party_name:'Party name',first_name:'First name',last_name:'Last name',title:'Party title',email:'Party email',phone:'Party phone',company:'Company',my_name:'My name',my_title:'My title',my_email:'My email',my_phone:'My phone',brokerage:'Brokerage legal name',date:'Date'}; return m[k]||'Text'; }
 function sigCount(){ return parseInt(document.getElementById('signerCount').value,10)||1; }
 function setSigner(n){ SIGNER=n; document.getElementById('sg1').className='seg'+(n===1?' on1':''); document.getElementById('sg2').className='seg'+(n===2?' on2':''); document.getElementById('sg3').className='seg'+(n===3?' on3':''); }
 function _segTxt(id,def){ var e=document.getElementById(id); var v=((e&&e.value)||'').trim(); return (v||def).toUpperCase(); }
