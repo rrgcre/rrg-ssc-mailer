@@ -167,7 +167,10 @@ function hdr(headers, name) { const h = (headers || []).find(x => x.name.toLower
 async function messagesForContact(username, emails, max) {
   const list = (emails || []).map(e => String(e || '').trim()).filter(Boolean);
   if (!list.length) return [];
-  const q = list.map(e => '(from:' + e + ' OR to:' + e + ')').join(' OR ');
+  // Real correspondence with the contact — exclude marketing/social blasts, spam and trash
+  // so bulk mail that merely touches the address never clutters the contact's timeline.
+  const addrQ = list.map(e => '(from:' + e + ' OR to:' + e + ')').join(' OR ');
+  const q = '(' + addrQ + ') -category:promotions -category:social -in:spam -in:trash';
   const u = 'https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=' + (max || 25) + '&q=' + encodeURIComponent(q);
   const r = await gapi(username, u, {});
   const j = await r.json();
