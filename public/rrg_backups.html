@@ -43,7 +43,7 @@ table{width:100%;border-collapse:collapse;margin-top:4px;} th,td{text-align:left
   <span class="disc" onclick="location.href='./index.html'">RRG</span>
   <div class="kicker">Admin · Data</div>
   <h1>Your whole book, safe and portable.</h1>
-  <div class="sub">A full copy of everything the team has built — deals, companies, contacts, requests, calls, valuations, marketing packs, and every uploaded data-room file. The server saves an automatic snapshot once a day. Download one any time to keep an off-site copy in Drive or Dropbox.</div>
+  <div class="sub">A full copy of everything the team has built — deals, companies, contacts, requests, calls, valuations, marketing packs, and every uploaded data-room file. Your records and documents are <b style="color:#8fe3c4">continuously backed up off the server and restore themselves automatically</b> if the disk is ever lost. The daily snapshots below are an additional portable copy you can download and keep in Drive or Dropbox.</div>
 </div></div>
 <div class="navcrumb"><a href="./index.html">Command</a><span>›</span>Data Backup</div>
 <div id="root" class="wrap"><div class="gate">Checking access…</div></div>
@@ -58,6 +58,14 @@ function shell(keep){
     +'<div class="stat"><div class="n" id="bkCount">—</div><div class="l">Saved snapshots</div></div>'
     +'<div class="stat"><div class="n" id="bkLatest">—</div><div class="l">Most recent</div></div>'
     +'<div class="stat"><div class="n">'+esc(keep)+' days</div><div class="l">Rolling retention</div></div>'
+    +'</div>'
+    +'<div class="card" id="aoCard">'
+      +'<h2>Always-on protection</h2>'
+      +'<p>These run automatically in the background — no action needed. Every change is mirrored off the server the moment it happens, and if the disk is ever lost the app restores itself from these on the next start. The snapshots below are a separate, portable point-in-time copy.</p>'
+      +'<table><thead><tr><th>Layer</th><th>What it protects</th><th>Status</th></tr></thead><tbody>'
+        +'<tr><td>Managed Postgres</td><td>All records — agreements, companies, contacts, deals, rooms</td><td id="aoPg">Checking…</td></tr>'
+        +'<tr><td>Object storage</td><td>All documents — executed PDFs, signatures, templates, uploads, photos</td><td id="aoBlob">Checking…</td></tr>'
+      +'</tbody></table>'
     +'</div>'
     +'<div class="card">'
       +'<h2>Back up now</h2>'
@@ -99,10 +107,17 @@ async function restoreSnap(name){ if(!await _restoreConfirm('the snapshot \u201c
 async function restoreFromFile(){ var fi=document.getElementById('restoreFile'), f=fi&&fi.files&&fi.files[0], m=document.getElementById('restoreMsg'); if(!f){ m.textContent='Choose a backup .zip first.'; return; } if(!/\.zip$/i.test(f.name)){ m.textContent='That is not a .zip backup.'; return; } if(f.size>256*1024*1024){ m.textContent='File too large (max 256 MB).'; return; } if(!await _restoreConfirm('the uploaded file \u201c'+f.name+'\u201d')) return; var rd=new FileReader(); rd.onload=function(){ var s=String(rd.result||''), i=s.indexOf(','), b64=(i>=0?s.slice(i+1):s); _doRestore({dataB64:b64, filename:f.name}, m); }; rd.onerror=function(){ m.textContent='Could not read that file.'; }; rd.readAsDataURL(f); }
 function runBackup(){ var m=document.getElementById('bkmsg'); var b=document.getElementById('bkbtn'); if(b){ b.disabled=true; b.dataset.lbl=b.textContent; b.textContent='Saving…'; } m.innerHTML='<span class="bkspin"></span>Saving a snapshot on the server — this can take a moment for large data rooms…'; post('/api/admin/backup/run',{}).then(function(j){ if(b){ b.disabled=false; b.textContent=b.dataset.lbl||'Save a snapshot on the server'; } if(j&&j.ok){ m.innerHTML='✓ Snapshot saved'+(j.name?(' — <b>'+esc(j.name)+'</b>'):'')+'. It is in the list below and ready to download.'; loadBackups(); setTimeout(function(){ m.textContent=''; },6000); } else { m.textContent=(j&&j.error)||'Backup failed.'; } }).catch(function(){ if(b){ b.disabled=false; b.textContent=b.dataset.lbl||'Save a snapshot on the server'; } m.textContent='Backup failed — network error.'; }); }
 
+function loadProtection(){ fetch('/health',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(h){
+  function set(id,on){ var el=document.getElementById(id); if(!el) return; el.innerHTML = on ? '<b style="color:#0e7a53">✓ Backing up</b>' : '<b style="color:#B7791F">— Not configured</b>'; }
+  set('aoPg', !!(h && h.pgBackup==='on'));
+  set('aoBlob', !!(h && h.blobStore==='on'));
+}).catch(function(){ ['aoPg','aoBlob'].forEach(function(id){ var el=document.getElementById(id); if(el) el.textContent='—'; }); }); }
+
 fetch('/api/admin/backups',{credentials:'same-origin'}).then(function(r){ if(r.status===403) throw 0; return r.json(); }).then(function(j){
   if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load backups.</div>'; return; }
   document.getElementById('root').innerHTML=shell(j.keep||14);
   loadBackups();
+  loadProtection();
 }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate"><h2>Admins only</h2>Ask an administrator to manage data backups.</div>'; });
 </script>
 </body>
