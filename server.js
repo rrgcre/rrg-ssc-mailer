@@ -41,24 +41,43 @@ function loadBovs() { try { return rj(BOVS_FILE); } catch (e) { return []; } }
 // writer (atomic tmp+rename + empty-overwrite guard) lives in ./datasafe.js and is the
 // fallback here; the SQLite writer carries the same guard (see db.js).
 const { writeJsonGuarded: _fileWriteGuarded } = require('./datasafe');
-// SQLite is behind an env switch (USE_SQLITE=1) while we confirm the native module
-// runs on Render. A native crash cannot be caught by try/catch, so when the switch is
-// off we never even require('./db') — the app runs on JSON files exactly as before.
-let _db = null, DB_OK = false;
-if (process.env.USE_SQLITE === '1') {
+// Durable data layer, chosen at boot in priority order:
+//   1. Postgres (DATABASE_URL set) — managed, backed-up source of truth. Reads are
+//      served from an in-memory cache loaded synchronously at boot; writes stream
+//      through to Postgres and are mirrored to the local JSON files as a warm
+//      fallback. This is the production target.
+//   2. SQLite (USE_SQLITE=1) — single-file store on the persistent disk.
+//   3. JSON files — the original behavior.
+// Every layer is fail-safe: if its native module or connection is unavailable, the
+// try/catch drops to the next option so the app always boots.
+let _db = null, DB_OK = false, DB_KIND = 'files';
+if (process.env.DATABASE_URL) {
+  try {
+    _db = require('./pgstore');
+    _db.init(BOV_DATA_DIR);
+    const _imp = _db.importFromFiles(BOV_DATA_DIR);
+    DB_OK = true; DB_KIND = 'postgres';
+    if (_imp && _imp.length) console.log('[DB] first-boot migration imported ' + _imp.length + ' store(s) into Postgres: ' + _imp.join(', '));
+    console.log('[DB] Postgres data layer active (source of truth: managed Postgres; local JSON kept as mirror).');
+  } catch (e) {
+    _db = null; DB_OK = false;
+    console.error('[DB] Postgres unavailable — falling back. Reason: ' + (e && e.message));
+  }
+}
+if (!DB_OK && process.env.USE_SQLITE === '1') {
   try {
     _db = require('./db');
     _db.init(BOV_DATA_DIR);
     const _imp = _db.importFromFiles(BOV_DATA_DIR);
-    DB_OK = true;
+    DB_OK = true; DB_KIND = 'sqlite';
     if (_imp && _imp.length) console.log('[DB] first-boot migration imported ' + _imp.length + ' store(s): ' + _imp.join(', '));
     console.log('[DB] SQLite data layer active at ' + path.join(BOV_DATA_DIR, 'fullserve.db'));
   } catch (e) {
+    _db = null; DB_OK = false;
     console.error('[DB] SQLite unavailable — running on JSON files. Reason: ' + (e && e.message));
   }
-} else {
-  console.log('[DB] SQLite disabled (set USE_SQLITE=1 to enable). Running on JSON files.');
 }
+if (!DB_OK) console.log('[DB] Running on JSON files (set DATABASE_URL for Postgres, or USE_SQLITE=1 for SQLite).');
 function writeJsonGuarded(file, data, label) {
   if (DB_OK) return _db.writeStore(path.basename(file), data, label);
   return _fileWriteGuarded(file, data, label);
@@ -1244,7 +1263,7 @@ function requireAdmin(req, res, next) {
   return res.status(403).send('Admin access only.');
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true }));
+app.get('/health', (_req, res) => res.json({ ok: true, storage: DB_KIND, pgPending: (DB_KIND === 'postgres' && _db && _db._pending) ? _db._pending() : 0 }));
 
 /* ---------- login / logout ---------- */
 app.get('/login', (req, res) => {

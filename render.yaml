@@ -46,3 +46,21 @@ services:
         sync: false               # Render will prompt you — your Claude API key (console.anthropic.com)
       - key: ANTHROPIC_MODEL
         value: claude-sonnet-4-5  # the Claude model used to draft BOVs (set to the current Sonnet id)
+      # ---- Durable data layer: managed Postgres (source of truth, auto-backups) ----
+      # When DATABASE_URL is present the app runs on Postgres: records are read from an
+      # in-memory cache and every write streams through to Postgres AND is mirrored to
+      # the /var/data disk as a warm fallback. On first boot the app imports whatever is
+      # already on /var/data into Postgres (one-time migration), so nothing is lost.
+      - key: DATABASE_URL
+        fromDatabase:
+          name: rrg-postgres
+          property: connectionString
+      # PGSSL defaults to on (Render Postgres requires SSL). Do NOT set PGSSL=disable in prod.
+
+databases:
+  - name: rrg-postgres
+    databaseName: rrg
+    user: rrg
+    plan: basic-256mb        # ~$6/mo, includes daily backups + point-in-time recovery.
+                             # "free" exists for a trial but expires and has limited backups —
+                             # use a paid plan for the real book of business.
