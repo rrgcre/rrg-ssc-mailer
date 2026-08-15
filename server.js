@@ -12677,8 +12677,8 @@ function saveAgreements(a) { return writeJsonGuarded(AGREEMENTS_FILE, a, 'saveAg
 function newAgreementId() { return 'agr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const AGREEMENT_TYPES = [
   { key: 'NDA', label: 'Non-Disclosure Agreement' },
-  { key: 'CA', label: 'CA' },
-  { key: 'ETRA', label: 'ETRA' },
+  { key: 'CA', label: 'Confidentiality Agreement' },
+  { key: 'ETRA', label: 'Exclusive Tenant Representation Agreement' },
   { key: 'Referral', label: 'Referral Agreement' },
   { key: 'Listing', label: 'Exclusive Business Listing' },
   { key: 'TenantRep', label: 'Tenant Rep Agreement' },
