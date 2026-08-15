@@ -508,7 +508,7 @@ function refreshDocList(){
 }
 function agreementsCard(){
   var opts=ATYPES.map(function(t){return '<option value="'+esc(t.key)+'">'+esc(t.label)+'</option>';}).join('');
-  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span></div>'
+  return '<div class="card"><div class="ch"><b>Documents</b><span id="docCount">'+docCount()+'</span><button type="button" class="mfadd" onclick="openSendAgrMenu(this)" style="margin-left:auto;padding:5px 11px;font-size:12px">✉ Send agreement ▾</button></div>'
     +'<div class="cb"><div class="agrlist" id="docList">'+docListHtml()+'</div>'
     +'<div id="agrForm" hidden style="margin-top:12px;border-top:1px solid #e6e9f0;padding-top:12px">'
       +'<input type="hidden" id="agr_id">'
@@ -804,9 +804,25 @@ function openSignReturn(){
   ov.querySelector('#_sr_cancel').addEventListener('click',function(){ ov.remove(); });
   ov.querySelector('#_sr_go').addEventListener('click',function(){ var msg=ov.querySelector('#_sr_msg'); msg.textContent=''; var type=(ov.querySelector('#_sr_type').value||''); var to=(ov.querySelector('#_sr_to').value||'').trim(); if(!type){ msg.textContent='Pick an agreement type.'; return; } if(!file){ msg.textContent='Choose the PDF first.'; return; } if(!dirty){ msg.textContent='Please draw your signature.'; return; } if(!to){ msg.textContent='Enter the originator email.'; return; } var sig=pad.toDataURL('image/png'); var note=(ov.querySelector('#_sr_note').value||'').trim(); var _sn=(ov.querySelector('#_sr_incname').checked?(ov.querySelector('#_sr_name').value||'').trim():''); var _st=(ov.querySelector('#_sr_inctitle').checked?(ov.querySelector('#_sr_title').value||'').trim():''); var _sd=(ov.querySelector('#_sr_incdate').checked?(ov.querySelector('#_sr_date').value||''):''); var go=ov.querySelector('#_sr_go'); go.disabled=true; go.textContent='Working\u2026'; var rd=new FileReader(); rd.onload=function(){ fetch('/api/agreements',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({personId:ID,type:type,name:('Sign & return \u2014 '+file.name).slice(0,120)})}).then(function(r){return r.json();}).then(function(j){ if(!(j&&j.ok&&j.agreement)) throw new Error((j&&j.error)||'Could not create.'); var aid=j.agreement.id; return fetch('/api/agreements/'+encodeURIComponent(aid)+'/doc',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({filename:file.name,dataB64:String(rd.result||'')})}).then(function(r){return r.json();}).then(function(){ return fetch('/api/agreements/'+encodeURIComponent(aid)+'/self-sign-return',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({signature:sig,to:to,note:note,stampName:_sn,stampTitle:_st,stampDate:_sd,placements:(PLACE||null)})}).then(function(r){return r.json();}); }); }).then(function(j2){ if(j2&&j2.ok){ ov.remove(); load(); } else { go.disabled=false; go.textContent='Sign & send'; msg.textContent=(j2&&j2.error)||'Could not complete.'; } }).catch(function(e){ go.disabled=false; go.textContent='Sign & send'; msg.textContent=e.message||'Error.'; }); }; rd.readAsDataURL(file); });
 }
-function openSendModal(){
+function openSendAgrMenu(btn){
+  var ex=document.getElementById('sendAgrMenu'); if(ex){ ex.remove(); return; }
+  var IST='display:block;width:100%;text-align:left;border:none;background:none;padding:8px 9px;border-radius:6px;cursor:pointer;font:inherit;font-size:13px;color:#1a2236';
+  var tpls=(TEMPLATES||[]).filter(function(t){return t.fileExt;});
+  var html='';
+  if(tpls.length){ html+='<div style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:#8a93a8;padding:6px 9px 3px">Send for signature</div>'; tpls.forEach(function(t){ html+='<button type="button" class="samItem" data-tpl="'+esc(t.id)+'" style="'+IST+'">✉ '+esc(t.name)+'</button>'; }); html+='<div style="height:1px;background:#eef1f6;margin:5px 0"></div>'; }
+  else { html+='<div style="font-size:12px;color:#8a93a8;padding:8px 9px;line-height:1.4">No templates yet — add them in Admin → Agreement templates.</div><div style="height:1px;background:#eef1f6;margin:5px 0"></div>'; }
+  html+='<button type="button" class="samItem" data-act="upload" style="'+IST+'">📎 Use another agreement (upload)</button>';
+  html+='<button type="button" class="samItem" data-act="more" style="'+IST+'">⋯ Record signed · Sign &amp; return</button>';
+  var m=document.createElement('div'); m.id='sendAgrMenu'; m.style.cssText='position:absolute;z-index:140;background:#fff;border:1px solid #dbe0e9;border-radius:8px;box-shadow:0 12px 30px rgba(11,26,56,.16);min-width:240px;max-width:300px;padding:5px'; m.innerHTML=html;
+  document.body.appendChild(m);
+  var r=btn.getBoundingClientRect(); m.style.top=(window.scrollY+r.bottom+4)+'px'; m.style.left=(window.scrollX+Math.max(8,r.right-m.offsetWidth))+'px';
+  Array.prototype.forEach.call(m.querySelectorAll('.samItem'),function(b){ b.onmouseenter=function(){b.style.background='#f4f7fb';}; b.onmouseleave=function(){b.style.background='none';}; b.onclick=function(){ var tpl=b.getAttribute('data-tpl'), act=b.getAttribute('data-act'); m.remove(); if(tpl){ openSendModal(tpl); } else if(act==='upload'){ openSendModal(); var _f=document.getElementById('sm_file'); if(_f){ try{ _f.focus(); }catch(e){} } } else if(act==='more'){ openAgrChooser(); } }; });
+  setTimeout(function(){ document.addEventListener('click',function _c(ev){ var mm=document.getElementById('sendAgrMenu'); if(mm&&!mm.contains(ev.target)&&ev.target!==btn){ mm.remove(); document.removeEventListener('click',_c); } }); },0);
+}
+function openSendModal(preTpl){
   var tplOpts='<option value="">— Choose a template —</option>'+TEMPLATES.filter(function(t){return t.fileExt;}).map(function(t){return '<option value="'+esc(t.id)+'">'+esc(t.name)+((t.pdfFields&&t.pdfFields.length)?(' (in-PDF, '+(t.signerCount===2?'2 signers':'1 signer')+')'):'')+'</option>';}).join('');
   var stpl=document.getElementById('sm_tpl'); stpl.innerHTML=tplOpts;
+  if(preTpl){ try{ stpl.value=preTpl; }catch(e){} }
   document.getElementById('sm_to').value=_pEmail();
   (function(){ var _m=document.getElementById('sm_msg'); if(_m) _m.innerHTML=''; _smAutoMsg=''; })(); rrgRTWire();
   var sf=document.getElementById('sm_file'); if(sf) sf.value='';
