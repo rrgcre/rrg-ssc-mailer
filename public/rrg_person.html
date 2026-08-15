@@ -358,7 +358,20 @@ function agrRow(a){
   var signed=_exec;
   var title=a.name||atypeLabel(a.type);
   var _pendr=(_exec && a.effective && a.effective>today);
-  var statusTxt=_exec?(_pendr?('Commences '+esc(fmt(a.effective))):('Executed'+((a.signedDate||a.executedAt||a.effective)?(' · '+esc(fmt(a.signedDate||a.executedAt||a.effective))):''))):(_await?'Awaiting signature':(a.signStatus==='sent'?'Sent':(a.status==='terminated'?'Terminated':'Draft')));
+  var statusTxt;
+  if(_exec){
+    statusTxt=_pendr?('Commences '+esc(fmt(a.effective))):('Executed'+((a.signedDate||a.executedAt||a.effective)?(' · '+esc(fmt(a.signedDate||a.executedAt||a.effective))):''));
+  } else if(a.status==='terminated'){
+    statusTxt='Terminated'+(a.updatedAt?(' · '+esc(fmt(a.updatedAt))):'');
+  } else if(a.signStatus==='sent'||a.signStatus==='partial'||_await){
+    var _sg=Array.isArray(a.signers)?a.signers:[]; var _prog='';
+    if(_sg.length>=2){ var _tot=_sg.length, _done=_sg.filter(function(s){return s&&(s.status==='signed'||s.signedAt);}).length, _left=_tot-_done; if(_done>0&&_left>0) _prog=_done+' of '+_tot+' signed · '+_left+' more needed'; }
+    var _base=_prog||(_await?'Signed · countersignature needed':'Sent');
+    var _sd=_await?(a.signedDate||a.sentAt):(a.sentAt||a.createdAt);
+    statusTxt=_base+(_sd?(' · '+esc(fmt(_sd))):'');
+  } else {
+    statusTxt='Draft'+(a.createdAt?(' · '+esc(fmt(a.createdAt))):'');
+  }
   var _typeL=atypeLabel(a.type);
   var meta=(title&&title!==_typeL?(esc(_typeL)+' · '):'')+statusTxt;
   return '<div class="rrow agrrow'+(signed?' agrexec':'')+'" data-agr="'+esc(a.id)+'" title="Open the document"><span class="dico k-agreement"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.6 1.6 3.4-3.6"/></svg></span><div class="rrmain" style="min-width:0"><div class="docttl">'+esc(title)+'</div><div class="docmeta">'+meta+'</div></div>'+expChip(a)+agrEntryIcon(a)+'</div>';

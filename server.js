@@ -12721,7 +12721,20 @@ function agreementStatus(a){
   var executed = (ss === 'executed' || ss === 'signed');
   if (!executed) {
     if (a.status === 'terminated') return { key:'terminated', label:'Terminated' };
-    if (ss === 'sent' || ss === 'partial' || ss === 'awaiting_countersign') return { key:'awaiting', label:'Out for Sigs' };
+    if (ss === 'sent' || ss === 'partial' || ss === 'awaiting_countersign') {
+      // Multi-signer progress: as soon as one party signs, show how many remain.
+      var _sg = Array.isArray(a.signers) ? a.signers : [];
+      if (_sg.length >= 2) {
+        var _tot = _sg.length;
+        var _done = _sg.filter(function(s){ return s && (s.status === 'signed' || s.signedAt); }).length;
+        var _left = _tot - _done;
+        if (_done > 0 && _left > 0) return { key:'awaiting', label: _done + ' of ' + _tot + ' signed · ' + _left + ' more needed' };
+        if (_done === 0) return { key:'awaiting', label:'Out for Sigs' };
+      }
+      // Basic flow: the counterparty has signed and RRG's countersignature is the one still needed.
+      if (ss === 'awaiting_countersign') return { key:'awaiting', label:'Signed · countersignature needed' };
+      return { key:'awaiting', label:'Out for Sigs' };
+    }
     return { key:'draft', label:'Draft' };
   }
   if (a.status === 'terminated') return { key:'terminated', label:'Terminated' };
