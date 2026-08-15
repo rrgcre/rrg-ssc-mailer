@@ -166,7 +166,8 @@ tr:hover td{background:#fbfcfe;}
     <label class="mfld">Pipeline</label><select id="m_pipeline"></select><div style="font-size:11.5px;color:#6b7488;margin-top:5px;line-height:1.45">Optional — starts this contact as a listing on the board (Unqualified). Links to the company above when one is set.</div>
     <label class="mfld">Emails</label><div id="m_emails"></div>
     <label class="mfld">Phones</label><div id="m_phones"></div>
-    <div class="mrow"><div><label class="mfld">Lead source</label><input id="m_lead" list="leadList" placeholder="Referral, CoStar, event…" autocomplete="off"><datalist id="leadList"></datalist></div><div><label class="mfld">Nickname</label><input id="m_nick" placeholder="Optional"></div></div>
+    <div class="mrow"><div><label class="mfld">Title</label><input id="m_title" placeholder="e.g. Owner, GM, CFO"></div><div><label class="mfld">Nickname</label><input id="m_nick" placeholder="Optional"></div></div>
+    <label class="mfld">Lead source</label><input id="m_lead" list="leadList" placeholder="Referral, CoStar, event…" autocomplete="off"><datalist id="leadList"></datalist>
     <div class="mrow" id="refbyRow" hidden><div style="grid-column:1 / -1"><label class="mfld">Referred by</label><input id="m_refby" list="refbyList" placeholder="Type a contact name…" autocomplete="off"><datalist id="refbyList"></datalist></div></div>
     <label class="mfld">Tags</label><input id="m_tags" placeholder="Comma-separated, e.g. hot, franchisee, DFW">
     <div id="m_msg" style="font-size:12.5px;color:#b23a2c;margin-top:8px"></div>
@@ -326,14 +327,14 @@ function setupReferral(){
   toggleRefby();
 }
 function openModal(){ window._mTypes=interestPills('m_types',[]); document.getElementById('m_emails').innerHTML=mfHtml('m_email','name@email.com'); document.getElementById('m_phones').innerHTML=mfHtml('m_phone','(555) 555-5555'); wireMulti(document.getElementById('modal')); document.getElementById('m_msg').textContent=''; document.getElementById('modal').removeAttribute('hidden'); document.getElementById('m_first').focus(); loadCompaniesList(); setupReferral(); document.getElementById('m_pipeline').value=''; if(PIPELINES.length) fillPipelineSelect(); else loadPipelinesList(); }
-function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_first','m_last','m_company','m_lead','m_nick','m_tags','m_refby'].forEach(function(id){var el=document.getElementById(id); if(el) el.value='';}); var rr=document.getElementById('refbyRow'); if(rr) rr.setAttribute('hidden',''); }
+function closeModal(){ document.getElementById('modal').setAttribute('hidden',''); ['m_first','m_last','m_company','m_lead','m_title','m_nick','m_tags','m_refby'].forEach(function(id){var el=document.getElementById(id); if(el) el.value='';}); var rr=document.getElementById('refbyRow'); if(rr) rr.setAttribute('hidden',''); }
 function createContact(){
   var m=document.getElementById('m_msg');
   var first=document.getElementById('m_first').value.trim(), last=document.getElementById('m_last').value.trim(), types=(window._mTypes?window._mTypes.get():[]);
   if(!first||!last){ m.textContent='First and last name are required.'; return; }
   if(!types.length){ m.textContent='Pick at least one main interest.'; return; }
   var tags=(document.getElementById('m_tags').value||'').split(',').map(function(s){return s.trim();}).filter(Boolean);
-  var body={ firstName:first, lastName:last, types:types, companyName:document.getElementById('m_company').value.trim(), emails:collectMulti(document.getElementById('modal'),'m_email'), phones:collectMulti(document.getElementById('modal'),'m_phone'), leadSource:document.getElementById('m_lead').value.trim(), nickname:document.getElementById('m_nick').value.trim(), tags:tags, pipelineId:(document.getElementById('m_pipeline')||{}).value||'' };
+  var body={ firstName:first, lastName:last, types:types, companyName:document.getElementById('m_company').value.trim(), emails:collectMulti(document.getElementById('modal'),'m_email'), phones:collectMulti(document.getElementById('modal'),'m_phone'), leadSource:document.getElementById('m_lead').value.trim(), title:(document.getElementById('m_title')||{}).value.trim()||'', nickname:document.getElementById('m_nick').value.trim(), tags:tags, pipelineId:(document.getElementById('m_pipeline')||{}).value||'' };
   if(isReferral()){ var rbv=(document.getElementById('m_refby').value||'').trim(); if(rbv){ body.referredBy=rbv; var rid=REFMAP[rbv.toLowerCase()]; if(rid) body.referredById=rid; } }
   var b=document.getElementById('m_create'); b.disabled=true; b.textContent='Creating…';
   fetch('/api/person',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)})
