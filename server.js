@@ -13614,8 +13614,11 @@ app.get('/api/sign/:token/data', (req, res) => {
   const fields = (a.pdfFields || []).map(f => {
     const isSig = (f.type === 'signature' || f.type === 'initials');
     const signerObj = (a.signers || []).find(s => s.order === f.signer);
-    const mine = isSig && (f.signer === me.order);
-    const locked = !isSig || !!(signerObj && signerObj.status === 'signed');
+    const signerSigned = !!(signerObj && signerObj.status === 'signed');
+    // A field is fillable by whoever it's assigned to — text, date, checkbox AND signature —
+    // until that signer has signed. Only then does it lock to show the final value.
+    const mine = (f.signer === me.order) && me.status !== 'signed';
+    const locked = signerSigned;
     let value = (a.fieldValues && a.fieldValues[f.id]) || '';
     if (!isSig && !value) value = signerFieldPrefill(a, f);
     if (!isSig) value = fmtSignVal(f.type, value);
