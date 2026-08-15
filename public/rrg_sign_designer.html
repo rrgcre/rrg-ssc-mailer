@@ -116,6 +116,7 @@ label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:upper
         <label class="fld">Auto-fill from record</label>
         <select id="f_auto"><option value="">— none —</option><option value="email">Client — email</option><option value="first_name">Client — first name</option><option value="party_name">Client — full name</option><option value="last_name">Client — last name</option><option value="phone">Client — phone</option><option value="title">Client — title</option><option value="company">Company / firm</option><option value="my_email">Me — email</option><option value="my_name">Me — name</option><option value="my_phone">Me — phone</option><option value="my_title">Me — title</option><option value="brokerage">Brokerage — legal name</option><option value="date">Today's date</option></select>
         <label class="chk"><input type="checkbox" id="f_req"> Required</label>
+        <label class="chk" id="f_checked_row" style="display:none"><input type="checkbox" id="f_checked"> Checked by default</label>
         <div style="height:1px;background:var(--line);margin:10px 0"></div>
         <label class="fld">Font</label>
         <select id="f_font"><option value="">Helvetica (default)</option><option value="Arial">Arial</option><option value="Helvetica">Helvetica</option><option value="Times New Roman">Times New Roman</option><option value="Palatino">Palatino</option><option value="Calibri">Calibri</option><option value="Courier">Courier</option></select>
@@ -219,10 +220,12 @@ function openPanel(){
   document.getElementById('f_height').value=(PAGEPT.h?Math.round(f.h*PAGEPT.h):'');
   var isTxt=(f.type==='text'||f.type==='date');
   document.getElementById('f_auto').parentNode.style.opacity=isTxt?'1':'.4';
+  (function(){ var isCk=(f.type==='checkbox'); var row=document.getElementById('f_checked_row'); if(row) row.style.display=isCk?'':'none'; var _fc=document.getElementById('f_checked'); if(_fc) _fc.checked=(String(f.value)==='1'); })();
 }
 document.getElementById('f_label').addEventListener('input',function(){ var f=cur(); if(f){ f.label=this.value; drawFields(); scheduleSave(); } });
 document.getElementById('f_auto').addEventListener('change',function(){ var f=cur(); if(f){ f.autofill=this.value; scheduleSave(); } });
 document.getElementById('f_req').addEventListener('change',function(){ var f=cur(); if(f){ f.required=this.checked; drawFields(); scheduleSave(); } });
+document.getElementById('f_checked').addEventListener('change',function(){ var f=cur(); if(f){ f.value=this.checked?'1':''; drawFields(); scheduleSave(); } });
 document.getElementById('f_del').addEventListener('click',function(){ var f=cur(); if(f){ FIELDS=FIELDS.filter(function(x){return x.id!==f.id;}); MULTI=MULTI.filter(function(x){return x!==f.id;}); SELECTED=null; drawFields(); openPanel(); scheduleSave(); } });
 function cur(){ return FIELDS.filter(function(x){return x.id===SELECTED;})[0]; }
 function fieldById(id){ return FIELDS.filter(function(x){return x.id===id;})[0]; }

@@ -13430,7 +13430,8 @@ function cleanPdfFields(arr) {
     autofill: String((f && f.autofill) || '').slice(0, 20),
     font: String((f && f.font) || '').slice(0, 30),
     align: (['center', 'right'].indexOf(String(f && f.align)) >= 0) ? String(f.align) : 'left',
-    fontSize: (function(){ var n = parseFloat(f && f.fontSize); return (isFinite(n) && n > 0) ? Math.max(5, Math.min(48, n)) : ''; })()
+    fontSize: (function(){ var n = parseFloat(f && f.fontSize); return (isFinite(n) && n > 0) ? Math.max(5, Math.min(48, n)) : ''; })(),
+    value: String((f && f.value) != null ? f.value : '').slice(0, 500)
   }; });
 }
 app.post('/api/admin/agreement-templates/:id/fields', requireAdmin, express.json({ limit: '1mb' }), (req, res) => {
@@ -13621,6 +13622,7 @@ app.get('/api/sign/:token/data', (req, res) => {
     const locked = signerSigned;
     let value = (a.fieldValues && a.fieldValues[f.id]) || '';
     if (!isSig && !value) value = signerFieldPrefill(a, f);
+    if (f.type === 'checkbox' && !(a.fieldValues && a.fieldValues[f.id] != null)) value = (String(f.value) === '1' || f.value === true) ? '1' : '';
     if (!isSig) value = fmtSignVal(f.type, value);
     return { id: f.id, page: f.page, x: f.x, y: f.y, w: f.w, h: f.h, type: f.type, label: f.label, required: f.required, mine, locked, value };
   });
@@ -13721,7 +13723,7 @@ async function burnFinalPdf(a) {
       const ip = sigFieldPath(a, f.id);
       if (fs.existsSync(ip)) { try { const png = await pdf.embedPng(fs.readFileSync(ip)); const scl = Math.min(bw / png.width, bh / png.height); const dw = png.width * scl, dh = png.height * scl; page.drawImage(png, { x: bx + (bw - dw) / 2, y: byBottom + (bh - dh) / 2, width: dw, height: dh }); } catch (e) {} }
     } else if (f.type === 'checkbox') {
-      const v = (a.fieldValues && a.fieldValues[f.id]); if (v === '1' || v === true || v === 'true') { const s = Math.min(bw, bh); page.drawText('X', { x: bx + Math.max(1, (bw - s * 0.6) / 2), y: byBottom + Math.max(1, (bh - s * 0.72) / 2), size: s * 0.9, font: bold, color: rgb(0.05, 0.09, 0.2) }); }
+      let v = (a.fieldValues && a.fieldValues[f.id]); if (v == null) v = (String(f.value) === '1' || f.value === true) ? '1' : ''; if (v === '1' || v === true || v === 'true') { const s = Math.min(bw, bh); page.drawText('X', { x: bx + Math.max(1, (bw - s * 0.6) / 2), y: byBottom + Math.max(1, (bh - s * 0.72) / 2), size: s * 0.9, font: bold, color: rgb(0.05, 0.09, 0.2) }); }
     } else {
       let _rawv = (a.fieldValues && a.fieldValues[f.id]); if (_rawv == null || _rawv === '') { try { _rawv = signerFieldPrefill(a, f) || ''; } catch (e) { _rawv = ''; } } const v = fmtSignVal(f.type, String(_rawv || '')); if (v) { const _fsz = parseFloat(f.fontSize); const size = (isFinite(_fsz) && _fsz > 0) ? Math.max(5, Math.min(48, _fsz)) : Math.max(7, Math.min(12, bh * 0.62)); const _ff = _fontFor(f.font); const _txt = v.slice(0, 120); let _tx = bx + 2; try { const _tw = _ff.widthOfTextAtSize(_txt, size); const _al = String(f.align || 'left'); if (_al === 'center') _tx = bx + Math.max(2, (bw - _tw) / 2); else if (_al === 'right') _tx = bx + Math.max(2, bw - _tw - 2); } catch (e) {} page.drawText(_txt, { x: _tx, y: byBottom + Math.max(2, (bh - size) / 2), size, font: _ff, color: rgb(0.05, 0.09, 0.2) }); }
     }
@@ -13815,7 +13817,7 @@ function advancedSignPage(a, me, req) {
     if(!f.mine){ box.classList.add('other'); box.textContent=(f.type==='signature'||f.type==='initials')?'Signature':(f.label||''); return; }
     box.classList.add('mine');
     if(f.type==='signature'||f.type==='initials'){ if(SIGS[f.id]){ var im2=document.createElement('img'); im2.src=SIGS[f.id]; im2.style.maxWidth='100%'; im2.style.maxHeight='100%'; box.appendChild(im2); } else { box.textContent=(f.type==='initials'?'Initial':'Sign here'); } box.onclick=function(){openPad(f);}; }
-    else if(f.type==='checkbox'){ var cb=document.createElement('input'); cb.type='checkbox'; cb.checked=!!VALS[f.id]; cb.style.margin='0'; cb.onchange=function(){VALS[f.id]=cb.checked?'1':'';}; box.style.cursor='default'; box.appendChild(cb); }
+    else if(f.type==='checkbox'){ var cb=document.createElement('input'); cb.type='checkbox'; if(VALS[f.id]==null){ VALS[f.id]=(String(f.value)==='1')?'1':''; } cb.checked=(String(VALS[f.id])==='1'); cb.style.margin='0'; cb.onchange=function(){VALS[f.id]=cb.checked?'1':'';}; box.style.cursor='default'; box.appendChild(cb); }
     else { var inp=document.createElement('input'); inp.type=(f.type==='date'?'date':'text'); inp.value=(VALS[f.id]!=null?VALS[f.id]:(f.value||'')); VALS[f.id]=inp.value; inp.style.width='100%'; inp.style.height='100%'; inp.style.border='none'; inp.style.background='transparent'; inp.style.font='inherit'; inp.style.fontSize='12px'; inp.style.padding='0 3px'; inp.style.color='#0b1a3a'; box.style.cursor='text'; inp.oninput=function(){VALS[f.id]=inp.value;}; box.appendChild(inp); }
   }
 
