@@ -1,168 +1,100 @@
 'use strict';
 /*
- * pgstore.js — Postgres-backed document store for FullServe.
+ * pgstore.js — Postgres BACKUP REPLICA for FullServe's records.
  *
- * Drop-in analog of db.js (the SQLite store): the same interface
- * (init/has/readStore/writeStore/readOrThrow/importFromFiles) so the rest of the
- * app keeps referring to "people.json", "agreements.json", … while the bytes
- * live in one managed Postgres table:  stores(name TEXT PK, json TEXT, updated_at).
+ * The persistent-disk JSON files are the source of truth and the working store:
+ * the app reads and writes them synchronously, exactly as it always has, so a
+ * database hiccup can NEVER take the app offline or make it fall back. Postgres
+ * is a durable, continuously-updated mirror that gives you managed backups /
+ * point-in-time recovery and can restore the disk after a disk loss.
  *
- * WHY A CACHE. The app is synchronous end-to-end (const all = load(); …; save(all)),
- * but Postgres is async. So this module keeps an in-memory cache of every store,
- * populated SYNCHRONOUSLY at boot via the pgboot.js child process. Reads are served
- * from the cache (synchronous, a fresh clone each time — identical semantics to
- * db.js which JSON.parses each read). Writes update the cache synchronously and are
- * streamed to Postgres asynchronously (write-through), serialized per store name so
- * updates land in order.
+ * This is the same proven pattern the object-storage layer (blobstore.js) uses
+ * for binary files — disk-first, async replicate, restore-on-loss — applied to
+ * the structured records.
  *
- * DURABILITY. Postgres is the source of truth (managed backups / PITR). Every write
- * is ALSO mirrored synchronously to the local JSON file via datasafe's atomic
- * guarded writer, so (a) there is never a data-loss window if the process dies in
- * the millisecond before the async Postgres write lands, and (b) the disk copy is a
- * warm local fallback. On boot we load from Postgres; if Postgres is empty we import
- * from the local JSON files (first migration). The empty-overwrite guard from
- * db.js/datasafe.js is preserved.
+ *   - mirror(name, data): every store write is queued as an async UPSERT to
+ *     Postgres (serialized, best-effort; failures are logged, never thrown).
+ *   - reconcile(): on boot, push every disk store up to Postgres so the backup
+ *     matches the live disk, and restore any store the disk is missing (or that
+ *     the disk has emptied while Postgres still holds records) — disaster
+ *     recovery. An empty disk store never overwrites a populated Postgres store.
+ *
+ * Config: DATABASE_URL (+ optional PGSSL=disable for a local non-SSL server).
+ * Inert when DATABASE_URL is unset — the app runs on disk exactly as before.
  */
 const fs = require('fs');
 const path = require('path');
-const cp = require('child_process');
 const { Pool } = require('pg');
-const { writeJsonGuarded: _fileWriteGuarded } = require('./datasafe');
 
-const GUARD_MIN_RECORDS = 2;
+let pool = null, DATA_DIR = '', READY = false, pending = 0;
+let _init = Promise.resolve();
+const chain = { p: Promise.resolve() };
 
-let pool = null;
-let DATA_DIR = null;
-const cache = new Map();        // name -> canonical JSON string (source for fresh-copy reads)
-const chains = new Map();       // name -> Promise (per-name serialized write-through)
-let pending = 0;                // count of in-flight write-through operations
-
-function _count(v) {
-  if (Array.isArray(v)) return v.length;
-  if (v && typeof v === 'object') return Object.keys(v).length;
-  return 0;
-}
 function _sslOpt() {
-  const mode = String(process.env.PGSSL || '').toLowerCase();
-  if (mode === 'disable' || mode === 'off' || mode === 'false') return false;
-  return { rejectUnauthorized: false };
+  const m = String(process.env.PGSSL || '').toLowerCase();
+  if (m === 'disable' || m === 'off' || m === 'false') return false;
+  return { rejectUnauthorized: false };   // Render/managed Postgres present certs not in the system store
 }
-
-// Synchronous boot load: run pgboot.js as a child, parse its JSON snapshot into cache.
-function _bootLoadSync() {
-  const out = cp.execSync('node ' + JSON.stringify(path.join(__dirname, 'pgboot.js')), {
-    cwd: __dirname,
-    env: process.env,
-    encoding: 'utf8',
-    timeout: 30000,
-    maxBuffer: 512 * 1024 * 1024, // stores can be large; allow up to 512MB snapshot
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-  let parsed;
-  try { parsed = JSON.parse(out); } catch (e) { throw new Error('pgboot: unparseable output: ' + String(out).slice(0, 200)); }
-  if (!parsed || parsed.ok !== true) throw new Error('pgboot: ' + ((parsed && parsed.error) || 'unknown error'));
-  cache.clear();
-  for (const row of (parsed.rows || [])) {
-    // Normalize to a canonical string; reads JSON.parse this each time for a fresh copy.
-    cache.set(row.name, typeof row.json === 'string' ? row.json : JSON.stringify(row.json));
-  }
-}
+function _count(s) { try { const v = JSON.parse(s); return Array.isArray(v) ? v.length : (v && typeof v === 'object' ? Object.keys(v).length : 0); } catch (e) { return 0; } }
 
 function init(dataDir) {
   DATA_DIR = dataDir;
-  _bootLoadSync();                       // throws if Postgres is unreachable -> caller falls back
-  pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: _sslOpt(),
-    max: Number(process.env.PGPOOL_MAX || 6),
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
-  });
-  pool.on('error', (e) => { console.error('[PG] idle client error: ' + (e && e.message)); });
-  return pool;
+  if (!process.env.DATABASE_URL) { READY = false; return false; }
+  try {
+    pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: _sslOpt(), max: Number(process.env.PGPOOL_MAX || 6), idleTimeoutMillis: 30000, connectionTimeoutMillis: 10000 });
+    pool.on('error', e => console.error('[PG] idle client error: ' + (e && e.message)));
+    _init = pool.query('CREATE TABLE IF NOT EXISTS stores (name TEXT PRIMARY KEY, json TEXT NOT NULL, updated_at TIMESTAMPTZ DEFAULT now())')
+      .catch(e => console.error('[PG] ensure table failed: ' + (e && e.message)));
+    READY = true;
+    return true;
+  } catch (e) { console.error('[PG] init failed: ' + (e && e.message)); READY = false; return false; }
 }
+function ready() { return READY; }
+function pendingCount() { return pending; }
 
-function has(name) { return cache.has(name); }
-
-function readOrThrow(name) {
-  if (!cache.has(name)) throw new Error('no store: ' + name);
-  return JSON.parse(cache.get(name));
-}
-
-function readStore(name, fallback) {
-  if (!cache.has(name)) return fallback === undefined ? null : fallback;
-  try { return JSON.parse(cache.get(name)); } catch (e) { return fallback === undefined ? null : fallback; }
-}
-
-// Queue an async UPSERT for `name`, serialized behind any prior write for that name.
-function _persist(name, jsonStr, label) {
+// Queue an async UPSERT of one store. Serialized; best-effort (never throws).
+function mirror(name, data) {
+  if (!READY) return;
+  const json = JSON.stringify(data);
   pending++;
-  const prev = chains.get(name) || Promise.resolve();
-  const next = prev.then(() =>
-    pool.query(
-      'INSERT INTO stores(name, json, updated_at) VALUES($1, $2, now()) ' +
-      'ON CONFLICT(name) DO UPDATE SET json = EXCLUDED.json, updated_at = now()',
-      [name, jsonStr]
-    )
-  ).catch((e) => {
-    console.error('[PG] write-through FAILED for ' + (label || name) + ': ' + (e && e.message) +
-      ' (local JSON mirror still holds this write)');
-  }).then(() => { pending--; });
-  chains.set(name, next);
-  return next;
+  chain.p = chain.p.then(() => _init).then(() => pool.query(
+    'INSERT INTO stores(name, json, updated_at) VALUES($1, $2, now()) ON CONFLICT(name) DO UPDATE SET json = EXCLUDED.json, updated_at = now()',
+    [name, json]
+  )).catch(e => console.error('[PG] replicate failed for ' + name + ': ' + (e && e.message))).then(() => { pending--; });
 }
 
-function writeStore(name, data, label) {
-  const emptyArr = Array.isArray(data) && data.length === 0;
-  const emptyObj = data && typeof data === 'object' && !Array.isArray(data) && Object.keys(data).length === 0;
-  if (emptyArr || emptyObj) {
-    const n = _count(readStore(name));
-    if (n >= GUARD_MIN_RECORDS) {
-      console.error('[DATA GUARD] ' + (label || name) + ' BLOCKED: refused to overwrite ' + n + ' records with empty data.');
-      return false;
-    }
-  }
-  const jsonStr = JSON.stringify(data);
-  cache.set(name, jsonStr);                    // synchronous: readers see the new value immediately
-  _persist(name, jsonStr, label);              // async write-through to Postgres (source of truth)
-  if (DATA_DIR) {                              // synchronous local mirror (crash-safe fallback)
-    try { _fileWriteGuarded(path.join(DATA_DIR, name), data, label); } catch (e) {}
-  }
-  return true;
+function _diskStores() {
+  try { return fs.readdirSync(DATA_DIR).filter(n => /\.json$/.test(n) && n.indexOf('.rescue-') < 0 && n.indexOf('.tmp') < 0 && n.indexOf('fullserve.db') < 0); }
+  catch (e) { return []; }
 }
 
-// One-time seed: import each JSON file present in dataDir that is not yet a store.
-// Idempotent — an existing store (already in cache/Postgres) is left alone.
-function importFromFiles(dataDir, fileNames) {
-  let names = fileNames;
-  if (!names) {
-    try {
-      names = fs.readdirSync(dataDir).filter((n) =>
-        /\.json$/.test(n) && n.indexOf('.rescue-') < 0 && n.indexOf('.tmp') < 0 && n.indexOf('fullserve.db') < 0);
-    } catch (e) { names = []; }
+// Boot reconcile — disk is the source of truth.
+//  - push every disk store up to Postgres (backup matches live disk)
+//  - restore pg→disk for any store the disk lacks, or has emptied while pg holds records
+async function reconcile() {
+  if (!READY) return { pushed: 0, restored: 0, skipped: true };
+  await _init;
+  const diskNames = _diskStores();
+  const diskSet = new Set(diskNames);
+  const pgRows = new Map();
+  try { const r = await pool.query('SELECT name, json FROM stores'); r.rows.forEach(x => pgRows.set(x.name, x.json)); }
+  catch (e) { console.error('[PG] reconcile list failed: ' + (e && e.message)); return { pushed: 0, restored: 0, error: (e && e.message) }; }
+  const all = new Set([...diskNames, ...pgRows.keys()]);
+  let pushed = 0, restored = 0;
+  for (const name of all) {
+    let diskJson = null;
+    if (diskSet.has(name)) { try { diskJson = fs.readFileSync(path.join(DATA_DIR, name), 'utf8'); } catch (e) {} }
+    const pgJson = pgRows.has(name) ? pgRows.get(name) : null;
+    // Disaster restore: disk missing entirely, or disk emptied while Postgres holds ≥2 records.
+    if (diskJson == null && pgJson != null) { try { fs.writeFileSync(path.join(DATA_DIR, name), pgJson); restored++; } catch (e) {} continue; }
+    if (diskJson != null && pgJson != null && _count(diskJson) === 0 && _count(pgJson) >= 2) { try { fs.writeFileSync(path.join(DATA_DIR, name), pgJson); restored++; } catch (e) {} continue; }
+    // Normal: disk is authoritative — push it up.
+    if (diskJson != null) { try { await pool.query('INSERT INTO stores(name, json, updated_at) VALUES($1, $2, now()) ON CONFLICT(name) DO UPDATE SET json = EXCLUDED.json, updated_at = now()', [name, diskJson]); pushed++; } catch (e) {} }
   }
-  const imported = [];
-  for (const name of names) {
-    if (cache.has(name)) continue;
-    const p = path.join(dataDir, name);
-    if (!fs.existsSync(p)) continue;
-    let parsed;
-    try { parsed = JSON.parse(fs.readFileSync(p, 'utf8')); } catch (e) { continue; }
-    const jsonStr = JSON.stringify(parsed);
-    cache.set(name, jsonStr);
-    _persist(name, jsonStr, 'import:' + name);
-    imported.push(name + ':' + _count(parsed));
-  }
-  return imported;
+  return { pushed, restored };
 }
 
-// Await all in-flight write-through operations (tests / graceful shutdown).
-async function flush() {
-  await Promise.all(Array.from(chains.values()));
-  // A write scheduled during the await above bumps `pending`; drain once more.
-  while (pending > 0) { await Promise.all(Array.from(chains.values())); }
-}
-
+async function flush() { await chain.p; while (pending > 0) { await chain.p; } }
 async function close() { try { await flush(); } catch (e) {} try { if (pool) await pool.end(); } catch (e) {} }
 
-module.exports = { init, has, readStore, writeStore, importFromFiles, readOrThrow, flush, close, _cache: cache, _pending: () => pending };
+module.exports = { init, ready, mirror, reconcile, flush, close, pendingCount };

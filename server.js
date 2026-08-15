@@ -41,46 +41,39 @@ function loadBovs() { try { return rj(BOVS_FILE); } catch (e) { return []; } }
 // writer (atomic tmp+rename + empty-overwrite guard) lives in ./datasafe.js and is the
 // fallback here; the SQLite writer carries the same guard (see db.js).
 const { writeJsonGuarded: _fileWriteGuarded } = require('./datasafe');
-// Durable data layer, chosen at boot in priority order:
-//   1. Postgres (DATABASE_URL set) — managed, backed-up source of truth. Reads are
-//      served from an in-memory cache loaded synchronously at boot; writes stream
-//      through to Postgres and are mirrored to the local JSON files as a warm
-//      fallback. This is the production target.
-//   2. SQLite (USE_SQLITE=1) — single-file store on the persistent disk.
-//   3. JSON files — the original behavior.
-// Every layer is fail-safe: if its native module or connection is unavailable, the
-// try/catch drops to the next option so the app always boots.
+// Data layer — DISK-FIRST with a durable Postgres backup replica:
+//   • Primary store = JSON files on the persistent disk (synchronous, always available).
+//     The app reads/writes them exactly as it always has, so a database hiccup can
+//     never take the app offline or make it "fall back" — there is nothing to fall
+//     back from. (USE_SQLITE=1 swaps in a single-file SQLite primary with the same
+//     interface; optional, off by default.)
+//   • Postgres (DATABASE_URL set) = a continuously-updated BACKUP replica. Every store
+//     write is mirrored to managed Postgres (automated backups / PITR), and on boot we
+//     reconcile: push the live disk up, and restore the disk from Postgres if it was
+//     ever lost. The app never READS from Postgres in normal operation.
+// This mirrors the object-storage pattern used for binaries: disk-first, async
+// replicate, restore-on-loss.
 let _db = null, DB_OK = false, DB_KIND = 'files';
+if (process.env.USE_SQLITE === '1') {
+  try {
+    _db = require('./db'); _db.init(BOV_DATA_DIR); const _imp = _db.importFromFiles(BOV_DATA_DIR);
+    DB_OK = true; DB_KIND = 'sqlite';
+    if (_imp && _imp.length) console.log('[DB] SQLite first-boot import: ' + _imp.join(', '));
+    console.log('[DB] SQLite primary store active at ' + path.join(BOV_DATA_DIR, 'fullserve.db'));
+  } catch (e) { _db = null; DB_OK = false; console.error('[DB] SQLite unavailable — using JSON files. Reason: ' + (e && e.message)); }
+}
+let _pg = null, PG_OK = false;
 if (process.env.DATABASE_URL) {
   try {
-    _db = require('./pgstore');
-    _db.init(BOV_DATA_DIR);
-    const _imp = _db.importFromFiles(BOV_DATA_DIR);
-    DB_OK = true; DB_KIND = 'postgres';
-    if (_imp && _imp.length) console.log('[DB] first-boot migration imported ' + _imp.length + ' store(s) into Postgres: ' + _imp.join(', '));
-    console.log('[DB] Postgres data layer active (source of truth: managed Postgres; local JSON kept as mirror).');
-  } catch (e) {
-    _db = null; DB_OK = false;
-    console.error('[DB] Postgres unavailable — falling back. Reason: ' + (e && e.message));
-  }
+    _pg = require('./pgstore'); PG_OK = _pg.init(BOV_DATA_DIR);
+    console.log(PG_OK ? '[PG] Postgres backup replica active — records mirrored to managed Postgres.' : '[PG] Postgres not configured.');
+  } catch (e) { _pg = null; PG_OK = false; console.error('[PG] replica init failed — records on disk only. Reason: ' + (e && e.message)); }
 }
-if (!DB_OK && process.env.USE_SQLITE === '1') {
-  try {
-    _db = require('./db');
-    _db.init(BOV_DATA_DIR);
-    const _imp = _db.importFromFiles(BOV_DATA_DIR);
-    DB_OK = true; DB_KIND = 'sqlite';
-    if (_imp && _imp.length) console.log('[DB] first-boot migration imported ' + _imp.length + ' store(s): ' + _imp.join(', '));
-    console.log('[DB] SQLite data layer active at ' + path.join(BOV_DATA_DIR, 'fullserve.db'));
-  } catch (e) {
-    _db = null; DB_OK = false;
-    console.error('[DB] SQLite unavailable — running on JSON files. Reason: ' + (e && e.message));
-  }
-}
-if (!DB_OK) console.log('[DB] Running on JSON files (set DATABASE_URL for Postgres, or USE_SQLITE=1 for SQLite).');
+console.log('[DB] Primary store: ' + DB_KIND + (PG_OK ? ' + Postgres backup' : ' (no off-box backup — set DATABASE_URL to add one)'));
 function writeJsonGuarded(file, data, label) {
-  if (DB_OK) return _db.writeStore(path.basename(file), data, label);
-  return _fileWriteGuarded(file, data, label);
+  const ok = DB_OK ? _db.writeStore(path.basename(file), data, label) : _fileWriteGuarded(file, data, label);
+  if (PG_OK) { try { _pg.mirror(path.basename(file), data); } catch (e) {} }
+  return ok;
 }
 function rj(file) {
   if (DB_OK) return _db.readOrThrow(path.basename(file));
@@ -1275,7 +1268,7 @@ function requireAdmin(req, res, next) {
   return res.status(403).send('Admin access only.');
 }
 
-app.get('/health', (_req, res) => res.json({ ok: true, storage: DB_KIND, pgPending: (DB_KIND === 'postgres' && _db && _db._pending) ? _db._pending() : 0, blobStore: blobstore.ready() ? 'on' : 'off', blobPending: blobstore.ready() ? blobstore.pendingCount() : 0 }));
+app.get('/health', (_req, res) => res.json({ ok: true, storage: DB_KIND, pgBackup: PG_OK ? 'on' : 'off', pgPending: PG_OK ? _pg.pendingCount() : 0, blobStore: blobstore.ready() ? 'on' : 'off', blobPending: blobstore.ready() ? blobstore.pendingCount() : 0 }));
 
 /* ---------- login / logout ---------- */
 app.get('/login', (req, res) => {
@@ -14734,3 +14727,6 @@ app.listen(PORT, () => console.log(`RRG toolkit server listening on :${PORT}`));
 // Reconcile binary assets with object storage on boot: migrate disk→bucket (first run)
 // and restore anything the disk is missing (after a disk loss). Async; never blocks startup.
 setTimeout(() => { try { if (blobstore.ready()) { blobstore.reconcile().then(r => { if (r && !r.skipped) console.log('[BLOB] boot reconcile — uploaded ' + r.uploaded + ', restored ' + r.restored); }).catch(e => console.error('[BLOB] reconcile failed: ' + (e && e.message))); } } catch (e) {} }, 8000);
+// Reconcile records with the Postgres backup replica on boot: push the live disk up
+// so the backup matches it, and restore the disk from Postgres if it was ever lost.
+setTimeout(() => { try { if (PG_OK) { _pg.reconcile().then(r => { if (r && !r.skipped) console.log('[PG] boot reconcile — pushed ' + r.pushed + ', restored ' + r.restored); }).catch(e => console.error('[PG] reconcile failed: ' + (e && e.message))); } } catch (e) {} }, 6000);

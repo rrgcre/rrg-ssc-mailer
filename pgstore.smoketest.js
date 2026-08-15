@@ -1,80 +1,71 @@
 'use strict';
-// End-to-end smoke test for pgstore against a REAL Postgres.
+// End-to-end test for the pgstore BACKUP REPLICA (disk-first) against a real Postgres.
 // Run: DATABASE_URL=... PGSSL=disable node pgstore.smoketest.js
 const fs = require('fs');
 const path = require('path');
-const assert = require('assert');
 
-const TMP = '/tmp/rrg_pgtest_data';
-fs.rmSync(TMP, { recursive: true, force: true });
-fs.mkdirSync(TMP, { recursive: true });
-// Seed some JSON "stores" on disk, like /var/data would have.
-fs.writeFileSync(path.join(TMP, 'companies.json'), JSON.stringify([{ id: 'c1', name: 'Acme BBQ' }, { id: 'c2', name: 'Taco Town' }]));
-fs.writeFileSync(path.join(TMP, 'agreements.json'), JSON.stringify([{ id: 'agr_1', signToken: 'TOK123', type: 'NDA' }]));
-
+const TMP = '/tmp/rrg_pgrep_data';
 let failures = 0;
-function ok(label, cond) { if (cond) { console.log('  ✓ ' + label); } else { console.error('  ✗ ' + label); failures++; } }
+function ok(label, cond) { if (cond) console.log('  ✓ ' + label); else { console.error('  ✗ ' + label); failures++; } }
 
 (async function () {
-  // Fresh DB: wipe the stores table so this test is deterministic.
   const { Client } = require('pg');
   const c = new Client({ connectionString: process.env.DATABASE_URL, ssl: false });
-  await c.connect();
-  await c.query('DROP TABLE IF EXISTS stores');
-  await c.end();
+  await c.connect(); await c.query('DROP TABLE IF EXISTS stores'); await c.end();
 
-  const store = require('./pgstore');
+  fs.rmSync(TMP, { recursive: true, force: true });
+  fs.mkdirSync(TMP, { recursive: true });
+  fs.writeFileSync(path.join(TMP, 'companies.json'), JSON.stringify([{ id: 'c1', name: 'Acme BBQ' }, { id: 'c2', name: 'Taco Town' }]));
+  fs.writeFileSync(path.join(TMP, 'agreements.json'), JSON.stringify([{ id: 'agr_1', signToken: 'TOK123' }]));
 
-  console.log('1) init on empty DB (sync boot load)');
-  store.init(TMP);
-  ok('cache empty before import', store._cache.size === 0);
+  const pg = require('./pgstore');
+  const { Client: C2 } = require('pg');
+  const q = async (sql, args) => { const cl = new C2({ connectionString: process.env.DATABASE_URL, ssl: false }); await cl.connect(); const r = await cl.query(sql, args); await cl.end(); return r; };
 
-  console.log('2) importFromFiles seeds Postgres');
-  const imp = store.importFromFiles(TMP);
-  ok('imported companies + agreements', imp.some(x => x.startsWith('companies.json:2')) && imp.some(x => x.startsWith('agreements.json:1')));
-  await store.flush();
+  console.log('1) init (replica configured)');
+  ok('ready with DATABASE_URL', pg.init(TMP) === true && pg.ready() === true);
 
-  console.log('3) synchronous reads return fresh copies');
-  const a = store.readStore('companies.json');
-  const b = store.readStore('companies.json');
-  ok('reads deep-equal', JSON.stringify(a) === JSON.stringify(b));
-  ok('reads are distinct objects (fresh copy)', a !== b);
-  a[0].name = 'MUTATED';
-  ok('mutating a read does not corrupt the store', store.readStore('companies.json')[0].name === 'Acme BBQ');
-  ok('readOrThrow returns data', store.readOrThrow('agreements.json')[0].signToken === 'TOK123');
+  console.log('2) mirror() replicates a store write to Postgres');
+  pg.mirror('agreements.json', [{ id: 'agr_1', signToken: 'TOK123' }, { id: 'agr_2', signToken: 'TOK999' }]);
+  await pg.flush();
+  let r = await q('SELECT json FROM stores WHERE name=$1', ['agreements.json']);
+  ok('agreements mirrored', r.rows[0] && JSON.parse(r.rows[0].json).length === 2);
 
-  console.log('4) write-through persists to Postgres');
-  const ags = store.readOrThrow('agreements.json');
-  ags.push({ id: 'agr_2', signToken: 'TOK999', type: 'ETRA' });
-  ok('writeStore returns true', store.writeStore('agreements.json', ags, 'saveAgreements') === true);
-  ok('read reflects the write immediately (sync)', store.readOrThrow('agreements.json').length === 2);
-  await store.flush();
+  console.log('3) reconcile pushes the live disk up (disk is source of truth)');
+  // Disk companies has 2 records; Postgres has none yet. Reconcile should push it up.
+  r = await pg.reconcile();
+  ok('pushed disk stores to Postgres', r.pushed >= 2);
+  const comp = await q('SELECT json FROM stores WHERE name=$1', ['companies.json']);
+  ok('companies now in Postgres backup', comp.rows[0] && JSON.parse(comp.rows[0].json).length === 2);
+  // Disk agreements has 1 record; the mirror wrote 2. Reconcile pushes disk (1) over pg (2) — disk wins.
+  const agr = await q('SELECT json FROM stores WHERE name=$1', ['agreements.json']);
+  ok('disk is authoritative (agreements = disk copy of 1)', agr.rows[0] && JSON.parse(agr.rows[0].json).length === 1);
 
-  console.log('5) empty-overwrite guard');
-  ok('guard blocks empty overwrite of >=2 records', store.writeStore('agreements.json', [], 'saveAgreements') === false);
-  ok('data intact after blocked write', store.readOrThrow('agreements.json').length === 2);
-  // A store with <2 records can be legitimately emptied.
-  ok('single-record store may be emptied', store.writeStore('agreements.json'.replace('agreements', 'tiny'), [], 't') === true);
+  console.log('4) disaster restore: a store only in Postgres is written back to disk');
+  await q('INSERT INTO stores(name,json,updated_at) VALUES($1,$2,now()) ON CONFLICT(name) DO UPDATE SET json=EXCLUDED.json', ['deals.json', JSON.stringify([{ id: 'd1' }, { id: 'd2' }, { id: 'd3' }])]);
+  ok('deals.json absent on disk before restore', !fs.existsSync(path.join(TMP, 'deals.json')));
+  r = await pg.reconcile();
+  ok('restored the missing store to disk', r.restored >= 1 && fs.existsSync(path.join(TMP, 'deals.json')));
+  ok('restored content correct', JSON.parse(fs.readFileSync(path.join(TMP, 'deals.json'), 'utf8')).length === 3);
 
-  console.log('6) local JSON mirror written alongside Postgres');
-  const mirror = JSON.parse(fs.readFileSync(path.join(TMP, 'agreements.json'), 'utf8'));
-  ok('disk mirror has 2 agreements', mirror.length === 2 && mirror[1].signToken === 'TOK999');
+  console.log('5) empty-disk guard: an emptied disk store does NOT wipe the Postgres backup');
+  // Postgres holds 2 companies; simulate the disk file getting emptied.
+  fs.writeFileSync(path.join(TMP, 'companies.json'), '[]');
+  r = await pg.reconcile();
+  ok('emptied disk store restored from Postgres, not pushed', JSON.parse(fs.readFileSync(path.join(TMP, 'companies.json'), 'utf8')).length === 2);
+  const comp2 = await q('SELECT json FROM stores WHERE name=$1', ['companies.json']);
+  ok('Postgres backup still has 2 companies', JSON.parse(comp2.rows[0].json).length === 2);
 
-  console.log('7) durability across reconnect — new process/cache loads from Postgres');
-  await store.close();
-  // Simulate a fresh boot: clear require cache and re-init. Disk still present, but
-  // Postgres is the source of truth. Prove it by CORRUPTING the disk mirror first —
-  // a correct load must come from Postgres, not the disk.
-  fs.writeFileSync(path.join(TMP, 'agreements.json'), JSON.stringify([{ id: 'DISK_ONLY', signToken: 'STALE' }]));
+  console.log('6) inert when DATABASE_URL is unset');
+  const saved = process.env.DATABASE_URL; delete process.env.DATABASE_URL;
   delete require.cache[require.resolve('./pgstore')];
-  const store2 = require('./pgstore');
-  store2.init(TMP);
-  const reloaded = store2.readOrThrow('agreements.json');
-  ok('reload came from Postgres (2 records), not stale disk', reloaded.length === 2);
-  ok('reload has the written token', reloaded.some(x => x.signToken === 'TOK999'));
-  ok('importFromFiles is idempotent (no re-import of existing store)', store2.importFromFiles(TMP).length === 0);
-  await store2.close();
+  const pg2 = require('./pgstore');
+  ok('init returns false with no DATABASE_URL', pg2.init(TMP) === false && pg2.ready() === false);
+  pg2.mirror('companies.json', []); // harmless no-op
+  ok('mirror is a no-op when unconfigured (no throw)', true);
+  process.env.DATABASE_URL = saved;
 
+  await pg.close();
   console.log(failures === 0 ? '\nALL PASS' : '\n' + failures + ' FAILURE(S)');
   process.exit(failures === 0 ? 0 : 1);
 })().catch(e => { console.error('THREW:', e); process.exit(1); });
