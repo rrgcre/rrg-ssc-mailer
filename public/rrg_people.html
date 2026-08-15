@@ -346,7 +346,7 @@ document.getElementById('m_cancel').addEventListener('click',closeModal);
 document.getElementById('m_create').addEventListener('click',createContact);
 document.getElementById('modal').addEventListener('click',function(e){ /* clicking the backdrop no longer closes the window — prevents losing entered info. Use Cancel to close. */ });
 var _lastPeopleLoad=0;
-function reloadPeople(){ return fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; if(j&&j.recencyDays!=null) RECENCY_DAYS=j.recencyDays; if(j&&j.types) TYPES=j.types; if(j&&j.leadSources&&j.leadSources.length) LEADSRC=j.leadSources; USERS=(j&&j.users)||USERS; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); _lastPeopleLoad=Date.now(); applyFilter(); }); }
+function reloadPeople(){ return fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; if(j&&j.recencyDays!=null) RECENCY_DAYS=j.recencyDays; if(j&&j.types) TYPES=j.types; if(j&&j.leadSources&&j.leadSources.length) LEADSRC=j.leadSources; USERS=(j&&j.users)||USERS; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); _lastPeopleLoad=Date.now(); var _ps=ALL.length+'::'+ALL.map(function(p){return (p.id||'')+'~'+(p.updatedAt||p.lastContacted||'');}).join('|'); if(!(window._pplRendered&&_ps===window._pplSig)){ window._pplSig=_ps; window._pplRendered=true; applyFilter(); } }); }
 async function bulkDeletePeople(ids, done){
   if(!ids||!ids.length) return;
   if(!await rrgConfirm('Delete '+ids.length+' contact'+(ids.length>1?'s':'')+' from your registry? Their names stay on any past offers, tours and NDAs. This cannot be undone.')) return;
@@ -408,7 +408,7 @@ function openNewListingFor(id, done){
       .catch(function(){ gb.disabled=false; gb.textContent='Create listing'; msg.textContent='Could not reach the server.'; });
   });
 }
-fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; if(j&&j.recencyDays!=null) RECENCY_DAYS=j.recencyDays; TYPES=(j&&j.types)||[]; if(j&&j.leadSources&&j.leadSources.length) LEADSRC=j.leadSources; USERS=(j&&j.users)||USERS; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); var _rv=loadView(); RECENCY_SHOWALL=true; try{ var _qt=new URLSearchParams(location.search).get('type'); if(_qt){ FILTERS.types=[_qt]; var _sb=document.getElementById('search'); } }catch(e){} renderFilters(); applyFilter(); try{ if(new URLSearchParams(location.search).get('new')==='1'){ openModal(); history.replaceState({},'',location.pathname); } }catch(e){} }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load contacts.</div>'; });
+fetch('/api/people',{credentials:'same-origin',cache:'no-store'}).then(function(r){return r.json();}).then(function(j){ ALL=(j&&j.people)||[]; if(j&&j.recencyDays!=null) RECENCY_DAYS=j.recencyDays; TYPES=(j&&j.types)||[]; if(j&&j.leadSources&&j.leadSources.length) LEADSRC=j.leadSources; USERS=(j&&j.users)||USERS; IS_ADMIN=!!(j&&j.isAdmin); CAN_DELETE=!!(j&&j.canDelete); var _rv=loadView(); RECENCY_SHOWALL=true; try{ var _qt=new URLSearchParams(location.search).get('type'); if(_qt){ FILTERS.types=[_qt]; var _sb=document.getElementById('search'); } }catch(e){} renderFilters(); applyFilter(); window._pplSig=ALL.length+'::'+ALL.map(function(p){return (p.id||'')+'~'+(p.updatedAt||p.lastContacted||'');}).join('|'); window._pplRendered=true; try{ if(new URLSearchParams(location.search).get('new')==='1'){ openModal(); history.replaceState({},'',location.pathname); } }catch(e){} }).catch(function(){ document.getElementById('body').innerHTML='<div class="empty">Could not load contacts.</div>'; });
 loadPipelinesList();
 var IMP_LEADS=[];
 function openImport(){ document.getElementById('importModal').removeAttribute('hidden'); document.getElementById('imp_msg').textContent=''; var _g=document.getElementById('imp_go'); if(_g){ _g.disabled=false; _g.textContent='Import'; } document.getElementById('imp_text').focus(); loadPoll(); }
@@ -480,6 +480,5 @@ window.reloadPeople=reloadPeople;
 document.addEventListener('visibilitychange',function(){ if(!document.hidden && window.reloadPeople && (Date.now()-_lastPeopleLoad>60000)) window.reloadPeople(); });
 </script>
 <script>window.addEventListener("pageshow",function(e){if(e.persisted&&window.reloadPeople)window.reloadPeople();});</script>
-<script>/*rrgbfcache*/window.addEventListener("pageshow",function(e){if(e.persisted&&window.reloadPeople)window.reloadPeople();});</script>
 </body>
 </html>
