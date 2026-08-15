@@ -14,7 +14,7 @@ services:
     disk:
       name: rrg-data
       mountPath: /var/data
-      sizeGB: 1
+      sizeGB: 10        # must match the live disk — Render refuses to shrink a disk
     envVars:
       - key: DATA_DIR
         value: /var/data
