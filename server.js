@@ -10675,7 +10675,7 @@ app.get('/api/admin/users', requireAdmin, (req, res) => {
 });
 // ===== Rep / user records — a team member's book, KPIs and lists =====
 function effPayroll(un) { const s = loadSettings(); const m = (s.payroll && typeof s.payroll === 'object') ? s.payroll : {}; const p = m[String(un).toLowerCase()] || {}; return { paymentMethod: p.paymentMethod || '', w9OnFile: !!p.w9OnFile, w9Date: p.w9Date || '', taxClass: p.taxClass || '', taxId: p.taxId || '', payNotes: p.payNotes || '' }; }
-function effEmployee(un) { const s = loadSettings(); const m = (s.employees && typeof s.employees === 'object') ? s.employees : {}; const e = m[String(un).toLowerCase()] || {}; return { homeAddress: e.homeAddress || '', personalEmail: e.personalEmail || '', personalPhone: e.personalPhone || '', linkedIn: e.linkedIn || '', startDate: e.startDate || '', endDate: e.endDate || '', emergencyName: e.emergencyName || '', emergencyPhone: e.emergencyPhone || '', notes: e.notes || '' }; }
+function effEmployee(un) { const s = loadSettings(); const m = (s.employees && typeof s.employees === 'object') ? s.employees : {}; const e = m[String(un).toLowerCase()] || {}; return { homeAddress: e.homeAddress || '', personalEmail: e.personalEmail || '', personalPhone: e.personalPhone || '', linkedIn: e.linkedIn || '', startDate: e.startDate || '', endDate: e.endDate || '', emergencyName: e.emergencyName || '', emergencyPhone: e.emergencyPhone || '', notes: e.notes || '', goal: e.goal || '' }; }
 function repMatchesOwner(owner, u) { const o = String(owner || '').trim().toLowerCase(); if (!o) return false; return o === String(u.username || '').toLowerCase() || o === String(u.name || '').toLowerCase(); }
 function repUserPhoto(username) { try { const prof = auth.profileOf(auth.findUser(username)); if (prof && prof.photoExt) return '/api/userphoto/' + String(username).replace(/[^a-z0-9_.-]/gi, '_') + '.' + prof.photoExt + '?v=' + encodeURIComponent(prof.photoAt || 0); } catch (e) {} return ''; }
 function repRollup(u, opts) {
@@ -10712,6 +10712,34 @@ app.get('/api/team', (req, res) => {
     return { username: u.username || '', name: u.name || u.username || '', title: u.title || '', role: u.role || '', email: u.email || '', photoUrl: repUserPhoto(u.username), activeListings: r.activeListings, deals: r.dealCount, closedDeals: r.closedDeals, gci: r.gci, net: r.net, received: r.received, waiting: r.waiting, pipeline: r.pipeline, self: (u.username === req.user.username) };
   }).sort((a, b) => (b.gci - a.gci) || String(a.name).localeCompare(String(b.name)));
   res.json({ ok: true, team: rows, isAdmin: isAdmin, split: effCommissionAgentSplit(), me: req.user.username });
+});
+app.get('/api/portal', (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const u = auth.findUser(req.user.username); if (!u) return res.status(404).json({ ok: false, error: 'User not found.' });
+  const r = repRollup(u, { lists: true });
+  const emp = effEmployee(u.username);
+  const goal = agrNum(emp.goal);
+  const nowIso = new Date().toISOString(); const today = nowIso.slice(0, 10); const yr = today.slice(0, 4);
+  const monthly = new Array(12).fill(0);
+  (r.deals || []).forEach(d => { if (/closed/i.test(String(d.status))) { const cd = String(d.close || '').slice(0, 10); if (cd.slice(0, 4) === yr) { const mo = parseInt(cd.slice(5, 7), 10) - 1; if (mo >= 0 && mo < 12) monthly[mo] += agrNum(d.commissionDue); } } });
+  const allTasks = loadTasks();
+  const myOpen = allTasks.filter(t => t.status === 'open' && t.assignee === u.username);
+  const tasks = myOpen.slice().sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999'))).slice(0, 6)
+    .map(t => ({ id: t.id, title: t.title || 'Task', due: t.due || '', priority: t.priority || 'Normal', linkType: t.linkType || '', linkId: t.linkId || '', linkLabel: t.linkLabel || '' }));
+  const dueToday = myOpen.filter(t => String(t.due || '').slice(0, 10) === today).length;
+  const app1 = loadAppts().filter(a => a.status !== 'deleted' && a.byUser === u.username);
+  const meetToday = app1.filter(a => String(a.start || '').slice(0, 10) === today).length;
+  const appts = app1.filter(a => String(a.start || '') >= today).sort((a, b) => String(a.start || '').localeCompare(String(b.start || ''))).slice(0, 5).map(apptBrief);
+  const nameById = {}; loadPeople().forEach(p => nameById[p.id] = p.name || '');
+  const myAgr = loadAgreements().filter(a => String(a.createdBy || '').toLowerCase() === String(u.username).toLowerCase());
+  const agreements = myAgr.map(a => Object.assign(agreementBrief(a), { personName: a.personName || nameById[a.personId] || '' })).sort((x, y) => String(y.createdAt || '').localeCompare(String(x.createdAt || ''))).slice(0, 6);
+  const awaiting = myAgr.filter(a => ['sent', 'partial', 'awaiting_countersign'].indexOf(String(a.signStatus)) >= 0).length;
+  res.json({ ok: true,
+    user: { username: u.username || '', name: u.name || u.username || '', title: u.title || '', photoUrl: repUserPhoto(u.username) },
+    kpis: { activeListings: r.activeListings, deals: r.dealCount, openDeals: r.openDeals, closedDeals: r.closedDeals, gci: r.gci, received: r.received, waiting: r.waiting, net: r.net, pipeline: r.pipeline, split: r.split },
+    goal: goal, monthly: monthly, curMonth: parseInt(today.slice(5, 7), 10) - 1,
+    tasks: tasks, appointments: appts, listings: r.listings.slice(0, 6), deals: r.deals.slice(0, 6), agreements: agreements, agreementTypes: effAgreementTypes(),
+    pulse: { dueToday: dueToday, meetToday: meetToday, awaiting: awaiting } });
 });
 app.get('/api/user/:username/detail', (req, res) => {
   if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
@@ -10753,7 +10781,7 @@ app.post('/api/user/:username/profile', express.json(), (req, res) => {
   if (!admin && !self) return res.status(403).json({ ok: false, error: 'Not allowed.' });
   const b = req.body || {}; const s = loadSettings(); if (!s.employees || typeof s.employees !== 'object') s.employees = {};
   const key = String(u.username).toLowerCase(); const cur = s.employees[key] || {};
-  const selfFields = ['homeAddress', 'personalEmail', 'personalPhone', 'linkedIn', 'emergencyName', 'emergencyPhone'];
+  const selfFields = ['homeAddress', 'personalEmail', 'personalPhone', 'linkedIn', 'emergencyName', 'emergencyPhone', 'goal'];
   const adminFields = ['startDate', 'endDate', 'notes'];
   selfFields.forEach(fld => { if (typeof b[fld] === 'string') cur[fld] = b[fld].slice(0, 300); });
   if (admin) adminFields.forEach(fld => { if (typeof b[fld] === 'string') cur[fld] = b[fld].slice(0, fld === 'notes' ? 2000 : 300); });
