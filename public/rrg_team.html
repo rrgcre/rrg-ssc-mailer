@@ -26,6 +26,19 @@ h1{font-size:20px;font-weight:800;color:var(--navy);margin:0;}
 .lk{color:var(--navy);font-weight:700;text-decoration:none;} .lk:hover{text-decoration:underline;}
 .meta{color:var(--muted);font-size:12px;}
 .gate{background:#fff;border:1px solid var(--line);border-radius:8px;padding:40px;text-align:center;color:var(--muted);}
+.feats{background:#fff;border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 18px rgba(11,26,56,.05);margin:18px 0;overflow:hidden;}
+.featshd{display:flex;align-items:center;gap:10px;padding:13px 20px;cursor:pointer;user-select:none;}
+.featshd b{font-size:14px;color:var(--navy);}
+.featshd .sh{font-size:11.5px;color:var(--muted);font-weight:600;}
+.featshd .chev{margin-left:auto;color:var(--muted);font-size:12px;transition:transform .15s;}
+.feats.collapsed .chev{transform:rotate(-90deg);}
+.feats.collapsed .featgrid{display:none;}
+.featgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line);}
+.feat{background:#fff;display:flex;gap:11px;padding:13px 18px;align-items:flex-start;text-decoration:none;color:inherit;transition:background .12s;}
+a.feat:hover{background:#f4f7fb;} a.feat:hover b{color:#2c5c8f;}
+.feat .fic{font-size:17px;line-height:1.25;flex:none;width:24px;text-align:center;}
+.feat b{display:block;font-size:12.5px;color:var(--navy);font-weight:800;}
+.feat span{display:block;font-size:11.5px;color:var(--muted);line-height:1.45;margin-top:2px;}
 </style>
 <script src="/rrg_brand.js"></script>
 <script src="/rrg_list.js"></script>
@@ -45,11 +58,13 @@ fetch('/api/team',{credentials:'same-origin'}).then(function(r){return r.json();
 }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
 
 function render(j){
+  var FEATS='<div class="feats" id="tmFeats">'+'<div class="featshd" id="tmFeatHd"><b>What you can do with Teams</b><span class="sh">your team\u2019s book, production and commission at a glance \u2014 tap any tile for help</span><span class="chev">\u25be</span></div>'+'<div class="featgrid">'+'<a class="feat" href="rrg_team_help.html#roster" target="_blank" rel="noopener"><span class="fic">\ud83d\udccb</span><div><b>Everyone at a glance</b><span>Every team member\u2019s book, production and commission on one screen \u2014 ranked and sortable.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#kpis" target="_blank" rel="noopener"><span class="fic">\ud83d\udcca</span><div><b>Live production KPIs</b><span>Active listings, deals, GCI, received, waiting-on, net and pipeline \u2014 computed live from each rep\u2019s book.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#overview" target="_blank" rel="noopener"><span class="fic">\ud83d\udc64</span><div><b>One record per person</b><span>Click a name for a contact-style employee record with their listings, deals and agreements.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#kpis" target="_blank" rel="noopener"><span class="fic">\u23f3</span><div><b>Commission still owed</b><span>See what\u2019s been received vs. what you\u2019re waiting on \u2014 like the second half of a lease commission.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#details" target="_blank" rel="noopener"><span class="fic">\ud83e\udeaa</span><div><b>Employee details</b><span>Home address, LinkedIn, start &amp; end dates and emergency contact, kept right on the record.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#payroll" target="_blank" rel="noopener"><span class="fic">\ud83d\udd12</span><div><b>Payroll &amp; tax</b><span>Payment method, W-9 on file, tax classification and 1099 details \u2014 visible only to administrators.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#commission" target="_blank" rel="noopener"><span class="fic">\ud83d\udcb0</span><div><b>Commission &amp; agent split</b><span>Net pay follows your firm\u2019s commission structure and agent split, set once in admin.</span></div></a>'+'<a class="feat" href="rrg_team_help.html#roster" target="_blank" rel="noopener"><span class="fic">\ud83d\udee1\ufe0f</span><div><b>Private by design</b><span>Reps see only their own record; the roster and payroll figures are admin-only.</span></div></a>'+'</div></div>';
   var t=j.team||[];
   var tot=t.reduce(function(a,r){ a.listings+=r.activeListings; a.deals+=r.deals; a.closed+=r.closedDeals; a.gci+=r.gci; a.net+=r.net; a.received+=(r.received||0); a.waiting+=(r.waiting||0); a.pipeline+=r.pipeline; return a; },{listings:0,deals:0,closed:0,gci:0,net:0,received:0,waiting:0,pipeline:0});
   var html=''
     +'<div class="pkick">Firm</div><h1>Team</h1>'
     +'<div class="sub">'+t.length+' team member'+(t.length===1?'':'s')+' · book, production and commission at a glance. Click a name to open their employee record. <a href="rrg_team_help.html" style="margin-left:4px;font-weight:600">Help &amp; guide \u2192</a></div>'
+    +FEATS
     +'<div class="tiles">'
       +tile(tot.listings,'Active Listings','')
       +tile(tot.deals,'Deals','')
@@ -60,6 +75,7 @@ function render(j){
     +'</div>'
     +'<div class="card"><div class="ch"><b>Team members</b><span>'+t.length+' · '+j.split+'% agent split</span></div><div class="cb"><div id="tm"></div></div></div>';
   document.getElementById('root').innerHTML=html;
+  (function(){ var fs=document.getElementById('tmFeats'), hd=document.getElementById('tmFeatHd'); if(fs&&hd){ try{ if(localStorage.getItem('rrg_tmfeats')!=='1') fs.classList.add('collapsed'); }catch(e){ fs.classList.add('collapsed'); } hd.addEventListener('click',function(){ var col=fs.classList.toggle('collapsed'); try{ localStorage.setItem('rrg_tmfeats', col?'0':'1'); }catch(e){} }); } })();
   RRGList.create({ mount:document.getElementById('tm'), key:'team_roster', data:t, rowId:function(it){return it.username;}, defaultSort:3, defaultDir:-1, empty:'No team members.',
     columns:[
       {key:'name',label:'Name',cell:function(it){ var ini=(it.name||it.username||'?').trim().split(/\s+/).map(function(w){return w.charAt(0);}).join('').slice(0,2).toUpperCase(); var av=it.photoUrl?('<img src="'+esc(it.photoUrl)+'" onerror="this.remove()">'):esc(ini); return '<div class="rp"><span class="rpav">'+av+'</span><a class="lk" href="rrg_user.html?u='+encodeURIComponent(it.username)+'">'+esc(it.name||it.username)+(it.self?' <span class="meta">(you)</span>':'')+'</a></div>'; },sort:function(a,b){return String(a.name).localeCompare(String(b.name));}},

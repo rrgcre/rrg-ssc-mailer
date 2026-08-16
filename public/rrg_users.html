@@ -70,6 +70,7 @@ table.t tr.urow.open{background:#f1f5fa;}
 .gate{max-width:520px;margin:80px auto;text-align:center;color:var(--dim);} .gate h2{color:var(--navy2);font-weight:700;}
 .rrg-back{position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28);}
 .foot{max-width:1180px;margin:0 auto;padding:0 24px 40px;color:var(--dim);font-size:11.5px;}
+.reclink{margin-left:10px;font-size:11.5px;font-weight:700;color:#2c5c8f;text-decoration:none;white-space:nowrap;} .reclink:hover{text-decoration:underline;}
 </style>
 <script src="/rrg_brand.js"></script>
 </head>
@@ -194,7 +195,7 @@ function rowHtml(u){
   var open=(OPEN===u.username);
   var hay=(u.name+' '+u.username+' '+u.email+' '+roleName(u.role)).toLowerCase();
   var tr='<tr class="urow'+(open?' open':'')+'" data-open="'+esc(u.username)+'" data-hay="'+esc(hay)+'">'
-    +'<td><div class="uname">'+uAvatar(u)+'<span><b>'+esc(u.name)+'</b>'+(isAdmin?'<span class="tag admin">Admin</span>':'')+(u.disabled?'<span class="tag off">Disabled</span>':'')+'</span></div></td>'
+    +'<td><div class="uname">'+uAvatar(u)+'<span><b>'+esc(u.name)+'</b>'+(isAdmin?'<span class="tag admin">Admin</span>':'')+(u.disabled?'<span class="tag off">Disabled</span>':'')+'</span><a href="rrg_user.html?u='+encodeURIComponent(u.username)+'" class="reclink" onclick="event.stopPropagation()" title="Open employee record">record \u2197</a></div></td>'
     +'<td><span class="mono">'+esc(u.username)+'</span></td>'
     +'<td><span class="mono">'+(esc(u.email)||'—')+'</span></td>'
     +'<td><span class="ts">'+esc(roleName(u.role))+'</span></td>'
