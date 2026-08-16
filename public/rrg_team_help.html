@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team &amp; Employee Records — Help &amp; User Guide</title>
+<style>
+:root{ --navy:#000E31; --slate:#20334f; --primary:#2c5c8f; --primary-d:#23496f; --red:#b23a2c; --ink:#2b3648; --muted:#69748a; --soft:#96a1b2; --line:#dbe0e9; --wash:#f4f6f9; --inp:#c4ccda; --gold:#b5791f; --green:#2f7a55; }
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--primary);text-decoration:none;} a:hover{text-decoration:underline;}
+.top{background:var(--navy);border-bottom:2px solid var(--primary);color:#fff;position:sticky;top:0;z-index:50;}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:13px;}
+.disc{width:34px;height:34px;border-radius:4px;background:var(--red);color:#fff;font:900 16px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;flex:none;}
+.wm{font-weight:700;font-size:12px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em;color:#cdd6e4;}
+.bar{width:1px;height:24px;background:rgba(255,255,255,.28);margin:0 5px;}
+.ttl{font-weight:700;font-size:15px;color:#fff;}
+.ttl small{display:block;font-size:10.5px;font-weight:600;color:#9fb0cc;text-transform:uppercase;letter-spacing:.06em;margin-top:1px;}
+.backlink{margin-left:auto;color:#cdd6e4;font-size:12.5px;font-weight:600;} .backlink:hover{color:#fff;text-decoration:none;}
+.shell{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;align-items:start;}
+.toc{position:sticky;top:74px;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.toc .th{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 15px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);}
+.toc nav{padding:6px 0;}
+.toc a{display:block;padding:6px 15px;font-size:12.5px;font-weight:600;color:var(--slate);border-left:2px solid transparent;}
+.toc a:hover{background:var(--wash);text-decoration:none;}
+.toc a.on{border-left-color:var(--primary);background:#eef4fa;color:var(--primary-d);}
+.doc{min-width:0;}
+.hero{background:#fff;border:1px solid var(--line);border-radius:6px;padding:24px 26px;margin-bottom:20px;}
+.hero h1{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-.01em;}
+.hero p{color:var(--muted);font-size:14.5px;margin-top:9px;max-width:780px;}
+.hero .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;}
+.tag{font-size:11px;font-weight:700;color:var(--slate);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
+section.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:22px 26px;margin-bottom:16px;scroll-margin-top:74px;}
+section.card>h2{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.01em;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;gap:9px;}
+section.card>h2 .ic{font-size:18px;line-height:1;}
+h3{font-size:14.5px;font-weight:800;color:var(--slate);margin:18px 0 7px;}
+p{margin:9px 0;} .lead{color:var(--muted);font-size:14px;}
+ul{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
+.kbd{display:inline-block;background:var(--wash);border:1px solid var(--inp);border-bottom-width:2px;border-radius:3px;padding:1px 7px;font-size:12px;font-weight:700;color:var(--slate);}
+.callout{border:1px solid var(--line);border-left:3px solid var(--primary);background:#f7fafd;border-radius:0 4px 4px 0;padding:13px 16px;margin:14px 0;font-size:13.5px;}
+.callout.warn{border-left-color:var(--gold);background:#fbf7ef;}
+.callout .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
+.callout.warn .lbl{color:var(--gold);}
+.deflist{border-top:1px solid var(--line);margin-top:6px;}
+.deflist .row{display:flex;gap:14px;padding:11px 0;border-bottom:1px solid #eef1f6;}
+.deflist .k{flex:0 0 150px;font-weight:800;color:var(--slate);font-size:13.5px;}
+.deflist .v{flex:1;color:var(--muted);font-size:13.5px;}
+.fq{border-top:1px solid var(--line);padding:13px 0;} .fq:first-of-type{border-top:none;} .fq h3{margin:0 0 4px;font-size:14px;} .fq p{margin:0;color:var(--muted);font-size:13.5px;}
+.foot{max-width:1180px;margin:0 auto;padding:0 24px 50px;color:var(--soft);font-size:12px;text-align:center;}
+@media(max-width:900px){.shell{grid-template-columns:1fr;}.toc{position:static;}}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <span class="disc">❖</span><span class="wm">Team<br>Records</span><span class="bar"></span>
+  <span class="ttl">Team &amp; Employee Records<small>Help &amp; User Guide</small></span>
+  <a class="backlink" href="rrg_team.html">&larr; Back to Team</a>
+</div></div>
+
+<div class="shell">
+  <aside class="toc">
+    <div class="th">Contents</div>
+    <nav id="tocNav">
+      <a href="#overview">1 · Overview</a>
+      <a href="#roster">2 · The Team roster</a>
+      <a href="#kpis">3 · KPIs explained</a>
+      <a href="#details">4 · Employee details</a>
+      <a href="#payroll">5 · Payroll &amp; tax</a>
+      <a href="#commission">6 · Commission structure &amp; split</a>
+      <a href="#faq">7 · FAQ</a>
+    </nav>
+  </aside>
+
+  <main class="doc">
+    <div class="hero">
+      <h1>Team &amp; Employee Records — Help &amp; User Guide</h1>
+      <p>Every team member has an employee record: their book of business and production at a glance, their contact and HR details, and — for administrators — payroll and tax. It's the fastest way to see what a rep is carrying, what they've closed, and what commission is still owed.</p>
+      <div class="meta"><span class="tag">Team roster</span><span class="tag">Production &amp; commission</span><span class="tag">Employee records</span></div>
+    </div>
+
+    <section class="card" id="overview">
+      <h2><span class="ic">❖</span> Overview</h2>
+      <p class="lead">Open <span class="kbd">Team</span> from the left toolbar. Administrators land on the roster of everyone on the team; a rep goes straight to their own record.</p>
+      <p>An employee record reads like a contact record, but for a team member: a header with their photo and role, a row of production and commission <a href="#kpis">KPIs</a>, editable <a href="#details">employee details</a>, admin-only <a href="#payroll">payroll &amp; tax</a>, and their <b>Listings</b>, <b>Deals</b>, and <b>Agreements</b> — each linking back to the live record.</p>
+    </section>
+
+    <section class="card" id="roster">
+      <h2><span class="ic">📋</span> The Team roster</h2>
+      <p class="lead">One line per team member, ranked by commission, with the numbers that matter across the whole firm.</p>
+      <p>The roster totals the team's active listings, deals, commission, received, waiting-on and pipeline at the top, then lists each member with the same figures. Click any name to open their record. Sort by any column to see your top producers, who's carrying the most listings, or who has the most commission still outstanding.</p>
+      <div class="callout"><div class="lbl">Who sees what</div>The roster with everyone's commission is <b>admin-only</b>. A rep who opens Team is taken to their own record; they never see peers' commission or payroll.</div>
+    </section>
+
+    <section class="card" id="kpis">
+      <h2><span class="ic">📊</span> KPIs explained</h2>
+      <p class="lead">Every figure on the record is computed live from the rep's listings and deals — nothing is typed in by hand.</p>
+      <div class="deflist">
+        <div class="row"><div class="k">Active Listings</div><div class="v">Open listings the rep owns (not closed or lost).</div></div>
+        <div class="row"><div class="k">Deals</div><div class="v">Listings that have a transaction — shown as open vs. closed.</div></div>
+        <div class="row"><div class="k">Commission (GCI)</div><div class="v">Gross Commission Income on <b>closed</b> deals — the firm's total commission before any split or referral.</div></div>
+        <div class="row"><div class="k">Received</div><div class="v">Commission actually <b>paid</b> to date across the rep's deals.</div></div>
+        <div class="row"><div class="k">Waiting on</div><div class="v">Commission <b>owed but not yet received</b> on closed deals — e.g. the second-half of a lease commission due at occupancy.</div></div>
+        <div class="row"><div class="k">Net</div><div class="v">The rep's share after the firm's <a href="#commission">agent split</a> (GCI × agent %).</div></div>
+        <div class="row"><div class="k">Pipeline</div><div class="v">Total value of the rep's active listings — what's in flight.</div></div>
+      </div>
+    </section>
+
+    <section class="card" id="details">
+      <h2><span class="ic">🪪</span> Employee details</h2>
+      <p class="lead">Contact and HR basics on the record, kept in one place.</p>
+      <p>Home address, personal email and phone, LinkedIn, start and end dates, emergency contact, and internal HR notes. A rep can update their own contact details; <b>start date, end date and HR notes are administrator-only</b>. The start date also shows in the record header.</p>
+    </section>
+
+    <section class="card" id="payroll">
+      <h2><span class="ic">🔒</span> Payroll &amp; tax</h2>
+      <p class="lead">Sensitive pay and tax data, visible only to administrators.</p>
+      <p>The payroll card captures payment method, <b>W-9 on file</b> (with the date received), tax classification, the tax ID used for 1099 reporting, and payment notes. This section is never shown to the employee or to peers — only administrators can see or edit it.</p>
+      <div class="callout warn"><div class="lbl">Handling sensitive IDs</div>Full SSNs are best not kept in plain text. If your data policy requires it, the record can store only the last four of the SSN plus the "W-9 on file" flag instead of the full number — ask an administrator to switch it to masked storage.</div>
+    </section>
+
+    <section class="card" id="commission">
+      <h2><span class="ic">💰</span> Commission structure &amp; split</h2>
+      <p class="lead">The Net figure and every projected commission come from your firm's commission setup.</p>
+      <p>Under <span class="kbd">Settings → Accounting → Commission Structure</span> an administrator configures the two fee methods (the tiered <b>Modified Lehman</b> rate card and a <b>flat rate</b>), the per-location <b>minimum fee</b>, and the firm-wide <b>agent split</b> — the share of GCI a rep keeps. The agent split drives the <b>Net</b> column on the roster and each record. The same rate card powers the Commission Forecaster and the projected GCI on every agreement, so the numbers always agree.</p>
+    </section>
+
+    <section class="card" id="faq">
+      <h2><span class="ic">❓</span> FAQ</h2>
+      <div class="fq"><h3>A rep's listing or deal isn't showing on their record.</h3><p>The record collects listings and deals by <b>owner</b>. Make sure the listing's owner is set to that team member; ownership is matched by their name or username.</p></div>
+      <div class="fq"><h3>Why is "Waiting on" zero when a deal closed?</h3><p>Waiting-on is the difference between commission due and commission paid on closed deals. It's zero once the full commission is marked paid — set the commission paid amount on the deal as installments come in.</p></div>
+      <div class="fq"><h3>Can reps see each other's commission?</h3><p>No. The roster and payroll are admin-only; a rep only sees their own record.</p></div>
+      <div class="fq"><h3>Where does the agent split come from?</h3><p>Settings → Accounting → Commission Structure, as a firm-wide percentage (default 50%). Change it there and every Net figure updates.</p></div>
+    </section>
+
+  </main>
+</div>
+
+<div class="foot">Team &amp; Employee Records — Help &amp; User Guide · Confidential platform documentation.</div>
+
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('#tocNav a'));
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function spy(){ var y=window.scrollY+90, cur=secs[0]; for(var i=0;i<secs.length;i++){ if(secs[i].offsetTop<=y) cur=secs[i]; } links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('href')==='#'+(cur&&cur.id)); }); }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+})();
+</script>
+</body>
+</html>

@@ -1581,6 +1581,14 @@ app.post('/api/admin/commission-structure', requireAdmin, express.json(), (req, 
   saveSettings(s);
   res.json({ ok: true, tiers: effCommissionTiers(), minFee: effCommissionMinFee(), flatRate: effCommissionFlatRate(), agentSplit: effCommissionAgentSplit() });
 });
+// ---- Which agreement types are renewable (admin-configurable per-type flag) ----
+app.post('/api/admin/agreement-renewable', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const s = loadSettings();
+  const valid = agreementTypeKeys();
+  const keys = Array.isArray(b.keys) ? b.keys.map(String).filter(k => valid.indexOf(k) >= 0) : [];
+  s.agrRenewableTypes = keys; saveSettings(s);
+  res.json({ ok: true, types: effAgreementTypes() });
+});
 // ---- Agreement renewal reminder thresholds (admin-configurable) ----
 app.get('/api/admin/agreement-reminders', requireAdmin, (req, res) => {
   const rd = effAgrRenewDays();

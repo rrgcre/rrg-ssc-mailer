@@ -49,7 +49,7 @@ function render(j){
   var tot=t.reduce(function(a,r){ a.listings+=r.activeListings; a.deals+=r.deals; a.closed+=r.closedDeals; a.gci+=r.gci; a.net+=r.net; a.received+=(r.received||0); a.waiting+=(r.waiting||0); a.pipeline+=r.pipeline; return a; },{listings:0,deals:0,closed:0,gci:0,net:0,received:0,waiting:0,pipeline:0});
   var html=''
     +'<div class="pkick">Firm</div><h1>Team</h1>'
-    +'<div class="sub">'+t.length+' team member'+(t.length===1?'':'s')+' · book, production and commission at a glance. Click a name to open their employee record.</div>'
+    +'<div class="sub">'+t.length+' team member'+(t.length===1?'':'s')+' · book, production and commission at a glance. Click a name to open their employee record. <a href="rrg_team_help.html" style="margin-left:4px;font-weight:600">Help &amp; guide \u2192</a></div>'
     +'<div class="tiles">'
       +tile(tot.listings,'Active Listings','')
       +tile(tot.deals,'Deals','')

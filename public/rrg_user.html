@@ -114,7 +114,7 @@ function render(){
   }
 
   var html=''
-    +'<div class="crumb"><a href="rrg_team.html">← Team</a></div>'
+    +'<div class="crumb"><a href="rrg_team.html">← Team</a> \u00b7 <a href="rrg_team_help.html">Help &amp; guide</a></div>'
     +'<div class="rechero"><div class="rhlogo">'+av+'</div><div><div class="rhname">'+esc(u.name||u.username)+'</div><div class="rhmeta">'+esc(contact||'Team member')+(reach?(' · '+reach):'')+(e.startDate?(' · started '+fmtD(e.startDate)):'')+'</div></div></div>'
     +'<div class="tiles">'
       +tile(k.activeListings,'Active Listings','')
