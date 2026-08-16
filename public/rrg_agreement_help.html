@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agreement Builder — Help &amp; User Guide</title>
+<style>
+:root{ --navy:#000E31; --slate:#20334f; --primary:#2c5c8f; --primary-d:#23496f; --red:#b23a2c; --ink:#2b3648; --muted:#69748a; --soft:#96a1b2; --line:#dbe0e9; --wash:#f4f6f9; --inp:#c4ccda; --gold:#b5791f; --green:#2f7a55; }
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:#eef1f6;font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;}
+a{color:var(--primary);text-decoration:none;} a:hover{text-decoration:underline;}
+.top{background:var(--navy);border-bottom:2px solid var(--primary);color:#fff;position:sticky;top:0;z-index:50;}
+.top-in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:13px;}
+.disc{width:34px;height:34px;border-radius:4px;background:var(--red);color:#fff;font:900 16px 'Arial Black',Arial;display:flex;align-items:center;justify-content:center;flex:none;}
+.wm{font-weight:700;font-size:12px;line-height:1.05;text-transform:uppercase;letter-spacing:.02em;color:#cdd6e4;}
+.bar{width:1px;height:24px;background:rgba(255,255,255,.28);margin:0 5px;}
+.ttl{font-weight:700;font-size:15px;color:#fff;}
+.ttl small{display:block;font-size:10.5px;font-weight:600;color:#9fb0cc;text-transform:uppercase;letter-spacing:.06em;margin-top:1px;}
+.backlink{margin-left:auto;color:#cdd6e4;font-size:12.5px;font-weight:600;} .backlink:hover{color:#fff;text-decoration:none;}
+.shell{max-width:1180px;margin:22px auto;padding:0 24px 70px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:26px;align-items:start;}
+.toc{position:sticky;top:74px;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;}
+.toc .th{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 15px;font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--soft);}
+.tsearch{padding:10px 12px;border-bottom:1px solid var(--line);}
+.tsearch input{width:100%;border:1px solid var(--inp);border-radius:4px;padding:7px 10px;font:inherit;font-size:12.5px;}
+.toc nav{max-height:calc(100vh - 200px);overflow:auto;padding:6px 0;}
+.toc a{display:block;padding:6px 15px;font-size:12.5px;font-weight:600;color:var(--slate);border-left:2px solid transparent;}
+.toc a.sub{padding-left:28px;font-weight:600;color:var(--muted);font-size:12px;}
+.toc a:hover{background:var(--wash);text-decoration:none;}
+.toc a.on{border-left-color:var(--primary);background:#eef4fa;color:var(--primary-d);}
+.toc .miss{padding:10px 15px;color:var(--soft);font-size:12px;}
+.doc{min-width:0;}
+.hero{background:#fff;border:1px solid var(--line);border-radius:6px;padding:24px 26px;margin-bottom:20px;}
+.hero h1{font-size:22px;font-weight:700;color:var(--navy);letter-spacing:-.01em;}
+.hero p{color:var(--muted);font-size:14.5px;margin-top:9px;max-width:780px;}
+.hero .meta{margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;}
+.tag{font-size:11px;font-weight:700;color:var(--slate);background:var(--wash);border:1px solid var(--line);border-radius:3px;padding:4px 10px;}
+section.card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:22px 26px;margin-bottom:16px;scroll-margin-top:74px;}
+section.card>h2{font-size:16px;font-weight:700;color:var(--navy);letter-spacing:-.01em;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:14px;display:flex;align-items:center;gap:9px;}
+section.card>h2 .ic{font-size:18px;line-height:1;}
+h3{font-size:14.5px;font-weight:800;color:var(--slate);margin:18px 0 7px;scroll-margin-top:80px;}
+p{margin:9px 0;} .lead{color:var(--muted);font-size:14px;}
+ul,ol{margin:9px 0 9px 4px;padding-left:22px;} li{margin:5px 0;}
+.kbd{display:inline-block;background:var(--wash);border:1px solid var(--inp);border-bottom-width:2px;border-radius:3px;padding:1px 7px;font-size:12px;font-weight:700;color:var(--slate);}
+.callout{border:1px solid var(--line);border-left:3px solid var(--primary);background:#f7fafd;border-radius:0 4px 4px 0;padding:13px 16px;margin:14px 0;font-size:13.5px;}
+.callout.tip{border-left-color:var(--green);background:#f1f8f4;}
+.callout.warn{border-left-color:var(--gold);background:#fbf7ef;}
+.callout .lbl{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px;}
+.callout.tip .lbl{color:var(--green);} .callout.warn .lbl{color:var(--gold);}
+.new{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:var(--green);border-radius:3px;padding:2px 6px;vertical-align:middle;margin-left:6px;}
+.fq{border-top:1px solid var(--line);padding:13px 0;} .fq:first-of-type{border-top:none;} .fq h3{margin:0 0 4px;font-size:14px;} .fq p{margin:0;color:var(--muted);font-size:13.5px;}
+.foot{max-width:1180px;margin:0 auto;padding:0 24px 50px;color:var(--soft);font-size:12px;text-align:center;}
+.totop{position:fixed;right:20px;bottom:20px;background:var(--navy);color:#fff;border:none;border-radius:4px;padding:9px 13px;font:inherit;font-size:12px;font-weight:700;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .15s;z-index:60;}
+.totop.show{opacity:1;pointer-events:auto;}
+@media(max-width:900px){.shell{grid-template-columns:1fr;}.toc{position:static;}.toc nav{max-height:none;}}
+</style>
+</head>
+<body>
+<div class="top"><div class="top-in">
+  <span class="disc">✎</span><span class="wm">Agreement<br>Builder</span><span class="bar"></span>
+  <span class="ttl">Agreement Builder<small>Help &amp; User Guide</small></span>
+  <a class="backlink" href="rrg_settings.html?tab=agrtemplates">&larr; Back to templates</a>
+</div></div>
+
+<div class="shell">
+  <aside class="toc">
+    <div class="th">Contents</div>
+    <div class="tsearch"><input id="tocSearch" placeholder="Search this guide…" autocomplete="off"></div>
+    <nav id="tocNav">
+      <a href="#overview">1 · Overview</a>
+      <a href="#build">2 · Build the document</a>
+      <a href="#autoplace" class="sub">AI auto-place</a>
+      <a href="#groups" class="sub">Field groups &amp; completeness</a>
+      <a href="#dates" class="sub">Dates, term &amp; expiration</a>
+      <a href="#send">3 · Send &amp; sign</a>
+      <a href="#security" class="sub">Locked after signing</a>
+      <a href="#close">4 · Close the loop</a>
+      <a href="#commission" class="sub">Commission &amp; projected GCI</a>
+      <a href="#renewals" class="sub">Renewal &amp; expiration engine</a>
+      <a href="#audit" class="sub">Audit certificate</a>
+      <a href="#library">5 · Template library</a>
+      <a href="#faq">6 · FAQ</a>
+    </nav>
+  </aside>
+
+  <main class="doc">
+    <div class="hero">
+      <h1>Agreement Builder — Help &amp; User Guide</h1>
+      <p>Turn any PDF into a signable agreement, send it for signature, and track it all the way to close. Place fields right on the document, let the rep fill every detail so the signer only signs, then capture the commission, renew before it lapses, and keep a court-ready audit trail — end to end, in one place.</p>
+      <div class="meta"><span class="tag">Build → Sign → Close</span><span class="tag">Multi-signer e-sign</span><span class="tag">Commission &amp; renewals</span></div>
+    </div>
+
+    <section class="card" id="overview">
+      <h2><span class="ic">🧭</span> Overview</h2>
+      <p class="lead">Templates are managed under <span class="kbd">Settings → Documents → Agreement Templates</span> (admin). Agreements themselves are created and sent from a contact, company, or deal.</p>
+      <p>The idea is simple: store each standard agreement once as a template, place the signature and data fields on it a single time, and reuse it forever. When it's time to send, the <b>rep completes every detail</b> — names, dates, terms, dollar amounts — so the person on the other end only has to sign. The three stages of the tool are <b>Build</b> the document, <b>Send &amp; sign</b> it, and <b>Close the loop</b> — commission, renewals, and a signed audit trail.</p>
+    </section>
+
+    <section class="card" id="build">
+      <h2><span class="ic">🛠️</span> Build the document</h2>
+      <p class="lead">Upload the signable PDF, then drop fields right onto it in the field designer. No re-typing later — the layout is set once and reused every time you send.</p>
+      <p>Create a template with <span class="kbd">+ New template</span>, give it a name and (optionally) a type, and upload the PDF you sign today. Open <b>Design fields</b> to place fields directly on the document:</p>
+      <ul>
+        <li><b>Signature</b> and <b>initials</b> — assigned to a specific signer.</li>
+        <li><b>Date</b>, <b>text</b>, <b>number</b>, <b>currency</b>, <b>email</b>, and <b>checkbox</b> fields — each can be typed by a signer or <b>auto-filled</b> from the record (client name/email, your name, the brokerage legal name, today's date).</li>
+        <li>Every field is tied to a signer and can be marked <b>required</b>. Text starts at the top of the box and wraps, so long values stay readable.</li>
+      </ul>
+      <div class="callout tip"><div class="lbl">Sensible defaults</div>New templates open with two signers already labeled <b>Client</b> and your firm's name, so you're not renaming the parties on every template.</div>
+
+      <h3 id="autoplace">AI auto-place <span class="new">New</span></h3>
+      <p>Instead of placing every field by hand, click <b>✨ Auto-place fields</b> after you upload. The assistant reads the document's text and geometry and proposes where the signature, date, and party fields belong — each shown with a gold outline for you to accept, nudge, or delete. It's the biggest time-saver in the builder; it runs an AI pass, which is a metered action.</p>
+
+      <h3 id="groups">Field groups &amp; completeness check <span class="new">New</span></h3>
+      <p>Drop a whole <b>signature block</b> — signature, printed name, date, and title — in one click instead of placing four fields separately. Before you save, the <b>completeness check</b> reviews the template and flags anything that would trip up a live send: a signer with no signature field, unlabeled fields, or a required field no one can fill. A badge tells you it's airtight before it ever goes out.</p>
+
+      <h3 id="dates">Dates, term &amp; expiration</h3>
+      <p>On the agreement you set the <b>effective date</b> and <b>expiration</b>. Use <b>Effective = today</b>, pick a <b>term</b> (1 / 5 / 10 / 15 / 20 years auto-fills the expiration), or choose <b>Effective on full execution</b> so the clock starts the moment the last party signs. Effective and expiration dates now show in the Documents list and on the agreement so nothing lapses unseen.</p>
+    </section>
+
+    <section class="card" id="send">
+      <h2><span class="ic">✍️</span> Send &amp; sign</h2>
+      <p class="lead">The rep fills everything in first; the signer only signs. Send by email or hand over a secure link.</p>
+      <p>When you send, you get a <b>Complete the details</b> step that lists every field you're responsible for — names, dates, dollar amounts, checkboxes. Auto-fill fields are already populated from the record, so you're just confirming. The signer opens a clean document, sees the values and checkbox states you set, and adds only their signature.</p>
+      <p><b>Sequential multi-signer:</b> the client signs first and the broker <b>countersigns last</b>, in order. Each signer gets their own link; send by email straight from the record or copy the secure link to share yourself. You can watch each signer move from <i>Sent</i> to <i>Viewed</i> to <i>Signed</i>.</p>
+
+      <h3 id="security">Locked after signing <span class="new">New</span></h3>
+      <p>Security is enforced on the server, not just hidden in the screen. The details the rep fills are <b>locked when the agreement is sent</b>, and once the <b>first signature</b> is on the document the whole agreement is <b>frozen</b> — a later signer cannot change fields, values, or terms. What the first party agreed to is exactly what the last party signs.</p>
+    </section>
+
+    <section class="card" id="close">
+      <h2><span class="ic">💰</span> Close the loop</h2>
+      <p class="lead">A signed agreement should do more than sit in a folder. The builder projects the commission to the deal, protects the renewal, and files a court-ready audit trail.</p>
+
+      <h3 id="commission">Commission &amp; projected GCI <span class="new">New</span></h3>
+      <p>On each agreement you pick the commission method for that deal:</p>
+      <ul>
+        <li><b>Modified Lehman</b> — the firm's tiered / marginal schedule. Each tranche of the transaction value earns its own tier's rate, summed for the gross commission.</li>
+        <li><b>Flat rate</b> — a single percentage of the transaction value.</li>
+        <li><b>Flat fee</b> — a fixed dollar amount negotiated for that deal.</li>
+      </ul>
+      <p>Both firm methods (the Lehman rate card and the flat rate) are configured once by an admin under <span class="kbd">Settings → Accounting → Commission Structure</span>; on the deal you just choose which one applies. The <b>projected GCI</b> calculates live as you enter the deal value (or pulls it from the linked deal), honoring the <b>per-location minimum fee</b> for multi-unit transactions. When the agreement is <b>executed</b>, the gross GCI flows to the linked deal's commission fields and a <b>follow-up task</b> opens for the owner to invoice and track it to payment.</p>
+      <div class="callout"><div class="lbl">What "GCI" means here</div>Gross Commission Income — the firm's total commission before any agent / house split or referral. The same Modified Lehman card powers the standalone Commission Forecaster, so the two always agree.</div>
+
+      <h3 id="renewals">Renewal &amp; expiration engine <span class="new">New</span></h3>
+      <p>Nothing lapses by accident. The system watches every active agreement's expiration and creates a <b>follow-up task for the owner</b> as it approaches — at reminder thresholds an admin sets under the <b>Renewal reminders</b> card (default <b>60</b> and <b>30</b> days; the closer one is High priority). When it's time, <b>Renew / extend</b> clones the agreement into a fresh term in one click — new dates, same fields and document — as a draft you review and send. Once renewed, the original is marked so you can't double-renew it.</p>
+
+      <h3 id="audit">Audit certificate <span class="new">New</span></h3>
+      <p>Every executed agreement gets a DocuSign-style <b>Certificate of Completion</b> appended to the final PDF: a unique document ID, and for each signer the <b>Sent</b>, <b>Viewed</b>, and <b>Signed</b> timestamps with IP addresses, plus an ESIGN Act / UETA statement. It's the court-ready trail that proves who signed what, when, and from where.</p>
+    </section>
+
+    <section class="card" id="library">
+      <h2><span class="ic">🗂️</span> Template library</h2>
+      <p class="lead">Your standard agreements, stored once and reused — consistent every time, editable in one place.</p>
+      <p>The library lists every template with its type, document status, and when it was last used. Each template carries its own <b>signer count and labels</b>, the <b>email subject and message</b> that goes out with it, an optional <b>greeting</b>, and an <b>on-execution automation</b> that can fire when the agreement is fully signed. Mark a template <b>active</b> or <b>inactive</b> to control what reps can send. Print or edit any template from the row; delete removes the template and its document without touching agreements already created from it.</p>
+      <div class="callout tip"><div class="lbl">Renewal reminders live here too</div>The <b>Renewal reminders</b> card at the top of this page is where an admin sets the firm-wide days-out thresholds that drive the <a href="#renewals">renewal engine</a>.</div>
+    </section>
+
+    <section class="card" id="faq">
+      <h2><span class="ic">❓</span> FAQ</h2>
+      <div class="fq"><h3>The broker name didn't auto-fill for the signer.</h3><p>Auto-fill fields pull from the record and from your account. Make sure the field's source is set (e.g. "Me — name", "Brokerage — legal name") in the field designer, and that your profile and the firm's brokerage legal name are filled in. Auto-fill fields are completed for the signer and don't appear as blanks for them to fill.</p></div>
+      <div class="fq"><h3>Can a later signer change what an earlier one agreed to?</h3><p>No. Once the first signature is on the document, the agreement is frozen server-side — fields, values, and terms are locked for every subsequent signer.</p></div>
+      <div class="fq"><h3>Which commission method should I pick?</h3><p>Use <b>Modified Lehman</b> for standard tiered deals, <b>Flat rate</b> when the firm quotes one percentage, or <b>Flat fee</b> for a negotiated fixed amount. The two firm methods are set once in Settings → Accounting → Commission Structure; you just choose per deal.</p></div>
+      <div class="fq"><h3>Where does the projected commission go?</h3><p>On execution the gross GCI writes to the linked deal's commission fields and opens a tracking task for the owner. If you leave the deal value blank on the agreement, it's pulled from the linked deal at execution.</p></div>
+      <div class="fq"><h3>How do renewal reminders get created?</h3><p>Automatically. Any active agreement within the admin-set thresholds (default 60 / 30 days) of its expiration gets a follow-up task for the owner. Use Renew / extend on the agreement to spin up the next term.</p></div>
+      <div class="fq"><h3>Do I have to place every field by hand?</h3><p>No — upload the PDF and click ✨ Auto-place fields to have the assistant propose them, then adjust. You can also drop a full signature block in one click.</p></div>
+    </section>
+
+  </main>
+</div>
+
+<div class="foot">Agreement Builder — Help &amp; User Guide · Confidential platform documentation.</div>
+<button class="totop" id="totop" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑ Top</button>
+
+<script>
+(function(){
+  var links=[].slice.call(document.querySelectorAll('#tocNav a'));
+  var secs=links.map(function(a){return document.getElementById(a.getAttribute('href').slice(1));}).filter(Boolean);
+  function spy(){ var y=window.scrollY+90, cur=secs[0]; for(var i=0;i<secs.length;i++){ if(secs[i].offsetTop<=y) cur=secs[i]; } links.forEach(function(a){ a.classList.toggle('on', a.getAttribute('href')==='#'+(cur&&cur.id)); }); var tt=document.getElementById('totop'); if(tt) tt.classList.toggle('show', window.scrollY>400); }
+  window.addEventListener('scroll',spy,{passive:true}); spy();
+  var box=document.getElementById('tocSearch'), nav=document.getElementById('tocNav');
+  box.addEventListener('input',function(){ var q=box.value.trim().toLowerCase(); var any=false; links.forEach(function(a){ var sec=document.getElementById(a.getAttribute('href').slice(1)); var hit=!q || a.textContent.toLowerCase().indexOf(q)>=0 || (sec&&sec.textContent.toLowerCase().indexOf(q)>=0); a.style.display=hit?'':'none'; if(hit) any=true; }); var m=document.getElementById('tocMiss'); if(m) m.remove(); if(!any){ var d=document.createElement('div'); d.className='miss'; d.id='tocMiss'; d.textContent='No matches.'; nav.appendChild(d); } });
+})();
+</script>
+</body>
+</html>

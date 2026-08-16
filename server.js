@@ -471,7 +471,9 @@ function effCurrency(){ const s=loadSettings(); const c=(typeof s.currency==='st
 function currencySymbol(){ return CURRENCY_SYMBOLS[effCurrency()]||'$'; }
 function effSentSyncEnabled() { const s = loadSettings(); return s.sentSyncEnabled !== false; }
 function effSentSyncInterval() { const s = loadSettings(); const n = parseInt(s.sentSyncIntervalMin, 10); return (isFinite(n) && n >= 2) ? Math.min(720, n) : 10; }
-function effAgrRenewDays() { const s = loadSettings(); let a = parseInt(s.agrRemind1, 10); let b = parseInt(s.agrRemind2, 10); if (!(isFinite(a) && a > 0)) a = 60; if (!(isFinite(b) && b > 0)) b = 30; a = Math.min(365, a); b = Math.min(365, b); if (b > a) { const t = a; a = b; b = t; } return { first: a, second: b }; }
+function effAgrRenewDays() { const s = loadSettings(); let a = parseInt(s.agrRemind1, 10); let b = parseInt(s.agrRemind2, 10); if (!(isFinite(a) && a > 0)) a = 60; if (!(isFinite(b) && b > 0)) b = 30; a = Math.min(365, a); b = Math.min(365, b); if (b > a) { const t = a; a = b; b = t; } return { first: a, second: b, msg1: String(s.agrRemind1Msg || '').slice(0, 200), msg2: String(s.agrRemind2Msg || '').slice(0, 200) }; }
+const DEFAULT_REMIND_MSG = '{type} expires {expires} ({days} days) \u2014 renew?';
+function renderReminderMsg(tmpl, ctx) { let t = String(tmpl || '').trim() || DEFAULT_REMIND_MSG; return t.replace(/\{type\}/g, ctx.type || 'Agreement').replace(/\{client\}/g, ctx.client || '').replace(/\{who\}/g, ctx.client || '').replace(/\{days\}/g, String(ctx.days)).replace(/\{expires\}/g, ctx.expires || '').replace(/\s{2,}/g, ' ').trim(); }
 // ---- Tool label overrides: admins can rename any tool (e.g. call "Contacts" "People").
 // Stored as { file: customLabel }; the dashboard applies them when rendering. ----
 const TOOL_DEFS = [
@@ -1568,20 +1570,21 @@ app.post('/api/admin/dataroom', requireAdmin, express.json(), (req, res) => {
 // ---- Firm commission structure (both methods configured; picked per deal) ----
 app.get('/api/commission-structure', (req, res) => {
   if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
-  res.json({ ok: true, tiers: effCommissionTiers(), minFee: effCommissionMinFee(), flatRate: effCommissionFlatRate(), isAdmin: !!(req.user && isSuper(req.user)) });
+  res.json({ ok: true, tiers: effCommissionTiers(), minFee: effCommissionMinFee(), flatRate: effCommissionFlatRate(), agentSplit: effCommissionAgentSplit(), isAdmin: !!(req.user && isSuper(req.user)) });
 });
 app.post('/api/admin/commission-structure', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
   if (Array.isArray(b.tiers)) { const clean = _cleanTiers(b.tiers); if (clean) s.commissionTiers = clean; }
   if (b.minFee !== undefined) { const m = Number(b.minFee); s.commissionMinFee = (isFinite(m) && m > 0) ? Math.round(m) : 0; }
   if (b.flatRate !== undefined) { let r = Number(b.flatRate); if (!isFinite(r) || r < 0) r = 0; if (r <= 1 && r > 0) r = r * 100; s.commissionFlatRate = Math.min(100, r); }
+  if (b.agentSplit !== undefined) { let g = Number(b.agentSplit); if (!isFinite(g) || g < 0) g = 50; s.commissionAgentSplit = Math.min(100, g); }
   saveSettings(s);
-  res.json({ ok: true, tiers: effCommissionTiers(), minFee: effCommissionMinFee(), flatRate: effCommissionFlatRate() });
+  res.json({ ok: true, tiers: effCommissionTiers(), minFee: effCommissionMinFee(), flatRate: effCommissionFlatRate(), agentSplit: effCommissionAgentSplit() });
 });
 // ---- Agreement renewal reminder thresholds (admin-configurable) ----
 app.get('/api/admin/agreement-reminders', requireAdmin, (req, res) => {
   const rd = effAgrRenewDays();
-  res.json({ ok: true, first: rd.first, second: rd.second });
+  res.json({ ok: true, first: rd.first, second: rd.second, msg1: rd.msg1, msg2: rd.msg2, defaultMsg: DEFAULT_REMIND_MSG });
 });
 app.post('/api/admin/agreement-reminders', requireAdmin, express.json(), (req, res) => {
   const b = req.body || {}; const s = loadSettings();
@@ -1589,8 +1592,12 @@ app.post('/api/admin/agreement-reminders', requireAdmin, express.json(), (req, r
   if (!(isFinite(a) && a > 0) || !(isFinite(c) && c > 0)) return res.status(400).json({ ok: false, error: 'Enter two positive day counts.' });
   a = Math.min(365, a); c = Math.min(365, c);
   if (c > a) { const t = a; a = c; c = t; }
-  s.agrRemind1 = a; s.agrRemind2 = c; saveSettings(s);
-  res.json({ ok: true, first: a, second: c });
+  s.agrRemind1 = a; s.agrRemind2 = c;
+  if (b.msg1 !== undefined) s.agrRemind1Msg = String(b.msg1 || '').slice(0, 200);
+  if (b.msg2 !== undefined) s.agrRemind2Msg = String(b.msg2 || '').slice(0, 200);
+  saveSettings(s);
+  const rd = effAgrRenewDays();
+  res.json({ ok: true, first: rd.first, second: rd.second, msg1: rd.msg1, msg2: rd.msg2 });
 });
 // Best-effort notification email. Silently no-ops if SMTP isn't configured, and never throws.
 async function sendNotifyMail(to, subject, text) {
@@ -10655,6 +10662,93 @@ app.get('/api/admin/users', requireAdmin, (req, res) => {
     res.json({ ok: true, users: list, roles: _roles, departments: effDepartments().map(d => ({ id: d.id, name: d.name })) });
   } catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
 });
+// ===== Rep / user records — a team member's book, KPIs and lists =====
+function effPayroll(un) { const s = loadSettings(); const m = (s.payroll && typeof s.payroll === 'object') ? s.payroll : {}; const p = m[String(un).toLowerCase()] || {}; return { paymentMethod: p.paymentMethod || '', w9OnFile: !!p.w9OnFile, w9Date: p.w9Date || '', taxClass: p.taxClass || '', taxId: p.taxId || '', payNotes: p.payNotes || '' }; }
+function effEmployee(un) { const s = loadSettings(); const m = (s.employees && typeof s.employees === 'object') ? s.employees : {}; const e = m[String(un).toLowerCase()] || {}; return { homeAddress: e.homeAddress || '', personalEmail: e.personalEmail || '', personalPhone: e.personalPhone || '', linkedIn: e.linkedIn || '', startDate: e.startDate || '', endDate: e.endDate || '', emergencyName: e.emergencyName || '', emergencyPhone: e.emergencyPhone || '', notes: e.notes || '' }; }
+function repMatchesOwner(owner, u) { const o = String(owner || '').trim().toLowerCase(); if (!o) return false; return o === String(u.username || '').toLowerCase() || o === String(u.name || '').toLowerCase(); }
+function repUserPhoto(username) { try { const prof = auth.profileOf(auth.findUser(username)); if (prof && prof.photoExt) return '/api/userphoto/' + String(username).replace(/[^a-z0-9_.-]/gi, '_') + '.' + prof.photoExt + '?v=' + encodeURIComponent(prof.photoAt || 0); } catch (e) {} return ''; }
+function repRollup(u, opts) {
+  opts = opts || {};
+  const idx = assignmentsIndex(), overlay = loadAssignOverlay();
+  const listings = [], deals = [];
+  let activeListings = 0, closedDeals = 0, openDeals = 0, gci = 0, gciOpen = 0, pipeline = 0, received = 0, waiting = 0;
+  for (const key in idx) {
+    let v; try { v = assignmentView(idx[key], overlay); } catch (e) { continue; }
+    if (!repMatchesOwner(v.owner, u)) continue;
+    const t = v.transaction || null; const st = v.status || '';
+    const active = (st !== 'Closed' && st !== 'Lost');
+    if (active) { activeListings++; pipeline += _relNum(v.value); }
+    if (opts.lists) listings.push({ key: key, business: v.business, market: v.market || '', status: st, value: v.value || '', expires: v.listingExpires || '', hasDeal: !!t });
+    if (t) {
+      const closed = (t.status === 'Closed'); const due = _relNum(t.commissionDue); const paid = _relNum(t.commissionPaid);
+      received += paid;
+      if (closed) { closedDeals++; gci += due; waiting += Math.max(0, due - paid); } else { openDeals++; gciOpen += due; }
+      if (opts.lists) deals.push({ key: key, business: v.business, buyer: t.buyer || '', price: t.price || '', status: t.status || '', close: t.expectedClose || t.closedDate || '', commissionDue: t.commissionDue || '', commissionPaid: t.commissionPaid || '', commissionStatus: t.commissionStatus || '' });
+    }
+  }
+  const splitPct = effCommissionAgentSplit(); const split = splitPct / 100;
+  const out = { activeListings, dealCount: (openDeals + closedDeals), openDeals, closedDeals, gci, gciOpen, net: Math.round(gci * split), netOpen: Math.round(gciOpen * split), pipeline, received: Math.round(received), waiting: Math.round(waiting), split: splitPct };
+  if (opts.lists) { out.listings = listings.sort((a, b) => String(a.business).localeCompare(String(b.business))); out.deals = deals; }
+  return out;
+}
+app.get('/api/team', (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const isAdmin = isSuper(req.user);
+  if (!isAdmin) return res.json({ ok: true, isAdmin: false, redirectSelf: true, me: req.user.username, team: [] });
+  const users = auth.loadUsers().filter(u => !u.disabled);
+  const rows = users.map(u => {
+    const r = repRollup(u, { lists: false });
+    return { username: u.username || '', name: u.name || u.username || '', title: u.title || '', role: u.role || '', email: u.email || '', photoUrl: repUserPhoto(u.username), activeListings: r.activeListings, deals: r.dealCount, closedDeals: r.closedDeals, gci: r.gci, net: r.net, received: r.received, waiting: r.waiting, pipeline: r.pipeline, self: (u.username === req.user.username) };
+  }).sort((a, b) => (b.gci - a.gci) || String(a.name).localeCompare(String(b.name)));
+  res.json({ ok: true, team: rows, isAdmin: isAdmin, split: effCommissionAgentSplit(), me: req.user.username });
+});
+app.get('/api/user/:username/detail', (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const uname = String(req.params.username || '');
+  const u = auth.findUser(uname);
+  if (!u) return res.status(404).json({ ok: false, error: 'User not found.' });
+  if (!isSuper(req.user) && String(req.user.username).toLowerCase() !== String(u.username).toLowerCase()) return res.status(403).json({ ok: false, error: 'You can only view your own record.' });
+  const r = repRollup(u, { lists: true });
+  const nameById = {}; loadPeople().forEach(p => nameById[p.id] = p.name || '');
+  const coById = {}; loadCompanies().forEach(c => coById[c.id] = c.name || '');
+  const agreements = loadAgreements().filter(a => String(a.createdBy || '').toLowerCase() === String(u.username).toLowerCase())
+    .map(a => Object.assign(agreementBrief(a), { personName: a.personName || nameById[a.personId] || '', companyName: coById[a.companyId] || '' }))
+    .sort((x, y) => String(y.createdAt || '').localeCompare(String(x.createdAt || '')));
+  const payload = { ok: true, user: { username: u.username || '', name: u.name || u.username || '', title: u.title || '', role: u.role || '', email: u.email || '', phone: u.phone || '', photoUrl: repUserPhoto(u.username), created: (u.createdAt || '').slice(0, 10) }, employee: effEmployee(u.username),
+    kpis: { activeListings: r.activeListings, deals: r.dealCount, openDeals: r.openDeals, closedDeals: r.closedDeals, gci: r.gci, gciOpen: r.gciOpen, net: r.net, netOpen: r.netOpen, received: r.received, waiting: r.waiting, pipeline: r.pipeline, split: r.split },
+    listings: r.listings, deals: r.deals, agreements: agreements, agreementTypes: effAgreementTypes(), isAdmin: isSuper(req.user), isSelf: (String(req.user.username).toLowerCase() === String(u.username).toLowerCase()) };
+  if (isSuper(req.user)) payload.payroll = effPayroll(u.username);
+  res.json(payload);
+});
+app.post('/api/user/:username/payroll', requireAdmin, express.json(), (req, res) => {
+  const u = auth.findUser(String(req.params.username || ''));
+  if (!u) return res.status(404).json({ ok: false, error: 'User not found.' });
+  const b = req.body || {}; const s = loadSettings(); if (!s.payroll || typeof s.payroll !== 'object') s.payroll = {};
+  const key = String(u.username).toLowerCase(); const cur = s.payroll[key] || {};
+  if (typeof b.paymentMethod === 'string') cur.paymentMethod = b.paymentMethod.slice(0, 60);
+  if (b.w9OnFile !== undefined) cur.w9OnFile = !!b.w9OnFile;
+  if (typeof b.w9Date === 'string') cur.w9Date = b.w9Date.slice(0, 10);
+  if (typeof b.taxClass === 'string') cur.taxClass = b.taxClass.slice(0, 60);
+  if (typeof b.taxId === 'string') cur.taxId = b.taxId.slice(0, 40);
+  if (typeof b.payNotes === 'string') cur.payNotes = b.payNotes.slice(0, 2000);
+  s.payroll[key] = cur; saveSettings(s);
+  res.json({ ok: true, payroll: effPayroll(u.username) });
+});
+app.post('/api/user/:username/profile', express.json(), (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  const u = auth.findUser(String(req.params.username || ''));
+  if (!u) return res.status(404).json({ ok: false, error: 'User not found.' });
+  const admin = isSuper(req.user); const self = String(req.user.username).toLowerCase() === String(u.username).toLowerCase();
+  if (!admin && !self) return res.status(403).json({ ok: false, error: 'Not allowed.' });
+  const b = req.body || {}; const s = loadSettings(); if (!s.employees || typeof s.employees !== 'object') s.employees = {};
+  const key = String(u.username).toLowerCase(); const cur = s.employees[key] || {};
+  const selfFields = ['homeAddress', 'personalEmail', 'personalPhone', 'linkedIn', 'emergencyName', 'emergencyPhone'];
+  const adminFields = ['startDate', 'endDate', 'notes'];
+  selfFields.forEach(fld => { if (typeof b[fld] === 'string') cur[fld] = b[fld].slice(0, 300); });
+  if (admin) adminFields.forEach(fld => { if (typeof b[fld] === 'string') cur[fld] = b[fld].slice(0, fld === 'notes' ? 2000 : 300); });
+  s.employees[key] = cur; saveSettings(s);
+  res.json({ ok: true, employee: effEmployee(u.username) });
+});
 app.get('/api/admin/tool-access', requireAdmin, (req, res) => {
   try { res.json({ ok: true, tools: TOOL_LIST.map(t => ({ name: t.name, file: t.file })), adminOnly: auth.loadToolAccess() }); }
   catch (e) { res.status(400).json({ ok: false, error: String(e.message || e) }); }
@@ -12730,20 +12824,23 @@ function loadAgreements() { try { return rj(AGREEMENTS_FILE) || []; } catch (e) 
 function saveAgreements(a) { return writeJsonGuarded(AGREEMENTS_FILE, a, 'saveAgreements'); }
 function newAgreementId() { return 'agr_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 const AGREEMENT_TYPES = [
-  { key: 'NDA', label: 'Non-Disclosure Agreement' },
-  { key: 'CA', label: 'Confidentiality Agreement' },
-  { key: 'ETRA', label: 'Exclusive Tenant Representation Agreement' },
-  { key: 'Referral', label: 'Referral Agreement' },
-  { key: 'Listing', label: 'Exclusive Business Listing' },
-  { key: 'TenantRep', label: 'Tenant Rep Agreement' },
-  { key: 'BizSeller', label: 'Business Seller Agreement' },
-  { key: 'AssocBroker', label: 'Associate Broker Agreement' }
+  { key: 'NDA', label: 'Non-Disclosure Agreement', renewable: false },
+  { key: 'CA', label: 'Confidentiality Agreement', renewable: false },
+  { key: 'ETRA', label: 'Exclusive Tenant Representation Agreement', renewable: true },
+  { key: 'Referral', label: 'Referral Agreement', renewable: false },
+  { key: 'Listing', label: 'Exclusive Business Listing', renewable: true },
+  { key: 'TenantRep', label: 'Tenant Rep Agreement', renewable: true },
+  { key: 'BizSeller', label: 'Business Seller Agreement', renewable: true },
+  { key: 'AssocBroker', label: 'Associate Broker Agreement', renewable: true }
 ];
 const AGREEMENT_TYPE_KEYS = AGREEMENT_TYPES.map(t => t.key);
 function effAgreementTypes() { const s = loadSettings(); let list = (Array.isArray(s.agreementTypes) && s.agreementTypes.length) ? s.agreementTypes.filter(t => t && t.key && t.label).map(t => ({ key: String(t.key), label: String(t.label) })) : AGREEMENT_TYPES.slice(); if (!list.length) list = AGREEMENT_TYPES.slice(); AGREEMENT_TYPES.forEach(function(rt){ if (!list.some(function(x){ return x.key === rt.key; })) list.push({ key: rt.key, label: rt.label }); });
   // Auto-upgrade a built-in type whose label is still the bare abbreviation (e.g. "NDA") to its spelled-out default.
   const _def = {}; AGREEMENT_TYPES.forEach(function(t){ _def[t.key] = t.label; });
   list.forEach(function(t){ if (_def[t.key] && String(t.label) === String(t.key)) t.label = _def[t.key]; });
+  const _defR = {}; AGREEMENT_TYPES.forEach(function(t){ _defR[t.key] = !!t.renewable; });
+  const _ovr = Array.isArray(s.agrRenewableTypes) ? s.agrRenewableTypes.map(String) : null;
+  list.forEach(function(t){ t.renewable = _ovr ? (_ovr.indexOf(t.key) >= 0) : (!!_defR[t.key]); });
   return list; }
 function agreementTypeKeys() { return effAgreementTypes().map(t => t.key); }
 function agreementStatus(a){
@@ -12802,6 +12899,7 @@ function _cleanTiers(raw) {
 }
 function effCommissionTiers() { const s = loadSettings(); return _cleanTiers(s.commissionTiers) || DEFAULT_COMMISSION_TIERS.map(t => Object.assign({}, t)); }
 function effCommissionMinFee() { const s = loadSettings(); if (s.commissionMinFee !== undefined && s.commissionMinFee !== null && s.commissionMinFee !== '') { const n = Number(s.commissionMinFee); return (isFinite(n) && n > 0) ? Math.round(n) : 0; } return 25000; }
+function effCommissionAgentSplit() { const s = loadSettings(); let r = Number(s.commissionAgentSplit); if (!isFinite(r) || r < 0) r = 50; return Math.min(100, r); }
 function commissionForTiers(price, tiers) {
   price = Number(price) || 0; if (price <= 0) return 0;
   tiers = (Array.isArray(tiers) && tiers.length) ? tiers : effCommissionTiers();
@@ -13167,7 +13265,7 @@ function agreementExpiryTick() {
         const key = 'agrexp:' + a.id + ':' + days;
         if (tasks.some(t => t.status === 'open' && t.expKey === key)) return;
         const now = new Date().toISOString();
-        tasks.push({ id: newTaskId(), createdBy: owner, createdByName: a.createdByName || '', assignee: owner, assigneeName: a.createdByName || '', createdAt: now, status: 'open', doneAt: '', title: label + (who ? (' - ' + who) : '') + ' expires ' + a.expires + ' (' + days + ' days) - renew?', notes: 'Auto-created renewal reminder. Open the agreement to renew or extend.', due: today + 'T09:00', priority: prio, type: '', linkType: a.personId ? 'contact' : '', linkId: a.personId || '', linkLabel: who || '', expKey: key, remChannels: ['popup'] });
+        const _rmTmpl = (days === rd.first) ? rd.msg1 : rd.msg2; const _rmTitle = renderReminderMsg(_rmTmpl, { type: label, client: who, days: days, expires: a.expires }); tasks.push({ id: newTaskId(), createdBy: owner, createdByName: a.createdByName || '', assignee: owner, assigneeName: a.createdByName || '', createdAt: now, status: 'open', doneAt: '', title: _rmTitle, notes: 'Auto-created renewal reminder. Open the agreement to renew or extend.', due: today + 'T09:00', priority: prio, type: '', linkType: a.personId ? 'contact' : '', linkId: a.personId || '', linkLabel: who || '', expKey: key, remChannels: ['popup'] });
       };
       if (dd <= rd.first && !a.remindA) { mk(rd.first, 'Normal'); a.remindA = true; changed = true; }
       if (dd <= rd.second && !a.remindB) { mk(rd.second, 'High'); a.remindB = true; changed = true; }

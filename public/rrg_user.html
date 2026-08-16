@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Employee Record</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--gold:#b5791f;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 24px 70px;}
+.crumb{font-size:12.5px;color:var(--muted);margin-bottom:12px;}
+.crumb a{color:var(--muted);text-decoration:none;font-weight:600;} .crumb a:hover{color:var(--navy);}
+.rechero{display:flex;align-items:center;gap:16px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:18px 22px;margin-bottom:16px;}
+.rhlogo{width:60px;height:60px;border-radius:50%;background:var(--navy);color:#fff;font-size:24px;font-weight:800;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;}
+.rhlogo img{width:100%;height:100%;object-fit:cover;}
+.rhname{font-size:20px;font-weight:800;color:var(--navy);}
+.rhmeta{font-size:13px;color:var(--muted);margin-top:3px;}
+.rhmeta a{color:var(--muted);text-decoration:none;} .rhmeta a:hover{color:var(--navy);}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:18px;}
+.tile{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px;}
+.tile .n{font-size:21px;font-weight:800;color:var(--navy);line-height:1.1;}
+.tile .n.money{color:var(--green);} .tile .n.wait{color:var(--gold);}
+.tile .l{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--soft);margin-top:5px;}
+.tile .s{font-size:11px;color:var(--muted);margin-top:3px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:8px;margin-bottom:16px;overflow:hidden;}
+.ch{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--wash);}
+.ch b{color:var(--navy);font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;}
+.ch span{color:var(--muted);font-size:12px;}
+.ch .adm{margin-left:auto;font-size:10px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;color:#fff;background:var(--gold);border-radius:3px;padding:2px 8px;}
+.cb{padding:16px 18px;}
+.cb.tbl{padding:4px 8px 8px;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;} @media(max-width:640px){.grid2{grid-template-columns:1fr;}}
+label.fld{display:block;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:800;margin:0 0 6px;}
+input,select,textarea{width:100%;border:1px solid #cfd6e2;border-radius:5px;padding:9px 11px;font:inherit;font-size:13.5px;color:var(--ink);background:#fff;}
+input:disabled{background:#f4f6f9;color:#8a93a8;}
+textarea{min-height:70px;resize:vertical;line-height:1.5;}
+.full{grid-column:1/-1;}
+.chkline{display:flex;align-items:center;gap:9px;font-size:13.5px;font-weight:600;} .chkline input{width:auto;}
+.savebar{display:flex;align-items:center;gap:12px;margin-top:14px;}
+.savebtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:5px;padding:9px 18px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.savebtn:disabled{opacity:.5;cursor:default;}
+.msg{font-size:12.5px;font-weight:700;} .msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.pnote{font-size:12px;color:var(--muted);margin-top:12px;line-height:1.5;}
+.lk{color:var(--navy);font-weight:700;text-decoration:none;} .lk:hover{text-decoration:underline;}
+.pill{display:inline-block;font-size:11px;font-weight:700;border-radius:999px;padding:2px 9px;background:#eef2ff;color:#3a4fb0;}
+.pill.ok{background:#eafaf0;color:#0e7a53;} .pill.warn{background:#fbf3e6;color:#9a6b12;} .pill.dim{background:#f2f4f8;color:#6b7488;}
+.meta{color:var(--muted);font-size:12px;}
+.gate{background:#fff;border:1px solid var(--line);border-radius:8px;padding:40px;text-align:center;color:var(--muted);}
+</style>
+<script src="/rrg_brand.js"></script>
+<script src="/rrg_list.js"></script>
+</head>
+<body>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function qs(k){ return new URLSearchParams(location.search).get(k)||''; }
+function money(n){ n=Math.round(Number(n)||0); return '$'+n.toLocaleString('en-US'); }
+function moneyShort(n){ n=Number(n)||0; var neg=n<0?'-':''; n=Math.abs(n); if(n>=1000000) return neg+'$'+(n/1000000).toFixed(n%1000000?1:0)+'M'; if(n>=1000) return neg+'$'+Math.round(n/1000)+'K'; return neg+'$'+Math.round(n); }
+function fmtD(s){ if(!s) return '—'; var x=String(s).slice(0,10).split('-'); return x.length===3?(x[1]+'/'+x[2]+'/'+x[0]):esc(s); }
+function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.\-]/g,''))||0; }
+function val(id){ var e=document.getElementById(id); return e?e.value:''; }
+var UN=qs('u')||qs('id'), D=null, TYPES=[];
+function typeLabel(k){ for(var i=0;i<TYPES.length;i++){ if(TYPES[i].key===k) return TYPES[i].label; } return k||'Agreement'; }
+
+fetch('/api/user/'+encodeURIComponent(UN)+'/detail',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc((j&&j.error)||'Could not load this record.')+'</div>'; return; }
+  D=j; TYPES=j.agreementTypes||[]; render();
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+
+function tile(n,label,sub,cls){ return '<div class="tile"><div class="n'+(cls?(' '+cls):'')+'">'+esc(n)+'</div><div class="l">'+esc(label)+'</div>'+(sub?('<div class="s">'+esc(sub)+'</div>'):'')+'</div>'; }
+function statusPill(st){ st=String(st||''); var cls='dim'; if(/closed/i.test(st)) cls='ok'; else if(/active|under|pending|live/i.test(st)) cls='warn'; return '<span class="pill '+cls+'">'+esc(st||'—')+'</span>'; }
+
+function render(){
+  var u=D.user, k=D.kpis, e=D.employee||{}, canEdit=(D.isSelf||D.isAdmin), adm=D.isAdmin;
+  var initials=(u.name||u.username||'?').trim().split(/\s+/).map(function(w){return w.charAt(0);}).join('').slice(0,2).toUpperCase();
+  var av=u.photoUrl?('<img src="'+esc(u.photoUrl)+'" onerror="this.remove()">'):esc(initials);
+  var contact=[u.title,u.role].filter(Boolean).join(' · ');
+  var reach=[u.email?('<a href="mailto:'+esc(u.email)+'">'+esc(u.email)+'</a>'):'', u.phone?esc(u.phone):''].filter(Boolean).join(' · ');
+  var dis=adm?'':' disabled';
+
+  var details='<div class="card"><div class="ch"><b>Employee details</b>'+(canEdit?'':'<span class="adm" style="background:#8a93a8">Read-only</span>')+'</div><div class="cb">'
+    +'<div class="grid2">'
+      +'<div><label class="fld">Start date</label><input type="date" id="e_start" value="'+esc(e.startDate||'')+'"'+dis+'></div>'
+      +'<div><label class="fld">End date</label><input type="date" id="e_end" value="'+esc(e.endDate||'')+'"'+dis+'></div>'
+      +'<div class="full"><label class="fld">Home address</label><input type="text" id="e_addr" value="'+esc(e.homeAddress||'')+'" placeholder="Street, city, state, ZIP"'+(canEdit?'':' disabled')+'></div>'
+      +'<div><label class="fld">Personal email</label><input type="email" id="e_pemail" value="'+esc(e.personalEmail||'')+'"'+(canEdit?'':' disabled')+'></div>'
+      +'<div><label class="fld">Personal phone</label><input type="text" id="e_pphone" value="'+esc(e.personalPhone||'')+'"'+(canEdit?'':' disabled')+'></div>'
+      +'<div class="full"><label class="fld">LinkedIn profile</label><input type="url" id="e_linkedin" value="'+esc(e.linkedIn||'')+'" placeholder="https://www.linkedin.com/in/…"'+(canEdit?'':' disabled')+'></div>'
+      +'<div><label class="fld">Emergency contact</label><input type="text" id="e_emname" value="'+esc(e.emergencyName||'')+'" placeholder="Name"'+(canEdit?'':' disabled')+'></div>'
+      +'<div><label class="fld">Emergency phone</label><input type="text" id="e_emphone" value="'+esc(e.emergencyPhone||'')+'"'+(canEdit?'':' disabled')+'></div>'
+      +'<div class="full"><label class="fld">HR notes'+(adm?'':' (admin only)')+'</label><textarea id="e_notes"'+dis+' placeholder="'+(adm?'Internal notes':'Admin only')+'">'+esc(e.notes||'')+'</textarea></div>'
+    +'</div>'
+    +(canEdit?('<div class="savebar"><button class="savebtn" id="e_save">Save details</button><span class="msg" id="e_msg"></span></div>'):'')
+    +'<div class="pnote">Start date, end date and HR notes are editable by administrators. '+(D.isSelf?'You can update your own contact details.':'')+'</div>'
+  +'</div></div>';
+
+  var payroll='';
+  if(adm){
+    var p=D.payroll||{};
+    payroll='<div class="card"><div class="ch"><b>Payroll &amp; tax</b><span class="adm">Admin only</span></div><div class="cb">'
+      +'<div class="grid2">'
+        +'<div><label class="fld">Payment method</label><select id="p_method">'+['','Direct deposit','Check','Zelle','Wire','Other'].map(function(o){return '<option'+(p.paymentMethod===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></div>'
+        +'<div><label class="fld">Tax classification</label><select id="p_class">'+['','Individual / Sole proprietor','Single-member LLC','LLC','S-Corporation','C-Corporation','Partnership'].map(function(o){return '<option'+(p.taxClass===o?' selected':'')+'>'+esc(o)+'</option>';}).join('')+'</select></div>'
+        +'<div><label class="fld">W-9 on file</label><div class="chkline" style="padding-top:8px"><input type="checkbox" id="p_w9" '+(p.w9OnFile?'checked':'')+'> <span>W-9 received &amp; on file</span></div></div>'
+        +'<div><label class="fld">W-9 date</label><input type="date" id="p_w9date" value="'+esc(p.w9Date||'')+'"></div>'
+        +'<div class="full"><label class="fld">Tax ID (SSN / EIN)</label><input type="text" id="p_taxid" value="'+esc(p.taxId||'')+'" placeholder="On file for 1099 reporting" autocomplete="off"></div>'
+        +'<div class="full"><label class="fld">Payment notes</label><textarea id="p_notes" placeholder="Direct-deposit setup status, 1099 vendor #, etc.">'+esc(p.payNotes||'')+'</textarea></div>'
+      +'</div>'
+      +'<div class="savebar"><button class="savebtn" id="p_save">Save payroll &amp; tax</button><span class="msg" id="p_msg"></span></div>'
+      +'<div class="pnote">Sensitive — visible only to administrators. For security, consider storing only the last four of the SSN plus a "W-9 on file" flag; ask me to switch to masked storage if your data policy requires it.</div>'
+    +'</div></div>';
+  }
+
+  var html=''
+    +'<div class="crumb"><a href="rrg_team.html">← Team</a></div>'
+    +'<div class="rechero"><div class="rhlogo">'+av+'</div><div><div class="rhname">'+esc(u.name||u.username)+'</div><div class="rhmeta">'+esc(contact||'Team member')+(reach?(' · '+reach):'')+(e.startDate?(' · started '+fmtD(e.startDate)):'')+'</div></div></div>'
+    +'<div class="tiles">'
+      +tile(k.activeListings,'Active Listings','')
+      +tile(k.deals,'Deals',(k.openDeals+' open · '+k.closedDeals+' closed'))
+      +tile(moneyShort(k.gci),'Commission','GCI · closed, pre-split','money')
+      +tile(moneyShort(k.received),'Received','commission paid','money')
+      +tile(moneyShort(k.waiting),'Waiting on','owed · 2nd-half','wait')
+      +tile(moneyShort(k.net),'Net','after '+k.split+'% split','money')
+      +tile(moneyShort(k.pipeline),'Pipeline','active listing value','money')
+    +'</div>'
+    +details+payroll
+    +'<div class="card"><div class="ch"><b>Listings</b><span>'+D.listings.length+'</span></div><div class="cb tbl"><div id="lst"></div></div></div>'
+    +'<div class="card"><div class="ch"><b>Deals</b><span>'+D.deals.length+'</span></div><div class="cb tbl"><div id="dls"></div></div></div>'
+    +'<div class="card"><div class="ch"><b>Agreements</b><span>'+D.agreements.length+'</span></div><div class="cb tbl"><div id="agr"></div></div></div>';
+  document.getElementById('root').innerHTML=html;
+
+  var es=document.getElementById('e_save'); if(es) es.addEventListener('click',saveEmployee);
+  var ps=document.getElementById('p_save'); if(ps) ps.addEventListener('click',savePayroll);
+  buildLists();
+}
+
+function saveEmployee(){
+  var m=document.getElementById('e_msg'), btn=document.getElementById('e_save'); btn.disabled=true; if(m){m.textContent='Saving…';m.className='msg';}
+  var body={ homeAddress:val('e_addr'), personalEmail:val('e_pemail'), personalPhone:val('e_pphone'), linkedIn:val('e_linkedin'), emergencyName:val('e_emname'), emergencyPhone:val('e_emphone'), startDate:val('e_start'), endDate:val('e_end'), notes:val('e_notes') };
+  fetch('/api/user/'+encodeURIComponent(UN)+'/profile',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; if(j&&j.ok){ D.employee=j.employee; if(m){m.textContent='Saved ✓';m.className='msg ok';} } else { if(m){m.textContent=(j&&j.error)||'Could not save.';m.className='msg err';} } }).catch(function(){ btn.disabled=false; if(m){m.textContent='Could not reach the server.';m.className='msg err';} });
+}
+function savePayroll(){
+  var m=document.getElementById('p_msg'), btn=document.getElementById('p_save'); btn.disabled=true; if(m){m.textContent='Saving…';m.className='msg';}
+  var body={ paymentMethod:val('p_method'), taxClass:val('p_class'), w9OnFile:document.getElementById('p_w9').checked, w9Date:val('p_w9date'), taxId:val('p_taxid'), payNotes:val('p_notes') };
+  fetch('/api/user/'+encodeURIComponent(UN)+'/payroll',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(j){ btn.disabled=false; if(j&&j.ok){ D.payroll=j.payroll; if(m){m.textContent='Saved ✓';m.className='msg ok';} } else { if(m){m.textContent=(j&&j.error)||'Could not save.';m.className='msg err';} } }).catch(function(){ btn.disabled=false; if(m){m.textContent='Could not reach the server.';m.className='msg err';} });
+}
+
+function buildLists(){
+  RRGList.create({ mount:document.getElementById('lst'), key:'emp_listings', data:D.listings, rowId:function(it){return it.key;}, defaultSort:0, defaultDir:1, empty:'No listings owned.',
+    columns:[
+      {key:'business',label:'Listing',cell:function(it){return '<a class="lk" href="rrg_assignment.html?key='+encodeURIComponent(it.key)+'">'+esc(it.business||it.key)+'</a>';},sort:function(a,b){return String(a.business).localeCompare(String(b.business));}},
+      {key:'market',label:'Market',cell:function(it){return esc(it.market||'—');},sort:function(a,b){return String(a.market).localeCompare(String(b.market));}},
+      {key:'status',label:'Status',cell:function(it){return statusPill(it.status);},sort:function(a,b){return String(a.status).localeCompare(String(b.status));}},
+      {key:'value',label:'Value',align:'right',cell:function(it){return it.value?money(it.value):'<span class="meta">—</span>';},sort:function(a,b){return num(a.value)-num(b.value);}},
+      {key:'expires',label:'Expires',cell:function(it){return fmtD(it.expires);},sort:function(a,b){return String(a.expires||'9999').localeCompare(String(b.expires||'9999'));}}
+    ]});
+  RRGList.create({ mount:document.getElementById('dls'), key:'emp_deals', data:D.deals, rowId:function(it){return it.key;}, defaultSort:0, defaultDir:1, empty:'No deals yet.',
+    columns:[
+      {key:'business',label:'Deal',cell:function(it){return '<a class="lk" href="rrg_assignment.html?key='+encodeURIComponent(it.key)+'">'+esc(it.business||it.key)+'</a>';},sort:function(a,b){return String(a.business).localeCompare(String(b.business));}},
+      {key:'buyer',label:'Buyer',cell:function(it){return esc(it.buyer||'—');},sort:function(a,b){return String(a.buyer).localeCompare(String(b.buyer));}},
+      {key:'price',label:'Price',align:'right',cell:function(it){return it.price?money(it.price):'<span class="meta">—</span>';},sort:function(a,b){return num(a.price)-num(b.price);}},
+      {key:'status',label:'Status',cell:function(it){return statusPill(it.status);},sort:function(a,b){return String(a.status).localeCompare(String(b.status));}},
+      {key:'commissionDue',label:'Commission',align:'right',cell:function(it){return it.commissionDue?money(it.commissionDue):'<span class="meta">—</span>';},sort:function(a,b){return num(a.commissionDue)-num(b.commissionDue);}},
+      {key:'commissionPaid',label:'Paid',align:'right',cell:function(it){return it.commissionPaid?money(it.commissionPaid):'<span class="meta">—</span>';},sort:function(a,b){return num(a.commissionPaid)-num(b.commissionPaid);}},
+      {key:'close',label:'Close',cell:function(it){return fmtD(it.close);},sort:function(a,b){return String(a.close||'9999').localeCompare(String(b.close||'9999'));}}
+    ]});
+  RRGList.create({ mount:document.getElementById('agr'), key:'emp_agreements', data:D.agreements, rowId:function(it){return it.id;}, defaultSort:4, defaultDir:-1, empty:'No agreements created.',
+    columns:[
+      {key:'name',label:'Agreement',cell:function(it){return it.personId?('<a class="lk" href="rrg_person.html?id='+encodeURIComponent(it.personId)+'">'+esc(it.name||typeLabel(it.type))+'</a>'):esc(it.name||typeLabel(it.type));},sort:function(a,b){return String(a.name||a.type).localeCompare(String(b.name||b.type));}},
+      {key:'type',label:'Type',cell:function(it){return esc(typeLabel(it.type));},sort:function(a,b){return String(a.type).localeCompare(String(b.type));}},
+      {key:'personName',label:'Client',cell:function(it){return esc(it.personName||it.companyName||'—');},sort:function(a,b){return String(a.personName||'').localeCompare(String(b.personName||''));}},
+      {key:'status',label:'Status',cell:function(it){return '<span class="pill '+(it.statusKey==='executed'||it.statusKey==='active'?'ok':(it.statusKey==='awaiting'||it.statusKey==='sent'?'warn':'dim'))+'">'+esc(it.statusLabel||'—')+'</span>';},sort:function(a,b){return String(a.statusLabel).localeCompare(String(b.statusLabel));}},
+      {key:'expires',label:'Expires',cell:function(it){return fmtD(it.expires);},sort:function(a,b){return String(a.expires||'9999').localeCompare(String(b.expires||'9999'));}}
+    ]});
+}
+</script>
+</body>
+</html>

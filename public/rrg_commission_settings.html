@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>RRG — Commission Structure</title>
+<title>Commission Structure</title>
 <style>
 :root{--navy:#20334f;--navy2:#23496f;--primary:#2c5c8f;--red:#b23a2c;--ink:#2b3648;--dim:#5f6a7d;--soft:#8a93a3;--line:#dbe0e9;--wash:#f4f6f9;--green:#2f7a55;--inp:#c4ccda;}
 *{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
@@ -56,7 +56,7 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function get(u){ return fetch(u,{credentials:'same-origin'}).then(function(r){return r.json();}); }
 function post(u,b){ return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(b||{})}).then(function(r){return r.json();}); }
 var DEFAULT_TIERS=[{to:1000000,rate:10},{to:2000000,rate:8},{to:3000000,rate:5},{to:4000000,rate:4},{to:10000000,rate:3},{to:30000000,rate:1},{to:null,rate:0.5}];
-var TIERS=[], MINFEE=25000, FLAT=6, ADMIN=false, DEFMETHOD='lehman';
+var TIERS=[], MINFEE=25000, FLAT=6, AGENTSPLIT=50, ADMIN=false, DEFMETHOD='lehman';
 
 function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.]/g,''))||0; }
 function money(n){ return '$'+Math.round(Number(n)||0).toLocaleString('en-US'); }
@@ -112,7 +112,7 @@ function render(){
     +'<div class="pkick">Admin · Finance</div><h1>Commission Structure</h1>'
     +'<div class="sub">Set up both fee methods your firm uses. On each agreement, the broker picks which method applies to that deal, and the projected gross commission (GCI) is calculated and flowed to the linked deal automatically.</div>'
     +'<div class="card"><div class="cardh">Modified Lehman — tiered / marginal '+adminBadge+'</div><div class="cardb">'
-      +'<p class="hint">Each tranche of the transaction value earns its own tier’s rate; the tiers are summed for the gross commission. This is the default on the Commission Forecaster and matches the RRG schedule.</p>'
+      +'<p class="hint">Each tranche of the transaction value earns its own tier’s rate; the tiers are summed for the gross commission. This is the default method on the Commission Forecaster.</p>'
       +'<table><thead><tr><th style="width:34px">Tier</th><th>Up to (deal value)</th><th style="width:130px">Rate</th><th></th></tr></thead><tbody id="tierBody"></tbody></table>'
       +(ADMIN?'<button class="addrow" id="addTier">+ Add tier</button>':'')
       +'<label class="fl">Minimum fee per location <span style="text-transform:none;font-weight:600;color:var(--dim)">— for multi-unit deals, the minimum applies separately to each location (leave 0 for none)</span></label>'
@@ -125,7 +125,8 @@ function render(){
       +'<input class="tin" id="flatRate" inputmode="decimal" value="'+esc(String(FLAT))+'" style="width:110px"'+(ADMIN?'':' disabled')+'> <span style="color:var(--soft)">% of deal value</span>'
       +'<div class="example"><span class="exlbl">Try it</span><span style="color:var(--soft)">$</span><input class="tin" id="exFlat" inputmode="numeric" placeholder="3,500,000"><span class="exlbl">GCI</span><span class="exval" id="exFlatOut">—</span></div>'
     +'</div></div>'
-    +(ADMIN?('<div class="savebar"><button class="savebtn" id="save">Save commission structure</button><button class="resetbtn" id="resetLehman">Reset Lehman to RRG default</button><span class="msg" id="msg"></span></div>'):'')
+    +'<div class="card"><div class="cardh">Agent split '+adminBadge+'</div><div class="cardb">'      +'<p class="hint">The share of the gross commission (GCI) an agent keeps; the house keeps the remainder. Drives the <b>Net</b> figure on each employee record and the Team roster.</p>'      +'<label class="fl">Agent share of GCI</label>'      +'<input class="tin" id="agentSplit" inputmode="decimal" value="'+esc(String(AGENTSPLIT))+'" style="width:110px"'+(ADMIN?'':' disabled')+'> <span style="color:var(--soft)">% to the agent</span>'    +'</div></div>'
+    +(ADMIN?('<div class="savebar"><button class="savebtn" id="save">Save commission structure</button><button class="resetbtn" id="resetLehman">Reset to default schedule</button><span class="msg" id="msg"></span></div>'):'')
     +'<div class="note">Both methods stay available; each agreement chooses one. The Modified Lehman card is shared with the Commission Forecaster, so the two always match.</div>';
   document.getElementById('root').innerHTML=html;
   renderTierTable();
@@ -140,10 +141,10 @@ function render(){
 }
 function saveAll(){
   var m=document.getElementById('msg'); var btn=document.getElementById('save'); if(btn) btn.disabled=true; if(m){m.textContent='Saving…';m.className='msg';}
-  var body={ tiers: readTierRows(), minFee: num((document.getElementById('minFee')||{}).value), flatRate: num((document.getElementById('flatRate')||{}).value) };
+  var body={ tiers: readTierRows(), minFee: num((document.getElementById('minFee')||{}).value), flatRate: num((document.getElementById('flatRate')||{}).value), agentSplit: num((document.getElementById('agentSplit')||{}).value) };
   post('/api/admin/commission-structure',body).then(function(j){
     if(btn) btn.disabled=false;
-    if(j&&j.ok){ TIERS=(j.tiers||[]).map(function(t){return {to:t.to,rate:(Number(t.rate)||0)*100};}); MINFEE=j.minFee||0; FLAT=j.flatRate||0; renderTierTable(); var mf=document.getElementById('minFee'); if(mf) mf.value=grp(String(MINFEE)); var fr=document.getElementById('flatRate'); if(fr) fr.value=String(FLAT); if(m){m.textContent='Saved ✓';m.className='msg ok';} }
+    if(j&&j.ok){ TIERS=(j.tiers||[]).map(function(t){return {to:t.to,rate:(Number(t.rate)||0)*100};}); MINFEE=j.minFee||0; FLAT=j.flatRate||0; AGENTSPLIT=(j.agentSplit!=null)?j.agentSplit:AGENTSPLIT; renderTierTable(); var mf=document.getElementById('minFee'); if(mf) mf.value=grp(String(MINFEE)); var fr=document.getElementById('flatRate'); if(fr) fr.value=String(FLAT); if(m){m.textContent='Saved ✓';m.className='msg ok';} }
     else { if(m){m.textContent=(j&&j.error)||'Could not save.';m.className='msg err';} }
   }).catch(function(){ if(btn) btn.disabled=false; if(m){m.textContent='Could not reach the server.';m.className='msg err';} });
 }
@@ -151,7 +152,7 @@ get('/api/commission-structure').then(function(j){
   if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load the commission structure.</div>'; return; }
   ADMIN=!!j.isAdmin;
   TIERS=(j.tiers&&j.tiers.length)?j.tiers.map(function(t){return {to:t.to,rate:(Number(t.rate)||0)*100};}):DEFAULT_TIERS.map(function(t){return {to:t.to,rate:t.rate};});
-  MINFEE=j.minFee||0; FLAT=(j.flatRate!=null)?j.flatRate:6;
+  MINFEE=j.minFee||0; FLAT=(j.flatRate!=null)?j.flatRate:6; AGENTSPLIT=(j.agentSplit!=null)?j.agentSplit:50;
   render();
 }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
 </script>

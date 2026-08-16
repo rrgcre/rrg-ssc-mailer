@@ -143,7 +143,7 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
     </div>
 
     <div class="seclabel">Tiered Rate Schedule &amp; Commission <button class="reset-link" onclick="resetRateCard()">↺ Reset rate card</button><button class="reset-link" id="saveFirmCard" style="display:none" onclick="saveFirmCard()">💾 Save as firm rate card</button></div>
-    <div class="editnote">Rates and thresholds are editable per deal — type in any cell to override the RRG rate card.</div>
+    <div class="editnote">Rates and thresholds are editable per deal — type in any cell to override the firm rate card.</div>
     <table>
       <thead><tr><th>Tier</th><th>Deal Value Range</th><th>Rate</th><th>Commissionable</th><th>Commission</th></tr></thead>
       <tbody id="tierBody"></tbody>
@@ -167,7 +167,7 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
 
 <script>
 (function(){
-  // RRG default commission rate card — marginal / tiered (editable per deal)
+  // Default commission rate card — marginal / tiered (editable per deal)
   var DEFAULT_TIERS = [
     {to:1000000,  rate:0.10},
     {to:2000000,  rate:0.08},
@@ -282,7 +282,7 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
     document.getElementById('hdrSub').textContent = price>0
       ? ('Sale price '+money(price)+'  ·  Gross commission '+money(gross)+'  ·  Agent net '+money(agent))
       : 'Tiered, marginal commission on the sale price.';
-    document.getElementById('noteText').innerHTML='<b>Marginal / tiered method.</b> Each tranche of the sale price earns its own tier’s rate, then all tiers are summed. Rates and thresholds default to the RRG commission schedule and can be overridden per deal in the table above; agent / house split follows firm policy.';
+    document.getElementById('noteText').innerHTML='<b>Marginal / tiered method.</b> Each tranche of the sale price earns its own tier’s rate, then all tiers are summed. Rates and thresholds default to the firm commission schedule and can be overridden per deal in the table above; agent / house split follows firm policy.';
   }
 
   elPrice.addEventListener('input', function(){ elPrice.value=grp(elPrice.value); recompute(); });

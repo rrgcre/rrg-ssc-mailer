@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team</title>
+<style>
+:root{--navy:#000E31;--red:#DA2B1F;--ink:#1a2236;--muted:#6b7488;--soft:#8a93a8;--line:#e6e9f0;--wash:#f5f7fb;--green:#1f8a5b;--gold:#b5791f;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#eef1f6;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1260px;margin:0 auto;padding:22px 24px 70px;}
+.pkick{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin:0 0 3px;}
+h1{font-size:20px;font-weight:800;color:var(--navy);margin:0;}
+.sub{font-size:13px;color:var(--muted);margin-top:6px;}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin:18px 0;}
+.tile{background:#fff;border:1px solid var(--line);border-radius:8px;padding:14px 16px;}
+.tile .n{font-size:21px;font-weight:800;color:var(--navy);} .tile .n.money{color:var(--green);}
+.tile .l{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--soft);margin-top:5px;}
+.card{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden;}
+.ch{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1px solid var(--line);background:var(--wash);}
+.ch b{color:var(--navy);font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;} .ch span{color:var(--muted);font-size:12px;}
+.cb{padding:4px 8px 8px;}
+.rp{display:flex;align-items:center;gap:9px;}
+.rpav{width:28px;height:28px;border-radius:50%;background:var(--navy);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;overflow:hidden;flex:none;}
+.rpav img{width:100%;height:100%;object-fit:cover;}
+.lk{color:var(--navy);font-weight:700;text-decoration:none;} .lk:hover{text-decoration:underline;}
+.meta{color:var(--muted);font-size:12px;}
+.gate{background:#fff;border:1px solid var(--line);border-radius:8px;padding:40px;text-align:center;color:var(--muted);}
+</style>
+<script src="/rrg_brand.js"></script>
+<script src="/rrg_list.js"></script>
+</head>
+<body>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function money(n){ n=Math.round(Number(n)||0); return '$'+n.toLocaleString('en-US'); }
+function moneyShort(n){ n=Number(n)||0; var neg=n<0?'-':''; n=Math.abs(n); if(n>=1000000) return neg+'$'+(n/1000000).toFixed(n%1000000?1:0)+'M'; if(n>=1000) return neg+'$'+Math.round(n/1000)+'K'; return neg+'$'+Math.round(n); }
+function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.\-]/g,''))||0; }
+
+fetch('/api/team',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc((j&&j.error)||'Could not load the team.')+'</div>'; return; }
+  if(j.redirectSelf){ location.replace('rrg_user.html?u='+encodeURIComponent(j.me)); return; }
+  render(j);
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+
+function render(j){
+  var t=j.team||[];
+  var tot=t.reduce(function(a,r){ a.listings+=r.activeListings; a.deals+=r.deals; a.closed+=r.closedDeals; a.gci+=r.gci; a.net+=r.net; a.received+=(r.received||0); a.waiting+=(r.waiting||0); a.pipeline+=r.pipeline; return a; },{listings:0,deals:0,closed:0,gci:0,net:0,received:0,waiting:0,pipeline:0});
+  var html=''
+    +'<div class="pkick">Firm</div><h1>Team</h1>'
+    +'<div class="sub">'+t.length+' team member'+(t.length===1?'':'s')+' · book, production and commission at a glance. Click a name to open their employee record.</div>'
+    +'<div class="tiles">'
+      +tile(tot.listings,'Active Listings','')
+      +tile(tot.deals,'Deals','')
+      +tile(moneyShort(tot.gci),'Commission GCI','money')
+      +tile(moneyShort(tot.received),'Received','money')
+      +tile(moneyShort(tot.waiting),'Waiting on','money')
+      +tile(moneyShort(tot.pipeline),'Pipeline','money')
+    +'</div>'
+    +'<div class="card"><div class="ch"><b>Team members</b><span>'+t.length+' · '+j.split+'% agent split</span></div><div class="cb"><div id="tm"></div></div></div>';
+  document.getElementById('root').innerHTML=html;
+  RRGList.create({ mount:document.getElementById('tm'), key:'team_roster', data:t, rowId:function(it){return it.username;}, defaultSort:3, defaultDir:-1, empty:'No team members.',
+    columns:[
+      {key:'name',label:'Name',cell:function(it){ var ini=(it.name||it.username||'?').trim().split(/\s+/).map(function(w){return w.charAt(0);}).join('').slice(0,2).toUpperCase(); var av=it.photoUrl?('<img src="'+esc(it.photoUrl)+'" onerror="this.remove()">'):esc(ini); return '<div class="rp"><span class="rpav">'+av+'</span><a class="lk" href="rrg_user.html?u='+encodeURIComponent(it.username)+'">'+esc(it.name||it.username)+(it.self?' <span class="meta">(you)</span>':'')+'</a></div>'; },sort:function(a,b){return String(a.name).localeCompare(String(b.name));}},
+      {key:'title',label:'Title',cell:function(it){return esc(it.title||it.role||'—');},sort:function(a,b){return String(a.title||a.role).localeCompare(String(b.title||b.role));}},
+      {key:'activeListings',label:'Listings',align:'right',cell:function(it){return String(it.activeListings);},sort:function(a,b){return a.activeListings-b.activeListings;}},
+      {key:'deals',label:'Deals',align:'right',cell:function(it){return it.deals+' <span class="meta">('+it.closedDeals+' closed)</span>';},sort:function(a,b){return a.deals-b.deals;}},
+      {key:'gci',label:'Commission GCI',align:'right',cell:function(it){return it.gci?money(it.gci):'<span class="meta">—</span>';},sort:function(a,b){return a.gci-b.gci;}},
+      {key:'received',label:'Received',align:'right',cell:function(it){return it.received?money(it.received):'<span class="meta">—</span>';},sort:function(a,b){return (a.received||0)-(b.received||0);}},
+      {key:'waiting',label:'Waiting on',align:'right',cell:function(it){return it.waiting?money(it.waiting):'<span class="meta">—</span>';},sort:function(a,b){return (a.waiting||0)-(b.waiting||0);}},
+      {key:'net',label:'Net',align:'right',cell:function(it){return it.net?money(it.net):'<span class="meta">—</span>';},sort:function(a,b){return a.net-b.net;}},
+      {key:'pipeline',label:'Pipeline',align:'right',cell:function(it){return it.pipeline?money(it.pipeline):'<span class="meta">—</span>';},sort:function(a,b){return a.pipeline-b.pipeline;}}
+    ]});
+}
+function tile(n,label,cls){ return '<div class="tile"><div class="n'+(cls==='money'?' money':'')+'">'+esc(n)+'</div><div class="l">'+esc(label)+'</div></div>'; }
+</script>
+</body>
+</html>
