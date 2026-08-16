@@ -13590,6 +13590,9 @@ app.post('/api/agreements/:id/send-adv', express.json(), async (req, res) => {
   if (!next.token) next.token = newSignToken();
   next.status = 'sent';
   const now = new Date().toISOString();
+  // Lock in the details the rep filled before sending — these become read-only for every signer,
+  // so no party can alter the agreed terms after it's out for signature.
+  if (!Array.isArray(a.repLockedFields)) a.repLockedFields = Object.keys(a.fieldValues || {});
   a.signStatus = a.signers.some(s => s.status === 'signed') ? 'partial' : 'sent'; a.sentAt = now; a.entryMethod = a.entryMethod || 'sent'; a.updatedAt = now; saveAgreements(all);
   const label = agreementTypeLabel(a.type); const signUrl = reqOrigin(req) + '/sign/' + next.token;
   const _uAdv = agrSendUser(req, a); const _padv = a.personId ? personById(a.personId) : null;
@@ -13611,14 +13614,20 @@ app.get('/api/sign/:token/data', (req, res) => {
   const found = findAgrByToken(loadAgreements(), req.params.token);
   if (!found || !found.signer) return res.status(404).json({ ok: false, error: 'Invalid link.' });
   const a = found.a, me = found.signer;
+  const anySigned = (a.signers || []).some(s => s.status === 'signed');
   const fields = (a.pdfFields || []).map(f => {
     const isSig = (f.type === 'signature' || f.type === 'initials');
     const signerObj = (a.signers || []).find(s => s.order === f.signer);
     const signerSigned = !!(signerObj && signerObj.status === 'signed');
+    // Security: details the rep filled before sending are locked for everyone, and once ANY
+    // party has signed, all content (text/date/checkbox) freezes — later signers can only add
+    // their own signature/initials, never change what an earlier party agreed to.
+    const repLocked = !isSig && Array.isArray(a.repLockedFields) && a.repLockedFields.indexOf(f.id) >= 0;
+    const frozen = !isSig && anySigned;
     // A field is fillable by whoever it's assigned to — text, date, checkbox AND signature —
-    // until that signer has signed. Only then does it lock to show the final value.
-    const mine = (f.signer === me.order) && me.status !== 'signed';
-    const locked = signerSigned;
+    // until that signer has signed, and only if it isn't rep-locked or frozen by a prior signature.
+    const mine = (f.signer === me.order) && me.status !== 'signed' && !repLocked && !frozen;
+    const locked = signerSigned || repLocked || frozen;
     let value = (a.fieldValues && a.fieldValues[f.id]) || '';
     if (!isSig && !value) value = signerFieldPrefill(a, f);
     if (f.type === 'checkbox' && !(a.fieldValues && a.fieldValues[f.id] != null)) value = (String(f.value) === '1' || f.value === true) ? '1' : '';
@@ -13748,14 +13757,19 @@ function submitAdvancedSign(req, res, all, a, me) {
   const values = (b.values && typeof b.values === 'object') ? b.values : {};
   const sigs = (b.sigs && typeof b.sigs === 'object') ? b.sigs : {};
   const myFields = (a.pdfFields || []).filter(f => f.signer === me.order);
+  // Security: never accept edits to rep-locked details, or — once another party has already
+  // signed — to any content field. A signer may only add their own signature/initials.
+  const _anyOtherSigned = (a.signers || []).some(s => s.order !== me.order && s.status === 'signed');
+  const _fieldLocked = (f) => (f.type !== 'signature' && f.type !== 'initials') && ((Array.isArray(a.repLockedFields) && a.repLockedFields.indexOf(f.id) >= 0) || _anyOtherSigned);
   for (const f of myFields) {
     if (f.type === 'signature' || f.type === 'initials') { if (f.required && !sigs[f.id] && !fs.existsSync(sigFieldPath(a, f.id))) return res.status(400).json({ ok: false, error: 'Please complete: ' + (f.label || 'Signature') }); }
-    else if (f.type === 'checkbox') { if (f.required && !values[f.id]) return res.status(400).json({ ok: false, error: 'Please check: ' + (f.label || 'the required box') }); }
+    else if (f.type === 'checkbox') { if (_fieldLocked(f)) continue; if (f.required && !values[f.id]) return res.status(400).json({ ok: false, error: 'Please check: ' + (f.label || 'the required box') }); }
   }
   a.fieldValues = a.fieldValues || {};
   try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); } catch (e) {}
   myFields.forEach(f => {
     if (f.type === 'signature' || f.type === 'initials') { const d = String(sigs[f.id] || ''); if (/^data:image\/png;base64,/.test(d)) { try { const buf = Buffer.from(d.replace(/^data:image\/png;base64,/, ''), 'base64'); if (buf.length <= 3 * 1024 * 1024) binWrite(sigFieldPath(a, f.id), buf); } catch (e) {} } }
+    else if (_fieldLocked(f)) { return; }
     else if (f.type === 'checkbox') { a.fieldValues[f.id] = values[f.id] ? '1' : ''; }
     else { a.fieldValues[f.id] = String(values[f.id] || '').slice(0, 500); }
   });
