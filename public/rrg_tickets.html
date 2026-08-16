@@ -74,6 +74,7 @@ h1{font-size:28px;font-weight:800;margin:0;color:#fff;letter-spacing:-.01em;}
 .backlink{background:none;border:none;color:var(--muted);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer;padding:0;}
 </style>
 <script src="/rrg_brand.js"></script>
+<script src="/rrg_list.js"></script>
 </head>
 <body>
 <!--rrgback--><a href="./index.html" class="rrg-back" aria-label="Back to toolbox" style="position:fixed;left:16px;bottom:16px;z-index:99999;display:inline-flex;align-items:center;gap:7px;background:rgba(0,14,49,.85);color:#fff;text-decoration:none;font:700 12.5px/1 -apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;padding:10px 15px;border-radius:100px;border:1px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.28)"><span style="font-size:14px;line-height:1">←</span> Toolbox</a>
@@ -122,16 +123,14 @@ var ALL=[], CATS=[], PRIS=[], STATUSES=[], DEPTS=[], ISADMIN=false, FILTER='all'
 function renderFilters(){
   var opts=[{k:'all',l:'All'},{k:'open',l:'Needs you'},{k:'Answered',l:'Answered'},{k:'Closed',l:'Closed'}];
   var chips=opts.map(function(o){ return '<button class="fchip'+(FILTER===o.k?' on':'')+'" data-f="'+o.k+'">'+esc(o.l)+'</button>'; }).join('');
-  var sortSel='<select class="fsel" id="sortSel"><option value="new">Newest first</option><option value="old">Oldest first</option><option value="openlong">Longest open</option><option value="status">By status</option><option value="priority">By priority</option></select>';
   var userSel='';
   if(ISADMIN){
     var users={}; ALL.forEach(function(t){ if(t.by) users[t.by]=1; });
     var uopts='<option value="">All users</option>'+Object.keys(users).sort().map(function(u){ return '<option'+(USERFILTER===u?' selected':'')+'>'+esc(u)+'</option>'; }).join('');
     userSel='<select class="fsel" id="userSel">'+uopts+'</select>';
   }
-  document.getElementById('filters').innerHTML=chips+'<span style="flex:1"></span>'+userSel+sortSel;
+  document.getElementById('filters').innerHTML=chips+'<span style="flex:1"></span>'+userSel;
   document.querySelectorAll('.fchip').forEach(function(b){ b.addEventListener('click',function(){ FILTER=b.getAttribute('data-f'); renderFilters(); renderList(); }); });
-  var ss=document.getElementById('sortSel'); if(ss){ ss.value=SORT; ss.addEventListener('change',function(){ SORT=ss.value; renderList(); }); }
   var us=document.getElementById('userSel'); if(us){ us.addEventListener('change',function(){ USERFILTER=us.value; renderList(); }); }
 }
 function passFilter(t){
@@ -152,19 +151,34 @@ function sortList(list){
     return 0;
   });
 }
+var CTL=null;
+function statusCell(t){ return '<span class="stpill '+stClass(t.status)+'">'+esc(t.status)+'</span>'; }
+function priorityCell(t){ var p=t.priority||'Normal'; return (p==='Normal')?'<span class="meta">Normal</span>':'<span class="pr-'+esc(p)+'">'+esc(p)+'</span>'; }
+function ticketCfg(){
+  return { mount:'#body', data:ALL, key:'tickets', empty:'<div class="empty">Nothing in this view.</div>',
+    rowId:function(t){return t.id;}, defaultSort:7, defaultDir:1,
+    columns:[
+      { label:'#', sort:function(a,b){return RRGList.cmp(a.no,b.no);}, cell:function(t){ return '<a class="lk" href="#" data-open="'+esc(t.id)+'">'+esc(t.no)+'</a>'; } },
+      { label:'Subject', sort:function(a,b){return RRGList.cmp(a.subject,b.subject);}, cell:function(t){ return '<a class="lk" href="#" data-open="'+esc(t.id)+'">'+esc(t.subject||'(no subject)')+'</a>'; } },
+      { label:'Department', sort:function(a,b){return RRGList.cmp(a.departmentName||'',b.departmentName||'');}, cell:function(t){ return t.departmentName?esc(t.departmentName):'<span class="meta">\u2014</span>'; } },
+      { label:'Category', sort:function(a,b){return RRGList.cmp(a.category||'',b.category||'');}, cell:function(t){ return t.category?esc(t.category):'<span class="meta">\u2014</span>'; } },
+      { label:'Priority', sort:function(a,b){var o={Urgent:0,High:1,Normal:2};return (o[a.priority]==null?9:o[a.priority])-(o[b.priority]==null?9:o[b.priority]);}, cell:priorityCell },
+      { label:'Requested by', defaultHidden:!ISADMIN, sort:function(a,b){return RRGList.cmp(a.by||'',b.by||'');}, cell:function(t){ return t.by?esc(t.by):'<span class="meta">\u2014</span>'; } },
+      { label:'Status', sort:function(a,b){return RRGList.cmp(a.status||'',b.status||'');}, cell:statusCell },
+      { label:'Opened', sort:function(a,b){return openDays(a)-openDays(b);}, cell:function(t){ return '<span title="'+esc(fmtDate(t.createdAt))+'">'+esc(openLabel(t))+'</span>'; } }
+    ]
+  };
+}
 function renderList(){
   renderFilters();
-  var list=sortList(ALL.filter(passFilter));
-  document.getElementById('cnt').textContent=list.length?('· '+list.length):'';
-  if(!ALL.length){ document.getElementById('body').innerHTML='<div class="empty"><b>No requests yet.</b>Open your first request — the brokerage office answers marketing, signage, photography, listings, compliance, IT, supplies and more.</div>'; return; }
-  if(!list.length){ document.getElementById('body').innerHTML='<div class="empty">Nothing in this view.</div>'; return; }
-  document.getElementById('body').innerHTML=list.map(function(t){
-    var meta=[]; if(t.departmentName) meta.push(esc(t.departmentName)); meta.push(esc(t.category)); if(ISADMIN&&t.by) meta.push('by '+esc(t.by)); meta.push('opened '+fmtDate(t.createdAt)); meta.push(openLabel(t)); meta.push(ago(t.lastAt)+(t.lastFrom==='office'?' · office replied':''));
-    var pr=(t.priority&&t.priority!=='Normal')?(' <span class="pr-'+esc(t.priority)+'">· '+esc(t.priority)+'</span>'):'';
-    return '<div class="trow" data-id="'+esc(t.id)+'"><div class="tno">'+esc(t.no)+'</div><div class="tmain"><div class="tsub">'+esc(t.subject)+'</div><div class="tmeta">'+meta.join(' · ')+pr+'</div></div><span class="stpill '+stClass(t.status)+'">'+esc(t.status)+'</span></div>';
-  }).join('');
-  document.querySelectorAll('.trow').forEach(function(r){ r.addEventListener('click',function(){ openTicket(r.getAttribute('data-id')); }); });
+  var list=ALL.filter(passFilter);
+  var c=document.getElementById('cnt'); if(c) c.textContent=list.length?('\u00b7 '+list.length):'';
+  var body=document.getElementById('body');
+  if(!ALL.length){ CTL=null; body.innerHTML='<div class="empty"><b>No requests yet.</b>Open your first request \u2014 the brokerage office answers marketing, signage, photography, listings, compliance, IT, supplies and more.</div>'; return; }
+  if(!CTL){ CTL=RRGList.create(ticketCfg()); }
+  CTL.refresh(list);
 }
+document.addEventListener('click',function(e){ var o=e.target&&e.target.closest&&e.target.closest('[data-open]'); if(o){ e.preventDefault(); openTicket(o.getAttribute('data-open')); } });
 
 /* ---- detail / thread ---- */
 function renderThread(t){
