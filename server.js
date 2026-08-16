@@ -12801,7 +12801,7 @@ function _cleanTiers(raw) {
   return out.length ? out : null;
 }
 function effCommissionTiers() { const s = loadSettings(); return _cleanTiers(s.commissionTiers) || DEFAULT_COMMISSION_TIERS.map(t => Object.assign({}, t)); }
-function effCommissionMinFee() { const s = loadSettings(); const n = Number(s.commissionMinFee); return (isFinite(n) && n > 0) ? Math.round(n) : 0; }
+function effCommissionMinFee() { const s = loadSettings(); if (s.commissionMinFee !== undefined && s.commissionMinFee !== null && s.commissionMinFee !== '') { const n = Number(s.commissionMinFee); return (isFinite(n) && n > 0) ? Math.round(n) : 0; } return 25000; }
 function commissionForTiers(price, tiers) {
   price = Number(price) || 0; if (price <= 0) return 0;
   tiers = (Array.isArray(tiers) && tiers.length) ? tiers : effCommissionTiers();

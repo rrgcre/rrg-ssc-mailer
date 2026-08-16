@@ -672,7 +672,7 @@ function saveFillSilent(a){ var host=document.getElementById('advfill'); if(!hos
 
 function finishAgrSave(ag){ if(ag){ var found=false; AGREEMENTS=AGREEMENTS.map(function(x){ if(x.id===ag.id){found=true;return ag;} return x; }); if(!found) AGREEMENTS.push(ag); } var f=document.getElementById('agrForm'); if(f) f.setAttribute('hidden',''); render(); }
 function agrMoney(n){ n=Math.round(Number(n)||0); return '$'+n.toLocaleString('en-US'); }
-var COMMSTRUCT={ tiers:[{to:1000000,rate:10},{to:2000000,rate:8},{to:3000000,rate:5},{to:4000000,rate:4},{to:10000000,rate:3},{to:30000000,rate:1},{to:null,rate:0.5}], minFee:0, flatRate:6, _loaded:false };
+var COMMSTRUCT={ tiers:[{to:1000000,rate:10},{to:2000000,rate:8},{to:3000000,rate:5},{to:4000000,rate:4},{to:10000000,rate:3},{to:30000000,rate:1},{to:null,rate:0.5}], minFee:25000, flatRate:6, _loaded:false };
 function agrLehmanGross(price,tiers){ price=Number(price)||0; if(price<=0)return 0; var total=0,prev=0; for(var i=0;i<tiers.length;i++){ var cap=(tiers[i].to==null)?Infinity:Number(tiers[i].to); var c=Math.max(0,Math.min(price,cap)-prev); total+=c*(Number(tiers[i].rate)||0)/100; prev=cap; if(!isFinite(cap))break; } return total; }
 function ensureCommStruct(cb){ if(COMMSTRUCT._loaded){ if(cb)cb(); return; } fetch('/api/commission-structure',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok){ if(j.tiers&&j.tiers.length) COMMSTRUCT.tiers=j.tiers.map(function(t){return {to:t.to,rate:(Number(t.rate)||0)*100};}); COMMSTRUCT.minFee=j.minFee||0; COMMSTRUCT.flatRate=(j.flatRate!=null)?j.flatRate:6; } COMMSTRUCT._loaded=true; if(cb)cb(); }).catch(function(){ COMMSTRUCT._loaded=true; if(cb)cb(); }); }
 function agrCommUpdate(){

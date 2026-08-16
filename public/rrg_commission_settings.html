@@ -56,7 +56,7 @@ function esc(s){var d=document.createElement('div');d.textContent=s==null?'':Str
 function get(u){ return fetch(u,{credentials:'same-origin'}).then(function(r){return r.json();}); }
 function post(u,b){ return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(b||{})}).then(function(r){return r.json();}); }
 var DEFAULT_TIERS=[{to:1000000,rate:10},{to:2000000,rate:8},{to:3000000,rate:5},{to:4000000,rate:4},{to:10000000,rate:3},{to:30000000,rate:1},{to:null,rate:0.5}];
-var TIERS=[], MINFEE=0, FLAT=6, ADMIN=false, DEFMETHOD='lehman';
+var TIERS=[], MINFEE=25000, FLAT=6, ADMIN=false, DEFMETHOD='lehman';
 
 function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.]/g,''))||0; }
 function money(n){ return '$'+Math.round(Number(n)||0).toLocaleString('en-US'); }

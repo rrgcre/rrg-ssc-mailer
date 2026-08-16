@@ -78,6 +78,17 @@ textarea{min-height:92px;resize:vertical;line-height:1.5;}
 .mfchip:hover{background:#e7f0fe;border-color:#a9c5ee;}
 @media(max-width:600px){.mfglbl{min-width:0;width:100%;margin-bottom:2px;}}
 .rrgrt{border:1px solid #cfd6e2;border-radius:4px;overflow:hidden;background:#fff;} .rrgrt-bar{display:flex;gap:2px;align-items:center;padding:5px 7px;border-bottom:1px solid #e6e9f0;background:#f7f9fc;} .rrgrt-bar button{background:none;border:1px solid transparent;border-radius:6px;min-width:28px;height:26px;padding:0 7px;cursor:pointer;font-size:13px;color:#3a4560;line-height:1;} .rrgrt-bar button:hover{background:#eef3fb;border-color:#dbe3f0;} .rrgrt-sep{width:1px;height:16px;background:#dbe1ea;margin:0 4px;} .rrgrt-ed{min-height:96px;max-height:280px;overflow:auto;padding:9px 11px;font:inherit;font-size:13.5px;line-height:1.5;color:#1d2739;outline:none;} .rrgrt-ed:empty:before{content:attr(data-ph);color:#9aa4b6;}
+.ovtoggle{margin-left:auto;background:none;border:0;color:var(--muted);font:inherit;font-size:11.5px;font-weight:700;cursor:pointer;text-transform:none;letter-spacing:0;}
+.ovtoggle:hover{color:var(--navy);text-decoration:underline;}
+.ovbody{display:grid;grid-template-columns:1fr 1fr 1fr;gap:0;}
+@media(max-width:820px){.ovbody{grid-template-columns:1fr;}}
+.ovcol{padding:14px 18px;border-left:1px solid var(--line);}
+.ovbody .ovcol:first-child{border-left:none;padding-left:2px;}
+@media(max-width:820px){.ovcol{border-left:none;border-top:1px solid #eef1f6;} .ovbody .ovcol:first-child{border-top:none;}}
+.ovk{font-size:12.5px;font-weight:800;color:var(--navy);margin-bottom:5px;}
+.ovd{font-size:12px;color:var(--muted);line-height:1.55;}
+.ovd b{color:var(--ink);font-weight:700;}
+#agrOverview.collapsed .cb{display:none;}
 </style>
 <script src="/rrg_list.js"></script>
 <script src="/rrg_brand.js"></script>
@@ -89,7 +100,16 @@ textarea{min-height:92px;resize:vertical;line-height:1.5;}
   <h1>Agreement Templates</h1>
   <div class="sub">Your standard agreements, stored once and reused. Upload the signable PDF, then place the signature, date and text fields right on the document. The rep fills every detail before sending — the signer only signs. Admin only.</div>
 </div></div>
+<div class="wrap" style="margin-top:18px;padding-bottom:0"><div class="card" id="agrOverview">
+  <div class="ch"><b>What this section does</b><span>Build it, sign it, and track it to close</span><button type="button" class="ovtoggle" id="ovToggle">Hide</button></div>
+  <div class="cb" style="padding:0"><div class="ovbody">
+    <div class="ovcol"><div class="ovk">1 · Build the document</div><div class="ovd">Upload any signable PDF and drop signature, date, text and checkbox fields right onto it. <b>AI auto-places</b> fields on upload; reusable field groups and a <b>completeness check</b> keep every template airtight before you save.</div></div>
+    <div class="ovcol"><div class="ovk">2 · Send &amp; sign</div><div class="ovd">The rep fills every detail — the signer only signs. <b>Sequential multi-signer</b> (client, then broker countersign), a <b>secure lock</b> after the first signature, and send by email or secure link.</div></div>
+    <div class="ovcol"><div class="ovk">3 · Close the loop</div><div class="ovd"><b>Commission capture</b> projects GCI to the linked deal, <b>renewal reminders</b> with one-click renew, and a DocuSign-style <b>audit certificate</b> on every executed agreement.</div></div>
+  </div></div>
+</div></div>
 <div id="root" class="wrap"><div class="gate">Loading…</div></div>
+<script>(function(){var c=document.getElementById("agrOverview"),b=document.getElementById("ovToggle");if(!c||!b)return;var K="rrg_agr_overview_hidden";try{if(localStorage.getItem(K)==="1"){c.classList.add("collapsed");b.textContent="Show";}}catch(e){}b.addEventListener("click",function(){var hid=c.classList.toggle("collapsed");b.textContent=hid?"Show":"Hide";try{localStorage.setItem(K,hid?"1":"0");}catch(e){}});})();</script>
 <script>
 function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
 function get(url){ return fetch(url,{credentials:'same-origin'}).then(function(r){return r.json();}); }
