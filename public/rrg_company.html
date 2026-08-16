@@ -415,6 +415,42 @@ function expandCardOf(f){
     if(t){ var K='rrgcardcol_'+location.pathname, st={}; try{ st=JSON.parse(localStorage.getItem(K)||'{}')||{}; }catch(e){} if(st[t]){ delete st[t]; try{ localStorage.setItem(K,JSON.stringify(st)); }catch(e){} } }
   }catch(e){}
 }
+function ensureLeaflet(cb){
+  if(window.L){ cb(); return; }
+  if(!document.getElementById('leaflet-css')){ var lk=document.createElement('link'); lk.id='leaflet-css'; lk.rel='stylesheet'; lk.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(lk); }
+  var sc=document.createElement('script'); sc.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; sc.onload=function(){ cb(); }; sc.onerror=function(){ cb(new Error('load')); }; document.head.appendChild(sc);
+}
+function _locPt(l){ return (l && l.google && l.google.lat!=null && l.google.lng!=null) ? [Number(l.google.lat),Number(l.google.lng)] : null; }
+function openLocMap(){
+  var pts=LOCATIONS.filter(function(l){ return _locPt(l); });
+  var missing=LOCATIONS.length-pts.length;
+  var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(6,16,41,.5);z-index:140;display:flex;align-items:stretch;justify-content:center;padding:34px 16px;';
+  ov.innerHTML='<div style="background:#fff;border-radius:12px;width:min(1000px,96vw);display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden">'
+    +'<div style="display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid #e6e9f0"><b style="font-size:15px;color:#000E31">'+esc(C.name||"Company")+' \u2014 locations</b><span style="font-size:12px;color:#6b7488">'+pts.length+' mapped'+(missing?(' \u00b7 '+missing+' need a Google pull'):'')+'</span><button id="lmClose" title="Close" style="margin-left:auto;background:none;border:none;font-size:22px;color:#8a94a6;cursor:pointer;line-height:1">\u00d7</button></div>'
+    +(pts.length?'<div id="locMap" style="flex:1;min-height:460px;background:#eef0f4"></div><div id="lmLegend" style="padding:10px 16px;border-top:1px solid #e6e9f0;display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#33415c"></div>':'<div style="padding:34px 20px;color:#8a93a8;font-size:13px;text-align:center;line-height:1.6">No locations have map coordinates yet.<br>Open a location and use <b>\u2913 Pull from Google</b> to add its position \u2014 then it will show here.</div>')
+    +'</div>';
+  document.body.appendChild(ov);
+  ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); });
+  var kc=ov.querySelector('#lmClose'); if(kc) kc.addEventListener('click',function(){ ov.remove(); });
+  if(!pts.length) return;
+  ensureLeaflet(function(err){
+    var host=document.getElementById('locMap'); if(!host) return;
+    if(err||!window.L){ host.innerHTML='<div style="padding:22px;color:#b5791f;font-size:13px;text-align:center">Could not load the map. Check your connection and try again.</div>'; return; }
+    var map=L.map('locMap',{scrollWheelZoom:true});
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png',{maxZoom:19,attribution:'\u00a9 OpenStreetMap \u00a9 CARTO'}).addTo(map);
+    var palette=['#2f5bd0','#DA2B1F','#1f8a5b','#b5791f','#7a3fb0','#0d8c8c','#c0392b','#556170'];
+    var concepts={}, ci=0, group=[];
+    pts.forEach(function(l){ var pt=_locPt(l); var key=l.concept||(l.commissary?'Commissary':'Other'); if(concepts[key]===undefined){ concepts[key]=palette[ci%palette.length]; ci++; } var col=concepts[key];
+      var m=L.circleMarker(pt,{radius:8,color:'#fff',weight:2,fillColor:col,fillOpacity:.92}).addTo(map);
+      var addr=esc((l.google&&l.google.address)||l.address||''); var st=esc(l.status||'');
+      m.bindPopup('<div style="font-family:inherit"><b style="color:#000E31">'+esc(l.name||l.address||'Location')+'</b>'+(key?('<div style="color:#6b7488;font-size:11.5px;margin-top:1px">'+esc(key)+'</div>'):'')+(addr?('<div style="color:#6b7488;font-size:11.5px;margin-top:3px">'+addr+'</div>'):'')+(st?('<div style="font-size:11.5px;margin-top:3px;font-weight:700">'+st+'</div>'):'')+((l.google&&l.google.mapsUrl)?('<div style="margin-top:5px"><a href="'+esc(l.google.mapsUrl)+'" target="_blank" rel="noopener">Google Maps \u2197</a></div>'):'')+'</div>');
+      group.push(pt);
+    });
+    if(group.length===1){ map.setView(group[0],14); } else { try{ map.fitBounds(group,{padding:[40,40]}); }catch(e){ map.setView(group[0],11); } }
+    setTimeout(function(){ try{ map.invalidateSize(); }catch(e){} },90);
+    var leg=document.getElementById('lmLegend'); if(leg){ leg.innerHTML=Object.keys(concepts).map(function(k){ return '<span style="display:inline-flex;align-items:center;gap:6px"><span style="width:11px;height:11px;border-radius:50%;background:'+concepts[k]+';border:2px solid #fff;box-shadow:0 0 0 1px #cfd6e2"></span>'+esc(k)+'</span>'; }).join(''); }
+  });
+}
 function _coOv(inner,w){ var ov=document.createElement('div'); ov.style.cssText='position:fixed;inset:0;background:rgba(6,16,41,.5);z-index:130;display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto'; ov.innerHTML='<div style="background:#fff;border-radius:14px;padding:20px 22px;width:min('+(w||'480px')+',96vw);box-shadow:0 20px 60px rgba(0,0,0,.3)">'+inner+'</div>'; document.body.appendChild(ov); ov.addEventListener('click',function(e){ if(e.target===ov) ov.remove(); }); return ov; }
 function openCoAgrChooser(){
   var C=function(c,t,d){ return '<button type="button" class="coach" data-c="'+c+'" style="text-align:left;border:1px solid #e6e9f0;background:#fff;border-radius:11px;padding:13px 15px;cursor:pointer"><div style="font-weight:800;color:#000E31;font-size:14px">'+t+'</div><div style="font-size:12.5px;color:#6b7488;margin-top:3px">'+d+'</div></button>'; };
@@ -545,7 +581,7 @@ function render(){
     + '</div>'
     + '<div class="rail">'
     + '<div class="card"><div class="ch"><b>Contacts</b><span>'+CONTACTS.length+'</span><button class="addbtn" id="linkContactBtn" title="Link an existing contact from your book" style="margin-left:auto;width:auto;height:26px;padding:0 10px;font-size:11.5px;font-weight:700;display:inline-flex;align-items:center;gap:5px">🔗 Link</button><button class="addbtn" id="addContactBtn" title="Add a new contact" style="margin-left:6px;width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb"><div id="contactForm" hidden></div>'+contacts+'</div></div>'
-    + '<div class="card"><div class="ch"><b>'+esc(CLABELP)+'</b><span>'+CONCEPTS.length+' '+(CONCEPTS.length===1?esc(CLABEL.toLowerCase()):esc(CLABELP.toLowerCase()))+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span><button class="addbtn ghost" id="addCommBtn" title="Add commissary" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button><button class="addbtn" id="addConceptBtn" title="Add '+esc(CLABEL.toLowerCase())+'" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
+    + '<div class="card"><div class="ch"><b>'+esc(CLABELP)+'</b><span>'+CONCEPTS.length+' '+(CONCEPTS.length===1?esc(CLABEL.toLowerCase()):esc(CLABELP.toLowerCase()))+(commissaries.length?(' · '+commissaries.length+' commissar'+(commissaries.length===1?'y':'ies')):'')+' · '+LOCATIONS.length+' location'+(LOCATIONS.length===1?'':'s')+'</span>'+(LOCATIONS.length?'<button class="addbtn ghost" id="locMapBtn" title="View locations on a map" style="width:auto;padding:0 11px;height:26px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:5px">\uD83D\uDDFA Map</button>':'')+'<button class="addbtn ghost" id="addCommBtn" title="Add commissary" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button><button class="addbtn" id="addConceptBtn" title="Add '+esc(CLABEL.toLowerCase())+'" style="width:28px;height:26px;padding:0;font-size:18px;line-height:1;font-weight:700;display:inline-flex;align-items:center;justify-content:center">+</button></div><div class="cb"><div id="conceptForm" hidden></div><div id="findForm" hidden></div><div id="locForm" hidden></div>'+locs+'</div></div>'
     + '<div class="card"><div class="ch"><b>Listings</b><span>'+DEALS.length+'</span></div><div class="cb">'+deals+'</div></div>'
     + agreementsCardCo()
     + filesCardCo()
@@ -589,6 +625,7 @@ function render(){
   document.querySelectorAll('.cmain[data-main]').forEach(function(b){ b.addEventListener('click',function(){ setMainContact(b.getAttribute('data-main')); }); });
   var acb=document.getElementById('addConceptBtn'); if(acb) acb.addEventListener('click',openConceptBuilder);
   var acb2=document.getElementById('addCommBtn'); if(acb2) acb2.addEventListener('click',function(){ openLocForm({commissary:true,servesAll:true},''); });
+  var lmb=document.getElementById('locMapBtn'); if(lmb) lmb.addEventListener('click',openLocMap);
   document.querySelectorAll('.mini[data-find]').forEach(function(b){ b.addEventListener('click',function(){ openFindForm(b.getAttribute('data-find')); }); });
   document.querySelectorAll('.mini[data-addloc]').forEach(function(b){ b.addEventListener('click',function(){ var c=conceptById(b.getAttribute('data-addloc')); openLocForm(null,c?c.name:''); }); });
   document.querySelectorAll('[data-editc]').forEach(function(b){ b.addEventListener('click',function(e){ if(e&&e.stopPropagation) e.stopPropagation(); var c=conceptById(b.getAttribute('data-editc')); if(c) openConceptForm(c); }); });
