@@ -56,6 +56,9 @@ textarea{min-height:92px;resize:vertical;line-height:1.5;}
 .lk{color:var(--navy);text-decoration:none;font-weight:600;} .lk:hover{text-decoration:underline;}
 .meta{color:var(--muted);font-size:12px;}
 .acts{display:flex;gap:6px;flex-wrap:nowrap;justify-content:flex-end;white-space:nowrap;align-items:center;}
+/* Standard delete control across lists: an ✕ in a subtle NetSuite-style ghost button. */
+.delx{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:1px solid #d4dae4;background:#fff;color:#8a94a6;border-radius:3px;font-size:13px;line-height:1;font-weight:700;cursor:pointer;transition:background .12s,border-color .12s,color .12s;}
+.delx:hover{border-color:#DA2B1F;color:#DA2B1F;background:#fdecea;}
 .amwrap{position:relative;display:inline-flex;}
 .amtrig{padding:5px 9px;font-weight:800;letter-spacing:1px;line-height:1;}
 .ammenu{position:absolute;top:calc(100% + 4px);right:0;z-index:70;background:#fff;border:1px solid #dbe0e9;border-radius:6px;box-shadow:0 12px 30px rgba(11,26,56,.16);padding:5px;min-width:130px;display:flex;flex-direction:column;gap:1px;}
@@ -177,10 +180,9 @@ function actionsCell(t){
   var s='';
   if(t.fileExt==='pdf'){ s+='<a class="btn ghost sm" href="/rrg_sign_designer.html?template='+esc(t.id)+'">Design</a>'; }
   if(t.fileExt){ s+='<a class="btn ghost sm" href="/api/agreement-templates/'+esc(t.id)+'/file?v='+encodeURIComponent(t.updatedAt||'')+'" target="_blank" rel="noopener">View</a>'; }
-  var more='';
-  if(t.fileExt){ more+='<button class="amitem" data-print="'+esc(t.id)+'">Print</button>'; }
-  more+='<button class="amitem" data-edit="'+esc(t.id)+'">Edit</button><button class="amitem amdanger" data-del="'+esc(t.id)+'">Delete</button>';
-  s+='<div class="amwrap"><button class="btn ghost sm amtrig" type="button" data-more="'+esc(t.id)+'" aria-label="More actions" title="More">⋯</button><div class="ammenu" id="am_'+esc(t.id)+'" hidden>'+more+'</div></div>';
+  if(t.fileExt){ s+='<button class="btn ghost sm" data-print="'+esc(t.id)+'">Print</button>'; }
+  s+='<button class="btn ghost sm" data-edit="'+esc(t.id)+'">Edit</button>';
+  s+='<button class="delx" type="button" data-del="'+esc(t.id)+'" title="Delete" aria-label="Delete">✕</button>';
   return '<div class="acts">'+s+'</div>';
 }
 function listCfg(){

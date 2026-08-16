@@ -51,3 +51,7 @@ select,textarea{ border-radius:3px !important; }
 #rrgcfm-bx button.ok.danger{ background:var(--red) !important; }
 .rrgtoast{ border-radius:4px !important; background:#20334f !important; }
 .rrgtoast.err{ background:#7a1f1a !important; }
+
+/* Standard delete control across all lists: an X in a subtle NetSuite-style ghost button. */
+.delx{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:1px solid #d4dae4;background:#fff;color:#8a94a6;border-radius:3px;font-size:13px;line-height:1;font-weight:700;cursor:pointer;transition:background .12s,border-color .12s,color .12s;-webkit-appearance:none;}
+.delx:hover{border-color:#DA2B1F;color:#DA2B1F;background:#fdecea;}
