@@ -382,7 +382,11 @@ function agrRow(a){
   }
   var _typeL=atypeLabel(a.type);
   var meta=(title&&title!==_typeL?(esc(_typeL)+' · '):'')+statusTxt;
-  return '<div class="rrow agrrow'+(signed?' agrexec':'')+'" data-agr="'+esc(a.id)+'" title="Open the document"><span class="dico k-agreement"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.6 1.6 3.4-3.6"/></svg></span><div class="rrmain" style="min-width:0"><div class="docttl">'+esc(title)+'</div><div class="docmeta">'+meta+'</div></div>'+expChip(a)+agrEntryIcon(a)+'</div>';
+  var _dt=[];
+  if(a.effective) _dt.push('Effective '+fmt(a.effective));
+  if(a.expires) _dt.push('Expires '+fmt(a.expires)+((expired&&a.status!=='terminated')?' (expired)':''));
+  var _dtline=_dt.length?('<div class="docmeta" style="color:#8a94a6;margin-top:1px">'+_dt.join(' · ')+'</div>'):'';
+  return '<div class="rrow agrrow'+(signed?' agrexec':'')+'" data-agr="'+esc(a.id)+'" title="Open the document"><span class="dico k-agreement"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M8.5 14.5l1.6 1.6 3.4-3.6"/></svg></span><div class="rrmain" style="min-width:0"><div class="docttl">'+esc(title)+'</div><div class="docmeta">'+meta+'</div>'+_dtline+'</div>'+expChip(a)+agrEntryIcon(a)+'</div>';
 }
 function apptFmtDT(sv){ if(!sv) return ''; var d=String(sv).slice(0,10).split('-'); var t=String(sv).slice(11,16); var out=d.length===3?(d[1]+'/'+d[2]+'/'+d[0]):String(sv); if(t){ var hh=parseInt(t.slice(0,2),10)||0,mm=t.slice(3,5); out+=' '+((hh%12)||12)+(mm==='00'?'':(':'+mm))+(hh>=12?'p':'a'); } return out; }
 // ---- Tasks (linked to this contact) --------------------------------------------------
