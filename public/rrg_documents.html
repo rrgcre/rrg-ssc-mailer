@@ -189,7 +189,7 @@ function cDate(v){ return (v&&String(v).trim())?('<span class="meta">'+esc(fmtDa
 function stCls(k){ return 's-'+String(k||'').toLowerCase().replace(/[^a-z0-9]+/g,''); }
 function cStatus(d){ return d.status?('<span class="st '+stCls(d.statusKey||d.status)+'">'+esc(d.status)+'</span>'):_muted(); }
 function cText(v){ return (v&&String(v).trim())?esc(v):_muted(); }
-function cActions(d){ if(d.kind==='firmwide') return IS_ADMIN?('<button class="codel" data-del="'+esc(d.id)+'" title="Remove" aria-label="Remove">×</button>'):_muted(); return (d.kind==='file'||d.deleteUrl)?('<button class="codel" data-del="'+esc(d.id)+'" title="'+(d.kind==='seller'?'Delete':'Remove')+'" aria-label="'+(d.kind==='seller'?'Delete':'Remove')+'">×</button>'):_muted(); }
+function cActions(d){ if(d.kind==='firmwide') return IS_ADMIN?('<button class="codel delx" data-del="'+esc(d.id)+'" title="Remove" aria-label="Remove">✕</button>'):_muted(); return (d.kind==='file'||d.deleteUrl)?('<button class="codel delx" data-del="'+esc(d.id)+'" title="'+(d.kind==='seller'?'Delete':'Remove')+'" aria-label="'+(d.kind==='seller'?'Delete':'Remove')+'">✕</button>'):_muted(); }
 function _s(field){ return function(a,b){ return cmp(a[field],b[field]); }; }
 
 var C_NAME={ label:'Name', sort:_s('title'), cell:cName };

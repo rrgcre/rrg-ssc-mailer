@@ -275,7 +275,7 @@ async function glReset(body,msg){ if(!(await rrgConfirm(msg,{okText:'Delete',tit
 /* ---- Journal entry modal ---- */
 function acctOptions(sel){ return '<option value="">— account —</option>'+DATA.accounts.map(function(a){ return '<option value="'+esc(a.code)+'"'+(a.code===sel?' selected':'')+'>'+esc(a.code+' · '+a.name)+'</option>'; }).join(''); }
 function addJLine(l){ l=l||{account:'',debit:'',credit:''}; var wrap=document.getElementById('jLines'); var div=document.createElement('div'); div.className='jl';
-  div.innerHTML='<select class="jl-acct">'+acctOptions(l.account)+'</select><input class="jl-dr" type="number" step="0.01" min="0" placeholder="0.00" value="'+(l.debit||'')+'"><input class="jl-cr" type="number" step="0.01" min="0" placeholder="0.00" value="'+(l.credit||'')+'"><button class="del" title="Remove line">×</button>';
+  div.innerHTML='<select class="jl-acct">'+acctOptions(l.account)+'</select><input class="jl-dr" type="number" step="0.01" min="0" placeholder="0.00" value="'+(l.debit||'')+'"><input class="jl-cr" type="number" step="0.01" min="0" placeholder="0.00" value="'+(l.credit||'')+'"><button class="del delx" title="Remove line">✕</button>';
   wrap.appendChild(div);
   div.querySelector('.del').addEventListener('click',function(){ div.remove(); jRecalc(); });
   div.querySelector('.jl-dr').addEventListener('input',function(){ if(this.value) div.querySelector('.jl-cr').value=''; jRecalc(); });

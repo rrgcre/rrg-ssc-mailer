@@ -1556,7 +1556,7 @@ function tbSetHtml(tb,i){
     +'<div style="display:flex;align-items:center;gap:7px;margin-bottom:7px">'
       +'<input class="bbin tbConcept" list="tbCdl'+i+'" value="'+esc(tb.concept||'')+'" placeholder="Concept (optional)" style="flex:1;font-weight:700">'+dl
       +'<label class="bbactive" style="margin:0;white-space:nowrap" title="Actively looking for this concept"><input type="checkbox" class="tbActive"'+(tb.active?' checked':'')+'> Active</label>'
-      +'<button type="button" class="tbDel" data-i="'+i+'" title="Remove this concept" style="background:none;border:none;color:#c4ccda;cursor:pointer;font-size:17px;line-height:1;padding:0 2px">×</button>'
+      +'<button type="button" class="tbDel delx" data-i="'+i+'" title="Remove this concept" style="background:none;border:none;color:#c4ccda;cursor:pointer;font-size:17px;line-height:1;padding:0 2px">✕</button>'
     +'</div>'
     +'<div class="bbrow"><div><div class="bblab">Min SF</div><input class="bbin tbSfMin" inputmode="numeric" value="'+nv(tb.sfMin)+'" placeholder="—"></div><div><div class="bblab">Ideal SF</div><input class="bbin tbSfIdeal" inputmode="numeric" value="'+nv(tb.sfIdeal)+'" placeholder="—"></div><div><div class="bblab">Max SF</div><input class="bbin tbSfMax" inputmode="numeric" value="'+nv(tb.sfMax)+'" placeholder="—"></div></div>'
     +'<div class="bblab">Condition</div><div class="bbchips">'+_tbChips(TB_CONDITIONS,tb.condition,'tbc')+'</div>'
