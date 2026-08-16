@@ -13751,7 +13751,7 @@ function submitAdvancedSign(req, res, all, a, me) {
   const myFields = (a.pdfFields || []).filter(f => f.signer === me.order);
   for (const f of myFields) {
     if (f.type === 'signature' || f.type === 'initials') { if (f.required && !sigs[f.id] && !fs.existsSync(sigFieldPath(a, f.id))) return res.status(400).json({ ok: false, error: 'Please complete: ' + (f.label || 'Signature') }); }
-    else if (f.type === 'checkbox') {} 
+    else if (f.type === 'checkbox') { if (f.required && !values[f.id]) return res.status(400).json({ ok: false, error: 'Please check: ' + (f.label || 'the required box') }); }
   }
   a.fieldValues = a.fieldValues || {};
   try { if (!fs.existsSync(AGREEMENT_DOC_DIR)) fs.mkdirSync(AGREEMENT_DOC_DIR, { recursive: true }); } catch (e) {}
@@ -13857,7 +13857,7 @@ function advancedSignPage(a, me, req) {
     if(!document.getElementById('agree').checked){err.textContent='Please check the agreement box.';return;}
     var miss=null, missId=null;
     (DATA.fields||[]).filter(function(f){return f.mine&&f.required;}).forEach(function(f){
-      var empty=(f.type==='signature'||f.type==='initials')?!SIGS[f.id]:(f.type==='checkbox'?false:!String(VALS[f.id]||'').trim());
+      var empty=(f.type==='signature'||f.type==='initials')?!SIGS[f.id]:(f.type==='checkbox'?(String(VALS[f.id]||'')!=='1'):!String(VALS[f.id]||'').trim());
       if(empty&&!missId){ miss=f.label||((f.type==='signature'||f.type==='initials')?'Signature':'a field'); missId=f.id; }
     });
     if(miss){ err.textContent='Please complete: '+miss; var _mb=document.querySelector('[data-fid="'+missId+'"]'); if(_mb){ try{ _mb.scrollIntoView({behavior:'smooth',block:'center'}); }catch(e){} _mb.style.boxShadow='0 0 0 3px rgba(218,43,31,.55)'; setTimeout(function(){ _mb.style.boxShadow=''; },2400); } return; }
