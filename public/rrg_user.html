@@ -64,10 +64,12 @@ function val(id){ var e=document.getElementById(id); return e?e.value:''; }
 var UN=qs('u')||qs('id'), D=null, TYPES=[];
 function typeLabel(k){ for(var i=0;i<TYPES.length;i++){ if(TYPES[i].key===k) return TYPES[i].label; } return k||'Agreement'; }
 
-fetch('/api/user/'+encodeURIComponent(UN)+'/detail',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
+function loadDetail(){ fetch('/api/user/'+encodeURIComponent(UN)+'/detail',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){
   if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">'+esc((j&&j.error)||'Could not load this record.')+'</div>'; return; }
   D=j; TYPES=j.agreementTypes||[]; render();
-}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; }); }
+if(UN){ loadDetail(); }
+else { fetch('/api/session',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(sn){ UN=(sn&&sn.username)||''; if(UN) loadDetail(); else document.getElementById('root').innerHTML='<div class="gate">Sign in to view your record.</div>'; }).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; }); }
 
 function tile(n,label,sub,cls){ return '<div class="tile"><div class="n'+(cls?(' '+cls):'')+'">'+esc(n)+'</div><div class="l">'+esc(label)+'</div>'+(sub?('<div class="s">'+esc(sub)+'</div>'):'')+'</div>'; }
 function statusPill(st){ st=String(st||''); var cls='dim'; if(/closed/i.test(st)) cls='ok'; else if(/active|under|pending|live/i.test(st)) cls='warn'; return '<span class="pill '+cls+'">'+esc(st||'—')+'</span>'; }
@@ -114,7 +116,7 @@ function render(){
   }
 
   var html=''
-    +'<div class="crumb"><a href="rrg_team.html">← Team</a> \u00b7 <a href="rrg_team_help.html">Help &amp; guide</a></div>'
+    +'<div class="crumb">'+(D.isAdmin?'<a href="rrg_team.html">← Team</a> \u00b7 ':'')+(D.isSelf?'<a href="rrg_account.html">Account settings</a> \u00b7 ':'')+'<a href="rrg_team_help.html">Help &amp; guide</a></div>'
     +'<div class="rechero"><div class="rhlogo">'+av+'</div><div><div class="rhname">'+esc(u.name||u.username)+'</div><div class="rhmeta">'+esc(contact||'Team member')+(reach?(' · '+reach):'')+(e.startDate?(' · started '+fmtD(e.startDate)):'')+'</div></div></div>'
     +'<div class="tiles">'
       +tile(k.activeListings,'Active Listings','')

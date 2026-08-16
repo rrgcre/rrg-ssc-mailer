@@ -173,7 +173,6 @@
       { ic: '▦', label: 'Companies', href: 'rrg_companies.html' },
       { ic: '◑', label: 'Contacts', href: 'rrg_people.html' },
       { ic: '❐', label: 'Documents', href: 'rrg_documents.html' },
-      { ic: '❖', label: 'Team', href: 'rrg_team.html' },
     ] },
     { grp: 'Tenant Rep', color: '#dfa937', items: [
       { ic: '◆', label: 'Assignments', href: 'rrg_assignments.html?type=tenant_rep' },
@@ -211,6 +210,7 @@
     { grp: 'Admin', admin: true, color: '#dd8a82', items: [
       { ic: '⚑', label: 'Wish List', href: 'rrg_feedback.html' },
       { ic: '✉', label: 'Office Requests', href: 'rrg_tickets.html' },
+      { ic: '❖', label: 'Team', href: 'rrg_team.html' },
       { ic: '⚙', label: 'Settings', href: 'rrg_settings.html' },
       { ic: '<svg viewBox="0 0 20 20" width="14" height="14" style="vertical-align:-2px" fill="currentColor"><rect x="3" y="10" width="3" height="7" rx="1"></rect><rect x="8.5" y="6" width="3" height="11" rx="1"></rect><rect x="14" y="3" width="3" height="14" rx="1"></rect></svg>', label: 'Reports', href: 'rrg_reports.html', admin: true }
     ] }
@@ -369,7 +369,7 @@
         + '<a href="rrg_agreements.html?new=1"><span class="cmi">⚖</span> Agreement</a>'
         + '<a href="rrg_rooms_queue.html?new=1"><span class="cmi">▤</span> Data Room</a>'
       + '</div>'
-    + '</div><div class="uavwrap"><button class="uav" id="rrguav" type="button" aria-haspopup="true" aria-expanded="false" title="Account menu">·</button><div class="uavmenu" id="rrguavMenu" hidden><div class="uavhd" id="rrguavName">Signed in</div><a class="uavitem" href="rrg_account.html"><span class="uavic">◔</span> Account</a><a class="uavitem" href="index.html"><span class="uavic">?</span> Help</a><div class="uavsep"></div><a class="uavitem danger" href="/logout"><span class="uavic">⏻</span> Log out</a></div></div></div>';
+    + '</div><div class="uavwrap"><button class="uav" id="rrguav" type="button" aria-haspopup="true" aria-expanded="false" title="Account menu">·</button><div class="uavmenu" id="rrguavMenu" hidden><div class="uavhd" id="rrguavName">Signed in</div><a class="uavitem" id="rrguavRec" href="rrg_user.html"><span class="uavic">❖</span> My Record</a><a class="uavitem" href="rrg_account.html"><span class="uavic">◔</span> Account</a><a class="uavitem" href="index.html"><span class="uavic">?</span> Help</a><div class="uavsep"></div><a class="uavitem danger" href="/logout"><span class="uavic">⏻</span> Log out</a></div></div></div>';
 
   document.addEventListener('DOMContentLoaded', mount);
   if (document.readyState !== 'loading') mount();
@@ -473,7 +473,7 @@
         if(s&&s.canManageLoi){ nav.querySelectorAll('a.it[data-need="loi"]').forEach(function(el){ el.style.display=''; }); }
         (function(){ var _role=(s&&s.role)||''; var _owner=(_role==='admin'||_role==='creator'); var _nv=(s&&s.navVis)||{}; if(!_owner){ nav.querySelectorAll('.lbl[data-grp]').forEach(function(l){ var gg=l.getAttribute('data-grp'); var allow=_nv[gg]; if(allow&&allow.length&&allow.indexOf(_role)<0){ var grp=l.closest('.grp'); if(grp) grp.style.display='none'; } }); } })();
         if(s&&!s.canUseAi){ var aist=document.createElement('style'); aist.textContent='[data-ai]{display:none !important;}'; document.head.appendChild(aist); }
-        var nm=(s&&(s.name||s.username))||''; var uav=document.getElementById('rrguav'); if(uav&&nm){ var parts=nm.trim().split(/\s+/); var _ini=((parts[0]||'')[0]||'')+((parts[1]||'')[0]||'')||nm[0].toUpperCase(); var _ph=(s&&s.photoUrl)||''; uav.textContent=_ini; uav.style.backgroundImage=''; uav.classList.remove('haspic'); if(_ph){ var _im=new Image(); _im.onload=function(){ uav.textContent=''; uav.style.backgroundImage='url("'+_ph+'")'; uav.style.backgroundSize='cover'; uav.style.backgroundPosition='center'; uav.classList.add('haspic'); }; _im.onerror=function(){}; _im.src=_ph; } uav.title=nm+' — account menu'; } var uavn=document.getElementById('rrguavName'); if(uavn&&nm){ uavn.textContent='Signed in as '+nm; }
+        var nm=(s&&(s.name||s.username))||''; var uav=document.getElementById('rrguav'); if(uav&&nm){ var parts=nm.trim().split(/\s+/); var _ini=((parts[0]||'')[0]||'')+((parts[1]||'')[0]||'')||nm[0].toUpperCase(); var _ph=(s&&s.photoUrl)||''; uav.textContent=_ini; uav.style.backgroundImage=''; uav.classList.remove('haspic'); if(_ph){ var _im=new Image(); _im.onload=function(){ uav.textContent=''; uav.style.backgroundImage='url("'+_ph+'")'; uav.style.backgroundSize='cover'; uav.style.backgroundPosition='center'; uav.classList.add('haspic'); }; _im.onerror=function(){}; _im.src=_ph; } uav.title=nm+' — account menu'; } var uavn=document.getElementById('rrguavName'); if(uavn&&nm){ uavn.textContent='Signed in as '+nm; } var _rec=document.getElementById('rrguavRec'); if(_rec&&s&&s.username){ _rec.href='rrg_user.html?u='+encodeURIComponent(s.username); }
         var ac=document.getElementById('rrgacct'); if(ac&&nm) ac.textContent=nm.split(/\s+/)[0];
       }).catch(function(){});
     } catch(e){}
