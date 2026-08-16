@@ -91,6 +91,7 @@
         try { window.__rrgAiConfirm = (j && j.aiConfirm !== false); } catch (e) {}
         try { var de = document.documentElement, pal = (j && j.palette) || {}; if (pal.primary) de.style.setProperty('--navy', pal.primary); if (pal.accent) de.style.setProperty('--red', pal.accent); if (pal.sidebar) de.style.setProperty('--navbg', pal.sidebar); if (pal.positive) de.style.setProperty('--green', pal.positive); localStorage.setItem('rrg_pal', JSON.stringify(pal)); } catch (e) {}
         schedule((j && j.assistant) || 'Claude');
+        try { if (j && j.org) { window.__rrgOrg = j.org; window.__rrgBrokerage = j.org.legalName || j.org.name || ''; } } catch (e) {}
         try { if (j && j.org && j.org.name) scheduleOrg(j.org); } catch (e) {}
       })
       .catch(function () {});
