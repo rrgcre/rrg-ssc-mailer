@@ -13794,9 +13794,9 @@ function advancedSignPage(a, me, req) {
   const label = agreementTypeLabel(a.type);
   const head = `<div class="kick">Signature Request</div><h1>${esc(label)}</h1><div class="sub">${esc(me.label || ('Signer ' + me.order))}${me.name ? (' &middot; ' + esc(me.name)) : ''} &middot; Provided by Restaurant Realty Group</div>`;
   if (me.status === 'signed') return roomShell(label + ' - Signed', { head, body: `<div class="card"><div style="padding:24px"><b>You have already signed this ${esc(label)}.</b><div style="color:#6b7488;margin-top:8px">Thank you - no further action is needed.</div></div></div>` });
-  const body = `<div class="card"><div style="padding:14px 16px"><div id="advmsg" style="color:#6b7488;font-size:13px;margin-bottom:10px">Loading document&hellip;</div><div id="pages"></div>
-  <button id="submitBtn" style="width:100%;margin-top:18px;background:#000E31;color:#fff;border:none;border-radius:10px;padding:14px;font:inherit;font-size:15px;font-weight:700;cursor:pointer">Finish &amp; submit</button>
-  <button id="declineBtn" style="width:100%;margin-top:12px;background:none;color:#DA2B1F;border:none;font:inherit;font-size:13px;font-weight:700;cursor:pointer">Decline to sign</button>
+  const body = `<div class="card"><div style="padding:14px 16px"><div id="advmsg" style="text-align:center;color:#6b7488;font-size:14px;padding:44px 20px">Loading your document&hellip;</div><div id="pages"></div>
+  <div id="actbar" style="display:none"><button id="submitBtn" style="width:100%;margin-top:18px;background:#000E31;color:#fff;border:none;border-radius:10px;padding:14px;font:inherit;font-size:15px;font-weight:700;cursor:pointer">Finish &amp; submit</button>
+  <button id="declineBtn" style="width:100%;margin-top:12px;background:none;color:#DA2B1F;border:none;font:inherit;font-size:13px;font-weight:700;cursor:pointer">Decline to sign</button></div>
   <div id="err" style="text-align:center;color:#DA2B1F;font-size:13px;margin-top:10px"></div></div></div>
   <div id="sigmodal" style="display:none;position:fixed;inset:0;background:rgba(6,16,41,.55);z-index:99;align-items:center;justify-content:center;padding:14px">
     <div style="background:#fff;border-radius:14px;padding:18px;width:min(460px,94vw)"><div style="font-weight:800;color:#000E31;margin-bottom:8px" id="sigmodaltitle">Draw your signature</div>
@@ -13855,7 +13855,7 @@ function advancedSignPage(a, me, req) {
         });
         return page.render({canvasContext:cv.getContext('2d'),viewport:vp}).promise;
       }); }); })(i); }
-      return chain;
+      return chain.then(function(){ var _ab=document.getElementById("actbar"); if(_ab) _ab.style.display=""; var _am=document.getElementById("advmsg"); if(_am) _am.style.display="none"; });
     }).catch(function(){ document.getElementById('advmsg').textContent='Could not load the document.'; });
   }
 
