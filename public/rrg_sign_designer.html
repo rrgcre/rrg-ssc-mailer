@@ -181,7 +181,7 @@ function drawFields(){
     var W=ov.clientWidth, H=ov.clientHeight;
     var el=document.createElement('div'); el.className='f'+(f.signer===2?' s2':(f.signer===3?' s3':''))+(SELECTED===f.id?' sel':'')+((MULTI.indexOf(f.id)>=0&&f.id!==SELECTED)?' msel':''); el.setAttribute('data-id',f.id);
     el.style.left=(f.x*W)+'px'; el.style.top=(f.y*H)+'px'; el.style.width=(f.w*W)+'px'; el.style.height=(f.h*H)+'px';
-    if(f.type==='text'||f.type==='date'){ var _al=f.align||'left'; el.style.justifyContent=(_al==='center'?'center':(_al==='right'?'flex-end':'flex-start')); el.style.textAlign=_al; el.style.paddingLeft=(_al==='left'?'3px':'0'); el.style.paddingRight=(_al==='right'?'3px':'0'); }
+    if(f.type==='text'||f.type==='date'){ var _al=f.align||'left'; el.style.justifyContent=(_al==='center'?'center':(_al==='right'?'flex-end':'flex-start')); el.style.textAlign=_al; el.style.paddingLeft=(_al==='left'?'3px':'0'); el.style.paddingRight=(_al==='right'?'3px':'0'); if((f.h*H)>=34){ el.style.alignItems='flex-start'; el.style.paddingTop='3px'; } }
     el.textContent=f.label||TYPELBL[f.type]||f.type;
     if(f.required){ var rq=document.createElement('span'); rq.className='rq'; rq.textContent='*'; el.appendChild(rq); }
     var rz=document.createElement('div'); rz.className='rz'; el.appendChild(rz);
