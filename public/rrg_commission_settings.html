@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RRG — Commission Structure</title>
+<style>
+:root{--navy:#20334f;--navy2:#23496f;--primary:#2c5c8f;--red:#b23a2c;--ink:#2b3648;--dim:#5f6a7d;--soft:#8a93a3;--line:#dbe0e9;--wash:#f4f6f9;--green:#2f7a55;--inp:#c4ccda;}
+*{box-sizing:border-box;} html,body{margin:0;padding:0;background:#fff;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased;}
+.wrap{max-width:1040px;margin:0 auto;padding:24px 26px 60px;}
+h1{font-size:16px;font-weight:700;color:var(--navy);margin:0;}
+.sub{font-size:13px;color:var(--dim);margin-top:6px;line-height:1.5;max-width:660px;}
+.pkick{font-size:10.5px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);margin:0 0 3px;}
+.card{border:1px solid var(--line);border-radius:6px;background:#fff;margin-top:18px;overflow:hidden;}
+.cardh{background:var(--wash);border-bottom:1px solid var(--line);padding:11px 16px;font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);display:flex;align-items:center;gap:9px;}
+.cardh .tag{margin-left:auto;font-size:10px;font-weight:800;letter-spacing:.03em;color:#fff;background:var(--navy2);border-radius:3px;padding:2px 8px;text-transform:none;}
+.cardb{padding:14px 16px 16px;}
+.hint{font-size:12.5px;color:var(--dim);margin:0 0 12px;line-height:1.55;}
+label.fl{display:block;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);margin:12px 0 6px;}
+input.tin{border:1px solid var(--inp);border-radius:4px;padding:9px 11px;font:inherit;font-size:13.5px;background:#fff;color:var(--ink);}
+input.tin:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(44,92,143,.15);}
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px;}
+th{text-align:left;font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:var(--soft);font-weight:800;padding:6px 8px;border-bottom:1px solid var(--line);}
+td{padding:6px 8px;border-bottom:1px solid #eef1f6;vertical-align:middle;}
+td .tin{width:100%;}
+.tbadge{display:inline-flex;width:22px;height:22px;border-radius:6px;background:var(--wash);color:var(--dim);font-size:11px;font-weight:800;align-items:center;justify-content:center;}
+.rowx{background:none;border:none;color:#c0c8d6;font-size:17px;line-height:1;cursor:pointer;padding:2px 6px;}
+.rowx:hover{color:var(--red);}
+.addrow{background:#fff;border:1px dashed #c3ccdb;border-radius:4px;color:var(--navy2);font:inherit;font-size:12.5px;font-weight:700;padding:7px 13px;cursor:pointer;margin-top:9px;}
+.addrow:hover{background:#f4f7fb;}
+.example{background:#f7f9fc;border:1px solid #e6ebf3;border-radius:8px;padding:11px 13px;margin-top:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.example .exlbl{font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--soft);}
+.example .exval{font-size:14px;font-weight:800;color:var(--green);}
+.example input{width:150px;}
+.methodpick{display:flex;gap:10px;flex-wrap:wrap;margin:2px 0 2px;}
+.mopt{flex:1;min-width:220px;border:1.5px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer;background:#fff;}
+.mopt.on{border-color:var(--primary);box-shadow:0 0 0 3px rgba(44,92,143,.12);}
+.mopt b{display:block;font-size:13.5px;color:var(--navy);}
+.mopt span{display:block;font-size:12px;color:var(--dim);margin-top:3px;line-height:1.5;}
+.savebar{display:flex;align-items:center;gap:12px;margin-top:18px;}
+.savebtn{background:var(--navy);color:#fff;border:1px solid var(--navy);border-radius:3px;padding:10px 20px;font:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+.savebtn:disabled{opacity:.5;cursor:default;}
+.resetbtn{background:#fff;color:#33415c;border:1px solid var(--inp);border-radius:3px;padding:9px 15px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer;}
+.msg{font-size:12.5px;font-weight:700;min-height:16px;}
+.msg.ok{color:var(--green);} .msg.err{color:var(--red);}
+.note{font-size:12px;color:var(--soft);margin-top:14px;line-height:1.6;}
+.gate{color:var(--dim);font-size:13.5px;padding:30px 0;}
+</style>
+<script src="/rrg_brand.js"></script>
+</head>
+<body>
+<div class="wrap" id="root"><div class="gate">Loading…</div></div>
+<script>
+function esc(s){var d=document.createElement('div');d.textContent=s==null?'':String(s);return d.innerHTML;}
+function get(u){ return fetch(u,{credentials:'same-origin'}).then(function(r){return r.json();}); }
+function post(u,b){ return fetch(u,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(b||{})}).then(function(r){return r.json();}); }
+var DEFAULT_TIERS=[{to:1000000,rate:10},{to:2000000,rate:8},{to:3000000,rate:5},{to:4000000,rate:4},{to:10000000,rate:3},{to:30000000,rate:1},{to:null,rate:0.5}];
+var TIERS=[], MINFEE=0, FLAT=6, ADMIN=false, DEFMETHOD='lehman';
+
+function num(s){ return Number(String(s==null?'':s).replace(/[^0-9.]/g,''))||0; }
+function money(n){ return '$'+Math.round(Number(n)||0).toLocaleString('en-US'); }
+function grp(s){ s=String(s).replace(/[^0-9]/g,''); return s?Number(s).toLocaleString('en-US'):''; }
+
+function lehmanGross(price, tiers){ price=Number(price)||0; if(price<=0) return 0; var total=0,prev=0; for(var i=0;i<tiers.length;i++){ var cap=(tiers[i].to==null)?Infinity:Number(tiers[i].to); var c=Math.max(0,Math.min(price,cap)-prev); total+=c*(Number(tiers[i].rate)||0)/100; prev=cap; if(!isFinite(cap)) break; } return total; }
+
+function readTierRows(){
+  var rows=Array.prototype.slice.call(document.querySelectorAll('#tierBody tr'));
+  var out=rows.map(function(tr,i){
+    var last=i===rows.length-1;
+    var thr=tr.querySelector('.t_to'); var rate=tr.querySelector('.t_rate');
+    return { to: last?null:num(thr&&thr.value), rate: num(rate&&rate.value) };
+  });
+  if(out.length) out[out.length-1].to=null;
+  return out;
+}
+function renderTierTable(){
+  var tb=document.getElementById('tierBody'); if(!tb) return; tb.innerHTML='';
+  TIERS.forEach(function(t,i){
+    var last=i===TIERS.length-1;
+    var tr=document.createElement('tr');
+    var toCell = last
+      ? '<td colspan="1" style="color:var(--dim);font-weight:600">Over previous threshold</td>'
+      : '<td><span style="color:var(--soft)">$</span> <input class="tin t_to" inputmode="numeric" value="'+esc(grp(String(t.to||'')))+'" style="width:150px;display:inline-block"></td>';
+    tr.innerHTML='<td><span class="tbadge">'+(i+1)+'</span></td>'
+      +toCell
+      +'<td><input class="tin t_rate" inputmode="decimal" value="'+esc(String(t.rate))+'" style="width:80px;display:inline-block"> <span style="color:var(--soft)">%</span></td>'
+      +'<td style="text-align:right">'+(ADMIN&&!last?'<button class="rowx" title="Remove tier" data-rm="'+i+'">×</button>':'')+'</td>';
+    tb.appendChild(tr);
+  });
+  bindTierInputs();
+  updateExamples();
+}
+function bindTierInputs(){
+  document.querySelectorAll('#tierBody .t_to').forEach(function(inp){ inp.addEventListener('input',function(){ inp.value=grp(inp.value); updateExamples(); }); });
+  document.querySelectorAll('#tierBody .t_rate').forEach(function(inp){ inp.addEventListener('input',function(){ inp.value=inp.value.replace(/[^0-9.]/g,''); updateExamples(); }); });
+  document.querySelectorAll('#tierBody [data-rm]').forEach(function(b){ b.addEventListener('click',function(){ TIERS=readTierRows(); TIERS.splice(+b.getAttribute('data-rm'),1); if(TIERS.length) TIERS[TIERS.length-1].to=null; renderTierTable(); }); });
+}
+function updateExamples(){
+  var tiers=ADMIN?readTierRows():TIERS;
+  var lp=num((document.getElementById('exLehman')||{}).value);
+  var lg=document.getElementById('exLehmanOut'); if(lg){ var floor=MINFEE*1; var g=lehmanGross(lp,tiers); if(ADMIN){ var mf=num((document.getElementById('minFee')||{}).value); floor=mf; } lg.textContent=lp>0?money(Math.max(g,floor))+(floor>0&&floor>g?'  (min fee)':(lp>0?('  ·  blended '+(g/lp*100).toFixed(2)+'%'):'')):'—'; }
+  var fp=num((document.getElementById('exFlat')||{}).value);
+  var fr=ADMIN?num((document.getElementById('flatRate')||{}).value):FLAT;
+  var fo=document.getElementById('exFlatOut'); if(fo){ fo.textContent=fp>0?money(fp*fr/100):'—'; }
+}
+
+function render(){
+  var adminBadge=ADMIN?'':'<span class="tag">Read-only</span>';
+  var lehmanRows='';
+  var html=''
+    +'<div class="pkick">Admin · Finance</div><h1>Commission Structure</h1>'
+    +'<div class="sub">Set up both fee methods your firm uses. On each agreement, the broker picks which method applies to that deal, and the projected gross commission (GCI) is calculated and flowed to the linked deal automatically.</div>'
+    +'<div class="card"><div class="cardh">Modified Lehman — tiered / marginal '+adminBadge+'</div><div class="cardb">'
+      +'<p class="hint">Each tranche of the transaction value earns its own tier’s rate; the tiers are summed for the gross commission. This is the default on the Commission Forecaster and matches the RRG schedule.</p>'
+      +'<table><thead><tr><th style="width:34px">Tier</th><th>Up to (deal value)</th><th style="width:130px">Rate</th><th></th></tr></thead><tbody id="tierBody"></tbody></table>'
+      +(ADMIN?'<button class="addrow" id="addTier">+ Add tier</button>':'')
+      +'<label class="fl">Minimum fee per location <span style="text-transform:none;font-weight:600;color:var(--dim)">— for multi-unit deals, the minimum applies separately to each location (leave 0 for none)</span></label>'
+      +'<span style="color:var(--soft)">$</span> <input class="tin" id="minFee" inputmode="numeric" value="'+esc(grp(String(MINFEE||0)))+'" style="width:160px"'+(ADMIN?'':' disabled')+'>'
+      +'<div class="example"><span class="exlbl">Try it</span><span style="color:var(--soft)">$</span><input class="tin" id="exLehman" inputmode="numeric" placeholder="3,500,000"><span class="exlbl">GCI</span><span class="exval" id="exLehmanOut">—</span></div>'
+    +'</div></div>'
+    +'<div class="card"><div class="cardh">Flat rate '+adminBadge+'</div><div class="cardb">'
+      +'<p class="hint">A single percentage of the transaction value. Use this for deals your firm quotes at one flat rate.</p>'
+      +'<label class="fl">Flat commission rate</label>'
+      +'<input class="tin" id="flatRate" inputmode="decimal" value="'+esc(String(FLAT))+'" style="width:110px"'+(ADMIN?'':' disabled')+'> <span style="color:var(--soft)">% of deal value</span>'
+      +'<div class="example"><span class="exlbl">Try it</span><span style="color:var(--soft)">$</span><input class="tin" id="exFlat" inputmode="numeric" placeholder="3,500,000"><span class="exlbl">GCI</span><span class="exval" id="exFlatOut">—</span></div>'
+    +'</div></div>'
+    +(ADMIN?('<div class="savebar"><button class="savebtn" id="save">Save commission structure</button><button class="resetbtn" id="resetLehman">Reset Lehman to RRG default</button><span class="msg" id="msg"></span></div>'):'')
+    +'<div class="note">Both methods stay available; each agreement chooses one. The Modified Lehman card is shared with the Commission Forecaster, so the two always match.</div>';
+  document.getElementById('root').innerHTML=html;
+  renderTierTable();
+  ['exLehman','exFlat'].forEach(function(id){ var e=document.getElementById(id); if(e) e.addEventListener('input',function(){ e.value=grp(e.value); updateExamples(); }); });
+  if(ADMIN){
+    var mf=document.getElementById('minFee'); if(mf) mf.addEventListener('input',function(){ mf.value=grp(mf.value); updateExamples(); });
+    var fr=document.getElementById('flatRate'); if(fr) fr.addEventListener('input',function(){ fr.value=fr.value.replace(/[^0-9.]/g,''); updateExamples(); });
+    var at=document.getElementById('addTier'); if(at) at.addEventListener('click',function(){ TIERS=readTierRows(); var last=TIERS[TIERS.length-1]||{rate:1}; TIERS.splice(TIERS.length-1,0,{to:(TIERS.length>1?(Number(TIERS[TIERS.length-2].to)||0)+1000000:1000000),rate:last.rate}); renderTierTable(); });
+    var rs=document.getElementById('resetLehman'); if(rs) rs.addEventListener('click',function(){ TIERS=DEFAULT_TIERS.map(function(t){return {to:t.to,rate:t.rate};}); renderTierTable(); });
+    var sv=document.getElementById('save'); if(sv) sv.addEventListener('click',saveAll);
+  }
+}
+function saveAll(){
+  var m=document.getElementById('msg'); var btn=document.getElementById('save'); if(btn) btn.disabled=true; if(m){m.textContent='Saving…';m.className='msg';}
+  var body={ tiers: readTierRows(), minFee: num((document.getElementById('minFee')||{}).value), flatRate: num((document.getElementById('flatRate')||{}).value) };
+  post('/api/admin/commission-structure',body).then(function(j){
+    if(btn) btn.disabled=false;
+    if(j&&j.ok){ TIERS=(j.tiers||[]).map(function(t){return {to:t.to,rate:(Number(t.rate)||0)*100};}); MINFEE=j.minFee||0; FLAT=j.flatRate||0; renderTierTable(); var mf=document.getElementById('minFee'); if(mf) mf.value=grp(String(MINFEE)); var fr=document.getElementById('flatRate'); if(fr) fr.value=String(FLAT); if(m){m.textContent='Saved ✓';m.className='msg ok';} }
+    else { if(m){m.textContent=(j&&j.error)||'Could not save.';m.className='msg err';} }
+  }).catch(function(){ if(btn) btn.disabled=false; if(m){m.textContent='Could not reach the server.';m.className='msg err';} });
+}
+get('/api/commission-structure').then(function(j){
+  if(!j||!j.ok){ document.getElementById('root').innerHTML='<div class="gate">Could not load the commission structure.</div>'; return; }
+  ADMIN=!!j.isAdmin;
+  TIERS=(j.tiers&&j.tiers.length)?j.tiers.map(function(t){return {to:t.to,rate:(Number(t.rate)||0)*100};}):DEFAULT_TIERS.map(function(t){return {to:t.to,rate:t.rate};});
+  MINFEE=j.minFee||0; FLAT=(j.flatRate!=null)?j.flatRate:6;
+  render();
+}).catch(function(){ document.getElementById('root').innerHTML='<div class="gate">Could not reach the server.</div>'; });
+</script>
+</body>
+</html>

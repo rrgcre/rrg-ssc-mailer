@@ -142,7 +142,7 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
       <div class="scard"><div class="k">Referral Fee</div><div class="v" id="sRef">$0</div><div class="s" id="sRefS">None</div></div>
     </div>
 
-    <div class="seclabel">Tiered Rate Schedule &amp; Commission <button class="reset-link" onclick="resetRateCard()">↺ Reset rate card</button></div>
+    <div class="seclabel">Tiered Rate Schedule &amp; Commission <button class="reset-link" onclick="resetRateCard()">↺ Reset rate card</button><button class="reset-link" id="saveFirmCard" style="display:none" onclick="saveFirmCard()">💾 Save as firm rate card</button></div>
     <div class="editnote">Rates and thresholds are editable per deal — type in any cell to override the RRG rate card.</div>
     <table>
       <thead><tr><th>Tier</th><th>Deal Value Range</th><th>Rate</th><th>Commissionable</th><th>Commission</th></tr></thead>
@@ -317,6 +317,7 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
       elShare.style.background=''; elShare.style.color=''; elShare.style.cursor='';
       if(hint) hint.innerHTML='Admin override · house keeps the remainder';
     }
+    var sfc=document.getElementById('saveFirmCard'); if(sfc) sfc.style.display=SHARE_LOCKED?'none':'';
     recompute();
   }
   function checkRole(){
@@ -328,8 +329,9 @@ tr.active .tier-badge{background:var(--red);color:#fff;}
       .catch(function(){ SHARE_LOCKED=true; applyShareLock(); });
   }
 
-  buildTierRows();
-  resetRateCard();   // initialize the rate card; open with blank deal inputs
+  function initCard(cb){ var api=window.RRG_API||(String(location.protocol).indexOf('http')===0?location.origin:''); if(!api){ cb(); return; } fetch(api.replace(/\/$/,'')+'/api/commission-structure',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(j){ if(j&&j.ok&&j.tiers&&j.tiers.length){ DEFAULT_TIERS=j.tiers.map(function(t){return {to:(t.to==null?Infinity:Number(t.to)),rate:Number(t.rate)||0};}); } cb(); }).catch(function(){ cb(); }); }
+  window.saveFirmCard=function(){ var api=window.RRG_API||(String(location.protocol).indexOf('http')===0?location.origin:''); if(!api) return; var tiers=readTiers().map(function(t){return {to:(isFinite(t.to)?t.to:null),rate:t.rate};}); var btn=document.getElementById('saveFirmCard'); if(btn){ btn.disabled=true; btn.textContent='Saving\u2026'; } fetch(api.replace(/\/$/,'')+'/api/admin/commission-structure',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({tiers:tiers})}).then(function(r){return r.json();}).then(function(j){ if(btn){ btn.disabled=false; btn.textContent=(j&&j.ok)?'\u2713 Saved to firm card':'\ud83d\udcbe Save as firm rate card'; setTimeout(function(){ btn.textContent='\ud83d\udcbe Save as firm rate card'; },2500); } DEFAULT_TIERS=readTiers(); }).catch(function(){ if(btn){ btn.disabled=false; btn.textContent='\ud83d\udcbe Save as firm rate card'; } }); };
+  initCard(function(){ buildTierRows(); resetRateCard(); });
   applyShareLock();  // locked-at-50 by default until role check confirms admin
   checkRole();
 })();

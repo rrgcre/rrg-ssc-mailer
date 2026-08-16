@@ -1564,6 +1564,20 @@ app.post('/api/admin/dataroom', requireAdmin, express.json(), (req, res) => {
   saveSettings(s);
   res.json({ ok: true, mfa: s.roomMfa !== false, alerts: s.roomAlerts !== false, watermark: s.roomWatermark !== false });
 });
+
+// ---- Firm commission structure (both methods configured; picked per deal) ----
+app.get('/api/commission-structure', (req, res) => {
+  if (!req.user) return res.status(401).json({ ok: false, error: 'Sign in required.' });
+  res.json({ ok: true, tiers: effCommissionTiers(), minFee: effCommissionMinFee(), flatRate: effCommissionFlatRate(), isAdmin: !!(req.user && isSuper(req.user)) });
+});
+app.post('/api/admin/commission-structure', requireAdmin, express.json(), (req, res) => {
+  const b = req.body || {}; const s = loadSettings();
+  if (Array.isArray(b.tiers)) { const clean = _cleanTiers(b.tiers); if (clean) s.commissionTiers = clean; }
+  if (b.minFee !== undefined) { const m = Number(b.minFee); s.commissionMinFee = (isFinite(m) && m > 0) ? Math.round(m) : 0; }
+  if (b.flatRate !== undefined) { let r = Number(b.flatRate); if (!isFinite(r) || r < 0) r = 0; if (r <= 1 && r > 0) r = r * 100; s.commissionFlatRate = Math.min(100, r); }
+  saveSettings(s);
+  res.json({ ok: true, tiers: effCommissionTiers(), minFee: effCommissionMinFee(), flatRate: effCommissionFlatRate() });
+});
 // ---- Agreement renewal reminder thresholds (admin-configurable) ----
 app.get('/api/admin/agreement-reminders', requireAdmin, (req, res) => {
   const rd = effAgrRenewDays();
@@ -12768,9 +12782,60 @@ function agreementStatus(a){
   }
   return { key:'active', label:'Active' };
 }
+// ---- Firm commission rate card (shared by the Commission Forecaster and agreements) ----
+const DEFAULT_COMMISSION_TIERS = [
+  { to: 1000000, rate: 0.10 }, { to: 2000000, rate: 0.08 }, { to: 3000000, rate: 0.05 },
+  { to: 4000000, rate: 0.04 }, { to: 10000000, rate: 0.03 }, { to: 30000000, rate: 0.01 },
+  { to: null, rate: 0.005 }
+];
+function _cleanTiers(raw) {
+  if (!Array.isArray(raw) || !raw.length) return null;
+  const out = [];
+  for (let i = 0; i < raw.length && i < 20; i++) {
+    const t = raw[i] || {};
+    let to = (t.to == null || t.to === '' || !isFinite(Number(t.to))) ? null : Math.max(0, Math.round(Number(t.to)));
+    let rate = Number(t.rate); if (!isFinite(rate) || rate < 0) rate = 0; if (rate > 1) rate = rate / 100; rate = Math.min(1, rate);
+    out.push({ to: to, rate: rate });
+  }
+  if (out.length) out[out.length - 1].to = null;
+  return out.length ? out : null;
+}
+function effCommissionTiers() { const s = loadSettings(); return _cleanTiers(s.commissionTiers) || DEFAULT_COMMISSION_TIERS.map(t => Object.assign({}, t)); }
+function effCommissionMinFee() { const s = loadSettings(); const n = Number(s.commissionMinFee); return (isFinite(n) && n > 0) ? Math.round(n) : 0; }
+function commissionForTiers(price, tiers) {
+  price = Number(price) || 0; if (price <= 0) return 0;
+  tiers = (Array.isArray(tiers) && tiers.length) ? tiers : effCommissionTiers();
+  let total = 0, prev = 0;
+  for (let i = 0; i < tiers.length; i++) {
+    const cap = (tiers[i].to == null) ? Infinity : Number(tiers[i].to);
+    const c = Math.max(0, Math.min(price, cap) - prev);
+    total += c * (Number(tiers[i].rate) || 0);
+    prev = cap; if (!isFinite(cap)) break;
+  }
+  return total;
+}
+function effCommissionFlatRate() { const s = loadSettings(); let r = Number(s.commissionFlatRate); if (!isFinite(r) || r < 0) r = 6; if (r > 1 && r <= 100) { /* percent */ } else if (r <= 1) { r = r * 100; } return Math.min(100, r); }
+function agrNum(v){ var n=Number(String(v==null?'':v).replace(/[^0-9.\-]/g,'')); return isFinite(n)?n:0; }
+function agrDealValue(a){
+  if(agrNum(a.commValue)>0) return agrNum(a.commValue);
+  try{ if(a.dealKey){ var ov=loadAssignOverlay(); var cur=ov[a.dealKey]||{}; var t=cur.transaction||{}; var p=agrNum(t.price); if(p>0) return p;
+    var idx=assignmentsIndex(); if(idx[a.dealKey]){ var v=assignmentView(idx[a.dealKey], ov); var vv=agrNum(v&&v.value); if(vv>0) return vv; } } }catch(e){}
+  return 0;
+}
+function agrCommMethod(a){ var b=(a&&a.commBasis)||''; if(b==='tiered'||b==='firm') return 'lehman'; if(b==='flat') return 'flatfee'; if(b==='pct') return 'custompct'; if(['lehman','flatrate','flatfee','custompct'].indexOf(b)>=0) return b; return ''; }
+function agrProjectedGci(a){
+  if(!a) return 0; var m=agrCommMethod(a);
+  if(m==='flatfee') return agrNum(a.commFlat);
+  if(m==='custompct'){ var r=agrNum(a.commRate); var pv=agrDealValue(a); return (r>0&&pv>0)?Math.round(r/100*pv):0; }
+  var val=agrDealValue(a); if(val<=0) return 0;
+  var locs=Math.max(1, parseInt(a.commLocations,10)||1); var floor=effCommissionMinFee()*locs;
+  if(m==='flatrate'){ var g2=Math.round(val*effCommissionFlatRate()/100); return Math.round(Math.max(g2, floor)); }
+  if(m==='lehman'){ var gross=Math.round(commissionForTiers(val, effCommissionTiers())); return Math.round(Math.max(gross, floor)); }
+  return 0;
+}
 function agreementBrief(a) {
   var _as = agreementStatus(a);
-  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0, statusKey: _as.key, statusLabel: _as.label, renewedById: a.renewedById || '', renewalOf: a.renewalOf || '' };
+  return { id: a.id, type: a.type, name: a.name || '', personId: a.personId || '', personName: a.personName || '', companyId: a.companyId || '', dealKey: a.dealKey || '', effective: a.effective || '', expires: a.expires || '', startOnExec: !!a.startOnExec, termYears: a.termYears || 0, execAuto: a.execAuto || '', emailSubject: a.emailSubject || '', sendAuto: a.sendAuto || '', status: a.status || 'active', notes: a.notes || '', createdByName: a.createdByName || '', createdAt: a.createdAt || '', docExt: a.docExt || '', docName: a.docName || '', signStatus: a.signStatus || '', sentAt: a.sentAt || '', sentTo: a.sentTo || '', signedDate: a.signedDate || '', signToken: a.signToken || '', signedName: a.signedName || '', signedAt: a.signedAt || '', hasSignature: !!a.hasSignature, repSignedName: a.repSignedName || '', repSignedAt: a.repSignedAt || '', executedAt: a.executedAt || '', hasCountersign: !!a.hasCountersign, signedResponses: a.signedResponses || null, templateId: a.templateId || '', templateName: a.templateName || '', entryMethod: (a.entryMethod || (/^sign & return/i.test(a.name || '') ? 'signreturn' : ((a.signToken || a.templateId || a.sentAt || (Array.isArray(a.pdfFields) && a.pdfFields.length)) ? 'sent' : 'recorded'))), signers: Array.isArray(a.signers) ? a.signers.map(s => ({ order: s.order, role: s.role, label: s.label, name: s.name || '', email: s.email || '', status: s.status || 'pending', signedAt: s.signedAt || '' })) : [], signerCount: _clampSigners(a.signerCount), hasFinal: !!a.hasFinal, pdfFieldCount: Array.isArray(a.pdfFields) ? a.pdfFields.length : 0, statusKey: _as.key, statusLabel: _as.label, renewedById: a.renewedById || '', renewalOf: a.renewalOf || '', commBasis: a.commBasis || '', commRate: (a.commRate!=null?a.commRate:''), commFlat: (a.commFlat!=null?a.commFlat:''), commValue: (a.commValue!=null?a.commValue:''), commLocations: (a.commLocations!=null?a.commLocations:''), projectedGci: agrProjectedGci(a) };
 }
 // ---------------- Uploaded documents (general file storage) ----------------
 const USERDOCS_DIR = path.join(BOV_DATA_DIR, 'userdocs');
@@ -13166,6 +13231,11 @@ app.post('/api/agreements', express.json(), (req, res) => {
   if (typeof b.status === 'string' && ['active', 'expired', 'terminated'].indexOf(b.status) >= 0) a.status = b.status;
   if (!a.status) a.status = 'active';
   if (typeof b.notes === 'string') a.notes = b.notes.slice(0, 2000);
+  if (typeof b.commBasis === 'string') { var _cbm = { tiered:'lehman', firm:'lehman', flat:'flatfee', pct:'custompct' }[b.commBasis] || b.commBasis; a.commBasis = (['lehman','flatrate','flatfee','custompct'].indexOf(_cbm) >= 0) ? _cbm : ''; }
+  if (b.commRate !== undefined) { var _cr = agrNum(b.commRate); a.commRate = (_cr > 0) ? Math.min(100, _cr) : ''; }
+  if (b.commFlat !== undefined) { var _cf = agrNum(b.commFlat); a.commFlat = (_cf > 0) ? _cf : ''; }
+  if (b.commValue !== undefined) { var _cv = agrNum(b.commValue); a.commValue = (_cv > 0) ? _cv : ''; }
+  if (b.commLocations !== undefined) { var _cl = parseInt(b.commLocations, 10); a.commLocations = (isFinite(_cl) && _cl > 0) ? Math.min(999, _cl) : 1; }
   a.updatedAt = now;
   saveAgreements(all);
   // No activity is logged when an agreement is merely created — only when it is actually sent or signed.
@@ -13800,6 +13870,29 @@ function runPostExecution(a, req) {
     const now = new Date().toISOString();
     try { if (a.startOnExec || a.termYears) { const ags = loadAgreements(); const aa = ags.find(x => x.id === a.id); if (aa) { if (aa.startOnExec) aa.effective = now.slice(0, 10); if (aa.termYears) { const _b = (aa.effective || now.slice(0, 10)); const _d = new Date(_b + 'T00:00:00'); if (!isNaN(_d.getTime())) { _d.setFullYear(_d.getFullYear() + aa.termYears); aa.expires = _d.toISOString().slice(0, 10); } } aa.updatedAt = now; a.effective = aa.effective; a.expires = aa.expires; saveAgreements(ags); } } } catch (e) {}
     try { if (a.execAuto && a.personId) { const _pp = loadPeople(); const _p = _pp.find(x => x.id === a.personId); if (_p) { const _plan = loadAutomations().find(x => x.id === a.execAuto && x.active !== false); if (_plan) { enrollPerson(_p, _plan, { byName: (req && req.user && req.user.name) || '', byUser: (req && req.user && req.user.username) || '', dealKey: a.dealKey || '' }); savePeople(_pp); } } } } catch (e) {}
+    // Structured commission: project GCI, seed the linked deal, and open a tracking task.
+    try {
+      const gci = agrProjectedGci(a);
+      if (a.commBasis && gci > 0) {
+        const gciStr = '$' + gci.toLocaleString('en-US', { maximumFractionDigits: 0 });
+        const owner = a.createdBy || '';
+        if (owner) {
+          const tasks = loadTasks(); const key = 'agrgci:' + a.id;
+          if (!tasks.some(t => t.expKey === key)) {
+            const who = a.personName || (a.personId ? ((personById(a.personId) || {}).name || '') : '');
+            tasks.push({ id: newTaskId(), createdBy: owner, createdByName: a.createdByName || '', assignee: owner, assigneeName: a.createdByName || '', createdAt: now, status: 'open', doneAt: '', title: 'Commission ' + gciStr + ' projected GCI' + (who ? (' - ' + who) : ''), notes: 'From executed ' + agreementTypeLabel(a.type) + (a.commBasis === 'pct' ? (' (' + agrNum(a.commRate) + '% of ' + '$' + agrDealValue(a).toLocaleString('en-US', { maximumFractionDigits: 0 }) + ')') : ' (flat fee)') + '. Confirm the rate, invoice at close, and mark paid.', due: '', priority: 'Normal', type: '', linkType: a.dealKey ? 'deal' : (a.personId ? 'contact' : ''), linkId: a.dealKey || a.personId || '', linkLabel: who || '', expKey: key, remChannels: ['popup'] });
+            saveTasks(tasks);
+          }
+        }
+        if (a.dealKey) {
+          const ov0 = loadAssignOverlay(); const cur0 = ov0[a.dealKey] || {}; const t = cur0.transaction || {};
+          if (!t.commissionRate && a.commBasis === 'pct' && agrNum(a.commRate) > 0) t.commissionRate = agrNum(a.commRate) + '%';
+          if (!t.commissionDue) t.commissionDue = gciStr;
+          if (!t.commissionStatus) t.commissionStatus = 'Unpaid';
+          cur0.transaction = t; cur0.updatedAt = now; ov0[a.dealKey] = cur0; saveAssignOverlay(ov0);
+        }
+      }
+    } catch (e) {}
     if (!a.dealKey) return;
     try { const ov = loadAssignOverlay(); const cur = ov[a.dealKey] || {}; if (!cur.status || ['New', 'On Hold'].indexOf(cur.status) >= 0) cur.status = 'Active'; cur.stageFlags = cur.stageFlags || {}; cur.stageFlags.agreed = true; if (!cur.listingStart) cur.listingStart = now.slice(0, 10); cur.updatedAt = now; ov[a.dealKey] = cur; saveAssignOverlay(ov); } catch (e) {}
     // A signed agreement is one of two gates for going Live (marketing being out is the other).
