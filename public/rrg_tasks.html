@@ -17,7 +17,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Ar
 .brand .wm{font-weight:800;font-size:15px;}
 .top a.back{color:#c3ccdf;text-decoration:none;font-weight:600;font-size:13px;border:1px solid rgba(255,255,255,.2);padding:7px 13px;border-radius:8px;}
 .top a.back:hover{border-color:#fff;color:#fff;}
-.wrap{max-width:1320px;margin:0 auto;padding:24px 28px 60px;}
+.wrap{max-width:none;margin:0;padding:24px 28px 60px;}
 .card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:20px;margin-bottom:20px;}
 .card.list{padding:0;overflow:hidden;}
 .card h2{font-size:14px;color:var(--navy);margin:0 0 4px;}
@@ -189,7 +189,7 @@ function render(){
       { label:'Completed', sort:function(a,b){return RRGList.cmp(a.doneAt||'',b.doneAt||'');}, cell:function(t){ return t.doneAt?esc(fmtD(t.doneAt)):'<span class="meta">—</span>'; } },
       { label:'Reminder', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.reminder||'',b.reminder||'');}, cell:function(t){ return t.reminder?('⏰ '+esc(fmt(t.reminder))):'<span class="meta">—</span>'; } },
       { label:'Assignee', defaultHidden:true, sort:function(a,b){return RRGList.cmp(a.assigneeName,b.assigneeName);}, cell:function(t){ return t.assigneeName?esc(t.assigneeName):'<span class="meta">—</span>'; } },
-      { label:'', align:'right', sortable:false, cell:function(t){ return '<button class="tbtn" data-edit="'+esc(t.id)+'">Edit</button>'+((ISADMIN||t.createdBy===ME)?(' <button class="tbtn" data-del="'+esc(t.id)+'">Delete</button>'):''); } }
+      { label:'', align:'right', sortable:false, cell:function(t){ return '<button class="tbtn" data-edit="'+esc(t.id)+'">Edit</button>'+((ISADMIN||t.createdBy===ME)?(' <button class="tbtn delx" data-del="'+esc(t.id)+'" title="Delete" aria-label="Delete">✕</button>'):''); } }
     ],
     bulk:[ { label:'Delete selected', danger:true, fn:function(ids,done){ bulkDelTasks(ids,done); } } ]
   };
