@@ -292,7 +292,7 @@ function renderSaveMenu(){
   if(!SAVE_OPEN){ host.innerHTML=''; host.className=''; return; }
   host.className='savemenu';
   var v=savedViews(); var names=Object.keys(v).sort();
-  var rows=names.length?names.map(function(n){ return '<div class="srow"><span class="sname" data-apply="'+esc(n)+'">'+esc(n)+'</span><button class="sdel" data-del="'+esc(n)+'" title="Delete">×</button></div>'; }).join(''):'<div class="sempty">No saved views yet.</div>';
+  var rows=names.length?names.map(function(n){ return '<div class="srow"><span class="sname" data-apply="'+esc(n)+'">'+esc(n)+'</span><button class="sdel delx" data-del="'+esc(n)+'" title="Delete" aria-label="Delete">✕</button></div>'; }).join(''):'<div class="sempty">No saved views yet.</div>';
   host.innerHTML='<div class="shd">Saved views</div>'+rows+'<div class="saverow"><input id="sv_name" placeholder="Name this view"><button id="sv_save">Save</button></div>';
   host.querySelectorAll('[data-apply]').forEach(function(el){ el.addEventListener('click',function(){ applyView(el.getAttribute('data-apply')); }); });
   host.querySelectorAll('[data-del]').forEach(function(el){ el.addEventListener('click',function(e){ e.stopPropagation(); var vv=savedViews(); delete vv[el.getAttribute('data-del')]; setSavedViews(vv); renderSaveMenu(); }); });

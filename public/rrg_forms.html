@@ -225,7 +225,7 @@ function renderFormsList(){
     if(STATE.isAdmin){
       act = f.builtIn
         ? '<a href="#" onclick="editForm(\''+esc(f.id)+'\',1);return false;">Duplicate &amp; edit</a>'
-        : '<a href="#" onclick="editForm(\''+esc(f.id)+'\',0);return false;">Edit</a> &nbsp;\u00b7&nbsp; <a href="#" class="dellink" onclick="delForm(\''+esc(f.id)+'\',\''+esc((f.name||'').replace(/'/g,"\\'"))+'\');return false;">Delete</a>';
+        : '<a href="#" onclick="editForm(\''+esc(f.id)+'\',0);return false;">Edit</a> &nbsp;\u00b7&nbsp; <button type="button" href="#" class="delx" onclick="delForm(\''+esc(f.id)+'\',\''+esc((f.name||'').replace(/'/g,"\\'"))+'\');return false;" title="Delete" aria-label="Delete">✕</button>';
     }
     return '<tr><td><b>'+esc(f.name)+'</b>'+(f.builtIn?' <span class="tag">built-in</span>':'')+'</td><td>'+esc(CTLABEL[f.callType]||f.callType||'\u2014')+'</td><td>'+f.questions+'</td><td class="ta-r">'+act+'</td></tr>';
   }).join('');
